@@ -198,7 +198,7 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 			claudeVersion = workflowData.EngineConfig.Version
 		}
 		// Build command with npx -y for automatic download
-		commandParts := []string{fmt.Sprintf("npx -y @anthropic-ai/claude-code@%s", claudeVersion)}
+		commandParts := []string{"npx", "-y", fmt.Sprintf("@anthropic-ai/claude-code@%s", claudeVersion)}
 		commandParts = append(commandParts, claudeArgs...)
 		commandParts = append(commandParts, promptCommand)
 		claudeCommand = shellJoinArgs(commandParts)
@@ -335,15 +335,13 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	return steps
 }
 
-// GetSquidLogsSteps returns the steps for collecting and uploading Squid logs
+// GetSquidLogsSteps returns the steps for uploading and parsing Squid logs (after secret redaction)
 func (e *ClaudeEngine) GetSquidLogsSteps(workflowData *WorkflowData) []GitHubActionStep {
 	var steps []GitHubActionStep
 
-	// Only add Squid logs collection and upload steps if firewall is enabled
+	// Only add upload and parsing steps if firewall is enabled
 	if isFirewallEnabled(workflowData) {
-		claudeLog.Printf("Adding Squid logs collection steps for workflow: %s", workflowData.Name)
-		squidLogsCollection := generateSquidLogsCollectionStep(workflowData.Name)
-		steps = append(steps, squidLogsCollection)
+		claudeLog.Printf("Adding Squid logs upload and parsing steps for workflow: %s", workflowData.Name)
 
 		squidLogsUpload := generateSquidLogsUploadStep(workflowData.Name)
 		steps = append(steps, squidLogsUpload)
@@ -352,7 +350,7 @@ func (e *ClaudeEngine) GetSquidLogsSteps(workflowData *WorkflowData) []GitHubAct
 		firewallLogParsing := generateFirewallLogParsingStep(workflowData.Name)
 		steps = append(steps, firewallLogParsing)
 	} else {
-		claudeLog.Print("Firewall disabled, skipping Squid logs collection")
+		claudeLog.Print("Firewall disabled, skipping Squid logs upload")
 	}
 
 	return steps

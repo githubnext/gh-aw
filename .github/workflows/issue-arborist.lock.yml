@@ -18,72 +18,309 @@
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/aw/github-agentic-workflows.md
 #
-# Find issues with "[deps]" in title and assign to Copilot agent
+# Daily workflow that analyzes recent issues and links related issues as sub-issues
 #
 # Original Frontmatter:
 # ```yaml
-# on: 
+# description: Daily workflow that analyzes recent issues and links related issues as sub-issues
+# name: Issue Arborist
+# on:
+#   schedule:
+#     - cron: "0 9 * * *"  # Daily at 9 AM UTC
 #   workflow_dispatch:
-# name: Dev
-# description: Find issues with "[deps]" in title and assign to Copilot agent
-# timeout-minutes: 5
-# strict: false
-# engine: claude
 # permissions:
 #   contents: read
 #   issues: read
+# engine: codex
+# strict: false
+# network:
+#   allowed:
+#     - defaults
+#     - github
+# imports:
+#   - shared/jqschema.md
 # tools:
 #   github:
-#     toolsets: [repos, issues]
+#     toolsets:
+#       - issues
+#   bash:
+#     - "cat *"
+#     - "jq *"
+#     - "/tmp/gh-aw/jqschema.sh"
+# steps:
+#   - name: Fetch issues data
+#     env:
+#       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+#       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+#     run: |
+#       # Create output directory
+#       mkdir -p /tmp/gh-aw/issues-data
+#
+#       echo "⬇ Downloading the last 100 issues (excluding sub-issues)..."
+#
+#       # Fetch the last 100 issues that don't have a parent issue
+#       # Using search filter to exclude issues that are already sub-issues
+#       gh issue list --repo ${{ github.repository }} \
+#         --search "no:parent-issue" \
+#         --state all \
+#         --json number,title,author,createdAt,state,url,body,labels,updatedAt,closedAt,milestone,assignees \
+#         --limit 100 \
+#         > /tmp/gh-aw/issues-data/issues.json
+#
+#       # Generate schema for reference using jqschema
+#       /tmp/gh-aw/jqschema.sh < /tmp/gh-aw/issues-data/issues.json > /tmp/gh-aw/issues-data/issues-schema.json
+#
+#       echo "✓ Issues data saved to /tmp/gh-aw/issues-data/issues.json"
+#       echo "✓ Schema saved to /tmp/gh-aw/issues-data/issues-schema.json"
+#       echo "Total issues fetched: $(jq 'length' /tmp/gh-aw/issues-data/issues.json)"
+#       echo ""
+#       echo "Schema of the issues data:"
+#       cat /tmp/gh-aw/issues-data/issues-schema.json | jq .
 # safe-outputs:
-#   assign-to-agent:
-#     name: copilot
+#   link-sub-issue:
+#     max: 10
+#   create-discussion:
+#     title-prefix: "[Issue Arborist] "
+#     category: "Audits"
+#     close-older-discussions: true
+# timeout-minutes: 15
 # ```
+#
+# Resolved workflow manifest:
+#   Imports:
+#     - shared/jqschema.md
 #
 # Job Dependency Graph:
 # ```mermaid
 # graph LR
 #   activation["activation"]
 #   agent["agent"]
-#   assign_to_agent["assign_to_agent"]
 #   conclusion["conclusion"]
+#   create_discussion["create_discussion"]
 #   detection["detection"]
+#   link_sub_issue["link_sub_issue"]
 #   activation --> agent
-#   agent --> assign_to_agent
-#   detection --> assign_to_agent
 #   agent --> conclusion
 #   activation --> conclusion
-#   assign_to_agent --> conclusion
+#   create_discussion --> conclusion
+#   link_sub_issue --> conclusion
+#   agent --> create_discussion
+#   detection --> create_discussion
 #   agent --> detection
+#   agent --> link_sub_issue
+#   detection --> link_sub_issue
 # ```
 #
 # Original Prompt:
 # ```markdown
-# # Dependency Issue Assignment
+# ## jqschema - JSON Schema Discovery
 #
-# Find an open issue in this repository with "[deps]" in the title and assign it to the Copilot agent for resolution.
+# A utility script is available at `/tmp/gh-aw/jqschema.sh` to help you discover the structure of complex JSON responses.
 #
-# ## Task
+# ### Purpose
 #
-# 1. **Search for issues**: Use GitHub search to find open issues with "[deps]" in the title:
-#    ```
-#    is:issue is:open "[deps]" in:title repo:${{ github.repository }}
-#    ```
+# Generate a compact structural schema (keys + types) from JSON input. This is particularly useful when:
+# - Analyzing tool outputs from GitHub search (search_code, search_issues, search_repositories)
+# - Exploring API responses with large payloads
+# - Understanding the structure of unfamiliar data without verbose output
+# - Planning queries before fetching full data
 #
-# 2. **Filter out assigned issues**: Skip any issues that already have Copilot as an assignee.
+# ### Usage
 #
-# 3. **Assign to Copilot**: For the first suitable issue found, use the `assign_to_agent` tool to assign it to the Copilot agent.
+# ```bash
+# # Analyze a file
+# cat data.json | /tmp/gh-aw/jqschema.sh
 #
-# **Agent Output Format:**
+# # Analyze command output
+# echo '{"name": "test", "count": 42, "items": [{"id": 1}]}' | /tmp/gh-aw/jqschema.sh
+#
+# # Analyze GitHub search results
+# gh api search/repositories?q=language:go | /tmp/gh-aw/jqschema.sh
+# ```
+#
+# ### How It Works
+#
+# The script transforms JSON data by:
+# 1. Replacing object values with their type names ("string", "number", "boolean", "null")
+# 2. Reducing arrays to their first element's structure (or empty array if empty)
+# 3. Recursively processing nested structures
+# 4. Outputting compact (minified) JSON
+#
+# ### Example
+#
+# **Input:**
 # ```json
 # {
-#   "type": "assign_to_agent",
-#   "issue_number": <issue_number>,
-#   "agent": "copilot"
+#   "total_count": 1000,
+#   "items": [
+#     {"login": "user1", "id": 123, "verified": true},
+#     {"login": "user2", "id": 456, "verified": false}
+#   ]
 # }
 # ```
 #
-# If no suitable issues are found, output a message indicating that no "[deps]" issues are available for assignment.
+# **Output:**
+# ```json
+# {"total_count":"number","items":[{"login":"string","id":"number","verified":"boolean"}]}
+# ```
+#
+# ### Best Practices
+#
+# **Use this script when:**
+# - You need to understand the structure of tool outputs before requesting full data
+# - GitHub search tools return large datasets (use `perPage: 1` and pipe through schema minifier first)
+# - Exploring unfamiliar APIs or data structures
+# - Planning data extraction strategies
+#
+# **Example workflow for GitHub search tools:**
+# ```bash
+# # Step 1: Get schema with minimal data (fetch just 1 result)
+# # This helps understand the structure before requesting large datasets
+# echo '{}' | gh api search/repositories -f q="language:go" -f per_page=1 | /tmp/gh-aw/jqschema.sh
+#
+# # Output shows the schema:
+# # {"incomplete_results":"boolean","items":[{...}],"total_count":"number"}
+#
+# # Step 2: Review schema to understand available fields
+#
+# # Step 3: Request full data with confidence about structure
+# # Now you know what fields are available and can query efficiently
+# ```
+#
+# **Using with GitHub MCP tools:**
+# When using tools like `search_code`, `search_issues`, or `search_repositories`, pipe the output through jqschema to discover available fields:
+# ```bash
+# # Save a minimal search result to a file
+# gh api search/code -f q="jq in:file language:bash" -f per_page=1 > /tmp/sample.json
+#
+# # Generate schema to understand structure
+# cat /tmp/sample.json | /tmp/gh-aw/jqschema.sh
+#
+# # Now you know which fields exist and can use them in your analysis
+# ```
+#
+# # Issue Arborist 🌳
+#
+# You are the Issue Arborist - an intelligent agent that cultivates the issue garden by identifying and linking related issues as parent-child relationships.
+#
+# ## Task
+#
+# Analyze the last 100 issues in repository ${{ github.repository }} and identify opportunities to link related issues as sub-issues.
+#
+# ## Pre-Downloaded Data
+#
+# The issue data has been pre-downloaded and is available at:
+# - **Issues data**: `/tmp/gh-aw/issues-data/issues.json` - Contains the last 100 issues (excluding those that are already sub-issues)
+# - **Schema**: `/tmp/gh-aw/issues-data/issues-schema.json` - JSON schema showing the structure of the data
+#
+# Use `cat /tmp/gh-aw/issues-data/issues.json | jq ...` to query and analyze the issues.
+#
+# ## Process
+#
+# ### Step 1: Load and Analyze Issues
+#
+# Read the pre-downloaded issues data from `/tmp/gh-aw/issues-data/issues.json`. The data includes:
+# - Issue number
+# - Title
+# - Body/description
+# - Labels
+# - State (open/closed)
+# - Author, assignees, milestone, timestamps
+#
+# Use `jq` to filter and analyze the data. Example queries:
+# ```bash
+# # Get count of issues
+# jq 'length' /tmp/gh-aw/issues-data/issues.json
+#
+# # Get open issues only
+# jq '[.[] | select(.state == "OPEN")]' /tmp/gh-aw/issues-data/issues.json
+#
+# # Get issues with specific label
+# jq '[.[] | select(.labels | any(.name == "bug"))]' /tmp/gh-aw/issues-data/issues.json
+# ```
+#
+# ### Step 2: Analyze Relationships
+#
+# Examine the issues to identify potential parent-child relationships. Look for:
+#
+# 1. **Feature with Tasks**: A high-level feature request (parent) with specific implementation tasks (sub-issues)
+# 2. **Epic Patterns**: Issues with "[Epic]", "[Parent]" or similar prefixes that encompass smaller work items
+# 3. **Bug with Root Cause**: A symptom bug (sub-issue) that relates to a root cause issue (parent)
+# 4. **Tracking Issues**: Issues that track multiple related work items
+# 5. **Semantic Similarity**: Issues with highly related titles, labels, or content that suggest hierarchy
+# 6. **Orphan Clusters**: Groups of related issues (3+) that share a common theme but lack a parent issue
+#
+# ### Step 3: Make Linking Decisions
+#
+# For each potential relationship, evaluate:
+# - Is there a clear parent-child hierarchy? (parent should be broader/higher-level)
+# - Are both issues in a state where linking makes sense?
+# - Would linking improve organization and traceability?
+# - Is the relationship strong enough to warrant a permanent link?
+#
+# **Important**: Only link sub-issues to **existing** parent issues. Do NOT create new parent issues. If you identify orphan clusters that would benefit from a parent issue, document them in the report as suggestions for maintainers to create manually.
+#
+# **Constraints:**
+# - Maximum 10 links per run (to avoid over-linking)
+# - Only link if you are absolutely sure of the relationship - when in doubt, don't link
+# - Only link to **existing** issues - do not create new parent issues
+# - Prefer linking open issues
+# - Parent issue should be broader in scope than sub-issue
+#
+# ### Step 4: Execute Links
+#
+# For each approved relationship, use the `link_sub_issue` tool to create the parent-child relationship.
+#
+# ### Step 5: Report
+#
+# Create a discussion summarizing your analysis with:
+# - Number of issues analyzed
+# - Relationships identified (even if not linked)
+# - Links created with reasoning
+# - **Suggested parent issues**: If you found orphan clusters that would benefit from a parent issue, suggest that maintainers create one manually
+# - Recommendations for manual review (relationships you noticed but weren't confident enough to link)
+#
+# ## Output Format
+#
+# Your discussion should include:
+#
+# ```markdown
+# ## 🌳 Issue Arborist Daily Report
+#
+# **Date**: [Current Date]
+# **Issues Analyzed**: 100
+#
+# ### Links Created
+#
+# | Parent Issue | Sub-Issue | Reasoning |
+# |-------------|-----------|-----------|
+# | #X: [title] | #Y: [title] | [brief explanation] |
+#
+# ### Suggested Parent Issues (For Manual Creation)
+#
+# If you identified orphan clusters that would benefit from a parent issue, list them here for maintainers to create manually:
+#
+# | Suggested Title | Related Issues | Theme |
+# |-----------------|----------------|-------|
+# | [Parent] Feature X Tracking | #A, #B, #C | [brief theme description] |
+#
+# ### Potential Relationships (For Manual Review)
+#
+# [List any relationships you identified but didn't link, with confidence level]
+#
+# ### Observations
+#
+# [Brief notes on issue organization patterns, suggestions for maintainers]
+# ```
+#
+# ## Important Notes
+#
+# - Only link issues when you are absolutely certain of the parent-child relationship
+# - Be conservative with linking - only link when the relationship is clear and unambiguous
+# - Prefer precision over recall (better to miss a link than create a wrong one)
+# - Consider that unlinking is a manual process, so be confident before linking
+# - **Do NOT create new parent issues** - only link sub-issues to existing parent issues
+# - If you identify orphan clusters needing a parent issue, suggest them in the report for maintainers to create manually
 # ```
 #
 # Pinned GitHub Actions:
@@ -98,8 +335,10 @@
 #   - actions/upload-artifact@v5 (330a01c490aca151604b8cf639adc76d48f6c5d4)
 #     https://github.com/actions/upload-artifact/commit/330a01c490aca151604b8cf639adc76d48f6c5d4
 
-name: "Dev"
+name: "Issue Arborist"
 "on":
+  schedule:
+  - cron: "0 9 * * *"
   workflow_dispatch: null
 
 permissions:
@@ -109,7 +348,7 @@ permissions:
 concurrency:
   group: "gh-aw-${{ github.workflow }}"
 
-run-name: "Dev"
+run-name: "Issue Arborist"
 
 jobs:
   activation:
@@ -123,7 +362,7 @@ jobs:
       - name: Check workflow file timestamps
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
-          GH_AW_WORKFLOW_FILE: "dev.lock.yml"
+          GH_AW_WORKFLOW_FILE: "issue-arborist.lock.yml"
         with:
           script: |
             async function main() {
@@ -215,7 +454,7 @@ jobs:
       contents: read
       issues: read
     concurrency:
-      group: "gh-aw-claude-${{ github.workflow }}"
+      group: "gh-aw-codex-${{ github.workflow }}"
     env:
       GH_AW_MCP_LOG_DIR: /tmp/gh-aw/mcp-logs/safeoutputs
       GH_AW_SAFE_OUTPUTS: /tmp/gh-aw/safeoutputs/outputs.jsonl
@@ -232,6 +471,14 @@ jobs:
         run: |
           mkdir -p /tmp/gh-aw/agent
           echo "Created /tmp/gh-aw/agent directory for agentic workflow temporary files"
+      - name: Set up jq utilities directory
+        run: "mkdir -p /tmp/gh-aw\ncat > /tmp/gh-aw/jqschema.sh << 'EOF'\n#!/usr/bin/env bash\n# jqschema.sh\njq -c '\ndef walk(f):\n  . as $in |\n  if type == \"object\" then\n    reduce keys[] as $k ({}; . + {($k): ($in[$k] | walk(f))})\n  elif type == \"array\" then\n    if length == 0 then [] else [.[0] | walk(f)] end\n  else\n    type\n  end;\nwalk(.)\n'\nEOF\nchmod +x /tmp/gh-aw/jqschema.sh"
+      - env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        name: Fetch issues data
+        run: "# Create output directory\nmkdir -p /tmp/gh-aw/issues-data\n\necho \"⬇ Downloading the last 100 issues (excluding sub-issues)...\"\n\n# Fetch the last 100 issues that don't have a parent issue\n# Using search filter to exclude issues that are already sub-issues\ngh issue list --repo ${{ github.repository }} \\\n  --search \"no:parent-issue\" \\\n  --state all \\\n  --json number,title,author,createdAt,state,url,body,labels,updatedAt,closedAt,milestone,assignees \\\n  --limit 100 \\\n  > /tmp/gh-aw/issues-data/issues.json\n\n# Generate schema for reference using jqschema\n/tmp/gh-aw/jqschema.sh < /tmp/gh-aw/issues-data/issues.json > /tmp/gh-aw/issues-data/issues-schema.json\n\necho \"✓ Issues data saved to /tmp/gh-aw/issues-data/issues.json\"\necho \"✓ Schema saved to /tmp/gh-aw/issues-data/issues-schema.json\"\necho \"Total issues fetched: $(jq 'length' /tmp/gh-aw/issues-data/issues.json)\"\necho \"\"\necho \"Schema of the issues data:\"\ncat /tmp/gh-aw/issues-data/issues-schema.json | jq .\n"
+
       - name: Configure Git credentials
         env:
           REPO_NAME: ${{ github.repository }}
@@ -281,30 +528,30 @@ jobs:
             main().catch(error => {
               core.setFailed(error instanceof Error ? error.message : String(error));
             });
-      - name: Validate CLAUDE_CODE_OAUTH_TOKEN or ANTHROPIC_API_KEY secret
+      - name: Validate CODEX_API_KEY or OPENAI_API_KEY secret
         run: |
-          if [ -z "$CLAUDE_CODE_OAUTH_TOKEN" ] && [ -z "$ANTHROPIC_API_KEY" ]; then
-            echo "Error: Neither CLAUDE_CODE_OAUTH_TOKEN nor ANTHROPIC_API_KEY secret is set"
-            echo "The Claude Code engine requires either CLAUDE_CODE_OAUTH_TOKEN or ANTHROPIC_API_KEY secret to be configured."
+          if [ -z "$CODEX_API_KEY" ] && [ -z "$OPENAI_API_KEY" ]; then
+            echo "Error: Neither CODEX_API_KEY nor OPENAI_API_KEY secret is set"
+            echo "The Codex engine requires either CODEX_API_KEY or OPENAI_API_KEY secret to be configured."
             echo "Please configure one of these secrets in your repository settings."
-            echo "Documentation: https://githubnext.github.io/gh-aw/reference/engines/#anthropic-claude-code"
+            echo "Documentation: https://githubnext.github.io/gh-aw/reference/engines/#openai-codex"
             exit 1
           fi
-          if [ -n "$CLAUDE_CODE_OAUTH_TOKEN" ]; then
-            echo "CLAUDE_CODE_OAUTH_TOKEN secret is configured"
+          if [ -n "$CODEX_API_KEY" ]; then
+            echo "CODEX_API_KEY secret is configured"
           else
-            echo "ANTHROPIC_API_KEY secret is configured (using as fallback for CLAUDE_CODE_OAUTH_TOKEN)"
+            echo "OPENAI_API_KEY secret is configured (using as fallback for CODEX_API_KEY)"
           fi
         env:
-          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          CODEX_API_KEY: ${{ secrets.CODEX_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       - name: Setup Node.js
         uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # v6
         with:
           node-version: '24'
           package-manager-cache: false
-      - name: Install Claude Code CLI
-        run: npm install -g @anthropic-ai/claude-code@2.0.56
+      - name: Install Codex
+        run: npm install -g @openai/codex@0.63.0
       - name: Downloading container images
         run: |
           set -e
@@ -313,33 +560,35 @@ jobs:
         run: |
           mkdir -p /tmp/gh-aw/safeoutputs
           cat > /tmp/gh-aw/safeoutputs/config.json << 'EOF'
-          {"assign_to_agent":{"default_agent":"copilot"},"missing_tool":{"max":0},"noop":{"max":1}}
+          {"create_discussion":{"max":1},"link_sub_issue":{"max":10},"missing_tool":{"max":0},"noop":{"max":1}}
           EOF
           cat > /tmp/gh-aw/safeoutputs/tools.json << 'EOF'
           [
             {
-              "description": "Assign the GitHub Copilot coding agent to work on an issue. The agent will analyze the issue and attempt to implement a solution, creating a pull request when complete. Use this to delegate coding tasks to Copilot.",
+              "description": "Create a GitHub discussion for announcements, Q\u0026A, reports, status updates, or community conversations. Use this for content that benefits from threaded replies, doesn't require task tracking, or serves as documentation. For actionable work items that need assignment and status tracking, use create_issue instead. CONSTRAINTS: Maximum 1 discussion(s) can be created. Title will be prefixed with \"[Issue Arborist] \". Discussions will be created in category \"Audits\".",
               "inputSchema": {
                 "additionalProperties": false,
                 "properties": {
-                  "agent": {
-                    "description": "Agent identifier to assign. Defaults to 'copilot' (the Copilot coding agent) if not specified.",
+                  "body": {
+                    "description": "Discussion content in Markdown. Do NOT repeat the title as a heading since it already appears as the discussion's h1. Include all relevant context, findings, or questions.",
                     "type": "string"
                   },
-                  "issue_number": {
-                    "description": "Issue number to assign the Copilot agent to. The issue should contain clear, actionable requirements.",
-                    "type": [
-                      "number",
-                      "string"
-                    ]
+                  "category": {
+                    "description": "Discussion category by name (e.g., 'General'), slug (e.g., 'general'), or ID. If omitted, uses the first available category. Category must exist in the repository.",
+                    "type": "string"
+                  },
+                  "title": {
+                    "description": "Concise discussion title summarizing the topic. The title appears as the main heading, so keep it brief and descriptive.",
+                    "type": "string"
                   }
                 },
                 "required": [
-                  "issue_number"
+                  "title",
+                  "body"
                 ],
                 "type": "object"
               },
-              "name": "assign_to_agent"
+              "name": "create_discussion"
             },
             {
               "description": "Report that a tool or capability needed to complete the task is not available. Use this when you cannot accomplish what was requested because the required functionality is missing or access is restricted.",
@@ -383,24 +632,78 @@ jobs:
                 "type": "object"
               },
               "name": "noop"
+            },
+            {
+              "description": "Link an issue as a sub-issue of a parent issue. Use this to establish parent-child relationships between issues for better organization and tracking of related work items. CONSTRAINTS: Maximum 10 sub-issue link(s) can be created.",
+              "inputSchema": {
+                "additionalProperties": false,
+                "properties": {
+                  "parent_issue_number": {
+                    "description": "The parent issue number to link the sub-issue to.",
+                    "type": [
+                      "number",
+                      "string"
+                    ]
+                  },
+                  "sub_issue_number": {
+                    "description": "The issue number to link as a sub-issue of the parent.",
+                    "type": [
+                      "number",
+                      "string"
+                    ]
+                  }
+                },
+                "required": [
+                  "parent_issue_number",
+                  "sub_issue_number"
+                ],
+                "type": "object"
+              },
+              "name": "link_sub_issue"
             }
           ]
           EOF
           cat > /tmp/gh-aw/safeoutputs/validation.json << 'EOF'
           {
-            "assign_to_agent": {
+            "create_discussion": {
               "defaultMax": 1,
               "fields": {
-                "agent": {
+                "body": {
+                  "required": true,
+                  "type": "string",
+                  "sanitize": true,
+                  "maxLength": 65000
+                },
+                "category": {
                   "type": "string",
                   "sanitize": true,
                   "maxLength": 128
                 },
-                "issue_number": {
+                "repo": {
+                  "type": "string",
+                  "maxLength": 256
+                },
+                "title": {
                   "required": true,
-                  "positiveInteger": true
+                  "type": "string",
+                  "sanitize": true,
+                  "maxLength": 128
                 }
               }
+            },
+            "link_sub_issue": {
+              "defaultMax": 5,
+              "fields": {
+                "parent_issue_number": {
+                  "required": true,
+                  "issueNumberOrTemporaryId": true
+                },
+                "sub_issue_number": {
+                  "required": true,
+                  "issueNumberOrTemporaryId": true
+                }
+              },
+              "customValidation": "parentAndSubDifferent"
             },
             "missing_tool": {
               "defaultMax": 20,
@@ -1405,41 +1708,39 @@ jobs:
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
         run: |
           mkdir -p /tmp/gh-aw/mcp-config
-          cat > /tmp/gh-aw/mcp-config/mcp-servers.json << EOF
-          {
-            "mcpServers": {
-              "github": {
-                "command": "docker",
-                "args": [
-                  "run",
-                  "-i",
-                  "--rm",
-                  "-e",
-                  "GITHUB_PERSONAL_ACCESS_TOKEN",
-                  "-e",
-                  "GITHUB_READ_ONLY=1",
-                  "-e",
-                  "GITHUB_TOOLSETS=repos,issues",
-                  "ghcr.io/github/github-mcp-server:v0.24.0"
-                ],
-                "env": {
-                  "GITHUB_PERSONAL_ACCESS_TOKEN": "$GITHUB_MCP_SERVER_TOKEN"
-                }
-              },
-              "safeoutputs": {
-                "command": "node",
-                "args": ["/tmp/gh-aw/safeoutputs/mcp-server.cjs"],
-                "env": {
-                  "GH_AW_SAFE_OUTPUTS": "$GH_AW_SAFE_OUTPUTS",
-                  "GH_AW_ASSETS_BRANCH": "$GH_AW_ASSETS_BRANCH",
-                  "GH_AW_ASSETS_MAX_SIZE_KB": "$GH_AW_ASSETS_MAX_SIZE_KB",
-                  "GH_AW_ASSETS_ALLOWED_EXTS": "$GH_AW_ASSETS_ALLOWED_EXTS",
-                  "GITHUB_REPOSITORY": "$GITHUB_REPOSITORY",
-                  "GITHUB_SERVER_URL": "$GITHUB_SERVER_URL"
-                }
-              }
-            }
-          }
+          cat > /tmp/gh-aw/mcp-config/config.toml << EOF
+          [history]
+          persistence = "none"
+          
+          [shell_environment_policy]
+          inherit = "core"
+          include_only = ["CODEX_API_KEY", "GH_AW_ASSETS_ALLOWED_EXTS", "GH_AW_ASSETS_BRANCH", "GH_AW_ASSETS_MAX_SIZE_KB", "GH_AW_SAFE_OUTPUTS", "GITHUB_PERSONAL_ACCESS_TOKEN", "GITHUB_REPOSITORY", "GITHUB_SERVER_URL", "HOME", "OPENAI_API_KEY", "PATH"]
+          
+          [mcp_servers.github]
+          user_agent = "issue-arborist"
+          startup_timeout_sec = 120
+          tool_timeout_sec = 60
+          command = "docker"
+          args = [
+            "run",
+            "-i",
+            "--rm",
+            "-e",
+            "GITHUB_PERSONAL_ACCESS_TOKEN",
+            "-e",
+            "GITHUB_READ_ONLY=1",
+            "-e",
+            "GITHUB_TOOLSETS=issues",
+            "ghcr.io/github/github-mcp-server:v0.24.0"
+          ]
+          env_vars = ["GITHUB_PERSONAL_ACCESS_TOKEN"]
+          
+          [mcp_servers.safeoutputs]
+          command = "node"
+          args = [
+            "/tmp/gh-aw/safeoutputs/mcp-server.cjs",
+          ]
+          env_vars = ["GH_AW_SAFE_OUTPUTS", "GH_AW_ASSETS_BRANCH", "GH_AW_ASSETS_MAX_SIZE_KB", "GH_AW_ASSETS_ALLOWED_EXTS", "GITHUB_REPOSITORY", "GITHUB_SERVER_URL"]
           EOF
       - name: Generate agentic run info
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
@@ -1448,12 +1749,12 @@ jobs:
             const fs = require('fs');
             
             const awInfo = {
-              engine_id: "claude",
-              engine_name: "Claude Code",
+              engine_id: "codex",
+              engine_name: "Codex",
               model: "",
               version: "",
-              agent_version: "2.0.56",
-              workflow_name: "Dev",
+              agent_version: "0.63.0",
+              workflow_name: "Issue Arborist",
               experimental: true,
               supports_tools_allowlist: true,
               supports_http_transport: true,
@@ -1467,7 +1768,7 @@ jobs:
               event_name: context.eventName,
               staged: false,
               network_mode: "defaults",
-              allowed_domains: [],
+              allowed_domains: ["defaults","github"],
               firewall_enabled: false,
               firewall_version: "",
               steps: {
@@ -1529,31 +1830,214 @@ jobs:
           PROMPT_DIR="$(dirname "$GH_AW_PROMPT")"
           mkdir -p "$PROMPT_DIR"
           cat << 'PROMPT_EOF' | envsubst > "$GH_AW_PROMPT"
-          # Dependency Issue Assignment
+          ## jqschema - JSON Schema Discovery
           
-          Find an open issue in this repository with "[deps]" in the title and assign it to the Copilot agent for resolution.
+          A utility script is available at `/tmp/gh-aw/jqschema.sh` to help you discover the structure of complex JSON responses.
           
-          ## Task
+          ### Purpose
           
-          1. **Search for issues**: Use GitHub search to find open issues with "[deps]" in the title:
-             ```
-             is:issue is:open "[deps]" in:title repo:${GH_AW_GITHUB_REPOSITORY}
-             ```
+          Generate a compact structural schema (keys + types) from JSON input. This is particularly useful when:
+          - Analyzing tool outputs from GitHub search (search_code, search_issues, search_repositories)
+          - Exploring API responses with large payloads
+          - Understanding the structure of unfamiliar data without verbose output
+          - Planning queries before fetching full data
           
-          2. **Filter out assigned issues**: Skip any issues that already have Copilot as an assignee.
+          ### Usage
           
-          3. **Assign to Copilot**: For the first suitable issue found, use the `assign_to_agent` tool to assign it to the Copilot agent.
+          ```bash
+          # Analyze a file
+          cat data.json | /tmp/gh-aw/jqschema.sh
           
-          **Agent Output Format:**
+          # Analyze command output
+          echo '{"name": "test", "count": 42, "items": [{"id": 1}]}' | /tmp/gh-aw/jqschema.sh
+          
+          # Analyze GitHub search results
+          gh api search/repositories?q=language:go | /tmp/gh-aw/jqschema.sh
+          ```
+          
+          ### How It Works
+          
+          The script transforms JSON data by:
+          1. Replacing object values with their type names ("string", "number", "boolean", "null")
+          2. Reducing arrays to their first element's structure (or empty array if empty)
+          3. Recursively processing nested structures
+          4. Outputting compact (minified) JSON
+          
+          ### Example
+          
+          **Input:**
           ```json
           {
-            "type": "assign_to_agent",
-            "issue_number": <issue_number>,
-            "agent": "copilot"
+            "total_count": 1000,
+            "items": [
+              {"login": "user1", "id": 123, "verified": true},
+              {"login": "user2", "id": 456, "verified": false}
+            ]
           }
           ```
           
-          If no suitable issues are found, output a message indicating that no "[deps]" issues are available for assignment.
+          **Output:**
+          ```json
+          {"total_count":"number","items":[{"login":"string","id":"number","verified":"boolean"}]}
+          ```
+          
+          ### Best Practices
+          
+          **Use this script when:**
+          - You need to understand the structure of tool outputs before requesting full data
+          - GitHub search tools return large datasets (use `perPage: 1` and pipe through schema minifier first)
+          - Exploring unfamiliar APIs or data structures
+          - Planning data extraction strategies
+          
+          **Example workflow for GitHub search tools:**
+          ```bash
+          # Step 1: Get schema with minimal data (fetch just 1 result)
+          # This helps understand the structure before requesting large datasets
+          echo '{}' | gh api search/repositories -f q="language:go" -f per_page=1 | /tmp/gh-aw/jqschema.sh
+          
+          # Output shows the schema:
+          # {"incomplete_results":"boolean","items":[{...}],"total_count":"number"}
+          
+          # Step 2: Review schema to understand available fields
+          
+          # Step 3: Request full data with confidence about structure
+          # Now you know what fields are available and can query efficiently
+          ```
+          
+          **Using with GitHub MCP tools:**
+          When using tools like `search_code`, `search_issues`, or `search_repositories`, pipe the output through jqschema to discover available fields:
+          ```bash
+          # Save a minimal search result to a file
+          gh api search/code -f q="jq in:file language:bash" -f per_page=1 > /tmp/sample.json
+          
+          # Generate schema to understand structure
+          cat /tmp/sample.json | /tmp/gh-aw/jqschema.sh
+          
+          # Now you know which fields exist and can use them in your analysis
+          ```
+          
+          # Issue Arborist 🌳
+          
+          You are the Issue Arborist - an intelligent agent that cultivates the issue garden by identifying and linking related issues as parent-child relationships.
+          
+          ## Task
+          
+          Analyze the last 100 issues in repository ${GH_AW_GITHUB_REPOSITORY} and identify opportunities to link related issues as sub-issues.
+          
+          ## Pre-Downloaded Data
+          
+          The issue data has been pre-downloaded and is available at:
+          - **Issues data**: `/tmp/gh-aw/issues-data/issues.json` - Contains the last 100 issues (excluding those that are already sub-issues)
+          - **Schema**: `/tmp/gh-aw/issues-data/issues-schema.json` - JSON schema showing the structure of the data
+          
+          Use `cat /tmp/gh-aw/issues-data/issues.json | jq ...` to query and analyze the issues.
+          
+          ## Process
+          
+          ### Step 1: Load and Analyze Issues
+          
+          Read the pre-downloaded issues data from `/tmp/gh-aw/issues-data/issues.json`. The data includes:
+          - Issue number
+          - Title
+          - Body/description
+          - Labels
+          - State (open/closed)
+          - Author, assignees, milestone, timestamps
+          
+          Use `jq` to filter and analyze the data. Example queries:
+          ```bash
+          # Get count of issues
+          jq 'length' /tmp/gh-aw/issues-data/issues.json
+          
+          # Get open issues only
+          jq '[.[] | select(.state == "OPEN")]' /tmp/gh-aw/issues-data/issues.json
+          
+          # Get issues with specific label
+          jq '[.[] | select(.labels | any(.name == "bug"))]' /tmp/gh-aw/issues-data/issues.json
+          ```
+          
+          ### Step 2: Analyze Relationships
+          
+          Examine the issues to identify potential parent-child relationships. Look for:
+          
+          1. **Feature with Tasks**: A high-level feature request (parent) with specific implementation tasks (sub-issues)
+          2. **Epic Patterns**: Issues with "[Epic]", "[Parent]" or similar prefixes that encompass smaller work items
+          3. **Bug with Root Cause**: A symptom bug (sub-issue) that relates to a root cause issue (parent)
+          4. **Tracking Issues**: Issues that track multiple related work items
+          5. **Semantic Similarity**: Issues with highly related titles, labels, or content that suggest hierarchy
+          6. **Orphan Clusters**: Groups of related issues (3+) that share a common theme but lack a parent issue
+          
+          ### Step 3: Make Linking Decisions
+          
+          For each potential relationship, evaluate:
+          - Is there a clear parent-child hierarchy? (parent should be broader/higher-level)
+          - Are both issues in a state where linking makes sense?
+          - Would linking improve organization and traceability?
+          - Is the relationship strong enough to warrant a permanent link?
+          
+          **Important**: Only link sub-issues to **existing** parent issues. Do NOT create new parent issues. If you identify orphan clusters that would benefit from a parent issue, document them in the report as suggestions for maintainers to create manually.
+          
+          **Constraints:**
+          - Maximum 10 links per run (to avoid over-linking)
+          - Only link if you are absolutely sure of the relationship - when in doubt, don't link
+          - Only link to **existing** issues - do not create new parent issues
+          - Prefer linking open issues
+          - Parent issue should be broader in scope than sub-issue
+          
+          ### Step 4: Execute Links
+          
+          For each approved relationship, use the `link_sub_issue` tool to create the parent-child relationship.
+          
+          ### Step 5: Report
+          
+          Create a discussion summarizing your analysis with:
+          - Number of issues analyzed
+          - Relationships identified (even if not linked)
+          - Links created with reasoning
+          - **Suggested parent issues**: If you found orphan clusters that would benefit from a parent issue, suggest that maintainers create one manually
+          - Recommendations for manual review (relationships you noticed but weren't confident enough to link)
+          
+          ## Output Format
+          
+          Your discussion should include:
+          
+          ```markdown
+          ## 🌳 Issue Arborist Daily Report
+          
+          **Date**: [Current Date]
+          **Issues Analyzed**: 100
+          
+          ### Links Created
+          
+          | Parent Issue | Sub-Issue | Reasoning |
+          |-------------|-----------|-----------|
+          | #X: [title] | #Y: [title] | [brief explanation] |
+          
+          ### Suggested Parent Issues (For Manual Creation)
+          
+          If you identified orphan clusters that would benefit from a parent issue, list them here for maintainers to create manually:
+          
+          | Suggested Title | Related Issues | Theme |
+          |-----------------|----------------|-------|
+          | [Parent] Feature X Tracking | #A, #B, #C | [brief theme description] |
+          
+          ### Potential Relationships (For Manual Review)
+          
+          [List any relationships you identified but didn't link, with confidence level]
+          
+          ### Observations
+          
+          [Brief notes on issue organization patterns, suggestions for maintainers]
+          ```
+          
+          ## Important Notes
+          
+          - Only link issues when you are absolutely certain of the parent-child relationship
+          - Be conservative with linking - only link when the relationship is clear and unambiguous
+          - Prefer precision over recall (better to miss a link than create a wrong one)
+          - Consider that unlinking is a manual process, so be confident before linking
+          - **Do NOT create new parent issues** - only link sub-issues to existing parent issues
+          - If you identify orphan clusters needing a parent issue, suggest them in the report for maintainers to create manually
           
           PROMPT_EOF
       - name: Append XPIA security instructions to prompt
@@ -1750,88 +2234,23 @@ jobs:
           name: aw_info.json
           path: /tmp/gh-aw/aw_info.json
           if-no-files-found: warn
-      - name: Execute Claude Code CLI
-        id: agentic_execution
-        # Allowed tools (sorted):
-        # - ExitPlanMode
-        # - Glob
-        # - Grep
-        # - LS
-        # - NotebookRead
-        # - Read
-        # - Task
-        # - TodoWrite
-        # - Write
-        # - mcp__github__download_workflow_run_artifact
-        # - mcp__github__get_code_scanning_alert
-        # - mcp__github__get_commit
-        # - mcp__github__get_dependabot_alert
-        # - mcp__github__get_discussion
-        # - mcp__github__get_discussion_comments
-        # - mcp__github__get_file_contents
-        # - mcp__github__get_job_logs
-        # - mcp__github__get_label
-        # - mcp__github__get_latest_release
-        # - mcp__github__get_me
-        # - mcp__github__get_notification_details
-        # - mcp__github__get_pull_request
-        # - mcp__github__get_pull_request_comments
-        # - mcp__github__get_pull_request_diff
-        # - mcp__github__get_pull_request_files
-        # - mcp__github__get_pull_request_review_comments
-        # - mcp__github__get_pull_request_reviews
-        # - mcp__github__get_pull_request_status
-        # - mcp__github__get_release_by_tag
-        # - mcp__github__get_secret_scanning_alert
-        # - mcp__github__get_tag
-        # - mcp__github__get_workflow_run
-        # - mcp__github__get_workflow_run_logs
-        # - mcp__github__get_workflow_run_usage
-        # - mcp__github__issue_read
-        # - mcp__github__list_branches
-        # - mcp__github__list_code_scanning_alerts
-        # - mcp__github__list_commits
-        # - mcp__github__list_dependabot_alerts
-        # - mcp__github__list_discussion_categories
-        # - mcp__github__list_discussions
-        # - mcp__github__list_issue_types
-        # - mcp__github__list_issues
-        # - mcp__github__list_label
-        # - mcp__github__list_notifications
-        # - mcp__github__list_pull_requests
-        # - mcp__github__list_releases
-        # - mcp__github__list_secret_scanning_alerts
-        # - mcp__github__list_starred_repositories
-        # - mcp__github__list_tags
-        # - mcp__github__list_workflow_jobs
-        # - mcp__github__list_workflow_run_artifacts
-        # - mcp__github__list_workflow_runs
-        # - mcp__github__list_workflows
-        # - mcp__github__pull_request_read
-        # - mcp__github__search_code
-        # - mcp__github__search_issues
-        # - mcp__github__search_orgs
-        # - mcp__github__search_pull_requests
-        # - mcp__github__search_repositories
-        # - mcp__github__search_users
-        timeout-minutes: 5
+      - name: Run Codex
         run: |
           set -o pipefail
-          # Execute Claude Code CLI with prompt from file
-          claude --print --mcp-config /tmp/gh-aw/mcp-config/mcp-servers.json --allowed-tools ExitPlanMode,Glob,Grep,LS,NotebookRead,Read,Task,TodoWrite,Write,mcp__github__download_workflow_run_artifact,mcp__github__get_code_scanning_alert,mcp__github__get_commit,mcp__github__get_dependabot_alert,mcp__github__get_discussion,mcp__github__get_discussion_comments,mcp__github__get_file_contents,mcp__github__get_job_logs,mcp__github__get_label,mcp__github__get_latest_release,mcp__github__get_me,mcp__github__get_notification_details,mcp__github__get_pull_request,mcp__github__get_pull_request_comments,mcp__github__get_pull_request_diff,mcp__github__get_pull_request_files,mcp__github__get_pull_request_review_comments,mcp__github__get_pull_request_reviews,mcp__github__get_pull_request_status,mcp__github__get_release_by_tag,mcp__github__get_secret_scanning_alert,mcp__github__get_tag,mcp__github__get_workflow_run,mcp__github__get_workflow_run_logs,mcp__github__get_workflow_run_usage,mcp__github__issue_read,mcp__github__list_branches,mcp__github__list_code_scanning_alerts,mcp__github__list_commits,mcp__github__list_dependabot_alerts,mcp__github__list_discussion_categories,mcp__github__list_discussions,mcp__github__list_issue_types,mcp__github__list_issues,mcp__github__list_label,mcp__github__list_notifications,mcp__github__list_pull_requests,mcp__github__list_releases,mcp__github__list_secret_scanning_alerts,mcp__github__list_starred_repositories,mcp__github__list_tags,mcp__github__list_workflow_jobs,mcp__github__list_workflow_run_artifacts,mcp__github__list_workflow_runs,mcp__github__list_workflows,mcp__github__pull_request_read,mcp__github__search_code,mcp__github__search_issues,mcp__github__search_orgs,mcp__github__search_pull_requests,mcp__github__search_repositories,mcp__github__search_users --debug --verbose --permission-mode bypassPermissions --output-format stream-json "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
+          INSTRUCTION="$(cat "$GH_AW_PROMPT")"
+          mkdir -p "$CODEX_HOME/logs"
+          codex exec --full-auto --skip-git-repo-check "$INSTRUCTION" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
         env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          DISABLE_TELEMETRY: "1"
-          DISABLE_ERROR_REPORTING: "1"
-          DISABLE_BUG_COMMAND: "1"
+          CODEX_API_KEY: ${{ secrets.CODEX_API_KEY || secrets.OPENAI_API_KEY }}
+          CODEX_HOME: /tmp/gh-aw/mcp-config
+          GH_AW_GITHUB_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+          GH_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/config.toml
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-          GH_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/mcp-servers.json
-          MCP_TIMEOUT: "120000"
-          MCP_TOOL_TIMEOUT: "60000"
-          BASH_DEFAULT_TIMEOUT_MS: "60000"
-          BASH_MAX_TIMEOUT_MS: "60000"
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
+          GITHUB_PERSONAL_ACCESS_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+          GITHUB_STEP_SUMMARY: ${{ env.GITHUB_STEP_SUMMARY }}
+          OPENAI_API_KEY: ${{ secrets.CODEX_API_KEY || secrets.OPENAI_API_KEY }}
+          RUST_LOG: trace,hyper_util=info,mio=info,reqwest=info,os_info=info,codex_otel=warn,codex_core=debug,ocodex_exec=debug
       - name: Redact secrets in logs
         if: always()
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
@@ -1943,11 +2362,11 @@ jobs:
             }
             await main();
         env:
-          GH_AW_SECRET_NAMES: 'ANTHROPIC_API_KEY,CLAUDE_CODE_OAUTH_TOKEN,GH_AW_GITHUB_TOKEN,GITHUB_TOKEN'
-          SECRET_ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          SECRET_CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          GH_AW_SECRET_NAMES: 'CODEX_API_KEY,GH_AW_GITHUB_TOKEN,GITHUB_TOKEN,OPENAI_API_KEY'
+          SECRET_CODEX_API_KEY: ${{ secrets.CODEX_API_KEY }}
           SECRET_GH_AW_GITHUB_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN }}
           SECRET_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SECRET_OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       - name: Upload Safe Outputs
         if: always()
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
@@ -1960,7 +2379,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
-          GH_AW_ALLOWED_DOMAINS: "crl3.digicert.com,crl4.digicert.com,ocsp.digicert.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com,crl.geotrust.com,ocsp.geotrust.com,crl.thawte.com,ocsp.thawte.com,crl.verisign.com,ocsp.verisign.com,crl.globalsign.com,ocsp.globalsign.com,crls.ssl.com,ocsp.ssl.com,crl.identrust.com,ocsp.identrust.com,crl.sectigo.com,ocsp.sectigo.com,crl.usertrust.com,ocsp.usertrust.com,s.symcb.com,s.symcd.com,json-schema.org,json.schemastore.org,archive.ubuntu.com,security.ubuntu.com,ppa.launchpad.net,keyserver.ubuntu.com,azure.archive.ubuntu.com,api.snapcraft.io,packagecloud.io,packages.cloud.google.com,packages.microsoft.com"
+          GH_AW_ALLOWED_DOMAINS: "crl3.digicert.com,crl4.digicert.com,ocsp.digicert.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com,crl.geotrust.com,ocsp.geotrust.com,crl.thawte.com,ocsp.thawte.com,crl.verisign.com,ocsp.verisign.com,crl.globalsign.com,ocsp.globalsign.com,crls.ssl.com,ocsp.ssl.com,crl.identrust.com,ocsp.identrust.com,crl.sectigo.com,ocsp.sectigo.com,crl.usertrust.com,ocsp.usertrust.com,s.symcb.com,s.symcd.com,json-schema.org,json.schemastore.org,archive.ubuntu.com,security.ubuntu.com,ppa.launchpad.net,keyserver.ubuntu.com,azure.archive.ubuntu.com,api.snapcraft.io,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,*.githubusercontent.com,raw.githubusercontent.com,objects.githubusercontent.com,lfs.github.com,github-cloud.githubusercontent.com,github-cloud.s3.amazonaws.com,codeload.github.com"
           GITHUB_SERVER_URL: ${{ github.server_url }}
           GITHUB_API_URL: ${{ github.api_url }}
         with:
@@ -2875,6 +3294,14 @@ jobs:
           name: agent_output.json
           path: ${{ env.GH_AW_AGENT_OUTPUT }}
           if-no-files-found: warn
+      - name: Upload engine output files
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
+        with:
+          name: agent_outputs
+          path: |
+            /tmp/gh-aw/mcp-config/logs/
+            /tmp/gh-aw/redacted-urls.log
+          if-no-files-found: ignore
       - name: Upload MCP logs
         if: always()
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
@@ -3637,87 +4064,313 @@ jobs:
             }
             function main() {
               runLogParser({
-                parseLog: parseClaudeLog,
-                parserName: "Claude",
+                parseLog: parseCodexLog,
+                parserName: "Codex",
                 supportsDirectories: false,
               });
             }
-            function parseClaudeLog(logContent) {
-              try {
-                const logEntries = parseLogEntries(logContent);
-                if (!logEntries) {
-                  return {
-                    markdown: "## Agent Log Summary\n\nLog format not recognized as Claude JSON array or JSONL.\n",
-                    mcpFailures: [],
-                    maxTurnsHit: false,
-                    logEntries: [],
-                  };
+            function extractMCPInitialization(lines) {
+              const mcpServers = new Map(); 
+              let serverCount = 0;
+              let connectedCount = 0;
+              let availableTools = [];
+              for (const line of lines) {
+                if (line.includes("Initializing MCP servers") || (line.includes("mcp") && line.includes("init"))) {
                 }
-                const mcpFailures = [];
-                const conversationResult = generateConversationMarkdown(logEntries, {
-                  formatToolCallback: (toolUse, toolResult) => formatToolUse(toolUse, toolResult, { includeDetailedParameters: false }),
-                  formatInitCallback: initEntry => {
-                    const result = formatInitializationSummary(initEntry, {
-                      includeSlashCommands: true,
-                      mcpFailureCallback: server => {
-                        const errorDetails = [];
-                        if (server.error) {
-                          errorDetails.push(`**Error:** ${server.error}`);
-                        }
-                        if (server.stderr) {
-                          const maxStderrLength = 500;
-                          const stderr = server.stderr.length > maxStderrLength ? server.stderr.substring(0, maxStderrLength) + "..." : server.stderr;
-                          errorDetails.push(`**Stderr:** \`${stderr}\``);
-                        }
-                        if (server.exitCode !== undefined && server.exitCode !== null) {
-                          errorDetails.push(`**Exit Code:** ${server.exitCode}`);
-                        }
-                        if (server.command) {
-                          errorDetails.push(`**Command:** \`${server.command}\``);
-                        }
-                        if (server.message) {
-                          errorDetails.push(`**Message:** ${server.message}`);
-                        }
-                        if (server.reason) {
-                          errorDetails.push(`**Reason:** ${server.reason}`);
-                        }
-                        if (errorDetails.length > 0) {
-                          return errorDetails.map(detail => `  - ${detail}\n`).join("");
-                        }
-                        return "";
-                      },
-                    });
-                    if (result.mcpFailures) {
-                      mcpFailures.push(...result.mcpFailures);
-                    }
-                    return result;
-                  },
-                });
-                let markdown = conversationResult.markdown;
-                const lastEntry = logEntries[logEntries.length - 1];
-                markdown += generateInformationSection(lastEntry);
-                let maxTurnsHit = false;
-                const maxTurns = process.env.GH_AW_MAX_TURNS;
-                if (maxTurns && lastEntry && lastEntry.num_turns) {
-                  const configuredMaxTurns = parseInt(maxTurns, 10);
-                  if (!isNaN(configuredMaxTurns) && lastEntry.num_turns >= configuredMaxTurns) {
-                    maxTurnsHit = true;
+                const countMatch = line.match(/Found (\d+) MCP servers? in configuration/i);
+                if (countMatch) {
+                  serverCount = parseInt(countMatch[1]);
+                }
+                const connectingMatch = line.match(/Connecting to MCP server[:\s]+['"]?(\w+)['"]?/i);
+                if (connectingMatch) {
+                  const serverName = connectingMatch[1];
+                  if (!mcpServers.has(serverName)) {
+                    mcpServers.set(serverName, { name: serverName, status: "connecting" });
                   }
                 }
-                return { markdown, mcpFailures, maxTurnsHit, logEntries };
-              } catch (error) {
-                const errorMessage = error instanceof Error ? error.message : String(error);
-                return {
-                  markdown: `## Agent Log Summary\n\nError parsing Claude log (tried both JSON array and JSONL formats): ${errorMessage}\n`,
-                  mcpFailures: [],
-                  maxTurnsHit: false,
-                  logEntries: [],
-                };
+                const connectedMatch = line.match(/MCP server ['"](\w+)['"] connected successfully/i);
+                if (connectedMatch) {
+                  const serverName = connectedMatch[1];
+                  mcpServers.set(serverName, { name: serverName, status: "connected" });
+                  connectedCount++;
+                }
+                const failedMatch = line.match(/Failed to connect to MCP server ['"](\w+)['"][:]\s*(.+)/i);
+                if (failedMatch) {
+                  const serverName = failedMatch[1];
+                  const error = failedMatch[2].trim();
+                  mcpServers.set(serverName, { name: serverName, status: "failed", error });
+                }
+                const initFailedMatch = line.match(/MCP server ['"](\w+)['"] initialization failed/i);
+                if (initFailedMatch) {
+                  const serverName = initFailedMatch[1];
+                  const existing = mcpServers.get(serverName);
+                  if (existing && existing.status !== "failed") {
+                    mcpServers.set(serverName, { name: serverName, status: "failed", error: "Initialization failed" });
+                  }
+                }
+                const toolsMatch = line.match(/Available tools:\s*(.+)/i);
+                if (toolsMatch) {
+                  const toolsStr = toolsMatch[1];
+                  availableTools = toolsStr
+                    .split(",")
+                    .map(t => t.trim())
+                    .filter(t => t.length > 0);
+                }
               }
+              let markdown = "";
+              const hasInfo = mcpServers.size > 0 || availableTools.length > 0;
+              if (mcpServers.size > 0) {
+                markdown += "**MCP Servers:**\n";
+                const servers = Array.from(mcpServers.values());
+                const connected = servers.filter(s => s.status === "connected");
+                const failed = servers.filter(s => s.status === "failed");
+                markdown += `- Total: ${servers.length}${serverCount > 0 && servers.length !== serverCount ? ` (configured: ${serverCount})` : ""}\n`;
+                markdown += `- Connected: ${connected.length}\n`;
+                if (failed.length > 0) {
+                  markdown += `- Failed: ${failed.length}\n`;
+                }
+                markdown += "\n";
+                for (const server of servers) {
+                  const statusIcon = server.status === "connected" ? "✅" : server.status === "failed" ? "❌" : "⏳";
+                  markdown += `- ${statusIcon} **${server.name}** (${server.status})`;
+                  if (server.error) {
+                    markdown += `\n  - Error: ${server.error}`;
+                  }
+                  markdown += "\n";
+                }
+                markdown += "\n";
+              }
+              if (availableTools.length > 0) {
+                markdown += "**Available MCP Tools:**\n";
+                markdown += `- Total: ${availableTools.length} tools\n`;
+                markdown += `- Tools: ${availableTools.slice(0, 10).join(", ")}${availableTools.length > 10 ? ", ..." : ""}\n\n`;
+              }
+              return {
+                hasInfo,
+                markdown,
+                servers: Array.from(mcpServers.values()),
+              };
+            }
+            function parseCodexLog(logContent) {
+              try {
+                const lines = logContent.split("\n");
+                const LOOKAHEAD_WINDOW = 50;
+                let markdown = "";
+                const mcpInfo = extractMCPInitialization(lines);
+                if (mcpInfo.hasInfo) {
+                  markdown += "## 🚀 Initialization\n\n";
+                  markdown += mcpInfo.markdown;
+                }
+                markdown += "## 🤖 Reasoning\n\n";
+                let inThinkingSection = false;
+                for (let i = 0; i < lines.length; i++) {
+                  const line = lines[i];
+                  if (
+                    line.includes("OpenAI Codex") ||
+                    line.startsWith("--------") ||
+                    line.includes("workdir:") ||
+                    line.includes("model:") ||
+                    line.includes("provider:") ||
+                    line.includes("approval:") ||
+                    line.includes("sandbox:") ||
+                    line.includes("reasoning effort:") ||
+                    line.includes("reasoning summaries:") ||
+                    line.includes("tokens used:") ||
+                    line.includes("DEBUG codex") ||
+                    line.includes("INFO codex") ||
+                    line.match(/^\d{4}-\d{2}-\d{2}T[\d:.]+Z\s+(DEBUG|INFO|WARN|ERROR)/)
+                  ) {
+                    continue;
+                  }
+                  if (line.trim() === "thinking") {
+                    inThinkingSection = true;
+                    continue;
+                  }
+                  const toolMatch = line.match(/^tool\s+(\w+)\.(\w+)\(/);
+                  if (toolMatch) {
+                    inThinkingSection = false;
+                    const server = toolMatch[1];
+                    const toolName = toolMatch[2];
+                    let statusIcon = "❓"; 
+                    for (let j = i + 1; j < Math.min(i + LOOKAHEAD_WINDOW, lines.length); j++) {
+                      const nextLine = lines[j];
+                      if (nextLine.includes(`${server}.${toolName}(`) && nextLine.includes("success in")) {
+                        statusIcon = "✅";
+                        break;
+                      } else if (nextLine.includes(`${server}.${toolName}(`) && (nextLine.includes("failed in") || nextLine.includes("error"))) {
+                        statusIcon = "❌";
+                        break;
+                      }
+                    }
+                    markdown += `${statusIcon} ${server}::${toolName}(...)\n\n`;
+                    continue;
+                  }
+                  if (inThinkingSection && line.trim().length > 20 && !line.match(/^\d{4}-\d{2}-\d{2}T/)) {
+                    const trimmed = line.trim();
+                    markdown += `${trimmed}\n\n`;
+                  }
+                }
+                markdown += "## 🤖 Commands and Tools\n\n";
+                for (let i = 0; i < lines.length; i++) {
+                  const line = lines[i];
+                  const toolMatch = line.match(/^\[.*?\]\s+tool\s+(\w+)\.(\w+)\((.+)\)/) || line.match(/ToolCall:\s+(\w+)__(\w+)\s+(\{.+\})/);
+                  const bashMatch = line.match(/^\[.*?\]\s+exec\s+bash\s+-lc\s+'([^']+)'/);
+                  if (toolMatch) {
+                    const server = toolMatch[1];
+                    const toolName = toolMatch[2];
+                    const params = toolMatch[3];
+                    let statusIcon = "❓";
+                    let response = "";
+                    let isError = false;
+                    for (let j = i + 1; j < Math.min(i + LOOKAHEAD_WINDOW, lines.length); j++) {
+                      const nextLine = lines[j];
+                      if (nextLine.includes(`${server}.${toolName}(`) && (nextLine.includes("success in") || nextLine.includes("failed in"))) {
+                        isError = nextLine.includes("failed in");
+                        statusIcon = isError ? "❌" : "✅";
+                        let jsonLines = [];
+                        let braceCount = 0;
+                        let inJson = false;
+                        for (let k = j + 1; k < Math.min(j + 30, lines.length); k++) {
+                          const respLine = lines[k];
+                          if (respLine.includes("tool ") || respLine.includes("ToolCall:") || respLine.includes("tokens used")) {
+                            break;
+                          }
+                          for (const char of respLine) {
+                            if (char === "{") {
+                              braceCount++;
+                              inJson = true;
+                            } else if (char === "}") {
+                              braceCount--;
+                            }
+                          }
+                          if (inJson) {
+                            jsonLines.push(respLine);
+                          }
+                          if (inJson && braceCount === 0) {
+                            break;
+                          }
+                        }
+                        response = jsonLines.join("\n");
+                        break;
+                      }
+                    }
+                    markdown += formatCodexToolCall(server, toolName, params, response, statusIcon);
+                  } else if (bashMatch) {
+                    const command = bashMatch[1];
+                    let statusIcon = "❓";
+                    let response = "";
+                    let isError = false;
+                    for (let j = i + 1; j < Math.min(i + LOOKAHEAD_WINDOW, lines.length); j++) {
+                      const nextLine = lines[j];
+                      if (nextLine.includes("bash -lc") && (nextLine.includes("succeeded in") || nextLine.includes("failed in"))) {
+                        isError = nextLine.includes("failed in");
+                        statusIcon = isError ? "❌" : "✅";
+                        let responseLines = [];
+                        for (let k = j + 1; k < Math.min(j + 20, lines.length); k++) {
+                          const respLine = lines[k];
+                          if (
+                            respLine.includes("tool ") ||
+                            respLine.includes("exec ") ||
+                            respLine.includes("ToolCall:") ||
+                            respLine.includes("tokens used") ||
+                            respLine.includes("thinking")
+                          ) {
+                            break;
+                          }
+                          responseLines.push(respLine);
+                        }
+                        response = responseLines.join("\n").trim();
+                        break;
+                      }
+                    }
+                    markdown += formatCodexBashCall(command, response, statusIcon);
+                  }
+                }
+                markdown += "\n## 📊 Information\n\n";
+                let totalTokens = 0;
+                const tokenCountMatches = logContent.matchAll(/total_tokens:\s*(\d+)/g);
+                for (const match of tokenCountMatches) {
+                  const tokens = parseInt(match[1]);
+                  totalTokens = Math.max(totalTokens, tokens); 
+                }
+                const finalTokensMatch = logContent.match(/tokens used\n([\d,]+)/);
+                if (finalTokensMatch) {
+                  totalTokens = parseInt(finalTokensMatch[1].replace(/,/g, ""));
+                }
+                if (totalTokens > 0) {
+                  markdown += `**Total Tokens Used:** ${totalTokens.toLocaleString()}\n\n`;
+                }
+                const toolCalls = (logContent.match(/ToolCall:\s+\w+__\w+/g) || []).length;
+                if (toolCalls > 0) {
+                  markdown += `**Tool Calls:** ${toolCalls}\n\n`;
+                }
+                return markdown;
+              } catch (error) {
+                core.error(`Error parsing Codex log: ${error}`);
+                return "## 🤖 Commands and Tools\n\nError parsing log content.\n\n## 🤖 Reasoning\n\nUnable to parse reasoning from log.\n\n";
+              }
+            }
+            function formatCodexToolCall(server, toolName, params, response, statusIcon) {
+              const totalTokens = estimateTokens(params) + estimateTokens(response);
+              let metadata = "";
+              if (totalTokens > 0) {
+                metadata = `<code>~${totalTokens}t</code>`;
+              }
+              const summary = `<code>${server}::${toolName}</code>`;
+              const sections = [];
+              if (params && params.trim()) {
+                sections.push({
+                  label: "Parameters",
+                  content: params,
+                  language: "json",
+                });
+              }
+              if (response && response.trim()) {
+                sections.push({
+                  label: "Response",
+                  content: response,
+                  language: "json",
+                });
+              }
+              return formatToolCallAsDetails({
+                summary,
+                statusIcon,
+                metadata,
+                sections,
+              });
+            }
+            function formatCodexBashCall(command, response, statusIcon) {
+              const totalTokens = estimateTokens(command) + estimateTokens(response);
+              let metadata = "";
+              if (totalTokens > 0) {
+                metadata = `<code>~${totalTokens}t</code>`;
+              }
+              const summary = `<code>bash: ${truncateString(command, 60)}</code>`;
+              const sections = [];
+              sections.push({
+                label: "Command",
+                content: command,
+                language: "bash",
+              });
+              if (response && response.trim()) {
+                sections.push({
+                  label: "Output",
+                  content: response,
+                });
+              }
+              return formatToolCallAsDetails({
+                summary,
+                statusIcon,
+                metadata,
+                sections,
+              });
             }
             if (typeof module !== "undefined" && module.exports) {
               module.exports = {
-                parseClaudeLog,
+                parseCodexLog,
+                formatCodexToolCall,
+                formatCodexBashCall,
+                extractMCPInitialization,
               };
             }
             main();
@@ -3733,7 +4386,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_AGENT_OUTPUT: /tmp/gh-aw/agent-stdio.log
-          GH_AW_ERROR_PATTERNS: "[{\"id\":\"\",\"pattern\":\"::(error)(?:\\\\s+[^:]*)?::(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"GitHub Actions workflow command - error\"},{\"id\":\"\",\"pattern\":\"::(warning)(?:\\\\s+[^:]*)?::(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"GitHub Actions workflow command - warning\"},{\"id\":\"\",\"pattern\":\"::(notice)(?:\\\\s+[^:]*)?::(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"GitHub Actions workflow command - notice\"},{\"id\":\"\",\"pattern\":\"(ERROR|Error):\\\\s+(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"Generic ERROR messages\"},{\"id\":\"\",\"pattern\":\"(WARNING|Warning):\\\\s+(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"Generic WARNING messages\"}]"
+          GH_AW_ERROR_PATTERNS: "[{\"id\":\"\",\"pattern\":\"::(error)(?:\\\\s+[^:]*)?::(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"GitHub Actions workflow command - error\"},{\"id\":\"\",\"pattern\":\"::(warning)(?:\\\\s+[^:]*)?::(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"GitHub Actions workflow command - warning\"},{\"id\":\"\",\"pattern\":\"::(notice)(?:\\\\s+[^:]*)?::(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"GitHub Actions workflow command - notice\"},{\"id\":\"\",\"pattern\":\"(ERROR|Error):\\\\s+(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"Generic ERROR messages\"},{\"id\":\"\",\"pattern\":\"(WARNING|Warning):\\\\s+(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"Generic WARNING messages\"},{\"id\":\"\",\"pattern\":\"(\\\\d{4}-\\\\d{2}-\\\\d{2}T[\\\\d:.]+Z)\\\\s+(ERROR)\\\\s+(.+)\",\"level_group\":2,\"message_group\":3,\"description\":\"Codex ERROR messages with timestamp\"},{\"id\":\"\",\"pattern\":\"(\\\\d{4}-\\\\d{2}-\\\\d{2}T[\\\\d:.]+Z)\\\\s+(WARN|WARNING)\\\\s+(.+)\",\"level_group\":2,\"message_group\":3,\"description\":\"Codex warning messages with timestamp\"}]"
         with:
           script: |
             function main() {
@@ -3964,572 +4617,12 @@ jobs:
               main();
             }
 
-  assign_to_agent:
-    needs:
-      - agent
-      - detection
-    if: >
-      (((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'assign_to_agent'))) &&
-      (needs.detection.outputs.success == 'true')
-    runs-on: ubuntu-slim
-    permissions:
-      actions: write
-      contents: write
-      issues: write
-      pull-requests: write
-    timeout-minutes: 10
-    outputs:
-      assigned_agents: ${{ steps.assign_to_agent.outputs.assigned_agents }}
-    steps:
-      - name: Download agent output artifact
-        continue-on-error: true
-        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
-        with:
-          name: agent_output.json
-          path: /tmp/gh-aw/safeoutputs/
-      - name: Setup agent output environment variable
-        run: |
-          mkdir -p /tmp/gh-aw/safeoutputs/
-          find "/tmp/gh-aw/safeoutputs/" -type f -print
-          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> "$GITHUB_ENV"
-      - name: Assign to Agent
-        id: assign_to_agent
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
-        env:
-          GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_AGENT_DEFAULT: "copilot"
-          GH_AW_AGENT_MAX_COUNT: 1
-          GH_AW_WORKFLOW_NAME: "Dev"
-          GH_AW_ENGINE_ID: "claude"
-        with:
-          github-token: ${{ secrets.GH_AW_AGENT_TOKEN }}
-          script: |
-            const fs = require("fs");
-            const MAX_LOG_CONTENT_LENGTH = 10000;
-            function truncateForLogging(content) {
-              if (content.length <= MAX_LOG_CONTENT_LENGTH) {
-                return content;
-              }
-              return content.substring(0, MAX_LOG_CONTENT_LENGTH) + `\n... (truncated, total length: ${content.length})`;
-            }
-            function loadAgentOutput() {
-              const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT;
-              if (!agentOutputFile) {
-                core.info("No GH_AW_AGENT_OUTPUT environment variable found");
-                return { success: false };
-              }
-              let outputContent;
-              try {
-                outputContent = fs.readFileSync(agentOutputFile, "utf8");
-              } catch (error) {
-                const errorMessage = `Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`;
-                core.error(errorMessage);
-                return { success: false, error: errorMessage };
-              }
-              if (outputContent.trim() === "") {
-                core.info("Agent output content is empty");
-                return { success: false };
-              }
-              core.info(`Agent output content length: ${outputContent.length}`);
-              let validatedOutput;
-              try {
-                validatedOutput = JSON.parse(outputContent);
-              } catch (error) {
-                const errorMessage = `Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`;
-                core.error(errorMessage);
-                core.info(`Failed to parse content:\n${truncateForLogging(outputContent)}`);
-                return { success: false, error: errorMessage };
-              }
-              if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
-                core.info("No valid items found in agent output");
-                core.info(`Parsed content: ${truncateForLogging(JSON.stringify(validatedOutput))}`);
-                return { success: false };
-              }
-              return { success: true, items: validatedOutput.items };
-            }
-            async function generateStagedPreview(options) {
-              const { title, description, items, renderItem } = options;
-              let summaryContent = `## 🎭 Staged Mode: ${title} Preview\n\n`;
-              summaryContent += `${description}\n\n`;
-              for (let i = 0; i < items.length; i++) {
-                const item = items[i];
-                summaryContent += renderItem(item, i);
-                summaryContent += "---\n\n";
-              }
-              try {
-                await core.summary.addRaw(summaryContent).write();
-                core.info(summaryContent);
-                core.info(`📝 ${title} preview written to step summary`);
-              } catch (error) {
-                core.setFailed(error instanceof Error ? error : String(error));
-              }
-            }
-            const AGENT_LOGIN_NAMES = {
-              copilot: "copilot-swe-agent",
-            };
-            function getAgentName(assignee) {
-              const normalized = assignee.startsWith("@") ? assignee.slice(1) : assignee;
-              if (AGENT_LOGIN_NAMES[normalized]) {
-                return normalized;
-              }
-              return null;
-            }
-            async function getAvailableAgentLogins(owner, repo) {
-              const query = `
-                query($owner: String!, $repo: String!) {
-                  repository(owner: $owner, name: $repo) {
-                    suggestedActors(first: 100, capabilities: CAN_BE_ASSIGNED) {
-                      nodes { ... on Bot { login __typename } }
-                    }
-                  }
-                }
-              `;
-              try {
-                const response = await github.graphql(query, { owner, repo });
-                const actors = response.repository?.suggestedActors?.nodes || [];
-                const knownValues = Object.values(AGENT_LOGIN_NAMES);
-                const available = [];
-                for (const actor of actors) {
-                  if (actor && actor.login && knownValues.includes(actor.login)) {
-                    available.push(actor.login);
-                  }
-                }
-                return available.sort();
-              } catch (e) {
-                const msg = e instanceof Error ? e.message : String(e);
-                core.debug(`Failed to list available agent logins: ${msg}`);
-                return [];
-              }
-            }
-            async function findAgent(owner, repo, agentName) {
-              const query = `
-                query($owner: String!, $repo: String!) {
-                  repository(owner: $owner, name: $repo) {
-                    suggestedActors(first: 100, capabilities: CAN_BE_ASSIGNED) {
-                      nodes {
-                        ... on Bot {
-                          id
-                          login
-                          __typename
-                        }
-                      }
-                    }
-                  }
-                }
-              `;
-              try {
-                const response = await github.graphql(query, { owner, repo });
-                const actors = response.repository.suggestedActors.nodes;
-                const loginName = AGENT_LOGIN_NAMES[agentName];
-                if (!loginName) {
-                  core.error(`Unknown agent: ${agentName}. Supported agents: ${Object.keys(AGENT_LOGIN_NAMES).join(", ")}`);
-                  return null;
-                }
-                for (const actor of actors) {
-                  if (actor.login === loginName) {
-                    return actor.id;
-                  }
-                }
-                const available = actors.filter(a => a && a.login && Object.values(AGENT_LOGIN_NAMES).includes(a.login)).map(a => a.login);
-                core.warning(`${agentName} coding agent (${loginName}) is not available as an assignee for this repository`);
-                if (available.length > 0) {
-                  core.info(`Available assignable coding agents: ${available.join(", ")}`);
-                } else {
-                  core.info("No coding agents are currently assignable in this repository.");
-                }
-                if (agentName === "copilot") {
-                  core.info(
-                    "Please visit https://docs.github.com/en/copilot/using-github-copilot/using-copilot-coding-agent-to-work-on-tasks/about-assigning-tasks-to-copilot"
-                  );
-                }
-                return null;
-              } catch (error) {
-                const errorMessage = error instanceof Error ? error.message : String(error);
-                core.error(`Failed to find ${agentName} agent: ${errorMessage}`);
-                return null;
-              }
-            }
-            async function getIssueDetails(owner, repo, issueNumber) {
-              const query = `
-                query($owner: String!, $repo: String!, $issueNumber: Int!) {
-                  repository(owner: $owner, name: $repo) {
-                    issue(number: $issueNumber) {
-                      id
-                      assignees(first: 100) {
-                        nodes {
-                          id
-                        }
-                      }
-                    }
-                  }
-                }
-              `;
-              try {
-                const response = await github.graphql(query, { owner, repo, issueNumber });
-                const issue = response.repository.issue;
-                if (!issue || !issue.id) {
-                  core.error("Could not get issue data");
-                  return null;
-                }
-                const currentAssignees = issue.assignees.nodes.map(assignee => assignee.id);
-                return {
-                  issueId: issue.id,
-                  currentAssignees: currentAssignees,
-                };
-              } catch (error) {
-                const errorMessage = error instanceof Error ? error.message : String(error);
-                core.error(`Failed to get issue details: ${errorMessage}`);
-                return null;
-              }
-            }
-            async function assignAgentToIssue(issueId, agentId, currentAssignees, agentName) {
-              const actorIds = [agentId];
-              for (const assigneeId of currentAssignees) {
-                if (assigneeId !== agentId) {
-                  actorIds.push(assigneeId);
-                }
-              }
-              const mutation = `
-                mutation($assignableId: ID!, $actorIds: [ID!]!) {
-                  replaceActorsForAssignable(input: {
-                    assignableId: $assignableId,
-                    actorIds: $actorIds
-                  }) {
-                    __typename
-                  }
-                }
-              `;
-              try {
-                core.info("Using built-in github object for mutation");
-                core.debug(`GraphQL mutation with variables: assignableId=${issueId}, actorIds=${JSON.stringify(actorIds)}`);
-                const response = await github.graphql(mutation, {
-                  assignableId: issueId,
-                  actorIds: actorIds,
-                });
-                if (response && response.replaceActorsForAssignable && response.replaceActorsForAssignable.__typename) {
-                  return true;
-                } else {
-                  core.error("Unexpected response from GitHub API");
-                  return false;
-                }
-              } catch (error) {
-                const errorMessage = error instanceof Error ? error.message : String(error);
-                try {
-                  core.debug(`Raw GraphQL error message: ${errorMessage}`);
-                  if (error && typeof error === "object") {
-                    const details = {};
-                    if (error.errors) details.errors = error.errors;
-                    if (error.response) details.response = error.response;
-                    if (error.data) details.data = error.data;
-                    if (Array.isArray(error.errors)) {
-                      details.compactMessages = error.errors.map(e => e.message).filter(Boolean);
-                    }
-                    const serialized = JSON.stringify(details, (_k, v) => v, 2);
-                    if (serialized && serialized !== "{}") {
-                      core.debug(`Raw GraphQL error details: ${serialized}`);
-                      core.error("Raw GraphQL error details (for troubleshooting):");
-                      for (const line of serialized.split(/\n/)) {
-                        if (line.trim()) core.error(line);
-                      }
-                    }
-                  }
-                } catch (loggingErr) {
-                  core.debug(`Failed to serialize GraphQL error details: ${loggingErr instanceof Error ? loggingErr.message : String(loggingErr)}`);
-                }
-                if (
-                  errorMessage.includes("Resource not accessible by personal access token") ||
-                  errorMessage.includes("Resource not accessible by integration") ||
-                  errorMessage.includes("Insufficient permissions to assign")
-                ) {
-                  core.info("Primary mutation replaceActorsForAssignable forbidden. Attempting fallback addAssigneesToAssignable...");
-                  try {
-                    const fallbackMutation = `
-                      mutation($assignableId: ID!, $assigneeIds: [ID!]!) {
-                        addAssigneesToAssignable(input: {
-                          assignableId: $assignableId,
-                          assigneeIds: $assigneeIds
-                        }) {
-                          clientMutationId
-                        }
-                      }
-                    `;
-                    core.info("Using built-in github object for fallback mutation");
-                    core.debug(`Fallback GraphQL mutation with variables: assignableId=${issueId}, assigneeIds=[${agentId}]`);
-                    const fallbackResp = await github.graphql(fallbackMutation, {
-                      assignableId: issueId,
-                      assigneeIds: [agentId],
-                    });
-                    if (fallbackResp && fallbackResp.addAssigneesToAssignable) {
-                      core.info(`Fallback succeeded: agent '${agentName}' added via addAssigneesToAssignable.`);
-                      return true;
-                    } else {
-                      core.warning("Fallback mutation returned unexpected response; proceeding with permission guidance.");
-                    }
-                  } catch (fallbackError) {
-                    const fbMsg = fallbackError instanceof Error ? fallbackError.message : String(fallbackError);
-                    core.error(`Fallback addAssigneesToAssignable failed: ${fbMsg}`);
-                  }
-                  logPermissionError(agentName);
-                } else {
-                  core.error(`Failed to assign ${agentName}: ${errorMessage}`);
-                }
-                return false;
-              }
-            }
-            function logPermissionError(agentName) {
-              core.error(`Failed to assign ${agentName}: Insufficient permissions`);
-              core.error("");
-              core.error("Assigning Copilot agents requires:");
-              core.error("  1. All four workflow permissions:");
-              core.error("     - actions: write");
-              core.error("     - contents: write");
-              core.error("     - issues: write");
-              core.error("     - pull-requests: write");
-              core.error("");
-              core.error("  2. A classic PAT with 'repo' scope OR fine-grained PAT with explicit Write permissions above:");
-              core.error("     (Fine-grained PATs must grant repository access + write for Issues, Pull requests, Contents, Actions)");
-              core.error("");
-              core.error("  3. Repository settings:");
-              core.error("     - Actions must have write permissions");
-              core.error("     - Go to: Settings > Actions > General > Workflow permissions");
-              core.error("     - Select: 'Read and write permissions'");
-              core.error("");
-              core.error("  4. Organization/Enterprise settings:");
-              core.error("     - Check if your org restricts bot assignments");
-              core.error("     - Verify Copilot is enabled for your repository");
-              core.error("");
-              core.info("For more information, see: https://docs.github.com/en/copilot/how-tos/use-copilot-agents/coding-agent/create-a-pr");
-            }
-            function generatePermissionErrorSummary() {
-              let content = "\n### ⚠️ Permission Requirements\n\n";
-              content += "Assigning Copilot agents requires **ALL** of these permissions:\n\n";
-              content += "```yaml\n";
-              content += "permissions:\n";
-              content += "  actions: write\n";
-              content += "  contents: write\n";
-              content += "  issues: write\n";
-              content += "  pull-requests: write\n";
-              content += "```\n\n";
-              content += "**Token capability note:**\n";
-              content += "- Current token (PAT or GITHUB_TOKEN) lacks assignee mutation capability for this repository.\n";
-              content += "- Both `replaceActorsForAssignable` and fallback `addAssigneesToAssignable` returned FORBIDDEN/Resource not accessible.\n";
-              content += "- This typically means bot/user assignment requires an elevated OAuth or GitHub App installation token.\n\n";
-              content += "**Recommended remediation paths:**\n";
-              content += "1. Create & install a GitHub App with: Issues/Pull requests/Contents/Actions (write) → use installation token in job.\n";
-              content += "2. Manual assignment: add the agent through the UI until broader token support is available.\n";
-              content += "3. Open a support ticket referencing failing mutation `replaceActorsForAssignable` and repository slug.\n\n";
-              content +=
-                "**Why this failed:** Fine-grained and classic PATs can update issue title (verified) but not modify assignees in this environment.\n\n";
-              content += "📖 Reference: https://docs.github.com/en/copilot/how-tos/use-copilot-agents/coding-agent/create-a-pr (general agent docs)\n";
-              return content;
-            }
-            async function assignAgentToIssueByName(owner, repo, issueNumber, agentName) {
-              if (!AGENT_LOGIN_NAMES[agentName]) {
-                const error = `Agent "${agentName}" is not supported. Supported agents: ${Object.keys(AGENT_LOGIN_NAMES).join(", ")}`;
-                core.warning(error);
-                return { success: false, error };
-              }
-              try {
-                core.info(`Looking for ${agentName} coding agent...`);
-                const agentId = await findAgent(owner, repo, agentName);
-                if (!agentId) {
-                  const error = `${agentName} coding agent is not available for this repository`;
-                  const available = await getAvailableAgentLogins(owner, repo);
-                  const enrichedError = available.length > 0 ? `${error} (available agents: ${available.join(", ")})` : error;
-                  return { success: false, error: enrichedError };
-                }
-                core.info(`Found ${agentName} coding agent (ID: ${agentId})`);
-                core.info("Getting issue details...");
-                const issueDetails = await getIssueDetails(owner, repo, issueNumber);
-                if (!issueDetails) {
-                  return { success: false, error: "Failed to get issue details" };
-                }
-                core.info(`Issue ID: ${issueDetails.issueId}`);
-                if (issueDetails.currentAssignees.includes(agentId)) {
-                  core.info(`${agentName} is already assigned to issue #${issueNumber}`);
-                  return { success: true };
-                }
-                core.info(`Assigning ${agentName} coding agent to issue #${issueNumber}...`);
-                const success = await assignAgentToIssue(issueDetails.issueId, agentId, issueDetails.currentAssignees, agentName);
-                if (!success) {
-                  return { success: false, error: `Failed to assign ${agentName} via GraphQL` };
-                }
-                core.info(`Successfully assigned ${agentName} coding agent to issue #${issueNumber}`);
-                return { success: true };
-              } catch (error) {
-                const errorMessage = error instanceof Error ? error.message : String(error);
-                return { success: false, error: errorMessage };
-              }
-            }
-            async function main() {
-              const result = loadAgentOutput();
-              if (!result.success) {
-                return;
-              }
-              const assignItems = result.items.filter(item => item.type === "assign_to_agent");
-              if (assignItems.length === 0) {
-                core.info("No assign_to_agent items found in agent output");
-                return;
-              }
-              core.info(`Found ${assignItems.length} assign_to_agent item(s)`);
-              if (process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true") {
-                await generateStagedPreview({
-                  title: "Assign to Agent",
-                  description: "The following agent assignments would be made if staged mode was disabled:",
-                  items: assignItems,
-                  renderItem: item => {
-                    let content = `**Issue:** #${item.issue_number}\n`;
-                    content += `**Agent:** ${item.agent || "copilot"}\n`;
-                    content += "\n";
-                    return content;
-                  },
-                });
-                return;
-              }
-              const defaultAgent = process.env.GH_AW_AGENT_DEFAULT?.trim() || "copilot";
-              core.info(`Default agent: ${defaultAgent}`);
-              const maxCountEnv = process.env.GH_AW_AGENT_MAX_COUNT;
-              const maxCount = maxCountEnv ? parseInt(maxCountEnv, 10) : 1;
-              if (isNaN(maxCount) || maxCount < 1) {
-                core.setFailed(`Invalid max value: ${maxCountEnv}. Must be a positive integer`);
-                return;
-              }
-              core.info(`Max count: ${maxCount}`);
-              const itemsToProcess = assignItems.slice(0, maxCount);
-              if (assignItems.length > maxCount) {
-                core.warning(`Found ${assignItems.length} agent assignments, but max is ${maxCount}. Processing first ${maxCount}.`);
-              }
-              const targetRepoEnv = process.env.GH_AW_TARGET_REPO?.trim();
-              let targetOwner = context.repo.owner;
-              let targetRepo = context.repo.repo;
-              if (targetRepoEnv) {
-                const parts = targetRepoEnv.split("/");
-                if (parts.length === 2) {
-                  targetOwner = parts[0];
-                  targetRepo = parts[1];
-                  core.info(`Using target repository: ${targetOwner}/${targetRepo}`);
-                } else {
-                  core.warning(`Invalid target-repo format: ${targetRepoEnv}. Expected owner/repo. Using current repository.`);
-                }
-              }
-              const agentCache = {};
-              const results = [];
-              for (const item of itemsToProcess) {
-                const issueNumber = typeof item.issue_number === "number" ? item.issue_number : parseInt(String(item.issue_number), 10);
-                const agentName = item.agent || defaultAgent;
-                if (isNaN(issueNumber) || issueNumber <= 0) {
-                  core.error(`Invalid issue_number: ${item.issue_number}`);
-                  continue;
-                }
-                if (!AGENT_LOGIN_NAMES[agentName]) {
-                  core.warning(`Agent "${agentName}" is not supported. Supported agents: ${Object.keys(AGENT_LOGIN_NAMES).join(", ")}`);
-                  results.push({
-                    issue_number: issueNumber,
-                    agent: agentName,
-                    success: false,
-                    error: `Unsupported agent: ${agentName}`,
-                  });
-                  continue;
-                }
-                try {
-                  let agentId = agentCache[agentName];
-                  if (!agentId) {
-                    core.info(`Looking for ${agentName} coding agent...`);
-                    agentId = await findAgent(targetOwner, targetRepo, agentName);
-                    if (!agentId) {
-                      throw new Error(`${agentName} coding agent is not available for this repository`);
-                    }
-                    agentCache[agentName] = agentId;
-                    core.info(`Found ${agentName} coding agent (ID: ${agentId})`);
-                  }
-                  core.info("Getting issue details...");
-                  const issueDetails = await getIssueDetails(targetOwner, targetRepo, issueNumber);
-                  if (!issueDetails) {
-                    throw new Error("Failed to get issue details");
-                  }
-                  core.info(`Issue ID: ${issueDetails.issueId}`);
-                  if (issueDetails.currentAssignees.includes(agentId)) {
-                    core.info(`${agentName} is already assigned to issue #${issueNumber}`);
-                    results.push({
-                      issue_number: issueNumber,
-                      agent: agentName,
-                      success: true,
-                    });
-                    continue;
-                  }
-                  core.info(`Assigning ${agentName} coding agent to issue #${issueNumber}...`);
-                  const success = await assignAgentToIssue(issueDetails.issueId, agentId, issueDetails.currentAssignees, agentName);
-                  if (!success) {
-                    throw new Error(`Failed to assign ${agentName} via GraphQL`);
-                  }
-                  core.info(`Successfully assigned ${agentName} coding agent to issue #${issueNumber}`);
-                  results.push({
-                    issue_number: issueNumber,
-                    agent: agentName,
-                    success: true,
-                  });
-                } catch (error) {
-                  let errorMessage = error instanceof Error ? error.message : String(error);
-                  if (errorMessage.includes("coding agent is not available for this repository")) {
-                    try {
-                      const available = await getAvailableAgentLogins(targetOwner, targetRepo);
-                      if (available.length > 0) {
-                        errorMessage += ` (available agents: ${available.join(", ")})`;
-                      }
-                    } catch (e) {
-                      core.debug("Failed to enrich unavailable agent message with available list");
-                    }
-                  }
-                  core.error(`Failed to assign agent "${agentName}" to issue #${issueNumber}: ${errorMessage}`);
-                  results.push({
-                    issue_number: issueNumber,
-                    agent: agentName,
-                    success: false,
-                    error: errorMessage,
-                  });
-                }
-              }
-              const successCount = results.filter(r => r.success).length;
-              const failureCount = results.filter(r => !r.success).length;
-              let summaryContent = "## Agent Assignment\n\n";
-              if (successCount > 0) {
-                summaryContent += `✅ Successfully assigned ${successCount} agent(s):\n\n`;
-                for (const result of results.filter(r => r.success)) {
-                  summaryContent += `- Issue #${result.issue_number} → Agent: ${result.agent}\n`;
-                }
-                summaryContent += "\n";
-              }
-              if (failureCount > 0) {
-                summaryContent += `❌ Failed to assign ${failureCount} agent(s):\n\n`;
-                for (const result of results.filter(r => !r.success)) {
-                  summaryContent += `- Issue #${result.issue_number} → Agent: ${result.agent}: ${result.error}\n`;
-                }
-                const hasPermissionError = results.some(
-                  r => !r.success && r.error && (r.error.includes("Resource not accessible") || r.error.includes("Insufficient permissions"))
-                );
-                if (hasPermissionError) {
-                  summaryContent += generatePermissionErrorSummary();
-                }
-              }
-              await core.summary.addRaw(summaryContent).write();
-              const assignedAgents = results
-                .filter(r => r.success)
-                .map(r => `${r.issue_number}:${r.agent}`)
-                .join("\n");
-              core.setOutput("assigned_agents", assignedAgents);
-              if (failureCount > 0) {
-                core.setFailed(`Failed to assign ${failureCount} agent(s)`);
-              }
-            }
-            (async () => {
-              await main();
-            })();
-
   conclusion:
     needs:
       - agent
       - activation
-      - assign_to_agent
+      - create_discussion
+      - link_sub_issue
     if: (always()) && (needs.agent.result != 'skipped')
     runs-on: ubuntu-slim
     permissions:
@@ -4570,7 +4663,7 @@ jobs:
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_NOOP_MAX: 1
-          GH_AW_WORKFLOW_NAME: "Dev"
+          GH_AW_WORKFLOW_NAME: "Issue Arborist"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -4662,7 +4755,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_WORKFLOW_NAME: "Dev"
+          GH_AW_WORKFLOW_NAME: "Issue Arborist"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -4775,7 +4868,7 @@ jobs:
           GH_AW_COMMENT_ID: ${{ needs.activation.outputs.comment_id }}
           GH_AW_COMMENT_REPO: ${{ needs.activation.outputs.comment_repo }}
           GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          GH_AW_WORKFLOW_NAME: "Dev"
+          GH_AW_WORKFLOW_NAME: "Issue Arborist"
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
@@ -4994,13 +5087,708 @@ jobs:
               core.setFailed(error instanceof Error ? error.message : String(error));
             });
 
+  create_discussion:
+    needs:
+      - agent
+      - detection
+    if: >
+      (((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'create_discussion'))) &&
+      (needs.detection.outputs.success == 'true')
+    runs-on: ubuntu-slim
+    permissions:
+      contents: read
+      discussions: write
+    timeout-minutes: 10
+    outputs:
+      discussion_number: ${{ steps.create_discussion.outputs.discussion_number }}
+      discussion_url: ${{ steps.create_discussion.outputs.discussion_url }}
+    steps:
+      - name: Download agent output artifact
+        continue-on-error: true
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
+        with:
+          name: agent_output.json
+          path: /tmp/gh-aw/safeoutputs/
+      - name: Setup agent output environment variable
+        run: |
+          mkdir -p /tmp/gh-aw/safeoutputs/
+          find "/tmp/gh-aw/safeoutputs/" -type f -print
+          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> "$GITHUB_ENV"
+      - name: Create Output Discussion
+        id: create_discussion
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        env:
+          GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
+          GH_AW_DISCUSSION_TITLE_PREFIX: "[Issue Arborist] "
+          GH_AW_DISCUSSION_CATEGORY: "Audits"
+          GH_AW_CLOSE_OLDER_DISCUSSIONS: "true"
+          GH_AW_WORKFLOW_NAME: "Issue Arborist"
+          GH_AW_ENGINE_ID: "codex"
+        with:
+          github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require("fs");
+            const MAX_LOG_CONTENT_LENGTH = 10000;
+            function truncateForLogging(content) {
+              if (content.length <= MAX_LOG_CONTENT_LENGTH) {
+                return content;
+              }
+              return content.substring(0, MAX_LOG_CONTENT_LENGTH) + `\n... (truncated, total length: ${content.length})`;
+            }
+            function loadAgentOutput() {
+              const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT;
+              if (!agentOutputFile) {
+                core.info("No GH_AW_AGENT_OUTPUT environment variable found");
+                return { success: false };
+              }
+              let outputContent;
+              try {
+                outputContent = fs.readFileSync(agentOutputFile, "utf8");
+              } catch (error) {
+                const errorMessage = `Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`;
+                core.error(errorMessage);
+                return { success: false, error: errorMessage };
+              }
+              if (outputContent.trim() === "") {
+                core.info("Agent output content is empty");
+                return { success: false };
+              }
+              core.info(`Agent output content length: ${outputContent.length}`);
+              let validatedOutput;
+              try {
+                validatedOutput = JSON.parse(outputContent);
+              } catch (error) {
+                const errorMessage = `Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`;
+                core.error(errorMessage);
+                core.info(`Failed to parse content:\n${truncateForLogging(outputContent)}`);
+                return { success: false, error: errorMessage };
+              }
+              if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
+                core.info("No valid items found in agent output");
+                core.info(`Parsed content: ${truncateForLogging(JSON.stringify(validatedOutput))}`);
+                return { success: false };
+              }
+              return { success: true, items: validatedOutput.items };
+            }
+            function getTrackerID(format) {
+              const trackerID = process.env.GH_AW_TRACKER_ID || "";
+              if (trackerID) {
+                core.info(`Tracker ID: ${trackerID}`);
+                return format === "markdown" ? `\n\n<!-- tracker-id: ${trackerID} -->` : trackerID;
+              }
+              return "";
+            }
+            function getMessages() {
+              const messagesEnv = process.env.GH_AW_SAFE_OUTPUT_MESSAGES;
+              if (!messagesEnv) {
+                return null;
+              }
+              try {
+                const rawMessages = JSON.parse(messagesEnv);
+                return {
+                  footer: rawMessages.footer,
+                  footerInstall: rawMessages.footerInstall,
+                  stagedTitle: rawMessages.stagedTitle,
+                  stagedDescription: rawMessages.stagedDescription,
+                  runStarted: rawMessages.runStarted,
+                  runSuccess: rawMessages.runSuccess,
+                  runFailure: rawMessages.runFailure,
+                  closeOlderDiscussion: rawMessages.closeOlderDiscussion,
+                };
+              } catch (error) {
+                core.warning(`Failed to parse GH_AW_SAFE_OUTPUT_MESSAGES: ${error instanceof Error ? error.message : String(error)}`);
+                return null;
+              }
+            }
+            function renderTemplate(template, context) {
+              return template.replace(/\{(\w+)\}/g, (match, key) => {
+                const value = context[key];
+                return value !== undefined && value !== null ? String(value) : match;
+              });
+            }
+            function toSnakeCase(obj) {
+              const result = {};
+              for (const [key, value] of Object.entries(obj)) {
+                const snakeKey = key.replace(/([A-Z])/g, "_$1").toLowerCase();
+                result[snakeKey] = value;
+                result[key] = value;
+              }
+              return result;
+            }
+            function getCloseOlderDiscussionMessage(ctx) {
+              const messages = getMessages();
+              const templateContext = toSnakeCase(ctx);
+              const defaultMessage = `⚓ Avast! This discussion be marked as **outdated** by [{workflow_name}]({run_url}).
+            🗺️ A newer treasure map awaits ye at **[Discussion #{new_discussion_number}]({new_discussion_url})**.
+            Fair winds, matey! 🏴‍☠️`;
+              return messages?.closeOlderDiscussion
+                ? renderTemplate(messages.closeOlderDiscussion, templateContext)
+                : renderTemplate(defaultMessage, templateContext);
+            }
+            const MAX_CLOSE_COUNT = 10;
+            const GRAPHQL_DELAY_MS = 500;
+            function delay(ms) {
+              return new Promise(resolve => setTimeout(resolve, ms));
+            }
+            async function searchOlderDiscussions(github, owner, repo, titlePrefix, labels, categoryId, excludeNumber) {
+              let searchQuery = `repo:${owner}/${repo} is:open`;
+              if (titlePrefix) {
+                const escapedPrefix = titlePrefix.replace(/"/g, '\\"');
+                searchQuery += ` in:title "${escapedPrefix}"`;
+              }
+              if (labels && labels.length > 0) {
+                for (const label of labels) {
+                  const escapedLabel = label.replace(/"/g, '\\"');
+                  searchQuery += ` label:"${escapedLabel}"`;
+                }
+              }
+              const result = await github.graphql(
+                `
+                query($searchTerms: String!, $first: Int!) {
+                  search(query: $searchTerms, type: DISCUSSION, first: $first) {
+                    nodes {
+                      ... on Discussion {
+                        id
+                        number
+                        title
+                        url
+                        category {
+                          id
+                        }
+                        labels(first: 100) {
+                          nodes {
+                            name
+                          }
+                        }
+                        closed
+                      }
+                    }
+                  }
+                }`,
+                { searchTerms: searchQuery, first: 50 }
+              );
+              if (!result || !result.search || !result.search.nodes) {
+                return [];
+              }
+              return result.search.nodes
+                .filter(
+                   d => {
+                    if (!d || d.number === excludeNumber || d.closed) {
+                      return false;
+                    }
+                    if (titlePrefix && d.title && !d.title.startsWith(titlePrefix)) {
+                      return false;
+                    }
+                    if (labels && labels.length > 0) {
+                      const discussionLabels = d.labels?.nodes?.map(( l) => l.name) || [];
+                      const hasAllLabels = labels.every(label => discussionLabels.includes(label));
+                      if (!hasAllLabels) {
+                        return false;
+                      }
+                    }
+                    if (categoryId && (!d.category || d.category.id !== categoryId)) {
+                      return false;
+                    }
+                    return true;
+                  }
+                )
+                .map(
+                   d => ({
+                    id: d.id,
+                    number: d.number,
+                    title: d.title,
+                    url: d.url,
+                  })
+                );
+            }
+            async function addDiscussionComment(github, discussionId, message) {
+              const result = await github.graphql(
+                `
+                mutation($dId: ID!, $body: String!) {
+                  addDiscussionComment(input: { discussionId: $dId, body: $body }) {
+                    comment { 
+                      id 
+                      url
+                    }
+                  }
+                }`,
+                { dId: discussionId, body: message }
+              );
+              return result.addDiscussionComment.comment;
+            }
+            async function closeDiscussionAsOutdated(github, discussionId) {
+              const result = await github.graphql(
+                `
+                mutation($dId: ID!) {
+                  closeDiscussion(input: { discussionId: $dId, reason: OUTDATED }) {
+                    discussion { 
+                      id
+                      url
+                    }
+                  }
+                }`,
+                { dId: discussionId }
+              );
+              return result.closeDiscussion.discussion;
+            }
+            async function closeOlderDiscussions(github, owner, repo, titlePrefix, labels, categoryId, newDiscussion, workflowName, runUrl) {
+              const searchCriteria = [];
+              if (titlePrefix) searchCriteria.push(`title prefix: "${titlePrefix}"`);
+              if (labels && labels.length > 0) searchCriteria.push(`labels: [${labels.join(", ")}]`);
+              core.info(`Searching for older discussions with ${searchCriteria.join(" and ")}`);
+              const olderDiscussions = await searchOlderDiscussions(github, owner, repo, titlePrefix, labels, categoryId, newDiscussion.number);
+              if (olderDiscussions.length === 0) {
+                core.info("No older discussions found to close");
+                return [];
+              }
+              core.info(`Found ${olderDiscussions.length} older discussion(s) to close`);
+              const discussionsToClose = olderDiscussions.slice(0, MAX_CLOSE_COUNT);
+              if (olderDiscussions.length > MAX_CLOSE_COUNT) {
+                core.warning(`Found ${olderDiscussions.length} older discussions, but only closing the first ${MAX_CLOSE_COUNT}`);
+              }
+              const closedDiscussions = [];
+              for (let i = 0; i < discussionsToClose.length; i++) {
+                const discussion = discussionsToClose[i];
+                try {
+                  const closingMessage = getCloseOlderDiscussionMessage({
+                    newDiscussionUrl: newDiscussion.url,
+                    newDiscussionNumber: newDiscussion.number,
+                    workflowName,
+                    runUrl,
+                  });
+                  core.info(`Adding closing comment to discussion #${discussion.number}`);
+                  await addDiscussionComment(github, discussion.id, closingMessage);
+                  core.info(`Closing discussion #${discussion.number} as outdated`);
+                  await closeDiscussionAsOutdated(github, discussion.id);
+                  closedDiscussions.push({
+                    number: discussion.number,
+                    url: discussion.url,
+                  });
+                  core.info(`✓ Closed discussion #${discussion.number}: ${discussion.url}`);
+                } catch (error) {
+                  core.error(`✗ Failed to close discussion #${discussion.number}: ${error instanceof Error ? error.message : String(error)}`);
+                }
+                if (i < discussionsToClose.length - 1) {
+                  await delay(GRAPHQL_DELAY_MS);
+                }
+              }
+              return closedDiscussions;
+            }
+            const crypto = require("crypto");
+            const TEMPORARY_ID_PATTERN = /#(aw_[0-9a-f]{12})/gi;
+            function generateTemporaryId() {
+              return "aw_" + crypto.randomBytes(6).toString("hex");
+            }
+            function isTemporaryId(value) {
+              if (typeof value === "string") {
+                return /^aw_[0-9a-f]{12}$/i.test(value);
+              }
+              return false;
+            }
+            function normalizeTemporaryId(tempId) {
+              return String(tempId).toLowerCase();
+            }
+            function replaceTemporaryIdReferences(text, tempIdMap, currentRepo) {
+              return text.replace(TEMPORARY_ID_PATTERN, (match, tempId) => {
+                const resolved = tempIdMap.get(normalizeTemporaryId(tempId));
+                if (resolved !== undefined) {
+                  if (currentRepo && resolved.repo === currentRepo) {
+                    return `#${resolved.number}`;
+                  }
+                  return `${resolved.repo}#${resolved.number}`;
+                }
+                return match;
+              });
+            }
+            function replaceTemporaryIdReferencesLegacy(text, tempIdMap) {
+              return text.replace(TEMPORARY_ID_PATTERN, (match, tempId) => {
+                const issueNumber = tempIdMap.get(normalizeTemporaryId(tempId));
+                if (issueNumber !== undefined) {
+                  return `#${issueNumber}`;
+                }
+                return match;
+              });
+            }
+            function loadTemporaryIdMap() {
+              const mapJson = process.env.GH_AW_TEMPORARY_ID_MAP;
+              if (!mapJson || mapJson === "{}") {
+                return new Map();
+              }
+              try {
+                const mapObject = JSON.parse(mapJson);
+                const result = new Map();
+                for (const [key, value] of Object.entries(mapObject)) {
+                  const normalizedKey = normalizeTemporaryId(key);
+                  if (typeof value === "number") {
+                    const contextRepo = `${context.repo.owner}/${context.repo.repo}`;
+                    result.set(normalizedKey, { repo: contextRepo, number: value });
+                  } else if (typeof value === "object" && value !== null && "repo" in value && "number" in value) {
+                    result.set(normalizedKey, { repo: String(value.repo), number: Number(value.number) });
+                  }
+                }
+                return result;
+              } catch (error) {
+                if (typeof core !== "undefined") {
+                  core.warning(`Failed to parse temporary ID map: ${error instanceof Error ? error.message : String(error)}`);
+                }
+                return new Map();
+              }
+            }
+            function resolveIssueNumber(value, temporaryIdMap) {
+              if (value === undefined || value === null) {
+                return { resolved: null, wasTemporaryId: false, errorMessage: "Issue number is missing" };
+              }
+              const valueStr = String(value);
+              if (isTemporaryId(valueStr)) {
+                const resolvedPair = temporaryIdMap.get(normalizeTemporaryId(valueStr));
+                if (resolvedPair !== undefined) {
+                  return { resolved: resolvedPair, wasTemporaryId: true, errorMessage: null };
+                }
+                return {
+                  resolved: null,
+                  wasTemporaryId: true,
+                  errorMessage: `Temporary ID '${valueStr}' not found in map. Ensure the issue was created before linking.`,
+                };
+              }
+              const issueNumber = typeof value === "number" ? value : parseInt(valueStr, 10);
+              if (isNaN(issueNumber) || issueNumber <= 0) {
+                return { resolved: null, wasTemporaryId: false, errorMessage: `Invalid issue number: ${value}` };
+              }
+              const contextRepo = typeof context !== "undefined" ? `${context.repo.owner}/${context.repo.repo}` : "";
+              return { resolved: { repo: contextRepo, number: issueNumber }, wasTemporaryId: false, errorMessage: null };
+            }
+            function serializeTemporaryIdMap(tempIdMap) {
+              const obj = Object.fromEntries(tempIdMap);
+              return JSON.stringify(obj);
+            }
+            function parseAllowedRepos() {
+              const allowedReposEnv = process.env.GH_AW_ALLOWED_REPOS;
+              const set = new Set();
+              if (allowedReposEnv) {
+                allowedReposEnv
+                  .split(",")
+                  .map(repo => repo.trim())
+                  .filter(repo => repo)
+                  .forEach(repo => set.add(repo));
+              }
+              return set;
+            }
+            function getDefaultTargetRepo() {
+              const targetRepoSlug = process.env.GH_AW_TARGET_REPO_SLUG;
+              if (targetRepoSlug) {
+                return targetRepoSlug;
+              }
+              return `${context.repo.owner}/${context.repo.repo}`;
+            }
+            function validateRepo(repo, defaultRepo, allowedRepos) {
+              if (repo === defaultRepo) {
+                return { valid: true, error: null };
+              }
+              if (allowedRepos.has(repo)) {
+                return { valid: true, error: null };
+              }
+              return {
+                valid: false,
+                error: `Repository '${repo}' is not in the allowed-repos list. Allowed: ${defaultRepo}${allowedRepos.size > 0 ? ", " + Array.from(allowedRepos).join(", ") : ""}`,
+              };
+            }
+            function parseRepoSlug(repoSlug) {
+              const parts = repoSlug.split("/");
+              if (parts.length !== 2 || !parts[0] || !parts[1]) {
+                return null;
+              }
+              return { owner: parts[0], repo: parts[1] };
+            }
+            async function fetchRepoDiscussionInfo(owner, repo) {
+              const repositoryQuery = `
+                query($owner: String!, $repo: String!) {
+                  repository(owner: $owner, name: $repo) {
+                    id
+                    discussionCategories(first: 20) {
+                      nodes {
+                        id
+                        name
+                        slug
+                        description
+                      }
+                    }
+                  }
+                }
+              `;
+              const queryResult = await github.graphql(repositoryQuery, {
+                owner: owner,
+                repo: repo,
+              });
+              if (!queryResult || !queryResult.repository) {
+                return null;
+              }
+              return {
+                repositoryId: queryResult.repository.id,
+                discussionCategories: queryResult.repository.discussionCategories.nodes || [],
+              };
+            }
+            function resolveCategoryId(categoryConfig, itemCategory, categories) {
+              const categoryToMatch = itemCategory || categoryConfig;
+              if (categoryToMatch) {
+                const categoryById = categories.find(cat => cat.id === categoryToMatch);
+                if (categoryById) {
+                  return { id: categoryById.id, matchType: "id", name: categoryById.name };
+                }
+                const categoryByName = categories.find(cat => cat.name === categoryToMatch);
+                if (categoryByName) {
+                  return { id: categoryByName.id, matchType: "name", name: categoryByName.name };
+                }
+                const categoryBySlug = categories.find(cat => cat.slug === categoryToMatch);
+                if (categoryBySlug) {
+                  return { id: categoryBySlug.id, matchType: "slug", name: categoryBySlug.name };
+                }
+              }
+              if (categories.length > 0) {
+                return {
+                  id: categories[0].id,
+                  matchType: "fallback",
+                  name: categories[0].name,
+                  requestedCategory: categoryToMatch,
+                };
+              }
+              return undefined;
+            }
+            async function main() {
+              core.setOutput("discussion_number", "");
+              core.setOutput("discussion_url", "");
+              const temporaryIdMap = loadTemporaryIdMap();
+              if (temporaryIdMap.size > 0) {
+                core.info(`Loaded temporary ID map with ${temporaryIdMap.size} entries`);
+              }
+              const result = loadAgentOutput();
+              if (!result.success) {
+                return;
+              }
+              const createDiscussionItems = result.items.filter(item => item.type === "create_discussion");
+              if (createDiscussionItems.length === 0) {
+                core.warning("No create-discussion items found in agent output");
+                return;
+              }
+              core.info(`Found ${createDiscussionItems.length} create-discussion item(s)`);
+              const allowedRepos = parseAllowedRepos();
+              const defaultTargetRepo = getDefaultTargetRepo();
+              core.info(`Default target repo: ${defaultTargetRepo}`);
+              if (allowedRepos.size > 0) {
+                core.info(`Allowed repos: ${Array.from(allowedRepos).join(", ")}`);
+              }
+              if (process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true") {
+                let summaryContent = "## 🎭 Staged Mode: Create Discussions Preview\n\n";
+                summaryContent += "The following discussions would be created if staged mode was disabled:\n\n";
+                for (let i = 0; i < createDiscussionItems.length; i++) {
+                  const item = createDiscussionItems[i];
+                  summaryContent += `### Discussion ${i + 1}\n`;
+                  summaryContent += `**Title:** ${item.title || "No title provided"}\n\n`;
+                  if (item.repo) {
+                    summaryContent += `**Repository:** ${item.repo}\n\n`;
+                  }
+                  if (item.body) {
+                    summaryContent += `**Body:**\n${item.body}\n\n`;
+                  }
+                  if (item.category) {
+                    summaryContent += `**Category:** ${item.category}\n\n`;
+                  }
+                  summaryContent += "---\n\n";
+                }
+                await core.summary.addRaw(summaryContent).write();
+                core.info("📝 Discussion creation preview written to step summary");
+                return;
+              }
+              const repoInfoCache = new Map();
+              const closeOlderEnabled = process.env.GH_AW_CLOSE_OLDER_DISCUSSIONS === "true";
+              const titlePrefix = process.env.GH_AW_DISCUSSION_TITLE_PREFIX || "";
+              const configCategory = process.env.GH_AW_DISCUSSION_CATEGORY || "";
+              const labelsEnvVar = process.env.GH_AW_DISCUSSION_LABELS || "";
+              const labels = labelsEnvVar
+                ? labelsEnvVar
+                    .split(",")
+                    .map(l => l.trim())
+                    .filter(l => l.length > 0)
+                : [];
+              const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
+              const runId = context.runId;
+              const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
+              const runUrl = context.payload.repository
+                ? `${context.payload.repository.html_url}/actions/runs/${runId}`
+                : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
+              const createdDiscussions = [];
+              const closedDiscussionsSummary = [];
+              for (let i = 0; i < createDiscussionItems.length; i++) {
+                const createDiscussionItem = createDiscussionItems[i];
+                const itemRepo = createDiscussionItem.repo ? String(createDiscussionItem.repo).trim() : defaultTargetRepo;
+                const repoValidation = validateRepo(itemRepo, defaultTargetRepo, allowedRepos);
+                if (!repoValidation.valid) {
+                  core.warning(`Skipping discussion: ${repoValidation.error}`);
+                  continue;
+                }
+                const repoParts = parseRepoSlug(itemRepo);
+                if (!repoParts) {
+                  core.warning(`Skipping discussion: Invalid repository format '${itemRepo}'. Expected 'owner/repo'.`);
+                  continue;
+                }
+                let repoInfo = repoInfoCache.get(itemRepo);
+                if (!repoInfo) {
+                  try {
+                    const fetchedInfo = await fetchRepoDiscussionInfo(repoParts.owner, repoParts.repo);
+                    if (!fetchedInfo) {
+                      core.warning(`Skipping discussion: Failed to fetch repository information for '${itemRepo}'`);
+                      continue;
+                    }
+                    repoInfo = fetchedInfo;
+                    repoInfoCache.set(itemRepo, repoInfo);
+                    core.info(
+                      `Fetched discussion categories for ${itemRepo}: ${JSON.stringify(repoInfo.discussionCategories.map(cat => ({ name: cat.name, id: cat.id })))}`
+                    );
+                  } catch (error) {
+                    const errorMessage = error instanceof Error ? error.message : String(error);
+                    if (
+                      errorMessage.includes("Not Found") ||
+                      errorMessage.includes("not found") ||
+                      errorMessage.includes("Could not resolve to a Repository")
+                    ) {
+                      core.warning(`Skipping discussion: Discussions are not enabled for repository '${itemRepo}'`);
+                      continue;
+                    }
+                    core.error(`Failed to get discussion categories for ${itemRepo}: ${errorMessage}`);
+                    throw error;
+                  }
+                }
+                const categoryInfo = resolveCategoryId(configCategory, createDiscussionItem.category, repoInfo.discussionCategories);
+                if (!categoryInfo) {
+                  core.warning(`Skipping discussion in ${itemRepo}: No discussion category available`);
+                  continue;
+                }
+                if (categoryInfo.matchType === "name") {
+                  core.info(`Using category by name: ${categoryInfo.name} (${categoryInfo.id})`);
+                } else if (categoryInfo.matchType === "slug") {
+                  core.info(`Using category by slug: ${categoryInfo.name} (${categoryInfo.id})`);
+                } else if (categoryInfo.matchType === "fallback") {
+                  if (categoryInfo.requestedCategory) {
+                    const availableCategoryNames = repoInfo.discussionCategories.map(cat => cat.name).join(", ");
+                    core.warning(
+                      `Category "${categoryInfo.requestedCategory}" not found by ID, name, or slug. Available categories: ${availableCategoryNames}`
+                    );
+                    core.info(`Falling back to default category: ${categoryInfo.name} (${categoryInfo.id})`);
+                  } else {
+                    core.info(`Using default first category: ${categoryInfo.name} (${categoryInfo.id})`);
+                  }
+                }
+                const categoryId = categoryInfo.id;
+                core.info(
+                  `Processing create-discussion item ${i + 1}/${createDiscussionItems.length}: title=${createDiscussionItem.title}, bodyLength=${createDiscussionItem.body?.length || 0}, repo=${itemRepo}`
+                );
+                let title = createDiscussionItem.title ? replaceTemporaryIdReferences(createDiscussionItem.title.trim(), temporaryIdMap, itemRepo) : "";
+                const bodyText = createDiscussionItem.body || "";
+                let bodyLines = replaceTemporaryIdReferences(bodyText, temporaryIdMap, itemRepo).split("\n");
+                if (!title) {
+                  title = replaceTemporaryIdReferences(bodyText, temporaryIdMap, itemRepo) || "Agent Output";
+                }
+                if (titlePrefix && !title.startsWith(titlePrefix)) {
+                  title = titlePrefix + title;
+                }
+                const trackerIDComment = getTrackerID("markdown");
+                if (trackerIDComment) {
+                  bodyLines.push(trackerIDComment);
+                }
+                bodyLines.push(``, ``, `> AI generated by [${workflowName}](${runUrl})`, "");
+                const body = bodyLines.join("\n").trim();
+                core.info(`Creating discussion in ${itemRepo} with title: ${title}`);
+                core.info(`Category ID: ${categoryId}`);
+                core.info(`Body length: ${body.length}`);
+                try {
+                  const createDiscussionMutation = `
+                    mutation($repositoryId: ID!, $categoryId: ID!, $title: String!, $body: String!) {
+                      createDiscussion(input: {
+                        repositoryId: $repositoryId,
+                        categoryId: $categoryId,
+                        title: $title,
+                        body: $body
+                      }) {
+                        discussion {
+                          id
+                          number
+                          title
+                          url
+                        }
+                      }
+                    }
+                  `;
+                  const mutationResult = await github.graphql(createDiscussionMutation, {
+                    repositoryId: repoInfo.repositoryId,
+                    categoryId: categoryId,
+                    title: title,
+                    body: body,
+                  });
+                  const discussion = mutationResult.createDiscussion.discussion;
+                  if (!discussion) {
+                    core.error(`Failed to create discussion in ${itemRepo}: No discussion data returned`);
+                    continue;
+                  }
+                  core.info(`Created discussion ${itemRepo}#${discussion.number}: ${discussion.url}`);
+                  createdDiscussions.push({ ...discussion, _repo: itemRepo });
+                  if (i === createDiscussionItems.length - 1) {
+                    core.setOutput("discussion_number", discussion.number);
+                    core.setOutput("discussion_url", discussion.url);
+                  }
+                  const hasMatchingCriteria = titlePrefix || labels.length > 0;
+                  if (closeOlderEnabled && hasMatchingCriteria) {
+                    core.info("close-older-discussions is enabled, searching for older discussions to close...");
+                    try {
+                      const closedDiscussions = await closeOlderDiscussions(
+                        github,
+                        repoParts.owner,
+                        repoParts.repo,
+                        titlePrefix,
+                        labels,
+                        categoryId,
+                        { number: discussion.number, url: discussion.url },
+                        workflowName,
+                        runUrl
+                      );
+                      if (closedDiscussions.length > 0) {
+                        closedDiscussionsSummary.push(...closedDiscussions);
+                        core.info(`Closed ${closedDiscussions.length} older discussion(s) as outdated`);
+                      }
+                    } catch (closeError) {
+                      core.warning(`Failed to close older discussions: ${closeError instanceof Error ? closeError.message : String(closeError)}`);
+                    }
+                  } else if (closeOlderEnabled && !hasMatchingCriteria) {
+                    core.warning("close-older-discussions is enabled but no title-prefix or labels are set - skipping close older discussions");
+                  }
+                } catch (error) {
+                  core.error(`✗ Failed to create discussion "${title}" in ${itemRepo}: ${error instanceof Error ? error.message : String(error)}`);
+                  throw error;
+                }
+              }
+              if (createdDiscussions.length > 0) {
+                let summaryContent = "\n\n## GitHub Discussions\n";
+                for (const discussion of createdDiscussions) {
+                  const repoLabel = discussion._repo !== defaultTargetRepo ? ` (${discussion._repo})` : "";
+                  summaryContent += `- Discussion #${discussion.number}${repoLabel}: [${discussion.title}](${discussion.url})\n`;
+                }
+                if (closedDiscussionsSummary.length > 0) {
+                  summaryContent += "\n### Closed Older Discussions\n";
+                  for (const closed of closedDiscussionsSummary) {
+                    summaryContent += `- Discussion #${closed.number}: [View](${closed.url}) (marked as outdated)\n`;
+                  }
+                }
+                await core.summary.addRaw(summaryContent).write();
+              }
+              core.info(`Successfully created ${createdDiscussions.length} discussion(s)`);
+            }
+            await main();
+
   detection:
     needs: agent
     if: needs.agent.outputs.output_types != '' || needs.agent.outputs.has_patch == 'true'
     runs-on: ubuntu-latest
     permissions: {}
     concurrency:
-      group: "gh-aw-claude-${{ github.workflow }}"
+      group: "gh-aw-codex-${{ github.workflow }}"
     timeout-minutes: 10
     outputs:
       success: ${{ steps.parse_results.outputs.success }}
@@ -5031,8 +5819,8 @@ jobs:
       - name: Setup threat detection
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
-          WORKFLOW_NAME: "Dev"
-          WORKFLOW_DESCRIPTION: "Find issues with \"[deps]\" in title and assign to Copilot agent"
+          WORKFLOW_NAME: "Issue Arborist"
+          WORKFLOW_DESCRIPTION: "Daily workflow that analyzes recent issues and links related issues as sub-issues"
         with:
           script: |
             const fs = require('fs');
@@ -5138,66 +5926,46 @@ jobs:
         run: |
           mkdir -p /tmp/gh-aw/threat-detection
           touch /tmp/gh-aw/threat-detection/detection.log
-      - name: Validate CLAUDE_CODE_OAUTH_TOKEN or ANTHROPIC_API_KEY secret
+      - name: Validate CODEX_API_KEY or OPENAI_API_KEY secret
         run: |
-          if [ -z "$CLAUDE_CODE_OAUTH_TOKEN" ] && [ -z "$ANTHROPIC_API_KEY" ]; then
-            echo "Error: Neither CLAUDE_CODE_OAUTH_TOKEN nor ANTHROPIC_API_KEY secret is set"
-            echo "The Claude Code engine requires either CLAUDE_CODE_OAUTH_TOKEN or ANTHROPIC_API_KEY secret to be configured."
+          if [ -z "$CODEX_API_KEY" ] && [ -z "$OPENAI_API_KEY" ]; then
+            echo "Error: Neither CODEX_API_KEY nor OPENAI_API_KEY secret is set"
+            echo "The Codex engine requires either CODEX_API_KEY or OPENAI_API_KEY secret to be configured."
             echo "Please configure one of these secrets in your repository settings."
-            echo "Documentation: https://githubnext.github.io/gh-aw/reference/engines/#anthropic-claude-code"
+            echo "Documentation: https://githubnext.github.io/gh-aw/reference/engines/#openai-codex"
             exit 1
           fi
-          if [ -n "$CLAUDE_CODE_OAUTH_TOKEN" ]; then
-            echo "CLAUDE_CODE_OAUTH_TOKEN secret is configured"
+          if [ -n "$CODEX_API_KEY" ]; then
+            echo "CODEX_API_KEY secret is configured"
           else
-            echo "ANTHROPIC_API_KEY secret is configured (using as fallback for CLAUDE_CODE_OAUTH_TOKEN)"
+            echo "OPENAI_API_KEY secret is configured (using as fallback for CODEX_API_KEY)"
           fi
         env:
-          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          CODEX_API_KEY: ${{ secrets.CODEX_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       - name: Setup Node.js
         uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # v6
         with:
           node-version: '24'
           package-manager-cache: false
-      - name: Install Claude Code CLI
-        run: npm install -g @anthropic-ai/claude-code@2.0.56
-      - name: Execute Claude Code CLI
-        id: agentic_execution
-        # Allowed tools (sorted):
-        # - Bash(cat)
-        # - Bash(grep)
-        # - Bash(head)
-        # - Bash(jq)
-        # - Bash(ls)
-        # - Bash(tail)
-        # - Bash(wc)
-        # - BashOutput
-        # - ExitPlanMode
-        # - Glob
-        # - Grep
-        # - KillBash
-        # - LS
-        # - NotebookRead
-        # - Read
-        # - Task
-        # - TodoWrite
-        timeout-minutes: 20
+      - name: Install Codex
+        run: npm install -g @openai/codex@0.63.0
+      - name: Run Codex
         run: |
           set -o pipefail
-          # Execute Claude Code CLI with prompt from file
-          claude --print --allowed-tools 'Bash(cat),Bash(grep),Bash(head),Bash(jq),Bash(ls),Bash(tail),Bash(wc),BashOutput,ExitPlanMode,Glob,Grep,KillBash,LS,NotebookRead,Read,Task,TodoWrite' --debug --verbose --permission-mode bypassPermissions --output-format stream-json "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)" 2>&1 | tee /tmp/gh-aw/threat-detection/detection.log
+          INSTRUCTION="$(cat "$GH_AW_PROMPT")"
+          mkdir -p "$CODEX_HOME/logs"
+          codex exec --full-auto --skip-git-repo-check "$INSTRUCTION" 2>&1 | tee /tmp/gh-aw/threat-detection/detection.log
         env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          DISABLE_TELEMETRY: "1"
-          DISABLE_ERROR_REPORTING: "1"
-          DISABLE_BUG_COMMAND: "1"
+          CODEX_API_KEY: ${{ secrets.CODEX_API_KEY || secrets.OPENAI_API_KEY }}
+          CODEX_HOME: /tmp/gh-aw/mcp-config
+          GH_AW_GITHUB_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+          GH_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/config.toml
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-          MCP_TIMEOUT: "120000"
-          MCP_TOOL_TIMEOUT: "60000"
-          BASH_DEFAULT_TIMEOUT_MS: "60000"
-          BASH_MAX_TIMEOUT_MS: "60000"
+          GITHUB_PERSONAL_ACCESS_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+          GITHUB_STEP_SUMMARY: ${{ env.GITHUB_STEP_SUMMARY }}
+          OPENAI_API_KEY: ${{ secrets.CODEX_API_KEY || secrets.OPENAI_API_KEY }}
+          RUST_LOG: trace,hyper_util=info,mio=info,reqwest=info,os_info=info,codex_otel=warn,codex_core=debug,ocodex_exec=debug
       - name: Parse threat detection results
         id: parse_results
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
@@ -5244,4 +6012,490 @@ jobs:
           name: threat-detection.log
           path: /tmp/gh-aw/threat-detection/detection.log
           if-no-files-found: ignore
+
+  link_sub_issue:
+    needs:
+      - agent
+      - detection
+    if: >
+      (((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'link_sub_issue'))) &&
+      (needs.detection.outputs.success == 'true')
+    runs-on: ubuntu-slim
+    permissions:
+      contents: read
+      issues: write
+    timeout-minutes: 10
+    outputs:
+      linked_issues: ${{ steps.link_sub_issue.outputs.linked_issues }}
+    steps:
+      - name: Download agent output artifact
+        continue-on-error: true
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
+        with:
+          name: agent_output.json
+          path: /tmp/gh-aw/safeoutputs/
+      - name: Setup agent output environment variable
+        run: |
+          mkdir -p /tmp/gh-aw/safeoutputs/
+          find "/tmp/gh-aw/safeoutputs/" -type f -print
+          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> "$GITHUB_ENV"
+      - name: Link Sub-Issue
+        id: link_sub_issue
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        env:
+          GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
+          GH_AW_LINK_SUB_ISSUE_MAX_COUNT: 10
+          GH_AW_WORKFLOW_NAME: "Issue Arborist"
+          GH_AW_ENGINE_ID: "codex"
+        with:
+          github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require("fs");
+            const MAX_LOG_CONTENT_LENGTH = 10000;
+            function truncateForLogging(content) {
+              if (content.length <= MAX_LOG_CONTENT_LENGTH) {
+                return content;
+              }
+              return content.substring(0, MAX_LOG_CONTENT_LENGTH) + `\n... (truncated, total length: ${content.length})`;
+            }
+            function loadAgentOutput() {
+              const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT;
+              if (!agentOutputFile) {
+                core.info("No GH_AW_AGENT_OUTPUT environment variable found");
+                return { success: false };
+              }
+              let outputContent;
+              try {
+                outputContent = fs.readFileSync(agentOutputFile, "utf8");
+              } catch (error) {
+                const errorMessage = `Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`;
+                core.error(errorMessage);
+                return { success: false, error: errorMessage };
+              }
+              if (outputContent.trim() === "") {
+                core.info("Agent output content is empty");
+                return { success: false };
+              }
+              core.info(`Agent output content length: ${outputContent.length}`);
+              let validatedOutput;
+              try {
+                validatedOutput = JSON.parse(outputContent);
+              } catch (error) {
+                const errorMessage = `Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`;
+                core.error(errorMessage);
+                core.info(`Failed to parse content:\n${truncateForLogging(outputContent)}`);
+                return { success: false, error: errorMessage };
+              }
+              if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
+                core.info("No valid items found in agent output");
+                core.info(`Parsed content: ${truncateForLogging(JSON.stringify(validatedOutput))}`);
+                return { success: false };
+              }
+              return { success: true, items: validatedOutput.items };
+            }
+            async function generateStagedPreview(options) {
+              const { title, description, items, renderItem } = options;
+              let summaryContent = `## 🎭 Staged Mode: ${title} Preview\n\n`;
+              summaryContent += `${description}\n\n`;
+              for (let i = 0; i < items.length; i++) {
+                const item = items[i];
+                summaryContent += renderItem(item, i);
+                summaryContent += "---\n\n";
+              }
+              try {
+                await core.summary.addRaw(summaryContent).write();
+                core.info(summaryContent);
+                core.info(`📝 ${title} preview written to step summary`);
+              } catch (error) {
+                core.setFailed(error instanceof Error ? error : String(error));
+              }
+            }
+            const crypto = require("crypto");
+            const TEMPORARY_ID_PATTERN = /#(aw_[0-9a-f]{12})/gi;
+            function generateTemporaryId() {
+              return "aw_" + crypto.randomBytes(6).toString("hex");
+            }
+            function isTemporaryId(value) {
+              if (typeof value === "string") {
+                return /^aw_[0-9a-f]{12}$/i.test(value);
+              }
+              return false;
+            }
+            function normalizeTemporaryId(tempId) {
+              return String(tempId).toLowerCase();
+            }
+            function replaceTemporaryIdReferences(text, tempIdMap, currentRepo) {
+              return text.replace(TEMPORARY_ID_PATTERN, (match, tempId) => {
+                const resolved = tempIdMap.get(normalizeTemporaryId(tempId));
+                if (resolved !== undefined) {
+                  if (currentRepo && resolved.repo === currentRepo) {
+                    return `#${resolved.number}`;
+                  }
+                  return `${resolved.repo}#${resolved.number}`;
+                }
+                return match;
+              });
+            }
+            function replaceTemporaryIdReferencesLegacy(text, tempIdMap) {
+              return text.replace(TEMPORARY_ID_PATTERN, (match, tempId) => {
+                const issueNumber = tempIdMap.get(normalizeTemporaryId(tempId));
+                if (issueNumber !== undefined) {
+                  return `#${issueNumber}`;
+                }
+                return match;
+              });
+            }
+            function loadTemporaryIdMap() {
+              const mapJson = process.env.GH_AW_TEMPORARY_ID_MAP;
+              if (!mapJson || mapJson === "{}") {
+                return new Map();
+              }
+              try {
+                const mapObject = JSON.parse(mapJson);
+                const result = new Map();
+                for (const [key, value] of Object.entries(mapObject)) {
+                  const normalizedKey = normalizeTemporaryId(key);
+                  if (typeof value === "number") {
+                    const contextRepo = `${context.repo.owner}/${context.repo.repo}`;
+                    result.set(normalizedKey, { repo: contextRepo, number: value });
+                  } else if (typeof value === "object" && value !== null && "repo" in value && "number" in value) {
+                    result.set(normalizedKey, { repo: String(value.repo), number: Number(value.number) });
+                  }
+                }
+                return result;
+              } catch (error) {
+                if (typeof core !== "undefined") {
+                  core.warning(`Failed to parse temporary ID map: ${error instanceof Error ? error.message : String(error)}`);
+                }
+                return new Map();
+              }
+            }
+            function resolveIssueNumber(value, temporaryIdMap) {
+              if (value === undefined || value === null) {
+                return { resolved: null, wasTemporaryId: false, errorMessage: "Issue number is missing" };
+              }
+              const valueStr = String(value);
+              if (isTemporaryId(valueStr)) {
+                const resolvedPair = temporaryIdMap.get(normalizeTemporaryId(valueStr));
+                if (resolvedPair !== undefined) {
+                  return { resolved: resolvedPair, wasTemporaryId: true, errorMessage: null };
+                }
+                return {
+                  resolved: null,
+                  wasTemporaryId: true,
+                  errorMessage: `Temporary ID '${valueStr}' not found in map. Ensure the issue was created before linking.`,
+                };
+              }
+              const issueNumber = typeof value === "number" ? value : parseInt(valueStr, 10);
+              if (isNaN(issueNumber) || issueNumber <= 0) {
+                return { resolved: null, wasTemporaryId: false, errorMessage: `Invalid issue number: ${value}` };
+              }
+              const contextRepo = typeof context !== "undefined" ? `${context.repo.owner}/${context.repo.repo}` : "";
+              return { resolved: { repo: contextRepo, number: issueNumber }, wasTemporaryId: false, errorMessage: null };
+            }
+            function serializeTemporaryIdMap(tempIdMap) {
+              const obj = Object.fromEntries(tempIdMap);
+              return JSON.stringify(obj);
+            }
+            async function main() {
+              const result = loadAgentOutput();
+              if (!result.success) {
+                return;
+              }
+              const linkItems = result.items.filter(item => item.type === "link_sub_issue");
+              if (linkItems.length === 0) {
+                core.info("No link_sub_issue items found in agent output");
+                return;
+              }
+              core.info(`Found ${linkItems.length} link_sub_issue item(s)`);
+              const temporaryIdMap = loadTemporaryIdMap();
+              if (temporaryIdMap.size > 0) {
+                core.info(`Loaded temporary ID map with ${temporaryIdMap.size} entries`);
+              }
+              if (process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true") {
+                await generateStagedPreview({
+                  title: "Link Sub-Issue",
+                  description: "The following sub-issue links would be created if staged mode was disabled:",
+                  items: linkItems,
+                  renderItem: item => {
+                    const parentResolved = resolveIssueNumber(item.parent_issue_number, temporaryIdMap);
+                    const subResolved = resolveIssueNumber(item.sub_issue_number, temporaryIdMap);
+                    let parentDisplay = parentResolved.resolved
+                      ? `${parentResolved.resolved.repo}#${parentResolved.resolved.number}`
+                      : `${item.parent_issue_number} (unresolved)`;
+                    let subDisplay = subResolved.resolved
+                      ? `${subResolved.resolved.repo}#${subResolved.resolved.number}`
+                      : `${item.sub_issue_number} (unresolved)`;
+                    if (parentResolved.wasTemporaryId && parentResolved.resolved) {
+                      parentDisplay += ` (from ${item.parent_issue_number})`;
+                    }
+                    if (subResolved.wasTemporaryId && subResolved.resolved) {
+                      subDisplay += ` (from ${item.sub_issue_number})`;
+                    }
+                    let content = `**Parent Issue:** ${parentDisplay}\n`;
+                    content += `**Sub-Issue:** ${subDisplay}\n\n`;
+                    return content;
+                  },
+                });
+                return;
+              }
+              const parentRequiredLabelsEnv = process.env.GH_AW_LINK_SUB_ISSUE_PARENT_REQUIRED_LABELS?.trim();
+              const parentRequiredLabels = parentRequiredLabelsEnv
+                ? parentRequiredLabelsEnv
+                    .split(",")
+                    .map(l => l.trim())
+                    .filter(l => l)
+                : [];
+              const parentTitlePrefix = process.env.GH_AW_LINK_SUB_ISSUE_PARENT_TITLE_PREFIX?.trim() || "";
+              const subRequiredLabelsEnv = process.env.GH_AW_LINK_SUB_ISSUE_SUB_REQUIRED_LABELS?.trim();
+              const subRequiredLabels = subRequiredLabelsEnv
+                ? subRequiredLabelsEnv
+                    .split(",")
+                    .map(l => l.trim())
+                    .filter(l => l)
+                : [];
+              const subTitlePrefix = process.env.GH_AW_LINK_SUB_ISSUE_SUB_TITLE_PREFIX?.trim() || "";
+              if (parentRequiredLabels.length > 0) {
+                core.info(`Parent required labels: ${JSON.stringify(parentRequiredLabels)}`);
+              }
+              if (parentTitlePrefix) {
+                core.info(`Parent title prefix: ${parentTitlePrefix}`);
+              }
+              if (subRequiredLabels.length > 0) {
+                core.info(`Sub-issue required labels: ${JSON.stringify(subRequiredLabels)}`);
+              }
+              if (subTitlePrefix) {
+                core.info(`Sub-issue title prefix: ${subTitlePrefix}`);
+              }
+              const maxCountEnv = process.env.GH_AW_LINK_SUB_ISSUE_MAX_COUNT;
+              const maxCount = maxCountEnv ? parseInt(maxCountEnv, 10) : 5;
+              if (isNaN(maxCount) || maxCount < 1) {
+                core.setFailed(`Invalid max value: ${maxCountEnv}. Must be a positive integer`);
+                return;
+              }
+              core.info(`Max count: ${maxCount}`);
+              const itemsToProcess = linkItems.slice(0, maxCount);
+              if (linkItems.length > maxCount) {
+                core.warning(`Found ${linkItems.length} link_sub_issue items, but max is ${maxCount}. Processing first ${maxCount}.`);
+              }
+              const results = [];
+              for (const item of itemsToProcess) {
+                const parentResolved = resolveIssueNumber(item.parent_issue_number, temporaryIdMap);
+                const subResolved = resolveIssueNumber(item.sub_issue_number, temporaryIdMap);
+                if (parentResolved.errorMessage) {
+                  core.warning(`Failed to resolve parent issue: ${parentResolved.errorMessage}`);
+                  results.push({
+                    parent_issue_number: item.parent_issue_number,
+                    sub_issue_number: item.sub_issue_number,
+                    success: false,
+                    error: parentResolved.errorMessage,
+                  });
+                  continue;
+                }
+                if (subResolved.errorMessage) {
+                  core.warning(`Failed to resolve sub-issue: ${subResolved.errorMessage}`);
+                  results.push({
+                    parent_issue_number: item.parent_issue_number,
+                    sub_issue_number: item.sub_issue_number,
+                    success: false,
+                    error: subResolved.errorMessage,
+                  });
+                  continue;
+                }
+                const parentIssueNumber = parentResolved.resolved.number;
+                const subIssueNumber = subResolved.resolved.number;
+                if (parentResolved.wasTemporaryId) {
+                  core.info(`Resolved parent temporary ID '${item.parent_issue_number}' to ${parentResolved.resolved.repo}#${parentIssueNumber}`);
+                }
+                if (subResolved.wasTemporaryId) {
+                  core.info(`Resolved sub-issue temporary ID '${item.sub_issue_number}' to ${subResolved.resolved.repo}#${subIssueNumber}`);
+                }
+                let parentIssue;
+                try {
+                  const parentResponse = await github.rest.issues.get({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    issue_number: parentIssueNumber,
+                  });
+                  parentIssue = parentResponse.data;
+                } catch (error) {
+                  const errorMessage = error instanceof Error ? error.message : String(error);
+                  core.warning(`Failed to fetch parent issue #${parentIssueNumber}: ${errorMessage}`);
+                  results.push({
+                    parent_issue_number: parentIssueNumber,
+                    sub_issue_number: subIssueNumber,
+                    success: false,
+                    error: `Failed to fetch parent issue: ${errorMessage}`,
+                  });
+                  continue;
+                }
+                if (parentRequiredLabels.length > 0) {
+                  const parentLabels = parentIssue.labels.map(l => (typeof l === "string" ? l : l.name || ""));
+                  const missingLabels = parentRequiredLabels.filter(required => !parentLabels.includes(required));
+                  if (missingLabels.length > 0) {
+                    core.warning(`Parent issue #${parentIssueNumber} is missing required labels: ${missingLabels.join(", ")}. Skipping.`);
+                    results.push({
+                      parent_issue_number: parentIssueNumber,
+                      sub_issue_number: subIssueNumber,
+                      success: false,
+                      error: `Parent issue missing required labels: ${missingLabels.join(", ")}`,
+                    });
+                    continue;
+                  }
+                }
+                if (parentTitlePrefix && !parentIssue.title.startsWith(parentTitlePrefix)) {
+                  core.warning(`Parent issue #${parentIssueNumber} title does not start with "${parentTitlePrefix}". Skipping.`);
+                  results.push({
+                    parent_issue_number: parentIssueNumber,
+                    sub_issue_number: subIssueNumber,
+                    success: false,
+                    error: `Parent issue title does not start with "${parentTitlePrefix}"`,
+                  });
+                  continue;
+                }
+                let subIssue;
+                try {
+                  const subResponse = await github.rest.issues.get({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    issue_number: subIssueNumber,
+                  });
+                  subIssue = subResponse.data;
+                } catch (error) {
+                  const errorMessage = error instanceof Error ? error.message : String(error);
+                  core.error(`Failed to fetch sub-issue #${subIssueNumber}: ${errorMessage}`);
+                  results.push({
+                    parent_issue_number: parentIssueNumber,
+                    sub_issue_number: subIssueNumber,
+                    success: false,
+                    error: `Failed to fetch sub-issue: ${errorMessage}`,
+                  });
+                  continue;
+                }
+                try {
+                  const parentCheckQuery = `
+                    query($owner: String!, $repo: String!, $number: Int!) {
+                      repository(owner: $owner, name: $repo) {
+                        issue(number: $number) {
+                          parent {
+                            number
+                            title
+                          }
+                        }
+                      }
+                    }
+                  `;
+                  const parentCheckResult = await github.graphql(parentCheckQuery, {
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    number: subIssueNumber,
+                  });
+                  const existingParent = parentCheckResult?.repository?.issue?.parent;
+                  if (existingParent) {
+                    core.warning(
+                      `Sub-issue #${subIssueNumber} is already a sub-issue of #${existingParent.number} ("${existingParent.title}"). Skipping.`
+                    );
+                    results.push({
+                      parent_issue_number: parentIssueNumber,
+                      sub_issue_number: subIssueNumber,
+                      success: false,
+                      error: `Sub-issue is already a sub-issue of #${existingParent.number}`,
+                    });
+                    continue;
+                  }
+                } catch (error) {
+                  const errorMessage = error instanceof Error ? error.message : String(error);
+                  core.warning(`Could not check if sub-issue #${subIssueNumber} has a parent: ${errorMessage}. Proceeding with link attempt.`);
+                }
+                if (subRequiredLabels.length > 0) {
+                  const subLabels = subIssue.labels.map(l => (typeof l === "string" ? l : l.name || ""));
+                  const missingLabels = subRequiredLabels.filter(required => !subLabels.includes(required));
+                  if (missingLabels.length > 0) {
+                    core.warning(`Sub-issue #${subIssueNumber} is missing required labels: ${missingLabels.join(", ")}. Skipping.`);
+                    results.push({
+                      parent_issue_number: parentIssueNumber,
+                      sub_issue_number: subIssueNumber,
+                      success: false,
+                      error: `Sub-issue missing required labels: ${missingLabels.join(", ")}`,
+                    });
+                    continue;
+                  }
+                }
+                if (subTitlePrefix && !subIssue.title.startsWith(subTitlePrefix)) {
+                  core.warning(`Sub-issue #${subIssueNumber} title does not start with "${subTitlePrefix}". Skipping.`);
+                  results.push({
+                    parent_issue_number: parentIssueNumber,
+                    sub_issue_number: subIssueNumber,
+                    success: false,
+                    error: `Sub-issue title does not start with "${subTitlePrefix}"`,
+                  });
+                  continue;
+                }
+                try {
+                  const parentNodeId = parentIssue.node_id;
+                  const subNodeId = subIssue.node_id;
+                  await github.graphql(
+                    `
+                    mutation AddSubIssue($parentId: ID!, $subIssueId: ID!) {
+                      addSubIssue(input: { issueId: $parentId, subIssueId: $subIssueId }) {
+                        issue {
+                          id
+                          number
+                        }
+                        subIssue {
+                          id
+                          number
+                        }
+                      }
+                    }
+                  `,
+                    {
+                      parentId: parentNodeId,
+                      subIssueId: subNodeId,
+                    }
+                  );
+                  core.info(`Successfully linked issue #${subIssueNumber} as sub-issue of #${parentIssueNumber}`);
+                  results.push({
+                    parent_issue_number: parentIssueNumber,
+                    sub_issue_number: subIssueNumber,
+                    success: true,
+                  });
+                } catch (error) {
+                  const errorMessage = error instanceof Error ? error.message : String(error);
+                  core.warning(`Failed to link issue #${subIssueNumber} as sub-issue of #${parentIssueNumber}: ${errorMessage}`);
+                  results.push({
+                    parent_issue_number: parentIssueNumber,
+                    sub_issue_number: subIssueNumber,
+                    success: false,
+                    error: errorMessage,
+                  });
+                }
+              }
+              const successCount = results.filter(r => r.success).length;
+              const failureCount = results.filter(r => !r.success).length;
+              let summaryContent = "## Link Sub-Issue\n\n";
+              if (successCount > 0) {
+                summaryContent += `✅ Successfully linked ${successCount} sub-issue(s):\n\n`;
+                for (const result of results.filter(r => r.success)) {
+                  summaryContent += `- Issue #${result.sub_issue_number} → Parent #${result.parent_issue_number}\n`;
+                }
+                summaryContent += "\n";
+              }
+              if (failureCount > 0) {
+                summaryContent += `⚠️ Failed to link ${failureCount} sub-issue(s):\n\n`;
+                for (const result of results.filter(r => !r.success)) {
+                  summaryContent += `- Issue #${result.sub_issue_number} → Parent #${result.parent_issue_number}: ${result.error}\n`;
+                }
+              }
+              await core.summary.addRaw(summaryContent).write();
+              const linkedIssues = results
+                .filter(r => r.success)
+                .map(r => `${r.parent_issue_number}:${r.sub_issue_number}`)
+                .join("\n");
+              core.setOutput("linked_issues", linkedIssues);
+              if (failureCount > 0) {
+                core.warning(`Failed to link ${failureCount} sub-issue(s). See step summary for details.`);
+              }
+            }
+            await main();
 
