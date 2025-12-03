@@ -69,8 +69,7 @@ When called with a workflow name, creates a template file with comprehensive exa
 - Tools configuration (github, claude, mcps)
 - All frontmatter options with explanations
 
-The workflow-id is the basename of the Markdown file without the .md extension.
-You can provide either the workflow-id (e.g., 'my-workflow') or the full filename (e.g., 'my-workflow.md').
+` + cli.WorkflowIDExplanation + `
 
 Examples:
   ` + constants.CLIExtensionPrefix + ` new                      # Interactive mode
@@ -132,8 +131,7 @@ var enableCmd = &cobra.Command{
 	Short: "Enable agentic workflows",
 	Long: `Enable one or more workflows by ID, or all workflows if no IDs are provided.
 
-The workflow-id is the basename of the Markdown file without the .md extension.
-You can provide either the workflow-id (e.g., 'ci-doctor') or the full filename (e.g., 'ci-doctor.md').
+` + cli.WorkflowIDExplanation + `
 
 Examples:
   ` + constants.CLIExtensionPrefix + ` enable                    # Enable all workflows
@@ -152,8 +150,7 @@ var disableCmd = &cobra.Command{
 	Short: "Disable agentic workflows and cancel any in-progress runs",
 	Long: `Disable one or more workflows by ID, or all workflows if no IDs are provided.
 
-The workflow-id is the basename of the Markdown file without the .md extension.
-You can provide either the workflow-id (e.g., 'ci-doctor') or the full filename (e.g., 'ci-doctor.md').
+` + cli.WorkflowIDExplanation + `
 
 Examples:
   ` + constants.CLIExtensionPrefix + ` disable                    # Disable all workflows
@@ -267,8 +264,7 @@ It executes 'gh workflow run <workflow-lock-file>' to trigger each workflow on G
 
 By default, workflows are run on the current branch. Use --ref to specify a different branch or tag.
 
-The workflow-id is the basename of the Markdown file without the .md extension.
-You can provide either the workflow-id (e.g., 'daily-perf-improver') or the full filename (e.g., 'daily-perf-improver.md').
+` + cli.WorkflowIDExplanation + `
 
 Examples:
   gh aw run daily-perf-improver
