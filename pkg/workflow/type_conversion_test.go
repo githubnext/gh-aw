@@ -321,8 +321,8 @@ func TestConvertToFloatEdgeCases(t *testing.T) {
 		{"multiple decimals", "1.2.3", 0.0},
 
 		// Whitespace in strings
-		// Note: strconv.ParseFloat is more lenient with whitespace
-		{"string with whitespace", " 123.45 ", 0.0}, // ParseFloat doesn't trim
+		// Note: strconv.ParseFloat does NOT accept whitespace, returns error
+		{"string with whitespace", " 123.45 ", 0.0}, // ParseFloat returns error for whitespace
 
 		// Invalid/unsupported types
 		{"nil", nil, 0.0},
