@@ -2,7 +2,7 @@
 on: 
   workflow_dispatch:
 name: Dev
-description: Find issues with "[deps]" in title and assign to mrjf
+description: Find an open issue and assign it to mrjf
 timeout-minutes: 5
 strict: false
 engine: claude
@@ -17,20 +17,22 @@ safe-outputs:
     allowed: [mrjf]
     target: "*"
 ---
-# Dependency Issue Assignment
+# Issue Assignment
 
-Find an open issue in this repository with "[deps]" in the title and assign it to mrjf for resolution.
+Find an open issue in this repository and assign it to mrjf for resolution.
 
 ## Task
 
-1. **Search for issues**: Use GitHub search to find open issues with "[deps]" in the title:
+1. **Search for issues**: Use GitHub search to find open issues in this repository:
    ```
-   is:issue is:open "[deps]" in:title repo:${{ github.repository }}
+   is:issue is:open repo:${{ github.repository }}
    ```
 
 2. **Filter out assigned issues**: Skip any issues that already have mrjf as an assignee.
 
-3. **Assign to mrjf**: For the first suitable issue found, use the `assign_to_user` tool to assign it to mrjf.
+3. **Pick an issue**: Select the first suitable unassigned issue found.
+
+4. **Assign to mrjf**: Use the `assign_to_user` tool to assign the selected issue to mrjf.
 
 **Agent Output Format:**
 ```json
@@ -41,4 +43,4 @@ Find an open issue in this repository with "[deps]" in the title and assign it t
 }
 ```
 
-If no suitable issues are found, output a message indicating that no "[deps]" issues are available for assignment.
+If no suitable issues are found, output a noop message indicating that no unassigned issues are available.
