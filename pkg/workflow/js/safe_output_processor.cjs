@@ -256,8 +256,85 @@ function processItems(rawItems, allowed, maxCount) {
   return limitToMaxCount(sanitized, maxCount);
 }
 
+/**
+ * @typedef {Object} StagedModeGatingConfig
+ * @property {string} itemType - The type field value to match in agent output (e.g., "assign_to_agent")
+ * @property {string} itemTypeName - Human-readable name for logging (e.g., "assign_to_agent")
+ */
+
+/**
+ * @typedef {Object} StagedPreviewConfig
+ * @property {string} title - Title for staged preview (e.g., "Assign to Agent")
+ * @property {string} description - Description for staged preview
+ * @property {(item: any, index: number) => string} renderItem - Function to render item in preview
+ */
+
+/**
+ * @typedef {Object} StagedModeGatingResult
+ * @property {boolean} success - Whether processing should continue (false if no items or staged mode)
+ * @property {any[]} [items] - The found items (only present if success is true)
+ * @property {string} [reason] - Reason why processing should not continue (only present if success is false)
+ */
+
+/**
+ * Lightweight helper for the common staged-mode gating pattern.
+ * Handles: load agent output, filter by type, log count, generate staged preview.
+ *
+ * This is a simpler alternative to processSafeOutput for scripts that have custom
+ * processing logic after the initial load/filter/staged-preview steps.
+ *
+ * @param {StagedModeGatingConfig} config - Configuration for item filtering
+ * @param {StagedPreviewConfig} stagedPreview - Configuration for staged preview
+ * @returns {Promise<StagedModeGatingResult>} Result object indicating whether to continue processing
+ *
+ * @example
+ * const result = await withStagedModeGating(
+ *   { itemType: "assign_to_agent", itemTypeName: "assign_to_agent" },
+ *   {
+ *     title: "Assign to Agent",
+ *     description: "The following agent assignments would be made if staged mode was disabled:",
+ *     renderItem: item => `**Issue:** #${item.issue_number}\n**Agent:** ${item.agent || "copilot"}\n`
+ *   }
+ * );
+ * if (!result.success) return;
+ * // Continue with custom processing using result.items
+ */
+async function withStagedModeGating(config, stagedPreview) {
+  const { itemType, itemTypeName } = config;
+
+  // Step 1: Load agent output
+  const result = loadAgentOutput();
+  if (!result.success) {
+    return { success: false, reason: "Agent output not available" };
+  }
+
+  // Step 2: Filter items by type
+  const items = result.items.filter(item => item.type === itemType);
+  if (items.length === 0) {
+    core.info(`No ${itemTypeName} items found in agent output`);
+    return { success: false, reason: `No ${itemTypeName} items found` };
+  }
+
+  core.info(`Found ${items.length} ${itemTypeName} item(s)`);
+
+  // Step 3: Handle staged mode
+  if (process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true") {
+    await generateStagedPreview({
+      title: stagedPreview.title,
+      description: stagedPreview.description,
+      items: items,
+      renderItem: stagedPreview.renderItem,
+    });
+    return { success: false, reason: "Staged mode - preview generated" };
+  }
+
+  // Success - return items for further processing
+  return { success: true, items };
+}
+
 module.exports = {
   processSafeOutput,
+  withStagedModeGating,
   sanitizeItems,
   filterByAllowed,
   limitToMaxCount,

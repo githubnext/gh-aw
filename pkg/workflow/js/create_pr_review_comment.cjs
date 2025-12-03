@@ -1,35 +1,19 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-const { loadAgentOutput } = require("./load_agent_output.cjs");
-const { generateStagedPreview } = require("./staged_preview.cjs");
+const { withStagedModeGating } = require("./safe_output_processor.cjs");
 const { generateFooter } = require("./generate_footer.cjs");
 const { getRepositoryUrl } = require("./get_repository_url.cjs");
 
 async function main() {
-  // Check if we're in staged mode
-  const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
-
-  const result = loadAgentOutput();
-  if (!result.success) {
-    return;
-  }
-
-  // Find all create-pr-review-comment items
-  const reviewCommentItems = result.items.filter(/** @param {any} item */ item => item.type === "create_pull_request_review_comment");
-  if (reviewCommentItems.length === 0) {
-    core.info("No create-pull-request-review-comment items found in agent output");
-    return;
-  }
-
-  core.info(`Found ${reviewCommentItems.length} create-pull-request-review-comment item(s)`);
-
-  // If in staged mode, emit step summary instead of creating review comments
-  if (isStaged) {
-    await generateStagedPreview({
+  const gatingResult = await withStagedModeGating(
+    {
+      itemType: "create_pull_request_review_comment",
+      itemTypeName: "create-pull-request-review-comment",
+    },
+    {
       title: "Create PR Review Comments",
       description: "The following review comments would be created if staged mode was disabled:",
-      items: reviewCommentItems,
       renderItem: (item, index) => {
         let content = `### Review Comment ${index + 1}\n`;
         if (item.pull_request_number) {
@@ -48,7 +32,16 @@ async function main() {
         content += `**Body:**\n${item.body || "No content provided"}\n\n`;
         return content;
       },
-    });
+    }
+  );
+
+  if (!gatingResult.success) {
+    return;
+  }
+
+  // @ts-ignore - items is guaranteed to be present when success is true
+  const reviewCommentItems = gatingResult.items;
+  if (!reviewCommentItems) {
     return;
   }
 

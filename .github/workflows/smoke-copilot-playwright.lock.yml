@@ -1779,6 +1779,29 @@ jobs:
               const sanitized = sanitizeItems(filtered);
               return limitToMaxCount(sanitized, maxCount);
             }
+            async function withStagedModeGating(config, stagedPreview) {
+              const { itemType, itemTypeName } = config;
+              const result = loadAgentOutput();
+              if (!result.success) {
+                return { success: false, reason: "Agent output not available" };
+              }
+              const items = result.items.filter(item => item.type === itemType);
+              if (items.length === 0) {
+                core.info(`No ${itemTypeName} items found in agent output`);
+                return { success: false, reason: `No ${itemTypeName} items found` };
+              }
+              core.info(`Found ${items.length} ${itemTypeName} item(s)`);
+              if (process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true") {
+                await generateStagedPreview({
+                  title: stagedPreview.title,
+                  description: stagedPreview.description,
+                  items: items,
+                  renderItem: stagedPreview.renderItem,
+                });
+                return { success: false, reason: "Staged mode - preview generated" };
+              }
+              return { success: true, items };
+            }
             async function main() {
               const result = await processSafeOutput(
                 {

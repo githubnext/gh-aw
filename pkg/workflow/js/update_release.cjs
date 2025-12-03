@@ -1,33 +1,17 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-const { loadAgentOutput } = require("./load_agent_output.cjs");
-const { generateStagedPreview } = require("./staged_preview.cjs");
+const { withStagedModeGating } = require("./safe_output_processor.cjs");
 
 async function main() {
-  // Check if we're in staged mode
-  const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
-
-  const result = loadAgentOutput();
-  if (!result.success) {
-    return;
-  }
-
-  // Find all update-release items
-  const updateItems = result.items.filter(/** @param {any} item */ item => item.type === "update_release");
-  if (updateItems.length === 0) {
-    core.info("No update-release items found in agent output");
-    return;
-  }
-
-  core.info(`Found ${updateItems.length} update-release item(s)`);
-
-  // If in staged mode, emit step summary instead of updating releases
-  if (isStaged) {
-    await generateStagedPreview({
+  const gatingResult = await withStagedModeGating(
+    {
+      itemType: "update_release",
+      itemTypeName: "update-release",
+    },
+    {
       title: "Update Releases",
       description: "The following release updates would be applied if staged mode was disabled:",
-      items: updateItems,
       renderItem: (item, index) => {
         let content = `### Release Update ${index + 1}\n`;
         content += `**Tag:** ${item.tag || "(inferred from event context)"}\n`;
@@ -35,9 +19,15 @@ async function main() {
         content += `**Body Content:**\n${item.body}\n\n`;
         return content;
       },
-    });
+    }
+  );
+
+  if (!gatingResult.success) {
     return;
   }
+
+  // @ts-ignore - items is guaranteed to be present when success is true
+  const updateItems = gatingResult.items;
 
   // Get workflow run URL for AI attribution
   const workflowName = process.env.GH_AW_WORKFLOW_NAME || "GitHub Agentic Workflow";

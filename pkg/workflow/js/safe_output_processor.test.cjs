@@ -382,4 +382,112 @@ describe("safe_output_processor", () => {
       expect(result).toEqual([]);
     });
   });
+
+  describe("withStagedModeGating", () => {
+    const defaultConfig = {
+      itemType: "test_type",
+      itemTypeName: "test_type",
+    };
+
+    const defaultStagedPreview = {
+      title: "Test Preview",
+      description: "Test description",
+      renderItem: item => `**Test:** ${JSON.stringify(item)}\n`,
+    };
+
+    it("should return unsuccessful when agent output is not available", async () => {
+      delete process.env.GH_AW_AGENT_OUTPUT;
+
+      const result = await processor.withStagedModeGating(defaultConfig, defaultStagedPreview);
+
+      expect(result.success).toBe(false);
+      expect(result.reason).toBe("Agent output not available");
+    });
+
+    it("should return unsuccessful when no matching items found", async () => {
+      const agentOutput = {
+        items: [{ type: "other_type", data: "test" }],
+      };
+      fs.writeFileSync(outputFile, JSON.stringify(agentOutput));
+      process.env.GH_AW_AGENT_OUTPUT = outputFile;
+
+      const result = await processor.withStagedModeGating(defaultConfig, defaultStagedPreview);
+
+      expect(result.success).toBe(false);
+      expect(result.reason).toBe("No test_type items found");
+      expect(mockCore.info).toHaveBeenCalledWith("No test_type items found in agent output");
+    });
+
+    it("should handle staged mode and generate preview", async () => {
+      const agentOutput = {
+        items: [
+          { type: "test_type", value: "value1" },
+          { type: "test_type", value: "value2" },
+        ],
+      };
+      fs.writeFileSync(outputFile, JSON.stringify(agentOutput));
+      process.env.GH_AW_AGENT_OUTPUT = outputFile;
+      process.env.GH_AW_SAFE_OUTPUTS_STAGED = "true";
+
+      const result = await processor.withStagedModeGating(defaultConfig, defaultStagedPreview);
+
+      expect(result.success).toBe(false);
+      expect(result.reason).toBe("Staged mode - preview generated");
+      expect(mockCore.summary.addRaw).toHaveBeenCalled();
+      expect(mockCore.summary.write).toHaveBeenCalled();
+    });
+
+    it("should return items when not in staged mode", async () => {
+      const agentOutput = {
+        items: [
+          { type: "test_type", value: "value1" },
+          { type: "test_type", value: "value2" },
+          { type: "other_type", value: "other" },
+        ],
+      };
+      fs.writeFileSync(outputFile, JSON.stringify(agentOutput));
+      process.env.GH_AW_AGENT_OUTPUT = outputFile;
+      delete process.env.GH_AW_SAFE_OUTPUTS_STAGED;
+
+      const result = await processor.withStagedModeGating(defaultConfig, defaultStagedPreview);
+
+      expect(result.success).toBe(true);
+      expect(result.items).toHaveLength(2);
+      expect(result.items[0].value).toBe("value1");
+      expect(result.items[1].value).toBe("value2");
+      expect(mockCore.info).toHaveBeenCalledWith("Found 2 test_type item(s)");
+    });
+
+    it("should log item count correctly", async () => {
+      const agentOutput = {
+        items: [{ type: "test_type", value: "single" }],
+      };
+      fs.writeFileSync(outputFile, JSON.stringify(agentOutput));
+      process.env.GH_AW_AGENT_OUTPUT = outputFile;
+
+      await processor.withStagedModeGating(defaultConfig, defaultStagedPreview);
+
+      expect(mockCore.info).toHaveBeenCalledWith("Found 1 test_type item(s)");
+    });
+
+    it("should use custom renderItem function in staged preview", async () => {
+      const agentOutput = {
+        items: [{ type: "test_type", name: "TestItem" }],
+      };
+      fs.writeFileSync(outputFile, JSON.stringify(agentOutput));
+      process.env.GH_AW_AGENT_OUTPUT = outputFile;
+      process.env.GH_AW_SAFE_OUTPUTS_STAGED = "true";
+
+      const customRender = item => `**Name:** ${item.name}\n`;
+      await processor.withStagedModeGating(defaultConfig, {
+        ...defaultStagedPreview,
+        renderItem: customRender,
+      });
+
+      // Verify the staged preview was generated with our custom renderer
+      expect(mockCore.summary.addRaw).toHaveBeenCalled();
+      const summaryCall = mockCore.summary.addRaw.mock.calls[0][0];
+      expect(summaryCall).toContain("**Name:** TestItem");
+    });
+  });
 });

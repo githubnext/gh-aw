@@ -1,8 +1,7 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-const { loadAgentOutput } = require("./load_agent_output.cjs");
-const { generateStagedPreview } = require("./staged_preview.cjs");
+const { withStagedModeGating } = require("./safe_output_processor.cjs");
 const {
   AGENT_LOGIN_NAMES,
   getAvailableAgentLogins,
@@ -13,34 +12,29 @@ const {
 } = require("./assign_agent_helpers.cjs");
 
 async function main() {
-  const result = loadAgentOutput();
-  if (!result.success) {
-    return;
-  }
-
-  const assignItems = result.items.filter(item => item.type === "assign_to_agent");
-  if (assignItems.length === 0) {
-    core.info("No assign_to_agent items found in agent output");
-    return;
-  }
-
-  core.info(`Found ${assignItems.length} assign_to_agent item(s)`);
-
-  // Check if we're in staged mode
-  if (process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true") {
-    await generateStagedPreview({
+  const gatingResult = await withStagedModeGating(
+    {
+      itemType: "assign_to_agent",
+      itemTypeName: "assign_to_agent",
+    },
+    {
       title: "Assign to Agent",
       description: "The following agent assignments would be made if staged mode was disabled:",
-      items: assignItems,
       renderItem: item => {
         let content = `**Issue:** #${item.issue_number}\n`;
         content += `**Agent:** ${item.agent || "copilot"}\n`;
         content += "\n";
         return content;
       },
-    });
+    }
+  );
+
+  if (!gatingResult.success) {
     return;
   }
+
+  // @ts-ignore - items is guaranteed to be present when success is true
+  const assignItems = gatingResult.items;
 
   // Get default agent from configuration
   const defaultAgent = process.env.GH_AW_AGENT_DEFAULT?.trim() || "copilot";

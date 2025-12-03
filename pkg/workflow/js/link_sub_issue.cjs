@@ -1,36 +1,24 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-const { loadAgentOutput } = require("./load_agent_output.cjs");
-const { generateStagedPreview } = require("./staged_preview.cjs");
+const { withStagedModeGating } = require("./safe_output_processor.cjs");
 const { loadTemporaryIdMap, resolveIssueNumber } = require("./temporary_id.cjs");
 
 async function main() {
-  const result = loadAgentOutput();
-  if (!result.success) {
-    return;
-  }
-
-  const linkItems = result.items.filter(item => item.type === "link_sub_issue");
-  if (linkItems.length === 0) {
-    core.info("No link_sub_issue items found in agent output");
-    return;
-  }
-
-  core.info(`Found ${linkItems.length} link_sub_issue item(s)`);
-
-  // Load the temporary ID map from create_issue job
+  // Load the temporary ID map from create_issue job - needed for staged preview rendering
   const temporaryIdMap = loadTemporaryIdMap();
   if (temporaryIdMap.size > 0) {
     core.info(`Loaded temporary ID map with ${temporaryIdMap.size} entries`);
   }
 
-  // Check if we're in staged mode
-  if (process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true") {
-    await generateStagedPreview({
+  const gatingResult = await withStagedModeGating(
+    {
+      itemType: "link_sub_issue",
+      itemTypeName: "link_sub_issue",
+    },
+    {
       title: "Link Sub-Issue",
       description: "The following sub-issue links would be created if staged mode was disabled:",
-      items: linkItems,
       renderItem: item => {
         // Resolve temporary IDs for display
         const parentResolved = resolveIssueNumber(item.parent_issue_number, temporaryIdMap);
@@ -54,9 +42,15 @@ async function main() {
         content += `**Sub-Issue:** ${subDisplay}\n\n`;
         return content;
       },
-    });
+    }
+  );
+
+  if (!gatingResult.success) {
     return;
   }
+
+  // @ts-ignore - items is guaranteed to be present when success is true
+  const linkItems = gatingResult.items;
 
   // Get filter configurations
   const parentRequiredLabelsEnv = process.env.GH_AW_LINK_SUB_ISSUE_PARENT_REQUIRED_LABELS?.trim();
