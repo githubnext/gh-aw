@@ -907,6 +907,19 @@ func TestValidateMainWorkflowFrontmatterWithSchema(t *testing.T) {
 			wantErr:     true,
 			errContains: "minLength",
 		},
+		{
+			name: "invalid: empty events array for command trigger",
+			frontmatter: map[string]any{
+				"on": map[string]any{
+					"command": map[string]any{
+						"name":   "test-bot",
+						"events": []any{},
+					},
+				},
+			},
+			wantErr:     true,
+			errContains: "minItems",
+		},
 	}
 
 	for _, tt := range tests {
