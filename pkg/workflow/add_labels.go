@@ -11,6 +11,30 @@ type AddLabelsConfig struct {
 	Allowed                []string `yaml:"allowed,omitempty"` // Optional list of allowed labels. If omitted, any labels are allowed (including creating new ones).
 }
 
+// parseAddLabelsConfig handles add-labels configuration
+func (c *Compiler) parseAddLabelsConfig(outputMap map[string]any) *AddLabelsConfig {
+	if labels, exists := outputMap["add-labels"]; exists {
+		if labelsMap, ok := labels.(map[string]any); ok {
+			labelConfig := &AddLabelsConfig{}
+
+			// Parse list job config (target, target-repo, allowed)
+			listJobConfig, _ := ParseListJobConfig(labelsMap, "allowed")
+			labelConfig.SafeOutputTargetConfig = listJobConfig.SafeOutputTargetConfig
+			labelConfig.Allowed = listJobConfig.Allowed
+
+			// Parse common base fields (github-token, max)
+			c.parseBaseSafeOutputConfig(labelsMap, &labelConfig.BaseSafeOutputConfig, 0)
+
+			return labelConfig
+		} else if labels == nil {
+			// Handle null case: create empty config (allows any labels)
+			return &AddLabelsConfig{}
+		}
+	}
+
+	return nil
+}
+
 // buildAddLabelsJob creates the add_labels job
 func (c *Compiler) buildAddLabelsJob(data *WorkflowData, mainJobName string) (*Job, error) {
 	if data.SafeOutputs == nil || data.SafeOutputs.AddLabels == nil {
