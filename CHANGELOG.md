@@ -2,6 +2,130 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.31.4 - 2025-12-03
+
+### Bug Fixes
+
+#### Add test workflows for create-agent-task safe output
+
+#### Added new shared agentic workflow: Another one
+
+#### Add `assign-to-user` safe output type and supporting files (schemas, Go structs, JS implementation, tests, and docs).
+
+This change adds a new safe output `assign-to-user` analogous to `assign-to-agent`, including parser schema, job builder, JavaScript runner script, and tests. It is an internal addition and does not change public CLI APIs.
+
+#### Add --log-dir to Copilot sandbox args and use the sandbox folder
+
+structure for firewall logs so logs are written to the expected
+locations for parsing and analysis.
+
+This fixes firewall mode where Copilot logs were not being written to
+/tmp/gh-aw/sandbox/agent/logs/ and updates firewall log collection
+paths and artifact naming.
+
+#### Add the missing `--log-dir` argument to the Copilot sandbox (firewall) mode so logs are written to the expected
+
+location (`/tmp/gh-aw/.agent/logs/`) for parsing and analysis.
+
+Files changed:
+- `pkg/workflow/copilot_engine.go` (added `--log-dir`)
+- `pkg/workflow/firewall_args_test.go` (test added to verify presence)
+
+#### Add opt-in file logging to safe outputs MCP server via GH_AW_MCP_LOG_DIR environment variable
+
+#### Add support for loading MCP tool handlers from external files. This change
+
+updates the JavaScript MCP server core and its schema to allow a tool's
+`handler` field to point to a file whose default export (or module export)
+is used as the handler function. Supports sync/async handlers, ES module
+default exports, shell-script handlers, path traversal protection,
+serialization fallback for circular structures, and extensive logging. Tests
+for handler loading were added and workflows were recompiled.
+
+#### Add "p" element to safe HTML allow list in text sanitization
+
+#### Add debugging logs to Playwright tool configuration and execution
+
+#### Add stop-after workflow trigger field for deadline enforcement
+
+#### Add `imports` field to workflow_dispatch and workflow_run triggers for dynamic workflow composition
+
+#### Add support for `allowed-repos` in `create-issue` and `create-discussion`
+
+safe-outputs. Agent outputs may now include an optional `repo` field to
+target a repository from the configured `allowed-repos`. Temporary IDs
+are now resolved to `(repo, number)` pairs while remaining backward
+compatible with the legacy single-repo format.
+
+This is an internal enhancement to expand safe-outputs to support
+creating issues/discussions across multiple repositories.
+
+#### Bump default gh-aw-firewall (AWF) binary version from v0.5.0 to v0.5.1.
+
+This updates the `DefaultFirewallVersion` constant and recompiles workflow lock files that depend on the firewall binary.
+
+#### Bump default gh-aw-firewall (AWF) binary version from v0.5.0 to v0.5.1. Updates the `DefaultFirewallVersion` constant and recompiled workflow lock files that depend on the firewall binary.
+
+#### Bump default gh-aw-firewall (AWF) binary version from v0.5.0 to v0.5.1. This updates the `DefaultFirewallVersion` constant and recompiled workflow lock files that depend on the firewall binary.
+
+#### Update create-issue with sub-issues support
+
+#### Fixed JSON encoding in mcp-config.json to properly handle special characters in HTTP MCP headers
+
+#### Fixed import path in safe-outputs/noop.md by adding missing shared/ prefix
+
+#### Fix bug where not all workspace files were uploaded as squid logs.
+
+Signed-off-by: Mossaka
+
+#### Fixed trailing whitespace in GitHub custom agent format examples
+
+#### Add HTTP MCP header secret support for copilot engine
+
+#### Update Playwright MCP server configuration to use npx launcher
+
+#### Refactor the create-issue Copilot assignment to run in a separate step
+
+Created a dedicated output (`issues_to_assign_copilot`) and separate
+post-step that uses the agent token (`GH_AW_AGENT_TOKEN`) to assign
+the agent to newly-created issues. This change isolates Copilot
+assignment from regular post-steps and improves permission separation.
+
+#### Refactor safe output type validation into a data-driven validator engine.
+
+Moves validation logic into `safe_output_type_validator.cjs`, generates
+validation configuration from Go as a single source of truth, and updates
+the JavaScript collector to use the new validator. Adds tests and keeps
+the generated `validation.json` filtered and indented to reduce merge
+conflicts.
+
+#### Updated Agent Workflow Firewall (AWF) to version 0.5.0
+
+#### Update awf to v0.6.0, add the `--proxy-logs-dir` flag to direct firewall proxy
+
+logs to `/tmp/gh-aw/sandbox/firewall/logs`, and remove the post-run `find`
+step that searched for agent log directories.
+
+This is an internal/tooling change (updated dependency and script behavior).
+
+#### Update the changeset generator workflow to use the `codex` engine with the
+
+`gpt-5-mini` model. Add `strict: false` and remove the `firewall: true` network
+setting to accommodate the codex engine's network behavior.
+
+This is an internal tooling change.
+
+#### Update Claude Code CLI to v2.0.54
+
+#### Updated go.uber.org/multierr indirect dependency from v1.9.0 to v1.11.0
+
+#### Update Playwright server configuration defaults to use NPX launcher instead of Docker
+
+#### Update documentation with current datetime format in system prompt
+
+#### Add validation to ensure safe output messages are correctly processed when MCP server starts
+
+
 ## v0.31.3 - 2025-11-25
 
 ### Bug Fixes
