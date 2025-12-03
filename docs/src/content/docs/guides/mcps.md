@@ -262,7 +262,7 @@ tools:
 ```yaml wrap
 tools:
   github:
-    toolsets: [default]  # Includes repos, issues, pull_requests, users, context
+    toolsets: [default]  # Expands to: context, repos, issues, pull_requests (action-friendly)
 ```
 
 ### Benefits of Toolsets

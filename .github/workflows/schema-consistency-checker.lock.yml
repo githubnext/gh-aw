@@ -1967,7 +1967,7 @@ jobs:
                 "headers": {
                   "Authorization": "Bearer $GITHUB_MCP_SERVER_TOKEN",
                   "X-MCP-Readonly": "true",
-                  "X-MCP-Toolsets": "default,discussions"
+                  "X-MCP-Toolsets": "context,repos,issues,pull_requests,discussions"
                 }
               },
               "safeoutputs": {

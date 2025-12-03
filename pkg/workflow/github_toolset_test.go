@@ -14,7 +14,7 @@ func TestGetGitHubToolsets(t *testing.T) {
 		{
 			name:     "No toolsets configured",
 			input:    map[string]any{},
-			expected: "default", // now defaults to "default"
+			expected: "context,repos,issues,pull_requests", // defaults to action-friendly toolsets
 		},
 		{
 			name: "Toolsets as array of strings",
@@ -38,23 +38,23 @@ func TestGetGitHubToolsets(t *testing.T) {
 			expected: "all",
 		},
 		{
-			name: "Special 'default' toolset as array",
+			name: "Special 'default' toolset as array - expands to action-friendly",
 			input: map[string]any{
 				"toolsets": []string{"default"},
 			},
-			expected: "default",
+			expected: "context,repos,issues,pull_requests",
 		},
 		{
-			name: "Default with additional toolsets",
+			name: "Default with additional toolsets - expands default to action-friendly",
 			input: map[string]any{
 				"toolsets": []string{"default", "discussions"},
 			},
-			expected: "default,discussions",
+			expected: "context,repos,issues,pull_requests,discussions",
 		},
 		{
-			name:     "Non-map input returns empty",
+			name:     "Non-map input returns action-friendly",
 			input:    "not a map",
-			expected: "default", // now defaults to "default"
+			expected: "context,repos,issues,pull_requests",
 		},
 	}
 
@@ -91,7 +91,7 @@ func TestClaudeEngineGitHubToolsetsRendering(t *testing.T) {
 			expectedInYAML: []string{
 				`"GITHUB_PERSONAL_ACCESS_TOKEN"`,
 				"GITHUB_TOOLSETS",
-				"default", // now defaults to "default"
+				"context,repos,issues,pull_requests", // defaults to action-friendly toolsets
 			},
 			notInYAML: []string{},
 		},
@@ -106,22 +106,22 @@ func TestClaudeEngineGitHubToolsetsRendering(t *testing.T) {
 			notInYAML: []string{},
 		},
 		{
-			name: "Default toolset as array",
+			name: "Default toolset as array - expands to action-friendly",
 			githubTool: map[string]any{
 				"toolsets": []string{"default"},
 			},
 			expectedInYAML: []string{
-				`"GITHUB_TOOLSETS=default"`,
+				`"GITHUB_TOOLSETS=context,repos,issues,pull_requests"`,
 			},
 			notInYAML: []string{},
 		},
 		{
-			name: "Default with additional toolsets",
+			name: "Default with additional toolsets - expands default",
 			githubTool: map[string]any{
 				"toolsets": []string{"default", "discussions"},
 			},
 			expectedInYAML: []string{
-				`"GITHUB_TOOLSETS=default,discussions"`,
+				`"GITHUB_TOOLSETS=context,repos,issues,pull_requests,discussions"`,
 			},
 			notInYAML: []string{},
 		},
@@ -180,27 +180,27 @@ func TestCopilotEngineGitHubToolsetsRendering(t *testing.T) {
 			expectedInYAML: []string{
 				`GITHUB_PERSONAL_ACCESS_TOKEN`,
 				"GITHUB_TOOLSETS",
-				"default", // now defaults to "default"
+				"context,repos,issues,pull_requests", // defaults to action-friendly toolsets
 			},
 			notInYAML: []string{},
 		},
 		{
-			name: "Default toolset as array",
+			name: "Default toolset as array - expands to action-friendly",
 			githubTool: map[string]any{
 				"toolsets": []string{"default"},
 			},
 			expectedInYAML: []string{
-				`"GITHUB_TOOLSETS=default"`,
+				`"GITHUB_TOOLSETS=context,repos,issues,pull_requests"`,
 			},
 			notInYAML: []string{},
 		},
 		{
-			name: "Default with additional toolsets",
+			name: "Default with additional toolsets - expands default",
 			githubTool: map[string]any{
 				"toolsets": []string{"default", "actions"},
 			},
 			expectedInYAML: []string{
-				`"GITHUB_TOOLSETS=default,actions"`,
+				`"GITHUB_TOOLSETS=context,repos,issues,pull_requests,actions"`,
 			},
 			notInYAML: []string{},
 		},
@@ -259,27 +259,27 @@ func TestCodexEngineGitHubToolsetsRendering(t *testing.T) {
 			expectedInYAML: []string{
 				`GITHUB_PERSONAL_ACCESS_TOKEN`,
 				"GITHUB_TOOLSETS",
-				"default", // now defaults to "default"
+				"context,repos,issues,pull_requests", // defaults to action-friendly toolsets
 			},
 			notInYAML: []string{},
 		},
 		{
-			name: "Default toolset as array",
+			name: "Default toolset as array - expands to action-friendly",
 			githubTool: map[string]any{
 				"toolsets": []string{"default"},
 			},
 			expectedInYAML: []string{
-				`"GITHUB_TOOLSETS=default"`,
+				`"GITHUB_TOOLSETS=context,repos,issues,pull_requests"`,
 			},
 			notInYAML: []string{},
 		},
 		{
-			name: "Default with additional toolsets",
+			name: "Default with additional toolsets - expands default",
 			githubTool: map[string]any{
 				"toolsets": []string{"default", "discussions"},
 			},
 			expectedInYAML: []string{
-				`"GITHUB_TOOLSETS=default,discussions"`,
+				`"GITHUB_TOOLSETS=context,repos,issues,pull_requests,discussions"`,
 			},
 			notInYAML: []string{},
 		},

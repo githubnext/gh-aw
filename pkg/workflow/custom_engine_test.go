@@ -567,8 +567,8 @@ func TestCustomEngineGitHubMCPDockerConfig(t *testing.T) {
 					t.Errorf("Expected custom toolsets in output, got: %s", output)
 				}
 			} else {
-				if !strings.Contains(output, "GITHUB_TOOLSETS=default") {
-					t.Errorf("Expected default toolset in output, got: %s", output)
+				if !strings.Contains(output, "GITHUB_TOOLSETS=context,repos,issues,pull_requests") {
+					t.Errorf("Expected action-friendly toolsets in output, got: %s", output)
 				}
 			}
 

@@ -452,7 +452,7 @@ func getGitHubLockdown(githubTool any) bool {
 }
 
 // getGitHubToolsets extracts the toolsets configuration from GitHub tool
-// Defaults to "default" for recommended toolset
+// Expands "default" to individual toolsets for action-friendly compatibility
 func getGitHubToolsets(githubTool any) string {
 	if toolConfig, ok := githubTool.(map[string]any); ok {
 		if toolsetsSetting, exists := toolConfig["toolsets"]; exists {
@@ -466,13 +466,57 @@ func getGitHubToolsets(githubTool any) string {
 						toolsets = append(toolsets, str)
 					}
 				}
-				return strings.Join(toolsets, ",")
+				toolsetsStr := strings.Join(toolsets, ",")
+				// Expand "default" to individual toolsets for action-friendly compatibility
+				return expandDefaultToolset(toolsetsStr)
 			case []string:
-				return strings.Join(v, ",")
+				toolsetsStr := strings.Join(v, ",")
+				// Expand "default" to individual toolsets for action-friendly compatibility
+				return expandDefaultToolset(toolsetsStr)
 			}
 		}
 	}
-	return "default" // default to recommended toolset
+	// default to action-friendly toolsets (excludes "users" which GitHub Actions tokens don't support)
+	return strings.Join(ActionFriendlyGitHubToolsets, ",")
+}
+
+// expandDefaultToolset expands "default" and "action-friendly" keywords to individual toolsets.
+// This ensures that "default" and "action-friendly" in the source expand to action-friendly toolsets
+// (excluding "users" which GitHub Actions tokens don't support).
+func expandDefaultToolset(toolsetsStr string) string {
+	if toolsetsStr == "" {
+		return strings.Join(ActionFriendlyGitHubToolsets, ",")
+	}
+
+	// Split by comma and check if "default" or "action-friendly" is present
+	toolsets := strings.Split(toolsetsStr, ",")
+	var result []string
+	seenToolsets := make(map[string]bool)
+
+	for _, toolset := range toolsets {
+		toolset = strings.TrimSpace(toolset)
+		if toolset == "" {
+			continue
+		}
+
+		if toolset == "default" || toolset == "action-friendly" {
+			// Expand "default" or "action-friendly" to action-friendly toolsets (excludes "users")
+			for _, dt := range ActionFriendlyGitHubToolsets {
+				if !seenToolsets[dt] {
+					result = append(result, dt)
+					seenToolsets[dt] = true
+				}
+			}
+		} else {
+			// Keep other toolsets as-is (including "all", individual toolsets, etc.)
+			if !seenToolsets[toolset] {
+				result = append(result, toolset)
+				seenToolsets[toolset] = true
+			}
+		}
+	}
+
+	return strings.Join(result, ",")
 }
 
 // getGitHubAllowedTools extracts the allowed tools list from GitHub tool configuration
