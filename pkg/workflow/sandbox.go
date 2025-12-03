@@ -36,7 +36,7 @@ type SandboxConfig struct {
 type AgentSandboxConfig struct {
 	ID       string                `yaml:"id,omitempty"`      // Agent ID: "awf" or "srt" (replaces Type in new object format)
 	Type     SandboxType           `yaml:"type,omitempty"`    // Sandbox type: "awf" or "srt" (legacy, use ID instead)
-	Disabled bool                  `yaml:"-"`                 // True when agent is explicitly set to false (disables firewall)
+	Disabled bool                  `yaml:"-"`                 // True when agent is explicitly set to false (disables firewall). This is a runtime flag, not serialized to YAML.
 	Config   *SandboxRuntimeConfig `yaml:"config,omitempty"`  // Custom SRT config (optional)
 	Command  string                `yaml:"command,omitempty"` // Custom command to replace AWF or SRT installation
 	Args     []string              `yaml:"args,omitempty"`    // Additional arguments to append to the command
@@ -84,6 +84,14 @@ func getAgentType(agent *AgentSandboxConfig) SandboxType {
 	}
 	// Legacy format: use Type field
 	return agent.Type
+}
+
+// isSupportedSandboxType checks if a sandbox type is valid/supported
+func isSupportedSandboxType(sandboxType SandboxType) bool {
+	return sandboxType == SandboxTypeAWF ||
+		sandboxType == SandboxTypeSRT ||
+		sandboxType == SandboxTypeDefault ||
+		sandboxType == SandboxTypeRuntime
 }
 
 // isSRTEnabled checks if Sandbox Runtime is enabled for the workflow

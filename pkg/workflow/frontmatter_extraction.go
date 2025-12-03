@@ -705,8 +705,7 @@ func (c *Compiler) extractSandboxConfig(frontmatter map[string]any) *SandboxConf
 	// Handle legacy string format: "default" or "sandbox-runtime"
 	if sandboxStr, ok := sandbox.(string); ok {
 		sandboxType := SandboxType(sandboxStr)
-		if sandboxType == SandboxTypeDefault || sandboxType == SandboxTypeRuntime ||
-			sandboxType == SandboxTypeAWF || sandboxType == SandboxTypeSRT {
+		if isSupportedSandboxType(sandboxType) {
 			return &SandboxConfig{
 				Type: sandboxType,
 			}
@@ -771,8 +770,7 @@ func (c *Compiler) extractAgentSandboxConfig(agentVal any) *AgentSandboxConfig {
 	// Handle string format: "awf" or "srt"
 	if agentStr, ok := agentVal.(string); ok {
 		agentType := SandboxType(agentStr)
-		if agentType == SandboxTypeAWF || agentType == SandboxTypeSRT ||
-			agentType == SandboxTypeDefault || agentType == SandboxTypeRuntime {
+		if isSupportedSandboxType(agentType) {
 			return &AgentSandboxConfig{
 				Type: agentType,
 			}

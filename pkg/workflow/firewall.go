@@ -15,16 +15,22 @@ type FirewallConfig struct {
 	CleanupScript string   `yaml:"cleanup_script,omitempty"` // Cleanup script path (default: "./scripts/ci/cleanup.sh")
 }
 
+// isFirewallDisabledBySandboxAgent checks if the firewall is disabled via sandbox.agent: false
+func isFirewallDisabledBySandboxAgent(workflowData *WorkflowData) bool {
+	return workflowData != nil &&
+		workflowData.SandboxConfig != nil &&
+		workflowData.SandboxConfig.Agent != nil &&
+		workflowData.SandboxConfig.Agent.Disabled
+}
+
 // isFirewallEnabled checks if AWF firewall is enabled for the workflow
 // Firewall is enabled if network.firewall is explicitly set to true or an object
 // Firewall is disabled if sandbox.agent is explicitly set to false
 func isFirewallEnabled(workflowData *WorkflowData) bool {
 	// Check if sandbox.agent: false (new way to disable firewall)
-	if workflowData != nil && workflowData.SandboxConfig != nil && workflowData.SandboxConfig.Agent != nil {
-		if workflowData.SandboxConfig.Agent.Disabled {
-			firewallLog.Print("Firewall disabled via sandbox.agent: false")
-			return false
-		}
+	if isFirewallDisabledBySandboxAgent(workflowData) {
+		firewallLog.Print("Firewall disabled via sandbox.agent: false")
+		return false
 	}
 
 	// Check network.firewall configuration (deprecated)
@@ -82,6 +88,7 @@ func enableFirewallByDefaultForCopilot(engineID string, networkPermissions *Netw
 	}
 
 	// Check if sandbox.agent: false is set (disables firewall)
+	// Use a minimal check here since we don't have WorkflowData
 	if sandboxConfig != nil && sandboxConfig.Agent != nil && sandboxConfig.Agent.Disabled {
 		firewallLog.Print("sandbox.agent: false is set, skipping AWF auto-enablement")
 		return
