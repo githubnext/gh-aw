@@ -116,7 +116,7 @@ func InitRepository(verbose bool, mcp bool) error {
 		fmt.Fprintln(os.Stderr, "")
 	}
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("To create a workflow, launch Copilot CLI: npx @github/copilot"))
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Then activate @.github/agents/create-agentic-workflow.agent.md"))
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Then type /agent and select create-agentic-workflow"))
 	fmt.Fprintln(os.Stderr, "")
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Or add workflows from the catalog: "+constants.CLIExtensionPrefix+" add <workflow-name>"))
 	fmt.Fprintln(os.Stderr, "")
