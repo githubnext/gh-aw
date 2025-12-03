@@ -1,10 +1,6 @@
 package cli
 
 import (
-	"fmt"
-	"os"
-
-	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/constants"
 	"github.com/githubnext/gh-aw/pkg/logger"
 	"github.com/spf13/cobra"
@@ -42,16 +38,16 @@ Examples:
   ` + constants.CLIExtensionPrefix + ` init
   ` + constants.CLIExtensionPrefix + ` init -v
   ` + constants.CLIExtensionPrefix + ` init --mcp`,
-		Run: func(cmd *cobra.Command, args []string) {
+		RunE: func(cmd *cobra.Command, args []string) error {
 			verbose, _ := cmd.Flags().GetBool("verbose")
 			mcp, _ := cmd.Flags().GetBool("mcp")
 			initCommandLog.Printf("Executing init command: verbose=%v, mcp=%v", verbose, mcp)
 			if err := InitRepository(verbose, mcp); err != nil {
 				initCommandLog.Printf("Init command failed: %v", err)
-				fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
-				os.Exit(1)
+				return err
 			}
 			initCommandLog.Print("Init command completed successfully")
+			return nil
 		},
 	}
 

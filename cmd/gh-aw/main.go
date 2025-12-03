@@ -49,8 +49,8 @@ For detailed help on any command, use:
 			console.PrintBanner()
 		}
 	},
-	Run: func(cmd *cobra.Command, args []string) {
-		_ = cmd.Help()
+	RunE: func(cmd *cobra.Command, args []string) error {
+		return cmd.Help()
 	},
 }
 
@@ -79,7 +79,7 @@ Examples:
   ` + constants.CLIExtensionPrefix + ` new my-workflow.md       # Create template file (alternative format)
   ` + constants.CLIExtensionPrefix + ` new issue-handler --force`,
 	Args: cobra.MaximumNArgs(1),
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		forceFlag, _ := cmd.Flags().GetBool("force")
 		verbose, _ := cmd.Flags().GetBool("verbose")
 		interactiveFlag, _ := cmd.Flags().GetBool("interactive")
@@ -88,8 +88,7 @@ Examples:
 		if len(args) == 0 || interactiveFlag {
 			// Check if running in CI environment
 			if cli.IsRunningInCI() {
-				fmt.Fprintln(os.Stderr, console.FormatErrorMessage("Interactive mode cannot be used in CI environments. Please provide a workflow name."))
-				os.Exit(1)
+				return fmt.Errorf("interactive mode cannot be used in CI environments. Please provide a workflow name")
 			}
 
 			// Use default workflow name for interactive mode
@@ -98,19 +97,12 @@ Examples:
 				workflowName = args[0]
 			}
 
-			if err := cli.CreateWorkflowInteractively(workflowName, verbose, forceFlag); err != nil {
-				fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
-				os.Exit(1)
-			}
-			return
+			return cli.CreateWorkflowInteractively(workflowName, verbose, forceFlag)
 		}
 
 		// Template mode with workflow name
 		workflowName := args[0]
-		if err := cli.NewWorkflow(workflowName, verbose, forceFlag); err != nil {
-			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
-			os.Exit(1)
-		}
+		return cli.NewWorkflow(workflowName, verbose, forceFlag)
 	},
 }
 
@@ -125,16 +117,13 @@ You can provide a workflow-id prefix to remove multiple workflows, or a specific
 Examples:
   ` + constants.CLIExtensionPrefix + ` remove my-workflow       # Remove specific workflow
   ` + constants.CLIExtensionPrefix + ` remove test-             # Remove all workflows starting with 'test-'`,
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		var pattern string
 		if len(args) > 0 {
 			pattern = args[0]
 		}
 		keepOrphans, _ := cmd.Flags().GetBool("keep-orphans")
-		if err := cli.RemoveWorkflows(pattern, keepOrphans); err != nil {
-			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
-			os.Exit(1)
-		}
+		return cli.RemoveWorkflows(pattern, keepOrphans)
 	},
 }
 
@@ -152,12 +141,9 @@ Examples:
   ` + constants.CLIExtensionPrefix + ` enable ci-doctor.md      # Enable specific workflow (alternative format)
   ` + constants.CLIExtensionPrefix + ` enable ci-doctor daily   # Enable multiple workflows
   ` + constants.CLIExtensionPrefix + ` enable ci-doctor --repo owner/repo  # Enable workflow in specific repository`,
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		repoOverride, _ := cmd.Flags().GetString("repo")
-		if err := cli.EnableWorkflowsByNames(args, repoOverride); err != nil {
-			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
-			os.Exit(1)
-		}
+		return cli.EnableWorkflowsByNames(args, repoOverride)
 	},
 }
 
@@ -175,12 +161,9 @@ Examples:
   ` + constants.CLIExtensionPrefix + ` disable ci-doctor.md      # Disable specific workflow (alternative format)
   ` + constants.CLIExtensionPrefix + ` disable ci-doctor daily   # Disable multiple workflows
   ` + constants.CLIExtensionPrefix + ` disable ci-doctor --repo owner/repo  # Disable workflow in specific repository`,
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		repoOverride, _ := cmd.Flags().GetString("repo")
-		if err := cli.DisableWorkflowsByNames(args, repoOverride); err != nil {
-			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
-			os.Exit(1)
-		}
+		return cli.DisableWorkflowsByNames(args, repoOverride)
 	},
 }
 
@@ -210,7 +193,7 @@ Examples:
   ` + constants.CLIExtensionPrefix + ` compile --trial --logical-repo owner/repo  # Compile for trial mode
   ` + constants.CLIExtensionPrefix + ` compile --dependabot        # Generate Dependabot manifests
   ` + constants.CLIExtensionPrefix + ` compile --dependabot --force  # Force overwrite existing dependabot.yml`,
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		engineOverride, _ := cmd.Flags().GetString("engine")
 		validate, _ := cmd.Flags().GetBool("validate")
 		watch, _ := cmd.Flags().GetBool("watch")
@@ -230,8 +213,7 @@ Examples:
 		jsonOutput, _ := cmd.Flags().GetBool("json")
 		verbose, _ := cmd.Flags().GetBool("verbose")
 		if err := validateEngine(engineOverride); err != nil {
-			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
-			os.Exit(1)
+			return err
 		}
 
 		// Handle --workflows-dir deprecation (mutual exclusion is enforced by Cobra)
@@ -264,12 +246,11 @@ Examples:
 			errMsg := err.Error()
 			// Check if error is already formatted (contains suggestions or starts with ✗)
 			if strings.Contains(errMsg, "Suggestions:") || strings.HasPrefix(errMsg, "✗") {
-				fmt.Fprintln(os.Stderr, errMsg)
-			} else {
-				fmt.Fprintln(os.Stderr, console.FormatErrorMessage(errMsg))
+				return fmt.Errorf("%s", errMsg)
 			}
-			os.Exit(1)
+			return err
 		}
+		return nil
 	},
 }
 
@@ -317,9 +298,10 @@ Examples:
 var versionCmd = &cobra.Command{
 	Use:   "version",
 	Short: "Show version information",
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		fmt.Println(console.FormatInfoMessage(fmt.Sprintf("%s version %s", constants.CLIExtensionPrefix, version)))
 		fmt.Println(console.FormatInfoMessage("GitHub Agentic Workflows CLI from GitHub Next"))
+		return nil
 	},
 }
 
@@ -360,6 +342,10 @@ func init() {
 	// network timeouts). Users can still run --help for usage information.
 	rootCmd.SilenceUsage = true
 
+	// Silence errors - since we're using RunE and returning errors, Cobra will
+	// print errors automatically. We handle error formatting ourselves in main().
+	rootCmd.SilenceErrors = true
+
 	// Set version template to match the version subcommand format
 	rootCmd.SetVersionTemplate(fmt.Sprintf("%s\n%s\n",
 		console.FormatInfoMessage(fmt.Sprintf("%s version {{.Version}}", constants.CLIExtensionPrefix)),
@@ -385,7 +371,7 @@ func init() {
 Simply type ` + constants.CLIExtensionPrefix + ` help [path to command] for full details.
 
 Use "` + constants.CLIExtensionPrefix + ` help all" to show help for all commands.`,
-		Run: func(c *cobra.Command, args []string) {
+		RunE: func(c *cobra.Command, args []string) error {
 			// Check if the argument is "all"
 			if len(args) == 1 && args[0] == "all" {
 				// Print header
@@ -412,17 +398,16 @@ Use "` + constants.CLIExtensionPrefix + ` help all" to show help for all command
 				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("═══════════════════════════════════════════════════════════════"))
 				fmt.Fprintln(os.Stderr, "")
 				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("For more information, visit: https://githubnext.github.io/gh-aw/"))
-				return
+				return nil
 			}
 
 			// Otherwise, use the default help behavior
 			cmd, _, e := rootCmd.Find(args)
 			if cmd == nil || e != nil {
-				fmt.Fprintf(os.Stderr, "Unknown help topic [%#q]\n", args)
-				_ = rootCmd.Usage()
+				return fmt.Errorf("unknown help topic [%#q]", args)
 			} else {
 				cmd.InitDefaultHelpFlag() // make possible 'help' flag to be shown
-				_ = cmd.Help()
+				return cmd.Help()
 			}
 		},
 	}

@@ -508,31 +508,17 @@ func TestMCPCommand(t *testing.T) {
 
 func TestCommandErrorHandling(t *testing.T) {
 	t.Run("invalid command produces error", func(t *testing.T) {
-		// Capture stderr
-		oldStderr := os.Stderr
-		r, w, _ := os.Pipe()
-		os.Stderr = w
-
 		// Test invalid command
 		rootCmd.SetArgs([]string{"invalid-command"})
 		err := rootCmd.Execute()
-
-		// Restore stderr
-		w.Close()
-		os.Stderr = oldStderr
-
-		// Read captured output
-		var buf bytes.Buffer
-		_, _ = buf.ReadFrom(r)
-		output := buf.String()
 
 		if err == nil {
 			t.Error("invalid command should produce an error")
 		}
 
-		if output == "" {
-			t.Error("invalid command should produce error output")
-		}
+		// With RunE and SilenceErrors, errors are returned but not automatically printed
+		// The main() function is responsible for formatting and printing errors
+		// This test verifies that Execute() returns an error for invalid commands
 
 		// Reset args for other tests
 		rootCmd.SetArgs([]string{})

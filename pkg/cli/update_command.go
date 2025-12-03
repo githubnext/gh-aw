@@ -52,7 +52,7 @@ Examples:
   ` + constants.CLIExtensionPrefix + ` update --pr              # Create PR with changes
   ` + constants.CLIExtensionPrefix + ` update --force           # Force update even if no changes
   ` + constants.CLIExtensionPrefix + ` update --dir custom/workflows  # Update workflows in custom directory`,
-		Run: func(cmd *cobra.Command, args []string) {
+		RunE: func(cmd *cobra.Command, args []string) error {
 			majorFlag, _ := cmd.Flags().GetBool("major")
 			forceFlag, _ := cmd.Flags().GetBool("force")
 			engineOverride, _ := cmd.Flags().GetString("engine")
@@ -64,14 +64,10 @@ Examples:
 			mergeFlag, _ := cmd.Flags().GetBool("merge")
 
 			if err := validateEngine(engineOverride); err != nil {
-				fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
-				os.Exit(1)
+				return err
 			}
 
-			if err := UpdateWorkflowsWithExtensionCheck(args, majorFlag, forceFlag, verbose, engineOverride, prFlag, workflowDir, noStopAfter, stopAfter, mergeFlag); err != nil {
-				fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
-				os.Exit(1)
-			}
+			return UpdateWorkflowsWithExtensionCheck(args, majorFlag, forceFlag, verbose, engineOverride, prFlag, workflowDir, noStopAfter, stopAfter, mergeFlag)
 		},
 	}
 
