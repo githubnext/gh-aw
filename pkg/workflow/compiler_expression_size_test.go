@@ -130,10 +130,9 @@ safe-outputs:
 			t.Fatal(err)
 		}
 
-		// Create compiler WITHOUT calling SetSkipValidation(false)
-		// Expression size validation should still run because it's mandatory
+		// Create compiler without calling SetSkipValidation(false) - expression size
+		// validation should still run because it's a mandatory GitHub Actions limit
 		compiler := NewCompiler(false, "", "test")
-		// Note: NOT calling compiler.SetSkipValidation(false)
 		err := compiler.CompileWorkflow(testFile)
 
 		// This should fail with an expression size validation error even without explicit validation enablement
