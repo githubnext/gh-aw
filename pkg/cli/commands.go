@@ -24,17 +24,17 @@ var (
 //go:embed templates/github-agentic-workflows.instructions.md
 var copilotInstructionsTemplate string
 
-//go:embed templates/create-agentic-workflow.md
-var agenticWorkflowAgentTemplate string
+//go:embed templates/create-agentic-workflow.prompt.md
+var agenticWorkflowPromptTemplate string
 
-//go:embed templates/create-shared-agentic-workflow.md
-var sharedAgenticWorkflowAgentTemplate string
+//go:embed templates/create-shared-agentic-workflow.prompt.md
+var sharedAgenticWorkflowPromptTemplate string
 
-//go:embed templates/setup-agentic-workflows.md
-var setupAgenticWorkflowsAgentTemplate string
+//go:embed templates/setup-agentic-workflows.prompt.md
+var setupAgenticWorkflowsPromptTemplate string
 
-//go:embed templates/debug-agentic-workflow.md
-var debugAgenticWorkflowAgentTemplate string
+//go:embed templates/debug-agentic-workflow.prompt.md
+var debugAgenticWorkflowPromptTemplate string
 
 // SetVersionInfo sets the version information for the CLI
 func SetVersionInfo(v string) {

@@ -12177,30 +12177,52 @@ jobs:
               core.info(`Successfully updated ${updatedItems.length} ${displayName}(s)`);
               return updatedItems;
             }
+            function createRenderStagedItem(config) {
+              const { entityName, numberField, targetLabel, currentTargetText, includeOperation = false } = config;
+              return function renderStagedItem(item, index) {
+                let content = `### ${entityName} Update ${index + 1}\n`;
+                if (item[numberField]) {
+                  content += `**${targetLabel}** #${item[numberField]}\n\n`;
+                } else {
+                  content += `**Target:** ${currentTargetText}\n\n`;
+                }
+                if (item.title !== undefined) {
+                  content += `**New Title:** ${item.title}\n\n`;
+                }
+                if (item.body !== undefined) {
+                  if (includeOperation) {
+                    const operation = item.operation || "append";
+                    content += `**Operation:** ${operation}\n`;
+                    content += `**Body Content:**\n${item.body}\n\n`;
+                  } else {
+                    content += `**New Body:**\n${item.body}\n\n`;
+                  }
+                }
+                if (item.status !== undefined) {
+                  content += `**New Status:** ${item.status}\n\n`;
+                }
+                return content;
+              };
+            }
+            function createGetSummaryLine(config) {
+              const { entityPrefix } = config;
+              return function getSummaryLine(item) {
+                return `- ${entityPrefix} #${item.number}: [${item.title}](${item.html_url})\n`;
+              };
+            }
             function isIssueContext(eventName, _payload) {
               return eventName === "issues" || eventName === "issue_comment";
             }
             function getIssueNumber(payload) {
               return payload.issue?.number;
             }
-            function renderStagedItem(item, index) {
-              let content = `### Issue Update ${index + 1}\n`;
-              if (item.issue_number) {
-                content += `**Target Issue:** #${item.issue_number}\n\n`;
-              } else {
-                content += `**Target:** Current issue\n\n`;
-              }
-              if (item.title !== undefined) {
-                content += `**New Title:** ${item.title}\n\n`;
-              }
-              if (item.body !== undefined) {
-                content += `**New Body:**\n${item.body}\n\n`;
-              }
-              if (item.status !== undefined) {
-                content += `**New Status:** ${item.status}\n\n`;
-              }
-              return content;
-            }
+            const renderStagedItem = createRenderStagedItem({
+              entityName: "Issue",
+              numberField: "issue_number",
+              targetLabel: "Target Issue:",
+              currentTargetText: "Current issue",
+              includeOperation: false,
+            });
             async function executeIssueUpdate(github, context, issueNumber, updateData) {
               const { _operation, _rawBody, ...apiData } = updateData;
               const { data: issue } = await github.rest.issues.update({
@@ -12211,9 +12233,9 @@ jobs:
               });
               return issue;
             }
-            function getSummaryLine(issue) {
-              return `- Issue #${issue.number}: [${issue.title}](${issue.html_url})\n`;
-            }
+            const getSummaryLine = createGetSummaryLine({
+              entityPrefix: "Issue",
+            });
             async function main() {
               return await runUpdateWorkflow({
                 itemType: "update_issue",

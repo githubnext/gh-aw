@@ -166,7 +166,7 @@ You can leverage the help of an agent to customize your workflow without having 
 ```bash wrap
 # install copilot cli
 npm install -g @github/copilot-cli
-# install the custom agent files
+# install the prompt files
 gh aw init
 ```
 
@@ -175,7 +175,7 @@ Then, run the following to create and edit your workflow:
 ```bash wrap
 # start an interactive session to customize the workflow
 copilot
-> /agent create-agentic-workflow
+> /create-agentic-workflow
 > edit @.github/workflows/daily-team-status.md
 ```
 

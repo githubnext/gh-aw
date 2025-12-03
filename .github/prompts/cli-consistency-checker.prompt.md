@@ -1,4 +1,5 @@
 ---
+mode: agent
 name: cli-consistency-checker
 description: Agent specialized in inspecting the gh-aw CLI tool by running actual commands with --help flags to verify consistency, documentation accuracy, and user-facing help text.
 ---
