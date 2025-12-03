@@ -57,34 +57,34 @@ func ensureFileMatchesTemplate(subdir, fileName, templateContent, fileType strin
 	return nil
 }
 
-// ensurePromptFromTemplate ensures that a prompt file exists and matches the embedded template
-func ensurePromptFromTemplate(promptFileName, templateContent string, verbose bool, skipInstructions bool) error {
+// ensureAgentFromTemplate ensures that an agent file exists and matches the embedded template
+func ensureAgentFromTemplate(agentFileName, templateContent string, verbose bool, skipInstructions bool) error {
 	return ensureFileMatchesTemplate(
-		filepath.Join(".github", "prompts"),
-		promptFileName,
+		filepath.Join(".github", "agents"),
+		agentFileName,
 		templateContent,
-		"prompt",
+		"agent",
 		verbose,
 		skipInstructions,
 	)
 }
 
-// cleanupOldAgentFile removes an old agent file if it exists
-func cleanupOldAgentFile(agentFileName string, verbose bool) error {
+// cleanupOldPromptFile removes an old prompt file from .github/prompts/ if it exists
+func cleanupOldPromptFile(promptFileName string, verbose bool) error {
 	gitRoot, err := findGitRoot()
 	if err != nil {
 		return nil // Not in a git repository, skip
 	}
 
-	oldPath := filepath.Join(gitRoot, ".github", "agents", agentFileName)
+	oldPath := filepath.Join(gitRoot, ".github", "prompts", promptFileName)
 
 	// Check if the old file exists and remove it
 	if _, err := os.Stat(oldPath); err == nil {
 		if err := os.Remove(oldPath); err != nil {
-			return fmt.Errorf("failed to remove old agent file: %w", err)
+			return fmt.Errorf("failed to remove old prompt file: %w", err)
 		}
 		if verbose {
-			fmt.Printf("Removed old agent file: %s\n", oldPath)
+			fmt.Printf("Removed old prompt file: %s\n", oldPath)
 		}
 	}
 
@@ -130,42 +130,42 @@ func cleanupOldCopilotInstructions(verbose bool) error {
 	return nil
 }
 
-// ensureAgenticWorkflowPrompt ensures that .github/prompts/create-agentic-workflow.prompt.md contains the workflow creation prompt
-func ensureAgenticWorkflowPrompt(verbose bool, skipInstructions bool) error {
-	// First, clean up the old agent file if it exists
-	if err := cleanupOldAgentFile("create-agentic-workflow.md", verbose); err != nil {
+// ensureAgenticWorkflowAgent ensures that .github/agents/create-agentic-workflow.agent.md contains the workflow creation agent
+func ensureAgenticWorkflowAgent(verbose bool, skipInstructions bool) error {
+	// First, clean up the old prompt file if it exists
+	if err := cleanupOldPromptFile("create-agentic-workflow.prompt.md", verbose); err != nil {
 		return err
 	}
 
-	return ensurePromptFromTemplate("create-agentic-workflow.prompt.md", agenticWorkflowPromptTemplate, verbose, skipInstructions)
+	return ensureAgentFromTemplate("create-agentic-workflow.agent.md", agenticWorkflowAgentTemplate, verbose, skipInstructions)
 }
 
-// ensureSharedAgenticWorkflowPrompt ensures that .github/prompts/create-shared-agentic-workflow.prompt.md contains the shared workflow creation prompt
-func ensureSharedAgenticWorkflowPrompt(verbose bool, skipInstructions bool) error {
-	// First, clean up the old agent file if it exists
-	if err := cleanupOldAgentFile("create-shared-agentic-workflow.md", verbose); err != nil {
+// ensureSharedAgenticWorkflowAgent ensures that .github/agents/create-shared-agentic-workflow.agent.md contains the shared workflow creation agent
+func ensureSharedAgenticWorkflowAgent(verbose bool, skipInstructions bool) error {
+	// First, clean up the old prompt file if it exists
+	if err := cleanupOldPromptFile("create-shared-agentic-workflow.prompt.md", verbose); err != nil {
 		return err
 	}
 
-	return ensurePromptFromTemplate("create-shared-agentic-workflow.prompt.md", sharedAgenticWorkflowPromptTemplate, verbose, skipInstructions)
+	return ensureAgentFromTemplate("create-shared-agentic-workflow.agent.md", sharedAgenticWorkflowAgentTemplate, verbose, skipInstructions)
 }
 
-// ensureSetupAgenticWorkflowsPrompt ensures that .github/prompts/setup-agentic-workflows.prompt.md contains the setup guide prompt
-func ensureSetupAgenticWorkflowsPrompt(verbose bool, skipInstructions bool) error {
-	// First, clean up the old agent file if it exists
-	if err := cleanupOldAgentFile("setup-agentic-workflows.md", verbose); err != nil {
+// ensureSetupAgenticWorkflowsAgent ensures that .github/agents/setup-agentic-workflows.agent.md contains the setup guide agent
+func ensureSetupAgenticWorkflowsAgent(verbose bool, skipInstructions bool) error {
+	// First, clean up the old prompt file if it exists
+	if err := cleanupOldPromptFile("setup-agentic-workflows.prompt.md", verbose); err != nil {
 		return err
 	}
 
-	return ensurePromptFromTemplate("setup-agentic-workflows.prompt.md", setupAgenticWorkflowsPromptTemplate, verbose, skipInstructions)
+	return ensureAgentFromTemplate("setup-agentic-workflows.agent.md", setupAgenticWorkflowsAgentTemplate, verbose, skipInstructions)
 }
 
-// ensureDebugAgenticWorkflowPrompt ensures that .github/prompts/debug-agentic-workflow.prompt.md contains the debug workflow prompt
-func ensureDebugAgenticWorkflowPrompt(verbose bool, skipInstructions bool) error {
-	// First, clean up the old agent file if it exists
-	if err := cleanupOldAgentFile("debug-agentic-workflow.md", verbose); err != nil {
+// ensureDebugAgenticWorkflowAgent ensures that .github/agents/debug-agentic-workflow.agent.md contains the debug workflow agent
+func ensureDebugAgenticWorkflowAgent(verbose bool, skipInstructions bool) error {
+	// First, clean up the old prompt file if it exists
+	if err := cleanupOldPromptFile("debug-agentic-workflow.prompt.md", verbose); err != nil {
 		return err
 	}
 
-	return ensurePromptFromTemplate("debug-agentic-workflow.prompt.md", debugAgenticWorkflowPromptTemplate, verbose, skipInstructions)
+	return ensureAgentFromTemplate("debug-agentic-workflow.agent.md", debugAgenticWorkflowAgentTemplate, verbose, skipInstructions)
 }

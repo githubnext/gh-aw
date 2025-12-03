@@ -24,7 +24,7 @@ network:
 
 imports:
   - ../../skills/documentation/SKILL.md
-  - ../prompts/technical-doc-writer.prompt.md
+  - ../agents/technical-doc-writer.agent.md
 
 safe-outputs:
   add-comment:
