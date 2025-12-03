@@ -159,7 +159,7 @@ func ExtractJSONTokenUsage(data map[string]any) int {
 		}
 	}
 
-	// Check nested usage objects (Claude API format)
+	// Check nested usage objects (Claude and OpenAI API formats)
 	if usage, exists := data["usage"]; exists {
 		if usageMap, ok := usage.(map[string]any); ok {
 			// Claude format: {"usage": {"input_tokens": 10, "output_tokens": 5, "cache_creation_input_tokens": 100, "cache_read_input_tokens": 200}}
@@ -167,6 +167,15 @@ func ExtractJSONTokenUsage(data map[string]any) int {
 			outputTokens := ConvertToInt(usageMap["output_tokens"])
 			cacheCreationTokens := ConvertToInt(usageMap["cache_creation_input_tokens"])
 			cacheReadTokens := ConvertToInt(usageMap["cache_read_input_tokens"])
+
+			// OpenAI format: {"usage": {"prompt_tokens": 100, "completion_tokens": 50}}
+			// If Claude fields are not present, try OpenAI fields
+			if inputTokens == 0 {
+				inputTokens = ConvertToInt(usageMap["prompt_tokens"])
+			}
+			if outputTokens == 0 {
+				outputTokens = ConvertToInt(usageMap["completion_tokens"])
+			}
 
 			totalTokens := inputTokens + outputTokens + cacheCreationTokens + cacheReadTokens
 			if totalTokens > 0 {

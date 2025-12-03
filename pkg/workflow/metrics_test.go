@@ -151,6 +151,13 @@ func TestExtractJSONMetrics(t *testing.T) {
 				TokenUsage: 200,
 			},
 		},
+		{
+			name: "OpenAI format in usage object",
+			line: `{"usage": {"prompt_tokens": 429898, "completion_tokens": 1110}}`,
+			expected: LogMetrics{
+				TokenUsage: 431008, // 429898 + 1110
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -259,6 +266,46 @@ func TestExtractJSONTokenUsage(t *testing.T) {
 				},
 			},
 			expected: 100,
+		},
+		{
+			name: "OpenAI format with prompt_tokens and completion_tokens",
+			data: map[string]any{
+				"usage": map[string]any{
+					"prompt_tokens":     429898,
+					"completion_tokens": 1110,
+				},
+			},
+			expected: 431008, // 429898 + 1110
+		},
+		{
+			name: "OpenAI format with only prompt_tokens",
+			data: map[string]any{
+				"usage": map[string]any{
+					"prompt_tokens": 500,
+				},
+			},
+			expected: 500,
+		},
+		{
+			name: "OpenAI format with only completion_tokens",
+			data: map[string]any{
+				"usage": map[string]any{
+					"completion_tokens": 250,
+				},
+			},
+			expected: 250,
+		},
+		{
+			name: "Claude format takes precedence over OpenAI format when both present",
+			data: map[string]any{
+				"usage": map[string]any{
+					"input_tokens":      100,
+					"output_tokens":     50,
+					"prompt_tokens":     200,
+					"completion_tokens": 75,
+				},
+			},
+			expected: 150, // Claude format: 100 + 50
 		},
 	}
 
