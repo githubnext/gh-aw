@@ -3472,6 +3472,45 @@
             }
           ]
         },
+        "assign-to-user": {
+          "oneOf": [
+            {
+              "type": "null",
+              "description": "Enable user assignment with default configuration"
+            },
+            {
+              "type": "object",
+              "description": "Configuration for assigning users to issues from agentic workflow output",
+              "properties": {
+                "allowed": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "Optional list of allowed usernames. If specified, only these users can be assigned."
+                },
+                "max": {
+                  "type": "integer",
+                  "description": "Optional maximum number of user assignments (default: 1)",
+                  "minimum": 1
+                },
+                "target": {
+                  "type": ["string", "number"],
+                  "description": "Target issue to assign users to. Use 'triggering' (default) for the triggering issue, '*' to allow any issue, or a specific issue number."
+                },
+                "target-repo": {
+                  "type": "string",
+                  "description": "Target repository in format 'owner/repo' for cross-repository user assignment. Takes precedence over trial target repo settings."
+                },
+                "github-token": {
+                  "$ref": "#/$defs/github_token",
+                  "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
+                }
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
         "link-sub-issue": {
           "oneOf": [
             {

@@ -474,6 +474,24 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName, markdownPat
 		safeOutputJobNames = append(safeOutputJobNames, assignToAgentJob.Name)
 	}
 
+	// Build assign_to_user job if output.assign-to-user is configured
+	if data.SafeOutputs.AssignToUser != nil {
+		assignToUserJob, err := c.buildAssignToUserJob(data, jobName)
+		if err != nil {
+			return fmt.Errorf("failed to build assign_to_user job: %w", err)
+		}
+		// Safe-output jobs should depend on agent job (always) AND detection job (if enabled)
+		if threatDetectionEnabled {
+			assignToUserJob.Needs = append(assignToUserJob.Needs, constants.DetectionJobName)
+			// Add detection success check to the job condition
+			assignToUserJob.If = AddDetectionSuccessCheck(assignToUserJob.If)
+		}
+		if err := c.jobManager.AddJob(assignToUserJob); err != nil {
+			return fmt.Errorf("failed to add assign_to_user job: %w", err)
+		}
+		safeOutputJobNames = append(safeOutputJobNames, assignToUserJob.Name)
+	}
+
 	// Build update_issue job if output.update-issue is configured
 	if data.SafeOutputs.UpdateIssues != nil {
 		updateIssueJob, err := c.buildCreateOutputUpdateIssueJob(data, jobName)
