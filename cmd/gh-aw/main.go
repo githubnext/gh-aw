@@ -297,7 +297,7 @@ Examples:
   gh aw run daily-perf-improver --enable-if-needed # Enable if disabled, run, then restore state
   gh aw run daily-perf-improver --auto-merge-prs # Auto-merge any PRs created during execution`,
 	Args: cobra.MinimumNArgs(1),
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		repeatCount, _ := cmd.Flags().GetInt("repeat")
 		enable, _ := cmd.Flags().GetBool("enable-if-needed")
 		engineOverride, _ := cmd.Flags().GetString("engine")
@@ -307,17 +307,10 @@ Examples:
 		pushSecrets, _ := cmd.Flags().GetBool("use-local-secrets")
 
 		if err := validateEngine(engineOverride); err != nil {
-			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
-			os.Exit(1)
+			return err
 		}
 
-		if err := cli.RunWorkflowsOnGitHub(args, repeatCount, enable, engineOverride, repoOverride, refOverride, autoMergePRs, pushSecrets, verboseFlag); err != nil {
-			fmt.Fprintln(os.Stderr, console.FormatError(console.CompilerError{
-				Type:    "error",
-				Message: fmt.Sprintf("running workflows on GitHub Actions: %v", err),
-			}))
-			os.Exit(1)
-		}
+		return cli.RunWorkflowsOnGitHub(args, repeatCount, enable, engineOverride, repoOverride, refOverride, autoMergePRs, pushSecrets, verboseFlag)
 	},
 }
 
