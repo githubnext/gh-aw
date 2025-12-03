@@ -166,8 +166,36 @@ gh aw run workflow --use-local-secrets      # Use local API keys
 
 **Options:** `--repeat N` (execute N times), `--use-local-secrets` (temporarily push AI engine secrets from environment variables, then clean up)
 
-:::note[Codespaces]
-From GitHub Codespaces, grant `actions: write` and `workflows: write` permissions. See [Managing repository access](https://docs.github.com/en/codespaces/managing-your-codespaces/managing-repository-access-for-your-codespaces).
+:::note[Codespaces Permissions]
+The `gh aw run` command will fail in GitHub Codespaces by default because the Codespaces GitHub token does not have `workflows:write` permission.
+
+**Solutions:**
+
+1. **Configure custom permissions in devcontainer.json:**
+   ```json
+   {
+     "customizations": {
+       "codespaces": {
+         "repositories": {
+           "owner/repo": {
+             "permissions": {
+               "actions": "write",
+               "workflows": "write"
+             }
+           }
+         }
+       }
+     }
+   }
+   ```
+   Learn more: [Managing repository access for your codespaces](https://docs.github.com/en/codespaces/managing-your-codespaces/managing-repository-access-for-your-codespaces)
+
+2. **Clear GH_TOKEN and authenticate manually:**
+   ```bash
+   unset GH_TOKEN
+   gh auth login
+   ```
+   This allows you to authenticate with a token that has the required permissions.
 :::
 
 ### Monitoring
