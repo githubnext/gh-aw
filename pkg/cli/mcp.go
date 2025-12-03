@@ -24,8 +24,8 @@ Available subcommands:
   list        List MCP servers defined in agentic workflows
   list-tools  List available tools for a specific MCP server
   inspect     Inspect MCP servers and list available tools, resources, and roots`,
-		Run: func(cmd *cobra.Command, args []string) {
-			_ = cmd.Help()
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return cmd.Help()
 		},
 	}
 
