@@ -172,16 +172,7 @@ jobs:
               
               core.info(`Closing issue #${issue.number}: "${issue.title}" (created ${issue.created_at})`);
               
-              // Add a comment and close the issue
-              const closeComment = `This issue was automatically closed because it was labeled with "smoke-claude" and is older than 1 hour.`;
-              
-              await github.rest.issues.createComment({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: issue.number,
-                body: closeComment
-              });
-              
+              // Close the issue
               await github.rest.issues.update({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
@@ -191,6 +182,9 @@ jobs:
               });
               
               closedCount++;
+              
+              // Add delay between API calls to avoid rate limiting
+              await new Promise(resolve => setTimeout(resolve, 500));
             }
             
             core.info(`Closed ${closedCount} issue(s)`);
