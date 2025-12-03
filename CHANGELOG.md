@@ -2,6 +2,29 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.31.5 - 2025-12-03
+
+### Bug Fixes
+
+#### Convert `.prompt.md` templates to `.agent.md` format and move them
+
+to `.github/agents/`. Update the CLI, tests, workflows, and Makefile
+to reference the new agent files and remove the old prompt files.
+
+This change is internal/tooling only and does not change the public API.
+
+#### Fix template injection warnings by moving GitHub expressions into environment
+
+variables and documenting safe cases.
+
+Moved `needs.release.outputs.release_id` and `github.server_url` into `env` to
+avoid template-injection scanner false positives while keeping behavior
+unchanged. Documented that other flagged expressions use trusted GitHub
+context and require no change.
+
+Fixes: githubnext/gh-aw#5299
+
+
 ## v0.31.4 - 2025-12-03
 
 ### Bug Fixes
