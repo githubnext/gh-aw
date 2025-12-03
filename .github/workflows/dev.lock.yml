@@ -38,6 +38,7 @@
 # safe-outputs:
 #   assign-to-user:
 #     allowed: [mrjf]
+#     target: "*"
 # ```
 #
 # Job Dependency Graph:
@@ -4095,8 +4096,8 @@ jobs:
       - agent
       - detection
     if: >
-      ((((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'assign_to_user'))) &&
-      (github.event.issue.number)) && (needs.detection.outputs.success == 'true')
+      (((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'assign_to_user'))) &&
+      (needs.detection.outputs.success == 'true')
     runs-on: ubuntu-slim
     permissions:
       contents: read
@@ -4123,6 +4124,7 @@ jobs:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_ASSIGNEES_ALLOWED: "mrjf"
           GH_AW_ASSIGNEES_MAX_COUNT: 1
+          GH_AW_ASSIGNEES_TARGET: "*"
           GH_AW_WORKFLOW_NAME: "Dev"
           GH_AW_ENGINE_ID: "claude"
         with:

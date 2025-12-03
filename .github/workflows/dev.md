@@ -15,6 +15,7 @@ tools:
 safe-outputs:
   assign-to-user:
     allowed: [mrjf]
+    target: "*"
 ---
 # Dependency Issue Assignment
 
