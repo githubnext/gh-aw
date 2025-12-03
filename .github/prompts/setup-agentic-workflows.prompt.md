@@ -1,5 +1,4 @@
 ---
-mode: agent
 description: A guided agent to help you set up your agentic workflows using gh-aw
 ---
 

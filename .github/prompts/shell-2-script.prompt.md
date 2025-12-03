@@ -1,5 +1,4 @@
 ---
-mode: agent
 name: shell-2-script
 description: Extract inline bash scripts from Go compiler code into separate .sh files with embedded resources for improved maintainability, organization, and reusability
 ---
