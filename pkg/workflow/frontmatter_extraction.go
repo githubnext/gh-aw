@@ -597,7 +597,8 @@ func (c *Compiler) extractNetworkPermissions(frontmatter map[string]any) *Networ
 		if networkStr, ok := network.(string); ok {
 			if networkStr == "defaults" {
 				return &NetworkPermissions{
-					Mode: "defaults",
+					Mode:              "defaults",
+					ExplicitlyDefined: true,
 				}
 			}
 			// Unknown string format, return nil
@@ -606,7 +607,9 @@ func (c *Compiler) extractNetworkPermissions(frontmatter map[string]any) *Networ
 
 		// Handle object format: { allowed: [...], firewall: ... } or {}
 		if networkObj, ok := network.(map[string]any); ok {
-			permissions := &NetworkPermissions{}
+			permissions := &NetworkPermissions{
+				ExplicitlyDefined: true,
+			}
 
 			// Extract allowed domains if present
 			if allowed, hasAllowed := networkObj["allowed"]; hasAllowed {
@@ -705,8 +708,7 @@ func (c *Compiler) extractSandboxConfig(frontmatter map[string]any) *SandboxConf
 	// Handle legacy string format: "default" or "sandbox-runtime"
 	if sandboxStr, ok := sandbox.(string); ok {
 		sandboxType := SandboxType(sandboxStr)
-		if sandboxType == SandboxTypeDefault || sandboxType == SandboxTypeRuntime ||
-			sandboxType == SandboxTypeAWF || sandboxType == SandboxTypeSRT {
+		if isSupportedSandboxType(sandboxType) {
 			return &SandboxConfig{
 				Type: sandboxType,
 			}
@@ -756,11 +758,22 @@ func (c *Compiler) extractSandboxConfig(frontmatter map[string]any) *SandboxConf
 
 // extractAgentSandboxConfig extracts agent sandbox configuration
 func (c *Compiler) extractAgentSandboxConfig(agentVal any) *AgentSandboxConfig {
+	// Handle boolean format: false (to disable firewall)
+	if agentBool, ok := agentVal.(bool); ok {
+		if !agentBool {
+			// agent: false means disable firewall
+			return &AgentSandboxConfig{
+				Disabled: true,
+			}
+		}
+		// agent: true is not a valid configuration
+		return nil
+	}
+
 	// Handle string format: "awf" or "srt"
 	if agentStr, ok := agentVal.(string); ok {
 		agentType := SandboxType(agentStr)
-		if agentType == SandboxTypeAWF || agentType == SandboxTypeSRT ||
-			agentType == SandboxTypeDefault || agentType == SandboxTypeRuntime {
+		if isSupportedSandboxType(agentType) {
 			return &AgentSandboxConfig{
 				Type: agentType,
 			}
