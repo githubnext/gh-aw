@@ -42,44 +42,44 @@ func InitRepository(verbose bool, mcp bool) error {
 		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created GitHub Copilot instructions"))
 	}
 
-	// Write agentic workflow prompt
-	initLog.Print("Writing agentic workflow prompt")
-	if err := ensureAgenticWorkflowPrompt(verbose, false); err != nil {
-		initLog.Printf("Failed to write agentic workflow prompt: %v", err)
-		return fmt.Errorf("failed to write agentic workflow prompt: %w", err)
+	// Write agentic workflow agent
+	initLog.Print("Writing agentic workflow agent")
+	if err := ensureAgenticWorkflowAgent(verbose, false); err != nil {
+		initLog.Printf("Failed to write agentic workflow agent: %v", err)
+		return fmt.Errorf("failed to write agentic workflow agent: %w", err)
 	}
 	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created prompt for workflow creation"))
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created agent for workflow creation"))
 	}
 
-	// Write shared agentic workflow prompt
-	initLog.Print("Writing shared agentic workflow prompt")
-	if err := ensureSharedAgenticWorkflowPrompt(verbose, false); err != nil {
-		initLog.Printf("Failed to write shared agentic workflow prompt: %v", err)
-		return fmt.Errorf("failed to write shared agentic workflow prompt: %w", err)
+	// Write shared agentic workflow agent
+	initLog.Print("Writing shared agentic workflow agent")
+	if err := ensureSharedAgenticWorkflowAgent(verbose, false); err != nil {
+		initLog.Printf("Failed to write shared agentic workflow agent: %v", err)
+		return fmt.Errorf("failed to write shared agentic workflow agent: %w", err)
 	}
 	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created /create-shared-agentic-workflow prompt"))
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created /create-shared-agentic-workflow agent"))
 	}
 
-	// Write setup agentic workflows prompt
-	initLog.Print("Writing setup agentic workflows prompt")
-	if err := ensureSetupAgenticWorkflowsPrompt(verbose, false); err != nil {
-		initLog.Printf("Failed to write setup agentic workflows prompt: %v", err)
-		return fmt.Errorf("failed to write setup agentic workflows prompt: %w", err)
+	// Write setup agentic workflows agent
+	initLog.Print("Writing setup agentic workflows agent")
+	if err := ensureSetupAgenticWorkflowsAgent(verbose, false); err != nil {
+		initLog.Printf("Failed to write setup agentic workflows agent: %v", err)
+		return fmt.Errorf("failed to write setup agentic workflows agent: %w", err)
 	}
 	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created setup agentic workflows prompt"))
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created setup agentic workflows agent"))
 	}
 
-	// Write debug agentic workflow prompt
-	initLog.Print("Writing debug agentic workflow prompt")
-	if err := ensureDebugAgenticWorkflowPrompt(verbose, false); err != nil {
-		initLog.Printf("Failed to write debug agentic workflow prompt: %v", err)
-		return fmt.Errorf("failed to write debug agentic workflow prompt: %w", err)
+	// Write debug agentic workflow agent
+	initLog.Print("Writing debug agentic workflow agent")
+	if err := ensureDebugAgenticWorkflowAgent(verbose, false); err != nil {
+		initLog.Printf("Failed to write debug agentic workflow agent: %v", err)
+		return fmt.Errorf("failed to write debug agentic workflow agent: %w", err)
 	}
 	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created debug agentic workflow prompt"))
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created debug agentic workflow agent"))
 	}
 
 	// Configure MCP if requested
@@ -116,7 +116,7 @@ func InitRepository(verbose bool, mcp bool) error {
 		fmt.Fprintln(os.Stderr, "")
 	}
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("To create a workflow, launch Copilot CLI: npx @github/copilot"))
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Then activate @.github/prompts/create-agentic-workflow.prompt.md"))
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Then activate @.github/agents/create-agentic-workflow.agent.md"))
 	fmt.Fprintln(os.Stderr, "")
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Or add workflows from the catalog: "+constants.CLIExtensionPrefix+" add <workflow-name>"))
 	fmt.Fprintln(os.Stderr, "")

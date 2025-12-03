@@ -10,26 +10,26 @@ import (
 	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
-func TestEnsureSetupAgenticWorkflowsPrompt(t *testing.T) {
+func TestEnsureSetupAgenticWorkflowsAgent(t *testing.T) {
 	tests := []struct {
 		name            string
 		existingContent string
 		expectedContent string
 	}{
 		{
-			name:            "creates new setup agentic workflows prompt file",
+			name:            "creates new setup agentic workflows agent file",
 			existingContent: "",
-			expectedContent: strings.TrimSpace(setupAgenticWorkflowsPromptTemplate),
+			expectedContent: strings.TrimSpace(setupAgenticWorkflowsAgentTemplate),
 		},
 		{
 			name:            "does not modify existing correct file",
-			existingContent: setupAgenticWorkflowsPromptTemplate,
-			expectedContent: strings.TrimSpace(setupAgenticWorkflowsPromptTemplate),
+			existingContent: setupAgenticWorkflowsAgentTemplate,
+			expectedContent: strings.TrimSpace(setupAgenticWorkflowsAgentTemplate),
 		},
 		{
 			name:            "updates modified file",
 			existingContent: "# Modified Setup\n\nThis is a modified version.",
-			expectedContent: strings.TrimSpace(setupAgenticWorkflowsPromptTemplate),
+			expectedContent: strings.TrimSpace(setupAgenticWorkflowsAgentTemplate),
 		},
 	}
 
@@ -53,34 +53,34 @@ func TestEnsureSetupAgenticWorkflowsPrompt(t *testing.T) {
 				t.Fatalf("Failed to init git repo: %v", err)
 			}
 
-			promptsDir := filepath.Join(tempDir, ".github", "prompts")
-			promptPath := filepath.Join(promptsDir, "setup-agentic-workflows.prompt.md")
+			agentsDir := filepath.Join(tempDir, ".github", "agents")
+			agentPath := filepath.Join(agentsDir, "setup-agentic-workflows.agent.md")
 
 			// Create initial content if specified
 			if tt.existingContent != "" {
-				if err := os.MkdirAll(promptsDir, 0755); err != nil {
-					t.Fatalf("Failed to create prompts directory: %v", err)
+				if err := os.MkdirAll(agentsDir, 0755); err != nil {
+					t.Fatalf("Failed to create agents directory: %v", err)
 				}
-				if err := os.WriteFile(promptPath, []byte(tt.existingContent), 0644); err != nil {
-					t.Fatalf("Failed to create initial setup prompt: %v", err)
+				if err := os.WriteFile(agentPath, []byte(tt.existingContent), 0644); err != nil {
+					t.Fatalf("Failed to create initial setup agent: %v", err)
 				}
 			}
 
 			// Call the function with skipInstructions=false to test the functionality
-			err = ensureSetupAgenticWorkflowsPrompt(false, false)
+			err = ensureSetupAgenticWorkflowsAgent(false, false)
 			if err != nil {
-				t.Fatalf("ensureSetupAgenticWorkflowsPrompt() returned error: %v", err)
+				t.Fatalf("ensureSetupAgenticWorkflowsAgent() returned error: %v", err)
 			}
 
 			// Check that file exists
-			if _, err := os.Stat(promptPath); os.IsNotExist(err) {
-				t.Fatalf("Expected setup agentic workflows prompt file to exist")
+			if _, err := os.Stat(agentPath); os.IsNotExist(err) {
+				t.Fatalf("Expected setup agentic workflows agent file to exist")
 			}
 
 			// Check content
-			content, err := os.ReadFile(promptPath)
+			content, err := os.ReadFile(agentPath)
 			if err != nil {
-				t.Fatalf("Failed to read setup prompt: %v", err)
+				t.Fatalf("Failed to read setup agent: %v", err)
 			}
 
 			contentStr := strings.TrimSpace(string(content))
@@ -95,7 +95,7 @@ func TestEnsureSetupAgenticWorkflowsPrompt(t *testing.T) {
 	}
 }
 
-func TestEnsureSetupAgenticWorkflowsPrompt_WithSkipInstructionsTrue(t *testing.T) {
+func TestEnsureSetupAgenticWorkflowsAgent_WithSkipInstructionsTrue(t *testing.T) {
 	// Create a temporary directory for testing
 	tempDir := testutil.TempDir(t, "test-*")
 
@@ -114,22 +114,22 @@ func TestEnsureSetupAgenticWorkflowsPrompt_WithSkipInstructionsTrue(t *testing.T
 		t.Fatalf("Failed to init git repo: %v", err)
 	}
 
-	promptsDir := filepath.Join(tempDir, ".github", "prompts")
-	promptPath := filepath.Join(promptsDir, "setup-agentic-workflows.prompt.md")
+	agentsDir := filepath.Join(tempDir, ".github", "agents")
+	agentPath := filepath.Join(agentsDir, "setup-agentic-workflows.agent.md")
 
 	// Call the function with skipInstructions=true
-	err = ensureSetupAgenticWorkflowsPrompt(false, true)
+	err = ensureSetupAgenticWorkflowsAgent(false, true)
 	if err != nil {
-		t.Fatalf("ensureSetupAgenticWorkflowsPrompt() returned error: %v", err)
+		t.Fatalf("ensureSetupAgenticWorkflowsAgent() returned error: %v", err)
 	}
 
 	// Check that file does not exist
-	if _, err := os.Stat(promptPath); !os.IsNotExist(err) {
-		t.Fatalf("Expected setup prompt file to not exist when skipInstructions=true")
+	if _, err := os.Stat(agentPath); !os.IsNotExist(err) {
+		t.Fatalf("Expected setup agent file to not exist when skipInstructions=true")
 	}
 }
 
-func TestSetupAgenticWorkflowsPromptContainsRequiredSections(t *testing.T) {
+func TestSetupAgenticWorkflowsAgentContainsRequiredSections(t *testing.T) {
 	// Verify the template contains all required sections
 	requiredSections := []string{
 		"Configure Secrets for Your Chosen Agent",
@@ -143,7 +143,7 @@ func TestSetupAgenticWorkflowsPromptContainsRequiredSections(t *testing.T) {
 		"gh secret set",
 	}
 
-	content := strings.TrimSpace(setupAgenticWorkflowsPromptTemplate)
+	content := strings.TrimSpace(setupAgenticWorkflowsAgentTemplate)
 
 	for _, section := range requiredSections {
 		if !strings.Contains(content, section) {
@@ -152,14 +152,14 @@ func TestSetupAgenticWorkflowsPromptContainsRequiredSections(t *testing.T) {
 	}
 }
 
-func TestSetupAgenticWorkflowsPromptHasValidDocumentationLinks(t *testing.T) {
+func TestSetupAgenticWorkflowsAgentHasValidDocumentationLinks(t *testing.T) {
 	// Verify the template contains documentation links
 	requiredLinks := []string{
 		"https://githubnext.github.io/gh-aw/reference/engines/",
 		"https://github.com/settings/tokens",
 	}
 
-	content := strings.TrimSpace(setupAgenticWorkflowsPromptTemplate)
+	content := strings.TrimSpace(setupAgenticWorkflowsAgentTemplate)
 
 	for _, link := range requiredLinks {
 		if !strings.Contains(content, link) {

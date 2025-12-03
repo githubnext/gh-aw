@@ -10,26 +10,26 @@ import (
 	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
-func TestEnsureAgenticWorkflowPrompt(t *testing.T) {
+func TestEnsureAgenticWorkflowAgent(t *testing.T) {
 	tests := []struct {
 		name            string
 		existingContent string
 		expectedContent string
 	}{
 		{
-			name:            "creates new agentic workflow prompt file",
+			name:            "creates new agentic workflow agent file",
 			existingContent: "",
-			expectedContent: strings.TrimSpace(agenticWorkflowPromptTemplate),
+			expectedContent: strings.TrimSpace(agenticWorkflowAgentTemplate),
 		},
 		{
 			name:            "does not modify existing correct file",
-			existingContent: agenticWorkflowPromptTemplate,
-			expectedContent: strings.TrimSpace(agenticWorkflowPromptTemplate),
+			existingContent: agenticWorkflowAgentTemplate,
+			expectedContent: strings.TrimSpace(agenticWorkflowAgentTemplate),
 		},
 		{
 			name:            "updates modified file",
-			existingContent: "# Modified Agentic Workflow Prompt\n\nThis is a modified version.",
-			expectedContent: strings.TrimSpace(agenticWorkflowPromptTemplate),
+			existingContent: "# Modified Agentic Workflow Agent\n\nThis is a modified version.",
+			expectedContent: strings.TrimSpace(agenticWorkflowAgentTemplate),
 		},
 	}
 
@@ -53,34 +53,34 @@ func TestEnsureAgenticWorkflowPrompt(t *testing.T) {
 				t.Fatalf("Failed to init git repo: %v", err)
 			}
 
-			promptsDir := filepath.Join(tempDir, ".github", "prompts")
-			agenticWorkflowPromptPath := filepath.Join(promptsDir, "create-agentic-workflow.prompt.md")
+			agentsDir := filepath.Join(tempDir, ".github", "agents")
+			agenticWorkflowAgentPath := filepath.Join(agentsDir, "create-agentic-workflow.agent.md")
 
 			// Create initial content if specified
 			if tt.existingContent != "" {
-				if err := os.MkdirAll(promptsDir, 0755); err != nil {
-					t.Fatalf("Failed to create prompts directory: %v", err)
+				if err := os.MkdirAll(agentsDir, 0755); err != nil {
+					t.Fatalf("Failed to create agents directory: %v", err)
 				}
-				if err := os.WriteFile(agenticWorkflowPromptPath, []byte(tt.existingContent), 0644); err != nil {
-					t.Fatalf("Failed to create initial agentic workflow prompt: %v", err)
+				if err := os.WriteFile(agenticWorkflowAgentPath, []byte(tt.existingContent), 0644); err != nil {
+					t.Fatalf("Failed to create initial agentic workflow agent: %v", err)
 				}
 			}
 
 			// Call the function with skipInstructions=false to test the functionality
-			err = ensureAgenticWorkflowPrompt(false, false)
+			err = ensureAgenticWorkflowAgent(false, false)
 			if err != nil {
-				t.Fatalf("ensureAgenticWorkflowPrompt() returned error: %v", err)
+				t.Fatalf("ensureAgenticWorkflowAgent() returned error: %v", err)
 			}
 
 			// Check that file exists
-			if _, err := os.Stat(agenticWorkflowPromptPath); os.IsNotExist(err) {
-				t.Fatalf("Expected agentic workflow prompt file to exist")
+			if _, err := os.Stat(agenticWorkflowAgentPath); os.IsNotExist(err) {
+				t.Fatalf("Expected agentic workflow agent file to exist")
 			}
 
 			// Check content
-			content, err := os.ReadFile(agenticWorkflowPromptPath)
+			content, err := os.ReadFile(agenticWorkflowAgentPath)
 			if err != nil {
-				t.Fatalf("Failed to read agentic workflow prompt: %v", err)
+				t.Fatalf("Failed to read agentic workflow agent: %v", err)
 			}
 
 			contentStr := strings.TrimSpace(string(content))
@@ -95,7 +95,7 @@ func TestEnsureAgenticWorkflowPrompt(t *testing.T) {
 	}
 }
 
-func TestEnsureAgenticWorkflowPrompt_WithSkipInstructionsTrue(t *testing.T) {
+func TestEnsureAgenticWorkflowAgent_WithSkipInstructionsTrue(t *testing.T) {
 	// Create a temporary directory for testing
 	tempDir := testutil.TempDir(t, "test-*")
 
@@ -115,20 +115,20 @@ func TestEnsureAgenticWorkflowPrompt_WithSkipInstructionsTrue(t *testing.T) {
 	}
 
 	// Call the function with skipInstructions=true
-	err = ensureAgenticWorkflowPrompt(false, true)
+	err = ensureAgenticWorkflowAgent(false, true)
 	if err != nil {
-		t.Fatalf("ensureAgenticWorkflowPrompt() returned error: %v", err)
+		t.Fatalf("ensureAgenticWorkflowAgent() returned error: %v", err)
 	}
 
 	// Check that file was NOT created
-	promptsDir := filepath.Join(tempDir, ".github", "prompts")
-	agenticWorkflowPromptPath := filepath.Join(promptsDir, "create-agentic-workflow.prompt.md")
-	if _, err := os.Stat(agenticWorkflowPromptPath); !os.IsNotExist(err) {
-		t.Fatalf("Expected agentic workflow prompt file to NOT exist when skipInstructions=true")
+	agentsDir := filepath.Join(tempDir, ".github", "agents")
+	agenticWorkflowAgentPath := filepath.Join(agentsDir, "create-agentic-workflow.agent.md")
+	if _, err := os.Stat(agenticWorkflowAgentPath); !os.IsNotExist(err) {
+		t.Fatalf("Expected agentic workflow agent file to NOT exist when skipInstructions=true")
 	}
 }
 
-func TestEnsureAgenticWorkflowPrompt_RemovesLegacyAgentFile(t *testing.T) {
+func TestEnsureAgenticWorkflowAgent_RemovesLegacyPromptFile(t *testing.T) {
 	// Create a temporary directory for testing
 	tempDir := testutil.TempDir(t, "test-*")
 
@@ -147,37 +147,37 @@ func TestEnsureAgenticWorkflowPrompt_RemovesLegacyAgentFile(t *testing.T) {
 		t.Fatalf("Failed to init git repo: %v", err)
 	}
 
-	// Create the old agent file (legacy format that should be cleaned up)
-	agentsDir := filepath.Join(tempDir, ".github", "agents")
-	oldAgentPath := filepath.Join(agentsDir, "create-agentic-workflow.md")
+	// Create the old prompt file (legacy format that should be cleaned up)
+	promptsDir := filepath.Join(tempDir, ".github", "prompts")
+	oldPromptPath := filepath.Join(promptsDir, "create-agentic-workflow.prompt.md")
 
-	if err := os.MkdirAll(agentsDir, 0755); err != nil {
-		t.Fatalf("Failed to create agents directory: %v", err)
+	if err := os.MkdirAll(promptsDir, 0755); err != nil {
+		t.Fatalf("Failed to create prompts directory: %v", err)
 	}
-	if err := os.WriteFile(oldAgentPath, []byte("old content"), 0644); err != nil {
-		t.Fatalf("Failed to create old agent file: %v", err)
+	if err := os.WriteFile(oldPromptPath, []byte("old content"), 0644); err != nil {
+		t.Fatalf("Failed to create old prompt file: %v", err)
 	}
 
 	// Verify old file exists
-	if _, err := os.Stat(oldAgentPath); os.IsNotExist(err) {
-		t.Fatalf("Old agent file should exist before test")
+	if _, err := os.Stat(oldPromptPath); os.IsNotExist(err) {
+		t.Fatalf("Old prompt file should exist before test")
 	}
 
-	// Call the function to create prompt (which should also remove old agent)
-	err = ensureAgenticWorkflowPrompt(false, false)
+	// Call the function to create agent (which should also remove old prompt)
+	err = ensureAgenticWorkflowAgent(false, false)
 	if err != nil {
-		t.Fatalf("ensureAgenticWorkflowPrompt() returned error: %v", err)
+		t.Fatalf("ensureAgenticWorkflowAgent() returned error: %v", err)
 	}
 
 	// Check that old file was removed
-	if _, err := os.Stat(oldAgentPath); !os.IsNotExist(err) {
-		t.Fatalf("Expected old agent file to be removed")
+	if _, err := os.Stat(oldPromptPath); !os.IsNotExist(err) {
+		t.Fatalf("Expected old prompt file to be removed")
 	}
 
-	// Check that new prompt file was created
-	promptsDir := filepath.Join(tempDir, ".github", "prompts")
-	newPromptPath := filepath.Join(promptsDir, "create-agentic-workflow.prompt.md")
-	if _, err := os.Stat(newPromptPath); os.IsNotExist(err) {
-		t.Fatalf("Expected new prompt file to be created")
+	// Check that new agent file was created
+	agentsDir := filepath.Join(tempDir, ".github", "agents")
+	newAgentPath := filepath.Join(agentsDir, "create-agentic-workflow.agent.md")
+	if _, err := os.Stat(newAgentPath); os.IsNotExist(err) {
+		t.Fatalf("Expected new agent file to be created")
 	}
 }
