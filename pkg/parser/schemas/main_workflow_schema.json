@@ -120,7 +120,8 @@
                         },
                         {
                           "type": "array",
-                          "description": "Array of event names where the command should be active. Use GitHub Actions event names.",
+                          "minItems": 1,
+                          "description": "Array of event names where the command should be active (requires at least one). Use GitHub Actions event names.",
                           "items": {
                             "type": "string",
                             "description": "GitHub Actions event name.",
