@@ -103,7 +103,7 @@ All workflows must support workflow_dispatch trigger to be used in trial mode.
 The host repository will be created as private and kept by default unless --delete-host-repo-after is specified.
 Trial results are saved both locally (in trials/ directory) and in the host repository for future reference.`,
 		Args: cobra.MinimumNArgs(1),
-		Run: func(cmd *cobra.Command, args []string) {
+		RunE: func(cmd *cobra.Command, args []string) error {
 			workflowSpecs := args
 			logicalRepoSpec, _ := cmd.Flags().GetString("logical-repo")
 			cloneRepoSpec, _ := cmd.Flags().GetString("clone-repo")
@@ -122,8 +122,7 @@ Trial results are saved both locally (in trials/ directory) and in the host repo
 			verbose, _ := cmd.Root().PersistentFlags().GetBool("verbose")
 
 			if err := validateEngine(engineOverride); err != nil {
-				fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
-				os.Exit(1)
+				return err
 			}
 			// If --repo was used instead of --host-repo, use its value
 			if repoSpec != "" {
@@ -131,9 +130,9 @@ Trial results are saved both locally (in trials/ directory) and in the host repo
 			}
 
 			if err := RunWorkflowTrials(workflowSpecs, logicalRepoSpec, cloneRepoSpec, hostRepoSpec, deleteHostRepo, forceDeleteHostRepo, yes, timeout, triggerContext, repeatCount, autoMergePRs, engineOverride, appendText, pushSecrets, verbose); err != nil {
-				fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
-				os.Exit(1)
+				return err
 			}
+			return nil
 		},
 	}
 
