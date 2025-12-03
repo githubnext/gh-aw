@@ -768,7 +768,7 @@ func (c *Compiler) extractAgentSandboxConfig(agentVal any) *AgentSandboxConfig {
 		return nil
 	}
 
-	// Handle object format: { type: "...", config: {...} }
+	// Handle object format: { id/type: "...", config: {...}, command: "...", args: [...], env: {...} }
 	agentObj, ok := agentVal.(map[string]any)
 	if !ok {
 		return nil
@@ -776,14 +776,53 @@ func (c *Compiler) extractAgentSandboxConfig(agentVal any) *AgentSandboxConfig {
 
 	agentConfig := &AgentSandboxConfig{}
 
+	// Extract ID field (new format)
+	if idVal, hasID := agentObj["id"]; hasID {
+		if idStr, ok := idVal.(string); ok {
+			agentConfig.ID = idStr
+		}
+	}
+
+	// Extract Type field (legacy format)
 	if typeVal, hasType := agentObj["type"]; hasType {
 		if typeStr, ok := typeVal.(string); ok {
 			agentConfig.Type = SandboxType(typeStr)
 		}
 	}
 
+	// Extract config for SRT
 	if configVal, hasConfig := agentObj["config"]; hasConfig {
 		agentConfig.Config = c.extractSRTConfig(configVal)
+	}
+
+	// Extract command (custom command to replace AWF binary download)
+	if commandVal, hasCommand := agentObj["command"]; hasCommand {
+		if commandStr, ok := commandVal.(string); ok {
+			agentConfig.Command = commandStr
+		}
+	}
+
+	// Extract args (additional arguments to append)
+	if argsVal, hasArgs := agentObj["args"]; hasArgs {
+		if argsSlice, ok := argsVal.([]any); ok {
+			for _, arg := range argsSlice {
+				if argStr, ok := arg.(string); ok {
+					agentConfig.Args = append(agentConfig.Args, argStr)
+				}
+			}
+		}
+	}
+
+	// Extract env (environment variables to set on the step)
+	if envVal, hasEnv := agentObj["env"]; hasEnv {
+		if envObj, ok := envVal.(map[string]any); ok {
+			agentConfig.Env = make(map[string]string)
+			for key, value := range envObj {
+				if valueStr, ok := value.(string); ok {
+					agentConfig.Env[key] = valueStr
+				}
+			}
+		}
 	}
 
 	return agentConfig
