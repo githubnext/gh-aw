@@ -235,7 +235,7 @@ Test workflow with runtime overrides applied to steps.
 	lockStr := string(lockContent)
 
 	// Verify that Node.js setup step is included with version 22
-	if !strings.Contains(lockStr, "actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903") {
+	if !strings.Contains(lockStr, "actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f") {
 		t.Error("Expected setup-node action in lock file")
 	}
 	if !strings.Contains(lockStr, "node-version: '22'") {

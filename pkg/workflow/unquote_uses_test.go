@@ -17,19 +17,19 @@ func TestUnquoteUsesWithComments(t *testing.T) {
 		},
 		{
 			name:     "quoted uses with version comment and indentation",
-			input:    `        uses: "actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # v6"`,
-			expected: `        uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # v6`,
+			input:    `        uses: "actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6"`,
+			expected: `        uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6`,
 		},
 		{
 			name: "multiple quoted uses on different lines",
 			input: `  uses: "actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5"
   with:
     ref: main
-  uses: "actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # v6"`,
+  uses: "actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6"`,
 			expected: `  uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
   with:
     ref: main
-  uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # v6`,
+  uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6`,
 		},
 		{
 			name:     "unquoted uses should not be modified",
@@ -79,12 +79,12 @@ with:
 - name: Checkout
   uses: "actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5"
 - name: Setup Node
-  uses: "actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # v6"`,
+  uses: "actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6"`,
 			expected: `steps:
 - name: Checkout
   uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
 - name: Setup Node
-  uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # v6`,
+  uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6`,
 		},
 		{
 			name:     "handles version tags with special characters",
@@ -95,10 +95,10 @@ with:
 			name: "preserves empty lines",
 			input: `  uses: "actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5"
 
-  uses: "actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # v6"`,
+  uses: "actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6"`,
 			expected: `  uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
 
-  uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # v6`,
+  uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6`,
 		},
 	}
 
@@ -176,7 +176,7 @@ func TestUnquoteUsesWithCommentsRealWorldExamples(t *testing.T) {
     with:
       persist-credentials: false
   - name: Setup Node.js
-    uses: "actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # v6"
+    uses: "actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6"
     with:
       cache: npm
       cache-dependency-path: docs/package-lock.json
@@ -187,7 +187,7 @@ func TestUnquoteUsesWithCommentsRealWorldExamples(t *testing.T) {
     with:
       persist-credentials: false
   - name: Setup Node.js
-    uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # v6
+    uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6
     with:
       cache: npm
       cache-dependency-path: docs/package-lock.json

@@ -25,7 +25,7 @@ func TestActionSHAValidationIntegration(t *testing.T) {
 
 	// Pre-populate cache with "current" SHAs
 	cache.Set("actions/checkout", "v5", "93cb6efe18208431cddfb8368fd83d5badbf9bfd")
-	cache.Set("actions/setup-node", "v6", "2028fbc5c25fe9cf00d9f06a71cc4710d4507903")
+	cache.Set("actions/setup-node", "v6", "395ad3262231945c25e8478fd5baf05154b1d79f")
 
 	// Save the cache
 	if err := cache.Save(); err != nil {
@@ -42,7 +42,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd
-      - uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903
+      - uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f
 `
 
 	if err := os.WriteFile(lockFile, []byte(lockContent), 0644); err != nil {
@@ -141,7 +141,7 @@ jobs:
           fetch-depth: 0
 
       - name: Setup Node
-        uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903
+        uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f
         with:
           node-version: '20'
 

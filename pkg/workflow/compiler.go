@@ -769,9 +769,10 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 
 	// Process imports from frontmatter first (before @include directives)
 	importCache := c.getSharedImportCache()
-	importsResult, err := parser.ProcessImportsFromFrontmatterWithManifest(result.Frontmatter, markdownDir, importCache)
+	// Pass the full file content for accurate line/column error reporting
+	importsResult, err := parser.ProcessImportsFromFrontmatterWithSource(result.Frontmatter, markdownDir, importCache, markdownPath, string(content))
 	if err != nil {
-		return nil, fmt.Errorf("failed to process imports from frontmatter: %w", err)
+		return nil, err // Error is already formatted with source location
 	}
 
 	// Merge network permissions from imports with top-level network permissions
