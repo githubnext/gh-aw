@@ -1,14 +1,14 @@
 package workflow
 
 import (
-"strings"
-"testing"
+	"strings"
+	"testing"
 )
 
 // TestTokenCountingConsistency verifies that Go and JavaScript parsers calculate total tokens the same way
 func TestTokenCountingConsistency(t *testing.T) {
-// Test log with all token types including cache tokens
-claudeLogWithCache := `[
+	// Test log with all token types including cache tokens
+	claudeLogWithCache := `[
   {
     "type": "system",
     "subtype": "init",
@@ -61,51 +61,51 @@ claudeLogWithCache := `[
   }
 ]`
 
-// Test with Go parser
-engine := NewClaudeEngine()
-goMetrics := engine.ParseLogMetrics(claudeLogWithCache, false)
+	// Test with Go parser
+	engine := NewClaudeEngine()
+	goMetrics := engine.ParseLogMetrics(claudeLogWithCache, false)
 
-// Expected total: 1500 + 500 + 200 + 100 = 2300
-expectedTotal := 2300
-if goMetrics.TokenUsage != expectedTotal {
-t.Errorf("Go parser: expected total tokens %d, got %d", expectedTotal, goMetrics.TokenUsage)
-}
+	// Expected total: 1500 + 500 + 200 + 100 = 2300
+	expectedTotal := 2300
+	if goMetrics.TokenUsage != expectedTotal {
+		t.Errorf("Go parser: expected total tokens %d, got %d", expectedTotal, goMetrics.TokenUsage)
+	}
 
-// Test with JavaScript parser
-script := GetLogParserScript("parse_claude_log")
-if script == "" {
-t.Skip("parse_claude_log script not available")
-}
+	// Test with JavaScript parser
+	script := GetLogParserScript("parse_claude_log")
+	if script == "" {
+		t.Skip("parse_claude_log script not available")
+	}
 
-jsResult, err := runJSLogParser(script, claudeLogWithCache)
-if err != nil {
-t.Fatalf("Failed to parse log with JavaScript parser: %v", err)
-}
+	jsResult, err := runJSLogParser(script, claudeLogWithCache)
+	if err != nil {
+		t.Fatalf("Failed to parse log with JavaScript parser: %v", err)
+	}
 
-// Check that JavaScript output shows the total
-if !strings.Contains(jsResult, "Total: 2,300") {
-t.Errorf("JavaScript parser: expected to show 'Total: 2,300' in output, but didn't find it.\nOutput:\n%s", jsResult)
-}
+	// Check that JavaScript output shows the total
+	if !strings.Contains(jsResult, "Total: 2,300") {
+		t.Errorf("JavaScript parser: expected to show 'Total: 2,300' in output, but didn't find it.\nOutput:\n%s", jsResult)
+	}
 
-// Verify individual token counts are also shown
-if !strings.Contains(jsResult, "Input: 1,500") {
-t.Error("JavaScript parser: expected to show 'Input: 1,500' in output")
-}
-if !strings.Contains(jsResult, "Output: 500") {
-t.Error("JavaScript parser: expected to show 'Output: 500' in output")
-}
-if !strings.Contains(jsResult, "Cache Creation: 200") {
-t.Error("JavaScript parser: expected to show 'Cache Creation: 200' in output")
-}
-if !strings.Contains(jsResult, "Cache Read: 100") {
-t.Error("JavaScript parser: expected to show 'Cache Read: 100' in output")
-}
+	// Verify individual token counts are also shown
+	if !strings.Contains(jsResult, "Input: 1,500") {
+		t.Error("JavaScript parser: expected to show 'Input: 1,500' in output")
+	}
+	if !strings.Contains(jsResult, "Output: 500") {
+		t.Error("JavaScript parser: expected to show 'Output: 500' in output")
+	}
+	if !strings.Contains(jsResult, "Cache Creation: 200") {
+		t.Error("JavaScript parser: expected to show 'Cache Creation: 200' in output")
+	}
+	if !strings.Contains(jsResult, "Cache Read: 100") {
+		t.Error("JavaScript parser: expected to show 'Cache Read: 100' in output")
+	}
 }
 
 // TestTokenCountingWithoutCacheTokens verifies token counting works without cache tokens
 func TestTokenCountingWithoutCacheTokens(t *testing.T) {
-// Test log without cache tokens
-claudeLogSimple := `[
+	// Test log without cache tokens
+	claudeLogSimple := `[
   {
     "type": "system",
     "subtype": "init",
@@ -150,29 +150,29 @@ claudeLogSimple := `[
   }
 ]`
 
-// Test with Go parser
-engine := NewClaudeEngine()
-goMetrics := engine.ParseLogMetrics(claudeLogSimple, false)
+	// Test with Go parser
+	engine := NewClaudeEngine()
+	goMetrics := engine.ParseLogMetrics(claudeLogSimple, false)
 
-// Expected total: 100 + 50 = 150
-expectedTotal := 150
-if goMetrics.TokenUsage != expectedTotal {
-t.Errorf("Go parser: expected total tokens %d, got %d", expectedTotal, goMetrics.TokenUsage)
-}
+	// Expected total: 100 + 50 = 150
+	expectedTotal := 150
+	if goMetrics.TokenUsage != expectedTotal {
+		t.Errorf("Go parser: expected total tokens %d, got %d", expectedTotal, goMetrics.TokenUsage)
+	}
 
-// Test with JavaScript parser
-script := GetLogParserScript("parse_claude_log")
-if script == "" {
-t.Skip("parse_claude_log script not available")
-}
+	// Test with JavaScript parser
+	script := GetLogParserScript("parse_claude_log")
+	if script == "" {
+		t.Skip("parse_claude_log script not available")
+	}
 
-jsResult, err := runJSLogParser(script, claudeLogSimple)
-if err != nil {
-t.Fatalf("Failed to parse log with JavaScript parser: %v", err)
-}
+	jsResult, err := runJSLogParser(script, claudeLogSimple)
+	if err != nil {
+		t.Fatalf("Failed to parse log with JavaScript parser: %v", err)
+	}
 
-// Check that JavaScript output shows the total
-if !strings.Contains(jsResult, "Total: 150") {
-t.Errorf("JavaScript parser: expected to show 'Total: 150' in output, but didn't find it.\nOutput:\n%s", jsResult)
-}
+	// Check that JavaScript output shows the total
+	if !strings.Contains(jsResult, "Total: 150") {
+		t.Errorf("JavaScript parser: expected to show 'Total: 150' in output, but didn't find it.\nOutput:\n%s", jsResult)
+	}
 }

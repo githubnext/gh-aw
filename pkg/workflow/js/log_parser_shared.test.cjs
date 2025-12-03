@@ -1430,7 +1430,7 @@ describe("log_parser_shared.cjs", () => {
 
       const result = generatePlainTextSummary(logEntries, { parserName: "Agent" });
 
-      expect(result).toContain("Tokens: 1,000 in / 500 out");
+      expect(result).toContain("Tokens: 1,500 total (1,000 in / 500 out)");
       expect(result).toContain("Cost: $0.0025");
     });
 
