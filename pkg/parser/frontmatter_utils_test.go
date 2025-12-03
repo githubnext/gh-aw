@@ -9,6 +9,7 @@ import (
 
 	"github.com/githubnext/gh-aw/pkg/testutil"
 )
+
 func TestIsUnderWorkflowsDirectory(t *testing.T) {
 	tests := []struct {
 		name     string

@@ -8,6 +8,7 @@ import (
 
 	"github.com/githubnext/gh-aw/pkg/testutil"
 )
+
 func TestOutputLabelConfigParsing(t *testing.T) {
 	// Create temporary directory for test files
 	tmpDir := testutil.TempDir(t, "output-label-config-test")
@@ -719,4 +720,3 @@ This workflow tests that missing allowed field is now optional.
 		t.Fatal("Expected lock file to be created")
 	}
 }
-

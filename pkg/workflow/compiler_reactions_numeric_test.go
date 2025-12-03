@@ -9,6 +9,7 @@ import (
 
 	"github.com/githubnext/gh-aw/pkg/testutil"
 )
+
 func TestInvalidReactionValue(t *testing.T) {
 	// Create temporary directory for test files
 	tmpDir := testutil.TempDir(t, "invalid-reaction-test")

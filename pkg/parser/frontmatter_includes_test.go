@@ -8,6 +8,7 @@ import (
 
 	"github.com/githubnext/gh-aw/pkg/constants"
 )
+
 func TestProcessIncludes(t *testing.T) {
 	// Create temporary test files
 	tempDir, err := os.MkdirTemp("", "test_includes")

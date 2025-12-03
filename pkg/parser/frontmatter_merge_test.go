@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"testing"
 )
+
 func TestMergeTools(t *testing.T) {
 	tests := []struct {
 		name       string

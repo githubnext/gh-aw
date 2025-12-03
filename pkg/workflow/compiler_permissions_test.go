@@ -8,6 +8,7 @@ import (
 
 	"github.com/githubnext/gh-aw/pkg/testutil"
 )
+
 func TestRunsOnSection(t *testing.T) {
 	// Create temporary directory for test files
 	tmpDir := testutil.TempDir(t, "workflow-runs-on-test")
@@ -298,4 +299,3 @@ This is a test workflow with network permissions and codex engine.
 		}
 	})
 }
-

@@ -9,6 +9,7 @@ import (
 
 	"github.com/githubnext/gh-aw/pkg/testutil"
 )
+
 func TestCompileWorkflowWithInvalidYAML(t *testing.T) {
 	// Create temporary directory for test files
 	tmpDir := testutil.TempDir(t, "invalid-yaml-test")

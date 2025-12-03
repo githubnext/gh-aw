@@ -9,6 +9,7 @@ import (
 	"github.com/githubnext/gh-aw/pkg/testutil"
 	"github.com/goccy/go-yaml"
 )
+
 func TestPullRequestForksArrayFilter(t *testing.T) {
 	// Create temporary directory for test files
 	tmpDir := testutil.TempDir(t, "forks-array-filter-test")

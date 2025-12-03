@@ -8,6 +8,7 @@ import (
 
 	"github.com/githubnext/gh-aw/pkg/testutil"
 )
+
 func TestOnSection(t *testing.T) {
 	// Create temporary directory for test files
 	tmpDir := testutil.TempDir(t, "workflow-on-test")
@@ -470,4 +471,3 @@ This is a test workflow for command merging with other events.
 		})
 	}
 }
-

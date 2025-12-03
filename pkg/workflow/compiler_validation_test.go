@@ -9,6 +9,7 @@ import (
 	"github.com/githubnext/gh-aw/pkg/testutil"
 	"github.com/goccy/go-yaml"
 )
+
 func TestExtractTopLevelYAMLSection_NestedEnvIssue(t *testing.T) {
 	// This test verifies the fix for the nested env issue where
 	// tools.mcps.*.env was being confused with top-level env
@@ -668,6 +669,81 @@ This is a test workflow to verify description field rendering.
 
 			// Clean up generated lock file
 			os.Remove(lockFile)
+		})
+	}
+}
+
+func TestGenerateJobName(t *testing.T) {
+	compiler := NewCompiler(false, "", "test")
+
+	tests := []struct {
+		name         string
+		workflowName string
+		expected     string
+	}{
+		{
+			name:         "simple name",
+			workflowName: "Test Workflow",
+			expected:     "test-workflow",
+		},
+		{
+			name:         "name with special characters",
+			workflowName: "The Linter Maniac",
+			expected:     "the-linter-maniac",
+		},
+		{
+			name:         "name with colon",
+			workflowName: "Playground: Everything Echo Test",
+			expected:     "playground-everything-echo-test",
+		},
+		{
+			name:         "name with parentheses",
+			workflowName: "Daily Plan (Automatic)",
+			expected:     "daily-plan-automatic",
+		},
+		{
+			name:         "name with slashes",
+			workflowName: "CI/CD Pipeline",
+			expected:     "ci-cd-pipeline",
+		},
+		{
+			name:         "name with quotes",
+			workflowName: "Test \"Production\" System",
+			expected:     "test-production-system",
+		},
+		{
+			name:         "name with multiple spaces",
+			workflowName: "Multiple   Spaces   Test",
+			expected:     "multiple-spaces-test",
+		},
+		{
+			name:         "single word",
+			workflowName: "Build",
+			expected:     "build",
+		},
+		{
+			name:         "empty string",
+			workflowName: "",
+			expected:     "workflow-",
+		},
+		{
+			name:         "starts with number",
+			workflowName: "2024 Release",
+			expected:     "workflow-2024-release",
+		},
+		{
+			name:         "name with @ symbol",
+			workflowName: "@mergefest - Merge Parent Branch Changes",
+			expected:     "mergefest-merge-parent-branch-changes",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := compiler.generateJobName(tt.workflowName)
+			if result != tt.expected {
+				t.Errorf("generateJobName(%q) = %q, expected %q", tt.workflowName, result, tt.expected)
+			}
 		})
 	}
 }

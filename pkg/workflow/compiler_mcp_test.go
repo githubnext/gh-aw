@@ -10,6 +10,7 @@ import (
 
 	"github.com/githubnext/gh-aw/pkg/testutil"
 )
+
 func TestGenerateCustomMCPCodexWorkflowConfig(t *testing.T) {
 	engine := NewCodexEngine()
 
@@ -892,4 +893,3 @@ This is a test workflow for container field.
 		})
 	}
 }
-

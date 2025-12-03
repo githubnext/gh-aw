@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 )
+
 func TestExtractFrontmatterFromContent(t *testing.T) {
 	tests := []struct {
 		name         string
@@ -413,4 +414,3 @@ This is markdown.`,
 		})
 	}
 }
-

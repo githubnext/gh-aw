@@ -9,6 +9,7 @@ import (
 	"github.com/githubnext/gh-aw/pkg/testutil"
 	"github.com/goccy/go-yaml"
 )
+
 func TestCacheSupport(t *testing.T) {
 	// Test cache support in workflow compilation
 	tests := []struct {
@@ -422,4 +423,3 @@ This workflow has custom permissions that should override defaults.
 		}
 	}
 }
-

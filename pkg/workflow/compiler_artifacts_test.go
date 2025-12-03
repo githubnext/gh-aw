@@ -8,6 +8,7 @@ import (
 
 	"github.com/githubnext/gh-aw/pkg/testutil"
 )
+
 func TestAccessLogUploadConditional(t *testing.T) {
 	compiler := NewCompiler(false, "", "test")
 

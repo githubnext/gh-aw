@@ -10,6 +10,7 @@ import (
 	"github.com/githubnext/gh-aw/pkg/testutil"
 	"github.com/goccy/go-yaml"
 )
+
 func TestCustomStepsIndentation(t *testing.T) {
 	// Create temporary directory for test files
 	tmpDir := testutil.TempDir(t, "steps-indentation-test")
@@ -222,4 +223,3 @@ strict: false
 		})
 	}
 }
-

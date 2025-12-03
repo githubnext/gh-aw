@@ -9,6 +9,7 @@ import (
 	"github.com/githubnext/gh-aw/pkg/testutil"
 	"github.com/goccy/go-yaml"
 )
+
 func TestPostStepsGeneration(t *testing.T) {
 	// Create temporary directory for test files
 	tmpDir := testutil.TempDir(t, "post-steps-test")
@@ -430,4 +431,3 @@ This workflow tests that stop-after is properly compiled away.
 		})
 	}
 }
-

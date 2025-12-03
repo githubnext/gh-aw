@@ -8,6 +8,7 @@ import (
 
 	"github.com/githubnext/gh-aw/pkg/testutil"
 )
+
 func TestOutputPullRequestConfigParsing(t *testing.T) {
 	// Create temporary directory for test files
 	tmpDir := testutil.TempDir(t, "output-pr-config-test")

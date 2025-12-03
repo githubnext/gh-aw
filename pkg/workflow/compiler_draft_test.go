@@ -8,6 +8,7 @@ import (
 
 	"github.com/githubnext/gh-aw/pkg/testutil"
 )
+
 func TestPullRequestDraftFilter(t *testing.T) {
 	// Create temporary directory for test files
 	tmpDir := testutil.TempDir(t, "draft-filter-test")

@@ -9,6 +9,7 @@ import (
 
 	"github.com/githubnext/gh-aw/pkg/testutil"
 )
+
 func TestCompileWorkflow(t *testing.T) {
 	// Create temporary directory for test files
 	tmpDir := testutil.TempDir(t, "workflow-test")
@@ -318,4 +319,3 @@ This is a test workflow with a colon in the header.
 		t.Errorf("Found unquoted workflow name which would be invalid YAML. Content:\n%s", lockContentStr)
 	}
 }
-

@@ -67,4 +67,3 @@ func extractJobSection(yamlContent, jobName string) string {
 
 	return strings.Join(jobLines, "\n")
 }
-
