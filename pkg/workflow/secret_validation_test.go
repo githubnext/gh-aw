@@ -176,6 +176,52 @@ func TestCopilotEngineHasSecretValidation(t *testing.T) {
 	if !strings.Contains(firstStep, "COPILOT_CLI_TOKEN: ${{ secrets.COPILOT_CLI_TOKEN }}") {
 		t.Error("Secret validation step should reference secrets.COPILOT_CLI_TOKEN for backward compatibility")
 	}
+
+	// Should include token type validation (reject classic tokens)
+	if !strings.Contains(firstStep, "grep -q '^ghp_'") {
+		t.Error("Secret validation step should check for classic token prefix (ghp_)")
+	}
+	if !strings.Contains(firstStep, "classic personal access token") {
+		t.Error("Secret validation step should have error message for classic tokens")
+	}
+	if !strings.Contains(firstStep, "fine-grained personal access token") {
+		t.Error("Secret validation step should mention fine-grained tokens")
+	}
+}
+
+func TestCopilotTokenTypeValidation(t *testing.T) {
+	// Test that Copilot tokens trigger token type validation
+	secrets := []string{"COPILOT_GITHUB_TOKEN", "COPILOT_CLI_TOKEN"}
+	step := GenerateMultiSecretValidationStep(secrets, "GitHub Copilot CLI", "https://docs.example.com")
+	stepContent := strings.Join(step, "\n")
+
+	// Should validate token type for both Copilot tokens
+	if !strings.Contains(stepContent, "if echo \"$COPILOT_GITHUB_TOKEN\" | grep -q '^ghp_'") {
+		t.Error("Should validate COPILOT_GITHUB_TOKEN is not a classic token")
+	}
+	if !strings.Contains(stepContent, "if echo \"$COPILOT_CLI_TOKEN\" | grep -q '^ghp_'") {
+		t.Error("Should validate COPILOT_CLI_TOKEN is not a classic token")
+	}
+
+	// Should have appropriate error messages
+	if !strings.Contains(stepContent, "Classic tokens are not supported") {
+		t.Error("Should have error message about classic tokens not being supported")
+	}
+	if !strings.Contains(stepContent, "github_pat_") {
+		t.Error("Should mention fine-grained token prefix (github_pat_)")
+	}
+}
+
+func TestNonCopilotTokensNoTypeValidation(t *testing.T) {
+	// Test that non-Copilot secrets don't trigger token type validation
+	secrets := []string{"CODEX_API_KEY", "OPENAI_API_KEY"}
+	step := GenerateMultiSecretValidationStep(secrets, "Codex", "https://docs.example.com")
+	stepContent := strings.Join(step, "\n")
+
+	// Should NOT have token type validation for non-Copilot tokens
+	if strings.Contains(stepContent, "grep -q '^ghp_'") {
+		t.Error("Non-Copilot secrets should not have classic token validation")
+	}
 }
 
 func TestCodexEngineHasSecretValidation(t *testing.T) {

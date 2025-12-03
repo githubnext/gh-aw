@@ -288,6 +288,21 @@ func GenerateSecretValidationStep(secretName, engineName, docsURL string) GitHub
 	return GitHubActionStep(stepLines)
 }
 
+// isCopilotToken checks if the secret name is a Copilot token
+func isCopilotToken(secretName string) bool {
+	return secretName == "COPILOT_GITHUB_TOKEN" || secretName == "COPILOT_CLI_TOKEN"
+}
+
+// hasCopilotTokens checks if any of the secret names are Copilot tokens
+func hasCopilotTokens(secretNames []string) bool {
+	for _, name := range secretNames {
+		if isCopilotToken(name) {
+			return true
+		}
+	}
+	return false
+}
+
 // GenerateMultiSecretValidationStep creates a GitHub Actions step that validates at least one of multiple secrets is available
 // secretNames: slice of secret names to validate (e.g., []string{"CODEX_API_KEY", "OPENAI_API_KEY"})
 // engineName: the display name of the engine (e.g., "Codex")
@@ -327,12 +342,33 @@ func GenerateMultiSecretValidationStep(secretNames []string, engineName, docsURL
 		fmt.Sprintf("            echo \"Documentation: %s\"", docsURL),
 		"            exit 1",
 		"          fi",
-		"          ",
-		"          # Write validation results to step summary",
-		"          {",
-		"            echo \"## Agent Environment Validation\"",
-		"            echo \"\"",
 	}
+
+	// Add token type validation for Copilot tokens
+	// Classic tokens (ghp_*) are rejected, fine-grained tokens (github_pat_*) are accepted
+	if hasCopilotTokens(secretNames) {
+		stepLines = append(stepLines, "          ")
+		stepLines = append(stepLines, "          # Validate token type - reject classic tokens (ghp_*), accept fine-grained tokens (github_pat_*)")
+		for _, secretName := range secretNames {
+			if isCopilotToken(secretName) {
+				stepLines = append(stepLines, fmt.Sprintf("          if [ -n \"$%s\" ]; then", secretName))
+				stepLines = append(stepLines, fmt.Sprintf("            if echo \"$%s\" | grep -q '^ghp_'; then", secretName))
+				stepLines = append(stepLines, fmt.Sprintf("              echo \"Error: %s appears to be a classic personal access token (ghp_*)\"", secretName))
+				stepLines = append(stepLines, "              echo \"Classic tokens are not supported. Please use a fine-grained personal access token instead.\"")
+				stepLines = append(stepLines, "              echo \"Fine-grained tokens start with 'github_pat_' and provide better security controls.\"")
+				stepLines = append(stepLines, fmt.Sprintf("              echo \"Documentation: %s\"", docsURL))
+				stepLines = append(stepLines, "              exit 1")
+				stepLines = append(stepLines, "            fi")
+				stepLines = append(stepLines, "          fi")
+			}
+		}
+	}
+
+	stepLines = append(stepLines, "          ")
+	stepLines = append(stepLines, "          # Write validation results to step summary")
+	stepLines = append(stepLines, "          {")
+	stepLines = append(stepLines, "            echo \"## Agent Environment Validation\"")
+	stepLines = append(stepLines, "            echo \"\"")
 
 	// Add conditional messages for each secret
 	for i, secretName := range secretNames {

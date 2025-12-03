@@ -1006,6 +1006,26 @@ jobs:
             exit 1
           fi
           
+          # Validate token type - reject classic tokens (ghp_*), accept fine-grained tokens (github_pat_*)
+          if [ -n "$COPILOT_GITHUB_TOKEN" ]; then
+            if echo "$COPILOT_GITHUB_TOKEN" | grep -q '^ghp_'; then
+              echo "Error: COPILOT_GITHUB_TOKEN appears to be a classic personal access token (ghp_*)"
+              echo "Classic tokens are not supported. Please use a fine-grained personal access token instead."
+              echo "Fine-grained tokens start with 'github_pat_' and provide better security controls."
+              echo "Documentation: https://githubnext.github.io/gh-aw/reference/engines/#github-copilot-default"
+              exit 1
+            fi
+          fi
+          if [ -n "$COPILOT_CLI_TOKEN" ]; then
+            if echo "$COPILOT_CLI_TOKEN" | grep -q '^ghp_'; then
+              echo "Error: COPILOT_CLI_TOKEN appears to be a classic personal access token (ghp_*)"
+              echo "Classic tokens are not supported. Please use a fine-grained personal access token instead."
+              echo "Fine-grained tokens start with 'github_pat_' and provide better security controls."
+              echo "Documentation: https://githubnext.github.io/gh-aw/reference/engines/#github-copilot-default"
+              exit 1
+            fi
+          fi
+          
           # Write validation results to step summary
           {
             echo "## Agent Environment Validation"
@@ -7451,6 +7471,26 @@ jobs:
             echo "Please configure one of these secrets in your repository settings."
             echo "Documentation: https://githubnext.github.io/gh-aw/reference/engines/#github-copilot-default"
             exit 1
+          fi
+          
+          # Validate token type - reject classic tokens (ghp_*), accept fine-grained tokens (github_pat_*)
+          if [ -n "$COPILOT_GITHUB_TOKEN" ]; then
+            if echo "$COPILOT_GITHUB_TOKEN" | grep -q '^ghp_'; then
+              echo "Error: COPILOT_GITHUB_TOKEN appears to be a classic personal access token (ghp_*)"
+              echo "Classic tokens are not supported. Please use a fine-grained personal access token instead."
+              echo "Fine-grained tokens start with 'github_pat_' and provide better security controls."
+              echo "Documentation: https://githubnext.github.io/gh-aw/reference/engines/#github-copilot-default"
+              exit 1
+            fi
+          fi
+          if [ -n "$COPILOT_CLI_TOKEN" ]; then
+            if echo "$COPILOT_CLI_TOKEN" | grep -q '^ghp_'; then
+              echo "Error: COPILOT_CLI_TOKEN appears to be a classic personal access token (ghp_*)"
+              echo "Classic tokens are not supported. Please use a fine-grained personal access token instead."
+              echo "Fine-grained tokens start with 'github_pat_' and provide better security controls."
+              echo "Documentation: https://githubnext.github.io/gh-aw/reference/engines/#github-copilot-default"
+              exit 1
+            fi
           fi
           
           # Write validation results to step summary
