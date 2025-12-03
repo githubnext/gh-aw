@@ -23,7 +23,7 @@ network:
 
 imports:
   - ../../skills/documentation/SKILL.md
-  - ../agents/technical-doc-writer.md
+  - ../prompts/technical-doc-writer.prompt.md
 
 safe-outputs:
   create-pull-request:
