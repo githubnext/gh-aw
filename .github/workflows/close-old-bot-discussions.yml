@@ -7,6 +7,7 @@ on:
 
 permissions:
   discussions: write
+  issues: write
 
 jobs:
   close-old-discussions:
@@ -127,4 +128,75 @@ jobs:
             await core.summary
               .addHeading('Close Old Bot Discussions', 2)
               .addRaw(`Closed **${closedCount}** discussion(s) created by agentic workflows that were older than 1 week.`)
+              .write();
+
+  close-old-smoke-claude-issues:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    steps:
+      - name: Close issues labeled smoke-claude older than 1 hour
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const ONE_HOUR_MS = 60 * 60 * 1000;
+            const cutoffDate = new Date(Date.now() - ONE_HOUR_MS);
+            
+            core.info(`Looking for issues labeled "smoke-claude" created before ${cutoffDate.toISOString()}`);
+            
+            // Fetch all open issues with smoke-claude label
+            const issues = await github.paginate(github.rest.issues.listForRepo, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: 'smoke-claude',
+              per_page: 100
+            });
+            
+            core.info(`Found ${issues.length} open issue(s) with smoke-claude label`);
+            
+            let closedCount = 0;
+            
+            for (const issue of issues) {
+              // Skip pull requests (they show up in issues API)
+              if (issue.pull_request) {
+                continue;
+              }
+              
+              // Check if older than 1 hour
+              const createdAt = new Date(issue.created_at);
+              if (createdAt >= cutoffDate) {
+                core.info(`Skipping issue #${issue.number}: "${issue.title}" (created ${issue.created_at}, not old enough)`);
+                continue;
+              }
+              
+              core.info(`Closing issue #${issue.number}: "${issue.title}" (created ${issue.created_at})`);
+              
+              // Add a comment and close the issue
+              const closeComment = `This issue was automatically closed because it was labeled with "smoke-claude" and is older than 1 hour.`;
+              
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                body: closeComment
+              });
+              
+              await github.rest.issues.update({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                state: 'closed',
+                state_reason: 'not_planned'
+              });
+              
+              closedCount++;
+            }
+            
+            core.info(`Closed ${closedCount} issue(s)`);
+            
+            // Write summary
+            await core.summary
+              .addHeading('Close Old Smoke-Claude Issues', 2)
+              .addRaw(`Closed **${closedCount}** issue(s) labeled with "smoke-claude" that were older than 1 hour.`)
               .write();
