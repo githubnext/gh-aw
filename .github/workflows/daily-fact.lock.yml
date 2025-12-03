@@ -957,11 +957,19 @@ jobs:
             echo "Documentation: https://githubnext.github.io/gh-aw/reference/engines/#openai-codex"
             exit 1
           fi
+          
+          # Write validation results to step summary
+          {
+            echo "## Agent Environment Validation"
+            echo ""
           if [ -n "$CODEX_API_KEY" ]; then
             echo "CODEX_API_KEY secret is configured"
+            echo "- ✅ **CODEX_API_KEY**: Configured"
           else
             echo "OPENAI_API_KEY secret is configured (using as fallback for CODEX_API_KEY)"
+            echo "- ✅ **OPENAI_API_KEY**: Configured (using as fallback for CODEX_API_KEY)"
           fi
+          } >> "$GITHUB_STEP_SUMMARY"
         env:
           CODEX_API_KEY: ${{ secrets.CODEX_API_KEY }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
@@ -5456,11 +5464,19 @@ jobs:
             echo "Documentation: https://githubnext.github.io/gh-aw/reference/engines/#openai-codex"
             exit 1
           fi
+          
+          # Write validation results to step summary
+          {
+            echo "## Agent Environment Validation"
+            echo ""
           if [ -n "$CODEX_API_KEY" ]; then
             echo "CODEX_API_KEY secret is configured"
+            echo "- ✅ **CODEX_API_KEY**: Configured"
           else
             echo "OPENAI_API_KEY secret is configured (using as fallback for CODEX_API_KEY)"
+            echo "- ✅ **OPENAI_API_KEY**: Configured (using as fallback for CODEX_API_KEY)"
           fi
+          } >> "$GITHUB_STEP_SUMMARY"
         env:
           CODEX_API_KEY: ${{ secrets.CODEX_API_KEY }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
