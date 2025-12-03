@@ -1,0 +1,280 @@
+package workflow
+
+import (
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/testutil"
+)
+
+func TestOutputConfigParsing(t *testing.T) {
+	// Create temporary directory for test files
+	tmpDir := testutil.TempDir(t, "output-config-test")
+
+	// Test case with create-issue configuration
+	testContent := `---
+on: push
+permissions:
+  contents: read
+  issues: write
+  pull-requests: read
+engine: claude
+strict: false
+safe-outputs:
+  create-issue:
+    title-prefix: "[genai] "
+    labels: [copilot, automation]
+---
+
+# Test Output Configuration
+
+This workflow tests the output configuration parsing.
+`
+
+	testFile := filepath.Join(tmpDir, "test-output-config.md")
+	if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	compiler := NewCompiler(false, "", "test")
+
+	// Parse the workflow data
+	workflowData, err := compiler.ParseWorkflowFile(testFile)
+	if err != nil {
+		t.Fatalf("Unexpected error parsing workflow with output config: %v", err)
+	}
+
+	// Verify output configuration is parsed correctly
+	if workflowData.SafeOutputs == nil {
+		t.Fatal("Expected output configuration to be parsed")
+	}
+
+	if workflowData.SafeOutputs.CreateIssues == nil {
+		t.Fatal("Expected issue configuration to be parsed")
+	}
+
+	// Verify title prefix
+	expectedPrefix := "[genai] "
+	if workflowData.SafeOutputs.CreateIssues.TitlePrefix != expectedPrefix {
+		t.Errorf("Expected title prefix '%s', got '%s'", expectedPrefix, workflowData.SafeOutputs.CreateIssues.TitlePrefix)
+	}
+
+	// Verify labels
+	expectedLabels := []string{"copilot", "automation"}
+	if len(workflowData.SafeOutputs.CreateIssues.Labels) != len(expectedLabels) {
+		t.Errorf("Expected %d labels, got %d", len(expectedLabels), len(workflowData.SafeOutputs.CreateIssues.Labels))
+	}
+
+	for i, expectedLabel := range expectedLabels {
+		if i >= len(workflowData.SafeOutputs.CreateIssues.Labels) || workflowData.SafeOutputs.CreateIssues.Labels[i] != expectedLabel {
+			t.Errorf("Expected label '%s' at index %d, got '%s'", expectedLabel, i, workflowData.SafeOutputs.CreateIssues.Labels[i])
+		}
+	}
+}
+
+func TestOutputConfigEmpty(t *testing.T) {
+	// Create temporary directory for test files
+	tmpDir := testutil.TempDir(t, "output-config-empty-test")
+
+	// Test case without output configuration
+	testContent := `---
+on: push
+permissions:
+  contents: read
+  issues: write
+  pull-requests: read
+engine: claude
+strict: false
+---
+
+# Test No Output Configuration
+
+This workflow has no output configuration.
+`
+
+	testFile := filepath.Join(tmpDir, "test-no-output.md")
+	if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	compiler := NewCompiler(false, "", "test")
+
+	// Parse the workflow data
+	workflowData, err := compiler.ParseWorkflowFile(testFile)
+	if err != nil {
+		t.Fatalf("Unexpected error parsing workflow without output config: %v", err)
+	}
+
+	// Verify output configuration is nil when not specified
+	if workflowData.SafeOutputs != nil {
+		t.Error("Expected SafeOutputs to be nil when not configured")
+	}
+}
+
+func TestOutputConfigNull(t *testing.T) {
+	// Create temporary directory for test files
+	tmpDir := testutil.TempDir(t, "output-config-null-test")
+
+	// Test case with null values for create-issue and create-pull-request
+	testContent := `---
+on: push
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+engine: claude
+strict: false
+safe-outputs:
+  create-issue:
+  create-pull-request:
+  add-comment:
+  add-labels:
+---
+
+# Test Null Output Configuration
+
+This workflow tests the null output configuration parsing.
+`
+
+	testFile := filepath.Join(tmpDir, "test-null-output-config.md")
+	if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	compiler := NewCompiler(false, "", "test")
+
+	// Parse the workflow data
+	workflowData, err := compiler.ParseWorkflowFile(testFile)
+	if err != nil {
+		t.Fatalf("Unexpected error parsing workflow with null output config: %v", err)
+	}
+
+	// Verify output configuration is parsed correctly
+	if workflowData.SafeOutputs == nil {
+		t.Fatal("Expected output configuration to be parsed")
+	}
+
+	// Verify create-issue configuration is parsed with empty values
+	if workflowData.SafeOutputs.CreateIssues == nil {
+		t.Fatal("Expected create-issue configuration to be parsed with null value")
+	}
+	if workflowData.SafeOutputs.CreateIssues.TitlePrefix != "" {
+		t.Errorf("Expected empty title prefix for null create-issue, got '%s'", workflowData.SafeOutputs.CreateIssues.TitlePrefix)
+	}
+	if len(workflowData.SafeOutputs.CreateIssues.Labels) != 0 {
+		t.Errorf("Expected empty labels for null create-issue, got %v", workflowData.SafeOutputs.CreateIssues.Labels)
+	}
+
+	// Verify create-pull-request configuration is parsed with empty values
+	if workflowData.SafeOutputs.CreatePullRequests == nil {
+		t.Fatal("Expected create-pull-request configuration to be parsed with null value")
+	}
+	if workflowData.SafeOutputs.CreatePullRequests.TitlePrefix != "" {
+		t.Errorf("Expected empty title prefix for null create-pull-request, got '%s'", workflowData.SafeOutputs.CreatePullRequests.TitlePrefix)
+	}
+	if len(workflowData.SafeOutputs.CreatePullRequests.Labels) != 0 {
+		t.Errorf("Expected empty labels for null create-pull-request, got %v", workflowData.SafeOutputs.CreatePullRequests.Labels)
+	}
+
+	// Verify add-comment configuration is parsed with empty values
+	if workflowData.SafeOutputs.AddComments == nil {
+		t.Fatal("Expected add-comment configuration to be parsed with null value")
+	}
+
+	// Verify add-labels configuration is parsed with empty values
+	if workflowData.SafeOutputs.AddLabels == nil {
+		t.Fatal("Expected add-labels configuration to be parsed with null value")
+	}
+	if len(workflowData.SafeOutputs.AddLabels.Allowed) != 0 {
+		t.Errorf("Expected empty allowed labels for null add-labels, got %v", workflowData.SafeOutputs.AddLabels.Allowed)
+	}
+	if workflowData.SafeOutputs.AddLabels.Max != 0 {
+		t.Errorf("Expected Max to be 0 for null add-labels, got %v", workflowData.SafeOutputs.AddLabels.Max)
+	}
+}
+
+func TestOutputIssueJobGeneration(t *testing.T) {
+	// Create temporary directory for test files
+	tmpDir := testutil.TempDir(t, "output-issue-job-test")
+
+	// Test case with create-issue configuration
+	testContent := `---
+on: push
+permissions:
+  contents: read
+  issues: write
+  pull-requests: read
+tools:
+  github:
+    allowed: [list_issues]
+engine: claude
+strict: false
+safe-outputs:
+  create-issue:
+    title-prefix: "[genai] "
+    labels: [copilot]
+---
+
+# Test Output Issue Job Generation
+
+This workflow tests the create-issue job generation.
+`
+
+	testFile := filepath.Join(tmpDir, "test-output-issue.md")
+	if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	compiler := NewCompiler(false, "", "test")
+
+	// Compile the workflow
+	if err := compiler.CompileWorkflow(testFile); err != nil {
+		t.Fatalf("Unexpected error compiling workflow with output issue: %v", err)
+	}
+
+	// Read the generated lock file
+	lockFile := filepath.Join(tmpDir, "test-output-issue.lock.yml")
+	content, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatalf("Failed to read generated lock file: %v", err)
+	}
+
+	lockContent := string(content)
+
+	// Verify create_issue job exists
+	if !strings.Contains(lockContent, "create_issue:") {
+		t.Error("Expected 'create_issue' job to be in generated workflow")
+	}
+
+	// Verify job properties
+	if !strings.Contains(lockContent, "timeout-minutes: 10") {
+		t.Error("Expected 10-minute timeout in create_issue job")
+	}
+
+	if !strings.Contains(lockContent, "permissions:\n      contents: read\n      issues: write") {
+		t.Error("Expected correct permissions in create_issue job")
+	}
+
+	// Verify the job uses github-script
+	if !strings.Contains(lockContent, "uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd") {
+		t.Error("Expected github-script action to be used in create_issue job")
+	}
+
+	// Verify JavaScript content includes environment variables for configuration
+	if !strings.Contains(lockContent, "GH_AW_ISSUE_TITLE_PREFIX: \"[genai] \"") {
+		t.Error("Expected title prefix to be set as environment variable")
+	}
+
+	if !strings.Contains(lockContent, "GH_AW_ISSUE_LABELS: \"copilot\"") {
+		t.Error("Expected copilot label to be set as environment variable")
+	}
+
+	// Verify job dependencies
+	if !strings.Contains(lockContent, "needs: agent") {
+		t.Error("Expected create_issue job to depend on main job")
+	}
+
+	// t.Logf("Generated workflow content:\n%s", lockContent)
+}
