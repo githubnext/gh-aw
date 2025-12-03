@@ -225,6 +225,7 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 
 		// Build AWF arguments
 		var awfArgs []string
+		awfArgs = append(awfArgs, "--tty") // Required for Claude CLI to work properly
 		awfArgs = append(awfArgs, "--env-all")
 		awfArgs = append(awfArgs, "--container-workdir", "\"${GITHUB_WORKSPACE}\"")
 
