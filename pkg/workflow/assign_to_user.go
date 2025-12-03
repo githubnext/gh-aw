@@ -94,7 +94,7 @@ func (c *Compiler) parseAssignToUserConfig(outputMap map[string]any) *AssignToUs
 			assignToUserConfig.SafeOutputTargetConfig = targetConfig
 
 			// Parse common base fields (github-token, max) with default max of 1
-			c.parseBaseSafeOutputConfig(configMap, &assignToUserConfig.BaseSafeOutputConfig, 0)
+			c.parseBaseSafeOutputConfig(configMap, &assignToUserConfig.BaseSafeOutputConfig, 1)
 		} else {
 			// If configData is nil or not a map (e.g., "assign-to-user:" with no value),
 			// use defaults
