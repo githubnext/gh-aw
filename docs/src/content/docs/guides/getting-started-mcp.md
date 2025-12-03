@@ -64,7 +64,7 @@ Use `toolsets:` to enable groups of related GitHub tools:
 ```yaml wrap
 tools:
   github:
-    toolsets: [default]  # Includes repos, issues, pull_requests, users, context
+    toolsets: [default]  # Expands to: context, repos, issues, pull_requests (action-friendly)
 ```
 
 Toolsets remain stable across MCP server versions, while individual tool names may change.
@@ -111,7 +111,7 @@ The GitHub MCP server is built into agentic workflows and provides comprehensive
 | `code_security` | Security alerts | `list_code_scanning_alerts` |
 | `users` | User profiles | `get_user`, `list_users` |
 
-The `default` toolset includes: `context`, `repos`, `issues`, `pull_requests`, `users`.
+The `default` toolset includes: `context`, `repos`, `issues`, `pull_requests`, `users`. However, when used in workflows, `[default]` expands to action-friendly toolsets (`context`, `repos`, `issues`, `pull_requests`) that work with GitHub Actions tokens, which don't support user operations.
 
 ### Operating Modes
 
