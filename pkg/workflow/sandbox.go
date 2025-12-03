@@ -34,8 +34,12 @@ type SandboxConfig struct {
 
 // AgentSandboxConfig represents the agent sandbox configuration
 type AgentSandboxConfig struct {
-	Type   SandboxType           `yaml:"type,omitempty"`   // Sandbox type: "awf" or "srt"
-	Config *SandboxRuntimeConfig `yaml:"config,omitempty"` // Custom SRT config (optional)
+	ID      string                `yaml:"id,omitempty"`      // Agent ID: "awf" or "srt" (replaces Type in new object format)
+	Type    SandboxType           `yaml:"type,omitempty"`    // Sandbox type: "awf" or "srt" (legacy, use ID instead)
+	Config  *SandboxRuntimeConfig `yaml:"config,omitempty"`  // Custom SRT config (optional)
+	Command string                `yaml:"command,omitempty"` // Custom command to replace AWF binary download
+	Args    []string              `yaml:"args,omitempty"`    // Additional arguments to append to the command
+	Env     map[string]string     `yaml:"env,omitempty"`     // Environment variables to set on the step
 }
 
 // SandboxRuntimeConfig represents the Anthropic Sandbox Runtime configuration
@@ -67,6 +71,20 @@ type SRTFilesystemConfig struct {
 	DenyWrite  []string `yaml:"denyWrite" json:"denyWrite"`
 }
 
+// getAgentType returns the effective agent type from AgentSandboxConfig
+// Prefers ID field (new format) over Type field (legacy)
+func getAgentType(agent *AgentSandboxConfig) SandboxType {
+	if agent == nil {
+		return ""
+	}
+	// New format: use ID field if set
+	if agent.ID != "" {
+		return SandboxType(agent.ID)
+	}
+	// Legacy format: use Type field
+	return agent.Type
+}
+
 // isSRTEnabled checks if Sandbox Runtime is enabled for the workflow
 func isSRTEnabled(workflowData *WorkflowData) bool {
 	if workflowData == nil || workflowData.SandboxConfig == nil {
@@ -78,8 +96,10 @@ func isSRTEnabled(workflowData *WorkflowData) bool {
 
 	// Check new format: sandbox.agent
 	if config.Agent != nil {
-		enabled := config.Agent.Type == SandboxTypeSRT || config.Agent.Type == SandboxTypeRuntime
-		sandboxLog.Printf("SRT enabled check (new format): %v (type=%s)", enabled, config.Agent.Type)
+		// Get effective type from ID or Type field
+		agentType := getAgentType(config.Agent)
+		enabled := agentType == SandboxTypeSRT || agentType == SandboxTypeRuntime
+		sandboxLog.Printf("SRT enabled check (new format): %v (type=%s)", enabled, agentType)
 		return enabled
 	}
 

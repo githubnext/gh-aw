@@ -1753,10 +1753,33 @@
                   "type": "object",
                   "description": "Custom sandbox runtime configuration",
                   "properties": {
+                    "id": {
+                      "type": "string",
+                      "enum": ["awf", "srt"],
+                      "description": "Agent identifier (replaces 'type' field in new format): 'awf' for Agent Workflow Firewall, 'srt' for Sandbox Runtime"
+                    },
                     "type": {
                       "type": "string",
                       "enum": ["awf", "srt"],
-                      "description": "Sandbox type to use"
+                      "description": "Legacy: Sandbox type to use (use 'id' instead)"
+                    },
+                    "command": {
+                      "type": "string",
+                      "description": "Custom command to replace the AWF binary download. For example, 'docker run my-custom-awf-image' or './custom-awf-wrapper.sh'"
+                    },
+                    "args": {
+                      "type": "array",
+                      "description": "Additional arguments to append to the command (applies to both standard and custom commands)",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "env": {
+                      "type": "object",
+                      "description": "Environment variables to set on the execution step",
+                      "additionalProperties": {
+                        "type": "string"
+                      }
                     },
                     "config": {
                       "type": "object",
@@ -1807,7 +1830,6 @@
                       "additionalProperties": false
                     }
                   },
-                  "required": ["type"],
                   "additionalProperties": false
                 }
               ]

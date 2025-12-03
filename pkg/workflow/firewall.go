@@ -48,6 +48,15 @@ func getFirewallConfig(workflowData *WorkflowData) *FirewallConfig {
 	return nil
 }
 
+// getAgentConfig returns the agent sandbox configuration from sandbox config
+func getAgentConfig(workflowData *WorkflowData) *AgentSandboxConfig {
+	if workflowData == nil || workflowData.SandboxConfig == nil {
+		return nil
+	}
+
+	return workflowData.SandboxConfig.Agent
+}
+
 // enableFirewallByDefaultForCopilot enables firewall by default for copilot engine
 // when network restrictions are present but no explicit firewall configuration exists
 // and no SRT sandbox is configured (SRT and AWF are mutually exclusive)
