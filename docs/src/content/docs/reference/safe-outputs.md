@@ -42,6 +42,7 @@ This declares that the workflow should create at most one new issue.
 | [**Close Discussion**](#close-discussion-close-discussion) | `close-discussion:` | Close discussions with comment and resolution | 1 | ✅ |
 | [**Create Agent Task**](#agent-task-creation-create-agent-task) | `create-agent-task:` | Create Copilot agent tasks | 1 | ✅ |
 | [**Assign to Agent**](#assign-to-agent-assign-to-agent) | `assign-to-agent:` | Assign Copilot agents to issues | 1 | ✅ |
+| [**Assign to User**](#assign-to-user-assign-to-user) | `assign-to-user:` | Assign users to issues | 1 | ✅ |
 | [**Push to PR Branch**](#push-to-pr-branch-push-to-pull-request-branch) | `push-to-pull-request-branch:` | Push changes to PR branch | 1 | ❌ |
 | [**Update Release**](#release-updates-update-release) | `update-release:` | Update GitHub release descriptions | 1 | ✅ |
 | [**Code Scanning Alerts**](#code-scanning-alerts-create-code-scanning-alert) | `create-code-scanning-alert:` | Generate SARIF security advisories | unlimited | ❌ |
@@ -461,6 +462,39 @@ safe-outputs:
 Ensure Copilot is enabled for your repository. Check organization settings if bot assignments are restricted.
 
 Reference: [GitHub Copilot agent documentation](https://docs.github.com/en/copilot/how-tos/use-copilot-agents/)
+
+### Assign to User (`assign-to-user:`)
+
+Assigns GitHub users to issues. Specify `allowed` to restrict which users can be assigned.
+
+```yaml wrap
+safe-outputs:
+  assign-to-user:
+    allowed: [user1, user2]    # restrict to specific users
+    max: 3                     # max assignments (default: 1)
+    target: "*"                # "triggering" (default), "*", or number
+    target-repo: "owner/repo"  # cross-repository
+```
+
+**Target**: `"triggering"` (requires issue event), `"*"` (any issue), or number (specific issue).
+
+**Agent Output Format:**
+```json
+{
+  "type": "assign_to_user",
+  "issue_number": 123,
+  "assignees": ["octocat", "mona"]
+}
+```
+
+Single user assignment is also supported:
+```json
+{
+  "type": "assign_to_user",
+  "issue_number": 123,
+  "assignee": "octocat"
+}
+```
 
 ## Cross-Repository Operations
 
