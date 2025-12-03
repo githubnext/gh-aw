@@ -17,7 +17,7 @@ If `gh extension install githubnext/gh-aw` fails with authentication or permissi
 curl -sL https://raw.githubusercontent.com/githubnext/gh-aw/main/install-gh-aw.sh | bash
 ```
 
-After installation, run commands with `./gh-aw` instead of `gh aw`.
+After installation, the binary is installed to `~/.local/share/gh/extensions/gh-aw/gh-aw` and can be used with `gh aw` commands just like the extension installation.
 
 ### Extension Not Found After Installation
 

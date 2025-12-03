@@ -153,23 +153,9 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 			}
 
 			// Parse add-labels configuration
-			if labels, exists := outputMap["add-labels"]; exists {
-				if labelsMap, ok := labels.(map[string]any); ok {
-					labelConfig := &AddLabelsConfig{}
-
-					// Parse list job config (target, target-repo, allowed)
-					listJobConfig, _ := ParseListJobConfig(labelsMap, "allowed")
-					labelConfig.SafeOutputTargetConfig = listJobConfig.SafeOutputTargetConfig
-					labelConfig.Allowed = listJobConfig.Allowed
-
-					// Parse common base fields (github-token, max)
-					c.parseBaseSafeOutputConfig(labelsMap, &labelConfig.BaseSafeOutputConfig, 0)
-
-					config.AddLabels = labelConfig
-				} else if labels == nil {
-					// Handle null case: create empty config (allows any labels)
-					config.AddLabels = &AddLabelsConfig{}
-				}
+			addLabelsConfig := c.parseAddLabelsConfig(outputMap)
+			if addLabelsConfig != nil {
+				config.AddLabels = addLabelsConfig
 			}
 
 			// Parse add-reviewer configuration
@@ -179,23 +165,9 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 			}
 
 			// Parse assign-milestone configuration
-			if milestone, exists := outputMap["assign-milestone"]; exists {
-				if milestoneMap, ok := milestone.(map[string]any); ok {
-					milestoneConfig := &AssignMilestoneConfig{}
-
-					// Parse list job config (target, target-repo, allowed)
-					listJobConfig, _ := ParseListJobConfig(milestoneMap, "allowed")
-					milestoneConfig.SafeOutputTargetConfig = listJobConfig.SafeOutputTargetConfig
-					milestoneConfig.Allowed = listJobConfig.Allowed
-
-					// Parse common base fields (github-token, max)
-					c.parseBaseSafeOutputConfig(milestoneMap, &milestoneConfig.BaseSafeOutputConfig, 0)
-
-					config.AssignMilestone = milestoneConfig
-				} else if milestone == nil {
-					// Handle null case: create empty config (allows any milestones)
-					config.AssignMilestone = &AssignMilestoneConfig{}
-				}
+			assignMilestoneConfig := c.parseAssignMilestoneConfig(outputMap)
+			if assignMilestoneConfig != nil {
+				config.AssignMilestone = assignMilestoneConfig
 			}
 
 			// Handle assign-to-agent

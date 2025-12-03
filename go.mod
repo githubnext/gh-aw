@@ -9,7 +9,7 @@ require (
 	github.com/cli/go-gh/v2 v2.12.2
 	github.com/creack/pty v1.1.24
 	github.com/fsnotify/fsnotify v1.9.0
-	github.com/goccy/go-yaml v1.18.0
+	github.com/goccy/go-yaml v1.19.0
 	github.com/google/jsonschema-go v0.3.0
 	github.com/modelcontextprotocol/go-sdk v1.1.0
 	github.com/santhosh-tekuri/jsonschema/v6 v6.0.2
@@ -40,7 +40,7 @@ require (
 	github.com/fatih/color v1.18.0 // indirect
 	github.com/henvic/httpretty v0.1.4 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
-	github.com/kr/text v0.2.0 // indirect
+	github.com/kr/pretty v0.3.1 // indirect
 	github.com/lucasb-eyer/go-colorful v1.3.0 // indirect
 	github.com/mattn/go-colorable v0.1.14 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
@@ -65,3 +65,6 @@ require (
 
 // Update semver to v3.4.0 for bug fixes and new features
 replace github.com/Masterminds/semver/v3 => github.com/Masterminds/semver/v3 v3.4.0
+
+// Update cast to v1.10.0 for bug fixes and type conversion improvements
+replace github.com/spf13/cast => github.com/spf13/cast v1.10.0
