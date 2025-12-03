@@ -116,15 +116,6 @@ func findImportItemLocation(yamlContent string, importPath string) (line int, co
 				col := strings.Index(line, importPath) + 1 // +1 for 1-based indexing
 				return i + 1, col // +1 for 1-based line indexing
 			}
-			
-			// Also check for object-style imports with "path:" field
-			if strings.Contains(line, "path:") && i+1 < len(lines) {
-				nextLine := lines[i+1]
-				if strings.Contains(nextLine, importPath) {
-					col := strings.Index(nextLine, importPath) + 1
-					return i + 2, col // +1 for next line, +1 for 1-based indexing
-				}
-			}
 		}
 	}
 	

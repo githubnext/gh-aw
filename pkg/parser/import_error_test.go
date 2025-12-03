@@ -174,9 +174,8 @@ tools:
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Use reflection to access unexported function through testing
-			// This is a workaround since findImportsFieldLocation is not exported
-			// In production code, we'll use the exported functions
+			// Reimplement the location finding logic for testing
+			// In production, this logic is in the unexported findImportsFieldLocation function
 			lines := strings.Split(tt.yamlContent, "\n")
 			line := 1
 			column := 1
