@@ -68,6 +68,9 @@
 #
 # tools:
 #   github:
+#     mode: remote
+#     read-only: true
+#     lockdown: true
 #     toolsets:
 #       - repos
 #       - issues
@@ -505,7 +508,9 @@
 #
 # ### Step 2: Deep Research Each Repository
 #
-# For EACH repository in the list, conduct a thorough investigation:
+# For EACH **PUBLIC** repository in the list, conduct a thorough investigation:
+#
+# **CRITICAL**: Before analyzing any repository, verify it is public. Skip all private repositories.
 #
 # #### 2.1 Repository Overview
 # Use the GitHub MCP tools to gather:
@@ -513,8 +518,10 @@
 # - Primary language and size
 # - Creation date and last update date
 # - Default branch
-# - Visibility (public/private)
+# - Visibility (public/private) - **ONLY ANALYZE PUBLIC REPOSITORIES**
 # - Archive status
+#
+# **IMPORTANT**: Skip any private repositories. This workflow only reviews public repositories.
 #
 # #### 2.2 Commit Activity Analysis
 # Analyze commit history:
@@ -601,6 +608,7 @@
 #
 # When analyzing repositories, be aware of these special cases:
 #
+# - **Private Repositories**: ALWAYS skip private repositories. This workflow only analyzes public repositories.
 # - **Already Archived**: If a repository is already archived, skip it (no issue needed)
 # - **Seasonal Projects**: Some repositories have cyclical activity patterns (e.g., annual conference sites, seasonal tools). Look for historical patterns.
 # - **Dependency Repositories**: Check if other projects depend on this repository. Use GitHub's "Used by" information if available.
@@ -707,12 +715,13 @@
 #
 # ## Important Guidelines
 #
-# 1. **Be Thorough**: Use multiple data points (commits, issues, PRs, releases) to make accurate assessments
-# 2. **Be Conservative**: When in doubt, classify as "Low Activity" rather than "Truly Stale"
-# 3. **Provide Evidence**: Include specific dates, counts, and examples in reports
-# 4. **Respect Limits**: Maximum 10 issues per run to avoid overwhelming maintainers
-# 5. **Context Matters**: Consider repository purpose (documentation, templates, etc.)
-# 6. **Focus on Value**: Prioritize repositories that are truly abandoned vs. intentionally stable
+# 1. **Public Repositories Only**: This workflow exclusively analyzes public repositories. Always verify repository visibility and skip private repositories.
+# 2. **Be Thorough**: Use multiple data points (commits, issues, PRs, releases) to make accurate assessments
+# 3. **Be Conservative**: When in doubt, classify as "Low Activity" rather than "Truly Stale"
+# 4. **Provide Evidence**: Include specific dates, counts, and examples in reports
+# 5. **Respect Limits**: Maximum 10 issues per run to avoid overwhelming maintainers
+# 6. **Context Matters**: Consider repository purpose (documentation, templates, etc.)
+# 7. **Focus on Value**: Prioritize repositories that are truly abandoned vs. intentionally stable
 #
 # ## Rate Limiting
 #
@@ -1031,10 +1040,6 @@ jobs:
           awf --version
       - name: Install GitHub Copilot CLI
         run: npm install -g @github/copilot@0.0.365
-      - name: Downloading container images
-        run: |
-          set -e
-          docker pull ghcr.io/github/github-mcp-server:v0.24.0
       - name: Setup Safe Outputs Collector MCP
         run: |
           mkdir -p /tmp/gh-aw/safeoutputs
@@ -2200,20 +2205,14 @@ jobs:
           {
             "mcpServers": {
               "github": {
-                "type": "local",
-                "command": "docker",
-                "args": [
-                  "run",
-                  "-i",
-                  "--rm",
-                  "-e",
-                  "GITHUB_PERSONAL_ACCESS_TOKEN",
-                  "-e",
-                  "GITHUB_READ_ONLY=1",
-                  "-e",
-                  "GITHUB_TOOLSETS=repos,issues,pull_requests",
-                  "ghcr.io/github/github-mcp-server:v0.24.0"
-                ],
+                "type": "http",
+                "url": "https://api.githubcopilot.com/mcp/",
+                "headers": {
+                  "Authorization": "Bearer \${GITHUB_PERSONAL_ACCESS_TOKEN}",
+                  "X-MCP-Lockdown": "true",
+                  "X-MCP-Readonly": "true",
+                  "X-MCP-Toolsets": "repos,issues,pull_requests"
+                },
                 "tools": ["*"],
                 "env": {
                   "GITHUB_PERSONAL_ACCESS_TOKEN": "\${GITHUB_MCP_SERVER_TOKEN}"
@@ -2711,7 +2710,9 @@ jobs:
           
           ### Step 2: Deep Research Each Repository
           
-          For EACH repository in the list, conduct a thorough investigation:
+          For EACH **PUBLIC** repository in the list, conduct a thorough investigation:
+          
+          **CRITICAL**: Before analyzing any repository, verify it is public. Skip all private repositories.
           
           #### 2.1 Repository Overview
           Use the GitHub MCP tools to gather:
@@ -2719,8 +2720,10 @@ jobs:
           - Primary language and size
           - Creation date and last update date
           - Default branch
-          - Visibility (public/private)
+          - Visibility (public/private) - **ONLY ANALYZE PUBLIC REPOSITORIES**
           - Archive status
+          
+          **IMPORTANT**: Skip any private repositories. This workflow only reviews public repositories.
           
           #### 2.2 Commit Activity Analysis
           Analyze commit history:
@@ -2807,6 +2810,7 @@ jobs:
           
           When analyzing repositories, be aware of these special cases:
           
+          - **Private Repositories**: ALWAYS skip private repositories. This workflow only analyzes public repositories.
           - **Already Archived**: If a repository is already archived, skip it (no issue needed)
           - **Seasonal Projects**: Some repositories have cyclical activity patterns (e.g., annual conference sites, seasonal tools). Look for historical patterns.
           - **Dependency Repositories**: Check if other projects depend on this repository. Use GitHub's "Used by" information if available.
@@ -2835,6 +2839,15 @@ jobs:
           #### Commits
           - **Last Commit**: [date] by [author]
           - **Commits (Last Year)**: [count]
+          PROMPT_EOF
+      - name: Append prompt (part 2)
+        env:
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+          GH_AW_ENV_ORGANIZATION: ${{ env.ORGANIZATION }}
+          GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
+          GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
+        run: |
+          cat << 'PROMPT_EOF' | envsubst >> "$GH_AW_PROMPT"
           - **Contributors (Last Year)**: [count]
           - **Activity Trend**: [Declining / Stopped / Sporadic]
           
@@ -2846,15 +2859,6 @@ jobs:
           
           #### Pull Requests
           - **Open PRs**: [count]
-          PROMPT_EOF
-      - name: Append prompt (part 2)
-        env:
-          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-          GH_AW_ENV_ORGANIZATION: ${{ env.ORGANIZATION }}
-          GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
-          GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
-        run: |
-          cat << 'PROMPT_EOF' | envsubst >> "$GH_AW_PROMPT"
           - **Merged PRs (Last 6mo)**: [count]
           - **Outstanding PRs**: [list or "None"]
           
@@ -2922,12 +2926,13 @@ jobs:
           
           ## Important Guidelines
           
-          1. **Be Thorough**: Use multiple data points (commits, issues, PRs, releases) to make accurate assessments
-          2. **Be Conservative**: When in doubt, classify as "Low Activity" rather than "Truly Stale"
-          3. **Provide Evidence**: Include specific dates, counts, and examples in reports
-          4. **Respect Limits**: Maximum 10 issues per run to avoid overwhelming maintainers
-          5. **Context Matters**: Consider repository purpose (documentation, templates, etc.)
-          6. **Focus on Value**: Prioritize repositories that are truly abandoned vs. intentionally stable
+          1. **Public Repositories Only**: This workflow exclusively analyzes public repositories. Always verify repository visibility and skip private repositories.
+          2. **Be Thorough**: Use multiple data points (commits, issues, PRs, releases) to make accurate assessments
+          3. **Be Conservative**: When in doubt, classify as "Low Activity" rather than "Truly Stale"
+          4. **Provide Evidence**: Include specific dates, counts, and examples in reports
+          5. **Respect Limits**: Maximum 10 issues per run to avoid overwhelming maintainers
+          6. **Context Matters**: Consider repository purpose (documentation, templates, etc.)
+          7. **Focus on Value**: Prioritize repositories that are truly abandoned vs. intentionally stable
           
           ## Rate Limiting
           

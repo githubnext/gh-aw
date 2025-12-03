@@ -45,6 +45,9 @@ safe-outputs:
 
 tools:
   github:
+    mode: remote
+    read-only: true
+    lockdown: true
     toolsets:
       - repos
       - issues
@@ -120,7 +123,9 @@ echo "Total stale repositories: $(jq 'length' /tmp/stale-repos-data/inactive-rep
 
 ### Step 2: Deep Research Each Repository
 
-For EACH repository in the list, conduct a thorough investigation:
+For EACH **PUBLIC** repository in the list, conduct a thorough investigation:
+
+**CRITICAL**: Before analyzing any repository, verify it is public. Skip all private repositories.
 
 #### 2.1 Repository Overview
 Use the GitHub MCP tools to gather:
@@ -128,8 +133,10 @@ Use the GitHub MCP tools to gather:
 - Primary language and size
 - Creation date and last update date
 - Default branch
-- Visibility (public/private)
+- Visibility (public/private) - **ONLY ANALYZE PUBLIC REPOSITORIES**
 - Archive status
+
+**IMPORTANT**: Skip any private repositories. This workflow only reviews public repositories.
 
 #### 2.2 Commit Activity Analysis
 Analyze commit history:
@@ -216,6 +223,7 @@ Based on your research, classify each repository:
 
 When analyzing repositories, be aware of these special cases:
 
+- **Private Repositories**: ALWAYS skip private repositories. This workflow only analyzes public repositories.
 - **Already Archived**: If a repository is already archived, skip it (no issue needed)
 - **Seasonal Projects**: Some repositories have cyclical activity patterns (e.g., annual conference sites, seasonal tools). Look for historical patterns.
 - **Dependency Repositories**: Check if other projects depend on this repository. Use GitHub's "Used by" information if available.
@@ -322,12 +330,13 @@ After analyzing all repositories, provide a summary to stdout (not as an issue):
 
 ## Important Guidelines
 
-1. **Be Thorough**: Use multiple data points (commits, issues, PRs, releases) to make accurate assessments
-2. **Be Conservative**: When in doubt, classify as "Low Activity" rather than "Truly Stale"
-3. **Provide Evidence**: Include specific dates, counts, and examples in reports
-4. **Respect Limits**: Maximum 10 issues per run to avoid overwhelming maintainers
-5. **Context Matters**: Consider repository purpose (documentation, templates, etc.)
-6. **Focus on Value**: Prioritize repositories that are truly abandoned vs. intentionally stable
+1. **Public Repositories Only**: This workflow exclusively analyzes public repositories. Always verify repository visibility and skip private repositories.
+2. **Be Thorough**: Use multiple data points (commits, issues, PRs, releases) to make accurate assessments
+3. **Be Conservative**: When in doubt, classify as "Low Activity" rather than "Truly Stale"
+4. **Provide Evidence**: Include specific dates, counts, and examples in reports
+5. **Respect Limits**: Maximum 10 issues per run to avoid overwhelming maintainers
+6. **Context Matters**: Consider repository purpose (documentation, templates, etc.)
+7. **Focus on Value**: Prioritize repositories that are truly abandoned vs. intentionally stable
 
 ## Rate Limiting
 
