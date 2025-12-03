@@ -1713,6 +1713,10 @@
                       "type": "string",
                       "description": "AWF log level (default: info). Valid values: debug, info, warn, error",
                       "enum": ["debug", "info", "warn", "error"]
+                    },
+                    "path": {
+                      "type": "string",
+                      "description": "Custom path to AWF binary. When specified, skips downloading AWF from GitHub releases. Absolute paths (starting with /) are used as-is; other paths are resolved relative to GITHUB_WORKSPACE."
                     }
                   },
                   "additionalProperties": false

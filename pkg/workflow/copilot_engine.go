@@ -119,16 +119,25 @@ func (e *CopilotEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHu
 		srtInstall := generateSRTInstallationStep()
 		steps = append(steps, srtInstall)
 	} else if isFirewallEnabled(workflowData) {
-		// Install AWF after Node.js setup but before Copilot CLI installation
+		// Install or validate AWF after Node.js setup but before Copilot CLI installation
 		firewallConfig := getFirewallConfig(workflowData)
-		var awfVersion string
-		if firewallConfig != nil {
-			awfVersion = firewallConfig.Version
-		}
 
-		// Install AWF binary
-		awfInstall := generateAWFInstallationStep(awfVersion)
-		steps = append(steps, awfInstall)
+		if firewallConfig != nil && firewallConfig.Path != "" {
+			// Custom path: Validate the binary exists and is executable
+			copilotLog.Printf("Using custom AWF binary path: %s", firewallConfig.Path)
+			validationStep := generateAWFPathValidationStep(firewallConfig.Path)
+			steps = append(steps, validationStep)
+		} else {
+			// Default: Download and install AWF from GitHub releases
+			var awfVersion string
+			if firewallConfig != nil {
+				awfVersion = firewallConfig.Version
+			}
+
+			// Install AWF binary
+			awfInstall := generateAWFInstallationStep(awfVersion)
+			steps = append(steps, awfInstall)
+		}
 	}
 
 	// Add Copilot CLI installation step after sandbox installation
@@ -332,11 +341,14 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 			awfArgs = append(awfArgs, firewallConfig.Args...)
 		}
 
+		// Get AWF binary path (custom or default)
+		awfBinary := getAWFBinaryPath(firewallConfig)
+
 		// Build the full AWF command with proper argument separation
 		// AWF v0.2.0 uses -- to separate AWF args from the actual command
 		// The command arguments should be passed as individual shell arguments, not as a single string
 		command = fmt.Sprintf(`set -o pipefail
-sudo -E awf %s \
+sudo -E %s %s \
   -- %s \
   2>&1 | tee %s
 
@@ -348,7 +360,7 @@ if [ -n "$AGENT_LOGS_DIR" ] && [ -d "$AGENT_LOGS_DIR" ]; then
   sudo mkdir -p %s
   sudo mv "$AGENT_LOGS_DIR"/* %s || true
   sudo rmdir "$AGENT_LOGS_DIR" || true
-fi`, shellJoinArgs(awfArgs), copilotCommand, shellEscapeArg(logFile), shellEscapeArg(logsFolder), shellEscapeArg(logsFolder), shellEscapeArg(logsFolder))
+fi`, shellEscapeArg(awfBinary), shellJoinArgs(awfArgs), copilotCommand, shellEscapeArg(logFile), shellEscapeArg(logsFolder), shellEscapeArg(logsFolder), shellEscapeArg(logsFolder))
 	} else {
 		// Run copilot command without AWF wrapper
 		command = fmt.Sprintf(`set -o pipefail
@@ -972,6 +984,55 @@ func generateAWFInstallationStep(version string) GitHubActionStep {
 		"          which awf",
 		"          awf --version",
 	)
+
+	return GitHubActionStep(stepLines)
+}
+
+// resolveAWFPath resolves the AWF binary path from custom path configuration
+// Absolute paths (starting with /) are returned as-is
+// Relative paths are resolved against GITHUB_WORKSPACE
+func resolveAWFPath(customPath string) string {
+	if customPath == "" {
+		return "/usr/local/bin/awf"
+	}
+
+	if strings.HasPrefix(customPath, "/") {
+		return customPath // Absolute path
+	}
+
+	// Relative path - resolve against GITHUB_WORKSPACE
+	return fmt.Sprintf("${GITHUB_WORKSPACE}/%s", customPath)
+}
+
+// getAWFBinaryPath returns the appropriate AWF binary path for execution
+// If a custom path is configured, it returns the resolved path
+// Otherwise, returns "awf" to use the binary from PATH (installed in installation step)
+func getAWFBinaryPath(firewallConfig *FirewallConfig) string {
+	if firewallConfig != nil && firewallConfig.Path != "" {
+		return resolveAWFPath(firewallConfig.Path)
+	}
+	return "awf" // Default (in PATH from installation step)
+}
+
+// generateAWFPathValidationStep creates a GitHub Actions step to validate a custom AWF binary
+// This step verifies that the binary exists and is executable
+func generateAWFPathValidationStep(customPath string) GitHubActionStep {
+	resolvedPath := resolveAWFPath(customPath)
+
+	stepLines := []string{
+		"      - name: Validate custom AWF binary",
+		"        run: |",
+		fmt.Sprintf("          echo \"Validating custom AWF binary at: %s\"", resolvedPath),
+		fmt.Sprintf("          if [ ! -f %s ]; then", shellEscapeArg(resolvedPath)),
+		fmt.Sprintf("            echo \"Error: AWF binary not found at %s\"", resolvedPath),
+		"            exit 1",
+		"          fi",
+		fmt.Sprintf("          if [ ! -x %s ]; then", shellEscapeArg(resolvedPath)),
+		fmt.Sprintf("            echo \"Error: AWF binary at %s is not executable\"", resolvedPath),
+		"            exit 1",
+		"          fi",
+		fmt.Sprintf("          %s --version", shellEscapeArg(resolvedPath)),
+	}
 
 	return GitHubActionStep(stepLines)
 }

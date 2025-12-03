@@ -689,6 +689,13 @@ func (c *Compiler) extractFirewallConfig(firewall any) *FirewallConfig {
 			}
 		}
 
+		// Extract path if present
+		if path, hasPath := firewallObj["path"]; hasPath {
+			if pathStr, ok := path.(string); ok {
+				config.Path = pathStr
+			}
+		}
+
 		return config
 	}
 
