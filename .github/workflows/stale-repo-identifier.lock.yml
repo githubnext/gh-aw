@@ -48,6 +48,7 @@
 # imports:
 #   - shared/python-dataviz.md
 #   - shared/jqschema.md
+#   - shared/trending-charts-simple.md
 #
 # network:
 #   allowed:
@@ -68,13 +69,14 @@
 #
 # tools:
 #   github:
-#     mode: remote
 #     read-only: true
 #     lockdown: true
 #     toolsets:
 #       - repos
 #       - issues
 #       - pull_requests
+#   cache-memory:
+#     key: stale-repos-analysis-${{ github.workflow }}-${{ github.run_id }}
 #   bash:
 #     - "*"
 #   edit:
@@ -106,6 +108,7 @@
 #   Imports:
 #     - shared/python-dataviz.md
 #     - shared/jqschema.md
+#     - shared/trending-charts-simple.md
 #
 # Job Dependency Graph:
 # ```mermaid
@@ -463,6 +466,242 @@
 #
 # # Now you know which fields exist and can use them in your analysis
 # ```
+#
+# # Trending Charts - Quick Start Guide
+#
+# You have a complete Python environment with scientific libraries ready for generating trend charts with persistent data storage.
+#
+# ## Cache-Memory for Trending Data
+#
+# Persistent cache-memory is available at `/tmp/gh-aw/cache-memory/` that survives across workflow runs. Use it to store historical trending data.
+#
+# **Recommended Structure:**
+# ```
+# /tmp/gh-aw/cache-memory/
+# ├── trending/
+# │   ├── <metric-name>/
+# │   │   └── history.jsonl      # Time-series data (JSON Lines format)
+# │   └── index.json              # Index of all tracked metrics
+# ```
+#
+# ## Quick Start Pattern 1: Daily Metrics Tracking
+#
+# Track daily metrics and visualize trends over time:
+#
+# ```python
+# #!/usr/bin/env python3
+# """Daily metrics trending"""
+# import pandas as pd
+# import matplotlib.pyplot as plt
+# import seaborn as sns
+# import json
+# import os
+# from datetime import datetime
+#
+# # Configuration
+# CACHE_DIR = '/tmp/gh-aw/cache-memory/trending'
+# METRIC_NAME = 'daily_metrics'
+# HISTORY_FILE = f'{CACHE_DIR}/{METRIC_NAME}/history.jsonl'
+# CHARTS_DIR = '/tmp/gh-aw/python/charts'
+#
+# # Ensure directories exist
+# os.makedirs(f'{CACHE_DIR}/{METRIC_NAME}', exist_ok=True)
+# os.makedirs(CHARTS_DIR, exist_ok=True)
+#
+# # Collect today's data (customize this section)
+# today_data = {
+#     "timestamp": datetime.now().isoformat(),
+#     "metric_a": 42,
+#     "metric_b": 85,
+#     "metric_c": 23
+# }
+#
+# # Append to history
+# with open(HISTORY_FILE, 'a') as f:
+#     f.write(json.dumps(today_data) + '\n')
+#
+# # Load all historical data
+# if os.path.exists(HISTORY_FILE):
+#     df = pd.read_json(HISTORY_FILE, lines=True)
+#     df['date'] = pd.to_datetime(df['timestamp']).dt.date
+#     df = df.sort_values('timestamp')
+#     daily_stats = df.groupby('date').sum()
+#
+#     # Generate trend chart
+#     sns.set_style("whitegrid")
+#     sns.set_palette("husl")
+#
+#     fig, ax = plt.subplots(figsize=(12, 7), dpi=300)
+#     daily_stats.plot(ax=ax, marker='o', linewidth=2)
+#     ax.set_title('Daily Metrics Trends', fontsize=16, fontweight='bold')
+#     ax.set_xlabel('Date', fontsize=12)
+#     ax.set_ylabel('Count', fontsize=12)
+#     ax.legend(loc='best')
+#     ax.grid(True, alpha=0.3)
+#     plt.xticks(rotation=45)
+#     plt.tight_layout()
+#
+#     plt.savefig(f'{CHARTS_DIR}/daily_metrics_trend.png',
+#                 dpi=300, bbox_inches='tight', facecolor='white')
+#
+#     print(f"✅ Chart generated with {len(df)} data points")
+# else:
+#     print("No historical data yet. Run again tomorrow to see trends.")
+# ```
+#
+# ## Quick Start Pattern 2: Moving Averages
+#
+# Smooth volatile data with moving averages:
+#
+# ```python
+# #!/usr/bin/env python3
+# """Moving average trending"""
+# import pandas as pd
+# import matplotlib.pyplot as plt
+# import seaborn as sns
+# import os
+#
+# # Load historical data
+# history_file = '/tmp/gh-aw/cache-memory/trending/metrics/history.jsonl'
+# if os.path.exists(history_file):
+#     df = pd.read_json(history_file, lines=True)
+#     df['date'] = pd.to_datetime(df['timestamp']).dt.date
+#     df = df.sort_values('timestamp')
+#
+#     # Calculate 7-day moving average
+#     df['rolling_avg'] = df['value'].rolling(window=7, min_periods=1).mean()
+#
+#     # Plot with trend line
+#     sns.set_style("whitegrid")
+#     fig, ax = plt.subplots(figsize=(12, 7), dpi=300)
+#     ax.plot(df['date'], df['value'], label='Actual', alpha=0.5, marker='o')
+#     ax.plot(df['date'], df['rolling_avg'], label='7-day Average', linewidth=2.5)
+#     ax.fill_between(df['date'], df['value'], df['rolling_avg'], alpha=0.2)
+#     ax.set_title('Trend with Moving Average', fontsize=16, fontweight='bold')
+#     ax.set_xlabel('Date', fontsize=12)
+#     ax.set_ylabel('Value', fontsize=12)
+#     ax.legend(loc='best')
+#     ax.grid(True, alpha=0.3)
+#     plt.xticks(rotation=45)
+#     plt.tight_layout()
+#     plt.savefig('/tmp/gh-aw/python/charts/moving_average_trend.png',
+#                 dpi=300, bbox_inches='tight', facecolor='white')
+#     print("✅ Moving average chart generated")
+# ```
+#
+# ## Quick Start Pattern 3: Comparative Trends
+#
+# Compare multiple metrics over time:
+#
+# ```python
+# #!/usr/bin/env python3
+# """Comparative trending"""
+# import pandas as pd
+# import matplotlib.pyplot as plt
+# import seaborn as sns
+# import os
+#
+# history_file = '/tmp/gh-aw/cache-memory/trending/multi_metrics/history.jsonl'
+# if os.path.exists(history_file):
+#     df = pd.read_json(history_file, lines=True)
+#     df['timestamp'] = pd.to_datetime(df['timestamp'])
+#
+#     # Plot multiple metrics
+#     sns.set_style("whitegrid")
+#     sns.set_palette("husl")
+#     fig, ax = plt.subplots(figsize=(14, 8), dpi=300)
+#
+#     for metric in df['metric'].unique():
+#         metric_data = df[df['metric'] == metric]
+#         ax.plot(metric_data['timestamp'], metric_data['value'], 
+#                 marker='o', label=metric, linewidth=2)
+#
+#     ax.set_title('Comparative Metrics Trends', fontsize=16, fontweight='bold')
+#     ax.set_xlabel('Date', fontsize=12)
+#     ax.set_ylabel('Value', fontsize=12)
+#     ax.legend(loc='best', fontsize=12)
+#     ax.grid(True, alpha=0.3)
+#     plt.xticks(rotation=45)
+#     plt.tight_layout()
+#     plt.savefig('/tmp/gh-aw/python/charts/comparative_trends.png',
+#                 dpi=300, bbox_inches='tight', facecolor='white')
+#     print("✅ Comparative trends chart generated")
+# ```
+#
+# ## Best Practices
+#
+# ### 1. Use JSON Lines Format
+#
+# Store trending data as JSON Lines (`.jsonl`) for efficient append-only storage:
+# ```python
+# # Append new data point
+# with open(history_file, 'a') as f:
+#     f.write(json.dumps(data_point) + '\n')
+#
+# # Load all data
+# df = pd.read_json(history_file, lines=True)
+# ```
+#
+# ### 2. Include Timestamps
+#
+# Always include ISO 8601 timestamps:
+# ```python
+# data_point = {
+#     "timestamp": datetime.now().isoformat(),
+#     "metric": "issue_count",
+#     "value": 42
+# }
+# ```
+#
+# ### 3. Data Retention
+#
+# Implement retention policies to prevent unbounded growth:
+# ```python
+# from datetime import datetime, timedelta
+#
+# # Keep only last 90 days
+# cutoff_date = datetime.now() - timedelta(days=90)
+# df = df[df['timestamp'] >= cutoff_date]
+#
+# # Save pruned data
+# df.to_json(history_file, orient='records', lines=True)
+# ```
+#
+# ## Directory Structure
+#
+# ```
+# /tmp/gh-aw/
+# ├── python/
+# │   ├── data/          # Current run data files
+# │   ├── charts/        # Generated charts (auto-uploaded as artifacts)
+# │   ├── artifacts/     # Additional output files
+# │   └── *.py           # Python scripts
+# └── cache-memory/
+#     └── trending/      # Persistent historical data (survives runs)
+#         └── <metric>/
+#             └── history.jsonl
+# ```
+#
+# ## Chart Quality Guidelines
+#
+# - **DPI**: Use 300 or higher for publication quality
+# - **Figure Size**: Standard is 12x7 inches for trend charts
+# - **Labels**: Always include clear axis labels and titles
+# - **Legend**: Add legends when plotting multiple series
+# - **Grid**: Enable grid lines for easier reading
+# - **Colors**: Use colorblind-friendly palettes (seaborn defaults)
+#
+# ## Tips for Success
+#
+# 1. **Consistency**: Use same metric names across runs
+# 2. **Validation**: Check data quality before appending
+# 3. **Documentation**: Comment your data schemas
+# 4. **Testing**: Validate charts before uploading
+# 5. **Cleanup**: Implement retention policies for cache-memory
+#
+# ---
+#
+# Remember: The power of trending comes from consistent data collection over time. Use cache-memory to build a rich historical dataset that reveals insights and patterns!
 #
 # # Stale Repository Identifier 🔍
 #
@@ -927,6 +1166,28 @@ jobs:
           retention-days: 30
       - name: Set up jq utilities directory
         run: "mkdir -p /tmp/gh-aw\ncat > /tmp/gh-aw/jqschema.sh << 'EOF'\n#!/usr/bin/env bash\n# jqschema.sh\njq -c '\ndef walk(f):\n  . as $in |\n  if type == \"object\" then\n    reduce keys[] as $k ({}; . + {($k): ($in[$k] | walk(f))})\n  elif type == \"array\" then\n    if length == 0 then [] else [.[0] | walk(f)] end\n  else\n    type\n  end;\nwalk(.)\n'\nEOF\nchmod +x /tmp/gh-aw/jqschema.sh"
+      - name: Setup Python environment for trending
+        run: "# Create working directory structure\nmkdir -p /tmp/gh-aw/python\nmkdir -p /tmp/gh-aw/python/data\nmkdir -p /tmp/gh-aw/python/charts\nmkdir -p /tmp/gh-aw/python/artifacts\n\necho \"Python environment setup complete\"\necho \"Working directory: /tmp/gh-aw/python\"\necho \"Data directory: /tmp/gh-aw/python/data\"\necho \"Charts directory: /tmp/gh-aw/python/charts\"\necho \"Cache memory: /tmp/gh-aw/cache-memory/\"\n"
+      - name: Install Python scientific libraries
+        run: "pip install --user numpy pandas matplotlib seaborn scipy\n\n# Verify installations\npython3 -c \"import numpy; print(f'NumPy {numpy.__version__} installed')\"\npython3 -c \"import pandas; print(f'Pandas {pandas.__version__} installed')\"\npython3 -c \"import matplotlib; print(f'Matplotlib {matplotlib.__version__} installed')\"\npython3 -c \"import seaborn; print(f'Seaborn {seaborn.__version__} installed')\"\npython3 -c \"import scipy; print(f'SciPy {scipy.__version__} installed')\"\n\necho \"All scientific libraries installed successfully\"\n"
+      - if: always()
+        name: Upload generated charts
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
+        with:
+          if-no-files-found: warn
+          name: trending-charts
+          path: /tmp/gh-aw/python/charts/*.png
+          retention-days: 30
+      - if: always()
+        name: Upload source files and data
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
+        with:
+          if-no-files-found: warn
+          name: trending-source-and-data
+          path: |
+            /tmp/gh-aw/python/*.py
+            /tmp/gh-aw/python/data/*
+          retention-days: 30
       - env:
           ADDITIONAL_METRICS: release,pr
           EXEMPT_TOPICS: keep,template
@@ -949,11 +1210,12 @@ jobs:
       - name: Cache memory file share data
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
-          key: memory-${{ github.workflow }}-${{ github.run_id }}
+          key: trending-data-${{ github.workflow }}-${{ github.run_id }}
           path: /tmp/gh-aw/cache-memory
           restore-keys: |
-            memory-${{ github.workflow }}-
-            memory-
+            trending-data-${{ github.workflow }}-
+            trending-data-
+            trending-
       - name: Upload cache-memory data as artifact
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
         with:
@@ -1040,6 +1302,10 @@ jobs:
           awf --version
       - name: Install GitHub Copilot CLI
         run: npm install -g @github/copilot@0.0.365
+      - name: Downloading container images
+        run: |
+          set -e
+          docker pull ghcr.io/github/github-mcp-server:v0.24.0
       - name: Setup Safe Outputs Collector MCP
         run: |
           mkdir -p /tmp/gh-aw/safeoutputs
@@ -2205,14 +2471,22 @@ jobs:
           {
             "mcpServers": {
               "github": {
-                "type": "http",
-                "url": "https://api.githubcopilot.com/mcp/",
-                "headers": {
-                  "Authorization": "Bearer \${GITHUB_PERSONAL_ACCESS_TOKEN}",
-                  "X-MCP-Lockdown": "true",
-                  "X-MCP-Readonly": "true",
-                  "X-MCP-Toolsets": "repos,issues,pull_requests"
-                },
+                "type": "local",
+                "command": "docker",
+                "args": [
+                  "run",
+                  "-i",
+                  "--rm",
+                  "-e",
+                  "GITHUB_PERSONAL_ACCESS_TOKEN",
+                  "-e",
+                  "GITHUB_READ_ONLY=1",
+                  "-e",
+                  "GITHUB_LOCKDOWN_MODE=1",
+                  "-e",
+                  "GITHUB_TOOLSETS=repos,issues,pull_requests",
+                  "ghcr.io/github/github-mcp-server:v0.24.0"
+                ],
                 "tools": ["*"],
                 "env": {
                   "GITHUB_PERSONAL_ACCESS_TOKEN": "\${GITHUB_MCP_SERVER_TOKEN}"
@@ -2666,6 +2940,251 @@ jobs:
           # Now you know which fields exist and can use them in your analysis
           ```
           
+          # Trending Charts - Quick Start Guide
+          
+          You have a complete Python environment with scientific libraries ready for generating trend charts with persistent data storage.
+          
+          ## Cache-Memory for Trending Data
+          
+          Persistent cache-memory is available at `/tmp/gh-aw/cache-memory/` that survives across workflow runs. Use it to store historical trending data.
+          
+          **Recommended Structure:**
+          ```
+          /tmp/gh-aw/cache-memory/
+          ├── trending/
+          │   ├── <metric-name>/
+          │   │   └── history.jsonl      # Time-series data (JSON Lines format)
+          │   └── index.json              # Index of all tracked metrics
+          ```
+          
+          ## Quick Start Pattern 1: Daily Metrics Tracking
+          
+          Track daily metrics and visualize trends over time:
+          
+          ```python
+          #!/usr/bin/env python3
+          """Daily metrics trending"""
+          import pandas as pd
+          import matplotlib.pyplot as plt
+          import seaborn as sns
+          import json
+          import os
+          from datetime import datetime
+          
+          # Configuration
+          CACHE_DIR = '/tmp/gh-aw/cache-memory/trending'
+          METRIC_NAME = 'daily_metrics'
+          HISTORY_FILE = f'{CACHE_DIR}/{METRIC_NAME}/history.jsonl'
+          CHARTS_DIR = '/tmp/gh-aw/python/charts'
+          
+          # Ensure directories exist
+          os.makedirs(f'{CACHE_DIR}/{METRIC_NAME}', exist_ok=True)
+          os.makedirs(CHARTS_DIR, exist_ok=True)
+          
+          # Collect today's data (customize this section)
+          today_data = {
+              "timestamp": datetime.now().isoformat(),
+              "metric_a": 42,
+              "metric_b": 85,
+              "metric_c": 23
+          }
+          
+          # Append to history
+          with open(HISTORY_FILE, 'a') as f:
+              f.write(json.dumps(today_data) + '\n')
+          
+          # Load all historical data
+          if os.path.exists(HISTORY_FILE):
+              df = pd.read_json(HISTORY_FILE, lines=True)
+              df['date'] = pd.to_datetime(df['timestamp']).dt.date
+              df = df.sort_values('timestamp')
+              daily_stats = df.groupby('date').sum()
+              
+              # Generate trend chart
+              sns.set_style("whitegrid")
+              sns.set_palette("husl")
+              
+              fig, ax = plt.subplots(figsize=(12, 7), dpi=300)
+              daily_stats.plot(ax=ax, marker='o', linewidth=2)
+              ax.set_title('Daily Metrics Trends', fontsize=16, fontweight='bold')
+              ax.set_xlabel('Date', fontsize=12)
+              ax.set_ylabel('Count', fontsize=12)
+              ax.legend(loc='best')
+              ax.grid(True, alpha=0.3)
+              plt.xticks(rotation=45)
+              plt.tight_layout()
+              
+              plt.savefig(f'{CHARTS_DIR}/daily_metrics_trend.png',
+                          dpi=300, bbox_inches='tight', facecolor='white')
+              
+              print(f"✅ Chart generated with {len(df)} data points")
+          else:
+              print("No historical data yet. Run again tomorrow to see trends.")
+          ```
+          
+          ## Quick Start Pattern 2: Moving Averages
+          
+          Smooth volatile data with moving averages:
+          
+          ```python
+          #!/usr/bin/env python3
+          """Moving average trending"""
+          import pandas as pd
+          import matplotlib.pyplot as plt
+          import seaborn as sns
+          import os
+          
+          # Load historical data
+          history_file = '/tmp/gh-aw/cache-memory/trending/metrics/history.jsonl'
+          if os.path.exists(history_file):
+              df = pd.read_json(history_file, lines=True)
+              df['date'] = pd.to_datetime(df['timestamp']).dt.date
+              df = df.sort_values('timestamp')
+              
+              # Calculate 7-day moving average
+              df['rolling_avg'] = df['value'].rolling(window=7, min_periods=1).mean()
+              
+              # Plot with trend line
+              sns.set_style("whitegrid")
+              fig, ax = plt.subplots(figsize=(12, 7), dpi=300)
+              ax.plot(df['date'], df['value'], label='Actual', alpha=0.5, marker='o')
+              ax.plot(df['date'], df['rolling_avg'], label='7-day Average', linewidth=2.5)
+              ax.fill_between(df['date'], df['value'], df['rolling_avg'], alpha=0.2)
+              ax.set_title('Trend with Moving Average', fontsize=16, fontweight='bold')
+              ax.set_xlabel('Date', fontsize=12)
+              ax.set_ylabel('Value', fontsize=12)
+              ax.legend(loc='best')
+              ax.grid(True, alpha=0.3)
+              plt.xticks(rotation=45)
+              plt.tight_layout()
+              plt.savefig('/tmp/gh-aw/python/charts/moving_average_trend.png',
+                          dpi=300, bbox_inches='tight', facecolor='white')
+              print("✅ Moving average chart generated")
+          ```
+          
+          ## Quick Start Pattern 3: Comparative Trends
+          
+          Compare multiple metrics over time:
+          
+          ```python
+          #!/usr/bin/env python3
+          """Comparative trending"""
+          import pandas as pd
+          import matplotlib.pyplot as plt
+          import seaborn as sns
+          import os
+          
+          history_file = '/tmp/gh-aw/cache-memory/trending/multi_metrics/history.jsonl'
+          if os.path.exists(history_file):
+              df = pd.read_json(history_file, lines=True)
+              df['timestamp'] = pd.to_datetime(df['timestamp'])
+              
+              # Plot multiple metrics
+              sns.set_style("whitegrid")
+              sns.set_palette("husl")
+              fig, ax = plt.subplots(figsize=(14, 8), dpi=300)
+              
+              for metric in df['metric'].unique():
+                  metric_data = df[df['metric'] == metric]
+                  ax.plot(metric_data['timestamp'], metric_data['value'], 
+                          marker='o', label=metric, linewidth=2)
+              
+              ax.set_title('Comparative Metrics Trends', fontsize=16, fontweight='bold')
+              ax.set_xlabel('Date', fontsize=12)
+              ax.set_ylabel('Value', fontsize=12)
+              ax.legend(loc='best', fontsize=12)
+              ax.grid(True, alpha=0.3)
+              plt.xticks(rotation=45)
+              plt.tight_layout()
+              plt.savefig('/tmp/gh-aw/python/charts/comparative_trends.png',
+                          dpi=300, bbox_inches='tight', facecolor='white')
+              print("✅ Comparative trends chart generated")
+          ```
+          
+          ## Best Practices
+          
+          ### 1. Use JSON Lines Format
+          
+          Store trending data as JSON Lines (`.jsonl`) for efficient append-only storage:
+          ```python
+          # Append new data point
+          with open(history_file, 'a') as f:
+              f.write(json.dumps(data_point) + '\n')
+          
+          # Load all data
+          df = pd.read_json(history_file, lines=True)
+          ```
+          
+          ### 2. Include Timestamps
+          
+          Always include ISO 8601 timestamps:
+          ```python
+          data_point = {
+              "timestamp": datetime.now().isoformat(),
+              "metric": "issue_count",
+              "value": 42
+          }
+          ```
+          
+          ### 3. Data Retention
+          
+          Implement retention policies to prevent unbounded growth:
+          ```python
+          from datetime import datetime, timedelta
+          
+          # Keep only last 90 days
+          cutoff_date = datetime.now() - timedelta(days=90)
+          df = df[df['timestamp'] >= cutoff_date]
+          
+          # Save pruned data
+          PROMPT_EOF
+      - name: Append prompt (part 2)
+        env:
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+          GH_AW_ENV_ORGANIZATION: ${{ env.ORGANIZATION }}
+          GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
+          GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
+        run: |
+          cat << 'PROMPT_EOF' | envsubst >> "$GH_AW_PROMPT"
+          df.to_json(history_file, orient='records', lines=True)
+          ```
+          
+          ## Directory Structure
+          
+          ```
+          /tmp/gh-aw/
+          ├── python/
+          │   ├── data/          # Current run data files
+          │   ├── charts/        # Generated charts (auto-uploaded as artifacts)
+          │   ├── artifacts/     # Additional output files
+          │   └── *.py           # Python scripts
+          └── cache-memory/
+              └── trending/      # Persistent historical data (survives runs)
+                  └── <metric>/
+                      └── history.jsonl
+          ```
+          
+          ## Chart Quality Guidelines
+          
+          - **DPI**: Use 300 or higher for publication quality
+          - **Figure Size**: Standard is 12x7 inches for trend charts
+          - **Labels**: Always include clear axis labels and titles
+          - **Legend**: Add legends when plotting multiple series
+          - **Grid**: Enable grid lines for easier reading
+          - **Colors**: Use colorblind-friendly palettes (seaborn defaults)
+          
+          ## Tips for Success
+          
+          1. **Consistency**: Use same metric names across runs
+          2. **Validation**: Check data quality before appending
+          3. **Documentation**: Comment your data schemas
+          4. **Testing**: Validate charts before uploading
+          5. **Cleanup**: Implement retention policies for cache-memory
+          
+          ---
+          
+          Remember: The power of trending comes from consistent data collection over time. Use cache-memory to build a rich historical dataset that reveals insights and patterns!
+          
           # Stale Repository Identifier 🔍
           
           You are an expert repository analyst that deeply investigates potentially stale repositories to determine if they are truly inactive and produces comprehensive activity reports.
@@ -2839,15 +3358,6 @@ jobs:
           #### Commits
           - **Last Commit**: [date] by [author]
           - **Commits (Last Year)**: [count]
-          PROMPT_EOF
-      - name: Append prompt (part 2)
-        env:
-          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-          GH_AW_ENV_ORGANIZATION: ${{ env.ORGANIZATION }}
-          GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
-          GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
-        run: |
-          cat << 'PROMPT_EOF' | envsubst >> "$GH_AW_PROMPT"
           - **Contributors (Last Year)**: [count]
           - **Activity Trend**: [Declining / Stopped / Sporadic]
           

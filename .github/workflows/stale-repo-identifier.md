@@ -25,6 +25,7 @@ timeout-minutes: 45
 imports:
   - shared/python-dataviz.md
   - shared/jqschema.md
+  - shared/trending-charts-simple.md
 
 network:
   allowed:
@@ -45,13 +46,14 @@ safe-outputs:
 
 tools:
   github:
-    mode: remote
     read-only: true
     lockdown: true
     toolsets:
       - repos
       - issues
       - pull_requests
+  cache-memory:
+    key: stale-repos-analysis-${{ github.workflow }}-${{ github.run_id }}
   bash:
     - "*"
   edit:
