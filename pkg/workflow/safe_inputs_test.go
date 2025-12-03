@@ -180,13 +180,13 @@ func TestIsSafeInputsEnabled(t *testing.T) {
 			expected:     false,
 		},
 		{
-			name:         "with tools but no feature flag - not enabled",
+			name:         "with tools - enabled by default",
 			config:       configWithTools,
 			workflowData: nil,
-			expected:     false,
+			expected:     true,
 		},
 		{
-			name:   "with tools and feature flag enabled - enabled",
+			name:   "with tools and feature flag enabled - enabled (backward compat)",
 			config: configWithTools,
 			workflowData: &WorkflowData{
 				Features: map[string]bool{"safe-inputs": true},
@@ -194,20 +194,20 @@ func TestIsSafeInputsEnabled(t *testing.T) {
 			expected: true,
 		},
 		{
-			name:   "with tools and feature flag disabled - not enabled",
+			name:   "with tools and feature flag disabled - still enabled (feature flag ignored)",
 			config: configWithTools,
 			workflowData: &WorkflowData{
 				Features: map[string]bool{"safe-inputs": false},
 			},
-			expected: false,
+			expected: true,
 		},
 		{
-			name:   "with tools and other features but not safe-inputs - not enabled",
+			name:   "with tools and other features - enabled",
 			config: configWithTools,
 			workflowData: &WorkflowData{
 				Features: map[string]bool{"other-feature": true},
 			},
-			expected: false,
+			expected: true,
 		},
 	}
 
@@ -229,20 +229,20 @@ func TestIsSafeInputsEnabledWithEnv(t *testing.T) {
 		},
 	}
 
-	// Test with environment variable (reusing the same testing pattern as features_test.go)
-	t.Run("with tools and GH_AW_FEATURES=safe-inputs - enabled", func(t *testing.T) {
+	// Safe-inputs are enabled by default when configured, environment variable no longer needed
+	t.Run("with tools - enabled regardless of GH_AW_FEATURES", func(t *testing.T) {
 		t.Setenv("GH_AW_FEATURES", "safe-inputs")
 		result := IsSafeInputsEnabled(configWithTools, nil)
 		if !result {
-			t.Errorf("Expected true when GH_AW_FEATURES=safe-inputs, got false")
+			t.Errorf("Expected true, got false")
 		}
 	})
 
-	t.Run("with tools and GH_AW_FEATURES=other - not enabled", func(t *testing.T) {
+	t.Run("with tools and GH_AW_FEATURES=other - still enabled", func(t *testing.T) {
 		t.Setenv("GH_AW_FEATURES", "other")
 		result := IsSafeInputsEnabled(configWithTools, nil)
-		if result {
-			t.Errorf("Expected false when GH_AW_FEATURES=other, got true")
+		if !result {
+			t.Errorf("Expected true, got false")
 		}
 	})
 }

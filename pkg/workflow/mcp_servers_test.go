@@ -39,7 +39,7 @@ func TestSafeInputsStepCodeGenerationStability(t *testing.T) {
 		SafeInputs: safeInputsConfig,
 		Tools:      make(map[string]any),
 		Features: map[string]bool{
-			"safe-inputs": true, // Enable feature flag for safe-inputs
+			"safe-inputs": true, // Feature flag is optional now
 		},
 	}
 

@@ -687,11 +687,10 @@ func TestCodexEngineSafeInputsSecrets(t *testing.T) {
 	engine := NewCodexEngine()
 
 	// Create workflow data with safe-inputs that have env secrets
-	// Note: safe-inputs requires the feature flag to be enabled
 	workflowData := &WorkflowData{
 		Name: "test-workflow-with-safe-inputs",
 		Features: map[string]bool{
-			"safe-inputs": true,
+			"safe-inputs": true, // Feature flag is optional now
 		},
 		SafeInputs: &SafeInputsConfig{
 			Tools: map[string]*SafeInputToolConfig{

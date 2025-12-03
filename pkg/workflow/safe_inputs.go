@@ -62,15 +62,11 @@ func HasSafeInputs(safeInputs *SafeInputsConfig) bool {
 	return safeInputs != nil && len(safeInputs.Tools) > 0
 }
 
-// IsSafeInputsEnabled checks if safe-inputs are both configured AND the feature is enabled.
-// The safe-inputs feature requires the feature flag to be enabled via:
-// - Frontmatter: features: { safe-inputs: true }
-// - Environment variable: GH_AW_FEATURES=safe-inputs
+// IsSafeInputsEnabled checks if safe-inputs are configured.
+// Safe-inputs are enabled by default when configured in the workflow.
+// The workflowData parameter is kept for backward compatibility but is not used.
 func IsSafeInputsEnabled(safeInputs *SafeInputsConfig, workflowData *WorkflowData) bool {
-	if !HasSafeInputs(safeInputs) {
-		return false
-	}
-	return isFeatureEnabled(SafeInputsFeatureFlag, workflowData)
+	return HasSafeInputs(safeInputs)
 }
 
 // ParseSafeInputs parses safe-inputs configuration from frontmatter (standalone function for testing)
