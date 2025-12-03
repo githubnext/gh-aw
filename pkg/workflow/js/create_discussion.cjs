@@ -1,7 +1,7 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-const { loadAgentOutput } = require("./load_agent_output.cjs");
+const { withStagedModeGating } = require("./safe_output_processor.cjs");
 const { getTrackerID } = require("./get_tracker_id.cjs");
 const { closeOlderDiscussions } = require("./close_older_discussions.cjs");
 const { replaceTemporaryIdReferences, loadTemporaryIdMap } = require("./temporary_id.cjs");
@@ -89,23 +89,50 @@ async function main() {
   core.setOutput("discussion_number", "");
   core.setOutput("discussion_url", "");
 
-  // Load the temporary ID map from create_issue job
+  // Load the temporary ID map from create_issue job - needed for body processing
   const temporaryIdMap = loadTemporaryIdMap();
   if (temporaryIdMap.size > 0) {
     core.info(`Loaded temporary ID map with ${temporaryIdMap.size} entries`);
   }
 
-  const result = loadAgentOutput();
-  if (!result.success) {
+  const gatingResult = await withStagedModeGating(
+    {
+      itemType: "create_discussion",
+      itemTypeName: "create-discussion",
+    },
+    {
+      title: "Create Discussions",
+      description: "The following discussions would be created if staged mode was disabled:",
+      renderItem: (item, index) => {
+        let content = `### Discussion ${index + 1}\n`;
+        content += `**Title:** ${item.title || "No title provided"}\n\n`;
+        if (item.repo) {
+          content += `**Repository:** ${item.repo}\n\n`;
+        }
+        if (item.body) {
+          content += `**Body:**\n${item.body}\n\n`;
+        }
+        if (item.category) {
+          content += `**Category:** ${item.category}\n\n`;
+        }
+        return content;
+      },
+    }
+  );
+
+  if (!gatingResult.success) {
+    // Log warning for no items found (maintaining original behavior)
+    if (gatingResult.reason && gatingResult.reason.includes("No create-discussion items found")) {
+      core.warning("No create-discussion items found in agent output");
+    }
     return;
   }
 
-  const createDiscussionItems = result.items.filter(item => item.type === "create_discussion");
-  if (createDiscussionItems.length === 0) {
-    core.warning("No create-discussion items found in agent output");
+  // @ts-ignore - items is guaranteed to be present when success is true
+  const createDiscussionItems = gatingResult.items;
+  if (!createDiscussionItems) {
     return;
   }
-  core.info(`Found ${createDiscussionItems.length} create-discussion item(s)`);
 
   // Parse allowed repos and default target
   const allowedRepos = parseAllowedRepos();
@@ -113,29 +140,6 @@ async function main() {
   core.info(`Default target repo: ${defaultTargetRepo}`);
   if (allowedRepos.size > 0) {
     core.info(`Allowed repos: ${Array.from(allowedRepos).join(", ")}`);
-  }
-
-  if (process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true") {
-    let summaryContent = "## 🎭 Staged Mode: Create Discussions Preview\n\n";
-    summaryContent += "The following discussions would be created if staged mode was disabled:\n\n";
-    for (let i = 0; i < createDiscussionItems.length; i++) {
-      const item = createDiscussionItems[i];
-      summaryContent += `### Discussion ${i + 1}\n`;
-      summaryContent += `**Title:** ${item.title || "No title provided"}\n\n`;
-      if (item.repo) {
-        summaryContent += `**Repository:** ${item.repo}\n\n`;
-      }
-      if (item.body) {
-        summaryContent += `**Body:**\n${item.body}\n\n`;
-      }
-      if (item.category) {
-        summaryContent += `**Category:** ${item.category}\n\n`;
-      }
-      summaryContent += "---\n\n";
-    }
-    await core.summary.addRaw(summaryContent).write();
-    core.info("📝 Discussion creation preview written to step summary");
-    return;
   }
 
   // Cache for repository info to avoid redundant API calls

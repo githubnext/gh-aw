@@ -2,8 +2,7 @@
 /// <reference types="@actions/github-script" />
 
 const { sanitizeLabelContent } = require("./sanitize_label_content.cjs");
-const { loadAgentOutput } = require("./load_agent_output.cjs");
-const { generateStagedPreview } = require("./staged_preview.cjs");
+const { withStagedModeGating } = require("./safe_output_processor.cjs");
 const { generateFooter } = require("./generate_footer.cjs");
 const { getTrackerID } = require("./get_tracker_id.cjs");
 const {
@@ -22,33 +21,14 @@ async function main() {
   core.setOutput("temporary_id_map", "{}");
   core.setOutput("issues_to_assign_copilot", "");
 
-  const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
-
-  const result = loadAgentOutput();
-  if (!result.success) {
-    return;
-  }
-
-  const createIssueItems = result.items.filter(item => item.type === "create_issue");
-  if (createIssueItems.length === 0) {
-    core.info("No create-issue items found in agent output");
-    return;
-  }
-  core.info(`Found ${createIssueItems.length} create-issue item(s)`);
-
-  // Parse allowed repos and default target
-  const allowedRepos = parseAllowedRepos();
-  const defaultTargetRepo = getDefaultTargetRepo();
-  core.info(`Default target repo: ${defaultTargetRepo}`);
-  if (allowedRepos.size > 0) {
-    core.info(`Allowed repos: ${Array.from(allowedRepos).join(", ")}`);
-  }
-
-  if (isStaged) {
-    await generateStagedPreview({
+  const gatingResult = await withStagedModeGating(
+    {
+      itemType: "create_issue",
+      itemTypeName: "create-issue",
+    },
+    {
       title: "Create Issues",
       description: "The following issues would be created if staged mode was disabled:",
-      items: createIssueItems,
       renderItem: (item, index) => {
         let content = `### Issue ${index + 1}\n`;
         content += `**Title:** ${item.title || "No title provided"}\n\n`;
@@ -69,9 +49,27 @@ async function main() {
         }
         return content;
       },
-    });
+    }
+  );
+
+  if (!gatingResult.success) {
     return;
   }
+
+  // @ts-ignore - items is guaranteed to be present when success is true
+  const createIssueItems = gatingResult.items;
+  if (!createIssueItems) {
+    return;
+  }
+
+  // Parse allowed repos and default target
+  const allowedRepos = parseAllowedRepos();
+  const defaultTargetRepo = getDefaultTargetRepo();
+  core.info(`Default target repo: ${defaultTargetRepo}`);
+  if (allowedRepos.size > 0) {
+    core.info(`Allowed repos: ${Array.from(allowedRepos).join(", ")}`);
+  }
+
   const parentIssueNumber = context.payload?.issue?.number;
 
   // Map to track temporary_id -> {repo, number} relationships

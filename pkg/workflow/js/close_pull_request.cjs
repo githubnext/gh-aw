@@ -1,7 +1,7 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-const { loadAgentOutput } = require("./load_agent_output.cjs");
+const { withStagedModeGating } = require("./safe_output_processor.cjs");
 const { generateFooter } = require("./generate_footer.cjs");
 const { getTrackerID } = require("./get_tracker_id.cjs");
 const { getRepositoryUrl } = require("./get_repository_url.cjs");
@@ -68,24 +68,7 @@ async function closePullRequest(github, owner, repo, prNumber) {
 }
 
 async function main() {
-  // Check if we're in staged mode
-  const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
-
-  const result = loadAgentOutput();
-  if (!result.success) {
-    return;
-  }
-
-  // Find all close-pull-request items
-  const closePRItems = result.items.filter(/** @param {any} item */ item => item.type === "close_pull_request");
-  if (closePRItems.length === 0) {
-    core.info("No close-pull-request items found in agent output");
-    return;
-  }
-
-  core.info(`Found ${closePRItems.length} close-pull-request item(s)`);
-
-  // Get configuration from environment
+  // Get configuration from environment - needed for staged preview rendering
   const requiredLabels = process.env.GH_AW_CLOSE_PR_REQUIRED_LABELS
     ? process.env.GH_AW_CLOSE_PR_REQUIRED_LABELS.split(",").map(l => l.trim())
     : [];
@@ -94,44 +77,50 @@ async function main() {
 
   core.info(`Configuration: requiredLabels=${requiredLabels.join(",")}, requiredTitlePrefix=${requiredTitlePrefix}, target=${target}`);
 
-  // Check if we're in a pull request context
-  const isPRContext = context.eventName === "pull_request" || context.eventName === "pull_request_review_comment";
+  const gatingResult = await withStagedModeGating(
+    {
+      itemType: "close_pull_request",
+      itemTypeName: "close-pull-request",
+    },
+    {
+      title: "Close Pull Requests",
+      description: "The following pull requests would be closed if staged mode was disabled:",
+      renderItem: (item, index) => {
+        let content = `### Pull Request ${index + 1}\n`;
+        const prNumber = item.pull_request_number;
+        if (prNumber) {
+          const repoUrl = getRepositoryUrl();
+          const prUrl = `${repoUrl}/pull/${prNumber}`;
+          content += `**Target Pull Request:** [#${prNumber}](${prUrl})\n\n`;
+        } else {
+          content += `**Target:** Current pull request\n\n`;
+        }
 
-  // If in staged mode, emit step summary instead of closing pull requests
-  if (isStaged) {
-    let summaryContent = "## 🎭 Staged Mode: Close Pull Requests Preview\n\n";
-    summaryContent += "The following pull requests would be closed if staged mode was disabled:\n\n";
+        content += `**Comment:**\n${item.body || "No content provided"}\n\n`;
 
-    for (let i = 0; i < closePRItems.length; i++) {
-      const item = closePRItems[i];
-      summaryContent += `### Pull Request ${i + 1}\n`;
-
-      const prNumber = item.pull_request_number;
-      if (prNumber) {
-        const repoUrl = getRepositoryUrl();
-        const prUrl = `${repoUrl}/pull/${prNumber}`;
-        summaryContent += `**Target Pull Request:** [#${prNumber}](${prUrl})\n\n`;
-      } else {
-        summaryContent += `**Target:** Current pull request\n\n`;
-      }
-
-      summaryContent += `**Comment:**\n${item.body || "No content provided"}\n\n`;
-
-      if (requiredLabels.length > 0) {
-        summaryContent += `**Required Labels:** ${requiredLabels.join(", ")}\n\n`;
-      }
-      if (requiredTitlePrefix) {
-        summaryContent += `**Required Title Prefix:** ${requiredTitlePrefix}\n\n`;
-      }
-
-      summaryContent += "---\n\n";
+        if (requiredLabels.length > 0) {
+          content += `**Required Labels:** ${requiredLabels.join(", ")}\n\n`;
+        }
+        if (requiredTitlePrefix) {
+          content += `**Required Title Prefix:** ${requiredTitlePrefix}\n\n`;
+        }
+        return content;
+      },
     }
+  );
 
-    // Write to step summary
-    await core.summary.addRaw(summaryContent).write();
-    core.info("📝 Pull request close preview written to step summary");
+  if (!gatingResult.success) {
     return;
   }
+
+  // @ts-ignore - items is guaranteed to be present when success is true
+  const closePRItems = gatingResult.items;
+  if (!closePRItems) {
+    return;
+  }
+
+  // Check if we're in a pull request context
+  const isPRContext = context.eventName === "pull_request" || context.eventName === "pull_request_review_comment";
 
   // Validate context based on target configuration
   if (target === "triggering" && !isPRContext) {

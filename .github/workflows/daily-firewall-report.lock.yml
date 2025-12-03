@@ -6269,6 +6269,403 @@ jobs:
               }
               return { success: true, items: validatedOutput.items };
             }
+            async function generateStagedPreview(options) {
+              const { title, description, items, renderItem } = options;
+              let summaryContent = `## 🎭 Staged Mode: ${title} Preview\n\n`;
+              summaryContent += `${description}\n\n`;
+              for (let i = 0; i < items.length; i++) {
+                const item = items[i];
+                summaryContent += renderItem(item, i);
+                summaryContent += "---\n\n";
+              }
+              try {
+                await core.summary.addRaw(summaryContent).write();
+                core.info(summaryContent);
+                core.info(`📝 ${title} preview written to step summary`);
+              } catch (error) {
+                core.setFailed(error instanceof Error ? error : String(error));
+              }
+            }
+            function parseAllowedItems(envValue) {
+              const trimmed = envValue?.trim();
+              if (!trimmed) {
+                return undefined;
+              }
+              return trimmed
+                .split(",")
+                .map(item => item.trim())
+                .filter(item => item);
+            }
+            function parseMaxCount(envValue, defaultValue = 3) {
+              if (!envValue) {
+                return { valid: true, value: defaultValue };
+              }
+              const parsed = parseInt(envValue, 10);
+              if (isNaN(parsed) || parsed < 1) {
+                return {
+                  valid: false,
+                  error: `Invalid max value: ${envValue}. Must be a positive integer`,
+                };
+              }
+              return { valid: true, value: parsed };
+            }
+            function resolveTarget(params) {
+              const { targetConfig, item, context, itemType, supportsPR = false } = params;
+              const isIssueContext = context.eventName === "issues" || context.eventName === "issue_comment";
+              const isPRContext =
+                context.eventName === "pull_request" ||
+                context.eventName === "pull_request_review" ||
+                context.eventName === "pull_request_review_comment";
+              const target = targetConfig || "triggering";
+              if (target === "triggering") {
+                if (supportsPR) {
+                  if (!isIssueContext && !isPRContext) {
+                    return {
+                      success: false,
+                      error: `Target is "triggering" but not running in issue or pull request context, skipping ${itemType}`,
+                      shouldFail: false, 
+                    };
+                  }
+                } else {
+                  if (!isPRContext) {
+                    return {
+                      success: false,
+                      error: `Target is "triggering" but not running in pull request context, skipping ${itemType}`,
+                      shouldFail: false, 
+                    };
+                  }
+                }
+              }
+              let itemNumber;
+              let contextType;
+              if (target === "*") {
+                const numberField = supportsPR ? item.item_number || item.issue_number || item.pull_request_number : item.pull_request_number;
+                if (numberField) {
+                  itemNumber = typeof numberField === "number" ? numberField : parseInt(String(numberField), 10);
+                  if (isNaN(itemNumber) || itemNumber <= 0) {
+                    return {
+                      success: false,
+                      error: `Invalid ${supportsPR ? "item_number/issue_number/pull_request_number" : "pull_request_number"} specified: ${numberField}`,
+                      shouldFail: true,
+                    };
+                  }
+                  contextType = supportsPR && (item.item_number || item.issue_number) ? "issue" : "pull request";
+                } else {
+                  return {
+                    success: false,
+                    error: `Target is "*" but no ${supportsPR ? "item_number/issue_number" : "pull_request_number"} specified in ${itemType} item`,
+                    shouldFail: true,
+                  };
+                }
+              } else if (target !== "triggering") {
+                itemNumber = parseInt(target, 10);
+                if (isNaN(itemNumber) || itemNumber <= 0) {
+                  return {
+                    success: false,
+                    error: `Invalid ${supportsPR ? "issue" : "pull request"} number in target configuration: ${target}`,
+                    shouldFail: true,
+                  };
+                }
+                contextType = supportsPR ? "issue" : "pull request";
+              } else {
+                if (isIssueContext) {
+                  if (context.payload.issue) {
+                    itemNumber = context.payload.issue.number;
+                    contextType = "issue";
+                  } else {
+                    return {
+                      success: false,
+                      error: "Issue context detected but no issue found in payload",
+                      shouldFail: true,
+                    };
+                  }
+                } else if (isPRContext) {
+                  if (context.payload.pull_request) {
+                    itemNumber = context.payload.pull_request.number;
+                    contextType = "pull request";
+                  } else {
+                    return {
+                      success: false,
+                      error: "Pull request context detected but no pull request found in payload",
+                      shouldFail: true,
+                    };
+                  }
+                }
+              }
+              if (!itemNumber) {
+                return {
+                  success: false,
+                  error: `Could not determine ${supportsPR ? "issue or pull request" : "pull request"} number`,
+                  shouldFail: true,
+                };
+              }
+              return {
+                success: true,
+                number: itemNumber,
+                contextType: contextType || (supportsPR ? "issue" : "pull request"),
+              };
+            }
+            function sanitizeLabelContent(content) {
+              if (!content || typeof content !== "string") {
+                return "";
+              }
+              let sanitized = content.trim();
+              sanitized = sanitized.replace(/\x1b\[[0-9;]*[mGKH]/g, "");
+              sanitized = sanitized.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "");
+              sanitized = sanitized.replace(
+                /(^|[^\w`])@([A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?(?:\/[A-Za-z0-9._-]+)?)/g,
+                (_m, p1, p2) => `${p1}\`@${p2}\``
+              );
+              sanitized = sanitized.replace(/[<>&'"]/g, "");
+              return sanitized.trim();
+            }
+            function loadSafeOutputsConfig() {
+              const configPath = "/tmp/gh-aw/safeoutputs/config.json";
+              try {
+                if (!fs.existsSync(configPath)) {
+                  core.warning(`Config file not found at ${configPath}, using defaults`);
+                  return {};
+                }
+                const configContent = fs.readFileSync(configPath, "utf8");
+                return JSON.parse(configContent);
+              } catch (error) {
+                core.warning(`Failed to load config: ${error instanceof Error ? error.message : String(error)}`);
+                return {};
+              }
+            }
+            function getSafeOutputConfig(outputType) {
+              const config = loadSafeOutputsConfig();
+              return config[outputType] || {};
+            }
+            function validateTitle(title, fieldName = "title") {
+              if (title === undefined || title === null) {
+                return { valid: false, error: `${fieldName} is required` };
+              }
+              if (typeof title !== "string") {
+                return { valid: false, error: `${fieldName} must be a string` };
+              }
+              const trimmed = title.trim();
+              if (trimmed.length === 0) {
+                return { valid: false, error: `${fieldName} cannot be empty` };
+              }
+              return { valid: true, value: trimmed };
+            }
+            function validateBody(body, fieldName = "body", required = false) {
+              if (body === undefined || body === null) {
+                if (required) {
+                  return { valid: false, error: `${fieldName} is required` };
+                }
+                return { valid: true, value: "" };
+              }
+              if (typeof body !== "string") {
+                return { valid: false, error: `${fieldName} must be a string` };
+              }
+              return { valid: true, value: body };
+            }
+            function validateLabels(labels, allowedLabels = undefined, maxCount = 3) {
+              if (!labels || !Array.isArray(labels)) {
+                return { valid: false, error: "labels must be an array" };
+              }
+              for (const label of labels) {
+                if (label && typeof label === "string" && label.startsWith("-")) {
+                  return { valid: false, error: `Label removal is not permitted. Found line starting with '-': ${label}` };
+                }
+              }
+              let validLabels = labels;
+              if (allowedLabels && allowedLabels.length > 0) {
+                validLabels = labels.filter(label => allowedLabels.includes(label));
+              }
+              const uniqueLabels = validLabels
+                .filter(label => label != null && label !== false && label !== 0)
+                .map(label => String(label).trim())
+                .filter(label => label)
+                .map(label => sanitizeLabelContent(label))
+                .filter(label => label)
+                .map(label => (label.length > 64 ? label.substring(0, 64) : label))
+                .filter((label, index, arr) => arr.indexOf(label) === index);
+              if (uniqueLabels.length > maxCount) {
+                core.info(`Too many labels (${uniqueLabels.length}), limiting to ${maxCount}`);
+                return { valid: true, value: uniqueLabels.slice(0, maxCount) };
+              }
+              if (uniqueLabels.length === 0) {
+                return { valid: false, error: "No valid labels found after sanitization" };
+              }
+              return { valid: true, value: uniqueLabels };
+            }
+            function validateMaxCount(envValue, configDefault, fallbackDefault = 1) {
+              const defaultValue = configDefault !== undefined ? configDefault : fallbackDefault;
+              if (!envValue) {
+                return { valid: true, value: defaultValue };
+              }
+              const parsed = parseInt(envValue, 10);
+              if (isNaN(parsed) || parsed < 1) {
+                return {
+                  valid: false,
+                  error: `Invalid max value: ${envValue}. Must be a positive integer`,
+                };
+              }
+              return { valid: true, value: parsed };
+            }
+            async function processSafeOutput(config, stagedPreviewOptions) {
+              const {
+                itemType,
+                configKey,
+                displayName,
+                itemTypeName,
+                supportsPR = false,
+                supportsIssue = false,
+                findMultiple = false,
+                envVars,
+              } = config;
+              const result = loadAgentOutput();
+              if (!result.success) {
+                return { success: false, reason: "Agent output not available" };
+              }
+              let items;
+              if (findMultiple) {
+                items = result.items.filter(item => item.type === itemType);
+                if (items.length === 0) {
+                  core.info(`No ${itemType} items found in agent output`);
+                  return { success: false, reason: `No ${itemType} items found` };
+                }
+                core.info(`Found ${items.length} ${itemType} item(s)`);
+              } else {
+                const item = result.items.find(item => item.type === itemType);
+                if (!item) {
+                  core.warning(`No ${itemType.replace(/_/g, "-")} item found in agent output`);
+                  return { success: false, reason: `No ${itemType} item found` };
+                }
+                items = [item];
+                const itemDetails = getItemDetails(item);
+                if (itemDetails) {
+                  core.info(`Found ${itemType.replace(/_/g, "-")} item with ${itemDetails}`);
+                }
+              }
+              if (process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true") {
+                await generateStagedPreview({
+                  title: stagedPreviewOptions.title,
+                  description: stagedPreviewOptions.description,
+                  items: items,
+                  renderItem: stagedPreviewOptions.renderItem,
+                });
+                return { success: false, reason: "Staged mode - preview generated" };
+              }
+              const safeOutputConfig = getSafeOutputConfig(configKey);
+              const allowedEnvValue = envVars.allowed ? process.env[envVars.allowed] : undefined;
+              const allowed = parseAllowedItems(allowedEnvValue) || safeOutputConfig.allowed;
+              if (allowed) {
+                core.info(`Allowed ${itemTypeName}s: ${JSON.stringify(allowed)}`);
+              } else {
+                core.info(`No ${itemTypeName} restrictions - any ${itemTypeName}s are allowed`);
+              }
+              const maxCountEnvValue = envVars.maxCount ? process.env[envVars.maxCount] : undefined;
+              const maxCountResult = validateMaxCount(maxCountEnvValue, safeOutputConfig.max);
+              if (!maxCountResult.valid) {
+                core.setFailed(maxCountResult.error);
+                return { success: false, reason: "Invalid max count configuration" };
+              }
+              const maxCount = maxCountResult.value;
+              core.info(`Max count: ${maxCount}`);
+              const target = envVars.target ? process.env[envVars.target] || "triggering" : "triggering";
+              core.info(`${displayName} target configuration: ${target}`);
+              if (findMultiple) {
+                return {
+                  success: true,
+                  items: items,
+                  config: {
+                    allowed,
+                    maxCount,
+                    target,
+                  },
+                };
+              }
+              const item = items[0];
+              const targetResult = resolveTarget({
+                targetConfig: target,
+                item: item,
+                context,
+                itemType: itemTypeName,
+                supportsPR: supportsPR || supportsIssue,
+              });
+              if (!targetResult.success) {
+                if (targetResult.shouldFail) {
+                  core.setFailed(targetResult.error);
+                } else {
+                  core.info(targetResult.error);
+                }
+                return { success: false, reason: targetResult.error };
+              }
+              return {
+                success: true,
+                item: item,
+                config: {
+                  allowed,
+                  maxCount,
+                  target,
+                },
+                targetResult: {
+                  number: targetResult.number,
+                  contextType: targetResult.contextType,
+                },
+              };
+            }
+            function getItemDetails(item) {
+              if (item.labels && Array.isArray(item.labels)) {
+                return `${item.labels.length} labels`;
+              }
+              if (item.reviewers && Array.isArray(item.reviewers)) {
+                return `${item.reviewers.length} reviewers`;
+              }
+              return null;
+            }
+            function sanitizeItems(items) {
+              return items
+                .filter(item => item != null && item !== false && item !== 0)
+                .map(item => String(item).trim())
+                .filter(item => item)
+                .filter((item, index, arr) => arr.indexOf(item) === index);
+            }
+            function filterByAllowed(items, allowed) {
+              if (!allowed || allowed.length === 0) {
+                return items;
+              }
+              return items.filter(item => allowed.includes(item));
+            }
+            function limitToMaxCount(items, maxCount) {
+              if (items.length > maxCount) {
+                core.info(`Too many items (${items.length}), limiting to ${maxCount}`);
+                return items.slice(0, maxCount);
+              }
+              return items;
+            }
+            function processItems(rawItems, allowed, maxCount) {
+              const filtered = filterByAllowed(rawItems, allowed);
+              const sanitized = sanitizeItems(filtered);
+              return limitToMaxCount(sanitized, maxCount);
+            }
+            async function withStagedModeGating(config, stagedPreview) {
+              const { itemType, itemTypeName } = config;
+              const result = loadAgentOutput();
+              if (!result.success) {
+                return { success: false, reason: "Agent output not available" };
+              }
+              const items = result.items.filter(item => item.type === itemType);
+              if (items.length === 0) {
+                core.info(`No ${itemTypeName} items found in agent output`);
+                return { success: false, reason: `No ${itemTypeName} items found` };
+              }
+              core.info(`Found ${items.length} ${itemTypeName} item(s)`);
+              if (process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true") {
+                await generateStagedPreview({
+                  title: stagedPreview.title,
+                  description: stagedPreview.description,
+                  items: items,
+                  renderItem: stagedPreview.renderItem,
+                });
+                return { success: false, reason: "Staged mode - preview generated" };
+              }
+              return { success: true, items };
+            }
             function getTrackerID(format) {
               const trackerID = process.env.GH_AW_TRACKER_ID || "";
               if (trackerID) {
@@ -6659,43 +7056,45 @@ jobs:
               if (temporaryIdMap.size > 0) {
                 core.info(`Loaded temporary ID map with ${temporaryIdMap.size} entries`);
               }
-              const result = loadAgentOutput();
-              if (!result.success) {
+              const gatingResult = await withStagedModeGating(
+                {
+                  itemType: "create_discussion",
+                  itemTypeName: "create-discussion",
+                },
+                {
+                  title: "Create Discussions",
+                  description: "The following discussions would be created if staged mode was disabled:",
+                  renderItem: (item, index) => {
+                    let content = `### Discussion ${index + 1}\n`;
+                    content += `**Title:** ${item.title || "No title provided"}\n\n`;
+                    if (item.repo) {
+                      content += `**Repository:** ${item.repo}\n\n`;
+                    }
+                    if (item.body) {
+                      content += `**Body:**\n${item.body}\n\n`;
+                    }
+                    if (item.category) {
+                      content += `**Category:** ${item.category}\n\n`;
+                    }
+                    return content;
+                  },
+                }
+              );
+              if (!gatingResult.success) {
+                if (gatingResult.reason && gatingResult.reason.includes("No create-discussion items found")) {
+                  core.warning("No create-discussion items found in agent output");
+                }
                 return;
               }
-              const createDiscussionItems = result.items.filter(item => item.type === "create_discussion");
-              if (createDiscussionItems.length === 0) {
-                core.warning("No create-discussion items found in agent output");
+              const createDiscussionItems = gatingResult.items;
+              if (!createDiscussionItems) {
                 return;
               }
-              core.info(`Found ${createDiscussionItems.length} create-discussion item(s)`);
               const allowedRepos = parseAllowedRepos();
               const defaultTargetRepo = getDefaultTargetRepo();
               core.info(`Default target repo: ${defaultTargetRepo}`);
               if (allowedRepos.size > 0) {
                 core.info(`Allowed repos: ${Array.from(allowedRepos).join(", ")}`);
-              }
-              if (process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true") {
-                let summaryContent = "## 🎭 Staged Mode: Create Discussions Preview\n\n";
-                summaryContent += "The following discussions would be created if staged mode was disabled:\n\n";
-                for (let i = 0; i < createDiscussionItems.length; i++) {
-                  const item = createDiscussionItems[i];
-                  summaryContent += `### Discussion ${i + 1}\n`;
-                  summaryContent += `**Title:** ${item.title || "No title provided"}\n\n`;
-                  if (item.repo) {
-                    summaryContent += `**Repository:** ${item.repo}\n\n`;
-                  }
-                  if (item.body) {
-                    summaryContent += `**Body:**\n${item.body}\n\n`;
-                  }
-                  if (item.category) {
-                    summaryContent += `**Category:** ${item.category}\n\n`;
-                  }
-                  summaryContent += "---\n\n";
-                }
-                await core.summary.addRaw(summaryContent).write();
-                core.info("📝 Discussion creation preview written to step summary");
-                return;
               }
               const repoInfoCache = new Map();
               const closeOlderEnabled = process.env.GH_AW_CLOSE_OLDER_DISCUSSIONS === "true";

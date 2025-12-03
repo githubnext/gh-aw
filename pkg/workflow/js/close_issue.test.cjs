@@ -340,7 +340,7 @@ describe("close_issue", () => {
 
     // Should write staged preview to summary
     expect(mockCore.summary.addRaw).toHaveBeenCalledWith(expect.stringContaining("🎭 Staged Mode: Close Issues Preview"));
-    expect(mockCore.info).toHaveBeenCalledWith("📝 Issue close preview written to step summary");
+    expect(mockCore.info).toHaveBeenCalledWith("📝 Close Issues preview written to step summary");
   });
 
   it("should handle multiple issues in batch", async () => {

@@ -1,7 +1,7 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-const { loadAgentOutput } = require("./load_agent_output.cjs");
+const { withStagedModeGating } = require("./safe_output_processor.cjs");
 const { generateFooter } = require("./generate_footer.cjs");
 const { getTrackerID } = require("./get_tracker_id.cjs");
 const { getRepositoryUrl } = require("./get_repository_url.cjs");
@@ -68,24 +68,7 @@ async function closeIssue(github, owner, repo, issueNumber) {
 }
 
 async function main() {
-  // Check if we're in staged mode
-  const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
-
-  const result = loadAgentOutput();
-  if (!result.success) {
-    return;
-  }
-
-  // Find all close-issue items
-  const closeIssueItems = result.items.filter(/** @param {any} item */ item => item.type === "close_issue");
-  if (closeIssueItems.length === 0) {
-    core.info("No close-issue items found in agent output");
-    return;
-  }
-
-  core.info(`Found ${closeIssueItems.length} close-issue item(s)`);
-
-  // Get configuration from environment
+  // Get configuration from environment - needed for staged preview rendering
   const requiredLabels = process.env.GH_AW_CLOSE_ISSUE_REQUIRED_LABELS
     ? process.env.GH_AW_CLOSE_ISSUE_REQUIRED_LABELS.split(",").map(l => l.trim())
     : [];
@@ -94,44 +77,50 @@ async function main() {
 
   core.info(`Configuration: requiredLabels=${requiredLabels.join(",")}, requiredTitlePrefix=${requiredTitlePrefix}, target=${target}`);
 
-  // Check if we're in an issue context
-  const isIssueContext = context.eventName === "issues" || context.eventName === "issue_comment";
+  const gatingResult = await withStagedModeGating(
+    {
+      itemType: "close_issue",
+      itemTypeName: "close-issue",
+    },
+    {
+      title: "Close Issues",
+      description: "The following issues would be closed if staged mode was disabled:",
+      renderItem: (item, index) => {
+        let content = `### Issue ${index + 1}\n`;
+        const issueNumber = item.issue_number;
+        if (issueNumber) {
+          const repoUrl = getRepositoryUrl();
+          const issueUrl = `${repoUrl}/issues/${issueNumber}`;
+          content += `**Target Issue:** [#${issueNumber}](${issueUrl})\n\n`;
+        } else {
+          content += `**Target:** Current issue\n\n`;
+        }
 
-  // If in staged mode, emit step summary instead of closing issues
-  if (isStaged) {
-    let summaryContent = "## 🎭 Staged Mode: Close Issues Preview\n\n";
-    summaryContent += "The following issues would be closed if staged mode was disabled:\n\n";
+        content += `**Comment:**\n${item.body || "No content provided"}\n\n`;
 
-    for (let i = 0; i < closeIssueItems.length; i++) {
-      const item = closeIssueItems[i];
-      summaryContent += `### Issue ${i + 1}\n`;
-
-      const issueNumber = item.issue_number;
-      if (issueNumber) {
-        const repoUrl = getRepositoryUrl();
-        const issueUrl = `${repoUrl}/issues/${issueNumber}`;
-        summaryContent += `**Target Issue:** [#${issueNumber}](${issueUrl})\n\n`;
-      } else {
-        summaryContent += `**Target:** Current issue\n\n`;
-      }
-
-      summaryContent += `**Comment:**\n${item.body || "No content provided"}\n\n`;
-
-      if (requiredLabels.length > 0) {
-        summaryContent += `**Required Labels:** ${requiredLabels.join(", ")}\n\n`;
-      }
-      if (requiredTitlePrefix) {
-        summaryContent += `**Required Title Prefix:** ${requiredTitlePrefix}\n\n`;
-      }
-
-      summaryContent += "---\n\n";
+        if (requiredLabels.length > 0) {
+          content += `**Required Labels:** ${requiredLabels.join(", ")}\n\n`;
+        }
+        if (requiredTitlePrefix) {
+          content += `**Required Title Prefix:** ${requiredTitlePrefix}\n\n`;
+        }
+        return content;
+      },
     }
+  );
 
-    // Write to step summary
-    await core.summary.addRaw(summaryContent).write();
-    core.info("📝 Issue close preview written to step summary");
+  if (!gatingResult.success) {
     return;
   }
+
+  // @ts-ignore - items is guaranteed to be present when success is true
+  const closeIssueItems = gatingResult.items;
+  if (!closeIssueItems) {
+    return;
+  }
+
+  // Check if we're in an issue context
+  const isIssueContext = context.eventName === "issues" || context.eventName === "issue_comment";
 
   // Validate context based on target configuration
   if (target === "triggering" && !isIssueContext) {
