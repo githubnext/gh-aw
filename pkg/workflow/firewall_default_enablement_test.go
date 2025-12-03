@@ -296,7 +296,7 @@ func TestDailyTeamStatusFirewallEnabled(t *testing.T) {
 
 		// Extract engine config (should default to copilot)
 		_, engineConfig := c.ExtractEngineConfig(frontmatter)
-		
+
 		// If no engine is specified, it should default to copilot
 		var engineID string
 		if engineConfig != nil {

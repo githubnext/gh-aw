@@ -76,7 +76,7 @@ func getAgentConfig(workflowData *WorkflowData) *AgentSandboxConfig {
 // when network restrictions are present but no explicit firewall configuration exists
 // and no SRT sandbox is configured (SRT and AWF are mutually exclusive)
 // and sandbox.agent is not explicitly set to false
-// 
+//
 // The firewall is enabled by default for copilot UNLESS:
 // - allowed contains "*" (unrestricted network access)
 // - sandbox.agent is explicitly set to false
