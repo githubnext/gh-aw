@@ -170,13 +170,13 @@ func TestConvertStepToYAML(t *testing.T) {
 			name: "step with complex with parameters",
 			stepMap: map[string]any{
 				"name": "Setup Node",
-				"uses": "actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903",
+				"uses": "actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f",
 				"with": map[string]any{
 					"node-version": "18",
 					"cache":        "npm",
 				},
 			},
-			expected: "      - name: Setup Node\n        uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903\n        with:\n          cache: npm\n          node-version: \"18\"\n",
+			expected: "      - name: Setup Node\n        uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f\n        with:\n          cache: npm\n          node-version: \"18\"\n",
 			hasError: false,
 		},
 		{
