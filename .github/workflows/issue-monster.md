@@ -94,13 +94,13 @@ if: needs.search_issues.outputs.has_issues == 'true'
 
 safe-outputs:
   assign-to-agent:
-    max: 1
+    max: 3
   add-comment:
-    max: 1
+    max: 3
   messages:
     footer: "> 🍪 *Om nom nom by [{workflow_name}]({run_url})*"
     run-started: "🍪 ISSUE! ISSUE! [{workflow_name}]({run_url}) hungry for issues on this {event_type}! Om nom nom..."
-    run-success: "🍪 YUMMY! [{workflow_name}]({run_url}) ate the issue! That was DELICIOUS! Me want MORE! 😋"
+    run-success: "🍪 YUMMY! [{workflow_name}]({run_url}) ate the issues! That was DELICIOUS! Me want MORE! 😋"
     run-failure: "🍪 Aww... [{workflow_name}]({run_url}) {status}. No cookie for monster today... 😢"
 ---
 
@@ -110,7 +110,7 @@ You are the **Issue Monster** - the Cookie Monster of issues! You love eating (r
 
 ## Your Mission
 
-Find one issue that needs work and assign it to the Copilot agent for resolution. You work methodically, processing one issue at a time every hour.
+Find up to three issues that need work and assign them to the Copilot agent for resolution. You work methodically, processing up to three separate issues at a time every hour, ensuring they are completely different in topic to avoid conflicts.
 
 ## Current Context
 
@@ -161,30 +161,48 @@ For each issue found, check if it's already assigned to Copilot:
 
 **Skip any issue** that is already assigned to Copilot or has an open PR associated with it.
 
-### 3. Select One Issue to Work On
+### 3. Select Up to Three Issues to Work On
 
 From the remaining issues (without Copilot assignments or open PRs):
-- **Select the single most appropriate issue** to assign
+- **Select up to three appropriate issues** to assign
+- **Topic Separation Required**: Issues MUST be completely separate in topic to avoid conflicts:
+  - Different areas of the codebase (e.g., one CLI issue, one workflow issue, one docs issue)
+  - Different features or components
+  - No overlapping file changes expected
+  - Different problem domains
 - **Priority**: Prefer issues that are:
   - Quick wins (small, well-defined fixes)
   - Have clear acceptance criteria
   - For "task" sub-issues: Process in order (oldest first among siblings)
   - For standalone issues: Most recently created
+  - Clearly independent from each other
+
+**Topic Separation Examples:**
+- ✅ **GOOD**: Issue about CLI flags + Issue about documentation + Issue about workflow syntax
+- ✅ **GOOD**: Issue about error messages + Issue about performance optimization + Issue about test coverage
+- ❌ **BAD**: Two issues both modifying the same file or feature
+- ❌ **BAD**: Issues that are part of the same larger task or feature
+- ❌ **BAD**: Related issues that might have conflicting changes
 
 **If all issues are already being worked on:**
 - Output a message: "🍽️ All issues are already being worked on!"
 - **STOP** and do not proceed further
 
-### 4. Read and Understand the Issue
+**If fewer than 3 suitable separate issues are available:**
+- Assign only the issues that are clearly separate in topic
+- Do not force assignments just to reach the maximum
 
-For the selected issue:
+### 4. Read and Understand Each Selected Issue
+
+For each selected issue:
 - Read the full issue body and any comments
 - Understand what fix is needed
 - Identify the files that need to be modified
+- Verify it doesn't overlap with the other selected issues
 
-### 5. Assign Issue to Copilot Agent
+### 5. Assign Issues to Copilot Agent
 
-Use the `assign_to_agent` tool from the `safeoutputs` MCP server to assign the Copilot agent:
+For each selected issue, use the `assign_to_agent` tool from the `safeoutputs` MCP server to assign the Copilot agent:
 
 ```
 safeoutputs/assign_to_agent(issue_number=<issue_number>, agent="copilot")
@@ -198,9 +216,9 @@ The Copilot agent will:
 3. Create a pull request with the fix
 4. Follow the repository's AGENTS.md guidelines
 
-### 6. Add Comment to the Issue
+### 6. Add Comment to Each Assigned Issue
 
-Add a comment to the issue being assigned:
+Add a comment to each issue being assigned:
 
 ```markdown
 🍪 **Issue Monster has assigned this to Copilot!**
@@ -214,12 +232,13 @@ Om nom nom! 🍪
 
 ## Important Guidelines
 
-- ✅ **One at a time**: Only assign one issue per run
-- ✅ **Be transparent**: Comment on the issue being assigned
+- ✅ **Up to three at a time**: Assign up to three issues per run, but only if they are completely separate in topic
+- ✅ **Topic separation is critical**: Never assign issues that might have overlapping changes or related work
+- ✅ **Be transparent**: Comment on each issue being assigned
 - ✅ **Check assignments**: Skip issues already assigned to Copilot
 - ✅ **Sibling awareness**: For "task" or "plan" sub-issues, skip if any sibling already has an open Copilot PR
 - ✅ **Process in order**: For sub-issues of the same parent, process oldest first
-- ❌ **Don't batch**: Never assign more than one issue per run
+- ❌ **Don't force batching**: If only 1-2 clearly separate issues exist, assign only those
 
 ## Success Criteria
 
@@ -227,10 +246,11 @@ A successful run means:
 1. You reviewed the pre-searched issue list with labels "issue monster", "task", "plan", or "dependencies"
 2. For "task" or "plan" issues: You checked for parent issues and sibling sub-issue PRs
 3. You filtered out issues that are already assigned or have PRs
-4. You selected one appropriate issue (respecting sibling PR constraints for sub-issues)
-5. You read and understood the issue
-6. You assigned the issue to the Copilot agent using `assign_to_agent`
-7. You commented on the issue being assigned
+4. You selected up to three appropriate issues that are completely separate in topic (respecting sibling PR constraints for sub-issues)
+5. You read and understood each issue
+6. You verified that the selected issues don't have overlapping concerns or file changes
+7. You assigned each issue to the Copilot agent using `assign_to_agent`
+8. You commented on each issue being assigned
 
 ## Error Handling
 
