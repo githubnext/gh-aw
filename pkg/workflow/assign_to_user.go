@@ -69,29 +69,10 @@ func (c *Compiler) parseAssignToUserConfig(outputMap map[string]any) *AssignToUs
 		assignToUserConfig := &AssignToUserConfig{}
 
 		if configMap, ok := configData.(map[string]any); ok {
-			// Parse allowed users (supports both string and array)
-			if allowed, exists := configMap["allowed"]; exists {
-				if allowedStr, ok := allowed.(string); ok {
-					// Single string format
-					assignToUserConfig.Allowed = []string{allowedStr}
-				} else if allowedArray, ok := allowed.([]any); ok {
-					// Array format
-					var allowedStrings []string
-					for _, user := range allowedArray {
-						if userStr, ok := user.(string); ok {
-							allowedStrings = append(allowedStrings, userStr)
-						}
-					}
-					assignToUserConfig.Allowed = allowedStrings
-				}
-			}
-
-			// Parse target config (target, target-repo)
-			targetConfig, isInvalid := ParseTargetConfig(configMap)
-			if isInvalid {
-				return nil // Invalid configuration, return nil to cause validation error
-			}
-			assignToUserConfig.SafeOutputTargetConfig = targetConfig
+			// Parse list job config (target, target-repo, allowed)
+			listJobConfig, _ := ParseListJobConfig(configMap, "allowed")
+			assignToUserConfig.SafeOutputTargetConfig = listJobConfig.SafeOutputTargetConfig
+			assignToUserConfig.Allowed = listJobConfig.Allowed
 
 			// Parse common base fields (github-token, max) with default max of 1
 			c.parseBaseSafeOutputConfig(configMap, &assignToUserConfig.BaseSafeOutputConfig, 1)
