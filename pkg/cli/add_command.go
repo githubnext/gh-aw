@@ -49,7 +49,7 @@ The --force flag overwrites existing workflow files.
 
 Note: To create a new workflow from scratch, use the 'new' command instead.`,
 		Args: cobra.MinimumNArgs(1),
-		Run: func(cmd *cobra.Command, args []string) {
+		RunE: func(cmd *cobra.Command, args []string) error {
 			workflows := args
 			numberFlag, _ := cmd.Flags().GetInt("number")
 			engineOverride, _ := cmd.Flags().GetString("engine")
@@ -66,21 +66,14 @@ Note: To create a new workflow from scratch, use the 'new' command instead.`,
 			stopAfter, _ := cmd.Flags().GetString("stop-after")
 
 			if err := validateEngine(engineOverride); err != nil {
-				fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
-				os.Exit(1)
+				return err
 			}
 
 			// Handle normal mode
 			if prFlag {
-				if err := AddWorkflows(workflows, numberFlag, verbose, engineOverride, nameFlag, forceFlag, appendText, true, noGitattributes, workflowDir, noStopAfter, stopAfter); err != nil {
-					fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
-					os.Exit(1)
-				}
+				return AddWorkflows(workflows, numberFlag, verbose, engineOverride, nameFlag, forceFlag, appendText, true, noGitattributes, workflowDir, noStopAfter, stopAfter)
 			} else {
-				if err := AddWorkflows(workflows, numberFlag, verbose, engineOverride, nameFlag, forceFlag, appendText, false, noGitattributes, workflowDir, noStopAfter, stopAfter); err != nil {
-					fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
-					os.Exit(1)
-				}
+				return AddWorkflows(workflows, numberFlag, verbose, engineOverride, nameFlag, forceFlag, appendText, false, noGitattributes, workflowDir, noStopAfter, stopAfter)
 			}
 		},
 	}

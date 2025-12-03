@@ -48,11 +48,8 @@ Examples:
   gh aw mcp-server              # Run with stdio transport
   gh aw mcp-server --port 8080  # Run HTTP server on port 8080
   gh aw mcp-server --cmd ./gh-aw # Use custom gh-aw binary`,
-		Run: func(cmd *cobra.Command, args []string) {
-			if err := runMCPServer(port, cmdPath); err != nil {
-				fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
-				os.Exit(1)
-			}
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return runMCPServer(port, cmdPath)
 		},
 	}
 
