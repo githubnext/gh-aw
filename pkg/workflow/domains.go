@@ -26,6 +26,20 @@ var CopilotDefaultDomains = []string{
 	"registry.npmjs.org",
 }
 
+// ClaudeDefaultDomains are the default domains required for Claude Code CLI operation
+// - api.anthropic.com: Required for Claude API access
+// - anthropic.com: Required for Claude authentication
+// - statsig.anthropic.com: Required for Claude feature flags
+// - sentry.io: Required for Claude error reporting
+// - registry.npmjs.org: Required for npx to download @anthropic-ai/claude-code package
+var ClaudeDefaultDomains = []string{
+	"api.anthropic.com",
+	"anthropic.com",
+	"registry.npmjs.org",
+	"sentry.io",
+	"statsig.anthropic.com",
+}
+
 // init loads the ecosystem domains from the embedded JSON
 func init() {
 	domainsLog.Print("Loading ecosystem domains from embedded JSON")
@@ -147,6 +161,36 @@ func GetCopilotAllowedDomains(network *NetworkPermissions) string {
 
 	// Add Copilot default domains
 	for _, domain := range CopilotDefaultDomains {
+		domainMap[domain] = true
+	}
+
+	// Add NetworkPermissions domains (if specified)
+	if network != nil && len(network.Allowed) > 0 {
+		// Expand ecosystem identifiers and add individual domains
+		expandedDomains := GetAllowedDomains(network)
+		for _, domain := range expandedDomains {
+			domainMap[domain] = true
+		}
+	}
+
+	// Convert to sorted slice for consistent output
+	domains := make([]string, 0, len(domainMap))
+	for domain := range domainMap {
+		domains = append(domains, domain)
+	}
+	SortStrings(domains)
+
+	// Join with commas for AWF --allow-domains flag
+	return strings.Join(domains, ",")
+}
+
+// GetClaudeAllowedDomains returns allowed domains for Claude engine with AWF
+// Returns a deduplicated, sorted, comma-separated string suitable for AWF's --allow-domains flag
+func GetClaudeAllowedDomains(network *NetworkPermissions) string {
+	domainMap := make(map[string]bool)
+
+	// Add Claude default domains (required for npx and API access)
+	for _, domain := range ClaudeDefaultDomains {
 		domainMap[domain] = true
 	}
 

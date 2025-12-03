@@ -13,10 +13,10 @@ func TestSupportsFirewall(t *testing.T) {
 		}
 	})
 
-	t.Run("claude engine does not support firewall", func(t *testing.T) {
+	t.Run("claude engine supports firewall", func(t *testing.T) {
 		engine := NewClaudeEngine()
-		if engine.SupportsFirewall() {
-			t.Error("Claude engine should not support firewall")
+		if !engine.SupportsFirewall() {
+			t.Error("Claude engine should support firewall")
 		}
 	})
 
@@ -119,7 +119,7 @@ func TestCheckNetworkSupport_WithRestrictions(t *testing.T) {
 		}
 	})
 
-	t.Run("claude engine with restrictions - warning emitted", func(t *testing.T) {
+	t.Run("claude engine with restrictions - no warning", func(t *testing.T) {
 		compiler := NewCompiler(false, "", "test")
 		engine := NewClaudeEngine()
 		perms := &NetworkPermissions{
@@ -131,8 +131,8 @@ func TestCheckNetworkSupport_WithRestrictions(t *testing.T) {
 		if err != nil {
 			t.Errorf("Expected no error, got: %v", err)
 		}
-		if compiler.warningCount != initialWarnings+1 {
-			t.Error("Should emit warning for claude engine with network restrictions")
+		if compiler.warningCount != initialWarnings {
+			t.Error("Should not emit warning for claude engine with network restrictions (it supports firewall now)")
 		}
 	})
 
@@ -186,7 +186,7 @@ func TestCheckNetworkSupport_StrictMode(t *testing.T) {
 		}
 	})
 
-	t.Run("strict mode: claude engine with restrictions - error", func(t *testing.T) {
+	t.Run("strict mode: claude engine with restrictions - no error", func(t *testing.T) {
 		compiler := NewCompiler(false, "", "test")
 		compiler.strictMode = true
 		engine := NewClaudeEngine()
@@ -195,14 +195,8 @@ func TestCheckNetworkSupport_StrictMode(t *testing.T) {
 		}
 
 		err := compiler.checkNetworkSupport(engine, perms)
-		if err == nil {
-			t.Error("Expected error in strict mode for claude engine with restrictions")
-		}
-		if !strings.Contains(err.Error(), "strict mode") {
-			t.Errorf("Error should mention strict mode, got: %v", err)
-		}
-		if !strings.Contains(err.Error(), "firewall") {
-			t.Errorf("Error should mention firewall, got: %v", err)
+		if err != nil {
+			t.Errorf("Expected no error for claude in strict mode (it supports firewall now), got: %v", err)
 		}
 	})
 
@@ -326,10 +320,10 @@ func TestCheckFirewallDisable(t *testing.T) {
 		}
 	})
 
-	t.Run("strict mode: firewall disabled with unsupported engine - error", func(t *testing.T) {
+	t.Run("strict mode: firewall disabled with codex engine - error", func(t *testing.T) {
 		compiler := NewCompiler(false, "", "test")
 		compiler.strictMode = true
-		engine := NewClaudeEngine()
+		engine := NewCodexEngine()
 		perms := &NetworkPermissions{
 			Firewall: &FirewallConfig{
 				Enabled: false,
