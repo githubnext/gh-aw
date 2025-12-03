@@ -40,7 +40,7 @@ jobs:
         with:
           script: |
             const { owner, repo } = context.repo;
-            const labels = ['task', 'issue monster', 'plan'];
+            const labels = ['task', 'issue monster', 'plan', 'dependencies'];
             let allIssues = [];
             
             for (const label of labels) {
@@ -121,7 +121,7 @@ Find one issue that needs work and assign it to the Copilot agent for resolution
 
 ### 1. Review Pre-Searched Issue List
 
-The issue search has already been performed in a previous job. The following issues with labels "task", "issue monster", or "plan" are available:
+The issue search has already been performed in a previous job. The following issues with labels "task", "issue monster", "plan", or "dependencies" are available:
 
 **Issue Count**: ${{ needs.search_issues.outputs.issue_count }}
 **Issue Numbers**: ${{ needs.search_issues.outputs.issue_numbers }}
@@ -224,7 +224,7 @@ Om nom nom! 🍪
 ## Success Criteria
 
 A successful run means:
-1. You reviewed the pre-searched issue list with labels "issue monster", "task", or "plan"
+1. You reviewed the pre-searched issue list with labels "issue monster", "task", "plan", or "dependencies"
 2. For "task" or "plan" issues: You checked for parent issues and sibling sub-issue PRs
 3. You filtered out issues that are already assigned or have PRs
 4. You selected one appropriate issue (respecting sibling PR constraints for sub-issues)
