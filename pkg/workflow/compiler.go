@@ -854,6 +854,11 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	// (unless SRT sandbox is configured, since AWF and SRT are mutually exclusive)
 	enableFirewallByDefaultForCopilot(engineSetting, networkPermissions, sandboxConfig)
 
+	// Validate firewall is enabled in strict mode for copilot with network restrictions
+	if err := c.validateStrictFirewall(engineSetting, networkPermissions, sandboxConfig); err != nil {
+		return nil, err
+	}
+
 	// Save the initial strict mode state again for network support check
 	// (it was restored after validateStrictMode but we need it again)
 	initialStrictModeForNetwork := c.strictMode
