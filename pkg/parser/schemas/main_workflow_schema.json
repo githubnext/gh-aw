@@ -2762,6 +2762,7 @@
     "safe-outputs": {
       "type": "object",
       "description": "Safe output processing configuration that automatically creates GitHub issues, comments, and pull requests from AI workflow output without requiring write permissions in the main job",
+      "$comment": "Required if workflow creates or modifies GitHub resources. Operations requiring safe-outputs: add-comment, add-labels, add-reviewer, assign-milestone, assign-to-agent, close-discussion, close-issue, close-pull-request, create-agent-task, create-code-scanning-alert, create-discussion, create-issue, create-pull-request, create-pull-request-review-comment, link-sub-issue, missing-tool, noop, push-to-pull-request-branch, threat-detection, update-issue, update-project, update-pull-request, update-release, upload-asset. See documentation for complete details.",
       "properties": {
         "allowed-domains": {
           "type": "array",
