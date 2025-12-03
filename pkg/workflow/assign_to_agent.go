@@ -11,6 +11,36 @@ type AssignToAgentConfig struct {
 	DefaultAgent           string `yaml:"name,omitempty"` // Default agent to assign (e.g., "copilot")
 }
 
+// parseAssignToAgentConfig handles assign-to-agent configuration
+func (c *Compiler) parseAssignToAgentConfig(outputMap map[string]any) *AssignToAgentConfig {
+	if assignToAgent, exists := outputMap["assign-to-agent"]; exists {
+		if agentMap, ok := assignToAgent.(map[string]any); ok {
+			agentConfig := &AssignToAgentConfig{}
+
+			// Parse name (optional - specific to assign-to-agent)
+			if defaultAgent, exists := agentMap["name"]; exists {
+				if defaultAgentStr, ok := defaultAgent.(string); ok {
+					agentConfig.DefaultAgent = defaultAgentStr
+				}
+			}
+
+			// Parse target config (target, target-repo) - validation errors are handled gracefully
+			targetConfig, _ := ParseTargetConfig(agentMap)
+			agentConfig.SafeOutputTargetConfig = targetConfig
+
+			// Parse common base fields (github-token, max)
+			c.parseBaseSafeOutputConfig(agentMap, &agentConfig.BaseSafeOutputConfig, 0)
+
+			return agentConfig
+		} else if assignToAgent == nil {
+			// Handle null case: create empty config
+			return &AssignToAgentConfig{}
+		}
+	}
+
+	return nil
+}
+
 // buildAssignToAgentJob creates the assign_to_agent job
 func (c *Compiler) buildAssignToAgentJob(data *WorkflowData, mainJobName string) (*Job, error) {
 	if data.SafeOutputs == nil || data.SafeOutputs.AssignToAgent == nil {
