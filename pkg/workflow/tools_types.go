@@ -75,6 +75,7 @@ type ToolsConfig struct {
 	Serena           *SerenaToolConfig           `yaml:"serena,omitempty"`
 	AgenticWorkflows *AgenticWorkflowsToolConfig `yaml:"agentic-workflows,omitempty"`
 	CacheMemory      *CacheMemoryToolConfig      `yaml:"cache-memory,omitempty"`
+	RepoMemory       *RepoMemoryToolConfig       `yaml:"repo-memory,omitempty"`
 	SafetyPrompt     *bool                       `yaml:"safety-prompt,omitempty"`
 	Timeout          *int                        `yaml:"timeout,omitempty"`
 	StartupTimeout   *int                        `yaml:"startup-timeout,omitempty"`
@@ -145,6 +146,9 @@ func (t *ToolsConfig) ToMap() map[string]any {
 	}
 	if t.CacheMemory != nil {
 		result["cache-memory"] = t.CacheMemory.Raw
+	}
+	if t.RepoMemory != nil {
+		result["repo-memory"] = t.RepoMemory.Raw
 	}
 	if t.SafetyPrompt != nil {
 		result["safety-prompt"] = *t.SafetyPrompt
@@ -294,6 +298,9 @@ func NewTools(toolsMap map[string]any) *Tools {
 	if val, exists := toolsMap["cache-memory"]; exists {
 		tools.CacheMemory = parseCacheMemoryTool(val)
 	}
+	if val, exists := toolsMap["repo-memory"]; exists {
+		tools.RepoMemory = parseRepoMemoryTool(val)
+	}
 	if val, exists := toolsMap["safety-prompt"]; exists {
 		tools.SafetyPrompt = parseSafetyPromptTool(val)
 	}
@@ -315,6 +322,7 @@ func NewTools(toolsMap map[string]any) *Tools {
 		"serena":            true,
 		"agentic-workflows": true,
 		"cache-memory":      true,
+		"repo-memory":       true,
 		"safety-prompt":     true,
 		"timeout":           true,
 		"startup-timeout":   true,
@@ -586,6 +594,13 @@ func parseCacheMemoryTool(val any) *CacheMemoryToolConfig {
 	return &CacheMemoryToolConfig{Raw: val}
 }
 
+// parseRepoMemoryTool converts raw repo-memory tool configuration
+func parseRepoMemoryTool(val any) *RepoMemoryToolConfig {
+	// repo-memory can be boolean, object, or array - store raw value
+	return &RepoMemoryToolConfig{Raw: val}
+}
+
+
 // parseMCPGatewayTool converts raw mcp-gateway tool configuration
 func parseMCPGatewayTool(val any) *MCPGatewayConfig {
 	if val == nil {
@@ -704,6 +719,8 @@ func (t *Tools) HasTool(name string) bool {
 		return t.AgenticWorkflows != nil
 	case "cache-memory":
 		return t.CacheMemory != nil
+	case "repo-memory":
+		return t.RepoMemory != nil
 	case "safety-prompt":
 		return t.SafetyPrompt != nil
 	case "timeout":
@@ -750,6 +767,9 @@ func (t *Tools) GetToolNames() []string {
 	}
 	if t.CacheMemory != nil {
 		names = append(names, "cache-memory")
+	}
+	if t.RepoMemory != nil {
+		names = append(names, "repo-memory")
 	}
 	if t.SafetyPrompt != nil {
 		names = append(names, "safety-prompt")

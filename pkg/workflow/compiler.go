@@ -242,6 +242,7 @@ type WorkflowData struct {
 	SafeInputs          *SafeInputsConfig    // safe-inputs configuration for custom MCP tools
 	Roles               []string             // permission levels required to trigger workflow
 	CacheMemoryConfig   *CacheMemoryConfig   // parsed cache-memory configuration
+	RepoMemoryConfig    *RepoMemoryConfig    // parsed repo-memory configuration
 	SafetyPrompt        bool                 // whether to include XPIA safety prompt (default true)
 	Runtimes            map[string]any       // runtime version overrides from frontmatter
 	ToolsTimeout        int                  // timeout in seconds for tool/MCP operations (0 = use engine default)
@@ -1241,6 +1242,17 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		return nil, err
 	}
 	workflowData.CacheMemoryConfig = cacheMemoryConfig
+
+	// Extract repo-memory config and check for errors
+	toolsConfig, err := ParseToolsConfig(tools)
+	if err != nil {
+		return nil, err
+	}
+	repoMemoryConfig, err := c.extractRepoMemoryConfig(toolsConfig)
+	if err != nil {
+		return nil, err
+	}
+	workflowData.RepoMemoryConfig = repoMemoryConfig
 
 	// Process stop-after configuration from the on: section
 	err = c.processStopAfterConfiguration(result.Frontmatter, workflowData, markdownPath)
