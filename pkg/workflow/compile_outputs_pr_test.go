@@ -1,0 +1,434 @@
+package workflow
+
+import (
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/testutil"
+)
+
+func TestOutputPullRequestConfigParsing(t *testing.T) {
+	// Create temporary directory for test files
+	tmpDir := testutil.TempDir(t, "output-pr-config-test")
+
+	// Test case with create-pull-request configuration
+	testContent := `---
+on: push
+permissions:
+  contents: read
+  pull-requests: write
+  issues: read
+engine: claude
+strict: false
+safe-outputs:
+  create-pull-request:
+    title-prefix: "[agent] "
+    labels: [automation, bot]
+---
+
+# Test Output Pull Request Configuration
+
+This workflow tests the output pull request configuration parsing.
+`
+
+	testFile := filepath.Join(tmpDir, "test-output-pr-config.md")
+	if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	compiler := NewCompiler(false, "", "test")
+
+	// Parse the workflow data
+	workflowData, err := compiler.ParseWorkflowFile(testFile)
+	if err != nil {
+		t.Fatalf("Unexpected error parsing workflow with output pull-request config: %v", err)
+	}
+
+	// Verify output configuration is parsed correctly
+	if workflowData.SafeOutputs == nil {
+		t.Fatal("Expected output configuration to be parsed")
+	}
+
+	if workflowData.SafeOutputs.CreatePullRequests == nil {
+		t.Fatal("Expected pull-request configuration to be parsed")
+	}
+
+	// Verify title prefix
+	expectedPrefix := "[agent] "
+	if workflowData.SafeOutputs.CreatePullRequests.TitlePrefix != expectedPrefix {
+		t.Errorf("Expected title prefix '%s', got '%s'", expectedPrefix, workflowData.SafeOutputs.CreatePullRequests.TitlePrefix)
+	}
+
+	// Verify labels
+	expectedLabels := []string{"automation", "bot"}
+	if len(workflowData.SafeOutputs.CreatePullRequests.Labels) != len(expectedLabels) {
+		t.Errorf("Expected %d labels, got %d", len(expectedLabels), len(workflowData.SafeOutputs.CreatePullRequests.Labels))
+	}
+
+	for i, expectedLabel := range expectedLabels {
+		if i >= len(workflowData.SafeOutputs.CreatePullRequests.Labels) || workflowData.SafeOutputs.CreatePullRequests.Labels[i] != expectedLabel {
+			t.Errorf("Expected label[%d] to be '%s', got '%s'", i, expectedLabel, workflowData.SafeOutputs.CreatePullRequests.Labels[i])
+		}
+	}
+}
+
+func TestOutputPullRequestJobGeneration(t *testing.T) {
+	// Create temporary directory for test files
+	tmpDir := testutil.TempDir(t, "output-pr-job-test")
+
+	// Test case with create-pull-request configuration
+	testContent := `---
+on: push
+permissions:
+  contents: read
+  pull-requests: write
+  issues: read
+tools:
+  github:
+    allowed: [list_issues]
+engine: claude
+strict: false
+safe-outputs:
+  create-pull-request:
+    title-prefix: "[agent] "
+    labels: [automation]
+---
+
+# Test Output Pull Request Job Generation
+
+This workflow tests the create_pull_request job generation.
+`
+
+	testFile := filepath.Join(tmpDir, "test-output-pr.md")
+	if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	compiler := NewCompiler(false, "", "test")
+
+	// Compile the workflow
+	if err := compiler.CompileWorkflow(testFile); err != nil {
+		t.Fatalf("Unexpected error compiling workflow with output create-pull-request: %v", err)
+	}
+
+	// Read the generated lock file
+	lockFile := strings.TrimSuffix(testFile, ".md") + ".lock.yml"
+	lockContent, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatalf("Failed to read generated lock file: %v", err)
+	}
+
+	// Convert to string for easier testing
+	lockContentStr := string(lockContent)
+
+	// Verify create_pull_request job is present
+	if !strings.Contains(lockContentStr, "create_pull_request:") {
+		t.Error("Expected 'create_pull_request' job to be in generated workflow")
+	}
+
+	// Verify permissions
+	if !strings.Contains(lockContentStr, "contents: write") {
+		t.Error("Expected contents: write permission in create_pull_request job")
+	}
+
+	if !strings.Contains(lockContentStr, "pull-requests: write") {
+		t.Error("Expected pull-requests: write permission in create_pull_request job")
+	}
+
+	if !strings.Contains(lockContentStr, "issues: write") {
+		t.Error("Expected issues: write permission in create_pull_request job (required for fallback issue creation)")
+	}
+
+	// Verify steps
+	if !strings.Contains(lockContentStr, "Download patch artifact") {
+		t.Error("Expected 'Download patch artifact' step in create_pull_request job")
+	}
+
+	if !strings.Contains(lockContentStr, "actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53") {
+		t.Error("Expected download-artifact action to be used in create_pull_request job")
+	}
+
+	if !strings.Contains(lockContentStr, "Checkout repository") {
+		t.Error("Expected 'Checkout repository' step in create_pull_request job")
+	}
+
+	if !strings.Contains(lockContentStr, "Create Pull Request") {
+		t.Error("Expected 'Create Pull Request' step in create_pull_request job")
+	}
+
+	if !strings.Contains(lockContentStr, "uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd") {
+		t.Error("Expected github-script action to be used in create_pull_request job")
+	}
+
+	// Verify JavaScript content includes environment variables for configuration
+	if !strings.Contains(lockContentStr, "GH_AW_PR_TITLE_PREFIX: \"[agent] \"") {
+		t.Error("Expected title prefix to be set as environment variable")
+	}
+
+	if !strings.Contains(lockContentStr, "GH_AW_PR_LABELS: \"automation\"") {
+		t.Error("Expected automation label to be set as environment variable")
+	}
+
+	// Verify draft setting defaults to true
+	if !strings.Contains(lockContentStr, "GH_AW_PR_DRAFT: \"true\"") {
+		t.Error("Expected draft to default to true when not specified")
+	}
+
+	// Verify job dependencies
+	if !strings.Contains(lockContentStr, "needs: agent") {
+		t.Error("Expected create_pull_request job to depend on main job")
+	}
+
+	// t.Logf("Generated workflow content:\n%s", lockContentStr)
+}
+
+func TestOutputPullRequestDraftFalse(t *testing.T) {
+	// Create temporary directory for test files
+	tmpDir := testutil.TempDir(t, "output-pr-draft-false-test")
+
+	// Test case with create-pull-request configuration with draft: false
+	testContent := `---
+on: push
+permissions:
+  contents: read
+  pull-requests: write
+  issues: read
+tools:
+  github:
+    allowed: [list_issues]
+engine: claude
+strict: false
+safe-outputs:
+  create-pull-request:
+    title-prefix: "[agent] "
+    labels: [automation]
+    draft: false
+---
+
+# Test Output Pull Request with Draft False
+
+This workflow tests the create_pull_request job generation with draft: false.
+`
+
+	testFile := filepath.Join(tmpDir, "test-output-pr-draft-false.md")
+	if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	compiler := NewCompiler(false, "", "test")
+
+	// Compile the workflow
+	if err := compiler.CompileWorkflow(testFile); err != nil {
+		t.Fatalf("Unexpected error compiling workflow with output pull-request draft: false: %v", err)
+	}
+
+	// Read the generated lock file
+	lockFile := strings.TrimSuffix(testFile, ".md") + ".lock.yml"
+	lockContent, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatalf("Failed to read generated lock file: %v", err)
+	}
+
+	// Convert to string for easier testing
+	lockContentStr := string(lockContent)
+
+	// Verify create_pull_request job is present
+	if !strings.Contains(lockContentStr, "create_pull_request:") {
+		t.Error("Expected 'create_pull_request' job to be in generated workflow")
+	}
+
+	// Verify draft setting is false
+	if !strings.Contains(lockContentStr, "GH_AW_PR_DRAFT: \"false\"") {
+		t.Error("Expected draft to be set to false when explicitly specified")
+	}
+
+	// Verify other expected environment variables are still present
+	if !strings.Contains(lockContentStr, "GH_AW_PR_TITLE_PREFIX: \"[agent] \"") {
+		t.Error("Expected title prefix to be set as environment variable")
+	}
+
+	if !strings.Contains(lockContentStr, "GH_AW_PR_LABELS: \"automation\"") {
+		t.Error("Expected automation label to be set as environment variable")
+	}
+
+	// t.Logf("Generated workflow content:\n%s", lockContentStr)
+}
+
+func TestOutputPullRequestDraftTrue(t *testing.T) {
+	// Create temporary directory for test files
+	tmpDir := testutil.TempDir(t, "output-pr-draft-true-test")
+
+	// Test case with create-pull-request configuration with draft: true
+	testContent := `---
+on: push
+permissions:
+  contents: read
+  pull-requests: write
+  issues: read
+tools:
+  github:
+    allowed: [list_issues]
+engine: claude
+strict: false
+safe-outputs:
+  create-pull-request:
+    title-prefix: "[agent] "
+    labels: [automation]
+    draft: true
+---
+
+# Test Output Pull Request with Draft True
+
+This workflow tests the create_pull_request job generation with draft: true.
+`
+
+	testFile := filepath.Join(tmpDir, "test-output-pr-draft-true.md")
+	if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	compiler := NewCompiler(false, "", "test")
+
+	// Compile the workflow
+	if err := compiler.CompileWorkflow(testFile); err != nil {
+		t.Fatalf("Unexpected error compiling workflow with output pull-request draft: true: %v", err)
+	}
+
+	// Read the generated lock file
+	lockFile := strings.TrimSuffix(testFile, ".md") + ".lock.yml"
+	lockContent, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatalf("Failed to read generated lock file: %v", err)
+	}
+
+	// Convert to string for easier testing
+	lockContentStr := string(lockContent)
+
+	// Verify create_pull_request job is present
+	if !strings.Contains(lockContentStr, "create_pull_request:") {
+		t.Error("Expected 'create_pull_request' job to be in generated workflow")
+	}
+
+	// Verify draft setting is true
+	if !strings.Contains(lockContentStr, "GH_AW_PR_DRAFT: \"true\"") {
+		t.Error("Expected draft to be set to true when explicitly specified")
+	}
+
+	// Verify other expected environment variables are still present
+	if !strings.Contains(lockContentStr, "GH_AW_PR_TITLE_PREFIX: \"[agent] \"") {
+		t.Error("Expected title prefix to be set as environment variable")
+	}
+
+	if !strings.Contains(lockContentStr, "GH_AW_PR_LABELS: \"automation\"") {
+		t.Error("Expected automation label to be set as environment variable")
+	}
+
+	// t.Logf("Generated workflow content:\n%s", lockContentStr)
+}
+
+func TestCreatePullRequestIfNoChangesConfig(t *testing.T) {
+	// Create temporary directory for test files
+	tmpDir := testutil.TempDir(t, "create-pr-if-no-changes-test")
+
+	// Test case with create-pull-request if-no-changes configuration
+	testContent := `---
+on: push
+permissions:
+  contents: read
+  pull-requests: write
+  issues: read
+engine: claude
+strict: false
+safe-outputs:
+  create-pull-request:
+    title-prefix: "[agent] "
+    labels: [automation]
+    if-no-changes: "error"
+---
+
+# Test Create Pull Request If-No-Changes Configuration
+
+This workflow tests the create-pull-request if-no-changes configuration parsing.
+`
+
+	testFile := filepath.Join(tmpDir, "test-create-pr-if-no-changes.md")
+	if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	compiler := NewCompiler(false, "", "test")
+
+	// Parse the workflow data
+	workflowData, err := compiler.ParseWorkflowFile(testFile)
+	if err != nil {
+		t.Fatalf("Unexpected error parsing workflow with create-pull-request if-no-changes config: %v", err)
+	}
+
+	// Verify create-pull-request configuration is parsed correctly
+	if workflowData.SafeOutputs == nil {
+		t.Fatal("Expected safe-outputs configuration to be present")
+	}
+
+	if workflowData.SafeOutputs.CreatePullRequests == nil {
+		t.Fatal("Expected create-pull-request configuration to be parsed")
+	}
+
+	if workflowData.SafeOutputs.CreatePullRequests.IfNoChanges != "error" {
+		t.Errorf("Expected if-no-changes to be 'error', got '%s'", workflowData.SafeOutputs.CreatePullRequests.IfNoChanges)
+	}
+
+	// Test with default value
+	testContentDefault := `---
+on: push
+permissions:
+  contents: read
+  pull-requests: write
+  issues: read
+engine: claude
+strict: false
+safe-outputs:
+  create-pull-request:
+    title-prefix: "[agent] "
+---
+
+# Test Create Pull Request Default If-No-Changes
+
+This workflow tests the default if-no-changes behavior.
+`
+
+	testFileDefault := filepath.Join(tmpDir, "test-create-pr-if-no-changes-default.md")
+	if err := os.WriteFile(testFileDefault, []byte(testContentDefault), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Parse the workflow data for default case
+	workflowDataDefault, err := compiler.ParseWorkflowFile(testFileDefault)
+	if err != nil {
+		t.Fatalf("Unexpected error parsing workflow with default if-no-changes config: %v", err)
+	}
+
+	// Verify default if-no-changes is empty (will default to "warn" at runtime)
+	if workflowDataDefault.SafeOutputs.CreatePullRequests.IfNoChanges != "" {
+		t.Errorf("Expected default if-no-changes to be empty, got '%s'", workflowDataDefault.SafeOutputs.CreatePullRequests.IfNoChanges)
+	}
+
+	// Test compilation with the if-no-changes configuration
+	if err := compiler.CompileWorkflow(testFile); err != nil {
+		t.Fatalf("Unexpected error compiling workflow with if-no-changes config: %v", err)
+	}
+
+	// Read the generated lock file
+	lockFile := strings.TrimSuffix(testFile, ".md") + ".lock.yml"
+	lockContent, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatalf("Failed to read generated lock file: %v", err)
+	}
+
+	// Verify the if-no-changes configuration is passed to the environment
+	lockContentStr := string(lockContent)
+	if !strings.Contains(lockContentStr, "GH_AW_PR_IF_NO_CHANGES: \"error\"") {
+		t.Error("Expected GH_AW_PR_IF_NO_CHANGES environment variable to be set in generated workflow")
+	}
+}
