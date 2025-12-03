@@ -2145,6 +2145,7 @@
                     "enum": [
                       "all",
                       "default",
+                      "action-friendly",
                       "context",
                       "repos",
                       "issues",

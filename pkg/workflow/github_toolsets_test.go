@@ -19,6 +19,28 @@ func TestDefaultGitHubToolsets(t *testing.T) {
 	}
 }
 
+func TestActionFriendlyGitHubToolsets(t *testing.T) {
+	// Verify the action-friendly toolsets exclude "users"
+	expected := []string{"context", "repos", "issues", "pull_requests"}
+
+	if len(ActionFriendlyGitHubToolsets) != len(expected) {
+		t.Errorf("Expected %d action-friendly toolsets, got %d", len(expected), len(ActionFriendlyGitHubToolsets))
+	}
+
+	for i, toolset := range expected {
+		if i >= len(ActionFriendlyGitHubToolsets) || ActionFriendlyGitHubToolsets[i] != toolset {
+			t.Errorf("Expected action-friendly toolset[%d] to be %s, got %s", i, toolset, ActionFriendlyGitHubToolsets[i])
+		}
+	}
+
+	// Verify "users" is not in action-friendly toolsets
+	for _, toolset := range ActionFriendlyGitHubToolsets {
+		if toolset == "users" {
+			t.Error("Action-friendly toolsets should not include 'users' toolset")
+		}
+	}
+}
+
 func TestParseGitHubToolsets(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -70,6 +92,16 @@ func TestParseGitHubToolsets(t *testing.T) {
 			name:     "Multiple with default in middle",
 			input:    "actions,default,discussions",
 			expected: []string{"actions", "context", "repos", "issues", "pull_requests", "users", "discussions"},
+		},
+		{
+			name:     "Action-friendly expands to action-friendly toolsets",
+			input:    "action-friendly",
+			expected: []string{"context", "repos", "issues", "pull_requests"},
+		},
+		{
+			name:     "Action-friendly plus additional",
+			input:    "action-friendly,discussions",
+			expected: []string{"context", "repos", "issues", "pull_requests", "discussions"},
 		},
 	}
 

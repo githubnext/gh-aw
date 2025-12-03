@@ -13,6 +13,11 @@ var toolsetsLog = logger.New("workflow:github_toolsets")
 // These match the documented default toolsets in github-mcp-server.instructions.md
 var DefaultGitHubToolsets = []string{"context", "repos", "issues", "pull_requests", "users"}
 
+// ActionFriendlyGitHubToolsets defines the default toolsets that work with GitHub Actions tokens.
+// This excludes "users" toolset because GitHub Actions tokens do not support user operations.
+// Use this when the workflow will run in GitHub Actions with GITHUB_TOKEN.
+var ActionFriendlyGitHubToolsets = []string{"context", "repos", "issues", "pull_requests"}
+
 // ParseGitHubToolsets parses the toolsets string and expands "default" and "all"
 // into their constituent toolsets. It handles comma-separated lists and deduplicates.
 func ParseGitHubToolsets(toolsetsStr string) []string {
@@ -37,6 +42,15 @@ func ParseGitHubToolsets(toolsetsStr string) []string {
 			// Add default toolsets
 			toolsetsLog.Printf("Expanding 'default' to %d toolsets", len(DefaultGitHubToolsets))
 			for _, dt := range DefaultGitHubToolsets {
+				if !seenToolsets[dt] {
+					expanded = append(expanded, dt)
+					seenToolsets[dt] = true
+				}
+			}
+		} else if toolset == "action-friendly" {
+			// Add action-friendly toolsets (excludes "users" which GitHub Actions tokens don't support)
+			toolsetsLog.Printf("Expanding 'action-friendly' to %d toolsets", len(ActionFriendlyGitHubToolsets))
+			for _, dt := range ActionFriendlyGitHubToolsets {
 				if !seenToolsets[dt] {
 					expanded = append(expanded, dt)
 					seenToolsets[dt] = true

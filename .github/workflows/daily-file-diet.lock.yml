@@ -622,7 +622,7 @@ jobs:
           node-version: '24'
           package-manager-cache: false
       - name: Install Codex
-        run: npm install -g @openai/codex@0.63.0
+        run: npm install -g @openai/codex@0.64.0
       - name: Downloading container images
         run: |
           set -e
@@ -1780,7 +1780,7 @@ jobs:
             "-e",
             "GITHUB_READ_ONLY=1",
             "-e",
-            "GITHUB_TOOLSETS=default",
+            "GITHUB_TOOLSETS=context,repos,issues,pull_requests",
             "ghcr.io/github/github-mcp-server:v0.24.0"
           ]
           env_vars = ["GITHUB_PERSONAL_ACCESS_TOKEN"]
@@ -1816,7 +1816,7 @@ jobs:
               engine_name: "Codex",
               model: "",
               version: "",
-              agent_version: "0.63.0",
+              agent_version: "0.64.0",
               workflow_name: "Daily File Diet",
               experimental: true,
               supports_tools_allowlist: true,
@@ -6053,7 +6053,7 @@ jobs:
           node-version: '24'
           package-manager-cache: false
       - name: Install Codex
-        run: npm install -g @openai/codex@0.63.0
+        run: npm install -g @openai/codex@0.64.0
       - name: Run Codex
         run: |
           set -o pipefail

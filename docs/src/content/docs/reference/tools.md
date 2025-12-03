@@ -84,6 +84,10 @@ tools:
 
 **Default**: `context`, `repos`, `issues`, `pull_requests`, `users`
 
+:::note[GitHub Actions Compatibility]
+When you specify `toolsets: [default]` in your workflow markdown, the generated workflow expands this to `[context, repos, issues, pull_requests]` (excluding `users`). This is because GitHub Actions tokens (`GITHUB_TOKEN`) don't have permissions for user-related operations. If you need the full default set including `users`, specify the toolsets explicitly or use a Personal Access Token (PAT) with the appropriate permissions.
+:::
+
 **Common Combinations**:
 - Read-only: `[default]` or `[context, repos]`
 - Issue/PR management: `[default, discussions]`
