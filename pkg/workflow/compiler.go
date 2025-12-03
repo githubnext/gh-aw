@@ -518,6 +518,27 @@ func (c *Compiler) CompileWorkflowData(workflowData *WorkflowData, markdownPath 
 		return errors.New(formattedErr)
 	}
 
+	// Always validate expression sizes - this is a hard limit from GitHub Actions (21KB)
+	// that cannot be bypassed, so we validate it unconditionally
+	log.Print("Validating expression sizes")
+	if err := c.validateExpressionSizes(yamlContent); err != nil {
+		formattedErr := console.FormatError(console.CompilerError{
+			Position: console.ErrorPosition{
+				File:   markdownPath,
+				Line:   1,
+				Column: 1,
+			},
+			Type:    "error",
+			Message: fmt.Sprintf("expression size validation failed: %v", err),
+		})
+		// Write the invalid YAML to a .invalid.yml file for inspection
+		invalidFile := strings.TrimSuffix(lockFile, ".lock.yml") + ".invalid.yml"
+		if writeErr := os.WriteFile(invalidFile, []byte(yamlContent), 0644); writeErr == nil {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Invalid workflow YAML written to: %s", console.ToRelativePath(invalidFile))))
+		}
+		return errors.New(formattedErr)
+	}
+
 	// Validate against GitHub Actions schema (unless skipped)
 	if !c.skipValidation {
 		log.Print("Validating workflow against GitHub Actions schema")
@@ -530,26 +551,6 @@ func (c *Compiler) CompileWorkflowData(workflowData *WorkflowData, markdownPath 
 				},
 				Type:    "error",
 				Message: fmt.Sprintf("workflow schema validation failed: %v", err),
-			})
-			// Write the invalid YAML to a .invalid.yml file for inspection
-			invalidFile := strings.TrimSuffix(lockFile, ".lock.yml") + ".invalid.yml"
-			if writeErr := os.WriteFile(invalidFile, []byte(yamlContent), 0644); writeErr == nil {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Invalid workflow YAML written to: %s", console.ToRelativePath(invalidFile))))
-			}
-			return errors.New(formattedErr)
-		}
-
-		// Validate expression sizes
-		log.Print("Validating expression sizes")
-		if err := c.validateExpressionSizes(yamlContent); err != nil {
-			formattedErr := console.FormatError(console.CompilerError{
-				Position: console.ErrorPosition{
-					File:   markdownPath,
-					Line:   1,
-					Column: 1,
-				},
-				Type:    "error",
-				Message: fmt.Sprintf("expression size validation failed: %v", err),
 			})
 			// Write the invalid YAML to a .invalid.yml file for inspection
 			invalidFile := strings.TrimSuffix(lockFile, ".lock.yml") + ".invalid.yml"
