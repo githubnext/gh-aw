@@ -326,6 +326,7 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 
 		awfArgs = append(awfArgs, "--allow-domains", allowedDomains)
 		awfArgs = append(awfArgs, "--log-level", awfLogLevel)
+		awfArgs = append(awfArgs, "--proxy-logs-dir", "/tmp/gh-aw/sandbox/firewall/logs")
 
 		// Add custom args if specified in firewall config
 		if firewallConfig != nil && len(firewallConfig.Args) > 0 {
@@ -338,17 +339,7 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 		command = fmt.Sprintf(`set -o pipefail
 sudo -E awf %s \
   -- %s \
-  2>&1 | tee %s
-
-# Move preserved agent logs to expected location
-# Try new naming convention first (awf-agent-logs-*), fall back to legacy (copilot-logs-*) for backward compatibility
-AGENT_LOGS_DIR="$(find /tmp -maxdepth 1 -type d \( -name 'awf-agent-logs-*' -o -name 'copilot-logs-*' \) -print0 2>/dev/null | xargs -0 -r ls -td 2>/dev/null | head -1)"
-if [ -n "$AGENT_LOGS_DIR" ] && [ -d "$AGENT_LOGS_DIR" ]; then
-  echo "Moving agent logs from $AGENT_LOGS_DIR to %s"
-  sudo mkdir -p %s
-  sudo mv "$AGENT_LOGS_DIR"/* %s || true
-  sudo rmdir "$AGENT_LOGS_DIR" || true
-fi`, shellJoinArgs(awfArgs), copilotCommand, shellEscapeArg(logFile), shellEscapeArg(logsFolder), shellEscapeArg(logsFolder), shellEscapeArg(logsFolder))
+  2>&1 | tee %s`, shellJoinArgs(awfArgs), copilotCommand, shellEscapeArg(logFile))
 	} else {
 		// Run copilot command without AWF wrapper
 		command = fmt.Sprintf(`set -o pipefail
