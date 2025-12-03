@@ -328,3 +328,386 @@ YAML error that demonstrates column position handling.`,
 }
 
 // TestCommentOutProcessedFieldsInOnSection tests the commentOutProcessedFieldsInOnSection function directly
+
+// ========================================
+// convertGoPatternToJavaScript Tests
+// ========================================
+
+// TestConvertGoPatternToJavaScript tests the convertGoPatternToJavaScript method
+func TestConvertGoPatternToJavaScript(t *testing.T) {
+	compiler := NewCompiler(false, "", "test")
+
+	tests := []struct {
+		name      string
+		goPattern string
+		expected  string
+	}{
+		{
+			name:      "case insensitive flag removed",
+			goPattern: "(?i)error.*pattern",
+			expected:  "error.*pattern",
+		},
+		{
+			name:      "no flag to remove",
+			goPattern: "error.*pattern",
+			expected:  "error.*pattern",
+		},
+		{
+			name:      "empty pattern",
+			goPattern: "",
+			expected:  "",
+		},
+		{
+			name:      "flag at start only",
+			goPattern: "(?i)",
+			expected:  "",
+		},
+		{
+			name:      "complex pattern with flag",
+			goPattern: "(?i)^(ERROR|WARN|FATAL):.*$",
+			expected:  "^(ERROR|WARN|FATAL):.*$",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := compiler.convertGoPatternToJavaScript(tt.goPattern)
+			if result != tt.expected {
+				t.Errorf("convertGoPatternToJavaScript(%q) = %q, want %q",
+					tt.goPattern, result, tt.expected)
+			}
+		})
+	}
+}
+
+// ========================================
+// convertErrorPatternsToJavaScript Tests
+// ========================================
+
+// TestConvertErrorPatternsToJavaScript tests the convertErrorPatternsToJavaScript method
+func TestConvertErrorPatternsToJavaScript(t *testing.T) {
+	compiler := NewCompiler(false, "", "test")
+
+	patterns := []ErrorPattern{
+		{
+			Pattern:      "(?i)error",
+			LevelGroup:   1,
+			MessageGroup: 2,
+			Description:  "Error pattern",
+		},
+		{
+			Pattern:      "warning",
+			LevelGroup:   0,
+			MessageGroup: 1,
+			Description:  "Warning pattern",
+		},
+	}
+
+	result := compiler.convertErrorPatternsToJavaScript(patterns)
+
+	if len(result) != len(patterns) {
+		t.Errorf("Expected %d patterns, got %d", len(patterns), len(result))
+	}
+
+	// First pattern should have (?i) removed
+	if result[0].Pattern != "error" {
+		t.Errorf("Expected first pattern to be 'error', got %q", result[0].Pattern)
+	}
+
+	// Second pattern should remain unchanged
+	if result[1].Pattern != "warning" {
+		t.Errorf("Expected second pattern to be 'warning', got %q", result[1].Pattern)
+	}
+
+	// Check that other fields are preserved
+	if result[0].LevelGroup != 1 {
+		t.Errorf("Expected LevelGroup to be preserved")
+	}
+	if result[0].Description != "Error pattern" {
+		t.Errorf("Expected Description to be preserved")
+	}
+}
+
+// ========================================
+// addCustomStepsAsIs Tests
+// ========================================
+
+// TestAddCustomStepsAsIsBasic tests the addCustomStepsAsIs method
+func TestAddCustomStepsAsIsBasic(t *testing.T) {
+	compiler := NewCompiler(false, "", "test")
+
+	tests := []struct {
+		name        string
+		customSteps string
+		expectedIn  []string
+		expectedNot []string
+	}{
+		{
+			name: "basic steps",
+			customSteps: `steps:
+  - name: Setup
+    run: echo "setup"`,
+			expectedIn: []string{"name: Setup", "run: echo"},
+		},
+		{
+			name: "multiple steps",
+			customSteps: `steps:
+  - name: Step 1
+    run: echo "1"
+  - name: Step 2
+    run: echo "2"`,
+			expectedIn: []string{"name: Step 1", "name: Step 2"},
+		},
+		{
+			name: "step with uses",
+			customSteps: `steps:
+  - name: Checkout
+    uses: actions/checkout@v4`,
+			expectedIn: []string{"name: Checkout", "uses: actions/checkout"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var builder strings.Builder
+			compiler.addCustomStepsAsIs(&builder, tt.customSteps)
+			result := builder.String()
+
+			for _, expected := range tt.expectedIn {
+				if !strings.Contains(result, expected) {
+					t.Errorf("Expected %q in result:\n%s", expected, result)
+				}
+			}
+
+			for _, notExpected := range tt.expectedNot {
+				if strings.Contains(result, notExpected) {
+					t.Errorf("Did not expect %q in result:\n%s", notExpected, result)
+				}
+			}
+		})
+	}
+}
+
+// ========================================
+// Integration Tests for generateYAML
+// ========================================
+
+// TestGenerateYAMLBasicWorkflow tests generating YAML for a basic workflow
+func TestGenerateYAMLBasicWorkflow(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "yaml-gen-test")
+
+	frontmatter := `---
+name: Test Workflow
+on: push
+permissions:
+  contents: read
+engine: copilot
+strict: false
+---
+
+# Test Workflow
+
+This is a test workflow.`
+
+	testFile := filepath.Join(tmpDir, "test.md")
+	if err := os.WriteFile(testFile, []byte(frontmatter), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	compiler := NewCompiler(false, "", "test")
+	if err := compiler.CompileWorkflow(testFile); err != nil {
+		t.Fatalf("CompileWorkflow() error: %v", err)
+	}
+
+	lockFile := filepath.Join(tmpDir, "test.lock.yml")
+	content, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+
+	yamlStr := string(content)
+
+	// Check basic workflow structure
+	expectedElements := []string{
+		"name: \"Test Workflow\"",
+		"on:",
+		"push",
+		"permissions:",
+		"jobs:",
+	}
+
+	for _, expected := range expectedElements {
+		if !strings.Contains(yamlStr, expected) {
+			t.Errorf("Expected %q in generated YAML", expected)
+		}
+	}
+}
+
+// TestGenerateYAMLWithDescription tests that description is added as comment
+func TestGenerateYAMLWithDescription(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "yaml-desc-test")
+
+	frontmatter := `---
+name: Test Workflow
+description: This workflow does important things
+on: push
+permissions:
+  contents: read
+engine: copilot
+strict: false
+---
+
+# Test Workflow
+
+Test content.`
+
+	testFile := filepath.Join(tmpDir, "test.md")
+	if err := os.WriteFile(testFile, []byte(frontmatter), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	compiler := NewCompiler(false, "", "test")
+	if err := compiler.CompileWorkflow(testFile); err != nil {
+		t.Fatalf("CompileWorkflow() error: %v", err)
+	}
+
+	lockFile := filepath.Join(tmpDir, "test.lock.yml")
+	content, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+
+	yamlStr := string(content)
+
+	// Description should appear in comments
+	if !strings.Contains(yamlStr, "# This workflow does important things") {
+		t.Error("Expected description to be in comments")
+	}
+}
+
+// TestGenerateYAMLAutoGeneratedDisclaimer tests that disclaimer is added
+func TestGenerateYAMLAutoGeneratedDisclaimer(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "yaml-disclaimer-test")
+
+	frontmatter := `---
+name: Test Workflow
+on: push
+permissions:
+  contents: read
+engine: copilot
+strict: false
+---
+
+# Test Workflow
+
+Test content.`
+
+	testFile := filepath.Join(tmpDir, "test.md")
+	if err := os.WriteFile(testFile, []byte(frontmatter), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	compiler := NewCompiler(false, "", "test")
+	if err := compiler.CompileWorkflow(testFile); err != nil {
+		t.Fatalf("CompileWorkflow() error: %v", err)
+	}
+
+	lockFile := filepath.Join(tmpDir, "test.lock.yml")
+	content, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+
+	yamlStr := string(content)
+
+	// Check for auto-generated disclaimer
+	if !strings.Contains(yamlStr, "This file was automatically generated by gh-aw. DO NOT EDIT.") {
+		t.Error("Expected auto-generated disclaimer")
+	}
+}
+
+// TestGenerateYAMLWithEnvironment tests that environment is properly set
+func TestGenerateYAMLWithEnvironment(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "yaml-env-test")
+
+	frontmatter := `---
+name: Test Workflow
+on: push
+permissions:
+  contents: read
+engine: copilot
+strict: false
+environment: production
+---
+
+# Test Workflow
+
+Test content.`
+
+	testFile := filepath.Join(tmpDir, "test.md")
+	if err := os.WriteFile(testFile, []byte(frontmatter), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	compiler := NewCompiler(false, "", "test")
+	if err := compiler.CompileWorkflow(testFile); err != nil {
+		t.Fatalf("CompileWorkflow() error: %v", err)
+	}
+
+	lockFile := filepath.Join(tmpDir, "test.lock.yml")
+	content, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+
+	yamlStr := string(content)
+
+	// Check for environment in output
+	if !strings.Contains(yamlStr, "environment:") {
+		t.Error("Expected environment in generated YAML")
+	}
+}
+
+// TestGenerateYAMLWithConcurrency tests that concurrency is properly set
+func TestGenerateYAMLWithConcurrency(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "yaml-concurrency-test")
+
+	frontmatter := `---
+name: Test Workflow
+on: push
+permissions:
+  contents: read
+engine: copilot
+strict: false
+concurrency:
+  group: test-group
+  cancel-in-progress: true
+---
+
+# Test Workflow
+
+Test content.`
+
+	testFile := filepath.Join(tmpDir, "test.md")
+	if err := os.WriteFile(testFile, []byte(frontmatter), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	compiler := NewCompiler(false, "", "test")
+	if err := compiler.CompileWorkflow(testFile); err != nil {
+		t.Fatalf("CompileWorkflow() error: %v", err)
+	}
+
+	lockFile := filepath.Join(tmpDir, "test.lock.yml")
+	content, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+
+	yamlStr := string(content)
+
+	// Check for concurrency in output
+	if !strings.Contains(yamlStr, "concurrency:") {
+		t.Error("Expected concurrency in generated YAML")
+	}
+}
