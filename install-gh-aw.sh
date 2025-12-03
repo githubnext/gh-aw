@@ -30,6 +30,12 @@ print_error() {
     echo -e "${RED}[ERROR]${NC} $1"
 }
 
+# Check if HOME is set
+if [ -z "$HOME" ]; then
+    print_error "HOME environment variable is not set. Cannot determine installation directory."
+    exit 1
+fi
+
 # Check if curl is available
 if ! command -v curl &> /dev/null; then
     print_error "curl is required but not installed. Please install curl first."
