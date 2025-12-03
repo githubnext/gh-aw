@@ -286,10 +286,10 @@ sync-templates:
 	@echo "Syncing templates from .github to pkg/cli/templates..."
 	@mkdir -p pkg/cli/templates
 	@cp .github/aw/github-agentic-workflows.md pkg/cli/templates/
-	@cp .github/prompts/create-agentic-workflow.prompt.md pkg/cli/templates/
-	@cp .github/prompts/setup-agentic-workflows.prompt.md pkg/cli/templates/
-	@cp .github/prompts/create-shared-agentic-workflow.prompt.md pkg/cli/templates/
-	@cp .github/prompts/debug-agentic-workflow.prompt.md pkg/cli/templates/
+	@cp .github/agents/create-agentic-workflow.agent.md pkg/cli/templates/
+	@cp .github/agents/setup-agentic-workflows.agent.md pkg/cli/templates/
+	@cp .github/agents/create-shared-agentic-workflow.agent.md pkg/cli/templates/
+	@cp .github/agents/debug-agentic-workflow.agent.md pkg/cli/templates/
 	@echo "✓ Templates synced successfully"
 
 # Sync action pins from .github/aw to pkg/workflow/data
