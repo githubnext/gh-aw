@@ -12,6 +12,9 @@ import (
 )
 
 func TestInitRepository_WithCodespace(t *testing.T) {
+	// Clear repository cache before test
+	ClearCurrentRepoSlugCache()
+
 	// Create a temporary directory for testing
 	tempDir := testutil.TempDir(t, "test-*")
 
@@ -32,6 +35,9 @@ func TestInitRepository_WithCodespace(t *testing.T) {
 	if err := exec.Command("git", "init").Run(); err != nil {
 		t.Fatalf("Failed to init git repo: %v", err)
 	}
+	// Configure git
+	exec.Command("git", "config", "user.name", "Test User").Run()
+	exec.Command("git", "config", "user.email", "test@example.com").Run()
 	if err := exec.Command("git", "remote", "add", "origin", "https://github.com/test/example-repo.git").Run(); err != nil {
 		t.Fatalf("Failed to add git remote: %v", err)
 	}
@@ -125,6 +131,9 @@ func TestInitRepository_WithCodespace(t *testing.T) {
 }
 
 func TestInitRepository_Codespace_Idempotent(t *testing.T) {
+	// Clear repository cache before test
+	ClearCurrentRepoSlugCache()
+
 	// Create a temporary directory for testing
 	tempDir := testutil.TempDir(t, "test-*")
 
@@ -145,6 +154,9 @@ func TestInitRepository_Codespace_Idempotent(t *testing.T) {
 	if err := exec.Command("git", "init").Run(); err != nil {
 		t.Fatalf("Failed to init git repo: %v", err)
 	}
+	// Configure git
+	exec.Command("git", "config", "user.name", "Test User").Run()
+	exec.Command("git", "config", "user.email", "test@example.com").Run()
 	if err := exec.Command("git", "remote", "add", "origin", "https://github.com/test/example-repo.git").Run(); err != nil {
 		t.Fatalf("Failed to add git remote: %v", err)
 	}
@@ -169,6 +181,9 @@ func TestInitRepository_Codespace_Idempotent(t *testing.T) {
 }
 
 func TestEnsureDevcontainerCodespace_UpdatesExisting(t *testing.T) {
+	// Clear repository cache before test
+	ClearCurrentRepoSlugCache()
+
 	// Create a temporary directory for testing
 	tempDir := testutil.TempDir(t, "test-*")
 
@@ -189,6 +204,9 @@ func TestEnsureDevcontainerCodespace_UpdatesExisting(t *testing.T) {
 	if err := exec.Command("git", "init").Run(); err != nil {
 		t.Fatalf("Failed to init git repo: %v", err)
 	}
+	// Configure git
+	exec.Command("git", "config", "user.name", "Test User").Run()
+	exec.Command("git", "config", "user.email", "test@example.com").Run()
 	if err := exec.Command("git", "remote", "add", "origin", "https://github.com/test/example-repo.git").Run(); err != nil {
 		t.Fatalf("Failed to add git remote: %v", err)
 	}
@@ -259,6 +277,9 @@ func TestEnsureDevcontainerCodespace_UpdatesExisting(t *testing.T) {
 }
 
 func TestEnsureDevcontainerCodespace_PreservesExistingPermissions(t *testing.T) {
+	// Clear repository cache before test
+	ClearCurrentRepoSlugCache()
+
 	// Create a temporary directory for testing
 	tempDir := testutil.TempDir(t, "test-*")
 
@@ -279,6 +300,9 @@ func TestEnsureDevcontainerCodespace_PreservesExistingPermissions(t *testing.T) 
 	if err := exec.Command("git", "init").Run(); err != nil {
 		t.Fatalf("Failed to init git repo: %v", err)
 	}
+	// Configure git
+	exec.Command("git", "config", "user.name", "Test User").Run()
+	exec.Command("git", "config", "user.email", "test@example.com").Run()
 	if err := exec.Command("git", "remote", "add", "origin", "https://github.com/test/example-repo.git").Run(); err != nil {
 		t.Fatalf("Failed to add git remote: %v", err)
 	}
@@ -341,6 +365,9 @@ func TestEnsureDevcontainerCodespace_PreservesExistingPermissions(t *testing.T) 
 }
 
 func TestInitRepository_CodespaceVerbose(t *testing.T) {
+	// Clear repository cache before test
+	ClearCurrentRepoSlugCache()
+
 	// Create a temporary directory for testing
 	tempDir := testutil.TempDir(t, "test-*")
 
@@ -361,6 +388,9 @@ func TestInitRepository_CodespaceVerbose(t *testing.T) {
 	if err := exec.Command("git", "init").Run(); err != nil {
 		t.Fatalf("Failed to init git repo: %v", err)
 	}
+	// Configure git
+	exec.Command("git", "config", "user.name", "Test User").Run()
+	exec.Command("git", "config", "user.email", "test@example.com").Run()
 	if err := exec.Command("git", "remote", "add", "origin", "https://github.com/test/example-repo.git").Run(); err != nil {
 		t.Fatalf("Failed to add git remote: %v", err)
 	}
@@ -379,6 +409,9 @@ func TestInitRepository_CodespaceVerbose(t *testing.T) {
 }
 
 func TestEnsureDevcontainerCodespace_CreatesBasicConfig(t *testing.T) {
+	// Clear repository cache before test
+	ClearCurrentRepoSlugCache()
+
 	// Create a temporary directory for testing
 	tempDir := testutil.TempDir(t, "test-*")
 
@@ -399,6 +432,9 @@ func TestEnsureDevcontainerCodespace_CreatesBasicConfig(t *testing.T) {
 	if err := exec.Command("git", "init").Run(); err != nil {
 		t.Fatalf("Failed to init git repo: %v", err)
 	}
+	// Configure git
+	exec.Command("git", "config", "user.name", "Test User").Run()
+	exec.Command("git", "config", "user.email", "test@example.com").Run()
 	if err := exec.Command("git", "remote", "add", "origin", "https://github.com/test/example-repo.git").Run(); err != nil {
 		t.Fatalf("Failed to add git remote: %v", err)
 	}

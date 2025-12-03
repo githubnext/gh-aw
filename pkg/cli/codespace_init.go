@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/logger"
 )
@@ -14,13 +13,13 @@ var codespaceInitLog = logger.New("cli:codespace_init")
 
 // DevcontainerRepositoryPermissions represents the permissions for a repository in devcontainer.json
 type DevcontainerRepositoryPermissions struct {
-	Actions       string `json:"actions,omitempty"`
-	Contents      string `json:"contents,omitempty"`
-	Workflows     string `json:"workflows,omitempty"`
-	Issues        string `json:"issues,omitempty"`
-	PullRequests  string `json:"pull-requests,omitempty"`
-	Discussions   string `json:"discussions,omitempty"`
-	Metadata      string `json:"metadata,omitempty"`
+	Actions      string `json:"actions,omitempty"`
+	Contents     string `json:"contents,omitempty"`
+	Workflows    string `json:"workflows,omitempty"`
+	Issues       string `json:"issues,omitempty"`
+	PullRequests string `json:"pull-requests,omitempty"`
+	Discussions  string `json:"discussions,omitempty"`
+	Metadata     string `json:"metadata,omitempty"`
 }
 
 // DevcontainerRepositoryConfig represents repository configuration in devcontainer.json
@@ -45,17 +44,17 @@ type DevcontainerCustomizations struct {
 func (c *DevcontainerCustomizations) MarshalJSON() ([]byte, error) {
 	// Create a map to hold all fields
 	result := make(map[string]any)
-	
+
 	// Add extra fields first
 	for k, v := range c.Extra {
 		result[k] = v
 	}
-	
+
 	// Add codespaces if present
 	if c.Codespaces != nil {
 		result["codespaces"] = c.Codespaces
 	}
-	
+
 	return json.Marshal(result)
 }
 
@@ -66,9 +65,9 @@ func (c *DevcontainerCustomizations) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
 	}
-	
+
 	c.Extra = make(map[string]any)
-	
+
 	// Process each field
 	for key, value := range raw {
 		if key == "codespaces" {
@@ -86,15 +85,15 @@ func (c *DevcontainerCustomizations) UnmarshalJSON(data []byte) error {
 			c.Extra[key] = v
 		}
 	}
-	
+
 	return nil
 }
 
 // Devcontainer represents the structure of devcontainer.json
 // Uses map[string]any to preserve all custom fields
 type Devcontainer struct {
-	Image          string                       `json:"image,omitempty"`
-	Name           string                       `json:"name,omitempty"`
+	Image          string                      `json:"image,omitempty"`
+	Name           string                      `json:"name,omitempty"`
 	Customizations *DevcontainerCustomizations `json:"customizations,omitempty"`
 	// Store additional fields not explicitly defined
 	Extra map[string]any `json:"-"`
@@ -104,12 +103,12 @@ type Devcontainer struct {
 func (d *Devcontainer) MarshalJSON() ([]byte, error) {
 	// Create a map to hold all fields
 	result := make(map[string]any)
-	
+
 	// Add extra fields first
 	for k, v := range d.Extra {
 		result[k] = v
 	}
-	
+
 	// Add known fields if present
 	if d.Image != "" {
 		result["image"] = d.Image
@@ -120,7 +119,7 @@ func (d *Devcontainer) MarshalJSON() ([]byte, error) {
 	if d.Customizations != nil {
 		result["customizations"] = d.Customizations
 	}
-	
+
 	return json.Marshal(result)
 }
 
@@ -131,9 +130,9 @@ func (d *Devcontainer) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
 	}
-	
+
 	d.Extra = make(map[string]any)
-	
+
 	// Process each field
 	for key, value := range raw {
 		switch key {
@@ -159,7 +158,7 @@ func (d *Devcontainer) UnmarshalJSON(data []byte) error {
 			d.Extra[key] = v
 		}
 	}
-	
+
 	return nil
 }
 
@@ -327,29 +326,4 @@ func ensureDevcontainerCodespace(verbose bool) error {
 	}
 
 	return nil
-}
-
-// hasCodespacePermissions checks if a devcontainer.json already has adequate codespace permissions
-func hasCodespacePermissions(config *Devcontainer, repoSlug string) bool {
-	if config == nil || config.Customizations == nil || config.Customizations.Codespaces == nil {
-		return false
-	}
-
-	repos := config.Customizations.Codespaces.Repositories
-	if repos == nil {
-		return false
-	}
-
-	// Check if current repo has necessary permissions
-	repoConfig, exists := repos[repoSlug]
-	if !exists {
-		return false
-	}
-
-	perms := repoConfig.Permissions
-	hasActions := strings.ToLower(perms.Actions) == "write"
-	hasContents := strings.ToLower(perms.Contents) == "write"
-	hasWorkflows := strings.ToLower(perms.Workflows) == "write"
-
-	return hasActions && hasContents && hasWorkflows
 }
