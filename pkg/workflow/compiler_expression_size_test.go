@@ -100,6 +100,52 @@ safe-outputs:
 		}
 	})
 
+	t.Run("expression size validation runs by default without explicit enablement", func(t *testing.T) {
+		// Expression size validation should always run, even when skipValidation is true (default)
+		// This is because GitHub Actions enforces a hard 21KB limit that cannot be bypassed
+		largeContent := strings.Repeat("y", 25000)
+		testContent := fmt.Sprintf(`---
+on: push
+timeout-minutes: 10
+permissions:
+  contents: read
+  pull-requests: write
+  issues: read
+strict: false
+tools:
+  github:
+    allowed: [list_issues]
+safe-outputs:
+  create-pull-request:
+    title-prefix: "[test] "
+---
+
+# Large Content Test Workflow (Default Validation)
+
+%s
+`, largeContent)
+
+		testFile := filepath.Join(tmpDir, "large-content-default.md")
+		if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
+			t.Fatal(err)
+		}
+
+		// Create compiler WITHOUT calling SetSkipValidation(false)
+		// Expression size validation should still run because it's mandatory
+		compiler := NewCompiler(false, "", "test")
+		// Note: NOT calling compiler.SetSkipValidation(false)
+		err := compiler.CompileWorkflow(testFile)
+
+		// This should fail with an expression size validation error even without explicit validation enablement
+		if err == nil {
+			t.Error("Expected error for workflow with oversized expressions with default validation settings, got nil")
+		} else if !strings.Contains(err.Error(), "exceeds maximum allowed") {
+			t.Errorf("Expected 'exceeds maximum allowed' error with default validation, got: %v", err)
+		} else if !strings.Contains(err.Error(), "expression size validation failed") {
+			t.Errorf("Expected 'expression size validation failed' error with default validation, got: %v", err)
+		}
+	})
+
 	t.Run("expression size validation constant", func(t *testing.T) {
 		// Verify the constant is set correctly
 		if MaxExpressionSize != 21000 {
