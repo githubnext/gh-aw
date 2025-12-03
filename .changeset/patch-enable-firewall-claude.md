@@ -2,8 +2,7 @@
 "gh-aw": patch
 ---
 
-Enable firewall on the Claude engine and remove hooks; update AWF to v0.4.0.
+Enable firewall on the Claude engine, remove obsolete hooks, and update AWF to v0.4.0.
 
-This change enables firewall support for the `claude` engine and removes obsolete hooks.
-Also updates the AWF to `v0.4.0`.
+This is an internal/config change (no user-facing breaking changes).
 
