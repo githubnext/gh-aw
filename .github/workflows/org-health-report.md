@@ -10,7 +10,7 @@ permissions:
   issues: read
   pull-requests: read
   discussions: write
-engine: codex
+engine: copilot
 tools:
   github:
     toolsets:
@@ -28,7 +28,7 @@ safe-outputs:
     close-older-discussions: true
   upload-assets:
 timeout-minutes: 60
-strict: false
+strict: true
 network:
   allowed:
     - defaults
