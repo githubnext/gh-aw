@@ -82,7 +82,7 @@ func findImportsFieldLocation(yamlContent string) (line int, column int) {
 		if strings.HasPrefix(trimmed, "imports:") {
 			// Find the column where "imports:" starts
 			col := strings.Index(line, "imports:") + 1 // +1 for 1-based indexing
-			return i + 1, col // +1 for 1-based line indexing
+			return i + 1, col                          // +1 for 1-based line indexing
 		}
 	}
 	// Default to line 1, column 1 if not found
@@ -93,32 +93,32 @@ func findImportsFieldLocation(yamlContent string) (line int, column int) {
 func findImportItemLocation(yamlContent string, importPath string) (line int, column int) {
 	lines := strings.Split(yamlContent, "\n")
 	inImportsSection := false
-	
+
 	for i, line := range lines {
 		trimmed := strings.TrimSpace(line)
-		
+
 		// Check if we're entering the imports section
 		if strings.HasPrefix(trimmed, "imports:") {
 			inImportsSection = true
 			continue
 		}
-		
+
 		// If we're in the imports section and find a line with our import path
 		if inImportsSection {
 			// Check if this line exits the imports section (new top-level key)
 			if len(line) > 0 && line[0] != ' ' && line[0] != '-' && line[0] != '\t' {
 				break
 			}
-			
+
 			// Check for the import path in this line
 			if strings.Contains(line, importPath) {
 				// Find the column where the import path starts
 				col := strings.Index(line, importPath) + 1 // +1 for 1-based indexing
-				return i + 1, col // +1 for 1-based line indexing
+				return i + 1, col                          // +1 for 1-based line indexing
 			}
 		}
 	}
-	
+
 	// Fallback to imports field location
 	return findImportsFieldLocation(yamlContent)
 }

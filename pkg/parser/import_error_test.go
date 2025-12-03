@@ -179,7 +179,7 @@ tools:
 			lines := strings.Split(tt.yamlContent, "\n")
 			line := 1
 			column := 1
-			
+
 			for i, l := range lines {
 				trimmed := strings.TrimSpace(l)
 				if strings.HasPrefix(trimmed, "imports:") {
