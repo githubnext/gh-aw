@@ -90,8 +90,8 @@ on:
     # 'pull_request_review_comment', 'discussion', 'discussion_comment'.
     events: "*"
 
-    # Option 2: Array of event names where the command should be active. Use GitHub
-    # Actions event names.
+    # Option 2: Array of event names where the command should be active (requires at
+    # least one). Use GitHub Actions event names.
     events: []
       # Array items: GitHub Actions event name.
 
@@ -917,8 +917,30 @@ sandbox:
 
   # Option 2: Custom sandbox runtime configuration
   agent:
-    # Sandbox type to use
+    # Agent identifier (replaces 'type' field in new format): 'awf' for Agent Workflow
+    # Firewall, 'srt' for Sandbox Runtime
+    # (optional)
+    id: "awf"
+
+    # Legacy: Sandbox type to use (use 'id' instead)
+    # (optional)
     type: "awf"
+
+    # Custom command to replace the default AWF or SRT installation. For AWF: 'docker
+    # run my-custom-awf-image'. For SRT: 'docker run my-custom-srt-wrapper'
+    # (optional)
+    command: "example-value"
+
+    # Additional arguments to append to the command (applies to both AWF and SRT, for
+    # standard and custom commands)
+    # (optional)
+    args: []
+      # Array of strings
+
+    # Environment variables to set on the execution step (applies to both AWF and SRT)
+    # (optional)
+    env:
+      {}
 
     # Custom Sandbox Runtime configuration (only applies when type is 'srt'). Note:
     # Network configuration is controlled by the top-level 'network' field, not here.
@@ -2069,6 +2091,40 @@ safe-outputs:
     max: 1
 
     # Target repository in format 'owner/repo' for cross-repository agent assignment.
+    # Takes precedence over trial target repo settings.
+    # (optional)
+    target-repo: "example-value"
+
+    # GitHub token to use for this specific output type. Overrides global github-token
+    # if specified.
+    # (optional)
+    github-token: "${{ secrets.GITHUB_TOKEN }}"
+
+  # (optional)
+  # This field supports multiple formats (oneOf):
+
+  # Option 1: Enable user assignment with default configuration
+  assign-to-user: null
+
+  # Option 2: Configuration for assigning users to issues from agentic workflow
+  # output
+  assign-to-user:
+    # Optional list of allowed usernames. If specified, only these users can be
+    # assigned.
+    # (optional)
+    allowed: []
+      # Array of strings
+
+    # Optional maximum number of user assignments (default: 1)
+    # (optional)
+    max: 1
+
+    # Target issue to assign users to. Use 'triggering' (default) for the triggering
+    # issue, '*' to allow any issue, or a specific issue number.
+    # (optional)
+    target: null
+
+    # Target repository in format 'owner/repo' for cross-repository user assignment.
     # Takes precedence over trial target repo settings.
     # (optional)
     target-repo: "example-value"
