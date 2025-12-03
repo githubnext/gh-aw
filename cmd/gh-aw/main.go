@@ -69,7 +69,7 @@ When called with a workflow name, creates a template file with comprehensive exa
 - Tools configuration (github, claude, mcps)
 - All frontmatter options with explanations
 
-The workflow-id is the basename of the markdown file without the .md extension.
+The workflow-id is the basename of the Markdown file without the .md extension.
 You can provide either the workflow-id (e.g., 'my-workflow') or the full filename (e.g., 'my-workflow.md').
 
 Examples:
@@ -111,7 +111,7 @@ var removeCmd = &cobra.Command{
 	Short: "Remove workflow files matching the given name prefix",
 	Long: `Remove workflow files matching the given workflow-id pattern.
 
-The workflow-id is the basename of the markdown file without the .md extension.
+The workflow-id is the basename of the Markdown file without the .md extension.
 You can provide a workflow-id prefix to remove multiple workflows, or a specific workflow-id.
 
 Examples:
@@ -132,7 +132,7 @@ var enableCmd = &cobra.Command{
 	Short: "Enable agentic workflows",
 	Long: `Enable one or more workflows by ID, or all workflows if no IDs are provided.
 
-The workflow-id is the basename of the markdown file without the .md extension.
+The workflow-id is the basename of the Markdown file without the .md extension.
 You can provide either the workflow-id (e.g., 'ci-doctor') or the full filename (e.g., 'ci-doctor.md').
 
 Examples:
@@ -152,7 +152,7 @@ var disableCmd = &cobra.Command{
 	Short: "Disable agentic workflows and cancel any in-progress runs",
 	Long: `Disable one or more workflows by ID, or all workflows if no IDs are provided.
 
-The workflow-id is the basename of the markdown file without the .md extension.
+The workflow-id is the basename of the Markdown file without the .md extension.
 You can provide either the workflow-id (e.g., 'ci-doctor') or the full filename (e.g., 'ci-doctor.md').
 
 Examples:
@@ -168,7 +168,7 @@ Examples:
 }
 
 var compileCmd = &cobra.Command{
-	Use:   "compile [markdown-file]...",
+	Use:   "compile [Markdown-file]...",
 	Short: "Compile Markdown to YAML workflows",
 	Long: `Compile one or more Markdown workflow files to YAML workflows.
 
@@ -267,7 +267,7 @@ It executes 'gh workflow run <workflow-lock-file>' to trigger each workflow on G
 
 By default, workflows are run on the current branch. Use --ref to specify a different branch or tag.
 
-The workflow-id is the basename of the markdown file without the .md extension.
+The workflow-id is the basename of the Markdown file without the .md extension.
 You can provide either the workflow-id (e.g., 'daily-perf-improver') or the full filename (e.g., 'daily-perf-improver.md').
 
 Examples:
