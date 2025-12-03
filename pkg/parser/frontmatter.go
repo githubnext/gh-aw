@@ -138,6 +138,17 @@ type importQueueItem struct {
 // Returns result containing merged tools, engines, markdown content, and list of imported files
 // Uses BFS traversal with queues for deterministic ordering and cycle detection
 func ProcessImportsFromFrontmatterWithManifest(frontmatter map[string]any, baseDir string, cache *ImportCache) (*ImportsResult, error) {
+	return processImportsFromFrontmatterWithManifestAndSource(frontmatter, baseDir, cache, "", "")
+}
+
+// ProcessImportsFromFrontmatterWithSource processes imports field from frontmatter with source tracking
+// This version includes the workflow file path and YAML content for better error reporting
+func ProcessImportsFromFrontmatterWithSource(frontmatter map[string]any, baseDir string, cache *ImportCache, workflowFilePath string, yamlContent string) (*ImportsResult, error) {
+	return processImportsFromFrontmatterWithManifestAndSource(frontmatter, baseDir, cache, workflowFilePath, yamlContent)
+}
+
+// processImportsFromFrontmatterWithManifestAndSource is the internal implementation that includes source tracking
+func processImportsFromFrontmatterWithManifestAndSource(frontmatter map[string]any, baseDir string, cache *ImportCache, workflowFilePath string, yamlContent string) (*ImportsResult, error) {
 	// Check if imports field exists
 	importsField, exists := frontmatter["imports"]
 	if !exists {
@@ -229,6 +240,19 @@ func ProcessImportsFromFrontmatterWithManifest(frontmatter map[string]any, baseD
 		// Resolve import path (supports workflowspec format)
 		fullPath, err := resolveIncludePath(filePath, baseDir, cache)
 		if err != nil {
+			// If we have source information, create a structured import error
+			if workflowFilePath != "" && yamlContent != "" {
+				line, column := findImportItemLocation(yamlContent, importPath)
+				importErr := &ImportError{
+					ImportPath: importPath,
+					FilePath:   workflowFilePath,
+					Line:       line,
+					Column:     column,
+					Cause:      err,
+				}
+				return nil, FormatImportError(importErr, yamlContent)
+			}
+			// Fallback to generic error if no source information
 			return nil, fmt.Errorf("failed to resolve import '%s': %w", filePath, err)
 		}
 
@@ -342,6 +366,21 @@ func ProcessImportsFromFrontmatterWithManifest(frontmatter map[string]any, baseD
 					// Resolve nested import path relative to the workflows directory, not the nested file's directory
 					nestedFullPath, err := resolveIncludePath(nestedFilePath, baseDir, cache)
 					if err != nil {
+						// If we have source information for the parent workflow, create a structured error
+						if workflowFilePath != "" && yamlContent != "" {
+							// For nested imports, we should report the error at the location where the parent import is defined
+							// since the nested import file itself might not have source location
+							line, column := findImportItemLocation(yamlContent, item.importPath)
+							importErr := &ImportError{
+								ImportPath: nestedImportPath,
+								FilePath:   workflowFilePath,
+								Line:       line,
+								Column:     column,
+								Cause:      err,
+							}
+							return nil, FormatImportError(importErr, yamlContent)
+						}
+						// Fallback to generic error
 						return nil, fmt.Errorf("failed to resolve nested import '%s' from '%s': %w", nestedFilePath, item.fullPath, err)
 					}
 
@@ -589,10 +628,21 @@ func processIncludedFileWithVisited(filePath, sectionName string, extractTools b
 		} else {
 			// For non-workflow files, fall back to relaxed validation with warnings
 			if len(result.Frontmatter) > 0 {
-				// Check for unexpected frontmatter fields (anything other than tools, engine, network, mcp-servers, and imports)
+				// Valid fields for non-workflow frontmatter (fields that should not trigger warnings)
+				validFields := map[string]bool{
+					"tools":       true,
+					"engine":      true,
+					"network":     true,
+					"mcp-servers": true,
+					"imports":     true,
+					"name":        true,
+					"description": true,
+				}
+
+				// Check for unexpected frontmatter fields
 				unexpectedFields := make([]string, 0)
 				for key := range result.Frontmatter {
-					if key != "tools" && key != "engine" && key != "network" && key != "mcp-servers" && key != "imports" {
+					if !validFields[key] {
 						unexpectedFields = append(unexpectedFields, key)
 					}
 				}

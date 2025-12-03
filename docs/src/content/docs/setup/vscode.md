@@ -17,11 +17,11 @@ gh aw init
 
 This creates files including:
 - **Copilot instructions**: `.github/aw/github-agentic-workflows.md` - Automatically imported when authoring markdown files under `.github/workflows/`, making Copilot Chat more efficient at generating Agentic Workflows.
-- **Custom agent**: `.github/agents/create-agentic-workflow.md` - A custom agent you can reference in Copilot Chat to interactively create workflows.
+- **Prompts**: `.github/prompts/create-agentic-workflow.prompt.md` - A prompt you can reference in Copilot Chat to interactively create workflows.
 
-## create-agentic-workflow custom agent <a id="create-agentic-workflow"></a>
+## create-agentic-workflow prompt <a id="create-agentic-workflow"></a>
 
-Use the `/agent` command in Copilot Chat and select `create-agentic-workflow` from the list to interactively design workflows with guided assistance for trigger selection, permissions, security settings, tool configuration, and best practices. The conversational interface helps you build secure workflows without memorizing syntax.
+Use the `/create-agentic-workflow` command in Copilot Chat to interactively design workflows with guided assistance for trigger selection, permissions, security settings, tool configuration, and best practices. The conversational interface helps you build secure workflows without memorizing syntax.
 
 ## Background Compilation
 

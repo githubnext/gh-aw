@@ -78,11 +78,11 @@ Commands are organized by workflow lifecycle: creating, building, testing, monit
 Initialize your repository for agentic workflows.
 
 ```bash wrap
-gh aw init       # Configure .gitattributes, Copilot instructions, custom agent
+gh aw init       # Configure .gitattributes, Copilot instructions, prompts
 gh aw init --mcp # Also setup MCP server integration for Copilot Agent
 ```
 
-Configures `.gitattributes` to mark `.lock.yml` files as generated, adds Copilot instructions for better AI assistance, and sets up custom agent configuration. The `--mcp` flag additionally creates GitHub Actions workflow for MCP server setup, configures `.vscode/mcp.json` for VS Code integration, and enables gh-aw MCP tools in Copilot Agent.
+Configures `.gitattributes` to mark `.lock.yml` files as generated, adds Copilot instructions for better AI assistance, and sets up prompt files for workflow creation. The `--mcp` flag additionally creates GitHub Actions workflow for MCP server setup, configures `.vscode/mcp.json` for VS Code integration, and enables gh-aw MCP tools in Copilot Agent.
 
 #### `add`
 

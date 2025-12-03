@@ -276,7 +276,7 @@ func TestApplyActionPinToStep(t *testing.T) {
 				},
 			},
 			expectPinned: true,
-			expectedUses: "actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # v6",
+			expectedUses: "actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6",
 		},
 		{
 			name: "step with unpinned action",
