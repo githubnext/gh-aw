@@ -13,13 +13,13 @@ func (c *Compiler) generateGitConfigurationStepsWithToken(token string) []string
 		"      - name: Configure Git credentials\n",
 		"        env:\n",
 		"          REPO_NAME: ${{ github.repository }}\n",
+		"          SERVER_URL: ${{ github.server_url }}\n",
 		"        run: |\n",
 		"          git config --global user.email \"github-actions[bot]@users.noreply.github.com\"\n",
 		"          git config --global user.name \"github-actions[bot]\"\n",
 		"          # Re-authenticate git with GitHub token\n",
-		"          SERVER_URL=\"${{ github.server_url }}\"\n",
-		"          SERVER_URL=\"${SERVER_URL#https://}\"\n",
-		fmt.Sprintf("          git remote set-url origin \"https://x-access-token:%s@${SERVER_URL}/${REPO_NAME}.git\"\n", token),
+		"          SERVER_URL_STRIPPED=\"${SERVER_URL#https://}\"\n",
+		fmt.Sprintf("          git remote set-url origin \"https://x-access-token:%s@${SERVER_URL_STRIPPED}/${REPO_NAME}.git\"\n", token),
 		"          echo \"Git configured with standard GitHub Actions identity\"\n",
 	}
 }

@@ -62,12 +62,15 @@ jobs:
           echo "✓ Release ID: $RELEASE_ID"
 steps:
   - name: Setup environment and fetch release data
+    env:
+      RELEASE_ID: ${{ needs.release.outputs.release_id }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     run: |
       set -e
       mkdir -p /tmp/gh-aw/release-data
       
       # Use the release ID from the release job
-      echo "Release ID from release job: ${{ needs.release.outputs.release_id }}"
+      echo "Release ID from release job: $RELEASE_ID"
       
       # Get the release tag from the push event
       if [[ ! "$GITHUB_REF" == refs/tags/* ]]; then
@@ -124,8 +127,6 @@ steps:
       find docs -type f -name "*.md" 2>/dev/null > /tmp/gh-aw/release-data/docs_files.txt || echo "No docs directory found"
       
       echo "✓ Setup complete. Data available in /tmp/gh-aw/release-data/"
-    env:
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 ---
 
 # Release Highlights Generator
