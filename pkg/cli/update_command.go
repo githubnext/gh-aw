@@ -40,7 +40,7 @@ For workflow updates, it fetches the latest version based on the current ref:
 - If the ref is a branch, it fetches the latest commit from that branch
 - Otherwise, it fetches the latest commit from the default branch
 
-The workflow-id is the basename of the markdown file without the .md extension.
+The workflow-id is the basename of the Markdown file without the .md extension.
 You can provide either the workflow-id (e.g., 'ci-doctor') or the full filename (e.g., 'ci-doctor.md').
 
 Examples:
