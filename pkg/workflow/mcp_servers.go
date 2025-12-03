@@ -480,27 +480,27 @@ func getGitHubToolsets(githubTool any) string {
 	return strings.Join(ActionFriendlyGitHubToolsets, ",")
 }
 
-// expandDefaultToolset expands "default" keyword to individual toolsets.
-// This ensures that "default" in the source expands to action-friendly toolsets
+// expandDefaultToolset expands "default" and "action-friendly" keywords to individual toolsets.
+// This ensures that "default" and "action-friendly" in the source expand to action-friendly toolsets
 // (excluding "users" which GitHub Actions tokens don't support).
 func expandDefaultToolset(toolsetsStr string) string {
 	if toolsetsStr == "" {
 		return strings.Join(ActionFriendlyGitHubToolsets, ",")
 	}
-	
-	// Split by comma and check if "default" is present
+
+	// Split by comma and check if "default" or "action-friendly" is present
 	toolsets := strings.Split(toolsetsStr, ",")
 	var result []string
 	seenToolsets := make(map[string]bool)
-	
+
 	for _, toolset := range toolsets {
 		toolset = strings.TrimSpace(toolset)
 		if toolset == "" {
 			continue
 		}
-		
-		if toolset == "default" {
-			// Expand "default" to action-friendly toolsets (excludes "users")
+
+		if toolset == "default" || toolset == "action-friendly" {
+			// Expand "default" or "action-friendly" to action-friendly toolsets (excludes "users")
 			for _, dt := range ActionFriendlyGitHubToolsets {
 				if !seenToolsets[dt] {
 					result = append(result, dt)
@@ -508,14 +508,14 @@ func expandDefaultToolset(toolsetsStr string) string {
 				}
 			}
 		} else {
-			// Keep other toolsets as-is (including "action-friendly", "all", etc.)
+			// Keep other toolsets as-is (including "all", individual toolsets, etc.)
 			if !seenToolsets[toolset] {
 				result = append(result, toolset)
 				seenToolsets[toolset] = true
 			}
 		}
 	}
-	
+
 	return strings.Join(result, ",")
 }
 

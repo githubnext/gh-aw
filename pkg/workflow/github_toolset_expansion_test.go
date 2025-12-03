@@ -36,9 +36,9 @@ func TestExpandDefaultToolset(t *testing.T) {
 			expected: "context,repos,issues,pull_requests,users",
 		},
 		{
-			name:     "Action-friendly keyword preserved",
+			name:     "Action-friendly expands to action-friendly toolsets",
 			input:    "action-friendly",
-			expected: "action-friendly",
+			expected: "context,repos,issues,pull_requests",
 		},
 		{
 			name:     "All keyword preserved",
@@ -105,11 +105,11 @@ func TestGetGitHubToolsetsExpandsDefault(t *testing.T) {
 			expected: "repos,issues,pull_requests",
 		},
 		{
-			name: "Action-friendly keyword preserved",
+			name: "Action-friendly expands to action-friendly toolsets",
 			input: map[string]any{
 				"toolsets": []string{"action-friendly"},
 			},
-			expected: "action-friendly",
+			expected: "context,repos,issues,pull_requests",
 		},
 		{
 			name: "All keyword preserved",
