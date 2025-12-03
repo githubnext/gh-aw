@@ -46,7 +46,7 @@ steps:
 # Test workflow`,
 			expectSetup: []string{
 				"Setup Node.js",
-				"actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903",
+				"actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f",
 				"node-version: '24'",
 			},
 		},
@@ -108,7 +108,7 @@ on: push
 engine: copilot
 steps:
   - name: Setup Node.js
-    uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903
+    uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f
     with:
       node-version: '20'
   - name: Install

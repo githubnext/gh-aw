@@ -48,7 +48,7 @@
     "actions/setup-node@v6": {
       "repo": "actions/setup-node",
       "version": "v6",
-      "sha": "2028fbc5c25fe9cf00d9f06a71cc4710d4507903"
+      "sha": "395ad3262231945c25e8478fd5baf05154b1d79f"
     },
     "actions/setup-python@v5": {
       "repo": "actions/setup-python",
