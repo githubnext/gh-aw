@@ -36,7 +36,7 @@ func generateRepoMemoryPromptSection(yaml *strings.Builder, config *RepoMemoryCo
 		yaml.WriteString("          \n")
 		memory := config.Memories[0]
 		memoryDir := fmt.Sprintf("/tmp/gh-aw/repo-memory-%s/memory/%s/", memory.ID, memory.ID)
-		
+
 		if memory.Description != "" {
 			yaml.WriteString(fmt.Sprintf("          You have access to a persistent repo memory folder at `%s` where you can read and write files that are stored in a git branch. %s\n", memoryDir, memory.Description))
 		} else {
@@ -53,7 +53,7 @@ func generateRepoMemoryPromptSection(yaml *strings.Builder, config *RepoMemoryCo
 		yaml.WriteString("          - **Automatic Push**: Changes are automatically committed and pushed after the workflow completes\n")
 		yaml.WriteString("          - **Merge Strategy**: In case of conflicts, your changes (current version) win\n")
 		yaml.WriteString("          - **Persistence**: Files persist across workflow runs via git branch storage\n")
-		
+
 		// Add file constraints if specified
 		if len(memory.FileGlob) > 0 || memory.MaxFileSize > 0 || memory.MaxFileCount > 0 {
 			yaml.WriteString("          \n")
@@ -68,7 +68,7 @@ func generateRepoMemoryPromptSection(yaml *strings.Builder, config *RepoMemoryCo
 				yaml.WriteString(fmt.Sprintf("          - **Max File Count**: %d files per commit\n", memory.MaxFileCount))
 			}
 		}
-		
+
 		yaml.WriteString("          \n")
 		yaml.WriteString("          Examples of what you can store:\n")
 		yaml.WriteString(fmt.Sprintf("          - `%snotes.md` - general notes and observations\n", memoryDir))

@@ -600,7 +600,6 @@ func parseRepoMemoryTool(val any) *RepoMemoryToolConfig {
 	return &RepoMemoryToolConfig{Raw: val}
 }
 
-
 // parseMCPGatewayTool converts raw mcp-gateway tool configuration
 func parseMCPGatewayTool(val any) *MCPGatewayConfig {
 	if val == nil {

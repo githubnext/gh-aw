@@ -5,11 +5,7 @@
     "description": {
       "type": "string",
       "description": "Optional description for the included file or custom agent configuration. Used for documentation and clarity.",
-      "examples": [
-        "Agent instructions",
-        "Shared tool configuration",
-        "Common workflow steps"
-      ]
+      "examples": ["Agent instructions", "Shared tool configuration", "Common workflow steps"]
     },
     "inputs": {
       "type": "object",
@@ -42,12 +38,7 @@
           },
           "type": {
             "type": "string",
-            "enum": [
-              "string",
-              "choice",
-              "boolean",
-              "number"
-            ],
+            "enum": ["string", "choice", "boolean", "number"],
             "description": "Input type"
           },
           "options": {
@@ -74,11 +65,7 @@
         {
           "type": "string",
           "description": "Single glob pattern for files/directories where these instructions apply (for custom agent instruction files)",
-          "examples": [
-            "**/*.py",
-            "src/**/*.js",
-            "pkg/workflow/*.go"
-          ]
+          "examples": ["**/*.py", "src/**/*.js", "pkg/workflow/*.go"]
         },
         {
           "type": "array",
@@ -88,14 +75,8 @@
             "description": "Glob pattern for file/directory matching"
           },
           "examples": [
-            [
-              "**/*.py",
-              "**/*.pyw"
-            ],
-            [
-              "src/**/*.ts",
-              "src/**/*.tsx"
-            ]
+            ["**/*.py", "**/*.pyw"],
+            ["src/**/*.ts", "src/**/*.tsx"]
           ]
         }
       ]
@@ -450,12 +431,7 @@
       "oneOf": [
         {
           "type": "string",
-          "enum": [
-            "claude",
-            "codex",
-            "copilot",
-            "custom"
-          ],
+          "enum": ["claude", "codex", "copilot", "custom"],
           "description": "Simple engine name (claude, codex, copilot, or custom)"
         },
         {
@@ -464,12 +440,7 @@
           "properties": {
             "id": {
               "type": "string",
-              "enum": [
-                "claude",
-                "codex",
-                "copilot",
-                "custom"
-              ],
+              "enum": ["claude", "codex", "copilot", "custom"],
               "description": "Agent CLI identifier (claude, codex, copilot, or custom)"
             },
             "version": {
@@ -500,9 +471,7 @@
               }
             }
           },
-          "required": [
-            "id"
-          ],
+          "required": ["id"],
           "additionalProperties": false
         }
       ]
@@ -543,13 +512,7 @@
               "properties": {
                 "type": {
                   "type": "string",
-                  "enum": [
-                    "string",
-                    "number",
-                    "boolean",
-                    "array",
-                    "object"
-                  ],
+                  "enum": ["string", "number", "boolean", "array", "object"],
                   "description": "JSON schema type for the input parameter"
                 },
                 "description": {
@@ -583,9 +546,7 @@
             }
           }
         },
-        "required": [
-          "description"
-        ],
+        "required": ["description"],
         "additionalProperties": false
       }
     },
@@ -671,146 +632,82 @@
           "properties": {
             "actions": {
               "type": "string",
-              "enum": [
-                "read",
-                "write",
-                "none"
-              ],
+              "enum": ["read", "write", "none"],
               "description": "Permission for GitHub Actions"
             },
             "checks": {
               "type": "string",
-              "enum": [
-                "read",
-                "write",
-                "none"
-              ],
+              "enum": ["read", "write", "none"],
               "description": "Permission for checks"
             },
             "contents": {
               "type": "string",
-              "enum": [
-                "read",
-                "write",
-                "none"
-              ],
+              "enum": ["read", "write", "none"],
               "description": "Permission for repository contents"
             },
             "deployments": {
               "type": "string",
-              "enum": [
-                "read",
-                "write",
-                "none"
-              ],
+              "enum": ["read", "write", "none"],
               "description": "Permission for deployments"
             },
             "discussions": {
               "type": "string",
-              "enum": [
-                "read",
-                "write",
-                "none"
-              ],
+              "enum": ["read", "write", "none"],
               "description": "Permission for discussions"
             },
             "id-token": {
               "type": "string",
-              "enum": [
-                "read",
-                "write",
-                "none"
-              ],
+              "enum": ["read", "write", "none"],
               "description": "Permission for ID token"
             },
             "issues": {
               "type": "string",
-              "enum": [
-                "read",
-                "write",
-                "none"
-              ],
+              "enum": ["read", "write", "none"],
               "description": "Permission for issues"
             },
             "metadata": {
               "type": "string",
-              "enum": [
-                "read",
-                "write",
-                "none"
-              ],
+              "enum": ["read", "write", "none"],
               "description": "Permission for metadata"
             },
             "packages": {
               "type": "string",
-              "enum": [
-                "read",
-                "write",
-                "none"
-              ],
+              "enum": ["read", "write", "none"],
               "description": "Permission for packages"
             },
             "pages": {
               "type": "string",
-              "enum": [
-                "read",
-                "write",
-                "none"
-              ],
+              "enum": ["read", "write", "none"],
               "description": "Permission for GitHub Pages"
             },
             "pull-requests": {
               "type": "string",
-              "enum": [
-                "read",
-                "write",
-                "none"
-              ],
+              "enum": ["read", "write", "none"],
               "description": "Permission for pull requests"
             },
             "repository-projects": {
               "type": "string",
-              "enum": [
-                "read",
-                "write",
-                "none"
-              ],
+              "enum": ["read", "write", "none"],
               "description": "Permission for repository projects"
             },
             "security-events": {
               "type": "string",
-              "enum": [
-                "read",
-                "write",
-                "none"
-              ],
+              "enum": ["read", "write", "none"],
               "description": "Permission for security events"
             },
             "statuses": {
               "type": "string",
-              "enum": [
-                "read",
-                "write",
-                "none"
-              ],
+              "enum": ["read", "write", "none"],
               "description": "Permission for commit statuses"
             },
             "attestations": {
               "type": "string",
-              "enum": [
-                "read",
-                "write",
-                "none"
-              ],
+              "enum": ["read", "write", "none"],
               "description": "Permission for attestations"
             },
             "models": {
               "type": "string",
-              "enum": [
-                "read",
-                "write",
-                "none"
-              ],
+              "enum": ["read", "write", "none"],
               "description": "Permission for AI models"
             }
           },
@@ -827,10 +724,7 @@
       "properties": {
         "type": {
           "type": "string",
-          "enum": [
-            "stdio",
-            "local"
-          ],
+          "enum": ["stdio", "local"],
           "description": "MCP connection type for stdio (local is an alias for stdio)"
         },
         "registry": {
@@ -848,17 +742,9 @@
           "description": "Container image for stdio MCP connections (alternative to command)"
         },
         "version": {
-          "type": [
-            "string",
-            "number"
-          ],
+          "type": ["string", "number"],
           "description": "Optional version/tag for the container image (e.g., 'latest', 'v1.0.0', 20, 3.11). Numeric values are automatically converted to strings at runtime.",
-          "examples": [
-            "latest",
-            "v1.0.0",
-            20,
-            3.11
-          ]
+          "examples": ["latest", "v1.0.0", 20, 3.11]
         },
         "args": {
           "type": "array",
@@ -920,70 +806,49 @@
       "additionalProperties": false,
       "anyOf": [
         {
-          "required": [
-            "type"
-          ]
+          "required": ["type"]
         },
         {
-          "required": [
-            "command"
-          ]
+          "required": ["command"]
         },
         {
-          "required": [
-            "container"
-          ]
+          "required": ["container"]
         }
       ],
       "not": {
         "allOf": [
           {
-            "required": [
-              "command"
-            ]
+            "required": ["command"]
           },
           {
-            "required": [
-              "container"
-            ]
+            "required": ["container"]
           }
         ]
       },
       "allOf": [
         {
           "if": {
-            "required": [
-              "network"
-            ]
+            "required": ["network"]
           },
           "then": {
-            "required": [
-              "container"
-            ]
+            "required": ["container"]
           }
         },
         {
           "if": {
             "properties": {
               "type": {
-                "enum": [
-                  "stdio",
-                  "local"
-                ]
+                "enum": ["stdio", "local"]
               }
             }
           },
           "then": {
             "anyOf": [
               {
-                "required": [
-                  "command"
-                ]
+                "required": ["command"]
               },
               {
-                "required": [
-                  "container"
-                ]
+                "required": ["container"]
               }
             ]
           }
@@ -1026,9 +891,7 @@
           }
         }
       },
-      "required": [
-        "url"
-      ],
+      "required": ["url"],
       "additionalProperties": false
     },
     "safe_job": {
@@ -1121,12 +984,7 @@
                 },
                 "type": {
                   "type": "string",
-                  "enum": [
-                    "string",
-                    "number",
-                    "boolean",
-                    "choice"
-                  ],
+                  "enum": ["string", "number", "boolean", "choice"],
                   "description": "Input type"
                 },
                 "options": {
@@ -1152,9 +1010,7 @@
           "description": "Custom output message"
         }
       },
-      "required": [
-        "inputs"
-      ],
+      "required": ["inputs"],
       "additionalProperties": false
     }
   }

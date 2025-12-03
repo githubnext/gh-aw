@@ -16,14 +16,14 @@ type RepoMemoryConfig struct {
 
 // RepoMemoryEntry represents a single repo-memory configuration
 type RepoMemoryEntry struct {
-	ID            string   `yaml:"id"`                       // memory identifier (required for array notation)
-	TargetRepo    string   `yaml:"target-repo,omitempty"`    // target repository (default: current repo)
-	BranchName    string   `yaml:"branch-name,omitempty"`    // branch name (default: memory/{memory-id})
-	FileGlob      []string `yaml:"file-glob,omitempty"`      // file glob patterns for allowed files
-	MaxFileSize   int      `yaml:"max-file-size,omitempty"`  // maximum size per file in bytes (default: 1MB)
-	MaxFileCount  int      `yaml:"max-file-count,omitempty"` // maximum file count per commit (default: 100)
-	Description   string   `yaml:"description,omitempty"`    // optional description for this memory
-	CreateOrphan  bool     `yaml:"create-orphan,omitempty"`  // create orphaned branch if missing (default: true)
+	ID           string   `yaml:"id"`                       // memory identifier (required for array notation)
+	TargetRepo   string   `yaml:"target-repo,omitempty"`    // target repository (default: current repo)
+	BranchName   string   `yaml:"branch-name,omitempty"`    // branch name (default: memory/{memory-id})
+	FileGlob     []string `yaml:"file-glob,omitempty"`      // file glob patterns for allowed files
+	MaxFileSize  int      `yaml:"max-file-size,omitempty"`  // maximum size per file in bytes (default: 1MB)
+	MaxFileCount int      `yaml:"max-file-count,omitempty"` // maximum file count per commit (default: 100)
+	Description  string   `yaml:"description,omitempty"`    // optional description for this memory
+	CreateOrphan bool     `yaml:"create-orphan,omitempty"`  // create orphaned branch if missing (default: true)
 }
 
 // RepoMemoryToolConfig represents the configuration for repo-memory in tools
@@ -92,8 +92,8 @@ func (c *Compiler) extractRepoMemoryConfig(toolsConfig *ToolsConfig) (*RepoMemor
 			if memoryMap, ok := item.(map[string]any); ok {
 				entry := RepoMemoryEntry{
 					MaxFileSize:  1048576, // 1MB default
-					MaxFileCount: 100,      // 100 files default
-					CreateOrphan: true,     // create orphan by default
+					MaxFileCount: 100,     // 100 files default
+					CreateOrphan: true,    // create orphan by default
 				}
 
 				// ID is required for array notation
@@ -195,8 +195,8 @@ func (c *Compiler) extractRepoMemoryConfig(toolsConfig *ToolsConfig) (*RepoMemor
 			ID:           "default",
 			BranchName:   generateDefaultBranchName("default"),
 			MaxFileSize:  1048576, // 1MB default
-			MaxFileCount: 100,      // 100 files default
-			CreateOrphan: true,     // create orphan by default
+			MaxFileCount: 100,     // 100 files default
+			CreateOrphan: true,    // create orphan by default
 		}
 
 		// Parse target-repo
@@ -317,11 +317,11 @@ func generateRepoMemoryPushSteps(builder *strings.Builder, data *WorkflowData) {
 		builder.WriteString("          if [ -n \"$(git status --porcelain)\" ]; then\n")
 		builder.WriteString("            echo \"Changes detected in repo memory, committing and pushing...\"\n")
 		builder.WriteString("            \n")
-		
+
 		// Add file validation if constraints are specified
 		if len(memory.FileGlob) > 0 || memory.MaxFileSize > 0 || memory.MaxFileCount > 0 {
 			builder.WriteString("            # Validate files before committing\n")
-			
+
 			if memory.MaxFileSize > 0 {
 				builder.WriteString(fmt.Sprintf("            # Check file sizes (max: %d bytes)\n", memory.MaxFileSize))
 				builder.WriteString(fmt.Sprintf("            if find . -type f -size +%dc | grep -q .; then\n", memory.MaxFileSize))
@@ -331,7 +331,7 @@ func generateRepoMemoryPushSteps(builder *strings.Builder, data *WorkflowData) {
 				builder.WriteString("            fi\n")
 				builder.WriteString("            \n")
 			}
-			
+
 			if memory.MaxFileCount > 0 {
 				builder.WriteString(fmt.Sprintf("            # Check file count (max: %d files)\n", memory.MaxFileCount))
 				builder.WriteString("            FILE_COUNT=$(git status --porcelain | wc -l)\n")
@@ -342,7 +342,7 @@ func generateRepoMemoryPushSteps(builder *strings.Builder, data *WorkflowData) {
 				builder.WriteString("            \n")
 			}
 		}
-		
+
 		builder.WriteString("            # Add all changes\n")
 		builder.WriteString("            git add -A\n")
 		builder.WriteString("            \n")
@@ -400,7 +400,7 @@ func generateRepoMemorySteps(builder *strings.Builder, data *WorkflowData) {
 		builder.WriteString("          set -e\n")
 		builder.WriteString("          \n")
 		builder.WriteString("          if [ $CLONE_EXIT_CODE -ne 0 ]; then\n")
-		
+
 		if memory.CreateOrphan {
 			builder.WriteString(fmt.Sprintf("            echo \"Branch %s does not exist, creating orphan branch\"\n", memory.BranchName))
 			builder.WriteString(fmt.Sprintf("            mkdir -p \"%s\"\n", memoryDir))
@@ -414,7 +414,7 @@ func generateRepoMemorySteps(builder *strings.Builder, data *WorkflowData) {
 			builder.WriteString(fmt.Sprintf("            echo \"Branch %s does not exist and create-orphan is false, skipping\"\n", memory.BranchName))
 			builder.WriteString(fmt.Sprintf("            mkdir -p \"%s\"\n", memoryDir))
 		}
-		
+
 		builder.WriteString("          else\n")
 		builder.WriteString(fmt.Sprintf("            echo \"Successfully cloned %s branch\"\n", memory.BranchName))
 		builder.WriteString(fmt.Sprintf("            cd \"%s\"\n", memoryDir))
@@ -422,7 +422,7 @@ func generateRepoMemorySteps(builder *strings.Builder, data *WorkflowData) {
 		builder.WriteString("            git config user.email \"github-actions[bot]@users.noreply.github.com\"\n")
 		builder.WriteString("          fi\n")
 		builder.WriteString("          \n")
-		
+
 		// Create the memory subdirectory
 		builder.WriteString(fmt.Sprintf("          mkdir -p \"%s/memory/%s\"\n", memoryDir, memory.ID))
 		builder.WriteString(fmt.Sprintf("          echo \"Repo memory directory ready at %s/memory/%s\"\n", memoryDir, memory.ID))

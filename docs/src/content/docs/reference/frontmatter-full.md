@@ -1492,6 +1492,57 @@ tools:
         # (optional)
         version: null
 
+  # Repo memory configuration for git-based persistent storage
+  # (optional)
+  # This field supports multiple formats (oneOf):
+
+  # Option 1: Enable repo-memory with default settings
+  repo-memory: true
+
+  # Option 2: Enable repo-memory with default settings (same as true)
+  repo-memory: null
+
+  # Option 3: Repo-memory configuration object
+  repo-memory:
+    # Target repository for memory storage (default: current repository). Format:
+    # owner/repo
+    # (optional)
+    target-repo: "example-value"
+
+    # Git branch name for memory storage (default: memory/default)
+    # (optional)
+    branch-name: "example-value"
+
+    # (optional)
+    # This field supports multiple formats (oneOf):
+
+    # Option 1: Single file glob pattern for allowed files
+    file-glob: "example-value"
+
+    # Option 2: Array of file glob patterns for allowed files
+    file-glob: []
+      # Array items: string
+
+    # Maximum size per file in bytes (default: 1048576 = 1MB)
+    # (optional)
+    max-file-size: 1
+
+    # Maximum file count per commit (default: 100)
+    # (optional)
+    max-file-count: 1
+
+    # Optional description for the memory that will be shown in the agent prompt
+    # (optional)
+    description: "Description of the workflow"
+
+    # Create orphaned branch if it doesn't exist (default: true)
+    # (optional)
+    create-orphan: true
+
+  # Option 4: Array of repo-memory configurations for multiple memory locations
+  repo-memory: []
+    # Array items: object
+
 # Command name for the workflow
 # (optional)
 command: "example-value"
