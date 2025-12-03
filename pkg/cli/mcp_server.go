@@ -34,7 +34,7 @@ secrets are not shared with the MCP server process itself.
 
 The server provides the following tools:
   - status      - Show status of agentic workflow files
-  - compile     - Compile markdown workflow files to YAML
+  - compile     - Compile Markdown workflow files to YAML
   - logs        - Download and analyze workflow logs
   - audit       - Investigate a workflow run and generate a report
   - mcp-inspect - Inspect MCP servers in workflows and list available tools
@@ -175,7 +175,7 @@ Note: Output can be filtered using the jq parameter.`,
 	}
 	mcp.AddTool(server, &mcp.Tool{
 		Name: "compile",
-		Description: `Compile markdown workflow files to YAML workflows with optional static analysis tools.
+		Description: `Compile Markdown workflow files to YAML workflows with optional static analysis tools.
 
 Workflows use strict mode validation by default (unless frontmatter sets strict: false).
 Strict mode enforces: action pinning to SHAs, explicit network config, safe-outputs for write operations,

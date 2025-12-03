@@ -330,7 +330,7 @@ Downloaded artifacts include:
 - aw.patch: Git patch of changes made during execution
 - workflow-logs/: GitHub Actions workflow run logs (job logs organized in subdirectory)
 
-The workflow-id is the basename of the markdown file without the .md extension.
+The workflow-id is the basename of the Markdown file without the .md extension.
 You can provide either the workflow-id (e.g., 'weekly-research') or the full filename (e.g., 'weekly-research.md').
 
 Examples:
@@ -356,9 +356,9 @@ Examples:
   ` + constants.CLIExtensionPrefix + ` logs --before-run-id 2000      # Filter runs before run ID 2000
   ` + constants.CLIExtensionPrefix + ` logs --after-run-id 1000 --before-run-id 2000  # Filter runs in range
   ` + constants.CLIExtensionPrefix + ` logs --tool-graph              # Generate Mermaid tool sequence graph
-  ` + constants.CLIExtensionPrefix + ` logs --parse                   # Parse logs and generate markdown reports
+  ` + constants.CLIExtensionPrefix + ` logs --parse                   # Parse logs and generate Markdown reports
   ` + constants.CLIExtensionPrefix + ` logs --json                    # Output metrics in JSON format
-  ` + constants.CLIExtensionPrefix + ` logs --parse --json            # Generate both markdown and JSON
+  ` + constants.CLIExtensionPrefix + ` logs --parse --json            # Generate both Markdown and JSON
   ` + constants.CLIExtensionPrefix + ` logs weekly-research --repo owner/repo  # Download logs from specific repository`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var workflowName string
@@ -452,7 +452,7 @@ Examples:
 	logsCmd.Flags().Bool("no-staged", false, "Filter out staged workflow runs (exclude runs with staged: true in aw_info.json)")
 	logsCmd.Flags().Bool("firewall", false, "Filter to only runs with firewall enabled")
 	logsCmd.Flags().Bool("no-firewall", false, "Filter to only runs without firewall enabled")
-	logsCmd.Flags().Bool("parse", false, "Run JavaScript parsers on agent logs and firewall logs, writing markdown to log.md and firewall.md")
+	logsCmd.Flags().Bool("parse", false, "Run JavaScript parsers on agent logs and firewall logs, writing Markdown to log.md and firewall.md")
 	addJSONFlag(logsCmd)
 	logsCmd.Flags().Int("timeout", 0, "Download timeout in seconds (0 = no timeout)")
 	logsCmd.MarkFlagsMutuallyExclusive("firewall", "no-firewall")

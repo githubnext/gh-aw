@@ -27,7 +27,7 @@ func NewAuditCommand() *cobra.Command {
 		Use:   "audit <run-id-or-url>",
 		Short: "Investigate a single GitHub Actions workflow run and generate a concise report",
 		Long: `Audit a single workflow run by downloading artifacts and logs, detecting errors,
-analyzing MCP tool usage, and generating a concise markdown report suitable for AI agents.
+analyzing MCP tool usage, and generating a concise Markdown report suitable for AI agents.
 
 This command accepts:
 - A numeric run ID (e.g., 1234567890)
@@ -41,7 +41,7 @@ This command:
 - Detects errors and warnings in the logs
 - Analyzes MCP tool usage statistics
 - Extracts missing tool reports
-- Generates a concise markdown report
+- Generates a concise Markdown report
 
 Examples:
   ` + constants.CLIExtensionPrefix + ` audit 1234567890     # Audit run with ID 1234567890
@@ -74,7 +74,7 @@ Examples:
 	// Add flags to audit command
 	addOutputFlag(auditCmd, defaultLogsOutputDir)
 	addJSONFlag(auditCmd)
-	auditCmd.Flags().Bool("parse", false, "Run JavaScript parsers on agent logs and firewall logs, writing markdown to log.md and firewall.md")
+	auditCmd.Flags().Bool("parse", false, "Run JavaScript parsers on agent logs and firewall logs, writing Markdown to log.md and firewall.md")
 
 	// Register completions for audit command
 	RegisterDirFlagCompletion(auditCmd, "output")
