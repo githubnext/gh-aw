@@ -9,8 +9,6 @@ engine: claude
 permissions:
   contents: read
   issues: read
-features:
-  safe-inputs: true
 tools:
   github: false
 imports:
