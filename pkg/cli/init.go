@@ -12,7 +12,7 @@ import (
 var initLog = logger.New("cli:init")
 
 // InitRepository initializes the repository for agentic workflows
-func InitRepository(verbose bool, mcp bool) error {
+func InitRepository(verbose bool, mcp bool, codespace bool) error {
 	initLog.Print("Starting repository initialization for agentic workflows")
 
 	// Ensure we're in a git repository
@@ -105,6 +105,20 @@ func InitRepository(verbose bool, mcp bool) error {
 		}
 	}
 
+	// Configure Codespace if requested
+	if codespace {
+		initLog.Print("Configuring GitHub Codespace permissions")
+
+		// Create or update devcontainer.json
+		if err := ensureDevcontainerCodespace(verbose); err != nil {
+			initLog.Printf("Failed to configure devcontainer.json: %v", err)
+			return fmt.Errorf("failed to configure devcontainer.json: %w", err)
+		}
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Configured devcontainer.json for Codespaces"))
+		}
+	}
+
 	initLog.Print("Repository initialization completed successfully")
 
 	// Display success message with next steps
@@ -113,6 +127,10 @@ func InitRepository(verbose bool, mcp bool) error {
 	fmt.Fprintln(os.Stderr, "")
 	if mcp {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("GitHub Copilot Agent MCP integration configured"))
+		fmt.Fprintln(os.Stderr, "")
+	}
+	if codespace {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("GitHub Codespace permissions configured"))
 		fmt.Fprintln(os.Stderr, "")
 	}
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("To create a workflow, launch Copilot CLI: npx @github/copilot"))
