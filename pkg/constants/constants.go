@@ -108,6 +108,9 @@ const DefaultMCPStartupTimeoutSeconds = int(DefaultMCPStartupTimeout / time.Seco
 // See https://github.blog/changelog/2025-10-28-1-vcpu-linux-runner-now-available-in-github-actions-in-public-preview/
 const DefaultActivationJobRunnerImage = "ubuntu-slim"
 
+// DefaultSafeInputsJobRunnerImage is the default runner image for safe-inputs jobs
+const DefaultSafeInputsJobRunnerImage = "ubuntu-latest"
+
 // DefaultAllowedDomains defines the default localhost domains with port variations
 // that are always allowed for Playwright browser automation
 var DefaultAllowedDomains = []string{"localhost", "localhost:*", "127.0.0.1", "127.0.0.1:*"}
