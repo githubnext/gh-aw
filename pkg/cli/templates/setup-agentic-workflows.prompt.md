@@ -1,5 +1,5 @@
 ---
-name: setup-agentic-workflows
+mode: agent
 description: A guided agent to help you set up your agentic workflows using gh-aw
 ---
 
@@ -89,15 +89,11 @@ gh secret set OPENAI_API_KEY -a actions --body "your-openai-api-key-here"
 
 Say to the user:
 ````
-When you're ready, use the custom agent to create your workflow:
+When you're ready, use the prompt to create your workflow:
 
-**Option 1: Direct invocation**
+**Direct invocation**
 Type `/create-agentic-workflow` in the chat
 
-**Option 2: Menu selection**
-1. Type `/agent` in the chat
-2. Select `create-agentic-workflow` from the list of available custom agents
-
-This will activate the workflow creation custom agent to help you create your first agentic workflow.
+This will help you create your first agentic workflow.
 
 ````
