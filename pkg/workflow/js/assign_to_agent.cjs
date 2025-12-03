@@ -29,11 +29,10 @@ async function main() {
     }
   );
 
-  if (!gatingResult.success) {
+  if (!gatingResult.success || !gatingResult.items) {
     return;
   }
 
-  // @ts-ignore - items is guaranteed to be present when success is true
   const assignItems = gatingResult.items;
 
   // Get default agent from configuration

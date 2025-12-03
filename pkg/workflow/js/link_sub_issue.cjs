@@ -45,11 +45,10 @@ async function main() {
     }
   );
 
-  if (!gatingResult.success) {
+  if (!gatingResult.success || !gatingResult.items) {
     return;
   }
 
-  // @ts-ignore - items is guaranteed to be present when success is true
   const linkItems = gatingResult.items;
 
   // Get filter configurations

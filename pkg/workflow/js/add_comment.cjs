@@ -168,15 +168,11 @@ async function main() {
     }
   );
 
-  if (!gatingResult.success) {
+  if (!gatingResult.success || !gatingResult.items) {
     return;
   }
 
-  // @ts-ignore - items is guaranteed to be present when success is true
   const commentItems = gatingResult.items;
-  if (!commentItems) {
-    return;
-  }
 
   // Validate context based on target configuration
   if (commentTarget === "triggering" && !isIssueContext && !isPRContext && !isDiscussionContext) {

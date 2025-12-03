@@ -120,7 +120,7 @@ async function main() {
     }
   );
 
-  if (!gatingResult.success) {
+  if (!gatingResult.success || !gatingResult.items) {
     // Log warning for no items found (maintaining original behavior)
     if (gatingResult.reason && gatingResult.reason.includes("No create-discussion items found")) {
       core.warning("No create-discussion items found in agent output");
@@ -128,11 +128,7 @@ async function main() {
     return;
   }
 
-  // @ts-ignore - items is guaranteed to be present when success is true
   const createDiscussionItems = gatingResult.items;
-  if (!createDiscussionItems) {
-    return;
-  }
 
   // Parse allowed repos and default target
   const allowedRepos = parseAllowedRepos();

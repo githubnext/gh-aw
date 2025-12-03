@@ -109,15 +109,11 @@ async function main() {
     }
   );
 
-  if (!gatingResult.success) {
+  if (!gatingResult.success || !gatingResult.items) {
     return;
   }
 
-  // @ts-ignore - items is guaranteed to be present when success is true
   const closeIssueItems = gatingResult.items;
-  if (!closeIssueItems) {
-    return;
-  }
 
   // Check if we're in an issue context
   const isIssueContext = context.eventName === "issues" || context.eventName === "issue_comment";

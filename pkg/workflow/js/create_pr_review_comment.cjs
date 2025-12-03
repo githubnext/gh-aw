@@ -35,15 +35,11 @@ async function main() {
     }
   );
 
-  if (!gatingResult.success) {
+  if (!gatingResult.success || !gatingResult.items) {
     return;
   }
 
-  // @ts-ignore - items is guaranteed to be present when success is true
   const reviewCommentItems = gatingResult.items;
-  if (!reviewCommentItems) {
-    return;
-  }
 
   // Get the side configuration from environment variable
   const defaultSide = process.env.GH_AW_PR_REVIEW_COMMENT_SIDE || "RIGHT";

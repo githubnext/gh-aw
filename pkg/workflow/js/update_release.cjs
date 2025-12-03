@@ -22,11 +22,10 @@ async function main() {
     }
   );
 
-  if (!gatingResult.success) {
+  if (!gatingResult.success || !gatingResult.items) {
     return;
   }
 
-  // @ts-ignore - items is guaranteed to be present when success is true
   const updateItems = gatingResult.items;
 
   // Get workflow run URL for AI attribution

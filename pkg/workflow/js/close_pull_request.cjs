@@ -109,15 +109,11 @@ async function main() {
     }
   );
 
-  if (!gatingResult.success) {
+  if (!gatingResult.success || !gatingResult.items) {
     return;
   }
 
-  // @ts-ignore - items is guaranteed to be present when success is true
   const closePRItems = gatingResult.items;
-  if (!closePRItems) {
-    return;
-  }
 
   // Check if we're in a pull request context
   const isPRContext = context.eventName === "pull_request" || context.eventName === "pull_request_review_comment";
