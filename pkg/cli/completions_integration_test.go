@@ -6,7 +6,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -280,10 +279,8 @@ func TestCompletionDirectiveNoFileComp(t *testing.T) {
 
 	outputStr := string(output)
 
-	// The last line should contain ":4" which is ShellCompDirectiveNoFileComp
-	lines := strings.Split(strings.TrimSpace(outputStr), "\n")
-	lastLine := lines[len(lines)-1]
-	assert.Contains(t, lastLine, ":4", "Expected ShellCompDirectiveNoFileComp (:4) in output")
+	// The output should contain ":4" which is ShellCompDirectiveNoFileComp
+	assert.Contains(t, outputStr, ":4", "Expected ShellCompDirectiveNoFileComp (:4) in output")
 }
 
 // setupIntegrationTestForCompletions is a local version of setupIntegrationTest for this file

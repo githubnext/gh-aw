@@ -342,6 +342,10 @@ func init() {
 	// network timeouts). Users can still run --help for usage information.
 	rootCmd.SilenceUsage = true
 
+	// Silence errors - since we're using RunE and returning errors, Cobra will
+	// print errors automatically. We handle error formatting ourselves in main().
+	rootCmd.SilenceErrors = true
+
 	// Set version template to match the version subcommand format
 	rootCmd.SetVersionTemplate(fmt.Sprintf("%s\n%s\n",
 		console.FormatInfoMessage(fmt.Sprintf("%s version {{.Version}}", constants.CLIExtensionPrefix)),
@@ -543,6 +547,7 @@ func main() {
 	cli.SetVersionInfo(version)
 
 	if err := rootCmd.Execute(); err != nil {
+		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
 		os.Exit(1)
 	}
 }
