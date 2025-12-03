@@ -248,31 +248,14 @@ func ensureDevcontainerCodespace(verbose bool) error {
 	if existingPerms, exists := config.Customizations.Codespaces.Repositories[repoSlug]; exists {
 		codespaceInitLog.Printf("Repository %s already has permissions configured", repoSlug)
 		// Merge permissions - only update if not already set
-		if existingPerms.Permissions.Actions == "" {
-			existingPerms.Permissions.Actions = "write"
-		}
-		if existingPerms.Permissions.Contents == "" {
-			existingPerms.Permissions.Contents = "write"
-		}
-		if existingPerms.Permissions.Workflows == "" {
-			existingPerms.Permissions.Workflows = "write"
-		}
-		if existingPerms.Permissions.Issues == "" {
-			existingPerms.Permissions.Issues = "write"
-		}
-		if existingPerms.Permissions.PullRequests == "" {
-			existingPerms.Permissions.PullRequests = "write"
-		}
-		if existingPerms.Permissions.Discussions == "" {
-			existingPerms.Permissions.Discussions = "write"
-		}
+		existingPerms.Permissions = mergePermissions(existingPerms.Permissions, currentRepoPerms.Permissions)
 		config.Customizations.Codespaces.Repositories[repoSlug] = existingPerms
 	} else {
 		codespaceInitLog.Printf("Adding permissions for repository: %s", repoSlug)
 		config.Customizations.Codespaces.Repositories[repoSlug] = currentRepoPerms
 	}
 
-	// Add read permissions for githubnext/gh-aw releases
+	// Add read permissions for githubnext/gh-aw repository
 	ghAwRepo := "githubnext/gh-aw"
 	ghAwPerms := DevcontainerRepositoryConfig{
 		Permissions: DevcontainerRepositoryPermissions{
@@ -284,13 +267,8 @@ func ensureDevcontainerCodespace(verbose bool) error {
 	// Check if gh-aw repo already has permissions configured
 	if existingPerms, exists := config.Customizations.Codespaces.Repositories[ghAwRepo]; exists {
 		codespaceInitLog.Printf("Repository %s already has permissions configured", ghAwRepo)
-		// Only update if not already set to read or write
-		if existingPerms.Permissions.Contents == "" {
-			existingPerms.Permissions.Contents = "read"
-		}
-		if existingPerms.Permissions.Metadata == "" {
-			existingPerms.Permissions.Metadata = "read"
-		}
+		// Merge permissions - only update if not already set
+		existingPerms.Permissions = mergePermissions(existingPerms.Permissions, ghAwPerms.Permissions)
 		config.Customizations.Codespaces.Repositories[ghAwRepo] = existingPerms
 	} else {
 		codespaceInitLog.Printf("Adding read permissions for repository: %s", ghAwRepo)
@@ -326,4 +304,31 @@ func ensureDevcontainerCodespace(verbose bool) error {
 	}
 
 	return nil
+}
+
+// mergePermissions merges default permissions into existing permissions, only setting values that are empty
+func mergePermissions(existing, defaults DevcontainerRepositoryPermissions) DevcontainerRepositoryPermissions {
+	result := existing
+	if result.Actions == "" && defaults.Actions != "" {
+		result.Actions = defaults.Actions
+	}
+	if result.Contents == "" && defaults.Contents != "" {
+		result.Contents = defaults.Contents
+	}
+	if result.Workflows == "" && defaults.Workflows != "" {
+		result.Workflows = defaults.Workflows
+	}
+	if result.Issues == "" && defaults.Issues != "" {
+		result.Issues = defaults.Issues
+	}
+	if result.PullRequests == "" && defaults.PullRequests != "" {
+		result.PullRequests = defaults.PullRequests
+	}
+	if result.Discussions == "" && defaults.Discussions != "" {
+		result.Discussions = defaults.Discussions
+	}
+	if result.Metadata == "" && defaults.Metadata != "" {
+		result.Metadata = defaults.Metadata
+	}
+	return result
 }
