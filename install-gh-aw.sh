@@ -30,6 +30,12 @@ print_error() {
     echo -e "${RED}[ERROR]${NC} $1"
 }
 
+# Check if HOME is set
+if [ -z "$HOME" ]; then
+    print_error "HOME environment variable is not set. Cannot determine installation directory."
+    exit 1
+fi
+
 # Check if curl is available
 if ! command -v curl &> /dev/null; then
     print_error "curl is required but not installed. Please install curl first."
@@ -95,12 +101,21 @@ fi
 # Construct download URL
 DOWNLOAD_URL="https://github.com/$REPO/releases/download/$VERSION/$PLATFORM"
 BINARY_NAME="gh-aw"
+INSTALL_DIR="$HOME/.local/share/gh/extensions/gh-aw"
+BINARY_PATH="$INSTALL_DIR/$BINARY_NAME"
 
 print_info "Download URL: $DOWNLOAD_URL"
+print_info "Installation directory: $INSTALL_DIR"
+
+# Create the installation directory if it doesn't exist
+if [ ! -d "$INSTALL_DIR" ]; then
+    print_info "Creating installation directory..."
+    mkdir -p "$INSTALL_DIR"
+fi
 
 # Check if binary already exists
-if [ -f "$BINARY_NAME" ]; then
-    print_warning "Binary '$BINARY_NAME' already exists. It will be overwritten."
+if [ -f "$BINARY_PATH" ]; then
+    print_warning "Binary '$BINARY_PATH' already exists. It will be overwritten."
     read -p "Continue? (y/N): " -n 1 -r
     echo
     if [[ ! $REPLY =~ ^[Yy]$ ]]; then
@@ -111,7 +126,7 @@ fi
 
 # Download the binary
 print_info "Downloading gh-aw binary..."
-if curl -L -f -o "$BINARY_NAME" "$DOWNLOAD_URL"; then
+if curl -L -f -o "$BINARY_PATH" "$DOWNLOAD_URL"; then
     print_success "Binary downloaded successfully"
 else
     print_error "Failed to download binary from $DOWNLOAD_URL"
@@ -121,11 +136,11 @@ fi
 
 # Make it executable
 print_info "Making binary executable..."
-chmod +x "$BINARY_NAME"
+chmod +x "$BINARY_PATH"
 
 # Verify the binary
 print_info "Verifying binary..."
-if ./"$BINARY_NAME" --help > /dev/null 2>&1; then
+if "$BINARY_PATH" --help > /dev/null 2>&1; then
     print_success "Binary is working correctly!"
 else
     print_error "Binary verification failed. The downloaded file may be corrupted or incompatible."
@@ -133,19 +148,19 @@ else
 fi
 
 # Show file info
-FILE_SIZE=$(ls -lh "$BINARY_NAME" | awk '{print $5}')
+FILE_SIZE=$(ls -lh "$BINARY_PATH" | awk '{print $5}')
 print_success "Installation complete!"
-print_info "Binary location: $(pwd)/$BINARY_NAME"
+print_info "Binary location: $BINARY_PATH"
 print_info "Binary size: $FILE_SIZE"
 print_info "Version: $VERSION"
 
-# Suggest adding to PATH
+# Show usage info
 print_info ""
-print_info "To use gh-aw from anywhere, consider adding it to your PATH:"
-print_info "  sudo mv $BINARY_NAME /usr/local/bin/"
-print_info "Or run it directly: ./$BINARY_NAME"
+print_info "You can now use gh-aw with the gh CLI:"
+print_info "  gh aw --help"
+print_info "  gh aw version"
 
 # Show version
 print_info ""
 print_info "Running gh-aw version check..."
-./"$BINARY_NAME" version
+"$BINARY_PATH" version

@@ -43,13 +43,7 @@ If the extension installation fails (common in Codespaces outside the githubnext
 curl -sL https://raw.githubusercontent.com/githubnext/gh-aw/main/install-gh-aw.sh | bash
 ```
 
-After standalone installation, the binary is available as `./gh-aw` in the current directory.
-
-:::note[Command differences]
-When using the standalone binary, run commands as `./gh-aw` instead of `gh aw`. For example:
-- Extension: `gh aw compile`
-- Standalone: `./gh-aw compile`
-:::
+After standalone installation, the binary is installed to `~/.local/share/gh/extensions/gh-aw/gh-aw` and can be used with `gh aw` commands just like the extension installation.
 
 **GitHub Enterprise Server:** Set `GITHUB_SERVER_URL` or `GH_HOST` environment variables to use your GitHub instance.
 
