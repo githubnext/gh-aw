@@ -290,7 +290,7 @@ tools:
 
 Remote mode without toolsets.
 `,
-			expectedHeader: `"X-MCP-Toolsets": "default"`, // Now defaults to "default"
+			expectedHeader: `"X-MCP-Toolsets": "context,repos,issues,pull_requests"`, // Defaults to action-friendly toolsets
 			engineType:     "claude",
 		},
 		{
