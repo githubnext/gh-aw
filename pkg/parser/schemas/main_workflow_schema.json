@@ -1765,18 +1765,18 @@
                     },
                     "command": {
                       "type": "string",
-                      "description": "Custom command to replace the AWF binary download. For example, 'docker run my-custom-awf-image' or './custom-awf-wrapper.sh'"
+                      "description": "Custom command to replace the default AWF or SRT installation. For AWF: 'docker run my-custom-awf-image'. For SRT: 'docker run my-custom-srt-wrapper'"
                     },
                     "args": {
                       "type": "array",
-                      "description": "Additional arguments to append to the command (applies to both standard and custom commands)",
+                      "description": "Additional arguments to append to the command (applies to both AWF and SRT, for standard and custom commands)",
                       "items": {
                         "type": "string"
                       }
                     },
                     "env": {
                       "type": "object",
-                      "description": "Environment variables to set on the execution step",
+                      "description": "Environment variables to set on the execution step (applies to both AWF and SRT)",
                       "additionalProperties": {
                         "type": "string"
                       }

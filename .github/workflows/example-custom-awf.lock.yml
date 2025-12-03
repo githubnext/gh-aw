@@ -18,22 +18,22 @@
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/aw/github-agentic-workflows.md
 #
-# Example workflow demonstrating custom AWF configuration with command, args, and env
+# Example workflow demonstrating custom agent configuration with command, args, and env
 #
 # Original Frontmatter:
 # ```yaml
-# description: Example workflow demonstrating custom AWF configuration with command, args, and env
+# description: Example workflow demonstrating custom agent configuration with command, args, and env
 # on:
 #   workflow_dispatch:
 #
-# name: Custom AWF Example
+# name: Custom Agent Example
 # engine: copilot
 # network:
 #   allowed:
 #     - example.com
 #   firewall: true
 #
-# # Custom AWF Configuration
+# # Custom Agent Configuration (works for both AWF and SRT)
 # # This example shows how to use a custom command to replace the standard AWF binary
 # sandbox:
 #   agent:
@@ -64,30 +64,65 @@
 #
 # Original Prompt:
 # ```markdown
-# # Custom AWF Configuration Example
+# # Custom Agent Configuration Example
 #
-# This workflow demonstrates the new custom AWF configuration capabilities:
+# This workflow demonstrates the custom agent configuration capabilities that work for **both AWF and SRT**:
 #
-# 1. **Custom Command**: Replace the standard AWF binary download with any command (e.g., Docker container, custom script)
-# 2. **Custom Args**: Add additional arguments that are appended to the AWF command
+# 1. **Custom Command**: Replace the standard AWF or SRT installation with any command (e.g., Docker container, custom script)
+# 2. **Custom Args**: Add additional arguments that are appended to the command
 # 3. **Custom Env**: Set environment variables on the execution step
 #
 # ## Use Cases
 #
+# ### For AWF (Agent Workflow Firewall)
 # - **Custom AWF Image**: Run AWF from a custom Docker image with pre-configured settings
 # - **Custom Wrapper Script**: Use a shell script that sets up AWF with organization-specific configuration
 # - **Testing**: Use a modified AWF binary for testing new features
 # - **Debugging**: Add debug flags and environment variables for troubleshooting
 #
-# ## Example Configuration
+# ### For SRT (Sandbox Runtime)
+# - **Custom SRT Wrapper**: Use a custom wrapper around the Anthropic Sandbox Runtime
+# - **Pre-configured Container**: Run SRT from a Docker image with custom settings
+# - **Custom Isolation**: Implement custom sandboxing logic that wraps SRT
+# - **Testing & Development**: Use a modified SRT setup for testing
+#
+# ## Example Configurations
+#
+# ### AWF with Custom Command
+#
+# ```yaml
+# sandbox:
+#   agent:
+#     id: awf
+#     command: "docker run --rm my-custom-awf"
+#     args: ["--debug-mode", "--verbose"]
+#     env:
+#       AWF_LOG_LEVEL: "debug"
+# ```
+#
+# ### SRT with Custom Command
+#
+# ```yaml
+# features:
+#   sandbox-runtime: true
+# sandbox:
+#   agent:
+#     id: srt
+#     command: "custom-srt-wrapper"
+#     args: ["--custom-arg"]
+#     env:
+#       SRT_DEBUG: "true"
+# ```
+#
+# ## Configuration Reference
 #
 # The `sandbox.agent` object supports:
 # - `id`: Agent identifier ("awf" or "srt")
-# - `command`: Custom command to replace the AWF binary download (optional)
+# - `command`: Custom command to replace the default installation (optional)
 # - `args`: Array of additional arguments to append (optional)
 # - `env`: Object with environment variables to set (optional)
 #
-# When `command` is specified, the AWF installation step is skipped, and your custom command is used instead.
+# When `command` is specified, the installation step is skipped, and your custom command is used instead.
 #
 # ## Legacy Compatibility
 #
@@ -112,7 +147,7 @@
 #   - actions/upload-artifact@v5 (330a01c490aca151604b8cf639adc76d48f6c5d4)
 #     https://github.com/actions/upload-artifact/commit/330a01c490aca151604b8cf639adc76d48f6c5d4
 
-name: "Custom AWF Example"
+name: "Custom Agent Example"
 "on":
   workflow_dispatch: null
 
@@ -122,7 +157,7 @@ permissions:
 concurrency:
   group: "gh-aw-${{ github.workflow }}"
 
-run-name: "Custom AWF Example"
+run-name: "Custom Agent Example"
 
 jobs:
   activation:
@@ -365,7 +400,7 @@ jobs:
               model: "",
               version: "",
               agent_version: "0.0.365",
-              workflow_name: "Custom AWF Example",
+              workflow_name: "Custom Agent Example",
               experimental: false,
               supports_tools_allowlist: true,
               supports_http_transport: true,
@@ -439,30 +474,65 @@ jobs:
           PROMPT_DIR="$(dirname "$GH_AW_PROMPT")"
           mkdir -p "$PROMPT_DIR"
           cat << 'PROMPT_EOF' | envsubst > "$GH_AW_PROMPT"
-          # Custom AWF Configuration Example
+          # Custom Agent Configuration Example
           
-          This workflow demonstrates the new custom AWF configuration capabilities:
+          This workflow demonstrates the custom agent configuration capabilities that work for **both AWF and SRT**:
           
-          1. **Custom Command**: Replace the standard AWF binary download with any command (e.g., Docker container, custom script)
-          2. **Custom Args**: Add additional arguments that are appended to the AWF command
+          1. **Custom Command**: Replace the standard AWF or SRT installation with any command (e.g., Docker container, custom script)
+          2. **Custom Args**: Add additional arguments that are appended to the command
           3. **Custom Env**: Set environment variables on the execution step
           
           ## Use Cases
           
+          ### For AWF (Agent Workflow Firewall)
           - **Custom AWF Image**: Run AWF from a custom Docker image with pre-configured settings
           - **Custom Wrapper Script**: Use a shell script that sets up AWF with organization-specific configuration
           - **Testing**: Use a modified AWF binary for testing new features
           - **Debugging**: Add debug flags and environment variables for troubleshooting
           
-          ## Example Configuration
+          ### For SRT (Sandbox Runtime)
+          - **Custom SRT Wrapper**: Use a custom wrapper around the Anthropic Sandbox Runtime
+          - **Pre-configured Container**: Run SRT from a Docker image with custom settings
+          - **Custom Isolation**: Implement custom sandboxing logic that wraps SRT
+          - **Testing & Development**: Use a modified SRT setup for testing
+          
+          ## Example Configurations
+          
+          ### AWF with Custom Command
+          
+          ```yaml
+          sandbox:
+            agent:
+              id: awf
+              command: "docker run --rm my-custom-awf"
+              args: ["--debug-mode", "--verbose"]
+              env:
+                AWF_LOG_LEVEL: "debug"
+          ```
+          
+          ### SRT with Custom Command
+          
+          ```yaml
+          features:
+            sandbox-runtime: true
+          sandbox:
+            agent:
+              id: srt
+              command: "custom-srt-wrapper"
+              args: ["--custom-arg"]
+              env:
+                SRT_DEBUG: "true"
+          ```
+          
+          ## Configuration Reference
           
           The `sandbox.agent` object supports:
           - `id`: Agent identifier ("awf" or "srt")
-          - `command`: Custom command to replace the AWF binary download (optional)
+          - `command`: Custom command to replace the default installation (optional)
           - `args`: Array of additional arguments to append (optional)
           - `env`: Object with environment variables to set (optional)
           
-          When `command` is specified, the AWF installation step is skipped, and your custom command is used instead.
+          When `command` is specified, the installation step is skipped, and your custom command is used instead.
           
           ## Legacy Compatibility
           
@@ -2069,7 +2139,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
         with:
-          name: firewall-logs-custom-awf-example
+          name: firewall-logs-custom-agent-example
           path: /tmp/gh-aw/sandbox/firewall/logs/
           if-no-files-found: ignore
       - name: Parse firewall logs for step summary

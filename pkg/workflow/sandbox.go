@@ -37,7 +37,7 @@ type AgentSandboxConfig struct {
 	ID      string                `yaml:"id,omitempty"`      // Agent ID: "awf" or "srt" (replaces Type in new object format)
 	Type    SandboxType           `yaml:"type,omitempty"`    // Sandbox type: "awf" or "srt" (legacy, use ID instead)
 	Config  *SandboxRuntimeConfig `yaml:"config,omitempty"`  // Custom SRT config (optional)
-	Command string                `yaml:"command,omitempty"` // Custom command to replace AWF binary download
+	Command string                `yaml:"command,omitempty"` // Custom command to replace AWF or SRT installation
 	Args    []string              `yaml:"args,omitempty"`    // Additional arguments to append to the command
 	Env     map[string]string     `yaml:"env,omitempty"`     // Environment variables to set on the step
 }

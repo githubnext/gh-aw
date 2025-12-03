@@ -107,17 +107,24 @@ func (e *CopilotEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHu
 	// SRT and AWF are mutually exclusive (validated earlier)
 	if isSRTEnabled(workflowData) {
 		// Install Sandbox Runtime (SRT)
-		copilotLog.Print("Adding Sandbox Runtime (SRT) system dependencies step")
-		srtSystemDeps := generateSRTSystemDepsStep()
-		steps = append(steps, srtSystemDeps)
+		agentConfig := getAgentConfig(workflowData)
 
-		copilotLog.Print("Adding Sandbox Runtime (SRT) system configuration step")
-		srtSystemConfig := generateSRTSystemConfigStep()
-		steps = append(steps, srtSystemConfig)
+		// Skip standard installation if custom command is specified
+		if agentConfig == nil || agentConfig.Command == "" {
+			copilotLog.Print("Adding Sandbox Runtime (SRT) system dependencies step")
+			srtSystemDeps := generateSRTSystemDepsStep()
+			steps = append(steps, srtSystemDeps)
 
-		copilotLog.Print("Adding Sandbox Runtime (SRT) installation step")
-		srtInstall := generateSRTInstallationStep()
-		steps = append(steps, srtInstall)
+			copilotLog.Print("Adding Sandbox Runtime (SRT) system configuration step")
+			srtSystemConfig := generateSRTSystemConfigStep()
+			steps = append(steps, srtSystemConfig)
+
+			copilotLog.Print("Adding Sandbox Runtime (SRT) installation step")
+			srtInstall := generateSRTInstallationStep()
+			steps = append(steps, srtInstall)
+		} else {
+			copilotLog.Print("Skipping SRT installation (custom command specified)")
+		}
 	} else if isFirewallEnabled(workflowData) {
 		// Install AWF after Node.js setup but before Copilot CLI installation
 		firewallConfig := getFirewallConfig(workflowData)
@@ -281,6 +288,8 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 		// Build the SRT-wrapped command
 		copilotLog.Print("Using Sandbox Runtime (SRT) for execution")
 
+		agentConfig := getAgentConfig(workflowData)
+
 		// Generate SRT config JSON
 		srtConfigJSON, err := generateSRTConfigJSON(workflowData)
 		if err != nil {
@@ -289,10 +298,27 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 			srtConfigJSON = "{}"
 		}
 
-		// Create the Node.js wrapper script for SRT
-		srtWrapperScript := generateSRTWrapperScript(copilotCommand, srtConfigJSON, logFile, logsFolder)
+		// Check if custom command is specified
+		if agentConfig != nil && agentConfig.Command != "" {
+			// Use custom command for SRT
+			copilotLog.Printf("Using custom SRT command: %s", agentConfig.Command)
 
-		command = srtWrapperScript
+			// Build args list with custom args appended
+			var srtArgs []string
+			if len(agentConfig.Args) > 0 {
+				srtArgs = append(srtArgs, agentConfig.Args...)
+				copilotLog.Printf("Added %d custom args from agent config", len(agentConfig.Args))
+			}
+
+			// Build the command with custom SRT command
+			// The custom command should handle wrapping copilot with SRT
+			command = fmt.Sprintf(`set -o pipefail
+%s %s -- %s 2>&1 | tee %s`, agentConfig.Command, shellJoinArgs(srtArgs), copilotCommand, shellEscapeArg(logFile))
+		} else {
+			// Create the Node.js wrapper script for SRT (standard installation)
+			srtWrapperScript := generateSRTWrapperScript(copilotCommand, srtConfigJSON, logFile, logsFolder)
+			command = srtWrapperScript
+		}
 	} else if isFirewallEnabled(workflowData) {
 		// Build the AWF-wrapped command - no mkdir needed, AWF handles it
 		firewallConfig := getFirewallConfig(workflowData)

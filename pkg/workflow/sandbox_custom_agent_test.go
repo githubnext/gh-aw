@@ -239,4 +239,81 @@ sandbox:
 			t.Error("Expected AWF installation step with legacy type field")
 		}
 	})
+
+	t.Run("custom command and args for SRT", func(t *testing.T) {
+		// Create temp directory for test
+		tmpDir, err := os.MkdirTemp("", "custom-srt-test")
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer os.RemoveAll(tmpDir)
+
+		markdown := `---
+on:
+  workflow_dispatch:
+engine: copilot
+features:
+  sandbox-runtime: true
+sandbox:
+  agent:
+    id: srt
+    command: "custom-srt-wrapper"
+    args:
+      - "--custom-srt-arg"
+      - "--debug"
+    env:
+      SRT_CUSTOM_VAR: "test_value"
+      SRT_DEBUG: "true"
+---
+
+# Test Custom SRT
+`
+
+		testFile := filepath.Join(tmpDir, "test-workflow.md")
+		err = os.WriteFile(testFile, []byte(markdown), 0644)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		compiler := NewCompiler(false, "", "test")
+		compiler.SetStrictMode(false)
+		err = compiler.CompileWorkflow(testFile)
+		if err != nil {
+			t.Fatalf("Compilation failed: %v", err)
+		}
+
+		// Read the lock file
+		lockFile := filepath.Join(tmpDir, "test-workflow.lock.yml")
+		lockContent, err := os.ReadFile(lockFile)
+		if err != nil {
+			t.Fatal(err)
+		}
+		lockStr := string(lockContent)
+
+		// Verify custom SRT command is used
+		if !strings.Contains(lockStr, "custom-srt-wrapper") {
+			t.Error("Expected custom SRT command 'custom-srt-wrapper' in compiled workflow")
+		}
+
+		// Verify custom args are included
+		if !strings.Contains(lockStr, "--custom-srt-arg") {
+			t.Error("Expected custom arg '--custom-srt-arg' in compiled workflow")
+		}
+		if !strings.Contains(lockStr, "--debug") {
+			t.Error("Expected custom arg '--debug' in compiled workflow")
+		}
+
+		// Verify custom env is included
+		if !strings.Contains(lockStr, "SRT_CUSTOM_VAR: test_value") {
+			t.Error("Expected custom env 'SRT_CUSTOM_VAR: test_value' in compiled workflow")
+		}
+		if !strings.Contains(lockStr, "SRT_DEBUG: true") {
+			t.Error("Expected custom env 'SRT_DEBUG: true' in compiled workflow")
+		}
+
+		// Verify installation steps were skipped
+		if strings.Contains(lockStr, "Install Sandbox Runtime") {
+			t.Error("Expected SRT installation step to be skipped when custom command is specified")
+		}
+	})
 }
