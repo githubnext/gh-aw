@@ -106,8 +106,9 @@ func enableFirewallByDefaultForCopilot(engineID string, networkPermissions *Netw
 		return
 	}
 
-	// Check if network restrictions are present (allowed domains specified)
-	if len(networkPermissions.Allowed) > 0 {
+	// Check if network restrictions are present (allowed domains specified OR explicitly set mode is "defaults")
+	// Only enable firewall if network was explicitly defined in frontmatter
+	if networkPermissions.ExplicitlyDefined && (len(networkPermissions.Allowed) > 0 || networkPermissions.Mode == "defaults") {
 		// Enable firewall by default for copilot engine with network restrictions
 		networkPermissions.Firewall = &FirewallConfig{
 			Enabled: true,

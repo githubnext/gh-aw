@@ -597,7 +597,8 @@ func (c *Compiler) extractNetworkPermissions(frontmatter map[string]any) *Networ
 		if networkStr, ok := network.(string); ok {
 			if networkStr == "defaults" {
 				return &NetworkPermissions{
-					Mode: "defaults",
+					Mode:              "defaults",
+					ExplicitlyDefined: true,
 				}
 			}
 			// Unknown string format, return nil
@@ -606,7 +607,9 @@ func (c *Compiler) extractNetworkPermissions(frontmatter map[string]any) *Networ
 
 		// Handle object format: { allowed: [...], firewall: ... } or {}
 		if networkObj, ok := network.(map[string]any); ok {
-			permissions := &NetworkPermissions{}
+			permissions := &NetworkPermissions{
+				ExplicitlyDefined: true,
+			}
 
 			// Extract allowed domains if present
 			if allowed, hasAllowed := networkObj["allowed"]; hasAllowed {

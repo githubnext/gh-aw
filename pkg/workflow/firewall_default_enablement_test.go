@@ -9,7 +9,8 @@ import (
 func TestEnableFirewallByDefaultForCopilot(t *testing.T) {
 	t.Run("copilot engine with network restrictions enables firewall by default", func(t *testing.T) {
 		networkPerms := &NetworkPermissions{
-			Allowed: []string{"example.com", "api.github.com"},
+			Allowed:           []string{"example.com", "api.github.com"},
+			ExplicitlyDefined: true,
 		}
 
 		enableFirewallByDefaultForCopilot("copilot", networkPerms, nil)
@@ -24,9 +25,7 @@ func TestEnableFirewallByDefaultForCopilot(t *testing.T) {
 	})
 
 	t.Run("copilot engine without network restrictions does not enable firewall", func(t *testing.T) {
-		networkPerms := &NetworkPermissions{
-			Mode: "defaults",
-		}
+		networkPerms := &NetworkPermissions{}
 
 		enableFirewallByDefaultForCopilot("copilot", networkPerms, nil)
 
@@ -35,9 +34,27 @@ func TestEnableFirewallByDefaultForCopilot(t *testing.T) {
 		}
 	})
 
+	t.Run("copilot engine with network:defaults enables firewall by default", func(t *testing.T) {
+		networkPerms := &NetworkPermissions{
+			Mode:              "defaults",
+			ExplicitlyDefined: true,
+		}
+
+		enableFirewallByDefaultForCopilot("copilot", networkPerms, nil)
+
+		if networkPerms.Firewall == nil {
+			t.Error("Expected firewall to be enabled by default for copilot engine with network:defaults")
+		}
+
+		if !networkPerms.Firewall.Enabled {
+			t.Error("Expected firewall.Enabled to be true")
+		}
+	})
+
 	t.Run("copilot engine with explicit firewall config is not overridden", func(t *testing.T) {
 		networkPerms := &NetworkPermissions{
-			Allowed: []string{"example.com"},
+			Allowed:           []string{"example.com"},
+			ExplicitlyDefined: true,
 			Firewall: &FirewallConfig{
 				Enabled: false,
 			},
@@ -52,7 +69,8 @@ func TestEnableFirewallByDefaultForCopilot(t *testing.T) {
 
 	t.Run("non-copilot engine does not enable firewall", func(t *testing.T) {
 		networkPerms := &NetworkPermissions{
-			Allowed: []string{"example.com"},
+			Allowed:           []string{"example.com"},
+			ExplicitlyDefined: true,
 		}
 
 		enableFirewallByDefaultForCopilot("claude", networkPerms, nil)
@@ -236,6 +254,57 @@ func TestCopilotFirewallDefaultIntegration(t *testing.T) {
 		// Verify firewall is NOT enabled for claude
 		if networkPerms.Firewall != nil {
 			t.Error("Expected firewall to remain nil for claude engine")
+		}
+	})
+}
+
+// TestDailyTeamStatusFirewallEnabled tests that daily-team-status workflow has firewall enabled
+func TestDailyTeamStatusFirewallEnabled(t *testing.T) {
+	t.Run("daily-team-status workflow with network:defaults enables AWF firewall", func(t *testing.T) {
+		frontmatter := map[string]any{
+			"on": "workflow_dispatch",
+			"permissions": map[string]any{
+				"contents": "read",
+			},
+			// No explicit engine specified - should default to copilot
+			"network": "defaults",
+		}
+
+		// Create compiler
+		c := NewCompiler(false, "", "test")
+		c.SetSkipValidation(true)
+
+		// Extract engine config (should default to copilot)
+		_, engineConfig := c.ExtractEngineConfig(frontmatter)
+		
+		// If no engine is specified, it should default to copilot
+		var engineID string
+		if engineConfig != nil {
+			engineID = engineConfig.ID
+		} else {
+			engineID = "copilot" // default engine
+		}
+
+		// Extract network permissions
+		networkPerms := c.extractNetworkPermissions(frontmatter)
+		if networkPerms == nil {
+			t.Fatal("Expected network permissions to be extracted")
+		}
+
+		if networkPerms.Mode != "defaults" {
+			t.Errorf("Expected network mode to be 'defaults', got '%s'", networkPerms.Mode)
+		}
+
+		// Enable firewall by default
+		enableFirewallByDefaultForCopilot(engineID, networkPerms, nil)
+
+		// Verify firewall is enabled
+		if networkPerms.Firewall == nil {
+			t.Error("Expected firewall to be automatically enabled for network:defaults with copilot")
+		}
+
+		if networkPerms.Firewall != nil && !networkPerms.Firewall.Enabled {
+			t.Error("Expected firewall.Enabled to be true")
 		}
 	})
 }
