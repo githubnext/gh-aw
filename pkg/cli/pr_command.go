@@ -44,8 +44,8 @@ to another, including the code changes, title, and description.
 
 Available subcommands:
   transfer  Transfer a pull request from one repository to another`,
-		Run: func(cmd *cobra.Command, args []string) {
-			_ = cmd.Help()
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return cmd.Help()
 		},
 	}
 
@@ -77,15 +77,15 @@ The command will:
 3. Create a new PR in the target repository
 4. Copy the original title and description`,
 		Args: cobra.ExactArgs(1),
-		Run: func(cmd *cobra.Command, args []string) {
+		RunE: func(cmd *cobra.Command, args []string) error {
 			prURL := args[0]
 			targetRepo, _ := cmd.Flags().GetString("repo")
 			verbose, _ := cmd.Flags().GetBool("verbose")
 
 			if err := transferPR(prURL, targetRepo, verbose); err != nil {
-				fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
-				os.Exit(1)
+				return err
 			}
+			return nil
 		},
 	}
 
