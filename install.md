@@ -142,7 +142,7 @@ gh secret list
 
 You should see `COPILOT_GITHUB_TOKEN` in the list.
 
-**📚 Reference:** [GitHub Copilot CLI documentation](https://github.com/github/copilot-cli?tab=readme-ov-file#authenticate-with-a-personal-access-token-pat)
+**📚 Reference:** [GitHub Copilot CLI documentation](https://docs.github.com/en/copilot/concepts/agents/about-copilot-cli)
 
 ## Step 4: Add Your First Workflow
 
@@ -190,25 +190,32 @@ You should see both the `.md` and `.lock.yml` files.
 
 ### Option B: Create a New Workflow with AI Assistance
 
-If you want to create a custom workflow, you can use the GitHub Copilot CLI with the workflow creation agent:
+If you want to create a custom workflow, you can use GitHub Copilot Chat (in VS Code, GitHub.com, or Copilot CLI) with the workflow creation agent.
 
-**Prerequisites:**
-```bash
-# Install GitHub Copilot CLI if you haven't already
-npm install -g @github/copilot-cli
-```
+**Using GitHub Copilot Chat (VS Code or GitHub.com):**
 
-**Create a workflow interactively:**
-```bash
-copilot
-```
+After running `gh aw init`, the `/create-agentic-workflow` slash command becomes available in GitHub Copilot Chat. Simply type:
 
-Then in the Copilot chat:
 ```
 /create-agentic-workflow
 ```
 
-Follow the interactive prompts to design your workflow. The agent will help you:
+**Using GitHub Copilot CLI (terminal-based):**
+
+First, install GitHub Copilot CLI if you haven't already:
+```bash
+# Prerequisites: Node.js v22+ and npm v10+
+npm install -g @github/copilot
+```
+
+Then launch the interactive CLI and use the agent:
+```bash
+copilot
+```
+
+In the Copilot CLI session, you can use the `/create-agentic-workflow` command or simply describe what you want to automate in natural language.
+
+The agent will help you:
 - Choose the right trigger (issues, PRs, schedule, etc.)
 - Configure permissions and tools
 - Write the workflow instructions
@@ -258,10 +265,12 @@ gh aw logs <workflow-name>
    - **Compilation error:** Run `gh aw compile <workflow-name> --strict` to validate
 
 3. **Get AI help debugging:**
+
+   Use GitHub Copilot Chat (VS Code, GitHub.com) or Copilot CLI:
    ```bash
    copilot
    ```
-   Then: `/debug-agentic-workflow` and describe the issue
+   Then use the `/debug-agentic-workflow` command and describe the issue.
 
 ## Next Steps
 
