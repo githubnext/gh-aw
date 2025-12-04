@@ -141,6 +141,7 @@ export default defineConfig({
 						{ label: 'AI Engines', link: '/reference/engines/' },
 						{ label: 'Tools', link: '/reference/tools/' },
 						{ label: 'Safe Outputs', link: '/reference/safe-outputs/' },
+						{ label: 'Safe Inputs', link: '/reference/safe-inputs/' },
 						{ label: 'Custom Safe Outputs', link: '/guides/custom-safe-outputs/' },
 						{ label: 'Imports', link: '/reference/imports/' },
 						{ label: 'Templating', link: '/reference/templating/' },

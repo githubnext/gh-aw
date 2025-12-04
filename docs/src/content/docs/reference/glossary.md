@@ -46,6 +46,9 @@ Capabilities that an AI agent can use during workflow execution. Tools are confi
 
 ## Security and Outputs
 
+### Safe Inputs
+Custom MCP tools defined inline in the workflow frontmatter using JavaScript or shell scripts. Allows lightweight tool creation without external dependencies while maintaining controlled access to secrets. Tools are generated at runtime and mounted as an MCP server. Each tool can have typed input parameters, default values, and environment variables. Configured using the `safe-inputs:` section in frontmatter.
+
 ### Safe Outputs
 Pre-approved actions the AI can take without requiring elevated permissions. The AI generates structured output describing what it wants to create (issues, comments, pull requests), which is processed by separate, permission-controlled jobs. Configured using the `safe-outputs:` section in frontmatter. This approach lets AI agents create GitHub content without direct write access, reducing security risks.
 
@@ -199,6 +202,7 @@ on:
 For detailed documentation on specific topics, see:
 - [Frontmatter Reference](/gh-aw/reference/frontmatter/)
 - [Tools Reference](/gh-aw/reference/tools/)
+- [Safe Inputs Reference](/gh-aw/reference/safe-inputs/)
 - [Safe Outputs Reference](/gh-aw/reference/safe-outputs/)
 - [Using MCPs Guide](/gh-aw/guides/mcps/)
 - [Security Guide](/gh-aw/guides/security/)
