@@ -26,7 +26,7 @@ safe-outputs:
 timeout-minutes: 20
 imports:
   - shared/reporting.md
-  - shared/trending-charts-simple.md
+  - shared/python-dataviz.md
 ---
 
 # Daily Copilot Token Consumption Report
@@ -56,7 +56,7 @@ Use the gh-aw CLI to download logs for Copilot-based workflows from the last 30 
 
 ```bash
 # Download logs for copilot workflows from last 30 days with JSON output
-./gh-aw logs --engine copilot --start-date -30d --json -c 1000 > /tmp/gh-aw/copilot-logs.json
+./gh-aw logs --engine copilot --start-date -30d --json -c 500 > /tmp/gh-aw/copilot-logs.json
 
 # Verify the download
 if [ -f /tmp/gh-aw/copilot-logs.json ]; then
@@ -171,10 +171,10 @@ print(f"✅ Processed {len(output)} unique workflows")
 print(f"📊 Data saved to /tmp/gh-aw/python/data/workflow_stats.json")
 ```
 
-**IMPORTANT**: Copy the complete Python script from above (lines starting with `#!/usr/bin/env python3`) and save it to `/tmp/gh-aw/process_logs.py`, then run it:
+**IMPORTANT**: Copy the complete Python script from above (lines starting with `#!/usr/bin/env python3`) and save it to `/tmp/gh-aw/python/process_logs.py`, then run it:
 
 ```bash
-python3 /tmp/gh-aw/process_logs.py
+python3 /tmp/gh-aw/python/process_logs.py
 ```
 
 ### Step 2.2: Store Historical Data
@@ -239,10 +239,10 @@ print(f"💰 Total cost: ${total_cost:.2f}")
 print(f"🔄 Total runs: {total_runs}")
 ```
 
-**IMPORTANT**: Copy the complete Python script from above (starting with `#!/usr/bin/env python3`) and save it to `/tmp/gh-aw/store_history.py`, then run it:
+**IMPORTANT**: Copy the complete Python script from above (starting with `#!/usr/bin/env python3`) and save it to `/tmp/gh-aw/python/store_history.py`, then run it:
 
 ```bash
-python3 /tmp/gh-aw/store_history.py
+python3 /tmp/gh-aw/python/store_history.py
 ```
 
 ## Phase 3: Generate Trend Charts
@@ -330,10 +330,10 @@ if workflow_trends:
     print(f"✅ Prepared workflow trends CSV with {len(df_workflows)} records")
 ```
 
-**IMPORTANT**: Copy the complete Python script from above (starting with `#!/usr/bin/env python3`) and save it to `/tmp/gh-aw/prepare_charts.py`, then run it:
+**IMPORTANT**: Copy the complete Python script from above (starting with `#!/usr/bin/env python3`) and save it to `/tmp/gh-aw/python/prepare_charts.py`, then run it:
 
 ```bash
-python3 /tmp/gh-aw/prepare_charts.py
+python3 /tmp/gh-aw/python/prepare_charts.py
 ```
 
 ### Step 3.2: Generate Trend Charts
@@ -458,10 +458,10 @@ print("✅ Generated top workflows chart")
 print(f"\n📈 All charts saved to {charts_dir}/")
 ```
 
-**IMPORTANT**: Copy the complete Python script from above (starting with `#!/usr/bin/env python3`) and save it to `/tmp/gh-aw/generate_charts.py`, then run it:
+**IMPORTANT**: Copy the complete Python script from above (starting with `#!/usr/bin/env python3`) and save it to `/tmp/gh-aw/python/generate_charts.py`, then run it:
 
 ```bash
-python3 /tmp/gh-aw/generate_charts.py
+python3 /tmp/gh-aw/python/generate_charts.py
 ```
 
 ### Step 3.3: Upload Charts as Assets
