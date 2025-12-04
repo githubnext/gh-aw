@@ -32,8 +32,16 @@ func getCodespacePermissionErrorMessage() string {
 	msg.WriteString(console.FormatErrorMessage("GitHub Codespace Permission Error"))
 	msg.WriteString("\n\n")
 
-	msg.WriteString("The default GitHub token in Codespaces does not have 'actions:write'\n")
-	msg.WriteString("permission, which is required to trigger GitHub Actions workflows.\n\n")
+	msg.WriteString("The default GitHub token in Codespaces does not have 'actions:write' and\n")
+	msg.WriteString("'workflows:write' permissions, which are required to trigger GitHub Actions workflows.\n\n")
+
+	msg.WriteString("Solutions:\n")
+	msg.WriteString("1. Configure custom permissions in your devcontainer.json:\n")
+	msg.WriteString("   Add 'actions:write' and 'workflows:write' to the 'customizations.codespaces.repositories' section.\n")
+	msg.WriteString("   See: https://docs.github.com/en/codespaces/managing-your-codespaces/managing-repository-access-for-your-codespaces\n\n")
+	msg.WriteString("2. Clear the GH_TOKEN and authenticate manually:\n")
+	msg.WriteString("   Run: unset GH_TOKEN && gh auth login\n")
+	msg.WriteString("   This will allow you to authenticate with a token that has the required permissions.\n\n")
 
 	return msg.String()
 }

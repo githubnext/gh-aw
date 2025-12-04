@@ -213,3 +213,66 @@ func (c *Compiler) validateStrictMode(frontmatter map[string]any, networkPermiss
 	strictModeValidationLog.Printf("Strict mode validation completed successfully")
 	return nil
 }
+
+// validateStrictFirewall requires firewall to be enabled in strict mode for copilot engine
+// when network domains are provided (non-wildcard)
+func (c *Compiler) validateStrictFirewall(engineID string, networkPermissions *NetworkPermissions, sandboxConfig *SandboxConfig) error {
+	if !c.strictMode {
+		strictModeValidationLog.Printf("Strict mode disabled, skipping firewall validation")
+		return nil
+	}
+
+	// Only apply to copilot engine
+	if engineID != "copilot" {
+		strictModeValidationLog.Printf("Non-copilot engine, skipping firewall validation")
+		return nil
+	}
+
+	// Check if SRT is enabled (SRT and AWF are mutually exclusive)
+	if sandboxConfig != nil {
+		// Check legacy Type field
+		if sandboxConfig.Type == SandboxTypeRuntime {
+			strictModeValidationLog.Printf("SRT sandbox is enabled (via Type), skipping firewall validation")
+			return nil
+		}
+		// Check new Agent field
+		if sandboxConfig.Agent != nil {
+			agentType := getAgentType(sandboxConfig.Agent)
+			if agentType == SandboxTypeRuntime || agentType == SandboxTypeSRT {
+				strictModeValidationLog.Printf("SRT sandbox is enabled (via Agent), skipping firewall validation")
+				return nil
+			}
+		}
+	}
+
+	// Check if sandbox.agent: false is set (explicitly disabled)
+	if sandboxConfig != nil && sandboxConfig.Agent != nil && sandboxConfig.Agent.Disabled {
+		strictModeValidationLog.Printf("sandbox.agent: false is set, skipping firewall validation")
+		return nil
+	}
+
+	// If network permissions don't exist, that's fine (will default to "defaults")
+	if networkPermissions == nil {
+		strictModeValidationLog.Printf("No network permissions, skipping firewall validation")
+		return nil
+	}
+
+	// Check if allowed contains "*" (unrestricted network access)
+	// If it does, firewall is not required
+	for _, domain := range networkPermissions.Allowed {
+		if domain == "*" {
+			strictModeValidationLog.Printf("Wildcard '*' in allowed domains, skipping firewall validation")
+			return nil
+		}
+	}
+
+	// At this point, we have network domains (or defaults) and copilot engine
+	// In strict mode, firewall MUST be enabled
+	if networkPermissions.Firewall == nil || !networkPermissions.Firewall.Enabled {
+		strictModeValidationLog.Printf("Firewall validation failed: firewall not enabled in strict mode")
+		return fmt.Errorf("strict mode: firewall must be enabled for copilot engine with network restrictions. The firewall should be enabled by default, but if you've explicitly disabled it with 'network.firewall: false' or 'sandbox.agent: false', this is not allowed in strict mode for security reasons. See: https://githubnext.github.io/gh-aw/reference/network/")
+	}
+
+	strictModeValidationLog.Printf("Firewall validation passed")
+	return nil
+}

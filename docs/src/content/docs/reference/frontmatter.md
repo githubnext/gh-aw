@@ -146,8 +146,8 @@ features:
   my-experimental-feature: true
 ```
 
-:::note[Firewall Feature Removed]
-Use `network.firewall` instead of `features.firewall`. See [Network Permissions](/gh-aw/reference/network/).
+:::note[Firewall Configuration]
+The `features.firewall` field has been removed. Use `network.firewall` (deprecated) or preferably `sandbox.agent: false` to disable the firewall. See [Network Permissions](/gh-aw/reference/network/) and [Sandbox Configuration](/gh-aw/reference/sandbox/).
 :::
 
 ### AI Engine (`engine:`)

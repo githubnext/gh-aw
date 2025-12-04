@@ -24,7 +24,35 @@ sandbox:
 # Use Sandbox Runtime (SRT) - experimental
 sandbox:
   agent: srt
+
+# Disable firewall for the agent
+sandbox:
+  agent: false
 ```
+
+#### Disabling the Firewall
+
+To disable the firewall for the agent while keeping network permissions for content sanitization:
+
+```yaml wrap
+engine: copilot
+network:
+  allowed:
+    - defaults
+    - python
+sandbox:
+  agent: false
+```
+
+When `sandbox.agent: false`:
+- The agent runs without firewall enforcement
+- Network permissions still apply for content sanitization
+- Useful during development or when the firewall is incompatible with your workflow
+- For production workflows, enabling the firewall is recommended for better security
+
+:::note
+Setting `sandbox.agent: false` replaces the deprecated `network.firewall: false` configuration.
+:::
 
 ### MCP Gateway (Experimental)
 

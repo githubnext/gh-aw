@@ -4383,7 +4383,13 @@ jobs:
               if (lastEntry.usage) {
                 const usage = lastEntry.usage;
                 if (usage.input_tokens || usage.output_tokens) {
+                  const inputTokens = usage.input_tokens || 0;
+                  const outputTokens = usage.output_tokens || 0;
+                  const cacheCreationTokens = usage.cache_creation_input_tokens || 0;
+                  const cacheReadTokens = usage.cache_read_input_tokens || 0;
+                  const totalTokens = inputTokens + outputTokens + cacheCreationTokens + cacheReadTokens;
                   markdown += `**Token Usage:**\n`;
+                  if (totalTokens > 0) markdown += `- Total: ${totalTokens.toLocaleString()}\n`;
                   if (usage.input_tokens) markdown += `- Input: ${usage.input_tokens.toLocaleString()}\n`;
                   if (usage.cache_creation_input_tokens) markdown += `- Cache Creation: ${usage.cache_creation_input_tokens.toLocaleString()}\n`;
                   if (usage.cache_read_input_tokens) markdown += `- Cache Read: ${usage.cache_read_input_tokens.toLocaleString()}\n`;
@@ -4791,8 +4797,15 @@ jobs:
               }
               if (lastEntry?.usage) {
                 const usage = lastEntry.usage;
-                if (usage.input_tokens && usage.output_tokens) {
-                  lines.push(`  Tokens: ${usage.input_tokens.toLocaleString()} in / ${usage.output_tokens.toLocaleString()} out`);
+                if (usage.input_tokens || usage.output_tokens) {
+                  const inputTokens = usage.input_tokens || 0;
+                  const outputTokens = usage.output_tokens || 0;
+                  const cacheCreationTokens = usage.cache_creation_input_tokens || 0;
+                  const cacheReadTokens = usage.cache_read_input_tokens || 0;
+                  const totalTokens = inputTokens + outputTokens + cacheCreationTokens + cacheReadTokens;
+                  lines.push(
+                    `  Tokens: ${totalTokens.toLocaleString()} total (${usage.input_tokens.toLocaleString()} in / ${usage.output_tokens.toLocaleString()} out)`
+                  );
                 }
               }
               if (lastEntry?.total_cost_usd) {
@@ -5253,115 +5266,7 @@ jobs:
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
-            const fs = require("fs");
-            const MAX_LOG_CONTENT_LENGTH = 10000;
-            function truncateForLogging(content) {
-              if (content.length <= MAX_LOG_CONTENT_LENGTH) {
-                return content;
-              }
-              return content.substring(0, MAX_LOG_CONTENT_LENGTH) + `\n... (truncated, total length: ${content.length})`;
-            }
-            function loadAgentOutput() {
-              const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT;
-              if (!agentOutputFile) {
-                core.info("No GH_AW_AGENT_OUTPUT environment variable found");
-                return { success: false };
-              }
-              let outputContent;
-              try {
-                outputContent = fs.readFileSync(agentOutputFile, "utf8");
-              } catch (error) {
-                const errorMessage = `Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`;
-                core.error(errorMessage);
-                return { success: false, error: errorMessage };
-              }
-              if (outputContent.trim() === "") {
-                core.info("Agent output content is empty");
-                return { success: false };
-              }
-              core.info(`Agent output content length: ${outputContent.length}`);
-              let validatedOutput;
-              try {
-                validatedOutput = JSON.parse(outputContent);
-              } catch (error) {
-                const errorMessage = `Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`;
-                core.error(errorMessage);
-                core.info(`Failed to parse content:\n${truncateForLogging(outputContent)}`);
-                return { success: false, error: errorMessage };
-              }
-              if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
-                core.info("No valid items found in agent output");
-                core.info(`Parsed content: ${truncateForLogging(JSON.stringify(validatedOutput))}`);
-                return { success: false };
-              }
-              return { success: true, items: validatedOutput.items };
-            }
-            function generateXMLMarker(workflowName, runUrl) {
-              const engineId = process.env.GH_AW_ENGINE_ID || "";
-              const engineVersion = process.env.GH_AW_ENGINE_VERSION || "";
-              const engineModel = process.env.GH_AW_ENGINE_MODEL || "";
-              const trackerId = process.env.GH_AW_TRACKER_ID || "";
-              const parts = [];
-              parts.push(`agentic-workflow: ${workflowName}`);
-              if (trackerId) {
-                parts.push(`tracker-id: ${trackerId}`);
-              }
-              if (engineId) {
-                parts.push(`engine: ${engineId}`);
-              }
-              if (engineVersion) {
-                parts.push(`version: ${engineVersion}`);
-              }
-              if (engineModel) {
-                parts.push(`model: ${engineModel}`);
-              }
-              parts.push(`run: ${runUrl}`);
-              return `<!-- ${parts.join(", ")} -->`;
-            }
-            function generateFooter(
-              workflowName,
-              runUrl,
-              workflowSource,
-              workflowSourceURL,
-              triggeringIssueNumber,
-              triggeringPRNumber,
-              triggeringDiscussionNumber
-            ) {
-              let footer = `\n\n> AI generated by [${workflowName}](${runUrl})`;
-              if (triggeringIssueNumber) {
-                footer += ` for #${triggeringIssueNumber}`;
-              } else if (triggeringPRNumber) {
-                footer += ` for #${triggeringPRNumber}`;
-              } else if (triggeringDiscussionNumber) {
-                footer += ` for discussion #${triggeringDiscussionNumber}`;
-              }
-              if (workflowSource && workflowSourceURL) {
-                footer += `\n>\n> To add this workflow in your repository, run \`gh aw add ${workflowSource}\`. See [usage guide](https://githubnext.github.io/gh-aw/tools/cli/).`;
-              }
-              footer += "\n\n" + generateXMLMarker(workflowName, runUrl);
-              footer += "\n";
-              return footer;
-            }
-            function getTrackerID(format) {
-              const trackerID = process.env.GH_AW_TRACKER_ID || "";
-              if (trackerID) {
-                core.info(`Tracker ID: ${trackerID}`);
-                return format === "markdown" ? `\n\n<!-- tracker-id: ${trackerID} -->` : trackerID;
-              }
-              return "";
-            }
-            function getRepositoryUrl() {
-              const targetRepoSlug = process.env.GH_AW_TARGET_REPO_SLUG;
-              if (targetRepoSlug) {
-                const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
-                return `${githubServer}/${targetRepoSlug}`;
-              } else if (context.payload.repository?.html_url) {
-                return context.payload.repository.html_url;
-              } else {
-                const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
-                return `${githubServer}/${context.repo.owner}/${context.repo.repo}`;
-              }
-            }
+            const { processCloseEntityItems, ISSUE_CONFIG } = require("./close_entity_helpers.cjs");
             async function getIssueDetails(github, owner, repo, issueNumber) {
               const { data: issue } = await github.rest.issues.get({
                 owner,
@@ -5392,139 +5297,11 @@ jobs:
               return issue;
             }
             async function main() {
-              const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
-              const result = loadAgentOutput();
-              if (!result.success) {
-                return;
-              }
-              const closeIssueItems = result.items.filter( item => item.type === "close_issue");
-              if (closeIssueItems.length === 0) {
-                core.info("No close-issue items found in agent output");
-                return;
-              }
-              core.info(`Found ${closeIssueItems.length} close-issue item(s)`);
-              const requiredLabels = process.env.GH_AW_CLOSE_ISSUE_REQUIRED_LABELS
-                ? process.env.GH_AW_CLOSE_ISSUE_REQUIRED_LABELS.split(",").map(l => l.trim())
-                : [];
-              const requiredTitlePrefix = process.env.GH_AW_CLOSE_ISSUE_REQUIRED_TITLE_PREFIX || "";
-              const target = process.env.GH_AW_CLOSE_ISSUE_TARGET || "triggering";
-              core.info(`Configuration: requiredLabels=${requiredLabels.join(",")}, requiredTitlePrefix=${requiredTitlePrefix}, target=${target}`);
-              const isIssueContext = context.eventName === "issues" || context.eventName === "issue_comment";
-              if (isStaged) {
-                let summaryContent = "## 🎭 Staged Mode: Close Issues Preview\n\n";
-                summaryContent += "The following issues would be closed if staged mode was disabled:\n\n";
-                for (let i = 0; i < closeIssueItems.length; i++) {
-                  const item = closeIssueItems[i];
-                  summaryContent += `### Issue ${i + 1}\n`;
-                  const issueNumber = item.issue_number;
-                  if (issueNumber) {
-                    const repoUrl = getRepositoryUrl();
-                    const issueUrl = `${repoUrl}/issues/${issueNumber}`;
-                    summaryContent += `**Target Issue:** [#${issueNumber}](${issueUrl})\n\n`;
-                  } else {
-                    summaryContent += `**Target:** Current issue\n\n`;
-                  }
-                  summaryContent += `**Comment:**\n${item.body || "No content provided"}\n\n`;
-                  if (requiredLabels.length > 0) {
-                    summaryContent += `**Required Labels:** ${requiredLabels.join(", ")}\n\n`;
-                  }
-                  if (requiredTitlePrefix) {
-                    summaryContent += `**Required Title Prefix:** ${requiredTitlePrefix}\n\n`;
-                  }
-                  summaryContent += "---\n\n";
-                }
-                await core.summary.addRaw(summaryContent).write();
-                core.info("📝 Issue close preview written to step summary");
-                return;
-              }
-              if (target === "triggering" && !isIssueContext) {
-                core.info('Target is "triggering" but not running in issue context, skipping issue close');
-                return;
-              }
-              const triggeringIssueNumber = context.payload?.issue?.number;
-              const closedIssues = [];
-              for (let i = 0; i < closeIssueItems.length; i++) {
-                const item = closeIssueItems[i];
-                core.info(`Processing close-issue item ${i + 1}/${closeIssueItems.length}: bodyLength=${item.body.length}`);
-                let issueNumber;
-                if (target === "*") {
-                  const targetNumber = item.issue_number;
-                  if (targetNumber) {
-                    issueNumber = parseInt(targetNumber, 10);
-                    if (isNaN(issueNumber) || issueNumber <= 0) {
-                      core.info(`Invalid issue number specified: ${targetNumber}`);
-                      continue;
-                    }
-                  } else {
-                    core.info(`Target is "*" but no issue_number specified in close-issue item`);
-                    continue;
-                  }
-                } else if (target && target !== "triggering") {
-                  issueNumber = parseInt(target, 10);
-                  if (isNaN(issueNumber) || issueNumber <= 0) {
-                    core.info(`Invalid issue number in target configuration: ${target}`);
-                    continue;
-                  }
-                } else {
-                  if (isIssueContext) {
-                    issueNumber = context.payload.issue?.number;
-                    if (!issueNumber) {
-                      core.info("Issue context detected but no issue found in payload");
-                      continue;
-                    }
-                  } else {
-                    core.info("Not in issue context and no explicit target specified");
-                    continue;
-                  }
-                }
-                try {
-                  const issue = await getIssueDetails(github, context.repo.owner, context.repo.repo, issueNumber);
-                  if (requiredLabels.length > 0) {
-                    const issueLabels = issue.labels.map(l => l.name);
-                    const hasRequiredLabel = requiredLabels.some(required => issueLabels.includes(required));
-                    if (!hasRequiredLabel) {
-                      core.info(`Issue #${issueNumber} does not have required labels: ${requiredLabels.join(", ")}`);
-                      continue;
-                    }
-                  }
-                  if (requiredTitlePrefix && !issue.title.startsWith(requiredTitlePrefix)) {
-                    core.info(`Issue #${issueNumber} does not have required title prefix: ${requiredTitlePrefix}`);
-                    continue;
-                  }
-                  if (issue.state === "closed") {
-                    core.info(`Issue #${issueNumber} is already closed, skipping`);
-                    continue;
-                  }
-                  const trackerID = getTrackerID();
-                  const footer = generateFooter(trackerID, triggeringIssueNumber);
-                  const commentBody = item.body + footer;
-                  const comment = await addIssueComment(github, context.repo.owner, context.repo.repo, issueNumber, commentBody);
-                  core.info(`✓ Added comment to issue #${issueNumber}: ${comment.html_url}`);
-                  const closedIssue = await closeIssue(github, context.repo.owner, context.repo.repo, issueNumber);
-                  core.info(`✓ Closed issue #${issueNumber}: ${closedIssue.html_url}`);
-                  closedIssues.push({
-                    issue: closedIssue,
-                    comment,
-                  });
-                  if (i === closeIssueItems.length - 1) {
-                    core.setOutput("issue_number", closedIssue.number);
-                    core.setOutput("issue_url", closedIssue.html_url);
-                    core.setOutput("comment_url", comment.html_url);
-                  }
-                } catch (error) {
-                  core.error(`✗ Failed to close issue #${issueNumber}: ${error instanceof Error ? error.message : String(error)}`);
-                  throw error;
-                }
-              }
-              if (closedIssues.length > 0) {
-                let summaryContent = "\n\n## Closed Issues\n";
-                for (const { issue, comment } of closedIssues) {
-                  summaryContent += `- Issue #${issue.number}: [${issue.title}](${issue.html_url}) ([comment](${comment.html_url}))\n`;
-                }
-                await core.summary.addRaw(summaryContent).write();
-              }
-              core.info(`Successfully closed ${closedIssues.length} issue(s)`);
-              return closedIssues;
+              return processCloseEntityItems(ISSUE_CONFIG, {
+                getDetails: getIssueDetails,
+                addComment: addIssueComment,
+                closeEntity: closeIssue,
+              });
             }
             await main();
 

@@ -171,29 +171,9 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 			}
 
 			// Handle assign-to-agent
-			if assignToAgent, exists := outputMap["assign-to-agent"]; exists {
-				if agentMap, ok := assignToAgent.(map[string]any); ok {
-					agentConfig := &AssignToAgentConfig{}
-
-					// Parse name (optional - specific to assign-to-agent)
-					if defaultAgent, exists := agentMap["name"]; exists {
-						if defaultAgentStr, ok := defaultAgent.(string); ok {
-							agentConfig.DefaultAgent = defaultAgentStr
-						}
-					}
-
-					// Parse target config (target, target-repo) - validation errors are handled gracefully
-					targetConfig, _ := ParseTargetConfig(agentMap)
-					agentConfig.SafeOutputTargetConfig = targetConfig
-
-					// Parse common base fields (github-token, max)
-					c.parseBaseSafeOutputConfig(agentMap, &agentConfig.BaseSafeOutputConfig, 0)
-
-					config.AssignToAgent = agentConfig
-				} else if assignToAgent == nil {
-					// Handle null case: create empty config
-					config.AssignToAgent = &AssignToAgentConfig{}
-				}
+			assignToAgentConfig := c.parseAssignToAgentConfig(outputMap)
+			if assignToAgentConfig != nil {
+				config.AssignToAgent = assignToAgentConfig
 			}
 
 			// Handle assign-to-user
