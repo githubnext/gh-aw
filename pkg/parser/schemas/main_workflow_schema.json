@@ -90,7 +90,8 @@
                 {
                   "type": "string",
                   "minLength": 1,
-                  "description": "Command name as a string (shorthand format, e.g., 'customname' for '/customname' triggers)"
+                  "pattern": "^[^/]",
+                  "description": "Command name as a string (shorthand format, e.g., 'customname' for '/customname' triggers). Command names must not start with '/' as the slash is automatically added when matching commands."
                 },
                 {
                   "type": "object",
@@ -99,7 +100,8 @@
                     "name": {
                       "type": "string",
                       "minLength": 1,
-                      "description": "Custom command name for slash commands (e.g., 'helper-bot' for '/helper-bot' triggers). Defaults to workflow filename without .md extension if not specified."
+                      "pattern": "^[^/]",
+                      "description": "Custom command name for slash commands (e.g., 'helper-bot' for '/helper-bot' triggers). Command names must not start with '/' as the slash is automatically added when matching commands. Defaults to workflow filename without .md extension if not specified."
                     },
                     "events": {
                       "description": "Events where the command should be active. Default is all comment-related events ('*'). Use GitHub Actions event names.",
