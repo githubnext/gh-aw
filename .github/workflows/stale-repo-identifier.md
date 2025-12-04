@@ -74,10 +74,12 @@ steps:
       ADDITIONAL_METRICS: "release,pr"
 
   - name: Save stale repos output
+    env:
+      INACTIVE_REPOS: ${{ steps.stale-repos.outputs.inactiveRepos }}
     run: |
       mkdir -p /tmp/stale-repos-data
-      echo '${{ steps.stale-repos.outputs.inactiveRepos }}' > /tmp/stale-repos-data/inactive-repos.json
-      echo "Stale repositories data saved to /tmp/stale-repos-data/inactive-repos.json"
+      echo "$INACTIVE_REPOS" > /tmp/stale-repos-data/inactive-repos.json
+      echo "Stale repositories data saved"
       echo "Total stale repositories: $(jq 'length' /tmp/stale-repos-data/inactive-repos.json)"
 ---
 

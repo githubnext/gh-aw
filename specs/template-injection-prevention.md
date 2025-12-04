@@ -101,7 +101,14 @@ When writing GitHub Actions workflows:
    - ❌ `${{ github.event.issue.title }}`
    - ❌ `${{ github.event.issue.body }}`
    - ❌ `${{ github.event.comment.body }}`
+   - ❌ `${{ github.event.pull_request.title }}`
+   - ❌ `${{ github.event.pull_request.body }}`
+   - ❌ `${{ github.event.discussion.title }}`
+   - ❌ `${{ github.event.discussion.body }}`
+   - ❌ `${{ github.event.head_commit.message }}`
    - ❌ `${{ github.head_ref }}` (can be controlled by PR authors)
+   - ❌ `${{ github.ref_name }}` (branch/tag names)
+   - ❌ `${{ steps.*.outputs.* }}` (step outputs may contain user data)
 
 2. **Use sanitized context instead:**
    - ✅ `${{ needs.activation.outputs.text }}` (sanitized by gh-aw)
@@ -121,10 +128,29 @@ When writing GitHub Actions workflows:
    - `${{ github.run_number }}`
    - `${{ github.sha }}`
 
+5. **Validate user-controlled values before use:**
+   ```bash
+   # Validate numeric input
+   if ! [[ "$DISCUSSION_NUMBER" =~ ^[0-9]+$ ]]; then
+     echo "Invalid number"
+     exit 1
+   fi
+
+   # Always quote variables
+   echo "Safe: \"$VAR\""
+
+   # Validate against allowlist
+   case "$INPUT_TYPE" in
+     bug|feature|docs) ;;
+     *) echo "Invalid type"; exit 1 ;;
+   esac
+   ```
+
 ## References
 
 - [GitHub Actions Security Hardening](https://docs.github.com/en/actions/security-guides/security-hardening-for-github-actions)
 - [Understanding the risk of script injections](https://docs.github.com/en/actions/security-guides/security-hardening-for-github-actions#understanding-the-risk-of-script-injections)
+- [zizmor documentation](https://github.com/zizmorcore/zizmor)
 - Issue #3945 - Static Analysis Report (November 14, 2025)
 
 ## Validation
