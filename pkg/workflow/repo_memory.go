@@ -20,7 +20,7 @@ type RepoMemoryEntry struct {
 	TargetRepo   string   `yaml:"target-repo,omitempty"`    // target repository (default: current repo)
 	BranchName   string   `yaml:"branch-name,omitempty"`    // branch name (default: memory/{memory-id})
 	FileGlob     []string `yaml:"file-glob,omitempty"`      // file glob patterns for allowed files
-	MaxFileSize  int      `yaml:"max-file-size,omitempty"`  // maximum size per file in bytes (default: 1MB)
+	MaxFileSize  int      `yaml:"max-file-size,omitempty"`  // maximum size per file in bytes (default: 10KB)
 	MaxFileCount int      `yaml:"max-file-count,omitempty"` // maximum file count per commit (default: 100)
 	Description  string   `yaml:"description,omitempty"`    // optional description for this memory
 	CreateOrphan bool     `yaml:"create-orphan,omitempty"`  // create orphaned branch if missing (default: true)
@@ -58,7 +58,7 @@ func (c *Compiler) extractRepoMemoryConfig(toolsConfig *ToolsConfig) (*RepoMemor
 			{
 				ID:           "default",
 				BranchName:   generateDefaultBranchName("default"),
-				MaxFileSize:  1048576, // 1MB
+				MaxFileSize:  10240, // 10KB
 				MaxFileCount: 100,
 				CreateOrphan: true,
 			},
@@ -74,7 +74,7 @@ func (c *Compiler) extractRepoMemoryConfig(toolsConfig *ToolsConfig) (*RepoMemor
 				{
 					ID:           "default",
 					BranchName:   generateDefaultBranchName("default"),
-					MaxFileSize:  1048576, // 1MB
+					MaxFileSize:  10240, // 10KB
 					MaxFileCount: 100,
 					CreateOrphan: true,
 				},
@@ -91,9 +91,9 @@ func (c *Compiler) extractRepoMemoryConfig(toolsConfig *ToolsConfig) (*RepoMemor
 		for _, item := range memoryArray {
 			if memoryMap, ok := item.(map[string]any); ok {
 				entry := RepoMemoryEntry{
-					MaxFileSize:  1048576, // 1MB default
-					MaxFileCount: 100,     // 100 files default
-					CreateOrphan: true,    // create orphan by default
+					MaxFileSize:  10240, // 10KB default
+					MaxFileCount: 100,   // 100 files default
+					CreateOrphan: true,  // create orphan by default
 				}
 
 				// ID is required for array notation
@@ -194,9 +194,9 @@ func (c *Compiler) extractRepoMemoryConfig(toolsConfig *ToolsConfig) (*RepoMemor
 		entry := RepoMemoryEntry{
 			ID:           "default",
 			BranchName:   generateDefaultBranchName("default"),
-			MaxFileSize:  1048576, // 1MB default
-			MaxFileCount: 100,     // 100 files default
-			CreateOrphan: true,    // create orphan by default
+			MaxFileSize:  10240, // 10KB default
+			MaxFileCount: 100,   // 100 files default
+			CreateOrphan: true,  // create orphan by default
 		}
 
 		// Parse target-repo

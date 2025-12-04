@@ -39,8 +39,8 @@ func TestRepoMemoryConfigDefault(t *testing.T) {
 		t.Errorf("Expected branch name 'memory/default', got '%s'", memory.BranchName)
 	}
 
-	if memory.MaxFileSize != 1048576 {
-		t.Errorf("Expected max file size 1048576, got %d", memory.MaxFileSize)
+	if memory.MaxFileSize != 10240 {
+		t.Errorf("Expected max file size 10240, got %d", memory.MaxFileSize)
 	}
 
 	if memory.MaxFileCount != 100 {
@@ -195,7 +195,7 @@ func TestRepoMemoryStepsGeneration(t *testing.T) {
 			{
 				ID:           "default",
 				BranchName:   "memory/default",
-				MaxFileSize:  1048576,
+				MaxFileSize:  10240,
 				MaxFileCount: 100,
 				CreateOrphan: true,
 			},
@@ -243,7 +243,7 @@ func TestRepoMemoryPushStepsGeneration(t *testing.T) {
 			{
 				ID:           "default",
 				BranchName:   "memory/default",
-				MaxFileSize:  1048576,
+				MaxFileSize:  10240,
 				MaxFileCount: 100,
 			},
 		},
