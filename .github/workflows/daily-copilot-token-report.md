@@ -17,6 +17,22 @@ tools:
       key: copilot-token-metrics-${{ github.workflow }}
   bash:
     - "*"
+steps:
+  - name: Pre-download workflow logs
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    run: |
+      # Download logs for copilot workflows from last 30 days with JSON output
+      ./gh-aw logs --engine copilot --start-date -30d --json -c 500 > /tmp/gh-aw/copilot-logs.json
+      
+      # Verify the download
+      if [ -f /tmp/gh-aw/copilot-logs.json ]; then
+        echo "✅ Logs downloaded successfully"
+        echo "Total runs: $(jq '. | length' /tmp/gh-aw/copilot-logs.json || echo '0')"
+      else
+        echo "❌ Failed to download logs"
+        exit 1
+      fi
 safe-outputs:
   upload-assets:
   create-discussion:
@@ -50,25 +66,11 @@ Generate a comprehensive daily report of Copilot token consumption with:
 
 ## Phase 1: Data Collection
 
-### Step 1.1: Pre-download Workflow Logs
+### Pre-downloaded Workflow Logs
 
-Use the gh-aw CLI to download logs for Copilot-based workflows from the last 30 days:
+**Important**: The workflow logs have been pre-downloaded for you and are available at `/tmp/gh-aw/copilot-logs.json`.
 
-```bash
-# Download logs for copilot workflows from last 30 days with JSON output
-./gh-aw logs --engine copilot --start-date -30d --json -c 500 > /tmp/gh-aw/copilot-logs.json
-
-# Verify the download
-if [ -f /tmp/gh-aw/copilot-logs.json ]; then
-  echo "✅ Logs downloaded successfully"
-  cat /tmp/gh-aw/copilot-logs.json | head -50
-else
-  echo "❌ Failed to download logs"
-  exit 1
-fi
-```
-
-**Important**: The `--json` flag outputs the data in JSON format with detailed metrics including:
+This file contains workflow runs from the last 30 days for Copilot-based workflows, in JSON format with detailed metrics including:
 - `TokenUsage`: Total tokens consumed
 - `EstimatedCost`: Cost in USD
 - `Duration`: Run duration
@@ -76,7 +78,7 @@ fi
 - `WorkflowName`: Name of the workflow
 - `CreatedAt`: Timestamp of the run
 
-### Step 1.2: Verify Data Structure
+### Step 1.1: Verify Data Structure
 
 Inspect the JSON structure to ensure we have the required fields:
 
@@ -601,7 +603,7 @@ The following workflows account for the majority of token consumption:
 ## Important Guidelines
 
 ### Data Processing
-- **Pre-download logs**: Always use `gh-aw logs --json` to get structured data
+- **Pre-downloaded logs**: Logs are already downloaded to `/tmp/gh-aw/copilot-logs.json` - use this file directly
 - **Handle missing data**: Some runs may not have token usage data; skip or note these
 - **Validate data**: Check for reasonable values before including in aggregates
 - **Efficient processing**: Use bash and Python for data processing, avoid heavy operations
@@ -635,7 +637,7 @@ The following workflows account for the majority of token consumption:
 ## Success Criteria
 
 A successful token consumption report:
-- ✅ Downloads and processes logs from last 30 days
+- ✅ Uses pre-downloaded logs from `/tmp/gh-aw/copilot-logs.json` (last 30 days)
 - ✅ Generates accurate per-workflow statistics
 - ✅ Stores daily aggregates in persistent cache memory
 - ✅ Creates 3 high-quality trend charts
@@ -658,4 +660,4 @@ Your output MUST:
 7. Store current day's metrics in cache memory for future trend tracking
 8. Use the collapsible details format from the reporting.md import
 
-Begin your analysis now. Pre-download the logs, process the data systematically, generate insightful visualizations, and create a comprehensive report that helps optimize Copilot token consumption across all workflows.
+Begin your analysis now. The logs have been pre-downloaded to `/tmp/gh-aw/copilot-logs.json` - process the data systematically, generate insightful visualizations, and create a comprehensive report that helps optimize Copilot token consumption across all workflows.
