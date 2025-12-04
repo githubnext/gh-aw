@@ -2219,7 +2219,7 @@
           ]
         },
         "bash": {
-          "description": "Bash shell command execution tool for running command-line programs and scripts",
+          "description": "Bash shell command execution tool for running command-line programs and scripts. Supports wildcard patterns: '*' allows all commands, 'command *' allows command with any arguments (e.g., 'date *', 'echo *'), and 'prefix:*' allows all commands starting with prefix (e.g., 'git:*' allows git commands). Default safe commands when bash: is specified without value: echo, ls, pwd, cat, head, tail, grep, wc, sort, uniq, date.",
           "oneOf": [
             {
               "type": "null",
@@ -2231,9 +2231,10 @@
             },
             {
               "type": "array",
-              "description": "List of allowed bash commands and patterns (e.g., ['echo', 'ls', 'git status', 'npm install'])",
+              "description": "List of allowed bash commands and patterns. Supports wildcards: '*' alone allows all commands, 'command *' allows command with any arguments (e.g., 'date *', 'echo *' match 'date -u' or 'echo hello'), ':*' allows all commands, 'prefix:*' allows commands starting with prefix (e.g., 'git:*').",
               "items": {
-                "type": "string"
+                "type": "string",
+                "description": "Command or pattern. Examples: 'echo' (exact), 'echo *' (with any args), 'git:*' (all git commands), ':*' (all commands)"
               }
             }
           ],
@@ -2254,7 +2255,9 @@
               "ls"
             ],
             ["echo", "ls", "cat"],
-            ["gh pr list *", "gh search prs *", "jq *"]
+            ["gh pr list *", "gh search prs *", "jq *"],
+            ["date *", "echo *", "cat", "ls"],
+            [":*"]
           ]
         },
         "web-fetch": {
