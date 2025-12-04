@@ -201,7 +201,7 @@ func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
 	var pushRepoMemoryJobName string
 	if data.RepoMemoryConfig != nil && len(data.RepoMemoryConfig.Memories) > 0 {
 		compilerJobsLog.Print("Building push_repo_memory job")
-		pushRepoMemoryJob, err := c.buildPushRepoMemoryJob(data)
+		pushRepoMemoryJob, err := c.buildPushRepoMemoryJob(data, threatDetectionEnabledForSafeJobs)
 		if err != nil {
 			return fmt.Errorf("failed to build push_repo_memory job: %w", err)
 		}
@@ -671,30 +671,6 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName, markdownPat
 
 	// Note: noop processing is now handled inside the conclusion job, not as a separate job
 
-	// Build push_repo_memory job if repo-memory is configured
-	// This job downloads repo-memory artifacts and pushes changes to git branches
-	// It runs after detection/agent jobs complete (even if they fail) and has contents: write permission
-	var pushRepoMemoryJobName string
-	if data.RepoMemoryConfig != nil && len(data.RepoMemoryConfig.Memories) > 0 {
-		compilerJobsLog.Print("Building push_repo_memory job")
-		pushRepoMemoryJob, err := c.buildPushRepoMemoryJob(data)
-		if err != nil {
-			return fmt.Errorf("failed to build push_repo_memory job: %w", err)
-		}
-		if pushRepoMemoryJob != nil {
-			// Add detection dependency if threat detection is enabled
-			if threatDetectionEnabled {
-				pushRepoMemoryJob.Needs = append(pushRepoMemoryJob.Needs, constants.DetectionJobName)
-				compilerJobsLog.Print("Added detection dependency to push_repo_memory job")
-			}
-			if err := c.jobManager.AddJob(pushRepoMemoryJob); err != nil {
-				return fmt.Errorf("failed to add push_repo_memory job: %w", err)
-			}
-			pushRepoMemoryJobName = pushRepoMemoryJob.Name
-			compilerJobsLog.Printf("Successfully added push_repo_memory job: %s", pushRepoMemoryJobName)
-		}
-	}
-
 	// Build conclusion job if add-comment is configured OR if command trigger is configured with reactions
 	// This job runs last, after all safe output jobs (and push_repo_memory if configured), to update the activation comment on failure
 	// The buildConclusionJob function itself will decide whether to create the job based on the configuration
@@ -704,8 +680,9 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName, markdownPat
 	}
 	if conclusionJob != nil {
 		// If push_repo_memory job exists, conclusion should depend on it
-		if pushRepoMemoryJobName != "" {
-			conclusionJob.Needs = append(conclusionJob.Needs, pushRepoMemoryJobName)
+		// Check if the job was already created (it's created in buildJobs)
+		if _, exists := c.jobManager.GetJob("push_repo_memory"); exists {
+			conclusionJob.Needs = append(conclusionJob.Needs, "push_repo_memory")
 			compilerJobsLog.Printf("Added push_repo_memory dependency to conclusion job")
 		}
 		if err := c.jobManager.AddJob(conclusionJob); err != nil {

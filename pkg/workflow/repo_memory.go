@@ -458,12 +458,13 @@ func generateRepoMemorySteps(builder *strings.Builder, data *WorkflowData) {
 
 // buildPushRepoMemoryJob creates a job that downloads repo-memory artifacts and pushes them to git branches
 // This job runs after the agent job completes (even if it fails) and requires contents: write permission
-func (c *Compiler) buildPushRepoMemoryJob(data *WorkflowData) (*Job, error) {
+// If threat detection is enabled, only runs if no threats were detected
+func (c *Compiler) buildPushRepoMemoryJob(data *WorkflowData, threatDetectionEnabled bool) (*Job, error) {
 	if data.RepoMemoryConfig == nil || len(data.RepoMemoryConfig.Memories) == 0 {
 		return nil, nil
 	}
 
-	repoMemoryLog.Printf("Building push_repo_memory job for %d memories", len(data.RepoMemoryConfig.Memories))
+	repoMemoryLog.Printf("Building push_repo_memory job for %d memories (threatDetectionEnabled=%v)", len(data.RepoMemoryConfig.Memories), threatDetectionEnabled)
 
 	var steps []string
 
@@ -565,11 +566,19 @@ func (c *Compiler) buildPushRepoMemoryJob(data *WorkflowData) (*Job, error) {
 		steps = append(steps, step.String())
 	}
 
+	// Set job condition based on threat detection
+	// If threat detection is enabled, only run if detection passed
+	// Otherwise, always run (even if agent job failed)
+	jobCondition := "always()"
+	if threatDetectionEnabled {
+		jobCondition = "always() && needs.detection.outputs.success == 'true'"
+	}
+
 	job := &Job{
 		Name:        "push_repo_memory",
 		DisplayName: "Push Repo Memory",
 		RunsOn:      "runs-on: ubuntu-latest",
-		If:          "always()",
+		If:          jobCondition,
 		Permissions: "permissions:\n      contents: write",
 		Needs:       []string{"agent"}, // Detection dependency added by caller if needed
 		Steps:       steps,
