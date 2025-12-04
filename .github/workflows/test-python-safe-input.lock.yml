@@ -1335,7 +1335,9 @@ jobs:
                 server.debug(`  [${toolName}] Invoking Python handler: ${scriptPath}`);
                 server.debug(`  [${toolName}] Python handler args: ${JSON.stringify(args)}`);
                 const inputJson = JSON.stringify(args || {});
-                server.debug(`  [${toolName}] Input JSON (${inputJson.length} bytes): ${inputJson.substring(0, 200)}${inputJson.length > 200 ? "..." : ""}`);
+                server.debug(
+                  `  [${toolName}] Input JSON (${inputJson.length} bytes): ${inputJson.substring(0, 200)}${inputJson.length > 200 ? "..." : ""}`
+                );
                 return new Promise((resolve, reject) => {
                   server.debug(`  [${toolName}] Executing Python script...`);
                   const child = execFile(
@@ -1881,7 +1883,9 @@ jobs:
                 server.debug(`  [${toolName}] Invoking Python handler: ${scriptPath}`);
                 server.debug(`  [${toolName}] Python handler args: ${JSON.stringify(args)}`);
                 const inputJson = JSON.stringify(args || {});
-                server.debug(`  [${toolName}] Input JSON (${inputJson.length} bytes): ${inputJson.substring(0, 200)}${inputJson.length > 200 ? "..." : ""}`);
+                server.debug(
+                  `  [${toolName}] Input JSON (${inputJson.length} bytes): ${inputJson.substring(0, 200)}${inputJson.length > 200 ? "..." : ""}`
+                );
                 return new Promise((resolve, reject) => {
                   server.debug(`  [${toolName}] Executing Python script...`);
                   const child = execFile(
@@ -2959,7 +2963,9 @@ jobs:
                 server.debug(`  [${toolName}] Invoking Python handler: ${scriptPath}`);
                 server.debug(`  [${toolName}] Python handler args: ${JSON.stringify(args)}`);
                 const inputJson = JSON.stringify(args || {});
-                server.debug(`  [${toolName}] Input JSON (${inputJson.length} bytes): ${inputJson.substring(0, 200)}${inputJson.length > 200 ? "..." : ""}`);
+                server.debug(
+                  `  [${toolName}] Input JSON (${inputJson.length} bytes): ${inputJson.substring(0, 200)}${inputJson.length > 200 ? "..." : ""}`
+                );
                 return new Promise((resolve, reject) => {
                   server.debug(`  [${toolName}] Executing Python script...`);
                   const child = execFile(

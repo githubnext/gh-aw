@@ -1993,23 +1993,17 @@ jobs:
               return async args => {
                 server.debug(`  [${toolName}] Invoking Python handler: ${scriptPath}`);
                 server.debug(`  [${toolName}] Python handler args: ${JSON.stringify(args)}`);
-                const env = { ...process.env };
-                for (const [key, value] of Object.entries(args || {})) {
-                  const envKey = `INPUT_${key.toUpperCase().replace(/-/g, "_")}`;
-                  env[envKey] = String(value);
-                  server.debug(`  [${toolName}] Set env: ${envKey}=${String(value).substring(0, 100)}${String(value).length > 100 ? "..." : ""}`);
-                }
-                const outputFile = path.join(os.tmpdir(), `mcp-python-output-${Date.now()}-${Math.random().toString(36).substring(2)}.txt`);
-                env.GITHUB_OUTPUT = outputFile;
-                server.debug(`  [${toolName}] Output file: ${outputFile}`);
-                fs.writeFileSync(outputFile, "");
+                const inputJson = JSON.stringify(args || {});
+                server.debug(
+                  `  [${toolName}] Input JSON (${inputJson.length} bytes): ${inputJson.substring(0, 200)}${inputJson.length > 200 ? "..." : ""}`
+                );
                 return new Promise((resolve, reject) => {
                   server.debug(`  [${toolName}] Executing Python script...`);
-                  execFile(
+                  const child = execFile(
                     "python3",
                     [scriptPath],
                     {
-                      env,
+                      env: process.env,
                       timeout: 300000, 
                       maxBuffer: 10 * 1024 * 1024, 
                     },
@@ -2022,49 +2016,21 @@ jobs:
                       }
                       if (error) {
                         server.debugError(`  [${toolName}] Python script error: `, error);
-                        try {
-                          if (fs.existsSync(outputFile)) {
-                            fs.unlinkSync(outputFile);
-                          }
-                        } catch {
-                        }
                         reject(error);
                         return;
                       }
-                      const outputs = {};
+                      let result;
                       try {
-                        if (fs.existsSync(outputFile)) {
-                          const outputContent = fs.readFileSync(outputFile, "utf-8");
-                          server.debug(
-                            `  [${toolName}] Output file content: ${outputContent.substring(0, 500)}${outputContent.length > 500 ? "..." : ""}`
-                          );
-                          const lines = outputContent.split("\n");
-                          for (const line of lines) {
-                            const trimmed = line.trim();
-                            if (trimmed && trimmed.includes("=")) {
-                              const eqIndex = trimmed.indexOf("=");
-                              const key = trimmed.substring(0, eqIndex);
-                              const value = trimmed.substring(eqIndex + 1);
-                              outputs[key] = value;
-                              server.debug(`  [${toolName}] Parsed output: ${key}=${value.substring(0, 100)}${value.length > 100 ? "..." : ""}`);
-                            }
-                          }
+                        if (stdout && stdout.trim()) {
+                          result = JSON.parse(stdout.trim());
+                        } else {
+                          result = { stdout: stdout || "", stderr: stderr || "" };
                         }
-                      } catch (readError) {
-                        server.debugError(`  [${toolName}] Error reading output file: `, readError);
+                      } catch (parseError) {
+                        server.debug(`  [${toolName}] Output is not JSON, returning as text`);
+                        result = { stdout: stdout || "", stderr: stderr || "" };
                       }
-                      try {
-                        if (fs.existsSync(outputFile)) {
-                          fs.unlinkSync(outputFile);
-                        }
-                      } catch {
-                      }
-                      const result = {
-                        stdout: stdout || "",
-                        stderr: stderr || "",
-                        outputs,
-                      };
-                      server.debug(`  [${toolName}] Python handler completed, outputs: ${Object.keys(outputs).join(", ") || "(none)"}`);
+                      server.debug(`  [${toolName}] Python handler completed successfully`);
                       resolve({
                         content: [
                           {
@@ -2075,6 +2041,10 @@ jobs:
                       });
                     }
                   );
+                  if (child.stdin) {
+                    child.stdin.write(inputJson);
+                    child.stdin.end();
+                  }
                 });
               };
             }
@@ -2571,23 +2541,17 @@ jobs:
               return async args => {
                 server.debug(`  [${toolName}] Invoking Python handler: ${scriptPath}`);
                 server.debug(`  [${toolName}] Python handler args: ${JSON.stringify(args)}`);
-                const env = { ...process.env };
-                for (const [key, value] of Object.entries(args || {})) {
-                  const envKey = `INPUT_${key.toUpperCase().replace(/-/g, "_")}`;
-                  env[envKey] = String(value);
-                  server.debug(`  [${toolName}] Set env: ${envKey}=${String(value).substring(0, 100)}${String(value).length > 100 ? "..." : ""}`);
-                }
-                const outputFile = path.join(os.tmpdir(), `mcp-python-output-${Date.now()}-${Math.random().toString(36).substring(2)}.txt`);
-                env.GITHUB_OUTPUT = outputFile;
-                server.debug(`  [${toolName}] Output file: ${outputFile}`);
-                fs.writeFileSync(outputFile, "");
+                const inputJson = JSON.stringify(args || {});
+                server.debug(
+                  `  [${toolName}] Input JSON (${inputJson.length} bytes): ${inputJson.substring(0, 200)}${inputJson.length > 200 ? "..." : ""}`
+                );
                 return new Promise((resolve, reject) => {
                   server.debug(`  [${toolName}] Executing Python script...`);
-                  execFile(
+                  const child = execFile(
                     "python3",
                     [scriptPath],
                     {
-                      env,
+                      env: process.env,
                       timeout: 300000, 
                       maxBuffer: 10 * 1024 * 1024, 
                     },
@@ -2600,49 +2564,21 @@ jobs:
                       }
                       if (error) {
                         server.debugError(`  [${toolName}] Python script error: `, error);
-                        try {
-                          if (fs.existsSync(outputFile)) {
-                            fs.unlinkSync(outputFile);
-                          }
-                        } catch {
-                        }
                         reject(error);
                         return;
                       }
-                      const outputs = {};
+                      let result;
                       try {
-                        if (fs.existsSync(outputFile)) {
-                          const outputContent = fs.readFileSync(outputFile, "utf-8");
-                          server.debug(
-                            `  [${toolName}] Output file content: ${outputContent.substring(0, 500)}${outputContent.length > 500 ? "..." : ""}`
-                          );
-                          const lines = outputContent.split("\n");
-                          for (const line of lines) {
-                            const trimmed = line.trim();
-                            if (trimmed && trimmed.includes("=")) {
-                              const eqIndex = trimmed.indexOf("=");
-                              const key = trimmed.substring(0, eqIndex);
-                              const value = trimmed.substring(eqIndex + 1);
-                              outputs[key] = value;
-                              server.debug(`  [${toolName}] Parsed output: ${key}=${value.substring(0, 100)}${value.length > 100 ? "..." : ""}`);
-                            }
-                          }
+                        if (stdout && stdout.trim()) {
+                          result = JSON.parse(stdout.trim());
+                        } else {
+                          result = { stdout: stdout || "", stderr: stderr || "" };
                         }
-                      } catch (readError) {
-                        server.debugError(`  [${toolName}] Error reading output file: `, readError);
+                      } catch (parseError) {
+                        server.debug(`  [${toolName}] Output is not JSON, returning as text`);
+                        result = { stdout: stdout || "", stderr: stderr || "" };
                       }
-                      try {
-                        if (fs.existsSync(outputFile)) {
-                          fs.unlinkSync(outputFile);
-                        }
-                      } catch {
-                      }
-                      const result = {
-                        stdout: stdout || "",
-                        stderr: stderr || "",
-                        outputs,
-                      };
-                      server.debug(`  [${toolName}] Python handler completed, outputs: ${Object.keys(outputs).join(", ") || "(none)"}`);
+                      server.debug(`  [${toolName}] Python handler completed successfully`);
                       resolve({
                         content: [
                           {
@@ -2653,6 +2589,10 @@ jobs:
                       });
                     }
                   );
+                  if (child.stdin) {
+                    child.stdin.write(inputJson);
+                    child.stdin.end();
+                  }
                 });
               };
             }
