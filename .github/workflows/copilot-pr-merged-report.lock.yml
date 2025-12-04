@@ -2434,31 +2434,25 @@ jobs:
             };
           EOF_CONFIG_LOADER
           cat > /tmp/gh-aw/safe-inputs/safe_inputs_tool_factory.cjs << 'EOF_TOOL_FACTORY'
-            function createJsToolConfig(name, description, inputSchema, handlerPath) {
+            function createToolConfig(name, description, inputSchema, handlerPath) {
               return {
                 name,
                 description,
                 inputSchema,
                 handler: handlerPath,
               };
+            }
+            function createJsToolConfig(name, description, inputSchema, handlerPath) {
+              return createToolConfig(name, description, inputSchema, handlerPath);
             }
             function createShellToolConfig(name, description, inputSchema, handlerPath) {
-              return {
-                name,
-                description,
-                inputSchema,
-                handler: handlerPath,
-              };
+              return createToolConfig(name, description, inputSchema, handlerPath);
             }
             function createPythonToolConfig(name, description, inputSchema, handlerPath) {
-              return {
-                name,
-                description,
-                inputSchema,
-                handler: handlerPath,
-              };
+              return createToolConfig(name, description, inputSchema, handlerPath);
             }
             module.exports = {
+              createToolConfig,
               createJsToolConfig,
               createShellToolConfig,
               createPythonToolConfig,

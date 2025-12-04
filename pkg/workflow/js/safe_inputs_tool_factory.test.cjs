@@ -1,6 +1,35 @@
 import { describe, it, expect } from "vitest";
 
 describe("safe_inputs_tool_factory.cjs", () => {
+  describe("createToolConfig", () => {
+    it("should create a tool configuration with all parameters", async () => {
+      const { createToolConfig } = await import("./safe_inputs_tool_factory.cjs");
+
+      const config = createToolConfig(
+        "my_tool",
+        "My tool description",
+        { type: "object", properties: { input: { type: "string" } } },
+        "my_tool.handler"
+      );
+
+      expect(config.name).toBe("my_tool");
+      expect(config.description).toBe("My tool description");
+      expect(config.inputSchema).toEqual({ type: "object", properties: { input: { type: "string" } } });
+      expect(config.handler).toBe("my_tool.handler");
+    });
+
+    it("should create configuration with minimal parameters", async () => {
+      const { createToolConfig } = await import("./safe_inputs_tool_factory.cjs");
+
+      const config = createToolConfig("tool", "desc", {}, "handler");
+
+      expect(config.name).toBe("tool");
+      expect(config.description).toBe("desc");
+      expect(config.inputSchema).toEqual({});
+      expect(config.handler).toBe("handler");
+    });
+  });
+
   describe("createJsToolConfig", () => {
     it("should create a tool configuration for JavaScript handler", async () => {
       const { createJsToolConfig } = await import("./safe_inputs_tool_factory.cjs");

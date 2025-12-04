@@ -16,6 +16,23 @@
  */
 
 /**
+ * Create a tool configuration object
+ * @param {string} name - Tool name
+ * @param {string} description - Tool description
+ * @param {Object} inputSchema - JSON Schema for tool inputs
+ * @param {string} handlerPath - Path to the handler file
+ * @returns {SafeInputsToolConfig} Tool configuration object
+ */
+function createToolConfig(name, description, inputSchema, handlerPath) {
+  return {
+    name,
+    description,
+    inputSchema,
+    handler: handlerPath,
+  };
+}
+
+/**
  * Create tool configuration for a JavaScript handler
  * @param {string} name - Tool name
  * @param {string} description - Tool description
@@ -24,12 +41,7 @@
  * @returns {SafeInputsToolConfig} Tool configuration object
  */
 function createJsToolConfig(name, description, inputSchema, handlerPath) {
-  return {
-    name,
-    description,
-    inputSchema,
-    handler: handlerPath,
-  };
+  return createToolConfig(name, description, inputSchema, handlerPath);
 }
 
 /**
@@ -41,12 +53,7 @@ function createJsToolConfig(name, description, inputSchema, handlerPath) {
  * @returns {SafeInputsToolConfig} Tool configuration object
  */
 function createShellToolConfig(name, description, inputSchema, handlerPath) {
-  return {
-    name,
-    description,
-    inputSchema,
-    handler: handlerPath,
-  };
+  return createToolConfig(name, description, inputSchema, handlerPath);
 }
 
 /**
@@ -58,15 +65,11 @@ function createShellToolConfig(name, description, inputSchema, handlerPath) {
  * @returns {SafeInputsToolConfig} Tool configuration object
  */
 function createPythonToolConfig(name, description, inputSchema, handlerPath) {
-  return {
-    name,
-    description,
-    inputSchema,
-    handler: handlerPath,
-  };
+  return createToolConfig(name, description, inputSchema, handlerPath);
 }
 
 module.exports = {
+  createToolConfig,
   createJsToolConfig,
   createShellToolConfig,
   createPythonToolConfig,
