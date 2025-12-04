@@ -1701,7 +1701,9 @@ jobs:
                   server.debug(`Patch generation failed: ${errorMsg}`);
                   throw new Error(errorMsg);
                 }
-                server.debug(`Patch generated successfully: ${patchResult.patchPath} (${patchResult.patchSize} bytes, ${patchResult.patchLines} lines)`);
+                server.debug(
+                  `Patch generated successfully: ${patchResult.patchPath} (${patchResult.patchSize} bytes, ${patchResult.patchLines} lines)`
+                );
                 appendSafeOutput(entry);
                 return {
                   content: [
@@ -1738,7 +1740,9 @@ jobs:
                   server.debug(`Patch generation failed: ${errorMsg}`);
                   throw new Error(errorMsg);
                 }
-                server.debug(`Patch generated successfully: ${patchResult.patchPath} (${patchResult.patchSize} bytes, ${patchResult.patchLines} lines)`);
+                server.debug(
+                  `Patch generated successfully: ${patchResult.patchPath} (${patchResult.patchSize} bytes, ${patchResult.patchLines} lines)`
+                );
                 appendSafeOutput(entry);
                 return {
                   content: [
@@ -3320,7 +3324,9 @@ jobs:
                   server.debug(`Patch generation failed: ${errorMsg}`);
                   throw new Error(errorMsg);
                 }
-                server.debug(`Patch generated successfully: ${patchResult.patchPath} (${patchResult.patchSize} bytes, ${patchResult.patchLines} lines)`);
+                server.debug(
+                  `Patch generated successfully: ${patchResult.patchPath} (${patchResult.patchSize} bytes, ${patchResult.patchLines} lines)`
+                );
                 appendSafeOutput(entry);
                 return {
                   content: [
@@ -3357,7 +3363,9 @@ jobs:
                   server.debug(`Patch generation failed: ${errorMsg}`);
                   throw new Error(errorMsg);
                 }
-                server.debug(`Patch generated successfully: ${patchResult.patchPath} (${patchResult.patchSize} bytes, ${patchResult.patchLines} lines)`);
+                server.debug(
+                  `Patch generated successfully: ${patchResult.patchPath} (${patchResult.patchSize} bytes, ${patchResult.patchLines} lines)`
+                );
                 appendSafeOutput(entry);
                 return {
                   content: [
