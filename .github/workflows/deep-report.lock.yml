@@ -57,7 +57,11 @@
 #     close-older-discussions: true
 #
 # tools:
-#   cache-memory:
+#   repo-memory:
+#     branch-name: memory/deep-report
+#     description: "Long-term insights, patterns, and trend data"
+#     file-glob: ["*.md"]
+#     max-file-size: 1048576  # 1MB
 #   github:
 #     toolsets:
 #       - all
@@ -447,16 +451,16 @@
 #
 # ## Intelligence Collection Process
 #
-# ### Step 0: Check Cache Memory
+# ### Step 0: Check Repo Memory
 #
 # **EFFICIENCY FIRST**: Before starting full analysis:
 #
-# 1. Check `/tmp/gh-aw/cache-memory/deep-report/` for previous insights
-# 2. Load any existing:
-#    - `last_analysis_timestamp.txt` - When the last full analysis was run
-#    - `known_patterns.json` - Previously identified patterns
-#    - `trend_data.json` - Historical trend data
-#    - `flagged_items.json` - Items flagged for continued monitoring
+# 1. Check `/tmp/gh-aw/repo-memory-default/memory/default/` for previous insights
+# 2. Load any existing markdown files (only markdown files are allowed in repo-memory):
+#    - `last_analysis_timestamp.md` - When the last full analysis was run
+#    - `known_patterns.md` - Previously identified patterns
+#    - `trend_data.md` - Historical trend data
+#    - `flagged_items.md` - Items flagged for continued monitoring
 #
 # 3. If the last analysis was less than 20 hours ago, focus only on new data since then
 #
@@ -497,13 +501,15 @@
 # 3. Find patterns that span multiple report types
 # 4. Track how identified patterns evolve over time
 #
-# ### Step 4: Store Insights in Cache
+# ### Step 4: Store Insights in Repo Memory
 #
-# Save your findings to `/tmp/gh-aw/cache-memory/deep-report/`:
-# - Update `known_patterns.json` with any new patterns discovered
-# - Update `trend_data.json` with current metrics
-# - Update `flagged_items.json` with items needing attention
-# - Save `last_analysis_timestamp.txt` with current timestamp
+# Save your findings to `/tmp/gh-aw/repo-memory-default/memory/default/` as markdown files:
+# - Update `known_patterns.md` with any new patterns discovered
+# - Update `trend_data.md` with current metrics
+# - Update `flagged_items.md` with items needing attention
+# - Save `last_analysis_timestamp.md` with current timestamp
+#
+# **Note:** Only markdown (.md) files are allowed in the repo-memory folder. Use markdown tables, lists, and formatting to structure your data.
 #
 # ## Report Structure
 #
@@ -560,7 +566,7 @@
 # - Discussion references with links
 # - Workflow run references with links
 # - Time range of data analyzed
-# - Cache data used from previous analyses
+# - Repo-memory data used from previous analyses (stored in memory/deep-report branch)
 #
 # ## Output Guidelines
 #
@@ -789,6 +795,35 @@ jobs:
         with:
           name: cache-memory
           path: /tmp/gh-aw/cache-memory
+      # Repo memory git-based storage configuration from frontmatter processed below
+      - name: Clone repo-memory branch (default)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BRANCH_NAME: memory/deep-report
+        run: |
+          set +e  # Don't fail if branch doesn't exist
+          git clone --depth 1 --single-branch --branch "memory/deep-report" "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git" "/tmp/gh-aw/repo-memory-default" 2>/dev/null
+          CLONE_EXIT_CODE=$?
+          set -e
+          
+          if [ $CLONE_EXIT_CODE -ne 0 ]; then
+            echo "Branch memory/deep-report does not exist, creating orphan branch"
+            mkdir -p "/tmp/gh-aw/repo-memory-default"
+            cd "/tmp/gh-aw/repo-memory-default"
+            git init
+            git checkout --orphan "$BRANCH_NAME"
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git"
+          else
+            echo "Successfully cloned memory/deep-report branch"
+            cd "/tmp/gh-aw/repo-memory-default"
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+          fi
+          
+          mkdir -p "/tmp/gh-aw/repo-memory-default/memory/default"
+          echo "Repo memory directory ready at /tmp/gh-aw/repo-memory-default/memory/default"
       - name: Configure Git credentials
         env:
           REPO_NAME: ${{ github.repository }}
@@ -3520,16 +3555,16 @@ jobs:
           
           ## Intelligence Collection Process
           
-          ### Step 0: Check Cache Memory
+          ### Step 0: Check Repo Memory
           
           **EFFICIENCY FIRST**: Before starting full analysis:
           
-          1. Check `/tmp/gh-aw/cache-memory/deep-report/` for previous insights
-          2. Load any existing:
-             - `last_analysis_timestamp.txt` - When the last full analysis was run
-             - `known_patterns.json` - Previously identified patterns
-             - `trend_data.json` - Historical trend data
-             - `flagged_items.json` - Items flagged for continued monitoring
+          1. Check `/tmp/gh-aw/repo-memory-default/memory/default/` for previous insights
+          2. Load any existing markdown files (only markdown files are allowed in repo-memory):
+             - `last_analysis_timestamp.md` - When the last full analysis was run
+             - `known_patterns.md` - Previously identified patterns
+             - `trend_data.md` - Historical trend data
+             - `flagged_items.md` - Items flagged for continued monitoring
           
           3. If the last analysis was less than 20 hours ago, focus only on new data since then
           
@@ -3570,13 +3605,15 @@ jobs:
           3. Find patterns that span multiple report types
           4. Track how identified patterns evolve over time
           
-          ### Step 4: Store Insights in Cache
+          ### Step 4: Store Insights in Repo Memory
           
-          Save your findings to `/tmp/gh-aw/cache-memory/deep-report/`:
-          - Update `known_patterns.json` with any new patterns discovered
-          - Update `trend_data.json` with current metrics
-          - Update `flagged_items.json` with items needing attention
-          - Save `last_analysis_timestamp.txt` with current timestamp
+          Save your findings to `/tmp/gh-aw/repo-memory-default/memory/default/` as markdown files:
+          - Update `known_patterns.md` with any new patterns discovered
+          - Update `trend_data.md` with current metrics
+          - Update `flagged_items.md` with items needing attention
+          - Save `last_analysis_timestamp.md` with current timestamp
+          
+          **Note:** Only markdown (.md) files are allowed in the repo-memory folder. Use markdown tables, lists, and formatting to structure your data.
           
           ## Report Structure
           
@@ -3633,7 +3670,7 @@ jobs:
           - Discussion references with links
           - Workflow run references with links
           - Time range of data analyzed
-          - Cache data used from previous analyses
+          - Repo-memory data used from previous analyses (stored in memory/deep-report branch)
           
           ## Output Guidelines
           
@@ -3725,6 +3762,36 @@ jobs:
           - `/tmp/gh-aw/cache-memory/preferences.json` - user preferences and settings
           - `/tmp/gh-aw/cache-memory/history.log` - activity history and logs
           - `/tmp/gh-aw/cache-memory/state/` - organized state files in subdirectories
+          
+          Feel free to create, read, update, and organize files in this folder as needed for your tasks.
+          PROMPT_EOF
+      - name: Append repo memory instructions to prompt
+        env:
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+        run: |
+          cat << 'PROMPT_EOF' | envsubst >> "$GH_AW_PROMPT"
+          
+          ---
+          
+          ## Repo Memory Available
+          
+          You have access to a persistent repo memory folder at `/tmp/gh-aw/repo-memory-default/memory/default/` where you can read and write files that are stored in a git branch. Long-term insights, patterns, and trend data
+          
+          - **Read/Write Access**: You can freely read from and write to any files in this folder
+          - **Git Branch Storage**: Files are stored in the `memory/deep-report` branch of the current repository
+          - **Automatic Push**: Changes are automatically committed and pushed after the workflow completes
+          - **Merge Strategy**: In case of conflicts, your changes (current version) win
+          - **Persistence**: Files persist across workflow runs via git branch storage
+          
+          **Constraints:**
+          - **Allowed Files**: Only files matching patterns: *.md
+          - **Max File Size**: 1048576 bytes (1.00 MB) per file
+          - **Max File Count**: 100 files per commit
+          
+          Examples of what you can store:
+          - `/tmp/gh-aw/repo-memory-default/memory/default/notes.md` - general notes and observations
+          - `/tmp/gh-aw/repo-memory-default/memory/default/state.json` - structured state data
+          - `/tmp/gh-aw/repo-memory-default/memory/default/history/` - organized history files in subdirectories
           
           Feel free to create, read, update, and organize files in this folder as needed for your tasks.
           PROMPT_EOF
@@ -6051,6 +6118,53 @@ jobs:
           name: agent-stdio.log
           path: /tmp/gh-aw/agent-stdio.log
           if-no-files-found: warn
+      # Push repo memory changes back to git branches
+      - name: Push repo-memory changes (default)
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -e
+          cd "/tmp/gh-aw/repo-memory-default" || exit 0
+          
+          # Check if we have any changes to commit
+          if [ -n "$(git status --porcelain)" ]; then
+            echo "Changes detected in repo memory, committing and pushing..."
+            
+            # Validate files before committing
+            # Check file sizes (max: 1048576 bytes)
+            if find . -type f -size +1048576c | grep -q .; then
+              echo "Error: Files exceed maximum size limit"
+              find . -type f -size +1048576c -exec ls -lh {} \;
+              exit 1
+            fi
+            
+            # Check file count (max: 100 files)
+            FILE_COUNT=$(git status --porcelain | wc -l)
+            if [ "$FILE_COUNT" -gt 100 ]; then
+              echo "Error: Too many files to commit ($FILE_COUNT > 100)"
+              exit 1
+            fi
+            
+            # Add all changes
+            git add -A
+            
+            # Commit changes
+            git commit -m "Update memory from workflow run ${{ github.run_id }}"
+            
+            # Pull with ours merge strategy (our changes win in conflicts)
+            set +e
+            git pull --no-rebase -s recursive -X ours "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git" "memory/deep-report" 2>&1
+            PULL_EXIT_CODE=$?
+            set -e
+            
+            # Push changes (force push if needed due to conflict resolution)
+            git push "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git" "HEAD:memory/deep-report"
+            
+            echo "Successfully pushed changes to repo memory"
+          else
+            echo "No changes in repo memory, skipping push"
+          fi
       - name: Upload safe outputs assets
         if: always()
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
