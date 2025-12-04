@@ -1542,6 +1542,13 @@ safe-outputs:
     labels: []
       # Array of strings
 
+    # Optional list of allowed labels that can be used when creating issues. If
+    # omitted, any labels are allowed (including creating new ones). When specified,
+    # the agent can only use labels from this list.
+    # (optional)
+    allowed-labels: []
+      # Array of strings
+
     # (optional)
     # This field supports multiple formats (oneOf):
 
@@ -1656,6 +1663,13 @@ safe-outputs:
     # labels (AND logic).
     # (optional)
     labels: []
+      # Array of strings
+
+    # Optional list of allowed labels that can be used when creating discussions. If
+    # omitted, any labels are allowed (including creating new ones). When specified,
+    # the agent can only use labels from this list.
+    # (optional)
+    allowed-labels: []
       # Array of strings
 
     # Maximum number of discussions to create (default: 1)
@@ -1854,6 +1868,13 @@ safe-outputs:
     # Optional list of labels to attach to the pull request
     # (optional)
     labels: []
+      # Array of strings
+
+    # Optional list of allowed labels that can be used when creating pull requests. If
+    # omitted, any labels are allowed (including creating new ones). When specified,
+    # the agent can only use labels from this list.
+    # (optional)
+    allowed-labels: []
       # Array of strings
 
     # Optional reviewer(s) to assign to the pull request. Accepts either a single
