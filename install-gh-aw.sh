@@ -116,12 +116,6 @@ fi
 # Check if binary already exists
 if [ -f "$BINARY_PATH" ]; then
     print_warning "Binary '$BINARY_PATH' already exists. It will be overwritten."
-    read -p "Continue? (y/N): " -n 1 -r
-    echo
-    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-        print_info "Installation cancelled."
-        exit 0
-    fi
 fi
 
 # Download the binary
@@ -164,3 +158,23 @@ print_info "  gh aw version"
 print_info ""
 print_info "Running gh-aw version check..."
 "$BINARY_PATH" version
+
+# Show next steps
+print_info ""
+print_info "=========================================="
+print_info "Next: Complete your setup with Copilot"
+print_info "=========================================="
+print_info ""
+print_info "To configure your agentic workflows, launch GitHub Copilot CLI and activate:"
+print_info ""
+print_info "  npx @github/copilot"
+print_info ""
+print_info "Then in Copilot, activate this setup guide:"
+print_info ""
+print_info "  https://raw.githubusercontent.com/githubnext/gh-aw/main/install.md"
+print_info ""
+print_info "This guide will help you:"
+print_info "  - Choose your AI agent (copilot/claude/codex)"
+print_info "  - Configure required secrets"
+print_info "  - Create your first agentic workflow"
+print_info ""
