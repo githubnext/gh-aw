@@ -217,6 +217,7 @@ function createHandlers(server, appendSafeOutput) {
       throw new Error(errorMsg);
     }
 
+    // prettier-ignore
     server.debug(`Patch generated successfully: ${patchResult.patchPath} (${patchResult.patchSize} bytes, ${patchResult.patchLines} lines)`);
 
     appendSafeOutput(entry);
@@ -271,6 +272,7 @@ function createHandlers(server, appendSafeOutput) {
       throw new Error(errorMsg);
     }
 
+    // prettier-ignore
     server.debug(`Patch generated successfully: ${patchResult.patchPath} (${patchResult.patchSize} bytes, ${patchResult.patchLines} lines)`);
 
     appendSafeOutput(entry);
