@@ -76,4 +76,4 @@ gh aw add githubnext/agentics/ci-doctor --create-pull-request
 
 ## 6) Create a New Workflow (Agentic Experience)
 
-activate `.github/agents/create-agentic-workflow.agent.md` and follow the guided instructions to create a new workflow.
+activate `.github/agents/create-agentic-workflow.agent.md` and follow the guided prompts to create a new workflow.
