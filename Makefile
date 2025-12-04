@@ -15,11 +15,6 @@ all: build
 .PHONY: build
 build: sync-templates sync-action-pins
 	go build $(LDFLAGS) -o $(BINARY_NAME) ./cmd/gh-aw
-	@if ! gh extension list 2>/dev/null | grep -q "^gh aw"; then \
-		echo "Installing gh-aw extension for the first time..."; \
-		gh extension remove gh-aw 2>/dev/null || true; \
-		gh extension install . 2>/dev/null || echo "Note: gh extension install requires GH_TOKEN to be set"; \
-	fi
 
 # Build for all platforms
 .PHONY: build-all
