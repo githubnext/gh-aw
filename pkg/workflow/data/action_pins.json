@@ -48,7 +48,7 @@
     "actions/setup-node@v6": {
       "repo": "actions/setup-node",
       "version": "v6",
-      "sha": "395ad3262231945c25e8478fd5baf05154b1d79f"
+      "sha": "2028fbc5c25fe9cf00d9f06a71cc4710d4507903"
     },
     "actions/setup-python@v5": {
       "repo": "actions/setup-python",
@@ -89,6 +89,11 @@
       "repo": "github/codeql-action/upload-sarif",
       "version": "v3",
       "sha": "4248455a6f2335bc3b7a8a62932f000050ec8f13"
+    },
+    "github/stale-repos@v3": {
+      "repo": "github/stale-repos",
+      "version": "v3",
+      "sha": "3477b6488008d9411aaf22a0924ec7c1f6a69980"
     },
     "haskell-actions/setup@v2": {
       "repo": "haskell-actions/setup",

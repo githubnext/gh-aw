@@ -246,8 +246,8 @@
 #     https://github.com/actions/download-artifact/commit/018cc2cf5baa6db3ef3c5f8a56943fffe632ef53
 #   - actions/github-script@v8 (ed597411d8f924073f98dfc5c65a23a2325f34cd)
 #     https://github.com/actions/github-script/commit/ed597411d8f924073f98dfc5c65a23a2325f34cd
-#   - actions/setup-node@v6 (395ad3262231945c25e8478fd5baf05154b1d79f)
-#     https://github.com/actions/setup-node/commit/395ad3262231945c25e8478fd5baf05154b1d79f
+#   - actions/setup-node@v6 (2028fbc5c25fe9cf00d9f06a71cc4710d4507903)
+#     https://github.com/actions/setup-node/commit/2028fbc5c25fe9cf00d9f06a71cc4710d4507903
 #   - actions/upload-artifact@v5 (330a01c490aca151604b8cf639adc76d48f6c5d4)
 #     https://github.com/actions/upload-artifact/commit/330a01c490aca151604b8cf639adc76d48f6c5d4
 
@@ -465,7 +465,7 @@ jobs:
           COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
           COPILOT_CLI_TOKEN: ${{ secrets.COPILOT_CLI_TOKEN }}
       - name: Setup Node.js
-        uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6
+        uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # v6
         with:
           node-version: '24'
           package-manager-cache: false
@@ -7201,6 +7201,23 @@ jobs:
                 return [];
               }
             }
+            async function getRepositoryId(owner, repo) {
+              const query = `
+                query($owner: String!, $repo: String!) {
+                  repository(owner: $owner, name: $repo) {
+                    id
+                  }
+                }
+              `;
+              try {
+                const response = await github.graphql(query, { owner, repo });
+                return response.repository?.id || null;
+              } catch (error) {
+                const errorMessage = error instanceof Error ? error.message : String(error);
+                core.error(`Failed to get repository ID for ${owner}/${repo}: ${errorMessage}`);
+                return null;
+              }
+            }
             async function findAgent(owner, repo, agentName) {
               const query = `
                 query($owner: String!, $repo: String!) {
@@ -7282,18 +7299,39 @@ jobs:
                 return null;
               }
             }
-            async function assignAgentToIssue(issueId, agentId, currentAssignees, agentName) {
+            async function assignAgentToIssue(issueId, agentId, currentAssignees, agentName, options = {}) {
               const actorIds = [agentId];
               for (const assigneeId of currentAssignees) {
                 if (assigneeId !== agentId) {
                   actorIds.push(assigneeId);
                 }
               }
+              const mutationInput = {
+                assignableId: issueId,
+                actorIds: actorIds,
+              };
+              if (options.targetRepositoryId || options.baseBranch || options.customInstructions || options.customAgent) {
+                const copilotOptions = {};
+                if (options.targetRepositoryId) {
+                  copilotOptions.targetRepositoryId = options.targetRepositoryId;
+                }
+                if (options.baseBranch) {
+                  copilotOptions.baseBranch = options.baseBranch;
+                }
+                if (options.customInstructions) {
+                  copilotOptions.customInstructions = options.customInstructions;
+                }
+                if (options.customAgent) {
+                  copilotOptions.customAgent = options.customAgent;
+                }
+                mutationInput.copilotAssignmentOptions = copilotOptions;
+              }
               const mutation = `
-                mutation($assignableId: ID!, $actorIds: [ID!]!) {
+                mutation($assignableId: ID!, $actorIds: [ID!]!, $copilotAssignmentOptions: CopilotAssignmentOptionsInput) {
                   replaceActorsForAssignable(input: {
                     assignableId: $assignableId,
-                    actorIds: $actorIds
+                    actorIds: $actorIds,
+                    copilotAssignmentOptions: $copilotAssignmentOptions
                   }) {
                     __typename
                   }
@@ -7301,10 +7339,11 @@ jobs:
               `;
               try {
                 core.info("Using built-in github object for mutation");
-                core.debug(`GraphQL mutation with variables: assignableId=${issueId}, actorIds=${JSON.stringify(actorIds)}`);
-                const response = await github.graphql(mutation, {
-                  assignableId: issueId,
-                  actorIds: actorIds,
+                core.debug(`GraphQL mutation with variables: ${JSON.stringify(mutationInput)}`);
+                const response = await github.graphql(mutation, mutationInput, {
+                  headers: {
+                    "GraphQL-Features": "issues_copilot_assignment_api_support",
+                  },
                 });
                 if (response && response.replaceActorsForAssignable && response.replaceActorsForAssignable.__typename) {
                   return true;
@@ -7423,7 +7462,7 @@ jobs:
               content += "📖 Reference: https://docs.github.com/en/copilot/how-tos/use-copilot-agents/coding-agent/create-a-pr (general agent docs)\n";
               return content;
             }
-            async function assignAgentToIssueByName(owner, repo, issueNumber, agentName) {
+            async function assignAgentToIssueByName(owner, repo, issueNumber, agentName, options = {}) {
               if (!AGENT_LOGIN_NAMES[agentName]) {
                 const error = `Agent "${agentName}" is not supported. Supported agents: ${Object.keys(AGENT_LOGIN_NAMES).join(", ")}`;
                 core.warning(error);
@@ -7449,8 +7488,27 @@ jobs:
                   core.info(`${agentName} is already assigned to issue #${issueNumber}`);
                   return { success: true };
                 }
+                const assignmentOptions = {};
+                if (options.targetRepository) {
+                  const parts = options.targetRepository.split("/");
+                  if (parts.length === 2) {
+                    const repoId = await getRepositoryId(parts[0], parts[1]);
+                    if (repoId) {
+                      assignmentOptions.targetRepositoryId = repoId;
+                    }
+                  }
+                }
+                if (options.baseBranch) {
+                  assignmentOptions.baseBranch = options.baseBranch;
+                }
+                if (options.customInstructions) {
+                  assignmentOptions.customInstructions = options.customInstructions;
+                }
+                if (options.customAgent) {
+                  assignmentOptions.customAgent = options.customAgent;
+                }
                 core.info(`Assigning ${agentName} coding agent to issue #${issueNumber}...`);
-                const success = await assignAgentToIssue(issueDetails.issueId, agentId, issueDetails.currentAssignees, agentName);
+                const success = await assignAgentToIssue(issueDetails.issueId, agentId, issueDetails.currentAssignees, agentName, assignmentOptions);
                 if (!success) {
                   return { success: false, error: `Failed to assign ${agentName} via GraphQL` };
                 }
@@ -7745,7 +7803,7 @@ jobs:
           COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
           COPILOT_CLI_TOKEN: ${{ secrets.COPILOT_CLI_TOKEN }}
       - name: Setup Node.js
-        uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6
+        uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # v6
         with:
           node-version: '24'
           package-manager-cache: false
