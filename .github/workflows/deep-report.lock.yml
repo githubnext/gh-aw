@@ -91,7 +91,7 @@
 #   conclusion["conclusion"]
 #   create_discussion["create_discussion"]
 #   detection["detection"]
-#   push_repo_memory["Push Repo Memory"]
+#   push_repo_memory["push_repo_memory"]
 #   upload_assets["upload_assets"]
 #   activation --> agent
 #   agent --> conclusion
@@ -6856,7 +6856,6 @@ jobs:
           if-no-files-found: ignore
 
   push_repo_memory:
-    name: Push Repo Memory
     needs:
       - agent
       - detection
@@ -6865,6 +6864,10 @@ jobs:
     permissions:
       contents: write
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+        with:
+          persist-credentials: false
       - name: Download repo-memory artifact (default)
         uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
         continue-on-error: true
@@ -6877,7 +6880,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -e
-          cd "/tmp/gh-aw/repo-memory-default" || exit 0
+          cd "/tmp/gh-aw/repo-memory-default"
           
           # Check if we have any changes to commit
           if [ -n "$(git status --porcelain)" ]; then
@@ -6917,7 +6920,7 @@ jobs:
             git commit -m "Update repo memory from workflow run ${{ github.run_id }}"
             
             # Pull with merge strategy (ours wins on conflicts)
-            git pull --no-rebase -X ours "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git" "memory/deep-report" || true
+            git pull --no-rebase -X ours "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git" "memory/deep-report"
             
             # Push changes
             git push "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git" HEAD:"memory/deep-report"

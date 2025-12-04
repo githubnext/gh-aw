@@ -468,6 +468,14 @@ func (c *Compiler) buildPushRepoMemoryJob(data *WorkflowData, threatDetectionEna
 
 	var steps []string
 
+	// Add checkout step to configure git
+	var checkoutStep strings.Builder
+	checkoutStep.WriteString("      - name: Checkout repository\n")
+	checkoutStep.WriteString(fmt.Sprintf("        uses: %s\n", GetActionPin("actions/checkout")))
+	checkoutStep.WriteString("        with:\n")
+	checkoutStep.WriteString("          persist-credentials: false\n")
+	steps = append(steps, checkoutStep.String())
+
 	// Build steps as complete YAML strings
 	for _, memory := range data.RepoMemoryConfig.Memories {
 		// Download artifact step
@@ -497,7 +505,7 @@ func (c *Compiler) buildPushRepoMemoryJob(data *WorkflowData, threatDetectionEna
 		step.WriteString("          GH_TOKEN: ${{ github.token }}\n")
 		step.WriteString("        run: |\n")
 		step.WriteString("          set -e\n")
-		step.WriteString(fmt.Sprintf("          cd \"%s\" || exit 0\n", memoryDir))
+		step.WriteString(fmt.Sprintf("          cd \"%s\"\n", memoryDir))
 		step.WriteString("          \n")
 		step.WriteString("          # Check if we have any changes to commit\n")
 		step.WriteString("          if [ -n \"$(git status --porcelain)\" ]; then\n")
@@ -554,7 +562,7 @@ func (c *Compiler) buildPushRepoMemoryJob(data *WorkflowData, threatDetectionEna
 		step.WriteString("            git commit -m \"Update repo memory from workflow run ${{ github.run_id }}\"\n")
 		step.WriteString("            \n")
 		step.WriteString("            # Pull with merge strategy (ours wins on conflicts)\n")
-		step.WriteString(fmt.Sprintf("            git pull --no-rebase -X ours \"https://x-access-token:${GH_TOKEN}@github.com/%s.git\" \"%s\" || true\n", targetRepo, memory.BranchName))
+		step.WriteString(fmt.Sprintf("            git pull --no-rebase -X ours \"https://x-access-token:${GH_TOKEN}@github.com/%s.git\" \"%s\"\n", targetRepo, memory.BranchName))
 		step.WriteString("            \n")
 		step.WriteString("            # Push changes\n")
 		step.WriteString(fmt.Sprintf("            git push \"https://x-access-token:${GH_TOKEN}@github.com/%s.git\" HEAD:\"%s\"\n", targetRepo, memory.BranchName))
@@ -576,7 +584,7 @@ func (c *Compiler) buildPushRepoMemoryJob(data *WorkflowData, threatDetectionEna
 
 	job := &Job{
 		Name:        "push_repo_memory",
-		DisplayName: "Push Repo Memory",
+		DisplayName: "", // No display name - job ID is sufficient
 		RunsOn:      "runs-on: ubuntu-latest",
 		If:          jobCondition,
 		Permissions: "permissions:\n      contents: write",
