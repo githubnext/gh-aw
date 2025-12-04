@@ -2801,6 +2801,13 @@
                     "type": "string"
                   }
                 },
+                "allowed-labels": {
+                  "type": "array",
+                  "description": "Optional list of allowed labels that can be used when creating issues. If omitted, any labels are allowed (including creating new ones). When specified, the agent can only use labels from this list.",
+                  "items": {
+                    "type": "string"
+                  }
+                },
                 "assignees": {
                   "oneOf": [
                     {
@@ -2950,6 +2957,13 @@
                     "type": "string"
                   },
                   "description": "Optional list of labels to attach to created discussions. Also used for matching when close-older-discussions is enabled - discussions must have ALL specified labels (AND logic)."
+                },
+                "allowed-labels": {
+                  "type": "array",
+                  "description": "Optional list of allowed labels that can be used when creating discussions. If omitted, any labels are allowed (including creating new ones). When specified, the agent can only use labels from this list.",
+                  "items": {
+                    "type": "string"
+                  }
                 },
                 "max": {
                   "type": "integer",
@@ -3236,6 +3250,13 @@
                 "labels": {
                   "type": "array",
                   "description": "Optional list of labels to attach to the pull request",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "allowed-labels": {
+                  "type": "array",
+                  "description": "Optional list of allowed labels that can be used when creating pull requests. If omitted, any labels are allowed (including creating new ones). When specified, the agent can only use labels from this list.",
                   "items": {
                     "type": "string"
                   }

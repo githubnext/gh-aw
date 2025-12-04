@@ -709,6 +709,9 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 				maxValue = data.SafeOutputs.CreateIssues.Max
 			}
 			issueConfig["max"] = maxValue
+			if len(data.SafeOutputs.CreateIssues.AllowedLabels) > 0 {
+				issueConfig["allowed_labels"] = data.SafeOutputs.CreateIssues.AllowedLabels
+			}
 			safeOutputsConfig["create_issue"] = issueConfig
 		}
 		if data.SafeOutputs.CreateAgentTasks != nil {
@@ -742,6 +745,9 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 				maxValue = data.SafeOutputs.CreateDiscussions.Max
 			}
 			discussionConfig["max"] = maxValue
+			if len(data.SafeOutputs.CreateDiscussions.AllowedLabels) > 0 {
+				discussionConfig["allowed_labels"] = data.SafeOutputs.CreateDiscussions.AllowedLabels
+			}
 			safeOutputsConfig["create_discussion"] = discussionConfig
 		}
 		if data.SafeOutputs.CloseDiscussions != nil {
@@ -782,6 +788,9 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 		if data.SafeOutputs.CreatePullRequests != nil {
 			prConfig := map[string]any{}
 			// Note: max is always 1 for pull requests, not configurable
+			if len(data.SafeOutputs.CreatePullRequests.AllowedLabels) > 0 {
+				prConfig["allowed_labels"] = data.SafeOutputs.CreatePullRequests.AllowedLabels
+			}
 			safeOutputsConfig["create_pull_request"] = prConfig
 		}
 		if data.SafeOutputs.CreatePullRequestReviewComments != nil {
