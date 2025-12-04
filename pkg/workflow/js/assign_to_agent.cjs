@@ -6,6 +6,7 @@ const { generateStagedPreview } = require("./staged_preview.cjs");
 const {
   AGENT_LOGIN_NAMES,
   getAvailableAgentLogins,
+  getRepositoryId,
   findAgent,
   getIssueDetails,
   assignAgentToIssue,
@@ -35,6 +36,18 @@ async function main() {
       renderItem: item => {
         let content = `**Issue:** #${item.issue_number}\n`;
         content += `**Agent:** ${item.agent || "copilot"}\n`;
+        if (item.target_repository) {
+          content += `**Target Repository:** ${item.target_repository}\n`;
+        }
+        if (item.base_branch) {
+          content += `**Base Branch:** ${item.base_branch}\n`;
+        }
+        if (item.custom_agent) {
+          content += `**Custom Agent:** ${item.custom_agent}\n`;
+        }
+        if (item.custom_instructions) {
+          content += `**Custom Instructions:** ${item.custom_instructions.substring(0, 100)}${item.custom_instructions.length > 100 ? "..." : ""}\n`;
+        }
         content += "\n";
         return content;
       },
@@ -140,9 +153,47 @@ async function main() {
         continue;
       }
 
+      // Prepare assignment options
+      const assignmentOptions = {};
+
+      // Handle target repository if specified (either from item or environment)
+      const itemTargetRepo = item.target_repository;
+      if (itemTargetRepo) {
+        const parts = itemTargetRepo.split("/");
+        if (parts.length === 2) {
+          const repoId = await getRepositoryId(parts[0], parts[1]);
+          if (repoId) {
+            assignmentOptions.targetRepositoryId = repoId;
+            core.info(`Target repository: ${itemTargetRepo} (ID: ${repoId})`);
+          } else {
+            core.warning(`Could not find repository ID for ${itemTargetRepo}`);
+          }
+        } else {
+          core.warning(`Invalid target_repository format: ${itemTargetRepo}. Expected owner/repo.`);
+        }
+      }
+
+      // Handle base branch
+      if (item.base_branch) {
+        assignmentOptions.baseBranch = item.base_branch;
+        core.info(`Base branch: ${item.base_branch}`);
+      }
+
+      // Handle custom instructions
+      if (item.custom_instructions) {
+        assignmentOptions.customInstructions = item.custom_instructions;
+        core.info(`Custom instructions provided (${item.custom_instructions.length} characters)`);
+      }
+
+      // Handle custom agent
+      if (item.custom_agent) {
+        assignmentOptions.customAgent = item.custom_agent;
+        core.info(`Custom agent: ${item.custom_agent}`);
+      }
+
       // Assign agent using GraphQL mutation - uses built-in github object authenticated via github-token
       core.info(`Assigning ${agentName} coding agent to issue #${issueNumber}...`);
-      const success = await assignAgentToIssue(issueDetails.issueId, agentId, issueDetails.currentAssignees, agentName);
+      const success = await assignAgentToIssue(issueDetails.issueId, agentId, issueDetails.currentAssignees, agentName, assignmentOptions);
 
       if (!success) {
         throw new Error(`Failed to assign ${agentName} via GraphQL`);

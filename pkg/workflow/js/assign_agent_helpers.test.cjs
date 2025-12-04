@@ -261,6 +261,11 @@ describe("assign_agent_helpers.cjs", () => {
         expect.objectContaining({
           assignableId: "ISSUE_123",
           actorIds: ["AGENT_456", "USER_1"],
+        }),
+        expect.objectContaining({
+          headers: expect.objectContaining({
+            "GraphQL-Features": "issues_copilot_assignment_api_support",
+          }),
         })
       );
     });
@@ -279,6 +284,11 @@ describe("assign_agent_helpers.cjs", () => {
         expect.objectContaining({
           assignableId: "ISSUE_123",
           actorIds: expect.arrayContaining(["AGENT_456", "USER_1", "USER_2"]),
+        }),
+        expect.objectContaining({
+          headers: expect.objectContaining({
+            "GraphQL-Features": "issues_copilot_assignment_api_support",
+          }),
         })
       );
     });

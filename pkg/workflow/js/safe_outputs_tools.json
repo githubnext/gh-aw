@@ -327,6 +327,22 @@
         "agent": {
           "type": "string",
           "description": "Agent identifier to assign. Defaults to 'copilot' (the Copilot coding agent) if not specified."
+        },
+        "target_repository": {
+          "type": "string",
+          "description": "Target repository where the agent should create the pull request, in 'owner/repo' format (e.g., 'octocat/my-repo'). If omitted, uses the current repository. Useful when the issue and codebase are in separate repositories."
+        },
+        "base_branch": {
+          "type": "string",
+          "description": "Base branch the agent should target for the pull request (e.g., 'main', 'develop'). If omitted, uses the repository's default branch."
+        },
+        "custom_instructions": {
+          "type": "string",
+          "description": "Additional instructions to guide the agent's work. Include specific requirements, coding conventions, directory structure guidelines, or behavioral expectations. Markdown formatting is supported."
+        },
+        "custom_agent": {
+          "type": "string",
+          "description": "Name or path of a custom Copilot agent defined in the repository's .github/agents directory. If specified, this custom agent will be used instead of the default Copilot coding agent."
         }
       },
       "additionalProperties": false
