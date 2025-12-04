@@ -61,6 +61,25 @@ func TestParseSafeInputs(t *testing.T) {
 			expectedTools: 1,
 		},
 		{
+			name: "single python tool",
+			frontmatter: map[string]any{
+				"safe-inputs": map[string]any{
+					"analyze-data": map[string]any{
+						"description": "Analyze data with Python",
+						"py":          "import json\nprint(json.dumps({'result': 'success'}))",
+						"inputs": map[string]any{
+							"data": map[string]any{
+								"type":        "string",
+								"description": "Data to analyze",
+								"required":    true,
+							},
+						},
+					},
+				},
+			},
+			expectedTools: 1,
+		},
+		{
 			name: "multiple tools",
 			frontmatter: map[string]any{
 				"safe-inputs": map[string]any{
@@ -383,6 +402,18 @@ func TestGenerateSafeInputsMCPServerScript(t *testing.T) {
 					},
 				},
 			},
+			"analyze-data": {
+				Name:        "analyze-data",
+				Description: "Analyze data with Python",
+				Py:          "import json\nprint(json.dumps({'result': 'success'}))",
+				Inputs: map[string]*SafeInputParam{
+					"data": {
+						Type:        "string",
+						Description: "Data to analyze",
+						Required:    true,
+					},
+				},
+			},
 		},
 	}
 
@@ -421,6 +452,10 @@ func TestGenerateSafeInputsMCPServerScript(t *testing.T) {
 		t.Error("Tools config should contain echo-message tool")
 	}
 
+	if !strings.Contains(toolsJSON, `"name": "analyze-data"`) {
+		t.Error("Tools config should contain analyze-data tool")
+	}
+
 	// Check for JavaScript tool handler
 	if !strings.Contains(toolsJSON, `"handler": "search-issues.cjs"`) {
 		t.Error("Tools config should reference JavaScript tool handler file")
@@ -429,6 +464,11 @@ func TestGenerateSafeInputsMCPServerScript(t *testing.T) {
 	// Check for shell tool handler
 	if !strings.Contains(toolsJSON, `"handler": "echo-message.sh"`) {
 		t.Error("Tools config should reference shell script handler file")
+	}
+
+	// Check for Python tool handler
+	if !strings.Contains(toolsJSON, `"handler": "analyze-data.py"`) {
+		t.Error("Tools config should reference Python script handler file")
 	}
 
 	// Check for input schema
@@ -496,6 +536,59 @@ func TestGenerateSafeInputShellToolScript(t *testing.T) {
 
 	if !strings.Contains(script, "echo $INPUT_MESSAGE") {
 		t.Error("Script should contain the run command")
+	}
+}
+
+func TestGenerateSafeInputPythonToolScript(t *testing.T) {
+	config := &SafeInputToolConfig{
+		Name:        "test-python",
+		Description: "A Python test tool",
+		Py:          "result = {'message': 'Hello from Python'}\nprint(json.dumps(result))",
+		Inputs: map[string]*SafeInputParam{
+			"message": {
+				Type:        "string",
+				Description: "Message to process",
+			},
+			"count": {
+				Type:        "number",
+				Description: "Number of times",
+			},
+		},
+	}
+
+	script := generateSafeInputPythonToolScript(config)
+
+	if !strings.Contains(script, "#!/usr/bin/env python3") {
+		t.Error("Script should have python3 shebang")
+	}
+
+	if !strings.Contains(script, "test-python") {
+		t.Error("Script should contain tool name")
+	}
+
+	if !strings.Contains(script, "import json") {
+		t.Error("Script should import json module")
+	}
+
+	if !strings.Contains(script, "import sys") {
+		t.Error("Script should import sys module")
+	}
+
+	if !strings.Contains(script, "inputs = json.loads(sys.stdin.read())") {
+		t.Error("Script should parse inputs from stdin")
+	}
+
+	if !strings.Contains(script, "result = {'message': 'Hello from Python'}") {
+		t.Error("Script should contain the Python code")
+	}
+
+	// Check for input parameter documentation
+	if !strings.Contains(script, "# message = inputs.get('message'") {
+		t.Error("Script should document message parameter access")
+	}
+
+	if !strings.Contains(script, "# count = inputs.get('count'") {
+		t.Error("Script should document count parameter access")
 	}
 }
 

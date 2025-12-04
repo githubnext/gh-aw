@@ -113,6 +113,7 @@ func TestDownloadResult(t *testing.T) {
 		Run:      run,
 		LogsPath: "./test-path",
 		Skipped:  false,
+		Cached:   false,
 		Error:    nil,
 	}
 
@@ -128,8 +129,28 @@ func TestDownloadResult(t *testing.T) {
 		t.Error("Expected Skipped to be false")
 	}
 
+	if result.Cached {
+		t.Error("Expected Cached to be false")
+	}
+
 	if result.Error != nil {
 		t.Errorf("Expected Error to be nil, got %v", result.Error)
+	}
+
+	// Test cached result
+	cachedResult := DownloadResult{
+		Run:      run,
+		LogsPath: "./test-path",
+		Cached:   true,
+	}
+
+	if !cachedResult.Cached {
+		t.Error("Expected Cached to be true")
+	}
+
+	// Cached results should be counted as successful (no error, not skipped)
+	if cachedResult.Error != nil || cachedResult.Skipped {
+		t.Error("Cached results should have no error and not be skipped")
 	}
 }
 

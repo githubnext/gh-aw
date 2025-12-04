@@ -609,7 +609,9 @@ Combine `create-issue` with `update-project` to launch coordinated initiatives. 
 
 ## Custom Messages (`messages:`)
 
-Customize notification messages and footers for safe output operations. Available placeholders include `{workflow_name}`, `{run_url}`, `{triggering_number}`, `{workflow_source}`, and `{workflow_source_url}`.
+Customize notification messages and footers for safe output operations using template variables. Messages support full Markdown formatting including links, emphasis, and emoji.
+
+### Basic Configuration
 
 ```yaml wrap
 safe-outputs:
@@ -621,26 +623,80 @@ safe-outputs:
   create-issue:
 ```
 
-**Available Templates:**
+### Real-World Example
 
-- `footer`: Appended to AI-generated content (issues, PRs, comments)
-- `install`: Installation instructions appended to footer
-- `staged-title`: Preview title for staged mode operations
-- `staged-description`: Preview description for staged mode
-- `run-started`: Activation comment when workflow starts
-- `run-success`: Completion comment for successful runs
-- `run-failure`: Completion comment for failed runs
+The `archie.md` workflow demonstrates custom messages with personality:
 
-**Placeholders:**
+```yaml wrap
+safe-outputs:
+  add-comment:
+    max: 1
+  messages:
+    footer: "> 📊 *Diagram rendered by [{workflow_name}]({run_url})*"
+    run-started: "📐 Archie here! [{workflow_name}]({run_url}) is sketching the architecture on this {event_type}..."
+    run-success: "🎨 Blueprint complete! [{workflow_name}]({run_url}) has visualized the connections. The architecture speaks for itself! ✅"
+    run-failure: "📐 Drafting interrupted! [{workflow_name}]({run_url}) {status}. The diagram remains incomplete..."
+```
 
-- `{workflow_name}` - Workflow name from frontmatter
-- `{run_url}` - GitHub Actions run URL
-- `{triggering_number}` - Issue, PR, or discussion number
-- `{workflow_source}` - Repository path (owner/repo/path@ref)
-- `{workflow_source_url}` - GitHub URL to workflow source
-- `{event_type}` - Event type (issue, pull request, etc.)
-- `{status}` - Workflow status (failed, cancelled, timed out)
-- `{operation}` - Safe output operation name (staged mode only)
+This example shows:
+- **Emoji usage**: Adding 📐, 🎨, 📊, ✅ for visual appeal
+- **Markdown links**: `[{workflow_name}]({run_url})` creates clickable workflow links
+- **Italic text**: `*Diagram rendered by...*` for emphasis
+- **Placeholder interpolation**: `{event_type}` and `{status}` for dynamic content
+
+### Available Templates
+
+| Template | Description | Use Case |
+|----------|-------------|----------|
+| `footer` | Appended to AI-generated content | Attribution on issues, PRs, comments |
+| `footer-install` | Installation instructions | Add install command to footer |
+| `staged-title` | Preview title | Staged mode preview header |
+| `staged-description` | Preview description | Staged mode preview body |
+| `run-started` | Activation comment | Notify when workflow starts |
+| `run-success` | Success comment | Notify on successful completion |
+| `run-failure` | Failure comment | Notify when workflow fails |
+
+### Template Variables
+
+| Variable | Description | Available In |
+|----------|-------------|--------------|
+| `{workflow_name}` | Workflow name from frontmatter | All templates |
+| `{run_url}` | GitHub Actions run URL | All templates |
+| `{triggering_number}` | Issue, PR, or discussion number | All templates |
+| `{workflow_source}` | Repository path (owner/repo/path@ref) | `footer`, `footer-install` |
+| `{workflow_source_url}` | GitHub URL to workflow source | `footer`, `footer-install` |
+| `{event_type}` | Event type description (issue, pull request, discussion, etc.) | `run-started` |
+| `{status}` | Workflow status (failed, cancelled, timed out) | `run-failure` |
+| `{operation}` | Safe output operation name | `staged-title`, `staged-description` |
+
+### Markdown Formatting
+
+Messages support standard GitHub Markdown:
+
+```yaml wrap
+safe-outputs:
+  messages:
+    # Bold and italic
+    footer: "> **Generated** by *[{workflow_name}]({run_url})*"
+    
+    # Blockquotes
+    run-started: "> 🤖 Processing [{workflow_name}]({run_url})..."
+    
+    # Links with placeholders
+    run-success: "✅ [View run details]({run_url})"
+```
+
+### URL Generation
+
+Template variables generate valid URLs automatically:
+
+- `{run_url}` → `https://github.com/owner/repo/actions/runs/123456789`
+- `{workflow_source_url}` → `https://github.com/owner/repo/blob/main/.github/workflows/workflow.md`
+
+Combine with Markdown link syntax for clickable links:
+```yaml
+footer: "> [View workflow source]({workflow_source_url})"
+```
 
 Custom messages can be imported from shared workflows. Local messages override imported ones.
 

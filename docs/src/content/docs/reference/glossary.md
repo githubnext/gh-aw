@@ -46,6 +46,9 @@ Capabilities that an AI agent can use during workflow execution. Tools are confi
 
 ## Security and Outputs
 
+### Safe Inputs
+Custom MCP tools defined inline in the workflow frontmatter using JavaScript or shell scripts. Allows lightweight tool creation without external dependencies while maintaining controlled access to secrets. Tools are generated at runtime and mounted as an MCP server. Each tool can have typed input parameters, default values, and environment variables. Configured using the `safe-inputs:` section in frontmatter.
+
 ### Safe Outputs
 Pre-approved actions the AI can take without requiring elevated permissions. The AI generates structured output describing what it wants to create (issues, comments, pull requests), which is processed by separate, permission-controlled jobs. Configured using the `safe-outputs:` section in frontmatter. This approach lets AI agents create GitHub content without direct write access, reducing security risks.
 
@@ -119,8 +122,8 @@ A human-friendly data format used for configuration files. Uses indentation and 
 ### Personal Access Token (PAT)
 A token that authenticates you to GitHub's APIs with specific permissions. Required for GitHub Copilot CLI to access Copilot services. Created at github.com/settings/personal-access-tokens.
 
-### Prompt Files
-Markdown files with YAML frontmatter stored in `.github/prompts/` that define interactive Copilot Chat commands. Created by `gh aw init`, these files (like `create-agentic-workflow.prompt.md`) can be invoked as slash commands (e.g., `/create-agentic-workflow`) in Copilot Chat to guide workflow creation with specialized instructions.
+### Agent Files
+Markdown files with YAML frontmatter stored in `.github/agents/` that define interactive Copilot Chat agents. Created by `gh aw init`, these files (like `create-agentic-workflow.agent.md`) can be invoked with the `/agent` command in Copilot Chat to guide workflow creation with specialized instructions.
 
 ### Fine-grained Personal Access Token
 A type of GitHub Personal Access Token with granular permission control. Specify exactly which repositories the token can access and what permissions it has (`contents: read`, `issues: write`, etc.). Created at github.com/settings/personal-access-tokens.
@@ -155,8 +158,7 @@ env:
 
 ### Custom Agents
 Specialized instructions or configurations that customize AI agent behavior for specific tasks or repositories. Can be stored as:
-- **Prompt files** (`.github/prompts/*.prompt.md`) - Used with Copilot Chat slash commands for interactive workflow authoring
-- **Agent files** (`.github/agents/*.md`) - Imported into workflows via the `imports` field for execution-time customization
+- **Agent files** (`.github/agents/*.agent.md`) - Used with Copilot Chat `/agent` command for interactive workflow authoring and execution-time customization
 - **Instruction files** (`.github/copilot/instructions/`) - Path-specific or repository-wide Copilot instructions
 
 ### Strict Mode
@@ -199,6 +201,7 @@ on:
 For detailed documentation on specific topics, see:
 - [Frontmatter Reference](/gh-aw/reference/frontmatter/)
 - [Tools Reference](/gh-aw/reference/tools/)
+- [Safe Inputs Reference](/gh-aw/reference/safe-inputs/)
 - [Safe Outputs Reference](/gh-aw/reference/safe-outputs/)
 - [Using MCPs Guide](/gh-aw/guides/mcps/)
 - [Security Guide](/gh-aw/guides/security/)

@@ -210,6 +210,18 @@ var mcpServerCoreScript string
 //go:embed js/safe_inputs_mcp_server.cjs
 var safeInputsMCPServerScript string
 
+//go:embed js/safe_inputs_config_loader.cjs
+var safeInputsConfigLoaderScript string
+
+//go:embed js/safe_inputs_tool_factory.cjs
+var safeInputsToolFactoryScript string
+
+//go:embed js/mcp_handler_shell.cjs
+var mcpHandlerShellScript string
+
+//go:embed js/mcp_handler_python.cjs
+var mcpHandlerPythonScript string
+
 //go:embed js/safe_output_type_validator.cjs
 var safeOutputTypeValidatorScript string
 
@@ -268,12 +280,17 @@ func GetJavaScriptSources() map[string]string {
 		"read_buffer.cjs":                 readBufferScript,
 		"mcp_server_core.cjs":             mcpServerCoreScript,
 		"safe_inputs_mcp_server.cjs":      safeInputsMCPServerScript,
+		"safe_inputs_config_loader.cjs":   safeInputsConfigLoaderScript,
+		"safe_inputs_tool_factory.cjs":    safeInputsToolFactoryScript,
+		"mcp_handler_shell.cjs":           mcpHandlerShellScript,
+		"mcp_handler_python.cjs":          mcpHandlerPythonScript,
 		"safe_output_type_validator.cjs":  safeOutputTypeValidatorScript,
 		"repo_helpers.cjs":                repoHelpersScript,
 		"safe_outputs_config.cjs":         safeOutputsConfigScript,
 		"safe_outputs_append.cjs":         safeOutputsAppendScript,
 		"safe_outputs_handlers.cjs":       safeOutputsHandlersScript,
 		"safe_outputs_tools_loader.cjs":   safeOutputsToolsLoaderScript,
+		"safe_outputs_mcp_server.cjs":     safeOutputsMCPServerScriptSource,
 	}
 }
 
@@ -741,6 +758,26 @@ func GetMCPServerCoreScript() string {
 // GetSafeInputsMCPServerScript returns the embedded safe_inputs_mcp_server.cjs script
 func GetSafeInputsMCPServerScript() string {
 	return safeInputsMCPServerScript
+}
+
+// GetSafeInputsConfigLoaderScript returns the embedded safe_inputs_config_loader.cjs script
+func GetSafeInputsConfigLoaderScript() string {
+	return safeInputsConfigLoaderScript
+}
+
+// GetSafeInputsToolFactoryScript returns the embedded safe_inputs_tool_factory.cjs script
+func GetSafeInputsToolFactoryScript() string {
+	return safeInputsToolFactoryScript
+}
+
+// GetMCPHandlerShellScript returns the embedded mcp_handler_shell.cjs script
+func GetMCPHandlerShellScript() string {
+	return mcpHandlerShellScript
+}
+
+// GetMCPHandlerPythonScript returns the embedded mcp_handler_python.cjs script
+func GetMCPHandlerPythonScript() string {
+	return mcpHandlerPythonScript
 }
 
 // GetSafeOutputsConfigScript returns the embedded safe_outputs_config.cjs script

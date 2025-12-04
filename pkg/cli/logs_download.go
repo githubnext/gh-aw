@@ -253,10 +253,13 @@ func downloadRunArtifacts(runID int64, outputDir string, verbose bool) error {
 			}
 			return nil
 		}
-		// Summary doesn't exist or version mismatch - will reprocess below
+		// Summary doesn't exist or version mismatch - artifacts exist but need reprocessing
+		// Don't re-download, just reprocess what's there
 		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Run folder exists but no valid summary, will reprocess run %d", runID)))
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Run folder exists with artifacts, will reprocess run %d without re-downloading", runID)))
 		}
+		// Return nil to indicate success - the artifacts are already there
+		return nil
 	}
 
 	if err := os.MkdirAll(outputDir, 0755); err != nil {

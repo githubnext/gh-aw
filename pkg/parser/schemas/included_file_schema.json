@@ -526,7 +526,7 @@
     },
     "safe-inputs": {
       "type": "object",
-      "description": "Safe inputs configuration for custom MCP tools defined as JavaScript or shell scripts. Tools are mounted in an MCP server and have access to secrets specified in the env field.",
+      "description": "Safe inputs configuration for custom MCP tools defined as JavaScript, shell scripts, or Python scripts. Tools are mounted in an MCP server and have access to secrets specified in the env field.",
       "additionalProperties": {
         "type": "object",
         "description": "Tool definition for a safe-input custom tool",
@@ -569,11 +569,15 @@
           },
           "script": {
             "type": "string",
-            "description": "JavaScript implementation (CommonJS). The script should export an execute function. Mutually exclusive with 'run'."
+            "description": "JavaScript implementation (CommonJS). The script should export an execute function. Mutually exclusive with 'run' and 'py'."
           },
           "run": {
             "type": "string",
-            "description": "Shell script implementation. Input parameters are available as INPUT_<NAME> environment variables. Mutually exclusive with 'script'."
+            "description": "Shell script implementation. Input parameters are available as INPUT_<NAME> environment variables. Mutually exclusive with 'script' and 'py'."
+          },
+          "py": {
+            "type": "string",
+            "description": "Python script implementation. Input parameters are available as INPUT_<NAME> environment variables. Mutually exclusive with 'script' and 'run'."
           },
           "env": {
             "type": "object",

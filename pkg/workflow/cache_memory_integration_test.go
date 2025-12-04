@@ -93,9 +93,9 @@ tools:
 			},
 		},
 		{
-			name: "multiple cache-memory without explicit keys",
+			name: "multiple cache-memory with custom keys",
 			frontmatter: `---
-name: Test Cache Memory Multiple No Keys
+name: Test Cache Memory Multiple Custom Keys
 on: workflow_dispatch
 permissions:
   contents: read
@@ -105,7 +105,9 @@ engine: claude
 tools:
   cache-memory:
     - id: data
+      key: memory-data-${{ github.workflow }}
     - id: logs
+      key: memory-logs-${{ github.workflow }}
   github:
     allowed: [get_repository]
 ---`,

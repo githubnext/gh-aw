@@ -648,17 +648,74 @@ func (e *CopilotEngine) renderCopilotMCPConfig(yaml *strings.Builder, toolName s
 // ParseLogMetrics implements engine-specific log parsing for Copilot CLI
 func (e *CopilotEngine) ParseLogMetrics(logContent string, verbose bool) LogMetrics {
 	var metrics LogMetrics
-	var maxTokenUsage int
+	var totalTokenUsage int
 
 	lines := strings.Split(logContent, "\n")
 	toolCallMap := make(map[string]*ToolCallInfo) // Track tool calls
 	var currentSequence []string                  // Track tool sequence
 	turns := 0
 
+	// Track multi-line JSON blocks for token extraction
+	var inDataBlock bool
+	var currentJSONLines []string
+
 	for _, line := range lines {
 		// Skip empty lines
 		if strings.TrimSpace(line) == "" {
 			continue
+		}
+
+		// Detect start of a JSON data block from Copilot debug logs
+		// Format: "YYYY-MM-DDTHH:MM:SS.sssZ [DEBUG] data:"
+		if strings.Contains(line, "[DEBUG] data:") {
+			inDataBlock = true
+			currentJSONLines = []string{}
+			continue
+		}
+
+		// While in a data block, accumulate lines
+		if inDataBlock {
+			// Check if this line has a timestamp (indicates it's a log line, not raw JSON)
+			hasTimestamp := strings.Contains(line, "[DEBUG]")
+
+			if hasTimestamp {
+				// Strip the timestamp and [DEBUG] prefix to see what remains
+				// Format: "YYYY-MM-DDTHH:MM:SS.sssZ [DEBUG] {json content}"
+				debugIndex := strings.Index(line, "[DEBUG]")
+				if debugIndex != -1 {
+					cleanLine := strings.TrimSpace(line[debugIndex+7:]) // Skip "[DEBUG]"
+
+					// If after stripping, the line starts with JSON characters, it's part of JSON
+					// Otherwise, it's a new log entry and we should end the block
+					if strings.HasPrefix(cleanLine, "{") || strings.HasPrefix(cleanLine, "}") ||
+						strings.HasPrefix(cleanLine, "[") || strings.HasPrefix(cleanLine, "]") ||
+						strings.HasPrefix(cleanLine, "\"") {
+						// This is JSON content - add it
+						currentJSONLines = append(currentJSONLines, cleanLine)
+					} else {
+						// This is a new log line (not JSON content) - end of JSON block
+						// Try to parse the accumulated JSON
+						if len(currentJSONLines) > 0 {
+							jsonStr := strings.Join(currentJSONLines, "\n")
+							jsonMetrics := ExtractJSONMetrics(jsonStr, verbose)
+							// Accumulate token usage from all responses (not just max)
+							// This matches the JavaScript parser behavior in parse_copilot_log.cjs
+							if jsonMetrics.TokenUsage > 0 {
+								totalTokenUsage += jsonMetrics.TokenUsage
+							}
+							if jsonMetrics.EstimatedCost > 0 {
+								metrics.EstimatedCost += jsonMetrics.EstimatedCost
+							}
+						}
+
+						inDataBlock = false
+						currentJSONLines = []string{}
+					}
+				}
+			} else {
+				// Line has no timestamp - it's raw JSON, add it
+				currentJSONLines = append(currentJSONLines, line)
+			}
 		}
 
 		// Count turns based on interaction patterns (adjust based on actual Copilot CLI output)
@@ -675,23 +732,23 @@ func (e *CopilotEngine) ParseLogMetrics(logContent string, verbose bool) LogMetr
 		if toolName := e.parseCopilotToolCallsWithSequence(line, toolCallMap); toolName != "" {
 			currentSequence = append(currentSequence, toolName)
 		}
+	}
 
-		// Try to extract token usage from JSON format if available
-		jsonMetrics := ExtractJSONMetrics(line, verbose)
-		if jsonMetrics.TokenUsage > 0 || jsonMetrics.EstimatedCost > 0 {
-			if jsonMetrics.TokenUsage > maxTokenUsage {
-				maxTokenUsage = jsonMetrics.TokenUsage
-			}
-			if jsonMetrics.EstimatedCost > 0 {
-				metrics.EstimatedCost += jsonMetrics.EstimatedCost
-			}
+	// Process any remaining JSON block at the end of file
+	if inDataBlock && len(currentJSONLines) > 0 {
+		jsonStr := strings.Join(currentJSONLines, "\n")
+		jsonMetrics := ExtractJSONMetrics(jsonStr, verbose)
+		// Accumulate token usage from all responses (not just max)
+		if jsonMetrics.TokenUsage > 0 {
+			totalTokenUsage += jsonMetrics.TokenUsage
 		}
-
-		// Basic processing - error/warning counting moved to end of function
+		if jsonMetrics.EstimatedCost > 0 {
+			metrics.EstimatedCost += jsonMetrics.EstimatedCost
+		}
 	}
 
 	// Finalize metrics using shared helper
-	FinalizeToolMetrics(&metrics, toolCallMap, currentSequence, turns, maxTokenUsage, logContent, e.GetErrorPatterns())
+	FinalizeToolMetrics(&metrics, toolCallMap, currentSequence, turns, totalTokenUsage, logContent, e.GetErrorPatterns())
 
 	return metrics
 }
