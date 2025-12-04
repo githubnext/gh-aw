@@ -921,12 +921,12 @@ jobs:
           which awf
           awf --version
       - name: Install GitHub Copilot CLI
-        run: npm install -g @github/copilot@0.0.365
+        run: npm install -g @github/copilot@0.0.366
       - name: Downloading container images
         run: |
           set -e
           docker pull ghcr.io/github/github-mcp-server:v0.24.0
-      - name: Setup Safe Outputs Collector MCP
+      - name: Write Safe Outputs Config
         run: |
           mkdir -p /tmp/gh-aw/safeoutputs
           cat > /tmp/gh-aw/safeoutputs/config.json << 'EOF'
@@ -1793,6 +1793,61 @@ jobs:
                 }
               };
             }
+            function loadToolHandlers(server, tools, basePath) {
+              server.debug(`Loading tool handlers...`);
+              server.debug(`  Total tools to process: ${tools.length}`);
+              server.debug(`  Base path: ${basePath || "(not specified)"}`);
+              let loadedCount = 0;
+              let skippedCount = 0;
+              let errorCount = 0;
+              for (const tool of tools) {
+                const toolName = tool.name || "(unnamed)";
+                if (!tool.handler) {
+                  server.debug(`  [${toolName}] No handler path specified, skipping handler load`);
+                  skippedCount++;
+                  continue;
+                }
+                const handlerPath = tool.handler;
+                server.debug(`  [${toolName}] Handler path specified: ${handlerPath}`);
+                let resolvedPath = handlerPath;
+                if (basePath && !path.isAbsolute(handlerPath)) {
+                  resolvedPath = path.resolve(basePath, handlerPath);
+                  server.debug(`  [${toolName}] Resolved relative path to: ${resolvedPath}`);
+                  const normalizedBase = path.resolve(basePath);
+                  const normalizedResolved = path.resolve(resolvedPath);
+                  if (!normalizedResolved.startsWith(normalizedBase + path.sep) && normalizedResolved !== normalizedBase) {
+                    server.debug(`  [${toolName}] ERROR: Handler path escapes base directory: ${resolvedPath} is not within ${basePath}`);
+                    errorCount++;
+                    continue;
+                  }
+                } else if (path.isAbsolute(handlerPath)) {
+                  server.debug(`  [${toolName}] Using absolute path (bypasses basePath validation): ${handlerPath}`);
+                }
+                tool.handlerPath = handlerPath;
+                try {
+                  server.debug(`  [${toolName}] Loading handler from: ${resolvedPath}`);
+                  if (!fs.existsSync(resolvedPath)) {
+                    server.debug(`  [${toolName}] ERROR: Handler file does not exist: ${resolvedPath}`);
+                    errorCount++;
+                    continue;
+                  }
+                  const ext = path.extname(resolvedPath).toLowerCase();
+                  server.debug(`  [${toolName}] Handler file extension: ${ext}`);
+                  if (ext === ".sh") {
+                    server.debug(`  [${toolName}] Detected shell script handler`);
+                    try {
+                      fs.accessSync(resolvedPath, fs.constants.X_OK);
+                      server.debug(`  [${toolName}] Shell script is executable`);
+                    } catch {
+                      try {
+                        fs.chmodSync(resolvedPath, 0o755);
+                        server.debug(`  [${toolName}] Made shell script executable`);
+                      } catch (chmodError) {
+                        server.debugError(`  [${toolName}] Warning: Could not make shell script executable: `, chmodError);
+                      }
+                    }
+            const { execFile } = require("child_process");
+            const os = require("os");
             function createShellHandler(server, toolName, scriptPath) {
               return async args => {
                 server.debug(`  [${toolName}] Invoking shell handler: ${scriptPath}`);
@@ -1882,62 +1937,84 @@ jobs:
                 });
               };
             }
-            function loadToolHandlers(server, tools, basePath) {
-              server.debug(`Loading tool handlers...`);
-              server.debug(`  Total tools to process: ${tools.length}`);
-              server.debug(`  Base path: ${basePath || "(not specified)"}`);
-              let loadedCount = 0;
-              let skippedCount = 0;
-              let errorCount = 0;
-              for (const tool of tools) {
-                const toolName = tool.name || "(unnamed)";
-                if (!tool.handler) {
-                  server.debug(`  [${toolName}] No handler path specified, skipping handler load`);
-                  skippedCount++;
-                  continue;
-                }
-                const handlerPath = tool.handler;
-                server.debug(`  [${toolName}] Handler path specified: ${handlerPath}`);
-                let resolvedPath = handlerPath;
-                if (basePath && !path.isAbsolute(handlerPath)) {
-                  resolvedPath = path.resolve(basePath, handlerPath);
-                  server.debug(`  [${toolName}] Resolved relative path to: ${resolvedPath}`);
-                  const normalizedBase = path.resolve(basePath);
-                  const normalizedResolved = path.resolve(resolvedPath);
-                  if (!normalizedResolved.startsWith(normalizedBase + path.sep) && normalizedResolved !== normalizedBase) {
-                    server.debug(`  [${toolName}] ERROR: Handler path escapes base directory: ${resolvedPath} is not within ${basePath}`);
-                    errorCount++;
-                    continue;
-                  }
-                } else if (path.isAbsolute(handlerPath)) {
-                  server.debug(`  [${toolName}] Using absolute path (bypasses basePath validation): ${handlerPath}`);
-                }
-                tool.handlerPath = handlerPath;
-                try {
-                  server.debug(`  [${toolName}] Loading handler from: ${resolvedPath}`);
-                  if (!fs.existsSync(resolvedPath)) {
-                    server.debug(`  [${toolName}] ERROR: Handler file does not exist: ${resolvedPath}`);
-                    errorCount++;
-                    continue;
-                  }
-                  const ext = path.extname(resolvedPath).toLowerCase();
-                  server.debug(`  [${toolName}] Handler file extension: ${ext}`);
-                  if (ext === ".sh") {
-                    server.debug(`  [${toolName}] Detected shell script handler`);
-                    try {
-                      fs.accessSync(resolvedPath, fs.constants.X_OK);
-                      server.debug(`  [${toolName}] Shell script is executable`);
-                    } catch {
-                      try {
-                        fs.chmodSync(resolvedPath, 0o755);
-                        server.debug(`  [${toolName}] Made shell script executable`);
-                      } catch (chmodError) {
-                        server.debugError(`  [${toolName}] Warning: Could not make shell script executable: `, chmodError);
-                      }
-                    }
                     tool.handler = createShellHandler(server, toolName, resolvedPath);
                     loadedCount++;
                     server.debug(`  [${toolName}] Shell handler created successfully`);
+                  } else if (ext === ".py") {
+                    server.debug(`  [${toolName}] Detected Python script handler`);
+                    try {
+                      fs.accessSync(resolvedPath, fs.constants.X_OK);
+                      server.debug(`  [${toolName}] Python script is executable`);
+                    } catch {
+                      try {
+                        fs.chmodSync(resolvedPath, 0o755);
+                        server.debug(`  [${toolName}] Made Python script executable`);
+                      } catch (chmodError) {
+                        server.debugError(`  [${toolName}] Warning: Could not make Python script executable: `, chmodError);
+                      }
+                    }
+            function createPythonHandler(server, toolName, scriptPath) {
+              return async args => {
+                server.debug(`  [${toolName}] Invoking Python handler: ${scriptPath}`);
+                server.debug(`  [${toolName}] Python handler args: ${JSON.stringify(args)}`);
+                const inputJson = JSON.stringify(args || {});
+                server.debug(
+                  `  [${toolName}] Input JSON (${inputJson.length} bytes): ${inputJson.substring(0, 200)}${inputJson.length > 200 ? "..." : ""}`
+                );
+                return new Promise((resolve, reject) => {
+                  server.debug(`  [${toolName}] Executing Python script...`);
+                  const child = execFile(
+                    "python3",
+                    [scriptPath],
+                    {
+                      env: process.env,
+                      timeout: 300000, 
+                      maxBuffer: 10 * 1024 * 1024, 
+                    },
+                    (error, stdout, stderr) => {
+                      if (stdout) {
+                        server.debug(`  [${toolName}] stdout: ${stdout.substring(0, 500)}${stdout.length > 500 ? "..." : ""}`);
+                      }
+                      if (stderr) {
+                        server.debug(`  [${toolName}] stderr: ${stderr.substring(0, 500)}${stderr.length > 500 ? "..." : ""}`);
+                      }
+                      if (error) {
+                        server.debugError(`  [${toolName}] Python script error: `, error);
+                        reject(error);
+                        return;
+                      }
+                      let result;
+                      try {
+                        if (stdout && stdout.trim()) {
+                          result = JSON.parse(stdout.trim());
+                        } else {
+                          result = { stdout: stdout || "", stderr: stderr || "" };
+                        }
+                      } catch (parseError) {
+                        server.debug(`  [${toolName}] Output is not JSON, returning as text`);
+                        result = { stdout: stdout || "", stderr: stderr || "" };
+                      }
+                      server.debug(`  [${toolName}] Python handler completed successfully`);
+                      resolve({
+                        content: [
+                          {
+                            type: "text",
+                            text: JSON.stringify(result),
+                          },
+                        ],
+                      });
+                    }
+                  );
+                  if (child.stdin) {
+                    child.stdin.write(inputJson);
+                    child.stdin.end();
+                  }
+                });
+              };
+            }
+                    tool.handler = createPythonHandler(server, toolName, resolvedPath);
+                    loadedCount++;
+                    server.debug(`  [${toolName}] Python handler created successfully`);
                   } else {
                     server.debug(`  [${toolName}] Loading JavaScript handler module`);
                     const handlerModule = require(resolvedPath);
@@ -3166,7 +3243,7 @@ jobs:
               engine_name: "GitHub Copilot CLI",
               model: "",
               version: "",
-              agent_version: "0.0.365",
+              agent_version: "0.0.366",
               workflow_name: "Auto-Assign Issue",
               experimental: false,
               supports_tools_allowlist: true,
@@ -3462,7 +3539,7 @@ jobs:
         run: |
           set -o pipefail
           sudo -E awf --env-all --container-workdir "${GITHUB_WORKSPACE}" --mount /tmp:/tmp:rw --mount "${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:rw" --mount "${GITHUB_WORKSPACE}/.github:/workspace/.github:rw" --allow-domains api.enterprise.githubcopilot.com,api.github.com,github.com,raw.githubusercontent.com,registry.npmjs.org --log-level info --proxy-logs-dir /tmp/gh-aw/sandbox/firewall/logs \
-            -- npx -y @github/copilot@0.0.365 --add-dir /tmp/gh-aw/ --log-level all --log-dir /tmp/gh-aw/sandbox/agent/logs/ --add-dir "${GITHUB_WORKSPACE}" --disable-builtin-mcps --allow-tool github --allow-tool safeoutputs --prompt "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)" \
+            -- npx -y @github/copilot@0.0.366 --add-dir /tmp/gh-aw/ --log-level all --log-dir /tmp/gh-aw/sandbox/agent/logs/ --add-dir "${GITHUB_WORKSPACE}" --disable-builtin-mcps --allow-tool github --allow-tool safeoutputs --prompt "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)" \
             2>&1 | tee /tmp/gh-aw/agent-stdio.log
         env:
           COPILOT_AGENT_RUNNER_TYPE: STANDALONE
@@ -7568,7 +7645,7 @@ jobs:
           node-version: '24'
           package-manager-cache: false
       - name: Install GitHub Copilot CLI
-        run: npm install -g @github/copilot@0.0.365
+        run: npm install -g @github/copilot@0.0.366
       - name: Execute GitHub Copilot CLI
         id: agentic_execution
         # Copilot CLI tool arguments (sorted):

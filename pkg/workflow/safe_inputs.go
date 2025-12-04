@@ -41,8 +41,9 @@ type SafeInputToolConfig struct {
 	Name        string                     // Tool name (key from the config)
 	Description string                     // Required: tool description
 	Inputs      map[string]*SafeInputParam // Optional: input parameters
-	Script      string                     // JavaScript implementation (mutually exclusive with Run)
-	Run         string                     // Shell script implementation (mutually exclusive with Script)
+	Script      string                     // JavaScript implementation (mutually exclusive with Run and Py)
+	Run         string                     // Shell script implementation (mutually exclusive with Script and Py)
+	Py          string                     // Python script implementation (mutually exclusive with Script and Run)
 	Env         map[string]string          // Environment variables (typically for secrets)
 }
 
@@ -159,6 +160,13 @@ func ParseSafeInputs(frontmatter map[string]any) *SafeInputsConfig {
 			}
 		}
 
+		// Parse py (for Python tools)
+		if py, exists := toolMap["py"]; exists {
+			if pyStr, ok := py.(string); ok {
+				toolConfig.Py = pyStr
+			}
+		}
+
 		// Parse env (for secrets)
 		if env, exists := toolMap["env"]; exists {
 			if envMap, ok := env.(map[string]any); ok {
@@ -264,6 +272,13 @@ func (c *Compiler) extractSafeInputsConfig(frontmatter map[string]any) *SafeInpu
 			}
 		}
 
+		// Parse py (Python script implementation)
+		if py, exists := toolMap["py"]; exists {
+			if pyStr, ok := py.(string); ok {
+				toolConfig.Py = pyStr
+			}
+		}
+
 		// Parse env (environment variables)
 		if env, exists := toolMap["env"]; exists {
 			if envMap, ok := env.(map[string]any); ok {
@@ -366,6 +381,8 @@ func generateSafeInputsToolsConfig(safeInputs *SafeInputsConfig) string {
 			handler = toolName + ".cjs"
 		} else if toolConfig.Run != "" {
 			handler = toolName + ".sh"
+		} else if toolConfig.Py != "" {
+			handler = toolName + ".py"
 		}
 
 		config.Tools = append(config.Tools, SafeInputsToolJSON{
@@ -470,6 +487,75 @@ func generateSafeInputShellToolScript(toolConfig *SafeInputToolConfig) string {
 	sb.WriteString(toolConfig.Run + "\n")
 
 	return sb.String()
+}
+
+// generateSafeInputPythonToolScript generates the Python script for a safe-input tool
+// Python scripts receive inputs as a dictionary (parsed from JSON stdin):
+// - Input parameters are available as a pre-parsed 'inputs' dictionary
+// - Individual parameters can be destructured: param = inputs.get('param', default)
+// - Outputs are printed to stdout as JSON
+// - Environment variables from env: field are available via os.environ
+func generateSafeInputPythonToolScript(toolConfig *SafeInputToolConfig) string {
+	var sb strings.Builder
+
+	sb.WriteString("#!/usr/bin/env python3\n")
+	sb.WriteString("# Auto-generated safe-input tool: " + toolConfig.Name + "\n")
+	sb.WriteString("# " + toolConfig.Description + "\n\n")
+	sb.WriteString("import json\n")
+	sb.WriteString("import os\n")
+	sb.WriteString("import sys\n\n")
+
+	// Add wrapper code to read inputs from stdin
+	sb.WriteString("# Read inputs from stdin (JSON format)\n")
+	sb.WriteString("try:\n")
+	sb.WriteString("    inputs = json.loads(sys.stdin.read()) if not sys.stdin.isatty() else {}\n")
+	sb.WriteString("except (json.JSONDecodeError, Exception):\n")
+	sb.WriteString("    inputs = {}\n\n")
+
+	// Add helper comment about input parameters
+	if len(toolConfig.Inputs) > 0 {
+		sb.WriteString("# Input parameters available in 'inputs' dictionary:\n")
+		// Sort input names for stable code generation
+		inputNames := make([]string, 0, len(toolConfig.Inputs))
+		for paramName := range toolConfig.Inputs {
+			inputNames = append(inputNames, paramName)
+		}
+		sort.Strings(inputNames)
+		for _, paramName := range inputNames {
+			param := toolConfig.Inputs[paramName]
+			defaultValue := ""
+			if param.Default != nil {
+				defaultValue = fmt.Sprintf(", default=%v", param.Default)
+			}
+			sb.WriteString(fmt.Sprintf("# %s = inputs.get('%s'%s)  # %s\n",
+				sanitizePythonVariableName(paramName), paramName, defaultValue, param.Description))
+		}
+		sb.WriteString("\n")
+	}
+
+	// Add user's Python code
+	sb.WriteString("# User code:\n")
+	sb.WriteString(toolConfig.Py + "\n")
+
+	return sb.String()
+}
+
+// sanitizePythonVariableName converts a parameter name to a valid Python identifier
+func sanitizePythonVariableName(name string) string {
+	// Replace dashes and other non-alphanumeric chars with underscores
+	result := strings.Map(func(r rune) rune {
+		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '_' {
+			return r
+		}
+		return '_'
+	}, name)
+
+	// Ensure it doesn't start with a number
+	if len(result) > 0 && result[0] >= '0' && result[0] <= '9' {
+		result = "_" + result
+	}
+
+	return result
 }
 
 // getSafeInputsEnvVars returns the list of environment variables needed for safe-inputs
@@ -630,6 +716,13 @@ func (c *Compiler) mergeSafeInputs(main *SafeInputsConfig, importedConfigs []str
 			if run, exists := toolMap["run"]; exists {
 				if runStr, ok := run.(string); ok {
 					toolConfig.Run = runStr
+				}
+			}
+
+			// Parse py
+			if py, exists := toolMap["py"]; exists {
+				if pyStr, ok := py.(string); ok {
+					toolConfig.Py = pyStr
 				}
 			}
 

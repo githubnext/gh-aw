@@ -908,6 +908,48 @@ func TestValidateMainWorkflowFrontmatterWithSchema(t *testing.T) {
 			errContains: "minLength",
 		},
 		{
+			name: "invalid: command name starting with slash (string format)",
+			frontmatter: map[string]any{
+				"on": map[string]any{
+					"command": "/mybot",
+				},
+			},
+			wantErr:     true,
+			errContains: "pattern",
+		},
+		{
+			name: "invalid: command.name starting with slash (object format)",
+			frontmatter: map[string]any{
+				"on": map[string]any{
+					"command": map[string]any{
+						"name": "/mybot",
+					},
+				},
+			},
+			wantErr:     true,
+			errContains: "pattern",
+		},
+		{
+			name: "valid: command name without slash (string format)",
+			frontmatter: map[string]any{
+				"on": map[string]any{
+					"command": "mybot",
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "valid: command.name without slash (object format)",
+			frontmatter: map[string]any{
+				"on": map[string]any{
+					"command": map[string]any{
+						"name": "mybot",
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
 			name: "invalid: empty events array for command trigger",
 			frontmatter: map[string]any{
 				"on": map[string]any{

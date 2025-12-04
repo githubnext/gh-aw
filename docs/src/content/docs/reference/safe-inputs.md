@@ -5,7 +5,7 @@ sidebar:
   order: 750
 ---
 
-The `safe-inputs:` element allows you to define custom MCP (Model Context Protocol) tools directly in your workflow frontmatter using JavaScript or shell scripts. These tools are generated at runtime and mounted as an MCP server, giving your agent access to custom functionality with controlled secret access.
+The `safe-inputs:` element allows you to define custom MCP (Model Context Protocol) tools directly in your workflow frontmatter using JavaScript, shell scripts, or Python. These tools are generated at runtime and mounted as an MCP server, giving your agent access to custom functionality with controlled secret access.
 
 ## Quick Start
 
@@ -55,8 +55,9 @@ Choose one implementation method:
 
 - **`script:`** - JavaScript (CommonJS) code
 - **`run:`** - Shell script
+- **`py:`** - Python script (Python 3.1x)
 
-You cannot use both `script:` and `run:` in the same tool.
+You can only use one of `script:`, `run:`, or `py:` per tool.
 
 ## JavaScript Tools (`script:`)
 
@@ -193,6 +194,153 @@ gh with args: "api repos/{owner}/{repo}"
 ```
 
 The shared workflow uses `${{ github.token }}` for authentication, providing access based on the workflow's `permissions` configuration.
+
+## Python Tools (`py:`)
+
+Python tools execute using `python3` with inputs provided as a dictionary (similar to JavaScript tools):
+
+```yaml wrap
+safe-inputs:
+  analyze-data:
+    description: "Analyze data with Python"
+    inputs:
+      numbers:
+        type: string
+        description: "Comma-separated numbers"
+        required: true
+    py: |
+      import json
+      
+      # Inputs are available as a dictionary
+      numbers_str = inputs.get('numbers', '')
+      numbers = [float(x.strip()) for x in numbers_str.split(',') if x.strip()]
+      
+      # Calculate statistics
+      result = {
+          "count": len(numbers),
+          "sum": sum(numbers),
+          "average": sum(numbers) / len(numbers) if numbers else 0
+      }
+      
+      # Print result as JSON to stdout
+      print(json.dumps(result))
+```
+
+### Accessing Input Parameters
+
+Input parameters are automatically parsed from JSON and available in the `inputs` dictionary:
+
+```python
+# Access with .get() and optional default value
+name = inputs.get('name', 'default')
+
+# Access directly (may raise KeyError if missing)
+required_param = inputs['required_param']
+
+# Check if parameter exists
+if 'optional_param' in inputs:
+    process(inputs['optional_param'])
+```
+
+Parameter names with dashes are accessible as-is:
+- `data-file` → `inputs.get('data-file')`
+- `my-param` → `inputs.get('my-param')`
+
+### Using Python Libraries
+
+Python 3.10+ is available with standard library modules. For additional packages, you can install them inline:
+
+```yaml wrap
+safe-inputs:
+  analyze-with-numpy:
+    description: "Statistical analysis with NumPy"
+    inputs:
+      values:
+        type: string
+        required: true
+    py: |
+      import json
+      import subprocess
+      import sys
+      
+      # Install package if needed (for demonstration)
+      # subprocess.check_call([sys.executable, "-m", "pip", "install", "--quiet", "numpy"])
+      # import numpy as np
+      
+      # Get input from inputs dictionary
+      values_str = inputs.get('values', '')
+      values = [float(x.strip()) for x in values_str.split(',') if x.strip()]
+      
+      # Calculate statistics
+      result = {"mean": sum(values) / len(values) if values else 0}
+      print(json.dumps(result))
+```
+
+### Returning Results
+
+Python scripts return results by printing JSON to stdout:
+
+```yaml wrap
+safe-inputs:
+  process-data:
+    description: "Process data and return results"
+    inputs:
+      text:
+        type: string
+        required: true
+    py: |
+      import json
+      
+      # Get input
+      text = inputs.get('text', '')
+      
+      # Process and return result
+      result = {
+          "original": text,
+          "uppercase": text.upper(),
+          "length": len(text)
+      }
+      
+      # Print result as JSON
+      print(json.dumps(result))
+```
+
+### Accessing Environment Variables
+
+Access secrets and environment variables via `os.environ`:
+
+```yaml wrap
+safe-inputs:
+  fetch-api-data:
+    description: "Fetch data from API using Python"
+    inputs:
+      endpoint:
+        type: string
+        required: true
+    py: |
+      import os
+      import json
+      try:
+          from urllib import request
+      except ImportError:
+          import urllib.request as request
+      
+      # Get input from inputs dictionary
+      endpoint = inputs.get('endpoint', '')
+      
+      # Get secret from environment
+      api_key = os.environ.get('API_KEY', '')
+      
+      # Make API request
+      url = f"https://api.example.com/{endpoint}"
+      req = request.Request(url, headers={"Authorization": f"Bearer {api_key}"})
+      
+      with request.urlopen(req) as response:
+          data = json.loads(response.read())
+          print(json.dumps(data))
+    env:
+      API_KEY: "${{ secrets.API_KEY }}"
+```
 
 ## Input Parameters
 
@@ -375,7 +523,7 @@ Use the `fetch-pr-data` tool to get PR information if needed.
 | Feature | Safe Inputs | Custom MCP Servers | Bash Tool |
 |---------|-------------|-------------------|-----------|
 | Setup | Inline in frontmatter | External service | Simple commands |
-| Languages | JavaScript, Shell | Any language | Shell only |
+| Languages | JavaScript, Shell, Python | Any language | Shell only |
 | Secret Access | Controlled via `env:` | Full access | Workflow env |
 | Isolation | Process-level | Service-level | None |
 | Best For | Custom logic | Complex integrations | Simple commands |

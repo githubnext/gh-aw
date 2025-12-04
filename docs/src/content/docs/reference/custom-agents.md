@@ -49,6 +49,6 @@ The agent instructions are merged with the workflow prompt, customizing the AI e
 - **Frontmatter**: Can include `name`, `description`, `tools`, and `mcp-servers`
 - **One per workflow**: Only one agent file can be imported per workflow
 
-## Built-in Prompts
+## Built-in Agents
 
-The `gh aw init` command sets up workflow creation prompts including `debug-agentic-workflow` that helps debug and refine workflows using CLI tools (`gh aw logs`, `gh aw audit`, `gh aw run`, `gh aw compile`). These prompts are stored in `.github/prompts/` and provide conversational workflow authoring and debugging capabilities.
+The `gh aw init` command sets up workflow creation agents including `create-agentic-workflow` and `debug-agentic-workflow` that help create, debug, and refine workflows using CLI tools (`gh aw logs`, `gh aw audit`, `gh aw run`, `gh aw compile`). These agents are stored in `.github/agents/` and provide conversational workflow authoring and debugging capabilities.

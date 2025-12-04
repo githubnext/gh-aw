@@ -43,7 +43,7 @@
     "actions/setup-java@v4": {
       "repo": "actions/setup-java",
       "version": "v4",
-      "sha": "c5195efecf7bdfc987ee8bae7a71cb8b11521c00"
+      "sha": "c1e323688fd81a25caa38c78aa6df2d33d3e20d9"
     },
     "actions/setup-node@v6": {
       "repo": "actions/setup-node",

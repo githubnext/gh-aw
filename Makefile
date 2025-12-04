@@ -287,7 +287,6 @@ sync-templates:
 	@mkdir -p pkg/cli/templates
 	@cp .github/aw/github-agentic-workflows.md pkg/cli/templates/
 	@cp .github/agents/create-agentic-workflow.agent.md pkg/cli/templates/
-	@cp .github/agents/setup-agentic-workflows.agent.md pkg/cli/templates/
 	@cp .github/agents/create-shared-agentic-workflow.agent.md pkg/cli/templates/
 	@cp .github/agents/debug-agentic-workflow.agent.md pkg/cli/templates/
 	@echo "✓ Templates synced successfully"
@@ -329,8 +328,17 @@ watch: build
 version:
 	@node scripts/changeset.js version
 
+.PHONY: pull-main
+pull-main:
+	@echo "check on main branch"
+	@git checkout main
+	@echo "Check out branch is clean"
+	@git diff --quiet || (echo "Error: Working directory is not clean. Please commit or stash changes before pulling." && exit 1)
+	@echo "Pulling latest changes..."
+	@git pull
+
 .PHONY: release
-release: build
+release: pull-main build
 	@node scripts/changeset.js release
 
 # Agent should run this task before finishing its turns

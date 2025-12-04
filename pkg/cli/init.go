@@ -62,14 +62,11 @@ func InitRepository(verbose bool, mcp bool) error {
 		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created /create-shared-agentic-workflow agent"))
 	}
 
-	// Write setup agentic workflows agent
-	initLog.Print("Writing setup agentic workflows agent")
-	if err := ensureSetupAgenticWorkflowsAgent(verbose, false); err != nil {
-		initLog.Printf("Failed to write setup agentic workflows agent: %v", err)
-		return fmt.Errorf("failed to write setup agentic workflows agent: %w", err)
-	}
-	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created setup agentic workflows agent"))
+	// Delete existing setup agentic workflows agent if it exists
+	initLog.Print("Cleaning up setup agentic workflows agent")
+	if err := deleteSetupAgenticWorkflowsAgent(verbose); err != nil {
+		initLog.Printf("Failed to delete setup agentic workflows agent: %v", err)
+		return fmt.Errorf("failed to delete setup agentic workflows agent: %w", err)
 	}
 
 	// Write debug agentic workflow agent

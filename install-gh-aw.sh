@@ -116,12 +116,6 @@ fi
 # Check if binary already exists
 if [ -f "$BINARY_PATH" ]; then
     print_warning "Binary '$BINARY_PATH' already exists. It will be overwritten."
-    read -p "Continue? (y/N): " -n 1 -r
-    echo
-    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-        print_info "Installation cancelled."
-        exit 0
-    fi
 fi
 
 # Download the binary
