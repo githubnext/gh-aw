@@ -354,6 +354,11 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 		awfArgs = append(awfArgs, "--mount", "\"${GITHUB_WORKSPACE}/.github:/workspace/.github:rw\"")
 		copilotLog.Print("Added .github mount to /workspace for agent discovery")
 
+		// Mount gh CLI binary from host so it's available inside the container
+		// This allows workflows to use gh CLI commands within the sandboxed environment
+		awfArgs = append(awfArgs, "--mount", "/usr/bin/gh:/usr/bin/gh:ro")
+		copilotLog.Print("Added gh CLI binary mount to AWF container")
+
 		awfArgs = append(awfArgs, "--allow-domains", allowedDomains)
 		awfArgs = append(awfArgs, "--log-level", awfLogLevel)
 		awfArgs = append(awfArgs, "--proxy-logs-dir", "/tmp/gh-aw/sandbox/firewall/logs")
