@@ -129,7 +129,9 @@ async function main() {
   const target = process.env.GH_AW_CLOSE_DISCUSSION_TARGET || "triggering";
 
   core.info(
-    `Configuration: requiredLabels=${requiredLabels.join(",")}, requiredTitlePrefix=${requiredTitlePrefix}, requiredCategory=${requiredCategory}, target=${target}`
+    `Configuration: requiredLabels=${requiredLabels.join(
+      ","
+    )}, requiredTitlePrefix=${requiredTitlePrefix}, requiredCategory=${requiredCategory}, target=${target}`
   );
 
   // Check if we're in a discussion context

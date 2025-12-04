@@ -57,7 +57,11 @@ async function main() {
   for (let i = 0; i < securityItems.length; i++) {
     const securityItem = securityItems[i];
     core.info(
-      `Processing create-code-scanning-alert item ${i + 1}/${securityItems.length}: file=${securityItem.file}, line=${securityItem.line}, severity=${securityItem.severity}, messageLength=${securityItem.message ? securityItem.message.length : "undefined"}, ruleIdSuffix=${securityItem.ruleIdSuffix || "not specified"}`
+      `Processing create-code-scanning-alert item ${i + 1}/${securityItems.length}: file=${securityItem.file}, line=${
+        securityItem.line
+      }, severity=${securityItem.severity}, messageLength=${
+        securityItem.message ? securityItem.message.length : "undefined"
+      }, ruleIdSuffix=${securityItem.ruleIdSuffix || "not specified"}`
     );
 
     // Validate required fields

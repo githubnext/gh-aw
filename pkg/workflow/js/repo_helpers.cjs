@@ -55,7 +55,9 @@ function validateRepo(repo, defaultRepo, allowedRepos) {
   }
   return {
     valid: false,
-    error: `Repository '${repo}' is not in the allowed-repos list. Allowed: ${defaultRepo}${allowedRepos.size > 0 ? ", " + Array.from(allowedRepos).join(", ") : ""}`,
+    error: `Repository '${repo}' is not in the allowed-repos list. Allowed: ${defaultRepo}${
+      allowedRepos.size > 0 ? ", " + Array.from(allowedRepos).join(", ") : ""
+    }`,
   };
 }
 

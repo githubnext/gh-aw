@@ -195,7 +195,9 @@ async function main() {
         repoInfo = fetchedInfo;
         repoInfoCache.set(itemRepo, repoInfo);
         core.info(
-          `Fetched discussion categories for ${itemRepo}: ${JSON.stringify(repoInfo.discussionCategories.map(cat => ({ name: cat.name, id: cat.id })))}`
+          `Fetched discussion categories for ${itemRepo}: ${JSON.stringify(
+            repoInfo.discussionCategories.map(cat => ({ name: cat.name, id: cat.id }))
+          )}`
         );
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
@@ -239,7 +241,9 @@ async function main() {
     const categoryId = categoryInfo.id;
 
     core.info(
-      `Processing create-discussion item ${i + 1}/${createDiscussionItems.length}: title=${createDiscussionItem.title}, bodyLength=${createDiscussionItem.body?.length || 0}, repo=${itemRepo}`
+      `Processing create-discussion item ${i + 1}/${createDiscussionItems.length}: title=${createDiscussionItem.title}, bodyLength=${
+        createDiscussionItem.body?.length || 0
+      }, repo=${itemRepo}`
     );
 
     // Replace temporary ID references in title

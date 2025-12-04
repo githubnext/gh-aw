@@ -46,7 +46,9 @@ async function main() {
           content += `**Custom Agent:** ${item.custom_agent}\n`;
         }
         if (item.custom_instructions) {
-          content += `**Custom Instructions:** ${item.custom_instructions.substring(0, 100)}${item.custom_instructions.length > 100 ? "..." : ""}\n`;
+          content += `**Custom Instructions:** ${item.custom_instructions.substring(0, 100)}${
+            item.custom_instructions.length > 100 ? "..." : ""
+          }\n`;
         }
         content += "\n";
         return content;

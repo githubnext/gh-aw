@@ -180,7 +180,9 @@ function generateFirewallSummary(analysis) {
 
   // Show blocked requests if any exist
   if (validDeniedRequests > 0) {
-    summary += `**${validDeniedRequests}** request${validDeniedRequests !== 1 ? "s" : ""} blocked across **${validDeniedDomains.length}** unique domain${validDeniedDomains.length !== 1 ? "s" : ""}`;
+    summary += `**${validDeniedRequests}** request${validDeniedRequests !== 1 ? "s" : ""} blocked across **${
+      validDeniedDomains.length
+    }** unique domain${validDeniedDomains.length !== 1 ? "s" : ""}`;
     summary += ` (${totalRequests > 0 ? Math.round((validDeniedRequests / totalRequests) * 100) : 0}% of total traffic)\n\n`;
 
     summary += "<details>\n";

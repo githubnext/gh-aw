@@ -86,7 +86,9 @@ async function main() {
   for (let i = 0; i < reviewCommentItems.length; i++) {
     const commentItem = reviewCommentItems[i];
     core.info(
-      `Processing create-pull-request-review-comment item ${i + 1}/${reviewCommentItems.length}: bodyLength=${commentItem.body ? commentItem.body.length : "undefined"}, path=${commentItem.path}, line=${commentItem.line}, startLine=${commentItem.start_line}`
+      `Processing create-pull-request-review-comment item ${i + 1}/${reviewCommentItems.length}: bodyLength=${
+        commentItem.body ? commentItem.body.length : "undefined"
+      }, path=${commentItem.path}, line=${commentItem.line}, startLine=${commentItem.start_line}`
     );
 
     // Validate required fields
@@ -218,7 +220,9 @@ async function main() {
     );
 
     core.info(
-      `Creating review comment on PR #${pullRequestNumber} at ${commentItem.path}:${line}${startLine ? ` (lines ${startLine}-${line})` : ""} [${side}]`
+      `Creating review comment on PR #${pullRequestNumber} at ${commentItem.path}:${line}${
+        startLine ? ` (lines ${startLine}-${line})` : ""
+      } [${side}]`
     );
     core.info(`Comment content length: ${body.length}`);
 

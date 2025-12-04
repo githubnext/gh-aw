@@ -225,7 +225,9 @@ function validateErrors(logContent, patterns) {
         const level = extractLevel(match, pattern);
         const message = extractMessage(match, pattern, line);
 
-        const errorMessage = `Line ${lineIndex + 1}: ${message} (Pattern: ${pattern.description || "Unknown pattern"}, Raw log: ${truncateString(line.trim(), 120)})`;
+        const errorMessage = `Line ${lineIndex + 1}: ${message} (Pattern: ${
+          pattern.description || "Unknown pattern"
+        }, Raw log: ${truncateString(line.trim(), 120)})`;
 
         if (level.toLowerCase() === "error") {
           core.error(errorMessage);

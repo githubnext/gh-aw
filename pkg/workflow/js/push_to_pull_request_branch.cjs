@@ -156,7 +156,9 @@ async function main() {
           const patchStats = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
           if (patchStats.trim()) {
             content += `**Changes:** Patch file exists with ${patchStats.split("\n").length} lines\n\n`;
-            content += `<details><summary>Show patch preview</summary>\n\n\`\`\`diff\n${patchStats.slice(0, 2000)}${patchStats.length > 2000 ? "\n... (truncated)" : ""}\n\`\`\`\n\n</details>\n\n`;
+            content += `<details><summary>Show patch preview</summary>\n\n\`\`\`diff\n${patchStats.slice(0, 2000)}${
+              patchStats.length > 2000 ? "\n... (truncated)" : ""
+            }\n\`\`\`\n\n</details>\n\n`;
           } else {
             content += `**Changes:** No changes (empty patch)\n\n`;
           }
@@ -274,7 +276,9 @@ async function main() {
     await exec.exec(`git rev-parse --verify origin/${branchName}`);
   } catch (verifyError) {
     core.setFailed(
-      `Branch ${branchName} does not exist on origin, can't push to it: ${verifyError instanceof Error ? verifyError.message : String(verifyError)}`
+      `Branch ${branchName} does not exist on origin, can't push to it: ${
+        verifyError instanceof Error ? verifyError.message : String(verifyError)
+      }`
     );
     return;
   }
