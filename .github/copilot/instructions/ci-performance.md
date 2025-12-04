@@ -158,26 +158,27 @@ test:
 
 **Problem**: golangci-lint can be slow on first run.
 
-**Optimization**:
+**Current Approach**:
 ```yaml
-- name: Run golangci-lint
-  uses: golangci/golangci-lint-action@v6
-  with:
-    version: latest
-    args: --timeout=5m
-    skip-cache: false  # Use action's built-in caching
-    skip-pkg-cache: false
-    skip-build-cache: false
+- name: Install dev dependencies
+  run: make deps-dev
+
+- name: Run linter
+  run: make lint
+```
+
+**Optimization Options**:
+```makefile
+# In Makefile, add selective linting for PRs
+lint-changes:
+	golangci-lint run --new-from-rev=origin/main
 ```
 
 **Selective Linting** (for PRs):
 ```yaml
 - name: Run golangci-lint on changed files
   if: github.event_name == 'pull_request'
-  uses: golangci/golangci-lint-action@v6
-  with:
-    version: latest
-    args: --new-from-rev=origin/${{ github.base_ref }}
+  run: golangci-lint run --new-from-rev=origin/${{ github.base_ref }}
 ```
 
 **Impact**: 50-70% faster on PRs with few changes
