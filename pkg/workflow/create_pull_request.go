@@ -14,10 +14,11 @@ type CreatePullRequestsConfig struct {
 	BaseSafeOutputConfig `yaml:",inline"`
 	TitlePrefix          string   `yaml:"title-prefix,omitempty"`
 	Labels               []string `yaml:"labels,omitempty"`
-	Reviewers            []string `yaml:"reviewers,omitempty"`     // List of users/bots to assign as reviewers to the pull request
-	Draft                *bool    `yaml:"draft,omitempty"`         // Pointer to distinguish between unset (nil) and explicitly false
-	IfNoChanges          string   `yaml:"if-no-changes,omitempty"` // Behavior when no changes to push: "warn" (default), "error", or "ignore"
-	TargetRepoSlug       string   `yaml:"target-repo,omitempty"`   // Target repository in format "owner/repo" for cross-repository pull requests
+	AllowedLabels        []string `yaml:"allowed-labels,omitempty"` // Optional list of allowed labels. If omitted, any labels are allowed (including creating new ones).
+	Reviewers            []string `yaml:"reviewers,omitempty"`      // List of users/bots to assign as reviewers to the pull request
+	Draft                *bool    `yaml:"draft,omitempty"`          // Pointer to distinguish between unset (nil) and explicitly false
+	IfNoChanges          string   `yaml:"if-no-changes,omitempty"`  // Behavior when no changes to push: "warn" (default), "error", or "ignore"
+	TargetRepoSlug       string   `yaml:"target-repo,omitempty"`    // Target repository in format "owner/repo" for cross-repository pull requests
 }
 
 // buildCreateOutputPullRequestJob creates the create_pull_request job
@@ -60,6 +61,7 @@ func (c *Compiler) buildCreateOutputPullRequestJob(data *WorkflowData, mainJobNa
 	customEnvVars = append(customEnvVars, "          GH_AW_BASE_BRANCH: ${{ github.ref_name }}\n")
 	customEnvVars = append(customEnvVars, buildTitlePrefixEnvVar("GH_AW_PR_TITLE_PREFIX", data.SafeOutputs.CreatePullRequests.TitlePrefix)...)
 	customEnvVars = append(customEnvVars, buildLabelsEnvVar("GH_AW_PR_LABELS", data.SafeOutputs.CreatePullRequests.Labels)...)
+	customEnvVars = append(customEnvVars, buildLabelsEnvVar("GH_AW_PR_ALLOWED_LABELS", data.SafeOutputs.CreatePullRequests.AllowedLabels)...)
 	// Pass draft setting - default to true for backwards compatibility
 	draftValue := true // Default value
 	if data.SafeOutputs.CreatePullRequests.Draft != nil {
@@ -156,6 +158,9 @@ func (c *Compiler) parsePullRequestsConfig(outputMap map[string]any) *CreatePull
 
 		// Parse labels using shared helper
 		pullRequestsConfig.Labels = parseLabelsFromConfig(configMap)
+
+		// Parse allowed-labels using shared helper
+		pullRequestsConfig.AllowedLabels = parseAllowedLabelsFromConfig(configMap)
 
 		// Parse reviewers using shared helper
 		pullRequestsConfig.Reviewers = parseParticipantsFromConfig(configMap, "reviewers")

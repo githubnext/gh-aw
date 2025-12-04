@@ -13,9 +13,10 @@ type CreateIssuesConfig struct {
 	BaseSafeOutputConfig `yaml:",inline"`
 	TitlePrefix          string   `yaml:"title-prefix,omitempty"`
 	Labels               []string `yaml:"labels,omitempty"`
-	Assignees            []string `yaml:"assignees,omitempty"`     // List of users/bots to assign the issue to
-	TargetRepoSlug       string   `yaml:"target-repo,omitempty"`   // Target repository in format "owner/repo" for cross-repository issues
-	AllowedRepos         []string `yaml:"allowed-repos,omitempty"` // List of additional repositories that issues can be created in
+	AllowedLabels        []string `yaml:"allowed-labels,omitempty"` // Optional list of allowed labels. If omitted, any labels are allowed (including creating new ones).
+	Assignees            []string `yaml:"assignees,omitempty"`      // List of users/bots to assign the issue to
+	TargetRepoSlug       string   `yaml:"target-repo,omitempty"`    // Target repository in format "owner/repo" for cross-repository issues
+	AllowedRepos         []string `yaml:"allowed-repos,omitempty"`  // List of additional repositories that issues can be created in
 }
 
 // parseIssuesConfig handles create-issue configuration
@@ -30,6 +31,9 @@ func (c *Compiler) parseIssuesConfig(outputMap map[string]any) *CreateIssuesConf
 
 			// Parse labels using shared helper
 			issuesConfig.Labels = parseLabelsFromConfig(configMap)
+
+			// Parse allowed-labels using shared helper
+			issuesConfig.AllowedLabels = parseAllowedLabelsFromConfig(configMap)
 
 			// Parse assignees using shared helper
 			issuesConfig.Assignees = parseParticipantsFromConfig(configMap, "assignees")
@@ -113,6 +117,7 @@ func (c *Compiler) buildCreateOutputIssueJob(data *WorkflowData, mainJobName str
 	var customEnvVars []string
 	customEnvVars = append(customEnvVars, buildTitlePrefixEnvVar("GH_AW_ISSUE_TITLE_PREFIX", data.SafeOutputs.CreateIssues.TitlePrefix)...)
 	customEnvVars = append(customEnvVars, buildLabelsEnvVar("GH_AW_ISSUE_LABELS", data.SafeOutputs.CreateIssues.Labels)...)
+	customEnvVars = append(customEnvVars, buildLabelsEnvVar("GH_AW_ISSUE_ALLOWED_LABELS", data.SafeOutputs.CreateIssues.AllowedLabels)...)
 	customEnvVars = append(customEnvVars, buildAllowedReposEnvVar("GH_AW_ALLOWED_REPOS", data.SafeOutputs.CreateIssues.AllowedRepos)...)
 
 	// Add standard environment variables (metadata + staged/target repo)
