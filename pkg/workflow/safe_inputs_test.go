@@ -543,7 +543,7 @@ func TestGenerateSafeInputPythonToolScript(t *testing.T) {
 	config := &SafeInputToolConfig{
 		Name:        "test-python",
 		Description: "A Python test tool",
-		Py:          "print('Hello from Python')",
+		Py:          "result = {'message': 'Hello from Python'}\nprint(json.dumps(result))",
 		Inputs: map[string]*SafeInputParam{
 			"message": {
 				Type:        "string",
@@ -566,25 +566,29 @@ func TestGenerateSafeInputPythonToolScript(t *testing.T) {
 		t.Error("Script should contain tool name")
 	}
 
-	if !strings.Contains(script, "import os") {
-		t.Error("Script should import os module")
+	if !strings.Contains(script, "import json") {
+		t.Error("Script should import json module")
 	}
 
 	if !strings.Contains(script, "import sys") {
 		t.Error("Script should import sys module")
 	}
 
-	if !strings.Contains(script, "print('Hello from Python')") {
+	if !strings.Contains(script, "inputs = json.loads(sys.stdin.read())") {
+		t.Error("Script should parse inputs from stdin")
+	}
+
+	if !strings.Contains(script, "result = {'message': 'Hello from Python'}") {
 		t.Error("Script should contain the Python code")
 	}
 
 	// Check for input parameter documentation
-	if !strings.Contains(script, "INPUT_MESSAGE") {
-		t.Error("Script should document INPUT_MESSAGE environment variable")
+	if !strings.Contains(script, "# message = inputs.get('message'") {
+		t.Error("Script should document message parameter access")
 	}
 
-	if !strings.Contains(script, "INPUT_COUNT") {
-		t.Error("Script should document INPUT_COUNT environment variable")
+	if !strings.Contains(script, "# count = inputs.get('count'") {
+		t.Error("Script should document count parameter access")
 	}
 }
 

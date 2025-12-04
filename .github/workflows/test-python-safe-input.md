@@ -16,11 +16,10 @@ safe-inputs:
         description: "Comma-separated list of numbers to analyze"
         required: true
     py: |
-      import os
       import json
       
-      # Get input from environment variable
-      numbers_str = os.environ.get('INPUT_NUMBERS', '')
+      # Get input from inputs dictionary
+      numbers_str = inputs.get('numbers', '')
       
       # Parse and analyze numbers
       try:
@@ -39,12 +38,6 @@ safe-inputs:
           
           # Print result as JSON to stdout
           print(json.dumps(result))
-          
-          # Also write to GITHUB_OUTPUT for GitHub Actions
-          output_file = os.environ.get('GITHUB_OUTPUT', '')
-          if output_file:
-              with open(output_file, 'a') as f:
-                  f.write(f"result={json.dumps(result)}\n")
                   
       except ValueError as e:
           error_result = {"error": f"Invalid number format: {str(e)}"}
@@ -58,11 +51,10 @@ safe-inputs:
         description: "Text to process"
         required: true
     py: |
-      import os
       import json
       
-      # Get input from environment variable
-      text = os.environ.get('INPUT_TEXT', '')
+      # Get input from inputs dictionary
+      text = inputs.get('text', '')
       
       # Process text
       result = {
@@ -75,12 +67,6 @@ safe-inputs:
       
       # Print result as JSON to stdout
       print(json.dumps(result))
-      
-      # Also write to GITHUB_OUTPUT for GitHub Actions
-      output_file = os.environ.get('GITHUB_OUTPUT', '')
-      if output_file:
-          with open(output_file, 'a') as f:
-              f.write(f"result={json.dumps(result)}\n")
 
 safe-outputs:
   create-issue:

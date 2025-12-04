@@ -490,9 +490,10 @@ func generateSafeInputShellToolScript(toolConfig *SafeInputToolConfig) string {
 }
 
 // generateSafeInputPythonToolScript generates the Python script for a safe-input tool
-// Python scripts follow GitHub Actions convention:
-// - Input parameters are available as environment variables prefixed with INPUT_ (uppercased)
-// - Outputs are written to GITHUB_OUTPUT file (key=value format per line)
+// Python scripts receive inputs as a dictionary (parsed from JSON stdin):
+// - Input parameters are available as a pre-parsed 'inputs' dictionary
+// - Individual parameters can be destructured: param = inputs.get('param', default)
+// - Outputs are printed to stdout as JSON
 // - Environment variables from env: field are available via os.environ
 func generateSafeInputPythonToolScript(toolConfig *SafeInputToolConfig) string {
 	var sb strings.Builder
@@ -500,12 +501,20 @@ func generateSafeInputPythonToolScript(toolConfig *SafeInputToolConfig) string {
 	sb.WriteString("#!/usr/bin/env python3\n")
 	sb.WriteString("# Auto-generated safe-input tool: " + toolConfig.Name + "\n")
 	sb.WriteString("# " + toolConfig.Description + "\n\n")
+	sb.WriteString("import json\n")
 	sb.WriteString("import os\n")
 	sb.WriteString("import sys\n\n")
 
+	// Add wrapper code to read inputs from stdin
+	sb.WriteString("# Read inputs from stdin (JSON format)\n")
+	sb.WriteString("try:\n")
+	sb.WriteString("    inputs = json.loads(sys.stdin.read()) if not sys.stdin.isatty() else {}\n")
+	sb.WriteString("except (json.JSONDecodeError, Exception):\n")
+	sb.WriteString("    inputs = {}\n\n")
+
 	// Add helper comment about input parameters
 	if len(toolConfig.Inputs) > 0 {
-		sb.WriteString("# Input parameters are available as environment variables:\n")
+		sb.WriteString("# Input parameters available in 'inputs' dictionary:\n")
 		// Sort input names for stable code generation
 		inputNames := make([]string, 0, len(toolConfig.Inputs))
 		for paramName := range toolConfig.Inputs {
@@ -513,8 +522,13 @@ func generateSafeInputPythonToolScript(toolConfig *SafeInputToolConfig) string {
 		}
 		sort.Strings(inputNames)
 		for _, paramName := range inputNames {
-			envVar := "INPUT_" + strings.ToUpper(strings.ReplaceAll(paramName, "-", "_"))
-			sb.WriteString(fmt.Sprintf("# %s = os.environ.get('%s', '')\n", paramName, envVar))
+			param := toolConfig.Inputs[paramName]
+			defaultValue := ""
+			if param.Default != nil {
+				defaultValue = fmt.Sprintf(", default=%v", param.Default)
+			}
+			sb.WriteString(fmt.Sprintf("# %s = inputs.get('%s'%s)  # %s\n",
+				sanitizePythonVariableName(paramName), paramName, defaultValue, param.Description))
 		}
 		sb.WriteString("\n")
 	}
@@ -524,6 +538,24 @@ func generateSafeInputPythonToolScript(toolConfig *SafeInputToolConfig) string {
 	sb.WriteString(toolConfig.Py + "\n")
 
 	return sb.String()
+}
+
+// sanitizePythonVariableName converts a parameter name to a valid Python identifier
+func sanitizePythonVariableName(name string) string {
+	// Replace dashes and other non-alphanumeric chars with underscores
+	result := strings.Map(func(r rune) rune {
+		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '_' {
+			return r
+		}
+		return '_'
+	}, name)
+
+	// Ensure it doesn't start with a number
+	if len(result) > 0 && result[0] >= '0' && result[0] <= '9' {
+		result = "_" + result
+	}
+
+	return result
 }
 
 // getSafeInputsEnvVars returns the list of environment variables needed for safe-inputs

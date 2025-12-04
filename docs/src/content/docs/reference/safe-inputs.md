@@ -5,7 +5,7 @@ sidebar:
   order: 750
 ---
 
-The `safe-inputs:` element allows you to define custom MCP (Model Context Protocol) tools directly in your workflow frontmatter using JavaScript or shell scripts. These tools are generated at runtime and mounted as an MCP server, giving your agent access to custom functionality with controlled secret access.
+The `safe-inputs:` element allows you to define custom MCP (Model Context Protocol) tools directly in your workflow frontmatter using JavaScript, shell scripts, or Python. These tools are generated at runtime and mounted as an MCP server, giving your agent access to custom functionality with controlled secret access.
 
 ## Quick Start
 
@@ -197,7 +197,7 @@ The shared workflow uses `${{ github.token }}` for authentication, providing acc
 
 ## Python Tools (`py:`)
 
-Python tools execute using `python3` and follow GitHub Actions conventions for input/output:
+Python tools execute using `python3` with inputs provided as a dictionary (similar to JavaScript tools):
 
 ```yaml wrap
 safe-inputs:
@@ -209,11 +209,10 @@ safe-inputs:
         description: "Comma-separated numbers"
         required: true
     py: |
-      import os
       import json
       
-      # Get input from environment variable
-      numbers_str = os.environ.get('INPUT_NUMBERS', '')
+      # Inputs are available as a dictionary
+      numbers_str = inputs.get('numbers', '')
       numbers = [float(x.strip()) for x in numbers_str.split(',') if x.strip()]
       
       # Calculate statistics
@@ -223,16 +222,29 @@ safe-inputs:
           "average": sum(numbers) / len(numbers) if numbers else 0
       }
       
-      # Print result to stdout
+      # Print result as JSON to stdout
       print(json.dumps(result))
 ```
 
-### Input Variable Naming
+### Accessing Input Parameters
 
-Input parameters are converted to environment variables with the `INPUT_` prefix (uppercased):
-- `numbers` → `INPUT_NUMBERS`
-- `data-file` → `INPUT_DATA_FILE`
-- `my-param` → `INPUT_MY_PARAM`
+Input parameters are automatically parsed from JSON and available in the `inputs` dictionary:
+
+```python
+# Access with .get() and optional default value
+name = inputs.get('name', 'default')
+
+# Access directly (may raise KeyError if missing)
+required_param = inputs['required_param']
+
+# Check if parameter exists
+if 'optional_param' in inputs:
+    process(inputs['optional_param'])
+```
+
+Parameter names with dashes are accessible as-is:
+- `data-file` → `inputs.get('data-file')`
+- `my-param` → `inputs.get('my-param')`
 
 ### Using Python Libraries
 
@@ -247,7 +259,6 @@ safe-inputs:
         type: string
         required: true
     py: |
-      import os
       import json
       import subprocess
       import sys
@@ -256,8 +267,8 @@ safe-inputs:
       # subprocess.check_call([sys.executable, "-m", "pip", "install", "--quiet", "numpy"])
       # import numpy as np
       
-      # Get input
-      values_str = os.environ.get('INPUT_VALUES', '')
+      # Get input from inputs dictionary
+      values_str = inputs.get('values', '')
       values = [float(x.strip()) for x in values_str.split(',') if x.strip()]
       
       # Calculate statistics
@@ -265,32 +276,32 @@ safe-inputs:
       print(json.dumps(result))
 ```
 
-### Writing Outputs
+### Returning Results
 
-Python scripts can write outputs to the `GITHUB_OUTPUT` file:
+Python scripts return results by printing JSON to stdout:
 
 ```yaml wrap
 safe-inputs:
   process-data:
-    description: "Process data and return outputs"
+    description: "Process data and return results"
     inputs:
-      input-data:
+      text:
         type: string
         required: true
     py: |
-      import os
       import json
       
-      data = os.environ.get('INPUT_INPUT_DATA', '')
-      result = {"processed": data.upper()}
+      # Get input
+      text = inputs.get('text', '')
       
-      # Write to GITHUB_OUTPUT file
-      output_file = os.environ.get('GITHUB_OUTPUT', '')
-      if output_file:
-          with open(output_file, 'a') as f:
-              f.write(f"result={json.dumps(result)}\n")
+      # Process and return result
+      result = {
+          "original": text,
+          "uppercase": text.upper(),
+          "length": len(text)
+      }
       
-      # Also print to stdout
+      # Print result as JSON
       print(json.dumps(result))
 ```
 
@@ -314,7 +325,10 @@ safe-inputs:
       except ImportError:
           import urllib.request as request
       
-      endpoint = os.environ.get('INPUT_ENDPOINT', '')
+      # Get input from inputs dictionary
+      endpoint = inputs.get('endpoint', '')
+      
+      # Get secret from environment
       api_key = os.environ.get('API_KEY', '')
       
       # Make API request
