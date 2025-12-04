@@ -236,7 +236,7 @@ Input parameters are converted to environment variables with the `INPUT_` prefix
 
 ### Using Python Libraries
 
-Python 3.12+ is available with standard library modules. For additional packages, you can install them inline:
+Python 3.10+ is available with standard library modules. For additional packages, you can install them inline:
 
 ```yaml wrap
 safe-inputs:
