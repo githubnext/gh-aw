@@ -713,7 +713,7 @@ jobs:
           node-version: '24'
           package-manager-cache: false
       - name: Install Claude Code CLI
-        run: npm install -g @anthropic-ai/claude-code@2.0.57
+        run: npm install -g @anthropic-ai/claude-code@2.0.58
       - name: Generate Claude Settings
         run: |
           mkdir -p /tmp/gh-aw/.claude
@@ -2108,7 +2108,7 @@ jobs:
               engine_name: "Claude Code",
               model: "",
               version: "",
-              agent_version: "2.0.57",
+              agent_version: "2.0.58",
               workflow_name: "Go Fan",
               experimental: true,
               supports_tools_allowlist: true,
@@ -6370,7 +6370,7 @@ jobs:
           node-version: '24'
           package-manager-cache: false
       - name: Install Claude Code CLI
-        run: npm install -g @anthropic-ai/claude-code@2.0.57
+        run: npm install -g @anthropic-ai/claude-code@2.0.58
       - name: Execute Claude Code CLI
         id: agentic_execution
         # Allowed tools (sorted):
