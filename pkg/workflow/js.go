@@ -717,10 +717,16 @@ func GetSafeOutputsMCPServerScriptBase64() string {
 	script := getSafeOutputsMCPServerScript()
 
 	// Gzip compress the script first
+	// Note: These operations write to an in-memory buffer and compress static embedded content,
+	// so they should never fail in practice. We panic if they do to catch unexpected issues early.
 	var buf bytes.Buffer
 	gzipWriter := gzip.NewWriter(&buf)
-	_, _ = gzipWriter.Write([]byte(script))
-	_ = gzipWriter.Close()
+	if _, err := gzipWriter.Write([]byte(script)); err != nil {
+		panic(fmt.Sprintf("failed to compress safe-outputs MCP server script: %v", err))
+	}
+	if err := gzipWriter.Close(); err != nil {
+		panic(fmt.Sprintf("failed to finalize compression of safe-outputs MCP server script: %v", err))
+	}
 
 	// Then base64 encode the compressed data
 	return base64.StdEncoding.EncodeToString(buf.Bytes())

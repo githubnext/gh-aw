@@ -192,7 +192,7 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		// The JavaScript file is ~16KB raw, ~22KB base64, but only ~6KB gzip+base64
 		yaml.WriteString("      - name: Setup Safe Outputs Collector MCP - Server\n")
 		yaml.WriteString("        run: |\n")
-		yaml.WriteString("          echo '" + GetSafeOutputsMCPServerScriptBase64() + "' | base64 -d | gunzip > /tmp/gh-aw/safeoutputs/mcp-server.cjs\n")
+		yaml.WriteString(fmt.Sprintf("          echo '%s' | base64 -d | gunzip > /tmp/gh-aw/safeoutputs/mcp-server.cjs\n", GetSafeOutputsMCPServerScriptBase64()))
 		yaml.WriteString("          chmod +x /tmp/gh-aw/safeoutputs/mcp-server.cjs\n")
 	}
 
