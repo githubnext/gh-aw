@@ -29,7 +29,7 @@ Use in agentic workflows by adding `agentic-workflows:` to your workflow's `tool
 Use `--cmd` to specify a custom binary path for local development, CI/CD, or environments without the gh CLI extension:
 
 ```bash wrap
-gh aw mcp-server --cmd ./gh-aw
+gh aw mcp-server --cmd gh aw
 ```
 
 ### HTTP Server Mode

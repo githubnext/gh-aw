@@ -35,7 +35,7 @@ Configure VS Code to automatically compile workflows when files change. Create o
       "label": "Compile Github Agentic Workflows",
       "dependsOn": ["Compile gh-aw"],
       "type": "shell",
-      "command": "./gh-aw",
+      "command": "gh aw",
       "args": ["compile", "--watch"],
       "isBackground": true,
       "problemMatcher": {
