@@ -6876,15 +6876,6 @@ jobs:
           path: /tmp/gh-aw/repo-memory-default
       - name: Push repo-memory changes (default)
         if: always()
-        env:
-          GH_TOKEN: ${{ github.token }}
-          GITHUB_RUN_ID: ${{ github.run_id }}
-          MEMORY_DIR: /tmp/gh-aw/repo-memory-default
-          TARGET_REPO: ${{ github.repository }}
-          BRANCH_NAME: memory/deep-report
-          MAX_FILE_SIZE: 1048576
-          MAX_FILE_COUNT: 100
-          FILE_GLOB_FILTER: "*.md"
         run: |
           #!/bin/bash
           set -e
@@ -6954,6 +6945,15 @@ jobs:
           else
             echo "No changes detected in repo memory"
           fi
+        env:
+          BRANCH_NAME: memory/deep-report
+          FILE_GLOB_FILTER: "*.md"
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_RUN_ID: ${{ github.run_id }}
+          MAX_FILE_COUNT: 100
+          MAX_FILE_SIZE: 1048576
+          MEMORY_DIR: /tmp/gh-aw/repo-memory-default
+          TARGET_REPO: ${{ github.repository }}
 
   upload_assets:
     needs:

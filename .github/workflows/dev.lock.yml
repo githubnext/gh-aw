@@ -2743,14 +2743,6 @@ jobs:
           path: /tmp/gh-aw/repo-memory-default
       - name: Push repo-memory changes (default)
         if: always()
-        env:
-          GH_TOKEN: ${{ github.token }}
-          GITHUB_RUN_ID: ${{ github.run_id }}
-          MEMORY_DIR: /tmp/gh-aw/repo-memory-default
-          TARGET_REPO: ${{ github.repository }}
-          BRANCH_NAME: memory/poems
-          MAX_FILE_SIZE: 10240
-          MAX_FILE_COUNT: 100
         run: |
           #!/bin/bash
           set -e
@@ -2820,4 +2812,12 @@ jobs:
           else
             echo "No changes detected in repo memory"
           fi
+        env:
+          BRANCH_NAME: memory/poems
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_RUN_ID: ${{ github.run_id }}
+          MAX_FILE_COUNT: 100
+          MAX_FILE_SIZE: 10240
+          MEMORY_DIR: /tmp/gh-aw/repo-memory-default
+          TARGET_REPO: ${{ github.repository }}
 
