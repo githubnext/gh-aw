@@ -96,7 +96,7 @@ Note: To create a new workflow from scratch, use the 'new' command instead.`,
 	_ = cmd.Flags().MarkHidden("pr") // Hide the short alias from help output
 
 	// Add force flag to add command
-	cmd.Flags().Bool("force", false, "Overwrite existing files without confirmation")
+	cmd.Flags().Bool("force", false, "Overwrite existing workflow files without confirmation")
 
 	// Add append flag to add command
 	cmd.Flags().String("append", "", "Append extra content to the end of agentic workflow on installation")

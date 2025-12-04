@@ -43,13 +43,7 @@ If the extension installation fails (common in Codespaces outside the githubnext
 curl -sL https://raw.githubusercontent.com/githubnext/gh-aw/main/install-gh-aw.sh | bash
 ```
 
-After standalone installation, the binary is available as `./gh-aw` in the current directory.
-
-:::note[Command differences]
-When using the standalone binary, run commands as `./gh-aw` instead of `gh aw`. For example:
-- Extension: `gh aw compile`
-- Standalone: `./gh-aw compile`
-:::
+After standalone installation, the binary is installed to `~/.local/share/gh/extensions/gh-aw/gh-aw` and can be used with `gh aw` commands just like the extension installation.
 
 **GitHub Enterprise Server:** Set `GITHUB_SERVER_URL` or `GH_HOST` environment variables to use your GitHub instance.
 
@@ -172,8 +166,36 @@ gh aw run workflow --use-local-secrets      # Use local API keys
 
 **Options:** `--repeat N` (execute N times), `--use-local-secrets` (temporarily push AI engine secrets from environment variables, then clean up)
 
-:::note[Codespaces]
-From GitHub Codespaces, grant `actions: write` and `workflows: write` permissions. See [Managing repository access](https://docs.github.com/en/codespaces/managing-your-codespaces/managing-repository-access-for-your-codespaces).
+:::note[Codespaces Permissions]
+The `gh aw run` command will fail in GitHub Codespaces by default because the Codespaces GitHub token does not have `workflows:write` permission.
+
+**Solutions:**
+
+1. **Configure custom permissions in devcontainer.json:**
+   ```json
+   {
+     "customizations": {
+       "codespaces": {
+         "repositories": {
+           "owner/repo": {
+             "permissions": {
+               "actions": "write",
+               "workflows": "write"
+             }
+           }
+         }
+       }
+     }
+   }
+   ```
+   Learn more: [Managing repository access for your codespaces](https://docs.github.com/en/codespaces/managing-your-codespaces/managing-repository-access-for-your-codespaces)
+
+2. **Clear GH_TOKEN and authenticate manually:**
+   ```bash
+   unset GH_TOKEN
+   gh auth login
+   ```
+   This allows you to authenticate with a token that has the required permissions.
 :::
 
 ### Monitoring

@@ -8,6 +8,12 @@ func addEngineFlag(cmd *cobra.Command) {
 	cmd.Flags().StringP("engine", "e", "", "Override AI engine (claude, codex, copilot, custom)")
 }
 
+// addEngineFilterFlag adds the --engine/-e flag to a command for filtering.
+// This flag allows filtering results by AI engine type.
+func addEngineFilterFlag(cmd *cobra.Command) {
+	cmd.Flags().StringP("engine", "e", "", "Filter logs by AI engine (claude, codex, copilot, custom)")
+}
+
 // addRepoFlag adds the --repo/-r flag to a command.
 // This flag allows specifying a target repository.
 func addRepoFlag(cmd *cobra.Command) {

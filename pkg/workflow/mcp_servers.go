@@ -186,6 +186,75 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		}
 		yaml.WriteString("          EOF\n")
 
+		// Write the safe-outputs utility modules
+		yaml.WriteString("          cat > /tmp/gh-aw/safeoutputs/safe_outputs_config.cjs << 'EOF_CONFIG'\n")
+		for _, line := range FormatJavaScriptForYAML(GetSafeOutputsConfigScript()) {
+			yaml.WriteString(line)
+		}
+		yaml.WriteString("          EOF_CONFIG\n")
+
+		yaml.WriteString("          cat > /tmp/gh-aw/safeoutputs/safe_outputs_append.cjs << 'EOF_APPEND'\n")
+		for _, line := range FormatJavaScriptForYAML(GetSafeOutputsAppendScript()) {
+			yaml.WriteString(line)
+		}
+		yaml.WriteString("          EOF_APPEND\n")
+
+		yaml.WriteString("          cat > /tmp/gh-aw/safeoutputs/safe_outputs_handlers.cjs << 'EOF_HANDLERS'\n")
+		for _, line := range FormatJavaScriptForYAML(GetSafeOutputsHandlersScript()) {
+			yaml.WriteString(line)
+		}
+		yaml.WriteString("          EOF_HANDLERS\n")
+
+		yaml.WriteString("          cat > /tmp/gh-aw/safeoutputs/safe_outputs_tools_loader.cjs << 'EOF_TOOLS_LOADER'\n")
+		for _, line := range FormatJavaScriptForYAML(GetSafeOutputsToolsLoaderScript()) {
+			yaml.WriteString(line)
+		}
+		yaml.WriteString("          EOF_TOOLS_LOADER\n")
+
+		// Write required dependencies
+		yaml.WriteString("          cat > /tmp/gh-aw/safeoutputs/normalize_branch_name.cjs << 'EOF_NORMALIZE_BRANCH'\n")
+		for _, line := range FormatJavaScriptForYAML(normalizeBranchNameScript) {
+			yaml.WriteString(line)
+		}
+		yaml.WriteString("          EOF_NORMALIZE_BRANCH\n")
+
+		yaml.WriteString("          cat > /tmp/gh-aw/safeoutputs/estimate_tokens.cjs << 'EOF_ESTIMATE_TOKENS'\n")
+		for _, line := range FormatJavaScriptForYAML(estimateTokensScript) {
+			yaml.WriteString(line)
+		}
+		yaml.WriteString("          EOF_ESTIMATE_TOKENS\n")
+
+		yaml.WriteString("          cat > /tmp/gh-aw/safeoutputs/write_large_content_to_file.cjs << 'EOF_WRITE_LARGE'\n")
+		for _, line := range FormatJavaScriptForYAML(writeLargeContentToFileScript) {
+			yaml.WriteString(line)
+		}
+		yaml.WriteString("          EOF_WRITE_LARGE\n")
+
+		yaml.WriteString("          cat > /tmp/gh-aw/safeoutputs/get_current_branch.cjs << 'EOF_CURRENT_BRANCH'\n")
+		for _, line := range FormatJavaScriptForYAML(getCurrentBranchScript) {
+			yaml.WriteString(line)
+		}
+		yaml.WriteString("          EOF_CURRENT_BRANCH\n")
+
+		yaml.WriteString("          cat > /tmp/gh-aw/safeoutputs/get_base_branch.cjs << 'EOF_BASE_BRANCH'\n")
+		for _, line := range FormatJavaScriptForYAML(getBaseBranchScript) {
+			yaml.WriteString(line)
+		}
+		yaml.WriteString("          EOF_BASE_BRANCH\n")
+
+		yaml.WriteString("          cat > /tmp/gh-aw/safeoutputs/generate_git_patch.cjs << 'EOF_GIT_PATCH'\n")
+		for _, line := range FormatJavaScriptForYAML(generateGitPatchJSScript) {
+			yaml.WriteString(line)
+		}
+		yaml.WriteString("          EOF_GIT_PATCH\n")
+
+		yaml.WriteString("          cat > /tmp/gh-aw/safeoutputs/mcp_server_core.cjs << 'EOF_MCP_CORE'\n")
+		for _, line := range FormatJavaScriptForYAML(mcpServerCoreScript) {
+			yaml.WriteString(line)
+		}
+		yaml.WriteString("          EOF_MCP_CORE\n")
+
+		// Write the main MCP server entry point
 		yaml.WriteString("          cat > /tmp/gh-aw/safeoutputs/mcp-server.cjs << 'EOF'\n")
 		// Embed the safe-outputs MCP server script
 		for _, line := range FormatJavaScriptForYAML(GetSafeOutputsMCPServerScript()) {
@@ -452,7 +521,7 @@ func getGitHubLockdown(githubTool any) bool {
 }
 
 // getGitHubToolsets extracts the toolsets configuration from GitHub tool
-// Defaults to "default" for recommended toolset
+// Expands "default" to individual toolsets for action-friendly compatibility
 func getGitHubToolsets(githubTool any) string {
 	if toolConfig, ok := githubTool.(map[string]any); ok {
 		if toolsetsSetting, exists := toolConfig["toolsets"]; exists {
@@ -466,13 +535,57 @@ func getGitHubToolsets(githubTool any) string {
 						toolsets = append(toolsets, str)
 					}
 				}
-				return strings.Join(toolsets, ",")
+				toolsetsStr := strings.Join(toolsets, ",")
+				// Expand "default" to individual toolsets for action-friendly compatibility
+				return expandDefaultToolset(toolsetsStr)
 			case []string:
-				return strings.Join(v, ",")
+				toolsetsStr := strings.Join(v, ",")
+				// Expand "default" to individual toolsets for action-friendly compatibility
+				return expandDefaultToolset(toolsetsStr)
 			}
 		}
 	}
-	return "default" // default to recommended toolset
+	// default to action-friendly toolsets (excludes "users" which GitHub Actions tokens don't support)
+	return strings.Join(ActionFriendlyGitHubToolsets, ",")
+}
+
+// expandDefaultToolset expands "default" and "action-friendly" keywords to individual toolsets.
+// This ensures that "default" and "action-friendly" in the source expand to action-friendly toolsets
+// (excluding "users" which GitHub Actions tokens don't support).
+func expandDefaultToolset(toolsetsStr string) string {
+	if toolsetsStr == "" {
+		return strings.Join(ActionFriendlyGitHubToolsets, ",")
+	}
+
+	// Split by comma and check if "default" or "action-friendly" is present
+	toolsets := strings.Split(toolsetsStr, ",")
+	var result []string
+	seenToolsets := make(map[string]bool)
+
+	for _, toolset := range toolsets {
+		toolset = strings.TrimSpace(toolset)
+		if toolset == "" {
+			continue
+		}
+
+		if toolset == "default" || toolset == "action-friendly" {
+			// Expand "default" or "action-friendly" to action-friendly toolsets (excludes "users")
+			for _, dt := range ActionFriendlyGitHubToolsets {
+				if !seenToolsets[dt] {
+					result = append(result, dt)
+					seenToolsets[dt] = true
+				}
+			}
+		} else {
+			// Keep other toolsets as-is (including "all", individual toolsets, etc.)
+			if !seenToolsets[toolset] {
+				result = append(result, toolset)
+				seenToolsets[toolset] = true
+			}
+		}
+	}
+
+	return strings.Join(result, ",")
 }
 
 // getGitHubAllowedTools extracts the allowed tools list from GitHub tool configuration

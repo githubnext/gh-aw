@@ -15,22 +15,37 @@ sidebar:
 This guide walks you through setup step-by-step, so you don't need everything upfront. Here's what you need at each stage:
 
 :::note[Must Have (before you start)]
+
 - **GitHub account** with access to a repository
 - **GitHub CLI (gh)** installed and authenticated ([installation guide](https://cli.github.com))
   - Verify installation: Run `gh --version` (requires v2.0.0 or higher)
   - Verify authentication: Run `gh auth status`
 - **Operating System:** Linux, macOS, or Windows with WSL
+
 :::
 
 :::tip[Must Configure (in your repository)]
+
 - **Admin or write access** to your target repository
 - **GitHub Actions** enabled
 - **Discussions** enabled (required for the sample workflow in this guide)
+
 :::
 
 :::caution[Will Need Later (you'll set this up in Step 3)]
+
 - **Personal Access Token (PAT)** with Copilot Requests permission—the guide walks you through creating this
+
 :::
+
+### Agentic Setup
+
+If you want to use the help of Copilot to configure GitHub Agentic Workflows,
+launch this command in Copilot:
+
+```bash wrap
+activate https://raw.githubusercontent.com/githubnext/gh-aw/refs/heads/main/install.md
+```
 
 ### Step 1 — Install the extension
 
@@ -47,7 +62,7 @@ If you're working in a GitHub Codespace (especially outside the githubnext organ
 curl -sL https://raw.githubusercontent.com/githubnext/gh-aw/main/install-gh-aw.sh | bash
 ```
 
-After installation, run the binary directly with `./gh-aw` instead of `gh aw`.
+After installation, the binary is installed to `~/.local/share/gh/extensions/gh-aw/gh-aw` and can be used with `gh aw` commands just like the extension installation.
 :::
 
 ### Understanding Compilation
@@ -80,17 +95,20 @@ Agentic workflows use a [coding agent](/gh-aw/reference/glossary/#agent) (the AI
 
 :::tip[Can't find Copilot Requests permission?]
 The "Copilot Requests" permission is only available if:
+
 - You have an active GitHub Copilot subscription (individual or through your organization)
 - You're creating a **fine-grained token** (not a classic token)
 - You select your **personal user account** as the Resource owner (not an organization)
 - You select **"Public repositories"** under Repository access
 
 If you still don't see this option:
+
 - Check your [Copilot subscription status](https://github.com/settings/copilot)
 - Contact your GitHub administrator if Copilot is managed by your organization
+
 :::
 
-1. Visit https://github.com/settings/personal-access-tokens/new
+1. Visit <https://github.com/settings/personal-access-tokens/new>
 2. Under "Resource owner", select your user account (not an organization).
 3. Under "Repository access," select **"Public repositories"** (required for the Copilot Requests permission to appear).
 4. Under "Permissions," click "Add permissions" and select **"Copilot Requests"**.
@@ -160,7 +178,7 @@ The section between the `---` markers (called [frontmatter](/gh-aw/reference/glo
 
 ## Customize Your Workflow
 
-Customize your workflow by editing the `.md` file and recompiling with `gh aw compile`. 
+Customize your workflow by editing the `.md` file and recompiling with `gh aw compile`.
 You can leverage the help of an agent to customize your workflow without having to learn about the YAML syntax. Run the following command to start an interactive session with GitHub Copilot CLI.
 
 ```bash wrap

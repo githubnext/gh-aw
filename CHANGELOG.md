@@ -2,6 +2,49 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.31.7 - 2025-12-04
+
+Maintenance release with dependency updates and minor improvements.
+
+## v0.31.6 - 2025-12-04
+
+### Bug Fixes
+
+#### Expand the "default" GitHub MCP toolset into individual, action-friendly
+
+toolsets (exclude `users`) and add support for the `action-friendly`
+keyword. This ensures generated workflows expand `default` into the
+`context,repos,issues,pull_requests` toolsets which are compatible with
+GitHub Actions tokens.
+
+#### Replace GitHub MCP with the shared `gh` CLI tool in the `dev.md` workflow, list the last 3 issues, reduce permissions to `issues: read`, and enable safe-inputs by default. Includes documentation and test updates.
+
+This is an internal/tooling and documentation change.
+
+
+## v0.31.5 - 2025-12-03
+
+### Bug Fixes
+
+#### Convert `.prompt.md` templates to `.agent.md` format and move them
+
+to `.github/agents/`. Update the CLI, tests, workflows, and Makefile
+to reference the new agent files and remove the old prompt files.
+
+This change is internal/tooling only and does not change the public API.
+
+#### Fix template injection warnings by moving GitHub expressions into environment
+
+variables and documenting safe cases.
+
+Moved `needs.release.outputs.release_id` and `github.server_url` into `env` to
+avoid template-injection scanner false positives while keeping behavior
+unchanged. Documented that other flagged expressions use trusted GitHub
+context and require no change.
+
+Fixes: githubnext/gh-aw#5299
+
+
 ## v0.31.4 - 2025-12-03
 
 ### Bug Fixes

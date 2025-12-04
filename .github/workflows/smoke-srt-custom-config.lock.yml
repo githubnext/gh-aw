@@ -277,11 +277,19 @@ jobs:
             echo "Documentation: https://githubnext.github.io/gh-aw/reference/engines/#github-copilot-default"
             exit 1
           fi
+          
+          # Write validation results to step summary
+          {
+            echo "## Agent Environment Validation"
+            echo ""
           if [ -n "$COPILOT_GITHUB_TOKEN" ]; then
             echo "COPILOT_GITHUB_TOKEN secret is configured"
+            echo "- ✅ **COPILOT_GITHUB_TOKEN**: Configured"
           else
             echo "COPILOT_CLI_TOKEN secret is configured (using as fallback for COPILOT_GITHUB_TOKEN)"
+            echo "- ✅ **COPILOT_CLI_TOKEN**: Configured (using as fallback for COPILOT_GITHUB_TOKEN)"
           fi
+          } >> "$GITHUB_STEP_SUMMARY"
         env:
           COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
           COPILOT_CLI_TOKEN: ${{ secrets.COPILOT_CLI_TOKEN }}
@@ -337,7 +345,7 @@ jobs:
                   "-e",
                   "GITHUB_READ_ONLY=1",
                   "-e",
-                  "GITHUB_TOOLSETS=default",
+                  "GITHUB_TOOLSETS=context,repos,issues,pull_requests",
                   "ghcr.io/github/github-mcp-server:v0.24.0"
                 ],
                 "tools": ["*"],
@@ -1291,7 +1299,13 @@ jobs:
               if (lastEntry.usage) {
                 const usage = lastEntry.usage;
                 if (usage.input_tokens || usage.output_tokens) {
+                  const inputTokens = usage.input_tokens || 0;
+                  const outputTokens = usage.output_tokens || 0;
+                  const cacheCreationTokens = usage.cache_creation_input_tokens || 0;
+                  const cacheReadTokens = usage.cache_read_input_tokens || 0;
+                  const totalTokens = inputTokens + outputTokens + cacheCreationTokens + cacheReadTokens;
                   markdown += `**Token Usage:**\n`;
+                  if (totalTokens > 0) markdown += `- Total: ${totalTokens.toLocaleString()}\n`;
                   if (usage.input_tokens) markdown += `- Input: ${usage.input_tokens.toLocaleString()}\n`;
                   if (usage.cache_creation_input_tokens) markdown += `- Cache Creation: ${usage.cache_creation_input_tokens.toLocaleString()}\n`;
                   if (usage.cache_read_input_tokens) markdown += `- Cache Read: ${usage.cache_read_input_tokens.toLocaleString()}\n`;
@@ -1699,8 +1713,15 @@ jobs:
               }
               if (lastEntry?.usage) {
                 const usage = lastEntry.usage;
-                if (usage.input_tokens && usage.output_tokens) {
-                  lines.push(`  Tokens: ${usage.input_tokens.toLocaleString()} in / ${usage.output_tokens.toLocaleString()} out`);
+                if (usage.input_tokens || usage.output_tokens) {
+                  const inputTokens = usage.input_tokens || 0;
+                  const outputTokens = usage.output_tokens || 0;
+                  const cacheCreationTokens = usage.cache_creation_input_tokens || 0;
+                  const cacheReadTokens = usage.cache_read_input_tokens || 0;
+                  const totalTokens = inputTokens + outputTokens + cacheCreationTokens + cacheReadTokens;
+                  lines.push(
+                    `  Tokens: ${totalTokens.toLocaleString()} total (${usage.input_tokens.toLocaleString()} in / ${usage.output_tokens.toLocaleString()} out)`
+                  );
                 }
               }
               if (lastEntry?.total_cost_usd) {

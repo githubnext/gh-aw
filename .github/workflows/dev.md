@@ -2,45 +2,29 @@
 on: 
   workflow_dispatch:
 name: Dev
-description: Find an open issue and assign it to mrjf
+description: List the last 3 issues using gh CLI
 timeout-minutes: 5
 strict: false
 engine: claude
 permissions:
   contents: read
-  issues: write
+  issues: read
 tools:
-  github:
-    toolsets: [repos, issues]
-safe-outputs:
-  assign-to-user:
-    allowed: [mrjf]
-    target: "*"
+  github: false
+imports:
+  - shared/gh.md
 ---
-# Issue Assignment
+# List Last 3 Issues
 
-Find an open issue in this repository and assign it to mrjf for resolution.
+List the last 3 issues in this repository using the gh CLI tool.
 
 ## Task
 
-1. **Search for issues**: Use GitHub search to find open issues in this repository:
+1. **Use gh CLI**: Use the `gh` tool to list the last 3 issues in this repository.
+   
+   Example invocation:
    ```
-   is:issue is:open repo:${{ github.repository }}
+   gh with args: "issue list --limit 3 --repo ${{ github.repository }}"
    ```
 
-2. **Filter out assigned issues**: Skip any issues that already have mrjf as an assignee.
-
-3. **Pick an issue**: Select the first suitable unassigned issue found.
-
-4. **Assign to mrjf**: Use the `assign_to_user` tool to assign the selected issue to mrjf.
-
-**Agent Output Format:**
-```json
-{
-  "type": "assign_to_user",
-  "issue_number": <issue_number>,
-  "assignee": "mrjf"
-}
-```
-
-If no suitable issues are found, output a noop message indicating that no unassigned issues are available.
+2. **Display results**: Show the output from the gh CLI command.

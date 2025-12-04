@@ -77,10 +77,11 @@ describe("Safe Output Type Validation", () => {
   });
 
   it("should validate MCP server normalizes types to underscores", () => {
-    const mcpServerPath = path.join(process.cwd(), "safe_outputs_mcp_server.cjs");
-    const content = fs.readFileSync(mcpServerPath, "utf8");
+    // Check that the append function normalizes type fields to underscores
+    const appendPath = path.join(process.cwd(), "safe_outputs_append.cjs");
+    const content = fs.readFileSync(appendPath, "utf8");
 
-    // Check that the MCP server normalizes type fields to underscores
+    // Check that the append function normalizes type fields to underscores
     const hasNormalization = content.includes('entry.type = entry.type.replace(/-/g, "_")');
     expect(hasNormalization).toBe(true);
 

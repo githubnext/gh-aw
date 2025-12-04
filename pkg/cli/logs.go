@@ -330,8 +330,7 @@ Downloaded artifacts include:
 - aw.patch: Git patch of changes made during execution
 - workflow-logs/: GitHub Actions workflow run logs (job logs organized in subdirectory)
 
-The workflow-id is the basename of the Markdown file without the .md extension.
-You can provide either the workflow-id (e.g., 'weekly-research') or the full filename (e.g., 'weekly-research.md').
+` + WorkflowIDExplanation + `
 
 Examples:
   ` + constants.CLIExtensionPrefix + ` logs                           # Download logs for all workflows
@@ -443,7 +442,7 @@ Examples:
 	logsCmd.Flags().String("start-date", "", "Filter runs created after this date (YYYY-MM-DD or delta like -1d, -1w, -1mo)")
 	logsCmd.Flags().String("end-date", "", "Filter runs created before this date (YYYY-MM-DD or delta like -1d, -1w, -1mo)")
 	addOutputFlag(logsCmd, defaultLogsOutputDir)
-	logsCmd.Flags().StringP("engine", "e", "", "Filter logs by engine type (claude, codex, copilot)")
+	addEngineFilterFlag(logsCmd)
 	logsCmd.Flags().String("ref", "", "Filter runs by branch or tag name (e.g., main, v1.0.0)")
 	logsCmd.Flags().Int64("before-run-id", 0, "Filter runs with database ID before this value (exclusive)")
 	logsCmd.Flags().Int64("after-run-id", 0, "Filter runs with database ID after this value (exclusive)")

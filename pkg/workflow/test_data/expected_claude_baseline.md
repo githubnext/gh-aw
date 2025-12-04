@@ -102,6 +102,7 @@ The `draw_pelican` tool has been reported as missing functionality, along with p
 **Total Cost:** $0.1789
 
 **Token Usage:**
+- Total: 155,662
 - Input: 25
 - Cache Creation: 34,686
 - Cache Read: 120,119
