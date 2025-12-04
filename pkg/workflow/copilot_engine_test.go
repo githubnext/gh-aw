@@ -1086,3 +1086,63 @@ func TestCopilotEngineExecutionStepsWithCustomAddDirArgs(t *testing.T) {
 		t.Errorf("Expected '--add-dir /custom/path/' in copilot args")
 	}
 }
+
+func TestCopilotEngineParseLogMetrics_MultilineJSON(t *testing.T) {
+	engine := NewCopilotEngine()
+
+	// Read the test data file with multi-line JSON format
+	testDataPath := filepath.Join("test_data", "copilot_debug_log.txt")
+	logContent, err := os.ReadFile(testDataPath)
+	if err != nil {
+		t.Fatalf("Failed to read test data file: %v", err)
+	}
+
+	// Parse the log metrics
+	metrics := engine.ParseLogMetrics(string(logContent), false)
+
+	// Verify token usage is extracted from multi-line JSON blocks
+	// Expected: 1524 + 89 + 1689 + 23 = 3325 tokens total
+	expectedTokens := 3325
+	if metrics.TokenUsage != expectedTokens {
+		t.Errorf("Expected token usage %d, got %d", expectedTokens, metrics.TokenUsage)
+	}
+
+	// Verify the parser handles multiple JSON response blocks
+	// Log contains 2 responses with usage information
+	if metrics.TokenUsage == 0 {
+		t.Error("Token usage should not be zero when parsing Copilot debug logs with usage data")
+	}
+}
+
+func TestCopilotEngineParseLogMetrics_SingleLineJSON(t *testing.T) {
+	engine := NewCopilotEngine()
+
+	// Test with single-line JSON wrapped in debug log format (realistic format)
+	// This tests backward compatibility with compact JSON logging
+	singleLineLog := `2025-09-26T11:13:17.989Z [DEBUG] data:
+2025-09-26T11:13:17.990Z [DEBUG] {"usage": {"prompt_tokens": 100, "completion_tokens": 50}}
+2025-09-26T11:13:17.990Z [DEBUG] Workflow completed`
+	metrics := engine.ParseLogMetrics(singleLineLog, false)
+
+	// Should extract tokens from single-line JSON in data block
+	expectedTokens := 150
+	if metrics.TokenUsage != expectedTokens {
+		t.Errorf("Expected token usage %d from single-line JSON, got %d", expectedTokens, metrics.TokenUsage)
+	}
+}
+
+func TestCopilotEngineParseLogMetrics_NoTokenData(t *testing.T) {
+	engine := NewCopilotEngine()
+
+	// Test with log content that has no token data
+	noTokenLog := `2025-09-26T11:13:11.798Z [DEBUG] Using model: claude-sonnet-4
+2025-09-26T11:13:12.575Z [DEBUG] Starting workflow
+2025-09-26T11:13:18.502Z [DEBUG] Workflow completed`
+
+	metrics := engine.ParseLogMetrics(noTokenLog, false)
+
+	// Token usage should be 0 when no usage data is present
+	if metrics.TokenUsage != 0 {
+		t.Errorf("Expected token usage 0 when no usage data present, got %d", metrics.TokenUsage)
+	}
+}

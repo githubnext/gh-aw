@@ -340,7 +340,7 @@ func TestGenerateRuntimeSetupSteps(t *testing.T) {
 			expectSteps: 1,
 			checkContent: []string{
 				"Setup Java",
-				"actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00",
+				"actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9",
 				"java-version: '21'",
 				"distribution: temurin",
 			},

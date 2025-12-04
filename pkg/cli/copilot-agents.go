@@ -150,16 +150,6 @@ func ensureSharedAgenticWorkflowAgent(verbose bool, skipInstructions bool) error
 	return ensureAgentFromTemplate("create-shared-agentic-workflow.agent.md", sharedAgenticWorkflowAgentTemplate, verbose, skipInstructions)
 }
 
-// ensureSetupAgenticWorkflowsAgent ensures that .github/agents/setup-agentic-workflows.agent.md contains the setup guide agent
-func ensureSetupAgenticWorkflowsAgent(verbose bool, skipInstructions bool) error {
-	// First, clean up the old prompt file if it exists
-	if err := cleanupOldPromptFile("setup-agentic-workflows.prompt.md", verbose); err != nil {
-		return err
-	}
-
-	return ensureAgentFromTemplate("setup-agentic-workflows.agent.md", setupAgenticWorkflowsAgentTemplate, verbose, skipInstructions)
-}
-
 // ensureDebugAgenticWorkflowAgent ensures that .github/agents/debug-agentic-workflow.agent.md contains the debug workflow agent
 func ensureDebugAgenticWorkflowAgent(verbose bool, skipInstructions bool) error {
 	// First, clean up the old prompt file if it exists
@@ -168,4 +158,27 @@ func ensureDebugAgenticWorkflowAgent(verbose bool, skipInstructions bool) error 
 	}
 
 	return ensureAgentFromTemplate("debug-agentic-workflow.agent.md", debugAgenticWorkflowAgentTemplate, verbose, skipInstructions)
+}
+
+// deleteSetupAgenticWorkflowsAgent deletes the setup-agentic-workflows.agent.md file if it exists
+func deleteSetupAgenticWorkflowsAgent(verbose bool) error {
+	gitRoot, err := findGitRoot()
+	if err != nil {
+		return nil // Not in a git repository, skip
+	}
+
+	agentPath := filepath.Join(gitRoot, ".github", "agents", "setup-agentic-workflows.agent.md")
+
+	// Check if the file exists and remove it
+	if _, err := os.Stat(agentPath); err == nil {
+		if err := os.Remove(agentPath); err != nil {
+			return fmt.Errorf("failed to remove setup-agentic-workflows agent: %w", err)
+		}
+		if verbose {
+			fmt.Fprintf(os.Stderr, "Removed setup-agentic-workflows agent: %s\n", agentPath)
+		}
+	}
+
+	// Also clean up the old prompt file if it exists
+	return cleanupOldPromptFile("setup-agentic-workflows.prompt.md", verbose)
 }

@@ -476,7 +476,7 @@ describe.sequential("safe_outputs_mcp_server.cjs branch parameter handling", () 
         env: {
           ...process.env,
           GH_AW_SAFE_OUTPUTS_CONFIG_PATH: tempConfigPath,
-          GH_AW_SAFE_OUTPUTS: "/tmp/gh-aw/test-outputs.jsonl",
+          GH_AW_SAFE_OUTPUTS: `/tmp/gh-aw/test-outputs-push-${Date.now()}.jsonl`,
         },
       });
 

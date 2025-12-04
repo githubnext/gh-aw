@@ -30,9 +30,6 @@ var agenticWorkflowAgentTemplate string
 //go:embed templates/create-shared-agentic-workflow.agent.md
 var sharedAgenticWorkflowAgentTemplate string
 
-//go:embed templates/setup-agentic-workflows.agent.md
-var setupAgenticWorkflowsAgentTemplate string
-
 //go:embed templates/debug-agentic-workflow.agent.md
 var debugAgenticWorkflowAgentTemplate string
 
