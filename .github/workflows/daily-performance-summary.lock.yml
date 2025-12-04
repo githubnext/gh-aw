@@ -2433,7 +2433,7 @@ jobs:
           EOF
           chmod +x /tmp/gh-aw/safeoutputs/mcp-server.cjs
           
-      - name: Setup Safe Inputs MCP
+      - name: Setup Safe Inputs JavaScript and Config
         run: |
           mkdir -p /tmp/gh-aw/safe-inputs/logs
           cat > /tmp/gh-aw/safe-inputs/read_buffer.cjs << 'EOF_READ_BUFFER'
@@ -3195,6 +3195,9 @@ jobs:
             });
           EOFSI
           chmod +x /tmp/gh-aw/safe-inputs/mcp-server.cjs
+          
+      - name: Setup Safe Inputs Tool Files
+        run: |
           cat > /tmp/gh-aw/safe-inputs/github-discussion-query.sh << 'EOFSH_github-discussion-query'
           #!/bin/bash
           # Auto-generated safe-input tool: github-discussion-query
