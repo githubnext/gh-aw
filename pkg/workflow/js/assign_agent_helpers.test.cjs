@@ -245,7 +245,7 @@ describe("assign_agent_helpers.cjs", () => {
   });
 
   describe("assignAgentToIssue", () => {
-    it("should successfully assign agent using mutation", async () => {
+    it("should successfully assign agent using simple mutation (no options)", async () => {
       // Mock the global github.graphql
       mockGithub.graphql.mockResolvedValueOnce({
         replaceActorsForAssignable: {
@@ -256,11 +256,42 @@ describe("assign_agent_helpers.cjs", () => {
       const result = await assignAgentToIssue("ISSUE_123", "AGENT_456", ["USER_1"], "copilot");
 
       expect(result).toBe(true);
+      // Simple mutation without options should not include headers
       expect(mockGithub.graphql).toHaveBeenCalledWith(
         expect.stringContaining("replaceActorsForAssignable"),
         expect.objectContaining({
           assignableId: "ISSUE_123",
           actorIds: ["AGENT_456", "USER_1"],
+        })
+      );
+      // Verify no extra arguments (no headers) for simple mutation
+      expect(mockGithub.graphql.mock.calls[0].length).toBe(2);
+    });
+
+    it("should use extended mutation with headers when Copilot options provided", async () => {
+      mockGithub.graphql.mockResolvedValueOnce({
+        replaceActorsForAssignable: {
+          __typename: "ReplaceActorsForAssignablePayload",
+        },
+      });
+
+      const options = {
+        baseBranch: "main",
+        customInstructions: "Test instructions",
+      };
+
+      const result = await assignAgentToIssue("ISSUE_123", "AGENT_456", ["USER_1"], "copilot", options);
+
+      expect(result).toBe(true);
+      expect(mockGithub.graphql).toHaveBeenCalledWith(
+        expect.stringContaining("replaceActorsForAssignable"),
+        expect.objectContaining({
+          assignableId: "ISSUE_123",
+          actorIds: ["AGENT_456", "USER_1"],
+          copilotAssignmentOptions: expect.objectContaining({
+            baseBranch: "main",
+            customInstructions: "Test instructions",
+          }),
         }),
         expect.objectContaining({
           headers: expect.objectContaining({
@@ -284,11 +315,6 @@ describe("assign_agent_helpers.cjs", () => {
         expect.objectContaining({
           assignableId: "ISSUE_123",
           actorIds: expect.arrayContaining(["AGENT_456", "USER_1", "USER_2"]),
-        }),
-        expect.objectContaining({
-          headers: expect.objectContaining({
-            "GraphQL-Features": "issues_copilot_assignment_api_support",
-          }),
         })
       );
     });
