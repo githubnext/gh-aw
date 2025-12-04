@@ -1,176 +1,79 @@
-# GitHub Agentic Workflows Setup Guide
+# GitHub Agentic Workflows: Interactive Setup Wizard
 
-A guided walkthrough to help you set up your agentic workflows using gh-aw.
+Use this guided, prompt-driven wizard to install gh-aw, initialize your repo, configure secrets, and create or add your first agentic workflow. Copy the commands and respond to the prompts as you go.
 
-## Starting the Setup
+## Role
 
-### 1. Check gh-aw Installation
+You are an AI assistant helping the user set up GitHub Agentic Workflows (gh-aw) in their repository. Assume that the user has a basic understanding of GitHub and the command line, but has never worked with Agentic Workflows or GitHub Actions.
 
-First, let's verify that gh-aw is installed correctly.
+## 1) Verify Installation
 
-Run:
 ```bash
-gh aw version
+gh aw version || echo "gh-aw not found"
 ```
 
-✓ If the command succeeds and shows a version, you're all set! Continue to the next step.
+- If you see a version: continue.
+- If not found: choose one install path and rerun `gh aw version`.
 
-❌ If the command fails, gh-aw is not installed. Install it using one of these methods:
-
-**Option 1: GitHub CLI extension (recommended)**
 ```bash
+# Install as GitHub CLI extension (recommended)
 gh extension install githubnext/gh-aw
-```
 
-**Option 2: Standalone installer (for Codespaces or if extension install fails)**
-```bash
+# Or: standalone installer (Codespaces/fallback)
 curl -sL https://raw.githubusercontent.com/githubnext/gh-aw/main/install-gh-aw.sh | bash
 ```
 
-After installation, verify with `gh aw version` and then continue.
-
-### 2. Initialize Your Repository
-
-Run the init command to configure your repository for agentic workflows:
+## 2) Initialize Your Repository
 
 ```bash
 gh aw init
 ```
 
-This command will:
-- Configure `.gitattributes` to mark `.lock.yml` files as generated
-- Create GitHub Copilot custom instructions
-- Create agents for workflow creation and debugging
-- Set up your repository structure
+What this does:
 
-### 3. Choose Your AI Agent
+- Configures `.gitattributes` to mark `.lock.yml` as generated
+- Adds Copilot custom instructions and agents
+- Prepares repo structure for agentic workflows
 
-Select which AI agent you'll use for your agentic workflows:
+## 3) AI Engine (Default: Copilot)
 
-- **`copilot`** (GitHub Copilot CLI) - **Recommended for most users**
-- **`claude`** (Anthropic Claude Code) - Great for reasoning and code analysis
-- **`codex`** (OpenAI Codex) - Designed for code-focused tasks
+This wizard assumes GitHub Copilot as the default engine. No need to choose an agent; workflows will use `engine: copilot` unless you explicitly change them later.
 
-## Configure Secrets for Your Chosen Agent
-
-### For `copilot` (Recommended)
-
-You'll need a GitHub Personal Access Token with Copilot subscription.
-
-**Steps:**
-1. Go to [GitHub Token Settings](https://github.com/settings/tokens)
-2. Create a Personal Access Token (Classic) with appropriate scopes
-3. Ensure you have an active Copilot subscription
-
-**Documentation:** [GitHub Copilot Engine Setup](https://githubnext.github.io/gh-aw/reference/engines/#github-copilot-default)
-
-**Set the secret** in your terminal:
+## 4) Configure Secrets (Copilot)
 
 ```bash
-gh secret set COPILOT_GITHUB_TOKEN -a actions --body "your-github-pat-here"
+# Create a GitHub Personal Access Token (Classic) with an active Copilot subscription
+# Then set it as a secret for Actions
+gh secret set COPILOT_GITHUB_TOKEN -a actions --body "YOUR_GITHUB_PAT"
 ```
 
-### For `claude`
+Reference: <https://githubnext.github.io/gh-aw/reference/engines/#github-copilot-default>
 
-You'll need an Anthropic API key or Claude Code OAuth token.
+IMPORTANT: TELL USER TO NOT PASTE SECRET HERE, USE ANOTHER TERMINAL.
 
-**Steps:**
-1. Sign up for Anthropic API access at [console.anthropic.com](https://console.anthropic.com/)
-2. Generate an API key from your account settings
+Activate `.github/aw/github-agentic-workflows.md` to learn more about the agentic workflow format.
 
-**Documentation:** [Anthropic Claude Code Engine](https://githubnext.github.io/gh-aw/reference/engines/#anthropic-claude-code)
+### Ask the user to add an existing workflow or create a new one
 
-**Set the secret** (choose one):
+To add, go to (5) or to create, go to (6)
 
-```bash
-# Option 1: Using CLAUDE_CODE_OAUTH_TOKEN
-gh secret set CLAUDE_CODE_OAUTH_TOKEN -a actions --body "your-claude-oauth-token-here"
+## 5) Add a Workflow from the Agentics Catalog
 
-# Option 2: Using ANTHROPIC_API_KEY
-gh secret set ANTHROPIC_API_KEY -a actions --body "your-anthropic-api-key-here"
-```
-
-### For `codex`
-
-You'll need an OpenAI API key.
-
-**Steps:**
-1. Sign up for OpenAI API access at [platform.openai.com](https://platform.openai.com/)
-2. Generate an API key from your account settings
-
-**Documentation:** [OpenAI Codex Engine](https://githubnext.github.io/gh-aw/reference/engines/#openai-codex)
-
-**Set the secret**:
+Browse and add proven workflows interactively.
 
 ```bash
-gh secret set OPENAI_API_KEY -a actions --body "your-openai-api-key-here"
-```
-
-## Add Your First Workflow
-
-Now you have two options for getting started with workflows:
-
-### Option 1: Create a New Workflow from Scratch
-
-If you want to build a custom workflow tailored to your needs:
-
-```bash
-gh aw new my-workflow
-```
-
-This creates a new workflow file at `.github/workflows/my-workflow.md` with example configuration. You can then edit it to define your workflow logic.
-
-**Or use GitHub Copilot CLI for an interactive experience:**
-1. Launch Copilot: `npx @github/copilot`
-2. Type `/agent create-agentic-workflow` in the chat
-3. Follow the prompts to build your workflow
-
-### Option 2: Import from the Agentics Catalog
-
-If you want to start with proven workflows from the community:
-
-**Step 1: List available workflows**
-```bash
+# List catalog items
 gh aw add githubnext/agentics
-```
 
-This displays all available workflows in the agentics catalog.
-
-**Step 2: Choose and add a workflow**
-
-Once you see the list, add a workflow you want to use:
-
-```bash
-# Add a specific workflow
-gh aw add githubnext/agentics/workflow-name
-
-# Or add all workflows
+# Add a specific workflow or all
+gh aw add githubnext/agentics/<workflow-name>
 gh aw add githubnext/agentics/*
-```
 
-**Examples:**
-```bash
-# Add the CI doctor workflow
-gh aw add githubnext/agentics/ci-doctor
-
-# Add the daily team status workflow
-gh aw add githubnext/agentics/daily-team-status
-
-# Add with a specific version
+# Optional: pin version or open a PR automatically
 gh aw add githubnext/agentics/ci-doctor@v1.0.0
-
-# Add and create a pull request
 gh aw add githubnext/agentics/ci-doctor --create-pull-request
 ```
 
-**Popular workflows from the catalog:**
-- `ci-doctor` - Diagnose and fix CI/CD issues
-- `daily-team-status` - Generate daily team status reports
-- `pr-reviewer` - Automated pull request reviews
-- `issue-triager` - Automatic issue triage and labeling
+## 6) Create a New Workflow (Agentic Experience)
 
-## Next Steps
-
-- Explore the [documentation](https://githubnext.github.io/gh-aw/)
-- Check out example workflows in the [agentics catalog](https://github.com/githubnext/agentics)
-- Run `gh aw --help` to see all available commands
+activate `.github/agents/create-agentic-workflow.agent.md` and follow the guided prompts to create a new workflow.
