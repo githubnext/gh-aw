@@ -187,7 +187,7 @@ You can leverage the help of an agent to customize your workflow without having 
 ```bash wrap
 # install copilot cli
 npm install -g @github/copilot-cli
-# install the prompt files
+# install the agent files
 gh aw init
 ```
 
