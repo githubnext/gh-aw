@@ -22,8 +22,6 @@
 
 const fs = require("fs");
 const path = require("path");
-const { execFile } = require("child_process");
-const os = require("os");
 
 const { ReadBuffer } = require("./read_buffer.cjs");
 
@@ -264,221 +262,6 @@ function createWrappedHandler(server, toolName, handlerFn) {
 }
 
 /**
- * Create a shell script handler function that executes a .sh file.
- * Uses GitHub Actions convention for passing inputs and reading outputs:
- * - Inputs are passed as environment variables prefixed with INPUT_ (uppercased)
- * - Outputs are read from a temporary file specified by GITHUB_OUTPUT env var
- * - Output format is key=value per line
- *
- * @param {MCPServer} server - The MCP server instance for logging
- * @param {string} toolName - Name of the tool for logging purposes
- * @param {string} scriptPath - Path to the shell script to execute
- * @returns {Function} Async handler function that executes the shell script
- */
-function createShellHandler(server, toolName, scriptPath) {
-  return async args => {
-    server.debug(`  [${toolName}] Invoking shell handler: ${scriptPath}`);
-    server.debug(`  [${toolName}] Shell handler args: ${JSON.stringify(args)}`);
-
-    // Create environment variables from args (GitHub Actions convention: INPUT_NAME)
-    const env = { ...process.env };
-    for (const [key, value] of Object.entries(args || {})) {
-      const envKey = `INPUT_${key.toUpperCase().replace(/-/g, "_")}`;
-      env[envKey] = String(value);
-      server.debug(`  [${toolName}] Set env: ${envKey}=${String(value).substring(0, 100)}${String(value).length > 100 ? "..." : ""}`);
-    }
-
-    // Create a temporary file for outputs (GitHub Actions convention: GITHUB_OUTPUT)
-    const outputFile = path.join(os.tmpdir(), `mcp-shell-output-${Date.now()}-${Math.random().toString(36).substring(2)}.txt`);
-    env.GITHUB_OUTPUT = outputFile;
-    server.debug(`  [${toolName}] Output file: ${outputFile}`);
-
-    // Create the output file (empty)
-    fs.writeFileSync(outputFile, "");
-
-    return new Promise((resolve, reject) => {
-      server.debug(`  [${toolName}] Executing shell script...`);
-
-      execFile(
-        scriptPath,
-        [],
-        {
-          env,
-          timeout: 300000, // 5 minute timeout
-          maxBuffer: 10 * 1024 * 1024, // 10MB buffer
-        },
-        (error, stdout, stderr) => {
-          // Log stdout and stderr
-          if (stdout) {
-            server.debug(`  [${toolName}] stdout: ${stdout.substring(0, 500)}${stdout.length > 500 ? "..." : ""}`);
-          }
-          if (stderr) {
-            server.debug(`  [${toolName}] stderr: ${stderr.substring(0, 500)}${stderr.length > 500 ? "..." : ""}`);
-          }
-
-          if (error) {
-            server.debugError(`  [${toolName}] Shell script error: `, error);
-
-            // Clean up output file
-            try {
-              if (fs.existsSync(outputFile)) {
-                fs.unlinkSync(outputFile);
-              }
-            } catch {
-              // Ignore cleanup errors
-            }
-
-            reject(error);
-            return;
-          }
-
-          // Read outputs from the GITHUB_OUTPUT file
-          /** @type {Record<string, string>} */
-          const outputs = {};
-          try {
-            if (fs.existsSync(outputFile)) {
-              const outputContent = fs.readFileSync(outputFile, "utf-8");
-              server.debug(
-                `  [${toolName}] Output file content: ${outputContent.substring(0, 500)}${outputContent.length > 500 ? "..." : ""}`
-              );
-
-              // Parse outputs (key=value format, one per line)
-              const lines = outputContent.split("\n");
-              for (const line of lines) {
-                const trimmed = line.trim();
-                if (trimmed && trimmed.includes("=")) {
-                  const eqIndex = trimmed.indexOf("=");
-                  const key = trimmed.substring(0, eqIndex);
-                  const value = trimmed.substring(eqIndex + 1);
-                  outputs[key] = value;
-                  server.debug(`  [${toolName}] Parsed output: ${key}=${value.substring(0, 100)}${value.length > 100 ? "..." : ""}`);
-                }
-              }
-            }
-          } catch (readError) {
-            server.debugError(`  [${toolName}] Error reading output file: `, readError);
-          }
-
-          // Clean up output file
-          try {
-            if (fs.existsSync(outputFile)) {
-              fs.unlinkSync(outputFile);
-            }
-          } catch {
-            // Ignore cleanup errors
-          }
-
-          // Build the result
-          const result = {
-            stdout: stdout || "",
-            stderr: stderr || "",
-            outputs,
-          };
-
-          server.debug(`  [${toolName}] Shell handler completed, outputs: ${Object.keys(outputs).join(", ") || "(none)"}`);
-
-          // Return MCP format
-          resolve({
-            content: [
-              {
-                type: "text",
-                text: JSON.stringify(result),
-              },
-            ],
-          });
-        }
-      );
-    });
-  };
-}
-
-/**
- * Create a Python script handler function that executes a .py file.
- * Inputs are passed as JSON via stdin for a more Pythonic approach:
- * - Inputs are passed as JSON object via stdin (similar to JavaScript tools)
- * - Python script reads and parses JSON from stdin into 'inputs' dictionary
- * - Outputs are read from stdout (JSON format expected)
- *
- * @param {MCPServer} server - The MCP server instance for logging
- * @param {string} toolName - Name of the tool for logging purposes
- * @param {string} scriptPath - Path to the Python script to execute
- * @returns {Function} Async handler function that executes the Python script
- */
-function createPythonHandler(server, toolName, scriptPath) {
-  return async args => {
-    server.debug(`  [${toolName}] Invoking Python handler: ${scriptPath}`);
-    server.debug(`  [${toolName}] Python handler args: ${JSON.stringify(args)}`);
-
-    // Pass inputs as JSON via stdin (more Pythonic approach)
-    const inputJson = JSON.stringify(args || {});
-    server.debug(
-      `  [${toolName}] Input JSON (${inputJson.length} bytes): ${inputJson.substring(0, 200)}${inputJson.length > 200 ? "..." : ""}`
-    );
-
-    return new Promise((resolve, reject) => {
-      server.debug(`  [${toolName}] Executing Python script...`);
-
-      const child = execFile(
-        "python3",
-        [scriptPath],
-        {
-          env: process.env,
-          timeout: 300000, // 5 minute timeout
-          maxBuffer: 10 * 1024 * 1024, // 10MB buffer
-        },
-        (error, stdout, stderr) => {
-          // Log stdout and stderr
-          if (stdout) {
-            server.debug(`  [${toolName}] stdout: ${stdout.substring(0, 500)}${stdout.length > 500 ? "..." : ""}`);
-          }
-          if (stderr) {
-            server.debug(`  [${toolName}] stderr: ${stderr.substring(0, 500)}${stderr.length > 500 ? "..." : ""}`);
-          }
-
-          if (error) {
-            server.debugError(`  [${toolName}] Python script error: `, error);
-            reject(error);
-            return;
-          }
-
-          // Parse output from stdout
-          let result;
-          try {
-            // Try to parse stdout as JSON
-            if (stdout && stdout.trim()) {
-              result = JSON.parse(stdout.trim());
-            } else {
-              result = { stdout: stdout || "", stderr: stderr || "" };
-            }
-          } catch (parseError) {
-            server.debug(`  [${toolName}] Output is not JSON, returning as text`);
-            result = { stdout: stdout || "", stderr: stderr || "" };
-          }
-
-          server.debug(`  [${toolName}] Python handler completed successfully`);
-
-          // Return MCP format
-          resolve({
-            content: [
-              {
-                type: "text",
-                text: JSON.stringify(result),
-              },
-            ],
-          });
-        }
-      );
-
-      // Write input JSON to stdin
-      if (child.stdin) {
-        child.stdin.write(inputJson);
-        child.stdin.end();
-      }
-    });
-  };
-}
-
-/**
  * Load handler functions from file paths specified in tools configuration.
  * This function iterates through tools and loads handler modules based on file extension:
  *
@@ -588,7 +371,8 @@ function loadToolHandlers(server, tools, basePath) {
           }
         }
 
-        // Create the shell handler
+        // Lazy-load shell handler module
+        const { createShellHandler } = require("./mcp_handler_shell.cjs");
         tool.handler = createShellHandler(server, toolName, resolvedPath);
 
         loadedCount++;
@@ -612,7 +396,8 @@ function loadToolHandlers(server, tools, basePath) {
           }
         }
 
-        // Create the Python handler
+        // Lazy-load Python handler module
+        const { createPythonHandler } = require("./mcp_handler_python.cjs");
         tool.handler = createPythonHandler(server, toolName, resolvedPath);
 
         loadedCount++;

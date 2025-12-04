@@ -216,6 +216,12 @@ var safeInputsConfigLoaderScript string
 //go:embed js/safe_inputs_tool_factory.cjs
 var safeInputsToolFactoryScript string
 
+//go:embed js/mcp_handler_shell.cjs
+var mcpHandlerShellScript string
+
+//go:embed js/mcp_handler_python.cjs
+var mcpHandlerPythonScript string
+
 //go:embed js/safe_output_type_validator.cjs
 var safeOutputTypeValidatorScript string
 
@@ -757,6 +763,16 @@ func GetSafeInputsConfigLoaderScript() string {
 // GetSafeInputsToolFactoryScript returns the embedded safe_inputs_tool_factory.cjs script
 func GetSafeInputsToolFactoryScript() string {
 	return safeInputsToolFactoryScript
+}
+
+// GetMCPHandlerShellScript returns the embedded mcp_handler_shell.cjs script
+func GetMCPHandlerShellScript() string {
+	return mcpHandlerShellScript
+}
+
+// GetMCPHandlerPythonScript returns the embedded mcp_handler_python.cjs script
+func GetMCPHandlerPythonScript() string {
+	return mcpHandlerPythonScript
 }
 
 // GetSafeOutputsConfigScript returns the embedded safe_outputs_config.cjs script

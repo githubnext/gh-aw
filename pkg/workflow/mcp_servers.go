@@ -284,6 +284,19 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		}
 		yaml.WriteString("          EOF_MCP_CORE\n")
 
+		// Write handler modules (only loaded when needed)
+		yaml.WriteString("          cat > /tmp/gh-aw/safe-inputs/mcp_handler_shell.cjs << 'EOF_HANDLER_SHELL'\n")
+		for _, line := range FormatJavaScriptForYAML(GetMCPHandlerShellScript()) {
+			yaml.WriteString(line)
+		}
+		yaml.WriteString("          EOF_HANDLER_SHELL\n")
+
+		yaml.WriteString("          cat > /tmp/gh-aw/safe-inputs/mcp_handler_python.cjs << 'EOF_HANDLER_PYTHON'\n")
+		for _, line := range FormatJavaScriptForYAML(GetMCPHandlerPythonScript()) {
+			yaml.WriteString(line)
+		}
+		yaml.WriteString("          EOF_HANDLER_PYTHON\n")
+
 		// Write safe-inputs helper modules
 		yaml.WriteString("          cat > /tmp/gh-aw/safe-inputs/safe_inputs_config_loader.cjs << 'EOF_CONFIG_LOADER'\n")
 		for _, line := range FormatJavaScriptForYAML(GetSafeInputsConfigLoaderScript()) {
