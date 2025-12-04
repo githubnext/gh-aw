@@ -24,14 +24,6 @@ Use in agentic workflows by adding `agentic-workflows:` to your workflow's `tool
 
 ## Configuration Options
 
-### Custom Command Path
-
-Use `--cmd` to specify a custom binary path for local development, CI/CD, or environments without the gh CLI extension:
-
-```bash wrap
-gh aw mcp-server --cmd gh aw
-```
-
 ### HTTP Server Mode
 
 Run with HTTP/SSE transport using `--port`:
