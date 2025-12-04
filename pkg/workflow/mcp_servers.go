@@ -136,7 +136,8 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 
 	// Write safe-outputs MCP server if enabled
 	if HasSafeOutputsEnabled(workflowData.SafeOutputs) {
-		yaml.WriteString("      - name: Setup Safe Outputs Collector MCP\n")
+		// Step 1: Write config files (config.json, tools.json, validation.json)
+		yaml.WriteString("      - name: Write Safe Outputs Config\n")
 		yaml.WriteString("        run: |\n")
 		yaml.WriteString("          mkdir -p /tmp/gh-aw/safeoutputs\n")
 
@@ -185,6 +186,10 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 			yaml.WriteString("          " + line + "\n")
 		}
 		yaml.WriteString("          EOF\n")
+
+		// Step 2: Write JavaScript files
+		yaml.WriteString("      - name: Write Safe Outputs JavaScript Files\n")
+		yaml.WriteString("        run: |\n")
 
 		// Write the safe-outputs utility modules
 		yaml.WriteString("          cat > /tmp/gh-aw/safeoutputs/safe_outputs_config.cjs << 'EOF_CONFIG'\n")

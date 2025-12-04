@@ -856,7 +856,7 @@ jobs:
           
           EOF
           chmod +x .claude/hooks/network_permissions.py
-      - name: Setup Safe Outputs Collector MCP
+      - name: Write Safe Outputs Config
         run: |
           mkdir -p /tmp/gh-aw/safeoutputs
           cat > /tmp/gh-aw/safeoutputs/config.json << 'EOF'
@@ -998,6 +998,8 @@ jobs:
             }
           }
           EOF
+      - name: Write Safe Outputs JavaScript Files
+        run: |
           cat > /tmp/gh-aw/safeoutputs/safe_outputs_config.cjs << 'EOF_CONFIG'
             const fs = require("fs");
             const path = require("path");
