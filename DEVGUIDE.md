@@ -37,7 +37,7 @@ make lint
 
 # Build and test the binary
 make build
-gh aw --help
+./gh-aw --help
 ```
 
 ### 4. Install the Extension Locally for Testing

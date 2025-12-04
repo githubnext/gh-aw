@@ -109,7 +109,7 @@ See [GitHub MCP Server Documentation](skills/github-mcp-server/SKILL.md) for com
 make deps        # ~1.5min first run  
 make deps-dev    # +5-8min for linter
 make build       # ~1.5s
-gh aw --help
+./gh-aw --help
 ```
 
 ## Development Workflow
@@ -126,11 +126,11 @@ make agent-finish # Complete validation
 
 ### Manual Testing
 ```bash
-gh aw --help
-gh aw compile
-gh aw mcp list      # MCP server management
-gh aw logs          # Download and analyze workflow logs
-gh aw audit 123456  # Audit a specific workflow run
+./gh-aw --help
+./gh-aw compile
+./gh-aw mcp list      # MCP server management
+./gh-aw logs          # Download and analyze workflow logs
+./gh-aw audit 123456  # Audit a specific workflow run
 ```
 
 ## Repository Structure
@@ -258,7 +258,7 @@ For JavaScript files in `pkg/workflow/js/*.cjs`:
 When modifying JSON schemas in `pkg/parser/schemas/`:
 - Schema files are embedded using `//go:embed` directives
 - **MUST rebuild the binary** with `make build` for changes to take effect
-- Test changes by compiling a workflow: `gh aw compile test-workflow.md`
+- Test changes by compiling a workflow: `./gh-aw compile test-workflow.md`
 - Schema changes typically require corresponding Go struct updates
 
 ### Build Times (Don't Cancel)
