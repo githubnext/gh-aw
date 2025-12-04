@@ -2104,12 +2104,6 @@ jobs:
             "create_issue": {
               "defaultMax": 1,
               "fields": {
-                "allowed_labels": {
-                  "type": "array",
-                  "itemType": "string",
-                  "itemSanitize": true,
-                  "itemMaxLength": 128
-                },
                 "body": {
                   "required": true,
                   "type": "string",

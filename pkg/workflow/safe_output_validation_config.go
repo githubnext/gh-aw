@@ -42,13 +42,12 @@ var ValidationConfig = map[string]TypeValidationConfig{
 	"create_issue": {
 		DefaultMax: 1,
 		Fields: map[string]FieldValidation{
-			"title":          {Required: true, Type: "string", Sanitize: true, MaxLength: 128},
-			"body":           {Required: true, Type: "string", Sanitize: true, MaxLength: MaxBodyLength},
-			"labels":         {Type: "array", ItemType: "string", ItemSanitize: true, ItemMaxLength: 128},
-			"parent":         {IssueOrPRNumber: true},
-			"temporary_id":   {Type: "string"},
-			"repo":           {Type: "string", MaxLength: 256}, // Optional: target repository in format "owner/repo"
-			"allowed_labels": {Type: "array", ItemType: "string", ItemSanitize: true, ItemMaxLength: 128},
+			"title":        {Required: true, Type: "string", Sanitize: true, MaxLength: 128},
+			"body":         {Required: true, Type: "string", Sanitize: true, MaxLength: MaxBodyLength},
+			"labels":       {Type: "array", ItemType: "string", ItemSanitize: true, ItemMaxLength: 128},
+			"parent":       {IssueOrPRNumber: true},
+			"temporary_id": {Type: "string"},
+			"repo":         {Type: "string", MaxLength: 256}, // Optional: target repository in format "owner/repo"
 		},
 	},
 	"create_agent_task": {
@@ -67,11 +66,10 @@ var ValidationConfig = map[string]TypeValidationConfig{
 	"create_pull_request": {
 		DefaultMax: 1,
 		Fields: map[string]FieldValidation{
-			"title":          {Required: true, Type: "string", Sanitize: true, MaxLength: 128},
-			"body":           {Required: true, Type: "string", Sanitize: true, MaxLength: MaxBodyLength},
-			"branch":         {Required: true, Type: "string", Sanitize: true, MaxLength: 256},
-			"labels":         {Type: "array", ItemType: "string", ItemSanitize: true, ItemMaxLength: 128},
-			"allowed_labels": {Type: "array", ItemType: "string", ItemSanitize: true, ItemMaxLength: 128},
+			"title":  {Required: true, Type: "string", Sanitize: true, MaxLength: 128},
+			"body":   {Required: true, Type: "string", Sanitize: true, MaxLength: MaxBodyLength},
+			"branch": {Required: true, Type: "string", Sanitize: true, MaxLength: 256},
+			"labels": {Type: "array", ItemType: "string", ItemSanitize: true, ItemMaxLength: 128},
 		},
 	},
 	"add_labels": {
@@ -152,11 +150,10 @@ var ValidationConfig = map[string]TypeValidationConfig{
 	"create_discussion": {
 		DefaultMax: 1,
 		Fields: map[string]FieldValidation{
-			"title":          {Required: true, Type: "string", Sanitize: true, MaxLength: 128},
-			"body":           {Required: true, Type: "string", Sanitize: true, MaxLength: MaxBodyLength},
-			"category":       {Type: "string", Sanitize: true, MaxLength: 128},
-			"repo":           {Type: "string", MaxLength: 256}, // Optional: target repository in format "owner/repo"
-			"allowed_labels": {Type: "array", ItemType: "string", ItemSanitize: true, ItemMaxLength: 128},
+			"title":    {Required: true, Type: "string", Sanitize: true, MaxLength: 128},
+			"body":     {Required: true, Type: "string", Sanitize: true, MaxLength: MaxBodyLength},
+			"category": {Type: "string", Sanitize: true, MaxLength: 128},
+			"repo":     {Type: "string", MaxLength: 256}, // Optional: target repository in format "owner/repo"
 		},
 	},
 	"close_discussion": {
