@@ -318,6 +318,45 @@ git ls-remote https://github.com/actions/checkout v4.1.1
 curl -s https://api.github.com/repos/actions/checkout/git/refs/tags/v4.1.1
 ```
 
+#### Updating Pinned Actions
+
+When updating pinned actions during maintenance:
+
+1. **Identify the new version** you want to update to (e.g., `v5`)
+2. **Get the SHA commit** for the new version tag:
+   ```bash
+   git ls-remote https://github.com/actions/checkout refs/tags/v5
+   # Output: 93cb6efe18208431cddfb8368fd83d5badbf9bfd refs/tags/v5
+   ```
+3. **Update the action reference** in your workflow file:
+   ```yaml
+   # Before
+   - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+   
+   # After
+   - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+   ```
+4. **Review the changelog** for any breaking changes before updating
+5. **Test the workflow** to ensure it still functions correctly
+
+**Best practices for updates**:
+- Use Dependabot or Renovate to automate SHA updates
+- Review release notes for security fixes and breaking changes
+- Update actions in a separate PR for easier review
+- Run CI tests to validate the update before merging
+
+**Common SHAs for popular actions** (verify these before use):
+| Action | Tag | SHA |
+|--------|-----|-----|
+| actions/checkout | v5 | 93cb6efe18208431cddfb8368fd83d5badbf9bfd |
+| actions/setup-go | v5 | d35c59abb061a4a6fb18e82ac0862c26744d6ab5 |
+| actions/setup-go | v6 | 4dc6199c7b1a012772edbd06daecab0f50c9053c |
+| actions/setup-node | v4 | 49933ea5288caeca8642d1e84afbd3f7d6820020 |
+| actions/setup-node | v6 | 395ad3262231945c25e8478fd5baf05154b1d79f |
+| actions/upload-artifact | v4 | ea165f8d65b6e75b540449e92b4886f43607fa02 |
+| actions/github-script | v7 | f28e40c7f34bde8b3046d885e986cb6290c5673b |
+| github/codeql-action | v3 | 4248455a6f2335bc3b7a8a62932f000050ec8f13 |
+
 ### Verify Action Creators
 
 **Trust levels** for GitHub Actions:
@@ -875,6 +914,6 @@ Use this checklist when creating or reviewing GitHub Actions workflows:
 
 ---
 
-**Last Updated**: 2025-11-06  
+**Last Updated**: 2025-12-04  
 **Status**: ✅ Documented  
 **Implementation**: See workflow examples in `.github/workflows/` and `pkg/cli/workflows/`
