@@ -38,8 +38,6 @@ type CombinedTrialResult struct {
 	Timestamp     time.Time             `json:"timestamp"`
 }
 
-
-
 // NewTrialCommand creates the trial command
 func NewTrialCommand(validateEngine func(string) error) *cobra.Command {
 	cmd := &cobra.Command{
@@ -740,8 +738,6 @@ func showTrialConfirmation(parsedSpecs []*WorkflowSpec, logicalRepoSlug, cloneRe
 	return nil
 }
 
-
-
 func triggerWorkflowRun(repoSlug, workflowName string, triggerContext string, verbose bool) (string, error) {
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Triggering workflow run for: %s", workflowName)))
@@ -816,7 +812,6 @@ func parseIssueSpec(input string) string {
 
 	return ""
 }
-
 
 // saveTrialResult saves a trial result to a JSON file
 func saveTrialResult(filename string, result any, verbose bool) error {
@@ -947,5 +942,3 @@ func sanitizeRepoSlugForFilename(repoSlug string) string {
 	}
 	return strings.ReplaceAll(repoSlug, "/", "-")
 }
-
-
