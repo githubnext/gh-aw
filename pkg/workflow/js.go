@@ -216,6 +216,18 @@ var safeOutputTypeValidatorScript string
 //go:embed js/repo_helpers.cjs
 var repoHelpersScript string
 
+//go:embed js/safe_outputs_config.cjs
+var safeOutputsConfigScript string
+
+//go:embed js/safe_outputs_append.cjs
+var safeOutputsAppendScript string
+
+//go:embed js/safe_outputs_handlers.cjs
+var safeOutputsHandlersScript string
+
+//go:embed js/safe_outputs_tools_loader.cjs
+var safeOutputsToolsLoaderScript string
+
 // GetJavaScriptSources returns a map of all embedded JavaScript sources
 // The keys are the relative paths from the js directory
 func GetJavaScriptSources() map[string]string {
@@ -258,6 +270,10 @@ func GetJavaScriptSources() map[string]string {
 		"safe_inputs_mcp_server.cjs":      safeInputsMCPServerScript,
 		"safe_output_type_validator.cjs":  safeOutputTypeValidatorScript,
 		"repo_helpers.cjs":                repoHelpersScript,
+		"safe_outputs_config.cjs":         safeOutputsConfigScript,
+		"safe_outputs_append.cjs":         safeOutputsAppendScript,
+		"safe_outputs_handlers.cjs":       safeOutputsHandlersScript,
+		"safe_outputs_tools_loader.cjs":   safeOutputsToolsLoaderScript,
 	}
 }
 
@@ -725,4 +741,24 @@ func GetMCPServerCoreScript() string {
 // GetSafeInputsMCPServerScript returns the embedded safe_inputs_mcp_server.cjs script
 func GetSafeInputsMCPServerScript() string {
 	return safeInputsMCPServerScript
+}
+
+// GetSafeOutputsConfigScript returns the embedded safe_outputs_config.cjs script
+func GetSafeOutputsConfigScript() string {
+	return safeOutputsConfigScript
+}
+
+// GetSafeOutputsAppendScript returns the embedded safe_outputs_append.cjs script
+func GetSafeOutputsAppendScript() string {
+	return safeOutputsAppendScript
+}
+
+// GetSafeOutputsHandlersScript returns the embedded safe_outputs_handlers.cjs script
+func GetSafeOutputsHandlersScript() string {
+	return safeOutputsHandlersScript
+}
+
+// GetSafeOutputsToolsLoaderScript returns the embedded safe_outputs_tools_loader.cjs script
+func GetSafeOutputsToolsLoaderScript() string {
+	return safeOutputsToolsLoaderScript
 }

@@ -186,6 +186,75 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		}
 		yaml.WriteString("          EOF\n")
 
+		// Write the safe-outputs utility modules
+		yaml.WriteString("          cat > /tmp/gh-aw/safeoutputs/safe_outputs_config.cjs << 'EOF_CONFIG'\n")
+		for _, line := range FormatJavaScriptForYAML(GetSafeOutputsConfigScript()) {
+			yaml.WriteString(line)
+		}
+		yaml.WriteString("          EOF_CONFIG\n")
+
+		yaml.WriteString("          cat > /tmp/gh-aw/safeoutputs/safe_outputs_append.cjs << 'EOF_APPEND'\n")
+		for _, line := range FormatJavaScriptForYAML(GetSafeOutputsAppendScript()) {
+			yaml.WriteString(line)
+		}
+		yaml.WriteString("          EOF_APPEND\n")
+
+		yaml.WriteString("          cat > /tmp/gh-aw/safeoutputs/safe_outputs_handlers.cjs << 'EOF_HANDLERS'\n")
+		for _, line := range FormatJavaScriptForYAML(GetSafeOutputsHandlersScript()) {
+			yaml.WriteString(line)
+		}
+		yaml.WriteString("          EOF_HANDLERS\n")
+
+		yaml.WriteString("          cat > /tmp/gh-aw/safeoutputs/safe_outputs_tools_loader.cjs << 'EOF_TOOLS_LOADER'\n")
+		for _, line := range FormatJavaScriptForYAML(GetSafeOutputsToolsLoaderScript()) {
+			yaml.WriteString(line)
+		}
+		yaml.WriteString("          EOF_TOOLS_LOADER\n")
+
+		// Write required dependencies
+		yaml.WriteString("          cat > /tmp/gh-aw/safeoutputs/normalize_branch_name.cjs << 'EOF_NORMALIZE_BRANCH'\n")
+		for _, line := range FormatJavaScriptForYAML(normalizeBranchNameScript) {
+			yaml.WriteString(line)
+		}
+		yaml.WriteString("          EOF_NORMALIZE_BRANCH\n")
+
+		yaml.WriteString("          cat > /tmp/gh-aw/safeoutputs/estimate_tokens.cjs << 'EOF_ESTIMATE_TOKENS'\n")
+		for _, line := range FormatJavaScriptForYAML(estimateTokensScript) {
+			yaml.WriteString(line)
+		}
+		yaml.WriteString("          EOF_ESTIMATE_TOKENS\n")
+
+		yaml.WriteString("          cat > /tmp/gh-aw/safeoutputs/write_large_content_to_file.cjs << 'EOF_WRITE_LARGE'\n")
+		for _, line := range FormatJavaScriptForYAML(writeLargeContentToFileScript) {
+			yaml.WriteString(line)
+		}
+		yaml.WriteString("          EOF_WRITE_LARGE\n")
+
+		yaml.WriteString("          cat > /tmp/gh-aw/safeoutputs/get_current_branch.cjs << 'EOF_CURRENT_BRANCH'\n")
+		for _, line := range FormatJavaScriptForYAML(getCurrentBranchScript) {
+			yaml.WriteString(line)
+		}
+		yaml.WriteString("          EOF_CURRENT_BRANCH\n")
+
+		yaml.WriteString("          cat > /tmp/gh-aw/safeoutputs/get_base_branch.cjs << 'EOF_BASE_BRANCH'\n")
+		for _, line := range FormatJavaScriptForYAML(getBaseBranchScript) {
+			yaml.WriteString(line)
+		}
+		yaml.WriteString("          EOF_BASE_BRANCH\n")
+
+		yaml.WriteString("          cat > /tmp/gh-aw/safeoutputs/generate_git_patch.cjs << 'EOF_GIT_PATCH'\n")
+		for _, line := range FormatJavaScriptForYAML(generateGitPatchJSScript) {
+			yaml.WriteString(line)
+		}
+		yaml.WriteString("          EOF_GIT_PATCH\n")
+
+		yaml.WriteString("          cat > /tmp/gh-aw/safeoutputs/mcp_server_core.cjs << 'EOF_MCP_CORE'\n")
+		for _, line := range FormatJavaScriptForYAML(mcpServerCoreScript) {
+			yaml.WriteString(line)
+		}
+		yaml.WriteString("          EOF_MCP_CORE\n")
+
+		// Write the main MCP server entry point
 		yaml.WriteString("          cat > /tmp/gh-aw/safeoutputs/mcp-server.cjs << 'EOF'\n")
 		// Embed the safe-outputs MCP server script
 		for _, line := range FormatJavaScriptForYAML(GetSafeOutputsMCPServerScript()) {
