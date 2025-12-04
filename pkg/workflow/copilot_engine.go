@@ -48,7 +48,7 @@ func (e *CopilotEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHu
 
 	// Define engine configuration for shared validation
 	config := EngineInstallConfig{
-		Secrets:         []string{"COPILOT_GITHUB_TOKEN", "COPILOT_CLI_TOKEN"},
+		Secrets:         []string{"COPILOT_GITHUB_TOKEN"},
 		DocsURL:         "https://githubnext.github.io/gh-aw/reference/engines/#github-copilot-default",
 		NpmPackage:      "@github/copilot",
 		Version:         string(constants.DefaultCopilotVersion),
@@ -397,13 +397,13 @@ COPILOT_CLI_INSTRUCTION="$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"
 %s%s 2>&1 | tee %s`, mkdirCommands.String(), copilotCommand, logFile)
 	}
 
-	// Use COPILOT_GITHUB_TOKEN with fallback to legacy COPILOT_CLI_TOKEN
+	// Use COPILOT_GITHUB_TOKEN for authentication
 	// If github-token is specified at workflow level, use that instead
 	var copilotGitHubToken string
 	if workflowData.GitHubToken != "" {
 		copilotGitHubToken = workflowData.GitHubToken
 	} else {
-		copilotGitHubToken = "${{ secrets.COPILOT_GITHUB_TOKEN || secrets.COPILOT_CLI_TOKEN  }}"
+		copilotGitHubToken = "${{ secrets.COPILOT_GITHUB_TOKEN }}"
 	}
 
 	env := map[string]string{

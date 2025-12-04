@@ -290,7 +290,7 @@ func GenerateSecretValidationStep(secretName, engineName, docsURL string) GitHub
 
 // isCopilotToken checks if the secret name is a Copilot token
 func isCopilotToken(secretName string) bool {
-	return secretName == "COPILOT_GITHUB_TOKEN" || secretName == "COPILOT_CLI_TOKEN"
+	return secretName == "COPILOT_GITHUB_TOKEN"
 }
 
 // hasCopilotTokens checks if any of the secret names are Copilot tokens
