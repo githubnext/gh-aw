@@ -847,12 +847,16 @@ func downloadRunArtifactsConcurrent(runs []WorkflowRun, outputDir string, verbos
 		return []DownloadResult{}
 	}
 
-	// Limit the number of runs to process if maxRuns is specified
+	// Process all runs in the batch to account for caching and filtering
+	// The maxRuns parameter indicates how many successful results we need, but we may need to
+	// process more runs to account for:
+	// 1. Cached runs that may fail filters (engine, firewall, etc.)
+	// 2. Runs that may be skipped due to errors
+	// 3. Runs without artifacts
+	// 
+	// By processing all runs in the batch, we ensure that the count parameter correctly
+	// reflects the number of matching logs (both downloaded and cached), not just attempts.
 	actualRuns := runs
-	if maxRuns > 0 && len(runs) > maxRuns {
-		logsLog.Printf("Limiting concurrent downloads: maxRuns=%d, totalRuns=%d", maxRuns, len(runs))
-		actualRuns = runs[:maxRuns]
-	}
 
 	totalRuns := len(actualRuns)
 

@@ -68,7 +68,9 @@ func TestDownloadRunArtifactsParallel(t *testing.T) {
 }
 
 func TestDownloadRunArtifactsParallelMaxRuns(t *testing.T) {
-	// Test maxRuns parameter
+	// Test that all runs in the batch are processed, regardless of maxRuns
+	// This behavior is necessary to correctly handle caching and filtering,
+	// where runs may be cached but fail filters, requiring us to check more runs.
 	runs := []WorkflowRun{
 		{DatabaseID: 1, Status: "completed"},
 		{DatabaseID: 2, Status: "completed"},
@@ -77,15 +79,16 @@ func TestDownloadRunArtifactsParallelMaxRuns(t *testing.T) {
 		{DatabaseID: 5, Status: "completed"},
 	}
 
-	// Limit to 3 runs
+	// Pass maxRuns=3 as a hint that we need 3 results, but all runs should be processed
 	results := downloadRunArtifactsConcurrent(runs, "./test-logs", false, 3)
 
-	if len(results) != 3 {
-		t.Errorf("Expected 3 results when maxRuns=3, got %d", len(results))
+	// All runs should be processed to account for potential caching/filtering
+	if len(results) != 5 {
+		t.Errorf("Expected 5 results (all runs processed), got %d", len(results))
 	}
 
-	// Verify we got exactly 3 results from the first 3 runs (order may vary due to parallel execution)
-	expectedIDs := map[int64]bool{1: false, 2: false, 3: false}
+	// Verify we got results for all runs (order may vary due to parallel execution)
+	expectedIDs := map[int64]bool{1: false, 2: false, 3: false, 4: false, 5: false}
 	for _, result := range results {
 		if _, expected := expectedIDs[result.Run.DatabaseID]; expected {
 			expectedIDs[result.Run.DatabaseID] = true
