@@ -1365,6 +1365,38 @@ jobs:
               generateGitPatch,
             };
           EOF_GIT_PATCH
+          cat > /tmp/gh-aw/safeoutputs/read_buffer.cjs << 'EOF_READ_BUFFER'
+            class ReadBuffer {
+              constructor() {
+                this._buffer = null;
+              }
+              append(chunk) {
+                this._buffer = this._buffer ? Buffer.concat([this._buffer, chunk]) : chunk;
+              }
+              readMessage() {
+                if (!this._buffer) {
+                  return null;
+                }
+                const index = this._buffer.indexOf("\n");
+                if (index === -1) {
+                  return null;
+                }
+                const line = this._buffer.toString("utf8", 0, index).replace(/\r$/, "");
+                this._buffer = this._buffer.subarray(index + 1);
+                if (line.trim() === "") {
+                  return this.readMessage(); 
+                }
+                try {
+                  return JSON.parse(line);
+                } catch (error) {
+                  throw new Error(`Parse error: ${error instanceof Error ? error.message : String(error)}`);
+                }
+              }
+            }
+            module.exports = {
+              ReadBuffer,
+            };
+          EOF_READ_BUFFER
           cat > /tmp/gh-aw/safeoutputs/mcp_server_core.cjs << 'EOF_MCP_CORE'
             const fs = require("fs");
             const path = require("path");

@@ -248,6 +248,12 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		}
 		yaml.WriteString("          EOF_GIT_PATCH\n")
 
+		yaml.WriteString("          cat > /tmp/gh-aw/safeoutputs/read_buffer.cjs << 'EOF_READ_BUFFER'\n")
+		for _, line := range FormatJavaScriptForYAML(GetReadBufferScript()) {
+			yaml.WriteString(line)
+		}
+		yaml.WriteString("          EOF_READ_BUFFER\n")
+
 		yaml.WriteString("          cat > /tmp/gh-aw/safeoutputs/mcp_server_core.cjs << 'EOF_MCP_CORE'\n")
 		for _, line := range FormatJavaScriptForYAML(mcpServerCoreScript) {
 			yaml.WriteString(line)
