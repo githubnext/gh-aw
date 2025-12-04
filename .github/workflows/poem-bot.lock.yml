@@ -2499,7 +2499,7 @@ jobs:
         run: |
           set -e
           docker pull ghcr.io/github/github-mcp-server:v0.24.0
-      - name: Setup Safe Outputs Collector MCP
+      - name: Write Safe Outputs Config
         run: |
           mkdir -p /tmp/gh-aw/safeoutputs
           cat > /tmp/gh-aw/safeoutputs/config.json << 'EOF'
@@ -3153,6 +3153,8 @@ jobs:
             }
           }
           EOF
+      - name: Write Safe Outputs JavaScript Files
+        run: |
           cat > /tmp/gh-aw/safeoutputs/safe_outputs_config.cjs << 'EOF_CONFIG'
             const fs = require("fs");
             const path = require("path");
