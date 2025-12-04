@@ -24,6 +24,9 @@ var createCacheMemoryDirScript string
 //go:embed sh/create_gh_aw_tmp_dir.sh
 var createGhAwTmpDirScript string
 
+//go:embed sh/push_repo_memory.sh
+var pushRepoMemoryScript string
+
 //go:embed prompts/xpia_prompt.md
 var xpiaPromptText string
 

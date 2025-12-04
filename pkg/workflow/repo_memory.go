@@ -498,78 +498,29 @@ func (c *Compiler) buildPushRepoMemoryJob(data *WorkflowData, threatDetectionEna
 
 		memoryDir := fmt.Sprintf("/tmp/gh-aw/repo-memory-%s", memory.ID)
 
-		var step strings.Builder
-		step.WriteString(fmt.Sprintf("      - name: Push repo-memory changes (%s)\n", memory.ID))
-		step.WriteString("        if: always()\n")
-		step.WriteString("        env:\n")
-		step.WriteString("          GH_TOKEN: ${{ github.token }}\n")
-		step.WriteString("        run: |\n")
-		step.WriteString("          set -e\n")
-		step.WriteString(fmt.Sprintf("          cd \"%s\"\n", memoryDir))
-		step.WriteString("          \n")
-		step.WriteString("          # Check if we have any changes to commit\n")
-		step.WriteString("          if [ -n \"$(git status --porcelain)\" ]; then\n")
-		step.WriteString("            echo \"Changes detected in repo memory, committing and pushing...\"\n")
-		step.WriteString("            \n")
-
-		// Add file validation
+		// Build file glob filter string
 		fileGlobFilter := ""
 		if len(memory.FileGlob) > 0 {
 			fileGlobFilter = strings.Join(memory.FileGlob, " ")
 		}
 
-		step.WriteString("            # Validate files before committing\n")
-		step.WriteString(fmt.Sprintf("            # Check file sizes (max: %d bytes)\n", memory.MaxFileSize))
-		step.WriteString(fmt.Sprintf("            # Check file count (max: %d files)\n", memory.MaxFileCount))
-		step.WriteString("            \n")
-		step.WriteString("            # Stage all changes\n")
-		step.WriteString("            git add .\n")
-		step.WriteString("            \n")
-
-		// File glob validation
+		var step strings.Builder
+		step.WriteString(fmt.Sprintf("      - name: Push repo-memory changes (%s)\n", memory.ID))
+		step.WriteString("        if: always()\n")
+		step.WriteString("        env:\n")
+		step.WriteString("          GH_TOKEN: ${{ github.token }}\n")
+		step.WriteString("          GITHUB_RUN_ID: ${{ github.run_id }}\n")
+		step.WriteString(fmt.Sprintf("          MEMORY_DIR: %s\n", memoryDir))
+		step.WriteString(fmt.Sprintf("          TARGET_REPO: %s\n", targetRepo))
+		step.WriteString(fmt.Sprintf("          BRANCH_NAME: %s\n", memory.BranchName))
+		step.WriteString(fmt.Sprintf("          MAX_FILE_SIZE: %d\n", memory.MaxFileSize))
+		step.WriteString(fmt.Sprintf("          MAX_FILE_COUNT: %d\n", memory.MaxFileCount))
 		if fileGlobFilter != "" {
-			step.WriteString(fmt.Sprintf("            # Validate file patterns: %s\n", fileGlobFilter))
-			step.WriteString("            INVALID_FILES=$(git diff --cached --name-only | grep -v -E '" + strings.Join(memory.FileGlob, "|") + "' || true)\n")
-			step.WriteString("            if [ -n \"$INVALID_FILES\" ]; then\n")
-			step.WriteString("              echo \"Error: Files not matching allowed patterns detected:\"\n")
-			step.WriteString("              echo \"$INVALID_FILES\"\n")
-			step.WriteString("              exit 1\n")
-			step.WriteString("            fi\n")
-			step.WriteString("            \n")
+			// Quote the value to prevent YAML interpretation of * as alias
+			step.WriteString(fmt.Sprintf("          FILE_GLOB_FILTER: \"%s\"\n", fileGlobFilter))
 		}
-
-		// File size validation
-		step.WriteString("            # Check file sizes\n")
-		step.WriteString(fmt.Sprintf("            TOO_LARGE=$(git diff --cached --name-only | xargs -I {} sh -c 'if [ -f \"{}\" ] && [ $(stat -f%%z \"{}\" 2>/dev/null || stat -c%%s \"{}\" 2>/dev/null) -gt %d ]; then echo \"{}\"; fi' || true)\n", memory.MaxFileSize))
-		step.WriteString("            if [ -n \"$TOO_LARGE\" ]; then\n")
-		step.WriteString("              echo \"Error: Files exceeding size limit detected:\"\n")
-		step.WriteString("              echo \"$TOO_LARGE\"\n")
-		step.WriteString("              exit 1\n")
-		step.WriteString("            fi\n")
-		step.WriteString("            \n")
-
-		// File count validation
-		step.WriteString("            # Check file count\n")
-		step.WriteString("            FILE_COUNT=$(git diff --cached --name-only | wc -l | tr -d ' ')\n")
-		step.WriteString(fmt.Sprintf("            if [ \"$FILE_COUNT\" -gt %d ]; then\n", memory.MaxFileCount))
-		step.WriteString(fmt.Sprintf("              echo \"Error: Too many files ($FILE_COUNT > %d)\"\n", memory.MaxFileCount))
-		step.WriteString("              exit 1\n")
-		step.WriteString("            fi\n")
-		step.WriteString("            \n")
-
-		// Commit and push
-		step.WriteString("            # Commit changes\n")
-		step.WriteString("            git commit -m \"Update repo memory from workflow run ${{ github.run_id }}\"\n")
-		step.WriteString("            \n")
-		step.WriteString("            # Pull with merge strategy (ours wins on conflicts)\n")
-		step.WriteString(fmt.Sprintf("            git pull --no-rebase -X ours \"https://x-access-token:${GH_TOKEN}@github.com/%s.git\" \"%s\"\n", targetRepo, memory.BranchName))
-		step.WriteString("            \n")
-		step.WriteString("            # Push changes\n")
-		step.WriteString(fmt.Sprintf("            git push \"https://x-access-token:${GH_TOKEN}@github.com/%s.git\" HEAD:\"%s\"\n", targetRepo, memory.BranchName))
-		step.WriteString(fmt.Sprintf("            echo \"Successfully pushed changes to %s branch\"\n", memory.BranchName))
-		step.WriteString("          else\n")
-		step.WriteString("            echo \"No changes detected in repo memory\"\n")
-		step.WriteString("          fi\n")
+		step.WriteString("        run: |\n")
+		WriteShellScriptToYAML(&step, pushRepoMemoryScript, "          ")
 
 		steps = append(steps, step.String())
 	}

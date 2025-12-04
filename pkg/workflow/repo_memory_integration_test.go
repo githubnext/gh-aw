@@ -229,13 +229,18 @@ This workflow has file validation.
 	lockFile := string(lockContent)
 
 	// Check for file size validation
-	if !strings.Contains(lockFile, "Check file sizes (max: 524288 bytes)") {
+	if !strings.Contains(lockFile, "Checking file sizes (max: $MAX_FILE_SIZE bytes)") {
 		t.Error("Expected file size validation in push step")
 	}
 
 	// Check for file count validation
-	if !strings.Contains(lockFile, "Check file count (max: 50 files)") {
+	if !strings.Contains(lockFile, "Checking file count (max: $MAX_FILE_COUNT files)") {
 		t.Error("Expected file count validation in push step")
+	}
+
+	// Check for git user configuration
+	if !strings.Contains(lockFile, "github-actions[bot]") {
+		t.Error("Expected git user configuration as github-actions[bot]")
 	}
 
 	// Check constraints in prompt

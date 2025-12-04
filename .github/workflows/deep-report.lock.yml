@@ -6878,53 +6878,79 @@ jobs:
         if: always()
         env:
           GH_TOKEN: ${{ github.token }}
+          GITHUB_RUN_ID: ${{ github.run_id }}
+          MEMORY_DIR: /tmp/gh-aw/repo-memory-default
+          TARGET_REPO: ${{ github.repository }}
+          BRANCH_NAME: memory/deep-report
+          MAX_FILE_SIZE: 1048576
+          MAX_FILE_COUNT: 100
+          FILE_GLOB_FILTER: "*.md"
         run: |
+          #!/bin/bash
           set -e
-          cd "/tmp/gh-aw/repo-memory-default"
-          
+          # Push repo-memory changes to git branch
+          # Parameters (via environment variables):
+          #   MEMORY_DIR: Path to the repo-memory directory
+          #   TARGET_REPO: Target repository (owner/name)
+          #   BRANCH_NAME: Branch name to push to
+          #   MAX_FILE_SIZE: Maximum file size in bytes
+          #   MAX_FILE_COUNT: Maximum number of files per commit
+          #   FILE_GLOB_FILTER: Optional space-separated list of file patterns (e.g., "*.md *.txt")
+          #   GH_TOKEN: GitHub token for authentication
+          cd "$MEMORY_DIR"
+          # Configure git user as GitHub Actions bot
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           # Check if we have any changes to commit
           if [ -n "$(git status --porcelain)" ]; then
             echo "Changes detected in repo memory, committing and pushing..."
-            
-            # Validate files before committing
-            # Check file sizes (max: 1048576 bytes)
-            # Check file count (max: 100 files)
-            
             # Stage all changes
             git add .
-            
-            # Validate file patterns: *.md
-            INVALID_FILES=$(git diff --cached --name-only | grep -v -E '*.md' || true)
-            if [ -n "$INVALID_FILES" ]; then
-              echo "Error: Files not matching allowed patterns detected:"
-              echo "$INVALID_FILES"
-              exit 1
+            # Validate file patterns if filter is set
+            if [ -n "$FILE_GLOB_FILTER" ]; then
+              echo "Validating file patterns: $FILE_GLOB_FILTER"
+              # Convert space-separated globs to regex alternation
+              PATTERN=$(echo "$FILE_GLOB_FILTER" | sed 's/\*\./\\./g' | sed 's/\*/[^/]*/g' | sed 's/ /|/g')
+              INVALID_FILES=$(git diff --cached --name-only | grep -v -E "^($PATTERN)$" || true)
+              if [ -n "$INVALID_FILES" ]; then
+                echo "Error: Files not matching allowed patterns detected:"
+                echo "$INVALID_FILES"
+                echo "Allowed patterns: $FILE_GLOB_FILTER"
+                exit 1
+              fi
             fi
-            
             # Check file sizes
-            TOO_LARGE=$(git diff --cached --name-only | xargs -I {} sh -c 'if [ -f "{}" ] && [ $(stat -f%z "{}" 2>/dev/null || stat -c%s "{}" 2>/dev/null) -gt 1048576 ]; then echo "{}"; fi' || true)
+            echo "Checking file sizes (max: $MAX_FILE_SIZE bytes)..."
+            TOO_LARGE=$(git diff --cached --name-only | while read -r file; do
+              if [ -f "$file" ]; then
+                SIZE=$(stat -f%z "$file" 2>/dev/null || stat -c%s "$file" 2>/dev/null)
+                if [ "$SIZE" -gt "$MAX_FILE_SIZE" ]; then
+                  echo "$file ($SIZE bytes)"
+                fi
+              fi
+            done)
             if [ -n "$TOO_LARGE" ]; then
               echo "Error: Files exceeding size limit detected:"
               echo "$TOO_LARGE"
               exit 1
             fi
-            
             # Check file count
+            echo "Checking file count (max: $MAX_FILE_COUNT files)..."
             FILE_COUNT=$(git diff --cached --name-only | wc -l | tr -d ' ')
-            if [ "$FILE_COUNT" -gt 100 ]; then
-              echo "Error: Too many files ($FILE_COUNT > 100)"
+            if [ "$FILE_COUNT" -gt "$MAX_FILE_COUNT" ]; then
+              echo "Error: Too many files ($FILE_COUNT > $MAX_FILE_COUNT)"
               exit 1
             fi
-            
             # Commit changes
-            git commit -m "Update repo memory from workflow run ${{ github.run_id }}"
-            
+            echo "Committing $FILE_COUNT file(s)..."
+            git commit -m "Update repo memory from workflow run $GITHUB_RUN_ID"
             # Pull with merge strategy (ours wins on conflicts)
-            git pull --no-rebase -X ours "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git" "memory/deep-report"
-            
+            echo "Pulling latest changes from $BRANCH_NAME..."
+            git pull --no-rebase -X ours "https://x-access-token:${GH_TOKEN}@github.com/${TARGET_REPO}.git" "$BRANCH_NAME"
             # Push changes
-            git push "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git" HEAD:"memory/deep-report"
-            echo "Successfully pushed changes to memory/deep-report branch"
+            echo "Pushing changes to $BRANCH_NAME..."
+            git push "https://x-access-token:${GH_TOKEN}@github.com/${TARGET_REPO}.git" HEAD:"$BRANCH_NAME"
+            echo "Successfully pushed changes to $BRANCH_NAME branch"
           else
             echo "No changes detected in repo memory"
           fi
