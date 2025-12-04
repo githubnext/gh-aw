@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.31.6 - 2025-12-04
+
+### Bug Fixes
+
+#### Expand the "default" GitHub MCP toolset into individual, action-friendly
+
+toolsets (exclude `users`) and add support for the `action-friendly`
+keyword. This ensures generated workflows expand `default` into the
+`context,repos,issues,pull_requests` toolsets which are compatible with
+GitHub Actions tokens.
+
+#### Replace GitHub MCP with the shared `gh` CLI tool in the `dev.md` workflow, list the last 3 issues, reduce permissions to `issues: read`, and enable safe-inputs by default. Includes documentation and test updates.
+
+This is an internal/tooling and documentation change.
+
+
 ## v0.31.5 - 2025-12-03
 
 ### Bug Fixes
