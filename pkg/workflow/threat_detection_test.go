@@ -717,8 +717,10 @@ func TestThreatDetectionStepsIncludeEcho(t *testing.T) {
 func TestDownloadArtifactStepIncludesPrompt(t *testing.T) {
 	compiler := NewCompiler(false, "", "test")
 
-	// Test that the download artifact step includes prompt.txt download
-	data := &WorkflowData{} // Empty workflow data - no cache-memory configured
+	// Test that the download artifact step includes prompt.txt download even without cache-memory.
+	// When CacheMemoryConfig is nil (empty workflow data), only the standard artifacts should be downloaded:
+	// prompt.txt, agent_output.json, and aw.patch
+	data := &WorkflowData{}
 	steps := compiler.buildDownloadArtifactStep(data)
 
 	if len(steps) == 0 {

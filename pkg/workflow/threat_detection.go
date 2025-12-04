@@ -22,6 +22,23 @@ type ThreatDetectionConfig struct {
 	EngineDisabled bool          `yaml:"-"`                       // Internal flag: true when engine is explicitly set to false
 }
 
+// getCacheMemoryThreatDetectionPaths returns artifact name and download path for a cache entry
+// in the threat detection context. Returns values appropriate for backward compatibility:
+// - Single default cache: uses "cache-memory" and "/tmp/gh-aw/threat-detection/cache-memory/"
+// - Multiple caches or non-default: uses "cache-memory-{id}" and "/tmp/gh-aw/threat-detection/cache-memory-{id}/"
+func getCacheMemoryThreatDetectionPaths(cache CacheMemoryEntry, useBackwardCompatiblePaths bool) (artifactName, downloadPath string) {
+	if useBackwardCompatiblePaths {
+		return "cache-memory", "/tmp/gh-aw/threat-detection/cache-memory/"
+	}
+	return fmt.Sprintf("cache-memory-%s", cache.ID), fmt.Sprintf("/tmp/gh-aw/threat-detection/cache-memory-%s/", cache.ID)
+}
+
+// useBackwardCompatibleCachePaths returns true if backward compatible paths should be used
+// for cache-memory in threat detection (single default cache scenario)
+func useBackwardCompatibleCachePaths(config *CacheMemoryConfig) bool {
+	return config != nil && len(config.Caches) == 1 && config.Caches[0].ID == "default"
+}
+
 // parseThreatDetectionConfig handles threat-detection configuration
 func (c *Compiler) parseThreatDetectionConfig(outputMap map[string]any) *ThreatDetectionConfig {
 	if configData, exists := outputMap["threat-detection"]; exists {
@@ -202,24 +219,15 @@ func (c *Compiler) buildDownloadArtifactStep(data *WorkflowData) []string {
 
 	// Download cache-memory artifacts if configured
 	if data.CacheMemoryConfig != nil && len(data.CacheMemoryConfig.Caches) > 0 {
-		threatLog.Printf("Adding cache-memory artifact download steps for %d caches", len(data.CacheMemoryConfig.Caches))
-		// Determine if we're using backward compatible paths (single default cache)
-		useBackwardCompatiblePaths := len(data.CacheMemoryConfig.Caches) == 1 && data.CacheMemoryConfig.Caches[0].ID == "default"
+		cacheIDs := make([]string, len(data.CacheMemoryConfig.Caches))
+		for i, cache := range data.CacheMemoryConfig.Caches {
+			cacheIDs[i] = cache.ID
+		}
+		threatLog.Printf("Adding cache-memory artifact download steps for %d caches: %v", len(data.CacheMemoryConfig.Caches), cacheIDs)
 
+		useBackwardCompat := useBackwardCompatibleCachePaths(data.CacheMemoryConfig)
 		for _, cache := range data.CacheMemoryConfig.Caches {
-			var artifactName string
-			var downloadPath string
-
-			if useBackwardCompatiblePaths {
-				// Single default cache uses backward compatible naming
-				artifactName = "cache-memory"
-				downloadPath = "/tmp/gh-aw/threat-detection/cache-memory/"
-			} else {
-				// Multiple caches or non-default cache use ID-based naming
-				artifactName = fmt.Sprintf("cache-memory-%s", cache.ID)
-				downloadPath = fmt.Sprintf("/tmp/gh-aw/threat-detection/cache-memory-%s/", cache.ID)
-			}
-
+			artifactName, downloadPath := getCacheMemoryThreatDetectionPaths(cache, useBackwardCompat)
 			stepName := fmt.Sprintf("Download %s artifact", artifactName)
 			steps = append(steps, buildArtifactDownloadSteps(ArtifactDownloadConfig{
 				ArtifactName: artifactName,
@@ -268,14 +276,11 @@ func (c *Compiler) buildThreatDetectionAnalysisStep(data *WorkflowData) []string
 	// Add cache-memory directories environment variable if configured
 	if data.CacheMemoryConfig != nil && len(data.CacheMemoryConfig.Caches) > 0 {
 		var cacheDirs []string
-		useBackwardCompatiblePaths := len(data.CacheMemoryConfig.Caches) == 1 && data.CacheMemoryConfig.Caches[0].ID == "default"
+		useBackwardCompat := useBackwardCompatibleCachePaths(data.CacheMemoryConfig)
 		for _, cache := range data.CacheMemoryConfig.Caches {
-			var cacheDir string
-			if useBackwardCompatiblePaths {
-				cacheDir = "/tmp/gh-aw/threat-detection/cache-memory"
-			} else {
-				cacheDir = fmt.Sprintf("/tmp/gh-aw/threat-detection/cache-memory-%s", cache.ID)
-			}
+			_, downloadPath := getCacheMemoryThreatDetectionPaths(cache, useBackwardCompat)
+			// Remove trailing slash for directory path in env var
+			cacheDir := strings.TrimSuffix(downloadPath, "/")
 			cacheDirs = append(cacheDirs, cacheDir)
 		}
 		// Pass cache directories as comma-separated list
@@ -358,6 +363,8 @@ if (fs.existsSync(patchPath)) {
 }
 
 // Check for cache-memory directories
+// Note: fs.readdirSync with { recursive: true } requires Node.js 18.17.0+
+// The workflows use actions/setup-node@v6 which defaults to Node.js 24
 let cacheMemoryFilesInfo = 'No cache-memory files found';
 const cacheMemoryDirs = process.env.CACHE_MEMORY_DIRS;
 if (cacheMemoryDirs) {
