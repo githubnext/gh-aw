@@ -18,7 +18,7 @@ describe("safe_outputs_mcp_server.cjs using MCP TypeScript SDK", () => {
   beforeEach(() => {
     // Create temporary output file
     tempOutputFile = path.join("/tmp", `test_safe_outputs_sdk_${Date.now()}.jsonl`);
-    
+
     // Create temporary config file
     tempConfigFile = path.join("/tmp", `test_safe_outputs_config_${Date.now()}.json`);
     const configData = {
@@ -151,11 +151,11 @@ describe("safe_outputs_mcp_server.cjs using MCP TypeScript SDK", () => {
 
       // Test server startup (it should output a startup message)
       const { spawn } = require("child_process");
-      
+
       // Create a temporary config file for the spawned server
       const spawnConfigFile = path.join("/tmp", `test_spawn_config_${Date.now()}.json`);
       fs.writeFileSync(spawnConfigFile, JSON.stringify({ create_issue: { enabled: true } }));
-      
+
       const serverProcess = spawn("node", [serverPath], {
         stdio: ["pipe", "pipe", "pipe"],
         env: {
@@ -173,7 +173,7 @@ describe("safe_outputs_mcp_server.cjs using MCP TypeScript SDK", () => {
 
       // Give server time to start and output debug messages
       await new Promise(resolve => setTimeout(resolve, 500));
-      
+
       // Clean up the temporary config file
       if (fs.existsSync(spawnConfigFile)) {
         fs.unlinkSync(spawnConfigFile);
