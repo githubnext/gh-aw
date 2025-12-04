@@ -2219,7 +2219,7 @@
           ]
         },
         "bash": {
-          "description": "Bash shell command execution tool for running command-line programs and scripts. Supports wildcard patterns: '*' allows all commands, 'command *' allows command with any arguments (e.g., 'date *', 'echo *'), and 'prefix:*' allows all commands starting with prefix (e.g., 'git:*' allows git commands). Default safe commands when bash: is specified without value: echo, ls, pwd, cat, head, tail, grep, wc, sort, uniq, date.",
+          "description": "Bash shell command execution tool. Supports wildcards: ':*' (all commands), 'prefix:*' (command family, e.g., 'git:*'), 'command *' (command with any args, e.g., 'date *'). Default safe commands: echo, ls, pwd, cat, head, tail, grep, wc, sort, uniq, date.",
           "oneOf": [
             {
               "type": "null",
@@ -2227,14 +2227,14 @@
             },
             {
               "type": "boolean",
-              "description": "Enable bash tool - true allows all commands (equivalent to ['*']), false disables the tool"
+              "description": "Enable bash tool - true allows all commands (equivalent to [':*']), false disables the tool"
             },
             {
               "type": "array",
-              "description": "List of allowed bash commands and patterns. Supports wildcards: '*' alone allows all commands, 'command *' allows command with any arguments (e.g., 'date *', 'echo *' match 'date -u' or 'echo hello'), ':*' allows all commands, 'prefix:*' allows commands starting with prefix (e.g., 'git:*').",
+              "description": "List of allowed commands and patterns. Wildcards: ':*' allows all, 'prefix:*' allows command family (e.g., 'git:*'), 'command *' allows with any args (e.g., 'date *', 'echo *').",
               "items": {
                 "type": "string",
-                "description": "Command or pattern. Examples: 'echo' (exact), 'echo *' (with any args), 'git:*' (all git commands), ':*' (all commands)"
+                "description": "Command or pattern: 'echo' (exact), 'echo *' (with any args), 'git:*' (all git commands), ':*' (all commands)"
               }
             }
           ],

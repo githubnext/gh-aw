@@ -1212,12 +1212,10 @@ tools:
     toolsets: []
       # Array of Toolset name
 
-  # Bash shell command execution tool for running command-line programs and scripts.
-  # Supports wildcard patterns: '*' allows all commands, 'command *' allows command
-  # with any arguments (e.g., 'date *', 'echo *'), and 'prefix:*' allows all
-  # commands starting with prefix (e.g., 'git:*' allows git commands). Default safe
-  # commands when bash: is specified without value: echo, ls, pwd, cat, head, tail,
-  # grep, wc, sort, uniq, date.
+  # Bash shell command execution tool. Supports wildcards: ':*' (all commands),
+  # 'prefix:*' (command family, e.g., 'git:*'), 'command *' (command with any args,
+  # e.g., 'date *'). Default safe commands: echo, ls, pwd, cat, head, tail, grep,
+  # wc, sort, uniq, date.
   # (optional)
   # This field supports multiple formats (oneOf):
 
@@ -1225,17 +1223,16 @@ tools:
   # consideration: use restricted list in production)
   bash: null
 
-  # Option 2: Enable bash tool - true allows all commands (equivalent to ['*']),
+  # Option 2: Enable bash tool - true allows all commands (equivalent to [':*']),
   # false disables the tool
   bash: true
 
-  # Option 3: List of allowed bash commands and patterns. Supports wildcards: '*'
-  # alone allows all commands, 'command *' allows command with any arguments (e.g.,
-  # 'date *', 'echo *' match 'date -u' or 'echo hello'), ':*' allows all commands,
-  # 'prefix:*' allows commands starting with prefix (e.g., 'git:*').
+  # Option 3: List of allowed commands and patterns. Wildcards: ':*' allows all,
+  # 'prefix:*' allows command family (e.g., 'git:*'), 'command *' allows with any
+  # args (e.g., 'date *', 'echo *').
   bash: []
-    # Array items: Command or pattern. Examples: 'echo' (exact), 'echo *' (with any
-    # args), 'git:*' (all git commands), ':*' (all commands)
+    # Array items: Command or pattern: 'echo' (exact), 'echo *' (with any args),
+    # 'git:*' (all git commands), ':*' (all commands)
 
   # Web content fetching tool for downloading web pages and API responses (subject
   # to network permissions)
