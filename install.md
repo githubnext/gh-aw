@@ -53,6 +53,8 @@ Let's get started! 🎯
 
 ## Step 1: Install gh-aw Extension
 
+**Important:** This setup assumes the user already has GitHub CLI (`gh`) installed and authenticated. Do NOT run `gh auth login` or attempt to authenticate the user. If they encounter authentication issues, guide them to authenticate on their own following [GitHub CLI authentication documentation](https://cli.github.com/manual/gh_auth_login).
+
 First, let's check if gh-aw is already installed:
 
 ```bash
