@@ -53,7 +53,9 @@
 #   bash:
 #     - "*"
 #   edit:
-#   cache-memory:
+#   repo-memory:
+#     branch-name: memory/firewall-reports
+#     description: "Firewall analysis history and aggregated data"
 # imports:
 #   - shared/mcp/gh-aw.md
 #   - shared/reporting.md
@@ -515,16 +517,16 @@
 #
 # ## Instructions
 #
-# ### Step 0: Check Cache for Recent Analysis
+# ### Step 0: Check Repo Memory for Recent Analysis
 #
 # **EFFICIENCY FIRST**: Before starting the full analysis:
 #
-# 1. Check `/tmp/gh-aw/cache-memory/firewall-reports/` for the most recent report
+# 1. Check `/tmp/gh-aw/repo-memory-default/memory/default/` for the most recent report
 # 2. If a report exists from the last 24 hours:
 #    - Read the cached run IDs that were analyzed
 #    - Determine if any new workflow runs have occurred since then
 #    - If no new runs, update the existing report with current timestamp and exit early
-# 3. Cache the following for the next run:
+# 3. Store the following in repo memory for the next run:
 #    - Last analysis timestamp
 #    - List of run IDs analyzed
 #    - Aggregated blocked domains data
@@ -909,6 +911,35 @@ jobs:
         with:
           name: cache-memory
           path: /tmp/gh-aw/cache-memory
+      # Repo memory git-based storage configuration from frontmatter processed below
+      - name: Clone repo-memory branch (default)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BRANCH_NAME: memory/firewall-reports
+        run: |
+          set +e  # Don't fail if branch doesn't exist
+          git clone --depth 1 --single-branch --branch "memory/firewall-reports" "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git" "/tmp/gh-aw/repo-memory-default" 2>/dev/null
+          CLONE_EXIT_CODE=$?
+          set -e
+          
+          if [ $CLONE_EXIT_CODE -ne 0 ]; then
+            echo "Branch memory/firewall-reports does not exist, creating orphan branch"
+            mkdir -p "/tmp/gh-aw/repo-memory-default"
+            cd "/tmp/gh-aw/repo-memory-default"
+            git init
+            git checkout --orphan "$BRANCH_NAME"
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git"
+          else
+            echo "Successfully cloned memory/firewall-reports branch"
+            cd "/tmp/gh-aw/repo-memory-default"
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+          fi
+          
+          mkdir -p "/tmp/gh-aw/repo-memory-default/memory/default"
+          echo "Repo memory directory ready at /tmp/gh-aw/repo-memory-default/memory/default"
       - name: Configure Git credentials
         env:
           REPO_NAME: ${{ github.repository }}
@@ -3749,16 +3780,16 @@ jobs:
           
           ## Instructions
           
-          ### Step 0: Check Cache for Recent Analysis
+          ### Step 0: Check Repo Memory for Recent Analysis
           
           **EFFICIENCY FIRST**: Before starting the full analysis:
           
-          1. Check `/tmp/gh-aw/cache-memory/firewall-reports/` for the most recent report
+          1. Check `/tmp/gh-aw/repo-memory-default/memory/default/` for the most recent report
           2. If a report exists from the last 24 hours:
              - Read the cached run IDs that were analyzed
              - Determine if any new workflow runs have occurred since then
              - If no new runs, update the existing report with current timestamp and exit early
-          3. Cache the following for the next run:
+          3. Store the following in repo memory for the next run:
              - Last analysis timestamp
              - List of run IDs analyzed
              - Aggregated blocked domains data
@@ -3815,13 +3846,13 @@ jobs:
           ```javascript
           // From the audit tool result, access:
           result.firewall_analysis.denied_domains  // Array of denied domain names
-          result.firewall_analysis.allowed_domains  // Array of allowed domain names
           PROMPT_EOF
       - name: Append prompt (part 2)
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
           cat << 'PROMPT_EOF' | envsubst >> "$GH_AW_PROMPT"
+          result.firewall_analysis.allowed_domains  // Array of allowed domain names
           result.firewall_analysis.total_requests   // Total number of network requests
           result.firewall_analysis.denied_requests  // Number of denied requests
           ```
@@ -4003,6 +4034,35 @@ jobs:
           - `/tmp/gh-aw/cache-memory/preferences.json` - user preferences and settings
           - `/tmp/gh-aw/cache-memory/history.log` - activity history and logs
           - `/tmp/gh-aw/cache-memory/state/` - organized state files in subdirectories
+          
+          Feel free to create, read, update, and organize files in this folder as needed for your tasks.
+          PROMPT_EOF
+      - name: Append repo memory instructions to prompt
+        env:
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+        run: |
+          cat << 'PROMPT_EOF' | envsubst >> "$GH_AW_PROMPT"
+          
+          ---
+          
+          ## Repo Memory Available
+          
+          You have access to a persistent repo memory folder at `/tmp/gh-aw/repo-memory-default/memory/default/` where you can read and write files that are stored in a git branch. Firewall analysis history and aggregated data
+          
+          - **Read/Write Access**: You can freely read from and write to any files in this folder
+          - **Git Branch Storage**: Files are stored in the `memory/firewall-reports` branch of the current repository
+          - **Automatic Push**: Changes are automatically committed and pushed after the workflow completes
+          - **Merge Strategy**: In case of conflicts, your changes (current version) win
+          - **Persistence**: Files persist across workflow runs via git branch storage
+          
+          **Constraints:**
+          - **Max File Size**: 10240 bytes (0.01 MB) per file
+          - **Max File Count**: 100 files per commit
+          
+          Examples of what you can store:
+          - `/tmp/gh-aw/repo-memory-default/memory/default/notes.md` - general notes and observations
+          - `/tmp/gh-aw/repo-memory-default/memory/default/state.json` - structured state data
+          - `/tmp/gh-aw/repo-memory-default/memory/default/history/` - organized history files in subdirectories
           
           Feel free to create, read, update, and organize files in this folder as needed for your tasks.
           PROMPT_EOF
@@ -6841,6 +6901,53 @@ jobs:
           name: agent-stdio.log
           path: /tmp/gh-aw/agent-stdio.log
           if-no-files-found: warn
+      # Push repo memory changes back to git branches
+      - name: Push repo-memory changes (default)
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -e
+          cd "/tmp/gh-aw/repo-memory-default" || exit 0
+          
+          # Check if we have any changes to commit
+          if [ -n "$(git status --porcelain)" ]; then
+            echo "Changes detected in repo memory, committing and pushing..."
+            
+            # Validate files before committing
+            # Check file sizes (max: 10240 bytes)
+            if find . -type f -size +10240c | grep -q .; then
+              echo "Error: Files exceed maximum size limit"
+              find . -type f -size +10240c -exec ls -lh {} \;
+              exit 1
+            fi
+            
+            # Check file count (max: 100 files)
+            FILE_COUNT=$(git status --porcelain | wc -l)
+            if [ "$FILE_COUNT" -gt 100 ]; then
+              echo "Error: Too many files to commit ($FILE_COUNT > 100)"
+              exit 1
+            fi
+            
+            # Add all changes
+            git add -A
+            
+            # Commit changes
+            git commit -m "Update memory from workflow run ${{ github.run_id }}"
+            
+            # Pull with ours merge strategy (our changes win in conflicts)
+            set +e
+            git pull --no-rebase -s recursive -X ours "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git" "memory/firewall-reports" 2>&1
+            PULL_EXIT_CODE=$?
+            set -e
+            
+            # Push changes (force push if needed due to conflict resolution)
+            git push "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git" "HEAD:memory/firewall-reports"
+            
+            echo "Successfully pushed changes to repo memory"
+          else
+            echo "No changes in repo memory, skipping push"
+          fi
       - name: Upload safe outputs assets
         if: always()
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
