@@ -185,7 +185,7 @@ func deleteSetupAgenticWorkflowsAgent(verbose bool) error {
 			return fmt.Errorf("failed to remove setup-agentic-workflows agent: %w", err)
 		}
 		if verbose {
-			fmt.Printf("Removed setup-agentic-workflows agent: %s\n", agentPath)
+			fmt.Fprintf(os.Stderr, "Removed setup-agentic-workflows agent: %s\n", agentPath)
 		}
 	}
 
