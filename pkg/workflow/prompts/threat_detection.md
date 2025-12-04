@@ -29,6 +29,15 @@ The following code changes were made by the agent (if any):
 {AGENT_PATCH_FILE}
 </agent-patch-file>
 
+## Cache Memory Files
+The agent may have stored data in cache-memory directories (if any):
+
+<cache-memory-files>
+{CACHE_MEMORY_FILES}
+</cache-memory-files>
+
+Read and analyze any cache-memory files for potential security threats such as stored secrets, sensitive data, or malicious content that could persist across workflow runs.
+
 ## Analysis Required
 
 Analyze the above content for the following security threats, using the workflow source context to understand the intended purpose and legitimate use cases:

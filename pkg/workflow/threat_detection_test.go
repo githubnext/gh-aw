@@ -718,7 +718,8 @@ func TestDownloadArtifactStepIncludesPrompt(t *testing.T) {
 	compiler := NewCompiler(false, "", "test")
 
 	// Test that the download artifact step includes prompt.txt download
-	steps := compiler.buildDownloadArtifactStep()
+	data := &WorkflowData{} // Empty workflow data - no cache-memory configured
+	steps := compiler.buildDownloadArtifactStep(data)
 
 	if len(steps) == 0 {
 		t.Fatal("Expected non-empty steps for download artifact")
@@ -1010,5 +1011,168 @@ func TestCopilotDetectionDefaultModel(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestDownloadArtifactStepIncludesCacheMemory(t *testing.T) {
+	tests := []struct {
+		name              string
+		cacheMemoryConfig *CacheMemoryConfig
+		expectedArtifacts []string
+		expectedPaths     []string
+	}{
+		{
+			name:              "no cache-memory configured",
+			cacheMemoryConfig: nil,
+			expectedArtifacts: []string{"prompt.txt", "agent_output.json", "aw.patch"},
+			expectedPaths:     []string{},
+		},
+		{
+			name: "single default cache-memory",
+			cacheMemoryConfig: &CacheMemoryConfig{
+				Caches: []CacheMemoryEntry{{ID: "default"}},
+			},
+			expectedArtifacts: []string{"prompt.txt", "agent_output.json", "aw.patch", "cache-memory"},
+			expectedPaths:     []string{"/tmp/gh-aw/threat-detection/cache-memory/"},
+		},
+		{
+			name: "multiple cache-memory caches",
+			cacheMemoryConfig: &CacheMemoryConfig{
+				Caches: []CacheMemoryEntry{
+					{ID: "default"},
+					{ID: "session"},
+				},
+			},
+			expectedArtifacts: []string{"prompt.txt", "agent_output.json", "aw.patch", "cache-memory-default", "cache-memory-session"},
+			expectedPaths:     []string{"/tmp/gh-aw/threat-detection/cache-memory-default/", "/tmp/gh-aw/threat-detection/cache-memory-session/"},
+		},
+		{
+			name: "non-default single cache-memory",
+			cacheMemoryConfig: &CacheMemoryConfig{
+				Caches: []CacheMemoryEntry{{ID: "custom"}},
+			},
+			expectedArtifacts: []string{"prompt.txt", "agent_output.json", "aw.patch", "cache-memory-custom"},
+			expectedPaths:     []string{"/tmp/gh-aw/threat-detection/cache-memory-custom/"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			compiler := NewCompiler(false, "", "test")
+			data := &WorkflowData{CacheMemoryConfig: tt.cacheMemoryConfig}
+
+			steps := compiler.buildDownloadArtifactStep(data)
+			stepsString := strings.Join(steps, "")
+
+			// Check all expected artifacts are downloaded
+			for _, artifact := range tt.expectedArtifacts {
+				expectedStr := "name: " + artifact
+				if !strings.Contains(stepsString, expectedStr) {
+					t.Errorf("Expected steps to contain artifact %q download, but it was not found.\nGenerated steps:\n%s", artifact, stepsString)
+				}
+			}
+
+			// Check expected paths are used
+			for _, path := range tt.expectedPaths {
+				expectedStr := "path: " + path
+				if !strings.Contains(stepsString, expectedStr) {
+					t.Errorf("Expected steps to contain path %q, but it was not found.\nGenerated steps:\n%s", path, stepsString)
+				}
+			}
+		})
+	}
+}
+
+func TestThreatDetectionAnalysisStepIncludesCacheMemoryEnv(t *testing.T) {
+	tests := []struct {
+		name              string
+		cacheMemoryConfig *CacheMemoryConfig
+		expectedEnv       string
+	}{
+		{
+			name:              "no cache-memory - no env var",
+			cacheMemoryConfig: nil,
+			expectedEnv:       "",
+		},
+		{
+			name: "single default cache-memory",
+			cacheMemoryConfig: &CacheMemoryConfig{
+				Caches: []CacheMemoryEntry{{ID: "default"}},
+			},
+			expectedEnv: "CACHE_MEMORY_DIRS: \"/tmp/gh-aw/threat-detection/cache-memory\"",
+		},
+		{
+			name: "multiple cache-memory caches",
+			cacheMemoryConfig: &CacheMemoryConfig{
+				Caches: []CacheMemoryEntry{
+					{ID: "default"},
+					{ID: "session"},
+				},
+			},
+			expectedEnv: "CACHE_MEMORY_DIRS: \"/tmp/gh-aw/threat-detection/cache-memory-default,/tmp/gh-aw/threat-detection/cache-memory-session\"",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			compiler := NewCompiler(false, "", "test")
+			data := &WorkflowData{
+				Name:              "Test Workflow",
+				CacheMemoryConfig: tt.cacheMemoryConfig,
+				SafeOutputs: &SafeOutputsConfig{
+					ThreatDetection: &ThreatDetectionConfig{},
+				},
+			}
+
+			steps := compiler.buildThreatDetectionAnalysisStep(data)
+			stepsString := strings.Join(steps, "")
+
+			if tt.expectedEnv != "" {
+				if !strings.Contains(stepsString, tt.expectedEnv) {
+					t.Errorf("Expected steps to contain env var %q, but it was not found.\nGenerated steps:\n%s", tt.expectedEnv, stepsString)
+				}
+			} else {
+				// Check for the env var declaration pattern in YAML format (e.g., "CACHE_MEMORY_DIRS: \"/tmp/...")
+				// The setup script will contain the string "CACHE_MEMORY_DIRS" as JavaScript code, but we want to verify
+				// it's not being declared as an environment variable in the YAML
+				if strings.Contains(stepsString, "CACHE_MEMORY_DIRS: \"") {
+					t.Errorf("Expected steps to NOT contain CACHE_MEMORY_DIRS env var declaration, but it was found.\nGenerated steps:\n%s", stepsString)
+				}
+			}
+		})
+	}
+}
+
+func TestSetupScriptHandlesCacheMemory(t *testing.T) {
+	compiler := NewCompiler(false, "", "test")
+	script := compiler.buildSetupScript()
+
+	// Verify the script handles cache-memory directories
+	expectedComponents := []string{
+		"let cacheMemoryFilesInfo = 'No cache-memory files found'",
+		"const cacheMemoryDirs = process.env.CACHE_MEMORY_DIRS",
+		"cacheMemoryDirs.split(',')",
+		".replace(/{CACHE_MEMORY_FILES}/g, cacheMemoryFilesInfo)",
+	}
+
+	for _, expected := range expectedComponents {
+		if !strings.Contains(script, expected) {
+			t.Errorf("Expected setup script to contain %q, but it was not found.\nGenerated script:\n%s", expected, script)
+		}
+	}
+}
+
+func TestThreatDetectionPromptIncludesCacheMemorySection(t *testing.T) {
+	// Verify the threat detection prompt includes the cache-memory section
+	expectedSections := []string{
+		"## Cache Memory Files",
+		"{CACHE_MEMORY_FILES}",
+		"cache-memory directories",
+	}
+
+	for _, expected := range expectedSections {
+		if !strings.Contains(defaultThreatDetectionPrompt, expected) {
+			t.Errorf("Expected threat detection prompt to contain %q, but it was not found.", expected)
+		}
 	}
 }

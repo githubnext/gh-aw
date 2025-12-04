@@ -150,7 +150,7 @@ func (c *Compiler) buildThreatDetectionSteps(data *WorkflowData, mainJobName str
 	var steps []string
 
 	// Step 1: Download agent artifacts
-	steps = append(steps, c.buildDownloadArtifactStep()...)
+	steps = append(steps, c.buildDownloadArtifactStep(data)...)
 
 	// Step 2: Echo agent outputs for debugging
 	steps = append(steps, c.buildEchoAgentOutputsStep(mainJobName)...)
@@ -173,7 +173,7 @@ func (c *Compiler) buildThreatDetectionSteps(data *WorkflowData, mainJobName str
 }
 
 // buildDownloadArtifactStep creates the artifact download step
-func (c *Compiler) buildDownloadArtifactStep() []string {
+func (c *Compiler) buildDownloadArtifactStep(data *WorkflowData) []string {
 	var steps []string
 
 	// Download prompt artifact
@@ -199,6 +199,36 @@ func (c *Compiler) buildDownloadArtifactStep() []string {
 		SetupEnvStep: false,
 		StepName:     "Download patch artifact",
 	})...)
+
+	// Download cache-memory artifacts if configured
+	if data.CacheMemoryConfig != nil && len(data.CacheMemoryConfig.Caches) > 0 {
+		threatLog.Printf("Adding cache-memory artifact download steps for %d caches", len(data.CacheMemoryConfig.Caches))
+		// Determine if we're using backward compatible paths (single default cache)
+		useBackwardCompatiblePaths := len(data.CacheMemoryConfig.Caches) == 1 && data.CacheMemoryConfig.Caches[0].ID == "default"
+
+		for _, cache := range data.CacheMemoryConfig.Caches {
+			var artifactName string
+			var downloadPath string
+
+			if useBackwardCompatiblePaths {
+				// Single default cache uses backward compatible naming
+				artifactName = "cache-memory"
+				downloadPath = "/tmp/gh-aw/threat-detection/cache-memory/"
+			} else {
+				// Multiple caches or non-default cache use ID-based naming
+				artifactName = fmt.Sprintf("cache-memory-%s", cache.ID)
+				downloadPath = fmt.Sprintf("/tmp/gh-aw/threat-detection/cache-memory-%s/", cache.ID)
+			}
+
+			stepName := fmt.Sprintf("Download %s artifact", artifactName)
+			steps = append(steps, buildArtifactDownloadSteps(ArtifactDownloadConfig{
+				ArtifactName: artifactName,
+				DownloadPath: downloadPath,
+				SetupEnvStep: false,
+				StepName:     stepName,
+			})...)
+		}
+	}
 
 	return steps
 }
@@ -235,6 +265,23 @@ func (c *Compiler) buildThreatDetectionAnalysisStep(data *WorkflowData) []string
 		steps = append(steps, fmt.Sprintf("          CUSTOM_PROMPT: %q\n", customPrompt))
 	}
 
+	// Add cache-memory directories environment variable if configured
+	if data.CacheMemoryConfig != nil && len(data.CacheMemoryConfig.Caches) > 0 {
+		var cacheDirs []string
+		useBackwardCompatiblePaths := len(data.CacheMemoryConfig.Caches) == 1 && data.CacheMemoryConfig.Caches[0].ID == "default"
+		for _, cache := range data.CacheMemoryConfig.Caches {
+			var cacheDir string
+			if useBackwardCompatiblePaths {
+				cacheDir = "/tmp/gh-aw/threat-detection/cache-memory"
+			} else {
+				cacheDir = fmt.Sprintf("/tmp/gh-aw/threat-detection/cache-memory-%s", cache.ID)
+			}
+			cacheDirs = append(cacheDirs, cacheDir)
+		}
+		// Pass cache directories as comma-separated list
+		steps = append(steps, fmt.Sprintf("          CACHE_MEMORY_DIRS: %q\n", strings.Join(cacheDirs, ",")))
+	}
+
 	steps = append(steps, []string{
 		"        with:\n",
 		"          script: |\n",
@@ -263,6 +310,7 @@ func (c *Compiler) buildThreatDetectionAnalysisStep(data *WorkflowData) []string
 func (c *Compiler) buildSetupScript() string {
 	// Build the JavaScript code with proper handling of backticks for markdown code blocks
 	script := `const fs = require('fs');
+const path = require('path');
 
 // Check if prompt file exists
 const promptPath = '/tmp/gh-aw/threat-detection/prompt.txt';
@@ -309,6 +357,42 @@ if (fs.existsSync(patchPath)) {
   core.info('No patch file found at: ' + patchPath);
 }
 
+// Check for cache-memory directories
+let cacheMemoryFilesInfo = 'No cache-memory files found';
+const cacheMemoryDirs = process.env.CACHE_MEMORY_DIRS;
+if (cacheMemoryDirs) {
+  const dirs = cacheMemoryDirs.split(',').filter(d => d.trim());
+  const cacheFiles = [];
+  for (const dir of dirs) {
+    if (fs.existsSync(dir)) {
+      try {
+        const files = fs.readdirSync(dir, { recursive: true });
+        for (const file of files) {
+          const fullPath = path.join(dir, file);
+          try {
+            const stats = fs.statSync(fullPath);
+            if (stats.isFile()) {
+              cacheFiles.push(fullPath + ' (' + stats.size + ' bytes)');
+            }
+          } catch (statErr) {
+            core.warning('Failed to stat cache file ' + fullPath + ': ' + statErr.message);
+          }
+        }
+      } catch (readErr) {
+        core.warning('Failed to read cache directory ' + dir + ': ' + readErr.message);
+      }
+    } else {
+      core.info('Cache memory directory not found: ' + dir);
+    }
+  }
+  if (cacheFiles.length > 0) {
+    cacheMemoryFilesInfo = cacheFiles.join('\n');
+    core.info('Found ' + cacheFiles.length + ' cache-memory files');
+  }
+} else {
+  core.info('No cache-memory directories configured');
+}
+
 // Create threat detection prompt with embedded template
 const templateContent = %s;
 let promptContent = templateContent
@@ -316,7 +400,8 @@ let promptContent = templateContent
   .replace(/{WORKFLOW_DESCRIPTION}/g, process.env.WORKFLOW_DESCRIPTION || 'No description provided')
   .replace(/{WORKFLOW_PROMPT_FILE}/g, promptFileInfo)
   .replace(/{AGENT_OUTPUT_FILE}/g, agentOutputFileInfo)
-  .replace(/{AGENT_PATCH_FILE}/g, patchFileInfo);
+  .replace(/{AGENT_PATCH_FILE}/g, patchFileInfo)
+  .replace(/{CACHE_MEMORY_FILES}/g, cacheMemoryFilesInfo);
 
 // Append custom prompt instructions if provided
 const customPrompt = process.env.CUSTOM_PROMPT;
