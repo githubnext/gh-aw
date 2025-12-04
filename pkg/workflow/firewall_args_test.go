@@ -123,4 +123,32 @@ func TestFirewallArgsInCopilotEngine(t *testing.T) {
 			t.Error("Expected command to contain '--path' flag")
 		}
 	})
+
+	t.Run("gh CLI binary is mounted to AWF container", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name: "test-workflow",
+			EngineConfig: &EngineConfig{
+				ID: "copilot",
+			},
+			NetworkPermissions: &NetworkPermissions{
+				Firewall: &FirewallConfig{
+					Enabled: true,
+				},
+			},
+		}
+
+		engine := NewCopilotEngine()
+		steps := engine.GetExecutionSteps(workflowData, "test.log")
+
+		if len(steps) == 0 {
+			t.Fatal("Expected at least one execution step")
+		}
+
+		stepContent := strings.Join(steps[0], "\n")
+
+		// Check that gh CLI binary mount is included in AWF command
+		if !strings.Contains(stepContent, "--mount /usr/bin/gh:/usr/bin/gh:ro") {
+			t.Error("Expected AWF command to contain gh CLI binary mount '--mount /usr/bin/gh:/usr/bin/gh:ro'")
+		}
+	})
 }
