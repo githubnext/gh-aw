@@ -150,16 +150,6 @@ func ensureSharedAgenticWorkflowAgent(verbose bool, skipInstructions bool) error
 	return ensureAgentFromTemplate("create-shared-agentic-workflow.agent.md", sharedAgenticWorkflowAgentTemplate, verbose, skipInstructions)
 }
 
-// ensureSetupAgenticWorkflowsAgent ensures that .github/agents/setup-agentic-workflows.agent.md contains the setup guide agent
-func ensureSetupAgenticWorkflowsAgent(verbose bool, skipInstructions bool) error {
-	// First, clean up the old prompt file if it exists
-	if err := cleanupOldPromptFile("setup-agentic-workflows.prompt.md", verbose); err != nil {
-		return err
-	}
-
-	return ensureAgentFromTemplate("setup-agentic-workflows.agent.md", setupAgenticWorkflowsAgentTemplate, verbose, skipInstructions)
-}
-
 // ensureDebugAgenticWorkflowAgent ensures that .github/agents/debug-agentic-workflow.agent.md contains the debug workflow agent
 func ensureDebugAgenticWorkflowAgent(verbose bool, skipInstructions bool) error {
 	// First, clean up the old prompt file if it exists
