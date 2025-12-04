@@ -400,6 +400,26 @@ echo "greeting=Hello from shell" >> $GITHUB_OUTPUT
       const readBufferContent = fs.readFileSync(path.join(__dirname, "read_buffer.cjs"), "utf-8");
       fs.writeFileSync(readBufferPath, readBufferContent);
 
+      // Copy safe_inputs_config_loader.cjs
+      const configLoaderPath = path.join(tempDir, "safe_inputs_config_loader.cjs");
+      const configLoaderContent = fs.readFileSync(path.join(__dirname, "safe_inputs_config_loader.cjs"), "utf-8");
+      fs.writeFileSync(configLoaderPath, configLoaderContent);
+
+      // Copy safe_inputs_tool_factory.cjs
+      const toolFactoryPath = path.join(tempDir, "safe_inputs_tool_factory.cjs");
+      const toolFactoryContent = fs.readFileSync(path.join(__dirname, "safe_inputs_tool_factory.cjs"), "utf-8");
+      fs.writeFileSync(toolFactoryPath, toolFactoryContent);
+
+      // Copy mcp_handler_python.cjs
+      const pythonHandlerPath = path.join(tempDir, "mcp_handler_python.cjs");
+      const pythonHandlerContent = fs.readFileSync(path.join(__dirname, "mcp_handler_python.cjs"), "utf-8");
+      fs.writeFileSync(pythonHandlerPath, pythonHandlerContent);
+
+      // Copy mcp_handler_shell.cjs
+      const shellHandlerPath = path.join(tempDir, "mcp_handler_shell.cjs");
+      const shellHandlerContent = fs.readFileSync(path.join(__dirname, "mcp_handler_shell.cjs"), "utf-8");
+      fs.writeFileSync(shellHandlerPath, shellHandlerContent);
+
       // Copy safe_inputs_mcp_server.cjs
       const safeinputsServerPath = path.join(tempDir, "safe_inputs_mcp_server.cjs");
       const safeinputsServerContent = fs.readFileSync(path.join(__dirname, "safe_inputs_mcp_server.cjs"), "utf-8");
@@ -559,6 +579,22 @@ echo "greeting=Hello from shell" >> $GITHUB_OUTPUT
       const readBufferContent = fs.readFileSync(path.join(__dirname, "read_buffer.cjs"), "utf-8");
       fs.writeFileSync(readBufferPath, readBufferContent);
 
+      const configLoaderPath = path.join(tempDir, "safe_inputs_config_loader.cjs");
+      const configLoaderContent = fs.readFileSync(path.join(__dirname, "safe_inputs_config_loader.cjs"), "utf-8");
+      fs.writeFileSync(configLoaderPath, configLoaderContent);
+
+      const toolFactoryPath = path.join(tempDir, "safe_inputs_tool_factory.cjs");
+      const toolFactoryContent = fs.readFileSync(path.join(__dirname, "safe_inputs_tool_factory.cjs"), "utf-8");
+      fs.writeFileSync(toolFactoryPath, toolFactoryContent);
+
+      const pythonHandlerPath = path.join(tempDir, "mcp_handler_python.cjs");
+      const pythonHandlerContent = fs.readFileSync(path.join(__dirname, "mcp_handler_python.cjs"), "utf-8");
+      fs.writeFileSync(pythonHandlerPath, pythonHandlerContent);
+
+      const shellHandlerPath = path.join(tempDir, "mcp_handler_shell.cjs");
+      const shellHandlerContent = fs.readFileSync(path.join(__dirname, "mcp_handler_shell.cjs"), "utf-8");
+      fs.writeFileSync(shellHandlerPath, shellHandlerContent);
+
       const safeinputsServerPath = path.join(tempDir, "safe_inputs_mcp_server.cjs");
       const safeinputsServerContent = fs.readFileSync(path.join(__dirname, "safe_inputs_mcp_server.cjs"), "utf-8");
       fs.writeFileSync(safeinputsServerPath, safeinputsServerContent);
@@ -668,6 +704,22 @@ echo "greeting=Hello from shell" >> $GITHUB_OUTPUT
       const readBufferPath = path.join(tempDir, "read_buffer.cjs");
       const readBufferContent = fs.readFileSync(path.join(__dirname, "read_buffer.cjs"), "utf-8");
       fs.writeFileSync(readBufferPath, readBufferContent);
+
+      const configLoaderPath = path.join(tempDir, "safe_inputs_config_loader.cjs");
+      const configLoaderContent = fs.readFileSync(path.join(__dirname, "safe_inputs_config_loader.cjs"), "utf-8");
+      fs.writeFileSync(configLoaderPath, configLoaderContent);
+
+      const toolFactoryPath = path.join(tempDir, "safe_inputs_tool_factory.cjs");
+      const toolFactoryContent = fs.readFileSync(path.join(__dirname, "safe_inputs_tool_factory.cjs"), "utf-8");
+      fs.writeFileSync(toolFactoryPath, toolFactoryContent);
+
+      const pythonHandlerPath = path.join(tempDir, "mcp_handler_python.cjs");
+      const pythonHandlerContent = fs.readFileSync(path.join(__dirname, "mcp_handler_python.cjs"), "utf-8");
+      fs.writeFileSync(pythonHandlerPath, pythonHandlerContent);
+
+      const shellHandlerPath = path.join(tempDir, "mcp_handler_shell.cjs");
+      const shellHandlerContent = fs.readFileSync(path.join(__dirname, "mcp_handler_shell.cjs"), "utf-8");
+      fs.writeFileSync(shellHandlerPath, shellHandlerContent);
 
       const safeinputsServerPath = path.join(tempDir, "safe_inputs_mcp_server.cjs");
       const safeinputsServerContent = fs.readFileSync(path.join(__dirname, "safe_inputs_mcp_server.cjs"), "utf-8");
