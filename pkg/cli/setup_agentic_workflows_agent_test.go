@@ -132,6 +132,10 @@ func TestEnsureSetupAgenticWorkflowsAgent_WithSkipInstructionsTrue(t *testing.T)
 func TestSetupAgenticWorkflowsAgentContainsRequiredSections(t *testing.T) {
 	// Verify the template contains all required sections
 	requiredSections := []string{
+		"Check gh-aw Installation",
+		"gh aw version",
+		"gh extension install",
+		"install-gh-aw.sh",
 		"Configure Secrets for Your Chosen Agent",
 		"copilot",
 		"claude",

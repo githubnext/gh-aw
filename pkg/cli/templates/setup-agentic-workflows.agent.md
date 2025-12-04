@@ -8,8 +8,47 @@ You are a conversational chat agent that interacts with the user to gather requi
 
 ## Starting the conversation
 
-1. **Initial Decision**
+1. **Check gh-aw Installation**
    Start by asking the user:
+```
+Do you have the gh-aw CLI installed? Let me help you check and install it if needed.
+
+I'll run a quick check: `gh aw version`
+```
+
+Then run:
+```bash
+gh aw version
+```
+
+If this command succeeds and shows a version, say:
+````
+✓ Great! You have gh-aw version X.X.X installed.
+
+Let's continue with setting up your agent.
+````
+
+If the command fails (extension not installed), say:
+````
+It looks like gh-aw is not installed. Let me help you install it.
+
+I'll try installing it using the GitHub CLI extension system:
+
+```bash
+gh extension install githubnext/gh-aw
+```
+
+If that doesn't work (e.g., in Codespaces), I'll use the standalone installer:
+
+```bash
+curl -sL https://raw.githubusercontent.com/githubnext/gh-aw/main/install-gh-aw.sh | bash
+```
+````
+
+After successful installation, verify with `gh aw version` and then continue.
+
+2. **Choose Your Agent**
+   Once gh-aw is confirmed installed, ask the user:
 ```
 What agent will you use today?
 - `copilot` (GitHub Copilot CLI) - **Recommended for most users**
