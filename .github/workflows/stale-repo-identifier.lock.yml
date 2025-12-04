@@ -97,10 +97,12 @@
 #       ADDITIONAL_METRICS: "release,pr"
 #
 #   - name: Save stale repos output
+#     env:
+#       INACTIVE_REPOS: ${{ steps.stale-repos.outputs.inactiveRepos }}
 #     run: |
 #       mkdir -p /tmp/stale-repos-data
-#       echo '${{ steps.stale-repos.outputs.inactiveRepos }}' > /tmp/stale-repos-data/inactive-repos.json
-#       echo "Stale repositories data saved to /tmp/stale-repos-data/inactive-repos.json"
+#       echo "$INACTIVE_REPOS" > /tmp/stale-repos-data/inactive-repos.json
+#       echo "Stale repositories data saved"
 #       echo "Total stale repositories: $(jq 'length' /tmp/stale-repos-data/inactive-repos.json)"
 # ```
 #
@@ -1197,8 +1199,10 @@ jobs:
         id: stale-repos
         name: Run stale_repos tool
         uses: github/stale-repos@v3
-      - name: Save stale repos output
-        run: "mkdir -p /tmp/stale-repos-data\necho '${{ steps.stale-repos.outputs.inactiveRepos }}' > /tmp/stale-repos-data/inactive-repos.json\necho \"Stale repositories data saved to /tmp/stale-repos-data/inactive-repos.json\"\necho \"Total stale repositories: $(jq 'length' /tmp/stale-repos-data/inactive-repos.json)\""
+      - env:
+          INACTIVE_REPOS: ${{ steps.stale-repos.outputs.inactiveRepos }}
+        name: Save stale repos output
+        run: "mkdir -p /tmp/stale-repos-data\necho \"$INACTIVE_REPOS\" > /tmp/stale-repos-data/inactive-repos.json\necho \"Stale repositories data saved\"\necho \"Total stale repositories: $(jq 'length' /tmp/stale-repos-data/inactive-repos.json)\""
 
       # Cache memory file share configuration from frontmatter processed below
       - name: Create cache-memory directory
@@ -1314,7 +1318,7 @@ jobs:
         run: |
           set -e
           docker pull ghcr.io/github/github-mcp-server:v0.24.0
-      - name: Setup Safe Outputs Collector MCP
+      - name: Write Safe Outputs Config
         run: |
           mkdir -p /tmp/gh-aw/safeoutputs
           cat > /tmp/gh-aw/safeoutputs/config.json << 'EOF'
@@ -1503,6 +1507,8 @@ jobs:
             }
           }
           EOF
+      - name: Write Safe Outputs JavaScript Files
+        run: |
           cat > /tmp/gh-aw/safeoutputs/mcp-server.cjs << 'EOF'
             const fs = require("fs");
             const path = require("path");

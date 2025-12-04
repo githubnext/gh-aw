@@ -685,7 +685,7 @@ jobs:
           docker pull mcp/context7
           docker pull mcp/memory
           docker pull mcp/notion
-      - name: Setup Safe Outputs Collector MCP
+      - name: Write Safe Outputs Config
         run: |
           mkdir -p /tmp/gh-aw/safeoutputs
           cat > /tmp/gh-aw/safeoutputs/config.json << 'EOF'
@@ -827,6 +827,8 @@ jobs:
             }
           }
           EOF
+      - name: Write Safe Outputs JavaScript Files
+        run: |
           cat > /tmp/gh-aw/safeoutputs/mcp-server.cjs << 'EOF'
             const fs = require("fs");
             const path = require("path");
