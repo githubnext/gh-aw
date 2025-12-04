@@ -171,13 +171,9 @@ print(f"✅ Processed {len(output)} unique workflows")
 print(f"📊 Data saved to /tmp/gh-aw/python/data/workflow_stats.json")
 ```
 
-Save this script and run it:
+**IMPORTANT**: Copy the complete Python script from above (lines starting with `#!/usr/bin/env python3`) and save it to `/tmp/gh-aw/process_logs.py`, then run it:
 
 ```bash
-cat > /tmp/gh-aw/process_logs.py << 'SCRIPT'
-[paste the Python script above]
-SCRIPT
-
 python3 /tmp/gh-aw/process_logs.py
 ```
 
@@ -243,13 +239,9 @@ print(f"💰 Total cost: ${total_cost:.2f}")
 print(f"🔄 Total runs: {total_runs}")
 ```
 
-Run the script:
+**IMPORTANT**: Copy the complete Python script from above (starting with `#!/usr/bin/env python3`) and save it to `/tmp/gh-aw/store_history.py`, then run it:
 
 ```bash
-cat > /tmp/gh-aw/store_history.py << 'SCRIPT'
-[paste the Python script above]
-SCRIPT
-
 python3 /tmp/gh-aw/store_history.py
 ```
 
@@ -338,13 +330,9 @@ if workflow_trends:
     print(f"✅ Prepared workflow trends CSV with {len(df_workflows)} records")
 ```
 
-Run the preparation script:
+**IMPORTANT**: Copy the complete Python script from above (starting with `#!/usr/bin/env python3`) and save it to `/tmp/gh-aw/prepare_charts.py`, then run it:
 
 ```bash
-cat > /tmp/gh-aw/prepare_charts.py << 'SCRIPT'
-[paste the Python script above]
-SCRIPT
-
 python3 /tmp/gh-aw/prepare_charts.py
 ```
 
@@ -470,13 +458,9 @@ print("✅ Generated top workflows chart")
 print(f"\n📈 All charts saved to {charts_dir}/")
 ```
 
-Run the chart generation:
+**IMPORTANT**: Copy the complete Python script from above (starting with `#!/usr/bin/env python3`) and save it to `/tmp/gh-aw/generate_charts.py`, then run it:
 
 ```bash
-cat > /tmp/gh-aw/generate_charts.py << 'SCRIPT'
-[paste the Python script above]
-SCRIPT
-
 python3 /tmp/gh-aw/generate_charts.py
 ```
 
@@ -492,7 +476,9 @@ Store the returned URLs for embedding in the report.
 
 ## Phase 4: Generate Report
 
-Create a comprehensive discussion report with all findings:
+Create a comprehensive discussion report with all findings.
+
+**Note**: The report template below contains placeholder variables (e.g., `[DATE]`, `[TOTAL_TOKENS]`, `URL_FROM_UPLOAD_ASSET_CHART_1`) that you should replace with actual values during report generation.
 
 ### Report Structure
 
