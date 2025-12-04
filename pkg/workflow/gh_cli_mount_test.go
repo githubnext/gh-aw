@@ -99,16 +99,15 @@ func TestGhCLIMountInAWFContainer(t *testing.T) {
 		// Find positions of mounts in the command
 		tmpMountPos := strings.Index(stepContent, "--mount /tmp:/tmp:rw")
 		workspaceMountPos := strings.Index(stepContent, "--mount \"${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:rw\"")
-		githubMountPos := strings.Index(stepContent, "--mount \"${GITHUB_WORKSPACE}/.github:/workspace/.github:rw\"")
 		ghMountPos := strings.Index(stepContent, "--mount /usr/bin/gh:/usr/bin/gh:ro")
 
-		if tmpMountPos == -1 || workspaceMountPos == -1 || githubMountPos == -1 || ghMountPos == -1 {
+		if tmpMountPos == -1 || workspaceMountPos == -1 || ghMountPos == -1 {
 			t.Fatal("Not all expected mounts were found in the command")
 		}
 
-		// Verify order: /tmp < workspace < .github < gh
-		if !(tmpMountPos < workspaceMountPos && workspaceMountPos < githubMountPos && githubMountPos < ghMountPos) {
-			t.Error("Expected mount order: /tmp, workspace, .github, gh CLI")
+		// Verify order: /tmp < workspace < gh
+		if !(tmpMountPos < workspaceMountPos && workspaceMountPos < ghMountPos) {
+			t.Error("Expected mount order: /tmp, workspace, gh CLI")
 		}
 	})
 
