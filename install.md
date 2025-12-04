@@ -195,36 +195,17 @@ You should see both the `.md` and `.lock.yml` files.
 
 ### Option B: Create a New Workflow with AI Assistance
 
-If you want to create a custom workflow, you can use GitHub Copilot Chat (in VS Code, GitHub.com, or Copilot CLI) with the workflow creation agent.
-
-**Using GitHub Copilot Chat (VS Code or GitHub.com):**
-
-After running `gh aw init`, the `/create-agentic-workflow` slash command becomes available in GitHub Copilot Chat. Simply type:
+If you want to create a custom workflow, use the workflow creation agent:
 
 ```
-/create-agentic-workflow
+activate .github/agents/create-agentic-workflow.agent.md
 ```
 
-**Using GitHub Copilot CLI (terminal-based):**
-
-First, install GitHub Copilot CLI if you haven't already:
-```bash
-# Prerequisites: Node.js v22+ and npm v10+
-npm install -g @github/copilot
-```
-
-Then launch the interactive CLI and use the agent:
-```bash
-copilot
-```
-
-In the Copilot CLI session, you can use the `/create-agentic-workflow` command or simply describe what you want to automate in natural language.
-
-The agent will help you:
-- Choose the right trigger (issues, PRs, schedule, etc.)
-- Configure permissions and tools
-- Write the workflow instructions
-- Compile and test the workflow
+This will load the interactive workflow designer agent that will guide you through:
+- Choosing the right trigger (issues, PRs, schedule, etc.)
+- Configuring permissions and tools
+- Writing the workflow instructions
+- Compiling and testing the workflow
 
 **Alternative:** You can also manually create a workflow file at `.github/workflows/my-workflow.md` and then compile it:
 ```bash
@@ -271,11 +252,11 @@ gh aw logs <workflow-name>
 
 3. **Get AI help debugging:**
 
-   Use GitHub Copilot Chat (VS Code, GitHub.com) or Copilot CLI:
-   ```bash
-   copilot
    ```
-   Then use the `/debug-agentic-workflow` command and describe the issue.
+   activate .github/agents/debug-agentic-workflow.agent.md
+   ```
+   
+   Then describe the issue you're experiencing with your workflow.
 
 ## Next Steps
 
