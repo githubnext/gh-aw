@@ -29,7 +29,21 @@ curl -sL https://raw.githubusercontent.com/githubnext/gh-aw/main/install-gh-aw.s
 
 After installation, verify with `gh aw version` and then continue.
 
-### 2. Choose Your AI Agent
+### 2. Initialize Your Repository
+
+Run the init command to configure your repository for agentic workflows:
+
+```bash
+gh aw init
+```
+
+This command will:
+- Configure `.gitattributes` to mark `.lock.yml` files as generated
+- Create GitHub Copilot custom instructions
+- Create agents for workflow creation and debugging
+- Set up your repository structure
+
+### 3. Choose Your AI Agent
 
 Select which AI agent you'll use for your agentic workflows:
 
@@ -92,15 +106,68 @@ You'll need an OpenAI API key.
 gh secret set OPENAI_API_KEY -a actions --body "your-openai-api-key-here"
 ```
 
-## Build Your First Workflow
+## Add Your First Workflow
 
-When you're ready, use Copilot to create your workflow:
+Now you have two options for getting started with workflows:
 
-**Using GitHub Copilot CLI:**
+### Option 1: Create a New Workflow from Scratch
+
+If you want to build a custom workflow tailored to your needs:
+
+```bash
+gh aw new my-workflow
+```
+
+This creates a new workflow file at `.github/workflows/my-workflow.md` with example configuration. You can then edit it to define your workflow logic.
+
+**Or use GitHub Copilot CLI for an interactive experience:**
 1. Launch Copilot: `npx @github/copilot`
 2. Type `/create-agentic-workflow` in the chat
+3. Follow the prompts to build your workflow
 
-This will help you create your first agentic workflow interactively.
+### Option 2: Import from the Agentics Catalog
+
+If you want to start with proven workflows from the community:
+
+**Step 1: List available workflows**
+```bash
+gh aw add githubnext/agentics
+```
+
+This displays all available workflows in the agentics catalog.
+
+**Step 2: Choose and add a workflow**
+
+Once you see the list, add a workflow you want to use:
+
+```bash
+# Add a specific workflow
+gh aw add githubnext/agentics/workflow-name
+
+# Or add all workflows
+gh aw add githubnext/agentics/*
+```
+
+**Examples:**
+```bash
+# Add the CI doctor workflow
+gh aw add githubnext/agentics/ci-doctor
+
+# Add the daily team status workflow
+gh aw add githubnext/agentics/daily-team-status
+
+# Add with a specific version
+gh aw add githubnext/agentics/ci-doctor@v1.0.0
+
+# Add and create a pull request
+gh aw add githubnext/agentics/ci-doctor --create-pull-request
+```
+
+**Popular workflows from the catalog:**
+- `ci-doctor` - Diagnose and fix CI/CD issues
+- `daily-team-status` - Generate daily team status reports
+- `pr-reviewer` - Automated pull request reviews
+- `issue-triager` - Automatic issue triage and labeling
 
 ## Next Steps
 
