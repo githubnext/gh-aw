@@ -224,6 +224,31 @@ func TestNonCopilotTokensNoTypeValidation(t *testing.T) {
 	}
 }
 
+func TestThreatDetectionSkipsTokenTypeValidation(t *testing.T) {
+	engine := NewCopilotEngine()
+	workflowData := &WorkflowData{
+		IsThreatDetection: true, // Simulate threat detection context
+	}
+
+	steps := engine.GetInstallationSteps(workflowData)
+	if len(steps) < 1 {
+		t.Fatal("Expected at least one installation step")
+	}
+
+	// First step should be secret validation but without token type validation
+	firstStep := strings.Join(steps[0], "\n")
+
+	// Should still have basic secret validation
+	if !strings.Contains(firstStep, "Validate COPILOT_GITHUB_TOKEN or COPILOT_CLI_TOKEN secret") {
+		t.Error("Threat detection should still validate secret presence")
+	}
+
+	// Should NOT have token type validation (skipped for threat detection)
+	if strings.Contains(firstStep, "grep -q '^ghp_'") {
+		t.Error("Threat detection should skip token type validation")
+	}
+}
+
 func TestCodexEngineHasSecretValidation(t *testing.T) {
 	engine := NewCodexEngine()
 	workflowData := &WorkflowData{}

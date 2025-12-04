@@ -58,10 +58,14 @@ func (e *CopilotEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHu
 	}
 
 	// Add secret validation step
-	secretValidation := GenerateMultiSecretValidationStep(
+	// Skip token type validation for threat detection (main agent job handles it)
+	secretValidation := GenerateMultiSecretValidationStepWithOptions(
 		config.Secrets,
 		config.Name,
 		config.DocsURL,
+		SecretValidationOptions{
+			SkipTokenTypeValidation: workflowData.IsThreatDetection,
+		},
 	)
 	steps = append(steps, secretValidation)
 

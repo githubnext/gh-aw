@@ -411,10 +411,11 @@ func (c *Compiler) buildEngineSteps(data *WorkflowData) []string {
 		Tools: map[string]any{
 			"bash": []any{"cat", "head", "tail", "wc", "grep", "ls", "jq"},
 		},
-		SafeOutputs:  nil,
-		Network:      "",
-		EngineConfig: detectionEngineConfig,
-		AI:           engineSetting,
+		SafeOutputs:       nil,
+		Network:           "",
+		EngineConfig:      detectionEngineConfig,
+		AI:                engineSetting,
+		IsThreatDetection: true, // Skip token type validation (main agent job handles it)
 	}
 
 	var steps []string

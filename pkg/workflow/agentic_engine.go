@@ -303,13 +303,23 @@ func hasCopilotTokens(secretNames []string) bool {
 	return false
 }
 
+// SecretValidationOptions holds options for secret validation step generation
+type SecretValidationOptions struct {
+	SkipTokenTypeValidation bool // Skip token type validation (for threat detection job)
+}
+
 // GenerateMultiSecretValidationStep creates a GitHub Actions step that validates at least one of multiple secrets is available
 // secretNames: slice of secret names to validate (e.g., []string{"CODEX_API_KEY", "OPENAI_API_KEY"})
 // engineName: the display name of the engine (e.g., "Codex")
 // docsURL: URL to the documentation page for setting up the secret
 func GenerateMultiSecretValidationStep(secretNames []string, engineName, docsURL string) GitHubActionStep {
+	return GenerateMultiSecretValidationStepWithOptions(secretNames, engineName, docsURL, SecretValidationOptions{})
+}
+
+// GenerateMultiSecretValidationStepWithOptions creates a GitHub Actions step with custom options
+func GenerateMultiSecretValidationStepWithOptions(secretNames []string, engineName, docsURL string, opts SecretValidationOptions) GitHubActionStep {
 	if len(secretNames) == 0 {
-		panic("GenerateMultiSecretValidationStep requires at least one secret name")
+		panic("GenerateMultiSecretValidationStepWithOptions requires at least one secret name")
 	}
 
 	// Build the step name
@@ -344,9 +354,9 @@ func GenerateMultiSecretValidationStep(secretNames []string, engineName, docsURL
 		"          fi",
 	}
 
-	// Add token type validation for Copilot tokens
+	// Add token type validation for Copilot tokens (unless skipped)
 	// Classic tokens (ghp_*) are rejected, fine-grained tokens (github_pat_*) are accepted
-	if hasCopilotTokens(secretNames) {
+	if hasCopilotTokens(secretNames) && !opts.SkipTokenTypeValidation {
 		stepLines = append(stepLines, "          ")
 		stepLines = append(stepLines, "          # Validate token type - reject classic tokens (ghp_*), accept fine-grained tokens (github_pat_*)")
 		for _, secretName := range secretNames {
