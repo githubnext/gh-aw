@@ -135,8 +135,10 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 	}
 
 	// Write safe-outputs MCP server if enabled
+	// Split into multiple steps to avoid exceeding GitHub Actions' 21000 character expression limit
 	if HasSafeOutputsEnabled(workflowData.SafeOutputs) {
-		yaml.WriteString("      - name: Setup Safe Outputs Collector MCP\n")
+		// Step 1: Write configuration files (config.json, tools.json, validation.json)
+		yaml.WriteString("      - name: Setup Safe Outputs Collector MCP - Config\n")
 		yaml.WriteString("        run: |\n")
 		yaml.WriteString("          mkdir -p /tmp/gh-aw/safeoutputs\n")
 
@@ -186,14 +188,12 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		}
 		yaml.WriteString("          EOF\n")
 
-		yaml.WriteString("          cat > /tmp/gh-aw/safeoutputs/mcp-server.cjs << 'EOF'\n")
-		// Embed the safe-outputs MCP server script
-		for _, line := range FormatJavaScriptForYAML(GetSafeOutputsMCPServerScript()) {
-			yaml.WriteString(line)
-		}
-		yaml.WriteString("          EOF\n")
+		// Step 2: Write the MCP server script using gzip+base64 to stay under 21000 char expression limit
+		// The JavaScript file is ~16KB raw, ~22KB base64, but only ~6KB gzip+base64
+		yaml.WriteString("      - name: Setup Safe Outputs Collector MCP - Server\n")
+		yaml.WriteString("        run: |\n")
+		yaml.WriteString("          echo '" + GetSafeOutputsMCPServerScriptBase64() + "' | base64 -d | gunzip > /tmp/gh-aw/safeoutputs/mcp-server.cjs\n")
 		yaml.WriteString("          chmod +x /tmp/gh-aw/safeoutputs/mcp-server.cjs\n")
-		yaml.WriteString("          \n")
 	}
 
 	// Write safe-inputs MCP server if configured and feature flag is enabled

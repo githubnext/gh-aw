@@ -49,9 +49,9 @@ Test safe outputs workflow with MCP server integration.
 	}
 	yamlStr := string(yamlContent)
 
-	// Check that safe-outputs MCP server file is written
-	if !strings.Contains(yamlStr, "cat > /tmp/gh-aw/safeoutputs/mcp-server.cjs") {
-		t.Error("Expected safe-outputs MCP server to be written to temp file")
+	// Check that safe-outputs MCP server file is written (using gzip+base64 encoding to stay under 21KB limit)
+	if !strings.Contains(yamlStr, "| gunzip > /tmp/gh-aw/safeoutputs/mcp-server.cjs") {
+		t.Error("Expected safe-outputs MCP server to be written to temp file using gzip+base64")
 	}
 
 	// Check that safe-outputs configuration file is written
@@ -117,8 +117,8 @@ Test workflow without safe outputs.
 	}
 	yamlStr := string(yamlContent)
 
-	// Check that safe-outputs MCP server file is NOT written
-	if strings.Contains(yamlStr, "cat > /tmp/gh-aw/safeoutputs/mcp-server.cjs") {
+	// Check that safe-outputs MCP server file is NOT written (gzip+base64 approach)
+	if strings.Contains(yamlStr, "| gunzip > /tmp/gh-aw/safeoutputs/mcp-server.cjs") {
 		t.Error("Expected safe-outputs MCP server to NOT be written when safe-outputs are disabled")
 	}
 
@@ -172,9 +172,9 @@ Test safe outputs workflow with Codex engine.
 	}
 	yamlStr := string(yamlContent)
 
-	// Check that safe-outputs MCP server file is written
-	if !strings.Contains(yamlStr, "cat > /tmp/gh-aw/safeoutputs/mcp-server.cjs") {
-		t.Error("Expected safe-outputs MCP server to be written to temp file")
+	// Check that safe-outputs MCP server file is written (using gzip+base64 encoding to stay under 21KB limit)
+	if !strings.Contains(yamlStr, "| gunzip > /tmp/gh-aw/safeoutputs/mcp-server.cjs") {
+		t.Error("Expected safe-outputs MCP server to be written to temp file using gzip+base64")
 	}
 
 	// Check that safe-outputs configuration file is written

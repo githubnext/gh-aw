@@ -1,7 +1,10 @@
 package workflow
 
 import (
+	"bytes"
+	"compress/gzip"
 	_ "embed"
+	"encoding/base64"
 	"fmt"
 	"strings"
 
@@ -705,6 +708,22 @@ func GetLogParserBootstrap() string {
 // GetSafeOutputsMCPServerScript returns the JavaScript content for the GitHub Agentic Workflows Safe Outputs MCP server
 func GetSafeOutputsMCPServerScript() string {
 	return getSafeOutputsMCPServerScript()
+}
+
+// GetSafeOutputsMCPServerScriptBase64 returns the gzip-compressed, base64-encoded JavaScript content for the Safe Outputs MCP server.
+// This is used to embed the script in GitHub Actions workflow YAML files without hitting the 21000 character
+// expression length limit. The script is ~16KB raw, ~22KB base64-encoded, but only ~6KB gzip+base64-encoded.
+func GetSafeOutputsMCPServerScriptBase64() string {
+	script := getSafeOutputsMCPServerScript()
+
+	// Gzip compress the script first
+	var buf bytes.Buffer
+	gzipWriter := gzip.NewWriter(&buf)
+	_, _ = gzipWriter.Write([]byte(script))
+	_ = gzipWriter.Close()
+
+	// Then base64 encode the compressed data
+	return base64.StdEncoding.EncodeToString(buf.Bytes())
 }
 
 // GetSafeOutputsToolsJSON returns the JSON content for the safe outputs tools definitions
