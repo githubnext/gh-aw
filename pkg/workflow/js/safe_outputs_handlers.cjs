@@ -217,9 +217,7 @@ function createHandlers(server, appendSafeOutput) {
       throw new Error(errorMsg);
     }
 
-    server.debug(
-      `Patch generated successfully: ${patchResult.patchPath} (${patchResult.patchSize} bytes, ${patchResult.patchLines} lines)`
-    );
+    server.debug(`Patch generated successfully: ${patchResult.patchPath} (${patchResult.patchSize} bytes, ${patchResult.patchLines} lines)`);
 
     appendSafeOutput(entry);
     return {
@@ -273,9 +271,7 @@ function createHandlers(server, appendSafeOutput) {
       throw new Error(errorMsg);
     }
 
-    server.debug(
-      `Patch generated successfully: ${patchResult.patchPath} (${patchResult.patchSize} bytes, ${patchResult.patchLines} lines)`
-    );
+    server.debug(`Patch generated successfully: ${patchResult.patchPath} (${patchResult.patchSize} bytes, ${patchResult.patchLines} lines)`);
 
     appendSafeOutput(entry);
     return {
