@@ -70,13 +70,16 @@ on:
   command: null
 
   # Option 2: Command name as a string (shorthand format, e.g., 'customname' for
-  # '/customname' triggers)
+  # '/customname' triggers). Command names must not start with '/' as the slash is
+  # automatically added when matching commands.
   command: "example-value"
 
   # Option 3: Command configuration object with custom command name
   command:
     # Custom command name for slash commands (e.g., 'helper-bot' for '/helper-bot'
-    # triggers). Defaults to workflow filename without .md extension if not specified.
+    # triggers). Command names must not start with '/' as the slash is automatically
+    # added when matching commands. Defaults to workflow filename without .md
+    # extension if not specified.
     # (optional)
     name: "My Workflow"
 
@@ -2549,9 +2552,9 @@ roles: []
 strict: true
 
 # Safe inputs configuration for defining custom lightweight MCP tools as
-# JavaScript or shell scripts. Tools are mounted in an MCP server and have access
-# to secrets specified by the user. Only one of 'script' (JavaScript) or 'run'
-# (shell) must be specified per tool.
+# JavaScript, shell scripts, or Python scripts. Tools are mounted in an MCP server
+# and have access to secrets specified by the user. Only one of 'script'
+# (JavaScript), 'run' (shell), or 'py' (Python) must be specified per tool.
 # (optional)
 safe-inputs:
   {}
