@@ -27,6 +27,8 @@
 #   workflow_dispatch:
 # permissions:
 #   contents: read
+#   issues: read
+#   pull-requests: read
 # engine: copilot
 # safe-inputs:
 #   analyze-numbers:
@@ -175,6 +177,8 @@ name: "Python Safe-Input Test Workflow"
 
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 
 concurrency:
   group: "gh-aw-${{ github.workflow }}"
@@ -283,6 +287,8 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      issues: read
+      pull-requests: read
     concurrency:
       group: "gh-aw-copilot-${{ github.workflow }}"
     env:
