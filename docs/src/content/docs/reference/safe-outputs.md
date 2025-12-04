@@ -665,7 +665,7 @@ This example shows:
 | `{triggering_number}` | Issue, PR, or discussion number | All templates |
 | `{workflow_source}` | Repository path (owner/repo/path@ref) | `footer`, `footer-install` |
 | `{workflow_source_url}` | GitHub URL to workflow source | `footer`, `footer-install` |
-| `{event_type}` | Event type (issue, pull_request, etc.) | `run-started` |
+| `{event_type}` | Event type description (issue, pull request, discussion, etc.) | `run-started` |
 | `{status}` | Workflow status (failed, cancelled, timed out) | `run-failure` |
 | `{operation}` | Safe output operation name | `staged-title`, `staged-description` |
 
