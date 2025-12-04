@@ -257,8 +257,8 @@
 #     https://github.com/actions/download-artifact/commit/018cc2cf5baa6db3ef3c5f8a56943fffe632ef53
 #   - actions/github-script@v8 (ed597411d8f924073f98dfc5c65a23a2325f34cd)
 #     https://github.com/actions/github-script/commit/ed597411d8f924073f98dfc5c65a23a2325f34cd
-#   - actions/setup-node@v6 (2028fbc5c25fe9cf00d9f06a71cc4710d4507903)
-#     https://github.com/actions/setup-node/commit/2028fbc5c25fe9cf00d9f06a71cc4710d4507903
+#   - actions/setup-node@v6 (395ad3262231945c25e8478fd5baf05154b1d79f)
+#     https://github.com/actions/setup-node/commit/395ad3262231945c25e8478fd5baf05154b1d79f
 #   - actions/upload-artifact@v5 (330a01c490aca151604b8cf639adc76d48f6c5d4)
 #     https://github.com/actions/upload-artifact/commit/330a01c490aca151604b8cf639adc76d48f6c5d4
 
@@ -495,7 +495,7 @@ jobs:
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
       - name: Setup Node.js
-        uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # v6
+        uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6
         with:
           node-version: '24'
           package-manager-cache: false
@@ -4552,7 +4552,9 @@ jobs:
                     }
                     const level = extractLevel(match, pattern);
                     const message = extractMessage(match, pattern, line);
-                    const errorMessage = `Line ${lineIndex + 1}: ${message} (Pattern: ${pattern.description || "Unknown pattern"}, Raw log: ${truncateString(line.trim(), 120)})`;
+                    const errorMessage = `Line ${lineIndex + 1}: ${message} (Pattern: ${
+                      pattern.description || "Unknown pattern"
+                    }, Raw log: ${truncateString(line.trim(), 120)})`;
                     if (level.toLowerCase() === "error") {
                       core.error(errorMessage);
                       hasErrors = true;
@@ -5315,7 +5317,9 @@ jobs:
               const summary = truncated
                 ? `Show patch preview (${Math.min(maxLines, lines.length)} of ${lines.length} lines)`
                 : `Show patch (${lines.length} lines)`;
-              return `\n\n<details><summary>${summary}</summary>\n\n\`\`\`diff\n${preview}${truncated ? "\n... (truncated)" : ""}\n\`\`\`\n\n</details>`;
+              return `\n\n<details><summary>${summary}</summary>\n\n\`\`\`diff\n${preview}${
+                truncated ? "\n... (truncated)" : ""
+              }\n\`\`\`\n\n</details>`;
             }
             async function main() {
               core.setOutput("pull_request_number", "");
@@ -5462,7 +5466,9 @@ jobs:
                   const patchStats = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
                   if (patchStats.trim()) {
                     summaryContent += `**Changes:** Patch file exists with ${patchStats.split("\n").length} lines\n\n`;
-                    summaryContent += `<details><summary>Show patch preview</summary>\n\n\`\`\`diff\n${patchStats.slice(0, 2000)}${patchStats.length > 2000 ? "\n... (truncated)" : ""}\n\`\`\`\n\n</details>\n\n`;
+                    summaryContent += `<details><summary>Show patch preview</summary>\n\n\`\`\`diff\n${patchStats.slice(0, 2000)}${
+                      patchStats.length > 2000 ? "\n... (truncated)" : ""
+                    }\n\`\`\`\n\n</details>\n\n`;
                   } else {
                     summaryContent += `**Changes:** No changes (empty patch)\n\n`;
                   }
@@ -5630,7 +5636,9 @@ jobs:
                     return;
                   } catch (issueError) {
                     core.setFailed(
-                      `Failed to push and failed to create fallback issue. Push error: ${pushError instanceof Error ? pushError.message : String(pushError)}. Issue error: ${issueError instanceof Error ? issueError.message : String(issueError)}`
+                      `Failed to push and failed to create fallback issue. Push error: ${
+                        pushError instanceof Error ? pushError.message : String(pushError)
+                      }. Issue error: ${issueError instanceof Error ? issueError.message : String(issueError)}`
                     );
                     return;
                   }
@@ -5727,7 +5735,9 @@ jobs:
                     .write();
                 } catch (issueError) {
                   core.setFailed(
-                    `Failed to create both pull request and fallback issue. PR error: ${prError instanceof Error ? prError.message : String(prError)}. Issue error: ${issueError instanceof Error ? issueError.message : String(issueError)}`
+                    `Failed to create both pull request and fallback issue. PR error: ${
+                      prError instanceof Error ? prError.message : String(prError)
+                    }. Issue error: ${issueError instanceof Error ? issueError.message : String(issueError)}`
                   );
                   return;
                 }
@@ -5956,7 +5966,7 @@ jobs:
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
       - name: Setup Node.js
-        uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # v6
+        uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6
         with:
           node-version: '24'
           package-manager-cache: false

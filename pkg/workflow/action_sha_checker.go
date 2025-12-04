@@ -183,11 +183,13 @@ func ValidateActionSHAsInLockFile(lockFilePath string, cache *ActionCache, verbo
 		if verbose {
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Found %d action(s) with available updates", updateCount)))
 		}
-	} else {
-		actionSHACheckerLog.Print("All actions are up to date")
-		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("All pinned actions are up to date"))
-		}
+		// Return an error indicating outdated SHAs were found
+		return fmt.Errorf("found %d action(s) with outdated SHAs", updateCount)
+	}
+
+	actionSHACheckerLog.Print("All actions are up to date")
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("All pinned actions are up to date"))
 	}
 
 	return nil

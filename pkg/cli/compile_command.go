@@ -58,7 +58,11 @@ func CompileWorkflowWithValidation(compiler *workflow.Compiler, filePath string,
 		// Use the compiler's shared action cache to benefit from cached resolutions
 		actionCache := compiler.GetSharedActionCache()
 		if err := workflow.ValidateActionSHAsInLockFile(lockFile, actionCache, verbose); err != nil {
-			// Action SHA validation warnings are non-fatal
+			// In strict mode, SHA mismatches are fatal
+			if strict {
+				return fmt.Errorf("action SHA validation failed: %w", err)
+			}
+			// Otherwise, just log the warning
 			compileLog.Printf("Action SHA validation completed with warnings: %v", err)
 		}
 	}
@@ -125,7 +129,11 @@ func CompileWorkflowDataWithValidation(compiler *workflow.Compiler, workflowData
 		// Use the compiler's shared action cache to benefit from cached resolutions
 		actionCache := compiler.GetSharedActionCache()
 		if err := workflow.ValidateActionSHAsInLockFile(lockFile, actionCache, verbose); err != nil {
-			// Action SHA validation warnings are non-fatal
+			// In strict mode, SHA mismatches are fatal
+			if strict {
+				return fmt.Errorf("action SHA validation failed: %w", err)
+			}
+			// Otherwise, just log the warning
 			compileLog.Printf("Action SHA validation completed with warnings: %v", err)
 		}
 	}
