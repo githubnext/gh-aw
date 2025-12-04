@@ -36,7 +36,7 @@ jobs:
         run: |
           curl -fsSL https://raw.githubusercontent.com/githubnext/gh-aw/refs/heads/main/install-gh-aw.sh | bash
       - name: Verify gh-aw installation
-        run: ./gh-aw version
+        run: gh aw version
 `
 
 // WorkflowStep represents a GitHub Actions workflow step
@@ -143,7 +143,7 @@ func injectExtensionInstallStep(workflow *Workflow) error {
 	}
 	verifyStep := WorkflowStep{
 		Name: "Verify gh-aw installation",
-		Run:  "./gh-aw version",
+		Run:  "gh aw version",
 	}
 
 	// Find the copilot-setup-steps job
