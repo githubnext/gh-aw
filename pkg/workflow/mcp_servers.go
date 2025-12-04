@@ -19,16 +19,16 @@ var mcpServersLog = logger.New("workflow:mcp_servers")
 func getSafeOutputsDependencies() ([]string, error) {
 	// Get all JavaScript sources
 	sources := GetJavaScriptSources()
-	
+
 	// Get the main safe-outputs MCP server script
 	mainScript := GetSafeOutputsMCPServerScript()
-	
+
 	// Find all dependencies starting from the main script
 	dependencies, err := FindJavaScriptDependencies(mainScript, sources, "")
 	if err != nil {
 		return nil, fmt.Errorf("failed to analyze safe-outputs dependencies: %w", err)
 	}
-	
+
 	// Convert map to sorted slice for stable generation
 	deps := make([]string, 0, len(dependencies))
 	for dep := range dependencies {
@@ -37,7 +37,7 @@ func getSafeOutputsDependencies() ([]string, error) {
 		deps = append(deps, filename)
 	}
 	sort.Strings(deps)
-	
+
 	mcpServersLog.Printf("Safe-outputs MCP server requires %d dependencies", len(deps))
 	return deps, nil
 }
@@ -46,13 +46,13 @@ func getSafeOutputsDependencies() ([]string, error) {
 func getJavaScriptFileContent(filename string) (string, error) {
 	// Get all sources
 	sources := GetJavaScriptSources()
-	
+
 	// Look up the file
 	content, ok := sources[filename]
 	if !ok {
 		return "", fmt.Errorf("JavaScript file not found: %s", filename)
 	}
-	
+
 	return content, nil
 }
 
@@ -256,7 +256,7 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 			markerName := strings.ToUpper(strings.TrimSuffix(filename, filepath.Ext(filename)))
 			markerName = strings.ReplaceAll(markerName, ".", "_")
 			markerName = strings.ReplaceAll(markerName, "-", "_")
-			
+
 			yaml.WriteString(fmt.Sprintf("          cat > /tmp/gh-aw/safeoutputs/%s << 'EOF_%s'\n", filename, markerName))
 			for _, line := range FormatJavaScriptForYAML(content) {
 				yaml.WriteString(line)
