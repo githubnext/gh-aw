@@ -50,7 +50,9 @@
 # graph LR
 #   activation["activation"]
 #   agent["agent"]
+#   push_repo_memory["Push Repo Memory"]
 #   activation --> agent
+#   agent --> push_repo_memory
 # ```
 #
 # Original Prompt:
@@ -87,6 +89,8 @@
 # Pinned GitHub Actions:
 #   - actions/checkout@v5 (93cb6efe18208431cddfb8368fd83d5badbf9bfd)
 #     https://github.com/actions/checkout/commit/93cb6efe18208431cddfb8368fd83d5badbf9bfd
+#   - actions/download-artifact@v6 (018cc2cf5baa6db3ef3c5f8a56943fffe632ef53)
+#     https://github.com/actions/download-artifact/commit/018cc2cf5baa6db3ef3c5f8a56943fffe632ef53
 #   - actions/github-script@v8 (ed597411d8f924073f98dfc5c65a23a2325f34cd)
 #     https://github.com/actions/github-script/commit/ed597411d8f924073f98dfc5c65a23a2325f34cd
 #   - actions/setup-node@v6 (395ad3262231945c25e8478fd5baf05154b1d79f)
@@ -2475,53 +2479,15 @@ jobs:
           name: agent-stdio.log
           path: /tmp/gh-aw/agent-stdio.log
           if-no-files-found: warn
-      # Push repo memory changes back to git branches
-      - name: Push repo-memory changes (default)
+      # Upload repo memory as artifacts for push job
+      - name: Upload repo-memory artifact (default)
         if: always()
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          set -e
-          cd "/tmp/gh-aw/repo-memory-default" || exit 0
-          
-          # Check if we have any changes to commit
-          if [ -n "$(git status --porcelain)" ]; then
-            echo "Changes detected in repo memory, committing and pushing..."
-            
-            # Validate files before committing
-            # Check file sizes (max: 10240 bytes)
-            if find . -type f -size +10240c | grep -q .; then
-              echo "Error: Files exceed maximum size limit"
-              find . -type f -size +10240c -exec ls -lh {} \;
-              exit 1
-            fi
-            
-            # Check file count (max: 100 files)
-            FILE_COUNT=$(git status --porcelain | wc -l)
-            if [ "$FILE_COUNT" -gt 100 ]; then
-              echo "Error: Too many files to commit ($FILE_COUNT > 100)"
-              exit 1
-            fi
-            
-            # Add all changes
-            git add -A
-            
-            # Commit changes
-            git commit -m "Update memory from workflow run ${{ github.run_id }}"
-            
-            # Pull with ours merge strategy (our changes win in conflicts)
-            set +e
-            git pull --no-rebase -s recursive -X ours "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git" "memory/poems" 2>&1
-            PULL_EXIT_CODE=$?
-            set -e
-            
-            # Push changes (force push if needed due to conflict resolution)
-            git push "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git" "HEAD:memory/poems"
-            
-            echo "Successfully pushed changes to repo memory"
-          else
-            echo "No changes in repo memory, skipping push"
-          fi
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
+        with:
+          name: repo-memory-default
+          path: /tmp/gh-aw/repo-memory-default
+          retention-days: 1
+          if-no-files-found: ignore
       - name: Validate agent logs for errors
         if: always()
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
@@ -2757,4 +2723,65 @@ jobs:
             if (typeof module === "undefined" || require.main === module) {
               main();
             }
+
+  push_repo_memory:
+    name: Push Repo Memory
+    needs: agent
+    if: always()
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download repo-memory artifact (default)
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
+        continue-on-error: true
+        with:
+          name: repo-memory-default
+          path: /tmp/gh-aw/repo-memory-default
+      - name: Push repo-memory changes (default)
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -e
+          cd "/tmp/gh-aw/repo-memory-default" || exit 0
+          
+          # Check if we have any changes to commit
+          if [ -n "$(git status --porcelain)" ]; then
+            echo "Changes detected in repo memory, committing and pushing..."
+            
+            # Validate files before committing
+            # Check file sizes (max: 10240 bytes)
+            # Check file count (max: 100 files)
+            
+            # Stage all changes
+            git add .
+            
+            # Check file sizes
+            TOO_LARGE=$(git diff --cached --name-only | xargs -I {} sh -c 'if [ -f "{}" ] && [ $(stat -f%z "{}" 2>/dev/null || stat -c%s "{}" 2>/dev/null) -gt 10240 ]; then echo "{}"; fi' || true)
+            if [ -n "$TOO_LARGE" ]; then
+              echo "Error: Files exceeding size limit detected:"
+              echo "$TOO_LARGE"
+              exit 1
+            fi
+            
+            # Check file count
+            FILE_COUNT=$(git diff --cached --name-only | wc -l | tr -d ' ')
+            if [ "$FILE_COUNT" -gt 100 ]; then
+              echo "Error: Too many files ($FILE_COUNT > 100)"
+              exit 1
+            fi
+            
+            # Commit changes
+            git commit -m "Update repo memory from workflow run ${{ github.run_id }}"
+            
+            # Pull with merge strategy (ours wins on conflicts)
+            git pull --no-rebase -X ours "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git" "memory/poems" || true
+            
+            # Push changes
+            git push "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git" HEAD:"memory/poems"
+            echo "Successfully pushed changes to memory/poems branch"
+          else
+            echo "No changes detected in repo memory"
+          fi
 

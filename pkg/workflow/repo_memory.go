@@ -455,3 +455,125 @@ func generateRepoMemorySteps(builder *strings.Builder, data *WorkflowData) {
 		builder.WriteString(fmt.Sprintf("          echo \"Repo memory directory ready at %s/memory/%s\"\n", memoryDir, memory.ID))
 	}
 }
+
+// buildPushRepoMemoryJob creates a job that downloads repo-memory artifacts and pushes them to git branches
+// This job runs after the agent job completes (even if it fails) and requires contents: write permission
+func (c *Compiler) buildPushRepoMemoryJob(data *WorkflowData) (*Job, error) {
+	if data.RepoMemoryConfig == nil || len(data.RepoMemoryConfig.Memories) == 0 {
+		return nil, nil
+	}
+
+	repoMemoryLog.Printf("Building push_repo_memory job for %d memories", len(data.RepoMemoryConfig.Memories))
+
+	var steps []string
+
+	// Build steps as complete YAML strings
+	for _, memory := range data.RepoMemoryConfig.Memories {
+		// Download artifact step
+		var step strings.Builder
+		step.WriteString(fmt.Sprintf("      - name: Download repo-memory artifact (%s)\n", memory.ID))
+		step.WriteString(fmt.Sprintf("        uses: %s\n", GetActionPin("actions/download-artifact")))
+		step.WriteString("        continue-on-error: true\n")
+		step.WriteString("        with:\n")
+		step.WriteString(fmt.Sprintf("          name: repo-memory-%s\n", memory.ID))
+		step.WriteString(fmt.Sprintf("          path: /tmp/gh-aw/repo-memory-%s\n", memory.ID))
+		steps = append(steps, step.String())
+	}
+
+	// Add push steps for each memory
+	for _, memory := range data.RepoMemoryConfig.Memories {
+		targetRepo := memory.TargetRepo
+		if targetRepo == "" {
+			targetRepo = "${{ github.repository }}"
+		}
+
+		memoryDir := fmt.Sprintf("/tmp/gh-aw/repo-memory-%s", memory.ID)
+
+		var step strings.Builder
+		step.WriteString(fmt.Sprintf("      - name: Push repo-memory changes (%s)\n", memory.ID))
+		step.WriteString("        if: always()\n")
+		step.WriteString("        env:\n")
+		step.WriteString("          GH_TOKEN: ${{ github.token }}\n")
+		step.WriteString("        run: |\n")
+		step.WriteString("          set -e\n")
+		step.WriteString(fmt.Sprintf("          cd \"%s\" || exit 0\n", memoryDir))
+		step.WriteString("          \n")
+		step.WriteString("          # Check if we have any changes to commit\n")
+		step.WriteString("          if [ -n \"$(git status --porcelain)\" ]; then\n")
+		step.WriteString("            echo \"Changes detected in repo memory, committing and pushing...\"\n")
+		step.WriteString("            \n")
+
+		// Add file validation
+		fileGlobFilter := ""
+		if len(memory.FileGlob) > 0 {
+			fileGlobFilter = strings.Join(memory.FileGlob, " ")
+		}
+
+		step.WriteString("            # Validate files before committing\n")
+		step.WriteString(fmt.Sprintf("            # Check file sizes (max: %d bytes)\n", memory.MaxFileSize))
+		step.WriteString(fmt.Sprintf("            # Check file count (max: %d files)\n", memory.MaxFileCount))
+		step.WriteString("            \n")
+		step.WriteString("            # Stage all changes\n")
+		step.WriteString("            git add .\n")
+		step.WriteString("            \n")
+
+		// File glob validation
+		if fileGlobFilter != "" {
+			step.WriteString(fmt.Sprintf("            # Validate file patterns: %s\n", fileGlobFilter))
+			step.WriteString("            INVALID_FILES=$(git diff --cached --name-only | grep -v -E '" + strings.Join(memory.FileGlob, "|") + "' || true)\n")
+			step.WriteString("            if [ -n \"$INVALID_FILES\" ]; then\n")
+			step.WriteString("              echo \"Error: Files not matching allowed patterns detected:\"\n")
+			step.WriteString("              echo \"$INVALID_FILES\"\n")
+			step.WriteString("              exit 1\n")
+			step.WriteString("            fi\n")
+			step.WriteString("            \n")
+		}
+
+		// File size validation
+		step.WriteString("            # Check file sizes\n")
+		step.WriteString(fmt.Sprintf("            TOO_LARGE=$(git diff --cached --name-only | xargs -I {} sh -c 'if [ -f \"{}\" ] && [ $(stat -f%%z \"{}\" 2>/dev/null || stat -c%%s \"{}\" 2>/dev/null) -gt %d ]; then echo \"{}\"; fi' || true)\n", memory.MaxFileSize))
+		step.WriteString("            if [ -n \"$TOO_LARGE\" ]; then\n")
+		step.WriteString("              echo \"Error: Files exceeding size limit detected:\"\n")
+		step.WriteString("              echo \"$TOO_LARGE\"\n")
+		step.WriteString("              exit 1\n")
+		step.WriteString("            fi\n")
+		step.WriteString("            \n")
+
+		// File count validation
+		step.WriteString("            # Check file count\n")
+		step.WriteString("            FILE_COUNT=$(git diff --cached --name-only | wc -l | tr -d ' ')\n")
+		step.WriteString(fmt.Sprintf("            if [ \"$FILE_COUNT\" -gt %d ]; then\n", memory.MaxFileCount))
+		step.WriteString(fmt.Sprintf("              echo \"Error: Too many files ($FILE_COUNT > %d)\"\n", memory.MaxFileCount))
+		step.WriteString("              exit 1\n")
+		step.WriteString("            fi\n")
+		step.WriteString("            \n")
+
+		// Commit and push
+		step.WriteString("            # Commit changes\n")
+		step.WriteString("            git commit -m \"Update repo memory from workflow run ${{ github.run_id }}\"\n")
+		step.WriteString("            \n")
+		step.WriteString("            # Pull with merge strategy (ours wins on conflicts)\n")
+		step.WriteString(fmt.Sprintf("            git pull --no-rebase -X ours \"https://x-access-token:${GH_TOKEN}@github.com/%s.git\" \"%s\" || true\n", targetRepo, memory.BranchName))
+		step.WriteString("            \n")
+		step.WriteString("            # Push changes\n")
+		step.WriteString(fmt.Sprintf("            git push \"https://x-access-token:${GH_TOKEN}@github.com/%s.git\" HEAD:\"%s\"\n", targetRepo, memory.BranchName))
+		step.WriteString(fmt.Sprintf("            echo \"Successfully pushed changes to %s branch\"\n", memory.BranchName))
+		step.WriteString("          else\n")
+		step.WriteString("            echo \"No changes detected in repo memory\"\n")
+		step.WriteString("          fi\n")
+
+		steps = append(steps, step.String())
+	}
+
+	job := &Job{
+		Name:        "push_repo_memory",
+		DisplayName: "Push Repo Memory",
+		RunsOn:      "runs-on: ubuntu-latest",
+		If:          "always()",
+		Permissions: "permissions:\n      contents: write",
+		Needs:       []string{"agent"}, // Detection dependency added by caller if needed
+		Steps:       steps,
+	}
+
+	return job, nil
+}
