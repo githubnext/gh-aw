@@ -31,6 +31,7 @@ type MCPServerConfig struct {
 type GatewayConfig struct {
 	MCPServers map[string]MCPServerConfig `json:"mcpServers"`
 	Port       int                        `json:"port"`
+	APIKey     string                     `json:"apiKey,omitempty"`
 }
 
 // Gateway represents an MCP gateway that proxies to multiple MCP servers
@@ -87,9 +88,15 @@ func (g *Gateway) Start(ctx context.Context) error {
 	g.registerToolHandlers(server, tools)
 
 	// Create HTTP handler
-	handler := mcp.NewStreamableHTTPHandler(func(req *http.Request) *mcp.Server {
+	var handler http.Handler = mcp.NewStreamableHTTPHandler(func(req *http.Request) *mcp.Server {
 		return server
 	}, nil)
+
+	// Wrap with authentication middleware if API key is configured
+	if g.config.APIKey != "" {
+		log.Print("API key authentication enabled")
+		handler = g.authMiddleware(handler)
+	}
 
 	// Start HTTP server
 	addr := fmt.Sprintf(":%d", g.config.Port)
@@ -355,6 +362,35 @@ func (g *Gateway) registerToolHandlers(server *mcp.Server, tools map[string]tool
 	}
 
 	log.Print("All tool handlers registered")
+}
+
+// authMiddleware wraps an HTTP handler with API key authentication
+func (g *Gateway) authMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Check for API key in Authorization header
+		authHeader := r.Header.Get("Authorization")
+		if authHeader == "" {
+			log.Print("Authentication failed: missing Authorization header")
+			http.Error(w, "Unauthorized: missing Authorization header", http.StatusUnauthorized)
+			return
+		}
+
+		// Support both "Bearer <token>" and plain token formats
+		token := authHeader
+		if len(authHeader) > 7 && authHeader[:7] == "Bearer " {
+			token = authHeader[7:]
+		}
+
+		// Validate API key
+		if token != g.config.APIKey {
+			log.Print("Authentication failed: invalid API key")
+			http.Error(w, "Unauthorized: invalid API key", http.StatusUnauthorized)
+			return
+		}
+
+		log.Print("Authentication successful")
+		next.ServeHTTP(w, r)
+	})
 }
 
 // Close closes all client connections

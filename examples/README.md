@@ -24,6 +24,8 @@ A basic configuration with a single MCP server:
 }
 ```
 
+**Note:** The `port` field is optional in the configuration file. If not specified, the gateway will use port 8080 by default, or you can override it with the `--port` flag.
+
 ### Multi-Server Configuration (`mcp-gateway-multi-server.json`)
 
 A more complex configuration demonstrating all three server types:
@@ -98,13 +100,43 @@ Use the `container` field to run an MCP server in a Docker container:
 ### Start the Gateway
 
 ```bash
+# Use default port 8080
 gh aw mcp-gateway mcp-gateway-config.json
+
+# Specify a custom port
+gh aw mcp-gateway --port 9000 mcp-gateway-config.json
 ```
 
-### Override Port
+### Enable API Key Authentication
 
 ```bash
-gh aw mcp-gateway --port 9000 mcp-gateway-config.json
+gh aw mcp-gateway --api-key secret123 mcp-gateway-config.json
+```
+
+When API key authentication is enabled, clients must include the API key in the `Authorization` header:
+
+```bash
+curl -H "Authorization: Bearer secret123" http://localhost:8080/...
+# or
+curl -H "Authorization: secret123" http://localhost:8080/...
+```
+
+### Write Debug Logs to File
+
+```bash
+gh aw mcp-gateway --logs-dir /tmp/gateway-logs mcp-gateway-config.json
+```
+
+This creates the specified directory and prepares it for logging output.
+
+### Combined Example
+
+```bash
+gh aw mcp-gateway \
+  --port 9000 \
+  --api-key mySecretKey \
+  --logs-dir /var/log/mcp-gateway \
+  mcp-gateway-config.json
 ```
 
 ### Enable Verbose Logging

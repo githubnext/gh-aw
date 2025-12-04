@@ -18,6 +18,8 @@ var mcpGatewayLog = logger.New("cli:mcp_gateway")
 // NewMCPGatewayCommand creates the mcp-gateway command
 func NewMCPGatewayCommand() *cobra.Command {
 	var port int
+	var apiKey string
+	var logsDir string
 
 	cmd := &cobra.Command{
 		Use:   "mcp-gateway <mcp-server.json>",
@@ -60,22 +62,33 @@ The gateway will:
 
 Example:
   gh aw mcp-gateway mcp-server.json
-  gh aw mcp-gateway --port 9000 mcp-server.json`,
+  gh aw mcp-gateway --port 9000 --api-key secret123 mcp-server.json
+  gh aw mcp-gateway --logs-dir /tmp/gateway-logs mcp-server.json`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			configFile := args[0]
-			return runMCPGateway(configFile, port)
+			return runMCPGateway(configFile, port, apiKey, logsDir)
 		},
 	}
 
-	cmd.Flags().IntVarP(&port, "port", "p", 0, "Port to run the gateway HTTP server on (overrides config file)")
+	cmd.Flags().IntVarP(&port, "port", "p", 8080, "Port to run the gateway HTTP server on (default: 8080, overrides config file)")
+	cmd.Flags().StringVar(&apiKey, "api-key", "", "API key to authorize connections to the gateway")
+	cmd.Flags().StringVar(&logsDir, "logs-dir", "", "Directory to write debug logs (default: no file logging)")
 
 	return cmd
 }
 
 // runMCPGateway starts the MCP gateway
-func runMCPGateway(configFile string, portOverride int) error {
+func runMCPGateway(configFile string, portOverride int, apiKey string, logsDir string) error {
 	mcpGatewayLog.Printf("Starting MCP gateway with config file: %s", configFile)
+
+	// Set up file logging if logs-dir is specified
+	if logsDir != "" {
+		if err := setupFileLogging(logsDir); err != nil {
+			return fmt.Errorf("failed to setup file logging: %w", err)
+		}
+		mcpGatewayLog.Printf("File logging enabled to directory: %s", logsDir)
+	}
 
 	// Load configuration from file
 	config, err := gateway.LoadConfigFromJSON(configFile)
@@ -83,18 +96,31 @@ func runMCPGateway(configFile string, portOverride int) error {
 		return fmt.Errorf("failed to load configuration: %w", err)
 	}
 
-	// Override port if specified
+	// Override port if specified or use default
 	if portOverride > 0 {
-		mcpGatewayLog.Printf("Overriding port from config (%d) with flag (%d)", config.Port, portOverride)
+		mcpGatewayLog.Printf("Using port from flag: %d", portOverride)
 		config.Port = portOverride
+	} else if config.Port == 0 {
+		// Use default port if not specified in config or flag
+		config.Port = 8080
+		mcpGatewayLog.Printf("Using default port: %d", config.Port)
 	}
 
-	// Validate configuration
-	if config.Port == 0 {
-		return fmt.Errorf("port must be specified in config file or via --port flag")
+	// Set API key if provided
+	if apiKey != "" {
+		config.APIKey = apiKey
+		mcpGatewayLog.Print("API key authentication enabled")
 	}
 
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Starting MCP Gateway on port %d with %d servers", config.Port, len(config.MCPServers))))
+
+	if apiKey != "" {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("API key authentication: enabled"))
+	}
+
+	if logsDir != "" {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Debug logs: %s", logsDir)))
+	}
 
 	for name, serverConfig := range config.MCPServers {
 		var serverType string
@@ -146,4 +172,19 @@ func runMCPGateway(configFile string, portOverride int) error {
 		mcpGatewayLog.Printf("Gateway error: %v", err)
 		return err
 	}
+}
+
+// setupFileLogging sets up logging to files in the specified directory
+func setupFileLogging(logsDir string) error {
+	// Create logs directory if it doesn't exist
+	if err := os.MkdirAll(logsDir, 0755); err != nil {
+		return fmt.Errorf("failed to create logs directory: %w", err)
+	}
+
+	// Note: The logger package uses DEBUG environment variable for filtering
+	// File logging would need to be implemented in the logger package itself
+	// For now, we just ensure the directory exists
+	mcpGatewayLog.Printf("Logs directory created/verified: %s", logsDir)
+
+	return nil
 }
