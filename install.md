@@ -107,7 +107,10 @@ Agentic workflows use AI agents to execute your instructions. The default engine
 
 2. **Configure the token:**
    - **Resource owner:** Select your personal user account (not an organization)
-   - **Repository access:** Select "Public repositories" (required for Copilot Requests permission to appear)
+   - **Repository access:** Select "Public repositories" (required for Copilot Requests permission to appear in the UI)
+     
+     *Note: Once created, the token will work with both public and private repositories where you set it as a secret.*
+   
    - **Permissions:** Click "Add permissions" and select **"Copilot Requests"**
 
 3. **Generate and copy the token** (you'll use it in the next step)
