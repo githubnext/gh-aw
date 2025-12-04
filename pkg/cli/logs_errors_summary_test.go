@@ -84,3 +84,41 @@ func TestErrorSummaryStructure(t *testing.T) {
 		t.Errorf("Expected engine 'copilot', got %s", summary.Engine)
 	}
 }
+
+func TestBuildLogsDataVerboseMode(t *testing.T) {
+	// Create test runs with errors
+	processedRuns := []ProcessedRun{
+		{
+			Run: WorkflowRun{
+				DatabaseID:   123,
+				WorkflowName: "test-workflow",
+				URL:          "https://github.com/test/repo/actions/runs/123",
+				LogsPath:     "/logs/run-123",
+				ErrorCount:   1,
+				WarningCount: 1,
+			},
+		},
+	}
+
+	t.Run("verbose=false does not populate ErrorsAndWarnings", func(t *testing.T) {
+		// Build logs data with verbose=false
+		logsData := buildLogsData(processedRuns, "/tmp", nil, false)
+
+		// ErrorsAndWarnings should be nil (not populated at all)
+		if logsData.ErrorsAndWarnings != nil {
+			t.Errorf("Expected ErrorsAndWarnings to be nil in non-verbose mode, got slice with %d entries", len(logsData.ErrorsAndWarnings))
+		}
+	})
+
+	t.Run("verbose=true populates ErrorsAndWarnings", func(t *testing.T) {
+		// Build logs data with verbose=true
+		logsData := buildLogsData(processedRuns, "/tmp", nil, true)
+
+		// ErrorsAndWarnings should be a non-nil slice (even if empty due to no actual log files)
+		// This verifies that buildCombinedErrorsSummary is called when verbose=true
+		if logsData.ErrorsAndWarnings == nil {
+			t.Error("Expected ErrorsAndWarnings to be populated (non-nil) in verbose mode, got nil")
+		}
+	})
+}
+

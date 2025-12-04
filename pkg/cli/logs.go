@@ -822,7 +822,7 @@ func DownloadWorkflowLogs(workflowName string, count int, startDate, endDate, ou
 	}
 
 	// Build structured logs data
-	logsData := buildLogsData(processedRuns, outputDir, continuation)
+	logsData := buildLogsData(processedRuns, outputDir, continuation, verbose)
 
 	// Render output based on format preference
 	if jsonOutput {

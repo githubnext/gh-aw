@@ -123,7 +123,7 @@ type FirewallLogSummary struct {
 }
 
 // buildLogsData creates structured logs data from processed runs
-func buildLogsData(processedRuns []ProcessedRun, outputDir string, continuation *ContinuationData) LogsData {
+func buildLogsData(processedRuns []ProcessedRun, outputDir string, continuation *ContinuationData, verbose bool) LogsData {
 	reportLog.Printf("Building logs data from %d processed runs", len(processedRuns))
 
 	// Build summary
@@ -196,8 +196,11 @@ func buildLogsData(processedRuns []ProcessedRun, outputDir string, continuation 
 	// Build tool usage summary
 	toolUsage := buildToolUsageSummary(processedRuns)
 
-	// Build combined error and warning summary
-	errorsAndWarnings := buildCombinedErrorsSummary(processedRuns)
+	// Build combined error and warning summary (only in verbose mode)
+	var errorsAndWarnings []ErrorSummary
+	if verbose {
+		errorsAndWarnings = buildCombinedErrorsSummary(processedRuns)
+	}
 
 	// Build missing tools summary
 	missingTools := buildMissingToolsSummary(processedRuns)
@@ -656,7 +659,7 @@ func aggregateLogErrors(processedRuns []ProcessedRun, agg logErrorAggregator) []
 	}
 
 	// Convert map to slice
-	var results []ErrorSummary
+	results := make([]ErrorSummary, 0)
 	for _, summary := range aggregatedMap {
 		results = append(results, *summary)
 	}

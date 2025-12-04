@@ -72,7 +72,7 @@ func TestBuildLogsData(t *testing.T) {
 	}
 
 	// Build logs data
-	logsData := buildLogsData(processedRuns, tmpDir, nil)
+	logsData := buildLogsData(processedRuns, tmpDir, nil, false)
 
 	// Verify summary
 	if logsData.Summary.TotalRuns != 2 {
@@ -310,7 +310,7 @@ func TestBuildLogsDataWithContinuation(t *testing.T) {
 	}
 
 	// Build logs data with continuation
-	logsData := buildLogsData(processedRuns, tmpDir, continuation)
+	logsData := buildLogsData(processedRuns, tmpDir, continuation, false)
 
 	// Verify continuation field is present
 	if logsData.Continuation == nil {
@@ -369,7 +369,7 @@ func TestBuildLogsDataWithoutContinuation(t *testing.T) {
 	}
 
 	// Build logs data without continuation
-	logsData := buildLogsData(processedRuns, tmpDir, nil)
+	logsData := buildLogsData(processedRuns, tmpDir, nil, false)
 
 	// Verify continuation field is nil
 	if logsData.Continuation != nil {
