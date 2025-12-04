@@ -283,6 +283,33 @@ func validateNoDuplicateMemoryIDs(memories []RepoMemoryEntry) error {
 	return nil
 }
 
+// generateRepoMemoryArtifactUpload generates steps to upload repo-memory directories as artifacts
+// This runs at the end of the agent job (always condition) to save the state
+func generateRepoMemoryArtifactUpload(builder *strings.Builder, data *WorkflowData) {
+	if data.RepoMemoryConfig == nil || len(data.RepoMemoryConfig.Memories) == 0 {
+		return
+	}
+
+	repoMemoryLog.Printf("Generating repo-memory artifact upload steps for %d memories", len(data.RepoMemoryConfig.Memories))
+
+	builder.WriteString("      # Upload repo memory as artifacts for push job\n")
+
+	for _, memory := range data.RepoMemoryConfig.Memories {
+		// Determine the memory directory
+		memoryDir := fmt.Sprintf("/tmp/gh-aw/repo-memory-%s", memory.ID)
+
+		// Step: Upload repo-memory directory as artifact
+		builder.WriteString(fmt.Sprintf("      - name: Upload repo-memory artifact (%s)\n", memory.ID))
+		builder.WriteString("        if: always()\n")
+		builder.WriteString(fmt.Sprintf("        uses: %s\n", GetActionPin("actions/upload-artifact")))
+		builder.WriteString("        with:\n")
+		builder.WriteString(fmt.Sprintf("          name: repo-memory-%s\n", memory.ID))
+		builder.WriteString(fmt.Sprintf("          path: %s\n", memoryDir))
+		builder.WriteString("          retention-days: 1\n")
+		builder.WriteString("          if-no-files-found: ignore\n")
+	}
+}
+
 // generateRepoMemoryPushSteps generates steps to push changes back to the repo-memory branches
 // This runs at the end of the workflow (always condition) to persist any changes made
 func generateRepoMemoryPushSteps(builder *strings.Builder, data *WorkflowData) {

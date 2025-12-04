@@ -436,8 +436,8 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 		}
 	}
 
-	// Add repo-memory push steps to commit and push changes back to git branches
-	generateRepoMemoryPushSteps(yaml, data)
+	// Add repo-memory artifact upload to save state for push job
+	generateRepoMemoryArtifactUpload(yaml, data)
 
 	// upload assets if upload-asset is configured
 	if data.SafeOutputs != nil && data.SafeOutputs.UploadAssets != nil {

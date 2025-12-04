@@ -18,14 +18,14 @@
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/aw/github-agentic-workflows.md
 #
-# List the last 3 issues using gh CLI
+# Create a poem about GitHub and save it to repo-memory
 #
 # Original Frontmatter:
 # ```yaml
 # on: 
 #   workflow_dispatch:
 # name: Dev
-# description: List the last 3 issues using gh CLI
+# description: Create a poem about GitHub and save it to repo-memory
 # timeout-minutes: 5
 # strict: false
 # engine: claude
@@ -33,6 +33,9 @@
 #   contents: read
 #   issues: read
 # tools:
+#   repo-memory:
+#     branch-name: memory/poems
+#     description: "Poem collection"
 #   github: false
 # imports:
 #   - shared/gh.md
@@ -52,20 +55,33 @@
 #
 # Original Prompt:
 # ```markdown
-# # List Last 3 Issues
+# # Create a Poem and Save to Repo Memory
 #
-# List the last 3 issues in this repository using the gh CLI tool.
+# Create a creative poem about GitHub and agentic workflows, then save it to the repo-memory.
 #
 # ## Task
 #
-# 1. **Use gh CLI**: Use the `gh` tool to list the last 3 issues in this repository.
+# 1. **Create a Poem**: Write a creative, fun poem about GitHub, automation, and agentic workflows.
+#    - The poem should be 8-12 lines
+#    - Include references to GitHub features like Issues, Pull Requests, Actions, etc.
+#    - Make it engaging and technical but fun
 #
-#    Example invocation:
-#    ```
-#    gh with args: "issue list --limit 3 --repo ${{ github.repository }}"
-#    ```
+# 2. **Save to Repo Memory**: Save the poem to `/tmp/gh-aw/repo-memory-default/memory/default/poem_{{ github.run_number }}.md`
+#    - Use the run number in the filename to make it unique
+#    - Include a header with the date and run information
+#    - The file will be automatically committed and pushed to the `memory/poems` branch
 #
-# 2. **Display results**: Show the output from the gh CLI command.
+# 3. **List Previous Poems**: If there are other poem files in the repo memory, list them to show the history.
+#
+# ## Example Poem Structure
+#
+# ```markdown
+# # Poem #{{ github.run_number }}
+# Date: {{ current date }}
+# Run ID: ${{ github.run_id }}
+#
+# [Your poem here]
+# ```
 # ```
 #
 # Pinned GitHub Actions:
@@ -205,6 +221,35 @@ jobs:
         run: |
           mkdir -p /tmp/gh-aw/agent
           echo "Created /tmp/gh-aw/agent directory for agentic workflow temporary files"
+      # Repo memory git-based storage configuration from frontmatter processed below
+      - name: Clone repo-memory branch (default)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BRANCH_NAME: memory/poems
+        run: |
+          set +e  # Don't fail if branch doesn't exist
+          git clone --depth 1 --single-branch --branch "memory/poems" "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git" "/tmp/gh-aw/repo-memory-default" 2>/dev/null
+          CLONE_EXIT_CODE=$?
+          set -e
+          
+          if [ $CLONE_EXIT_CODE -ne 0 ]; then
+            echo "Branch memory/poems does not exist, creating orphan branch"
+            mkdir -p "/tmp/gh-aw/repo-memory-default"
+            cd "/tmp/gh-aw/repo-memory-default"
+            git init
+            git checkout --orphan "$BRANCH_NAME"
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git"
+          else
+            echo "Successfully cloned memory/poems branch"
+            cd "/tmp/gh-aw/repo-memory-default"
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+          fi
+          
+          mkdir -p "/tmp/gh-aw/repo-memory-default/memory/default"
+          echo "Repo memory directory ready at /tmp/gh-aw/repo-memory-default/memory/default"
       - name: Configure Git credentials
         env:
           REPO_NAME: ${{ github.repository }}
@@ -1212,27 +1257,40 @@ jobs:
       - name: Create prompt
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-          GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
+          GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
         run: |
           PROMPT_DIR="$(dirname "$GH_AW_PROMPT")"
           mkdir -p "$PROMPT_DIR"
           cat << 'PROMPT_EOF' | envsubst > "$GH_AW_PROMPT"
           
           
-          # List Last 3 Issues
+          # Create a Poem and Save to Repo Memory
           
-          List the last 3 issues in this repository using the gh CLI tool.
+          Create a creative poem about GitHub and agentic workflows, then save it to the repo-memory.
           
           ## Task
           
-          1. **Use gh CLI**: Use the `gh` tool to list the last 3 issues in this repository.
-             
-             Example invocation:
-             ```
-             gh with args: "issue list --limit 3 --repo ${GH_AW_GITHUB_REPOSITORY}"
-             ```
+          1. **Create a Poem**: Write a creative, fun poem about GitHub, automation, and agentic workflows.
+             - The poem should be 8-12 lines
+             - Include references to GitHub features like Issues, Pull Requests, Actions, etc.
+             - Make it engaging and technical but fun
           
-          2. **Display results**: Show the output from the gh CLI command.
+          2. **Save to Repo Memory**: Save the poem to `/tmp/gh-aw/repo-memory-default/memory/default/poem_{{ github.run_number }}.md`
+             - Use the run number in the filename to make it unique
+             - Include a header with the date and run information
+             - The file will be automatically committed and pushed to the `memory/poems` branch
+          
+          3. **List Previous Poems**: If there are other poem files in the repo memory, list them to show the history.
+          
+          ## Example Poem Structure
+          
+          ```markdown
+          # Poem #{{ github.run_number }}
+          Date: {{ current date }}
+          Run ID: ${GH_AW_GITHUB_RUN_ID}
+          
+          [Your poem here]
+          ```
           
           PROMPT_EOF
       - name: Append XPIA security instructions to prompt
@@ -1268,11 +1326,40 @@ jobs:
           </temporary-files>
           
           PROMPT_EOF
+      - name: Append repo memory instructions to prompt
+        env:
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+        run: |
+          cat << 'PROMPT_EOF' | envsubst >> "$GH_AW_PROMPT"
+          
+          ---
+          
+          ## Repo Memory Available
+          
+          You have access to a persistent repo memory folder at `/tmp/gh-aw/repo-memory-default/memory/default/` where you can read and write files that are stored in a git branch. Poem collection
+          
+          - **Read/Write Access**: You can freely read from and write to any files in this folder
+          - **Git Branch Storage**: Files are stored in the `memory/poems` branch of the current repository
+          - **Automatic Push**: Changes are automatically committed and pushed after the workflow completes
+          - **Merge Strategy**: In case of conflicts, your changes (current version) win
+          - **Persistence**: Files persist across workflow runs via git branch storage
+          
+          **Constraints:**
+          - **Max File Size**: 10240 bytes (0.01 MB) per file
+          - **Max File Count**: 100 files per commit
+          
+          Examples of what you can store:
+          - `/tmp/gh-aw/repo-memory-default/memory/default/notes.md` - general notes and observations
+          - `/tmp/gh-aw/repo-memory-default/memory/default/state.json` - structured state data
+          - `/tmp/gh-aw/repo-memory-default/memory/default/history/` - organized history files in subdirectories
+          
+          Feel free to create, read, update, and organize files in this folder as needed for your tasks.
+          PROMPT_EOF
       - name: Interpolate variables and render templates
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-          GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
+          GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
         with:
           script: |
             const fs = require("fs");
@@ -2388,6 +2475,53 @@ jobs:
           name: agent-stdio.log
           path: /tmp/gh-aw/agent-stdio.log
           if-no-files-found: warn
+      # Push repo memory changes back to git branches
+      - name: Push repo-memory changes (default)
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -e
+          cd "/tmp/gh-aw/repo-memory-default" || exit 0
+          
+          # Check if we have any changes to commit
+          if [ -n "$(git status --porcelain)" ]; then
+            echo "Changes detected in repo memory, committing and pushing..."
+            
+            # Validate files before committing
+            # Check file sizes (max: 10240 bytes)
+            if find . -type f -size +10240c | grep -q .; then
+              echo "Error: Files exceed maximum size limit"
+              find . -type f -size +10240c -exec ls -lh {} \;
+              exit 1
+            fi
+            
+            # Check file count (max: 100 files)
+            FILE_COUNT=$(git status --porcelain | wc -l)
+            if [ "$FILE_COUNT" -gt 100 ]; then
+              echo "Error: Too many files to commit ($FILE_COUNT > 100)"
+              exit 1
+            fi
+            
+            # Add all changes
+            git add -A
+            
+            # Commit changes
+            git commit -m "Update memory from workflow run ${{ github.run_id }}"
+            
+            # Pull with ours merge strategy (our changes win in conflicts)
+            set +e
+            git pull --no-rebase -s recursive -X ours "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git" "memory/poems" 2>&1
+            PULL_EXIT_CODE=$?
+            set -e
+            
+            # Push changes (force push if needed due to conflict resolution)
+            git push "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git" "HEAD:memory/poems"
+            
+            echo "Successfully pushed changes to repo memory"
+          else
+            echo "No changes in repo memory, skipping push"
+          fi
       - name: Validate agent logs for errors
         if: always()
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
