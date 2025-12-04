@@ -75,7 +75,7 @@ tools:
     - "echo *"
     - "cat *"
     - "ls *"
-    - "gh aw compile *"
+    - "gh issue list *"
     - "jq *"
 ```
 
@@ -92,7 +92,7 @@ tools:
 
 1. **Compile time**: Patterns are validated during workflow compilation
 2. **Runtime enforcement**: The AI engine enforces the allowlist by only permitting commands matching the patterns
-3. **Default merging**: When you specify patterns like `["make:*"]`, default safe commands (`echo`, `ls`, etc.) are automatically merged with your custom patterns
+3. **Default merging**: When you specify custom patterns like `["make:*"]`, default safe commands (`echo`, `ls`, `pwd`, `cat`, `head`, `tail`, `grep`, `wc`, `sort`, `uniq`, `date`, `yq`) are automatically merged with your custom patterns. Note: Using `*` or `:*` bypasses this merging since all commands are already allowed.
 
 ## Web Tools
 
