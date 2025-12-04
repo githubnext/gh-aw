@@ -193,7 +193,8 @@ Then, run the following to create and edit your workflow:
 ```bash wrap
 # start an interactive session to customize the workflow
 copilot
-> /create-agentic-workflow
+> /agent
+> select create-agentic-workflow
 > edit @.github/workflows/daily-team-status.md
 ```
 

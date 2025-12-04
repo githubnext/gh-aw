@@ -166,7 +166,7 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	stepLines = append(stepLines, "          set -o pipefail")
 	stepLines = append(stepLines, "          # Execute Claude Code CLI with prompt from file")
 
-	// Build the prompt command - prepend custom agent file content if specified (via imports)
+	// Build the agent command - prepend custom agent file content if specified (via imports)
 	var promptCommand string
 	if workflowData.AgentFile != "" {
 		agentPath := ResolveAgentFilePath(workflowData.AgentFile)
