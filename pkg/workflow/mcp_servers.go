@@ -542,6 +542,29 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		yaml.WriteString("          \n")
 	}
 
+	// Generate MCP Gateway steps if enabled (start gateway container + health check)
+	// These steps must run BEFORE the MCP config is written
+	// Build a map of MCP server configs for the gateway
+	mcpServersMap := make(map[string]any)
+	for _, toolName := range mcpTools {
+		if toolVal, exists := tools[toolName]; exists {
+			mcpServersMap[toolName] = toolVal
+		} else {
+			// For tools like safe-outputs, safe-inputs without explicit config
+			mcpServersMap[toolName] = map[string]any{}
+		}
+	}
+	
+	gatewaySteps := generateMCPGatewaySteps(workflowData, mcpServersMap)
+	if len(gatewaySteps) > 0 {
+		mcpServersLog.Printf("Adding %d MCP Gateway setup steps", len(gatewaySteps))
+		for _, step := range gatewaySteps {
+			for _, line := range step {
+				yaml.WriteString(line + "\n")
+			}
+		}
+	}
+
 	// Use the engine's RenderMCPConfig method
 	yaml.WriteString("      - name: Setup MCPs\n")
 
@@ -653,7 +676,19 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 
 	yaml.WriteString("        run: |\n")
 	yaml.WriteString("          mkdir -p /tmp/gh-aw/mcp-config\n")
-	engine.RenderMCPConfig(yaml, tools, mcpTools, workflowData)
+	
+	// Transform the tools map if MCP gateway is enabled
+	// This converts stdio/docker MCP configs to HTTP URLs pointing to the gateway
+	transformedTools := tools
+	if isMCPGatewayEnabled(workflowData) {
+		gatewayConfig := getMCPGatewayConfig(workflowData)
+		if gatewayConfig != nil {
+			mcpServersLog.Print("Transforming MCP server configs to route through gateway")
+			transformedTools = transformMCPConfigForGateway(mcpServersMap, gatewayConfig)
+		}
+	}
+	
+	engine.RenderMCPConfig(yaml, transformedTools, mcpTools, workflowData)
 }
 
 func getGitHubDockerImageVersion(githubTool any) string {

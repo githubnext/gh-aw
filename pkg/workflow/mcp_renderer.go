@@ -641,6 +641,24 @@ func RenderJSONMCPConfig(
 		serverCount++
 		isLast := serverCount == totalServers
 
+		// Check if this tool has been transformed to HTTP (e.g., by MCP Gateway)
+		// If so, use the custom renderer instead of the built-in tool-specific renderer
+		toolConfig := tools[toolName]
+		isHTTPTransformed := false
+		if toolConfigMap, ok := toolConfig.(map[string]any); ok {
+			if typeVal, exists := toolConfigMap["type"]; exists {
+				if typeStr, ok := typeVal.(string); ok && typeStr == "http" {
+					isHTTPTransformed = true
+				}
+			}
+		}
+
+		// If transformed to HTTP, render as custom MCP config
+		if isHTTPTransformed {
+			HandleCustomMCPToolInSwitch(yaml, toolName, tools, isLast, options.Renderers.RenderCustomMCPConfig)
+			continue
+		}
+
 		switch toolName {
 		case "github":
 			githubTool := tools["github"]
