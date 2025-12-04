@@ -41,10 +41,10 @@ This guide walks you through setup step-by-step, so you don't need everything up
 ### Agentic Setup
 
 If you want to use the help of Copilot to configure GitHub Agentic Workflows,
-launch this command in Copilot:
+launch this command:
 
 ```bash wrap
-activate https://raw.githubusercontent.com/githubnext/gh-aw/refs/heads/main/install.md
+npx --yes @github/copilot -i "activate https://raw.githubusercontent.com/githubnext/gh-aw/refs/heads/main/install.md"
 ```
 
 ### Step 1 — Install the extension
