@@ -33,8 +33,8 @@ func TestEnsureCopilotSetupSteps(t *testing.T) {
 				if !strings.Contains(string(content), "curl -fsSL") {
 					t.Error("Expected workflow to contain curl command")
 				}
-				if !strings.Contains(string(content), "./gh-aw version") {
-					t.Error("Expected workflow to contain ./gh-aw version verification")
+				if !strings.Contains(string(content), "gh aw version") {
+					t.Error("Expected workflow to contain gh aw version verification")
 				}
 			},
 		},
@@ -383,13 +383,13 @@ func TestCopilotSetupStepsYAMLConstant(t *testing.T) {
 		}
 	}
 
-	// Verify verification step uses './gh-aw version' (works in the runner environment after bash install)
+	// Verify verification step uses 'gh aw version' (works via GitHub CLI after bash install)
 	hasVerification := false
 	for _, step := range job.Steps {
 		if strings.Contains(step.Name, "Verify") {
 			hasVerification = true
-			if !strings.Contains(step.Run, "./gh-aw") {
-				t.Error("Verification step should use './gh-aw version' after bash install")
+			if !strings.Contains(step.Run, "gh aw") {
+				t.Error("Verification step should use 'gh aw version' after bash install")
 			}
 		}
 	}
