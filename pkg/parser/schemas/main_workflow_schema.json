@@ -4270,7 +4270,7 @@
     },
     "safe-inputs": {
       "type": "object",
-      "description": "Safe inputs configuration for defining custom lightweight MCP tools as JavaScript or shell scripts. Tools are mounted in an MCP server and have access to secrets specified by the user. Only one of 'script' (JavaScript) or 'run' (shell) must be specified per tool.",
+      "description": "Safe inputs configuration for defining custom lightweight MCP tools as JavaScript, shell scripts, or Python scripts. Tools are mounted in an MCP server and have access to secrets specified by the user. Only one of 'script' (JavaScript), 'run' (shell), or 'py' (Python) must be specified per tool.",
       "patternProperties": {
         "^[a-z][a-z0-9_-]*$": {
           "type": "object",
@@ -4311,11 +4311,15 @@
             },
             "script": {
               "type": "string",
-              "description": "JavaScript implementation (CommonJS format). The script receives input parameters as a JSON object and should return a result. Cannot be used together with 'run'."
+              "description": "JavaScript implementation (CommonJS format). The script receives input parameters as a JSON object and should return a result. Cannot be used together with 'run' or 'py'."
             },
             "run": {
               "type": "string",
-              "description": "Shell script implementation. The script receives input parameters as environment variables (JSON-encoded for complex types). Cannot be used together with 'script'."
+              "description": "Shell script implementation. The script receives input parameters as environment variables (JSON-encoded for complex types). Cannot be used together with 'script' or 'py'."
+            },
+            "py": {
+              "type": "string",
+              "description": "Python script implementation. The script receives input parameters as environment variables (INPUT_* prefix, uppercased). Cannot be used together with 'script' or 'run'."
             },
             "env": {
               "type": "object",
@@ -4335,11 +4339,15 @@
           "oneOf": [
             {
               "required": ["script"],
-              "not": { "required": ["run"] }
+              "not": { "anyOf": [{ "required": ["run"] }, { "required": ["py"] }] }
             },
             {
               "required": ["run"],
-              "not": { "required": ["script"] }
+              "not": { "anyOf": [{ "required": ["script"] }, { "required": ["py"] }] }
+            },
+            {
+              "required": ["py"],
+              "not": { "anyOf": [{ "required": ["script"] }, { "required": ["run"] }] }
             }
           ]
         }

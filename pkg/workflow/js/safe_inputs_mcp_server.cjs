@@ -8,7 +8,7 @@
  * It uses the mcp_server_core module for JSON-RPC handling and tool registration.
  *
  * The server reads tool configuration from a JSON file and loads handlers from
- * JavaScript (.cjs) or shell script (.sh) files.
+ * JavaScript (.cjs), shell script (.sh), or Python script (.py) files.
  *
  * Usage:
  *   node safe_inputs_mcp_server.cjs /path/to/tools.json
@@ -18,16 +18,17 @@
  *   startSafeInputsServer("/path/to/tools.json");
  */
 
-const fs = require("fs");
 const path = require("path");
 const { createServer, registerTool, loadToolHandlers, start } = require("./mcp_server_core.cjs");
+const { loadConfig } = require("./safe_inputs_config_loader.cjs");
+const { createJsToolConfig, createShellToolConfig, createPythonToolConfig } = require("./safe_inputs_tool_factory.cjs");
 
 /**
  * @typedef {Object} SafeInputsToolConfig
  * @property {string} name - Tool name
  * @property {string} description - Tool description
  * @property {Object} inputSchema - JSON Schema for tool inputs
- * @property {string} [handler] - Path to handler file (.cjs or .sh)
+ * @property {string} [handler] - Path to handler file (.cjs, .sh, or .py)
  */
 
 /**
@@ -37,27 +38,6 @@ const { createServer, registerTool, loadToolHandlers, start } = require("./mcp_s
  * @property {string} [logDir] - Log directory path
  * @property {SafeInputsToolConfig[]} tools - Array of tool configurations
  */
-
-/**
- * Load safe-inputs configuration from a JSON file
- * @param {string} configPath - Path to the configuration JSON file
- * @returns {SafeInputsConfig} The loaded configuration
- */
-function loadConfig(configPath) {
-  if (!fs.existsSync(configPath)) {
-    throw new Error(`Configuration file not found: ${configPath}`);
-  }
-
-  const configContent = fs.readFileSync(configPath, "utf-8");
-  const config = JSON.parse(configContent);
-
-  // Validate required fields
-  if (!config.tools || !Array.isArray(config.tools)) {
-    throw new Error("Configuration must contain a 'tools' array");
-  }
-
-  return config;
-}
 
 /**
  * Start the safe-inputs MCP server with the given configuration
@@ -95,40 +75,6 @@ function startSafeInputsServer(configPath, options = {}) {
   start(server);
 }
 
-/**
- * Create tool configuration for a JavaScript handler
- * @param {string} name - Tool name
- * @param {string} description - Tool description
- * @param {Object} inputSchema - JSON Schema for tool inputs
- * @param {string} handlerPath - Relative path to the .cjs handler file
- * @returns {SafeInputsToolConfig} Tool configuration object
- */
-function createJsToolConfig(name, description, inputSchema, handlerPath) {
-  return {
-    name,
-    description,
-    inputSchema,
-    handler: handlerPath,
-  };
-}
-
-/**
- * Create tool configuration for a shell script handler
- * @param {string} name - Tool name
- * @param {string} description - Tool description
- * @param {Object} inputSchema - JSON Schema for tool inputs
- * @param {string} handlerPath - Relative path to the .sh handler file
- * @returns {SafeInputsToolConfig} Tool configuration object
- */
-function createShellToolConfig(name, description, inputSchema, handlerPath) {
-  return {
-    name,
-    description,
-    inputSchema,
-    handler: handlerPath,
-  };
-}
-
 // If run directly, start the server with command-line arguments
 if (require.main === module) {
   const args = process.argv.slice(2);
@@ -158,8 +104,10 @@ if (require.main === module) {
 }
 
 module.exports = {
-  loadConfig,
   startSafeInputsServer,
+  // Re-export helpers for convenience
+  loadConfig,
   createJsToolConfig,
   createShellToolConfig,
+  createPythonToolConfig,
 };
