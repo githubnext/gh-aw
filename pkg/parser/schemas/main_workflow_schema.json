@@ -2215,11 +2215,11 @@
           ]
         },
         "bash": {
-          "description": "Bash shell command execution tool for running command-line programs and scripts",
+          "description": "Bash shell command execution tool for running command-line programs and scripts. Supports wildcard patterns: '*' or ':*' allows all commands, 'command *' matches command with any arguments, 'command:*' matches all subcommands in a command family.",
           "oneOf": [
             {
               "type": "null",
-              "description": "Enable bash tool with all shell commands allowed (security consideration: use restricted list in production)"
+              "description": "Enable bash tool with default safe commands (echo, ls, pwd, cat, head, tail, grep, wc, sort, uniq, date, yq)"
             },
             {
               "type": "boolean",
@@ -2227,7 +2227,7 @@
             },
             {
               "type": "array",
-              "description": "List of allowed bash commands and patterns (e.g., ['echo', 'ls', 'git status', 'npm install'])",
+              "description": "List of allowed bash commands with optional wildcard patterns. Patterns: 'command' (exact match), 'command *' (command with any arguments), 'command:*' (all subcommands), '*' or ':*' (all commands)",
               "items": {
                 "type": "string"
               }
@@ -2235,22 +2235,11 @@
           ],
           "examples": [
             true,
-            [
-              "git fetch",
-              "git checkout",
-              "git status",
-              "git diff",
-              "git log",
-              "make recompile",
-              "make fmt",
-              "make lint",
-              "make test-unit",
-              "cat",
-              "echo",
-              "ls"
-            ],
             ["echo", "ls", "cat"],
-            ["gh pr list *", "gh search prs *", "jq *"]
+            ["date *", "echo *", "cat *", "test *"],
+            ["git:*", "make:*", "npm:*"],
+            ["gh pr list *", "gh search prs *", "jq *"],
+            [":*"]
           ]
         },
         "web-fetch": {

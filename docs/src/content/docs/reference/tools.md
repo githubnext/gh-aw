@@ -36,9 +36,63 @@ tools:
   bash: [":*"]                       # All commands (use with caution)
 ```
 
-**Configuration:** `bash:` provides default safe commands (`echo`, `ls`, `pwd`, `cat`, `head`, `tail`, `grep`, `wc`, `sort`, `uniq`, `date`). Use `bash: []` to disable, `bash: ["cmd1", "cmd2"]` for specific commands, or `bash: [":*"]` for unrestricted access.
+**Configuration:** `bash:` provides default safe commands (`echo`, `ls`, `pwd`, `cat`, `head`, `tail`, `grep`, `wc`, `sort`, `uniq`, `date`, `yq`). Use `bash: []` to disable, `bash: ["cmd1", "cmd2"]` for specific commands, or `bash: [":*"]` for unrestricted access.
 
-**Wildcards:** Use `:*` for all commands, or `command:*` for specific command families (e.g., `git:*` allows all git operations).
+### Bash Allowlist Wildcard Patterns
+
+The bash allowlist supports wildcard patterns to provide flexible command matching:
+
+| Pattern | Description | Example |
+|---------|-------------|---------|
+| `command` | Exact command match | `echo`, `ls`, `cat` |
+| `command *` | Command with any arguments | `date *`, `echo *`, `cat *` |
+| `command:*` | All subcommands in a command family | `git:*`, `make:*`, `npm:*` |
+| `*` | All commands (unrestricted) | `["*"]` |
+| `:*` | All commands (equivalent to `*`) | `[":*"]` |
+
+**Common patterns:**
+
+```yaml wrap
+tools:
+  # Allow specific commands with any arguments
+  bash:
+    - "date *"       # date with any formatting options
+    - "echo *"       # echo with any text
+    - "cat *"        # cat any file
+    - "test *"       # test with any conditions
+    - "mktemp *"     # mktemp with any options
+
+  # Allow entire command families
+  bash:
+    - "git:*"        # All git operations (checkout, commit, push, etc.)
+    - "make:*"       # All make targets
+    - "npm:*"        # All npm commands
+    - "gh:*"         # All GitHub CLI commands
+
+  # Combined patterns for development workflows
+  bash:
+    - "date *"
+    - "echo *"
+    - "cat *"
+    - "ls *"
+    - "gh aw compile *"
+    - "jq *"
+```
+
+### Security Implications
+
+:::caution[Security Best Practices]
+- **Use specific patterns**: Prefer `command *` over `command:*` when you only need argument flexibility
+- **Avoid unrestricted access**: Using `*` or `:*` allows any shell command - only use in trusted workflows
+- **Limit command families**: Instead of `git:*`, consider specific commands like `git status`, `git diff *` if write operations aren't needed
+- **Review regularly**: Audit bash allowlists periodically to ensure they follow the principle of least privilege
+:::
+
+### How Patterns Work at Runtime
+
+1. **Compile time**: Patterns are validated during workflow compilation
+2. **Runtime enforcement**: The AI engine enforces the allowlist by only permitting commands matching the patterns
+3. **Default merging**: When you specify patterns like `["make:*"]`, default safe commands (`echo`, `ls`, etc.) are automatically merged with your custom patterns
 
 ## Web Tools
 
