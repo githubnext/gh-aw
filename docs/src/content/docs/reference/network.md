@@ -133,7 +133,24 @@ See the [Copilot Engine - Network Permissions](/gh-aw/reference/engines/#network
 
 ### Disabling the Firewall
 
-To disable the firewall for any engine that supports it while using network domain allowlists, set both `firewall: false` and `strict: false`:
+:::caution[Deprecated]
+The `network.firewall` field is deprecated. Use `sandbox.agent: false` instead to disable the firewall for the agent.
+:::
+
+To disable the firewall, use `sandbox.agent: false`:
+
+```yaml wrap
+engine: copilot
+network:
+  allowed:
+    - defaults
+    - python
+    - "api.example.com"
+sandbox:
+  agent: false
+```
+
+**Legacy approach (deprecated):**
 
 ```yaml wrap
 strict: false
@@ -145,11 +162,12 @@ network:
   firewall: false
 ```
 
-When the firewall is disabled with specific `allowed` domains:
-- **Normal mode**: Compilation succeeds with a warning
-- **Strict mode**: Compilation fails with an error
+When the firewall is disabled:
+- Network permissions are still applied for content sanitization
+- The agent can make network requests without firewall enforcement
+- This is useful during development or when the firewall is incompatible with your workflow
 
-This configuration is useful during development or when the firewall is incompatible with your workflow requirements. For production workflows, enabling the firewall is recommended for better network security.
+For production workflows, enabling the firewall is recommended for better network security.
 
 ## Best Practices
 

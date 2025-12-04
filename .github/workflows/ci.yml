@@ -242,6 +242,22 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v5
 
+      - name: Set up Node.js
+        id: setup-node
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: pkg/workflow/js/package-lock.json
+
+      - name: Report Node cache status
+        run: |
+          if [ "${{ steps.setup-node.outputs.cache-hit }}" == "true" ]; then
+            echo "✅ Node cache hit" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ Node cache miss" >> $GITHUB_STEP_SUMMARY
+          fi
+
       - name: Set up Go
         id: setup-go
         uses: actions/setup-go@v6
@@ -257,18 +273,11 @@ jobs:
             echo "⚠️ Go cache miss" >> $GITHUB_STEP_SUMMARY
           fi
 
-      - name: Install minimal dependencies
-        run: |
-          go mod download
-          go mod tidy
+      - name: Install dev dependencies
+        run: make deps-dev
 
       - name: Run linter
-        uses: golangci/golangci-lint-action@v6
-        with:
-          version: latest
-
-      - name: Check formatting
-        run: make fmt-check
+        run: make lint
 
       - name: Lint error messages
         run: make lint-errors

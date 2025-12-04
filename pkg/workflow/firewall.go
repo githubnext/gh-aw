@@ -15,10 +15,25 @@ type FirewallConfig struct {
 	CleanupScript string   `yaml:"cleanup_script,omitempty"` // Cleanup script path (default: "./scripts/ci/cleanup.sh")
 }
 
+// isFirewallDisabledBySandboxAgent checks if the firewall is disabled via sandbox.agent: false
+func isFirewallDisabledBySandboxAgent(workflowData *WorkflowData) bool {
+	return workflowData != nil &&
+		workflowData.SandboxConfig != nil &&
+		workflowData.SandboxConfig.Agent != nil &&
+		workflowData.SandboxConfig.Agent.Disabled
+}
+
 // isFirewallEnabled checks if AWF firewall is enabled for the workflow
 // Firewall is enabled if network.firewall is explicitly set to true or an object
+// Firewall is disabled if sandbox.agent is explicitly set to false
 func isFirewallEnabled(workflowData *WorkflowData) bool {
-	// Check network.firewall configuration
+	// Check if sandbox.agent: false (new way to disable firewall)
+	if isFirewallDisabledBySandboxAgent(workflowData) {
+		firewallLog.Print("Firewall disabled via sandbox.agent: false")
+		return false
+	}
+
+	// Check network.firewall configuration (deprecated)
 	if workflowData != nil && workflowData.NetworkPermissions != nil && workflowData.NetworkPermissions.Firewall != nil {
 		enabled := workflowData.NetworkPermissions.Firewall.Enabled
 		firewallLog.Printf("Firewall enabled check: %v", enabled)
@@ -60,6 +75,12 @@ func getAgentConfig(workflowData *WorkflowData) *AgentSandboxConfig {
 // enableFirewallByDefaultForCopilot enables firewall by default for copilot engine
 // when network restrictions are present but no explicit firewall configuration exists
 // and no SRT sandbox is configured (SRT and AWF are mutually exclusive)
+// and sandbox.agent is not explicitly set to false
+//
+// The firewall is enabled by default for copilot UNLESS:
+// - allowed contains "*" (unrestricted network access)
+// - sandbox.agent is explicitly set to false
+// - SRT sandbox is configured
 func enableFirewallByDefaultForCopilot(engineID string, networkPermissions *NetworkPermissions, sandboxConfig *SandboxConfig) {
 	// Only apply to copilot engine
 	if engineID != "copilot" {
@@ -71,10 +92,28 @@ func enableFirewallByDefaultForCopilot(engineID string, networkPermissions *Netw
 		return
 	}
 
-	// Check if SRT is enabled - skip AWF auto-enablement if SRT is configured
-	if sandboxConfig != nil && sandboxConfig.Type == SandboxTypeRuntime {
-		firewallLog.Print("SRT sandbox is enabled, skipping AWF auto-enablement")
+	// Check if sandbox.agent: false is set (disables firewall)
+	// Use a minimal check here since we don't have WorkflowData
+	if sandboxConfig != nil && sandboxConfig.Agent != nil && sandboxConfig.Agent.Disabled {
+		firewallLog.Print("sandbox.agent: false is set, skipping AWF auto-enablement")
 		return
+	}
+
+	// Check if SRT is enabled - skip AWF auto-enablement if SRT is configured
+	if sandboxConfig != nil {
+		// Check legacy Type field
+		if sandboxConfig.Type == SandboxTypeRuntime {
+			firewallLog.Print("SRT sandbox is enabled (via Type), skipping AWF auto-enablement")
+			return
+		}
+		// Check new Agent field
+		if sandboxConfig.Agent != nil {
+			agentType := getAgentType(sandboxConfig.Agent)
+			if agentType == SandboxTypeRuntime || agentType == SandboxTypeSRT {
+				firewallLog.Print("SRT sandbox is enabled (via Agent), skipping AWF auto-enablement")
+				return
+			}
+		}
 	}
 
 	// Check if firewall is already configured
@@ -83,12 +122,19 @@ func enableFirewallByDefaultForCopilot(engineID string, networkPermissions *Netw
 		return
 	}
 
-	// Check if network restrictions are present (allowed domains specified)
-	if len(networkPermissions.Allowed) > 0 {
-		// Enable firewall by default for copilot engine with network restrictions
-		networkPermissions.Firewall = &FirewallConfig{
-			Enabled: true,
+	// Check if allowed contains "*" (unrestricted network access)
+	// If it does, do NOT enable the firewall by default
+	for _, domain := range networkPermissions.Allowed {
+		if domain == "*" {
+			firewallLog.Print("Wildcard '*' in allowed domains, skipping AWF auto-enablement")
+			return
 		}
-		firewallLog.Print("Enabled firewall by default for copilot engine with network restrictions")
 	}
+
+	// Enable firewall by default for copilot engine
+	// This applies to all cases EXCEPT when allowed = "*"
+	networkPermissions.Firewall = &FirewallConfig{
+		Enabled: true,
+	}
+	firewallLog.Print("Enabled firewall by default for copilot engine")
 }
