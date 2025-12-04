@@ -55,8 +55,9 @@ Choose one implementation method:
 
 - **`script:`** - JavaScript (CommonJS) code
 - **`run:`** - Shell script
+- **`py:`** - Python script (Python 3.1x)
 
-You cannot use both `script:` and `run:` in the same tool.
+You can only use one of `script:`, `run:`, or `py:` per tool.
 
 ## JavaScript Tools (`script:`)
 
@@ -193,6 +194,139 @@ gh with args: "api repos/{owner}/{repo}"
 ```
 
 The shared workflow uses `${{ github.token }}` for authentication, providing access based on the workflow's `permissions` configuration.
+
+## Python Tools (`py:`)
+
+Python tools execute using `python3` and follow GitHub Actions conventions for input/output:
+
+```yaml wrap
+safe-inputs:
+  analyze-data:
+    description: "Analyze data with Python"
+    inputs:
+      numbers:
+        type: string
+        description: "Comma-separated numbers"
+        required: true
+    py: |
+      import os
+      import json
+      
+      # Get input from environment variable
+      numbers_str = os.environ.get('INPUT_NUMBERS', '')
+      numbers = [float(x.strip()) for x in numbers_str.split(',') if x.strip()]
+      
+      # Calculate statistics
+      result = {
+          "count": len(numbers),
+          "sum": sum(numbers),
+          "average": sum(numbers) / len(numbers) if numbers else 0
+      }
+      
+      # Print result to stdout
+      print(json.dumps(result))
+```
+
+### Input Variable Naming
+
+Input parameters are converted to environment variables with the `INPUT_` prefix (uppercased):
+- `numbers` → `INPUT_NUMBERS`
+- `data-file` → `INPUT_DATA_FILE`
+- `my-param` → `INPUT_MY_PARAM`
+
+### Using Python Libraries
+
+Python 3.12+ is available with standard library modules. For additional packages, you can install them inline:
+
+```yaml wrap
+safe-inputs:
+  analyze-with-numpy:
+    description: "Statistical analysis with NumPy"
+    inputs:
+      values:
+        type: string
+        required: true
+    py: |
+      import os
+      import json
+      import subprocess
+      import sys
+      
+      # Install package if needed (for demonstration)
+      # subprocess.check_call([sys.executable, "-m", "pip", "install", "--quiet", "numpy"])
+      # import numpy as np
+      
+      # Get input
+      values_str = os.environ.get('INPUT_VALUES', '')
+      values = [float(x.strip()) for x in values_str.split(',') if x.strip()]
+      
+      # Calculate statistics
+      result = {"mean": sum(values) / len(values) if values else 0}
+      print(json.dumps(result))
+```
+
+### Writing Outputs
+
+Python scripts can write outputs to the `GITHUB_OUTPUT` file:
+
+```yaml wrap
+safe-inputs:
+  process-data:
+    description: "Process data and return outputs"
+    inputs:
+      input-data:
+        type: string
+        required: true
+    py: |
+      import os
+      import json
+      
+      data = os.environ.get('INPUT_INPUT_DATA', '')
+      result = {"processed": data.upper()}
+      
+      # Write to GITHUB_OUTPUT file
+      output_file = os.environ.get('GITHUB_OUTPUT', '')
+      if output_file:
+          with open(output_file, 'a') as f:
+              f.write(f"result={json.dumps(result)}\n")
+      
+      # Also print to stdout
+      print(json.dumps(result))
+```
+
+### Accessing Environment Variables
+
+Access secrets and environment variables via `os.environ`:
+
+```yaml wrap
+safe-inputs:
+  fetch-api-data:
+    description: "Fetch data from API using Python"
+    inputs:
+      endpoint:
+        type: string
+        required: true
+    py: |
+      import os
+      import json
+      try:
+          from urllib import request
+      except ImportError:
+          import urllib.request as request
+      
+      endpoint = os.environ.get('INPUT_ENDPOINT', '')
+      api_key = os.environ.get('API_KEY', '')
+      
+      # Make API request
+      url = f"https://api.example.com/{endpoint}"
+      req = request.Request(url, headers={"Authorization": f"Bearer {api_key}"})
+      
+      with request.urlopen(req) as response:
+          data = json.loads(response.read())
+          print(json.dumps(data))
+    env:
+      API_KEY: "${{ secrets.API_KEY }}"
+```
 
 ## Input Parameters
 
@@ -375,7 +509,7 @@ Use the `fetch-pr-data` tool to get PR information if needed.
 | Feature | Safe Inputs | Custom MCP Servers | Bash Tool |
 |---------|-------------|-------------------|-----------|
 | Setup | Inline in frontmatter | External service | Simple commands |
-| Languages | JavaScript, Shell | Any language | Shell only |
+| Languages | JavaScript, Shell, Python | Any language | Shell only |
 | Secret Access | Controlled via `env:` | Full access | Workflow env |
 | Isolation | Process-level | Service-level | None |
 | Best For | Custom logic | Complex integrations | Simple commands |

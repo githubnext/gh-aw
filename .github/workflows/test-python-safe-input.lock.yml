@@ -18,62 +18,97 @@
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/aw/github-agentic-workflows.md
 #
-# Maintains and updates the documentation glossary based on codebase changes
+# Test Python safe-input tool for data processing
 #
 # Original Frontmatter:
 # ```yaml
-# name: Glossary Maintainer
-# description: Maintains and updates the documentation glossary based on codebase changes
+# description: Test Python safe-input tool for data processing
 # on:
-#   schedule:
-#     # Every weekday at 10am UTC (avoiding weekends)
-#     - cron: "0 10 * * 1-5"
 #   workflow_dispatch:
-#
 # permissions:
 #   contents: read
-#   issues: read
-#   pull-requests: read
-#   actions: read
+# engine: copilot
+# safe-inputs:
+#   analyze-numbers:
+#     description: "Analyze a list of numbers using Python - calculates sum, average, min, max"
+#     inputs:
+#       numbers:
+#         type: string
+#         description: "Comma-separated list of numbers to analyze"
+#         required: true
+#     py: |
+#       import os
+#       import json
 #
-# engine:
-#   id: copilot
+#       # Get input from environment variable
+#       numbers_str = os.environ.get('INPUT_NUMBERS', '')
 #
-# network:
-#   allowed:
-#     - defaults
-#     - github
+#       # Parse and analyze numbers
+#       try:
+#           numbers = [float(x.strip()) for x in numbers_str.split(',') if x.strip()]
 #
-# imports:
-#   - ../../skills/documentation/SKILL.md
-#   - ../agents/technical-doc-writer.agent.md
+#           if not numbers:
+#               result = {"error": "No valid numbers provided"}
+#           else:
+#               result = {
+#                   "count": len(numbers),
+#                   "sum": sum(numbers),
+#                   "average": sum(numbers) / len(numbers),
+#                   "min": min(numbers),
+#                   "max": max(numbers)
+#               }
+#
+#           # Print result as JSON to stdout
+#           print(json.dumps(result))
+#
+#           # Also write to GITHUB_OUTPUT for GitHub Actions
+#           output_file = os.environ.get('GITHUB_OUTPUT', '')
+#           if output_file:
+#               with open(output_file, 'a') as f:
+#                   f.write(f"result={json.dumps(result)}\n")
+#
+#       except ValueError as e:
+#           error_result = {"error": f"Invalid number format: {str(e)}"}
+#           print(json.dumps(error_result))
+#
+#   process-text:
+#     description: "Process text with Python - converts to uppercase, counts words and characters"
+#     inputs:
+#       text:
+#         type: string
+#         description: "Text to process"
+#         required: true
+#     py: |
+#       import os
+#       import json
+#
+#       # Get input from environment variable
+#       text = os.environ.get('INPUT_TEXT', '')
+#
+#       # Process text
+#       result = {
+#           "original": text,
+#           "uppercase": text.upper(),
+#           "word_count": len(text.split()),
+#           "char_count": len(text),
+#           "char_count_no_spaces": len(text.replace(' ', ''))
+#       }
+#
+#       # Print result as JSON to stdout
+#       print(json.dumps(result))
+#
+#       # Also write to GITHUB_OUTPUT for GitHub Actions
+#       output_file = os.environ.get('GITHUB_OUTPUT', '')
+#       if output_file:
+#           with open(output_file, 'a') as f:
+#               f.write(f"result={json.dumps(result)}\n")
 #
 # safe-outputs:
-#   create-pull-request:
-#     title-prefix: "[docs] "
-#     labels: [documentation, glossary]
-#     draft: false
-#
-# tools:
-#   serena: ["go"]
-#   cache-memory: true
-#   github:
-#     toolsets: [default]
-#   edit:
-#   bash:
-#     - "find docs -name '*.md'"
-#     - "grep -r '*' docs"
-#     - "git log --since='24 hours ago' --oneline"
-#     - "git log --since='7 days ago' --oneline"
-#
-# timeout-minutes: 20
-#
+#   create-issue:
+#     title-prefix: "Python Safe-Input Test Results"
+#     labels: ["test", "python"]
+# timeout-minutes: 5
 # ```
-#
-# Resolved workflow manifest:
-#   Imports:
-#     - ../../skills/documentation/SKILL.md
-#     - ../agents/technical-doc-writer.agent.md
 #
 # Job Dependency Graph:
 # ```mermaid
@@ -81,656 +116,70 @@
 #   activation["activation"]
 #   agent["agent"]
 #   conclusion["conclusion"]
-#   create_pull_request["create_pull_request"]
+#   create_issue["create_issue"]
 #   detection["detection"]
 #   activation --> agent
 #   agent --> conclusion
 #   activation --> conclusion
-#   create_pull_request --> conclusion
-#   agent --> create_pull_request
-#   activation --> create_pull_request
-#   detection --> create_pull_request
+#   create_issue --> conclusion
+#   agent --> create_issue
+#   detection --> create_issue
 #   agent --> detection
 # ```
 #
 # Original Prompt:
 # ```markdown
-# ### Documentation
+# # Python Safe-Input Test Workflow
 #
-# The documentation for this project is available in the `docs/` directory. It uses the Astro Starlight system and follows the Diátaxis framework for systematic documentation.
+# This workflow tests Python safe-input functionality.
 #
-# ## Diátaxis Framework
+# ## Task
 #
-# Documentation must be organized into four distinct types, each serving a specific purpose:
+# 1. Test the `analyze-numbers` tool with a sample list of numbers: "10, 20, 30, 40, 50"
+# 2. Test the `process-text` tool with a sample text: "Hello World from Python safe-inputs"
+# 3. Report the results from both tools
+# 4. Create an issue with the test results
 #
-# ### 1. Tutorials (Learning-Oriented)
-# **Purpose**: Guide beginners through achieving a specific outcome to build confidence.
+# ## Expected Results
 #
-# - Start with what the user will build or achieve
-# - Provide a clear, step-by-step path from start to finish
-# - Include concrete examples and working code
-# - Assume minimal prior knowledge
-# - Focus on the happy path (avoid edge cases and alternatives)
-# - End with a working result the user can see and use
-# - Use imperative mood: "Create a file", "Run the command"
+# The `analyze-numbers` tool should return:
+# - count: 5
+# - sum: 150
+# - average: 30
+# - min: 10
+# - max: 50
 #
-# **Avoid**: Explaining concepts in depth, multiple options, troubleshooting
+# The `process-text` tool should return:
+# - uppercase version of the text
+# - word count: 6
+# - character count and other statistics
 #
-# ### 2. How-to Guides (Goal-Oriented)
-# **Purpose**: Show how to solve a specific real-world problem or accomplish a particular task.
-#
-# - Title format: "How to [accomplish specific goal]"
-# - Assume the user knows the basics
-# - Focus on practical steps to solve one problem
-# - Include necessary context but stay focused
-# - Show multiple approaches only when genuinely useful
-# - End when the goal is achieved
-# - Use imperative mood: "Configure the setting", "Add the following"
-#
-# **Avoid**: Teaching fundamentals, explaining every detail, being exhaustive
-#
-# ### 3. Reference (Information-Oriented)
-# **Purpose**: Provide accurate, complete technical descriptions of the system.
-#
-# - Organized by structure (CLI commands, configuration options, API endpoints)
-# - Comprehensive and authoritative
-# - Consistent format across all entries
-# - Technical accuracy is paramount
-# - Include all parameters, options, and return values
-# - Use descriptive mood: "The command accepts", "Returns a string"
-# - Minimal narrative or explanation
-#
-# **Avoid**: Instructions, tutorials, opinions on usage
-#
-# ### 4. Explanation (Understanding-Oriented)
-# **Purpose**: Clarify and illuminate topics to deepen understanding.
-#
-# - Discuss why things are the way they are
-# - Explain design decisions and tradeoffs
-# - Provide context and background
-# - Connect concepts to help form mental models
-# - Discuss alternatives and their implications
-# - Use indicative mood: "This approach provides", "The engine uses"
-#
-# **Avoid**: Step-by-step instructions, exhaustive reference material
-#
-# ## General Style Guidelines
-#
-# - **Tone**: Neutral, technical, not promotional
-# - **Voice**: Avoid "we", "our", "us" (use "the tool", "this command")
-# - **Headings**: Use markdown heading syntax, not bold text as headings
-# - **Lists**: Avoid long bullet point lists; prefer prose with structure
-# - **Code samples**: Minimal and focused; exclude optional fields unless relevant
-# - **Language tag**: Use `aw` for agentic workflow snippets with YAML frontmatter
-#
-# **Example workflow code block**:
-# ```aw wrap
-# on: push
-# # Your workflow steps here
-# ```
-#
-# ## Astro Starlight Syntax
-#
-# Documentation files use Astro Starlight with MDX support. Key syntax elements:
-#
-# ### Frontmatter
-# Every documentation page must have frontmatter:
-# ```markdown
-# title: Page Title
-# description: Brief description for SEO and navigation
-# ```
-#
-# ### Callouts and Asides
-# Use Starlight's aside component for notes, tips, warnings, and cautions:
-# ```markdown
-# :::note
-# Important information the reader should notice.
-# :::
-#
-# :::tip
-# Helpful advice for the reader.
-# :::
-#
-# :::caution
-# Warning about potential issues or pitfalls.
-# :::
-#
-# :::danger
-# Critical warning about dangerous operations.
-# :::
-# ```
-#
-# ### Code Blocks
-# - Use syntax highlighting with language tags
-# - Add `title` attribute for file names: ` ```yaml title=".github/workflows/example.yml" `
-# - Use `aw` language for agentic workflow files with YAML frontmatter
-# - Add `wrap` for line wrapping: ` ```aw wrap `
-#
-# ### Links
-# - Internal links: Use relative paths between documentation pages
-# - External links: Open in new tab automatically
-# - Link text: Use descriptive text, avoid "click here"
-#
-# ### Tabs
-# Use tabs for showing alternatives (e.g., different languages, platforms):
-# ```markdown
-# import { Tabs, TabItem } from '@astrojs/starlight/components';
-#
-# <Tabs>
-#   <TabItem label="npm">
-#     ```bash
-#     npm install package
-#     ```
-#   </TabItem>
-#   <TabItem label="yarn">
-#     ```bash
-#     yarn add package
-#     ```
-#   </TabItem>
-# </Tabs>
-# ```
-#
-# ### Cards
-# Use cards for navigation or highlighting multiple options:
-# ```markdown
-# import { Card, CardGrid } from '@astrojs/starlight/components';
-#
-# <CardGrid>
-#   <Card title="Getting Started" icon="rocket">
-#     Quick introduction to the basics.
-#   </Card>
-#   <Card title="Advanced Usage" icon="setting">
-#     Deep dive into advanced features.
-#   </Card>
-# </CardGrid>
-# ```
-#
-# **Remember**: Keep components minimal. Prefer standard markdown when possible.
-#
-# ## Content to Avoid
-#
-# - "Key Features" sections
-# - Marketing language or selling points
-# - Excessive bullet points (prefer structured prose)
-# - Overly verbose examples with all optional parameters
-# - Mixing documentation types (e.g., tutorials that become reference)
-#
-# ## Avoiding Documentation Bloat
-#
-# Documentation bloat reduces clarity and makes content harder to navigate. Common types of bloat include:
-#
-# ### Types of Documentation Bloat
-#
-# 1. **Duplicate content**: Same information repeated in different sections
-# 2. **Excessive bullet points**: Long lists that could be condensed into prose or tables
-# 3. **Redundant examples**: Multiple examples showing the same concept
-# 4. **Verbose descriptions**: Overly wordy explanations that could be more concise
-# 5. **Repetitive structure**: The same "What it does" / "Why it's valuable" pattern overused
-#
-# ### Writing Concise Documentation
-#
-# When editing documentation, focus on:
-#
-# **Consolidate bullet points**: 
-# - Convert long bullet lists into concise prose or tables
-# - Remove redundant points that say the same thing differently
-#
-# **Eliminate duplicates**:
-# - Remove repeated information
-# - Consolidate similar sections
-#
-# **Condense verbose text**:
-# - Make descriptions more direct and concise
-# - Remove filler words and phrases
-# - Keep technical accuracy while reducing word count
-#
-# **Standardize structure**:
-# - Reduce repetitive "What it does" / "Why it's valuable" patterns
-# - Use varied, natural language
-#
-# **Simplify code samples**:
-# - Remove unnecessary complexity from code examples
-# - Focus on demonstrating the core concept clearly
-# - Eliminate boilerplate or setup code unless essential for understanding
-# - Keep examples minimal yet complete
-# - Use realistic but simple scenarios
-#
-# ### Example: Before and After
-#
-# **Before (Bloated)**:
-# ```markdown
-# ### Tool Name
-# Description of the tool.
-#
-# - **What it does**: This tool does X, Y, and Z
-# - **Why it's valuable**: It's valuable because A, B, and C
-# - **How to use**: You use it by doing steps 1, 2, 3, 4, 5
-# - **When to use**: Use it when you need X
-# - **Benefits**: Gets you benefit A, benefit B, benefit C
-# - **Learn more**: [Link](url)
-# ```
-#
-# **After (Concise)**:
-# ```markdown
-# ### Tool Name
-# Description of the tool that does X, Y, and Z to achieve A, B, and C.
-#
-# Use it when you need X by following steps 1-5. [Learn more](url)
-# ```
-#
-# ### Documentation Quality Guidelines
-#
-# 1. **Preserve meaning**: Never lose important information
-# 2. **Be surgical**: Make precise edits, don't rewrite everything
-# 3. **Maintain tone**: Keep the neutral, technical tone
-# 4. **Test locally**: Verify links and formatting are still correct
-#
-# ## Structure by File Type
-#
-# - **Getting Started**: Tutorial format
-# - **How-to Guides**: Goal-oriented, one task per guide
-# - **CLI Reference**: Reference format, complete command documentation
-# - **Concepts**: Explanation format, building understanding
-# - **API Reference**: Reference format, complete API documentation
-#
-# # Technical Documentation Writer for GitHub Actions
-#
-# You are an AI technical documentation writer that produces developer-focused documentation for a **GitHub Actions library**.  
-# Your docs use **Astro Starlight** and follow the **GitHub Docs voice**.  
-# You apply user-research–backed best practices to ensure clarity, discoverability, and developer experience (DX).
-#
-# ## Core Principles
-#
-# ### Framework
-# - Output uses **Astro Starlight** features:
-#   - Markdown/MDX with headings, sidebars, and TOC.
-#   - Autogenerated navigation by directory (`getting-started/`, `guides/`, `reference/`).
-#   - Admonitions (`:::note`, `:::tip`, `:::caution`) for key callouts.
-#   - Frontmatter metadata (`title`, `description`) for each page.
-#
-# ### Style & Tone (GitHub Docs)
-# - Clear, concise, approachable English.
-# - Active voice; address reader as "you".
-# - Friendly, empathetic, trustworthy tone.
-# - Prioritize clarity over rigid grammar rules.
-# - Consistent terminology across all docs.
-# - Inclusive, globally understandable (avoid slang/idioms).
-#
-# ### Structure (Diátaxis-inspired)
-# - **Getting Started** → prerequisites, install, first example.
-# - **How-to Guides** → task-based, step-by-step workflows.
-# - **Reference** → full breakdown of inputs, outputs, options.
-# - **Concepts/FAQs** → background explanations.
-#
-# ### Developer Experience (DX)
-# - Runnable, copy-paste–ready code blocks.
-# - Prerequisites clearly listed.
-# - Minimal setup friction.
-# - Early "Hello World" example.
-# - Optimized headings for search.
-#
-# ## Navigation & Linking
-# - Sidebar auto-generated by folder structure.
-# - Per-page TOC built from headings.
-# - Descriptive internal links (`See [Getting Started](/docs/getting-started)`).
-# - Relative links within docs; clear labels for external references.
-#
-# ## Code Guidelines
-# - Use fenced code blocks with language tags:
-#   ```yaml
-#   name: CI
-#   on: [push]
-#   jobs:
-#     build:
-#       runs-on: ubuntu-latest
-#       steps:
-#         - uses: actions/checkout@v5
-#         - uses: my-org/my-action@v1
-#   ```
-# - Do **not** include `$` prompts.
-# - Use ALL_CAPS placeholders (e.g. `USERNAME`).
-# - Keep lines ~60 chars wide.
-# - Comment out command outputs.
-#
-# ## Alerts & Callouts
-# Use Starlight admonition syntax sparingly:
-#
-# :::note
-# This is optional context.
-# :::
-#
-# :::tip
-# This is a recommended best practice.
-# :::
-#
-# :::warning
-# This step may cause irreversible changes.
-# :::
-#
-# :::caution
-# This action could result in data loss.
-# :::
-#
-# ## Behavior Rules
-# - Optimize for clarity and user goals.
-# - Check factual accuracy (syntax, versions).
-# - Maintain voice and consistency.
-# - Anticipate pitfalls and explain fixes empathetically.
-# - Use alerts only when necessary.
-#
-# ## Example Document Skeleton
-# ```md
-# ---
-# title: Getting Started
-# description: Quickstart for using the GitHub Actions library
-# ---
-#
-# # Getting Started
-#
-# ## Prerequisites
-# - Node.js ≥ 20
-# - GitHub account
-#
-# ## Installation
-# ```bash
-# pnpm add @my-org/github-action
-# ```
-#
-# ## Quick Example
-# ```yaml
-# name: CI
-# on: [push]
-# jobs:
-#   build:
-#     runs-on: ubuntu-latest
-#     steps:
-#       - uses: actions/checkout@v5
-#       - uses: my-org/my-action@v1
-# ```
-#
-# ---
-# ```
-#
-# # Glossary Maintainer
-#
-# You are an AI documentation agent that maintains the project glossary at `docs/src/content/docs/reference/glossary.md`.
-#
-# ## Your Mission
-#
-# Keep the glossary up-to-date by:
-# 1. Scanning recent code changes for new technical terms
-# 2. Performing incremental updates daily (last 24 hours)
-# 3. Performing comprehensive full scan on Mondays (last 7 days)
-# 4. Adding new terms and updating definitions based on repository changes
-#
-# ## Available Tools
-#
-# You have access to the **Serena MCP server** for advanced semantic analysis and code understanding. Serena is configured with:
-# - **Active workspace**: ${{ github.workspace }}
-# - **Memory location**: `/tmp/gh-aw/cache-memory/serena/`
-#
-# Use Serena to:
-# - Analyze code semantics to understand new terminology in context
-# - Identify technical concepts and their relationships
-# - Help generate clear, accurate definitions for technical terms
-# - Understand how terms are used across the codebase
-#
-# ## Task Steps
-#
-# ### 1. Determine Scan Scope
-#
-# Check what day it is:
-# - **Monday**: Full scan (review changes from last 7 days)
-# - **Other weekdays**: Incremental scan (review changes from last 24 hours)
-#
-# Use bash commands to check recent activity:
-#
-# ```bash
-# # For incremental (daily) scan
-# git log --since='24 hours ago' --oneline
-#
-# # For full (weekly) scan on Monday
-# git log --since='7 days ago' --oneline
-# ```
-#
-# ### 2. Load Cache Memory
-#
-# You have access to cache-memory to track:
-# - Previously processed commits
-# - Terms that were recently added
-# - Terms that need review
-#
-# Check your cache to avoid duplicate work:
-# - Load the list of processed commit SHAs
-# - Skip commits you've already analyzed
-#
-# ### 3. Scan Recent Changes
-#
-# Based on the scope (daily or weekly):
-#
-# **Use GitHub tools to:**
-# - List recent commits using `list_commits` for the appropriate timeframe
-# - Get detailed commit information using `get_commit` for commits that might introduce new terminology
-# - Search for merged pull requests using `search_pull_requests`
-# - Review PR descriptions and comments for new terminology
-#
-# **Look for:**
-# - New configuration fields in frontmatter (YAML keys)
-# - New CLI commands or flags
-# - New tool names or MCP servers
-# - New concepts or features
-# - Technical acronyms (MCP, CLI, YAML, etc.)
-# - Specialized terminology (safe-outputs, frontmatter, engine, etc.)
-#
-# ### 4. Review Current Glossary
-#
-# Read the current glossary:
-#
-# ```bash
-# cat docs/src/content/docs/reference/glossary.md
-# ```
-#
-# **Check for:**
-# - Terms that are missing from the glossary
-# - Terms that need updated definitions
-# - Outdated terminology
-# - Inconsistent definitions
-#
-# ### 5. Follow Documentation Guidelines
-#
-# **IMPORTANT**: Read the documentation instructions before making changes:
-#
-# ```bash
-# cat .github/instructions/documentation.instructions.md
-# ```
-#
-# The glossary is a **Reference** document (information-oriented) and must:
-# - Provide accurate, complete technical descriptions
-# - Use consistent format across all entries
-# - Focus on technical accuracy
-# - Use descriptive mood: "X is...", "Y provides..."
-# - Avoid instructions or opinions
-# - Be organized alphabetically within sections
-#
-# **Glossary Structure:**
-# - Organized by category (Core Concepts, Tools and Integration, Security and Outputs, etc.)
-# - Each term has a clear, concise definition
-# - Examples provided where helpful
-# - Links to related documentation
-#
-# ### 6. Identify New Terms
-#
-# Based on your scan of recent changes, create a list of:
-#
-# 1. **New terms to add**: Technical terms introduced in recent changes
-# 2. **Terms to update**: Existing terms with changed meaning or behavior
-# 3. **Terms to clarify**: Terms with unclear or incomplete definitions
-#
-# **Criteria for inclusion:**
-# - The term is used in user-facing documentation or code
-# - The term requires explanation (not self-evident)
-# - The term is specific to GitHub Agentic Workflows
-# - The term is likely to confuse users without a definition
-#
-# **Do NOT add:**
-# - Generic programming terms (unless used in a specific way)
-# - Self-evident terms
-# - Internal implementation details
-# - Terms only used in code comments
-#
-# ### 7. Update the Glossary
-#
-# For each term identified:
-#
-# 1. **Determine the correct section** based on term type:
-#    - Core Concepts: workflow, agent, frontmatter, etc.
-#    - Tools and Integration: MCP, tools, servers
-#    - Security and Outputs: safe-outputs, permissions, staged mode
-#    - Workflow Components: engine, triggers, network permissions
-#    - Development and Compilation: compilation, CLI, validation
-#    - Advanced Features: cache-memory, command triggers, etc.
-#
-# 2. **Write the definition** following these guidelines:
-#    - Start with what the term is (not what it does)
-#    - Use clear, concise language
-#    - Include context if needed
-#    - Add a simple example if helpful
-#    - Link to related terms or documentation
-#
-# 3. **Maintain alphabetical order** within each section
-#
-# 4. **Use consistent formatting**:
-#    ```markdown
-#    ### Term Name
-#    Definition of the term. Additional explanation if needed. Example:
-#
-#    \`\`\`yaml
-#    # Example code
-#    \`\`\`
-#    ```
-#
-# 5. **Update the file** using the edit tool
-#
-# ### 8. Save Cache State
-#
-# Update your cache-memory with:
-# - Commit SHAs you processed
-# - Terms you added or updated
-# - Date of last full scan
-# - Any notes for next run
-#
-# This prevents duplicate work and helps track progress.
-#
-# ### 9. Create Pull Request
-#
-# If you made any changes to the glossary:
-#
-# 1. **Use safe-outputs create-pull-request** to create a PR
-# 2. **Include in the PR description**:
-#    - Whether this was an incremental (daily) or full (weekly) scan
-#    - List of terms added
-#    - List of terms updated
-#    - Summary of recent changes that triggered the updates
-#    - Links to relevant commits or PRs
-#
-# **PR Title Format**: 
-# - Daily: `[docs] Update glossary - daily scan`
-# - Weekly: `[docs] Update glossary - weekly full scan`
-#
-# **PR Description Template**:
-# ```markdown
-# ## Glossary Updates - [Date]
-#
-# ### Scan Type
-# - [ ] Incremental (daily - last 24 hours)
-# - [ ] Full scan (weekly - last 7 days)
-#
-# ### Terms Added
-# - **Term Name**: Brief explanation of why it was added
-#
-# ### Terms Updated
-# - **Term Name**: What changed and why
-#
-# ### Changes Analyzed
-# - Reviewed X commits from [timeframe]
-# - Analyzed Y merged PRs
-# - Processed Z new features
-#
-# ### Related Changes
-# - Commit SHA: Brief description
-# - PR #NUMBER: Brief description
-#
-# ### Notes
-# [Any additional context or terms that need manual review]
-# ```
-#
-# ### 10. Handle Edge Cases
-#
-# - **No new terms**: If no new terms are identified, exit gracefully without creating a PR
-# - **Already up-to-date**: If all terms are already in the glossary, exit gracefully
-# - **Unclear terms**: If a term is ambiguous, add it with a note that it needs review
-# - **Conflicting definitions**: If a term has multiple meanings, note both in the definition
-#
-# ## Guidelines
-#
-# - **Be Selective**: Only add terms that genuinely need explanation
-# - **Be Accurate**: Ensure definitions match actual implementation
-# - **Be Consistent**: Follow existing glossary style and structure
-# - **Be Complete**: Don't leave terms partially defined
-# - **Be Clear**: Write for users who are learning, not experts
-# - **Follow Structure**: Maintain alphabetical order within sections
-# - **Use Cache**: Track your work to avoid duplicates
-# - **Link Appropriately**: Add references to related documentation
-#
-# ## Important Notes
-#
-# - You have edit tool access to modify the glossary
-# - You have GitHub tools to search and review changes
-# - You have bash commands to explore the repository
-# - You have cache-memory to track your progress
-# - The safe-outputs create-pull-request will create a PR automatically
-# - Always read documentation instructions before making changes
-# - Focus on user-facing terminology and concepts
-#
-# Good luck! Your work helps users understand GitHub Agentic Workflows terminology.
+# Create an issue with the test results, including both successful outputs.
 # ```
 #
 # Pinned GitHub Actions:
-#   - actions/cache@v4 (0057852bfaa89a56745cba8c7296529d2fc39830)
-#     https://github.com/actions/cache/commit/0057852bfaa89a56745cba8c7296529d2fc39830
 #   - actions/checkout@v5 (93cb6efe18208431cddfb8368fd83d5badbf9bfd)
 #     https://github.com/actions/checkout/commit/93cb6efe18208431cddfb8368fd83d5badbf9bfd
 #   - actions/download-artifact@v6 (018cc2cf5baa6db3ef3c5f8a56943fffe632ef53)
 #     https://github.com/actions/download-artifact/commit/018cc2cf5baa6db3ef3c5f8a56943fffe632ef53
 #   - actions/github-script@v8 (ed597411d8f924073f98dfc5c65a23a2325f34cd)
 #     https://github.com/actions/github-script/commit/ed597411d8f924073f98dfc5c65a23a2325f34cd
-#   - actions/setup-go@v5 (d35c59abb061a4a6fb18e82ac0862c26744d6ab5)
-#     https://github.com/actions/setup-go/commit/d35c59abb061a4a6fb18e82ac0862c26744d6ab5
 #   - actions/setup-node@v6 (395ad3262231945c25e8478fd5baf05154b1d79f)
 #     https://github.com/actions/setup-node/commit/395ad3262231945c25e8478fd5baf05154b1d79f
-#   - actions/setup-python@v5 (a26af69be951a213d495a4c3e4e4022e16d87065)
-#     https://github.com/actions/setup-python/commit/a26af69be951a213d495a4c3e4e4022e16d87065
 #   - actions/upload-artifact@v5 (330a01c490aca151604b8cf639adc76d48f6c5d4)
 #     https://github.com/actions/upload-artifact/commit/330a01c490aca151604b8cf639adc76d48f6c5d4
-#   - astral-sh/setup-uv@v5 (e58605a9b6da7c637471fab8847a5e5a6b8df081)
-#     https://github.com/astral-sh/setup-uv/commit/e58605a9b6da7c637471fab8847a5e5a6b8df081
 
-name: "Glossary Maintainer"
+name: "Python Safe-Input Test Workflow"
 "on":
-  schedule:
-  - cron: "0 10 * * 1-5"
   workflow_dispatch: null
 
 permissions:
-  actions: read
   contents: read
-  issues: read
-  pull-requests: read
 
 concurrency:
   group: "gh-aw-${{ github.workflow }}"
 
-run-name: "Glossary Maintainer"
+run-name: "Python Safe-Input Test Workflow"
 
 jobs:
   activation:
@@ -744,7 +193,7 @@ jobs:
       - name: Check workflow file timestamps
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
-          GH_AW_WORKFLOW_FILE: "glossary-maintainer.lock.yml"
+          GH_AW_WORKFLOW_FILE: "test-python-safe-input.lock.yml"
         with:
           script: |
             async function main() {
@@ -833,10 +282,7 @@ jobs:
     needs: activation
     runs-on: ubuntu-latest
     permissions:
-      actions: read
       contents: read
-      issues: read
-      pull-requests: read
     concurrency:
       group: "gh-aw-copilot-${{ github.workflow }}"
     env:
@@ -851,43 +297,10 @@ jobs:
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
         with:
           persist-credentials: false
-      - name: Setup Go
-        uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5
-        with:
-          go-version-file: go.mod
-          cache: true
-      - name: Setup Python
-        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
-        with:
-          python-version: '3.12'
-      - name: Setup uv
-        uses: astral-sh/setup-uv@e58605a9b6da7c637471fab8847a5e5a6b8df081 # v5
-      - name: Install Go language service (gopls)
-        run: go install golang.org/x/tools/gopls@latest
       - name: Create gh-aw temp directory
         run: |
           mkdir -p /tmp/gh-aw/agent
           echo "Created /tmp/gh-aw/agent directory for agentic workflow temporary files"
-      # Cache memory file share configuration from frontmatter processed below
-      - name: Create cache-memory directory
-        run: |
-          mkdir -p /tmp/gh-aw/cache-memory
-          echo "Cache memory directory created at /tmp/gh-aw/cache-memory"
-          echo "This folder provides persistent file storage across workflow runs"
-          echo "LLMs and agentic tools can freely read and write files in this directory"
-      - name: Cache memory file share data
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
-        with:
-          key: memory-${{ github.workflow }}-${{ github.run_id }}
-          path: /tmp/gh-aw/cache-memory
-          restore-keys: |
-            memory-${{ github.workflow }}-
-            memory-
-      - name: Upload cache-memory data as artifact
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
-        with:
-          name: cache-memory
-          path: /tmp/gh-aw/cache-memory
       - name: Configure Git credentials
         env:
           REPO_NAME: ${{ github.repository }}
@@ -985,32 +398,39 @@ jobs:
         run: |
           mkdir -p /tmp/gh-aw/safeoutputs
           cat > /tmp/gh-aw/safeoutputs/config.json << 'EOF'
-          {"create_pull_request":{},"missing_tool":{"max":0},"noop":{"max":1}}
+          {"create_issue":{"max":1},"missing_tool":{"max":0},"noop":{"max":1}}
           EOF
           cat > /tmp/gh-aw/safeoutputs/tools.json << 'EOF'
           [
             {
-              "description": "Create a new GitHub pull request to propose code changes. Use this after making file edits to submit them for review and merging. The PR will be created from the current branch with your committed changes. For code review comments on an existing PR, use create_pull_request_review_comment instead. CONSTRAINTS: Maximum 1 pull request(s) can be created. Title will be prefixed with \"[docs] \". Labels [documentation glossary] will be automatically added.",
+              "description": "Create a new GitHub issue for tracking bugs, feature requests, or tasks. Use this for actionable work items that need assignment, labeling, and status tracking. For reports, announcements, or status updates that don't require task tracking, use create_discussion instead. CONSTRAINTS: Maximum 1 issue(s) can be created. Title will be prefixed with \"Python Safe-Input Test Results\". Labels [test python] will be automatically added.",
               "inputSchema": {
                 "additionalProperties": false,
                 "properties": {
                   "body": {
-                    "description": "Detailed PR description in Markdown. Include what changes were made, why, testing notes, and any breaking changes. Do NOT repeat the title as a heading.",
-                    "type": "string"
-                  },
-                  "branch": {
-                    "description": "Source branch name containing the changes. If omitted, uses the current working branch.",
+                    "description": "Detailed issue description in Markdown. Do NOT repeat the title as a heading since it already appears as the issue's h1. Include context, reproduction steps, or acceptance criteria as appropriate.",
                     "type": "string"
                   },
                   "labels": {
-                    "description": "Labels to categorize the PR (e.g., 'enhancement', 'bugfix'). Labels must exist in the repository.",
+                    "description": "Labels to categorize the issue (e.g., 'bug', 'enhancement'). Labels must exist in the repository.",
                     "items": {
                       "type": "string"
                     },
                     "type": "array"
                   },
+                  "parent": {
+                    "description": "Parent issue number for creating sub-issues. Can be a real issue number (e.g., 42) or a temporary_id (e.g., 'aw_abc123def456') from a previously created issue in the same workflow run.",
+                    "type": [
+                      "number",
+                      "string"
+                    ]
+                  },
+                  "temporary_id": {
+                    "description": "Unique temporary identifier for referencing this issue before it's created. Format: 'aw_' followed by 12 hex characters (e.g., 'aw_abc123def456'). Use '#aw_ID' in body text to reference other issues by their temporary_id; these are replaced with actual issue numbers after creation.",
+                    "type": "string"
+                  },
                   "title": {
-                    "description": "Concise PR title describing the changes. Follow repository conventions (e.g., conventional commits). The title appears as the main heading.",
+                    "description": "Concise issue title summarizing the bug, feature, or task. The title appears as the main heading, so keep it brief and descriptive.",
                     "type": "string"
                   }
                 },
@@ -1020,7 +440,7 @@ jobs:
                 ],
                 "type": "object"
               },
-              "name": "create_pull_request"
+              "name": "create_issue"
             },
             {
               "description": "Report that a tool or capability needed to complete the task is not available. Use this when you cannot accomplish what was requested because the required functionality is missing or access is restricted.",
@@ -1069,7 +489,7 @@ jobs:
           EOF
           cat > /tmp/gh-aw/safeoutputs/validation.json << 'EOF'
           {
-            "create_pull_request": {
+            "create_issue": {
               "defaultMax": 1,
               "fields": {
                 "body": {
@@ -1078,17 +498,21 @@ jobs:
                   "sanitize": true,
                   "maxLength": 65000
                 },
-                "branch": {
-                  "required": true,
-                  "type": "string",
-                  "sanitize": true,
-                  "maxLength": 256
-                },
                 "labels": {
                   "type": "array",
                   "itemType": "string",
                   "itemSanitize": true,
                   "itemMaxLength": 128
+                },
+                "parent": {
+                  "issueOrPRNumber": true
+                },
+                "repo": {
+                  "type": "string",
+                  "maxLength": 256
+                },
+                "temporary_id": {
+                  "type": "string"
                 },
                 "title": {
                   "required": true,
@@ -3343,6 +2767,809 @@ jobs:
           EOF
           chmod +x /tmp/gh-aw/safeoutputs/mcp-server.cjs
           
+      - name: Setup Safe Inputs MCP
+        run: |
+          mkdir -p /tmp/gh-aw/safe-inputs/logs
+          cat > /tmp/gh-aw/safe-inputs/read_buffer.cjs << 'EOF_READ_BUFFER'
+            class ReadBuffer {
+              constructor() {
+                this._buffer = null;
+              }
+              append(chunk) {
+                this._buffer = this._buffer ? Buffer.concat([this._buffer, chunk]) : chunk;
+              }
+              readMessage() {
+                if (!this._buffer) {
+                  return null;
+                }
+                const index = this._buffer.indexOf("\n");
+                if (index === -1) {
+                  return null;
+                }
+                const line = this._buffer.toString("utf8", 0, index).replace(/\r$/, "");
+                this._buffer = this._buffer.subarray(index + 1);
+                if (line.trim() === "") {
+                  return this.readMessage(); 
+                }
+                try {
+                  return JSON.parse(line);
+                } catch (error) {
+                  throw new Error(`Parse error: ${error instanceof Error ? error.message : String(error)}`);
+                }
+              }
+            }
+            module.exports = {
+              ReadBuffer,
+            };
+          EOF_READ_BUFFER
+          cat > /tmp/gh-aw/safe-inputs/mcp_server_core.cjs << 'EOF_MCP_CORE'
+            const fs = require("fs");
+            const path = require("path");
+            const { execFile } = require("child_process");
+            const os = require("os");
+            const { ReadBuffer } = require("./read_buffer.cjs");
+            const encoder = new TextEncoder();
+            function initLogFile(server) {
+              if (server.logFileInitialized || !server.logDir || !server.logFilePath) return;
+              try {
+                if (!fs.existsSync(server.logDir)) {
+                  fs.mkdirSync(server.logDir, { recursive: true });
+                }
+                const timestamp = new Date().toISOString();
+                fs.writeFileSync(
+                  server.logFilePath,
+                  `# ${server.serverInfo.name} MCP Server Log\n# Started: ${timestamp}\n# Version: ${server.serverInfo.version}\n\n`
+                );
+                server.logFileInitialized = true;
+              } catch {
+              }
+            }
+            function createDebugFunction(server) {
+              return msg => {
+                const timestamp = new Date().toISOString();
+                const formattedMsg = `[${timestamp}] [${server.serverInfo.name}] ${msg}\n`;
+                process.stderr.write(formattedMsg);
+                if (server.logDir && server.logFilePath) {
+                  if (!server.logFileInitialized) {
+                    initLogFile(server);
+                  }
+                  if (server.logFileInitialized) {
+                    try {
+                      fs.appendFileSync(server.logFilePath, formattedMsg);
+                    } catch {
+                    }
+                  }
+                }
+              };
+            }
+            function createDebugErrorFunction(server) {
+              return (prefix, error) => {
+                const errorMessage = error instanceof Error ? error.message : String(error);
+                server.debug(`${prefix}${errorMessage}`);
+                if (error instanceof Error && error.stack) {
+                  server.debug(`${prefix}Stack trace: ${error.stack}`);
+                }
+              };
+            }
+            function createWriteMessageFunction(server) {
+              return obj => {
+                const json = JSON.stringify(obj);
+                server.debug(`send: ${json}`);
+                const message = json + "\n";
+                const bytes = encoder.encode(message);
+                fs.writeSync(1, bytes);
+              };
+            }
+            function createReplyResultFunction(server) {
+              return (id, result) => {
+                if (id === undefined || id === null) return; 
+                const res = { jsonrpc: "2.0", id, result };
+                server.writeMessage(res);
+              };
+            }
+            function createReplyErrorFunction(server) {
+              return (id, code, message) => {
+                if (id === undefined || id === null) {
+                  server.debug(`Error for notification: ${message}`);
+                  return;
+                }
+                const error = { code, message };
+                const res = {
+                  jsonrpc: "2.0",
+                  id,
+                  error,
+                };
+                server.writeMessage(res);
+              };
+            }
+            function createServer(serverInfo, options = {}) {
+              const logDir = options.logDir || undefined;
+              const logFilePath = logDir ? path.join(logDir, "server.log") : undefined;
+              const server = {
+                serverInfo,
+                tools: {},
+                debug: () => {}, 
+                debugError: () => {}, 
+                writeMessage: () => {}, 
+                replyResult: () => {}, 
+                replyError: () => {}, 
+                readBuffer: new ReadBuffer(),
+                logDir,
+                logFilePath,
+                logFileInitialized: false,
+              };
+              server.debug = createDebugFunction(server);
+              server.debugError = createDebugErrorFunction(server);
+              server.writeMessage = createWriteMessageFunction(server);
+              server.replyResult = createReplyResultFunction(server);
+              server.replyError = createReplyErrorFunction(server);
+              return server;
+            }
+            function createWrappedHandler(server, toolName, handlerFn) {
+              return async args => {
+                server.debug(`  [${toolName}] Invoking handler with args: ${JSON.stringify(args)}`);
+                try {
+                  const result = await Promise.resolve(handlerFn(args));
+                  server.debug(`  [${toolName}] Handler returned result type: ${typeof result}`);
+                  if (result && typeof result === "object" && Array.isArray(result.content)) {
+                    server.debug(`  [${toolName}] Result is already in MCP format`);
+                    return result;
+                  }
+                  let serializedResult;
+                  try {
+                    serializedResult = JSON.stringify(result);
+                  } catch (serializationError) {
+                    server.debugError(`  [${toolName}] Serialization error: `, serializationError);
+                    serializedResult = String(result);
+                  }
+                  server.debug(`  [${toolName}] Serialized result: ${serializedResult.substring(0, 200)}${serializedResult.length > 200 ? "..." : ""}`);
+                  return {
+                    content: [
+                      {
+                        type: "text",
+                        text: serializedResult,
+                      },
+                    ],
+                  };
+                } catch (error) {
+                  server.debugError(`  [${toolName}] Handler threw error: `, error);
+                  throw error;
+                }
+              };
+            }
+            function createShellHandler(server, toolName, scriptPath) {
+              return async args => {
+                server.debug(`  [${toolName}] Invoking shell handler: ${scriptPath}`);
+                server.debug(`  [${toolName}] Shell handler args: ${JSON.stringify(args)}`);
+                const env = { ...process.env };
+                for (const [key, value] of Object.entries(args || {})) {
+                  const envKey = `INPUT_${key.toUpperCase().replace(/-/g, "_")}`;
+                  env[envKey] = String(value);
+                  server.debug(`  [${toolName}] Set env: ${envKey}=${String(value).substring(0, 100)}${String(value).length > 100 ? "..." : ""}`);
+                }
+                const outputFile = path.join(os.tmpdir(), `mcp-shell-output-${Date.now()}-${Math.random().toString(36).substring(2)}.txt`);
+                env.GITHUB_OUTPUT = outputFile;
+                server.debug(`  [${toolName}] Output file: ${outputFile}`);
+                fs.writeFileSync(outputFile, "");
+                return new Promise((resolve, reject) => {
+                  server.debug(`  [${toolName}] Executing shell script...`);
+                  execFile(
+                    scriptPath,
+                    [],
+                    {
+                      env,
+                      timeout: 300000, 
+                      maxBuffer: 10 * 1024 * 1024, 
+                    },
+                    (error, stdout, stderr) => {
+                      if (stdout) {
+                        server.debug(`  [${toolName}] stdout: ${stdout.substring(0, 500)}${stdout.length > 500 ? "..." : ""}`);
+                      }
+                      if (stderr) {
+                        server.debug(`  [${toolName}] stderr: ${stderr.substring(0, 500)}${stderr.length > 500 ? "..." : ""}`);
+                      }
+                      if (error) {
+                        server.debugError(`  [${toolName}] Shell script error: `, error);
+                        try {
+                          if (fs.existsSync(outputFile)) {
+                            fs.unlinkSync(outputFile);
+                          }
+                        } catch {
+                        }
+                        reject(error);
+                        return;
+                      }
+                      const outputs = {};
+                      try {
+                        if (fs.existsSync(outputFile)) {
+                          const outputContent = fs.readFileSync(outputFile, "utf-8");
+                          server.debug(
+                            `  [${toolName}] Output file content: ${outputContent.substring(0, 500)}${outputContent.length > 500 ? "..." : ""}`
+                          );
+                          const lines = outputContent.split("\n");
+                          for (const line of lines) {
+                            const trimmed = line.trim();
+                            if (trimmed && trimmed.includes("=")) {
+                              const eqIndex = trimmed.indexOf("=");
+                              const key = trimmed.substring(0, eqIndex);
+                              const value = trimmed.substring(eqIndex + 1);
+                              outputs[key] = value;
+                              server.debug(`  [${toolName}] Parsed output: ${key}=${value.substring(0, 100)}${value.length > 100 ? "..." : ""}`);
+                            }
+                          }
+                        }
+                      } catch (readError) {
+                        server.debugError(`  [${toolName}] Error reading output file: `, readError);
+                      }
+                      try {
+                        if (fs.existsSync(outputFile)) {
+                          fs.unlinkSync(outputFile);
+                        }
+                      } catch {
+                      }
+                      const result = {
+                        stdout: stdout || "",
+                        stderr: stderr || "",
+                        outputs,
+                      };
+                      server.debug(`  [${toolName}] Shell handler completed, outputs: ${Object.keys(outputs).join(", ") || "(none)"}`);
+                      resolve({
+                        content: [
+                          {
+                            type: "text",
+                            text: JSON.stringify(result),
+                          },
+                        ],
+                      });
+                    }
+                  );
+                });
+              };
+            }
+            function createPythonHandler(server, toolName, scriptPath) {
+              return async args => {
+                server.debug(`  [${toolName}] Invoking Python handler: ${scriptPath}`);
+                server.debug(`  [${toolName}] Python handler args: ${JSON.stringify(args)}`);
+                const env = { ...process.env };
+                for (const [key, value] of Object.entries(args || {})) {
+                  const envKey = `INPUT_${key.toUpperCase().replace(/-/g, "_")}`;
+                  env[envKey] = String(value);
+                  server.debug(`  [${toolName}] Set env: ${envKey}=${String(value).substring(0, 100)}${String(value).length > 100 ? "..." : ""}`);
+                }
+                const outputFile = path.join(os.tmpdir(), `mcp-python-output-${Date.now()}-${Math.random().toString(36).substring(2)}.txt`);
+                env.GITHUB_OUTPUT = outputFile;
+                server.debug(`  [${toolName}] Output file: ${outputFile}`);
+                fs.writeFileSync(outputFile, "");
+                return new Promise((resolve, reject) => {
+                  server.debug(`  [${toolName}] Executing Python script...`);
+                  execFile(
+                    "python3",
+                    [scriptPath],
+                    {
+                      env,
+                      timeout: 300000, 
+                      maxBuffer: 10 * 1024 * 1024, 
+                    },
+                    (error, stdout, stderr) => {
+                      if (stdout) {
+                        server.debug(`  [${toolName}] stdout: ${stdout.substring(0, 500)}${stdout.length > 500 ? "..." : ""}`);
+                      }
+                      if (stderr) {
+                        server.debug(`  [${toolName}] stderr: ${stderr.substring(0, 500)}${stderr.length > 500 ? "..." : ""}`);
+                      }
+                      if (error) {
+                        server.debugError(`  [${toolName}] Python script error: `, error);
+                        try {
+                          if (fs.existsSync(outputFile)) {
+                            fs.unlinkSync(outputFile);
+                          }
+                        } catch {
+                        }
+                        reject(error);
+                        return;
+                      }
+                      const outputs = {};
+                      try {
+                        if (fs.existsSync(outputFile)) {
+                          const outputContent = fs.readFileSync(outputFile, "utf-8");
+                          server.debug(
+                            `  [${toolName}] Output file content: ${outputContent.substring(0, 500)}${outputContent.length > 500 ? "..." : ""}`
+                          );
+                          const lines = outputContent.split("\n");
+                          for (const line of lines) {
+                            const trimmed = line.trim();
+                            if (trimmed && trimmed.includes("=")) {
+                              const eqIndex = trimmed.indexOf("=");
+                              const key = trimmed.substring(0, eqIndex);
+                              const value = trimmed.substring(eqIndex + 1);
+                              outputs[key] = value;
+                              server.debug(`  [${toolName}] Parsed output: ${key}=${value.substring(0, 100)}${value.length > 100 ? "..." : ""}`);
+                            }
+                          }
+                        }
+                      } catch (readError) {
+                        server.debugError(`  [${toolName}] Error reading output file: `, readError);
+                      }
+                      try {
+                        if (fs.existsSync(outputFile)) {
+                          fs.unlinkSync(outputFile);
+                        }
+                      } catch {
+                      }
+                      const result = {
+                        stdout: stdout || "",
+                        stderr: stderr || "",
+                        outputs,
+                      };
+                      server.debug(`  [${toolName}] Python handler completed, outputs: ${Object.keys(outputs).join(", ") || "(none)"}`);
+                      resolve({
+                        content: [
+                          {
+                            type: "text",
+                            text: JSON.stringify(result),
+                          },
+                        ],
+                      });
+                    }
+                  );
+                });
+              };
+            }
+            function loadToolHandlers(server, tools, basePath) {
+              server.debug(`Loading tool handlers...`);
+              server.debug(`  Total tools to process: ${tools.length}`);
+              server.debug(`  Base path: ${basePath || "(not specified)"}`);
+              let loadedCount = 0;
+              let skippedCount = 0;
+              let errorCount = 0;
+              for (const tool of tools) {
+                const toolName = tool.name || "(unnamed)";
+                if (!tool.handler) {
+                  server.debug(`  [${toolName}] No handler path specified, skipping handler load`);
+                  skippedCount++;
+                  continue;
+                }
+                const handlerPath = tool.handler;
+                server.debug(`  [${toolName}] Handler path specified: ${handlerPath}`);
+                let resolvedPath = handlerPath;
+                if (basePath && !path.isAbsolute(handlerPath)) {
+                  resolvedPath = path.resolve(basePath, handlerPath);
+                  server.debug(`  [${toolName}] Resolved relative path to: ${resolvedPath}`);
+                  const normalizedBase = path.resolve(basePath);
+                  const normalizedResolved = path.resolve(resolvedPath);
+                  if (!normalizedResolved.startsWith(normalizedBase + path.sep) && normalizedResolved !== normalizedBase) {
+                    server.debug(`  [${toolName}] ERROR: Handler path escapes base directory: ${resolvedPath} is not within ${basePath}`);
+                    errorCount++;
+                    continue;
+                  }
+                } else if (path.isAbsolute(handlerPath)) {
+                  server.debug(`  [${toolName}] Using absolute path (bypasses basePath validation): ${handlerPath}`);
+                }
+                tool.handlerPath = handlerPath;
+                try {
+                  server.debug(`  [${toolName}] Loading handler from: ${resolvedPath}`);
+                  if (!fs.existsSync(resolvedPath)) {
+                    server.debug(`  [${toolName}] ERROR: Handler file does not exist: ${resolvedPath}`);
+                    errorCount++;
+                    continue;
+                  }
+                  const ext = path.extname(resolvedPath).toLowerCase();
+                  server.debug(`  [${toolName}] Handler file extension: ${ext}`);
+                  if (ext === ".sh") {
+                    server.debug(`  [${toolName}] Detected shell script handler`);
+                    try {
+                      fs.accessSync(resolvedPath, fs.constants.X_OK);
+                      server.debug(`  [${toolName}] Shell script is executable`);
+                    } catch {
+                      try {
+                        fs.chmodSync(resolvedPath, 0o755);
+                        server.debug(`  [${toolName}] Made shell script executable`);
+                      } catch (chmodError) {
+                        server.debugError(`  [${toolName}] Warning: Could not make shell script executable: `, chmodError);
+                      }
+                    }
+                    tool.handler = createShellHandler(server, toolName, resolvedPath);
+                    loadedCount++;
+                    server.debug(`  [${toolName}] Shell handler created successfully`);
+                  } else if (ext === ".py") {
+                    server.debug(`  [${toolName}] Detected Python script handler`);
+                    try {
+                      fs.accessSync(resolvedPath, fs.constants.X_OK);
+                      server.debug(`  [${toolName}] Python script is executable`);
+                    } catch {
+                      try {
+                        fs.chmodSync(resolvedPath, 0o755);
+                        server.debug(`  [${toolName}] Made Python script executable`);
+                      } catch (chmodError) {
+                        server.debugError(`  [${toolName}] Warning: Could not make Python script executable: `, chmodError);
+                      }
+                    }
+                    tool.handler = createPythonHandler(server, toolName, resolvedPath);
+                    loadedCount++;
+                    server.debug(`  [${toolName}] Python handler created successfully`);
+                  } else {
+                    server.debug(`  [${toolName}] Loading JavaScript handler module`);
+                    const handlerModule = require(resolvedPath);
+                    server.debug(`  [${toolName}] Handler module loaded successfully`);
+                    server.debug(`  [${toolName}] Module type: ${typeof handlerModule}`);
+                    let handlerFn = handlerModule;
+                    if (handlerModule && typeof handlerModule === "object" && typeof handlerModule.default === "function") {
+                      handlerFn = handlerModule.default;
+                      server.debug(`  [${toolName}] Using module.default export`);
+                    }
+                    if (typeof handlerFn !== "function") {
+                      server.debug(`  [${toolName}] ERROR: Handler is not a function, got: ${typeof handlerFn}`);
+                      server.debug(`  [${toolName}] Module keys: ${Object.keys(handlerModule || {}).join(", ") || "(none)"}`);
+                      errorCount++;
+                      continue;
+                    }
+                    server.debug(`  [${toolName}] Handler function validated successfully`);
+                    server.debug(`  [${toolName}] Handler function name: ${handlerFn.name || "(anonymous)"}`);
+                    tool.handler = createWrappedHandler(server, toolName, handlerFn);
+                    loadedCount++;
+                    server.debug(`  [${toolName}] JavaScript handler loaded and wrapped successfully`);
+                  }
+                } catch (error) {
+                  server.debugError(`  [${toolName}] ERROR loading handler: `, error);
+                  errorCount++;
+                }
+              }
+              server.debug(`Handler loading complete:`);
+              server.debug(`  Loaded: ${loadedCount}`);
+              server.debug(`  Skipped (no handler path): ${skippedCount}`);
+              server.debug(`  Errors: ${errorCount}`);
+              return tools;
+            }
+            function registerTool(server, tool) {
+              const normalizedName = normalizeTool(tool.name);
+              server.tools[normalizedName] = {
+                ...tool,
+                name: normalizedName,
+              };
+              server.debug(`Registered tool: ${normalizedName}`);
+            }
+            function normalizeTool(name) {
+              return name.replace(/-/g, "_").toLowerCase();
+            }
+            async function handleMessage(server, req, defaultHandler) {
+              if (!req || typeof req !== "object") {
+                server.debug(`Invalid message: not an object`);
+                return;
+              }
+              if (req.jsonrpc !== "2.0") {
+                server.debug(`Invalid message: missing or invalid jsonrpc field`);
+                return;
+              }
+              const { id, method, params } = req;
+              if (!method || typeof method !== "string") {
+                server.replyError(id, -32600, "Invalid Request: method must be a string");
+                return;
+              }
+              try {
+                if (method === "initialize") {
+                  const clientInfo = params?.clientInfo ?? {};
+                  server.debug(`client info: ${JSON.stringify(clientInfo)}`);
+                  const protocolVersion = params?.protocolVersion ?? undefined;
+                  const result = {
+                    serverInfo: server.serverInfo,
+                    ...(protocolVersion ? { protocolVersion } : {}),
+                    capabilities: {
+                      tools: {},
+                    },
+                  };
+                  server.replyResult(id, result);
+                } else if (method === "tools/list") {
+                  const list = [];
+                  Object.values(server.tools).forEach(tool => {
+                    const toolDef = {
+                      name: tool.name,
+                      description: tool.description,
+                      inputSchema: tool.inputSchema,
+                    };
+                    list.push(toolDef);
+                  });
+                  server.replyResult(id, { tools: list });
+                } else if (method === "tools/call") {
+                  const name = params?.name;
+                  const args = params?.arguments ?? {};
+                  if (!name || typeof name !== "string") {
+                    server.replyError(id, -32602, "Invalid params: 'name' must be a string");
+                    return;
+                  }
+                  const tool = server.tools[normalizeTool(name)];
+                  if (!tool) {
+                    server.replyError(id, -32601, `Tool not found: ${name} (${normalizeTool(name)})`);
+                    return;
+                  }
+                  let handler = tool.handler;
+                  if (!handler && defaultHandler) {
+                    handler = defaultHandler(tool.name);
+                  }
+                  if (!handler) {
+                    server.replyError(id, -32603, `No handler for tool: ${name}`);
+                    return;
+                  }
+                  const requiredFields = tool.inputSchema && Array.isArray(tool.inputSchema.required) ? tool.inputSchema.required : [];
+                  if (requiredFields.length) {
+                    const missing = requiredFields.filter(f => {
+                      const value = args[f];
+                      return value === undefined || value === null || (typeof value === "string" && value.trim() === "");
+                    });
+                    if (missing.length) {
+                      server.replyError(id, -32602, `Invalid arguments: missing or empty ${missing.map(m => `'${m}'`).join(", ")}`);
+                      return;
+                    }
+                  }
+                  server.debug(`Calling handler for tool: ${name}`);
+                  const result = await Promise.resolve(handler(args));
+                  server.debug(`Handler returned for tool: ${name}`);
+                  const content = result && result.content ? result.content : [];
+                  server.replyResult(id, { content, isError: false });
+                } else if (/^notifications\//.test(method)) {
+                  server.debug(`ignore ${method}`);
+                } else {
+                  server.replyError(id, -32601, `Method not found: ${method}`);
+                }
+              } catch (e) {
+                server.replyError(id, -32603, e instanceof Error ? e.message : String(e));
+              }
+            }
+            async function processReadBuffer(server, defaultHandler) {
+              while (true) {
+                try {
+                  const message = server.readBuffer.readMessage();
+                  if (!message) {
+                    break;
+                  }
+                  server.debug(`recv: ${JSON.stringify(message)}`);
+                  await handleMessage(server, message, defaultHandler);
+                } catch (error) {
+                  server.debug(`Parse error: ${error instanceof Error ? error.message : String(error)}`);
+                }
+              }
+            }
+            function start(server, options = {}) {
+              const { defaultHandler } = options;
+              server.debug(`v${server.serverInfo.version} ready on stdio`);
+              server.debug(`  tools: ${Object.keys(server.tools).join(", ")}`);
+              if (!Object.keys(server.tools).length) {
+                throw new Error("No tools registered");
+              }
+              const onData = async chunk => {
+                server.readBuffer.append(chunk);
+                await processReadBuffer(server, defaultHandler);
+              };
+              process.stdin.on("data", onData);
+              process.stdin.on("error", err => server.debug(`stdin error: ${err}`));
+              process.stdin.resume();
+              server.debug(`listening...`);
+            }
+            module.exports = {
+              createServer,
+              registerTool,
+              normalizeTool,
+              handleMessage,
+              processReadBuffer,
+              start,
+              loadToolHandlers,
+            };
+          EOF_MCP_CORE
+          cat > /tmp/gh-aw/safe-inputs/safe_inputs_mcp_server.cjs << 'EOF_SAFE_INPUTS_SERVER'
+            const fs = require("fs");
+            const path = require("path");
+            const { createServer, registerTool, loadToolHandlers, start } = require("./mcp_server_core.cjs");
+            function loadConfig(configPath) {
+              if (!fs.existsSync(configPath)) {
+                throw new Error(`Configuration file not found: ${configPath}`);
+              }
+              const configContent = fs.readFileSync(configPath, "utf-8");
+              const config = JSON.parse(configContent);
+              if (!config.tools || !Array.isArray(config.tools)) {
+                throw new Error("Configuration must contain a 'tools' array");
+              }
+              return config;
+            }
+            function startSafeInputsServer(configPath, options = {}) {
+              const config = loadConfig(configPath);
+              const basePath = path.dirname(configPath);
+              const serverName = config.serverName || "safeinputs";
+              const version = config.version || "1.0.0";
+              const logDir = options.logDir || config.logDir || undefined;
+              const server = createServer({ name: serverName, version }, { logDir });
+              server.debug(`Loading safe-inputs configuration from: ${configPath}`);
+              server.debug(`Base path for handlers: ${basePath}`);
+              server.debug(`Tools to load: ${config.tools.length}`);
+              const tools = loadToolHandlers(server, config.tools, basePath);
+              for (const tool of tools) {
+                registerTool(server, tool);
+              }
+              start(server);
+            }
+            function createJsToolConfig(name, description, inputSchema, handlerPath) {
+              return {
+                name,
+                description,
+                inputSchema,
+                handler: handlerPath,
+              };
+            }
+            function createShellToolConfig(name, description, inputSchema, handlerPath) {
+              return {
+                name,
+                description,
+                inputSchema,
+                handler: handlerPath,
+              };
+            }
+            if (require.main === module) {
+              const args = process.argv.slice(2);
+              if (args.length < 1) {
+                console.error("Usage: node safe_inputs_mcp_server.cjs <config.json> [--log-dir <path>]");
+                process.exit(1);
+              }
+              const configPath = args[0];
+              const options = {};
+              for (let i = 1; i < args.length; i++) {
+                if (args[i] === "--log-dir" && args[i + 1]) {
+                  options.logDir = args[i + 1];
+                  i++;
+                }
+              }
+              try {
+                startSafeInputsServer(configPath, options);
+              } catch (error) {
+                console.error(`Error starting safe-inputs server: ${error instanceof Error ? error.message : String(error)}`);
+                process.exit(1);
+              }
+            }
+            module.exports = {
+              loadConfig,
+              startSafeInputsServer,
+              createJsToolConfig,
+              createShellToolConfig,
+            };
+          EOF_SAFE_INPUTS_SERVER
+          cat > /tmp/gh-aw/safe-inputs/tools.json << 'EOF_TOOLS_JSON'
+          {
+            "serverName": "safeinputs",
+            "version": "1.0.0",
+            "logDir": "/tmp/gh-aw/safe-inputs/logs",
+            "tools": [
+              {
+                "name": "analyze-numbers",
+                "description": "Analyze a list of numbers using Python - calculates sum, average, min, max",
+                "inputSchema": {
+                  "properties": {
+                    "numbers": {
+                      "description": "Comma-separated list of numbers to analyze",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "numbers"
+                  ],
+                  "type": "object"
+                },
+                "handler": "analyze-numbers.py"
+              },
+              {
+                "name": "process-text",
+                "description": "Process text with Python - converts to uppercase, counts words and characters",
+                "inputSchema": {
+                  "properties": {
+                    "text": {
+                      "description": "Text to process",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "text"
+                  ],
+                  "type": "object"
+                },
+                "handler": "process-text.py"
+              }
+            ]
+          }
+          EOF_TOOLS_JSON
+          cat > /tmp/gh-aw/safe-inputs/mcp-server.cjs << 'EOFSI'
+            const path = require("path");
+            const { startSafeInputsServer } = require("./safe_inputs_mcp_server.cjs");
+            const configPath = path.join(__dirname, "tools.json");
+            startSafeInputsServer(configPath, {
+              logDir: "/tmp/gh-aw/safe-inputs/logs"
+            });
+          EOFSI
+          chmod +x /tmp/gh-aw/safe-inputs/mcp-server.cjs
+          cat > /tmp/gh-aw/safe-inputs/analyze-numbers.py << 'EOFPY_analyze-numbers'
+          #!/usr/bin/env python3
+          # Auto-generated safe-input tool: analyze-numbers
+          # Analyze a list of numbers using Python - calculates sum, average, min, max
+          
+          import os
+          import sys
+          
+          # Input parameters are available as environment variables:
+          # numbers = os.environ.get('INPUT_NUMBERS', '')
+          
+          # User code:
+          import os
+          import json
+          
+          # Get input from environment variable
+          numbers_str = os.environ.get('INPUT_NUMBERS', '')
+          
+          # Parse and analyze numbers
+          try:
+              numbers = [float(x.strip()) for x in numbers_str.split(',') if x.strip()]
+              
+              if not numbers:
+                  result = {"error": "No valid numbers provided"}
+              else:
+                  result = {
+                      "count": len(numbers),
+                      "sum": sum(numbers),
+                      "average": sum(numbers) / len(numbers),
+                      "min": min(numbers),
+                      "max": max(numbers)
+                  }
+              
+              # Print result as JSON to stdout
+              print(json.dumps(result))
+              
+              # Also write to GITHUB_OUTPUT for GitHub Actions
+              output_file = os.environ.get('GITHUB_OUTPUT', '')
+              if output_file:
+                  with open(output_file, 'a') as f:
+                      f.write(f"result={json.dumps(result)}\n")
+                      
+          except ValueError as e:
+              error_result = {"error": f"Invalid number format: {str(e)}"}
+              print(json.dumps(error_result))
+          
+          
+          EOFPY_analyze-numbers
+          chmod +x /tmp/gh-aw/safe-inputs/analyze-numbers.py
+          cat > /tmp/gh-aw/safe-inputs/process-text.py << 'EOFPY_process-text'
+          #!/usr/bin/env python3
+          # Auto-generated safe-input tool: process-text
+          # Process text with Python - converts to uppercase, counts words and characters
+          
+          import os
+          import sys
+          
+          # Input parameters are available as environment variables:
+          # text = os.environ.get('INPUT_TEXT', '')
+          
+          # User code:
+          import os
+          import json
+          
+          # Get input from environment variable
+          text = os.environ.get('INPUT_TEXT', '')
+          
+          # Process text
+          result = {
+              "original": text,
+              "uppercase": text.upper(),
+              "word_count": len(text.split()),
+              "char_count": len(text),
+              "char_count_no_spaces": len(text.replace(' ', ''))
+          }
+          
+          # Print result as JSON to stdout
+          print(json.dumps(result))
+          
+          # Also write to GITHUB_OUTPUT for GitHub Actions
+          output_file = os.environ.get('GITHUB_OUTPUT', '')
+          if output_file:
+              with open(output_file, 'a') as f:
+                  f.write(f"result={json.dumps(result)}\n")
+          
+          
+          EOFPY_process-text
+          chmod +x /tmp/gh-aw/safe-inputs/process-text.py
+          
       - name: Setup MCPs
         env:
           GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
@@ -3373,6 +3600,14 @@ jobs:
                   "GITHUB_PERSONAL_ACCESS_TOKEN": "\${GITHUB_MCP_SERVER_TOKEN}"
                 }
               },
+              "safeinputs": {
+                "type": "local",
+                "command": "node",
+                "args": ["/tmp/gh-aw/safe-inputs/mcp-server.cjs"],
+                "tools": ["*"],
+                "env": {
+                }
+              },
               "safeoutputs": {
                 "type": "local",
                 "command": "node",
@@ -3386,12 +3621,6 @@ jobs:
                   "GITHUB_REPOSITORY": "\${GITHUB_REPOSITORY}",
                   "GITHUB_SERVER_URL": "\${GITHUB_SERVER_URL}"
                 }
-              },
-              "serena": {
-                "type": "local",
-                "command": "uvx",
-                "args": ["--from", "git+https://github.com/oraios/serena", "serena", "start-mcp-server", "--context", "codex", "--project", "${{ github.workspace }}"],
-                "tools": ["*"]
               }
             }
           }
@@ -3415,7 +3644,7 @@ jobs:
               model: "",
               version: "",
               agent_version: "0.0.365",
-              workflow_name: "Glossary Maintainer",
+              workflow_name: "Python Safe-Input Test Workflow",
               experimental: false,
               supports_tools_allowlist: true,
               supports_http_transport: true,
@@ -3429,7 +3658,7 @@ jobs:
               event_name: context.eventName,
               staged: false,
               network_mode: "defaults",
-              allowed_domains: ["defaults","github"],
+              allowed_domains: [],
               firewall_enabled: true,
               firewall_version: "",
               steps: {
@@ -3486,616 +3715,36 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
-          GH_AW_GITHUB_WORKSPACE: ${{ github.workspace }}
         run: |
           PROMPT_DIR="$(dirname "$GH_AW_PROMPT")"
           mkdir -p "$PROMPT_DIR"
           cat << 'PROMPT_EOF' | envsubst > "$GH_AW_PROMPT"
-          ### Documentation
+          # Python Safe-Input Test Workflow
           
-          The documentation for this project is available in the `docs/` directory. It uses the Astro Starlight system and follows the Diátaxis framework for systematic documentation.
+          This workflow tests Python safe-input functionality.
           
-          ## Diátaxis Framework
+          ## Task
           
-          Documentation must be organized into four distinct types, each serving a specific purpose:
+          1. Test the `analyze-numbers` tool with a sample list of numbers: "10, 20, 30, 40, 50"
+          2. Test the `process-text` tool with a sample text: "Hello World from Python safe-inputs"
+          3. Report the results from both tools
+          4. Create an issue with the test results
           
-          ### 1. Tutorials (Learning-Oriented)
-          **Purpose**: Guide beginners through achieving a specific outcome to build confidence.
+          ## Expected Results
           
-          - Start with what the user will build or achieve
-          - Provide a clear, step-by-step path from start to finish
-          - Include concrete examples and working code
-          - Assume minimal prior knowledge
-          - Focus on the happy path (avoid edge cases and alternatives)
-          - End with a working result the user can see and use
-          - Use imperative mood: "Create a file", "Run the command"
+          The `analyze-numbers` tool should return:
+          - count: 5
+          - sum: 150
+          - average: 30
+          - min: 10
+          - max: 50
           
-          **Avoid**: Explaining concepts in depth, multiple options, troubleshooting
+          The `process-text` tool should return:
+          - uppercase version of the text
+          - word count: 6
+          - character count and other statistics
           
-          ### 2. How-to Guides (Goal-Oriented)
-          **Purpose**: Show how to solve a specific real-world problem or accomplish a particular task.
-          
-          - Title format: "How to [accomplish specific goal]"
-          - Assume the user knows the basics
-          - Focus on practical steps to solve one problem
-          - Include necessary context but stay focused
-          - Show multiple approaches only when genuinely useful
-          - End when the goal is achieved
-          - Use imperative mood: "Configure the setting", "Add the following"
-          
-          **Avoid**: Teaching fundamentals, explaining every detail, being exhaustive
-          
-          ### 3. Reference (Information-Oriented)
-          **Purpose**: Provide accurate, complete technical descriptions of the system.
-          
-          - Organized by structure (CLI commands, configuration options, API endpoints)
-          - Comprehensive and authoritative
-          - Consistent format across all entries
-          - Technical accuracy is paramount
-          - Include all parameters, options, and return values
-          - Use descriptive mood: "The command accepts", "Returns a string"
-          - Minimal narrative or explanation
-          
-          **Avoid**: Instructions, tutorials, opinions on usage
-          
-          ### 4. Explanation (Understanding-Oriented)
-          **Purpose**: Clarify and illuminate topics to deepen understanding.
-          
-          - Discuss why things are the way they are
-          - Explain design decisions and tradeoffs
-          - Provide context and background
-          - Connect concepts to help form mental models
-          - Discuss alternatives and their implications
-          - Use indicative mood: "This approach provides", "The engine uses"
-          
-          **Avoid**: Step-by-step instructions, exhaustive reference material
-          
-          ## General Style Guidelines
-          
-          - **Tone**: Neutral, technical, not promotional
-          - **Voice**: Avoid "we", "our", "us" (use "the tool", "this command")
-          - **Headings**: Use markdown heading syntax, not bold text as headings
-          - **Lists**: Avoid long bullet point lists; prefer prose with structure
-          - **Code samples**: Minimal and focused; exclude optional fields unless relevant
-          - **Language tag**: Use `aw` for agentic workflow snippets with YAML frontmatter
-          
-          **Example workflow code block**:
-          ```aw wrap
-          on: push
-          # Your workflow steps here
-          ```
-          
-          ## Astro Starlight Syntax
-          
-          Documentation files use Astro Starlight with MDX support. Key syntax elements:
-          
-          ### Frontmatter
-          Every documentation page must have frontmatter:
-          ```markdown
-          title: Page Title
-          description: Brief description for SEO and navigation
-          ```
-          
-          ### Callouts and Asides
-          Use Starlight's aside component for notes, tips, warnings, and cautions:
-          ```markdown
-          :::note
-          Important information the reader should notice.
-          :::
-          
-          :::tip
-          Helpful advice for the reader.
-          :::
-          
-          :::caution
-          Warning about potential issues or pitfalls.
-          :::
-          
-          :::danger
-          Critical warning about dangerous operations.
-          :::
-          ```
-          
-          ### Code Blocks
-          - Use syntax highlighting with language tags
-          - Add `title` attribute for file names: ` ```yaml title=".github/workflows/example.yml" `
-          - Use `aw` language for agentic workflow files with YAML frontmatter
-          - Add `wrap` for line wrapping: ` ```aw wrap `
-          
-          ### Links
-          - Internal links: Use relative paths between documentation pages
-          - External links: Open in new tab automatically
-          - Link text: Use descriptive text, avoid "click here"
-          
-          ### Tabs
-          Use tabs for showing alternatives (e.g., different languages, platforms):
-          ```markdown
-          import { Tabs, TabItem } from '@astrojs/starlight/components';
-          
-          <Tabs>
-            <TabItem label="npm">
-              ```bash
-              npm install package
-              ```
-            </TabItem>
-            <TabItem label="yarn">
-              ```bash
-              yarn add package
-              ```
-            </TabItem>
-          </Tabs>
-          ```
-          
-          ### Cards
-          Use cards for navigation or highlighting multiple options:
-          ```markdown
-          import { Card, CardGrid } from '@astrojs/starlight/components';
-          
-          <CardGrid>
-            <Card title="Getting Started" icon="rocket">
-              Quick introduction to the basics.
-            </Card>
-            <Card title="Advanced Usage" icon="setting">
-              Deep dive into advanced features.
-            </Card>
-          </CardGrid>
-          ```
-          
-          **Remember**: Keep components minimal. Prefer standard markdown when possible.
-          
-          ## Content to Avoid
-          
-          - "Key Features" sections
-          - Marketing language or selling points
-          - Excessive bullet points (prefer structured prose)
-          - Overly verbose examples with all optional parameters
-          - Mixing documentation types (e.g., tutorials that become reference)
-          
-          ## Avoiding Documentation Bloat
-          
-          Documentation bloat reduces clarity and makes content harder to navigate. Common types of bloat include:
-          
-          ### Types of Documentation Bloat
-          
-          1. **Duplicate content**: Same information repeated in different sections
-          2. **Excessive bullet points**: Long lists that could be condensed into prose or tables
-          3. **Redundant examples**: Multiple examples showing the same concept
-          4. **Verbose descriptions**: Overly wordy explanations that could be more concise
-          5. **Repetitive structure**: The same "What it does" / "Why it's valuable" pattern overused
-          
-          ### Writing Concise Documentation
-          
-          When editing documentation, focus on:
-          
-          **Consolidate bullet points**: 
-          - Convert long bullet lists into concise prose or tables
-          - Remove redundant points that say the same thing differently
-          
-          **Eliminate duplicates**:
-          - Remove repeated information
-          - Consolidate similar sections
-          
-          **Condense verbose text**:
-          - Make descriptions more direct and concise
-          - Remove filler words and phrases
-          - Keep technical accuracy while reducing word count
-          
-          **Standardize structure**:
-          - Reduce repetitive "What it does" / "Why it's valuable" patterns
-          - Use varied, natural language
-          
-          **Simplify code samples**:
-          - Remove unnecessary complexity from code examples
-          - Focus on demonstrating the core concept clearly
-          - Eliminate boilerplate or setup code unless essential for understanding
-          - Keep examples minimal yet complete
-          - Use realistic but simple scenarios
-          
-          ### Example: Before and After
-          
-          **Before (Bloated)**:
-          ```markdown
-          ### Tool Name
-          Description of the tool.
-          
-          - **What it does**: This tool does X, Y, and Z
-          - **Why it's valuable**: It's valuable because A, B, and C
-          - **How to use**: You use it by doing steps 1, 2, 3, 4, 5
-          - **When to use**: Use it when you need X
-          - **Benefits**: Gets you benefit A, benefit B, benefit C
-          - **Learn more**: [Link](url)
-          ```
-          
-          **After (Concise)**:
-          ```markdown
-          ### Tool Name
-          Description of the tool that does X, Y, and Z to achieve A, B, and C.
-          
-          Use it when you need X by following steps 1-5. [Learn more](url)
-          ```
-          
-          ### Documentation Quality Guidelines
-          
-          1. **Preserve meaning**: Never lose important information
-          2. **Be surgical**: Make precise edits, don't rewrite everything
-          3. **Maintain tone**: Keep the neutral, technical tone
-          4. **Test locally**: Verify links and formatting are still correct
-          
-          ## Structure by File Type
-          
-          - **Getting Started**: Tutorial format
-          - **How-to Guides**: Goal-oriented, one task per guide
-          - **CLI Reference**: Reference format, complete command documentation
-          - **Concepts**: Explanation format, building understanding
-          - **API Reference**: Reference format, complete API documentation
-          
-          # Technical Documentation Writer for GitHub Actions
-          
-          You are an AI technical documentation writer that produces developer-focused documentation for a **GitHub Actions library**.  
-          Your docs use **Astro Starlight** and follow the **GitHub Docs voice**.  
-          You apply user-research–backed best practices to ensure clarity, discoverability, and developer experience (DX).
-          
-          ## Core Principles
-          
-          ### Framework
-          - Output uses **Astro Starlight** features:
-            - Markdown/MDX with headings, sidebars, and TOC.
-            - Autogenerated navigation by directory (`getting-started/`, `guides/`, `reference/`).
-            - Admonitions (`:::note`, `:::tip`, `:::caution`) for key callouts.
-            - Frontmatter metadata (`title`, `description`) for each page.
-          
-          ### Style & Tone (GitHub Docs)
-          - Clear, concise, approachable English.
-          - Active voice; address reader as "you".
-          - Friendly, empathetic, trustworthy tone.
-          - Prioritize clarity over rigid grammar rules.
-          - Consistent terminology across all docs.
-          - Inclusive, globally understandable (avoid slang/idioms).
-          
-          ### Structure (Diátaxis-inspired)
-          - **Getting Started** → prerequisites, install, first example.
-          - **How-to Guides** → task-based, step-by-step workflows.
-          - **Reference** → full breakdown of inputs, outputs, options.
-          - **Concepts/FAQs** → background explanations.
-          
-          ### Developer Experience (DX)
-          - Runnable, copy-paste–ready code blocks.
-          - Prerequisites clearly listed.
-          - Minimal setup friction.
-          - Early "Hello World" example.
-          - Optimized headings for search.
-          
-          ## Navigation & Linking
-          - Sidebar auto-generated by folder structure.
-          - Per-page TOC built from headings.
-          - Descriptive internal links (`See [Getting Started](/docs/getting-started)`).
-          - Relative links within docs; clear labels for external references.
-          
-          ## Code Guidelines
-          - Use fenced code blocks with language tags:
-            ```yaml
-            name: CI
-            on: [push]
-            jobs:
-              build:
-                runs-on: ubuntu-latest
-                steps:
-                  - uses: actions/checkout@v5
-                  - uses: my-org/my-action@v1
-            ```
-          - Do **not** include `$` prompts.
-          - Use ALL_CAPS placeholders (e.g. `USERNAME`).
-          - Keep lines ~60 chars wide.
-          - Comment out command outputs.
-          
-          ## Alerts & Callouts
-          Use Starlight admonition syntax sparingly:
-          
-          :::note
-          This is optional context.
-          :::
-          
-          :::tip
-          This is a recommended best practice.
-          :::
-          
-          :::warning
-          This step may cause irreversible changes.
-          :::
-          
-          :::caution
-          This action could result in data loss.
-          :::
-          
-          ## Behavior Rules
-          - Optimize for clarity and user goals.
-          - Check factual accuracy (syntax, versions).
-          - Maintain voice and consistency.
-          - Anticipate pitfalls and explain fixes empathetically.
-          - Use alerts only when necessary.
-          
-          ## Example Document Skeleton
-          ```md
-          ---
-          title: Getting Started
-          description: Quickstart for using the GitHub Actions library
-          ---
-          
-          # Getting Started
-          
-          ## Prerequisites
-          - Node.js ≥ 20
-          - GitHub account
-          
-          ## Installation
-          ```bash
-          pnpm add @my-org/github-action
-          ```
-          
-          ## Quick Example
-          ```yaml
-          name: CI
-          on: [push]
-          jobs:
-            build:
-              runs-on: ubuntu-latest
-              steps:
-                - uses: actions/checkout@v5
-                - uses: my-org/my-action@v1
-          ```
-          
-          ---
-          ```
-          
-          # Glossary Maintainer
-          
-          You are an AI documentation agent that maintains the project glossary at `docs/src/content/docs/reference/glossary.md`.
-          
-          ## Your Mission
-          
-          Keep the glossary up-to-date by:
-          1. Scanning recent code changes for new technical terms
-          2. Performing incremental updates daily (last 24 hours)
-          3. Performing comprehensive full scan on Mondays (last 7 days)
-          4. Adding new terms and updating definitions based on repository changes
-          
-          ## Available Tools
-          
-          You have access to the **Serena MCP server** for advanced semantic analysis and code understanding. Serena is configured with:
-          - **Active workspace**: ${GH_AW_GITHUB_WORKSPACE}
-          - **Memory location**: `/tmp/gh-aw/cache-memory/serena/`
-          
-          Use Serena to:
-          - Analyze code semantics to understand new terminology in context
-          - Identify technical concepts and their relationships
-          - Help generate clear, accurate definitions for technical terms
-          - Understand how terms are used across the codebase
-          
-          ## Task Steps
-          
-          ### 1. Determine Scan Scope
-          
-          Check what day it is:
-          - **Monday**: Full scan (review changes from last 7 days)
-          - **Other weekdays**: Incremental scan (review changes from last 24 hours)
-          
-          Use bash commands to check recent activity:
-          
-          ```bash
-          # For incremental (daily) scan
-          git log --since='24 hours ago' --oneline
-          
-          # For full (weekly) scan on Monday
-          git log --since='7 days ago' --oneline
-          ```
-          
-          ### 2. Load Cache Memory
-          
-          You have access to cache-memory to track:
-          - Previously processed commits
-          - Terms that were recently added
-          - Terms that need review
-          
-          Check your cache to avoid duplicate work:
-          - Load the list of processed commit SHAs
-          - Skip commits you've already analyzed
-          
-          ### 3. Scan Recent Changes
-          
-          Based on the scope (daily or weekly):
-          
-          **Use GitHub tools to:**
-          - List recent commits using `list_commits` for the appropriate timeframe
-          - Get detailed commit information using `get_commit` for commits that might introduce new terminology
-          - Search for merged pull requests using `search_pull_requests`
-          - Review PR descriptions and comments for new terminology
-          
-          **Look for:**
-          - New configuration fields in frontmatter (YAML keys)
-          - New CLI commands or flags
-          - New tool names or MCP servers
-          - New concepts or features
-          - Technical acronyms (MCP, CLI, YAML, etc.)
-          - Specialized terminology (safe-outputs, frontmatter, engine, etc.)
-          
-          ### 4. Review Current Glossary
-          
-          Read the current glossary:
-          
-          ```bash
-          cat docs/src/content/docs/reference/glossary.md
-          ```
-          
-          **Check for:**
-          - Terms that are missing from the glossary
-          - Terms that need updated definitions
-          - Outdated terminology
-          - Inconsistent definitions
-          
-          ### 5. Follow Documentation Guidelines
-          
-          **IMPORTANT**: Read the documentation instructions before making changes:
-          
-          ```bash
-          cat .github/instructions/documentation.instructions.md
-          ```
-          
-          The glossary is a **Reference** document (information-oriented) and must:
-          - Provide accurate, complete technical descriptions
-          - Use consistent format across all entries
-          - Focus on technical accuracy
-          - Use descriptive mood: "X is...", "Y provides..."
-          - Avoid instructions or opinions
-          - Be organized alphabetically within sections
-          
-          **Glossary Structure:**
-          - Organized by category (Core Concepts, Tools and Integration, Security and Outputs, etc.)
-          - Each term has a clear, concise definition
-          - Examples provided where helpful
-          - Links to related documentation
-          
-          ### 6. Identify New Terms
-          
-          Based on your scan of recent changes, create a list of:
-          
-          1. **New terms to add**: Technical terms introduced in recent changes
-          2. **Terms to update**: Existing terms with changed meaning or behavior
-          3. **Terms to clarify**: Terms with unclear or incomplete definitions
-          
-          **Criteria for inclusion:**
-          - The term is used in user-facing documentation or code
-          - The term requires explanation (not self-evident)
-          - The term is specific to GitHub Agentic Workflows
-          - The term is likely to confuse users without a definition
-          
-          **Do NOT add:**
-          - Generic programming terms (unless used in a specific way)
-          - Self-evident terms
-          - Internal implementation details
-          - Terms only used in code comments
-          
-          ### 7. Update the Glossary
-          
-          For each term identified:
-          
-          1. **Determine the correct section** based on term type:
-             - Core Concepts: workflow, agent, frontmatter, etc.
-             - Tools and Integration: MCP, tools, servers
-             - Security and Outputs: safe-outputs, permissions, staged mode
-             - Workflow Components: engine, triggers, network permissions
-             - Development and Compilation: compilation, CLI, validation
-             - Advanced Features: cache-memory, command triggers, etc.
-          
-          2. **Write the definition** following these guidelines:
-             - Start with what the term is (not what it does)
-             - Use clear, concise language
-             - Include context if needed
-             - Add a simple example if helpful
-             - Link to related terms or documentation
-          
-          3. **Maintain alphabetical order** within each section
-          
-          4. **Use consistent formatting**:
-             ```markdown
-             ### Term Name
-             Definition of the term. Additional explanation if needed. Example:
-             
-             \`\`\`yaml
-             # Example code
-             \`\`\`
-             ```
-          
-          5. **Update the file** using the edit tool
-          PROMPT_EOF
-      - name: Append prompt (part 2)
-        env:
-          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-          GH_AW_GITHUB_WORKSPACE: ${{ github.workspace }}
-        run: |
-          cat << 'PROMPT_EOF' | envsubst >> "$GH_AW_PROMPT"
-          
-          ### 8. Save Cache State
-          
-          Update your cache-memory with:
-          - Commit SHAs you processed
-          - Terms you added or updated
-          - Date of last full scan
-          - Any notes for next run
-          
-          This prevents duplicate work and helps track progress.
-          
-          ### 9. Create Pull Request
-          
-          If you made any changes to the glossary:
-          
-          1. **Use safe-outputs create-pull-request** to create a PR
-          2. **Include in the PR description**:
-             - Whether this was an incremental (daily) or full (weekly) scan
-             - List of terms added
-             - List of terms updated
-             - Summary of recent changes that triggered the updates
-             - Links to relevant commits or PRs
-          
-          **PR Title Format**: 
-          - Daily: `[docs] Update glossary - daily scan`
-          - Weekly: `[docs] Update glossary - weekly full scan`
-          
-          **PR Description Template**:
-          ```markdown
-          ## Glossary Updates - [Date]
-          
-          ### Scan Type
-          - [ ] Incremental (daily - last 24 hours)
-          - [ ] Full scan (weekly - last 7 days)
-          
-          ### Terms Added
-          - **Term Name**: Brief explanation of why it was added
-          
-          ### Terms Updated
-          - **Term Name**: What changed and why
-          
-          ### Changes Analyzed
-          - Reviewed X commits from [timeframe]
-          - Analyzed Y merged PRs
-          - Processed Z new features
-          
-          ### Related Changes
-          - Commit SHA: Brief description
-          - PR #NUMBER: Brief description
-          
-          ### Notes
-          [Any additional context or terms that need manual review]
-          ```
-          
-          ### 10. Handle Edge Cases
-          
-          - **No new terms**: If no new terms are identified, exit gracefully without creating a PR
-          - **Already up-to-date**: If all terms are already in the glossary, exit gracefully
-          - **Unclear terms**: If a term is ambiguous, add it with a note that it needs review
-          - **Conflicting definitions**: If a term has multiple meanings, note both in the definition
-          
-          ## Guidelines
-          
-          - **Be Selective**: Only add terms that genuinely need explanation
-          - **Be Accurate**: Ensure definitions match actual implementation
-          - **Be Consistent**: Follow existing glossary style and structure
-          - **Be Complete**: Don't leave terms partially defined
-          - **Be Clear**: Write for users who are learning, not experts
-          - **Follow Structure**: Maintain alphabetical order within sections
-          - **Use Cache**: Track your work to avoid duplicates
-          - **Link Appropriately**: Add references to related documentation
-          
-          ## Important Notes
-          
-          - You have edit tool access to modify the glossary
-          - You have GitHub tools to search and review changes
-          - You have bash commands to explore the repository
-          - You have cache-memory to track your progress
-          - The safe-outputs create-pull-request will create a PR automatically
-          - Always read documentation instructions before making changes
-          - Focus on user-facing terminology and concepts
-          
-          Good luck! Your work helps users understand GitHub Agentic Workflows terminology.
+          Create an issue with the test results, including both successful outputs.
           
           PROMPT_EOF
       - name: Append XPIA security instructions to prompt
@@ -4130,46 +3779,6 @@ jobs:
           <instruction>When you need to create temporary files or directories during your work, always use the /tmp/gh-aw/agent/ directory that has been pre-created for you. Do NOT use the root /tmp/ directory directly.</instruction>
           </temporary-files>
           
-          PROMPT_EOF
-      - name: Append edit tool accessibility instructions to prompt
-        env:
-          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-        run: |
-          cat << 'PROMPT_EOF' | envsubst >> "$GH_AW_PROMPT"
-          <file-editing>
-          <description>File Editing Access Permissions</description>
-          <allowed-paths>
-            <path name="workspace">$GITHUB_WORKSPACE</path>
-            <path name="temporary">/tmp/gh-aw/</path>
-          </allowed-paths>
-          <restriction>Do NOT attempt to edit files outside these directories as you do not have the necessary permissions.</restriction>
-          </file-editing>
-          
-          PROMPT_EOF
-      - name: Append cache memory instructions to prompt
-        env:
-          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-        run: |
-          cat << 'PROMPT_EOF' | envsubst >> "$GH_AW_PROMPT"
-          
-          ---
-          
-          ## Cache Folder Available
-          
-          You have access to a persistent cache folder at `/tmp/gh-aw/cache-memory/` where you can read and write files to create memories and store information.
-          
-          - **Read/Write Access**: You can freely read from and write to any files in this folder
-          - **Persistence**: Files in this folder persist across workflow runs via GitHub Actions cache
-          - **Last Write Wins**: If multiple processes write to the same file, the last write will be preserved
-          - **File Share**: Use this as a simple file share - organize files as you see fit
-          
-          Examples of what you can store:
-          - `/tmp/gh-aw/cache-memory/notes.txt` - general notes and observations
-          - `/tmp/gh-aw/cache-memory/preferences.json` - user preferences and settings
-          - `/tmp/gh-aw/cache-memory/history.log` - activity history and logs
-          - `/tmp/gh-aw/cache-memory/state/` - organized state files in subdirectories
-          
-          Feel free to create, read, update, and organize files in this folder as needed for your tasks.
           PROMPT_EOF
       - name: Append safe outputs instructions to prompt
         env:
@@ -4233,7 +3842,6 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-          GH_AW_GITHUB_WORKSPACE: ${{ github.workspace }}
         with:
           script: |
             const fs = require("fs");
@@ -4336,37 +3944,13 @@ jobs:
         id: agentic_execution
         # Copilot CLI tool arguments (sorted):
         # --allow-tool github
+        # --allow-tool safeinputs
         # --allow-tool safeoutputs
-        # --allow-tool shell(cat)
-        # --allow-tool shell(date)
-        # --allow-tool shell(echo)
-        # --allow-tool shell(find docs -name '*.md')
-        # --allow-tool shell(git add:*)
-        # --allow-tool shell(git branch:*)
-        # --allow-tool shell(git checkout:*)
-        # --allow-tool shell(git commit:*)
-        # --allow-tool shell(git log --since='24 hours ago' --oneline)
-        # --allow-tool shell(git log --since='7 days ago' --oneline)
-        # --allow-tool shell(git merge:*)
-        # --allow-tool shell(git rm:*)
-        # --allow-tool shell(git status)
-        # --allow-tool shell(git switch:*)
-        # --allow-tool shell(grep -r '*' docs)
-        # --allow-tool shell(grep)
-        # --allow-tool shell(head)
-        # --allow-tool shell(ls)
-        # --allow-tool shell(pwd)
-        # --allow-tool shell(sort)
-        # --allow-tool shell(tail)
-        # --allow-tool shell(uniq)
-        # --allow-tool shell(wc)
-        # --allow-tool shell(yq)
-        # --allow-tool write
-        timeout-minutes: 20
+        timeout-minutes: 5
         run: |
           set -o pipefail
-          sudo -E awf --env-all --container-workdir "${GITHUB_WORKSPACE}" --mount /tmp:/tmp:rw --mount "${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:rw" --mount "${GITHUB_WORKSPACE}/.github:/workspace/.github:rw" --allow-domains '*.githubusercontent.com,api.enterprise.githubcopilot.com,api.github.com,api.snapcraft.io,archive.ubuntu.com,azure.archive.ubuntu.com,codeload.github.com,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,github-cloud.githubusercontent.com,github-cloud.s3.amazonaws.com,github.com,json-schema.org,json.schemastore.org,keyserver.ubuntu.com,lfs.github.com,objects.githubusercontent.com,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,ppa.launchpad.net,raw.githubusercontent.com,registry.npmjs.org,s.symcb.com,s.symcd.com,security.ubuntu.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com' --log-level info --proxy-logs-dir /tmp/gh-aw/sandbox/firewall/logs \
-            -- npx -y @github/copilot@0.0.365 --add-dir /tmp/gh-aw/ --log-level all --log-dir /tmp/gh-aw/sandbox/agent/logs/ --add-dir "${GITHUB_WORKSPACE}" --disable-builtin-mcps --agent technical-doc-writer.agent --allow-tool github --allow-tool safeoutputs --allow-tool 'shell(cat)' --allow-tool 'shell(date)' --allow-tool 'shell(echo)' --allow-tool 'shell(find docs -name '\''*.md'\'')' --allow-tool 'shell(git add:*)' --allow-tool 'shell(git branch:*)' --allow-tool 'shell(git checkout:*)' --allow-tool 'shell(git commit:*)' --allow-tool 'shell(git log --since='\''24 hours ago'\'' --oneline)' --allow-tool 'shell(git log --since='\''7 days ago'\'' --oneline)' --allow-tool 'shell(git merge:*)' --allow-tool 'shell(git rm:*)' --allow-tool 'shell(git status)' --allow-tool 'shell(git switch:*)' --allow-tool 'shell(grep -r '\''*'\'' docs)' --allow-tool 'shell(grep)' --allow-tool 'shell(head)' --allow-tool 'shell(ls)' --allow-tool 'shell(pwd)' --allow-tool 'shell(sort)' --allow-tool 'shell(tail)' --allow-tool 'shell(uniq)' --allow-tool 'shell(wc)' --allow-tool 'shell(yq)' --allow-tool write --add-dir /tmp/gh-aw/cache-memory/ --allow-all-paths --prompt "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)" \
+          sudo -E awf --env-all --container-workdir "${GITHUB_WORKSPACE}" --mount /tmp:/tmp:rw --mount "${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:rw" --mount "${GITHUB_WORKSPACE}/.github:/workspace/.github:rw" --allow-domains api.enterprise.githubcopilot.com,api.github.com,github.com,raw.githubusercontent.com,registry.npmjs.org --log-level info --proxy-logs-dir /tmp/gh-aw/sandbox/firewall/logs \
+            -- npx -y @github/copilot@0.0.365 --add-dir /tmp/gh-aw/ --log-level all --log-dir /tmp/gh-aw/sandbox/agent/logs/ --add-dir "${GITHUB_WORKSPACE}" --disable-builtin-mcps --allow-tool github --allow-tool safeinputs --allow-tool safeoutputs --prompt "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)" \
             2>&1 | tee /tmp/gh-aw/agent-stdio.log
         env:
           COPILOT_AGENT_RUNNER_TYPE: STANDALONE
@@ -4508,7 +4092,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
-          GH_AW_ALLOWED_DOMAINS: "*.githubusercontent.com,api.enterprise.githubcopilot.com,api.github.com,api.snapcraft.io,archive.ubuntu.com,azure.archive.ubuntu.com,codeload.github.com,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,github-cloud.githubusercontent.com,github-cloud.s3.amazonaws.com,github.com,json-schema.org,json.schemastore.org,keyserver.ubuntu.com,lfs.github.com,objects.githubusercontent.com,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,ppa.launchpad.net,raw.githubusercontent.com,registry.npmjs.org,s.symcb.com,s.symcd.com,security.ubuntu.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com"
+          GH_AW_ALLOWED_DOMAINS: "api.enterprise.githubcopilot.com,api.github.com,github.com,raw.githubusercontent.com,registry.npmjs.org"
           GITHUB_SERVER_URL: ${{ github.server_url }}
           GITHUB_API_URL: ${{ github.api_url }}
         with:
@@ -6712,7 +6296,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
         with:
-          name: firewall-logs-glossary-maintainer
+          name: firewall-logs-python-safe-input-test-workflow
           path: /tmp/gh-aw/sandbox/firewall/logs/
           if-no-files-found: ignore
       - name: Parse firewall logs for step summary
@@ -7266,19 +6850,12 @@ jobs:
             if (typeof module === "undefined" || require.main === module) {
               main();
             }
-      - name: Upload git patch
-        if: always()
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
-        with:
-          name: aw.patch
-          path: /tmp/gh-aw/aw.patch
-          if-no-files-found: ignore
 
   conclusion:
     needs:
       - agent
       - activation
-      - create_pull_request
+      - create_issue
     if: (always()) && (needs.agent.result != 'skipped')
     runs-on: ubuntu-slim
     permissions:
@@ -7319,7 +6896,7 @@ jobs:
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_NOOP_MAX: 1
-          GH_AW_WORKFLOW_NAME: "Glossary Maintainer"
+          GH_AW_WORKFLOW_NAME: "Python Safe-Input Test Workflow"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -7411,7 +6988,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_WORKFLOW_NAME: "Glossary Maintainer"
+          GH_AW_WORKFLOW_NAME: "Python Safe-Input Test Workflow"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -7524,7 +7101,7 @@ jobs:
           GH_AW_COMMENT_ID: ${{ needs.activation.outputs.comment_id }}
           GH_AW_COMMENT_REPO: ${{ needs.activation.outputs.comment_repo }}
           GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          GH_AW_WORKFLOW_NAME: "Glossary Maintainer"
+          GH_AW_WORKFLOW_NAME: "Python Safe-Input Test Workflow"
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
@@ -7743,50 +7320,23 @@ jobs:
               core.setFailed(error instanceof Error ? error.message : String(error));
             });
 
-  create_pull_request:
+  create_issue:
     needs:
       - agent
-      - activation
       - detection
     if: >
-      (((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'create_pull_request'))) &&
+      (((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'create_issue'))) &&
       (needs.detection.outputs.success == 'true')
     runs-on: ubuntu-slim
     permissions:
-      contents: write
+      contents: read
       issues: write
-      pull-requests: write
     timeout-minutes: 10
     outputs:
-      branch_name: ${{ steps.create_pull_request.outputs.branch_name }}
-      fallback_used: ${{ steps.create_pull_request.outputs.fallback_used }}
-      issue_number: ${{ steps.create_pull_request.outputs.issue_number }}
-      issue_url: ${{ steps.create_pull_request.outputs.issue_url }}
-      pull_request_number: ${{ steps.create_pull_request.outputs.pull_request_number }}
-      pull_request_url: ${{ steps.create_pull_request.outputs.pull_request_url }}
+      issue_number: ${{ steps.create_issue.outputs.issue_number }}
+      issue_url: ${{ steps.create_issue.outputs.issue_url }}
+      temporary_id_map: ${{ steps.create_issue.outputs.temporary_id_map }}
     steps:
-      - name: Download patch artifact
-        continue-on-error: true
-        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
-        with:
-          name: aw.patch
-          path: /tmp/gh-aw/
-      - name: Checkout repository
-        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
-        with:
-          persist-credentials: false
-          fetch-depth: 0
-      - name: Configure Git credentials
-        env:
-          REPO_NAME: ${{ github.repository }}
-          SERVER_URL: ${{ github.server_url }}
-        run: |
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git config --global user.name "github-actions[bot]"
-          # Re-authenticate git with GitHub token
-          SERVER_URL_STRIPPED="${SERVER_URL#https://}"
-          git remote set-url origin "https://x-access-token:${{ github.token }}@${SERVER_URL_STRIPPED}/${REPO_NAME}.git"
-          echo "Git configured with standard GitHub Actions identity"
       - name: Download agent output artifact
         continue-on-error: true
         uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
@@ -7798,129 +7348,137 @@ jobs:
           mkdir -p /tmp/gh-aw/safeoutputs/
           find "/tmp/gh-aw/safeoutputs/" -type f -print
           echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> "$GITHUB_ENV"
-      - name: Create Pull Request
-        id: create_pull_request
+      - name: Create Output Issue
+        id: create_issue
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_WORKFLOW_ID: "agent"
-          GH_AW_BASE_BRANCH: ${{ github.ref_name }}
-          GH_AW_PR_TITLE_PREFIX: "[docs] "
-          GH_AW_PR_LABELS: "documentation,glossary"
-          GH_AW_PR_DRAFT: "false"
-          GH_AW_PR_IF_NO_CHANGES: "warn"
-          GH_AW_MAX_PATCH_SIZE: 1024
-          GH_AW_WORKFLOW_NAME: "Glossary Maintainer"
+          GH_AW_ISSUE_TITLE_PREFIX: "Python Safe-Input Test Results"
+          GH_AW_ISSUE_LABELS: "test,python"
+          GH_AW_WORKFLOW_NAME: "Python Safe-Input Test Workflow"
           GH_AW_ENGINE_ID: "copilot"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
+            function sanitizeLabelContent(content) {
+              if (!content || typeof content !== "string") {
+                return "";
+              }
+              let sanitized = content.trim();
+              sanitized = sanitized.replace(/\x1b\[[0-9;]*[mGKH]/g, "");
+              sanitized = sanitized.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "");
+              sanitized = sanitized.replace(
+                /(^|[^\w`])@([A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?(?:\/[A-Za-z0-9._-]+)?)/g,
+                (_m, p1, p2) => `${p1}\`@${p2}\``
+              );
+              sanitized = sanitized.replace(/[<>&'"]/g, "");
+              return sanitized.trim();
+            }
             const fs = require("fs");
-            const crypto = require("crypto");
-            async function updateActivationComment(github, context, core, itemUrl, itemNumber, itemType = "pull_request") {
-              const itemLabel = itemType === "issue" ? "issue" : "pull request";
-              const linkMessage =
-                itemType === "issue"
-                  ? `\n\n✅ Issue created: [#${itemNumber}](${itemUrl})`
-                  : `\n\n✅ Pull request created: [#${itemNumber}](${itemUrl})`;
-              await updateActivationCommentWithMessage(github, context, core, linkMessage, itemLabel);
-            }
-            async function updateActivationCommentWithCommit(github, context, core, commitSha, commitUrl) {
-              const shortSha = commitSha.substring(0, 7);
-              const message = `\n\n✅ Commit pushed: [\`${shortSha}\`](${commitUrl})`;
-              await updateActivationCommentWithMessage(github, context, core, message, "commit");
-            }
-            async function updateActivationCommentWithMessage(github, context, core, message, label = "") {
-              const commentId = process.env.GH_AW_COMMENT_ID;
-              const commentRepo = process.env.GH_AW_COMMENT_REPO;
-              if (!commentId) {
-                core.info("No activation comment to update (GH_AW_COMMENT_ID not set)");
-                return;
+            const MAX_LOG_CONTENT_LENGTH = 10000;
+            function truncateForLogging(content) {
+              if (content.length <= MAX_LOG_CONTENT_LENGTH) {
+                return content;
               }
-              core.info(`Updating activation comment ${commentId}`);
-              let repoOwner = context.repo.owner;
-              let repoName = context.repo.repo;
-              if (commentRepo) {
-                const parts = commentRepo.split("/");
-                if (parts.length === 2) {
-                  repoOwner = parts[0];
-                  repoName = parts[1];
-                } else {
-                  core.warning(`Invalid comment repo format: ${commentRepo}, expected "owner/repo". Falling back to context.repo.`);
-                }
+              return content.substring(0, MAX_LOG_CONTENT_LENGTH) + `\n... (truncated, total length: ${content.length})`;
+            }
+            function loadAgentOutput() {
+              const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT;
+              if (!agentOutputFile) {
+                core.info("No GH_AW_AGENT_OUTPUT environment variable found");
+                return { success: false };
               }
-              core.info(`Updating comment in ${repoOwner}/${repoName}`);
-              const isDiscussionComment = commentId.startsWith("DC_");
+              let outputContent;
               try {
-                if (isDiscussionComment) {
-                  const currentComment = await github.graphql(
-                    `
-                    query($commentId: ID!) {
-                      node(id: $commentId) {
-                        ... on DiscussionComment {
-                          body
-                        }
-                      }
-                    }`,
-                    { commentId: commentId }
-                  );
-                  if (!currentComment?.node?.body) {
-                    core.warning("Unable to fetch current comment body, comment may have been deleted or is inaccessible");
-                    return;
-                  }
-                  const currentBody = currentComment.node.body;
-                  const updatedBody = currentBody + message;
-                  const result = await github.graphql(
-                    `
-                    mutation($commentId: ID!, $body: String!) {
-                      updateDiscussionComment(input: { commentId: $commentId, body: $body }) {
-                        comment {
-                          id
-                          url
-                        }
-                      }
-                    }`,
-                    { commentId: commentId, body: updatedBody }
-                  );
-                  const comment = result.updateDiscussionComment.comment;
-                  const successMessage = label
-                    ? `Successfully updated discussion comment with ${label} link`
-                    : "Successfully updated discussion comment";
-                  core.info(successMessage);
-                  core.info(`Comment ID: ${comment.id}`);
-                  core.info(`Comment URL: ${comment.url}`);
-                } else {
-                  const currentComment = await github.request("GET /repos/{owner}/{repo}/issues/comments/{comment_id}", {
-                    owner: repoOwner,
-                    repo: repoName,
-                    comment_id: parseInt(commentId, 10),
-                    headers: {
-                      Accept: "application/vnd.github+json",
-                    },
-                  });
-                  if (!currentComment?.data?.body) {
-                    core.warning("Unable to fetch current comment body, comment may have been deleted");
-                    return;
-                  }
-                  const currentBody = currentComment.data.body;
-                  const updatedBody = currentBody + message;
-                  const response = await github.request("PATCH /repos/{owner}/{repo}/issues/comments/{comment_id}", {
-                    owner: repoOwner,
-                    repo: repoName,
-                    comment_id: parseInt(commentId, 10),
-                    body: updatedBody,
-                    headers: {
-                      Accept: "application/vnd.github+json",
-                    },
-                  });
-                  const successMessage = label ? `Successfully updated comment with ${label} link` : "Successfully updated comment";
-                  core.info(successMessage);
-                  core.info(`Comment ID: ${response.data.id}`);
-                  core.info(`Comment URL: ${response.data.html_url}`);
-                }
+                outputContent = fs.readFileSync(agentOutputFile, "utf8");
               } catch (error) {
-                core.warning(`Failed to update activation comment: ${error instanceof Error ? error.message : String(error)}`);
+                const errorMessage = `Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`;
+                core.error(errorMessage);
+                return { success: false, error: errorMessage };
               }
+              if (outputContent.trim() === "") {
+                core.info("Agent output content is empty");
+                return { success: false };
+              }
+              core.info(`Agent output content length: ${outputContent.length}`);
+              let validatedOutput;
+              try {
+                validatedOutput = JSON.parse(outputContent);
+              } catch (error) {
+                const errorMessage = `Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`;
+                core.error(errorMessage);
+                core.info(`Failed to parse content:\n${truncateForLogging(outputContent)}`);
+                return { success: false, error: errorMessage };
+              }
+              if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
+                core.info("No valid items found in agent output");
+                core.info(`Parsed content: ${truncateForLogging(JSON.stringify(validatedOutput))}`);
+                return { success: false };
+              }
+              return { success: true, items: validatedOutput.items };
+            }
+            async function generateStagedPreview(options) {
+              const { title, description, items, renderItem } = options;
+              let summaryContent = `## 🎭 Staged Mode: ${title} Preview\n\n`;
+              summaryContent += `${description}\n\n`;
+              for (let i = 0; i < items.length; i++) {
+                const item = items[i];
+                summaryContent += renderItem(item, i);
+                summaryContent += "---\n\n";
+              }
+              try {
+                await core.summary.addRaw(summaryContent).write();
+                core.info(summaryContent);
+                core.info(`📝 ${title} preview written to step summary`);
+              } catch (error) {
+                core.setFailed(error instanceof Error ? error : String(error));
+              }
+            }
+            function generateXMLMarker(workflowName, runUrl) {
+              const engineId = process.env.GH_AW_ENGINE_ID || "";
+              const engineVersion = process.env.GH_AW_ENGINE_VERSION || "";
+              const engineModel = process.env.GH_AW_ENGINE_MODEL || "";
+              const trackerId = process.env.GH_AW_TRACKER_ID || "";
+              const parts = [];
+              parts.push(`agentic-workflow: ${workflowName}`);
+              if (trackerId) {
+                parts.push(`tracker-id: ${trackerId}`);
+              }
+              if (engineId) {
+                parts.push(`engine: ${engineId}`);
+              }
+              if (engineVersion) {
+                parts.push(`version: ${engineVersion}`);
+              }
+              if (engineModel) {
+                parts.push(`model: ${engineModel}`);
+              }
+              parts.push(`run: ${runUrl}`);
+              return `<!-- ${parts.join(", ")} -->`;
+            }
+            function generateFooter(
+              workflowName,
+              runUrl,
+              workflowSource,
+              workflowSourceURL,
+              triggeringIssueNumber,
+              triggeringPRNumber,
+              triggeringDiscussionNumber
+            ) {
+              let footer = `\n\n> AI generated by [${workflowName}](${runUrl})`;
+              if (triggeringIssueNumber) {
+                footer += ` for #${triggeringIssueNumber}`;
+              } else if (triggeringPRNumber) {
+                footer += ` for #${triggeringPRNumber}`;
+              } else if (triggeringDiscussionNumber) {
+                footer += ` for discussion #${triggeringDiscussionNumber}`;
+              }
+              if (workflowSource && workflowSourceURL) {
+                footer += `\n>\n> To add this workflow in your repository, run \`gh aw add ${workflowSource}\`. See [usage guide](https://githubnext.github.io/gh-aw/tools/cli/).`;
+              }
+              footer += "\n\n" + generateXMLMarker(workflowName, runUrl);
+              footer += "\n";
+              return footer;
             }
             function getTrackerID(format) {
               const trackerID = process.env.GH_AW_TRACKER_ID || "";
@@ -7930,442 +7488,429 @@ jobs:
               }
               return "";
             }
-            function generatePatchPreview(patchContent) {
-              if (!patchContent || !patchContent.trim()) {
-                return "";
+            const crypto = require("crypto");
+            const TEMPORARY_ID_PATTERN = /#(aw_[0-9a-f]{12})/gi;
+            function generateTemporaryId() {
+              return "aw_" + crypto.randomBytes(6).toString("hex");
+            }
+            function isTemporaryId(value) {
+              if (typeof value === "string") {
+                return /^aw_[0-9a-f]{12}$/i.test(value);
               }
-              const lines = patchContent.split("\n");
-              const maxLines = 500;
-              const maxChars = 2000;
-              let preview = lines.length <= maxLines ? patchContent : lines.slice(0, maxLines).join("\n");
-              const lineTruncated = lines.length > maxLines;
-              const charTruncated = preview.length > maxChars;
-              if (charTruncated) {
-                preview = preview.slice(0, maxChars);
+              return false;
+            }
+            function normalizeTemporaryId(tempId) {
+              return String(tempId).toLowerCase();
+            }
+            function replaceTemporaryIdReferences(text, tempIdMap, currentRepo) {
+              return text.replace(TEMPORARY_ID_PATTERN, (match, tempId) => {
+                const resolved = tempIdMap.get(normalizeTemporaryId(tempId));
+                if (resolved !== undefined) {
+                  if (currentRepo && resolved.repo === currentRepo) {
+                    return `#${resolved.number}`;
+                  }
+                  return `${resolved.repo}#${resolved.number}`;
+                }
+                return match;
+              });
+            }
+            function replaceTemporaryIdReferencesLegacy(text, tempIdMap) {
+              return text.replace(TEMPORARY_ID_PATTERN, (match, tempId) => {
+                const issueNumber = tempIdMap.get(normalizeTemporaryId(tempId));
+                if (issueNumber !== undefined) {
+                  return `#${issueNumber}`;
+                }
+                return match;
+              });
+            }
+            function loadTemporaryIdMap() {
+              const mapJson = process.env.GH_AW_TEMPORARY_ID_MAP;
+              if (!mapJson || mapJson === "{}") {
+                return new Map();
               }
-              const truncated = lineTruncated || charTruncated;
-              const summary = truncated
-                ? `Show patch preview (${Math.min(maxLines, lines.length)} of ${lines.length} lines)`
-                : `Show patch (${lines.length} lines)`;
-              return `\n\n<details><summary>${summary}</summary>\n\n\`\`\`diff\n${preview}${truncated ? "\n... (truncated)" : ""}\n\`\`\`\n\n</details>`;
+              try {
+                const mapObject = JSON.parse(mapJson);
+                const result = new Map();
+                for (const [key, value] of Object.entries(mapObject)) {
+                  const normalizedKey = normalizeTemporaryId(key);
+                  if (typeof value === "number") {
+                    const contextRepo = `${context.repo.owner}/${context.repo.repo}`;
+                    result.set(normalizedKey, { repo: contextRepo, number: value });
+                  } else if (typeof value === "object" && value !== null && "repo" in value && "number" in value) {
+                    result.set(normalizedKey, { repo: String(value.repo), number: Number(value.number) });
+                  }
+                }
+                return result;
+              } catch (error) {
+                if (typeof core !== "undefined") {
+                  core.warning(`Failed to parse temporary ID map: ${error instanceof Error ? error.message : String(error)}`);
+                }
+                return new Map();
+              }
+            }
+            function resolveIssueNumber(value, temporaryIdMap) {
+              if (value === undefined || value === null) {
+                return { resolved: null, wasTemporaryId: false, errorMessage: "Issue number is missing" };
+              }
+              const valueStr = String(value);
+              if (isTemporaryId(valueStr)) {
+                const resolvedPair = temporaryIdMap.get(normalizeTemporaryId(valueStr));
+                if (resolvedPair !== undefined) {
+                  return { resolved: resolvedPair, wasTemporaryId: true, errorMessage: null };
+                }
+                return {
+                  resolved: null,
+                  wasTemporaryId: true,
+                  errorMessage: `Temporary ID '${valueStr}' not found in map. Ensure the issue was created before linking.`,
+                };
+              }
+              const issueNumber = typeof value === "number" ? value : parseInt(valueStr, 10);
+              if (isNaN(issueNumber) || issueNumber <= 0) {
+                return { resolved: null, wasTemporaryId: false, errorMessage: `Invalid issue number: ${value}` };
+              }
+              const contextRepo = typeof context !== "undefined" ? `${context.repo.owner}/${context.repo.repo}` : "";
+              return { resolved: { repo: contextRepo, number: issueNumber }, wasTemporaryId: false, errorMessage: null };
+            }
+            function serializeTemporaryIdMap(tempIdMap) {
+              const obj = Object.fromEntries(tempIdMap);
+              return JSON.stringify(obj);
+            }
+            function parseAllowedRepos() {
+              const allowedReposEnv = process.env.GH_AW_ALLOWED_REPOS;
+              const set = new Set();
+              if (allowedReposEnv) {
+                allowedReposEnv
+                  .split(",")
+                  .map(repo => repo.trim())
+                  .filter(repo => repo)
+                  .forEach(repo => set.add(repo));
+              }
+              return set;
+            }
+            function getDefaultTargetRepo() {
+              const targetRepoSlug = process.env.GH_AW_TARGET_REPO_SLUG;
+              if (targetRepoSlug) {
+                return targetRepoSlug;
+              }
+              return `${context.repo.owner}/${context.repo.repo}`;
+            }
+            function validateRepo(repo, defaultRepo, allowedRepos) {
+              if (repo === defaultRepo) {
+                return { valid: true, error: null };
+              }
+              if (allowedRepos.has(repo)) {
+                return { valid: true, error: null };
+              }
+              return {
+                valid: false,
+                error: `Repository '${repo}' is not in the allowed-repos list. Allowed: ${defaultRepo}${allowedRepos.size > 0 ? ", " + Array.from(allowedRepos).join(", ") : ""}`,
+              };
+            }
+            function parseRepoSlug(repoSlug) {
+              const parts = repoSlug.split("/");
+              if (parts.length !== 2 || !parts[0] || !parts[1]) {
+                return null;
+              }
+              return { owner: parts[0], repo: parts[1] };
             }
             async function main() {
-              core.setOutput("pull_request_number", "");
-              core.setOutput("pull_request_url", "");
               core.setOutput("issue_number", "");
               core.setOutput("issue_url", "");
-              core.setOutput("branch_name", "");
-              core.setOutput("fallback_used", "");
+              core.setOutput("temporary_id_map", "{}");
+              core.setOutput("issues_to_assign_copilot", "");
               const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
-              const workflowId = process.env.GH_AW_WORKFLOW_ID;
-              if (!workflowId) {
-                throw new Error("GH_AW_WORKFLOW_ID environment variable is required");
-              }
-              const baseBranch = process.env.GH_AW_BASE_BRANCH;
-              if (!baseBranch) {
-                throw new Error("GH_AW_BASE_BRANCH environment variable is required");
-              }
-              const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT || "";
-              let outputContent = "";
-              if (agentOutputFile.trim() !== "") {
-                try {
-                  outputContent = fs.readFileSync(agentOutputFile, "utf8");
-                } catch (error) {
-                  core.setFailed(`Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`);
-                  return;
-                }
-              }
-              if (outputContent.trim() === "") {
-                core.info("Agent output content is empty");
-              }
-              const ifNoChanges = process.env.GH_AW_PR_IF_NO_CHANGES || "warn";
-              if (!fs.existsSync("/tmp/gh-aw/aw.patch")) {
-                const message = "No patch file found - cannot create pull request without changes";
-                if (isStaged) {
-                  let summaryContent = "## 🎭 Staged Mode: Create Pull Request Preview\n\n";
-                  summaryContent += "The following pull request would be created if staged mode was disabled:\n\n";
-                  summaryContent += `**Status:** ⚠️ No patch file found\n\n`;
-                  summaryContent += `**Message:** ${message}\n\n`;
-                  await core.summary.addRaw(summaryContent).write();
-                  core.info("📝 Pull request creation preview written to step summary (no patch file)");
-                  return;
-                }
-                switch (ifNoChanges) {
-                  case "error":
-                    throw new Error(message);
-                  case "ignore":
-                    return;
-                  case "warn":
-                  default:
-                    core.warning(message);
-                    return;
-                }
-              }
-              const patchContent = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
-              if (patchContent.includes("Failed to generate patch")) {
-                const message = "Patch file contains error message - cannot create pull request without changes";
-                if (isStaged) {
-                  let summaryContent = "## 🎭 Staged Mode: Create Pull Request Preview\n\n";
-                  summaryContent += "The following pull request would be created if staged mode was disabled:\n\n";
-                  summaryContent += `**Status:** ⚠️ Patch file contains error\n\n`;
-                  summaryContent += `**Message:** ${message}\n\n`;
-                  await core.summary.addRaw(summaryContent).write();
-                  core.info("📝 Pull request creation preview written to step summary (patch error)");
-                  return;
-                }
-                switch (ifNoChanges) {
-                  case "error":
-                    throw new Error(message);
-                  case "ignore":
-                    return;
-                  case "warn":
-                  default:
-                    core.warning(message);
-                    return;
-                }
-              }
-              const isEmpty = !patchContent || !patchContent.trim();
-              if (!isEmpty) {
-                const maxSizeKb = parseInt(process.env.GH_AW_MAX_PATCH_SIZE || "1024", 10);
-                const patchSizeBytes = Buffer.byteLength(patchContent, "utf8");
-                const patchSizeKb = Math.ceil(patchSizeBytes / 1024);
-                core.info(`Patch size: ${patchSizeKb} KB (maximum allowed: ${maxSizeKb} KB)`);
-                if (patchSizeKb > maxSizeKb) {
-                  const message = `Patch size (${patchSizeKb} KB) exceeds maximum allowed size (${maxSizeKb} KB)`;
-                  if (isStaged) {
-                    let summaryContent = "## 🎭 Staged Mode: Create Pull Request Preview\n\n";
-                    summaryContent += "The following pull request would be created if staged mode was disabled:\n\n";
-                    summaryContent += `**Status:** ❌ Patch size exceeded\n\n`;
-                    summaryContent += `**Message:** ${message}\n\n`;
-                    await core.summary.addRaw(summaryContent).write();
-                    core.info("📝 Pull request creation preview written to step summary (patch size error)");
-                    return;
-                  }
-                  throw new Error(message);
-                }
-                core.info("Patch size validation passed");
-              }
-              if (isEmpty && !isStaged) {
-                const message = "Patch file is empty - no changes to apply (noop operation)";
-                switch (ifNoChanges) {
-                  case "error":
-                    throw new Error("No changes to push - failing as configured by if-no-changes: error");
-                  case "ignore":
-                    return;
-                  case "warn":
-                  default:
-                    core.warning(message);
-                    return;
-                }
-              }
-              core.info(`Agent output content length: ${outputContent.length}`);
-              if (!isEmpty) {
-                core.info("Patch content validation passed");
-              } else {
-                core.info("Patch file is empty - processing noop operation");
-              }
-              let validatedOutput;
-              try {
-                validatedOutput = JSON.parse(outputContent);
-              } catch (error) {
-                core.setFailed(`Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`);
+              const result = loadAgentOutput();
+              if (!result.success) {
                 return;
               }
-              if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
-                core.warning("No valid items found in agent output");
+              const createIssueItems = result.items.filter(item => item.type === "create_issue");
+              if (createIssueItems.length === 0) {
+                core.info("No create-issue items found in agent output");
                 return;
               }
-              const pullRequestItem = validatedOutput.items.find( item => item.type === "create_pull_request");
-              if (!pullRequestItem) {
-                core.warning("No create-pull-request item found in agent output");
-                return;
+              core.info(`Found ${createIssueItems.length} create-issue item(s)`);
+              const allowedRepos = parseAllowedRepos();
+              const defaultTargetRepo = getDefaultTargetRepo();
+              core.info(`Default target repo: ${defaultTargetRepo}`);
+              if (allowedRepos.size > 0) {
+                core.info(`Allowed repos: ${Array.from(allowedRepos).join(", ")}`);
               }
-              core.info(`Found create-pull-request item: title="${pullRequestItem.title}", bodyLength=${pullRequestItem.body.length}`);
               if (isStaged) {
-                let summaryContent = "## 🎭 Staged Mode: Create Pull Request Preview\n\n";
-                summaryContent += "The following pull request would be created if staged mode was disabled:\n\n";
-                summaryContent += `**Title:** ${pullRequestItem.title || "No title provided"}\n\n`;
-                summaryContent += `**Branch:** ${pullRequestItem.branch || "auto-generated"}\n\n`;
-                summaryContent += `**Base:** ${baseBranch}\n\n`;
-                if (pullRequestItem.body) {
-                  summaryContent += `**Body:**\n${pullRequestItem.body}\n\n`;
-                }
-                if (fs.existsSync("/tmp/gh-aw/aw.patch")) {
-                  const patchStats = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
-                  if (patchStats.trim()) {
-                    summaryContent += `**Changes:** Patch file exists with ${patchStats.split("\n").length} lines\n\n`;
-                    summaryContent += `<details><summary>Show patch preview</summary>\n\n\`\`\`diff\n${patchStats.slice(0, 2000)}${patchStats.length > 2000 ? "\n... (truncated)" : ""}\n\`\`\`\n\n</details>\n\n`;
-                  } else {
-                    summaryContent += `**Changes:** No changes (empty patch)\n\n`;
-                  }
-                }
-                await core.summary.addRaw(summaryContent).write();
-                core.info("📝 Pull request creation preview written to step summary");
+                await generateStagedPreview({
+                  title: "Create Issues",
+                  description: "The following issues would be created if staged mode was disabled:",
+                  items: createIssueItems,
+                  renderItem: (item, index) => {
+                    let content = `### Issue ${index + 1}\n`;
+                    content += `**Title:** ${item.title || "No title provided"}\n\n`;
+                    if (item.temporary_id) {
+                      content += `**Temporary ID:** ${item.temporary_id}\n\n`;
+                    }
+                    if (item.repo) {
+                      content += `**Repository:** ${item.repo}\n\n`;
+                    }
+                    if (item.body) {
+                      content += `**Body:**\n${item.body}\n\n`;
+                    }
+                    if (item.labels && item.labels.length > 0) {
+                      content += `**Labels:** ${item.labels.join(", ")}\n\n`;
+                    }
+                    if (item.parent) {
+                      content += `**Parent:** ${item.parent}\n\n`;
+                    }
+                    return content;
+                  },
+                });
                 return;
               }
-              let title = pullRequestItem.title.trim();
-              let bodyLines = pullRequestItem.body.split("\n");
-              let branchName = pullRequestItem.branch ? pullRequestItem.branch.trim() : null;
-              if (!title) {
-                title = "Agent Output";
-              }
-              const titlePrefix = process.env.GH_AW_PR_TITLE_PREFIX;
-              if (titlePrefix && !title.startsWith(titlePrefix)) {
-                title = titlePrefix + title;
-              }
-              const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
-              const runId = context.runId;
-              const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
-              const runUrl = context.payload.repository
-                ? `${context.payload.repository.html_url}/actions/runs/${runId}`
-                : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
-              const trackerIDComment = getTrackerID("markdown");
-              if (trackerIDComment) {
-                bodyLines.push(trackerIDComment);
-              }
-              bodyLines.push(``, ``, `> AI generated by [${workflowName}](${runUrl})`, "");
-              const body = bodyLines.join("\n").trim();
-              const labelsEnv = process.env.GH_AW_PR_LABELS;
-              const labels = labelsEnv
+              const parentIssueNumber = context.payload?.issue?.number;
+              const temporaryIdMap = new Map();
+              const triggeringIssueNumber =
+                context.payload?.issue?.number && !context.payload?.issue?.pull_request ? context.payload.issue.number : undefined;
+              const triggeringPRNumber =
+                context.payload?.pull_request?.number || (context.payload?.issue?.pull_request ? context.payload.issue.number : undefined);
+              const triggeringDiscussionNumber = context.payload?.discussion?.number;
+              const labelsEnv = process.env.GH_AW_ISSUE_LABELS;
+              let envLabels = labelsEnv
                 ? labelsEnv
                     .split(",")
-                    .map( label => label.trim())
-                    .filter( label => label)
+                    .map(label => label.trim())
+                    .filter(label => label)
                 : [];
-              const draftEnv = process.env.GH_AW_PR_DRAFT;
-              const draft = draftEnv ? draftEnv.toLowerCase() === "true" : true;
-              core.info(`Creating pull request with title: ${title}`);
-              core.info(`Labels: ${JSON.stringify(labels)}`);
-              core.info(`Draft: ${draft}`);
-              core.info(`Body length: ${body.length}`);
-              const randomHex = crypto.randomBytes(8).toString("hex");
-              if (!branchName) {
-                core.info("No branch name provided in JSONL, generating unique branch name");
-                branchName = `${workflowId}-${randomHex}`;
-              } else {
-                branchName = `${branchName}-${randomHex}`;
-                core.info(`Using branch name from JSONL with added salt: ${branchName}`);
-              }
-              core.info(`Generated branch name: ${branchName}`);
-              core.info(`Base branch: ${baseBranch}`);
-              core.info(`Fetching latest changes and checking out base branch: ${baseBranch}`);
-              await exec.exec("git fetch origin");
-              await exec.exec(`git checkout ${baseBranch}`);
-              core.info(`Branch should not exist locally, creating new branch from base: ${branchName}`);
-              await exec.exec(`git checkout -b ${branchName}`);
-              core.info(`Created new branch from base: ${branchName}`);
-              if (!isEmpty) {
-                core.info("Applying patch...");
-                const patchLines = patchContent.split("\n");
-                const previewLineCount = Math.min(500, patchLines.length);
-                core.info(`Patch preview (first ${previewLineCount} of ${patchLines.length} lines):`);
-                for (let i = 0; i < previewLineCount; i++) {
-                  core.info(patchLines[i]);
+              const createdIssues = [];
+              for (let i = 0; i < createIssueItems.length; i++) {
+                const createIssueItem = createIssueItems[i];
+                const itemRepo = createIssueItem.repo ? String(createIssueItem.repo).trim() : defaultTargetRepo;
+                const repoValidation = validateRepo(itemRepo, defaultTargetRepo, allowedRepos);
+                if (!repoValidation.valid) {
+                  core.warning(`Skipping issue: ${repoValidation.error}`);
+                  continue;
                 }
-                try {
-                  await exec.exec("git am /tmp/gh-aw/aw.patch");
-                  core.info("Patch applied successfully");
-                } catch (patchError) {
-                  core.error(`Failed to apply patch: ${patchError instanceof Error ? patchError.message : String(patchError)}`);
-                  try {
-                    core.info("Investigating patch failure...");
-                    const statusResult = await exec.getExecOutput("git", ["status"]);
-                    core.info("Git status output:");
-                    core.info(statusResult.stdout);
-                    const patchResult = await exec.getExecOutput("git", ["am", "--show-current-patch=diff"]);
-                    core.info("Failed patch content:");
-                    core.info(patchResult.stdout);
-                  } catch (investigateError) {
-                    core.warning(
-                      `Failed to investigate patch failure: ${investigateError instanceof Error ? investigateError.message : String(investigateError)}`
-                    );
-                  }
-                  core.setFailed("Failed to apply patch");
-                  return;
+                const repoParts = parseRepoSlug(itemRepo);
+                if (!repoParts) {
+                  core.warning(`Skipping issue: Invalid repository format '${itemRepo}'. Expected 'owner/repo'.`);
+                  continue;
                 }
-                try {
-                  let remoteBranchExists = false;
-                  try {
-                    const { stdout } = await exec.getExecOutput(`git ls-remote --heads origin ${branchName}`);
-                    if (stdout.trim()) {
-                      remoteBranchExists = true;
+                const temporaryId = createIssueItem.temporary_id || generateTemporaryId();
+                core.info(
+                  `Processing create-issue item ${i + 1}/${createIssueItems.length}: title=${createIssueItem.title}, bodyLength=${createIssueItem.body.length}, temporaryId=${temporaryId}, repo=${itemRepo}`
+                );
+                core.info(`Debug: createIssueItem.parent = ${JSON.stringify(createIssueItem.parent)}`);
+                core.info(`Debug: parentIssueNumber from context = ${JSON.stringify(parentIssueNumber)}`);
+                let effectiveParentIssueNumber;
+                let effectiveParentRepo = itemRepo; 
+                if (createIssueItem.parent !== undefined) {
+                  if (isTemporaryId(createIssueItem.parent)) {
+                    const resolvedParent = temporaryIdMap.get(normalizeTemporaryId(createIssueItem.parent));
+                    if (resolvedParent !== undefined) {
+                      effectiveParentIssueNumber = resolvedParent.number;
+                      effectiveParentRepo = resolvedParent.repo;
+                      core.info(`Resolved parent temporary ID '${createIssueItem.parent}' to ${effectiveParentRepo}#${effectiveParentIssueNumber}`);
+                    } else {
+                      core.warning(
+                        `Parent temporary ID '${createIssueItem.parent}' not found in map. Ensure parent issue is created before sub-issues.`
+                      );
+                      effectiveParentIssueNumber = undefined;
                     }
-                  } catch (checkError) {
-                    core.info(`Remote branch check failed (non-fatal): ${checkError instanceof Error ? checkError.message : String(checkError)}`);
+                  } else {
+                    effectiveParentIssueNumber = parseInt(String(createIssueItem.parent), 10);
+                    if (isNaN(effectiveParentIssueNumber)) {
+                      core.warning(`Invalid parent value: ${createIssueItem.parent}`);
+                      effectiveParentIssueNumber = undefined;
+                    }
                   }
-                  if (remoteBranchExists) {
-                    core.warning(`Remote branch ${branchName} already exists - appending random suffix`);
-                    const extraHex = crypto.randomBytes(4).toString("hex");
-                    const oldBranch = branchName;
-                    branchName = `${branchName}-${extraHex}`;
-                    await exec.exec(`git branch -m ${oldBranch} ${branchName}`);
-                    core.info(`Renamed branch to ${branchName}`);
-                  }
-                  await exec.exec(`git push origin ${branchName}`);
-                  core.info("Changes pushed to branch");
-                } catch (pushError) {
-                  core.error(`Git push failed: ${pushError instanceof Error ? pushError.message : String(pushError)}`);
-                  core.warning("Git push operation failed - creating fallback issue instead of pull request");
-                  const runId = context.runId;
-                  const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
-                  const runUrl = context.payload.repository
-                    ? `${context.payload.repository.html_url}/actions/runs/${runId}`
-                    : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
-                  let patchPreview = "";
-                  if (fs.existsSync("/tmp/gh-aw/aw.patch")) {
-                    const patchContent = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
-                    patchPreview = generatePatchPreview(patchContent);
-                  }
-                  const fallbackBody = `${body}
-            ---
-            > [!NOTE]
-            > This was originally intended as a pull request, but the git push operation failed.
-            >
-            > **Workflow Run:** [View run details and download patch artifact](${runUrl})
-            >
-            > The patch file is available as an artifact (\`aw.patch\`) in the workflow run linked above.
-            To apply the patch locally:
-            \`\`\`sh
-            # Download the artifact from the workflow run ${runUrl}
-            # (Use GitHub MCP tools if gh CLI is not available)
-            gh run download ${runId} -n aw.patch
-            # Apply the patch
-            git am aw.patch
-            \`\`\`
-            ${patchPreview}`;
-                  try {
-                    const { data: issue } = await github.rest.issues.create({
-                      owner: context.repo.owner,
-                      repo: context.repo.repo,
-                      title: title,
-                      body: fallbackBody,
-                      labels: labels,
-                    });
-                    core.info(`Created fallback issue #${issue.number}: ${issue.html_url}`);
-                    await updateActivationComment(github, context, core, issue.html_url, issue.number, "issue");
-                    core.setOutput("issue_number", issue.number);
-                    core.setOutput("issue_url", issue.html_url);
-                    core.setOutput("branch_name", branchName);
-                    core.setOutput("fallback_used", "true");
-                    core.setOutput("push_failed", "true");
-                    await core.summary
-                      .addRaw(
-                        `
-            ## Push Failure Fallback
-            - **Push Error:** ${pushError instanceof Error ? pushError.message : String(pushError)}
-            - **Fallback Issue:** [#${issue.number}](${issue.html_url})
-            - **Patch Artifact:** Available in workflow run artifacts
-            - **Note:** Push failed, created issue as fallback
-            `
-                      )
-                      .write();
-                    return;
-                  } catch (issueError) {
-                    core.setFailed(
-                      `Failed to push and failed to create fallback issue. Push error: ${pushError instanceof Error ? pushError.message : String(pushError)}. Issue error: ${issueError instanceof Error ? issueError.message : String(issueError)}`
-                    );
-                    return;
+                } else {
+                  const contextRepo = `${context.repo.owner}/${context.repo.repo}`;
+                  if (itemRepo === contextRepo) {
+                    effectiveParentIssueNumber = parentIssueNumber;
                   }
                 }
-              } else {
-                core.info("Skipping patch application (empty patch)");
-                const message = "No changes to apply - noop operation completed successfully";
-                switch (ifNoChanges) {
-                  case "error":
-                    throw new Error("No changes to apply - failing as configured by if-no-changes: error");
-                  case "ignore":
-                    return;
-                  case "warn":
-                  default:
-                    core.warning(message);
-                    return;
+                core.info(
+                  `Debug: effectiveParentIssueNumber = ${JSON.stringify(effectiveParentIssueNumber)}, effectiveParentRepo = ${effectiveParentRepo}`
+                );
+                if (effectiveParentIssueNumber && createIssueItem.parent !== undefined) {
+                  core.info(`Using explicit parent issue number from item: ${effectiveParentRepo}#${effectiveParentIssueNumber}`);
                 }
-              }
-              try {
-                const { data: pullRequest } = await github.rest.pulls.create({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  title: title,
-                  body: body,
-                  head: branchName,
-                  base: baseBranch,
-                  draft: draft,
-                });
-                core.info(`Created pull request #${pullRequest.number}: ${pullRequest.html_url}`);
-                if (labels.length > 0) {
-                  await github.rest.issues.addLabels({
-                    owner: context.repo.owner,
-                    repo: context.repo.repo,
-                    issue_number: pullRequest.number,
-                    labels: labels,
-                  });
-                  core.info(`Added labels to pull request: ${JSON.stringify(labels)}`);
+                let labels = [...envLabels];
+                if (createIssueItem.labels && Array.isArray(createIssueItem.labels)) {
+                  labels = [...labels, ...createIssueItem.labels];
                 }
-                core.setOutput("pull_request_number", pullRequest.number);
-                core.setOutput("pull_request_url", pullRequest.html_url);
-                core.setOutput("branch_name", branchName);
-                await updateActivationComment(github, context, core, pullRequest.html_url, pullRequest.number);
-                await core.summary
-                  .addRaw(
-                    `
-            ## Pull Request
-            - **Pull Request**: [#${pullRequest.number}](${pullRequest.html_url})
-            - **Branch**: \`${branchName}\`
-            - **Base Branch**: \`${baseBranch}\`
-            `
-                  )
-                  .write();
-              } catch (prError) {
-                core.warning(`Failed to create pull request: ${prError instanceof Error ? prError.message : String(prError)}`);
-                core.info("Falling back to creating an issue instead");
+                labels = labels
+                  .filter(label => !!label)
+                  .map(label => String(label).trim())
+                  .filter(label => label)
+                  .map(label => sanitizeLabelContent(label))
+                  .filter(label => label)
+                  .map(label => (label.length > 64 ? label.substring(0, 64) : label))
+                  .filter((label, index, arr) => arr.indexOf(label) === index);
+                let title = createIssueItem.title ? createIssueItem.title.trim() : "";
+                let processedBody = replaceTemporaryIdReferences(createIssueItem.body, temporaryIdMap, itemRepo);
+                let bodyLines = processedBody.split("\n");
+                if (!title) {
+                  title = createIssueItem.body || "Agent Output";
+                }
+                const titlePrefix = process.env.GH_AW_ISSUE_TITLE_PREFIX;
+                if (titlePrefix && !title.startsWith(titlePrefix)) {
+                  title = titlePrefix + title;
+                }
+                if (effectiveParentIssueNumber) {
+                  core.info("Detected issue context, parent issue " + effectiveParentRepo + "#" + effectiveParentIssueNumber);
+                  if (effectiveParentRepo === itemRepo) {
+                    bodyLines.push(`Related to #${effectiveParentIssueNumber}`);
+                  } else {
+                    bodyLines.push(`Related to ${effectiveParentRepo}#${effectiveParentIssueNumber}`);
+                  }
+                }
+                const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
+                const workflowSource = process.env.GH_AW_WORKFLOW_SOURCE || "";
+                const workflowSourceURL = process.env.GH_AW_WORKFLOW_SOURCE_URL || "";
+                const runId = context.runId;
                 const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
-                const branchUrl = context.payload.repository
-                  ? `${context.payload.repository.html_url}/tree/${branchName}`
-                  : `${githubServer}/${context.repo.owner}/${context.repo.repo}/tree/${branchName}`;
-                let patchPreview = "";
-                if (fs.existsSync("/tmp/gh-aw/aw.patch")) {
-                  const patchContent = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
-                  patchPreview = generatePatchPreview(patchContent);
+                const runUrl = context.payload.repository
+                  ? `${context.payload.repository.html_url}/actions/runs/${runId}`
+                  : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
+                const trackerIDComment = getTrackerID("markdown");
+                if (trackerIDComment) {
+                  bodyLines.push(trackerIDComment);
                 }
-                const fallbackBody = `${body}
-            ---
-            **Note:** This was originally intended as a pull request, but PR creation failed. The changes have been pushed to the branch [\`${branchName}\`](${branchUrl}).
-            **Original error:** ${prError instanceof Error ? prError.message : String(prError)}
-            You can manually create a pull request from the branch if needed.${patchPreview}`;
+                bodyLines.push(
+                  ``,
+                  ``,
+                  generateFooter(
+                    workflowName,
+                    runUrl,
+                    workflowSource,
+                    workflowSourceURL,
+                    triggeringIssueNumber,
+                    triggeringPRNumber,
+                    triggeringDiscussionNumber
+                  ).trimEnd(),
+                  ""
+                );
+                const body = bodyLines.join("\n").trim();
+                core.info(`Creating issue in ${itemRepo} with title: ${title}`);
+                core.info(`Labels: ${labels}`);
+                core.info(`Body length: ${body.length}`);
                 try {
                   const { data: issue } = await github.rest.issues.create({
-                    owner: context.repo.owner,
-                    repo: context.repo.repo,
+                    owner: repoParts.owner,
+                    repo: repoParts.repo,
                     title: title,
-                    body: fallbackBody,
+                    body: body,
                     labels: labels,
                   });
-                  core.info(`Created fallback issue #${issue.number}: ${issue.html_url}`);
-                  await updateActivationComment(github, context, core, issue.html_url, issue.number, "issue");
-                  core.setOutput("issue_number", issue.number);
-                  core.setOutput("issue_url", issue.html_url);
-                  core.setOutput("branch_name", branchName);
-                  core.setOutput("fallback_used", "true");
-                  await core.summary
-                    .addRaw(
-                      `
-            ## Fallback Issue Created
-            - **Issue**: [#${issue.number}](${issue.html_url})
-            - **Branch**: [\`${branchName}\`](${branchUrl})
-            - **Base Branch**: \`${baseBranch}\`
-            - **Note**: Pull request creation failed, created issue as fallback
-            `
-                    )
-                    .write();
-                } catch (issueError) {
-                  core.setFailed(
-                    `Failed to create both pull request and fallback issue. PR error: ${prError instanceof Error ? prError.message : String(prError)}. Issue error: ${issueError instanceof Error ? issueError.message : String(issueError)}`
-                  );
-                  return;
+                  core.info(`Created issue ${itemRepo}#${issue.number}: ${issue.html_url}`);
+                  createdIssues.push({ ...issue, _repo: itemRepo });
+                  temporaryIdMap.set(normalizeTemporaryId(temporaryId), { repo: itemRepo, number: issue.number });
+                  core.info(`Stored temporary ID mapping: ${temporaryId} -> ${itemRepo}#${issue.number}`);
+                  core.info(`Debug: About to check if sub-issue linking is needed. effectiveParentIssueNumber = ${effectiveParentIssueNumber}`);
+                  if (effectiveParentIssueNumber && effectiveParentRepo === itemRepo) {
+                    core.info(`Attempting to link issue #${issue.number} as sub-issue of #${effectiveParentIssueNumber}`);
+                    try {
+                      core.info(`Fetching node ID for parent issue #${effectiveParentIssueNumber}...`);
+                      const getIssueNodeIdQuery = `
+                        query($owner: String!, $repo: String!, $issueNumber: Int!) {
+                          repository(owner: $owner, name: $repo) {
+                            issue(number: $issueNumber) {
+                              id
+                            }
+                          }
+                        }
+                      `;
+                      const parentResult = await github.graphql(getIssueNodeIdQuery, {
+                        owner: repoParts.owner,
+                        repo: repoParts.repo,
+                        issueNumber: effectiveParentIssueNumber,
+                      });
+                      const parentNodeId = parentResult.repository.issue.id;
+                      core.info(`Parent issue node ID: ${parentNodeId}`);
+                      core.info(`Fetching node ID for child issue #${issue.number}...`);
+                      const childResult = await github.graphql(getIssueNodeIdQuery, {
+                        owner: repoParts.owner,
+                        repo: repoParts.repo,
+                        issueNumber: issue.number,
+                      });
+                      const childNodeId = childResult.repository.issue.id;
+                      core.info(`Child issue node ID: ${childNodeId}`);
+                      core.info(`Executing addSubIssue mutation...`);
+                      const addSubIssueMutation = `
+                        mutation($issueId: ID!, $subIssueId: ID!) {
+                          addSubIssue(input: {
+                            issueId: $issueId,
+                            subIssueId: $subIssueId
+                          }) {
+                            subIssue {
+                              id
+                              number
+                            }
+                          }
+                        }
+                      `;
+                      await github.graphql(addSubIssueMutation, {
+                        issueId: parentNodeId,
+                        subIssueId: childNodeId,
+                      });
+                      core.info("✓ Successfully linked issue #" + issue.number + " as sub-issue of #" + effectiveParentIssueNumber);
+                    } catch (error) {
+                      core.info(`Warning: Could not link sub-issue to parent: ${error instanceof Error ? error.message : String(error)}`);
+                      core.info(`Error details: ${error instanceof Error ? error.stack : String(error)}`);
+                      try {
+                        core.info(`Attempting fallback: adding comment to parent issue #${effectiveParentIssueNumber}...`);
+                        await github.rest.issues.createComment({
+                          owner: repoParts.owner,
+                          repo: repoParts.repo,
+                          issue_number: effectiveParentIssueNumber,
+                          body: `Created related issue: #${issue.number}`,
+                        });
+                        core.info("✓ Added comment to parent issue #" + effectiveParentIssueNumber + " (sub-issue linking not available)");
+                      } catch (commentError) {
+                        core.info(
+                          `Warning: Could not add comment to parent issue: ${commentError instanceof Error ? commentError.message : String(commentError)}`
+                        );
+                      }
+                    }
+                  } else if (effectiveParentIssueNumber && effectiveParentRepo !== itemRepo) {
+                    core.info(`Skipping sub-issue linking: parent is in different repository (${effectiveParentRepo})`);
+                  } else {
+                    core.info(`Debug: No parent issue number set, skipping sub-issue linking`);
+                  }
+                  if (i === createIssueItems.length - 1) {
+                    core.setOutput("issue_number", issue.number);
+                    core.setOutput("issue_url", issue.html_url);
+                  }
+                } catch (error) {
+                  const errorMessage = error instanceof Error ? error.message : String(error);
+                  if (errorMessage.includes("Issues has been disabled in this repository")) {
+                    core.info(`⚠ Cannot create issue "${title}" in ${itemRepo}: Issues are disabled for this repository`);
+                    core.info("Consider enabling issues in repository settings if you want to create issues automatically");
+                    continue;
+                  }
+                  core.error(`✗ Failed to create issue "${title}" in ${itemRepo}: ${errorMessage}`);
+                  throw error;
                 }
               }
+              if (createdIssues.length > 0) {
+                let summaryContent = "\n\n## GitHub Issues\n";
+                for (const issue of createdIssues) {
+                  const repoLabel = issue._repo !== defaultTargetRepo ? ` (${issue._repo})` : "";
+                  summaryContent += `- Issue #${issue.number}${repoLabel}: [${issue.title}](${issue.html_url})\n`;
+                }
+                await core.summary.addRaw(summaryContent).write();
+              }
+              const tempIdMapOutput = serializeTemporaryIdMap(temporaryIdMap);
+              core.setOutput("temporary_id_map", tempIdMapOutput);
+              core.info(`Temporary ID map: ${tempIdMapOutput}`);
+              const assignCopilot = process.env.GH_AW_ASSIGN_COPILOT === "true";
+              if (assignCopilot && createdIssues.length > 0) {
+                const issuesToAssign = createdIssues.map(issue => `${issue._repo}:${issue.number}`).join(",");
+                core.setOutput("issues_to_assign_copilot", issuesToAssign);
+                core.info(`Issues to assign copilot: ${issuesToAssign}`);
+              }
+              core.info(`Successfully created ${createdIssues.length} issue(s)`);
             }
-            await main();
+            (async () => {
+              await main();
+            })();
 
   detection:
     needs: agent
@@ -8404,8 +7949,8 @@ jobs:
       - name: Setup threat detection
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
-          WORKFLOW_NAME: "Glossary Maintainer"
-          WORKFLOW_DESCRIPTION: "Maintains and updates the documentation glossary based on codebase changes"
+          WORKFLOW_NAME: "Python Safe-Input Test Workflow"
+          WORKFLOW_DESCRIPTION: "Test Python safe-input tool for data processing"
         with:
           script: |
             const fs = require('fs');
