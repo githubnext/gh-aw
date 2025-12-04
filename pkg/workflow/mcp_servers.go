@@ -333,6 +333,15 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 				}
 				yaml.WriteString(fmt.Sprintf("          EOFSH_%s\n", toolName))
 				yaml.WriteString(fmt.Sprintf("          chmod +x /tmp/gh-aw/safe-inputs/%s.sh\n", toolName))
+			} else if toolConfig.Py != "" {
+				// Python script tool
+				toolScript := generateSafeInputPythonToolScript(toolConfig)
+				yaml.WriteString(fmt.Sprintf("          cat > /tmp/gh-aw/safe-inputs/%s.py << 'EOFPY_%s'\n", toolName, toolName))
+				for _, line := range strings.Split(toolScript, "\n") {
+					yaml.WriteString("          " + line + "\n")
+				}
+				yaml.WriteString(fmt.Sprintf("          EOFPY_%s\n", toolName))
+				yaml.WriteString(fmt.Sprintf("          chmod +x /tmp/gh-aw/safe-inputs/%s.py\n", toolName))
 			}
 		}
 		yaml.WriteString("          \n")

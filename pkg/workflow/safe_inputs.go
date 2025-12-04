@@ -41,8 +41,9 @@ type SafeInputToolConfig struct {
 	Name        string                     // Tool name (key from the config)
 	Description string                     // Required: tool description
 	Inputs      map[string]*SafeInputParam // Optional: input parameters
-	Script      string                     // JavaScript implementation (mutually exclusive with Run)
-	Run         string                     // Shell script implementation (mutually exclusive with Script)
+	Script      string                     // JavaScript implementation (mutually exclusive with Run and Py)
+	Run         string                     // Shell script implementation (mutually exclusive with Script and Py)
+	Py          string                     // Python script implementation (mutually exclusive with Script and Run)
 	Env         map[string]string          // Environment variables (typically for secrets)
 }
 
@@ -159,6 +160,13 @@ func ParseSafeInputs(frontmatter map[string]any) *SafeInputsConfig {
 			}
 		}
 
+		// Parse py (for Python tools)
+		if py, exists := toolMap["py"]; exists {
+			if pyStr, ok := py.(string); ok {
+				toolConfig.Py = pyStr
+			}
+		}
+
 		// Parse env (for secrets)
 		if env, exists := toolMap["env"]; exists {
 			if envMap, ok := env.(map[string]any); ok {
@@ -264,6 +272,13 @@ func (c *Compiler) extractSafeInputsConfig(frontmatter map[string]any) *SafeInpu
 			}
 		}
 
+		// Parse py (Python script implementation)
+		if py, exists := toolMap["py"]; exists {
+			if pyStr, ok := py.(string); ok {
+				toolConfig.Py = pyStr
+			}
+		}
+
 		// Parse env (environment variables)
 		if env, exists := toolMap["env"]; exists {
 			if envMap, ok := env.(map[string]any); ok {
@@ -366,6 +381,8 @@ func generateSafeInputsToolsConfig(safeInputs *SafeInputsConfig) string {
 			handler = toolName + ".cjs"
 		} else if toolConfig.Run != "" {
 			handler = toolName + ".sh"
+		} else if toolConfig.Py != "" {
+			handler = toolName + ".py"
 		}
 
 		config.Tools = append(config.Tools, SafeInputsToolJSON{
@@ -468,6 +485,43 @@ func generateSafeInputShellToolScript(toolConfig *SafeInputToolConfig) string {
 	sb.WriteString("# " + toolConfig.Description + "\n\n")
 	sb.WriteString("set -euo pipefail\n\n")
 	sb.WriteString(toolConfig.Run + "\n")
+
+	return sb.String()
+}
+
+// generateSafeInputPythonToolScript generates the Python script for a safe-input tool
+// Python scripts follow GitHub Actions convention:
+// - Input parameters are available as environment variables prefixed with INPUT_ (uppercased)
+// - Outputs are written to GITHUB_OUTPUT file (key=value format per line)
+// - Environment variables from env: field are available via os.environ
+func generateSafeInputPythonToolScript(toolConfig *SafeInputToolConfig) string {
+	var sb strings.Builder
+
+	sb.WriteString("#!/usr/bin/env python3\n")
+	sb.WriteString("# Auto-generated safe-input tool: " + toolConfig.Name + "\n")
+	sb.WriteString("# " + toolConfig.Description + "\n\n")
+	sb.WriteString("import os\n")
+	sb.WriteString("import sys\n\n")
+
+	// Add helper comment about input parameters
+	if len(toolConfig.Inputs) > 0 {
+		sb.WriteString("# Input parameters are available as environment variables:\n")
+		// Sort input names for stable code generation
+		inputNames := make([]string, 0, len(toolConfig.Inputs))
+		for paramName := range toolConfig.Inputs {
+			inputNames = append(inputNames, paramName)
+		}
+		sort.Strings(inputNames)
+		for _, paramName := range inputNames {
+			envVar := "INPUT_" + strings.ToUpper(strings.ReplaceAll(paramName, "-", "_"))
+			sb.WriteString(fmt.Sprintf("# %s = os.environ.get('%s', '')\n", paramName, envVar))
+		}
+		sb.WriteString("\n")
+	}
+
+	// Add user's Python code
+	sb.WriteString("# User code:\n")
+	sb.WriteString(toolConfig.Py + "\n")
 
 	return sb.String()
 }
@@ -630,6 +684,13 @@ func (c *Compiler) mergeSafeInputs(main *SafeInputsConfig, importedConfigs []str
 			if run, exists := toolMap["run"]; exists {
 				if runStr, ok := run.(string); ok {
 					toolConfig.Run = runStr
+				}
+			}
+
+			// Parse py
+			if py, exists := toolMap["py"]; exists {
+				if pyStr, ok := py.(string); ok {
+					toolConfig.Py = pyStr
 				}
 			}
 
