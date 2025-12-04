@@ -103,15 +103,17 @@ Agentic workflows use AI agents to execute your instructions. The default engine
 
 **Important:** The token needs the **"Copilot Requests"** permission to communicate with GitHub Copilot's AI agent.
 
-1. **Create a fine-grained token:** Visit <https://github.com/settings/personal-access-tokens/new>
+1. **Create a fine-grained personal access token:** Visit <https://github.com/settings/personal-access-tokens/new>
+   
+   *Note: You must create a "fine-grained" token (not a "classic" token) as the Copilot Requests permission is only available for fine-grained tokens.*
 
 2. **Configure the token:**
    - **Resource owner:** Select your personal user account (not an organization)
-   - **Repository access:** Select "Public repositories" (required for Copilot Requests permission to appear in the UI)
+   - **Repository access:** Select "Public repositories"
      
-     *Note: Once created, the token will work with both public and private repositories where you set it as a secret.*
+     *Note: This setting is required for the "Copilot Requests" permission option to appear in the permissions list during token creation. Once the token is created with Copilot Requests permission, you can use it as a secret in any repository (public or private) where you have access.*
    
-   - **Permissions:** Click "Add permissions" and select **"Copilot Requests"**
+   - **Permissions:** Scroll down and click "Account permissions", then select **"Copilot Requests"** from the dropdown and set it to "Read-only"
 
 3. **Generate and copy the token** (you'll use it in the next step)
 
