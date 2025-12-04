@@ -1,27 +1,27 @@
 <github-context>
 The following GitHub context information is available for this workflow:
-{{#if ${{ github.actor }} }}
+{{#if ${GH_AW_GITHUB_ACTOR} }}
 - **actor**: ${{ github.actor }}
 {{/if}}
-{{#if ${{ github.repository }} }}
+{{#if ${GH_AW_GITHUB_REPOSITORY} }}
 - **repository**: ${{ github.repository }}
 {{/if}}
-{{#if ${{ github.workspace }} }}
+{{#if ${GH_AW_GITHUB_WORKSPACE} }}
 - **workspace**: ${{ github.workspace }}
 {{/if}}
-{{#if ${{ github.event.issue.number }} }}
+{{#if ${GH_AW_GITHUB_EVENT_ISSUE_NUMBER} }}
 - **issue-number**: #${{ github.event.issue.number }}
 {{/if}}
-{{#if ${{ github.event.discussion.number }} }}
+{{#if ${GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER} }}
 - **discussion-number**: #${{ github.event.discussion.number }}
 {{/if}}
-{{#if ${{ github.event.pull_request.number }} }}
+{{#if ${GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER} }}
 - **pull-request-number**: #${{ github.event.pull_request.number }}
 {{/if}}
-{{#if ${{ github.event.comment.id }} }}
+{{#if ${GH_AW_GITHUB_EVENT_COMMENT_ID} }}
 - **comment-id**: ${{ github.event.comment.id }}
 {{/if}}
-{{#if ${{ github.run_id }} }}
+{{#if ${GH_AW_GITHUB_RUN_ID} }}
 - **workflow-run-id**: ${{ github.run_id }}
 {{/if}}
 </github-context>

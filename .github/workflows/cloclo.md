@@ -63,20 +63,20 @@ This workflow is triggered when:
 ${{ needs.activation.outputs.text }}
 ```
 
-{{#if github.event.issue.number}}
+{{#if ${GH_AW_GITHUB_EVENT_ISSUE_NUMBER} }}
 ## Issue Context
 
 - **Issue Number**: ${{ github.event.issue.number }}
 - **Issue State**: ${{ github.event.issue.state }}
 {{/if}}
 
-{{#if github.event.discussion.number}}
+{{#if ${GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER} }}
 ## Discussion Context
 
 - **Discussion Number**: ${{ github.event.discussion.number }}
 {{/if}}
 
-{{#if github.event.pull_request.number}}
+{{#if ${GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER} }}
 ## Pull Request Context
 
 **IMPORTANT**: If this command was triggered from a pull request, you must capture and include the PR branch information in your processing:

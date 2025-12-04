@@ -240,16 +240,17 @@ func TestGitHubContextTemplateConditionals(t *testing.T) {
 	// Test that the GitHub context prompt contains proper template conditionals
 	contextText := githubContextPromptText
 
-	// Check for all expected conditional blocks
+	// Check for all expected conditional blocks using secure environment variable references
+	// The conditionals check ${GH_AW_...} env vars instead of ${{ }} expressions to prevent template injection
 	expectedConditionals := []string{
-		"{{#if ${{ github.actor }} }}",
-		"{{#if ${{ github.repository }} }}",
-		"{{#if ${{ github.workspace }} }}",
-		"{{#if ${{ github.event.issue.number }} }}",
-		"{{#if ${{ github.event.discussion.number }} }}",
-		"{{#if ${{ github.event.pull_request.number }} }}",
-		"{{#if ${{ github.event.comment.id }} }}",
-		"{{#if ${{ github.run_id }} }}",
+		"{{#if ${GH_AW_GITHUB_ACTOR} }}",
+		"{{#if ${GH_AW_GITHUB_REPOSITORY} }}",
+		"{{#if ${GH_AW_GITHUB_WORKSPACE} }}",
+		"{{#if ${GH_AW_GITHUB_EVENT_ISSUE_NUMBER} }}",
+		"{{#if ${GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER} }}",
+		"{{#if ${GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER} }}",
+		"{{#if ${GH_AW_GITHUB_EVENT_COMMENT_ID} }}",
+		"{{#if ${GH_AW_GITHUB_RUN_ID} }}",
 	}
 
 	for _, conditional := range expectedConditionals {
