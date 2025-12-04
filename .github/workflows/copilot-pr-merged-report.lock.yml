@@ -2434,23 +2434,7 @@ jobs:
             };
           EOF_CONFIG_LOADER
           cat > /tmp/gh-aw/safe-inputs/safe_inputs_tool_factory.cjs << 'EOF_TOOL_FACTORY'
-            function createJsToolConfig(name, description, inputSchema, handlerPath) {
-              return {
-                name,
-                description,
-                inputSchema,
-                handler: handlerPath,
-              };
-            }
-            function createShellToolConfig(name, description, inputSchema, handlerPath) {
-              return {
-                name,
-                description,
-                inputSchema,
-                handler: handlerPath,
-              };
-            }
-            function createPythonToolConfig(name, description, inputSchema, handlerPath) {
+            function createToolConfig(name, description, inputSchema, handlerPath) {
               return {
                 name,
                 description,
@@ -2459,16 +2443,14 @@ jobs:
               };
             }
             module.exports = {
-              createJsToolConfig,
-              createShellToolConfig,
-              createPythonToolConfig,
+              createToolConfig,
             };
           EOF_TOOL_FACTORY
           cat > /tmp/gh-aw/safe-inputs/safe_inputs_mcp_server.cjs << 'EOF_SAFE_INPUTS_SERVER'
             const path = require("path");
             const { createServer, registerTool, loadToolHandlers, start } = require("./mcp_server_core.cjs");
             const { loadConfig } = require("./safe_inputs_config_loader.cjs");
-            const { createJsToolConfig, createShellToolConfig, createPythonToolConfig } = require("./safe_inputs_tool_factory.cjs");
+            const { createToolConfig } = require("./safe_inputs_tool_factory.cjs");
             function startSafeInputsServer(configPath, options = {}) {
               const config = loadConfig(configPath);
               const basePath = path.dirname(configPath);
@@ -2509,9 +2491,7 @@ jobs:
             module.exports = {
               startSafeInputsServer,
               loadConfig,
-              createJsToolConfig,
-              createShellToolConfig,
-              createPythonToolConfig,
+              createToolConfig,
             };
           EOF_SAFE_INPUTS_SERVER
           cat > /tmp/gh-aw/safe-inputs/tools.json << 'EOF_TOOLS_JSON'
@@ -3178,7 +3158,7 @@ jobs:
         timeout-minutes: 10
         run: |
           set -o pipefail
-          sudo -E awf --env-all --container-workdir "${GITHUB_WORKSPACE}" --mount /tmp:/tmp:rw --mount "${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:rw" --mount "${GITHUB_WORKSPACE}/.github:/workspace/.github:rw" --allow-domains api.enterprise.githubcopilot.com,api.github.com,github.com,raw.githubusercontent.com,registry.npmjs.org --log-level info --proxy-logs-dir /tmp/gh-aw/sandbox/firewall/logs \
+          sudo -E awf --env-all --container-workdir "${GITHUB_WORKSPACE}" --mount /tmp:/tmp:rw --mount "${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:rw" --mount /usr/bin/gh:/usr/bin/gh:ro --allow-domains api.enterprise.githubcopilot.com,api.github.com,github.com,raw.githubusercontent.com,registry.npmjs.org --log-level info --proxy-logs-dir /tmp/gh-aw/sandbox/firewall/logs \
             -- npx -y @github/copilot@0.0.366 --add-dir /tmp/gh-aw/ --log-level all --log-dir /tmp/gh-aw/sandbox/agent/logs/ --add-dir "${GITHUB_WORKSPACE}" --disable-builtin-mcps --allow-tool safeinputs --allow-tool safeoutputs --allow-tool 'shell(awk *)' --allow-tool 'shell(cat)' --allow-tool 'shell(date *)' --allow-tool 'shell(date)' --allow-tool 'shell(echo)' --allow-tool 'shell(find *)' --allow-tool 'shell(gh api *)' --allow-tool 'shell(gh pr *)' --allow-tool 'shell(grep *)' --allow-tool 'shell(grep)' --allow-tool 'shell(head)' --allow-tool 'shell(jq *)' --allow-tool 'shell(ls)' --allow-tool 'shell(pwd)' --allow-tool 'shell(sort)' --allow-tool 'shell(tail)' --allow-tool 'shell(uniq)' --allow-tool 'shell(wc *)' --allow-tool 'shell(wc)' --allow-tool 'shell(yq)' --prompt "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)" \
             2>&1 | tee /tmp/gh-aw/agent-stdio.log
         env:
