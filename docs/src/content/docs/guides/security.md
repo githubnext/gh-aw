@@ -264,6 +264,71 @@ Analyze: "${{ needs.activation.outputs.text }}"
 Title: "${{ github.event.issue.title }}"
 ```
 
+### Template Injection Prevention
+
+Template injection occurs when user-controlled input is embedded directly into GitHub Actions workflow expressions (`${{ }}`), enabling arbitrary code execution in the shell context.
+
+#### Secure Pattern
+
+✅ **Use environment variables** to pass user input into shell scripts:
+
+```yaml wrap
+- name: Process input
+  env:
+    ISSUE_TITLE: ${{ github.event.issue.title }}
+  run: |
+    echo "Value: $ISSUE_TITLE"
+```
+
+Environment variables isolate user data from shell interpretation, preventing injection.
+
+#### Vulnerable Pattern
+
+❌ **Never interpolate user input directly** in `run:` blocks:
+
+```yaml wrap
+- name: Process input
+  run: |
+    echo "Value: ${{ github.event.issue.title }}"
+```
+
+This allows attackers to inject shell metacharacters, command substitutions, or escape sequences via issue titles, PR bodies, or comment text.
+
+#### Input Validation
+
+Validate user-controlled values before use:
+
+```bash wrap
+# Validate numeric input
+if ! [[ "$DISCUSSION_NUMBER" =~ ^[0-9]+$ ]]; then
+  echo "Invalid number"
+  exit 1
+fi
+
+# Always quote variables
+echo "Safe: \"$VAR\""
+
+# Validate against allowlist
+case "$INPUT_TYPE" in
+  bug|feature|docs) ;;
+  *) echo "Invalid type"; exit 1 ;;
+esac
+```
+
+#### Untrusted Input Sources
+
+All user-controlled data requires sanitization:
+
+- **Event payloads**: `github.event.issue.title`, `github.event.issue.body`, `github.event.comment.body`, `github.event.pull_request.title`, `github.event.pull_request.body`, `github.event.discussion.title`, `github.event.discussion.body`
+- **Step outputs**: `steps.*.outputs.*` (outputs from previous steps may contain user data)
+- **Branch and tag names**: `github.head_ref`, `github.ref_name`
+- **Commit messages**: `github.event.head_commit.message`
+
+#### References
+
+- [GitHub Actions security hardening](https://docs.github.com/en/actions/security-guides/security-hardening-for-github-actions)
+- [zizmor documentation](https://github.com/zizmorcore/zizmor)
+
 ### Safe Outputs Security Model
 
 Safe outputs separate AI processing from write operations. The agentic portion runs with minimal read-only permissions, while separate jobs handle validated GitHub API operations.
