@@ -3031,27 +3031,15 @@ jobs:
                 handler: handlerPath,
               };
             }
-            function createJsToolConfig(name, description, inputSchema, handlerPath) {
-              return createToolConfig(name, description, inputSchema, handlerPath);
-            }
-            function createShellToolConfig(name, description, inputSchema, handlerPath) {
-              return createToolConfig(name, description, inputSchema, handlerPath);
-            }
-            function createPythonToolConfig(name, description, inputSchema, handlerPath) {
-              return createToolConfig(name, description, inputSchema, handlerPath);
-            }
             module.exports = {
               createToolConfig,
-              createJsToolConfig,
-              createShellToolConfig,
-              createPythonToolConfig,
             };
           EOF_TOOL_FACTORY
           cat > /tmp/gh-aw/safe-inputs/safe_inputs_mcp_server.cjs << 'EOF_SAFE_INPUTS_SERVER'
             const path = require("path");
             const { createServer, registerTool, loadToolHandlers, start } = require("./mcp_server_core.cjs");
             const { loadConfig } = require("./safe_inputs_config_loader.cjs");
-            const { createJsToolConfig, createShellToolConfig, createPythonToolConfig } = require("./safe_inputs_tool_factory.cjs");
+            const { createToolConfig } = require("./safe_inputs_tool_factory.cjs");
             function startSafeInputsServer(configPath, options = {}) {
               const config = loadConfig(configPath);
               const basePath = path.dirname(configPath);
@@ -3092,9 +3080,7 @@ jobs:
             module.exports = {
               startSafeInputsServer,
               loadConfig,
-              createJsToolConfig,
-              createShellToolConfig,
-              createPythonToolConfig,
+              createToolConfig,
             };
           EOF_SAFE_INPUTS_SERVER
           cat > /tmp/gh-aw/safe-inputs/tools.json << 'EOF_TOOLS_JSON'

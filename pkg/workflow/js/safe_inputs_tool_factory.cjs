@@ -3,7 +3,7 @@
 /**
  * Safe Inputs Tool Factory
  *
- * This module provides factory functions for creating tool configuration objects
+ * This module provides a factory function for creating tool configuration objects
  * for different handler types (JavaScript, Shell, Python).
  */
 
@@ -20,7 +20,7 @@
  * @param {string} name - Tool name
  * @param {string} description - Tool description
  * @param {Object} inputSchema - JSON Schema for tool inputs
- * @param {string} handlerPath - Path to the handler file
+ * @param {string} handlerPath - Path to the handler file (.cjs, .sh, or .py)
  * @returns {SafeInputsToolConfig} Tool configuration object
  */
 function createToolConfig(name, description, inputSchema, handlerPath) {
@@ -32,45 +32,6 @@ function createToolConfig(name, description, inputSchema, handlerPath) {
   };
 }
 
-/**
- * Create tool configuration for a JavaScript handler
- * @param {string} name - Tool name
- * @param {string} description - Tool description
- * @param {Object} inputSchema - JSON Schema for tool inputs
- * @param {string} handlerPath - Relative path to the .cjs handler file
- * @returns {SafeInputsToolConfig} Tool configuration object
- */
-function createJsToolConfig(name, description, inputSchema, handlerPath) {
-  return createToolConfig(name, description, inputSchema, handlerPath);
-}
-
-/**
- * Create tool configuration for a shell script handler
- * @param {string} name - Tool name
- * @param {string} description - Tool description
- * @param {Object} inputSchema - JSON Schema for tool inputs
- * @param {string} handlerPath - Relative path to the .sh handler file
- * @returns {SafeInputsToolConfig} Tool configuration object
- */
-function createShellToolConfig(name, description, inputSchema, handlerPath) {
-  return createToolConfig(name, description, inputSchema, handlerPath);
-}
-
-/**
- * Create tool configuration for a Python script handler
- * @param {string} name - Tool name
- * @param {string} description - Tool description
- * @param {Object} inputSchema - JSON Schema for tool inputs
- * @param {string} handlerPath - Relative path to the .py handler file
- * @returns {SafeInputsToolConfig} Tool configuration object
- */
-function createPythonToolConfig(name, description, inputSchema, handlerPath) {
-  return createToolConfig(name, description, inputSchema, handlerPath);
-}
-
 module.exports = {
   createToolConfig,
-  createJsToolConfig,
-  createShellToolConfig,
-  createPythonToolConfig,
 };

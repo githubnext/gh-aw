@@ -83,11 +83,11 @@ describe("safe_inputs_mcp_server.cjs", () => {
     });
   });
 
-  describe("createJsToolConfig", () => {
-    it("should create a valid tool configuration for JavaScript handler", async () => {
-      const { createJsToolConfig } = await import("./safe_inputs_mcp_server.cjs");
+  describe("createToolConfig", () => {
+    it("should create a valid tool configuration", async () => {
+      const { createToolConfig } = await import("./safe_inputs_mcp_server.cjs");
 
-      const config = createJsToolConfig(
+      const config = createToolConfig(
         "my_tool",
         "My tool description",
         { type: "object", properties: { input: { type: "string" } } },
@@ -98,18 +98,6 @@ describe("safe_inputs_mcp_server.cjs", () => {
       expect(config.description).toBe("My tool description");
       expect(config.inputSchema).toEqual({ type: "object", properties: { input: { type: "string" } } });
       expect(config.handler).toBe("my_tool.cjs");
-    });
-  });
-
-  describe("createShellToolConfig", () => {
-    it("should create a valid tool configuration for shell script handler", async () => {
-      const { createShellToolConfig } = await import("./safe_inputs_mcp_server.cjs");
-
-      const config = createShellToolConfig("my_shell_tool", "My shell tool", { type: "object", properties: {} }, "my_tool.sh");
-
-      expect(config.name).toBe("my_shell_tool");
-      expect(config.description).toBe("My shell tool");
-      expect(config.handler).toBe("my_tool.sh");
     });
   });
 
