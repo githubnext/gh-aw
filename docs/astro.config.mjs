@@ -140,6 +140,7 @@ export default defineConfig({
 						{ label: 'Permissions', link: '/reference/permissions/' },
 						{ label: 'AI Engines', link: '/reference/engines/' },
 						{ label: 'Tools', link: '/reference/tools/' },
+						{ label: 'Safe Inputs', link: '/reference/safe-inputs/' },
 						{ label: 'Safe Outputs', link: '/reference/safe-outputs/' },
 						{ label: 'Custom Safe Outputs', link: '/guides/custom-safe-outputs/' },
 						{ label: 'Imports', link: '/reference/imports/' },

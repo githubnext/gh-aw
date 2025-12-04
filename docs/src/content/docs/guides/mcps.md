@@ -275,6 +275,7 @@ tools:
 
 ## Related Documentation
 
+- [Safe Inputs](/gh-aw/reference/safe-inputs/) - Define custom inline tools without external MCP servers
 - [Tools](/gh-aw/reference/tools/) - Complete tools reference
 - [CLI Commands](/gh-aw/setup/cli/) - CLI commands including `mcp inspect`
 - [Imports](/gh-aw/reference/imports/) - Modularizing workflows with includes
