@@ -18,54 +18,57 @@
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/aw/github-agentic-workflows.md
 #
-# Smoke test workflow for Sandbox Runtime (SRT) - validates SRT functionality with Copilot
+# Generates a daily report analyzing Copilot pull requests merged in the last 24 hours, tracking code generation, tests, and token usage
 #
 # Original Frontmatter:
 # ```yaml
-# description: Smoke test workflow for Sandbox Runtime (SRT) - validates SRT functionality with Copilot
-# features:
-#   sandbox-runtime: true
+# name: Daily Copilot PR Merged Report
+# description: Generates a daily report analyzing Copilot pull requests merged in the last 24 hours, tracking code generation, tests, and token usage
 # on:
+#   schedule:
+#     # Daily at 3 PM UTC, Monday-Friday (avoids weekends)
+#     - cron: "0 15 * * 1-5"
 #   workflow_dispatch:
-#   pull_request:
-#     types: [labeled]
-#     names: ["test-srt"]
+#
 # permissions:
 #   contents: read
 #   issues: read
-# name: Smoke SRT
+#   pull-requests: read
+#   actions: read
+#
 # engine: copilot
-# network:
-#   allowed:
-#     - defaults
-#     - github
-#     - node
-#     - "*.githubcopilot.com"
-#     - "example.com"
-# sandbox:
-#   type: sandbox-runtime
-#   config:
-#     filesystem:
-#       denyRead: []
-#       allowWrite:
-#         - "."
-#         - "/tmp"
-#         - "/home/runner/.copilot"
-#         - "/home/runner"
-#       denyWrite: []
-#     enableWeakerNestedSandbox: true
+# strict: false
+#
 # tools:
+#   github: false
 #   bash:
-#   github:
+#     - "gh pr *"
+#     - "gh api *"
+#     - "jq *"
+#     - "date *"
+#     - "find *"
+#     - "wc *"
+#     - "grep *"
+#     - "awk *"
+#
 # safe-outputs:
-#   messages:
-#     footer: "> ⚓ *Logged in the captain's journal by [{workflow_name}]({run_url})*"
-#     run-started: "⚓ Ahoy! [{workflow_name}]({run_url}) sets sail on this {event_type}! All hands on deck, me hearties! 🏴‍☠️"
-#     run-success: "🏴‍☠️ Yo ho ho! [{workflow_name}]({run_url}) has claimed the treasure! The voyage be a SUCCESS! ⚓"
-#     run-failure: "🏴‍☠️ Blimey! [{workflow_name}]({run_url}) {status}! We've hit rough waters, mateys..."
-# timeout-minutes: 5
-# strict: true
+#   create-discussion:
+#     title-prefix: "[copilot-pr-merged-report] "
+#     category: "audits"
+#     max: 1
+#     close-older-discussions: true
+#
+# imports:
+#   - shared/gh.md
+#   - shared/reporting.md
+#
+# timeout-minutes: 10
 # ```
+#
+# Resolved workflow manifest:
+#   Imports:
+#     - shared/gh.md
+#     - shared/reporting.md
 #
 # Job Dependency Graph:
 # ```mermaid
@@ -73,26 +76,316 @@
 #   activation["activation"]
 #   agent["agent"]
 #   conclusion["conclusion"]
+#   create_discussion["create_discussion"]
 #   detection["detection"]
-#   pre_activation["pre_activation"]
-#   pre_activation --> activation
 #   activation --> agent
 #   agent --> conclusion
 #   activation --> conclusion
+#   create_discussion --> conclusion
+#   agent --> create_discussion
+#   detection --> create_discussion
 #   agent --> detection
 # ```
 #
 # Original Prompt:
 # ```markdown
-# **IMPORTANT: Keep all outputs extremely short and concise. Use single-line responses where possible. No verbose explanations.**
+# ## Report Formatting
 #
-# Test the Sandbox Runtime (SRT) integration:
+# Structure your report with an overview followed by detailed content:
 #
-# 1. Run `echo "Hello from SRT!"` using bash
-# 2. Check the current directory with `pwd`
-# 3. List files in the current directory with `ls -la`
+# 1. **Content Overview**: Start with 1-2 paragraphs that summarize the key findings, highlights, or main points of your report. This should give readers a quick understanding of what the report contains without needing to expand the details.
 #
-# Output a **very brief** summary (max 3-5 lines): ✅ or ❌ for each test, overall status.
+# 2. **Detailed Content**: Place the rest of your report inside HTML `<details>` and `<summary>` tags to allow readers to expand and view the full information. **IMPORTANT**: Always wrap the summary text in `<b>` tags to make it bold.
+#
+# **Example format:**
+#
+# `````markdown
+# Brief overview paragraph 1 introducing the report and its main findings.
+#
+# Optional overview paragraph 2 with additional context or highlights.
+#
+# <details>
+# <summary><b>Full Report Details</b></summary>
+#
+# ## Detailed Analysis
+#
+# Full report content with all sections, tables, and detailed information goes here.
+#
+# ### Section 1
+# [Content]
+#
+# ### Section 2
+# [Content]
+#
+# </details>
+# `````
+#
+# ## Reporting Workflow Run Information
+#
+# When analyzing workflow run logs or reporting information from GitHub Actions runs:
+#
+# ### 1. Workflow Run ID Formatting
+#
+# **Always render workflow run IDs as clickable URLs** when mentioning them in your report. The workflow run data includes a `url` field that provides the full GitHub Actions run page URL.
+#
+# **Format:**
+#
+# `````markdown
+# [§12345](https://github.com/owner/repo/actions/runs/12345)
+# `````
+#
+# **Example:**
+#
+# `````markdown
+# Analysis based on [§456789](https://github.com/githubnext/gh-aw/actions/runs/456789)
+# `````
+#
+# ### 2. Document References for Workflow Runs
+#
+# When your analysis is based on information mined from one or more workflow runs, **include up to 3 workflow run URLs as document references** at the end of your report.
+#
+# **Format:**
+#
+# `````markdown
+# ---
+#
+# **References:**
+# - [§12345](https://github.com/owner/repo/actions/runs/12345)
+# - [§12346](https://github.com/owner/repo/actions/runs/12346)
+# - [§12347](https://github.com/owner/repo/actions/runs/12347)
+# `````
+#
+# **Guidelines:**
+#
+# - Include **maximum 3 references** to keep reports concise
+# - Choose the most relevant or representative runs (e.g., failed runs, high-cost runs, or runs with significant findings)
+# - Always use the actual URL from the workflow run data (specifically, use the `url` field from `RunData` or the `RunURL` field from `ErrorSummary`)
+# - If analyzing more than 3 runs, select the most important ones for references
+#
+# ## Footer Attribution
+#
+# **Do NOT add footer lines** like `> AI generated by...` to your comment. The system automatically appends attribution after your content to prevent duplicates.
+#
+# # Daily Copilot PR Merged Report
+#
+# You are an AI analytics agent that generates daily reports on GitHub Copilot agent pull requests that were **merged** in the last 24 hours.
+#
+# ## Mission
+#
+# Analyze merged Copilot pull requests from the last 24 hours and generate a basic report containing:
+# - Number of merged PRs
+# - Amount of code generated (lines added)
+# - Amount of tests generated (test files modified/added)
+# - Token consumption (from workflow run usage data)
+#
+# ## Current Context
+#
+# - **Repository**: ${{ github.repository }}
+# - **Analysis Period**: Last 24 hours (merged PRs only)
+# - **Report Date**: $(date +%Y-%m-%d)
+#
+# ## Task: Generate Merged PR Report
+#
+# ### Phase 1: Find Merged Copilot PRs
+#
+# **Step 1.1: Calculate Date Range**
+#
+# Calculate the timestamp for 24 hours ago:
+# ```bash
+# # Get timestamp for 24 hours ago (compatible with both GNU and BSD date)
+# DATE_24H_AGO=$(date -d '24 hours ago' '+%Y-%m-%d' 2>/dev/null || date -v-24H '+%Y-%m-%d')
+# echo "Looking for PRs merged since: $DATE_24H_AGO"
+# ```
+#
+# **Step 1.2: Search for Merged Copilot PRs**
+#
+# Use the `gh` safe-input tool to search for merged PRs from Copilot:
+# ```
+# gh with args: "pr list --repo ${{ github.repository }} --search \"head:copilot/ is:merged merged:>=$DATE_24H_AGO\" --state merged --limit 100 --json number,title,mergedAt,additions,deletions,files,url"
+# ```
+#
+# This searches for:
+# - PRs from branches starting with `copilot/` (Copilot agent PRs)
+# - PRs that are merged
+# - PRs merged in the last 24 hours
+# - Returns: PR number, title, merge timestamp, additions, deletions, files changed, URL
+#
+# **Step 1.3: Parse Results**
+#
+# Parse the JSON output from the gh command to extract:
+# - List of PR numbers
+# - Total number of merged PRs
+# - Sum of lines added across all PRs
+# - Sum of lines deleted across all PRs
+# - List of files changed
+#
+# Save this data for further analysis.
+#
+# ### Phase 2: Analyze Each Merged PR
+#
+# For each merged PR found in Phase 1:
+#
+# **Step 2.1: Get PR Files**
+#
+# Use the `gh` tool to get detailed file information:
+# ```
+# gh with args: "pr view <PR_NUMBER> --repo ${{ github.repository }} --json files"
+# ```
+#
+# **Step 2.2: Count Test Files**
+#
+# From the files list, count how many are test files:
+# - Go test files: `*_test.go`
+# - JavaScript test files: `*.test.js`, `*.test.cjs`
+# - Count both added and modified test files
+#
+# **Step 2.3: Get Workflow Run Information**
+#
+# For token usage information, we need to find the workflow run associated with the PR:
+#
+# 1. Get commits from the PR:
+#    ```
+#    gh with args: "pr view <PR_NUMBER> --repo ${{ github.repository }} --json commits"
+#    ```
+#
+# 2. For the latest commit, find associated workflow runs:
+#    ```
+#    gh with args: "api repos/${{ github.repository }}/commits/<COMMIT_SHA>/check-runs"
+#    ```
+#
+# 3. From the check runs, identify GitHub Actions workflow runs
+#
+# 4. Get workflow run usage data:
+#    ```
+#    gh with args: "api repos/${{ github.repository }}/actions/runs/<RUN_ID>/timing"
+#    ```
+#
+#    This returns timing information including billable time.
+#
+# **Note on Token Usage**: 
+# - GitHub Actions API provides "billable_ms" (billable milliseconds) for workflow runs
+# - Token consumption is not directly exposed via API
+# - We can estimate based on run duration, but exact token counts are not available
+# - For this report, we'll track workflow run times as a proxy for resource consumption
+#
+# ### Phase 3: Generate Report
+#
+# Create a concise report with the following structure:
+#
+# ```markdown
+# # 🤖 Daily Copilot PR Merged Report - [DATE]
+#
+# ## Summary
+#
+# **Analysis Period**: Last 24 hours (merged PRs only)  
+# **Total Merged PRs**: [count]  
+# **Total Lines Added**: [count]  
+# **Total Lines Deleted**: [count]  
+# **Net Code Change**: [+/- count] lines
+#
+# ## Merged Pull Requests
+#
+# | PR # | Title | Lines Added | Lines Deleted | Test Files | Merged At |
+# |------|-------|-------------|---------------|------------|-----------|
+# | [#123](url) | [title] | [count] | [count] | [count] | [time] |
+#
+# ## Code Generation Metrics
+#
+# - **Production Code**: [lines added - test lines added] lines
+# - **Test Code**: [test lines added] lines
+# - **Code-to-Test Ratio**: [ratio]
+#
+# ## Test Coverage
+#
+# - **Total Test Files Modified/Added**: [count]
+# - **Test File Types**:
+#   - Go tests (`*_test.go`): [count]
+#   - JavaScript tests (`*.test.js`): [count]
+#
+# ## Workflow Execution
+#
+# - **Total Workflow Runs**: [count]
+# - **Total Billable Time**: [milliseconds] ms ([minutes] min)
+# - **Average Run Time**: [milliseconds] ms per PR
+#
+# **Note**: Token consumption data is not directly available via GitHub API. Workflow execution time is used as a proxy for resource usage.
+#
+# ## Insights
+#
+# [Provide 1-2 brief observations about the merged PRs, such as:]
+# - Trends in code generation volume
+# - Notable test coverage patterns
+# - Any PRs with exceptional metrics (very large, many test files, etc.)
+#
+# ---
+#
+# _Generated by Copilot PR Merged Report (Run: [${{ github.run_id }}](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}))_
+# ```
+#
+# ### Phase 4: Create Discussion
+#
+# Use the safe-outputs `create-discussion` functionality to publish the report:
+# - The report will be created in the "audits" category
+# - Title will be prefixed with "[copilot-pr-merged-report] "
+# - Previous reports will be automatically closed (max: 1, close-older-discussions: true)
+#
+# ## Important Guidelines
+#
+# ### Data Collection
+# - **Focus on merged PRs only**: Use `is:merged` in search queries
+# - **24-hour window**: Calculate accurate date ranges
+# - **Handle empty results**: If no PRs were merged, create a minimal report
+# - **Error handling**: Gracefully handle API failures or missing data
+#
+# ### Metrics Calculation
+# - **Lines of code**: Use `additions` and `deletions` from PR data
+# - **Test files**: Count files matching test patterns (`*_test.go`, `*.test.js`, etc.)
+# - **Workflow runs**: Link workflow runs to PRs via commit SHAs
+# - **Token estimation**: Since exact tokens aren't available, use execution time as proxy
+#
+# ### Report Quality
+# - **Be accurate**: Double-check all calculations
+# - **Be concise**: Focus on key metrics, avoid verbosity
+# - **Be informative**: Provide actionable insights
+# - **Be consistent**: Use the same format each day for comparison
+#
+# ### Edge Cases
+#
+# **No Merged PRs**:
+# If no Copilot PRs were merged in the last 24 hours:
+# ```markdown
+# # 🤖 Daily Copilot PR Merged Report - [DATE]
+#
+# No Copilot agent pull requests were merged in the last 24 hours.
+#
+# ---
+# _Generated by Copilot PR Merged Report (Run: [${{ github.run_id }}](...))_
+# ```
+#
+# **API Rate Limits**:
+# If you encounter rate limiting:
+# - Continue with available data
+# - Note in the report which data is incomplete
+# - Suggest running the report again later
+#
+# **Missing Workflow Data**:
+# If workflow run data is unavailable:
+# - Report the metrics you have
+# - Note that workflow execution data is unavailable
+# - Provide a report without the workflow execution section
+#
+# ## Success Criteria
+#
+# A successful report:
+# - ✅ Finds all merged Copilot PRs from last 24 hours
+# - ✅ Calculates total lines added/deleted
+# - ✅ Counts test files modified
+# - ✅ Attempts to get workflow execution data
+# - ✅ Generates a clear, concise report
+# - ✅ Creates discussion in "audits" category
+# - ✅ Completes within 10-minute timeout
+#
+# Begin your analysis now. Use the `gh` safe-input tool for all GitHub CLI operations.
 # ```
 #
 # Pinned GitHub Actions:
@@ -107,31 +400,25 @@
 #   - actions/upload-artifact@v5 (330a01c490aca151604b8cf639adc76d48f6c5d4)
 #     https://github.com/actions/upload-artifact/commit/330a01c490aca151604b8cf639adc76d48f6c5d4
 
-name: "Smoke SRT"
+name: "Daily Copilot PR Merged Report"
 "on":
-  pull_request:
-    # names: # Label filtering applied via job conditions
-    # - test-srt # Label filtering applied via job conditions
-    types:
-    - labeled
+  schedule:
+  - cron: "0 15 * * 1-5"
   workflow_dispatch: null
 
 permissions:
+  actions: read
   contents: read
   issues: read
+  pull-requests: read
 
 concurrency:
-  group: "gh-aw-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}"
-  cancel-in-progress: true
+  group: "gh-aw-${{ github.workflow }}"
 
-run-name: "Smoke SRT"
+run-name: "Daily Copilot PR Merged Report"
 
 jobs:
   activation:
-    needs: pre_activation
-    if: >
-      (needs.pre_activation.outputs.activated == 'true') && (((github.event_name != 'pull_request') || (github.event.pull_request.head.repo.id == github.repository_id)) &&
-      ((github.event_name != 'pull_request') || ((github.event.action != 'labeled') || (github.event.label.name == 'test-srt'))))
     runs-on: ubuntu-slim
     permissions:
       contents: read
@@ -142,7 +429,7 @@ jobs:
       - name: Check workflow file timestamps
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
-          GH_AW_WORKFLOW_FILE: "smoke-srt.lock.yml"
+          GH_AW_WORKFLOW_FILE: "copilot-pr-merged-report.lock.yml"
         with:
           script: |
             async function main() {
@@ -231,8 +518,12 @@ jobs:
     needs: activation
     runs-on: ubuntu-latest
     permissions:
+      actions: read
       contents: read
       issues: read
+      pull-requests: read
+    concurrency:
+      group: "gh-aw-copilot-${{ github.workflow }}"
     env:
       GH_AW_MCP_LOG_DIR: /tmp/gh-aw/mcp-logs/safeoutputs
       GH_AW_SAFE_OUTPUTS: /tmp/gh-aw/safeoutputs/outputs.jsonl
@@ -328,40 +619,50 @@ jobs:
         with:
           node-version: '24'
           package-manager-cache: false
-      - name: Install Sandbox Runtime System Dependencies
+      - name: Install awf binary
         run: |
-          echo "Installing system dependencies for Sandbox Runtime"
-          sudo apt-get update
-          sudo apt-get install -y ripgrep bubblewrap socat
-          echo "System dependencies installed successfully"
-          echo "Verifying installations:"
-          rg --version
-          bwrap --version
-          socat -V
-      - name: Configure System for Sandbox Runtime
-        run: |
-          echo "Disabling AppArmor namespace restrictions for bubblewrap"
-          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
-          echo "System configuration applied successfully"
-      - name: Install Sandbox Runtime
-        run: |
-          echo "Installing @anthropic-ai/sandbox-runtime locally"
-          npm install @anthropic-ai/sandbox-runtime
-          echo "Sandbox Runtime installed successfully"
+          echo "Installing awf from release: v0.6.0"
+          curl -L https://github.com/githubnext/gh-aw-firewall/releases/download/v0.6.0/awf-linux-x64 -o awf
+          chmod +x awf
+          sudo mv awf /usr/local/bin/
+          which awf
+          awf --version
       - name: Install GitHub Copilot CLI
-        run: npm install @github/copilot@0.0.366
-      - name: Downloading container images
-        run: |
-          set -e
-          docker pull ghcr.io/github/github-mcp-server:v0.24.0
+        run: npm install -g @github/copilot@0.0.366
       - name: Write Safe Outputs Config
         run: |
           mkdir -p /tmp/gh-aw/safeoutputs
           cat > /tmp/gh-aw/safeoutputs/config.json << 'EOF'
-          {"missing_tool":{"max":0},"noop":{"max":1}}
+          {"create_discussion":{"max":1},"missing_tool":{"max":0},"noop":{"max":1}}
           EOF
           cat > /tmp/gh-aw/safeoutputs/tools.json << 'EOF'
           [
+            {
+              "description": "Create a GitHub discussion for announcements, Q\u0026A, reports, status updates, or community conversations. Use this for content that benefits from threaded replies, doesn't require task tracking, or serves as documentation. For actionable work items that need assignment and status tracking, use create_issue instead. CONSTRAINTS: Maximum 1 discussion(s) can be created. Title will be prefixed with \"[copilot-pr-merged-report] \". Discussions will be created in category \"audits\".",
+              "inputSchema": {
+                "additionalProperties": false,
+                "properties": {
+                  "body": {
+                    "description": "Discussion content in Markdown. Do NOT repeat the title as a heading since it already appears as the discussion's h1. Include all relevant context, findings, or questions.",
+                    "type": "string"
+                  },
+                  "category": {
+                    "description": "Discussion category by name (e.g., 'General'), slug (e.g., 'general'), or ID. If omitted, uses the first available category. Category must exist in the repository.",
+                    "type": "string"
+                  },
+                  "title": {
+                    "description": "Concise discussion title summarizing the topic. The title appears as the main heading, so keep it brief and descriptive.",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "title",
+                  "body"
+                ],
+                "type": "object"
+              },
+              "name": "create_discussion"
+            },
             {
               "description": "Report that a tool or capability needed to complete the task is not available. Use this when you cannot accomplish what was requested because the required functionality is missing or access is restricted.",
               "inputSchema": {
@@ -409,6 +710,32 @@ jobs:
           EOF
           cat > /tmp/gh-aw/safeoutputs/validation.json << 'EOF'
           {
+            "create_discussion": {
+              "defaultMax": 1,
+              "fields": {
+                "body": {
+                  "required": true,
+                  "type": "string",
+                  "sanitize": true,
+                  "maxLength": 65000
+                },
+                "category": {
+                  "type": "string",
+                  "sanitize": true,
+                  "maxLength": 128
+                },
+                "repo": {
+                  "type": "string",
+                  "maxLength": 256
+                },
+                "title": {
+                  "required": true,
+                  "type": "string",
+                  "sanitize": true,
+                  "maxLength": 128
+                }
+              }
+            },
             "missing_tool": {
               "defaultMax": 20,
               "fields": {
@@ -1517,34 +1844,740 @@ jobs:
           EOF
           chmod +x /tmp/gh-aw/safeoutputs/mcp-server.cjs
           
+      - name: Setup Safe Inputs MCP
+        run: |
+          mkdir -p /tmp/gh-aw/safe-inputs/logs
+          cat > /tmp/gh-aw/safe-inputs/read_buffer.cjs << 'EOF_READ_BUFFER'
+            class ReadBuffer {
+              constructor() {
+                this._buffer = null;
+              }
+              append(chunk) {
+                this._buffer = this._buffer ? Buffer.concat([this._buffer, chunk]) : chunk;
+              }
+              readMessage() {
+                if (!this._buffer) {
+                  return null;
+                }
+                const index = this._buffer.indexOf("\n");
+                if (index === -1) {
+                  return null;
+                }
+                const line = this._buffer.toString("utf8", 0, index).replace(/\r$/, "");
+                this._buffer = this._buffer.subarray(index + 1);
+                if (line.trim() === "") {
+                  return this.readMessage(); 
+                }
+                try {
+                  return JSON.parse(line);
+                } catch (error) {
+                  throw new Error(`Parse error: ${error instanceof Error ? error.message : String(error)}`);
+                }
+              }
+            }
+            module.exports = {
+              ReadBuffer,
+            };
+          EOF_READ_BUFFER
+          cat > /tmp/gh-aw/safe-inputs/mcp_server_core.cjs << 'EOF_MCP_CORE'
+            const fs = require("fs");
+            const path = require("path");
+            const { ReadBuffer } = require("./read_buffer.cjs");
+            const encoder = new TextEncoder();
+            function initLogFile(server) {
+              if (server.logFileInitialized || !server.logDir || !server.logFilePath) return;
+              try {
+                if (!fs.existsSync(server.logDir)) {
+                  fs.mkdirSync(server.logDir, { recursive: true });
+                }
+                const timestamp = new Date().toISOString();
+                fs.writeFileSync(
+                  server.logFilePath,
+                  `# ${server.serverInfo.name} MCP Server Log\n# Started: ${timestamp}\n# Version: ${server.serverInfo.version}\n\n`
+                );
+                server.logFileInitialized = true;
+              } catch {
+              }
+            }
+            function createDebugFunction(server) {
+              return msg => {
+                const timestamp = new Date().toISOString();
+                const formattedMsg = `[${timestamp}] [${server.serverInfo.name}] ${msg}\n`;
+                process.stderr.write(formattedMsg);
+                if (server.logDir && server.logFilePath) {
+                  if (!server.logFileInitialized) {
+                    initLogFile(server);
+                  }
+                  if (server.logFileInitialized) {
+                    try {
+                      fs.appendFileSync(server.logFilePath, formattedMsg);
+                    } catch {
+                    }
+                  }
+                }
+              };
+            }
+            function createDebugErrorFunction(server) {
+              return (prefix, error) => {
+                const errorMessage = error instanceof Error ? error.message : String(error);
+                server.debug(`${prefix}${errorMessage}`);
+                if (error instanceof Error && error.stack) {
+                  server.debug(`${prefix}Stack trace: ${error.stack}`);
+                }
+              };
+            }
+            function createWriteMessageFunction(server) {
+              return obj => {
+                const json = JSON.stringify(obj);
+                server.debug(`send: ${json}`);
+                const message = json + "\n";
+                const bytes = encoder.encode(message);
+                fs.writeSync(1, bytes);
+              };
+            }
+            function createReplyResultFunction(server) {
+              return (id, result) => {
+                if (id === undefined || id === null) return; 
+                const res = { jsonrpc: "2.0", id, result };
+                server.writeMessage(res);
+              };
+            }
+            function createReplyErrorFunction(server) {
+              return (id, code, message) => {
+                if (id === undefined || id === null) {
+                  server.debug(`Error for notification: ${message}`);
+                  return;
+                }
+                const error = { code, message };
+                const res = {
+                  jsonrpc: "2.0",
+                  id,
+                  error,
+                };
+                server.writeMessage(res);
+              };
+            }
+            function createServer(serverInfo, options = {}) {
+              const logDir = options.logDir || undefined;
+              const logFilePath = logDir ? path.join(logDir, "server.log") : undefined;
+              const server = {
+                serverInfo,
+                tools: {},
+                debug: () => {}, 
+                debugError: () => {}, 
+                writeMessage: () => {}, 
+                replyResult: () => {}, 
+                replyError: () => {}, 
+                readBuffer: new ReadBuffer(),
+                logDir,
+                logFilePath,
+                logFileInitialized: false,
+              };
+              server.debug = createDebugFunction(server);
+              server.debugError = createDebugErrorFunction(server);
+              server.writeMessage = createWriteMessageFunction(server);
+              server.replyResult = createReplyResultFunction(server);
+              server.replyError = createReplyErrorFunction(server);
+              return server;
+            }
+            function createWrappedHandler(server, toolName, handlerFn) {
+              return async args => {
+                server.debug(`  [${toolName}] Invoking handler with args: ${JSON.stringify(args)}`);
+                try {
+                  const result = await Promise.resolve(handlerFn(args));
+                  server.debug(`  [${toolName}] Handler returned result type: ${typeof result}`);
+                  if (result && typeof result === "object" && Array.isArray(result.content)) {
+                    server.debug(`  [${toolName}] Result is already in MCP format`);
+                    return result;
+                  }
+                  let serializedResult;
+                  try {
+                    serializedResult = JSON.stringify(result);
+                  } catch (serializationError) {
+                    server.debugError(`  [${toolName}] Serialization error: `, serializationError);
+                    serializedResult = String(result);
+                  }
+                  server.debug(`  [${toolName}] Serialized result: ${serializedResult.substring(0, 200)}${serializedResult.length > 200 ? "..." : ""}`);
+                  return {
+                    content: [
+                      {
+                        type: "text",
+                        text: serializedResult,
+                      },
+                    ],
+                  };
+                } catch (error) {
+                  server.debugError(`  [${toolName}] Handler threw error: `, error);
+                  throw error;
+                }
+              };
+            }
+            function loadToolHandlers(server, tools, basePath) {
+              server.debug(`Loading tool handlers...`);
+              server.debug(`  Total tools to process: ${tools.length}`);
+              server.debug(`  Base path: ${basePath || "(not specified)"}`);
+              let loadedCount = 0;
+              let skippedCount = 0;
+              let errorCount = 0;
+              for (const tool of tools) {
+                const toolName = tool.name || "(unnamed)";
+                if (!tool.handler) {
+                  server.debug(`  [${toolName}] No handler path specified, skipping handler load`);
+                  skippedCount++;
+                  continue;
+                }
+                const handlerPath = tool.handler;
+                server.debug(`  [${toolName}] Handler path specified: ${handlerPath}`);
+                let resolvedPath = handlerPath;
+                if (basePath && !path.isAbsolute(handlerPath)) {
+                  resolvedPath = path.resolve(basePath, handlerPath);
+                  server.debug(`  [${toolName}] Resolved relative path to: ${resolvedPath}`);
+                  const normalizedBase = path.resolve(basePath);
+                  const normalizedResolved = path.resolve(resolvedPath);
+                  if (!normalizedResolved.startsWith(normalizedBase + path.sep) && normalizedResolved !== normalizedBase) {
+                    server.debug(`  [${toolName}] ERROR: Handler path escapes base directory: ${resolvedPath} is not within ${basePath}`);
+                    errorCount++;
+                    continue;
+                  }
+                } else if (path.isAbsolute(handlerPath)) {
+                  server.debug(`  [${toolName}] Using absolute path (bypasses basePath validation): ${handlerPath}`);
+                }
+                tool.handlerPath = handlerPath;
+                try {
+                  server.debug(`  [${toolName}] Loading handler from: ${resolvedPath}`);
+                  if (!fs.existsSync(resolvedPath)) {
+                    server.debug(`  [${toolName}] ERROR: Handler file does not exist: ${resolvedPath}`);
+                    errorCount++;
+                    continue;
+                  }
+                  const ext = path.extname(resolvedPath).toLowerCase();
+                  server.debug(`  [${toolName}] Handler file extension: ${ext}`);
+                  if (ext === ".sh") {
+                    server.debug(`  [${toolName}] Detected shell script handler`);
+                    try {
+                      fs.accessSync(resolvedPath, fs.constants.X_OK);
+                      server.debug(`  [${toolName}] Shell script is executable`);
+                    } catch {
+                      try {
+                        fs.chmodSync(resolvedPath, 0o755);
+                        server.debug(`  [${toolName}] Made shell script executable`);
+                      } catch (chmodError) {
+                        server.debugError(`  [${toolName}] Warning: Could not make shell script executable: `, chmodError);
+                      }
+                    }
+                    const { createShellHandler } = require("./mcp_handler_shell.cjs");
+                    tool.handler = createShellHandler(server, toolName, resolvedPath);
+                    loadedCount++;
+                    server.debug(`  [${toolName}] Shell handler created successfully`);
+                  } else if (ext === ".py") {
+                    server.debug(`  [${toolName}] Detected Python script handler`);
+                    try {
+                      fs.accessSync(resolvedPath, fs.constants.X_OK);
+                      server.debug(`  [${toolName}] Python script is executable`);
+                    } catch {
+                      try {
+                        fs.chmodSync(resolvedPath, 0o755);
+                        server.debug(`  [${toolName}] Made Python script executable`);
+                      } catch (chmodError) {
+                        server.debugError(`  [${toolName}] Warning: Could not make Python script executable: `, chmodError);
+                      }
+                    }
+                    const { createPythonHandler } = require("./mcp_handler_python.cjs");
+                    tool.handler = createPythonHandler(server, toolName, resolvedPath);
+                    loadedCount++;
+                    server.debug(`  [${toolName}] Python handler created successfully`);
+                  } else {
+                    server.debug(`  [${toolName}] Loading JavaScript handler module`);
+                    const handlerModule = require(resolvedPath);
+                    server.debug(`  [${toolName}] Handler module loaded successfully`);
+                    server.debug(`  [${toolName}] Module type: ${typeof handlerModule}`);
+                    let handlerFn = handlerModule;
+                    if (handlerModule && typeof handlerModule === "object" && typeof handlerModule.default === "function") {
+                      handlerFn = handlerModule.default;
+                      server.debug(`  [${toolName}] Using module.default export`);
+                    }
+                    if (typeof handlerFn !== "function") {
+                      server.debug(`  [${toolName}] ERROR: Handler is not a function, got: ${typeof handlerFn}`);
+                      server.debug(`  [${toolName}] Module keys: ${Object.keys(handlerModule || {}).join(", ") || "(none)"}`);
+                      errorCount++;
+                      continue;
+                    }
+                    server.debug(`  [${toolName}] Handler function validated successfully`);
+                    server.debug(`  [${toolName}] Handler function name: ${handlerFn.name || "(anonymous)"}`);
+                    tool.handler = createWrappedHandler(server, toolName, handlerFn);
+                    loadedCount++;
+                    server.debug(`  [${toolName}] JavaScript handler loaded and wrapped successfully`);
+                  }
+                } catch (error) {
+                  server.debugError(`  [${toolName}] ERROR loading handler: `, error);
+                  errorCount++;
+                }
+              }
+              server.debug(`Handler loading complete:`);
+              server.debug(`  Loaded: ${loadedCount}`);
+              server.debug(`  Skipped (no handler path): ${skippedCount}`);
+              server.debug(`  Errors: ${errorCount}`);
+              return tools;
+            }
+            function registerTool(server, tool) {
+              const normalizedName = normalizeTool(tool.name);
+              server.tools[normalizedName] = {
+                ...tool,
+                name: normalizedName,
+              };
+              server.debug(`Registered tool: ${normalizedName}`);
+            }
+            function normalizeTool(name) {
+              return name.replace(/-/g, "_").toLowerCase();
+            }
+            async function handleMessage(server, req, defaultHandler) {
+              if (!req || typeof req !== "object") {
+                server.debug(`Invalid message: not an object`);
+                return;
+              }
+              if (req.jsonrpc !== "2.0") {
+                server.debug(`Invalid message: missing or invalid jsonrpc field`);
+                return;
+              }
+              const { id, method, params } = req;
+              if (!method || typeof method !== "string") {
+                server.replyError(id, -32600, "Invalid Request: method must be a string");
+                return;
+              }
+              try {
+                if (method === "initialize") {
+                  const clientInfo = params?.clientInfo ?? {};
+                  server.debug(`client info: ${JSON.stringify(clientInfo)}`);
+                  const protocolVersion = params?.protocolVersion ?? undefined;
+                  const result = {
+                    serverInfo: server.serverInfo,
+                    ...(protocolVersion ? { protocolVersion } : {}),
+                    capabilities: {
+                      tools: {},
+                    },
+                  };
+                  server.replyResult(id, result);
+                } else if (method === "tools/list") {
+                  const list = [];
+                  Object.values(server.tools).forEach(tool => {
+                    const toolDef = {
+                      name: tool.name,
+                      description: tool.description,
+                      inputSchema: tool.inputSchema,
+                    };
+                    list.push(toolDef);
+                  });
+                  server.replyResult(id, { tools: list });
+                } else if (method === "tools/call") {
+                  const name = params?.name;
+                  const args = params?.arguments ?? {};
+                  if (!name || typeof name !== "string") {
+                    server.replyError(id, -32602, "Invalid params: 'name' must be a string");
+                    return;
+                  }
+                  const tool = server.tools[normalizeTool(name)];
+                  if (!tool) {
+                    server.replyError(id, -32601, `Tool not found: ${name} (${normalizeTool(name)})`);
+                    return;
+                  }
+                  let handler = tool.handler;
+                  if (!handler && defaultHandler) {
+                    handler = defaultHandler(tool.name);
+                  }
+                  if (!handler) {
+                    server.replyError(id, -32603, `No handler for tool: ${name}`);
+                    return;
+                  }
+                  const requiredFields = tool.inputSchema && Array.isArray(tool.inputSchema.required) ? tool.inputSchema.required : [];
+                  if (requiredFields.length) {
+                    const missing = requiredFields.filter(f => {
+                      const value = args[f];
+                      return value === undefined || value === null || (typeof value === "string" && value.trim() === "");
+                    });
+                    if (missing.length) {
+                      server.replyError(id, -32602, `Invalid arguments: missing or empty ${missing.map(m => `'${m}'`).join(", ")}`);
+                      return;
+                    }
+                  }
+                  server.debug(`Calling handler for tool: ${name}`);
+                  const result = await Promise.resolve(handler(args));
+                  server.debug(`Handler returned for tool: ${name}`);
+                  const content = result && result.content ? result.content : [];
+                  server.replyResult(id, { content, isError: false });
+                } else if (/^notifications\//.test(method)) {
+                  server.debug(`ignore ${method}`);
+                } else {
+                  server.replyError(id, -32601, `Method not found: ${method}`);
+                }
+              } catch (e) {
+                server.replyError(id, -32603, e instanceof Error ? e.message : String(e));
+              }
+            }
+            async function processReadBuffer(server, defaultHandler) {
+              while (true) {
+                try {
+                  const message = server.readBuffer.readMessage();
+                  if (!message) {
+                    break;
+                  }
+                  server.debug(`recv: ${JSON.stringify(message)}`);
+                  await handleMessage(server, message, defaultHandler);
+                } catch (error) {
+                  server.debug(`Parse error: ${error instanceof Error ? error.message : String(error)}`);
+                }
+              }
+            }
+            function start(server, options = {}) {
+              const { defaultHandler } = options;
+              server.debug(`v${server.serverInfo.version} ready on stdio`);
+              server.debug(`  tools: ${Object.keys(server.tools).join(", ")}`);
+              if (!Object.keys(server.tools).length) {
+                throw new Error("No tools registered");
+              }
+              const onData = async chunk => {
+                server.readBuffer.append(chunk);
+                await processReadBuffer(server, defaultHandler);
+              };
+              process.stdin.on("data", onData);
+              process.stdin.on("error", err => server.debug(`stdin error: ${err}`));
+              process.stdin.resume();
+              server.debug(`listening...`);
+            }
+            module.exports = {
+              createServer,
+              registerTool,
+              normalizeTool,
+              handleMessage,
+              processReadBuffer,
+              start,
+              loadToolHandlers,
+            };
+          EOF_MCP_CORE
+          cat > /tmp/gh-aw/safe-inputs/mcp_handler_shell.cjs << 'EOF_HANDLER_SHELL'
+            const fs = require("fs");
+            const path = require("path");
+            const { execFile } = require("child_process");
+            const os = require("os");
+            function createShellHandler(server, toolName, scriptPath) {
+              return async args => {
+                server.debug(`  [${toolName}] Invoking shell handler: ${scriptPath}`);
+                server.debug(`  [${toolName}] Shell handler args: ${JSON.stringify(args)}`);
+                const env = { ...process.env };
+                for (const [key, value] of Object.entries(args || {})) {
+                  const envKey = `INPUT_${key.toUpperCase().replace(/-/g, "_")}`;
+                  env[envKey] = String(value);
+                  server.debug(`  [${toolName}] Set env: ${envKey}=${String(value).substring(0, 100)}${String(value).length > 100 ? "..." : ""}`);
+                }
+                const outputFile = path.join(os.tmpdir(), `mcp-shell-output-${Date.now()}-${Math.random().toString(36).substring(2)}.txt`);
+                env.GITHUB_OUTPUT = outputFile;
+                server.debug(`  [${toolName}] Output file: ${outputFile}`);
+                fs.writeFileSync(outputFile, "");
+                return new Promise((resolve, reject) => {
+                  server.debug(`  [${toolName}] Executing shell script...`);
+                  execFile(
+                    scriptPath,
+                    [],
+                    {
+                      env,
+                      timeout: 300000, 
+                      maxBuffer: 10 * 1024 * 1024, 
+                    },
+                    (error, stdout, stderr) => {
+                      if (stdout) {
+                        server.debug(`  [${toolName}] stdout: ${stdout.substring(0, 500)}${stdout.length > 500 ? "..." : ""}`);
+                      }
+                      if (stderr) {
+                        server.debug(`  [${toolName}] stderr: ${stderr.substring(0, 500)}${stderr.length > 500 ? "..." : ""}`);
+                      }
+                      if (error) {
+                        server.debugError(`  [${toolName}] Shell script error: `, error);
+                        try {
+                          if (fs.existsSync(outputFile)) {
+                            fs.unlinkSync(outputFile);
+                          }
+                        } catch {
+                        }
+                        reject(error);
+                        return;
+                      }
+                      const outputs = {};
+                      try {
+                        if (fs.existsSync(outputFile)) {
+                          const outputContent = fs.readFileSync(outputFile, "utf-8");
+                          server.debug(
+                            `  [${toolName}] Output file content: ${outputContent.substring(0, 500)}${outputContent.length > 500 ? "..." : ""}`
+                          );
+                          const lines = outputContent.split("\n");
+                          for (const line of lines) {
+                            const trimmed = line.trim();
+                            if (trimmed && trimmed.includes("=")) {
+                              const eqIndex = trimmed.indexOf("=");
+                              const key = trimmed.substring(0, eqIndex);
+                              const value = trimmed.substring(eqIndex + 1);
+                              outputs[key] = value;
+                              server.debug(`  [${toolName}] Parsed output: ${key}=${value.substring(0, 100)}${value.length > 100 ? "..." : ""}`);
+                            }
+                          }
+                        }
+                      } catch (readError) {
+                        server.debugError(`  [${toolName}] Error reading output file: `, readError);
+                      }
+                      try {
+                        if (fs.existsSync(outputFile)) {
+                          fs.unlinkSync(outputFile);
+                        }
+                      } catch {
+                      }
+                      const result = {
+                        stdout: stdout || "",
+                        stderr: stderr || "",
+                        outputs,
+                      };
+                      server.debug(`  [${toolName}] Shell handler completed, outputs: ${Object.keys(outputs).join(", ") || "(none)"}`);
+                      resolve({
+                        content: [
+                          {
+                            type: "text",
+                            text: JSON.stringify(result),
+                          },
+                        ],
+                      });
+                    }
+                  );
+                });
+              };
+            }
+            module.exports = {
+              createShellHandler,
+            };
+          EOF_HANDLER_SHELL
+          cat > /tmp/gh-aw/safe-inputs/mcp_handler_python.cjs << 'EOF_HANDLER_PYTHON'
+            const { execFile } = require("child_process");
+            function createPythonHandler(server, toolName, scriptPath) {
+              return async args => {
+                server.debug(`  [${toolName}] Invoking Python handler: ${scriptPath}`);
+                server.debug(`  [${toolName}] Python handler args: ${JSON.stringify(args)}`);
+                const inputJson = JSON.stringify(args || {});
+                server.debug(
+                  `  [${toolName}] Input JSON (${inputJson.length} bytes): ${inputJson.substring(0, 200)}${inputJson.length > 200 ? "..." : ""}`
+                );
+                return new Promise((resolve, reject) => {
+                  server.debug(`  [${toolName}] Executing Python script...`);
+                  const child = execFile(
+                    "python3",
+                    [scriptPath],
+                    {
+                      env: process.env,
+                      timeout: 300000, 
+                      maxBuffer: 10 * 1024 * 1024, 
+                    },
+                    (error, stdout, stderr) => {
+                      if (stdout) {
+                        server.debug(`  [${toolName}] stdout: ${stdout.substring(0, 500)}${stdout.length > 500 ? "..." : ""}`);
+                      }
+                      if (stderr) {
+                        server.debug(`  [${toolName}] stderr: ${stderr.substring(0, 500)}${stderr.length > 500 ? "..." : ""}`);
+                      }
+                      if (error) {
+                        server.debugError(`  [${toolName}] Python script error: `, error);
+                        reject(error);
+                        return;
+                      }
+                      let result;
+                      try {
+                        if (stdout && stdout.trim()) {
+                          result = JSON.parse(stdout.trim());
+                        } else {
+                          result = { stdout: stdout || "", stderr: stderr || "" };
+                        }
+                      } catch (parseError) {
+                        server.debug(`  [${toolName}] Output is not JSON, returning as text`);
+                        result = { stdout: stdout || "", stderr: stderr || "" };
+                      }
+                      server.debug(`  [${toolName}] Python handler completed successfully`);
+                      resolve({
+                        content: [
+                          {
+                            type: "text",
+                            text: JSON.stringify(result),
+                          },
+                        ],
+                      });
+                    }
+                  );
+                  if (child.stdin) {
+                    child.stdin.write(inputJson);
+                    child.stdin.end();
+                  }
+                });
+              };
+            }
+            module.exports = {
+              createPythonHandler,
+            };
+          EOF_HANDLER_PYTHON
+          cat > /tmp/gh-aw/safe-inputs/safe_inputs_config_loader.cjs << 'EOF_CONFIG_LOADER'
+            const fs = require("fs");
+            function loadConfig(configPath) {
+              if (!fs.existsSync(configPath)) {
+                throw new Error(`Configuration file not found: ${configPath}`);
+              }
+              const configContent = fs.readFileSync(configPath, "utf-8");
+              const config = JSON.parse(configContent);
+              if (!config.tools || !Array.isArray(config.tools)) {
+                throw new Error("Configuration must contain a 'tools' array");
+              }
+              return config;
+            }
+            module.exports = {
+              loadConfig,
+            };
+          EOF_CONFIG_LOADER
+          cat > /tmp/gh-aw/safe-inputs/safe_inputs_tool_factory.cjs << 'EOF_TOOL_FACTORY'
+            function createJsToolConfig(name, description, inputSchema, handlerPath) {
+              return {
+                name,
+                description,
+                inputSchema,
+                handler: handlerPath,
+              };
+            }
+            function createShellToolConfig(name, description, inputSchema, handlerPath) {
+              return {
+                name,
+                description,
+                inputSchema,
+                handler: handlerPath,
+              };
+            }
+            function createPythonToolConfig(name, description, inputSchema, handlerPath) {
+              return {
+                name,
+                description,
+                inputSchema,
+                handler: handlerPath,
+              };
+            }
+            module.exports = {
+              createJsToolConfig,
+              createShellToolConfig,
+              createPythonToolConfig,
+            };
+          EOF_TOOL_FACTORY
+          cat > /tmp/gh-aw/safe-inputs/safe_inputs_mcp_server.cjs << 'EOF_SAFE_INPUTS_SERVER'
+            const path = require("path");
+            const { createServer, registerTool, loadToolHandlers, start } = require("./mcp_server_core.cjs");
+            const { loadConfig } = require("./safe_inputs_config_loader.cjs");
+            const { createJsToolConfig, createShellToolConfig, createPythonToolConfig } = require("./safe_inputs_tool_factory.cjs");
+            function startSafeInputsServer(configPath, options = {}) {
+              const config = loadConfig(configPath);
+              const basePath = path.dirname(configPath);
+              const serverName = config.serverName || "safeinputs";
+              const version = config.version || "1.0.0";
+              const logDir = options.logDir || config.logDir || undefined;
+              const server = createServer({ name: serverName, version }, { logDir });
+              server.debug(`Loading safe-inputs configuration from: ${configPath}`);
+              server.debug(`Base path for handlers: ${basePath}`);
+              server.debug(`Tools to load: ${config.tools.length}`);
+              const tools = loadToolHandlers(server, config.tools, basePath);
+              for (const tool of tools) {
+                registerTool(server, tool);
+              }
+              start(server);
+            }
+            if (require.main === module) {
+              const args = process.argv.slice(2);
+              if (args.length < 1) {
+                console.error("Usage: node safe_inputs_mcp_server.cjs <config.json> [--log-dir <path>]");
+                process.exit(1);
+              }
+              const configPath = args[0];
+              const options = {};
+              for (let i = 1; i < args.length; i++) {
+                if (args[i] === "--log-dir" && args[i + 1]) {
+                  options.logDir = args[i + 1];
+                  i++;
+                }
+              }
+              try {
+                startSafeInputsServer(configPath, options);
+              } catch (error) {
+                console.error(`Error starting safe-inputs server: ${error instanceof Error ? error.message : String(error)}`);
+                process.exit(1);
+              }
+            }
+            module.exports = {
+              startSafeInputsServer,
+              loadConfig,
+              createJsToolConfig,
+              createShellToolConfig,
+              createPythonToolConfig,
+            };
+          EOF_SAFE_INPUTS_SERVER
+          cat > /tmp/gh-aw/safe-inputs/tools.json << 'EOF_TOOLS_JSON'
+          {
+            "serverName": "safeinputs",
+            "version": "1.0.0",
+            "logDir": "/tmp/gh-aw/safe-inputs/logs",
+            "tools": [
+              {
+                "name": "gh",
+                "description": "Execute any gh CLI command. Provide the full command after 'gh' (e.g., args: 'pr list --limit 5'). The tool will run: gh \u003cargs\u003e",
+                "inputSchema": {
+                  "properties": {
+                    "args": {
+                      "description": "Arguments to pass to gh CLI (without the 'gh' prefix). Examples: 'pr list --limit 5', 'issue view 123', 'api repos/{owner}/{repo}'",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "args"
+                  ],
+                  "type": "object"
+                },
+                "handler": "gh.sh"
+              }
+            ]
+          }
+          EOF_TOOLS_JSON
+          cat > /tmp/gh-aw/safe-inputs/mcp-server.cjs << 'EOFSI'
+            const path = require("path");
+            const { startSafeInputsServer } = require("./safe_inputs_mcp_server.cjs");
+            const configPath = path.join(__dirname, "tools.json");
+            startSafeInputsServer(configPath, {
+              logDir: "/tmp/gh-aw/safe-inputs/logs"
+            });
+          EOFSI
+          chmod +x /tmp/gh-aw/safe-inputs/mcp-server.cjs
+          cat > /tmp/gh-aw/safe-inputs/gh.sh << 'EOFSH_gh'
+          #!/bin/bash
+          # Auto-generated safe-input tool: gh
+          # Execute any gh CLI command. Provide the full command after 'gh' (e.g., args: 'pr list --limit 5'). The tool will run: gh <args>
+          
+          set -euo pipefail
+          
+          gh $INPUT_ARGS
+          
+          EOFSH_gh
+          chmod +x /tmp/gh-aw/safe-inputs/gh.sh
+          
       - name: Setup MCPs
         env:
-          GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           mkdir -p /tmp/gh-aw/mcp-config
           mkdir -p /home/runner/.copilot
           cat > /home/runner/.copilot/mcp-config.json << EOF
           {
             "mcpServers": {
-              "github": {
+              "safeinputs": {
                 "type": "local",
-                "command": "docker",
-                "args": [
-                  "run",
-                  "-i",
-                  "--rm",
-                  "-e",
-                  "GITHUB_PERSONAL_ACCESS_TOKEN",
-                  "-e",
-                  "GITHUB_READ_ONLY=1",
-                  "-e",
-                  "GITHUB_TOOLSETS=context,repos,issues,pull_requests",
-                  "ghcr.io/github/github-mcp-server:v0.24.0"
-                ],
+                "command": "node",
+                "args": ["/tmp/gh-aw/safe-inputs/mcp-server.cjs"],
                 "tools": ["*"],
                 "env": {
-                  "GITHUB_PERSONAL_ACCESS_TOKEN": "\${GITHUB_MCP_SERVER_TOKEN}"
+                  "GH_TOKEN": "\${GH_TOKEN}"
                 }
               },
               "safeoutputs": {
@@ -1583,7 +2616,7 @@ jobs:
               model: "",
               version: "",
               agent_version: "0.0.366",
-              workflow_name: "Smoke SRT",
+              workflow_name: "Daily Copilot PR Merged Report",
               experimental: false,
               supports_tools_allowlist: true,
               supports_http_transport: true,
@@ -1597,11 +2630,11 @@ jobs:
               event_name: context.eventName,
               staged: false,
               network_mode: "defaults",
-              allowed_domains: ["defaults","github","node","*.githubcopilot.com","example.com"],
-              firewall_enabled: false,
+              allowed_domains: [],
+              firewall_enabled: true,
               firewall_version: "",
               steps: {
-                firewall: ""
+                firewall: "squid"
               },
               created_at: new Date().toISOString()
             };
@@ -1654,19 +2687,311 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
+          GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
+          GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
         run: |
           PROMPT_DIR="$(dirname "$GH_AW_PROMPT")"
           mkdir -p "$PROMPT_DIR"
           cat << 'PROMPT_EOF' | envsubst > "$GH_AW_PROMPT"
-          **IMPORTANT: Keep all outputs extremely short and concise. Use single-line responses where possible. No verbose explanations.**
           
-          Test the Sandbox Runtime (SRT) integration:
           
-          1. Run `echo "Hello from SRT!"` using bash
-          2. Check the current directory with `pwd`
-          3. List files in the current directory with `ls -la`
+          ## Report Formatting
           
-          Output a **very brief** summary (max 3-5 lines): ✅ or ❌ for each test, overall status.
+          Structure your report with an overview followed by detailed content:
+          
+          1. **Content Overview**: Start with 1-2 paragraphs that summarize the key findings, highlights, or main points of your report. This should give readers a quick understanding of what the report contains without needing to expand the details.
+          
+          2. **Detailed Content**: Place the rest of your report inside HTML `<details>` and `<summary>` tags to allow readers to expand and view the full information. **IMPORTANT**: Always wrap the summary text in `<b>` tags to make it bold.
+          
+          **Example format:**
+          
+          `````markdown
+          Brief overview paragraph 1 introducing the report and its main findings.
+          
+          Optional overview paragraph 2 with additional context or highlights.
+          
+          <details>
+          <summary><b>Full Report Details</b></summary>
+          
+          ## Detailed Analysis
+          
+          Full report content with all sections, tables, and detailed information goes here.
+          
+          ### Section 1
+          [Content]
+          
+          ### Section 2
+          [Content]
+          
+          </details>
+          `````
+          
+          ## Reporting Workflow Run Information
+          
+          When analyzing workflow run logs or reporting information from GitHub Actions runs:
+          
+          ### 1. Workflow Run ID Formatting
+          
+          **Always render workflow run IDs as clickable URLs** when mentioning them in your report. The workflow run data includes a `url` field that provides the full GitHub Actions run page URL.
+          
+          **Format:**
+          
+          `````markdown
+          [§12345](https://github.com/owner/repo/actions/runs/12345)
+          `````
+          
+          **Example:**
+          
+          `````markdown
+          Analysis based on [§456789](https://github.com/githubnext/gh-aw/actions/runs/456789)
+          `````
+          
+          ### 2. Document References for Workflow Runs
+          
+          When your analysis is based on information mined from one or more workflow runs, **include up to 3 workflow run URLs as document references** at the end of your report.
+          
+          **Format:**
+          
+          `````markdown
+          ---
+          
+          **References:**
+          - [§12345](https://github.com/owner/repo/actions/runs/12345)
+          - [§12346](https://github.com/owner/repo/actions/runs/12346)
+          - [§12347](https://github.com/owner/repo/actions/runs/12347)
+          `````
+          
+          **Guidelines:**
+          
+          - Include **maximum 3 references** to keep reports concise
+          - Choose the most relevant or representative runs (e.g., failed runs, high-cost runs, or runs with significant findings)
+          - Always use the actual URL from the workflow run data (specifically, use the `url` field from `RunData` or the `RunURL` field from `ErrorSummary`)
+          - If analyzing more than 3 runs, select the most important ones for references
+          
+          ## Footer Attribution
+          
+          **Do NOT add footer lines** like `> AI generated by...` to your comment. The system automatically appends attribution after your content to prevent duplicates.
+          
+          # Daily Copilot PR Merged Report
+          
+          You are an AI analytics agent that generates daily reports on GitHub Copilot agent pull requests that were **merged** in the last 24 hours.
+          
+          ## Mission
+          
+          Analyze merged Copilot pull requests from the last 24 hours and generate a basic report containing:
+          - Number of merged PRs
+          - Amount of code generated (lines added)
+          - Amount of tests generated (test files modified/added)
+          - Token consumption (from workflow run usage data)
+          
+          ## Current Context
+          
+          - **Repository**: ${GH_AW_GITHUB_REPOSITORY}
+          - **Analysis Period**: Last 24 hours (merged PRs only)
+          - **Report Date**: $(date +%Y-%m-%d)
+          
+          ## Task: Generate Merged PR Report
+          
+          ### Phase 1: Find Merged Copilot PRs
+          
+          **Step 1.1: Calculate Date Range**
+          
+          Calculate the timestamp for 24 hours ago:
+          ```bash
+          # Get timestamp for 24 hours ago (compatible with both GNU and BSD date)
+          DATE_24H_AGO=$(date -d '24 hours ago' '+%Y-%m-%d' 2>/dev/null || date -v-24H '+%Y-%m-%d')
+          echo "Looking for PRs merged since: $DATE_24H_AGO"
+          ```
+          
+          **Step 1.2: Search for Merged Copilot PRs**
+          
+          Use the `gh` safe-input tool to search for merged PRs from Copilot:
+          ```
+          gh with args: "pr list --repo ${GH_AW_GITHUB_REPOSITORY} --search \"head:copilot/ is:merged merged:>=$DATE_24H_AGO\" --state merged --limit 100 --json number,title,mergedAt,additions,deletions,files,url"
+          ```
+          
+          This searches for:
+          - PRs from branches starting with `copilot/` (Copilot agent PRs)
+          - PRs that are merged
+          - PRs merged in the last 24 hours
+          - Returns: PR number, title, merge timestamp, additions, deletions, files changed, URL
+          
+          **Step 1.3: Parse Results**
+          
+          Parse the JSON output from the gh command to extract:
+          - List of PR numbers
+          - Total number of merged PRs
+          - Sum of lines added across all PRs
+          - Sum of lines deleted across all PRs
+          - List of files changed
+          
+          Save this data for further analysis.
+          
+          ### Phase 2: Analyze Each Merged PR
+          
+          For each merged PR found in Phase 1:
+          
+          **Step 2.1: Get PR Files**
+          
+          Use the `gh` tool to get detailed file information:
+          ```
+          gh with args: "pr view <PR_NUMBER> --repo ${GH_AW_GITHUB_REPOSITORY} --json files"
+          ```
+          
+          **Step 2.2: Count Test Files**
+          
+          From the files list, count how many are test files:
+          - Go test files: `*_test.go`
+          - JavaScript test files: `*.test.js`, `*.test.cjs`
+          - Count both added and modified test files
+          
+          **Step 2.3: Get Workflow Run Information**
+          
+          For token usage information, we need to find the workflow run associated with the PR:
+          
+          1. Get commits from the PR:
+             ```
+             gh with args: "pr view <PR_NUMBER> --repo ${GH_AW_GITHUB_REPOSITORY} --json commits"
+             ```
+          
+          2. For the latest commit, find associated workflow runs:
+             ```
+             gh with args: "api repos/${GH_AW_GITHUB_REPOSITORY}/commits/<COMMIT_SHA>/check-runs"
+             ```
+          
+          3. From the check runs, identify GitHub Actions workflow runs
+          
+          4. Get workflow run usage data:
+             ```
+             gh with args: "api repos/${GH_AW_GITHUB_REPOSITORY}/actions/runs/<RUN_ID>/timing"
+             ```
+          
+             This returns timing information including billable time.
+          
+          **Note on Token Usage**: 
+          - GitHub Actions API provides "billable_ms" (billable milliseconds) for workflow runs
+          - Token consumption is not directly exposed via API
+          - We can estimate based on run duration, but exact token counts are not available
+          - For this report, we'll track workflow run times as a proxy for resource consumption
+          
+          ### Phase 3: Generate Report
+          
+          Create a concise report with the following structure:
+          
+          ```markdown
+          # 🤖 Daily Copilot PR Merged Report - [DATE]
+          
+          ## Summary
+          
+          **Analysis Period**: Last 24 hours (merged PRs only)  
+          **Total Merged PRs**: [count]  
+          **Total Lines Added**: [count]  
+          **Total Lines Deleted**: [count]  
+          **Net Code Change**: [+/- count] lines
+          
+          ## Merged Pull Requests
+          
+          | PR # | Title | Lines Added | Lines Deleted | Test Files | Merged At |
+          |------|-------|-------------|---------------|------------|-----------|
+          | [#123](url) | [title] | [count] | [count] | [count] | [time] |
+          
+          ## Code Generation Metrics
+          
+          - **Production Code**: [lines added - test lines added] lines
+          - **Test Code**: [test lines added] lines
+          - **Code-to-Test Ratio**: [ratio]
+          
+          ## Test Coverage
+          
+          - **Total Test Files Modified/Added**: [count]
+          - **Test File Types**:
+            - Go tests (`*_test.go`): [count]
+            - JavaScript tests (`*.test.js`): [count]
+          
+          ## Workflow Execution
+          
+          - **Total Workflow Runs**: [count]
+          - **Total Billable Time**: [milliseconds] ms ([minutes] min)
+          - **Average Run Time**: [milliseconds] ms per PR
+          
+          **Note**: Token consumption data is not directly available via GitHub API. Workflow execution time is used as a proxy for resource usage.
+          
+          ## Insights
+          
+          [Provide 1-2 brief observations about the merged PRs, such as:]
+          - Trends in code generation volume
+          - Notable test coverage patterns
+          - Any PRs with exceptional metrics (very large, many test files, etc.)
+          
+          ---
+          
+          _Generated by Copilot PR Merged Report (Run: [${GH_AW_GITHUB_RUN_ID}](https://github.com/${GH_AW_GITHUB_REPOSITORY}/actions/runs/${GH_AW_GITHUB_RUN_ID}))_
+          ```
+          
+          ### Phase 4: Create Discussion
+          
+          Use the safe-outputs `create-discussion` functionality to publish the report:
+          - The report will be created in the "audits" category
+          - Title will be prefixed with "[copilot-pr-merged-report] "
+          - Previous reports will be automatically closed (max: 1, close-older-discussions: true)
+          
+          ## Important Guidelines
+          
+          ### Data Collection
+          - **Focus on merged PRs only**: Use `is:merged` in search queries
+          - **24-hour window**: Calculate accurate date ranges
+          - **Handle empty results**: If no PRs were merged, create a minimal report
+          - **Error handling**: Gracefully handle API failures or missing data
+          
+          ### Metrics Calculation
+          - **Lines of code**: Use `additions` and `deletions` from PR data
+          - **Test files**: Count files matching test patterns (`*_test.go`, `*.test.js`, etc.)
+          - **Workflow runs**: Link workflow runs to PRs via commit SHAs
+          - **Token estimation**: Since exact tokens aren't available, use execution time as proxy
+          
+          ### Report Quality
+          - **Be accurate**: Double-check all calculations
+          - **Be concise**: Focus on key metrics, avoid verbosity
+          - **Be informative**: Provide actionable insights
+          - **Be consistent**: Use the same format each day for comparison
+          
+          ### Edge Cases
+          
+          **No Merged PRs**:
+          If no Copilot PRs were merged in the last 24 hours:
+          ```markdown
+          # 🤖 Daily Copilot PR Merged Report - [DATE]
+          
+          No Copilot agent pull requests were merged in the last 24 hours.
+          
+          ---
+          _Generated by Copilot PR Merged Report (Run: [${GH_AW_GITHUB_RUN_ID}](...))_
+          ```
+          
+          **API Rate Limits**:
+          If you encounter rate limiting:
+          - Continue with available data
+          - Note in the report which data is incomplete
+          - Suggest running the report again later
+          
+          **Missing Workflow Data**:
+          If workflow run data is unavailable:
+          - Report the metrics you have
+          - Note that workflow execution data is unavailable
+          - Provide a report without the workflow execution section
+          
+          ## Success Criteria
+          
+          A successful report:
+          - ✅ Finds all merged Copilot PRs from last 24 hours
+          - ✅ Calculates total lines added/deleted
+          - ✅ Counts test files modified
+          - ✅ Attempts to get workflow execution data
+          - ✅ Generates a clear, concise report
+          - ✅ Creates discussion in "audits" category
+          - ✅ Completes within 10-minute timeout
+          
+          Begin your analysis now. Use the `gh` safe-input tool for all GitHub CLI operations.
           
           PROMPT_EOF
       - name: Append XPIA security instructions to prompt
@@ -1718,52 +3043,12 @@ jobs:
           </safe-outputs>
           
           PROMPT_EOF
-      - name: Append GitHub context to prompt
-        env:
-          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-          GH_AW_GITHUB_ACTOR: ${{ github.actor }}
-          GH_AW_GITHUB_EVENT_COMMENT_ID: ${{ github.event.comment.id }}
-          GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER: ${{ github.event.discussion.number }}
-          GH_AW_GITHUB_EVENT_ISSUE_NUMBER: ${{ github.event.issue.number }}
-          GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER: ${{ github.event.pull_request.number }}
-          GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
-          GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
-          GH_AW_GITHUB_WORKSPACE: ${{ github.workspace }}
-        run: |
-          cat << 'PROMPT_EOF' | envsubst >> "$GH_AW_PROMPT"
-          <github-context>
-          The following GitHub context information is available for this workflow:
-          {{#if ${GH_AW_GITHUB_ACTOR} }}
-          - **actor**: ${GH_AW_GITHUB_ACTOR}
-          {{/if}}
-          {{#if ${GH_AW_GITHUB_REPOSITORY} }}
-          - **repository**: ${GH_AW_GITHUB_REPOSITORY}
-          {{/if}}
-          {{#if ${GH_AW_GITHUB_WORKSPACE} }}
-          - **workspace**: ${GH_AW_GITHUB_WORKSPACE}
-          {{/if}}
-          {{#if ${GH_AW_GITHUB_EVENT_ISSUE_NUMBER} }}
-          - **issue-number**: #${GH_AW_GITHUB_EVENT_ISSUE_NUMBER}
-          {{/if}}
-          {{#if ${GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER} }}
-          - **discussion-number**: #${GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER}
-          {{/if}}
-          {{#if ${GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER} }}
-          - **pull-request-number**: #${GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER}
-          {{/if}}
-          {{#if ${GH_AW_GITHUB_EVENT_COMMENT_ID} }}
-          - **comment-id**: ${GH_AW_GITHUB_EVENT_COMMENT_ID}
-          {{/if}}
-          {{#if ${GH_AW_GITHUB_RUN_ID} }}
-          - **workflow-run-id**: ${GH_AW_GITHUB_RUN_ID}
-          {{/if}}
-          </github-context>
-          
-          PROMPT_EOF
       - name: Interpolate variables and render templates
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+          GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
+          GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
         with:
           script: |
             const fs = require("fs");
@@ -1865,230 +3150,42 @@ jobs:
       - name: Execute GitHub Copilot CLI
         id: agentic_execution
         # Copilot CLI tool arguments (sorted):
-        # --allow-tool github
+        # --allow-tool safeinputs
         # --allow-tool safeoutputs
+        # --allow-tool shell(awk *)
         # --allow-tool shell(cat)
+        # --allow-tool shell(date *)
         # --allow-tool shell(date)
         # --allow-tool shell(echo)
+        # --allow-tool shell(find *)
+        # --allow-tool shell(gh api *)
+        # --allow-tool shell(gh pr *)
+        # --allow-tool shell(grep *)
         # --allow-tool shell(grep)
         # --allow-tool shell(head)
+        # --allow-tool shell(jq *)
         # --allow-tool shell(ls)
         # --allow-tool shell(pwd)
         # --allow-tool shell(sort)
         # --allow-tool shell(tail)
         # --allow-tool shell(uniq)
+        # --allow-tool shell(wc *)
         # --allow-tool shell(wc)
         # --allow-tool shell(yq)
-        timeout-minutes: 5
+        timeout-minutes: 10
         run: |
           set -o pipefail
-
-          # Pre-create required directories for Sandbox Runtime
-          mkdir -p /home/runner/.copilot
-          mkdir -p /tmp/claude
-
-          # Create .srt-settings.json
-          cat > .srt-settings.json << 'SRT_CONFIG_EOF'
-          {
-            "network": {
-              "allowedDomains": [
-                "*.githubcopilot.com",
-                "*.githubusercontent.com",
-                "api.enterprise.githubcopilot.com",
-                "api.github.com",
-                "api.npms.io",
-                "api.snapcraft.io",
-                "archive.ubuntu.com",
-                "azure.archive.ubuntu.com",
-                "bun.sh",
-                "codeload.github.com",
-                "crl.geotrust.com",
-                "crl.globalsign.com",
-                "crl.identrust.com",
-                "crl.sectigo.com",
-                "crl.thawte.com",
-                "crl.usertrust.com",
-                "crl.verisign.com",
-                "crl3.digicert.com",
-                "crl4.digicert.com",
-                "crls.ssl.com",
-                "deb.nodesource.com",
-                "deno.land",
-                "example.com",
-                "get.pnpm.io",
-                "github-cloud.githubusercontent.com",
-                "github-cloud.s3.amazonaws.com",
-                "github.com",
-                "json-schema.org",
-                "json.schemastore.org",
-                "keyserver.ubuntu.com",
-                "lfs.github.com",
-                "nodejs.org",
-                "npm.pkg.github.com",
-                "npmjs.com",
-                "npmjs.org",
-                "objects.githubusercontent.com",
-                "ocsp.digicert.com",
-                "ocsp.geotrust.com",
-                "ocsp.globalsign.com",
-                "ocsp.identrust.com",
-                "ocsp.sectigo.com",
-                "ocsp.ssl.com",
-                "ocsp.thawte.com",
-                "ocsp.usertrust.com",
-                "ocsp.verisign.com",
-                "packagecloud.io",
-                "packages.cloud.google.com",
-                "packages.microsoft.com",
-                "ppa.launchpad.net",
-                "raw.githubusercontent.com",
-                "registry.bower.io",
-                "registry.npmjs.com",
-                "registry.npmjs.org",
-                "registry.yarnpkg.com",
-                "repo.yarnpkg.com",
-                "s.symcb.com",
-                "s.symcd.com",
-                "security.ubuntu.com",
-                "skimdb.npmjs.com",
-                "ts-crl.ws.symantec.com",
-                "ts-ocsp.ws.symantec.com",
-                "www.npmjs.com",
-                "www.npmjs.org",
-                "yarnpkg.com"
-              ],
-              "deniedDomains": [],
-              "allowUnixSockets": [
-                "/var/run/docker.sock"
-              ],
-              "allowLocalBinding": false,
-              "allowAllUnixSockets": true
-            },
-            "filesystem": {
-              "denyRead": [],
-              "allowWrite": [
-                ".",
-                "/tmp",
-                "/home/runner/.copilot",
-                "/home/runner"
-              ],
-              "denyWrite": []
-            },
-            "enableWeakerNestedSandbox": true
-          }
-          SRT_CONFIG_EOF
-
-          # Create Node.js wrapper script for SRT
-          cat > ./.srt-wrapper.js << 'SRT_WRAPPER_EOF'
-          const { SandboxManager } = require('@anthropic-ai/sandbox-runtime');
-          const { spawn } = require('child_process');
-          const { readFileSync } = require('fs');
-
-          async function main() {
-            try {
-              // Load the sandbox configuration from .srt-settings.json
-              const configData = readFileSync('.srt-settings.json', 'utf-8');
-              const config = JSON.parse(configData);
-
-              // Initialize the sandbox (starts proxy servers, etc.)
-              await SandboxManager.initialize(config);
-
-              // Collect required environment variables for the sandboxed process
-              // These need to be explicitly passed because bwrap doesn't inherit env vars
-              // NOTE: Do NOT include GITHUB_TOKEN or GH_TOKEN here - they conflict with
-              // COPILOT_GITHUB_TOKEN. The Copilot CLI checks these tokens and if it finds
-              // the GitHub Actions default GITHUB_TOKEN (which is not valid for Copilot auth),
-              // it will fail with "No authentication information found" even when
-              // COPILOT_GITHUB_TOKEN is correctly set.
-              const requiredEnvVars = [
-                'COPILOT_GITHUB_TOKEN',
-                'COPILOT_AGENT_RUNNER_TYPE',
-                'XDG_CONFIG_HOME',
-                'GITHUB_STEP_SUMMARY',
-                'GITHUB_HEAD_REF',
-                'GITHUB_REF_NAME',
-                'GITHUB_WORKSPACE',
-                'GH_AW_PROMPT',
-                'GH_AW_MCP_CONFIG',
-                'GITHUB_MCP_SERVER_TOKEN',
-                'GH_AW_SAFE_OUTPUTS',
-                'GH_AW_STARTUP_TIMEOUT',
-                'GH_AW_TOOL_TIMEOUT',
-                'GH_AW_MAX_TURNS',
-              ];
-
-              // Build environment variable export statements for the command
-              // Use 'export' with semicolon to ensure variables propagate through nested bash invocations
-              const envPrefix = requiredEnvVars
-                .filter(key => process.env[key] !== undefined)
-                .map(key => {
-                  const value = process.env[key].replace(/'/g, "'\\''"); // Escape single quotes for shell
-                  return "export " + key + "='" + value + "';";
-                })
-                .join(' ');
-
-              // The command to run
-              const baseCommand = 'node ./node_modules/.bin/copilot --add-dir /tmp/gh-aw/ --log-level all --log-dir /tmp/gh-aw/sandbox/agent/logs/ --add-dir "${GITHUB_WORKSPACE}" --disable-builtin-mcps --allow-tool github --allow-tool safeoutputs --allow-tool \'shell(cat)\' --allow-tool \'shell(date)\' --allow-tool \'shell(echo)\' --allow-tool \'shell(grep)\' --allow-tool \'shell(head)\' --allow-tool \'shell(ls)\' --allow-tool \'shell(pwd)\' --allow-tool \'shell(sort)\' --allow-tool \'shell(tail)\' --allow-tool \'shell(uniq)\' --allow-tool \'shell(wc)\' --allow-tool \'shell(yq)\' --prompt "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"';
-
-              // Prepend environment variables to the command
-              const command = envPrefix ? envPrefix + ' ' + baseCommand : baseCommand;
-
-              // Wrap the command with sandbox restrictions
-              const sandboxedCommand = await SandboxManager.wrapWithSandbox(command);
-
-              // Execute the sandboxed command
-              const child = spawn(sandboxedCommand, {
-                shell: true,
-                stdio: 'inherit',
-                env: process.env
-              });
-
-              // Handle exit
-              child.on('exit', async (code) => {
-                // Cleanup when done
-                await SandboxManager.reset();
-                process.exit(code || 0);
-              });
-
-              // Handle errors
-              child.on('error', async (err) => {
-                console.error('Error executing command:', err);
-                await SandboxManager.reset();
-                process.exit(1);
-              });
-            } catch (err) {
-              console.error('Fatal error:', err);
-              try {
-                await SandboxManager.reset();
-              } catch (cleanupErr) {
-                console.error('Error during cleanup:', cleanupErr);
-              }
-              process.exit(1);
-            }
-          }
-
-          main();
-          SRT_WRAPPER_EOF
-
-          # Run the Node.js wrapper script
-          node ./.srt-wrapper.js 2>&1 | tee /tmp/gh-aw/agent-stdio.log
-
-          # Move preserved Copilot logs to expected location
-          COPILOT_LOGS_DIR="$(find /tmp -maxdepth 1 -type d -name 'copilot-logs-*' -print0 2>/dev/null | xargs -0 -r ls -td 2>/dev/null | head -1)"
-          if [ -n "$COPILOT_LOGS_DIR" ] && [ -d "$COPILOT_LOGS_DIR" ]; then
-            echo "Moving Copilot logs from $COPILOT_LOGS_DIR to /tmp/gh-aw/sandbox/agent/logs/"
-            mkdir -p /tmp/gh-aw/sandbox/agent/logs/
-            mv "$COPILOT_LOGS_DIR"/* /tmp/gh-aw/sandbox/agent/logs/ || true
-            rmdir "$COPILOT_LOGS_DIR" || true
-          fi
+          sudo -E awf --env-all --container-workdir "${GITHUB_WORKSPACE}" --mount /tmp:/tmp:rw --mount "${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:rw" --mount "${GITHUB_WORKSPACE}/.github:/workspace/.github:rw" --allow-domains api.enterprise.githubcopilot.com,api.github.com,github.com,raw.githubusercontent.com,registry.npmjs.org --log-level info --proxy-logs-dir /tmp/gh-aw/sandbox/firewall/logs \
+            -- npx -y @github/copilot@0.0.366 --add-dir /tmp/gh-aw/ --log-level all --log-dir /tmp/gh-aw/sandbox/agent/logs/ --add-dir "${GITHUB_WORKSPACE}" --disable-builtin-mcps --allow-tool safeinputs --allow-tool safeoutputs --allow-tool 'shell(awk *)' --allow-tool 'shell(cat)' --allow-tool 'shell(date *)' --allow-tool 'shell(date)' --allow-tool 'shell(echo)' --allow-tool 'shell(find *)' --allow-tool 'shell(gh api *)' --allow-tool 'shell(gh pr *)' --allow-tool 'shell(grep *)' --allow-tool 'shell(grep)' --allow-tool 'shell(head)' --allow-tool 'shell(jq *)' --allow-tool 'shell(ls)' --allow-tool 'shell(pwd)' --allow-tool 'shell(sort)' --allow-tool 'shell(tail)' --allow-tool 'shell(uniq)' --allow-tool 'shell(wc *)' --allow-tool 'shell(wc)' --allow-tool 'shell(yq)' --prompt "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)" \
+            2>&1 | tee /tmp/gh-aw/agent-stdio.log
         env:
           COPILOT_AGENT_RUNNER_TYPE: STANDALONE
           COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN || secrets.COPILOT_CLI_TOKEN  }}
           GH_AW_MCP_CONFIG: /home/runner/.copilot/mcp-config.json
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
+          GH_TOKEN: ${{ github.token }}
           GITHUB_HEAD_REF: ${{ github.head_ref }}
-          GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           GITHUB_REF_NAME: ${{ github.ref_name }}
           GITHUB_STEP_SUMMARY: ${{ env.GITHUB_STEP_SUMMARY }}
           GITHUB_WORKSPACE: ${{ github.workspace }}
@@ -2221,7 +3318,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
-          GH_AW_ALLOWED_DOMAINS: "*.githubcopilot.com,*.githubusercontent.com,api.enterprise.githubcopilot.com,api.github.com,api.npms.io,api.snapcraft.io,archive.ubuntu.com,azure.archive.ubuntu.com,bun.sh,codeload.github.com,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,deb.nodesource.com,deno.land,example.com,get.pnpm.io,github-cloud.githubusercontent.com,github-cloud.s3.amazonaws.com,github.com,json-schema.org,json.schemastore.org,keyserver.ubuntu.com,lfs.github.com,nodejs.org,npm.pkg.github.com,npmjs.com,npmjs.org,objects.githubusercontent.com,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,ppa.launchpad.net,raw.githubusercontent.com,registry.bower.io,registry.npmjs.com,registry.npmjs.org,registry.yarnpkg.com,repo.yarnpkg.com,s.symcb.com,s.symcd.com,security.ubuntu.com,skimdb.npmjs.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com,www.npmjs.com,www.npmjs.org,yarnpkg.com"
+          GH_AW_ALLOWED_DOMAINS: "api.enterprise.githubcopilot.com,api.github.com,github.com,raw.githubusercontent.com,registry.npmjs.org"
           GITHUB_SERVER_URL: ${{ github.server_url }}
           GITHUB_API_URL: ${{ github.api_url }}
         with:
@@ -4427,6 +5524,322 @@ jobs:
               };
             }
             main();
+      - name: Upload Firewall Logs
+        if: always()
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
+        with:
+          name: firewall-logs-daily-copilot-pr-merged-report
+          path: /tmp/gh-aw/sandbox/firewall/logs/
+          if-no-files-found: ignore
+      - name: Parse firewall logs for step summary
+        if: always()
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        with:
+          script: |
+            function sanitizeWorkflowName(name) {
+
+              return name
+
+                .toLowerCase()
+
+                .replace(/[:\\/\s]/g, "-")
+
+                .replace(/[^a-z0-9._-]/g, "-");
+
+            }
+
+            function main() {
+
+              const fs = require("fs");
+
+              const path = require("path");
+
+              try {
+
+                const workflowName = process.env.GITHUB_WORKFLOW || "workflow";
+
+                const sanitizedName = sanitizeWorkflowName(workflowName);
+
+                const squidLogsDir = `/tmp/gh-aw/squid-logs-${sanitizedName}/`;
+
+                if (!fs.existsSync(squidLogsDir)) {
+
+                  core.info(`No firewall logs directory found at: ${squidLogsDir}`);
+
+                  return;
+
+                }
+
+                const files = fs.readdirSync(squidLogsDir).filter(file => file.endsWith(".log"));
+
+                if (files.length === 0) {
+
+                  core.info(`No firewall log files found in: ${squidLogsDir}`);
+
+                  return;
+
+                }
+
+                core.info(`Found ${files.length} firewall log file(s)`);
+
+                let totalRequests = 0;
+
+                let allowedRequests = 0;
+
+                let deniedRequests = 0;
+
+                const allowedDomains = new Set();
+
+                const deniedDomains = new Set();
+
+                const requestsByDomain = new Map();
+
+                for (const file of files) {
+
+                  const filePath = path.join(squidLogsDir, file);
+
+                  core.info(`Parsing firewall log: ${file}`);
+
+                  const content = fs.readFileSync(filePath, "utf8");
+
+                  const lines = content.split("\n").filter(line => line.trim());
+
+                  for (const line of lines) {
+
+                    const entry = parseFirewallLogLine(line);
+
+                    if (!entry) {
+
+                      continue;
+
+                    }
+
+                    totalRequests++;
+
+                    const isAllowed = isRequestAllowed(entry.decision, entry.status);
+
+                    if (isAllowed) {
+
+                      allowedRequests++;
+
+                      allowedDomains.add(entry.domain);
+
+                    } else {
+
+                      deniedRequests++;
+
+                      deniedDomains.add(entry.domain);
+
+                    }
+
+                    if (!requestsByDomain.has(entry.domain)) {
+
+                      requestsByDomain.set(entry.domain, { allowed: 0, denied: 0 });
+
+                    }
+
+                    const domainStats = requestsByDomain.get(entry.domain);
+
+                    if (isAllowed) {
+
+                      domainStats.allowed++;
+
+                    } else {
+
+                      domainStats.denied++;
+
+                    }
+
+                  }
+
+                }
+
+                const summary = generateFirewallSummary({
+
+                  totalRequests,
+
+                  allowedRequests,
+
+                  deniedRequests,
+
+                  allowedDomains: Array.from(allowedDomains).sort(),
+
+                  deniedDomains: Array.from(deniedDomains).sort(),
+
+                  requestsByDomain,
+
+                });
+
+                core.summary.addRaw(summary).write();
+
+                core.info("Firewall log summary generated successfully");
+
+              } catch (error) {
+
+                core.setFailed(error instanceof Error ? error : String(error));
+
+              }
+
+            }
+
+            function parseFirewallLogLine(line) {
+
+              const trimmed = line.trim();
+
+              if (!trimmed || trimmed.startsWith("#")) {
+
+                return null;
+
+              }
+
+              const fields = trimmed.match(/(?:[^\s"]+|"[^"]*")+/g);
+
+              if (!fields || fields.length < 10) {
+
+                return null;
+
+              }
+
+              const timestamp = fields[0];
+
+              if (!/^\d+(\.\d+)?$/.test(timestamp)) {
+
+                return null;
+
+              }
+
+              return {
+
+                timestamp,
+
+                clientIpPort: fields[1],
+
+                domain: fields[2],
+
+                destIpPort: fields[3],
+
+                proto: fields[4],
+
+                method: fields[5],
+
+                status: fields[6],
+
+                decision: fields[7],
+
+                url: fields[8],
+
+                userAgent: fields[9]?.replace(/^"|"$/g, "") || "-",
+
+              };
+
+            }
+
+            function isRequestAllowed(decision, status) {
+
+              const statusCode = parseInt(status, 10);
+
+              if (statusCode === 200 || statusCode === 206 || statusCode === 304) {
+
+                return true;
+
+              }
+
+              if (decision.includes("TCP_TUNNEL") || decision.includes("TCP_HIT") || decision.includes("TCP_MISS")) {
+
+                return true;
+
+              }
+
+              if (decision.includes("NONE_NONE") || decision.includes("TCP_DENIED") || statusCode === 403 || statusCode === 407) {
+
+                return false;
+
+              }
+
+              return false;
+
+            }
+
+            function generateFirewallSummary(analysis) {
+
+              const { totalRequests, deniedRequests, deniedDomains, requestsByDomain } = analysis;
+
+              let summary = "### 🔥 Firewall Blocked Requests\n\n";
+
+              const validDeniedDomains = deniedDomains.filter(domain => domain !== "-");
+
+              const validDeniedRequests = validDeniedDomains.reduce((sum, domain) => sum + (requestsByDomain.get(domain)?.denied || 0), 0);
+
+              if (validDeniedRequests > 0) {
+
+                summary += `**${validDeniedRequests}** request${validDeniedRequests !== 1 ? "s" : ""} blocked across **${validDeniedDomains.length}** unique domain${validDeniedDomains.length !== 1 ? "s" : ""}`;
+
+                summary += ` (${totalRequests > 0 ? Math.round((validDeniedRequests / totalRequests) * 100) : 0}% of total traffic)\n\n`;
+
+                summary += "<details>\n";
+
+                summary += "<summary>🚫 Blocked Domains (click to expand)</summary>\n\n";
+
+                summary += "| Domain | Blocked Requests |\n";
+
+                summary += "|--------|------------------|\n";
+
+                for (const domain of validDeniedDomains) {
+
+                  const stats = requestsByDomain.get(domain);
+
+                  summary += `| ${domain} | ${stats.denied} |\n`;
+
+                }
+
+                summary += "\n</details>\n\n";
+
+              } else {
+
+                summary += "✅ **No blocked requests detected**\n\n";
+
+                if (totalRequests > 0) {
+
+                  summary += `All ${totalRequests} request${totalRequests !== 1 ? "s" : ""} were allowed through the firewall.\n\n`;
+
+                } else {
+
+                  summary += "No firewall activity detected.\n\n";
+
+                }
+
+              }
+
+              return summary;
+
+            }
+
+            if (typeof module !== "undefined" && module.exports) {
+
+              module.exports = {
+
+                parseFirewallLogLine,
+
+                isRequestAllowed,
+
+                generateFirewallSummary,
+
+                main,
+
+              };
+
+            }
+
+            const isDirectExecution =
+
+              typeof module === "undefined" || (typeof require !== "undefined" && typeof require.main !== "undefined" && require.main === module);
+
+            if (isDirectExecution) {
+
+              main();
+
+            }
+
       - name: Upload Agent Stdio
         if: always()
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
@@ -4591,9 +6004,7 @@ jobs:
                     }
                     const level = extractLevel(match, pattern);
                     const message = extractMessage(match, pattern, line);
-                    const errorMessage = `Line ${lineIndex + 1}: ${message} (Pattern: ${
-                      pattern.description || "Unknown pattern"
-                    }, Raw log: ${truncateString(line.trim(), 120)})`;
+                    const errorMessage = `Line ${lineIndex + 1}: ${message} (Pattern: ${pattern.description || "Unknown pattern"}, Raw log: ${truncateString(line.trim(), 120)})`;
                     if (level.toLowerCase() === "error") {
                       core.error(errorMessage);
                       hasErrors = true;
@@ -4676,6 +6087,7 @@ jobs:
     needs:
       - agent
       - activation
+      - create_discussion
     if: (always()) && (needs.agent.result != 'skipped')
     runs-on: ubuntu-slim
     permissions:
@@ -4716,7 +6128,7 @@ jobs:
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_NOOP_MAX: 1
-          GH_AW_WORKFLOW_NAME: "Smoke SRT"
+          GH_AW_WORKFLOW_NAME: "Daily Copilot PR Merged Report"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -4808,7 +6220,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_WORKFLOW_NAME: "Smoke SRT"
+          GH_AW_WORKFLOW_NAME: "Daily Copilot PR Merged Report"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -4921,9 +6333,8 @@ jobs:
           GH_AW_COMMENT_ID: ${{ needs.activation.outputs.comment_id }}
           GH_AW_COMMENT_REPO: ${{ needs.activation.outputs.comment_repo }}
           GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          GH_AW_WORKFLOW_NAME: "Smoke SRT"
+          GH_AW_WORKFLOW_NAME: "Daily Copilot PR Merged Report"
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
-          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e ⚓ *Logged in the captain's journal by [{workflow_name}]({run_url})*\",\"runStarted\":\"⚓ Ahoy! [{workflow_name}]({run_url}) sets sail on this {event_type}! All hands on deck, me hearties! 🏴\u200d☠️\",\"runSuccess\":\"🏴\u200d☠️ Yo ho ho! [{workflow_name}]({run_url}) has claimed the treasure! The voyage be a SUCCESS! ⚓\",\"runFailure\":\"🏴\u200d☠️ Blimey! [{workflow_name}]({run_url}) {status}! We've hit rough waters, mateys...\"}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -5141,11 +6552,708 @@ jobs:
               core.setFailed(error instanceof Error ? error.message : String(error));
             });
 
+  create_discussion:
+    needs:
+      - agent
+      - detection
+    if: >
+      (((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'create_discussion'))) &&
+      (needs.detection.outputs.success == 'true')
+    runs-on: ubuntu-slim
+    permissions:
+      contents: read
+      discussions: write
+    timeout-minutes: 10
+    outputs:
+      discussion_number: ${{ steps.create_discussion.outputs.discussion_number }}
+      discussion_url: ${{ steps.create_discussion.outputs.discussion_url }}
+    steps:
+      - name: Download agent output artifact
+        continue-on-error: true
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
+        with:
+          name: agent_output.json
+          path: /tmp/gh-aw/safeoutputs/
+      - name: Setup agent output environment variable
+        run: |
+          mkdir -p /tmp/gh-aw/safeoutputs/
+          find "/tmp/gh-aw/safeoutputs/" -type f -print
+          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> "$GITHUB_ENV"
+      - name: Create Output Discussion
+        id: create_discussion
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        env:
+          GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
+          GH_AW_DISCUSSION_TITLE_PREFIX: "[copilot-pr-merged-report] "
+          GH_AW_DISCUSSION_CATEGORY: "audits"
+          GH_AW_CLOSE_OLDER_DISCUSSIONS: "true"
+          GH_AW_WORKFLOW_NAME: "Daily Copilot PR Merged Report"
+          GH_AW_ENGINE_ID: "copilot"
+        with:
+          github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require("fs");
+            const MAX_LOG_CONTENT_LENGTH = 10000;
+            function truncateForLogging(content) {
+              if (content.length <= MAX_LOG_CONTENT_LENGTH) {
+                return content;
+              }
+              return content.substring(0, MAX_LOG_CONTENT_LENGTH) + `\n... (truncated, total length: ${content.length})`;
+            }
+            function loadAgentOutput() {
+              const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT;
+              if (!agentOutputFile) {
+                core.info("No GH_AW_AGENT_OUTPUT environment variable found");
+                return { success: false };
+              }
+              let outputContent;
+              try {
+                outputContent = fs.readFileSync(agentOutputFile, "utf8");
+              } catch (error) {
+                const errorMessage = `Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`;
+                core.error(errorMessage);
+                return { success: false, error: errorMessage };
+              }
+              if (outputContent.trim() === "") {
+                core.info("Agent output content is empty");
+                return { success: false };
+              }
+              core.info(`Agent output content length: ${outputContent.length}`);
+              let validatedOutput;
+              try {
+                validatedOutput = JSON.parse(outputContent);
+              } catch (error) {
+                const errorMessage = `Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`;
+                core.error(errorMessage);
+                core.info(`Failed to parse content:\n${truncateForLogging(outputContent)}`);
+                return { success: false, error: errorMessage };
+              }
+              if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
+                core.info("No valid items found in agent output");
+                core.info(`Parsed content: ${truncateForLogging(JSON.stringify(validatedOutput))}`);
+                return { success: false };
+              }
+              return { success: true, items: validatedOutput.items };
+            }
+            function getTrackerID(format) {
+              const trackerID = process.env.GH_AW_TRACKER_ID || "";
+              if (trackerID) {
+                core.info(`Tracker ID: ${trackerID}`);
+                return format === "markdown" ? `\n\n<!-- tracker-id: ${trackerID} -->` : trackerID;
+              }
+              return "";
+            }
+            function getMessages() {
+              const messagesEnv = process.env.GH_AW_SAFE_OUTPUT_MESSAGES;
+              if (!messagesEnv) {
+                return null;
+              }
+              try {
+                const rawMessages = JSON.parse(messagesEnv);
+                return {
+                  footer: rawMessages.footer,
+                  footerInstall: rawMessages.footerInstall,
+                  stagedTitle: rawMessages.stagedTitle,
+                  stagedDescription: rawMessages.stagedDescription,
+                  runStarted: rawMessages.runStarted,
+                  runSuccess: rawMessages.runSuccess,
+                  runFailure: rawMessages.runFailure,
+                  closeOlderDiscussion: rawMessages.closeOlderDiscussion,
+                };
+              } catch (error) {
+                core.warning(`Failed to parse GH_AW_SAFE_OUTPUT_MESSAGES: ${error instanceof Error ? error.message : String(error)}`);
+                return null;
+              }
+            }
+            function renderTemplate(template, context) {
+              return template.replace(/\{(\w+)\}/g, (match, key) => {
+                const value = context[key];
+                return value !== undefined && value !== null ? String(value) : match;
+              });
+            }
+            function toSnakeCase(obj) {
+              const result = {};
+              for (const [key, value] of Object.entries(obj)) {
+                const snakeKey = key.replace(/([A-Z])/g, "_$1").toLowerCase();
+                result[snakeKey] = value;
+                result[key] = value;
+              }
+              return result;
+            }
+            function getCloseOlderDiscussionMessage(ctx) {
+              const messages = getMessages();
+              const templateContext = toSnakeCase(ctx);
+              const defaultMessage = `⚓ Avast! This discussion be marked as **outdated** by [{workflow_name}]({run_url}).
+            🗺️ A newer treasure map awaits ye at **[Discussion #{new_discussion_number}]({new_discussion_url})**.
+            Fair winds, matey! 🏴‍☠️`;
+              return messages?.closeOlderDiscussion
+                ? renderTemplate(messages.closeOlderDiscussion, templateContext)
+                : renderTemplate(defaultMessage, templateContext);
+            }
+            const MAX_CLOSE_COUNT = 10;
+            const GRAPHQL_DELAY_MS = 500;
+            function delay(ms) {
+              return new Promise(resolve => setTimeout(resolve, ms));
+            }
+            async function searchOlderDiscussions(github, owner, repo, titlePrefix, labels, categoryId, excludeNumber) {
+              let searchQuery = `repo:${owner}/${repo} is:open`;
+              if (titlePrefix) {
+                const escapedPrefix = titlePrefix.replace(/"/g, '\\"');
+                searchQuery += ` in:title "${escapedPrefix}"`;
+              }
+              if (labels && labels.length > 0) {
+                for (const label of labels) {
+                  const escapedLabel = label.replace(/"/g, '\\"');
+                  searchQuery += ` label:"${escapedLabel}"`;
+                }
+              }
+              const result = await github.graphql(
+                `
+                query($searchTerms: String!, $first: Int!) {
+                  search(query: $searchTerms, type: DISCUSSION, first: $first) {
+                    nodes {
+                      ... on Discussion {
+                        id
+                        number
+                        title
+                        url
+                        category {
+                          id
+                        }
+                        labels(first: 100) {
+                          nodes {
+                            name
+                          }
+                        }
+                        closed
+                      }
+                    }
+                  }
+                }`,
+                { searchTerms: searchQuery, first: 50 }
+              );
+              if (!result || !result.search || !result.search.nodes) {
+                return [];
+              }
+              return result.search.nodes
+                .filter(
+                   d => {
+                    if (!d || d.number === excludeNumber || d.closed) {
+                      return false;
+                    }
+                    if (titlePrefix && d.title && !d.title.startsWith(titlePrefix)) {
+                      return false;
+                    }
+                    if (labels && labels.length > 0) {
+                      const discussionLabels = d.labels?.nodes?.map(( l) => l.name) || [];
+                      const hasAllLabels = labels.every(label => discussionLabels.includes(label));
+                      if (!hasAllLabels) {
+                        return false;
+                      }
+                    }
+                    if (categoryId && (!d.category || d.category.id !== categoryId)) {
+                      return false;
+                    }
+                    return true;
+                  }
+                )
+                .map(
+                   d => ({
+                    id: d.id,
+                    number: d.number,
+                    title: d.title,
+                    url: d.url,
+                  })
+                );
+            }
+            async function addDiscussionComment(github, discussionId, message) {
+              const result = await github.graphql(
+                `
+                mutation($dId: ID!, $body: String!) {
+                  addDiscussionComment(input: { discussionId: $dId, body: $body }) {
+                    comment { 
+                      id 
+                      url
+                    }
+                  }
+                }`,
+                { dId: discussionId, body: message }
+              );
+              return result.addDiscussionComment.comment;
+            }
+            async function closeDiscussionAsOutdated(github, discussionId) {
+              const result = await github.graphql(
+                `
+                mutation($dId: ID!) {
+                  closeDiscussion(input: { discussionId: $dId, reason: OUTDATED }) {
+                    discussion { 
+                      id
+                      url
+                    }
+                  }
+                }`,
+                { dId: discussionId }
+              );
+              return result.closeDiscussion.discussion;
+            }
+            async function closeOlderDiscussions(github, owner, repo, titlePrefix, labels, categoryId, newDiscussion, workflowName, runUrl) {
+              const searchCriteria = [];
+              if (titlePrefix) searchCriteria.push(`title prefix: "${titlePrefix}"`);
+              if (labels && labels.length > 0) searchCriteria.push(`labels: [${labels.join(", ")}]`);
+              core.info(`Searching for older discussions with ${searchCriteria.join(" and ")}`);
+              const olderDiscussions = await searchOlderDiscussions(github, owner, repo, titlePrefix, labels, categoryId, newDiscussion.number);
+              if (olderDiscussions.length === 0) {
+                core.info("No older discussions found to close");
+                return [];
+              }
+              core.info(`Found ${olderDiscussions.length} older discussion(s) to close`);
+              const discussionsToClose = olderDiscussions.slice(0, MAX_CLOSE_COUNT);
+              if (olderDiscussions.length > MAX_CLOSE_COUNT) {
+                core.warning(`Found ${olderDiscussions.length} older discussions, but only closing the first ${MAX_CLOSE_COUNT}`);
+              }
+              const closedDiscussions = [];
+              for (let i = 0; i < discussionsToClose.length; i++) {
+                const discussion = discussionsToClose[i];
+                try {
+                  const closingMessage = getCloseOlderDiscussionMessage({
+                    newDiscussionUrl: newDiscussion.url,
+                    newDiscussionNumber: newDiscussion.number,
+                    workflowName,
+                    runUrl,
+                  });
+                  core.info(`Adding closing comment to discussion #${discussion.number}`);
+                  await addDiscussionComment(github, discussion.id, closingMessage);
+                  core.info(`Closing discussion #${discussion.number} as outdated`);
+                  await closeDiscussionAsOutdated(github, discussion.id);
+                  closedDiscussions.push({
+                    number: discussion.number,
+                    url: discussion.url,
+                  });
+                  core.info(`✓ Closed discussion #${discussion.number}: ${discussion.url}`);
+                } catch (error) {
+                  core.error(`✗ Failed to close discussion #${discussion.number}: ${error instanceof Error ? error.message : String(error)}`);
+                }
+                if (i < discussionsToClose.length - 1) {
+                  await delay(GRAPHQL_DELAY_MS);
+                }
+              }
+              return closedDiscussions;
+            }
+            const crypto = require("crypto");
+            const TEMPORARY_ID_PATTERN = /#(aw_[0-9a-f]{12})/gi;
+            function generateTemporaryId() {
+              return "aw_" + crypto.randomBytes(6).toString("hex");
+            }
+            function isTemporaryId(value) {
+              if (typeof value === "string") {
+                return /^aw_[0-9a-f]{12}$/i.test(value);
+              }
+              return false;
+            }
+            function normalizeTemporaryId(tempId) {
+              return String(tempId).toLowerCase();
+            }
+            function replaceTemporaryIdReferences(text, tempIdMap, currentRepo) {
+              return text.replace(TEMPORARY_ID_PATTERN, (match, tempId) => {
+                const resolved = tempIdMap.get(normalizeTemporaryId(tempId));
+                if (resolved !== undefined) {
+                  if (currentRepo && resolved.repo === currentRepo) {
+                    return `#${resolved.number}`;
+                  }
+                  return `${resolved.repo}#${resolved.number}`;
+                }
+                return match;
+              });
+            }
+            function replaceTemporaryIdReferencesLegacy(text, tempIdMap) {
+              return text.replace(TEMPORARY_ID_PATTERN, (match, tempId) => {
+                const issueNumber = tempIdMap.get(normalizeTemporaryId(tempId));
+                if (issueNumber !== undefined) {
+                  return `#${issueNumber}`;
+                }
+                return match;
+              });
+            }
+            function loadTemporaryIdMap() {
+              const mapJson = process.env.GH_AW_TEMPORARY_ID_MAP;
+              if (!mapJson || mapJson === "{}") {
+                return new Map();
+              }
+              try {
+                const mapObject = JSON.parse(mapJson);
+                const result = new Map();
+                for (const [key, value] of Object.entries(mapObject)) {
+                  const normalizedKey = normalizeTemporaryId(key);
+                  if (typeof value === "number") {
+                    const contextRepo = `${context.repo.owner}/${context.repo.repo}`;
+                    result.set(normalizedKey, { repo: contextRepo, number: value });
+                  } else if (typeof value === "object" && value !== null && "repo" in value && "number" in value) {
+                    result.set(normalizedKey, { repo: String(value.repo), number: Number(value.number) });
+                  }
+                }
+                return result;
+              } catch (error) {
+                if (typeof core !== "undefined") {
+                  core.warning(`Failed to parse temporary ID map: ${error instanceof Error ? error.message : String(error)}`);
+                }
+                return new Map();
+              }
+            }
+            function resolveIssueNumber(value, temporaryIdMap) {
+              if (value === undefined || value === null) {
+                return { resolved: null, wasTemporaryId: false, errorMessage: "Issue number is missing" };
+              }
+              const valueStr = String(value);
+              if (isTemporaryId(valueStr)) {
+                const resolvedPair = temporaryIdMap.get(normalizeTemporaryId(valueStr));
+                if (resolvedPair !== undefined) {
+                  return { resolved: resolvedPair, wasTemporaryId: true, errorMessage: null };
+                }
+                return {
+                  resolved: null,
+                  wasTemporaryId: true,
+                  errorMessage: `Temporary ID '${valueStr}' not found in map. Ensure the issue was created before linking.`,
+                };
+              }
+              const issueNumber = typeof value === "number" ? value : parseInt(valueStr, 10);
+              if (isNaN(issueNumber) || issueNumber <= 0) {
+                return { resolved: null, wasTemporaryId: false, errorMessage: `Invalid issue number: ${value}` };
+              }
+              const contextRepo = typeof context !== "undefined" ? `${context.repo.owner}/${context.repo.repo}` : "";
+              return { resolved: { repo: contextRepo, number: issueNumber }, wasTemporaryId: false, errorMessage: null };
+            }
+            function serializeTemporaryIdMap(tempIdMap) {
+              const obj = Object.fromEntries(tempIdMap);
+              return JSON.stringify(obj);
+            }
+            function parseAllowedRepos() {
+              const allowedReposEnv = process.env.GH_AW_ALLOWED_REPOS;
+              const set = new Set();
+              if (allowedReposEnv) {
+                allowedReposEnv
+                  .split(",")
+                  .map(repo => repo.trim())
+                  .filter(repo => repo)
+                  .forEach(repo => set.add(repo));
+              }
+              return set;
+            }
+            function getDefaultTargetRepo() {
+              const targetRepoSlug = process.env.GH_AW_TARGET_REPO_SLUG;
+              if (targetRepoSlug) {
+                return targetRepoSlug;
+              }
+              return `${context.repo.owner}/${context.repo.repo}`;
+            }
+            function validateRepo(repo, defaultRepo, allowedRepos) {
+              if (repo === defaultRepo) {
+                return { valid: true, error: null };
+              }
+              if (allowedRepos.has(repo)) {
+                return { valid: true, error: null };
+              }
+              return {
+                valid: false,
+                error: `Repository '${repo}' is not in the allowed-repos list. Allowed: ${defaultRepo}${allowedRepos.size > 0 ? ", " + Array.from(allowedRepos).join(", ") : ""}`,
+              };
+            }
+            function parseRepoSlug(repoSlug) {
+              const parts = repoSlug.split("/");
+              if (parts.length !== 2 || !parts[0] || !parts[1]) {
+                return null;
+              }
+              return { owner: parts[0], repo: parts[1] };
+            }
+            async function fetchRepoDiscussionInfo(owner, repo) {
+              const repositoryQuery = `
+                query($owner: String!, $repo: String!) {
+                  repository(owner: $owner, name: $repo) {
+                    id
+                    discussionCategories(first: 20) {
+                      nodes {
+                        id
+                        name
+                        slug
+                        description
+                      }
+                    }
+                  }
+                }
+              `;
+              const queryResult = await github.graphql(repositoryQuery, {
+                owner: owner,
+                repo: repo,
+              });
+              if (!queryResult || !queryResult.repository) {
+                return null;
+              }
+              return {
+                repositoryId: queryResult.repository.id,
+                discussionCategories: queryResult.repository.discussionCategories.nodes || [],
+              };
+            }
+            function resolveCategoryId(categoryConfig, itemCategory, categories) {
+              const categoryToMatch = itemCategory || categoryConfig;
+              if (categoryToMatch) {
+                const categoryById = categories.find(cat => cat.id === categoryToMatch);
+                if (categoryById) {
+                  return { id: categoryById.id, matchType: "id", name: categoryById.name };
+                }
+                const categoryByName = categories.find(cat => cat.name === categoryToMatch);
+                if (categoryByName) {
+                  return { id: categoryByName.id, matchType: "name", name: categoryByName.name };
+                }
+                const categoryBySlug = categories.find(cat => cat.slug === categoryToMatch);
+                if (categoryBySlug) {
+                  return { id: categoryBySlug.id, matchType: "slug", name: categoryBySlug.name };
+                }
+              }
+              if (categories.length > 0) {
+                return {
+                  id: categories[0].id,
+                  matchType: "fallback",
+                  name: categories[0].name,
+                  requestedCategory: categoryToMatch,
+                };
+              }
+              return undefined;
+            }
+            async function main() {
+              core.setOutput("discussion_number", "");
+              core.setOutput("discussion_url", "");
+              const temporaryIdMap = loadTemporaryIdMap();
+              if (temporaryIdMap.size > 0) {
+                core.info(`Loaded temporary ID map with ${temporaryIdMap.size} entries`);
+              }
+              const result = loadAgentOutput();
+              if (!result.success) {
+                return;
+              }
+              const createDiscussionItems = result.items.filter(item => item.type === "create_discussion");
+              if (createDiscussionItems.length === 0) {
+                core.warning("No create-discussion items found in agent output");
+                return;
+              }
+              core.info(`Found ${createDiscussionItems.length} create-discussion item(s)`);
+              const allowedRepos = parseAllowedRepos();
+              const defaultTargetRepo = getDefaultTargetRepo();
+              core.info(`Default target repo: ${defaultTargetRepo}`);
+              if (allowedRepos.size > 0) {
+                core.info(`Allowed repos: ${Array.from(allowedRepos).join(", ")}`);
+              }
+              if (process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true") {
+                let summaryContent = "## 🎭 Staged Mode: Create Discussions Preview\n\n";
+                summaryContent += "The following discussions would be created if staged mode was disabled:\n\n";
+                for (let i = 0; i < createDiscussionItems.length; i++) {
+                  const item = createDiscussionItems[i];
+                  summaryContent += `### Discussion ${i + 1}\n`;
+                  summaryContent += `**Title:** ${item.title || "No title provided"}\n\n`;
+                  if (item.repo) {
+                    summaryContent += `**Repository:** ${item.repo}\n\n`;
+                  }
+                  if (item.body) {
+                    summaryContent += `**Body:**\n${item.body}\n\n`;
+                  }
+                  if (item.category) {
+                    summaryContent += `**Category:** ${item.category}\n\n`;
+                  }
+                  summaryContent += "---\n\n";
+                }
+                await core.summary.addRaw(summaryContent).write();
+                core.info("📝 Discussion creation preview written to step summary");
+                return;
+              }
+              const repoInfoCache = new Map();
+              const closeOlderEnabled = process.env.GH_AW_CLOSE_OLDER_DISCUSSIONS === "true";
+              const titlePrefix = process.env.GH_AW_DISCUSSION_TITLE_PREFIX || "";
+              const configCategory = process.env.GH_AW_DISCUSSION_CATEGORY || "";
+              const labelsEnvVar = process.env.GH_AW_DISCUSSION_LABELS || "";
+              const labels = labelsEnvVar
+                ? labelsEnvVar
+                    .split(",")
+                    .map(l => l.trim())
+                    .filter(l => l.length > 0)
+                : [];
+              const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
+              const runId = context.runId;
+              const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
+              const runUrl = context.payload.repository
+                ? `${context.payload.repository.html_url}/actions/runs/${runId}`
+                : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
+              const createdDiscussions = [];
+              const closedDiscussionsSummary = [];
+              for (let i = 0; i < createDiscussionItems.length; i++) {
+                const createDiscussionItem = createDiscussionItems[i];
+                const itemRepo = createDiscussionItem.repo ? String(createDiscussionItem.repo).trim() : defaultTargetRepo;
+                const repoValidation = validateRepo(itemRepo, defaultTargetRepo, allowedRepos);
+                if (!repoValidation.valid) {
+                  core.warning(`Skipping discussion: ${repoValidation.error}`);
+                  continue;
+                }
+                const repoParts = parseRepoSlug(itemRepo);
+                if (!repoParts) {
+                  core.warning(`Skipping discussion: Invalid repository format '${itemRepo}'. Expected 'owner/repo'.`);
+                  continue;
+                }
+                let repoInfo = repoInfoCache.get(itemRepo);
+                if (!repoInfo) {
+                  try {
+                    const fetchedInfo = await fetchRepoDiscussionInfo(repoParts.owner, repoParts.repo);
+                    if (!fetchedInfo) {
+                      core.warning(`Skipping discussion: Failed to fetch repository information for '${itemRepo}'`);
+                      continue;
+                    }
+                    repoInfo = fetchedInfo;
+                    repoInfoCache.set(itemRepo, repoInfo);
+                    core.info(
+                      `Fetched discussion categories for ${itemRepo}: ${JSON.stringify(repoInfo.discussionCategories.map(cat => ({ name: cat.name, id: cat.id })))}`
+                    );
+                  } catch (error) {
+                    const errorMessage = error instanceof Error ? error.message : String(error);
+                    if (
+                      errorMessage.includes("Not Found") ||
+                      errorMessage.includes("not found") ||
+                      errorMessage.includes("Could not resolve to a Repository")
+                    ) {
+                      core.warning(`Skipping discussion: Discussions are not enabled for repository '${itemRepo}'`);
+                      continue;
+                    }
+                    core.error(`Failed to get discussion categories for ${itemRepo}: ${errorMessage}`);
+                    throw error;
+                  }
+                }
+                const categoryInfo = resolveCategoryId(configCategory, createDiscussionItem.category, repoInfo.discussionCategories);
+                if (!categoryInfo) {
+                  core.warning(`Skipping discussion in ${itemRepo}: No discussion category available`);
+                  continue;
+                }
+                if (categoryInfo.matchType === "name") {
+                  core.info(`Using category by name: ${categoryInfo.name} (${categoryInfo.id})`);
+                } else if (categoryInfo.matchType === "slug") {
+                  core.info(`Using category by slug: ${categoryInfo.name} (${categoryInfo.id})`);
+                } else if (categoryInfo.matchType === "fallback") {
+                  if (categoryInfo.requestedCategory) {
+                    const availableCategoryNames = repoInfo.discussionCategories.map(cat => cat.name).join(", ");
+                    core.warning(
+                      `Category "${categoryInfo.requestedCategory}" not found by ID, name, or slug. Available categories: ${availableCategoryNames}`
+                    );
+                    core.info(`Falling back to default category: ${categoryInfo.name} (${categoryInfo.id})`);
+                  } else {
+                    core.info(`Using default first category: ${categoryInfo.name} (${categoryInfo.id})`);
+                  }
+                }
+                const categoryId = categoryInfo.id;
+                core.info(
+                  `Processing create-discussion item ${i + 1}/${createDiscussionItems.length}: title=${createDiscussionItem.title}, bodyLength=${createDiscussionItem.body?.length || 0}, repo=${itemRepo}`
+                );
+                let title = createDiscussionItem.title ? replaceTemporaryIdReferences(createDiscussionItem.title.trim(), temporaryIdMap, itemRepo) : "";
+                const bodyText = createDiscussionItem.body || "";
+                let bodyLines = replaceTemporaryIdReferences(bodyText, temporaryIdMap, itemRepo).split("\n");
+                if (!title) {
+                  title = replaceTemporaryIdReferences(bodyText, temporaryIdMap, itemRepo) || "Agent Output";
+                }
+                if (titlePrefix && !title.startsWith(titlePrefix)) {
+                  title = titlePrefix + title;
+                }
+                const trackerIDComment = getTrackerID("markdown");
+                if (trackerIDComment) {
+                  bodyLines.push(trackerIDComment);
+                }
+                bodyLines.push(``, ``, `> AI generated by [${workflowName}](${runUrl})`, "");
+                const body = bodyLines.join("\n").trim();
+                core.info(`Creating discussion in ${itemRepo} with title: ${title}`);
+                core.info(`Category ID: ${categoryId}`);
+                core.info(`Body length: ${body.length}`);
+                try {
+                  const createDiscussionMutation = `
+                    mutation($repositoryId: ID!, $categoryId: ID!, $title: String!, $body: String!) {
+                      createDiscussion(input: {
+                        repositoryId: $repositoryId,
+                        categoryId: $categoryId,
+                        title: $title,
+                        body: $body
+                      }) {
+                        discussion {
+                          id
+                          number
+                          title
+                          url
+                        }
+                      }
+                    }
+                  `;
+                  const mutationResult = await github.graphql(createDiscussionMutation, {
+                    repositoryId: repoInfo.repositoryId,
+                    categoryId: categoryId,
+                    title: title,
+                    body: body,
+                  });
+                  const discussion = mutationResult.createDiscussion.discussion;
+                  if (!discussion) {
+                    core.error(`Failed to create discussion in ${itemRepo}: No discussion data returned`);
+                    continue;
+                  }
+                  core.info(`Created discussion ${itemRepo}#${discussion.number}: ${discussion.url}`);
+                  createdDiscussions.push({ ...discussion, _repo: itemRepo });
+                  if (i === createDiscussionItems.length - 1) {
+                    core.setOutput("discussion_number", discussion.number);
+                    core.setOutput("discussion_url", discussion.url);
+                  }
+                  const hasMatchingCriteria = titlePrefix || labels.length > 0;
+                  if (closeOlderEnabled && hasMatchingCriteria) {
+                    core.info("close-older-discussions is enabled, searching for older discussions to close...");
+                    try {
+                      const closedDiscussions = await closeOlderDiscussions(
+                        github,
+                        repoParts.owner,
+                        repoParts.repo,
+                        titlePrefix,
+                        labels,
+                        categoryId,
+                        { number: discussion.number, url: discussion.url },
+                        workflowName,
+                        runUrl
+                      );
+                      if (closedDiscussions.length > 0) {
+                        closedDiscussionsSummary.push(...closedDiscussions);
+                        core.info(`Closed ${closedDiscussions.length} older discussion(s) as outdated`);
+                      }
+                    } catch (closeError) {
+                      core.warning(`Failed to close older discussions: ${closeError instanceof Error ? closeError.message : String(closeError)}`);
+                    }
+                  } else if (closeOlderEnabled && !hasMatchingCriteria) {
+                    core.warning("close-older-discussions is enabled but no title-prefix or labels are set - skipping close older discussions");
+                  }
+                } catch (error) {
+                  core.error(`✗ Failed to create discussion "${title}" in ${itemRepo}: ${error instanceof Error ? error.message : String(error)}`);
+                  throw error;
+                }
+              }
+              if (createdDiscussions.length > 0) {
+                let summaryContent = "\n\n## GitHub Discussions\n";
+                for (const discussion of createdDiscussions) {
+                  const repoLabel = discussion._repo !== defaultTargetRepo ? ` (${discussion._repo})` : "";
+                  summaryContent += `- Discussion #${discussion.number}${repoLabel}: [${discussion.title}](${discussion.url})\n`;
+                }
+                if (closedDiscussionsSummary.length > 0) {
+                  summaryContent += "\n### Closed Older Discussions\n";
+                  for (const closed of closedDiscussionsSummary) {
+                    summaryContent += `- Discussion #${closed.number}: [View](${closed.url}) (marked as outdated)\n`;
+                  }
+                }
+                await core.summary.addRaw(summaryContent).write();
+              }
+              core.info(`Successfully created ${createdDiscussions.length} discussion(s)`);
+            }
+            await main();
+
   detection:
     needs: agent
     if: needs.agent.outputs.output_types != '' || needs.agent.outputs.has_patch == 'true'
     runs-on: ubuntu-latest
     permissions: {}
+    concurrency:
+      group: "gh-aw-copilot-${{ github.workflow }}"
     timeout-minutes: 10
     outputs:
       success: ${{ steps.parse_results.outputs.success }}
@@ -5176,8 +7284,8 @@ jobs:
       - name: Setup threat detection
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
-          WORKFLOW_NAME: "Smoke SRT"
-          WORKFLOW_DESCRIPTION: "Smoke test workflow for Sandbox Runtime (SRT) - validates SRT functionality with Copilot"
+          WORKFLOW_NAME: "Daily Copilot PR Merged Report"
+          WORKFLOW_DESCRIPTION: "Generates a daily report analyzing Copilot pull requests merged in the last 24 hours, tracking code generation, tests, and token usage"
         with:
           script: |
             const fs = require('fs');
@@ -5389,100 +7497,4 @@ jobs:
           name: threat-detection.log
           path: /tmp/gh-aw/threat-detection/detection.log
           if-no-files-found: ignore
-
-  pre_activation:
-    if: >
-      ((github.event_name != 'pull_request') || (github.event.pull_request.head.repo.id == github.repository_id)) &&
-      ((github.event_name != 'pull_request') || ((github.event.action != 'labeled') || (github.event.label.name == 'test-srt')))
-    runs-on: ubuntu-slim
-    outputs:
-      activated: ${{ steps.check_membership.outputs.is_team_member == 'true' }}
-    steps:
-      - name: Check team membership for workflow
-        id: check_membership
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
-        env:
-          GH_AW_REQUIRED_ROLES: admin,maintainer,write
-        with:
-          script: |
-            function parseRequiredPermissions() {
-              const requiredPermissionsEnv = process.env.GH_AW_REQUIRED_ROLES;
-              return requiredPermissionsEnv ? requiredPermissionsEnv.split(",").filter(p => p.trim() !== "") : [];
-            }
-            async function checkRepositoryPermission(actor, owner, repo, requiredPermissions) {
-              try {
-                core.info(`Checking if user '${actor}' has required permissions for ${owner}/${repo}`);
-                core.info(`Required permissions: ${requiredPermissions.join(", ")}`);
-                const repoPermission = await github.rest.repos.getCollaboratorPermissionLevel({
-                  owner: owner,
-                  repo: repo,
-                  username: actor,
-                });
-                const permission = repoPermission.data.permission;
-                core.info(`Repository permission level: ${permission}`);
-                for (const requiredPerm of requiredPermissions) {
-                  if (permission === requiredPerm || (requiredPerm === "maintainer" && permission === "maintain")) {
-                    core.info(`✅ User has ${permission} access to repository`);
-                    return { authorized: true, permission: permission };
-                  }
-                }
-                core.warning(`User permission '${permission}' does not meet requirements: ${requiredPermissions.join(", ")}`);
-                return { authorized: false, permission: permission };
-              } catch (repoError) {
-                const errorMessage = repoError instanceof Error ? repoError.message : String(repoError);
-                core.warning(`Repository permission check failed: ${errorMessage}`);
-                return { authorized: false, error: errorMessage };
-              }
-            }
-            async function main() {
-              const { eventName } = context;
-              const actor = context.actor;
-              const { owner, repo } = context.repo;
-              const requiredPermissions = parseRequiredPermissions();
-              if (eventName === "workflow_dispatch") {
-                const hasWriteRole = requiredPermissions.includes("write");
-                if (hasWriteRole) {
-                  core.info(`✅ Event ${eventName} does not require validation (write role allowed)`);
-                  core.setOutput("is_team_member", "true");
-                  core.setOutput("result", "safe_event");
-                  return;
-                }
-                core.info(`Event ${eventName} requires validation (write role not allowed)`);
-              }
-              const safeEvents = ["schedule"];
-              if (safeEvents.includes(eventName)) {
-                core.info(`✅ Event ${eventName} does not require validation`);
-                core.setOutput("is_team_member", "true");
-                core.setOutput("result", "safe_event");
-                return;
-              }
-              if (!requiredPermissions || requiredPermissions.length === 0) {
-                core.warning("❌ Configuration error: Required permissions not specified. Contact repository administrator.");
-                core.setOutput("is_team_member", "false");
-                core.setOutput("result", "config_error");
-                core.setOutput("error_message", "Configuration error: Required permissions not specified");
-                return;
-              }
-              const result = await checkRepositoryPermission(actor, owner, repo, requiredPermissions);
-              if (result.error) {
-                core.setOutput("is_team_member", "false");
-                core.setOutput("result", "api_error");
-                core.setOutput("error_message", `Repository permission check failed: ${result.error}`);
-                return;
-              }
-              if (result.authorized) {
-                core.setOutput("is_team_member", "true");
-                core.setOutput("result", "authorized");
-                core.setOutput("user_permission", result.permission);
-              } else {
-                core.setOutput("is_team_member", "false");
-                core.setOutput("result", "insufficient_permissions");
-                core.setOutput("user_permission", result.permission);
-                core.setOutput(
-                  "error_message",
-                  `Access denied: User '${actor}' is not authorized. Required permissions: ${requiredPermissions.join(", ")}`
-                );
-              }
-            }
-            await main();
 

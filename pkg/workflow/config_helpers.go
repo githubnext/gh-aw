@@ -130,3 +130,27 @@ func parseAllowedReposFromConfig(configMap map[string]any) []string {
 	}
 	return nil
 }
+
+// parseAllowedLabelsFromConfig extracts and validates allowed-labels from a config map.
+// Returns a slice of label strings, or nil if not present or invalid.
+func parseAllowedLabelsFromConfig(configMap map[string]any) []string {
+	if allowedLabels, exists := configMap["allowed-labels"]; exists {
+		configHelpersLog.Print("Parsing allowed-labels from config")
+		if labelsArray, ok := allowedLabels.([]any); ok {
+			var labelStrings []string
+			for _, label := range labelsArray {
+				if labelStr, ok := label.(string); ok {
+					labelStrings = append(labelStrings, labelStr)
+				}
+			}
+			// Return the slice even if empty (to distinguish from not provided)
+			if labelStrings == nil {
+				configHelpersLog.Print("No valid allowed-labels strings found, returning empty array")
+				return []string{}
+			}
+			configHelpersLog.Printf("Parsed %d allowed-labels from config", len(labelStrings))
+			return labelStrings
+		}
+	}
+	return nil
+}

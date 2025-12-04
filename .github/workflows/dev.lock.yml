@@ -395,7 +395,7 @@ jobs:
           
           EOF
           chmod +x .claude/hooks/network_permissions.py
-      - name: Setup Safe Inputs MCP
+      - name: Setup Safe Inputs JavaScript and Config
         run: |
           mkdir -p /tmp/gh-aw/safe-inputs/logs
           cat > /tmp/gh-aw/safe-inputs/read_buffer.cjs << 'EOF_READ_BUFFER'
@@ -1100,6 +1100,9 @@ jobs:
             });
           EOFSI
           chmod +x /tmp/gh-aw/safe-inputs/mcp-server.cjs
+          
+      - name: Setup Safe Inputs Tool Files
+        run: |
           cat > /tmp/gh-aw/safe-inputs/gh.sh << 'EOFSH_gh'
           #!/bin/bash
           # Auto-generated safe-input tool: gh
@@ -1859,6 +1862,8 @@ jobs:
                   "Safe Outputs": [],
                   "Safe Inputs": [],
                   "Git/GitHub": [],
+                  Playwright: [],
+                  Serena: [],
                   MCP: [],
                   "Custom Agents": [],
                   Other: [],
@@ -1898,6 +1903,10 @@ jobs:
                     categories["Safe Inputs"].push(toolName);
                   } else if (tool.startsWith("mcp__github__")) {
                     categories["Git/GitHub"].push(formatMcpName(tool));
+                  } else if (tool.startsWith("mcp__playwright__")) {
+                    categories["Playwright"].push(formatMcpName(tool));
+                  } else if (tool.startsWith("mcp__serena__")) {
+                    categories["Serena"].push(formatMcpName(tool));
                   } else if (tool.startsWith("mcp__") || ["ListMcpResourcesTool", "ReadMcpResourceTool"].includes(tool)) {
                     categories["MCP"].push(tool.startsWith("mcp__") ? formatMcpName(tool) : tool);
                   } else if (isLikelyCustomAgent(tool)) {

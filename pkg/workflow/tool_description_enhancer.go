@@ -26,6 +26,9 @@ func enhanceToolDescription(toolName, baseDescription string, safeOutputs *SafeO
 			if len(config.Labels) > 0 {
 				constraints = append(constraints, fmt.Sprintf("Labels %v will be automatically added.", config.Labels))
 			}
+			if len(config.AllowedLabels) > 0 {
+				constraints = append(constraints, fmt.Sprintf("Only these labels are allowed: %v.", config.AllowedLabels))
+			}
 			if len(config.Assignees) > 0 {
 				constraints = append(constraints, fmt.Sprintf("Assignees %v will be automatically assigned.", config.Assignees))
 			}
@@ -57,6 +60,9 @@ func enhanceToolDescription(toolName, baseDescription string, safeOutputs *SafeO
 			}
 			if config.Category != "" {
 				constraints = append(constraints, fmt.Sprintf("Discussions will be created in category %q.", config.Category))
+			}
+			if len(config.AllowedLabels) > 0 {
+				constraints = append(constraints, fmt.Sprintf("Only these labels are allowed: %v.", config.AllowedLabels))
 			}
 			if config.TargetRepoSlug != "" {
 				constraints = append(constraints, fmt.Sprintf("Discussions will be created in repository %q.", config.TargetRepoSlug))
@@ -122,6 +128,9 @@ func enhanceToolDescription(toolName, baseDescription string, safeOutputs *SafeO
 			}
 			if len(config.Labels) > 0 {
 				constraints = append(constraints, fmt.Sprintf("Labels %v will be automatically added.", config.Labels))
+			}
+			if len(config.AllowedLabels) > 0 {
+				constraints = append(constraints, fmt.Sprintf("Only these labels are allowed: %v.", config.AllowedLabels))
 			}
 			if config.Draft != nil && *config.Draft {
 				constraints = append(constraints, "PRs will be created as drafts.")
