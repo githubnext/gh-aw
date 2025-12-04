@@ -122,7 +122,7 @@ This creates a new workflow file at `.github/workflows/my-workflow.md` with exam
 
 **Or use GitHub Copilot CLI for an interactive experience:**
 1. Launch Copilot: `npx @github/copilot`
-2. Type `/create-agentic-workflow` in the chat
+2. Type `/agent create-agentic-workflow` in the chat
 3. Follow the prompts to build your workflow
 
 ### Option 2: Import from the Agentics Catalog
