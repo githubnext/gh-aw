@@ -853,7 +853,7 @@ func downloadRunArtifactsConcurrent(runs []WorkflowRun, outputDir string, verbos
 	// 1. Cached runs that may fail filters (engine, firewall, etc.)
 	// 2. Runs that may be skipped due to errors
 	// 3. Runs without artifacts
-	// 
+	//
 	// By processing all runs in the batch, we ensure that the count parameter correctly
 	// reflects the number of matching logs (both downloaded and cached), not just attempts.
 	actualRuns := runs
