@@ -16,7 +16,7 @@ func TestNewGateway(t *testing.T) {
 		{
 			name: "valid config",
 			config: GatewayConfig{
-				Port: 8080,
+				Port: 8088,
 				MCPServers: map[string]MCPServerConfig{
 					"test": {
 						Command: "echo",
@@ -41,7 +41,7 @@ func TestNewGateway(t *testing.T) {
 		{
 			name: "no servers",
 			config: GatewayConfig{
-				Port:       8080,
+				Port:       8088,
 				MCPServers: map[string]MCPServerConfig{},
 			},
 			wantErr: true,
@@ -70,7 +70,7 @@ func TestLoadConfigFromJSON(t *testing.T) {
 				"url": "http://localhost:3000"
 			}
 		},
-		"port": 8080
+		"port": 8088
 	}`
 
 	// Test loading from reader
@@ -80,8 +80,8 @@ func TestLoadConfigFromJSON(t *testing.T) {
 		t.Fatalf("LoadConfigFromReader() error = %v", err)
 	}
 
-	if config.Port != 8080 {
-		t.Errorf("Expected port 8080, got %d", config.Port)
+	if config.Port != 8088 {
+		t.Errorf("Expected port 8088, got %d", config.Port)
 	}
 
 	if len(config.MCPServers) != 2 {
@@ -121,7 +121,7 @@ func TestLoadConfigFromReader_InvalidJSON(t *testing.T) {
 func TestCreateTransports(t *testing.T) {
 	gw := &Gateway{
 		config: GatewayConfig{
-			Port:       8080,
+			Port:       8088,
 			MCPServers: map[string]MCPServerConfig{},
 		},
 	}
@@ -183,7 +183,7 @@ func TestCreateTransports(t *testing.T) {
 func TestGatewayLifecycle(t *testing.T) {
 	// This is a basic lifecycle test that doesn't actually start servers
 	config := GatewayConfig{
-		Port: 8080,
+		Port: 8088,
 		MCPServers: map[string]MCPServerConfig{
 			"test": {
 				Command: "echo",

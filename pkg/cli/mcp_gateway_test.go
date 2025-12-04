@@ -64,7 +64,7 @@ func TestMCPGatewayMissingFile(t *testing.T) {
 
 func TestMCPGatewayMissingPort(t *testing.T) {
 	// This test is no longer valid since we have a default port
-	// Leaving it here to test that default port (8080) is used
+	// Leaving it here to test that default port (8088) is used
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "no-port.json")
 
@@ -81,7 +81,7 @@ func TestMCPGatewayMissingPort(t *testing.T) {
 		t.Fatalf("Failed to write test config: %v", err)
 	}
 
-	// Should now use default port 8080 instead of failing
+	// Should now use default port 8088 instead of failing
 	// (will fail on connection, not config)
 	t.Skip("Skipping - requires actual MCP server connection")
 }
@@ -99,7 +99,7 @@ func TestMCPGatewayValidConfig(t *testing.T) {
 				"args": ["hello"]
 			}
 		},
-		"port": 8080
+		"port": 8088
 	}`
 	if err := os.WriteFile(configPath, []byte(configJSON), 0644); err != nil {
 		t.Fatalf("Failed to write test config: %v", err)
@@ -124,7 +124,7 @@ func TestMCPGatewayWithAPIKey(t *testing.T) {
 				"command": "echo"
 			}
 		},
-		"port": 8080
+		"port": 8088
 	}`
 	if err := os.WriteFile(configPath, []byte(configJSON), 0644); err != nil {
 		t.Fatalf("Failed to write test config: %v", err)
@@ -144,7 +144,7 @@ func TestMCPGatewayWithLogsDir(t *testing.T) {
 				"command": "echo"
 			}
 		},
-		"port": 8080
+		"port": 8088
 	}`
 	if err := os.WriteFile(configPath, []byte(configJSON), 0644); err != nil {
 		t.Fatalf("Failed to write test config: %v", err)

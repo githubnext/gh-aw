@@ -46,7 +46,7 @@ The configuration file should be a JSON file with the following structure:
         "args": ["--option", "value"]
       }
     },
-    "port": 8080
+    "port": 8088
   }
 
 Each server can be configured as:
@@ -71,7 +71,7 @@ Example:
 		},
 	}
 
-	cmd.Flags().IntVarP(&port, "port", "p", 0, "Port to run the gateway HTTP server on (default: 8080 or from config file)")
+	cmd.Flags().IntVarP(&port, "port", "p", 0, "Port to run the gateway HTTP server on (default: 8088 or from config file)")
 	cmd.Flags().StringVar(&apiKey, "api-key", "", "API key to authorize connections to the gateway")
 	cmd.Flags().StringVar(&logsDir, "logs-dir", "", "Directory to write debug logs (default: no file logging)")
 
@@ -102,7 +102,7 @@ func runMCPGateway(configFile string, portOverride int, apiKey string, logsDir s
 		config.Port = portOverride
 	} else if config.Port == 0 {
 		// Use default port if not specified in config or flag
-		config.Port = 8080
+		config.Port = 8088
 		mcpGatewayLog.Printf("Using default port: %d", config.Port)
 	}
 

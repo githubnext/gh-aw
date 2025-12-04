@@ -20,11 +20,11 @@ A basic configuration with a single MCP server:
       "args": ["aw", "mcp-server"]
     }
   },
-  "port": 8080
+  "port": 8088
 }
 ```
 
-**Note:** The `port` field is optional in the configuration file. If not specified, the gateway will use port 8080 by default, or you can override it with the `--port` flag.
+**Note:** The `port` field is optional in the configuration file. If not specified, the gateway will use port 8088 by default, or you can override it with the `--port` flag.
 
 ### Multi-Server Configuration (`mcp-gateway-multi-server.json`)
 
@@ -51,7 +51,7 @@ A more complex configuration demonstrating all three server types:
       }
     }
   },
-  "port": 8080
+  "port": 8088
 }
 ```
 
@@ -100,7 +100,7 @@ Use the `container` field to run an MCP server in a Docker container:
 ### Start the Gateway
 
 ```bash
-# Use default port 8080
+# Use default port 8088
 gh aw mcp-gateway mcp-gateway-config.json
 
 # Specify a custom port
@@ -116,9 +116,9 @@ gh aw mcp-gateway --api-key secret123 mcp-gateway-config.json
 When API key authentication is enabled, clients must include the API key in the `Authorization` header:
 
 ```bash
-curl -H "Authorization: Bearer secret123" http://localhost:8080/...
+curl -H "Authorization: ******" http://localhost:8088/...
 # or
-curl -H "Authorization: secret123" http://localhost:8080/...
+curl -H "Authorization: secret123" http://localhost:8088/...
 ```
 
 ### Write Debug Logs to File
