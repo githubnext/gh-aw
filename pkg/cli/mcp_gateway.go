@@ -71,7 +71,7 @@ Example:
 		},
 	}
 
-	cmd.Flags().IntVarP(&port, "port", "p", 8080, "Port to run the gateway HTTP server on (default: 8080, overrides config file)")
+	cmd.Flags().IntVarP(&port, "port", "p", 0, "Port to run the gateway HTTP server on (default: 8080 or from config file)")
 	cmd.Flags().StringVar(&apiKey, "api-key", "", "API key to authorize connections to the gateway")
 	cmd.Flags().StringVar(&logsDir, "logs-dir", "", "Directory to write debug logs (default: no file logging)")
 
