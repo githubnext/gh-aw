@@ -252,6 +252,7 @@ type DownloadResult struct {
 	JobDetails              []JobInfoWithDuration
 	Error                   error
 	Skipped                 bool
+	Cached                  bool // True if loaded from cached summary
 	LogsPath                string
 }
 
@@ -897,6 +898,7 @@ func downloadRunArtifactsConcurrent(runs []WorkflowRun, outputDir string, verbos
 					MCPFailures:             summary.MCPFailures,
 					JobDetails:              summary.JobDetails,
 					LogsPath:                runOutputDir,
+					Cached:                  true, // Mark as cached
 				}
 				// Update progress counter
 				completed := atomic.AddInt64(&completedCount, 1)
@@ -1059,6 +1061,8 @@ func downloadRunArtifactsConcurrent(runs []WorkflowRun, outputDir string, verbos
 	if spinner != nil {
 		successCount := 0
 		for _, result := range results {
+			// Count as successful if: no error AND not skipped
+			// This includes both newly downloaded and cached runs
 			if result.Error == nil && !result.Skipped {
 				successCount++
 			}
