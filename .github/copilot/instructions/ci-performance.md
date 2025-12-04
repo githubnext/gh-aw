@@ -364,9 +364,9 @@ time golangci-lint run
 ```
 
 **Solution**:
-- Enable caching in golangci-lint action
-- Use `--new-from-rev` for PRs
-- Tune linter configuration
+- Use `make deps-dev` to ensure golangci-lint is installed and cached
+- Use `--new-from-rev` for PRs to lint only changed code
+- Tune linter configuration in `.golangci.yml`
 - Split into separate linters if needed
 
 ### Problem: Tests timing out
