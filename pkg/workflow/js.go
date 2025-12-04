@@ -280,12 +280,17 @@ func GetJavaScriptSources() map[string]string {
 		"read_buffer.cjs":                 readBufferScript,
 		"mcp_server_core.cjs":             mcpServerCoreScript,
 		"safe_inputs_mcp_server.cjs":      safeInputsMCPServerScript,
+		"safe_inputs_config_loader.cjs":   safeInputsConfigLoaderScript,
+		"safe_inputs_tool_factory.cjs":    safeInputsToolFactoryScript,
+		"mcp_handler_shell.cjs":           mcpHandlerShellScript,
+		"mcp_handler_python.cjs":          mcpHandlerPythonScript,
 		"safe_output_type_validator.cjs":  safeOutputTypeValidatorScript,
 		"repo_helpers.cjs":                repoHelpersScript,
 		"safe_outputs_config.cjs":         safeOutputsConfigScript,
 		"safe_outputs_append.cjs":         safeOutputsAppendScript,
 		"safe_outputs_handlers.cjs":       safeOutputsHandlersScript,
 		"safe_outputs_tools_loader.cjs":   safeOutputsToolsLoaderScript,
+		"safe_outputs_mcp_server.cjs":     safeOutputsMCPServerScriptSource,
 	}
 }
 
