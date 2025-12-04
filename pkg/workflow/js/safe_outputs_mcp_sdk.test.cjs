@@ -13,22 +13,29 @@ describe("safe_outputs_mcp_server.cjs using MCP TypeScript SDK", () => {
   let client;
   let transport;
   let tempOutputFile;
+  let tempConfigFile;
 
   beforeEach(() => {
     // Create temporary output file
     tempOutputFile = path.join("/tmp", `test_safe_outputs_sdk_${Date.now()}.jsonl`);
+    
+    // Create temporary config file
+    tempConfigFile = path.join("/tmp", `test_safe_outputs_config_${Date.now()}.json`);
+    const configData = {
+      create_issue: { enabled: true, max: 5 },
+      create_discussion: { enabled: true },
+      add_comment: { enabled: true, max: 3 },
+      missing_tool: { enabled: true },
+      push_to_pull_request_branch: { enabled: true }, // Enable for SDK testing
+    };
+    fs.writeFileSync(tempConfigFile, JSON.stringify(configData));
 
     // Set up environment
     process.env = {
       ...originalEnv,
       GH_AW_SAFE_OUTPUTS: tempOutputFile,
-      GH_AW_SAFE_OUTPUTS_CONFIG: JSON.stringify({
-        create_issue: { enabled: true, max: 5 },
-        create_discussion: { enabled: true },
-        add_comment: { enabled: true, max: 3 },
-        missing_tool: { enabled: true },
-        push_to_pull_request_branch: { enabled: true }, // Enable for SDK testing
-      }),
+      GH_AW_SAFE_OUTPUTS_TOOLS_PATH: path.join(__dirname, "safe_outputs_tools.json"),
+      GH_AW_SAFE_OUTPUTS_CONFIG_PATH: tempConfigFile,
     };
   });
 
@@ -47,6 +54,9 @@ describe("safe_outputs_mcp_server.cjs using MCP TypeScript SDK", () => {
     process.env = originalEnv;
     if (tempOutputFile && fs.existsSync(tempOutputFile)) {
       fs.unlinkSync(tempOutputFile);
+    }
+    if (tempConfigFile && fs.existsSync(tempConfigFile)) {
+      fs.unlinkSync(tempConfigFile);
     }
   });
 
@@ -141,14 +151,18 @@ describe("safe_outputs_mcp_server.cjs using MCP TypeScript SDK", () => {
 
       // Test server startup (it should output a startup message)
       const { spawn } = require("child_process");
+      
+      // Create a temporary config file for the spawned server
+      const spawnConfigFile = path.join("/tmp", `test_spawn_config_${Date.now()}.json`);
+      fs.writeFileSync(spawnConfigFile, JSON.stringify({ create_issue: { enabled: true } }));
+      
       const serverProcess = spawn("node", [serverPath], {
         stdio: ["pipe", "pipe", "pipe"],
         env: {
           ...process.env,
           GH_AW_SAFE_OUTPUTS: tempOutputFile,
-          GH_AW_SAFE_OUTPUTS_CONFIG: JSON.stringify({
-            create_issue: { enabled: true },
-          }),
+          GH_AW_SAFE_OUTPUTS_TOOLS_PATH: path.join(__dirname, "safe_outputs_tools.json"),
+          GH_AW_SAFE_OUTPUTS_CONFIG_PATH: spawnConfigFile,
         },
       });
 
@@ -159,6 +173,11 @@ describe("safe_outputs_mcp_server.cjs using MCP TypeScript SDK", () => {
 
       // Give server time to start and output debug messages
       await new Promise(resolve => setTimeout(resolve, 500));
+      
+      // Clean up the temporary config file
+      if (fs.existsSync(spawnConfigFile)) {
+        fs.unlinkSync(spawnConfigFile);
+      }
 
       // Check startup message (server outputs to stderr)
       expect(serverOutput).toContain("[safeoutputs]");
