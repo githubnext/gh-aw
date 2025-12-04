@@ -119,8 +119,8 @@ A human-friendly data format used for configuration files. Uses indentation and 
 ### Personal Access Token (PAT)
 A token that authenticates you to GitHub's APIs with specific permissions. Required for GitHub Copilot CLI to access Copilot services. Created at github.com/settings/personal-access-tokens.
 
-### Prompt Files
-Markdown files with YAML frontmatter stored in `.github/prompts/` that define interactive Copilot Chat commands. Created by `gh aw init`, these files (like `create-agentic-workflow.prompt.md`) can be invoked as slash commands (e.g., `/create-agentic-workflow`) in Copilot Chat to guide workflow creation with specialized instructions.
+### Agent Files
+Markdown files with YAML frontmatter stored in `.github/agents/` that define interactive Copilot Chat agents. Created by `gh aw init`, these files (like `create-agentic-workflow.agent.md`) can be invoked with the `/agent` command in Copilot Chat to guide workflow creation with specialized instructions.
 
 ### Fine-grained Personal Access Token
 A type of GitHub Personal Access Token with granular permission control. Specify exactly which repositories the token can access and what permissions it has (`contents: read`, `issues: write`, etc.). Created at github.com/settings/personal-access-tokens.
@@ -155,8 +155,7 @@ env:
 
 ### Custom Agents
 Specialized instructions or configurations that customize AI agent behavior for specific tasks or repositories. Can be stored as:
-- **Prompt files** (`.github/prompts/*.prompt.md`) - Used with Copilot Chat slash commands for interactive workflow authoring
-- **Agent files** (`.github/agents/*.md`) - Imported into workflows via the `imports` field for execution-time customization
+- **Agent files** (`.github/agents/*.agent.md`) - Used with Copilot Chat `/agent` command for interactive workflow authoring and execution-time customization
 - **Instruction files** (`.github/copilot/instructions/`) - Path-specific or repository-wide Copilot instructions
 
 ### Strict Mode
