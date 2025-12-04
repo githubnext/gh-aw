@@ -210,6 +210,12 @@ var mcpServerCoreScript string
 //go:embed js/safe_inputs_mcp_server.cjs
 var safeInputsMCPServerScript string
 
+//go:embed js/safe_inputs_config_loader.cjs
+var safeInputsConfigLoaderScript string
+
+//go:embed js/safe_inputs_tool_factory.cjs
+var safeInputsToolFactoryScript string
+
 //go:embed js/safe_output_type_validator.cjs
 var safeOutputTypeValidatorScript string
 
@@ -741,6 +747,16 @@ func GetMCPServerCoreScript() string {
 // GetSafeInputsMCPServerScript returns the embedded safe_inputs_mcp_server.cjs script
 func GetSafeInputsMCPServerScript() string {
 	return safeInputsMCPServerScript
+}
+
+// GetSafeInputsConfigLoaderScript returns the embedded safe_inputs_config_loader.cjs script
+func GetSafeInputsConfigLoaderScript() string {
+	return safeInputsConfigLoaderScript
+}
+
+// GetSafeInputsToolFactoryScript returns the embedded safe_inputs_tool_factory.cjs script
+func GetSafeInputsToolFactoryScript() string {
+	return safeInputsToolFactoryScript
 }
 
 // GetSafeOutputsConfigScript returns the embedded safe_outputs_config.cjs script
