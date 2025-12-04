@@ -1108,7 +1108,7 @@ When `"additionalProperties": false` is set at the root level, the validator rej
 ### Example Validation Error
 
 ```bash
-$ ./gh-aw compile workflow-with-typo.md
+$ gh aw compile workflow-with-typo.md
 ✗ error: Unknown properties: toolz, engnie, permisions. Valid fields are: tools, engine, permissions, ...
 ```
 
