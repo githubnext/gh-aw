@@ -556,6 +556,8 @@ function formatInitializationSummary(initEntry, options = {}) {
       "Safe Outputs": [],
       "Safe Inputs": [],
       "Git/GitHub": [],
+      Playwright: [],
+      Serena: [],
       MCP: [],
       "Custom Agents": [],
       Other: [],
@@ -603,6 +605,10 @@ function formatInitializationSummary(initEntry, options = {}) {
         categories["Safe Inputs"].push(toolName);
       } else if (tool.startsWith("mcp__github__")) {
         categories["Git/GitHub"].push(formatMcpName(tool));
+      } else if (tool.startsWith("mcp__playwright__")) {
+        categories["Playwright"].push(formatMcpName(tool));
+      } else if (tool.startsWith("mcp__serena__")) {
+        categories["Serena"].push(formatMcpName(tool));
       } else if (tool.startsWith("mcp__") || ["ListMcpResourcesTool", "ReadMcpResourceTool"].includes(tool)) {
         categories["MCP"].push(tool.startsWith("mcp__") ? formatMcpName(tool) : tool);
       } else if (isLikelyCustomAgent(tool)) {
