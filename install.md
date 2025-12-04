@@ -53,6 +53,8 @@ Let's get started! 🎯
 
 ## Step 1: Install gh-aw Extension
 
+**Important:** This setup assumes the user already has GitHub CLI (`gh`) installed and authenticated. Do NOT run `gh auth login` or attempt to authenticate the user. If they encounter authentication issues, guide them to authenticate on their own following [GitHub CLI authentication documentation](https://cli.github.com/manual/gh_auth_login).
+
 First, let's check if gh-aw is already installed:
 
 ```bash
@@ -139,27 +141,21 @@ Agentic workflows use AI agents to execute your instructions. The default engine
 
 ### Add the Secret to Your Repository
 
-**⚠️ Security Warning:** Never paste your token in this chat or commit it to your repository. Use your terminal directly for this step.
+**⚠️ Security Warning:** Never paste your token in this chat or commit it to your repository.
 
-In your terminal, run:
+Add the token to your repository using the GitHub.com user interface:
 
-```bash
-gh secret set COPILOT_GITHUB_TOKEN -a actions
-```
+1. Navigate to your repository on GitHub.com
+2. Click **Settings** (in the repository menu)
+3. In the left sidebar, click **Secrets and variables**, then click **Actions**
+4. Click **New repository secret**
+5. For **Name**, enter `COPILOT_GITHUB_TOKEN`
+6. For **Secret**, paste your personal access token
+7. Click **Add secret**
 
-When prompted, paste your token and press Enter.
+**Expected result:** You should see `COPILOT_GITHUB_TOKEN` listed in your repository secrets.
 
-**Expected output:**
-```
-✓ Set Actions secret COPILOT_GITHUB_TOKEN for <owner>/<repo>
-```
-
-**✨ Checkpoint:** Verify the secret was added:
-```bash
-gh secret list
-```
-
-You should see `COPILOT_GITHUB_TOKEN` in the list.
+**✨ Checkpoint:** Verify the secret was added by checking the Actions secrets page in your repository settings.
 
 **📚 Reference:** [GitHub Copilot CLI documentation](https://docs.github.com/en/copilot/concepts/agents/about-copilot-cli)
 
