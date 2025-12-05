@@ -90,6 +90,78 @@ DO NOT ask all these questions at once; instead, engage in a back-and-forth conv
    - For MCP inspection/listing details in workflows, use:
      - `gh aw mcp inspect` (and flags like `--server`, `--tool`) to analyze configured MCP servers and tool availability.
 
+   ### Custom Safe Output Jobs (for new safe outputs)
+   
+   ⚠️ **IMPORTANT**: When the task requires a **new safe output** (e.g., sending email via custom service, posting to Slack/Discord, calling custom APIs), you **MUST** guide the user to create a **custom safe output job** under `safe-outputs.jobs:` instead of using `post-steps:`.
+   
+   **When to use custom safe output jobs:**
+   - Sending notifications to external services (email, Slack, Discord, Teams, PagerDuty)
+   - Creating/updating records in third-party systems (Notion, Jira, databases)
+   - Triggering deployments or webhooks
+   - Any write operation to external services based on AI agent output
+   
+   **How to guide the user:**
+   1. Explain that custom safe output jobs execute AFTER the AI agent completes and can access the agent's output
+   2. Show them the structure under `safe-outputs.jobs:`
+   3. Reference the custom safe outputs documentation at `.github/aw/github-agentic-workflows.md` or the guide
+   4. Provide example configuration for their specific use case (e.g., email, Slack)
+   
+   **DO NOT use `post-steps:` for these scenarios.** `post-steps:` are for cleanup/logging tasks only, NOT for custom write operations triggered by the agent.
+   
+   **Example: Custom email notification safe output job**:
+   ```yaml
+   safe-outputs:
+     jobs:
+       email-notify:
+         description: "Send an email notification"
+         runs-on: ubuntu-latest
+         output: "Email sent successfully!"
+         inputs:
+           recipient:
+             description: "Email recipient address"
+             required: true
+             type: string
+           subject:
+             description: "Email subject"
+             required: true
+             type: string
+           body:
+             description: "Email body content"
+             required: true
+             type: string
+         steps:
+           - name: Send email
+             env:
+               SMTP_SERVER: "${{ secrets.SMTP_SERVER }}"
+               SMTP_USERNAME: "${{ secrets.SMTP_USERNAME }}"
+               SMTP_PASSWORD: "${{ secrets.SMTP_PASSWORD }}"
+               RECIPIENT: "${{ inputs.recipient }}"
+               SUBJECT: "${{ inputs.subject }}"
+               BODY: "${{ inputs.body }}"
+             run: |
+               # Install mail utilities
+               sudo apt-get update && sudo apt-get install -y mailutils
+               
+               # Create temporary config file with restricted permissions
+               MAIL_RC=$(mktemp) || { echo "Failed to create temporary file"; exit 1; }
+               chmod 600 "$MAIL_RC"
+               trap "rm -f $MAIL_RC" EXIT
+               
+               # Write SMTP config to temporary file
+               cat > "$MAIL_RC" << EOF
+               set smtp=$SMTP_SERVER
+               set smtp-auth=login
+               set smtp-auth-user=$SMTP_USERNAME
+               set smtp-auth-password=$SMTP_PASSWORD
+               EOF
+               
+               # Send email using config file
+               echo "$BODY" | mail -S sendwait -R "$MAIL_RC" -s "$SUBJECT" "$RECIPIENT" || {
+                 echo "Failed to send email"
+                 exit 1
+               }
+   ```
+
    ### Correct tool snippets (reference)
 
    **GitHub tool with fine-grained allowances**:
@@ -134,6 +206,7 @@ DO NOT ask all these questions at once; instead, engage in a back-and-forth conv
    - Apply security best practices:
      - Default to `permissions: read-all` and expand only if necessary.
      - Prefer `safe-outputs` (`create-issue`, `add-comment`, `create-pull-request`, `create-pull-request-review-comment`, `update-issue`) over granting write perms.
+     - For custom write operations to external services (email, Slack, webhooks), use `safe-outputs.jobs:` to create custom safe output jobs.
      - Constrain `network:` to the minimum required ecosystems/domains.
      - Use sanitized expressions (`${{ needs.activation.outputs.text }}`) instead of raw event text.
 
