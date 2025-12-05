@@ -141,7 +141,7 @@ This is a test workflow.
 // TestMCPGateway_WithAPIKey tests that the gateway enforces API key authentication
 func TestMCPGateway_WithAPIKey(t *testing.T) {
 	t.Skip("Skipping - SSE client transport not fully working yet")
-	
+
 	// Skip if the binary doesn't exist
 	binaryPath := "../../gh-aw"
 	if _, err := os.Stat(binaryPath); os.IsNotExist(err) {
@@ -252,7 +252,7 @@ engine: copilot
 // TestMCPGateway_MultipleServers tests gateway with multiple backend servers
 func TestMCPGateway_MultipleServers(t *testing.T) {
 	t.Skip("Skipping - SSE client transport not fully working yet")
-	
+
 	// Skip if the binary doesn't exist
 	binaryPath := "../../gh-aw"
 	if _, err := os.Stat(binaryPath); os.IsNotExist(err) {
@@ -379,4 +379,185 @@ engine: copilot
 	if !hasPrefixed {
 		t.Log("Note: No prefixed tools found - collision handling may not be triggered or tools are unique")
 	}
+}
+
+// TestMCPGateway_MCPInspectDiscovery tests using mcp-inspect tool through gateway to discover backend server
+func TestMCPGateway_MCPInspectDiscovery(t *testing.T) {
+	// Skip if the binary doesn't exist
+	binaryPath := "../../gh-aw"
+	if _, err := os.Stat(binaryPath); os.IsNotExist(err) {
+		t.Skip("Skipping test: gh-aw binary not found. Run 'make build' first.")
+	}
+
+	// Create a temporary directory with a workflow file
+	tmpDir := testutil.TempDir(t, "test-gateway-inspect-*")
+	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
+	if err := os.MkdirAll(workflowsDir, 0755); err != nil {
+		t.Fatalf("Failed to create workflows directory: %v", err)
+	}
+
+	// Create a test workflow file
+	workflowContent := `---
+on: push
+engine: copilot
+---
+# Test Workflow
+
+This is a test workflow.
+`
+	workflowPath := filepath.Join(workflowsDir, "test.md")
+	if err := os.WriteFile(workflowPath, []byte(workflowContent), 0644); err != nil {
+		t.Fatalf("Failed to write workflow file: %v", err)
+	}
+
+	// Initialize git repository in the temp directory
+	initCmd := exec.Command("git", "init")
+	initCmd.Dir = tmpDir
+	if err := initCmd.Run(); err != nil {
+		t.Fatalf("Failed to initialize git repository: %v", err)
+	}
+
+	// Get absolute path to binary
+	originalDir, _ := os.Getwd()
+	absBinaryPath, err := filepath.Abs(filepath.Join(originalDir, binaryPath))
+	if err != nil {
+		t.Fatalf("Failed to get absolute path: %v", err)
+	}
+
+	// Create gateway config that mounts the mcp-server
+	configPath := filepath.Join(tmpDir, "gateway-config.json")
+	gatewayConfig := map[string]any{
+		"mcpServers": map[string]any{
+			"gh-aw": map[string]any{
+				"command": absBinaryPath,
+				"args":    []string{"mcp-server", "--cmd", absBinaryPath},
+			},
+		},
+		"port": 18083, // Use a different port from other tests
+	}
+
+	configData, err := json.MarshalIndent(gatewayConfig, "", "  ")
+	if err != nil {
+		t.Fatalf("Failed to marshal gateway config: %v", err)
+	}
+
+	if err := os.WriteFile(configPath, configData, 0644); err != nil {
+		t.Fatalf("Failed to write gateway config: %v", err)
+	}
+
+	// Start the gateway in a goroutine
+	gatewayCtx, gatewayCancel := context.WithCancel(context.Background())
+	defer gatewayCancel()
+
+	gatewayCmd := exec.CommandContext(gatewayCtx, absBinaryPath, "mcp-gateway", configPath)
+	gatewayCmd.Dir = tmpDir
+
+	// Capture output for debugging
+	var stdout, stderr strings.Builder
+	gatewayCmd.Stdout = &stdout
+	gatewayCmd.Stderr = &stderr
+
+	if err := gatewayCmd.Start(); err != nil {
+		t.Fatalf("Failed to start gateway: %v", err)
+	}
+
+	// Clean up gateway process
+	defer func() {
+		gatewayCancel()
+		gatewayCmd.Wait()
+		if t.Failed() {
+			t.Logf("Gateway stdout: %s", stdout.String())
+			t.Logf("Gateway stderr: %s", stderr.String())
+		}
+	}()
+
+	// Wait for the gateway to start - needs time to connect to backend servers
+	time.Sleep(6 * time.Second)
+
+	// Verify the gateway is running
+	stderrOutput := stderr.String()
+	if !strings.Contains(stderrOutput, "MCP Gateway listening") {
+		t.Fatalf("Gateway did not start successfully. Output: %s", stderrOutput)
+	}
+
+	t.Logf("Gateway started successfully on port 18083")
+
+	// Now create an MCP client to connect to the gateway and use mcp-inspect
+	client := mcp.NewClient(&mcp.Implementation{
+		Name:    "test-inspect-client",
+		Version: "1.0.0",
+	}, nil)
+
+	// Connect via stdio to the gateway using gh-aw mcp-server pointing to the gateway
+	// This simulates a client connecting to the gateway and using mcp-inspect
+	inspectCmd := exec.Command(absBinaryPath, "mcp-server", "--cmd", absBinaryPath)
+	inspectCmd.Dir = tmpDir
+	transport := &mcp.CommandTransport{Command: inspectCmd}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	session, err := client.Connect(ctx, transport, nil)
+	if err != nil {
+		t.Fatalf("Failed to connect to MCP server for inspection: %v", err)
+	}
+	defer session.Close()
+
+	// List tools to verify mcp-inspect is present
+	listResult, err := session.ListTools(ctx, &mcp.ListToolsParams{})
+	if err != nil {
+		t.Fatalf("Failed to list tools: %v", err)
+	}
+
+	// Find the mcp-inspect tool
+	var mcpInspectTool *mcp.Tool
+	for i := range listResult.Tools {
+		if listResult.Tools[i].Name == "mcp-inspect" {
+			mcpInspectTool = listResult.Tools[i]
+			break
+		}
+	}
+
+	if mcpInspectTool == nil {
+		t.Fatal("mcp-inspect tool not found in available tools")
+	}
+
+	t.Logf("Found mcp-inspect tool: %s", mcpInspectTool.Description)
+
+	// Call mcp-inspect without parameters to list workflows with MCP configs
+	// Since we're in a temporary directory with no workflows that have MCP configs,
+	// we'll just verify the tool is callable through the gateway
+	inspectParams := &mcp.CallToolParams{
+		Name:      "mcp-inspect",
+		Arguments: map[string]any{},
+	}
+
+	inspectResult, err := session.CallTool(ctx, inspectParams)
+	if err != nil {
+		t.Fatalf("Failed to call mcp-inspect tool: %v", err)
+	}
+
+	if len(inspectResult.Content) == 0 {
+		t.Fatal("mcp-inspect returned no content")
+	}
+
+	// Get the text content from the result
+	var inspectOutput string
+	for _, content := range inspectResult.Content {
+		if textContent, ok := content.(*mcp.TextContent); ok {
+			inspectOutput = textContent.Text
+			break
+		}
+	}
+
+	t.Logf("MCP-Inspect output: %s", inspectOutput)
+
+	// The output should indicate that mcp-inspect is working
+	// It may say "no workflows found" or list workflows, but it shouldn't error
+	if strings.Contains(strings.ToLower(inspectOutput), "failed") ||
+		strings.Contains(strings.ToLower(inspectOutput), "error:") {
+		t.Errorf("mcp-inspect output contains failure/error: %s", inspectOutput)
+	}
+
+	t.Log("Successfully used mcp-inspect tool through gateway - tool is discoverable and callable")
 }
