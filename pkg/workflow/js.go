@@ -38,22 +38,22 @@ func init() {
 
 // getAddReactionAndEditCommentScript returns the bundled add_reaction_and_edit_comment script
 func getAddReactionAndEditCommentScript() string {
-	return DefaultScriptRegistry.Get("add_reaction_and_edit_comment")
+	return DefaultScriptRegistry.GetWithMode("add_reaction_and_edit_comment", RuntimeModeGitHubScript)
 }
 
 // getAssignIssueScript returns the bundled assign_issue script
 func getAssignIssueScript() string {
-	return DefaultScriptRegistry.Get("assign_issue")
+	return DefaultScriptRegistry.GetWithMode("assign_issue", RuntimeModeGitHubScript)
 }
 
 // getAddCopilotReviewerScript returns the bundled add_copilot_reviewer script
 func getAddCopilotReviewerScript() string {
-	return DefaultScriptRegistry.Get("add_copilot_reviewer")
+	return DefaultScriptRegistry.GetWithMode("add_copilot_reviewer", RuntimeModeGitHubScript)
 }
 
 // getCheckMembershipScript returns the bundled check_membership script
 func getCheckMembershipScript() string {
-	return DefaultScriptRegistry.Get("check_membership")
+	return DefaultScriptRegistry.GetWithMode("check_membership", RuntimeModeGitHubScript)
 }
 
 //go:embed js/check_stop_time.cjs
@@ -82,7 +82,7 @@ var safeOutputsMCPServerScriptSource string
 
 // getSafeOutputsMCPServerScript returns the bundled safe_outputs_mcp_server script
 func getSafeOutputsMCPServerScript() string {
-	return DefaultScriptRegistry.Get("safe_outputs_mcp_server")
+	return DefaultScriptRegistry.GetWithMode("safe_outputs_mcp_server", RuntimeModeGitHubScript)
 }
 
 //go:embed js/safe_outputs_tools.json
@@ -138,7 +138,7 @@ var updateProjectScriptSource string
 
 // getUpdateProjectScript returns the bundled update_project script
 func getUpdateProjectScript() string {
-	return DefaultScriptRegistry.Get("update_project")
+	return DefaultScriptRegistry.GetWithMode("update_project", RuntimeModeGitHubScript)
 }
 
 //go:embed js/generate_footer.cjs

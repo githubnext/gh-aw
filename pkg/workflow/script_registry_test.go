@@ -222,3 +222,58 @@ module.exports = { helper };`
 	assert.Contains(t, nodejsResult, "function helper()",
 		"Should contain the function in Node.js mode")
 }
+
+func TestScriptRegistry_GetWithMode(t *testing.T) {
+	registry := NewScriptRegistry()
+
+	source := `function helper() { 
+  return "value"; 
+}
+
+module.exports = { helper };`
+
+	// Register with GitHub Script mode
+	registry.RegisterWithMode("test_script", source, RuntimeModeGitHubScript)
+
+	// Test GetWithMode with matching mode - should work without warning
+	result := registry.GetWithMode("test_script", RuntimeModeGitHubScript)
+	assert.NotEmpty(t, result, "Should return bundled script")
+	assert.NotContains(t, result, "module.exports", "GitHub Script mode should remove module.exports")
+
+	// Test GetWithMode with mismatched mode - should log warning but still work
+	result2 := registry.GetWithMode("test_script", RuntimeModeNodeJS)
+	assert.NotEmpty(t, result2, "Should return bundled script even with mode mismatch")
+	// The script was bundled with GitHub Script mode, so module.exports should still be removed
+	assert.NotContains(t, result2, "module.exports", "Script was bundled with GitHub Script mode")
+}
+
+func TestScriptRegistry_GetWithMode_ModeMismatch(t *testing.T) {
+	registry := NewScriptRegistry()
+
+	source := `function test() { return 42; }
+module.exports = { test };`
+
+	// Register with Node.js mode
+	registry.RegisterWithMode("nodejs_script", source, RuntimeModeNodeJS)
+
+	// Request with GitHub Script mode - should log warning
+	result := registry.GetWithMode("nodejs_script", RuntimeModeGitHubScript)
+
+	// Script was bundled with Node.js mode, so module.exports should be preserved
+	assert.Contains(t, result, "module.exports", "Node.js mode should preserve module.exports")
+}
+
+func TestGetScriptWithMode(t *testing.T) {
+	// Create a fresh registry for this test
+	oldRegistry := DefaultScriptRegistry
+	DefaultScriptRegistry = NewScriptRegistry()
+	defer func() { DefaultScriptRegistry = oldRegistry }()
+
+	// Register a test script
+	DefaultScriptRegistry.RegisterWithMode("test_helper", "function test() { return 1; }", RuntimeModeGitHubScript)
+
+	// Test GetScriptWithMode
+	result := GetScriptWithMode("test_helper", RuntimeModeGitHubScript)
+	require.NotEmpty(t, result)
+	assert.Contains(t, result, "function test()")
+}

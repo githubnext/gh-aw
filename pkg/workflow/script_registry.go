@@ -5,7 +5,7 @@
 // The ScriptRegistry eliminates the repetitive sync.Once pattern found throughout
 // the codebase for lazy script bundling. Instead of declaring separate variables
 // and getter functions for each script, register scripts once and retrieve them
-// by name.
+// by name with runtime mode verification.
 //
 // # Before (repetitive pattern):
 //
@@ -27,13 +27,13 @@
 //	    return createIssueScript
 //	}
 //
-// # After (using registry):
+// # After (using registry with runtime mode verification):
 //
 //	// Registration at package init
-//	DefaultScriptRegistry.Register("create_issue", createIssueScriptSource)
+//	DefaultScriptRegistry.RegisterWithMode("create_issue", createIssueScriptSource, RuntimeModeGitHubScript)
 //
-//	// Usage anywhere
-//	script := DefaultScriptRegistry.Get("create_issue")
+//	// Usage anywhere with mode verification
+//	script := DefaultScriptRegistry.GetWithMode("create_issue", RuntimeModeGitHubScript)
 //
 // # Benefits
 //
@@ -42,6 +42,14 @@
 //   - Consistent error handling
 //   - Thread-safe lazy initialization
 //   - Easy to add new scripts
+//   - Runtime mode verification prevents mismatches between registration and usage
+//
+// # Runtime Mode Verification
+//
+// The GetWithMode() method verifies that the requested runtime mode matches the mode
+// the script was registered with. This catches configuration errors at compile time
+// rather than at runtime. If there's a mismatch, a warning is logged but the script
+// is still returned to avoid breaking workflows.
 package workflow
 
 import (
@@ -128,6 +136,9 @@ func (r *ScriptRegistry) RegisterWithMode(name string, source string, mode Runti
 // If the script is not registered, an empty string is returned.
 //
 // Thread-safe: Multiple goroutines can call Get concurrently.
+//
+// DEPRECATED: Use GetWithMode instead to specify the expected runtime mode.
+// This allows the compiler to verify the runtime mode matches the registered mode.
 func (r *ScriptRegistry) Get(name string) string {
 	r.mu.RLock()
 	entry, exists := r.scripts[name]
@@ -138,6 +149,56 @@ func (r *ScriptRegistry) Get(name string) string {
 			registryLog.Printf("Script not found: %s", name)
 		}
 		return ""
+	}
+
+	entry.once.Do(func() {
+		if registryLog.Enabled() {
+			registryLog.Printf("Bundling script: %s (mode: %s)", name, entry.mode)
+		}
+
+		sources := GetJavaScriptSources()
+		bundled, err := BundleJavaScriptWithMode(entry.source, sources, "", entry.mode)
+		if err != nil {
+			registryLog.Printf("Bundling failed for %s, using source as-is: %v", name, err)
+			entry.bundled = entry.source
+		} else {
+			if registryLog.Enabled() {
+				registryLog.Printf("Successfully bundled %s: %d bytes", name, len(bundled))
+			}
+			entry.bundled = bundled
+		}
+	})
+
+	return entry.bundled
+}
+
+// GetWithMode retrieves a bundled script by name with runtime mode verification.
+// Bundling is performed lazily on first access and cached for subsequent calls.
+//
+// The expectedMode parameter allows the compiler to verify that the registered runtime mode
+// matches what the caller expects. If there's a mismatch, a warning is logged but the script
+// is still returned to avoid breaking existing workflows.
+//
+// If bundling fails, the original source is returned as a fallback.
+// If the script is not registered, an empty string is returned.
+//
+// Thread-safe: Multiple goroutines can call GetWithMode concurrently.
+func (r *ScriptRegistry) GetWithMode(name string, expectedMode RuntimeMode) string {
+	r.mu.RLock()
+	entry, exists := r.scripts[name]
+	r.mu.RUnlock()
+
+	if !exists {
+		if registryLog.Enabled() {
+			registryLog.Printf("Script not found: %s", name)
+		}
+		return ""
+	}
+
+	// Verify the runtime mode matches what the caller expects
+	if entry.mode != expectedMode {
+		registryLog.Printf("WARNING: Runtime mode mismatch for script %s: registered as %s but requested as %s",
+			name, entry.mode, expectedMode)
 	}
 
 	entry.once.Do(func() {
@@ -202,6 +263,14 @@ var DefaultScriptRegistry = NewScriptRegistry()
 
 // GetScript retrieves a bundled script from the default registry.
 // This is a convenience function equivalent to DefaultScriptRegistry.Get(name).
+//
+// DEPRECATED: Use GetScriptWithMode to specify the expected runtime mode.
 func GetScript(name string) string {
 	return DefaultScriptRegistry.Get(name)
+}
+
+// GetScriptWithMode retrieves a bundled script from the default registry with mode verification.
+// This is a convenience function equivalent to DefaultScriptRegistry.GetWithMode(name, mode).
+func GetScriptWithMode(name string, mode RuntimeMode) string {
+	return DefaultScriptRegistry.GetWithMode(name, mode)
 }
