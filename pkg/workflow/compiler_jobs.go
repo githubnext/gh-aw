@@ -177,16 +177,6 @@ func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
 		return fmt.Errorf("failed to build safe outputs jobs: %w", err)
 	}
 
-	// Build safe-jobs if configured
-	// Safe-jobs should depend on agent job (always) AND detection job (if threat detection is enabled)
-	threatDetectionEnabledForSafeJobs := data.SafeOutputs != nil && data.SafeOutputs.ThreatDetection != nil
-	if threatDetectionEnabledForSafeJobs {
-		compilerJobsLog.Print("Building safe-jobs with threat detection enabled")
-	}
-	if err := c.buildSafeJobs(data, threatDetectionEnabledForSafeJobs); err != nil {
-		return fmt.Errorf("failed to build safe-jobs: %w", err)
-	}
-
 	// Build additional custom jobs from frontmatter jobs section
 	if len(data.Jobs) > 0 {
 		compilerJobsLog.Printf("Building %d custom jobs from frontmatter", len(data.Jobs))
@@ -201,6 +191,8 @@ func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
 	var pushRepoMemoryJobName string
 	if data.RepoMemoryConfig != nil && len(data.RepoMemoryConfig.Memories) > 0 {
 		compilerJobsLog.Print("Building push_repo_memory job")
+		// Determine if threat detection is enabled for safe-jobs
+		threatDetectionEnabledForSafeJobs := data.SafeOutputs != nil && data.SafeOutputs.ThreatDetection != nil
 		pushRepoMemoryJob, err := c.buildPushRepoMemoryJob(data, threatDetectionEnabledForSafeJobs)
 		if err != nil {
 			return fmt.Errorf("failed to build push_repo_memory job: %w", err)
@@ -670,6 +662,17 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName, markdownPat
 	}
 
 	// Note: noop processing is now handled inside the conclusion job, not as a separate job
+
+	// Build safe-jobs if configured
+	// Safe-jobs should depend on agent job (always) AND detection job (if threat detection is enabled)
+	// These custom safe-jobs should also be included in the conclusion job's dependencies
+	safeJobNames, err := c.buildSafeJobs(data, threatDetectionEnabled)
+	if err != nil {
+		return fmt.Errorf("failed to build safe-jobs: %w", err)
+	}
+	// Add custom safe-job names to the list of safe output jobs
+	safeOutputJobNames = append(safeOutputJobNames, safeJobNames...)
+	compilerJobsLog.Printf("Added %d custom safe-job names to conclusion dependencies", len(safeJobNames))
 
 	// Build conclusion job if add-comment is configured OR if command trigger is configured with reactions
 	// This job runs last, after all safe output jobs (and push_repo_memory if configured), to update the activation comment on failure

@@ -1321,10 +1321,17 @@ jobs:
           EOF_TOOLS_JSON
           cat > /tmp/gh-aw/safe-inputs/mcp-server.cjs << 'EOFSI'
             const path = require("path");
-            const { startSafeInputsServer } = require("./safe_inputs_mcp_server.cjs");
+            const { startHttpServer } = require("./safe_inputs_mcp_server_http.cjs");
             const configPath = path.join(__dirname, "tools.json");
-            startSafeInputsServer(configPath, {
+            const port = parseInt(process.env.GH_AW_SAFE_INPUTS_PORT || "3000", 10);
+            const apiKey = process.env.GH_AW_SAFE_INPUTS_API_KEY || "";
+            startHttpServer(configPath, {
+              port: port,
+              stateless: false,
               logDir: "/tmp/gh-aw/safe-inputs/logs"
+            }).catch(error => {
+              console.error("Failed to start safe-inputs HTTP server:", error);
+              process.exit(1);
             });
           EOFSI
           chmod +x /tmp/gh-aw/safe-inputs/mcp-server.cjs
@@ -1343,8 +1350,65 @@ jobs:
           EOFSH_gh
           chmod +x /tmp/gh-aw/safe-inputs/gh.sh
           
+      - name: Generate Safe Inputs MCP Server Config
+        id: safe-inputs-config
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        with:
+          script: |
+            function generateSafeInputsConfig({ core, crypto }) {
+              const apiKeyBuffer = crypto.randomBytes(32);
+              const apiKey = apiKeyBuffer.toString("base64").replace(/[/+=]/g, "");
+              const port = 3000;
+              core.setOutput("safe_inputs_api_key", apiKey);
+              core.setOutput("safe_inputs_port", port.toString());
+              core.info(`Safe Inputs MCP server will run on port ${port}`);
+              return { apiKey, port };
+            }
+            module.exports = {
+              generateSafeInputsConfig,
+            };
+            
+            // Execute the function
+            const crypto = require('crypto');
+            generateSafeInputsConfig({ core, crypto });
+          
+      - name: Start Safe Inputs MCP HTTP Server
+        id: safe-inputs-start
+        run: |
+          # Set environment variables for the server
+          export GH_AW_SAFE_INPUTS_PORT=${{ steps.safe-inputs-config.outputs.safe_inputs_port }}
+          export GH_AW_SAFE_INPUTS_API_KEY=${{ steps.safe-inputs-config.outputs.safe_inputs_api_key }}
+          
+          export GH_AW_GH_TOKEN="${GH_AW_GH_TOKEN}"
+          
+          # Start the HTTP server in the background
+          cd /tmp/gh-aw/safe-inputs
+          node mcp-server.cjs > /tmp/gh-aw/safe-inputs/logs/server.log 2>&1 &
+          SERVER_PID=$!
+          echo "Started safe-inputs MCP server with PID $SERVER_PID"
+          
+          # Wait for server to be ready (max 10 seconds)
+          for i in {1..10}; do
+            if curl -s -f -H "Authorization: Bearer $GH_AW_SAFE_INPUTS_API_KEY" http://localhost:$GH_AW_SAFE_INPUTS_PORT/ > /dev/null 2>&1; then
+              echo "Safe Inputs MCP server is ready"
+              break
+            fi
+            if [ $i -eq 10 ]; then
+              echo "ERROR: Safe Inputs MCP server failed to start"
+              cat /tmp/gh-aw/safe-inputs/logs/server.log
+              exit 1
+            fi
+            sleep 1
+          done
+          
+          # Output the configuration for the MCP client
+          echo "port=$GH_AW_SAFE_INPUTS_PORT" >> $GITHUB_OUTPUT
+          echo "api_key=$GH_AW_SAFE_INPUTS_API_KEY" >> $GITHUB_OUTPUT
+          
       - name: Setup MCPs
         env:
+          GH_AW_SAFE_INPUTS_PORT: ${{ steps.safe-inputs-start.outputs.port }}
+          GH_AW_SAFE_INPUTS_API_KEY: ${{ steps.safe-inputs-start.outputs.api_key }}
           GH_AW_GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           mkdir -p /tmp/gh-aw/mcp-config
@@ -1352,9 +1416,13 @@ jobs:
           {
             "mcpServers": {
               "safeinputs": {
-                "command": "node",
-                "args": ["/tmp/gh-aw/safe-inputs/mcp-server.cjs"],
+                "url": "http://localhost:$GH_AW_SAFE_INPUTS_PORT",
+                "headers": {
+                  "Authorization": "Bearer $GH_AW_SAFE_INPUTS_API_KEY"
+                },
                 "env": {
+                  "GH_AW_SAFE_INPUTS_PORT": "$GH_AW_SAFE_INPUTS_PORT",
+                  "GH_AW_SAFE_INPUTS_API_KEY": "$GH_AW_SAFE_INPUTS_API_KEY",
                   "GH_AW_GH_TOKEN": "$GH_AW_GH_TOKEN"
                 }
               }
@@ -2491,8 +2559,8 @@ jobs:
               return lines.join("\n");
             }
             function runLogParser(options) {
-            const fs = require("fs");
-            const path = require("path");
+              const fs = require("fs");
+              const path = require("path");
               const { parseLog, parserName, supportsDirectories = false } = options;
               try {
                 const logPath = process.env.GH_AW_AGENT_OUTPUT;

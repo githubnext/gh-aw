@@ -263,16 +263,35 @@ func removeExports(content string) string {
 
 // deduplicateRequires removes duplicate require() statements from bundled JavaScript
 // For destructured imports from the same module, it merges them into a single require statement
-// keeping only the first occurrence of each unique require for non-destructured imports
+// keeping only the first occurrence of each unique require for non-destructured imports.
+// IMPORTANT: Only merges requires that have the same indentation level to avoid moving
+// requires across scope boundaries (which would cause "X is not defined" errors)
 func deduplicateRequires(content string) string {
 	lines := strings.Split(content, "\n")
 
-	// Track module imports: map[moduleName] -> list of destructured names or "" for default import
-	moduleImports := make(map[string][]string)
+	// Helper to get indentation level of a line
+	getIndentation := func(line string) int {
+		count := 0
+		for _, ch := range line {
+			if ch == ' ' {
+				count++
+			} else if ch == '\t' {
+				count += 2 // Treat tab as 2 spaces for comparison
+			} else {
+				break
+			}
+		}
+		return count
+	}
+
+	// Track module imports per indentation level: map[indent]map[moduleName][]names
+	moduleImportsByIndent := make(map[int]map[string][]string)
 	// Track which lines are require statements to skip during first pass
 	requireLines := make(map[int]bool)
-	// Track order of first appearance of each module
-	moduleOrder := []string{}
+	// Track order of first appearance of each module per indentation: map[indent][]moduleName
+	moduleOrderByIndent := make(map[int][]string)
+	// Track the first line number where we see a require at each indentation
+	firstRequireLineByIndent := make(map[int]int)
 
 	// Regular expression to match destructured require statements
 	// Matches: const/let/var { name1, name2 } = require('module');
@@ -281,8 +300,10 @@ func deduplicateRequires(content string) string {
 	// Matches: const/let/var name = require('module');
 	simpleRequireRegex := regexp.MustCompile(`^\s*(?:const|let|var)\s+(\w+)\s*=\s*require\(['"']([^'"']+)['"']\);?\s*$`)
 
-	// First pass: collect all require statements and their destructured imports
+	// First pass: collect all require statements grouped by indentation level
 	for i, line := range lines {
+		indent := getIndentation(line)
+
 		// Try destructured require first
 		destructuredMatches := destructuredRequireRegex.FindStringSubmatch(line)
 		if len(destructuredMatches) > 2 {
@@ -291,18 +312,24 @@ func deduplicateRequires(content string) string {
 
 			requireLines[i] = true
 
+			// Initialize map for this indentation level if needed
+			if moduleImportsByIndent[indent] == nil {
+				moduleImportsByIndent[indent] = make(map[string][]string)
+				firstRequireLineByIndent[indent] = i
+			}
+
 			// Parse the destructured names (split by comma and trim whitespace)
 			names := strings.Split(destructuredNames, ",")
 			for _, name := range names {
 				name = strings.TrimSpace(name)
 				if name != "" {
-					moduleImports[moduleName] = append(moduleImports[moduleName], name)
+					moduleImportsByIndent[indent][moduleName] = append(moduleImportsByIndent[indent][moduleName], name)
 				}
 			}
 
-			// Track order of first appearance
-			if len(moduleImports[moduleName]) == len(names) {
-				moduleOrder = append(moduleOrder, moduleName)
+			// Track order of first appearance at this indentation
+			if len(moduleImportsByIndent[indent][moduleName]) == len(names) {
+				moduleOrderByIndent[indent] = append(moduleOrderByIndent[indent], moduleName)
 			}
 			continue
 		}
@@ -315,23 +342,38 @@ func deduplicateRequires(content string) string {
 
 			requireLines[i] = true
 
-			// For simple requires, store the variable name with a marker
-			if _, exists := moduleImports[moduleName]; !exists {
-				moduleOrder = append(moduleOrder, moduleName)
+			// Initialize map for this indentation level if needed
+			if moduleImportsByIndent[indent] == nil {
+				moduleImportsByIndent[indent] = make(map[string][]string)
+				firstRequireLineByIndent[indent] = i
 			}
-			moduleImports[moduleName] = append(moduleImports[moduleName], "VAR:"+varName)
+
+			// For simple requires, store the variable name with a marker
+			if _, exists := moduleImportsByIndent[indent][moduleName]; !exists {
+				moduleOrderByIndent[indent] = append(moduleOrderByIndent[indent], moduleName)
+			}
+			moduleImportsByIndent[indent][moduleName] = append(moduleImportsByIndent[indent][moduleName], "VAR:"+varName)
 		}
 	}
 
 	// Second pass: write output
 	var result strings.Builder
-	wroteRequires := false
+	// Track which indentation levels have had their merged requires written
+	wroteRequiresByIndent := make(map[int]bool)
 
 	for i, line := range lines {
-		// Skip original require lines, we'll write merged ones at the first require position
+		indent := getIndentation(line)
+
+		// Skip original require lines, we'll write merged ones at the first require position for each indent level
 		if requireLines[i] {
-			if !wroteRequires {
-				// Write all merged require statements here
+			// Check if this is the first require at this indentation level
+			if firstRequireLineByIndent[indent] == i && !wroteRequiresByIndent[indent] {
+				// Write all merged require statements for this indentation level
+				moduleImports := moduleImportsByIndent[indent]
+				moduleOrder := moduleOrderByIndent[indent]
+
+				indentStr := strings.Repeat(" ", indent)
+
 				for _, moduleName := range moduleOrder {
 					imports := moduleImports[moduleName]
 					if len(imports) == 0 {
@@ -342,8 +384,8 @@ func deduplicateRequires(content string) string {
 					if len(imports) == 1 && strings.HasPrefix(imports[0], "VAR:") {
 						// Simple require
 						varName := strings.TrimPrefix(imports[0], "VAR:")
-						result.WriteString(fmt.Sprintf("const %s = require(\"%s\");\n", varName, moduleName))
-						bundlerLog.Printf("Keeping simple require: %s", moduleName)
+						result.WriteString(fmt.Sprintf("%sconst %s = require(\"%s\");\n", indentStr, varName, moduleName))
+						bundlerLog.Printf("Keeping simple require: %s at indent %d", moduleName, indent)
 					} else {
 						// Destructured require - merge all names
 						var cleanedImports []string
@@ -364,14 +406,15 @@ func deduplicateRequires(content string) string {
 								}
 							}
 
-							result.WriteString(fmt.Sprintf("const { %s } = require(\"%s\");\n",
-								strings.Join(uniqueImports, ", "), moduleName))
-							bundlerLog.Printf("Merged destructured require for %s: %v", moduleName, uniqueImports)
+							result.WriteString(fmt.Sprintf("%sconst { %s } = require(\"%s\");\n",
+								indentStr, strings.Join(uniqueImports, ", "), moduleName))
+							bundlerLog.Printf("Merged destructured require for %s at indent %d: %v", moduleName, indent, uniqueImports)
 						}
 					}
 				}
-				wroteRequires = true
+				wroteRequiresByIndent[indent] = true
 			}
+			// Skip this require line (it's been merged or will be merged)
 			continue
 		}
 

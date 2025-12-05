@@ -69,7 +69,7 @@ Test workflow to verify child_process imports are merged correctly.
 
 		if !hasExecFileAndExecSync {
 			t.Error("Compiled workflow does not contain merged child_process imports (execFile and execSync)")
-			
+
 			// Debug: Find what we actually got
 			lines := strings.Split(lockContent, "\n")
 			for _, line := range lines {
