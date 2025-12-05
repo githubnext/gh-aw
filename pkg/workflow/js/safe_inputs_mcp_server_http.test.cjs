@@ -126,7 +126,7 @@ describe("safe_inputs_mcp_server_http.cjs integration", () => {
    */
   it("should start HTTP MCP server successfully", { timeout: 15000 }, async () => {
     serverProcess = spawn("node", ["safe_inputs_mcp_server_http.cjs", configPath, "--port", serverPort.toString()], {
-      cwd: path.join(__dirname),
+      cwd: process.cwd(),
       stdio: ["pipe", "pipe", "pipe"],
     });
 

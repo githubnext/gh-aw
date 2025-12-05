@@ -163,7 +163,7 @@ async function startHttpServer(configPath, options = {}) {
     }
 
     // Only handle POST requests for MCP protocol
-    if (req.method !== "POST" && req.method !== "GET") {
+    if (req.method !== "POST") {
       res.writeHead(405, { "Content-Type": "application/json" });
       res.end(JSON.stringify({ error: "Method not allowed" }));
       return;
@@ -178,7 +178,22 @@ async function startHttpServer(configPath, options = {}) {
           chunks.push(chunk);
         }
         const bodyStr = Buffer.concat(chunks).toString();
-        body = bodyStr ? JSON.parse(bodyStr) : null;
+        try {
+          body = bodyStr ? JSON.parse(bodyStr) : null;
+        } catch (parseError) {
+          res.writeHead(400, { "Content-Type": "application/json" });
+          res.end(
+            JSON.stringify({
+              jsonrpc: "2.0",
+              error: {
+                code: -32700,
+                message: "Parse error: Invalid JSON in request body",
+              },
+              id: null,
+            })
+          );
+          return;
+        }
       }
 
       // Let the transport handle the request
