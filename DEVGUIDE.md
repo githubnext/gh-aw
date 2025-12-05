@@ -175,9 +175,8 @@ CVE-2023-XXXXX  # False positive: not exploitable in our usage
 ### CI/CD Integration
 
 Security scans run automatically on:
-- Every pull request
-- Every push to main branch
 - Daily scheduled scan (6:00 AM UTC)
+- Manual workflow dispatch
 
 Results are uploaded to the GitHub Security tab in SARIF format.
 
