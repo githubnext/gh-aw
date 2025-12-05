@@ -11,7 +11,7 @@ The `mcp-gateway-tools.json` file demonstrates how to configure custom tools usi
 1. Start the gateway with safe-inputs:
 
 ```bash
-gh aw mcp-gateway --scripts examples/mcp-gateway-tools.json --port 8090
+gh aw mcp-gateway --scripts pkg/gateway/examples/mcp-gateway-tools.json --port 8090
 ```
 
 2. The gateway will expose three tools:
@@ -40,7 +40,7 @@ You can run both MCP servers and safe-inputs together:
 ```bash
 gh aw mcp-gateway \
   --mcps examples/mcp-gateway-config.json \
-  --scripts examples/mcp-gateway-tools.json \
+  --scripts pkg/gateway/examples/mcp-gateway-tools.json \
   --port 8090
 ```
 
@@ -92,7 +92,7 @@ Add API key authentication to secure your gateway:
 
 ```bash
 gh aw mcp-gateway \
-  --scripts examples/mcp-gateway-tools.json \
+  --scripts pkg/gateway/examples/mcp-gateway-tools.json \
   --api-key your-secret-key \
   --port 8090
 ```

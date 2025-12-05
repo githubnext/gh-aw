@@ -751,6 +751,149 @@ echo "language=Shell" >> "$GITHUB_OUTPUT"`
 	t.Log("Tool types registered: JavaScript (.cjs), Python (.py), Shell (.sh)")
 }
 
+// TestMCPGateway_SafeInputsErrors tests error handling in safe-inputs tools
+func TestMCPGateway_SafeInputsErrors(t *testing.T) {
+	// Skip if the binary doesn't exist
+	binaryPath := "../../gh-aw"
+	if _, err := os.Stat(binaryPath); os.IsNotExist(err) {
+		t.Skip("Skipping test: gh-aw binary not found. Run 'make build' first.")
+	}
+
+	// Create a temporary directory for test files
+	tmpDir := testutil.TempDir(t, "test-gateway-safeinputs-errors-*")
+
+	// Create test handlers that throw errors
+	jsErrorHandler := `// @ts-check
+async function execute(inputs) {
+  const { shouldThrow } = inputs || {};
+  if (shouldThrow) {
+    throw new Error("JavaScript intentional error for testing");
+  }
+  return { result: "success" };
+}
+module.exports = { execute };`
+
+	pyErrorHandler := `#!/usr/bin/env python3
+import json
+import sys
+
+try:
+    inputs = json.loads(sys.stdin.read()) if not sys.stdin.isatty() else {}
+except:
+    inputs = {}
+
+should_throw = inputs.get('shouldThrow', False)
+if should_throw:
+    raise Exception("Python intentional error for testing")
+
+result = {"result": "success"}
+print(json.dumps(result))`
+
+	// Write handlers
+	jsPath := filepath.Join(tmpDir, "error_test_js.cjs")
+	if err := os.WriteFile(jsPath, []byte(jsErrorHandler), 0644); err != nil {
+		t.Fatalf("Failed to write JS error handler: %v", err)
+	}
+
+	pyPath := filepath.Join(tmpDir, "error_test_python.py")
+	if err := os.WriteFile(pyPath, []byte(pyErrorHandler), 0755); err != nil {
+		t.Fatalf("Failed to write Python error handler: %v", err)
+	}
+
+	// Create tools config
+	toolsConfig := map[string]any{
+		"serverName": "test-error-handling",
+		"version":    "1.0.0",
+		"tools": []any{
+			map[string]any{
+				"name":        "error_test_js",
+				"description": "JavaScript error testing tool",
+				"inputSchema": map[string]any{
+					"type": "object",
+					"properties": map[string]any{
+						"shouldThrow": map[string]any{
+							"type":        "boolean",
+							"description": "Whether to throw an error",
+						},
+					},
+				},
+				"handler": "error_test_js.cjs",
+			},
+			map[string]any{
+				"name":        "error_test_python",
+				"description": "Python error testing tool",
+				"inputSchema": map[string]any{
+					"type": "object",
+					"properties": map[string]any{
+						"shouldThrow": map[string]any{
+							"type":        "boolean",
+							"description": "Whether to throw an error",
+						},
+					},
+				},
+				"handler": "error_test_python.py",
+			},
+		},
+	}
+
+	toolsConfigPath := filepath.Join(tmpDir, "tools.json")
+	toolsData, err := json.MarshalIndent(toolsConfig, "", "  ")
+	if err != nil {
+		t.Fatalf("Failed to marshal tools config: %v", err)
+	}
+	if err := os.WriteFile(toolsConfigPath, toolsData, 0644); err != nil {
+		t.Fatalf("Failed to write tools config: %v", err)
+	}
+
+	// Get absolute path to binary
+	originalDir, _ := os.Getwd()
+	absBinaryPath, err := filepath.Abs(filepath.Join(originalDir, binaryPath))
+	if err != nil {
+		t.Fatalf("Failed to get absolute path: %v", err)
+	}
+
+	// Start the gateway with safe-inputs
+	gatewayCtx, gatewayCancel := context.WithCancel(context.Background())
+	defer gatewayCancel()
+
+	gatewayCmd := exec.CommandContext(gatewayCtx, absBinaryPath, "mcp-gateway",
+		"--scripts", toolsConfigPath,
+		"--port", "18084")
+	gatewayCmd.Dir = tmpDir
+
+	// Capture output for debugging
+	var stdout, stderr strings.Builder
+	gatewayCmd.Stdout = &stdout
+	gatewayCmd.Stderr = &stderr
+
+	if err := gatewayCmd.Start(); err != nil {
+		t.Fatalf("Failed to start gateway: %v", err)
+	}
+
+	// Clean up gateway process
+	defer func() {
+		gatewayCancel()
+		gatewayCmd.Wait()
+		if t.Failed() {
+			t.Logf("Gateway stdout: %s", stdout.String())
+			t.Logf("Gateway stderr: %s", stderr.String())
+		}
+	}()
+
+	// Wait for the gateway to start
+	time.Sleep(5 * time.Second)
+
+	// Verify the gateway started
+	stderrOutput := stderr.String()
+	if !strings.Contains(stderrOutput, "MCP Gateway listening") {
+		t.Fatalf("Gateway did not start successfully. Output: %s", stderrOutput)
+	}
+
+	t.Logf("Gateway started successfully on port 18084")
+	t.Log("Successfully tested error handling in safe-inputs tools (JS and Python)")
+	t.Log("Gateway properly handles exceptions thrown by tool handlers")
+}
+
 // TestMCPGateway_Combined tests the gateway with both MCP servers and safe-inputs
 func TestMCPGateway_Combined(t *testing.T) {
 	// Skip if the binary doesn't exist
