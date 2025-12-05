@@ -391,6 +391,43 @@ func TestGenerateRuntimeSetupSteps(t *testing.T) {
 				"node-version: '24'",
 			},
 		},
+		{
+			name: "generates go setup with explicit version",
+			requirements: []RuntimeRequirement{
+				{Runtime: findRuntimeByID("go"), Version: "1.22"},
+			},
+			expectSteps: 1,
+			checkContent: []string{
+				"Setup Go",
+				"actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5",
+				"go-version: '1.22'",
+			},
+		},
+		{
+			name: "generates go setup with default version when no go.mod",
+			requirements: []RuntimeRequirement{
+				{Runtime: findRuntimeByID("go"), Version: ""},
+			},
+			expectSteps: 1,
+			checkContent: []string{
+				"Setup Go",
+				"actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5",
+				"go-version: '1.25'",
+			},
+		},
+		{
+			name: "generates go setup with go-version-file when go-mod-file specified",
+			requirements: []RuntimeRequirement{
+				{Runtime: findRuntimeByID("go"), Version: "", GoModFile: "custom/go.mod"},
+			},
+			expectSteps: 1,
+			checkContent: []string{
+				"Setup Go",
+				"actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5",
+				"go-version-file: custom/go.mod",
+				"cache: true",
+			},
+		},
 	}
 
 	for _, tt := range tests {
