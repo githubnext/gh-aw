@@ -20,12 +20,13 @@ const (
 )
 
 // SandboxConfig represents the top-level sandbox configuration from front matter
-// New format: { agent: "awf"|"srt"|{type, config}, mcp: {...} }
+// New format: { agent: "awf"|"srt"|{type, config}, mcp: {...}, safe-inputs: {...} }
 // Legacy format: "default"|"sandbox-runtime" or { type, config }
 type SandboxConfig struct {
 	// New fields
-	Agent *AgentSandboxConfig `yaml:"agent,omitempty"` // Agent sandbox configuration
-	MCP   *MCPGatewayConfig   `yaml:"mcp,omitempty"`   // MCP gateway configuration
+	Agent      *AgentSandboxConfig         `yaml:"agent,omitempty"`       // Agent sandbox configuration
+	MCP        *MCPGatewayConfig           `yaml:"mcp,omitempty"`         // MCP gateway configuration
+	SafeInputs *SafeInputsGatewayConfig    `yaml:"safe-inputs,omitempty"` // Safe-inputs gateway configuration
 
 	// Legacy fields (for backward compatibility)
 	Type   SandboxType           `yaml:"type,omitempty"`   // Sandbox type: "default" or "sandbox-runtime"
@@ -41,6 +42,17 @@ type AgentSandboxConfig struct {
 	Command  string                `yaml:"command,omitempty"` // Custom command to replace AWF or SRT installation
 	Args     []string              `yaml:"args,omitempty"`    // Additional arguments to append to the command
 	Env      map[string]string     `yaml:"env,omitempty"`     // Environment variables to set on the step
+}
+
+// SafeInputsGatewayConfig represents the configuration for the safe-inputs MCP gateway
+// This allows customizing how the safe-inputs MCP server is started (via gateway or direct)
+type SafeInputsGatewayConfig struct {
+	Command string            `yaml:"command,omitempty"` // Command to start the gateway (default: gh aw mcp-gateway)
+	Args    []string          `yaml:"args,omitempty"`    // Arguments for the gateway command
+	Env     map[string]string `yaml:"env,omitempty"`     // Environment variables for the gateway
+	Port    int               `yaml:"port,omitempty"`    // Port for the gateway (default: 8088)
+	APIKey  string            `yaml:"api-key,omitempty"` // API key for gateway authentication
+	Steps   []any             `yaml:"steps,omitempty"`   // Custom steps to run before starting gateway (e.g., download gh-aw)
 }
 
 // SandboxRuntimeConfig represents the Anthropic Sandbox Runtime configuration

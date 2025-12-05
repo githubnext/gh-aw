@@ -206,20 +206,46 @@ func (r *MCPConfigRendererUnified) renderSafeOutputsTOML(yaml *strings.Builder) 
 }
 
 // RenderSafeInputsMCP generates the Safe Inputs MCP server configuration
-func (r *MCPConfigRendererUnified) RenderSafeInputsMCP(yaml *strings.Builder, safeInputs *SafeInputsConfig) {
+func (r *MCPConfigRendererUnified) RenderSafeInputsMCP(yaml *strings.Builder, safeInputs *SafeInputsConfig, workflowData *WorkflowData) {
 	mcpRendererLog.Printf("Rendering Safe Inputs MCP: format=%s", r.options.Format)
 
 	if r.options.Format == "toml" {
-		r.renderSafeInputsTOML(yaml, safeInputs)
+		r.renderSafeInputsTOML(yaml, safeInputs, workflowData)
 		return
 	}
 
 	// JSON format
-	renderSafeInputsMCPConfigWithOptions(yaml, safeInputs, r.options.IsLast, r.options.IncludeCopilotFields)
+	renderSafeInputsMCPConfigWithOptions(yaml, safeInputs, r.options.IsLast, r.options.IncludeCopilotFields, workflowData)
 }
 
 // renderSafeInputsTOML generates Safe Inputs MCP configuration in TOML format
-func (r *MCPConfigRendererUnified) renderSafeInputsTOML(yaml *strings.Builder, safeInputs *SafeInputsConfig) {
+func (r *MCPConfigRendererUnified) renderSafeInputsTOML(yaml *strings.Builder, safeInputs *SafeInputsConfig, workflowData *WorkflowData) {
+	// Check if gateway is configured in sandbox
+	if workflowData != nil && workflowData.SandboxConfig != nil && workflowData.SandboxConfig.SafeInputs != nil {
+		gatewayConfig := workflowData.SandboxConfig.SafeInputs
+		
+		// Determine port
+		port := 8088
+		if gatewayConfig.Port > 0 {
+			port = gatewayConfig.Port
+		}
+		
+		// Render HTTP-based configuration for gateway (TOML format)
+		safeInputsLog.Printf("Rendering safe-inputs MCP TOML config for gateway on port %d", port)
+		yaml.WriteString("          \n")
+		yaml.WriteString("          [mcp_servers." + constants.SafeInputsMCPServerID + "]\n")
+		yaml.WriteString(fmt.Sprintf("          url = \"http://localhost:%d\"\n", port))
+		
+		// Add headers for API key if provided
+		if gatewayConfig.APIKey != "" {
+			yaml.WriteString("          \n")
+			yaml.WriteString("          [mcp_servers." + constants.SafeInputsMCPServerID + ".headers]\n")
+			yaml.WriteString(fmt.Sprintf("          Authorization = \"Bearer %s\"\n", gatewayConfig.APIKey))
+		}
+		return
+	}
+
+	// Command-based configuration for direct execution
 	yaml.WriteString("          \n")
 	yaml.WriteString("          [mcp_servers." + constants.SafeInputsMCPServerID + "]\n")
 	yaml.WriteString("          command = \"node\"\n")
@@ -394,7 +420,7 @@ type MCPToolRenderers struct {
 	RenderCacheMemory      func(yaml *strings.Builder, isLast bool, workflowData *WorkflowData)
 	RenderAgenticWorkflows func(yaml *strings.Builder, isLast bool)
 	RenderSafeOutputs      func(yaml *strings.Builder, isLast bool)
-	RenderSafeInputs       func(yaml *strings.Builder, safeInputs *SafeInputsConfig, isLast bool)
+	RenderSafeInputs       func(yaml *strings.Builder, safeInputs *SafeInputsConfig, isLast bool, workflowData *WorkflowData)
 	RenderWebFetch         func(yaml *strings.Builder, isLast bool)
 	RenderCustomMCPConfig  RenderCustomMCPToolConfigHandler
 }
@@ -653,7 +679,7 @@ func RenderJSONMCPConfig(
 			options.Renderers.RenderSafeOutputs(yaml, isLast)
 		case "safe-inputs":
 			if options.Renderers.RenderSafeInputs != nil {
-				options.Renderers.RenderSafeInputs(yaml, workflowData.SafeInputs, isLast)
+				options.Renderers.RenderSafeInputs(yaml, workflowData.SafeInputs, isLast, workflowData)
 			}
 		case "web-fetch":
 			options.Renderers.RenderWebFetch(yaml, isLast)

@@ -388,6 +388,9 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 			}
 		}
 		yaml.WriteString("          \n")
+
+		// Step 3: Start the safe-inputs MCP gateway if configured in sandbox
+		c.generateSafeInputsGatewayStartup(yaml, workflowData)
 	}
 
 	// Use the engine's RenderMCPConfig method
@@ -789,4 +792,178 @@ func replaceExpressionsInPlaywrightArgs(args []string, expressions map[string]st
 
 	// Split back into individual arguments
 	return strings.Split(replaced, "\n")
+}
+
+// generateSafeInputsGatewayStartup generates the step to start the safe-inputs MCP gateway
+func (c *Compiler) generateSafeInputsGatewayStartup(yaml *strings.Builder, workflowData *WorkflowData) {
+	mcpServersLog.Print("Generating safe-inputs gateway startup step")
+
+	// Check if gateway configuration is provided in sandbox
+	var gatewayConfig *SafeInputsGatewayConfig
+	if workflowData.SandboxConfig != nil && workflowData.SandboxConfig.SafeInputs != nil {
+		gatewayConfig = workflowData.SandboxConfig.SafeInputs
+		mcpServersLog.Printf("Found safe-inputs gateway configuration in sandbox: command=%s", gatewayConfig.Command)
+	}
+
+	// If no custom configuration, use default with pinned gh-aw version
+	useDefaultSetup := gatewayConfig == nil || gatewayConfig.Command == ""
+
+	if useDefaultSetup {
+		mcpServersLog.Print("Using default gh-aw download and mcp-gateway command")
+		// Step 3a: Download gh-aw from releases (pinned version)
+		yaml.WriteString("      - name: Download gh-aw CLI\n")
+		yaml.WriteString("        run: |\n")
+		yaml.WriteString("          echo \"Downloading gh-aw CLI...\"\n")
+		yaml.WriteString("          # Download pinned version of gh-aw from releases\n")
+		yaml.WriteString(fmt.Sprintf("          GH_AW_VERSION=\"%s\"\n", constants.GhAwVersion))
+		yaml.WriteString("          curl -fsSL https://github.com/githubnext/gh-aw/releases/download/${GH_AW_VERSION}/gh-aw-linux-amd64 -o /tmp/gh-aw-cli\n")
+		yaml.WriteString("          chmod +x /tmp/gh-aw-cli\n")
+		yaml.WriteString("          /tmp/gh-aw-cli --version\n")
+		yaml.WriteString("          \n")
+	} else if gatewayConfig.Steps != nil && len(gatewayConfig.Steps) > 0 {
+		mcpServersLog.Printf("Generating custom setup steps: %d steps", len(gatewayConfig.Steps))
+		// Generate custom setup steps from configuration
+		for i, step := range gatewayConfig.Steps {
+			mcpServersLog.Printf("Generating custom setup step %d", i+1)
+			c.generateCustomGatewayStep(yaml, step)
+		}
+	}
+
+	// Step 3b: Start the gateway
+	yaml.WriteString("      - name: Start Safe Inputs Gateway\n")
+	
+	// Add environment variables if specified
+	if gatewayConfig != nil && len(gatewayConfig.Env) > 0 {
+		yaml.WriteString("        env:\n")
+		// Sort env vars for stable output
+		envKeys := make([]string, 0, len(gatewayConfig.Env))
+		for key := range gatewayConfig.Env {
+			envKeys = append(envKeys, key)
+		}
+		sort.Strings(envKeys)
+		for _, key := range envKeys {
+			yaml.WriteString(fmt.Sprintf("          %s: %s\n", key, gatewayConfig.Env[key]))
+		}
+	}
+
+	yaml.WriteString("        run: |\n")
+	yaml.WriteString("          # Start the safe-inputs MCP gateway in the background\n")
+	
+	// Determine the command to use
+	command := "gh aw mcp-gateway"
+	if gatewayConfig != nil && gatewayConfig.Command != "" {
+		command = gatewayConfig.Command
+	} else if useDefaultSetup {
+		command = "/tmp/gh-aw-cli mcp-gateway"
+	}
+
+	// Determine port
+	port := 8088
+	if gatewayConfig != nil && gatewayConfig.Port > 0 {
+		port = gatewayConfig.Port
+	}
+
+	// Build the command line
+	var cmdParts []string
+	cmdParts = append(cmdParts, command)
+	cmdParts = append(cmdParts, "--scripts /tmp/gh-aw/safe-inputs/tools.json")
+	cmdParts = append(cmdParts, fmt.Sprintf("--port %d", port))
+
+	// Add API key if specified
+	if gatewayConfig != nil && gatewayConfig.APIKey != "" {
+		cmdParts = append(cmdParts, fmt.Sprintf("--api-key %s", gatewayConfig.APIKey))
+	}
+
+	// Add custom arguments if specified
+	if gatewayConfig != nil && len(gatewayConfig.Args) > 0 {
+		cmdParts = append(cmdParts, gatewayConfig.Args...)
+	}
+
+	// Write the command with proper backgrounding and logging
+	fullCmd := strings.Join(cmdParts, " ")
+	yaml.WriteString(fmt.Sprintf("          %s > /tmp/gh-aw/safe-inputs/gateway.log 2>&1 &\n", fullCmd))
+	yaml.WriteString("          GATEWAY_PID=$!\n")
+	yaml.WriteString("          echo \"Gateway started with PID $GATEWAY_PID on port " + fmt.Sprintf("%d", port) + "\"\n")
+	yaml.WriteString("          \n")
+	yaml.WriteString("          # Wait for gateway to be ready\n")
+	yaml.WriteString("          echo \"Waiting for gateway to start...\"\n")
+	yaml.WriteString("          for i in {1..30}; do\n")
+	yaml.WriteString(fmt.Sprintf("            if curl -s http://localhost:%d/health > /dev/null 2>&1; then\n", port))
+	yaml.WriteString("              echo \"Gateway is ready!\"\n")
+	yaml.WriteString("              break\n")
+	yaml.WriteString("            fi\n")
+	yaml.WriteString("            if [ $i -eq 30 ]; then\n")
+	yaml.WriteString("              echo \"Gateway failed to start. Check logs:\"\n")
+	yaml.WriteString("              cat /tmp/gh-aw/safe-inputs/gateway.log\n")
+	yaml.WriteString("              exit 1\n")
+	yaml.WriteString("            fi\n")
+	yaml.WriteString("            sleep 1\n")
+	yaml.WriteString("          done\n")
+	yaml.WriteString("          \n")
+}
+
+// generateCustomGatewayStep generates a custom step from the sandbox configuration
+func (c *Compiler) generateCustomGatewayStep(yaml *strings.Builder, step any) {
+	stepMap, ok := step.(map[string]any)
+	if !ok {
+		mcpServersLog.Printf("Warning: invalid step configuration, expected map, got %T", step)
+		return
+	}
+
+	// Get step name
+	name, _ := stepMap["name"].(string)
+	if name == "" {
+		name = "Custom Gateway Setup Step"
+	}
+
+	yaml.WriteString(fmt.Sprintf("      - name: %s\n", name))
+
+	// Add environment variables if specified
+	if env, exists := stepMap["env"]; exists {
+		if envMap, ok := env.(map[string]any); ok && len(envMap) > 0 {
+			yaml.WriteString("        env:\n")
+			// Sort env vars for stable output
+			envKeys := make([]string, 0, len(envMap))
+			for key := range envMap {
+				envKeys = append(envKeys, key)
+			}
+			sort.Strings(envKeys)
+			for _, key := range envKeys {
+				if val, ok := envMap[key].(string); ok {
+					yaml.WriteString(fmt.Sprintf("          %s: %s\n", key, val))
+				}
+			}
+		}
+	}
+
+	// Handle different step types
+	if run, exists := stepMap["run"]; exists {
+		if runStr, ok := run.(string); ok {
+			yaml.WriteString("        run: |\n")
+			// Write the run script with proper indentation
+			for _, line := range strings.Split(runStr, "\n") {
+				yaml.WriteString("          " + line + "\n")
+			}
+		}
+	} else if uses, exists := stepMap["uses"]; exists {
+		if usesStr, ok := uses.(string); ok {
+			yaml.WriteString(fmt.Sprintf("        uses: %s\n", usesStr))
+			
+			// Add with block if specified
+			if with, exists := stepMap["with"]; exists {
+				if withMap, ok := with.(map[string]any); ok && len(withMap) > 0 {
+					yaml.WriteString("        with:\n")
+					// Sort keys for stable output
+					keys := make([]string, 0, len(withMap))
+					for key := range withMap {
+						keys = append(keys, key)
+					}
+					sort.Strings(keys)
+					for _, key := range keys {
+						yaml.WriteString(fmt.Sprintf("          %s: %v\n", key, withMap[key]))
+					}
+				}
+			}
+		}
+	}
 }

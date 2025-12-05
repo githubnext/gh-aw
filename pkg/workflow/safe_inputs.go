@@ -527,18 +527,44 @@ func collectSafeInputsSecrets(safeInputs *SafeInputsConfig) map[string]string {
 }
 
 // renderSafeInputsMCPConfigWithOptions generates the Safe Inputs MCP server configuration with engine-specific options
-func renderSafeInputsMCPConfigWithOptions(yaml *strings.Builder, safeInputs *SafeInputsConfig, isLast bool, includeCopilotFields bool) {
-	envVars := getSafeInputsEnvVars(safeInputs)
-
-	renderBuiltinMCPServerBlock(
-		yaml,
-		constants.SafeInputsMCPServerID,
-		"node",
-		[]string{SafeInputsDirectory + "/mcp-server.cjs"},
-		envVars,
-		isLast,
-		includeCopilotFields,
-	)
+// If a gateway is configured in the sandbox, it will render an HTTP-based configuration pointing to the gateway
+// Otherwise, it renders a command-based configuration for direct MCP server execution
+func renderSafeInputsMCPConfigWithOptions(yaml *strings.Builder, safeInputs *SafeInputsConfig, isLast bool, includeCopilotFields bool, workflowData *WorkflowData) {
+	// Check if gateway is configured in sandbox
+	if workflowData != nil && workflowData.SandboxConfig != nil && workflowData.SandboxConfig.SafeInputs != nil {
+		gatewayConfig := workflowData.SandboxConfig.SafeInputs
+		
+		// Determine port
+		port := 8088
+		if gatewayConfig.Port > 0 {
+			port = gatewayConfig.Port
+		}
+		
+		// Render HTTP-based configuration for gateway
+		safeInputsLog.Printf("Rendering safe-inputs MCP config for gateway on port %d", port)
+		renderHTTPMCPServerBlock(
+			yaml,
+			constants.SafeInputsMCPServerID,
+			fmt.Sprintf("http://localhost:%d", port),
+			gatewayConfig.APIKey,
+			isLast,
+			includeCopilotFields,
+		)
+	} else {
+		// Render command-based configuration for direct execution
+		safeInputsLog.Print("Rendering safe-inputs MCP config for direct execution")
+		envVars := getSafeInputsEnvVars(safeInputs)
+		
+		renderBuiltinMCPServerBlock(
+			yaml,
+			constants.SafeInputsMCPServerID,
+			"node",
+			[]string{SafeInputsDirectory + "/mcp-server.cjs"},
+			envVars,
+			isLast,
+			includeCopilotFields,
+		)
+	}
 }
 
 // mergeSafeInputs merges safe-inputs configuration from imports into the main configuration

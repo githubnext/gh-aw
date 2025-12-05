@@ -44,6 +44,9 @@ const DefaultGitHubMCPServerVersion Version = "v0.24.0"
 // DefaultFirewallVersion is the default version of the gh-aw-firewall (AWF) binary
 const DefaultFirewallVersion Version = "v0.6.0"
 
+// GhAwVersion is the pinned version of gh-aw CLI to download for mcp-gateway
+const GhAwVersion Version = "v0.105.0"
+
 // DefaultPlaywrightMCPVersion is the default version of the @playwright/mcp package
 const DefaultPlaywrightMCPVersion Version = "0.0.49"
 

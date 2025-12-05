@@ -203,6 +203,43 @@ func renderBuiltinMCPServerBlock(yaml *strings.Builder, serverID string, command
 	}
 }
 
+// renderHTTPMCPServerBlock renders an HTTP-based MCP server configuration block
+func renderHTTPMCPServerBlock(yaml *strings.Builder, serverID string, url string, apiKey string, isLast bool, includeCopilotFields bool) {
+	yaml.WriteString("              \"" + serverID + "\": {\n")
+
+	// Add type field for Copilot
+	if includeCopilotFields {
+		yaml.WriteString("                \"type\": \"remote\",\n")
+	}
+
+	yaml.WriteString("                \"url\": \"" + url + "\",\n")
+
+	// Add API key if provided
+	if apiKey != "" {
+		// Escape the API key value properly for JSON
+		yaml.WriteString("                \"headers\": {\n")
+		yaml.WriteString("                  \"Authorization\": \"Bearer " + apiKey + "\"\n")
+		yaml.WriteString("                },\n")
+	}
+
+	// Add tools field for Copilot
+	if includeCopilotFields {
+		yaml.WriteString("                \"tools\": [\"*\"]\n")
+	} else {
+		// For non-Copilot engines, we need to close properly
+		// Remove trailing comma if API key was added
+		if apiKey != "" {
+			yaml.WriteString("                \"env\": {}\n")
+		}
+	}
+
+	if isLast {
+		yaml.WriteString("              }\n")
+	} else {
+		yaml.WriteString("              },\n")
+	}
+}
+
 // renderSafeOutputsMCPConfig generates the Safe Outputs MCP server configuration
 // This is a shared function used by both Claude and Custom engines
 func renderSafeOutputsMCPConfig(yaml *strings.Builder, isLast bool) {
