@@ -71,6 +71,31 @@ async function getAvailableAgentLogins(owner, repo) {
 }
 
 /**
+ * Get repository ID from owner/repo format
+ * @param {string} owner - Repository owner
+ * @param {string} repo - Repository name
+ * @returns {Promise<string|null>} Repository ID or null if not found
+ */
+async function getRepositoryId(owner, repo) {
+  const query = `
+    query($owner: String!, $repo: String!) {
+      repository(owner: $owner, name: $repo) {
+        id
+      }
+    }
+  `;
+
+  try {
+    const response = await github.graphql(query, { owner, repo });
+    return response.repository?.id || null;
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    core.error(`Failed to get repository ID for ${owner}/${repo}: ${errorMessage}`);
+    return null;
+  }
+}
+
+/**
  * Find an agent in repository's suggested actors using GraphQL
  * @param {string} owner - Repository owner
  * @param {string} repo - Repository name
@@ -182,9 +207,14 @@ async function getIssueDetails(owner, repo, issueNumber) {
  * @param {string} agentId - Agent ID
  * @param {string[]} currentAssignees - List of current assignee IDs
  * @param {string} agentName - Agent name for error messages
+ * @param {object} options - Additional assignment options
+ * @param {string} [options.targetRepositoryId] - Target repository ID for the PR
+ * @param {string} [options.baseBranch] - Base branch for the PR
+ * @param {string} [options.customInstructions] - Custom instructions for the agent
+ * @param {string} [options.customAgent] - Custom agent name/path
  * @returns {Promise<boolean>} True if successful
  */
-async function assignAgentToIssue(issueId, agentId, currentAssignees, agentName) {
+async function assignAgentToIssue(issueId, agentId, currentAssignees, agentName, options = {}) {
   // Build actor IDs array - include agent and preserve other assignees
   const actorIds = [agentId];
   for (const assigneeId of currentAssignees) {
@@ -193,25 +223,78 @@ async function assignAgentToIssue(issueId, agentId, currentAssignees, agentName)
     }
   }
 
-  const mutation = `
-    mutation($assignableId: ID!, $actorIds: [ID!]!) {
-      replaceActorsForAssignable(input: {
-        assignableId: $assignableId,
-        actorIds: $actorIds
-      }) {
-        __typename
-      }
-    }
-  `;
+  // Check if any Copilot-specific options are provided
+  const hasCopilotOptions = options.targetRepositoryId || options.baseBranch || options.customInstructions || options.customAgent;
 
   try {
     core.info("Using built-in github object for mutation");
 
-    core.debug(`GraphQL mutation with variables: assignableId=${issueId}, actorIds=${JSON.stringify(actorIds)}`);
-    const response = await github.graphql(mutation, {
-      assignableId: issueId,
-      actorIds: actorIds,
-    });
+    let response;
+
+    if (hasCopilotOptions) {
+      // Build Copilot assignment options
+      const copilotOptions = {};
+
+      if (options.targetRepositoryId) {
+        copilotOptions.targetRepositoryId = options.targetRepositoryId;
+      }
+
+      if (options.baseBranch) {
+        copilotOptions.baseBranch = options.baseBranch;
+      }
+
+      if (options.customInstructions) {
+        copilotOptions.customInstructions = options.customInstructions;
+      }
+
+      if (options.customAgent) {
+        copilotOptions.customAgent = options.customAgent;
+      }
+
+      // Use extended mutation with Copilot assignment options
+      const extendedMutation = `
+        mutation($assignableId: ID!, $actorIds: [ID!]!, $copilotAssignmentOptions: CopilotAssignmentOptionsInput) {
+          replaceActorsForAssignable(input: {
+            assignableId: $assignableId,
+            actorIds: $actorIds,
+            copilotAssignmentOptions: $copilotAssignmentOptions
+          }) {
+            __typename
+          }
+        }
+      `;
+
+      const mutationInput = {
+        assignableId: issueId,
+        actorIds: actorIds,
+        copilotAssignmentOptions: copilotOptions,
+      };
+
+      core.debug(`GraphQL mutation with Copilot options: ${JSON.stringify(mutationInput)}`);
+      response = await github.graphql(extendedMutation, mutationInput, {
+        headers: {
+          "GraphQL-Features": "issues_copilot_assignment_api_support",
+        },
+      });
+    } else {
+      // Use simple mutation for backward compatibility (no Copilot-specific options)
+      const simpleMutation = `
+        mutation($assignableId: ID!, $actorIds: [ID!]!) {
+          replaceActorsForAssignable(input: {
+            assignableId: $assignableId,
+            actorIds: $actorIds
+          }) {
+            __typename
+          }
+        }
+      `;
+
+      core.debug(`GraphQL mutation with variables: assignableId=${issueId}, actorIds=${JSON.stringify(actorIds)}`);
+      response = await github.graphql(simpleMutation, {
+        assignableId: issueId,
+        actorIds: actorIds,
+      });
+    }
 
     if (response && response.replaceActorsForAssignable && response.replaceActorsForAssignable.__typename) {
       return true;
@@ -359,9 +442,14 @@ function generatePermissionErrorSummary() {
  * @param {string} repo - Repository name
  * @param {number} issueNumber - Issue number
  * @param {string} agentName - Agent name (e.g., "copilot")
+ * @param {object} options - Optional assignment options
+ * @param {string} [options.targetRepository] - Target repository in 'owner/repo' format
+ * @param {string} [options.baseBranch] - Base branch for the PR
+ * @param {string} [options.customInstructions] - Custom instructions for the agent
+ * @param {string} [options.customAgent] - Custom agent name/path
  * @returns {Promise<{success: boolean, error?: string}>}
  */
-async function assignAgentToIssueByName(owner, repo, issueNumber, agentName) {
+async function assignAgentToIssueByName(owner, repo, issueNumber, agentName, options = {}) {
   // Check if agent is supported
   if (!AGENT_LOGIN_NAMES[agentName]) {
     const error = `Agent "${agentName}" is not supported. Supported agents: ${Object.keys(AGENT_LOGIN_NAMES).join(", ")}`;
@@ -397,9 +485,35 @@ async function assignAgentToIssueByName(owner, repo, issueNumber, agentName) {
       return { success: true };
     }
 
+    // Prepare assignment options
+    const assignmentOptions = {};
+
+    // Handle target repository if specified
+    if (options.targetRepository) {
+      const parts = options.targetRepository.split("/");
+      if (parts.length === 2) {
+        const repoId = await getRepositoryId(parts[0], parts[1]);
+        if (repoId) {
+          assignmentOptions.targetRepositoryId = repoId;
+        }
+      }
+    }
+
+    if (options.baseBranch) {
+      assignmentOptions.baseBranch = options.baseBranch;
+    }
+
+    if (options.customInstructions) {
+      assignmentOptions.customInstructions = options.customInstructions;
+    }
+
+    if (options.customAgent) {
+      assignmentOptions.customAgent = options.customAgent;
+    }
+
     // Assign agent using GraphQL mutation
     core.info(`Assigning ${agentName} coding agent to issue #${issueNumber}...`);
-    const success = await assignAgentToIssue(issueDetails.issueId, agentId, issueDetails.currentAssignees, agentName);
+    const success = await assignAgentToIssue(issueDetails.issueId, agentId, issueDetails.currentAssignees, agentName, assignmentOptions);
 
     if (!success) {
       return { success: false, error: `Failed to assign ${agentName} via GraphQL` };
@@ -417,6 +531,7 @@ module.exports = {
   AGENT_LOGIN_NAMES,
   getAgentName,
   getAvailableAgentLogins,
+  getRepositoryId,
   findAgent,
   getIssueDetails,
   assignAgentToIssue,

@@ -37,7 +37,9 @@ function generatePatchPreview(patchContent) {
     ? `Show patch preview (${Math.min(maxLines, lines.length)} of ${lines.length} lines)`
     : `Show patch (${lines.length} lines)`;
 
-  return `\n\n<details><summary>${summary}</summary>\n\n\`\`\`diff\n${preview}${truncated ? "\n... (truncated)" : ""}\n\`\`\`\n\n</details>`;
+  return `\n\n<details><summary>${summary}</summary>\n\n\`\`\`diff\n${preview}${
+    truncated ? "\n... (truncated)" : ""
+  }\n\`\`\`\n\n</details>`;
 }
 
 async function main() {
@@ -238,7 +240,9 @@ async function main() {
       const patchStats = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
       if (patchStats.trim()) {
         summaryContent += `**Changes:** Patch file exists with ${patchStats.split("\n").length} lines\n\n`;
-        summaryContent += `<details><summary>Show patch preview</summary>\n\n\`\`\`diff\n${patchStats.slice(0, 2000)}${patchStats.length > 2000 ? "\n... (truncated)" : ""}\n\`\`\`\n\n</details>\n\n`;
+        summaryContent += `<details><summary>Show patch preview</summary>\n\n\`\`\`diff\n${patchStats.slice(0, 2000)}${
+          patchStats.length > 2000 ? "\n... (truncated)" : ""
+        }\n\`\`\`\n\n</details>\n\n`;
       } else {
         summaryContent += `**Changes:** No changes (empty patch)\n\n`;
       }
@@ -475,7 +479,9 @@ ${patchPreview}`;
         return;
       } catch (issueError) {
         core.setFailed(
-          `Failed to push and failed to create fallback issue. Push error: ${pushError instanceof Error ? pushError.message : String(pushError)}. Issue error: ${issueError instanceof Error ? issueError.message : String(issueError)}`
+          `Failed to push and failed to create fallback issue. Push error: ${
+            pushError instanceof Error ? pushError.message : String(pushError)
+          }. Issue error: ${issueError instanceof Error ? issueError.message : String(issueError)}`
         );
         return;
       }
@@ -606,7 +612,9 @@ You can manually create a pull request from the branch if needed.${patchPreview}
         .write();
     } catch (issueError) {
       core.setFailed(
-        `Failed to create both pull request and fallback issue. PR error: ${prError instanceof Error ? prError.message : String(prError)}. Issue error: ${issueError instanceof Error ? issueError.message : String(issueError)}`
+        `Failed to create both pull request and fallback issue. PR error: ${
+          prError instanceof Error ? prError.message : String(prError)
+        }. Issue error: ${issueError instanceof Error ? issueError.message : String(issueError)}`
       );
       return;
     }

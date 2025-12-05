@@ -116,7 +116,9 @@ async function main() {
     // Get or generate the temporary ID for this issue
     const temporaryId = createIssueItem.temporary_id || generateTemporaryId();
     core.info(
-      `Processing create-issue item ${i + 1}/${createIssueItems.length}: title=${createIssueItem.title}, bodyLength=${createIssueItem.body.length}, temporaryId=${temporaryId}, repo=${itemRepo}`
+      `Processing create-issue item ${i + 1}/${createIssueItems.length}: title=${createIssueItem.title}, bodyLength=${
+        createIssueItem.body.length
+      }, temporaryId=${temporaryId}, repo=${itemRepo}`
     );
 
     // Debug logging for parent field
@@ -319,7 +321,9 @@ async function main() {
             core.info("✓ Added comment to parent issue #" + effectiveParentIssueNumber + " (sub-issue linking not available)");
           } catch (commentError) {
             core.info(
-              `Warning: Could not add comment to parent issue: ${commentError instanceof Error ? commentError.message : String(commentError)}`
+              `Warning: Could not add comment to parent issue: ${
+                commentError instanceof Error ? commentError.message : String(commentError)
+              }`
             );
           }
         }

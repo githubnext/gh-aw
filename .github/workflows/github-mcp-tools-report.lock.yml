@@ -5354,7 +5354,9 @@ jobs:
                     }
                     const level = extractLevel(match, pattern);
                     const message = extractMessage(match, pattern, line);
-                    const errorMessage = `Line ${lineIndex + 1}: ${message} (Pattern: ${pattern.description || "Unknown pattern"}, Raw log: ${truncateString(line.trim(), 120)})`;
+                    const errorMessage = `Line ${lineIndex + 1}: ${message} (Pattern: ${
+                      pattern.description || "Unknown pattern"
+                    }, Raw log: ${truncateString(line.trim(), 120)})`;
                     if (level.toLowerCase() === "error") {
                       core.error(errorMessage);
                       hasErrors = true;
@@ -6311,7 +6313,9 @@ jobs:
               }
               return {
                 valid: false,
-                error: `Repository '${repo}' is not in the allowed-repos list. Allowed: ${defaultRepo}${allowedRepos.size > 0 ? ", " + Array.from(allowedRepos).join(", ") : ""}`,
+                error: `Repository '${repo}' is not in the allowed-repos list. Allowed: ${defaultRepo}${
+                  allowedRepos.size > 0 ? ", " + Array.from(allowedRepos).join(", ") : ""
+                }`,
               };
             }
             function parseRepoSlug(repoSlug) {
@@ -6463,7 +6467,9 @@ jobs:
                     repoInfo = fetchedInfo;
                     repoInfoCache.set(itemRepo, repoInfo);
                     core.info(
-                      `Fetched discussion categories for ${itemRepo}: ${JSON.stringify(repoInfo.discussionCategories.map(cat => ({ name: cat.name, id: cat.id })))}`
+                      `Fetched discussion categories for ${itemRepo}: ${JSON.stringify(
+                        repoInfo.discussionCategories.map(cat => ({ name: cat.name, id: cat.id }))
+                      )}`
                     );
                   } catch (error) {
                     const errorMessage = error instanceof Error ? error.message : String(error);
@@ -6501,7 +6507,9 @@ jobs:
                 }
                 const categoryId = categoryInfo.id;
                 core.info(
-                  `Processing create-discussion item ${i + 1}/${createDiscussionItems.length}: title=${createDiscussionItem.title}, bodyLength=${createDiscussionItem.body?.length || 0}, repo=${itemRepo}`
+                  `Processing create-discussion item ${i + 1}/${createDiscussionItems.length}: title=${createDiscussionItem.title}, bodyLength=${
+                    createDiscussionItem.body?.length || 0
+                  }, repo=${itemRepo}`
                 );
                 let title = createDiscussionItem.title ? replaceTemporaryIdReferences(createDiscussionItem.title.trim(), temporaryIdMap, itemRepo) : "";
                 const bodyText = createDiscussionItem.body || "";
@@ -6808,7 +6816,9 @@ jobs:
               const summary = truncated
                 ? `Show patch preview (${Math.min(maxLines, lines.length)} of ${lines.length} lines)`
                 : `Show patch (${lines.length} lines)`;
-              return `\n\n<details><summary>${summary}</summary>\n\n\`\`\`diff\n${preview}${truncated ? "\n... (truncated)" : ""}\n\`\`\`\n\n</details>`;
+              return `\n\n<details><summary>${summary}</summary>\n\n\`\`\`diff\n${preview}${
+                truncated ? "\n... (truncated)" : ""
+              }\n\`\`\`\n\n</details>`;
             }
             async function main() {
               core.setOutput("pull_request_number", "");
@@ -6955,7 +6965,9 @@ jobs:
                   const patchStats = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
                   if (patchStats.trim()) {
                     summaryContent += `**Changes:** Patch file exists with ${patchStats.split("\n").length} lines\n\n`;
-                    summaryContent += `<details><summary>Show patch preview</summary>\n\n\`\`\`diff\n${patchStats.slice(0, 2000)}${patchStats.length > 2000 ? "\n... (truncated)" : ""}\n\`\`\`\n\n</details>\n\n`;
+                    summaryContent += `<details><summary>Show patch preview</summary>\n\n\`\`\`diff\n${patchStats.slice(0, 2000)}${
+                      patchStats.length > 2000 ? "\n... (truncated)" : ""
+                    }\n\`\`\`\n\n</details>\n\n`;
                   } else {
                     summaryContent += `**Changes:** No changes (empty patch)\n\n`;
                   }
@@ -7123,7 +7135,9 @@ jobs:
                     return;
                   } catch (issueError) {
                     core.setFailed(
-                      `Failed to push and failed to create fallback issue. Push error: ${pushError instanceof Error ? pushError.message : String(pushError)}. Issue error: ${issueError instanceof Error ? issueError.message : String(issueError)}`
+                      `Failed to push and failed to create fallback issue. Push error: ${
+                        pushError instanceof Error ? pushError.message : String(pushError)
+                      }. Issue error: ${issueError instanceof Error ? issueError.message : String(issueError)}`
                     );
                     return;
                   }
@@ -7220,7 +7234,9 @@ jobs:
                     .write();
                 } catch (issueError) {
                   core.setFailed(
-                    `Failed to create both pull request and fallback issue. PR error: ${prError instanceof Error ? prError.message : String(prError)}. Issue error: ${issueError instanceof Error ? issueError.message : String(issueError)}`
+                    `Failed to create both pull request and fallback issue. PR error: ${
+                      prError instanceof Error ? prError.message : String(prError)
+                    }. Issue error: ${issueError instanceof Error ? issueError.message : String(issueError)}`
                   );
                   return;
                 }

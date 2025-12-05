@@ -74,12 +74,14 @@ jobs:
 		t.Fatalf("Failed to create outdated lock file: %v", err)
 	}
 
-	// Test 2: Validation with outdated actions (should emit warnings but not error)
+	// Test 2: Validation with outdated actions (should return error with count of outdated actions)
 	t.Run("Outdated", func(t *testing.T) {
-		// Note: This will emit warnings to stderr, but should not return an error
+		// This should return an error indicating outdated SHAs were found
 		err := ValidateActionSHAsInLockFile(outdatedLockFile, cache, false)
-		if err != nil {
-			t.Errorf("Unexpected error with outdated actions: %v", err)
+		if err == nil {
+			t.Error("Expected error with outdated actions, got nil")
+		} else if !strings.Contains(err.Error(), "outdated SHAs") {
+			t.Errorf("Expected error about outdated SHAs, got: %v", err)
 		}
 	})
 }

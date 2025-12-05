@@ -991,6 +991,8 @@
 #     https://github.com/actions/setup-node/commit/395ad3262231945c25e8478fd5baf05154b1d79f
 #   - actions/upload-artifact@v5 (330a01c490aca151604b8cf639adc76d48f6c5d4)
 #     https://github.com/actions/upload-artifact/commit/330a01c490aca151604b8cf639adc76d48f6c5d4
+#   - github/stale-repos@v3 (3477b6488008d9411aaf22a0924ec7c1f6a69980)
+#     https://github.com/github/stale-repos/commit/3477b6488008d9411aaf22a0924ec7c1f6a69980
 
 name: "Stale Repository Identifier"
 "on":
@@ -1198,7 +1200,7 @@ jobs:
           ORGANIZATION: ${{ env.ORGANIZATION }}
         id: stale-repos
         name: Run stale_repos tool
-        uses: github/stale-repos@v3
+        uses: github/stale-repos@3477b6488008d9411aaf22a0924ec7c1f6a69980 # v3
       - env:
           INACTIVE_REPOS: ${{ steps.stale-repos.outputs.inactiveRepos }}
         name: Save stale repos output
@@ -6426,7 +6428,11 @@ jobs:
 
               if (validDeniedRequests > 0) {
 
-                summary += `**${validDeniedRequests}** request${validDeniedRequests !== 1 ? "s" : ""} blocked across **${validDeniedDomains.length}** unique domain${validDeniedDomains.length !== 1 ? "s" : ""}`;
+                summary += `**${validDeniedRequests}** request${validDeniedRequests !== 1 ? "s" : ""} blocked across **${
+
+                  validDeniedDomains.length
+
+                }** unique domain${validDeniedDomains.length !== 1 ? "s" : ""}`;
 
                 summary += ` (${totalRequests > 0 ? Math.round((validDeniedRequests / totalRequests) * 100) : 0}% of total traffic)\n\n`;
 
@@ -6665,7 +6671,9 @@ jobs:
                     }
                     const level = extractLevel(match, pattern);
                     const message = extractMessage(match, pattern, line);
-                    const errorMessage = `Line ${lineIndex + 1}: ${message} (Pattern: ${pattern.description || "Unknown pattern"}, Raw log: ${truncateString(line.trim(), 120)})`;
+                    const errorMessage = `Line ${lineIndex + 1}: ${message} (Pattern: ${
+                      pattern.description || "Unknown pattern"
+                    }, Raw log: ${truncateString(line.trim(), 120)})`;
                     if (level.toLowerCase() === "error") {
                       core.error(errorMessage);
                       hasErrors = true;
@@ -7499,7 +7507,9 @@ jobs:
               }
               return {
                 valid: false,
-                error: `Repository '${repo}' is not in the allowed-repos list. Allowed: ${defaultRepo}${allowedRepos.size > 0 ? ", " + Array.from(allowedRepos).join(", ") : ""}`,
+                error: `Repository '${repo}' is not in the allowed-repos list. Allowed: ${defaultRepo}${
+                  allowedRepos.size > 0 ? ", " + Array.from(allowedRepos).join(", ") : ""
+                }`,
               };
             }
             function parseRepoSlug(repoSlug) {
@@ -7589,7 +7599,9 @@ jobs:
                 }
                 const temporaryId = createIssueItem.temporary_id || generateTemporaryId();
                 core.info(
-                  `Processing create-issue item ${i + 1}/${createIssueItems.length}: title=${createIssueItem.title}, bodyLength=${createIssueItem.body.length}, temporaryId=${temporaryId}, repo=${itemRepo}`
+                  `Processing create-issue item ${i + 1}/${createIssueItems.length}: title=${createIssueItem.title}, bodyLength=${
+                    createIssueItem.body.length
+                  }, temporaryId=${temporaryId}, repo=${itemRepo}`
                 );
                 core.info(`Debug: createIssueItem.parent = ${JSON.stringify(createIssueItem.parent)}`);
                 core.info(`Debug: parentIssueNumber from context = ${JSON.stringify(parentIssueNumber)}`);
@@ -7761,7 +7773,9 @@ jobs:
                         core.info("✓ Added comment to parent issue #" + effectiveParentIssueNumber + " (sub-issue linking not available)");
                       } catch (commentError) {
                         core.info(
-                          `Warning: Could not add comment to parent issue: ${commentError instanceof Error ? commentError.message : String(commentError)}`
+                          `Warning: Could not add comment to parent issue: ${
+                            commentError instanceof Error ? commentError.message : String(commentError)
+                          }`
                         );
                       }
                     }

@@ -2702,7 +2702,11 @@ jobs:
 
               if (validDeniedRequests > 0) {
 
-                summary += `**${validDeniedRequests}** request${validDeniedRequests !== 1 ? "s" : ""} blocked across **${validDeniedDomains.length}** unique domain${validDeniedDomains.length !== 1 ? "s" : ""}`;
+                summary += `**${validDeniedRequests}** request${validDeniedRequests !== 1 ? "s" : ""} blocked across **${
+
+                  validDeniedDomains.length
+
+                }** unique domain${validDeniedDomains.length !== 1 ? "s" : ""}`;
 
                 summary += ` (${totalRequests > 0 ? Math.round((validDeniedRequests / totalRequests) * 100) : 0}% of total traffic)\n\n`;
 
@@ -2934,7 +2938,9 @@ jobs:
                     }
                     const level = extractLevel(match, pattern);
                     const message = extractMessage(match, pattern, line);
-                    const errorMessage = `Line ${lineIndex + 1}: ${message} (Pattern: ${pattern.description || "Unknown pattern"}, Raw log: ${truncateString(line.trim(), 120)})`;
+                    const errorMessage = `Line ${lineIndex + 1}: ${message} (Pattern: ${
+                      pattern.description || "Unknown pattern"
+                    }, Raw log: ${truncateString(line.trim(), 120)})`;
                     if (level.toLowerCase() === "error") {
                       core.error(errorMessage);
                       hasErrors = true;

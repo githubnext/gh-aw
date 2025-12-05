@@ -595,7 +595,9 @@ async function updateProject(output) {
           `  • Create the project manually at https://github.com/orgs/${owner}/projects/new.\n` +
           `  • Or supply a PAT with project scope via PROJECT_GITHUB_TOKEN.\n` +
           `  • Ensure the workflow grants projects: write.\n\n` +
-          `${usingCustomToken ? "PROJECT_GITHUB_TOKEN is set but lacks access." : "Using default GITHUB_TOKEN without project create rights."}`
+          `${
+            usingCustomToken ? "PROJECT_GITHUB_TOKEN is set but lacks access." : "Using default GITHUB_TOKEN without project create rights."
+          }`
       );
     } else {
       core.error(`Failed to manage project: ${error.message}`);

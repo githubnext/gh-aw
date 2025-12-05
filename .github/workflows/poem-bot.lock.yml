@@ -7307,7 +7307,11 @@ jobs:
 
               if (validDeniedRequests > 0) {
 
-                summary += `**${validDeniedRequests}** request${validDeniedRequests !== 1 ? "s" : ""} blocked across **${validDeniedDomains.length}** unique domain${validDeniedDomains.length !== 1 ? "s" : ""}`;
+                summary += `**${validDeniedRequests}** request${validDeniedRequests !== 1 ? "s" : ""} blocked across **${
+
+                  validDeniedDomains.length
+
+                }** unique domain${validDeniedDomains.length !== 1 ? "s" : ""}`;
 
                 summary += ` (${totalRequests > 0 ? Math.round((validDeniedRequests / totalRequests) * 100) : 0}% of total traffic)\n\n`;
 
@@ -7546,7 +7550,9 @@ jobs:
                     }
                     const level = extractLevel(match, pattern);
                     const message = extractMessage(match, pattern, line);
-                    const errorMessage = `Line ${lineIndex + 1}: ${message} (Pattern: ${pattern.description || "Unknown pattern"}, Raw log: ${truncateString(line.trim(), 120)})`;
+                    const errorMessage = `Line ${lineIndex + 1}: ${message} (Pattern: ${
+                      pattern.description || "Unknown pattern"
+                    }, Raw log: ${truncateString(line.trim(), 120)})`;
                     if (level.toLowerCase() === "error") {
                       core.error(errorMessage);
                       hasErrors = true;
@@ -8788,7 +8794,9 @@ jobs:
               }
               return {
                 valid: false,
-                error: `Repository '${repo}' is not in the allowed-repos list. Allowed: ${defaultRepo}${allowedRepos.size > 0 ? ", " + Array.from(allowedRepos).join(", ") : ""}`,
+                error: `Repository '${repo}' is not in the allowed-repos list. Allowed: ${defaultRepo}${
+                  allowedRepos.size > 0 ? ", " + Array.from(allowedRepos).join(", ") : ""
+                }`,
               };
             }
             function parseRepoSlug(repoSlug) {
@@ -8940,7 +8948,9 @@ jobs:
                     repoInfo = fetchedInfo;
                     repoInfoCache.set(itemRepo, repoInfo);
                     core.info(
-                      `Fetched discussion categories for ${itemRepo}: ${JSON.stringify(repoInfo.discussionCategories.map(cat => ({ name: cat.name, id: cat.id })))}`
+                      `Fetched discussion categories for ${itemRepo}: ${JSON.stringify(
+                        repoInfo.discussionCategories.map(cat => ({ name: cat.name, id: cat.id }))
+                      )}`
                     );
                   } catch (error) {
                     const errorMessage = error instanceof Error ? error.message : String(error);
@@ -8978,7 +8988,9 @@ jobs:
                 }
                 const categoryId = categoryInfo.id;
                 core.info(
-                  `Processing create-discussion item ${i + 1}/${createDiscussionItems.length}: title=${createDiscussionItem.title}, bodyLength=${createDiscussionItem.body?.length || 0}, repo=${itemRepo}`
+                  `Processing create-discussion item ${i + 1}/${createDiscussionItems.length}: title=${createDiscussionItem.title}, bodyLength=${
+                    createDiscussionItem.body?.length || 0
+                  }, repo=${itemRepo}`
                 );
                 let title = createDiscussionItem.title ? replaceTemporaryIdReferences(createDiscussionItem.title.trim(), temporaryIdMap, itemRepo) : "";
                 const bodyText = createDiscussionItem.body || "";
@@ -9367,7 +9379,9 @@ jobs:
               }
               return {
                 valid: false,
-                error: `Repository '${repo}' is not in the allowed-repos list. Allowed: ${defaultRepo}${allowedRepos.size > 0 ? ", " + Array.from(allowedRepos).join(", ") : ""}`,
+                error: `Repository '${repo}' is not in the allowed-repos list. Allowed: ${defaultRepo}${
+                  allowedRepos.size > 0 ? ", " + Array.from(allowedRepos).join(", ") : ""
+                }`,
               };
             }
             function parseRepoSlug(repoSlug) {
@@ -9457,7 +9471,9 @@ jobs:
                 }
                 const temporaryId = createIssueItem.temporary_id || generateTemporaryId();
                 core.info(
-                  `Processing create-issue item ${i + 1}/${createIssueItems.length}: title=${createIssueItem.title}, bodyLength=${createIssueItem.body.length}, temporaryId=${temporaryId}, repo=${itemRepo}`
+                  `Processing create-issue item ${i + 1}/${createIssueItems.length}: title=${createIssueItem.title}, bodyLength=${
+                    createIssueItem.body.length
+                  }, temporaryId=${temporaryId}, repo=${itemRepo}`
                 );
                 core.info(`Debug: createIssueItem.parent = ${JSON.stringify(createIssueItem.parent)}`);
                 core.info(`Debug: parentIssueNumber from context = ${JSON.stringify(parentIssueNumber)}`);
@@ -9629,7 +9645,9 @@ jobs:
                         core.info("✓ Added comment to parent issue #" + effectiveParentIssueNumber + " (sub-issue linking not available)");
                       } catch (commentError) {
                         core.info(
-                          `Warning: Could not add comment to parent issue: ${commentError instanceof Error ? commentError.message : String(commentError)}`
+                          `Warning: Could not add comment to parent issue: ${
+                            commentError instanceof Error ? commentError.message : String(commentError)
+                          }`
                         );
                       }
                     }
@@ -9896,7 +9914,9 @@ jobs:
               for (let i = 0; i < reviewCommentItems.length; i++) {
                 const commentItem = reviewCommentItems[i];
                 core.info(
-                  `Processing create-pull-request-review-comment item ${i + 1}/${reviewCommentItems.length}: bodyLength=${commentItem.body ? commentItem.body.length : "undefined"}, path=${commentItem.path}, line=${commentItem.line}, startLine=${commentItem.start_line}`
+                  `Processing create-pull-request-review-comment item ${i + 1}/${reviewCommentItems.length}: bodyLength=${
+                    commentItem.body ? commentItem.body.length : "undefined"
+                  }, path=${commentItem.path}, line=${commentItem.line}, startLine=${commentItem.start_line}`
                 );
                 if (!commentItem.path) {
                   core.info('Missing required field "path" in review comment item');
@@ -10002,7 +10022,9 @@ jobs:
                   triggeringDiscussionNumber
                 );
                 core.info(
-                  `Creating review comment on PR #${pullRequestNumber} at ${commentItem.path}:${line}${startLine ? ` (lines ${startLine}-${line})` : ""} [${side}]`
+                  `Creating review comment on PR #${pullRequestNumber} at ${commentItem.path}:${line}${
+                    startLine ? ` (lines ${startLine}-${line})` : ""
+                  } [${side}]`
                 );
                 core.info(`Comment content length: ${body.length}`);
                 try {
@@ -10253,7 +10275,9 @@ jobs:
               const summary = truncated
                 ? `Show patch preview (${Math.min(maxLines, lines.length)} of ${lines.length} lines)`
                 : `Show patch (${lines.length} lines)`;
-              return `\n\n<details><summary>${summary}</summary>\n\n\`\`\`diff\n${preview}${truncated ? "\n... (truncated)" : ""}\n\`\`\`\n\n</details>`;
+              return `\n\n<details><summary>${summary}</summary>\n\n\`\`\`diff\n${preview}${
+                truncated ? "\n... (truncated)" : ""
+              }\n\`\`\`\n\n</details>`;
             }
             async function main() {
               core.setOutput("pull_request_number", "");
@@ -10400,7 +10424,9 @@ jobs:
                   const patchStats = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
                   if (patchStats.trim()) {
                     summaryContent += `**Changes:** Patch file exists with ${patchStats.split("\n").length} lines\n\n`;
-                    summaryContent += `<details><summary>Show patch preview</summary>\n\n\`\`\`diff\n${patchStats.slice(0, 2000)}${patchStats.length > 2000 ? "\n... (truncated)" : ""}\n\`\`\`\n\n</details>\n\n`;
+                    summaryContent += `<details><summary>Show patch preview</summary>\n\n\`\`\`diff\n${patchStats.slice(0, 2000)}${
+                      patchStats.length > 2000 ? "\n... (truncated)" : ""
+                    }\n\`\`\`\n\n</details>\n\n`;
                   } else {
                     summaryContent += `**Changes:** No changes (empty patch)\n\n`;
                   }
@@ -10568,7 +10594,9 @@ jobs:
                     return;
                   } catch (issueError) {
                     core.setFailed(
-                      `Failed to push and failed to create fallback issue. Push error: ${pushError instanceof Error ? pushError.message : String(pushError)}. Issue error: ${issueError instanceof Error ? issueError.message : String(issueError)}`
+                      `Failed to push and failed to create fallback issue. Push error: ${
+                        pushError instanceof Error ? pushError.message : String(pushError)
+                      }. Issue error: ${issueError instanceof Error ? issueError.message : String(issueError)}`
                     );
                     return;
                   }
@@ -10665,7 +10693,9 @@ jobs:
                     .write();
                 } catch (issueError) {
                   core.setFailed(
-                    `Failed to create both pull request and fallback issue. PR error: ${prError instanceof Error ? prError.message : String(prError)}. Issue error: ${issueError instanceof Error ? issueError.message : String(issueError)}`
+                    `Failed to create both pull request and fallback issue. PR error: ${
+                      prError instanceof Error ? prError.message : String(prError)
+                    }. Issue error: ${issueError instanceof Error ? issueError.message : String(issueError)}`
                   );
                   return;
                 }
@@ -11920,7 +11950,9 @@ jobs:
                       const patchStats = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
                       if (patchStats.trim()) {
                         content += `**Changes:** Patch file exists with ${patchStats.split("\n").length} lines\n\n`;
-                        content += `<details><summary>Show patch preview</summary>\n\n\`\`\`diff\n${patchStats.slice(0, 2000)}${patchStats.length > 2000 ? "\n... (truncated)" : ""}\n\`\`\`\n\n</details>\n\n`;
+                        content += `<details><summary>Show patch preview</summary>\n\n\`\`\`diff\n${patchStats.slice(0, 2000)}${
+                          patchStats.length > 2000 ? "\n... (truncated)" : ""
+                        }\n\`\`\`\n\n</details>\n\n`;
                       } else {
                         content += `**Changes:** No changes (empty patch)\n\n`;
                       }
@@ -12012,7 +12044,9 @@ jobs:
                 await exec.exec(`git rev-parse --verify origin/${branchName}`);
               } catch (verifyError) {
                 core.setFailed(
-                  `Branch ${branchName} does not exist on origin, can't push to it: ${verifyError instanceof Error ? verifyError.message : String(verifyError)}`
+                  `Branch ${branchName} does not exist on origin, can't push to it: ${
+                    verifyError instanceof Error ? verifyError.message : String(verifyError)
+                  }`
                 );
                 return;
               }

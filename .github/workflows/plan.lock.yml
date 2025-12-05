@@ -5578,7 +5578,11 @@ jobs:
 
               if (validDeniedRequests > 0) {
 
-                summary += `**${validDeniedRequests}** request${validDeniedRequests !== 1 ? "s" : ""} blocked across **${validDeniedDomains.length}** unique domain${validDeniedDomains.length !== 1 ? "s" : ""}`;
+                summary += `**${validDeniedRequests}** request${validDeniedRequests !== 1 ? "s" : ""} blocked across **${
+
+                  validDeniedDomains.length
+
+                }** unique domain${validDeniedDomains.length !== 1 ? "s" : ""}`;
 
                 summary += ` (${totalRequests > 0 ? Math.round((validDeniedRequests / totalRequests) * 100) : 0}% of total traffic)\n\n`;
 
@@ -5810,7 +5814,9 @@ jobs:
                     }
                     const level = extractLevel(match, pattern);
                     const message = extractMessage(match, pattern, line);
-                    const errorMessage = `Line ${lineIndex + 1}: ${message} (Pattern: ${pattern.description || "Unknown pattern"}, Raw log: ${truncateString(line.trim(), 120)})`;
+                    const errorMessage = `Line ${lineIndex + 1}: ${message} (Pattern: ${
+                      pattern.description || "Unknown pattern"
+                    }, Raw log: ${truncateString(line.trim(), 120)})`;
                     if (level.toLowerCase() === "error") {
                       core.error(errorMessage);
                       hasErrors = true;
@@ -6122,7 +6128,9 @@ jobs:
               const requiredCategory = process.env.GH_AW_CLOSE_DISCUSSION_REQUIRED_CATEGORY || "";
               const target = process.env.GH_AW_CLOSE_DISCUSSION_TARGET || "triggering";
               core.info(
-                `Configuration: requiredLabels=${requiredLabels.join(",")}, requiredTitlePrefix=${requiredTitlePrefix}, requiredCategory=${requiredCategory}, target=${target}`
+                `Configuration: requiredLabels=${requiredLabels.join(
+                  ","
+                )}, requiredTitlePrefix=${requiredTitlePrefix}, requiredCategory=${requiredCategory}, target=${target}`
               );
               const isDiscussionContext = context.eventName === "discussion" || context.eventName === "discussion_comment";
               if (isStaged) {
@@ -7015,7 +7023,9 @@ jobs:
               }
               return {
                 valid: false,
-                error: `Repository '${repo}' is not in the allowed-repos list. Allowed: ${defaultRepo}${allowedRepos.size > 0 ? ", " + Array.from(allowedRepos).join(", ") : ""}`,
+                error: `Repository '${repo}' is not in the allowed-repos list. Allowed: ${defaultRepo}${
+                  allowedRepos.size > 0 ? ", " + Array.from(allowedRepos).join(", ") : ""
+                }`,
               };
             }
             function parseRepoSlug(repoSlug) {
@@ -7105,7 +7115,9 @@ jobs:
                 }
                 const temporaryId = createIssueItem.temporary_id || generateTemporaryId();
                 core.info(
-                  `Processing create-issue item ${i + 1}/${createIssueItems.length}: title=${createIssueItem.title}, bodyLength=${createIssueItem.body.length}, temporaryId=${temporaryId}, repo=${itemRepo}`
+                  `Processing create-issue item ${i + 1}/${createIssueItems.length}: title=${createIssueItem.title}, bodyLength=${
+                    createIssueItem.body.length
+                  }, temporaryId=${temporaryId}, repo=${itemRepo}`
                 );
                 core.info(`Debug: createIssueItem.parent = ${JSON.stringify(createIssueItem.parent)}`);
                 core.info(`Debug: parentIssueNumber from context = ${JSON.stringify(parentIssueNumber)}`);
@@ -7277,7 +7289,9 @@ jobs:
                         core.info("✓ Added comment to parent issue #" + effectiveParentIssueNumber + " (sub-issue linking not available)");
                       } catch (commentError) {
                         core.info(
-                          `Warning: Could not add comment to parent issue: ${commentError instanceof Error ? commentError.message : String(commentError)}`
+                          `Warning: Could not add comment to parent issue: ${
+                            commentError instanceof Error ? commentError.message : String(commentError)
+                          }`
                         );
                       }
                     }

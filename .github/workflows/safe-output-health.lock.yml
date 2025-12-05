@@ -5234,7 +5234,9 @@ jobs:
                     }
                     const level = extractLevel(match, pattern);
                     const message = extractMessage(match, pattern, line);
-                    const errorMessage = `Line ${lineIndex + 1}: ${message} (Pattern: ${pattern.description || "Unknown pattern"}, Raw log: ${truncateString(line.trim(), 120)})`;
+                    const errorMessage = `Line ${lineIndex + 1}: ${message} (Pattern: ${
+                      pattern.description || "Unknown pattern"
+                    }, Raw log: ${truncateString(line.trim(), 120)})`;
                     if (level.toLowerCase() === "error") {
                       core.error(errorMessage);
                       hasErrors = true;
@@ -6183,7 +6185,9 @@ jobs:
               }
               return {
                 valid: false,
-                error: `Repository '${repo}' is not in the allowed-repos list. Allowed: ${defaultRepo}${allowedRepos.size > 0 ? ", " + Array.from(allowedRepos).join(", ") : ""}`,
+                error: `Repository '${repo}' is not in the allowed-repos list. Allowed: ${defaultRepo}${
+                  allowedRepos.size > 0 ? ", " + Array.from(allowedRepos).join(", ") : ""
+                }`,
               };
             }
             function parseRepoSlug(repoSlug) {
@@ -6335,7 +6339,9 @@ jobs:
                     repoInfo = fetchedInfo;
                     repoInfoCache.set(itemRepo, repoInfo);
                     core.info(
-                      `Fetched discussion categories for ${itemRepo}: ${JSON.stringify(repoInfo.discussionCategories.map(cat => ({ name: cat.name, id: cat.id })))}`
+                      `Fetched discussion categories for ${itemRepo}: ${JSON.stringify(
+                        repoInfo.discussionCategories.map(cat => ({ name: cat.name, id: cat.id }))
+                      )}`
                     );
                   } catch (error) {
                     const errorMessage = error instanceof Error ? error.message : String(error);
@@ -6373,7 +6379,9 @@ jobs:
                 }
                 const categoryId = categoryInfo.id;
                 core.info(
-                  `Processing create-discussion item ${i + 1}/${createDiscussionItems.length}: title=${createDiscussionItem.title}, bodyLength=${createDiscussionItem.body?.length || 0}, repo=${itemRepo}`
+                  `Processing create-discussion item ${i + 1}/${createDiscussionItems.length}: title=${createDiscussionItem.title}, bodyLength=${
+                    createDiscussionItem.body?.length || 0
+                  }, repo=${itemRepo}`
                 );
                 let title = createDiscussionItem.title ? replaceTemporaryIdReferences(createDiscussionItem.title.trim(), temporaryIdMap, itemRepo) : "";
                 const bodyText = createDiscussionItem.body || "";

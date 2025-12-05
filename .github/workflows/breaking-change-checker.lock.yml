@@ -4861,7 +4861,11 @@ jobs:
 
               if (validDeniedRequests > 0) {
 
-                summary += `**${validDeniedRequests}** request${validDeniedRequests !== 1 ? "s" : ""} blocked across **${validDeniedDomains.length}** unique domain${validDeniedDomains.length !== 1 ? "s" : ""}`;
+                summary += `**${validDeniedRequests}** request${validDeniedRequests !== 1 ? "s" : ""} blocked across **${
+
+                  validDeniedDomains.length
+
+                }** unique domain${validDeniedDomains.length !== 1 ? "s" : ""}`;
 
                 summary += ` (${totalRequests > 0 ? Math.round((validDeniedRequests / totalRequests) * 100) : 0}% of total traffic)\n\n`;
 
@@ -5093,7 +5097,9 @@ jobs:
                     }
                     const level = extractLevel(match, pattern);
                     const message = extractMessage(match, pattern, line);
-                    const errorMessage = `Line ${lineIndex + 1}: ${message} (Pattern: ${pattern.description || "Unknown pattern"}, Raw log: ${truncateString(line.trim(), 120)})`;
+                    const errorMessage = `Line ${lineIndex + 1}: ${message} (Pattern: ${
+                      pattern.description || "Unknown pattern"
+                    }, Raw log: ${truncateString(line.trim(), 120)})`;
                     if (level.toLowerCase() === "error") {
                       core.error(errorMessage);
                       hasErrors = true;
@@ -5932,7 +5938,9 @@ jobs:
               }
               return {
                 valid: false,
-                error: `Repository '${repo}' is not in the allowed-repos list. Allowed: ${defaultRepo}${allowedRepos.size > 0 ? ", " + Array.from(allowedRepos).join(", ") : ""}`,
+                error: `Repository '${repo}' is not in the allowed-repos list. Allowed: ${defaultRepo}${
+                  allowedRepos.size > 0 ? ", " + Array.from(allowedRepos).join(", ") : ""
+                }`,
               };
             }
             function parseRepoSlug(repoSlug) {
@@ -6022,7 +6030,9 @@ jobs:
                 }
                 const temporaryId = createIssueItem.temporary_id || generateTemporaryId();
                 core.info(
-                  `Processing create-issue item ${i + 1}/${createIssueItems.length}: title=${createIssueItem.title}, bodyLength=${createIssueItem.body.length}, temporaryId=${temporaryId}, repo=${itemRepo}`
+                  `Processing create-issue item ${i + 1}/${createIssueItems.length}: title=${createIssueItem.title}, bodyLength=${
+                    createIssueItem.body.length
+                  }, temporaryId=${temporaryId}, repo=${itemRepo}`
                 );
                 core.info(`Debug: createIssueItem.parent = ${JSON.stringify(createIssueItem.parent)}`);
                 core.info(`Debug: parentIssueNumber from context = ${JSON.stringify(parentIssueNumber)}`);
@@ -6194,7 +6204,9 @@ jobs:
                         core.info("✓ Added comment to parent issue #" + effectiveParentIssueNumber + " (sub-issue linking not available)");
                       } catch (commentError) {
                         core.info(
-                          `Warning: Could not add comment to parent issue: ${commentError instanceof Error ? commentError.message : String(commentError)}`
+                          `Warning: Could not add comment to parent issue: ${
+                            commentError instanceof Error ? commentError.message : String(commentError)
+                          }`
                         );
                       }
                     }
@@ -6283,6 +6295,23 @@ jobs:
                 return [];
               }
             }
+            async function getRepositoryId(owner, repo) {
+              const query = `
+                query($owner: String!, $repo: String!) {
+                  repository(owner: $owner, name: $repo) {
+                    id
+                  }
+                }
+              `;
+              try {
+                const response = await github.graphql(query, { owner, repo });
+                return response.repository?.id || null;
+              } catch (error) {
+                const errorMessage = error instanceof Error ? error.message : String(error);
+                core.error(`Failed to get repository ID for ${owner}/${repo}: ${errorMessage}`);
+                return null;
+              }
+            }
             async function findAgent(owner, repo, agentName) {
               const query = `
                 query($owner: String!, $repo: String!) {
@@ -6364,30 +6393,70 @@ jobs:
                 return null;
               }
             }
-            async function assignAgentToIssue(issueId, agentId, currentAssignees, agentName) {
+            async function assignAgentToIssue(issueId, agentId, currentAssignees, agentName, options = {}) {
               const actorIds = [agentId];
               for (const assigneeId of currentAssignees) {
                 if (assigneeId !== agentId) {
                   actorIds.push(assigneeId);
                 }
               }
-              const mutation = `
-                mutation($assignableId: ID!, $actorIds: [ID!]!) {
-                  replaceActorsForAssignable(input: {
-                    assignableId: $assignableId,
-                    actorIds: $actorIds
-                  }) {
-                    __typename
-                  }
-                }
-              `;
+              const hasCopilotOptions = options.targetRepositoryId || options.baseBranch || options.customInstructions || options.customAgent;
               try {
                 core.info("Using built-in github object for mutation");
-                core.debug(`GraphQL mutation with variables: assignableId=${issueId}, actorIds=${JSON.stringify(actorIds)}`);
-                const response = await github.graphql(mutation, {
-                  assignableId: issueId,
-                  actorIds: actorIds,
-                });
+                let response;
+                if (hasCopilotOptions) {
+                  const copilotOptions = {};
+                  if (options.targetRepositoryId) {
+                    copilotOptions.targetRepositoryId = options.targetRepositoryId;
+                  }
+                  if (options.baseBranch) {
+                    copilotOptions.baseBranch = options.baseBranch;
+                  }
+                  if (options.customInstructions) {
+                    copilotOptions.customInstructions = options.customInstructions;
+                  }
+                  if (options.customAgent) {
+                    copilotOptions.customAgent = options.customAgent;
+                  }
+                  const extendedMutation = `
+                    mutation($assignableId: ID!, $actorIds: [ID!]!, $copilotAssignmentOptions: CopilotAssignmentOptionsInput) {
+                      replaceActorsForAssignable(input: {
+                        assignableId: $assignableId,
+                        actorIds: $actorIds,
+                        copilotAssignmentOptions: $copilotAssignmentOptions
+                      }) {
+                        __typename
+                      }
+                    }
+                  `;
+                  const mutationInput = {
+                    assignableId: issueId,
+                    actorIds: actorIds,
+                    copilotAssignmentOptions: copilotOptions,
+                  };
+                  core.debug(`GraphQL mutation with Copilot options: ${JSON.stringify(mutationInput)}`);
+                  response = await github.graphql(extendedMutation, mutationInput, {
+                    headers: {
+                      "GraphQL-Features": "issues_copilot_assignment_api_support",
+                    },
+                  });
+                } else {
+                  const simpleMutation = `
+                    mutation($assignableId: ID!, $actorIds: [ID!]!) {
+                      replaceActorsForAssignable(input: {
+                        assignableId: $assignableId,
+                        actorIds: $actorIds
+                      }) {
+                        __typename
+                      }
+                    }
+                  `;
+                  core.debug(`GraphQL mutation with variables: assignableId=${issueId}, actorIds=${JSON.stringify(actorIds)}`);
+                  response = await github.graphql(simpleMutation, {
+                    assignableId: issueId,
+                    actorIds: actorIds,
+                  });
+                }
                 if (response && response.replaceActorsForAssignable && response.replaceActorsForAssignable.__typename) {
                   return true;
                 } else {
@@ -6505,7 +6574,7 @@ jobs:
               content += "📖 Reference: https://docs.github.com/en/copilot/how-tos/use-copilot-agents/coding-agent/create-a-pr (general agent docs)\n";
               return content;
             }
-            async function assignAgentToIssueByName(owner, repo, issueNumber, agentName) {
+            async function assignAgentToIssueByName(owner, repo, issueNumber, agentName, options = {}) {
               if (!AGENT_LOGIN_NAMES[agentName]) {
                 const error = `Agent "${agentName}" is not supported. Supported agents: ${Object.keys(AGENT_LOGIN_NAMES).join(", ")}`;
                 core.warning(error);
@@ -6531,8 +6600,27 @@ jobs:
                   core.info(`${agentName} is already assigned to issue #${issueNumber}`);
                   return { success: true };
                 }
+                const assignmentOptions = {};
+                if (options.targetRepository) {
+                  const parts = options.targetRepository.split("/");
+                  if (parts.length === 2) {
+                    const repoId = await getRepositoryId(parts[0], parts[1]);
+                    if (repoId) {
+                      assignmentOptions.targetRepositoryId = repoId;
+                    }
+                  }
+                }
+                if (options.baseBranch) {
+                  assignmentOptions.baseBranch = options.baseBranch;
+                }
+                if (options.customInstructions) {
+                  assignmentOptions.customInstructions = options.customInstructions;
+                }
+                if (options.customAgent) {
+                  assignmentOptions.customAgent = options.customAgent;
+                }
                 core.info(`Assigning ${agentName} coding agent to issue #${issueNumber}...`);
-                const success = await assignAgentToIssue(issueDetails.issueId, agentId, issueDetails.currentAssignees, agentName);
+                const success = await assignAgentToIssue(issueDetails.issueId, agentId, issueDetails.currentAssignees, agentName, assignmentOptions);
                 if (!success) {
                   return { success: false, error: `Failed to assign ${agentName} via GraphQL` };
                 }
