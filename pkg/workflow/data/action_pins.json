@@ -5,6 +5,11 @@
       "version": "v1",
       "sha": "b81b2afb8390ee6839b494a404766bef6493c7d9"
     },
+    "actions/cache/restore@v4": {
+      "repo": "actions/cache/restore",
+      "version": "v4",
+      "sha": "0057852bfaa89a56745cba8c7296529d2fc39830"
+    },
     "actions/cache@v4": {
       "repo": "actions/cache",
       "version": "v4",

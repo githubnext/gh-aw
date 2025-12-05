@@ -345,9 +345,9 @@ func TestApplyActionPinToStep(t *testing.T) {
 func TestGetActionPinsSorting(t *testing.T) {
 	pins := getActionPins()
 
-	// Verify we got all the pins (should be 22 after adding cli/gh-extension-precompile)
-	if len(pins) != 22 {
-		t.Errorf("getActionPins() returned %d pins, expected 22", len(pins))
+	// Verify we got all the pins (should be 23 after adding actions/cache/restore)
+	if len(pins) != 23 {
+		t.Errorf("getActionPins() returned %d pins, expected 23", len(pins))
 	}
 
 	// Verify they are sorted by version (descending) then by repository name (ascending)

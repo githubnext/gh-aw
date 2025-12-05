@@ -21,6 +21,7 @@ type CacheMemoryEntry struct {
 	Key           string `yaml:"key,omitempty"`            // custom cache key
 	Description   string `yaml:"description,omitempty"`    // optional description for this cache
 	RetentionDays *int   `yaml:"retention-days,omitempty"` // retention days for upload-artifact action
+	RestoreOnly   bool   `yaml:"restore-only,omitempty"`   // if true, only restore cache without saving
 }
 
 // generateDefaultCacheKey generates a default cache key for a given cache ID
@@ -126,6 +127,13 @@ func (c *Compiler) extractCacheMemoryConfig(toolsConfig *ToolsConfig) (*CacheMem
 					}
 				}
 
+				// Parse restore-only flag
+				if restoreOnly, exists := cacheMap["restore-only"]; exists {
+					if restoreOnlyBool, ok := restoreOnly.(bool); ok {
+						entry.RestoreOnly = restoreOnlyBool
+					}
+				}
+
 				config.Caches = append(config.Caches, entry)
 			}
 		}
@@ -175,6 +183,13 @@ func (c *Compiler) extractCacheMemoryConfig(toolsConfig *ToolsConfig) (*CacheMem
 			} else if retentionDaysUint64, ok := retentionDays.(uint64); ok {
 				retentionDaysIntValue := int(retentionDaysUint64)
 				entry.RetentionDays = &retentionDaysIntValue
+			}
+		}
+
+		// Parse restore-only flag
+		if restoreOnly, exists := configMap["restore-only"]; exists {
+			if restoreOnlyBool, ok := restoreOnly.(bool); ok {
+				entry.RestoreOnly = restoreOnlyBool
 			}
 		}
 
@@ -352,13 +367,27 @@ func generateCacheMemorySteps(builder *strings.Builder, data *WorkflowData) {
 			restoreKeys = append(restoreKeys, restoreKey)
 		}
 
-		// Step name
-		if useBackwardCompatiblePaths {
-			builder.WriteString("      - name: Cache memory file share data\n")
+		// Step name and action
+		// Use actions/cache/restore for restore-only caches, actions/cache for normal caches
+		var actionName string
+		if cache.RestoreOnly {
+			actionName = "Restore cache memory file share data"
 		} else {
-			builder.WriteString(fmt.Sprintf("      - name: Cache memory file share data (%s)\n", cache.ID))
+			actionName = "Cache memory file share data"
 		}
-		builder.WriteString(fmt.Sprintf("        uses: %s\n", GetActionPin("actions/cache")))
+
+		if useBackwardCompatiblePaths {
+			builder.WriteString(fmt.Sprintf("      - name: %s\n", actionName))
+		} else {
+			builder.WriteString(fmt.Sprintf("      - name: %s (%s)\n", actionName, cache.ID))
+		}
+
+		// Use actions/cache/restore@v4 for restore-only, actions/cache@v4 for normal
+		if cache.RestoreOnly {
+			builder.WriteString(fmt.Sprintf("        uses: %s\n", GetActionPin("actions/cache/restore")))
+		} else {
+			builder.WriteString(fmt.Sprintf("        uses: %s\n", GetActionPin("actions/cache")))
+		}
 		builder.WriteString("        with:\n")
 		fmt.Fprintf(builder, "          key: %s\n", cacheKey)
 
@@ -370,24 +399,26 @@ func generateCacheMemorySteps(builder *strings.Builder, data *WorkflowData) {
 			fmt.Fprintf(builder, "            %s\n", key)
 		}
 
-		// Add upload-artifact step for each cache (runs always)
-		if useBackwardCompatiblePaths {
-			builder.WriteString("      - name: Upload cache-memory data as artifact\n")
-		} else {
-			builder.WriteString(fmt.Sprintf("      - name: Upload cache-memory data as artifact (%s)\n", cache.ID))
-		}
-		builder.WriteString(fmt.Sprintf("        uses: %s\n", GetActionPin("actions/upload-artifact")))
-		builder.WriteString("        with:\n")
-		// Always use the new artifact name and path format
-		if useBackwardCompatiblePaths {
-			builder.WriteString("          name: cache-memory\n")
-		} else {
-			fmt.Fprintf(builder, "          name: cache-memory-%s\n", cache.ID)
-		}
-		fmt.Fprintf(builder, "          path: %s\n", cacheDir)
-		// Add retention-days if configured
-		if cache.RetentionDays != nil {
-			fmt.Fprintf(builder, "          retention-days: %d\n", *cache.RetentionDays)
+		// Add upload-artifact step for each cache (runs always), but skip for restore-only caches
+		if !cache.RestoreOnly {
+			if useBackwardCompatiblePaths {
+				builder.WriteString("      - name: Upload cache-memory data as artifact\n")
+			} else {
+				builder.WriteString(fmt.Sprintf("      - name: Upload cache-memory data as artifact (%s)\n", cache.ID))
+			}
+			builder.WriteString(fmt.Sprintf("        uses: %s\n", GetActionPin("actions/upload-artifact")))
+			builder.WriteString("        with:\n")
+			// Always use the new artifact name and path format
+			if useBackwardCompatiblePaths {
+				builder.WriteString("          name: cache-memory\n")
+			} else {
+				fmt.Fprintf(builder, "          name: cache-memory-%s\n", cache.ID)
+			}
+			fmt.Fprintf(builder, "          path: %s\n", cacheDir)
+			// Add retention-days if configured
+			if cache.RetentionDays != nil {
+				fmt.Fprintf(builder, "          retention-days: %d\n", *cache.RetentionDays)
+			}
 		}
 	}
 }
