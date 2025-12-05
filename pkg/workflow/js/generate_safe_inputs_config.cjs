@@ -26,6 +26,8 @@ function generateSafeInputsConfig({ core, crypto }) {
   return { apiKey, port };
 }
 
-module.exports = {
-  generateSafeInputsConfig,
-};
+if (typeof module !== "undefined" && module.exports) {
+  module.exports = {
+    generateSafeInputsConfig,
+  };
+}
