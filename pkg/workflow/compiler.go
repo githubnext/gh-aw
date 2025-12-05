@@ -34,8 +34,6 @@ const (
 //go:embed schemas/github-workflow.json
 var githubWorkflowSchema string
 
-
-
 // CompileWorkflow converts a markdown workflow to GitHub Actions YAML
 func (c *Compiler) CompileWorkflow(markdownPath string) error {
 	// Parse the markdown file
@@ -394,7 +392,6 @@ func (c *Compiler) CompileWorkflowData(workflowData *WorkflowData, markdownPath 
 // extractTopLevelYAMLSection extracts a top-level YAML section from the frontmatter map
 // This ensures we only extract keys at the root level, avoiding nested keys with the same name
 // parseOnSection parses the "on" section from frontmatter to extract command triggers, reactions, and other events
-
 
 // generateYAML generates the complete GitHub Actions YAML content
 
