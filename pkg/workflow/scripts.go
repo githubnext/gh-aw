@@ -96,6 +96,9 @@ var notifyCommentErrorScriptSource string
 //go:embed js/noop.cjs
 var noopScriptSource string
 
+//go:embed js/generate_safe_inputs_config.cjs
+var generateSafeInputsConfigScriptSource string
+
 // Log parser source scripts
 //
 //go:embed js/parse_claude_log.cjs
@@ -138,6 +141,7 @@ func init() {
 	DefaultScriptRegistry.Register("create_pull_request", createPullRequestScriptSource)
 	DefaultScriptRegistry.Register("notify_comment_error", notifyCommentErrorScriptSource)
 	DefaultScriptRegistry.Register("noop", noopScriptSource)
+	DefaultScriptRegistry.Register("generate_safe_inputs_config", generateSafeInputsConfigScriptSource)
 
 	// Log parser scripts
 	DefaultScriptRegistry.Register("parse_claude_log", parseClaudeLogScriptSource)
@@ -301,4 +305,9 @@ func getParseCodexLogScript() string {
 // getParseCopilotLogScript returns the bundled parse_copilot_log script
 func getParseCopilotLogScript() string {
 	return DefaultScriptRegistry.Get("parse_copilot_log")
+}
+
+// getGenerateSafeInputsConfigScript returns the bundled generate_safe_inputs_config script
+func getGenerateSafeInputsConfigScript() string {
+	return DefaultScriptRegistry.Get("generate_safe_inputs_config")
 }
