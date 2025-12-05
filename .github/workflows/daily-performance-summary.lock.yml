@@ -3641,8 +3641,8 @@ jobs:
               const apiKeyBuffer = crypto.randomBytes(32);
               const apiKey = apiKeyBuffer.toString("base64").replace(/[/+=]/g, "");
               const port = 3000;
-              core.setOutput("api_key", apiKey);
-              core.setOutput("port", port.toString());
+              core.setOutput("safe_inputs_api_key", apiKey);
+              core.setOutput("safe_inputs_port", port.toString());
               core.info(`Safe Inputs MCP server will run on port ${port}`);
               return { apiKey, port };
             }
@@ -3658,8 +3658,8 @@ jobs:
         id: safe-inputs-start
         run: |
           # Set environment variables for the server
-          export GH_AW_SAFE_INPUTS_PORT=${{ steps.safe-inputs-config.outputs.port }}
-          export GH_AW_SAFE_INPUTS_API_KEY=${{ steps.safe-inputs-config.outputs.api_key }}
+          export GH_AW_SAFE_INPUTS_PORT=${{ steps.safe-inputs-config.outputs.safe_inputs_port }}
+          export GH_AW_SAFE_INPUTS_API_KEY=${{ steps.safe-inputs-config.outputs.safe_inputs_api_key }}
           
           export GH_TOKEN="${GH_TOKEN}"
           
