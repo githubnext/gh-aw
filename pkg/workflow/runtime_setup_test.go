@@ -412,7 +412,7 @@ func TestGenerateRuntimeSetupSteps(t *testing.T) {
 			checkContent: []string{
 				"Setup Go",
 				"actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5",
-				"go-version: '1.23'",
+				"go-version: '1.25'",
 			},
 		},
 		{
