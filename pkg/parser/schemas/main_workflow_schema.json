@@ -2219,7 +2219,7 @@
           ]
         },
         "bash": {
-          "description": "Bash shell command execution tool for running command-line programs and scripts",
+          "description": "Bash shell command execution tool. Supports wildcards: '*' (all commands), 'command *' (command with any args, e.g., 'date *', 'echo *'). Default safe commands: echo, ls, pwd, cat, head, tail, grep, wc, sort, uniq, date.",
           "oneOf": [
             {
               "type": "null",
@@ -2231,9 +2231,10 @@
             },
             {
               "type": "array",
-              "description": "List of allowed bash commands and patterns (e.g., ['echo', 'ls', 'git status', 'npm install'])",
+              "description": "List of allowed commands and patterns. Wildcards: '*' allows all commands, 'command *' allows command with any args (e.g., 'date *', 'echo *').",
               "items": {
-                "type": "string"
+                "type": "string",
+                "description": "Command or pattern: 'echo' (exact match), 'echo *' (command with any args)"
               }
             }
           ],
@@ -2254,7 +2255,8 @@
               "ls"
             ],
             ["echo", "ls", "cat"],
-            ["gh pr list *", "gh search prs *", "jq *"]
+            ["gh pr list *", "gh search prs *", "jq *"],
+            ["date *", "echo *", "cat", "ls"]
           ]
         },
         "web-fetch": {
