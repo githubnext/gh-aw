@@ -164,11 +164,6 @@ func runMCPGateway(mcpsConfigFile string, scriptsConfigFile string, portOverride
 		mcpGatewayLog.Print("API key authentication enabled")
 	}
 
-	serverCount := len(config.MCPServers)
-	if config.SafeInputsConfig != "" {
-		serverCount++ // Count safe-inputs as an additional "server"
-	}
-
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Starting MCP Gateway on port %d", config.Port)))
 
 	if apiKey != "" {

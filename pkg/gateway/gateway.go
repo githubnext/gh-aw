@@ -47,11 +47,6 @@ type Gateway struct {
 
 // NewGateway creates a new MCP gateway from configuration
 func NewGateway(config GatewayConfig) (*Gateway, error) {
-	serverCount := len(config.MCPServers)
-	if config.SafeInputsConfig != "" {
-		serverCount++
-	}
-
 	log.Printf("Creating new gateway with %d MCP servers + safe-inputs on port %d", len(config.MCPServers), config.Port)
 
 	if config.Port == 0 {
@@ -197,8 +192,8 @@ func (g *Gateway) connectToSafeInputsServer(ctx context.Context) error {
 
 	// Write the required JavaScript modules to temp directory
 	scripts := map[string]string{
-		"mcp_server_core.cjs":            workflow.GetMCPServerCoreScript(),
-		"read_buffer.cjs":                workflow.GetReadBufferScript(),
+		"mcp_server_core.cjs":           workflow.GetMCPServerCoreScript(),
+		"read_buffer.cjs":               workflow.GetReadBufferScript(),
 		"safe_inputs_mcp_server.cjs":    workflow.GetSafeInputsMCPServerScript(),
 		"safe_inputs_config_loader.cjs": workflow.GetSafeInputsConfigLoaderScript(),
 		"safe_inputs_tool_factory.cjs":  workflow.GetSafeInputsToolFactoryScript(),
