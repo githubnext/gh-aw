@@ -619,12 +619,12 @@ func TestGenerateSafeInputsMCPServerScript(t *testing.T) {
 		t.Error("Script should specify log directory")
 	}
 
-	if !strings.Contains(script, "SAFE_INPUTS_PORT") {
-		t.Error("Script should reference SAFE_INPUTS_PORT environment variable")
+	if !strings.Contains(script, "GH_AW_SAFE_INPUTS_PORT") {
+		t.Error("Script should reference GH_AW_SAFE_INPUTS_PORT environment variable")
 	}
 
-	if !strings.Contains(script, "SAFE_INPUTS_API_KEY") {
-		t.Error("Script should reference SAFE_INPUTS_API_KEY environment variable")
+	if !strings.Contains(script, "GH_AW_SAFE_INPUTS_API_KEY") {
+		t.Error("Script should reference GH_AW_SAFE_INPUTS_API_KEY environment variable")
 	}
 
 	// Test the tools configuration JSON

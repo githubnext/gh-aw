@@ -64,11 +64,11 @@ Test safe-inputs HTTP server
 		}
 	}
 
-	// Verify API key generation
+	// Verify API key generation step uses github-script
 	apiKeyGenChecks := []string{
-		"openssl rand -base64 32",
-		"echo \"api_key=$API_KEY\" >> $GITHUB_OUTPUT",
-		"echo \"port=$PORT\" >> $GITHUB_OUTPUT",
+		"uses: actions/github-script@",
+		"generateSafeInputsConfig",
+		"crypto.randomBytes",
 	}
 
 	for _, check := range apiKeyGenChecks {
@@ -79,8 +79,8 @@ Test safe-inputs HTTP server
 
 	// Verify HTTP server startup
 	serverStartupChecks := []string{
-		"export SAFE_INPUTS_PORT=${{ steps.safe-inputs-config.outputs.port }}",
-		"export SAFE_INPUTS_API_KEY=${{ steps.safe-inputs-config.outputs.api_key }}",
+		"export GH_AW_SAFE_INPUTS_PORT=${{ steps.safe-inputs-config.outputs.port }}",
+		"export GH_AW_SAFE_INPUTS_API_KEY=${{ steps.safe-inputs-config.outputs.api_key }}",
 		"node mcp-server.cjs",
 		"Started safe-inputs MCP server with PID",
 	}
@@ -108,13 +108,13 @@ Test safe-inputs HTTP server
 	expectedMCPChecks := []string{
 		`"safeinputs": {`,
 		`"type": "http"`,
-		`"url": "http://localhost:\${SAFE_INPUTS_PORT}"`,
+		`"url": "http://localhost:\${GH_AW_SAFE_INPUTS_PORT}"`,
 		`"headers": {`,
-		`"Authorization": "Bearer \${SAFE_INPUTS_API_KEY}"`,
+		`"Authorization": "Bearer \${GH_AW_SAFE_INPUTS_API_KEY}"`,
 		`"tools": ["*"]`,
 		`"env": {`,
-		`"SAFE_INPUTS_PORT": "\${SAFE_INPUTS_PORT}"`,
-		`"SAFE_INPUTS_API_KEY": "\${SAFE_INPUTS_API_KEY}"`,
+		`"GH_AW_SAFE_INPUTS_PORT": "\${GH_AW_SAFE_INPUTS_PORT}"`,
+		`"GH_AW_SAFE_INPUTS_API_KEY": "\${GH_AW_SAFE_INPUTS_API_KEY}"`,
 	}
 
 	for _, expected := range expectedMCPChecks {
@@ -125,8 +125,8 @@ Test safe-inputs HTTP server
 
 	// Verify env variables are set in Setup MCPs step
 	setupMCPsEnvChecks := []string{
-		"SAFE_INPUTS_PORT: ${{ steps.safe-inputs-start.outputs.port }}",
-		"SAFE_INPUTS_API_KEY: ${{ steps.safe-inputs-start.outputs.api_key }}",
+		"GH_AW_SAFE_INPUTS_PORT: ${{ steps.safe-inputs-start.outputs.port }}",
+		"GH_AW_SAFE_INPUTS_API_KEY: ${{ steps.safe-inputs-start.outputs.api_key }}",
 	}
 
 	for _, check := range setupMCPsEnvChecks {
@@ -326,7 +326,7 @@ Test readiness check
 	readinessChecks := []string{
 		"for i in {1..10}; do",
 		"if curl -s -f -H \"Authorization: Bearer",
-		"http://localhost:$SAFE_INPUTS_PORT/",
+		"http://localhost:$GH_AW_SAFE_INPUTS_PORT/",
 		"echo \"Safe Inputs MCP server is ready\"",
 		"break",
 		"if [ $i -eq 10 ]; then",
