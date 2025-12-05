@@ -281,7 +281,6 @@ func GenerateSecretValidationStep(secretName, engineName, docsURL string) GitHub
 		fmt.Sprintf("            echo \"Documentation: %s\"", docsURL),
 		"            exit 1",
 		"          fi",
-		fmt.Sprintf("          echo \"%s secret is configured\"", secretName),
 		"        env:",
 		fmt.Sprintf("          %s: ${{ secrets.%s }}", secretName, secretName),
 	}
