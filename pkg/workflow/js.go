@@ -210,11 +210,17 @@ var mcpServerCoreScript string
 //go:embed js/safe_inputs_mcp_server.cjs
 var safeInputsMCPServerScript string
 
+//go:embed js/safe_inputs_mcp_server_http.cjs
+var safeInputsMCPServerHTTPScript string
+
 //go:embed js/safe_inputs_config_loader.cjs
 var safeInputsConfigLoaderScript string
 
 //go:embed js/safe_inputs_tool_factory.cjs
 var safeInputsToolFactoryScript string
+
+//go:embed js/safe_inputs_validation.cjs
+var safeInputsValidationScript string
 
 //go:embed js/mcp_handler_shell.cjs
 var mcpHandlerShellScript string
@@ -280,8 +286,10 @@ func GetJavaScriptSources() map[string]string {
 		"read_buffer.cjs":                 readBufferScript,
 		"mcp_server_core.cjs":             mcpServerCoreScript,
 		"safe_inputs_mcp_server.cjs":      safeInputsMCPServerScript,
+		"safe_inputs_mcp_server_http.cjs": safeInputsMCPServerHTTPScript,
 		"safe_inputs_config_loader.cjs":   safeInputsConfigLoaderScript,
 		"safe_inputs_tool_factory.cjs":    safeInputsToolFactoryScript,
+		"safe_inputs_validation.cjs":      safeInputsValidationScript,
 		"mcp_handler_shell.cjs":           mcpHandlerShellScript,
 		"mcp_handler_python.cjs":          mcpHandlerPythonScript,
 		"safe_output_type_validator.cjs":  safeOutputTypeValidatorScript,
@@ -760,6 +768,11 @@ func GetSafeInputsMCPServerScript() string {
 	return safeInputsMCPServerScript
 }
 
+// GetSafeInputsMCPServerHTTPScript returns the embedded safe_inputs_mcp_server_http.cjs script
+func GetSafeInputsMCPServerHTTPScript() string {
+	return safeInputsMCPServerHTTPScript
+}
+
 // GetSafeInputsConfigLoaderScript returns the embedded safe_inputs_config_loader.cjs script
 func GetSafeInputsConfigLoaderScript() string {
 	return safeInputsConfigLoaderScript
@@ -768,6 +781,11 @@ func GetSafeInputsConfigLoaderScript() string {
 // GetSafeInputsToolFactoryScript returns the embedded safe_inputs_tool_factory.cjs script
 func GetSafeInputsToolFactoryScript() string {
 	return safeInputsToolFactoryScript
+}
+
+// GetSafeInputsValidationScript returns the embedded safe_inputs_validation.cjs script
+func GetSafeInputsValidationScript() string {
+	return safeInputsValidationScript
 }
 
 // GetMCPHandlerShellScript returns the embedded mcp_handler_shell.cjs script

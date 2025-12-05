@@ -1630,6 +1630,17 @@ jobs:
                 }
               }
             }
+            function validateRequiredFields(args, inputSchema) {
+              const requiredFields = inputSchema && Array.isArray(inputSchema.required) ? inputSchema.required : [];
+              if (!requiredFields.length) {
+                return [];
+              }
+              const missing = requiredFields.filter(f => {
+                const value = args[f];
+                return value === undefined || value === null || (typeof value === "string" && value.trim() === "");
+              });
+              return missing;
+            }
             const encoder = new TextEncoder();
             function initLogFile(server) {
               if (server.logFileInitialized || !server.logDir || !server.logFilePath) return;
@@ -2083,16 +2094,10 @@ jobs:
                     server.replyError(id, -32603, `No handler for tool: ${name}`);
                     return;
                   }
-                  const requiredFields = tool.inputSchema && Array.isArray(tool.inputSchema.required) ? tool.inputSchema.required : [];
-                  if (requiredFields.length) {
-                    const missing = requiredFields.filter(f => {
-                      const value = args[f];
-                      return value === undefined || value === null || (typeof value === "string" && value.trim() === "");
-                    });
-                    if (missing.length) {
-                      server.replyError(id, -32602, `Invalid arguments: missing or empty ${missing.map(m => `'${m}'`).join(", ")}`);
-                      return;
-                    }
+                  const missing = validateRequiredFields(args, tool.inputSchema);
+                  if (missing.length) {
+                    server.replyError(id, -32602, `Invalid arguments: missing or empty ${missing.map(m => `'${m}'`).join(", ")}`);
+                    return;
                   }
                   server.debug(`Calling handler for tool: ${name}`);
                   const result = await Promise.resolve(handler(args));

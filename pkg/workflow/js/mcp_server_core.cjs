@@ -24,6 +24,7 @@ const fs = require("fs");
 const path = require("path");
 
 const { ReadBuffer } = require("./read_buffer.cjs");
+const { validateRequiredFields } = require("./safe_inputs_validation.cjs");
 
 const encoder = new TextEncoder();
 
@@ -548,16 +549,10 @@ async function handleMessage(server, req, defaultHandler) {
         return;
       }
 
-      const requiredFields = tool.inputSchema && Array.isArray(tool.inputSchema.required) ? tool.inputSchema.required : [];
-      if (requiredFields.length) {
-        const missing = requiredFields.filter(f => {
-          const value = args[f];
-          return value === undefined || value === null || (typeof value === "string" && value.trim() === "");
-        });
-        if (missing.length) {
-          server.replyError(id, -32602, `Invalid arguments: missing or empty ${missing.map(m => `'${m}'`).join(", ")}`);
-          return;
-        }
+      const missing = validateRequiredFields(args, tool.inputSchema);
+      if (missing.length) {
+        server.replyError(id, -32602, `Invalid arguments: missing or empty ${missing.map(m => `'${m}'`).join(", ")}`);
+        return;
       }
 
       // Call handler and await the result (supports both sync and async handlers)

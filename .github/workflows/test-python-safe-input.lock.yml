@@ -581,6 +581,17 @@ jobs:
                 }
               }
             }
+            function validateRequiredFields(args, inputSchema) {
+              const requiredFields = inputSchema && Array.isArray(inputSchema.required) ? inputSchema.required : [];
+              if (!requiredFields.length) {
+                return [];
+              }
+              const missing = requiredFields.filter(f => {
+                const value = args[f];
+                return value === undefined || value === null || (typeof value === "string" && value.trim() === "");
+              });
+              return missing;
+            }
             const encoder = new TextEncoder();
             function initLogFile(server) {
               if (server.logFileInitialized || !server.logDir || !server.logFilePath) return;
@@ -1034,16 +1045,10 @@ jobs:
                     server.replyError(id, -32603, `No handler for tool: ${name}`);
                     return;
                   }
-                  const requiredFields = tool.inputSchema && Array.isArray(tool.inputSchema.required) ? tool.inputSchema.required : [];
-                  if (requiredFields.length) {
-                    const missing = requiredFields.filter(f => {
-                      const value = args[f];
-                      return value === undefined || value === null || (typeof value === "string" && value.trim() === "");
-                    });
-                    if (missing.length) {
-                      server.replyError(id, -32602, `Invalid arguments: missing or empty ${missing.map(m => `'${m}'`).join(", ")}`);
-                      return;
-                    }
+                  const missing = validateRequiredFields(args, tool.inputSchema);
+                  if (missing.length) {
+                    server.replyError(id, -32602, `Invalid arguments: missing or empty ${missing.map(m => `'${m}'`).join(", ")}`);
+                    return;
                   }
                   server.debug(`Calling handler for tool: ${name}`);
                   const result = await Promise.resolve(handler(args));
@@ -1661,6 +1666,7 @@ jobs:
             const fs = require("fs");
             const path = require("path");
             const { ReadBuffer } = require("./read_buffer.cjs");
+            const { validateRequiredFields } = require("./safe_inputs_validation.cjs");
             const encoder = new TextEncoder();
             function initLogFile(server) {
               if (server.logFileInitialized || !server.logDir || !server.logFilePath) return;
@@ -1966,16 +1972,10 @@ jobs:
                     server.replyError(id, -32603, `No handler for tool: ${name}`);
                     return;
                   }
-                  const requiredFields = tool.inputSchema && Array.isArray(tool.inputSchema.required) ? tool.inputSchema.required : [];
-                  if (requiredFields.length) {
-                    const missing = requiredFields.filter(f => {
-                      const value = args[f];
-                      return value === undefined || value === null || (typeof value === "string" && value.trim() === "");
-                    });
-                    if (missing.length) {
-                      server.replyError(id, -32602, `Invalid arguments: missing or empty ${missing.map(m => `'${m}'`).join(", ")}`);
-                      return;
-                    }
+                  const missing = validateRequiredFields(args, tool.inputSchema);
+                  if (missing.length) {
+                    server.replyError(id, -32602, `Invalid arguments: missing or empty ${missing.map(m => `'${m}'`).join(", ")}`);
+                    return;
                   }
                   server.debug(`Calling handler for tool: ${name}`);
                   const result = await Promise.resolve(handler(args));
@@ -2224,6 +2224,22 @@ jobs:
               createToolConfig,
             };
           EOF_TOOL_FACTORY
+          cat > /tmp/gh-aw/safe-inputs/safe_inputs_validation.cjs << 'EOF_VALIDATION'
+            function validateRequiredFields(args, inputSchema) {
+              const requiredFields = inputSchema && Array.isArray(inputSchema.required) ? inputSchema.required : [];
+              if (!requiredFields.length) {
+                return [];
+              }
+              const missing = requiredFields.filter(f => {
+                const value = args[f];
+                return value === undefined || value === null || (typeof value === "string" && value.trim() === "");
+              });
+              return missing;
+            }
+            module.exports = {
+              validateRequiredFields,
+            };
+          EOF_VALIDATION
           cat > /tmp/gh-aw/safe-inputs/safe_inputs_mcp_server.cjs << 'EOF_SAFE_INPUTS_SERVER'
             const path = require("path");
             const { createServer, registerTool, loadToolHandlers, start } = require("./mcp_server_core.cjs");
