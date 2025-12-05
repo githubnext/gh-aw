@@ -99,6 +99,15 @@ fuzz:
 	go test -fuzz=FuzzParseFrontmatter -fuzztime=30s ./pkg/parser/
 	go test -fuzz=FuzzExpressionParser -fuzztime=30s ./pkg/workflow/
 
+# Run security regression tests
+.PHONY: test-security
+test-security:
+	@echo "Running security regression tests..."
+	go test -v -timeout=3m -run '^TestSecurity' ./pkg/workflow/... ./pkg/cli/...
+	@echo "Running security fuzz test seed corpus..."
+	go test -v -timeout=3m -run '^FuzzYAML|^FuzzTemplate|^FuzzInput|^FuzzNetwork|^FuzzSafeJob' ./pkg/workflow/...
+	@echo "✓ Security regression tests passed"
+
 # Test JavaScript files
 .PHONY: test-js
 test-js: build-js
@@ -354,6 +363,7 @@ help:
 	@echo "  build-all        - Build binaries for all platforms"
 	@echo "  test             - Run Go tests (unit + integration)"
 	@echo "  test-unit        - Run Go unit tests only (faster)"
+	@echo "  test-security    - Run security regression tests"
 	@echo "  test-js          - Run JavaScript tests"
 	@echo "  test-all         - Run all tests (Go and JavaScript)"
 	@echo "  test-coverage    - Run tests with coverage report"
