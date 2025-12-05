@@ -2641,9 +2641,11 @@ jobs:
               core.info(`Safe Inputs MCP server will run on port ${port}`);
               return { apiKey, port };
             }
-            module.exports = {
-              generateSafeInputsConfig,
-            };
+            if (typeof module !== "undefined" && module.exports) {
+              module.exports = {
+                generateSafeInputsConfig,
+              };
+            }
             
             // Execute the function
             const crypto = require('crypto');
