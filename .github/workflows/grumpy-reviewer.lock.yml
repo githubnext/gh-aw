@@ -358,8 +358,8 @@ jobs:
               if (redactedDomains.length === 0) {
                 return null;
               }
-              const fs = require("fs");
-              const path = require("path");
+            const fs = require("fs");
+            const path = require("path");
               const targetPath = filePath || "/tmp/gh-aw/redacted-urls.log";
               const dir = path.dirname(targetPath);
               if (!fs.existsSync(dir)) {
@@ -1149,6 +1149,7 @@ jobs:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
             const fs = require("fs");
+            const crypto = require("crypto");
             const MAX_LOG_CONTENT_LENGTH = 10000;
             function truncateForLogging(content) {
               if (content.length <= MAX_LOG_CONTENT_LENGTH) {
@@ -1325,7 +1326,6 @@ jobs:
                 return `${githubServer}/${context.repo.owner}/${context.repo.repo}`;
               }
             }
-            const crypto = require("crypto");
             const TEMPORARY_ID_PATTERN = /#(aw_[0-9a-f]{12})/gi;
             function generateTemporaryId() {
               return "aw_" + crypto.randomBytes(6).toString("hex");
@@ -2041,8 +2041,8 @@ jobs:
       - name: Write Safe Outputs JavaScript Files
         run: |
           cat > /tmp/gh-aw/safeoutputs/mcp-server.cjs << 'EOF'
-            const fs = require("fs");
-            const path = require("path");
+            const { execFile, execSync } = require("child_process");
+            const os = require("os");
             class ReadBuffer {
               constructor() {
                 this._buffer = null;
@@ -2263,8 +2263,6 @@ jobs:
                         server.debugError(`  [${toolName}] Warning: Could not make shell script executable: `, chmodError);
                       }
                     }
-            const { execFile } = require("child_process");
-            const os = require("os");
             function createShellHandler(server, toolName, scriptPath) {
               return async args => {
                 server.debug(`  [${toolName}] Invoking shell handler: ${scriptPath}`);
@@ -2633,7 +2631,6 @@ jobs:
                 }
               };
             }
-            const crypto = require("crypto");
             function normalizeBranchName(branchName) {
               if (!branchName || typeof branchName !== "string" || branchName.trim() === "") {
                 return branchName;
@@ -3787,7 +3784,8 @@ jobs:
         with:
           script: |
             async function main() {
-              const fs = require("fs");
+            const path = require("path");
+            const crypto = require("crypto");
             const redactedDomains = [];
             function getRedactedDomains() {
               return [...redactedDomains];
@@ -3799,7 +3797,6 @@ jobs:
               if (redactedDomains.length === 0) {
                 return null;
               }
-              const path = require("path");
               const targetPath = filePath || "/tmp/gh-aw/redacted-urls.log";
               const dir = path.dirname(targetPath);
               if (!fs.existsSync(dir)) {
@@ -3983,7 +3980,6 @@ jobs:
                 return s.replace(/\b(fixes?|closes?|resolves?|fix|close|resolve)\s+#(\w+)/gi, (match, action, ref) => `\`${action} #${ref}\``);
               }
             }
-            const crypto = require("crypto");
             const TEMPORARY_ID_PATTERN = /#(aw_[0-9a-f]{12})/gi;
             function generateTemporaryId() {
               return "aw_" + crypto.randomBytes(6).toString("hex");
@@ -5400,8 +5396,8 @@ jobs:
               return lines.join("\n");
             }
             function runLogParser(options) {
-              const fs = require("fs");
-              const path = require("path");
+            const fs = require("fs");
+            const path = require("path");
               const { parseLog, parserName, supportsDirectories = false } = options;
               try {
                 const logPath = process.env.GH_AW_AGENT_OUTPUT;
@@ -6013,9 +6009,9 @@ jobs:
 
             function main() {
 
-              const fs = require("fs");
+            const fs = require("fs");
 
-              const path = require("path");
+            const path = require("path");
 
               try {
 
