@@ -10,7 +10,7 @@ safe-inputs:
     env:
       GH_AW_GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     run: |
-      GHTOKEN=$GH_AW_GH_TOKEN gh $INPUT_ARGS
+      GH_TOKEN=$GH_AW_GH_TOKEN gh $INPUT_ARGS
 ---
 <!--
 ## gh CLI Safe Input Tool
