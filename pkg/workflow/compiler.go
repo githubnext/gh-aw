@@ -252,6 +252,15 @@ type WorkflowData struct {
 	ActionResolver      *ActionResolver      // resolver for action pins
 	StrictMode          bool                 // strict mode for action pinning
 	SecretMasking       *SecretMaskingConfig // secret masking configuration
+	RateLimits          *RateLimitsConfig    // rate limiting configuration for DoS prevention
+}
+
+// RateLimitsConfig holds rate limiting configuration for DoS prevention
+type RateLimitsConfig struct {
+	GitHubAPI       string `yaml:"github-api,omitempty" json:"github-api,omitempty"`             // Rate limit for GitHub API calls (e.g., "100/hour")
+	MCPRequests     string `yaml:"mcp-requests,omitempty" json:"mcp-requests,omitempty"`         // Rate limit for MCP server requests (e.g., "50/minute")
+	NetworkRequests string `yaml:"network-requests,omitempty" json:"network-requests,omitempty"` // Rate limit for network requests (e.g., "60/minute")
+	FileRead        string `yaml:"file-read,omitempty" json:"file-read,omitempty"`               // Rate limit for file read operations (e.g., "1000/minute")
 }
 
 // BaseSafeOutputConfig holds common configuration fields for all safe output types
@@ -901,6 +910,17 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		}
 	}
 
+	// Extract RateLimits configuration
+	rateLimits := c.extractRateLimitsConfig(result.Frontmatter)
+
+	// Merge rate-limits from imports with top-level rate-limits
+	if importsResult.MergedRateLimits != "" {
+		rateLimits, err = c.MergeRateLimits(rateLimits, importsResult.MergedRateLimits)
+		if err != nil {
+			return nil, fmt.Errorf("failed to merge rate-limits: %w", err)
+		}
+	}
+
 	var tools map[string]any
 
 	// Extract tools from the main file
@@ -1083,6 +1103,7 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		GitHubToken:         extractStringFromMap(result.Frontmatter, "github-token", nil),
 		StrictMode:          c.strictMode,
 		SecretMasking:       secretMasking,
+		RateLimits:          rateLimits,
 	}
 
 	// Use shared action cache and resolver from the compiler

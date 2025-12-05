@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -11,6 +12,7 @@ import (
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/constants"
 	"github.com/githubnext/gh-aw/pkg/logger"
+	"github.com/githubnext/gh-aw/pkg/ratelimit"
 )
 
 var mcpRegistryLog = logger.New("cli:mcp_registry")
@@ -33,6 +35,7 @@ type MCPRegistryServerForProcessing struct {
 type MCPRegistryClient struct {
 	registryURL string
 	httpClient  *http.Client
+	rateLimiter *ratelimit.TokenBucket
 }
 
 // NewMCPRegistryClient creates a new MCP registry client
@@ -43,11 +46,18 @@ func NewMCPRegistryClient(registryURL string) *MCPRegistryClient {
 
 	mcpRegistryLog.Printf("Creating MCP registry client: url=%s", registryURL)
 
+	// Create rate limiter for MCP registry operations
+	rateLimiter, err := ratelimit.NewTokenBucket(ratelimit.OperationMCPRegistry, nil)
+	if err != nil {
+		mcpRegistryLog.Printf("Failed to create rate limiter, proceeding without: %v", err)
+	}
+
 	return &MCPRegistryClient{
 		registryURL: registryURL,
 		httpClient: &http.Client{
 			Timeout: 30 * time.Second,
 		},
+		rateLimiter: rateLimiter,
 	}
 }
 
@@ -68,6 +78,15 @@ func (c *MCPRegistryClient) createRegistryRequest(method, url string) (*http.Req
 // SearchServers searches for MCP servers in the registry by fetching all servers and filtering locally
 func (c *MCPRegistryClient) SearchServers(query string) ([]MCPRegistryServerForProcessing, error) {
 	mcpRegistryLog.Printf("Searching MCP servers: query=%q", query)
+
+	// Apply rate limiting if configured
+	if c.rateLimiter != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		if err := c.rateLimiter.Wait(ctx); err != nil {
+			return nil, fmt.Errorf("rate limit exceeded for MCP registry search: %w", err)
+		}
+	}
 
 	// Always use servers endpoint for listing all servers
 	searchURL := fmt.Sprintf("%s/servers", c.registryURL)
@@ -256,6 +275,15 @@ func (c *MCPRegistryClient) SearchServers(query string) ([]MCPRegistryServerForP
 // GetServer gets a specific server by name from the registry
 func (c *MCPRegistryClient) GetServer(serverName string) (*MCPRegistryServerForProcessing, error) {
 	mcpRegistryLog.Printf("Getting MCP server: name=%s", serverName)
+
+	// Apply rate limiting if configured
+	if c.rateLimiter != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		if err := c.rateLimiter.Wait(ctx); err != nil {
+			return nil, fmt.Errorf("rate limit exceeded for MCP registry get: %w", err)
+		}
+	}
 
 	// Use the servers endpoint and filter locally, just like SearchServers
 	serversURL := fmt.Sprintf("%s/servers", c.registryURL)

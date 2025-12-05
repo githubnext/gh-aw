@@ -728,6 +728,31 @@ runs-on:
 # (optional)
 timeout-minutes: 1
 
+# Rate limiting configuration to prevent resource exhaustion and DoS attacks.
+# Configures token bucket rate limiters for different operation types including
+# GitHub API calls, MCP server requests, and workflow operations.
+# (optional)
+rate-limits:
+  # Rate limit for GitHub API calls. Format: N/unit (e.g., '100/hour', '50/minute').
+  # Default: 100/hour.
+  # (optional)
+  github-api: "example-value"
+
+  # Rate limit for MCP server requests. Format: N/unit (e.g., '50/minute'). Default:
+  # 50/minute.
+  # (optional)
+  mcp-requests: "example-value"
+
+  # Rate limit for network requests. Format: N/unit (e.g., '60/minute'). Default:
+  # 60/minute.
+  # (optional)
+  network-requests: "example-value"
+
+  # Rate limit for file read operations. Format: N/unit (e.g., '1000/minute').
+  # Default: 1000/minute.
+  # (optional)
+  file-read: "example-value"
+
 # Concurrency control to limit concurrent workflow runs (GitHub Actions standard
 # field). Supports two forms: simple string for basic group isolation, or object
 # with cancel-in-progress option for advanced control. Agentic workflows enhance

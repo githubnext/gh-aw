@@ -1414,6 +1414,38 @@
       "examples": [5, 10, 30],
       "deprecated": true
     },
+    "rate-limits": {
+      "type": "object",
+      "description": "Rate limiting configuration to prevent resource exhaustion and DoS attacks. Configures token bucket rate limiters for different operation types including GitHub API calls, MCP server requests, and workflow operations.",
+      "properties": {
+        "github-api": {
+          "type": "string",
+          "description": "Rate limit for GitHub API calls. Format: N/unit (e.g., '100/hour', '50/minute'). Default: 100/hour.",
+          "examples": ["100/hour", "50/minute", "1000/day"]
+        },
+        "mcp-requests": {
+          "type": "string",
+          "description": "Rate limit for MCP server requests. Format: N/unit (e.g., '50/minute'). Default: 50/minute.",
+          "examples": ["50/minute", "100/minute", "10/second"]
+        },
+        "network-requests": {
+          "type": "string",
+          "description": "Rate limit for network requests. Format: N/unit (e.g., '60/minute'). Default: 60/minute.",
+          "examples": ["60/minute", "100/minute", "1/second"]
+        },
+        "file-read": {
+          "type": "string",
+          "description": "Rate limit for file read operations. Format: N/unit (e.g., '1000/minute'). Default: 1000/minute.",
+          "examples": ["1000/minute", "100/second"]
+        }
+      },
+      "additionalProperties": false,
+      "examples": [
+        { "github-api": "100/hour", "mcp-requests": "50/minute" },
+        { "github-api": "1000/hour" },
+        { "mcp-requests": "100/minute", "network-requests": "60/minute" }
+      ]
+    },
     "concurrency": {
       "description": "Concurrency control to limit concurrent workflow runs (GitHub Actions standard field). Supports two forms: simple string for basic group isolation, or object with cancel-in-progress option for advanced control. Agentic workflows enhance this with automatic per-engine concurrency policies (defaults to single job per engine across all workflows) and token-based rate limiting. Default behavior: workflows in the same group queue sequentially unless cancel-in-progress is true. See https://docs.github.com/en/actions/using-jobs/using-concurrency",
       "oneOf": [

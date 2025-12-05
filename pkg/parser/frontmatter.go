@@ -92,6 +92,7 @@ type ImportsResult struct {
 	MergedNetwork       string         // Merged network configuration from all imports
 	MergedPermissions   string         // Merged permissions configuration from all imports
 	MergedSecretMasking string         // Merged secret-masking steps from all imports
+	MergedRateLimits    string         // Merged rate-limits configuration from all imports
 	ImportedFiles       []string       // List of imported file paths (for manifest)
 	AgentFile           string         // Path to custom agent file (if imported)
 	ImportInputs        map[string]any // Aggregated input values from all imports (key = input name, value = input value)
@@ -218,6 +219,7 @@ func processImportsFromFrontmatterWithManifestAndSource(frontmatter map[string]a
 	var networkBuilder strings.Builder
 	var permissionsBuilder strings.Builder
 	var secretMaskingBuilder strings.Builder
+	var rateLimitsBuilder strings.Builder
 	var engines []string
 	var safeOutputs []string
 	var safeInputs []string
@@ -484,6 +486,12 @@ func processImportsFromFrontmatterWithManifestAndSource(frontmatter map[string]a
 		if err == nil && secretMaskingContent != "" && secretMaskingContent != "{}" {
 			secretMaskingBuilder.WriteString(secretMaskingContent + "\n")
 		}
+
+		// Extract rate-limits from imported file
+		rateLimitsContent, err := extractRateLimitsFromContent(string(content))
+		if err == nil && rateLimitsContent != "" && rateLimitsContent != "{}" {
+			rateLimitsBuilder.WriteString(rateLimitsContent + "\n")
+		}
 	}
 
 	log.Printf("Completed BFS traversal. Processed %d imports in total", len(processedOrder))
@@ -501,6 +509,7 @@ func processImportsFromFrontmatterWithManifestAndSource(frontmatter map[string]a
 		MergedNetwork:       networkBuilder.String(),
 		MergedPermissions:   permissionsBuilder.String(),
 		MergedSecretMasking: secretMaskingBuilder.String(),
+		MergedRateLimits:    rateLimitsBuilder.String(),
 		ImportedFiles:       processedOrder,
 		AgentFile:           agentFile,
 		ImportInputs:        importInputs,
@@ -855,6 +864,11 @@ func ExtractPermissionsFromContent(content string) (string, error) {
 // extractSecretMaskingFromContent extracts secret-masking section from frontmatter as JSON string
 func extractSecretMaskingFromContent(content string) (string, error) {
 	return extractFrontmatterField(content, "secret-masking", "{}")
+}
+
+// extractRateLimitsFromContent extracts the rate-limits configuration from markdown content's frontmatter
+func extractRateLimitsFromContent(content string) (string, error) {
+	return extractFrontmatterField(content, "rate-limits", "{}")
 }
 
 // extractFrontmatterField extracts a specific field from frontmatter as JSON string
