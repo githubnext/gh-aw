@@ -476,6 +476,10 @@ func (c *Compiler) buildPushRepoMemoryJob(data *WorkflowData, threatDetectionEna
 	checkoutStep.WriteString("          persist-credentials: false\n")
 	steps = append(steps, checkoutStep.String())
 
+	// Add git configuration step
+	gitConfigSteps := c.generateGitConfigurationSteps()
+	steps = append(steps, gitConfigSteps...)
+
 	// Build steps as complete YAML strings
 	for _, memory := range data.RepoMemoryConfig.Memories {
 		// Download artifact step
@@ -518,7 +522,8 @@ func (c *Compiler) buildPushRepoMemoryJob(data *WorkflowData, threatDetectionEna
 		step.WriteString(fmt.Sprintf("          MAX_FILE_SIZE: %d\n", memory.MaxFileSize))
 		step.WriteString(fmt.Sprintf("          MAX_FILE_COUNT: %d\n", memory.MaxFileCount))
 		if fileGlobFilter != "" {
-			step.WriteString(fmt.Sprintf("          FILE_GLOB_FILTER: %s\n", fileGlobFilter))
+			// Quote the value to prevent YAML alias interpretation of patterns like *.md
+			step.WriteString(fmt.Sprintf("          FILE_GLOB_FILTER: \"%s\"\n", fileGlobFilter))
 		}
 		step.WriteString("        with:\n")
 		step.WriteString("          script: |\n")

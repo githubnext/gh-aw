@@ -44,15 +44,6 @@ async function main() {
   process.chdir(memoryDir);
   core.info(`Working directory: ${memoryDir}`);
 
-  // Configure git user as GitHub Actions bot
-  try {
-    execSync('git config user.name "github-actions[bot]"', { stdio: "inherit" });
-    execSync('git config user.email "41898282+github-actions[bot]@users.noreply.github.com"', { stdio: "inherit" });
-  } catch (error) {
-    core.setFailed(`Failed to configure git user: ${error instanceof Error ? error.message : String(error)}`);
-    return;
-  }
-
   // Check if we have any changes to commit
   let hasChanges = false;
   try {
