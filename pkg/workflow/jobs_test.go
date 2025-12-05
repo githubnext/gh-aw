@@ -605,6 +605,31 @@ func TestJobManager_GenerateMermaidGraph(t *testing.T) {
 				"```",
 			},
 		},
+		{
+			name: "edges sorted alphabetically regardless of dependency order",
+			jobs: []*Job{
+				{Name: "activation", DisplayName: "Activation", RunsOn: "ubuntu-latest"},
+				{Name: "agent", DisplayName: "Agent", RunsOn: "ubuntu-latest", Needs: []string{"activation"}},
+				{Name: "detection", DisplayName: "Detection", RunsOn: "ubuntu-latest", Needs: []string{"agent"}},
+				// Add dependencies in reverse alphabetical order to test sorting
+				{Name: "conclusion", DisplayName: "Conclusion", RunsOn: "ubuntu-latest", Needs: []string{"detection", "agent", "activation"}},
+			},
+			expected: []string{
+				"```mermaid",
+				"graph LR",
+				"  activation[\"Activation\"]",
+				"  agent[\"Agent\"]",
+				"  conclusion[\"Conclusion\"]",
+				"  detection[\"Detection\"]",
+				"  activation --> agent",
+				"  agent --> detection",
+				// Edges should be sorted alphabetically by source, then destination
+				"  activation --> conclusion",
+				"  agent --> conclusion",
+				"  detection --> conclusion",
+				"```",
+			},
+		},
 	}
 
 	for _, tt := range tests {

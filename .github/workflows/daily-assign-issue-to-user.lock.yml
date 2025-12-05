@@ -50,16 +50,16 @@
 #   assign_to_user["assign_to_user"]
 #   conclusion["conclusion"]
 #   detection["detection"]
-#   agent --> add_comment
-#   detection --> add_comment
 #   activation --> agent
-#   agent --> assign_to_user
-#   detection --> assign_to_user
-#   agent --> conclusion
 #   activation --> conclusion
 #   add_comment --> conclusion
-#   assign_to_user --> conclusion
+#   agent --> add_comment
+#   agent --> assign_to_user
+#   agent --> conclusion
 #   agent --> detection
+#   assign_to_user --> conclusion
+#   detection --> add_comment
+#   detection --> assign_to_user
 # ```
 #
 # Original Prompt:

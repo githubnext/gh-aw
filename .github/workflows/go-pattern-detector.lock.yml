@@ -97,14 +97,14 @@
 #   create_issue["create_issue"]
 #   detection["detection"]
 #   activation --> agent
-#   ast_grep --> agent
 #   activation --> ast_grep
-#   agent --> conclusion
 #   activation --> conclusion
-#   create_issue --> conclusion
+#   agent --> conclusion
 #   agent --> create_issue
-#   detection --> create_issue
 #   agent --> detection
+#   ast_grep --> agent
+#   create_issue --> conclusion
+#   detection --> create_issue
 # ```
 #
 # Original Prompt:

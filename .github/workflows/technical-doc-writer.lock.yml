@@ -108,21 +108,21 @@
 #   create_pull_request["create_pull_request"]
 #   detection["detection"]
 #   upload_assets["upload_assets"]
-#   agent --> add_comment
-#   create_pull_request --> add_comment
-#   detection --> add_comment
 #   activation --> agent
-#   agent --> conclusion
 #   activation --> conclusion
-#   create_pull_request --> conclusion
-#   add_comment --> conclusion
-#   upload_assets --> conclusion
-#   agent --> create_pull_request
 #   activation --> create_pull_request
-#   detection --> create_pull_request
+#   add_comment --> conclusion
+#   agent --> add_comment
+#   agent --> conclusion
+#   agent --> create_pull_request
 #   agent --> detection
 #   agent --> upload_assets
+#   create_pull_request --> add_comment
+#   create_pull_request --> conclusion
+#   detection --> add_comment
+#   detection --> create_pull_request
 #   detection --> upload_assets
+#   upload_assets --> conclusion
 # ```
 #
 # Original Prompt:

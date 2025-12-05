@@ -44,13 +44,13 @@
 #   agent["agent"]
 #   conclusion["conclusion"]
 #   detection["detection"]
-#   agent --> add_labels
-#   detection --> add_labels
 #   activation --> agent
-#   agent --> conclusion
 #   activation --> conclusion
 #   add_labels --> conclusion
+#   agent --> add_labels
+#   agent --> conclusion
 #   agent --> detection
+#   detection --> add_labels
 # ```
 #
 # Original Prompt:

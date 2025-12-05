@@ -138,19 +138,19 @@
 #   detection["detection"]
 #   pre_activation["pre_activation"]
 #   search_issues["search_issues"]
-#   pre_activation --> activation
-#   search_issues --> activation
-#   agent --> add_comment
-#   detection --> add_comment
 #   activation --> agent
-#   agent --> assign_to_agent
-#   detection --> assign_to_agent
-#   agent --> conclusion
 #   activation --> conclusion
 #   add_comment --> conclusion
-#   assign_to_agent --> conclusion
+#   agent --> add_comment
+#   agent --> assign_to_agent
+#   agent --> conclusion
 #   agent --> detection
+#   assign_to_agent --> conclusion
+#   detection --> add_comment
+#   detection --> assign_to_agent
+#   pre_activation --> activation
 #   pre_activation --> search_issues
+#   search_issues --> activation
 # ```
 #
 # Original Prompt:

@@ -85,15 +85,15 @@
 #   detection["detection"]
 #   pre_activation["pre_activation"]
 #   push_to_pull_request_branch["push_to_pull_request_branch"]
-#   pre_activation --> activation
 #   activation --> agent
-#   agent --> conclusion
 #   activation --> conclusion
-#   push_to_pull_request_branch --> conclusion
+#   activation --> push_to_pull_request_branch
+#   agent --> conclusion
 #   agent --> detection
 #   agent --> push_to_pull_request_branch
-#   activation --> push_to_pull_request_branch
 #   detection --> push_to_pull_request_branch
+#   pre_activation --> activation
+#   push_to_pull_request_branch --> conclusion
 # ```
 #
 # Original Prompt:

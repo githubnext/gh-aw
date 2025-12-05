@@ -77,18 +77,18 @@
 #   pre_activation["pre_activation"]
 #   push_to_pull_request_branch["push_to_pull_request_branch"]
 #   update_pull_request["update_pull_request"]
-#   pre_activation --> activation
 #   activation --> agent
-#   agent --> conclusion
 #   activation --> conclusion
-#   update_pull_request --> conclusion
-#   push_to_pull_request_branch --> conclusion
+#   activation --> push_to_pull_request_branch
+#   agent --> conclusion
 #   agent --> detection
 #   agent --> push_to_pull_request_branch
-#   activation --> push_to_pull_request_branch
-#   detection --> push_to_pull_request_branch
 #   agent --> update_pull_request
+#   detection --> push_to_pull_request_branch
 #   detection --> update_pull_request
+#   pre_activation --> activation
+#   push_to_pull_request_branch --> conclusion
+#   update_pull_request --> conclusion
 # ```
 #
 # Original Prompt:

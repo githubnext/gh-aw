@@ -55,12 +55,12 @@
 #   detection["detection"]
 #   notion_add_comment["notion_add_comment"]
 #   activation --> agent
-#   agent --> conclusion
 #   activation --> conclusion
-#   notion_add_comment --> conclusion
+#   agent --> conclusion
 #   agent --> detection
 #   agent --> notion_add_comment
 #   detection --> notion_add_comment
+#   notion_add_comment --> conclusion
 # ```
 #
 # Original Prompt:

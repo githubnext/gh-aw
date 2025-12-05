@@ -215,18 +215,18 @@
 #   pre_activation["pre_activation"]
 #   release["release"]
 #   update_release["update_release"]
-#   pre_activation --> activation
 #   activation --> agent
-#   release --> agent
-#   generate-sbom --> agent
-#   agent --> conclusion
 #   activation --> conclusion
-#   update_release --> conclusion
-#   agent --> detection
-#   release --> generate-sbom
 #   activation --> release
+#   agent --> conclusion
+#   agent --> detection
 #   agent --> update_release
 #   detection --> update_release
+#   generate-sbom --> agent
+#   pre_activation --> activation
+#   release --> agent
+#   release --> generate-sbom
+#   update_release --> conclusion
 # ```
 #
 # Original Prompt:

@@ -75,11 +75,11 @@
 #   conclusion["conclusion"]
 #   detection["detection"]
 #   pre_activation["pre_activation"]
-#   pre_activation --> activation
 #   activation --> agent
-#   agent --> conclusion
 #   activation --> conclusion
+#   agent --> conclusion
 #   agent --> detection
+#   pre_activation --> activation
 # ```
 #
 # Original Prompt:

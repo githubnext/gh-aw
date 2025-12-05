@@ -122,15 +122,15 @@
 #   detection["detection"]
 #   upload_assets["upload_assets"]
 #   activation --> agent
-#   agent --> conclusion
 #   activation --> conclusion
-#   create_issue --> conclusion
-#   upload_assets --> conclusion
+#   agent --> conclusion
 #   agent --> create_issue
-#   detection --> create_issue
 #   agent --> detection
 #   agent --> upload_assets
+#   create_issue --> conclusion
+#   detection --> create_issue
 #   detection --> upload_assets
+#   upload_assets --> conclusion
 # ```
 #
 # Original Prompt:

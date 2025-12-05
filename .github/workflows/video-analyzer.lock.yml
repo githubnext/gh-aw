@@ -67,12 +67,12 @@
 #   create_issue["create_issue"]
 #   detection["detection"]
 #   activation --> agent
-#   agent --> conclusion
 #   activation --> conclusion
-#   create_issue --> conclusion
+#   agent --> conclusion
 #   agent --> create_issue
-#   detection --> create_issue
 #   agent --> detection
+#   create_issue --> conclusion
+#   detection --> create_issue
 # ```
 #
 # Original Prompt:

@@ -79,18 +79,18 @@
 #   push_repo_memory["push_repo_memory"]
 #   upload_assets["upload_assets"]
 #   activation --> agent
-#   agent --> conclusion
 #   activation --> conclusion
-#   create_discussion --> conclusion
-#   upload_assets --> conclusion
-#   push_repo_memory --> conclusion
+#   agent --> conclusion
 #   agent --> create_discussion
-#   detection --> create_discussion
 #   agent --> detection
 #   agent --> push_repo_memory
-#   detection --> push_repo_memory
 #   agent --> upload_assets
+#   create_discussion --> conclusion
+#   detection --> create_discussion
+#   detection --> push_repo_memory
 #   detection --> upload_assets
+#   push_repo_memory --> conclusion
+#   upload_assets --> conclusion
 # ```
 #
 # Original Prompt:

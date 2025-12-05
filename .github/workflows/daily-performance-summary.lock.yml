@@ -72,18 +72,18 @@
 #   detection["detection"]
 #   upload_assets["upload_assets"]
 #   activation --> agent
-#   agent --> close_discussion
-#   detection --> close_discussion
-#   agent --> conclusion
 #   activation --> conclusion
-#   create_discussion --> conclusion
-#   close_discussion --> conclusion
-#   upload_assets --> conclusion
+#   agent --> close_discussion
+#   agent --> conclusion
 #   agent --> create_discussion
-#   detection --> create_discussion
 #   agent --> detection
 #   agent --> upload_assets
+#   close_discussion --> conclusion
+#   create_discussion --> conclusion
+#   detection --> close_discussion
+#   detection --> create_discussion
 #   detection --> upload_assets
+#   upload_assets --> conclusion
 # ```
 #
 # Original Prompt:

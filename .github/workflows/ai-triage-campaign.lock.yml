@@ -67,15 +67,15 @@
 #   detection["detection"]
 #   update_project["update_project"]
 #   activation --> agent
-#   agent --> assign_to_agent
-#   detection --> assign_to_agent
-#   agent --> conclusion
 #   activation --> conclusion
-#   assign_to_agent --> conclusion
-#   update_project --> conclusion
+#   agent --> assign_to_agent
+#   agent --> conclusion
 #   agent --> detection
 #   agent --> update_project
+#   assign_to_agent --> conclusion
+#   detection --> assign_to_agent
 #   detection --> update_project
+#   update_project --> conclusion
 # ```
 #
 # Original Prompt:

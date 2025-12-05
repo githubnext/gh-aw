@@ -64,12 +64,12 @@
 #   create_discussion["create_discussion"]
 #   detection["detection"]
 #   activation --> agent
-#   agent --> conclusion
 #   activation --> conclusion
-#   create_discussion --> conclusion
+#   agent --> conclusion
 #   agent --> create_discussion
-#   detection --> create_discussion
 #   agent --> detection
+#   create_discussion --> conclusion
+#   detection --> create_discussion
 # ```
 #
 # Original Prompt:
