@@ -8,13 +8,13 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
-  pull-requests: write
+  contents: read
+  pull-requests: read
   issues: read
 
 tracker-id: daily-workflow-updater
 engine: copilot
-strict: false
+strict: true
 
 network:
   allowed:
