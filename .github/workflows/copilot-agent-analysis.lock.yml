@@ -5199,11 +5199,6 @@ jobs:
                 core.setFailed(error instanceof Error ? error : String(error));
               }
             }
-            if (typeof module !== "undefined" && module.exports) {
-              module.exports = {
-                runLogParser,
-              };
-            }
             function main() {
               runLogParser({
                 parseLog: parseClaudeLog,
@@ -5283,11 +5278,6 @@ jobs:
                   logEntries: [],
                 };
               }
-            }
-            if (typeof module !== "undefined" && module.exports) {
-              module.exports = {
-                parseClaudeLog,
-              };
             }
             main();
       - name: Upload Agent Stdio

@@ -1364,11 +1364,6 @@ jobs:
               core.info(`Safe Inputs MCP server will run on port ${port}`);
               return { apiKey, port };
             }
-            if (typeof module !== "undefined" && module.exports) {
-              module.exports = {
-                generateSafeInputsConfig,
-              };
-            }
             
             // Execute the function
             const crypto = require('crypto');
@@ -2639,11 +2634,6 @@ jobs:
                 core.setFailed(error instanceof Error ? error : String(error));
               }
             }
-            if (typeof module !== "undefined" && module.exports) {
-              module.exports = {
-                runLogParser,
-              };
-            }
             function main() {
               runLogParser({
                 parseLog: parseClaudeLog,
@@ -2723,11 +2713,6 @@ jobs:
                   logEntries: [],
                 };
               }
-            }
-            if (typeof module !== "undefined" && module.exports) {
-              module.exports = {
-                parseClaudeLog,
-              };
             }
             main();
       - name: Upload Agent Stdio

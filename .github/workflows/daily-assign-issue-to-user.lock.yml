@@ -4382,11 +4382,6 @@ jobs:
                 core.setFailed(error instanceof Error ? error : String(error));
               }
             }
-            if (typeof module !== "undefined" && module.exports) {
-              module.exports = {
-                runLogParser,
-              };
-            }
             function main() {
               runLogParser({
                 parseLog: parseCopilotLog,
@@ -4884,12 +4879,6 @@ jobs:
               }
               return entries;
             }
-            if (typeof module !== "undefined" && module.exports) {
-              module.exports = {
-                parseCopilotLog,
-                extractPremiumRequestCount,
-              };
-            }
             main();
       - name: Upload Firewall Logs
         if: always()
@@ -5178,22 +5167,6 @@ jobs:
               }
 
               return summary;
-
-            }
-
-            if (typeof module !== "undefined" && module.exports) {
-
-              module.exports = {
-
-                parseFirewallLogLine,
-
-                isRequestAllowed,
-
-                generateFirewallSummary,
-
-                main,
-
-              };
 
             }
 
