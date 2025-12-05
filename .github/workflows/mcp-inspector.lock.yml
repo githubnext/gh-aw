@@ -107,6 +107,8 @@
 #   agent --> conclusion
 #   activation --> conclusion
 #   create_discussion --> conclusion
+#   notion_add_comment --> conclusion
+#   post_to_slack_channel --> conclusion
 #   agent --> create_discussion
 #   detection --> create_discussion
 #   agent --> detection
@@ -5782,6 +5784,8 @@ jobs:
       - agent
       - activation
       - create_discussion
+      - notion_add_comment
+      - post_to_slack_channel
     if: (always()) && (needs.agent.result != 'skipped')
     runs-on: ubuntu-slim
     permissions:

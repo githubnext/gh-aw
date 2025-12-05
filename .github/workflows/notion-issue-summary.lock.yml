@@ -57,6 +57,7 @@
 #   activation --> agent
 #   agent --> conclusion
 #   activation --> conclusion
+#   notion_add_comment --> conclusion
 #   agent --> detection
 #   agent --> notion_add_comment
 #   detection --> notion_add_comment
@@ -4785,6 +4786,7 @@ jobs:
     needs:
       - agent
       - activation
+      - notion_add_comment
     if: (always()) && (needs.agent.result != 'skipped')
     runs-on: ubuntu-slim
     permissions:

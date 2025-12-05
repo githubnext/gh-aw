@@ -135,7 +135,7 @@ func TestSafeOutputsJobsDependOnDetectionJob(t *testing.T) {
 	}
 
 	// Build safe jobs with threat detection enabled
-	err := c.buildSafeJobs(workflowData, true)
+	_, err := c.buildSafeJobs(workflowData, true)
 	if err != nil {
 		t.Fatalf("Unexpected error building safe jobs: %v", err)
 	}
@@ -198,7 +198,7 @@ func TestSafeOutputsJobsDoNotDependOnDetectionWhenDisabled(t *testing.T) {
 	}
 
 	// Build safe jobs with threat detection disabled
-	err := c.buildSafeJobs(workflowData, false)
+	_, err := c.buildSafeJobs(workflowData, false)
 	if err != nil {
 		t.Fatalf("Unexpected error building safe jobs: %v", err)
 	}
