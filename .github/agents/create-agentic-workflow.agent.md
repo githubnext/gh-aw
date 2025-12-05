@@ -142,13 +142,24 @@ DO NOT ask all these questions at once; instead, engage in a back-and-forth conv
                # Install mail utilities
                sudo apt-get update && sudo apt-get install -y mailutils
                
-               # Send email via SMTP
-               echo "$BODY" | mail -s "$SUBJECT" \
-                 -S smtp="$SMTP_SERVER" \
-                 -S smtp-auth=login \
-                 -S smtp-auth-user="$SMTP_USERNAME" \
-                 -S smtp-auth-password="$SMTP_PASSWORD" \
-                 "$RECIPIENT"
+               # Create temporary config file with restricted permissions
+               MAIL_RC=$(mktemp) || { echo "Failed to create temporary file"; exit 1; }
+               chmod 600 "$MAIL_RC"
+               trap "rm -f $MAIL_RC" EXIT
+               
+               # Write SMTP config to temporary file
+               cat > "$MAIL_RC" << EOF
+               set smtp=$SMTP_SERVER
+               set smtp-auth=login
+               set smtp-auth-user=$SMTP_USERNAME
+               set smtp-auth-password=$SMTP_PASSWORD
+               EOF
+               
+               # Send email using config file
+               echo "$BODY" | mail -S sendwait -R "$MAIL_RC" -s "$SUBJECT" "$RECIPIENT" || {
+                 echo "Failed to send email"
+                 exit 1
+               }
    ```
 
    ### Correct tool snippets (reference)
