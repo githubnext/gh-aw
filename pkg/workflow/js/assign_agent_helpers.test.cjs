@@ -268,7 +268,7 @@ describe("assign_agent_helpers.cjs", () => {
       expect(mockGithub.graphql.mock.calls[0].length).toBe(2);
     });
 
-    it("should use extended mutation with headers when Copilot options provided", async () => {
+    it("should use extended mutation with headers when agent assignment options provided", async () => {
       mockGithub.graphql.mockResolvedValueOnce({
         replaceActorsForAssignable: {
           __typename: "ReplaceActorsForAssignablePayload",
@@ -276,7 +276,7 @@ describe("assign_agent_helpers.cjs", () => {
       });
 
       const options = {
-        baseBranch: "main",
+        baseRef: "main",
         customInstructions: "Test instructions",
       };
 
@@ -288,8 +288,8 @@ describe("assign_agent_helpers.cjs", () => {
         expect.objectContaining({
           assignableId: "ISSUE_123",
           actorIds: ["AGENT_456", "USER_1"],
-          copilotAssignmentOptions: expect.objectContaining({
-            baseBranch: "main",
+          agentAssignment: expect.objectContaining({
+            baseRef: "main",
             customInstructions: "Test instructions",
           }),
         }),

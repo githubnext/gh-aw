@@ -209,7 +209,7 @@ async function getIssueDetails(owner, repo, issueNumber) {
  * @param {string} agentName - Agent name for error messages
  * @param {object} options - Additional assignment options
  * @param {string} [options.targetRepositoryId] - Target repository ID for the PR
- * @param {string} [options.baseBranch] - Base branch for the PR
+ * @param {string} [options.baseRef] - Base branch for the PR
  * @param {string} [options.customInstructions] - Custom instructions for the agent
  * @param {string} [options.customAgent] - Custom agent name/path
  * @returns {Promise<boolean>} True if successful
@@ -223,41 +223,41 @@ async function assignAgentToIssue(issueId, agentId, currentAssignees, agentName,
     }
   }
 
-  // Check if any Copilot-specific options are provided
-  const hasCopilotOptions = options.targetRepositoryId || options.baseBranch || options.customInstructions || options.customAgent;
+  // Check if any agent assignment options are provided
+  const hasAgentOptions = options.targetRepositoryId || options.baseRef || options.customInstructions || options.customAgent;
 
   try {
     core.info("Using built-in github object for mutation");
 
     let response;
 
-    if (hasCopilotOptions) {
-      // Build Copilot assignment options
-      const copilotOptions = {};
+    if (hasAgentOptions) {
+      // Build agent assignment options
+      const agentAssignment = {};
 
       if (options.targetRepositoryId) {
-        copilotOptions.targetRepositoryId = options.targetRepositoryId;
+        agentAssignment.targetRepositoryId = options.targetRepositoryId;
       }
 
-      if (options.baseBranch) {
-        copilotOptions.baseBranch = options.baseBranch;
+      if (options.baseRef) {
+        agentAssignment.baseRef = options.baseRef;
       }
 
       if (options.customInstructions) {
-        copilotOptions.customInstructions = options.customInstructions;
+        agentAssignment.customInstructions = options.customInstructions;
       }
 
       if (options.customAgent) {
-        copilotOptions.customAgent = options.customAgent;
+        agentAssignment.customAgent = options.customAgent;
       }
 
-      // Use extended mutation with Copilot assignment options
+      // Use extended mutation with agent assignment options
       const extendedMutation = `
-        mutation($assignableId: ID!, $actorIds: [ID!]!, $copilotAssignmentOptions: CopilotAssignmentOptionsInput) {
+        mutation($assignableId: ID!, $actorIds: [ID!]!, $agentAssignment: AgentAssignmentInput) {
           replaceActorsForAssignable(input: {
             assignableId: $assignableId,
             actorIds: $actorIds,
-            copilotAssignmentOptions: $copilotAssignmentOptions
+            agentAssignment: $agentAssignment
           }) {
             __typename
           }
@@ -267,17 +267,17 @@ async function assignAgentToIssue(issueId, agentId, currentAssignees, agentName,
       const mutationInput = {
         assignableId: issueId,
         actorIds: actorIds,
-        copilotAssignmentOptions: copilotOptions,
+        agentAssignment: agentAssignment,
       };
 
-      core.debug(`GraphQL mutation with Copilot options: ${JSON.stringify(mutationInput)}`);
+      core.debug(`GraphQL mutation with agent assignment: ${JSON.stringify(mutationInput)}`);
       response = await github.graphql(extendedMutation, mutationInput, {
         headers: {
           "GraphQL-Features": "issues_copilot_assignment_api_support",
         },
       });
     } else {
-      // Use simple mutation for backward compatibility (no Copilot-specific options)
+      // Use simple mutation for backward compatibility (no agent assignment options)
       const simpleMutation = `
         mutation($assignableId: ID!, $actorIds: [ID!]!) {
           replaceActorsForAssignable(input: {
@@ -444,7 +444,7 @@ function generatePermissionErrorSummary() {
  * @param {string} agentName - Agent name (e.g., "copilot")
  * @param {object} options - Optional assignment options
  * @param {string} [options.targetRepository] - Target repository in 'owner/repo' format
- * @param {string} [options.baseBranch] - Base branch for the PR
+ * @param {string} [options.baseRef] - Base branch for the PR
  * @param {string} [options.customInstructions] - Custom instructions for the agent
  * @param {string} [options.customAgent] - Custom agent name/path
  * @returns {Promise<{success: boolean, error?: string}>}
@@ -499,8 +499,8 @@ async function assignAgentToIssueByName(owner, repo, issueNumber, agentName, opt
       }
     }
 
-    if (options.baseBranch) {
-      assignmentOptions.baseBranch = options.baseBranch;
+    if (options.baseRef) {
+      assignmentOptions.baseRef = options.baseRef;
     }
 
     if (options.customInstructions) {

@@ -177,7 +177,7 @@ async function main() {
 
       // Handle base branch
       if (item.base_branch) {
-        assignmentOptions.baseBranch = item.base_branch;
+        assignmentOptions.baseRef = item.base_branch;
         core.info(`Base branch: ${item.base_branch}`);
       }
 
