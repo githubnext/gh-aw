@@ -92,34 +92,29 @@ function createMCPServer(configPath, options = {}) {
 
     // Register the tool with the MCP SDK using the high-level API
     // The callback receives the arguments directly as the first parameter
-    server.tool(
-      tool.name,
-      tool.description || "",
-      tool.inputSchema || { type: "object", properties: {} },
-      async (args) => {
-        logger.debug(`Calling handler for tool: ${tool.name}`);
+    server.tool(tool.name, tool.description || "", tool.inputSchema || { type: "object", properties: {} }, async args => {
+      logger.debug(`Calling handler for tool: ${tool.name}`);
 
-        // Validate required fields
-        const requiredFields = tool.inputSchema && Array.isArray(tool.inputSchema.required) ? tool.inputSchema.required : [];
-        if (requiredFields.length) {
-          const missing = requiredFields.filter(f => {
-            const value = args[f];
-            return value === undefined || value === null || (typeof value === "string" && value.trim() === "");
-          });
-          if (missing.length) {
-            throw new Error(`Invalid arguments: missing or empty ${missing.map(m => `'${m}'`).join(", ")}`);
-          }
+      // Validate required fields
+      const requiredFields = tool.inputSchema && Array.isArray(tool.inputSchema.required) ? tool.inputSchema.required : [];
+      if (requiredFields.length) {
+        const missing = requiredFields.filter(f => {
+          const value = args[f];
+          return value === undefined || value === null || (typeof value === "string" && value.trim() === "");
+        });
+        if (missing.length) {
+          throw new Error(`Invalid arguments: missing or empty ${missing.map(m => `'${m}'`).join(", ")}`);
         }
-
-        // Call the handler
-        const result = await Promise.resolve(tool.handler(args));
-        logger.debug(`Handler returned for tool: ${tool.name}`);
-
-        // Normalize result to MCP format
-        const content = result && result.content ? result.content : [];
-        return { content, isError: false };
       }
-    );
+
+      // Call the handler
+      const result = await Promise.resolve(tool.handler(args));
+      logger.debug(`Handler returned for tool: ${tool.name}`);
+
+      // Normalize result to MCP format
+      const content = result && result.content ? result.content : [];
+      return { content, isError: false };
+    });
   }
 
   return { server, config, logger };

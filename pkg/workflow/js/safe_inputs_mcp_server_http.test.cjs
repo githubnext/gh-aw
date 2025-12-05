@@ -58,7 +58,7 @@ describe("safe_inputs_mcp_server_http.cjs integration", () => {
       const data = JSON.stringify(payload);
       const headers = {
         "Content-Type": "application/json",
-        "Accept": "application/json, text/event-stream",
+        Accept: "application/json, text/event-stream",
         "Content-Length": Buffer.byteLength(data),
         ...additionalHeaders,
       };
