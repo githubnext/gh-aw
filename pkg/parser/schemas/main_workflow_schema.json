@@ -3523,6 +3523,12 @@
                   "type": "string",
                   "description": "Target repository in format 'owner/repo' for cross-repository agent assignment. Takes precedence over trial target repo settings."
                 },
+                "api-method": {
+                  "type": "string",
+                  "description": "API method to use for assignment: 'graphql' (default) uses GraphQL mutation, 'rest' uses REST API endpoints. REST API supports the agent_assignment object with target_repo, base_branch, custom_instructions, and custom_agent fields.",
+                  "enum": ["graphql", "rest"],
+                  "default": "graphql"
+                },
                 "github-token": {
                   "$ref": "#/$defs/github_token",
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."

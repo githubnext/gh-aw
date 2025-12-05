@@ -4986,6 +4986,7 @@ jobs:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_AGENT_DEFAULT: "copilot"
           GH_AW_AGENT_MAX_COUNT: 1
+          GH_AW_AGENT_API_METHOD: "graphql"
           GH_AW_WORKFLOW_NAME: "AI Triage Campaign"
           GH_AW_ENGINE_ID: "copilot"
         with:
@@ -5424,6 +5425,76 @@ jobs:
                 return { success: false, error: errorMessage };
               }
             }
+            async function assignAgentViaRest(owner, repo, issueNumber, agentName, options = {}) {
+              if (!AGENT_LOGIN_NAMES[agentName]) {
+                const error = `Agent "${agentName}" is not supported. Supported agents: ${Object.keys(AGENT_LOGIN_NAMES).join(", ")}`;
+                core.warning(error);
+                return { success: false, error };
+              }
+              const loginName = AGENT_LOGIN_NAMES[agentName];
+              const assigneeLogin = `${loginName}[bot]`;
+              try {
+                core.info(`Assigning ${agentName} via REST API to issue #${issueNumber}...`);
+                const agentAssignment = {};
+                if (options.targetRepository) {
+                  agentAssignment.target_repo = options.targetRepository;
+                }
+                if (options.baseBranch) {
+                  agentAssignment.base_branch = options.baseBranch;
+                }
+                if (options.customInstructions) {
+                  agentAssignment.custom_instructions = options.customInstructions;
+                }
+                if (options.customAgent) {
+                  agentAssignment.custom_agent = options.customAgent;
+                }
+                const requestBody = {
+                  assignees: [assigneeLogin],
+                };
+                if (Object.keys(agentAssignment).length > 0) {
+                  requestBody.agent_assignment = agentAssignment;
+                  core.info(`Using agent_assignment options: ${JSON.stringify(agentAssignment)}`);
+                }
+                core.debug(`REST API request body: ${JSON.stringify(requestBody)}`);
+                const response = await github.rest.issues.addAssignees({
+                  owner,
+                  repo,
+                  issue_number: issueNumber,
+                  ...requestBody,
+                });
+                if (response.status === 201 || response.status === 200) {
+                  core.info(`Successfully assigned ${agentName} coding agent to issue #${issueNumber} via REST API`);
+                  return { success: true };
+                } else {
+                  const error = `Unexpected response status: ${response.status}`;
+                  core.error(error);
+                  return { success: false, error };
+                }
+              } catch (error) {
+                const errorMessage = error instanceof Error ? error.message : String(error);
+                if (errorMessage.includes("422") || errorMessage.includes("Unprocessable Entity") || errorMessage.includes("Invalid assignees")) {
+                  core.error(`REST API assignment failed: ${errorMessage}`);
+                  core.error(`This may occur if the agent (${assigneeLogin}) is not available for this repository.`);
+                  core.error("Try using api-method: graphql instead, or verify Copilot is enabled for this repository.");
+                  try {
+                    const available = await getAvailableAgentLogins(owner, repo);
+                    if (available.length > 0) {
+                      core.info(`Available agents via GraphQL: ${available.join(", ")}`);
+                    }
+                  } catch {
+                  }
+                } else if (
+                  errorMessage.includes("Resource not accessible") ||
+                  errorMessage.includes("Insufficient permissions") ||
+                  errorMessage.includes("403")
+                ) {
+                  logPermissionError(agentName);
+                } else {
+                  core.error(`Failed to assign ${agentName} via REST API: ${errorMessage}`);
+                }
+                return { success: false, error: errorMessage };
+              }
+            }
             async function main() {
               const result = loadAgentOutput();
               if (!result.success) {
@@ -5435,6 +5506,8 @@ jobs:
                 return;
               }
               core.info(`Found ${assignItems.length} assign_to_agent item(s)`);
+              const apiMethod = process.env.GH_AW_AGENT_API_METHOD?.trim() || "graphql";
+              core.info(`API method: ${apiMethod}`);
               if (process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true") {
                 await generateStagedPreview({
                   title: "Assign to Agent",
@@ -5443,6 +5516,7 @@ jobs:
                   renderItem: item => {
                     let content = `**Issue:** #${item.issue_number}\n`;
                     content += `**Agent:** ${item.agent || "copilot"}\n`;
+                    content += `**API Method:** ${apiMethod}\n`;
                     if (item.target_repository) {
                       content += `**Target Repository:** ${item.target_repository}\n`;
                     }
@@ -5508,95 +5582,133 @@ jobs:
                   });
                   continue;
                 }
-                try {
-                  let agentId = agentCache[agentName];
-                  if (!agentId) {
-                    core.info(`Looking for ${agentName} coding agent...`);
-                    agentId = await findAgent(targetOwner, targetRepo, agentName);
-                    if (!agentId) {
-                      throw new Error(`${agentName} coding agent is not available for this repository`);
+                const assignmentOptions = {
+                  targetRepository: item.target_repository || null,
+                  baseBranch: item.base_branch || null,
+                  customInstructions: item.custom_instructions || null,
+                  customAgent: item.custom_agent || null,
+                };
+                if (apiMethod === "rest") {
+                  try {
+                    core.info(`Using REST API to assign ${agentName} to issue #${issueNumber}...`);
+                    const restResult = await assignAgentViaRest(targetOwner, targetRepo, issueNumber, agentName, assignmentOptions);
+                    if (restResult.success) {
+                      core.info(`Successfully assigned ${agentName} coding agent to issue #${issueNumber} via REST API`);
+                      results.push({
+                        issue_number: issueNumber,
+                        agent: agentName,
+                        success: true,
+                      });
+                    } else {
+                      core.error(`Failed to assign agent "${agentName}" to issue #${issueNumber}: ${restResult.error}`);
+                      results.push({
+                        issue_number: issueNumber,
+                        agent: agentName,
+                        success: false,
+                        error: restResult.error,
+                      });
                     }
-                    agentCache[agentName] = agentId;
-                    core.info(`Found ${agentName} coding agent (ID: ${agentId})`);
+                  } catch (error) {
+                    const errorMessage = error instanceof Error ? error.message : String(error);
+                    core.error(`Failed to assign agent "${agentName}" to issue #${issueNumber}: ${errorMessage}`);
+                    results.push({
+                      issue_number: issueNumber,
+                      agent: agentName,
+                      success: false,
+                      error: errorMessage,
+                    });
                   }
-                  core.info("Getting issue details...");
-                  const issueDetails = await getIssueDetails(targetOwner, targetRepo, issueNumber);
-                  if (!issueDetails) {
-                    throw new Error("Failed to get issue details");
-                  }
-                  core.info(`Issue ID: ${issueDetails.issueId}`);
-                  if (issueDetails.currentAssignees.includes(agentId)) {
-                    core.info(`${agentName} is already assigned to issue #${issueNumber}`);
+                } else {
+                  try {
+                    let agentId = agentCache[agentName];
+                    if (!agentId) {
+                      core.info(`Looking for ${agentName} coding agent...`);
+                      agentId = await findAgent(targetOwner, targetRepo, agentName);
+                      if (!agentId) {
+                        throw new Error(`${agentName} coding agent is not available for this repository`);
+                      }
+                      agentCache[agentName] = agentId;
+                      core.info(`Found ${agentName} coding agent (ID: ${agentId})`);
+                    }
+                    core.info("Getting issue details...");
+                    const issueDetails = await getIssueDetails(targetOwner, targetRepo, issueNumber);
+                    if (!issueDetails) {
+                      throw new Error("Failed to get issue details");
+                    }
+                    core.info(`Issue ID: ${issueDetails.issueId}`);
+                    if (issueDetails.currentAssignees.includes(agentId)) {
+                      core.info(`${agentName} is already assigned to issue #${issueNumber}`);
+                      results.push({
+                        issue_number: issueNumber,
+                        agent: agentName,
+                        success: true,
+                      });
+                      continue;
+                    }
+                    const graphqlOptions = {};
+                    if (assignmentOptions.targetRepository) {
+                      const parts = assignmentOptions.targetRepository.split("/");
+                      if (parts.length === 2) {
+                        const repoId = await getRepositoryId(parts[0], parts[1]);
+                        if (repoId) {
+                          graphqlOptions.targetRepositoryId = repoId;
+                          core.info(`Target repository: ${assignmentOptions.targetRepository} (ID: ${repoId})`);
+                        } else {
+                          core.warning(`Could not find repository ID for ${assignmentOptions.targetRepository}`);
+                        }
+                      } else {
+                        core.warning(`Invalid target_repository format: ${assignmentOptions.targetRepository}. Expected owner/repo.`);
+                      }
+                    }
+                    if (assignmentOptions.baseBranch) {
+                      graphqlOptions.baseBranch = assignmentOptions.baseBranch;
+                      core.info(`Base branch: ${assignmentOptions.baseBranch}`);
+                    }
+                    if (assignmentOptions.customInstructions) {
+                      graphqlOptions.customInstructions = assignmentOptions.customInstructions;
+                      core.info(`Custom instructions provided (${assignmentOptions.customInstructions.length} characters)`);
+                    }
+                    if (assignmentOptions.customAgent) {
+                      graphqlOptions.customAgent = assignmentOptions.customAgent;
+                      core.info(`Custom agent: ${assignmentOptions.customAgent}`);
+                    }
+                    core.info(`Assigning ${agentName} coding agent to issue #${issueNumber} via GraphQL...`);
+                    const success = await assignAgentToIssue(issueDetails.issueId, agentId, issueDetails.currentAssignees, agentName, graphqlOptions);
+                    if (!success) {
+                      throw new Error(`Failed to assign ${agentName} via GraphQL`);
+                    }
+                    core.info(`Successfully assigned ${agentName} coding agent to issue #${issueNumber}`);
                     results.push({
                       issue_number: issueNumber,
                       agent: agentName,
                       success: true,
                     });
-                    continue;
-                  }
-                  const assignmentOptions = {};
-                  const itemTargetRepo = item.target_repository;
-                  if (itemTargetRepo) {
-                    const parts = itemTargetRepo.split("/");
-                    if (parts.length === 2) {
-                      const repoId = await getRepositoryId(parts[0], parts[1]);
-                      if (repoId) {
-                        assignmentOptions.targetRepositoryId = repoId;
-                        core.info(`Target repository: ${itemTargetRepo} (ID: ${repoId})`);
-                      } else {
-                        core.warning(`Could not find repository ID for ${itemTargetRepo}`);
+                  } catch (error) {
+                    let errorMessage = error instanceof Error ? error.message : String(error);
+                    if (errorMessage.includes("coding agent is not available for this repository")) {
+                      try {
+                        const available = await getAvailableAgentLogins(targetOwner, targetRepo);
+                        if (available.length > 0) {
+                          errorMessage += ` (available agents: ${available.join(", ")})`;
+                        }
+                      } catch (e) {
+                        core.debug("Failed to enrich unavailable agent message with available list");
                       }
-                    } else {
-                      core.warning(`Invalid target_repository format: ${itemTargetRepo}. Expected owner/repo.`);
                     }
+                    core.error(`Failed to assign agent "${agentName}" to issue #${issueNumber}: ${errorMessage}`);
+                    results.push({
+                      issue_number: issueNumber,
+                      agent: agentName,
+                      success: false,
+                      error: errorMessage,
+                    });
                   }
-                  if (item.base_branch) {
-                    assignmentOptions.baseBranch = item.base_branch;
-                    core.info(`Base branch: ${item.base_branch}`);
-                  }
-                  if (item.custom_instructions) {
-                    assignmentOptions.customInstructions = item.custom_instructions;
-                    core.info(`Custom instructions provided (${item.custom_instructions.length} characters)`);
-                  }
-                  if (item.custom_agent) {
-                    assignmentOptions.customAgent = item.custom_agent;
-                    core.info(`Custom agent: ${item.custom_agent}`);
-                  }
-                  core.info(`Assigning ${agentName} coding agent to issue #${issueNumber}...`);
-                  const success = await assignAgentToIssue(issueDetails.issueId, agentId, issueDetails.currentAssignees, agentName, assignmentOptions);
-                  if (!success) {
-                    throw new Error(`Failed to assign ${agentName} via GraphQL`);
-                  }
-                  core.info(`Successfully assigned ${agentName} coding agent to issue #${issueNumber}`);
-                  results.push({
-                    issue_number: issueNumber,
-                    agent: agentName,
-                    success: true,
-                  });
-                } catch (error) {
-                  let errorMessage = error instanceof Error ? error.message : String(error);
-                  if (errorMessage.includes("coding agent is not available for this repository")) {
-                    try {
-                      const available = await getAvailableAgentLogins(targetOwner, targetRepo);
-                      if (available.length > 0) {
-                        errorMessage += ` (available agents: ${available.join(", ")})`;
-                      }
-                    } catch (e) {
-                      core.debug("Failed to enrich unavailable agent message with available list");
-                    }
-                  }
-                  core.error(`Failed to assign agent "${agentName}" to issue #${issueNumber}: ${errorMessage}`);
-                  results.push({
-                    issue_number: issueNumber,
-                    agent: agentName,
-                    success: false,
-                    error: errorMessage,
-                  });
                 }
               }
               const successCount = results.filter(r => r.success).length;
               const failureCount = results.filter(r => !r.success).length;
               let summaryContent = "## Agent Assignment\n\n";
+              summaryContent += `**API Method:** ${apiMethod}\n\n`;
               if (successCount > 0) {
                 summaryContent += `✅ Successfully assigned ${successCount} agent(s):\n\n`;
                 for (const result of results.filter(r => r.success)) {

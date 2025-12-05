@@ -26,6 +26,7 @@ const {
   assignAgentToIssue,
   generatePermissionErrorSummary,
   assignAgentToIssueByName,
+  assignAgentViaRest,
 } = await import("./assign_agent_helpers.cjs");
 
 describe("assign_agent_helpers.cjs", () => {
@@ -443,6 +444,92 @@ describe("assign_agent_helpers.cjs", () => {
 
       expect(result.success).toBe(true);
       expect(mockCore.info).toHaveBeenCalledWith("copilot is already assigned to issue #123");
+    });
+  });
+
+  describe("assignAgentViaRest", () => {
+    it("should successfully assign agent via REST API", async () => {
+      // Mock the REST API call
+      github.rest = {
+        issues: {
+          addAssignees: vi.fn().mockResolvedValueOnce({ status: 201 }),
+        },
+      };
+
+      const result = await assignAgentViaRest("owner", "repo", 123, "copilot");
+
+      expect(result.success).toBe(true);
+      expect(github.rest.issues.addAssignees).toHaveBeenCalledWith({
+        owner: "owner",
+        repo: "repo",
+        issue_number: 123,
+        assignees: ["copilot-swe-agent[bot]"],
+      });
+    });
+
+    it("should include agent_assignment options when provided", async () => {
+      github.rest = {
+        issues: {
+          addAssignees: vi.fn().mockResolvedValueOnce({ status: 201 }),
+        },
+      };
+
+      const options = {
+        targetRepository: "other-owner/other-repo",
+        baseBranch: "develop",
+        customInstructions: "Test instructions",
+        customAgent: "my-agent",
+      };
+
+      const result = await assignAgentViaRest("owner", "repo", 123, "copilot", options);
+
+      expect(result.success).toBe(true);
+      expect(github.rest.issues.addAssignees).toHaveBeenCalledWith({
+        owner: "owner",
+        repo: "repo",
+        issue_number: 123,
+        assignees: ["copilot-swe-agent[bot]"],
+        agent_assignment: {
+          target_repo: "other-owner/other-repo",
+          base_branch: "develop",
+          custom_instructions: "Test instructions",
+          custom_agent: "my-agent",
+        },
+      });
+    });
+
+    it("should return error for unsupported agent", async () => {
+      const result = await assignAgentViaRest("owner", "repo", 123, "unknown-agent");
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("not supported");
+    });
+
+    it("should handle REST API 422 errors", async () => {
+      github.rest = {
+        issues: {
+          addAssignees: vi.fn().mockRejectedValueOnce(new Error("422 Unprocessable Entity: Invalid assignees")),
+        },
+      };
+
+      const result = await assignAgentViaRest("owner", "repo", 123, "copilot");
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("422");
+      expect(mockCore.error).toHaveBeenCalled();
+    });
+
+    it("should handle permission errors", async () => {
+      github.rest = {
+        issues: {
+          addAssignees: vi.fn().mockRejectedValueOnce(new Error("403 Resource not accessible")),
+        },
+      };
+
+      const result = await assignAgentViaRest("owner", "repo", 123, "copilot");
+
+      expect(result.success).toBe(false);
+      expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("Insufficient permissions"));
     });
   });
 });

@@ -527,6 +527,116 @@ async function assignAgentToIssueByName(owner, repo, issueNumber, agentName, opt
   }
 }
 
+/**
+ * Assign an agent to an issue using REST API
+ * This uses the REST API endpoints announced in December 2025
+ * @param {string} owner - Repository owner
+ * @param {string} repo - Repository name
+ * @param {number} issueNumber - Issue number
+ * @param {string} agentName - Agent name (e.g., "copilot")
+ * @param {object} options - Optional assignment options
+ * @param {string} [options.targetRepository] - Target repository in 'owner/repo' format
+ * @param {string} [options.baseBranch] - Base branch for the PR
+ * @param {string} [options.customInstructions] - Custom instructions for the agent
+ * @param {string} [options.customAgent] - Custom agent name/path
+ * @returns {Promise<{success: boolean, error?: string}>}
+ */
+async function assignAgentViaRest(owner, repo, issueNumber, agentName, options = {}) {
+  // Check if agent is supported
+  if (!AGENT_LOGIN_NAMES[agentName]) {
+    const error = `Agent "${agentName}" is not supported. Supported agents: ${Object.keys(AGENT_LOGIN_NAMES).join(", ")}`;
+    core.warning(error);
+    return { success: false, error };
+  }
+
+  const loginName = AGENT_LOGIN_NAMES[agentName];
+  // REST API uses the bot login name with [bot] suffix
+  const assigneeLogin = `${loginName}[bot]`;
+
+  try {
+    core.info(`Assigning ${agentName} via REST API to issue #${issueNumber}...`);
+
+    // Build agent_assignment object for REST API
+    const agentAssignment = {};
+
+    if (options.targetRepository) {
+      agentAssignment.target_repo = options.targetRepository;
+    }
+
+    if (options.baseBranch) {
+      agentAssignment.base_branch = options.baseBranch;
+    }
+
+    if (options.customInstructions) {
+      agentAssignment.custom_instructions = options.customInstructions;
+    }
+
+    if (options.customAgent) {
+      agentAssignment.custom_agent = options.customAgent;
+    }
+
+    // Build request body
+    const requestBody = {
+      assignees: [assigneeLogin],
+    };
+
+    // Only include agent_assignment if we have options
+    if (Object.keys(agentAssignment).length > 0) {
+      requestBody.agent_assignment = agentAssignment;
+      core.info(`Using agent_assignment options: ${JSON.stringify(agentAssignment)}`);
+    }
+
+    core.debug(`REST API request body: ${JSON.stringify(requestBody)}`);
+
+    // Use the REST API to add assignees
+    // POST /repos/{owner}/{repo}/issues/{issue_number}/assignees
+    const response = await github.rest.issues.addAssignees({
+      owner,
+      repo,
+      issue_number: issueNumber,
+      ...requestBody,
+    });
+
+    if (response.status === 201 || response.status === 200) {
+      core.info(`Successfully assigned ${agentName} coding agent to issue #${issueNumber} via REST API`);
+      return { success: true };
+    } else {
+      const error = `Unexpected response status: ${response.status}`;
+      core.error(error);
+      return { success: false, error };
+    }
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+
+    // Check for common REST API errors
+    if (errorMessage.includes("422") || errorMessage.includes("Unprocessable Entity") || errorMessage.includes("Invalid assignees")) {
+      core.error(`REST API assignment failed: ${errorMessage}`);
+      core.error(`This may occur if the agent (${assigneeLogin}) is not available for this repository.`);
+      core.error("Try using api-method: graphql instead, or verify Copilot is enabled for this repository.");
+
+      // Try to enrich error with available agents
+      try {
+        const available = await getAvailableAgentLogins(owner, repo);
+        if (available.length > 0) {
+          core.info(`Available agents via GraphQL: ${available.join(", ")}`);
+        }
+      } catch {
+        // Ignore enrichment errors
+      }
+    } else if (
+      errorMessage.includes("Resource not accessible") ||
+      errorMessage.includes("Insufficient permissions") ||
+      errorMessage.includes("403")
+    ) {
+      logPermissionError(agentName);
+    } else {
+      core.error(`Failed to assign ${agentName} via REST API: ${errorMessage}`);
+    }
+
+    return { success: false, error: errorMessage };
+  }
+}
+
 module.exports = {
   AGENT_LOGIN_NAMES,
   getAgentName,
@@ -538,4 +648,5 @@ module.exports = {
   logPermissionError,
   generatePermissionErrorSummary,
   assignAgentToIssueByName,
+  assignAgentViaRest,
 };

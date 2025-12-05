@@ -11,6 +11,7 @@ const {
   getIssueDetails,
   assignAgentToIssue,
   generatePermissionErrorSummary,
+  assignAgentViaRest,
 } = require("./assign_agent_helpers.cjs");
 
 async function main() {
@@ -27,6 +28,10 @@ async function main() {
 
   core.info(`Found ${assignItems.length} assign_to_agent item(s)`);
 
+  // Get API method configuration (default: graphql)
+  const apiMethod = process.env.GH_AW_AGENT_API_METHOD?.trim() || "graphql";
+  core.info(`API method: ${apiMethod}`);
+
   // Check if we're in staged mode
   if (process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true") {
     await generateStagedPreview({
@@ -36,6 +41,7 @@ async function main() {
       renderItem: item => {
         let content = `**Issue:** #${item.issue_number}\n`;
         content += `**Agent:** ${item.agent || "copilot"}\n`;
+        content += `**API Method:** ${apiMethod}\n`;
         if (item.target_repository) {
           content += `**Target Repository:** ${item.target_repository}\n`;
         }
@@ -95,7 +101,7 @@ async function main() {
   // The github-token is set at the step level, so the built-in github object is authenticated
   // with the correct token (GH_AW_AGENT_TOKEN by default)
 
-  // Cache agent IDs to avoid repeated lookups
+  // Cache agent IDs to avoid repeated lookups (only used for GraphQL)
   const agentCache = {};
 
   // Process each agent assignment
@@ -121,112 +127,154 @@ async function main() {
       continue;
     }
 
-    // Assign the agent to the issue using GraphQL
-    try {
-      // Find agent (use cache if available) - uses built-in github object authenticated via github-token
-      let agentId = agentCache[agentName];
-      if (!agentId) {
-        core.info(`Looking for ${agentName} coding agent...`);
-        agentId = await findAgent(targetOwner, targetRepo, agentName);
-        if (!agentId) {
-          throw new Error(`${agentName} coding agent is not available for this repository`);
+    // Prepare assignment options (used by both REST and GraphQL)
+    const assignmentOptions = {
+      targetRepository: item.target_repository || null,
+      baseBranch: item.base_branch || null,
+      customInstructions: item.custom_instructions || null,
+      customAgent: item.custom_agent || null,
+    };
+
+    // Use REST or GraphQL based on configuration
+    if (apiMethod === "rest") {
+      // REST API assignment
+      try {
+        core.info(`Using REST API to assign ${agentName} to issue #${issueNumber}...`);
+        const restResult = await assignAgentViaRest(targetOwner, targetRepo, issueNumber, agentName, assignmentOptions);
+
+        if (restResult.success) {
+          core.info(`Successfully assigned ${agentName} coding agent to issue #${issueNumber} via REST API`);
+          results.push({
+            issue_number: issueNumber,
+            agent: agentName,
+            success: true,
+          });
+        } else {
+          core.error(`Failed to assign agent "${agentName}" to issue #${issueNumber}: ${restResult.error}`);
+          results.push({
+            issue_number: issueNumber,
+            agent: agentName,
+            success: false,
+            error: restResult.error,
+          });
         }
-        agentCache[agentName] = agentId;
-        core.info(`Found ${agentName} coding agent (ID: ${agentId})`);
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        core.error(`Failed to assign agent "${agentName}" to issue #${issueNumber}: ${errorMessage}`);
+        results.push({
+          issue_number: issueNumber,
+          agent: agentName,
+          success: false,
+          error: errorMessage,
+        });
       }
+    } else {
+      // GraphQL assignment (default)
+      try {
+        // Find agent (use cache if available) - uses built-in github object authenticated via github-token
+        let agentId = agentCache[agentName];
+        if (!agentId) {
+          core.info(`Looking for ${agentName} coding agent...`);
+          agentId = await findAgent(targetOwner, targetRepo, agentName);
+          if (!agentId) {
+            throw new Error(`${agentName} coding agent is not available for this repository`);
+          }
+          agentCache[agentName] = agentId;
+          core.info(`Found ${agentName} coding agent (ID: ${agentId})`);
+        }
 
-      // Get issue details (ID and current assignees) via GraphQL
-      core.info("Getting issue details...");
-      const issueDetails = await getIssueDetails(targetOwner, targetRepo, issueNumber);
-      if (!issueDetails) {
-        throw new Error("Failed to get issue details");
-      }
+        // Get issue details (ID and current assignees) via GraphQL
+        core.info("Getting issue details...");
+        const issueDetails = await getIssueDetails(targetOwner, targetRepo, issueNumber);
+        if (!issueDetails) {
+          throw new Error("Failed to get issue details");
+        }
 
-      core.info(`Issue ID: ${issueDetails.issueId}`);
+        core.info(`Issue ID: ${issueDetails.issueId}`);
 
-      // Check if agent is already assigned
-      if (issueDetails.currentAssignees.includes(agentId)) {
-        core.info(`${agentName} is already assigned to issue #${issueNumber}`);
+        // Check if agent is already assigned
+        if (issueDetails.currentAssignees.includes(agentId)) {
+          core.info(`${agentName} is already assigned to issue #${issueNumber}`);
+          results.push({
+            issue_number: issueNumber,
+            agent: agentName,
+            success: true,
+          });
+          continue;
+        }
+
+        // Prepare GraphQL-specific assignment options
+        const graphqlOptions = {};
+
+        // Handle target repository if specified (needs to be resolved to ID for GraphQL)
+        if (assignmentOptions.targetRepository) {
+          const parts = assignmentOptions.targetRepository.split("/");
+          if (parts.length === 2) {
+            const repoId = await getRepositoryId(parts[0], parts[1]);
+            if (repoId) {
+              graphqlOptions.targetRepositoryId = repoId;
+              core.info(`Target repository: ${assignmentOptions.targetRepository} (ID: ${repoId})`);
+            } else {
+              core.warning(`Could not find repository ID for ${assignmentOptions.targetRepository}`);
+            }
+          } else {
+            core.warning(`Invalid target_repository format: ${assignmentOptions.targetRepository}. Expected owner/repo.`);
+          }
+        }
+
+        // Handle base branch
+        if (assignmentOptions.baseBranch) {
+          graphqlOptions.baseBranch = assignmentOptions.baseBranch;
+          core.info(`Base branch: ${assignmentOptions.baseBranch}`);
+        }
+
+        // Handle custom instructions
+        if (assignmentOptions.customInstructions) {
+          graphqlOptions.customInstructions = assignmentOptions.customInstructions;
+          core.info(`Custom instructions provided (${assignmentOptions.customInstructions.length} characters)`);
+        }
+
+        // Handle custom agent
+        if (assignmentOptions.customAgent) {
+          graphqlOptions.customAgent = assignmentOptions.customAgent;
+          core.info(`Custom agent: ${assignmentOptions.customAgent}`);
+        }
+
+        // Assign agent using GraphQL mutation - uses built-in github object authenticated via github-token
+        core.info(`Assigning ${agentName} coding agent to issue #${issueNumber} via GraphQL...`);
+        const success = await assignAgentToIssue(issueDetails.issueId, agentId, issueDetails.currentAssignees, agentName, graphqlOptions);
+
+        if (!success) {
+          throw new Error(`Failed to assign ${agentName} via GraphQL`);
+        }
+
+        core.info(`Successfully assigned ${agentName} coding agent to issue #${issueNumber}`);
         results.push({
           issue_number: issueNumber,
           agent: agentName,
           success: true,
         });
-        continue;
-      }
-
-      // Prepare assignment options
-      const assignmentOptions = {};
-
-      // Handle target repository if specified (either from item or environment)
-      const itemTargetRepo = item.target_repository;
-      if (itemTargetRepo) {
-        const parts = itemTargetRepo.split("/");
-        if (parts.length === 2) {
-          const repoId = await getRepositoryId(parts[0], parts[1]);
-          if (repoId) {
-            assignmentOptions.targetRepositoryId = repoId;
-            core.info(`Target repository: ${itemTargetRepo} (ID: ${repoId})`);
-          } else {
-            core.warning(`Could not find repository ID for ${itemTargetRepo}`);
+      } catch (error) {
+        let errorMessage = error instanceof Error ? error.message : String(error);
+        if (errorMessage.includes("coding agent is not available for this repository")) {
+          // Enrich with available agent logins to aid troubleshooting - uses built-in github object
+          try {
+            const available = await getAvailableAgentLogins(targetOwner, targetRepo);
+            if (available.length > 0) {
+              errorMessage += ` (available agents: ${available.join(", ")})`;
+            }
+          } catch (e) {
+            core.debug("Failed to enrich unavailable agent message with available list");
           }
-        } else {
-          core.warning(`Invalid target_repository format: ${itemTargetRepo}. Expected owner/repo.`);
         }
+        core.error(`Failed to assign agent "${agentName}" to issue #${issueNumber}: ${errorMessage}`);
+        results.push({
+          issue_number: issueNumber,
+          agent: agentName,
+          success: false,
+          error: errorMessage,
+        });
       }
-
-      // Handle base branch
-      if (item.base_branch) {
-        assignmentOptions.baseBranch = item.base_branch;
-        core.info(`Base branch: ${item.base_branch}`);
-      }
-
-      // Handle custom instructions
-      if (item.custom_instructions) {
-        assignmentOptions.customInstructions = item.custom_instructions;
-        core.info(`Custom instructions provided (${item.custom_instructions.length} characters)`);
-      }
-
-      // Handle custom agent
-      if (item.custom_agent) {
-        assignmentOptions.customAgent = item.custom_agent;
-        core.info(`Custom agent: ${item.custom_agent}`);
-      }
-
-      // Assign agent using GraphQL mutation - uses built-in github object authenticated via github-token
-      core.info(`Assigning ${agentName} coding agent to issue #${issueNumber}...`);
-      const success = await assignAgentToIssue(issueDetails.issueId, agentId, issueDetails.currentAssignees, agentName, assignmentOptions);
-
-      if (!success) {
-        throw new Error(`Failed to assign ${agentName} via GraphQL`);
-      }
-
-      core.info(`Successfully assigned ${agentName} coding agent to issue #${issueNumber}`);
-      results.push({
-        issue_number: issueNumber,
-        agent: agentName,
-        success: true,
-      });
-    } catch (error) {
-      let errorMessage = error instanceof Error ? error.message : String(error);
-      if (errorMessage.includes("coding agent is not available for this repository")) {
-        // Enrich with available agent logins to aid troubleshooting - uses built-in github object
-        try {
-          const available = await getAvailableAgentLogins(targetOwner, targetRepo);
-          if (available.length > 0) {
-            errorMessage += ` (available agents: ${available.join(", ")})`;
-          }
-        } catch (e) {
-          core.debug("Failed to enrich unavailable agent message with available list");
-        }
-      }
-      core.error(`Failed to assign agent "${agentName}" to issue #${issueNumber}: ${errorMessage}`);
-      results.push({
-        issue_number: issueNumber,
-        agent: agentName,
-        success: false,
-        error: errorMessage,
-      });
     }
   }
 
@@ -235,6 +283,7 @@ async function main() {
   const failureCount = results.filter(r => !r.success).length;
 
   let summaryContent = "## Agent Assignment\n\n";
+  summaryContent += `**API Method:** ${apiMethod}\n\n`;
 
   if (successCount > 0) {
     summaryContent += `✅ Successfully assigned ${successCount} agent(s):\n\n`;

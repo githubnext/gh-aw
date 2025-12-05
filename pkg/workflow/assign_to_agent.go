@@ -8,7 +8,8 @@ import (
 type AssignToAgentConfig struct {
 	BaseSafeOutputConfig   `yaml:",inline"`
 	SafeOutputTargetConfig `yaml:",inline"`
-	DefaultAgent           string `yaml:"name,omitempty"` // Default agent to assign (e.g., "copilot")
+	DefaultAgent           string `yaml:"name,omitempty"`       // Default agent to assign (e.g., "copilot")
+	APIMethod              string `yaml:"api-method,omitempty"` // API method to use: "graphql" (default) or "rest"
 }
 
 // parseAssignToAgentConfig handles assign-to-agent configuration
@@ -21,6 +22,13 @@ func (c *Compiler) parseAssignToAgentConfig(outputMap map[string]any) *AssignToA
 			if defaultAgent, exists := agentMap["name"]; exists {
 				if defaultAgentStr, ok := defaultAgent.(string); ok {
 					agentConfig.DefaultAgent = defaultAgentStr
+				}
+			}
+
+			// Parse api-method (optional - specific to assign-to-agent)
+			if apiMethod, exists := agentMap["api-method"]; exists {
+				if apiMethodStr, ok := apiMethod.(string); ok {
+					agentConfig.APIMethod = apiMethodStr
 				}
 			}
 
@@ -52,12 +60,16 @@ func (c *Compiler) buildAssignToAgentJob(data *WorkflowData, mainJobName string)
 	// Handle case where AssignToAgent is not nil
 	defaultAgent := "copilot"
 	maxCount := 1
+	apiMethod := "graphql" // Default to graphql
 
 	if cfg.DefaultAgent != "" {
 		defaultAgent = cfg.DefaultAgent
 	}
 	if cfg.Max > 0 {
 		maxCount = cfg.Max
+	}
+	if cfg.APIMethod != "" {
+		apiMethod = cfg.APIMethod
 	}
 
 	// Build custom environment variables specific to assign-to-agent
@@ -68,6 +80,9 @@ func (c *Compiler) buildAssignToAgentJob(data *WorkflowData, mainJobName string)
 
 	// Pass the max limit
 	customEnvVars = append(customEnvVars, BuildMaxCountEnvVar("GH_AW_AGENT_MAX_COUNT", maxCount)...)
+
+	// Pass the API method
+	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_AGENT_API_METHOD: %q\n", apiMethod))
 
 	// Add standard environment variables (metadata + staged/target repo)
 	customEnvVars = append(customEnvVars, c.buildStandardSafeOutputEnvVars(data, cfg.TargetRepoSlug)...)
