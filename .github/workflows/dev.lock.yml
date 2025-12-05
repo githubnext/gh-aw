@@ -1053,7 +1053,7 @@ jobs:
             "tools": [
               {
                 "name": "gh",
-                "description": "Execute any gh CLI command. Provide the full command after 'gh' (e.g., args: 'pr list --limit 5'). The tool will run: gh \u003cargs\u003e",
+                "description": "Execute any gh CLI command. Provide the full command after 'gh' (e.g., args: 'pr list --limit 5'). The tool will run: gh \u003cargs\u003e. Use single quotes ' for complex args to avoid shell interpretation issues.",
                 "inputSchema": {
                   "properties": {
                     "args": {
@@ -1086,18 +1086,18 @@ jobs:
           cat > /tmp/gh-aw/safe-inputs/gh.sh << 'EOFSH_gh'
           #!/bin/bash
           # Auto-generated safe-input tool: gh
-          # Execute any gh CLI command. Provide the full command after 'gh' (e.g., args: 'pr list --limit 5'). The tool will run: gh <args>
+          # Execute any gh CLI command. Provide the full command after 'gh' (e.g., args: 'pr list --limit 5'). The tool will run: gh <args>. Use single quotes ' for complex args to avoid shell interpretation issues.
           
           set -euo pipefail
           
-          gh $INPUT_ARGS
+          GHTOKEN=$GH_AW_GH_TOKEN gh $INPUT_ARGS
           
           EOFSH_gh
           chmod +x /tmp/gh-aw/safe-inputs/gh.sh
           
       - name: Setup MCPs
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_AW_GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           mkdir -p /tmp/gh-aw/mcp-config
           cat > /tmp/gh-aw/mcp-config/mcp-servers.json << EOF
@@ -1107,7 +1107,7 @@ jobs:
                 "command": "node",
                 "args": ["/tmp/gh-aw/safe-inputs/mcp-server.cjs"],
                 "env": {
-                  "GH_TOKEN": "$GH_TOKEN"
+                  "GH_AW_GH_TOKEN": "$GH_AW_GH_TOKEN"
                 }
               }
             }
@@ -1382,7 +1382,7 @@ jobs:
           MCP_TOOL_TIMEOUT: "60000"
           BASH_DEFAULT_TIMEOUT_MS: "60000"
           BASH_MAX_TIMEOUT_MS: "60000"
-          GH_TOKEN: ${{ github.token }}
+          GH_AW_GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Clean up network proxy hook files
         if: always()
         run: |
