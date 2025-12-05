@@ -222,5 +222,3 @@ module.exports = { helper };`
 	assert.Contains(t, nodejsResult, "function helper()",
 		"Should contain the function in Node.js mode")
 }
-
-

@@ -1,3 +1,45 @@
+// Package workflow provides JavaScript bundling for agentic workflows.
+//
+// # JavaScript Bundler with Runtime Mode Support
+//
+// The bundler supports two runtime environments:
+//
+// 1. GitHub Script Mode (RuntimeModeGitHubScript)
+//   - Used for JavaScript embedded in GitHub Actions YAML via actions/github-script
+//   - No module system available (no require() or module.exports at runtime)
+//   - All local requires must be bundled inline
+//   - All module.exports statements are removed
+//   - Validation ensures no local requires or module references remain
+//
+// 2. Node.js Mode (RuntimeModeNodeJS)
+//   - Used for standalone Node.js scripts that run on filesystem
+//   - Full CommonJS module system available
+//   - module.exports statements are preserved
+//   - Local requires can remain if modules are available on filesystem
+//   - Less aggressive bundling and validation
+//
+// # Usage
+//
+// For GitHub Script mode (default for backward compatibility):
+//
+//	bundled, err := BundleJavaScriptFromSources(mainContent, sources, "")
+//	// or explicitly:
+//	bundled, err := BundleJavaScriptWithMode(mainContent, sources, "", RuntimeModeGitHubScript)
+//
+// For Node.js mode:
+//
+//	bundled, err := BundleJavaScriptWithMode(mainContent, sources, "", RuntimeModeNodeJS)
+//
+// # Guardrails and Validation
+//
+// The bundler includes several guardrails based on runtime mode:
+//
+// - validateNoLocalRequires: Ensures all local requires (./... or ../...) are bundled (GitHub Script mode only)
+// - validateNoModuleReferences: Ensures no module.exports or exports.* remain (GitHub Script mode only)
+// - removeExports: Strips module.exports from bundled code (GitHub Script mode only)
+//
+// These validations prevent runtime errors when JavaScript is executed in environments
+// without a module system.
 package workflow
 
 import (
@@ -46,7 +88,7 @@ func (r RuntimeMode) String() string {
 // sources is a map where keys are file paths (e.g., "sanitize.cjs") and values are the content
 // mainContent is the main JavaScript content that may contain require() calls
 // basePath is the base directory path for resolving relative imports (e.g., "js")
-// 
+//
 // DEPRECATED: Use BundleJavaScriptWithMode instead to specify runtime mode explicitly.
 // This function defaults to RuntimeModeGitHubScript for backward compatibility.
 func BundleJavaScriptFromSources(mainContent string, sources map[string]string, basePath string) (string, error) {
@@ -59,7 +101,7 @@ func BundleJavaScriptFromSources(mainContent string, sources map[string]string, 
 // basePath is the base directory path for resolving relative imports (e.g., "js")
 // mode specifies the target runtime environment (GitHub script action vs Node.js)
 func BundleJavaScriptWithMode(mainContent string, sources map[string]string, basePath string, mode RuntimeMode) (string, error) {
-	bundlerLog.Printf("Bundling JavaScript: source_count=%d, base_path=%s, main_content_size=%d bytes, runtime_mode=%s", 
+	bundlerLog.Printf("Bundling JavaScript: source_count=%d, base_path=%s, main_content_size=%d bytes, runtime_mode=%s",
 		len(sources), basePath, len(mainContent), mode)
 
 	// Track already processed files to avoid circular dependencies
@@ -80,7 +122,7 @@ func BundleJavaScriptWithMode(mainContent string, sources map[string]string, bas
 	case RuntimeModeGitHubScript:
 		// GitHub Script mode: remove module.exports from final output
 		bundled = removeExports(bundled)
-		
+
 		// Validate all local requires are bundled and module references removed
 		if err := validateNoLocalRequires(bundled); err != nil {
 			bundlerLog.Printf("Validation failed: %v", err)
@@ -204,12 +246,12 @@ func bundleFromSources(content string, currentPath string, sources map[string]st
 			if mode == RuntimeModeGitHubScript {
 				// GitHub Script mode: remove all module.exports
 				cleanedRequired = removeExports(bundledRequired)
-				bundlerLog.Printf("Processed %s (github-script mode): original_size=%d, after_export_removal=%d", 
+				bundlerLog.Printf("Processed %s (github-script mode): original_size=%d, after_export_removal=%d",
 					fullPath, len(bundledRequired), len(cleanedRequired))
 			} else {
 				// Node.js mode: preserve module.exports
 				cleanedRequired = bundledRequired
-				bundlerLog.Printf("Processed %s (nodejs mode): size=%d, module.exports preserved", 
+				bundlerLog.Printf("Processed %s (nodejs mode): size=%d, module.exports preserved",
 					fullPath, len(bundledRequired))
 			}
 
