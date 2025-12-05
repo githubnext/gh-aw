@@ -217,8 +217,8 @@
 #   update_release["update_release"]
 #   pre_activation --> activation
 #   activation --> agent
-#   generate-sbom --> agent
 #   release --> agent
+#   generate-sbom --> agent
 #   agent --> conclusion
 #   activation --> conclusion
 #   update_release --> conclusion
@@ -496,8 +496,8 @@ jobs:
   agent:
     needs:
       - activation
-      - generate-sbom
       - release
+      - generate-sbom
     runs-on: ubuntu-latest
     permissions:
       actions: read
@@ -2480,8 +2480,7 @@ jobs:
         with:
           script: |
             async function main() {
-            const path = require("path");
-            const crypto = require("crypto");
+              const path = require("path");
             const redactedDomains = [];
             function getRedactedDomains() {
               return [...redactedDomains];
@@ -2676,6 +2675,7 @@ jobs:
                 return s.replace(/\b(fixes?|closes?|resolves?|fix|close|resolve)\s+#(\w+)/gi, (match, action, ref) => `\`${action} #${ref}\``);
               }
             }
+            const crypto = require("crypto");
             const TEMPORARY_ID_PATTERN = /#(aw_[0-9a-f]{12})/gi;
             function generateTemporaryId() {
               return "aw_" + crypto.randomBytes(6).toString("hex");
@@ -4092,8 +4092,8 @@ jobs:
               return lines.join("\n");
             }
             function runLogParser(options) {
-            const fs = require("fs");
-            const path = require("path");
+              const fs = require("fs");
+              const path = require("path");
               const { parseLog, parserName, supportsDirectories = false } = options;
               try {
                 const logPath = process.env.GH_AW_AGENT_OUTPUT;
@@ -4705,9 +4705,9 @@ jobs:
 
             function main() {
 
-            const fs = require("fs");
+              const fs = require("fs");
 
-            const path = require("path");
+              const path = require("path");
 
               try {
 

@@ -267,163 +267,163 @@ func removeExports(content string) string {
 // IMPORTANT: Only merges requires that have the same indentation level to avoid moving
 // requires across scope boundaries (which would cause "X is not defined" errors)
 func deduplicateRequires(content string) string {
-lines := strings.Split(content, "\n")
+	lines := strings.Split(content, "\n")
 
-// Helper to get indentation level of a line
-getIndentation := func(line string) int {
-count := 0
-for _, ch := range line {
-if ch == ' ' {
-count++
-} else if ch == '\t' {
-count += 2 // Treat tab as 2 spaces for comparison
-} else {
-break
-}
-}
-return count
-}
+	// Helper to get indentation level of a line
+	getIndentation := func(line string) int {
+		count := 0
+		for _, ch := range line {
+			if ch == ' ' {
+				count++
+			} else if ch == '\t' {
+				count += 2 // Treat tab as 2 spaces for comparison
+			} else {
+				break
+			}
+		}
+		return count
+	}
 
-// Track module imports per indentation level: map[indent]map[moduleName][]names
-moduleImportsByIndent := make(map[int]map[string][]string)
-// Track which lines are require statements to skip during first pass
-requireLines := make(map[int]bool)
-// Track order of first appearance of each module per indentation: map[indent][]moduleName
-moduleOrderByIndent := make(map[int][]string)
-// Track the first line number where we see a require at each indentation
-firstRequireLineByIndent := make(map[int]int)
+	// Track module imports per indentation level: map[indent]map[moduleName][]names
+	moduleImportsByIndent := make(map[int]map[string][]string)
+	// Track which lines are require statements to skip during first pass
+	requireLines := make(map[int]bool)
+	// Track order of first appearance of each module per indentation: map[indent][]moduleName
+	moduleOrderByIndent := make(map[int][]string)
+	// Track the first line number where we see a require at each indentation
+	firstRequireLineByIndent := make(map[int]int)
 
-// Regular expression to match destructured require statements
-// Matches: const/let/var { name1, name2 } = require('module');
-destructuredRequireRegex := regexp.MustCompile(`^\s*(?:const|let|var)\s+\{\s*([^}]+)\s*\}\s*=\s*require\(['"']([^'"']+)['"']\);?\s*$`)
-// Regular expression to match non-destructured require statements
-// Matches: const/let/var name = require('module');
-simpleRequireRegex := regexp.MustCompile(`^\s*(?:const|let|var)\s+(\w+)\s*=\s*require\(['"']([^'"']+)['"']\);?\s*$`)
+	// Regular expression to match destructured require statements
+	// Matches: const/let/var { name1, name2 } = require('module');
+	destructuredRequireRegex := regexp.MustCompile(`^\s*(?:const|let|var)\s+\{\s*([^}]+)\s*\}\s*=\s*require\(['"']([^'"']+)['"']\);?\s*$`)
+	// Regular expression to match non-destructured require statements
+	// Matches: const/let/var name = require('module');
+	simpleRequireRegex := regexp.MustCompile(`^\s*(?:const|let|var)\s+(\w+)\s*=\s*require\(['"']([^'"']+)['"']\);?\s*$`)
 
-// First pass: collect all require statements grouped by indentation level
-for i, line := range lines {
-indent := getIndentation(line)
+	// First pass: collect all require statements grouped by indentation level
+	for i, line := range lines {
+		indent := getIndentation(line)
 
-// Try destructured require first
-destructuredMatches := destructuredRequireRegex.FindStringSubmatch(line)
-if len(destructuredMatches) > 2 {
-moduleName := destructuredMatches[2]
-destructuredNames := destructuredMatches[1]
+		// Try destructured require first
+		destructuredMatches := destructuredRequireRegex.FindStringSubmatch(line)
+		if len(destructuredMatches) > 2 {
+			moduleName := destructuredMatches[2]
+			destructuredNames := destructuredMatches[1]
 
-requireLines[i] = true
+			requireLines[i] = true
 
-// Initialize map for this indentation level if needed
-if moduleImportsByIndent[indent] == nil {
-moduleImportsByIndent[indent] = make(map[string][]string)
-firstRequireLineByIndent[indent] = i
-}
+			// Initialize map for this indentation level if needed
+			if moduleImportsByIndent[indent] == nil {
+				moduleImportsByIndent[indent] = make(map[string][]string)
+				firstRequireLineByIndent[indent] = i
+			}
 
-// Parse the destructured names (split by comma and trim whitespace)
-names := strings.Split(destructuredNames, ",")
-for _, name := range names {
-name = strings.TrimSpace(name)
-if name != "" {
-moduleImportsByIndent[indent][moduleName] = append(moduleImportsByIndent[indent][moduleName], name)
-}
-}
+			// Parse the destructured names (split by comma and trim whitespace)
+			names := strings.Split(destructuredNames, ",")
+			for _, name := range names {
+				name = strings.TrimSpace(name)
+				if name != "" {
+					moduleImportsByIndent[indent][moduleName] = append(moduleImportsByIndent[indent][moduleName], name)
+				}
+			}
 
-// Track order of first appearance at this indentation
-if len(moduleImportsByIndent[indent][moduleName]) == len(names) {
-moduleOrderByIndent[indent] = append(moduleOrderByIndent[indent], moduleName)
-}
-continue
-}
+			// Track order of first appearance at this indentation
+			if len(moduleImportsByIndent[indent][moduleName]) == len(names) {
+				moduleOrderByIndent[indent] = append(moduleOrderByIndent[indent], moduleName)
+			}
+			continue
+		}
 
-// Try simple require
-simpleMatches := simpleRequireRegex.FindStringSubmatch(line)
-if len(simpleMatches) > 2 {
-moduleName := simpleMatches[2]
-varName := simpleMatches[1]
+		// Try simple require
+		simpleMatches := simpleRequireRegex.FindStringSubmatch(line)
+		if len(simpleMatches) > 2 {
+			moduleName := simpleMatches[2]
+			varName := simpleMatches[1]
 
-requireLines[i] = true
+			requireLines[i] = true
 
-// Initialize map for this indentation level if needed
-if moduleImportsByIndent[indent] == nil {
-moduleImportsByIndent[indent] = make(map[string][]string)
-firstRequireLineByIndent[indent] = i
-}
+			// Initialize map for this indentation level if needed
+			if moduleImportsByIndent[indent] == nil {
+				moduleImportsByIndent[indent] = make(map[string][]string)
+				firstRequireLineByIndent[indent] = i
+			}
 
-// For simple requires, store the variable name with a marker
-if _, exists := moduleImportsByIndent[indent][moduleName]; !exists {
-moduleOrderByIndent[indent] = append(moduleOrderByIndent[indent], moduleName)
-}
-moduleImportsByIndent[indent][moduleName] = append(moduleImportsByIndent[indent][moduleName], "VAR:"+varName)
-}
-}
+			// For simple requires, store the variable name with a marker
+			if _, exists := moduleImportsByIndent[indent][moduleName]; !exists {
+				moduleOrderByIndent[indent] = append(moduleOrderByIndent[indent], moduleName)
+			}
+			moduleImportsByIndent[indent][moduleName] = append(moduleImportsByIndent[indent][moduleName], "VAR:"+varName)
+		}
+	}
 
-// Second pass: write output
-var result strings.Builder
-// Track which indentation levels have had their merged requires written
-wroteRequiresByIndent := make(map[int]bool)
+	// Second pass: write output
+	var result strings.Builder
+	// Track which indentation levels have had their merged requires written
+	wroteRequiresByIndent := make(map[int]bool)
 
-for i, line := range lines {
-indent := getIndentation(line)
+	for i, line := range lines {
+		indent := getIndentation(line)
 
-// Skip original require lines, we'll write merged ones at the first require position for each indent level
-if requireLines[i] {
-// Check if this is the first require at this indentation level
-if firstRequireLineByIndent[indent] == i && !wroteRequiresByIndent[indent] {
-// Write all merged require statements for this indentation level
-moduleImports := moduleImportsByIndent[indent]
-moduleOrder := moduleOrderByIndent[indent]
+		// Skip original require lines, we'll write merged ones at the first require position for each indent level
+		if requireLines[i] {
+			// Check if this is the first require at this indentation level
+			if firstRequireLineByIndent[indent] == i && !wroteRequiresByIndent[indent] {
+				// Write all merged require statements for this indentation level
+				moduleImports := moduleImportsByIndent[indent]
+				moduleOrder := moduleOrderByIndent[indent]
 
-indentStr := strings.Repeat(" ", indent)
+				indentStr := strings.Repeat(" ", indent)
 
-for _, moduleName := range moduleOrder {
-imports := moduleImports[moduleName]
-if len(imports) == 0 {
-continue
-}
+				for _, moduleName := range moduleOrder {
+					imports := moduleImports[moduleName]
+					if len(imports) == 0 {
+						continue
+					}
 
-// Check if this is a simple require (has VAR: prefix) or destructured
-if len(imports) == 1 && strings.HasPrefix(imports[0], "VAR:") {
-// Simple require
-varName := strings.TrimPrefix(imports[0], "VAR:")
-result.WriteString(fmt.Sprintf("%sconst %s = require(\"%s\");\n", indentStr, varName, moduleName))
-bundlerLog.Printf("Keeping simple require: %s at indent %d", moduleName, indent)
-} else {
-// Destructured require - merge all names
-var cleanedImports []string
-for _, imp := range imports {
-if !strings.HasPrefix(imp, "VAR:") {
-cleanedImports = append(cleanedImports, imp)
-}
-}
+					// Check if this is a simple require (has VAR: prefix) or destructured
+					if len(imports) == 1 && strings.HasPrefix(imports[0], "VAR:") {
+						// Simple require
+						varName := strings.TrimPrefix(imports[0], "VAR:")
+						result.WriteString(fmt.Sprintf("%sconst %s = require(\"%s\");\n", indentStr, varName, moduleName))
+						bundlerLog.Printf("Keeping simple require: %s at indent %d", moduleName, indent)
+					} else {
+						// Destructured require - merge all names
+						var cleanedImports []string
+						for _, imp := range imports {
+							if !strings.HasPrefix(imp, "VAR:") {
+								cleanedImports = append(cleanedImports, imp)
+							}
+						}
 
-if len(cleanedImports) > 0 {
-// Remove duplicates while preserving order
-seen := make(map[string]bool)
-var uniqueImports []string
-for _, imp := range cleanedImports {
-if !seen[imp] {
-seen[imp] = true
-uniqueImports = append(uniqueImports, imp)
-}
-}
+						if len(cleanedImports) > 0 {
+							// Remove duplicates while preserving order
+							seen := make(map[string]bool)
+							var uniqueImports []string
+							for _, imp := range cleanedImports {
+								if !seen[imp] {
+									seen[imp] = true
+									uniqueImports = append(uniqueImports, imp)
+								}
+							}
 
-result.WriteString(fmt.Sprintf("%sconst { %s } = require(\"%s\");\n",
-indentStr, strings.Join(uniqueImports, ", "), moduleName))
-bundlerLog.Printf("Merged destructured require for %s at indent %d: %v", moduleName, indent, uniqueImports)
-}
-}
-}
-wroteRequiresByIndent[indent] = true
-}
-// Skip this require line (it's been merged or will be merged)
-continue
-}
+							result.WriteString(fmt.Sprintf("%sconst { %s } = require(\"%s\");\n",
+								indentStr, strings.Join(uniqueImports, ", "), moduleName))
+							bundlerLog.Printf("Merged destructured require for %s at indent %d: %v", moduleName, indent, uniqueImports)
+						}
+					}
+				}
+				wroteRequiresByIndent[indent] = true
+			}
+			// Skip this require line (it's been merged or will be merged)
+			continue
+		}
 
-// Keep non-require lines
-result.WriteString(line)
-if i < len(lines)-1 {
-result.WriteString("\n")
-}
-}
+		// Keep non-require lines
+		result.WriteString(line)
+		if i < len(lines)-1 {
+			result.WriteString("\n")
+		}
+	}
 
-return result.String()
+	return result.String()
 }

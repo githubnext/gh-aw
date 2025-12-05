@@ -47,7 +47,7 @@ await main();
 	pathRequireIndex := strings.Index(bundled, `const path = require("path")`)
 	pathBasenameIndex := strings.Index(bundled, "path.basename")
 	mainFuncIndex := strings.Index(bundled, "async function main()")
-	
+
 	if pathRequireIndex == -1 {
 		t.Fatal("path require not found")
 	}
@@ -66,13 +66,13 @@ await main();
 	}
 	if mainFuncEnd != -1 {
 		mainFuncEnd += mainFuncIndex // Make it absolute position
-		
+
 		if pathRequireIndex > mainFuncIndex && pathRequireIndex < mainFuncEnd {
 			t.Errorf("FOUND THE BUG: path require is inside main() but path.basename is outside")
 			t.Logf("main() starts at %d, ends at %d", mainFuncIndex, mainFuncEnd)
 			t.Logf("path require at %d", pathRequireIndex)
 			t.Logf("path.basename at %d", pathBasenameIndex)
-			
+
 			// Show the problematic bundled code
 			t.Logf("\nProblematic bundled code:\n%s", bundled)
 		} else {

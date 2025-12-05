@@ -54,7 +54,7 @@ await main();
 `
 
 	sources := map[string]string{
-		"helper1.cjs":    helper1Content,
+		"helper1.cjs":   helper1Content,
 		"validator.cjs": validatorContent,
 	}
 
@@ -75,7 +75,7 @@ await main();
 	// Verify fs is used after it's defined
 	fsIndex := strings.Index(bundled, `require("fs")`)
 	existsIndex := strings.Index(bundled, "fs.existsSync")
-	
+
 	if fsIndex == -1 {
 		t.Error("fs require not found in bundled output")
 	}
@@ -84,7 +84,7 @@ await main();
 	}
 	if fsIndex != -1 && existsIndex != -1 && fsIndex > existsIndex {
 		t.Errorf("fs.existsSync (at %d) appears before require('fs') (at %d) - this would cause 'fs is not defined' error", existsIndex, fsIndex)
-		
+
 		// Show the problematic section
 		start := max(0, existsIndex-100)
 		end := min(len(bundled), existsIndex+100)
@@ -107,5 +107,3 @@ await main();
 		t.Error("Bundled output does not contain inlined validateItem function")
 	}
 }
-
-

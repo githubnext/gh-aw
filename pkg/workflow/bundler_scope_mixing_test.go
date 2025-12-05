@@ -49,7 +49,7 @@ await main();
 	// Check that fs is defined before it's used
 	fsRequireIndex := strings.Index(bundled, `const fs = require("fs")`)
 	fsExistsIndex := strings.Index(bundled, "fs.existsSync")
-	
+
 	if fsRequireIndex == -1 {
 		t.Error("fs require not found")
 	}
@@ -64,7 +64,7 @@ await main();
 	// Check that path is defined before it's used
 	pathRequireIndex := strings.Index(bundled, `const path = require("path")`)
 	pathBasenameIndex := strings.Index(bundled, "path.basename")
-	
+
 	if pathRequireIndex == -1 {
 		t.Error("path require not found")
 	}

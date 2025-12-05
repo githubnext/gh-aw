@@ -2175,8 +2175,7 @@ jobs:
         with:
           script: |
             async function main() {
-            const path = require("path");
-            const crypto = require("crypto");
+              const path = require("path");
             const redactedDomains = [];
             function getRedactedDomains() {
               return [...redactedDomains];
@@ -2371,6 +2370,7 @@ jobs:
                 return s.replace(/\b(fixes?|closes?|resolves?|fix|close|resolve)\s+#(\w+)/gi, (match, action, ref) => `\`${action} #${ref}\``);
               }
             }
+            const crypto = require("crypto");
             const TEMPORARY_ID_PATTERN = /#(aw_[0-9a-f]{12})/gi;
             function generateTemporaryId() {
               return "aw_" + crypto.randomBytes(6).toString("hex");
@@ -3787,8 +3787,8 @@ jobs:
               return lines.join("\n");
             }
             function runLogParser(options) {
-            const fs = require("fs");
-            const path = require("path");
+              const fs = require("fs");
+              const path = require("path");
               const { parseLog, parserName, supportsDirectories = false } = options;
               try {
                 const logPath = process.env.GH_AW_AGENT_OUTPUT;
@@ -4400,9 +4400,9 @@ jobs:
 
             function main() {
 
-            const fs = require("fs");
+              const fs = require("fs");
 
-            const path = require("path");
+              const path = require("path");
 
               try {
 
@@ -6244,7 +6244,6 @@ jobs:
           github-token: ${{ secrets.PROJECT_PAT || secrets.GITHUB_TOKEN }}
           script: |
             const fs = require("fs");
-            const { Octokit } = require("@octokit/rest");
             const MAX_LOG_CONTENT_LENGTH = 10000;
             function truncateForLogging(content) {
               if (content.length <= MAX_LOG_CONTENT_LENGTH) {
@@ -6321,6 +6320,7 @@ jobs:
               const campaignId = output.campaign_id || generateCampaignId(displayName);
               let githubClient = github;
               if (process.env.PROJECT_GITHUB_TOKEN) {
+                const { Octokit } = require("@octokit/rest");
                 const octokit = new Octokit({
                   auth: process.env.PROJECT_GITHUB_TOKEN,
                   baseUrl: process.env.GITHUB_API_URL || "https://api.github.com",
