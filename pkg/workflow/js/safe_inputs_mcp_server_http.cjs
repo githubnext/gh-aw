@@ -25,6 +25,7 @@ const { McpServer } = require("@modelcontextprotocol/sdk/server/mcp.js");
 const { StreamableHTTPServerTransport } = require("@modelcontextprotocol/sdk/server/streamableHttp.js");
 const { loadConfig } = require("./safe_inputs_config_loader.cjs");
 const { loadToolHandlers } = require("./mcp_server_core.cjs");
+const { validateRequiredFields } = require("./safe_inputs_validation.cjs");
 
 /**
  * Create and configure the MCP server with tools
@@ -95,16 +96,10 @@ function createMCPServer(configPath, options = {}) {
     server.tool(tool.name, tool.description || "", tool.inputSchema || { type: "object", properties: {} }, async args => {
       logger.debug(`Calling handler for tool: ${tool.name}`);
 
-      // Validate required fields
-      const requiredFields = tool.inputSchema && Array.isArray(tool.inputSchema.required) ? tool.inputSchema.required : [];
-      if (requiredFields.length) {
-        const missing = requiredFields.filter(f => {
-          const value = args[f];
-          return value === undefined || value === null || (typeof value === "string" && value.trim() === "");
-        });
-        if (missing.length) {
-          throw new Error(`Invalid arguments: missing or empty ${missing.map(m => `'${m}'`).join(", ")}`);
-        }
+      // Validate required fields using helper
+      const missing = validateRequiredFields(args, tool.inputSchema);
+      if (missing.length) {
+        throw new Error(`Invalid arguments: missing or empty ${missing.map(m => `'${m}'`).join(", ")}`);
       }
 
       // Call the handler
