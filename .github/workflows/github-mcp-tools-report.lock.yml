@@ -879,7 +879,7 @@ jobs:
           node-version: '24'
           package-manager-cache: false
       - name: Install Claude Code CLI
-        run: npm install -g @anthropic-ai/claude-code@2.0.58
+        run: npm install -g @anthropic-ai/claude-code@2.0.59
       - name: Generate Claude Settings
         run: |
           mkdir -p /tmp/gh-aw/.claude
@@ -2313,7 +2313,7 @@ jobs:
               engine_name: "Claude Code",
               model: "",
               version: "",
-              agent_version: "2.0.58",
+              agent_version: "2.0.59",
               workflow_name: "GitHub MCP Remote Server Tools Report Generator",
               experimental: true,
               supports_tools_allowlist: true,
@@ -7454,7 +7454,7 @@ jobs:
           node-version: '24'
           package-manager-cache: false
       - name: Install Claude Code CLI
-        run: npm install -g @anthropic-ai/claude-code@2.0.58
+        run: npm install -g @anthropic-ai/claude-code@2.0.59
       - name: Execute Claude Code CLI
         id: agentic_execution
         # Allowed tools (sorted):
