@@ -1,0 +1,340 @@
+package workflow
+
+import (
+	"strings"
+	"testing"
+)
+
+// TestRepoMemoryConfigDefault tests basic repo-memory configuration with boolean true
+func TestRepoMemoryConfigDefault(t *testing.T) {
+	toolsMap := map[string]any{
+		"repo-memory": true,
+	}
+
+	toolsConfig, err := ParseToolsConfig(toolsMap)
+	if err != nil {
+		t.Fatalf("Failed to parse tools config: %v", err)
+	}
+
+	compiler := NewCompiler(false, "", "test")
+	config, err := compiler.extractRepoMemoryConfig(toolsConfig)
+	if err != nil {
+		t.Fatalf("Failed to extract repo-memory config: %v", err)
+	}
+
+	if config == nil {
+		t.Fatal("Expected non-nil config")
+	}
+
+	if len(config.Memories) != 1 {
+		t.Fatalf("Expected 1 memory, got %d", len(config.Memories))
+	}
+
+	memory := config.Memories[0]
+	if memory.ID != "default" {
+		t.Errorf("Expected ID 'default', got '%s'", memory.ID)
+	}
+
+	if memory.BranchName != "memory/default" {
+		t.Errorf("Expected branch name 'memory/default', got '%s'", memory.BranchName)
+	}
+
+	if memory.MaxFileSize != 10240 {
+		t.Errorf("Expected max file size 10240, got %d", memory.MaxFileSize)
+	}
+
+	if memory.MaxFileCount != 100 {
+		t.Errorf("Expected max file count 100, got %d", memory.MaxFileCount)
+	}
+
+	if !memory.CreateOrphan {
+		t.Error("Expected create-orphan to be true by default")
+	}
+}
+
+// TestRepoMemoryConfigObject tests repo-memory configuration with object notation
+func TestRepoMemoryConfigObject(t *testing.T) {
+	toolsMap := map[string]any{
+		"repo-memory": map[string]any{
+			"target-repo":   "myorg/myrepo",
+			"branch-name":   "memory/custom",
+			"max-file-size": 524288,
+			"description":   "Custom memory store",
+		},
+	}
+
+	toolsConfig, err := ParseToolsConfig(toolsMap)
+	if err != nil {
+		t.Fatalf("Failed to parse tools config: %v", err)
+	}
+
+	compiler := NewCompiler(false, "", "test")
+	config, err := compiler.extractRepoMemoryConfig(toolsConfig)
+	if err != nil {
+		t.Fatalf("Failed to extract repo-memory config: %v", err)
+	}
+
+	if config == nil {
+		t.Fatal("Expected non-nil config")
+	}
+
+	if len(config.Memories) != 1 {
+		t.Fatalf("Expected 1 memory, got %d", len(config.Memories))
+	}
+
+	memory := config.Memories[0]
+	if memory.TargetRepo != "myorg/myrepo" {
+		t.Errorf("Expected target-repo 'myorg/myrepo', got '%s'", memory.TargetRepo)
+	}
+
+	if memory.BranchName != "memory/custom" {
+		t.Errorf("Expected branch name 'memory/custom', got '%s'", memory.BranchName)
+	}
+
+	if memory.MaxFileSize != 524288 {
+		t.Errorf("Expected max file size 524288, got %d", memory.MaxFileSize)
+	}
+
+	if memory.Description != "Custom memory store" {
+		t.Errorf("Expected description 'Custom memory store', got '%s'", memory.Description)
+	}
+}
+
+// TestRepoMemoryConfigArray tests repo-memory configuration with array notation
+func TestRepoMemoryConfigArray(t *testing.T) {
+	toolsMap := map[string]any{
+		"repo-memory": []any{
+			map[string]any{
+				"id":          "session",
+				"branch-name": "memory/session",
+			},
+			map[string]any{
+				"id":            "logs",
+				"branch-name":   "memory/logs",
+				"max-file-size": 2097152,
+			},
+		},
+	}
+
+	toolsConfig, err := ParseToolsConfig(toolsMap)
+	if err != nil {
+		t.Fatalf("Failed to parse tools config: %v", err)
+	}
+
+	compiler := NewCompiler(false, "", "test")
+	config, err := compiler.extractRepoMemoryConfig(toolsConfig)
+	if err != nil {
+		t.Fatalf("Failed to extract repo-memory config: %v", err)
+	}
+
+	if config == nil {
+		t.Fatal("Expected non-nil config")
+	}
+
+	if len(config.Memories) != 2 {
+		t.Fatalf("Expected 2 memories, got %d", len(config.Memories))
+	}
+
+	// Check first memory
+	memory1 := config.Memories[0]
+	if memory1.ID != "session" {
+		t.Errorf("Expected ID 'session', got '%s'", memory1.ID)
+	}
+	if memory1.BranchName != "memory/session" {
+		t.Errorf("Expected branch name 'memory/session', got '%s'", memory1.BranchName)
+	}
+
+	// Check second memory
+	memory2 := config.Memories[1]
+	if memory2.ID != "logs" {
+		t.Errorf("Expected ID 'logs', got '%s'", memory2.ID)
+	}
+	if memory2.BranchName != "memory/logs" {
+		t.Errorf("Expected branch name 'memory/logs', got '%s'", memory2.BranchName)
+	}
+	if memory2.MaxFileSize != 2097152 {
+		t.Errorf("Expected max file size 2097152, got %d", memory2.MaxFileSize)
+	}
+}
+
+// TestRepoMemoryConfigDuplicateIDs tests that duplicate memory IDs are rejected
+func TestRepoMemoryConfigDuplicateIDs(t *testing.T) {
+	toolsMap := map[string]any{
+		"repo-memory": []any{
+			map[string]any{
+				"id":          "session",
+				"branch-name": "memory/session",
+			},
+			map[string]any{
+				"id":          "session",
+				"branch-name": "memory/session2",
+			},
+		},
+	}
+
+	toolsConfig, err := ParseToolsConfig(toolsMap)
+	if err != nil {
+		t.Fatalf("Failed to parse tools config: %v", err)
+	}
+
+	compiler := NewCompiler(false, "", "test")
+	_, err = compiler.extractRepoMemoryConfig(toolsConfig)
+	if err == nil {
+		t.Fatal("Expected error for duplicate memory IDs, got nil")
+	}
+
+	if !strings.Contains(err.Error(), "duplicate memory ID") {
+		t.Errorf("Expected error about duplicate memory ID, got: %v", err)
+	}
+}
+
+// TestRepoMemoryStepsGeneration tests that repo-memory steps are generated correctly
+func TestRepoMemoryStepsGeneration(t *testing.T) {
+	config := &RepoMemoryConfig{
+		Memories: []RepoMemoryEntry{
+			{
+				ID:           "default",
+				BranchName:   "memory/default",
+				MaxFileSize:  10240,
+				MaxFileCount: 100,
+				CreateOrphan: true,
+			},
+		},
+	}
+
+	data := &WorkflowData{
+		RepoMemoryConfig: config,
+	}
+
+	var builder strings.Builder
+	generateRepoMemorySteps(&builder, data)
+
+	output := builder.String()
+
+	// Check for clone step
+	if !strings.Contains(output, "Clone repo-memory branch (default)") {
+		t.Error("Expected clone step for repo-memory")
+	}
+
+	// Check for git commands
+	if !strings.Contains(output, "git clone") {
+		t.Error("Expected git clone command")
+	}
+
+	if !strings.Contains(output, "memory/default") {
+		t.Error("Expected memory/default branch reference")
+	}
+
+	// Check for orphan branch creation
+	if !strings.Contains(output, "git checkout --orphan") {
+		t.Error("Expected orphan branch creation")
+	}
+
+	// Check for memory directory creation
+	if !strings.Contains(output, "/tmp/gh-aw/repo-memory-default/memory/default") {
+		t.Error("Expected memory directory path")
+	}
+}
+
+// TestRepoMemoryPushStepsGeneration tests that push steps are generated correctly
+func TestRepoMemoryPushStepsGeneration(t *testing.T) {
+	config := &RepoMemoryConfig{
+		Memories: []RepoMemoryEntry{
+			{
+				ID:           "default",
+				BranchName:   "memory/default",
+				MaxFileSize:  10240,
+				MaxFileCount: 100,
+			},
+		},
+	}
+
+	data := &WorkflowData{
+		RepoMemoryConfig: config,
+	}
+
+	var builder strings.Builder
+	generateRepoMemoryPushSteps(&builder, data)
+
+	output := builder.String()
+
+	// Check for push step
+	if !strings.Contains(output, "Push repo-memory changes (default)") {
+		t.Error("Expected push step for repo-memory")
+	}
+
+	// Check for if: always()
+	if !strings.Contains(output, "if: always()") {
+		t.Error("Expected always() condition")
+	}
+
+	// Check for git commit
+	if !strings.Contains(output, "git commit") {
+		t.Error("Expected git commit command")
+	}
+
+	// Check for git push
+	if !strings.Contains(output, "git push") {
+		t.Error("Expected git push command")
+	}
+
+	// Check for merge strategy
+	if !strings.Contains(output, "-X ours") {
+		t.Error("Expected ours merge strategy")
+	}
+
+	// Check for validation
+	if !strings.Contains(output, "Check file sizes") {
+		t.Error("Expected file size validation")
+	}
+
+	if !strings.Contains(output, "Check file count") {
+		t.Error("Expected file count validation")
+	}
+}
+
+// TestRepoMemoryPromptGeneration tests that prompt section is generated correctly
+func TestRepoMemoryPromptGeneration(t *testing.T) {
+	config := &RepoMemoryConfig{
+		Memories: []RepoMemoryEntry{
+			{
+				ID:          "default",
+				BranchName:  "memory/default",
+				Description: "Persistent memory for agent state",
+			},
+		},
+	}
+
+	var builder strings.Builder
+	generateRepoMemoryPromptSection(&builder, config)
+
+	output := builder.String()
+
+	// Check for prompt header
+	if !strings.Contains(output, "## Repo Memory Available") {
+		t.Error("Expected repo memory header")
+	}
+
+	// Check for description
+	if !strings.Contains(output, "Persistent memory for agent state") {
+		t.Error("Expected custom description")
+	}
+
+	// Check for key information
+	if !strings.Contains(output, "Read/Write Access") {
+		t.Error("Expected read/write access information")
+	}
+
+	if !strings.Contains(output, "Git Branch Storage") {
+		t.Error("Expected git branch storage information")
+	}
+
+	if !strings.Contains(output, "Automatic Push") {
+		t.Error("Expected automatic push information")
+	}
+
+	// Check for examples
+	if !strings.Contains(output, "notes.md") {
+		t.Error("Expected example file")
+	}
+}

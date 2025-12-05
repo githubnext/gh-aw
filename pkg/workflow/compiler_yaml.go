@@ -319,6 +319,9 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	// Add cache-memory steps if cache-memory configuration is present
 	generateCacheMemorySteps(yaml, data)
 
+	// Add repo-memory clone steps if repo-memory configuration is present
+	generateRepoMemorySteps(yaml, data)
+
 	// Configure git credentials for agentic workflows
 	gitConfigSteps := c.generateGitConfigurationSteps()
 	for _, line := range gitConfigSteps {
@@ -432,6 +435,9 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 			yaml.WriteString(line + "\n")
 		}
 	}
+
+	// Add repo-memory artifact upload to save state for push job
+	generateRepoMemoryArtifactUpload(yaml, data)
 
 	// upload assets if upload-asset is configured
 	if data.SafeOutputs != nil && data.SafeOutputs.UploadAssets != nil {
@@ -797,6 +803,9 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 
 	// Add cache memory prompt as separate step if enabled
 	c.generateCacheMemoryPromptStep(yaml, data.CacheMemoryConfig)
+
+	// Add repo memory prompt as separate step if enabled
+	c.generateRepoMemoryPromptStep(yaml, data.RepoMemoryConfig)
 
 	// Add safe outputs instructions to prompt when safe-outputs are configured
 	// This tells agents to use the safeoutputs MCP server instead of gh CLI
