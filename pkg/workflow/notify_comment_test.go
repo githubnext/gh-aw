@@ -121,6 +121,20 @@ func TestConclusionJob(t *testing.T) {
 			},
 			expectNeeds: []string{constants.AgentJobName, constants.ActivationJobName, "missing_tool"},
 		},
+		{
+			name:               "conclusion job depends on custom safe-jobs",
+			addCommentConfig:   true,
+			aiReaction:         "eyes",
+			command:            "",
+			safeOutputJobNames: []string{"add_comment", "create_issue", "my_custom_job", "another_custom_safe_job"},
+			expectJob:          true,
+			expectConditions: []string{
+				"always()",
+				"needs.agent.result != 'skipped'",
+				"!(needs.add_comment.outputs.comment_id)",
+			},
+			expectNeeds: []string{constants.AgentJobName, constants.ActivationJobName, "add_comment", "create_issue", "my_custom_job", "another_custom_safe_job"},
+		},
 	}
 
 	for _, tt := range tests {
