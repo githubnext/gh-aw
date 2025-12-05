@@ -940,8 +940,11 @@ jobs:
       - name: Write Safe Outputs JavaScript Files
         run: |
           cat > /tmp/gh-aw/safeoutputs/mcp-server.cjs << 'EOF'
+            const fs = require("fs");
+            const path = require("path");
             const { execFile, execSync } = require("child_process");
             const os = require("os");
+            const crypto = require("crypto");
             class ReadBuffer {
               constructor() {
                 this._buffer = null;
@@ -2975,6 +2978,7 @@ jobs:
         with:
           script: |
             async function main() {
+              const fs = require("fs");
               const path = require("path");
             const redactedDomains = [];
             function getRedactedDomains() {

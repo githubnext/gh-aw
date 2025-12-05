@@ -119,12 +119,37 @@ sandbox:
       DEBUG_LEVEL: "verbose"
 ```
 
+##### Custom Mounts
+
+Add custom container mounts to make host paths available inside the AWF container:
+
+```yaml wrap
+sandbox:
+  agent:
+    id: awf
+    mounts:
+      - "/host/data:/data:ro"
+      - "/usr/local/bin/custom-tool:/usr/local/bin/custom-tool:ro"
+      - "/tmp/cache:/cache:rw"
+```
+
+Mount syntax follows Docker's format: `source:destination:mode`
+- `source`: Path on the host system
+- `destination`: Path inside the container
+- `mode`: Either `ro` (read-only) or `rw` (read-write)
+
+Custom mounts are useful for:
+- Providing access to datasets or configuration files
+- Making custom tools available in the container
+- Sharing cache directories between host and container
+
 | Field | Type | Description |
 |-------|------|-------------|
 | `id` | `string` | Agent identifier: `awf` or `srt` |
 | `command` | `string` | Custom command to replace AWF binary installation |
 | `args` | `string[]` | Additional arguments appended to the command |
 | `env` | `object` | Environment variables set on the execution step |
+| `mounts` | `string[]` | Container mounts using syntax `source:destination:mode` |
 
 When `command` is specified, the standard AWF installation is skipped and your custom command is used instead.
 
