@@ -316,24 +316,33 @@ func generateSafeInputsToolsConfig(safeInputs *SafeInputsConfig) string {
 }
 
 // generateSafeInputsMCPServerScript generates the entry point script for the safe-inputs MCP server
-// This uses the reusable safe_inputs_mcp_server.cjs module and reads tool configuration from tools.json
+// This uses the reusable safe_inputs_mcp_server_http.cjs module and reads tool configuration from tools.json
 func generateSafeInputsMCPServerScript(safeInputs *SafeInputsConfig) string {
 	var sb strings.Builder
 
-	// Write a simple entry point that uses the modular MCP server
+	// Write a simple entry point that uses the HTTP modular MCP server
 	sb.WriteString(`// @ts-check
-// Auto-generated safe-inputs MCP server entry point
-// This script uses the reusable safe_inputs_mcp_server module
+// Auto-generated safe-inputs MCP server entry point (HTTP transport)
+// This script uses the reusable safe_inputs_mcp_server_http module
 
 const path = require("path");
-const { startSafeInputsServer } = require("./safe_inputs_mcp_server.cjs");
+const { startHttpServer } = require("./safe_inputs_mcp_server_http.cjs");
 
 // Configuration file path (generated alongside this script)
 const configPath = path.join(__dirname, "tools.json");
 
-// Start the server
-startSafeInputsServer(configPath, {
+// Get port and API key from environment variables
+const port = parseInt(process.env.GH_AW_SAFE_INPUTS_PORT || "3000", 10);
+const apiKey = process.env.GH_AW_SAFE_INPUTS_API_KEY || "";
+
+// Start the HTTP server
+startHttpServer(configPath, {
+  port: port,
+  stateless: false,
   logDir: "/tmp/gh-aw/safe-inputs/logs"
+}).catch(error => {
+  console.error("Failed to start safe-inputs HTTP server:", error);
+  process.exit(1);
 });
 `)
 
@@ -527,18 +536,71 @@ func collectSafeInputsSecrets(safeInputs *SafeInputsConfig) map[string]string {
 }
 
 // renderSafeInputsMCPConfigWithOptions generates the Safe Inputs MCP server configuration with engine-specific options
+// Now uses HTTP transport instead of stdio
 func renderSafeInputsMCPConfigWithOptions(yaml *strings.Builder, safeInputs *SafeInputsConfig, isLast bool, includeCopilotFields bool) {
 	envVars := getSafeInputsEnvVars(safeInputs)
 
-	renderBuiltinMCPServerBlock(
-		yaml,
-		constants.SafeInputsMCPServerID,
-		"node",
-		[]string{SafeInputsDirectory + "/mcp-server.cjs"},
-		envVars,
-		isLast,
-		includeCopilotFields,
-	)
+	// Use HTTP transport configuration
+	yaml.WriteString("              \"" + constants.SafeInputsMCPServerID + "\": {\n")
+
+	// Add type field for HTTP
+	if includeCopilotFields {
+		yaml.WriteString("                \"type\": \"http\",\n")
+	}
+
+	// HTTP URL using environment variable
+	if includeCopilotFields {
+		// Copilot format: backslash-escaped shell variable reference
+		yaml.WriteString("                \"url\": \"http://localhost:\\${GH_AW_SAFE_INPUTS_PORT}\",\n")
+	} else {
+		// Claude/Custom format: direct shell variable reference
+		yaml.WriteString("                \"url\": \"http://localhost:$GH_AW_SAFE_INPUTS_PORT\",\n")
+	}
+
+	// Add Authorization header with API key
+	yaml.WriteString("                \"headers\": {\n")
+	if includeCopilotFields {
+		// Copilot format: backslash-escaped shell variable reference
+		yaml.WriteString("                  \"Authorization\": \"Bearer \\${GH_AW_SAFE_INPUTS_API_KEY}\"\n")
+	} else {
+		// Claude/Custom format: direct shell variable reference
+		yaml.WriteString("                  \"Authorization\": \"Bearer $GH_AW_SAFE_INPUTS_API_KEY\"\n")
+	}
+	yaml.WriteString("                },\n")
+
+	// Add tools field for Copilot
+	if includeCopilotFields {
+		yaml.WriteString("                \"tools\": [\"*\"],\n")
+	}
+
+	// Add env block for environment variable passthrough
+	envVarsWithServerConfig := append([]string{"GH_AW_SAFE_INPUTS_PORT", "GH_AW_SAFE_INPUTS_API_KEY"}, envVars...)
+	yaml.WriteString("                \"env\": {\n")
+
+	// Write environment variables with appropriate escaping
+	for i, envVar := range envVarsWithServerConfig {
+		isLastEnvVar := i == len(envVarsWithServerConfig)-1
+		comma := ""
+		if !isLastEnvVar {
+			comma = ","
+		}
+
+		if includeCopilotFields {
+			// Copilot format: backslash-escaped shell variable reference
+			yaml.WriteString("                  \"" + envVar + "\": \"\\${" + envVar + "}\"" + comma + "\n")
+		} else {
+			// Claude/Custom format: direct shell variable reference
+			yaml.WriteString("                  \"" + envVar + "\": \"$" + envVar + "\"" + comma + "\n")
+		}
+	}
+
+	yaml.WriteString("                }\n")
+
+	if isLast {
+		yaml.WriteString("              }\n")
+	} else {
+		yaml.WriteString("              },\n")
+	}
 }
 
 // mergeSafeInputs merges safe-inputs configuration from imports into the main configuration
