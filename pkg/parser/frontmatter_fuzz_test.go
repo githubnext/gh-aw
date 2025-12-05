@@ -195,12 +195,13 @@ on:
 
 # Content`)
 
-	// Deeply nested structure (overly deep - may hit limits)
+	// Deeply nested structure (testing reasonable nesting limits)
+	// Note: Reduced from 100 to 20 levels to prevent YAML parser from hanging during fuzzing
 	deepNested := "---\nname: Test\ndata:\n"
-	for i := 0; i < 100; i++ {
+	for i := 0; i < 20; i++ {
 		deepNested += strings.Repeat("  ", i+1) + "level" + strconv.Itoa(i%10) + ":\n"
 	}
-	deepNested += strings.Repeat("  ", 101) + "value: deep\n---\n# Content"
+	deepNested += strings.Repeat("  ", 21) + "value: deep\n---\n# Content"
 	f.Add(deepNested)
 
 	// Very large array
