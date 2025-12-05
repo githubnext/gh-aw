@@ -2554,7 +2554,10 @@ jobs:
                   "GH_AW_ASSETS_MAX_SIZE_KB": "\${GH_AW_ASSETS_MAX_SIZE_KB}",
                   "GH_AW_ASSETS_ALLOWED_EXTS": "\${GH_AW_ASSETS_ALLOWED_EXTS}",
                   "GITHUB_REPOSITORY": "\${GITHUB_REPOSITORY}",
-                  "GITHUB_SERVER_URL": "\${GITHUB_SERVER_URL}"
+                  "GITHUB_SERVER_URL": "\${GITHUB_SERVER_URL}",
+                  "GITHUB_SHA": "\${GITHUB_SHA}",
+                  "GITHUB_WORKSPACE": "\${GITHUB_WORKSPACE}",
+                  "DEFAULT_BRANCH": "\${DEFAULT_BRANCH}"
                 }
               }
             }
