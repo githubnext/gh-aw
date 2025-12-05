@@ -1198,7 +1198,7 @@ func marshalActionsLockSorted(actionsLock *struct {
 	for i, key := range keys {
 		entry := actionsLock.Entries[key]
 
-			// Construct the entry JSON manually
+		// Construct the entry JSON manually
 		entryJSON := fmt.Sprintf("    \"%s\": {\n      \"repo\": \"%s\",\n      \"version\": \"%s\",\n      \"sha\": \"%s\"\n    }",
 			key, entry.Repo, entry.Version, entry.SHA)
 
