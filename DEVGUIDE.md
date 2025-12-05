@@ -109,6 +109,77 @@ make fmt
 make lint
 ```
 
+## Security Scanning
+
+The project includes automated security scanning to detect vulnerabilities, code smells, and dependency issues.
+
+### Running Security Scans Locally
+
+```bash
+# Run all security scans (gosec, govulncheck, trivy)
+make security-scan
+
+# Run individual scans
+make security-gosec      # Go security linter
+make security-govulncheck # Go vulnerability database check
+make security-trivy       # Filesystem/dependency scanner (requires trivy)
+```
+
+### Security Scan Tools
+
+- **gosec**: Static analysis tool for Go that detects security issues in source code
+- **govulncheck**: Official Go tool that checks for known vulnerabilities in dependencies
+- **trivy**: Comprehensive scanner for filesystem vulnerabilities, misconfigurations, and secrets
+
+### Interpreting Results
+
+#### Gosec Results
+- Results are saved to `gosec-report.json`
+- Review findings by severity (HIGH, MEDIUM, LOW)
+- False positives can be suppressed with `// #nosec G<rule-id>` comments
+
+#### Govulncheck Results
+- Shows vulnerabilities in direct and indirect dependencies
+- Indicates if vulnerable code paths are actually called
+- Update affected dependencies to resolve issues
+
+#### Trivy Results
+- Displays HIGH and CRITICAL severity findings
+- Covers Go dependencies, npm packages, and configuration files
+- Shows CVE details and available fix versions
+
+### Suppressing False Positives
+
+#### Gosec
+```go
+// Suppress a specific rule
+// #nosec G104
+err := someFunction() // Error explicitly ignored
+
+// Suppress multiple rules
+// #nosec G101 G102
+secret := "example" // Known test value
+```
+
+#### Govulncheck
+- No inline suppression available
+- Update dependencies or document accepted risks in security review
+
+#### Trivy
+- Use `.trivyignore` file to exclude specific CVEs:
+```
+# .trivyignore
+CVE-2023-XXXXX  # False positive: not exploitable in our usage
+```
+
+### CI/CD Integration
+
+Security scans run automatically on:
+- Daily scheduled scan (6:00 AM UTC)
+- Manual workflow dispatch
+
+Results are uploaded to the GitHub Security tab in SARIF format.
+
 ### Development Tips
 
 1. **Use verbose testing**: `go test -v` for detailed output
