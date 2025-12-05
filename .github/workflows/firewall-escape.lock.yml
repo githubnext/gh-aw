@@ -92,9 +92,9 @@
 #   agent["agent"]
 #   post-issue["post-issue"]
 #   pre_activation["pre_activation"]
-#   pre_activation --> activation
 #   activation --> agent
 #   agent --> post-issue
+#   pre_activation --> activation
 # ```
 #
 # Original Prompt:

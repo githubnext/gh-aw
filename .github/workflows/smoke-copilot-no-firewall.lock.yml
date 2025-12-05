@@ -80,24 +80,24 @@
 #   detection["detection"]
 #   pre_activation["pre_activation"]
 #   update_pull_request["update_pull_request"]
-#   pre_activation --> activation
-#   agent --> add_comment
-#   create_issue --> add_comment
-#   detection --> add_comment
-#   agent --> add_labels
-#   detection --> add_labels
 #   activation --> agent
-#   agent --> conclusion
 #   activation --> conclusion
-#   create_issue --> conclusion
 #   add_comment --> conclusion
 #   add_labels --> conclusion
-#   update_pull_request --> conclusion
+#   agent --> add_comment
+#   agent --> add_labels
+#   agent --> conclusion
 #   agent --> create_issue
-#   detection --> create_issue
 #   agent --> detection
 #   agent --> update_pull_request
+#   create_issue --> add_comment
+#   create_issue --> conclusion
+#   detection --> add_comment
+#   detection --> add_labels
+#   detection --> create_issue
 #   detection --> update_pull_request
+#   pre_activation --> activation
+#   update_pull_request --> conclusion
 # ```
 #
 # Original Prompt:

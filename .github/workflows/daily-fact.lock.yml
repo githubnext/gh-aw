@@ -68,13 +68,13 @@
 #   agent["agent"]
 #   conclusion["conclusion"]
 #   detection["detection"]
-#   agent --> add_comment
-#   detection --> add_comment
 #   activation --> agent
-#   agent --> conclusion
 #   activation --> conclusion
 #   add_comment --> conclusion
+#   agent --> add_comment
+#   agent --> conclusion
 #   agent --> detection
+#   detection --> add_comment
 # ```
 #
 # Original Prompt:

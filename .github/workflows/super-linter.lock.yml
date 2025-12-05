@@ -116,14 +116,14 @@
 #   detection["detection"]
 #   super_linter["super_linter"]
 #   activation --> agent
-#   super_linter --> agent
-#   agent --> conclusion
 #   activation --> conclusion
-#   create_issue --> conclusion
-#   agent --> create_issue
-#   detection --> create_issue
-#   agent --> detection
 #   activation --> super_linter
+#   agent --> conclusion
+#   agent --> create_issue
+#   agent --> detection
+#   create_issue --> conclusion
+#   detection --> create_issue
+#   super_linter --> agent
 # ```
 #
 # Original Prompt:

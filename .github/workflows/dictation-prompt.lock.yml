@@ -70,13 +70,13 @@
 #   create_pull_request["create_pull_request"]
 #   detection["detection"]
 #   activation --> agent
-#   agent --> conclusion
 #   activation --> conclusion
-#   create_pull_request --> conclusion
-#   agent --> create_pull_request
 #   activation --> create_pull_request
-#   detection --> create_pull_request
+#   agent --> conclusion
+#   agent --> create_pull_request
 #   agent --> detection
+#   create_pull_request --> conclusion
+#   detection --> create_pull_request
 # ```
 #
 # Original Prompt:

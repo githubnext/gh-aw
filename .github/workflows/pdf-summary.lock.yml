@@ -81,14 +81,14 @@
 #   conclusion["conclusion"]
 #   detection["detection"]
 #   pre_activation["pre_activation"]
-#   pre_activation --> activation
-#   agent --> add_comment
-#   detection --> add_comment
 #   activation --> agent
-#   agent --> conclusion
 #   activation --> conclusion
 #   add_comment --> conclusion
+#   agent --> add_comment
+#   agent --> conclusion
 #   agent --> detection
+#   detection --> add_comment
+#   pre_activation --> activation
 # ```
 #
 # Original Prompt:

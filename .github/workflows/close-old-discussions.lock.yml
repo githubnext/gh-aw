@@ -177,12 +177,12 @@
 #   conclusion["conclusion"]
 #   detection["detection"]
 #   activation --> agent
-#   agent --> close_discussion
-#   detection --> close_discussion
-#   agent --> conclusion
 #   activation --> conclusion
-#   close_discussion --> conclusion
+#   agent --> close_discussion
+#   agent --> conclusion
 #   agent --> detection
+#   close_discussion --> conclusion
+#   detection --> close_discussion
 # ```
 #
 # Original Prompt:

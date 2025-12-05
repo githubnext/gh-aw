@@ -76,19 +76,19 @@
 #   create_pull_request["create_pull_request"]
 #   detection["detection"]
 #   pre_activation["pre_activation"]
-#   pre_activation --> activation
-#   agent --> add_comment
-#   create_pull_request --> add_comment
-#   detection --> add_comment
 #   activation --> agent
-#   agent --> conclusion
 #   activation --> conclusion
-#   create_pull_request --> conclusion
-#   add_comment --> conclusion
-#   agent --> create_pull_request
 #   activation --> create_pull_request
-#   detection --> create_pull_request
+#   add_comment --> conclusion
+#   agent --> add_comment
+#   agent --> conclusion
+#   agent --> create_pull_request
 #   agent --> detection
+#   create_pull_request --> add_comment
+#   create_pull_request --> conclusion
+#   detection --> add_comment
+#   detection --> create_pull_request
+#   pre_activation --> activation
 # ```
 #
 # Original Prompt:

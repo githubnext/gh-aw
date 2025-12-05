@@ -53,10 +53,10 @@
 #   conclusion["conclusion"]
 #   create_code_scanning_alert["create_code_scanning_alert"]
 #   activation --> agent
-#   agent --> conclusion
 #   activation --> conclusion
-#   create_code_scanning_alert --> conclusion
+#   agent --> conclusion
 #   agent --> create_code_scanning_alert
+#   create_code_scanning_alert --> conclusion
 # ```
 #
 # Original Prompt:

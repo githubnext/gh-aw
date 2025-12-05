@@ -104,18 +104,18 @@
 #   notion_add_comment["notion_add_comment"]
 #   post_to_slack_channel["post_to_slack_channel"]
 #   activation --> agent
-#   agent --> conclusion
 #   activation --> conclusion
-#   create_discussion --> conclusion
-#   notion_add_comment --> conclusion
-#   post_to_slack_channel --> conclusion
+#   agent --> conclusion
 #   agent --> create_discussion
-#   detection --> create_discussion
 #   agent --> detection
 #   agent --> notion_add_comment
-#   detection --> notion_add_comment
 #   agent --> post_to_slack_channel
+#   create_discussion --> conclusion
+#   detection --> create_discussion
+#   detection --> notion_add_comment
 #   detection --> post_to_slack_channel
+#   notion_add_comment --> conclusion
+#   post_to_slack_channel --> conclusion
 # ```
 #
 # Original Prompt:

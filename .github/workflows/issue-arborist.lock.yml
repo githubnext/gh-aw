@@ -100,15 +100,15 @@
 #   detection["detection"]
 #   link_sub_issue["link_sub_issue"]
 #   activation --> agent
-#   agent --> conclusion
 #   activation --> conclusion
-#   create_discussion --> conclusion
-#   link_sub_issue --> conclusion
+#   agent --> conclusion
 #   agent --> create_discussion
-#   detection --> create_discussion
 #   agent --> detection
 #   agent --> link_sub_issue
+#   create_discussion --> conclusion
+#   detection --> create_discussion
 #   detection --> link_sub_issue
+#   link_sub_issue --> conclusion
 # ```
 #
 # Original Prompt:

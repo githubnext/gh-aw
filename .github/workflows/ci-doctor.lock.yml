@@ -79,18 +79,18 @@
 #   create_issue["create_issue"]
 #   detection["detection"]
 #   pre_activation["pre_activation"]
-#   pre_activation --> activation
-#   agent --> add_comment
-#   create_issue --> add_comment
-#   detection --> add_comment
 #   activation --> agent
-#   agent --> conclusion
 #   activation --> conclusion
-#   create_issue --> conclusion
 #   add_comment --> conclusion
+#   agent --> add_comment
+#   agent --> conclusion
 #   agent --> create_issue
-#   detection --> create_issue
 #   agent --> detection
+#   create_issue --> add_comment
+#   create_issue --> conclusion
+#   detection --> add_comment
+#   detection --> create_issue
+#   pre_activation --> activation
 # ```
 #
 # Original Prompt:

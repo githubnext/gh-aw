@@ -69,21 +69,21 @@
 #   create_pr_review_comment["create_pr_review_comment"]
 #   detection["detection"]
 #   pre_activation["pre_activation"]
-#   pre_activation --> activation
-#   agent --> add_comment
-#   create_discussion --> add_comment
-#   detection --> add_comment
 #   activation --> agent
-#   agent --> conclusion
 #   activation --> conclusion
-#   create_discussion --> conclusion
 #   add_comment --> conclusion
-#   create_pr_review_comment --> conclusion
+#   agent --> add_comment
+#   agent --> conclusion
 #   agent --> create_discussion
-#   detection --> create_discussion
 #   agent --> create_pr_review_comment
-#   detection --> create_pr_review_comment
 #   agent --> detection
+#   create_discussion --> add_comment
+#   create_discussion --> conclusion
+#   create_pr_review_comment --> conclusion
+#   detection --> add_comment
+#   detection --> create_discussion
+#   detection --> create_pr_review_comment
+#   pre_activation --> activation
 # ```
 #
 # Original Prompt:
