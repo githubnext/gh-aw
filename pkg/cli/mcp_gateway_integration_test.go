@@ -561,3 +561,438 @@ This is a test workflow.
 
 	t.Log("Successfully used mcp-inspect tool through gateway - tool is discoverable and callable")
 }
+
+// TestMCPGateway_SafeInputs tests the gateway with safe-inputs tools
+func TestMCPGateway_SafeInputs(t *testing.T) {
+	// Skip if the binary doesn't exist
+	binaryPath := "../../gh-aw"
+	if _, err := os.Stat(binaryPath); os.IsNotExist(err) {
+		t.Skip("Skipping test: gh-aw binary not found. Run 'make build' first.")
+	}
+
+	// Create a temporary directory for test files
+	tmpDir := testutil.TempDir(t, "test-gateway-safeinputs-*")
+
+	// Create test handlers
+	jsHandler := `// @ts-check
+async function execute(inputs) {
+  const { name } = inputs || {};
+  return {
+    greeting: "Hello, " + name + "!",
+    language: "JavaScript"
+  };
+}
+module.exports = { execute };`
+
+	pyHandler := `#!/usr/bin/env python3
+import json
+import sys
+
+try:
+    inputs = json.loads(sys.stdin.read()) if not sys.stdin.isatty() else {}
+except:
+    inputs = {}
+
+name = inputs.get('name', 'World')
+result = {
+    "greeting": f"Hello, {name}!",
+    "language": "Python"
+}
+print(json.dumps(result))`
+
+	shHandler := `#!/bin/bash
+set -euo pipefail
+NAME="${INPUT_NAME:-World}"
+echo "greeting=Hello, $NAME!" >> "$GITHUB_OUTPUT"
+echo "language=Shell" >> "$GITHUB_OUTPUT"`
+
+	// Write handlers
+	jsPath := filepath.Join(tmpDir, "hello_js.cjs")
+	if err := os.WriteFile(jsPath, []byte(jsHandler), 0644); err != nil {
+		t.Fatalf("Failed to write JS handler: %v", err)
+	}
+
+	pyPath := filepath.Join(tmpDir, "hello_python.py")
+	if err := os.WriteFile(pyPath, []byte(pyHandler), 0755); err != nil {
+		t.Fatalf("Failed to write Python handler: %v", err)
+	}
+
+	shPath := filepath.Join(tmpDir, "hello_shell.sh")
+	if err := os.WriteFile(shPath, []byte(shHandler), 0755); err != nil {
+		t.Fatalf("Failed to write shell handler: %v", err)
+	}
+
+	// Create tools config
+	toolsConfig := map[string]any{
+		"serverName": "test-safeinputs",
+		"version":    "1.0.0",
+		"tools": []any{
+			map[string]any{
+				"name":        "hello_js",
+				"description": "JavaScript greeting tool",
+				"inputSchema": map[string]any{
+					"type": "object",
+					"properties": map[string]any{
+						"name": map[string]any{
+							"type":        "string",
+							"description": "Name to greet",
+						},
+					},
+					"required": []string{"name"},
+				},
+				"handler": "hello_js.cjs",
+			},
+			map[string]any{
+				"name":        "hello_python",
+				"description": "Python greeting tool",
+				"inputSchema": map[string]any{
+					"type": "object",
+					"properties": map[string]any{
+						"name": map[string]any{
+							"type":        "string",
+							"description": "Name to greet",
+						},
+					},
+					"required": []string{"name"},
+				},
+				"handler": "hello_python.py",
+			},
+			map[string]any{
+				"name":        "hello_shell",
+				"description": "Shell greeting tool",
+				"inputSchema": map[string]any{
+					"type": "object",
+					"properties": map[string]any{
+						"name": map[string]any{
+							"type":        "string",
+							"description": "Name to greet",
+						},
+					},
+					"required": []string{"name"},
+				},
+				"handler": "hello_shell.sh",
+			},
+		},
+	}
+
+	toolsConfigPath := filepath.Join(tmpDir, "tools.json")
+	toolsData, err := json.MarshalIndent(toolsConfig, "", "  ")
+	if err != nil {
+		t.Fatalf("Failed to marshal tools config: %v", err)
+	}
+	if err := os.WriteFile(toolsConfigPath, toolsData, 0644); err != nil {
+		t.Fatalf("Failed to write tools config: %v", err)
+	}
+
+	// Get absolute path to binary
+	originalDir, _ := os.Getwd()
+	absBinaryPath, err := filepath.Abs(filepath.Join(originalDir, binaryPath))
+	if err != nil {
+		t.Fatalf("Failed to get absolute path: %v", err)
+	}
+
+	// Start the gateway with safe-inputs
+	gatewayCtx, gatewayCancel := context.WithCancel(context.Background())
+	defer gatewayCancel()
+
+	gatewayCmd := exec.CommandContext(gatewayCtx, absBinaryPath, "mcp-gateway",
+		"--scripts", toolsConfigPath,
+		"--port", "18082")
+	gatewayCmd.Dir = tmpDir
+
+	// Capture output for debugging
+	var stdout, stderr strings.Builder
+	gatewayCmd.Stdout = &stdout
+	gatewayCmd.Stderr = &stderr
+
+	if err := gatewayCmd.Start(); err != nil {
+		t.Fatalf("Failed to start gateway: %v", err)
+	}
+
+	// Clean up gateway process
+	defer func() {
+		gatewayCancel()
+		gatewayCmd.Wait()
+		if t.Failed() {
+			t.Logf("Gateway stdout: %s", stdout.String())
+			t.Logf("Gateway stderr: %s", stderr.String())
+		}
+	}()
+
+	// Wait for the gateway to start
+	time.Sleep(5 * time.Second)
+
+	// Verify the gateway started
+	stderrOutput := stderr.String()
+	if !strings.Contains(stderrOutput, "MCP Gateway listening") {
+		t.Fatalf("Gateway did not start successfully. Output: %s", stderrOutput)
+	}
+
+	// Verify safe-inputs is mentioned
+	if !strings.Contains(stderrOutput, "Safe-Inputs") {
+		t.Errorf("Expected safe-inputs to be mentioned in output")
+	}
+
+	t.Logf("Gateway started successfully on port 18082")
+	t.Logf("Gateway output: %s", stderr.String())
+
+	// Create MCP client to test the gateway
+	client := mcp.NewClient(&mcp.Implementation{
+		Name:    "test-safeinputs-client",
+		Version: "1.0.0",
+	}, nil)
+
+	transport := &mcp.SSEClientTransport{
+		Endpoint: "http://localhost:18082",
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	session, err := client.Connect(ctx, transport, nil)
+	if err != nil {
+		t.Fatalf("Failed to connect to gateway: %v", err)
+	}
+
+	// List tools
+	listResult, err := session.ListTools(ctx, &mcp.ListToolsParams{})
+	if err != nil {
+		t.Fatalf("Failed to list tools: %v", err)
+	}
+
+	t.Logf("Found %d tools", len(listResult.Tools))
+
+	// Verify all three tools are present
+	toolNames := make(map[string]bool)
+	for _, tool := range listResult.Tools {
+		toolNames[tool.Name] = true
+		t.Logf("Tool: %s - %s", tool.Name, tool.Description)
+	}
+
+	expectedTools := []string{"hello_js", "hello_python", "hello_shell"}
+	for _, expected := range expectedTools {
+		if !toolNames[expected] {
+			t.Errorf("Expected tool %s not found", expected)
+		}
+	}
+
+	// Test JavaScript tool
+	t.Run("call hello_js tool", func(t *testing.T) {
+		result, err := session.CallTool(ctx, &mcp.CallToolParams{
+			Name:      "hello_js",
+			Arguments: map[string]any{"name": "JavaScript"},
+		})
+		if err != nil {
+			t.Fatalf("Failed to call hello_js: %v", err)
+		}
+
+		if len(result.Content) == 0 {
+			t.Fatal("Expected content in result")
+		}
+
+		content := result.Content[0]
+		if textContent, ok := content.(*mcp.TextContent); ok {
+			t.Logf("hello_js result: %s", textContent.Text)
+			if !strings.Contains(textContent.Text, "Hello, JavaScript!") {
+				t.Errorf("Expected greeting in result, got: %s", textContent.Text)
+			}
+		} else {
+			t.Errorf("Expected text content, got: %T", content)
+		}
+	})
+
+	// Test Python tool
+	t.Run("call hello_python tool", func(t *testing.T) {
+		result, err := session.CallTool(ctx, &mcp.CallToolParams{
+			Name:      "hello_python",
+			Arguments: map[string]any{"name": "Python"},
+		})
+		if err != nil {
+			t.Fatalf("Failed to call hello_python: %v", err)
+		}
+
+		if len(result.Content) == 0 {
+			t.Fatal("Expected content in result")
+		}
+
+		content := result.Content[0]
+		if textContent, ok := content.(*mcp.TextContent); ok {
+			t.Logf("hello_python result: %s", textContent.Text)
+			if !strings.Contains(textContent.Text, "Hello, Python!") {
+				t.Errorf("Expected greeting in result, got: %s", textContent.Text)
+			}
+		} else {
+			t.Errorf("Expected text content, got: %T", content)
+		}
+	})
+
+	// Test Shell tool
+	t.Run("call hello_shell tool", func(t *testing.T) {
+		result, err := session.CallTool(ctx, &mcp.CallToolParams{
+			Name:      "hello_shell",
+			Arguments: map[string]any{"name": "Shell"},
+		})
+		if err != nil {
+			t.Fatalf("Failed to call hello_shell: %v", err)
+		}
+
+		if len(result.Content) == 0 {
+			t.Fatal("Expected content in result")
+		}
+
+		content := result.Content[0]
+		if textContent, ok := content.(*mcp.TextContent); ok {
+			t.Logf("hello_shell result: %s", textContent.Text)
+			if !strings.Contains(textContent.Text, "Hello, Shell!") {
+				t.Errorf("Expected greeting in result, got: %s", textContent.Text)
+			}
+		} else {
+			t.Errorf("Expected text content, got: %T", content)
+		}
+	})
+
+	t.Log("Successfully tested all safe-inputs tool types (JS, Python, Shell)")
+}
+
+// TestMCPGateway_Combined tests the gateway with both MCP servers and safe-inputs
+func TestMCPGateway_Combined(t *testing.T) {
+	// Skip if the binary doesn't exist
+	binaryPath := "../../gh-aw"
+	if _, err := os.Stat(binaryPath); os.IsNotExist(err) {
+		t.Skip("Skipping test: gh-aw binary not found. Run 'make build' first.")
+	}
+
+	// Create a temporary directory
+	tmpDir := testutil.TempDir(t, "test-gateway-combined-*")
+	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
+	if err := os.MkdirAll(workflowsDir, 0755); err != nil {
+		t.Fatalf("Failed to create workflows directory: %v", err)
+	}
+
+	// Create a test workflow file
+	workflowContent := `---
+on: push
+engine: copilot
+---
+# Test Workflow
+`
+	workflowPath := filepath.Join(workflowsDir, "test.md")
+	if err := os.WriteFile(workflowPath, []byte(workflowContent), 0644); err != nil {
+		t.Fatalf("Failed to write workflow file: %v", err)
+	}
+
+	// Initialize git repository
+	initCmd := exec.Command("git", "init")
+	initCmd.Dir = tmpDir
+	if err := initCmd.Run(); err != nil {
+		t.Fatalf("Failed to initialize git repository: %v", err)
+	}
+
+	// Get absolute path to binary
+	originalDir, _ := os.Getwd()
+	absBinaryPath, err := filepath.Abs(filepath.Join(originalDir, binaryPath))
+	if err != nil {
+		t.Fatalf("Failed to get absolute path: %v", err)
+	}
+
+	// Create MCP servers config
+	mcpsConfigPath := filepath.Join(tmpDir, "mcps.json")
+	mcpsConfig := map[string]any{
+		"mcpServers": map[string]any{
+			"gh-aw": map[string]any{
+				"command": absBinaryPath,
+				"args":    []string{"mcp-server", "--cmd", absBinaryPath},
+			},
+		},
+		"port": 18083,
+	}
+	mcpsData, err := json.MarshalIndent(mcpsConfig, "", "  ")
+	if err != nil {
+		t.Fatalf("Failed to marshal mcps config: %v", err)
+	}
+	if err := os.WriteFile(mcpsConfigPath, mcpsData, 0644); err != nil {
+		t.Fatalf("Failed to write mcps config: %v", err)
+	}
+
+	// Create a simple safe-inputs tool
+	jsHandler := `// @ts-check
+async function execute(inputs) {
+  return { result: "safe-inputs test" };
+}
+module.exports = { execute };`
+
+	jsPath := filepath.Join(tmpDir, "test_tool.cjs")
+	if err := os.WriteFile(jsPath, []byte(jsHandler), 0644); err != nil {
+		t.Fatalf("Failed to write JS handler: %v", err)
+	}
+
+	toolsConfigPath := filepath.Join(tmpDir, "tools.json")
+	toolsConfig := map[string]any{
+		"serverName": "test-combined",
+		"version":    "1.0.0",
+		"tools": []any{
+			map[string]any{
+				"name":        "test_tool",
+				"description": "Test safe-inputs tool",
+				"inputSchema": map[string]any{
+					"type":       "object",
+					"properties": map[string]any{},
+				},
+				"handler": "test_tool.cjs",
+			},
+		},
+	}
+	toolsData, err := json.MarshalIndent(toolsConfig, "", "  ")
+	if err != nil {
+		t.Fatalf("Failed to marshal tools config: %v", err)
+	}
+	if err := os.WriteFile(toolsConfigPath, toolsData, 0644); err != nil {
+		t.Fatalf("Failed to write tools config: %v", err)
+	}
+
+	// Start the gateway with both MCP servers and safe-inputs
+	gatewayCtx, gatewayCancel := context.WithCancel(context.Background())
+	defer gatewayCancel()
+
+	gatewayCmd := exec.CommandContext(gatewayCtx, absBinaryPath, "mcp-gateway",
+		"--mcps", mcpsConfigPath,
+		"--scripts", toolsConfigPath)
+	gatewayCmd.Dir = tmpDir
+
+	var stdout, stderr strings.Builder
+	gatewayCmd.Stdout = &stdout
+	gatewayCmd.Stderr = &stderr
+
+	if err := gatewayCmd.Start(); err != nil {
+		t.Fatalf("Failed to start gateway: %v", err)
+	}
+
+	defer func() {
+		gatewayCancel()
+		gatewayCmd.Wait()
+		if t.Failed() {
+			t.Logf("Gateway stdout: %s", stdout.String())
+			t.Logf("Gateway stderr: %s", stderr.String())
+		}
+	}()
+
+	// Wait for the gateway to start
+	time.Sleep(6 * time.Second)
+
+	// Verify the gateway started
+	stderrOutput := stderr.String()
+	if !strings.Contains(stderrOutput, "MCP Gateway listening") {
+		t.Fatalf("Gateway did not start successfully. Output: %s", stderrOutput)
+	}
+
+	// Verify both MCP servers and safe-inputs are mentioned
+	if !strings.Contains(stderrOutput, "MCP Servers") {
+		t.Errorf("Expected MCP Servers to be mentioned in output")
+	}
+	if !strings.Contains(stderrOutput, "Safe-Inputs") {
+		t.Errorf("Expected Safe-Inputs to be mentioned in output")
+	}
+
+	t.Logf("Gateway started successfully with both MCP servers and safe-inputs")
+	t.Log("Combined gateway test passed")
+}
