@@ -217,8 +217,8 @@
 #   update_release["update_release"]
 #   pre_activation --> activation
 #   activation --> agent
-#   generate-sbom --> agent
 #   release --> agent
+#   generate-sbom --> agent
 #   agent --> conclusion
 #   activation --> conclusion
 #   update_release --> conclusion
