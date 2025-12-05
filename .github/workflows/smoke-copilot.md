@@ -24,7 +24,7 @@ network:
 tools:
   edit:
   bash:
-    - "*"
+    - "jq *"
   github:
 safe-outputs:
     add-comment:

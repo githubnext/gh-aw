@@ -45,9 +45,6 @@
 #     - playwright
 #   firewall: false
 # tools:
-#   edit:
-#   bash:
-#     - "*"
 #   github:
 #   playwright:
 #     allowed_domains:
@@ -3562,21 +3559,6 @@ jobs:
           </playwright-output>
           
           PROMPT_EOF
-      - name: Append edit tool accessibility instructions to prompt
-        env:
-          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-        run: |
-          cat << 'PROMPT_EOF' | envsubst >> "$GH_AW_PROMPT"
-          <file-editing>
-          <description>File Editing Access Permissions</description>
-          <allowed-paths>
-            <path name="workspace">$GITHUB_WORKSPACE</path>
-            <path name="temporary">/tmp/gh-aw/</path>
-          </allowed-paths>
-          <restriction>Do NOT attempt to edit files outside these directories as you do not have the necessary permissions.</restriction>
-          </file-editing>
-          
-          PROMPT_EOF
       - name: Append safe outputs instructions to prompt
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
@@ -3742,6 +3724,8 @@ jobs:
       - name: Execute GitHub Copilot CLI
         id: agentic_execution
         # Copilot CLI tool arguments (sorted):
+        # --allow-tool github
+        # --allow-tool safeoutputs
         timeout-minutes: 10
         run: |
           set -o pipefail
@@ -3750,7 +3734,7 @@ jobs:
           mkdir -p /tmp/gh-aw/
           mkdir -p /tmp/gh-aw/agent/
           mkdir -p /tmp/gh-aw/sandbox/agent/logs/
-          copilot --add-dir /tmp/ --add-dir /tmp/gh-aw/ --add-dir /tmp/gh-aw/agent/ --log-level all --log-dir /tmp/gh-aw/sandbox/agent/logs/ --disable-builtin-mcps --allow-all-tools --allow-all-paths --prompt "$COPILOT_CLI_INSTRUCTION" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
+          copilot --add-dir /tmp/ --add-dir /tmp/gh-aw/ --add-dir /tmp/gh-aw/agent/ --log-level all --log-dir /tmp/gh-aw/sandbox/agent/logs/ --disable-builtin-mcps --allow-tool github --allow-tool safeoutputs --prompt "$COPILOT_CLI_INSTRUCTION" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
         env:
           COPILOT_AGENT_RUNNER_TYPE: STANDALONE
           COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN || secrets.COPILOT_CLI_TOKEN  }}

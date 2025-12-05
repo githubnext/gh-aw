@@ -22,9 +22,6 @@ network:
     - playwright
   firewall: false
 tools:
-  edit:
-  bash:
-    - "*"
   github:
   playwright:
     allowed_domains:
