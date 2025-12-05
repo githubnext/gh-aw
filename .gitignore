@@ -96,3 +96,9 @@ pkg/cli/.github/aw/actions-lock.json
 
 # Test run artifacts (legacy - now uses system temp)
 test-runs/
+
+# Security scan reports
+gosec-report.json
+gosec-results.sarif
+govulncheck-results.sarif
+trivy-results.sarif

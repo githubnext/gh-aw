@@ -108,6 +108,35 @@ test-security:
 	go test -v -timeout=3m -run '^FuzzYAML|^FuzzTemplate|^FuzzInput|^FuzzNetwork|^FuzzSafeJob' ./pkg/workflow/...
 	@echo "✓ Security regression tests passed"
 
+# Security scanning with gosec, govulncheck, and trivy
+.PHONY: security-scan
+security-scan: security-gosec security-govulncheck security-trivy
+	@echo "✓ All security scans completed"
+
+.PHONY: security-gosec
+security-gosec:
+	@echo "Running gosec security scanner..."
+	@command -v gosec >/dev/null || go install github.com/securego/gosec/v2/cmd/gosec@latest
+	gosec -fmt=json -out=gosec-report.json -exclude-generated ./... || true
+	@echo "✓ Gosec scan complete (results in gosec-report.json)"
+
+.PHONY: security-govulncheck
+security-govulncheck:
+	@echo "Running govulncheck..."
+	@command -v govulncheck >/dev/null || go install golang.org/x/vuln/cmd/govulncheck@latest
+	govulncheck ./...
+	@echo "✓ Govulncheck complete"
+
+.PHONY: security-trivy
+security-trivy:
+	@echo "Running trivy filesystem scan..."
+	@if command -v trivy >/dev/null 2>&1; then \
+		trivy fs --severity HIGH,CRITICAL .; \
+	else \
+		echo "⚠ Trivy not installed. Install with: brew install trivy (macOS) or see https://aquasecurity.github.io/trivy/latest/getting-started/installation/"; \
+	fi
+	@echo "✓ Trivy scan complete"
+
 # Test JavaScript files
 .PHONY: test-js
 test-js: build-js
@@ -352,7 +381,7 @@ release: pull-main build
 
 # Agent should run this task before finishing its turns
 .PHONY: agent-finish
-agent-finish: deps-dev fmt lint build test-all recompile dependabot generate-schema-docs generate-labs
+agent-finish: deps-dev fmt lint build test-all recompile dependabot generate-schema-docs generate-labs security-scan
 	@echo "Agent finished tasks successfully."
 
 # Help target
@@ -384,6 +413,10 @@ help:
 	@echo "  lint-cjs         - Lint JavaScript (.cjs) and JSON files in pkg/workflow/js"
 	@echo "  lint-json        - Lint JSON files in pkg directory (excluding pkg/workflow/js)"
 	@echo "  lint-errors      - Lint error messages for quality compliance"
+	@echo "  security-scan    - Run all security scans (gosec, govulncheck, trivy)"
+	@echo "  security-gosec   - Run gosec Go security scanner"
+	@echo "  security-govulncheck - Run govulncheck for known vulnerabilities"
+	@echo "  security-trivy   - Run trivy filesystem scanner"
 	@echo "  validate-workflows - Validate compiled workflow lock files"
 	@echo "  validate         - Run all validations (fmt-check, lint, validate-workflows)"
 	@echo "  install          - Install binary locally"
@@ -394,7 +427,7 @@ help:
 	@echo "  generate-schema-docs - Generate frontmatter full reference documentation from JSON schema"
 	@echo "  generate-labs              - Generate labs documentation page"
 
-	@echo "  agent-finish     - Complete validation sequence (build, test, recompile, fmt, lint)"
+	@echo "  agent-finish     - Complete validation sequence (build, test, recompile, fmt, lint, security-scan)"
 	@echo "  version   - Preview next version from changesets"
 	@echo "  release   - Create release using changesets (depends on test)"
 	@echo "  help             - Show this help message"
