@@ -295,10 +295,10 @@ func deduplicateRequires(content string) string {
 
 	// Regular expression to match destructured require statements
 	// Matches: const/let/var { name1, name2 } = require('module');
-	destructuredRequireRegex := regexp.MustCompile(`^\s*(?:const|let|var)\s+\{\s*([^}]+)\s*\}\s*=\s*require\(['"']([^'"']+)['"']\);?\s*$`)
+	destructuredRequireRegex := regexp.MustCompile(`^\s*(?:const|let|var)\s+\{\s*([^}]+)\s*\}\s*=\s*require\(['"]([^'"]+)['"]\);?\s*$`)
 	// Regular expression to match non-destructured require statements
 	// Matches: const/let/var name = require('module');
-	simpleRequireRegex := regexp.MustCompile(`^\s*(?:const|let|var)\s+(\w+)\s*=\s*require\(['"']([^'"']+)['"']\);?\s*$`)
+	simpleRequireRegex := regexp.MustCompile(`^\s*(?:const|let|var)\s+(\w+)\s*=\s*require\(['"]([^'"]+)['"]\);?\s*$`)
 
 	// First pass: collect all require statements grouped by indentation level
 	for i, line := range lines {
@@ -380,36 +380,51 @@ func deduplicateRequires(content string) string {
 						continue
 					}
 
-					// Check if this is a simple require (has VAR: prefix) or destructured
-					if len(imports) == 1 && strings.HasPrefix(imports[0], "VAR:") {
-						// Simple require
-						varName := strings.TrimPrefix(imports[0], "VAR:")
-						result.WriteString(fmt.Sprintf("%sconst %s = require(\"%s\");\n", indentStr, varName, moduleName))
-						bundlerLog.Printf("Keeping simple require: %s at indent %d", moduleName, indent)
-					} else {
-						// Destructured require - merge all names
-						var cleanedImports []string
-						for _, imp := range imports {
-							if !strings.HasPrefix(imp, "VAR:") {
-								cleanedImports = append(cleanedImports, imp)
+					// Separate VAR: prefixed (simple requires) from destructured imports
+					var varNames []string
+					var destructuredNames []string
+					for _, imp := range imports {
+						if strings.HasPrefix(imp, "VAR:") {
+							varNames = append(varNames, strings.TrimPrefix(imp, "VAR:"))
+						} else {
+							destructuredNames = append(destructuredNames, imp)
+						}
+					}
+
+					// Deduplicate variable names for simple requires
+					if len(varNames) > 0 {
+						seen := make(map[string]bool)
+						var uniqueVarNames []string
+						for _, varName := range varNames {
+							if !seen[varName] {
+								seen[varName] = true
+								uniqueVarNames = append(uniqueVarNames, varName)
 							}
 						}
 
-						if len(cleanedImports) > 0 {
-							// Remove duplicates while preserving order
-							seen := make(map[string]bool)
-							var uniqueImports []string
-							for _, imp := range cleanedImports {
-								if !seen[imp] {
-									seen[imp] = true
-									uniqueImports = append(uniqueImports, imp)
-								}
-							}
-
-							result.WriteString(fmt.Sprintf("%sconst { %s } = require(\"%s\");\n",
-								indentStr, strings.Join(uniqueImports, ", "), moduleName))
-							bundlerLog.Printf("Merged destructured require for %s at indent %d: %v", moduleName, indent, uniqueImports)
+						// Write simple require(s) - use the first unique variable name
+						if len(uniqueVarNames) > 0 {
+							varName := uniqueVarNames[0]
+							result.WriteString(fmt.Sprintf("%sconst %s = require(\"%s\");\n", indentStr, varName, moduleName))
+							bundlerLog.Printf("Keeping simple require: %s at indent %d", moduleName, indent)
 						}
+					}
+
+					// Handle destructured imports
+					if len(destructuredNames) > 0 {
+						// Remove duplicates while preserving order
+						seen := make(map[string]bool)
+						var uniqueImports []string
+						for _, imp := range destructuredNames {
+							if !seen[imp] {
+								seen[imp] = true
+								uniqueImports = append(uniqueImports, imp)
+							}
+						}
+
+						result.WriteString(fmt.Sprintf("%sconst { %s } = require(\"%s\");\n",
+							indentStr, strings.Join(uniqueImports, ", "), moduleName))
+						bundlerLog.Printf("Merged destructured require for %s at indent %d: %v", moduleName, indent, uniqueImports)
 					}
 				}
 				wroteRequiresByIndent[indent] = true
