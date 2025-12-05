@@ -7,8 +7,8 @@ sidebar:
 
 import CopyEntireFileButton from '../../../components/CopyEntireFileButton.astro';
 
-GitHub Agentic Workflows provide prompts that turn GitHub Copilot into 
-a powerful workflow authoring tool. This guide explains how to use these prompts to author agentic workflows in natural language.
+GitHub Agentic Workflows provide agents that turn GitHub Copilot into 
+a powerful workflow authoring tool. This guide explains how to use these agents to author agentic workflows in natural language.
 
 ## Quick Start
 
@@ -20,35 +20,35 @@ gh aw init
 
 This creates:
 - `.github/aw/github-agentic-workflows.instructions.md` - Custom Copilot instructions for better workflow authoring
-- `.github/prompts/create-agentic-workflow.prompt.md` - Prompt for the `/create-agentic-workflow` command in Copilot Chat
+- `.github/agents/create-agentic-workflow.agent.md` - Agent for the `/agent create-agentic-workflow` command in Copilot Chat
 
 :::tip[VS Code integration]
 Once initialized, GitHub Copilot will automatically use these instructions when you edit workflow files in VS Code. See [VS Code Integration](/gh-aw/setup/vscode/) for more details.
 :::
 
-## What is the `create-agentic-workflow` prompt?
+## What is the `create-agentic-workflow` agent?
 
-`.github/prompts/create-agentic-workflow.prompt.md` is a prompt file that contains the structure and instructions GitHub Copilot will use to generate a workflow markdown file that the `gh aw` CLI understands. A [prompt file](/gh-aw/reference/glossary/#prompt-files) is a specialized instruction set that customizes AI behavior for specific tasks.
+`.github/agents/create-agentic-workflow.agent.md` is an agent file that contains the structure and instructions GitHub Copilot will use to generate a workflow markdown file that the `gh aw` CLI understands. An [agent file](/gh-aw/reference/glossary/#agent-files) is a specialized instruction set that customizes AI behavior for specific tasks.
 
-Use the prompt when you want to:
+Use the agent when you want to:
 - Draft a new agentic workflow using natural language
 - Iterate on workflow steps with AI assistance inside your editor
 
-The prompt contains specialized instructions and toolset to enable efficient workflow authoring.
+The agent contains specialized instructions and toolset to enable efficient workflow authoring.
 
-## How to use the `create-agentic-workflow` prompt
+## How to use the `create-agentic-workflow` agent
 
-In Visual Studio Code with GitHub Copilot Chat or in Copilot CLI, enter the `/create-agentic-workflow` command:
+In Visual Studio Code with GitHub Copilot Chat or in Copilot CLI, invoke the agent with the `/agent` command:
 
 ```sh wrap
-/create-agentic-workflow
+/agent create-agentic-workflow
 ```
 
 This will start the agentic workflow authoring process with interactive guidance.
 
 ## Other Agents and Chats
 
-The prompt file can be loaded into other AI chat interfaces that support custom instructions. The prompt is designed to be compatible with various AI tools, although some features might require configuration and you'll need to allow running the compiler.
+The agent file can be loaded into other AI chat interfaces that support custom instructions. The agent is designed to be compatible with various AI tools, although some features might require configuration and you'll need to allow running the compiler.
 
 ## Dictating Agentic Workflows
 

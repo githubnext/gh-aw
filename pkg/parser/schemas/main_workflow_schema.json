@@ -107,7 +107,8 @@
                 {
                   "type": "string",
                   "minLength": 1,
-                  "description": "Command name as a string (shorthand format, e.g., 'customname' for '/customname' triggers)"
+                  "pattern": "^[^/]",
+                  "description": "Command name as a string (shorthand format, e.g., 'customname' for '/customname' triggers). Command names must not start with '/' as the slash is automatically added when matching commands."
                 },
                 {
                   "type": "object",
@@ -116,7 +117,8 @@
                     "name": {
                       "type": "string",
                       "minLength": 1,
-                      "description": "Custom command name for slash commands (e.g., 'helper-bot' for '/helper-bot' triggers). Defaults to workflow filename without .md extension if not specified."
+                      "pattern": "^[^/]",
+                      "description": "Custom command name for slash commands (e.g., 'helper-bot' for '/helper-bot' triggers). Command names must not start with '/' as the slash is automatically added when matching commands. Defaults to workflow filename without .md extension if not specified."
                     },
                     "events": {
                       "description": "Events where the command should be active. Default is all comment-related events ('*'). Use GitHub Actions event names.",
@@ -2234,7 +2236,7 @@
           ]
         },
         "bash": {
-          "description": "Bash shell command execution tool for running command-line programs and scripts",
+          "description": "Bash shell command execution tool. Supports wildcards: '*' (all commands), 'command *' (command with any args, e.g., 'date *', 'echo *'). Default safe commands: echo, ls, pwd, cat, head, tail, grep, wc, sort, uniq, date.",
           "oneOf": [
             {
               "type": "null",
@@ -2246,9 +2248,10 @@
             },
             {
               "type": "array",
-              "description": "List of allowed bash commands and patterns (e.g., ['echo', 'ls', 'git status', 'npm install'])",
+              "description": "List of allowed commands and patterns. Wildcards: '*' allows all commands, 'command *' allows command with any args (e.g., 'date *', 'echo *').",
               "items": {
-                "type": "string"
+                "type": "string",
+                "description": "Command or pattern: 'echo' (exact match), 'echo *' (command with any args)"
               }
             }
           ],
@@ -2269,7 +2272,8 @@
               "ls"
             ],
             ["echo", "ls", "cat"],
-            ["gh pr list *", "gh search prs *", "jq *"]
+            ["gh pr list *", "gh search prs *", "jq *"],
+            ["date *", "echo *", "cat", "ls"]
           ]
         },
         "web-fetch": {
@@ -2977,6 +2981,13 @@
                     "type": "string"
                   }
                 },
+                "allowed-labels": {
+                  "type": "array",
+                  "description": "Optional list of allowed labels that can be used when creating issues. If omitted, any labels are allowed (including creating new ones). When specified, the agent can only use labels from this list.",
+                  "items": {
+                    "type": "string"
+                  }
+                },
                 "assignees": {
                   "oneOf": [
                     {
@@ -3126,6 +3137,13 @@
                     "type": "string"
                   },
                   "description": "Optional list of labels to attach to created discussions. Also used for matching when close-older-discussions is enabled - discussions must have ALL specified labels (AND logic)."
+                },
+                "allowed-labels": {
+                  "type": "array",
+                  "description": "Optional list of allowed labels that can be used when creating discussions. If omitted, any labels are allowed (including creating new ones). When specified, the agent can only use labels from this list.",
+                  "items": {
+                    "type": "string"
+                  }
                 },
                 "max": {
                   "type": "integer",
@@ -3412,6 +3430,13 @@
                 "labels": {
                   "type": "array",
                   "description": "Optional list of labels to attach to the pull request",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "allowed-labels": {
+                  "type": "array",
+                  "description": "Optional list of allowed labels that can be used when creating pull requests. If omitted, any labels are allowed (including creating new ones). When specified, the agent can only use labels from this list.",
                   "items": {
                     "type": "string"
                   }

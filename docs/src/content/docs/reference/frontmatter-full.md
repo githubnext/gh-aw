@@ -70,13 +70,16 @@ on:
   command: null
 
   # Option 2: Command name as a string (shorthand format, e.g., 'customname' for
-  # '/customname' triggers)
+  # '/customname' triggers). Command names must not start with '/' as the slash is
+  # automatically added when matching commands.
   command: "example-value"
 
   # Option 3: Command configuration object with custom command name
   command:
     # Custom command name for slash commands (e.g., 'helper-bot' for '/helper-bot'
-    # triggers). Defaults to workflow filename without .md extension if not specified.
+    # triggers). Command names must not start with '/' as the slash is automatically
+    # added when matching commands. Defaults to workflow filename without .md
+    # extension if not specified.
     # (optional)
     name: "My Workflow"
 
@@ -1209,7 +1212,9 @@ tools:
     toolsets: []
       # Array of Toolset name
 
-  # Bash shell command execution tool for running command-line programs and scripts
+  # Bash shell command execution tool. Supports wildcards: '*' (all commands),
+  # 'command *' (command with any args, e.g., 'date *', 'echo *'). Default safe
+  # commands: echo, ls, pwd, cat, head, tail, grep, wc, sort, uniq, date.
   # (optional)
   # This field supports multiple formats (oneOf):
 
@@ -1221,10 +1226,11 @@ tools:
   # false disables the tool
   bash: true
 
-  # Option 3: List of allowed bash commands and patterns (e.g., ['echo', 'ls', 'git
-  # status', 'npm install'])
+  # Option 3: List of allowed commands and patterns. Wildcards: '*' allows all
+  # commands, 'command *' allows command with any args (e.g., 'date *', 'echo *').
   bash: []
-    # Array items: string
+    # Array items: Command or pattern: 'echo' (exact match), 'echo *' (command with
+    # any args)
 
   # Web content fetching tool for downloading web pages and API responses (subject
   # to network permissions)
@@ -1590,6 +1596,13 @@ safe-outputs:
     labels: []
       # Array of strings
 
+    # Optional list of allowed labels that can be used when creating issues. If
+    # omitted, any labels are allowed (including creating new ones). When specified,
+    # the agent can only use labels from this list.
+    # (optional)
+    allowed-labels: []
+      # Array of strings
+
     # (optional)
     # This field supports multiple formats (oneOf):
 
@@ -1704,6 +1717,13 @@ safe-outputs:
     # labels (AND logic).
     # (optional)
     labels: []
+      # Array of strings
+
+    # Optional list of allowed labels that can be used when creating discussions. If
+    # omitted, any labels are allowed (including creating new ones). When specified,
+    # the agent can only use labels from this list.
+    # (optional)
+    allowed-labels: []
       # Array of strings
 
     # Maximum number of discussions to create (default: 1)
@@ -1902,6 +1922,13 @@ safe-outputs:
     # Optional list of labels to attach to the pull request
     # (optional)
     labels: []
+      # Array of strings
+
+    # Optional list of allowed labels that can be used when creating pull requests. If
+    # omitted, any labels are allowed (including creating new ones). When specified,
+    # the agent can only use labels from this list.
+    # (optional)
+    allowed-labels: []
       # Array of strings
 
     # Optional reviewer(s) to assign to the pull request. Accepts either a single
@@ -2600,9 +2627,9 @@ roles: []
 strict: true
 
 # Safe inputs configuration for defining custom lightweight MCP tools as
-# JavaScript or shell scripts. Tools are mounted in an MCP server and have access
-# to secrets specified by the user. Only one of 'script' (JavaScript) or 'run'
-# (shell) must be specified per tool.
+# JavaScript, shell scripts, or Python scripts. Tools are mounted in an MCP server
+# and have access to secrets specified by the user. Only one of 'script'
+# (JavaScript), 'run' (shell), or 'py' (Python) must be specified per tool.
 # (optional)
 safe-inputs:
   {}

@@ -2433,7 +2433,7 @@ jobs:
           EOF
           chmod +x /tmp/gh-aw/safeoutputs/mcp-server.cjs
           
-      - name: Setup Safe Inputs MCP
+      - name: Setup Safe Inputs JavaScript and Config
         run: |
           mkdir -p /tmp/gh-aw/safe-inputs/logs
           cat > /tmp/gh-aw/safe-inputs/read_buffer.cjs << 'EOF_READ_BUFFER'
@@ -3023,23 +3023,7 @@ jobs:
             };
           EOF_CONFIG_LOADER
           cat > /tmp/gh-aw/safe-inputs/safe_inputs_tool_factory.cjs << 'EOF_TOOL_FACTORY'
-            function createJsToolConfig(name, description, inputSchema, handlerPath) {
-              return {
-                name,
-                description,
-                inputSchema,
-                handler: handlerPath,
-              };
-            }
-            function createShellToolConfig(name, description, inputSchema, handlerPath) {
-              return {
-                name,
-                description,
-                inputSchema,
-                handler: handlerPath,
-              };
-            }
-            function createPythonToolConfig(name, description, inputSchema, handlerPath) {
+            function createToolConfig(name, description, inputSchema, handlerPath) {
               return {
                 name,
                 description,
@@ -3048,16 +3032,14 @@ jobs:
               };
             }
             module.exports = {
-              createJsToolConfig,
-              createShellToolConfig,
-              createPythonToolConfig,
+              createToolConfig,
             };
           EOF_TOOL_FACTORY
           cat > /tmp/gh-aw/safe-inputs/safe_inputs_mcp_server.cjs << 'EOF_SAFE_INPUTS_SERVER'
             const path = require("path");
             const { createServer, registerTool, loadToolHandlers, start } = require("./mcp_server_core.cjs");
             const { loadConfig } = require("./safe_inputs_config_loader.cjs");
-            const { createJsToolConfig, createShellToolConfig, createPythonToolConfig } = require("./safe_inputs_tool_factory.cjs");
+            const { createToolConfig } = require("./safe_inputs_tool_factory.cjs");
             function startSafeInputsServer(configPath, options = {}) {
               const config = loadConfig(configPath);
               const basePath = path.dirname(configPath);
@@ -3098,9 +3080,7 @@ jobs:
             module.exports = {
               startSafeInputsServer,
               loadConfig,
-              createJsToolConfig,
-              createShellToolConfig,
-              createPythonToolConfig,
+              createToolConfig,
             };
           EOF_SAFE_INPUTS_SERVER
           cat > /tmp/gh-aw/safe-inputs/tools.json << 'EOF_TOOLS_JSON'
@@ -3195,6 +3175,9 @@ jobs:
             });
           EOFSI
           chmod +x /tmp/gh-aw/safe-inputs/mcp-server.cjs
+          
+      - name: Setup Safe Inputs Tool Files
+        run: |
           cat > /tmp/gh-aw/safe-inputs/github-discussion-query.sh << 'EOFSH_github-discussion-query'
           #!/bin/bash
           # Auto-generated safe-input tool: github-discussion-query
@@ -3490,7 +3473,7 @@ jobs:
           args = [
             "/tmp/gh-aw/safeoutputs/mcp-server.cjs",
           ]
-          env_vars = ["GH_AW_SAFE_OUTPUTS", "GH_AW_ASSETS_BRANCH", "GH_AW_ASSETS_MAX_SIZE_KB", "GH_AW_ASSETS_ALLOWED_EXTS", "GITHUB_REPOSITORY", "GITHUB_SERVER_URL"]
+          env_vars = ["GH_AW_SAFE_OUTPUTS", "GH_AW_ASSETS_BRANCH", "GH_AW_ASSETS_MAX_SIZE_KB", "GH_AW_ASSETS_ALLOWED_EXTS", "GITHUB_REPOSITORY", "GITHUB_SERVER_URL", "GITHUB_SHA", "GITHUB_WORKSPACE", "DEFAULT_BRANCH"]
           EOF
       - name: Generate agentic run info
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
@@ -5979,6 +5962,8 @@ jobs:
                   "Safe Outputs": [],
                   "Safe Inputs": [],
                   "Git/GitHub": [],
+                  Playwright: [],
+                  Serena: [],
                   MCP: [],
                   "Custom Agents": [],
                   Other: [],
@@ -6018,6 +6003,10 @@ jobs:
                     categories["Safe Inputs"].push(toolName);
                   } else if (tool.startsWith("mcp__github__")) {
                     categories["Git/GitHub"].push(formatMcpName(tool));
+                  } else if (tool.startsWith("mcp__playwright__")) {
+                    categories["Playwright"].push(formatMcpName(tool));
+                  } else if (tool.startsWith("mcp__serena__")) {
+                    categories["Serena"].push(formatMcpName(tool));
                   } else if (tool.startsWith("mcp__") || ["ListMcpResourcesTool", "ReadMcpResourceTool"].includes(tool)) {
                     categories["MCP"].push(tool.startsWith("mcp__") ? formatMcpName(tool) : tool);
                   } else if (isLikelyCustomAgent(tool)) {

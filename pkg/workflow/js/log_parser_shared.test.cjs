@@ -536,7 +536,7 @@ describe("log_parser_shared.cjs", () => {
       expect(result.markdown).toContain("Edit");
       expect(result.markdown).toContain("**Git/GitHub:**");
       expect(result.markdown).toContain("github::search_issues");
-      expect(result.markdown).toContain("**MCP:**");
+      expect(result.markdown).toContain("**Playwright:**");
       expect(result.markdown).toContain("playwright::navigate");
       expect(result.markdown).toContain("**Other:**");
       expect(result.markdown).toContain("CustomTool");
@@ -630,10 +630,16 @@ describe("log_parser_shared.cjs", () => {
           // Safe Outputs
           "safeoutputs-create_discussion",
           "safeoutputs-noop",
+          // Safe Inputs
+          "safeinputs-get_data",
           // Git/GitHub
           "mcp__github__search_issues",
-          // MCP
+          // Playwright
           "mcp__playwright__navigate",
+          // Serena
+          "mcp__serena__replace_symbol_body",
+          // MCP (other)
+          "mcp__other__tool",
           // Custom Agents
           "add-safe-output-type",
           "technical-doc-writer",
@@ -649,7 +655,10 @@ describe("log_parser_shared.cjs", () => {
       expect(result.markdown).toContain("**File Operations:**");
       expect(result.markdown).toContain("**Builtin:**");
       expect(result.markdown).toContain("**Safe Outputs:**");
+      expect(result.markdown).toContain("**Safe Inputs:**");
       expect(result.markdown).toContain("**Git/GitHub:**");
+      expect(result.markdown).toContain("**Playwright:**");
+      expect(result.markdown).toContain("**Serena:**");
       expect(result.markdown).toContain("**MCP:**");
       expect(result.markdown).toContain("**Custom Agents:**");
       expect(result.markdown).toContain("**Other:**");
@@ -658,6 +667,8 @@ describe("log_parser_shared.cjs", () => {
       expect(result.markdown).toContain("Bash");
       expect(result.markdown).toContain("github::search_issues");
       expect(result.markdown).toContain("playwright::navigate");
+      expect(result.markdown).toContain("serena::replace_symbol_body");
+      expect(result.markdown).toContain("other::tool");
     });
 
     it("should format MCP servers status", async () => {
@@ -752,6 +763,59 @@ describe("log_parser_shared.cjs", () => {
       });
 
       expect(result.markdown).not.toContain("Slash Commands");
+    });
+
+    it("should categorize playwright tools separately", async () => {
+      const { formatInitializationSummary } = await import("./log_parser_shared.cjs");
+
+      const initEntry = {
+        tools: ["mcp__playwright__navigate", "mcp__playwright__click", "mcp__playwright__snapshot", "mcp__playwright__take_screenshot"],
+      };
+
+      const result = formatInitializationSummary(initEntry);
+
+      expect(result.markdown).toContain("**Playwright:**");
+      expect(result.markdown).toContain("playwright::navigate");
+      expect(result.markdown).toContain("playwright::click");
+      expect(result.markdown).toContain("playwright::snapshot");
+      expect(result.markdown).toContain("playwright::take_screenshot");
+      // Should NOT be in the generic MCP category
+      expect(result.markdown).not.toMatch(/\*\*MCP:\*\*.*playwright/s);
+    });
+
+    it("should categorize serena tools separately", async () => {
+      const { formatInitializationSummary } = await import("./log_parser_shared.cjs");
+
+      const initEntry = {
+        tools: ["mcp__serena__replace_symbol_body", "mcp__serena__insert_after_symbol", "mcp__serena__list_symbols"],
+      };
+
+      const result = formatInitializationSummary(initEntry);
+
+      expect(result.markdown).toContain("**Serena:**");
+      expect(result.markdown).toContain("serena::replace_symbol_body");
+      expect(result.markdown).toContain("serena::insert_after_symbol");
+      expect(result.markdown).toContain("serena::list_symbols");
+      // Should NOT be in the generic MCP category
+      expect(result.markdown).not.toMatch(/\*\*MCP:\*\*.*serena/s);
+    });
+
+    it("should categorize safeinputs tools separately", async () => {
+      const { formatInitializationSummary } = await import("./log_parser_shared.cjs");
+
+      const initEntry = {
+        tools: ["safeinputs-get_data", "safeinputs-query_database", "safe_inputs-fetch_config"],
+      };
+
+      const result = formatInitializationSummary(initEntry);
+
+      expect(result.markdown).toContain("**Safe Inputs:**");
+      expect(result.markdown).toContain("get_data");
+      expect(result.markdown).toContain("query_database");
+      expect(result.markdown).toContain("fetch_config");
+      // Should NOT contain the prefix in output
+      expect(result.markdown).not.toContain("safeinputs-");
+      expect(result.markdown).not.toContain("safe_inputs-");
     });
   });
 

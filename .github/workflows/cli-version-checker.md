@@ -24,7 +24,7 @@ safe-outputs:
   create-issue:
     title-prefix: "[ca] "
     labels: [automation, dependencies]
-timeout-minutes: 15
+timeout-minutes: 45
 ---
 
 # CLI Version Checker

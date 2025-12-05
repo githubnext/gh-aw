@@ -14,6 +14,7 @@ type CreateDiscussionsConfig struct {
 	TitlePrefix           string   `yaml:"title-prefix,omitempty"`
 	Category              string   `yaml:"category,omitempty"`                // Discussion category ID or name
 	Labels                []string `yaml:"labels,omitempty"`                  // Labels to attach to discussions and match when closing older ones
+	AllowedLabels         []string `yaml:"allowed-labels,omitempty"`          // Optional list of allowed labels. If omitted, any labels are allowed (including creating new ones).
 	TargetRepoSlug        string   `yaml:"target-repo,omitempty"`             // Target repository in format "owner/repo" for cross-repository discussions
 	AllowedRepos          []string `yaml:"allowed-repos,omitempty"`           // List of additional repositories that discussions can be created in
 	CloseOlderDiscussions bool     `yaml:"close-older-discussions,omitempty"` // When true, close older discussions with same title prefix or labels as outdated
@@ -51,6 +52,12 @@ func (c *Compiler) parseDiscussionsConfig(outputMap map[string]any) *CreateDiscu
 			discussionsConfig.Labels = parseLabelsFromConfig(configMap)
 			if len(discussionsConfig.Labels) > 0 {
 				discussionLog.Printf("Labels configured: %v", discussionsConfig.Labels)
+			}
+
+			// Parse allowed-labels using shared helper
+			discussionsConfig.AllowedLabels = parseAllowedLabelsFromConfig(configMap)
+			if len(discussionsConfig.AllowedLabels) > 0 {
+				discussionLog.Printf("Allowed labels configured: %v", discussionsConfig.AllowedLabels)
 			}
 
 			// Parse target-repo using shared helper with validation
@@ -107,6 +114,7 @@ func (c *Compiler) buildCreateOutputDiscussionJob(data *WorkflowData, mainJobNam
 	customEnvVars = append(customEnvVars, buildTitlePrefixEnvVar("GH_AW_DISCUSSION_TITLE_PREFIX", data.SafeOutputs.CreateDiscussions.TitlePrefix)...)
 	customEnvVars = append(customEnvVars, buildCategoryEnvVar("GH_AW_DISCUSSION_CATEGORY", data.SafeOutputs.CreateDiscussions.Category)...)
 	customEnvVars = append(customEnvVars, buildLabelsEnvVar("GH_AW_DISCUSSION_LABELS", data.SafeOutputs.CreateDiscussions.Labels)...)
+	customEnvVars = append(customEnvVars, buildLabelsEnvVar("GH_AW_DISCUSSION_ALLOWED_LABELS", data.SafeOutputs.CreateDiscussions.AllowedLabels)...)
 	customEnvVars = append(customEnvVars, buildAllowedReposEnvVar("GH_AW_ALLOWED_REPOS", data.SafeOutputs.CreateDiscussions.AllowedRepos)...)
 
 	// Add close-older-discussions flag if enabled

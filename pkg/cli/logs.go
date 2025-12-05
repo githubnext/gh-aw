@@ -559,178 +559,195 @@ func DownloadWorkflowLogs(workflowName string, count int, startDate, endDate, ou
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Found %d workflow runs in batch %d", len(runs), iteration)))
 		}
 
-		// Process each run in this batch
+		// Process runs in chunks so cache hits can satisfy the count without
+		// forcing us to scan the entire batch.
 		batchProcessed := 0
-		// Always limit downloads to remaining count needed to avoid downloading extras
-		maxDownloads := count - len(processedRuns)
-		if maxDownloads <= 0 {
-			// Already have enough processed runs, stop downloading
-			break
-		}
-		downloadResults := downloadRunArtifactsConcurrent(runs, outputDir, verbose, maxDownloads)
-
-		for _, result := range downloadResults {
-			if result.Skipped {
-				if verbose {
-					if result.Error != nil {
-						fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Skipping run %d: %v", result.Run.DatabaseID, result.Error)))
-					}
-				}
-				continue
+		runsRemaining := runs
+		for len(runsRemaining) > 0 && len(processedRuns) < count {
+			remainingNeeded := count - len(processedRuns)
+			if remainingNeeded <= 0 {
+				break
 			}
 
-			if result.Error != nil {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to download artifacts for run %d: %v", result.Run.DatabaseID, result.Error)))
-				continue
+			// Process slightly more than we need to account for skips due to filters.
+			chunkSize := remainingNeeded * 3
+			if chunkSize < remainingNeeded {
+				chunkSize = remainingNeeded
+			}
+			if chunkSize > len(runsRemaining) {
+				chunkSize = len(runsRemaining)
 			}
 
-			// Parse aw_info.json once for all filters that need it (optimization)
-			var awInfo *AwInfo
-			var awInfoErr error
-			awInfoPath := filepath.Join(result.LogsPath, "aw_info.json")
+			chunk := runsRemaining[:chunkSize]
+			runsRemaining = runsRemaining[chunkSize:]
 
-			// Only parse if we need it for any filter
-			if engine != "" || noStaged || firewallOnly || noFirewall {
-				awInfo, awInfoErr = parseAwInfo(awInfoPath, verbose)
-			}
+			downloadResults := downloadRunArtifactsConcurrent(chunk, outputDir, verbose, remainingNeeded)
 
-			// Apply engine filtering if specified
-			if engine != "" {
-				// Check if the run's engine matches the filter
-				detectedEngine := extractEngineFromAwInfo(awInfoPath, verbose)
-
-				var engineMatches bool
-				if detectedEngine != nil {
-					// Get the engine ID to compare with the filter
-					registry := workflow.GetGlobalEngineRegistry()
-					for _, supportedEngine := range constants.AgenticEngines {
-						if testEngine, err := registry.GetEngine(supportedEngine); err == nil && testEngine == detectedEngine {
-							engineMatches = (supportedEngine == engine)
-							break
+			for _, result := range downloadResults {
+				if result.Skipped {
+					if verbose {
+						if result.Error != nil {
+							fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Skipping run %d: %v", result.Run.DatabaseID, result.Error)))
 						}
 					}
+					continue
 				}
 
-				if !engineMatches {
-					if verbose {
-						engineName := "unknown"
-						if detectedEngine != nil {
-							// Try to get a readable name for the detected engine
-							registry := workflow.GetGlobalEngineRegistry()
-							for _, supportedEngine := range constants.AgenticEngines {
-								if testEngine, err := registry.GetEngine(supportedEngine); err == nil && testEngine == detectedEngine {
-									engineName = supportedEngine
-									break
-								}
+				if result.Error != nil {
+					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to download artifacts for run %d: %v", result.Run.DatabaseID, result.Error)))
+					continue
+				}
+
+				// Parse aw_info.json once for all filters that need it (optimization)
+				var awInfo *AwInfo
+				var awInfoErr error
+				awInfoPath := filepath.Join(result.LogsPath, "aw_info.json")
+
+				// Only parse if we need it for any filter
+				if engine != "" || noStaged || firewallOnly || noFirewall {
+					awInfo, awInfoErr = parseAwInfo(awInfoPath, verbose)
+				}
+
+				// Apply engine filtering if specified
+				if engine != "" {
+					// Check if the run's engine matches the filter
+					detectedEngine := extractEngineFromAwInfo(awInfoPath, verbose)
+
+					var engineMatches bool
+					if detectedEngine != nil {
+						// Get the engine ID to compare with the filter
+						registry := workflow.GetGlobalEngineRegistry()
+						for _, supportedEngine := range constants.AgenticEngines {
+							if testEngine, err := registry.GetEngine(supportedEngine); err == nil && testEngine == detectedEngine {
+								engineMatches = (supportedEngine == engine)
+								break
 							}
 						}
-						fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Skipping run %d: engine '%s' does not match filter '%s'", result.Run.DatabaseID, engineName, engine)))
 					}
-					continue
-				}
-			}
 
-			// Apply staged filtering if --no-staged flag is specified
-			if noStaged {
-				var isStaged bool
-				if awInfoErr == nil && awInfo != nil {
-					isStaged = awInfo.Staged
-				}
-
-				if isStaged {
-					if verbose {
-						fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Skipping run %d: workflow is staged (filtered out by --no-staged)", result.Run.DatabaseID)))
-					}
-					continue
-				}
-			}
-
-			// Apply firewall filtering if --firewall or --no-firewall flag is specified
-			if firewallOnly || noFirewall {
-				var hasFirewall bool
-				if awInfoErr == nil && awInfo != nil {
-					// Firewall is enabled if steps.firewall is non-empty (e.g., "squid")
-					hasFirewall = awInfo.Steps.Firewall != ""
-				}
-
-				// Check if the run matches the filter
-				if firewallOnly && !hasFirewall {
-					if verbose {
-						fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Skipping run %d: workflow does not use firewall (filtered by --firewall)", result.Run.DatabaseID)))
-					}
-					continue
-				}
-				if noFirewall && hasFirewall {
-					if verbose {
-						fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Skipping run %d: workflow uses firewall (filtered by --no-firewall)", result.Run.DatabaseID)))
-					}
-					continue
-				}
-			}
-
-			// Update run with metrics and path
-			run := result.Run
-			run.TokenUsage = result.Metrics.TokenUsage
-			run.EstimatedCost = result.Metrics.EstimatedCost
-			run.Turns = result.Metrics.Turns
-			run.ErrorCount = workflow.CountErrors(result.Metrics.Errors)
-			run.WarningCount = workflow.CountWarnings(result.Metrics.Errors)
-			run.LogsPath = result.LogsPath
-
-			// Add failed jobs to error count
-			if failedJobCount, err := fetchJobStatuses(run.DatabaseID, verbose); err == nil {
-				run.ErrorCount += failedJobCount
-				if verbose && failedJobCount > 0 {
-					fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Added %d failed jobs to error count for run %d", failedJobCount, run.DatabaseID)))
-				}
-			}
-
-			// Store access analysis for later display (we'll access it via the result)
-			// No need to modify the WorkflowRun struct for this
-
-			// Always use GitHub API timestamps for duration calculation
-			if !run.StartedAt.IsZero() && !run.UpdatedAt.IsZero() {
-				run.Duration = run.UpdatedAt.Sub(run.StartedAt)
-			}
-
-			processedRun := ProcessedRun{
-				Run:                     run,
-				AccessAnalysis:          result.AccessAnalysis,
-				FirewallAnalysis:        result.FirewallAnalysis,
-				RedactedDomainsAnalysis: result.RedactedDomainsAnalysis,
-				MissingTools:            result.MissingTools,
-				Noops:                   result.Noops,
-				MCPFailures:             result.MCPFailures,
-				JobDetails:              result.JobDetails,
-			}
-			processedRuns = append(processedRuns, processedRun)
-			batchProcessed++
-
-			// If --parse flag is set, parse the agent log and write to log.md
-			if parse {
-				// Get the engine from aw_info.json
-				awInfoPath := filepath.Join(result.LogsPath, "aw_info.json")
-				detectedEngine := extractEngineFromAwInfo(awInfoPath, verbose)
-
-				if err := parseAgentLog(result.LogsPath, detectedEngine, verbose); err != nil {
-					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to parse log for run %d: %v", run.DatabaseID, err)))
-				} else {
-					// Always show success message for parsing, not just in verbose mode
-					logMdPath := filepath.Join(result.LogsPath, "log.md")
-					if _, err := os.Stat(logMdPath); err == nil {
-						fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("✓ Parsed log for run %d → %s", run.DatabaseID, logMdPath)))
+					if !engineMatches {
+						if verbose {
+							engineName := "unknown"
+							if detectedEngine != nil {
+								// Try to get a readable name for the detected engine
+								registry := workflow.GetGlobalEngineRegistry()
+								for _, supportedEngine := range constants.AgenticEngines {
+									if testEngine, err := registry.GetEngine(supportedEngine); err == nil && testEngine == detectedEngine {
+										engineName = supportedEngine
+										break
+									}
+								}
+							}
+							fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Skipping run %d: engine '%s' does not match filter '%s'", result.Run.DatabaseID, engineName, engine)))
+						}
+						continue
 					}
 				}
 
-				// Also parse firewall logs if they exist
-				if err := parseFirewallLogs(result.LogsPath, verbose); err != nil {
-					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to parse firewall logs for run %d: %v", run.DatabaseID, err)))
-				} else {
-					// Show success message if firewall.md was created
-					firewallMdPath := filepath.Join(result.LogsPath, "firewall.md")
-					if _, err := os.Stat(firewallMdPath); err == nil {
-						fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("✓ Parsed firewall logs for run %d → %s", run.DatabaseID, firewallMdPath)))
+				// Apply staged filtering if --no-staged flag is specified
+				if noStaged {
+					var isStaged bool
+					if awInfoErr == nil && awInfo != nil {
+						isStaged = awInfo.Staged
 					}
+
+					if isStaged {
+						if verbose {
+							fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Skipping run %d: workflow is staged (filtered out by --no-staged)", result.Run.DatabaseID)))
+						}
+						continue
+					}
+				}
+
+				// Apply firewall filtering if --firewall or --no-firewall flag is specified
+				if firewallOnly || noFirewall {
+					var hasFirewall bool
+					if awInfoErr == nil && awInfo != nil {
+						// Firewall is enabled if steps.firewall is non-empty (e.g., "squid")
+						hasFirewall = awInfo.Steps.Firewall != ""
+					}
+
+					// Check if the run matches the filter
+					if firewallOnly && !hasFirewall {
+						if verbose {
+							fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Skipping run %d: workflow does not use firewall (filtered by --firewall)", result.Run.DatabaseID)))
+						}
+						continue
+					}
+					if noFirewall && hasFirewall {
+						if verbose {
+							fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Skipping run %d: workflow uses firewall (filtered by --no-firewall)", result.Run.DatabaseID)))
+						}
+						continue
+					}
+				}
+
+				// Update run with metrics and path
+				run := result.Run
+				run.TokenUsage = result.Metrics.TokenUsage
+				run.EstimatedCost = result.Metrics.EstimatedCost
+				run.Turns = result.Metrics.Turns
+				run.ErrorCount = workflow.CountErrors(result.Metrics.Errors)
+				run.WarningCount = workflow.CountWarnings(result.Metrics.Errors)
+				run.LogsPath = result.LogsPath
+
+				// Add failed jobs to error count
+				if failedJobCount, err := fetchJobStatuses(run.DatabaseID, verbose); err == nil {
+					run.ErrorCount += failedJobCount
+					if verbose && failedJobCount > 0 {
+						fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Added %d failed jobs to error count for run %d", failedJobCount, run.DatabaseID)))
+					}
+				}
+
+				// Always use GitHub API timestamps for duration calculation
+				if !run.StartedAt.IsZero() && !run.UpdatedAt.IsZero() {
+					run.Duration = run.UpdatedAt.Sub(run.StartedAt)
+				}
+
+				processedRun := ProcessedRun{
+					Run:                     run,
+					AccessAnalysis:          result.AccessAnalysis,
+					FirewallAnalysis:        result.FirewallAnalysis,
+					RedactedDomainsAnalysis: result.RedactedDomainsAnalysis,
+					MissingTools:            result.MissingTools,
+					Noops:                   result.Noops,
+					MCPFailures:             result.MCPFailures,
+					JobDetails:              result.JobDetails,
+				}
+				processedRuns = append(processedRuns, processedRun)
+				batchProcessed++
+
+				// If --parse flag is set, parse the agent log and write to log.md
+				if parse {
+					// Get the engine from aw_info.json
+					awInfoPath := filepath.Join(result.LogsPath, "aw_info.json")
+					detectedEngine := extractEngineFromAwInfo(awInfoPath, verbose)
+
+					if err := parseAgentLog(result.LogsPath, detectedEngine, verbose); err != nil {
+						fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to parse log for run %d: %v", run.DatabaseID, err)))
+					} else {
+						// Always show success message for parsing, not just in verbose mode
+						logMdPath := filepath.Join(result.LogsPath, "log.md")
+						if _, err := os.Stat(logMdPath); err == nil {
+							fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("✓ Parsed log for run %d → %s", run.DatabaseID, logMdPath)))
+						}
+					}
+
+					// Also parse firewall logs if they exist
+					if err := parseFirewallLogs(result.LogsPath, verbose); err != nil {
+						fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to parse firewall logs for run %d: %v", run.DatabaseID, err)))
+					} else {
+						// Show success message if firewall.md was created
+						firewallMdPath := filepath.Join(result.LogsPath, "firewall.md")
+						if _, err := os.Stat(firewallMdPath); err == nil {
+							fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("✓ Parsed firewall logs for run %d → %s", run.DatabaseID, firewallMdPath)))
+						}
+					}
+				}
+
+				// Stop processing this batch once we've collected enough runs.
+				if len(processedRuns) >= count {
+					break
 				}
 			}
 		}
@@ -743,8 +760,8 @@ func DownloadWorkflowLogs(workflowName string, count int, startDate, endDate, ou
 			}
 		}
 
-		// Prepare for next iteration: set beforeDate to the oldest run from this batch
-		if len(runs) > 0 {
+		// Prepare for next iteration: set beforeDate to the oldest processed run from this batch
+		if len(runs) > 0 && len(runsRemaining) == 0 {
 			oldestRun := runs[len(runs)-1] // runs are typically ordered by creation date descending
 			beforeDate = oldestRun.CreatedAt.Format(time.RFC3339)
 		}
@@ -847,12 +864,16 @@ func downloadRunArtifactsConcurrent(runs []WorkflowRun, outputDir string, verbos
 		return []DownloadResult{}
 	}
 
-	// Limit the number of runs to process if maxRuns is specified
+	// Process all runs in the batch to account for caching and filtering
+	// The maxRuns parameter indicates how many successful results we need, but we may need to
+	// process more runs to account for:
+	// 1. Cached runs that may fail filters (engine, firewall, etc.)
+	// 2. Runs that may be skipped due to errors
+	// 3. Runs without artifacts
+	//
+	// By processing all runs in the batch, we ensure that the count parameter correctly
+	// reflects the number of matching logs (both downloaded and cached), not just attempts.
 	actualRuns := runs
-	if maxRuns > 0 && len(runs) > maxRuns {
-		logsLog.Printf("Limiting concurrent downloads: maxRuns=%d, totalRuns=%d", maxRuns, len(runs))
-		actualRuns = runs[:maxRuns]
-	}
 
 	totalRuns := len(actualRuns)
 

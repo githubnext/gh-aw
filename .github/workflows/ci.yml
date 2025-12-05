@@ -69,6 +69,9 @@ jobs:
           - name: "CLI MCP Playwright"
             packages: "./pkg/cli"
             pattern: "TestMCPInspectPlaywright"
+          - name: "CLI MCP Gateway"
+            packages: "./pkg/cli"
+            pattern: "TestMCPGateway"
           - name: "CLI MCP Other"
             packages: "./pkg/cli"
             pattern: "TestMCPAdd|TestMCPInspectGitHub|TestMCPServer|TestMCPConfig"
@@ -360,3 +363,56 @@ jobs:
 
       - name: Run ${{ matrix.tool.name }} security scan on poem workflow
         run: ./gh-aw compile poem-bot ${{ matrix.tool.flag }}
+
+  logs-token-check:
+    needs: [test]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    concurrency:
+      group: ci-${{ github.ref }}-logs-token-check
+      cancel-in-progress: true
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Set up Go
+        id: setup-go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Report Go cache status
+        run: |
+          if [ "${{ steps.setup-go.outputs.cache-hit }}" == "true" ]; then
+            echo "✅ Go cache hit" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ Go cache miss" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Build gh-aw
+        run: make build
+
+      - name: Run logs command with JSON output
+        id: logs_check
+        run: |
+          # Run the logs command and capture output
+          ./gh-aw logs -c 2 --engine copilot --json > logs_output.json 2>&1 || true
+          
+          # Display the output for debugging
+          echo "Logs command output:"
+          cat logs_output.json
+          
+          # Check if token count is found in the JSON output
+          if jq -e '.summary.total_tokens' logs_output.json > /dev/null 2>&1; then
+            TOKEN_COUNT=$(jq '.summary.total_tokens' logs_output.json)
+            echo "✅ Token count found: $TOKEN_COUNT" >> $GITHUB_STEP_SUMMARY
+            echo "token_count=$TOKEN_COUNT" >> $GITHUB_OUTPUT
+            exit 0
+          else
+            echo "❌ Token count not found in JSON output" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

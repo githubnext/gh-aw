@@ -381,7 +381,7 @@ jobs:
           which awf
           awf --version
       - name: Install GitHub Copilot CLI
-        run: npm install -g @github/copilot@0.0.365
+        run: npm install -g @github/copilot@0.0.366
       - name: Downloading container images
         run: |
           set -e
@@ -1622,7 +1622,7 @@ jobs:
           EOF
           chmod +x /tmp/gh-aw/safeoutputs/mcp-server.cjs
           
-      - name: Setup Safe Inputs MCP
+      - name: Setup Safe Inputs JavaScript and Config
         run: |
           mkdir -p /tmp/gh-aw/safe-inputs/logs
           cat > /tmp/gh-aw/safe-inputs/read_buffer.cjs << 'EOF_READ_BUFFER'
@@ -2212,23 +2212,7 @@ jobs:
             };
           EOF_CONFIG_LOADER
           cat > /tmp/gh-aw/safe-inputs/safe_inputs_tool_factory.cjs << 'EOF_TOOL_FACTORY'
-            function createJsToolConfig(name, description, inputSchema, handlerPath) {
-              return {
-                name,
-                description,
-                inputSchema,
-                handler: handlerPath,
-              };
-            }
-            function createShellToolConfig(name, description, inputSchema, handlerPath) {
-              return {
-                name,
-                description,
-                inputSchema,
-                handler: handlerPath,
-              };
-            }
-            function createPythonToolConfig(name, description, inputSchema, handlerPath) {
+            function createToolConfig(name, description, inputSchema, handlerPath) {
               return {
                 name,
                 description,
@@ -2237,16 +2221,14 @@ jobs:
               };
             }
             module.exports = {
-              createJsToolConfig,
-              createShellToolConfig,
-              createPythonToolConfig,
+              createToolConfig,
             };
           EOF_TOOL_FACTORY
           cat > /tmp/gh-aw/safe-inputs/safe_inputs_mcp_server.cjs << 'EOF_SAFE_INPUTS_SERVER'
             const path = require("path");
             const { createServer, registerTool, loadToolHandlers, start } = require("./mcp_server_core.cjs");
             const { loadConfig } = require("./safe_inputs_config_loader.cjs");
-            const { createJsToolConfig, createShellToolConfig, createPythonToolConfig } = require("./safe_inputs_tool_factory.cjs");
+            const { createToolConfig } = require("./safe_inputs_tool_factory.cjs");
             function startSafeInputsServer(configPath, options = {}) {
               const config = loadConfig(configPath);
               const basePath = path.dirname(configPath);
@@ -2287,9 +2269,7 @@ jobs:
             module.exports = {
               startSafeInputsServer,
               loadConfig,
-              createJsToolConfig,
-              createShellToolConfig,
-              createPythonToolConfig,
+              createToolConfig,
             };
           EOF_SAFE_INPUTS_SERVER
           cat > /tmp/gh-aw/safe-inputs/tools.json << 'EOF_TOOLS_JSON'
@@ -2344,6 +2324,9 @@ jobs:
             });
           EOFSI
           chmod +x /tmp/gh-aw/safe-inputs/mcp-server.cjs
+          
+      - name: Setup Safe Inputs Tool Files
+        run: |
           cat > /tmp/gh-aw/safe-inputs/analyze-numbers.py << 'EOFPY_analyze-numbers'
           #!/usr/bin/env python3
           # Auto-generated safe-input tool: analyze-numbers
@@ -2482,7 +2465,10 @@ jobs:
                   "GH_AW_ASSETS_MAX_SIZE_KB": "\${GH_AW_ASSETS_MAX_SIZE_KB}",
                   "GH_AW_ASSETS_ALLOWED_EXTS": "\${GH_AW_ASSETS_ALLOWED_EXTS}",
                   "GITHUB_REPOSITORY": "\${GITHUB_REPOSITORY}",
-                  "GITHUB_SERVER_URL": "\${GITHUB_SERVER_URL}"
+                  "GITHUB_SERVER_URL": "\${GITHUB_SERVER_URL}",
+                  "GITHUB_SHA": "\${GITHUB_SHA}",
+                  "GITHUB_WORKSPACE": "\${GITHUB_WORKSPACE}",
+                  "DEFAULT_BRANCH": "\${DEFAULT_BRANCH}"
                 }
               }
             }
@@ -2506,7 +2492,7 @@ jobs:
               engine_name: "GitHub Copilot CLI",
               model: "",
               version: "",
-              agent_version: "0.0.365",
+              agent_version: "0.0.366",
               workflow_name: "Python Safe-Input Test Workflow",
               experimental: false,
               supports_tools_allowlist: true,
@@ -2812,8 +2798,8 @@ jobs:
         timeout-minutes: 5
         run: |
           set -o pipefail
-          sudo -E awf --env-all --container-workdir "${GITHUB_WORKSPACE}" --mount /tmp:/tmp:rw --mount "${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:rw" --mount "${GITHUB_WORKSPACE}/.github:/workspace/.github:rw" --allow-domains api.enterprise.githubcopilot.com,api.github.com,github.com,raw.githubusercontent.com,registry.npmjs.org --log-level info --proxy-logs-dir /tmp/gh-aw/sandbox/firewall/logs \
-            -- npx -y @github/copilot@0.0.365 --add-dir /tmp/gh-aw/ --log-level all --log-dir /tmp/gh-aw/sandbox/agent/logs/ --add-dir "${GITHUB_WORKSPACE}" --disable-builtin-mcps --allow-tool github --allow-tool safeinputs --allow-tool safeoutputs --prompt "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)" \
+          sudo -E awf --env-all --container-workdir "${GITHUB_WORKSPACE}" --mount /tmp:/tmp:rw --mount "${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:rw" --mount /usr/bin/gh:/usr/bin/gh:ro --allow-domains api.enterprise.githubcopilot.com,api.github.com,github.com,raw.githubusercontent.com,registry.npmjs.org --log-level info --proxy-logs-dir /tmp/gh-aw/sandbox/firewall/logs \
+            -- npx -y @github/copilot@0.0.366 --add-dir /tmp/gh-aw/ --log-level all --log-dir /tmp/gh-aw/sandbox/agent/logs/ --add-dir "${GITHUB_WORKSPACE}" --disable-builtin-mcps --allow-tool github --allow-tool safeinputs --allow-tool safeoutputs --prompt "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)" \
             2>&1 | tee /tmp/gh-aw/agent-stdio.log
         env:
           COPILOT_AGENT_RUNNER_TYPE: STANDALONE
@@ -4215,6 +4201,8 @@ jobs:
                   "Safe Outputs": [],
                   "Safe Inputs": [],
                   "Git/GitHub": [],
+                  Playwright: [],
+                  Serena: [],
                   MCP: [],
                   "Custom Agents": [],
                   Other: [],
@@ -4254,6 +4242,10 @@ jobs:
                     categories["Safe Inputs"].push(toolName);
                   } else if (tool.startsWith("mcp__github__")) {
                     categories["Git/GitHub"].push(formatMcpName(tool));
+                  } else if (tool.startsWith("mcp__playwright__")) {
+                    categories["Playwright"].push(formatMcpName(tool));
+                  } else if (tool.startsWith("mcp__serena__")) {
+                    categories["Serena"].push(formatMcpName(tool));
                   } else if (tool.startsWith("mcp__") || ["ListMcpResourcesTool", "ReadMcpResourceTool"].includes(tool)) {
                     categories["MCP"].push(tool.startsWith("mcp__") ? formatMcpName(tool) : tool);
                   } else if (isLikelyCustomAgent(tool)) {
@@ -6950,7 +6942,7 @@ jobs:
           node-version: '24'
           package-manager-cache: false
       - name: Install GitHub Copilot CLI
-        run: npm install -g @github/copilot@0.0.365
+        run: npm install -g @github/copilot@0.0.366
       - name: Execute GitHub Copilot CLI
         id: agentic_execution
         # Copilot CLI tool arguments (sorted):

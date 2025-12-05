@@ -41,10 +41,6 @@ gh aw compile
 
 # Compile a specific workflow by name (without .md extension)
 gh aw compile my-workflow
-
-# Using the standalone binary (after installing with bash script)
-./gh-aw compile
-./gh-aw compile my-workflow
 ```
 
 **Compilation Process:**
@@ -70,7 +66,7 @@ gh aw compile --poutine     # Supply chain security analyzer
 gh aw compile --strict --actionlint --zizmor --poutine
 ```
 
-**Best Practice**: Always run `gh aw compile` (or `./gh-aw compile`) after every workflow change to ensure the GitHub Actions YAML is up to date.
+**Best Practice**: Always run `gh aw compile` after every workflow change to ensure the GitHub Actions YAML is up to date.
 
 ## Complete Frontmatter Schema
 

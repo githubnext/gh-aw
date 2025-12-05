@@ -277,7 +277,8 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 
 	// Write safe-inputs MCP server if configured and feature flag is enabled
 	if IsSafeInputsEnabled(workflowData.SafeInputs, workflowData) {
-		yaml.WriteString("      - name: Setup Safe Inputs MCP\n")
+		// Step 1: Write JavaScript and config files
+		yaml.WriteString("      - name: Setup Safe Inputs JavaScript and Config\n")
 		yaml.WriteString("        run: |\n")
 		yaml.WriteString("          mkdir -p /tmp/gh-aw/safe-inputs/logs\n")
 
@@ -343,6 +344,11 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		}
 		yaml.WriteString("          EOFSI\n")
 		yaml.WriteString("          chmod +x /tmp/gh-aw/safe-inputs/mcp-server.cjs\n")
+		yaml.WriteString("          \n")
+
+		// Step 2: Generate tool files (js/py/sh)
+		yaml.WriteString("      - name: Setup Safe Inputs Tool Files\n")
+		yaml.WriteString("        run: |\n")
 
 		// Generate individual tool files (sorted by name for stable code generation)
 		safeInputToolNames := make([]string, 0, len(workflowData.SafeInputs.Tools))

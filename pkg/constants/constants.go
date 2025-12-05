@@ -26,11 +26,11 @@ const ExpressionBreakThreshold LineLength = 100
 const DefaultMCPRegistryURL = "https://api.mcp.github.com/v0"
 
 // DefaultClaudeCodeVersion is the default version of the Claude Code CLI
-const DefaultClaudeCodeVersion Version = "2.0.57"
+const DefaultClaudeCodeVersion Version = "2.0.58"
 
 // DefaultCopilotVersion is the default version of the GitHub Copilot CLI
 // WARNING: UPGRADING COPILOT CLI REQUIRES A FULL INTEGRATION TEST RUN TO ENSURE COMPATIBILITY
-const DefaultCopilotVersion Version = "0.0.365"
+const DefaultCopilotVersion Version = "0.0.366"
 
 // DefaultCopilotDetectionModel is the default model for the Copilot engine when used in the detection job
 const DefaultCopilotDetectionModel = "gpt-5-mini"
@@ -70,6 +70,9 @@ const DefaultJavaVersion Version = "21"
 
 // DefaultElixirVersion is the default version of Elixir for runtime setup
 const DefaultElixirVersion Version = "1.17"
+
+// DefaultGoVersion is the default version of Go for runtime setup
+const DefaultGoVersion Version = "1.25"
 
 // DefaultHaskellVersion is the default version of GHC for runtime setup
 const DefaultHaskellVersion Version = "9.10"

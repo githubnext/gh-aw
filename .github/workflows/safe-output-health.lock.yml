@@ -857,7 +857,7 @@ jobs:
           node-version: '24'
           package-manager-cache: false
       - name: Install Claude Code CLI
-        run: npm install -g @anthropic-ai/claude-code@2.0.57
+        run: npm install -g @anthropic-ai/claude-code@2.0.58
       - name: Generate Claude Settings
         run: |
           mkdir -p /tmp/gh-aw/.claude
@@ -2226,7 +2226,10 @@ jobs:
                   "GH_AW_ASSETS_MAX_SIZE_KB": "$GH_AW_ASSETS_MAX_SIZE_KB",
                   "GH_AW_ASSETS_ALLOWED_EXTS": "$GH_AW_ASSETS_ALLOWED_EXTS",
                   "GITHUB_REPOSITORY": "$GITHUB_REPOSITORY",
-                  "GITHUB_SERVER_URL": "$GITHUB_SERVER_URL"
+                  "GITHUB_SERVER_URL": "$GITHUB_SERVER_URL",
+                  "GITHUB_SHA": "$GITHUB_SHA",
+                  "GITHUB_WORKSPACE": "$GITHUB_WORKSPACE",
+                  "DEFAULT_BRANCH": "$DEFAULT_BRANCH"
                 }
               }
             }
@@ -2243,7 +2246,7 @@ jobs:
               engine_name: "Claude Code",
               model: "",
               version: "",
-              agent_version: "2.0.57",
+              agent_version: "2.0.58",
               workflow_name: "Safe Output Health Monitor",
               experimental: true,
               supports_tools_allowlist: true,
@@ -4539,6 +4542,8 @@ jobs:
                   "Safe Outputs": [],
                   "Safe Inputs": [],
                   "Git/GitHub": [],
+                  Playwright: [],
+                  Serena: [],
                   MCP: [],
                   "Custom Agents": [],
                   Other: [],
@@ -4578,6 +4583,10 @@ jobs:
                     categories["Safe Inputs"].push(toolName);
                   } else if (tool.startsWith("mcp__github__")) {
                     categories["Git/GitHub"].push(formatMcpName(tool));
+                  } else if (tool.startsWith("mcp__playwright__")) {
+                    categories["Playwright"].push(formatMcpName(tool));
+                  } else if (tool.startsWith("mcp__serena__")) {
+                    categories["Serena"].push(formatMcpName(tool));
                   } else if (tool.startsWith("mcp__") || ["ListMcpResourcesTool", "ReadMcpResourceTool"].includes(tool)) {
                     categories["MCP"].push(tool.startsWith("mcp__") ? formatMcpName(tool) : tool);
                   } else if (isLikelyCustomAgent(tool)) {
@@ -6642,7 +6651,7 @@ jobs:
           node-version: '24'
           package-manager-cache: false
       - name: Install Claude Code CLI
-        run: npm install -g @anthropic-ai/claude-code@2.0.57
+        run: npm install -g @anthropic-ai/claude-code@2.0.58
       - name: Execute Claude Code CLI
         id: agentic_execution
         # Allowed tools (sorted):

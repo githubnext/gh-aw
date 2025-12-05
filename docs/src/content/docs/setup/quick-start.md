@@ -41,10 +41,10 @@ This guide walks you through setup step-by-step, so you don't need everything up
 ### Agentic Setup
 
 If you want to use the help of Copilot to configure GitHub Agentic Workflows,
-launch this command in Copilot:
+launch this command:
 
 ```bash wrap
-activate https://raw.githubusercontent.com/githubnext/gh-aw/refs/heads/main/install.md
+npx --yes @github/copilot -i "activate https://raw.githubusercontent.com/githubnext/gh-aw/refs/heads/main/install.md"
 ```
 
 ### Step 1 — Install the extension
@@ -112,12 +112,15 @@ If you still don't see this option:
 2. Under "Resource owner", select your user account (not an organization).
 3. Under "Repository access," select **"Public repositories"** (required for the Copilot Requests permission to appear).
 4. Under "Permissions," click "Add permissions" and select **"Copilot Requests"**.
-5. Generate your token.
+5. Generate your token and copy it (you'll use it in the next step).
 6. Add the token to your repository secrets as `COPILOT_GITHUB_TOKEN`:
-
-```bash wrap
-gh secret set COPILOT_GITHUB_TOKEN -a actions --body "<your-personal-access-token>"
-```
+   1. Navigate to your repository on GitHub.com
+   2. Click **Settings** (in the repository menu)
+   3. In the left sidebar, click **Secrets and variables**, then click **Actions**
+   4. Click **New repository secret**
+   5. For **Name**, enter `COPILOT_GITHUB_TOKEN`
+   6. For **Secret**, paste your personal access token
+   7. Click **Add secret**
 
 For more information, see the [GitHub Copilot CLI documentation](https://github.com/github/copilot-cli?tab=readme-ov-file#authenticate-with-a-personal-access-token-pat).
 
