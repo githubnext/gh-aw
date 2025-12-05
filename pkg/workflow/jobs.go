@@ -182,7 +182,11 @@ func (jm *JobManager) renderJob(job *Job) string {
 			yaml.WriteString(fmt.Sprintf("    needs: %s\n", job.Needs[0]))
 		} else {
 			yaml.WriteString("    needs:\n")
-			for _, dep := range job.Needs {
+			// Sort needs for consistent output
+			sortedNeeds := make([]string, len(job.Needs))
+			copy(sortedNeeds, job.Needs)
+			sort.Strings(sortedNeeds)
+			for _, dep := range sortedNeeds {
 				yaml.WriteString(fmt.Sprintf("      - %s\n", dep))
 			}
 		}

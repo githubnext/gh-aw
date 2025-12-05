@@ -6887,10 +6887,10 @@ jobs:
 
   conclusion:
     needs:
-      - agent
       - activation
-      - create_discussion
       - add_comment
+      - agent
+      - create_discussion
       - create_pr_review_comment
     if: ((always()) && (needs.agent.result != 'skipped')) && (!(needs.add_comment.outputs.comment_id))
     runs-on: ubuntu-slim

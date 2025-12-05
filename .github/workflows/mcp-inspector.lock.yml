@@ -5781,8 +5781,8 @@ jobs:
 
   conclusion:
     needs:
-      - agent
       - activation
+      - agent
       - create_discussion
       - notion_add_comment
       - post_to_slack_channel

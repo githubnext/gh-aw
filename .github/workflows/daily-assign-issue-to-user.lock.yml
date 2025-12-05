@@ -6007,9 +6007,9 @@ jobs:
 
   conclusion:
     needs:
-      - agent
       - activation
       - add_comment
+      - agent
       - assign_to_user
     if: ((always()) && (needs.agent.result != 'skipped')) && (!(needs.add_comment.outputs.comment_id))
     runs-on: ubuntu-slim

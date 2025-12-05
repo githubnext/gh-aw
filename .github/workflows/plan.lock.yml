@@ -6265,10 +6265,10 @@ jobs:
 
   conclusion:
     needs:
-      - agent
       - activation
-      - create_issue
+      - agent
       - close_discussion
+      - create_issue
     if: (always()) && (needs.agent.result != 'skipped')
     runs-on: ubuntu-slim
     permissions:

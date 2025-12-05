@@ -6058,11 +6058,11 @@ jobs:
 
   conclusion:
     needs:
-      - agent
       - activation
-      - create_issue
       - add_comment
       - add_labels
+      - agent
+      - create_issue
     if: ((always()) && (needs.agent.result != 'skipped')) && (!(needs.add_comment.outputs.comment_id))
     runs-on: ubuntu-slim
     permissions:

@@ -6747,9 +6747,9 @@ jobs:
 
   conclusion:
     needs:
-      - agent
       - activation
       - add_comment
+      - agent
       - push_to_pull_request_branch
     if: ((always()) && (needs.agent.result != 'skipped')) && (!(needs.add_comment.outputs.comment_id))
     runs-on: ubuntu-slim
@@ -7616,8 +7616,8 @@ jobs:
 
   push_to_pull_request_branch:
     needs:
-      - agent
       - activation
+      - agent
       - detection
     if: >
       ((((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'push_to_pull_request_branch'))) &&

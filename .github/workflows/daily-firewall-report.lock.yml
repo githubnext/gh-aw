@@ -6242,11 +6242,11 @@ jobs:
 
   conclusion:
     needs:
-      - agent
       - activation
+      - agent
       - create_discussion
-      - upload_assets
       - push_repo_memory
+      - upload_assets
     if: (always()) && (needs.agent.result != 'skipped')
     runs-on: ubuntu-slim
     permissions:

@@ -5280,9 +5280,9 @@ jobs:
 
   conclusion:
     needs:
-      - agent
       - activation
       - add_labels
+      - agent
     if: (always()) && (needs.agent.result != 'skipped')
     runs-on: ubuntu-slim
     permissions:

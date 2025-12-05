@@ -4784,8 +4784,8 @@ jobs:
 
   conclusion:
     needs:
-      - agent
       - activation
+      - agent
       - notion_add_comment
     if: (always()) && (needs.agent.result != 'skipped')
     runs-on: ubuntu-slim
