@@ -229,12 +229,12 @@ This workflow has file validation.
 	lockFile := string(lockContent)
 
 	// Check for file size validation
-	if !strings.Contains(lockFile, "Checking file sizes (max: ${maxFileSize} bytes)") {
+	if !strings.Contains(lockFile, "File exceeds size limit") && !strings.Contains(lockFile, "maxFileSize") {
 		t.Error("Expected file size validation in push step")
 	}
 
 	// Check for file count validation
-	if !strings.Contains(lockFile, "Checking file count (max: ${maxFileCount} files)") {
+	if !strings.Contains(lockFile, "Too many files") && !strings.Contains(lockFile, "maxFileCount") {
 		t.Error("Expected file count validation in push step")
 	}
 

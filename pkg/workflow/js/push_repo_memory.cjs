@@ -8,7 +8,8 @@ const { execSync } = require("child_process");
 /**
  * Push repo-memory changes to git branch
  * Environment variables:
- *   MEMORY_DIR: Path to the repo-memory directory
+ *   ARTIFACT_DIR: Path to the downloaded artifact directory containing memory files
+ *   MEMORY_ID: Memory identifier (used for subdirectory path)
  *   TARGET_REPO: Target repository (owner/name)
  *   BRANCH_NAME: Branch name to push to
  *   MAX_FILE_SIZE: Maximum file size in bytes
@@ -19,7 +20,8 @@ const { execSync } = require("child_process");
  */
 
 async function main() {
-  const memoryDir = process.env.MEMORY_DIR;
+  const artifactDir = process.env.ARTIFACT_DIR;
+  const memoryId = process.env.MEMORY_ID;
   const targetRepo = process.env.TARGET_REPO;
   const branchName = process.env.BRANCH_NAME;
   const maxFileSize = parseInt(process.env.MAX_FILE_SIZE || "10240", 10);
@@ -29,20 +31,118 @@ async function main() {
   const githubRunId = process.env.GITHUB_RUN_ID || "unknown";
 
   // Validate required environment variables
-  if (!memoryDir || !targetRepo || !branchName || !ghToken) {
-    core.setFailed("Missing required environment variables: MEMORY_DIR, TARGET_REPO, BRANCH_NAME, GH_TOKEN");
+  if (!artifactDir || !memoryId || !targetRepo || !branchName || !ghToken) {
+    core.setFailed("Missing required environment variables: ARTIFACT_DIR, MEMORY_ID, TARGET_REPO, BRANCH_NAME, GH_TOKEN");
     return;
   }
 
-  // Check if memory directory exists
-  if (!fs.existsSync(memoryDir)) {
-    core.info(`Memory directory not found: ${memoryDir}`);
+  // Source directory with memory files (artifact location)
+  const sourceMemoryPath = path.join(artifactDir, "memory", memoryId);
+
+  // Check if artifact memory directory exists
+  if (!fs.existsSync(sourceMemoryPath)) {
+    core.info(`Memory directory not found in artifact: ${sourceMemoryPath}`);
     return;
   }
 
-  // Change to memory directory
-  process.chdir(memoryDir);
-  core.info(`Working directory: ${memoryDir}`);
+  // We're already in the checked out repository (from checkout step)
+  const workspaceDir = process.env.GITHUB_WORKSPACE || process.cwd();
+  core.info(`Working in repository: ${workspaceDir}`);
+
+  // Checkout or create the memory branch
+  core.info(`Checking out branch: ${branchName}...`);
+  try {
+    const repoUrl = `https://x-access-token:${ghToken}@github.com/${targetRepo}.git`;
+
+    // Try to fetch the branch
+    try {
+      execSync(`git fetch "${repoUrl}" "${branchName}:${branchName}"`, { stdio: "pipe" });
+      execSync(`git checkout "${branchName}"`, { stdio: "inherit" });
+      core.info(`Checked out existing branch: ${branchName}`);
+    } catch (fetchError) {
+      // Branch doesn't exist, create orphan branch
+      core.info(`Branch ${branchName} does not exist, creating orphan branch...`);
+      execSync(`git checkout --orphan "${branchName}"`, { stdio: "inherit" });
+      execSync("git rm -rf . || true", { stdio: "pipe" });
+      core.info(`Created orphan branch: ${branchName}`);
+    }
+  } catch (error) {
+    core.setFailed(`Failed to checkout branch: ${error instanceof Error ? error.message : String(error)}`);
+    return;
+  }
+
+  // Create destination directory in repo
+  const destMemoryPath = path.join(workspaceDir, "memory", memoryId);
+  fs.mkdirSync(destMemoryPath, { recursive: true });
+  core.info(`Destination directory: ${destMemoryPath}`);
+
+  // Read files from artifact directory and validate before copying
+  let filesToCopy = [];
+  try {
+    const files = fs.readdirSync(sourceMemoryPath, { withFileTypes: true });
+
+    for (const file of files) {
+      if (!file.isFile()) {
+        continue; // Skip directories
+      }
+
+      const fileName = file.name;
+      const sourceFilePath = path.join(sourceMemoryPath, fileName);
+      const stats = fs.statSync(sourceFilePath);
+
+      // Validate file name patterns if filter is set
+      if (fileGlobFilter) {
+        const patterns = fileGlobFilter.split(/\s+/).map(pattern => {
+          const regexPattern = pattern.replace(/\./g, "\\.").replace(/\*/g, "[^/]*");
+          return new RegExp(`^${regexPattern}$`);
+        });
+
+        if (!patterns.some(pattern => pattern.test(fileName))) {
+          core.error(`File does not match allowed patterns: ${fileName}`);
+          core.error(`Allowed patterns: ${fileGlobFilter}`);
+          core.setFailed("File pattern validation failed");
+          return;
+        }
+      }
+
+      // Validate file size
+      if (stats.size > maxFileSize) {
+        core.error(`File exceeds size limit: ${fileName} (${stats.size} bytes > ${maxFileSize} bytes)`);
+        core.setFailed("File size validation failed");
+        return;
+      }
+
+      filesToCopy.push({ name: fileName, source: sourceFilePath, size: stats.size });
+    }
+  } catch (error) {
+    core.setFailed(`Failed to read artifact directory: ${error instanceof Error ? error.message : String(error)}`);
+    return;
+  }
+
+  // Validate file count
+  if (filesToCopy.length > maxFileCount) {
+    core.setFailed(`Too many files (${filesToCopy.length} > ${maxFileCount})`);
+    return;
+  }
+
+  if (filesToCopy.length === 0) {
+    core.info("No files to copy from artifact");
+    return;
+  }
+
+  core.info(`Copying ${filesToCopy.length} validated file(s)...`);
+
+  // Copy files to destination
+  for (const file of filesToCopy) {
+    const destFilePath = path.join(destMemoryPath, file.name);
+    try {
+      fs.copyFileSync(file.source, destFilePath);
+      core.info(`Copied: ${file.name} (${file.size} bytes)`);
+    } catch (error) {
+      core.setFailed(`Failed to copy file ${file.name}: ${error instanceof Error ? error.message : String(error)}`);
+      return;
+    }
+  }
 
   // Check if we have any changes to commit
   let hasChanges = false;
@@ -55,101 +155,17 @@ async function main() {
   }
 
   if (!hasChanges) {
-    core.info("No changes detected in repo memory");
+    core.info("No changes detected after copying files");
     return;
   }
 
-  core.info("Changes detected in repo memory, committing and pushing...");
+  core.info("Changes detected, committing and pushing...");
 
   // Stage all changes
   try {
     execSync("git add .", { stdio: "inherit" });
   } catch (error) {
     core.setFailed(`Failed to stage changes: ${error instanceof Error ? error.message : String(error)}`);
-    return;
-  }
-
-  // Validate file patterns if filter is set
-  if (fileGlobFilter) {
-    core.info(`Validating file patterns: ${fileGlobFilter}`);
-    try {
-      const stagedFiles = execSync("git diff --cached --name-only", { encoding: "utf8" })
-        .trim()
-        .split("\n")
-        .filter(f => f);
-
-      // Convert glob patterns to regex
-      const patterns = fileGlobFilter.split(/\s+/).map(pattern => {
-        // Convert glob pattern to regex
-        // *.md -> ^[^/]*\.md$
-        // *.txt -> ^[^/]*\.txt$
-        const regexPattern = pattern.replace(/\./g, "\\.").replace(/\*/g, "[^/]*");
-        return new RegExp(`^${regexPattern}$`);
-      });
-
-      const invalidFiles = stagedFiles.filter(file => {
-        return !patterns.some(pattern => pattern.test(file));
-      });
-
-      if (invalidFiles.length > 0) {
-        core.error("Files not matching allowed patterns detected:");
-        invalidFiles.forEach(file => core.error(`  ${file}`));
-        core.error(`Allowed patterns: ${fileGlobFilter}`);
-        core.setFailed("File pattern validation failed");
-        return;
-      }
-    } catch (error) {
-      core.setFailed(`Failed to validate file patterns: ${error instanceof Error ? error.message : String(error)}`);
-      return;
-    }
-  }
-
-  // Check file sizes
-  core.info(`Checking file sizes (max: ${maxFileSize} bytes)...`);
-  try {
-    const stagedFiles = execSync("git diff --cached --name-only", { encoding: "utf8" })
-      .trim()
-      .split("\n")
-      .filter(f => f);
-    const tooLarge = [];
-
-    for (const file of stagedFiles) {
-      if (fs.existsSync(file)) {
-        const stats = fs.statSync(file);
-        if (stats.size > maxFileSize) {
-          tooLarge.push(`${file} (${stats.size} bytes)`);
-        }
-      }
-    }
-
-    if (tooLarge.length > 0) {
-      core.error("Files exceeding size limit detected:");
-      tooLarge.forEach(file => core.error(`  ${file}`));
-      core.setFailed("File size validation failed");
-      return;
-    }
-  } catch (error) {
-    core.setFailed(`Failed to check file sizes: ${error instanceof Error ? error.message : String(error)}`);
-    return;
-  }
-
-  // Check file count
-  core.info(`Checking file count (max: ${maxFileCount} files)...`);
-  try {
-    const stagedFiles = execSync("git diff --cached --name-only", { encoding: "utf8" })
-      .trim()
-      .split("\n")
-      .filter(f => f);
-    const fileCount = stagedFiles.length;
-
-    if (fileCount > maxFileCount) {
-      core.setFailed(`Too many files (${fileCount} > ${maxFileCount})`);
-      return;
-    }
-
-    core.info(`Committing ${fileCount} file(s)...`);
-  } catch (error) {
-    core.setFailed(`Failed to check file count: ${error instanceof Error ? error.message : String(error)}`);
     return;
   }
 

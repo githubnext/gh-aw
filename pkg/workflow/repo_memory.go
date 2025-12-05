@@ -500,7 +500,7 @@ func (c *Compiler) buildPushRepoMemoryJob(data *WorkflowData, threatDetectionEna
 			targetRepo = "${{ github.repository }}"
 		}
 
-		memoryDir := fmt.Sprintf("/tmp/gh-aw/repo-memory-%s", memory.ID)
+		artifactDir := fmt.Sprintf("/tmp/gh-aw/repo-memory-%s", memory.ID)
 
 		// Build file glob filter string
 		fileGlobFilter := ""
@@ -516,7 +516,8 @@ func (c *Compiler) buildPushRepoMemoryJob(data *WorkflowData, threatDetectionEna
 		step.WriteString("        env:\n")
 		step.WriteString("          GH_TOKEN: ${{ github.token }}\n")
 		step.WriteString("          GITHUB_RUN_ID: ${{ github.run_id }}\n")
-		step.WriteString(fmt.Sprintf("          MEMORY_DIR: %s\n", memoryDir))
+		step.WriteString(fmt.Sprintf("          ARTIFACT_DIR: %s\n", artifactDir))
+		step.WriteString(fmt.Sprintf("          MEMORY_ID: %s\n", memory.ID))
 		step.WriteString(fmt.Sprintf("          TARGET_REPO: %s\n", targetRepo))
 		step.WriteString(fmt.Sprintf("          BRANCH_NAME: %s\n", memory.BranchName))
 		step.WriteString(fmt.Sprintf("          MAX_FILE_SIZE: %d\n", memory.MaxFileSize))
