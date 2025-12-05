@@ -223,56 +223,78 @@ async function assignAgentToIssue(issueId, agentId, currentAssignees, agentName,
     }
   }
 
-  // Build mutation input with optional Copilot assignment options
-  const mutationInput = {
-    assignableId: issueId,
-    actorIds: actorIds,
-  };
-
-  // Add Copilot-specific assignment options if provided
-  if (options.targetRepositoryId || options.baseBranch || options.customInstructions || options.customAgent) {
-    const copilotOptions = {};
-
-    if (options.targetRepositoryId) {
-      copilotOptions.targetRepositoryId = options.targetRepositoryId;
-    }
-
-    if (options.baseBranch) {
-      copilotOptions.baseBranch = options.baseBranch;
-    }
-
-    if (options.customInstructions) {
-      copilotOptions.customInstructions = options.customInstructions;
-    }
-
-    if (options.customAgent) {
-      copilotOptions.customAgent = options.customAgent;
-    }
-
-    mutationInput.copilotAssignmentOptions = copilotOptions;
-  }
-
-  const mutation = `
-    mutation($assignableId: ID!, $actorIds: [ID!]!, $copilotAssignmentOptions: CopilotAssignmentOptionsInput) {
-      replaceActorsForAssignable(input: {
-        assignableId: $assignableId,
-        actorIds: $actorIds,
-        copilotAssignmentOptions: $copilotAssignmentOptions
-      }) {
-        __typename
-      }
-    }
-  `;
+  // Check if any Copilot-specific options are provided
+  const hasCopilotOptions = options.targetRepositoryId || options.baseBranch || options.customInstructions || options.customAgent;
 
   try {
     core.info("Using built-in github object for mutation");
 
-    core.debug(`GraphQL mutation with variables: ${JSON.stringify(mutationInput)}`);
-    const response = await github.graphql(mutation, mutationInput, {
-      headers: {
-        "GraphQL-Features": "issues_copilot_assignment_api_support",
-      },
-    });
+    let response;
+
+    if (hasCopilotOptions) {
+      // Build Copilot assignment options
+      const copilotOptions = {};
+
+      if (options.targetRepositoryId) {
+        copilotOptions.targetRepositoryId = options.targetRepositoryId;
+      }
+
+      if (options.baseBranch) {
+        copilotOptions.baseBranch = options.baseBranch;
+      }
+
+      if (options.customInstructions) {
+        copilotOptions.customInstructions = options.customInstructions;
+      }
+
+      if (options.customAgent) {
+        copilotOptions.customAgent = options.customAgent;
+      }
+
+      // Use extended mutation with Copilot assignment options
+      const extendedMutation = `
+        mutation($assignableId: ID!, $actorIds: [ID!]!, $copilotAssignmentOptions: CopilotAssignmentOptionsInput) {
+          replaceActorsForAssignable(input: {
+            assignableId: $assignableId,
+            actorIds: $actorIds,
+            copilotAssignmentOptions: $copilotAssignmentOptions
+          }) {
+            __typename
+          }
+        }
+      `;
+
+      const mutationInput = {
+        assignableId: issueId,
+        actorIds: actorIds,
+        copilotAssignmentOptions: copilotOptions,
+      };
+
+      core.debug(`GraphQL mutation with Copilot options: ${JSON.stringify(mutationInput)}`);
+      response = await github.graphql(extendedMutation, mutationInput, {
+        headers: {
+          "GraphQL-Features": "issues_copilot_assignment_api_support",
+        },
+      });
+    } else {
+      // Use simple mutation for backward compatibility (no Copilot-specific options)
+      const simpleMutation = `
+        mutation($assignableId: ID!, $actorIds: [ID!]!) {
+          replaceActorsForAssignable(input: {
+            assignableId: $assignableId,
+            actorIds: $actorIds
+          }) {
+            __typename
+          }
+        }
+      `;
+
+      core.debug(`GraphQL mutation with variables: assignableId=${issueId}, actorIds=${JSON.stringify(actorIds)}`);
+      response = await github.graphql(simpleMutation, {
+        assignableId: issueId,
+        actorIds: actorIds,
+      });
+    }
 
     if (response && response.replaceActorsForAssignable && response.replaceActorsForAssignable.__typename) {
       return true;
