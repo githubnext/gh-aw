@@ -18,14 +18,14 @@
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/aw/github-agentic-workflows.md
 #
-# List the last 3 issues using gh CLI
+# Create a poem about GitHub and save it to repo-memory
 #
 # Original Frontmatter:
 # ```yaml
 # on: 
 #   workflow_dispatch:
 # name: Dev
-# description: List the last 3 issues using gh CLI
+# description: Create a poem about GitHub and save it to repo-memory
 # timeout-minutes: 5
 # strict: false
 # engine: claude
@@ -33,6 +33,9 @@
 #   contents: read
 #   issues: read
 # tools:
+#   repo-memory:
+#     branch-name: memory/poems
+#     description: "Poem collection"
 #   github: false
 # imports:
 #   - shared/gh.md
@@ -47,30 +50,47 @@
 # graph LR
 #   activation["activation"]
 #   agent["agent"]
+#   push_repo_memory["push_repo_memory"]
 #   activation --> agent
+#   agent --> push_repo_memory
 # ```
 #
 # Original Prompt:
 # ```markdown
-# # List Last 3 Issues
+# # Create a Poem and Save to Repo Memory
 #
-# List the last 3 issues in this repository using the gh CLI tool.
+# Create a creative poem about GitHub and agentic workflows, then save it to the repo-memory.
 #
 # ## Task
 #
-# 1. **Use gh CLI**: Use the `gh` tool to list the last 3 issues in this repository.
+# 1. **Create a Poem**: Write a creative, fun poem about GitHub, automation, and agentic workflows.
+#    - The poem should be 8-12 lines
+#    - Include references to GitHub features like Issues, Pull Requests, Actions, etc.
+#    - Make it engaging and technical but fun
 #
-#    Example invocation:
-#    ```
-#    gh with args: "issue list --limit 3 --repo ${{ github.repository }}"
-#    ```
+# 2. **Save to Repo Memory**: Save the poem to `/tmp/gh-aw/repo-memory-default/memory/default/poem_{{ github.run_number }}.md`
+#    - Use the run number in the filename to make it unique
+#    - Include a header with the date and run information
+#    - The file will be automatically committed and pushed to the `memory/poems` branch
 #
-# 2. **Display results**: Show the output from the gh CLI command.
+# 3. **List Previous Poems**: If there are other poem files in the repo memory, list them to show the history.
+#
+# ## Example Poem Structure
+#
+# ```markdown
+# # Poem #{{ github.run_number }}
+# Date: {{ current date }}
+# Run ID: ${{ github.run_id }}
+#
+# [Your poem here]
+# ```
 # ```
 #
 # Pinned GitHub Actions:
 #   - actions/checkout@v5 (93cb6efe18208431cddfb8368fd83d5badbf9bfd)
 #     https://github.com/actions/checkout/commit/93cb6efe18208431cddfb8368fd83d5badbf9bfd
+#   - actions/download-artifact@v6 (018cc2cf5baa6db3ef3c5f8a56943fffe632ef53)
+#     https://github.com/actions/download-artifact/commit/018cc2cf5baa6db3ef3c5f8a56943fffe632ef53
 #   - actions/github-script@v8 (ed597411d8f924073f98dfc5c65a23a2325f34cd)
 #     https://github.com/actions/github-script/commit/ed597411d8f924073f98dfc5c65a23a2325f34cd
 #   - actions/setup-node@v6 (395ad3262231945c25e8478fd5baf05154b1d79f)
@@ -205,6 +225,35 @@ jobs:
         run: |
           mkdir -p /tmp/gh-aw/agent
           echo "Created /tmp/gh-aw/agent directory for agentic workflow temporary files"
+      # Repo memory git-based storage configuration from frontmatter processed below
+      - name: Clone repo-memory branch (default)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BRANCH_NAME: memory/poems
+        run: |
+          set +e  # Don't fail if branch doesn't exist
+          git clone --depth 1 --single-branch --branch "memory/poems" "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git" "/tmp/gh-aw/repo-memory-default" 2>/dev/null
+          CLONE_EXIT_CODE=$?
+          set -e
+          
+          if [ $CLONE_EXIT_CODE -ne 0 ]; then
+            echo "Branch memory/poems does not exist, creating orphan branch"
+            mkdir -p "/tmp/gh-aw/repo-memory-default"
+            cd "/tmp/gh-aw/repo-memory-default"
+            git init
+            git checkout --orphan "$BRANCH_NAME"
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git"
+          else
+            echo "Successfully cloned memory/poems branch"
+            cd "/tmp/gh-aw/repo-memory-default"
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+          fi
+          
+          mkdir -p "/tmp/gh-aw/repo-memory-default/memory/default"
+          echo "Repo memory directory ready at /tmp/gh-aw/repo-memory-default/memory/default"
       - name: Configure Git credentials
         env:
           REPO_NAME: ${{ github.repository }}
@@ -1394,27 +1443,40 @@ jobs:
       - name: Create prompt
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-          GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
+          GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
         run: |
           PROMPT_DIR="$(dirname "$GH_AW_PROMPT")"
           mkdir -p "$PROMPT_DIR"
           cat << 'PROMPT_EOF' | envsubst > "$GH_AW_PROMPT"
           
           
-          # List Last 3 Issues
+          # Create a Poem and Save to Repo Memory
           
-          List the last 3 issues in this repository using the gh CLI tool.
+          Create a creative poem about GitHub and agentic workflows, then save it to the repo-memory.
           
           ## Task
           
-          1. **Use gh CLI**: Use the `gh` tool to list the last 3 issues in this repository.
-             
-             Example invocation:
-             ```
-             gh with args: "issue list --limit 3 --repo ${GH_AW_GITHUB_REPOSITORY}"
-             ```
+          1. **Create a Poem**: Write a creative, fun poem about GitHub, automation, and agentic workflows.
+             - The poem should be 8-12 lines
+             - Include references to GitHub features like Issues, Pull Requests, Actions, etc.
+             - Make it engaging and technical but fun
           
-          2. **Display results**: Show the output from the gh CLI command.
+          2. **Save to Repo Memory**: Save the poem to `/tmp/gh-aw/repo-memory-default/memory/default/poem_{{ github.run_number }}.md`
+             - Use the run number in the filename to make it unique
+             - Include a header with the date and run information
+             - The file will be automatically committed and pushed to the `memory/poems` branch
+          
+          3. **List Previous Poems**: If there are other poem files in the repo memory, list them to show the history.
+          
+          ## Example Poem Structure
+          
+          ```markdown
+          # Poem #{{ github.run_number }}
+          Date: {{ current date }}
+          Run ID: ${GH_AW_GITHUB_RUN_ID}
+          
+          [Your poem here]
+          ```
           
           PROMPT_EOF
       - name: Append XPIA security instructions to prompt
@@ -1450,11 +1512,40 @@ jobs:
           </temporary-files>
           
           PROMPT_EOF
+      - name: Append repo memory instructions to prompt
+        env:
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+        run: |
+          cat << 'PROMPT_EOF' | envsubst >> "$GH_AW_PROMPT"
+          
+          ---
+          
+          ## Repo Memory Available
+          
+          You have access to a persistent repo memory folder at `/tmp/gh-aw/repo-memory-default/memory/default/` where you can read and write files that are stored in a git branch. Poem collection
+          
+          - **Read/Write Access**: You can freely read from and write to any files in this folder
+          - **Git Branch Storage**: Files are stored in the `memory/poems` branch of the current repository
+          - **Automatic Push**: Changes are automatically committed and pushed after the workflow completes
+          - **Merge Strategy**: In case of conflicts, your changes (current version) win
+          - **Persistence**: Files persist across workflow runs via git branch storage
+          
+          **Constraints:**
+          - **Max File Size**: 10240 bytes (0.01 MB) per file
+          - **Max File Count**: 100 files per commit
+          
+          Examples of what you can store:
+          - `/tmp/gh-aw/repo-memory-default/memory/default/notes.md` - general notes and observations
+          - `/tmp/gh-aw/repo-memory-default/memory/default/state.json` - structured state data
+          - `/tmp/gh-aw/repo-memory-default/memory/default/history/` - organized history files in subdirectories
+          
+          Feel free to create, read, update, and organize files in this folder as needed for your tasks.
+          PROMPT_EOF
       - name: Interpolate variables and render templates
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-          GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
+          GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
         with:
           script: |
             const fs = require("fs");
@@ -2400,8 +2491,8 @@ jobs:
               return lines.join("\n");
             }
             function runLogParser(options) {
-              const fs = require("fs");
-              const path = require("path");
+            const fs = require("fs");
+            const path = require("path");
               const { parseLog, parserName, supportsDirectories = false } = options;
               try {
                 const logPath = process.env.GH_AW_AGENT_OUTPUT;
@@ -2576,6 +2667,15 @@ jobs:
           name: agent-stdio.log
           path: /tmp/gh-aw/agent-stdio.log
           if-no-files-found: warn
+      # Upload repo memory as artifacts for push job
+      - name: Upload repo-memory artifact (default)
+        if: always()
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
+        with:
+          name: repo-memory-default
+          path: /tmp/gh-aw/repo-memory-default
+          retention-days: 1
+          if-no-files-found: ignore
       - name: Validate agent logs for errors
         if: always()
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
@@ -2811,4 +2911,195 @@ jobs:
             if (typeof module === "undefined" || require.main === module) {
               main();
             }
+
+  push_repo_memory:
+    needs: agent
+    if: always()
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+        with:
+          persist-credentials: false
+          sparse-checkout: .
+      - name: Configure Git credentials
+        env:
+          REPO_NAME: ${{ github.repository }}
+          SERVER_URL: ${{ github.server_url }}
+        run: |
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "github-actions[bot]"
+          # Re-authenticate git with GitHub token
+          SERVER_URL_STRIPPED="${SERVER_URL#https://}"
+          git remote set-url origin "https://x-access-token:${{ github.token }}@${SERVER_URL_STRIPPED}/${REPO_NAME}.git"
+          echo "Git configured with standard GitHub Actions identity"
+      - name: Download repo-memory artifact (default)
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
+        continue-on-error: true
+        with:
+          name: repo-memory-default
+          path: /tmp/gh-aw/repo-memory-default
+      - name: Push repo-memory changes (default)
+        if: always()
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_RUN_ID: ${{ github.run_id }}
+          ARTIFACT_DIR: /tmp/gh-aw/repo-memory-default
+          MEMORY_ID: default
+          TARGET_REPO: ${{ github.repository }}
+          BRANCH_NAME: memory/poems
+          MAX_FILE_SIZE: 10240
+          MAX_FILE_COUNT: 100
+        with:
+          script: |
+            const fs = require("fs");
+            const path = require("path");
+            const { execSync } = require("child_process");
+            async function main() {
+              const artifactDir = process.env.ARTIFACT_DIR;
+              const memoryId = process.env.MEMORY_ID;
+              const targetRepo = process.env.TARGET_REPO;
+              const branchName = process.env.BRANCH_NAME;
+              const maxFileSize = parseInt(process.env.MAX_FILE_SIZE || "10240", 10);
+              const maxFileCount = parseInt(process.env.MAX_FILE_COUNT || "100", 10);
+              const fileGlobFilter = process.env.FILE_GLOB_FILTER || "";
+              const ghToken = process.env.GH_TOKEN;
+              const githubRunId = process.env.GITHUB_RUN_ID || "unknown";
+              if (!artifactDir || !memoryId || !targetRepo || !branchName || !ghToken) {
+                core.setFailed("Missing required environment variables: ARTIFACT_DIR, MEMORY_ID, TARGET_REPO, BRANCH_NAME, GH_TOKEN");
+                return;
+              }
+              const sourceMemoryPath = path.join(artifactDir, "memory", memoryId);
+              if (!fs.existsSync(sourceMemoryPath)) {
+                core.info(`Memory directory not found in artifact: ${sourceMemoryPath}`);
+                return;
+              }
+              const workspaceDir = process.env.GITHUB_WORKSPACE || process.cwd();
+              core.info(`Working in repository: ${workspaceDir}`);
+              core.info(`Disabling sparse checkout...`);
+              try {
+                execSync("git sparse-checkout disable", { stdio: "pipe" });
+              } catch (error) {
+                core.info("Sparse checkout was not enabled or already disabled");
+              }
+              core.info(`Checking out branch: ${branchName}...`);
+              try {
+                const repoUrl = `https://x-access-token:${ghToken}@github.com/${targetRepo}.git`;
+                try {
+                  execSync(`git fetch "${repoUrl}" "${branchName}:${branchName}"`, { stdio: "pipe" });
+                  execSync(`git checkout "${branchName}"`, { stdio: "inherit" });
+                  core.info(`Checked out existing branch: ${branchName}`);
+                } catch (fetchError) {
+                  core.info(`Branch ${branchName} does not exist, creating orphan branch...`);
+                  execSync(`git checkout --orphan "${branchName}"`, { stdio: "inherit" });
+                  execSync("git rm -rf . || true", { stdio: "pipe" });
+                  core.info(`Created orphan branch: ${branchName}`);
+                }
+              } catch (error) {
+                core.setFailed(`Failed to checkout branch: ${error instanceof Error ? error.message : String(error)}`);
+                return;
+              }
+              const destMemoryPath = path.join(workspaceDir, "memory", memoryId);
+              fs.mkdirSync(destMemoryPath, { recursive: true });
+              core.info(`Destination directory: ${destMemoryPath}`);
+              let filesToCopy = [];
+              try {
+                const files = fs.readdirSync(sourceMemoryPath, { withFileTypes: true });
+                for (const file of files) {
+                  if (!file.isFile()) {
+                    continue; 
+                  }
+                  const fileName = file.name;
+                  const sourceFilePath = path.join(sourceMemoryPath, fileName);
+                  const stats = fs.statSync(sourceFilePath);
+                  if (fileGlobFilter) {
+                    const patterns = fileGlobFilter.split(/\s+/).map(pattern => {
+                      const regexPattern = pattern.replace(/\./g, "\\.").replace(/\*/g, "[^/]*");
+                      return new RegExp(`^${regexPattern}$`);
+                    });
+                    if (!patterns.some(pattern => pattern.test(fileName))) {
+                      core.error(`File does not match allowed patterns: ${fileName}`);
+                      core.error(`Allowed patterns: ${fileGlobFilter}`);
+                      core.setFailed("File pattern validation failed");
+                      return;
+                    }
+                  }
+                  if (stats.size > maxFileSize) {
+                    core.error(`File exceeds size limit: ${fileName} (${stats.size} bytes > ${maxFileSize} bytes)`);
+                    core.setFailed("File size validation failed");
+                    return;
+                  }
+                  filesToCopy.push({ name: fileName, source: sourceFilePath, size: stats.size });
+                }
+              } catch (error) {
+                core.setFailed(`Failed to read artifact directory: ${error instanceof Error ? error.message : String(error)}`);
+                return;
+              }
+              if (filesToCopy.length > maxFileCount) {
+                core.setFailed(`Too many files (${filesToCopy.length} > ${maxFileCount})`);
+                return;
+              }
+              if (filesToCopy.length === 0) {
+                core.info("No files to copy from artifact");
+                return;
+              }
+              core.info(`Copying ${filesToCopy.length} validated file(s)...`);
+              for (const file of filesToCopy) {
+                const destFilePath = path.join(destMemoryPath, file.name);
+                try {
+                  fs.copyFileSync(file.source, destFilePath);
+                  core.info(`Copied: ${file.name} (${file.size} bytes)`);
+                } catch (error) {
+                  core.setFailed(`Failed to copy file ${file.name}: ${error instanceof Error ? error.message : String(error)}`);
+                  return;
+                }
+              }
+              let hasChanges = false;
+              try {
+                const status = execSync("git status --porcelain", { encoding: "utf8" });
+                hasChanges = status.trim().length > 0;
+              } catch (error) {
+                core.setFailed(`Failed to check git status: ${error instanceof Error ? error.message : String(error)}`);
+                return;
+              }
+              if (!hasChanges) {
+                core.info("No changes detected after copying files");
+                return;
+              }
+              core.info("Changes detected, committing and pushing...");
+              try {
+                execSync("git add .", { stdio: "inherit" });
+              } catch (error) {
+                core.setFailed(`Failed to stage changes: ${error instanceof Error ? error.message : String(error)}`);
+                return;
+              }
+              try {
+                execSync(`git commit -m "Update repo memory from workflow run ${githubRunId}"`, { stdio: "inherit" });
+              } catch (error) {
+                core.setFailed(`Failed to commit changes: ${error instanceof Error ? error.message : String(error)}`);
+                return;
+              }
+              core.info(`Pulling latest changes from ${branchName}...`);
+              try {
+                const repoUrl = `https://x-access-token:${ghToken}@github.com/${targetRepo}.git`;
+                execSync(`git pull --no-rebase -X ours "${repoUrl}" "${branchName}"`, { stdio: "inherit" });
+              } catch (error) {
+                core.warning(`Pull failed (this may be expected): ${error instanceof Error ? error.message : String(error)}`);
+              }
+              core.info(`Pushing changes to ${branchName}...`);
+              try {
+                const repoUrl = `https://x-access-token:${ghToken}@github.com/${targetRepo}.git`;
+                execSync(`git push "${repoUrl}" HEAD:"${branchName}"`, { stdio: "inherit" });
+                core.info(`Successfully pushed changes to ${branchName} branch`);
+              } catch (error) {
+                core.setFailed(`Failed to push changes: ${error instanceof Error ? error.message : String(error)}`);
+                return;
+              }
+            }
+            main().catch(error => {
+              core.setFailed(`Unexpected error: ${error instanceof Error ? error.message : String(error)}`);
+            });
 

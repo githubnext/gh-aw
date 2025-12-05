@@ -147,6 +147,9 @@ var generateFooterScript string
 //go:embed js/get_tracker_id.cjs
 var getTrackerIDScript string
 
+//go:embed js/push_repo_memory.cjs
+var pushRepoMemoryScript string
+
 //go:embed js/messages.cjs
 var messagesScript string
 
