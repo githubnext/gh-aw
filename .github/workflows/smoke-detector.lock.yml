@@ -7443,7 +7443,7 @@ jobs:
                 return;
               }
               if (!requiredPermissions || requiredPermissions.length === 0) {
-                core.warning("❌ Configuration error: Required permissions not specified. Contact repository administrator.");
+                core.warning("❌ Configuration error: Required permissions not specified. See https://githubnext.com/gh-aw/reference/frontmatter/#repository-access-roles-roles for how to update allowed roles.");
                 core.setOutput("is_team_member", "false");
                 core.setOutput("result", "config_error");
                 core.setOutput("error_message", "Configuration error: Required permissions not specified");

@@ -129,7 +129,7 @@ describe("check_membership.cjs", () => {
       await runScript();
 
       expect(mockCore.warning).toHaveBeenCalledWith(
-        "❌ Configuration error: Required permissions not specified. Contact repository administrator."
+        "❌ Configuration error: Required permissions not specified. See https://githubnext.com/gh-aw/reference/frontmatter/#repository-access-roles-roles for how to update allowed roles."
       );
       expect(mockCore.setOutput).toHaveBeenCalledWith("is_team_member", "false");
       expect(mockCore.setOutput).toHaveBeenCalledWith("result", "config_error");
@@ -142,7 +142,7 @@ describe("check_membership.cjs", () => {
       await runScript();
 
       expect(mockCore.warning).toHaveBeenCalledWith(
-        "❌ Configuration error: Required permissions not specified. Contact repository administrator."
+        "❌ Configuration error: Required permissions not specified. See https://githubnext.com/gh-aw/reference/frontmatter/#repository-access-roles-roles for how to update allowed roles."
       );
       expect(mockCore.setOutput).toHaveBeenCalledWith("is_team_member", "false");
       expect(mockCore.setOutput).toHaveBeenCalledWith("result", "config_error");

@@ -22,7 +22,7 @@ async function main() {
   const requiredPermissions = parseRequiredPermissions();
 
   if (!requiredPermissions || requiredPermissions.length === 0) {
-    core.error("❌ Configuration error: Required permissions not specified. Contact repository administrator.");
+    core.error("❌ Configuration error: Required permissions not specified. See https://githubnext.com/gh-aw/reference/frontmatter/#repository-access-roles-roles for how to update allowed roles.");
     core.setFailed("Configuration error: Required permissions not specified");
     return;
   }

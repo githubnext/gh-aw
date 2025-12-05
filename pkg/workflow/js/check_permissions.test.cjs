@@ -109,7 +109,7 @@ describe("check_permissions.cjs", () => {
     await eval(`(async () => { ${checkPermissionsScript} })()`);
 
     expect(mockCore.error).toHaveBeenCalledWith(
-      "❌ Configuration error: Required permissions not specified. Contact repository administrator."
+      "❌ Configuration error: Required permissions not specified. See https://githubnext.com/gh-aw/reference/frontmatter/#repository-access-roles-roles for how to update allowed roles."
     );
     expect(mockGithub.rest.repos.getCollaboratorPermissionLevel).not.toHaveBeenCalled();
   });
@@ -121,7 +121,7 @@ describe("check_permissions.cjs", () => {
     await eval(`(async () => { ${checkPermissionsScript} })()`);
 
     expect(mockCore.error).toHaveBeenCalledWith(
-      "❌ Configuration error: Required permissions not specified. Contact repository administrator."
+      "❌ Configuration error: Required permissions not specified. See https://githubnext.com/gh-aw/reference/frontmatter/#repository-access-roles-roles for how to update allowed roles."
     );
     expect(mockGithub.rest.repos.getCollaboratorPermissionLevel).not.toHaveBeenCalled();
   });
