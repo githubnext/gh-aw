@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"math/rand"
@@ -1287,46 +1288,44 @@ func marshalActionsLockSorted(actionsLock *actionsLockFile) ([]byte, error) {
 	}
 	sort.Strings(keys)
 
-	// Manually construct JSON with sorted keys using proper JSON marshaling for values
-	var result []byte
-	result = append(result, []byte("{\n  \"entries\": {\n")...)
+	// Build JSON using json.Marshal for proper encoding
+	var buf strings.Builder
+	buf.WriteString("{\n  \"entries\": {\n")
 
 	for i, key := range keys {
 		entry := actionsLock.Entries[key]
 
-		// Marshal the key using proper JSON encoding
+		// Marshal the entry to JSON to ensure proper escaping
+		entryJSON, err := json.Marshal(entry)
+		if err != nil {
+			return nil, err
+		}
+
+		// Marshal the key to ensure proper escaping
 		keyJSON, err := json.Marshal(key)
 		if err != nil {
 			return nil, err
 		}
 
-		// Marshal individual fields using proper JSON encoding
-		repoJSON, err := json.Marshal(entry.Repo)
-		if err != nil {
-			return nil, err
-		}
-		versionJSON, err := json.Marshal(entry.Version)
-		if err != nil {
-			return nil, err
-		}
-		shaJSON, err := json.Marshal(entry.SHA)
-		if err != nil {
-			return nil, err
-		}
+		// Write the key-value pair with proper indentation
+		buf.WriteString("    ")
+		buf.WriteString(string(keyJSON))
+		buf.WriteString(": ")
 
-		// Construct the entry JSON with properly escaped values
-		entryJSON := fmt.Sprintf("    %s: {\n      \"repo\": %s,\n      \"version\": %s,\n      \"sha\": %s\n    }",
-			string(keyJSON), string(repoJSON), string(versionJSON), string(shaJSON))
-
-		result = append(result, []byte(entryJSON)...)
+		// Pretty-print the entry JSON with proper indentation
+		var prettyEntry bytes.Buffer
+		if err := json.Indent(&prettyEntry, entryJSON, "    ", "  "); err != nil {
+			return nil, err
+		}
+		buf.WriteString(prettyEntry.String())
 
 		// Add comma if not the last entry
 		if i < len(keys)-1 {
-			result = append(result, ',')
+			buf.WriteString(",")
 		}
-		result = append(result, '\n')
+		buf.WriteString("\n")
 	}
 
-	result = append(result, []byte("  }\n}")...)
-	return result, nil
+	buf.WriteString("  }\n}")
+	return []byte(buf.String()), nil
 }
