@@ -481,7 +481,7 @@ jobs:
           which awf
           awf --version
       - name: Install GitHub Copilot CLI
-        run: npm install -g @github/copilot@0.0.366
+        run: npm install -g @github/copilot@0.0.367
       - name: Downloading container images
         run: |
           set -e
@@ -641,8 +641,8 @@ jobs:
       - name: Write Safe Outputs JavaScript Files
         run: |
           cat > /tmp/gh-aw/safeoutputs/mcp-server.cjs << 'EOF'
-            const fs = require("fs");
-            const path = require("path");
+            const { execFile, execSync } = require("child_process");
+            const os = require("os");
             class ReadBuffer {
               constructor() {
                 this._buffer = null;
@@ -669,6 +669,17 @@ jobs:
                   throw new Error(`Parse error: ${error instanceof Error ? error.message : String(error)}`);
                 }
               }
+            }
+            function validateRequiredFields(args, inputSchema) {
+              const requiredFields = inputSchema && Array.isArray(inputSchema.required) ? inputSchema.required : [];
+              if (!requiredFields.length) {
+                return [];
+              }
+              const missing = requiredFields.filter(f => {
+                const value = args[f];
+                return value === undefined || value === null || (typeof value === "string" && value.trim() === "");
+              });
+              return missing;
             }
             const encoder = new TextEncoder();
             function initLogFile(server) {
@@ -852,8 +863,6 @@ jobs:
                         server.debugError(`  [${toolName}] Warning: Could not make shell script executable: `, chmodError);
                       }
                     }
-            const { execFile } = require("child_process");
-            const os = require("os");
             function createShellHandler(server, toolName, scriptPath) {
               return async args => {
                 server.debug(`  [${toolName}] Invoking shell handler: ${scriptPath}`);
@@ -1123,16 +1132,10 @@ jobs:
                     server.replyError(id, -32603, `No handler for tool: ${name}`);
                     return;
                   }
-                  const requiredFields = tool.inputSchema && Array.isArray(tool.inputSchema.required) ? tool.inputSchema.required : [];
-                  if (requiredFields.length) {
-                    const missing = requiredFields.filter(f => {
-                      const value = args[f];
-                      return value === undefined || value === null || (typeof value === "string" && value.trim() === "");
-                    });
-                    if (missing.length) {
-                      server.replyError(id, -32602, `Invalid arguments: missing or empty ${missing.map(m => `'${m}'`).join(", ")}`);
-                      return;
-                    }
+                  const missing = validateRequiredFields(args, tool.inputSchema);
+                  if (missing.length) {
+                    server.replyError(id, -32602, `Invalid arguments: missing or empty ${missing.map(m => `'${m}'`).join(", ")}`);
+                    return;
                   }
                   server.debug(`Calling handler for tool: ${name}`);
                   const result = await Promise.resolve(handler(args));
@@ -1228,7 +1231,6 @@ jobs:
                 }
               };
             }
-            const crypto = require("crypto");
             function normalizeBranchName(branchName) {
               if (!branchName || typeof branchName !== "string" || branchName.trim() === "") {
                 return branchName;
@@ -1779,7 +1781,7 @@ jobs:
               engine_name: "GitHub Copilot CLI",
               model: "",
               version: "",
-              agent_version: "0.0.366",
+              agent_version: "0.0.367",
               workflow_name: "Daily Workflow Updater",
               experimental: false,
               supports_tools_allowlist: true,
@@ -2256,7 +2258,7 @@ jobs:
         run: |
           set -o pipefail
           sudo -E awf --env-all --container-workdir "${GITHUB_WORKSPACE}" --mount /tmp:/tmp:rw --mount "${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:rw" --mount /usr/bin/date:/usr/bin/date:ro --mount /usr/bin/gh:/usr/bin/gh:ro --mount /usr/bin/yq:/usr/bin/yq:ro --allow-domains '*.githubusercontent.com,api.enterprise.githubcopilot.com,api.github.com,api.snapcraft.io,archive.ubuntu.com,azure.archive.ubuntu.com,codeload.github.com,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,github-cloud.githubusercontent.com,github-cloud.s3.amazonaws.com,github.com,json-schema.org,json.schemastore.org,keyserver.ubuntu.com,lfs.github.com,objects.githubusercontent.com,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,ppa.launchpad.net,raw.githubusercontent.com,registry.npmjs.org,s.symcb.com,s.symcd.com,security.ubuntu.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com' --log-level info --proxy-logs-dir /tmp/gh-aw/sandbox/firewall/logs \
-            -- npx -y @github/copilot@0.0.366 --add-dir /tmp/gh-aw/ --log-level all --log-dir /tmp/gh-aw/sandbox/agent/logs/ --add-dir "${GITHUB_WORKSPACE}" --disable-builtin-mcps --allow-tool github --allow-tool safeoutputs --allow-tool 'shell(cat)' --allow-tool 'shell(date)' --allow-tool 'shell(echo)' --allow-tool 'shell(gh aw update --verbose)' --allow-tool 'shell(git add .github/aw/actions-lock.json)' --allow-tool 'shell(git add:*)' --allow-tool 'shell(git branch:*)' --allow-tool 'shell(git checkout:*)' --allow-tool 'shell(git commit)' --allow-tool 'shell(git commit:*)' --allow-tool 'shell(git diff .github/aw/actions-lock.json)' --allow-tool 'shell(git merge:*)' --allow-tool 'shell(git push)' --allow-tool 'shell(git rm:*)' --allow-tool 'shell(git status)' --allow-tool 'shell(git switch:*)' --allow-tool 'shell(grep)' --allow-tool 'shell(head)' --allow-tool 'shell(ls)' --allow-tool 'shell(pwd)' --allow-tool 'shell(sort)' --allow-tool 'shell(tail)' --allow-tool 'shell(uniq)' --allow-tool 'shell(wc)' --allow-tool 'shell(yq)' --allow-tool write --allow-all-paths --prompt "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)" \
+            -- npx -y @github/copilot@0.0.367 --add-dir /tmp/gh-aw/ --log-level all --log-dir /tmp/gh-aw/sandbox/agent/logs/ --add-dir "${GITHUB_WORKSPACE}" --disable-builtin-mcps --allow-tool github --allow-tool safeoutputs --allow-tool 'shell(cat)' --allow-tool 'shell(date)' --allow-tool 'shell(echo)' --allow-tool 'shell(gh aw update --verbose)' --allow-tool 'shell(git add .github/aw/actions-lock.json)' --allow-tool 'shell(git add:*)' --allow-tool 'shell(git branch:*)' --allow-tool 'shell(git checkout:*)' --allow-tool 'shell(git commit)' --allow-tool 'shell(git commit:*)' --allow-tool 'shell(git diff .github/aw/actions-lock.json)' --allow-tool 'shell(git merge:*)' --allow-tool 'shell(git push)' --allow-tool 'shell(git rm:*)' --allow-tool 'shell(git status)' --allow-tool 'shell(git switch:*)' --allow-tool 'shell(grep)' --allow-tool 'shell(head)' --allow-tool 'shell(ls)' --allow-tool 'shell(pwd)' --allow-tool 'shell(sort)' --allow-tool 'shell(tail)' --allow-tool 'shell(uniq)' --allow-tool 'shell(wc)' --allow-tool 'shell(yq)' --allow-tool write --allow-all-paths --prompt "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)" \
             2>&1 | tee /tmp/gh-aw/agent-stdio.log
         env:
           COPILOT_AGENT_RUNNER_TYPE: STANDALONE
@@ -2404,7 +2406,8 @@ jobs:
         with:
           script: |
             async function main() {
-              const fs = require("fs");
+            const path = require("path");
+            const crypto = require("crypto");
             const redactedDomains = [];
             function getRedactedDomains() {
               return [...redactedDomains];
@@ -2416,7 +2419,6 @@ jobs:
               if (redactedDomains.length === 0) {
                 return null;
               }
-              const path = require("path");
               const targetPath = filePath || "/tmp/gh-aw/redacted-urls.log";
               const dir = path.dirname(targetPath);
               if (!fs.existsSync(dir)) {
@@ -2600,7 +2602,6 @@ jobs:
                 return s.replace(/\b(fixes?|closes?|resolves?|fix|close|resolve)\s+#(\w+)/gi, (match, action, ref) => `\`${action} #${ref}\``);
               }
             }
-            const crypto = require("crypto");
             const TEMPORARY_ID_PATTERN = /#(aw_[0-9a-f]{12})/gi;
             function generateTemporaryId() {
               return "aw_" + crypto.randomBytes(6).toString("hex");
@@ -4017,8 +4018,8 @@ jobs:
               return lines.join("\n");
             }
             function runLogParser(options) {
-              const fs = require("fs");
-              const path = require("path");
+            const fs = require("fs");
+            const path = require("path");
               const { parseLog, parserName, supportsDirectories = false } = options;
               try {
                 const logPath = process.env.GH_AW_AGENT_OUTPUT;
@@ -4630,9 +4631,9 @@ jobs:
 
             function main() {
 
-              const fs = require("fs");
+            const fs = require("fs");
 
-              const path = require("path");
+            const path = require("path");
 
               try {
 
@@ -6442,7 +6443,7 @@ jobs:
           node-version: '24'
           package-manager-cache: false
       - name: Install GitHub Copilot CLI
-        run: npm install -g @github/copilot@0.0.366
+        run: npm install -g @github/copilot@0.0.367
       - name: Execute GitHub Copilot CLI
         id: agentic_execution
         # Copilot CLI tool arguments (sorted):

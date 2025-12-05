@@ -262,36 +262,120 @@ func removeExports(content string) string {
 }
 
 // deduplicateRequires removes duplicate require() statements from bundled JavaScript
-// keeping only the first occurrence of each unique require
+// For destructured imports from the same module, it merges them into a single require statement
+// keeping only the first occurrence of each unique require for non-destructured imports
 func deduplicateRequires(content string) string {
 	lines := strings.Split(content, "\n")
-	var result strings.Builder
-	seenRequires := make(map[string]bool)
+	
+	// Track module imports: map[moduleName] -> list of destructured names or "" for default import
+	moduleImports := make(map[string][]string)
+	// Track which lines are require statements to skip during first pass
+	requireLines := make(map[int]bool)
+	// Track order of first appearance of each module
+	moduleOrder := []string{}
 
-	// Regular expression to match require statements
+	// Regular expression to match destructured require statements
+	// Matches: const/let/var { name1, name2 } = require('module');
+	destructuredRequireRegex := regexp.MustCompile(`^\s*(?:const|let|var)\s+\{\s*([^}]+)\s*\}\s*=\s*require\(['"']([^'"']+)['"']\);?\s*$`)
+	// Regular expression to match non-destructured require statements
 	// Matches: const/let/var name = require('module');
-	requireRegex := regexp.MustCompile(`^\s*(?:const|let|var)\s+(?:\{[^}]*\}|\w+)\s*=\s*require\(['"']([^'"']+)['"']\);?\s*$`)
+	simpleRequireRegex := regexp.MustCompile(`^\s*(?:const|let|var)\s+(\w+)\s*=\s*require\(['"']([^'"']+)['"']\);?\s*$`)
 
+	// First pass: collect all require statements and their destructured imports
 	for i, line := range lines {
-		// Check if this line is a require statement
-		matches := requireRegex.FindStringSubmatch(line)
-
-		if len(matches) > 1 {
-			// This is a require statement
-			moduleName := matches[1]
-
-			// Check if we've seen this require before
-			if seenRequires[moduleName] {
-				// Skip this duplicate require
-				bundlerLog.Printf("Removing duplicate require: %s", moduleName)
-				continue
+		// Try destructured require first
+		destructuredMatches := destructuredRequireRegex.FindStringSubmatch(line)
+		if len(destructuredMatches) > 2 {
+			moduleName := destructuredMatches[2]
+			destructuredNames := destructuredMatches[1]
+			
+			requireLines[i] = true
+			
+			// Parse the destructured names (split by comma and trim whitespace)
+			names := strings.Split(destructuredNames, ",")
+			for _, name := range names {
+				name = strings.TrimSpace(name)
+				if name != "" {
+					moduleImports[moduleName] = append(moduleImports[moduleName], name)
+				}
 			}
+			
+			// Track order of first appearance
+			if len(moduleImports[moduleName]) == len(names) {
+				moduleOrder = append(moduleOrder, moduleName)
+			}
+			continue
+		}
+		
+		// Try simple require
+		simpleMatches := simpleRequireRegex.FindStringSubmatch(line)
+		if len(simpleMatches) > 2 {
+			moduleName := simpleMatches[2]
+			varName := simpleMatches[1]
+			
+			requireLines[i] = true
+			
+			// For simple requires, store the variable name with a marker
+			if _, exists := moduleImports[moduleName]; !exists {
+				moduleOrder = append(moduleOrder, moduleName)
+			}
+			moduleImports[moduleName] = append(moduleImports[moduleName], "VAR:"+varName)
+		}
+	}
 
-			// Mark this require as seen
-			seenRequires[moduleName] = true
+	// Second pass: write output
+	var result strings.Builder
+	wroteRequires := false
+	
+	for i, line := range lines {
+		// Skip original require lines, we'll write merged ones at the first require position
+		if requireLines[i] {
+			if !wroteRequires {
+				// Write all merged require statements here
+				for _, moduleName := range moduleOrder {
+					imports := moduleImports[moduleName]
+					if len(imports) == 0 {
+						continue
+					}
+					
+					// Check if this is a simple require (has VAR: prefix) or destructured
+					if len(imports) == 1 && strings.HasPrefix(imports[0], "VAR:") {
+						// Simple require
+						varName := strings.TrimPrefix(imports[0], "VAR:")
+						result.WriteString(fmt.Sprintf("const %s = require(\"%s\");\n", varName, moduleName))
+						bundlerLog.Printf("Keeping simple require: %s", moduleName)
+					} else {
+						// Destructured require - merge all names
+						var cleanedImports []string
+						for _, imp := range imports {
+							if !strings.HasPrefix(imp, "VAR:") {
+								cleanedImports = append(cleanedImports, imp)
+							}
+						}
+						
+						if len(cleanedImports) > 0 {
+							// Remove duplicates while preserving order
+							seen := make(map[string]bool)
+							var uniqueImports []string
+							for _, imp := range cleanedImports {
+								if !seen[imp] {
+									seen[imp] = true
+									uniqueImports = append(uniqueImports, imp)
+								}
+							}
+							
+							result.WriteString(fmt.Sprintf("const { %s } = require(\"%s\");\n", 
+								strings.Join(uniqueImports, ", "), moduleName))
+							bundlerLog.Printf("Merged destructured require for %s: %v", moduleName, uniqueImports)
+						}
+					}
+				}
+				wroteRequires = true
+			}
+			continue
 		}
 
-		// Keep the line
+		// Keep non-require lines
 		result.WriteString(line)
 		if i < len(lines)-1 {
 			result.WriteString("\n")

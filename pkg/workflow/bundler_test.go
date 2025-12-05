@@ -584,3 +584,69 @@ module.exports = {
 		})
 	}
 }
+
+func TestBundleJavaScriptMergesDestructuredImports(t *testing.T) {
+	// Test that multiple destructured imports from the same module get merged
+	file1 := `const { execSync } = require("child_process");
+function getCurrentBranch() {
+  return execSync("git branch --show-current").toString().trim();
+}
+module.exports = { getCurrentBranch };
+`
+
+	file2 := `const { execFile } = require("child_process");
+function runCommand(cmd, args) {
+  return new Promise((resolve, reject) => {
+    execFile(cmd, args, (error, stdout) => {
+      if (error) reject(error);
+      else resolve(stdout);
+    });
+  });
+}
+module.exports = { runCommand };
+`
+
+	mainContent := `const { getCurrentBranch } = require('./file1.cjs');
+const { runCommand } = require('./file2.cjs');
+
+async function main() {
+  const branch = getCurrentBranch();
+  const result = await runCommand('echo', ['hello']);
+  console.log(branch, result);
+}
+
+main();
+`
+
+	sources := map[string]string{
+		"file1.cjs": file1,
+		"file2.cjs": file2,
+	}
+
+	bundled, err := BundleJavaScriptFromSources(mainContent, sources, "")
+	if err != nil {
+		t.Fatalf("BundleJavaScriptFromSources failed: %v", err)
+	}
+
+	// Check that the bundled code contains a merged require statement
+	if !strings.Contains(bundled, `const { execSync, execFile } = require("child_process");`) &&
+		!strings.Contains(bundled, `const { execFile, execSync } = require("child_process");`) {
+		t.Error("Bundled code should contain merged destructured imports from child_process")
+		t.Logf("Bundled output:\n%s", bundled)
+	}
+
+	// Check that both functions are available (no syntax errors)
+	if !strings.Contains(bundled, "execSync(") {
+		t.Error("Bundled code should contain execSync usage")
+	}
+	if !strings.Contains(bundled, "execFile(") {
+		t.Error("Bundled code should contain execFile usage")
+	}
+
+	// Check that there's only ONE require statement for child_process
+	count := strings.Count(bundled, `require("child_process")`)
+	if count != 1 {
+		t.Errorf("Expected exactly 1 require statement for child_process, got %d", count)
+		t.Logf("Bundled output:\n%s", bundled)
+	}
+}
