@@ -75,3 +75,46 @@ func validateNoLocalRequires(bundledContent string) error {
 	bundlerValidationLog.Print("Validation successful: no local require statements found")
 	return nil
 }
+
+// validateNoModuleReferences checks that the bundled JavaScript contains no module.exports or exports references
+// This is required for GitHub Script mode where no module system exists.
+// Returns an error if any module references are found, otherwise returns nil
+func validateNoModuleReferences(bundledContent string) error {
+	bundlerValidationLog.Printf("Validating no module references: %d bytes", len(bundledContent))
+
+	// Regular expressions to match module references
+	// Match: module.exports or exports.
+	moduleExportsRegex := regexp.MustCompile(`\bmodule\.exports\b`)
+	exportsRegex := regexp.MustCompile(`\bexports\.\w+`)
+
+	lines := strings.Split(bundledContent, "\n")
+	var foundReferences []string
+
+	for lineNum, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		
+		// Skip comment lines
+		if strings.HasPrefix(trimmed, "//") || strings.HasPrefix(trimmed, "/*") || strings.HasPrefix(trimmed, "*") {
+			continue
+		}
+
+		// Check for module.exports
+		if moduleExportsRegex.MatchString(line) {
+			foundReferences = append(foundReferences, fmt.Sprintf("line %d: module.exports reference", lineNum+1))
+		}
+
+		// Check for exports.
+		if exportsRegex.MatchString(line) {
+			foundReferences = append(foundReferences, fmt.Sprintf("line %d: exports reference", lineNum+1))
+		}
+	}
+
+	if len(foundReferences) > 0 {
+		bundlerValidationLog.Printf("Validation failed: found %d module references", len(foundReferences))
+		return fmt.Errorf("bundled JavaScript for GitHub Script mode contains %d module reference(s) that should have been removed:\n  %s\n\nGitHub Script mode does not support module.exports or exports. These references must be removed during bundling.",
+			len(foundReferences), strings.Join(foundReferences, "\n  "))
+	}
+
+	bundlerValidationLog.Print("Validation successful: no module references found")
+	return nil
+}
