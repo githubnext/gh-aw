@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -49,18 +50,8 @@ Test workflow for .cjs extension verification`
 	}
 
 	// Verify that no .js files are written (should be .cjs or other extensions)
-	lines := strings.Split(yaml, "\n")
-	for i, line := range lines {
-		// Check for file creation commands with .js extension (but not .cjs or .json)
-		if strings.Contains(line, "cat > /tmp/gh-aw/safeoutputs/") {
-			// Extract the filename
-			if strings.Contains(line, ".js ") || strings.Contains(line, ".js<") || strings.Contains(line, ".js\"") {
-				// Make sure it's not .cjs or .json
-				if !strings.Contains(line, ".cjs") && !strings.Contains(line, ".json") {
-					t.Errorf("Line %d: Found .js file being written in safe-outputs: %s", i+1, line)
-				}
-			}
-		}
+	if err := verifyNoDotJSFiles(yaml, "/tmp/gh-aw/safeoutputs/", t); err != nil {
+		t.Error(err)
 	}
 
 	// Verify the chmod command also uses .cjs
@@ -122,18 +113,8 @@ Test workflow for .cjs extension verification`
 	}
 
 	// Verify that no .js files are written (should be .cjs or other extensions like .sh, .py, .json)
-	lines := strings.Split(yaml, "\n")
-	for i, line := range lines {
-		// Check for file creation commands with .js extension (but not .cjs or .json)
-		if strings.Contains(line, "cat > /tmp/gh-aw/safe-inputs/") {
-			// Extract the filename
-			if strings.Contains(line, ".js ") || strings.Contains(line, ".js<") || strings.Contains(line, ".js\"") {
-				// Make sure it's not .cjs or .json
-				if !strings.Contains(line, ".cjs") && !strings.Contains(line, ".json") {
-					t.Errorf("Line %d: Found .js file being written in safe-inputs: %s", i+1, line)
-				}
-			}
-		}
+	if err := verifyNoDotJSFiles(yaml, "/tmp/gh-aw/safe-inputs/", t); err != nil {
+		t.Error(err)
 	}
 
 	// Verify the chmod command uses .cjs
@@ -220,4 +201,25 @@ func TestJavaScriptSourcesUseCjsExtension(t *testing.T) {
 			t.Errorf("JavaScript source file %s should use .cjs extension, not .js", filename)
 		}
 	}
+}
+
+// verifyNoDotJSFiles checks that no .js files (only .cjs or other extensions) are written
+// to the specified directory path in the generated YAML
+func verifyNoDotJSFiles(yaml, dirPath string, t *testing.T) error {
+	lines := strings.Split(yaml, "\n")
+	for i, line := range lines {
+		// Check for file creation commands with .js extension (but not .cjs or .json)
+		if strings.Contains(line, "cat > "+dirPath) {
+			// Use word boundary check for .js to avoid false positives
+			// Match .js followed by space, <, ", or end of string
+			if strings.Contains(line, ".js ") || strings.Contains(line, ".js<") ||
+				strings.Contains(line, ".js\"") || strings.HasSuffix(strings.TrimSpace(line), ".js") {
+				// Make sure it's not .cjs or .json
+				if !strings.Contains(line, ".cjs") && !strings.Contains(line, ".json") {
+					return fmt.Errorf("line %d: Found .js file being written in %s: %s", i+1, dirPath, line)
+				}
+			}
+		}
+	}
+	return nil
 }
