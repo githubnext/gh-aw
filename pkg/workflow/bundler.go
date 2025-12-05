@@ -266,7 +266,7 @@ func removeExports(content string) string {
 // keeping only the first occurrence of each unique require for non-destructured imports
 func deduplicateRequires(content string) string {
 	lines := strings.Split(content, "\n")
-	
+
 	// Track module imports: map[moduleName] -> list of destructured names or "" for default import
 	moduleImports := make(map[string][]string)
 	// Track which lines are require statements to skip during first pass
@@ -288,9 +288,9 @@ func deduplicateRequires(content string) string {
 		if len(destructuredMatches) > 2 {
 			moduleName := destructuredMatches[2]
 			destructuredNames := destructuredMatches[1]
-			
+
 			requireLines[i] = true
-			
+
 			// Parse the destructured names (split by comma and trim whitespace)
 			names := strings.Split(destructuredNames, ",")
 			for _, name := range names {
@@ -299,22 +299,22 @@ func deduplicateRequires(content string) string {
 					moduleImports[moduleName] = append(moduleImports[moduleName], name)
 				}
 			}
-			
+
 			// Track order of first appearance
 			if len(moduleImports[moduleName]) == len(names) {
 				moduleOrder = append(moduleOrder, moduleName)
 			}
 			continue
 		}
-		
+
 		// Try simple require
 		simpleMatches := simpleRequireRegex.FindStringSubmatch(line)
 		if len(simpleMatches) > 2 {
 			moduleName := simpleMatches[2]
 			varName := simpleMatches[1]
-			
+
 			requireLines[i] = true
-			
+
 			// For simple requires, store the variable name with a marker
 			if _, exists := moduleImports[moduleName]; !exists {
 				moduleOrder = append(moduleOrder, moduleName)
@@ -326,7 +326,7 @@ func deduplicateRequires(content string) string {
 	// Second pass: write output
 	var result strings.Builder
 	wroteRequires := false
-	
+
 	for i, line := range lines {
 		// Skip original require lines, we'll write merged ones at the first require position
 		if requireLines[i] {
@@ -337,7 +337,7 @@ func deduplicateRequires(content string) string {
 					if len(imports) == 0 {
 						continue
 					}
-					
+
 					// Check if this is a simple require (has VAR: prefix) or destructured
 					if len(imports) == 1 && strings.HasPrefix(imports[0], "VAR:") {
 						// Simple require
@@ -352,7 +352,7 @@ func deduplicateRequires(content string) string {
 								cleanedImports = append(cleanedImports, imp)
 							}
 						}
-						
+
 						if len(cleanedImports) > 0 {
 							// Remove duplicates while preserving order
 							seen := make(map[string]bool)
@@ -363,8 +363,8 @@ func deduplicateRequires(content string) string {
 									uniqueImports = append(uniqueImports, imp)
 								}
 							}
-							
-							result.WriteString(fmt.Sprintf("const { %s } = require(\"%s\");\n", 
+
+							result.WriteString(fmt.Sprintf("const { %s } = require(\"%s\");\n",
 								strings.Join(uniqueImports, ", "), moduleName))
 							bundlerLog.Printf("Merged destructured require for %s: %v", moduleName, uniqueImports)
 						}
