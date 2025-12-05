@@ -739,36 +739,18 @@ func TestUpdateWorkflow_MergeMode(t *testing.T) {
 
 // TestMarshalActionsLockSorted tests that the actions lock marshaling produces sorted output
 func TestMarshalActionsLockSorted(t *testing.T) {
-	actionsLock := &struct {
-		Entries map[string]struct {
-			Repo    string `json:"repo"`
-			Version string `json:"version"`
-			SHA     string `json:"sha"`
-		} `json:"entries"`
-	}{
-		Entries: make(map[string]struct {
-			Repo    string `json:"repo"`
-			Version string `json:"version"`
-			SHA     string `json:"sha"`
-		}),
+	actionsLock := &actionsLockFile{
+		Entries: make(map[string]actionsLockEntry),
 	}
 
 	// Add entries in non-alphabetical order
-	actionsLock.Entries["zebra/action@v1"] = struct {
-		Repo    string `json:"repo"`
-		Version string `json:"version"`
-		SHA     string `json:"sha"`
-	}{
+	actionsLock.Entries["zebra/action@v1"] = actionsLockEntry{
 		Repo:    "zebra/action",
 		Version: "v1",
 		SHA:     "abc123",
 	}
 
-	actionsLock.Entries["actions/checkout@v5"] = struct {
-		Repo    string `json:"repo"`
-		Version string `json:"version"`
-		SHA     string `json:"sha"`
-	}{
+	actionsLock.Entries["actions/checkout@v5"] = actionsLockEntry{
 		Repo:    "actions/checkout",
 		Version: "v5",
 		SHA:     "def456",

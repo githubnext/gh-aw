@@ -321,6 +321,18 @@ type updateFailure struct {
 	Error string
 }
 
+// actionsLockEntry represents a single action pin entry
+type actionsLockEntry struct {
+	Repo    string `json:"repo"`
+	Version string `json:"version"`
+	SHA     string `json:"sha"`
+}
+
+// actionsLockFile represents the structure of actions-lock.json
+type actionsLockFile struct {
+	Entries map[string]actionsLockEntry `json:"entries"`
+}
+
 // showUpdateSummary displays a summary of workflow updates using console helpers
 func showUpdateSummary(successfulUpdates []string, failedUpdates []updateFailure) {
 	fmt.Fprintln(os.Stderr, "")
@@ -985,14 +997,7 @@ func UpdateActions(allowMajor, verbose bool) error {
 		return fmt.Errorf("failed to read actions lock file: %w", err)
 	}
 
-	var actionsLock struct {
-		Entries map[string]struct {
-			Repo    string `json:"repo"`
-			Version string `json:"version"`
-			SHA     string `json:"sha"`
-		} `json:"entries"`
-	}
-
+	var actionsLock actionsLockFile
 	if err := json.Unmarshal(data, &actionsLock); err != nil {
 		return fmt.Errorf("failed to parse actions lock file: %w", err)
 	}
@@ -1032,10 +1037,11 @@ func UpdateActions(allowMajor, verbose bool) error {
 		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Updated %s from %s to %s", entry.Repo, entry.Version, latestVersion)))
 
 		// Update the map entry
-		updatedEntry := actionsLock.Entries[key]
-		updatedEntry.Version = latestVersion
-		updatedEntry.SHA = latestSHA
-		actionsLock.Entries[key] = updatedEntry
+		actionsLock.Entries[key] = actionsLockEntry{
+			Repo:    entry.Repo,
+			Version: latestVersion,
+			SHA:     latestSHA,
+		}
 
 		updatedActions = append(updatedActions, entry.Repo)
 	}
@@ -1097,6 +1103,17 @@ func getLatestActionRelease(repo, currentVersion string, allowMajor, verbose boo
 	cmd := workflow.ExecGH("api", fmt.Sprintf("/repos/%s/releases", repo), "--jq", ".[].tag_name")
 	output, err := cmd.CombinedOutput()
 	if err != nil {
+		// Check if this is an authentication error
+		outputStr := string(output)
+		if gitutil.IsAuthError(outputStr) || gitutil.IsAuthError(err.Error()) {
+			updateLog.Printf("GitHub API authentication failed, attempting git ls-remote fallback for %s", repo)
+			// Try fallback using git ls-remote
+			latestRelease, latestSHA, gitErr := getLatestActionReleaseViaGit(repo, currentVersion, allowMajor, verbose)
+			if gitErr != nil {
+				return "", "", fmt.Errorf("failed to fetch releases via GitHub API and git: API error: %w, Git error: %v", err, gitErr)
+			}
+			return latestRelease, latestSHA, nil
+		}
 		return "", "", fmt.Errorf("failed to fetch releases: %w", err)
 	}
 
@@ -1152,6 +1169,91 @@ func getLatestActionRelease(repo, currentVersion string, allowMajor, verbose boo
 	return latestCompatible, sha, nil
 }
 
+// getLatestActionReleaseViaGit gets the latest release using git ls-remote (fallback)
+func getLatestActionReleaseViaGit(repo, currentVersion string, allowMajor, verbose bool) (string, string, error) {
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Fetching latest release for %s via git ls-remote (current: %s, allow major: %v)", repo, currentVersion, allowMajor)))
+	}
+
+	repoURL := fmt.Sprintf("https://github.com/%s.git", repo)
+
+	// List all tags
+	cmd := exec.Command("git", "ls-remote", "--tags", repoURL)
+	output, err := cmd.Output()
+	if err != nil {
+		return "", "", fmt.Errorf("failed to fetch releases via git ls-remote: %w", err)
+	}
+
+	lines := strings.Split(strings.TrimSpace(string(output)), "\n")
+	var releases []string
+	tagToSHA := make(map[string]string)
+
+	for _, line := range lines {
+		// Parse: "<sha> refs/tags/<tag>"
+		parts := strings.Fields(line)
+		if len(parts) >= 2 {
+			sha := parts[0]
+			tagRef := parts[1]
+			// Skip ^{} annotations (they point to the commit object)
+			if strings.HasSuffix(tagRef, "^{}") {
+				continue
+			}
+			tag := strings.TrimPrefix(tagRef, "refs/tags/")
+			releases = append(releases, tag)
+			tagToSHA[tag] = sha
+		}
+	}
+
+	if len(releases) == 0 {
+		return "", "", fmt.Errorf("no releases found")
+	}
+
+	// Parse current version
+	currentVer := parseVersion(currentVersion)
+	if currentVer == nil {
+		// If current version is not a valid semantic version, just return the first release
+		latestRelease := releases[0]
+		sha := tagToSHA[latestRelease]
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Current version is not valid, using first release: %s (via git)", latestRelease)))
+		}
+		return latestRelease, sha, nil
+	}
+
+	// Find the latest compatible release
+	var latestCompatible string
+	var latestCompatibleVersion *semanticVersion
+
+	for _, release := range releases {
+		releaseVer := parseVersion(release)
+		if releaseVer == nil {
+			continue
+		}
+
+		// Check if compatible based on major version
+		if !allowMajor && releaseVer.major != currentVer.major {
+			continue
+		}
+
+		// Check if this is newer than what we have
+		if latestCompatibleVersion == nil || releaseVer.isNewer(latestCompatibleVersion) {
+			latestCompatible = release
+			latestCompatibleVersion = releaseVer
+		}
+	}
+
+	if latestCompatible == "" {
+		return "", "", fmt.Errorf("no compatible release found")
+	}
+
+	sha := tagToSHA[latestCompatible]
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Latest compatible release: %s (via git)", latestCompatible)))
+	}
+
+	return latestCompatible, sha, nil
+}
+
 // getActionSHAForTag gets the commit SHA for a given tag in an action repository
 func getActionSHAForTag(repo, tag string) (string, error) {
 	updateLog.Printf("Getting SHA for %s@%s", repo, tag)
@@ -1177,13 +1279,7 @@ func getActionSHAForTag(repo, tag string) (string, error) {
 }
 
 // marshalActionsLockSorted marshals the actions lock with entries sorted by key
-func marshalActionsLockSorted(actionsLock *struct {
-	Entries map[string]struct {
-		Repo    string `json:"repo"`
-		Version string `json:"version"`
-		SHA     string `json:"sha"`
-	} `json:"entries"`
-}) ([]byte, error) {
+func marshalActionsLockSorted(actionsLock *actionsLockFile) ([]byte, error) {
 	// Extract and sort the keys
 	keys := make([]string, 0, len(actionsLock.Entries))
 	for key := range actionsLock.Entries {
@@ -1191,16 +1287,36 @@ func marshalActionsLockSorted(actionsLock *struct {
 	}
 	sort.Strings(keys)
 
-	// Manually construct JSON with sorted keys
+	// Manually construct JSON with sorted keys using proper JSON marshaling for values
 	var result []byte
 	result = append(result, []byte("{\n  \"entries\": {\n")...)
 
 	for i, key := range keys {
 		entry := actionsLock.Entries[key]
 
-		// Construct the entry JSON manually
-		entryJSON := fmt.Sprintf("    \"%s\": {\n      \"repo\": \"%s\",\n      \"version\": \"%s\",\n      \"sha\": \"%s\"\n    }",
-			key, entry.Repo, entry.Version, entry.SHA)
+		// Marshal the key using proper JSON encoding
+		keyJSON, err := json.Marshal(key)
+		if err != nil {
+			return nil, err
+		}
+
+		// Marshal individual fields using proper JSON encoding
+		repoJSON, err := json.Marshal(entry.Repo)
+		if err != nil {
+			return nil, err
+		}
+		versionJSON, err := json.Marshal(entry.Version)
+		if err != nil {
+			return nil, err
+		}
+		shaJSON, err := json.Marshal(entry.SHA)
+		if err != nil {
+			return nil, err
+		}
+
+		// Construct the entry JSON with properly escaped values
+		entryJSON := fmt.Sprintf("    %s: {\n      \"repo\": %s,\n      \"version\": %s,\n      \"sha\": %s\n    }",
+			string(keyJSON), string(repoJSON), string(versionJSON), string(shaJSON))
 
 		result = append(result, []byte(entryJSON)...)
 
