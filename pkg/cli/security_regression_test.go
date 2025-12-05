@@ -445,8 +445,11 @@ Test content.`,
 				t.Fatalf("Failed to create test file: %v", err)
 			}
 
-			// Use the workflow compiler directly instead of CLI CompileWorkflows
-			// to avoid the relative path requirement for WorkflowDir
+			// Note: We use the workflow compiler directly rather than CLI CompileWorkflows
+			// because CompileWorkflows requires a relative path for WorkflowDir (security check).
+			// This test validates the underlying compilation validation, which is the same
+			// validation used by the CLI. The CLI path validation is tested separately in
+			// TestSecurityCLIPathSanitization and TestSecurityCLIOutputDirectorySafety.
 			compiler := workflow.NewCompiler(false, "", "test")
 			compileErr := compiler.CompileWorkflow(testFile)
 
