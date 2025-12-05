@@ -6,8 +6,8 @@ on:
   pull_request:
     branches: [main]
   schedule:
-    # Weekly scan on Mondays at 6:00 AM UTC
-    - cron: '0 6 * * 1'
+    # Daily scan at 6:00 AM UTC
+    - cron: '0 6 * * *'
   workflow_dispatch:
 
 permissions:

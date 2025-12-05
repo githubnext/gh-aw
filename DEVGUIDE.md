@@ -177,7 +177,7 @@ CVE-2023-XXXXX  # False positive: not exploitable in our usage
 Security scans run automatically on:
 - Every pull request
 - Every push to main branch
-- Weekly scheduled scan (Mondays at 6:00 AM UTC)
+- Daily scheduled scan (6:00 AM UTC)
 
 Results are uploaded to the GitHub Security tab in SARIF format.
 
