@@ -341,6 +341,24 @@ pull-main:
 release: pull-main build
 	@node scripts/changeset.js release
 
+# Generate Software Bill of Materials (SBOM)
+.PHONY: sbom
+sbom:
+	@if ! command -v syft >/dev/null 2>&1; then \
+		echo "Error: syft is not installed."; \
+		echo ""; \
+		echo "Install syft to generate SBOMs:"; \
+		echo "  curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b /usr/local/bin"; \
+		echo ""; \
+		echo "Or visit: https://github.com/anchore/syft#installation"; \
+		exit 1; \
+	fi
+	@echo "Generating SBOM in SPDX format..."
+	syft packages . -o spdx-json=sbom.spdx.json
+	@echo "Generating SBOM in CycloneDX format..."
+	syft packages . -o cyclonedx-json=sbom.cdx.json
+	@echo "✓ SBOM files generated: sbom.spdx.json, sbom.cdx.json"
+
 # Agent should run this task before finishing its turns
 .PHONY: agent-finish
 agent-finish: deps-dev fmt lint build test-all recompile dependabot generate-schema-docs generate-labs
@@ -387,4 +405,5 @@ help:
 	@echo "  agent-finish     - Complete validation sequence (build, test, recompile, fmt, lint)"
 	@echo "  version   - Preview next version from changesets"
 	@echo "  release   - Create release using changesets (depends on test)"
+	@echo "  sbom             - Generate SBOM in SPDX and CycloneDX formats (requires syft)"
 	@echo "  help             - Show this help message"
