@@ -91,6 +91,12 @@ func (r RuntimeMode) String() string {
 //
 // DEPRECATED: Use BundleJavaScriptWithMode instead to specify runtime mode explicitly.
 // This function defaults to RuntimeModeGitHubScript for backward compatibility.
+//
+// Migration guide:
+//   - For GitHub Script action (inline in YAML): use BundleJavaScriptWithMode(content, sources, basePath, RuntimeModeGitHubScript)
+//   - For Node.js scripts (filesystem-based): use BundleJavaScriptWithMode(content, sources, basePath, RuntimeModeNodeJS)
+//
+// This function will be maintained for backward compatibility but new code should use BundleJavaScriptWithMode.
 func BundleJavaScriptFromSources(mainContent string, sources map[string]string, basePath string) (string, error) {
 	return BundleJavaScriptWithMode(mainContent, sources, basePath, RuntimeModeGitHubScript)
 }

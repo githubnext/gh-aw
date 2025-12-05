@@ -51,6 +51,14 @@ import (
 
 var bundlerValidationLog = logger.New("workflow:bundler_validation")
 
+// Pre-compiled regular expressions for validation (compiled once at package initialization for performance)
+var (
+	// moduleExportsRegex matches module.exports references
+	moduleExportsRegex = regexp.MustCompile(`\bmodule\.exports\b`)
+	// exportsRegex matches exports.property references
+	exportsRegex = regexp.MustCompile(`\bexports\.\w+`)
+)
+
 // validateNoLocalRequires checks that the bundled JavaScript contains no local require() statements
 // that weren't inlined during bundling. This prevents runtime errors from missing local modules.
 // Returns an error if any local requires are found, otherwise returns nil
@@ -90,11 +98,6 @@ func validateNoLocalRequires(bundledContent string) error {
 // Returns an error if any module references are found, otherwise returns nil
 func validateNoModuleReferences(bundledContent string) error {
 	bundlerValidationLog.Printf("Validating no module references: %d bytes", len(bundledContent))
-
-	// Regular expressions to match module references
-	// Match: module.exports or exports.
-	moduleExportsRegex := regexp.MustCompile(`\bmodule\.exports\b`)
-	exportsRegex := regexp.MustCompile(`\bexports\.\w+`)
 
 	lines := strings.Split(bundledContent, "\n")
 	var foundReferences []string
