@@ -375,13 +375,13 @@ func generateCacheMemorySteps(builder *strings.Builder, data *WorkflowData) {
 		} else {
 			actionName = "Cache memory file share data"
 		}
-		
+
 		if useBackwardCompatiblePaths {
 			builder.WriteString(fmt.Sprintf("      - name: %s\n", actionName))
 		} else {
 			builder.WriteString(fmt.Sprintf("      - name: %s (%s)\n", actionName, cache.ID))
 		}
-		
+
 		// Use actions/cache/restore@v4 for restore-only, actions/cache@v4 for normal
 		if cache.RestoreOnly {
 			builder.WriteString(fmt.Sprintf("        uses: %s\n", GetActionPin("actions/cache/restore")))

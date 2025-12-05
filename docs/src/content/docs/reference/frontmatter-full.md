@@ -1340,6 +1340,12 @@ tools:
     # (optional)
     retention-days: 1
 
+    # If true, only restore the cache without saving it back. Uses
+    # actions/cache/restore instead of actions/cache. No artifact upload step will be
+    # generated.
+    # (optional)
+    restore-only: true
+
   # Option 4: Array of cache-memory configurations for multiple caches
   cache-memory: []
     # Array items: object
