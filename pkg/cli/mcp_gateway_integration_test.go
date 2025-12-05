@@ -85,7 +85,7 @@ This is a test workflow.
 	gatewayCtx, gatewayCancel := context.WithCancel(context.Background())
 	defer gatewayCancel()
 
-	gatewayCmd := exec.CommandContext(gatewayCtx, absBinaryPath, "mcp-gateway", configPath)
+	gatewayCmd := exec.CommandContext(gatewayCtx, absBinaryPath, "mcp-gateway", "--mcps", configPath)
 	gatewayCmd.Dir = tmpDir
 
 	// Capture output for debugging
@@ -322,7 +322,7 @@ engine: copilot
 	gatewayCtx, gatewayCancel := context.WithCancel(context.Background())
 	defer gatewayCancel()
 
-	gatewayCmd := exec.CommandContext(gatewayCtx, absBinaryPath, "mcp-gateway", configPath)
+	gatewayCmd := exec.CommandContext(gatewayCtx, absBinaryPath, "mcp-gateway", "--mcps", configPath)
 	gatewayCmd.Dir = tmpDir
 	gatewayCmd.Stdout = os.Stdout
 	gatewayCmd.Stderr = os.Stderr
@@ -449,7 +449,7 @@ This is a test workflow.
 	gatewayCtx, gatewayCancel := context.WithCancel(context.Background())
 	defer gatewayCancel()
 
-	gatewayCmd := exec.CommandContext(gatewayCtx, absBinaryPath, "mcp-gateway", configPath)
+	gatewayCmd := exec.CommandContext(gatewayCtx, absBinaryPath, "mcp-gateway", "--mcps", configPath)
 	gatewayCmd.Dir = tmpDir
 
 	// Capture output for debugging
