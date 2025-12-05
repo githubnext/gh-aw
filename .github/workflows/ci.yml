@@ -317,6 +317,39 @@ jobs:
           go test -fuzz=FuzzParseFrontmatter -fuzztime=10s ./pkg/parser/
           go test -fuzz=FuzzExpressionParser -fuzztime=10s ./pkg/workflow/
 
+  security:
+    needs: [test]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    concurrency:
+      group: ci-${{ github.ref }}-security
+      cancel-in-progress: true
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Set up Go
+        id: setup-go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Report Go cache status
+        run: |
+          if [ "${{ steps.setup-go.outputs.cache-hit }}" == "true" ]; then
+            echo "✅ Go cache hit" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ Go cache miss" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Verify dependencies
+        run: go mod verify
+
+      - name: Run security regression tests
+        run: make test-security
+
   security-scan:
     needs: [test]
     runs-on: ubuntu-latest
