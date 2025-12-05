@@ -3,6 +3,7 @@ package workflow
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/logger"
 )
@@ -41,6 +42,7 @@ type AgentSandboxConfig struct {
 	Command  string                `yaml:"command,omitempty"` // Custom command to replace AWF or SRT installation
 	Args     []string              `yaml:"args,omitempty"`    // Additional arguments to append to the command
 	Env      map[string]string     `yaml:"env,omitempty"`     // Environment variables to set on the step
+	Mounts   []string              `yaml:"mounts,omitempty"`  // Container mounts to add for AWF (format: "source:dest:mode")
 }
 
 // SandboxRuntimeConfig represents the Anthropic Sandbox Runtime configuration
@@ -226,6 +228,41 @@ func generateSRTConfigJSON(workflowData *WorkflowData) (string, error) {
 	return string(jsonBytes), nil
 }
 
+// validateMountsSyntax validates that mount strings follow the correct syntax
+// Expected format: "source:destination:mode" where mode is either "ro" or "rw"
+func validateMountsSyntax(mounts []string) error {
+	for i, mount := range mounts {
+		// Split the mount string by colons
+		parts := strings.Split(mount, ":")
+
+		// Must have exactly 3 parts: source, destination, mode
+		if len(parts) != 3 {
+			return fmt.Errorf("invalid mount syntax at index %d: '%s'. Expected format: 'source:destination:mode' (e.g., '/host/path:/container/path:ro')", i, mount)
+		}
+
+		source := parts[0]
+		dest := parts[1]
+		mode := parts[2]
+
+		// Validate that source and destination are not empty
+		if source == "" {
+			return fmt.Errorf("invalid mount at index %d: source path is empty in '%s'", i, mount)
+		}
+		if dest == "" {
+			return fmt.Errorf("invalid mount at index %d: destination path is empty in '%s'", i, mount)
+		}
+
+		// Validate mode is either "ro" or "rw"
+		if mode != "ro" && mode != "rw" {
+			return fmt.Errorf("invalid mount at index %d: mode must be 'ro' (read-only) or 'rw' (read-write), got '%s' in '%s'", i, mode, mount)
+		}
+
+		sandboxLog.Printf("Validated mount %d: source=%s, dest=%s, mode=%s", i, source, dest, mode)
+	}
+
+	return nil
+}
+
 // validateSandboxConfig validates the sandbox configuration
 // Returns an error if the configuration is invalid
 func validateSandboxConfig(workflowData *WorkflowData) error {
@@ -234,6 +271,14 @@ func validateSandboxConfig(workflowData *WorkflowData) error {
 	}
 
 	sandboxConfig := workflowData.SandboxConfig
+
+	// Validate mounts syntax if specified
+	agentConfig := getAgentConfig(workflowData)
+	if agentConfig != nil && len(agentConfig.Mounts) > 0 {
+		if err := validateMountsSyntax(agentConfig.Mounts); err != nil {
+			return err
+		}
+	}
 
 	// Validate that SRT is only used with Copilot engine
 	if isSRTEnabled(workflowData) {
