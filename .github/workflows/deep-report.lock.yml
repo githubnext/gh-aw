@@ -57,7 +57,11 @@
 #     close-older-discussions: true
 #
 # tools:
-#   cache-memory:
+#   repo-memory:
+#     branch-name: memory/deep-report
+#     description: "Long-term insights, patterns, and trend data"
+#     file-glob: ["*.md"]
+#     max-file-size: 1048576  # 1MB
 #   github:
 #     toolsets:
 #       - all
@@ -87,15 +91,19 @@
 #   conclusion["conclusion"]
 #   create_discussion["create_discussion"]
 #   detection["detection"]
+#   push_repo_memory["push_repo_memory"]
 #   upload_assets["upload_assets"]
 #   activation --> agent
 #   agent --> conclusion
 #   activation --> conclusion
 #   create_discussion --> conclusion
 #   upload_assets --> conclusion
+#   push_repo_memory --> conclusion
 #   agent --> create_discussion
 #   detection --> create_discussion
 #   agent --> detection
+#   agent --> push_repo_memory
+#   detection --> push_repo_memory
 #   agent --> upload_assets
 #   detection --> upload_assets
 # ```
@@ -447,16 +455,16 @@
 #
 # ## Intelligence Collection Process
 #
-# ### Step 0: Check Cache Memory
+# ### Step 0: Check Repo Memory
 #
 # **EFFICIENCY FIRST**: Before starting full analysis:
 #
-# 1. Check `/tmp/gh-aw/cache-memory/deep-report/` for previous insights
-# 2. Load any existing:
-#    - `last_analysis_timestamp.txt` - When the last full analysis was run
-#    - `known_patterns.json` - Previously identified patterns
-#    - `trend_data.json` - Historical trend data
-#    - `flagged_items.json` - Items flagged for continued monitoring
+# 1. Check `/tmp/gh-aw/repo-memory-default/memory/default/` for previous insights
+# 2. Load any existing markdown files (only markdown files are allowed in repo-memory):
+#    - `last_analysis_timestamp.md` - When the last full analysis was run
+#    - `known_patterns.md` - Previously identified patterns
+#    - `trend_data.md` - Historical trend data
+#    - `flagged_items.md` - Items flagged for continued monitoring
 #
 # 3. If the last analysis was less than 20 hours ago, focus only on new data since then
 #
@@ -497,13 +505,15 @@
 # 3. Find patterns that span multiple report types
 # 4. Track how identified patterns evolve over time
 #
-# ### Step 4: Store Insights in Cache
+# ### Step 4: Store Insights in Repo Memory
 #
-# Save your findings to `/tmp/gh-aw/cache-memory/deep-report/`:
-# - Update `known_patterns.json` with any new patterns discovered
-# - Update `trend_data.json` with current metrics
-# - Update `flagged_items.json` with items needing attention
-# - Save `last_analysis_timestamp.txt` with current timestamp
+# Save your findings to `/tmp/gh-aw/repo-memory-default/memory/default/` as markdown files:
+# - Update `known_patterns.md` with any new patterns discovered
+# - Update `trend_data.md` with current metrics
+# - Update `flagged_items.md` with items needing attention
+# - Save `last_analysis_timestamp.md` with current timestamp
+#
+# **Note:** Only markdown (.md) files are allowed in the repo-memory folder. Use markdown tables, lists, and formatting to structure your data.
 #
 # ## Report Structure
 #
@@ -560,7 +570,7 @@
 # - Discussion references with links
 # - Workflow run references with links
 # - Time range of data analyzed
-# - Cache data used from previous analyses
+# - Repo-memory data used from previous analyses (stored in memory/deep-report branch)
 #
 # ## Output Guidelines
 #
@@ -789,6 +799,35 @@ jobs:
         with:
           name: cache-memory
           path: /tmp/gh-aw/cache-memory
+      # Repo memory git-based storage configuration from frontmatter processed below
+      - name: Clone repo-memory branch (default)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BRANCH_NAME: memory/deep-report
+        run: |
+          set +e  # Don't fail if branch doesn't exist
+          git clone --depth 1 --single-branch --branch "memory/deep-report" "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git" "/tmp/gh-aw/repo-memory-default" 2>/dev/null
+          CLONE_EXIT_CODE=$?
+          set -e
+          
+          if [ $CLONE_EXIT_CODE -ne 0 ]; then
+            echo "Branch memory/deep-report does not exist, creating orphan branch"
+            mkdir -p "/tmp/gh-aw/repo-memory-default"
+            cd "/tmp/gh-aw/repo-memory-default"
+            git init
+            git checkout --orphan "$BRANCH_NAME"
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git"
+          else
+            echo "Successfully cloned memory/deep-report branch"
+            cd "/tmp/gh-aw/repo-memory-default"
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+          fi
+          
+          mkdir -p "/tmp/gh-aw/repo-memory-default/memory/default"
+          echo "Repo memory directory ready at /tmp/gh-aw/repo-memory-default/memory/default"
       - name: Configure Git credentials
         env:
           REPO_NAME: ${{ github.repository }}
@@ -2598,16 +2637,16 @@ jobs:
           
           ## Intelligence Collection Process
           
-          ### Step 0: Check Cache Memory
+          ### Step 0: Check Repo Memory
           
           **EFFICIENCY FIRST**: Before starting full analysis:
           
-          1. Check `/tmp/gh-aw/cache-memory/deep-report/` for previous insights
-          2. Load any existing:
-             - `last_analysis_timestamp.txt` - When the last full analysis was run
-             - `known_patterns.json` - Previously identified patterns
-             - `trend_data.json` - Historical trend data
-             - `flagged_items.json` - Items flagged for continued monitoring
+          1. Check `/tmp/gh-aw/repo-memory-default/memory/default/` for previous insights
+          2. Load any existing markdown files (only markdown files are allowed in repo-memory):
+             - `last_analysis_timestamp.md` - When the last full analysis was run
+             - `known_patterns.md` - Previously identified patterns
+             - `trend_data.md` - Historical trend data
+             - `flagged_items.md` - Items flagged for continued monitoring
           
           3. If the last analysis was less than 20 hours ago, focus only on new data since then
           
@@ -2648,13 +2687,15 @@ jobs:
           3. Find patterns that span multiple report types
           4. Track how identified patterns evolve over time
           
-          ### Step 4: Store Insights in Cache
+          ### Step 4: Store Insights in Repo Memory
           
-          Save your findings to `/tmp/gh-aw/cache-memory/deep-report/`:
-          - Update `known_patterns.json` with any new patterns discovered
-          - Update `trend_data.json` with current metrics
-          - Update `flagged_items.json` with items needing attention
-          - Save `last_analysis_timestamp.txt` with current timestamp
+          Save your findings to `/tmp/gh-aw/repo-memory-default/memory/default/` as markdown files:
+          - Update `known_patterns.md` with any new patterns discovered
+          - Update `trend_data.md` with current metrics
+          - Update `flagged_items.md` with items needing attention
+          - Save `last_analysis_timestamp.md` with current timestamp
+          
+          **Note:** Only markdown (.md) files are allowed in the repo-memory folder. Use markdown tables, lists, and formatting to structure your data.
           
           ## Report Structure
           
@@ -2711,7 +2752,7 @@ jobs:
           - Discussion references with links
           - Workflow run references with links
           - Time range of data analyzed
-          - Cache data used from previous analyses
+          - Repo-memory data used from previous analyses (stored in memory/deep-report branch)
           
           ## Output Guidelines
           
@@ -2803,6 +2844,36 @@ jobs:
           - `/tmp/gh-aw/cache-memory/preferences.json` - user preferences and settings
           - `/tmp/gh-aw/cache-memory/history.log` - activity history and logs
           - `/tmp/gh-aw/cache-memory/state/` - organized state files in subdirectories
+          
+          Feel free to create, read, update, and organize files in this folder as needed for your tasks.
+          PROMPT_EOF
+      - name: Append repo memory instructions to prompt
+        env:
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+        run: |
+          cat << 'PROMPT_EOF' | envsubst >> "$GH_AW_PROMPT"
+          
+          ---
+          
+          ## Repo Memory Available
+          
+          You have access to a persistent repo memory folder at `/tmp/gh-aw/repo-memory-default/memory/default/` where you can read and write files that are stored in a git branch. Long-term insights, patterns, and trend data
+          
+          - **Read/Write Access**: You can freely read from and write to any files in this folder
+          - **Git Branch Storage**: Files are stored in the `memory/deep-report` branch of the current repository
+          - **Automatic Push**: Changes are automatically committed and pushed after the workflow completes
+          - **Merge Strategy**: In case of conflicts, your changes (current version) win
+          - **Persistence**: Files persist across workflow runs via git branch storage
+          
+          **Constraints:**
+          - **Allowed Files**: Only files matching patterns: *.md
+          - **Max File Size**: 1048576 bytes (1.00 MB) per file
+          - **Max File Count**: 100 files per commit
+          
+          Examples of what you can store:
+          - `/tmp/gh-aw/repo-memory-default/memory/default/notes.md` - general notes and observations
+          - `/tmp/gh-aw/repo-memory-default/memory/default/state.json` - structured state data
+          - `/tmp/gh-aw/repo-memory-default/memory/default/history/` - organized history files in subdirectories
           
           Feel free to create, read, update, and organize files in this folder as needed for your tasks.
           PROMPT_EOF
@@ -5135,6 +5206,15 @@ jobs:
           name: agent-stdio.log
           path: /tmp/gh-aw/agent-stdio.log
           if-no-files-found: warn
+      # Upload repo memory as artifacts for push job
+      - name: Upload repo-memory artifact (default)
+        if: always()
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
+        with:
+          name: repo-memory-default
+          path: /tmp/gh-aw/repo-memory-default
+          retention-days: 1
+          if-no-files-found: ignore
       - name: Upload safe outputs assets
         if: always()
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
@@ -5384,6 +5464,7 @@ jobs:
       - activation
       - create_discussion
       - upload_assets
+      - push_repo_memory
     if: (always()) && (needs.agent.result != 'skipped')
     runs-on: ubuntu-slim
     permissions:
@@ -6784,6 +6865,200 @@ jobs:
           name: threat-detection.log
           path: /tmp/gh-aw/threat-detection/detection.log
           if-no-files-found: ignore
+
+  push_repo_memory:
+    needs:
+      - agent
+      - detection
+    if: always() && needs.detection.outputs.success == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+        with:
+          persist-credentials: false
+          sparse-checkout: .
+      - name: Configure Git credentials
+        env:
+          REPO_NAME: ${{ github.repository }}
+          SERVER_URL: ${{ github.server_url }}
+        run: |
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "github-actions[bot]"
+          # Re-authenticate git with GitHub token
+          SERVER_URL_STRIPPED="${SERVER_URL#https://}"
+          git remote set-url origin "https://x-access-token:${{ github.token }}@${SERVER_URL_STRIPPED}/${REPO_NAME}.git"
+          echo "Git configured with standard GitHub Actions identity"
+      - name: Download repo-memory artifact (default)
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
+        continue-on-error: true
+        with:
+          name: repo-memory-default
+          path: /tmp/gh-aw/repo-memory-default
+      - name: Push repo-memory changes (default)
+        if: always()
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_RUN_ID: ${{ github.run_id }}
+          ARTIFACT_DIR: /tmp/gh-aw/repo-memory-default
+          MEMORY_ID: default
+          TARGET_REPO: ${{ github.repository }}
+          BRANCH_NAME: memory/deep-report
+          MAX_FILE_SIZE: 1048576
+          MAX_FILE_COUNT: 100
+          FILE_GLOB_FILTER: "*.md"
+        with:
+          script: |
+            const fs = require("fs");
+            const path = require("path");
+            const { execSync } = require("child_process");
+            async function main() {
+              const artifactDir = process.env.ARTIFACT_DIR;
+              const memoryId = process.env.MEMORY_ID;
+              const targetRepo = process.env.TARGET_REPO;
+              const branchName = process.env.BRANCH_NAME;
+              const maxFileSize = parseInt(process.env.MAX_FILE_SIZE || "10240", 10);
+              const maxFileCount = parseInt(process.env.MAX_FILE_COUNT || "100", 10);
+              const fileGlobFilter = process.env.FILE_GLOB_FILTER || "";
+              const ghToken = process.env.GH_TOKEN;
+              const githubRunId = process.env.GITHUB_RUN_ID || "unknown";
+              if (!artifactDir || !memoryId || !targetRepo || !branchName || !ghToken) {
+                core.setFailed("Missing required environment variables: ARTIFACT_DIR, MEMORY_ID, TARGET_REPO, BRANCH_NAME, GH_TOKEN");
+                return;
+              }
+              const sourceMemoryPath = path.join(artifactDir, "memory", memoryId);
+              if (!fs.existsSync(sourceMemoryPath)) {
+                core.info(`Memory directory not found in artifact: ${sourceMemoryPath}`);
+                return;
+              }
+              const workspaceDir = process.env.GITHUB_WORKSPACE || process.cwd();
+              core.info(`Working in repository: ${workspaceDir}`);
+              core.info(`Disabling sparse checkout...`);
+              try {
+                execSync("git sparse-checkout disable", { stdio: "pipe" });
+              } catch (error) {
+                core.info("Sparse checkout was not enabled or already disabled");
+              }
+              core.info(`Checking out branch: ${branchName}...`);
+              try {
+                const repoUrl = `https://x-access-token:${ghToken}@github.com/${targetRepo}.git`;
+                try {
+                  execSync(`git fetch "${repoUrl}" "${branchName}:${branchName}"`, { stdio: "pipe" });
+                  execSync(`git checkout "${branchName}"`, { stdio: "inherit" });
+                  core.info(`Checked out existing branch: ${branchName}`);
+                } catch (fetchError) {
+                  core.info(`Branch ${branchName} does not exist, creating orphan branch...`);
+                  execSync(`git checkout --orphan "${branchName}"`, { stdio: "inherit" });
+                  execSync("git rm -rf . || true", { stdio: "pipe" });
+                  core.info(`Created orphan branch: ${branchName}`);
+                }
+              } catch (error) {
+                core.setFailed(`Failed to checkout branch: ${error instanceof Error ? error.message : String(error)}`);
+                return;
+              }
+              const destMemoryPath = path.join(workspaceDir, "memory", memoryId);
+              fs.mkdirSync(destMemoryPath, { recursive: true });
+              core.info(`Destination directory: ${destMemoryPath}`);
+              let filesToCopy = [];
+              try {
+                const files = fs.readdirSync(sourceMemoryPath, { withFileTypes: true });
+                for (const file of files) {
+                  if (!file.isFile()) {
+                    continue; 
+                  }
+                  const fileName = file.name;
+                  const sourceFilePath = path.join(sourceMemoryPath, fileName);
+                  const stats = fs.statSync(sourceFilePath);
+                  if (fileGlobFilter) {
+                    const patterns = fileGlobFilter.split(/\s+/).map(pattern => {
+                      const regexPattern = pattern.replace(/\./g, "\\.").replace(/\*/g, "[^/]*");
+                      return new RegExp(`^${regexPattern}$`);
+                    });
+                    if (!patterns.some(pattern => pattern.test(fileName))) {
+                      core.error(`File does not match allowed patterns: ${fileName}`);
+                      core.error(`Allowed patterns: ${fileGlobFilter}`);
+                      core.setFailed("File pattern validation failed");
+                      return;
+                    }
+                  }
+                  if (stats.size > maxFileSize) {
+                    core.error(`File exceeds size limit: ${fileName} (${stats.size} bytes > ${maxFileSize} bytes)`);
+                    core.setFailed("File size validation failed");
+                    return;
+                  }
+                  filesToCopy.push({ name: fileName, source: sourceFilePath, size: stats.size });
+                }
+              } catch (error) {
+                core.setFailed(`Failed to read artifact directory: ${error instanceof Error ? error.message : String(error)}`);
+                return;
+              }
+              if (filesToCopy.length > maxFileCount) {
+                core.setFailed(`Too many files (${filesToCopy.length} > ${maxFileCount})`);
+                return;
+              }
+              if (filesToCopy.length === 0) {
+                core.info("No files to copy from artifact");
+                return;
+              }
+              core.info(`Copying ${filesToCopy.length} validated file(s)...`);
+              for (const file of filesToCopy) {
+                const destFilePath = path.join(destMemoryPath, file.name);
+                try {
+                  fs.copyFileSync(file.source, destFilePath);
+                  core.info(`Copied: ${file.name} (${file.size} bytes)`);
+                } catch (error) {
+                  core.setFailed(`Failed to copy file ${file.name}: ${error instanceof Error ? error.message : String(error)}`);
+                  return;
+                }
+              }
+              let hasChanges = false;
+              try {
+                const status = execSync("git status --porcelain", { encoding: "utf8" });
+                hasChanges = status.trim().length > 0;
+              } catch (error) {
+                core.setFailed(`Failed to check git status: ${error instanceof Error ? error.message : String(error)}`);
+                return;
+              }
+              if (!hasChanges) {
+                core.info("No changes detected after copying files");
+                return;
+              }
+              core.info("Changes detected, committing and pushing...");
+              try {
+                execSync("git add .", { stdio: "inherit" });
+              } catch (error) {
+                core.setFailed(`Failed to stage changes: ${error instanceof Error ? error.message : String(error)}`);
+                return;
+              }
+              try {
+                execSync(`git commit -m "Update repo memory from workflow run ${githubRunId}"`, { stdio: "inherit" });
+              } catch (error) {
+                core.setFailed(`Failed to commit changes: ${error instanceof Error ? error.message : String(error)}`);
+                return;
+              }
+              core.info(`Pulling latest changes from ${branchName}...`);
+              try {
+                const repoUrl = `https://x-access-token:${ghToken}@github.com/${targetRepo}.git`;
+                execSync(`git pull --no-rebase -X ours "${repoUrl}" "${branchName}"`, { stdio: "inherit" });
+              } catch (error) {
+                core.warning(`Pull failed (this may be expected): ${error instanceof Error ? error.message : String(error)}`);
+              }
+              core.info(`Pushing changes to ${branchName}...`);
+              try {
+                const repoUrl = `https://x-access-token:${ghToken}@github.com/${targetRepo}.git`;
+                execSync(`git push "${repoUrl}" HEAD:"${branchName}"`, { stdio: "inherit" });
+                core.info(`Successfully pushed changes to ${branchName} branch`);
+              } catch (error) {
+                core.setFailed(`Failed to push changes: ${error instanceof Error ? error.message : String(error)}`);
+                return;
+              }
+            }
+            main().catch(error => {
+              core.setFailed(`Unexpected error: ${error instanceof Error ? error.message : String(error)}`);
+            });
 
   upload_assets:
     needs:

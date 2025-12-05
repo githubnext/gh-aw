@@ -52,7 +52,17 @@
                 "type": "object",
                 "description": "Input values to pass to the imported workflow. Keys are input names declared in the imported workflow's inputs section, values can be strings or expressions.",
                 "additionalProperties": {
-                  "oneOf": [{ "type": "string" }, { "type": "number" }, { "type": "boolean" }]
+                  "oneOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "boolean"
+                    }
+                  ]
                 }
               }
             }
@@ -64,7 +74,14 @@
         ["shared/mcp/gh-aw.md", "shared/jqschema.md", "shared/reporting.md"],
         ["../instructions/documentation.instructions.md"],
         [".github/agents/my-agent.md"],
-        [{ "path": "shared/discussions-data-fetch.md", "inputs": { "count": 50 } }]
+        [
+          {
+            "path": "shared/discussions-data-fetch.md",
+            "inputs": {
+              "count": 50
+            }
+          }
+        ]
       ]
     },
     "on": {
@@ -2642,6 +2659,167 @@
               "additionalProperties": false
             }
           ]
+        },
+        "repo-memory": {
+          "description": "Repo memory configuration for git-based persistent storage",
+          "oneOf": [
+            {
+              "type": "boolean",
+              "description": "Enable repo-memory with default settings"
+            },
+            {
+              "type": "null",
+              "description": "Enable repo-memory with default settings (same as true)"
+            },
+            {
+              "type": "object",
+              "description": "Repo-memory configuration object",
+              "properties": {
+                "target-repo": {
+                  "type": "string",
+                  "description": "Target repository for memory storage (default: current repository). Format: owner/repo"
+                },
+                "branch-name": {
+                  "type": "string",
+                  "description": "Git branch name for memory storage (default: memory/default)"
+                },
+                "file-glob": {
+                  "oneOf": [
+                    {
+                      "type": "string",
+                      "description": "Single file glob pattern for allowed files"
+                    },
+                    {
+                      "type": "array",
+                      "description": "Array of file glob patterns for allowed files",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  ]
+                },
+                "max-file-size": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 104857600,
+                  "description": "Maximum size per file in bytes (default: 10240 = 10KB)"
+                },
+                "max-file-count": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 1000,
+                  "description": "Maximum file count per commit (default: 100)"
+                },
+                "description": {
+                  "type": "string",
+                  "description": "Optional description for the memory that will be shown in the agent prompt"
+                },
+                "create-orphan": {
+                  "type": "boolean",
+                  "description": "Create orphaned branch if it doesn't exist (default: true)"
+                }
+              },
+              "additionalProperties": false,
+              "examples": [
+                {
+                  "branch-name": "memory/session-state"
+                },
+                {
+                  "target-repo": "myorg/memory-repo",
+                  "branch-name": "memory/agent-notes",
+                  "max-file-size": 524288
+                }
+              ]
+            },
+            {
+              "type": "array",
+              "description": "Array of repo-memory configurations for multiple memory locations",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "description": "Memory identifier (required for array notation, default: 'default')"
+                  },
+                  "target-repo": {
+                    "type": "string",
+                    "description": "Target repository for memory storage (default: current repository). Format: owner/repo"
+                  },
+                  "branch-name": {
+                    "type": "string",
+                    "description": "Git branch name for memory storage (default: memory/{id})"
+                  },
+                  "file-glob": {
+                    "oneOf": [
+                      {
+                        "type": "string",
+                        "description": "Single file glob pattern for allowed files"
+                      },
+                      {
+                        "type": "array",
+                        "description": "Array of file glob patterns for allowed files",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    ]
+                  },
+                  "max-file-size": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 104857600,
+                    "description": "Maximum size per file in bytes (default: 10240 = 10KB)"
+                  },
+                  "max-file-count": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 1000,
+                    "description": "Maximum file count per commit (default: 100)"
+                  },
+                  "description": {
+                    "type": "string",
+                    "description": "Optional description for this memory that will be shown in the agent prompt"
+                  },
+                  "create-orphan": {
+                    "type": "boolean",
+                    "description": "Create orphaned branch if it doesn't exist (default: true)"
+                  }
+                },
+                "additionalProperties": false
+              },
+              "minItems": 1,
+              "examples": [
+                [
+                  {
+                    "id": "default",
+                    "branch-name": "memory/default"
+                  },
+                  {
+                    "id": "session",
+                    "branch-name": "memory/session"
+                  }
+                ]
+              ]
+            }
+          ],
+          "examples": [
+            true,
+            null,
+            {
+              "branch-name": "memory/agent-state"
+            },
+            [
+              {
+                "id": "default",
+                "branch-name": "memory/default"
+              },
+              {
+                "id": "logs",
+                "branch-name": "memory/logs",
+                "max-file-size": 524288
+              }
+            ]
+          ]
         }
       },
       "additionalProperties": {
@@ -4372,15 +4550,42 @@
           "oneOf": [
             {
               "required": ["script"],
-              "not": { "anyOf": [{ "required": ["run"] }, { "required": ["py"] }] }
+              "not": {
+                "anyOf": [
+                  {
+                    "required": ["run"]
+                  },
+                  {
+                    "required": ["py"]
+                  }
+                ]
+              }
             },
             {
               "required": ["run"],
-              "not": { "anyOf": [{ "required": ["script"] }, { "required": ["py"] }] }
+              "not": {
+                "anyOf": [
+                  {
+                    "required": ["script"]
+                  },
+                  {
+                    "required": ["py"]
+                  }
+                ]
+              }
             },
             {
               "required": ["py"],
-              "not": { "anyOf": [{ "required": ["script"] }, { "required": ["run"] }] }
+              "not": {
+                "anyOf": [
+                  {
+                    "required": ["script"]
+                  },
+                  {
+                    "required": ["run"]
+                  }
+                ]
+              }
             }
           ]
         }
@@ -4778,7 +4983,14 @@
             }
           },
           "then": {
-            "anyOf": [{ "required": ["command"] }, { "required": ["container"] }]
+            "anyOf": [
+              {
+                "required": ["command"]
+              },
+              {
+                "required": ["container"]
+              }
+            ]
           }
         }
       ]
