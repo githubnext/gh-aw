@@ -355,6 +355,10 @@ func generateDefaultMountsFromBashTools(workflowData *WorkflowData) []string {
 	mountMap := make(map[string]bool)
 
 	// Standard tools that are always mounted by the engine (skip these to avoid duplicates)
+	// These tools are hardcoded in copilot_engine.go and always added:
+	// - date: Used for timestamping and date operations
+	// - gh: GitHub CLI for accessing GitHub API within workflows
+	// - yq: YAML processor for configuration parsing and manipulation
 	standardMounts := map[string]bool{
 		"date": true,
 		"gh":   true,
