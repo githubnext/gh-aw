@@ -504,37 +504,32 @@ func (c *Compiler) buildPushRepoMemoryJob(data *WorkflowData, threatDetectionEna
 			fileGlobFilter = strings.Join(memory.FileGlob, " ")
 		}
 
-		// Build environment variables map
-		env := map[string]string{
-			"GH_TOKEN":       "${{ github.token }}",
-			"GITHUB_RUN_ID":  "${{ github.run_id }}",
-			"MEMORY_DIR":     memoryDir,
-			"TARGET_REPO":    targetRepo,
-			"BRANCH_NAME":    memory.BranchName,
-			"MAX_FILE_SIZE":  fmt.Sprintf("%d", memory.MaxFileSize),
-			"MAX_FILE_COUNT": fmt.Sprintf("%d", memory.MaxFileCount),
-		}
+		// Build step with github-script action
+		var step strings.Builder
+		step.WriteString(fmt.Sprintf("      - name: Push repo-memory changes (%s)\n", memory.ID))
+		step.WriteString("        if: always()\n")
+		step.WriteString(fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))
+		step.WriteString("        env:\n")
+		step.WriteString("          GH_TOKEN: ${{ github.token }}\n")
+		step.WriteString("          GITHUB_RUN_ID: ${{ github.run_id }}\n")
+		step.WriteString(fmt.Sprintf("          MEMORY_DIR: %s\n", memoryDir))
+		step.WriteString(fmt.Sprintf("          TARGET_REPO: %s\n", targetRepo))
+		step.WriteString(fmt.Sprintf("          BRANCH_NAME: %s\n", memory.BranchName))
+		step.WriteString(fmt.Sprintf("          MAX_FILE_SIZE: %d\n", memory.MaxFileSize))
+		step.WriteString(fmt.Sprintf("          MAX_FILE_COUNT: %d\n", memory.MaxFileCount))
 		if fileGlobFilter != "" {
-			// Quote the value to prevent YAML interpretation of * as alias
-			env["FILE_GLOB_FILTER"] = fmt.Sprintf("\"%s\"", fileGlobFilter)
+			step.WriteString(fmt.Sprintf("          FILE_GLOB_FILTER: %s\n", fileGlobFilter))
+		}
+		step.WriteString("        with:\n")
+		step.WriteString("          script: |\n")
+
+		// Add the JavaScript script with proper indentation
+		formattedScript := FormatJavaScriptForYAML(pushRepoMemoryScript)
+		for _, line := range formattedScript {
+			step.WriteString(line)
 		}
 
-		// Build step lines (name and if condition)
-		stepLines := []string{
-			fmt.Sprintf("      - name: Push repo-memory changes (%s)", memory.ID),
-			"        if: always()",
-		}
-
-		// Use FormatStepWithCommandAndEnv to add run and env sections
-		// Note: This embeds the shell script directly as the command
-		var scriptBuilder strings.Builder
-		WriteShellScriptToYAML(&scriptBuilder, pushRepoMemoryScript, "")
-		command := strings.TrimSpace(scriptBuilder.String())
-
-		stepLines = FormatStepWithCommandAndEnv(stepLines, command, env)
-
-		// Join all lines into a single string
-		steps = append(steps, strings.Join(stepLines, "\n")+"\n")
+		steps = append(steps, step.String())
 	}
 
 	// Set job condition based on threat detection
