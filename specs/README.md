@@ -19,6 +19,7 @@ This directory contains design specifications and implementation documentation f
 | [YAML Version Compatibility](./yaml-version-gotchas.md) | ✅ Documented | `pkg/workflow/compiler.go` |
 | [Schema Validation](./SCHEMA_VALIDATION.md) | ✅ Documented | `pkg/parser/schemas/` |
 | [GitHub Actions Security Best Practices](./github-actions-security-best-practices.md) | ✅ Documented | Workflow security guidelines and patterns |
+| [End-to-End Feature Testing](./end-to-end-feature-testing.md) | ✅ Documented | `.github/workflows/dev.md`, `.github/workflows/dev-hawk.md` |
 
 ## Security Reviews
 
@@ -42,4 +43,4 @@ When adding new specifications:
 
 ---
 
-**Last Updated**: 2025-11-13
+**Last Updated**: 2025-12-05
