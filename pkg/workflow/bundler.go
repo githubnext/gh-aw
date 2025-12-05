@@ -75,10 +75,13 @@ func BundleJavaScriptWithMode(mainContent string, sources map[string]string, bas
 	// Deduplicate require statements (keep only the first occurrence)
 	bundled = deduplicateRequires(bundled)
 
-	// Mode-specific validations and processing
+	// Mode-specific processing and validations
 	switch mode {
 	case RuntimeModeGitHubScript:
-		// GitHub Script mode: validate all local requires are bundled and module references removed
+		// GitHub Script mode: remove module.exports from final output
+		bundled = removeExports(bundled)
+		
+		// Validate all local requires are bundled and module references removed
 		if err := validateNoLocalRequires(bundled); err != nil {
 			bundlerLog.Printf("Validation failed: %v", err)
 			return "", err

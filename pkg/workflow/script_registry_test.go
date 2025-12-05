@@ -157,3 +157,70 @@ func TestScriptRegistry_Has(t *testing.T) {
 	assert.True(t, registry.Has("present"))
 	assert.False(t, registry.Has("still_missing"))
 }
+
+func TestScriptRegistry_RegisterWithMode(t *testing.T) {
+	// Create a custom registry for testing to avoid side effects
+	registry := NewScriptRegistry()
+
+	// Test that bundling respects runtime mode
+	// In GitHub Script mode: module.exports should be removed
+	// In Node.js mode: module.exports should be preserved
+
+	scriptWithExports := `function test() {
+  return 42;
+}
+
+module.exports = { test };
+`
+
+	// Register with GitHub Script mode (default)
+	registry.Register("github_mode", scriptWithExports)
+	githubResult := registry.Get("github_mode")
+
+	// Should not contain module.exports in GitHub Script mode
+	assert.NotContains(t, githubResult, "module.exports",
+		"GitHub Script mode should remove module.exports")
+	assert.Contains(t, githubResult, "function test()",
+		"Should still contain the function")
+
+	// Register with Node.js mode
+	registry.RegisterWithMode("nodejs_mode", scriptWithExports, RuntimeModeNodeJS)
+	nodejsResult := registry.Get("nodejs_mode")
+
+	// Should contain module.exports in Node.js mode
+	assert.Contains(t, nodejsResult, "module.exports",
+		"Node.js mode should preserve module.exports")
+	assert.Contains(t, nodejsResult, "function test()",
+		"Should still contain the function")
+}
+
+func TestScriptRegistry_RegisterWithMode_PreservesDifference(t *testing.T) {
+	registry := NewScriptRegistry()
+
+	source := `function helper() { 
+  return "value"; 
+}
+
+module.exports = { helper };`
+
+	// Register same source with different modes
+	registry.RegisterWithMode("github_mode", source, RuntimeModeGitHubScript)
+	registry.RegisterWithMode("nodejs_mode", source, RuntimeModeNodeJS)
+
+	githubResult := registry.Get("github_mode")
+	nodejsResult := registry.Get("nodejs_mode")
+
+	// GitHub Script mode should remove module.exports
+	assert.NotContains(t, githubResult, "module.exports",
+		"GitHub Script mode should remove module.exports")
+	assert.Contains(t, githubResult, "function helper()",
+		"Should contain the function in GitHub mode")
+
+	// Node.js mode should preserve module.exports
+	assert.Contains(t, nodejsResult, "module.exports",
+		"Node.js mode should preserve module.exports")
+	assert.Contains(t, nodejsResult, "function helper()",
+		"Should contain the function in Node.js mode")
+}
+
+

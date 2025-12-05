@@ -56,6 +56,7 @@ var registryLog = logger.New("workflow:script_registry")
 type scriptEntry struct {
 	source  string
 	bundled string
+	mode    RuntimeMode // Runtime mode for bundling
 	once    sync.Once
 }
 
@@ -84,6 +85,7 @@ func NewScriptRegistry() *ScriptRegistry {
 
 // Register adds a script source to the registry.
 // The script will be bundled lazily on first access via Get().
+// Scripts registered this way default to RuntimeModeGitHubScript.
 //
 // Parameters:
 //   - name: Unique identifier for the script (e.g., "create_issue", "add_comment")
@@ -92,15 +94,30 @@ func NewScriptRegistry() *ScriptRegistry {
 // If a script with the same name already exists, it will be overwritten.
 // This is useful for testing but should be avoided in production.
 func (r *ScriptRegistry) Register(name string, source string) {
+	r.RegisterWithMode(name, source, RuntimeModeGitHubScript)
+}
+
+// RegisterWithMode adds a script source to the registry with a specific runtime mode.
+// The script will be bundled lazily on first access via Get().
+//
+// Parameters:
+//   - name: Unique identifier for the script (e.g., "create_issue", "add_comment")
+//   - source: The raw JavaScript source code (typically from go:embed)
+//   - mode: Runtime mode for bundling (GitHub Script or Node.js)
+//
+// If a script with the same name already exists, it will be overwritten.
+// This is useful for testing but should be avoided in production.
+func (r *ScriptRegistry) RegisterWithMode(name string, source string, mode RuntimeMode) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
 	if registryLog.Enabled() {
-		registryLog.Printf("Registering script: %s (%d bytes)", name, len(source))
+		registryLog.Printf("Registering script: %s (%d bytes, mode: %s)", name, len(source), mode)
 	}
 
 	r.scripts[name] = &scriptEntry{
 		source: source,
+		mode:   mode,
 	}
 }
 
@@ -125,11 +142,11 @@ func (r *ScriptRegistry) Get(name string) string {
 
 	entry.once.Do(func() {
 		if registryLog.Enabled() {
-			registryLog.Printf("Bundling script: %s", name)
+			registryLog.Printf("Bundling script: %s (mode: %s)", name, entry.mode)
 		}
 
 		sources := GetJavaScriptSources()
-		bundled, err := BundleJavaScriptFromSources(entry.source, sources, "")
+		bundled, err := BundleJavaScriptWithMode(entry.source, sources, "", entry.mode)
 		if err != nil {
 			registryLog.Printf("Bundling failed for %s, using source as-is: %v", name, err)
 			entry.bundled = entry.source
