@@ -442,10 +442,10 @@ func (jm *JobManager) GenerateMermaidGraph() string {
 			edges = append(edges, fmt.Sprintf("  %s --> %s", dep, jobName))
 		}
 	}
-	
+
 	// Sort edges alphabetically for stable output
 	sort.Strings(edges)
-	
+
 	// Write sorted edges
 	for _, edge := range edges {
 		mermaid.WriteString(edge + "\n")
