@@ -1923,10 +1923,8 @@ jobs:
             echo "## Agent Environment Validation"
             echo ""
           if [ -n "$CODEX_API_KEY" ]; then
-            echo "CODEX_API_KEY secret is configured"
             echo "- ✅ **CODEX_API_KEY**: Configured"
           else
-            echo "OPENAI_API_KEY secret is configured (using as fallback for CODEX_API_KEY)"
             echo "- ✅ **OPENAI_API_KEY**: Configured (using as fallback for CODEX_API_KEY)"
           fi
           } >> "$GITHUB_STEP_SUMMARY"
@@ -7276,10 +7274,8 @@ jobs:
             echo "## Agent Environment Validation"
             echo ""
           if [ -n "$CODEX_API_KEY" ]; then
-            echo "CODEX_API_KEY secret is configured"
             echo "- ✅ **CODEX_API_KEY**: Configured"
           else
-            echo "OPENAI_API_KEY secret is configured (using as fallback for CODEX_API_KEY)"
             echo "- ✅ **OPENAI_API_KEY**: Configured (using as fallback for CODEX_API_KEY)"
           fi
           } >> "$GITHUB_STEP_SUMMARY"

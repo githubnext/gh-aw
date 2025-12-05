@@ -454,10 +454,8 @@ jobs:
             echo "## Agent Environment Validation"
             echo ""
           if [ -n "$COPILOT_GITHUB_TOKEN" ]; then
-            echo "COPILOT_GITHUB_TOKEN secret is configured"
             echo "- ✅ **COPILOT_GITHUB_TOKEN**: Configured"
           else
-            echo "COPILOT_CLI_TOKEN secret is configured (using as fallback for COPILOT_GITHUB_TOKEN)"
             echo "- ✅ **COPILOT_CLI_TOKEN**: Configured (using as fallback for COPILOT_GITHUB_TOKEN)"
           fi
           } >> "$GITHUB_STEP_SUMMARY"
@@ -6391,10 +6389,8 @@ jobs:
             echo "## Agent Environment Validation"
             echo ""
           if [ -n "$COPILOT_GITHUB_TOKEN" ]; then
-            echo "COPILOT_GITHUB_TOKEN secret is configured"
             echo "- ✅ **COPILOT_GITHUB_TOKEN**: Configured"
           else
-            echo "COPILOT_CLI_TOKEN secret is configured (using as fallback for COPILOT_GITHUB_TOKEN)"
             echo "- ✅ **COPILOT_CLI_TOKEN**: Configured (using as fallback for COPILOT_GITHUB_TOKEN)"
           fi
           } >> "$GITHUB_STEP_SUMMARY"

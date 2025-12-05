@@ -93,8 +93,6 @@ func TestGenerateMultiSecretValidationStep(t *testing.T) {
 				"The Codex engine requires either CODEX_API_KEY or OPENAI_API_KEY secret to be configured",
 				"Please configure one of these secrets in your repository settings",
 				"Documentation: https://githubnext.github.io/gh-aw/reference/engines/#openai-codex",
-				"CODEX_API_KEY secret is configured",
-				"OPENAI_API_KEY secret is configured (using as fallback for CODEX_API_KEY)",
 				"CODEX_API_KEY: ${{ secrets.CODEX_API_KEY }}",
 				"OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}",
 				"## Agent Environment Validation",
