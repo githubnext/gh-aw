@@ -49,6 +49,16 @@ async function main() {
   const workspaceDir = process.env.GITHUB_WORKSPACE || process.cwd();
   core.info(`Working in repository: ${workspaceDir}`);
 
+  // Disable sparse checkout to work with full branch content
+  // This is necessary because checkout was configured with sparse-checkout
+  core.info(`Disabling sparse checkout...`);
+  try {
+    execSync("git sparse-checkout disable", { stdio: "pipe" });
+  } catch (error) {
+    // Ignore if sparse checkout wasn't enabled
+    core.info("Sparse checkout was not enabled or already disabled");
+  }
+
   // Checkout or create the memory branch
   core.info(`Checking out branch: ${branchName}...`);
   try {
