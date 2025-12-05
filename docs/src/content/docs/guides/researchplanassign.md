@@ -11,40 +11,19 @@ The strategy follows three distinct phases:
 
 ### Phase 1: Research
 
-A research agent (typically scheduled daily or weekly) investigates the repository under a specific angle and generates a comprehensive report. The research agent:
-
-- Uses advanced MCP tools for deep analysis (static analysis, logging data, semantic search)
-- Examines the codebase from a specific perspective (e.g., "Are the docs in sync?", "What code is duplicated?", "What security issues exist?")
-- Creates a detailed discussion or issue with findings, recommendations, and supporting data
-- Maintains historical context using cache memory to track trends over time
+A research agent (typically scheduled daily or weekly) investigates the repository under a specific angle and generates a comprehensive report. Using advanced MCP tools for deep analysis (static analysis, logging data, semantic search), it examines the codebase from a specific perspective and creates a detailed discussion or issue with findings, recommendations, and supporting data. Cache memory maintains historical context to track trends over time.
 
 ### Phase 2: Plan
 
-The developer reviews the research report to determine if worthwhile improvements were identified. If the findings merit action, the developer invokes a planner agent to:
-
-- Convert the research report into specific, actionable issues
-- Split complex work into smaller, focused tasks optimized for copilot agent success
-- Format each issue with clear objectives, file paths, acceptance criteria, and implementation guidance
-- Link all generated issues to the parent research discussion or report
+The developer reviews the research report to determine if worthwhile improvements were identified. If the findings merit action, the developer invokes a planner agent to convert the research into specific, actionable issues. The planner splits complex work into smaller, focused tasks optimized for copilot agent success, formatting each issue with clear objectives, file paths, acceptance criteria, and implementation guidance.
 
 ### Phase 3: Assign
 
-The developer reviews the generated issues and decides which ones to execute. For approved issues:
-
-- Assign to `@copilot` for automated implementation
-- Issues can be executed sequentially or in parallel depending on dependencies
-- Each copilot agent creates a pull request with the implementation
-- Developer reviews and merges completed work
+The developer reviews the generated issues and decides which ones to execute. Approved issues are assigned to `@copilot` for automated implementation and can be executed sequentially or in parallel depending on dependencies. Each copilot agent creates a pull request with the implementation for developer review and merging.
 
 ## When to Use ResearchPlanAssign
 
-Use this strategy when:
-
-- Code improvements require systematic investigation before action
-- Work needs to be broken down for optimal AI agent execution
-- Developer oversight and approval is important at each phase
-- Research findings may vary in priority or relevance
-- You want to maintain control while leveraging AI capabilities
+Use this strategy when code improvements require systematic investigation before action, work needs to be broken down for optimal AI agent execution, or when research findings may vary in priority and require developer oversight at each phase.
 
 ## Example Implementations
 
@@ -54,56 +33,9 @@ The following workflows demonstrate the ResearchPlanAssign pattern in practice:
 
 **Research Phase**: [`static-analysis-report.md`](https://github.com/githubnext/gh-aw/blob/main/.github/workflows/static-analysis-report.md)
 
-Runs daily to scan all agentic workflows with security tools (zizmor, poutine, actionlint):
+Runs daily to scan all agentic workflows with security tools (zizmor, poutine, actionlint), creating a comprehensive security discussion with clustered findings by tool and issue type, severity assessment, fix prompts, and historical trends.
 
-```aw wrap
----
-on:
-  schedule:
-    - cron: "0 9 * * *"  # Daily at 9 AM UTC
-engine: claude
-tools:
-  github:
-    toolsets: [default, actions]
-  cache-memory: true
-safe-outputs:
-  create-discussion:
-    category: "security"
-imports:
-  - shared/mcp/gh-aw.md
----
-
-# Static Analysis Report
-
-Scan all workflows with static analysis tools, cluster findings by type,
-and provide actionable fix suggestions. Store results in cache memory
-for trend analysis.
-```
-
-The research agent creates a comprehensive security discussion with:
-- Clustered findings by tool and issue type
-- Severity assessment and affected workflows
-- Detailed fix prompt for the most common or severe issue
-- Historical trends comparing with previous scans
-
-**Plan Phase**: Developer reviews the security discussion and uses the `/plan` command to convert high-priority findings into issues:
-
-```aw wrap
----
-on:
-  command:
-    name: plan
-safe-outputs:
-  create-issue:
-    title-prefix: "[task] "
-    max: 5
----
-
-# Planning Assistant
-
-Break down the security findings into actionable sub-issues
-optimized for copilot agent execution.
-```
+**Plan Phase**: Developer reviews the security discussion and uses the `/plan` command to convert high-priority findings into issues.
 
 **Assign Phase**: Developer assigns generated issues to `@copilot` for automated fixes.
 
@@ -111,35 +43,7 @@ optimized for copilot agent execution.
 
 **Research Phase**: [`duplicate-code-detector.md`](https://github.com/githubnext/gh-aw/blob/main/.github/workflows/duplicate-code-detector.md)
 
-Runs daily to identify code duplication patterns:
-
-```aw wrap
----
-on:
-  schedule:
-    - cron: "0 21 * * *"  # Daily at 9 PM UTC
-engine: codex
-imports:
-  - shared/mcp/serena.md
-safe-outputs:
-  create-issue:
-    title-prefix: "[duplicate-code] "
-    assignees: copilot
-    max: 3
----
-
-# Duplicate Code Detection
-
-Analyze code using Serena's semantic analysis to identify
-duplicated patterns. Create separate issues for each distinct
-duplication pattern found.
-```
-
-The research agent:
-- Uses Serena MCP for semantic code analysis
-- Identifies exact, structural, and functional duplication
-- Creates one issue per distinct pattern (max 3 per run)
-- Assigns directly to `@copilot` since duplication fixes are typically straightforward
+Runs daily using Serena MCP for semantic code analysis to identify exact, structural, and functional duplication. Creates one issue per distinct pattern (max 3 per run) and assigns directly to `@copilot` since duplication fixes are typically straightforward.
 
 **Plan Phase**: Since issues are already well-scoped, the plan phase is implicit in the research output.
 
@@ -149,34 +53,7 @@ The research agent:
 
 **Research Phase**: [`daily-file-diet.md`](https://github.com/githubnext/gh-aw/blob/main/.github/workflows/daily-file-diet.md)
 
-Monitors file sizes and identifies oversized files:
-
-```aw wrap
----
-on:
-  schedule:
-    - cron: "0 13 * * 1-5"  # Weekdays at 1 PM UTC
-engine: codex
-imports:
-  - shared/mcp/serena.md
-safe-outputs:
-  create-issue:
-    title-prefix: "[file-diet] "
-    max: 1
----
-
-# Daily File Diet Agent
-
-Identify the largest Go source file and determine if it requires
-refactoring. Create an issue with specific guidance for splitting
-into smaller, focused files.
-```
-
-The research agent:
-- Finds files exceeding healthy size thresholds (1000+ lines)
-- Analyzes file structure to identify natural split boundaries
-- Creates a detailed refactoring issue with suggested approach
-- Includes file organization recommendations
+Runs weekdays to monitor file sizes, identify files exceeding healthy size thresholds (1000+ lines), and analyze file structure to identify natural split boundaries. Creates a detailed refactoring issue with a suggested approach and file organization recommendations.
 
 **Plan Phase**: The research issue already contains a concrete refactoring plan.
 
@@ -186,34 +63,7 @@ The research agent:
 
 **Research Phase**: [`scout.md`](https://github.com/githubnext/gh-aw/blob/main/.github/workflows/scout.md)
 
-Performs deep research investigations:
-
-```aw wrap
----
-on:
-  command:
-    name: scout
-engine: claude
-imports:
-  - shared/mcp/tavily.md
-  - shared/mcp/arxiv.md
-  - shared/mcp/deepwiki.md
-safe-outputs:
-  add-comment:
-    max: 1
----
-
-# Scout Deep Research Agent
-
-Conduct comprehensive research using multiple sources
-and synthesize findings into actionable recommendations.
-```
-
-The research agent:
-- Uses multiple research MCPs (Tavily, arXiv, DeepWiki)
-- Gathers information from diverse sources
-- Creates structured research summary with recommendations
-- Posts findings as a comment on the triggering issue
+Performs deep research investigations using multiple research MCPs (Tavily, arXiv, DeepWiki) to gather information from diverse sources. Creates a structured research summary with recommendations posted as a comment on the triggering issue.
 
 **Plan Phase**: Developer uses `/plan` command on the research comment to convert recommendations into issues.
 
@@ -221,58 +71,23 @@ The research agent:
 
 ## Best Practices
 
-### Research Agent Design
+**Research Agent Design**: Schedule appropriately (daily for critical metrics, weekly for comprehensive analysis). Use cache memory to store historical data and identify trends. Focus each research agent on one specific angle or concern, ensure reports lead to concrete recommendations, and only create reports when findings exceed meaningful thresholds.
 
-- **Schedule appropriately**: Daily for critical metrics, weekly for comprehensive analysis
-- **Use cache memory**: Store historical data to identify trends and track improvements
-- **Focus scope**: Each research agent should investigate one specific angle or concern
-- **Be actionable**: Research reports should lead to concrete, implementable recommendations
-- **Avoid noise**: Only create reports when findings exceed meaningful thresholds
+**Planning Phase**: Review carefully—not all research findings require immediate action. Prioritize high-impact issues first, right-size tasks for AI agent execution with unambiguous success criteria, and reference the parent research report for full context.
 
-### Planning Phase
-
-- **Review carefully**: Not all research findings require immediate action
-- **Prioritize**: Focus on high-impact issues first
-- **Right-size tasks**: Break work into chunks suitable for AI agent execution
-- **Clear objectives**: Each issue should have unambiguous success criteria
-- **Link context**: Reference the parent research report for full context
-
-### Assignment Phase
-
-- **Sequential vs parallel**: Consider dependencies when assigning multiple issues
-- **Agent capabilities**: Some tasks are better suited for human developers
-- **Review PRs**: Always review AI-generated code before merging
-- **Iterate**: Refine prompts and task descriptions based on agent performance
+**Assignment Phase**: Consider dependencies when assigning multiple issues sequentially or in parallel. Recognize that some tasks are better suited for human developers. Always review AI-generated code before merging and refine prompts based on agent performance.
 
 ## Customization
 
-Adapt the ResearchPlanAssign strategy to your needs:
-
-- **Research focus**: Static analysis, performance metrics, documentation quality, security, code duplication, test coverage
-- **Research frequency**: Daily, weekly, on-demand via commands
-- **Report format**: Discussions for in-depth analysis, issues for immediate action
-- **Planning approach**: Automatic (research creates issues directly), manual (developer uses `/plan` command)
-- **Assignment method**: Pre-assign to `@copilot`, manual assignment, mixed approach
+Adapt the ResearchPlanAssign strategy by customizing the research focus (static analysis, performance metrics, documentation quality, security, code duplication, test coverage), frequency (daily, weekly, on-demand), report format (discussions vs issues), planning approach (automatic vs manual), and assignment method (pre-assign to `@copilot`, manual, or mixed).
 
 ## Benefits
 
-The ResearchPlanAssign strategy provides:
-
-- **Developer control**: Clear decision points at research review and issue assignment
-- **Systematic improvement**: Regular, focused analysis identifies issues proactively
-- **Optimal task sizing**: Planning phase ensures tasks are properly scoped for AI agents
-- **Historical context**: Cache memory tracks trends and measures improvement over time
-- **Reduced overhead**: Automation handles research and execution while developers focus on decisions
+The ResearchPlanAssign strategy provides developer control through clear decision points, systematic improvement via regular focused analysis, optimal task sizing for AI agents, historical context tracking through cache memory, and reduced overhead by automating research and execution while developers focus on decisions.
 
 ## Limitations
 
-Be aware of these considerations:
-
-- **Latency**: Three-phase approach takes longer than direct execution
-- **Review burden**: Developers must review research reports and generated issues
-- **False positives**: Research agents may flag issues that don't require action
-- **Coordination**: Multiple phases require workflow coordination and clear handoffs
-- **Tool requirements**: Research agents often need specialized MCPs (Serena, Tavily, etc.)
+The three-phase approach takes longer than direct execution and requires developers to review research reports and generated issues. Research agents may flag issues that don't require action (false positives), and multiple phases require workflow coordination and clear handoffs. Research agents often need specialized MCPs (Serena, Tavily, etc.).
 
 ## Related Strategies
 
