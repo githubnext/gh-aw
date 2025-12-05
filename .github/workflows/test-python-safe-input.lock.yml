@@ -2676,6 +2676,8 @@ jobs:
         env:
           GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
+          SAFE_INPUTS_PORT: ${{ steps.safe-inputs-start.outputs.port }}
+          SAFE_INPUTS_API_KEY: ${{ steps.safe-inputs-start.outputs.api_key }}
         run: |
           mkdir -p /tmp/gh-aw/mcp-config
           mkdir -p /home/runner/.copilot
@@ -2704,11 +2706,15 @@ jobs:
               },
               "safeinputs": {
                 "type": "http",
-                "url": "http://localhost:${{ steps.safe-inputs-start.outputs.port }}",
+                "url": "http://localhost:\${SAFE_INPUTS_PORT}",
                 "headers": {
-                  "Authorization": "Bearer ${{ steps.safe-inputs-start.outputs.api_key }}"
+                  "Authorization": "Bearer \${SAFE_INPUTS_API_KEY}"
                 },
                 "tools": ["*"],
+                "env": {
+                  "SAFE_INPUTS_PORT": "\${SAFE_INPUTS_PORT}",
+                  "SAFE_INPUTS_API_KEY": "\${SAFE_INPUTS_API_KEY}"
+                }
               },
               "safeoutputs": {
                 "type": "local",

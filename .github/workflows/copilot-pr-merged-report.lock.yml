@@ -2810,6 +2810,8 @@ jobs:
       - name: Setup MCPs
         env:
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
+          SAFE_INPUTS_PORT: ${{ steps.safe-inputs-start.outputs.port }}
+          SAFE_INPUTS_API_KEY: ${{ steps.safe-inputs-start.outputs.api_key }}
           GH_AW_GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           mkdir -p /tmp/gh-aw/mcp-config
@@ -2819,12 +2821,14 @@ jobs:
             "mcpServers": {
               "safeinputs": {
                 "type": "http",
-                "url": "http://localhost:${{ steps.safe-inputs-start.outputs.port }}",
+                "url": "http://localhost:\${SAFE_INPUTS_PORT}",
                 "headers": {
-                  "Authorization": "Bearer ${{ steps.safe-inputs-start.outputs.api_key }}"
+                  "Authorization": "Bearer \${SAFE_INPUTS_API_KEY}"
                 },
                 "tools": ["*"],
                 "env": {
+                  "SAFE_INPUTS_PORT": "\${SAFE_INPUTS_PORT}",
+                  "SAFE_INPUTS_API_KEY": "\${SAFE_INPUTS_API_KEY}",
                   "GH_AW_GH_TOKEN": "\${GH_AW_GH_TOKEN}"
                 }
               },
