@@ -2416,6 +2416,37 @@ jobs:
           EOFPY_process-text
           chmod +x /tmp/gh-aw/safe-inputs/process-text.py
           
+      - name: Download gh-aw CLI
+        run: |
+          echo "Downloading gh-aw CLI..."
+          # Download pinned version of gh-aw from releases
+          GH_AW_VERSION="v0.105.0"
+          curl -fsSL https://github.com/githubnext/gh-aw/releases/download/${GH_AW_VERSION}/gh-aw-linux-amd64 -o /tmp/gh-aw-cli
+          chmod +x /tmp/gh-aw-cli
+          /tmp/gh-aw-cli --version
+          
+      - name: Start Safe Inputs Gateway
+        run: |
+          # Start the safe-inputs MCP gateway in the background
+          /tmp/gh-aw-cli mcp-gateway --scripts /tmp/gh-aw/safe-inputs/tools.json --port 8088 > /tmp/gh-aw/safe-inputs/gateway.log 2>&1 &
+          GATEWAY_PID=$!
+          echo "Gateway started with PID $GATEWAY_PID on port 8088"
+          
+          # Wait for gateway to be ready
+          echo "Waiting for gateway to start..."
+          for i in {1..30}; do
+            if curl -s http://localhost:8088/health > /dev/null 2>&1; then
+              echo "Gateway is ready!"
+              break
+            fi
+            if [ $i -eq 30 ]; then
+              echo "Gateway failed to start. Check logs:"
+              cat /tmp/gh-aw/safe-inputs/gateway.log
+              exit 1
+            fi
+            sleep 1
+          done
+          
       - name: Setup MCPs
         env:
           GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}

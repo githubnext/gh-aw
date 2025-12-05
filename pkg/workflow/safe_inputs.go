@@ -533,13 +533,13 @@ func renderSafeInputsMCPConfigWithOptions(yaml *strings.Builder, safeInputs *Saf
 	// Check if gateway is configured in sandbox
 	if workflowData != nil && workflowData.SandboxConfig != nil && workflowData.SandboxConfig.SafeInputs != nil {
 		gatewayConfig := workflowData.SandboxConfig.SafeInputs
-		
+
 		// Determine port
 		port := 8088
 		if gatewayConfig.Port > 0 {
 			port = gatewayConfig.Port
 		}
-		
+
 		// Render HTTP-based configuration for gateway
 		safeInputsLog.Printf("Rendering safe-inputs MCP config for gateway on port %d", port)
 		renderHTTPMCPServerBlock(
@@ -554,7 +554,7 @@ func renderSafeInputsMCPConfigWithOptions(yaml *strings.Builder, safeInputs *Saf
 		// Render command-based configuration for direct execution
 		safeInputsLog.Print("Rendering safe-inputs MCP config for direct execution")
 		envVars := getSafeInputsEnvVars(safeInputs)
-		
+
 		renderBuiltinMCPServerBlock(
 			yaml,
 			constants.SafeInputsMCPServerID,

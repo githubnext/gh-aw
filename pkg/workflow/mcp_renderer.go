@@ -223,19 +223,19 @@ func (r *MCPConfigRendererUnified) renderSafeInputsTOML(yaml *strings.Builder, s
 	// Check if gateway is configured in sandbox
 	if workflowData != nil && workflowData.SandboxConfig != nil && workflowData.SandboxConfig.SafeInputs != nil {
 		gatewayConfig := workflowData.SandboxConfig.SafeInputs
-		
+
 		// Determine port
 		port := 8088
 		if gatewayConfig.Port > 0 {
 			port = gatewayConfig.Port
 		}
-		
+
 		// Render HTTP-based configuration for gateway (TOML format)
 		safeInputsLog.Printf("Rendering safe-inputs MCP TOML config for gateway on port %d", port)
 		yaml.WriteString("          \n")
 		yaml.WriteString("          [mcp_servers." + constants.SafeInputsMCPServerID + "]\n")
 		yaml.WriteString(fmt.Sprintf("          url = \"http://localhost:%d\"\n", port))
-		
+
 		// Add headers for API key if provided
 		if gatewayConfig.APIKey != "" {
 			yaml.WriteString("          \n")

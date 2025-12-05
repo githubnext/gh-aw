@@ -820,7 +820,7 @@ func (c *Compiler) generateSafeInputsGatewayStartup(yaml *strings.Builder, workf
 		yaml.WriteString("          chmod +x /tmp/gh-aw-cli\n")
 		yaml.WriteString("          /tmp/gh-aw-cli --version\n")
 		yaml.WriteString("          \n")
-	} else if gatewayConfig.Steps != nil && len(gatewayConfig.Steps) > 0 {
+	} else if len(gatewayConfig.Steps) > 0 {
 		mcpServersLog.Printf("Generating custom setup steps: %d steps", len(gatewayConfig.Steps))
 		// Generate custom setup steps from configuration
 		for i, step := range gatewayConfig.Steps {
@@ -831,7 +831,7 @@ func (c *Compiler) generateSafeInputsGatewayStartup(yaml *strings.Builder, workf
 
 	// Step 3b: Start the gateway
 	yaml.WriteString("      - name: Start Safe Inputs Gateway\n")
-	
+
 	// Add environment variables if specified
 	if gatewayConfig != nil && len(gatewayConfig.Env) > 0 {
 		yaml.WriteString("        env:\n")
@@ -848,7 +848,7 @@ func (c *Compiler) generateSafeInputsGatewayStartup(yaml *strings.Builder, workf
 
 	yaml.WriteString("        run: |\n")
 	yaml.WriteString("          # Start the safe-inputs MCP gateway in the background\n")
-	
+
 	// Determine the command to use
 	command := "gh aw mcp-gateway"
 	if gatewayConfig != nil && gatewayConfig.Command != "" {
@@ -948,7 +948,7 @@ func (c *Compiler) generateCustomGatewayStep(yaml *strings.Builder, step any) {
 	} else if uses, exists := stepMap["uses"]; exists {
 		if usesStr, ok := uses.(string); ok {
 			yaml.WriteString(fmt.Sprintf("        uses: %s\n", usesStr))
-			
+
 			// Add with block if specified
 			if with, exists := stepMap["with"]; exists {
 				if withMap, ok := with.(map[string]any); ok && len(withMap) > 0 {
