@@ -4758,8 +4758,8 @@ jobs:
 
   conclusion:
     needs:
-      - agent
       - activation
+      - agent
       - create_discussion
       - link_sub_issue
     if: (always()) && (needs.agent.result != 'skipped')

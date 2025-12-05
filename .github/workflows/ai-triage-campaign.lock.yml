@@ -5496,8 +5496,8 @@ jobs:
 
   conclusion:
     needs:
-      - agent
       - activation
+      - agent
       - assign_to_agent
       - update_project
     if: (always()) && (needs.agent.result != 'skipped')

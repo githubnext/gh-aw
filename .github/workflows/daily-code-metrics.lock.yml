@@ -5981,8 +5981,8 @@ jobs:
 
   conclusion:
     needs:
-      - agent
       - activation
+      - agent
       - create_discussion
     if: (always()) && (needs.agent.result != 'skipped')
     runs-on: ubuntu-slim

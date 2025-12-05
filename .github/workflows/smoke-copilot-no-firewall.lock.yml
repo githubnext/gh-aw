@@ -6337,11 +6337,11 @@ jobs:
 
   conclusion:
     needs:
-      - agent
       - activation
-      - create_issue
       - add_comment
       - add_labels
+      - agent
+      - create_issue
       - update_pull_request
     if: ((always()) && (needs.agent.result != 'skipped')) && (!(needs.add_comment.outputs.comment_id))
     runs-on: ubuntu-slim

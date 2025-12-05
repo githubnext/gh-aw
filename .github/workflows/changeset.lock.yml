@@ -5566,10 +5566,10 @@ jobs:
 
   conclusion:
     needs:
-      - agent
       - activation
-      - update_pull_request
+      - agent
       - push_to_pull_request_branch
+      - update_pull_request
     if: (always()) && (needs.agent.result != 'skipped')
     runs-on: ubuntu-slim
     permissions:
@@ -6348,8 +6348,8 @@ jobs:
 
   push_to_pull_request_branch:
     needs:
-      - agent
       - activation
+      - agent
       - detection
     if: >
       ((((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'push_to_pull_request_branch'))) &&

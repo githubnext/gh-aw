@@ -5173,8 +5173,8 @@ jobs:
 
   conclusion:
     needs:
-      - agent
       - activation
+      - agent
       - create_pull_request
     if: (always()) && (needs.agent.result != 'skipped')
     runs-on: ubuntu-slim
@@ -5645,8 +5645,8 @@ jobs:
 
   create_pull_request:
     needs:
-      - agent
       - activation
+      - agent
       - detection
     if: >
       (((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'create_pull_request'))) &&

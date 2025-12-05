@@ -6883,8 +6883,8 @@ jobs:
 
   conclusion:
     needs:
-      - agent
       - activation
+      - agent
       - create_discussion
       - upload_assets
     if: (always()) && (needs.agent.result != 'skipped')

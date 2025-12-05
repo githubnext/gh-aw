@@ -382,6 +382,27 @@ func TestJobManager_RenderToYAML(t *testing.T) {
 				"  zebra-job:",
 			},
 		},
+		{
+			name: "job with multiple dependencies sorted alphabetically",
+			jobs: []*Job{
+				{
+					Name:   "deploy",
+					RunsOn: "runs-on: ubuntu-latest",
+					Needs:  []string{"test", "activation", "build", "lint"},
+					Steps:  []string{"      - name: Deploy\n        run: echo deploy\n"},
+				},
+			},
+			expected: []string{
+				"jobs:",
+				"  deploy:",
+				"    needs:",
+				"      - activation",
+				"      - build",
+				"      - lint",
+				"      - test",
+				"    runs-on: ubuntu-latest",
+			},
+		},
 	}
 
 	for _, tt := range tests {

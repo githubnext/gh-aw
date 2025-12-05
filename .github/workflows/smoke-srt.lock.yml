@@ -4676,8 +4676,8 @@ jobs:
 
   conclusion:
     needs:
-      - agent
       - activation
+      - agent
     if: (always()) && (needs.agent.result != 'skipped')
     runs-on: ubuntu-slim
     permissions:

@@ -6544,9 +6544,9 @@ jobs:
 
   conclusion:
     needs:
-      - agent
       - activation
       - add_comment
+      - agent
       - create_pr_review_comment
     if: ((always()) && (needs.agent.result != 'skipped')) && (!(needs.add_comment.outputs.comment_id))
     runs-on: ubuntu-slim

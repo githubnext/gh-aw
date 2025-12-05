@@ -6806,10 +6806,10 @@ jobs:
 
   conclusion:
     needs:
-      - agent
       - activation
-      - create_discussion
+      - agent
       - close_discussion
+      - create_discussion
       - upload_assets
     if: (always()) && (needs.agent.result != 'skipped')
     runs-on: ubuntu-slim

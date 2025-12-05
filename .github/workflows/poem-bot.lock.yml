@@ -1183,8 +1183,8 @@ jobs:
   add_comment:
     needs:
       - agent
-      - create_issue
       - create_discussion
+      - create_issue
       - create_pull_request
       - detection
     if: >
@@ -7717,20 +7717,20 @@ jobs:
 
   conclusion:
     needs:
-      - agent
       - activation
-      - create_issue
-      - create_discussion
-      - close_pull_request
-      - create_pull_request
       - add_comment
-      - create_pr_review_comment
       - add_labels
-      - update_issue
-      - push_to_pull_request_branch
-      - upload_assets
-      - link_sub_issue
+      - agent
+      - close_pull_request
       - create_agent_task
+      - create_discussion
+      - create_issue
+      - create_pr_review_comment
+      - create_pull_request
+      - link_sub_issue
+      - push_to_pull_request_branch
+      - update_issue
+      - upload_assets
     if: ((always()) && (needs.agent.result != 'skipped')) && (!(needs.add_comment.outputs.comment_id))
     runs-on: ubuntu-slim
     permissions:
@@ -10046,8 +10046,8 @@ jobs:
 
   create_pull_request:
     needs:
-      - agent
       - activation
+      - agent
       - detection
     if: >
       (((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'create_pull_request'))) &&
@@ -11621,8 +11621,8 @@ jobs:
 
   push_to_pull_request_branch:
     needs:
-      - agent
       - activation
+      - agent
       - detection
     if: >
       ((((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'push_to_pull_request_branch'))) &&

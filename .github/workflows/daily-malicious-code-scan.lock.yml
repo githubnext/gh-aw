@@ -5410,8 +5410,8 @@ jobs:
 
   conclusion:
     needs:
-      - agent
       - activation
+      - agent
       - create_code_scanning_alert
     if: (always()) && (needs.agent.result != 'skipped')
     runs-on: ubuntu-slim

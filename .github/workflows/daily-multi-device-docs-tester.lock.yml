@@ -4556,8 +4556,8 @@ jobs:
 
   conclusion:
     needs:
-      - agent
       - activation
+      - agent
       - create_issue
       - upload_assets
     if: (always()) && (needs.agent.result != 'skipped')
