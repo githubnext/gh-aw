@@ -353,10 +353,24 @@ func generateDefaultMountsFromBashTools(workflowData *WorkflowData) []string {
 
 	// Generate mounts for individual tool patterns
 	mountMap := make(map[string]bool)
+
+	// Standard tools that are always mounted by the engine (skip these to avoid duplicates)
+	standardMounts := map[string]bool{
+		"date": true,
+		"gh":   true,
+		"yq":   true,
+	}
+
 	for _, tool := range bashTools {
 		// Extract tool name from patterns like "git:*", "git *", "git", etc.
 		toolName := extractToolNameFromPattern(tool)
 		if toolName == "" {
+			continue
+		}
+
+		// Skip standard tools that are already mounted by the engine
+		if standardMounts[toolName] {
+			sandboxLog.Printf("Skipping tool '%s' (already mounted by engine)", toolName)
 			continue
 		}
 
@@ -387,7 +401,7 @@ func generateDefaultMountsFromBashTools(workflowData *WorkflowData) []string {
 //   - "*" -> "" (wildcard, handled separately)
 func extractToolNameFromPattern(pattern string) string {
 	pattern = strings.TrimSpace(pattern)
-	
+
 	// Skip wildcard
 	if pattern == "*" || pattern == ":*" {
 		return ""
@@ -396,12 +410,12 @@ func extractToolNameFromPattern(pattern string) string {
 	// First, extract the base command (everything before first space or colon)
 	// This handles cases like "git diff:*" -> "git"
 	baseCommand := pattern
-	
+
 	// Find first space
 	if idx := strings.Index(pattern, " "); idx > 0 {
 		baseCommand = strings.TrimSpace(pattern[:idx])
 	}
-	
+
 	// Find first colon in the base command
 	if idx := strings.Index(baseCommand, ":"); idx > 0 {
 		baseCommand = strings.TrimSpace(baseCommand[:idx])
