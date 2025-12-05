@@ -1212,7 +1212,9 @@ tools:
     toolsets: []
       # Array of Toolset name
 
-  # Bash shell command execution tool for running command-line programs and scripts
+  # Bash shell command execution tool. Supports wildcards: '*' (all commands),
+  # 'command *' (command with any args, e.g., 'date *', 'echo *'). Default safe
+  # commands: echo, ls, pwd, cat, head, tail, grep, wc, sort, uniq, date.
   # (optional)
   # This field supports multiple formats (oneOf):
 
@@ -1224,10 +1226,11 @@ tools:
   # false disables the tool
   bash: true
 
-  # Option 3: List of allowed bash commands and patterns (e.g., ['echo', 'ls', 'git
-  # status', 'npm install'])
+  # Option 3: List of allowed commands and patterns. Wildcards: '*' allows all
+  # commands, 'command *' allows command with any args (e.g., 'date *', 'echo *').
   bash: []
-    # Array items: string
+    # Array items: Command or pattern: 'echo' (exact match), 'echo *' (command with
+    # any args)
 
   # Web content fetching tool for downloading web pages and API responses (subject
   # to network permissions)

@@ -1,16 +1,16 @@
 ---
 safe-inputs:
   gh:
-    description: "Execute any gh CLI command. Provide the full command after 'gh' (e.g., args: 'pr list --limit 5'). The tool will run: gh <args>"
+    description: "Execute any gh CLI command. Provide the full command after 'gh' (e.g., args: 'pr list --limit 5'). The tool will run: gh <args>. Use single quotes ' for complex args to avoid shell interpretation issues."
     inputs:
       args:
         type: string
         description: "Arguments to pass to gh CLI (without the 'gh' prefix). Examples: 'pr list --limit 5', 'issue view 123', 'api repos/{owner}/{repo}'"
         required: true
     env:
-      GH_TOKEN: ${{ github.token }}
+      GH_AW_GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     run: |
-      gh $INPUT_ARGS
+      GH_TOKEN=$GH_AW_GH_TOKEN gh $INPUT_ARGS
 ---
 <!--
 ## gh CLI Safe Input Tool

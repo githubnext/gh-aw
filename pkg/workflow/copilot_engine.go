@@ -351,7 +351,9 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 
 		// Mount gh CLI binary from host so it's available inside the container
 		// This allows workflows to use gh CLI commands within the sandboxed environment
+		awfArgs = append(awfArgs, "--mount", "/usr/bin/date:/usr/bin/date:ro")
 		awfArgs = append(awfArgs, "--mount", "/usr/bin/gh:/usr/bin/gh:ro")
+		awfArgs = append(awfArgs, "--mount", "/usr/bin/yq:/usr/bin/yq:ro")
 		copilotLog.Print("Added gh CLI binary mount to AWF container")
 
 		awfArgs = append(awfArgs, "--allow-domains", allowedDomains)

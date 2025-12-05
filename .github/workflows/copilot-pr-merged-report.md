@@ -35,6 +35,12 @@ safe-outputs:
     max: 1
     close-older-discussions: true
 
+network:
+  allowed:
+    - defaults
+    - github
+    - api.github.com
+
 imports:
   - shared/gh.md
   - shared/reporting.md
