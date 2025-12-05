@@ -36,10 +36,7 @@ We generate Software Bill of Materials (SBOM) for this project to provide comple
 
 ### SBOM Generation
 
-SBOMs are automatically generated:
-
-- **On every release**: Attached to GitHub releases as downloadable assets
-- **Weekly**: Available as workflow artifacts for ongoing monitoring
+SBOMs are automatically generated on every release and attached to GitHub releases as downloadable assets.
 
 Both SPDX and CycloneDX formats are generated to ensure compatibility with different compliance and security tools.
 

@@ -37,6 +37,7 @@ jobs:
       attestations: write
     outputs:
       release_id: ${{ steps.get_release.outputs.release_id }}
+      release_tag: ${{ steps.get_release.outputs.release_tag }}
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -59,9 +60,11 @@ jobs:
           echo "Getting release ID for tag: $RELEASE_TAG"
           RELEASE_ID=$(gh release view "$RELEASE_TAG" --json databaseId --jq '.databaseId')
           echo "release_id=$RELEASE_ID" >> "$GITHUB_OUTPUT"
+          echo "release_tag=$RELEASE_TAG" >> "$GITHUB_OUTPUT"
           echo "✓ Release ID: $RELEASE_ID"
+          echo "✓ Release Tag: $RELEASE_TAG"
   generate-sbom:
-    needs: ["activation"]
+    needs: ["release"]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -104,8 +107,8 @@ jobs:
       - name: Attach SBOM to release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ needs.release.outputs.release_tag }}
         run: |
-          RELEASE_TAG="${GITHUB_REF#refs/tags/}"
           echo "Attaching SBOM files to release: $RELEASE_TAG"
           gh release upload "$RELEASE_TAG" sbom.spdx.json sbom.cdx.json --clobber
           echo "✓ SBOM files attached to release"
