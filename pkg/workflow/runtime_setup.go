@@ -79,7 +79,7 @@ var knownRuntimes = []*Runtime{
 		ActionRepo:     "actions/setup-go",
 		ActionVersion:  "v5",
 		VersionField:   "go-version",
-		DefaultVersion: "", // Special handling: uses go.mod
+		DefaultVersion: string(constants.DefaultGoVersion),
 		Commands:       []string{"go"},
 	},
 	{
@@ -571,15 +571,10 @@ func generateSetupStep(req *RuntimeRequirement) GitHubActionStep {
 		fmt.Sprintf("        uses: %s", actionRef),
 	}
 
-	// Special handling for Go when no version is specified or when go-mod-file is specified
-	if runtime.ID == "go" && (version == "" || req.GoModFile != "") {
+	// Special handling for Go when go-mod-file is explicitly specified
+	if runtime.ID == "go" && req.GoModFile != "" {
 		step = append(step, "        with:")
-		// Use custom go-mod-file path if specified, otherwise default to "go.mod"
-		goModPath := "go.mod"
-		if req.GoModFile != "" {
-			goModPath = req.GoModFile
-		}
-		step = append(step, fmt.Sprintf("          go-version-file: %s", goModPath))
+		step = append(step, fmt.Sprintf("          go-version-file: %s", req.GoModFile))
 		step = append(step, "          cache: true")
 		// Add any extra fields from user's setup step (sorted for stable output)
 		var extraKeys []string

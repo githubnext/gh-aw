@@ -21,7 +21,7 @@
 const path = require("path");
 const { createServer, registerTool, loadToolHandlers, start } = require("./mcp_server_core.cjs");
 const { loadConfig } = require("./safe_inputs_config_loader.cjs");
-const { createJsToolConfig, createShellToolConfig, createPythonToolConfig } = require("./safe_inputs_tool_factory.cjs");
+const { createToolConfig } = require("./safe_inputs_tool_factory.cjs");
 
 /**
  * @typedef {Object} SafeInputsToolConfig
@@ -107,7 +107,5 @@ module.exports = {
   startSafeInputsServer,
   // Re-export helpers for convenience
   loadConfig,
-  createJsToolConfig,
-  createShellToolConfig,
-  createPythonToolConfig,
+  createToolConfig,
 };

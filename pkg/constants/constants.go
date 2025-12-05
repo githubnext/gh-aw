@@ -71,6 +71,9 @@ const DefaultJavaVersion Version = "21"
 // DefaultElixirVersion is the default version of Elixir for runtime setup
 const DefaultElixirVersion Version = "1.17"
 
+// DefaultGoVersion is the default version of Go for runtime setup
+const DefaultGoVersion Version = "1.25"
+
 // DefaultHaskellVersion is the default version of GHC for runtime setup
 const DefaultHaskellVersion Version = "9.10"
 
