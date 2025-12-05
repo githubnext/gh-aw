@@ -309,4 +309,70 @@ func TestCopilotEngineWithCustomMounts(t *testing.T) {
 			t.Error("Did not expect custom mount in output when not configured")
 		}
 	})
+
+	t.Run("custom mounts are sorted alphabetically", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name: "test-workflow",
+			EngineConfig: &EngineConfig{
+				ID: "copilot",
+			},
+			SandboxConfig: &SandboxConfig{
+				Agent: &AgentSandboxConfig{
+					ID: "awf",
+					Mounts: []string{
+						"/var/log:/logs:ro",
+						"/data:/data:rw",
+						"/usr/bin/tool:/usr/bin/tool:ro",
+						"/etc/config:/etc/config:ro",
+					},
+				},
+			},
+			NetworkPermissions: &NetworkPermissions{
+				Firewall: &FirewallConfig{
+					Enabled: true,
+				},
+			},
+		}
+
+		engine := NewCopilotEngine()
+		steps := engine.GetExecutionSteps(workflowData, "test.log")
+
+		if len(steps) == 0 {
+			t.Fatal("Expected at least one execution step")
+		}
+
+		stepContent := strings.Join(steps[0], "\n")
+
+		// Find the positions of each mount in the output
+		dataPos := strings.Index(stepContent, "--mount /data:/data:rw")
+		etcPos := strings.Index(stepContent, "--mount /etc/config:/etc/config:ro")
+		usrPos := strings.Index(stepContent, "--mount /usr/bin/tool:/usr/bin/tool:ro")
+		varPos := strings.Index(stepContent, "--mount /var/log:/logs:ro")
+
+		// Verify all mounts are present
+		if dataPos == -1 {
+			t.Error("Expected to find mount '/data:/data:rw'")
+		}
+		if etcPos == -1 {
+			t.Error("Expected to find mount '/etc/config:/etc/config:ro'")
+		}
+		if usrPos == -1 {
+			t.Error("Expected to find mount '/usr/bin/tool:/usr/bin/tool:ro'")
+		}
+		if varPos == -1 {
+			t.Error("Expected to find mount '/var/log:/logs:ro'")
+		}
+
+		// Verify mounts are in alphabetical order
+		// Expected order: /data, /etc, /usr, /var
+		if dataPos != -1 && etcPos != -1 && dataPos >= etcPos {
+			t.Error("Expected '/data:/data:rw' to appear before '/etc/config:/etc/config:ro'")
+		}
+		if etcPos != -1 && usrPos != -1 && etcPos >= usrPos {
+			t.Error("Expected '/etc/config:/etc/config:ro' to appear before '/usr/bin/tool:/usr/bin/tool:ro'")
+		}
+		if usrPos != -1 && varPos != -1 && usrPos >= varPos {
+			t.Error("Expected '/usr/bin/tool:/usr/bin/tool:ro' to appear before '/var/log:/logs:ro'")
+		}
+	})
 }

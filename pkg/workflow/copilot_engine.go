@@ -358,10 +358,15 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 
 		// Add custom mounts from agent config if specified
 		if agentConfig != nil && len(agentConfig.Mounts) > 0 {
-			for _, mount := range agentConfig.Mounts {
+			// Sort mounts for consistent output
+			sortedMounts := make([]string, len(agentConfig.Mounts))
+			copy(sortedMounts, agentConfig.Mounts)
+			sort.Strings(sortedMounts)
+
+			for _, mount := range sortedMounts {
 				awfArgs = append(awfArgs, "--mount", mount)
 			}
-			copilotLog.Printf("Added %d custom mounts from agent config", len(agentConfig.Mounts))
+			copilotLog.Printf("Added %d custom mounts from agent config", len(sortedMounts))
 		}
 
 		awfArgs = append(awfArgs, "--allow-domains", allowedDomains)
