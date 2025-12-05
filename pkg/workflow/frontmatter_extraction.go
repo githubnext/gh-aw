@@ -736,8 +736,15 @@ func (c *Compiler) extractSandboxConfig(frontmatter map[string]any) *SandboxConf
 		}
 	}
 
-	// If we found agent or mcp fields, return the new format config
-	if config.Agent != nil || config.MCP != nil {
+	// Extract safe-inputs gateway configuration
+	if safeInputsVal, hasSafeInputs := sandboxObj["safe-inputs"]; hasSafeInputs {
+		if safeInputsObj, ok := safeInputsVal.(map[string]any); ok {
+			config.SafeInputs = c.extractSafeInputsGatewayConfig(safeInputsObj)
+		}
+	}
+
+	// If we found agent, mcp, or safe-inputs fields, return the new format config
+	if config.Agent != nil || config.MCP != nil || config.SafeInputs != nil {
 		return config
 	}
 
@@ -1031,4 +1038,64 @@ func (c *Compiler) addZizmorIgnoreForWorkflowRun(yamlStr string) string {
 	}
 
 	return strings.Join(result, "\n")
+}
+
+// extractSafeInputsGatewayConfig extracts safe-inputs gateway configuration from sandbox
+func (c *Compiler) extractSafeInputsGatewayConfig(safeInputsObj map[string]any) *SafeInputsGatewayConfig {
+	config := &SafeInputsGatewayConfig{}
+
+	// Extract command
+	if cmdVal, hasCmd := safeInputsObj["command"]; hasCmd {
+		if cmdStr, ok := cmdVal.(string); ok {
+			config.Command = cmdStr
+		}
+	}
+
+	// Extract args
+	if argsVal, hasArgs := safeInputsObj["args"]; hasArgs {
+		if argsList, ok := argsVal.([]any); ok {
+			for _, arg := range argsList {
+				if argStr, ok := arg.(string); ok {
+					config.Args = append(config.Args, argStr)
+				}
+			}
+		}
+	}
+
+	// Extract env
+	if envVal, hasEnv := safeInputsObj["env"]; hasEnv {
+		if envMap, ok := envVal.(map[string]any); ok {
+			config.Env = make(map[string]string)
+			for key, val := range envMap {
+				if valStr, ok := val.(string); ok {
+					config.Env[key] = valStr
+				}
+			}
+		}
+	}
+
+	// Extract port
+	if portVal, hasPort := safeInputsObj["port"]; hasPort {
+		if portInt, ok := portVal.(int); ok {
+			config.Port = portInt
+		} else if portFloat, ok := portVal.(float64); ok {
+			config.Port = int(portFloat)
+		}
+	}
+
+	// Extract api-key
+	if apiKeyVal, hasAPIKey := safeInputsObj["api-key"]; hasAPIKey {
+		if apiKeyStr, ok := apiKeyVal.(string); ok {
+			config.APIKey = apiKeyStr
+		}
+	}
+
+	// Extract steps
+	if stepsVal, hasSteps := safeInputsObj["steps"]; hasSteps {
+		if stepsList, ok := stepsVal.([]any); ok {
+			config.Steps = stepsList
+		}
+	}
+
+	return config
 }

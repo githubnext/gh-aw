@@ -5,7 +5,11 @@
     "description": {
       "type": "string",
       "description": "Optional description for the included file or custom agent configuration. Used for documentation and clarity.",
-      "examples": ["Agent instructions", "Shared tool configuration", "Common workflow steps"]
+      "examples": [
+        "Agent instructions",
+        "Shared tool configuration",
+        "Common workflow steps"
+      ]
     },
     "inputs": {
       "type": "object",
@@ -23,12 +27,27 @@
             "description": "Whether input is required"
           },
           "default": {
-            "oneOf": [{ "type": "string" }, { "type": "number" }, { "type": "boolean" }],
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "boolean"
+              }
+            ],
             "description": "Default value for the input"
           },
           "type": {
             "type": "string",
-            "enum": ["string", "choice", "boolean", "number"],
+            "enum": [
+              "string",
+              "choice",
+              "boolean",
+              "number"
+            ],
             "description": "Input type"
           },
           "options": {
@@ -55,7 +74,11 @@
         {
           "type": "string",
           "description": "Single glob pattern for files/directories where these instructions apply (for custom agent instruction files)",
-          "examples": ["**/*.py", "src/**/*.js", "pkg/workflow/*.go"]
+          "examples": [
+            "**/*.py",
+            "src/**/*.js",
+            "pkg/workflow/*.go"
+          ]
         },
         {
           "type": "array",
@@ -65,8 +88,14 @@
             "description": "Glob pattern for file/directory matching"
           },
           "examples": [
-            ["**/*.py", "**/*.pyw"],
-            ["src/**/*.ts", "src/**/*.tsx"]
+            [
+              "**/*.py",
+              "**/*.pyw"
+            ],
+            [
+              "src/**/*.ts",
+              "src/**/*.tsx"
+            ]
           ]
         }
       ]
@@ -260,7 +289,12 @@
       "oneOf": [
         {
           "type": "string",
-          "enum": ["claude", "codex", "copilot", "custom"],
+          "enum": [
+            "claude",
+            "codex",
+            "copilot",
+            "custom"
+          ],
           "description": "Simple engine name (claude, codex, copilot, or custom)"
         },
         {
@@ -269,7 +303,12 @@
           "properties": {
             "id": {
               "type": "string",
-              "enum": ["claude", "codex", "copilot", "custom"],
+              "enum": [
+                "claude",
+                "codex",
+                "copilot",
+                "custom"
+              ],
               "description": "Agent CLI identifier (claude, codex, copilot, or custom)"
             },
             "version": {
@@ -300,7 +339,9 @@
               }
             }
           },
-          "required": ["id"],
+          "required": [
+            "id"
+          ],
           "additionalProperties": false
         }
       ]
@@ -341,7 +382,13 @@
               "properties": {
                 "type": {
                   "type": "string",
-                  "enum": ["string", "number", "boolean", "array", "object"],
+                  "enum": [
+                    "string",
+                    "number",
+                    "boolean",
+                    "array",
+                    "object"
+                  ],
                   "description": "JSON schema type for the input parameter"
                 },
                 "description": {
@@ -379,7 +426,9 @@
             }
           }
         },
-        "required": ["description"],
+        "required": [
+          "description"
+        ],
         "additionalProperties": false
       }
     },
@@ -465,86 +514,500 @@
           "properties": {
             "actions": {
               "type": "string",
-              "enum": ["read", "write", "none"],
+              "enum": [
+                "read",
+                "write",
+                "none"
+              ],
               "description": "Permission for GitHub Actions"
             },
             "checks": {
               "type": "string",
-              "enum": ["read", "write", "none"],
+              "enum": [
+                "read",
+                "write",
+                "none"
+              ],
               "description": "Permission for checks"
             },
             "contents": {
               "type": "string",
-              "enum": ["read", "write", "none"],
+              "enum": [
+                "read",
+                "write",
+                "none"
+              ],
               "description": "Permission for repository contents"
             },
             "deployments": {
               "type": "string",
-              "enum": ["read", "write", "none"],
+              "enum": [
+                "read",
+                "write",
+                "none"
+              ],
               "description": "Permission for deployments"
             },
             "discussions": {
               "type": "string",
-              "enum": ["read", "write", "none"],
+              "enum": [
+                "read",
+                "write",
+                "none"
+              ],
               "description": "Permission for discussions"
             },
             "id-token": {
               "type": "string",
-              "enum": ["read", "write", "none"],
+              "enum": [
+                "read",
+                "write",
+                "none"
+              ],
               "description": "Permission for ID token"
             },
             "issues": {
               "type": "string",
-              "enum": ["read", "write", "none"],
+              "enum": [
+                "read",
+                "write",
+                "none"
+              ],
               "description": "Permission for issues"
             },
             "metadata": {
               "type": "string",
-              "enum": ["read", "write", "none"],
+              "enum": [
+                "read",
+                "write",
+                "none"
+              ],
               "description": "Permission for metadata"
             },
             "packages": {
               "type": "string",
-              "enum": ["read", "write", "none"],
+              "enum": [
+                "read",
+                "write",
+                "none"
+              ],
               "description": "Permission for packages"
             },
             "pages": {
               "type": "string",
-              "enum": ["read", "write", "none"],
+              "enum": [
+                "read",
+                "write",
+                "none"
+              ],
               "description": "Permission for GitHub Pages"
             },
             "pull-requests": {
               "type": "string",
-              "enum": ["read", "write", "none"],
+              "enum": [
+                "read",
+                "write",
+                "none"
+              ],
               "description": "Permission for pull requests"
             },
             "repository-projects": {
               "type": "string",
-              "enum": ["read", "write", "none"],
+              "enum": [
+                "read",
+                "write",
+                "none"
+              ],
               "description": "Permission for repository projects"
             },
             "security-events": {
               "type": "string",
-              "enum": ["read", "write", "none"],
+              "enum": [
+                "read",
+                "write",
+                "none"
+              ],
               "description": "Permission for security events"
             },
             "statuses": {
               "type": "string",
-              "enum": ["read", "write", "none"],
+              "enum": [
+                "read",
+                "write",
+                "none"
+              ],
               "description": "Permission for commit statuses"
             },
             "attestations": {
               "type": "string",
-              "enum": ["read", "write", "none"],
+              "enum": [
+                "read",
+                "write",
+                "none"
+              ],
               "description": "Permission for attestations"
             },
             "models": {
               "type": "string",
-              "enum": ["read", "write", "none"],
+              "enum": [
+                "read",
+                "write",
+                "none"
+              ],
               "description": "Permission for AI models"
             }
           },
           "additionalProperties": false
+        }
+      ]
+    },
+    "sandbox": {
+      "description": "Sandbox configuration for AI engines. Controls agent sandbox (AWF or Sandbox Runtime) and MCP gateway.",
+      "oneOf": [
+        {
+          "type": "string",
+          "enum": [
+            "default",
+            "sandbox-runtime",
+            "awf",
+            "srt"
+          ],
+          "description": "Legacy string format for sandbox type: 'default' for no sandbox, 'sandbox-runtime' or 'srt' for Anthropic Sandbox Runtime, 'awf' for Agent Workflow Firewall"
+        },
+        {
+          "type": "object",
+          "description": "Object format for full sandbox configuration with agent and mcp options",
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": [
+                "default",
+                "sandbox-runtime",
+                "awf",
+                "srt"
+              ],
+              "description": "Legacy sandbox type field (use agent instead)"
+            },
+            "agent": {
+              "description": "Agent sandbox type: 'awf' uses AWF (Agent Workflow Firewall), 'srt' uses Anthropic Sandbox Runtime, or 'false' to disable firewall",
+              "oneOf": [
+                {
+                  "type": "boolean",
+                  "enum": [
+                    false
+                  ],
+                  "description": "Set to false to disable the agent firewall"
+                },
+                {
+                  "type": "string",
+                  "enum": [
+                    "awf",
+                    "srt"
+                  ],
+                  "description": "Sandbox type: 'awf' for Agent Workflow Firewall, 'srt' for Sandbox Runtime"
+                },
+                {
+                  "type": "object",
+                  "description": "Custom sandbox runtime configuration",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "enum": [
+                        "awf",
+                        "srt"
+                      ],
+                      "description": "Agent identifier (replaces 'type' field in new format): 'awf' for Agent Workflow Firewall, 'srt' for Sandbox Runtime"
+                    },
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "awf",
+                        "srt"
+                      ],
+                      "description": "Legacy: Sandbox type to use (use 'id' instead)"
+                    },
+                    "command": {
+                      "type": "string",
+                      "description": "Custom command to replace the default AWF or SRT installation. For AWF: 'docker run my-custom-awf-image'. For SRT: 'docker run my-custom-srt-wrapper'"
+                    },
+                    "args": {
+                      "type": "array",
+                      "description": "Additional arguments to append to the command (applies to both AWF and SRT, for standard and custom commands)",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "env": {
+                      "type": "object",
+                      "description": "Environment variables to set on the execution step (applies to both AWF and SRT)",
+                      "additionalProperties": {
+                        "type": "string"
+                      }
+                    },
+                    "config": {
+                      "type": "object",
+                      "description": "Custom Sandbox Runtime configuration (only applies when type is 'srt'). Note: Network configuration is controlled by the top-level 'network' field, not here.",
+                      "properties": {
+                        "filesystem": {
+                          "type": "object",
+                          "properties": {
+                            "denyRead": {
+                              "type": "array",
+                              "description": "List of paths to deny read access",
+                              "items": {
+                                "type": "string"
+                              }
+                            },
+                            "allowWrite": {
+                              "type": "array",
+                              "description": "List of paths to allow write access",
+                              "items": {
+                                "type": "string"
+                              }
+                            },
+                            "denyWrite": {
+                              "type": "array",
+                              "description": "List of paths to deny write access",
+                              "items": {
+                                "type": "string"
+                              }
+                            }
+                          },
+                          "additionalProperties": false
+                        },
+                        "ignoreViolations": {
+                          "type": "object",
+                          "description": "Map of command patterns to paths that should ignore violations",
+                          "additionalProperties": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          }
+                        },
+                        "enableWeakerNestedSandbox": {
+                          "type": "boolean",
+                          "description": "Enable weaker nested sandbox mode (recommended: true for Docker access)"
+                        }
+                      },
+                      "additionalProperties": false
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              ]
+            },
+            "config": {
+              "type": "object",
+              "description": "Legacy custom Sandbox Runtime configuration (use agent.config instead). Note: Network configuration is controlled by the top-level 'network' field, not here.",
+              "properties": {
+                "filesystem": {
+                  "type": "object",
+                  "properties": {
+                    "denyRead": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "allowWrite": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "denyWrite": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                "ignoreViolations": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "enableWeakerNestedSandbox": {
+                  "type": "boolean"
+                }
+              },
+              "additionalProperties": false
+            },
+            "mcp": {
+              "description": "MCP Gateway configuration for routing MCP server calls through a unified HTTP gateway. Requires the 'mcp-gateway' feature flag to be enabled.",
+              "type": "object",
+              "properties": {
+                "container": {
+                  "type": "string",
+                  "pattern": "^[a-zA-Z0-9][a-zA-Z0-9/:_.-]*$",
+                  "description": "Container image for the MCP gateway executable"
+                },
+                "version": {
+                  "type": [
+                    "string",
+                    "number"
+                  ],
+                  "description": "Optional version/tag for the container image (e.g., 'latest', 'v1.0.0')",
+                  "examples": [
+                    "latest",
+                    "v1.0.0"
+                  ]
+                },
+                "args": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "Arguments for container execution"
+                },
+                "entrypointArgs": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "Arguments to add after the container image (container entrypoint arguments)"
+                },
+                "env": {
+                  "type": "object",
+                  "patternProperties": {
+                    "^[A-Z_][A-Z0-9_]*$": {
+                      "type": "string"
+                    }
+                  },
+                  "additionalProperties": false,
+                  "description": "Environment variables for MCP gateway"
+                },
+                "port": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 65535,
+                  "default": 8080,
+                  "description": "Port number for the MCP gateway HTTP server (default: 8080)"
+                },
+                "api-key": {
+                  "type": "string",
+                  "description": "API key for authenticating with the MCP gateway (supports ${{ secrets.* }} syntax)"
+                }
+              },
+              "required": [
+                "container"
+              ],
+              "additionalProperties": false
+            },
+            "safe-inputs": {
+              "description": "Safe-inputs MCP gateway configuration. Customizes how the safe-inputs MCP server is started through a gateway.",
+              "type": "object",
+              "properties": {
+                "command": {
+                  "type": "string",
+                  "description": "Command to start the gateway (default: 'gh aw mcp-gateway'). Can be customized to use a local binary or different command."
+                },
+                "args": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "Arguments for the gateway command"
+                },
+                "env": {
+                  "type": "object",
+                  "patternProperties": {
+                    "^[A-Z_][A-Z0-9_]*$": {
+                      "type": "string"
+                    }
+                  },
+                  "additionalProperties": false,
+                  "description": "Environment variables for the gateway"
+                },
+                "port": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 65535,
+                  "default": 8088,
+                  "description": "Port number for the gateway HTTP server (default: 8088)"
+                },
+                "api-key": {
+                  "type": "string",
+                  "description": "API key for gateway authentication (supports ${{ secrets.* }} syntax)"
+                },
+                "steps": {
+                  "type": "array",
+                  "description": "Custom steps to run before starting the gateway (e.g., download gh-aw binary)",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "name": {
+                        "type": "string",
+                        "description": "Step name"
+                      },
+                      "run": {
+                        "type": "string",
+                        "description": "Shell command to run"
+                      },
+                      "uses": {
+                        "type": "string",
+                        "description": "Action to use"
+                      },
+                      "with": {
+                        "type": "object",
+                        "description": "Action inputs"
+                      },
+                      "env": {
+                        "type": "object",
+                        "description": "Environment variables for the step"
+                      }
+                    }
+                  }
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        }
+      ],
+      "examples": [
+        "default",
+        "sandbox-runtime",
+        {
+          "agent": "awf"
+        },
+        {
+          "agent": "srt"
+        },
+        {
+          "agent": {
+            "type": "srt",
+            "config": {
+              "filesystem": {
+                "allowWrite": [
+                  ".",
+                  "/tmp"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "mcp": {
+            "container": "ghcr.io/githubnext/mcp-gateway",
+            "port": 8080
+          }
+        },
+        {
+          "agent": "awf",
+          "mcp": {
+            "container": "ghcr.io/githubnext/mcp-gateway",
+            "port": 8080,
+            "api-key": "${{ secrets.MCP_GATEWAY_API_KEY }}"
+          }
         }
       ]
     }
@@ -557,7 +1020,10 @@
       "properties": {
         "type": {
           "type": "string",
-          "enum": ["stdio", "local"],
+          "enum": [
+            "stdio",
+            "local"
+          ],
           "description": "MCP connection type for stdio (local is an alias for stdio)"
         },
         "registry": {
@@ -575,9 +1041,17 @@
           "description": "Container image for stdio MCP connections (alternative to command)"
         },
         "version": {
-          "type": ["string", "number"],
+          "type": [
+            "string",
+            "number"
+          ],
           "description": "Optional version/tag for the container image (e.g., 'latest', 'v1.0.0', 20, 3.11). Numeric values are automatically converted to strings at runtime.",
-          "examples": ["latest", "v1.0.0", 20, 3.11]
+          "examples": [
+            "latest",
+            "v1.0.0",
+            20,
+            3.11
+          ]
         },
         "args": {
           "type": "array",
@@ -639,44 +1113,72 @@
       "additionalProperties": false,
       "anyOf": [
         {
-          "required": ["type"]
+          "required": [
+            "type"
+          ]
         },
         {
-          "required": ["command"]
+          "required": [
+            "command"
+          ]
         },
         {
-          "required": ["container"]
+          "required": [
+            "container"
+          ]
         }
       ],
       "not": {
         "allOf": [
           {
-            "required": ["command"]
+            "required": [
+              "command"
+            ]
           },
           {
-            "required": ["container"]
+            "required": [
+              "container"
+            ]
           }
         ]
       },
       "allOf": [
         {
           "if": {
-            "required": ["network"]
+            "required": [
+              "network"
+            ]
           },
           "then": {
-            "required": ["container"]
+            "required": [
+              "container"
+            ]
           }
         },
         {
           "if": {
             "properties": {
               "type": {
-                "enum": ["stdio", "local"]
+                "enum": [
+                  "stdio",
+                  "local"
+                ]
               }
             }
           },
           "then": {
-            "anyOf": [{ "required": ["command"] }, { "required": ["container"] }]
+            "anyOf": [
+              {
+                "required": [
+                  "command"
+                ]
+              },
+              {
+                "required": [
+                  "container"
+                ]
+              }
+            ]
           }
         }
       ]
@@ -717,7 +1219,9 @@
           }
         }
       },
-      "required": ["url"],
+      "required": [
+        "url"
+      ],
       "additionalProperties": false
     },
     "safe_job": {
@@ -810,7 +1314,12 @@
                 },
                 "type": {
                   "type": "string",
-                  "enum": ["string", "number", "boolean", "choice"],
+                  "enum": [
+                    "string",
+                    "number",
+                    "boolean",
+                    "choice"
+                  ],
                   "description": "Input type"
                 },
                 "options": {
@@ -836,7 +1345,9 @@
           "description": "Custom output message"
         }
       },
-      "required": ["inputs"],
+      "required": [
+        "inputs"
+      ],
       "additionalProperties": false
     }
   }

@@ -58,7 +58,6 @@ sandbox:
   safe-inputs:
     command: ./gh-aw mcp-gateway
     port: 9000
-    api-key: ${{ secrets.GATEWAY_API_KEY }}
     args:
       - --logs-dir
       - /tmp/gateway-logs
@@ -73,16 +72,5 @@ sandbox:
   safe-inputs:
     port: 9000
 ```
-
-### API Key
-
-Add authentication to the gateway:
-
-```yaml
-sandbox:
-  safe-inputs:
-    api-key: ${{ secrets.GATEWAY_API_KEY }}
-```
-
-The agent will automatically include the API key in its requests to the gateway.
 -->
+
