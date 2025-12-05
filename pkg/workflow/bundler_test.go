@@ -585,6 +585,36 @@ module.exports = {
 	}
 }
 
+func TestRemoveExportsConditional(t *testing.T) {
+	// Test that conditional exports are removed for GitHub Script mode
+	input := `function test() {
+  return 42;
+}
+
+if (typeof module !== "undefined" && module.exports) {
+  module.exports = {
+    test,
+  };
+}
+`
+
+	expected := `function test() {
+  return 42;
+}
+
+`
+
+	result := removeExports(input)
+	if result != expected {
+		t.Errorf("removeExports() should remove conditional exports\nGot:\n%q\n\nWant:\n%q", result, expected)
+	}
+
+	// Verify no module.exports remains
+	if strings.Contains(result, "module.exports") {
+		t.Error("removeExports() should remove all module.exports, including conditional ones")
+	}
+}
+
 func TestBundleJavaScriptMergesDestructuredImports(t *testing.T) {
 	// Test that multiple destructured imports from the same module get merged
 	file1 := `const { execSync } = require("child_process");
