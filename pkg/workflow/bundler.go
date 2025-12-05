@@ -29,7 +29,15 @@ func BundleJavaScriptFromSources(mainContent string, sources map[string]string, 
 	}
 
 	// Deduplicate require statements (keep only the first occurrence)
+	bundlerLog.Printf("Before deduplication: content has %d bytes, %d requires for 'fs', %d requires for 'path'", 
+		len(bundled), 
+		strings.Count(bundled, `require("fs")`)+strings.Count(bundled, `require('fs')`),
+		strings.Count(bundled, `require("path")`)+strings.Count(bundled, `require('path')`))
 	bundled = deduplicateRequires(bundled)
+	bundlerLog.Printf("After deduplication: content has %d bytes, %d requires for 'fs', %d requires for 'path'", 
+		len(bundled),
+		strings.Count(bundled, `require("fs")`)+strings.Count(bundled, `require('fs')`),
+		strings.Count(bundled, `require("path")`)+strings.Count(bundled, `require('path')`))
 
 	// Validate that all local requires have been inlined
 	if err := validateNoLocalRequires(bundled); err != nil {
@@ -295,10 +303,10 @@ func deduplicateRequires(content string) string {
 
 	// Regular expression to match destructured require statements
 	// Matches: const/let/var { name1, name2 } = require('module');
-	destructuredRequireRegex := regexp.MustCompile(`^\s*(?:const|let|var)\s+\{\s*([^}]+)\s*\}\s*=\s*require\(['"']([^'"']+)['"']\);?\s*$`)
+	destructuredRequireRegex := regexp.MustCompile(`^\s*(?:const|let|var)\s+\{\s*([^}]+)\s*\}\s*=\s*require\(['"]([^'"]+)['"]\);?\s*$`)
 	// Regular expression to match non-destructured require statements
 	// Matches: const/let/var name = require('module');
-	simpleRequireRegex := regexp.MustCompile(`^\s*(?:const|let|var)\s+(\w+)\s*=\s*require\(['"']([^'"']+)['"']\);?\s*$`)
+	simpleRequireRegex := regexp.MustCompile(`^\s*(?:const|let|var)\s+(\w+)\s*=\s*require\(['"]([^'"]+)['"]\);?\s*$`)
 
 	// First pass: collect all require statements grouped by indentation level
 	for i, line := range lines {
