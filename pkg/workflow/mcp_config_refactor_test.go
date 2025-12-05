@@ -330,7 +330,7 @@ func TestRenderSafeOutputsMCPConfigTOML(t *testing.T) {
 		`command = "node"`,
 		`args = [`,
 		`"/tmp/gh-aw/safeoutputs/mcp-server.cjs"`,
-		`env_vars = ["GH_AW_SAFE_OUTPUTS", "GH_AW_ASSETS_BRANCH", "GH_AW_ASSETS_MAX_SIZE_KB", "GH_AW_ASSETS_ALLOWED_EXTS", "GITHUB_REPOSITORY", "GITHUB_SERVER_URL"]`,
+		`env_vars = ["GH_AW_SAFE_OUTPUTS", "GH_AW_ASSETS_BRANCH", "GH_AW_ASSETS_MAX_SIZE_KB", "GH_AW_ASSETS_ALLOWED_EXTS", "GITHUB_REPOSITORY", "GITHUB_SERVER_URL", "GITHUB_SHA", "GITHUB_WORKSPACE", "DEFAULT_BRANCH"]`,
 	}
 
 	unexpectedContent := []string{
