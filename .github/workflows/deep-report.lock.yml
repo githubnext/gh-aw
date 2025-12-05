@@ -6874,6 +6874,7 @@ jobs:
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
         with:
           persist-credentials: false
+          sparse-checkout: .
       - name: Configure Git credentials
         env:
           REPO_NAME: ${{ github.repository }}

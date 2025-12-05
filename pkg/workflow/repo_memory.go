@@ -468,12 +468,14 @@ func (c *Compiler) buildPushRepoMemoryJob(data *WorkflowData, threatDetectionEna
 
 	var steps []string
 
-	// Add checkout step to configure git
+	// Add checkout step to configure git (without checking out files)
+	// We use sparse-checkout to avoid downloading files since we'll checkout the memory branch
 	var checkoutStep strings.Builder
 	checkoutStep.WriteString("      - name: Checkout repository\n")
 	checkoutStep.WriteString(fmt.Sprintf("        uses: %s\n", GetActionPin("actions/checkout")))
 	checkoutStep.WriteString("        with:\n")
 	checkoutStep.WriteString("          persist-credentials: false\n")
+	checkoutStep.WriteString("          sparse-checkout: .\n")
 	steps = append(steps, checkoutStep.String())
 
 	// Add git configuration step
