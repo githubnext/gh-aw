@@ -357,6 +357,7 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 		copilotLog.Print("Added gh CLI binary mount to AWF container")
 
 		// Add custom mounts from agent config if specified
+		// If not specified, generate default mounts from bash tools
 		if agentConfig != nil && len(agentConfig.Mounts) > 0 {
 			// Sort mounts for consistent output
 			sortedMounts := make([]string, len(agentConfig.Mounts))
@@ -367,6 +368,15 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 				awfArgs = append(awfArgs, "--mount", mount)
 			}
 			copilotLog.Printf("Added %d custom mounts from agent config", len(sortedMounts))
+		} else {
+			// Generate default mounts from bash tools if no explicit mounts
+			defaultMounts := generateDefaultMountsFromBashTools(workflowData)
+			if len(defaultMounts) > 0 {
+				for _, mount := range defaultMounts {
+					awfArgs = append(awfArgs, "--mount", mount)
+				}
+				copilotLog.Printf("Added %d default mounts generated from bash tools", len(defaultMounts))
+			}
 		}
 
 		awfArgs = append(awfArgs, "--allow-domains", allowedDomains)

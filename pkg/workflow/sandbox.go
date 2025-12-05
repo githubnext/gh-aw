@@ -310,3 +310,102 @@ func validateSandboxConfig(workflowData *WorkflowData) error {
 
 	return nil
 }
+
+// generateDefaultMountsFromBashTools generates default mounts from tools.bash entries
+// Returns a list of mount strings in the format "source:dest:mode"
+// If bash is ["*"], mounts the entire /usr/bin folder
+// For tool patterns like "git:*" or "git *", mounts the specific tool binary
+// Only generates mounts if sandbox.agent.mounts is not already specified
+func generateDefaultMountsFromBashTools(workflowData *WorkflowData) []string {
+	if workflowData == nil {
+		return nil
+	}
+
+	// Check if explicit mounts are already specified
+	agentConfig := getAgentConfig(workflowData)
+	if agentConfig != nil && len(agentConfig.Mounts) > 0 {
+		sandboxLog.Print("Explicit mounts already specified, skipping default mount generation")
+		return nil
+	}
+
+	// Get bash tools configuration from ParsedTools
+	if workflowData.ParsedTools == nil || workflowData.ParsedTools.Bash == nil {
+		sandboxLog.Print("No bash tools configured, skipping default mount generation")
+		return nil
+	}
+
+	bashTools := workflowData.ParsedTools.Bash.AllowedCommands
+	if len(bashTools) == 0 {
+		sandboxLog.Print("Empty bash tools list, skipping default mount generation")
+		return nil
+	}
+
+	sandboxLog.Printf("Generating default mounts from %d bash tool entries", len(bashTools))
+
+	// Check if bash is "*" or ":*" (all commands allowed)
+	for _, tool := range bashTools {
+		tool = strings.TrimSpace(tool)
+		if tool == "*" || tool == ":*" {
+			sandboxLog.Print("Found bash wildcard, mounting entire /usr/bin folder")
+			return []string{"/usr/bin:/usr/bin:ro"}
+		}
+	}
+
+	// Generate mounts for individual tool patterns
+	mountMap := make(map[string]bool)
+	for _, tool := range bashTools {
+		// Extract tool name from patterns like "git:*", "git *", "git", etc.
+		toolName := extractToolNameFromPattern(tool)
+		if toolName == "" {
+			continue
+		}
+
+		// Generate mount path for the tool
+		mountPath := fmt.Sprintf("/usr/bin/%s:/usr/bin/%s:ro", toolName, toolName)
+		mountMap[mountPath] = true
+		sandboxLog.Printf("Generated mount for tool '%s': %s", toolName, mountPath)
+	}
+
+	// Convert map to sorted slice
+	mounts := make([]string, 0, len(mountMap))
+	for mount := range mountMap {
+		mounts = append(mounts, mount)
+	}
+	SortStrings(mounts)
+
+	sandboxLog.Printf("Generated %d default mounts from bash tools", len(mounts))
+	return mounts
+}
+
+// extractToolNameFromPattern extracts the base tool name from bash tool patterns
+// Handles patterns like:
+//   - "git:*" -> "git"
+//   - "git *" -> "git"
+//   - "git" -> "git"
+//   - "git diff:*" -> "git" (first word before space)
+//   - "echo *" -> "echo"
+//   - "*" -> "" (wildcard, handled separately)
+func extractToolNameFromPattern(pattern string) string {
+	pattern = strings.TrimSpace(pattern)
+	
+	// Skip wildcard
+	if pattern == "*" || pattern == ":*" {
+		return ""
+	}
+
+	// First, extract the base command (everything before first space or colon)
+	// This handles cases like "git diff:*" -> "git"
+	baseCommand := pattern
+	
+	// Find first space
+	if idx := strings.Index(pattern, " "); idx > 0 {
+		baseCommand = strings.TrimSpace(pattern[:idx])
+	}
+	
+	// Find first colon in the base command
+	if idx := strings.Index(baseCommand, ":"); idx > 0 {
+		baseCommand = strings.TrimSpace(baseCommand[:idx])
+	}
+
+	return baseCommand
+}
