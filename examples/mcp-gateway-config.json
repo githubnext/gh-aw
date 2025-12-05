@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "gh-aw": {
+      "command": "gh",
+      "args": ["aw", "mcp-server"]
+    }
+  },
+  "port": 8088
+}
