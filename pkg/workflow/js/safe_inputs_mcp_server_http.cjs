@@ -91,13 +91,12 @@ function createMCPServer(configPath, options = {}) {
     logger.debug(`Registering tool: ${tool.name}`);
 
     // Register the tool with the MCP SDK using the high-level API
+    // The callback receives the arguments directly as the first parameter
     server.tool(
       tool.name,
       tool.description || "",
       tool.inputSchema || { type: "object", properties: {} },
-      async request => {
-        const args = request.params.arguments || {};
-
+      async (args) => {
         logger.debug(`Calling handler for tool: ${tool.name}`);
 
         // Validate required fields
