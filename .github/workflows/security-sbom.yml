@@ -1,15 +1,13 @@
-name: SBOM Generation
+name: Weekly SBOM Generation
 
 on:
-  release:
-    types: [published]
   schedule:
     # Run weekly on Sundays at 00:00 UTC
     - cron: '0 0 * * 0'
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   generate-sbom:
@@ -50,11 +48,3 @@ jobs:
             sbom.spdx.json
             sbom.cdx.json
           retention-days: 90
-
-      - name: Attach SBOM to release
-        if: github.event_name == 'release'
-        uses: softprops/action-gh-release@a06a81a03ee405af7f2048a818ed3f03bbf83c7b # v2
-        with:
-          files: |
-            sbom.spdx.json
-            sbom.cdx.json

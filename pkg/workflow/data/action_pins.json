@@ -109,6 +109,11 @@
       "repo": "super-linter/super-linter",
       "version": "v8.2.1",
       "sha": "2bdd90ed3262e023ac84bf8fe35dc480721fc1f2"
+    },
+    "anchore/sbom-action@v0.20.10": {
+      "repo": "anchore/sbom-action",
+      "version": "v0.20.10",
+      "sha": "fbfd9c6c189226748411491745178e0c2017392d"
     }
   }
 }
