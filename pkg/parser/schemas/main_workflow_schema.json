@@ -2387,6 +2387,10 @@
                   "minimum": 1,
                   "maximum": 90,
                   "description": "Number of days to retain uploaded artifacts (1-90 days, default: repository setting)"
+                },
+                "restore-only": {
+                  "type": "boolean",
+                  "description": "If true, only restore the cache without saving it back. Uses actions/cache/restore instead of actions/cache. No artifact upload step will be generated."
                 }
               },
               "additionalProperties": false,
@@ -2423,6 +2427,10 @@
                     "minimum": 1,
                     "maximum": 90,
                     "description": "Number of days to retain uploaded artifacts (1-90 days, default: repository setting)"
+                  },
+                  "restore-only": {
+                    "type": "boolean",
+                    "description": "If true, only restore the cache without saving it back. Uses actions/cache/restore instead of actions/cache. No artifact upload step will be generated."
                   }
                 },
                 "required": ["id", "key"],

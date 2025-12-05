@@ -10,6 +10,11 @@
       "version": "v4",
       "sha": "0057852bfaa89a56745cba8c7296529d2fc39830"
     },
+    "actions/cache/restore@v4": {
+      "repo": "actions/cache/restore",
+      "version": "v4",
+      "sha": "0057852bfaa89a56745cba8c7296529d2fc39830"
+    },
     "actions/checkout@v5": {
       "repo": "actions/checkout",
       "version": "v5",
