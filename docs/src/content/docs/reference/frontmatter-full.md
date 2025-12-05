@@ -2093,6 +2093,12 @@ safe-outputs:
     # (optional)
     target-repo: "example-value"
 
+    # API method to use for assignment: 'graphql' (default) uses GraphQL mutation,
+    # 'rest' uses REST API endpoints. REST API supports the agent_assignment object
+    # with target_repo, base_branch, custom_instructions, and custom_agent fields.
+    # (optional)
+    api-method: "graphql"
+
     # GitHub token to use for this specific output type. Overrides global github-token
     # if specified.
     # (optional)
