@@ -31,7 +31,6 @@ func BundleJavaScriptFromSources(mainContent string, sources map[string]string, 
 	// Deduplicate require statements (keep only the first occurrence)
 	bundled = deduplicateRequires(bundled)
 
-
 	// Validate that all local requires have been inlined
 	if err := validateNoLocalRequires(bundled); err != nil {
 		bundlerLog.Printf("Validation failed: %v", err)
