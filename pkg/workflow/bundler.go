@@ -277,7 +277,8 @@ func bundleFromSources(content string, currentPath string, sources map[string]st
 }
 
 // removeExports removes module.exports and exports statements from JavaScript code
-// but preserves conditional exports (wrapped in if statements) as they may be needed for testing
+// This function removes ALL exports, including conditional ones, because GitHub Script
+// mode does not support any form of module.exports
 func removeExports(content string) string {
 	lines := strings.Split(content, "\n")
 	var result strings.Builder
@@ -286,7 +287,7 @@ func removeExports(content string) string {
 	moduleExportsRegex := regexp.MustCompile(`^\s*module\.exports\s*=`)
 	exportsRegex := regexp.MustCompile(`^\s*exports\.\w+\s*=`)
 
-	// Track if we're inside a conditional export block
+	// Track if we're inside a conditional export block that should be removed
 	inConditionalExport := false
 	conditionalDepth := 0
 
@@ -299,20 +300,18 @@ func removeExports(content string) string {
 
 		// Check if this starts a conditional export block
 		// Pattern: if (typeof module !== "undefined" && module.exports) {
+		// These need to be REMOVED for GitHub Script mode
 		if strings.Contains(trimmed, "if") &&
 			strings.Contains(trimmed, "module") &&
 			strings.Contains(trimmed, "exports") &&
 			strings.Contains(trimmed, "{") {
 			inConditionalExport = true
 			conditionalDepth = 1
-			result.WriteString(line)
-			if i < len(lines)-1 {
-				result.WriteString("\n")
-			}
+			// Skip this line - we're removing conditional exports for GitHub Script mode
 			continue
 		}
 
-		// Track braces if we're in a conditional export
+		// Track braces if we're in a conditional export - skip all lines until it closes
 		if inConditionalExport {
 			for _, ch := range trimmed {
 				if ch == '{' {
@@ -321,14 +320,12 @@ func removeExports(content string) string {
 					conditionalDepth--
 					if conditionalDepth == 0 {
 						inConditionalExport = false
+						// Skip this closing line and continue
+						continue
 					}
 				}
 			}
-			// Keep all lines inside conditional export blocks
-			result.WriteString(line)
-			if i < len(lines)-1 {
-				result.WriteString("\n")
-			}
+			// Skip all lines inside the conditional export block
 			continue
 		}
 
