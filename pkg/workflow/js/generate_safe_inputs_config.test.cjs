@@ -35,8 +35,8 @@ describe("generateSafeInputsConfig", () => {
     expect(result.port).toBe(3000);
 
     // Verify outputs were set
-    expect(mockCore.setOutput).toHaveBeenCalledWith("api_key", result.apiKey);
-    expect(mockCore.setOutput).toHaveBeenCalledWith("port", "3000");
+    expect(mockCore.setOutput).toHaveBeenCalledWith("safe_inputs_api_key", result.apiKey);
+    expect(mockCore.setOutput).toHaveBeenCalledWith("safe_inputs_port", "3000");
 
     // Verify info message was logged
     expect(mockCore.info).toHaveBeenCalledWith("Safe Inputs MCP server will run on port 3000");
@@ -69,8 +69,8 @@ describe("generateSafeInputsConfig", () => {
     generateSafeInputsConfig({ core: mockCore, crypto });
 
     expect(mockCore.setOutput).toHaveBeenCalledTimes(2);
-    expect(mockCore.setOutput.mock.calls[0][0]).toBe("api_key");
-    expect(mockCore.setOutput.mock.calls[1][0]).toBe("port");
+    expect(mockCore.setOutput.mock.calls[0][0]).toBe("safe_inputs_api_key");
+    expect(mockCore.setOutput.mock.calls[1][0]).toBe("safe_inputs_port");
     expect(mockCore.setOutput.mock.calls[1][1]).toBe("3000");
   });
 });

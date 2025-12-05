@@ -309,5 +309,5 @@ func getParseCopilotLogScript() string {
 
 // getGenerateSafeInputsConfigScript returns the bundled generate_safe_inputs_config script
 func getGenerateSafeInputsConfigScript() string {
-return DefaultScriptRegistry.Get("generate_safe_inputs_config")
+	return DefaultScriptRegistry.Get("generate_safe_inputs_config")
 }

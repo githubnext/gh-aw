@@ -79,8 +79,8 @@ Test safe-inputs HTTP server
 
 	// Verify HTTP server startup
 	serverStartupChecks := []string{
-		"export GH_AW_SAFE_INPUTS_PORT=${{ steps.safe-inputs-config.outputs.port }}",
-		"export GH_AW_SAFE_INPUTS_API_KEY=${{ steps.safe-inputs-config.outputs.api_key }}",
+		"export GH_AW_SAFE_INPUTS_PORT=${{ steps.safe-inputs-config.outputs.safe_inputs_port }}",
+		"export GH_AW_SAFE_INPUTS_API_KEY=${{ steps.safe-inputs-config.outputs.safe_inputs_api_key }}",
 		"node mcp-server.cjs",
 		"Started safe-inputs MCP server with PID",
 	}

@@ -17,9 +17,9 @@ function generateSafeInputsConfig({ core, crypto }) {
   // Choose a port for the HTTP server (default 3000)
   const port = 3000;
 
-  // Set outputs
-  core.setOutput("api_key", apiKey);
-  core.setOutput("port", port.toString());
+  // Set outputs with descriptive names to avoid conflicts
+  core.setOutput("safe_inputs_api_key", apiKey);
+  core.setOutput("safe_inputs_port", port.toString());
 
   core.info(`Safe Inputs MCP server will run on port ${port}`);
 

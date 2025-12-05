@@ -408,7 +408,7 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		yaml.WriteString("        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1\n")
 		yaml.WriteString("        with:\n")
 		yaml.WriteString("          script: |\n")
-		
+
 		// Get the bundled script
 		configScript := getGenerateSafeInputsConfigScript()
 		for _, line := range FormatJavaScriptForYAML(configScript) {
@@ -425,8 +425,8 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		yaml.WriteString("        id: safe-inputs-start\n")
 		yaml.WriteString("        run: |\n")
 		yaml.WriteString("          # Set environment variables for the server\n")
-		yaml.WriteString("          export GH_AW_SAFE_INPUTS_PORT=${{ steps.safe-inputs-config.outputs.port }}\n")
-		yaml.WriteString("          export GH_AW_SAFE_INPUTS_API_KEY=${{ steps.safe-inputs-config.outputs.api_key }}\n")
+		yaml.WriteString("          export GH_AW_SAFE_INPUTS_PORT=${{ steps.safe-inputs-config.outputs.safe_inputs_port }}\n")
+		yaml.WriteString("          export GH_AW_SAFE_INPUTS_API_KEY=${{ steps.safe-inputs-config.outputs.safe_inputs_api_key }}\n")
 		yaml.WriteString("          \n")
 
 		// Pass through environment variables from safe-inputs config
