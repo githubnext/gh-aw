@@ -602,13 +602,13 @@ func TestGenerateSafeInputsMCPServerScript(t *testing.T) {
 	// Test the entry point script
 	script := generateSafeInputsMCPServerScript(config)
 
-	// Check for modular server entry point structure
-	if !strings.Contains(script, "safe_inputs_mcp_server.cjs") {
-		t.Error("Script should reference the modular MCP server module")
+	// Check for HTTP server entry point structure
+	if !strings.Contains(script, "safe_inputs_mcp_server_http.cjs") {
+		t.Error("Script should reference the HTTP MCP server module")
 	}
 
-	if !strings.Contains(script, "startSafeInputsServer") {
-		t.Error("Script should use startSafeInputsServer function")
+	if !strings.Contains(script, "startHttpServer") {
+		t.Error("Script should use startHttpServer function")
 	}
 
 	if !strings.Contains(script, "tools.json") {
@@ -617,6 +617,14 @@ func TestGenerateSafeInputsMCPServerScript(t *testing.T) {
 
 	if !strings.Contains(script, "/tmp/gh-aw/safe-inputs/logs") {
 		t.Error("Script should specify log directory")
+	}
+
+	if !strings.Contains(script, "SAFE_INPUTS_PORT") {
+		t.Error("Script should reference SAFE_INPUTS_PORT environment variable")
+	}
+
+	if !strings.Contains(script, "SAFE_INPUTS_API_KEY") {
+		t.Error("Script should reference SAFE_INPUTS_API_KEY environment variable")
 	}
 
 	// Test the tools configuration JSON

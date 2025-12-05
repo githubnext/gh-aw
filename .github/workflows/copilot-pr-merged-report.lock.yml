@@ -2732,10 +2732,17 @@ jobs:
           EOF_TOOLS_JSON
           cat > /tmp/gh-aw/safe-inputs/mcp-server.cjs << 'EOFSI'
             const path = require("path");
-            const { startSafeInputsServer } = require("./safe_inputs_mcp_server.cjs");
+            const { startHttpServer } = require("./safe_inputs_mcp_server_http.cjs");
             const configPath = path.join(__dirname, "tools.json");
-            startSafeInputsServer(configPath, {
+            const port = parseInt(process.env.SAFE_INPUTS_PORT || "3000", 10);
+            const apiKey = process.env.SAFE_INPUTS_API_KEY || "";
+            startHttpServer(configPath, {
+              port: port,
+              stateless: false,
               logDir: "/tmp/gh-aw/safe-inputs/logs"
+            }).catch(error => {
+              console.error("Failed to start safe-inputs HTTP server:", error);
+              process.exit(1);
             });
           EOFSI
           chmod +x /tmp/gh-aw/safe-inputs/mcp-server.cjs
@@ -2754,6 +2761,52 @@ jobs:
           EOFSH_gh
           chmod +x /tmp/gh-aw/safe-inputs/gh.sh
           
+      - name: Generate Safe Inputs MCP Server Config
+        id: safe-inputs-config
+        run: |
+          # Generate a secure random API key for the MCP server
+          API_KEY=$(openssl rand -base64 32 | tr -d '/+=')
+          echo "api_key=$API_KEY" >> $GITHUB_OUTPUT
+          
+          # Choose a port for the HTTP server (default 3000)
+          PORT=3000
+          echo "port=$PORT" >> $GITHUB_OUTPUT
+          
+          echo "Safe Inputs MCP server will run on port $PORT"
+          
+      - name: Start Safe Inputs MCP HTTP Server
+        id: safe-inputs-start
+        run: |
+          # Set environment variables for the server
+          export SAFE_INPUTS_PORT=${{ steps.safe-inputs-config.outputs.port }}
+          export SAFE_INPUTS_API_KEY=${{ steps.safe-inputs-config.outputs.api_key }}
+          
+          export GH_AW_GH_TOKEN="${GH_AW_GH_TOKEN}"
+          
+          # Start the HTTP server in the background
+          cd /tmp/gh-aw/safe-inputs
+          node mcp-server.cjs > /tmp/gh-aw/safe-inputs/logs/server.log 2>&1 &
+          SERVER_PID=$!
+          echo "Started safe-inputs MCP server with PID $SERVER_PID"
+          
+          # Wait for server to be ready (max 10 seconds)
+          for i in {1..10}; do
+            if curl -s -f -H "Authorization: Bearer $SAFE_INPUTS_API_KEY" http://localhost:$SAFE_INPUTS_PORT/ > /dev/null 2>&1; then
+              echo "Safe Inputs MCP server is ready"
+              break
+            fi
+            if [ $i -eq 10 ]; then
+              echo "ERROR: Safe Inputs MCP server failed to start"
+              cat /tmp/gh-aw/safe-inputs/logs/server.log
+              exit 1
+            fi
+            sleep 1
+          done
+          
+          # Output the configuration for the MCP client
+          echo "port=$SAFE_INPUTS_PORT" >> $GITHUB_OUTPUT
+          echo "api_key=$SAFE_INPUTS_API_KEY" >> $GITHUB_OUTPUT
+          
       - name: Setup MCPs
         env:
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
@@ -2765,9 +2818,11 @@ jobs:
           {
             "mcpServers": {
               "safeinputs": {
-                "type": "local",
-                "command": "node",
-                "args": ["/tmp/gh-aw/safe-inputs/mcp-server.cjs"],
+                "type": "http",
+                "url": "http://localhost:${{ steps.safe-inputs-start.outputs.port }}",
+                "headers": {
+                  "Authorization": "Bearer ${{ steps.safe-inputs-start.outputs.api_key }}"
+                },
                 "tools": ["*"],
                 "env": {
                   "GH_AW_GH_TOKEN": "\${GH_AW_GH_TOKEN}"

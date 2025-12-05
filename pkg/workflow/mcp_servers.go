@@ -401,6 +401,62 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 			}
 		}
 		yaml.WriteString("          \n")
+
+		// Step 3: Generate API key and choose port for HTTP server
+		yaml.WriteString("      - name: Generate Safe Inputs MCP Server Config\n")
+		yaml.WriteString("        id: safe-inputs-config\n")
+		yaml.WriteString("        run: |\n")
+		yaml.WriteString("          # Generate a secure random API key for the MCP server\n")
+		yaml.WriteString("          API_KEY=$(openssl rand -base64 32 | tr -d '/+=')\n")
+		yaml.WriteString("          echo \"api_key=$API_KEY\" >> $GITHUB_OUTPUT\n")
+		yaml.WriteString("          \n")
+		yaml.WriteString("          # Choose a port for the HTTP server (default 3000)\n")
+		yaml.WriteString("          PORT=3000\n")
+		yaml.WriteString("          echo \"port=$PORT\" >> $GITHUB_OUTPUT\n")
+		yaml.WriteString("          \n")
+		yaml.WriteString("          echo \"Safe Inputs MCP server will run on port $PORT\"\n")
+		yaml.WriteString("          \n")
+
+		// Step 4: Start the HTTP server in the background
+		yaml.WriteString("      - name: Start Safe Inputs MCP HTTP Server\n")
+		yaml.WriteString("        id: safe-inputs-start\n")
+		yaml.WriteString("        run: |\n")
+		yaml.WriteString("          # Set environment variables for the server\n")
+		yaml.WriteString("          export SAFE_INPUTS_PORT=${{ steps.safe-inputs-config.outputs.port }}\n")
+		yaml.WriteString("          export SAFE_INPUTS_API_KEY=${{ steps.safe-inputs-config.outputs.api_key }}\n")
+		yaml.WriteString("          \n")
+
+		// Pass through environment variables from safe-inputs config
+		envVars := getSafeInputsEnvVars(workflowData.SafeInputs)
+		for _, envVar := range envVars {
+			yaml.WriteString(fmt.Sprintf("          export %s=\"${%s}\"\n", envVar, envVar))
+		}
+		yaml.WriteString("          \n")
+
+		yaml.WriteString("          # Start the HTTP server in the background\n")
+		yaml.WriteString("          cd /tmp/gh-aw/safe-inputs\n")
+		yaml.WriteString("          node mcp-server.cjs > /tmp/gh-aw/safe-inputs/logs/server.log 2>&1 &\n")
+		yaml.WriteString("          SERVER_PID=$!\n")
+		yaml.WriteString("          echo \"Started safe-inputs MCP server with PID $SERVER_PID\"\n")
+		yaml.WriteString("          \n")
+		yaml.WriteString("          # Wait for server to be ready (max 10 seconds)\n")
+		yaml.WriteString("          for i in {1..10}; do\n")
+		yaml.WriteString("            if curl -s -f -H \"Authorization: Bearer $SAFE_INPUTS_API_KEY\" http://localhost:$SAFE_INPUTS_PORT/ > /dev/null 2>&1; then\n")
+		yaml.WriteString("              echo \"Safe Inputs MCP server is ready\"\n")
+		yaml.WriteString("              break\n")
+		yaml.WriteString("            fi\n")
+		yaml.WriteString("            if [ $i -eq 10 ]; then\n")
+		yaml.WriteString("              echo \"ERROR: Safe Inputs MCP server failed to start\"\n")
+		yaml.WriteString("              cat /tmp/gh-aw/safe-inputs/logs/server.log\n")
+		yaml.WriteString("              exit 1\n")
+		yaml.WriteString("            fi\n")
+		yaml.WriteString("            sleep 1\n")
+		yaml.WriteString("          done\n")
+		yaml.WriteString("          \n")
+		yaml.WriteString("          # Output the configuration for the MCP client\n")
+		yaml.WriteString("          echo \"port=$SAFE_INPUTS_PORT\" >> $GITHUB_OUTPUT\n")
+		yaml.WriteString("          echo \"api_key=$SAFE_INPUTS_API_KEY\" >> $GITHUB_OUTPUT\n")
+		yaml.WriteString("          \n")
 	}
 
 	// Use the engine's RenderMCPConfig method
@@ -426,10 +482,8 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		}
 		if toolName == "safe-inputs" {
 			hasSafeInputs = true
-			safeInputsSecrets := collectSafeInputsSecrets(workflowData.SafeInputs)
-			if len(safeInputsSecrets) > 0 {
-				needsEnvBlock = true
-			}
+			// Safe-inputs now always needs env block for port and API key
+			needsEnvBlock = true
 		}
 		if toolName == "agentic-workflows" {
 			needsEnvBlock = true
@@ -470,8 +524,13 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 			}
 		}
 
-		// Add safe-inputs env vars if present (for secrets passthrough)
+		// Add safe-inputs env vars if present (for secrets passthrough and server config)
 		if hasSafeInputs {
+			// Add server configuration env vars from step outputs
+			yaml.WriteString("          SAFE_INPUTS_PORT: ${{ steps.safe-inputs-start.outputs.port }}\n")
+			yaml.WriteString("          SAFE_INPUTS_API_KEY: ${{ steps.safe-inputs-start.outputs.api_key }}\n")
+
+			// Add tool-specific env vars (secrets passthrough)
 			safeInputsSecrets := collectSafeInputsSecrets(workflowData.SafeInputs)
 			if len(safeInputsSecrets) > 0 {
 				// Sort env var names for consistent output
