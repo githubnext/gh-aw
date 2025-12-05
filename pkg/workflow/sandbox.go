@@ -234,16 +234,16 @@ func validateMountsSyntax(mounts []string) error {
 	for i, mount := range mounts {
 		// Split the mount string by colons
 		parts := strings.Split(mount, ":")
-		
+
 		// Must have exactly 3 parts: source, destination, mode
 		if len(parts) != 3 {
 			return fmt.Errorf("invalid mount syntax at index %d: '%s'. Expected format: 'source:destination:mode' (e.g., '/host/path:/container/path:ro')", i, mount)
 		}
-		
+
 		source := parts[0]
 		dest := parts[1]
 		mode := parts[2]
-		
+
 		// Validate that source and destination are not empty
 		if source == "" {
 			return fmt.Errorf("invalid mount at index %d: source path is empty in '%s'", i, mount)
@@ -251,15 +251,15 @@ func validateMountsSyntax(mounts []string) error {
 		if dest == "" {
 			return fmt.Errorf("invalid mount at index %d: destination path is empty in '%s'", i, mount)
 		}
-		
+
 		// Validate mode is either "ro" or "rw"
 		if mode != "ro" && mode != "rw" {
 			return fmt.Errorf("invalid mount at index %d: mode must be 'ro' (read-only) or 'rw' (read-write), got '%s' in '%s'", i, mode, mount)
 		}
-		
+
 		sandboxLog.Printf("Validated mount %d: source=%s, dest=%s, mode=%s", i, source, dest, mode)
 	}
-	
+
 	return nil
 }
 

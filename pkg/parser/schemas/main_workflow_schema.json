@@ -1800,9 +1800,7 @@
                         "pattern": "^[^:]+:[^:]+:(ro|rw)$",
                         "description": "Mount specification in format 'source:destination:mode'"
                       },
-                      "examples": [
-                        ["/host/data:/data:ro", "/usr/local/bin/custom-tool:/usr/local/bin/custom-tool:ro"]
-                      ]
+                      "examples": [["/host/data:/data:ro", "/usr/local/bin/custom-tool:/usr/local/bin/custom-tool:ro"]]
                     },
                     "config": {
                       "type": "object",

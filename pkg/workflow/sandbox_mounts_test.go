@@ -87,15 +87,15 @@ func TestValidateMountsSyntax(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			err := validateMountsSyntax(tt.mounts)
-			
+
 			if tt.wantErr && err == nil {
 				t.Errorf("validateMountsSyntax() expected error but got none")
 			}
-			
+
 			if !tt.wantErr && err != nil {
 				t.Errorf("validateMountsSyntax() unexpected error: %v", err)
 			}
-			
+
 			if tt.wantErr && err != nil && tt.errMsg != "" {
 				if !strings.Contains(err.Error(), tt.errMsg) {
 					t.Errorf("validateMountsSyntax() error message = %v, want to contain %v", err.Error(), tt.errMsg)
@@ -211,15 +211,15 @@ func TestSandboxConfigWithMounts(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			err := validateSandboxConfig(tt.data)
-			
+
 			if tt.wantErr && err == nil {
 				t.Errorf("validateSandboxConfig() expected error but got none")
 			}
-			
+
 			if !tt.wantErr && err != nil {
 				t.Errorf("validateSandboxConfig() unexpected error: %v", err)
 			}
-			
+
 			if tt.wantErr && err != nil && tt.errMsg != "" {
 				if !strings.Contains(err.Error(), tt.errMsg) {
 					t.Errorf("validateSandboxConfig() error message = %v, want to contain %v", err.Error(), tt.errMsg)
