@@ -210,6 +210,9 @@ var mcpServerCoreScript string
 //go:embed js/safe_inputs_mcp_server.cjs
 var safeInputsMCPServerScript string
 
+//go:embed js/safe_inputs_mcp_server_http.cjs
+var safeInputsMCPServerHTTPScript string
+
 //go:embed js/safe_inputs_config_loader.cjs
 var safeInputsConfigLoaderScript string
 
@@ -283,6 +286,7 @@ func GetJavaScriptSources() map[string]string {
 		"read_buffer.cjs":                 readBufferScript,
 		"mcp_server_core.cjs":             mcpServerCoreScript,
 		"safe_inputs_mcp_server.cjs":      safeInputsMCPServerScript,
+		"safe_inputs_mcp_server_http.cjs": safeInputsMCPServerHTTPScript,
 		"safe_inputs_config_loader.cjs":   safeInputsConfigLoaderScript,
 		"safe_inputs_tool_factory.cjs":    safeInputsToolFactoryScript,
 		"safe_inputs_validation.cjs":      safeInputsValidationScript,
@@ -762,6 +766,11 @@ func GetMCPServerCoreScript() string {
 // GetSafeInputsMCPServerScript returns the embedded safe_inputs_mcp_server.cjs script
 func GetSafeInputsMCPServerScript() string {
 	return safeInputsMCPServerScript
+}
+
+// GetSafeInputsMCPServerHTTPScript returns the embedded safe_inputs_mcp_server_http.cjs script
+func GetSafeInputsMCPServerHTTPScript() string {
+	return safeInputsMCPServerHTTPScript
 }
 
 // GetSafeInputsConfigLoaderScript returns the embedded safe_inputs_config_loader.cjs script

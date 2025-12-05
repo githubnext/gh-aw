@@ -334,6 +334,13 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		}
 		yaml.WriteString("          EOF_SAFE_INPUTS_SERVER\n")
 
+		// Write safe-inputs MCP server HTTP transport module
+		yaml.WriteString("          cat > /tmp/gh-aw/safe-inputs/safe_inputs_mcp_server_http.cjs << 'EOF_SAFE_INPUTS_SERVER_HTTP'\n")
+		for _, line := range FormatJavaScriptForYAML(GetSafeInputsMCPServerHTTPScript()) {
+			yaml.WriteString(line)
+		}
+		yaml.WriteString("          EOF_SAFE_INPUTS_SERVER_HTTP\n")
+
 		// Generate the tools.json configuration file
 		toolsJSON := generateSafeInputsToolsConfig(workflowData.SafeInputs)
 		yaml.WriteString("          cat > /tmp/gh-aw/safe-inputs/tools.json << 'EOF_TOOLS_JSON'\n")
