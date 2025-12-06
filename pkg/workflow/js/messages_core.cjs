@@ -29,6 +29,7 @@
  * @property {string} [runStarted] - Custom workflow activation message template
  * @property {string} [runSuccess] - Custom workflow success message template
  * @property {string} [runFailure] - Custom workflow failure message template
+ * @property {string} [detectionFailure] - Custom detection job failure message template
  * @property {string} [closeOlderDiscussion] - Custom message for closing older discussions as outdated
  */
 
@@ -55,6 +56,7 @@ function getMessages() {
       runStarted: rawMessages.runStarted,
       runSuccess: rawMessages.runSuccess,
       runFailure: rawMessages.runFailure,
+      detectionFailure: rawMessages.detectionFailure,
       closeOlderDiscussion: rawMessages.closeOlderDiscussion,
     };
   } catch (error) {

@@ -91,6 +91,7 @@ describe("notify_comment_error.cjs", () => {
       GH_AW_RUN_URL: process.env.GH_AW_RUN_URL,
       GH_AW_WORKFLOW_NAME: process.env.GH_AW_WORKFLOW_NAME,
       GH_AW_AGENT_CONCLUSION: process.env.GH_AW_AGENT_CONCLUSION,
+      GH_AW_DETECTION_CONCLUSION: process.env.GH_AW_DETECTION_CONCLUSION,
     };
 
     // Read the script content
@@ -252,6 +253,64 @@ describe("notify_comment_error.cjs", () => {
         expect.objectContaining({
           owner: "customowner",
           repo: "customrepo",
+        })
+      );
+    });
+
+    it("should prioritize detection failure message when detection job fails", async () => {
+      process.env.GH_AW_COMMENT_ID = "123456";
+      process.env.GH_AW_RUN_URL = "https://github.com/owner/repo/actions/runs/123";
+      process.env.GH_AW_WORKFLOW_NAME = "test-workflow";
+      process.env.GH_AW_AGENT_CONCLUSION = "success";
+      process.env.GH_AW_DETECTION_CONCLUSION = "failure";
+
+      await eval(`(async () => { ${notifyCommentScript} })()`);
+
+      expect(mockGithub.request).toHaveBeenCalledWith(
+        "PATCH /repos/{owner}/{repo}/issues/comments/{comment_id}",
+        expect.objectContaining({
+          owner: "testowner",
+          repo: "testrepo",
+          comment_id: 123456,
+          // Default: "⚠️ Security scanning failed for [{workflow_name}]({run_url}). Review the logs for details."
+          body: expect.stringContaining("Security scanning failed"),
+        })
+      );
+      expect(mockCore.info).toHaveBeenCalledWith("Successfully updated comment");
+    });
+
+    it("should report detection failure even when agent fails", async () => {
+      process.env.GH_AW_COMMENT_ID = "123456";
+      process.env.GH_AW_RUN_URL = "https://github.com/owner/repo/actions/runs/123";
+      process.env.GH_AW_WORKFLOW_NAME = "test-workflow";
+      process.env.GH_AW_AGENT_CONCLUSION = "failure";
+      process.env.GH_AW_DETECTION_CONCLUSION = "failure";
+
+      await eval(`(async () => { ${notifyCommentScript} })()`);
+
+      expect(mockGithub.request).toHaveBeenCalledWith(
+        "PATCH /repos/{owner}/{repo}/issues/comments/{comment_id}",
+        expect.objectContaining({
+          // Detection failure should be shown instead of agent failure
+          body: expect.stringContaining("Security scanning failed"),
+        })
+      );
+    });
+
+    it("should show agent success when detection succeeds", async () => {
+      process.env.GH_AW_COMMENT_ID = "123456";
+      process.env.GH_AW_RUN_URL = "https://github.com/owner/repo/actions/runs/123";
+      process.env.GH_AW_WORKFLOW_NAME = "test-workflow";
+      process.env.GH_AW_AGENT_CONCLUSION = "success";
+      process.env.GH_AW_DETECTION_CONCLUSION = "success";
+
+      await eval(`(async () => { ${notifyCommentScript} })()`);
+
+      expect(mockGithub.request).toHaveBeenCalledWith(
+        "PATCH /repos/{owner}/{repo}/issues/comments/{comment_id}",
+        expect.objectContaining({
+          // Agent success message should be shown
+          body: expect.stringContaining("found the treasure and completed successfully"),
         })
       );
     });
