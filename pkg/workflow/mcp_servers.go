@@ -469,6 +469,9 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		yaml.WriteString("          echo \"  Working directory: $(pwd)\"\n")
 		yaml.WriteString("          \n")
 
+		yaml.WriteString("          # Ensure logs directory exists\n")
+		yaml.WriteString("          mkdir -p /tmp/gh-aw/safe-inputs/logs\n")
+		yaml.WriteString("          \n")
 		yaml.WriteString("          # Start the HTTP server in the background\n")
 		yaml.WriteString("          echo \"Starting safe-inputs MCP HTTP server...\"\n")
 		yaml.WriteString("          node mcp-server.cjs > /tmp/gh-aw/safe-inputs/logs/server.log 2>&1 &\n")
