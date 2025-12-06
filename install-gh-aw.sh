@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Script to download and install gh-aw binary for the current OS and architecture
-# Supports: Linux, macOS (Darwin), Windows (Git Bash/MSYS/Cygwin)
+# Supports: Linux, macOS (Darwin), FreeBSD, Windows (Git Bash/MSYS/Cygwin)
 # Usage: ./install-gh-aw.sh [version]
 # If no version is specified, it will use the latest release
 
@@ -61,12 +61,15 @@ case $OS in
     Darwin)
         OS_NAME="darwin"
         ;;
+    FreeBSD)
+        OS_NAME="freebsd"
+        ;;
     MINGW*|MSYS*|CYGWIN*)
         OS_NAME="windows"
         ;;
     *)
         print_error "Unsupported operating system: $OS"
-        print_info "Supported operating systems: Linux, macOS (Darwin), Windows"
+        print_info "Supported operating systems: Linux, macOS (Darwin), FreeBSD, Windows"
         exit 1
         ;;
 esac

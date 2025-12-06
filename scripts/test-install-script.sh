@@ -30,6 +30,9 @@ test_platform_detection() {
         Darwin)
             OS_NAME="darwin"
             ;;
+        FreeBSD)
+            OS_NAME="freebsd"
+            ;;
         MINGW*|MSYS*|CYGWIN*)
             OS_NAME="windows"
             ;;
@@ -110,15 +113,22 @@ test_platform_detection "Darwin" "arm64" "darwin" "arm64" "darwin-arm64"
 
 # Test 4: Windows platforms
 echo ""
-echo "Test 4: Windows platform detection"
+echo "Test 4: FreeBSD platforms"
+test_platform_detection "FreeBSD" "amd64" "freebsd" "amd64" "freebsd-amd64"
+test_platform_detection "FreeBSD" "arm64" "freebsd" "arm64" "freebsd-arm64"
+test_platform_detection "FreeBSD" "i386" "freebsd" "386" "freebsd-386"
+
+# Test 5: Windows platforms
+echo ""
+echo "Test 5: Windows platform detection"
 test_platform_detection "MINGW64_NT-10.0" "x86_64" "windows" "amd64" "windows-amd64"
 test_platform_detection "MINGW32_NT-10.0" "i686" "windows" "386" "windows-386"
 test_platform_detection "MSYS_NT-10.0" "x86_64" "windows" "amd64" "windows-amd64"
 test_platform_detection "CYGWIN_NT-10.0" "x86_64" "windows" "amd64" "windows-amd64"
 
-# Test 5: Verify binary name detection
+# Test 6: Binary name detection
 echo ""
-echo "Test 5: Binary name detection"
+echo "Test 6: Binary name detection"
 OS_NAME="linux"
 if [ "$OS_NAME" = "windows" ]; then
     BINARY_NAME="gh-aw.exe"
@@ -145,9 +155,9 @@ else
     exit 1
 fi
 
-# Test 6: Verify download URL construction
+# Test 7: Verify download URL construction
 echo ""
-echo "Test 6: Download URL construction"
+echo "Test 7: Download URL construction"
 REPO="githubnext/gh-aw"
 VERSION="v1.0.0"
 OS_NAME="linux"
