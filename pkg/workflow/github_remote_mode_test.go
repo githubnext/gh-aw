@@ -37,7 +37,7 @@ tools:
 ---`,
 			expectedType:  "remote",
 			expectedURL:   "https://api.githubcopilot.com/mcp/",
-			expectedToken: "${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}",
+			expectedToken: "${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}",
 			engineType:    "claude",
 		},
 		{
@@ -75,7 +75,7 @@ tools:
 ---`,
 			expectedType:  "remote",
 			expectedURL:   "https://api.githubcopilot.com/mcp/",
-			expectedToken: "${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}",
+			expectedToken: "${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}",
 			engineType:    "claude",
 		},
 		{
@@ -110,7 +110,7 @@ tools:
 ---`,
 			expectedType:  "remote",
 			expectedURL:   "https://api.githubcopilot.com/mcp/",
-			expectedToken: "${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}",
+			expectedToken: "${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}",
 			engineType:    "copilot",
 		},
 		{
@@ -129,7 +129,7 @@ tools:
 ---`,
 			expectedType:  "remote",
 			expectedURL:   "https://api.githubcopilot.com/mcp/",
-			expectedToken: "${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}",
+			expectedToken: "${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}",
 			engineType:    "copilot",
 		},
 		{
@@ -148,7 +148,7 @@ tools:
 ---`,
 			expectedType:  "remote",
 			expectedURL:   "https://api.githubcopilot.com/mcp/",
-			expectedToken: "${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}",
+			expectedToken: "${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}",
 			engineType:    "codex",
 		},
 		{
@@ -187,7 +187,7 @@ tools:
 ---`,
 			expectedType:  "remote",
 			expectedURL:   "https://api.githubcopilot.com/mcp-readonly/",
-			expectedToken: "${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}",
+			expectedToken: "${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}",
 			engineType:    "codex",
 		},
 	}

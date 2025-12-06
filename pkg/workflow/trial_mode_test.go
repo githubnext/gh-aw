@@ -168,7 +168,7 @@ This is a test workflow for trial mode compilation.
 					if strings.TrimSpace(lines[j]) == "with:" {
 						// Found "with:" section, check for token
 						for k := j + 1; k < len(lines) && k < j+5; k++ {
-							if strings.Contains(lines[k], "token:") && strings.Contains(lines[k], "${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}") {
+							if strings.Contains(lines[k], "token:") && strings.Contains(lines[k], "${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}") {
 								foundCheckoutToken = true
 								break
 							}
@@ -301,7 +301,7 @@ This is a test workflow for trial mode compilation.
 
 			// In trial mode, checkout should always include github-token
 			if strings.Contains(lockContent, "uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd") {
-				if !strings.Contains(lockContent, "token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}") {
+				if !strings.Contains(lockContent, "token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}") {
 					t.Error("Expected github-token in checkout step in trial mode")
 				}
 			}

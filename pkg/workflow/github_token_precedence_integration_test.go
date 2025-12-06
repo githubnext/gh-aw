@@ -278,4 +278,47 @@ Test that top-level github-token is used in Copilot engine.
 			t.Logf("Generated YAML:\n%s", yamlContent)
 		}
 	})
+
+	t.Run("default fallback includes GH_AW_GITHUB_MCP_SERVER_TOKEN", func(t *testing.T) {
+		testContent := `---
+name: Test Default Token Fallback
+on:
+  workflow_dispatch:
+engine: copilot
+tools:
+  github:
+    allowed: [list_issues]
+---
+
+# Test Default Token Fallback
+
+Test that default fallback includes GH_AW_GITHUB_MCP_SERVER_TOKEN.
+`
+
+		testFile := filepath.Join(tmpDir, "test-default-fallback.md")
+		if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
+			t.Fatal(err)
+		}
+
+		compiler := NewCompiler(false, "", "test")
+		err := compiler.CompileWorkflow(testFile)
+		if err != nil {
+			t.Fatalf("Unexpected error compiling workflow: %v", err)
+		}
+
+		outputFile := filepath.Join(tmpDir, "test-default-fallback.lock.yml")
+		content, err := os.ReadFile(outputFile)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		yamlContent := string(content)
+
+		// Verify that the default fallback includes GH_AW_GITHUB_MCP_SERVER_TOKEN first
+		expectedFallback := "GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}"
+		if !strings.Contains(yamlContent, expectedFallback) {
+			t.Error("Expected default fallback to include GH_AW_GITHUB_MCP_SERVER_TOKEN as the first secret")
+			t.Logf("Generated YAML:\n%s", yamlContent)
+		}
+	})
 }

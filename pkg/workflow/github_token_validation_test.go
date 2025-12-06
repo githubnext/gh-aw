@@ -31,7 +31,7 @@ func TestGitHubTokenValidation(t *testing.T) {
 		},
 		{
 			name:        "valid secret expression - with fallback",
-			token:       "${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}",
+			token:       "${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}",
 			expectError: false,
 		},
 		{
