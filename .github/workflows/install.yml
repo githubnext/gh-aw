@@ -57,7 +57,7 @@ jobs:
           set +e
           
           # Cross-platform timeout implementation
-          if command -v timeout &> /dev/null; then
+          if command -v timeout > /dev/null 2>&1; then
             # Linux has timeout command
             timeout 10s ./install-gh-aw.sh v999.999.999 2>&1 | tee install-output.log || true
           else
