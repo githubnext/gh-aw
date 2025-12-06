@@ -321,6 +321,14 @@ func GenerateMultiSecretValidationStep(secretNames []string, engineName, docsURL
 		stepName,
 		"        run: |",
 		fmt.Sprintf("          if %s; then", allEmptyCondition),
+		"            {",
+		"              echo \"## Agent Environment Validation\"",
+		"              echo \"\"",
+		fmt.Sprintf("              echo \"❌ Error: %s\"", errorMsg),
+		fmt.Sprintf("              echo \"%s\"", requirementMsg),
+		"              echo \"Please configure one of these secrets in your repository settings.\"",
+		fmt.Sprintf("              echo \"Documentation: %s\"", docsURL),
+		"            } >> \"$GITHUB_STEP_SUMMARY\"",
 		fmt.Sprintf("            echo \"Error: %s\"", errorMsg),
 		fmt.Sprintf("            echo \"%s\"", requirementMsg),
 		"            echo \"Please configure one of these secrets in your repository settings.\"",
@@ -328,35 +336,27 @@ func GenerateMultiSecretValidationStep(secretNames []string, engineName, docsURL
 		"            exit 1",
 		"          fi",
 		"          ",
-		"          # Write validation results to step summary",
-		"          {",
-		"            echo \"## Agent Environment Validation\"",
-		"            echo \"\"",
+		"          # Log success to stdout (not step summary)",
 	}
 
-	// Add conditional messages for each secret
+	// Add conditional messages for each secret (only to stdout, not step summary)
 	for i, secretName := range secretNames {
 		if i == 0 {
 			stepLines = append(stepLines, fmt.Sprintf("          if [ -n \"$%s\" ]; then", secretName))
 			stepLines = append(stepLines, fmt.Sprintf("            echo \"%s secret is configured\"", secretName))
-			stepLines = append(stepLines, fmt.Sprintf("            echo \"- ✅ **%s**: Configured\"", secretName))
 		} else if i == len(secretNames)-1 {
 			stepLines = append(stepLines, "          else")
 			if len(secretNames) == 2 {
 				stepLines = append(stepLines, fmt.Sprintf("            echo \"%s secret is configured (using as fallback for %s)\"", secretName, secretNames[0]))
-				stepLines = append(stepLines, fmt.Sprintf("            echo \"- ✅ **%s**: Configured (using as fallback for %s)\"", secretName, secretNames[0]))
 			} else {
 				stepLines = append(stepLines, fmt.Sprintf("            echo \"%s secret is configured\"", secretName))
-				stepLines = append(stepLines, fmt.Sprintf("            echo \"- ✅ **%s**: Configured\"", secretName))
 			}
 		} else {
 			stepLines = append(stepLines, fmt.Sprintf("          elif [ -n \"$%s\" ]; then", secretName))
 			stepLines = append(stepLines, fmt.Sprintf("            echo \"%s secret is configured\"", secretName))
-			stepLines = append(stepLines, fmt.Sprintf("            echo \"- ✅ **%s**: Configured\"", secretName))
 		}
 	}
 	stepLines = append(stepLines, "          fi")
-	stepLines = append(stepLines, "          } >> \"$GITHUB_STEP_SUMMARY\"")
 
 	// Add env section with all secrets
 	stepLines = append(stepLines, "        env:")

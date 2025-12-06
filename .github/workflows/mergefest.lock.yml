@@ -1000,6 +1000,14 @@ jobs:
       - name: Validate COPILOT_GITHUB_TOKEN or COPILOT_CLI_TOKEN secret
         run: |
           if [ -z "$COPILOT_GITHUB_TOKEN" ] && [ -z "$COPILOT_CLI_TOKEN" ]; then
+            {
+              echo "## Agent Environment Validation"
+              echo ""
+              echo "❌ Error: Neither COPILOT_GITHUB_TOKEN nor COPILOT_CLI_TOKEN secret is set"
+              echo "The GitHub Copilot CLI engine requires either COPILOT_GITHUB_TOKEN or COPILOT_CLI_TOKEN secret to be configured."
+              echo "Please configure one of these secrets in your repository settings."
+              echo "Documentation: https://githubnext.github.io/gh-aw/reference/engines/#github-copilot-default"
+            } >> "$GITHUB_STEP_SUMMARY"
             echo "Error: Neither COPILOT_GITHUB_TOKEN nor COPILOT_CLI_TOKEN secret is set"
             echo "The GitHub Copilot CLI engine requires either COPILOT_GITHUB_TOKEN or COPILOT_CLI_TOKEN secret to be configured."
             echo "Please configure one of these secrets in your repository settings."
@@ -1007,18 +1015,12 @@ jobs:
             exit 1
           fi
           
-          # Write validation results to step summary
-          {
-            echo "## Agent Environment Validation"
-            echo ""
+          # Log success to stdout (not step summary)
           if [ -n "$COPILOT_GITHUB_TOKEN" ]; then
             echo "COPILOT_GITHUB_TOKEN secret is configured"
-            echo "- ✅ **COPILOT_GITHUB_TOKEN**: Configured"
           else
             echo "COPILOT_CLI_TOKEN secret is configured (using as fallback for COPILOT_GITHUB_TOKEN)"
-            echo "- ✅ **COPILOT_CLI_TOKEN**: Configured (using as fallback for COPILOT_GITHUB_TOKEN)"
           fi
-          } >> "$GITHUB_STEP_SUMMARY"
         env:
           COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
           COPILOT_CLI_TOKEN: ${{ secrets.COPILOT_CLI_TOKEN }}
@@ -6477,6 +6479,14 @@ jobs:
       - name: Validate COPILOT_GITHUB_TOKEN or COPILOT_CLI_TOKEN secret
         run: |
           if [ -z "$COPILOT_GITHUB_TOKEN" ] && [ -z "$COPILOT_CLI_TOKEN" ]; then
+            {
+              echo "## Agent Environment Validation"
+              echo ""
+              echo "❌ Error: Neither COPILOT_GITHUB_TOKEN nor COPILOT_CLI_TOKEN secret is set"
+              echo "The GitHub Copilot CLI engine requires either COPILOT_GITHUB_TOKEN or COPILOT_CLI_TOKEN secret to be configured."
+              echo "Please configure one of these secrets in your repository settings."
+              echo "Documentation: https://githubnext.github.io/gh-aw/reference/engines/#github-copilot-default"
+            } >> "$GITHUB_STEP_SUMMARY"
             echo "Error: Neither COPILOT_GITHUB_TOKEN nor COPILOT_CLI_TOKEN secret is set"
             echo "The GitHub Copilot CLI engine requires either COPILOT_GITHUB_TOKEN or COPILOT_CLI_TOKEN secret to be configured."
             echo "Please configure one of these secrets in your repository settings."
@@ -6484,18 +6494,12 @@ jobs:
             exit 1
           fi
           
-          # Write validation results to step summary
-          {
-            echo "## Agent Environment Validation"
-            echo ""
+          # Log success to stdout (not step summary)
           if [ -n "$COPILOT_GITHUB_TOKEN" ]; then
             echo "COPILOT_GITHUB_TOKEN secret is configured"
-            echo "- ✅ **COPILOT_GITHUB_TOKEN**: Configured"
           else
             echo "COPILOT_CLI_TOKEN secret is configured (using as fallback for COPILOT_GITHUB_TOKEN)"
-            echo "- ✅ **COPILOT_CLI_TOKEN**: Configured (using as fallback for COPILOT_GITHUB_TOKEN)"
           fi
-          } >> "$GITHUB_STEP_SUMMARY"
         env:
           COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
           COPILOT_CLI_TOKEN: ${{ secrets.COPILOT_CLI_TOKEN }}
