@@ -720,3 +720,35 @@ func (c *Compiler) mergeSafeInputs(main *SafeInputsConfig, importedConfigs []str
 
 	return main
 }
+
+// Public wrapper functions for CLI use
+
+// GenerateSafeInputsToolsConfigForInspector generates the tools.json configuration for the safe-inputs MCP server
+// This is a public wrapper for use by the CLI inspector command
+func GenerateSafeInputsToolsConfigForInspector(safeInputs *SafeInputsConfig) string {
+	return generateSafeInputsToolsConfig(safeInputs)
+}
+
+// GenerateSafeInputsMCPServerScriptForInspector generates the MCP server entry point script
+// This is a public wrapper for use by the CLI inspector command
+func GenerateSafeInputsMCPServerScriptForInspector(safeInputs *SafeInputsConfig) string {
+	return generateSafeInputsMCPServerScript(safeInputs)
+}
+
+// GenerateSafeInputJavaScriptToolScriptForInspector generates a JavaScript tool handler script
+// This is a public wrapper for use by the CLI inspector command
+func GenerateSafeInputJavaScriptToolScriptForInspector(toolConfig *SafeInputToolConfig) string {
+	return generateSafeInputJavaScriptToolScript(toolConfig)
+}
+
+// GenerateSafeInputShellToolScriptForInspector generates a shell script tool handler
+// This is a public wrapper for use by the CLI inspector command
+func GenerateSafeInputShellToolScriptForInspector(toolConfig *SafeInputToolConfig) string {
+	return generateSafeInputShellToolScript(toolConfig)
+}
+
+// GenerateSafeInputPythonToolScriptForInspector generates a Python script tool handler
+// This is a public wrapper for use by the CLI inspector command
+func GenerateSafeInputPythonToolScriptForInspector(toolConfig *SafeInputToolConfig) string {
+	return generateSafeInputPythonToolScript(toolConfig)
+}
