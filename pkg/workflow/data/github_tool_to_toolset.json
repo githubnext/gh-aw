@@ -1,5 +1,5 @@
 {
-  "get_me": "context",
+  "get_me": "users",
   "get_teams": "context",
   "get_team_members": "context",
 

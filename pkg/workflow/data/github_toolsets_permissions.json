@@ -6,7 +6,7 @@
       "description": "GitHub Actions context and environment",
       "read_permissions": [],
       "write_permissions": [],
-      "tools": ["get_copilot_space", "get_me", "get_team_members", "get_teams", "github_support_docs_search", "list_copilot_spaces"]
+      "tools": ["get_copilot_space", "get_team_members", "get_teams", "github_support_docs_search", "list_copilot_spaces"]
     },
     "repos": {
       "description": "Repository operations",
@@ -129,7 +129,7 @@
       "description": "User information",
       "read_permissions": [],
       "write_permissions": [],
-      "tools": []
+      "tools": ["get_me"]
     },
     "search": {
       "description": "Advanced search",

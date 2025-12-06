@@ -6,7 +6,7 @@ import (
 
 func TestDefaultGitHubToolsets(t *testing.T) {
 	// Verify the default toolsets match the documented defaults
-	expected := []string{"context", "repos", "issues", "pull_requests", "users"}
+	expected := []string{"context", "repos", "issues", "pull_requests"}
 
 	if len(DefaultGitHubToolsets) != len(expected) {
 		t.Errorf("Expected %d default toolsets, got %d", len(expected), len(DefaultGitHubToolsets))
@@ -50,12 +50,12 @@ func TestParseGitHubToolsets(t *testing.T) {
 		{
 			name:     "Empty string returns default",
 			input:    "",
-			expected: []string{"context", "repos", "issues", "pull_requests", "users"},
+			expected: []string{"context", "repos", "issues", "pull_requests"},
 		},
 		{
 			name:     "Default expands to default toolsets",
 			input:    "default",
-			expected: []string{"context", "repos", "issues", "pull_requests", "users"},
+			expected: []string{"context", "repos", "issues", "pull_requests"},
 		},
 		{
 			name:     "Specific toolsets",
@@ -65,7 +65,7 @@ func TestParseGitHubToolsets(t *testing.T) {
 		{
 			name:     "Default plus additional",
 			input:    "default,discussions",
-			expected: []string{"context", "repos", "issues", "pull_requests", "users", "discussions"},
+			expected: []string{"context", "repos", "issues", "pull_requests", "discussions"},
 		},
 		{
 			name:  "All expands to all toolsets",
@@ -91,7 +91,7 @@ func TestParseGitHubToolsets(t *testing.T) {
 		{
 			name:     "Multiple with default in middle",
 			input:    "actions,default,discussions",
-			expected: []string{"actions", "context", "repos", "issues", "pull_requests", "users", "discussions"},
+			expected: []string{"actions", "context", "repos", "issues", "pull_requests", "discussions"},
 		},
 		{
 			name:     "Action-friendly expands to action-friendly toolsets",
@@ -168,7 +168,7 @@ func TestParseGitHubToolsetsDeduplication(t *testing.T) {
 		{
 			name:     "Default includes duplicates",
 			input:    "context,default",
-			expected: 5, // context already in default, so only 5 unique
+			expected: 4, // context already in default, so only 4 unique
 		},
 		{
 			name:     "All with duplicates",

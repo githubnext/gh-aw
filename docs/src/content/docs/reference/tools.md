@@ -98,7 +98,7 @@ When you specify `toolsets: [default]` in your workflow markdown, the generated 
 #### Toolset Contents
 
 Common toolsets include:
-- **context**: User/team info (`get_me`, `get_teams`, `get_team_members`)
+- **context**: User/team info (`get_teams`, `get_team_members`)
 - **repos**: Repository operations (`get_repository`, `get_file_contents`, `search_code`, `list_commits`, releases)
 - **issues**: Issue management (`list_issues`, `create_issue`, `update_issue`, `search_issues`, comments, reactions)
 - **pull_requests**: PR operations (`list_pull_requests`, `get_pull_request`, `create_pull_request`, `search_pull_requests`)

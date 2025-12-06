@@ -102,16 +102,16 @@ The GitHub MCP server is built into agentic workflows and provides comprehensive
 
 | Toolset | Description | Tools |
 |---------|-------------|-------|
-| `context` | User and team information | `get_me`, `get_teams`, `get_team_members` |
+| `context` | User and team information | `get_teams`, `get_team_members` |
 | `repos` | Repository operations | `get_repository`, `get_file_contents`, `list_commits` |
 | `issues` | Issue management | `list_issues`, `create_issue`, `update_issue` |
 | `pull_requests` | PR operations | `list_pull_requests`, `create_pull_request` |
 | `actions` | Workflow runs and artifacts | `list_workflows`, `list_workflow_runs` |
 | `discussions` | GitHub Discussions | `list_discussions`, `create_discussion` |
 | `code_security` | Security alerts | `list_code_scanning_alerts` |
-| `users` | User profiles | `get_user`, `list_users` |
+| `users` | User profiles | `get_me`, `get_user`, `list_users` |
 
-The `default` toolset includes: `context`, `repos`, `issues`, `pull_requests`, `users`. However, when used in workflows, `[default]` expands to action-friendly toolsets (`context`, `repos`, `issues`, `pull_requests`) that work with GitHub Actions tokens, which don't support user operations.
+The `default` toolset includes: `context`, `repos`, `issues`, `pull_requests`. When used in workflows, `[default]` expands to action-friendly toolsets that work with GitHub Actions tokens. Note: The `users` toolset is not included by default.
 
 ### Operating Modes
 
