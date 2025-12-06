@@ -210,6 +210,15 @@ var readBufferScript string
 //go:embed js/mcp_server_core.cjs
 var mcpServerCoreScript string
 
+//go:embed js/mcp_server.cjs
+var mcpServerScript string
+
+//go:embed js/mcp_http_transport.cjs
+var mcpHTTPTransportScript string
+
+//go:embed js/mcp_logger.cjs
+var mcpLoggerScript string
+
 //go:embed js/safe_inputs_mcp_server.cjs
 var safeInputsMCPServerScript string
 
@@ -288,6 +297,9 @@ func GetJavaScriptSources() map[string]string {
 		"update_runner.cjs":               updateRunnerScript,
 		"read_buffer.cjs":                 readBufferScript,
 		"mcp_server_core.cjs":             mcpServerCoreScript,
+		"mcp_server.cjs":                  mcpServerScript,
+		"mcp_http_transport.cjs":          mcpHTTPTransportScript,
+		"mcp_logger.cjs":                  mcpLoggerScript,
 		"safe_inputs_mcp_server.cjs":      safeInputsMCPServerScript,
 		"safe_inputs_mcp_server_http.cjs": safeInputsMCPServerHTTPScript,
 		"safe_inputs_config_loader.cjs":   safeInputsConfigLoaderScript,
@@ -764,6 +776,21 @@ func GetReadBufferScript() string {
 // GetMCPServerCoreScript returns the embedded mcp_server_core.cjs script
 func GetMCPServerCoreScript() string {
 	return mcpServerCoreScript
+}
+
+// GetMCPServerScript returns the embedded mcp_server.cjs script
+func GetMCPServerScript() string {
+	return mcpServerScript
+}
+
+// GetMCPHTTPTransportScript returns the embedded mcp_http_transport.cjs script
+func GetMCPHTTPTransportScript() string {
+	return mcpHTTPTransportScript
+}
+
+// GetMCPLoggerScript returns the embedded mcp_logger.cjs script
+func GetMCPLoggerScript() string {
+	return mcpLoggerScript
 }
 
 // GetSafeInputsMCPServerScript returns the embedded safe_inputs_mcp_server.cjs script

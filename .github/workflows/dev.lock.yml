@@ -850,6 +850,277 @@ jobs:
               loadToolHandlers,
             };
           EOF_MCP_CORE
+          cat > /tmp/gh-aw/safe-inputs/mcp_server.cjs << 'EOF_MCP_SERVER'
+            class MCPServer {
+              constructor(serverInfo, options = {}) {
+                this.serverInfo = serverInfo;
+                this.capabilities = options.capabilities || { tools: {} };
+                this.tools = new Map();
+                this.transport = null;
+                this.initialized = false;
+              }
+              tool(name, description, inputSchema, handler) {
+                this.tools.set(name, {
+                  name,
+                  description,
+                  inputSchema,
+                  handler,
+                });
+              }
+              async connect(transport) {
+                this.transport = transport;
+                transport.setServer(this);
+                await transport.start();
+              }
+              handleInitialize(params) {
+                this.initialized = true;
+                return {
+                  protocolVersion: params.protocolVersion || "2024-11-05",
+                  serverInfo: this.serverInfo,
+                  capabilities: this.capabilities,
+                };
+              }
+              handleToolsList() {
+                const tools = Array.from(this.tools.values()).map(tool => ({
+                  name: tool.name,
+                  description: tool.description,
+                  inputSchema: tool.inputSchema,
+                }));
+                return { tools };
+              }
+              async handleToolsCall(params) {
+                const tool = this.tools.get(params.name);
+                if (!tool) {
+                  throw {
+                    code: -32602,
+                    message: `Tool '${params.name}' not found`,
+                  };
+                }
+                try {
+                  const result = await tool.handler(params.arguments || {});
+                  return result;
+                } catch (error) {
+                  throw {
+                    code: -32603,
+                    message: error instanceof Error ? error.message : String(error),
+                  };
+                }
+              }
+              async handleRequest(request) {
+                const { id, method, params } = request;
+                try {
+                  let result;
+                  switch (method) {
+                    case "initialize":
+                      result = this.handleInitialize(params || {});
+                      break;
+                    case "tools/list":
+                      result = this.handleToolsList();
+                      break;
+                    case "tools/call":
+                      result = await this.handleToolsCall(params || {});
+                      break;
+                    default:
+                      throw {
+                        code: -32601,
+                        message: `Method '${method}' not found`,
+                      };
+                  }
+                  return {
+                    jsonrpc: "2.0",
+                    id,
+                    result,
+                  };
+                } catch (error) {
+                  return {
+                    jsonrpc: "2.0",
+                    id,
+                    error: {
+                      code: error.code || -32603,
+                      message: error.message || "Internal error",
+                    },
+                  };
+                }
+              }
+            }
+            module.exports = {
+              MCPServer,
+            };
+          EOF_MCP_SERVER
+          cat > /tmp/gh-aw/safe-inputs/mcp_http_transport.cjs << 'EOF_MCP_HTTP_TRANSPORT'
+            const http = require("http");
+            const { randomUUID } = require("crypto");
+            const { MCPServer } = require("./mcp_server.cjs");
+            class MCPHTTPTransport {
+              constructor(options = {}) {
+                this.sessionIdGenerator = options.sessionIdGenerator;
+                this.enableJsonResponse = options.enableJsonResponse !== false; 
+                this.enableDnsRebindingProtection = options.enableDnsRebindingProtection || false;
+                this.server = null;
+                this.sessionId = null;
+                this.started = false;
+              }
+              setServer(server) {
+                this.server = server;
+              }
+              async start() {
+                if (this.started) {
+                  throw new Error("Transport already started");
+                }
+                this.started = true;
+              }
+              async handleRequest(req, res, parsedBody) {
+                res.setHeader("Access-Control-Allow-Origin", "*");
+                res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+                res.setHeader("Access-Control-Allow-Headers", "Content-Type, Accept, Mcp-Session-Id");
+                if (req.method === "OPTIONS") {
+                  res.writeHead(200);
+                  res.end();
+                  return;
+                }
+                if (req.method !== "POST") {
+                  res.writeHead(405, { "Content-Type": "application/json" });
+                  res.end(JSON.stringify({ error: "Method not allowed" }));
+                  return;
+                }
+                try {
+                  let body = parsedBody;
+                  if (!body) {
+                    const chunks = [];
+                    for await (const chunk of req) {
+                      chunks.push(chunk);
+                    }
+                    const bodyStr = Buffer.concat(chunks).toString();
+                    try {
+                      body = bodyStr ? JSON.parse(bodyStr) : null;
+                    } catch (parseError) {
+                      res.writeHead(400, { "Content-Type": "application/json" });
+                      res.end(
+                        JSON.stringify({
+                          jsonrpc: "2.0",
+                          error: {
+                            code: -32700,
+                            message: "Parse error: Invalid JSON in request body",
+                          },
+                          id: null,
+                        })
+                      );
+                      return;
+                    }
+                  }
+                  if (!body) {
+                    res.writeHead(400, { "Content-Type": "application/json" });
+                    res.end(
+                      JSON.stringify({
+                        jsonrpc: "2.0",
+                        error: {
+                          code: -32600,
+                          message: "Invalid Request: Empty request body",
+                        },
+                        id: null,
+                      })
+                    );
+                    return;
+                  }
+                  if (!body.jsonrpc || body.jsonrpc !== "2.0") {
+                    res.writeHead(400, { "Content-Type": "application/json" });
+                    res.end(
+                      JSON.stringify({
+                        jsonrpc: "2.0",
+                        error: {
+                          code: -32600,
+                          message: "Invalid Request: jsonrpc must be '2.0'",
+                        },
+                        id: body.id || null,
+                      })
+                    );
+                    return;
+                  }
+                  if (this.sessionIdGenerator) {
+                    if (body.method === "initialize") {
+                      this.sessionId = this.sessionIdGenerator();
+                    } else {
+                      const requestSessionId = req.headers["mcp-session-id"];
+                      if (!requestSessionId) {
+                        res.writeHead(400, { "Content-Type": "application/json" });
+                        res.end(
+                          JSON.stringify({
+                            jsonrpc: "2.0",
+                            error: {
+                              code: -32600,
+                              message: "Invalid Request: Missing Mcp-Session-Id header",
+                            },
+                            id: body.id || null,
+                          })
+                        );
+                        return;
+                      }
+                      if (requestSessionId !== this.sessionId) {
+                        res.writeHead(404, { "Content-Type": "application/json" });
+                        res.end(
+                          JSON.stringify({
+                            jsonrpc: "2.0",
+                            error: {
+                              code: -32001,
+                              message: "Session not found",
+                            },
+                            id: body.id || null,
+                          })
+                        );
+                        return;
+                      }
+                    }
+                  }
+                  const response = await this.server.handleRequest(body);
+                  const headers = { "Content-Type": "application/json" };
+                  if (this.sessionId) {
+                    headers["mcp-session-id"] = this.sessionId;
+                  }
+                  res.writeHead(200, headers);
+                  res.end(JSON.stringify(response));
+                } catch (error) {
+                  if (!res.headersSent) {
+                    res.writeHead(500, { "Content-Type": "application/json" });
+                    res.end(
+                      JSON.stringify({
+                        jsonrpc: "2.0",
+                        error: {
+                          code: -32603,
+                          message: error instanceof Error ? error.message : String(error),
+                        },
+                        id: null,
+                      })
+                    );
+                  }
+                }
+              }
+            }
+            module.exports = {
+              MCPServer,
+              MCPHTTPTransport,
+            };
+          EOF_MCP_HTTP_TRANSPORT
+          cat > /tmp/gh-aw/safe-inputs/mcp_logger.cjs << 'EOF_MCP_LOGGER'
+            function createLogger(serverName) {
+              const logger = {
+                debug: msg => {
+                  const timestamp = new Date().toISOString();
+                  process.stderr.write(`[${timestamp}] [${serverName}] ${msg}\n`);
+                },
+                debugError: (prefix, error) => {
+                  const errorMessage = error instanceof Error ? error.message : String(error);
+                  logger.debug(`${prefix}${errorMessage}`);
+                  if (error instanceof Error && error.stack) {
+                    logger.debug(`${prefix}Stack trace: ${error.stack}`);
+                  }
+                },
+              };
+              return logger;
+            }
+            module.exports = {
+              createLogger,
+            };
+          EOF_MCP_LOGGER
           cat > /tmp/gh-aw/safe-inputs/mcp_handler_shell.cjs << 'EOF_HANDLER_SHELL'
             const fs = require("fs");
             const path = require("path");
