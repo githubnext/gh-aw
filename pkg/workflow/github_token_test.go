@@ -8,28 +8,28 @@ import (
 
 func TestGetEffectiveGitHubToken(t *testing.T) {
 	tests := []struct {
-		name         string
-		customToken  string
+		name          string
+		customToken   string
 		toplevelToken string
-		expected     string
+		expected      string
 	}{
 		{
-			name:         "custom token has highest precedence",
-			customToken:  "${{ secrets.CUSTOM_TOKEN }}",
+			name:          "custom token has highest precedence",
+			customToken:   "${{ secrets.CUSTOM_TOKEN }}",
 			toplevelToken: "${{ secrets.TOPLEVEL_TOKEN }}",
-			expected:     "${{ secrets.CUSTOM_TOKEN }}",
+			expected:      "${{ secrets.CUSTOM_TOKEN }}",
 		},
 		{
-			name:         "toplevel token used when no custom token",
-			customToken:  "",
+			name:          "toplevel token used when no custom token",
+			customToken:   "",
 			toplevelToken: "${{ secrets.TOPLEVEL_TOKEN }}",
-			expected:     "${{ secrets.TOPLEVEL_TOKEN }}",
+			expected:      "${{ secrets.TOPLEVEL_TOKEN }}",
 		},
 		{
-			name:         "default fallback includes GH_AW_GITHUB_MCP_SERVER_TOKEN",
-			customToken:  "",
+			name:          "default fallback includes GH_AW_GITHUB_MCP_SERVER_TOKEN",
+			customToken:   "",
 			toplevelToken: "",
-			expected:     "${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}",
+			expected:      "${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}",
 		},
 	}
 
@@ -45,28 +45,28 @@ func TestGetEffectiveGitHubToken(t *testing.T) {
 
 func TestGetEffectiveCopilotGitHubToken(t *testing.T) {
 	tests := []struct {
-		name         string
-		customToken  string
+		name          string
+		customToken   string
 		toplevelToken string
-		expected     string
+		expected      string
 	}{
 		{
-			name:         "custom token has highest precedence",
-			customToken:  "${{ secrets.CUSTOM_COPILOT_TOKEN }}",
+			name:          "custom token has highest precedence",
+			customToken:   "${{ secrets.CUSTOM_COPILOT_TOKEN }}",
 			toplevelToken: "${{ secrets.TOPLEVEL_TOKEN }}",
-			expected:     "${{ secrets.CUSTOM_COPILOT_TOKEN }}",
+			expected:      "${{ secrets.CUSTOM_COPILOT_TOKEN }}",
 		},
 		{
-			name:         "toplevel token used when no custom token",
-			customToken:  "",
+			name:          "toplevel token used when no custom token",
+			customToken:   "",
 			toplevelToken: "${{ secrets.TOPLEVEL_TOKEN }}",
-			expected:     "${{ secrets.TOPLEVEL_TOKEN }}",
+			expected:      "${{ secrets.TOPLEVEL_TOKEN }}",
 		},
 		{
-			name:         "default fallback for Copilot includes multiple tokens",
-			customToken:  "",
+			name:          "default fallback for Copilot includes multiple tokens",
+			customToken:   "",
 			toplevelToken: "",
-			expected:     "${{ secrets.COPILOT_GITHUB_TOKEN || secrets.COPILOT_CLI_TOKEN || secrets.GH_AW_COPILOT_TOKEN || secrets.GH_AW_GITHUB_TOKEN }}",
+			expected:      "${{ secrets.COPILOT_GITHUB_TOKEN || secrets.COPILOT_CLI_TOKEN || secrets.GH_AW_COPILOT_TOKEN || secrets.GH_AW_GITHUB_TOKEN }}",
 		},
 	}
 
