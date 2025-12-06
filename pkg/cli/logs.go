@@ -195,6 +195,7 @@ func fetchJobStatuses(runID int64, verbose bool) (int, error) {
 
 // fetchJobDetails gets detailed job information including durations for a workflow run
 func fetchJobDetails(runID int64, verbose bool) ([]JobInfoWithDuration, error) {
+	logsLog.Printf("Fetching job details: runID=%d", runID)
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Fetching job details for run %d", runID)))
 	}
@@ -860,6 +861,7 @@ func DownloadWorkflowLogs(workflowName string, count int, startDate, endDate, ou
 
 // downloadRunArtifactsConcurrent downloads artifacts for multiple workflow runs concurrently
 func downloadRunArtifactsConcurrent(runs []WorkflowRun, outputDir string, verbose bool, maxRuns int) []DownloadResult {
+	logsLog.Printf("Starting concurrent artifact download: runs=%d, outputDir=%s, maxRuns=%d", len(runs), outputDir, maxRuns)
 	if len(runs) == 0 {
 		return []DownloadResult{}
 	}
@@ -1118,6 +1120,7 @@ func downloadRunArtifactsConcurrent(runs []WorkflowRun, outputDir string, verbos
 //
 // The processedCount and targetCount parameters are used to display progress in the spinner message.
 func listWorkflowRunsWithPagination(workflowName string, limit int, startDate, endDate, beforeDate, ref string, beforeRunID, afterRunID int64, repoOverride string, processedCount, targetCount int, verbose bool) ([]WorkflowRun, int, error) {
+	logsLog.Printf("Listing workflow runs: workflow=%s, limit=%d, startDate=%s, endDate=%s, ref=%s", workflowName, limit, startDate, endDate, ref)
 	args := []string{"run", "list", "--json", "databaseId,number,url,status,conclusion,workflowName,createdAt,startedAt,updatedAt,event,headBranch,headSha,displayTitle"}
 
 	// Add filters
@@ -1519,6 +1522,7 @@ func displayLogsOverview(processedRuns []ProcessedRun, verbose bool) {
 
 // getAgenticWorkflowNames reads all .lock.yml files and extracts their workflow names
 func getAgenticWorkflowNames(verbose bool) ([]string, error) {
+	logsLog.Print("Discovering agentic workflow names from .lock.yml files")
 	var workflowNames []string
 
 	// Look for .lock.yml files in .github/workflows directory

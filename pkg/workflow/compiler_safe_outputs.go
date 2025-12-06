@@ -7,13 +7,17 @@ import (
 	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/constants"
+	"github.com/githubnext/gh-aw/pkg/logger"
 	"github.com/githubnext/gh-aw/pkg/parser"
 	"github.com/goccy/go-yaml"
 )
 
+var compilerSafeOutputsLog = logger.New("workflow:compiler_safe_outputs")
+
 // parseOnSection handles parsing of the "on" section from frontmatter, extracting command triggers,
 // reactions, and stop-after configurations while detecting conflicts with other event types.
 func (c *Compiler) parseOnSection(frontmatter map[string]any, workflowData *WorkflowData, markdownPath string) error {
+	compilerSafeOutputsLog.Printf("Parsing on section: workflow=%s, markdownPath=%s", workflowData.Name, markdownPath)
 	// Check if "command" is used as a trigger in the "on" section
 	// Also extract "reaction" from the "on" section
 	var hasCommand bool
@@ -168,6 +172,7 @@ func (c *Compiler) mergeSafeJobsFromIncludes(topSafeJobs map[string]*SafeJobConf
 
 // mergeSafeJobsFromIncludedConfigs merges safe-jobs from included safe-outputs configurations
 func (c *Compiler) mergeSafeJobsFromIncludedConfigs(topSafeJobs map[string]*SafeJobConfig, includedConfigs []string) (map[string]*SafeJobConfig, error) {
+	compilerSafeOutputsLog.Printf("Merging safe-jobs from included configs: includedCount=%d", len(includedConfigs))
 	result := topSafeJobs
 	if result == nil {
 		result = make(map[string]*SafeJobConfig)
@@ -202,6 +207,7 @@ func (c *Compiler) mergeSafeJobsFromIncludedConfigs(topSafeJobs map[string]*Safe
 
 // applyDefaultTools adds default read-only GitHub MCP tools, creating github tool if not present
 func (c *Compiler) applyDefaultTools(tools map[string]any, safeOutputs *SafeOutputsConfig) map[string]any {
+	compilerSafeOutputsLog.Printf("Applying default tools: existingToolCount=%d", len(tools))
 	// Always apply default GitHub tools (create github section if it doesn't exist)
 
 	if tools == nil {
