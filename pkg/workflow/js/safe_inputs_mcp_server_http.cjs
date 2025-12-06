@@ -127,9 +127,12 @@ async function startHttpServer(configPath, options = {}) {
   const port = options.port || 3000;
   const stateless = options.stateless || false;
 
-  logger.debug = msg => {
-    const timestamp = new Date().toISOString();
-    process.stderr.write(`[${timestamp}] [safe-inputs-startup] ${msg}\n`);
+  // Initialize logger for startup messages
+  const logger = {
+    debug: msg => {
+      const timestamp = new Date().toISOString();
+      process.stderr.write(`[${timestamp}] [safe-inputs-startup] ${msg}\n`);
+    },
   };
 
   logger.debug(`=== Starting Safe Inputs MCP HTTP Server ===`);
