@@ -249,6 +249,12 @@ var safeOutputsHandlersScript string
 //go:embed js/safe_outputs_tools_loader.cjs
 var safeOutputsToolsLoaderScript string
 
+//go:embed js/setup_oidc_token.cjs
+var setupOIDCTokenScript string
+
+//go:embed js/revoke_oidc_token.cjs
+var revokeOIDCTokenScript string
+
 // GetJavaScriptSources returns a map of all embedded JavaScript sources
 // The keys are the relative paths from the js directory
 func GetJavaScriptSources() map[string]string {
@@ -305,6 +311,8 @@ func GetJavaScriptSources() map[string]string {
 		"safe_outputs_handlers.cjs":       safeOutputsHandlersScript,
 		"safe_outputs_tools_loader.cjs":   safeOutputsToolsLoaderScript,
 		"safe_outputs_mcp_server.cjs":     safeOutputsMCPServerScriptSource,
+		"setup_oidc_token.cjs":            setupOIDCTokenScript,
+		"revoke_oidc_token.cjs":           revokeOIDCTokenScript,
 	}
 }
 
