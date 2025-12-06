@@ -1,6 +1,7 @@
 #!/bin/bash
 
-# Script to download and install gh-aw binary for the current architecture
+# Script to download and install gh-aw binary for the current OS and architecture
+# Supports: Linux, macOS (Darwin), FreeBSD, Windows (Git Bash/MSYS/Cygwin)
 # Usage: ./install-gh-aw.sh [version]
 # If no version is specified, it will use the latest release
 
@@ -48,26 +49,65 @@ if command -v jq &> /dev/null; then
     HAS_JQ=true
 fi
 
-# Determine architecture
+# Determine OS and architecture
+OS=$(uname -s)
 ARCH=$(uname -m)
-case $ARCH in
-    x86_64)
-        PLATFORM="linux-amd64"
+
+# Normalize OS name
+case $OS in
+    Linux)
+        OS_NAME="linux"
         ;;
-    aarch64|arm64)
-        PLATFORM="linux-arm64"
+    Darwin)
+        OS_NAME="darwin"
         ;;
-    armv7l)
-        PLATFORM="linux-arm"
+    FreeBSD)
+        OS_NAME="freebsd"
+        ;;
+    MINGW*|MSYS*|CYGWIN*)
+        OS_NAME="windows"
         ;;
     *)
-        print_error "Unsupported architecture: $ARCH"
-        print_info "Supported architectures: x86_64, aarch64/arm64, armv7l"
+        print_error "Unsupported operating system: $OS"
+        print_info "Supported operating systems: Linux, macOS (Darwin), FreeBSD, Windows"
         exit 1
         ;;
 esac
 
-print_info "Detected architecture: $ARCH -> $PLATFORM"
+# Normalize architecture name
+case $ARCH in
+    x86_64|amd64)
+        ARCH_NAME="amd64"
+        ;;
+    aarch64|arm64)
+        ARCH_NAME="arm64"
+        ;;
+    armv7l|armv7)
+        ARCH_NAME="arm"
+        ;;
+    i386|i686)
+        ARCH_NAME="386"
+        ;;
+    *)
+        print_error "Unsupported architecture: $ARCH"
+        print_info "Supported architectures: x86_64/amd64, aarch64/arm64, armv7l/arm, i386/i686"
+        exit 1
+        ;;
+esac
+
+# Construct platform string
+PLATFORM="${OS_NAME}-${ARCH_NAME}"
+
+# Add .exe extension for Windows
+if [ "$OS_NAME" = "windows" ]; then
+    BINARY_NAME="gh-aw.exe"
+else
+    BINARY_NAME="gh-aw"
+fi
+
+print_info "Detected OS: $OS -> $OS_NAME"
+print_info "Detected architecture: $ARCH -> $ARCH_NAME"
+print_info "Platform: $PLATFORM"
 
 # Get version (use provided version or fetch latest)
 VERSION=${1:-""}
@@ -98,9 +138,11 @@ else
     print_info "Using specified version: $VERSION"
 fi
 
-# Construct download URL
+# Construct download URL and paths
 DOWNLOAD_URL="https://github.com/$REPO/releases/download/$VERSION/$PLATFORM"
-BINARY_NAME="gh-aw"
+if [ "$OS_NAME" = "windows" ]; then
+    DOWNLOAD_URL="${DOWNLOAD_URL}.exe"
+fi
 INSTALL_DIR="$HOME/.local/share/gh/extensions/gh-aw"
 BINARY_PATH="$INSTALL_DIR/$BINARY_NAME"
 
