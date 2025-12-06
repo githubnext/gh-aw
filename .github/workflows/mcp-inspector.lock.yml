@@ -6075,6 +6075,7 @@ jobs:
                   runStarted: rawMessages.runStarted,
                   runSuccess: rawMessages.runSuccess,
                   runFailure: rawMessages.runFailure,
+                  detectionFailure: rawMessages.detectionFailure,
                   closeOlderDiscussion: rawMessages.closeOlderDiscussion,
                 };
               } catch (error) {
@@ -6354,6 +6355,7 @@ jobs:
                   runStarted: rawMessages.runStarted,
                   runSuccess: rawMessages.runSuccess,
                   runFailure: rawMessages.runFailure,
+                  detectionFailure: rawMessages.detectionFailure,
                   closeOlderDiscussion: rawMessages.closeOlderDiscussion,
                 };
               } catch (error) {
