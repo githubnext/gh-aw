@@ -159,8 +159,8 @@ func sanitizeForFilename(s string) string {
 	s = strings.ReplaceAll(s, "|", "_")
 	s = strings.ToLower(s)
 
-	// Remove any leading/trailing underscores or dots
-	s = strings.Trim(s, "_.")
+	// Remove any leading/trailing underscores (dots are allowed)
+	s = strings.Trim(s, "_")
 
 	// Replace multiple consecutive underscores with a single one
 	for strings.Contains(s, "__") {

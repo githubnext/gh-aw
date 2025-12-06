@@ -7,6 +7,9 @@ import (
 	"testing"
 )
 
+// Test workflow content for consistent testing
+const testWorkflowContent = "---\nname: Test\n---\nTest"
+
 func TestExtractScriptFromSafeJob(t *testing.T) {
 	c := NewCompiler(false, "", "test")
 
@@ -14,8 +17,8 @@ func TestExtractScriptFromSafeJob(t *testing.T) {
 	tmpDir := t.TempDir()
 	workflowPath := filepath.Join(tmpDir, "test-workflow.md")
 
-	// Create the workflow file (empty is fine for this test)
-	if err := os.WriteFile(workflowPath, []byte("---\nname: Test\n---\nTest"), 0644); err != nil {
+	// Create the workflow file
+	if err := os.WriteFile(workflowPath, []byte(testWorkflowContent), 0644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -128,7 +131,7 @@ func TestExtractScriptFromStep(t *testing.T) {
 	workflowPath := filepath.Join(tmpDir, "test-workflow.md")
 
 	// Create the workflow file
-	if err := os.WriteFile(workflowPath, []byte("---\nname: Test\n---\nTest"), 0644); err != nil {
+	if err := os.WriteFile(workflowPath, []byte(testWorkflowContent), 0644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -218,7 +221,7 @@ func TestSanitizeForFilename(t *testing.T) {
 		},
 		{
 			input:    ".Leading.Dots.",
-			expected: "leading.dots",
+			expected: ".leading.dots.",
 		},
 	}
 
