@@ -14,17 +14,6 @@ import (
 
 var metricsLog = logger.New("workflow:metrics")
 
-// Pre-compiled regexes for performance (avoid recompiling in hot paths)
-var (
-	// Timestamp patterns for log cleanup
-	timestampPattern1 = regexp.MustCompile(`^\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}(\.\d+)?\s+`)
-	timestampPattern2 = regexp.MustCompile(`^\[\d{2}:\d{2}:\d{2}\]\s+`)
-	timestampPattern3 = regexp.MustCompile(`^\d{2}:\d{2}:\d{2}(\.\d+)?\s+`)
-
-	// Log level pattern for message cleanup
-	logLevelPattern = regexp.MustCompile(`(?i)^\[?(ERROR|WARNING|WARN|INFO|DEBUG)\]?\s*[:-]?\s*`)
-)
-
 // ToolCallInfo represents statistics for a single tool
 type ToolCallInfo struct {
 	Name          string        // Prettified tool name (e.g., "github::search_issues", "bash")
@@ -382,7 +371,7 @@ func CountErrorsAndWarningsWithPatterns(logContent string, patterns []ErrorPatte
 			}
 
 			// Clean up the message
-			message = extractErrorMessage(message)
+			message = logger.ExtractErrorMessage(message)
 
 			if strings.ToLower(level) == "error" {
 				if message != "" {
@@ -455,29 +444,6 @@ func extractLevelFromMatchCompiled(match []string, cp compiledPattern) string {
 	}
 
 	return "unknown"
-}
-
-// extractErrorMessage extracts a clean error message from a log line
-// Removes timestamps, log level prefixes, and other common noise
-func extractErrorMessage(line string) string {
-	// Remove common timestamp patterns using pre-compiled regexes
-	cleanedLine := line
-	cleanedLine = timestampPattern1.ReplaceAllString(cleanedLine, "")
-	cleanedLine = timestampPattern2.ReplaceAllString(cleanedLine, "")
-	cleanedLine = timestampPattern3.ReplaceAllString(cleanedLine, "")
-
-	// Remove common log level prefixes using pre-compiled regex
-	cleanedLine = logLevelPattern.ReplaceAllString(cleanedLine, "")
-
-	// Trim whitespace
-	cleanedLine = strings.TrimSpace(cleanedLine)
-
-	// If the line is too long (>200 chars), truncate it
-	if len(cleanedLine) > 200 {
-		cleanedLine = cleanedLine[:197] + "..."
-	}
-
-	return cleanedLine
 }
 
 // FinalizeToolMetrics completes the metric collection process by finalizing sequences,

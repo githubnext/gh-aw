@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/githubnext/gh-aw/pkg/logger"
 	"github.com/githubnext/gh-aw/pkg/workflow"
 )
 
@@ -282,7 +283,7 @@ func TestExtractErrorMessage(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := extractErrorMessage(tt.line)
+			result := logger.ExtractErrorMessage(tt.line)
 			if result != tt.expected {
 				t.Errorf("Expected '%s', got '%s'", tt.expected, result)
 			}
