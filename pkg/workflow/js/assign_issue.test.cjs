@@ -166,16 +166,16 @@ describe("assign_issue.cjs", () => {
       process.env.ASSIGNEE = "test-user";
       process.env.ISSUE_NUMBER = "456";
 
-      // Note: The actual GraphQL calls are made by assign_agent_helpers.cjs which is required in the script
-      // Since we can't properly mock require() in eval'd code, we just verify the script doesn't fail
-      // The GraphQL functionality is tested in assign_agent_helpers.test.cjs
+      // Note: Full end-to-end GraphQL functionality is tested in assign_agent_helpers.test.cjs
+      // This test verifies the script structure and that gh CLI is not used
+      // The eval() approach here cannot fully mock the require() chain, so we focus on
+      // verifying the script loads without errors and validates environment variables
 
-      // Execute the script - it will fail because github object is not fully mocked for eval
-      // But we can verify the initial steps work
+      // Execute the script
       await eval(`(async () => { ${assignIssueScript} })()`);
 
       expect(mockCore.info).toHaveBeenCalledWith("Assigning issue #456 to test-user");
-      // The script now uses assignIssue helper instead of gh CLI
+      // Verify gh CLI is not used
       expect(mockExec.exec).not.toHaveBeenCalled();
     });
 

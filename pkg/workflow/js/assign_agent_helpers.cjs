@@ -456,7 +456,7 @@ async function assignIssue(owner, repo, issueNumber, assignee) {
 
 /**
  * Assign an agent to an issue using GraphQL (legacy function for backward compatibility)
- * @deprecated Use assignIssue instead
+ * @deprecated Since v1.0 - Use assignIssue instead for unified user/agent assignment
  * @param {string} owner - Repository owner
  * @param {string} repo - Repository name
  * @param {number} issueNumber - Issue number
