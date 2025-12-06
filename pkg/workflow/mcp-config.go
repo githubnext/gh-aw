@@ -953,8 +953,6 @@ func getMCPConfig(toolConfig map[string]any, toolName string) (*parser.MCPServer
 	return result, nil
 }
 
-
-
 // hasMCPConfig checks if a tool configuration has MCP configuration
 func hasMCPConfig(toolConfig map[string]any) (bool, string) {
 	// Check for direct type field

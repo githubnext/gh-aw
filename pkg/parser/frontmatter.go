@@ -68,8 +68,6 @@ func ParseImportDirective(line string) *ImportDirectiveMatch {
 	}
 }
 
-
-
 // ImportsResult holds the result of processing imports from frontmatter
 type ImportsResult struct {
 	MergedTools         string         // Merged tools configuration from all imports
