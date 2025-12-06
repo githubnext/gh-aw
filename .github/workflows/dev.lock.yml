@@ -1109,8 +1109,7 @@ jobs:
             const path = require("path");
             const http = require("http");
             const { randomUUID } = require("crypto");
-            const { McpServer } = require("@modelcontextprotocol/sdk/server/mcp.js");
-            const { StreamableHTTPServerTransport } = require("@modelcontextprotocol/sdk/server/streamableHttp.js");
+            const { MCPServer, MCPHTTPTransport } = require("./mcp_http_transport.cjs");
             const { loadConfig } = require("./safe_inputs_config_loader.cjs");
             const { loadToolHandlers } = require("./mcp_server_core.cjs");
             const { validateRequiredFields } = require("./safe_inputs_validation.cjs");
@@ -1119,7 +1118,7 @@ jobs:
               const basePath = path.dirname(configPath);
               const serverName = config.serverName || "safeinputs";
               const version = config.version || "1.0.0";
-              const server = new McpServer(
+              const server = new MCPServer(
                 {
                   name: serverName,
                   version: version,
@@ -1171,9 +1170,11 @@ jobs:
             async function startHttpServer(configPath, options = {}) {
               const port = options.port || 3000;
               const stateless = options.stateless || false;
-              logger.debug = msg => {
-                const timestamp = new Date().toISOString();
-                process.stderr.write(`[${timestamp}] [safe-inputs-startup] ${msg}\n`);
+              const logger = {
+                debug: msg => {
+                  const timestamp = new Date().toISOString();
+                  process.stderr.write(`[${timestamp}] [safe-inputs-startup] ${msg}\n`);
+                },
               };
               logger.debug(`=== Starting Safe Inputs MCP HTTP Server ===`);
               logger.debug(`Configuration file: ${configPath}`);
@@ -1188,7 +1189,7 @@ jobs:
                 logger.debug(`Server version: ${config.version || "1.0.0"}`);
                 logger.debug(`Tools configured: ${config.tools.length}`);
                 logger.debug(`Creating HTTP transport...`);
-                const transport = new StreamableHTTPServerTransport({
+                const transport = new MCPHTTPTransport({
                   sessionIdGenerator: stateless ? undefined : () => randomUUID(),
                   enableJsonResponse: true,
                   enableDnsRebindingProtection: false, 
