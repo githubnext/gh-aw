@@ -209,6 +209,8 @@ jobs:
       pull-requests: read
     concurrency:
       group: "gh-aw-copilot-${{ github.workflow }}"
+    outputs:
+      model: ${{ steps.generate_aw_info.outputs.model }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
@@ -362,6 +364,7 @@ jobs:
           echo "HOME: $HOME"
           echo "GITHUB_COPILOT_CLI_MODE: $GITHUB_COPILOT_CLI_MODE"
       - name: Generate agentic run info
+        id: generate_aw_info
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
           script: |
@@ -370,7 +373,7 @@ jobs:
             const awInfo = {
               engine_id: "copilot",
               engine_name: "GitHub Copilot CLI",
-              model: "",
+              model: process.env.GH_AW_MODEL_AGENT_COPILOT || "",
               version: "",
               agent_version: "0.0.367",
               workflow_name: "Firewall Test Agent",
@@ -401,6 +404,9 @@ jobs:
             fs.writeFileSync(tmpPath, JSON.stringify(awInfo, null, 2));
             console.log('Generated aw_info.json at:', tmpPath);
             console.log(JSON.stringify(awInfo, null, 2));
+            
+            // Set model as output for reuse in other steps/jobs
+            core.setOutput('model', awInfo.model);
       - name: Generate workflow overview
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:

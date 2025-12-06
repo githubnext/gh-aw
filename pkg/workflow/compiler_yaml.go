@@ -892,6 +892,7 @@ func getInstallationVersion(data *WorkflowData, engine CodingAgentEngine) string
 
 func (c *Compiler) generateCreateAwInfo(yaml *strings.Builder, data *WorkflowData, engine CodingAgentEngine) {
 	yaml.WriteString("      - name: Generate agentic run info\n")
+	yaml.WriteString("        id: generate_aw_info\n") // Add ID for outputs
 	yaml.WriteString(fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))
 	yaml.WriteString("        with:\n")
 	yaml.WriteString("          script: |\n")
@@ -911,12 +912,31 @@ func (c *Compiler) generateCreateAwInfo(yaml *strings.Builder, data *WorkflowDat
 	// Engine display name
 	fmt.Fprintf(yaml, "              engine_name: \"%s\",\n", engine.GetDisplayName())
 
-	// Model information
-	model := ""
-	if data.EngineConfig != nil && data.EngineConfig.Model != "" {
-		model = data.EngineConfig.Model
+	// Model information - resolve from explicit config or environment variable
+	// If model is explicitly configured, use it directly
+	// Otherwise, resolve from environment variable at runtime
+	// Note: aw_info is always generated in the agent job, so use agent-specific env vars
+	modelConfigured := data.EngineConfig != nil && data.EngineConfig.Model != ""
+	if modelConfigured {
+		// Explicit model - output as static string
+		fmt.Fprintf(yaml, "              model: \"%s\",\n", data.EngineConfig.Model)
+	} else {
+		// Model from environment variable - resolve at runtime
+		// Use agent-specific env var since aw_info is generated in agent job
+		var modelEnvVar string
+		
+		switch engineID {
+		case "copilot":
+			modelEnvVar = constants.EnvVarModelAgentCopilot
+		case "claude":
+			modelEnvVar = constants.EnvVarModelAgentClaude
+		case "codex":
+			modelEnvVar = constants.EnvVarModelAgentCodex
+		}
+		
+		// Generate JavaScript to resolve model from environment variable at runtime
+		fmt.Fprintf(yaml, "              model: process.env.%s || \"\",\n", modelEnvVar)
 	}
-	fmt.Fprintf(yaml, "              model: \"%s\",\n", model)
 
 	// Version information (from engine config, kept for backwards compatibility)
 	version := ""
@@ -1004,6 +1024,9 @@ func (c *Compiler) generateCreateAwInfo(yaml *strings.Builder, data *WorkflowDat
 	yaml.WriteString("            fs.writeFileSync(tmpPath, JSON.stringify(awInfo, null, 2));\n")
 	yaml.WriteString("            console.log('Generated aw_info.json at:', tmpPath);\n")
 	yaml.WriteString("            console.log(JSON.stringify(awInfo, null, 2));\n")
+	yaml.WriteString("            \n")
+	yaml.WriteString("            // Set model as output for reuse in other steps/jobs\n")
+	yaml.WriteString("            core.setOutput('model', awInfo.model);\n")
 }
 
 // generateWorkflowOverviewStep generates a step that writes an agentic workflow run overview to the GitHub step summary.

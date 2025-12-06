@@ -1609,6 +1609,7 @@ jobs:
       GH_AW_SAFE_OUTPUTS: /tmp/gh-aw/safeoutputs/outputs.jsonl
     outputs:
       has_patch: ${{ steps.collect_output.outputs.has_patch }}
+      model: ${{ steps.generate_aw_info.outputs.model }}
       output: ${{ steps.collect_output.outputs.output }}
       output_types: ${{ steps.collect_output.outputs.output_types }}
     steps:
@@ -3175,6 +3176,7 @@ jobs:
           }
           EOF
       - name: Generate agentic run info
+        id: generate_aw_info
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
           script: |
@@ -3183,7 +3185,7 @@ jobs:
             const awInfo = {
               engine_id: "claude",
               engine_name: "Claude Code",
-              model: "",
+              model: process.env.GH_AW_MODEL_AGENT_CLAUDE || "",
               version: "",
               agent_version: "2.0.59",
               workflow_name: "Smoke Detector - Smoke Test Failure Investigator",
@@ -3214,6 +3216,9 @@ jobs:
             fs.writeFileSync(tmpPath, JSON.stringify(awInfo, null, 2));
             console.log('Generated aw_info.json at:', tmpPath);
             console.log(JSON.stringify(awInfo, null, 2));
+            
+            // Set model as output for reuse in other steps/jobs
+            core.setOutput('model', awInfo.model);
       - name: Generate workflow overview
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
