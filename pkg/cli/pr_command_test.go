@@ -147,7 +147,7 @@ func TestNewPRCommand(t *testing.T) {
 	subcommands := cmd.Commands()
 	found := false
 	for _, subcmd := range subcommands {
-		if subcmd.Use == "transfer PULL-REQUEST-URL" {
+		if subcmd.Use == "transfer <pull-request-url>" {
 			found = true
 			break
 		}
@@ -162,8 +162,8 @@ func TestNewPRCommand(t *testing.T) {
 func TestNewPRTransferSubcommand(t *testing.T) {
 	cmd := NewPRTransferSubcommand()
 
-	if cmd.Use != "transfer PULL-REQUEST-URL" {
-		t.Errorf("Expected command use to be 'transfer PULL-REQUEST-URL', got %s", cmd.Use)
+	if cmd.Use != "transfer <pull-request-url>" {
+		t.Errorf("Expected command use to be 'transfer <pull-request-url>', got %s", cmd.Use)
 	}
 
 	if cmd.Short != "Transfer a pull request to another repository" {
