@@ -25,6 +25,8 @@ const {
   getIssueDetails,
   assignAgentToIssue,
   generatePermissionErrorSummary,
+  getUserId,
+  assignIssue,
   assignAgentToIssueByName,
 } = await import("./assign_agent_helpers.cjs");
 
@@ -407,6 +409,218 @@ describe("assign_agent_helpers.cjs", () => {
 
       expect(result.success).toBe(true);
       expect(mockCore.info).toHaveBeenCalledWith("copilot is already assigned to issue #123");
+    });
+  });
+
+  describe("getUserId", () => {
+    it("should return user ID when user exists", async () => {
+      const userId = "USER_123";
+
+      mockGithub.graphql.mockResolvedValueOnce({
+        user: {
+          id: userId,
+        },
+      });
+
+      const result = await getUserId("testuser");
+
+      expect(result).toBe(userId);
+      expect(mockGithub.graphql).toHaveBeenCalledWith(
+        expect.stringContaining("user(login: $username)"),
+        expect.objectContaining({ username: "testuser" })
+      );
+    });
+
+    it("should return null when user does not exist", async () => {
+      mockGithub.graphql.mockResolvedValueOnce({
+        user: null,
+      });
+
+      const result = await getUserId("nonexistent");
+
+      expect(result).toBeNull();
+      expect(mockCore.warning).toHaveBeenCalledWith("User nonexistent not found");
+    });
+
+    it("should return null on GraphQL error", async () => {
+      mockGithub.graphql.mockRejectedValueOnce(new Error("GraphQL error"));
+
+      const result = await getUserId("testuser");
+
+      expect(result).toBeNull();
+      expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("Failed to get user ID for testuser"));
+    });
+  });
+
+  describe("assignIssue", () => {
+    it("should assign a regular user to an issue", async () => {
+      const userId = "USER_123";
+      const issueId = "ISSUE_456";
+
+      // Mock getUserId
+      mockGithub.graphql.mockResolvedValueOnce({
+        user: {
+          id: userId,
+        },
+      });
+
+      // Mock getIssueDetails
+      mockGithub.graphql.mockResolvedValueOnce({
+        repository: {
+          issue: {
+            id: issueId,
+            assignees: {
+              nodes: [],
+            },
+          },
+        },
+      });
+
+      // Mock assignAgentToIssue (replaceActorsForAssignable mutation)
+      mockGithub.graphql.mockResolvedValueOnce({
+        replaceActorsForAssignable: {
+          __typename: "ReplaceActorsForAssignablePayload",
+        },
+      });
+
+      const result = await assignIssue("owner", "repo", 123, "testuser");
+
+      expect(result.success).toBe(true);
+      expect(mockCore.info).toHaveBeenCalledWith("Looking for user testuser...");
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Found user testuser"));
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Successfully assigned testuser"));
+    });
+
+    it("should assign an agent to an issue", async () => {
+      const agentId = "AGENT_123";
+      const issueId = "ISSUE_456";
+
+      // Mock findAgent
+      mockGithub.graphql.mockResolvedValueOnce({
+        repository: {
+          suggestedActors: {
+            nodes: [{ id: agentId, login: "copilot-swe-agent", __typename: "Bot" }],
+          },
+        },
+      });
+
+      // Mock getIssueDetails
+      mockGithub.graphql.mockResolvedValueOnce({
+        repository: {
+          issue: {
+            id: issueId,
+            assignees: {
+              nodes: [],
+            },
+          },
+        },
+      });
+
+      // Mock assignAgentToIssue (replaceActorsForAssignable mutation)
+      mockGithub.graphql.mockResolvedValueOnce({
+        replaceActorsForAssignable: {
+          __typename: "ReplaceActorsForAssignablePayload",
+        },
+      });
+
+      const result = await assignIssue("owner", "repo", 123, "copilot");
+
+      expect(result.success).toBe(true);
+      expect(mockCore.info).toHaveBeenCalledWith("Looking for copilot coding agent...");
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Found copilot coding agent"));
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Successfully assigned copilot"));
+    });
+
+    it("should handle @-prefixed assignee names", async () => {
+      const userId = "USER_123";
+
+      // Mock getUserId
+      mockGithub.graphql.mockResolvedValueOnce({
+        user: {
+          id: userId,
+        },
+      });
+
+      // Mock getIssueDetails
+      mockGithub.graphql.mockResolvedValueOnce({
+        repository: {
+          issue: {
+            id: "ISSUE_456",
+            assignees: {
+              nodes: [],
+            },
+          },
+        },
+      });
+
+      // Mock assignAgentToIssue
+      mockGithub.graphql.mockResolvedValueOnce({
+        replaceActorsForAssignable: {
+          __typename: "ReplaceActorsForAssignablePayload",
+        },
+      });
+
+      const result = await assignIssue("owner", "repo", 123, "@testuser");
+
+      expect(result.success).toBe(true);
+      // Should normalize and look for "testuser" without @
+      expect(mockCore.info).toHaveBeenCalledWith("Looking for user testuser...");
+    });
+
+    it("should return error when user not found", async () => {
+      // Mock getUserId returning null
+      mockGithub.graphql.mockResolvedValueOnce({
+        user: null,
+      });
+
+      const result = await assignIssue("owner", "repo", 123, "nonexistent");
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe("User nonexistent not found");
+    });
+
+    it("should return error when agent not found", async () => {
+      // Mock findAgent returning empty list
+      mockGithub.graphql.mockResolvedValueOnce({
+        repository: {
+          suggestedActors: {
+            nodes: [],
+          },
+        },
+      });
+
+      const result = await assignIssue("owner", "repo", 123, "copilot");
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("not available");
+    });
+
+    it("should return success when actor already assigned", async () => {
+      const userId = "USER_123";
+
+      // Mock getUserId
+      mockGithub.graphql.mockResolvedValueOnce({
+        user: {
+          id: userId,
+        },
+      });
+
+      // Mock getIssueDetails with user already in assignees
+      mockGithub.graphql.mockResolvedValueOnce({
+        repository: {
+          issue: {
+            id: "ISSUE_456",
+            assignees: {
+              nodes: [{ id: userId }],
+            },
+          },
+        },
+      });
+
+      const result = await assignIssue("owner", "repo", 123, "testuser");
+
+      expect(result.success).toBe(true);
+      expect(mockCore.info).toHaveBeenCalledWith("testuser is already assigned to issue #123");
     });
   });
 });

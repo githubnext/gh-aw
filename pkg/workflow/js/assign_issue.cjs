@@ -1,11 +1,12 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-const { getAgentName, getIssueDetails, findAgent, assignAgentToIssue } = require("./assign_agent_helpers.cjs");
+const { assignIssue } = require("./assign_agent_helpers.cjs");
 
 /**
  * Assign an issue to a user or bot (including copilot)
  * This script handles assigning issues after they are created
+ * Uses the unified assignIssue helper that works for both users and agents via GraphQL
  */
 
 async function main() {
@@ -44,47 +45,16 @@ async function main() {
   core.info(`Assigning issue #${trimmedIssueNumber} to ${trimmedAssignee}`);
 
   try {
-    // Check if the assignee is a known coding agent (e.g., copilot, @copilot)
-    const agentName = getAgentName(trimmedAssignee);
+    // Get repository owner and repo from context
+    const owner = context.repo.owner;
+    const repo = context.repo.repo;
 
-    if (agentName) {
-      // Use GraphQL API for agent assignment
-      // The token is set at the step level via github-token parameter
-      core.info(`Detected coding agent: ${agentName}. Using GraphQL API for assignment.`);
+    // Use the unified assignIssue helper that works for both users and agents via GraphQL
+    // The token is set at the step level via github-token parameter
+    const result = await assignIssue(owner, repo, issueNum, trimmedAssignee);
 
-      // Get repository owner and repo from context
-      const owner = context.repo.owner;
-      const repo = context.repo.repo;
-
-      // Find the agent in the repository
-      const agentId = await findAgent(owner, repo, agentName);
-      if (!agentId) {
-        throw new Error(`${agentName} coding agent is not available for this repository`);
-      }
-      core.info(`Found ${agentName} coding agent (ID: ${agentId})`);
-
-      // Get issue details
-      const issueDetails = await getIssueDetails(owner, repo, issueNum);
-      if (!issueDetails) {
-        throw new Error("Failed to get issue details");
-      }
-
-      // Check if agent is already assigned
-      if (issueDetails.currentAssignees.includes(agentId)) {
-        core.info(`${agentName} is already assigned to issue #${trimmedIssueNumber}`);
-      } else {
-        // Assign agent using GraphQL mutation - uses built-in github object authenticated via github-token
-        const success = await assignAgentToIssue(issueDetails.issueId, agentId, issueDetails.currentAssignees, agentName);
-
-        if (!success) {
-          throw new Error(`Failed to assign ${agentName} via GraphQL`);
-        }
-      }
-    } else {
-      // Use gh CLI for regular user assignment
-      await exec.exec("gh", ["issue", "edit", trimmedIssueNumber, "--add-assignee", trimmedAssignee], {
-        env: { ...process.env, GH_TOKEN: ghToken },
-      });
+    if (!result.success) {
+      throw new Error(result.error || "Failed to assign issue");
     }
 
     core.info(`✅ Successfully assigned issue #${trimmedIssueNumber} to ${trimmedAssignee}`);
