@@ -77,7 +77,7 @@ func TestCreatePullRequestJobWithReviewers(t *testing.T) {
 	}
 
 	// Verify that GH_TOKEN is set with proper token expression (without GITHUB_TOKEN fallback for regular reviewers)
-	if !strings.Contains(stepsContent, "GH_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}") {
+	if !strings.Contains(stepsContent, "GH_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}") {
 		t.Error("Expected GH_TOKEN environment variable to be set with proper token expression")
 	}
 

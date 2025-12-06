@@ -95,7 +95,7 @@ func TestSafeOutputsGitHubTokenIntegration(t *testing.T) {
 				},
 			},
 			// With top-level github-token support, we now always add the github-token field with the effective value (default in this case)
-			expectedInWith:   []string{"github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}"},
+			expectedInWith:   []string{"github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}"},
 			unexpectedInWith: []string{},
 		},
 		{
@@ -239,7 +239,7 @@ func TestAddSafeOutputGitHubTokenFunction(t *testing.T) {
 			t.Fatalf("Expected 1 step to be added, got %d", len(steps))
 		}
 
-		expectedStep := "          github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}\n"
+		expectedStep := "          github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}\n"
 		if steps[0] != expectedStep {
 			t.Errorf("Expected step '%s', got '%s'", expectedStep, steps[0])
 		}
@@ -257,7 +257,7 @@ func TestAddSafeOutputGitHubTokenFunction(t *testing.T) {
 			t.Fatalf("Expected 1 step to be added, got %d", len(steps))
 		}
 
-		expectedStep := "          github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}\n"
+		expectedStep := "          github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}\n"
 		if steps[0] != expectedStep {
 			t.Errorf("Expected step '%s', got '%s'", expectedStep, steps[0])
 		}
@@ -449,7 +449,7 @@ func TestIndividualConfigGitHubTokenConfiguration(t *testing.T) {
 		compiler.addSafeOutputGitHubTokenForConfig(&steps, data, "")
 
 		// With the new implementation, we always add a token (default if none configured)
-		expectedStep = "          github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}\n"
+		expectedStep = "          github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}\n"
 		if len(steps) != 1 {
 			t.Fatalf("Expected 1 step to be added with default token, got %d", len(steps))
 		}

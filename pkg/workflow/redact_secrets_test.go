@@ -32,8 +32,8 @@ func TestCollectSecretReferences(t *testing.T) {
 		{
 			name: "Secret references with OR fallback",
 			yaml: `env:
-  TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}`,
-			expected: []string{"GH_AW_GITHUB_TOKEN", "GITHUB_TOKEN"},
+  TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}`,
+			expected: []string{"GH_AW_GITHUB_MCP_SERVER_TOKEN", "GH_AW_GITHUB_TOKEN", "GITHUB_TOKEN"},
 		},
 		{
 			name: "Duplicate secret references",
