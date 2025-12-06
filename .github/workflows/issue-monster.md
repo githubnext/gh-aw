@@ -53,10 +53,6 @@ jobs:
               core.info(`Found ${response.data.total_count} issues`);
               
               const allIssues = response.data.items;
-              
-              // Sort by created date descending
-              allIssues.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-              
               const issueList = allIssues.map(i => `#${i.number}: ${i.title}`).join('\n');
               const issueNumbers = allIssues.map(i => i.number).join(',');
               
