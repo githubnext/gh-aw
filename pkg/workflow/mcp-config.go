@@ -953,21 +953,13 @@ func getMCPConfig(toolConfig map[string]any, toolName string) (*parser.MCPServer
 	return result, nil
 }
 
-// isMCPType checks if a type string represents an MCP-compatible type
-func isMCPType(typeStr string) bool {
-	switch typeStr {
-	case "stdio", "http", "local":
-		return true
-	default:
-		return false
-	}
-}
+
 
 // hasMCPConfig checks if a tool configuration has MCP configuration
 func hasMCPConfig(toolConfig map[string]any) (bool, string) {
 	// Check for direct type field
 	if mcpType, hasType := toolConfig["type"]; hasType {
-		if typeStr, ok := mcpType.(string); ok && isMCPType(typeStr) {
+		if typeStr, ok := mcpType.(string); ok && parser.IsMCPType(typeStr) {
 			// Normalize "local" to "stdio" for consistency
 			if typeStr == "local" {
 				return true, "stdio"

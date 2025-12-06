@@ -68,15 +68,7 @@ func ParseImportDirective(line string) *ImportDirectiveMatch {
 	}
 }
 
-// isMCPType checks if a type string represents an MCP-compatible type
-func isMCPType(typeStr string) bool {
-	switch typeStr {
-	case "stdio", "http":
-		return true
-	default:
-		return false
-	}
-}
+
 
 // ImportsResult holds the result of processing imports from frontmatter
 type ImportsResult struct {
@@ -1148,8 +1140,8 @@ func MergeTools(base, additional map[string]any) (map[string]any, error) {
 					}
 				}
 
-				if isExistingMCP := isMCPType(existingType); isExistingMCP {
-					if isNewMCP := isMCPType(newType); isNewMCP {
+				if isExistingMCP := IsMCPType(existingType); isExistingMCP {
+					if isNewMCP := IsMCPType(newType); isNewMCP {
 						// Both are MCP tools, check for conflicts
 						mergedMap, err := mergeMCPTools(existingMap, newMap)
 						if err != nil {

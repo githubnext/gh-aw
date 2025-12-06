@@ -847,3 +847,92 @@ func TestMCPConfigTypes(t *testing.T) {
 		t.Errorf("Config changed after marshal/unmarshal cycle")
 	}
 }
+
+// TestIsMCPType tests the unified IsMCPType function
+func TestIsMCPType(t *testing.T) {
+	tests := []struct {
+		name     string
+		typeStr  string
+		expected bool
+	}{
+		{
+			name:     "stdio type",
+			typeStr:  "stdio",
+			expected: true,
+		},
+		{
+			name:     "http type",
+			typeStr:  "http",
+			expected: true,
+		},
+		{
+			name:     "local type (alias for stdio)",
+			typeStr:  "local",
+			expected: true,
+		},
+		{
+			name:     "empty string",
+			typeStr:  "",
+			expected: false,
+		},
+		{
+			name:     "unknown type",
+			typeStr:  "unknown",
+			expected: false,
+		},
+		{
+			name:     "docker type (not valid MCP type)",
+			typeStr:  "docker",
+			expected: false,
+		},
+		{
+			name:     "websocket type (not valid)",
+			typeStr:  "websocket",
+			expected: false,
+		},
+		{
+			name:     "grpc type (not valid)",
+			typeStr:  "grpc",
+			expected: false,
+		},
+		{
+			name:     "mixed case STDIO",
+			typeStr:  "STDIO",
+			expected: false,
+		},
+		{
+			name:     "mixed case Http",
+			typeStr:  "Http",
+			expected: false,
+		},
+		{
+			name:     "whitespace padded",
+			typeStr:  " stdio ",
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := IsMCPType(tt.typeStr)
+			if got != tt.expected {
+				t.Errorf("IsMCPType(%q) = %v, want %v", tt.typeStr, got, tt.expected)
+			}
+		})
+	}
+}
+
+// TestValidMCPTypes tests that ValidMCPTypes constant is properly defined
+func TestValidMCPTypes(t *testing.T) {
+	expected := []string{"stdio", "http", "local"}
+	if !reflect.DeepEqual(ValidMCPTypes, expected) {
+		t.Errorf("ValidMCPTypes = %v, want %v", ValidMCPTypes, expected)
+	}
+
+	// Verify that all types in ValidMCPTypes pass IsMCPType
+	for _, mcpType := range ValidMCPTypes {
+		if !IsMCPType(mcpType) {
+			t.Errorf("IsMCPType(%q) should return true for type in ValidMCPTypes", mcpType)
+		}
+	}
+}
