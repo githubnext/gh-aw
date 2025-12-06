@@ -55,7 +55,20 @@ jobs:
           # Run the script but capture the output before it tries to download
           # We'll use a fake version to test URL construction
           set +e
-          timeout 10s ./install-gh-aw.sh v999.999.999 2>&1 | tee install-output.log || true
+          
+          # Cross-platform timeout implementation
+          if command -v timeout &> /dev/null; then
+            # Linux has timeout command
+            timeout 10s ./install-gh-aw.sh v999.999.999 2>&1 | tee install-output.log || true
+          else
+            # macOS and others - use background process with kill
+            ./install-gh-aw.sh v999.999.999 2>&1 | tee install-output.log &
+            PID=$!
+            sleep 10
+            kill $PID 2>/dev/null || true
+            wait $PID 2>/dev/null || true
+          fi
+          
           set -e
           
           # Verify platform was detected
