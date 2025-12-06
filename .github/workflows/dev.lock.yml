@@ -906,13 +906,22 @@ jobs:
                   };
                 }
               }
+              handlePing() {
+                return {};
+              }
               async handleRequest(request) {
                 const { id, method, params } = request;
                 try {
+                  if (method && method.startsWith("notifications/")) {
+                    return null;
+                  }
                   let result;
                   switch (method) {
                     case "initialize":
                       result = this.handleInitialize(params || {});
+                      break;
+                    case "ping":
+                      result = this.handlePing();
                       break;
                     case "tools/list":
                       result = this.handleToolsList();
@@ -1072,6 +1081,11 @@ jobs:
                     }
                   }
                   const response = await this.server.handleRequest(body);
+                  if (response === null) {
+                    res.writeHead(204); 
+                    res.end();
+                    return;
+                  }
                   const headers = { "Content-Type": "application/json" };
                   if (this.sessionId) {
                     headers["mcp-session-id"] = this.sessionId;
@@ -1404,14 +1418,22 @@ jobs:
                 }
               );
               const logger = createLogger(serverName);
+              logger.debug(`=== Creating MCP Server ===`);
+              logger.debug(`Configuration file: ${configPath}`);
               logger.debug(`Loading safe-inputs configuration from: ${configPath}`);
               logger.debug(`Base path for handlers: ${basePath}`);
+              logger.debug(`Server name: ${serverName}`);
+              logger.debug(`Server version: ${version}`);
               logger.debug(`Tools to load: ${config.tools.length}`);
               const tempServer = { debug: logger.debug, debugError: logger.debugError };
               const tools = loadToolHandlers(tempServer, config.tools, basePath);
+              logger.debug(`Registering tools with MCP server...`);
+              let registeredCount = 0;
+              let skippedCount = 0;
               for (const tool of tools) {
                 if (!tool.handler) {
                   logger.debug(`Skipping tool ${tool.name} - no handler loaded`);
+                  skippedCount++;
                   continue;
                 }
                 logger.debug(`Registering tool: ${tool.name}`);
@@ -1426,7 +1448,10 @@ jobs:
                   const content = result && result.content ? result.content : [];
                   return { content, isError: false };
                 });
+                registeredCount++;
               }
+              logger.debug(`Tool registration complete: ${registeredCount} registered, ${skippedCount} skipped`);
+              logger.debug(`=== MCP Server Creation Complete ===`);
               return { server, config, logger };
             }
             async function startHttpServer(configPath, options = {}) {
