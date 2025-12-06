@@ -2657,7 +2657,7 @@ jobs:
           # Install MCP SDK package
           cd /tmp/gh-aw/safe-inputs
           if ! npm install --no-save @modelcontextprotocol/sdk@1.24.0; then
-            echo "ERROR: Failed to install @modelcontextprotocol/sdk"
+            echo "ERROR: Failed to install @modelcontextprotocol/sdk@1.24.0"
             exit 1
           fi
           
