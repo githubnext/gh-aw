@@ -73,7 +73,7 @@ func TestExtractEngineConfig(t *testing.T) {
 				},
 			},
 			expectedEngineSetting: "codex",
-			expectedConfig:        &EngineConfig{ID: "codex", Model: "gpt-4o"},
+			expectedConfig:        &EngineConfig{ID: "codex", Model: "gpt-4o", Models: []string{"gpt-4o"}},
 		},
 		{
 			name: "object format - complete",
@@ -85,7 +85,7 @@ func TestExtractEngineConfig(t *testing.T) {
 				},
 			},
 			expectedEngineSetting: "claude",
-			expectedConfig:        &EngineConfig{ID: "claude", Version: "beta", Model: "claude-3-5-sonnet-20241022"},
+			expectedConfig:        &EngineConfig{ID: "claude", Version: "beta", Model: "claude-3-5-sonnet-20241022", Models: []string{"claude-3-5-sonnet-20241022"}},
 		},
 		{
 			name: "object format - with max-turns",
@@ -109,7 +109,7 @@ func TestExtractEngineConfig(t *testing.T) {
 				},
 			},
 			expectedEngineSetting: "claude",
-			expectedConfig:        &EngineConfig{ID: "claude", Version: "beta", Model: "claude-3-5-sonnet-20241022", MaxTurns: "10"},
+			expectedConfig:        &EngineConfig{ID: "claude", Version: "beta", Model: "claude-3-5-sonnet-20241022", MaxTurns: "10", Models: []string{"claude-3-5-sonnet-20241022"}},
 		},
 		{
 			name: "object format - with env vars",
@@ -140,7 +140,7 @@ func TestExtractEngineConfig(t *testing.T) {
 				},
 			},
 			expectedEngineSetting: "claude",
-			expectedConfig:        &EngineConfig{ID: "claude", Version: "beta", Model: "claude-3-5-sonnet-20241022", MaxTurns: "5", Env: map[string]string{"AWS_REGION": "us-west-2", "API_ENDPOINT": "https://api.example.com"}},
+			expectedConfig:        &EngineConfig{ID: "claude", Version: "beta", Model: "claude-3-5-sonnet-20241022", MaxTurns: "5", Env: map[string]string{"AWS_REGION": "us-west-2", "API_ENDPOINT": "https://api.example.com"}, Models: []string{"claude-3-5-sonnet-20241022"}},
 		},
 		{
 			name: "custom engine with steps",
@@ -189,7 +189,7 @@ func TestExtractEngineConfig(t *testing.T) {
 				},
 			},
 			expectedEngineSetting: "",
-			expectedConfig:        &EngineConfig{Version: "beta", Model: "gpt-4o"},
+			expectedConfig:        &EngineConfig{Version: "beta", Model: "gpt-4o", Models: []string{"gpt-4o"}},
 		},
 		{
 			name: "object format - with user-agent (hyphen)",
@@ -217,7 +217,29 @@ func TestExtractEngineConfig(t *testing.T) {
 				},
 			},
 			expectedEngineSetting: "codex",
-			expectedConfig:        &EngineConfig{ID: "codex", Version: "beta", Model: "gpt-4o", MaxTurns: "3", UserAgent: "complete-custom-agent", Env: map[string]string{"CUSTOM_VAR": "value1"}},
+			expectedConfig:        &EngineConfig{ID: "codex", Version: "beta", Model: "gpt-4o", MaxTurns: "3", UserAgent: "complete-custom-agent", Env: map[string]string{"CUSTOM_VAR": "value1"}, Models: []string{"gpt-4o"}},
+		},
+		{
+			name: "object format - with multiple models (array)",
+			frontmatter: map[string]any{
+				"engine": map[string]any{
+					"id":    "copilot",
+					"model": []any{"gpt-5", "gpt-4o", "gpt-*-mini"},
+				},
+			},
+			expectedEngineSetting: "copilot",
+			expectedConfig:        &EngineConfig{ID: "copilot", Model: "gpt-5", Models: []string{"gpt-5", "gpt-4o", "gpt-*-mini"}},
+		},
+		{
+			name: "object format - with multiple models (array) for claude",
+			frontmatter: map[string]any{
+				"engine": map[string]any{
+					"id":    "claude",
+					"model": []any{"claude-3-opus-20240229", "*sonnet*", "claude-*"},
+				},
+			},
+			expectedEngineSetting: "claude",
+			expectedConfig:        &EngineConfig{ID: "claude", Model: "claude-3-opus-20240229", Models: []string{"claude-3-opus-20240229", "*sonnet*", "claude-*"}},
 		},
 	}
 
@@ -257,6 +279,17 @@ func TestExtractEngineConfig(t *testing.T) {
 
 				if config.UserAgent != test.expectedConfig.UserAgent {
 					t.Errorf("Expected config.UserAgent '%s', got '%s'", test.expectedConfig.UserAgent, config.UserAgent)
+				}
+
+				// Check Models field
+				if len(config.Models) != len(test.expectedConfig.Models) {
+					t.Errorf("Expected config.Models length %d, got %d", len(test.expectedConfig.Models), len(config.Models))
+				} else {
+					for i, expectedModel := range test.expectedConfig.Models {
+						if config.Models[i] != expectedModel {
+							t.Errorf("Expected config.Models[%d] = '%s', got '%s'", i, expectedModel, config.Models[i])
+						}
+					}
 				}
 
 				if len(config.Env) != len(test.expectedConfig.Env) {
@@ -344,7 +377,7 @@ engine:
 
 This is a test workflow.`,
 			expectedAI:     "claude",
-			expectedConfig: &EngineConfig{ID: "claude", Version: "beta", Model: "claude-3-5-sonnet-20241022"},
+			expectedConfig: &EngineConfig{ID: "claude", Version: "beta", Model: "claude-3-5-sonnet-20241022", Models: []string{"claude-3-5-sonnet-20241022"}},
 		},
 		{
 			name: "object engine format - codex with model",
@@ -364,7 +397,7 @@ engine:
 
 This is a test workflow.`,
 			expectedAI:     "codex",
-			expectedConfig: &EngineConfig{ID: "codex", Model: "gpt-4o"},
+			expectedConfig: &EngineConfig{ID: "codex", Model: "gpt-4o", Models: []string{"gpt-4o"}},
 		},
 	}
 
