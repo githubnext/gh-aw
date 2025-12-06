@@ -382,6 +382,96 @@ if (process.env.GH_AW_SAFE_OUTPUTS_STAGED === 'true') {
 | Job fails silently | Add `core.info()` logging and ensure `core.setFailed()` is called on errors |
 | Agent calls wrong tool | Make `description` specific and unique; explicitly mention job name in prompt |
 
+## Debugging Custom Safe Output Scripts
+
+When using `github-script` actions in custom safe output jobs, the compiler automatically extracts JavaScript to external files for easier debugging. These files are created in `.gh-aw/scripts/<workflow-name>/` alongside your workflow file.
+
+### Extracted Script Files
+
+After compiling a workflow with custom jobs, you'll find extracted scripts:
+
+```bash
+.github/workflows/
+├── issue-handler.md
+├── issue-handler.lock.yml
+└── .gh-aw/
+    └── scripts/
+        └── issue_handler/
+            └── slack_notify_0_send_slack_message.cjs
+```
+
+Each file includes:
+- **Header comments** with workflow, job, and step information
+- **The actual script** from your `github-script` action
+- **Usage instructions** for local testing
+
+### Local Testing
+
+Test scripts locally with Node.js:
+
+```bash
+# Set up environment
+export GH_AW_AGENT_OUTPUT=/path/to/test-output.json
+
+# Run the script
+node .gh-aw/scripts/issue_handler/slack_notify_0_send_slack_message.cjs
+```
+
+Create a test output file with sample data:
+
+```json title="test-output.json"
+{
+  "output_types": ["slack_notify"],
+  "outputs": [
+    {
+      "type": "slack_notify",
+      "message": "Test notification from local debugging"
+    }
+  ]
+}
+```
+
+### IDE Support
+
+External script files provide:
+- **Syntax highlighting** - Full JavaScript support
+- **Linting** - ESLint and JSHint integration
+- **Debugging** - Use VS Code debugger or Node inspect
+- **IntelliSense** - Auto-completion for Node.js APIs
+
+### Debugging with VS Code
+
+Create a launch configuration:
+
+```json title=".vscode/launch.json"
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "node",
+      "request": "launch",
+      "name": "Debug Safe Output Script",
+      "program": "${workspaceFolder}/.gh-aw/scripts/issue_handler/slack_notify_0_send_slack_message.cjs",
+      "env": {
+        "GH_AW_AGENT_OUTPUT": "${workspaceFolder}/test-output.json"
+      }
+    }
+  ]
+}
+```
+
+Set breakpoints in the extracted script and debug step-by-step.
+
+### Version Control
+
+Add `.gh-aw/scripts/` to `.gitignore` (automatically configured by the compiler):
+
+```gitignore
+**/.gh-aw/scripts/
+```
+
+Scripts are regenerated on each compilation and don't need to be committed.
+
 ## Related Documentation
 
 - [Safe Outputs](/gh-aw/reference/safe-outputs/) - Built-in safe output types
