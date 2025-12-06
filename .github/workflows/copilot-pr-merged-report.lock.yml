@@ -3118,15 +3118,7 @@ jobs:
           
           export GH_AW_GH_TOKEN="${GH_AW_GH_TOKEN}"
           
-          # Install MCP SDK package
-          echo "Installing @modelcontextprotocol/sdk..."
           cd /tmp/gh-aw/safe-inputs
-          if ! npm install --no-save @modelcontextprotocol/sdk@1.24.0 2>&1; then
-            echo "ERROR: Failed to install @modelcontextprotocol/sdk@1.24.0"
-            echo "npm install failed with exit code $?"
-            exit 1
-          fi
-          echo "Successfully installed @modelcontextprotocol/sdk@1.24.0"
           
           # Verify required files exist
           echo "Verifying safe-inputs setup..."
