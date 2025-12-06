@@ -1378,8 +1378,14 @@ jobs:
           
           export GH_AW_GH_TOKEN="${GH_AW_GH_TOKEN}"
           
-          # Start the HTTP server in the background
+          # Install MCP SDK package
           cd /tmp/gh-aw/safe-inputs
+          if ! npm install --no-save @modelcontextprotocol/sdk@1.24.0; then
+            echo "ERROR: Failed to install @modelcontextprotocol/sdk@1.24.0"
+            exit 1
+          fi
+          
+          # Start the HTTP server in the background
           node mcp-server.cjs > /tmp/gh-aw/safe-inputs/logs/server.log 2>&1 &
           SERVER_PID=$!
           echo "Started safe-inputs MCP server with PID $SERVER_PID"

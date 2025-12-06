@@ -436,8 +436,15 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		}
 		yaml.WriteString("          \n")
 
-		yaml.WriteString("          # Start the HTTP server in the background\n")
+		yaml.WriteString("          # Install MCP SDK package\n")
 		yaml.WriteString("          cd /tmp/gh-aw/safe-inputs\n")
+		yaml.WriteString(fmt.Sprintf("          if ! npm install --no-save @modelcontextprotocol/sdk@%s; then\n", constants.DefaultMCPSDKVersion))
+		yaml.WriteString(fmt.Sprintf("            echo \"ERROR: Failed to install @modelcontextprotocol/sdk@%s\"\n", constants.DefaultMCPSDKVersion))
+		yaml.WriteString("            exit 1\n")
+		yaml.WriteString("          fi\n")
+		yaml.WriteString("          \n")
+
+		yaml.WriteString("          # Start the HTTP server in the background\n")
 		yaml.WriteString("          node mcp-server.cjs > /tmp/gh-aw/safe-inputs/logs/server.log 2>&1 &\n")
 		yaml.WriteString("          SERVER_PID=$!\n")
 		yaml.WriteString("          echo \"Started safe-inputs MCP server with PID $SERVER_PID\"\n")
