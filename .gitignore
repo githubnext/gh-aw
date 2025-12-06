@@ -106,3 +106,6 @@ gosec-report.json
 gosec-results.sarif
 govulncheck-results.sarif
 trivy-results.sarif
+
+# Debug scripts extracted from safe-output jobs
+**/.gh-aw/scripts/

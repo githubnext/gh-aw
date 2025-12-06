@@ -157,7 +157,7 @@ func (c *Compiler) parseSafeJobsConfig(frontmatter map[string]any) map[string]*S
 }
 
 // buildSafeJobs creates custom safe-output jobs defined in SafeOutputs.Jobs
-func (c *Compiler) buildSafeJobs(data *WorkflowData, threatDetectionEnabled bool) ([]string, error) {
+func (c *Compiler) buildSafeJobs(data *WorkflowData, markdownPath string, threatDetectionEnabled bool) ([]string, error) {
 	if data.SafeOutputs == nil || len(data.SafeOutputs.Jobs) == 0 {
 		return nil, nil
 	}
@@ -252,8 +252,14 @@ func (c *Compiler) buildSafeJobs(data *WorkflowData, threatDetectionEnabled bool
 
 		// Add custom steps from the job configuration
 		if len(jobConfig.Steps) > 0 {
-			for _, step := range jobConfig.Steps {
+			for stepIndex, step := range jobConfig.Steps {
 				if stepMap, ok := step.(map[string]any); ok {
+					// Extract JavaScript from github-script steps for debugging
+					if err := c.extractScriptFromStep(stepMap, data.Name, markdownPath, normalizedJobName, stepIndex); err != nil {
+						safeJobsLog.Printf("Warning: failed to extract script from step %d in job %s: %v", stepIndex, normalizedJobName, err)
+						// Continue anyway - script extraction is optional for debugging
+					}
+
 					// Apply action pinning to the step before converting to YAML
 					pinnedStepMap := ApplyActionPinToStep(stepMap, data)
 
