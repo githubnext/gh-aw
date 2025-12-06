@@ -322,8 +322,6 @@ func GenerateMultiSecretValidationStep(secretNames []string, engineName, docsURL
 		"        run: |",
 		fmt.Sprintf("          if %s; then", allEmptyCondition),
 		"            {",
-		"              echo \"## Agent Environment Validation\"",
-		"              echo \"\"",
 		fmt.Sprintf("              echo \"❌ Error: %s\"", errorMsg),
 		fmt.Sprintf("              echo \"%s\"", requirementMsg),
 		"              echo \"Please configure one of these secrets in your repository settings.\"",

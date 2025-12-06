@@ -97,7 +97,6 @@ func TestGenerateMultiSecretValidationStep(t *testing.T) {
 				"OPENAI_API_KEY secret is configured (using as fallback for CODEX_API_KEY)",
 				"CODEX_API_KEY: ${{ secrets.CODEX_API_KEY }}",
 				"OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}",
-				"## Agent Environment Validation",
 				">> \"$GITHUB_STEP_SUMMARY\"",
 			},
 		},

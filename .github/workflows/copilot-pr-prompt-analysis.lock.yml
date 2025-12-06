@@ -755,8 +755,6 @@ jobs:
         run: |
           if [ -z "$COPILOT_GITHUB_TOKEN" ] && [ -z "$COPILOT_CLI_TOKEN" ]; then
             {
-              echo "## Agent Environment Validation"
-              echo ""
               echo "❌ Error: Neither COPILOT_GITHUB_TOKEN nor COPILOT_CLI_TOKEN secret is set"
               echo "The GitHub Copilot CLI engine requires either COPILOT_GITHUB_TOKEN or COPILOT_CLI_TOKEN secret to be configured."
               echo "Please configure one of these secrets in your repository settings."
@@ -7025,8 +7023,6 @@ jobs:
         run: |
           if [ -z "$COPILOT_GITHUB_TOKEN" ] && [ -z "$COPILOT_CLI_TOKEN" ]; then
             {
-              echo "## Agent Environment Validation"
-              echo ""
               echo "❌ Error: Neither COPILOT_GITHUB_TOKEN nor COPILOT_CLI_TOKEN secret is set"
               echo "The GitHub Copilot CLI engine requires either COPILOT_GITHUB_TOKEN or COPILOT_CLI_TOKEN secret to be configured."
               echo "Please configure one of these secrets in your repository settings."

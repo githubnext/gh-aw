@@ -952,8 +952,6 @@ jobs:
         run: |
           if [ -z "$CODEX_API_KEY" ] && [ -z "$OPENAI_API_KEY" ]; then
             {
-              echo "## Agent Environment Validation"
-              echo ""
               echo "❌ Error: Neither CODEX_API_KEY nor OPENAI_API_KEY secret is set"
               echo "The Codex engine requires either CODEX_API_KEY or OPENAI_API_KEY secret to be configured."
               echo "Please configure one of these secrets in your repository settings."
@@ -5584,8 +5582,6 @@ jobs:
         run: |
           if [ -z "$CODEX_API_KEY" ] && [ -z "$OPENAI_API_KEY" ]; then
             {
-              echo "## Agent Environment Validation"
-              echo ""
               echo "❌ Error: Neither CODEX_API_KEY nor OPENAI_API_KEY secret is set"
               echo "The Codex engine requires either CODEX_API_KEY or OPENAI_API_KEY secret to be configured."
               echo "Please configure one of these secrets in your repository settings."

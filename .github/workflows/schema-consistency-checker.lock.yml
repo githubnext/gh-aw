@@ -719,8 +719,6 @@ jobs:
         run: |
           if [ -z "$CLAUDE_CODE_OAUTH_TOKEN" ] && [ -z "$ANTHROPIC_API_KEY" ]; then
             {
-              echo "## Agent Environment Validation"
-              echo ""
               echo "❌ Error: Neither CLAUDE_CODE_OAUTH_TOKEN nor ANTHROPIC_API_KEY secret is set"
               echo "The Claude Code engine requires either CLAUDE_CODE_OAUTH_TOKEN or ANTHROPIC_API_KEY secret to be configured."
               echo "Please configure one of these secrets in your repository settings."
@@ -6401,8 +6399,6 @@ jobs:
         run: |
           if [ -z "$CLAUDE_CODE_OAUTH_TOKEN" ] && [ -z "$ANTHROPIC_API_KEY" ]; then
             {
-              echo "## Agent Environment Validation"
-              echo ""
               echo "❌ Error: Neither CLAUDE_CODE_OAUTH_TOKEN nor ANTHROPIC_API_KEY secret is set"
               echo "The Claude Code engine requires either CLAUDE_CODE_OAUTH_TOKEN or ANTHROPIC_API_KEY secret to be configured."
               echo "Please configure one of these secrets in your repository settings."
