@@ -353,8 +353,110 @@ function generatePermissionErrorSummary() {
 }
 
 /**
- * Assign an agent to an issue using GraphQL
- * This is the main entry point for assigning agents from other scripts
+ * Get user ID by username using GraphQL
+ * @param {string} username - GitHub username
+ * @returns {Promise<string|null>} User ID or null if not found
+ */
+async function getUserId(username) {
+  const query = `
+    query($username: String!) {
+      user(login: $username) {
+        id
+      }
+    }
+  `;
+
+  try {
+    const response = await github.graphql(query, { username });
+    if (response && response.user && response.user.id) {
+      return response.user.id;
+    }
+    core.warning(`User ${username} not found`);
+    return null;
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    core.error(`Failed to get user ID for ${username}: ${errorMessage}`);
+    return null;
+  }
+}
+
+/**
+ * Assign a user or agent to an issue using GraphQL
+ * This is the main entry point for assigning any user/agent from other scripts
+ * @param {string} owner - Repository owner
+ * @param {string} repo - Repository name
+ * @param {number} issueNumber - Issue number
+ * @param {string} assignee - Assignee name (e.g., "copilot", "@copilot", or "username")
+ * @returns {Promise<{success: boolean, error?: string}>}
+ */
+async function assignIssue(owner, repo, issueNumber, assignee) {
+  try {
+    // Normalize assignee (remove @ prefix if present)
+    const normalizedAssignee = assignee.startsWith("@") ? assignee.slice(1) : assignee;
+
+    // Check if this is a known coding agent
+    const agentName = getAgentName(assignee);
+    let actorId;
+    let actorType;
+
+    if (agentName) {
+      // It's a known coding agent - use agent-specific lookup
+      core.info(`Looking for ${agentName} coding agent...`);
+      actorId = await findAgent(owner, repo, agentName);
+      if (!actorId) {
+        const error = `${agentName} coding agent is not available for this repository`;
+        // Enrich with available agent logins
+        const available = await getAvailableAgentLogins(owner, repo);
+        const enrichedError = available.length > 0 ? `${error} (available agents: ${available.join(", ")})` : error;
+        return { success: false, error: enrichedError };
+      }
+      actorType = "agent";
+      core.info(`Found ${agentName} coding agent (ID: ${actorId})`);
+    } else {
+      // It's a regular user - get user ID
+      core.info(`Looking for user ${normalizedAssignee}...`);
+      actorId = await getUserId(normalizedAssignee);
+      if (!actorId) {
+        return { success: false, error: `User ${normalizedAssignee} not found` };
+      }
+      actorType = "user";
+      core.info(`Found user ${normalizedAssignee} (ID: ${actorId})`);
+    }
+
+    // Get issue details (ID and current assignees) via GraphQL
+    core.info("Getting issue details...");
+    const issueDetails = await getIssueDetails(owner, repo, issueNumber);
+    if (!issueDetails) {
+      return { success: false, error: "Failed to get issue details" };
+    }
+
+    core.info(`Issue ID: ${issueDetails.issueId}`);
+
+    // Check if actor is already assigned
+    if (issueDetails.currentAssignees.includes(actorId)) {
+      core.info(`${normalizedAssignee} is already assigned to issue #${issueNumber}`);
+      return { success: true };
+    }
+
+    // Assign actor using GraphQL mutation
+    core.info(`Assigning ${normalizedAssignee} to issue #${issueNumber}...`);
+    const success = await assignAgentToIssue(issueDetails.issueId, actorId, issueDetails.currentAssignees, normalizedAssignee);
+
+    if (!success) {
+      return { success: false, error: `Failed to assign ${normalizedAssignee} via GraphQL` };
+    }
+
+    core.info(`Successfully assigned ${normalizedAssignee} to issue #${issueNumber}`);
+    return { success: true };
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    return { success: false, error: errorMessage };
+  }
+}
+
+/**
+ * Assign an agent to an issue using GraphQL (legacy function for backward compatibility)
+ * @deprecated Use assignIssue instead
  * @param {string} owner - Repository owner
  * @param {string} repo - Repository name
  * @param {number} issueNumber - Issue number
@@ -369,48 +471,8 @@ async function assignAgentToIssueByName(owner, repo, issueNumber, agentName) {
     return { success: false, error };
   }
 
-  try {
-    // Find agent using the github object authenticated via step-level github-token
-    core.info(`Looking for ${agentName} coding agent...`);
-    const agentId = await findAgent(owner, repo, agentName);
-    if (!agentId) {
-      const error = `${agentName} coding agent is not available for this repository`;
-      // Enrich with available agent logins
-      const available = await getAvailableAgentLogins(owner, repo);
-      const enrichedError = available.length > 0 ? `${error} (available agents: ${available.join(", ")})` : error;
-      return { success: false, error: enrichedError };
-    }
-    core.info(`Found ${agentName} coding agent (ID: ${agentId})`);
-
-    // Get issue details (ID and current assignees) via GraphQL
-    core.info("Getting issue details...");
-    const issueDetails = await getIssueDetails(owner, repo, issueNumber);
-    if (!issueDetails) {
-      return { success: false, error: "Failed to get issue details" };
-    }
-
-    core.info(`Issue ID: ${issueDetails.issueId}`);
-
-    // Check if agent is already assigned
-    if (issueDetails.currentAssignees.includes(agentId)) {
-      core.info(`${agentName} is already assigned to issue #${issueNumber}`);
-      return { success: true };
-    }
-
-    // Assign agent using GraphQL mutation
-    core.info(`Assigning ${agentName} coding agent to issue #${issueNumber}...`);
-    const success = await assignAgentToIssue(issueDetails.issueId, agentId, issueDetails.currentAssignees, agentName);
-
-    if (!success) {
-      return { success: false, error: `Failed to assign ${agentName} via GraphQL` };
-    }
-
-    core.info(`Successfully assigned ${agentName} coding agent to issue #${issueNumber}`);
-    return { success: true };
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    return { success: false, error: errorMessage };
-  }
+  // Delegate to the new unified function
+  return assignIssue(owner, repo, issueNumber, agentName);
 }
 
 module.exports = {
@@ -422,5 +484,7 @@ module.exports = {
   assignAgentToIssue,
   logPermissionError,
   generatePermissionErrorSummary,
+  getUserId,
+  assignIssue,
   assignAgentToIssueByName,
 };
