@@ -35,6 +35,22 @@ const DefaultCopilotVersion Version = "0.0.367"
 // DefaultCopilotDetectionModel is the default model for the Copilot engine when used in the detection job
 const DefaultCopilotDetectionModel = "gpt-5-mini"
 
+// Environment variable names for model configuration
+const (
+	// EnvVarModelAgentCopilot configures the default Copilot model for agent execution
+	EnvVarModelAgentCopilot = "GH_AW_MODEL_AGENT_COPILOT"
+	// EnvVarModelAgentClaude configures the default Claude model for agent execution
+	EnvVarModelAgentClaude = "GH_AW_MODEL_AGENT_CLAUDE"
+	// EnvVarModelAgentCodex configures the default Codex model for agent execution
+	EnvVarModelAgentCodex = "GH_AW_MODEL_AGENT_CODEX"
+	// EnvVarModelDetectionCopilot configures the default Copilot model for detection
+	EnvVarModelDetectionCopilot = "GH_AW_MODEL_DETECTION_COPILOT"
+	// EnvVarModelDetectionClaude configures the default Claude model for detection
+	EnvVarModelDetectionClaude = "GH_AW_MODEL_DETECTION_CLAUDE"
+	// EnvVarModelDetectionCodex configures the default Codex model for detection
+	EnvVarModelDetectionCodex = "GH_AW_MODEL_DETECTION_CODEX"
+)
+
 // DefaultCodexVersion is the default version of the OpenAI Codex CLI
 const DefaultCodexVersion Version = "0.65.0"
 

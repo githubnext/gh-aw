@@ -1097,14 +1097,17 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 	}
 
 	// Build outputs for all engines (GH_AW_SAFE_OUTPUTS functionality)
-	// Only include output if the workflow actually uses the safe-outputs feature
-	var outputs map[string]string
+	// Build job outputs
+	// Always include model output for reuse in other jobs
+	outputs := map[string]string{
+		"model": "${{ steps.generate_aw_info.outputs.model }}",
+	}
+	
+	// Add safe-output specific outputs if the workflow uses the safe-outputs feature
 	if data.SafeOutputs != nil {
-		outputs = map[string]string{
-			"output":       "${{ steps.collect_output.outputs.output }}",
-			"output_types": "${{ steps.collect_output.outputs.output_types }}",
-			"has_patch":    "${{ steps.collect_output.outputs.has_patch }}",
-		}
+		outputs["output"] = "${{ steps.collect_output.outputs.output }}"
+		outputs["output_types"] = "${{ steps.collect_output.outputs.output_types }}"
+		outputs["has_patch"] = "${{ steps.collect_output.outputs.has_patch }}"
 	}
 
 	// Build job-level environment variables for safe outputs
