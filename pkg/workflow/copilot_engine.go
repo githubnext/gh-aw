@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"encoding/json"
 	"fmt"
 	"sort"
 	"strings"
@@ -41,6 +42,66 @@ func (e *CopilotEngine) GetDefaultDetectionModel() string {
 	return constants.DefaultCopilotDetectionModel
 }
 
+// GetModelSelectionStep returns a step that validates and selects a compatible model
+// Returns nil if no model selection is needed (single model or no models specified)
+func (e *CopilotEngine) GetModelSelectionStep(workflowData *WorkflowData) GitHubActionStep {
+	// Only generate model selection step if multiple models are specified
+	if workflowData.EngineConfig == nil || len(workflowData.EngineConfig.Models) <= 1 {
+		return nil
+	}
+
+	copilotLog.Printf("Generating model selection step for %d models", len(workflowData.EngineConfig.Models))
+
+	// Known models supported by GitHub Copilot CLI
+	// This list should be updated as new models are added
+	availableModels := []string{
+		"gpt-4",
+		"gpt-4-turbo",
+		"gpt-4o",
+		"gpt-4o-mini",
+		"gpt-5",
+		"gpt-5-mini",
+		"o1",
+		"o1-mini",
+		"o3",
+		"o3-mini",
+	}
+
+	// Convert models array to JSON
+	requestedModelsJSON, err := json.Marshal(workflowData.EngineConfig.Models)
+	if err != nil {
+		copilotLog.Printf("Error marshaling requested models: %v", err)
+		return nil
+	}
+
+	availableModelsJSON, err := json.Marshal(availableModels)
+	if err != nil {
+		copilotLog.Printf("Error marshaling available models: %v", err)
+		return nil
+	}
+
+	script := getSelectModelScript()
+
+	stepLines := []string{
+		"      - name: Select Compatible Model",
+		"        id: select_model",
+		fmt.Sprintf("        uses: %s", GetActionPin("actions/github-script")),
+		"        with:",
+		"          script: |",
+	}
+
+	// Inline the JavaScript code with proper indentation
+	scriptLines := FormatJavaScriptForYAML(script)
+	stepLines = append(stepLines, scriptLines...)
+
+	// Add inputs section
+	stepLines = append(stepLines, "          inputs:",
+		fmt.Sprintf("            requested_models: '%s'", string(requestedModelsJSON)),
+		fmt.Sprintf("            available_models: '%s'", string(availableModelsJSON)))
+
+	return GitHubActionStep(stepLines)
+}
+
 func (e *CopilotEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHubActionStep {
 	copilotLog.Printf("Generating installation steps for Copilot engine: workflow=%s", workflowData.Name)
 
@@ -64,6 +125,13 @@ func (e *CopilotEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHu
 		config.DocsURL,
 	)
 	steps = append(steps, secretValidation)
+
+	// Add model selection step if multiple models are specified
+	modelSelectionStep := e.GetModelSelectionStep(workflowData)
+	if modelSelectionStep != nil {
+		copilotLog.Print("Adding model selection step")
+		steps = append(steps, modelSelectionStep)
+	}
 
 	// Determine Copilot version
 	copilotVersion := config.Version
@@ -195,9 +263,16 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 	copilotArgs = append(copilotArgs, "--disable-builtin-mcps")
 
 	// Add model if specified (check if Copilot CLI supports this)
-	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Model != "" {
-		copilotLog.Printf("Using custom model: %s", workflowData.EngineConfig.Model)
-		copilotArgs = append(copilotArgs, "--model", workflowData.EngineConfig.Model)
+	if workflowData.EngineConfig != nil {
+		if len(workflowData.EngineConfig.Models) > 1 {
+			// Multiple models specified - use the selected model from the selection step
+			copilotLog.Print("Using model from selection step: ${{ steps.select_model.outputs.selected_model }}")
+			copilotArgs = append(copilotArgs, "--model", "${{ steps.select_model.outputs.selected_model }}")
+		} else if workflowData.EngineConfig.Model != "" {
+			// Single model specified directly
+			copilotLog.Printf("Using custom model: %s", workflowData.EngineConfig.Model)
+			copilotArgs = append(copilotArgs, "--model", workflowData.EngineConfig.Model)
+		}
 	}
 
 	// Add --agent flag if custom agent file is specified (via imports)

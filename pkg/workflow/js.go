@@ -77,12 +77,20 @@ var validateErrorsScript string
 //go:embed js/missing_tool.cjs
 var missingToolScript string
 
+//go:embed js/select_model.cjs
+var selectModelScript string
+
 //go:embed js/safe_outputs_mcp_server.cjs
 var safeOutputsMCPServerScriptSource string
 
 // getSafeOutputsMCPServerScript returns the bundled safe_outputs_mcp_server script
 func getSafeOutputsMCPServerScript() string {
 	return DefaultScriptRegistry.GetWithMode("safe_outputs_mcp_server", RuntimeModeGitHubScript)
+}
+
+// getSelectModelScript returns the bundled select_model script
+func getSelectModelScript() string {
+	return selectModelScript
 }
 
 //go:embed js/safe_outputs_tools.json

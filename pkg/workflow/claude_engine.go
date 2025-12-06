@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"encoding/json"
 	"fmt"
 	"sort"
 	"strings"
@@ -32,6 +33,62 @@ func NewClaudeEngine() *ClaudeEngine {
 	}
 }
 
+// GetModelSelectionStep returns a step that validates and selects a compatible model
+// Returns nil if no model selection is needed (single model or no models specified)
+func (e *ClaudeEngine) GetModelSelectionStep(workflowData *WorkflowData) GitHubActionStep {
+	// Only generate model selection step if multiple models are specified
+	if workflowData.EngineConfig == nil || len(workflowData.EngineConfig.Models) <= 1 {
+		return nil
+	}
+
+	claudeLog.Printf("Generating model selection step for %d models", len(workflowData.EngineConfig.Models))
+
+	// Known models supported by Claude Code
+	// This list should be updated as new models are added
+	availableModels := []string{
+		"claude-3-5-sonnet-20241022",
+		"claude-3-5-sonnet-20240620",
+		"claude-3-5-haiku-20241022",
+		"claude-3-opus-20240229",
+		"claude-3-sonnet-20240229",
+		"claude-3-haiku-20240307",
+	}
+
+	// Convert models array to JSON
+	requestedModelsJSON, err := json.Marshal(workflowData.EngineConfig.Models)
+	if err != nil {
+		claudeLog.Printf("Error marshaling requested models: %v", err)
+		return nil
+	}
+
+	availableModelsJSON, err := json.Marshal(availableModels)
+	if err != nil {
+		claudeLog.Printf("Error marshaling available models: %v", err)
+		return nil
+	}
+
+	script := getSelectModelScript()
+
+	stepLines := []string{
+		"      - name: Select Compatible Model",
+		"        id: select_model",
+		fmt.Sprintf("        uses: %s", GetActionPin("actions/github-script")),
+		"        with:",
+		"          script: |",
+	}
+
+	// Inline the JavaScript code with proper indentation
+	scriptLines := FormatJavaScriptForYAML(script)
+	stepLines = append(stepLines, scriptLines...)
+
+	// Add inputs section
+	stepLines = append(stepLines, "          inputs:",
+		fmt.Sprintf("            requested_models: '%s'", string(requestedModelsJSON)),
+		fmt.Sprintf("            available_models: '%s'", string(availableModelsJSON)))
+
+	return GitHubActionStep(stepLines)
+}
+
 func (e *ClaudeEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHubActionStep {
 	claudeLog.Printf("Generating installation steps for Claude engine: workflow=%s", workflowData.Name)
 
@@ -45,6 +102,14 @@ func (e *ClaudeEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHub
 		CliName:         "claude",
 		InstallStepName: "Install Claude Code CLI",
 	}, workflowData)
+
+	// Inject model selection step after secret validation (at index 1)
+	modelSelectionStep := e.GetModelSelectionStep(workflowData)
+	if modelSelectionStep != nil {
+		claudeLog.Print("Adding model selection step after secret validation")
+		// Insert at index 1 (after secret validation which is at index 0)
+		steps = append(steps[:1], append([]GitHubActionStep{modelSelectionStep}, steps[1:]...)...)
+	}
 
 	// Check if network permissions are configured (only for Claude engine)
 	if workflowData.EngineConfig != nil && ShouldEnforceNetworkPermissions(workflowData.NetworkPermissions) {
@@ -85,9 +150,16 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	claudeArgs = append(claudeArgs, "--print")
 
 	// Add model if specified
-	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Model != "" {
-		claudeLog.Printf("Using custom model: %s", workflowData.EngineConfig.Model)
-		claudeArgs = append(claudeArgs, "--model", workflowData.EngineConfig.Model)
+	if workflowData.EngineConfig != nil {
+		if len(workflowData.EngineConfig.Models) > 1 {
+			// Multiple models specified - use the selected model from the selection step
+			claudeLog.Print("Using model from selection step: ${{ steps.select_model.outputs.selected_model }}")
+			claudeArgs = append(claudeArgs, "--model", "${{ steps.select_model.outputs.selected_model }}")
+		} else if workflowData.EngineConfig.Model != "" {
+			// Single model specified directly
+			claudeLog.Printf("Using custom model: %s", workflowData.EngineConfig.Model)
+			claudeArgs = append(claudeArgs, "--model", workflowData.EngineConfig.Model)
+		}
 	}
 
 	// Add max_turns if specified (in CLI it's max-turns)

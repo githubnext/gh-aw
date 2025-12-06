@@ -55,6 +55,16 @@ type CodingAgentEngine interface {
 	// GetInstallationSteps returns the GitHub Actions steps needed to install this engine
 	GetInstallationSteps(workflowData *WorkflowData) []GitHubActionStep
 
+	// GetModelSelectionStep returns a GitHub Actions step that validates and selects a compatible model
+	// from the list of models specified in the workflow configuration. Returns nil if no model selection is needed.
+	// The step should:
+	// 1. Query available models from the engine
+	// 2. Match against the requested models (supporting wildcards like "sonnet*", "gpt-*-mini")
+	// 3. Select the first compatible model
+	// 4. Set the selected model as an output variable
+	// 5. Exit with error if no compatible models are found
+	GetModelSelectionStep(workflowData *WorkflowData) GitHubActionStep
+
 	// GetExecutionSteps returns the GitHub Actions steps for executing this engine
 	GetExecutionSteps(workflowData *WorkflowData, logFile string) []GitHubActionStep
 
@@ -155,6 +165,12 @@ func (e *BaseEngine) SupportsFirewall() bool {
 // GetDeclaredOutputFiles returns an empty list by default (engines can override)
 func (e *BaseEngine) GetDeclaredOutputFiles() []string {
 	return []string{}
+}
+
+// GetModelSelectionStep returns nil by default (engines can override to provide model selection)
+// Engines that support multiple models can override this to return a step that validates and selects a model
+func (e *BaseEngine) GetModelSelectionStep(workflowData *WorkflowData) GitHubActionStep {
+	return nil
 }
 
 // GetErrorPatterns returns an empty list by default (engines can override)

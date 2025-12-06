@@ -13,7 +13,8 @@ var engineLog = logger.New("workflow:engine")
 type EngineConfig struct {
 	ID            string
 	Version       string
-	Model         string
+	Model         string   // Single model (for backward compatibility)
+	Models        []string // Array of models in priority order (takes precedence over Model if set)
 	MaxTurns      string
 	Concurrency   string // Agent job-level concurrency configuration (YAML format)
 	UserAgent     string
@@ -69,10 +70,24 @@ func (c *Compiler) ExtractEngineConfig(frontmatter map[string]any) (string, *Eng
 				}
 			}
 
-			// Extract optional 'model' field
+			// Extract optional 'model' field (supports both string and array)
 			if model, hasModel := engineObj["model"]; hasModel {
 				if modelStr, ok := model.(string); ok {
+					// Single model string
 					config.Model = modelStr
+					config.Models = []string{modelStr}
+				} else if modelArray, ok := model.([]any); ok {
+					// Array of models
+					var models []string
+					for _, m := range modelArray {
+						if mStr, ok := m.(string); ok {
+							models = append(models, mStr)
+						}
+					}
+					if len(models) > 0 {
+						config.Models = models
+						config.Model = models[0] // For backward compatibility, set Model to first item
+					}
 				}
 			}
 

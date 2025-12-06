@@ -4766,8 +4766,21 @@
               "examples": ["beta", "stable", 20, 3.11]
             },
             "model": {
-              "type": "string",
-              "description": "Optional specific LLM model to use (e.g., 'claude-3-5-sonnet-20241022', 'gpt-4'). Has sensible defaults and can typically be omitted."
+              "oneOf": [
+                {
+                  "type": "string",
+                  "description": "Single LLM model to use (e.g., 'claude-3-5-sonnet-20241022', 'gpt-4')"
+                },
+                {
+                  "type": "array",
+                  "description": "Array of LLM models in priority order. The first compatible model will be selected. Supports wildcard patterns (e.g., 'sonnet*', 'gpt-*-mini').",
+                  "items": {
+                    "type": "string"
+                  },
+                  "minItems": 1
+                }
+              ],
+              "description": "Optional specific LLM model(s) to use. Can be a single model string or an array of models in priority order. Supports wildcard patterns like 'sonnet*' or 'gpt-*-mini'. Has sensible defaults and can typically be omitted."
             },
             "max-turns": {
               "type": "integer",
