@@ -117,6 +117,14 @@ class MCPServer {
   }
 
   /**
+   * Handle ping request
+   * @returns {Object} Empty ping result
+   */
+  handlePing() {
+    return {};
+  }
+
+  /**
    * Handle an incoming JSON-RPC request
    * @param {Object} request - JSON-RPC request
    * @returns {Promise<Object>} JSON-RPC response
@@ -125,11 +133,24 @@ class MCPServer {
     const { id, method, params } = request;
 
     try {
+      // Handle notifications per JSON-RPC 2.0 spec:
+      // Requests without id field are notifications (no response)
+      // Note: id can be null for valid requests, so we check for field presence with "in" operator
+      // MCP notifications (methods starting with "notifications/") also omit the id field per convention
+      if (!("id" in request)) {
+        // No id field - this is a notification (no response)
+        return null;
+      }
+
       let result;
 
       switch (method) {
         case "initialize":
           result = this.handleInitialize(params || {});
+          break;
+
+        case "ping":
+          result = this.handlePing();
           break;
 
         case "tools/list":

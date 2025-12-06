@@ -2317,13 +2317,22 @@ jobs:
                   };
                 }
               }
+              handlePing() {
+                return {};
+              }
               async handleRequest(request) {
                 const { id, method, params } = request;
                 try {
+                  if (!("id" in request)) {
+                    return null;
+                  }
                   let result;
                   switch (method) {
                     case "initialize":
                       result = this.handleInitialize(params || {});
+                      break;
+                    case "ping":
+                      result = this.handlePing();
                       break;
                     case "tools/list":
                       result = this.handleToolsList();
@@ -2483,6 +2492,11 @@ jobs:
                     }
                   }
                   const response = await this.server.handleRequest(body);
+                  if (response === null) {
+                    res.writeHead(204); 
+                    res.end();
+                    return;
+                  }
                   const headers = { "Content-Type": "application/json" };
                   if (this.sessionId) {
                     headers["mcp-session-id"] = this.sessionId;
@@ -2815,14 +2829,22 @@ jobs:
                 }
               );
               const logger = createLogger(serverName);
+              logger.debug(`=== Creating MCP Server ===`);
+              logger.debug(`Configuration file: ${configPath}`);
               logger.debug(`Loading safe-inputs configuration from: ${configPath}`);
               logger.debug(`Base path for handlers: ${basePath}`);
+              logger.debug(`Server name: ${serverName}`);
+              logger.debug(`Server version: ${version}`);
               logger.debug(`Tools to load: ${config.tools.length}`);
               const tempServer = { debug: logger.debug, debugError: logger.debugError };
               const tools = loadToolHandlers(tempServer, config.tools, basePath);
+              logger.debug(`Registering tools with MCP server...`);
+              let registeredCount = 0;
+              let skippedCount = 0;
               for (const tool of tools) {
                 if (!tool.handler) {
                   logger.debug(`Skipping tool ${tool.name} - no handler loaded`);
+                  skippedCount++;
                   continue;
                 }
                 logger.debug(`Registering tool: ${tool.name}`);
@@ -2837,7 +2859,10 @@ jobs:
                   const content = result && result.content ? result.content : [];
                   return { content, isError: false };
                 });
+                registeredCount++;
               }
+              logger.debug(`Tool registration complete: ${registeredCount} registered, ${skippedCount} skipped`);
+              logger.debug(`=== MCP Server Creation Complete ===`);
               return { server, config, logger };
             }
             async function startHttpServer(configPath, options = {}) {
@@ -3093,16 +3118,7 @@ jobs:
           
           export GH_AW_GH_TOKEN="${GH_AW_GH_TOKEN}"
           
-          # Install MCP SDK package
-          echo "Installing @modelcontextprotocol/sdk..."
           cd /tmp/gh-aw/safe-inputs
-          if ! npm install --no-save @modelcontextprotocol/sdk@1.24.0 2>&1; then
-            echo "ERROR: Failed to install @modelcontextprotocol/sdk@1.24.0"
-            echo "npm install failed with exit code $?"
-            exit 1
-          fi
-          echo "Successfully installed @modelcontextprotocol/sdk@1.24.0"
-          
           # Verify required files exist
           echo "Verifying safe-inputs setup..."
           if [ ! -f mcp-server.cjs ]; then
@@ -3116,19 +3132,16 @@ jobs:
             exit 1
           fi
           echo "Configuration files verified"
-          
           # Log environment configuration
           echo "Server configuration:"
           echo "  Port: $GH_AW_SAFE_INPUTS_PORT"
           echo "  API Key: ${GH_AW_SAFE_INPUTS_API_KEY:0:8}..."
           echo "  Working directory: $(pwd)"
-          
           # Start the HTTP server in the background
           echo "Starting safe-inputs MCP HTTP server..."
           node mcp-server.cjs > /tmp/gh-aw/safe-inputs/logs/server.log 2>&1 &
           SERVER_PID=$!
           echo "Started safe-inputs MCP server with PID $SERVER_PID"
-          
           # Wait for server to be ready (max 10 seconds)
           echo "Waiting for server to become ready..."
           for i in {1..10}; do
@@ -3139,13 +3152,11 @@ jobs:
               cat /tmp/gh-aw/safe-inputs/logs/server.log
               exit 1
             fi
-            
             # Check if server is responding
             if curl -s -f -H "Authorization: Bearer $GH_AW_SAFE_INPUTS_API_KEY" http://localhost:$GH_AW_SAFE_INPUTS_PORT/ > /dev/null 2>&1; then
               echo "Safe Inputs MCP server is ready (attempt $i/10)"
               break
             fi
-            
             if [ $i -eq 10 ]; then
               echo "ERROR: Safe Inputs MCP server failed to start after 10 seconds"
               echo "Process status: $(ps aux | grep '[m]cp-server.cjs' || echo 'not running')"
@@ -3155,11 +3166,9 @@ jobs:
               netstat -tuln | grep $GH_AW_SAFE_INPUTS_PORT || echo "Port $GH_AW_SAFE_INPUTS_PORT not listening"
               exit 1
             fi
-            
             echo "Waiting for server... (attempt $i/10)"
             sleep 1
           done
-          
           # Output the configuration for the MCP client
           echo "port=$GH_AW_SAFE_INPUTS_PORT" >> $GITHUB_OUTPUT
           echo "api_key=$GH_AW_SAFE_INPUTS_API_KEY" >> $GITHUB_OUTPUT

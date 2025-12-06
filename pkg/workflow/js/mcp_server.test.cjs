@@ -167,5 +167,59 @@ describe("mcp_server.cjs", () => {
       expect(response.error.code).toBe(-32603);
       expect(response.error.message).toBe("Test error");
     });
+
+    it("should handle ping request", async () => {
+      const server = new MCPServer({ name: "test-server", version: "1.0.0" });
+
+      const response = await server.handleRequest({
+        jsonrpc: "2.0",
+        id: 7,
+        method: "ping",
+      });
+
+      expect(response.jsonrpc).toBe("2.0");
+      expect(response.id).toBe(7);
+      expect(response.result).toEqual({});
+    });
+
+    it("should handle notifications/initialized without response", async () => {
+      const server = new MCPServer({ name: "test-server", version: "1.0.0" });
+
+      const response = await server.handleRequest({
+        jsonrpc: "2.0",
+        method: "notifications/initialized",
+        // no id - this is a notification per JSON-RPC 2.0 spec
+      });
+
+      expect(response).toBeNull();
+    });
+
+    it("should handle any notification without response (no id field)", async () => {
+      const server = new MCPServer({ name: "test-server", version: "1.0.0" });
+
+      const response = await server.handleRequest({
+        jsonrpc: "2.0",
+        method: "some/custom/notification",
+        params: { data: "test" },
+        // no id - this is a notification per JSON-RPC 2.0 spec
+      });
+
+      expect(response).toBeNull();
+    });
+
+    it("should handle request with id: null as a valid request", async () => {
+      const server = new MCPServer({ name: "test-server", version: "1.0.0" });
+
+      const response = await server.handleRequest({
+        jsonrpc: "2.0",
+        id: null,
+        method: "ping",
+      });
+
+      expect(response).not.toBeNull();
+      expect(response.jsonrpc).toBe("2.0");
+      expect(response.id).toBeNull();
+      expect(response.result).toEqual({});
+    });
   });
 });
