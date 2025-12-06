@@ -61,8 +61,12 @@ function createMCPServer(configPath, options = {}) {
   // Create logger for this server
   const logger = createLogger(serverName);
 
+  logger.debug(`=== Creating MCP Server ===`);
+  logger.debug(`Configuration file: ${configPath}`);
   logger.debug(`Loading safe-inputs configuration from: ${configPath}`);
   logger.debug(`Base path for handlers: ${basePath}`);
+  logger.debug(`Server name: ${serverName}`);
+  logger.debug(`Server version: ${version}`);
   logger.debug(`Tools to load: ${config.tools.length}`);
 
   // Load tool handlers from file paths
@@ -71,9 +75,14 @@ function createMCPServer(configPath, options = {}) {
   const tools = loadToolHandlers(tempServer, config.tools, basePath);
 
   // Register all tools with the MCP SDK server using the tool() method
+  logger.debug(`Registering tools with MCP server...`);
+  let registeredCount = 0;
+  let skippedCount = 0;
+
   for (const tool of tools) {
     if (!tool.handler) {
       logger.debug(`Skipping tool ${tool.name} - no handler loaded`);
+      skippedCount++;
       continue;
     }
 
@@ -98,7 +107,12 @@ function createMCPServer(configPath, options = {}) {
       const content = result && result.content ? result.content : [];
       return { content, isError: false };
     });
+
+    registeredCount++;
   }
+
+  logger.debug(`Tool registration complete: ${registeredCount} registered, ${skippedCount} skipped`);
+  logger.debug(`=== MCP Server Creation Complete ===`);
 
   return { server, config, logger };
 }

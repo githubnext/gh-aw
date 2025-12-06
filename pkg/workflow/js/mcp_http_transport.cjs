@@ -187,6 +187,13 @@ class MCPHTTPTransport {
       // Process the request through the MCP server
       const response = await this.server.handleRequest(body);
 
+      // Handle notifications (null response means no reply needed)
+      if (response === null) {
+        res.writeHead(204); // No Content
+        res.end();
+        return;
+      }
+
       // Set response headers
       const headers = { "Content-Type": "application/json" };
       if (this.sessionId) {

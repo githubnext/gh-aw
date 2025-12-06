@@ -117,6 +117,14 @@ class MCPServer {
   }
 
   /**
+   * Handle ping request
+   * @returns {Object} Empty ping result
+   */
+  handlePing() {
+    return {};
+  }
+
+  /**
    * Handle an incoming JSON-RPC request
    * @param {Object} request - JSON-RPC request
    * @returns {Promise<Object>} JSON-RPC response
@@ -125,11 +133,21 @@ class MCPServer {
     const { id, method, params } = request;
 
     try {
+      // Handle notifications (methods without id) - no response needed
+      if (method && method.startsWith("notifications/")) {
+        // Notifications don't require a response
+        return null;
+      }
+
       let result;
 
       switch (method) {
         case "initialize":
           result = this.handleInitialize(params || {});
+          break;
+
+        case "ping":
+          result = this.handlePing();
           break;
 
         case "tools/list":

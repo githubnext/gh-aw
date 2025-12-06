@@ -167,5 +167,44 @@ describe("mcp_server.cjs", () => {
       expect(response.error.code).toBe(-32603);
       expect(response.error.message).toBe("Test error");
     });
+
+    it("should handle ping request", async () => {
+      const server = new MCPServer({ name: "test-server", version: "1.0.0" });
+
+      const response = await server.handleRequest({
+        jsonrpc: "2.0",
+        id: 7,
+        method: "ping",
+      });
+
+      expect(response.jsonrpc).toBe("2.0");
+      expect(response.id).toBe(7);
+      expect(response.result).toEqual({});
+    });
+
+    it("should handle notifications/initialized without response", async () => {
+      const server = new MCPServer({ name: "test-server", version: "1.0.0" });
+
+      const response = await server.handleRequest({
+        jsonrpc: "2.0",
+        method: "notifications/initialized",
+        // no id - this is a notification
+      });
+
+      expect(response).toBeNull();
+    });
+
+    it("should handle other notifications without response", async () => {
+      const server = new MCPServer({ name: "test-server", version: "1.0.0" });
+
+      const response = await server.handleRequest({
+        jsonrpc: "2.0",
+        method: "notifications/progress",
+        params: { progress: 50 },
+        // no id - this is a notification
+      });
+
+      expect(response).toBeNull();
+    });
   });
 });
