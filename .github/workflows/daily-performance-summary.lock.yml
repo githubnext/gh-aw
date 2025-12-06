@@ -3105,17 +3105,17 @@ jobs:
             const path = require("path");
             const http = require("http");
             const { randomUUID } = require("crypto");
-            const { McpServer } = require("@modelcontextprotocol/sdk/server/mcp.js");
-            const { StreamableHTTPServerTransport } = require("@modelcontextprotocol/sdk/server/streamableHttp.js");
+            const { MCPServer, MCPHTTPTransport } = require("./mcp_http_transport.cjs");
             const { loadConfig } = require("./safe_inputs_config_loader.cjs");
             const { loadToolHandlers } = require("./mcp_server_core.cjs");
             const { validateRequiredFields } = require("./safe_inputs_validation.cjs");
+            const { createLogger } = require("./mcp_logger.cjs");
             function createMCPServer(configPath, options = {}) {
               const config = loadConfig(configPath);
               const basePath = path.dirname(configPath);
               const serverName = config.serverName || "safeinputs";
               const version = config.version || "1.0.0";
-              const server = new McpServer(
+              const server = new MCPServer(
                 {
                   name: serverName,
                   version: version,
@@ -3126,19 +3126,7 @@ jobs:
                   },
                 }
               );
-              const logger = {
-                debug: msg => {
-                  const timestamp = new Date().toISOString();
-                  process.stderr.write(`[${timestamp}] [${serverName}] ${msg}\n`);
-                },
-                debugError: (prefix, error) => {
-                  const errorMessage = error instanceof Error ? error.message : String(error);
-                  logger.debug(`${prefix}${errorMessage}`);
-                  if (error instanceof Error && error.stack) {
-                    logger.debug(`${prefix}Stack trace: ${error.stack}`);
-                  }
-                },
-              };
+              const logger = createLogger(serverName);
               logger.debug(`Loading safe-inputs configuration from: ${configPath}`);
               logger.debug(`Base path for handlers: ${basePath}`);
               logger.debug(`Tools to load: ${config.tools.length}`);
@@ -3167,10 +3155,7 @@ jobs:
             async function startHttpServer(configPath, options = {}) {
               const port = options.port || 3000;
               const stateless = options.stateless || false;
-              logger.debug = msg => {
-                const timestamp = new Date().toISOString();
-                process.stderr.write(`[${timestamp}] [safe-inputs-startup] ${msg}\n`);
-              };
+              const logger = createLogger("safe-inputs-startup");
               logger.debug(`=== Starting Safe Inputs MCP HTTP Server ===`);
               logger.debug(`Configuration file: ${configPath}`);
               logger.debug(`Port: ${port}`);
@@ -3184,7 +3169,7 @@ jobs:
                 logger.debug(`Server version: ${config.version || "1.0.0"}`);
                 logger.debug(`Tools configured: ${config.tools.length}`);
                 logger.debug(`Creating HTTP transport...`);
-                const transport = new StreamableHTTPServerTransport({
+                const transport = new MCPHTTPTransport({
                   sessionIdGenerator: stateless ? undefined : () => randomUUID(),
                   enableJsonResponse: true,
                   enableDnsRebindingProtection: false, 
@@ -3287,12 +3272,7 @@ jobs:
                 });
                 return httpServer;
               } catch (error) {
-                const errorLogger = {
-                  debug: msg => {
-                    const timestamp = new Date().toISOString();
-                    process.stderr.write(`[${timestamp}] [safe-inputs-startup-error] ${msg}\n`);
-                  },
-                };
+                const errorLogger = createLogger("safe-inputs-startup-error");
                 errorLogger.debug(`=== FATAL ERROR: Failed to start Safe Inputs MCP HTTP Server ===`);
                 errorLogger.debug(`Error type: ${error.constructor.name}`);
                 errorLogger.debug(`Error message: ${error.message}`);

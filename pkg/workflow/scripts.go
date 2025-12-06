@@ -114,6 +114,17 @@ var parseCodexLogScriptSource string
 //go:embed js/parse_copilot_log.cjs
 var parseCopilotLogScriptSource string
 
+// MCP server and transport scripts
+//
+//go:embed js/mcp_logger.cjs
+var mcpLoggerScriptSource string
+
+//go:embed js/mcp_server.cjs
+var mcpServerScriptSource string
+
+//go:embed js/mcp_http_transport.cjs
+var mcpHTTPTransportScriptSource string
+
 // init registers all scripts with the DefaultScriptRegistry.
 // Scripts are bundled lazily on first access via the getter functions.
 func init() {
@@ -152,6 +163,11 @@ func init() {
 	DefaultScriptRegistry.Register("parse_claude_log", parseClaudeLogScriptSource)
 	DefaultScriptRegistry.Register("parse_codex_log", parseCodexLogScriptSource)
 	DefaultScriptRegistry.Register("parse_copilot_log", parseCopilotLogScriptSource)
+
+	// MCP server and transport scripts
+	DefaultScriptRegistry.Register("mcp_logger", mcpLoggerScriptSource)
+	DefaultScriptRegistry.Register("mcp_server", mcpServerScriptSource)
+	DefaultScriptRegistry.Register("mcp_http_transport", mcpHTTPTransportScriptSource)
 
 	scriptsLog.Print("Completed script registration")
 }

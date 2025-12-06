@@ -21,11 +21,11 @@
 const path = require("path");
 const http = require("http");
 const { randomUUID } = require("crypto");
-const { McpServer } = require("@modelcontextprotocol/sdk/server/mcp.js");
-const { StreamableHTTPServerTransport } = require("@modelcontextprotocol/sdk/server/streamableHttp.js");
+const { MCPServer, MCPHTTPTransport } = require("./mcp_http_transport.cjs");
 const { loadConfig } = require("./safe_inputs_config_loader.cjs");
 const { loadToolHandlers } = require("./mcp_server_core.cjs");
 const { validateRequiredFields } = require("./safe_inputs_validation.cjs");
+const { createLogger } = require("./mcp_logger.cjs");
 
 /**
  * Create and configure the MCP server with tools
@@ -45,8 +45,8 @@ function createMCPServer(configPath, options = {}) {
   const serverName = config.serverName || "safeinputs";
   const version = config.version || "1.0.0";
 
-  // Create MCP SDK Server instance using McpServer
-  const server = new McpServer(
+  // Create MCP Server instance
+  const server = new MCPServer(
     {
       name: serverName,
       version: version,
@@ -58,20 +58,8 @@ function createMCPServer(configPath, options = {}) {
     }
   );
 
-  // Create a simple logger that mimics mcp_server_core's debug function
-  const logger = {
-    debug: msg => {
-      const timestamp = new Date().toISOString();
-      process.stderr.write(`[${timestamp}] [${serverName}] ${msg}\n`);
-    },
-    debugError: (prefix, error) => {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      logger.debug(`${prefix}${errorMessage}`);
-      if (error instanceof Error && error.stack) {
-        logger.debug(`${prefix}Stack trace: ${error.stack}`);
-      }
-    },
-  };
+  // Create logger for this server
+  const logger = createLogger(serverName);
 
   logger.debug(`Loading safe-inputs configuration from: ${configPath}`);
   logger.debug(`Base path for handlers: ${basePath}`);
@@ -127,10 +115,7 @@ async function startHttpServer(configPath, options = {}) {
   const port = options.port || 3000;
   const stateless = options.stateless || false;
 
-  logger.debug = msg => {
-    const timestamp = new Date().toISOString();
-    process.stderr.write(`[${timestamp}] [safe-inputs-startup] ${msg}\n`);
-  };
+  const logger = createLogger("safe-inputs-startup");
 
   logger.debug(`=== Starting Safe Inputs MCP HTTP Server ===`);
   logger.debug(`Configuration file: ${configPath}`);
@@ -152,7 +137,7 @@ async function startHttpServer(configPath, options = {}) {
 
     logger.debug(`Creating HTTP transport...`);
     // Create the HTTP transport
-    const transport = new StreamableHTTPServerTransport({
+    const transport = new MCPHTTPTransport({
       sessionIdGenerator: stateless ? undefined : () => randomUUID(),
       enableJsonResponse: true,
       enableDnsRebindingProtection: false, // Disable for local development
@@ -277,12 +262,7 @@ async function startHttpServer(configPath, options = {}) {
     return httpServer;
   } catch (error) {
     // Log detailed error information for startup failures
-    const errorLogger = {
-      debug: msg => {
-        const timestamp = new Date().toISOString();
-        process.stderr.write(`[${timestamp}] [safe-inputs-startup-error] ${msg}\n`);
-      },
-    };
+    const errorLogger = createLogger("safe-inputs-startup-error");
     errorLogger.debug(`=== FATAL ERROR: Failed to start Safe Inputs MCP HTTP Server ===`);
     errorLogger.debug(`Error type: ${error.constructor.name}`);
     errorLogger.debug(`Error message: ${error.message}`);
