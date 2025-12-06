@@ -21,8 +21,7 @@
 const path = require("path");
 const http = require("http");
 const { randomUUID } = require("crypto");
-const { McpServer } = require("@modelcontextprotocol/sdk/server/mcp.js");
-const { StreamableHTTPServerTransport } = require("@modelcontextprotocol/sdk/server/streamableHttp.js");
+const { MCPServer, MCPHTTPTransport } = require("./mcp_http_transport.cjs");
 const { loadConfig } = require("./safe_inputs_config_loader.cjs");
 const { loadToolHandlers } = require("./mcp_server_core.cjs");
 const { validateRequiredFields } = require("./safe_inputs_validation.cjs");
@@ -45,8 +44,8 @@ function createMCPServer(configPath, options = {}) {
   const serverName = config.serverName || "safeinputs";
   const version = config.version || "1.0.0";
 
-  // Create MCP SDK Server instance using McpServer
-  const server = new McpServer(
+  // Create MCP Server instance
+  const server = new MCPServer(
     {
       name: serverName,
       version: version,
@@ -127,9 +126,11 @@ async function startHttpServer(configPath, options = {}) {
   const port = options.port || 3000;
   const stateless = options.stateless || false;
 
-  logger.debug = msg => {
-    const timestamp = new Date().toISOString();
-    process.stderr.write(`[${timestamp}] [safe-inputs-startup] ${msg}\n`);
+  const logger = {
+    debug: msg => {
+      const timestamp = new Date().toISOString();
+      process.stderr.write(`[${timestamp}] [safe-inputs-startup] ${msg}\n`);
+    },
   };
 
   logger.debug(`=== Starting Safe Inputs MCP HTTP Server ===`);
@@ -152,7 +153,7 @@ async function startHttpServer(configPath, options = {}) {
 
     logger.debug(`Creating HTTP transport...`);
     // Create the HTTP transport
-    const transport = new StreamableHTTPServerTransport({
+    const transport = new MCPHTTPTransport({
       sessionIdGenerator: stateless ? undefined : () => randomUUID(),
       enableJsonResponse: true,
       enableDnsRebindingProtection: false, // Disable for local development
