@@ -673,6 +673,7 @@ jobs:
                 "adoptium.net",
                 "anaconda.org",
                 "api.adoptium.net",
+                "api.business.githubcopilot.com",
                 "api.enterprise.githubcopilot.com",
                 "api.github.com",
                 "api.npms.io",
