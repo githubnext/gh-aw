@@ -255,7 +255,6 @@ Test workflow for safe-inputs tools configuration.
 	}
 }
 
-
 // TestSafeInputsMCPServerStartup tests that the safe-inputs MCP server can be started
 // and responds to basic MCP protocol messages
 func TestSafeInputsMCPServerStartup(t *testing.T) {
