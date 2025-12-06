@@ -26,6 +26,7 @@ const { StreamableHTTPServerTransport } = require("@modelcontextprotocol/sdk/ser
 const { loadConfig } = require("./safe_inputs_config_loader.cjs");
 const { loadToolHandlers } = require("./mcp_server_core.cjs");
 const { validateRequiredFields } = require("./safe_inputs_validation.cjs");
+const { createLogger } = require("./logger.cjs");
 
 /**
  * Create and configure the MCP server with tools
@@ -59,19 +60,7 @@ function createMCPServer(configPath, options = {}) {
   );
 
   // Create a simple logger that mimics mcp_server_core's debug function
-  const logger = {
-    debug: msg => {
-      const timestamp = new Date().toISOString();
-      process.stderr.write(`[${timestamp}] [${serverName}] ${msg}\n`);
-    },
-    debugError: (prefix, error) => {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      logger.debug(`${prefix}${errorMessage}`);
-      if (error instanceof Error && error.stack) {
-        logger.debug(`${prefix}Stack trace: ${error.stack}`);
-      }
-    },
-  };
+  const logger = createLogger(serverName);
 
   logger.debug(`Loading safe-inputs configuration from: ${configPath}`);
   logger.debug(`Base path for handlers: ${basePath}`);
@@ -128,12 +117,7 @@ async function startHttpServer(configPath, options = {}) {
   const stateless = options.stateless || false;
 
   // Initialize logger for startup messages
-  const logger = {
-    debug: msg => {
-      const timestamp = new Date().toISOString();
-      process.stderr.write(`[${timestamp}] [safe-inputs-startup] ${msg}\n`);
-    },
-  };
+  const logger = createLogger("safe-inputs-startup");
 
   logger.debug(`=== Starting Safe Inputs MCP HTTP Server ===`);
   logger.debug(`Configuration file: ${configPath}`);
