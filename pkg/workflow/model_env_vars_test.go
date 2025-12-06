@@ -97,10 +97,10 @@ func TestModelEnvVarInjectionForDetectionJob(t *testing.T) {
 		expectedDefault string
 	}{
 		{
-			name:            "Copilot detection uses GH_AW_MODEL_DETECTION_COPILOT with default",
+			name:            "Copilot detection uses GH_AW_MODEL_DETECTION_COPILOT",
 			engine:          "copilot",
 			expectedEnvVar:  constants.EnvVarModelDetectionCopilot,
-			expectedDefault: constants.DefaultCopilotDetectionModel,
+			expectedDefault: "", // No builtin default, CLI will use its own
 		},
 		{
 			name:            "Claude detection uses GH_AW_MODEL_DETECTION_CLAUDE",

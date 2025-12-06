@@ -498,9 +498,8 @@ COPILOT_CLI_INSTRUCTION="$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"
 		// Check if this is a detection job (has no SafeOutputs config)
 		isDetectionJob := workflowData.SafeOutputs == nil
 		if isDetectionJob {
-			// For detection, use detection-specific env var with fallback to default detection model
-			defaultDetectionModel := constants.DefaultCopilotDetectionModel
-			env[constants.EnvVarModelDetectionCopilot] = fmt.Sprintf("${{ vars.%s || '%s' }}", constants.EnvVarModelDetectionCopilot, defaultDetectionModel)
+			// For detection, use detection-specific env var (no builtin default, CLI will use its own)
+			env[constants.EnvVarModelDetectionCopilot] = fmt.Sprintf("${{ vars.%s || '' }}", constants.EnvVarModelDetectionCopilot)
 		} else {
 			// For agent execution, use agent-specific env var
 			env[constants.EnvVarModelAgentCopilot] = fmt.Sprintf("${{ vars.%s || '' }}", constants.EnvVarModelAgentCopilot)
