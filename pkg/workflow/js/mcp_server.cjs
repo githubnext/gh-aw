@@ -133,8 +133,10 @@ class MCPServer {
     const { id, method, params } = request;
 
     try {
-      // Handle notifications (methods without id) - no response needed
-      if (method && method.startsWith("notifications/")) {
+      // Handle notifications per JSON-RPC 2.0 spec:
+      // 1. Requests without id are notifications (no response)
+      // 2. MCP convention: methods starting with "notifications/" are also notifications
+      if (id === undefined || id === null || (method && method.startsWith("notifications/"))) {
         // Notifications don't require a response
         return null;
       }

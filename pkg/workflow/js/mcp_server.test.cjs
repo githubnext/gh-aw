@@ -188,20 +188,20 @@ describe("mcp_server.cjs", () => {
       const response = await server.handleRequest({
         jsonrpc: "2.0",
         method: "notifications/initialized",
-        // no id - this is a notification
+        // no id - this is a notification per JSON-RPC 2.0 spec
       });
 
       expect(response).toBeNull();
     });
 
-    it("should handle other notifications without response", async () => {
+    it("should handle any notification without response (no id field)", async () => {
       const server = new MCPServer({ name: "test-server", version: "1.0.0" });
 
       const response = await server.handleRequest({
         jsonrpc: "2.0",
-        method: "notifications/progress",
-        params: { progress: 50 },
-        // no id - this is a notification
+        method: "some/custom/notification",
+        params: { data: "test" },
+        // no id - this is a notification per JSON-RPC 2.0 spec
       });
 
       expect(response).toBeNull();
