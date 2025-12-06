@@ -64,9 +64,7 @@ describe("select_model", () => {
     });
 
     it("should match wildcard patterns", () => {
-      expect(
-        matchesPattern("claude-3-sonnet-20240229", "*sonnet*"),
-      ).toBe(true);
+      expect(matchesPattern("claude-3-sonnet-20240229", "*sonnet*")).toBe(true);
       expect(matchesPattern("claude-3-opus-20240229", "*sonnet*")).toBe(false);
     });
 
@@ -77,23 +75,15 @@ describe("select_model", () => {
     });
 
     it("should match prefix wildcards", () => {
-      expect(matchesPattern("claude-3-sonnet-20240229", "claude-*")).toBe(
-        true,
-      );
+      expect(matchesPattern("claude-3-sonnet-20240229", "claude-*")).toBe(true);
       expect(matchesPattern("claude-3-opus-20240229", "claude-*")).toBe(true);
       expect(matchesPattern("gpt-4", "claude-*")).toBe(false);
     });
 
     it("should match suffix wildcards", () => {
-      expect(matchesPattern("claude-3-sonnet-20240229", "*-sonnet-*")).toBe(
-        true,
-      );
-      expect(matchesPattern("claude-2-sonnet-20231107", "*-sonnet-*")).toBe(
-        true,
-      );
-      expect(matchesPattern("claude-3-opus-20240229", "*-sonnet-*")).toBe(
-        false,
-      );
+      expect(matchesPattern("claude-3-sonnet-20240229", "*-sonnet-*")).toBe(true);
+      expect(matchesPattern("claude-2-sonnet-20231107", "*-sonnet-*")).toBe(true);
+      expect(matchesPattern("claude-3-opus-20240229", "*-sonnet-*")).toBe(false);
     });
   });
 
@@ -163,11 +153,7 @@ describe("select_model", () => {
 
     it("should handle sonnet* wildcard", () => {
       const requested = ["*sonnet*"];
-      const available = [
-        "claude-3-opus-20240229",
-        "claude-3-sonnet-20240229",
-        "claude-3-haiku-20240307",
-      ];
+      const available = ["claude-3-opus-20240229", "claude-3-sonnet-20240229", "claude-3-haiku-20240307"];
       const result = selectModel(requested, available);
 
       expect(result).toEqual({
@@ -188,17 +174,8 @@ describe("select_model", () => {
     });
 
     it("should handle complex priority list", () => {
-      const requested = [
-        "claude-3-opus-20240229",
-        "claude-3-sonnet-*",
-        "gpt-4",
-        "gpt-*-mini",
-      ];
-      const available = [
-        "gpt-3.5-turbo",
-        "gpt-4-mini",
-        "claude-3-sonnet-20240229",
-      ];
+      const requested = ["claude-3-opus-20240229", "claude-3-sonnet-*", "gpt-4", "gpt-*-mini"];
+      const available = ["gpt-3.5-turbo", "gpt-4-mini", "claude-3-sonnet-20240229"];
       const result = selectModel(requested, available);
 
       // Should match claude-3-sonnet-* pattern

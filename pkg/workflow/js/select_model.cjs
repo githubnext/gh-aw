@@ -2,15 +2,15 @@
  * @file select_model.cjs
  * @description Validates and selects a compatible model from a list of requested models.
  * Supports wildcard patterns (e.g., "sonnet*", "gpt-*-mini").
- * 
+ *
  * Inputs:
  * - requestedModels: Array of model strings (may include wildcards)
  * - availableModels: Array of available model strings
- * 
+ *
  * Outputs:
  * - selectedModel: The first compatible model found
  * - matchedPattern: The pattern that matched (may be different from selectedModel if wildcard was used)
- * 
+ *
  * Exits with error if no compatible models are found.
  */
 
@@ -92,33 +92,25 @@ async function run() {
     try {
       requestedModels = JSON.parse(requestedModelsInput);
     } catch (error) {
-      core.setFailed(
-        `Failed to parse requested_models as JSON: ${error.message}`,
-      );
+      core.setFailed(`Failed to parse requested_models as JSON: ${error.message}`);
       return;
     }
 
     try {
       availableModels = JSON.parse(availableModelsInput);
     } catch (error) {
-      core.setFailed(
-        `Failed to parse available_models as JSON: ${error.message}`,
-      );
+      core.setFailed(`Failed to parse available_models as JSON: ${error.message}`);
       return;
     }
 
     // Validate inputs
     if (!Array.isArray(requestedModels) || requestedModels.length === 0) {
-      core.setFailed(
-        "requested_models must be a non-empty array of strings",
-      );
+      core.setFailed("requested_models must be a non-empty array of strings");
       return;
     }
 
     if (!Array.isArray(availableModels) || availableModels.length === 0) {
-      core.setFailed(
-        "available_models must be a non-empty array of strings",
-      );
+      core.setFailed("available_models must be a non-empty array of strings");
       return;
     }
 
@@ -134,7 +126,7 @@ async function run() {
           `\n` +
           `Please update your workflow configuration to use a supported model.\n` +
           `You can specify multiple models in priority order using an array:\n` +
-          `  model: ["preferred-model", "fallback-model", "gpt-*"]`,
+          `  model: ["preferred-model", "fallback-model", "gpt-*"]`
       );
       return;
     }
@@ -159,10 +151,7 @@ async function run() {
         ],
         ["Selected Model", result.selectedModel],
         ["Matched Pattern", result.matchedPattern],
-        [
-          "Requested Models",
-          requestedModels.map((m) => `\`${m}\``).join(", "),
-        ],
+        ["Requested Models", requestedModels.map(m => `\`${m}\``).join(", ")],
       ])
       .write();
   } catch (error) {

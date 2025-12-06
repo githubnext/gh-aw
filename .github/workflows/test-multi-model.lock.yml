@@ -352,11 +352,7 @@ jobs:
 
                 } catch (error) {
 
-                  core.setFailed(
-
-                    `Failed to parse requested_models as JSON: ${error.message}`,
-
-                  );
+                  core.setFailed(`Failed to parse requested_models as JSON: ${error.message}`);
 
                   return;
 
@@ -368,11 +364,7 @@ jobs:
 
                 } catch (error) {
 
-                  core.setFailed(
-
-                    `Failed to parse available_models as JSON: ${error.message}`,
-
-                  );
+                  core.setFailed(`Failed to parse available_models as JSON: ${error.message}`);
 
                   return;
 
@@ -380,11 +372,7 @@ jobs:
 
                 if (!Array.isArray(requestedModels) || requestedModels.length === 0) {
 
-                  core.setFailed(
-
-                    "requested_models must be a non-empty array of strings",
-
-                  );
+                  core.setFailed("requested_models must be a non-empty array of strings");
 
                   return;
 
@@ -392,11 +380,7 @@ jobs:
 
                 if (!Array.isArray(availableModels) || availableModels.length === 0) {
 
-                  core.setFailed(
-
-                    "available_models must be a non-empty array of strings",
-
-                  );
+                  core.setFailed("available_models must be a non-empty array of strings");
 
                   return;
 
@@ -420,7 +404,7 @@ jobs:
 
                       `You can specify multiple models in priority order using an array:\n` +
 
-                      `  model: ["preferred-model", "fallback-model", "gpt-*"]`,
+                      `  model: ["preferred-model", "fallback-model", "gpt-*"]`
 
                   );
 
@@ -458,13 +442,7 @@ jobs:
 
                     ["Matched Pattern", result.matchedPattern],
 
-                    [
-
-                      "Requested Models",
-
-                      requestedModels.map((m) => `\`${m}\``).join(", "),
-
-                    ],
+                    ["Requested Models", requestedModels.map(m => `\`${m}\``).join(", ")],
 
                   ])
 
