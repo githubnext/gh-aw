@@ -468,7 +468,7 @@ jobs:
                 const line = this._buffer.toString("utf8", 0, index).replace(/\r$/, "");
                 this._buffer = this._buffer.subarray(index + 1);
                 if (line.trim() === "") {
-                  return this.readMessage(); 
+                  return this.readMessage();
                 }
                 try {
                   return JSON.parse(line);
@@ -540,7 +540,7 @@ jobs:
             }
             function createReplyResultFunction(server) {
               return (id, result) => {
-                if (id === undefined || id === null) return; 
+                if (id === undefined || id === null) return;
                 const res = { jsonrpc: "2.0", id, result };
                 server.writeMessage(res);
               };
@@ -954,7 +954,7 @@ jobs:
             class MCPHTTPTransport {
               constructor(options = {}) {
                 this.sessionIdGenerator = options.sessionIdGenerator;
-                this.enableJsonResponse = options.enableJsonResponse !== false; 
+                this.enableJsonResponse = options.enableJsonResponse !== false;
                 this.enableDnsRebindingProtection = options.enableDnsRebindingProtection || false;
                 this.server = null;
                 this.sessionId = null;
@@ -2284,7 +2284,7 @@ jobs:
                 .replace(/\r/g, " ") 
                 .replace(/\t/g, " ") 
                 .replace(/\s+/g, " ") 
-                .trim(); 
+                .trim();
               formatted = formatted.replace(/`/g, "\\`");
               const maxLength = 300;
               if (formatted.length > maxLength) {
@@ -2305,8 +2305,8 @@ jobs:
               if (toolName.startsWith("mcp__")) {
                 const parts = toolName.split("__");
                 if (parts.length >= 3) {
-                  const provider = parts[1]; 
-                  const method = parts.slice(2).join("_"); 
+                  const provider = parts[1];
+                  const method = parts.slice(2).join("_");
                   return `${provider}::${method}`;
                 }
               }
@@ -2332,7 +2332,7 @@ jobs:
             }
             function generateConversationMarkdown(logEntries, options) {
               const { formatToolCallback, formatInitCallback, summaryTracker } = options;
-              const toolUsePairs = new Map(); 
+              const toolUsePairs = new Map();
               for (const entry of logEntries) {
                 if (entry.type === "user" && entry.message?.content) {
                   for (const content of entry.message.content) {
@@ -2406,7 +2406,7 @@ jobs:
                 markdown += SIZE_LIMIT_WARNING;
                 return { markdown, commandSummary: [], sizeLimitReached: true };
               }
-              const commandSummary = []; 
+              const commandSummary = [];
               for (const entry of logEntries) {
                 if (entry.type === "assistant" && entry.message?.content) {
                   for (const content of entry.message.content) {
@@ -2414,7 +2414,7 @@ jobs:
                       const toolName = content.name;
                       const input = content.input || {};
                       if (["Read", "Write", "Edit", "MultiEdit", "LS", "Grep", "Glob", "TodoWrite"].includes(toolName)) {
-                        continue; 
+                        continue;
                       }
                       const toolResult = toolUsePairs.get(content.id);
                       let statusIcon = "❓";
@@ -2635,13 +2635,13 @@ jobs:
               const toolName = toolUse.name;
               const input = toolUse.input || {};
               if (toolName === "TodoWrite") {
-                return ""; 
+                return "";
               }
               function getStatusIcon() {
                 if (toolResult) {
                   return toolResult.is_error === true ? "❌" : "✅";
                 }
-                return "❓"; 
+                return "❓";
               }
               const statusIcon = getStatusIcon();
               let summary = "";
@@ -2677,7 +2677,7 @@ jobs:
                   break;
                 case "Read":
                   const filePath = input.file_path || input.path || "";
-                  const relativePath = filePath.replace(/^\/[^\/]*\/[^\/]*\/[^\/]*\/[^\/]*\//, ""); 
+                  const relativePath = filePath.replace(/^\/[^\/]*\/[^\/]*\/[^\/]*\/[^\/]*\//, "");
                   summary = `Read <code>${relativePath}</code>`;
                   break;
                 case "Write":
@@ -2755,7 +2755,7 @@ jobs:
                 for (const line of lines) {
                   const trimmedLine = line.trim();
                   if (trimmedLine === "") {
-                    continue; 
+                    continue;
                   }
                   if (trimmedLine.startsWith("[{")) {
                     try {
@@ -3187,11 +3187,11 @@ jobs:
             function validateErrors(logContent, patterns) {
               const lines = logContent.split("\n");
               let hasErrors = false;
-              const MAX_ITERATIONS_PER_LINE = 10000; 
-              const ITERATION_WARNING_THRESHOLD = 1000; 
-              const MAX_TOTAL_ERRORS = 100; 
-              const MAX_LINE_LENGTH = 10000; 
-              const TOP_SLOW_PATTERNS_COUNT = 5; 
+              const MAX_ITERATIONS_PER_LINE = 10000;
+              const ITERATION_WARNING_THRESHOLD = 1000;
+              const MAX_TOTAL_ERRORS = 100;
+              const MAX_LINE_LENGTH = 10000;
+              const TOP_SLOW_PATTERNS_COUNT = 5;
               core.info(`Starting error validation with ${patterns.length} patterns and ${lines.length} lines`);
               const validationStartTime = Date.now();
               let totalMatches = 0;
@@ -3228,7 +3228,7 @@ jobs:
                     if (regex.lastIndex === lastIndex) {
                       core.error(`Infinite loop detected at line ${lineIndex + 1}! Pattern: ${pattern.pattern}, lastIndex stuck at ${lastIndex}`);
                       core.error(`Line content (truncated): ${truncateString(line, 200)}`);
-                      break; 
+                      break;
                     }
                     lastIndex = regex.lastIndex;
                     if (iterationCount === ITERATION_WARNING_THRESHOLD) {
@@ -3241,7 +3241,7 @@ jobs:
                       core.error(`Maximum iteration limit (${MAX_ITERATIONS_PER_LINE}) exceeded at line ${lineIndex + 1}! Pattern: ${pattern.pattern}`);
                       core.error(`Line content (truncated): ${truncateString(line, 200)}`);
                       core.error(`This likely indicates a problematic regex pattern. Skipping remaining matches on this line.`);
-                      break; 
+                      break;
                     }
                     const level = extractLevel(match, pattern);
                     const message = extractMessage(match, pattern, line);
@@ -3422,7 +3422,7 @@ jobs:
                 const files = fs.readdirSync(sourceMemoryPath, { withFileTypes: true });
                 for (const file of files) {
                   if (!file.isFile()) {
-                    continue; 
+                    continue;
                   }
                   const fileName = file.name;
                   const sourceFilePath = path.join(sourceMemoryPath, fileName);
