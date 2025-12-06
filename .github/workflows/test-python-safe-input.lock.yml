@@ -2354,15 +2354,33 @@ jobs:
             async function startHttpServer(configPath, options = {}) {
               const port = options.port || 3000;
               const stateless = options.stateless || false;
-              const { server, config, logger } = createMCPServer(configPath, { logDir: options.logDir });
-              logger.debug(`Starting HTTP server on port ${port}`);
+              logger.debug = (msg) => {
+                const timestamp = new Date().toISOString();
+                process.stderr.write(`[${timestamp}] [safe-inputs-startup] ${msg}\n`);
+              };
+              logger.debug(`=== Starting Safe Inputs MCP HTTP Server ===`);
+              logger.debug(`Configuration file: ${configPath}`);
+              logger.debug(`Port: ${port}`);
               logger.debug(`Mode: ${stateless ? "stateless" : "stateful"}`);
+              logger.debug(`Environment: NODE_VERSION=${process.version}, PLATFORM=${process.platform}`);
+              try {
+                const { server, config, logger: mcpLogger } = createMCPServer(configPath, { logDir: options.logDir });
+                Object.assign(logger, mcpLogger);
+                logger.debug(`MCP server created successfully`);
+                logger.debug(`Server name: ${config.serverName || "safeinputs"}`);
+                logger.debug(`Server version: ${config.version || "1.0.0"}`);
+                logger.debug(`Tools configured: ${config.tools.length}`);
+                logger.debug(`Creating HTTP transport...`);
               const transport = new StreamableHTTPServerTransport({
                 sessionIdGenerator: stateless ? undefined : () => randomUUID(),
                 enableJsonResponse: true,
                 enableDnsRebindingProtection: false, 
               });
+              logger.debug(`HTTP transport created`);
+              logger.debug(`Connecting server to transport...`);
               await server.connect(transport);
+              logger.debug(`Server connected to transport successfully`);
+              logger.debug(`Creating HTTP server...`);
               const httpServer = http.createServer(async (req, res) => {
                 res.setHeader("Access-Control-Allow-Origin", "*");
                 res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
@@ -2420,12 +2438,25 @@ jobs:
                   }
                 }
               });
+              logger.debug(`Attempting to bind to port ${port}...`);
               httpServer.listen(port, () => {
+                logger.debug(`=== Safe Inputs MCP HTTP Server Started Successfully ===`);
                 logger.debug(`HTTP server listening on http://localhost:${port}`);
                 logger.debug(`MCP endpoint: POST http://localhost:${port}/`);
                 logger.debug(`Server name: ${config.serverName || "safeinputs"}`);
                 logger.debug(`Server version: ${config.version || "1.0.0"}`);
                 logger.debug(`Tools available: ${config.tools.length}`);
+                logger.debug(`Server is ready to accept requests`);
+              });
+              httpServer.on("error", (error) => {
+                if (error.code === "EADDRINUSE") {
+                  logger.debugError(`ERROR: Port ${port} is already in use. `, error);
+                } else if (error.code === "EACCES") {
+                  logger.debugError(`ERROR: Permission denied to bind to port ${port}. `, error);
+                } else {
+                  logger.debugError(`ERROR: Failed to start HTTP server: `, error);
+                }
+                process.exit(1);
               });
               process.on("SIGINT", () => {
                 logger.debug("Received SIGINT, shutting down...");
@@ -2442,6 +2473,26 @@ jobs:
                 });
               });
               return httpServer;
+              } catch (error) {
+                const errorLogger = {
+                  debug: (msg) => {
+                    const timestamp = new Date().toISOString();
+                    process.stderr.write(`[${timestamp}] [safe-inputs-startup-error] ${msg}\n`);
+                  },
+                };
+                errorLogger.debug(`=== FATAL ERROR: Failed to start Safe Inputs MCP HTTP Server ===`);
+                errorLogger.debug(`Error type: ${error.constructor.name}`);
+                errorLogger.debug(`Error message: ${error.message}`);
+                if (error.stack) {
+                  errorLogger.debug(`Stack trace:\n${error.stack}`);
+                }
+                if (error.code) {
+                  errorLogger.debug(`Error code: ${error.code}`);
+                }
+                errorLogger.debug(`Configuration file: ${configPath}`);
+                errorLogger.debug(`Port: ${port}`);
+                throw error;
+              }
             }
             if (require.main === module) {
               const args = process.argv.slice(2);
@@ -2655,28 +2706,69 @@ jobs:
           
           
           # Install MCP SDK package
+          echo "Installing @modelcontextprotocol/sdk..."
           cd /tmp/gh-aw/safe-inputs
-          if ! npm install --no-save @modelcontextprotocol/sdk@1.24.0; then
+          if ! npm install --no-save @modelcontextprotocol/sdk@1.24.0 2>&1; then
             echo "ERROR: Failed to install @modelcontextprotocol/sdk@1.24.0"
+            echo "npm install failed with exit code $?"
             exit 1
           fi
+          echo "Successfully installed @modelcontextprotocol/sdk@1.24.0"
+          
+          # Verify required files exist
+          echo "Verifying safe-inputs setup..."
+          if [ ! -f mcp-server.cjs ]; then
+            echo "ERROR: mcp-server.cjs not found in /tmp/gh-aw/safe-inputs"
+            ls -la /tmp/gh-aw/safe-inputs/
+            exit 1
+          fi
+          if [ ! -f tools.json ]; then
+            echo "ERROR: tools.json not found in /tmp/gh-aw/safe-inputs"
+            ls -la /tmp/gh-aw/safe-inputs/
+            exit 1
+          fi
+          echo "Configuration files verified"
+          
+          # Log environment configuration
+          echo "Server configuration:"
+          echo "  Port: $GH_AW_SAFE_INPUTS_PORT"
+          echo "  API Key: ${GH_AW_SAFE_INPUTS_API_KEY:0:8}..."
+          echo "  Working directory: $(pwd)"
           
           # Start the HTTP server in the background
+          echo "Starting safe-inputs MCP HTTP server..."
           node mcp-server.cjs > /tmp/gh-aw/safe-inputs/logs/server.log 2>&1 &
           SERVER_PID=$!
           echo "Started safe-inputs MCP server with PID $SERVER_PID"
           
           # Wait for server to be ready (max 10 seconds)
+          echo "Waiting for server to become ready..."
           for i in {1..10}; do
-            if curl -s -f -H "Authorization: Bearer $GH_AW_SAFE_INPUTS_API_KEY" http://localhost:$GH_AW_SAFE_INPUTS_PORT/ > /dev/null 2>&1; then
-              echo "Safe Inputs MCP server is ready"
-              break
-            fi
-            if [ $i -eq 10 ]; then
-              echo "ERROR: Safe Inputs MCP server failed to start"
+            # Check if process is still running
+            if ! kill -0 $SERVER_PID 2>/dev/null; then
+              echo "ERROR: Server process $SERVER_PID has died"
+              echo "Server log contents:"
               cat /tmp/gh-aw/safe-inputs/logs/server.log
               exit 1
             fi
+            
+            # Check if server is responding
+            if curl -s -f -H "Authorization: Bearer $GH_AW_SAFE_INPUTS_API_KEY" http://localhost:$GH_AW_SAFE_INPUTS_PORT/ > /dev/null 2>&1; then
+              echo "Safe Inputs MCP server is ready (attempt $i/10)"
+              break
+            fi
+            
+            if [ $i -eq 10 ]; then
+              echo "ERROR: Safe Inputs MCP server failed to start after 10 seconds"
+              echo "Process status: $(ps aux | grep '[m]cp-server.cjs' || echo 'not running')"
+              echo "Server log contents:"
+              cat /tmp/gh-aw/safe-inputs/logs/server.log
+              echo "Checking port availability:"
+              netstat -tuln | grep $GH_AW_SAFE_INPUTS_PORT || echo "Port $GH_AW_SAFE_INPUTS_PORT not listening"
+              exit 1
+            fi
+            
+            echo "Waiting for server... (attempt $i/10)"
             sleep 1
           done
           

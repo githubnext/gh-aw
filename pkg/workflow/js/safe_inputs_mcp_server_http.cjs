@@ -127,23 +127,45 @@ async function startHttpServer(configPath, options = {}) {
   const port = options.port || 3000;
   const stateless = options.stateless || false;
 
-  // Create the MCP server
-  const { server, config, logger } = createMCPServer(configPath, { logDir: options.logDir });
+  logger.debug = (msg) => {
+    const timestamp = new Date().toISOString();
+    process.stderr.write(`[${timestamp}] [safe-inputs-startup] ${msg}\n`);
+  };
 
-  logger.debug(`Starting HTTP server on port ${port}`);
+  logger.debug(`=== Starting Safe Inputs MCP HTTP Server ===`);
+  logger.debug(`Configuration file: ${configPath}`);
+  logger.debug(`Port: ${port}`);
   logger.debug(`Mode: ${stateless ? "stateless" : "stateful"}`);
+  logger.debug(`Environment: NODE_VERSION=${process.version}, PLATFORM=${process.platform}`);
 
+  // Create the MCP server
+  try {
+    const { server, config, logger: mcpLogger } = createMCPServer(configPath, { logDir: options.logDir });
+    
+    // Use the MCP logger for subsequent messages
+    Object.assign(logger, mcpLogger);
+    
+    logger.debug(`MCP server created successfully`);
+    logger.debug(`Server name: ${config.serverName || "safeinputs"}`);
+    logger.debug(`Server version: ${config.version || "1.0.0"}`);
+    logger.debug(`Tools configured: ${config.tools.length}`);
+
+    logger.debug(`Creating HTTP transport...`);
   // Create the HTTP transport
   const transport = new StreamableHTTPServerTransport({
     sessionIdGenerator: stateless ? undefined : () => randomUUID(),
     enableJsonResponse: true,
     enableDnsRebindingProtection: false, // Disable for local development
   });
+  logger.debug(`HTTP transport created`);
 
   // Connect server to transport
+  logger.debug(`Connecting server to transport...`);
   await server.connect(transport);
+  logger.debug(`Server connected to transport successfully`);
 
   // Create HTTP server
+  logger.debug(`Creating HTTP server...`);
   const httpServer = http.createServer(async (req, res) => {
     // Set CORS headers for development
     res.setHeader("Access-Control-Allow-Origin", "*");
@@ -212,12 +234,27 @@ async function startHttpServer(configPath, options = {}) {
   });
 
   // Start listening
+  logger.debug(`Attempting to bind to port ${port}...`);
   httpServer.listen(port, () => {
+    logger.debug(`=== Safe Inputs MCP HTTP Server Started Successfully ===`);
     logger.debug(`HTTP server listening on http://localhost:${port}`);
     logger.debug(`MCP endpoint: POST http://localhost:${port}/`);
     logger.debug(`Server name: ${config.serverName || "safeinputs"}`);
     logger.debug(`Server version: ${config.version || "1.0.0"}`);
     logger.debug(`Tools available: ${config.tools.length}`);
+    logger.debug(`Server is ready to accept requests`);
+  });
+
+  // Handle bind errors
+  httpServer.on("error", (error) => {
+    if (error.code === "EADDRINUSE") {
+      logger.debugError(`ERROR: Port ${port} is already in use. `, error);
+    } else if (error.code === "EACCES") {
+      logger.debugError(`ERROR: Permission denied to bind to port ${port}. `, error);
+    } else {
+      logger.debugError(`ERROR: Failed to start HTTP server: `, error);
+    }
+    process.exit(1);
   });
 
   // Handle shutdown gracefully
@@ -238,6 +275,29 @@ async function startHttpServer(configPath, options = {}) {
   });
 
   return httpServer;
+  } catch (error) {
+    // Log detailed error information for startup failures
+    const errorLogger = {
+      debug: (msg) => {
+        const timestamp = new Date().toISOString();
+        process.stderr.write(`[${timestamp}] [safe-inputs-startup-error] ${msg}\n`);
+      },
+    };
+    errorLogger.debug(`=== FATAL ERROR: Failed to start Safe Inputs MCP HTTP Server ===`);
+    errorLogger.debug(`Error type: ${error.constructor.name}`);
+    errorLogger.debug(`Error message: ${error.message}`);
+    if (error.stack) {
+      errorLogger.debug(`Stack trace:\n${error.stack}`);
+    }
+    if (error.code) {
+      errorLogger.debug(`Error code: ${error.code}`);
+    }
+    errorLogger.debug(`Configuration file: ${configPath}`);
+    errorLogger.debug(`Port: ${port}`);
+    
+    // Re-throw the error to be caught by the caller
+    throw error;
+  }
 }
 
 // If run directly, start the HTTP server with command-line arguments
