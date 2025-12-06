@@ -24,6 +24,12 @@ function matchesPattern(model, pattern) {
 
 function selectModel(requestedModels, availableModels) {
   for (const pattern of requestedModels) {
+    // Special case: "*" means "any model" or "don't specify a model"
+    // Return empty string to indicate no model should be specified
+    if (pattern === "*") {
+      return { selectedModel: "", matchedPattern: pattern };
+    }
+
     for (const model of availableModels) {
       if (matchesPattern(model, pattern)) {
         return { selectedModel: model, matchedPattern: pattern };
@@ -182,6 +188,30 @@ describe("select_model", () => {
       expect(result).toEqual({
         selectedModel: "claude-3-sonnet-20240229",
         matchedPattern: "claude-3-sonnet-*",
+      });
+    });
+
+    it("should handle * wildcard to mean any model", () => {
+      const requested = ["gpt-*-mini", "*"];
+      const available = ["gpt-4", "gpt-4o", "claude-3-sonnet"];
+      const result = selectModel(requested, available);
+
+      // Should match * pattern and return empty string
+      expect(result).toEqual({
+        selectedModel: "",
+        matchedPattern: "*",
+      });
+    });
+
+    it("should try * wildcard as fallback", () => {
+      const requested = ["nonexistent-model", "*"];
+      const available = ["gpt-4", "claude-3-sonnet"];
+      const result = selectModel(requested, available);
+
+      // Should fall back to * pattern
+      expect(result).toEqual({
+        selectedModel: "",
+        matchedPattern: "*",
       });
     });
   });

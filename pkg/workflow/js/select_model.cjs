@@ -61,6 +61,13 @@ function selectModel(requestedModels, availableModels) {
   for (const pattern of requestedModels) {
     core.info(`Checking pattern: ${pattern}`);
 
+    // Special case: "*" means "any model" or "don't specify a model"
+    // Return empty string to indicate no model should be specified
+    if (pattern === "*") {
+      core.info(`✅ Pattern "*" matches any model - not specifying a model`);
+      return { selectedModel: "", matchedPattern: pattern };
+    }
+
     // Find first available model that matches this pattern
     for (const model of availableModels) {
       if (matchesPattern(model, pattern)) {

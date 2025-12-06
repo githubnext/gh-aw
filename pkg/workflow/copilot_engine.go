@@ -52,31 +52,10 @@ func (e *CopilotEngine) GetModelSelectionStep(workflowData *WorkflowData) GitHub
 
 	copilotLog.Printf("Generating model selection step for %d models", len(workflowData.EngineConfig.Models))
 
-	// Known models supported by GitHub Copilot CLI
-	// This list should be updated as new models are added
-	availableModels := []string{
-		"gpt-4",
-		"gpt-4-turbo",
-		"gpt-4o",
-		"gpt-4o-mini",
-		"gpt-5",
-		"gpt-5-mini",
-		"o1",
-		"o1-mini",
-		"o3",
-		"o3-mini",
-	}
-
 	// Convert models array to JSON
 	requestedModelsJSON, err := json.Marshal(workflowData.EngineConfig.Models)
 	if err != nil {
 		copilotLog.Printf("Error marshaling requested models: %v", err)
-		return nil
-	}
-
-	availableModelsJSON, err := json.Marshal(availableModels)
-	if err != nil {
-		copilotLog.Printf("Error marshaling available models: %v", err)
 		return nil
 	}
 
@@ -88,16 +67,107 @@ func (e *CopilotEngine) GetModelSelectionStep(workflowData *WorkflowData) GitHub
 		fmt.Sprintf("        uses: %s", GetActionPin("actions/github-script")),
 		"        with:",
 		"          script: |",
+		"            const { execSync } = require('child_process');",
+		"            const core = require('@actions/core');",
+		"            ",
+		"            // Get available models by calling copilot CLI",
+		"            let availableModels = [];",
+		"            try {",
+		"              const output = execSync('copilot --list-models', { encoding: 'utf8' });",
+		"              availableModels = output.trim().split('\\n').filter(m => m.trim());",
+		"              core.info(`Available models from CLI: ${JSON.stringify(availableModels)}`);",
+		"            } catch (error) {",
+		"              core.warning(`Failed to get models from CLI: ${error.message}`);",
+		"              // Fallback to known models if CLI call fails",
+		"              availableModels = ['gpt-4', 'gpt-4-turbo', 'gpt-4o', 'gpt-4o-mini', 'gpt-5', 'gpt-5-mini', 'o1', 'o1-mini', 'o3', 'o3-mini'];",
+		"            }",
+		"            ",
+		"            const requestedModels = " + string(requestedModelsJSON) + ";",
+		"            ",
 	}
 
-	// Inline the JavaScript code with proper indentation
+	// Inline the select_model logic - extract only the helper functions, not requires or run()
 	scriptLines := FormatJavaScriptForYAML(script)
-	stepLines = append(stepLines, scriptLines...)
+	scriptLinesFiltered := []string{}
+	inRunFunction := false
+	
+	for _, line := range scriptLines {
+		trimmed := strings.TrimSpace(line)
+		
+		// Skip require statements - we already have them
+		if strings.Contains(trimmed, "require(") {
+			continue
+		}
+		
+		// Skip the run() function definition and call
+		if strings.HasPrefix(trimmed, "async function run()") || strings.HasPrefix(trimmed, "function run()") {
+			inRunFunction = true
+			continue
+		}
+		
+		if inRunFunction {
+			// Look for the closing brace of run function
+			if trimmed == "}" && !strings.Contains(line, "    }") {
+				inRunFunction = false
+			}
+			continue
+		}
+		
+		if strings.HasPrefix(trimmed, "run();") {
+			continue
+		}
+		
+		// Include helper functions
+		scriptLinesFiltered = append(scriptLinesFiltered, line)
+	}
+	stepLines = append(stepLines, scriptLinesFiltered...)
 
-	// Add inputs section
-	stepLines = append(stepLines, "          inputs:",
-		fmt.Sprintf("            requested_models: '%s'", string(requestedModelsJSON)),
-		fmt.Sprintf("            available_models: '%s'", string(availableModelsJSON)))
+	// Add the actual selection logic
+	stepLines = append(stepLines,
+		"            ",
+		"            // Select the model",
+		"            const result = selectModel(requestedModels, availableModels);",
+		"            ",
+		"            if (!result) {",
+		"              core.setFailed(",
+		"                `No compatible model found.\\n` +",
+		"                `Requested: ${requestedModels.join(', ')}\\n` +",
+		"                `Available: ${availableModels.join(', ')}\\n` +",
+		"                `\\n` +",
+		"                `Please update your workflow configuration to use a supported model.\\n` +",
+		"                `You can specify multiple models in priority order using an array:\\n` +",
+		"                `  model: [\"preferred-model\", \"fallback-model\", \"gpt-*\"]`",
+		"              );",
+		"              return;",
+		"            }",
+		"            ",
+		"            // Set outputs",
+		"            core.setOutput('selected_model', result.selectedModel);",
+		"            core.setOutput('matched_pattern', result.matchedPattern);",
+		"            ",
+		"            // Log success",
+		"            if (result.selectedModel === '') {",
+		"              core.info(`✅ Pattern '*' matched - not specifying a model`);",
+		"            } else {",
+		"              core.info(`✅ Selected model: ${result.selectedModel}`);",
+		"              if (result.matchedPattern !== result.selectedModel) {",
+		"                core.info(`   (matched pattern: ${result.matchedPattern})`);",
+		"              }",
+		"            }",
+		"            ",
+		"            // Write to step summary",
+		"            await core.summary",
+		"              .addHeading('Model Selection', 2)",
+		"              .addTable([",
+		"                [",
+		"                  { data: 'Field', header: true },",
+		"                  { data: 'Value', header: true },",
+		"                ],",
+		"                ['Selected Model', result.selectedModel || '(none - any model)'],",
+		"                ['Matched Pattern', result.matchedPattern],",
+		"                ['Requested Models', requestedModels.map(m => `\\`${m}\\``).join(', ')],",
+		"              ])",
+		"              .write();")
 
 	return GitHubActionStep(stepLines)
 }
@@ -266,8 +336,14 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 	if workflowData.EngineConfig != nil {
 		if len(workflowData.EngineConfig.Models) > 1 {
 			// Multiple models specified - use the selected model from the selection step
-			copilotLog.Print("Using model from selection step: ${{ steps.select_model.outputs.selected_model }}")
-			copilotArgs = append(copilotArgs, "--model", "${{ steps.select_model.outputs.selected_model }}")
+			// Only add --model if selected_model is not empty (empty means "*" wildcard was matched)
+			copilotLog.Print("Using model from selection step if not empty: ${{ steps.select_model.outputs.selected_model }}")
+			// Use shell conditional to only add --model if selected_model is not empty
+			// This will be evaluated at runtime in the workflow
+			modelArg := "${{ steps.select_model.outputs.selected_model && format('--model {0}', steps.select_model.outputs.selected_model) || '' }}"
+			if modelArg != "" {
+				copilotArgs = append(copilotArgs, modelArg)
+			}
 		} else if workflowData.EngineConfig.Model != "" {
 			// Single model specified directly
 			copilotLog.Printf("Using custom model: %s", workflowData.EngineConfig.Model)

@@ -270,8 +270,23 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
           script: |
-            const core = require("@actions/core");
-
+            const { execSync } = require('child_process');
+            const core = require('@actions/core');
+            
+            // Get available models by calling copilot CLI
+            let availableModels = [];
+            try {
+              const output = execSync('copilot --list-models', { encoding: 'utf8' });
+              availableModels = output.trim().split('\n').filter(m => m.trim());
+              core.info(`Available models from CLI: ${JSON.stringify(availableModels)}`);
+            } catch (error) {
+              core.warning(`Failed to get models from CLI: ${error.message}`);
+              // Fallback to known models if CLI call fails
+              availableModels = ['gpt-4', 'gpt-4-turbo', 'gpt-4o', 'gpt-4o-mini', 'gpt-5', 'gpt-5-mini', 'o1', 'o1-mini', 'o3', 'o3-mini'];
+            }
+            
+            const requestedModels = ["gpt-5","gpt-4o","gpt-*-mini"];
+            
             function patternToRegex(pattern) {
 
               const escaped = pattern.replace(/[.+?^${}()|[\]\\]/g, "\\$&");
@@ -306,6 +321,14 @@ jobs:
 
                 core.info(`Checking pattern: ${pattern}`);
 
+                if (pattern === "*") {
+
+                  core.info(`✅ Pattern "*" matches any model - not specifying a model`);
+
+                  return { selectedModel: "", matchedPattern: pattern };
+
+                }
+
                 for (const model of availableModels) {
 
                   if (matchesPattern(model, pattern)) {
@@ -326,141 +349,50 @@ jobs:
 
             }
 
-            async function run() {
-
-              try {
-
-                const requestedModelsInput = core.getInput("requested_models", {
-
-                  required: true,
-
-                });
-
-                const availableModelsInput = core.getInput("available_models", {
-
-                  required: true,
-
-                });
-
-                let requestedModels;
-
-                let availableModels;
-
-                try {
-
-                  requestedModels = JSON.parse(requestedModelsInput);
-
-                } catch (error) {
-
-                  core.setFailed(`Failed to parse requested_models as JSON: ${error.message}`);
-
-                  return;
-
-                }
-
-                try {
-
-                  availableModels = JSON.parse(availableModelsInput);
-
-                } catch (error) {
-
-                  core.setFailed(`Failed to parse available_models as JSON: ${error.message}`);
-
-                  return;
-
-                }
-
-                if (!Array.isArray(requestedModels) || requestedModels.length === 0) {
-
-                  core.setFailed("requested_models must be a non-empty array of strings");
-
-                  return;
-
-                }
-
-                if (!Array.isArray(availableModels) || availableModels.length === 0) {
-
-                  core.setFailed("available_models must be a non-empty array of strings");
-
-                  return;
-
-                }
-
-                const result = selectModel(requestedModels, availableModels);
-
-                if (!result) {
-
-                  core.setFailed(
-
-                    `No compatible model found.\n` +
-
-                      `Requested: ${requestedModels.join(", ")}\n` +
-
-                      `Available: ${availableModels.join(", ")}\n` +
-
-                      `\n` +
-
-                      `Please update your workflow configuration to use a supported model.\n` +
-
-                      `You can specify multiple models in priority order using an array:\n` +
-
-                      `  model: ["preferred-model", "fallback-model", "gpt-*"]`
-
-                  );
-
-                  return;
-
-                }
-
-                core.setOutput("selected_model", result.selectedModel);
-
-                core.setOutput("matched_pattern", result.matchedPattern);
-
-                core.info(`✅ Selected model: ${result.selectedModel}`);
-
-                if (result.matchedPattern !== result.selectedModel) {
-
-                  core.info(`   (matched pattern: ${result.matchedPattern})`);
-
-                }
-
-                await core.summary
-
-                  .addHeading("Model Selection", 2)
-
-                  .addTable([
-
-                    [
-
-                      { data: "Field", header: true },
-
-                      { data: "Value", header: true },
-
-                    ],
-
-                    ["Selected Model", result.selectedModel],
-
-                    ["Matched Pattern", result.matchedPattern],
-
-                    ["Requested Models", requestedModels.map(m => `\`${m}\``).join(", ")],
-
-                  ])
-
-                  .write();
-
-              } catch (error) {
-
-                core.setFailed(`Model selection failed: ${error.message}`);
-
-              }
-
+            
+            // Select the model
+            const result = selectModel(requestedModels, availableModels);
+            
+            if (!result) {
+              core.setFailed(
+                `No compatible model found.\n` +
+                `Requested: ${requestedModels.join(', ')}\n` +
+                `Available: ${availableModels.join(', ')}\n` +
+                `\n` +
+                `Please update your workflow configuration to use a supported model.\n` +
+                `You can specify multiple models in priority order using an array:\n` +
+                `  model: ["preferred-model", "fallback-model", "gpt-*"]`
+              );
+              return;
             }
-
-            run();
-
-          inputs:
-            requested_models: '["gpt-5","gpt-4o","gpt-*-mini"]'
-            available_models: '["gpt-4","gpt-4-turbo","gpt-4o","gpt-4o-mini","gpt-5","gpt-5-mini","o1","o1-mini","o3","o3-mini"]'
+            
+            // Set outputs
+            core.setOutput('selected_model', result.selectedModel);
+            core.setOutput('matched_pattern', result.matchedPattern);
+            
+            // Log success
+            if (result.selectedModel === '') {
+              core.info(`✅ Pattern '*' matched - not specifying a model`);
+            } else {
+              core.info(`✅ Selected model: ${result.selectedModel}`);
+              if (result.matchedPattern !== result.selectedModel) {
+                core.info(`   (matched pattern: ${result.matchedPattern})`);
+              }
+            }
+            
+            // Write to step summary
+            await core.summary
+              .addHeading('Model Selection', 2)
+              .addTable([
+                [
+                  { data: 'Field', header: true },
+                  { data: 'Value', header: true },
+                ],
+                ['Selected Model', result.selectedModel || '(none - any model)'],
+                ['Matched Pattern', result.matchedPattern],
+                ['Requested Models', requestedModels.map(m => `\`${m}\``).join(', ')],
+              ])
+              .write();
       - name: Setup Node.js
         uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6
         with:
@@ -802,7 +734,7 @@ jobs:
         run: |
           set -o pipefail
           sudo -E awf --env-all --container-workdir "${GITHUB_WORKSPACE}" --mount /tmp:/tmp:rw --mount "${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:rw" --mount /usr/bin/date:/usr/bin/date:ro --mount /usr/bin/gh:/usr/bin/gh:ro --mount /usr/bin/yq:/usr/bin/yq:ro --allow-domains api.business.githubcopilot.com,api.enterprise.githubcopilot.com,api.github.com,github.com,raw.githubusercontent.com,registry.npmjs.org --log-level info --proxy-logs-dir /tmp/gh-aw/sandbox/firewall/logs \
-            -- npx -y @github/copilot@0.0.367 --add-dir /tmp/gh-aw/ --log-level all --log-dir /tmp/gh-aw/sandbox/agent/logs/ --add-dir "${GITHUB_WORKSPACE}" --disable-builtin-mcps --model '${{ steps.select_model.outputs.selected_model }}' --allow-tool github --prompt "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)" \
+            -- npx -y @github/copilot@0.0.367 --add-dir /tmp/gh-aw/ --log-level all --log-dir /tmp/gh-aw/sandbox/agent/logs/ --add-dir "${GITHUB_WORKSPACE}" --disable-builtin-mcps '${{ steps.select_model.outputs.selected_model && format('\''--model {0}'\'', steps.select_model.outputs.selected_model) || '\'''\'' }}' --allow-tool github --prompt "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)" \
             2>&1 | tee /tmp/gh-aw/agent-stdio.log
         env:
           COPILOT_AGENT_RUNNER_TYPE: STANDALONE

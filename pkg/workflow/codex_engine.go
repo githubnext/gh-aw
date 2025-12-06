@@ -1,7 +1,6 @@
 package workflow
 
 import (
-	"encoding/json"
 	"fmt"
 	"regexp"
 	"sort"
@@ -46,70 +45,11 @@ func NewCodexEngine() *CodexEngine {
 	}
 }
 
-// GetModelSelectionStep returns a step that validates and selects a compatible model
-// Returns nil if no model selection is needed (single model or no models specified)
-func (e *CodexEngine) GetModelSelectionStep(workflowData *WorkflowData) GitHubActionStep {
-	// Only generate model selection step if multiple models are specified
-	if workflowData.EngineConfig == nil || len(workflowData.EngineConfig.Models) <= 1 {
-		return nil
-	}
-
-	codexEngineLog.Printf("Generating model selection step for %d models", len(workflowData.EngineConfig.Models))
-
-	// Known models supported by Codex (OpenAI models)
-	// This list should be updated as new models are added
-	availableModels := []string{
-		"gpt-4",
-		"gpt-4-turbo",
-		"gpt-4o",
-		"gpt-4o-mini",
-		"gpt-3.5-turbo",
-		"o1",
-		"o1-mini",
-		"o3",
-		"o3-mini",
-	}
-
-	// Convert models array to JSON
-	requestedModelsJSON, err := json.Marshal(workflowData.EngineConfig.Models)
-	if err != nil {
-		codexEngineLog.Printf("Error marshaling requested models: %v", err)
-		return nil
-	}
-
-	availableModelsJSON, err := json.Marshal(availableModels)
-	if err != nil {
-		codexEngineLog.Printf("Error marshaling available models: %v", err)
-		return nil
-	}
-
-	script := getSelectModelScript()
-
-	stepLines := []string{
-		"      - name: Select Compatible Model",
-		"        id: select_model",
-		fmt.Sprintf("        uses: %s", GetActionPin("actions/github-script")),
-		"        with:",
-		"          script: |",
-	}
-
-	// Inline the JavaScript code with proper indentation
-	scriptLines := FormatJavaScriptForYAML(script)
-	stepLines = append(stepLines, scriptLines...)
-
-	// Add inputs section
-	stepLines = append(stepLines, "          inputs:",
-		fmt.Sprintf("            requested_models: '%s'", string(requestedModelsJSON)),
-		fmt.Sprintf("            available_models: '%s'", string(availableModelsJSON)))
-
-	return GitHubActionStep(stepLines)
-}
-
 func (e *CodexEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHubActionStep {
 	codexEngineLog.Printf("Generating installation steps for Codex engine: workflow=%s", workflowData.Name)
 
 	// Use base installation steps (secret validation + npm install)
-	steps := GetBaseInstallationSteps(EngineInstallConfig{
+	return GetBaseInstallationSteps(EngineInstallConfig{
 		Secrets:    []string{"CODEX_API_KEY", "OPENAI_API_KEY"},
 		DocsURL:    "https://githubnext.github.io/gh-aw/reference/engines/#openai-codex",
 		NpmPackage: "@openai/codex",
@@ -117,16 +57,6 @@ func (e *CodexEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHubA
 		Name:       "Codex",
 		CliName:    "codex",
 	}, workflowData)
-
-	// Inject model selection step after secret validation (at index 1)
-	modelSelectionStep := e.GetModelSelectionStep(workflowData)
-	if modelSelectionStep != nil {
-		codexEngineLog.Print("Adding model selection step after secret validation")
-		// Insert at index 1 (after secret validation which is at index 0)
-		steps = append(steps[:1], append([]GitHubActionStep{modelSelectionStep}, steps[1:]...)...)
-	}
-
-	return steps
 }
 
 // GetDeclaredOutputFiles returns the output files that Codex may produce
@@ -142,12 +72,8 @@ func (e *CodexEngine) GetDeclaredOutputFiles() []string {
 // GetExecutionSteps returns the GitHub Actions steps for executing Codex
 func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile string) []GitHubActionStep {
 	model := ""
-	if workflowData.EngineConfig != nil {
-		if len(workflowData.EngineConfig.Models) > 1 {
-			model = "${{ steps.select_model.outputs.selected_model }}"
-		} else if workflowData.EngineConfig.Model != "" {
-			model = workflowData.EngineConfig.Model
-		}
+	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Model != "" {
+		model = workflowData.EngineConfig.Model
 	}
 	codexEngineLog.Printf("Building Codex execution steps: workflow=%s, model=%s, has_agent_file=%v",
 		workflowData.Name, model, workflowData.AgentFile != "")
@@ -157,8 +83,8 @@ func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 
 	// Build model parameter only if specified in engineConfig
 	var modelParam string
-	if model != "" {
-		modelParam = fmt.Sprintf("-c model=%s ", model)
+	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Model != "" {
+		modelParam = fmt.Sprintf("-c model=%s ", workflowData.EngineConfig.Model)
 	}
 
 	// Build search parameter if web-search tool is present
