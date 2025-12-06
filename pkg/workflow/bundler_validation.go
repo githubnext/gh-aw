@@ -130,3 +130,111 @@ func validateNoModuleReferences(bundledContent string) error {
 	bundlerValidationLog.Print("Validation successful: no module references found")
 	return nil
 }
+
+// ValidateEmbeddedResourceRequires checks that all embedded JavaScript files in the sources map
+// have their local require() dependencies available in the sources map. This prevents bundling failures
+// when a file requires a local module that isn't embedded.
+//
+// This validation helps catch missing files in GetJavaScriptSources() at build/test time rather than
+// at runtime when bundling fails.
+//
+// Parameters:
+//   - sources: map of file paths to their content (from GetJavaScriptSources())
+//
+// Returns an error if any embedded file has local requires that reference files not in sources
+func ValidateEmbeddedResourceRequires(sources map[string]string) error {
+	bundlerValidationLog.Printf("Validating embedded resources: checking %d files for missing local requires", len(sources))
+
+	// Regular expression to match local require statements
+	// Matches: require('./...') or require("../...")
+	localRequireRegex := regexp.MustCompile(`require\(['"](\.\.?/[^'"]+)['"]\)`)
+
+	var missingDeps []string
+
+	// Check each file in sources
+	for filePath, content := range sources {
+		bundlerValidationLog.Printf("Checking file: %s (%d bytes)", filePath, len(content))
+
+		// Find all local requires in this file
+		matches := localRequireRegex.FindAllStringSubmatch(content, -1)
+		if len(matches) == 0 {
+			continue
+		}
+
+		bundlerValidationLog.Printf("Found %d require statements in %s", len(matches), filePath)
+
+		// Check each require
+		for _, match := range matches {
+			if len(match) <= 1 {
+				continue
+			}
+
+			requirePath := match[1]
+
+			// Resolve the required file path relative to the current file
+			currentDir := ""
+			if strings.Contains(filePath, "/") {
+				parts := strings.Split(filePath, "/")
+				currentDir = strings.Join(parts[:len(parts)-1], "/")
+			}
+
+			var resolvedPath string
+			if currentDir == "" {
+				resolvedPath = requirePath
+			} else {
+				resolvedPath = currentDir + "/" + requirePath
+			}
+
+			// Ensure .cjs extension
+			if !strings.HasSuffix(resolvedPath, ".cjs") && !strings.HasSuffix(resolvedPath, ".js") {
+				resolvedPath += ".cjs"
+			}
+
+			// Normalize the path (remove ./ and ../)
+			resolvedPath = normalizePath(resolvedPath)
+
+			// Check if the required file exists in sources
+			if _, ok := sources[resolvedPath]; !ok {
+				missingDep := fmt.Sprintf("%s requires '%s' (resolved to '%s') but it's not in sources map",
+					filePath, requirePath, resolvedPath)
+				missingDeps = append(missingDeps, missingDep)
+				bundlerValidationLog.Printf("Missing dependency: %s", missingDep)
+			} else {
+				bundlerValidationLog.Printf("Dependency OK: %s -> %s", filePath, resolvedPath)
+			}
+		}
+	}
+
+	if len(missingDeps) > 0 {
+		bundlerValidationLog.Printf("Validation failed: found %d missing dependencies", len(missingDeps))
+		return fmt.Errorf("embedded JavaScript files have %d missing local require(s):\n  %s\n\nThese files must be added to GetJavaScriptSources() in js.go",
+			len(missingDeps), strings.Join(missingDeps, "\n  "))
+	}
+
+	bundlerValidationLog.Printf("Validation successful: all local requires are available in sources")
+	return nil
+}
+
+// normalizePath normalizes a file path by resolving . and .. components
+func normalizePath(path string) string {
+	// Split path into parts
+	parts := strings.Split(path, "/")
+	var result []string
+
+	for _, part := range parts {
+		if part == "" || part == "." {
+			// Skip empty parts and current directory references
+			continue
+		}
+		if part == ".." {
+			// Go up one directory
+			if len(result) > 0 {
+				result = result[:len(result)-1]
+			}
+		} else {
+			result = append(result, part)
+		}
+	}
+
+	return strings.Join(result, "/")
+}
