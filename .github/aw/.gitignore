@@ -1,0 +1,3 @@
+# Ignore scripts and logs directories
+scripts/
+logs/

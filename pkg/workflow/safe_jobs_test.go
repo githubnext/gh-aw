@@ -200,7 +200,7 @@ func TestBuildSafeJobs(t *testing.T) {
 		},
 	}
 
-	_, err := c.buildSafeJobs(workflowData, false)
+	_, err := c.buildSafeJobs(workflowData, "/tmp/test-workflow.md", false)
 	if err != nil {
 		t.Fatalf("Unexpected error building safe jobs: %v", err)
 	}
@@ -266,7 +266,7 @@ func TestBuildSafeJobsWithNoConfiguration(t *testing.T) {
 		Name: "test-workflow",
 	}
 
-	_, err := c.buildSafeJobs(workflowData, false)
+	_, err := c.buildSafeJobs(workflowData, "/tmp/test-workflow.md", false)
 	if err != nil {
 		t.Errorf("Expected no error with no safe-jobs, got %v", err)
 	}
@@ -276,7 +276,7 @@ func TestBuildSafeJobsWithNoConfiguration(t *testing.T) {
 		Jobs: map[string]*SafeJobConfig{},
 	}
 
-	_, err = c.buildSafeJobs(workflowData, false)
+	_, err = c.buildSafeJobs(workflowData, "/tmp/test-workflow.md", false)
 	if err != nil {
 		t.Errorf("Expected no error with empty safe-jobs, got %v", err)
 	}
@@ -315,7 +315,7 @@ func TestBuildSafeJobsWithoutCustomIfCondition(t *testing.T) {
 		},
 	}
 
-	_, err := c.buildSafeJobs(workflowData, false)
+	_, err := c.buildSafeJobs(workflowData, "/tmp/test-workflow.md", false)
 	if err != nil {
 		t.Fatalf("Unexpected error building safe jobs: %v", err)
 	}
@@ -358,7 +358,7 @@ func TestBuildSafeJobsWithDashesInName(t *testing.T) {
 		},
 	}
 
-	_, err := c.buildSafeJobs(workflowData, false)
+	_, err := c.buildSafeJobs(workflowData, "/tmp/test-workflow.md", false)
 	if err != nil {
 		t.Fatalf("Unexpected error building safe jobs: %v", err)
 	}
