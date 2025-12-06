@@ -50,6 +50,9 @@ const DefaultPlaywrightMCPVersion Version = "0.0.49"
 // DefaultPlaywrightBrowserVersion is the default version of the Playwright browser Docker image
 const DefaultPlaywrightBrowserVersion Version = "v1.57.0"
 
+// DefaultMCPSDKVersion is the default version of the @modelcontextprotocol/sdk package
+const DefaultMCPSDKVersion Version = "1.24.0"
+
 // DefaultBunVersion is the default version of Bun for runtime setup
 const DefaultBunVersion Version = "1.1"
 
