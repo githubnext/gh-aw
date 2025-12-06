@@ -546,4 +546,63 @@ describe("update_runner.cjs", () => {
       expect(result).toBe("- Issue #789: [Fix [bug] with <special> chars](https://github.com/owner/repo/issues/789)\n");
     });
   });
+
+  describe("Default operation behavior", () => {
+    it("should default to append when operation is not specified in renderStagedItem", () => {
+      const render = helpers.createRenderStagedItem({
+        entityName: "Pull Request",
+        numberField: "pull_request_number",
+        targetLabel: "Target PR:",
+        currentTargetText: "Current pull request",
+        includeOperation: true,
+      });
+
+      const result = render({ body: "New body content" }, 0);
+
+      // Should show "append" as the default operation
+      expect(result).toContain("**Operation:** append");
+    });
+
+    it("should respect explicit append operation in renderStagedItem", () => {
+      const render = helpers.createRenderStagedItem({
+        entityName: "Pull Request",
+        numberField: "pull_request_number",
+        targetLabel: "Target PR:",
+        currentTargetText: "Current pull request",
+        includeOperation: true,
+      });
+
+      const result = render({ body: "New body content", operation: "append" }, 0);
+
+      expect(result).toContain("**Operation:** append");
+    });
+
+    it("should respect explicit prepend operation in renderStagedItem", () => {
+      const render = helpers.createRenderStagedItem({
+        entityName: "Pull Request",
+        numberField: "pull_request_number",
+        targetLabel: "Target PR:",
+        currentTargetText: "Current pull request",
+        includeOperation: true,
+      });
+
+      const result = render({ body: "New body content", operation: "prepend" }, 0);
+
+      expect(result).toContain("**Operation:** prepend");
+    });
+
+    it("should respect explicit replace operation in renderStagedItem", () => {
+      const render = helpers.createRenderStagedItem({
+        entityName: "Pull Request",
+        numberField: "pull_request_number",
+        targetLabel: "Target PR:",
+        currentTargetText: "Current pull request",
+        includeOperation: true,
+      });
+
+      const result = render({ body: "New body content", operation: "replace" }, 0);
+
+      expect(result).toContain("**Operation:** replace");
+    });
+  });
 });
