@@ -206,5 +206,20 @@ describe("mcp_server.cjs", () => {
 
       expect(response).toBeNull();
     });
+
+    it("should handle request with id: null as a valid request", async () => {
+      const server = new MCPServer({ name: "test-server", version: "1.0.0" });
+
+      const response = await server.handleRequest({
+        jsonrpc: "2.0",
+        id: null,
+        method: "ping",
+      });
+
+      expect(response).not.toBeNull();
+      expect(response.jsonrpc).toBe("2.0");
+      expect(response.id).toBeNull();
+      expect(response.result).toEqual({});
+    });
   });
 });
