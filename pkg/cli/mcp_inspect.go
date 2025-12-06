@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/githubnext/gh-aw/pkg/console"
@@ -20,6 +21,12 @@ import (
 )
 
 var mcpInspectLog = logger.New("cli:mcp_inspect")
+
+const (
+	// Port range for safe-inputs HTTP server
+	safeInputsStartPort = 3000
+	safeInputsPortRange = 10
+)
 
 // filterOutSafeOutputs removes safe-outputs MCP servers from the list since they are
 // handled by the workflow compiler and not actual MCP servers that can be inspected
@@ -378,7 +385,7 @@ func startSafeInputsHTTPServer(dir string, port int, verbose bool) (*exec.Cmd, e
 
 // findAvailablePort finds an available port starting from the given port
 func findAvailablePort(startPort int, verbose bool) int {
-	for port := startPort; port < startPort+10; port++ {
+	for port := startPort; port < startPort+safeInputsPortRange; port++ {
 		listener, err := net.Listen("tcp", fmt.Sprintf("localhost:%d", port))
 		if err == nil {
 			listener.Close()
@@ -489,7 +496,7 @@ func spawnSafeInputsInspector(workflowFile string, verbose bool) error {
 	}
 
 	// Find an available port for the HTTP server
-	port := findAvailablePort(3000, verbose)
+	port := findAvailablePort(safeInputsStartPort, verbose)
 	if port == 0 {
 		return fmt.Errorf("failed to find an available port for the HTTP server")
 	}
@@ -511,9 +518,13 @@ func spawnSafeInputsInspector(workflowFile string, verbose bool) error {
 			}
 			// Wait a moment for graceful shutdown
 			time.Sleep(500 * time.Millisecond)
-			// Force kill if still running
-			if err := serverCmd.Process.Kill(); err != nil && verbose {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to kill server process: %v", err)))
+			// Check if process is still running before force kill
+			// On Unix, sending signal 0 checks if process exists without killing it
+			if err := serverCmd.Process.Signal(os.Signal(syscall.Signal(0))); err == nil {
+				// Process still running, force kill
+				if err := serverCmd.Process.Kill(); err != nil && verbose {
+					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to kill server process: %v", err)))
+				}
 			}
 		}
 	}()
