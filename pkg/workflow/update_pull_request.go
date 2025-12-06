@@ -2,7 +2,11 @@ package workflow
 
 import (
 	"fmt"
+
+	"github.com/githubnext/gh-aw/pkg/logger"
 )
+
+var updatePullRequestLog = logger.New("workflow:update_pull_request")
 
 // UpdatePullRequestsConfig holds configuration for updating GitHub pull requests from agent output
 type UpdatePullRequestsConfig struct {
@@ -14,6 +18,7 @@ type UpdatePullRequestsConfig struct {
 
 // buildCreateOutputUpdatePullRequestJob creates the update_pull_request job
 func (c *Compiler) buildCreateOutputUpdatePullRequestJob(data *WorkflowData, mainJobName string) (*Job, error) {
+	updatePullRequestLog.Printf("Building update pull request job: workflow=%s, mainJob=%s", data.Name, mainJobName)
 	if data.SafeOutputs == nil || data.SafeOutputs.UpdatePullRequests == nil {
 		return nil, fmt.Errorf("safe-outputs.update-pull-request configuration is required")
 	}
@@ -67,6 +72,7 @@ func (c *Compiler) buildCreateOutputUpdatePullRequestJob(data *WorkflowData, mai
 
 // parseUpdatePullRequestsConfig handles update-pull-request configuration
 func (c *Compiler) parseUpdatePullRequestsConfig(outputMap map[string]any) *UpdatePullRequestsConfig {
+	updatePullRequestLog.Print("Parsing update pull request configuration")
 	if configData, exists := outputMap["update-pull-request"]; exists {
 		updatePullRequestsConfig := &UpdatePullRequestsConfig{}
 

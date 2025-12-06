@@ -11,7 +11,11 @@ package workflow
 
 import (
 	_ "embed"
+
+	"github.com/githubnext/gh-aw/pkg/logger"
 )
+
+var scriptsLog = logger.New("workflow:scripts")
 
 // Source scripts that may contain local requires
 //
@@ -113,6 +117,7 @@ var parseCopilotLogScriptSource string
 // init registers all scripts with the DefaultScriptRegistry.
 // Scripts are bundled lazily on first access via the getter functions.
 func init() {
+	scriptsLog.Print("Registering JavaScript scripts with DefaultScriptRegistry")
 	// Safe output scripts
 	DefaultScriptRegistry.Register("collect_jsonl_output", collectJSONLOutputScriptSource)
 	DefaultScriptRegistry.Register("compute_text", computeTextScriptSource)
@@ -147,6 +152,8 @@ func init() {
 	DefaultScriptRegistry.Register("parse_claude_log", parseClaudeLogScriptSource)
 	DefaultScriptRegistry.Register("parse_codex_log", parseCodexLogScriptSource)
 	DefaultScriptRegistry.Register("parse_copilot_log", parseCopilotLogScriptSource)
+
+	scriptsLog.Print("Completed script registration")
 }
 
 // Getter functions for bundled scripts.

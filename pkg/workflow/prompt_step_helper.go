@@ -3,7 +3,11 @@ package workflow
 import (
 	"fmt"
 	"strings"
+
+	"github.com/githubnext/gh-aw/pkg/logger"
 )
+
+var promptStepHelperLog = logger.New("workflow:prompt_step_helper")
 
 // generateStaticPromptStep is a helper function that generates a workflow step
 // for appending static prompt text to the prompt file. It encapsulates the common
@@ -23,6 +27,7 @@ import (
 //	    xpiaPromptText,
 //	    data.SafetyPrompt)
 func generateStaticPromptStep(yaml *strings.Builder, description string, promptText string, shouldInclude bool) {
+	promptStepHelperLog.Printf("Generating static prompt step: description=%s, shouldInclude=%t", description, shouldInclude)
 	// Skip generation if guard condition is false
 	if !shouldInclude {
 		return
@@ -51,6 +56,7 @@ func generateStaticPromptStep(yaml *strings.Builder, description string, promptT
 //   - promptText: The prompt text content that may contain ${{ ... }} expressions
 //   - shouldInclude: Whether to generate the step (false means skip generation entirely)
 func generateStaticPromptStepWithExpressions(yaml *strings.Builder, description string, promptText string, shouldInclude bool) {
+	promptStepHelperLog.Printf("Generating static prompt step with expressions: description=%s, shouldInclude=%t", description, shouldInclude)
 	// Skip generation if guard condition is false
 	if !shouldInclude {
 		return
