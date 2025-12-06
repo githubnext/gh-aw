@@ -1102,7 +1102,7 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 	outputs := map[string]string{
 		"model": "${{ steps.generate_aw_info.outputs.model }}",
 	}
-	
+
 	// Add safe-output specific outputs if the workflow uses the safe-outputs feature
 	if data.SafeOutputs != nil {
 		outputs["output"] = "${{ steps.collect_output.outputs.output }}"

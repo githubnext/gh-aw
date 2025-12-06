@@ -84,6 +84,9 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	// Add print flag for non-interactive mode
 	claudeArgs = append(claudeArgs, "--print")
 
+	// Disable slash commands for controlled execution
+	claudeArgs = append(claudeArgs, "--disable-slash-commands")
+
 	// Add model if specified
 	// Model can be configured via:
 	// 1. Explicit model in workflow config (highest priority)

@@ -924,7 +924,7 @@ func (c *Compiler) generateCreateAwInfo(yaml *strings.Builder, data *WorkflowDat
 		// Model from environment variable - resolve at runtime
 		// Use agent-specific env var since aw_info is generated in agent job
 		var modelEnvVar string
-		
+
 		switch engineID {
 		case "copilot":
 			modelEnvVar = constants.EnvVarModelAgentCopilot
@@ -933,7 +933,7 @@ func (c *Compiler) generateCreateAwInfo(yaml *strings.Builder, data *WorkflowDat
 		case "codex":
 			modelEnvVar = constants.EnvVarModelAgentCodex
 		}
-		
+
 		// Generate JavaScript to resolve model from environment variable at runtime
 		fmt.Fprintf(yaml, "              model: process.env.%s || \"\",\n", modelEnvVar)
 	}
