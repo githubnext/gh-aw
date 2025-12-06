@@ -1609,6 +1609,7 @@ jobs:
       - name: Create gh-aw temp directory
         run: |
           mkdir -p /tmp/gh-aw/agent
+          mkdir -p /tmp/gh-aw/sandbox/agent/logs
           echo "Created /tmp/gh-aw/agent directory for agentic workflow temporary files"
       - name: Set up Go
         uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5

@@ -1629,6 +1629,7 @@ jobs:
       - name: Create gh-aw temp directory
         run: |
           mkdir -p /tmp/gh-aw/agent
+          mkdir -p /tmp/gh-aw/sandbox/agent/logs
           echo "Created /tmp/gh-aw/agent directory for agentic workflow temporary files"
       - name: Checkout repository
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd

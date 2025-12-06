@@ -481,6 +481,7 @@ jobs:
       - name: Create gh-aw temp directory
         run: |
           mkdir -p /tmp/gh-aw/agent
+          mkdir -p /tmp/gh-aw/sandbox/agent/logs
           echo "Created /tmp/gh-aw/agent directory for agentic workflow temporary files"
       - name: Download super-linter log
         uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6

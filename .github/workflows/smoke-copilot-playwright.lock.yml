@@ -1908,6 +1908,7 @@ jobs:
       - name: Create gh-aw temp directory
         run: |
           mkdir -p /tmp/gh-aw/agent
+          mkdir -p /tmp/gh-aw/sandbox/agent/logs
           echo "Created /tmp/gh-aw/agent directory for agentic workflow temporary files"
       - name: Pre-flight Playwright MCP Test
         run: "echo \"🧪 Testing Playwright MCP Docker container startup...\"\n\n# Pull the Playwright MCP Docker image\necho \"Pulling Playwright MCP Docker image...\"\ndocker pull mcr.microsoft.com/playwright/mcp\n\n# Test container startup with a simple healthcheck\necho \"Testing container startup...\"\ntimeout 30 docker run --rm -i mcr.microsoft.com/playwright/mcp --help || {\n  echo \"❌ Playwright MCP container failed to start\"\n  exit 1\n}\n\necho \"✅ Playwright MCP container pre-flight check passed\"\n"
