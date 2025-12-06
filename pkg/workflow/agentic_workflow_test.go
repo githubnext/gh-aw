@@ -145,7 +145,7 @@ func TestAgenticWorkflowsInstallStepIncludesGHToken(t *testing.T) {
 	}
 
 	// Verify GH_TOKEN environment variable is set with the default token expression
-	if !strings.Contains(result, "GH_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}") {
+	if !strings.Contains(result, "GH_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}") {
 		t.Errorf("Expected GH_TOKEN environment variable to be set with default token expression in install step, got:\n%s", result)
 	}
 
@@ -190,7 +190,7 @@ func TestAgenticWorkflowsInstallStepWithCustomToken(t *testing.T) {
 	}
 
 	// Verify it doesn't use the default token when custom is provided
-	if strings.Contains(result, "GH_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}") {
+	if strings.Contains(result, "GH_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}") {
 		t.Error("Should not use default token when custom token is specified")
 	}
 }

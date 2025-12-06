@@ -61,7 +61,7 @@ func TestBuildCopilotParticipantSteps_IssueAssignee(t *testing.T) {
 	}
 
 	// Check that default token is used
-	if !strings.Contains(stepsContent, "GH_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}") {
+	if !strings.Contains(stepsContent, "GH_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}") {
 		t.Error("Expected default GitHub token")
 	}
 }

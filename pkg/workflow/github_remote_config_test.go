@@ -17,7 +17,7 @@ func TestRenderGitHubMCPRemoteConfig(t *testing.T) {
 			options: GitHubMCPRemoteOptions{
 				ReadOnly:           false,
 				Toolsets:           "default",
-				AuthorizationValue: "Bearer ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}",
+				AuthorizationValue: "Bearer ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}",
 				IncludeToolsField:  false,
 				AllowedTools:       nil,
 				IncludeEnvSection:  false,
@@ -26,7 +26,7 @@ func TestRenderGitHubMCPRemoteConfig(t *testing.T) {
 				`"type": "http"`,
 				`"url": "https://api.githubcopilot.com/mcp/"`,
 				`"headers": {`,
-				`"Authorization": "Bearer ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}"`,
+				`"Authorization": "Bearer ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}"`,
 				`"X-MCP-Toolsets": "default"`,
 			},
 			notExpected: []string{
@@ -138,7 +138,7 @@ func TestRenderGitHubMCPRemoteConfig(t *testing.T) {
 			options: GitHubMCPRemoteOptions{
 				ReadOnly:           false,
 				Toolsets:           "",
-				AuthorizationValue: "Bearer ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}",
+				AuthorizationValue: "Bearer ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}",
 				IncludeToolsField:  false,
 				AllowedTools:       nil,
 				IncludeEnvSection:  false,
@@ -147,7 +147,7 @@ func TestRenderGitHubMCPRemoteConfig(t *testing.T) {
 				`"type": "http"`,
 				`"url": "https://api.githubcopilot.com/mcp/"`,
 				`"headers": {`,
-				`"Authorization": "Bearer ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}"`,
+				`"Authorization": "Bearer ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}"`,
 			},
 			notExpected: []string{
 				`"X-MCP-Toolsets"`,

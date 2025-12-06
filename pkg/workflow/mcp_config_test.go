@@ -94,7 +94,7 @@ This is a test workflow for MCP configuration.
 					t.Errorf("Expected Docker image '%s' but didn't find it in:\n%s", tt.expectedDockerImage, lockContent)
 				}
 				// Security fix: Verify env block contains GitHub expression and JSON contains shell variable
-				if !strings.Contains(lockContent, `GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}`) {
+				if !strings.Contains(lockContent, `GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}`) {
 					t.Errorf("Expected GITHUB_MCP_SERVER_TOKEN in env block but didn't find it in:\n%s", lockContent)
 				}
 				if !strings.Contains(lockContent, `"GITHUB_PERSONAL_ACCESS_TOKEN": "$GITHUB_MCP_SERVER_TOKEN"`) {
