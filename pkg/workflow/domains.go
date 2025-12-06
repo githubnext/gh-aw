@@ -19,6 +19,7 @@ var ecosystemDomains map[string][]string
 
 // CopilotDefaultDomains are the default domains required for GitHub Copilot CLI authentication and operation
 var CopilotDefaultDomains = []string{
+	"api.business.githubcopilot.com",
 	"api.enterprise.githubcopilot.com",
 	"api.github.com",
 	"github.com",
