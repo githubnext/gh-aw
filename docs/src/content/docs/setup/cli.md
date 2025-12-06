@@ -105,7 +105,7 @@ Creates a markdown workflow file in `.github/workflows/` with template frontmatt
 
 #### `compile`
 
-Compile markdown workflows to GitHub Actions YAML. Remote imports are automatically cached in `.github/aw/imports/` for offline compilation.
+Compile Markdown workflows to GitHub Actions YAML. Remote imports are automatically cached in `.github/aw/imports/` for offline compilation.
 
 ```bash wrap
 gh aw compile                              # Compile all workflows
