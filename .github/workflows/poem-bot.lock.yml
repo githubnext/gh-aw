@@ -216,6 +216,7 @@
 #   detection --> add_comment
 #   detection --> add_labels
 #   detection --> close_pull_request
+#   detection --> conclusion
 #   detection --> create_agent_task
 #   detection --> create_discussion
 #   detection --> create_issue
@@ -801,17 +802,7 @@ jobs:
                 return null;
               }
               try {
-                const rawMessages = JSON.parse(messagesEnv);
-                return {
-                  footer: rawMessages.footer,
-                  footerInstall: rawMessages.footerInstall,
-                  stagedTitle: rawMessages.stagedTitle,
-                  stagedDescription: rawMessages.stagedDescription,
-                  runStarted: rawMessages.runStarted,
-                  runSuccess: rawMessages.runSuccess,
-                  runFailure: rawMessages.runFailure,
-                  closeOlderDiscussion: rawMessages.closeOlderDiscussion,
-                };
+                return JSON.parse(messagesEnv);
               } catch (error) {
                 core.warning(`Failed to parse GH_AW_SAFE_OUTPUT_MESSAGES: ${error instanceof Error ? error.message : String(error)}`);
                 return null;
@@ -849,6 +840,14 @@ jobs:
               const templateContext = toSnakeCase(ctx);
               const defaultMessage = "💀 Blimey! [{workflow_name}]({run_url}) {status} and walked the plank! No treasure today, matey! ☠️";
               return messages?.runFailure ? renderTemplate(messages.runFailure, templateContext) : renderTemplate(defaultMessage, templateContext);
+            }
+            function getDetectionFailureMessage(ctx) {
+              const messages = getMessages();
+              const templateContext = toSnakeCase(ctx);
+              const defaultMessage = "⚠️ Security scanning failed for [{workflow_name}]({run_url}). Review the logs for details.";
+              return messages?.detectionFailure
+                ? renderTemplate(messages.detectionFailure, templateContext)
+                : renderTemplate(defaultMessage, templateContext);
             }
             async function main() {
               const reaction = process.env.GH_AW_REACTION || "eyes";
@@ -1290,17 +1289,7 @@ jobs:
                 return null;
               }
               try {
-                const rawMessages = JSON.parse(messagesEnv);
-                return {
-                  footer: rawMessages.footer,
-                  footerInstall: rawMessages.footerInstall,
-                  stagedTitle: rawMessages.stagedTitle,
-                  stagedDescription: rawMessages.stagedDescription,
-                  runStarted: rawMessages.runStarted,
-                  runSuccess: rawMessages.runSuccess,
-                  runFailure: rawMessages.runFailure,
-                  closeOlderDiscussion: rawMessages.closeOlderDiscussion,
-                };
+                return JSON.parse(messagesEnv);
               } catch (error) {
                 core.warning(`Failed to parse GH_AW_SAFE_OUTPUT_MESSAGES: ${error instanceof Error ? error.message : String(error)}`);
                 return null;
@@ -7706,6 +7695,7 @@ jobs:
       - create_issue
       - create_pr_review_comment
       - create_pull_request
+      - detection
       - link_sub_issue
       - push_to_pull_request_branch
       - update_issue
@@ -7957,6 +7947,7 @@ jobs:
           GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           GH_AW_WORKFLOW_NAME: "Poem Bot - A Creative Agentic Workflow"
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
+          GH_AW_DETECTION_CONCLUSION: ${{ needs.detection.result }}
           GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🪶 *Verses penned by [{workflow_name}]({run_url})*\",\"runStarted\":\"🎭 Hear ye! The muse stirs! [{workflow_name}]({run_url}) takes quill in hand for this {event_type}...\",\"runSuccess\":\"🪶 The poem is writ! [{workflow_name}]({run_url}) has composed verses most fair. Applause! 👏\",\"runFailure\":\"🎭 Alas! [{workflow_name}]({run_url}) {status}. The muse has fled, leaving verses unsung...\"}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
@@ -8010,17 +8001,7 @@ jobs:
                 return null;
               }
               try {
-                const rawMessages = JSON.parse(messagesEnv);
-                return {
-                  footer: rawMessages.footer,
-                  footerInstall: rawMessages.footerInstall,
-                  stagedTitle: rawMessages.stagedTitle,
-                  stagedDescription: rawMessages.stagedDescription,
-                  runStarted: rawMessages.runStarted,
-                  runSuccess: rawMessages.runSuccess,
-                  runFailure: rawMessages.runFailure,
-                  closeOlderDiscussion: rawMessages.closeOlderDiscussion,
-                };
+                return JSON.parse(messagesEnv);
               } catch (error) {
                 core.warning(`Failed to parse GH_AW_SAFE_OUTPUT_MESSAGES: ${error instanceof Error ? error.message : String(error)}`);
                 return null;
@@ -8059,17 +8040,29 @@ jobs:
               const defaultMessage = "💀 Blimey! [{workflow_name}]({run_url}) {status} and walked the plank! No treasure today, matey! ☠️";
               return messages?.runFailure ? renderTemplate(messages.runFailure, templateContext) : renderTemplate(defaultMessage, templateContext);
             }
+            function getDetectionFailureMessage(ctx) {
+              const messages = getMessages();
+              const templateContext = toSnakeCase(ctx);
+              const defaultMessage = "⚠️ Security scanning failed for [{workflow_name}]({run_url}). Review the logs for details.";
+              return messages?.detectionFailure
+                ? renderTemplate(messages.detectionFailure, templateContext)
+                : renderTemplate(defaultMessage, templateContext);
+            }
             async function main() {
               const commentId = process.env.GH_AW_COMMENT_ID;
               const commentRepo = process.env.GH_AW_COMMENT_REPO;
               const runUrl = process.env.GH_AW_RUN_URL;
               const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
               const agentConclusion = process.env.GH_AW_AGENT_CONCLUSION || "failure";
+              const detectionConclusion = process.env.GH_AW_DETECTION_CONCLUSION;
               core.info(`Comment ID: ${commentId}`);
               core.info(`Comment Repo: ${commentRepo}`);
               core.info(`Run URL: ${runUrl}`);
               core.info(`Workflow Name: ${workflowName}`);
               core.info(`Agent Conclusion: ${agentConclusion}`);
+              if (detectionConclusion) {
+                core.info(`Detection Conclusion: ${detectionConclusion}`);
+              }
               let noopMessages = [];
               const agentOutputResult = loadAgentOutput();
               if (agentOutputResult.success && agentOutputResult.data) {
@@ -8104,7 +8097,12 @@ jobs:
               const repoName = commentRepo ? commentRepo.split("/")[1] : context.repo.repo;
               core.info(`Updating comment in ${repoOwner}/${repoName}`);
               let message;
-              if (agentConclusion === "success") {
+              if (detectionConclusion && detectionConclusion === "failure") {
+                message = getDetectionFailureMessage({
+                  workflowName,
+                  runUrl,
+                });
+              } else if (agentConclusion === "success") {
                 message = getRunSuccessMessage({
                   workflowName,
                   runUrl,
@@ -8463,17 +8461,7 @@ jobs:
                 return null;
               }
               try {
-                const rawMessages = JSON.parse(messagesEnv);
-                return {
-                  footer: rawMessages.footer,
-                  footerInstall: rawMessages.footerInstall,
-                  stagedTitle: rawMessages.stagedTitle,
-                  stagedDescription: rawMessages.stagedDescription,
-                  runStarted: rawMessages.runStarted,
-                  runSuccess: rawMessages.runSuccess,
-                  runFailure: rawMessages.runFailure,
-                  closeOlderDiscussion: rawMessages.closeOlderDiscussion,
-                };
+                return JSON.parse(messagesEnv);
               } catch (error) {
                 core.warning(`Failed to parse GH_AW_SAFE_OUTPUT_MESSAGES: ${error instanceof Error ? error.message : String(error)}`);
                 return null;

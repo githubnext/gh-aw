@@ -278,6 +278,7 @@ type SafeOutputMessagesConfig struct {
 	RunStarted        string `yaml:"run-started,omitempty" json:"runStarted,omitempty"`               // Custom workflow activation message template
 	RunSuccess        string `yaml:"run-success,omitempty" json:"runSuccess,omitempty"`               // Custom workflow success message template
 	RunFailure        string `yaml:"run-failure,omitempty" json:"runFailure,omitempty"`               // Custom workflow failure message template
+	DetectionFailure  string `yaml:"detection-failure,omitempty" json:"detectionFailure,omitempty"`   // Custom detection job failure message template
 }
 
 // SecretMaskingConfig holds configuration for secret redaction behavior

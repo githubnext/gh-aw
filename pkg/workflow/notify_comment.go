@@ -125,6 +125,12 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 	}
 	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_AGENT_CONCLUSION: ${{ needs.%s.result }}\n", mainJobName))
 
+	// Pass detection conclusion if threat detection is enabled
+	if data.SafeOutputs.ThreatDetection != nil {
+		customEnvVars = append(customEnvVars, "          GH_AW_DETECTION_CONCLUSION: ${{ needs.detection.result }}\n")
+		notifyCommentLog.Print("Added detection conclusion environment variable to conclusion job")
+	}
+
 	// Pass custom messages config if present
 	if data.SafeOutputs != nil && data.SafeOutputs.Messages != nil {
 		messagesJSON, err := serializeMessagesConfig(data.SafeOutputs.Messages)
@@ -203,6 +209,12 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 	// Build dependencies - this job depends on all safe output jobs to ensure it runs last
 	needs := []string{mainJobName, constants.ActivationJobName}
 	needs = append(needs, safeOutputJobNames...)
+
+	// Add detection job to dependencies if threat detection is enabled
+	if data.SafeOutputs.ThreatDetection != nil {
+		needs = append(needs, "detection")
+		notifyCommentLog.Print("Added detection job to conclusion dependencies")
+	}
 
 	notifyCommentLog.Printf("Job built successfully: dependencies_count=%d", len(needs))
 

@@ -84,8 +84,35 @@ function getRunFailureMessage(ctx) {
   return messages?.runFailure ? renderTemplate(messages.runFailure, templateContext) : renderTemplate(defaultMessage, templateContext);
 }
 
+/**
+ * @typedef {Object} DetectionFailureContext
+ * @property {string} workflowName - Name of the workflow
+ * @property {string} runUrl - URL of the workflow run
+ */
+
+/**
+ * Get the detection-failure message, using custom template if configured.
+ * @param {DetectionFailureContext} ctx - Context for detection-failure message generation
+ * @returns {string} Detection-failure message
+ */
+function getDetectionFailureMessage(ctx) {
+  const messages = getMessages();
+
+  // Create context with both camelCase and snake_case keys
+  const templateContext = toSnakeCase(ctx);
+
+  // Default detection-failure template
+  const defaultMessage = "⚠️ Security scanning failed for [{workflow_name}]({run_url}). Review the logs for details.";
+
+  // Use custom message if configured
+  return messages?.detectionFailure
+    ? renderTemplate(messages.detectionFailure, templateContext)
+    : renderTemplate(defaultMessage, templateContext);
+}
+
 module.exports = {
   getRunStartedMessage,
   getRunSuccessMessage,
   getRunFailureMessage,
+  getDetectionFailureMessage,
 };

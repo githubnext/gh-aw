@@ -148,6 +148,7 @@
 #   assign_to_agent --> conclusion
 #   detection --> add_comment
 #   detection --> assign_to_agent
+#   detection --> conclusion
 #   pre_activation --> activation
 #   pre_activation --> search_issues
 #   search_issues --> activation
@@ -543,17 +544,7 @@ jobs:
                 return null;
               }
               try {
-                const rawMessages = JSON.parse(messagesEnv);
-                return {
-                  footer: rawMessages.footer,
-                  footerInstall: rawMessages.footerInstall,
-                  stagedTitle: rawMessages.stagedTitle,
-                  stagedDescription: rawMessages.stagedDescription,
-                  runStarted: rawMessages.runStarted,
-                  runSuccess: rawMessages.runSuccess,
-                  runFailure: rawMessages.runFailure,
-                  closeOlderDiscussion: rawMessages.closeOlderDiscussion,
-                };
+                return JSON.parse(messagesEnv);
               } catch (error) {
                 core.warning(`Failed to parse GH_AW_SAFE_OUTPUT_MESSAGES: ${error instanceof Error ? error.message : String(error)}`);
                 return null;
@@ -6368,6 +6359,7 @@ jobs:
       - add_comment
       - agent
       - assign_to_agent
+      - detection
     if: ((always()) && (needs.agent.result != 'skipped')) && (!(needs.add_comment.outputs.comment_id))
     runs-on: ubuntu-slim
     permissions:
@@ -6615,6 +6607,7 @@ jobs:
           GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           GH_AW_WORKFLOW_NAME: "Issue Monster"
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
+          GH_AW_DETECTION_CONCLUSION: ${{ needs.detection.result }}
           GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🍪 *Om nom nom by [{workflow_name}]({run_url})*\",\"runStarted\":\"🍪 ISSUE! ISSUE! [{workflow_name}]({run_url}) hungry for issues on this {event_type}! Om nom nom...\",\"runSuccess\":\"🍪 YUMMY! [{workflow_name}]({run_url}) ate the issues! That was DELICIOUS! Me want MORE! 😋\",\"runFailure\":\"🍪 Aww... [{workflow_name}]({run_url}) {status}. No cookie for monster today... 😢\"}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
@@ -6668,17 +6661,7 @@ jobs:
                 return null;
               }
               try {
-                const rawMessages = JSON.parse(messagesEnv);
-                return {
-                  footer: rawMessages.footer,
-                  footerInstall: rawMessages.footerInstall,
-                  stagedTitle: rawMessages.stagedTitle,
-                  stagedDescription: rawMessages.stagedDescription,
-                  runStarted: rawMessages.runStarted,
-                  runSuccess: rawMessages.runSuccess,
-                  runFailure: rawMessages.runFailure,
-                  closeOlderDiscussion: rawMessages.closeOlderDiscussion,
-                };
+                return JSON.parse(messagesEnv);
               } catch (error) {
                 core.warning(`Failed to parse GH_AW_SAFE_OUTPUT_MESSAGES: ${error instanceof Error ? error.message : String(error)}`);
                 return null;
@@ -6717,17 +6700,29 @@ jobs:
               const defaultMessage = "💀 Blimey! [{workflow_name}]({run_url}) {status} and walked the plank! No treasure today, matey! ☠️";
               return messages?.runFailure ? renderTemplate(messages.runFailure, templateContext) : renderTemplate(defaultMessage, templateContext);
             }
+            function getDetectionFailureMessage(ctx) {
+              const messages = getMessages();
+              const templateContext = toSnakeCase(ctx);
+              const defaultMessage = "⚠️ Security scanning failed for [{workflow_name}]({run_url}). Review the logs for details.";
+              return messages?.detectionFailure
+                ? renderTemplate(messages.detectionFailure, templateContext)
+                : renderTemplate(defaultMessage, templateContext);
+            }
             async function main() {
               const commentId = process.env.GH_AW_COMMENT_ID;
               const commentRepo = process.env.GH_AW_COMMENT_REPO;
               const runUrl = process.env.GH_AW_RUN_URL;
               const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
               const agentConclusion = process.env.GH_AW_AGENT_CONCLUSION || "failure";
+              const detectionConclusion = process.env.GH_AW_DETECTION_CONCLUSION;
               core.info(`Comment ID: ${commentId}`);
               core.info(`Comment Repo: ${commentRepo}`);
               core.info(`Run URL: ${runUrl}`);
               core.info(`Workflow Name: ${workflowName}`);
               core.info(`Agent Conclusion: ${agentConclusion}`);
+              if (detectionConclusion) {
+                core.info(`Detection Conclusion: ${detectionConclusion}`);
+              }
               let noopMessages = [];
               const agentOutputResult = loadAgentOutput();
               if (agentOutputResult.success && agentOutputResult.data) {
@@ -6762,7 +6757,12 @@ jobs:
               const repoName = commentRepo ? commentRepo.split("/")[1] : context.repo.repo;
               core.info(`Updating comment in ${repoOwner}/${repoName}`);
               let message;
-              if (agentConclusion === "success") {
+              if (detectionConclusion && detectionConclusion === "failure") {
+                message = getDetectionFailureMessage({
+                  workflowName,
+                  runUrl,
+                });
+              } else if (agentConclusion === "success") {
                 message = getRunSuccessMessage({
                   workflowName,
                   runUrl,
