@@ -2906,7 +2906,7 @@ jobs:
               async handleRequest(request) {
                 const { id, method, params } = request;
                 try {
-                  if (method && method.startsWith("notifications/")) {
+                  if (!("id" in request)) {
                     return null;
                   }
                   let result;
