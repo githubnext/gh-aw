@@ -2,6 +2,8 @@ package cli
 
 import (
 	"fmt"
+	"net"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -374,6 +376,45 @@ func startSafeInputsHTTPServer(dir string, port int, verbose bool) (*exec.Cmd, e
 	return cmd, nil
 }
 
+// findAvailablePort finds an available port starting from the given port
+func findAvailablePort(startPort int, verbose bool) int {
+	for port := startPort; port < startPort+10; port++ {
+		listener, err := net.Listen("tcp", fmt.Sprintf("localhost:%d", port))
+		if err == nil {
+			listener.Close()
+			if verbose {
+				mcpInspectLog.Printf("Found available port: %d", port)
+			}
+			return port
+		}
+	}
+	return 0
+}
+
+// waitForServerReady waits for the HTTP server to be ready by polling the endpoint
+func waitForServerReady(port int, timeout time.Duration, verbose bool) bool {
+	deadline := time.Now().Add(timeout)
+	client := &http.Client{
+		Timeout: 1 * time.Second,
+	}
+	url := fmt.Sprintf("http://localhost:%d/", port)
+
+	for time.Now().Before(deadline) {
+		resp, err := client.Get(url)
+		if err == nil {
+			resp.Body.Close()
+			if verbose {
+				mcpInspectLog.Printf("Server is ready on port %d", port)
+			}
+			return true
+		}
+		time.Sleep(200 * time.Millisecond)
+	}
+
+	mcpInspectLog.Printf("Server did not become ready within timeout")
+	return false
+}
+
 // spawnSafeInputsInspector generates safe-inputs MCP server files, starts the HTTP server,
 // and launches the inspector to inspect it
 func spawnSafeInputsInspector(workflowFile string, verbose bool) error {
@@ -447,22 +488,40 @@ func spawnSafeInputsInspector(workflowFile string, verbose bool) error {
 		return fmt.Errorf("failed to write safe-inputs files: %w", err)
 	}
 
+	// Find an available port for the HTTP server
+	port := findAvailablePort(3000, verbose)
+	if port == 0 {
+		return fmt.Errorf("failed to find an available port for the HTTP server")
+	}
+
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Using port %d for safe-inputs HTTP server", port)))
+	}
+
 	// Start the HTTP server
-	port := 3000
 	serverCmd, err := startSafeInputsHTTPServer(tmpDir, port, verbose)
 	if err != nil {
 		return fmt.Errorf("failed to start safe-inputs HTTP server: %w", err)
 	}
 	defer func() {
 		if serverCmd.Process != nil {
+			// Try graceful shutdown first
+			if err := serverCmd.Process.Signal(os.Interrupt); err != nil && verbose {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to send interrupt signal: %v", err)))
+			}
+			// Wait a moment for graceful shutdown
+			time.Sleep(500 * time.Millisecond)
+			// Force kill if still running
 			if err := serverCmd.Process.Kill(); err != nil && verbose {
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to kill server process: %v", err)))
 			}
 		}
 	}()
 
-	// Give the server a moment to start up
-	time.Sleep(2 * time.Second)
+	// Wait for the server to start up
+	if !waitForServerReady(port, 5*time.Second, verbose) {
+		return fmt.Errorf("safe-inputs HTTP server failed to start within timeout")
+	}
 
 	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Safe-inputs HTTP server started successfully"))
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Server running on: http://localhost:%d", port)))
@@ -721,7 +780,7 @@ Examples:
   gh aw mcp inspect weekly-research -v # Verbose output with detailed connection info
   gh aw mcp inspect weekly-research --inspector  # Launch @modelcontextprotocol/inspector
   gh aw mcp inspect weekly-research --check-secrets  # Check GitHub Actions secrets
-  gh aw mcp inspect weekly-research --safe-inputs --inspector  # Inspect safe-inputs MCP server
+  gh aw mcp inspect weekly-research --safe-inputs  # Inspect safe-inputs MCP server with inspector
 
 The command will:
 - Parse the workflow file to extract MCP server configurations
@@ -754,10 +813,16 @@ The command will:
 				return fmt.Errorf("--tool flag requires --server flag to be specified")
 			}
 
-			// Handle safe-inputs flag
+			// Validate that safe-inputs and inspector flags are mutually exclusive with other flags
 			if safeInputs {
 				if workflowFile == "" {
 					return fmt.Errorf("--safe-inputs flag requires a workflow file to be specified")
+				}
+				if spawnInspector {
+					return fmt.Errorf("--safe-inputs already includes inspector functionality; do not use --inspector flag with --safe-inputs")
+				}
+				if serverFilter != "" || toolFilter != "" {
+					return fmt.Errorf("--safe-inputs cannot be used with --server or --tool flags")
 				}
 				return spawnSafeInputsInspector(workflowFile, verbose)
 			}
