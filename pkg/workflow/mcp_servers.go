@@ -478,6 +478,9 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		yaml.WriteString("          SERVER_PID=$!\n")
 		yaml.WriteString("          echo \"Started safe-inputs MCP server with PID $SERVER_PID\"\n")
 		yaml.WriteString("          \n")
+		yaml.WriteString("          # Give server a moment to initialize or write any startup errors\n")
+		yaml.WriteString("          sleep 0.5\n")
+		yaml.WriteString("          \n")
 
 		yaml.WriteString("          # Wait for server to be ready (max 10 seconds)\n")
 		yaml.WriteString("          echo \"Waiting for server to become ready...\"\n")

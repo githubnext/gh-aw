@@ -3753,6 +3753,9 @@ jobs:
           SERVER_PID=$!
           echo "Started safe-inputs MCP server with PID $SERVER_PID"
           
+          # Give server a moment to initialize or write any startup errors
+          sleep 0.5
+          
           # Wait for server to be ready (max 10 seconds)
           echo "Waiting for server to become ready..."
           for i in {1..10}; do
