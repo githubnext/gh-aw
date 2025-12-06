@@ -40,54 +40,47 @@ jobs:
         with:
           script: |
             const { owner, repo } = context.repo;
-            const labels = ['task', 'issue monster', 'plan', 'dependencies'];
-            let allIssues = [];
             
-            for (const label of labels) {
-              try {
-                const query = `is:issue is:open label:"${label}" repo:${owner}/${repo}`;
-                core.info(`Searching: ${query}`);
-                const response = await github.rest.search.issuesAndPullRequests({
-                  q: query,
-                  per_page: 100,
-                  sort: 'created',
-                  order: 'desc'
-                });
-                core.info(`Found ${response.data.total_count} issues with label "${label}"`);
-                allIssues.push(...response.data.items);
-              } catch (error) {
-                core.warning(`Error searching for label "${label}": ${error.message}`);
+            try {
+              const query = `is:issue is:open repo:${owner}/${repo}`;
+              core.info(`Searching: ${query}`);
+              const response = await github.rest.search.issuesAndPullRequests({
+                q: query,
+                per_page: 100,
+                sort: 'created',
+                order: 'desc'
+              });
+              core.info(`Found ${response.data.total_count} issues`);
+              
+              const allIssues = response.data.items;
+              
+              // Sort by created date descending
+              allIssues.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+              
+              const issueList = allIssues.map(i => `#${i.number}: ${i.title}`).join('\n');
+              const issueNumbers = allIssues.map(i => i.number).join(',');
+              
+              core.info(`Total issues found: ${allIssues.length}`);
+              if (allIssues.length > 0) {
+                core.info(`Issues:\n${issueList}`);
               }
-            }
-            
-            // Deduplicate by issue number
-            const seen = new Set();
-            const uniqueIssues = allIssues.filter(issue => {
-              if (seen.has(issue.number)) return false;
-              seen.add(issue.number);
-              return true;
-            });
-            
-            // Sort by created date descending
-            uniqueIssues.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-            
-            const issueList = uniqueIssues.map(i => `#${i.number}: ${i.title}`).join('\n');
-            const issueNumbers = uniqueIssues.map(i => i.number).join(',');
-            
-            core.info(`Total unique issues found: ${uniqueIssues.length}`);
-            if (uniqueIssues.length > 0) {
-              core.info(`Issues:\n${issueList}`);
-            }
-            
-            core.setOutput('issue_count', uniqueIssues.length);
-            core.setOutput('issue_numbers', issueNumbers);
-            core.setOutput('issue_list', issueList);
-            
-            if (uniqueIssues.length === 0) {
-              core.info('🍽️ No issues available - the plate is empty!');
+              
+              core.setOutput('issue_count', allIssues.length);
+              core.setOutput('issue_numbers', issueNumbers);
+              core.setOutput('issue_list', issueList);
+              
+              if (allIssues.length === 0) {
+                core.info('🍽️ No issues available - the plate is empty!');
+                core.setOutput('has_issues', 'false');
+              } else {
+                core.setOutput('has_issues', 'true');
+              }
+            } catch (error) {
+              core.error(`Error searching for issues: ${error.message}`);
+              core.setOutput('issue_count', 0);
+              core.setOutput('issue_numbers', '');
+              core.setOutput('issue_list', '');
               core.setOutput('has_issues', 'false');
-            } else {
-              core.setOutput('has_issues', 'true');
             }
 
 if: needs.search_issues.outputs.has_issues == 'true'
@@ -121,7 +114,7 @@ Find up to three issues that need work and assign them to the Copilot agent for 
 
 ### 1. Review Pre-Searched Issue List
 
-The issue search has already been performed in a previous job. The following issues with labels "task", "issue monster", "plan", or "dependencies" are available:
+The issue search has already been performed in a previous job. All open issues in the repository are available:
 
 **Issue Count**: ${{ needs.search_issues.outputs.issue_count }}
 **Issue Numbers**: ${{ needs.search_issues.outputs.issue_numbers }}
@@ -243,7 +236,7 @@ Om nom nom! 🍪
 ## Success Criteria
 
 A successful run means:
-1. You reviewed the pre-searched issue list with labels "issue monster", "task", "plan", or "dependencies"
+1. You reviewed the pre-searched issue list of all open issues in the repository
 2. For "task" or "plan" issues: You checked for parent issues and sibling sub-issue PRs
 3. You filtered out issues that are already assigned or have PRs
 4. You selected up to three appropriate issues that are completely separate in topic (respecting sibling PR constraints for sub-issues)
