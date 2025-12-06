@@ -71,8 +71,9 @@ func (e *CodexEngine) GetDeclaredOutputFiles() []string {
 
 // GetExecutionSteps returns the GitHub Actions steps for executing Codex
 func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile string) []GitHubActionStep {
+	modelConfigured := workflowData.EngineConfig != nil && workflowData.EngineConfig.Model != ""
 	model := ""
-	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Model != "" {
+	if modelConfigured {
 		model = workflowData.EngineConfig.Model
 	}
 	codexEngineLog.Printf("Building Codex execution steps: workflow=%s, model=%s, has_agent_file=%v",
@@ -82,9 +83,21 @@ func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 	steps := InjectCustomEngineSteps(workflowData, e.convertStepToYAML)
 
 	// Build model parameter only if specified in engineConfig
+	// Otherwise, model can be set via GH_AW_MODEL_AGENT_CODEX or GH_AW_MODEL_DETECTION_CODEX environment variable
 	var modelParam string
-	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Model != "" {
+	if modelConfigured {
 		modelParam = fmt.Sprintf("-c model=%s ", workflowData.EngineConfig.Model)
+	} else {
+		// Check if this is a detection job (has no SafeOutputs config)
+		isDetectionJob := workflowData.SafeOutputs == nil
+		var modelEnvVar string
+		if isDetectionJob {
+			modelEnvVar = constants.EnvVarModelDetectionCodex
+		} else {
+			modelEnvVar = constants.EnvVarModelAgentCodex
+		}
+		// Model will be conditionally added via shell expansion if environment variable is set
+		modelParam = fmt.Sprintf(`${%s:+-c model="$%s" }`, modelEnvVar, modelEnvVar)
 	}
 
 	// Build search parameter if web-search tool is present
@@ -149,6 +162,21 @@ codex %sexec%s%s%s"$INSTRUCTION" 2>&1 | tee %s`, modelParam, webSearchParam, ful
 	// Add GH_AW_TOOL_TIMEOUT environment variable (in seconds) if timeout is specified
 	if workflowData.ToolsTimeout > 0 {
 		env["GH_AW_TOOL_TIMEOUT"] = fmt.Sprintf("%d", workflowData.ToolsTimeout)
+	}
+
+	// Add model environment variable if model is not explicitly configured
+	// This allows users to configure the default model via GitHub Actions variables
+	// Use different env vars for agent vs detection jobs
+	if !modelConfigured {
+		// Check if this is a detection job (has no SafeOutputs config)
+		isDetectionJob := workflowData.SafeOutputs == nil
+		if isDetectionJob {
+			// For detection, use detection-specific env var (no default fallback for Codex)
+			env[constants.EnvVarModelDetectionCodex] = fmt.Sprintf("${{ vars.%s || '' }}", constants.EnvVarModelDetectionCodex)
+		} else {
+			// For agent execution, use agent-specific env var
+			env[constants.EnvVarModelAgentCodex] = fmt.Sprintf("${{ vars.%s || '' }}", constants.EnvVarModelAgentCodex)
+		}
 	}
 
 	// Add custom environment variables from engine config

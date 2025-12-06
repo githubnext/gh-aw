@@ -378,19 +378,31 @@ func (c *Compiler) buildEngineSteps(data *WorkflowData) []string {
 	}
 
 	// Apply default detection model if the engine provides one and no model is specified
+	// Detection models can be configured via:
+	// 1. Explicit model in threat-detection engine config (highest priority)
+	// 2. Engine-specific environment variables (e.g., GH_AW_MODEL_DETECTION_COPILOT)
+	// 3. Default detection model from the engine (as environment variable fallback)
 	detectionEngineConfig := engineConfig
-	defaultModel := engine.GetDefaultDetectionModel()
-	if defaultModel != "" {
+	
+	// Only copy the engine config if a model is explicitly configured
+	// If no model is configured, we'll let the environment variable mechanism handle it
+	modelExplicitlyConfigured := engineConfig != nil && engineConfig.Model != ""
+	
+	if modelExplicitlyConfigured {
+		// Model is explicitly configured, use it as-is
+		detectionEngineConfig = engineConfig
+	} else {
+		// No model configured - create/update config but don't set model
+		// This allows the engine execution to use environment variables
 		if detectionEngineConfig == nil {
 			detectionEngineConfig = &EngineConfig{
-				ID:    engineSetting,
-				Model: defaultModel,
+				ID: engineSetting,
 			}
-		} else if detectionEngineConfig.Model == "" {
-			// Create a copy to avoid modifying the original config
+		} else {
+			// Create a copy without setting the model
 			detectionEngineConfig = &EngineConfig{
 				ID:            detectionEngineConfig.ID,
-				Model:         defaultModel,
+				Model:         "", // Explicitly leave empty for env var mechanism
 				Version:       detectionEngineConfig.Version,
 				MaxTurns:      detectionEngineConfig.MaxTurns,
 				Concurrency:   detectionEngineConfig.Concurrency,

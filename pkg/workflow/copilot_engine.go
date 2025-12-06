@@ -194,8 +194,12 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 	// Add --disable-builtin-mcps to disable built-in MCP servers
 	copilotArgs = append(copilotArgs, "--disable-builtin-mcps")
 
-	// Add model if specified (check if Copilot CLI supports this)
-	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Model != "" {
+	// Add model if specified
+	// Model can be configured via:
+	// 1. Explicit model in workflow config (highest priority)
+	// 2. GH_AW_MODEL_AGENT_COPILOT environment variable (set via GitHub Actions variables)
+	modelConfigured := workflowData.EngineConfig != nil && workflowData.EngineConfig.Model != ""
+	if modelConfigured {
 		copilotLog.Printf("Using custom model: %s", workflowData.EngineConfig.Model)
 		copilotArgs = append(copilotArgs, "--model", workflowData.EngineConfig.Model)
 	}
@@ -259,6 +263,18 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 
 	// Build the copilot command
 	var copilotCommand string
+	
+	// Determine if we need to conditionally add --model flag based on environment variable
+	needsModelFlag := !modelConfigured
+	// Check if this is a detection job (has no SafeOutputs config)
+	isDetectionJob := workflowData.SafeOutputs == nil
+	var modelEnvVar string
+	if isDetectionJob {
+		modelEnvVar = constants.EnvVarModelDetectionCopilot
+	} else {
+		modelEnvVar = constants.EnvVarModelAgentCopilot
+	}
+	
 	if sandboxEnabled {
 		// When sandbox is enabled, use version pinning with npx
 		copilotVersion := string(constants.DefaultCopilotVersion)
@@ -266,20 +282,36 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 			copilotVersion = workflowData.EngineConfig.Version
 		}
 
+		// Build base command
+		var baseCommand string
 		// For SRT: use locally installed package without -y flag to avoid internet fetch
 		// For AWF: use -y flag for automatic download (backward compatibility)
 		if isSRTEnabled(workflowData) {
 			// Use node explicitly to invoke copilot CLI to ensure env vars propagate correctly through sandbox
 			// The .bin/copilot shell wrapper doesn't properly pass environment variables through bubblewrap
 			// Environment variables are explicitly exported in the SRT wrapper to propagate through sandbox
-			copilotCommand = fmt.Sprintf("node ./node_modules/.bin/copilot %s", shellJoinArgs(copilotArgs))
+			baseCommand = fmt.Sprintf("node ./node_modules/.bin/copilot %s", shellJoinArgs(copilotArgs))
 		} else {
 			// AWF or other sandboxes - use -y for automatic download
-			copilotCommand = fmt.Sprintf("npx -y @github/copilot@%s %s", copilotVersion, shellJoinArgs(copilotArgs))
+			baseCommand = fmt.Sprintf("npx -y @github/copilot@%s %s", copilotVersion, shellJoinArgs(copilotArgs))
+		}
+		
+		// Add conditional model flag if needed
+		if needsModelFlag {
+			copilotCommand = fmt.Sprintf(`%s${%s:+ --model "$%s"}`, baseCommand, modelEnvVar, modelEnvVar)
+		} else {
+			copilotCommand = baseCommand
 		}
 	} else {
 		// When sandbox is disabled, use unpinned copilot command
-		copilotCommand = fmt.Sprintf("copilot %s", shellJoinArgs(copilotArgs))
+		baseCommand := fmt.Sprintf("copilot %s", shellJoinArgs(copilotArgs))
+		
+		// Add conditional model flag if needed
+		if needsModelFlag {
+			copilotCommand = fmt.Sprintf(`%s${%s:+ --model "$%s"}`, baseCommand, modelEnvVar, modelEnvVar)
+		} else {
+			copilotCommand = baseCommand
+		}
 	}
 
 	// Conditionally wrap with sandbox (AWF or SRT)
@@ -457,6 +489,22 @@ COPILOT_CLI_INSTRUCTION="$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"
 
 	if workflowData.EngineConfig != nil && workflowData.EngineConfig.MaxTurns != "" {
 		env["GH_AW_MAX_TURNS"] = workflowData.EngineConfig.MaxTurns
+	}
+
+	// Add model environment variable if model is not explicitly configured
+	// This allows users to configure the default model via GitHub Actions variables
+	// Use different env vars for agent vs detection jobs
+	if workflowData.EngineConfig == nil || workflowData.EngineConfig.Model == "" {
+		// Check if this is a detection job (has no SafeOutputs config)
+		isDetectionJob := workflowData.SafeOutputs == nil
+		if isDetectionJob {
+			// For detection, use detection-specific env var with fallback to default detection model
+			defaultDetectionModel := constants.DefaultCopilotDetectionModel
+			env[constants.EnvVarModelDetectionCopilot] = fmt.Sprintf("${{ vars.%s || '%s' }}", constants.EnvVarModelDetectionCopilot, defaultDetectionModel)
+		} else {
+			// For agent execution, use agent-specific env var
+			env[constants.EnvVarModelAgentCopilot] = fmt.Sprintf("${{ vars.%s || '' }}", constants.EnvVarModelAgentCopilot)
+		}
 	}
 
 	// Add custom environment variables from engine config
