@@ -127,117 +127,177 @@ async function startHttpServer(configPath, options = {}) {
   const port = options.port || 3000;
   const stateless = options.stateless || false;
 
-  // Create the MCP server
-  const { server, config, logger } = createMCPServer(configPath, { logDir: options.logDir });
+  logger.debug = msg => {
+    const timestamp = new Date().toISOString();
+    process.stderr.write(`[${timestamp}] [safe-inputs-startup] ${msg}\n`);
+  };
 
-  logger.debug(`Starting HTTP server on port ${port}`);
+  logger.debug(`=== Starting Safe Inputs MCP HTTP Server ===`);
+  logger.debug(`Configuration file: ${configPath}`);
+  logger.debug(`Port: ${port}`);
   logger.debug(`Mode: ${stateless ? "stateless" : "stateful"}`);
+  logger.debug(`Environment: NODE_VERSION=${process.version}, PLATFORM=${process.platform}`);
 
-  // Create the HTTP transport
-  const transport = new StreamableHTTPServerTransport({
-    sessionIdGenerator: stateless ? undefined : () => randomUUID(),
-    enableJsonResponse: true,
-    enableDnsRebindingProtection: false, // Disable for local development
-  });
+  // Create the MCP server
+  try {
+    const { server, config, logger: mcpLogger } = createMCPServer(configPath, { logDir: options.logDir });
 
-  // Connect server to transport
-  await server.connect(transport);
+    // Use the MCP logger for subsequent messages
+    Object.assign(logger, mcpLogger);
 
-  // Create HTTP server
-  const httpServer = http.createServer(async (req, res) => {
-    // Set CORS headers for development
-    res.setHeader("Access-Control-Allow-Origin", "*");
-    res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-    res.setHeader("Access-Control-Allow-Headers", "Content-Type, Accept");
+    logger.debug(`MCP server created successfully`);
+    logger.debug(`Server name: ${config.serverName || "safeinputs"}`);
+    logger.debug(`Server version: ${config.version || "1.0.0"}`);
+    logger.debug(`Tools configured: ${config.tools.length}`);
 
-    // Handle OPTIONS preflight
-    if (req.method === "OPTIONS") {
-      res.writeHead(200);
-      res.end();
-      return;
-    }
+    logger.debug(`Creating HTTP transport...`);
+    // Create the HTTP transport
+    const transport = new StreamableHTTPServerTransport({
+      sessionIdGenerator: stateless ? undefined : () => randomUUID(),
+      enableJsonResponse: true,
+      enableDnsRebindingProtection: false, // Disable for local development
+    });
+    logger.debug(`HTTP transport created`);
 
-    // Only handle POST requests for MCP protocol
-    if (req.method !== "POST") {
-      res.writeHead(405, { "Content-Type": "application/json" });
-      res.end(JSON.stringify({ error: "Method not allowed" }));
-      return;
-    }
+    // Connect server to transport
+    logger.debug(`Connecting server to transport...`);
+    await server.connect(transport);
+    logger.debug(`Server connected to transport successfully`);
 
-    try {
-      // Parse request body for POST requests
-      let body = null;
-      if (req.method === "POST") {
-        const chunks = [];
-        for await (const chunk of req) {
-          chunks.push(chunk);
+    // Create HTTP server
+    logger.debug(`Creating HTTP server...`);
+    const httpServer = http.createServer(async (req, res) => {
+      // Set CORS headers for development
+      res.setHeader("Access-Control-Allow-Origin", "*");
+      res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+      res.setHeader("Access-Control-Allow-Headers", "Content-Type, Accept");
+
+      // Handle OPTIONS preflight
+      if (req.method === "OPTIONS") {
+        res.writeHead(200);
+        res.end();
+        return;
+      }
+
+      // Only handle POST requests for MCP protocol
+      if (req.method !== "POST") {
+        res.writeHead(405, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "Method not allowed" }));
+        return;
+      }
+
+      try {
+        // Parse request body for POST requests
+        let body = null;
+        if (req.method === "POST") {
+          const chunks = [];
+          for await (const chunk of req) {
+            chunks.push(chunk);
+          }
+          const bodyStr = Buffer.concat(chunks).toString();
+          try {
+            body = bodyStr ? JSON.parse(bodyStr) : null;
+          } catch (parseError) {
+            res.writeHead(400, { "Content-Type": "application/json" });
+            res.end(
+              JSON.stringify({
+                jsonrpc: "2.0",
+                error: {
+                  code: -32700,
+                  message: "Parse error: Invalid JSON in request body",
+                },
+                id: null,
+              })
+            );
+            return;
+          }
         }
-        const bodyStr = Buffer.concat(chunks).toString();
-        try {
-          body = bodyStr ? JSON.parse(bodyStr) : null;
-        } catch (parseError) {
-          res.writeHead(400, { "Content-Type": "application/json" });
+
+        // Let the transport handle the request
+        await transport.handleRequest(req, res, body);
+      } catch (error) {
+        logger.debugError("Error handling request: ", error);
+        if (!res.headersSent) {
+          res.writeHead(500, { "Content-Type": "application/json" });
           res.end(
             JSON.stringify({
               jsonrpc: "2.0",
               error: {
-                code: -32700,
-                message: "Parse error: Invalid JSON in request body",
+                code: -32603,
+                message: error instanceof Error ? error.message : String(error),
               },
               id: null,
             })
           );
-          return;
         }
       }
+    });
 
-      // Let the transport handle the request
-      await transport.handleRequest(req, res, body);
-    } catch (error) {
-      logger.debugError("Error handling request: ", error);
-      if (!res.headersSent) {
-        res.writeHead(500, { "Content-Type": "application/json" });
-        res.end(
-          JSON.stringify({
-            jsonrpc: "2.0",
-            error: {
-              code: -32603,
-              message: error instanceof Error ? error.message : String(error),
-            },
-            id: null,
-          })
-        );
+    // Start listening
+    logger.debug(`Attempting to bind to port ${port}...`);
+    httpServer.listen(port, () => {
+      logger.debug(`=== Safe Inputs MCP HTTP Server Started Successfully ===`);
+      logger.debug(`HTTP server listening on http://localhost:${port}`);
+      logger.debug(`MCP endpoint: POST http://localhost:${port}/`);
+      logger.debug(`Server name: ${config.serverName || "safeinputs"}`);
+      logger.debug(`Server version: ${config.version || "1.0.0"}`);
+      logger.debug(`Tools available: ${config.tools.length}`);
+      logger.debug(`Server is ready to accept requests`);
+    });
+
+    // Handle bind errors
+    httpServer.on("error", error => {
+      if (error.code === "EADDRINUSE") {
+        logger.debugError(`ERROR: Port ${port} is already in use. `, error);
+      } else if (error.code === "EACCES") {
+        logger.debugError(`ERROR: Permission denied to bind to port ${port}. `, error);
+      } else {
+        logger.debugError(`ERROR: Failed to start HTTP server: `, error);
       }
+      process.exit(1);
+    });
+
+    // Handle shutdown gracefully
+    process.on("SIGINT", () => {
+      logger.debug("Received SIGINT, shutting down...");
+      httpServer.close(() => {
+        logger.debug("HTTP server closed");
+        process.exit(0);
+      });
+    });
+
+    process.on("SIGTERM", () => {
+      logger.debug("Received SIGTERM, shutting down...");
+      httpServer.close(() => {
+        logger.debug("HTTP server closed");
+        process.exit(0);
+      });
+    });
+
+    return httpServer;
+  } catch (error) {
+    // Log detailed error information for startup failures
+    const errorLogger = {
+      debug: msg => {
+        const timestamp = new Date().toISOString();
+        process.stderr.write(`[${timestamp}] [safe-inputs-startup-error] ${msg}\n`);
+      },
+    };
+    errorLogger.debug(`=== FATAL ERROR: Failed to start Safe Inputs MCP HTTP Server ===`);
+    errorLogger.debug(`Error type: ${error.constructor.name}`);
+    errorLogger.debug(`Error message: ${error.message}`);
+    if (error.stack) {
+      errorLogger.debug(`Stack trace:\n${error.stack}`);
     }
-  });
+    if (error.code) {
+      errorLogger.debug(`Error code: ${error.code}`);
+    }
+    errorLogger.debug(`Configuration file: ${configPath}`);
+    errorLogger.debug(`Port: ${port}`);
 
-  // Start listening
-  httpServer.listen(port, () => {
-    logger.debug(`HTTP server listening on http://localhost:${port}`);
-    logger.debug(`MCP endpoint: POST http://localhost:${port}/`);
-    logger.debug(`Server name: ${config.serverName || "safeinputs"}`);
-    logger.debug(`Server version: ${config.version || "1.0.0"}`);
-    logger.debug(`Tools available: ${config.tools.length}`);
-  });
-
-  // Handle shutdown gracefully
-  process.on("SIGINT", () => {
-    logger.debug("Received SIGINT, shutting down...");
-    httpServer.close(() => {
-      logger.debug("HTTP server closed");
-      process.exit(0);
-    });
-  });
-
-  process.on("SIGTERM", () => {
-    logger.debug("Received SIGTERM, shutting down...");
-    httpServer.close(() => {
-      logger.debug("HTTP server closed");
-      process.exit(0);
-    });
-  });
-
-  return httpServer;
+    // Re-throw the error to be caught by the caller
+    throw error;
+  }
 }
 
 // If run directly, start the HTTP server with command-line arguments
