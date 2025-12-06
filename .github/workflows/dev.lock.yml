@@ -1822,7 +1822,7 @@ jobs:
         run: |
           set -o pipefail
           # Execute Claude Code CLI with prompt from file
-          claude --print --mcp-config /tmp/gh-aw/mcp-config/mcp-servers.json --allowed-tools ExitPlanMode,Glob,Grep,LS,NotebookRead,Read,Task,TodoWrite --debug --verbose --permission-mode bypassPermissions --output-format stream-json --settings /tmp/gh-aw/.claude/settings.json "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
+          claude --print --mcp-config /tmp/gh-aw/mcp-config/mcp-servers.json --allowed-tools ExitPlanMode,Glob,Grep,LS,NotebookRead,Read,Task,TodoWrite --debug --verbose --permission-mode bypassPermissions --output-format stream-json --settings /tmp/gh-aw/.claude/settings.json "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"${GH_AW_MODEL_DETECTION_CLAUDE:+ --model "$GH_AW_MODEL_DETECTION_CLAUDE"} 2>&1 | tee /tmp/gh-aw/agent-stdio.log
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
@@ -1835,6 +1835,7 @@ jobs:
           MCP_TOOL_TIMEOUT: "60000"
           BASH_DEFAULT_TIMEOUT_MS: "60000"
           BASH_MAX_TIMEOUT_MS: "60000"
+          GH_AW_MODEL_DETECTION_CLAUDE: ${{ vars.GH_AW_MODEL_DETECTION_CLAUDE || '' }}
           GH_AW_GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Clean up network proxy hook files
         if: always()
