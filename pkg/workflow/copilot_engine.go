@@ -59,7 +59,7 @@ func (e *CopilotEngine) GetModelSelectionStep(workflowData *WorkflowData) GitHub
 		return nil
 	}
 
-	script := getSelectModelScript()
+	script := getSelectModelWithCLIScript()
 
 	stepLines := []string{
 		"      - name: Select Compatible Model",
@@ -67,107 +67,15 @@ func (e *CopilotEngine) GetModelSelectionStep(workflowData *WorkflowData) GitHub
 		fmt.Sprintf("        uses: %s", GetActionPin("actions/github-script")),
 		"        with:",
 		"          script: |",
-		"            const { execSync } = require('child_process');",
-		"            const core = require('@actions/core');",
-		"            ",
-		"            // Get available models by calling copilot CLI",
-		"            let availableModels = [];",
-		"            try {",
-		"              const output = execSync('copilot --list-models', { encoding: 'utf8' });",
-		"              availableModels = output.trim().split('\\n').filter(m => m.trim());",
-		"              core.info(`Available models from CLI: ${JSON.stringify(availableModels)}`);",
-		"            } catch (error) {",
-		"              core.warning(`Failed to get models from CLI: ${error.message}`);",
-		"              // Fallback to known models if CLI call fails",
-		"              availableModels = ['gpt-4', 'gpt-4-turbo', 'gpt-4o', 'gpt-4o-mini', 'gpt-5', 'gpt-5-mini', 'o1', 'o1-mini', 'o3', 'o3-mini'];",
-		"            }",
-		"            ",
-		"            const requestedModels = " + string(requestedModelsJSON) + ";",
-		"            ",
 	}
 
-	// Inline the select_model logic - extract only the helper functions, not requires or run()
+	// Inline the JavaScript code with proper indentation
 	scriptLines := FormatJavaScriptForYAML(script)
-	scriptLinesFiltered := []string{}
-	inRunFunction := false
-	
-	for _, line := range scriptLines {
-		trimmed := strings.TrimSpace(line)
-		
-		// Skip require statements - we already have them
-		if strings.Contains(trimmed, "require(") {
-			continue
-		}
-		
-		// Skip the run() function definition and call
-		if strings.HasPrefix(trimmed, "async function run()") || strings.HasPrefix(trimmed, "function run()") {
-			inRunFunction = true
-			continue
-		}
-		
-		if inRunFunction {
-			// Look for the closing brace of run function
-			if trimmed == "}" && !strings.Contains(line, "    }") {
-				inRunFunction = false
-			}
-			continue
-		}
-		
-		if strings.HasPrefix(trimmed, "run();") {
-			continue
-		}
-		
-		// Include helper functions
-		scriptLinesFiltered = append(scriptLinesFiltered, line)
-	}
-	stepLines = append(stepLines, scriptLinesFiltered...)
+	stepLines = append(stepLines, scriptLines...)
 
-	// Add the actual selection logic
-	stepLines = append(stepLines,
-		"            ",
-		"            // Select the model",
-		"            const result = selectModel(requestedModels, availableModels);",
-		"            ",
-		"            if (!result) {",
-		"              core.setFailed(",
-		"                `No compatible model found.\\n` +",
-		"                `Requested: ${requestedModels.join(', ')}\\n` +",
-		"                `Available: ${availableModels.join(', ')}\\n` +",
-		"                `\\n` +",
-		"                `Please update your workflow configuration to use a supported model.\\n` +",
-		"                `You can specify multiple models in priority order using an array:\\n` +",
-		"                `  model: [\"preferred-model\", \"fallback-model\", \"gpt-*\"]`",
-		"              );",
-		"              return;",
-		"            }",
-		"            ",
-		"            // Set outputs",
-		"            core.setOutput('selected_model', result.selectedModel);",
-		"            core.setOutput('matched_pattern', result.matchedPattern);",
-		"            ",
-		"            // Log success",
-		"            if (result.selectedModel === '') {",
-		"              core.info(`✅ Pattern '*' matched - not specifying a model`);",
-		"            } else {",
-		"              core.info(`✅ Selected model: ${result.selectedModel}`);",
-		"              if (result.matchedPattern !== result.selectedModel) {",
-		"                core.info(`   (matched pattern: ${result.matchedPattern})`);",
-		"              }",
-		"            }",
-		"            ",
-		"            // Write to step summary",
-		"            await core.summary",
-		"              .addHeading('Model Selection', 2)",
-		"              .addTable([",
-		"                [",
-		"                  { data: 'Field', header: true },",
-		"                  { data: 'Value', header: true },",
-		"                ],",
-		"                ['Selected Model', result.selectedModel || '(none - any model)'],",
-		"                ['Matched Pattern', result.matchedPattern],",
-		"                ['Requested Models', requestedModels.map(m => `\\`${m}\\``).join(', ')],",
-		"              ])",
-		"              .write();")
+	// Add inputs section
+	stepLines = append(stepLines, "          inputs:",
+		fmt.Sprintf("            requested_models: '%s'", string(requestedModelsJSON)))
 
 	return GitHubActionStep(stepLines)
 }

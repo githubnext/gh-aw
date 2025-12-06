@@ -80,6 +80,9 @@ var missingToolScript string
 //go:embed js/select_model.cjs
 var selectModelScript string
 
+//go:embed js/select_model_with_cli.cjs
+var selectModelWithCLIScript string
+
 //go:embed js/safe_outputs_mcp_server.cjs
 var safeOutputsMCPServerScriptSource string
 
@@ -91,6 +94,11 @@ func getSafeOutputsMCPServerScript() string {
 // getSelectModelScript returns the bundled select_model script
 func getSelectModelScript() string {
 	return selectModelScript
+}
+
+// getSelectModelWithCLIScript returns the bundled select_model_with_cli script
+func getSelectModelWithCLIScript() string {
+	return selectModelWithCLIScript
 }
 
 //go:embed js/safe_outputs_tools.json

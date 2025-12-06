@@ -270,23 +270,10 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
           script: |
-            const { execSync } = require('child_process');
-            const core = require('@actions/core');
-            
-            // Get available models by calling copilot CLI
-            let availableModels = [];
-            try {
-              const output = execSync('copilot --list-models', { encoding: 'utf8' });
-              availableModels = output.trim().split('\n').filter(m => m.trim());
-              core.info(`Available models from CLI: ${JSON.stringify(availableModels)}`);
-            } catch (error) {
-              core.warning(`Failed to get models from CLI: ${error.message}`);
-              // Fallback to known models if CLI call fails
-              availableModels = ['gpt-4', 'gpt-4-turbo', 'gpt-4o', 'gpt-4o-mini', 'gpt-5', 'gpt-5-mini', 'o1', 'o1-mini', 'o3', 'o3-mini'];
-            }
-            
-            const requestedModels = ["gpt-5","gpt-4o","gpt-*-mini"];
-            
+            const { execSync } = require("child_process");
+
+            const core = require("@actions/core");
+
             function patternToRegex(pattern) {
 
               const escaped = pattern.replace(/[.+?^${}()|[\]\\]/g, "\\$&");
@@ -349,50 +336,196 @@ jobs:
 
             }
 
-            
-            // Select the model
-            const result = selectModel(requestedModels, availableModels);
-            
-            if (!result) {
-              core.setFailed(
-                `No compatible model found.\n` +
-                `Requested: ${requestedModels.join(', ')}\n` +
-                `Available: ${availableModels.join(', ')}\n` +
-                `\n` +
-                `Please update your workflow configuration to use a supported model.\n` +
-                `You can specify multiple models in priority order using an array:\n` +
-                `  model: ["preferred-model", "fallback-model", "gpt-*"]`
-              );
-              return;
-            }
-            
-            // Set outputs
-            core.setOutput('selected_model', result.selectedModel);
-            core.setOutput('matched_pattern', result.matchedPattern);
-            
-            // Log success
-            if (result.selectedModel === '') {
-              core.info(`✅ Pattern '*' matched - not specifying a model`);
-            } else {
-              core.info(`✅ Selected model: ${result.selectedModel}`);
-              if (result.matchedPattern !== result.selectedModel) {
-                core.info(`   (matched pattern: ${result.matchedPattern})`);
+            function getAvailableModels() {
+
+              let availableModels = [];
+
+              try {
+
+                const output = execSync("copilot --list-models", { encoding: "utf8" });
+
+                availableModels = output
+
+                  .trim()
+
+                  .split("\n")
+
+                  .filter((m) => m.trim());
+
+                core.info(`Available models from CLI: ${JSON.stringify(availableModels)}`);
+
+              } catch (error) {
+
+                core.warning(`Failed to get models from CLI: ${error.message}`);
+
+                availableModels = [
+
+                  "gpt-4",
+
+                  "gpt-4-turbo",
+
+                  "gpt-4o",
+
+                  "gpt-4o-mini",
+
+                  "gpt-5",
+
+                  "gpt-5-mini",
+
+                  "o1",
+
+                  "o1-mini",
+
+                  "o3",
+
+                  "o3-mini",
+
+                ];
+
+                core.info(`Using fallback model list: ${JSON.stringify(availableModels)}`);
+
               }
+
+              return availableModels;
+
             }
-            
-            // Write to step summary
-            await core.summary
-              .addHeading('Model Selection', 2)
-              .addTable([
-                [
-                  { data: 'Field', header: true },
-                  { data: 'Value', header: true },
-                ],
-                ['Selected Model', result.selectedModel || '(none - any model)'],
-                ['Matched Pattern', result.matchedPattern],
-                ['Requested Models', requestedModels.map(m => `\`${m}\``).join(', ')],
-              ])
-              .write();
+
+            async function run() {
+
+              try {
+
+                const requestedModelsInput = core.getInput("requested_models", {
+
+                  required: true,
+
+                });
+
+                let requestedModels;
+
+                try {
+
+                  requestedModels = JSON.parse(requestedModelsInput);
+
+                } catch (error) {
+
+                  core.setFailed(
+
+                    `Failed to parse requested_models as JSON: ${error.message}`,
+
+                  );
+
+                  return;
+
+                }
+
+                if (!Array.isArray(requestedModels) || requestedModels.length === 0) {
+
+                  core.setFailed(
+
+                    "requested_models must be a non-empty array of strings",
+
+                  );
+
+                  return;
+
+                }
+
+                const availableModels = getAvailableModels();
+
+                const result = selectModel(requestedModels, availableModels);
+
+                if (!result) {
+
+                  core.setFailed(
+
+                    `No compatible model found.\n` +
+
+                      `Requested: ${requestedModels.join(", ")}\n` +
+
+                      `Available: ${availableModels.join(", ")}\n` +
+
+                      `\n` +
+
+                      `Please update your workflow configuration to use a supported model.\n` +
+
+                      `You can specify multiple models in priority order using an array:\n` +
+
+                      `  model: ["preferred-model", "fallback-model", "gpt-*"]`,
+
+                  );
+
+                  return;
+
+                }
+
+                core.setOutput("selected_model", result.selectedModel);
+
+                core.setOutput("matched_pattern", result.matchedPattern);
+
+                if (result.selectedModel === "") {
+
+                  core.info(`✅ Pattern '*' matched - not specifying a model`);
+
+                } else {
+
+                  core.info(`✅ Selected model: ${result.selectedModel}`);
+
+                  if (result.matchedPattern !== result.selectedModel) {
+
+                    core.info(`   (matched pattern: ${result.matchedPattern})`);
+
+                  }
+
+                }
+
+                await core.summary
+
+                  .addHeading("Model Selection", 2)
+
+                  .addTable([
+
+                    [
+
+                      { data: "Field", header: true },
+
+                      { data: "Value", header: true },
+
+                    ],
+
+                    [
+
+                      "Selected Model",
+
+                      result.selectedModel || "(none - any model)",
+
+                    ],
+
+                    ["Matched Pattern", result.matchedPattern],
+
+                    [
+
+                      "Requested Models",
+
+                      requestedModels.map((m) => `\`${m}\``).join(", "),
+
+                    ],
+
+                  ])
+
+                  .write();
+
+              } catch (error) {
+
+                core.setFailed(`Model selection failed: ${error.message}`);
+
+              }
+
+            }
+
+            run();
+
+          inputs:
+            requested_models: '["gpt-5","gpt-4o","gpt-*-mini"]'
       - name: Setup Node.js
         uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6
         with:
