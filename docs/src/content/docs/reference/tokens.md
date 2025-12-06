@@ -13,6 +13,7 @@ GitHub Agentic Workflows authenticate using multiple tokens depending on the ope
 |-------|---------|--------------|
 | `GITHUB_TOKEN` | Default Actions token | Automatically provided, used as fallback |
 | `GH_AW_GITHUB_TOKEN` | Enhanced PAT | Cross-repo operations, remote GitHub tools |
+| `GH_AW_GITHUB_MCP_SERVER_TOKEN` | GitHub MCP Server | Custom token for GitHub MCP server |
 | `COPILOT_GITHUB_TOKEN` | Copilot authentication | Copilot engine, bot assignments |
 | `GITHUB_MCP_SERVER_TOKEN` | GitHub MCP Server | Auto-set based on GitHub tools config |
 | `GH_AW_AGENT_TOKEN` | Agent assignments | Assigning Copilot to issues |
@@ -55,9 +56,35 @@ gh secret set COPILOT_GITHUB_TOKEN -a actions --body "YOUR_COPILOT_PAT"
 
 Note: `GITHUB_TOKEN` cannot be used for Copilot operations.
 
+## `GH_AW_GITHUB_MCP_SERVER_TOKEN` (GitHub MCP Server)
+
+Custom token for the GitHub MCP server with precedence over standard fallback tokens. Create a [fine-grained PAT](https://github.com/settings/personal-access-tokens/new) with appropriate repository access permissions.
+
+```bash wrap
+gh secret set GH_AW_GITHUB_MCP_SERVER_TOKEN -a actions --body "YOUR_PAT"
+```
+
+**Token precedence** for GitHub MCP server (highest to lowest):
+1. Custom token (tool-level `github-token`)
+2. Top-level `github-token` (frontmatter)
+3. `${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN }}`
+4. `${{ secrets.GH_AW_GITHUB_TOKEN }}`
+5. `${{ secrets.GITHUB_TOKEN }}`
+
+When the GitHub MCP server is used, the compiler automatically sets the `GITHUB_MCP_SERVER_TOKEN` environment variable using this precedence order:
+
+```yaml wrap
+env:
+  GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+```
+
+This token is passed to the GitHub MCP server as:
+- `GITHUB_PERSONAL_ACCESS_TOKEN` environment variable (local mode)
+- `Authorization: Bearer` header (remote mode)
+
 ## `GITHUB_MCP_SERVER_TOKEN` (Auto-configured)
 
-Automatically set by gh-aw based on your GitHub tools configuration. Passed as `GITHUB_PERSONAL_ACCESS_TOKEN` env var (local mode) or `Authorization: Bearer` header (remote mode).
+Automatically set by gh-aw based on your GitHub tools configuration and token precedence. This environment variable should not be set manually - the compiler handles it automatically.
 
 ```yaml wrap
 tools:
