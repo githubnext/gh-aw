@@ -88,6 +88,7 @@
 #   agent --> conclusion
 #   agent --> detection
 #   detection --> add_comment
+#   detection --> conclusion
 #   pre_activation --> activation
 # ```
 #
@@ -821,6 +822,14 @@ jobs:
               const templateContext = toSnakeCase(ctx);
               const defaultMessage = "💀 Blimey! [{workflow_name}]({run_url}) {status} and walked the plank! No treasure today, matey! ☠️";
               return messages?.runFailure ? renderTemplate(messages.runFailure, templateContext) : renderTemplate(defaultMessage, templateContext);
+            }
+            function getDetectionFailureMessage(ctx) {
+              const messages = getMessages();
+              const templateContext = toSnakeCase(ctx);
+              const defaultMessage = "⚠️ Security scanning failed for [{workflow_name}]({run_url}). Review the logs for details.";
+              return messages?.detectionFailure
+                ? renderTemplate(messages.detectionFailure, templateContext)
+                : renderTemplate(defaultMessage, templateContext);
             }
             async function main() {
               const reaction = process.env.GH_AW_REACTION || "eyes";
@@ -6544,6 +6553,7 @@ jobs:
       - activation
       - add_comment
       - agent
+      - detection
     if: ((always()) && (needs.agent.result != 'skipped')) && (!(needs.add_comment.outputs.comment_id))
     runs-on: ubuntu-slim
     permissions:
@@ -6791,6 +6801,7 @@ jobs:
           GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           GH_AW_WORKFLOW_NAME: "Resource Summarizer Agent"
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
+          GH_AW_DETECTION_CONCLUSION: ${{ needs.detection.result }}
           GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 📄 *Summary compiled by [{workflow_name}]({run_url})*\",\"runStarted\":\"📖 Page by page! [{workflow_name}]({run_url}) is reading through this {event_type}...\",\"runSuccess\":\"📚 TL;DR ready! [{workflow_name}]({run_url}) has distilled the essence. Knowledge condensed! ✨\",\"runFailure\":\"📖 Reading interrupted! [{workflow_name}]({run_url}) {status}. The document remains unsummarized...\"}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
@@ -6893,17 +6904,29 @@ jobs:
               const defaultMessage = "💀 Blimey! [{workflow_name}]({run_url}) {status} and walked the plank! No treasure today, matey! ☠️";
               return messages?.runFailure ? renderTemplate(messages.runFailure, templateContext) : renderTemplate(defaultMessage, templateContext);
             }
+            function getDetectionFailureMessage(ctx) {
+              const messages = getMessages();
+              const templateContext = toSnakeCase(ctx);
+              const defaultMessage = "⚠️ Security scanning failed for [{workflow_name}]({run_url}). Review the logs for details.";
+              return messages?.detectionFailure
+                ? renderTemplate(messages.detectionFailure, templateContext)
+                : renderTemplate(defaultMessage, templateContext);
+            }
             async function main() {
               const commentId = process.env.GH_AW_COMMENT_ID;
               const commentRepo = process.env.GH_AW_COMMENT_REPO;
               const runUrl = process.env.GH_AW_RUN_URL;
               const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
               const agentConclusion = process.env.GH_AW_AGENT_CONCLUSION || "failure";
+              const detectionConclusion = process.env.GH_AW_DETECTION_CONCLUSION;
               core.info(`Comment ID: ${commentId}`);
               core.info(`Comment Repo: ${commentRepo}`);
               core.info(`Run URL: ${runUrl}`);
               core.info(`Workflow Name: ${workflowName}`);
               core.info(`Agent Conclusion: ${agentConclusion}`);
+              if (detectionConclusion) {
+                core.info(`Detection Conclusion: ${detectionConclusion}`);
+              }
               let noopMessages = [];
               const agentOutputResult = loadAgentOutput();
               if (agentOutputResult.success && agentOutputResult.data) {
@@ -6938,7 +6961,12 @@ jobs:
               const repoName = commentRepo ? commentRepo.split("/")[1] : context.repo.repo;
               core.info(`Updating comment in ${repoOwner}/${repoName}`);
               let message;
-              if (agentConclusion === "success") {
+              if (detectionConclusion && detectionConclusion === "failure") {
+                message = getDetectionFailureMessage({
+                  workflowName,
+                  runUrl,
+                });
+              } else if (agentConclusion === "success") {
                 message = getRunSuccessMessage({
                   workflowName,
                   runUrl,

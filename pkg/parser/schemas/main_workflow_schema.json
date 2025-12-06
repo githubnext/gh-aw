@@ -4364,6 +4364,14 @@
                 "❌ Agentic [{workflow_name}]({run_url}) {status} and wasn't able to produce a result.",
                 "❌ [{workflow_name}]({run_url}) {status}."
               ]
+            },
+            "detection-failure": {
+              "type": "string",
+              "description": "Custom message template for detection job failure. Available placeholders: {workflow_name}, {run_url}. Default: '⚠️ Security scanning failed for [{workflow_name}]({run_url}). Review the logs for details.'",
+              "examples": [
+                "⚠️ Security scanning failed for [{workflow_name}]({run_url}). Review the logs for details.",
+                "⚠️ Detection job failed in [{workflow_name}]({run_url})."
+              ]
             }
           },
           "additionalProperties": false

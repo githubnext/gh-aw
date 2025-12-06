@@ -6,7 +6,7 @@
 // It also processes noop messages and adds them to the activation comment.
 
 const { loadAgentOutput } = require("./load_agent_output.cjs");
-const { getRunSuccessMessage, getRunFailureMessage } = require("./messages_run_status.cjs");
+const { getRunSuccessMessage, getRunFailureMessage, getDetectionFailureMessage } = require("./messages_run_status.cjs");
 
 async function main() {
   const commentId = process.env.GH_AW_COMMENT_ID;
@@ -14,12 +14,16 @@ async function main() {
   const runUrl = process.env.GH_AW_RUN_URL;
   const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
   const agentConclusion = process.env.GH_AW_AGENT_CONCLUSION || "failure";
+  const detectionConclusion = process.env.GH_AW_DETECTION_CONCLUSION;
 
   core.info(`Comment ID: ${commentId}`);
   core.info(`Comment Repo: ${commentRepo}`);
   core.info(`Run URL: ${runUrl}`);
   core.info(`Workflow Name: ${workflowName}`);
   core.info(`Agent Conclusion: ${agentConclusion}`);
+  if (detectionConclusion) {
+    core.info(`Detection Conclusion: ${detectionConclusion}`);
+  }
 
   // Load agent output to check for noop messages
   let noopMessages = [];
@@ -70,7 +74,14 @@ async function main() {
   // Determine the message based on agent conclusion using custom messages if configured
   let message;
 
-  if (agentConclusion === "success") {
+  // Check if detection job failed (if detection job exists)
+  if (detectionConclusion && detectionConclusion === "failure") {
+    // Detection job failed - report this prominently
+    message = getDetectionFailureMessage({
+      workflowName,
+      runUrl,
+    });
+  } else if (agentConclusion === "success") {
     message = getRunSuccessMessage({
       workflowName,
       runUrl,
