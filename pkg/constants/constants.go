@@ -26,7 +26,7 @@ const ExpressionBreakThreshold LineLength = 100
 const DefaultMCPRegistryURL = "https://api.mcp.github.com/v0"
 
 // DefaultClaudeCodeVersion is the default version of the Claude Code CLI
-const DefaultClaudeCodeVersion Version = "2.0.59"
+const DefaultClaudeCodeVersion Version = "2.0.60"
 
 // DefaultCopilotVersion is the default version of the GitHub Copilot CLI
 // WARNING: UPGRADING COPILOT CLI REQUIRES A FULL INTEGRATION TEST RUN TO ENSURE COMPATIBILITY
@@ -61,7 +61,7 @@ const DefaultGitHubMCPServerVersion Version = "v0.24.0"
 const DefaultFirewallVersion Version = "v0.6.0"
 
 // DefaultPlaywrightMCPVersion is the default version of the @playwright/mcp package
-const DefaultPlaywrightMCPVersion Version = "0.0.49"
+const DefaultPlaywrightMCPVersion Version = "0.0.50"
 
 // DefaultPlaywrightBrowserVersion is the default version of the Playwright browser Docker image
 const DefaultPlaywrightBrowserVersion Version = "v1.57.0"
