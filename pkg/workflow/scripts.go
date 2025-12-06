@@ -116,6 +116,9 @@ var parseCopilotLogScriptSource string
 
 // MCP server and transport scripts
 //
+//go:embed js/mcp_logger.cjs
+var mcpLoggerScriptSource string
+
 //go:embed js/mcp_server.cjs
 var mcpServerScriptSource string
 
@@ -162,6 +165,7 @@ func init() {
 	DefaultScriptRegistry.Register("parse_copilot_log", parseCopilotLogScriptSource)
 
 	// MCP server and transport scripts
+	DefaultScriptRegistry.Register("mcp_logger", mcpLoggerScriptSource)
 	DefaultScriptRegistry.Register("mcp_server", mcpServerScriptSource)
 	DefaultScriptRegistry.Register("mcp_http_transport", mcpHTTPTransportScriptSource)
 
