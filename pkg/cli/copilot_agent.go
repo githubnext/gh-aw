@@ -252,7 +252,7 @@ func ParseCopilotAgentLogMetrics(logContent string, verbose bool) workflow.LogMe
 		// Collect errors and warnings
 		lowerLine := strings.ToLower(line)
 		if errorPattern.MatchString(lowerLine) && !strings.Contains(lowerLine, "no error") {
-			message := extractErrorMessage(line)
+			message := logger.ExtractErrorMessage(line)
 			if message != "" {
 				metrics.Errors = append(metrics.Errors, workflow.LogError{
 					Line:    lineNum + 1,
@@ -262,7 +262,7 @@ func ParseCopilotAgentLogMetrics(logContent string, verbose bool) workflow.LogMe
 			}
 		}
 		if warningPattern.MatchString(lowerLine) {
-			message := extractErrorMessage(line)
+			message := logger.ExtractErrorMessage(line)
 			if message != "" {
 				metrics.Errors = append(metrics.Errors, workflow.LogError{
 					Line:    lineNum + 1,
@@ -290,22 +290,6 @@ func ParseCopilotAgentLogMetrics(logContent string, verbose bool) workflow.LogMe
 		metrics.TokenUsage, metrics.EstimatedCost, metrics.Turns, len(metrics.Errors))
 
 	return metrics
-}
-
-// extractErrorMessage extracts a clean error message from a log line
-// This is a simplified version for the copilot agent parser
-func extractErrorMessage(line string) string {
-	// Remove common timestamp patterns
-	line = regexp.MustCompile(`^\d{4}-\d{2}-\d{2}[T\s]\d{2}:\d{2}:\d{2}(\.\d+)?([+-]\d{2}:\d{2}|Z)?\s*`).ReplaceAllString(line, "")
-	line = regexp.MustCompile(`^\[\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}\]\s*`).ReplaceAllString(line, "")
-
-	// Remove common log level prefixes
-	line = regexp.MustCompile(`^(ERROR|WARN|WARNING|INFO|DEBUG):\s*`).ReplaceAllString(line, "")
-
-	// Trim whitespace
-	line = strings.TrimSpace(line)
-
-	return line
 }
 
 // extractToolName extracts a tool name from a log line
