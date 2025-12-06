@@ -263,7 +263,7 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 
 	// Build the copilot command
 	var copilotCommand string
-	
+
 	// Determine if we need to conditionally add --model flag based on environment variable
 	needsModelFlag := !modelConfigured
 	// Check if this is a detection job (has no SafeOutputs config)
@@ -274,7 +274,7 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 	} else {
 		modelEnvVar = constants.EnvVarModelAgentCopilot
 	}
-	
+
 	if sandboxEnabled {
 		// When sandbox is enabled, use version pinning with npx
 		copilotVersion := string(constants.DefaultCopilotVersion)
@@ -295,7 +295,7 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 			// AWF or other sandboxes - use -y for automatic download
 			baseCommand = fmt.Sprintf("npx -y @github/copilot@%s %s", copilotVersion, shellJoinArgs(copilotArgs))
 		}
-		
+
 		// Add conditional model flag if needed
 		if needsModelFlag {
 			copilotCommand = fmt.Sprintf(`%s${%s:+ --model "$%s"}`, baseCommand, modelEnvVar, modelEnvVar)
@@ -305,7 +305,7 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 	} else {
 		// When sandbox is disabled, use unpinned copilot command
 		baseCommand := fmt.Sprintf("copilot %s", shellJoinArgs(copilotArgs))
-		
+
 		// Add conditional model flag if needed
 		if needsModelFlag {
 			copilotCommand = fmt.Sprintf(`%s${%s:+ --model "$%s"}`, baseCommand, modelEnvVar, modelEnvVar)

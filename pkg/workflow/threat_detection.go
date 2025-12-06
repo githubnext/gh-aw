@@ -383,11 +383,11 @@ func (c *Compiler) buildEngineSteps(data *WorkflowData) []string {
 	// 2. Engine-specific environment variables (e.g., GH_AW_MODEL_DETECTION_COPILOT)
 	// 3. Default detection model from the engine (as environment variable fallback)
 	detectionEngineConfig := engineConfig
-	
+
 	// Only copy the engine config if a model is explicitly configured
 	// If no model is configured, we'll let the environment variable mechanism handle it
 	modelExplicitlyConfigured := engineConfig != nil && engineConfig.Model != ""
-	
+
 	if modelExplicitlyConfigured {
 		// Model is explicitly configured, use it as-is
 		detectionEngineConfig = engineConfig

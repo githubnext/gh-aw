@@ -194,7 +194,7 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	// Join command parts with proper escaping using shellJoinArgs helper
 	// This handles already-quoted arguments correctly and prevents double-escaping
 	command := shellJoinArgs(commandParts)
-	
+
 	// Add conditional model flag if not explicitly configured
 	if !modelConfigured {
 		// Check if this is a detection job (has no SafeOutputs config)

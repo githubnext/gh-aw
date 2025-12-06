@@ -10,28 +10,28 @@ import (
 // TestModelEnvVarInjectionForAgentJob tests that agent jobs get the correct model environment variable
 func TestModelEnvVarInjectionForAgentJob(t *testing.T) {
 	tests := []struct {
-		name              string
-		engine            string
-		expectedEnvVar    string
-		expectedCommand   string
+		name            string
+		engine          string
+		expectedEnvVar  string
+		expectedCommand string
 	}{
 		{
-			name:              "Copilot agent uses GH_AW_MODEL_AGENT_COPILOT",
-			engine:            "copilot",
-			expectedEnvVar:    constants.EnvVarModelAgentCopilot,
-			expectedCommand:   "${" + constants.EnvVarModelAgentCopilot + ":+ --model",
+			name:            "Copilot agent uses GH_AW_MODEL_AGENT_COPILOT",
+			engine:          "copilot",
+			expectedEnvVar:  constants.EnvVarModelAgentCopilot,
+			expectedCommand: "${" + constants.EnvVarModelAgentCopilot + ":+ --model",
 		},
 		{
-			name:              "Claude agent uses GH_AW_MODEL_AGENT_CLAUDE",
-			engine:            "claude",
-			expectedEnvVar:    constants.EnvVarModelAgentClaude,
-			expectedCommand:   "${" + constants.EnvVarModelAgentClaude + ":+ --model",
+			name:            "Claude agent uses GH_AW_MODEL_AGENT_CLAUDE",
+			engine:          "claude",
+			expectedEnvVar:  constants.EnvVarModelAgentClaude,
+			expectedCommand: "${" + constants.EnvVarModelAgentClaude + ":+ --model",
 		},
 		{
-			name:              "Codex agent uses GH_AW_MODEL_AGENT_CODEX",
-			engine:            "codex",
-			expectedEnvVar:    constants.EnvVarModelAgentCodex,
-			expectedCommand:   "${" + constants.EnvVarModelAgentCodex + ":+-c model=",
+			name:            "Codex agent uses GH_AW_MODEL_AGENT_CODEX",
+			engine:          "codex",
+			expectedEnvVar:  constants.EnvVarModelAgentCodex,
+			expectedCommand: "${" + constants.EnvVarModelAgentCodex + ":+-c model=",
 		},
 	}
 
@@ -91,28 +91,28 @@ func TestModelEnvVarInjectionForAgentJob(t *testing.T) {
 // TestModelEnvVarInjectionForDetectionJob tests that detection jobs get the correct model environment variable
 func TestModelEnvVarInjectionForDetectionJob(t *testing.T) {
 	tests := []struct {
-		name              string
-		engine            string
-		expectedEnvVar    string
-		expectedDefault   string
+		name            string
+		engine          string
+		expectedEnvVar  string
+		expectedDefault string
 	}{
 		{
-			name:              "Copilot detection uses GH_AW_MODEL_DETECTION_COPILOT with default",
-			engine:            "copilot",
-			expectedEnvVar:    constants.EnvVarModelDetectionCopilot,
-			expectedDefault:   constants.DefaultCopilotDetectionModel,
+			name:            "Copilot detection uses GH_AW_MODEL_DETECTION_COPILOT with default",
+			engine:          "copilot",
+			expectedEnvVar:  constants.EnvVarModelDetectionCopilot,
+			expectedDefault: constants.DefaultCopilotDetectionModel,
 		},
 		{
-			name:              "Claude detection uses GH_AW_MODEL_DETECTION_CLAUDE",
-			engine:            "claude",
-			expectedEnvVar:    constants.EnvVarModelDetectionClaude,
-			expectedDefault:   "", // Claude has no default detection model
+			name:            "Claude detection uses GH_AW_MODEL_DETECTION_CLAUDE",
+			engine:          "claude",
+			expectedEnvVar:  constants.EnvVarModelDetectionClaude,
+			expectedDefault: "", // Claude has no default detection model
 		},
 		{
-			name:              "Codex detection uses GH_AW_MODEL_DETECTION_CODEX",
-			engine:            "codex",
-			expectedEnvVar:    constants.EnvVarModelDetectionCodex,
-			expectedDefault:   "", // Codex has no default detection model
+			name:            "Codex detection uses GH_AW_MODEL_DETECTION_CODEX",
+			engine:          "codex",
+			expectedEnvVar:  constants.EnvVarModelDetectionCodex,
+			expectedDefault: "", // Codex has no default detection model
 		},
 	}
 
