@@ -3003,6 +3003,8 @@ jobs:
           echo "  Port: $GH_AW_SAFE_INPUTS_PORT"
           echo "  API Key: ${GH_AW_SAFE_INPUTS_API_KEY:0:8}..."
           echo "  Working directory: $(pwd)"
+          # Ensure logs directory exists
+          mkdir -p /tmp/gh-aw/safe-inputs/logs
           # Start the HTTP server in the background
           echo "Starting safe-inputs MCP HTTP server..."
           node mcp-server.cjs > /tmp/gh-aw/safe-inputs/logs/server.log 2>&1 &
