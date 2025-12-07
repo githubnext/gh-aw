@@ -688,10 +688,6 @@ func TestRemoveJavaScriptCommentsAllRepoFiles(t *testing.T) {
 	var cjsFiles []string
 	for _, entry := range entries {
 		if !entry.IsDir() && strings.HasSuffix(entry.Name(), ".cjs") {
-			// Skip test files as they use different syntax (ES modules)
-			if strings.Contains(entry.Name(), ".test.") {
-				continue
-			}
 			cjsFiles = append(cjsFiles, entry.Name())
 		}
 	}
@@ -704,7 +700,6 @@ func TestRemoveJavaScriptCommentsAllRepoFiles(t *testing.T) {
 
 	// Track statistics
 	var totalSize, processedSize int64
-	var successCount, failedCount int
 	failedFiles := []string{}
 
 	for _, filename := range cjsFiles {
@@ -736,47 +731,41 @@ func TestRemoveJavaScriptCommentsAllRepoFiles(t *testing.T) {
 				}
 				if hasCode {
 					t.Errorf("Comment removal resulted in empty content for file with code: %s", filename)
-					failedCount++
 					failedFiles = append(failedFiles, filename)
 					return
 				}
 			}
 
 			// Validate JavaScript syntax by attempting to parse with Node.js
-			// Wrap in an async function to handle top-level await which is common in GitHub Actions scripts
 			if err := validateJavaScriptSyntax(cleanedContent, filename); err != nil {
-				t.Logf("Note: Syntax validation shows issues for %s (may be expected for GitHub Actions context): %v", filename, err)
-				// Don't fail the test as top-level await is valid in GitHub Actions context
-				// but just log it for visibility
-			} else {
-				successCount++
+				t.Errorf("Syntax validation failed for %s: %v", filename, err)
+				failedFiles = append(failedFiles, filename)
+
+				// Log a snippet of the cleaned content for debugging
+				lines := strings.Split(cleanedContent, "\n")
+				maxLines := 20
+				if len(lines) > maxLines {
+					t.Logf("First %d lines of cleaned content:\n%s\n...", maxLines, strings.Join(lines[:maxLines], "\n"))
+				} else {
+					t.Logf("Cleaned content:\n%s", cleanedContent)
+				}
 			}
 		})
 	}
 
 	// Report statistics
 	if len(failedFiles) > 0 {
-		t.Logf("Files with issues (%d): %v", len(failedFiles), failedFiles)
+		t.Logf("Failed files (%d): %v", len(failedFiles), failedFiles)
 	}
 	
 	compressionRatio := 100.0 * float64(totalSize-processedSize) / float64(totalSize)
-	t.Logf("Processed %d files, validated %d successfully", len(cjsFiles), successCount)
-	t.Logf("Original size: %d bytes, processed size: %d bytes, compression: %.2f%%",
-		totalSize, processedSize, compressionRatio)
-	
-	// Ensure we processed a reasonable number of files
-	if len(cjsFiles) < 50 {
-		t.Errorf("Expected to process at least 50 .cjs files, but only found %d", len(cjsFiles))
-	}
+	t.Logf("Processed %d files, original size: %d bytes, processed size: %d bytes, compression: %.2f%%",
+		len(cjsFiles), totalSize, processedSize, compressionRatio)
 }
 
 // validateJavaScriptSyntax validates that the JavaScript code is syntactically correct
 // by attempting to parse it with Node.js
 func validateJavaScriptSyntax(code, filename string) error {
-	// Wrap the code in an async function to handle top-level await
-	// which is commonly used in GitHub Actions scripts
-	wrappedCode := fmt.Sprintf("(async () => {\n%s\n})();", code)
-	
 	// Create a temporary file with the cleaned JavaScript
 	tmpfile, err := os.CreateTemp("", "validate-js-*.cjs")
 	if err != nil {
@@ -784,7 +773,7 @@ func validateJavaScriptSyntax(code, filename string) error {
 	}
 	defer os.Remove(tmpfile.Name())
 
-	if _, err := tmpfile.Write([]byte(wrappedCode)); err != nil {
+	if _, err := tmpfile.Write([]byte(code)); err != nil {
 		tmpfile.Close()
 		return fmt.Errorf("failed to write to temp file: %w", err)
 	}
