@@ -3,7 +3,11 @@ package workflow
 import (
 	"fmt"
 	"strings"
+
+	"github.com/githubnext/gh-aw/pkg/logger"
 )
+
+var repoMemoryPromptLog = logger.New("workflow:repo_memory_prompt")
 
 // generateRepoMemoryPromptStep generates a separate step for repo memory instructions
 // when repo-memory is enabled, informing the agent about git-based persistent storage capabilities
@@ -12,6 +16,7 @@ func (c *Compiler) generateRepoMemoryPromptStep(yaml *strings.Builder, config *R
 		return
 	}
 
+	repoMemoryPromptLog.Printf("Generating repo memory prompt step: memory_count=%d", len(config.Memories))
 	appendPromptStepWithHeredoc(yaml,
 		"Append repo memory instructions to prompt",
 		func(y *strings.Builder) {
@@ -32,6 +37,7 @@ func generateRepoMemoryPromptSection(yaml *strings.Builder, config *RepoMemoryCo
 
 	// Check if there's only one memory with ID "default" to use singular form
 	if len(config.Memories) == 1 && config.Memories[0].ID == "default" {
+		repoMemoryPromptLog.Printf("Generating single default repo memory prompt: branch=%s", config.Memories[0].BranchName)
 		yaml.WriteString("          ## Repo Memory Available\n")
 		yaml.WriteString("          \n")
 		memory := config.Memories[0]
@@ -78,6 +84,7 @@ func generateRepoMemoryPromptSection(yaml *strings.Builder, config *RepoMemoryCo
 		yaml.WriteString("          Feel free to create, read, update, and organize files in this folder as needed for your tasks.\n")
 	} else {
 		// Multiple memories or non-default single memory
+		repoMemoryPromptLog.Printf("Generating multiple repo memory prompts: count=%d", len(config.Memories))
 		yaml.WriteString("          ## Repo Memory Locations Available\n")
 		yaml.WriteString("          \n")
 		yaml.WriteString("          You have access to persistent repo memory folders where you can read and write files that are stored in git branches:\n")

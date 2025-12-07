@@ -3,7 +3,11 @@ package workflow
 import (
 	"fmt"
 	"strings"
+
+	"github.com/githubnext/gh-aw/pkg/logger"
 )
+
+var publishAssetsLog = logger.New("workflow:publish_assets")
 
 // UploadAssetsConfig holds configuration for publishing assets to an orphaned git branch
 type UploadAssetsConfig struct {
@@ -16,6 +20,7 @@ type UploadAssetsConfig struct {
 // parseUploadAssetConfig handles upload-asset configuration
 func (c *Compiler) parseUploadAssetConfig(outputMap map[string]any) *UploadAssetsConfig {
 	if configData, exists := outputMap["upload-assets"]; exists {
+		publishAssetsLog.Print("Parsing upload-assets configuration")
 		config := &UploadAssetsConfig{
 			BranchName: "assets/${{ github.workflow }}", // Default branch name
 			MaxSizeKB:  10240,                           // Default 10MB
@@ -59,8 +64,10 @@ func (c *Compiler) parseUploadAssetConfig(outputMap map[string]any) *UploadAsset
 
 			// Parse common base fields with default max of 0 (no limit)
 			c.parseBaseSafeOutputConfig(configMap, &config.BaseSafeOutputConfig, 0)
+			publishAssetsLog.Printf("Parsed upload-assets config: branch=%s, max_size_kb=%d, allowed_exts=%d", config.BranchName, config.MaxSizeKB, len(config.AllowedExts))
 		} else if configData == nil {
 			// Handle null case: create config with defaults
+			publishAssetsLog.Print("Using default upload-assets configuration")
 			return config
 		}
 
@@ -72,6 +79,8 @@ func (c *Compiler) parseUploadAssetConfig(outputMap map[string]any) *UploadAsset
 
 // buildUploadAssetsJob creates the publish_assets job
 func (c *Compiler) buildUploadAssetsJob(data *WorkflowData, mainJobName string) (*Job, error) {
+	publishAssetsLog.Printf("Building upload_assets job: workflow=%s, main_job=%s", data.Name, mainJobName)
+
 	if data.SafeOutputs == nil || data.SafeOutputs.UploadAssets == nil {
 		return nil, fmt.Errorf("safe-outputs.upload-asset configuration is required")
 	}
