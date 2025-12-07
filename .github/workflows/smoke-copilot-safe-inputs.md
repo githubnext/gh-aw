@@ -1,5 +1,5 @@
 ---
-description: Smoke Copilot
+description: Smoke Copilot Safe Inputs
 on: 
   schedule:
     - cron: "0 0,7,13,19 * * *"  # Every 6 hours
@@ -12,7 +12,7 @@ permissions:
   contents: read
   pull-requests: read
   issues: read
-name: Smoke Copilot
+name: Smoke Copilot Safe Inputs
 engine: copilot
 network:
   allowed:
@@ -21,22 +21,24 @@ network:
     - github
   firewall:
     log-level: debug  # Enable debug-level firewall logs
+imports:
+  - shared/gh.md
 tools:
-  cache-memory: true
   edit:
   bash:
     - "*"
-  github:
+  github: false
+  serena: ["go"]
 safe-outputs:
     add-comment:
     create-issue:
     add-labels:
       allowed: [smoke-copilot]
     messages:
-      footer: "> 📰 *BREAKING: Report filed by [{workflow_name}]({run_url})*"
-      run-started: "📰 BREAKING: [{workflow_name}]({run_url}) is now investigating this {event_type}. Sources say the story is developing..."
-      run-success: "📰 VERDICT: [{workflow_name}]({run_url}) has concluded. All systems operational. This is a developing story. 🎤"
-      run-failure: "📰 DEVELOPING STORY: [{workflow_name}]({run_url}) reports {status}. Our correspondents are investigating the incident..."
+      footer: "📰🔥📋 [{run_url}]({run_url})"
+      run-started: "📰🚀🔍👀📡🕵️ [{run_url}]({run_url})"
+      run-success: "📰✅🎉🏁✨🎤 [{run_url}]({run_url})"
+      run-failure: "📰⚠️🔥❌🚨🔧 [{run_url}]({run_url})"
 timeout-minutes: 5
 strict: true
 ---
@@ -50,9 +52,8 @@ strict: true
 1. **GitHub MCP Testing**: Review the last 2 merged pull requests in ${{ github.repository }}
 2. **File Writing Testing**: Create a test file `/tmp/gh-aw/agent/smoke-test-copilot-${{ github.run_id }}.txt` with content "Smoke test passed for Copilot at $(date)" (create the directory if it doesn't exist)
 3. **Bash Tool Testing**: Execute bash commands to verify file creation was successful (use `cat` to read the file back)
-4. **GitHub MCP Default Toolset Testing**: Verify that the `get_me` tool is NOT available with default toolsets. Try to use it and confirm it fails with a tool not found error.
-5. **Cache Memory Testing**: Write a test file to `/tmp/gh-aw/cache-memory/smoke-test-${{ github.run_id }}.txt` with content "Cache memory test for run ${{ github.run_id }}" and verify it was created successfully
-6. **Safe Input gh Tool Testing**: Use the `gh` safe-input tool to run "gh issues list --limit 3" to verify the tool can access GitHub issues
+4. **Serena MCP Testing**: Use Serena to list classes in the project
+5. **Safe Input gh Tool Testing**: Use the `gh` safe-input tool to run "gh issues list --limit 3" to verify the tool can access GitHub issues
 
 ## Output
 
