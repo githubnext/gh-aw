@@ -43,7 +43,7 @@ copilot --add-dir /path/to/project \
         --log-level debug \
         --log-dir /tmp/gh-aw/logs \
         --model gpt-5 \
-        --additional-mcp-config @/home/runner/.copilot/mcp-config.json \
+        --additional-mcp-config '{"mcpServers":{...}}' \
         --prompt "instruction"
 ```
 
@@ -52,12 +52,12 @@ copilot --add-dir /path/to/project \
 - `--log-level`: Set logging verbosity (debug, info, warn, error)
 - `--log-dir`: Directory for log output
 - `--model`: Specify AI model (if supported)
-- `--additional-mcp-config`: Path to MCP server configuration file (prefix with @ for file paths) or JSON string
+- `--additional-mcp-config`: MCP server configuration as JSON string (or prefix with @ for file paths)
 - `--prompt`: Natural language instruction (required to avoid interactive mode)
 
 ## MCP Server Configuration
 
-Copilot CLI supports MCP servers via JSON configuration file. The configuration file path is specified using the `--additional-mcp-config` CLI argument with @ prefix (e.g., `--additional-mcp-config @/home/runner/.copilot/mcp-config.json`):
+Copilot CLI supports MCP servers via JSON configuration passed directly to the `--additional-mcp-config` CLI argument as a JSON string:
 
 ```json
 {

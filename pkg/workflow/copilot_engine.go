@@ -220,10 +220,10 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 	copilotArgs = append(copilotArgs, toolArgs...)
 
 	// Add MCP configuration via CLI argument only if there are MCP servers
-	// The @ prefix indicates a file path (per Copilot CLI documentation)
+	// Pass JSON content directly (not a file path)
 	if HasMCPServers(workflowData) {
-		copilotLog.Print("Adding --additional-mcp-config argument")
-		copilotArgs = append(copilotArgs, "--additional-mcp-config", "@/home/runner/.copilot/mcp-config.json")
+		copilotLog.Print("Adding --additional-mcp-config argument with JSON content")
+		copilotArgs = append(copilotArgs, "--additional-mcp-config", "\"$GH_AW_MCP_CONFIG_JSON\"")
 	}
 
 	// if cache-memory tool is used, --add-dir for each cache
@@ -614,9 +614,6 @@ func (e *CopilotEngine) GetCleanupStep(workflowData *WorkflowData) GitHubActionS
 func (e *CopilotEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]any, mcpTools []string, workflowData *WorkflowData) {
 	copilotLog.Printf("Rendering MCP config for Copilot engine: mcpTools=%d", len(mcpTools))
 
-	// Create the directory first
-	yaml.WriteString("          mkdir -p /home/runner/.copilot\n")
-
 	// Create unified renderer with Copilot-specific options
 	// Copilot uses JSON format with type and tools fields, and inline args
 	createRenderer := func(isLast bool) *MCPConfigRendererUnified {
@@ -628,56 +625,76 @@ func (e *CopilotEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]
 		})
 	}
 
-	// Use shared JSON MCP config renderer with unified renderer methods
-	RenderJSONMCPConfig(yaml, tools, mcpTools, workflowData, JSONMCPConfigOptions{
-		ConfigPath: "/home/runner/.copilot/mcp-config.json",
-		Renderers: MCPToolRenderers{
-			RenderGitHub: func(yaml *strings.Builder, githubTool any, isLast bool, workflowData *WorkflowData) {
-				renderer := createRenderer(isLast)
-				renderer.RenderGitHubMCP(yaml, githubTool, workflowData)
-			},
-			RenderPlaywright: func(yaml *strings.Builder, playwrightTool any, isLast bool) {
-				renderer := createRenderer(isLast)
-				renderer.RenderPlaywrightMCP(yaml, playwrightTool)
-			},
-			RenderSerena: func(yaml *strings.Builder, serenaTool any, isLast bool) {
-				renderer := createRenderer(isLast)
-				renderer.RenderSerenaMCP(yaml, serenaTool)
-			},
-			RenderCacheMemory: func(yaml *strings.Builder, isLast bool, workflowData *WorkflowData) {
-				// Cache-memory is not used for Copilot (filtered out)
-			},
-			RenderAgenticWorkflows: func(yaml *strings.Builder, isLast bool) {
-				renderer := createRenderer(isLast)
-				renderer.RenderAgenticWorkflowsMCP(yaml)
-			},
-			RenderSafeOutputs: func(yaml *strings.Builder, isLast bool) {
-				renderer := createRenderer(isLast)
-				renderer.RenderSafeOutputsMCP(yaml)
-			},
-			RenderSafeInputs: func(yaml *strings.Builder, safeInputs *SafeInputsConfig, isLast bool) {
-				renderer := createRenderer(isLast)
-				renderer.RenderSafeInputsMCP(yaml, safeInputs)
-			},
-			RenderWebFetch: func(yaml *strings.Builder, isLast bool) {
-				renderMCPFetchServerConfig(yaml, "json", "              ", isLast, true)
-			},
-			RenderCustomMCPConfig: e.renderCopilotMCPConfig,
-		},
-		FilterTool: func(toolName string) bool {
-			// Filter out cache-memory for Copilot
-			// Cache-memory is handled as a simple file share, not an MCP server
-			return toolName != "cache-memory"
-		},
-		PostEOFCommands: func(yaml *strings.Builder) {
-			// Add debug output
-			yaml.WriteString("          echo \"-------START MCP CONFIG-----------\"\n")
-			yaml.WriteString("          cat /home/runner/.copilot/mcp-config.json\n")
-			yaml.WriteString("          echo \"-------END MCP CONFIG-----------\"\n")
-			yaml.WriteString("          echo \"-------/home/runner/.copilot-----------\"\n")
-			yaml.WriteString("          find /home/runner/.copilot\n")
-		},
-	})
+	// Generate JSON config as a shell variable to pass directly to CLI
+	yaml.WriteString("          # Generate MCP config JSON\n")
+	yaml.WriteString("          GH_AW_MCP_CONFIG_JSON=$(cat << MCPCONFIG_EOF\n")
+	yaml.WriteString("          {\n")
+	yaml.WriteString("            \"mcpServers\": {\n")
+
+	// Filter tools if needed (Copilot filters out cache-memory)
+	var filteredTools []string
+	for _, toolName := range mcpTools {
+		if toolName == "cache-memory" {
+			copilotLog.Printf("Filtering out cache-memory MCP tool")
+			continue
+		}
+		filteredTools = append(filteredTools, toolName)
+	}
+
+	copilotLog.Printf("Rendering %d MCP tools after filtering", len(filteredTools))
+
+	// Process each MCP tool
+	totalServers := len(filteredTools)
+	serverCount := 0
+
+	for _, toolName := range filteredTools {
+		serverCount++
+		isLast := serverCount == totalServers
+
+		switch toolName {
+		case "github":
+			githubTool := tools["github"]
+			renderer := createRenderer(isLast)
+			renderer.RenderGitHubMCP(yaml, githubTool, workflowData)
+		case "playwright":
+			playwrightTool := tools["playwright"]
+			renderer := createRenderer(isLast)
+			renderer.RenderPlaywrightMCP(yaml, playwrightTool)
+		case "serena":
+			serenaTool := tools["serena"]
+			renderer := createRenderer(isLast)
+			renderer.RenderSerenaMCP(yaml, serenaTool)
+		case "agentic-workflows":
+			renderer := createRenderer(isLast)
+			renderer.RenderAgenticWorkflowsMCP(yaml)
+		case "safe-outputs":
+			renderer := createRenderer(isLast)
+			renderer.RenderSafeOutputsMCP(yaml)
+		case "safe-inputs":
+			renderer := createRenderer(isLast)
+			renderer.RenderSafeInputsMCP(yaml, workflowData.SafeInputs)
+		case "web-fetch":
+			renderMCPFetchServerConfig(yaml, "json", "              ", isLast, true)
+		default:
+			// Handle custom MCP tools
+			if toolConfigMap, ok := tools[toolName].(map[string]any); ok {
+				if err := e.renderCopilotMCPConfig(yaml, toolName, toolConfigMap, isLast); err != nil {
+					copilotLog.Printf("Error rendering custom MCP config for %s: %v", toolName, err)
+				}
+			}
+		}
+	}
+
+	yaml.WriteString("            }\n")
+	yaml.WriteString("          }\n")
+	yaml.WriteString("          MCPCONFIG_EOF\n")
+	yaml.WriteString("          )\n")
+
+	// Add debug output
+	yaml.WriteString("          echo \"-------START MCP CONFIG JSON-----------\"\n")
+	yaml.WriteString("          echo \"$GH_AW_MCP_CONFIG_JSON\"\n")
+	yaml.WriteString("          echo \"-------END MCP CONFIG JSON-----------\"\n")
+
 	//GITHUB_COPILOT_CLI_MODE
 	yaml.WriteString("          echo \"HOME: $HOME\"\n")
 	yaml.WriteString("          echo \"GITHUB_COPILOT_CLI_MODE: $GITHUB_COPILOT_CLI_MODE\"\n")
