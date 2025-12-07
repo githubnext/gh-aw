@@ -6388,7 +6388,9 @@ jobs:
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
         with:
           name: agent-stdio.log
-          path: /tmp/gh-aw/agent-stdio.log
+          path: |
+            /tmp/gh-aw/agent-stdio.log
+            /tmp/gh-aw/safe-inputs/logs/
           if-no-files-found: warn
       - name: Upload safe outputs assets
         if: always()

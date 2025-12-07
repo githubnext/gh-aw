@@ -466,15 +466,17 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 }
 
 func (c *Compiler) generateUploadAgentLogs(yaml *strings.Builder, logFileFull string) {
-	// Record artifact upload for validation
-	c.stepOrderTracker.RecordArtifactUpload("Upload Agent Stdio", []string{logFileFull})
+	// Record artifact upload for validation (includes agent stdio and safe-inputs logs)
+	c.stepOrderTracker.RecordArtifactUpload("Upload Agent Stdio", []string{logFileFull, "/tmp/gh-aw/safe-inputs/logs/"})
 
 	yaml.WriteString("      - name: Upload Agent Stdio\n")
 	yaml.WriteString("        if: always()\n")
 	yaml.WriteString(fmt.Sprintf("        uses: %s\n", GetActionPin("actions/upload-artifact")))
 	yaml.WriteString("        with:\n")
 	yaml.WriteString("          name: agent-stdio.log\n")
-	fmt.Fprintf(yaml, "          path: %s\n", logFileFull)
+	yaml.WriteString("          path: |\n")
+	fmt.Fprintf(yaml, "            %s\n", logFileFull)
+	yaml.WriteString("            /tmp/gh-aw/safe-inputs/logs/\n")
 	yaml.WriteString("          if-no-files-found: warn\n")
 }
 
