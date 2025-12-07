@@ -41,13 +41,22 @@ func ResolveWorkflowPath(workflowFile string) (string, error) {
 		return workflowPath, nil
 	}
 
-	// No matches found
+	// No matches found - suggest similar workflow names
 	resolverLog.Printf("Workflow file not found: %s", workflowPath)
+	
 	suggestions := []string{
 		fmt.Sprintf("Run '%s status' to see all available workflows", constants.CLIExtensionPrefix),
 		"Check for typos in the workflow name",
 		"Ensure the workflow file exists in .github/workflows/",
 	}
+	
+	// Add fuzzy match suggestions if available
+	workflowName := strings.TrimSuffix(filepath.Base(searchPath), ".md")
+	similarNames := suggestWorkflowNames(workflowName)
+	if len(similarNames) > 0 {
+		suggestions = append([]string{fmt.Sprintf("Did you mean: %s?", strings.Join(similarNames, ", "))}, suggestions...)
+	}
+	
 	return "", errors.New(console.FormatErrorWithSuggestions(
 		fmt.Sprintf("workflow file not found: %s", workflowPath),
 		suggestions,
