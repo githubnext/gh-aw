@@ -23,9 +23,15 @@ echo "  Working directory: $(pwd)"
 # Ensure logs directory exists
 mkdir -p /tmp/gh-aw/safe-inputs/logs
 
+# Create initial server.log file for artifact upload
+echo "Safe Inputs MCP Server Log" > /tmp/gh-aw/safe-inputs/logs/server.log
+echo "Start time: $(date)" >> /tmp/gh-aw/safe-inputs/logs/server.log
+echo "===========================================" >> /tmp/gh-aw/safe-inputs/logs/server.log
+echo "" >> /tmp/gh-aw/safe-inputs/logs/server.log
+
 # Start the HTTP server in the background
 echo "Starting safe-inputs MCP HTTP server..."
-node mcp-server.cjs > /tmp/gh-aw/safe-inputs/logs/server.log 2>&1 &
+node mcp-server.cjs >> /tmp/gh-aw/safe-inputs/logs/server.log 2>&1 &
 SERVER_PID=$!
 echo "Started safe-inputs MCP server with PID $SERVER_PID"
 

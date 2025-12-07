@@ -411,6 +411,11 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	// upload MCP logs (if any MCP tools were used)
 	c.generateUploadMCPLogs(yaml)
 
+	// upload SafeInputs logs (if safe-inputs is enabled)
+	if IsSafeInputsEnabled(data.SafeInputs, data) {
+		c.generateUploadSafeInputsLogs(yaml)
+	}
+
 	// parse agent logs for GITHUB_STEP_SUMMARY
 	c.generateLogParsing(yaml, engine)
 
@@ -650,6 +655,19 @@ func (c *Compiler) generateUploadMCPLogs(yaml *strings.Builder) {
 	yaml.WriteString("        with:\n")
 	yaml.WriteString("          name: mcp-logs\n")
 	yaml.WriteString("          path: /tmp/gh-aw/mcp-logs/\n")
+	yaml.WriteString("          if-no-files-found: ignore\n")
+}
+
+func (c *Compiler) generateUploadSafeInputsLogs(yaml *strings.Builder) {
+	// Record artifact upload for validation
+	c.stepOrderTracker.RecordArtifactUpload("Upload SafeInputs logs", []string{"/tmp/gh-aw/safe-inputs/logs/"})
+
+	yaml.WriteString("      - name: Upload SafeInputs logs\n")
+	yaml.WriteString("        if: always()\n")
+	yaml.WriteString(fmt.Sprintf("        uses: %s\n", GetActionPin("actions/upload-artifact")))
+	yaml.WriteString("        with:\n")
+	yaml.WriteString("          name: safeinputs\n")
+	yaml.WriteString("          path: /tmp/gh-aw/safe-inputs/logs/\n")
 	yaml.WriteString("          if-no-files-found: ignore\n")
 }
 
