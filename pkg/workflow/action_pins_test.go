@@ -345,9 +345,12 @@ func TestApplyActionPinToStep(t *testing.T) {
 func TestGetActionPinsSorting(t *testing.T) {
 	pins := getActionPins()
 
-	// Verify we got all the pins (should be 26 after adding actions/cache/save)
-	if len(pins) != 26 {
-		t.Errorf("getActionPins() returned %d pins, expected 26", len(pins))
+	// Verify we got all the pins
+	// Expected count: 26 (as of 2025-12-07, includes actions/cache/save@v4)
+	// Update this count when adding or removing action pins in actions-lock.json
+	expectedCount := 26
+	if len(pins) != expectedCount {
+		t.Errorf("getActionPins() returned %d pins, expected %d", len(pins), expectedCount)
 	}
 
 	// Verify they are sorted by version (descending) then by repository name (ascending)
