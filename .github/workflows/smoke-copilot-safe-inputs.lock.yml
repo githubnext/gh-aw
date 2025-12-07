@@ -57,10 +57,10 @@
 #     add-labels:
 #       allowed: [smoke-copilot]
 #     messages:
-#       footer: "📰🔥📋"
-#       run-started: "📰🚀🔍👀📡🕵️"
-#       run-success: "📰✅🎉🏁✨🎤"
-#       run-failure: "📰⚠️🔥❌🚨🔧"
+#       footer: "📰🔥📋 [{run_url}]({run_url})"
+#       run-started: "📰🚀🔍👀📡🕵️ [{run_url}]({run_url})"
+#       run-success: "📰✅🎉🏁✨🎤 [{run_url}]({run_url})"
+#       run-failure: "📰⚠️🔥❌🚨🔧 [{run_url}]({run_url})"
 # timeout-minutes: 5
 # strict: true
 # ```
@@ -267,7 +267,7 @@ jobs:
         env:
           GH_AW_REACTION: "eyes"
           GH_AW_WORKFLOW_NAME: "Smoke Copilot Safe Inputs"
-          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"📰🔥📋\",\"runStarted\":\"📰🚀🔍👀📡🕵️\",\"runSuccess\":\"📰✅🎉🏁✨🎤\",\"runFailure\":\"📰⚠️🔥❌🚨🔧\"}"
+          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"📰🔥📋 [{run_url}]({run_url})\",\"runStarted\":\"📰🚀🔍👀📡🕵️ [{run_url}]({run_url})\",\"runSuccess\":\"📰✅🎉🏁✨🎤 [{run_url}]({run_url})\",\"runFailure\":\"📰⚠️🔥❌🚨🔧 [{run_url}]({run_url})\"}"
         with:
           script: |
             function getMessages() {
@@ -701,7 +701,7 @@ jobs:
           GH_AW_TEMPORARY_ID_MAP: ${{ needs.create_issue.outputs.temporary_id_map }}
           GH_AW_WORKFLOW_NAME: "Smoke Copilot Safe Inputs"
           GH_AW_ENGINE_ID: "copilot"
-          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"📰🔥📋\",\"runStarted\":\"📰🚀🔍👀📡🕵️\",\"runSuccess\":\"📰✅🎉🏁✨🎤\",\"runFailure\":\"📰⚠️🔥❌🚨🔧\"}"
+          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"📰🔥📋 [{run_url}]({run_url})\",\"runStarted\":\"📰🚀🔍👀📡🕵️ [{run_url}]({run_url})\",\"runSuccess\":\"📰✅🎉🏁✨🎤 [{run_url}]({run_url})\",\"runFailure\":\"📰⚠️🔥❌🚨🔧 [{run_url}]({run_url})\"}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -1285,7 +1285,7 @@ jobs:
           GH_AW_LABELS_MAX_COUNT: 3
           GH_AW_WORKFLOW_NAME: "Smoke Copilot Safe Inputs"
           GH_AW_ENGINE_ID: "copilot"
-          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"📰🔥📋\",\"runStarted\":\"📰🚀🔍👀📡🕵️\",\"runSuccess\":\"📰✅🎉🏁✨🎤\",\"runFailure\":\"📰⚠️🔥❌🚨🔧\"}"
+          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"📰🔥📋 [{run_url}]({run_url})\",\"runStarted\":\"📰🚀🔍👀📡🕵️ [{run_url}]({run_url})\",\"runSuccess\":\"📰✅🎉🏁✨🎤 [{run_url}]({run_url})\",\"runFailure\":\"📰⚠️🔥❌🚨🔧 [{run_url}]({run_url})\"}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -8073,7 +8073,7 @@ jobs:
           GH_AW_WORKFLOW_NAME: "Smoke Copilot Safe Inputs"
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
           GH_AW_DETECTION_CONCLUSION: ${{ needs.detection.result }}
-          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"📰🔥📋\",\"runStarted\":\"📰🚀🔍👀📡🕵️\",\"runSuccess\":\"📰✅🎉🏁✨🎤\",\"runFailure\":\"📰⚠️🔥❌🚨🔧\"}"
+          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"📰🔥📋 [{run_url}]({run_url})\",\"runStarted\":\"📰🚀🔍👀📡🕵️ [{run_url}]({run_url})\",\"runSuccess\":\"📰✅🎉🏁✨🎤 [{run_url}]({run_url})\",\"runFailure\":\"📰⚠️🔥❌🚨🔧 [{run_url}]({run_url})\"}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -8333,7 +8333,7 @@ jobs:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_WORKFLOW_NAME: "Smoke Copilot Safe Inputs"
           GH_AW_ENGINE_ID: "copilot"
-          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"📰🔥📋\",\"runStarted\":\"📰🚀🔍👀📡🕵️\",\"runSuccess\":\"📰✅🎉🏁✨🎤\",\"runFailure\":\"📰⚠️🔥❌🚨🔧\"}"
+          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"📰🔥📋 [{run_url}]({run_url})\",\"runStarted\":\"📰🚀🔍👀📡🕵️ [{run_url}]({run_url})\",\"runSuccess\":\"📰✅🎉🏁✨🎤 [{run_url}]({run_url})\",\"runFailure\":\"📰⚠️🔥❌🚨🔧 [{run_url}]({run_url})\"}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |

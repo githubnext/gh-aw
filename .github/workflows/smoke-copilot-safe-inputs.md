@@ -34,10 +34,10 @@ safe-outputs:
     add-labels:
       allowed: [smoke-copilot]
     messages:
-      footer: "📰🔥📋"
-      run-started: "📰🚀🔍👀📡🕵️"
-      run-success: "📰✅🎉🏁✨🎤"
-      run-failure: "📰⚠️🔥❌🚨🔧"
+      footer: "📰🔥📋 [{run_url}]({run_url})"
+      run-started: "📰🚀🔍👀📡🕵️ [{run_url}]({run_url})"
+      run-success: "📰✅🎉🏁✨🎤 [{run_url}]({run_url})"
+      run-failure: "📰⚠️🔥❌🚨🔧 [{run_url}]({run_url})"
 timeout-minutes: 5
 strict: true
 ---
