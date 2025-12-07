@@ -758,12 +758,12 @@ func TestRemoveJavaScriptCommentsAllRepoFiles(t *testing.T) {
 	if len(failedFiles) > 0 {
 		t.Logf("Files with issues (%d): %v", len(failedFiles), failedFiles)
 	}
-	
+
 	compressionRatio := 100.0 * float64(totalSize-processedSize) / float64(totalSize)
 	t.Logf("Processed %d files, validated %d successfully", len(cjsFiles), successCount)
 	t.Logf("Original size: %d bytes, processed size: %d bytes, compression: %.2f%%",
 		totalSize, processedSize, compressionRatio)
-	
+
 	// Ensure we processed a reasonable number of files
 	if len(cjsFiles) < 50 {
 		t.Errorf("Expected to process at least 50 .cjs files, but only found %d", len(cjsFiles))
@@ -776,7 +776,7 @@ func validateJavaScriptSyntax(code, filename string) error {
 	// Wrap the code in an async function to handle top-level await
 	// which is commonly used in GitHub Actions scripts
 	wrappedCode := fmt.Sprintf("(async () => {\n%s\n})();", code)
-	
+
 	// Create a temporary file with the cleaned JavaScript
 	tmpfile, err := os.CreateTemp("", "validate-js-*.cjs")
 	if err != nil {
