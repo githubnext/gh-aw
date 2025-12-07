@@ -5448,20 +5448,272 @@ jobs:
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
-            const { sanitizeLabelContent } = require("./sanitize_label_content.cjs");
-            const { loadAgentOutput } = require("./load_agent_output.cjs");
-            const { generateStagedPreview } = require("./staged_preview.cjs");
-            const { generateFooter } = require("./generate_footer.cjs");
-            const { getTrackerID } = require("./get_tracker_id.cjs");
-            const {
-              generateTemporaryId,
-              isTemporaryId,
-              normalizeTemporaryId,
-              replaceTemporaryIdReferences,
-              serializeTemporaryIdMap,
-            } = require("./temporary_id.cjs");
-            const { parseAllowedRepos, getDefaultTargetRepo, validateRepo, parseRepoSlug } = require("./repo_helpers.cjs");
-            const { addExpirationComment } = require("./expiration_helpers.cjs");
+            function sanitizeLabelContent(content) {
+              if (!content || typeof content !== "string") {
+                return "";
+              }
+              let sanitized = content.trim();
+              sanitized = sanitized.replace(/\x1b\[[0-9;]*[mGKH]/g, "");
+              sanitized = sanitized.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "");
+              sanitized = sanitized.replace(
+                /(^|[^\w`])@([A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?(?:\/[A-Za-z0-9._-]+)?)/g,
+                (_m, p1, p2) => `${p1}\`@${p2}\``
+              );
+              sanitized = sanitized.replace(/[<>&'"]/g, "");
+              return sanitized.trim();
+            }
+            const fs = require("fs");
+            const crypto = require("crypto");
+            const MAX_LOG_CONTENT_LENGTH = 10000;
+            function truncateForLogging(content) {
+              if (content.length <= MAX_LOG_CONTENT_LENGTH) {
+                return content;
+              }
+              return content.substring(0, MAX_LOG_CONTENT_LENGTH) + `\n... (truncated, total length: ${content.length})`;
+            }
+            function loadAgentOutput() {
+              const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT;
+              if (!agentOutputFile) {
+                core.info("No GH_AW_AGENT_OUTPUT environment variable found");
+                return { success: false };
+              }
+              let outputContent;
+              try {
+                outputContent = fs.readFileSync(agentOutputFile, "utf8");
+              } catch (error) {
+                const errorMessage = `Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`;
+                core.error(errorMessage);
+                return { success: false, error: errorMessage };
+              }
+              if (outputContent.trim() === "") {
+                core.info("Agent output content is empty");
+                return { success: false };
+              }
+              core.info(`Agent output content length: ${outputContent.length}`);
+              let validatedOutput;
+              try {
+                validatedOutput = JSON.parse(outputContent);
+              } catch (error) {
+                const errorMessage = `Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`;
+                core.error(errorMessage);
+                core.info(`Failed to parse content:\n${truncateForLogging(outputContent)}`);
+                return { success: false, error: errorMessage };
+              }
+              if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
+                core.info("No valid items found in agent output");
+                core.info(`Parsed content: ${truncateForLogging(JSON.stringify(validatedOutput))}`);
+                return { success: false };
+              }
+              return { success: true, items: validatedOutput.items };
+            }
+            async function generateStagedPreview(options) {
+              const { title, description, items, renderItem } = options;
+              let summaryContent = `## 🎭 Staged Mode: ${title} Preview\n\n`;
+              summaryContent += `${description}\n\n`;
+              for (let i = 0; i < items.length; i++) {
+                const item = items[i];
+                summaryContent += renderItem(item, i);
+                summaryContent += "---\n\n";
+              }
+              try {
+                await core.summary.addRaw(summaryContent).write();
+                core.info(summaryContent);
+                core.info(`📝 ${title} preview written to step summary`);
+              } catch (error) {
+                core.setFailed(error instanceof Error ? error : String(error));
+              }
+            }
+            function generateXMLMarker(workflowName, runUrl) {
+              const engineId = process.env.GH_AW_ENGINE_ID || "";
+              const engineVersion = process.env.GH_AW_ENGINE_VERSION || "";
+              const engineModel = process.env.GH_AW_ENGINE_MODEL || "";
+              const trackerId = process.env.GH_AW_TRACKER_ID || "";
+              const parts = [];
+              parts.push(`agentic-workflow: ${workflowName}`);
+              if (trackerId) {
+                parts.push(`tracker-id: ${trackerId}`);
+              }
+              if (engineId) {
+                parts.push(`engine: ${engineId}`);
+              }
+              if (engineVersion) {
+                parts.push(`version: ${engineVersion}`);
+              }
+              if (engineModel) {
+                parts.push(`model: ${engineModel}`);
+              }
+              parts.push(`run: ${runUrl}`);
+              return `<!-- ${parts.join(", ")} -->`;
+            }
+            function generateFooter(
+              workflowName,
+              runUrl,
+              workflowSource,
+              workflowSourceURL,
+              triggeringIssueNumber,
+              triggeringPRNumber,
+              triggeringDiscussionNumber
+            ) {
+              let footer = `\n\n> AI generated by [${workflowName}](${runUrl})`;
+              if (triggeringIssueNumber) {
+                footer += ` for #${triggeringIssueNumber}`;
+              } else if (triggeringPRNumber) {
+                footer += ` for #${triggeringPRNumber}`;
+              } else if (triggeringDiscussionNumber) {
+                footer += ` for discussion #${triggeringDiscussionNumber}`;
+              }
+              if (workflowSource && workflowSourceURL) {
+                footer += `\n>\n> To add this workflow in your repository, run \`gh aw add ${workflowSource}\`. See [usage guide](https://githubnext.github.io/gh-aw/tools/cli/).`;
+              }
+              footer += "\n\n" + generateXMLMarker(workflowName, runUrl);
+              footer += "\n";
+              return footer;
+            }
+            function getTrackerID(format) {
+              const trackerID = process.env.GH_AW_TRACKER_ID || "";
+              if (trackerID) {
+                core.info(`Tracker ID: ${trackerID}`);
+                return format === "markdown" ? `\n\n<!-- tracker-id: ${trackerID} -->` : trackerID;
+              }
+              return "";
+            }
+            const TEMPORARY_ID_PATTERN = /#(aw_[0-9a-f]{12})/gi;
+            function generateTemporaryId() {
+              return "aw_" + crypto.randomBytes(6).toString("hex");
+            }
+            function isTemporaryId(value) {
+              if (typeof value === "string") {
+                return /^aw_[0-9a-f]{12}$/i.test(value);
+              }
+              return false;
+            }
+            function normalizeTemporaryId(tempId) {
+              return String(tempId).toLowerCase();
+            }
+            function replaceTemporaryIdReferences(text, tempIdMap, currentRepo) {
+              return text.replace(TEMPORARY_ID_PATTERN, (match, tempId) => {
+                const resolved = tempIdMap.get(normalizeTemporaryId(tempId));
+                if (resolved !== undefined) {
+                  if (currentRepo && resolved.repo === currentRepo) {
+                    return `#${resolved.number}`;
+                  }
+                  return `${resolved.repo}#${resolved.number}`;
+                }
+                return match;
+              });
+            }
+            function replaceTemporaryIdReferencesLegacy(text, tempIdMap) {
+              return text.replace(TEMPORARY_ID_PATTERN, (match, tempId) => {
+                const issueNumber = tempIdMap.get(normalizeTemporaryId(tempId));
+                if (issueNumber !== undefined) {
+                  return `#${issueNumber}`;
+                }
+                return match;
+              });
+            }
+            function loadTemporaryIdMap() {
+              const mapJson = process.env.GH_AW_TEMPORARY_ID_MAP;
+              if (!mapJson || mapJson === "{}") {
+                return new Map();
+              }
+              try {
+                const mapObject = JSON.parse(mapJson);
+                const result = new Map();
+                for (const [key, value] of Object.entries(mapObject)) {
+                  const normalizedKey = normalizeTemporaryId(key);
+                  if (typeof value === "number") {
+                    const contextRepo = `${context.repo.owner}/${context.repo.repo}`;
+                    result.set(normalizedKey, { repo: contextRepo, number: value });
+                  } else if (typeof value === "object" && value !== null && "repo" in value && "number" in value) {
+                    result.set(normalizedKey, { repo: String(value.repo), number: Number(value.number) });
+                  }
+                }
+                return result;
+              } catch (error) {
+                if (typeof core !== "undefined") {
+                  core.warning(`Failed to parse temporary ID map: ${error instanceof Error ? error.message : String(error)}`);
+                }
+                return new Map();
+              }
+            }
+            function resolveIssueNumber(value, temporaryIdMap) {
+              if (value === undefined || value === null) {
+                return { resolved: null, wasTemporaryId: false, errorMessage: "Issue number is missing" };
+              }
+              const valueStr = String(value);
+              if (isTemporaryId(valueStr)) {
+                const resolvedPair = temporaryIdMap.get(normalizeTemporaryId(valueStr));
+                if (resolvedPair !== undefined) {
+                  return { resolved: resolvedPair, wasTemporaryId: true, errorMessage: null };
+                }
+                return {
+                  resolved: null,
+                  wasTemporaryId: true,
+                  errorMessage: `Temporary ID '${valueStr}' not found in map. Ensure the issue was created before linking.`,
+                };
+              }
+              const issueNumber = typeof value === "number" ? value : parseInt(valueStr, 10);
+              if (isNaN(issueNumber) || issueNumber <= 0) {
+                return { resolved: null, wasTemporaryId: false, errorMessage: `Invalid issue number: ${value}` };
+              }
+              const contextRepo = typeof context !== "undefined" ? `${context.repo.owner}/${context.repo.repo}` : "";
+              return { resolved: { repo: contextRepo, number: issueNumber }, wasTemporaryId: false, errorMessage: null };
+            }
+            function serializeTemporaryIdMap(tempIdMap) {
+              const obj = Object.fromEntries(tempIdMap);
+              return JSON.stringify(obj);
+            }
+            function parseAllowedRepos() {
+              const allowedReposEnv = process.env.GH_AW_ALLOWED_REPOS;
+              const set = new Set();
+              if (allowedReposEnv) {
+                allowedReposEnv
+                  .split(",")
+                  .map(repo => repo.trim())
+                  .filter(repo => repo)
+                  .forEach(repo => set.add(repo));
+              }
+              return set;
+            }
+            function getDefaultTargetRepo() {
+              const targetRepoSlug = process.env.GH_AW_TARGET_REPO_SLUG;
+              if (targetRepoSlug) {
+                return targetRepoSlug;
+              }
+              return `${context.repo.owner}/${context.repo.repo}`;
+            }
+            function validateRepo(repo, defaultRepo, allowedRepos) {
+              if (repo === defaultRepo) {
+                return { valid: true, error: null };
+              }
+              if (allowedRepos.has(repo)) {
+                return { valid: true, error: null };
+              }
+              return {
+                valid: false,
+                error: `Repository '${repo}' is not in the allowed-repos list. Allowed: ${defaultRepo}${allowedRepos.size > 0 ? ", " + Array.from(allowedRepos).join(", ") : ""}`,
+              };
+            }
+            function parseRepoSlug(repoSlug) {
+              const parts = repoSlug.split("/");
+              if (parts.length !== 2 || !parts[0] || !parts[1]) {
+                return null;
+              }
+              return { owner: parts[0], repo: parts[1] };
+            }
+            function addExpirationComment(bodyLines, envVarName, entityType) {
+              const expiresEnv = process.env[envVarName];
+              if (expiresEnv) {
+                const expiresDays = parseInt(expiresEnv, 10);
+                if (!isNaN(expiresDays) && expiresDays > 0) {
+                  const expirationDate = new Date();
+                  expirationDate.setDate(expirationDate.getDate() + expiresDays);
+                  const expirationISO = expirationDate.toISOString();
+                  bodyLines.push(`<!-- gh-aw-expires: ${expirationISO} -->`);
+                  core.info(`${entityType} will expire on ${expirationISO} (${expiresDays} days)`);
+                }
+              }
+            }
             async function main() {
               core.setOutput("issue_number", "");
               core.setOutput("issue_url", "");
