@@ -556,6 +556,13 @@
             "additionalProperties": {
               "type": "string"
             }
+          },
+          "timeout": {
+            "type": "integer",
+            "description": "Timeout in seconds for tool execution. Default is 60 seconds. Applies to shell (run) and Python (py) tools.",
+            "default": 60,
+            "minimum": 1,
+            "examples": [30, 60, 120, 300]
           }
         },
         "required": ["description"],

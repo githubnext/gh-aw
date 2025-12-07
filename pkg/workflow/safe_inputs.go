@@ -45,6 +45,7 @@ type SafeInputToolConfig struct {
 	Run         string                     // Shell script implementation (mutually exclusive with Script and Py)
 	Py          string                     // Python script implementation (mutually exclusive with Script and Run)
 	Env         map[string]string          // Environment variables (typically for secrets)
+	Timeout     int                        // Timeout in seconds for tool execution (default: 60)
 }
 
 // SafeInputParam holds the configuration for a tool input parameter
@@ -85,9 +86,10 @@ func parseSafeInputsMap(safeInputsMap map[string]any) (*SafeInputsConfig, bool) 
 		}
 
 		toolConfig := &SafeInputToolConfig{
-			Name:   toolName,
-			Inputs: make(map[string]*SafeInputParam),
-			Env:    make(map[string]string),
+			Name:    toolName,
+			Inputs:  make(map[string]*SafeInputParam),
+			Env:     make(map[string]string),
+			Timeout: 60, // Default timeout: 60 seconds
 		}
 
 		// Parse description (required)
@@ -166,6 +168,23 @@ func parseSafeInputsMap(safeInputsMap map[string]any) (*SafeInputsConfig, bool) 
 			}
 		}
 
+		// Parse timeout (optional, default is 60 seconds)
+		if timeout, exists := toolMap["timeout"]; exists {
+			switch t := timeout.(type) {
+			case int:
+				toolConfig.Timeout = t
+			case uint64:
+				toolConfig.Timeout = int(t)
+			case float64:
+				toolConfig.Timeout = int(t)
+			case string:
+				// Try to parse string as integer
+				if timeoutInt, err := fmt.Sscanf(t, "%d", &toolConfig.Timeout); err == nil && timeoutInt == 1 {
+					// Successfully parsed
+				}
+			}
+		}
+
 		config.Tools[toolName] = toolConfig
 	}
 
@@ -224,6 +243,7 @@ type SafeInputsToolJSON struct {
 	Description string         `json:"description"`
 	InputSchema map[string]any `json:"inputSchema"`
 	Handler     string         `json:"handler,omitempty"`
+	Timeout     int            `json:"timeout,omitempty"`
 }
 
 // SafeInputsConfigJSON represents the tools.json configuration file structure
@@ -304,6 +324,7 @@ func generateSafeInputsToolsConfig(safeInputs *SafeInputsConfig) string {
 			Description: toolConfig.Description,
 			InputSchema: inputSchema,
 			Handler:     handler,
+			Timeout:     toolConfig.Timeout,
 		})
 	}
 
@@ -637,9 +658,10 @@ func (c *Compiler) mergeSafeInputs(main *SafeInputsConfig, importedConfigs []str
 			}
 
 			toolConfig := &SafeInputToolConfig{
-				Name:   toolName,
-				Inputs: make(map[string]*SafeInputParam),
-				Env:    make(map[string]string),
+				Name:    toolName,
+				Inputs:  make(map[string]*SafeInputParam),
+				Env:     make(map[string]string),
+				Timeout: 60, // Default timeout: 60 seconds
 			}
 
 			// Parse description
@@ -709,6 +731,23 @@ func (c *Compiler) mergeSafeInputs(main *SafeInputsConfig, importedConfigs []str
 						if envStr, ok := envValue.(string); ok {
 							toolConfig.Env[envName] = envStr
 						}
+					}
+				}
+			}
+
+			// Parse timeout (optional, default is 60 seconds)
+			if timeout, exists := toolMap["timeout"]; exists {
+				switch t := timeout.(type) {
+				case int:
+					toolConfig.Timeout = t
+				case uint64:
+					toolConfig.Timeout = int(t)
+				case float64:
+					toolConfig.Timeout = int(t)
+				case string:
+					// Try to parse string as integer
+					if timeoutInt, err := fmt.Sscanf(t, "%d", &toolConfig.Timeout); err == nil && timeoutInt == 1 {
+						// Successfully parsed
 					}
 				}
 			}

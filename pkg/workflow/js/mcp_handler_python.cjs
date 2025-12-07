@@ -19,12 +19,14 @@ const { execFile } = require("child_process");
  * @param {Object} server - The MCP server instance for logging
  * @param {string} toolName - Name of the tool for logging purposes
  * @param {string} scriptPath - Path to the Python script to execute
+ * @param {number} [timeoutSeconds=60] - Timeout in seconds for script execution
  * @returns {Function} Async handler function that executes the Python script
  */
-function createPythonHandler(server, toolName, scriptPath) {
+function createPythonHandler(server, toolName, scriptPath, timeoutSeconds = 60) {
   return async args => {
     server.debug(`  [${toolName}] Invoking Python handler: ${scriptPath}`);
     server.debug(`  [${toolName}] Python handler args: ${JSON.stringify(args)}`);
+    server.debug(`  [${toolName}] Timeout: ${timeoutSeconds}s`);
 
     // Pass inputs as JSON via stdin (more Pythonic approach)
     const inputJson = JSON.stringify(args || {});
@@ -40,7 +42,7 @@ function createPythonHandler(server, toolName, scriptPath) {
         [scriptPath],
         {
           env: process.env,
-          timeout: 300000, // 5 minute timeout
+          timeout: timeoutSeconds * 1000, // Convert to milliseconds
           maxBuffer: 10 * 1024 * 1024, // 10MB buffer
         },
         (error, stdout, stderr) => {

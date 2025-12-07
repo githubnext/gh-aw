@@ -41,6 +41,7 @@ const encoder = new TextEncoder();
  * @property {Object} inputSchema - JSON Schema for tool inputs
  * @property {Function} [handler] - Tool handler function
  * @property {string} [handlerPath] - Optional file path to handler module (original path from config)
+ * @property {number} [timeout] - Timeout in seconds for tool execution (default: 60)
  */
 
 /**
@@ -374,10 +375,11 @@ function loadToolHandlers(server, tools, basePath) {
 
         // Lazy-load shell handler module
         const { createShellHandler } = require("./mcp_handler_shell.cjs");
-        tool.handler = createShellHandler(server, toolName, resolvedPath);
+        const timeout = tool.timeout || 60; // Default to 60 seconds if not specified
+        tool.handler = createShellHandler(server, toolName, resolvedPath, timeout);
 
         loadedCount++;
-        server.debug(`  [${toolName}] Shell handler created successfully`);
+        server.debug(`  [${toolName}] Shell handler created successfully with timeout: ${timeout}s`);
       } else if (ext === ".py") {
         // Python script handler - use GitHub Actions convention
         server.debug(`  [${toolName}] Detected Python script handler`);
@@ -399,10 +401,11 @@ function loadToolHandlers(server, tools, basePath) {
 
         // Lazy-load Python handler module
         const { createPythonHandler } = require("./mcp_handler_python.cjs");
-        tool.handler = createPythonHandler(server, toolName, resolvedPath);
+        const timeout = tool.timeout || 60; // Default to 60 seconds if not specified
+        tool.handler = createPythonHandler(server, toolName, resolvedPath, timeout);
 
         loadedCount++;
-        server.debug(`  [${toolName}] Python handler created successfully`);
+        server.debug(`  [${toolName}] Python handler created successfully with timeout: ${timeout}s`);
       } else {
         // JavaScript/CommonJS handler - use require()
         server.debug(`  [${toolName}] Loading JavaScript handler module`);
