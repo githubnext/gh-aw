@@ -1,5 +1,5 @@
 // @ts-check
-/// <reference types="@actions/github-script" />
+// <reference types="@actions/github-script" />
 
 /**
  * Maximum number of discussions to update per run
