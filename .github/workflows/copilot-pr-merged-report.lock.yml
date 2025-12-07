@@ -2394,7 +2394,11 @@ jobs:
               }
               async handleRequest(req, res, parsedBody) {
                 this.logger.debug(`Incoming ${req.method} request to ${req.url}`);
-                this.logger.debug(`Headers: ${JSON.stringify(req.headers)}`);
+                const sanitizedHeaders = { ...req.headers };
+                if (sanitizedHeaders.authorization) {
+                  sanitizedHeaders.authorization = "[REDACTED]";
+                }
+                this.logger.debug(`Headers: ${JSON.stringify(sanitizedHeaders)}`);
                 res.setHeader("Access-Control-Allow-Origin", "*");
                 res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
                 res.setHeader("Access-Control-Allow-Headers", "Content-Type, Accept, Mcp-Session-Id");
@@ -2920,7 +2924,11 @@ jobs:
                 logger.debug(`Creating HTTP server...`);
                 const httpServer = http.createServer(async (req, res) => {
                   logger.debug(`HTTP request received: ${req.method} ${req.url}`);
-                  logger.debug(`Request headers: ${JSON.stringify(req.headers)}`);
+                  const sanitizedHeaders = { ...req.headers };
+                  if (sanitizedHeaders.authorization) {
+                    sanitizedHeaders.authorization = "[REDACTED]";
+                  }
+                  logger.debug(`Request headers: ${JSON.stringify(sanitizedHeaders)}`);
                   res.setHeader("Access-Control-Allow-Origin", "*");
                   res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
                   res.setHeader("Access-Control-Allow-Headers", "Content-Type, Accept");

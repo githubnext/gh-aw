@@ -168,7 +168,12 @@ async function startHttpServer(configPath, options = {}) {
     const httpServer = http.createServer(async (req, res) => {
       // Log all incoming requests
       logger.debug(`HTTP request received: ${req.method} ${req.url}`);
-      logger.debug(`Request headers: ${JSON.stringify(req.headers)}`);
+      // Redact sensitive headers before logging
+      const sanitizedHeaders = { ...req.headers };
+      if (sanitizedHeaders.authorization) {
+        sanitizedHeaders.authorization = "[REDACTED]";
+      }
+      logger.debug(`Request headers: ${JSON.stringify(sanitizedHeaders)}`);
 
       // Set CORS headers for development
       res.setHeader("Access-Control-Allow-Origin", "*");

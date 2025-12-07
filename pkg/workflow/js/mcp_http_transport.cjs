@@ -71,7 +71,12 @@ class MCPHTTPTransport {
   async handleRequest(req, res, parsedBody) {
     // Log all incoming requests
     this.logger.debug(`Incoming ${req.method} request to ${req.url}`);
-    this.logger.debug(`Headers: ${JSON.stringify(req.headers)}`);
+    // Redact sensitive headers before logging
+    const sanitizedHeaders = { ...req.headers };
+    if (sanitizedHeaders.authorization) {
+      sanitizedHeaders.authorization = "[REDACTED]";
+    }
+    this.logger.debug(`Headers: ${JSON.stringify(sanitizedHeaders)}`);
 
     // Set CORS headers
     res.setHeader("Access-Control-Allow-Origin", "*");
