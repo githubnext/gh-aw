@@ -146,3 +146,46 @@ func (c *Compiler) hasCommentRelatedTriggers(data *WorkflowData) bool {
 
 	return false
 }
+
+// ============================================================================
+// Security Prompts - XPIA
+// ============================================================================
+
+// generateXPIAPromptStep generates a separate step for XPIA security warnings
+func (c *Compiler) generateXPIAPromptStep(yaml *strings.Builder, data *WorkflowData) {
+	generateStaticPromptStep(yaml,
+		"Append XPIA security instructions to prompt",
+		xpiaPromptText,
+		data.SafetyPrompt)
+}
+
+// ============================================================================
+// Infrastructure Prompts - Temporary Folder
+// ============================================================================
+
+// generateTempFolderPromptStep generates a separate step for temporary folder usage instructions
+func (c *Compiler) generateTempFolderPromptStep(yaml *strings.Builder) {
+	generateStaticPromptStep(yaml,
+		"Append temporary folder instructions to prompt",
+		tempFolderPromptText,
+		true) // Always include temp folder instructions
+}
+
+// ============================================================================
+// GitHub Context Prompts
+// ============================================================================
+
+// generateGitHubContextPromptStep generates a separate step for GitHub context information
+// when the github tool is enabled. This injects repository, issue, discussion, pull request,
+// comment, and run ID information into the prompt.
+//
+// The function uses generateStaticPromptStepWithExpressions to securely handle the GitHub
+// Actions expressions in the context prompt. This extracts ${{ ... }} expressions into
+// environment variables and uses shell variable expansion in the heredoc, preventing
+// template injection vulnerabilities.
+func (c *Compiler) generateGitHubContextPromptStep(yaml *strings.Builder, data *WorkflowData) {
+	generateStaticPromptStepWithExpressions(yaml,
+		"Append GitHub context to prompt",
+		githubContextPromptText,
+		hasGitHubTool(data.ParsedTools))
+}
