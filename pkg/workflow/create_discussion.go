@@ -18,6 +18,7 @@ type CreateDiscussionsConfig struct {
 	TargetRepoSlug        string   `yaml:"target-repo,omitempty"`             // Target repository in format "owner/repo" for cross-repository discussions
 	AllowedRepos          []string `yaml:"allowed-repos,omitempty"`           // List of additional repositories that discussions can be created in
 	CloseOlderDiscussions bool     `yaml:"close-older-discussions,omitempty"` // When true, close older discussions with same title prefix or labels as outdated
+	Expires               int      `yaml:"expires,omitempty"`                 // Days until the discussion expires and should be automatically closed
 }
 
 // parseDiscussionsConfig handles create-discussion configuration
@@ -87,6 +88,21 @@ func (c *Compiler) parseDiscussionsConfig(outputMap map[string]any) *CreateDiscu
 				}
 			}
 
+			// Parse expires field (days until discussion should be closed)
+			if expires, exists := configMap["expires"]; exists {
+				switch v := expires.(type) {
+				case int:
+					discussionsConfig.Expires = v
+				case int64:
+					discussionsConfig.Expires = int(v)
+				case float64:
+					discussionsConfig.Expires = int(v)
+				}
+				if discussionsConfig.Expires > 0 {
+					discussionLog.Printf("Discussion expiration configured: %d days", discussionsConfig.Expires)
+				}
+			}
+
 			// Parse common base fields with default max of 1
 			c.parseBaseSafeOutputConfig(configMap, &discussionsConfig.BaseSafeOutputConfig, 1)
 		} else {
@@ -120,6 +136,11 @@ func (c *Compiler) buildCreateOutputDiscussionJob(data *WorkflowData, mainJobNam
 	// Add close-older-discussions flag if enabled
 	if data.SafeOutputs.CreateDiscussions.CloseOlderDiscussions {
 		customEnvVars = append(customEnvVars, "          GH_AW_CLOSE_OLDER_DISCUSSIONS: \"true\"\n")
+	}
+
+	// Add expires value if set
+	if data.SafeOutputs.CreateDiscussions.Expires > 0 {
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_DISCUSSION_EXPIRES: \"%d\"\n", data.SafeOutputs.CreateDiscussions.Expires))
 	}
 
 	// Add environment variable for temporary ID map from create_issue job
