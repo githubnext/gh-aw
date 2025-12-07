@@ -3041,6 +3041,21 @@
                 "github-token": {
                   "$ref": "#/$defs/github_token",
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
+                },
+                "expires": {
+                  "oneOf": [
+                    {
+                      "type": "integer",
+                      "minimum": 1,
+                      "description": "Number of days until expires"
+                    },
+                    {
+                      "type": "string",
+                      "pattern": "^[0-9]+[dDwWmMyY]$",
+                      "description": "Relative time (e.g., '7d', '2w', '1m', '1y')"
+                    }
+                  ],
+                  "description": "Time until the issue expires and should be automatically closed. Supports integer (days) or relative time format. When set, a maintenance workflow will be generated."
                 }
               },
               "additionalProperties": false,
@@ -3190,9 +3205,19 @@
                   "default": false
                 },
                 "expires": {
-                  "type": "integer",
-                  "description": "Number of days until the discussion expires and should be automatically closed. When set, a maintenance workflow will be generated to periodically close expired discussions. Minimum value is 1.",
-                  "minimum": 1
+                  "oneOf": [
+                    {
+                      "type": "integer",
+                      "minimum": 1,
+                      "description": "Number of days until expires"
+                    },
+                    {
+                      "type": "string",
+                      "pattern": "^[0-9]+[dDwWmMyY]$",
+                      "description": "Relative time (e.g., '7d', '2w', '1m', '1y')"
+                    }
+                  ],
+                  "description": "Time until the discussion expires and should be automatically closed. Supports integer (days) or relative time format like '7d' (7 days), '2w' (2 weeks), '1m' (1 month), '1y' (1 year). When set, a maintenance workflow will be generated."
                 }
               },
               "additionalProperties": false,
@@ -3496,6 +3521,21 @@
                 "github-token": {
                   "$ref": "#/$defs/github_token",
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
+                },
+                "expires": {
+                  "oneOf": [
+                    {
+                      "type": "integer",
+                      "minimum": 1,
+                      "description": "Number of days until expires"
+                    },
+                    {
+                      "type": "string",
+                      "pattern": "^[0-9]+[dDwWmMyY]$",
+                      "description": "Relative time (e.g., '7d', '2w', '1m', '1y')"
+                    }
+                  ],
+                  "description": "Time until the pull request expires and should be automatically closed (only for same-repo PRs without target-repo). Supports integer (days) or relative time format."
                 }
               },
               "additionalProperties": false,

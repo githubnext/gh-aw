@@ -1,6 +1,8 @@
 package workflow
 
 import (
+	"fmt"
+
 	"github.com/githubnext/gh-aw/pkg/logger"
 )
 
@@ -153,4 +155,67 @@ func parseAllowedLabelsFromConfig(configMap map[string]any) []string {
 		}
 	}
 	return nil
+}
+
+// parseExpiresFromConfig parses expires value from config map
+// Supports both integer (days) and string formats like "7d", "2w", "1m", "1y"
+// Returns the number of days, or 0 if invalid or not present
+func parseExpiresFromConfig(configMap map[string]any) int {
+	configHelpersLog.Printf("DEBUG: parseExpiresFromConfig called with configMap: %+v", configMap)
+	if expires, exists := configMap["expires"]; exists {
+		// Try numeric types first
+		switch v := expires.(type) {
+		case int:
+			return v
+		case int64:
+			return int(v)
+		case float64:
+			return int(v)
+		case uint64:
+			return int(v)
+		case string:
+			// Parse relative time specification like "7d", "2w", "1m", "1y"
+			return parseRelativeTimeSpec(v)
+		}
+	}
+	return 0
+}
+
+// parseRelativeTimeSpec parses a relative time specification string
+// Supports: d (days), w (weeks), m (months ~30 days), y (years ~365 days)
+// Examples: "7d" = 7 days, "2w" = 14 days, "1m" = 30 days, "1y" = 365 days
+// Returns 0 if the format is invalid
+func parseRelativeTimeSpec(spec string) int {
+	configHelpersLog.Printf("DEBUG: parseRelativeTimeSpec called with spec: %s", spec)
+	if spec == "" {
+		return 0
+	}
+
+	// Get the last character (unit)
+	unit := spec[len(spec)-1:]
+	// Get the number part
+	numStr := spec[:len(spec)-1]
+
+	// Parse the number
+	var num int
+	_, err := fmt.Sscanf(numStr, "%d", &num)
+	if err != nil || num <= 0 {
+		configHelpersLog.Printf("Invalid expires time spec number: %s", spec)
+		return 0
+	}
+
+	// Convert to days based on unit
+	switch unit {
+	case "d", "D":
+		return num // days
+	case "w", "W":
+		return num * 7 // weeks to days
+	case "m", "M":
+		return num * 30 // months to days (approximate)
+	case "y", "Y":
+		return num * 365 // years to days (approximate)
+	default:
+		configHelpersLog.Printf("Invalid expires time spec unit: %s", spec)
+		return 0
+	}
 }

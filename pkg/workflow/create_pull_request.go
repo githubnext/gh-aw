@@ -193,20 +193,9 @@ func (c *Compiler) parsePullRequestsConfig(outputMap map[string]any) *CreatePull
 		pullRequestsConfig.TargetRepoSlug = targetRepoSlug
 
 		// Parse expires field (days until PR should be closed) - only for same-repo PRs
-		if expires, exists := configMap["expires"]; exists {
-			switch v := expires.(type) {
-			case int:
-				pullRequestsConfig.Expires = v
-			case int64:
-				pullRequestsConfig.Expires = int(v)
-			case float64:
-				pullRequestsConfig.Expires = int(v)
-			case uint64:
-				pullRequestsConfig.Expires = int(v)
-			}
-			if pullRequestsConfig.Expires > 0 {
-				createPRLog.Printf("Pull request expiration configured: %d days", pullRequestsConfig.Expires)
-			}
+		pullRequestsConfig.Expires = parseExpiresFromConfig(configMap)
+		if pullRequestsConfig.Expires > 0 {
+			createPRLog.Printf("Pull request expiration configured: %d days", pullRequestsConfig.Expires)
 		}
 
 		// Parse common base fields (github-token, max if specified by user)

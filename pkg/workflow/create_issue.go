@@ -50,20 +50,9 @@ func (c *Compiler) parseIssuesConfig(outputMap map[string]any) *CreateIssuesConf
 			issuesConfig.AllowedRepos = parseAllowedReposFromConfig(configMap)
 
 			// Parse expires field (days until issue should be closed)
-			if expires, exists := configMap["expires"]; exists {
-				switch v := expires.(type) {
-				case int:
-					issuesConfig.Expires = v
-				case int64:
-					issuesConfig.Expires = int(v)
-				case float64:
-					issuesConfig.Expires = int(v)
-				case uint64:
-					issuesConfig.Expires = int(v)
-				}
-				if issuesConfig.Expires > 0 {
-					createIssueLog.Printf("Issue expiration configured: %d days", issuesConfig.Expires)
-				}
+			issuesConfig.Expires = parseExpiresFromConfig(configMap)
+			if issuesConfig.Expires > 0 {
+				createIssueLog.Printf("Issue expiration configured: %d days", issuesConfig.Expires)
 			}
 
 			// Parse common base fields with default max of 1
