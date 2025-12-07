@@ -171,6 +171,40 @@ describe("safe_inputs_mcp_server_http.cjs integration", () => {
     sessionId = response.headers["mcp-session-id"];
   });
 
+  it("should respond to GET /health endpoint", async () => {
+    return new Promise((resolve, reject) => {
+      const req = http.request(
+        {
+          hostname: "localhost",
+          port: serverPort,
+          path: "/health",
+          method: "GET",
+        },
+        res => {
+          let responseData = "";
+          res.on("data", chunk => {
+            responseData += chunk;
+          });
+          res.on("end", () => {
+            try {
+              expect(res.statusCode).toBe(200);
+              const data = JSON.parse(responseData);
+              expect(data.status).toBe("ok");
+              expect(data.server).toBe("http-integration-test-server");
+              expect(data.version).toBe("1.0.0");
+              expect(data.tools).toBe(1);
+              resolve();
+            } catch (e) {
+              reject(e);
+            }
+          });
+        }
+      );
+      req.on("error", reject);
+      req.end();
+    });
+  });
+
   it("should list tools via HTTP", async () => {
     const headers = sessionId ? { "Mcp-Session-Id": sessionId } : {};
 

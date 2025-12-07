@@ -178,6 +178,20 @@ async function startHttpServer(configPath, options = {}) {
         return;
       }
 
+      // Handle GET /health endpoint for health checks
+      if (req.method === "GET" && req.url === "/health") {
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(
+          JSON.stringify({
+            status: "ok",
+            server: config.serverName || "safeinputs",
+            version: config.version || "1.0.0",
+            tools: config.tools.length,
+          })
+        );
+        return;
+      }
+
       // Only handle POST requests for MCP protocol
       if (req.method !== "POST") {
         res.writeHead(405, { "Content-Type": "application/json" });

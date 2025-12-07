@@ -47,7 +47,7 @@ for i in {1..10}; do
   fi
   
   # Check if server is responding
-  if curl -s -f -H "Authorization: Bearer $GH_AW_SAFE_INPUTS_API_KEY" http://localhost:$GH_AW_SAFE_INPUTS_PORT/ > /dev/null 2>&1; then
+  if curl -s -f http://localhost:$GH_AW_SAFE_INPUTS_PORT/health > /dev/null 2>&1; then
     echo "Safe Inputs MCP server is ready (attempt $i/10)"
     break
   fi

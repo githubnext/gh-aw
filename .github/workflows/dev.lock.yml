@@ -1491,6 +1491,18 @@ jobs:
                     res.end();
                     return;
                   }
+                  if (req.method === "GET" && req.url === "/health") {
+                    res.writeHead(200, { "Content-Type": "application/json" });
+                    res.end(
+                      JSON.stringify({
+                        status: "ok",
+                        server: config.serverName || "safeinputs",
+                        version: config.version || "1.0.0",
+                        tools: config.tools.length,
+                      })
+                    );
+                    return;
+                  }
                   if (req.method !== "POST") {
                     res.writeHead(405, { "Content-Type": "application/json" });
                     res.end(JSON.stringify({ error: "Method not allowed" }));
@@ -1750,7 +1762,7 @@ jobs:
               exit 1
             fi
             # Check if server is responding
-            if curl -s -f -H "Authorization: Bearer $GH_AW_SAFE_INPUTS_API_KEY" http://localhost:$GH_AW_SAFE_INPUTS_PORT/ > /dev/null 2>&1; then
+            if curl -s -f http://localhost:$GH_AW_SAFE_INPUTS_PORT/health > /dev/null 2>&1; then
               echo "Safe Inputs MCP server is ready (attempt $i/10)"
               break
             fi
