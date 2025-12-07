@@ -10,10 +10,10 @@ var updateIssueLog = logger.New("workflow:update_issue")
 
 // UpdateIssuesConfig holds configuration for updating GitHub issues from agent output
 type UpdateIssuesConfig struct {
-	UpdateEntityConfig     `yaml:",inline"`
-	Status                 *bool `yaml:"status,omitempty"` // Allow updating issue status (open/closed) - presence indicates field can be updated
-	Title                  *bool `yaml:"title,omitempty"`  // Allow updating issue title - presence indicates field can be updated
-	Body                   *bool `yaml:"body,omitempty"`   // Allow updating issue body - presence indicates field can be updated
+	UpdateEntityConfig `yaml:",inline"`
+	Status             *bool `yaml:"status,omitempty"` // Allow updating issue status (open/closed) - presence indicates field can be updated
+	Title              *bool `yaml:"title,omitempty"`  // Allow updating issue title - presence indicates field can be updated
+	Body               *bool `yaml:"body,omitempty"`   // Allow updating issue body - presence indicates field can be updated
 }
 
 // buildCreateOutputUpdateIssueJob creates the update_issue job
