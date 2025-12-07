@@ -225,6 +225,7 @@ func (r *MCPConfigRendererUnified) renderSafeInputsTOML(yaml *strings.Builder, s
 
 	yaml.WriteString("          \n")
 	yaml.WriteString("          [mcp_servers." + constants.SafeInputsMCPServerID + "]\n")
+	yaml.WriteString("          type = \"http\"\n")
 	yaml.WriteString("          url = \"http://localhost:$GH_AW_SAFE_INPUTS_PORT\"\n")
 	yaml.WriteString("          headers = { Authorization = \"Bearer $GH_AW_SAFE_INPUTS_API_KEY\" }\n")
 

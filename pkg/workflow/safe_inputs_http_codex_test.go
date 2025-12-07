@@ -66,6 +66,12 @@ Test safe-inputs HTTP transport for Codex
 		t.Error("Safe-inputs MCP server config section not found")
 	}
 
+	// Should have explicit type field
+	codexConfigSection := extractCodexConfigSection(yamlStr)
+	if !strings.Contains(codexConfigSection, `type = "http"`) {
+		t.Error("Expected type field set to 'http' in TOML format")
+	}
+
 	// Should use HTTP transport (url + headers)
 	if !strings.Contains(yamlStr, `url = "http://localhost:$GH_AW_SAFE_INPUTS_PORT"`) {
 		t.Error("Expected HTTP URL config not found in TOML format")
@@ -76,7 +82,6 @@ Test safe-inputs HTTP transport for Codex
 	}
 
 	// Should NOT use stdio transport (command + args to node)
-	codexConfigSection := extractCodexConfigSection(yamlStr)
 	if strings.Contains(codexConfigSection, `command = "node"`) {
 		t.Error("Codex config should not use stdio transport (command = 'node'), should use HTTP")
 	}
