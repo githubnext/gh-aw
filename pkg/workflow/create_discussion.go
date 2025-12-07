@@ -45,6 +45,8 @@ func (c *Compiler) parseDiscussionsConfig(outputMap map[string]any) *CreateDiscu
 					discussionsConfig.Category = fmt.Sprintf("%d", v)
 				case float64:
 					discussionsConfig.Category = fmt.Sprintf("%.0f", v)
+				case uint64:
+					discussionsConfig.Expires = int(v)
 				}
 				discussionLog.Printf("Discussion category configured: %q", discussionsConfig.Category)
 			}
@@ -96,6 +98,8 @@ func (c *Compiler) parseDiscussionsConfig(outputMap map[string]any) *CreateDiscu
 				case int64:
 					discussionsConfig.Expires = int(v)
 				case float64:
+					discussionsConfig.Expires = int(v)
+				case uint64:
 					discussionsConfig.Expires = int(v)
 				}
 				if discussionsConfig.Expires > 0 {
