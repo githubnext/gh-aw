@@ -89,5 +89,9 @@ func generateStaticPromptStepWithExpressions(yaml *strings.Builder, description 
 	}
 
 	yaml.WriteString("        run: |\n")
-	WritePromptTextToYAML(yaml, modifiedPromptText, "          ")
+	// Write prompt text with placeholders
+	WritePromptTextToYAMLWithPlaceholders(yaml, modifiedPromptText, "          ")
+
+	// Generate JavaScript-based placeholder substitution step
+	generatePlaceholderSubstitutionStep(yaml, expressionMappings, "      ")
 }

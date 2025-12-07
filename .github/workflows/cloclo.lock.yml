@@ -3581,7 +3581,7 @@ jobs:
         run: |
           PROMPT_DIR="$(dirname "$GH_AW_PROMPT")"
           mkdir -p "$PROMPT_DIR"
-          cat << 'PROMPT_EOF' | envsubst > "$GH_AW_PROMPT"
+          cat << 'PROMPT_EOF' > "$GH_AW_PROMPT"
           
           
           ## jqschema - JSON Schema Discovery
@@ -3685,25 +3685,25 @@ jobs:
           
           ## Current Context
           
-          - **Repository**: ${GH_AW_GITHUB_REPOSITORY}
-          - **Triggered by**: ${GH_AW_GITHUB_ACTOR}
+          - **Repository**: __GH_AW_GITHUB_REPOSITORY__
+          - **Triggered by**: __GH_AW_GITHUB_ACTOR__
           - **Content**: 
           
           ```
-          ${GH_AW_NEEDS_ACTIVATION_OUTPUTS_TEXT}
+          __GH_AW_NEEDS_ACTIVATION_OUTPUTS_TEXT__
           ```
           
           {{#if ${{ github.event.issue.number }} }}
           ## Issue Context
           
-          - **Issue Number**: ${GH_AW_GITHUB_EVENT_ISSUE_NUMBER}
-          - **Issue State**: ${GH_AW_GITHUB_EVENT_ISSUE_STATE}
+          - **Issue Number**: __GH_AW_GITHUB_EVENT_ISSUE_NUMBER__
+          - **Issue State**: __GH_AW_GITHUB_EVENT_ISSUE_STATE__
           {{/if}}
           
           {{#if ${{ github.event.discussion.number }} }}
           ## Discussion Context
           
-          - **Discussion Number**: ${GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER}
+          - **Discussion Number**: __GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER__
           {{/if}}
           
           {{#if ${{ github.event.pull_request.number }} }}
@@ -3711,10 +3711,10 @@ jobs:
           
           **IMPORTANT**: If this command was triggered from a pull request, you must capture and include the PR branch information in your processing:
           
-          - **Pull Request Number**: ${GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER}
-          - **Source Branch SHA**: ${GH_AW_GITHUB_EVENT_PULL_REQUEST_HEAD_SHA}
-          - **Target Branch SHA**: ${GH_AW_GITHUB_EVENT_PULL_REQUEST_BASE_SHA}
-          - **PR State**: ${GH_AW_GITHUB_EVENT_PULL_REQUEST_STATE}
+          - **Pull Request Number**: __GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER__
+          - **Source Branch SHA**: __GH_AW_GITHUB_EVENT_PULL_REQUEST_HEAD_SHA__
+          - **Target Branch SHA**: __GH_AW_GITHUB_EVENT_PULL_REQUEST_BASE_SHA__
+          - **PR State**: __GH_AW_GITHUB_EVENT_PULL_REQUEST_STATE__
           {{/if}}
           
           ## Available Tools
@@ -3823,11 +3823,94 @@ jobs:
           - ❌ Don't make changes without understanding the request
           
           PROMPT_EOF
+      - name: Substitute placeholders
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        env:
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+          GH_AW_GITHUB_ACTOR: ${{ github.actor }}
+          GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER: ${{ github.event.discussion.number }}
+          GH_AW_GITHUB_EVENT_ISSUE_NUMBER: ${{ github.event.issue.number }}
+          GH_AW_GITHUB_EVENT_ISSUE_STATE: ${{ github.event.issue.state }}
+          GH_AW_GITHUB_EVENT_PULL_REQUEST_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          GH_AW_GITHUB_EVENT_PULL_REQUEST_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER: ${{ github.event.pull_request.number }}
+          GH_AW_GITHUB_EVENT_PULL_REQUEST_STATE: ${{ github.event.pull_request.state }}
+          GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
+          GH_AW_NEEDS_ACTIVATION_OUTPUTS_TEXT: ${{ needs.activation.outputs.text }}
+        with:
+          script: |
+            /**
+             * @fileoverview Safe template placeholder substitution for GitHub Actions workflows.
+             * Replaces __VAR__ placeholders in a file with environment variable values without
+             * allowing shell expansion, preventing template injection attacks.
+             *
+             * @param {object} params - The parameters object
+             * @param {string} params.file - Path to the file to process
+             * @param {object} params.substitutions - Map of placeholder names to values (without __ prefix/suffix)
+             */
+            
+            const fs = require("fs");
+            
+            const substitutePlaceholders = async ({ file, substitutions }) => {
+              // Validate inputs
+              if (!file) {
+                throw new Error("file parameter is required");
+              }
+              if (!substitutions || typeof substitutions !== "object") {
+                throw new Error("substitutions parameter must be an object");
+              }
+            
+              // Read the file content
+              let content;
+              try {
+                content = fs.readFileSync(file, "utf8");
+              } catch (error) {
+                throw new Error(`Failed to read file ${file}: ${error.message}`);
+              }
+            
+              // Perform substitutions
+              // Each placeholder is in the format __VARIABLE_NAME__
+              // We replace it with the corresponding value from the substitutions object
+              for (const [key, value] of Object.entries(substitutions)) {
+                const placeholder = `__${key}__`;
+                // Use a simple string replacement - no regex to avoid any potential issues
+                // with special characters in the value
+                content = content.split(placeholder).join(value);
+              }
+            
+              // Write the updated content back to the file
+              try {
+                fs.writeFileSync(file, content, "utf8");
+              } catch (error) {
+                throw new Error(`Failed to write file ${file}: ${error.message}`);
+              }
+            
+              return `Successfully substituted ${Object.keys(substitutions).length} placeholder(s) in ${file}`;
+            };
+            
+            
+            
+            // Call the substitution function
+            return await substitutePlaceholders({
+              file: process.env.GH_AW_PROMPT,
+              substitutions: {
+                GH_AW_GITHUB_ACTOR: process.env.GH_AW_GITHUB_ACTOR,
+                GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER: process.env.GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER,
+                GH_AW_GITHUB_EVENT_ISSUE_NUMBER: process.env.GH_AW_GITHUB_EVENT_ISSUE_NUMBER,
+                GH_AW_GITHUB_EVENT_ISSUE_STATE: process.env.GH_AW_GITHUB_EVENT_ISSUE_STATE,
+                GH_AW_GITHUB_EVENT_PULL_REQUEST_BASE_SHA: process.env.GH_AW_GITHUB_EVENT_PULL_REQUEST_BASE_SHA,
+                GH_AW_GITHUB_EVENT_PULL_REQUEST_HEAD_SHA: process.env.GH_AW_GITHUB_EVENT_PULL_REQUEST_HEAD_SHA,
+                GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER: process.env.GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER,
+                GH_AW_GITHUB_EVENT_PULL_REQUEST_STATE: process.env.GH_AW_GITHUB_EVENT_PULL_REQUEST_STATE,
+                GH_AW_GITHUB_REPOSITORY: process.env.GH_AW_GITHUB_REPOSITORY,
+                GH_AW_NEEDS_ACTIVATION_OUTPUTS_TEXT: process.env.GH_AW_NEEDS_ACTIVATION_OUTPUTS_TEXT
+              }
+            });
       - name: Append XPIA security instructions to prompt
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          cat << 'PROMPT_EOF' | envsubst >> "$GH_AW_PROMPT"
+          cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
           <security-guidelines>
           <description>Cross-Prompt Injection Attack (XPIA) Protection</description>
           <warning>
@@ -3849,7 +3932,7 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          cat << 'PROMPT_EOF' | envsubst >> "$GH_AW_PROMPT"
+          cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
           <temporary-files>
           <path>/tmp/gh-aw/agent/</path>
           <instruction>When you need to create temporary files or directories during your work, always use the /tmp/gh-aw/agent/ directory that has been pre-created for you. Do NOT use the root /tmp/ directory directly.</instruction>
@@ -3860,7 +3943,7 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          cat << 'PROMPT_EOF' | envsubst >> "$GH_AW_PROMPT"
+          cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
           <playwright-output>
           <path>/tmp/gh-aw/mcp-logs/playwright/</path>
           <description>When using Playwright tools to take screenshots or generate files, all output files are automatically saved to this directory. This is the Playwright --output-dir and you can find any screenshots, traces, or other files generated by Playwright in this directory.</description>
@@ -3871,7 +3954,7 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          cat << 'PROMPT_EOF' | envsubst >> "$GH_AW_PROMPT"
+          cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
           <file-editing>
           <description>File Editing Access Permissions</description>
           <allowed-paths>
@@ -3886,7 +3969,7 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          cat << 'PROMPT_EOF' | envsubst >> "$GH_AW_PROMPT"
+          cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
           
           ---
           
@@ -3911,7 +3994,7 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          cat << 'PROMPT_EOF' | envsubst >> "$GH_AW_PROMPT"
+          cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
           <safe-outputs>
           <description>GitHub API Access Instructions</description>
           <important>
@@ -3935,43 +4018,122 @@ jobs:
           GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
           GH_AW_GITHUB_WORKSPACE: ${{ github.workspace }}
         run: |
-          cat << 'PROMPT_EOF' | envsubst >> "$GH_AW_PROMPT"
+          cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
           <github-context>
           The following GitHub context information is available for this workflow:
-          {{#if ${GH_AW_GITHUB_ACTOR} }}
-          - **actor**: ${GH_AW_GITHUB_ACTOR}
+          {{#if __GH_AW_GITHUB_ACTOR__ }}
+          - **actor**: __GH_AW_GITHUB_ACTOR__
           {{/if}}
-          {{#if ${GH_AW_GITHUB_REPOSITORY} }}
-          - **repository**: ${GH_AW_GITHUB_REPOSITORY}
+          {{#if __GH_AW_GITHUB_REPOSITORY__ }}
+          - **repository**: __GH_AW_GITHUB_REPOSITORY__
           {{/if}}
-          {{#if ${GH_AW_GITHUB_WORKSPACE} }}
-          - **workspace**: ${GH_AW_GITHUB_WORKSPACE}
+          {{#if __GH_AW_GITHUB_WORKSPACE__ }}
+          - **workspace**: __GH_AW_GITHUB_WORKSPACE__
           {{/if}}
-          {{#if ${GH_AW_GITHUB_EVENT_ISSUE_NUMBER} }}
-          - **issue-number**: #${GH_AW_GITHUB_EVENT_ISSUE_NUMBER}
+          {{#if __GH_AW_GITHUB_EVENT_ISSUE_NUMBER__ }}
+          - **issue-number**: #__GH_AW_GITHUB_EVENT_ISSUE_NUMBER__
           {{/if}}
-          {{#if ${GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER} }}
-          - **discussion-number**: #${GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER}
+          {{#if __GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER__ }}
+          - **discussion-number**: #__GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER__
           {{/if}}
-          {{#if ${GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER} }}
-          - **pull-request-number**: #${GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER}
+          {{#if __GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER__ }}
+          - **pull-request-number**: #__GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER__
           {{/if}}
-          {{#if ${GH_AW_GITHUB_EVENT_COMMENT_ID} }}
-          - **comment-id**: ${GH_AW_GITHUB_EVENT_COMMENT_ID}
+          {{#if __GH_AW_GITHUB_EVENT_COMMENT_ID__ }}
+          - **comment-id**: __GH_AW_GITHUB_EVENT_COMMENT_ID__
           {{/if}}
-          {{#if ${GH_AW_GITHUB_RUN_ID} }}
-          - **workflow-run-id**: ${GH_AW_GITHUB_RUN_ID}
+          {{#if __GH_AW_GITHUB_RUN_ID__ }}
+          - **workflow-run-id**: __GH_AW_GITHUB_RUN_ID__
           {{/if}}
           </github-context>
           
           PROMPT_EOF
+      - name: Substitute placeholders
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        env:
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+          GH_AW_GITHUB_ACTOR: ${{ github.actor }}
+          GH_AW_GITHUB_EVENT_COMMENT_ID: ${{ github.event.comment.id }}
+          GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER: ${{ github.event.discussion.number }}
+          GH_AW_GITHUB_EVENT_ISSUE_NUMBER: ${{ github.event.issue.number }}
+          GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER: ${{ github.event.pull_request.number }}
+          GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
+          GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
+          GH_AW_GITHUB_WORKSPACE: ${{ github.workspace }}
+        with:
+          script: |
+            /**
+             * @fileoverview Safe template placeholder substitution for GitHub Actions workflows.
+             * Replaces __VAR__ placeholders in a file with environment variable values without
+             * allowing shell expansion, preventing template injection attacks.
+             *
+             * @param {object} params - The parameters object
+             * @param {string} params.file - Path to the file to process
+             * @param {object} params.substitutions - Map of placeholder names to values (without __ prefix/suffix)
+             */
+            
+            const fs = require("fs");
+            
+            const substitutePlaceholders = async ({ file, substitutions }) => {
+              // Validate inputs
+              if (!file) {
+                throw new Error("file parameter is required");
+              }
+              if (!substitutions || typeof substitutions !== "object") {
+                throw new Error("substitutions parameter must be an object");
+              }
+            
+              // Read the file content
+              let content;
+              try {
+                content = fs.readFileSync(file, "utf8");
+              } catch (error) {
+                throw new Error(`Failed to read file ${file}: ${error.message}`);
+              }
+            
+              // Perform substitutions
+              // Each placeholder is in the format __VARIABLE_NAME__
+              // We replace it with the corresponding value from the substitutions object
+              for (const [key, value] of Object.entries(substitutions)) {
+                const placeholder = `__${key}__`;
+                // Use a simple string replacement - no regex to avoid any potential issues
+                // with special characters in the value
+                content = content.split(placeholder).join(value);
+              }
+            
+              // Write the updated content back to the file
+              try {
+                fs.writeFileSync(file, content, "utf8");
+              } catch (error) {
+                throw new Error(`Failed to write file ${file}: ${error.message}`);
+              }
+            
+              return `Successfully substituted ${Object.keys(substitutions).length} placeholder(s) in ${file}`;
+            };
+            
+            
+            
+            // Call the substitution function
+            return await substitutePlaceholders({
+              file: process.env.GH_AW_PROMPT,
+              substitutions: {
+                GH_AW_GITHUB_ACTOR: process.env.GH_AW_GITHUB_ACTOR,
+                GH_AW_GITHUB_EVENT_COMMENT_ID: process.env.GH_AW_GITHUB_EVENT_COMMENT_ID,
+                GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER: process.env.GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER,
+                GH_AW_GITHUB_EVENT_ISSUE_NUMBER: process.env.GH_AW_GITHUB_EVENT_ISSUE_NUMBER,
+                GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER: process.env.GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER,
+                GH_AW_GITHUB_REPOSITORY: process.env.GH_AW_GITHUB_REPOSITORY,
+                GH_AW_GITHUB_RUN_ID: process.env.GH_AW_GITHUB_RUN_ID,
+                GH_AW_GITHUB_WORKSPACE: process.env.GH_AW_GITHUB_WORKSPACE
+              }
+            });
       - name: Append PR context instructions to prompt
         if: |
           (github.event_name == 'issue_comment') && (github.event.issue.pull_request != null) || github.event_name == 'pull_request_review_comment' || github.event_name == 'pull_request_review'
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          cat << 'PROMPT_EOF' | envsubst >> "$GH_AW_PROMPT"
+          cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
           <branch-context trigger="pull-request-comment">
           <description>This workflow was triggered by a comment on a pull request. The repository has been automatically checked out to the PR's branch, not the default branch.</description>
           <current-state>

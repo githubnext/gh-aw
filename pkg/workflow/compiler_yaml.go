@@ -743,7 +743,7 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 		yaml.WriteString("          GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}\n")
 	}
 	// Add environment variables for extracted expressions
-	// These are used by envsubst to substitute values in the heredoc
+	// These are used by sed to safely substitute placeholders in the heredoc
 	for _, mapping := range expressionMappings {
 		fmt.Fprintf(yaml, "          %s: ${{ %s }}\n", mapping.EnvVar, mapping.Content)
 	}
@@ -752,9 +752,8 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 	WriteShellScriptToYAML(yaml, createPromptFirstScript, "          ")
 
 	if len(chunks) > 0 {
-		// Use quoted heredoc marker to prevent shell variable expansion
-		// Pipe through envsubst to substitute environment variables
-		yaml.WriteString("          cat << 'PROMPT_EOF' | envsubst > \"$GH_AW_PROMPT\"\n")
+		// Write template with placeholders directly to target file
+		yaml.WriteString("          cat << 'PROMPT_EOF' > \"$GH_AW_PROMPT\"\n")
 		// Pre-allocate buffer to avoid repeated allocations
 		lines := strings.Split(chunks[0], "\n")
 		for _, line := range lines {
@@ -767,6 +766,9 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 		yaml.WriteString("          touch \"$GH_AW_PROMPT\"\n")
 	}
 
+	// Generate JavaScript-based placeholder substitution step (replaces multiple sed calls)
+	generatePlaceholderSubstitutionStep(yaml, expressionMappings, "      ")
+
 	// Create additional steps for remaining chunks
 	for i, chunk := range chunks[1:] {
 		stepNum := i + 2
@@ -778,9 +780,8 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 			fmt.Fprintf(yaml, "          %s: ${{ %s }}\n", mapping.EnvVar, mapping.Content)
 		}
 		yaml.WriteString("        run: |\n")
-		// Use quoted heredoc marker to prevent shell variable expansion
-		// Pipe through envsubst to substitute environment variables
-		yaml.WriteString("          cat << 'PROMPT_EOF' | envsubst >> \"$GH_AW_PROMPT\"\n")
+		// Write template with placeholders directly to target file (append mode)
+		yaml.WriteString("          cat << 'PROMPT_EOF' >> \"$GH_AW_PROMPT\"\n")
 		// Avoid string concatenation in loop - write components separately
 		lines := strings.Split(chunk, "\n")
 		for _, line := range lines {
@@ -789,6 +790,12 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 			yaml.WriteByte('\n')
 		}
 		yaml.WriteString("          PROMPT_EOF\n")
+	}
+
+	// Generate JavaScript-based placeholder substitution step after all chunks are written
+	// (This is done once for all chunks to avoid multiple sed calls)
+	if len(chunks) > 1 {
+		generatePlaceholderSubstitutionStep(yaml, expressionMappings, "      ")
 	}
 
 	// Add XPIA security prompt as separate step if enabled (before other prompts)
@@ -1384,4 +1391,52 @@ func (c *Compiler) generateGitPatchUploadStep(yaml *strings.Builder) {
 	yaml.WriteString("          name: aw.patch\n")
 	yaml.WriteString("          path: /tmp/gh-aw/aw.patch\n")
 	yaml.WriteString("          if-no-files-found: ignore\n")
+}
+
+// generatePlaceholderSubstitutionStep generates a JavaScript-based step that performs
+// safe placeholder substitution using the substitute_placeholders script.
+// This replaces the multiple sed commands with a single JavaScript step.
+func generatePlaceholderSubstitutionStep(yaml *strings.Builder, expressionMappings []*ExpressionMapping, indent string) {
+	if len(expressionMappings) == 0 {
+		return
+	}
+
+	// Use actions/github-script to perform the substitutions
+	yaml.WriteString(indent + "- name: Substitute placeholders\n")
+	yaml.WriteString(indent + "  uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1\n")
+	yaml.WriteString(indent + "  env:\n")
+	yaml.WriteString(indent + "    GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt\n")
+
+	// Add all environment variables
+	for _, mapping := range expressionMappings {
+		fmt.Fprintf(yaml, indent+"    %s: ${{ %s }}\n", mapping.EnvVar, mapping.Content)
+	}
+
+	yaml.WriteString(indent + "  with:\n")
+	yaml.WriteString(indent + "    script: |\n")
+
+	// Emit the substitute_placeholders script inline and call it
+	script := getSubstitutePlaceholdersScript()
+	scriptLines := strings.Split(script, "\n")
+	for _, line := range scriptLines {
+		yaml.WriteString(indent + "      " + line + "\n")
+	}
+
+	// Call the function with parameters
+	yaml.WriteString(indent + "      \n")
+	yaml.WriteString(indent + "      // Call the substitution function\n")
+	yaml.WriteString(indent + "      return await substitutePlaceholders({\n")
+	yaml.WriteString(indent + "        file: process.env.GH_AW_PROMPT,\n")
+	yaml.WriteString(indent + "        substitutions: {\n")
+
+	for i, mapping := range expressionMappings {
+		comma := ","
+		if i == len(expressionMappings)-1 {
+			comma = ""
+		}
+		fmt.Fprintf(yaml, indent+"          %s: process.env.%s%s\n", mapping.EnvVar, mapping.EnvVar, comma)
+	}
+
+	yaml.WriteString(indent + "        }\n")
+	yaml.WriteString(indent + "      });\n")
 }

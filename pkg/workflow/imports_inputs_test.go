@@ -81,7 +81,7 @@ This workflow tests import with inputs.
 	lockContent := string(lockFileContent)
 
 	// Extract the first prompt heredoc section
-	// The prompt is written as: cat << 'PROMPT_EOF' | envsubst > "$GH_AW_PROMPT"
+	// The prompt is written as: cat << 'PROMPT_EOF' > "$GH_AW_PROMPT"
 	// and ends with: PROMPT_EOF
 	promptSection := ""
 	startMarker := "cat << 'PROMPT_EOF'"

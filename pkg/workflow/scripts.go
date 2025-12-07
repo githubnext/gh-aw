@@ -131,6 +131,9 @@ var mcpServerScriptSource string
 //go:embed js/mcp_http_transport.cjs
 var mcpHTTPTransportScriptSource string
 
+//go:embed js/substitute_placeholders.cjs
+var substitutePlaceholdersScriptSource string
+
 // init registers all scripts with the DefaultScriptRegistry.
 // Scripts are bundled lazily on first access via the getter functions.
 func init() {
@@ -176,6 +179,9 @@ func init() {
 	DefaultScriptRegistry.Register("mcp_logger", mcpLoggerScriptSource)
 	DefaultScriptRegistry.Register("mcp_server", mcpServerScriptSource)
 	DefaultScriptRegistry.Register("mcp_http_transport", mcpHTTPTransportScriptSource)
+
+	// Template substitution scripts
+	DefaultScriptRegistry.Register("substitute_placeholders", substitutePlaceholdersScriptSource)
 
 	scriptsLog.Print("Completed script registration")
 }
@@ -346,4 +352,9 @@ func getParseCopilotLogScript() string {
 // getGenerateSafeInputsConfigScript returns the bundled generate_safe_inputs_config script
 func getGenerateSafeInputsConfigScript() string {
 	return DefaultScriptRegistry.GetWithMode("generate_safe_inputs_config", RuntimeModeGitHubScript)
+}
+
+// getSubstitutePlaceholdersScript returns the bundled substitute_placeholders script
+func getSubstitutePlaceholdersScript() string {
+	return DefaultScriptRegistry.GetWithMode("substitute_placeholders", RuntimeModeGitHubScript)
 }

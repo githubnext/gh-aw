@@ -33,7 +33,7 @@ tools:
 Test secret in allowed_domains.
 `,
 			expectEnvVarPrefix:   "GH_AW_SECRETS_",
-			expectMCPConfigValue: "${GH_AW_SECRETS_",
+			expectMCPConfigValue: "__GH_AW_SECRETS_",
 			expectRedaction:      true,
 			expectSecretName:     "TEST_DOMAIN",
 		},
@@ -55,7 +55,7 @@ tools:
 Test multiple secrets in allowed_domains.
 `,
 			expectEnvVarPrefix:   "GH_AW_SECRETS_",
-			expectMCPConfigValue: "${GH_AW_SECRETS_",
+			expectMCPConfigValue: "__GH_AW_SECRETS_",
 			expectRedaction:      true,
 			expectSecretName:     "API_KEY",
 		},
@@ -239,8 +239,8 @@ func TestReplaceExpressionsInPlaywrightArgs(t *testing.T) {
 				if len(result) != 1 {
 					t.Errorf("Expected 1 result, got %d", len(result))
 				}
-				if !strings.Contains(result[0], "${GH_AW_") {
-					t.Errorf("Expected result to contain ${GH_AW_, got %s", result[0])
+				if !strings.Contains(result[0], "__GH_AW_") {
+					t.Errorf("Expected result to contain __GH_AW_, got %s", result[0])
 				}
 				if strings.Contains(result[0], "${{ secrets.") {
 					t.Errorf("Result should not contain secret expressions, got %s", result[0])

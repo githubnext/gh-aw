@@ -2582,25 +2582,25 @@ jobs:
         run: |
           PROMPT_DIR="$(dirname "$GH_AW_PROMPT")"
           mkdir -p "$PROMPT_DIR"
-          cat << 'PROMPT_EOF' | envsubst > "$GH_AW_PROMPT"
+          cat << 'PROMPT_EOF' > "$GH_AW_PROMPT"
           # CI Failure Doctor
           
           You are the CI Failure Doctor, an expert investigative agent that analyzes failed GitHub Actions workflows to identify root causes and patterns. Your mission is to conduct a deep investigation when the CI workflow fails.
           
           ## Current Context
           
-          - **Repository**: ${GH_AW_GITHUB_REPOSITORY}
-          - **Workflow Run**: ${GH_AW_GITHUB_EVENT_WORKFLOW_RUN_ID}
-          - **Conclusion**: ${GH_AW_GITHUB_EVENT_WORKFLOW_RUN_CONCLUSION}
-          - **Run URL**: ${GH_AW_GITHUB_EVENT_WORKFLOW_RUN_HTML_URL}
-          - **Head SHA**: ${GH_AW_GITHUB_EVENT_WORKFLOW_RUN_HEAD_SHA}
+          - **Repository**: __GH_AW_GITHUB_REPOSITORY__
+          - **Workflow Run**: __GH_AW_GITHUB_EVENT_WORKFLOW_RUN_ID__
+          - **Conclusion**: __GH_AW_GITHUB_EVENT_WORKFLOW_RUN_CONCLUSION__
+          - **Run URL**: __GH_AW_GITHUB_EVENT_WORKFLOW_RUN_HTML_URL__
+          - **Head SHA**: __GH_AW_GITHUB_EVENT_WORKFLOW_RUN_HEAD_SHA__
           
           ## Investigation Protocol
           
           **ONLY proceed if the workflow conclusion is 'failure' or 'cancelled'**. Exit immediately if the workflow was successful.
           
           ### Phase 1: Initial Triage
-          1. **Verify Failure**: Check that `${GH_AW_GITHUB_EVENT_WORKFLOW_RUN_CONCLUSION}` is `failure` or `cancelled`
+          1. **Verify Failure**: Check that `__GH_AW_GITHUB_EVENT_WORKFLOW_RUN_CONCLUSION__` is `failure` or `cancelled`
           2. **Get Workflow Details**: Use `get_workflow_run` to get full details of the failed run
           3. **List Jobs**: Use `list_workflow_jobs` to identify which specific jobs failed
           4. **Quick Assessment**: Determine if this is a new type of failure or a recurring pattern
@@ -2687,15 +2687,15 @@ jobs:
           When creating an investigation issue, use this structure:
           
           ```markdown
-          # 🏥 CI Failure Investigation - Run #${GH_AW_GITHUB_EVENT_WORKFLOW_RUN_RUN_NUMBER}
+          # 🏥 CI Failure Investigation - Run #__GH_AW_GITHUB_EVENT_WORKFLOW_RUN_RUN_NUMBER__
           
           ## Summary
           [Brief description of the failure]
           
           ## Failure Details
-          - **Run**: [${GH_AW_GITHUB_EVENT_WORKFLOW_RUN_ID}](${GH_AW_GITHUB_EVENT_WORKFLOW_RUN_HTML_URL})
-          - **Commit**: ${GH_AW_GITHUB_EVENT_WORKFLOW_RUN_HEAD_SHA}
-          - **Trigger**: ${GH_AW_GITHUB_EVENT_WORKFLOW_RUN_EVENT}
+          - **Run**: [__GH_AW_GITHUB_EVENT_WORKFLOW_RUN_ID__](__GH_AW_GITHUB_EVENT_WORKFLOW_RUN_HTML_URL__)
+          - **Commit**: __GH_AW_GITHUB_EVENT_WORKFLOW_RUN_HEAD_SHA__
+          - **Trigger**: __GH_AW_GITHUB_EVENT_WORKFLOW_RUN_EVENT__
           
           ## Root Cause Analysis
           [Detailed analysis of what went wrong]
@@ -2738,11 +2738,88 @@ jobs:
           - Use file-based indexing for fast pattern matching and similarity detection
           
           PROMPT_EOF
+      - name: Substitute placeholders
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        env:
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+          GH_AW_GITHUB_EVENT_WORKFLOW_RUN_CONCLUSION: ${{ github.event.workflow_run.conclusion }}
+          GH_AW_GITHUB_EVENT_WORKFLOW_RUN_EVENT: ${{ github.event.workflow_run.event }}
+          GH_AW_GITHUB_EVENT_WORKFLOW_RUN_HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          GH_AW_GITHUB_EVENT_WORKFLOW_RUN_HTML_URL: ${{ github.event.workflow_run.html_url }}
+          GH_AW_GITHUB_EVENT_WORKFLOW_RUN_ID: ${{ github.event.workflow_run.id }}
+          GH_AW_GITHUB_EVENT_WORKFLOW_RUN_RUN_NUMBER: ${{ github.event.workflow_run.run_number }}
+          GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
+        with:
+          script: |
+            /**
+             * @fileoverview Safe template placeholder substitution for GitHub Actions workflows.
+             * Replaces __VAR__ placeholders in a file with environment variable values without
+             * allowing shell expansion, preventing template injection attacks.
+             *
+             * @param {object} params - The parameters object
+             * @param {string} params.file - Path to the file to process
+             * @param {object} params.substitutions - Map of placeholder names to values (without __ prefix/suffix)
+             */
+            
+            const fs = require("fs");
+            
+            const substitutePlaceholders = async ({ file, substitutions }) => {
+              // Validate inputs
+              if (!file) {
+                throw new Error("file parameter is required");
+              }
+              if (!substitutions || typeof substitutions !== "object") {
+                throw new Error("substitutions parameter must be an object");
+              }
+            
+              // Read the file content
+              let content;
+              try {
+                content = fs.readFileSync(file, "utf8");
+              } catch (error) {
+                throw new Error(`Failed to read file ${file}: ${error.message}`);
+              }
+            
+              // Perform substitutions
+              // Each placeholder is in the format __VARIABLE_NAME__
+              // We replace it with the corresponding value from the substitutions object
+              for (const [key, value] of Object.entries(substitutions)) {
+                const placeholder = `__${key}__`;
+                // Use a simple string replacement - no regex to avoid any potential issues
+                // with special characters in the value
+                content = content.split(placeholder).join(value);
+              }
+            
+              // Write the updated content back to the file
+              try {
+                fs.writeFileSync(file, content, "utf8");
+              } catch (error) {
+                throw new Error(`Failed to write file ${file}: ${error.message}`);
+              }
+            
+              return `Successfully substituted ${Object.keys(substitutions).length} placeholder(s) in ${file}`;
+            };
+            
+            
+            
+            // Call the substitution function
+            return await substitutePlaceholders({
+              file: process.env.GH_AW_PROMPT,
+              substitutions: {
+                GH_AW_GITHUB_EVENT_WORKFLOW_RUN_CONCLUSION: process.env.GH_AW_GITHUB_EVENT_WORKFLOW_RUN_CONCLUSION,
+                GH_AW_GITHUB_EVENT_WORKFLOW_RUN_EVENT: process.env.GH_AW_GITHUB_EVENT_WORKFLOW_RUN_EVENT,
+                GH_AW_GITHUB_EVENT_WORKFLOW_RUN_HEAD_SHA: process.env.GH_AW_GITHUB_EVENT_WORKFLOW_RUN_HEAD_SHA,
+                GH_AW_GITHUB_EVENT_WORKFLOW_RUN_HTML_URL: process.env.GH_AW_GITHUB_EVENT_WORKFLOW_RUN_HTML_URL,
+                GH_AW_GITHUB_EVENT_WORKFLOW_RUN_ID: process.env.GH_AW_GITHUB_EVENT_WORKFLOW_RUN_ID,
+                GH_AW_GITHUB_EVENT_WORKFLOW_RUN_RUN_NUMBER: process.env.GH_AW_GITHUB_EVENT_WORKFLOW_RUN_RUN_NUMBER,
+                GH_AW_GITHUB_REPOSITORY: process.env.GH_AW_GITHUB_REPOSITORY
+              }
+            });
       - name: Append XPIA security instructions to prompt
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          cat << 'PROMPT_EOF' | envsubst >> "$GH_AW_PROMPT"
+          cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
           <security-guidelines>
           <description>Cross-Prompt Injection Attack (XPIA) Protection</description>
           <warning>
@@ -2764,7 +2841,7 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          cat << 'PROMPT_EOF' | envsubst >> "$GH_AW_PROMPT"
+          cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
           <temporary-files>
           <path>/tmp/gh-aw/agent/</path>
           <instruction>When you need to create temporary files or directories during your work, always use the /tmp/gh-aw/agent/ directory that has been pre-created for you. Do NOT use the root /tmp/ directory directly.</instruction>
@@ -2775,7 +2852,7 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          cat << 'PROMPT_EOF' | envsubst >> "$GH_AW_PROMPT"
+          cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
           
           ---
           
@@ -2800,7 +2877,7 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          cat << 'PROMPT_EOF' | envsubst >> "$GH_AW_PROMPT"
+          cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
           <safe-outputs>
           <description>GitHub API Access Instructions</description>
           <important>
@@ -2824,36 +2901,115 @@ jobs:
           GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
           GH_AW_GITHUB_WORKSPACE: ${{ github.workspace }}
         run: |
-          cat << 'PROMPT_EOF' | envsubst >> "$GH_AW_PROMPT"
+          cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
           <github-context>
           The following GitHub context information is available for this workflow:
-          {{#if ${GH_AW_GITHUB_ACTOR} }}
-          - **actor**: ${GH_AW_GITHUB_ACTOR}
+          {{#if __GH_AW_GITHUB_ACTOR__ }}
+          - **actor**: __GH_AW_GITHUB_ACTOR__
           {{/if}}
-          {{#if ${GH_AW_GITHUB_REPOSITORY} }}
-          - **repository**: ${GH_AW_GITHUB_REPOSITORY}
+          {{#if __GH_AW_GITHUB_REPOSITORY__ }}
+          - **repository**: __GH_AW_GITHUB_REPOSITORY__
           {{/if}}
-          {{#if ${GH_AW_GITHUB_WORKSPACE} }}
-          - **workspace**: ${GH_AW_GITHUB_WORKSPACE}
+          {{#if __GH_AW_GITHUB_WORKSPACE__ }}
+          - **workspace**: __GH_AW_GITHUB_WORKSPACE__
           {{/if}}
-          {{#if ${GH_AW_GITHUB_EVENT_ISSUE_NUMBER} }}
-          - **issue-number**: #${GH_AW_GITHUB_EVENT_ISSUE_NUMBER}
+          {{#if __GH_AW_GITHUB_EVENT_ISSUE_NUMBER__ }}
+          - **issue-number**: #__GH_AW_GITHUB_EVENT_ISSUE_NUMBER__
           {{/if}}
-          {{#if ${GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER} }}
-          - **discussion-number**: #${GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER}
+          {{#if __GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER__ }}
+          - **discussion-number**: #__GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER__
           {{/if}}
-          {{#if ${GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER} }}
-          - **pull-request-number**: #${GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER}
+          {{#if __GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER__ }}
+          - **pull-request-number**: #__GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER__
           {{/if}}
-          {{#if ${GH_AW_GITHUB_EVENT_COMMENT_ID} }}
-          - **comment-id**: ${GH_AW_GITHUB_EVENT_COMMENT_ID}
+          {{#if __GH_AW_GITHUB_EVENT_COMMENT_ID__ }}
+          - **comment-id**: __GH_AW_GITHUB_EVENT_COMMENT_ID__
           {{/if}}
-          {{#if ${GH_AW_GITHUB_RUN_ID} }}
-          - **workflow-run-id**: ${GH_AW_GITHUB_RUN_ID}
+          {{#if __GH_AW_GITHUB_RUN_ID__ }}
+          - **workflow-run-id**: __GH_AW_GITHUB_RUN_ID__
           {{/if}}
           </github-context>
           
           PROMPT_EOF
+      - name: Substitute placeholders
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        env:
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+          GH_AW_GITHUB_ACTOR: ${{ github.actor }}
+          GH_AW_GITHUB_EVENT_COMMENT_ID: ${{ github.event.comment.id }}
+          GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER: ${{ github.event.discussion.number }}
+          GH_AW_GITHUB_EVENT_ISSUE_NUMBER: ${{ github.event.issue.number }}
+          GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER: ${{ github.event.pull_request.number }}
+          GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
+          GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
+          GH_AW_GITHUB_WORKSPACE: ${{ github.workspace }}
+        with:
+          script: |
+            /**
+             * @fileoverview Safe template placeholder substitution for GitHub Actions workflows.
+             * Replaces __VAR__ placeholders in a file with environment variable values without
+             * allowing shell expansion, preventing template injection attacks.
+             *
+             * @param {object} params - The parameters object
+             * @param {string} params.file - Path to the file to process
+             * @param {object} params.substitutions - Map of placeholder names to values (without __ prefix/suffix)
+             */
+            
+            const fs = require("fs");
+            
+            const substitutePlaceholders = async ({ file, substitutions }) => {
+              // Validate inputs
+              if (!file) {
+                throw new Error("file parameter is required");
+              }
+              if (!substitutions || typeof substitutions !== "object") {
+                throw new Error("substitutions parameter must be an object");
+              }
+            
+              // Read the file content
+              let content;
+              try {
+                content = fs.readFileSync(file, "utf8");
+              } catch (error) {
+                throw new Error(`Failed to read file ${file}: ${error.message}`);
+              }
+            
+              // Perform substitutions
+              // Each placeholder is in the format __VARIABLE_NAME__
+              // We replace it with the corresponding value from the substitutions object
+              for (const [key, value] of Object.entries(substitutions)) {
+                const placeholder = `__${key}__`;
+                // Use a simple string replacement - no regex to avoid any potential issues
+                // with special characters in the value
+                content = content.split(placeholder).join(value);
+              }
+            
+              // Write the updated content back to the file
+              try {
+                fs.writeFileSync(file, content, "utf8");
+              } catch (error) {
+                throw new Error(`Failed to write file ${file}: ${error.message}`);
+              }
+            
+              return `Successfully substituted ${Object.keys(substitutions).length} placeholder(s) in ${file}`;
+            };
+            
+            
+            
+            // Call the substitution function
+            return await substitutePlaceholders({
+              file: process.env.GH_AW_PROMPT,
+              substitutions: {
+                GH_AW_GITHUB_ACTOR: process.env.GH_AW_GITHUB_ACTOR,
+                GH_AW_GITHUB_EVENT_COMMENT_ID: process.env.GH_AW_GITHUB_EVENT_COMMENT_ID,
+                GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER: process.env.GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER,
+                GH_AW_GITHUB_EVENT_ISSUE_NUMBER: process.env.GH_AW_GITHUB_EVENT_ISSUE_NUMBER,
+                GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER: process.env.GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER,
+                GH_AW_GITHUB_REPOSITORY: process.env.GH_AW_GITHUB_REPOSITORY,
+                GH_AW_GITHUB_RUN_ID: process.env.GH_AW_GITHUB_RUN_ID,
+                GH_AW_GITHUB_WORKSPACE: process.env.GH_AW_GITHUB_WORKSPACE
+              }
+            });
       - name: Interpolate variables and render templates
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:

@@ -157,14 +157,17 @@ func TestGenerateGitHubContextSecurePattern(t *testing.T) {
 		t.Error("Expected NO ${{ }} expressions in heredoc content (should use ${GH_AW_*} instead)")
 	}
 
-	// Verify that shell variable references are used in heredoc
-	if !strings.Contains(heredocContent, "${GH_AW_GITHUB_") {
-		t.Error("Expected ${GH_AW_GITHUB_*} shell variable references in heredoc content")
+	// Verify that placeholder references are used in heredoc
+	if !strings.Contains(heredocContent, "__GH_AW_GITHUB_") {
+		t.Error("Expected __GH_AW_GITHUB_*__ placeholder references in heredoc content")
 	}
 
-	// Verify the envsubst command is used (for shell variable substitution)
-	if !strings.Contains(heredocContent, "envsubst") {
-		t.Error("Expected envsubst command for shell variable substitution")
+	// Verify the JavaScript substitution step is used (for safe variable substitution)
+	if !strings.Contains(output, "Substitute placeholders") {
+		t.Error("Expected JavaScript-based placeholder substitution step")
+	}
+	if !strings.Contains(output, "actions/github-script@") {
+		t.Error("Expected actions/github-script action for substitution")
 	}
 }
 
