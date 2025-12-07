@@ -1798,6 +1798,7 @@ jobs:
           {
             "mcpServers": {
               "safeinputs": {
+                "type": "http",
                 "url": "http://localhost:$GH_AW_SAFE_INPUTS_PORT",
                 "headers": {
                   "Authorization": "Bearer $GH_AW_SAFE_INPUTS_API_KEY"
