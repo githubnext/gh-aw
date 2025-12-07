@@ -146,7 +146,7 @@ export default defineConfig({
 						{ label: 'Imports', link: '/reference/imports/' },
 						{ label: 'Templating', link: '/reference/templating/' },
 						{ label: 'Network Access', link: '/reference/network/' },
-						{ label: 'Cache & Memory', link: '/reference/cache-memory/' },
+						{ label: 'Cache & Memory', link: '/reference/memory/' },
 						{ label: 'Concurrency', link: '/reference/concurrency/' },
 						{ label: 'Markdown', link: '/reference/markdown/' },
 						{ label: 'Custom Agents', link: '/reference/custom-agents/' },
