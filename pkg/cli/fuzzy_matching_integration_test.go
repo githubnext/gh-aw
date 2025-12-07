@@ -55,9 +55,9 @@ Test content
 	}
 
 	tests := []struct {
-		name            string
-		testFunc        func(string) error
-		input           string
+		name                string
+		testFunc            func(string) error
+		input               string
 		expectedSuggestions []string
 	}{
 		{
@@ -66,7 +66,7 @@ Test content
 				_, err := ResolveWorkflowPath(input)
 				return err
 			},
-			input:           "audti-workflows",
+			input:               "audti-workflows",
 			expectedSuggestions: []string{"audit-workflows"},
 		},
 		{
@@ -75,7 +75,7 @@ Test content
 				_, err := ResolveWorkflowPath(input)
 				return err
 			},
-			input:           "archei",
+			input:               "archei",
 			expectedSuggestions: []string{"archie"},
 		},
 		{
@@ -84,7 +84,7 @@ Test content
 				_, err := resolveWorkflowFile(input, false)
 				return err
 			},
-			input:           "brav",
+			input:               "brav",
 			expectedSuggestions: []string{"brave"},
 		},
 	}
