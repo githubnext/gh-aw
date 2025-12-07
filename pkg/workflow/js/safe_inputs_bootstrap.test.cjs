@@ -59,10 +59,7 @@ describe("safe_inputs_bootstrap.cjs", () => {
 
       // Create a test handler file
       const handlerPath = path.join(tempDir, "test_handler.cjs");
-      fs.writeFileSync(
-        handlerPath,
-        `module.exports = function(args) { return { content: [{ type: "text", text: "test" }] }; };`
-      );
+      fs.writeFileSync(handlerPath, `module.exports = function(args) { return { content: [{ type: "text", text: "test" }] }; };`);
 
       // Create a test configuration file with handler
       const configPath = path.join(tempDir, "config.json");
@@ -101,9 +98,7 @@ describe("safe_inputs_bootstrap.cjs", () => {
         debugError: vi.fn(),
       };
 
-      expect(() => bootstrapSafeInputsServer("/non/existent/config.json", logger)).toThrow(
-        "Configuration file not found"
-      );
+      expect(() => bootstrapSafeInputsServer("/non/existent/config.json", logger)).toThrow("Configuration file not found");
     });
   });
 
