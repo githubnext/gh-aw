@@ -38,7 +38,7 @@ func TestMCPInspectPlaywrightLiveIntegration(t *testing.T) {
 	defer setup.cleanup()
 
 	// Find an available port for our test web server
-	port, err := findAvailablePort()
+	port, err := findAvailableTestPort()
 	if err != nil {
 		t.Fatalf("Failed to find available port: %v", err)
 	}
@@ -319,8 +319,8 @@ URL: ` + docsURL + `/gh-aw/
 	// This allows the test to work in environments where docker is slow or restricted
 }
 
-// findAvailablePort finds an available TCP port on localhost
-func findAvailablePort() (int, error) {
+// findAvailableTestPort finds an available TCP port on localhost
+func findAvailableTestPort() (int, error) {
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		return 0, err
