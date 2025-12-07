@@ -86,14 +86,14 @@ func resolveWorkflowFile(fileOrWorkflowName string, verbose bool) (string, error
 			fmt.Sprintf("Create a new workflow with '%s new %s'", constants.CLIExtensionPrefix, fileOrWorkflowName),
 			"Check for typos in the workflow name",
 		}
-		
+
 		// Add fuzzy match suggestions
 		workflowName := strings.TrimSuffix(fileOrWorkflowName, ".md")
 		similarNames := suggestWorkflowNames(workflowName)
 		if len(similarNames) > 0 {
 			suggestions = append([]string{fmt.Sprintf("Did you mean: %s?", strings.Join(similarNames, ", "))}, suggestions...)
 		}
-		
+
 		return "", errors.New(console.FormatErrorWithSuggestions(
 			fmt.Sprintf("workflow '%s' not found in local .github/workflows", fileOrWorkflowName),
 			suggestions,

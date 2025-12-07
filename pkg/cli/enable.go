@@ -182,7 +182,7 @@ func toggleWorkflowsByNames(workflowNames []string, enable bool, repoOverride st
 			"Check for typos in the workflow names",
 			"Ensure the workflows have been compiled and pushed to GitHub",
 		}
-		
+
 		// Add fuzzy match suggestions for each not found workflow
 		if len(notFoundNames) == 1 {
 			similarNames := suggestWorkflowNames(notFoundNames[0])
@@ -190,7 +190,7 @@ func toggleWorkflowsByNames(workflowNames []string, enable bool, repoOverride st
 				suggestions = append([]string{fmt.Sprintf("Did you mean: %s?", strings.Join(similarNames, ", "))}, suggestions...)
 			}
 		}
-		
+
 		return errors.New(console.FormatErrorWithSuggestions(
 			fmt.Sprintf("workflows not found: %s", strings.Join(notFoundNames, ", ")),
 			suggestions,

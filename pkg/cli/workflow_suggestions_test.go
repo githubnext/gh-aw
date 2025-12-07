@@ -207,7 +207,7 @@ func TestGetAvailableWorkflowNamesNoDirectory(t *testing.T) {
 	names := getAvailableWorkflowNames()
 
 	// Verify we got nil or empty slice
-	if names != nil && len(names) > 0 {
+	if len(names) > 0 {
 		t.Errorf("Expected empty or nil slice, got %d names: %v", len(names), names)
 	}
 }
