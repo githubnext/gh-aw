@@ -451,3 +451,43 @@ func TestApplyImportsToFrontmatter(t *testing.T) {
 		})
 	}
 }
+
+func TestFindAvailablePort(t *testing.T) {
+	tests := []struct {
+		name      string
+		startPort int
+		verbose   bool
+	}{
+		{
+			name:      "find port from safe-inputs start port",
+			startPort: safeInputsStartPort,
+			verbose:   false,
+		},
+		{
+			name:      "find port from inspector start port",
+			startPort: inspectorStartPort,
+			verbose:   false,
+		},
+		{
+			name:      "find port from custom start port",
+			startPort: 8000,
+			verbose:   true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			port := findAvailablePort(tt.startPort, tt.verbose)
+			if port == 0 {
+				t.Errorf("findAvailablePort(%d, %v) returned 0, expected a valid port", tt.startPort, tt.verbose)
+			}
+			if port < tt.startPort {
+				t.Errorf("findAvailablePort(%d, %v) returned %d, expected port >= start port", tt.startPort, tt.verbose, port)
+			}
+			if port >= tt.startPort+safeInputsPortRange {
+				t.Logf("Note: findAvailablePort(%d, %v) returned %d, which is outside the typical range", tt.startPort, tt.verbose, port)
+			}
+			t.Logf("✓ Found available port: %d", port)
+		})
+	}
+}

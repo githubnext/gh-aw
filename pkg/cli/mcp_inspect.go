@@ -26,6 +26,9 @@ const (
 	// Port range for safe-inputs HTTP server
 	safeInputsStartPort = 3000
 	safeInputsPortRange = 10
+	// Port range for MCP inspector
+	inspectorStartPort = 5173
+	inspectorPortRange = 10
 )
 
 // filterOutSafeOutputs removes safe-outputs MCP servers from the list since they are
@@ -542,11 +545,18 @@ func spawnSafeInputsInspector(workflowFile string, verbose bool) error {
 	fmt.Fprintf(os.Stderr, "  URL: http://localhost:%d\n", port)
 	fmt.Println()
 
+	// Find an available port for the inspector
+	inspectorPort := findAvailablePort(inspectorStartPort, verbose)
+	if inspectorPort == 0 {
+		return fmt.Errorf("failed to find an available port for the MCP inspector")
+	}
+
 	// Launch the inspector
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Launching @modelcontextprotocol/inspector..."))
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Visit http://localhost:5173 after the inspector starts"))
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Visit http://localhost:%d after the inspector starts", inspectorPort)))
 
 	inspectorCmd := exec.Command("npx", "@modelcontextprotocol/inspector")
+	inspectorCmd.Env = append(os.Environ(), fmt.Sprintf("PORT=%d", inspectorPort))
 	inspectorCmd.Stdout = os.Stdout
 	inspectorCmd.Stderr = os.Stderr
 	inspectorCmd.Stdin = os.Stdin
@@ -747,14 +757,21 @@ func spawnMCPInspector(workflowFile string, serverFilter string, verbose bool) e
 		}
 	}()
 
+	// Find an available port for the inspector
+	inspectorPort := findAvailablePort(inspectorStartPort, verbose)
+	if inspectorPort == 0 {
+		return fmt.Errorf("failed to find an available port for the MCP inspector")
+	}
+
 	fmt.Println(console.FormatInfoMessage("Launching @modelcontextprotocol/inspector..."))
-	fmt.Println(console.FormatInfoMessage("Visit http://localhost:5173 after the inspector starts"))
+	fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Visit http://localhost:%d after the inspector starts", inspectorPort)))
 	if len(serverProcesses) > 0 {
 		fmt.Println(console.FormatInfoMessage(fmt.Sprintf("%d stdio MCP server(s) are running in the background", len(serverProcesses))))
 		fmt.Println(console.FormatInfoMessage("Configure them in the inspector using the details shown above"))
 	}
 
 	cmd := exec.Command("npx", "@modelcontextprotocol/inspector")
+	cmd.Env = append(os.Environ(), fmt.Sprintf("PORT=%d", inspectorPort))
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	cmd.Stdin = os.Stdin
