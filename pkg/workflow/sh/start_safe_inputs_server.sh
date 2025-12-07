@@ -61,6 +61,11 @@ for i in {1..10}; do
       echo "  - Response content: (empty)"
     fi
     rm -f "$CURL_OUTPUT"
+    # Show server log for additional debugging context
+    if [ -f /tmp/gh-aw/safe-inputs/logs/server.log ]; then
+      echo "  - Server log (last 20 lines):"
+      tail -20 /tmp/gh-aw/safe-inputs/logs/server.log
+    fi
   fi
   
   if [ $i -eq 10 ]; then
