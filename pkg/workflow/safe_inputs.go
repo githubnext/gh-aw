@@ -173,6 +173,8 @@ func parseSafeInputsMap(safeInputsMap map[string]any) (*SafeInputsConfig, bool) 
 			switch t := timeout.(type) {
 			case int:
 				toolConfig.Timeout = t
+			case uint64:
+				toolConfig.Timeout = int(t)
 			case float64:
 				toolConfig.Timeout = int(t)
 			case string:
@@ -738,6 +740,8 @@ func (c *Compiler) mergeSafeInputs(main *SafeInputsConfig, importedConfigs []str
 				switch t := timeout.(type) {
 				case int:
 					toolConfig.Timeout = t
+				case uint64:
+					toolConfig.Timeout = int(t)
 				case float64:
 					toolConfig.Timeout = int(t)
 				case string:
