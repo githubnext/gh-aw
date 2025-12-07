@@ -269,6 +269,16 @@ func TestExtractAgentIdentifier(t *testing.T) {
 			input:    ".github/agents/my_custom_agent.agent.md",
 			expected: "my_custom_agent",
 		},
+		{
+			name:     "agent file with only .agent extension",
+			input:    ".github/agents/test-agent.agent",
+			expected: "test-agent",
+		},
+		{
+			name:     "agent file with .agent extension in path",
+			input:    "../agents/my-agent.agent",
+			expected: "my-agent",
+		},
 	}
 
 	for _, tt := range tests {

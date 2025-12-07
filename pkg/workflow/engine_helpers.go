@@ -97,10 +97,11 @@ func ExtractAgentIdentifier(agentFile string) string {
 		filename = agentFile[lastSlash+1:]
 	}
 
-	// Remove the .agent.md extension first (for custom agent files), then fall back to .md
-	// This handles both ".agent.md" and ".md" extensions correctly
+	// Remove extensions in order: .agent.md, then .md, then .agent
+	// This handles all possible agent file naming conventions
 	filename = strings.TrimSuffix(filename, ".agent.md")
 	filename = strings.TrimSuffix(filename, ".md")
+	filename = strings.TrimSuffix(filename, ".agent")
 
 	return filename
 }
