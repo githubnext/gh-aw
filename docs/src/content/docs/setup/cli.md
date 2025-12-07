@@ -76,7 +76,7 @@ gh aw init       # Configure .gitattributes, Copilot instructions, prompts
 gh aw init --mcp # Also setup MCP server integration for Copilot Agent
 ```
 
-Configures `.gitattributes` to mark `.lock.yml` files as generated, adds Copilot instructions for better AI assistance, and sets up prompt files for workflow creation. The `--mcp` flag additionally creates GitHub Actions workflow for MCP server setup, configures `.vscode/mcp.json` for VS Code integration, and enables gh-aw MCP tools in Copilot Agent.
+Configures `.gitattributes` to mark `.lock.yml` files as generated, adds Copilot instructions for better AI assistance, sets up prompt files for workflow creation, and creates `.github/aw/logs/.gitignore` to prevent workflow logs from being committed. The `--mcp` flag additionally creates GitHub Actions workflow for MCP server setup, configures `.vscode/mcp.json` for VS Code integration, and enables gh-aw MCP tools in Copilot Agent.
 
 #### `add`
 
@@ -304,9 +304,11 @@ gh aw mcp list                             # List all MCP servers
 gh aw mcp list workflow-name               # List servers for specific workflow
 gh aw mcp list-tools <mcp-server>          # List tools for specific MCP server
 gh aw mcp list-tools <mcp-server> workflow # List tools in specific workflow
-gh aw mcp inspect workflow-name            # Inspect and test servers
+gh aw mcp inspect workflow-name            # Inspect and test servers (auto-detects safe-inputs)
 gh aw mcp add                              # Add servers from registry
 ```
+
+The `mcp inspect` command automatically detects and inspects safe-inputs defined in workflows, including those imported from shared workflows. No additional flag is needed - safe-inputs are inspected alongside other MCP servers when present.
 
 See **[MCPs Guide](/gh-aw/guides/mcps/)** for complete documentation.
 
@@ -415,6 +417,34 @@ DEBUG=*,-tests gh aw compile         # All except tests
 
 **Tip:** Use `--verbose` flag for user-facing details instead of DEBUG environment variable.
 
+## Smart Features
+
+### Fuzzy Workflow Name Matching
+
+When a workflow name is not found, the CLI automatically suggests similar workflow names using fuzzy matching. This helps catch typos and provides helpful suggestions.
+
+```bash wrap
+gh aw compile audti-workflows
+# ✗ workflow file not found: .github/workflows/audti-workflows.md
+#
+# Suggestions:
+#   • Did you mean: audit-workflows?
+#   • Run 'gh aw status' to see all available workflows
+#   • Check for typos in the workflow name
+```
+
+Fuzzy matching works across all commands that accept workflow names:
+- `gh aw compile <workflow>`
+- `gh aw enable <workflow>`
+- `gh aw disable <workflow>`
+- `gh aw logs <workflow>`
+- `gh aw mcp list <workflow>`
+- `gh aw mcp add <workflow> <server>`
+- `gh aw mcp list-tools <server> <workflow>`
+- `gh aw mcp inspect <workflow>`
+
+The feature uses Levenshtein distance to suggest up to 3 similar names within an edit distance of 3 characters.
+
 ## Troubleshooting
 
 | Issue | Solution |
@@ -422,7 +452,7 @@ DEBUG=*,-tests gh aw compile         # All except tests
 | `command not found: gh` | Install from [cli.github.com](https://cli.github.com/) |
 | `extension not found: aw` | Run `gh extension install githubnext/gh-aw` |
 | Compilation fails with YAML errors | Check indentation, colons, and array syntax in frontmatter |
-| Workflow not found | Run `gh aw status` to list available workflows |
+| Workflow not found | Check typo suggestions or run `gh aw status` to list available workflows |
 | Permission denied | Check file permissions or repository access |
 | Trial creation fails | Check GitHub rate limits and authentication |
 
