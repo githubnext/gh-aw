@@ -373,7 +373,7 @@ func generateCacheMemorySteps(builder *strings.Builder, data *WorkflowData) {
 		// Use actions/cache for normal caches (which auto-saves via post-action)
 		threatDetectionEnabled := data.SafeOutputs != nil && data.SafeOutputs.ThreatDetection != nil
 		useRestoreOnly := cache.RestoreOnly || threatDetectionEnabled
-		
+
 		var actionName string
 		if useRestoreOnly {
 			actionName = "Restore cache memory file share data"

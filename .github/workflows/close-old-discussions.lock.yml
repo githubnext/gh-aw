@@ -176,14 +176,18 @@
 #   close_discussion["close_discussion"]
 #   conclusion["conclusion"]
 #   detection["detection"]
+#   update_cache_memory["update_cache_memory"]
 #   activation --> agent
 #   activation --> conclusion
 #   agent --> close_discussion
 #   agent --> conclusion
 #   agent --> detection
+#   agent --> update_cache_memory
 #   close_discussion --> conclusion
 #   detection --> close_discussion
 #   detection --> conclusion
+#   detection --> update_cache_memory
+#   update_cache_memory --> conclusion
 # ```
 #
 # Original Prompt:
@@ -387,7 +391,9 @@
 # ```
 #
 # Pinned GitHub Actions:
-#   - actions/cache@v4 (0057852bfaa89a56745cba8c7296529d2fc39830)
+#   - actions/cache/restore@v4 (0057852bfaa89a56745cba8c7296529d2fc39830)
+#     https://github.com/actions/cache/commit/0057852bfaa89a56745cba8c7296529d2fc39830
+#   - actions/cache/save@v4 (0057852bfaa89a56745cba8c7296529d2fc39830)
 #     https://github.com/actions/cache/commit/0057852bfaa89a56745cba8c7296529d2fc39830
 #   - actions/checkout@v5 (93cb6efe18208431cddfb8368fd83d5badbf9bfd)
 #     https://github.com/actions/checkout/commit/93cb6efe18208431cddfb8368fd83d5badbf9bfd
@@ -566,8 +572,8 @@ jobs:
           echo "Cache memory directory created at /tmp/gh-aw/cache-memory"
           echo "This folder provides persistent file storage across workflow runs"
           echo "LLMs and agentic tools can freely read and write files in this directory"
-      - name: Cache memory file share data
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+      - name: Restore cache memory file share data
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           key: discussions-data-${{ github.run_id }}
           path: /tmp/gh-aw/cache-memory
@@ -5209,6 +5215,7 @@ jobs:
       - agent
       - close_discussion
       - detection
+      - update_cache_memory
     if: (always()) && (needs.agent.result != 'skipped')
     runs-on: ubuntu-slim
     permissions:
@@ -5920,4 +5927,24 @@ jobs:
           name: threat-detection.log
           path: /tmp/gh-aw/threat-detection/detection.log
           if-no-files-found: ignore
+
+  update_cache_memory:
+    needs:
+      - agent
+      - detection
+    if: always() && needs.detection.outputs.success == 'true'
+    runs-on: ubuntu-latest
+    permissions: {}
+    steps:
+      - name: Download cache-memory artifact (default)
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
+        continue-on-error: true
+        with:
+          name: cache-memory
+          path: /tmp/gh-aw/cache-memory
+      - name: Save cache-memory to cache (default)
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          key: discussions-data-${{ github.run_id }}
+          path: /tmp/gh-aw/cache-memory
 
