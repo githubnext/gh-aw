@@ -8,9 +8,12 @@ import (
 	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/console"
+	"github.com/githubnext/gh-aw/pkg/logger"
 	"github.com/githubnext/gh-aw/pkg/parser"
 	"github.com/goccy/go-yaml"
 )
+
+var detectionLog = logger.New("workflow:detection")
 
 func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error) {
 	log.Printf("Reading file: %s", markdownPath)
@@ -706,4 +709,12 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	c.applyLabelFilter(workflowData, result.Frontmatter)
 
 	return workflowData, nil
+}
+
+// detectTextOutputUsage checks if the markdown content uses ${{ needs.activation.outputs.text }}
+func (c *Compiler) detectTextOutputUsage(markdownContent string) bool {
+	// Check for the specific GitHub Actions expression
+	hasUsage := strings.Contains(markdownContent, "${{ needs.activation.outputs.text }}")
+	detectionLog.Printf("Detected usage of activation.outputs.text: %v", hasUsage)
+	return hasUsage
 }
