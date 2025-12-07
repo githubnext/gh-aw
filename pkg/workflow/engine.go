@@ -23,6 +23,15 @@ type EngineConfig struct {
 	Config        string
 	Args          []string
 	Firewall      *FirewallConfig // AWF firewall configuration
+	Session       *SessionConfig  // Session storage configuration
+}
+
+// SessionConfig represents session storage configuration for engines
+type SessionConfig struct {
+	Enabled  bool   `yaml:"enabled,omitempty"`  // Enable session storage (default: false)
+	Resume   bool   `yaml:"resume,omitempty"`   // Resume previous session (default: false)
+	Continue bool   `yaml:"continue,omitempty"` // Continue most recent session (default: false)
+	ID       string `yaml:"id,omitempty"`       // Specific session ID to resume (optional)
 }
 
 // NetworkPermissions represents network access permissions
@@ -244,6 +253,53 @@ func (c *Compiler) ExtractEngineConfig(frontmatter map[string]any) (string, *Eng
 
 					config.Firewall = firewallConfig
 					engineLog.Print("Extracted firewall configuration")
+				}
+			}
+
+			// Extract optional 'session' field (object or boolean format)
+			if session, hasSession := engineObj["session"]; hasSession {
+				sessionConfig := &SessionConfig{}
+
+				// Handle boolean format (simple enable)
+				if sessionBool, ok := session.(bool); ok {
+					sessionConfig.Enabled = sessionBool
+					config.Session = sessionConfig
+					engineLog.Printf("Extracted session configuration (boolean): enabled=%v", sessionBool)
+				} else if sessionObj, ok := session.(map[string]any); ok {
+					// Handle object format with detailed configuration
+
+					// Extract enabled field (defaults to true if object is specified)
+					sessionConfig.Enabled = true
+					if enabled, hasEnabled := sessionObj["enabled"]; hasEnabled {
+						if enabledBool, ok := enabled.(bool); ok {
+							sessionConfig.Enabled = enabledBool
+						}
+					}
+
+					// Extract resume field
+					if resume, hasResume := sessionObj["resume"]; hasResume {
+						if resumeBool, ok := resume.(bool); ok {
+							sessionConfig.Resume = resumeBool
+						}
+					}
+
+					// Extract continue field
+					if cont, hasContinue := sessionObj["continue"]; hasContinue {
+						if contBool, ok := cont.(bool); ok {
+							sessionConfig.Continue = contBool
+						}
+					}
+
+					// Extract id field (specific session ID to resume)
+					if id, hasID := sessionObj["id"]; hasID {
+						if idStr, ok := id.(string); ok {
+							sessionConfig.ID = idStr
+						}
+					}
+
+					config.Session = sessionConfig
+					engineLog.Printf("Extracted session configuration (object): enabled=%v, resume=%v, continue=%v, id=%s",
+						sessionConfig.Enabled, sessionConfig.Resume, sessionConfig.Continue, sessionConfig.ID)
 				}
 			}
 

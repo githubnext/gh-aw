@@ -238,6 +238,23 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 		copilotArgs = append(copilotArgs, "--allow-all-paths")
 	}
 
+	// Add session storage arguments if configured
+	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Session != nil {
+		sessionConfig := workflowData.EngineConfig.Session
+		copilotLog.Printf("Processing session configuration: enabled=%v, resume=%v, continue=%v",
+			sessionConfig.Enabled, sessionConfig.Resume, sessionConfig.Continue)
+
+		// Add --continue flag to resume most recent session
+		if sessionConfig.Continue {
+			copilotLog.Print("Adding --continue flag to resume most recent session")
+			copilotArgs = append(copilotArgs, "--continue")
+		} else if sessionConfig.Resume {
+			// Add --resume flag (Copilot CLI will show session picker)
+			copilotLog.Print("Adding --resume flag for session selection")
+			copilotArgs = append(copilotArgs, "--resume")
+		}
+	}
+
 	// Add custom args from engine configuration before the prompt
 	if workflowData.EngineConfig != nil && len(workflowData.EngineConfig.Args) > 0 {
 		copilotArgs = append(copilotArgs, workflowData.EngineConfig.Args...)

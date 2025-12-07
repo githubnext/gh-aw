@@ -109,6 +109,20 @@ func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 	// See https://github.com/githubnext/gh-aw/issues/892
 	fullAutoParam := " --full-auto --skip-git-repo-check " //"--dangerously-bypass-approvals-and-sandbox "
 
+	// Log session storage configuration if present
+	// Note: Codex session management is still in development
+	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Session != nil {
+		sessionConfig := workflowData.EngineConfig.Session
+		codexEngineLog.Printf("Processing session configuration: enabled=%v, resume=%v, continue=%v",
+			sessionConfig.Enabled, sessionConfig.Resume, sessionConfig.Continue)
+
+		// When available, Codex will support session save/load/branch features
+		// For now, we log a warning that session features are not yet fully supported
+		if sessionConfig.Enabled || sessionConfig.Resume || sessionConfig.Continue {
+			codexEngineLog.Print("Warning: Codex session management is in development. Session configuration will be applied when feature is available.")
+		}
+	}
+
 	// Build custom args parameter if specified in engineConfig
 	var customArgsParam string
 	if workflowData.EngineConfig != nil && len(workflowData.EngineConfig.Args) > 0 {

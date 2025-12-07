@@ -138,6 +138,28 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 		claudeArgs = append(claudeArgs, "--settings", "/tmp/gh-aw/.claude/settings.json")
 	}
 
+	// Add session storage arguments if configured
+	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Session != nil {
+		sessionConfig := workflowData.EngineConfig.Session
+		claudeLog.Printf("Processing session configuration: enabled=%v, resume=%v, continue=%v, id=%s",
+			sessionConfig.Enabled, sessionConfig.Resume, sessionConfig.Continue, sessionConfig.ID)
+
+		// Add --continue flag to resume most recent session
+		if sessionConfig.Continue {
+			claudeLog.Print("Adding --continue flag to resume most recent session")
+			claudeArgs = append(claudeArgs, "--continue")
+		} else if sessionConfig.Resume {
+			// Add --resume flag with optional session ID
+			if sessionConfig.ID != "" {
+				claudeLog.Printf("Adding --resume flag with session ID: %s", sessionConfig.ID)
+				claudeArgs = append(claudeArgs, "--resume", sessionConfig.ID)
+			} else {
+				claudeLog.Print("Adding --resume flag (interactive session selection)")
+				claudeArgs = append(claudeArgs, "--resume")
+			}
+		}
+	}
+
 	// Add custom args from engine configuration before the prompt
 	if workflowData.EngineConfig != nil && len(workflowData.EngineConfig.Args) > 0 {
 		claudeArgs = append(claudeArgs, workflowData.EngineConfig.Args...)

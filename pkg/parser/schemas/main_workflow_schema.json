@@ -4869,6 +4869,53 @@
                 "type": "string"
               },
               "description": "Optional array of command-line arguments to pass to the AI engine CLI. These arguments are injected after all other args but before the prompt."
+            },
+            "session": {
+              "description": "Session storage configuration for resuming and continuing agent sessions. Enables session state persistence to allow continuing locally, forking, or restarting.",
+              "oneOf": [
+                {
+                  "type": "boolean",
+                  "description": "Simple enable/disable session storage with default settings"
+                },
+                {
+                  "type": "object",
+                  "description": "Detailed session storage configuration",
+                  "properties": {
+                    "enabled": {
+                      "type": "boolean",
+                      "description": "Enable session storage (default: false)",
+                      "default": false
+                    },
+                    "resume": {
+                      "type": "boolean",
+                      "description": "Resume a previous session. For Claude, shows session picker if no ID specified. For Copilot, shows session picker.",
+                      "default": false
+                    },
+                    "continue": {
+                      "type": "boolean",
+                      "description": "Continue the most recent session without prompting (Claude and Copilot only)",
+                      "default": false
+                    },
+                    "id": {
+                      "type": "string",
+                      "description": "Specific session ID to resume (Claude only). When specified with resume: true, resumes that exact session."
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              ],
+              "examples": [
+                true,
+                {
+                  "enabled": true,
+                  "continue": true
+                },
+                {
+                  "enabled": true,
+                  "resume": true,
+                  "id": "session-abc123"
+                }
+              ]
             }
           },
           "required": ["id"],
