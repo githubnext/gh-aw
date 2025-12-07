@@ -427,11 +427,6 @@ func waitForServerReady(port int, timeout time.Duration, verbose bool) bool {
 func spawnSafeInputsInspector(workflowFile string, verbose bool) error {
 	mcpInspectLog.Printf("Spawning safe-inputs inspector for workflow: %s", workflowFile)
 
-	// Check if npx is available
-	if _, err := exec.LookPath("npx"); err != nil {
-		return fmt.Errorf("npx not found. Please install Node.js and npm to use the MCP inspector: %w", err)
-	}
-
 	// Check if node is available
 	if _, err := exec.LookPath("node"); err != nil {
 		return fmt.Errorf("node not found. Please install Node.js to run the safe-inputs MCP server: %w", err)
@@ -535,21 +530,17 @@ func spawnSafeInputsInspector(workflowFile string, verbose bool) error {
 	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Safe-inputs HTTP server started successfully"))
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Server running on: http://localhost:%d", port)))
 	fmt.Println()
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Configure the MCP inspector with the following settings:"))
-	fmt.Fprintf(os.Stderr, "  Type: HTTP\n")
-	fmt.Fprintf(os.Stderr, "  URL: http://localhost:%d\n", port)
-	fmt.Println()
 
-	// Launch the inspector
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Launching @modelcontextprotocol/inspector..."))
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Visit http://localhost:5173 after the inspector starts"))
+	// Create MCP server config for the safe-inputs server
+	safeInputsMCPConfig := parser.MCPServerConfig{
+		Name: "safe-inputs",
+		Type: "http",
+		URL:  fmt.Sprintf("http://localhost:%d", port),
+		Env:  make(map[string]string),
+	}
 
-	inspectorCmd := exec.Command("npx", "@modelcontextprotocol/inspector")
-	inspectorCmd.Stdout = os.Stdout
-	inspectorCmd.Stderr = os.Stderr
-	inspectorCmd.Stdin = os.Stdin
-
-	return inspectorCmd.Run()
+	// Inspect the safe-inputs MCP server using the Go SDK (like other MCP servers)
+	return inspectMCPServer(safeInputsMCPConfig, "", verbose, false)
 }
 
 // spawnMCPInspector launches the official @modelcontextprotocol/inspector tool
