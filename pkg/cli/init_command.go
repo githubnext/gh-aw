@@ -17,6 +17,7 @@ func NewInitCommand() *cobra.Command {
 
 This command:
 - Configures .gitattributes to mark .lock.yml files as generated
+- Configures .github/aw/.gitignore to ignore scripts and logs directories
 - Creates GitHub Copilot custom instructions at .github/aw/github-agentic-workflows.md
 - Creates the agent for workflow creation at .github/agents/create-agentic-workflow.agent.md
 - Creates the debug agentic workflow agent at .github/agents/debug-agentic-workflow.agent.md

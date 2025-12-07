@@ -32,6 +32,16 @@ func InitRepository(verbose bool, mcp bool) error {
 		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Configured .gitattributes"))
 	}
 
+	// Configure .github/aw/.gitignore
+	initLog.Print("Configuring .github/aw/.gitignore")
+	if err := ensureAwGitIgnore(); err != nil {
+		initLog.Printf("Failed to configure .github/aw/.gitignore: %v", err)
+		return fmt.Errorf("failed to configure .github/aw/.gitignore: %w", err)
+	}
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Configured .github/aw/.gitignore"))
+	}
+
 	// Write copilot instructions
 	initLog.Print("Writing GitHub Copilot instructions")
 	if err := ensureCopilotInstructions(verbose, false); err != nil {

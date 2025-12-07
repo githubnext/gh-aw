@@ -100,6 +100,22 @@ func TestInitRepository(t *testing.T) {
 			if !strings.Contains(string(content), ".github/workflows/*.lock.yml linguist-generated=true merge=ours") {
 				t.Errorf("Expected .gitattributes to contain '.github/workflows/*.lock.yml linguist-generated=true merge=ours'")
 			}
+
+			// Verify .github/aw/.gitignore was created
+			awGitIgnorePath := filepath.Join(tempDir, ".github", "aw", ".gitignore")
+			if _, err := os.Stat(awGitIgnorePath); os.IsNotExist(err) {
+				t.Errorf("Expected .github/aw/.gitignore file to exist")
+			}
+
+			// Verify .github/aw/.gitignore contains the correct content
+			gitignoreContent, err := os.ReadFile(awGitIgnorePath)
+			if err != nil {
+				t.Fatalf("Failed to read .github/aw/.gitignore: %v", err)
+			}
+			expectedGitignoreContent := "# Ignore scripts and logs directories\nscripts/\nlogs/\n"
+			if string(gitignoreContent) != expectedGitignoreContent {
+				t.Errorf("Expected .github/aw/.gitignore to contain:\n%s\nGot:\n%s", expectedGitignoreContent, string(gitignoreContent))
+			}
 		})
 	}
 }

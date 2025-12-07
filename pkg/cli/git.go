@@ -210,3 +210,50 @@ func checkCleanWorkingDirectory(verbose bool) error {
 	}
 	return nil
 }
+
+// ensureAwGitIgnore ensures that .github/aw/.gitignore exists with the correct content
+func ensureAwGitIgnore() error {
+	gitLog.Print("Ensuring .github/aw/.gitignore is configured")
+	gitRoot, err := findGitRoot()
+	if err != nil {
+		return err // Not in a git repository, skip
+	}
+
+	awDir := filepath.Join(gitRoot, ".github", "aw")
+	gitignorePath := filepath.Join(awDir, ".gitignore")
+
+	// Expected content for the .gitignore file
+	expectedContent := `# Ignore scripts and logs directories
+scripts/
+logs/
+`
+
+	// Check if .github/aw directory exists, create if not
+	if _, err := os.Stat(awDir); os.IsNotExist(err) {
+		gitLog.Printf("Creating .github/aw directory")
+		if err := os.MkdirAll(awDir, 0755); err != nil {
+			gitLog.Printf("Failed to create .github/aw directory: %v", err)
+			return fmt.Errorf("failed to create .github/aw directory: %w", err)
+		}
+	}
+
+	// Check if .gitignore already exists with correct content
+	if content, err := os.ReadFile(gitignorePath); err == nil {
+		if string(content) == expectedContent {
+			gitLog.Print(".github/aw/.gitignore already exists with correct content")
+			return nil
+		}
+		gitLog.Print(".github/aw/.gitignore exists but content needs updating")
+	} else {
+		gitLog.Print("No existing .github/aw/.gitignore file found")
+	}
+
+	// Write the .gitignore file
+	if err := os.WriteFile(gitignorePath, []byte(expectedContent), 0644); err != nil {
+		gitLog.Printf("Failed to write .github/aw/.gitignore: %v", err)
+		return fmt.Errorf("failed to write .github/aw/.gitignore: %w", err)
+	}
+
+	gitLog.Print("Successfully created/updated .github/aw/.gitignore")
+	return nil
+}
