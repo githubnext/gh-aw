@@ -56,7 +56,7 @@ for i in {1..10}; do
     echo "  - HTTP status code: $CURL_HTTP_CODE"
     if [ -f "$CURL_OUTPUT" ] && [ -s "$CURL_OUTPUT" ]; then
       echo "  - Response content:"
-      cat "$CURL_OUTPUT" | head -20
+      head -20 "$CURL_OUTPUT"
     else
       echo "  - Response content: (empty)"
     fi
