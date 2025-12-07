@@ -35,7 +35,8 @@ func GenerateMaintenanceWorkflow(workflowDataList []*WorkflowData, workflowDir s
 	maintenanceLog.Print("Generating maintenance workflow for expired discussions")
 
 	// Create the maintenance workflow content
-	content := `name: Agentics Maintenance
+	script := getMaintenanceScript()
+	content := fmt.Sprintf(`name: Agentics Maintenance
 
 on:
   schedule:
@@ -54,8 +55,8 @@ jobs:
         uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
         with:
           script: |
-            ${getMaintenanceScript()}
-`
+            %s
+`, script)
 
 	// Write the maintenance workflow file
 	maintenanceFile := filepath.Join(workflowDir, "agentics-maintenance.yml")
