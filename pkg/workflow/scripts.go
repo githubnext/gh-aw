@@ -356,5 +356,5 @@ func getGenerateSafeInputsConfigScript() string {
 
 // getSubstitutePlaceholdersScript returns the bundled substitute_placeholders script
 func getSubstitutePlaceholdersScript() string {
-return DefaultScriptRegistry.GetWithMode("substitute_placeholders", RuntimeModeGitHubScript)
+	return DefaultScriptRegistry.GetWithMode("substitute_placeholders", RuntimeModeGitHubScript)
 }

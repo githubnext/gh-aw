@@ -3434,7 +3434,7 @@ jobs:
           2. **File Writing Testing**: Create a test file `/tmp/gh-aw/agent/smoke-test-copilot-__GH_AW_GITHUB_RUN_ID__.txt` with content "Smoke test passed for Copilot at $(date)" (create the directory if it doesn't exist)
           3. **Bash Tool Testing**: Execute bash commands to verify file creation was successful (use `cat` to read the file back)
           4. **GitHub MCP Default Toolset Testing**: Verify that the `get_me` tool is NOT available with default toolsets. Try to use it and confirm it fails with a tool not found error.
-          5. **Cache Memory Testing**: Write a test file to `/tmp/gh-aw/cache-memory/smoke-test-${GH_AW_GITHUB_RUN_ID}.txt` with content "Cache memory test for run ${GH_AW_GITHUB_RUN_ID}" and verify it was created successfully
+          5. **Cache Memory Testing**: Write a test file to `/tmp/gh-aw/cache-memory/smoke-test-__GH_AW_GITHUB_RUN_ID__.txt` with content "Cache memory test for run __GH_AW_GITHUB_RUN_ID__" and verify it was created successfully
           6. **Safe Input gh Tool Testing**: Use the `gh` safe-input tool to run "gh issues list --limit 3" to verify the tool can access GitHub issues
           
           ## Output
@@ -3467,40 +3467,40 @@ jobs:
             
             const fs = require("fs");
             
-            	// Validate inputs
-            	if (!file) {
-            		throw new Error("file parameter is required");
-            	}
-            	if (!substitutions || typeof substitutions !== "object") {
-            		throw new Error("substitutions parameter must be an object");
-            	}
+              // Validate inputs
+              if (!file) {
+                throw new Error("file parameter is required");
+              }
+              if (!substitutions || typeof substitutions !== "object") {
+                throw new Error("substitutions parameter must be an object");
+              }
             
-            	// Read the file content
-            	let content;
-            	try {
-            		content = fs.readFileSync(file, "utf8");
-            	} catch (error) {
-            		throw new Error(`Failed to read file ${file}: ${error.message}`);
-            	}
+              // Read the file content
+              let content;
+              try {
+                content = fs.readFileSync(file, "utf8");
+              } catch (error) {
+                throw new Error(`Failed to read file ${file}: ${error.message}`);
+              }
             
-            	// Perform substitutions
-            	// Each placeholder is in the format __VARIABLE_NAME__
-            	// We replace it with the corresponding value from the substitutions object
-            	for (const [key, value] of Object.entries(substitutions)) {
-            		const placeholder = `__${key}__`;
-            		// Use a simple string replacement - no regex to avoid any potential issues
-            		// with special characters in the value
-            		content = content.split(placeholder).join(value);
-            	}
+              // Perform substitutions
+              // Each placeholder is in the format __VARIABLE_NAME__
+              // We replace it with the corresponding value from the substitutions object
+              for (const [key, value] of Object.entries(substitutions)) {
+                const placeholder = `__${key}__`;
+                // Use a simple string replacement - no regex to avoid any potential issues
+                // with special characters in the value
+                content = content.split(placeholder).join(value);
+              }
             
-            	// Write the updated content back to the file
-            	try {
-            		fs.writeFileSync(file, content, "utf8");
-            	} catch (error) {
-            		throw new Error(`Failed to write file ${file}: ${error.message}`);
-            	}
+              // Write the updated content back to the file
+              try {
+                fs.writeFileSync(file, content, "utf8");
+              } catch (error) {
+                throw new Error(`Failed to write file ${file}: ${error.message}`);
+              }
             
-            	return `Successfully substituted ${Object.keys(substitutions).length} placeholder(s) in ${file}`;
+              return `Successfully substituted ${Object.keys(substitutions).length} placeholder(s) in ${file}`;
             };
             
             
@@ -3564,7 +3564,7 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          cat << 'PROMPT_EOF' | envsubst >> "$GH_AW_PROMPT"
+          cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
           
           ---
           
@@ -3669,40 +3669,40 @@ jobs:
             
             const fs = require("fs");
             
-            	// Validate inputs
-            	if (!file) {
-            		throw new Error("file parameter is required");
-            	}
-            	if (!substitutions || typeof substitutions !== "object") {
-            		throw new Error("substitutions parameter must be an object");
-            	}
+              // Validate inputs
+              if (!file) {
+                throw new Error("file parameter is required");
+              }
+              if (!substitutions || typeof substitutions !== "object") {
+                throw new Error("substitutions parameter must be an object");
+              }
             
-            	// Read the file content
-            	let content;
-            	try {
-            		content = fs.readFileSync(file, "utf8");
-            	} catch (error) {
-            		throw new Error(`Failed to read file ${file}: ${error.message}`);
-            	}
+              // Read the file content
+              let content;
+              try {
+                content = fs.readFileSync(file, "utf8");
+              } catch (error) {
+                throw new Error(`Failed to read file ${file}: ${error.message}`);
+              }
             
-            	// Perform substitutions
-            	// Each placeholder is in the format __VARIABLE_NAME__
-            	// We replace it with the corresponding value from the substitutions object
-            	for (const [key, value] of Object.entries(substitutions)) {
-            		const placeholder = `__${key}__`;
-            		// Use a simple string replacement - no regex to avoid any potential issues
-            		// with special characters in the value
-            		content = content.split(placeholder).join(value);
-            	}
+              // Perform substitutions
+              // Each placeholder is in the format __VARIABLE_NAME__
+              // We replace it with the corresponding value from the substitutions object
+              for (const [key, value] of Object.entries(substitutions)) {
+                const placeholder = `__${key}__`;
+                // Use a simple string replacement - no regex to avoid any potential issues
+                // with special characters in the value
+                content = content.split(placeholder).join(value);
+              }
             
-            	// Write the updated content back to the file
-            	try {
-            		fs.writeFileSync(file, content, "utf8");
-            	} catch (error) {
-            		throw new Error(`Failed to write file ${file}: ${error.message}`);
-            	}
+              // Write the updated content back to the file
+              try {
+                fs.writeFileSync(file, content, "utf8");
+              } catch (error) {
+                throw new Error(`Failed to write file ${file}: ${error.message}`);
+              }
             
-            	return `Successfully substituted ${Object.keys(substitutions).length} placeholder(s) in ${file}`;
+              return `Successfully substituted ${Object.keys(substitutions).length} placeholder(s) in ${file}`;
             };
             
             

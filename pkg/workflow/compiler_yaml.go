@@ -1397,46 +1397,46 @@ func (c *Compiler) generateGitPatchUploadStep(yaml *strings.Builder) {
 // safe placeholder substitution using the substitute_placeholders script.
 // This replaces the multiple sed commands with a single JavaScript step.
 func generatePlaceholderSubstitutionStep(yaml *strings.Builder, expressionMappings []*ExpressionMapping, indent string) {
-if len(expressionMappings) == 0 {
-return
-}
+	if len(expressionMappings) == 0 {
+		return
+	}
 
-// Use actions/github-script to perform the substitutions
-yaml.WriteString(indent + "- name: Substitute placeholders\n")
-yaml.WriteString(indent + "  uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1\n")
-yaml.WriteString(indent + "  env:\n")
-yaml.WriteString(indent + "    GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt\n")
+	// Use actions/github-script to perform the substitutions
+	yaml.WriteString(indent + "- name: Substitute placeholders\n")
+	yaml.WriteString(indent + "  uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1\n")
+	yaml.WriteString(indent + "  env:\n")
+	yaml.WriteString(indent + "    GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt\n")
 
-// Add all environment variables
-for _, mapping := range expressionMappings {
-fmt.Fprintf(yaml, indent+"    %s: ${{ %s }}\n", mapping.EnvVar, mapping.Content)
-}
+	// Add all environment variables
+	for _, mapping := range expressionMappings {
+		fmt.Fprintf(yaml, indent+"    %s: ${{ %s }}\n", mapping.EnvVar, mapping.Content)
+	}
 
-yaml.WriteString(indent + "  with:\n")
-yaml.WriteString(indent + "    script: |\n")
+	yaml.WriteString(indent + "  with:\n")
+	yaml.WriteString(indent + "    script: |\n")
 
-// Emit the substitute_placeholders script
-script := getSubstitutePlaceholdersScript()
-scriptLines := strings.Split(script, "\n")
-for _, line := range scriptLines {
-yaml.WriteString(indent + "      " + line + "\n")
-}
+	// Emit the substitute_placeholders script
+	script := getSubstitutePlaceholdersScript()
+	scriptLines := strings.Split(script, "\n")
+	for _, line := range scriptLines {
+		yaml.WriteString(indent + "      " + line + "\n")
+	}
 
-// Call the script with parameters
-yaml.WriteString(indent + "      \n")
-yaml.WriteString(indent + "      // Perform substitutions\n")
-yaml.WriteString(indent + "      await module.exports({\n")
-yaml.WriteString(indent + "        file: process.env.GH_AW_PROMPT,\n")
-yaml.WriteString(indent + "        substitutions: {\n")
+	// Call the script with parameters
+	yaml.WriteString(indent + "      \n")
+	yaml.WriteString(indent + "      // Perform substitutions\n")
+	yaml.WriteString(indent + "      await module.exports({\n")
+	yaml.WriteString(indent + "        file: process.env.GH_AW_PROMPT,\n")
+	yaml.WriteString(indent + "        substitutions: {\n")
 
-for i, mapping := range expressionMappings {
-comma := ","
-if i == len(expressionMappings)-1 {
-comma = ""
-}
-fmt.Fprintf(yaml, indent+"          %s: process.env.%s%s\n", mapping.EnvVar, mapping.EnvVar, comma)
-}
+	for i, mapping := range expressionMappings {
+		comma := ","
+		if i == len(expressionMappings)-1 {
+			comma = ""
+		}
+		fmt.Fprintf(yaml, indent+"          %s: process.env.%s%s\n", mapping.EnvVar, mapping.EnvVar, comma)
+	}
 
-yaml.WriteString(indent + "        }\n")
-yaml.WriteString(indent + "      });\n")
+	yaml.WriteString(indent + "        }\n")
+	yaml.WriteString(indent + "      });\n")
 }
