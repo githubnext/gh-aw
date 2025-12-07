@@ -20,7 +20,7 @@ jobs:
             // @ts-check
             // <reference types="@actions/github-script" />
 
-                        /**
+            /**
              * Maximum number of discussions to update per run
              */
             const MAX_UPDATES_PER_RUN = 100;
