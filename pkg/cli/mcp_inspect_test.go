@@ -458,36 +458,40 @@ func TestFindAvailablePort(t *testing.T) {
 	tests := []struct {
 		name      string
 		startPort int
+		portRange int
 		verbose   bool
 	}{
 		{
 			name:      "find port from safe-inputs start port",
 			startPort: safeInputsStartPort,
+			portRange: safeInputsPortRange,
 			verbose:   false,
 		},
 		{
 			name:      "find port from inspector start port",
 			startPort: inspectorStartPort,
+			portRange: inspectorPortRange,
 			verbose:   false,
 		},
 		{
 			name:      "find port from custom start port",
 			startPort: 8000,
+			portRange: 10,
 			verbose:   true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			port := findAvailablePort(tt.startPort, tt.verbose)
+			port := findAvailablePort(tt.startPort, tt.portRange, tt.verbose)
 			if port == 0 {
-				t.Errorf("findAvailablePort(%d, %v) returned 0, expected a valid port", tt.startPort, tt.verbose)
+				t.Errorf("findAvailablePort(%d, %d, %v) returned 0, expected a valid port", tt.startPort, tt.portRange, tt.verbose)
 			}
 			if port < tt.startPort {
-				t.Errorf("findAvailablePort(%d, %v) returned %d, expected port >= start port", tt.startPort, tt.verbose, port)
+				t.Errorf("findAvailablePort(%d, %d, %v) returned %d, expected port >= start port", tt.startPort, tt.portRange, tt.verbose, port)
 			}
-			if port >= tt.startPort+safeInputsPortRange {
-				t.Logf("Note: findAvailablePort(%d, %v) returned %d, which is outside the typical range", tt.startPort, tt.verbose, port)
+			if port >= tt.startPort+tt.portRange {
+				t.Logf("Note: findAvailablePort(%d, %d, %v) returned %d, which is outside the typical range", tt.startPort, tt.portRange, tt.verbose, port)
 			}
 			t.Logf("✓ Found available port: %d", port)
 		})
@@ -505,7 +509,7 @@ func TestFindAvailablePortWithConflict(t *testing.T) {
 	t.Logf("Occupied port %d to simulate conflict", inspectorStartPort)
 
 	// Try to find an available port starting from the inspector start port
-	port := findAvailablePort(inspectorStartPort, false)
+	port := findAvailablePort(inspectorStartPort, inspectorPortRange, false)
 	if port == 0 {
 		t.Error("findAvailablePort should find an alternative port when default is occupied")
 	}

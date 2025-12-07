@@ -386,9 +386,9 @@ func startSafeInputsHTTPServer(dir string, port int, verbose bool) (*exec.Cmd, e
 	return cmd, nil
 }
 
-// findAvailablePort finds an available port starting from the given port
-func findAvailablePort(startPort int, verbose bool) int {
-	for port := startPort; port < startPort+safeInputsPortRange; port++ {
+// findAvailablePort finds an available port starting from the given port within the specified range
+func findAvailablePort(startPort int, portRange int, verbose bool) int {
+	for port := startPort; port < startPort+portRange; port++ {
 		listener, err := net.Listen("tcp", fmt.Sprintf("localhost:%d", port))
 		if err == nil {
 			listener.Close()
@@ -499,7 +499,7 @@ func spawnSafeInputsInspector(workflowFile string, verbose bool) error {
 	}
 
 	// Find an available port for the HTTP server
-	port := findAvailablePort(safeInputsStartPort, verbose)
+	port := findAvailablePort(safeInputsStartPort, safeInputsPortRange, verbose)
 	if port == 0 {
 		return fmt.Errorf("failed to find an available port for the HTTP server")
 	}
@@ -546,7 +546,7 @@ func spawnSafeInputsInspector(workflowFile string, verbose bool) error {
 	fmt.Println()
 
 	// Find an available port for the inspector
-	inspectorPort := findAvailablePort(inspectorStartPort, verbose)
+	inspectorPort := findAvailablePort(inspectorStartPort, inspectorPortRange, verbose)
 	if inspectorPort == 0 {
 		return fmt.Errorf("failed to find an available port for the MCP inspector")
 	}
@@ -758,7 +758,7 @@ func spawnMCPInspector(workflowFile string, serverFilter string, verbose bool) e
 	}()
 
 	// Find an available port for the inspector
-	inspectorPort := findAvailablePort(inspectorStartPort, verbose)
+	inspectorPort := findAvailablePort(inspectorStartPort, inspectorPortRange, verbose)
 	if inspectorPort == 0 {
 		return fmt.Errorf("failed to find an available port for the MCP inspector")
 	}
