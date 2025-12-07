@@ -9,7 +9,6 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
-	"syscall"
 	"time"
 
 	"github.com/githubnext/gh-aw/pkg/console"
@@ -135,16 +134,7 @@ func InspectWorkflowMCP(workflowFile string, serverFilter string, toolFilter str
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Inspecting MCP servers in: %s", workflowPath)))
 	}
 
-	// Use the workflow compiler to parse the file and resolve imports
-	// This ensures that imported safe-inputs are properly merged
-	compiler := workflow.NewCompiler(verbose, "", "")
-	workflowData, err := compiler.ParseWorkflowFile(workflowPath)
-	if err != nil {
-		return fmt.Errorf("failed to parse workflow file: %w", err)
-	}
-
-	// Process imports from frontmatter to merge imported MCP servers
-	markdownDir := filepath.Dir(workflowPath)
+	// Parse the workflow file for MCP configurations
 	content, err := os.ReadFile(workflowPath)
 	if err != nil {
 		return fmt.Errorf("failed to read workflow file: %w", err)
@@ -155,6 +145,8 @@ func InspectWorkflowMCP(workflowFile string, serverFilter string, toolFilter str
 		return fmt.Errorf("failed to parse workflow file: %w", err)
 	}
 
+	// Process imports from frontmatter to merge imported MCP servers
+	markdownDir := filepath.Dir(workflowPath)
 	importsResult, err := parser.ProcessImportsFromFrontmatterWithManifest(parsedData.Frontmatter, markdownDir, nil)
 	if err != nil {
 		return fmt.Errorf("failed to process imports from frontmatter: %w", err)
@@ -191,10 +183,20 @@ func InspectWorkflowMCP(workflowFile string, serverFilter string, toolFilter str
 	// Filter out safe-outputs MCP servers for inspection
 	mcpConfigs = filterOutSafeOutputs(mcpConfigs)
 
-	// Check if safe-inputs are present in the workflow
+	// Check if safe-inputs are present in the workflow by parsing with the compiler
+	// (the compiler resolves imports and merges safe-inputs)
+	compiler := workflow.NewCompiler(verbose, "", "")
+	workflowData, err := compiler.ParseWorkflowFile(workflowPath)
+	if err != nil {
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to parse workflow for safe-inputs: %v", err)))
+		}
+	}
+
+	// Start safe-inputs server if present
 	var safeInputsServerCmd *exec.Cmd
 	var safeInputsTmpDir string
-	if workflowData.SafeInputs != nil && len(workflowData.SafeInputs.Tools) > 0 {
+	if workflowData != nil && workflowData.SafeInputs != nil && len(workflowData.SafeInputs.Tools) > 0 {
 		// Start safe-inputs server and add it to the list of MCP configs
 		config, serverCmd, tmpDir, err := startSafeInputsServer(workflowData.SafeInputs, verbose)
 		if err != nil {
@@ -219,13 +221,8 @@ func InspectWorkflowMCP(workflowFile string, serverFilter string, toolFilter str
 				}
 				// Wait a moment for graceful shutdown
 				time.Sleep(500 * time.Millisecond)
-				// Check if process is still running before force kill
-				if err := safeInputsServerCmd.Process.Signal(os.Signal(syscall.Signal(0))); err == nil {
-					// Process still running, force kill
-					if err := safeInputsServerCmd.Process.Kill(); err != nil && verbose {
-						fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to kill server process: %v", err)))
-					}
-				}
+				// Force kill if still running (ignore errors as process may have already exited)
+				_ = safeInputsServerCmd.Process.Kill()
 			}
 			// Cleanup temporary directory
 			if safeInputsTmpDir != "" {
@@ -623,14 +620,8 @@ func spawnSafeInputsInspector(workflowFile string, verbose bool) error {
 			}
 			// Wait a moment for graceful shutdown
 			time.Sleep(500 * time.Millisecond)
-			// Check if process is still running before force kill
-			// On Unix, sending signal 0 checks if process exists without killing it
-			if err := serverCmd.Process.Signal(os.Signal(syscall.Signal(0))); err == nil {
-				// Process still running, force kill
-				if err := serverCmd.Process.Kill(); err != nil && verbose {
-					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to kill server process: %v", err)))
-				}
-			}
+			// Force kill if still running (ignore errors as process may have already exited)
+			_ = serverCmd.Process.Kill()
 		}
 	}()
 
