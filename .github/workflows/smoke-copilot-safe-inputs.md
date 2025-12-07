@@ -28,6 +28,7 @@ tools:
   bash:
     - "*"
   github: false
+  serena: ["go"]
 safe-outputs:
     add-comment:
     create-issue:
@@ -51,7 +52,7 @@ strict: true
 1. **GitHub MCP Testing**: Review the last 2 merged pull requests in ${{ github.repository }}
 2. **File Writing Testing**: Create a test file `/tmp/gh-aw/agent/smoke-test-copilot-${{ github.run_id }}.txt` with content "Smoke test passed for Copilot at $(date)" (create the directory if it doesn't exist)
 3. **Bash Tool Testing**: Execute bash commands to verify file creation was successful (use `cat` to read the file back)
-4. **GitHub MCP Default Toolset Testing**: Verify that the `get_me` tool is NOT available with default toolsets. Try to use it and confirm it fails with a tool not found error.
+4. **Serena MCP Testing**: Use Serena to list classes in the project
 
 ## Output
 
