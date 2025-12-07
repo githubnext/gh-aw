@@ -1415,17 +1415,17 @@ func generatePlaceholderSubstitutionStep(yaml *strings.Builder, expressionMappin
 	yaml.WriteString(indent + "  with:\n")
 	yaml.WriteString(indent + "    script: |\n")
 
-	// Emit the substitute_placeholders script
+	// Emit the substitute_placeholders script inline and call it
 	script := getSubstitutePlaceholdersScript()
 	scriptLines := strings.Split(script, "\n")
 	for _, line := range scriptLines {
 		yaml.WriteString(indent + "      " + line + "\n")
 	}
 
-	// Call the script with parameters
+	// Call the function with parameters
 	yaml.WriteString(indent + "      \n")
-	yaml.WriteString(indent + "      // Perform substitutions\n")
-	yaml.WriteString(indent + "      await module.exports({\n")
+	yaml.WriteString(indent + "      // Call the substitution function\n")
+	yaml.WriteString(indent + "      return await substitutePlaceholders({\n")
 	yaml.WriteString(indent + "        file: process.env.GH_AW_PROMPT,\n")
 	yaml.WriteString(indent + "        substitutions: {\n")
 

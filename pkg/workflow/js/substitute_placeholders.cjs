@@ -10,7 +10,7 @@
 
 const fs = require("fs");
 
-module.exports = async ({ file, substitutions }) => {
+const substitutePlaceholders = async ({ file, substitutions }) => {
   // Validate inputs
   if (!file) {
     throw new Error("file parameter is required");
@@ -46,3 +46,5 @@ module.exports = async ({ file, substitutions }) => {
 
   return `Successfully substituted ${Object.keys(substitutions).length} placeholder(s) in ${file}`;
 };
+
+module.exports = substitutePlaceholders;

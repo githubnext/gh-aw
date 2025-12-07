@@ -4944,6 +4944,7 @@ jobs:
             
             const fs = require("fs");
             
+            const substitutePlaceholders = async ({ file, substitutions }) => {
               // Validate inputs
               if (!file) {
                 throw new Error("file parameter is required");
@@ -4981,8 +4982,9 @@ jobs:
             };
             
             
-            // Perform substitutions
-            await module.exports({
+            
+            // Call the substitution function
+            return await substitutePlaceholders({
               file: process.env.GH_AW_PROMPT,
               substitutions: {
                 GH_AW_GITHUB_RUN_ID: process.env.GH_AW_GITHUB_RUN_ID
@@ -5156,6 +5158,7 @@ jobs:
             
             const fs = require("fs");
             
+            const substitutePlaceholders = async ({ file, substitutions }) => {
               // Validate inputs
               if (!file) {
                 throw new Error("file parameter is required");
@@ -5193,8 +5196,9 @@ jobs:
             };
             
             
-            // Perform substitutions
-            await module.exports({
+            
+            // Call the substitution function
+            return await substitutePlaceholders({
               file: process.env.GH_AW_PROMPT,
               substitutions: {
                 GH_AW_GITHUB_ACTOR: process.env.GH_AW_GITHUB_ACTOR,
