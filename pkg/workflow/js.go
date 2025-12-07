@@ -296,7 +296,6 @@ func GetJavaScriptSources() map[string]string {
 		"update_pr_description_helpers.cjs": updatePRDescriptionHelpersScript,
 		"read_buffer.cjs":                   readBufferScript,
 		"mcp_server_core.cjs":               mcpServerCoreScript,
-		"mcp_server.cjs":                    mcpServerScriptSource,
 		"mcp_http_transport.cjs":            mcpHTTPTransportScriptSource,
 		"mcp_logger.cjs":                    mcpLoggerScriptSource,
 		"safe_inputs_mcp_server.cjs":        safeInputsMCPServerScript,
@@ -775,11 +774,6 @@ func GetReadBufferScript() string {
 // GetMCPServerCoreScript returns the embedded mcp_server_core.cjs script
 func GetMCPServerCoreScript() string {
 	return mcpServerCoreScript
-}
-
-// GetMCPServerScript returns the embedded mcp_server.cjs script
-func GetMCPServerScript() string {
-	return mcpServerScriptSource
 }
 
 // GetMCPHTTPTransportScript returns the embedded mcp_http_transport.cjs script
