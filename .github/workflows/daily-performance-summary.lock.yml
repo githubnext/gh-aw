@@ -3655,7 +3655,10 @@ jobs:
                   },
                   "type": "object"
                 },
-                "handler": "github-discussion-query.sh"
+                "handler": "github-discussion-query.sh",
+                "env": {
+                  "GH_TOKEN": "$GH_TOKEN"
+                }
               },
               {
                 "name": "github-issue-query",
@@ -3681,7 +3684,10 @@ jobs:
                   },
                   "type": "object"
                 },
-                "handler": "github-issue-query.sh"
+                "handler": "github-issue-query.sh",
+                "env": {
+                  "GH_TOKEN": "$GH_TOKEN"
+                }
               },
               {
                 "name": "github-pr-query",
@@ -3707,7 +3713,10 @@ jobs:
                   },
                   "type": "object"
                 },
-                "handler": "github-pr-query.sh"
+                "handler": "github-pr-query.sh",
+                "env": {
+                  "GH_TOKEN": "$GH_TOKEN"
+                }
               }
             ]
           }

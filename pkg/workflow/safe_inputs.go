@@ -220,10 +220,11 @@ const SafeInputsDirectory = "/tmp/gh-aw/safe-inputs"
 
 // SafeInputsToolJSON represents a tool configuration for the tools.json file
 type SafeInputsToolJSON struct {
-	Name        string         `json:"name"`
-	Description string         `json:"description"`
-	InputSchema map[string]any `json:"inputSchema"`
-	Handler     string         `json:"handler,omitempty"`
+	Name        string            `json:"name"`
+	Description string            `json:"description"`
+	InputSchema map[string]any    `json:"inputSchema"`
+	Handler     string            `json:"handler,omitempty"`
+	Env         map[string]string `json:"env,omitempty"`
 }
 
 // SafeInputsConfigJSON represents the tools.json configuration file structure
@@ -299,11 +300,31 @@ func generateSafeInputsToolsConfig(safeInputs *SafeInputsConfig) string {
 			handler = toolName + ".py"
 		}
 
+		// Build env map with references to environment variables (not actual secrets)
+		// Convert from secret expressions like "${{ secrets.GITHUB_TOKEN }}" to env var references like "$GH_TOKEN"
+		var envRefs map[string]string
+		if len(toolConfig.Env) > 0 {
+			envRefs = make(map[string]string)
+			// Sort env var names for stable output
+			envVarNames := make([]string, 0, len(toolConfig.Env))
+			for envVarName := range toolConfig.Env {
+				envVarNames = append(envVarNames, envVarName)
+			}
+			sort.Strings(envVarNames)
+
+			for _, envVarName := range envVarNames {
+				// Store reference to the environment variable, not the actual secret value
+				// The JavaScript code will expand this at runtime using process.env
+				envRefs[envVarName] = "$" + envVarName
+			}
+		}
+
 		config.Tools = append(config.Tools, SafeInputsToolJSON{
 			Name:        toolName,
 			Description: toolConfig.Description,
 			InputSchema: inputSchema,
 			Handler:     handler,
+			Env:         envRefs,
 		})
 	}
 

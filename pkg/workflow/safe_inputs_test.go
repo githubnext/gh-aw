@@ -671,6 +671,54 @@ func TestGenerateSafeInputsMCPServerScript(t *testing.T) {
 	}
 }
 
+func TestGenerateSafeInputsToolsConfigWithEnv(t *testing.T) {
+	config := &SafeInputsConfig{
+		Tools: map[string]*SafeInputToolConfig{
+			"github-query": {
+				Name:        "github-query",
+				Description: "Query GitHub with authentication",
+				Run:         "gh repo view $INPUT_REPO",
+				Inputs: map[string]*SafeInputParam{
+					"repo": {
+						Type:     "string",
+						Required: true,
+					},
+				},
+				Env: map[string]string{
+					"GH_TOKEN": "${{ secrets.GITHUB_TOKEN }}",
+					"API_KEY":  "${{ secrets.API_KEY }}",
+				},
+			},
+		},
+	}
+
+	toolsJSON := generateSafeInputsToolsConfig(config)
+
+	// Verify that env field is present in tools.json
+	if !strings.Contains(toolsJSON, `"env"`) {
+		t.Error("Tools config should contain env field")
+	}
+
+	// Verify that env contains environment variable references (not secrets)
+	// The values should be "$GH_TOKEN" and "$API_KEY", not the secret expressions
+	if !strings.Contains(toolsJSON, `"GH_TOKEN": "$GH_TOKEN"`) {
+		t.Error("Tools config should contain GH_TOKEN env reference")
+	}
+
+	if !strings.Contains(toolsJSON, `"API_KEY": "$API_KEY"`) {
+		t.Error("Tools config should contain API_KEY env reference")
+	}
+
+	// Verify that actual secret expressions are NOT in tools.json
+	if strings.Contains(toolsJSON, "secrets.GITHUB_TOKEN") {
+		t.Error("Tools config should NOT contain secret expressions")
+	}
+
+	if strings.Contains(toolsJSON, "secrets.API_KEY") {
+		t.Error("Tools config should NOT contain secret expressions")
+	}
+}
+
 func TestGenerateSafeInputJavaScriptToolScript(t *testing.T) {
 	config := &SafeInputToolConfig{
 		Name:        "test-tool",

@@ -1656,7 +1656,10 @@ jobs:
                   ],
                   "type": "object"
                 },
-                "handler": "gh.sh"
+                "handler": "gh.sh",
+                "env": {
+                  "GH_AW_GH_TOKEN": "$GH_AW_GH_TOKEN"
+                }
               }
             ]
           }
