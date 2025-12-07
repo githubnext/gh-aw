@@ -88,8 +88,7 @@ func resolveWorkflowFile(fileOrWorkflowName string, verbose bool) (string, error
 		}
 
 		// Add fuzzy match suggestions
-		workflowName := strings.TrimSuffix(fileOrWorkflowName, ".md")
-		similarNames := suggestWorkflowNames(workflowName)
+		similarNames := suggestWorkflowNames(fileOrWorkflowName)
 		if len(similarNames) > 0 {
 			suggestions = append([]string{fmt.Sprintf("Did you mean: %s?", strings.Join(similarNames, ", "))}, suggestions...)
 		}

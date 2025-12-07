@@ -51,8 +51,7 @@ func ResolveWorkflowPath(workflowFile string) (string, error) {
 	}
 
 	// Add fuzzy match suggestions if available
-	workflowName := strings.TrimSuffix(filepath.Base(searchPath), ".md")
-	similarNames := suggestWorkflowNames(workflowName)
+	similarNames := suggestWorkflowNames(searchPath)
 	if len(similarNames) > 0 {
 		suggestions = append([]string{fmt.Sprintf("Did you mean: %s?", strings.Join(similarNames, ", "))}, suggestions...)
 	}

@@ -196,12 +196,16 @@ func getAvailableWorkflowNames() []string {
 }
 
 // suggestWorkflowNames returns up to 3 similar workflow names using fuzzy matching
+// The target can be a workflow name or filename (with or without .md extension)
 func suggestWorkflowNames(target string) []string {
 	availableNames := getAvailableWorkflowNames()
 	if len(availableNames) == 0 {
 		return nil
 	}
 
+	// Normalize target: strip .md extension and get basename if it's a path
+	normalizedTarget := strings.TrimSuffix(filepath.Base(target), ".md")
+
 	// Use the existing FindClosestMatches function from parser package
-	return parser.FindClosestMatches(target, availableNames, 3)
+	return parser.FindClosestMatches(normalizedTarget, availableNames, 3)
 }
