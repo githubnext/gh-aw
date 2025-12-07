@@ -17,7 +17,7 @@
   the iteration process.
 -->
 
-**Language/Version**: [e.g., Go 1.21, Python 3.11, Swift 5.9, Rust 1.75 or NEEDS CLARIFICATION]  
+**Language/Version**: [e.g., Go 1.25, Python 3.11, Swift 5.9, Rust 1.75 or NEEDS CLARIFICATION]  
 **Primary Dependencies**: [e.g., Cobra CLI, FastAPI, UIKit, LLVM or NEEDS CLARIFICATION]  
 **Storage**: [if applicable, e.g., PostgreSQL, CoreData, files or N/A]  
 **Testing**: [e.g., Go testing, pytest, XCTest, cargo test or NEEDS CLARIFICATION]  

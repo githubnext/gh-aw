@@ -20,7 +20,7 @@ description: "Task list template for feature implementation"
 
 ## Path Conventions
 
-- **gh-aw project**: `cmd/gh-aw/`, `pkg/`, `tests/` at repository root
+- **gh-aw project**: `cmd/gh-aw/`, `pkg/` at repository root (Go tests co-located with source as `*_test.go`)
 - **Web app**: `backend/src/`, `frontend/src/`
 - **Mobile**: `api/src/`, `ios/src/` or `android/src/`
 - Paths shown below assume gh-aw structure - adjust based on plan.md structure
