@@ -533,7 +533,7 @@ func startSafeInputsServer(safeInputsConfig *workflow.SafeInputsConfig, verbose 
 
 	// Create MCP server config for the safe-inputs server
 	config := &parser.MCPServerConfig{
-		Name: "safe-inputs",
+		Name: "safeinputs",
 		Type: "http",
 		URL:  fmt.Sprintf("http://localhost:%d", port),
 		Env:  make(map[string]string),
@@ -647,7 +647,7 @@ func spawnSafeInputsInspector(workflowFile string, verbose bool) error {
 
 	// Create MCP server config for the safe-inputs server
 	safeInputsMCPConfig := parser.MCPServerConfig{
-		Name: "safe-inputs",
+		Name: "safeinputs",
 		Type: "http",
 		URL:  fmt.Sprintf("http://localhost:%d", port),
 		Env:  make(map[string]string),
