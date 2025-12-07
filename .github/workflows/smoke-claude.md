@@ -19,6 +19,7 @@ engine:
   max-turns: 15
 strict: false
 imports:
+  - shared/gh.md
   - shared/mcp-pagination.md
 network:
   allowed:
@@ -58,6 +59,7 @@ timeout-minutes: 10
 2. **File Writing Testing**: Create a test file `/tmp/gh-aw/agent/smoke-test-claude-${{ github.run_id }}.txt` with content "Smoke test passed for Claude at $(date)" (create the directory if it doesn't exist)
 3. **Bash Tool Testing**: Execute bash commands to verify file creation was successful (use `cat` to read the file back)
 4. **Playwright MCP Testing**: Use playwright to navigate to https://github.com and verify the page title contains "GitHub"
+5. **Safe Input gh Tool Testing**: Use the `gh` safe-input tool to run "gh issues list --limit 3" to verify the tool can access GitHub issues
 
 ## Output
 

@@ -111,6 +111,7 @@
 # 2. **File Writing Testing**: Create a test file `/tmp/gh-aw/agent/smoke-test-copilot-${{ github.run_id }}.txt` with content "Smoke test passed for Copilot at $(date)" (create the directory if it doesn't exist)
 # 3. **Bash Tool Testing**: Execute bash commands to verify file creation was successful (use `cat` to read the file back)
 # 4. **Serena MCP Testing**: Use Serena to list classes in the project
+# 5. **Safe Input gh Tool Testing**: Use the `gh` safe-input tool to run "gh issues list --limit 3" to verify the tool can access GitHub issues
 #
 # ## Output
 #
@@ -4185,6 +4186,15 @@ jobs:
               for (const tool of tools) {
                 registerTool(server, tool);
               }
+              try {
+                const fs = require("fs");
+                if (fs.existsSync(configPath)) {
+                  fs.unlinkSync(configPath);
+                  server.debug(`Deleted configuration file: ${configPath}`);
+                }
+              } catch (error) {
+                server.debugError(`Warning: Could not delete configuration file: `, error);
+              }
               start(server);
             }
             if (require.main === module) {
@@ -4274,6 +4284,15 @@ jobs:
               }
               logger.debug(`Tool registration complete: ${registeredCount} registered, ${skippedCount} skipped`);
               logger.debug(`=== MCP Server Creation Complete ===`);
+              try {
+                const fs = require("fs");
+                if (fs.existsSync(configPath)) {
+                  fs.unlinkSync(configPath);
+                  logger.debug(`Deleted configuration file: ${configPath}`);
+                }
+              } catch (error) {
+                logger.debugError(`Warning: Could not delete configuration file: `, error);
+              }
               return { server, config, logger };
             }
             async function startHttpServer(configPath, options = {}) {
@@ -4478,6 +4497,9 @@ jobs:
                   "type": "object"
                 },
                 "handler": "gh.sh",
+                "env": {
+                  "GH_AW_GH_TOKEN": "GH_AW_GH_TOKEN"
+                },
                 "timeout": 60
               }
             ]
@@ -4767,6 +4789,7 @@ jobs:
           2. **File Writing Testing**: Create a test file `/tmp/gh-aw/agent/smoke-test-copilot-${GH_AW_GITHUB_RUN_ID}.txt` with content "Smoke test passed for Copilot at $(date)" (create the directory if it doesn't exist)
           3. **Bash Tool Testing**: Execute bash commands to verify file creation was successful (use `cat` to read the file back)
           4. **Serena MCP Testing**: Use Serena to list classes in the project
+          5. **Safe Input gh Tool Testing**: Use the `gh` safe-input tool to run "gh issues list --limit 3" to verify the tool can access GitHub issues
           
           ## Output
           
