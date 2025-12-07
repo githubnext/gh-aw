@@ -23,9 +23,15 @@ echo "  Working directory: $(pwd)"
 # Ensure logs directory exists
 mkdir -p /tmp/gh-aw/safe-inputs/logs
 
+# Create initial server.log file for artifact upload
+echo "Safe Inputs MCP Server Log" > /tmp/gh-aw/safe-inputs/logs/server.log
+echo "Start time: $(date)" >> /tmp/gh-aw/safe-inputs/logs/server.log
+echo "===========================================" >> /tmp/gh-aw/safe-inputs/logs/server.log
+echo "" >> /tmp/gh-aw/safe-inputs/logs/server.log
+
 # Start the HTTP server in the background
 echo "Starting safe-inputs MCP HTTP server..."
-node mcp-server.cjs > /tmp/gh-aw/safe-inputs/logs/server.log 2>&1 &
+node mcp-server.cjs >> /tmp/gh-aw/safe-inputs/logs/server.log 2>&1 &
 SERVER_PID=$!
 echo "Started safe-inputs MCP server with PID $SERVER_PID"
 
@@ -41,7 +47,7 @@ for i in {1..10}; do
   fi
   
   # Check if server is responding
-  if curl -s -f -H "Authorization: Bearer $GH_AW_SAFE_INPUTS_API_KEY" http://localhost:$GH_AW_SAFE_INPUTS_PORT/ > /dev/null 2>&1; then
+  if curl -s -f http://localhost:$GH_AW_SAFE_INPUTS_PORT/health > /dev/null 2>&1; then
     echo "Safe Inputs MCP server is ready (attempt $i/10)"
     break
   fi
