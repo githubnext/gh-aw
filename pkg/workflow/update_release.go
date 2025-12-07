@@ -2,12 +2,15 @@ package workflow
 
 import (
 	"fmt"
+
+	"github.com/githubnext/gh-aw/pkg/logger"
 )
+
+var updateReleaseLog = logger.New("workflow:update_release")
 
 // UpdateReleaseConfig holds configuration for updating GitHub releases from agent output
 type UpdateReleaseConfig struct {
-	BaseSafeOutputConfig   `yaml:",inline"`
-	SafeOutputTargetConfig `yaml:",inline"`
+	UpdateEntityConfig `yaml:",inline"`
 }
 
 // buildCreateOutputUpdateReleaseJob creates the update_release job using the shared builder
@@ -22,9 +25,6 @@ func (c *Compiler) buildCreateOutputUpdateReleaseJob(data *WorkflowData, mainJob
 	// Uses buildStandardSafeOutputEnvVars for consistency with other update jobs
 	var customEnvVars []string
 
-	// Add standard environment variables (metadata + staged/target repo)
-	customEnvVars = append(customEnvVars, c.buildStandardSafeOutputEnvVars(data, cfg.TargetRepoSlug)...)
-
 	// Create outputs for the job
 	outputs := map[string]string{
 		"release_id":  "${{ steps.update_release.outputs.release_id }}",
@@ -32,43 +32,40 @@ func (c *Compiler) buildCreateOutputUpdateReleaseJob(data *WorkflowData, mainJob
 		"release_tag": "${{ steps.update_release.outputs.release_tag }}",
 	}
 
-	// Use the shared builder function to create the job
-	return c.buildSafeOutputJob(data, SafeOutputJobConfig{
-		JobName:        "update_release",
-		StepName:       "Update Release",
-		StepID:         "update_release",
-		MainJobName:    mainJobName,
-		CustomEnvVars:  customEnvVars,
-		Script:         getUpdateReleaseScript(),
-		Permissions:    NewPermissionsContentsWrite(),
-		Outputs:        outputs,
-		Token:          cfg.GitHubToken,
-		TargetRepoSlug: cfg.TargetRepoSlug,
-	})
+	// Build job condition - update_release doesn't have event context checks
+	jobCondition := BuildSafeOutputType("update_release")
+
+	params := UpdateEntityJobParams{
+		EntityType:      UpdateEntityRelease,
+		ConfigKey:       "update-release",
+		JobName:         "update_release",
+		StepName:        "Update Release",
+		ScriptGetter:    getUpdateReleaseScript,
+		PermissionsFunc: NewPermissionsContentsWrite,
+		CustomEnvVars:   customEnvVars,
+		Outputs:         outputs,
+		Condition:       jobCondition,
+	}
+
+	return c.buildUpdateEntityJob(data, mainJobName, &cfg.UpdateEntityConfig, params, updateReleaseLog)
 }
 
 // parseUpdateReleaseConfig handles update-release configuration
 func (c *Compiler) parseUpdateReleaseConfig(outputMap map[string]any) *UpdateReleaseConfig {
-	if configData, exists := outputMap["update-release"]; exists {
-		updateReleaseConfig := &UpdateReleaseConfig{}
-
-		if configMap, ok := configData.(map[string]any); ok {
-			// Parse target config (target-repo) with validation
-			targetConfig, isInvalid := ParseTargetConfig(configMap)
-			if isInvalid {
-				return nil // Invalid configuration (e.g., wildcard target-repo), return nil to cause validation error
-			}
-			updateReleaseConfig.SafeOutputTargetConfig = targetConfig
-
-			// Parse common base fields with default max of 1
-			c.parseBaseSafeOutputConfig(configMap, &updateReleaseConfig.BaseSafeOutputConfig, 1)
-		} else {
-			// If configData is nil or not a map, still set the default max
-			updateReleaseConfig.Max = 1
-		}
-
-		return updateReleaseConfig
+	params := UpdateEntityJobParams{
+		EntityType: UpdateEntityRelease,
+		ConfigKey:  "update-release",
 	}
 
-	return nil
+	baseConfig := c.parseUpdateEntityConfig(outputMap, params, updateReleaseLog, nil)
+	if baseConfig == nil {
+		return nil
+	}
+
+	// Create UpdateReleaseConfig and populate it
+	updateReleaseConfig := &UpdateReleaseConfig{
+		UpdateEntityConfig: *baseConfig,
+	}
+
+	return updateReleaseConfig
 }
