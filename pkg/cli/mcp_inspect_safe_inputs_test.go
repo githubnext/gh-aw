@@ -382,4 +382,3 @@ This workflow imports safe-inputs from shared/shared.md.
 		t.Error("tools.json should contain 'shared-tool'")
 	}
 }
-
