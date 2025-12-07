@@ -28,6 +28,7 @@ network:
 safe-outputs:
   upload-assets:
   create-discussion:
+    expires: 3d
     category: "daily-news"
     max: 1
     close-older-discussions: true
