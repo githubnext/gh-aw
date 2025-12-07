@@ -2,13 +2,13 @@
 "gh-aw": patch
 ---
 
-Defer saving cache-memory artifacts until after threat detection validates agent output.
+Defer cache-memory saves until after threat detection validates agent output.
 
-Agent jobs now upload cache-memory artifacts instead of saving cache directly when threat
-detection is enabled. A new `update_cache_memory` job downloads the artifacts and saves
-them to the GitHub Actions cache only after detection passes, preventing unvalidated
-agent outputs from being persisted.
+The agent job now uploads cache-memory artifacts and the new `update_cache_memory`
+job saves those artifacts to the Actions cache only after threat detection passes.
 
-This change is a security-focused bugfix and internal behavior change (no public API
-breaks).
+This fixes a race where cache memories could be saved before detection validated
+the agent's output.
+
+Fixes githubnext/gh-aw#5763
 
