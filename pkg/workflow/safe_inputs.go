@@ -239,11 +239,12 @@ const SafeInputsDirectory = "/tmp/gh-aw/safe-inputs"
 
 // SafeInputsToolJSON represents a tool configuration for the tools.json file
 type SafeInputsToolJSON struct {
-	Name        string         `json:"name"`
-	Description string         `json:"description"`
-	InputSchema map[string]any `json:"inputSchema"`
-	Handler     string         `json:"handler,omitempty"`
-	Timeout     int            `json:"timeout,omitempty"`
+	Name        string            `json:"name"`
+	Description string            `json:"description"`
+	InputSchema map[string]any    `json:"inputSchema"`
+	Handler     string            `json:"handler,omitempty"`
+	Env         map[string]string `json:"env,omitempty"`
+	Timeout     int               `json:"timeout,omitempty"`
 }
 
 // SafeInputsConfigJSON represents the tools.json configuration file structure
@@ -319,11 +320,32 @@ func generateSafeInputsToolsConfig(safeInputs *SafeInputsConfig) string {
 			handler = toolName + ".py"
 		}
 
+		// Build env list of required environment variables (not actual secrets)
+		// This documents which env vars the tool needs, but doesn't store secret values
+		// The actual values are passed as environment variables and accessed via process.env
+		var envRefs map[string]string
+		if len(toolConfig.Env) > 0 {
+			envRefs = make(map[string]string)
+			// Sort env var names for stable output
+			envVarNames := make([]string, 0, len(toolConfig.Env))
+			for envVarName := range toolConfig.Env {
+				envVarNames = append(envVarNames, envVarName)
+			}
+			sort.Strings(envVarNames)
+
+			for _, envVarName := range envVarNames {
+				// Store just the environment variable name without $ prefix or secret value
+				// Handlers access the actual value via process.env[envVarName] at runtime
+				envRefs[envVarName] = envVarName
+			}
+		}
+
 		config.Tools = append(config.Tools, SafeInputsToolJSON{
 			Name:        toolName,
 			Description: toolConfig.Description,
 			InputSchema: inputSchema,
 			Handler:     handler,
+			Env:         envRefs,
 			Timeout:     toolConfig.Timeout,
 		})
 	}
