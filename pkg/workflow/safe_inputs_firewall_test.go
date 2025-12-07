@@ -52,7 +52,7 @@ func TestSafeInputsWithFirewallIncludesHostDockerInternal(t *testing.T) {
 
 // TestGetCopilotAllowedDomainsWithSafeInputs tests the domain calculation function
 func TestGetCopilotAllowedDomainsWithSafeInputs(t *testing.T) {
-	t.Run("includes host.docker.internal when safe-inputs enabled", func(t *testing.T) {
+	t.Run("always includes host.docker.internal in default domains", func(t *testing.T) {
 		network := &NetworkPermissions{
 			Allowed: []string{"github.com"},
 		}
@@ -68,15 +68,16 @@ func TestGetCopilotAllowedDomainsWithSafeInputs(t *testing.T) {
 		}
 	})
 
-	t.Run("does not include host.docker.internal when safe-inputs disabled", func(t *testing.T) {
+	t.Run("includes host.docker.internal even when safe-inputs disabled", func(t *testing.T) {
 		network := &NetworkPermissions{
 			Allowed: []string{"github.com"},
 		}
 
 		result := GetCopilotAllowedDomainsWithSafeInputs(network, false)
 
-		if strings.Contains(result, "host.docker.internal") {
-			t.Errorf("Expected result to NOT contain 'host.docker.internal', got: %s", result)
+		// host.docker.internal is now in default domains, so it's always included
+		if !strings.Contains(result, "host.docker.internal") {
+			t.Errorf("Expected result to contain 'host.docker.internal' (now in defaults), got: %s", result)
 		}
 
 		if !strings.Contains(result, "github.com") {
@@ -91,9 +92,9 @@ func TestGetCopilotAllowedDomainsWithSafeInputs(t *testing.T) {
 
 		result := GetCopilotAllowedDomains(network)
 
-		// Should not include host.docker.internal by default
-		if strings.Contains(result, "host.docker.internal") {
-			t.Errorf("Expected backward compatible function to NOT contain 'host.docker.internal', got: %s", result)
+		// host.docker.internal is now in default domains
+		if !strings.Contains(result, "host.docker.internal") {
+			t.Errorf("Expected result to contain 'host.docker.internal' (now in defaults), got: %s", result)
 		}
 	})
 }
