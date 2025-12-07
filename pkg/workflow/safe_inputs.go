@@ -320,8 +320,9 @@ func generateSafeInputsToolsConfig(safeInputs *SafeInputsConfig) string {
 			handler = toolName + ".py"
 		}
 
-		// Build env map with references to environment variables (not actual secrets)
-		// Convert from secret expressions like "${{ secrets.GITHUB_TOKEN }}" to env var references like "$GH_TOKEN"
+		// Build env list of required environment variables (not actual secrets)
+		// This documents which env vars the tool needs, but doesn't store secret values
+		// The actual values are passed as environment variables and accessed via process.env
 		var envRefs map[string]string
 		if len(toolConfig.Env) > 0 {
 			envRefs = make(map[string]string)
@@ -333,9 +334,9 @@ func generateSafeInputsToolsConfig(safeInputs *SafeInputsConfig) string {
 			sort.Strings(envVarNames)
 
 			for _, envVarName := range envVarNames {
-				// Store reference to the environment variable, not the actual secret value
-				// The JavaScript code will expand this at runtime using process.env
-				envRefs[envVarName] = "$" + envVarName
+				// Store just the environment variable name without $ prefix or secret value
+				// Handlers access the actual value via process.env[envVarName] at runtime
+				envRefs[envVarName] = envVarName
 			}
 		}
 

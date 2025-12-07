@@ -699,14 +699,14 @@ func TestGenerateSafeInputsToolsConfigWithEnv(t *testing.T) {
 		t.Error("Tools config should contain env field")
 	}
 
-	// Verify that env contains environment variable references (not secrets)
-	// The values should be "$GH_TOKEN" and "$API_KEY", not the secret expressions
-	if !strings.Contains(toolsJSON, `"GH_TOKEN": "$GH_TOKEN"`) {
-		t.Error("Tools config should contain GH_TOKEN env reference")
+	// Verify that env contains environment variable names (not secrets or $ prefixes)
+	// The values should be just the variable names like "GH_TOKEN": "GH_TOKEN"
+	if !strings.Contains(toolsJSON, `"GH_TOKEN": "GH_TOKEN"`) {
+		t.Error("Tools config should contain GH_TOKEN env variable name")
 	}
 
-	if !strings.Contains(toolsJSON, `"API_KEY": "$API_KEY"`) {
-		t.Error("Tools config should contain API_KEY env reference")
+	if !strings.Contains(toolsJSON, `"API_KEY": "API_KEY"`) {
+		t.Error("Tools config should contain API_KEY env variable name")
 	}
 
 	// Verify that actual secret expressions are NOT in tools.json
@@ -716,6 +716,11 @@ func TestGenerateSafeInputsToolsConfigWithEnv(t *testing.T) {
 
 	if strings.Contains(toolsJSON, "secrets.API_KEY") {
 		t.Error("Tools config should NOT contain secret expressions")
+	}
+
+	// Verify that $ prefix is not used (which might suggest variable expansion)
+	if strings.Contains(toolsJSON, `"$GH_TOKEN"`) {
+		t.Error("Tools config should NOT contain $ prefix in env values")
 	}
 }
 
