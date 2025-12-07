@@ -114,6 +114,18 @@ function createMCPServer(configPath, options = {}) {
   logger.debug(`Tool registration complete: ${registeredCount} registered, ${skippedCount} skipped`);
   logger.debug(`=== MCP Server Creation Complete ===`);
 
+  // Delete the configuration file after loading to ensure no secrets remain on disk
+  try {
+    const fs = require("fs");
+    if (fs.existsSync(configPath)) {
+      fs.unlinkSync(configPath);
+      logger.debug(`Deleted configuration file: ${configPath}`);
+    }
+  } catch (error) {
+    logger.debugError(`Warning: Could not delete configuration file: `, error);
+    // Continue anyway - the server is already running
+  }
+
   return { server, config, logger };
 }
 

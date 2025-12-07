@@ -2783,6 +2783,15 @@ jobs:
               for (const tool of tools) {
                 registerTool(server, tool);
               }
+              try {
+                const fs = require("fs");
+                if (fs.existsSync(configPath)) {
+                  fs.unlinkSync(configPath);
+                  server.debug(`Deleted configuration file: ${configPath}`);
+                }
+              } catch (error) {
+                server.debugError(`Warning: Could not delete configuration file: `, error);
+              }
               start(server);
             }
             if (require.main === module) {
@@ -2872,6 +2881,15 @@ jobs:
               }
               logger.debug(`Tool registration complete: ${registeredCount} registered, ${skippedCount} skipped`);
               logger.debug(`=== MCP Server Creation Complete ===`);
+              try {
+                const fs = require("fs");
+                if (fs.existsSync(configPath)) {
+                  fs.unlinkSync(configPath);
+                  logger.debug(`Deleted configuration file: ${configPath}`);
+                }
+              } catch (error) {
+                logger.debugError(`Warning: Could not delete configuration file: `, error);
+              }
               return { server, config, logger };
             }
             async function startHttpServer(configPath, options = {}) {

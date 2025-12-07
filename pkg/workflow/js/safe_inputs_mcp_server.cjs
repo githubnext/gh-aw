@@ -71,6 +71,18 @@ function startSafeInputsServer(configPath, options = {}) {
     registerTool(server, tool);
   }
 
+  // Delete the configuration file after loading to ensure no secrets remain on disk
+  try {
+    const fs = require("fs");
+    if (fs.existsSync(configPath)) {
+      fs.unlinkSync(configPath);
+      server.debug(`Deleted configuration file: ${configPath}`);
+    }
+  } catch (error) {
+    server.debugError(`Warning: Could not delete configuration file: `, error);
+    // Continue anyway - the server is already running
+  }
+
   // Start the server
   start(server);
 }
