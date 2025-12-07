@@ -180,6 +180,7 @@
 #   link_sub_issue["link_sub_issue"]
 #   pre_activation["pre_activation"]
 #   push_to_pull_request_branch["push_to_pull_request_branch"]
+#   update_cache_memory["update_cache_memory"]
 #   update_issue["update_issue"]
 #   upload_assets["upload_assets"]
 #   activation --> agent
@@ -200,6 +201,7 @@
 #   agent --> detection
 #   agent --> link_sub_issue
 #   agent --> push_to_pull_request_branch
+#   agent --> update_cache_memory
 #   agent --> update_issue
 #   agent --> upload_assets
 #   close_pull_request --> conclusion
@@ -224,6 +226,7 @@
 #   detection --> create_pull_request
 #   detection --> link_sub_issue
 #   detection --> push_to_pull_request_branch
+#   detection --> update_cache_memory
 #   detection --> update_issue
 #   detection --> upload_assets
 #   link_sub_issue --> conclusion
@@ -280,7 +283,9 @@
 # ```
 #
 # Pinned GitHub Actions:
-#   - actions/cache@v4 (0057852bfaa89a56745cba8c7296529d2fc39830)
+#   - actions/cache/restore@v4 (0057852bfaa89a56745cba8c7296529d2fc39830)
+#     https://github.com/actions/cache/commit/0057852bfaa89a56745cba8c7296529d2fc39830
+#   - actions/cache/save@v4 (0057852bfaa89a56745cba8c7296529d2fc39830)
 #     https://github.com/actions/cache/commit/0057852bfaa89a56745cba8c7296529d2fc39830
 #   - actions/checkout@v5 (93cb6efe18208431cddfb8368fd83d5badbf9bfd)
 #     https://github.com/actions/checkout/commit/93cb6efe18208431cddfb8368fd83d5badbf9bfd
@@ -2382,8 +2387,8 @@ jobs:
           echo "Cache memory directory created at /tmp/gh-aw/cache-memory"
           echo "This folder provides persistent file storage across workflow runs"
           echo "LLMs and agentic tools can freely read and write files in this directory"
-      - name: Cache memory file share data
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+      - name: Restore cache memory file share data
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           key: poem-memory-${{ github.workflow }}-${{ github.run_id }}
           path: /tmp/gh-aw/cache-memory
@@ -2392,6 +2397,7 @@ jobs:
             poem-memory-
             poem-
       - name: Upload cache-memory data as artifact
+        if: always()
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
         with:
           name: cache-memory
@@ -12101,6 +12107,27 @@ jobs:
               await core.summary.addRaw(summaryContent).write();
             }
             await main();
+
+  update_cache_memory:
+    needs:
+      - agent
+      - detection
+    if: needs.detection.outputs.success == 'true'
+    runs-on: ubuntu-latest
+    permissions: {}
+    timeout-minutes: 5
+    steps:
+      - name: Download cache-memory artifact
+        continue-on-error: true
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
+        with:
+          name: cache-memory
+          path: /tmp/gh-aw/cache-memory
+      - name: Save cache memory
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          key: poem-memory-${{ github.workflow }}-${{ github.run_id }}
+          path: /tmp/gh-aw/cache-memory
 
   update_issue:
     needs:

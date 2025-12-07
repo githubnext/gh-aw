@@ -526,6 +526,9 @@ func (c *Compiler) buildUpdateCacheMemoryJob(data *WorkflowData, mainJobName str
 
 	var steps []string
 
+	// Use backward-compatible naming only when there's a single cache with ID "default"
+	useBackwardCompatiblePaths := len(data.CacheMemoryConfig.Caches) == 1 && data.CacheMemoryConfig.Caches[0].ID == "default"
+
 	// Step 1: Download cache-memory artifacts from agent job
 	for _, cache := range data.CacheMemoryConfig.Caches {
 		// Skip restore-only caches as they don't have artifacts to download
@@ -533,8 +536,9 @@ func (c *Compiler) buildUpdateCacheMemoryJob(data *WorkflowData, mainJobName str
 			continue
 		}
 
+		// Match artifact naming logic from upload step
 		var artifactName string
-		if cache.ID == "default" {
+		if useBackwardCompatiblePaths {
 			artifactName = "cache-memory"
 		} else {
 			artifactName = fmt.Sprintf("cache-memory-%s", cache.ID)
@@ -545,6 +549,8 @@ func (c *Compiler) buildUpdateCacheMemoryJob(data *WorkflowData, mainJobName str
 		steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/download-artifact")))
 		steps = append(steps, "        with:\n")
 		steps = append(steps, fmt.Sprintf("          name: %s\n", artifactName))
+		
+		// Match directory path logic
 		var downloadPath string
 		if cache.ID == "default" {
 			downloadPath = "/tmp/gh-aw/cache-memory"
@@ -585,9 +591,9 @@ func (c *Compiler) buildUpdateCacheMemoryJob(data *WorkflowData, mainJobName str
 			cacheKey = cacheKey + runIdSuffix
 		}
 
-		// Add step to save cache
+		// Add step to save cache (use backward-compatible naming when applicable)
 		stepName := "Save cache memory"
-		if cache.ID != "default" {
+		if !useBackwardCompatiblePaths {
 			stepName = fmt.Sprintf("Save cache memory (%s)", cache.ID)
 		}
 

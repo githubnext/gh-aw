@@ -345,9 +345,9 @@ func TestApplyActionPinToStep(t *testing.T) {
 func TestGetActionPinsSorting(t *testing.T) {
 	pins := getActionPins()
 
-	// Verify we got all the pins (should be 25 after adding more actions)
-	if len(pins) != 25 {
-		t.Errorf("getActionPins() returned %d pins, expected 25", len(pins))
+	// Verify we got all the pins (should be 26 after adding actions/cache/save)
+	if len(pins) != 26 {
+		t.Errorf("getActionPins() returned %d pins, expected 26", len(pins))
 	}
 
 	// Verify they are sorted by version (descending) then by repository name (ascending)
