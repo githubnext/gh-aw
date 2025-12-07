@@ -194,3 +194,69 @@ jobs:
               .addHeading('Close Old Smoke-Claude Issues', 2)
               .addRaw(`Closed **${closedCount}** issue(s) labeled with "smoke-claude" that were older than 1 hour.`)
               .write();
+
+  close-old-automated-analysis-issues:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    steps:
+      - name: Close issues labeled automated-analysis older than 7 days
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
+        with:
+          script: |
+            const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
+            const API_DELAY_MS = 500;
+            const cutoffDate = new Date(Date.now() - SEVEN_DAYS_MS);
+            
+            core.info(`Looking for issues labeled "automated-analysis" created before ${cutoffDate.toISOString()}`);
+            
+            // Fetch all open issues with automated-analysis label
+            const issues = await github.paginate(github.rest.issues.listForRepo, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: 'automated-analysis',
+              per_page: 100
+            });
+            
+            core.info(`Found ${issues.length} open issue(s) with automated-analysis label`);
+            
+            let closedCount = 0;
+            
+            for (const issue of issues) {
+              // Skip pull requests (they show up in issues API)
+              if (issue.pull_request) {
+                continue;
+              }
+              
+              // Check if older than 7 days
+              const createdAt = new Date(issue.created_at);
+              if (createdAt >= cutoffDate) {
+                core.info(`Skipping issue #${issue.number}: "${issue.title}" (created ${issue.created_at}, not old enough)`);
+                continue;
+              }
+              
+              core.info(`Closing issue #${issue.number}: "${issue.title}" (created ${issue.created_at})`);
+              
+              // Close the issue
+              await github.rest.issues.update({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                state: 'closed',
+                state_reason: 'not_planned'
+              });
+              
+              closedCount++;
+              
+              // Add delay between API calls to avoid rate limiting
+              await new Promise(resolve => setTimeout(resolve, API_DELAY_MS));
+            }
+            
+            core.info(`Closed ${closedCount} issue(s)`);
+            
+            // Write summary
+            await core.summary
+              .addHeading('Close Old Automated-Analysis Issues', 2)
+              .addRaw(`Closed **${closedCount}** issue(s) labeled with "automated-analysis" that were older than 7 days.`)
+              .write();
