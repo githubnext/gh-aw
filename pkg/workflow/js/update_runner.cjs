@@ -346,10 +346,74 @@ function createGetSummaryLine(config) {
   };
 }
 
+/**
+ * @typedef {Object} ContextValidatorConfig
+ * @property {string[]} eventNames - Valid GitHub event names for this context
+ * @property {boolean} [checkIssueCommentOnPR=false] - Whether to check for issue_comment on PR
+ */
+
+/**
+ * Create a context validation function
+ * @param {ContextValidatorConfig} config - Configuration for the context validator
+ * @returns {(eventName: string, payload: any) => boolean} Context validation function
+ */
+function createContextValidator(config) {
+  const { eventNames, checkIssueCommentOnPR = false } = config;
+
+  return function isValidContext(eventName, payload) {
+    if (eventNames.includes(eventName)) {
+      return true;
+    }
+
+    // Special case: issue_comment on a PR
+    if (checkIssueCommentOnPR && eventName === "issue_comment" && payload.issue && payload.issue.pull_request) {
+      return true;
+    }
+
+    return false;
+  };
+}
+
+/**
+ * @typedef {Object} NumberExtractorConfig
+ * @property {string[]} payloadPaths - Payload paths to try in order (e.g., ["pull_request.number", "issue.number"])
+ */
+
+/**
+ * Create a context number extractor function
+ * @param {NumberExtractorConfig} config - Configuration for the number extractor
+ * @returns {(payload: any) => number|undefined} Number extractor function
+ */
+function createNumberExtractor(config) {
+  const { payloadPaths } = config;
+
+  return function getContextNumber(payload) {
+    for (const path of payloadPaths) {
+      const parts = path.split(".");
+      let value = payload;
+
+      for (const part of parts) {
+        value = value?.[part];
+        if (value === undefined) {
+          break;
+        }
+      }
+
+      if (typeof value === "number") {
+        return value;
+      }
+    }
+
+    return undefined;
+  };
+}
+
 module.exports = {
   runUpdateWorkflow,
   resolveTargetNumber,
   buildUpdateData,
   createRenderStagedItem,
   createGetSummaryLine,
+  createContextValidator,
+  createNumberExtractor,
 };

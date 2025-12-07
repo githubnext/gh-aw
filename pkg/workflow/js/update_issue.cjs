@@ -1,26 +1,23 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-const { runUpdateWorkflow, createRenderStagedItem, createGetSummaryLine } = require("./update_runner.cjs");
+const {
+  runUpdateWorkflow,
+  createRenderStagedItem,
+  createGetSummaryLine,
+  createContextValidator,
+  createNumberExtractor,
+} = require("./update_runner.cjs");
 
-/**
- * Check if the current context is a valid issue context
- * @param {string} eventName - GitHub event name
- * @param {any} _payload - GitHub event payload (unused but kept for interface consistency)
- * @returns {boolean} Whether context is valid for issue updates
- */
-function isIssueContext(eventName, _payload) {
-  return eventName === "issues" || eventName === "issue_comment";
-}
+// Create context validator for issues
+const isIssueContext = createContextValidator({
+  eventNames: ["issues", "issue_comment"],
+});
 
-/**
- * Get issue number from the context payload
- * @param {any} payload - GitHub event payload
- * @returns {number|undefined} Issue number or undefined
- */
-function getIssueNumber(payload) {
-  return payload.issue?.number;
-}
+// Create number extractor for issues
+const getIssueNumber = createNumberExtractor({
+  payloadPaths: ["issue.number"],
+});
 
 // Use shared helper for staged preview rendering
 const renderStagedItem = createRenderStagedItem({

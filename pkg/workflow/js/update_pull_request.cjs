@@ -1,42 +1,24 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-const { runUpdateWorkflow, createRenderStagedItem, createGetSummaryLine } = require("./update_runner.cjs");
+const {
+  runUpdateWorkflow,
+  createRenderStagedItem,
+  createGetSummaryLine,
+  createContextValidator,
+  createNumberExtractor,
+} = require("./update_runner.cjs");
 
-/**
- * Check if the current context is a valid pull request context
- * @param {string} eventName - GitHub event name
- * @param {any} payload - GitHub event payload
- * @returns {boolean} Whether context is valid for PR updates
- */
-function isPRContext(eventName, payload) {
-  const isPR =
-    eventName === "pull_request" ||
-    eventName === "pull_request_review" ||
-    eventName === "pull_request_review_comment" ||
-    eventName === "pull_request_target";
+// Create context validator for pull requests
+const isPRContext = createContextValidator({
+  eventNames: ["pull_request", "pull_request_review", "pull_request_review_comment", "pull_request_target"],
+  checkIssueCommentOnPR: true,
+});
 
-  // Also check for issue_comment on a PR
-  const isIssueCommentOnPR = eventName === "issue_comment" && payload.issue && payload.issue.pull_request;
-
-  return isPR || isIssueCommentOnPR;
-}
-
-/**
- * Get pull request number from the context payload
- * @param {any} payload - GitHub event payload
- * @returns {number|undefined} PR number or undefined
- */
-function getPRNumber(payload) {
-  if (payload.pull_request) {
-    return payload.pull_request.number;
-  }
-  // For issue_comment events on PRs, the PR number is in issue.number
-  if (payload.issue && payload.issue.pull_request) {
-    return payload.issue.number;
-  }
-  return undefined;
-}
+// Create number extractor for pull requests
+const getPRNumber = createNumberExtractor({
+  payloadPaths: ["pull_request.number", "issue.number"],
+});
 
 // Use shared helper for staged preview rendering
 const renderStagedItem = createRenderStagedItem({

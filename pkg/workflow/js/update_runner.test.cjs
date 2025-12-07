@@ -605,4 +605,146 @@ describe("update_runner.cjs", () => {
       expect(result).toContain("**Operation:** replace");
     });
   });
+
+  describe("createContextValidator", () => {
+    it("should validate issue events", () => {
+      const isValidContext = helpers.createContextValidator({
+        eventNames: ["issues", "issue_comment"],
+      });
+
+      expect(isValidContext("issues", {})).toBe(true);
+      expect(isValidContext("issue_comment", {})).toBe(true);
+      expect(isValidContext("pull_request", {})).toBe(false);
+    });
+
+    it("should validate PR events", () => {
+      const isValidContext = helpers.createContextValidator({
+        eventNames: ["pull_request", "pull_request_review", "pull_request_review_comment", "pull_request_target"],
+      });
+
+      expect(isValidContext("pull_request", {})).toBe(true);
+      expect(isValidContext("pull_request_review", {})).toBe(true);
+      expect(isValidContext("pull_request_review_comment", {})).toBe(true);
+      expect(isValidContext("pull_request_target", {})).toBe(true);
+      expect(isValidContext("issues", {})).toBe(false);
+    });
+
+    it("should check for issue_comment on PR when enabled", () => {
+      const isValidContext = helpers.createContextValidator({
+        eventNames: ["pull_request"],
+        checkIssueCommentOnPR: true,
+      });
+
+      expect(
+        isValidContext("issue_comment", {
+          issue: { number: 123, pull_request: {} },
+        })
+      ).toBe(true);
+    });
+
+    it("should not check for issue_comment on PR when disabled", () => {
+      const isValidContext = helpers.createContextValidator({
+        eventNames: ["pull_request"],
+        checkIssueCommentOnPR: false,
+      });
+
+      expect(
+        isValidContext("issue_comment", {
+          issue: { number: 123, pull_request: {} },
+        })
+      ).toBe(false);
+    });
+
+    it("should not match issue_comment on regular issue when checkIssueCommentOnPR is true", () => {
+      const isValidContext = helpers.createContextValidator({
+        eventNames: ["pull_request"],
+        checkIssueCommentOnPR: true,
+      });
+
+      expect(
+        isValidContext("issue_comment", {
+          issue: { number: 123 },
+        })
+      ).toBe(false);
+    });
+  });
+
+  describe("createNumberExtractor", () => {
+    it("should extract issue number from single path", () => {
+      const getContextNumber = helpers.createNumberExtractor({
+        payloadPaths: ["issue.number"],
+      });
+
+      expect(getContextNumber({ issue: { number: 123 } })).toBe(123);
+    });
+
+    it("should extract PR number from pull_request field", () => {
+      const getContextNumber = helpers.createNumberExtractor({
+        payloadPaths: ["pull_request.number", "issue.number"],
+      });
+
+      expect(getContextNumber({ pull_request: { number: 456 } })).toBe(456);
+    });
+
+    it("should fall back to second path when first is not available", () => {
+      const getContextNumber = helpers.createNumberExtractor({
+        payloadPaths: ["pull_request.number", "issue.number"],
+      });
+
+      expect(getContextNumber({ issue: { number: 123 } })).toBe(123);
+    });
+
+    it("should return undefined when no paths match", () => {
+      const getContextNumber = helpers.createNumberExtractor({
+        payloadPaths: ["pull_request.number", "issue.number"],
+      });
+
+      expect(getContextNumber({})).toBeUndefined();
+    });
+
+    it("should return undefined when path exists but value is not a number", () => {
+      const getContextNumber = helpers.createNumberExtractor({
+        payloadPaths: ["issue.number"],
+      });
+
+      expect(getContextNumber({ issue: { number: "not-a-number" } })).toBeUndefined();
+    });
+
+    it("should handle nested paths correctly", () => {
+      const getContextNumber = helpers.createNumberExtractor({
+        payloadPaths: ["data.entity.id"],
+      });
+
+      expect(getContextNumber({ data: { entity: { id: 789 } } })).toBe(789);
+    });
+
+    it("should return undefined when intermediate path is null", () => {
+      const getContextNumber = helpers.createNumberExtractor({
+        payloadPaths: ["issue.number"],
+      });
+
+      expect(getContextNumber({ issue: null })).toBeUndefined();
+    });
+
+    it("should handle empty payload", () => {
+      const getContextNumber = helpers.createNumberExtractor({
+        payloadPaths: ["issue.number"],
+      });
+
+      expect(getContextNumber({})).toBeUndefined();
+    });
+
+    it("should try all paths in order and return first match", () => {
+      const getContextNumber = helpers.createNumberExtractor({
+        payloadPaths: ["first.number", "second.number", "third.number"],
+      });
+
+      expect(
+        getContextNumber({
+          second: { number: 222 },
+          third: { number: 333 },
+        })
+      ).toBe(222);
+    });
+  });
 });
