@@ -1661,6 +1661,9 @@ jobs:
                   "type": "object"
                 },
                 "handler": "gh.sh",
+                "env": {
+                  "GH_AW_GH_TOKEN": "$GH_AW_GH_TOKEN"
+                },
                 "timeout": 60
               }
             ]

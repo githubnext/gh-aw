@@ -3664,6 +3664,9 @@ jobs:
                   "type": "object"
                 },
                 "handler": "github-discussion-query.sh",
+                "env": {
+                  "GH_TOKEN": "$GH_TOKEN"
+                },
                 "timeout": 60
               },
               {
@@ -3691,6 +3694,9 @@ jobs:
                   "type": "object"
                 },
                 "handler": "github-issue-query.sh",
+                "env": {
+                  "GH_TOKEN": "$GH_TOKEN"
+                },
                 "timeout": 60
               },
               {
@@ -3718,6 +3724,9 @@ jobs:
                   "type": "object"
                 },
                 "handler": "github-pr-query.sh",
+                "env": {
+                  "GH_TOKEN": "$GH_TOKEN"
+                },
                 "timeout": 60
               }
             ]
