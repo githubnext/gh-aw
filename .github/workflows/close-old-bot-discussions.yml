@@ -205,6 +205,7 @@ jobs:
         with:
           script: |
             const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
+            const API_DELAY_MS = 500;
             const cutoffDate = new Date(Date.now() - SEVEN_DAYS_MS);
             
             core.info(`Looking for issues labeled "automated-analysis" created before ${cutoffDate.toISOString()}`);
@@ -249,7 +250,7 @@ jobs:
               closedCount++;
               
               // Add delay between API calls to avoid rate limiting
-              await new Promise(resolve => setTimeout(resolve, 500));
+              await new Promise(resolve => setTimeout(resolve, API_DELAY_MS));
             }
             
             core.info(`Closed ${closedCount} issue(s)`);
