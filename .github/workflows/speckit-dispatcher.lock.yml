@@ -58,11 +58,11 @@
 #
 # safe-outputs:
 #   create-issue:
-#     max: 1
+#     max: 5
 #   add-comment:
-#     max: 1
+#     max: 5
 #   link-sub-issue:
-#     max: 1
+#     max: 5
 #   messages:
 #     footer: "> 🎯 *Spec-Kit dispatcher by [{workflow_name}]({run_url})*"
 #     run-started: "🔍 Analyzing your spec-kit request via [{workflow_name}]({run_url})..."
@@ -2093,12 +2093,12 @@ jobs:
         run: |
           mkdir -p /tmp/gh-aw/safeoutputs
           cat > /tmp/gh-aw/safeoutputs/config.json << 'EOF'
-          {"add_comment":{"max":1},"create_issue":{"max":1},"link_sub_issue":{"max":1},"missing_tool":{"max":0},"noop":{"max":1}}
+          {"add_comment":{"max":5},"create_issue":{"max":5},"link_sub_issue":{"max":5},"missing_tool":{"max":0},"noop":{"max":1}}
           EOF
           cat > /tmp/gh-aw/safeoutputs/tools.json << 'EOF'
           [
             {
-              "description": "Create a new GitHub issue for tracking bugs, feature requests, or tasks. Use this for actionable work items that need assignment, labeling, and status tracking. For reports, announcements, or status updates that don't require task tracking, use create_discussion instead. CONSTRAINTS: Maximum 1 issue(s) can be created.",
+              "description": "Create a new GitHub issue for tracking bugs, feature requests, or tasks. Use this for actionable work items that need assignment, labeling, and status tracking. For reports, announcements, or status updates that don't require task tracking, use create_discussion instead. CONSTRAINTS: Maximum 5 issue(s) can be created.",
               "inputSchema": {
                 "additionalProperties": false,
                 "properties": {
@@ -2138,7 +2138,7 @@ jobs:
               "name": "create_issue"
             },
             {
-              "description": "Add a comment to an existing GitHub issue, pull request, or discussion. Use this to provide feedback, answer questions, or add information to an existing conversation. For creating new items, use create_issue, create_discussion, or create_pull_request instead. CONSTRAINTS: Maximum 1 comment(s) can be added.",
+              "description": "Add a comment to an existing GitHub issue, pull request, or discussion. Use this to provide feedback, answer questions, or add information to an existing conversation. For creating new items, use create_issue, create_discussion, or create_pull_request instead. CONSTRAINTS: Maximum 5 comment(s) can be added.",
               "inputSchema": {
                 "additionalProperties": false,
                 "properties": {
@@ -2203,7 +2203,7 @@ jobs:
               "name": "noop"
             },
             {
-              "description": "Link an issue as a sub-issue of a parent issue. Use this to establish parent-child relationships between issues for better organization and tracking of related work items. CONSTRAINTS: Maximum 1 sub-issue link(s) can be created.",
+              "description": "Link an issue as a sub-issue of a parent issue. Use this to establish parent-child relationships between issues for better organization and tracking of related work items. CONSTRAINTS: Maximum 5 sub-issue link(s) can be created.",
               "inputSchema": {
                 "additionalProperties": false,
                 "properties": {
@@ -8410,7 +8410,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_LINK_SUB_ISSUE_MAX_COUNT: 1
+          GH_AW_LINK_SUB_ISSUE_MAX_COUNT: 5
           GH_AW_TEMPORARY_ID_MAP: ${{ needs.create_issue.outputs.temporary_id_map }}
           GH_AW_WORKFLOW_NAME: "Spec-Kit Command Dispatcher"
           GH_AW_ENGINE_ID: "copilot"

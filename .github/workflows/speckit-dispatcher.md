@@ -35,11 +35,11 @@ tools:
 
 safe-outputs:
   create-issue:
-    max: 1
+    max: 5
   add-comment:
-    max: 1
+    max: 5
   link-sub-issue:
-    max: 1
+    max: 5
   messages:
     footer: "> 🎯 *Spec-Kit dispatcher by [{workflow_name}]({run_url})*"
     run-started: "🔍 Analyzing your spec-kit request via [{workflow_name}]({run_url})..."
