@@ -2183,10 +2183,11 @@ jobs:
                         server.debugError(`  [${toolName}] Warning: Could not make shell script executable: `, chmodError);
                       }
                     }
-            function createShellHandler(server, toolName, scriptPath) {
+            function createShellHandler(server, toolName, scriptPath, timeoutSeconds = 60) {
               return async args => {
                 server.debug(`  [${toolName}] Invoking shell handler: ${scriptPath}`);
                 server.debug(`  [${toolName}] Shell handler args: ${JSON.stringify(args)}`);
+                server.debug(`  [${toolName}] Timeout: ${timeoutSeconds}s`);
                 const env = { ...process.env };
                 for (const [key, value] of Object.entries(args || {})) {
                   const envKey = `INPUT_${key.toUpperCase().replace(/-/g, "_")}`;
@@ -2204,7 +2205,7 @@ jobs:
                     [],
                     {
                       env,
-                      timeout: 300000, 
+                      timeout: timeoutSeconds * 1000, 
                       maxBuffer: 10 * 1024 * 1024, 
                     },
                     (error, stdout, stderr) => {
@@ -2272,9 +2273,10 @@ jobs:
                 });
               };
             }
-                    tool.handler = createShellHandler(server, toolName, resolvedPath);
+                    const timeout = tool.timeout || 60; 
+                    tool.handler = createShellHandler(server, toolName, resolvedPath, timeout);
                     loadedCount++;
-                    server.debug(`  [${toolName}] Shell handler created successfully`);
+                    server.debug(`  [${toolName}] Shell handler created successfully with timeout: ${timeout}s`);
                   } else if (ext === ".py") {
                     server.debug(`  [${toolName}] Detected Python script handler`);
                     try {
@@ -2288,10 +2290,11 @@ jobs:
                         server.debugError(`  [${toolName}] Warning: Could not make Python script executable: `, chmodError);
                       }
                     }
-            function createPythonHandler(server, toolName, scriptPath) {
+            function createPythonHandler(server, toolName, scriptPath, timeoutSeconds = 60) {
               return async args => {
                 server.debug(`  [${toolName}] Invoking Python handler: ${scriptPath}`);
                 server.debug(`  [${toolName}] Python handler args: ${JSON.stringify(args)}`);
+                server.debug(`  [${toolName}] Timeout: ${timeoutSeconds}s`);
                 const inputJson = JSON.stringify(args || {});
                 server.debug(
                   `  [${toolName}] Input JSON (${inputJson.length} bytes): ${inputJson.substring(0, 200)}${inputJson.length > 200 ? "..." : ""}`
@@ -2303,7 +2306,7 @@ jobs:
                     [scriptPath],
                     {
                       env: process.env,
-                      timeout: 300000, 
+                      timeout: timeoutSeconds * 1000, 
                       maxBuffer: 10 * 1024 * 1024, 
                     },
                     (error, stdout, stderr) => {
@@ -2347,9 +2350,10 @@ jobs:
                 });
               };
             }
-                    tool.handler = createPythonHandler(server, toolName, resolvedPath);
+                    const timeout = tool.timeout || 60; 
+                    tool.handler = createPythonHandler(server, toolName, resolvedPath, timeout);
                     loadedCount++;
-                    server.debug(`  [${toolName}] Python handler created successfully`);
+                    server.debug(`  [${toolName}] Python handler created successfully with timeout: ${timeout}s`);
                   } else {
                     server.debug(`  [${toolName}] Loading JavaScript handler module`);
                     const handlerModule = require(resolvedPath);

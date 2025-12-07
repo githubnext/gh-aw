@@ -43,11 +43,16 @@ safe-inputs:
       // Your code here
     env:                               # Environment variables
       API_KEY: "${{ secrets.API_KEY }}"
+    timeout: 120                       # Optional: timeout in seconds (default: 60)
 ```
 
 ### Required Fields
 
 - **`description:`** - Human-readable description of what the tool does. This is shown to the agent for tool selection.
+
+### Optional Fields
+
+- **`timeout:`** - Maximum execution time in seconds (default: 60). The tool will be terminated if it exceeds this duration. Applies to shell (`run:`) and Python (`py:`) tools.
 
 ### Implementation Options
 
@@ -379,6 +384,61 @@ safe-inputs:
 - `default: value` - Default if not provided
 - `enum: [...]` - Restrict to specific values
 - `description: "..."` - Help text for the agent
+
+## Timeout Configuration
+
+Each tool can specify a maximum execution time using the `timeout:` field. The default timeout is **60 seconds**.
+
+### Default Timeout
+
+If not specified, tools use a 60-second timeout:
+
+```yaml wrap
+safe-inputs:
+  quick-task:
+    description: "Runs with default 60s timeout"
+    run: |
+      echo "This will timeout after 60 seconds"
+```
+
+### Custom Timeout
+
+Set a custom timeout for long-running operations:
+
+```yaml wrap
+safe-inputs:
+  slow-processing:
+    description: "Process large dataset"
+    timeout: 300  # 5 minutes
+    py: |
+      import time
+      import json
+      
+      # Long-running operation
+      time.sleep(120)  # Simulate processing
+      print(json.dumps({"status": "complete"}))
+```
+
+### Fast Timeout
+
+Use shorter timeouts for quick operations:
+
+```yaml wrap
+safe-inputs:
+  fast-check:
+    description: "Quick health check"
+    timeout: 10  # 10 seconds
+    run: |
+      curl -f https://api.example.com/health
+```
+
+### Timeout Enforcement
+
+- **Shell tools (`run:`)**: Process is terminated after timeout
+- **Python tools (`py:`)**: Process is terminated after timeout  
+- **JavaScript tools (`script:`)**: Timeouts are not enforced (runs in-process)
+
+When a tool exceeds its timeout, the execution is terminated and an error is returned to the agent.
 
 ## Environment Variables (`env:`)
 
