@@ -162,9 +162,12 @@ func TestGenerateGitHubContextSecurePattern(t *testing.T) {
 		t.Error("Expected __GH_AW_GITHUB_*__ placeholder references in heredoc content")
 	}
 
-	// Verify the sed command is used (for safe variable substitution)
-	if !strings.Contains(heredocSection, "sed -i") {
-		t.Error("Expected sed -i command for safe variable substitution")
+	// Verify the JavaScript substitution step is used (for safe variable substitution)
+	if !strings.Contains(output, "Substitute placeholders") {
+		t.Error("Expected JavaScript-based placeholder substitution step")
+	}
+	if !strings.Contains(output, "actions/github-script@") {
+		t.Error("Expected actions/github-script action for substitution")
 	}
 }
 

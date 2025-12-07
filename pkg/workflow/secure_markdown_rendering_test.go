@@ -100,9 +100,9 @@ Run ID: ${{ github.run_id }}
 		}
 	}
 
-	// Verify that environment variable references ARE in the heredoc content
-	if !strings.Contains(compiledStr, "${GH_AW_GITHUB_") {
-		t.Error("Environment variable references should be in the prompt content")
+	// Verify that placeholder references ARE in the heredoc content
+	if !strings.Contains(compiledStr, "__GH_AW_GITHUB_") {
+		t.Error("Placeholder references should be in the prompt content")
 	}
 
 	// Verify environment variables are set with GitHub expressions

@@ -91,8 +91,7 @@ func generateStaticPromptStepWithExpressions(yaml *strings.Builder, description 
 	yaml.WriteString("        run: |\n")
 	// Write prompt text with placeholders
 	WritePromptTextToYAMLWithPlaceholders(yaml, modifiedPromptText, "          ")
-	// Safely substitute using sed (escapes pipe character to avoid delimiter conflicts)
-	for _, mapping := range expressionMappings {
-		yaml.WriteString(fmt.Sprintf("          sed -i \"s|__%s__|${%s//|/\\\\|}|g\" \"$GH_AW_PROMPT\"\n", mapping.EnvVar, mapping.EnvVar))
-	}
+
+	// Generate JavaScript-based placeholder substitution step
+	generatePlaceholderSubstitutionStep(yaml, expressionMappings, "      ")
 }
