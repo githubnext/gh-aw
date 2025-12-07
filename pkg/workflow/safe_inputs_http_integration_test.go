@@ -93,9 +93,13 @@ Test safe-inputs HTTP server
 
 	// Verify health check
 	healthCheckItems := []string{
-		"curl -s -f -H \"Authorization: Bearer",
+		"CURL_OUTPUT=$(mktemp)",
+		"CURL_HTTP_CODE=$(curl -s -w \"%{http_code}\" -H \"Authorization: Bearer",
 		"Safe Inputs MCP server is ready",
 		"ERROR: Safe Inputs MCP server failed to start",
+		"Server check failed (attempt",
+		"curl exit code:",
+		"HTTP status code:",
 	}
 
 	for _, check := range healthCheckItems {
@@ -325,10 +329,16 @@ Test readiness check
 	// Verify readiness check loop
 	readinessChecks := []string{
 		"for i in {1..10}; do",
-		"if curl -s -f -H \"Authorization: Bearer",
+		"CURL_OUTPUT=$(mktemp)",
+		"CURL_HTTP_CODE=$(curl -s -w \"%{http_code}\" -H \"Authorization: Bearer",
 		"http://localhost:$GH_AW_SAFE_INPUTS_PORT/",
+		"if [ $CURL_EXIT_CODE -eq 0 ] && [ \"$CURL_HTTP_CODE\" = \"200\" ]; then",
 		"Safe Inputs MCP server is ready",
 		"break",
+		"Server check failed (attempt $i/10):",
+		"curl exit code:",
+		"HTTP status code:",
+		"Response content:",
 		"if [ $i -eq 10 ]; then",
 		"ERROR: Safe Inputs MCP server failed to start after 10 seconds",
 		"cat /tmp/gh-aw/safe-inputs/logs/server.log",

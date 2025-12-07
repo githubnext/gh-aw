@@ -72,7 +72,7 @@ class MCPHTTPTransport {
     // Log all incoming requests
     this.logger.debug(`Incoming ${req.method} request to ${req.url}`);
     this.logger.debug(`Headers: ${JSON.stringify(req.headers)}`);
-    
+
     // Set CORS headers
     res.setHeader("Access-Control-Allow-Origin", "*");
     res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");

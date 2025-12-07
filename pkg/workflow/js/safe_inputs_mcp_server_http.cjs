@@ -169,7 +169,7 @@ async function startHttpServer(configPath, options = {}) {
       // Log all incoming requests
       logger.debug(`HTTP request received: ${req.method} ${req.url}`);
       logger.debug(`Request headers: ${JSON.stringify(req.headers)}`);
-      
+
       // Set CORS headers for development
       res.setHeader("Access-Control-Allow-Origin", "*");
       res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
