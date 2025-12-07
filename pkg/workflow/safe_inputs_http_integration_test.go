@@ -91,7 +91,7 @@ Test safe-inputs HTTP server
 		}
 	}
 
-	// Verify health check (no Authorization header needed for /health endpoint)
+	// Verify health check (health endpoint doesn't require auth)
 	healthCheckItems := []string{
 		"curl -s -f http://localhost:$GH_AW_SAFE_INPUTS_PORT/health",
 		"Safe Inputs MCP server is ready",
@@ -322,11 +322,10 @@ Test readiness check
 
 	yamlStr := string(lockContent)
 
-	// Verify readiness check loop (no Authorization header needed for /health endpoint)
+	// Verify readiness check loop (health endpoint doesn't require auth)
 	readinessChecks := []string{
 		"for i in {1..10}; do",
-		"if ! kill -0 $SERVER_PID",
-		"curl -s -f http://localhost:$GH_AW_SAFE_INPUTS_PORT/health",
+		"if curl -s -f http://localhost:$GH_AW_SAFE_INPUTS_PORT/health",
 		"Safe Inputs MCP server is ready",
 		"break",
 		"if [ $i -eq 10 ]; then",
