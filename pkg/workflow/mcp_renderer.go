@@ -219,17 +219,20 @@ func (r *MCPConfigRendererUnified) RenderSafeInputsMCP(yaml *strings.Builder, sa
 }
 
 // renderSafeInputsTOML generates Safe Inputs MCP configuration in TOML format
+// Uses HTTP transport for consistency with JSON format (Copilot/Claude)
 func (r *MCPConfigRendererUnified) renderSafeInputsTOML(yaml *strings.Builder, safeInputs *SafeInputsConfig) {
+	envVars := getSafeInputsEnvVars(safeInputs)
+
 	yaml.WriteString("          \n")
 	yaml.WriteString("          [mcp_servers." + constants.SafeInputsMCPServerID + "]\n")
-	yaml.WriteString("          command = \"node\"\n")
-	yaml.WriteString("          args = [\n")
-	yaml.WriteString("            \"/tmp/gh-aw/safe-inputs/mcp-server.cjs\",\n")
-	yaml.WriteString("          ]\n")
-	// Add environment variables from safe-inputs config
-	envVars := getSafeInputsEnvVars(safeInputs)
+	yaml.WriteString("          type = \"http\"\n")
+	yaml.WriteString("          url = \"http://localhost:$GH_AW_SAFE_INPUTS_PORT\"\n")
+	yaml.WriteString("          headers = { Authorization = \"Bearer $GH_AW_SAFE_INPUTS_API_KEY\" }\n")
+
+	// Add environment variables: server config + tool-specific vars
+	envVarsWithServerConfig := append([]string{"GH_AW_SAFE_INPUTS_PORT", "GH_AW_SAFE_INPUTS_API_KEY"}, envVars...)
 	yaml.WriteString("          env_vars = [")
-	for i, envVar := range envVars {
+	for i, envVar := range envVarsWithServerConfig {
 		if i > 0 {
 			yaml.WriteString(", ")
 		}
