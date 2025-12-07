@@ -11,13 +11,9 @@ const mockCore = {
 global.core = mockCore;
 
 // Import the module
-const {
-  buildAIFooter,
-  buildIslandStartMarker,
-  buildIslandEndMarker,
-  findIsland,
-  updatePRBody,
-} = await import("./update_pr_description_helpers.cjs");
+const { buildAIFooter, buildIslandStartMarker, buildIslandEndMarker, findIsland, updatePRBody } = await import(
+  "./update_pr_description_helpers.cjs"
+);
 
 describe("update_pr_description_helpers.cjs", () => {
   beforeEach(() => {
@@ -95,7 +91,8 @@ describe("update_pr_description_helpers.cjs", () => {
     });
 
     it("should handle multiple islands with different run IDs", () => {
-      const body = "<!-- gh-aw-island-start:100 -->\nIsland 1\n<!-- gh-aw-island-end:100 -->\n<!-- gh-aw-island-start:200 -->\nIsland 2\n<!-- gh-aw-island-end:200 -->";
+      const body =
+        "<!-- gh-aw-island-start:100 -->\nIsland 1\n<!-- gh-aw-island-end:100 -->\n<!-- gh-aw-island-start:200 -->\nIsland 2\n<!-- gh-aw-island-end:200 -->";
       const result1 = findIsland(body, 100);
       const result2 = findIsland(body, 200);
       expect(result1.found).toBe(true);
@@ -239,7 +236,8 @@ describe("update_pr_description_helpers.cjs", () => {
     });
 
     it("should preserve content outside island when replacing", () => {
-      const currentBody = "# Title\n\nSome intro\n\n<!-- gh-aw-island-start:123 -->\nOld\n<!-- gh-aw-island-end:123 -->\n\n## Footer\n\nMore content";
+      const currentBody =
+        "# Title\n\nSome intro\n\n<!-- gh-aw-island-start:123 -->\nOld\n<!-- gh-aw-island-end:123 -->\n\n## Footer\n\nMore content";
       const result = updatePRBody({
         currentBody,
         newContent: "Updated content",
@@ -275,7 +273,8 @@ describe("update_pr_description_helpers.cjs", () => {
     });
 
     it("should handle multiple islands with same run ID (replace first)", () => {
-      const currentBody = "<!-- gh-aw-island-start:123 -->\nFirst\n<!-- gh-aw-island-end:123 -->\n<!-- gh-aw-island-start:123 -->\nSecond\n<!-- gh-aw-island-end:123 -->";
+      const currentBody =
+        "<!-- gh-aw-island-start:123 -->\nFirst\n<!-- gh-aw-island-end:123 -->\n<!-- gh-aw-island-start:123 -->\nSecond\n<!-- gh-aw-island-end:123 -->";
       const result = updatePRBody({
         currentBody,
         newContent: "Replaced",

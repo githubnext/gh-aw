@@ -17,6 +17,8 @@ engine:
   id: copilot
   env:
     DEBUG: "copilot:*"  # Enable copilot CLI debug logs
+imports:
+  - shared/gh.md
 network:
   allowed:
     - defaults
@@ -113,6 +115,8 @@ post-steps:
 ## Test Requirements
 
 **Playwright MCP Testing**: Use playwright to navigate to https://github.com and verify the page title contains "GitHub"
+
+**Safe Input gh Tool Testing**: Use the `gh` safe-input tool to run "gh issues list --limit 3" to verify the tool can access GitHub issues
 
 ## Output
 
