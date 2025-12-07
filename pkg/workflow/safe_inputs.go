@@ -179,9 +179,7 @@ func parseSafeInputsMap(safeInputsMap map[string]any) (*SafeInputsConfig, bool) 
 				toolConfig.Timeout = int(t)
 			case string:
 				// Try to parse string as integer
-				if timeoutInt, err := fmt.Sscanf(t, "%d", &toolConfig.Timeout); err == nil && timeoutInt == 1 {
-					// Successfully parsed
-				}
+				_, _ = fmt.Sscanf(t, "%d", &toolConfig.Timeout)
 			}
 		}
 
@@ -744,9 +742,7 @@ func (c *Compiler) mergeSafeInputs(main *SafeInputsConfig, importedConfigs []str
 					toolConfig.Timeout = int(t)
 				case string:
 					// Try to parse string as integer
-					if timeoutInt, err := fmt.Sscanf(t, "%d", &toolConfig.Timeout); err == nil && timeoutInt == 1 {
-						// Successfully parsed
-					}
+					_, _ = fmt.Sscanf(t, "%d", &toolConfig.Timeout)
 				}
 			}
 

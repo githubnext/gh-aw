@@ -23,7 +23,7 @@
     "actions/create-github-app-token@v2": {
       "repo": "actions/create-github-app-token",
       "version": "v2",
-      "sha": "7e473efe3cb98aa54f8d4bac15400b15fad77d94"
+      "sha": "29824e69f54612133e76f7eaac726eef6c875baf"
     },
     "actions/download-artifact@v6": {
       "repo": "actions/download-artifact",
