@@ -543,10 +543,8 @@ func renderSafeInputsMCPConfigWithOptions(yaml *strings.Builder, safeInputs *Saf
 	// Use HTTP transport configuration
 	yaml.WriteString("              \"" + constants.SafeInputsMCPServerID + "\": {\n")
 
-	// Add type field for HTTP
-	if includeCopilotFields {
-		yaml.WriteString("                \"type\": \"http\",\n")
-	}
+	// Add type field for HTTP (required by MCP specification for HTTP transport)
+	yaml.WriteString("                \"type\": \"http\",\n")
 
 	// HTTP URL using environment variable
 	if includeCopilotFields {
