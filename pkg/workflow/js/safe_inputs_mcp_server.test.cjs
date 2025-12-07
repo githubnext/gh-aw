@@ -398,6 +398,16 @@ echo "greeting=Hello from shell" >> $GITHUB_OUTPUT
       const toolFactoryContent = fs.readFileSync(path.join(__dirname, "safe_inputs_tool_factory.cjs"), "utf-8");
       fs.writeFileSync(toolFactoryPath, toolFactoryContent);
 
+      // Copy safe_inputs_validation.cjs
+      const validationPath = path.join(tempDir, "safe_inputs_validation.cjs");
+      const validationContent = fs.readFileSync(path.join(__dirname, "safe_inputs_validation.cjs"), "utf-8");
+      fs.writeFileSync(validationPath, validationContent);
+
+      // Copy safe_inputs_bootstrap.cjs
+      const bootstrapPath = path.join(tempDir, "safe_inputs_bootstrap.cjs");
+      const bootstrapContent = fs.readFileSync(path.join(__dirname, "safe_inputs_bootstrap.cjs"), "utf-8");
+      fs.writeFileSync(bootstrapPath, bootstrapContent);
+
       // Copy mcp_handler_python.cjs
       const pythonHandlerPath = path.join(tempDir, "mcp_handler_python.cjs");
       const pythonHandlerContent = fs.readFileSync(path.join(__dirname, "mcp_handler_python.cjs"), "utf-8");
@@ -575,6 +585,14 @@ echo "greeting=Hello from shell" >> $GITHUB_OUTPUT
       const toolFactoryContent = fs.readFileSync(path.join(__dirname, "safe_inputs_tool_factory.cjs"), "utf-8");
       fs.writeFileSync(toolFactoryPath, toolFactoryContent);
 
+      const validationPath = path.join(tempDir, "safe_inputs_validation.cjs");
+      const validationContent = fs.readFileSync(path.join(__dirname, "safe_inputs_validation.cjs"), "utf-8");
+      fs.writeFileSync(validationPath, validationContent);
+
+      const bootstrapPath = path.join(tempDir, "safe_inputs_bootstrap.cjs");
+      const bootstrapContent = fs.readFileSync(path.join(__dirname, "safe_inputs_bootstrap.cjs"), "utf-8");
+      fs.writeFileSync(bootstrapPath, bootstrapContent);
+
       const pythonHandlerPath = path.join(tempDir, "mcp_handler_python.cjs");
       const pythonHandlerContent = fs.readFileSync(path.join(__dirname, "mcp_handler_python.cjs"), "utf-8");
       fs.writeFileSync(pythonHandlerPath, pythonHandlerContent);
@@ -700,6 +718,14 @@ echo "greeting=Hello from shell" >> $GITHUB_OUTPUT
       const toolFactoryPath = path.join(tempDir, "safe_inputs_tool_factory.cjs");
       const toolFactoryContent = fs.readFileSync(path.join(__dirname, "safe_inputs_tool_factory.cjs"), "utf-8");
       fs.writeFileSync(toolFactoryPath, toolFactoryContent);
+
+      const validationPath = path.join(tempDir, "safe_inputs_validation.cjs");
+      const validationContent = fs.readFileSync(path.join(__dirname, "safe_inputs_validation.cjs"), "utf-8");
+      fs.writeFileSync(validationPath, validationContent);
+
+      const bootstrapPath = path.join(tempDir, "safe_inputs_bootstrap.cjs");
+      const bootstrapContent = fs.readFileSync(path.join(__dirname, "safe_inputs_bootstrap.cjs"), "utf-8");
+      fs.writeFileSync(bootstrapPath, bootstrapContent);
 
       const pythonHandlerPath = path.join(tempDir, "mcp_handler_python.cjs");
       const pythonHandlerContent = fs.readFileSync(path.join(__dirname, "mcp_handler_python.cjs"), "utf-8");

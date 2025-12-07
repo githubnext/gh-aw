@@ -18,14 +18,12 @@
  *   --log-dir <path>   Directory for log files
  */
 
-const path = require("path");
 const http = require("http");
 const { randomUUID } = require("crypto");
 const { MCPServer, MCPHTTPTransport } = require("./mcp_http_transport.cjs");
-const { loadConfig } = require("./safe_inputs_config_loader.cjs");
-const { loadToolHandlers } = require("./mcp_server_core.cjs");
 const { validateRequiredFields } = require("./safe_inputs_validation.cjs");
 const { createLogger } = require("./mcp_logger.cjs");
+const { bootstrapSafeInputsServer, cleanupConfigFile } = require("./safe_inputs_bootstrap.cjs");
 
 /**
  * Create and configure the MCP server with tools
@@ -35,15 +33,21 @@ const { createLogger } = require("./mcp_logger.cjs");
  * @returns {Object} Server instance and configuration
  */
 function createMCPServer(configPath, options = {}) {
-  // Load configuration
-  const config = loadConfig(configPath);
+  // Create logger early
+  const logger = createLogger("safeinputs");
 
-  // Determine base path for resolving relative handler paths
-  const basePath = path.dirname(configPath);
+  logger.debug(`=== Creating MCP Server ===`);
+  logger.debug(`Configuration file: ${configPath}`);
+
+  // Bootstrap: load configuration and tools using shared logic
+  const { config, tools } = bootstrapSafeInputsServer(configPath, logger);
 
   // Create server with configuration
   const serverName = config.serverName || "safeinputs";
   const version = config.version || "1.0.0";
+
+  logger.debug(`Server name: ${serverName}`);
+  logger.debug(`Server version: ${version}`);
 
   // Create MCP Server instance
   const server = new MCPServer(
@@ -57,22 +61,6 @@ function createMCPServer(configPath, options = {}) {
       },
     }
   );
-
-  // Create logger for this server
-  const logger = createLogger(serverName);
-
-  logger.debug(`=== Creating MCP Server ===`);
-  logger.debug(`Configuration file: ${configPath}`);
-  logger.debug(`Loading safe-inputs configuration from: ${configPath}`);
-  logger.debug(`Base path for handlers: ${basePath}`);
-  logger.debug(`Server name: ${serverName}`);
-  logger.debug(`Server version: ${version}`);
-  logger.debug(`Tools to load: ${config.tools.length}`);
-
-  // Load tool handlers from file paths
-  // We'll use a temporary server object for loadToolHandlers compatibility
-  const tempServer = { debug: logger.debug, debugError: logger.debugError };
-  const tools = loadToolHandlers(tempServer, config.tools, basePath);
 
   // Register all tools with the MCP SDK server using the tool() method
   logger.debug(`Registering tools with MCP server...`);
@@ -114,17 +102,8 @@ function createMCPServer(configPath, options = {}) {
   logger.debug(`Tool registration complete: ${registeredCount} registered, ${skippedCount} skipped`);
   logger.debug(`=== MCP Server Creation Complete ===`);
 
-  // Delete the configuration file after loading to ensure no secrets remain on disk
-  try {
-    const fs = require("fs");
-    if (fs.existsSync(configPath)) {
-      fs.unlinkSync(configPath);
-      logger.debug(`Deleted configuration file: ${configPath}`);
-    }
-  } catch (error) {
-    logger.debugError(`Warning: Could not delete configuration file: `, error);
-    // Continue anyway - the server is already running
-  }
+  // Cleanup: delete the configuration file after loading
+  cleanupConfigFile(configPath, logger);
 
   return { server, config, logger };
 }
