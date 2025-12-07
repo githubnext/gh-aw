@@ -2372,6 +2372,7 @@ jobs:
             const http = require("http");
             const { randomUUID } = require("crypto");
             const { MCPServer } = require("./mcp_server.cjs");
+            const { createLogger } = require("./mcp_logger.cjs");
             class MCPHTTPTransport {
               constructor(options = {}) {
                 this.sessionIdGenerator = options.sessionIdGenerator;
@@ -2380,6 +2381,7 @@ jobs:
                 this.server = null;
                 this.sessionId = null;
                 this.started = false;
+                this.logger = createLogger("mcp-http-transport");
               }
               setServer(server) {
                 this.server = server;
@@ -2391,15 +2393,19 @@ jobs:
                 this.started = true;
               }
               async handleRequest(req, res, parsedBody) {
+                this.logger.debug(`Incoming ${req.method} request to ${req.url}`);
+                this.logger.debug(`Headers: ${JSON.stringify(req.headers)}`);
                 res.setHeader("Access-Control-Allow-Origin", "*");
                 res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
                 res.setHeader("Access-Control-Allow-Headers", "Content-Type, Accept, Mcp-Session-Id");
                 if (req.method === "OPTIONS") {
+                  this.logger.debug("Handling OPTIONS preflight request");
                   res.writeHead(200);
                   res.end();
                   return;
                 }
                 if (req.method !== "POST") {
+                  this.logger.debug(`Rejecting non-POST request: ${req.method}`);
                   res.writeHead(405, { "Content-Type": "application/json" });
                   res.end(JSON.stringify({ error: "Method not allowed" }));
                   return;
@@ -2407,14 +2413,18 @@ jobs:
                 try {
                   let body = parsedBody;
                   if (!body) {
+                    this.logger.debug("Parsing request body from stream");
                     const chunks = [];
                     for await (const chunk of req) {
                       chunks.push(chunk);
                     }
                     const bodyStr = Buffer.concat(chunks).toString();
+                    this.logger.debug(`Request body length: ${bodyStr.length} bytes`);
                     try {
                       body = bodyStr ? JSON.parse(bodyStr) : null;
+                      this.logger.debug(`Parsed JSON body: ${JSON.stringify(body)}`);
                     } catch (parseError) {
+                      this.logger.debug(`JSON parse error: ${parseError instanceof Error ? parseError.message : String(parseError)}`);
                       res.writeHead(400, { "Content-Type": "application/json" });
                       res.end(
                         JSON.stringify({
@@ -2428,8 +2438,11 @@ jobs:
                       );
                       return;
                     }
+                  } else {
+                    this.logger.debug(`Using pre-parsed body: ${JSON.stringify(body)}`);
                   }
                   if (!body) {
+                    this.logger.debug("Empty request body");
                     res.writeHead(400, { "Content-Type": "application/json" });
                     res.end(
                       JSON.stringify({
@@ -2444,6 +2457,7 @@ jobs:
                     return;
                   }
                   if (!body.jsonrpc || body.jsonrpc !== "2.0") {
+                    this.logger.debug(`Invalid JSON-RPC version: ${body.jsonrpc}`);
                     res.writeHead(400, { "Content-Type": "application/json" });
                     res.end(
                       JSON.stringify({
@@ -2457,12 +2471,16 @@ jobs:
                     );
                     return;
                   }
+                  this.logger.debug(`Processing JSON-RPC method: ${body.method}, id: ${body.id}`);
                   if (this.sessionIdGenerator) {
                     if (body.method === "initialize") {
                       this.sessionId = this.sessionIdGenerator();
+                      this.logger.debug(`Generated new session ID: ${this.sessionId}`);
                     } else {
                       const requestSessionId = req.headers["mcp-session-id"];
+                      this.logger.debug(`Validating session ID from header: ${requestSessionId}`);
                       if (!requestSessionId) {
+                        this.logger.debug("Missing Mcp-Session-Id header");
                         res.writeHead(400, { "Content-Type": "application/json" });
                         res.end(
                           JSON.stringify({
@@ -2477,6 +2495,7 @@ jobs:
                         return;
                       }
                       if (requestSessionId !== this.sessionId) {
+                        this.logger.debug(`Session not found: ${requestSessionId} (expected: ${this.sessionId})`);
                         res.writeHead(404, { "Content-Type": "application/json" });
                         res.end(
                           JSON.stringify({
@@ -2490,10 +2509,14 @@ jobs:
                         );
                         return;
                       }
+                      this.logger.debug("Session ID validated successfully");
                     }
                   }
+                  this.logger.debug("Forwarding request to MCP server");
                   const response = await this.server.handleRequest(body);
+                  this.logger.debug(`MCP server response: ${JSON.stringify(response)}`);
                   if (response === null) {
+                    this.logger.debug("Notification handled (no response)");
                     res.writeHead(204); 
                     res.end();
                     return;
@@ -2502,9 +2525,11 @@ jobs:
                   if (this.sessionId) {
                     headers["mcp-session-id"] = this.sessionId;
                   }
+                  this.logger.debug(`Sending response with headers: ${JSON.stringify(headers)}`);
                   res.writeHead(200, headers);
                   res.end(JSON.stringify(response));
                 } catch (error) {
+                  this.logger.debugError("Error handling request: ", error);
                   if (!res.headersSent) {
                     res.writeHead(500, { "Content-Type": "application/json" });
                     res.end(
@@ -2894,15 +2919,19 @@ jobs:
                 logger.debug(`Server connected to transport successfully`);
                 logger.debug(`Creating HTTP server...`);
                 const httpServer = http.createServer(async (req, res) => {
+                  logger.debug(`HTTP request received: ${req.method} ${req.url}`);
+                  logger.debug(`Request headers: ${JSON.stringify(req.headers)}`);
                   res.setHeader("Access-Control-Allow-Origin", "*");
                   res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
                   res.setHeader("Access-Control-Allow-Headers", "Content-Type, Accept");
                   if (req.method === "OPTIONS") {
+                    logger.debug("Handling OPTIONS preflight request");
                     res.writeHead(200);
                     res.end();
                     return;
                   }
                   if (req.method !== "POST") {
+                    logger.debug(`Rejecting non-POST request: ${req.method}`);
                     res.writeHead(405, { "Content-Type": "application/json" });
                     res.end(JSON.stringify({ error: "Method not allowed" }));
                     return;
@@ -2910,14 +2939,18 @@ jobs:
                   try {
                     let body = null;
                     if (req.method === "POST") {
+                      logger.debug("Reading request body");
                       const chunks = [];
                       for await (const chunk of req) {
                         chunks.push(chunk);
                       }
                       const bodyStr = Buffer.concat(chunks).toString();
+                      logger.debug(`Request body size: ${bodyStr.length} bytes`);
                       try {
                         body = bodyStr ? JSON.parse(bodyStr) : null;
+                        logger.debug(`Parsed request body: ${JSON.stringify(body)}`);
                       } catch (parseError) {
+                        logger.debugError("JSON parse error: ", parseError);
                         res.writeHead(400, { "Content-Type": "application/json" });
                         res.end(
                           JSON.stringify({
@@ -2932,7 +2965,9 @@ jobs:
                         return;
                       }
                     }
+                    logger.debug("Forwarding request to transport handler");
                     await transport.handleRequest(req, res, body);
+                    logger.debug("Request handled successfully");
                   } catch (error) {
                     logger.debugError("Error handling request: ", error);
                     if (!res.headersSent) {
@@ -3156,9 +3191,25 @@ jobs:
               exit 1
             fi
             # Check if server is responding
-            if curl -s -f -H "Authorization: Bearer $GH_AW_SAFE_INPUTS_API_KEY" http://localhost:$GH_AW_SAFE_INPUTS_PORT/ > /dev/null 2>&1; then
+            CURL_OUTPUT=$(mktemp)
+            CURL_HTTP_CODE=$(curl -s -w "%{http_code}" -H "Authorization: Bearer $GH_AW_SAFE_INPUTS_API_KEY" http://localhost:$GH_AW_SAFE_INPUTS_PORT/ -o "$CURL_OUTPUT" 2>&1)
+            CURL_EXIT_CODE=$?
+            if [ $CURL_EXIT_CODE -eq 0 ] && [ "$CURL_HTTP_CODE" = "200" ]; then
               echo "Safe Inputs MCP server is ready (attempt $i/10)"
+              rm -f "$CURL_OUTPUT"
               break
+            else
+              # Log detailed failure information
+              echo "Server check failed (attempt $i/10):"
+              echo "  - curl exit code: $CURL_EXIT_CODE"
+              echo "  - HTTP status code: $CURL_HTTP_CODE"
+              if [ -f "$CURL_OUTPUT" ] && [ -s "$CURL_OUTPUT" ]; then
+                echo "  - Response content:"
+                cat "$CURL_OUTPUT" | head -20
+              else
+                echo "  - Response content: (empty)"
+              fi
+              rm -f "$CURL_OUTPUT"
             fi
             if [ $i -eq 10 ]; then
               echo "ERROR: Safe Inputs MCP server failed to start after 10 seconds"

@@ -41,9 +41,26 @@ for i in {1..10}; do
   fi
   
   # Check if server is responding
-  if curl -s -f -H "Authorization: Bearer $GH_AW_SAFE_INPUTS_API_KEY" http://localhost:$GH_AW_SAFE_INPUTS_PORT/ > /dev/null 2>&1; then
+  CURL_OUTPUT=$(mktemp)
+  CURL_HTTP_CODE=$(curl -s -w "%{http_code}" -H "Authorization: Bearer $GH_AW_SAFE_INPUTS_API_KEY" http://localhost:$GH_AW_SAFE_INPUTS_PORT/ -o "$CURL_OUTPUT" 2>&1)
+  CURL_EXIT_CODE=$?
+  
+  if [ $CURL_EXIT_CODE -eq 0 ] && [ "$CURL_HTTP_CODE" = "200" ]; then
     echo "Safe Inputs MCP server is ready (attempt $i/10)"
+    rm -f "$CURL_OUTPUT"
     break
+  else
+    # Log detailed failure information
+    echo "Server check failed (attempt $i/10):"
+    echo "  - curl exit code: $CURL_EXIT_CODE"
+    echo "  - HTTP status code: $CURL_HTTP_CODE"
+    if [ -f "$CURL_OUTPUT" ] && [ -s "$CURL_OUTPUT" ]; then
+      echo "  - Response content:"
+      cat "$CURL_OUTPUT" | head -20
+    else
+      echo "  - Response content: (empty)"
+    fi
+    rm -f "$CURL_OUTPUT"
   fi
   
   if [ $i -eq 10 ]; then

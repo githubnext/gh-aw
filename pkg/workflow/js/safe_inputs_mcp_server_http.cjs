@@ -166,6 +166,10 @@ async function startHttpServer(configPath, options = {}) {
     // Create HTTP server
     logger.debug(`Creating HTTP server...`);
     const httpServer = http.createServer(async (req, res) => {
+      // Log all incoming requests
+      logger.debug(`HTTP request received: ${req.method} ${req.url}`);
+      logger.debug(`Request headers: ${JSON.stringify(req.headers)}`);
+      
       // Set CORS headers for development
       res.setHeader("Access-Control-Allow-Origin", "*");
       res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
@@ -173,6 +177,7 @@ async function startHttpServer(configPath, options = {}) {
 
       // Handle OPTIONS preflight
       if (req.method === "OPTIONS") {
+        logger.debug("Handling OPTIONS preflight request");
         res.writeHead(200);
         res.end();
         return;
@@ -180,6 +185,7 @@ async function startHttpServer(configPath, options = {}) {
 
       // Only handle POST requests for MCP protocol
       if (req.method !== "POST") {
+        logger.debug(`Rejecting non-POST request: ${req.method}`);
         res.writeHead(405, { "Content-Type": "application/json" });
         res.end(JSON.stringify({ error: "Method not allowed" }));
         return;
@@ -189,14 +195,18 @@ async function startHttpServer(configPath, options = {}) {
         // Parse request body for POST requests
         let body = null;
         if (req.method === "POST") {
+          logger.debug("Reading request body");
           const chunks = [];
           for await (const chunk of req) {
             chunks.push(chunk);
           }
           const bodyStr = Buffer.concat(chunks).toString();
+          logger.debug(`Request body size: ${bodyStr.length} bytes`);
           try {
             body = bodyStr ? JSON.parse(bodyStr) : null;
+            logger.debug(`Parsed request body: ${JSON.stringify(body)}`);
           } catch (parseError) {
+            logger.debugError("JSON parse error: ", parseError);
             res.writeHead(400, { "Content-Type": "application/json" });
             res.end(
               JSON.stringify({
@@ -213,7 +223,9 @@ async function startHttpServer(configPath, options = {}) {
         }
 
         // Let the transport handle the request
+        logger.debug("Forwarding request to transport handler");
         await transport.handleRequest(req, res, body);
+        logger.debug("Request handled successfully");
       } catch (error) {
         logger.debugError("Error handling request: ", error);
         if (!res.headersSent) {

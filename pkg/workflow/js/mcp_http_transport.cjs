@@ -21,6 +21,7 @@
 const http = require("http");
 const { randomUUID } = require("crypto");
 const { MCPServer } = require("./mcp_server.cjs");
+const { createLogger } = require("./mcp_logger.cjs");
 
 /**
  * MCP HTTP Transport implementation
@@ -40,6 +41,7 @@ class MCPHTTPTransport {
     this.server = null;
     this.sessionId = null;
     this.started = false;
+    this.logger = createLogger("mcp-http-transport");
   }
 
   /**
@@ -67,6 +69,10 @@ class MCPHTTPTransport {
    * @param {Object} [parsedBody] - Pre-parsed request body
    */
   async handleRequest(req, res, parsedBody) {
+    // Log all incoming requests
+    this.logger.debug(`Incoming ${req.method} request to ${req.url}`);
+    this.logger.debug(`Headers: ${JSON.stringify(req.headers)}`);
+    
     // Set CORS headers
     res.setHeader("Access-Control-Allow-Origin", "*");
     res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
@@ -74,6 +80,7 @@ class MCPHTTPTransport {
 
     // Handle OPTIONS preflight
     if (req.method === "OPTIONS") {
+      this.logger.debug("Handling OPTIONS preflight request");
       res.writeHead(200);
       res.end();
       return;
@@ -81,6 +88,7 @@ class MCPHTTPTransport {
 
     // Only handle POST requests for MCP protocol
     if (req.method !== "POST") {
+      this.logger.debug(`Rejecting non-POST request: ${req.method}`);
       res.writeHead(405, { "Content-Type": "application/json" });
       res.end(JSON.stringify({ error: "Method not allowed" }));
       return;
@@ -90,14 +98,18 @@ class MCPHTTPTransport {
       // Parse request body if not already parsed
       let body = parsedBody;
       if (!body) {
+        this.logger.debug("Parsing request body from stream");
         const chunks = [];
         for await (const chunk of req) {
           chunks.push(chunk);
         }
         const bodyStr = Buffer.concat(chunks).toString();
+        this.logger.debug(`Request body length: ${bodyStr.length} bytes`);
         try {
           body = bodyStr ? JSON.parse(bodyStr) : null;
+          this.logger.debug(`Parsed JSON body: ${JSON.stringify(body)}`);
         } catch (parseError) {
+          this.logger.debug(`JSON parse error: ${parseError instanceof Error ? parseError.message : String(parseError)}`);
           res.writeHead(400, { "Content-Type": "application/json" });
           res.end(
             JSON.stringify({
@@ -111,9 +123,12 @@ class MCPHTTPTransport {
           );
           return;
         }
+      } else {
+        this.logger.debug(`Using pre-parsed body: ${JSON.stringify(body)}`);
       }
 
       if (!body) {
+        this.logger.debug("Empty request body");
         res.writeHead(400, { "Content-Type": "application/json" });
         res.end(
           JSON.stringify({
@@ -130,6 +145,7 @@ class MCPHTTPTransport {
 
       // Validate JSON-RPC structure
       if (!body.jsonrpc || body.jsonrpc !== "2.0") {
+        this.logger.debug(`Invalid JSON-RPC version: ${body.jsonrpc}`);
         res.writeHead(400, { "Content-Type": "application/json" });
         res.end(
           JSON.stringify({
@@ -144,15 +160,20 @@ class MCPHTTPTransport {
         return;
       }
 
+      this.logger.debug(`Processing JSON-RPC method: ${body.method}, id: ${body.id}`);
+
       // Handle session management for stateful mode
       if (this.sessionIdGenerator) {
         // For initialize, generate a new session ID
         if (body.method === "initialize") {
           this.sessionId = this.sessionIdGenerator();
+          this.logger.debug(`Generated new session ID: ${this.sessionId}`);
         } else {
           // For other methods, validate session ID
           const requestSessionId = req.headers["mcp-session-id"];
+          this.logger.debug(`Validating session ID from header: ${requestSessionId}`);
           if (!requestSessionId) {
+            this.logger.debug("Missing Mcp-Session-Id header");
             res.writeHead(400, { "Content-Type": "application/json" });
             res.end(
               JSON.stringify({
@@ -168,6 +189,7 @@ class MCPHTTPTransport {
           }
 
           if (requestSessionId !== this.sessionId) {
+            this.logger.debug(`Session not found: ${requestSessionId} (expected: ${this.sessionId})`);
             res.writeHead(404, { "Content-Type": "application/json" });
             res.end(
               JSON.stringify({
@@ -181,14 +203,18 @@ class MCPHTTPTransport {
             );
             return;
           }
+          this.logger.debug("Session ID validated successfully");
         }
       }
 
       // Process the request through the MCP server
+      this.logger.debug("Forwarding request to MCP server");
       const response = await this.server.handleRequest(body);
+      this.logger.debug(`MCP server response: ${JSON.stringify(response)}`);
 
       // Handle notifications (null response means no reply needed)
       if (response === null) {
+        this.logger.debug("Notification handled (no response)");
         res.writeHead(204); // No Content
         res.end();
         return;
@@ -200,9 +226,11 @@ class MCPHTTPTransport {
         headers["mcp-session-id"] = this.sessionId;
       }
 
+      this.logger.debug(`Sending response with headers: ${JSON.stringify(headers)}`);
       res.writeHead(200, headers);
       res.end(JSON.stringify(response));
     } catch (error) {
+      this.logger.debugError("Error handling request: ", error);
       if (!res.headersSent) {
         res.writeHead(500, { "Content-Type": "application/json" });
         res.end(
