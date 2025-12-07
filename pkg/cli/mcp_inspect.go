@@ -145,6 +145,17 @@ func InspectWorkflowMCP(workflowFile string, serverFilter string, toolFilter str
 		return fmt.Errorf("failed to parse workflow file: %w", err)
 	}
 
+	// Validate frontmatter before analyzing MCPs
+	if err := parser.ValidateMainWorkflowFrontmatterWithSchemaAndLocation(parsedData.Frontmatter, workflowPath); err != nil {
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Frontmatter validation failed: %v", err)))
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Continuing with MCP inspection (validation errors may affect results)"))
+		}
+		// Don't return error - continue with inspection even if validation fails
+	} else if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Frontmatter validation passed"))
+	}
+
 	// Process imports from frontmatter to merge imported MCP servers
 	markdownDir := filepath.Dir(workflowPath)
 	importsResult, err := parser.ProcessImportsFromFrontmatterWithManifest(parsedData.Frontmatter, markdownDir, nil)
@@ -221,7 +232,7 @@ func InspectWorkflowMCP(workflowFile string, serverFilter string, toolFilter str
 				}
 				// Wait a moment for graceful shutdown
 				time.Sleep(500 * time.Millisecond)
-				// Force kill if still running (ignore errors as process may have already exited)
+				// Attempt force kill (may fail if process already exited gracefully, which is fine)
 				_ = safeInputsServerCmd.Process.Kill()
 			}
 			// Cleanup temporary directory
@@ -620,7 +631,7 @@ func spawnSafeInputsInspector(workflowFile string, verbose bool) error {
 			}
 			// Wait a moment for graceful shutdown
 			time.Sleep(500 * time.Millisecond)
-			// Force kill if still running (ignore errors as process may have already exited)
+			// Attempt force kill (may fail if process already exited gracefully, which is fine)
 			_ = serverCmd.Process.Kill()
 		}
 	}()
