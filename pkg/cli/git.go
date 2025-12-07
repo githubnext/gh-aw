@@ -113,6 +113,46 @@ func stageGitAttributesIfChanged() error {
 	return exec.Command("git", "-C", gitRoot, "add", gitAttributesPath).Run()
 }
 
+// ensureLogsGitignore ensures that .github/aw/logs/.gitignore exists to ignore log files
+func ensureLogsGitignore() error {
+	gitLog.Print("Ensuring .github/aw/logs/.gitignore exists")
+	gitRoot, err := findGitRoot()
+	if err != nil {
+		return err // Not in a git repository, skip
+	}
+
+	logsDir := filepath.Join(gitRoot, ".github", "aw", "logs")
+	gitignorePath := filepath.Join(logsDir, ".gitignore")
+
+	// Check if .gitignore already exists
+	if _, err := os.Stat(gitignorePath); err == nil {
+		gitLog.Print(".github/aw/logs/.gitignore already exists")
+		return nil
+	}
+
+	gitLog.Print("Creating .github/aw/logs directory and .gitignore")
+	// Create the logs directory if it doesn't exist
+	if err := os.MkdirAll(logsDir, 0755); err != nil {
+		gitLog.Printf("Failed to create logs directory: %v", err)
+		return fmt.Errorf("failed to create .github/aw/logs directory: %w", err)
+	}
+
+	// Write the .gitignore file
+	gitignoreContent := `# Ignore all downloaded workflow logs
+*
+
+# But keep the .gitignore file itself
+!.gitignore
+`
+	if err := os.WriteFile(gitignorePath, []byte(gitignoreContent), 0644); err != nil {
+		gitLog.Printf("Failed to write .gitignore: %v", err)
+		return fmt.Errorf("failed to write .github/aw/logs/.gitignore: %w", err)
+	}
+
+	gitLog.Print("Successfully created .github/aw/logs/.gitignore")
+	return nil
+}
+
 // getCurrentBranch gets the current git branch name
 func getCurrentBranch() (string, error) {
 	gitLog.Print("Getting current git branch")
