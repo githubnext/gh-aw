@@ -360,8 +360,11 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 			awfLogLevel = firewallConfig.LogLevel
 		}
 
-		// Get allowed domains (copilot defaults + network permissions) with specific ordering
-		allowedDomains := GetCopilotAllowedDomains(workflowData.NetworkPermissions)
+		// Check if safe-inputs is enabled to include host.docker.internal in allowed domains
+		hasSafeInputs := IsSafeInputsEnabled(workflowData.SafeInputs, workflowData)
+
+		// Get allowed domains (copilot defaults + network permissions + host.docker.internal if safe-inputs enabled)
+		allowedDomains := GetCopilotAllowedDomainsWithSafeInputs(workflowData.NetworkPermissions, hasSafeInputs)
 
 		// Build AWF arguments: mount points + standard flags + custom args from config
 		var awfArgs []string

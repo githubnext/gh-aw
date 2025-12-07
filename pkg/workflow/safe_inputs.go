@@ -588,12 +588,13 @@ func renderSafeInputsMCPConfigWithOptions(yaml *strings.Builder, safeInputs *Saf
 	yaml.WriteString("                \"type\": \"http\",\n")
 
 	// HTTP URL using environment variable
+	// Use host.docker.internal to allow access from firewall container
 	if includeCopilotFields {
 		// Copilot format: backslash-escaped shell variable reference
-		yaml.WriteString("                \"url\": \"http://localhost:\\${GH_AW_SAFE_INPUTS_PORT}\",\n")
+		yaml.WriteString("                \"url\": \"http://host.docker.internal:\\${GH_AW_SAFE_INPUTS_PORT}\",\n")
 	} else {
 		// Claude/Custom format: direct shell variable reference
-		yaml.WriteString("                \"url\": \"http://localhost:$GH_AW_SAFE_INPUTS_PORT\",\n")
+		yaml.WriteString("                \"url\": \"http://host.docker.internal:$GH_AW_SAFE_INPUTS_PORT\",\n")
 	}
 
 	// Add Authorization header with API key

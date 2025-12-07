@@ -144,11 +144,25 @@ func matchesDomain(domain, pattern string) bool {
 // GetCopilotAllowedDomains merges Copilot default domains with NetworkPermissions allowed domains
 // Returns a deduplicated, sorted, comma-separated string suitable for AWF's --allow-domains flag
 func GetCopilotAllowedDomains(network *NetworkPermissions) string {
+	return GetCopilotAllowedDomainsWithSafeInputs(network, false)
+}
+
+// GetCopilotAllowedDomainsWithSafeInputs merges Copilot default domains with NetworkPermissions allowed domains
+// and optionally includes host.docker.internal when safe-inputs is enabled
+// Returns a deduplicated, sorted, comma-separated string suitable for AWF's --allow-domains flag
+func GetCopilotAllowedDomainsWithSafeInputs(network *NetworkPermissions, hasSafeInputs bool) string {
 	domainMap := make(map[string]bool)
 
 	// Add Copilot default domains
 	for _, domain := range CopilotDefaultDomains {
 		domainMap[domain] = true
+	}
+
+	// Add host.docker.internal when safe-inputs is enabled
+	// This allows the firewall container to access the safe-inputs MCP HTTP server on the host
+	if hasSafeInputs {
+		domainMap["host.docker.internal"] = true
+		domainsLog.Print("Added host.docker.internal to allowed domains for safe-inputs MCP server")
 	}
 
 	// Add NetworkPermissions domains (if specified)
