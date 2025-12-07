@@ -1,12 +1,10 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-const { assignIssue } = require("./assign_agent_helpers.cjs");
-
 /**
- * Assign an issue to a user or bot (including copilot)
- * This script handles assigning issues after they are created
- * Uses the unified assignIssue helper that works for both users and agents via GraphQL
+ * Assign an issue to a regular user
+ * This script handles assigning issues to regular users (not agents) after they are created
+ * Agent assignment (e.g., copilot) is handled separately with dedicated steps that use agent tokens
  */
 
 async function main() {
@@ -45,17 +43,12 @@ async function main() {
   core.info(`Assigning issue #${trimmedIssueNumber} to ${trimmedAssignee}`);
 
   try {
-    // Get repository owner and repo from context
-    const owner = context.repo.owner;
-    const repo = context.repo.repo;
-
-    // Use the unified assignIssue helper that works for both users and agents via GraphQL
-    // The token is set at the step level via github-token parameter
-    const result = await assignIssue(owner, repo, issueNum, trimmedAssignee);
-
-    if (!result.success) {
-      throw new Error(result.error || "Failed to assign issue");
-    }
+    // Note: Agent assignment (e.g., copilot) is handled separately in dedicated steps
+    // with proper agent token authentication. This script is only for regular user assignment.
+    // Use gh CLI for regular user assignment
+    await exec.exec("gh", ["issue", "edit", trimmedIssueNumber, "--add-assignee", trimmedAssignee], {
+      env: { ...process.env, GH_TOKEN: ghToken },
+    });
 
     core.info(`✅ Successfully assigned issue #${trimmedIssueNumber} to ${trimmedAssignee}`);
 

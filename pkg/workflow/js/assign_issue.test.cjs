@@ -161,22 +161,28 @@ describe("assign_issue.cjs", () => {
   });
 
   describe("Successful assignment for regular users", () => {
-    it("should successfully assign issue to a regular user using GraphQL", async () => {
+    it("should successfully assign issue to a regular user", async () => {
       process.env.GH_TOKEN = "ghp_test123";
       process.env.ASSIGNEE = "test-user";
       process.env.ISSUE_NUMBER = "456";
 
-      // Note: Full end-to-end GraphQL functionality is tested in assign_agent_helpers.test.cjs
-      // This test verifies the script structure and that gh CLI is not used
-      // The eval() approach here cannot fully mock the require() chain, so we focus on
-      // verifying the script loads without errors and validates environment variables
+      mockExec.exec.mockResolvedValue(0);
 
       // Execute the script
       await eval(`(async () => { ${assignIssueScript} })()`);
 
       expect(mockCore.info).toHaveBeenCalledWith("Assigning issue #456 to test-user");
-      // Verify gh CLI is not used
-      expect(mockExec.exec).not.toHaveBeenCalled();
+      expect(mockExec.exec).toHaveBeenCalledWith(
+        "gh",
+        ["issue", "edit", "456", "--add-assignee", "test-user"],
+        expect.objectContaining({
+          env: expect.objectContaining({ GH_TOKEN: "ghp_test123" }),
+        })
+      );
+      expect(mockCore.info).toHaveBeenCalledWith("✅ Successfully assigned issue #456 to test-user");
+      expect(mockCore.summary.addRaw).toHaveBeenCalledWith(expect.stringContaining("Successfully assigned issue #456"));
+      expect(mockCore.summary.write).toHaveBeenCalled();
+      expect(mockCore.setFailed).not.toHaveBeenCalled();
     });
 
     it("should trim whitespace from environment variables", async () => {
@@ -184,56 +190,61 @@ describe("assign_issue.cjs", () => {
       process.env.ASSIGNEE = "  test-user  ";
       process.env.ISSUE_NUMBER = "  123  ";
 
+      mockExec.exec.mockResolvedValue(0);
+
       // Execute the script
       await eval(`(async () => { ${assignIssueScript} })()`);
 
       expect(mockCore.info).toHaveBeenCalledWith("Assigning issue #123 to test-user");
-      // No gh CLI calls should be made
-      expect(mockExec.exec).not.toHaveBeenCalled();
+      expect(mockExec.exec).toHaveBeenCalledWith("gh", ["issue", "edit", "123", "--add-assignee", "test-user"], expect.any(Object));
+      expect(mockCore.setFailed).not.toHaveBeenCalled();
     });
 
-    it("should include summary in output on success", async () => {
+    it("should include summary in output", async () => {
       process.env.GH_TOKEN = "ghp_test123";
       process.env.ASSIGNEE = "test-user";
       process.env.ISSUE_NUMBER = "123";
 
-      // Mock successful assignment result (would come from assignIssue helper)
-      // This test verifies the summary generation logic works when assignment succeeds
+      mockExec.exec.mockResolvedValue(0);
 
       // Execute the script
       await eval(`(async () => { ${assignIssueScript} })()`);
 
-      // Note: Summary will only be added if assignIssue succeeds, which requires proper mocking
-      // The actual summary generation is tested indirectly through integration tests
+      expect(mockCore.summary.addRaw).toHaveBeenCalledWith(expect.stringContaining("## Issue Assignment"));
+      expect(mockCore.summary.addRaw).toHaveBeenCalledWith(expect.stringContaining("Successfully assigned issue #123 to `test-user`"));
+      expect(mockCore.summary.write).toHaveBeenCalled();
     });
   });
 
   describe("Error handling for regular users", () => {
-    it("should handle GraphQL API errors", async () => {
+    it("should handle gh CLI execution errors", async () => {
       process.env.GH_TOKEN = "ghp_test123";
       process.env.ASSIGNEE = "test-user";
       process.env.ISSUE_NUMBER = "999";
 
-      // The script now uses assignIssue helper which handles GraphQL errors
-      // Error handling is tested in assign_agent_helpers.test.cjs
+      const testError = new Error("User not found");
+      mockExec.exec.mockRejectedValue(testError);
 
       // Execute the script
       await eval(`(async () => { ${assignIssueScript} })()`);
 
-      // Verify no gh CLI calls are made
-      expect(mockExec.exec).not.toHaveBeenCalled();
+      expect(mockCore.error).toHaveBeenCalledWith("Failed to assign issue: User not found");
+      expect(mockCore.setFailed).toHaveBeenCalledWith("Failed to assign issue #999 to test-user: User not found");
     });
 
-    it("should handle errors and call setFailed", async () => {
+    it("should handle non-Error objects in catch block", async () => {
       process.env.GH_TOKEN = "ghp_test123";
       process.env.ASSIGNEE = "test-user";
       process.env.ISSUE_NUMBER = "999";
 
-      // Execute the script - errors from assignIssue helper will be caught
+      const stringError = "Command failed";
+      mockExec.exec.mockRejectedValue(stringError);
+
+      // Execute the script
       await eval(`(async () => { ${assignIssueScript} })()`);
 
-      // No gh CLI should be invoked
-      expect(mockExec.exec).not.toHaveBeenCalled();
+      expect(mockCore.error).toHaveBeenCalledWith("Failed to assign issue: Command failed");
+      expect(mockCore.setFailed).toHaveBeenCalledWith("Failed to assign issue #999 to test-user: Command failed");
     });
 
     it("should handle top-level errors with catch handler", async () => {
@@ -241,11 +252,15 @@ describe("assign_issue.cjs", () => {
       process.env.ASSIGNEE = "test-user";
       process.env.ISSUE_NUMBER = "123";
 
+      // Mock exec to throw an error that isn't caught in main
+      const uncaughtError = new Error("Uncaught error");
+      mockExec.exec.mockRejectedValue(uncaughtError);
+
       // Execute the script
       await eval(`(async () => { ${assignIssueScript} })()`);
 
-      // No gh CLI calls should be made with the new implementation
-      expect(mockExec.exec).not.toHaveBeenCalled();
+      // The error should be caught in the main catch handler
+      expect(mockCore.setFailed).toHaveBeenCalled();
     });
   });
 
@@ -255,24 +270,31 @@ describe("assign_issue.cjs", () => {
       process.env.ASSIGNEE = "test-user";
       process.env.ISSUE_NUMBER = "123";
 
+      mockExec.exec.mockResolvedValue(0);
+
       // Execute the script
       await eval(`(async () => { ${assignIssueScript} })()`);
 
-      // Script now uses GraphQL API, not gh CLI
-      expect(mockExec.exec).not.toHaveBeenCalled();
+      expect(mockExec.exec).toHaveBeenCalledWith("gh", ["issue", "edit", "123", "--add-assignee", "test-user"], expect.any(Object));
     });
 
-    it("should use GraphQL API instead of gh CLI", async () => {
+    it("should pass through GH_TOKEN in exec environment", async () => {
       process.env.GH_TOKEN = "ghp_test123";
       process.env.ASSIGNEE = "test-user";
       process.env.ISSUE_NUMBER = "123";
       process.env.OTHER_VAR = "other_value";
 
+      mockExec.exec.mockResolvedValue(0);
+
       // Execute the script
       await eval(`(async () => { ${assignIssueScript} })()`);
 
-      // Verify gh CLI is not used
-      expect(mockExec.exec).not.toHaveBeenCalled();
+      expect(mockExec.exec).toHaveBeenCalledWith("gh", ["issue", "edit", "123", "--add-assignee", "test-user"], {
+        env: expect.objectContaining({
+          GH_TOKEN: "ghp_test123",
+          OTHER_VAR: "other_value",
+        }),
+      });
     });
 
     it("should handle special characters in assignee name", async () => {
@@ -280,11 +302,13 @@ describe("assign_issue.cjs", () => {
       process.env.ASSIGNEE = "user-with-dash";
       process.env.ISSUE_NUMBER = "123";
 
+      mockExec.exec.mockResolvedValue(0);
+
       // Execute the script
       await eval(`(async () => { ${assignIssueScript} })()`);
 
-      // Script uses assignIssue helper which handles all assignee types
-      expect(mockExec.exec).not.toHaveBeenCalled();
+      expect(mockExec.exec).toHaveBeenCalledWith("gh", ["issue", "edit", "123", "--add-assignee", "user-with-dash"], expect.any(Object));
+      expect(mockCore.setFailed).not.toHaveBeenCalled();
     });
 
     it("should include documentation link in error message", async () => {
@@ -300,7 +324,6 @@ describe("assign_issue.cjs", () => {
     });
   });
 
-  // Note: Agent-specific tests (e.g., @copilot) are in assign_agent_helpers.test.cjs
-  // since assign_issue.cjs uses the shared helpers module for agent assignment,
-  // and the require() statements don't work with eval() in tests.
+  // Note: Agent assignment (e.g., copilot) is handled by separate dedicated steps
+  // that use agent tokens. This script only handles regular user assignment.
 });
