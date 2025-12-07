@@ -3621,7 +3621,7 @@ jobs:
           - **Issue/PR Number**: __GH_AW_EXPR_799BE623__
           - **Triggered by**: @__GH_AW_GITHUB_ACTOR__
           
-          {{#if ${{ __GH_AW_GITHUB_EVENT_ISSUE_NUMBER__ }} }}
+          {{#if __GH_AW_GITHUB_EVENT_ISSUE_NUMBER__ }}
           ### Parent Issue Context
           
           This workflow was triggered from a comment on issue #__GH_AW_GITHUB_EVENT_ISSUE_NUMBER__.
@@ -3634,7 +3634,7 @@ jobs:
           4. Use this issue context to inform your investigation and recommendations
           {{/if}}
           
-          {{#if ${{ __GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER__ }} }}
+          {{#if __GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER__ }}
           ### Parent Pull Request Context
           
           This workflow was triggered from a comment on pull request #__GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER__.
@@ -3647,7 +3647,7 @@ jobs:
           4. Use this PR context to inform your investigation and recommendations
           {{/if}}
           
-          {{#if ${{ __GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER__ }} }}
+          {{#if __GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER__ }}
           ### Parent Discussion Context
           
           This workflow was triggered from a comment on discussion #__GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER__.

@@ -3441,7 +3441,7 @@ jobs:
           
           Focus on files that were recently modified or are in the `docs/src/content/docs/samples/` directory.
           
-          {{#if ${{ __GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER__ }} }}
+          {{#if __GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER__}}
           **Pull Request Context**: Since this workflow is running in the context of PR #__GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER__, prioritize reviewing the documentation files that were modified in this pull request. Use the GitHub API to get the list of changed files:
           
           ```bash
