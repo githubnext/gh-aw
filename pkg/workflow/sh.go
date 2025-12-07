@@ -24,9 +24,6 @@ var createCacheMemoryDirScript string
 //go:embed sh/create_gh_aw_tmp_dir.sh
 var createGhAwTmpDirScript string
 
-//go:embed sh/start_safe_inputs_server.sh
-var startSafeInputsServerScript string
-
 //go:embed prompts/xpia_prompt.md
 var xpiaPromptText string
 

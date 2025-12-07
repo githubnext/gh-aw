@@ -453,6 +453,7 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		yaml.WriteString("          docker run -d --rm --init \\\n")
 		yaml.WriteString("            --name " + constants.SafeInputsContainerName + " \\\n")
 		yaml.WriteString("            --network " + constants.SafeInputsDockerNetwork + " \\\n")
+		yaml.WriteString("            -p ${{ steps.safe-inputs-config.outputs.safe_inputs_port }}:${{ steps.safe-inputs-config.outputs.safe_inputs_port }} \\\n")
 		yaml.WriteString("            -e GH_AW_SAFE_INPUTS_PORT=${{ steps.safe-inputs-config.outputs.safe_inputs_port }} \\\n")
 		yaml.WriteString("            -e GH_AW_SAFE_INPUTS_API_KEY=${{ steps.safe-inputs-config.outputs.safe_inputs_api_key }} \\\n")
 

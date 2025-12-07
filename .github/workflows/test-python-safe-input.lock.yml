@@ -3028,6 +3028,7 @@ jobs:
           docker run -d --rm --init \
             --name safeinputs \
             --network gh-aw-network \
+            -p ${{ steps.safe-inputs-config.outputs.safe_inputs_port }}:${{ steps.safe-inputs-config.outputs.safe_inputs_port }} \
             -e GH_AW_SAFE_INPUTS_PORT=${{ steps.safe-inputs-config.outputs.safe_inputs_port }} \
             -e GH_AW_SAFE_INPUTS_API_KEY=${{ steps.safe-inputs-config.outputs.safe_inputs_api_key }} \
             -v /tmp/gh-aw/safe-inputs:/tmp/gh-aw/safe-inputs \
@@ -3096,7 +3097,7 @@ jobs:
               },
               "safeinputs": {
                 "type": "http",
-                "url": "http://safeinputs:\${GH_AW_SAFE_INPUTS_PORT}",
+                "url": "http://localhost:\${GH_AW_SAFE_INPUTS_PORT}",
                 "headers": {
                   "Authorization": "Bearer \${GH_AW_SAFE_INPUTS_API_KEY}"
                 },

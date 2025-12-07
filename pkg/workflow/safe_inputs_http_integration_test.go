@@ -90,11 +90,12 @@ Test safe-inputs HTTP server
 		}
 	}
 
-	// Verify Docker container startup
+	// Verify Docker container startup with port mapping
 	serverStartupChecks := []string{
 		"docker run -d --rm --init",
 		"--name safeinputs",
 		"--network gh-aw-network",
+		"-p ${{ steps.safe-inputs-config.outputs.safe_inputs_port }}:${{ steps.safe-inputs-config.outputs.safe_inputs_port }}",
 		"-e GH_AW_SAFE_INPUTS_PORT=${{ steps.safe-inputs-config.outputs.safe_inputs_port }}",
 		"-e GH_AW_SAFE_INPUTS_API_KEY=${{ steps.safe-inputs-config.outputs.safe_inputs_api_key }}",
 		"-v /tmp/gh-aw/safe-inputs:/tmp/gh-aw/safe-inputs",
@@ -124,11 +125,11 @@ Test safe-inputs HTTP server
 		}
 	}
 
-	// Verify HTTP MCP configuration uses container name
+	// Verify HTTP MCP configuration
 	expectedMCPChecks := []string{
 		`"safeinputs": {`,
 		`"type": "http"`,
-		`"url": "http://safeinputs:\${GH_AW_SAFE_INPUTS_PORT}"`,
+		`"url": "http://localhost:\${GH_AW_SAFE_INPUTS_PORT}"`,
 		`"headers": {`,
 		`"Authorization": "Bearer \${GH_AW_SAFE_INPUTS_API_KEY}"`,
 		`"tools": ["*"]`,
