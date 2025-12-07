@@ -76,7 +76,7 @@ func GetBaseInstallationSteps(config EngineInstallConfig, workflowData *Workflow
 // This is used by the Copilot CLI which expects agent identifiers, not full paths.
 //
 // Parameters:
-//   - agentFile: The relative path to the agent file (e.g., ".github/agents/test-agent.md")
+//   - agentFile: The relative path to the agent file (e.g., ".github/agents/test-agent.md" or ".github/agents/test-agent.agent.md")
 //
 // Returns:
 //   - string: The agent identifier (e.g., "test-agent")
@@ -84,6 +84,9 @@ func GetBaseInstallationSteps(config EngineInstallConfig, workflowData *Workflow
 // Example:
 //
 //	identifier := ExtractAgentIdentifier(".github/agents/my-agent.md")
+//	// Returns: "my-agent"
+//
+//	identifier := ExtractAgentIdentifier(".github/agents/my-agent.agent.md")
 //	// Returns: "my-agent"
 func ExtractAgentIdentifier(agentFile string) string {
 	engineHelpersLog.Printf("Extracting agent identifier from: %s", agentFile)
@@ -94,7 +97,9 @@ func ExtractAgentIdentifier(agentFile string) string {
 		filename = agentFile[lastSlash+1:]
 	}
 
-	// Remove the .md extension using TrimSuffix (unconditionally safe)
+	// Remove the .agent.md extension first (for custom agent files), then fall back to .md
+	// This handles both ".agent.md" and ".md" extensions correctly
+	filename = strings.TrimSuffix(filename, ".agent.md")
 	filename = strings.TrimSuffix(filename, ".md")
 
 	return filename
