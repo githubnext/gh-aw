@@ -109,6 +109,12 @@ func TestInitRepositoryBasic(t *testing.T) {
 	if !strings.Contains(string(content), expectedEntry) {
 		t.Errorf("Expected .gitattributes to contain %q", expectedEntry)
 	}
+
+	// Verify logs .gitignore was created
+	logsGitignorePath := filepath.Join(".github", "aw", "logs", ".gitignore")
+	if _, err := os.Stat(logsGitignorePath); os.IsNotExist(err) {
+		t.Error("Expected .github/aw/logs/.gitignore to be created")
+	}
 }
 
 func TestInitRepositoryWithMCP(t *testing.T) {

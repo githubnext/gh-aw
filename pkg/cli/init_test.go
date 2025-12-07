@@ -80,6 +80,28 @@ func TestInitRepository(t *testing.T) {
 				t.Errorf("Expected copilot instructions file to exist")
 			}
 
+			// Verify logs .gitignore was created
+			logsGitignorePath := filepath.Join(tempDir, ".github", "aw", "logs", ".gitignore")
+			if _, err := os.Stat(logsGitignorePath); os.IsNotExist(err) {
+				t.Errorf("Expected .github/aw/logs/.gitignore file to exist")
+			}
+
+			// Verify logs .gitignore content
+			if content, err := os.ReadFile(logsGitignorePath); err == nil {
+				contentStr := string(content)
+				if !strings.Contains(contentStr, "# Ignore all downloaded workflow logs") {
+					t.Errorf("Expected .gitignore to contain comment about ignoring logs")
+				}
+				if !strings.Contains(contentStr, "*") {
+					t.Errorf("Expected .gitignore to contain wildcard pattern")
+				}
+				if !strings.Contains(contentStr, "!.gitignore") {
+					t.Errorf("Expected .gitignore to keep itself")
+				}
+			} else {
+				t.Errorf("Failed to read .github/aw/logs/.gitignore: %v", err)
+			}
+
 			// Verify agentic workflow agent was created
 			agenticWorkflowAgentPath := filepath.Join(tempDir, ".github", "agents", "create-agentic-workflow.agent.md")
 			if _, err := os.Stat(agenticWorkflowAgentPath); os.IsNotExist(err) {
@@ -157,6 +179,12 @@ func TestInitRepository_Idempotent(t *testing.T) {
 	debugAgenticWorkflowAgentPath := filepath.Join(tempDir, ".github", "agents", "debug-agentic-workflow.agent.md")
 	if _, err := os.Stat(debugAgenticWorkflowAgentPath); os.IsNotExist(err) {
 		t.Errorf("Expected debug agentic workflow agent file to exist after second call")
+	}
+
+	// Verify logs .gitignore still exists after second call
+	logsGitignorePath := filepath.Join(tempDir, ".github", "aw", "logs", ".gitignore")
+	if _, err := os.Stat(logsGitignorePath); os.IsNotExist(err) {
+		t.Errorf("Expected .github/aw/logs/.gitignore file to exist after second call")
 	}
 }
 
