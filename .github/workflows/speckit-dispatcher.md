@@ -4,12 +4,13 @@ description: Dispatches user requests to appropriate spec-kit commands for spec-
 on:
   command:
     name: speckit
-    events: [issues, issue_comment, pull_request, pull_request_comment]
+    events: [issues, issue_comment, pull_request, pull_request_comment, discussion, discussion_comment]
   reaction: eyes
 
 permissions:
   contents: read
-  issues: read
+  issues: write
+  discussions: read
   pull-requests: read
 
 engine: copilot
@@ -33,8 +34,12 @@ tools:
     - "cat .specify/memory/constitution.md"
 
 safe-outputs:
+  create-issue:
+    max: 5
   add-comment:
-    max: 1
+    max: 5
+  link-sub-issue:
+    max: 5
   messages:
     footer: "> 🎯 *Spec-Kit dispatcher by [{workflow_name}]({run_url})*"
     run-started: "🔍 Analyzing your spec-kit request via [{workflow_name}]({run_url})..."

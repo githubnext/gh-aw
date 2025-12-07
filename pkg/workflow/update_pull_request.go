@@ -10,10 +10,9 @@ var updatePullRequestLog = logger.New("workflow:update_pull_request")
 
 // UpdatePullRequestsConfig holds configuration for updating GitHub pull requests from agent output
 type UpdatePullRequestsConfig struct {
-	BaseSafeOutputConfig   `yaml:",inline"`
-	SafeOutputTargetConfig `yaml:",inline"`
-	Title                  *bool `yaml:"title,omitempty"` // Allow updating PR title - defaults to true, set to false to disable
-	Body                   *bool `yaml:"body,omitempty"`  // Allow updating PR body - defaults to true, set to false to disable
+	UpdateEntityConfig `yaml:",inline"`
+	Title              *bool `yaml:"title,omitempty"` // Allow updating PR title - defaults to true, set to false to disable
+	Body               *bool `yaml:"body,omitempty"`  // Allow updating PR body - defaults to true, set to false to disable
 }
 
 // buildCreateOutputUpdatePullRequestJob creates the update_pull_request job
@@ -38,9 +37,6 @@ func (c *Compiler) buildCreateOutputUpdatePullRequestJob(data *WorkflowData, mai
 	// Pass the target configuration
 	customEnvVars = append(customEnvVars, BuildTargetEnvVar("GH_AW_UPDATE_TARGET", cfg.Target)...)
 
-	// Add standard environment variables (metadata + staged/target repo)
-	customEnvVars = append(customEnvVars, c.buildStandardSafeOutputEnvVars(data, cfg.TargetRepoSlug)...)
-
 	// Create outputs for the job
 	outputs := map[string]string{
 		"pull_request_number": "${{ steps.update_pull_request.outputs.pull_request_number }}",
@@ -54,36 +50,47 @@ func (c *Compiler) buildCreateOutputUpdatePullRequestJob(data *WorkflowData, mai
 		jobCondition = buildAnd(jobCondition, eventCondition)
 	}
 
-	// Use the shared builder function to create the job
-	return c.buildSafeOutputJob(data, SafeOutputJobConfig{
-		JobName:        "update_pull_request",
-		StepName:       "Update Pull Request",
-		StepID:         "update_pull_request",
-		MainJobName:    mainJobName,
-		CustomEnvVars:  customEnvVars,
-		Script:         getUpdatePullRequestScript(),
-		Permissions:    NewPermissionsContentsReadPRWrite(),
-		Outputs:        outputs,
-		Condition:      jobCondition,
-		Token:          cfg.GitHubToken,
-		TargetRepoSlug: cfg.TargetRepoSlug,
-	})
+	params := UpdateEntityJobParams{
+		EntityType:      UpdateEntityPullRequest,
+		ConfigKey:       "update-pull-request",
+		JobName:         "update_pull_request",
+		StepName:        "Update Pull Request",
+		ScriptGetter:    getUpdatePullRequestScript,
+		PermissionsFunc: NewPermissionsContentsReadPRWrite,
+		CustomEnvVars:   customEnvVars,
+		Outputs:         outputs,
+		Condition:       jobCondition,
+	}
+
+	return c.buildUpdateEntityJob(data, mainJobName, &cfg.UpdateEntityConfig, params, updatePullRequestLog)
 }
 
 // parseUpdatePullRequestsConfig handles update-pull-request configuration
 func (c *Compiler) parseUpdatePullRequestsConfig(outputMap map[string]any) *UpdatePullRequestsConfig {
 	updatePullRequestLog.Print("Parsing update pull request configuration")
+	params := UpdateEntityJobParams{
+		EntityType: UpdateEntityPullRequest,
+		ConfigKey:  "update-pull-request",
+	}
+
+	parseSpecificFields := func(configMap map[string]any, baseConfig *UpdateEntityConfig) {
+		// This will be called during parsing to handle PR-specific fields
+		// The actual UpdatePullRequestsConfig fields are handled separately since they're not in baseConfig
+	}
+
+	baseConfig := c.parseUpdateEntityConfig(outputMap, params, updatePullRequestLog, parseSpecificFields)
+	if baseConfig == nil {
+		return nil
+	}
+
+	// Create UpdatePullRequestsConfig and populate it
+	updatePullRequestsConfig := &UpdatePullRequestsConfig{
+		UpdateEntityConfig: *baseConfig,
+	}
+
+	// Parse PR-specific fields
 	if configData, exists := outputMap["update-pull-request"]; exists {
-		updatePullRequestsConfig := &UpdatePullRequestsConfig{}
-
 		if configMap, ok := configData.(map[string]any); ok {
-			// Parse target config (target, target-repo) with validation
-			targetConfig, isInvalid := ParseTargetConfig(configMap)
-			if isInvalid {
-				return nil // Invalid configuration (e.g., wildcard target-repo), return nil to cause validation error
-			}
-			updatePullRequestsConfig.SafeOutputTargetConfig = targetConfig
-
 			// Parse title - boolean to enable/disable (defaults to true if nil or not set)
 			if titleVal, exists := configMap["title"]; exists {
 				if titleBool, ok := titleVal.(bool); ok {
@@ -99,17 +106,8 @@ func (c *Compiler) parseUpdatePullRequestsConfig(outputMap map[string]any) *Upda
 				}
 				// If present but not a bool (e.g., null), leave as nil (defaults to enabled)
 			}
-
-			// Parse common base fields with default max of 1
-			c.parseBaseSafeOutputConfig(configMap, &updatePullRequestsConfig.BaseSafeOutputConfig, 1)
-		} else {
-			// If configData is nil or not a map (e.g., "update-pull-request:" with no value),
-			// still set the default max
-			updatePullRequestsConfig.Max = 1
 		}
-
-		return updatePullRequestsConfig
 	}
 
-	return nil
+	return updatePullRequestsConfig
 }
