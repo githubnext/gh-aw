@@ -21,11 +21,6 @@ func TestBundlerIntegration(t *testing.T) {
 			t.Error("bundled script does not contain inlined sanitizeContent function")
 		}
 
-		// Should contain the inlining comment
-		if !strings.Contains(script, "Inlined from") {
-			t.Error("bundled script does not contain inlining comment")
-		}
-
 		// Should not contain the require statement
 		if strings.Contains(script, `require("./sanitize_content.cjs")`) {
 			t.Error("bundled script still contains require statement")
@@ -50,11 +45,6 @@ func TestBundlerIntegration(t *testing.T) {
 			t.Error("bundled script does not contain inlined sanitizeContent function")
 		}
 
-		// Should contain the inlining comment
-		if !strings.Contains(script, "Inlined from") {
-			t.Error("bundled script does not contain inlining comment")
-		}
-
 		// Should not contain the require statement
 		if strings.Contains(script, `require("./sanitize_content.cjs")`) {
 			t.Error("bundled script still contains require statement")
@@ -77,11 +67,6 @@ func TestBundlerIntegration(t *testing.T) {
 		// Should contain inlined sanitizeContent function
 		if !strings.Contains(script, "function sanitizeContent") {
 			t.Error("bundled script does not contain inlined sanitizeContent function")
-		}
-
-		// Should contain the inlining comment
-		if !strings.Contains(script, "Inlined from") {
-			t.Error("bundled script does not contain inlining comment")
 		}
 
 		// Should not contain the require statement

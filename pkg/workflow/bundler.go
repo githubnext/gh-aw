@@ -146,6 +146,14 @@ func BundleJavaScriptWithMode(mainContent string, sources map[string]string, bas
 		// Note: We still bundle what we can, but don't fail on remaining requires
 	}
 
+	// Remove JavaScript comments from the bundled output
+	// This reduces size and removes potentially sensitive information
+	bundledBeforeCommentRemoval := bundled
+	bundled = removeJavaScriptComments(bundled)
+	bundlerLog.Printf("Comment removal: %d bytes -> %d bytes (%.1f%% reduction)",
+		len(bundledBeforeCommentRemoval), len(bundled),
+		100.0*float64(len(bundledBeforeCommentRemoval)-len(bundled))/float64(len(bundledBeforeCommentRemoval)))
+
 	// Log size information about the bundled output
 	lines := strings.Split(bundled, "\n")
 	var maxLineLength int
