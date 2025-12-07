@@ -2655,20 +2655,20 @@ jobs:
         run: |
           PROMPT_DIR="$(dirname "$GH_AW_PROMPT")"
           mkdir -p "$PROMPT_DIR"
-          cat << 'PROMPT_EOF' | envsubst > "$GH_AW_PROMPT"
+          cat << 'PROMPT_EOF' > "$GH_AW_PROMPT"
           # Planning Assistant
           
           You are an expert planning assistant for GitHub Copilot agents. Your task is to analyze an issue or discussion and break it down into a sequence of actionable work items that can be assigned to GitHub Copilot agents.
           
           ## Current Context
           
-          - **Repository**: ${GH_AW_GITHUB_REPOSITORY}
-          - **Issue Number**: ${GH_AW_GITHUB_EVENT_ISSUE_NUMBER}
-          - **Discussion Number**: ${GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER}
+          - **Repository**: __GH_AW_GITHUB_REPOSITORY__
+          - **Issue Number**: __GH_AW_GITHUB_EVENT_ISSUE_NUMBER__
+          - **Discussion Number**: __GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER__
           - **Comment Content**: 
           
           <comment>
-          ${GH_AW_NEEDS_ACTIVATION_OUTPUTS_TEXT}
+          __GH_AW_NEEDS_ACTIVATION_OUTPUTS_TEXT__
           </comment>
           
           ## Your Mission
@@ -2686,7 +2686,7 @@ jobs:
           - **Title**: A brief summary of the overall work (e.g., "Implement user authentication system")
           - **Body**: 
             - Overview of the work to be done
-            - Link back to the triggering issue (#${GH_AW_GITHUB_EVENT_ISSUE_NUMBER}) or discussion (#${GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER})
+            - Link back to the triggering issue (#__GH_AW_GITHUB_EVENT_ISSUE_NUMBER__) or discussion (#__GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER__)
             - High-level breakdown of the planned sub-issues
           - **temporary_id**: Generate a unique temporary ID (format: `aw_` followed by 12 hex characters, e.g., `aw_abc123def456`) to reference this parent issue when creating sub-issues
           
@@ -2771,11 +2771,15 @@ jobs:
           4. After creating all issues successfully, if this was triggered from a discussion in the "Ideas" category, close the discussion with a comment summarizing the plan and resolution reason "RESOLVED"
           
           PROMPT_EOF
+          sed -i "s|__GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER__|${GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER//|/\\|}|g" "$GH_AW_PROMPT"
+          sed -i "s|__GH_AW_GITHUB_EVENT_ISSUE_NUMBER__|${GH_AW_GITHUB_EVENT_ISSUE_NUMBER//|/\\|}|g" "$GH_AW_PROMPT"
+          sed -i "s|__GH_AW_GITHUB_REPOSITORY__|${GH_AW_GITHUB_REPOSITORY//|/\\|}|g" "$GH_AW_PROMPT"
+          sed -i "s|__GH_AW_NEEDS_ACTIVATION_OUTPUTS_TEXT__|${GH_AW_NEEDS_ACTIVATION_OUTPUTS_TEXT//|/\\|}|g" "$GH_AW_PROMPT"
       - name: Append XPIA security instructions to prompt
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          cat << 'PROMPT_EOF' | envsubst >> "$GH_AW_PROMPT"
+          cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
           <security-guidelines>
           <description>Cross-Prompt Injection Attack (XPIA) Protection</description>
           <warning>
@@ -2797,7 +2801,7 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          cat << 'PROMPT_EOF' | envsubst >> "$GH_AW_PROMPT"
+          cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
           <temporary-files>
           <path>/tmp/gh-aw/agent/</path>
           <instruction>When you need to create temporary files or directories during your work, always use the /tmp/gh-aw/agent/ directory that has been pre-created for you. Do NOT use the root /tmp/ directory directly.</instruction>
@@ -2808,7 +2812,7 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          cat << 'PROMPT_EOF' | envsubst >> "$GH_AW_PROMPT"
+          cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
           <safe-outputs>
           <description>GitHub API Access Instructions</description>
           <important>
@@ -2832,43 +2836,51 @@ jobs:
           GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
           GH_AW_GITHUB_WORKSPACE: ${{ github.workspace }}
         run: |
-          cat << 'PROMPT_EOF' | envsubst >> "$GH_AW_PROMPT"
+          cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
           <github-context>
           The following GitHub context information is available for this workflow:
-          {{#if ${GH_AW_GITHUB_ACTOR} }}
-          - **actor**: ${GH_AW_GITHUB_ACTOR}
+          {{#if __GH_AW_GITHUB_ACTOR__ }}
+          - **actor**: __GH_AW_GITHUB_ACTOR__
           {{/if}}
-          {{#if ${GH_AW_GITHUB_REPOSITORY} }}
-          - **repository**: ${GH_AW_GITHUB_REPOSITORY}
+          {{#if __GH_AW_GITHUB_REPOSITORY__ }}
+          - **repository**: __GH_AW_GITHUB_REPOSITORY__
           {{/if}}
-          {{#if ${GH_AW_GITHUB_WORKSPACE} }}
-          - **workspace**: ${GH_AW_GITHUB_WORKSPACE}
+          {{#if __GH_AW_GITHUB_WORKSPACE__ }}
+          - **workspace**: __GH_AW_GITHUB_WORKSPACE__
           {{/if}}
-          {{#if ${GH_AW_GITHUB_EVENT_ISSUE_NUMBER} }}
-          - **issue-number**: #${GH_AW_GITHUB_EVENT_ISSUE_NUMBER}
+          {{#if __GH_AW_GITHUB_EVENT_ISSUE_NUMBER__ }}
+          - **issue-number**: #__GH_AW_GITHUB_EVENT_ISSUE_NUMBER__
           {{/if}}
-          {{#if ${GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER} }}
-          - **discussion-number**: #${GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER}
+          {{#if __GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER__ }}
+          - **discussion-number**: #__GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER__
           {{/if}}
-          {{#if ${GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER} }}
-          - **pull-request-number**: #${GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER}
+          {{#if __GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER__ }}
+          - **pull-request-number**: #__GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER__
           {{/if}}
-          {{#if ${GH_AW_GITHUB_EVENT_COMMENT_ID} }}
-          - **comment-id**: ${GH_AW_GITHUB_EVENT_COMMENT_ID}
+          {{#if __GH_AW_GITHUB_EVENT_COMMENT_ID__ }}
+          - **comment-id**: __GH_AW_GITHUB_EVENT_COMMENT_ID__
           {{/if}}
-          {{#if ${GH_AW_GITHUB_RUN_ID} }}
-          - **workflow-run-id**: ${GH_AW_GITHUB_RUN_ID}
+          {{#if __GH_AW_GITHUB_RUN_ID__ }}
+          - **workflow-run-id**: __GH_AW_GITHUB_RUN_ID__
           {{/if}}
           </github-context>
           
           PROMPT_EOF
+          sed -i "s|__GH_AW_GITHUB_ACTOR__|${GH_AW_GITHUB_ACTOR//|/\\|}|g" "$GH_AW_PROMPT"
+          sed -i "s|__GH_AW_GITHUB_EVENT_COMMENT_ID__|${GH_AW_GITHUB_EVENT_COMMENT_ID//|/\\|}|g" "$GH_AW_PROMPT"
+          sed -i "s|__GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER__|${GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER//|/\\|}|g" "$GH_AW_PROMPT"
+          sed -i "s|__GH_AW_GITHUB_EVENT_ISSUE_NUMBER__|${GH_AW_GITHUB_EVENT_ISSUE_NUMBER//|/\\|}|g" "$GH_AW_PROMPT"
+          sed -i "s|__GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER__|${GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER//|/\\|}|g" "$GH_AW_PROMPT"
+          sed -i "s|__GH_AW_GITHUB_REPOSITORY__|${GH_AW_GITHUB_REPOSITORY//|/\\|}|g" "$GH_AW_PROMPT"
+          sed -i "s|__GH_AW_GITHUB_RUN_ID__|${GH_AW_GITHUB_RUN_ID//|/\\|}|g" "$GH_AW_PROMPT"
+          sed -i "s|__GH_AW_GITHUB_WORKSPACE__|${GH_AW_GITHUB_WORKSPACE//|/\\|}|g" "$GH_AW_PROMPT"
       - name: Append PR context instructions to prompt
         if: |
           (github.event_name == 'issue_comment') && (github.event.issue.pull_request != null) || github.event_name == 'pull_request_review_comment' || github.event_name == 'pull_request_review'
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          cat << 'PROMPT_EOF' | envsubst >> "$GH_AW_PROMPT"
+          cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
           <branch-context trigger="pull-request-comment">
           <description>This workflow was triggered by a comment on a pull request. The repository has been automatically checked out to the PR's branch, not the default branch.</description>
           <current-state>

@@ -1987,7 +1987,7 @@ jobs:
         run: |
           PROMPT_DIR="$(dirname "$GH_AW_PROMPT")"
           mkdir -p "$PROMPT_DIR"
-          cat << 'PROMPT_EOF' | envsubst > "$GH_AW_PROMPT"
+          cat << 'PROMPT_EOF' > "$GH_AW_PROMPT"
           # Daily Documentation Updater
           
           You are an AI documentation agent that automatically updates the project documentation based on recent code changes and merged pull requests.
@@ -2003,7 +2003,7 @@ jobs:
           First, search for merged pull requests from the last 24 hours.
           
           Use the GitHub tools to:
-          - Search for pull requests merged in the last 24 hours using `search_pull_requests` with a query like: `repo:${GH_AW_GITHUB_REPOSITORY} is:pr is:merged merged:>=YYYY-MM-DD` (replace YYYY-MM-DD with yesterday's date)
+          - Search for pull requests merged in the last 24 hours using `search_pull_requests` with a query like: `repo:__GH_AW_GITHUB_REPOSITORY__ is:pr is:merged merged:>=YYYY-MM-DD` (replace YYYY-MM-DD with yesterday's date)
           - Get details of each merged PR using `pull_request_read`
           - Review commits from the last 24 hours using `list_commits`
           - Get detailed commit information using `get_commit` for significant changes
@@ -2150,11 +2150,12 @@ jobs:
           Good luck! Your documentation updates help keep our project accessible and up-to-date.
           
           PROMPT_EOF
+          sed -i "s|__GH_AW_GITHUB_REPOSITORY__|${GH_AW_GITHUB_REPOSITORY//|/\\|}|g" "$GH_AW_PROMPT"
       - name: Append XPIA security instructions to prompt
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          cat << 'PROMPT_EOF' | envsubst >> "$GH_AW_PROMPT"
+          cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
           <security-guidelines>
           <description>Cross-Prompt Injection Attack (XPIA) Protection</description>
           <warning>
@@ -2176,7 +2177,7 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          cat << 'PROMPT_EOF' | envsubst >> "$GH_AW_PROMPT"
+          cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
           <temporary-files>
           <path>/tmp/gh-aw/agent/</path>
           <instruction>When you need to create temporary files or directories during your work, always use the /tmp/gh-aw/agent/ directory that has been pre-created for you. Do NOT use the root /tmp/ directory directly.</instruction>
@@ -2187,7 +2188,7 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          cat << 'PROMPT_EOF' | envsubst >> "$GH_AW_PROMPT"
+          cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
           <file-editing>
           <description>File Editing Access Permissions</description>
           <allowed-paths>
@@ -2202,7 +2203,7 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          cat << 'PROMPT_EOF' | envsubst >> "$GH_AW_PROMPT"
+          cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
           
           ---
           
@@ -2227,7 +2228,7 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          cat << 'PROMPT_EOF' | envsubst >> "$GH_AW_PROMPT"
+          cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
           <safe-outputs>
           <description>GitHub API Access Instructions</description>
           <important>
@@ -2251,36 +2252,44 @@ jobs:
           GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
           GH_AW_GITHUB_WORKSPACE: ${{ github.workspace }}
         run: |
-          cat << 'PROMPT_EOF' | envsubst >> "$GH_AW_PROMPT"
+          cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
           <github-context>
           The following GitHub context information is available for this workflow:
-          {{#if ${GH_AW_GITHUB_ACTOR} }}
-          - **actor**: ${GH_AW_GITHUB_ACTOR}
+          {{#if __GH_AW_GITHUB_ACTOR__ }}
+          - **actor**: __GH_AW_GITHUB_ACTOR__
           {{/if}}
-          {{#if ${GH_AW_GITHUB_REPOSITORY} }}
-          - **repository**: ${GH_AW_GITHUB_REPOSITORY}
+          {{#if __GH_AW_GITHUB_REPOSITORY__ }}
+          - **repository**: __GH_AW_GITHUB_REPOSITORY__
           {{/if}}
-          {{#if ${GH_AW_GITHUB_WORKSPACE} }}
-          - **workspace**: ${GH_AW_GITHUB_WORKSPACE}
+          {{#if __GH_AW_GITHUB_WORKSPACE__ }}
+          - **workspace**: __GH_AW_GITHUB_WORKSPACE__
           {{/if}}
-          {{#if ${GH_AW_GITHUB_EVENT_ISSUE_NUMBER} }}
-          - **issue-number**: #${GH_AW_GITHUB_EVENT_ISSUE_NUMBER}
+          {{#if __GH_AW_GITHUB_EVENT_ISSUE_NUMBER__ }}
+          - **issue-number**: #__GH_AW_GITHUB_EVENT_ISSUE_NUMBER__
           {{/if}}
-          {{#if ${GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER} }}
-          - **discussion-number**: #${GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER}
+          {{#if __GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER__ }}
+          - **discussion-number**: #__GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER__
           {{/if}}
-          {{#if ${GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER} }}
-          - **pull-request-number**: #${GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER}
+          {{#if __GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER__ }}
+          - **pull-request-number**: #__GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER__
           {{/if}}
-          {{#if ${GH_AW_GITHUB_EVENT_COMMENT_ID} }}
-          - **comment-id**: ${GH_AW_GITHUB_EVENT_COMMENT_ID}
+          {{#if __GH_AW_GITHUB_EVENT_COMMENT_ID__ }}
+          - **comment-id**: __GH_AW_GITHUB_EVENT_COMMENT_ID__
           {{/if}}
-          {{#if ${GH_AW_GITHUB_RUN_ID} }}
-          - **workflow-run-id**: ${GH_AW_GITHUB_RUN_ID}
+          {{#if __GH_AW_GITHUB_RUN_ID__ }}
+          - **workflow-run-id**: __GH_AW_GITHUB_RUN_ID__
           {{/if}}
           </github-context>
           
           PROMPT_EOF
+          sed -i "s|__GH_AW_GITHUB_ACTOR__|${GH_AW_GITHUB_ACTOR//|/\\|}|g" "$GH_AW_PROMPT"
+          sed -i "s|__GH_AW_GITHUB_EVENT_COMMENT_ID__|${GH_AW_GITHUB_EVENT_COMMENT_ID//|/\\|}|g" "$GH_AW_PROMPT"
+          sed -i "s|__GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER__|${GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER//|/\\|}|g" "$GH_AW_PROMPT"
+          sed -i "s|__GH_AW_GITHUB_EVENT_ISSUE_NUMBER__|${GH_AW_GITHUB_EVENT_ISSUE_NUMBER//|/\\|}|g" "$GH_AW_PROMPT"
+          sed -i "s|__GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER__|${GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER//|/\\|}|g" "$GH_AW_PROMPT"
+          sed -i "s|__GH_AW_GITHUB_REPOSITORY__|${GH_AW_GITHUB_REPOSITORY//|/\\|}|g" "$GH_AW_PROMPT"
+          sed -i "s|__GH_AW_GITHUB_RUN_ID__|${GH_AW_GITHUB_RUN_ID//|/\\|}|g" "$GH_AW_PROMPT"
+          sed -i "s|__GH_AW_GITHUB_WORKSPACE__|${GH_AW_GITHUB_WORKSPACE//|/\\|}|g" "$GH_AW_PROMPT"
       - name: Interpolate variables and render templates
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:

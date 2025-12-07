@@ -74,7 +74,7 @@ Run ID: ${{ github.run_id }}
 	// Verify the original expressions appear in the comment header (Original Prompt section)
 	// but NOT in the actual prompt heredoc content
 	// Find the heredoc section by looking for the "cat " line
-	heredocStart := strings.Index(compiledStr, "cat << 'PROMPT_EOF' | envsubst > \"$GH_AW_PROMPT\"")
+	heredocStart := strings.Index(compiledStr, "cat << 'PROMPT_EOF' > \"$GH_AW_PROMPT\"")
 	if heredocStart == -1 {
 		t.Error("Could not find prompt heredoc section")
 	} else {

@@ -1963,7 +1963,7 @@ jobs:
         run: |
           PROMPT_DIR="$(dirname "$GH_AW_PROMPT")"
           mkdir -p "$PROMPT_DIR"
-          cat << 'PROMPT_EOF' | envsubst > "$GH_AW_PROMPT"
+          cat << 'PROMPT_EOF' > "$GH_AW_PROMPT"
           # Security Issue Fix Agent
           
           You are a security-focused code analysis agent that identifies and fixes code security issues automatically.
@@ -1974,7 +1974,7 @@ jobs:
           0. **List previous PRs**: Check if there are any open or recently closed security fix PRs to avoid duplicates
           1. **List previous security fixes in the cache memory**: Check if the cache-memory contains any recently fixed security issues to avoid duplicates
           2. **Select Security Alert**: 
-             - If a security URL was provided (`${GH_AW_GITHUB_EVENT_INPUTS_SECURITY_URL}`), extract the alert number from the URL and use it directly
+             - If a security URL was provided (`__GH_AW_GITHUB_EVENT_INPUTS_SECURITY_URL__`), extract the alert number from the URL and use it directly
              - Otherwise, list all open code scanning alerts and pick the first one
           3. **Analyze the Issue**: Understand the security vulnerability and its context
           4. **Generate a Fix**: Create code changes that address the security issue.
@@ -1982,16 +1982,16 @@ jobs:
           
           ## Current Context
           
-          - **Repository**: ${GH_AW_GITHUB_REPOSITORY}
-          - **Triggered by**: @${GH_AW_GITHUB_ACTOR}
-          - **Security URL**: ${GH_AW_GITHUB_EVENT_INPUTS_SECURITY_URL}
+          - **Repository**: __GH_AW_GITHUB_REPOSITORY__
+          - **Triggered by**: @__GH_AW_GITHUB_ACTOR__
+          - **Security URL**: __GH_AW_GITHUB_EVENT_INPUTS_SECURITY_URL__
           
           ## Workflow Steps
           
           ### 1. Determine Alert Selection Method
           
           Check if a security URL was provided:
-          - **If security URL is provided** (`${GH_AW_GITHUB_EVENT_INPUTS_SECURITY_URL}`):
+          - **If security URL is provided** (`__GH_AW_GITHUB_EVENT_INPUTS_SECURITY_URL__`):
             - Extract the alert number from the URL (e.g., from `https://github.com/owner/repo/security/code-scanning/123`, extract `123`)
             - Skip to step 2 to get the alert details directly
           - **If no security URL is provided**:
@@ -2103,11 +2103,14 @@ jobs:
           ```
           
           PROMPT_EOF
+          sed -i "s|__GH_AW_GITHUB_ACTOR__|${GH_AW_GITHUB_ACTOR//|/\\|}|g" "$GH_AW_PROMPT"
+          sed -i "s|__GH_AW_GITHUB_EVENT_INPUTS_SECURITY_URL__|${GH_AW_GITHUB_EVENT_INPUTS_SECURITY_URL//|/\\|}|g" "$GH_AW_PROMPT"
+          sed -i "s|__GH_AW_GITHUB_REPOSITORY__|${GH_AW_GITHUB_REPOSITORY//|/\\|}|g" "$GH_AW_PROMPT"
       - name: Append XPIA security instructions to prompt
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          cat << 'PROMPT_EOF' | envsubst >> "$GH_AW_PROMPT"
+          cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
           <security-guidelines>
           <description>Cross-Prompt Injection Attack (XPIA) Protection</description>
           <warning>
@@ -2129,7 +2132,7 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          cat << 'PROMPT_EOF' | envsubst >> "$GH_AW_PROMPT"
+          cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
           <temporary-files>
           <path>/tmp/gh-aw/agent/</path>
           <instruction>When you need to create temporary files or directories during your work, always use the /tmp/gh-aw/agent/ directory that has been pre-created for you. Do NOT use the root /tmp/ directory directly.</instruction>
@@ -2140,7 +2143,7 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          cat << 'PROMPT_EOF' | envsubst >> "$GH_AW_PROMPT"
+          cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
           <file-editing>
           <description>File Editing Access Permissions</description>
           <allowed-paths>
@@ -2155,7 +2158,7 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          cat << 'PROMPT_EOF' | envsubst >> "$GH_AW_PROMPT"
+          cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
           
           ---
           
@@ -2180,7 +2183,7 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          cat << 'PROMPT_EOF' | envsubst >> "$GH_AW_PROMPT"
+          cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
           <safe-outputs>
           <description>GitHub API Access Instructions</description>
           <important>
@@ -2204,36 +2207,44 @@ jobs:
           GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
           GH_AW_GITHUB_WORKSPACE: ${{ github.workspace }}
         run: |
-          cat << 'PROMPT_EOF' | envsubst >> "$GH_AW_PROMPT"
+          cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
           <github-context>
           The following GitHub context information is available for this workflow:
-          {{#if ${GH_AW_GITHUB_ACTOR} }}
-          - **actor**: ${GH_AW_GITHUB_ACTOR}
+          {{#if __GH_AW_GITHUB_ACTOR__ }}
+          - **actor**: __GH_AW_GITHUB_ACTOR__
           {{/if}}
-          {{#if ${GH_AW_GITHUB_REPOSITORY} }}
-          - **repository**: ${GH_AW_GITHUB_REPOSITORY}
+          {{#if __GH_AW_GITHUB_REPOSITORY__ }}
+          - **repository**: __GH_AW_GITHUB_REPOSITORY__
           {{/if}}
-          {{#if ${GH_AW_GITHUB_WORKSPACE} }}
-          - **workspace**: ${GH_AW_GITHUB_WORKSPACE}
+          {{#if __GH_AW_GITHUB_WORKSPACE__ }}
+          - **workspace**: __GH_AW_GITHUB_WORKSPACE__
           {{/if}}
-          {{#if ${GH_AW_GITHUB_EVENT_ISSUE_NUMBER} }}
-          - **issue-number**: #${GH_AW_GITHUB_EVENT_ISSUE_NUMBER}
+          {{#if __GH_AW_GITHUB_EVENT_ISSUE_NUMBER__ }}
+          - **issue-number**: #__GH_AW_GITHUB_EVENT_ISSUE_NUMBER__
           {{/if}}
-          {{#if ${GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER} }}
-          - **discussion-number**: #${GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER}
+          {{#if __GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER__ }}
+          - **discussion-number**: #__GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER__
           {{/if}}
-          {{#if ${GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER} }}
-          - **pull-request-number**: #${GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER}
+          {{#if __GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER__ }}
+          - **pull-request-number**: #__GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER__
           {{/if}}
-          {{#if ${GH_AW_GITHUB_EVENT_COMMENT_ID} }}
-          - **comment-id**: ${GH_AW_GITHUB_EVENT_COMMENT_ID}
+          {{#if __GH_AW_GITHUB_EVENT_COMMENT_ID__ }}
+          - **comment-id**: __GH_AW_GITHUB_EVENT_COMMENT_ID__
           {{/if}}
-          {{#if ${GH_AW_GITHUB_RUN_ID} }}
-          - **workflow-run-id**: ${GH_AW_GITHUB_RUN_ID}
+          {{#if __GH_AW_GITHUB_RUN_ID__ }}
+          - **workflow-run-id**: __GH_AW_GITHUB_RUN_ID__
           {{/if}}
           </github-context>
           
           PROMPT_EOF
+          sed -i "s|__GH_AW_GITHUB_ACTOR__|${GH_AW_GITHUB_ACTOR//|/\\|}|g" "$GH_AW_PROMPT"
+          sed -i "s|__GH_AW_GITHUB_EVENT_COMMENT_ID__|${GH_AW_GITHUB_EVENT_COMMENT_ID//|/\\|}|g" "$GH_AW_PROMPT"
+          sed -i "s|__GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER__|${GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER//|/\\|}|g" "$GH_AW_PROMPT"
+          sed -i "s|__GH_AW_GITHUB_EVENT_ISSUE_NUMBER__|${GH_AW_GITHUB_EVENT_ISSUE_NUMBER//|/\\|}|g" "$GH_AW_PROMPT"
+          sed -i "s|__GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER__|${GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER//|/\\|}|g" "$GH_AW_PROMPT"
+          sed -i "s|__GH_AW_GITHUB_REPOSITORY__|${GH_AW_GITHUB_REPOSITORY//|/\\|}|g" "$GH_AW_PROMPT"
+          sed -i "s|__GH_AW_GITHUB_RUN_ID__|${GH_AW_GITHUB_RUN_ID//|/\\|}|g" "$GH_AW_PROMPT"
+          sed -i "s|__GH_AW_GITHUB_WORKSPACE__|${GH_AW_GITHUB_WORKSPACE//|/\\|}|g" "$GH_AW_PROMPT"
       - name: Interpolate variables and render templates
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
