@@ -2,6 +2,10 @@
 
 This directory contains the spec-kit configuration for the GitHub Agentic Workflows (gh-aw) repository. Spec-kit enables spec-driven development where specifications become executable and guide implementation.
 
+## Quick Start
+
+**New to spec-kit?** See [QUICKSTART.md](QUICKSTART.md) for a step-by-step guide on creating your first feature with spec-kit.
+
 ## What is Spec-Kit?
 
 [Spec-kit](https://github.com/github/spec-kit) is an open-source toolkit that allows you to focus on product scenarios and predictable outcomes instead of vibe coding. It implements a spec-driven development workflow where:
