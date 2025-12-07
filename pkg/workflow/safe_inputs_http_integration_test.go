@@ -54,7 +54,6 @@ Test safe-inputs HTTP server
 	// Verify that the HTTP server configuration steps are generated
 	expectedSteps := []string{
 		"Generate Safe Inputs MCP Server Config",
-		"Create Docker Network for Safe Inputs",
 		"Start Safe Inputs MCP HTTP Server",
 		"Setup MCPs",
 	}
@@ -62,18 +61,6 @@ Test safe-inputs HTTP server
 	for _, stepName := range expectedSteps {
 		if !strings.Contains(yamlStr, stepName) {
 			t.Errorf("Expected step not found in workflow: %q", stepName)
-		}
-	}
-
-	// Verify docker network creation
-	dockerNetworkChecks := []string{
-		"docker network create gh-aw-network",
-		"Docker network created: gh-aw-network",
-	}
-
-	for _, check := range dockerNetworkChecks {
-		if !strings.Contains(yamlStr, check) {
-			t.Errorf("Expected docker network creation content not found: %q", check)
 		}
 	}
 
@@ -90,18 +77,12 @@ Test safe-inputs HTTP server
 		}
 	}
 
-	// Verify Docker container startup with port mapping
+	// Verify HTTP server startup
 	serverStartupChecks := []string{
-		"docker run -d --rm --init",
-		"--name safeinputs",
-		"--network gh-aw-network",
-		"-p ${{ steps.safe-inputs-config.outputs.safe_inputs_port }}:${{ steps.safe-inputs-config.outputs.safe_inputs_port }}",
-		"-e GH_AW_SAFE_INPUTS_PORT=${{ steps.safe-inputs-config.outputs.safe_inputs_port }}",
-		"-e GH_AW_SAFE_INPUTS_API_KEY=${{ steps.safe-inputs-config.outputs.safe_inputs_api_key }}",
-		"-v /tmp/gh-aw/safe-inputs:/tmp/gh-aw/safe-inputs",
-		"-w /tmp/gh-aw/safe-inputs",
-		"node:24",
+		"export GH_AW_SAFE_INPUTS_PORT=${{ steps.safe-inputs-config.outputs.safe_inputs_port }}",
+		"export GH_AW_SAFE_INPUTS_API_KEY=${{ steps.safe-inputs-config.outputs.safe_inputs_api_key }}",
 		"node mcp-server.cjs",
+		"Started safe-inputs MCP server with PID",
 	}
 
 	for _, check := range serverStartupChecks {
@@ -110,13 +91,11 @@ Test safe-inputs HTTP server
 		}
 	}
 
-	// Verify health check using docker run with curl on the network
+	// Verify health check (health endpoint doesn't require auth)
 	healthCheckItems := []string{
-		"docker run --rm --network gh-aw-network curlimages/curl:latest",
-		"curl -s -f http://safeinputs:${{ steps.safe-inputs-config.outputs.safe_inputs_port }}/health",
+		"curl -s -f http://localhost:$GH_AW_SAFE_INPUTS_PORT/health",
 		"Safe Inputs MCP server is ready",
 		"ERROR: Safe Inputs MCP server failed to start",
-		"docker logs safeinputs",
 	}
 
 	for _, check := range healthCheckItems {
@@ -204,10 +183,10 @@ Test safe-inputs with secrets
 
 	yamlStr := string(lockContent)
 
-	// Verify that tool-specific env vars are passed to the Docker container
+	// Verify that tool-specific env vars are passed to the HTTP server
 	serverEnvVarChecks := []string{
-		`-e API_KEY="${API_KEY}"`,
-		`-e API_SECRET="${API_SECRET}"`,
+		`export API_KEY="${API_KEY}"`,
+		`export API_SECRET="${API_SECRET}"`,
 	}
 
 	for _, check := range serverEnvVarChecks {
@@ -343,16 +322,15 @@ Test readiness check
 
 	yamlStr := string(lockContent)
 
-	// Verify readiness check loop using docker with container name on network
+	// Verify readiness check loop (health endpoint doesn't require auth)
 	readinessChecks := []string{
 		"for i in {1..10}; do",
-		"docker run --rm --network gh-aw-network curlimages/curl:latest",
-		"curl -s -f http://safeinputs:${{ steps.safe-inputs-config.outputs.safe_inputs_port }}/health",
+		"if curl -s -f http://localhost:$GH_AW_SAFE_INPUTS_PORT/health",
 		"Safe Inputs MCP server is ready",
 		"break",
 		"if [ $i -eq 10 ]; then",
 		"ERROR: Safe Inputs MCP server failed to start after 10 seconds",
-		"docker logs safeinputs",
+		"cat /tmp/gh-aw/safe-inputs/logs/server.log",
 		"exit 1",
 		"sleep 1",
 	}

@@ -219,7 +219,7 @@ func (r *MCPConfigRendererUnified) RenderSafeInputsMCP(yaml *strings.Builder, sa
 }
 
 // renderSafeInputsTOML generates Safe Inputs MCP configuration in TOML format
-// Uses HTTP transport with localhost (container accessible via port mapping)
+// Uses HTTP transport for consistency with JSON format (Copilot/Claude)
 func (r *MCPConfigRendererUnified) renderSafeInputsTOML(yaml *strings.Builder, safeInputs *SafeInputsConfig) {
 	envVars := getSafeInputsEnvVars(safeInputs)
 

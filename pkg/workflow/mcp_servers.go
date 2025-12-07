@@ -438,62 +438,24 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		yaml.WriteString("            generateSafeInputsConfig({ core, crypto });\n")
 		yaml.WriteString("          \n")
 
-		// Step 4: Create Docker network for safe-inputs
-		yaml.WriteString("      - name: Create Docker Network for Safe Inputs\n")
-		yaml.WriteString("        run: |\n")
-		yaml.WriteString("          docker network create " + constants.SafeInputsDockerNetwork + " || true\n")
-		yaml.WriteString("          echo 'Docker network created: " + constants.SafeInputsDockerNetwork + "'\n")
-		yaml.WriteString("          \n")
-
-		// Step 5: Start the HTTP server in a Docker container
+		// Step 4: Start the HTTP server in the background
 		yaml.WriteString("      - name: Start Safe Inputs MCP HTTP Server\n")
 		yaml.WriteString("        id: safe-inputs-start\n")
 		yaml.WriteString("        run: |\n")
-		yaml.WriteString("          # Build docker run command\n")
-		yaml.WriteString("          docker run -d --rm --init \\\n")
-		yaml.WriteString("            --name " + constants.SafeInputsContainerName + " \\\n")
-		yaml.WriteString("            --network " + constants.SafeInputsDockerNetwork + " \\\n")
-		yaml.WriteString("            -p ${{ steps.safe-inputs-config.outputs.safe_inputs_port }}:${{ steps.safe-inputs-config.outputs.safe_inputs_port }} \\\n")
-		yaml.WriteString("            -e GH_AW_SAFE_INPUTS_PORT=${{ steps.safe-inputs-config.outputs.safe_inputs_port }} \\\n")
-		yaml.WriteString("            -e GH_AW_SAFE_INPUTS_API_KEY=${{ steps.safe-inputs-config.outputs.safe_inputs_api_key }} \\\n")
+		yaml.WriteString("          # Set environment variables for the server\n")
+		yaml.WriteString("          export GH_AW_SAFE_INPUTS_PORT=${{ steps.safe-inputs-config.outputs.safe_inputs_port }}\n")
+		yaml.WriteString("          export GH_AW_SAFE_INPUTS_API_KEY=${{ steps.safe-inputs-config.outputs.safe_inputs_api_key }}\n")
+		yaml.WriteString("          \n")
 
 		// Pass through environment variables from safe-inputs config
 		envVars := getSafeInputsEnvVars(workflowData.SafeInputs)
 		for _, envVar := range envVars {
-			yaml.WriteString(fmt.Sprintf("            -e %s=\"${%s}\" \\\n", envVar, envVar))
+			yaml.WriteString(fmt.Sprintf("          export %s=\"${%s}\"\n", envVar, envVar))
 		}
-
-		yaml.WriteString("            -v /tmp/gh-aw/safe-inputs:/tmp/gh-aw/safe-inputs \\\n")
-		yaml.WriteString("            -w /tmp/gh-aw/safe-inputs \\\n")
-		yaml.WriteString("            node:" + string(constants.DefaultNodeVersion) + " \\\n")
-		yaml.WriteString("            node mcp-server.cjs\n")
 		yaml.WriteString("          \n")
-		yaml.WriteString("          # Wait for server to be ready (max 10 seconds)\n")
-		yaml.WriteString("          echo 'Waiting for safe-inputs MCP server to be ready...'\n")
-		yaml.WriteString("          for i in {1..10}; do\n")
-		yaml.WriteString("            # Check if container is still running\n")
-		yaml.WriteString("            if ! docker ps | grep -q " + constants.SafeInputsContainerName + "; then\n")
-		yaml.WriteString("              echo \"ERROR: Safe-inputs container has stopped\"\n")
-		yaml.WriteString("              docker logs " + constants.SafeInputsContainerName + " || true\n")
-		yaml.WriteString("              exit 1\n")
-		yaml.WriteString("            fi\n")
-		yaml.WriteString("            \n")
-		yaml.WriteString("            # Check if server is responding (using container name on the network)\n")
-		yaml.WriteString("            if docker run --rm --network " + constants.SafeInputsDockerNetwork + " curlimages/curl:latest \\\n")
-		yaml.WriteString("              curl -s -f http://" + constants.SafeInputsContainerName + ":${{ steps.safe-inputs-config.outputs.safe_inputs_port }}/health > /dev/null 2>&1; then\n")
-		yaml.WriteString("              echo \"Safe Inputs MCP server is ready (attempt $i/10)\"\n")
-		yaml.WriteString("              break\n")
-		yaml.WriteString("            fi\n")
-		yaml.WriteString("            \n")
-		yaml.WriteString("            if [ $i -eq 10 ]; then\n")
-		yaml.WriteString("              echo \"ERROR: Safe Inputs MCP server failed to start after 10 seconds\"\n")
-		yaml.WriteString("              docker logs " + constants.SafeInputsContainerName + " || true\n")
-		yaml.WriteString("              exit 1\n")
-		yaml.WriteString("            fi\n")
-		yaml.WriteString("            \n")
-		yaml.WriteString("            echo \"Waiting for server... (attempt $i/10)\"\n")
-		yaml.WriteString("            sleep 1\n")
-		yaml.WriteString("          done\n")
+
+		// Use the embedded shell script to start the server
+		WriteShellScriptToYAML(yaml, startSafeInputsServerScript, "          ")
 		yaml.WriteString("          \n")
 	}
 
