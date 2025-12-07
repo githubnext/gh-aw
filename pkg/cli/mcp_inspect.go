@@ -456,19 +456,17 @@ func spawnSafeInputsInspector(workflowFile string, verbose bool) error {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Inspecting safe-inputs from: %s", workflowPath)))
 	}
 
-	// Parse the workflow file
-	content, err := os.ReadFile(workflowPath)
-	if err != nil {
-		return fmt.Errorf("failed to read workflow file: %w", err)
-	}
-
-	workflowData, err := parser.ExtractFrontmatterFromContent(string(content))
+	// Use the workflow compiler to parse the file and resolve imports
+	// This ensures that imported safe-inputs are properly merged
+	compiler := workflow.NewCompiler(verbose, "", "")
+	workflowData, err := compiler.ParseWorkflowFile(workflowPath)
 	if err != nil {
 		return fmt.Errorf("failed to parse workflow file: %w", err)
 	}
 
-	// Extract safe-inputs configuration
-	safeInputsConfig := workflow.ParseSafeInputs(workflowData.Frontmatter)
+	// Get safe-inputs configuration from the parsed WorkflowData
+	// This includes both direct and imported safe-inputs configurations
+	safeInputsConfig := workflowData.SafeInputs
 	if safeInputsConfig == nil || len(safeInputsConfig.Tools) == 0 {
 		return fmt.Errorf("no safe-inputs configuration found in workflow")
 	}

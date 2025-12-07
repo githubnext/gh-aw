@@ -3,9 +3,9 @@ package cli
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
-	"github.com/githubnext/gh-aw/pkg/parser"
 	"github.com/githubnext/gh-aw/pkg/workflow"
 )
 
@@ -216,18 +216,15 @@ This workflow has safe-inputs configuration.
 	// and launch the inspector, but we can test the file generation part separately
 	// by calling writeSafeInputsFiles directly
 
-	// Parse the workflow to get safe-inputs config
-	content, err := os.ReadFile(workflowPath)
-	if err != nil {
-		t.Fatalf("Failed to read workflow file: %v", err)
-	}
-
-	workflowData, err := parser.ExtractFrontmatterFromContent(string(content))
+	// Parse the workflow using the compiler to get safe-inputs config
+	// (including any imported safe-inputs)
+	compiler := workflow.NewCompiler(false, "", "")
+	workflowData, err := compiler.ParseWorkflowFile(workflowPath)
 	if err != nil {
 		t.Fatalf("Failed to parse workflow: %v", err)
 	}
 
-	safeInputsConfig := workflow.ParseSafeInputs(workflowData.Frontmatter)
+	safeInputsConfig := workflowData.SafeInputs
 	if safeInputsConfig == nil {
 		t.Fatal("Expected safe-inputs config to be parsed")
 	}
@@ -259,3 +256,130 @@ This workflow has safe-inputs configuration.
 		t.Error("tools.json seems too short")
 	}
 }
+
+// TestSpawnSafeInputsInspector_WithImportedSafeInputs tests that imported safe-inputs are resolved
+func TestSpawnSafeInputsInspector_WithImportedSafeInputs(t *testing.T) {
+	// Create temporary directory with workflow and shared files
+	tmpDir := t.TempDir()
+	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
+	sharedDir := filepath.Join(workflowsDir, "shared")
+	if err := os.MkdirAll(sharedDir, 0755); err != nil {
+		t.Fatalf("Failed to create workflows directory: %v", err)
+	}
+
+	// Create a shared workflow file with safe-inputs
+	sharedContent := `---
+safe-inputs:
+  shared-tool:
+    description: "Shared tool from import"
+    inputs:
+      param:
+        type: string
+        description: "A parameter"
+        required: true
+    run: |
+      echo "Shared: $param"
+---
+# Shared Workflow
+`
+	sharedPath := filepath.Join(sharedDir, "shared.md")
+	if err := os.WriteFile(sharedPath, []byte(sharedContent), 0644); err != nil {
+		t.Fatalf("Failed to write shared workflow file: %v", err)
+	}
+
+	// Create a test workflow file that imports the shared workflow
+	workflowContent := `---
+on: push
+engine: copilot
+imports:
+  - shared/shared.md
+safe-inputs:
+  local-tool:
+    description: "Local tool"
+    inputs:
+      message:
+        type: string
+        description: "Message to echo"
+        required: true
+    run: |
+      echo "$message"
+---
+# Test Workflow
+
+This workflow imports safe-inputs from shared/shared.md.
+`
+	workflowPath := filepath.Join(workflowsDir, "test.md")
+	if err := os.WriteFile(workflowPath, []byte(workflowContent), 0644); err != nil {
+		t.Fatalf("Failed to write workflow file: %v", err)
+	}
+
+	// Change to the temporary directory
+	originalDir, _ := os.Getwd()
+	defer os.Chdir(originalDir)
+	os.Chdir(tmpDir)
+
+	// Parse the workflow using the compiler to get safe-inputs config
+	// This should include both local and imported safe-inputs
+	compiler := workflow.NewCompiler(false, "", "")
+	workflowData, err := compiler.ParseWorkflowFile(workflowPath)
+	if err != nil {
+		t.Fatalf("Failed to parse workflow: %v", err)
+	}
+
+	safeInputsConfig := workflowData.SafeInputs
+	if safeInputsConfig == nil {
+		t.Fatal("Expected safe-inputs config to be parsed")
+	}
+
+	// Verify both local and imported tools are present
+	if len(safeInputsConfig.Tools) != 2 {
+		t.Errorf("Expected 2 tools (local + imported), got %d", len(safeInputsConfig.Tools))
+	}
+
+	// Verify local tool exists
+	if _, exists := safeInputsConfig.Tools["local-tool"]; !exists {
+		t.Error("Expected local-tool to be present")
+	}
+
+	// Verify imported tool exists
+	if _, exists := safeInputsConfig.Tools["shared-tool"]; !exists {
+		t.Error("Expected shared-tool (from import) to be present")
+	}
+
+	// Create a temp directory for files
+	filesDir := t.TempDir()
+
+	// Write files
+	err = writeSafeInputsFiles(filesDir, safeInputsConfig, false)
+	if err != nil {
+		t.Fatalf("writeSafeInputsFiles failed: %v", err)
+	}
+
+	// Verify both tool handler files were created
+	localToolPath := filepath.Join(filesDir, "local-tool.sh")
+	if _, err := os.Stat(localToolPath); os.IsNotExist(err) {
+		t.Error("local-tool.sh not found")
+	}
+
+	sharedToolPath := filepath.Join(filesDir, "shared-tool.sh")
+	if _, err := os.Stat(sharedToolPath); os.IsNotExist(err) {
+		t.Error("shared-tool.sh not found")
+	}
+
+	// Verify tools.json contains both tools
+	toolsPath := filepath.Join(filesDir, "tools.json")
+	toolsContent, err := os.ReadFile(toolsPath)
+	if err != nil {
+		t.Fatalf("Failed to read tools.json: %v", err)
+	}
+
+	// Check that both tool names are in the JSON
+	toolsJSON := string(toolsContent)
+	if !strings.Contains(toolsJSON, "local-tool") {
+		t.Error("tools.json should contain 'local-tool'")
+	}
+	if !strings.Contains(toolsJSON, "shared-tool") {
+		t.Error("tools.json should contain 'shared-tool'")
+	}
+}
+
