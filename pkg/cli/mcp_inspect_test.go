@@ -1,6 +1,8 @@
 package cli
 
 import (
+	"fmt"
+	"net"
 	"strings"
 	"testing"
 
@@ -490,4 +492,28 @@ func TestFindAvailablePort(t *testing.T) {
 			t.Logf("✓ Found available port: %d", port)
 		})
 	}
+}
+
+func TestFindAvailablePortWithConflict(t *testing.T) {
+	// Start a listener on the default inspector port to simulate a conflict
+	listener, err := net.Listen("tcp", fmt.Sprintf("localhost:%d", inspectorStartPort))
+	if err != nil {
+		t.Skipf("Cannot bind to port %d for testing, skipping: %v", inspectorStartPort, err)
+	}
+	defer listener.Close()
+
+	t.Logf("Occupied port %d to simulate conflict", inspectorStartPort)
+
+	// Try to find an available port starting from the inspector start port
+	port := findAvailablePort(inspectorStartPort, false)
+	if port == 0 {
+		t.Error("findAvailablePort should find an alternative port when default is occupied")
+	}
+	if port == inspectorStartPort {
+		t.Errorf("findAvailablePort returned occupied port %d, should have found alternative", inspectorStartPort)
+	}
+	if port != inspectorStartPort+1 {
+		t.Logf("Note: Expected port %d but got %d (may be due to other occupied ports)", inspectorStartPort+1, port)
+	}
+	t.Logf("✓ Found alternative port %d when default port %d was occupied", port, inspectorStartPort)
 }
