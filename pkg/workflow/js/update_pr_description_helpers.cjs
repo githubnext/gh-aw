@@ -47,17 +47,17 @@ function buildIslandEndMarker(runId) {
 function findIsland(body, runId) {
   const startMarker = buildIslandStartMarker(runId);
   const endMarker = buildIslandEndMarker(runId);
-  
+
   const startIndex = body.indexOf(startMarker);
   if (startIndex === -1) {
     return { found: false, startIndex: -1, endIndex: -1 };
   }
-  
+
   const endIndex = body.indexOf(endMarker, startIndex);
   if (endIndex === -1) {
     return { found: false, startIndex: -1, endIndex: -1 };
   }
-  
+
   return { found: true, startIndex, endIndex: endIndex + endMarker.length };
 }
 
@@ -75,24 +75,24 @@ function findIsland(body, runId) {
 function updatePRBody(params) {
   const { currentBody, newContent, operation, workflowName, runUrl, runId } = params;
   const aiFooter = buildAIFooter(workflowName, runUrl);
-  
+
   if (operation === "replace") {
     // Replace: just use the new content as-is
     core.info("Operation: replace (full body replacement)");
     return newContent;
   }
-  
+
   if (operation === "replace-island") {
     // Try to find existing island for this run ID
     const island = findIsland(currentBody, runId);
-    
+
     if (island.found) {
       // Replace the island content
       core.info(`Operation: replace-island (updating existing island for run ${runId})`);
       const startMarker = buildIslandStartMarker(runId);
       const endMarker = buildIslandEndMarker(runId);
       const islandContent = `${startMarker}\n${newContent}${aiFooter}\n${endMarker}`;
-      
+
       const before = currentBody.substring(0, island.startIndex);
       const after = currentBody.substring(island.endIndex);
       return before + islandContent + after;
@@ -106,14 +106,14 @@ function updatePRBody(params) {
       return currentBody + appendSection;
     }
   }
-  
+
   if (operation === "prepend") {
     // Prepend: add content, AI footer, and horizontal line at the start
     core.info("Operation: prepend (add to start with separator)");
     const prependSection = `${newContent}${aiFooter}\n\n---\n\n`;
     return prependSection + currentBody;
   }
-  
+
   // Default to append
   core.info("Operation: append (add to end with separator)");
   const appendSection = `\n\n---\n\n${newContent}${aiFooter}`;

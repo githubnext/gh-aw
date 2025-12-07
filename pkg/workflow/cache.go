@@ -549,7 +549,7 @@ func (c *Compiler) buildUpdateCacheMemoryJob(data *WorkflowData, mainJobName str
 		steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/download-artifact")))
 		steps = append(steps, "        with:\n")
 		steps = append(steps, fmt.Sprintf("          name: %s\n", artifactName))
-		
+
 		// Match directory path logic
 		var downloadPath string
 		if cache.ID == "default" {
