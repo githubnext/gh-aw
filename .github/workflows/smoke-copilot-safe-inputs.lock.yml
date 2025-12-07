@@ -4168,33 +4168,23 @@ jobs:
             };
           EOF_VALIDATION
           cat > /tmp/gh-aw/safe-inputs/safe_inputs_mcp_server.cjs << 'EOF_SAFE_INPUTS_SERVER'
-            const path = require("path");
-            const { createServer, registerTool, loadToolHandlers, start } = require("./mcp_server_core.cjs");
+            const { createServer, registerTool, start } = require("./mcp_server_core.cjs");
             const { loadConfig } = require("./safe_inputs_config_loader.cjs");
             const { createToolConfig } = require("./safe_inputs_tool_factory.cjs");
+            const { bootstrapSafeInputsServer, cleanupConfigFile } = require("./safe_inputs_bootstrap.cjs");
             function startSafeInputsServer(configPath, options = {}) {
-              const config = loadConfig(configPath);
-              const basePath = path.dirname(configPath);
-              const serverName = config.serverName || "safeinputs";
-              const version = config.version || "1.0.0";
-              const logDir = options.logDir || config.logDir || undefined;
-              const server = createServer({ name: serverName, version }, { logDir });
-              server.debug(`Loading safe-inputs configuration from: ${configPath}`);
-              server.debug(`Base path for handlers: ${basePath}`);
-              server.debug(`Tools to load: ${config.tools.length}`);
-              const tools = loadToolHandlers(server, config.tools, basePath);
+              const logDir = options.logDir || undefined;
+              const server = createServer({ name: "safeinputs", version: "1.0.0" }, { logDir });
+              const { config, tools } = bootstrapSafeInputsServer(configPath, server);
+              server.serverInfo.name = config.serverName || "safeinputs";
+              server.serverInfo.version = config.version || "1.0.0";
+              if (!options.logDir && config.logDir) {
+                server.logDir = config.logDir;
+              }
               for (const tool of tools) {
                 registerTool(server, tool);
               }
-              try {
-                const fs = require("fs");
-                if (fs.existsSync(configPath)) {
-                  fs.unlinkSync(configPath);
-                  server.debug(`Deleted configuration file: ${configPath}`);
-                }
-              } catch (error) {
-                server.debugError(`Warning: Could not delete configuration file: `, error);
-              }
+              cleanupConfigFile(configPath, server);
               start(server);
             }
             if (require.main === module) {
@@ -4225,19 +4215,21 @@ jobs:
             };
           EOF_SAFE_INPUTS_SERVER
           cat > /tmp/gh-aw/safe-inputs/safe_inputs_mcp_server_http.cjs << 'EOF_SAFE_INPUTS_SERVER_HTTP'
-            const path = require("path");
             const http = require("http");
             const { randomUUID } = require("crypto");
             const { MCPServer, MCPHTTPTransport } = require("./mcp_http_transport.cjs");
-            const { loadConfig } = require("./safe_inputs_config_loader.cjs");
-            const { loadToolHandlers } = require("./mcp_server_core.cjs");
             const { validateRequiredFields } = require("./safe_inputs_validation.cjs");
             const { createLogger } = require("./mcp_logger.cjs");
+            const { bootstrapSafeInputsServer, cleanupConfigFile } = require("./safe_inputs_bootstrap.cjs");
             function createMCPServer(configPath, options = {}) {
-              const config = loadConfig(configPath);
-              const basePath = path.dirname(configPath);
+              const logger = createLogger("safeinputs");
+              logger.debug(`=== Creating MCP Server ===`);
+              logger.debug(`Configuration file: ${configPath}`);
+              const { config, tools } = bootstrapSafeInputsServer(configPath, logger);
               const serverName = config.serverName || "safeinputs";
               const version = config.version || "1.0.0";
+              logger.debug(`Server name: ${serverName}`);
+              logger.debug(`Server version: ${version}`);
               const server = new MCPServer(
                 {
                   name: serverName,
@@ -4249,16 +4241,6 @@ jobs:
                   },
                 }
               );
-              const logger = createLogger(serverName);
-              logger.debug(`=== Creating MCP Server ===`);
-              logger.debug(`Configuration file: ${configPath}`);
-              logger.debug(`Loading safe-inputs configuration from: ${configPath}`);
-              logger.debug(`Base path for handlers: ${basePath}`);
-              logger.debug(`Server name: ${serverName}`);
-              logger.debug(`Server version: ${version}`);
-              logger.debug(`Tools to load: ${config.tools.length}`);
-              const tempServer = { debug: logger.debug, debugError: logger.debugError };
-              const tools = loadToolHandlers(tempServer, config.tools, basePath);
               logger.debug(`Registering tools with MCP server...`);
               let registeredCount = 0;
               let skippedCount = 0;
@@ -4284,15 +4266,7 @@ jobs:
               }
               logger.debug(`Tool registration complete: ${registeredCount} registered, ${skippedCount} skipped`);
               logger.debug(`=== MCP Server Creation Complete ===`);
-              try {
-                const fs = require("fs");
-                if (fs.existsSync(configPath)) {
-                  fs.unlinkSync(configPath);
-                  logger.debug(`Deleted configuration file: ${configPath}`);
-                }
-              } catch (error) {
-                logger.debugError(`Warning: Could not delete configuration file: `, error);
-              }
+              cleanupConfigFile(configPath, logger);
               return { server, config, logger };
             }
             async function startHttpServer(configPath, options = {}) {
