@@ -72,9 +72,9 @@ Test safe-inputs HTTP transport for Codex
 		t.Error("Expected type field set to 'http' in TOML format")
 	}
 
-	// Should use HTTP transport (url + headers)
-	if !strings.Contains(yamlStr, `url = "http://localhost:$GH_AW_SAFE_INPUTS_PORT"`) {
-		t.Error("Expected HTTP URL config not found in TOML format")
+	// Should use HTTP transport (url + headers) with container name
+	if !strings.Contains(yamlStr, `url = "http://safeinputs:$GH_AW_SAFE_INPUTS_PORT"`) {
+		t.Error("Expected HTTP URL config with container name 'safeinputs' not found in TOML format")
 	}
 
 	if !strings.Contains(yamlStr, `headers = { Authorization = "Bearer $GH_AW_SAFE_INPUTS_API_KEY" }`) {

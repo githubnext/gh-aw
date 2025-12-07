@@ -4041,76 +4041,52 @@ jobs:
             const crypto = require('crypto');
             generateSafeInputsConfig({ core, crypto });
           
+      - name: Create Docker Network for Safe Inputs
+        run: |
+          docker network create gh-aw-network || true
+          echo 'Docker network created: gh-aw-network'
+          
       - name: Start Safe Inputs MCP HTTP Server
         id: safe-inputs-start
         run: |
-          # Set environment variables for the server
-          export GH_AW_SAFE_INPUTS_PORT=${{ steps.safe-inputs-config.outputs.safe_inputs_port }}
-          export GH_AW_SAFE_INPUTS_API_KEY=${{ steps.safe-inputs-config.outputs.safe_inputs_api_key }}
+          # Build docker run command
+          docker run -d --rm --init \
+            --name safeinputs \
+            --network gh-aw-network \
+            -e GH_AW_SAFE_INPUTS_PORT=${{ steps.safe-inputs-config.outputs.safe_inputs_port }} \
+            -e GH_AW_SAFE_INPUTS_API_KEY=${{ steps.safe-inputs-config.outputs.safe_inputs_api_key }} \
+            -e GH_TOKEN="${GH_TOKEN}" \
+            -v /tmp/gh-aw/safe-inputs:/tmp/gh-aw/safe-inputs \
+            -w /tmp/gh-aw/safe-inputs \
+            node:24 \
+            node mcp-server.cjs
           
-          export GH_TOKEN="${GH_TOKEN}"
-          
-          cd /tmp/gh-aw/safe-inputs
-          # Verify required files exist
-          echo "Verifying safe-inputs setup..."
-          if [ ! -f mcp-server.cjs ]; then
-            echo "ERROR: mcp-server.cjs not found in /tmp/gh-aw/safe-inputs"
-            ls -la /tmp/gh-aw/safe-inputs/
-            exit 1
-          fi
-          if [ ! -f tools.json ]; then
-            echo "ERROR: tools.json not found in /tmp/gh-aw/safe-inputs"
-            ls -la /tmp/gh-aw/safe-inputs/
-            exit 1
-          fi
-          echo "Configuration files verified"
-          # Log environment configuration
-          echo "Server configuration:"
-          echo "  Port: $GH_AW_SAFE_INPUTS_PORT"
-          echo "  API Key: ${GH_AW_SAFE_INPUTS_API_KEY:0:8}..."
-          echo "  Working directory: $(pwd)"
-          # Ensure logs directory exists
-          mkdir -p /tmp/gh-aw/safe-inputs/logs
-          # Create initial server.log file for artifact upload
-          echo "Safe Inputs MCP Server Log" > /tmp/gh-aw/safe-inputs/logs/server.log
-          echo "Start time: $(date)" >> /tmp/gh-aw/safe-inputs/logs/server.log
-          echo "===========================================" >> /tmp/gh-aw/safe-inputs/logs/server.log
-          echo "" >> /tmp/gh-aw/safe-inputs/logs/server.log
-          # Start the HTTP server in the background
-          echo "Starting safe-inputs MCP HTTP server..."
-          node mcp-server.cjs >> /tmp/gh-aw/safe-inputs/logs/server.log 2>&1 &
-          SERVER_PID=$!
-          echo "Started safe-inputs MCP server with PID $SERVER_PID"
           # Wait for server to be ready (max 10 seconds)
-          echo "Waiting for server to become ready..."
+          echo 'Waiting for safe-inputs MCP server to be ready...'
           for i in {1..10}; do
-            # Check if process is still running
-            if ! kill -0 $SERVER_PID 2>/dev/null; then
-              echo "ERROR: Server process $SERVER_PID has died"
-              echo "Server log contents:"
-              cat /tmp/gh-aw/safe-inputs/logs/server.log
+            # Check if container is still running
+            if ! docker ps | grep -q safeinputs; then
+              echo "ERROR: Safe-inputs container has stopped"
+              docker logs safeinputs || true
               exit 1
             fi
-            # Check if server is responding
-            if curl -s -f http://localhost:$GH_AW_SAFE_INPUTS_PORT/health > /dev/null 2>&1; then
+            
+            # Check if server is responding (using container name on the network)
+            if docker run --rm --network gh-aw-network curlimages/curl:latest \
+              curl -s -f http://safeinputs:${{ steps.safe-inputs-config.outputs.safe_inputs_port }}/health > /dev/null 2>&1; then
               echo "Safe Inputs MCP server is ready (attempt $i/10)"
               break
             fi
+            
             if [ $i -eq 10 ]; then
               echo "ERROR: Safe Inputs MCP server failed to start after 10 seconds"
-              echo "Process status: $(ps aux | grep '[m]cp-server.cjs' || echo 'not running')"
-              echo "Server log contents:"
-              cat /tmp/gh-aw/safe-inputs/logs/server.log
-              echo "Checking port availability:"
-              netstat -tuln | grep $GH_AW_SAFE_INPUTS_PORT || echo "Port $GH_AW_SAFE_INPUTS_PORT not listening"
+              docker logs safeinputs || true
               exit 1
             fi
+            
             echo "Waiting for server... (attempt $i/10)"
             sleep 1
           done
-          # Output the configuration for the MCP client
-          echo "port=$GH_AW_SAFE_INPUTS_PORT" >> $GITHUB_OUTPUT
-          echo "api_key=$GH_AW_SAFE_INPUTS_API_KEY" >> $GITHUB_OUTPUT
           
       - name: Setup MCPs
         env:
@@ -4153,7 +4129,7 @@ jobs:
           
           [mcp_servers.safeinputs]
           type = "http"
-          url = "http://localhost:$GH_AW_SAFE_INPUTS_PORT"
+          url = "http://safeinputs:$GH_AW_SAFE_INPUTS_PORT"
           headers = { Authorization = "Bearer $GH_AW_SAFE_INPUTS_API_KEY" }
           env_vars = ["GH_AW_SAFE_INPUTS_PORT", "GH_AW_SAFE_INPUTS_API_KEY", "GH_TOKEN"]
           

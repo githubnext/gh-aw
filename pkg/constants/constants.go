@@ -221,6 +221,12 @@ const SafeInputsMCPServerID = "safeinputs"
 // SafeInputsMCPVersion is the version of the safe-inputs MCP server
 const SafeInputsMCPVersion = "1.0.0"
 
+// SafeInputsDockerNetwork is the name of the Docker network for safe-inputs
+const SafeInputsDockerNetwork = "gh-aw-network"
+
+// SafeInputsContainerName is the name of the safe-inputs Docker container
+const SafeInputsContainerName = "safeinputs"
+
 // Step IDs for pre-activation job
 const CheckMembershipStepID = "check_membership"
 const CheckStopTimeStepID = "check_stop_time"

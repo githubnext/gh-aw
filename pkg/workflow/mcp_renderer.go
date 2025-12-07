@@ -219,14 +219,14 @@ func (r *MCPConfigRendererUnified) RenderSafeInputsMCP(yaml *strings.Builder, sa
 }
 
 // renderSafeInputsTOML generates Safe Inputs MCP configuration in TOML format
-// Uses HTTP transport for consistency with JSON format (Copilot/Claude)
+// Uses HTTP transport with container name for Docker network connectivity
 func (r *MCPConfigRendererUnified) renderSafeInputsTOML(yaml *strings.Builder, safeInputs *SafeInputsConfig) {
 	envVars := getSafeInputsEnvVars(safeInputs)
 
 	yaml.WriteString("          \n")
 	yaml.WriteString("          [mcp_servers." + constants.SafeInputsMCPServerID + "]\n")
 	yaml.WriteString("          type = \"http\"\n")
-	yaml.WriteString("          url = \"http://localhost:$GH_AW_SAFE_INPUTS_PORT\"\n")
+	yaml.WriteString("          url = \"http://" + constants.SafeInputsContainerName + ":$GH_AW_SAFE_INPUTS_PORT\"\n")
 	yaml.WriteString("          headers = { Authorization = \"Bearer $GH_AW_SAFE_INPUTS_API_KEY\" }\n")
 
 	// Add environment variables: server config + tool-specific vars

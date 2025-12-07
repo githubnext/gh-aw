@@ -587,13 +587,13 @@ func renderSafeInputsMCPConfigWithOptions(yaml *strings.Builder, safeInputs *Saf
 	// Add type field for HTTP (required by MCP specification for HTTP transport)
 	yaml.WriteString("                \"type\": \"http\",\n")
 
-	// HTTP URL using environment variable
+	// HTTP URL using container name on docker network
 	if includeCopilotFields {
 		// Copilot format: backslash-escaped shell variable reference
-		yaml.WriteString("                \"url\": \"http://localhost:\\${GH_AW_SAFE_INPUTS_PORT}\",\n")
+		yaml.WriteString("                \"url\": \"http://" + constants.SafeInputsContainerName + ":\\${GH_AW_SAFE_INPUTS_PORT}\",\n")
 	} else {
 		// Claude/Custom format: direct shell variable reference
-		yaml.WriteString("                \"url\": \"http://localhost:$GH_AW_SAFE_INPUTS_PORT\",\n")
+		yaml.WriteString("                \"url\": \"http://" + constants.SafeInputsContainerName + ":$GH_AW_SAFE_INPUTS_PORT\",\n")
 	}
 
 	// Add Authorization header with API key
