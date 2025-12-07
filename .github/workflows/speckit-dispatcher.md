@@ -27,9 +27,9 @@ tools:
     - "find specs -type f -name '*.md'"
     - "git branch"
     - "git status"
-    - "cat specs/*/spec.md"
-    - "cat specs/*/plan.md"
-    - "cat specs/*/tasks.md"
+    - "find specs -name 'spec.md' -exec cat {} \\;"
+    - "find specs -name 'plan.md' -exec cat {} \\;"
+    - "find specs -name 'tasks.md' -exec cat {} \\;"
     - "cat .specify/memory/constitution.md"
 
 safe-outputs:
