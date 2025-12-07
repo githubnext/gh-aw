@@ -19,6 +19,7 @@ type CreatePullRequestsConfig struct {
 	Draft                *bool    `yaml:"draft,omitempty"`          // Pointer to distinguish between unset (nil) and explicitly false
 	IfNoChanges          string   `yaml:"if-no-changes,omitempty"`  // Behavior when no changes to push: "warn" (default), "error", or "ignore"
 	TargetRepoSlug       string   `yaml:"target-repo,omitempty"`    // Target repository in format "owner/repo" for cross-repository pull requests
+	Expires              int      `yaml:"expires,omitempty"`        // Days until the pull request expires and should be automatically closed (only for same-repo PRs)
 }
 
 // buildCreateOutputPullRequestJob creates the create_pull_request job
@@ -88,6 +89,11 @@ func (c *Compiler) buildCreateOutputPullRequestJob(data *WorkflowData, mainJobNa
 	if data.AIReaction != "" && data.AIReaction != "none" {
 		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_COMMENT_ID: ${{ needs.%s.outputs.comment_id }}\n", constants.ActivationJobName))
 		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_COMMENT_REPO: ${{ needs.%s.outputs.comment_repo }}\n", constants.ActivationJobName))
+	}
+
+	// Add expires value if set (only for same-repo PRs - when target-repo is not set)
+	if data.SafeOutputs.CreatePullRequests.Expires > 0 && data.SafeOutputs.CreatePullRequests.TargetRepoSlug == "" {
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_PR_EXPIRES: \"%d\"\n", data.SafeOutputs.CreatePullRequests.Expires))
 	}
 
 	// Add standard environment variables (metadata + staged/target repo)
@@ -185,6 +191,23 @@ func (c *Compiler) parsePullRequestsConfig(outputMap map[string]any) *CreatePull
 			return nil // Invalid configuration, return nil to cause validation error
 		}
 		pullRequestsConfig.TargetRepoSlug = targetRepoSlug
+
+		// Parse expires field (days until PR should be closed) - only for same-repo PRs
+		if expires, exists := configMap["expires"]; exists {
+			switch v := expires.(type) {
+			case int:
+				pullRequestsConfig.Expires = v
+			case int64:
+				pullRequestsConfig.Expires = int(v)
+			case float64:
+				pullRequestsConfig.Expires = int(v)
+			case uint64:
+				pullRequestsConfig.Expires = int(v)
+			}
+			if pullRequestsConfig.Expires > 0 {
+				createPRLog.Printf("Pull request expiration configured: %d days", pullRequestsConfig.Expires)
+			}
+		}
 
 		// Parse common base fields (github-token, max if specified by user)
 		c.parseBaseSafeOutputConfig(configMap, &pullRequestsConfig.BaseSafeOutputConfig, -1)
