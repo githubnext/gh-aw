@@ -219,6 +219,12 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 	}
 	copilotArgs = append(copilotArgs, toolArgs...)
 
+	// Add MCP configuration via CLI argument only if there are MCP servers
+	if HasMCPServers(workflowData) {
+		copilotLog.Print("Adding --additional-mcp-config argument")
+		copilotArgs = append(copilotArgs, "--additional-mcp-config", "/home/runner/.copilot/mcp-config.json")
+	}
+
 	// if cache-memory tool is used, --add-dir for each cache
 	if workflowData.CacheMemoryConfig != nil {
 		for _, cache := range workflowData.CacheMemoryConfig.Caches {
@@ -461,11 +467,6 @@ COPILOT_CLI_INSTRUCTION="$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"
 
 	// Always add GH_AW_PROMPT for agentic workflows
 	env["GH_AW_PROMPT"] = "/tmp/gh-aw/aw-prompts/prompt.txt"
-
-	// Add GH_AW_MCP_CONFIG for MCP server configuration only if there are MCP servers
-	if HasMCPServers(workflowData) {
-		env["GH_AW_MCP_CONFIG"] = "/home/runner/.copilot/mcp-config.json"
-	}
 
 	if hasGitHubTool(workflowData.ParsedTools) {
 		customGitHubToken := getGitHubToken(workflowData.Tools["github"])
@@ -1244,7 +1245,6 @@ async function main() {
       'GITHUB_REF_NAME',
       'GITHUB_WORKSPACE',
       'GH_AW_PROMPT',
-      'GH_AW_MCP_CONFIG',
       'GITHUB_MCP_SERVER_TOKEN',
       'GH_AW_SAFE_OUTPUTS',
       'GH_AW_STARTUP_TIMEOUT',
