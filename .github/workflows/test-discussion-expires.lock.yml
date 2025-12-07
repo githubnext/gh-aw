@@ -18,52 +18,25 @@
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/aw/github-agentic-workflows.md
 #
-# This workflow created daily team status reporter creating upbeat activity summaries.
-# Gathers recent repository activity (issues, PRs, discussions, releases, code changes)
-# and generates engaging GitHub discussions with productivity insights, community
-# highlights, and project recommendations. Uses a positive, encouraging tone with
-# moderate emoji usage to boost team morale.
+# Test workflow for expires field on discussions
 #
 # Original Frontmatter:
 # ```yaml
-# timeout-minutes: 10
-# strict: true
+# description: Test workflow for expires field on discussions
 # on:
-#   schedule:
-#   - cron: 0 9 * * 1-5
-#   stop-after: +1mo
-#   workflow_dispatch: null
+#   workflow_dispatch:
 # permissions:
 #   contents: read
-#   issues: read
-#   pull-requests: read
-# tracker-id: daily-team-status
-# network: defaults
-# imports:
-# - githubnext/agentics/workflows/shared/reporting.md@d3422bf940923ef1d43db5559652b8e1e71869f3
+#   discussions: write
+# engine: copilot
 # safe-outputs:
 #   create-discussion:
-#     category: announcements
-#     title-prefix: "[team-status] "
-#     close-older-discussions: true
-# description: |
-#   This workflow created daily team status reporter creating upbeat activity summaries.
-#   Gathers recent repository activity (issues, PRs, discussions, releases, code changes)
-#   and generates engaging GitHub discussions with productivity insights, community
-#   highlights, and project recommendations. Uses a positive, encouraging tone with
-#   moderate emoji usage to boost team morale.
-# source: githubnext/agentics/workflows/daily-team-status.md@d3422bf940923ef1d43db5559652b8e1e71869f3
-# tools:
-#   github: null
+#     expires: 7  # Discussion expires in 7 days
+#     title-prefix: "[Test] "
+#     labels:
+#       - test
+# timeout-minutes: 5
 # ```
-#
-# Source: githubnext/agentics/workflows/daily-team-status.md@d3422bf940923ef1d43db5559652b8e1e71869f3
-#
-# Resolved workflow manifest:
-#   Imports:
-#     - githubnext/agentics/workflows/shared/reporting.md@d3422bf940923ef1d43db5559652b8e1e71869f3
-#
-# Effective stop-time: 2026-01-02 23:42:46
 #
 # Job Dependency Graph:
 # ```mermaid
@@ -73,7 +46,6 @@
 #   conclusion["conclusion"]
 #   create_discussion["create_discussion"]
 #   detection["detection"]
-#   pre_activation["pre_activation"]
 #   activation --> agent
 #   activation --> conclusion
 #   agent --> conclusion
@@ -82,109 +54,15 @@
 #   create_discussion --> conclusion
 #   detection --> conclusion
 #   detection --> create_discussion
-#   pre_activation --> activation
 # ```
 #
 # Original Prompt:
 # ```markdown
-# ## Report Formatting
+# # Test Expires Field
 #
-# Structure your report with an overview followed by detailed content:
+# This is a test workflow to verify the expires field works correctly for discussions.
 #
-# 1. **Content Overview**: Start with 1-2 paragraphs that summarize the key findings, highlights, or main points of your report. This should give readers a quick understanding of what the report contains without needing to expand the details.
-#
-# 2. **Detailed Content**: Place the rest of your report inside HTML `<details>` and `<summary>` tags to allow readers to expand and view the full information. **IMPORTANT**: Always wrap the summary text in `<b>` tags to make it bold.
-#
-# **Example format:**
-#
-# `````markdown
-# Brief overview paragraph 1 introducing the report and its main findings.
-#
-# Optional overview paragraph 2 with additional context or highlights.
-#
-# <details>
-# <summary><b>Full Report Details</b></summary>
-#
-# ## Detailed Analysis
-#
-# Full report content with all sections, tables, and detailed information goes here.
-#
-# ### Section 1
-# [Content]
-#
-# ### Section 2
-# [Content]
-#
-# </details>
-# `````
-#
-# ## Reporting Workflow Run Information
-#
-# When analyzing workflow run logs or reporting information from GitHub Actions runs:
-#
-# ### 1. Workflow Run ID Formatting
-#
-# **Always render workflow run IDs as clickable URLs** when mentioning them in your report. The workflow run data includes a `url` field that provides the full GitHub Actions run page URL.
-#
-# **Format:**
-#
-# `````markdown
-# [§12345](https://github.com/owner/repo/actions/runs/12345)
-# `````
-#
-# **Example:**
-#
-# `````markdown
-# Analysis based on [§456789](https://github.com/githubnext/gh-aw/actions/runs/456789)
-# `````
-#
-# ### 2. Document References for Workflow Runs
-#
-# When your analysis is based on information mined from one or more workflow runs, **include up to 3 workflow run URLs as document references** at the end of your report.
-#
-# **Format:**
-#
-# `````markdown
-# ---
-#
-# **References:**
-# - [§12345](https://github.com/owner/repo/actions/runs/12345)
-# - [§12346](https://github.com/owner/repo/actions/runs/12346)
-# - [§12347](https://github.com/owner/repo/actions/runs/12347)
-# `````
-#
-# **Guidelines:**
-#
-# - Include **maximum 3 references** to keep reports concise
-# - Choose the most relevant or representative runs (e.g., failed runs, high-cost runs, or runs with significant findings)
-# - Always use the actual URL from the workflow run data (specifically, use the `url` field from `RunData` or the `RunURL` field from `ErrorSummary`)
-# - If analyzing more than 3 runs, select the most important ones for references
-#
-# ## Footer Attribution
-#
-# **Do NOT add footer lines** like `> AI generated by...` to your comment. The system automatically appends attribution after your content to prevent duplicates.
-#
-# # Daily Team Status
-#
-# Create an upbeat daily status report for the team as a GitHub discussion.
-#
-# ## What to include
-#
-# - Recent repository activity (issues, PRs, discussions, releases, code changes)
-# - Team productivity suggestions and improvement ideas
-# - Community engagement highlights
-# - Project investment and feature recommendations
-#
-# ## Style
-#
-# - Be positive, encouraging, and helpful 🌟
-# - Use emojis moderately for engagement
-# - Keep it concise - adjust length based on actual activity
-#
-# ## Process
-#
-# 1. Gather recent activity from the repository
-# 2. Create a new GitHub discussion with your findings and insights
+# The discussion created by this workflow will automatically expire and be closed after 7 days.
 # ```
 #
 # Pinned GitHub Actions:
@@ -199,26 +77,21 @@
 #   - actions/upload-artifact@v5 (330a01c490aca151604b8cf639adc76d48f6c5d4)
 #     https://github.com/actions/upload-artifact/commit/330a01c490aca151604b8cf639adc76d48f6c5d4
 
-name: "Daily Team Status"
+name: "Test Expires Field"
 "on":
-  schedule:
-  - cron: "0 9 * * 1-5"
   workflow_dispatch: null
 
 permissions:
   contents: read
-  issues: read
-  pull-requests: read
+  discussions: write
 
 concurrency:
   group: "gh-aw-${{ github.workflow }}"
 
-run-name: "Daily Team Status"
+run-name: "Test Expires Field"
 
 jobs:
   activation:
-    needs: pre_activation
-    if: needs.pre_activation.outputs.activated == 'true'
     runs-on: ubuntu-slim
     permissions:
       contents: read
@@ -229,7 +102,7 @@ jobs:
       - name: Check workflow file timestamps
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
-          GH_AW_WORKFLOW_FILE: "daily-team-status.lock.yml"
+          GH_AW_WORKFLOW_FILE: "test-discussion-expires.lock.yml"
         with:
           script: |
             async function main() {
@@ -319,8 +192,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      issues: read
-      pull-requests: read
+      discussions: write
     concurrency:
       group: "gh-aw-copilot-${{ github.workflow }}"
     env:
@@ -443,7 +315,7 @@ jobs:
           cat > /tmp/gh-aw/safeoutputs/tools.json << 'EOF'
           [
             {
-              "description": "Create a GitHub discussion for announcements, Q\u0026A, reports, status updates, or community conversations. Use this for content that benefits from threaded replies, doesn't require task tracking, or serves as documentation. For actionable work items that need assignment and status tracking, use create_issue instead. CONSTRAINTS: Maximum 1 discussion(s) can be created. Title will be prefixed with \"[team-status] \". Discussions will be created in category \"announcements\".",
+              "description": "Create a GitHub discussion for announcements, Q\u0026A, reports, status updates, or community conversations. Use this for content that benefits from threaded replies, doesn't require task tracking, or serves as documentation. For actionable work items that need assignment and status tracking, use create_issue instead. CONSTRAINTS: Maximum 1 discussion(s) can be created. Title will be prefixed with \"[Test] \".",
               "inputSchema": {
                 "additionalProperties": false,
                 "properties": {
@@ -1728,7 +1600,7 @@ jobs:
               model: process.env.GH_AW_MODEL_AGENT_COPILOT || "",
               version: "",
               agent_version: "0.0.367",
-              workflow_name: "Daily Team Status",
+              workflow_name: "Test Expires Field",
               experimental: false,
               supports_tools_allowlist: true,
               supports_http_transport: true,
@@ -1806,104 +1678,11 @@ jobs:
           PROMPT_DIR="$(dirname "$GH_AW_PROMPT")"
           mkdir -p "$PROMPT_DIR"
           cat << 'PROMPT_EOF' | envsubst > "$GH_AW_PROMPT"
-          ## Report Formatting
+          # Test Expires Field
           
-          Structure your report with an overview followed by detailed content:
+          This is a test workflow to verify the expires field works correctly for discussions.
           
-          1. **Content Overview**: Start with 1-2 paragraphs that summarize the key findings, highlights, or main points of your report. This should give readers a quick understanding of what the report contains without needing to expand the details.
-          
-          2. **Detailed Content**: Place the rest of your report inside HTML `<details>` and `<summary>` tags to allow readers to expand and view the full information. **IMPORTANT**: Always wrap the summary text in `<b>` tags to make it bold.
-          
-          **Example format:**
-          
-          `````markdown
-          Brief overview paragraph 1 introducing the report and its main findings.
-          
-          Optional overview paragraph 2 with additional context or highlights.
-          
-          <details>
-          <summary><b>Full Report Details</b></summary>
-          
-          ## Detailed Analysis
-          
-          Full report content with all sections, tables, and detailed information goes here.
-          
-          ### Section 1
-          [Content]
-          
-          ### Section 2
-          [Content]
-          
-          </details>
-          `````
-          
-          ## Reporting Workflow Run Information
-          
-          When analyzing workflow run logs or reporting information from GitHub Actions runs:
-          
-          ### 1. Workflow Run ID Formatting
-          
-          **Always render workflow run IDs as clickable URLs** when mentioning them in your report. The workflow run data includes a `url` field that provides the full GitHub Actions run page URL.
-          
-          **Format:**
-          
-          `````markdown
-          [§12345](https://github.com/owner/repo/actions/runs/12345)
-          `````
-          
-          **Example:**
-          
-          `````markdown
-          Analysis based on [§456789](https://github.com/githubnext/gh-aw/actions/runs/456789)
-          `````
-          
-          ### 2. Document References for Workflow Runs
-          
-          When your analysis is based on information mined from one or more workflow runs, **include up to 3 workflow run URLs as document references** at the end of your report.
-          
-          **Format:**
-          
-          `````markdown
-          ---
-          
-          **References:**
-          - [§12345](https://github.com/owner/repo/actions/runs/12345)
-          - [§12346](https://github.com/owner/repo/actions/runs/12346)
-          - [§12347](https://github.com/owner/repo/actions/runs/12347)
-          `````
-          
-          **Guidelines:**
-          
-          - Include **maximum 3 references** to keep reports concise
-          - Choose the most relevant or representative runs (e.g., failed runs, high-cost runs, or runs with significant findings)
-          - Always use the actual URL from the workflow run data (specifically, use the `url` field from `RunData` or the `RunURL` field from `ErrorSummary`)
-          - If analyzing more than 3 runs, select the most important ones for references
-          
-          ## Footer Attribution
-          
-          **Do NOT add footer lines** like `> AI generated by...` to your comment. The system automatically appends attribution after your content to prevent duplicates.
-          
-          # Daily Team Status
-          
-          Create an upbeat daily status report for the team as a GitHub discussion.
-          
-          ## What to include
-          
-          - Recent repository activity (issues, PRs, discussions, releases, code changes)
-          - Team productivity suggestions and improvement ideas
-          - Community engagement highlights
-          - Project investment and feature recommendations
-          
-          ## Style
-          
-          - Be positive, encouraging, and helpful 🌟
-          - Use emojis moderately for engagement
-          - Keep it concise - adjust length based on actual activity
-          
-          ## Process
-          
-          1. Gather recent activity from the repository
-          2. Create a new GitHub discussion with your findings and insights
+          The discussion created by this workflow will automatically expire and be closed after 7 days.
           
           PROMPT_EOF
       - name: Append XPIA security instructions to prompt
@@ -2104,7 +1883,7 @@ jobs:
         # Copilot CLI tool arguments (sorted):
         # --allow-tool github
         # --allow-tool safeoutputs
-        timeout-minutes: 10
+        timeout-minutes: 5
         run: |
           set -o pipefail
           sudo -E awf --env-all --container-workdir "${GITHUB_WORKSPACE}" --mount /tmp:/tmp:rw --mount "${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:rw" --mount /usr/bin/date:/usr/bin/date:ro --mount /usr/bin/gh:/usr/bin/gh:ro --mount /usr/bin/yq:/usr/bin/yq:ro --allow-domains api.business.githubcopilot.com,api.enterprise.githubcopilot.com,api.github.com,github.com,raw.githubusercontent.com,registry.npmjs.org --log-level info --proxy-logs-dir /tmp/gh-aw/sandbox/firewall/logs \
@@ -4451,7 +4230,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
         with:
-          name: firewall-logs-daily-team-status
+          name: firewall-logs-test-expires-field
           path: /tmp/gh-aw/sandbox/firewall/logs/
           if-no-files-found: ignore
       - name: Parse firewall logs for step summary
@@ -5036,10 +4815,7 @@ jobs:
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_NOOP_MAX: 1
-          GH_AW_WORKFLOW_NAME: "Daily Team Status"
-          GH_AW_WORKFLOW_SOURCE: "githubnext/agentics/workflows/daily-team-status.md@d3422bf940923ef1d43db5559652b8e1e71869f3"
-          GH_AW_WORKFLOW_SOURCE_URL: "${{ github.server_url }}/githubnext/agentics/tree/d3422bf940923ef1d43db5559652b8e1e71869f3/workflows/daily-team-status.md"
-          GH_AW_TRACKER_ID: "daily-team-status"
+          GH_AW_WORKFLOW_NAME: "Test Expires Field"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -5131,10 +4907,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_WORKFLOW_NAME: "Daily Team Status"
-          GH_AW_WORKFLOW_SOURCE: "githubnext/agentics/workflows/daily-team-status.md@d3422bf940923ef1d43db5559652b8e1e71869f3"
-          GH_AW_WORKFLOW_SOURCE_URL: "${{ github.server_url }}/githubnext/agentics/tree/d3422bf940923ef1d43db5559652b8e1e71869f3/workflows/daily-team-status.md"
-          GH_AW_TRACKER_ID: "daily-team-status"
+          GH_AW_WORKFLOW_NAME: "Test Expires Field"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -5247,8 +5020,7 @@ jobs:
           GH_AW_COMMENT_ID: ${{ needs.activation.outputs.comment_id }}
           GH_AW_COMMENT_REPO: ${{ needs.activation.outputs.comment_repo }}
           GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          GH_AW_WORKFLOW_NAME: "Daily Team Status"
-          GH_AW_TRACKER_ID: "daily-team-status"
+          GH_AW_WORKFLOW_NAME: "Test Expires Field"
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
           GH_AW_DETECTION_CONCLUSION: ${{ needs.detection.result }}
         with:
@@ -5507,13 +5279,9 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_DISCUSSION_TITLE_PREFIX: "[team-status] "
-          GH_AW_DISCUSSION_CATEGORY: "announcements"
-          GH_AW_CLOSE_OLDER_DISCUSSIONS: "true"
-          GH_AW_WORKFLOW_NAME: "Daily Team Status"
-          GH_AW_WORKFLOW_SOURCE: "githubnext/agentics/workflows/daily-team-status.md@d3422bf940923ef1d43db5559652b8e1e71869f3"
-          GH_AW_WORKFLOW_SOURCE_URL: "${{ github.server_url }}/githubnext/agentics/tree/d3422bf940923ef1d43db5559652b8e1e71869f3/workflows/daily-team-status.md"
-          GH_AW_TRACKER_ID: "daily-team-status"
+          GH_AW_DISCUSSION_TITLE_PREFIX: "[Test] "
+          GH_AW_DISCUSSION_LABELS: "test"
+          GH_AW_WORKFLOW_NAME: "Test Expires Field"
           GH_AW_ENGINE_ID: "copilot"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
@@ -6211,8 +5979,8 @@ jobs:
       - name: Setup threat detection
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
-          WORKFLOW_NAME: "Daily Team Status"
-          WORKFLOW_DESCRIPTION: "This workflow created daily team status reporter creating upbeat activity summaries.\nGathers recent repository activity (issues, PRs, discussions, releases, code changes)\nand generates engaging GitHub discussions with productivity insights, community\nhighlights, and project recommendations. Uses a positive, encouraging tone with\nmoderate emoji usage to boost team morale."
+          WORKFLOW_NAME: "Test Expires Field"
+          WORKFLOW_DESCRIPTION: "Test workflow for expires field on discussions"
         with:
           script: |
             const fs = require('fs');
@@ -6425,46 +6193,4 @@ jobs:
           name: threat-detection.log
           path: /tmp/gh-aw/threat-detection/detection.log
           if-no-files-found: ignore
-
-  pre_activation:
-    runs-on: ubuntu-slim
-    outputs:
-      activated: ${{ steps.check_stop_time.outputs.stop_time_ok == 'true' }}
-    steps:
-      - name: Check stop-time limit
-        id: check_stop_time
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
-        env:
-          GH_AW_STOP_TIME: 2026-01-02 23:42:46
-          GH_AW_WORKFLOW_NAME: "Daily Team Status"
-        with:
-          script: |
-            async function main() {
-              const stopTime = process.env.GH_AW_STOP_TIME;
-              const workflowName = process.env.GH_AW_WORKFLOW_NAME;
-              if (!stopTime) {
-                core.setFailed("Configuration error: GH_AW_STOP_TIME not specified.");
-                return;
-              }
-              if (!workflowName) {
-                core.setFailed("Configuration error: GH_AW_WORKFLOW_NAME not specified.");
-                return;
-              }
-              core.info(`Checking stop-time limit: ${stopTime}`);
-              const stopTimeDate = new Date(stopTime);
-              if (isNaN(stopTimeDate.getTime())) {
-                core.setFailed(`Invalid stop-time format: ${stopTime}. Expected format: YYYY-MM-DD HH:MM:SS`);
-                return;
-              }
-              const currentTime = new Date();
-              core.info(`Current time: ${currentTime.toISOString()}`);
-              core.info(`Stop time: ${stopTimeDate.toISOString()}`);
-              if (currentTime >= stopTimeDate) {
-                core.warning(`⏰ Stop time reached. Workflow execution will be prevented by activation job.`);
-                core.setOutput("stop_time_ok", "false");
-                return;
-              }
-              core.setOutput("stop_time_ok", "true");
-            }
-            await main();
 

@@ -3188,6 +3188,11 @@
                   "type": "boolean",
                   "description": "When true, automatically close older discussions matching the same title prefix or labels as 'outdated' with a comment linking to the new discussion. Requires title-prefix or labels to be set. Maximum 10 discussions will be closed. Only runs if discussion creation succeeds.",
                   "default": false
+                },
+                "expires": {
+                  "type": "integer",
+                  "description": "Number of days until the discussion expires and should be automatically closed. When set, a maintenance workflow will be generated to periodically close expired discussions. Minimum value is 1.",
+                  "minimum": 1
                 }
               },
               "additionalProperties": false,
