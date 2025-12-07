@@ -381,6 +381,13 @@ Examples:
 							"Check for typos in the workflow name",
 							"Use the workflow ID (e.g., 'test-claude') or GitHub Actions workflow name (e.g., 'Test Claude')",
 						}
+
+						// Add fuzzy match suggestions
+						similarNames := suggestWorkflowNames(args[0])
+						if len(similarNames) > 0 {
+							suggestions = append([]string{fmt.Sprintf("Did you mean: %s?", strings.Join(similarNames, ", "))}, suggestions...)
+						}
+
 						return errors.New(console.FormatErrorWithSuggestions(
 							fmt.Sprintf("workflow '%s' not found", args[0]),
 							suggestions,
