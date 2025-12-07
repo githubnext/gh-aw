@@ -743,7 +743,7 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 		yaml.WriteString("          GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}\n")
 	}
 	// Add environment variables for extracted expressions
-	// These are used by envsubst to substitute values in the heredoc
+	// These are used by sed to safely substitute placeholders in the heredoc
 	for _, mapping := range expressionMappings {
 		fmt.Fprintf(yaml, "          %s: ${{ %s }}\n", mapping.EnvVar, mapping.Content)
 	}
@@ -752,9 +752,8 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 	WriteShellScriptToYAML(yaml, createPromptFirstScript, "          ")
 
 	if len(chunks) > 0 {
-		// Use quoted heredoc marker to prevent shell variable expansion
-		// Pipe through envsubst to substitute environment variables
-		yaml.WriteString("          cat << 'PROMPT_EOF' | envsubst > \"$GH_AW_PROMPT\"\n")
+		// Write template with placeholders directly to target file
+		yaml.WriteString("          cat << 'PROMPT_EOF' > \"$GH_AW_PROMPT\"\n")
 		// Pre-allocate buffer to avoid repeated allocations
 		lines := strings.Split(chunks[0], "\n")
 		for _, line := range lines {
@@ -763,6 +762,10 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 			yaml.WriteByte('\n')
 		}
 		yaml.WriteString("          PROMPT_EOF\n")
+		// Safely substitute using sed (escapes pipe character to avoid delimiter conflicts)
+		for _, mapping := range expressionMappings {
+			yaml.WriteString(fmt.Sprintf("          sed -i \"s|__%s__|${%s//|/\\\\|}|g\" \"$GH_AW_PROMPT\"\n", mapping.EnvVar, mapping.EnvVar))
+		}
 	} else {
 		yaml.WriteString("          touch \"$GH_AW_PROMPT\"\n")
 	}
@@ -778,9 +781,8 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 			fmt.Fprintf(yaml, "          %s: ${{ %s }}\n", mapping.EnvVar, mapping.Content)
 		}
 		yaml.WriteString("        run: |\n")
-		// Use quoted heredoc marker to prevent shell variable expansion
-		// Pipe through envsubst to substitute environment variables
-		yaml.WriteString("          cat << 'PROMPT_EOF' | envsubst >> \"$GH_AW_PROMPT\"\n")
+		// Write template with placeholders directly to target file (append mode)
+		yaml.WriteString("          cat << 'PROMPT_EOF' >> \"$GH_AW_PROMPT\"\n")
 		// Avoid string concatenation in loop - write components separately
 		lines := strings.Split(chunk, "\n")
 		for _, line := range lines {
@@ -789,6 +791,10 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 			yaml.WriteByte('\n')
 		}
 		yaml.WriteString("          PROMPT_EOF\n")
+		// Safely substitute using sed (escapes pipe character to avoid delimiter conflicts)
+		for _, mapping := range expressionMappings {
+			yaml.WriteString(fmt.Sprintf("          sed -i \"s|__%s__|${%s//|/\\\\|}|g\" \"$GH_AW_PROMPT\"\n", mapping.EnvVar, mapping.EnvVar))
+		}
 	}
 
 	// Add XPIA security prompt as separate step if enabled (before other prompts)

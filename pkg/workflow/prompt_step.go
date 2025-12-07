@@ -41,7 +41,7 @@ func appendPromptStepWithHeredoc(yaml *strings.Builder, stepName string, rendere
 	yaml.WriteString("        env:\n")
 	yaml.WriteString("          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt\n")
 	yaml.WriteString("        run: |\n")
-	yaml.WriteString("          cat << 'PROMPT_EOF' | envsubst >> \"$GH_AW_PROMPT\"\n")
+	yaml.WriteString("          cat << 'PROMPT_EOF' >> \"$GH_AW_PROMPT\"\n")
 
 	// Call the renderer to write the content
 	renderer(yaml)
