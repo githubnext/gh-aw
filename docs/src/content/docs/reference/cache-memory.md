@@ -1,16 +1,17 @@
 ---
 title: Memory
-description: Complete guide to using cache-memory for persistent file storage across workflow runs using GitHub Actions cache and simple file operations.
+description: Complete guide to using cache-memory and repo-memory for persistent file storage across workflow runs.
 sidebar:
   order: 1500
 ---
 
 "Memory" for agentic workflows can be implemented in several ways:
 
-- GitHub Issues, Discussions, Issue Comments, files and other GitHub information elements can be emitted to act as the "memory" of the agentic workflow, which it re-reads on each workflow run
-- A "cache memory" feature is available to use GitHub Actions Caches as a persisitent file storage. 
+- **GitHub Issues, Discussions, Issue Comments, files** and other GitHub information elements can be emitted to act as the "memory" of the agentic workflow, which it re-reads on each workflow run
+- **Cache Memory** - Uses GitHub Actions Caches as persistent file storage with 7-day retention
+- **Repo Memory** - Uses Git branches as persistent storage with unlimited retention
 
-This document covers "cache memory".
+This document covers both **cache-memory** and **repo-memory**.
 
 ## Cache Memory
 
@@ -232,9 +233,310 @@ tools:
 # Store build artifacts in /tmp/gh-aw/cache-memory-artifacts/
 ```
 
-## Real-World Examples
+## Cache Memory Real-World Examples
 
 - **[Grumpy Code Reviewer](https://github.com/githubnext/gh-aw/blob/main/.github/workflows/grumpy-reviewer.md)** - Uses cache memory to track previous PR reviews, storing review history per PR to avoid duplicate comments and maintain context across multiple review invocations.
+
+---
+
+# Repo Memory
+
+The `repo-memory` feature enables agentic workflows to maintain persistent file storage across workflow runs using Git branches. Unlike cache-memory which expires after 7 days, repo-memory provides **unlimited retention** through version-controlled storage.
+
+When enabled, the workflow compiler automatically:
+- Clones or creates the specified Git branch
+- Provides file system access at `/tmp/gh-aw/repo-memory-{id}/memory/{id}/`
+- Commits and pushes changes back to the branch after workflow completion
+- Handles merge conflicts automatically (your changes win)
+- Informs the AI agent about the available storage location
+
+**Default memory** uses branch `memory/default` and directory `/tmp/gh-aw/repo-memory-default/memory/default/`.
+
+## Enabling Repo Memory
+
+Enable repo-memory with default settings:
+
+```aw wrap
+---
+tools:
+  repo-memory: true
+  github:
+    allowed: [get_repository]
+---
+```
+
+This creates a Git branch at `memory/default` in the current repository and provides file access at `/tmp/gh-aw/repo-memory-default/memory/default/`.
+
+## Using the Repo Memory Folder
+
+AI agents can store and retrieve information using standard file operations:
+
+```aw wrap
+Please save this information to a file in the repo memory folder: "User prefers verbose error messages when debugging."
+```
+
+```aw wrap
+Check what information I have stored in the repo memory folder from previous runs.
+```
+
+Files are automatically committed and pushed to the Git branch after the workflow completes, providing permanent version-controlled storage.
+
+## Advanced Configuration
+
+Customize branch name, file constraints, and repository target:
+
+```aw wrap
+---
+tools:
+  repo-memory:
+    branch-name: memory/custom-agent
+    description: "Long-term insights and patterns"
+    file-glob: ["*.md", "*.json"]
+    max-file-size: 1048576  # 1MB
+    max-file-count: 50
+    target-repo: "owner/repository"
+  github:
+    allowed: [get_repository]
+---
+```
+
+### Configuration Options
+
+- **`branch-name`** (default: `memory/default`) - Git branch name for storage
+- **`description`** (optional) - Description shown to the AI agent in prompts
+- **`file-glob`** (optional) - Array of file patterns allowed (e.g., `["*.md", "*.txt"]`)
+- **`max-file-size`** (default: 10240 bytes = 10KB) - Maximum size per file in bytes
+- **`max-file-count`** (default: 100) - Maximum number of files per commit
+- **`target-repo`** (default: current repository) - Target repository in `owner/name` format
+- **`create-orphan`** (default: true) - Create orphan branch if it doesn't exist
+
+## Multiple Repo Memory Configurations
+
+Configure multiple independent memory locations using array notation:
+
+```aw wrap
+---
+tools:
+  repo-memory:
+    - id: insights
+      branch-name: memory/insights
+      description: "Long-term patterns and trends"
+      file-glob: ["*.md"]
+    - id: state
+      branch-name: memory/state
+      description: "Current state and context"
+      file-glob: ["*.json"]
+      max-file-size: 524288  # 512KB
+    - id: history
+      branch-name: memory/history
+      description: "Historical data"
+  github:
+    allowed: [get_repository]
+---
+```
+
+Each memory mounts at its own directory:
+- **Default memory**: `/tmp/gh-aw/repo-memory-default/memory/default/`
+- **Other memories**: `/tmp/gh-aw/repo-memory-{id}/memory/{id}/`
+
+The `id` field is required for array notation and determines both the folder name and default branch name. If `branch-name` is omitted, it defaults to `memory/{id}`.
+
+## Behavior and Git Integration
+
+### Branch Creation and Cloning
+
+**Automatic Branch Creation**: If the specified branch doesn't exist and `create-orphan: true` (default), an orphan branch is automatically created with no history.
+
+**Existing Branch**: If the branch exists, it's cloned at workflow start with `--depth 1` for efficiency.
+
+### Commit and Push Process
+
+Changes are automatically committed and pushed at workflow completion:
+
+1. **Validation**: Files are validated against `file-glob`, `max-file-size`, and `max-file-count` constraints
+2. **Commit**: All changes in the memory directory are staged and committed with message: `"Update memory from workflow run {run_id}"`
+3. **Pull**: Latest changes are pulled with merge strategy `-X ours` (your changes win on conflicts)
+4. **Push**: Changes are pushed to the remote branch
+
+**Conditional Execution**: Push only occurs if:
+- Changes are detected in the memory directory
+- Threat detection is enabled and passed (if configured)
+
+### Merge Conflict Resolution
+
+If concurrent workflows modify the same files:
+- Pull uses `git pull --no-rebase -X ours` strategy
+- **Your changes (current workflow) win** in all conflicts
+- This ensures the agent's latest changes are always preserved
+
+### Permissions
+
+The workflow automatically adds `contents: write` permission to the push job to enable branch updates.
+
+## Best Practices
+
+**File Organization**: Use descriptive file names and directory structures:
+
+```
+/tmp/gh-aw/repo-memory-default/memory/default/
+├── insights/
+│   ├── patterns.md
+│   └── trends.md
+├── state/
+│   ├── current.json
+│   └── metadata.json
+└── history/
+    └── 2024-12-07.md
+```
+
+**Branch Naming**: Use descriptive, hierarchical branch names:
+- `memory/default` - Default memory
+- `memory/insights` - Long-term insights
+- `memory/agent-name` - Agent-specific memory
+
+**Memory Scope**:
+- **Workflow-specific** (default): Each workflow has its own memory branch
+- **Shared**: Use the same branch name across multiple workflows to share memory
+- **Cross-repository**: Set `target-repo` to store memory in a different repository
+
+**File Constraints**: Use constraints to prevent abuse:
+- Set `file-glob` to restrict file types (e.g., `["*.md", "*.json"]`)
+- Set `max-file-size` to prevent large files
+- Set `max-file-count` to limit number of files
+
+**Storage Management**: 
+- Monitor branch size and commit frequency
+- Consider periodic cleanup of old data
+- Use structured formats (JSON, YAML) for easier processing
+
+## Comparing Cache Memory vs Repo Memory
+
+| Feature | Cache Memory | Repo Memory |
+|---------|--------------|-------------|
+| **Storage** | GitHub Actions Cache | Git Branches |
+| **Retention** | 7 days | Unlimited |
+| **Size Limit** | 10GB per repository | Repository size limits |
+| **Version Control** | No | Yes (full Git history) |
+| **Access** | File operations | File operations |
+| **Performance** | Fast (cached) | Slower (Git clone/push) |
+| **Best For** | Temporary data, sessions | Long-term insights, history |
+
+**Choose Cache Memory** when you need fast, temporary storage for session data or short-term context.
+
+**Choose Repo Memory** when you need permanent, version-controlled storage for insights, patterns, or historical data.
+
+## Troubleshooting
+
+**Branch Not Created**: Ensure `create-orphan: true` (default) is set, or manually create the branch before first run.
+
+**Permission Denied**: Ensure the workflow has `contents: write` permission. This is automatically added by the compiler.
+
+**File Validation Failures**: Check that your files:
+- Match the `file-glob` patterns (if specified)
+- Are smaller than `max-file-size` (default: 10KB)
+- Don't exceed `max-file-count` (default: 100 files)
+
+**Changes Not Persisting**: Verify:
+- Files are in the correct directory: `/tmp/gh-aw/repo-memory-{id}/memory/{id}/`
+- Workflow completed successfully
+- Check workflow logs for push errors
+
+**Merge Conflicts**: Repo memory uses `-X ours` strategy, so your changes always win. If you need to preserve previous data, read it before writing new data.
+
+## Security Considerations
+
+**Data Privacy**: 
+- Memory branches are part of the repository and follow repository access permissions
+- Use private repositories for sensitive data
+- Avoid storing secrets or credentials in memory files
+
+**File Validation**: 
+- Use `file-glob` to restrict allowed file types
+- Set `max-file-size` to prevent large file abuse
+- Set `max-file-count` to limit storage growth
+
+**Branch Protection**:
+- Memory branches are standard Git branches
+- Consider branch protection rules for production workflows
+- Use `target-repo` to isolate memory in a separate repository
+
+## Examples
+
+### Basic Memory Storage
+
+```aw wrap
+---
+on: workflow_dispatch
+tools:
+  repo-memory: true
+---
+
+# Store insights in repo memory
+# Check what previous insights exist
+# Add new insights based on current analysis
+```
+
+### Long-Term Insights Tracking
+
+```aw wrap
+---
+tools:
+  repo-memory:
+    branch-name: memory/deep-insights
+    description: "Long-term insights, patterns, and trend data"
+    file-glob: ["*.md"]
+    max-file-size: 1048576  # 1MB
+---
+
+# Deep Analysis Agent
+# Store patterns and trends over time
+```
+
+### Multiple Memory Locations
+
+```aw wrap
+---
+on: workflow_dispatch
+tools:
+  repo-memory:
+    - id: insights
+      branch-name: memory/insights
+      description: "Long-term patterns and trends"
+    - id: state
+      branch-name: memory/state
+      description: "Current state and context"
+    - id: history
+      branch-name: memory/history
+      description: "Historical event log"
+---
+
+# Organize different types of memory
+# Store insights in /tmp/gh-aw/repo-memory-insights/memory/insights/
+# Store state in /tmp/gh-aw/repo-memory-state/memory/state/
+# Store history in /tmp/gh-aw/repo-memory-history/memory/history/
+```
+
+### Cross-Repository Memory
+
+```aw wrap
+---
+tools:
+  repo-memory:
+    target-repo: "myorg/memory-store"
+    branch-name: memory/shared-insights
+    description: "Shared insights across multiple repositories"
+---
+
+# Store insights in a central memory repository
+# Access memory from multiple project repositories
+```
+
+## Repo Memory Real-World Examples
+
+- **[Deep Report](https://github.com/githubnext/gh-aw/blob/main/.github/workflows/deep-report.md)** - Uses repo memory to track long-term insights, patterns, and trends from discussion analysis, storing findings in markdown files with constraints to prevent abuse.
+- **[Daily Firewall Report](https://github.com/githubnext/gh-aw/blob/main/.github/workflows/daily-firewall-report.md)** - Uses repo memory to maintain historical data about security patterns and anomalies over time.
+
+---
 
 ## Related Documentation
 
