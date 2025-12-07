@@ -2938,6 +2938,19 @@ jobs:
                     res.end();
                     return;
                   }
+                  if (req.method === "GET" && req.url === "/") {
+                    logger.debug("Handling health check request");
+                    res.writeHead(200, { "Content-Type": "application/json" });
+                    res.end(
+                      JSON.stringify({
+                        status: "ok",
+                        server: config.serverName || "safeinputs",
+                        version: config.version || "1.0.0",
+                        tools: config.tools.length,
+                      })
+                    );
+                    return;
+                  }
                   if (req.method !== "POST") {
                     logger.debug(`Rejecting non-POST request: ${req.method}`);
                     res.writeHead(405, { "Content-Type": "application/json" });

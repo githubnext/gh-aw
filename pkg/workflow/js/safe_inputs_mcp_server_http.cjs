@@ -188,6 +188,21 @@ async function startHttpServer(configPath, options = {}) {
         return;
       }
 
+      // Handle GET requests for health checks (root path only)
+      if (req.method === "GET" && req.url === "/") {
+        logger.debug("Handling health check request");
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(
+          JSON.stringify({
+            status: "ok",
+            server: config.serverName || "safeinputs",
+            version: config.version || "1.0.0",
+            tools: config.tools.length,
+          })
+        );
+        return;
+      }
+
       // Only handle POST requests for MCP protocol
       if (req.method !== "POST") {
         logger.debug(`Rejecting non-POST request: ${req.method}`);
