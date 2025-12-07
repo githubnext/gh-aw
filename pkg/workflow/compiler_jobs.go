@@ -246,6 +246,20 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName, markdownPat
 		}
 		compilerJobsLog.Printf("Successfully added threat detection job: %s", constants.DetectionJobName)
 		threatDetectionEnabled = true
+
+		// Build update_cache_memory job if cache-memory is configured
+		// This job runs after successful detection and updates the cache from artifacts
+		if data.CacheMemoryConfig != nil && len(data.CacheMemoryConfig.Caches) > 0 {
+			compilerJobsLog.Print("Building update_cache_memory job")
+			updateCacheJob, err := c.buildUpdateCacheMemoryJob(data, jobName)
+			if err != nil {
+				return fmt.Errorf("failed to build update_cache_memory job: %w", err)
+			}
+			if err := c.jobManager.AddJob(updateCacheJob); err != nil {
+				return fmt.Errorf("failed to add update_cache_memory job: %w", err)
+			}
+			compilerJobsLog.Printf("Successfully added update_cache_memory job")
+		}
 	}
 
 	// Track safe output job names to establish dependencies for conclusion job

@@ -209,6 +209,7 @@ const AgentJobName = "agent"
 const ActivationJobName = "activation"
 const PreActivationJobName = "pre_activation"
 const DetectionJobName = "detection"
+const UpdateCacheMemoryJobName = "update_cache_memory"
 const SafeOutputArtifactName = "safe_output.jsonl"
 const AgentOutputArtifactName = "agent_output.json"
 

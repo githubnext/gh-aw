@@ -215,6 +215,7 @@ func TestConstantValues(t *testing.T) {
 		{"ActivationJobName", ActivationJobName, "activation"},
 		{"PreActivationJobName", PreActivationJobName, "pre_activation"},
 		{"DetectionJobName", DetectionJobName, "detection"},
+		{"UpdateCacheMemoryJobName", UpdateCacheMemoryJobName, "update_cache_memory"},
 		{"SafeOutputArtifactName", SafeOutputArtifactName, "safe_output.jsonl"},
 		{"AgentOutputArtifactName", AgentOutputArtifactName, "agent_output.json"},
 		{"SafeOutputsMCPServerID", SafeOutputsMCPServerID, "safeoutputs"},
