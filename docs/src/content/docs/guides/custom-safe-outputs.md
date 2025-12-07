@@ -462,6 +462,98 @@ Create a launch configuration:
 
 Set breakpoints in the extracted script and debug step-by-step.
 
+### Testing with Local GitHub Actions
+
+Test your custom safe output job steps locally using the `actions/local-action` action before deploying to production. This allows you to validate the JavaScript logic in a GitHub Actions environment without running the full workflow.
+
+#### Using actions/local-action
+
+The `actions/local-action` action lets you run GitHub Actions steps locally on your machine:
+
+```bash
+# Install actions/local-action (if not already installed)
+npm install -g @actions/local-action
+
+# Create a test workflow for your custom job step
+cat > test-custom-job.yml << 'EOF'
+name: Test Custom Safe Output
+on: push
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Test extracted script
+        uses: actions/github-script@v8
+        env:
+          GH_AW_AGENT_OUTPUT: ./test-output.json
+        with:
+          script: |
+            # Copy your extracted script content here
+            const fs = require('fs');
+            const agentOutput = fs.readFileSync(process.env.GH_AW_AGENT_OUTPUT, 'utf8');
+            const data = JSON.parse(agentOutput);
+            console.log('Processing:', data);
+EOF
+
+# Run the workflow locally
+local-action run test-custom-job.yml
+```
+
+#### Alternative: Using nektos/act
+
+[nektos/act](https://github.com/nektos/act) is another popular tool for running GitHub Actions locally:
+
+```bash
+# Install act (macOS)
+brew install act
+
+# Or install via shell script
+curl https://raw.githubusercontent.com/nektos/act/master/install.sh | sudo bash
+
+# Create a minimal workflow that uses your extracted script
+cat > .github/workflows/test-safe-output.yml << 'EOF'
+name: Test Safe Output
+on: workflow_dispatch
+
+jobs:
+  test-custom-job:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup test data
+        run: |
+          mkdir -p /tmp/gh-aw
+          cat > /tmp/gh-aw/agent_output.json << 'JSON'
+          {
+            "output_types": ["custom_action"],
+            "outputs": [{"type": "custom_action", "data": "test"}]
+          }
+          JSON
+      
+      - name: Test custom script
+        uses: actions/github-script@v8
+        env:
+          GH_AW_AGENT_OUTPUT: /tmp/gh-aw/agent_output.json
+        with:
+          script: |
+            const script = require('fs').readFileSync('.gh-aw/scripts/workflow_name/job_name_0_step_name.cjs', 'utf8');
+            eval(script);
+EOF
+
+# Run the workflow locally with act
+act workflow_dispatch
+```
+
+#### Testing Tips
+
+- **Mock Environment Variables**: Set all required environment variables (like `GH_AW_AGENT_OUTPUT`) before running
+- **Test Data**: Create realistic test data files that match the expected agent output format
+- **Secrets**: Use local environment variables or `.secrets` file for act to test with secrets
+- **Incremental Testing**: Test individual steps before testing the full workflow
+- **Debug Mode**: Use `act -v` for verbose output to see detailed execution logs
+
 ### Version Control
 
 Add `.gh-aw/scripts/` to `.gitignore` (automatically configured by the compiler):
