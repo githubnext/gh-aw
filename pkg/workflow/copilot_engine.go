@@ -220,9 +220,10 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 	copilotArgs = append(copilotArgs, toolArgs...)
 
 	// Add MCP configuration via CLI argument only if there are MCP servers
+	// The @ prefix indicates a file path (per Copilot CLI documentation)
 	if HasMCPServers(workflowData) {
 		copilotLog.Print("Adding --additional-mcp-config argument")
-		copilotArgs = append(copilotArgs, "--additional-mcp-config", "/home/runner/.copilot/mcp-config.json")
+		copilotArgs = append(copilotArgs, "--additional-mcp-config", "@/home/runner/.copilot/mcp-config.json")
 	}
 
 	// if cache-memory tool is used, --add-dir for each cache
