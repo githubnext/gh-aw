@@ -1,0 +1,20 @@
+name: Agentics Maintenance
+
+on:
+  schedule:
+    - cron: "0 0 * * *"  # Daily at midnight UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  discussions: write
+
+jobs:
+  close-expired-discussions:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Close expired discussions
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        with:
+          script: |
+            ${getMaintenanceScript()}

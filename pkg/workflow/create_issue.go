@@ -17,6 +17,7 @@ type CreateIssuesConfig struct {
 	Assignees            []string `yaml:"assignees,omitempty"`      // List of users/bots to assign the issue to
 	TargetRepoSlug       string   `yaml:"target-repo,omitempty"`    // Target repository in format "owner/repo" for cross-repository issues
 	AllowedRepos         []string `yaml:"allowed-repos,omitempty"`  // List of additional repositories that issues can be created in
+	Expires              int      `yaml:"expires,omitempty"`        // Days until the issue expires and should be automatically closed
 }
 
 // parseIssuesConfig handles create-issue configuration
@@ -47,6 +48,12 @@ func (c *Compiler) parseIssuesConfig(outputMap map[string]any) *CreateIssuesConf
 
 			// Parse allowed-repos using shared helper
 			issuesConfig.AllowedRepos = parseAllowedReposFromConfig(configMap)
+
+			// Parse expires field (days until issue should be closed)
+			issuesConfig.Expires = parseExpiresFromConfig(configMap)
+			if issuesConfig.Expires > 0 {
+				createIssueLog.Printf("Issue expiration configured: %d days", issuesConfig.Expires)
+			}
 
 			// Parse common base fields with default max of 1
 			c.parseBaseSafeOutputConfig(configMap, &issuesConfig.BaseSafeOutputConfig, 1)
@@ -119,6 +126,11 @@ func (c *Compiler) buildCreateOutputIssueJob(data *WorkflowData, mainJobName str
 	customEnvVars = append(customEnvVars, buildLabelsEnvVar("GH_AW_ISSUE_LABELS", data.SafeOutputs.CreateIssues.Labels)...)
 	customEnvVars = append(customEnvVars, buildLabelsEnvVar("GH_AW_ISSUE_ALLOWED_LABELS", data.SafeOutputs.CreateIssues.AllowedLabels)...)
 	customEnvVars = append(customEnvVars, buildAllowedReposEnvVar("GH_AW_ALLOWED_REPOS", data.SafeOutputs.CreateIssues.AllowedRepos)...)
+
+	// Add expires value if set
+	if data.SafeOutputs.CreateIssues.Expires > 0 {
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_ISSUE_EXPIRES: \"%d\"\n", data.SafeOutputs.CreateIssues.Expires))
+	}
 
 	// Add standard environment variables (metadata + staged/target repo)
 	customEnvVars = append(customEnvVars, c.buildStandardSafeOutputEnvVars(data, data.SafeOutputs.CreateIssues.TargetRepoSlug)...)

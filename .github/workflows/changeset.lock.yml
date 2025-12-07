@@ -7335,6 +7335,167 @@ jobs:
                 return `- ${entityPrefix} #${item.number}: [${item.title}](${item.html_url})\n`;
               };
             }
+            function getMessages() {
+              const messagesEnv = process.env.GH_AW_SAFE_OUTPUT_MESSAGES;
+              if (!messagesEnv) {
+                return null;
+              }
+              try {
+                return JSON.parse(messagesEnv);
+              } catch (error) {
+                core.warning(`Failed to parse GH_AW_SAFE_OUTPUT_MESSAGES: ${error instanceof Error ? error.message : String(error)}`);
+                return null;
+              }
+            }
+            function renderTemplate(template, context) {
+              return template.replace(/\{(\w+)\}/g, (match, key) => {
+                const value = context[key];
+                return value !== undefined && value !== null ? String(value) : match;
+              });
+            }
+            function toSnakeCase(obj) {
+              const result = {};
+              for (const [key, value] of Object.entries(obj)) {
+                const snakeKey = key.replace(/([A-Z])/g, "_$1").toLowerCase();
+                result[snakeKey] = value;
+                result[key] = value;
+              }
+              return result;
+            }
+            function getFooterMessage(ctx) {
+              const messages = getMessages();
+              const templateContext = toSnakeCase(ctx);
+              const defaultFooter = "> 🏴‍☠️ Ahoy! This treasure was crafted by [{workflow_name}]({run_url})";
+              let footer = messages?.footer ? renderTemplate(messages.footer, templateContext) : renderTemplate(defaultFooter, templateContext);
+              if (ctx.triggeringNumber) {
+                footer += ` fer issue #{triggering_number} 🗺️`.replace("{triggering_number}", String(ctx.triggeringNumber));
+              }
+              return footer;
+            }
+            function getFooterInstallMessage(ctx) {
+              if (!ctx.workflowSource || !ctx.workflowSourceUrl) {
+                return "";
+              }
+              const messages = getMessages();
+              const templateContext = toSnakeCase(ctx);
+              const defaultInstall =
+                "> 🦜 Arr! To plunder this workflow fer yer own ship, run `gh aw add {workflow_source}`. Chart yer course at [{workflow_source_url}]({workflow_source_url})!";
+              return messages?.footerInstall
+                ? renderTemplate(messages.footerInstall, templateContext)
+                : renderTemplate(defaultInstall, templateContext);
+            }
+            function generateXMLMarker(workflowName, runUrl) {
+              const engineId = process.env.GH_AW_ENGINE_ID || "";
+              const engineVersion = process.env.GH_AW_ENGINE_VERSION || "";
+              const engineModel = process.env.GH_AW_ENGINE_MODEL || "";
+              const trackerId = process.env.GH_AW_TRACKER_ID || "";
+              const parts = [];
+              parts.push(`agentic-workflow: ${workflowName}`);
+              if (trackerId) {
+                parts.push(`tracker-id: ${trackerId}`);
+              }
+              if (engineId) {
+                parts.push(`engine: ${engineId}`);
+              }
+              if (engineVersion) {
+                parts.push(`version: ${engineVersion}`);
+              }
+              if (engineModel) {
+                parts.push(`model: ${engineModel}`);
+              }
+              parts.push(`run: ${runUrl}`);
+              return `<!-- ${parts.join(", ")} -->`;
+            }
+            function generateFooterWithMessages(
+              workflowName,
+              runUrl,
+              workflowSource,
+              workflowSourceURL,
+              triggeringIssueNumber,
+              triggeringPRNumber,
+              triggeringDiscussionNumber
+            ) {
+              let triggeringNumber;
+              if (triggeringIssueNumber) {
+                triggeringNumber = triggeringIssueNumber;
+              } else if (triggeringPRNumber) {
+                triggeringNumber = triggeringPRNumber;
+              } else if (triggeringDiscussionNumber) {
+                triggeringNumber = `discussion #${triggeringDiscussionNumber}`;
+              }
+              const ctx = {
+                workflowName,
+                runUrl,
+                workflowSource,
+                workflowSourceUrl: workflowSourceURL,
+                triggeringNumber,
+              };
+              let footer = "\n\n" + getFooterMessage(ctx);
+              const installMessage = getFooterInstallMessage(ctx);
+              if (installMessage) {
+                footer += "\n>\n" + installMessage;
+              }
+              footer += "\n\n" + generateXMLMarker(workflowName, runUrl);
+              footer += "\n";
+              return footer;
+            }
+            function buildAIFooter(workflowName, runUrl) {
+              return "\n\n" + getFooterMessage({ workflowName, runUrl });
+            }
+            function buildIslandStartMarker(runId) {
+              return `<!-- gh-aw-island-start:${runId} -->`;
+            }
+            function buildIslandEndMarker(runId) {
+              return `<!-- gh-aw-island-end:${runId} -->`;
+            }
+            function findIsland(body, runId) {
+              const startMarker = buildIslandStartMarker(runId);
+              const endMarker = buildIslandEndMarker(runId);
+              const startIndex = body.indexOf(startMarker);
+              if (startIndex === -1) {
+                return { found: false, startIndex: -1, endIndex: -1 };
+              }
+              const endIndex = body.indexOf(endMarker, startIndex);
+              if (endIndex === -1) {
+                return { found: false, startIndex: -1, endIndex: -1 };
+              }
+              return { found: true, startIndex, endIndex: endIndex + endMarker.length };
+            }
+            function updatePRBody(params) {
+              const { currentBody, newContent, operation, workflowName, runUrl, runId } = params;
+              const aiFooter = buildAIFooter(workflowName, runUrl);
+              if (operation === "replace") {
+                core.info("Operation: replace (full body replacement)");
+                return newContent;
+              }
+              if (operation === "replace-island") {
+                const island = findIsland(currentBody, runId);
+                if (island.found) {
+                  core.info(`Operation: replace-island (updating existing island for run ${runId})`);
+                  const startMarker = buildIslandStartMarker(runId);
+                  const endMarker = buildIslandEndMarker(runId);
+                  const islandContent = `${startMarker}\n${newContent}${aiFooter}\n${endMarker}`;
+                  const before = currentBody.substring(0, island.startIndex);
+                  const after = currentBody.substring(island.endIndex);
+                  return before + islandContent + after;
+                } else {
+                  core.info(`Operation: replace-island (island not found for run ${runId}, falling back to append)`);
+                  const startMarker = buildIslandStartMarker(runId);
+                  const endMarker = buildIslandEndMarker(runId);
+                  const islandContent = `${startMarker}\n${newContent}${aiFooter}\n${endMarker}`;
+                  const appendSection = `\n\n---\n\n${islandContent}`;
+                  return currentBody + appendSection;
+                }
+              }
+              if (operation === "prepend") {
+                core.info("Operation: prepend (add to start with separator)");
+                const prependSection = `${newContent}${aiFooter}\n\n---\n\n`;
+                return prependSection + currentBody;
+              }
+              core.info("Operation: append (add to end with separator)");
+              const appendSection = `\n\n---\n\n${newContent}${aiFooter}`;
+              return currentBody + appendSection;
+            }
             function isPRContext(eventName, payload) {
               const isPR =
                 eventName === "pull_request" ||
@@ -7364,7 +7525,7 @@ jobs:
               const operation = updateData._operation || "replace";
               const rawBody = updateData._rawBody;
               const { _operation, _rawBody, ...apiData } = updateData;
-              if (rawBody !== undefined && (operation === "append" || operation === "prepend")) {
+              if (rawBody !== undefined && operation !== "replace") {
                 const { data: currentPR } = await github.rest.pulls.get({
                   owner: context.repo.owner,
                   repo: context.repo.repo,
@@ -7373,16 +7534,14 @@ jobs:
                 const currentBody = currentPR.body || "";
                 const workflowName = process.env.GH_AW_WORKFLOW_NAME || "GitHub Agentic Workflow";
                 const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
-                const aiFooter = `\n\n> AI generated by [${workflowName}](${runUrl})`;
-                if (operation === "prepend") {
-                  const prependSection = `${rawBody}${aiFooter}\n\n---\n\n`;
-                  apiData.body = prependSection + currentBody;
-                  core.info("Operation: prepend (add to start with separator)");
-                } else {
-                  const appendSection = `\n\n---\n\n${rawBody}${aiFooter}`;
-                  apiData.body = currentBody + appendSection;
-                  core.info("Operation: append (add to end with separator)");
-                }
+                apiData.body = updatePRBody({
+                  currentBody,
+                  newContent: rawBody,
+                  operation,
+                  workflowName,
+                  runUrl,
+                  runId: context.runId,
+                });
                 core.info(`Will update body (length: ${apiData.body.length})`);
               } else if (rawBody !== undefined) {
                 core.info("Operation: replace (full body replacement)");

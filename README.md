@@ -47,6 +47,18 @@ The AI agent reads your repository context, understands the issue content, and t
 
 **Security Benefits:** Workflows use read-only permissions by default, with write operations only allowed through sanitized `safe-outputs`. Access can be gated to team members only, ensuring AI agents operate within controlled boundaries.
 
+## Spec-Kit Integration
+
+This repository uses [spec-kit](https://github.com/github/spec-kit) for spec-driven development. Spec-kit enables writing specifications that become executable, guiding implementation through a structured workflow:
+
+- **Constitution**: Project principles and development guidelines in `.specify/memory/constitution.md`
+- **Specifications**: Feature requirements and user stories created with `/speckit.specify`
+- **Plans**: Technical implementation approaches with `/speckit.plan`
+- **Tasks**: Actionable task breakdowns with `/speckit.tasks`
+- **Implementation**: Automated execution via the spec-kit-executor workflow
+
+The spec-kit-executor workflow runs daily at 8am UTC, scanning for pending tasks and implementing them automatically. See [.specify/README.md](.specify/README.md) for details on using spec-kit with this repository.
+
 ## Documentation
 
 For complete documentation, examples, and guides, see the [Documentation](https://githubnext.github.io/gh-aw/).

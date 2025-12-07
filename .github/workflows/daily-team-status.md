@@ -16,6 +16,7 @@ imports:
 - githubnext/agentics/workflows/shared/reporting.md@d3422bf940923ef1d43db5559652b8e1e71869f3
 safe-outputs:
   create-discussion:
+    expires: 3d
     category: announcements
     title-prefix: "[team-status] "
     close-older-discussions: true

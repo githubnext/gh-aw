@@ -183,6 +183,16 @@ Cache Memory leverages GitHub Actions cache with 7-day retention, 10GB per repos
 
 **File Security**: Files use standard GitHub Actions runner permissions. The cache directory is temporary and cleaned between runs, with no external access.
 
+**Delayed Cache Updates with Threat Detection**: When [threat detection](/gh-aw/reference/safe-outputs/#threat-detection) is enabled, cache-memory updates are deferred until after the detection job validates the agent's output. This prevents potentially malicious cache content from being persisted before security scanning. During agent execution, cache-memory files are:
+
+1. Restored from previous runs using `actions/cache/restore`
+2. Modified by the AI agent during workflow execution
+3. Uploaded as artifacts for inspection
+4. Validated by the threat detection job
+5. Saved back to cache using `actions/cache/save` only if detection succeeds
+
+This ensures that cache memory changes are only persisted after validation, providing an additional security layer for agentic workflows. If threat detection is not enabled, cache updates occur automatically via the standard `actions/cache` post-action behavior.
+
 ## Examples
 
 ### Basic File Storage

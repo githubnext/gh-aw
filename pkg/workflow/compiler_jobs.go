@@ -219,6 +219,36 @@ func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
 		}
 	}
 
+	// Build update_cache_memory job if cache-memory is configured and threat detection is enabled
+	// This job downloads cache-memory artifacts and saves them to GitHub Actions cache
+	// It runs after detection job completes successfully
+	var updateCacheMemoryJobName string
+	if data.CacheMemoryConfig != nil && len(data.CacheMemoryConfig.Caches) > 0 {
+		threatDetectionEnabledForSafeJobs := data.SafeOutputs != nil && data.SafeOutputs.ThreatDetection != nil
+		if threatDetectionEnabledForSafeJobs {
+			compilerJobsLog.Print("Building update_cache_memory job")
+			updateCacheMemoryJob, err := c.buildUpdateCacheMemoryJob(data, threatDetectionEnabledForSafeJobs)
+			if err != nil {
+				return fmt.Errorf("failed to build update_cache_memory job: %w", err)
+			}
+			if updateCacheMemoryJob != nil {
+				if err := c.jobManager.AddJob(updateCacheMemoryJob); err != nil {
+					return fmt.Errorf("failed to add update_cache_memory job: %w", err)
+				}
+				updateCacheMemoryJobName = updateCacheMemoryJob.Name
+				compilerJobsLog.Printf("Successfully added update_cache_memory job: %s", updateCacheMemoryJobName)
+			}
+		}
+	}
+
+	// Update conclusion job to depend on update_cache_memory if it exists
+	if updateCacheMemoryJobName != "" {
+		if conclusionJob, exists := c.jobManager.GetJob("conclusion"); exists {
+			conclusionJob.Needs = append(conclusionJob.Needs, updateCacheMemoryJobName)
+			compilerJobsLog.Printf("Added update_cache_memory dependency to conclusion job")
+		}
+	}
+
 	compilerJobsLog.Print("Successfully built all jobs for workflow")
 	return nil
 }
