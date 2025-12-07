@@ -19,6 +19,7 @@ tools:
 safe-outputs:
   upload-assets:
   create-discussion:
+    expires: 3d
     category: "General"
     title-prefix: "[daily performance] "
     max: 1

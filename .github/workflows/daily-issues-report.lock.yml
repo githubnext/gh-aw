@@ -42,6 +42,7 @@
 # safe-outputs:
 #   upload-assets:
 #   create-discussion:
+#     expires: 3d
 #     category: "General"
 #     title-prefix: "[daily issues] "
 #     max: 1
@@ -7326,6 +7327,7 @@ jobs:
           GH_AW_DISCUSSION_TITLE_PREFIX: "[daily issues] "
           GH_AW_DISCUSSION_CATEGORY: "General"
           GH_AW_CLOSE_OLDER_DISCUSSIONS: "true"
+          GH_AW_DISCUSSION_EXPIRES: "3"
           GH_AW_WORKFLOW_NAME: "Daily Issues Report Generator"
           GH_AW_TRACKER_ID: "daily-issues-report"
           GH_AW_ENGINE_ID: "codex"

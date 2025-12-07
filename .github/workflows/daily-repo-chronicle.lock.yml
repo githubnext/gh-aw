@@ -54,6 +54,7 @@
 # safe-outputs:
 #   upload-assets:
 #   create-discussion:
+#     expires: 3d
 #     title-prefix: "📰 "
 #     close-older-discussions: true
 # imports:
@@ -6758,6 +6759,7 @@ jobs:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_DISCUSSION_TITLE_PREFIX: "📰 "
           GH_AW_CLOSE_OLDER_DISCUSSIONS: "true"
+          GH_AW_DISCUSSION_EXPIRES: "3"
           GH_AW_WORKFLOW_NAME: "The Daily Repository Chronicle"
           GH_AW_TRACKER_ID: "daily-repo-chronicle"
           GH_AW_ENGINE_ID: "copilot"

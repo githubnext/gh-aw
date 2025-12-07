@@ -17,6 +17,7 @@ tools:
   bash:
 safe-outputs:
   create-discussion:
+    expires: 3d
     category: "audits"
     max: 1
     close-older-discussions: true

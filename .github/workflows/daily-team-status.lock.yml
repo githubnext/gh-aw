@@ -43,6 +43,7 @@
 # - githubnext/agentics/workflows/shared/reporting.md@d3422bf940923ef1d43db5559652b8e1e71869f3
 # safe-outputs:
 #   create-discussion:
+#     expires: 3d
 #     category: announcements
 #     title-prefix: "[team-status] "
 #     close-older-discussions: true
@@ -5510,6 +5511,7 @@ jobs:
           GH_AW_DISCUSSION_TITLE_PREFIX: "[team-status] "
           GH_AW_DISCUSSION_CATEGORY: "announcements"
           GH_AW_CLOSE_OLDER_DISCUSSIONS: "true"
+          GH_AW_DISCUSSION_EXPIRES: "3"
           GH_AW_WORKFLOW_NAME: "Daily Team Status"
           GH_AW_WORKFLOW_SOURCE: "githubnext/agentics/workflows/daily-team-status.md@d3422bf940923ef1d43db5559652b8e1e71869f3"
           GH_AW_WORKFLOW_SOURCE_URL: "${{ github.server_url }}/githubnext/agentics/tree/d3422bf940923ef1d43db5559652b8e1e71869f3/workflows/daily-team-status.md"

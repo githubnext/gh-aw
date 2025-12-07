@@ -36,6 +36,7 @@ steps:
 safe-outputs:
   upload-assets:
   create-discussion:
+    expires: 3d
     category: "audits"
     max: 1
     close-older-discussions: true

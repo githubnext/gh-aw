@@ -40,6 +40,7 @@
 #   bash:
 # safe-outputs:
 #   create-discussion:
+#     expires: 3d
 #     category: "audits"
 #     max: 1
 #     close-older-discussions: true
@@ -6501,6 +6502,7 @@ jobs:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_DISCUSSION_CATEGORY: "audits"
           GH_AW_CLOSE_OLDER_DISCUSSIONS: "true"
+          GH_AW_DISCUSSION_EXPIRES: "3"
           GH_AW_WORKFLOW_NAME: "Daily Code Metrics and Trend Tracking Agent"
           GH_AW_TRACKER_ID: "daily-code-metrics"
           GH_AW_ENGINE_ID: "claude"
