@@ -14,4 +14,8 @@ imports:
   - shared/gh.md
 ---
 
-Read the last issue using the `safeissues-gh` tool and print its title.
+Read the last pull request using the `safeissues-gh` tool and print its title.
+
+```
+call safeissues-gh with pr list --limit 1
+```

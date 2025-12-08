@@ -66,7 +66,11 @@
 #
 #
 #
-# Read the last issue using the `safeissues-gh` tool and print its title.
+# Read the last pull request using the `safeissues-gh` tool and print its title.
+#
+# ```
+# call safeissues-gh with pr list --limit 1
+# ```
 # ```
 #
 # Pinned GitHub Actions:
@@ -1723,7 +1727,11 @@ jobs:
           
           
           
-          Read the last issue using the `safeissues-gh` tool and print its title.
+          Read the last pull request using the `safeissues-gh` tool and print its title.
+          
+          ```
+          call safeissues-gh with pr list --limit 1
+          ```
           
           PROMPT_EOF
       - name: Append XPIA security instructions to prompt
