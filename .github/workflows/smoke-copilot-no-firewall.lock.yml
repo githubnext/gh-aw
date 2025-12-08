@@ -4436,7 +4436,9 @@ jobs:
               for (const tool of tools) {
                 registerTool(server, tool);
               }
-              cleanupConfigFile(configPath, server);
+              if (!options.skipCleanup) {
+                cleanupConfigFile(configPath, server);
+              }
               start(server);
             }
             if (require.main === module) {
@@ -4737,7 +4739,8 @@ jobs:
             const configPath = path.join(__dirname, "tools.json");
             try {
               startSafeInputsServer(configPath, {
-                logDir: "/tmp/gh-aw/safe-inputs/logs"
+                logDir: "/tmp/gh-aw/safe-inputs/logs",
+                skipCleanup: true
               });
             } catch (error) {
               console.error("Failed to start safe-inputs stdio server:", error);

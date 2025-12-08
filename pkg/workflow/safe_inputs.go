@@ -407,9 +407,11 @@ const { startSafeInputsServer } = require("./safe_inputs_mcp_server.cjs");
 const configPath = path.join(__dirname, "tools.json");
 
 // Start the stdio server
+// Note: skipCleanup is true for stdio mode to allow agent restarts
 try {
   startSafeInputsServer(configPath, {
-    logDir: "/tmp/gh-aw/safe-inputs/logs"
+    logDir: "/tmp/gh-aw/safe-inputs/logs",
+    skipCleanup: true
   });
 } catch (error) {
   console.error("Failed to start safe-inputs stdio server:", error);

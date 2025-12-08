@@ -44,6 +44,7 @@ const { bootstrapSafeInputsServer, cleanupConfigFile } = require("./safe_inputs_
  * @param {string} configPath - Path to the configuration JSON file
  * @param {Object} [options] - Additional options
  * @param {string} [options.logDir] - Override log directory from config
+ * @param {boolean} [options.skipCleanup] - Skip deletion of config file (useful for stdio mode with agent restarts)
  */
 function startSafeInputsServer(configPath, options = {}) {
   // Create server first to have logger available
@@ -67,8 +68,10 @@ function startSafeInputsServer(configPath, options = {}) {
     registerTool(server, tool);
   }
 
-  // Cleanup: delete the configuration file after loading
-  cleanupConfigFile(configPath, server);
+  // Cleanup: delete the configuration file after loading (unless skipCleanup is true)
+  if (!options.skipCleanup) {
+    cleanupConfigFile(configPath, server);
+  }
 
   // Start the server
   start(server);
