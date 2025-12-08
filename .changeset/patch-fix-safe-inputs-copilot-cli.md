@@ -2,13 +2,7 @@
 "gh-aw": patch
 ---
 
-Fix safe-inputs type for Copilot CLI and server startup error
+Fix safe-inputs MCP config for Copilot CLI: convert `type: stdio` to `type: local` when generating Copilot fields; fix server startup JS to avoid calling `.catch()` on undefined; update tests to assert behavior for Copilot and Claude.
 
-- When `mode: stdio` is used with the Copilot engine, the generated MCP
-  configuration now uses `"type": "local"` so the Copilot CLI can start
-  the safe-inputs server correctly.
-- Fix the generated JavaScript entrypoint to avoid calling `.catch()` on an
-  undefined return value by using a `try/catch` pattern instead.
-- Updated tests to assert Copilot uses `local` and Claude continues to use
-  `stdio`.
+This is a non-breaking bugfix that ensures the Copilot CLI receives a compatible MCP `type` and that the generated server entrypoint handles errors correctly.
 
