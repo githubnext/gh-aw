@@ -11,11 +11,11 @@ const fs = require("fs");
 function createAppendFunction(outputFile) {
   /**
    * Append an entry to the safe outputs file
-   * 
-   * CRITICAL: The output file is in JSONL (JSON Lines) format where each entry 
-   * MUST be a single line. JSON.stringify must be called WITHOUT formatting 
+   *
+   * CRITICAL: The output file is in JSONL (JSON Lines) format where each entry
+   * MUST be a single line. JSON.stringify must be called WITHOUT formatting
    * parameters (no indentation, no pretty-printing) to ensure one JSON object per line.
-   * 
+   *
    * @param {Object} entry - The entry to append
    */
   return function appendSafeOutput(entry) {
