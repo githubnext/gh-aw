@@ -35,6 +35,7 @@ safe-outputs:
     create-issue:
     add-labels:
       allowed: [smoke-codex]
+    minimize-comment:
     messages:
       footer: "> 🔮 *The oracle has spoken through [{workflow_name}]({run_url})*"
       run-started: "🔮 The ancient spirits stir... [{workflow_name}]({run_url}) awakens to divine this {event_type}..."
