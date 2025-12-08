@@ -406,13 +406,16 @@ func generateCacheMemorySteps(builder *strings.Builder, data *WorkflowData) {
 		}
 
 		// Add upload-artifact step for each cache (runs always), but skip for restore-only caches
-		if !cache.RestoreOnly {
+		// Only upload artifacts when threat detection is enabled (needed for update_cache_memory job)
+		// When threat detection is disabled, cache is saved automatically by actions/cache post-action
+		if !cache.RestoreOnly && threatDetectionEnabled {
 			if useBackwardCompatiblePaths {
 				builder.WriteString("      - name: Upload cache-memory data as artifact\n")
 			} else {
 				builder.WriteString(fmt.Sprintf("      - name: Upload cache-memory data as artifact (%s)\n", cache.ID))
 			}
 			builder.WriteString(fmt.Sprintf("        uses: %s\n", GetActionPin("actions/upload-artifact")))
+			builder.WriteString("        if: always()\n")
 			builder.WriteString("        with:\n")
 			// Always use the new artifact name and path format
 			if useBackwardCompatiblePaths {
