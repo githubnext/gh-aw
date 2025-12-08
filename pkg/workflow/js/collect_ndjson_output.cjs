@@ -285,10 +285,6 @@ async function main() {
   if (errors.length > 0) {
     core.warning("Validation errors found:");
     errors.forEach(error => core.warning(`  - ${error}`));
-    if (parsedItems.length === 0) {
-      core.setFailed(errors.map(e => `  - ${e}`).join("\n"));
-      return;
-    }
   }
   for (const itemType of Object.keys(expectedOutputTypes)) {
     const minRequired = getMinRequiredForType(itemType, expectedOutputTypes);
