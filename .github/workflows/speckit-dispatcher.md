@@ -10,7 +10,6 @@ on:
 permissions:
   contents: read
   issues: write
-  discussions: read
   pull-requests: read
 
 engine: copilot

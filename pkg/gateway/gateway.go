@@ -197,6 +197,8 @@ func (g *Gateway) connectToSafeInputsServer(ctx context.Context) error {
 		"safe_inputs_mcp_server.cjs":    workflow.GetSafeInputsMCPServerScript(),
 		"safe_inputs_config_loader.cjs": workflow.GetSafeInputsConfigLoaderScript(),
 		"safe_inputs_tool_factory.cjs":  workflow.GetSafeInputsToolFactoryScript(),
+		"safe_inputs_bootstrap.cjs":     workflow.GetSafeInputsBootstrapScript(),
+		"safe_inputs_validation.cjs":    workflow.GetSafeInputsValidationScript(),
 		"mcp_handler_shell.cjs":         workflow.GetMCPHandlerShellScript(),
 		"mcp_handler_python.cjs":        workflow.GetMCPHandlerPythonScript(),
 	}

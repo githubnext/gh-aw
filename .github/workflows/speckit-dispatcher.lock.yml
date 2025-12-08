@@ -33,7 +33,6 @@
 # permissions:
 #   contents: read
 #   issues: write
-#   discussions: read
 #   pull-requests: read
 #
 # engine: copilot
@@ -498,7 +497,6 @@ name: "Spec-Kit Command Dispatcher"
 
 permissions:
   contents: read
-  discussions: read
   issues: write
   pull-requests: read
 
@@ -1975,7 +1973,6 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      discussions: read
       issues: write
       pull-requests: read
     env:
