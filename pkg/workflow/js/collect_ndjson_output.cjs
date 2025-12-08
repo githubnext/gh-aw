@@ -211,6 +211,9 @@ async function main() {
       core.info(`Warning: Could not parse safe-outputs config: ${errorMsg}`);
     }
   }
+  // Parse JSONL (JSON Lines) format: each line is a separate JSON object
+  // CRITICAL: This expects one JSON object per line. If JSON is formatted with
+  // indentation/pretty-printing, parsing will fail.
   const lines = outputContent.trim().split("\n");
   const parsedItems = [];
   const errors = [];
