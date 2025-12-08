@@ -344,7 +344,7 @@ describe("collect_ndjson_output.cjs", () => {
     const setOutputCalls = mockCore.setOutput.mock.calls;
     const outputCall = setOutputCalls.find(call => call[0] === "output");
     expect(outputCall).toBeDefined();
-    
+
     const parsedOutput = JSON.parse(outputCall[1]);
     expect(parsedOutput.items).toHaveLength(0);
     expect(parsedOutput.errors.length).toBeGreaterThan(0);
@@ -947,7 +947,7 @@ Line 3"}
       const setOutputCalls = mockCore.setOutput.mock.calls;
       const outputCall = setOutputCalls.find(call => call[0] === "output");
       expect(outputCall).toBeDefined();
-      
+
       const parsedOutput = JSON.parse(outputCall[1]);
       expect(parsedOutput.items).toHaveLength(0);
       expect(parsedOutput.errors.length).toBeGreaterThan(0);
@@ -1373,7 +1373,7 @@ Line 3"}
       const setOutputCalls = mockCore.setOutput.mock.calls;
       const outputCall = setOutputCalls.find(call => call[0] === "output");
       expect(outputCall).toBeDefined();
-      
+
       const parsedOutput = JSON.parse(outputCall[1]);
       expect(parsedOutput.items).toHaveLength(0);
       expect(parsedOutput.errors.length).toBeGreaterThan(0);
@@ -1508,7 +1508,7 @@ Line 3"}
       const setOutputCalls = mockCore.setOutput.mock.calls;
       const outputCall = setOutputCalls.find(call => call[0] === "output");
       expect(outputCall).toBeDefined();
-      
+
       const parsedOutput = JSON.parse(outputCall[1]);
       expect(parsedOutput.items).toHaveLength(0);
       expect(parsedOutput.errors.length).toBeGreaterThan(0);
@@ -1536,7 +1536,7 @@ Line 3"}
       const setOutputCalls = mockCore.setOutput.mock.calls;
       const outputCall = setOutputCalls.find(call => call[0] === "output");
       expect(outputCall).toBeDefined();
-      
+
       const parsedOutput = JSON.parse(outputCall[1]);
       expect(parsedOutput.items).toHaveLength(0);
       expect(parsedOutput.errors.length).toBeGreaterThan(0);
@@ -1585,7 +1585,7 @@ Line 3"}
       const outputCall = setOutputCalls.find(call => call[0] === "output");
 
       expect(outputCall).toBeDefined();
-      
+
       const parsedOutput = JSON.parse(outputCall[1]);
       if (parsedOutput.items.length > 0) {
         // Repair succeeded
@@ -1810,7 +1810,7 @@ Line 3"}
       const setOutputCalls = mockCore.setOutput.mock.calls;
       const outputCall = setOutputCalls.find(call => call[0] === "output");
       expect(outputCall).toBeDefined();
-      
+
       const parsedOutput = JSON.parse(outputCall[1]);
       expect(parsedOutput.items).toHaveLength(0);
       expect(parsedOutput.errors.length).toBeGreaterThan(0);
@@ -1844,7 +1844,7 @@ Line 3"}
       const setOutputCalls = mockCore.setOutput.mock.calls;
       const outputCall = setOutputCalls.find(call => call[0] === "output");
       expect(outputCall).toBeDefined();
-      
+
       const parsedOutput = JSON.parse(outputCall[1]);
       expect(parsedOutput.items).toHaveLength(0);
       expect(parsedOutput.errors.length).toBeGreaterThan(0);
@@ -1876,11 +1876,13 @@ Line 3"}
       const setOutputCalls = mockCore.setOutput.mock.calls;
       const outputCall = setOutputCalls.find(call => call[0] === "output");
       expect(outputCall).toBeDefined();
-      
+
       const parsedOutput = JSON.parse(outputCall[1]);
       expect(parsedOutput.items).toHaveLength(0);
       expect(parsedOutput.errors.length).toBeGreaterThan(0);
-      expect(parsedOutput.errors.some(e => e.includes("create_code_scanning_alert 'severity' must be one of: error, warning, info, note"))).toBe(true);
+      expect(
+        parsedOutput.errors.some(e => e.includes("create_code_scanning_alert 'severity' must be one of: error, warning, info, note"))
+      ).toBe(true);
     });
 
     it("should reject code scanning alert entries with invalid optional fields", async () => {
@@ -1906,15 +1908,19 @@ Line 3"}
       const setOutputCalls = mockCore.setOutput.mock.calls;
       const outputCall = setOutputCalls.find(call => call[0] === "output");
       expect(outputCall).toBeDefined();
-      
+
       const parsedOutput = JSON.parse(outputCall[1]);
       expect(parsedOutput.items).toHaveLength(0);
       expect(parsedOutput.errors.length).toBeGreaterThan(0);
-      expect(parsedOutput.errors.some(e => e.includes("create_code_scanning_alert 'column' must be a valid positive integer (got: invalid)"))).toBe(true);
+      expect(
+        parsedOutput.errors.some(e => e.includes("create_code_scanning_alert 'column' must be a valid positive integer (got: invalid)"))
+      ).toBe(true);
       expect(parsedOutput.errors.some(e => e.includes("create_code_scanning_alert 'ruleIdSuffix' must be a string"))).toBe(true);
-      expect(parsedOutput.errors.some(e => e.includes(
-        "create_code_scanning_alert 'ruleIdSuffix' must contain only alphanumeric characters, hyphens, and underscores"
-      ))).toBe(true);
+      expect(
+        parsedOutput.errors.some(e =>
+          e.includes("create_code_scanning_alert 'ruleIdSuffix' must contain only alphanumeric characters, hyphens, and underscores")
+        )
+      ).toBe(true);
     });
 
     it("should handle mixed valid and invalid code scanning alert entries", async () => {
@@ -1970,15 +1976,25 @@ Line 3"}
       const setOutputCalls = mockCore.setOutput.mock.calls;
       const outputCall = setOutputCalls.find(call => call[0] === "output");
       expect(outputCall).toBeDefined();
-      
+
       const parsedOutput = JSON.parse(outputCall[1]);
       expect(parsedOutput.items).toHaveLength(0);
       expect(parsedOutput.errors.length).toBeGreaterThan(0);
-      expect(parsedOutput.errors.some(e => e.includes("create_code_scanning_alert 'line' must be a valid positive integer (got: invalid)"))).toBe(true);
-      expect(parsedOutput.errors.some(e => e.includes("create_code_scanning_alert 'line' must be a valid positive integer (got: 0)"))).toBe(true);
-      expect(parsedOutput.errors.some(e => e.includes("create_code_scanning_alert 'line' must be a valid positive integer (got: -5)"))).toBe(true);
-      expect(parsedOutput.errors.some(e => e.includes("create_code_scanning_alert 'column' must be a valid positive integer (got: abc)"))).toBe(true);
-      expect(parsedOutput.errors.some(e => e.includes("create_code_scanning_alert 'column' must be a valid positive integer (got: 0)"))).toBe(true);
+      expect(
+        parsedOutput.errors.some(e => e.includes("create_code_scanning_alert 'line' must be a valid positive integer (got: invalid)"))
+      ).toBe(true);
+      expect(parsedOutput.errors.some(e => e.includes("create_code_scanning_alert 'line' must be a valid positive integer (got: 0)"))).toBe(
+        true
+      );
+      expect(
+        parsedOutput.errors.some(e => e.includes("create_code_scanning_alert 'line' must be a valid positive integer (got: -5)"))
+      ).toBe(true);
+      expect(
+        parsedOutput.errors.some(e => e.includes("create_code_scanning_alert 'column' must be a valid positive integer (got: abc)"))
+      ).toBe(true);
+      expect(
+        parsedOutput.errors.some(e => e.includes("create_code_scanning_alert 'column' must be a valid positive integer (got: 0)"))
+      ).toBe(true);
     });
   });
 
@@ -2545,7 +2561,7 @@ Line 3"}
       const setOutputCalls = mockCore.setOutput.mock.calls;
       const outputCall = setOutputCalls.find(call => call[0] === "output");
       expect(outputCall).toBeDefined();
-      
+
       const parsedOutput = JSON.parse(outputCall[1]);
       expect(parsedOutput.items).toHaveLength(0);
       expect(parsedOutput.errors.length).toBeGreaterThan(0);
@@ -2575,7 +2591,7 @@ Line 3"}
       const setOutputCalls = mockCore.setOutput.mock.calls;
       const outputCall = setOutputCalls.find(call => call[0] === "output");
       expect(outputCall).toBeDefined();
-      
+
       const parsedOutput = JSON.parse(outputCall[1]);
       expect(parsedOutput.items).toHaveLength(0);
       expect(parsedOutput.errors.length).toBeGreaterThan(0);
@@ -2734,7 +2750,7 @@ Line 3"}
       const setOutputCalls = mockCore.setOutput.mock.calls;
       const outputCall = setOutputCalls.find(call => call[0] === "output");
       expect(outputCall).toBeDefined();
-      
+
       const parsedOutput = JSON.parse(outputCall[1]);
       expect(parsedOutput.items).toHaveLength(0);
       expect(parsedOutput.errors.length).toBeGreaterThan(0);
@@ -2864,7 +2880,7 @@ Line 3"}
       const setOutputCalls = mockCore.setOutput.mock.calls;
       const outputCall = setOutputCalls.find(call => call[0] === "output");
       expect(outputCall).toBeDefined();
-      
+
       const parsedOutput = JSON.parse(outputCall[1]);
       expect(parsedOutput.items).toHaveLength(0);
       expect(parsedOutput.errors.length).toBeGreaterThan(0);
@@ -2889,7 +2905,7 @@ Line 3"}
       const setOutputCalls = mockCore.setOutput.mock.calls;
       const outputCall = setOutputCalls.find(call => call[0] === "output");
       expect(outputCall).toBeDefined();
-      
+
       const parsedOutput = JSON.parse(outputCall[1]);
       expect(parsedOutput.items).toHaveLength(0);
       expect(parsedOutput.errors.length).toBeGreaterThan(0);

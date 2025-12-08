@@ -3593,10 +3593,6 @@ jobs:
               if (errors.length > 0) {
                 core.warning("Validation errors found:");
                 errors.forEach(error => core.warning(`  - ${error}`));
-                if (parsedItems.length === 0) {
-                  core.setFailed(errors.map(e => `  - ${e}`).join("\n"));
-                  return;
-                }
               }
               for (const itemType of Object.keys(expectedOutputTypes)) {
                 const minRequired = getMinRequiredForType(itemType, expectedOutputTypes);
@@ -6276,13 +6272,13 @@ jobs:
       - name: Download Go modules
         run: go mod download
       - name: Generate SBOM (SPDX format)
-        uses: anchore/sbom-action@fbfd9c6c189226748411491745178e0c2017392d # v0
+        uses: anchore/sbom-action@fbfd9c6c189226748411491745178e0c2017392d # v0.20.10
         with:
           artifact-name: sbom.spdx.json
           format: spdx-json
           output-file: sbom.spdx.json
       - name: Generate SBOM (CycloneDX format)
-        uses: anchore/sbom-action@fbfd9c6c189226748411491745178e0c2017392d # v0
+        uses: anchore/sbom-action@fbfd9c6c189226748411491745178e0c2017392d # v0.20.10
         with:
           artifact-name: sbom.cdx.json
           format: cyclonedx-json
