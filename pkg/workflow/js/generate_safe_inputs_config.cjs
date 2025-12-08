@@ -14,8 +14,8 @@ function generateSafeInputsConfig({ core, crypto }) {
   const apiKeyBuffer = crypto.randomBytes(32);
   const apiKey = apiKeyBuffer.toString("base64").replace(/[/+=]/g, "");
 
-  // Use hardcoded port 3002 (similar to GitHub remote MCP configuration)
-  const port = 3002;
+  // Use hardcoded port 52000 (similar to GitHub remote MCP configuration)
+  const port = 52000;
 
   // Set outputs with descriptive names to avoid conflicts
   core.setOutput("safe_inputs_api_key", apiKey);

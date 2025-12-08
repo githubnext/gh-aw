@@ -79,7 +79,7 @@ Test safe-inputs HTTP server
 
 	// Verify HTTP server startup
 	serverStartupChecks := []string{
-		"export GH_AW_SAFE_INPUTS_PORT=3002",
+		"export GH_AW_SAFE_INPUTS_PORT=52000",
 		"export GH_AW_SAFE_INPUTS_API_KEY=${{ steps.safe-inputs-config.outputs.safe_inputs_api_key }}",
 		"node mcp-server.cjs",
 		"Started safe-inputs MCP server with PID",
@@ -105,11 +105,11 @@ Test safe-inputs HTTP server
 		}
 	}
 
-	// Verify HTTP MCP configuration uses host.docker.internal with hardcoded port 3002
+	// Verify HTTP MCP configuration uses host.docker.internal with hardcoded port 52000
 	expectedMCPChecks := []string{
 		`"safeinputs": {`,
 		`"type": "http"`,
-		`"url": "http://host.docker.internal:3002"`,
+		`"url": "http://host.docker.internal:52000"`,
 		`"headers": {`,
 		`"Authorization": "Bearer \${GH_AW_SAFE_INPUTS_API_KEY}"`,
 		`"tools": ["*"]`,
@@ -125,7 +125,7 @@ Test safe-inputs HTTP server
 
 	// Verify env variables are set in Setup MCPs step
 	setupMCPsEnvChecks := []string{
-		"GH_AW_SAFE_INPUTS_PORT: 3002",
+		"GH_AW_SAFE_INPUTS_PORT: 52000",
 		"GH_AW_SAFE_INPUTS_API_KEY: ${{ steps.safe-inputs-start.outputs.api_key }}",
 	}
 

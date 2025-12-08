@@ -373,7 +373,7 @@ const { startHttpServer } = require("./safe_inputs_mcp_server_http.cjs");
 const configPath = path.join(__dirname, "tools.json");
 
 // Get port and API key from environment variables
-const port = parseInt(process.env.GH_AW_SAFE_INPUTS_PORT || "3002", 10);
+const port = parseInt(process.env.GH_AW_SAFE_INPUTS_PORT || "52000", 10);
 const apiKey = process.env.GH_AW_SAFE_INPUTS_API_KEY || "";
 
 // Start the HTTP server
@@ -587,9 +587,9 @@ func renderSafeInputsMCPConfigWithOptions(yaml *strings.Builder, safeInputs *Saf
 	// Add type field for HTTP (required by MCP specification for HTTP transport)
 	yaml.WriteString("                \"type\": \"http\",\n")
 
-	// HTTP URL with hardcoded port 3002 (similar to GitHub remote MCP configuration)
+	// HTTP URL with hardcoded port 52000 (similar to GitHub remote MCP configuration)
 	// Use host.docker.internal to allow access from firewall container
-	yaml.WriteString("                \"url\": \"http://host.docker.internal:3002\",\n")
+	yaml.WriteString("                \"url\": \"http://host.docker.internal:52000\",\n")
 
 	// Add Authorization header with API key
 	yaml.WriteString("                \"headers\": {\n")

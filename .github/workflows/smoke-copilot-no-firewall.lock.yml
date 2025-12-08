@@ -4739,7 +4739,7 @@ jobs:
             const path = require("path");
             const { startHttpServer } = require("./safe_inputs_mcp_server_http.cjs");
             const configPath = path.join(__dirname, "tools.json");
-            const port = parseInt(process.env.GH_AW_SAFE_INPUTS_PORT || "3002", 10);
+            const port = parseInt(process.env.GH_AW_SAFE_INPUTS_PORT || "52000", 10);
             const apiKey = process.env.GH_AW_SAFE_INPUTS_API_KEY || "";
             startHttpServer(configPath, {
               port: port,
@@ -4774,7 +4774,7 @@ jobs:
             function generateSafeInputsConfig({ core, crypto }) {
               const apiKeyBuffer = crypto.randomBytes(32);
               const apiKey = apiKeyBuffer.toString("base64").replace(/[/+=]/g, "");
-              const port = 3002;
+              const port = 52000;
               core.setOutput("safe_inputs_api_key", apiKey);
               core.setOutput("safe_inputs_port", port.toString());
               core.info(`Safe Inputs MCP server will run on port ${port}`);
@@ -4789,8 +4789,8 @@ jobs:
         id: safe-inputs-start
         run: |
           # Set environment variables for the server
-          # Port is hardcoded to 3002 (similar to GitHub remote MCP configuration)
-          export GH_AW_SAFE_INPUTS_PORT=3002
+          # Port is hardcoded to 52000 (similar to GitHub remote MCP configuration)
+          export GH_AW_SAFE_INPUTS_PORT=52000
           export GH_AW_SAFE_INPUTS_API_KEY=${{ steps.safe-inputs-config.outputs.safe_inputs_api_key }}
           
           export GH_AW_GH_TOKEN="${GH_AW_GH_TOKEN}"
@@ -4861,7 +4861,7 @@ jobs:
         env:
           GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
-          GH_AW_SAFE_INPUTS_PORT: 3002
+          GH_AW_SAFE_INPUTS_PORT: 52000
           GH_AW_SAFE_INPUTS_API_KEY: ${{ steps.safe-inputs-start.outputs.api_key }}
           GH_AW_GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -4898,7 +4898,7 @@ jobs:
               },
               "safeinputs": {
                 "type": "http",
-                "url": "http://host.docker.internal:3002",
+                "url": "http://host.docker.internal:52000",
                 "headers": {
                   "Authorization": "Bearer \${GH_AW_SAFE_INPUTS_API_KEY}"
                 },
