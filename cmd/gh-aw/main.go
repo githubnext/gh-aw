@@ -295,8 +295,7 @@ var versionCmd = &cobra.Command{
 	Use:   "version",
 	Short: "Show version information",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		fmt.Println(console.FormatInfoMessage(fmt.Sprintf("%s version %s", constants.CLIExtensionPrefix, version)))
-		fmt.Println(console.FormatInfoMessage("GitHub Agentic Workflows CLI from GitHub Next"))
+		fmt.Printf("%s version %s\n", constants.CLIExtensionPrefix, version)
 		return nil
 	},
 }
@@ -343,9 +342,7 @@ func init() {
 	rootCmd.SilenceErrors = true
 
 	// Set version template to match the version subcommand format
-	rootCmd.SetVersionTemplate(fmt.Sprintf("%s\n%s\n",
-		console.FormatInfoMessage(fmt.Sprintf("%s version {{.Version}}", constants.CLIExtensionPrefix)),
-		console.FormatInfoMessage("GitHub Agentic Workflows CLI from GitHub Next")))
+	rootCmd.SetVersionTemplate(fmt.Sprintf("%s version {{.Version}}\n", constants.CLIExtensionPrefix))
 
 	// Override the help function to hide completion command
 	originalHelpFunc := rootCmd.HelpFunc()
