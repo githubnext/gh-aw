@@ -339,6 +339,12 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		}
 		yaml.WriteString("          EOF_VALIDATION\n")
 
+		yaml.WriteString("          cat > /tmp/gh-aw/safe-inputs/safe_inputs_bootstrap.cjs << 'EOF_BOOTSTRAP'\n")
+		for _, line := range FormatJavaScriptForYAML(GetSafeInputsBootstrapScript()) {
+			yaml.WriteString(line)
+		}
+		yaml.WriteString("          EOF_BOOTSTRAP\n")
+
 		// Write safe-inputs MCP server main module
 		yaml.WriteString("          cat > /tmp/gh-aw/safe-inputs/safe_inputs_mcp_server.cjs << 'EOF_SAFE_INPUTS_SERVER'\n")
 		for _, line := range FormatJavaScriptForYAML(GetSafeInputsMCPServerScript()) {

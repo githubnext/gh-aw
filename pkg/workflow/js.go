@@ -826,6 +826,11 @@ func GetSafeInputsToolFactoryScript() string {
 	return safeInputsToolFactoryScript
 }
 
+// GetSafeInputsBootstrapScript returns the embedded safe_inputs_bootstrap.cjs script
+func GetSafeInputsBootstrapScript() string {
+	return safeInputsBootstrapScript
+}
+
 // GetSafeInputsValidationScript returns the embedded safe_inputs_validation.cjs script
 func GetSafeInputsValidationScript() string {
 	return safeInputsValidationScript
