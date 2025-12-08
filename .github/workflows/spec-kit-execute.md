@@ -289,7 +289,7 @@ Once implementation reaches a significant milestone (completed phase, user story
 3. **PR Description Format**:
 
 ```markdown
-## Spec-Kit Implementation: [Feature Name]
+## Spec-Kit Implementation: [FEATURE-NUMBER]-[FEATURE-NAME]
 
 This PR implements tasks from feature `.specify/specs/[FEATURE-NUMBER]-[FEATURE-NAME]` following the spec-driven development methodology and project constitution.
 
