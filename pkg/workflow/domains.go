@@ -23,6 +23,7 @@ var CopilotDefaultDomains = []string{
 	"api.enterprise.githubcopilot.com",
 	"api.github.com",
 	"github.com",
+	"host.docker.internal",
 	"raw.githubusercontent.com",
 	"registry.npmjs.org",
 }
@@ -144,9 +145,17 @@ func matchesDomain(domain, pattern string) bool {
 // GetCopilotAllowedDomains merges Copilot default domains with NetworkPermissions allowed domains
 // Returns a deduplicated, sorted, comma-separated string suitable for AWF's --allow-domains flag
 func GetCopilotAllowedDomains(network *NetworkPermissions) string {
+	return GetCopilotAllowedDomainsWithSafeInputs(network, false)
+}
+
+// GetCopilotAllowedDomainsWithSafeInputs merges Copilot default domains with NetworkPermissions allowed domains
+// Returns a deduplicated, sorted, comma-separated string suitable for AWF's --allow-domains flag
+// The hasSafeInputs parameter is maintained for backward compatibility but is no longer used
+// since host.docker.internal is now in CopilotDefaultDomains
+func GetCopilotAllowedDomainsWithSafeInputs(network *NetworkPermissions, hasSafeInputs bool) string {
 	domainMap := make(map[string]bool)
 
-	// Add Copilot default domains
+	// Add Copilot default domains (includes host.docker.internal)
 	for _, domain := range CopilotDefaultDomains {
 		domainMap[domain] = true
 	}

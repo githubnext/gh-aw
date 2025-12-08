@@ -802,6 +802,7 @@ jobs:
                 "golang.org",
                 "goproxy.io",
                 "gradle.org",
+                "host.docker.internal",
                 "index.crates.io",
                 "index.rubygems.org",
                 "jcenter.bintray.com",

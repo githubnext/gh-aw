@@ -92,6 +92,7 @@ Test safe-inputs HTTP server
 	}
 
 	// Verify health check (health endpoint doesn't require auth)
+	// Note: health check still uses localhost since it runs on the host
 	healthCheckItems := []string{
 		"curl -s -f http://localhost:$GH_AW_SAFE_INPUTS_PORT/health",
 		"Safe Inputs MCP server is ready",
@@ -104,11 +105,11 @@ Test safe-inputs HTTP server
 		}
 	}
 
-	// Verify HTTP MCP configuration
+	// Verify HTTP MCP configuration uses host.docker.internal for firewall access
 	expectedMCPChecks := []string{
 		`"safeinputs": {`,
 		`"type": "http"`,
-		`"url": "http://localhost:\${GH_AW_SAFE_INPUTS_PORT}"`,
+		`"url": "http://host.docker.internal:\${GH_AW_SAFE_INPUTS_PORT}"`,
 		`"headers": {`,
 		`"Authorization": "Bearer \${GH_AW_SAFE_INPUTS_API_KEY}"`,
 		`"tools": ["*"]`,

@@ -316,6 +316,22 @@ func GetJavaScriptSources() map[string]string {
 		"safe_outputs_handlers.cjs":         safeOutputsHandlersScript,
 		"safe_outputs_tools_loader.cjs":     safeOutputsToolsLoaderScript,
 		"safe_outputs_mcp_server.cjs":       safeOutputsMCPServerScriptSource,
+		"add_copilot_reviewer.cjs":          addCopilotReviewerScriptSource,
+		"add_reaction_and_edit_comment.cjs": addReactionAndEditCommentScriptSource,
+		"assign_issue.cjs":                  assignIssueScriptSource,
+		"check_command_position.cjs":        checkCommandPositionScript,
+		"check_membership.cjs":              checkMembershipScriptSource,
+		"check_skip_if_match.cjs":           checkSkipIfMatchScript,
+		"check_stop_time.cjs":               checkStopTimeScript,
+		"check_workflow_timestamp_api.cjs":  checkWorkflowTimestampAPIScript,
+		"checkout_pr_branch.cjs":            checkoutPRBranchScript,
+		"create_agent_task.cjs":             createAgentTaskScript,
+		"interpolate_prompt.cjs":            interpolatePromptScript,
+		"missing_tool.cjs":                  missingToolScript,
+		"push_repo_memory.cjs":              pushRepoMemoryScript,
+		"redact_secrets.cjs":                redactSecretsScript,
+		"update_project.cjs":                updateProjectScriptSource,
+		"validate_errors.cjs":               validateErrorsScript,
 	}
 }
 

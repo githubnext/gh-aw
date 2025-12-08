@@ -37,7 +37,7 @@ func GenerateMaintenanceWorkflow(workflowDataList []*WorkflowData, workflowDir s
 
 	// Create the maintenance workflow content using strings.Builder
 	var yaml strings.Builder
-	
+
 	yaml.WriteString(`name: Agentics Maintenance
 
 on:
@@ -58,7 +58,7 @@ jobs:
         with:
           script: |
 `)
-	
+
 	// Add the JavaScript script with proper indentation
 	script := getMaintenanceScript()
 	WriteJavaScriptToYAML(&yaml, script)

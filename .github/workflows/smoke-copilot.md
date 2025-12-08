@@ -21,6 +21,8 @@ network:
     - github
   firewall:
     log-level: debug  # Enable debug-level firewall logs
+imports:
+  - shared/gh.md
 tools:
   cache-memory: true
   edit:

@@ -21,6 +21,8 @@ network:
     - github
     - playwright
   firewall: false
+imports:
+  - shared/gh.md
 tools:
   cache-memory: true
   edit:
