@@ -180,8 +180,14 @@ func ValidateActionSHAsInLockFile(lockFilePath string, cache *ActionCache, verbo
 
 	if updateCount > 0 {
 		actionSHACheckerLog.Printf("Found %d actions that need updating", updateCount)
+		// Save the cache with updated SHAs so the next compilation will use them
+		if err := cache.Save(); err != nil {
+			actionSHACheckerLog.Printf("Warning: failed to save action cache: %v", err)
+		} else {
+			actionSHACheckerLog.Print("Saved updated action cache")
+		}
 		// Provide suggestion to fix the issue
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("To update action SHAs, run: make recompile"))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("To update action SHAs, run: gh aw compile --validate"))
 		if verbose {
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Found %d action(s) with available updates", updateCount)))
 		}
