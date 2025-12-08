@@ -2781,6 +2781,96 @@ jobs:
             function normalizeTool(name) {
               return name.replace(/-/g, "_").toLowerCase();
             }
+            async function handleRequest(server, request, defaultHandler) {
+              const { id, method, params } = request;
+              try {
+                if (!("id" in request)) {
+                  return null;
+                }
+                let result;
+                if (method === "initialize") {
+                  const protocolVersion = params?.protocolVersion || "2024-11-05";
+                  result = {
+                    protocolVersion,
+                    serverInfo: server.serverInfo,
+                    capabilities: {
+                      tools: {},
+                    },
+                  };
+                } else if (method === "ping") {
+                  result = {};
+                } else if (method === "tools/list") {
+                  const list = [];
+                  Object.values(server.tools).forEach(tool => {
+                    const toolDef = {
+                      name: tool.name,
+                      description: tool.description,
+                      inputSchema: tool.inputSchema,
+                    };
+                    list.push(toolDef);
+                  });
+                  result = { tools: list };
+                } else if (method === "tools/call") {
+                  const name = params?.name;
+                  const args = params?.arguments ?? {};
+                  if (!name || typeof name !== "string") {
+                    throw {
+                      code: -32602,
+                      message: "Invalid params: 'name' must be a string",
+                    };
+                  }
+                  const tool = server.tools[normalizeTool(name)];
+                  if (!tool) {
+                    throw {
+                      code: -32602,
+                      message: `Tool '${name}' not found`,
+                    };
+                  }
+                  let handler = tool.handler;
+                  if (!handler && defaultHandler) {
+                    handler = defaultHandler(tool.name);
+                  }
+                  if (!handler) {
+                    throw {
+                      code: -32603,
+                      message: `No handler for tool: ${name}`,
+                    };
+                  }
+                  const missing = validateRequiredFields(args, tool.inputSchema);
+                  if (missing.length) {
+                    throw {
+                      code: -32602,
+                      message: `Invalid arguments: missing or empty ${missing.map(m => `'${m}'`).join(", ")}`,
+                    };
+                  }
+                  const handlerResult = await Promise.resolve(handler(args));
+                  const content = handlerResult && handlerResult.content ? handlerResult.content : [];
+                  result = { content, isError: false };
+                } else if (/^notifications\//.test(method)) {
+                  return null;
+                } else {
+                  throw {
+                    code: -32601,
+                    message: `Method not found: ${method}`,
+                  };
+                }
+                return {
+                  jsonrpc: "2.0",
+                  id,
+                  result,
+                };
+              } catch (error) {
+                const err =  (error);
+                return {
+                  jsonrpc: "2.0",
+                  id,
+                  error: {
+                    code: err.code || -32603,
+                    message: err.message || "Internal error",
+                  },
+                };
+              }
+            }
             async function handleMessage(server, req, defaultHandler) {
               if (!req || typeof req !== "object") {
                 server.debug(`Invalid message: not an object`);

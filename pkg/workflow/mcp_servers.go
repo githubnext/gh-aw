@@ -295,12 +295,6 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		}
 		yaml.WriteString("          EOF_MCP_CORE\n")
 
-		yaml.WriteString("          cat > /tmp/gh-aw/safe-inputs/mcp_server.cjs << 'EOF_MCP_SERVER'\n")
-		for _, line := range FormatJavaScriptForYAML(GetMCPServerScript()) {
-			yaml.WriteString(line)
-		}
-		yaml.WriteString("          EOF_MCP_SERVER\n")
-
 		yaml.WriteString("          cat > /tmp/gh-aw/safe-inputs/mcp_http_transport.cjs << 'EOF_MCP_HTTP_TRANSPORT'\n")
 		for _, line := range FormatJavaScriptForYAML(GetMCPHTTPTransportScript()) {
 			yaml.WriteString(line)

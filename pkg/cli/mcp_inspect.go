@@ -326,7 +326,6 @@ func writeSafeInputsFiles(dir string, safeInputsConfig *workflow.SafeInputsConfi
 		content string
 	}{
 		{"read_buffer.cjs", workflow.GetReadBufferScript()},
-		{"mcp_server.cjs", workflow.GetMCPServerScript()},
 		{"mcp_http_transport.cjs", workflow.GetMCPHTTPTransportScript()},
 		{"safe_inputs_config_loader.cjs", workflow.GetSafeInputsConfigLoaderScript()},
 		{"mcp_server_core.cjs", workflow.GetMCPServerCoreScript()},

@@ -2642,6 +2642,96 @@ jobs:
             function normalizeTool(name) {
               return name.replace(/-/g, "_").toLowerCase();
             }
+            async function handleRequest(server, request, defaultHandler) {
+              const { id, method, params } = request;
+              try {
+                if (!("id" in request)) {
+                  return null;
+                }
+                let result;
+                if (method === "initialize") {
+                  const protocolVersion = params?.protocolVersion || "2024-11-05";
+                  result = {
+                    protocolVersion,
+                    serverInfo: server.serverInfo,
+                    capabilities: {
+                      tools: {},
+                    },
+                  };
+                } else if (method === "ping") {
+                  result = {};
+                } else if (method === "tools/list") {
+                  const list = [];
+                  Object.values(server.tools).forEach(tool => {
+                    const toolDef = {
+                      name: tool.name,
+                      description: tool.description,
+                      inputSchema: tool.inputSchema,
+                    };
+                    list.push(toolDef);
+                  });
+                  result = { tools: list };
+                } else if (method === "tools/call") {
+                  const name = params?.name;
+                  const args = params?.arguments ?? {};
+                  if (!name || typeof name !== "string") {
+                    throw {
+                      code: -32602,
+                      message: "Invalid params: 'name' must be a string",
+                    };
+                  }
+                  const tool = server.tools[normalizeTool(name)];
+                  if (!tool) {
+                    throw {
+                      code: -32602,
+                      message: `Tool '${name}' not found`,
+                    };
+                  }
+                  let handler = tool.handler;
+                  if (!handler && defaultHandler) {
+                    handler = defaultHandler(tool.name);
+                  }
+                  if (!handler) {
+                    throw {
+                      code: -32603,
+                      message: `No handler for tool: ${name}`,
+                    };
+                  }
+                  const missing = validateRequiredFields(args, tool.inputSchema);
+                  if (missing.length) {
+                    throw {
+                      code: -32602,
+                      message: `Invalid arguments: missing or empty ${missing.map(m => `'${m}'`).join(", ")}`,
+                    };
+                  }
+                  const handlerResult = await Promise.resolve(handler(args));
+                  const content = handlerResult && handlerResult.content ? handlerResult.content : [];
+                  result = { content, isError: false };
+                } else if (/^notifications\//.test(method)) {
+                  return null;
+                } else {
+                  throw {
+                    code: -32601,
+                    message: `Method not found: ${method}`,
+                  };
+                }
+                return {
+                  jsonrpc: "2.0",
+                  id,
+                  result,
+                };
+              } catch (error) {
+                const err =  (error);
+                return {
+                  jsonrpc: "2.0",
+                  id,
+                  error: {
+                    code: err.code || -32603,
+                    message: err.message || "Internal error",
+                  },
+                };
+              }
+            }
             async function handleMessage(server, req, defaultHandler) {
               if (!req || typeof req !== "object") {
                 server.debug(`Invalid message: not an object`);
@@ -3570,6 +3660,96 @@ jobs:
             function normalizeTool(name) {
               return name.replace(/-/g, "_").toLowerCase();
             }
+            async function handleRequest(server, request, defaultHandler) {
+              const { id, method, params } = request;
+              try {
+                if (!("id" in request)) {
+                  return null;
+                }
+                let result;
+                if (method === "initialize") {
+                  const protocolVersion = params?.protocolVersion || "2024-11-05";
+                  result = {
+                    protocolVersion,
+                    serverInfo: server.serverInfo,
+                    capabilities: {
+                      tools: {},
+                    },
+                  };
+                } else if (method === "ping") {
+                  result = {};
+                } else if (method === "tools/list") {
+                  const list = [];
+                  Object.values(server.tools).forEach(tool => {
+                    const toolDef = {
+                      name: tool.name,
+                      description: tool.description,
+                      inputSchema: tool.inputSchema,
+                    };
+                    list.push(toolDef);
+                  });
+                  result = { tools: list };
+                } else if (method === "tools/call") {
+                  const name = params?.name;
+                  const args = params?.arguments ?? {};
+                  if (!name || typeof name !== "string") {
+                    throw {
+                      code: -32602,
+                      message: "Invalid params: 'name' must be a string",
+                    };
+                  }
+                  const tool = server.tools[normalizeTool(name)];
+                  if (!tool) {
+                    throw {
+                      code: -32602,
+                      message: `Tool '${name}' not found`,
+                    };
+                  }
+                  let handler = tool.handler;
+                  if (!handler && defaultHandler) {
+                    handler = defaultHandler(tool.name);
+                  }
+                  if (!handler) {
+                    throw {
+                      code: -32603,
+                      message: `No handler for tool: ${name}`,
+                    };
+                  }
+                  const missing = validateRequiredFields(args, tool.inputSchema);
+                  if (missing.length) {
+                    throw {
+                      code: -32602,
+                      message: `Invalid arguments: missing or empty ${missing.map(m => `'${m}'`).join(", ")}`,
+                    };
+                  }
+                  const handlerResult = await Promise.resolve(handler(args));
+                  const content = handlerResult && handlerResult.content ? handlerResult.content : [];
+                  result = { content, isError: false };
+                } else if (/^notifications\//.test(method)) {
+                  return null;
+                } else {
+                  throw {
+                    code: -32601,
+                    message: `Method not found: ${method}`,
+                  };
+                }
+                return {
+                  jsonrpc: "2.0",
+                  id,
+                  result,
+                };
+              } catch (error) {
+                const err =  (error);
+                return {
+                  jsonrpc: "2.0",
+                  id,
+                  error: {
+                    code: err.code || -32603,
+                    message: err.message || "Internal error",
+                  },
+                };
+              }
+            }
             async function handleMessage(server, req, defaultHandler) {
               if (!req || typeof req !== "object") {
                 server.debug(`Invalid message: not an object`);
@@ -3681,15 +3861,20 @@ jobs:
               createServer,
               registerTool,
               normalizeTool,
+              handleRequest,
               handleMessage,
               processReadBuffer,
               start,
               loadToolHandlers,
             };
           EOF_MCP_CORE
-          cat > /tmp/gh-aw/safe-inputs/mcp_server.cjs << 'EOF_MCP_SERVER'
+          cat > /tmp/gh-aw/safe-inputs/mcp_http_transport.cjs << 'EOF_MCP_HTTP_TRANSPORT'
+            const http = require("http");
+            const { randomUUID } = require("crypto");
+            const { createServer, registerTool, handleRequest } = require("./mcp_server_core.cjs");
             class MCPServer {
               constructor(serverInfo, options = {}) {
+                this._coreServer = createServer(serverInfo, options);
                 this.serverInfo = serverInfo;
                 this.capabilities = options.capabilities || { tools: {} };
                 this.tools = new Map();
@@ -3703,100 +3888,25 @@ jobs:
                   inputSchema,
                   handler,
                 });
+                registerTool(this._coreServer, {
+                  name,
+                  description,
+                  inputSchema,
+                  handler,
+                });
               }
               async connect(transport) {
                 this.transport = transport;
                 transport.setServer(this);
                 await transport.start();
               }
-              handleInitialize(params) {
-                this.initialized = true;
-                return {
-                  protocolVersion: params.protocolVersion || "2024-11-05",
-                  serverInfo: this.serverInfo,
-                  capabilities: this.capabilities,
-                };
-              }
-              handleToolsList() {
-                const tools = Array.from(this.tools.values()).map(tool => ({
-                  name: tool.name,
-                  description: tool.description,
-                  inputSchema: tool.inputSchema,
-                }));
-                return { tools };
-              }
-              async handleToolsCall(params) {
-                const tool = this.tools.get(params.name);
-                if (!tool) {
-                  throw {
-                    code: -32602,
-                    message: `Tool '${params.name}' not found`,
-                  };
-                }
-                try {
-                  const result = await tool.handler(params.arguments || {});
-                  return result;
-                } catch (error) {
-                  throw {
-                    code: -32603,
-                    message: error instanceof Error ? error.message : String(error),
-                  };
-                }
-              }
-              handlePing() {
-                return {};
-              }
               async handleRequest(request) {
-                const { id, method, params } = request;
-                try {
-                  if (!("id" in request)) {
-                    return null;
-                  }
-                  let result;
-                  switch (method) {
-                    case "initialize":
-                      result = this.handleInitialize(params || {});
-                      break;
-                    case "ping":
-                      result = this.handlePing();
-                      break;
-                    case "tools/list":
-                      result = this.handleToolsList();
-                      break;
-                    case "tools/call":
-                      result = await this.handleToolsCall(params || {});
-                      break;
-                    default:
-                      throw {
-                        code: -32601,
-                        message: `Method '${method}' not found`,
-                      };
-                  }
-                  return {
-                    jsonrpc: "2.0",
-                    id,
-                    result,
-                  };
-                } catch (error) {
-                  return {
-                    jsonrpc: "2.0",
-                    id,
-                    error: {
-                      code: error.code || -32603,
-                      message: error.message || "Internal error",
-                    },
-                  };
+                if (request.method === "initialize") {
+                  this.initialized = true;
                 }
+                return handleRequest(this._coreServer, request);
               }
             }
-            module.exports = {
-              MCPServer,
-            };
-          EOF_MCP_SERVER
-          cat > /tmp/gh-aw/safe-inputs/mcp_http_transport.cjs << 'EOF_MCP_HTTP_TRANSPORT'
-            const http = require("http");
-            const { randomUUID } = require("crypto");
-            const { MCPServer } = require("./mcp_server.cjs");
             class MCPHTTPTransport {
               constructor(options = {}) {
                 this.sessionIdGenerator = options.sessionIdGenerator;

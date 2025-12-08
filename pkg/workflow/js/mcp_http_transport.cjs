@@ -20,7 +20,76 @@
 
 const http = require("http");
 const { randomUUID } = require("crypto");
-const { MCPServer } = require("./mcp_server.cjs");
+const { createServer, registerTool, handleRequest } = require("./mcp_server_core.cjs");
+
+/**
+ * Simple MCP Server wrapper that provides a class-like interface
+ * compatible with the HTTP transport, backed by mcp_server_core functions.
+ */
+class MCPServer {
+  /**
+   * @param {Object} serverInfo - Server metadata
+   * @param {string} serverInfo.name - Server name
+   * @param {string} serverInfo.version - Server version
+   * @param {Object} [options] - Server options
+   * @param {Object} [options.capabilities] - Server capabilities
+   */
+  constructor(serverInfo, options = {}) {
+    this._coreServer = createServer(serverInfo, options);
+    this.serverInfo = serverInfo;
+    this.capabilities = options.capabilities || { tools: {} };
+    this.tools = new Map();
+    this.transport = null;
+    this.initialized = false;
+  }
+
+  /**
+   * Register a tool with the server
+   * @param {string} name - Tool name
+   * @param {string} description - Tool description
+   * @param {Object} inputSchema - JSON Schema for tool input
+   * @param {Function} handler - Async function that handles tool calls
+   */
+  tool(name, description, inputSchema, handler) {
+    this.tools.set(name, {
+      name,
+      description,
+      inputSchema,
+      handler,
+    });
+    // Also register with the core server
+    registerTool(this._coreServer, {
+      name,
+      description,
+      inputSchema,
+      handler,
+    });
+  }
+
+  /**
+   * Connect to a transport
+   * @param {any} transport - Transport instance (must have setServer and start methods)
+   */
+  async connect(transport) {
+    this.transport = transport;
+    transport.setServer(this);
+    await transport.start();
+  }
+
+  /**
+   * Handle an incoming JSON-RPC request
+   * @param {Object} request - JSON-RPC request
+   * @returns {Promise<Object|null>} JSON-RPC response or null for notifications
+   */
+  async handleRequest(request) {
+    // Track initialization state
+    if (request.method === "initialize") {
+      this.initialized = true;
+    }
+    // Delegate to core server's handleRequest function
+    return handleRequest(this._coreServer, request);
+  }
+}
 
 /**
  * MCP HTTP Transport implementation
