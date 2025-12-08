@@ -479,7 +479,120 @@ function normalizeTool(name) {
 }
 
 /**
- * Handle an incoming JSON-RPC message
+ * Handle an incoming JSON-RPC request and return a response (for HTTP transport)
+ * This function is compatible with the MCPServer class's handleRequest method.
+ * @param {MCPServer} server - The MCP server instance
+ * @param {Object} request - The incoming JSON-RPC request
+ * @param {Function} [defaultHandler] - Default handler for tools without a handler
+ * @returns {Promise<Object|null>} JSON-RPC response object, or null for notifications
+ */
+async function handleRequest(server, request, defaultHandler) {
+  const { id, method, params } = request;
+
+  try {
+    // Handle notifications per JSON-RPC 2.0 spec:
+    // Requests without id field are notifications (no response)
+    // Note: id can be null for valid requests, so we check for field presence with "in" operator
+    if (!("id" in request)) {
+      // No id field - this is a notification (no response)
+      return null;
+    }
+
+    let result;
+
+    if (method === "initialize") {
+      const protocolVersion = params?.protocolVersion || "2024-11-05";
+      result = {
+        protocolVersion,
+        serverInfo: server.serverInfo,
+        capabilities: {
+          tools: {},
+        },
+      };
+    } else if (method === "ping") {
+      result = {};
+    } else if (method === "tools/list") {
+      const list = [];
+      Object.values(server.tools).forEach(tool => {
+        const toolDef = {
+          name: tool.name,
+          description: tool.description,
+          inputSchema: tool.inputSchema,
+        };
+        list.push(toolDef);
+      });
+      result = { tools: list };
+    } else if (method === "tools/call") {
+      const name = params?.name;
+      const args = params?.arguments ?? {};
+      if (!name || typeof name !== "string") {
+        throw {
+          code: -32602,
+          message: "Invalid params: 'name' must be a string",
+        };
+      }
+      const tool = server.tools[normalizeTool(name)];
+      if (!tool) {
+        throw {
+          code: -32602,
+          message: `Tool '${name}' not found`,
+        };
+      }
+
+      // Use tool handler, or default handler, or error
+      let handler = tool.handler;
+      if (!handler && defaultHandler) {
+        handler = defaultHandler(tool.name);
+      }
+      if (!handler) {
+        throw {
+          code: -32603,
+          message: `No handler for tool: ${name}`,
+        };
+      }
+
+      const missing = validateRequiredFields(args, tool.inputSchema);
+      if (missing.length) {
+        throw {
+          code: -32602,
+          message: `Invalid arguments: missing or empty ${missing.map(m => `'${m}'`).join(", ")}`,
+        };
+      }
+
+      // Call handler and await the result (supports both sync and async handlers)
+      const handlerResult = await Promise.resolve(handler(args));
+      const content = handlerResult && handlerResult.content ? handlerResult.content : [];
+      result = { content, isError: false };
+    } else if (/^notifications\//.test(method)) {
+      // Notifications don't need a response
+      return null;
+    } else {
+      throw {
+        code: -32601,
+        message: `Method not found: ${method}`,
+      };
+    }
+
+    return {
+      jsonrpc: "2.0",
+      id,
+      result,
+    };
+  } catch (error) {
+    const err = /** @type {any} */ (error);
+    return {
+      jsonrpc: "2.0",
+      id,
+      error: {
+        code: err.code || -32603,
+        message: err.message || "Internal error",
+      },
+    };
+  }
+}
+
+/**
+ * Handle an incoming JSON-RPC message (for stdio transport)
  * @param {MCPServer} server - The MCP server instance
  * @param {Object} req - The incoming request
  * @param {Function} [defaultHandler] - Default handler for tools without a handler
@@ -628,6 +741,7 @@ module.exports = {
   createServer,
   registerTool,
   normalizeTool,
+  handleRequest,
   handleMessage,
   processReadBuffer,
   start,
