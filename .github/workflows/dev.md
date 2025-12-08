@@ -1,49 +1,85 @@
 ---
 on: 
   workflow_dispatch:
+    inputs:
+      issue_number:
+        description: 'Specific issue number to assign (optional - if empty, will search for issues)'
+        required: false
+        type: string
+      base_branch:
+        description: 'Base branch for Copilot to work from (optional)'
+        required: false
+        type: string
 name: Dev
-description: Find and assign documentation issues to technical doc writer agent
+description: Test assign-to-agent with REST API (December 2025)
 timeout-minutes: 10
 strict: false
-engine: claude
+engine: copilot
 permissions:
   contents: read
   issues: write
   pull-requests: read
+github-token: ${{ secrets.COPILOT_GITHUB_TOKEN }}
 tools:
   github:
-    toolsets: [default]
+    toolsets: [repos, issues]
 safe-outputs:
   assign-to-agent:
-    max: 1
+    max: 3
 ---
-# Find and Assign Documentation Issues
+# Test Assign to Copilot Agent (REST API)
 
-Find issues that need documentation work and assign them to the technical documentation writer agent.
+This workflow tests the assign-to-agent safe output using the December 2025 REST API.
 
 ## Current Context
 
 - **Repository**: ${{ github.repository }}
 - **Actor**: @${{ github.actor }}
 - **Run**: ${{ github.run_id }}
+- **Input Issue**: ${{ github.event.inputs.issue_number }}
+- **Input Base Branch**: ${{ github.event.inputs.base_branch }}
 
 ## Task
 
-1. **Search for documentation issues**: Use the GitHub tools to search for open issues that need documentation work. Look for issues with labels like "documentation", "docs", or issues that describe documentation needs.
+### If a specific issue number was provided:
 
-2. **Select a good candidate**: Pick an issue that clearly describes what documentation is needed. Good candidates:
-   - Have clear requirements about what needs to be documented
-   - Specify the location or scope of the documentation
-   - Are not already assigned to someone
-
-3. **Assign to technical doc writer**: Once you've identified a good documentation issue, use the `assign_to_agent` tool to assign it:
+If the input issue_number `${{ github.event.inputs.issue_number }}` is not empty, assign Copilot to that specific issue:
 
 ```
 assign_to_agent(
-  issue_number=<issue_number>,
-  custom_agent="technical-doc-writer",
-  custom_instructions="Read the description carefully. This assignment was made by @${{ github.actor }} in run ${{ github.run_id }}."
+  issue_number=${{ github.event.inputs.issue_number }},
+  base_branch="${{ github.event.inputs.base_branch }}"
 )
 ```
 
-**Important**: The `custom_instructions` field supports GitHub expression syntax like `${{ github.actor }}` which will be rendered at runtime.
+### If no issue number was provided:
+
+1. **Search for assignable issues**: Use GitHub tools to find open issues that are good candidates for Copilot:
+   - Issues with clear, actionable requirements
+   - Issues that describe a specific code change needed
+   - Issues NOT already assigned to someone
+   - Prefer issues with labels like "bug", "enhancement", or "good first issue"
+
+2. **Select up to 3 candidates**: Pick issues that Copilot can realistically work on.
+
+3. **Assign to Copilot**: For each selected issue, use the `assign_to_agent` tool:
+
+```
+assign_to_agent(
+  issue_number=<issue_number>
+)
+```
+
+If a base_branch was specified in the inputs, include it:
+```
+assign_to_agent(
+  issue_number=<issue_number>,
+  base_branch="${{ github.event.inputs.base_branch }}"
+)
+```
+
+## Notes
+
+- This uses the REST API (December 2025) for basic assignment
+- If you specify `base_branch`, it will use GraphQL with the copilotAssignmentOptions
+- The workflow requires `COPILOT_GITHUB_TOKEN` secret with `repo` scope
