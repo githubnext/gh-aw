@@ -3,7 +3,10 @@
 
 /**
  * Shared helper functions for assigning coding agents (like Copilot) to issues
- * These functions use GraphQL to properly assign bot actors that cannot be assigned via gh CLI
+ * Uses the REST API (December 2025) to assign Copilot to issues with advanced options.
+ * Falls back to GraphQL when REST fails or for advanced options.
+ *
+ * Reference: https://github.blog/changelog/2025-12-03-assign-issues-to-copilot-using-the-api/
  *
  * NOTE: All functions use the built-in `github` global object for authentication.
  * The token must be set at the step level via the `github-token` parameter in GitHub Actions.
@@ -92,6 +95,91 @@ async function getRepositoryId(owner, repo) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     core.error(`Failed to get repository ID for ${owner}/${repo}: ${errorMessage}`);
     return null;
+  }
+}
+
+/**
+ * Check if agent is already assigned to an issue using REST API
+ * @param {string} owner - Repository owner
+ * @param {string} repo - Repository name
+ * @param {number} issueNumber - Issue number
+ * @param {string} agentName - Agent name
+ * @returns {Promise<boolean>}
+ */
+async function isAgentAlreadyAssigned(owner, repo, issueNumber, agentName) {
+  const loginName = AGENT_LOGIN_NAMES[agentName];
+  if (!loginName) return false;
+
+  try {
+    const response = await github.rest.issues.get({
+      owner,
+      repo,
+      issue_number: issueNumber,
+    });
+
+    const assignees = response.data.assignees || [];
+    return assignees.some(a => a.login === loginName);
+  } catch (error) {
+    core.debug(`Failed to check existing assignees: ${error instanceof Error ? error.message : String(error)}`);
+    return false;
+  }
+}
+
+/**
+ * Assign Copilot agent to an issue using the REST API
+ * Uses POST /repos/{owner}/{repo}/issues/{issue_number}/assignees endpoint
+ *
+ * @param {string} owner - Repository owner
+ * @param {string} repo - Repository name
+ * @param {number} issueNumber - Issue number
+ * @param {string} agentName - Agent name (e.g., "copilot")
+ * @returns {Promise<{success: boolean, error?: string}>}
+ */
+async function assignAgentViaRest(owner, repo, issueNumber, agentName) {
+  const loginName = AGENT_LOGIN_NAMES[agentName];
+  if (!loginName) {
+    const error = `Unknown agent: ${agentName}. Supported agents: ${Object.keys(AGENT_LOGIN_NAMES).join(", ")}`;
+    core.error(error);
+    return { success: false, error };
+  }
+
+  try {
+    core.info(`Assigning ${agentName} (${loginName}) to issue #${issueNumber} via REST API...`);
+
+    // Use the REST API to add assignees
+    // POST /repos/{owner}/{repo}/issues/{issue_number}/assignees
+    const response = await github.rest.issues.addAssignees({
+      owner,
+      repo,
+      issue_number: issueNumber,
+      assignees: [loginName],
+    });
+
+    if (response.status === 201 || response.status === 200) {
+      core.info(`✅ Successfully assigned ${agentName} to issue #${issueNumber} via REST API`);
+      return { success: true };
+    } else {
+      const error = `Unexpected response status: ${response.status}`;
+      core.error(error);
+      return { success: false, error };
+    }
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+
+    // Check for common errors
+    if (errorMessage.includes("422") || errorMessage.includes("Validation Failed")) {
+      // Copilot not available or not enabled
+      core.debug(`REST API 422 error: ${errorMessage}`);
+      return { success: false, error: `${agentName} coding agent may not be available for this repository` };
+    }
+
+    if (errorMessage.includes("Resource not accessible") || errorMessage.includes("403")) {
+      core.debug(`REST API permission error: ${errorMessage}`);
+      return { success: false, error: "Insufficient permissions to assign agent via REST API" };
+    }
+
+    core.debug(`REST API failed: ${errorMessage}`);
+    return { success: false, error: errorMessage };
   }
 }
 
@@ -385,24 +473,19 @@ async function assignAgentToIssue(issueId, agentId, currentAssignees, agentName,
 function logPermissionError(agentName) {
   core.error(`Failed to assign ${agentName}: Insufficient permissions`);
   core.error("");
-  core.error("Assigning Copilot agents requires:");
-  core.error("  1. All four workflow permissions:");
-  core.error("     - actions: write");
-  core.error("     - contents: write");
-  core.error("     - issues: write");
-  core.error("     - pull-requests: write");
+  core.error("Assigning Copilot agents requires a Personal Access Token (PAT) with:");
+  core.error("  - 'repo' scope (classic PAT), OR");
+  core.error("  - Fine-grained PAT with Issues and Contents write permissions");
   core.error("");
-  core.error("  2. A classic PAT with 'repo' scope OR fine-grained PAT with explicit Write permissions above:");
-  core.error("     (Fine-grained PATs must grant repository access + write for Issues, Pull requests, Contents, Actions)");
+  core.error("The default GITHUB_TOKEN cannot assign Copilot to issues.");
   core.error("");
-  core.error("  3. Repository settings:");
-  core.error("     - Actions must have write permissions");
-  core.error("     - Go to: Settings > Actions > General > Workflow permissions");
-  core.error("     - Select: 'Read and write permissions'");
+  core.error("Configure your token:");
+  core.error("  1. Create a PAT at: https://github.com/settings/tokens");
+  core.error("  2. Store it as COPILOT_GITHUB_TOKEN secret in your repository");
   core.error("");
-  core.error("  4. Organization/Enterprise settings:");
-  core.error("     - Check if your org restricts bot assignments");
-  core.error("     - Verify Copilot is enabled for your repository");
+  core.error("Repository requirements:");
+  core.error("  - Copilot coding agent must be enabled");
+  core.error("  - Check: Settings > Copilot > Policies > Coding agent");
   core.error("");
   core.info("For more information, see: https://docs.github.com/en/copilot/how-tos/use-copilot-agents/coding-agent/create-a-pr");
 }
@@ -413,25 +496,18 @@ function logPermissionError(agentName) {
  */
 function generatePermissionErrorSummary() {
   let content = "\n### ⚠️ Permission Requirements\n\n";
-  content += "Assigning Copilot agents requires **ALL** of these permissions:\n\n";
-  content += "```yaml\n";
-  content += "permissions:\n";
-  content += "  actions: write\n";
-  content += "  contents: write\n";
-  content += "  issues: write\n";
-  content += "  pull-requests: write\n";
-  content += "```\n\n";
-  content += "**Token capability note:**\n";
-  content += "- Current token (PAT or GITHUB_TOKEN) lacks assignee mutation capability for this repository.\n";
-  content += "- Both `replaceActorsForAssignable` and fallback `addAssigneesToAssignable` returned FORBIDDEN/Resource not accessible.\n";
-  content += "- This typically means bot/user assignment requires an elevated OAuth or GitHub App installation token.\n\n";
-  content += "**Recommended remediation paths:**\n";
-  content += "1. Create & install a GitHub App with: Issues/Pull requests/Contents/Actions (write) → use installation token in job.\n";
-  content += "2. Manual assignment: add the agent through the UI until broader token support is available.\n";
-  content += "3. Open a support ticket referencing failing mutation `replaceActorsForAssignable` and repository slug.\n\n";
-  content +=
-    "**Why this failed:** Fine-grained and classic PATs can update issue title (verified) but not modify assignees in this environment.\n\n";
-  content += "📖 Reference: https://docs.github.com/en/copilot/how-tos/use-copilot-agents/coding-agent/create-a-pr (general agent docs)\n";
+  content += "Assigning Copilot agents requires a Personal Access Token (PAT):\n\n";
+  content += "**Token Options:**\n";
+  content += "- Classic PAT with `repo` scope\n";
+  content += "- Fine-grained PAT with Issues and Contents write permissions\n\n";
+  content += "⚠️ The default `GITHUB_TOKEN` cannot assign Copilot to issues.\n\n";
+  content += "**Setup:**\n";
+  content += "1. Create a PAT at https://github.com/settings/tokens\n";
+  content += "2. Store as `COPILOT_GITHUB_TOKEN` secret in your repository\n\n";
+  content += "**Repository Requirements:**\n";
+  content += "- Copilot coding agent must be enabled\n";
+  content += "- Check: Settings → Copilot → Policies → Coding agent\n\n";
+  content += "📖 Reference: https://github.blog/changelog/2025-12-03-assign-issues-to-copilot-using-the-api/\n";
   return content;
 }
 
@@ -535,6 +611,8 @@ module.exports = {
   findAgent,
   getIssueDetails,
   assignAgentToIssue,
+  assignAgentViaRest,
+  isAgentAlreadyAssigned,
   logPermissionError,
   generatePermissionErrorSummary,
   assignAgentToIssueByName,

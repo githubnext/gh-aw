@@ -11,6 +11,12 @@ const mockCore = {
 
 const mockGithub = {
   graphql: vi.fn(),
+  rest: {
+    issues: {
+      get: vi.fn(),
+      addAssignees: vi.fn(),
+    },
+  },
 };
 
 // Set up global mocks before importing the module
@@ -24,6 +30,8 @@ const {
   findAgent,
   getIssueDetails,
   assignAgentToIssue,
+  assignAgentViaRest,
+  isAgentAlreadyAssigned,
   generatePermissionErrorSummary,
   assignAgentToIssueByName,
 } = await import("./assign_agent_helpers.cjs");
@@ -31,6 +39,9 @@ const {
 describe("assign_agent_helpers.cjs", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // Reset REST API mocks
+    mockGithub.rest.issues.get.mockReset();
+    mockGithub.rest.issues.addAssignees.mockReset();
   });
 
   describe("AGENT_LOGIN_NAMES", () => {
@@ -340,16 +351,83 @@ describe("assign_agent_helpers.cjs", () => {
     });
   });
 
+  describe("isAgentAlreadyAssigned", () => {
+    it("should return true if agent is already assigned", async () => {
+      mockGithub.rest.issues.get.mockResolvedValueOnce({
+        data: {
+          assignees: [{ login: "copilot-swe-agent" }],
+        },
+      });
+
+      const result = await isAgentAlreadyAssigned("owner", "repo", 123, "copilot");
+
+      expect(result).toBe(true);
+    });
+
+    it("should return false if agent is not assigned", async () => {
+      mockGithub.rest.issues.get.mockResolvedValueOnce({
+        data: {
+          assignees: [{ login: "other-user" }],
+        },
+      });
+
+      const result = await isAgentAlreadyAssigned("owner", "repo", 123, "copilot");
+
+      expect(result).toBe(false);
+    });
+
+    it("should return false on error", async () => {
+      mockGithub.rest.issues.get.mockRejectedValueOnce(new Error("API error"));
+
+      const result = await isAgentAlreadyAssigned("owner", "repo", 123, "copilot");
+
+      expect(result).toBe(false);
+    });
+  });
+
+  describe("assignAgentViaRest", () => {
+    it("should successfully assign copilot agent via REST API", async () => {
+      mockGithub.rest.issues.addAssignees.mockResolvedValueOnce({
+        status: 201,
+        data: {},
+      });
+
+      const result = await assignAgentViaRest("owner", "repo", 123, "copilot");
+
+      expect(result.success).toBe(true);
+      expect(mockGithub.rest.issues.addAssignees).toHaveBeenCalledWith({
+        owner: "owner",
+        repo: "repo",
+        issue_number: 123,
+        assignees: ["copilot-swe-agent"],
+      });
+    });
+
+    it("should return error for unknown agent", async () => {
+      const result = await assignAgentViaRest("owner", "repo", 123, "unknown-agent");
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("Unknown agent");
+    });
+
+    it("should handle 422 validation errors", async () => {
+      mockGithub.rest.issues.addAssignees.mockRejectedValueOnce(new Error("422 Validation Failed"));
+
+      const result = await assignAgentViaRest("owner", "repo", 123, "copilot");
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("may not be available");
+    });
+  });
+
   describe("generatePermissionErrorSummary", () => {
     it("should return markdown content with permission requirements", () => {
       const summary = generatePermissionErrorSummary();
 
       expect(summary).toContain("### ⚠️ Permission Requirements");
-      expect(summary).toContain("actions: write");
-      expect(summary).toContain("contents: write");
-      expect(summary).toContain("issues: write");
-      expect(summary).toContain("pull-requests: write");
-      expect(summary).toContain("replaceActorsForAssignable");
+      expect(summary).toContain("COPILOT_GITHUB_TOKEN");
+      expect(summary).toContain("repo");
+      expect(summary).toContain("GITHUB_TOKEN");
     });
   });
 

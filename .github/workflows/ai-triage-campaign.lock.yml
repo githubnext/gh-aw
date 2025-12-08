@@ -161,8 +161,8 @@
 #     https://github.com/actions/download-artifact/commit/018cc2cf5baa6db3ef3c5f8a56943fffe632ef53
 #   - actions/github-script@v8 (ed597411d8f924073f98dfc5c65a23a2325f34cd)
 #     https://github.com/actions/github-script/commit/ed597411d8f924073f98dfc5c65a23a2325f34cd
-#   - actions/setup-node@v6 (395ad3262231945c25e8478fd5baf05154b1d79f)
-#     https://github.com/actions/setup-node/commit/395ad3262231945c25e8478fd5baf05154b1d79f
+#   - actions/setup-node@v6 (2028fbc5c25fe9cf00d9f06a71cc4710d4507903)
+#     https://github.com/actions/setup-node/commit/2028fbc5c25fe9cf00d9f06a71cc4710d4507903
 #   - actions/upload-artifact@v5 (330a01c490aca151604b8cf639adc76d48f6c5d4)
 #     https://github.com/actions/upload-artifact/commit/330a01c490aca151604b8cf639adc76d48f6c5d4
 
@@ -382,7 +382,7 @@ jobs:
           COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
           COPILOT_CLI_TOKEN: ${{ secrets.COPILOT_CLI_TOKEN }}
       - name: Setup Node.js
-        uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6
+        uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # v6
         with:
           node-version: '24'
           package-manager-cache: false
@@ -5105,6 +5105,59 @@ jobs:
                 return null;
               }
             }
+            async function isAgentAlreadyAssigned(owner, repo, issueNumber, agentName) {
+              const loginName = AGENT_LOGIN_NAMES[agentName];
+              if (!loginName) return false;
+              try {
+                const response = await github.rest.issues.get({
+                  owner,
+                  repo,
+                  issue_number: issueNumber,
+                });
+                const assignees = response.data.assignees || [];
+                return assignees.some(a => a.login === loginName);
+              } catch (error) {
+                core.debug(`Failed to check existing assignees: ${error instanceof Error ? error.message : String(error)}`);
+                return false;
+              }
+            }
+            async function assignAgentViaRest(owner, repo, issueNumber, agentName) {
+              const loginName = AGENT_LOGIN_NAMES[agentName];
+              if (!loginName) {
+                const error = `Unknown agent: ${agentName}. Supported agents: ${Object.keys(AGENT_LOGIN_NAMES).join(", ")}`;
+                core.error(error);
+                return { success: false, error };
+              }
+              try {
+                core.info(`Assigning ${agentName} (${loginName}) to issue #${issueNumber} via REST API...`);
+                const response = await github.rest.issues.addAssignees({
+                  owner,
+                  repo,
+                  issue_number: issueNumber,
+                  assignees: [loginName],
+                });
+                if (response.status === 201 || response.status === 200) {
+                  core.info(`✅ Successfully assigned ${agentName} to issue #${issueNumber} via REST API`);
+                  return { success: true };
+                } else {
+                  const error = `Unexpected response status: ${response.status}`;
+                  core.error(error);
+                  return { success: false, error };
+                }
+              } catch (error) {
+                const errorMessage = error instanceof Error ? error.message : String(error);
+                if (errorMessage.includes("422") || errorMessage.includes("Validation Failed")) {
+                  core.debug(`REST API 422 error: ${errorMessage}`);
+                  return { success: false, error: `${agentName} coding agent may not be available for this repository` };
+                }
+                if (errorMessage.includes("Resource not accessible") || errorMessage.includes("403")) {
+                  core.debug(`REST API permission error: ${errorMessage}`);
+                  return { success: false, error: "Insufficient permissions to assign agent via REST API" };
+                }
+                core.debug(`REST API failed: ${errorMessage}`);
+                return { success: false, error: errorMessage };
+              }
+            }
             async function findAgent(owner, repo, agentName) {
               const query = `
                 query($owner: String!, $repo: String!) {
@@ -5323,48 +5376,36 @@ jobs:
             function logPermissionError(agentName) {
               core.error(`Failed to assign ${agentName}: Insufficient permissions`);
               core.error("");
-              core.error("Assigning Copilot agents requires:");
-              core.error("  1. All four workflow permissions:");
-              core.error("     - actions: write");
-              core.error("     - contents: write");
-              core.error("     - issues: write");
-              core.error("     - pull-requests: write");
+              core.error("Assigning Copilot agents requires a Personal Access Token (PAT) with:");
+              core.error("  - 'repo' scope (classic PAT), OR");
+              core.error("  - Fine-grained PAT with Issues and Contents write permissions");
               core.error("");
-              core.error("  2. A classic PAT with 'repo' scope OR fine-grained PAT with explicit Write permissions above:");
-              core.error("     (Fine-grained PATs must grant repository access + write for Issues, Pull requests, Contents, Actions)");
+              core.error("The default GITHUB_TOKEN cannot assign Copilot to issues.");
               core.error("");
-              core.error("  3. Repository settings:");
-              core.error("     - Actions must have write permissions");
-              core.error("     - Go to: Settings > Actions > General > Workflow permissions");
-              core.error("     - Select: 'Read and write permissions'");
+              core.error("Configure your token:");
+              core.error("  1. Create a PAT at: https://github.com/settings/tokens");
+              core.error("  2. Store it as COPILOT_GITHUB_TOKEN secret in your repository");
               core.error("");
-              core.error("  4. Organization/Enterprise settings:");
-              core.error("     - Check if your org restricts bot assignments");
-              core.error("     - Verify Copilot is enabled for your repository");
+              core.error("Repository requirements:");
+              core.error("  - Copilot coding agent must be enabled");
+              core.error("  - Check: Settings > Copilot > Policies > Coding agent");
               core.error("");
               core.info("For more information, see: https://docs.github.com/en/copilot/how-tos/use-copilot-agents/coding-agent/create-a-pr");
             }
             function generatePermissionErrorSummary() {
               let content = "\n### ⚠️ Permission Requirements\n\n";
-              content += "Assigning Copilot agents requires **ALL** of these permissions:\n\n";
-              content += "```yaml\n";
-              content += "permissions:\n";
-              content += "  actions: write\n";
-              content += "  contents: write\n";
-              content += "  issues: write\n";
-              content += "  pull-requests: write\n";
-              content += "```\n\n";
-              content += "**Token capability note:**\n";
-              content += "- Current token (PAT or GITHUB_TOKEN) lacks assignee mutation capability for this repository.\n";
-              content += "- Both `replaceActorsForAssignable` and fallback `addAssigneesToAssignable` returned FORBIDDEN/Resource not accessible.\n";
-              content += "- This typically means bot/user assignment requires an elevated OAuth or GitHub App installation token.\n\n";
-              content += "**Recommended remediation paths:**\n";
-              content += "1. Create & install a GitHub App with: Issues/Pull requests/Contents/Actions (write) → use installation token in job.\n";
-              content += "2. Manual assignment: add the agent through the UI until broader token support is available.\n";
-              content += "3. Open a support ticket referencing failing mutation `replaceActorsForAssignable` and repository slug.\n\n";
-              content +=
-                "**Why this failed:** Fine-grained and classic PATs can update issue title (verified) but not modify assignees in this environment.\n\n";
-              content += "📖 Reference: https://docs.github.com/en/copilot/how-tos/use-copilot-agents/coding-agent/create-a-pr (general agent docs)\n";
+              content += "Assigning Copilot agents requires a Personal Access Token (PAT):\n\n";
+              content += "**Token Options:**\n";
+              content += "- Classic PAT with `repo` scope\n";
+              content += "- Fine-grained PAT with Issues and Contents write permissions\n\n";
+              content += "⚠️ The default `GITHUB_TOKEN` cannot assign Copilot to issues.\n\n";
+              content += "**Setup:**\n";
+              content += "1. Create a PAT at https://github.com/settings/tokens\n";
+              content += "2. Store as `COPILOT_GITHUB_TOKEN` secret in your repository\n\n";
+              content += "**Repository Requirements:**\n";
+              content += "- Copilot coding agent must be enabled\n";
+              content += "- Check: Settings → Copilot → Policies → Coding agent\n\n";
+              content += "📖 Reference: https://github.blog/changelog/2025-12-03-assign-issues-to-copilot-using-the-api/\n";
               return content;
             }
             async function assignAgentToIssueByName(owner, repo, issueNumber, agentName, options = {}) {
@@ -5509,6 +5550,30 @@ jobs:
                   continue;
                 }
                 try {
+                  const alreadyAssigned = await isAgentAlreadyAssigned(targetOwner, targetRepo, issueNumber, agentName);
+                  if (alreadyAssigned) {
+                    core.info(`${agentName} is already assigned to issue #${issueNumber}`);
+                    results.push({
+                      issue_number: issueNumber,
+                      agent: agentName,
+                      success: true,
+                    });
+                    continue;
+                  }
+                  const hasAdvancedOptions = item.target_repository || item.base_branch || item.custom_instructions || item.custom_agent;
+                  if (!hasAdvancedOptions) {
+                    core.info(`Trying REST API for basic agent assignment...`);
+                    const restResult = await assignAgentViaRest(targetOwner, targetRepo, issueNumber, agentName);
+                    if (restResult.success) {
+                      results.push({
+                        issue_number: issueNumber,
+                        agent: agentName,
+                        success: true,
+                      });
+                      continue;
+                    }
+                    core.info(`REST API failed, falling back to GraphQL...`);
+                  }
                   let agentId = agentCache[agentName];
                   if (!agentId) {
                     core.info(`Looking for ${agentName} coding agent...`);
@@ -5519,21 +5584,12 @@ jobs:
                     agentCache[agentName] = agentId;
                     core.info(`Found ${agentName} coding agent (ID: ${agentId})`);
                   }
-                  core.info("Getting issue details...");
+                  core.info("Getting issue details via GraphQL...");
                   const issueDetails = await getIssueDetails(targetOwner, targetRepo, issueNumber);
                   if (!issueDetails) {
                     throw new Error("Failed to get issue details");
                   }
                   core.info(`Issue ID: ${issueDetails.issueId}`);
-                  if (issueDetails.currentAssignees.includes(agentId)) {
-                    core.info(`${agentName} is already assigned to issue #${issueNumber}`);
-                    results.push({
-                      issue_number: issueNumber,
-                      agent: agentName,
-                      success: true,
-                    });
-                    continue;
-                  }
                   const assignmentOptions = {};
                   const itemTargetRepo = item.target_repository;
                   if (itemTargetRepo) {
@@ -5562,7 +5618,7 @@ jobs:
                     assignmentOptions.customAgent = item.custom_agent;
                     core.info(`Custom agent: ${item.custom_agent}`);
                   }
-                  core.info(`Assigning ${agentName} coding agent to issue #${issueNumber}...`);
+                  core.info(`Assigning ${agentName} coding agent to issue #${issueNumber} via GraphQL...`);
                   const success = await assignAgentToIssue(issueDetails.issueId, agentId, issueDetails.currentAssignees, agentName, assignmentOptions);
                   if (!success) {
                     throw new Error(`Failed to assign ${agentName} via GraphQL`);
@@ -6268,7 +6324,7 @@ jobs:
           COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
           COPILOT_CLI_TOKEN: ${{ secrets.COPILOT_CLI_TOKEN }}
       - name: Setup Node.js
-        uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6
+        uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # v6
         with:
           node-version: '24'
           package-manager-cache: false
