@@ -43,6 +43,7 @@ import (
 	"sync"
 
 	"github.com/cli/go-gh/v2"
+	"github.com/cli/go-gh/v2/pkg/repository"
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/logger"
 )
@@ -175,22 +176,18 @@ func getCurrentRepository() (string, error) {
 
 // getCurrentRepositoryUncached fetches the current repository from gh CLI (no caching)
 func getCurrentRepositoryUncached() (string, error) {
-	repositoryFeaturesLog.Print("Fetching current repository from gh CLI")
+	repositoryFeaturesLog.Print("Fetching current repository using repository.Current()")
 
-	// Use gh CLI to get the current repository
-	// This works when in a git repository with GitHub remote
-	stdOut, _, err := gh.Exec("repo", "view", "--json", "nameWithOwner", "-q", ".nameWithOwner")
+	// Use native repository.Current() to get the current repository
+	// This works when in a git repository with GitHub remote and respects GH_REPO
+	repo, err := repository.Current()
 	if err != nil {
 		return "", fmt.Errorf("failed to get current repository: %w", err)
 	}
 
-	repo := strings.TrimSpace(stdOut.String())
-	if repo == "" {
-		return "", fmt.Errorf("repository name is empty")
-	}
-
-	repositoryFeaturesLog.Printf("Cached current repository: %s", repo)
-	return repo, nil
+	repoName := fmt.Sprintf("%s/%s", repo.Owner, repo.Name)
+	repositoryFeaturesLog.Printf("Cached current repository: %s", repoName)
+	return repoName, nil
 }
 
 // getRepositoryFeatures gets repository features with caching to amortize API calls
