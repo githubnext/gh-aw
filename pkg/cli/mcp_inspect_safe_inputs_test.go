@@ -51,7 +51,7 @@ func TestWriteSafeInputsFiles(t *testing.T) {
 	// Verify JavaScript dependencies are written
 	expectedJSFiles := []string{
 		"read_buffer.cjs",
-		"mcp_server.cjs",
+		"mcp-server.cjs",
 		"mcp_http_transport.cjs",
 		"safe_inputs_config_loader.cjs",
 		"mcp_server_core.cjs",

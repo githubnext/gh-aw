@@ -228,6 +228,7 @@ func TestCopilotDefaultDomains(t *testing.T) {
 		"api.enterprise.githubcopilot.com",
 		"api.github.com",
 		"github.com",
+		"host.docker.internal",
 		"raw.githubusercontent.com",
 		"registry.npmjs.org",
 	}
