@@ -162,8 +162,8 @@ func ValidateActionSHAsInLockFile(lockFilePath string, cache *ActionCache, verbo
 	for _, check := range checks {
 		if check.NeedsUpdate {
 			updateCount++
-			// Emit warning
-			warningMsg := fmt.Sprintf("⚠️  %s@%s has a newer SHA available: %s → %s",
+			// Emit warning (FormatWarningMessage adds the warning emoji)
+			warningMsg := fmt.Sprintf("%s@%s has a newer SHA available: %s → %s",
 				check.Action.Repo,
 				check.Action.Version,
 				check.Action.SHA[:7],
@@ -180,6 +180,8 @@ func ValidateActionSHAsInLockFile(lockFilePath string, cache *ActionCache, verbo
 
 	if updateCount > 0 {
 		actionSHACheckerLog.Printf("Found %d actions that need updating", updateCount)
+		// Provide suggestion to fix the issue
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("To update action SHAs, run: make recompile"))
 		if verbose {
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Found %d action(s) with available updates", updateCount)))
 		}
