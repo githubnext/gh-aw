@@ -117,6 +117,7 @@ export default defineConfig({
 						{ label: 'Campaigns', link: '/guides/campaigns/' },
 						{ label: 'ResearchPlanAssign', link: '/guides/researchplanassign/' },
 						{ label: 'MultiRepoOps', link: '/guides/multirepoops/' },
+						{ label: 'SideRepoOps', link: '/guides/siderepoops/' },
 					],
 				},
 				{
