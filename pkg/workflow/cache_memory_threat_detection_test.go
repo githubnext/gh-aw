@@ -42,8 +42,10 @@ Test workflow with cache-memory and threat detection enabled.`,
 				"- name: Restore cache memory file share data",
 				"uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830",
 				"key: memory-${{ github.workflow }}-${{ github.run_id }}",
-				// Should still upload artifact
+				// Should upload artifact with if: always()
 				"- name: Upload cache-memory data as artifact",
+				"uses: actions/upload-artifact@",
+				"if: always()",
 				"name: cache-memory",
 				// Should have update_cache_memory job
 				"update_cache_memory:",
@@ -81,11 +83,10 @@ Test workflow with cache-memory but no threat detection.`,
 				"- name: Cache memory file share data",
 				"uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830",
 				"key: memory-${{ github.workflow }}-${{ github.run_id }}",
-				// Should still upload artifact
-				"- name: Upload cache-memory data as artifact",
-				"name: cache-memory",
 			},
 			notExpectedInLock: []string{
+				// Should NOT upload artifact when detection is disabled
+				"- name: Upload cache-memory data as artifact",
 				// Should NOT have update_cache_memory job
 				"update_cache_memory:",
 				// Should NOT use restore action
@@ -123,8 +124,9 @@ Test workflow with multiple cache-memory and threat detection enabled.`,
 				"key: memory-default-${{ github.run_id }}",
 				"- name: Restore cache memory file share data (session)",
 				"key: memory-session-${{ github.run_id }}",
-				// Should upload both artifacts
+				// Should upload both artifacts with if: always()
 				"- name: Upload cache-memory data as artifact (default)",
+				"if: always()",
 				"name: cache-memory-default",
 				"- name: Upload cache-memory data as artifact (session)",
 				"name: cache-memory-session",

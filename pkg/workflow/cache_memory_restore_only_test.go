@@ -63,13 +63,14 @@ tools:
 				"- name: Cache memory file share data (default)",
 				"actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830",
 				"key: memory-default-${{ github.run_id }}",
-				"- name: Upload cache-memory data as artifact (default)",
-				"name: cache-memory-default",
 				"- name: Restore cache memory file share data (readonly)",
 				"actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830",
 				"key: memory-readonly-${{ github.run_id }}",
 			},
 			notExpectedInLock: []string{
+				// Should NOT upload artifacts when detection is disabled
+				"- name: Upload cache-memory data as artifact (default)",
+				"name: cache-memory-default",
 				"- name: Upload cache-memory data as artifact (readonly)",
 				"name: cache-memory-readonly",
 			},
@@ -99,13 +100,14 @@ tools:
 			expectedInLock: []string{
 				"- name: Cache memory file share data (writeable)",
 				"actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830",
-				"- name: Upload cache-memory data as artifact (writeable)",
-				"name: cache-memory-writeable",
 				"- name: Restore cache memory file share data (readonly1)",
 				"actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830",
 				"- name: Restore cache memory file share data (readonly2)",
 			},
 			notExpectedInLock: []string{
+				// Should NOT upload artifacts when detection is disabled
+				"- name: Upload cache-memory data as artifact (writeable)",
+				"name: cache-memory-writeable",
 				"- name: Upload cache-memory data as artifact (readonly1)",
 				"- name: Upload cache-memory data as artifact (readonly2)",
 				"name: cache-memory-readonly1",
