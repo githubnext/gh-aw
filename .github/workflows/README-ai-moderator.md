@@ -128,7 +128,7 @@ To customize the detection behavior:
 
 ## Limitations
 
-- Requires GitHub Models access (via `models: read` permission)
+- Requires GitHub Copilot access (via `engine: copilot` and appropriate permissions)
 - Labels must be pre-created in the repository
 - Conservative detection to minimize false positives
 - May not catch sophisticated or evolving spam patterns
