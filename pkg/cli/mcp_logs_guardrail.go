@@ -4,7 +4,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+
+	"github.com/githubnext/gh-aw/pkg/logger"
 )
+
+var mcpLogsGuardrailLog = logger.New("cli:mcp_logs_guardrail")
 
 const (
 	// DefaultMaxMCPLogsOutputTokens is the default maximum number of tokens for MCP logs output
@@ -59,10 +63,14 @@ func checkLogsOutputSize(outputStr string, maxTokens int) (string, bool) {
 	}
 
 	outputTokens := estimateTokens(outputStr)
+	mcpLogsGuardrailLog.Printf("Checking logs output size: tokens=%d, limit=%d", outputTokens, maxTokens)
 
 	if outputTokens <= maxTokens {
+		mcpLogsGuardrailLog.Print("Output size within limits")
 		return outputStr, false
 	}
+
+	mcpLogsGuardrailLog.Printf("Output exceeds limit, generating guardrail response")
 
 	// Generate guardrail response
 	guardrail := MCPLogsGuardrailResponse{
@@ -81,6 +89,7 @@ func checkLogsOutputSize(outputStr string, maxTokens int) (string, bool) {
 	// Marshal to JSON
 	guardrailJSON, err := json.MarshalIndent(guardrail, "", "  ")
 	if err != nil {
+		mcpLogsGuardrailLog.Printf("Failed to marshal guardrail response: %v", err)
 		// Fallback to simple text message if JSON marshaling fails
 		return fmt.Sprintf(
 			"Output size (%d tokens) exceeds the limit (%d tokens). "+
@@ -90,6 +99,7 @@ func checkLogsOutputSize(outputStr string, maxTokens int) (string, bool) {
 		), true
 	}
 
+	mcpLogsGuardrailLog.Printf("Generated guardrail response with %d suggested queries", len(guardrail.SuggestedQueries))
 	return string(guardrailJSON), true
 }
 
