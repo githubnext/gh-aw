@@ -321,11 +321,23 @@ func extractMCPServerEntryPoint(yamlStr string) string {
 		return ""
 	}
 
-	// Find the EOFSI marker that ends the heredoc
-	end := strings.Index(yamlStr[start:], "EOFSI")
-	if end == -1 {
+	// Find the heredoc start marker
+	heredocStart := strings.Index(yamlStr[start:], "<< 'EOFSI'")
+	if heredocStart == -1 {
 		return ""
 	}
+	// Move past the heredoc start and newline to the actual content
+	contentStart := start + heredocStart + len("<< 'EOFSI'\n")
 
-	return yamlStr[start : start+end]
+	// Find the EOFSI marker that ends the heredoc (should be at start of a line)
+	end := strings.Index(yamlStr[contentStart:], "\n          EOFSI")
+	if end == -1 {
+		// Try without the leading spaces (in case formatting is different)
+		end = strings.Index(yamlStr[contentStart:], "\nEOFSI")
+		if end == -1 {
+			return ""
+		}
+	}
+
+	return yamlStr[contentStart : contentStart+end]
 }

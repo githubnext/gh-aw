@@ -831,7 +831,7 @@ jobs:
                   result,
                 };
               } catch (error) {
-                const err =  error;
+                const err = error;
                 return {
                   jsonrpc: "2.0",
                   id,
