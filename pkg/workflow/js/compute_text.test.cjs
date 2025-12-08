@@ -135,7 +135,7 @@ describe("compute_text.cjs", () => {
     it("should handle self-closing XML tags without whitespace", () => {
       const input = 'Self-closing: <br/> <img src="test.jpg"/> <meta charset="utf-8"/>';
       const result = sanitizeContentFunction(input);
-      expect(result).toContain("(br/)");
+      expect(result).toContain("<br/>");  // br is allowed
       expect(result).toContain('(img src="test.jpg"/)');
       expect(result).toContain('(meta charset="utf-8"/)');
     });
@@ -143,7 +143,7 @@ describe("compute_text.cjs", () => {
     it("should handle self-closing XML tags with whitespace", () => {
       const input = 'With spaces: <br /> <img src="test.jpg" /> <meta charset="utf-8" />';
       const result = sanitizeContentFunction(input);
-      expect(result).toContain("(br /)");
+      expect(result).toContain("<br />");  // br is allowed
       expect(result).toContain('(img src="test.jpg" /)');
       expect(result).toContain('(meta charset="utf-8" /)');
     });
