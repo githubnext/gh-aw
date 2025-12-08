@@ -982,6 +982,89 @@ function generatePlainTextSummary(logEntries, options = {}) {
   }
   lines.push("");
 
+  // Add Available Tools section from init entry
+  const initEntry = logEntries.find(entry => entry.type === "system" && entry.subtype === "init");
+  if (initEntry && initEntry.tools && Array.isArray(initEntry.tools) && initEntry.tools.length > 0) {
+    lines.push("Available Tools:");
+    lines.push("");
+
+    // Categorize tools using the same logic as formatInitializationSummary
+    /** @type {{ [key: string]: string[] }} */
+    const categories = {
+      Builtin: [],
+      "Safe Outputs": [],
+      "Safe Inputs": [],
+      "Git/GitHub": [],
+      Playwright: [],
+      Serena: [],
+      MCP: [],
+      "Custom Agents": [],
+      Other: [],
+    };
+
+    // Builtin tools that come with gh-aw / Copilot
+    const builtinTools = [
+      "bash",
+      "write_bash",
+      "read_bash",
+      "stop_bash",
+      "list_bash",
+      "grep",
+      "glob",
+      "view",
+      "create",
+      "edit",
+      "store_memory",
+      "code_review",
+      "codeql_checker",
+      "report_progress",
+      "report_intent",
+      "gh-advisory-database",
+    ];
+
+    // Internal tools that are specific to Copilot CLI
+    const internalTools = ["fetch_copilot_cli_documentation"];
+
+    for (const tool of initEntry.tools) {
+      const toolLower = tool.toLowerCase();
+
+      if (builtinTools.includes(toolLower) || internalTools.includes(toolLower)) {
+        categories["Builtin"].push(tool);
+      } else if (tool.startsWith("safeoutputs-") || tool.startsWith("safe_outputs-")) {
+        // Extract the tool name without the prefix for cleaner display
+        const toolName = tool.replace(/^safeoutputs-|^safe_outputs-/, "");
+        categories["Safe Outputs"].push(toolName);
+      } else if (tool.startsWith("safeinputs-") || tool.startsWith("safe_inputs-")) {
+        // Extract the tool name without the prefix for cleaner display
+        const toolName = tool.replace(/^safeinputs-|^safe_inputs-/, "");
+        categories["Safe Inputs"].push(toolName);
+      } else if (tool.startsWith("mcp__github__")) {
+        categories["Git/GitHub"].push(formatMcpName(tool));
+      } else if (tool.startsWith("mcp__playwright__")) {
+        categories["Playwright"].push(formatMcpName(tool));
+      } else if (tool.startsWith("mcp__serena__")) {
+        categories["Serena"].push(formatMcpName(tool));
+      } else if (tool.startsWith("mcp__") || ["ListMcpResourcesTool", "ReadMcpResourceTool"].includes(tool)) {
+        categories["MCP"].push(tool.startsWith("mcp__") ? formatMcpName(tool) : tool);
+      } else if (isLikelyCustomAgent(tool)) {
+        // Custom agents typically have hyphenated names (kebab-case)
+        categories["Custom Agents"].push(tool);
+      } else {
+        categories["Other"].push(tool);
+      }
+    }
+
+    // Display categories with tools
+    for (const [category, tools] of Object.entries(categories)) {
+      if (tools.length > 0) {
+        const toolText = tools.length === 1 ? "tool" : "tools";
+        lines.push(`${category}: ${tools.length} ${toolText}`);
+        lines.push(tools.join(", "));
+      }
+    }
+    lines.push("");
+  }
+
   // Collect tool usage summary
   const toolUsePairs = new Map();
   for (const entry of logEntries) {

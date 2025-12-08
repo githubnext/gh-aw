@@ -1533,5 +1533,71 @@ describe("log_parser_shared.cjs", () => {
       expect(result).not.toContain("Read");
       expect(result).not.toContain("Write");
     });
+
+    it("should include Available Tools section from init entry", async () => {
+      const { generatePlainTextSummary } = await import("./log_parser_shared.cjs");
+
+      const logEntries = [
+        {
+          type: "system",
+          subtype: "init",
+          model: "test-model",
+          tools: [
+            "bash",
+            "view",
+            "create",
+            "edit",
+            "mcp__github__search_issues",
+            "mcp__github__create_issue",
+            "mcp__playwright__navigate",
+            "safeoutputs-create_issue",
+            "safeoutputs-add_comment",
+            "create-agentic-workflow",
+            "debug-agentic-workflow",
+          ],
+        },
+        { type: "result", num_turns: 1 },
+      ];
+
+      const result = generatePlainTextSummary(logEntries, { parserName: "Agent" });
+
+      expect(result).toContain("Available Tools:");
+      expect(result).toContain("Builtin: 4 tools");
+      expect(result).toContain("bash, view, create, edit");
+      expect(result).toContain("Git/GitHub: 2 tools");
+      expect(result).toContain("github::search_issues, github::create_issue");
+      expect(result).toContain("Playwright: 1 tool");
+      expect(result).toContain("playwright::navigate");
+      expect(result).toContain("Safe Outputs: 2 tools");
+      expect(result).toContain("create_issue, add_comment");
+      expect(result).toContain("Custom Agents: 2 tools");
+      expect(result).toContain("create-agentic-workflow, debug-agentic-workflow");
+    });
+
+    it("should handle empty tools list gracefully", async () => {
+      const { generatePlainTextSummary } = await import("./log_parser_shared.cjs");
+
+      const logEntries = [
+        { type: "system", subtype: "init", model: "test-model", tools: [] },
+        { type: "result", num_turns: 1 },
+      ];
+
+      const result = generatePlainTextSummary(logEntries, { parserName: "Agent" });
+
+      // Should not contain Available Tools section if no tools
+      expect(result).not.toContain("Available Tools:");
+    });
+
+    it("should work without init entry", async () => {
+      const { generatePlainTextSummary } = await import("./log_parser_shared.cjs");
+
+      const logEntries = [{ type: "result", num_turns: 1 }];
+
+      const result = generatePlainTextSummary(logEntries, { parserName: "Agent" });
+
+      // Should work without init entry
+      expect(result).toContain("=== Agent Execution Summary ===");
+      expect(result).not.toContain("Available Tools:");
+    });
   });
 });

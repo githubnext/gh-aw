@@ -55,6 +55,20 @@ launch this command:
 npx --yes @github/copilot -i "activate https://raw.githubusercontent.com/githubnext/gh-aw/refs/heads/main/install.md"
 ```
 
+## Understanding Compilation
+
+:::tip[What is "compilation" in agentic workflows?]
+
+You'll write workflows in simple **Markdown files** (`.md`). GitHub Agentic Workflows **compiles** them into **GitHub Actions YAML files** (`.lock.yml`) that GitHub can execute. Think of it like Markdown → HTML: you write in an easy format, and it gets converted to what GitHub needs.
+
+**Why compile?** It translates your natural language instructions into precise GitHub Actions configuration with security hardening applied.
+
+**No compiler installation needed** — the `gh aw compile` command handles everything automatically.
+
+👉 Learn more in the [Compilation Process](/gh-aw/reference/compilation-process/) documentation.
+
+:::
+
 ## How Agentic Workflows Work
 
 Before installing anything, it helps to understand the workflow lifecycle:

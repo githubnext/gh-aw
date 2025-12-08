@@ -2733,7 +2733,7 @@ jobs:
                   result,
                 };
               } catch (error) {
-                const err =  error;
+                const err =  (error);
                 return {
                   jsonrpc: "2.0",
                   id,
@@ -3751,7 +3751,7 @@ jobs:
                   result,
                 };
               } catch (error) {
-                const err =  error;
+                const err =  (error);
                 return {
                   jsonrpc: "2.0",
                   id,
@@ -4648,16 +4648,12 @@ jobs:
           EOF_TOOLS_JSON
           cat > /tmp/gh-aw/safe-inputs/mcp-server.cjs << 'EOFSI'
             const path = require("path");
-            const { startHttpServer } = require("./safe_inputs_mcp_server_http.cjs");
+            const { startSafeInputsServer } = require("./safe_inputs_mcp_server.cjs");
             const configPath = path.join(__dirname, "tools.json");
-            const port = parseInt(process.env.GH_AW_SAFE_INPUTS_PORT || "3000", 10);
-            const apiKey = process.env.GH_AW_SAFE_INPUTS_API_KEY || "";
-            startHttpServer(configPath, {
-              port: port,
-              stateless: false,
+            startSafeInputsServer(configPath, {
               logDir: "/tmp/gh-aw/safe-inputs/logs"
             }).catch(error => {
-              console.error("Failed to start safe-inputs HTTP server:", error);
+              console.error("Failed to start safe-inputs stdio server:", error);
               process.exit(1);
             });
           EOFSI
@@ -4677,102 +4673,10 @@ jobs:
           EOFSH_gh
           chmod +x /tmp/gh-aw/safe-inputs/gh.sh
           
-      - name: Generate Safe Inputs MCP Server Config
-        id: safe-inputs-config
-        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
-        with:
-          script: |
-            function generateSafeInputsConfig({ core, crypto }) {
-              const apiKeyBuffer = crypto.randomBytes(32);
-              const apiKey = apiKeyBuffer.toString("base64").replace(/[/+=]/g, "");
-              const port = 3000;
-              core.setOutput("safe_inputs_api_key", apiKey);
-              core.setOutput("safe_inputs_port", port.toString());
-              core.info(`Safe Inputs MCP server will run on port ${port}`);
-              return { apiKey, port };
-            }
-            
-            // Execute the function
-            const crypto = require('crypto');
-            generateSafeInputsConfig({ core, crypto });
-          
-      - name: Start Safe Inputs MCP HTTP Server
-        id: safe-inputs-start
-        run: |
-          # Set environment variables for the server
-          export GH_AW_SAFE_INPUTS_PORT=${{ steps.safe-inputs-config.outputs.safe_inputs_port }}
-          export GH_AW_SAFE_INPUTS_API_KEY=${{ steps.safe-inputs-config.outputs.safe_inputs_api_key }}
-          
-          export GH_AW_GH_TOKEN="${GH_AW_GH_TOKEN}"
-          
-          cd /tmp/gh-aw/safe-inputs
-          # Verify required files exist
-          echo "Verifying safe-inputs setup..."
-          if [ ! -f mcp-server.cjs ]; then
-            echo "ERROR: mcp-server.cjs not found in /tmp/gh-aw/safe-inputs"
-            ls -la /tmp/gh-aw/safe-inputs/
-            exit 1
-          fi
-          if [ ! -f tools.json ]; then
-            echo "ERROR: tools.json not found in /tmp/gh-aw/safe-inputs"
-            ls -la /tmp/gh-aw/safe-inputs/
-            exit 1
-          fi
-          echo "Configuration files verified"
-          # Log environment configuration
-          echo "Server configuration:"
-          echo "  Port: $GH_AW_SAFE_INPUTS_PORT"
-          echo "  API Key: ${GH_AW_SAFE_INPUTS_API_KEY:0:8}..."
-          echo "  Working directory: $(pwd)"
-          # Ensure logs directory exists
-          mkdir -p /tmp/gh-aw/safe-inputs/logs
-          # Create initial server.log file for artifact upload
-          echo "Safe Inputs MCP Server Log" > /tmp/gh-aw/safe-inputs/logs/server.log
-          echo "Start time: $(date)" >> /tmp/gh-aw/safe-inputs/logs/server.log
-          echo "===========================================" >> /tmp/gh-aw/safe-inputs/logs/server.log
-          echo "" >> /tmp/gh-aw/safe-inputs/logs/server.log
-          # Start the HTTP server in the background
-          echo "Starting safe-inputs MCP HTTP server..."
-          node mcp-server.cjs >> /tmp/gh-aw/safe-inputs/logs/server.log 2>&1 &
-          SERVER_PID=$!
-          echo "Started safe-inputs MCP server with PID $SERVER_PID"
-          # Wait for server to be ready (max 10 seconds)
-          echo "Waiting for server to become ready..."
-          for i in {1..10}; do
-            # Check if process is still running
-            if ! kill -0 $SERVER_PID 2>/dev/null; then
-              echo "ERROR: Server process $SERVER_PID has died"
-              echo "Server log contents:"
-              cat /tmp/gh-aw/safe-inputs/logs/server.log
-              exit 1
-            fi
-            # Check if server is responding
-            if curl -s -f http://localhost:$GH_AW_SAFE_INPUTS_PORT/health > /dev/null 2>&1; then
-              echo "Safe Inputs MCP server is ready (attempt $i/10)"
-              break
-            fi
-            if [ $i -eq 10 ]; then
-              echo "ERROR: Safe Inputs MCP server failed to start after 10 seconds"
-              echo "Process status: $(ps aux | grep '[m]cp-server.cjs' || echo 'not running')"
-              echo "Server log contents:"
-              cat /tmp/gh-aw/safe-inputs/logs/server.log
-              echo "Checking port availability:"
-              netstat -tuln | grep $GH_AW_SAFE_INPUTS_PORT || echo "Port $GH_AW_SAFE_INPUTS_PORT not listening"
-              exit 1
-            fi
-            echo "Waiting for server... (attempt $i/10)"
-            sleep 1
-          done
-          # Output the configuration for the MCP client
-          echo "port=$GH_AW_SAFE_INPUTS_PORT" >> $GITHUB_OUTPUT
-          echo "api_key=$GH_AW_SAFE_INPUTS_API_KEY" >> $GITHUB_OUTPUT
-          
       - name: Setup MCPs
         env:
           GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
-          GH_AW_SAFE_INPUTS_PORT: ${{ steps.safe-inputs-start.outputs.port }}
-          GH_AW_SAFE_INPUTS_API_KEY: ${{ steps.safe-inputs-start.outputs.api_key }}
           GH_AW_GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           mkdir -p /tmp/gh-aw/mcp-config
@@ -4801,15 +4705,11 @@ jobs:
                 }
               },
               "safeinputs": {
-                "type": "http",
-                "url": "http://host.docker.internal:\${GH_AW_SAFE_INPUTS_PORT}",
-                "headers": {
-                  "Authorization": "Bearer \${GH_AW_SAFE_INPUTS_API_KEY}"
-                },
+                "type": "stdio",
+                "command": "node",
+                "args": ["/tmp/gh-aw/safe-inputs/mcp-server.cjs"],
                 "tools": ["*"],
                 "env": {
-                  "GH_AW_SAFE_INPUTS_PORT": "\${GH_AW_SAFE_INPUTS_PORT}",
-                  "GH_AW_SAFE_INPUTS_API_KEY": "\${GH_AW_SAFE_INPUTS_API_KEY}",
                   "GH_AW_GH_TOKEN": "\${GH_AW_GH_TOKEN}"
                 }
               },
@@ -7046,6 +6946,73 @@ jobs:
                 lines.push(`Model: ${model}`);
               }
               lines.push("");
+              const initEntry = logEntries.find(entry => entry.type === "system" && entry.subtype === "init");
+              if (initEntry && initEntry.tools && Array.isArray(initEntry.tools) && initEntry.tools.length > 0) {
+                lines.push("Available Tools:");
+                lines.push("");
+                const categories = {
+                  Builtin: [],
+                  "Safe Outputs": [],
+                  "Safe Inputs": [],
+                  "Git/GitHub": [],
+                  Playwright: [],
+                  Serena: [],
+                  MCP: [],
+                  "Custom Agents": [],
+                  Other: [],
+                };
+                const builtinTools = [
+                  "bash",
+                  "write_bash",
+                  "read_bash",
+                  "stop_bash",
+                  "list_bash",
+                  "grep",
+                  "glob",
+                  "view",
+                  "create",
+                  "edit",
+                  "store_memory",
+                  "code_review",
+                  "codeql_checker",
+                  "report_progress",
+                  "report_intent",
+                  "gh-advisory-database",
+                ];
+                const internalTools = ["fetch_copilot_cli_documentation"];
+                for (const tool of initEntry.tools) {
+                  const toolLower = tool.toLowerCase();
+                  if (builtinTools.includes(toolLower) || internalTools.includes(toolLower)) {
+                    categories["Builtin"].push(tool);
+                  } else if (tool.startsWith("safeoutputs-") || tool.startsWith("safe_outputs-")) {
+                    const toolName = tool.replace(/^safeoutputs-|^safe_outputs-/, "");
+                    categories["Safe Outputs"].push(toolName);
+                  } else if (tool.startsWith("safeinputs-") || tool.startsWith("safe_inputs-")) {
+                    const toolName = tool.replace(/^safeinputs-|^safe_inputs-/, "");
+                    categories["Safe Inputs"].push(toolName);
+                  } else if (tool.startsWith("mcp__github__")) {
+                    categories["Git/GitHub"].push(formatMcpName(tool));
+                  } else if (tool.startsWith("mcp__playwright__")) {
+                    categories["Playwright"].push(formatMcpName(tool));
+                  } else if (tool.startsWith("mcp__serena__")) {
+                    categories["Serena"].push(formatMcpName(tool));
+                  } else if (tool.startsWith("mcp__") || ["ListMcpResourcesTool", "ReadMcpResourceTool"].includes(tool)) {
+                    categories["MCP"].push(tool.startsWith("mcp__") ? formatMcpName(tool) : tool);
+                  } else if (isLikelyCustomAgent(tool)) {
+                    categories["Custom Agents"].push(tool);
+                  } else {
+                    categories["Other"].push(tool);
+                  }
+                }
+                for (const [category, tools] of Object.entries(categories)) {
+                  if (tools.length > 0) {
+                    const toolText = tools.length === 1 ? "tool" : "tools";
+                    lines.push(`${category}: ${tools.length} ${toolText}`);
+                    lines.push(tools.join(", "));
+                  }
+                }
+                lines.push("");
+              }
               const toolUsePairs = new Map();
               for (const entry of logEntries) {
                 if (entry.type === "user" && entry.message?.content) {
