@@ -4846,6 +4846,70 @@ jobs:
                   normalizedItem,
                 };
               }
+              function isJsonFragment(line) {
+                const trimmed = line.trim();
+                if (!trimmed.startsWith('"')) return false;
+                if (trimmed.startsWith('{"') || trimmed.startsWith('{')) return false;
+                if (trimmed.endsWith('}')) return false;
+                const stringPattern = '"[^"\\\\]*(?:\\\\.[^"\\\\]*)*"';  
+                const numberPattern = '[+-]?\\d+\\.?\\d*(?:[eE][+-]?\\d+)?';  
+                const booleanPattern = 'true|false';  
+                const nullPattern = 'null';  
+                const arrayPattern = '\\[[^\\[\\]]*\\]';  
+                const objectPattern = '\\{[^{}]*\\}';  
+                const valuePattern = `(?:${stringPattern}|${numberPattern}|${booleanPattern}|${nullPattern}|${arrayPattern}|${objectPattern})`;
+                const fragmentPattern = new RegExp(`^"[^"]+\"\\s*:\\s*${valuePattern}\\s*,?\\s*$`);
+                return fragmentPattern.test(trimmed);
+              }
+              function isValidReconstructedJson(jsonStr) {
+                try {
+                  const parsed = JSON.parse(jsonStr);
+                  return typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed);
+                } catch (e) {
+                  return false;
+                }
+              }
+              function reconstructFragmentedJson(lines) {
+                const result = [];
+                let i = 0;
+                while (i < lines.length) {
+                  const line = lines[i].trim();
+                  if (line === "") {
+                    i++;
+                    continue;
+                  }
+                  if (isJsonFragment(line)) {
+                    const fragments = [];
+                    const originalFragments = [];
+                    let j = i;
+                    while (j < lines.length && isJsonFragment(lines[j].trim())) {
+                      const originalFragment = lines[j].trim();
+                      originalFragments.push(originalFragment);
+                      let fragment = originalFragment;
+                      if (fragment.endsWith(',')) {
+                        fragment = fragment.slice(0, -1);
+                      }
+                      fragments.push(fragment);
+                      j++;
+                    }
+                    if (fragments.length > 0) {
+                      const reconstructed = '{' + fragments.join(',') + '}';
+                      if (isValidReconstructedJson(reconstructed)) {
+                        core.info(`Reconstructed ${fragments.length} JSON fragments into single object (lines ${i + 1}-${j})`);
+                        result.push(reconstructed);
+                      } else {
+                        core.warning(`Failed to reconstruct JSON fragments (lines ${i + 1}-${j}) - keeping original lines`);
+                        originalFragments.forEach(frag => result.push(frag));
+                      }
+                      i = j;
+                      continue;
+                    }
+                  }
+                  result.push(line);
+                  i++;
+                }
+                return result;
+              }
               function parseJsonWithRepair(jsonStr) {
                 try {
                   return JSON.parse(jsonStr);
@@ -4897,7 +4961,8 @@ jobs:
                   core.info(`Warning: Could not parse safe-outputs config: ${errorMsg}`);
                 }
               }
-              const lines = outputContent.trim().split("\n");
+              let lines = outputContent.trim().split("\n");
+              lines = reconstructFragmentedJson(lines);
               const parsedItems = [];
               const errors = [];
               for (let i = 0; i < lines.length; i++) {
