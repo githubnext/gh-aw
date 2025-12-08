@@ -407,12 +407,16 @@ const { startSafeInputsServer } = require("./safe_inputs_mcp_server.cjs");
 const configPath = path.join(__dirname, "tools.json");
 
 // Start the stdio server
-startSafeInputsServer(configPath, {
-  logDir: "/tmp/gh-aw/safe-inputs/logs"
-}).catch(error => {
+// Note: skipCleanup is true for stdio mode to allow agent restarts
+try {
+  startSafeInputsServer(configPath, {
+    logDir: "/tmp/gh-aw/safe-inputs/logs",
+    skipCleanup: true
+  });
+} catch (error) {
   console.error("Failed to start safe-inputs stdio server:", error);
   process.exit(1);
-});
+}
 `)
 	} else {
 		// HTTP transport - server started in separate step
@@ -641,7 +645,12 @@ func renderSafeInputsMCPConfigWithOptions(yaml *strings.Builder, safeInputs *Saf
 	// Choose transport based on mode
 	if IsSafeInputsStdioMode(safeInputs) {
 		// Stdio transport configuration - server started by agent
-		yaml.WriteString("                \"type\": \"stdio\",\n")
+		// Use "local" for Copilot CLI, "stdio" for other engines
+		typeValue := "stdio"
+		if includeCopilotFields {
+			typeValue = "local"
+		}
+		yaml.WriteString("                \"type\": \"" + typeValue + "\",\n")
 		yaml.WriteString("                \"command\": \"node\",\n")
 		yaml.WriteString("                \"args\": [\"/tmp/gh-aw/safe-inputs/mcp-server.cjs\"],\n")
 
