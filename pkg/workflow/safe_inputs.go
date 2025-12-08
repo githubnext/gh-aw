@@ -33,7 +33,7 @@ func sanitizeParameterName(name string) string {
 
 // SafeInputsConfig holds the configuration for safe-inputs custom tools
 type SafeInputsConfig struct {
-	Mode  string                          // Transport mode: "http" (default) or "stdio"
+	Mode  string // Transport mode: "http" (default) or "stdio"
 	Tools map[string]*SafeInputToolConfig
 }
 
