@@ -12,18 +12,22 @@ on:
         type: string
 
 permissions:
+  actions: write
+  contents: write
   issues: write
+  pull-requests: write
 
 # NOTE: Assigning Copilot agents requires:
-# 1. A Personal Access Token (PAT) with issues write scope
+# 1. A Personal Access Token (PAT) with repo scope
 #    - The standard GITHUB_TOKEN does NOT have permission to assign bot agents
-#    - Create a fine-grained PAT at: https://github.com/settings/tokens?type=beta
-#    - Add it as a repository secret named COPILOT_GITHUB_TOKEN or GH_AW_AGENT_TOKEN
-#    - Required scope: Issues (Write)
+#    - Create a PAT at: https://github.com/settings/tokens
+#    - Add it as a repository secret named COPILOT_GITHUB_TOKEN
+#    - Required scopes: repo (full control)
 # 
-# 2. Copilot coding agent must be enabled for the repository
+# 2. All four workflow permissions declared above (for the safe output job)
 #
-# See: https://github.blog/changelog/2025-12-03-assign-issues-to-copilot-using-the-api/
+# 3. Repository Settings > Actions > General > Workflow permissions:
+#    Must be set to "Read and write permissions"
 
 engine: copilot
 timeout-minutes: 5

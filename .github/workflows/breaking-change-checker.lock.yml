@@ -6683,70 +6683,6 @@ jobs:
                 return null;
               }
             }
-            async function assignAgentToIssueRest(owner, repo, issueNumber, agentName) {
-              const loginName = AGENT_LOGIN_NAMES[agentName];
-              if (!loginName) {
-                core.error(`Unknown agent: ${agentName}. Supported agents: ${Object.keys(AGENT_LOGIN_NAMES).join(", ")}`);
-                return false;
-              }
-              try {
-                core.info(`Assigning ${agentName} (${loginName}) to issue #${issueNumber} via REST API...`);
-                await github.rest.issues.addAssignees({
-                  owner,
-                  repo,
-                  issue_number: issueNumber,
-                  assignees: [loginName],
-                });
-                core.info(`Successfully assigned ${agentName} to issue #${issueNumber} via REST API`);
-                return true;
-              } catch (error) {
-                const errorMessage = error instanceof Error ? error.message : String(error);
-                const status = error.status || (error.response && error.response.status);
-                core.debug(`REST API error: status=${status}, message=${errorMessage}`);
-                if (status === 422) {
-                  core.error(`Failed to assign ${agentName}: Agent "${loginName}" is not available as an assignee for this repository`);
-                  core.info("This may indicate:");
-                  core.info("  1. Copilot coding agent is not enabled for this repository");
-                  core.info("  2. Your organization has not enabled Copilot for this repository");
-                  core.info("  3. The repository requires specific permissions or plan");
-                  core.info("");
-                  core.info(
-                    "Please visit https://docs.github.com/en/copilot/using-github-copilot/using-copilot-coding-agent-to-work-on-tasks/about-assigning-tasks-to-copilot"
-                  );
-                  return false;
-                }
-                if (status === 403 || status === 401) {
-                  logPermissionError(agentName);
-                  return false;
-                }
-                if (status === 404) {
-                  core.error(`Failed to assign ${agentName}: Issue #${issueNumber} not found in ${owner}/${repo}`);
-                  return false;
-                }
-                core.error(`Failed to assign ${agentName} via REST API: ${errorMessage}`);
-                return false;
-              }
-            }
-            async function isAgentAssigned(owner, repo, issueNumber, agentName) {
-              const loginName = AGENT_LOGIN_NAMES[agentName];
-              if (!loginName) {
-                return false;
-              }
-              try {
-                const { data: issue } = await github.rest.issues.get({
-                  owner,
-                  repo,
-                  issue_number: issueNumber,
-                });
-                if (issue.assignees) {
-                  return issue.assignees.some(assignee => assignee.login === loginName);
-                }
-                return false;
-              } catch (error) {
-                core.debug(`Failed to check if agent is assigned: ${error instanceof Error ? error.message : String(error)}`);
-                return false;
-              }
-            }
             async function assignAgentToIssue(issueId, agentId, currentAssignees, agentName) {
               const actorIds = [agentId];
               for (const assigneeId of currentAssignees) {
@@ -6895,19 +6831,6 @@ jobs:
                 return { success: false, error };
               }
               try {
-                core.info(`Checking if ${agentName} is already assigned to issue #${issueNumber}...`);
-                const alreadyAssigned = await isAgentAssigned(owner, repo, issueNumber, agentName);
-                if (alreadyAssigned) {
-                  core.info(`${agentName} is already assigned to issue #${issueNumber}`);
-                  return { success: true };
-                }
-                core.info(`Assigning ${agentName} coding agent to issue #${issueNumber} via REST API...`);
-                const restSuccess = await assignAgentToIssueRest(owner, repo, issueNumber, agentName);
-                if (restSuccess) {
-                  core.info(`Successfully assigned ${agentName} coding agent to issue #${issueNumber}`);
-                  return { success: true };
-                }
-                core.info("REST API assignment failed, attempting GraphQL fallback...");
                 core.info(`Looking for ${agentName} coding agent...`);
                 const agentId = await findAgent(owner, repo, agentName);
                 if (!agentId) {
@@ -6923,7 +6846,11 @@ jobs:
                   return { success: false, error: "Failed to get issue details" };
                 }
                 core.info(`Issue ID: ${issueDetails.issueId}`);
-                core.info(`Assigning ${agentName} coding agent to issue #${issueNumber} via GraphQL...`);
+                if (issueDetails.currentAssignees.includes(agentId)) {
+                  core.info(`${agentName} is already assigned to issue #${issueNumber}`);
+                  return { success: true };
+                }
+                core.info(`Assigning ${agentName} coding agent to issue #${issueNumber}...`);
                 const success = await assignAgentToIssue(issueDetails.issueId, agentId, issueDetails.currentAssignees, agentName);
                 if (!success) {
                   return { success: false, error: `Failed to assign ${agentName} via GraphQL` };

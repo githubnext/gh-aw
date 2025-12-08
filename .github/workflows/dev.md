@@ -1,8 +1,8 @@
 ---
-on:
+on: 
   workflow_dispatch:
 name: Dev
-description: Find a random issue suitable for Copilot and assign it to the agent
+description: Create a poem about GitHub and save it to repo-memory
 timeout-minutes: 5
 strict: false
 engine: claude
@@ -10,36 +10,37 @@ permissions:
   contents: read
   issues: read
 tools:
-  github: true
-safe-outputs:
-  assign-to-agent:
-    name: copilot
+  repo-memory:
+    branch-name: memory/poems
+    description: "Poem collection"
+  github: false
+imports:
+  - shared/gh.md
 ---
-# Find and Assign Issue to Copilot
+# Create a Poem and Save to Repo Memory
 
-Find a random open issue in this repository that would be suitable for GitHub Copilot to work on, then assign it to the Copilot agent.
+Create a creative poem about GitHub and agentic workflows, then save it to the repo-memory.
 
 ## Task
 
-1. **Find Suitable Issues**: Search for open issues in the repository that would be good candidates for Copilot to work on. Look for issues that:
-   - Are well-defined with clear requirements
-   - Involve code changes (bug fixes, features, improvements)
-   - Have enough context and information
-   - Are not too complex or vague
-   - Don't require extensive human judgment or product decisions
+1. **Create a Poem**: Write a creative, fun poem about GitHub, automation, and agentic workflows.
+   - The poem should be 8-12 lines
+   - Include references to GitHub features like Issues, Pull Requests, Actions, etc.
+   - Make it engaging and technical but fun
 
-2. **Select a Random Issue**: From the suitable candidates, pick one at random.
+2. **Save to Repo Memory**: Save the poem to `/tmp/gh-aw/repo-memory-default/memory/default/poem_{{ github.run_number }}.md`
+   - Use the run number in the filename to make it unique
+   - Include a header with the date and run information
+   - The file will be automatically committed and pushed to the `memory/poems` branch
 
-3. **Assign to Copilot**: Use the `assign_to_agent` safe output to assign the selected issue to the Copilot coding agent.
+3. **List Previous Poems**: If there are other poem files in the repo memory, list them to show the history.
 
-## Output Format
+## Example Poem Structure
 
-Use the assign_to_agent tool with the following format:
+```markdown
+# Poem #{{ github.run_number }}
+Date: {{ current date }}
+Run ID: ${{ github.run_id }}
 
-```json
-{
-  "type": "assign_to_agent",
-  "issue_number": <issue_number>,
-  "agent": "copilot"
-}
+[Your poem here]
 ```

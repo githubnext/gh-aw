@@ -3,8 +3,7 @@
 
 /**
  * Shared helper functions for assigning coding agents (like Copilot) to issues
- * Uses REST API for agent assignment as of December 2025 changelog update.
- * See: https://github.blog/changelog/2025-12-03-assign-issues-to-copilot-using-the-api/
+ * These functions use GraphQL to properly assign bot actors that cannot be assigned via gh CLI
  *
  * NOTE: All functions use the built-in `github` global object for authentication.
  * The token must be set at the step level via the `github-token` parameter in GitHub Actions.
@@ -178,104 +177,6 @@ async function getIssueDetails(owner, repo, issueNumber) {
 }
 
 /**
- * Assign agent to issue using REST API (new December 2025 method)
- * This uses the standard "Add assignees to an issue" endpoint with the agent login name.
- * See: https://github.blog/changelog/2025-12-03-assign-issues-to-copilot-using-the-api/
- *
- * @param {string} owner - Repository owner
- * @param {string} repo - Repository name
- * @param {number} issueNumber - Issue number
- * @param {string} agentName - Agent name (e.g., "copilot")
- * @returns {Promise<boolean>} True if successful
- */
-async function assignAgentToIssueRest(owner, repo, issueNumber, agentName) {
-  const loginName = AGENT_LOGIN_NAMES[agentName];
-  if (!loginName) {
-    core.error(`Unknown agent: ${agentName}. Supported agents: ${Object.keys(AGENT_LOGIN_NAMES).join(", ")}`);
-    return false;
-  }
-
-  try {
-    core.info(`Assigning ${agentName} (${loginName}) to issue #${issueNumber} via REST API...`);
-
-    await github.rest.issues.addAssignees({
-      owner,
-      repo,
-      issue_number: issueNumber,
-      assignees: [loginName],
-    });
-
-    core.info(`Successfully assigned ${agentName} to issue #${issueNumber} via REST API`);
-    return true;
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    const status = error.status || (error.response && error.response.status);
-
-    core.debug(`REST API error: status=${status}, message=${errorMessage}`);
-
-    // Handle specific error cases
-    if (status === 422) {
-      // 422 Unprocessable Entity - typically means agent is not available or invalid
-      core.error(`Failed to assign ${agentName}: Agent "${loginName}" is not available as an assignee for this repository`);
-      core.info("This may indicate:");
-      core.info("  1. Copilot coding agent is not enabled for this repository");
-      core.info("  2. Your organization has not enabled Copilot for this repository");
-      core.info("  3. The repository requires specific permissions or plan");
-      core.info("");
-      core.info(
-        "Please visit https://docs.github.com/en/copilot/using-github-copilot/using-copilot-coding-agent-to-work-on-tasks/about-assigning-tasks-to-copilot"
-      );
-      return false;
-    }
-
-    if (status === 403 || status === 401) {
-      logPermissionError(agentName);
-      return false;
-    }
-
-    if (status === 404) {
-      core.error(`Failed to assign ${agentName}: Issue #${issueNumber} not found in ${owner}/${repo}`);
-      return false;
-    }
-
-    core.error(`Failed to assign ${agentName} via REST API: ${errorMessage}`);
-    return false;
-  }
-}
-
-/**
- * Check if an agent is already assigned to an issue using REST API
- * @param {string} owner - Repository owner
- * @param {string} repo - Repository name
- * @param {number} issueNumber - Issue number
- * @param {string} agentName - Agent name (e.g., "copilot")
- * @returns {Promise<boolean>} True if agent is already assigned
- */
-async function isAgentAssigned(owner, repo, issueNumber, agentName) {
-  const loginName = AGENT_LOGIN_NAMES[agentName];
-  if (!loginName) {
-    return false;
-  }
-
-  try {
-    const { data: issue } = await github.rest.issues.get({
-      owner,
-      repo,
-      issue_number: issueNumber,
-    });
-
-    if (issue.assignees) {
-      return issue.assignees.some(assignee => assignee.login === loginName);
-    }
-    return false;
-  } catch (error) {
-    core.debug(`Failed to check if agent is assigned: ${error instanceof Error ? error.message : String(error)}`);
-    return false;
-  }
-}
-
-/**
- * @deprecated Use assignAgentToIssueRest instead. Kept for backwards compatibility.
  * Assign agent to issue using GraphQL replaceActorsForAssignable mutation
  * @param {string} issueId - GitHub issue ID
  * @param {string} agentId - Agent ID
@@ -452,7 +353,7 @@ function generatePermissionErrorSummary() {
 }
 
 /**
- * Assign an agent to an issue using REST API (preferred) with GraphQL fallback
+ * Assign an agent to an issue using GraphQL
  * This is the main entry point for assigning agents from other scripts
  * @param {string} owner - Repository owner
  * @param {string} repo - Repository name
@@ -469,27 +370,7 @@ async function assignAgentToIssueByName(owner, repo, issueNumber, agentName) {
   }
 
   try {
-    // Check if agent is already assigned using REST API
-    core.info(`Checking if ${agentName} is already assigned to issue #${issueNumber}...`);
-    const alreadyAssigned = await isAgentAssigned(owner, repo, issueNumber, agentName);
-    if (alreadyAssigned) {
-      core.info(`${agentName} is already assigned to issue #${issueNumber}`);
-      return { success: true };
-    }
-
-    // Try REST API first (new December 2025 method)
-    core.info(`Assigning ${agentName} coding agent to issue #${issueNumber} via REST API...`);
-    const restSuccess = await assignAgentToIssueRest(owner, repo, issueNumber, agentName);
-
-    if (restSuccess) {
-      core.info(`Successfully assigned ${agentName} coding agent to issue #${issueNumber}`);
-      return { success: true };
-    }
-
-    // If REST fails, try GraphQL as fallback
-    core.info("REST API assignment failed, attempting GraphQL fallback...");
-
-    // Find agent using GraphQL (to get the agent ID)
+    // Find agent using the github object authenticated via step-level github-token
     core.info(`Looking for ${agentName} coding agent...`);
     const agentId = await findAgent(owner, repo, agentName);
     if (!agentId) {
@@ -510,8 +391,14 @@ async function assignAgentToIssueByName(owner, repo, issueNumber, agentName) {
 
     core.info(`Issue ID: ${issueDetails.issueId}`);
 
+    // Check if agent is already assigned
+    if (issueDetails.currentAssignees.includes(agentId)) {
+      core.info(`${agentName} is already assigned to issue #${issueNumber}`);
+      return { success: true };
+    }
+
     // Assign agent using GraphQL mutation
-    core.info(`Assigning ${agentName} coding agent to issue #${issueNumber} via GraphQL...`);
+    core.info(`Assigning ${agentName} coding agent to issue #${issueNumber}...`);
     const success = await assignAgentToIssue(issueDetails.issueId, agentId, issueDetails.currentAssignees, agentName);
 
     if (!success) {
@@ -533,8 +420,6 @@ module.exports = {
   findAgent,
   getIssueDetails,
   assignAgentToIssue,
-  assignAgentToIssueRest,
-  isAgentAssigned,
   logPermissionError,
   generatePermissionErrorSummary,
   assignAgentToIssueByName,

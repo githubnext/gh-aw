@@ -87,7 +87,7 @@ func (c *Compiler) buildAssignToAgentJob(data *WorkflowData, mainJobName string)
 	}
 
 	// Use the shared builder function to create the job
-	// Note: REST API assignment only requires issues: write permission
+	// Note: replaceActorsForAssignable GraphQL mutation requires all four write permissions
 	// UseAgentToken ensures the step's github-token is set to config token or GH_AW_AGENT_TOKEN
 	return c.buildSafeOutputJob(data, SafeOutputJobConfig{
 		JobName:        "assign_to_agent",
@@ -96,7 +96,7 @@ func (c *Compiler) buildAssignToAgentJob(data *WorkflowData, mainJobName string)
 		MainJobName:    mainJobName,
 		CustomEnvVars:  customEnvVars,
 		Script:         getAssignToAgentScript(),
-		Permissions:    NewPermissionsContentsReadIssuesWrite(),
+		Permissions:    NewPermissionsActionsWriteContentsWriteIssuesWritePRWrite(),
 		Outputs:        outputs,
 		Token:          cfg.GitHubToken,
 		UseAgentToken:  true,
