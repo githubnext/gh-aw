@@ -95,22 +95,22 @@ func TestResolveIncludePath(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result, err := resolveIncludePath(tt.filePath, tt.baseDir, nil)
+			result, err := ResolveIncludePath(tt.filePath, tt.baseDir, nil)
 
 			if tt.wantErr {
 				if err == nil {
-					t.Errorf("resolveIncludePath() expected error, got nil")
+					t.Errorf("ResolveIncludePath() expected error, got nil")
 				}
 				return
 			}
 
 			if err != nil {
-				t.Errorf("resolveIncludePath() error = %v", err)
+				t.Errorf("ResolveIncludePath() error = %v", err)
 				return
 			}
 
 			if result != tt.expected {
-				t.Errorf("resolveIncludePath() = %q, want %q", result, tt.expected)
+				t.Errorf("ResolveIncludePath() = %q, want %q", result, tt.expected)
 			}
 		})
 	}

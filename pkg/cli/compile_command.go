@@ -789,6 +789,19 @@ func watchAndCompileWorkflows(markdownFile string, compiler *workflow.Compiler, 
 		}
 	}
 
+	// Build dependency graph for intelligent recompilation
+	depGraph := NewDependencyGraph(workflowsDir)
+	compileLog.Print("Building dependency graph for watch mode...")
+	if err := depGraph.BuildGraph(compiler); err != nil {
+		compileLog.Printf("Warning: failed to build dependency graph: %v", err)
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to build dependency graph: %v", err)))
+	} else {
+		compileLog.Printf("Dependency graph built successfully: %d workflows", len(depGraph.nodes))
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Dependency graph built: %d workflows", len(depGraph.nodes))))
+		}
+	}
+
 	// Set up file system watcher with buffered events for better handling of burst activity
 	watcher, err := fsnotify.NewBufferedWatcher(100)
 	if err != nil {
@@ -919,6 +932,8 @@ func watchAndCompileWorkflows(markdownFile string, compiler *workflow.Compiler, 
 			case event.Has(fsnotify.Remove):
 				// Handle file deletion
 				handleFileDeleted(event.Name, verbose)
+				// Remove from dependency graph
+				depGraph.RemoveWorkflow(event.Name)
 			case event.Has(fsnotify.Write) || event.Has(fsnotify.Create):
 				// Handle file modification or creation - add to debounced compilation
 				modifiedFiles[event.Name] = struct{}{}
@@ -935,8 +950,8 @@ func watchAndCompileWorkflows(markdownFile string, compiler *workflow.Compiler, 
 					// Clear the modifiedFiles map
 					modifiedFiles = make(map[string]struct{})
 
-					// Compile the modified files
-					compileModifiedFiles(compiler, filesToCompile, verbose)
+					// Compile the modified files using dependency graph
+					compileModifiedFilesWithDependencies(compiler, depGraph, filesToCompile, verbose)
 				})
 			}
 
@@ -1080,6 +1095,90 @@ func compileModifiedFiles(compiler *workflow.Compiler, files []string, verbose b
 	stats := &CompilationStats{}
 
 	for _, file := range files {
+		compileSingleFile(compiler, file, stats, verbose, true)
+	}
+
+	// Get warning count from compiler
+	stats.Warnings = compiler.GetWarningCount()
+
+	// Save the action cache after compilations
+	actionCache := compiler.GetSharedActionCache()
+	hasActionCacheEntries := actionCache != nil && len(actionCache.Entries) > 0
+	successCount := stats.Total - stats.Errors
+
+	if actionCache != nil {
+		if err := actionCache.Save(); err != nil {
+			compileLog.Printf("Failed to save action cache: %v", err)
+			if verbose {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to save action cache: %v", err)))
+			}
+		} else {
+			compileLog.Print("Action cache saved successfully")
+		}
+	}
+
+	// Ensure .gitattributes marks .lock.yml files as generated
+	// Only update if we successfully compiled workflows or have action cache entries
+	if successCount > 0 || hasActionCacheEntries {
+		if err := ensureGitAttributes(); err != nil {
+			if verbose {
+				fmt.Printf("⚠️  Failed to update .gitattributes: %v\n", err)
+			}
+		}
+	} else {
+		compileLog.Print("Skipping .gitattributes update (no compiled workflows and no action cache entries)")
+	}
+
+	// Print summary instead of just "Recompiled"
+	printCompilationSummary(stats)
+}
+
+// compileModifiedFilesWithDependencies compiles modified files and their dependencies using the dependency graph
+func compileModifiedFilesWithDependencies(compiler *workflow.Compiler, depGraph *DependencyGraph, files []string, verbose bool) {
+	if len(files) == 0 {
+		return
+	}
+
+	// Clear screen before emitting new output in watch mode
+	console.ClearScreen()
+
+	// Use dependency graph to determine what needs to be recompiled
+	var workflowsToCompile []string
+	uniqueWorkflows := make(map[string]bool)
+
+	for _, modifiedFile := range files {
+		compileLog.Printf("Processing modified file: %s", modifiedFile)
+
+		// Update the workflow in the dependency graph
+		if err := depGraph.UpdateWorkflow(modifiedFile, compiler); err != nil {
+			compileLog.Printf("Warning: failed to update workflow in dependency graph: %v", err)
+		}
+
+		// Get affected workflows from dependency graph
+		affected := depGraph.GetAffectedWorkflows(modifiedFile)
+		compileLog.Printf("File %s affects %d workflow(s)", modifiedFile, len(affected))
+
+		// Add to unique set
+		for _, workflow := range affected {
+			if !uniqueWorkflows[workflow] {
+				uniqueWorkflows[workflow] = true
+				workflowsToCompile = append(workflowsToCompile, workflow)
+			}
+		}
+	}
+
+	fmt.Fprintln(os.Stderr, "Watching for file changes")
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatProgressMessage(fmt.Sprintf("Recompiling %d workflow(s) affected by %d change(s)...", len(workflowsToCompile), len(files))))
+	}
+
+	// Reset warning count before compilation
+	compiler.ResetWarningCount()
+
+	// Track compilation statistics
+	stats := &CompilationStats{}
+
+	for _, file := range workflowsToCompile {
 		compileSingleFile(compiler, file, stats, verbose, true)
 	}
 
