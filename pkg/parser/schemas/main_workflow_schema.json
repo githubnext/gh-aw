@@ -424,6 +424,7 @@
             },
             "schedule": {
               "type": "array",
+              "minItems": 1,
               "description": "Scheduled trigger events",
               "items": {
                 "type": "object",
