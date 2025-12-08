@@ -2190,7 +2190,7 @@ jobs:
       - name: Downloading container images
         run: |
           set -e
-          docker pull ghcr.io/github/github-mcp-server:v0.24.0
+          docker pull ghcr.io/github/github-mcp-server:v0.24.1
           docker pull mcr.microsoft.com/playwright/mcp
       - name: Write Safe Outputs Config
         run: |
@@ -3623,7 +3623,7 @@ jobs:
                   "GITHUB_READ_ONLY=1",
                   "-e",
                   "GITHUB_TOOLSETS=repos,pull_requests",
-                  "ghcr.io/github/github-mcp-server:v0.24.0"
+                  "ghcr.io/github/github-mcp-server:v0.24.1"
                 ],
                 "env": {
                   "GITHUB_PERSONAL_ACCESS_TOKEN": "$GITHUB_MCP_SERVER_TOKEN"
