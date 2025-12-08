@@ -65,9 +65,9 @@ Test safe-inputs stdio mode
 		t.Error("Safe-inputs MCP server config not found")
 	}
 
-	// Should use stdio transport
-	if !strings.Contains(yamlStr, `"type": "stdio"`) {
-		t.Error("Expected type field set to 'stdio' in MCP config")
+	// Should use local transport for Copilot (stdio is converted to local for Copilot CLI compatibility)
+	if !strings.Contains(yamlStr, `"type": "local"`) {
+		t.Error("Expected type field set to 'local' in MCP config for Copilot engine")
 	}
 
 	if !strings.Contains(yamlStr, `"command": "node"`) {
@@ -279,9 +279,9 @@ Test mode via import
 
 	yamlStr := string(lockContent)
 
-	// Verify stdio mode is used from import
-	if !strings.Contains(yamlStr, `"type": "stdio"`) {
-		t.Error("Expected stdio mode from imported configuration")
+	// Verify local mode is used from import (converted from stdio for Copilot CLI)
+	if !strings.Contains(yamlStr, `"type": "local"`) {
+		t.Error("Expected local mode (converted from stdio) from imported configuration for Copilot engine")
 	}
 
 	// Verify HTTP server steps are NOT present
@@ -290,6 +290,61 @@ Test mode via import
 	}
 
 	t.Logf("✓ Mode correctly inherited from import")
+}
+
+// TestSafeInputsStdioModeWithClaudeEngine verifies that stdio mode with Claude engine uses "stdio" not "local"
+func TestSafeInputsStdioModeWithClaudeEngine(t *testing.T) {
+	// Create a temporary workflow file
+	tempDir := t.TempDir()
+	workflowPath := filepath.Join(tempDir, "test-workflow.md")
+
+	workflowContent := `---
+on: workflow_dispatch
+engine: claude
+safe-inputs:
+  mode: stdio
+  test-tool:
+    description: Test tool
+    script: |
+      return { result: "test" };
+---
+
+Test safe-inputs stdio mode with Claude engine
+`
+
+	err := os.WriteFile(workflowPath, []byte(workflowContent), 0644)
+	if err != nil {
+		t.Fatalf("Failed to write workflow file: %v", err)
+	}
+
+	// Compile the workflow
+	compiler := NewCompiler(false, "", "test")
+	err = compiler.CompileWorkflow(workflowPath)
+	if err != nil {
+		t.Fatalf("Failed to compile workflow: %v", err)
+	}
+
+	// Read the generated lock file
+	lockPath := strings.TrimSuffix(workflowPath, ".md") + ".lock.yml"
+	lockContent, err := os.ReadFile(lockPath)
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+
+	yamlStr := string(lockContent)
+
+	// Verify that type field is "stdio" for Claude engine (not converted to "local")
+	if !strings.Contains(yamlStr, `"type": "stdio"`) {
+		t.Error("Expected type field set to 'stdio' in MCP config for Claude engine")
+	}
+
+	// Verify "local" is NOT used
+	safeinputsConfig := extractSafeinputsConfigSection(yamlStr)
+	if strings.Contains(safeinputsConfig, `"type": "local"`) {
+		t.Error("Claude engine should use 'stdio' type, not 'local'")
+	}
+
+	t.Logf("✓ Stdio mode correctly uses 'stdio' type for Claude engine")
 }
 
 // extractSafeinputsConfigSection extracts the safeinputs configuration section from the YAML

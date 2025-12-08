@@ -643,7 +643,12 @@ func renderSafeInputsMCPConfigWithOptions(yaml *strings.Builder, safeInputs *Saf
 	// Choose transport based on mode
 	if IsSafeInputsStdioMode(safeInputs) {
 		// Stdio transport configuration - server started by agent
-		yaml.WriteString("                \"type\": \"stdio\",\n")
+		// Use "local" for Copilot CLI, "stdio" for other engines
+		typeValue := "stdio"
+		if includeCopilotFields {
+			typeValue = "local"
+		}
+		yaml.WriteString("                \"type\": \"" + typeValue + "\",\n")
 		yaml.WriteString("                \"command\": \"node\",\n")
 		yaml.WriteString("                \"args\": [\"/tmp/gh-aw/safe-inputs/mcp-server.cjs\"],\n")
 
