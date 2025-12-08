@@ -1057,7 +1057,8 @@ function generatePlainTextSummary(logEntries, options = {}) {
     // Display categories with tools
     for (const [category, tools] of Object.entries(categories)) {
       if (tools.length > 0) {
-        lines.push(`${category}: ${tools.length} tools`);
+        const toolText = tools.length === 1 ? "tool" : "tools";
+        lines.push(`${category}: ${tools.length} ${toolText}`);
         lines.push(tools.join(", "));
       }
     }

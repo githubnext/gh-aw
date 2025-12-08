@@ -1566,7 +1566,7 @@ describe("log_parser_shared.cjs", () => {
       expect(result).toContain("bash, view, create, edit");
       expect(result).toContain("Git/GitHub: 2 tools");
       expect(result).toContain("github::search_issues, github::create_issue");
-      expect(result).toContain("Playwright: 1 tools");
+      expect(result).toContain("Playwright: 1 tool");
       expect(result).toContain("playwright::navigate");
       expect(result).toContain("Safe Outputs: 2 tools");
       expect(result).toContain("create_issue, add_comment");
