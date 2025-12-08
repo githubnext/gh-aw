@@ -2,7 +2,11 @@ package workflow
 
 import (
 	"fmt"
+
+	"github.com/githubnext/gh-aw/pkg/logger"
 )
+
+var addLabelsLog = logger.New("workflow:add_labels")
 
 // AddLabelsConfig holds configuration for adding labels to issues/PRs from agent output
 type AddLabelsConfig struct {
@@ -14,6 +18,7 @@ type AddLabelsConfig struct {
 // parseAddLabelsConfig handles add-labels configuration
 func (c *Compiler) parseAddLabelsConfig(outputMap map[string]any) *AddLabelsConfig {
 	if labels, exists := outputMap["add-labels"]; exists {
+		addLabelsLog.Print("Parsing add-labels configuration")
 		if labelsMap, ok := labels.(map[string]any); ok {
 			labelConfig := &AddLabelsConfig{}
 
@@ -24,10 +29,12 @@ func (c *Compiler) parseAddLabelsConfig(outputMap map[string]any) *AddLabelsConf
 
 			// Parse common base fields (github-token, max)
 			c.parseBaseSafeOutputConfig(labelsMap, &labelConfig.BaseSafeOutputConfig, 0)
+			addLabelsLog.Printf("Parsed configuration: allowed_count=%d, target=%s", len(labelConfig.Allowed), labelConfig.Target)
 
 			return labelConfig
 		} else if labels == nil {
 			// Handle null case: create empty config (allows any labels)
+			addLabelsLog.Print("Using empty configuration (allows any labels)")
 			return &AddLabelsConfig{}
 		}
 	}
@@ -37,6 +44,8 @@ func (c *Compiler) parseAddLabelsConfig(outputMap map[string]any) *AddLabelsConf
 
 // buildAddLabelsJob creates the add_labels job
 func (c *Compiler) buildAddLabelsJob(data *WorkflowData, mainJobName string) (*Job, error) {
+	addLabelsLog.Printf("Building add_labels job for workflow: %s, main_job: %s", data.Name, mainJobName)
+
 	if data.SafeOutputs == nil || data.SafeOutputs.AddLabels == nil {
 		return nil, fmt.Errorf("safe-outputs configuration is required")
 	}
@@ -48,6 +57,7 @@ func (c *Compiler) buildAddLabelsJob(data *WorkflowData, mainJobName string) (*J
 	if cfg.Max > 0 {
 		maxCount = cfg.Max
 	}
+	addLabelsLog.Printf("Configuration: max_count=%d, allowed_count=%d, target=%s", maxCount, len(cfg.Allowed), cfg.Target)
 
 	// Build custom environment variables using shared helpers
 	listJobConfig := ListJobConfig{
