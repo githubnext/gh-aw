@@ -444,6 +444,10 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	// Add repo-memory artifact upload to save state for push job
 	generateRepoMemoryArtifactUpload(yaml, data)
 
+	// Add cache-memory artifact upload (after agent execution)
+	// This ensures artifacts are uploaded after the agent has finished modifying the cache
+	generateCacheMemoryArtifactUpload(yaml, data)
+
 	// upload assets if upload-asset is configured
 	if data.SafeOutputs != nil && data.SafeOutputs.UploadAssets != nil {
 		c.generateUploadAssets(yaml)

@@ -490,12 +490,6 @@ jobs:
           restore-keys: |
             memory-${{ github.workflow }}-
             memory-
-      - name: Upload cache-memory data as artifact
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
-        if: always()
-        with:
-          name: cache-memory
-          path: /tmp/gh-aw/cache-memory
       # Repo memory git-based storage configuration from frontmatter processed below
       - name: Clone repo-memory branch (default)
         env:
@@ -5342,6 +5336,12 @@ jobs:
           path: /tmp/gh-aw/repo-memory-default
           retention-days: 1
           if-no-files-found: ignore
+      - name: Upload cache-memory data as artifact
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
+        if: always()
+        with:
+          name: cache-memory
+          path: /tmp/gh-aw/cache-memory
       - name: Validate agent logs for errors
         if: always()
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8

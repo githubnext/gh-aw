@@ -307,14 +307,15 @@ func generateCacheSteps(builder *strings.Builder, data *WorkflowData, verbose bo
 	}
 }
 
-// generateCacheMemorySteps generates cache steps for the cache-memory configuration
+// generateCacheMemorySteps generates cache setup steps (directory creation and restore) for the cache-memory configuration
 // Cache-memory provides a simple file share that LLMs can read/write freely
+// Artifact upload is handled separately by generateCacheMemoryArtifactUpload after agent execution
 func generateCacheMemorySteps(builder *strings.Builder, data *WorkflowData) {
 	if data.CacheMemoryConfig == nil || len(data.CacheMemoryConfig.Caches) == 0 {
 		return
 	}
 
-	cacheLog.Printf("Generating cache-memory steps for %d caches", len(data.CacheMemoryConfig.Caches))
+	cacheLog.Printf("Generating cache-memory setup steps for %d caches", len(data.CacheMemoryConfig.Caches))
 
 	builder.WriteString("      # Cache memory file share configuration from frontmatter processed below\n")
 
@@ -404,30 +405,63 @@ func generateCacheMemorySteps(builder *strings.Builder, data *WorkflowData) {
 		for _, key := range restoreKeys {
 			fmt.Fprintf(builder, "            %s\n", key)
 		}
+	}
+}
 
-		// Add upload-artifact step for each cache (runs always), but skip for restore-only caches
-		// Only upload artifacts when threat detection is enabled (needed for update_cache_memory job)
-		// When threat detection is disabled, cache is saved automatically by actions/cache post-action
-		if !cache.RestoreOnly && threatDetectionEnabled {
-			if useBackwardCompatiblePaths {
-				builder.WriteString("      - name: Upload cache-memory data as artifact\n")
-			} else {
-				builder.WriteString(fmt.Sprintf("      - name: Upload cache-memory data as artifact (%s)\n", cache.ID))
-			}
-			builder.WriteString(fmt.Sprintf("        uses: %s\n", GetActionPin("actions/upload-artifact")))
-			builder.WriteString("        if: always()\n")
-			builder.WriteString("        with:\n")
-			// Always use the new artifact name and path format
-			if useBackwardCompatiblePaths {
-				builder.WriteString("          name: cache-memory\n")
-			} else {
-				fmt.Fprintf(builder, "          name: cache-memory-%s\n", cache.ID)
-			}
-			fmt.Fprintf(builder, "          path: %s\n", cacheDir)
-			// Add retention-days if configured
-			if cache.RetentionDays != nil {
-				fmt.Fprintf(builder, "          retention-days: %d\n", *cache.RetentionDays)
-			}
+// generateCacheMemoryArtifactUpload generates artifact upload steps for cache-memory
+// This should be called after agent execution steps to ensure cache is uploaded after the agent has finished
+func generateCacheMemoryArtifactUpload(builder *strings.Builder, data *WorkflowData) {
+	if data.CacheMemoryConfig == nil || len(data.CacheMemoryConfig.Caches) == 0 {
+		return
+	}
+
+	// Only upload artifacts when threat detection is enabled (needed for update_cache_memory job)
+	// When threat detection is disabled, cache is saved automatically by actions/cache post-action
+	threatDetectionEnabled := data.SafeOutputs != nil && data.SafeOutputs.ThreatDetection != nil
+	if !threatDetectionEnabled {
+		cacheLog.Print("Skipping cache-memory artifact upload (threat detection disabled)")
+		return
+	}
+
+	cacheLog.Printf("Generating cache-memory artifact upload steps for %d caches", len(data.CacheMemoryConfig.Caches))
+
+	// Use backward-compatible paths only when there's a single cache with ID "default"
+	useBackwardCompatiblePaths := len(data.CacheMemoryConfig.Caches) == 1 && data.CacheMemoryConfig.Caches[0].ID == "default"
+
+	for _, cache := range data.CacheMemoryConfig.Caches {
+		// Skip restore-only caches
+		if cache.RestoreOnly {
+			continue
+		}
+
+		// Default cache uses /tmp/gh-aw/cache-memory/ for backward compatibility
+		// Other caches use /tmp/gh-aw/cache-memory-{id}/ to prevent overlaps
+		var cacheDir string
+		if cache.ID == "default" {
+			cacheDir = "/tmp/gh-aw/cache-memory"
+		} else {
+			cacheDir = fmt.Sprintf("/tmp/gh-aw/cache-memory-%s", cache.ID)
+		}
+
+		// Add upload-artifact step for each cache (runs always)
+		if useBackwardCompatiblePaths {
+			builder.WriteString("      - name: Upload cache-memory data as artifact\n")
+		} else {
+			builder.WriteString(fmt.Sprintf("      - name: Upload cache-memory data as artifact (%s)\n", cache.ID))
+		}
+		builder.WriteString(fmt.Sprintf("        uses: %s\n", GetActionPin("actions/upload-artifact")))
+		builder.WriteString("        if: always()\n")
+		builder.WriteString("        with:\n")
+		// Always use the new artifact name and path format
+		if useBackwardCompatiblePaths {
+			builder.WriteString("          name: cache-memory\n")
+		} else {
+			fmt.Fprintf(builder, "          name: cache-memory-%s\n", cache.ID)
+		}
+		fmt.Fprintf(builder, "          path: %s\n", cacheDir)
+		// Add retention-days if configured
+		if cache.RetentionDays != nil {
+			fmt.Fprintf(builder, "          retention-days: %d\n", *cache.RetentionDays)
 		}
 	}
 }
