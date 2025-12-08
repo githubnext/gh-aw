@@ -14,6 +14,8 @@ var gitLog = logger.New("cli:git")
 
 func isGitRepo() bool {
 	cmd := exec.Command("git", "rev-parse", "--git-dir")
+	// Suppress stderr to avoid showing error messages when git is not available or not configured
+	cmd.Stderr = nil
 	return cmd.Run() == nil
 }
 
@@ -294,6 +296,7 @@ func checkWorkflowFileStatus(workflowPath string) (*WorkflowFileStatus, error) {
 
 	// Check for modified or staged changes using git status --porcelain
 	cmd := exec.Command("git", "-C", gitRoot, "status", "--porcelain", relPath)
+	cmd.Stderr = nil // Suppress stderr to avoid showing errors when git is not configured
 	output, err := cmd.Output()
 	if err != nil {
 		gitLog.Printf("Failed to check git status: %v", err)
@@ -327,6 +330,7 @@ func checkWorkflowFileStatus(workflowPath string) (*WorkflowFileStatus, error) {
 	// Check for unpushed commits that affect this file
 	// First, check if there's a remote tracking branch
 	cmd = exec.Command("git", "-C", gitRoot, "rev-parse", "--abbrev-ref", "@{u}")
+	cmd.Stderr = nil // Suppress stderr to avoid showing errors when git is not configured
 	output, err = cmd.Output()
 	if err != nil {
 		// No upstream branch configured, skip unpushed commits check
@@ -339,6 +343,7 @@ func checkWorkflowFileStatus(workflowPath string) (*WorkflowFileStatus, error) {
 
 	// Check if there are commits in the current branch that affect this file and aren't in upstream
 	cmd = exec.Command("git", "-C", gitRoot, "log", fmt.Sprintf("%s..HEAD", upstream), "--oneline", "--", relPath)
+	cmd.Stderr = nil // Suppress stderr to avoid showing errors when git is not configured
 	output, err = cmd.Output()
 	if err != nil {
 		gitLog.Printf("Failed to check unpushed commits: %v", err)
