@@ -1,0 +1,19 @@
+{
+  "last_updated": "2025-12-08T10:06:19.526952",
+  "total_runs_analyzed": 100,
+  "firewall_enabled_runs": 9,
+  "total_denied_domains": 10,
+  "total_denied_requests": 51,
+  "total_allowed_requests": 229,
+  "run_ids_analyzed": [
+    20022707737,
+    20022706705,
+    20022692950,
+    20022672549,
+    20022531926,
+    20022484188,
+    20022444607,
+    20022438641,
+    20021157641
+  ]
+}
