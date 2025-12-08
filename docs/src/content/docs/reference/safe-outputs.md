@@ -437,7 +437,7 @@ safe-outputs:
 
 ### Assign to Agent (`assign-to-agent:`)
 
-Assigns the GitHub Copilot coding agent to issues. The generated job automatically receives the necessary workflow permissions, you only need to provide a token with agent assignment scope.
+Assigns the GitHub Copilot coding agent to issues using the REST API. The generated job automatically receives the necessary workflow permissions, you only need to provide a token with agent assignment scope.
 
 ```yaml wrap
 safe-outputs:
@@ -446,12 +446,24 @@ safe-outputs:
     target-repo: "owner/repo" # for cross-repository only
 ```
 
+**How It Works:**
+
+As of December 2025, the `assign-to-agent` safe output uses the GitHub REST API to assign the Copilot coding agent (`copilot-swe-agent`) to issues. This is the recommended approach per the [GitHub Changelog](https://github.blog/changelog/2025-12-03-assign-issues-to-copilot-using-the-api/).
+
+The REST API endpoint used:
+```
+POST /repos/{owner}/{repo}/issues/{issue_number}/assignees
+{
+  "assignees": ["copilot-swe-agent"]
+}
+```
+
 **Token Requirements:**
 
-The default `GITHUB_TOKEN` lacks permission to assign agents. The `replaceActorsForAssignable` mutation requires elevated permissions. Create a fine-grained personal access token with these permissions and store it as the `GH_AW_AGENT_TOKEN` secret:
+The default `GITHUB_TOKEN` lacks permission to assign agents. Create a fine-grained personal access token with these permissions and store it as the `GH_AW_AGENT_TOKEN` secret:
 
 - **Read** access to metadata (granted by default)
-- **Write** access to actions, contents, issues, and pull requests
+- **Write** access to issues (for REST API assignment)
 
 Without this token, agent assignment will fail with a clear error message
 

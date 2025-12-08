@@ -11,6 +11,12 @@ const mockCore = {
 
 const mockGithub = {
   graphql: vi.fn(),
+  rest: {
+    issues: {
+      addAssignees: vi.fn(),
+      get: vi.fn(),
+    },
+  },
 };
 
 // Set up global mocks before importing the module
@@ -24,6 +30,8 @@ const {
   findAgent,
   getIssueDetails,
   assignAgentToIssue,
+  assignAgentToIssueRest,
+  isAgentAssigned,
   generatePermissionErrorSummary,
   assignAgentToIssueByName,
 } = await import("./assign_agent_helpers.cjs");
@@ -317,8 +325,146 @@ describe("assign_agent_helpers.cjs", () => {
     });
   });
 
+  describe("assignAgentToIssueRest", () => {
+    it("should successfully assign agent via REST API", async () => {
+      mockGithub.rest.issues.addAssignees.mockResolvedValueOnce({});
+
+      const result = await assignAgentToIssueRest("owner", "repo", 123, "copilot");
+
+      expect(result).toBe(true);
+      expect(mockGithub.rest.issues.addAssignees).toHaveBeenCalledWith({
+        owner: "owner",
+        repo: "repo",
+        issue_number: 123,
+        assignees: ["copilot-swe-agent"],
+      });
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("via REST API"));
+    });
+
+    it("should return false for unknown agent name", async () => {
+      const result = await assignAgentToIssueRest("owner", "repo", 123, "unknown");
+
+      expect(result).toBe(false);
+      expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("Unknown agent"));
+    });
+
+    it("should handle 422 error (agent not available)", async () => {
+      const error = new Error("Validation failed");
+      error.status = 422;
+      mockGithub.rest.issues.addAssignees.mockRejectedValueOnce(error);
+
+      const result = await assignAgentToIssueRest("owner", "repo", 123, "copilot");
+
+      expect(result).toBe(false);
+      expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("not available"));
+    });
+
+    it("should handle 403 error (permission denied)", async () => {
+      const error = new Error("Forbidden");
+      error.status = 403;
+      mockGithub.rest.issues.addAssignees.mockRejectedValueOnce(error);
+
+      const result = await assignAgentToIssueRest("owner", "repo", 123, "copilot");
+
+      expect(result).toBe(false);
+      expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("Insufficient permissions"));
+    });
+
+    it("should handle 404 error (issue not found)", async () => {
+      const error = new Error("Not Found");
+      error.status = 404;
+      mockGithub.rest.issues.addAssignees.mockRejectedValueOnce(error);
+
+      const result = await assignAgentToIssueRest("owner", "repo", 999, "copilot");
+
+      expect(result).toBe(false);
+      expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("not found"));
+    });
+  });
+
+  describe("isAgentAssigned", () => {
+    it("should return true when agent is assigned", async () => {
+      mockGithub.rest.issues.get.mockResolvedValueOnce({
+        data: {
+          assignees: [{ login: "copilot-swe-agent" }, { login: "some-user" }],
+        },
+      });
+
+      const result = await isAgentAssigned("owner", "repo", 123, "copilot");
+
+      expect(result).toBe(true);
+    });
+
+    it("should return false when agent is not assigned", async () => {
+      mockGithub.rest.issues.get.mockResolvedValueOnce({
+        data: {
+          assignees: [{ login: "some-user" }],
+        },
+      });
+
+      const result = await isAgentAssigned("owner", "repo", 123, "copilot");
+
+      expect(result).toBe(false);
+    });
+
+    it("should return false for unknown agent name", async () => {
+      const result = await isAgentAssigned("owner", "repo", 123, "unknown");
+
+      expect(result).toBe(false);
+    });
+
+    it("should return false on API error", async () => {
+      mockGithub.rest.issues.get.mockRejectedValueOnce(new Error("API error"));
+
+      const result = await isAgentAssigned("owner", "repo", 123, "copilot");
+
+      expect(result).toBe(false);
+    });
+
+    it("should return false when no assignees", async () => {
+      mockGithub.rest.issues.get.mockResolvedValueOnce({
+        data: {
+          assignees: [],
+        },
+      });
+
+      const result = await isAgentAssigned("owner", "repo", 123, "copilot");
+
+      expect(result).toBe(false);
+    });
+  });
+
   describe("assignAgentToIssueByName", () => {
-    it("should successfully assign copilot agent", async () => {
+    it("should successfully assign copilot agent via REST API", async () => {
+      // Mock isAgentAssigned (REST API)
+      mockGithub.rest.issues.get.mockResolvedValueOnce({
+        data: {
+          assignees: [],
+        },
+      });
+
+      // Mock REST API assignment
+      mockGithub.rest.issues.addAssignees.mockResolvedValueOnce({});
+
+      const result = await assignAgentToIssueByName("owner", "repo", 123, "copilot");
+
+      expect(result.success).toBe(true);
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("via REST API"));
+    });
+
+    it("should fall back to GraphQL when REST fails", async () => {
+      // Mock isAgentAssigned (REST API)
+      mockGithub.rest.issues.get.mockResolvedValueOnce({
+        data: {
+          assignees: [],
+        },
+      });
+
+      // Mock REST API failure
+      const restError = new Error("Validation failed");
+      restError.status = 422;
+      mockGithub.rest.issues.addAssignees.mockRejectedValueOnce(restError);
+
       // Mock findAgent (uses github.graphql)
       mockGithub.graphql.mockResolvedValueOnce({
         repository: {
@@ -350,8 +496,7 @@ describe("assign_agent_helpers.cjs", () => {
       const result = await assignAgentToIssueByName("owner", "repo", 123, "copilot");
 
       expect(result.success).toBe(true);
-      expect(mockCore.info).toHaveBeenCalledWith("Looking for copilot coding agent...");
-      expect(mockCore.info).toHaveBeenCalledWith("Found copilot coding agent (ID: AGENT_456)");
+      expect(mockCore.info).toHaveBeenCalledWith("REST API assignment failed, attempting GraphQL fallback...");
     });
 
     it("should return error for unsupported agent", async () => {
@@ -363,6 +508,18 @@ describe("assign_agent_helpers.cjs", () => {
     });
 
     it("should return error when agent is not available", async () => {
+      // Mock isAgentAssigned (REST API)
+      mockGithub.rest.issues.get.mockResolvedValueOnce({
+        data: {
+          assignees: [],
+        },
+      });
+
+      // Mock REST API failure
+      const restError = new Error("Validation failed");
+      restError.status = 422;
+      mockGithub.rest.issues.addAssignees.mockRejectedValueOnce(restError);
+
       // Mock findAgent and getAvailableAgentLogins (both use github.graphql)
       // Both calls return empty nodes
       mockGithub.graphql.mockResolvedValue({
@@ -380,26 +537,10 @@ describe("assign_agent_helpers.cjs", () => {
     });
 
     it("should report already assigned when agent is in assignees", async () => {
-      const agentId = "AGENT_456";
-
-      // Mock findAgent (uses github.graphql)
-      mockGithub.graphql.mockResolvedValueOnce({
-        repository: {
-          suggestedActors: {
-            nodes: [{ id: agentId, login: "copilot-swe-agent", __typename: "Bot" }],
-          },
-        },
-      });
-
-      // Mock getIssueDetails (uses github.graphql)
-      mockGithub.graphql.mockResolvedValueOnce({
-        repository: {
-          issue: {
-            id: "ISSUE_123",
-            assignees: {
-              nodes: [{ id: agentId }], // Already assigned
-            },
-          },
+      // Mock isAgentAssigned (REST API) - agent already assigned
+      mockGithub.rest.issues.get.mockResolvedValueOnce({
+        data: {
+          assignees: [{ login: "copilot-swe-agent" }],
         },
       });
 

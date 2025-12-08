@@ -5,10 +5,9 @@ const { loadAgentOutput } = require("./load_agent_output.cjs");
 const { generateStagedPreview } = require("./staged_preview.cjs");
 const {
   AGENT_LOGIN_NAMES,
+  isAgentAssigned,
+  assignAgentToIssueRest,
   getAvailableAgentLogins,
-  findAgent,
-  getIssueDetails,
-  assignAgentToIssue,
   generatePermissionErrorSummary,
 } = require("./assign_agent_helpers.cjs");
 
@@ -80,10 +79,7 @@ async function main() {
   // The github-token is set at the step level, so the built-in github object is authenticated
   // with the correct token (GH_AW_AGENT_TOKEN by default)
 
-  // Cache agent IDs to avoid repeated lookups
-  const agentCache = {};
-
-  // Process each agent assignment
+  // Process each agent assignment using REST API
   const results = [];
   for (const item of itemsToProcess) {
     const issueNumber = typeof item.issue_number === "number" ? item.issue_number : parseInt(String(item.issue_number), 10);
@@ -106,31 +102,11 @@ async function main() {
       continue;
     }
 
-    // Assign the agent to the issue using GraphQL
+    // Assign the agent to the issue using REST API (new December 2025 method)
     try {
-      // Find agent (use cache if available) - uses built-in github object authenticated via github-token
-      let agentId = agentCache[agentName];
-      if (!agentId) {
-        core.info(`Looking for ${agentName} coding agent...`);
-        agentId = await findAgent(targetOwner, targetRepo, agentName);
-        if (!agentId) {
-          throw new Error(`${agentName} coding agent is not available for this repository`);
-        }
-        agentCache[agentName] = agentId;
-        core.info(`Found ${agentName} coding agent (ID: ${agentId})`);
-      }
-
-      // Get issue details (ID and current assignees) via GraphQL
-      core.info("Getting issue details...");
-      const issueDetails = await getIssueDetails(targetOwner, targetRepo, issueNumber);
-      if (!issueDetails) {
-        throw new Error("Failed to get issue details");
-      }
-
-      core.info(`Issue ID: ${issueDetails.issueId}`);
-
-      // Check if agent is already assigned
-      if (issueDetails.currentAssignees.includes(agentId)) {
+      // Check if agent is already assigned using REST API
+      const alreadyAssigned = await isAgentAssigned(targetOwner, targetRepo, issueNumber, agentName);
+      if (alreadyAssigned) {
         core.info(`${agentName} is already assigned to issue #${issueNumber}`);
         results.push({
           issue_number: issueNumber,
@@ -140,12 +116,12 @@ async function main() {
         continue;
       }
 
-      // Assign agent using GraphQL mutation - uses built-in github object authenticated via github-token
+      // Assign agent using REST API - uses built-in github object authenticated via github-token
       core.info(`Assigning ${agentName} coding agent to issue #${issueNumber}...`);
-      const success = await assignAgentToIssue(issueDetails.issueId, agentId, issueDetails.currentAssignees, agentName);
+      const success = await assignAgentToIssueRest(targetOwner, targetRepo, issueNumber, agentName);
 
       if (!success) {
-        throw new Error(`Failed to assign ${agentName} via GraphQL`);
+        throw new Error(`Failed to assign ${agentName} via REST API`);
       }
 
       core.info(`Successfully assigned ${agentName} coding agent to issue #${issueNumber}`);
@@ -156,7 +132,7 @@ async function main() {
       });
     } catch (error) {
       let errorMessage = error instanceof Error ? error.message : String(error);
-      if (errorMessage.includes("coding agent is not available for this repository")) {
+      if (errorMessage.includes("not available") || errorMessage.includes("422")) {
         // Enrich with available agent logins to aid troubleshooting - uses built-in github object
         try {
           const available = await getAvailableAgentLogins(targetOwner, targetRepo);
