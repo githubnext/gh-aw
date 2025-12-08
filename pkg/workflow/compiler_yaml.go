@@ -319,6 +319,9 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	// Add cache-memory steps if cache-memory configuration is present
 	generateCacheMemorySteps(yaml, data)
 
+	// Add repo-memory clone steps if repo-memory configuration is present
+	generateRepoMemorySteps(yaml, data)
+
 	// Configure git credentials for agentic workflows
 	gitConfigSteps := c.generateGitConfigurationSteps()
 	for _, line := range gitConfigSteps {
@@ -408,6 +411,11 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	// upload MCP logs (if any MCP tools were used)
 	c.generateUploadMCPLogs(yaml)
 
+	// upload SafeInputs logs (if safe-inputs is enabled)
+	if IsSafeInputsEnabled(data.SafeInputs, data) {
+		c.generateUploadSafeInputsLogs(yaml)
+	}
+
 	// parse agent logs for GITHUB_STEP_SUMMARY
 	c.generateLogParsing(yaml, engine)
 
@@ -432,6 +440,13 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 			yaml.WriteString(line + "\n")
 		}
 	}
+
+	// Add repo-memory artifact upload to save state for push job
+	generateRepoMemoryArtifactUpload(yaml, data)
+
+	// Add cache-memory artifact upload (after agent execution)
+	// This ensures artifacts are uploaded after the agent has finished modifying the cache
+	generateCacheMemoryArtifactUpload(yaml, data)
 
 	// upload assets if upload-asset is configured
 	if data.SafeOutputs != nil && data.SafeOutputs.UploadAssets != nil {
@@ -647,6 +662,19 @@ func (c *Compiler) generateUploadMCPLogs(yaml *strings.Builder) {
 	yaml.WriteString("          if-no-files-found: ignore\n")
 }
 
+func (c *Compiler) generateUploadSafeInputsLogs(yaml *strings.Builder) {
+	// Record artifact upload for validation
+	c.stepOrderTracker.RecordArtifactUpload("Upload SafeInputs logs", []string{"/tmp/gh-aw/safe-inputs/logs/"})
+
+	yaml.WriteString("      - name: Upload SafeInputs logs\n")
+	yaml.WriteString("        if: always()\n")
+	yaml.WriteString(fmt.Sprintf("        uses: %s\n", GetActionPin("actions/upload-artifact")))
+	yaml.WriteString("        with:\n")
+	yaml.WriteString("          name: safeinputs\n")
+	yaml.WriteString("          path: /tmp/gh-aw/safe-inputs/logs/\n")
+	yaml.WriteString("          if-no-files-found: ignore\n")
+}
+
 func splitContentIntoChunks(content string) []string {
 	const maxChunkSize = 20900        // 21000 - 100 character buffer
 	const indentSpaces = "          " // 10 spaces added to each line
@@ -719,7 +747,7 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 		yaml.WriteString("          GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}\n")
 	}
 	// Add environment variables for extracted expressions
-	// These are used by envsubst to substitute values in the heredoc
+	// These are used by sed to safely substitute placeholders in the heredoc
 	for _, mapping := range expressionMappings {
 		fmt.Fprintf(yaml, "          %s: ${{ %s }}\n", mapping.EnvVar, mapping.Content)
 	}
@@ -728,9 +756,8 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 	WriteShellScriptToYAML(yaml, createPromptFirstScript, "          ")
 
 	if len(chunks) > 0 {
-		// Use quoted heredoc marker to prevent shell variable expansion
-		// Pipe through envsubst to substitute environment variables
-		yaml.WriteString("          cat << 'PROMPT_EOF' | envsubst > \"$GH_AW_PROMPT\"\n")
+		// Write template with placeholders directly to target file
+		yaml.WriteString("          cat << 'PROMPT_EOF' > \"$GH_AW_PROMPT\"\n")
 		// Pre-allocate buffer to avoid repeated allocations
 		lines := strings.Split(chunks[0], "\n")
 		for _, line := range lines {
@@ -743,6 +770,9 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 		yaml.WriteString("          touch \"$GH_AW_PROMPT\"\n")
 	}
 
+	// Generate JavaScript-based placeholder substitution step (replaces multiple sed calls)
+	generatePlaceholderSubstitutionStep(yaml, expressionMappings, "      ")
+
 	// Create additional steps for remaining chunks
 	for i, chunk := range chunks[1:] {
 		stepNum := i + 2
@@ -754,9 +784,8 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 			fmt.Fprintf(yaml, "          %s: ${{ %s }}\n", mapping.EnvVar, mapping.Content)
 		}
 		yaml.WriteString("        run: |\n")
-		// Use quoted heredoc marker to prevent shell variable expansion
-		// Pipe through envsubst to substitute environment variables
-		yaml.WriteString("          cat << 'PROMPT_EOF' | envsubst >> \"$GH_AW_PROMPT\"\n")
+		// Write template with placeholders directly to target file (append mode)
+		yaml.WriteString("          cat << 'PROMPT_EOF' >> \"$GH_AW_PROMPT\"\n")
 		// Avoid string concatenation in loop - write components separately
 		lines := strings.Split(chunk, "\n")
 		for _, line := range lines {
@@ -765,6 +794,12 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 			yaml.WriteByte('\n')
 		}
 		yaml.WriteString("          PROMPT_EOF\n")
+	}
+
+	// Generate JavaScript-based placeholder substitution step after all chunks are written
+	// (This is done once for all chunks to avoid multiple sed calls)
+	if len(chunks) > 1 {
+		generatePlaceholderSubstitutionStep(yaml, expressionMappings, "      ")
 	}
 
 	// Add XPIA security prompt as separate step if enabled (before other prompts)
@@ -797,6 +832,9 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 
 	// Add cache memory prompt as separate step if enabled
 	c.generateCacheMemoryPromptStep(yaml, data.CacheMemoryConfig)
+
+	// Add repo memory prompt as separate step if enabled
+	c.generateRepoMemoryPromptStep(yaml, data.RepoMemoryConfig)
 
 	// Add safe outputs instructions to prompt when safe-outputs are configured
 	// This tells agents to use the safeoutputs MCP server instead of gh CLI
@@ -883,6 +921,7 @@ func getInstallationVersion(data *WorkflowData, engine CodingAgentEngine) string
 
 func (c *Compiler) generateCreateAwInfo(yaml *strings.Builder, data *WorkflowData, engine CodingAgentEngine) {
 	yaml.WriteString("      - name: Generate agentic run info\n")
+	yaml.WriteString("        id: generate_aw_info\n") // Add ID for outputs
 	yaml.WriteString(fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))
 	yaml.WriteString("        with:\n")
 	yaml.WriteString("          script: |\n")
@@ -902,12 +941,31 @@ func (c *Compiler) generateCreateAwInfo(yaml *strings.Builder, data *WorkflowDat
 	// Engine display name
 	fmt.Fprintf(yaml, "              engine_name: \"%s\",\n", engine.GetDisplayName())
 
-	// Model information
-	model := ""
-	if data.EngineConfig != nil && data.EngineConfig.Model != "" {
-		model = data.EngineConfig.Model
+	// Model information - resolve from explicit config or environment variable
+	// If model is explicitly configured, use it directly
+	// Otherwise, resolve from environment variable at runtime
+	// Note: aw_info is always generated in the agent job, so use agent-specific env vars
+	modelConfigured := data.EngineConfig != nil && data.EngineConfig.Model != ""
+	if modelConfigured {
+		// Explicit model - output as static string
+		fmt.Fprintf(yaml, "              model: \"%s\",\n", data.EngineConfig.Model)
+	} else {
+		// Model from environment variable - resolve at runtime
+		// Use agent-specific env var since aw_info is generated in agent job
+		var modelEnvVar string
+
+		switch engineID {
+		case "copilot":
+			modelEnvVar = constants.EnvVarModelAgentCopilot
+		case "claude":
+			modelEnvVar = constants.EnvVarModelAgentClaude
+		case "codex":
+			modelEnvVar = constants.EnvVarModelAgentCodex
+		}
+
+		// Generate JavaScript to resolve model from environment variable at runtime
+		fmt.Fprintf(yaml, "              model: process.env.%s || \"\",\n", modelEnvVar)
 	}
-	fmt.Fprintf(yaml, "              model: \"%s\",\n", model)
 
 	// Version information (from engine config, kept for backwards compatibility)
 	version := ""
@@ -995,6 +1053,9 @@ func (c *Compiler) generateCreateAwInfo(yaml *strings.Builder, data *WorkflowDat
 	yaml.WriteString("            fs.writeFileSync(tmpPath, JSON.stringify(awInfo, null, 2));\n")
 	yaml.WriteString("            console.log('Generated aw_info.json at:', tmpPath);\n")
 	yaml.WriteString("            console.log(JSON.stringify(awInfo, null, 2));\n")
+	yaml.WriteString("            \n")
+	yaml.WriteString("            // Set model as output for reuse in other steps/jobs\n")
+	yaml.WriteString("            core.setOutput('model', awInfo.model);\n")
 }
 
 // generateWorkflowOverviewStep generates a step that writes an agentic workflow run overview to the GitHub step summary.
@@ -1321,4 +1382,65 @@ func (c *Compiler) addCustomStepsWithRuntimeInsertion(yaml *strings.Builder, cus
 
 		i++
 	}
+}
+
+// generateGitPatchUploadStep generates a step that uploads a git patch artifact
+// The patch itself is generated by the safe-outputs MCP server when create_pull_request
+// or push_to_pull_request_branch tools are called.
+func (c *Compiler) generateGitPatchUploadStep(yaml *strings.Builder) {
+	yaml.WriteString("      - name: Upload git patch\n")
+	yaml.WriteString("        if: always()\n")
+	yaml.WriteString(fmt.Sprintf("        uses: %s\n", GetActionPin("actions/upload-artifact")))
+	yaml.WriteString("        with:\n")
+	yaml.WriteString("          name: aw.patch\n")
+	yaml.WriteString("          path: /tmp/gh-aw/aw.patch\n")
+	yaml.WriteString("          if-no-files-found: ignore\n")
+}
+
+// generatePlaceholderSubstitutionStep generates a JavaScript-based step that performs
+// safe placeholder substitution using the substitute_placeholders script.
+// This replaces the multiple sed commands with a single JavaScript step.
+func generatePlaceholderSubstitutionStep(yaml *strings.Builder, expressionMappings []*ExpressionMapping, indent string) {
+	if len(expressionMappings) == 0 {
+		return
+	}
+
+	// Use actions/github-script to perform the substitutions
+	yaml.WriteString(indent + "- name: Substitute placeholders\n")
+	yaml.WriteString(indent + "  uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1\n")
+	yaml.WriteString(indent + "  env:\n")
+	yaml.WriteString(indent + "    GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt\n")
+
+	// Add all environment variables
+	for _, mapping := range expressionMappings {
+		fmt.Fprintf(yaml, indent+"    %s: ${{ %s }}\n", mapping.EnvVar, mapping.Content)
+	}
+
+	yaml.WriteString(indent + "  with:\n")
+	yaml.WriteString(indent + "    script: |\n")
+
+	// Emit the substitute_placeholders script inline and call it
+	script := getSubstitutePlaceholdersScript()
+	scriptLines := strings.Split(script, "\n")
+	for _, line := range scriptLines {
+		yaml.WriteString(indent + "      " + line + "\n")
+	}
+
+	// Call the function with parameters
+	yaml.WriteString(indent + "      \n")
+	yaml.WriteString(indent + "      // Call the substitution function\n")
+	yaml.WriteString(indent + "      return await substitutePlaceholders({\n")
+	yaml.WriteString(indent + "        file: process.env.GH_AW_PROMPT,\n")
+	yaml.WriteString(indent + "        substitutions: {\n")
+
+	for i, mapping := range expressionMappings {
+		comma := ","
+		if i == len(expressionMappings)-1 {
+			comma = ""
+		}
+		fmt.Fprintf(yaml, indent+"          %s: process.env.%s%s\n", mapping.EnvVar, mapping.EnvVar, comma)
+	}
+
+	yaml.WriteString(indent + "        }\n")
+	yaml.WriteString(indent + "      });\n")
 }

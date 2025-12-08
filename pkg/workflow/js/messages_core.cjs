@@ -29,6 +29,7 @@
  * @property {string} [runStarted] - Custom workflow activation message template
  * @property {string} [runSuccess] - Custom workflow success message template
  * @property {string} [runFailure] - Custom workflow failure message template
+ * @property {string} [detectionFailure] - Custom detection job failure message template
  * @property {string} [closeOlderDiscussion] - Custom message for closing older discussions as outdated
  */
 
@@ -44,19 +45,7 @@ function getMessages() {
 
   try {
     // Parse JSON with camelCase keys from Go struct (using json struct tags)
-    const rawMessages = JSON.parse(messagesEnv);
-
-    // Use camelCase keys directly from Go struct JSON serialization
-    return {
-      footer: rawMessages.footer,
-      footerInstall: rawMessages.footerInstall,
-      stagedTitle: rawMessages.stagedTitle,
-      stagedDescription: rawMessages.stagedDescription,
-      runStarted: rawMessages.runStarted,
-      runSuccess: rawMessages.runSuccess,
-      runFailure: rawMessages.runFailure,
-      closeOlderDiscussion: rawMessages.closeOlderDiscussion,
-    };
+    return JSON.parse(messagesEnv);
   } catch (error) {
     core.warning(`Failed to parse GH_AW_SAFE_OUTPUT_MESSAGES: ${error instanceof Error ? error.message : String(error)}`);
     return null;

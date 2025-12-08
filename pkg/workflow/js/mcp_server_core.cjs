@@ -24,6 +24,7 @@ const fs = require("fs");
 const path = require("path");
 
 const { ReadBuffer } = require("./read_buffer.cjs");
+const { validateRequiredFields } = require("./safe_inputs_validation.cjs");
 
 const encoder = new TextEncoder();
 
@@ -40,6 +41,7 @@ const encoder = new TextEncoder();
  * @property {Object} inputSchema - JSON Schema for tool inputs
  * @property {Function} [handler] - Tool handler function
  * @property {string} [handlerPath] - Optional file path to handler module (original path from config)
+ * @property {number} [timeout] - Timeout in seconds for tool execution (default: 60)
  */
 
 /**
@@ -373,10 +375,11 @@ function loadToolHandlers(server, tools, basePath) {
 
         // Lazy-load shell handler module
         const { createShellHandler } = require("./mcp_handler_shell.cjs");
-        tool.handler = createShellHandler(server, toolName, resolvedPath);
+        const timeout = tool.timeout || 60; // Default to 60 seconds if not specified
+        tool.handler = createShellHandler(server, toolName, resolvedPath, timeout);
 
         loadedCount++;
-        server.debug(`  [${toolName}] Shell handler created successfully`);
+        server.debug(`  [${toolName}] Shell handler created successfully with timeout: ${timeout}s`);
       } else if (ext === ".py") {
         // Python script handler - use GitHub Actions convention
         server.debug(`  [${toolName}] Detected Python script handler`);
@@ -398,10 +401,11 @@ function loadToolHandlers(server, tools, basePath) {
 
         // Lazy-load Python handler module
         const { createPythonHandler } = require("./mcp_handler_python.cjs");
-        tool.handler = createPythonHandler(server, toolName, resolvedPath);
+        const timeout = tool.timeout || 60; // Default to 60 seconds if not specified
+        tool.handler = createPythonHandler(server, toolName, resolvedPath, timeout);
 
         loadedCount++;
-        server.debug(`  [${toolName}] Python handler created successfully`);
+        server.debug(`  [${toolName}] Python handler created successfully with timeout: ${timeout}s`);
       } else {
         // JavaScript/CommonJS handler - use require()
         server.debug(`  [${toolName}] Loading JavaScript handler module`);
@@ -475,7 +479,121 @@ function normalizeTool(name) {
 }
 
 /**
- * Handle an incoming JSON-RPC message
+ * Handle an incoming JSON-RPC request and return a response (for HTTP transport)
+ * This function is compatible with the MCPServer class's handleRequest method.
+ * @param {MCPServer} server - The MCP server instance
+ * @param {Object} request - The incoming JSON-RPC request
+ * @param {Function} [defaultHandler] - Default handler for tools without a handler
+ * @returns {Promise<Object|null>} JSON-RPC response object, or null for notifications
+ */
+async function handleRequest(server, request, defaultHandler) {
+  const { id, method, params } = request;
+
+  try {
+    // Handle notifications per JSON-RPC 2.0 spec:
+    // Requests without id field are notifications (no response)
+    // Note: id can be null for valid requests, so we check for field presence with "in" operator
+    if (!("id" in request)) {
+      // No id field - this is a notification (no response)
+      return null;
+    }
+
+    let result;
+
+    if (method === "initialize") {
+      const protocolVersion = params?.protocolVersion || "2024-11-05";
+      result = {
+        protocolVersion,
+        serverInfo: server.serverInfo,
+        capabilities: {
+          tools: {},
+        },
+      };
+    } else if (method === "ping") {
+      result = {};
+    } else if (method === "tools/list") {
+      const list = [];
+      Object.values(server.tools).forEach(tool => {
+        const toolDef = {
+          name: tool.name,
+          description: tool.description,
+          inputSchema: tool.inputSchema,
+        };
+        list.push(toolDef);
+      });
+      result = { tools: list };
+    } else if (method === "tools/call") {
+      const name = params?.name;
+      const args = params?.arguments ?? {};
+      if (!name || typeof name !== "string") {
+        throw {
+          code: -32602,
+          message: "Invalid params: 'name' must be a string",
+        };
+      }
+      const tool = server.tools[normalizeTool(name)];
+      if (!tool) {
+        throw {
+          code: -32602,
+          message: `Tool '${name}' not found`,
+        };
+      }
+
+      // Use tool handler, or default handler, or error
+      let handler = tool.handler;
+      if (!handler && defaultHandler) {
+        handler = defaultHandler(tool.name);
+      }
+      if (!handler) {
+        throw {
+          code: -32603,
+          message: `No handler for tool: ${name}`,
+        };
+      }
+
+      const missing = validateRequiredFields(args, tool.inputSchema);
+      if (missing.length) {
+        throw {
+          code: -32602,
+          message: `Invalid arguments: missing or empty ${missing.map(m => `'${m}'`).join(", ")}`,
+        };
+      }
+
+      // Call handler and await the result (supports both sync and async handlers)
+      const handlerResult = await Promise.resolve(handler(args));
+      const content = handlerResult && handlerResult.content ? handlerResult.content : [];
+      result = { content, isError: false };
+    } else if (/^notifications\//.test(method)) {
+      // Notifications don't need a response
+      return null;
+    } else {
+      throw {
+        code: -32601,
+        message: `Method not found: ${method}`,
+      };
+    }
+
+    return {
+      jsonrpc: "2.0",
+      id,
+      result,
+    };
+  } catch (error) {
+    /** @type {any} */
+    const err = error;
+    return {
+      jsonrpc: "2.0",
+      id,
+      error: {
+        code: err.code || -32603,
+        message: err.message || "Internal error",
+      },
+    };
+  }
+}
+
+/**
+ * Handle an incoming JSON-RPC message (for stdio transport)
  * @param {MCPServer} server - The MCP server instance
  * @param {Object} req - The incoming request
  * @param {Function} [defaultHandler] - Default handler for tools without a handler
@@ -548,16 +666,10 @@ async function handleMessage(server, req, defaultHandler) {
         return;
       }
 
-      const requiredFields = tool.inputSchema && Array.isArray(tool.inputSchema.required) ? tool.inputSchema.required : [];
-      if (requiredFields.length) {
-        const missing = requiredFields.filter(f => {
-          const value = args[f];
-          return value === undefined || value === null || (typeof value === "string" && value.trim() === "");
-        });
-        if (missing.length) {
-          server.replyError(id, -32602, `Invalid arguments: missing or empty ${missing.map(m => `'${m}'`).join(", ")}`);
-          return;
-        }
+      const missing = validateRequiredFields(args, tool.inputSchema);
+      if (missing.length) {
+        server.replyError(id, -32602, `Invalid arguments: missing or empty ${missing.map(m => `'${m}'`).join(", ")}`);
+        return;
       }
 
       // Call handler and await the result (supports both sync and async handlers)
@@ -630,6 +742,7 @@ module.exports = {
   createServer,
   registerTool,
   normalizeTool,
+  handleRequest,
   handleMessage,
   processReadBuffer,
   start,

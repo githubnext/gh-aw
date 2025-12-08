@@ -287,3 +287,167 @@ func TestPushBranchNotImplemented(t *testing.T) {
 	}
 	// We expect this to fail in test environment, which is fine
 }
+
+func TestCheckWorkflowFileStatus(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "test-*")
+
+	originalDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Failed to get current directory: %v", err)
+	}
+	defer func() {
+		_ = os.Chdir(originalDir)
+	}()
+
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatalf("Failed to change to temp directory: %v", err)
+	}
+
+	// Initialize git repo
+	if err := exec.Command("git", "init").Run(); err != nil {
+		t.Skip("Git not available")
+	}
+
+	// Configure git
+	exec.Command("git", "config", "user.name", "Test User").Run()
+	exec.Command("git", "config", "user.email", "test@example.com").Run()
+
+	// Create .github/workflows directory
+	workflowDir := ".github/workflows"
+	if err := os.MkdirAll(workflowDir, 0755); err != nil {
+		t.Fatalf("Failed to create workflow directory: %v", err)
+	}
+
+	workflowFile := ".github/workflows/test.md"
+
+	// Test 1: File doesn't exist - should return empty status
+	t.Run("file_not_tracked", func(t *testing.T) {
+		status, err := checkWorkflowFileStatus(workflowFile)
+		if err != nil {
+			t.Fatalf("checkWorkflowFileStatus() failed: %v", err)
+		}
+		if status.IsModified || status.IsStaged || status.HasUnpushedCommits {
+			t.Error("Expected empty status for untracked file")
+		}
+	})
+
+	// Create and commit a workflow file
+	if err := os.WriteFile(workflowFile, []byte("# Test Workflow\n"), 0644); err != nil {
+		t.Fatalf("Failed to create workflow file: %v", err)
+	}
+	exec.Command("git", "add", workflowFile).Run()
+	if err := exec.Command("git", "commit", "-m", "Add workflow").Run(); err != nil {
+		t.Skip("Failed to create initial commit")
+	}
+
+	// Test 2: Clean file - no changes
+	t.Run("clean_file", func(t *testing.T) {
+		status, err := checkWorkflowFileStatus(workflowFile)
+		if err != nil {
+			t.Fatalf("checkWorkflowFileStatus() failed: %v", err)
+		}
+		if status.IsModified || status.IsStaged || status.HasUnpushedCommits {
+			t.Error("Expected empty status for clean file")
+		}
+	})
+
+	// Test 3: Modified file (unstaged changes)
+	t.Run("modified_file", func(t *testing.T) {
+		if err := os.WriteFile(workflowFile, []byte("# Modified Workflow\n"), 0644); err != nil {
+			t.Fatalf("Failed to modify workflow file: %v", err)
+		}
+
+		status, err := checkWorkflowFileStatus(workflowFile)
+		if err != nil {
+			t.Fatalf("checkWorkflowFileStatus() failed: %v", err)
+		}
+
+		if !status.IsModified {
+			t.Error("Expected IsModified to be true for modified file")
+		}
+		if status.IsStaged {
+			t.Error("Expected IsStaged to be false for unstaged file")
+		}
+
+		// Clean up - restore file
+		exec.Command("git", "checkout", workflowFile).Run()
+	})
+
+	// Test 4: Staged file
+	t.Run("staged_file", func(t *testing.T) {
+		if err := os.WriteFile(workflowFile, []byte("# Staged Workflow\n"), 0644); err != nil {
+			t.Fatalf("Failed to modify workflow file: %v", err)
+		}
+		exec.Command("git", "add", workflowFile).Run()
+
+		status, err := checkWorkflowFileStatus(workflowFile)
+		if err != nil {
+			t.Fatalf("checkWorkflowFileStatus() failed: %v", err)
+		}
+
+		if !status.IsStaged {
+			t.Error("Expected IsStaged to be true for staged file")
+		}
+
+		// Clean up - unstage and restore file
+		exec.Command("git", "reset", "HEAD", workflowFile).Run()
+		exec.Command("git", "checkout", workflowFile).Run()
+	})
+
+	// Test 5: Both staged and modified
+	t.Run("staged_and_modified", func(t *testing.T) {
+		// Modify and stage
+		if err := os.WriteFile(workflowFile, []byte("# Staged content\n"), 0644); err != nil {
+			t.Fatalf("Failed to modify workflow file: %v", err)
+		}
+		exec.Command("git", "add", workflowFile).Run()
+
+		// Modify again (unstaged change)
+		if err := os.WriteFile(workflowFile, []byte("# Staged and modified\n"), 0644); err != nil {
+			t.Fatalf("Failed to modify workflow file again: %v", err)
+		}
+
+		status, err := checkWorkflowFileStatus(workflowFile)
+		if err != nil {
+			t.Fatalf("checkWorkflowFileStatus() failed: %v", err)
+		}
+
+		if !status.IsStaged {
+			t.Error("Expected IsStaged to be true")
+		}
+		if !status.IsModified {
+			t.Error("Expected IsModified to be true")
+		}
+
+		// Clean up - unstage and restore file
+		exec.Command("git", "reset", "HEAD", workflowFile).Run()
+		exec.Command("git", "checkout", workflowFile).Run()
+	})
+}
+
+func TestCheckWorkflowFileStatusNotInRepo(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "test-*")
+
+	originalDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Failed to get current directory: %v", err)
+	}
+	defer func() {
+		_ = os.Chdir(originalDir)
+	}()
+
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatalf("Failed to change to temp directory: %v", err)
+	}
+
+	// Don't initialize git - should return empty status without error
+	status, err := checkWorkflowFileStatus("test.md")
+	if err != nil {
+		t.Fatalf("checkWorkflowFileStatus() failed: %v", err)
+	}
+
+	// Should return empty status for non-git directory
+	if status.IsModified || status.IsStaged || status.HasUnpushedCommits {
+		t.Error("Expected empty status when not in git repository")
+	}
+}

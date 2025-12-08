@@ -13,6 +13,7 @@ import (
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/constants"
 	"github.com/githubnext/gh-aw/pkg/logger"
+	"github.com/githubnext/gh-aw/pkg/parser"
 )
 
 var workflowsLog = logger.New("cli:workflows")
@@ -176,4 +177,35 @@ func restoreWorkflowState(workflowIdOrName string, workflowID int64, repoOverrid
 	} else {
 		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Restored workflow to disabled state: %s", workflowIdOrName)))
 	}
+}
+
+// getAvailableWorkflowNames returns a list of available workflow names (without .md extension)
+func getAvailableWorkflowNames() []string {
+	mdFiles, err := getMarkdownWorkflowFiles()
+	if err != nil {
+		return nil
+	}
+
+	var names []string
+	for _, file := range mdFiles {
+		base := filepath.Base(file)
+		name := strings.TrimSuffix(base, ".md")
+		names = append(names, name)
+	}
+	return names
+}
+
+// suggestWorkflowNames returns up to 3 similar workflow names using fuzzy matching
+// The target can be a workflow name or filename (with or without .md extension)
+func suggestWorkflowNames(target string) []string {
+	availableNames := getAvailableWorkflowNames()
+	if len(availableNames) == 0 {
+		return nil
+	}
+
+	// Normalize target: strip .md extension and get basename if it's a path
+	normalizedTarget := strings.TrimSuffix(filepath.Base(target), ".md")
+
+	// Use the existing FindClosestMatches function from parser package
+	return parser.FindClosestMatches(normalizedTarget, availableNames, 3)
 }

@@ -13,6 +13,21 @@ import (
 
 var mcpLog = logger.New("parser:mcp")
 
+// ValidMCPTypes defines all supported MCP server types.
+// "local" is an alias for "stdio" and gets normalized during parsing.
+var ValidMCPTypes = []string{"stdio", "http", "local"}
+
+// IsMCPType checks if a type string is a valid MCP server type.
+// Returns true for "stdio", "http", and "local" (which is an alias for "stdio").
+func IsMCPType(typeStr string) bool {
+	switch typeStr {
+	case "stdio", "http", "local":
+		return true
+	default:
+		return false
+	}
+}
+
 // EnsureLocalhostDomains ensures that localhost and 127.0.0.1 are always included
 // in the allowed domains list for Playwright, even when custom domains are specified
 // Includes port variations to allow all ports on localhost and 127.0.0.1

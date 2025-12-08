@@ -258,8 +258,17 @@ This workflow tests the workflow overview for Claude engine.
 			}
 
 			// Verify model is present in aw_info.json
-			if !strings.Contains(lockContent, "model: \""+tt.expectModel+"\"") {
-				t.Errorf("Expected model: %q in aw_info.json", tt.expectModel)
+			if tt.expectModel == "" {
+				// For empty model, check for the environment variable expression
+				if !strings.Contains(lockContent, "model: process.env.GH_AW_MODEL_AGENT_COPILOT || \"\"") &&
+					!strings.Contains(lockContent, "model: process.env.GH_AW_MODEL_DETECTION_COPILOT || \"\"") {
+					t.Errorf("Expected model to use environment variable with empty string fallback in aw_info.json")
+				}
+			} else {
+				// For non-empty model, check for the literal value
+				if !strings.Contains(lockContent, "model: \""+tt.expectModel+"\"") {
+					t.Errorf("Expected model: %q in aw_info.json", tt.expectModel)
+				}
 			}
 
 			// Verify firewall status in aw_info.json

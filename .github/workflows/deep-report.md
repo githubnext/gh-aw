@@ -34,7 +34,11 @@ safe-outputs:
     close-older-discussions: true
 
 tools:
-  cache-memory:
+  repo-memory:
+    branch-name: memory/deep-report
+    description: "Long-term insights, patterns, and trend data"
+    file-glob: ["*.md"]
+    max-file-size: 1048576  # 1MB
   github:
     toolsets:
       - all
@@ -130,16 +134,16 @@ jq '[.[].author.login] | unique' /tmp/gh-aw/weekly-issues-data/issues.json
 
 ## Intelligence Collection Process
 
-### Step 0: Check Cache Memory
+### Step 0: Check Repo Memory
 
 **EFFICIENCY FIRST**: Before starting full analysis:
 
-1. Check `/tmp/gh-aw/cache-memory/deep-report/` for previous insights
-2. Load any existing:
-   - `last_analysis_timestamp.txt` - When the last full analysis was run
-   - `known_patterns.json` - Previously identified patterns
-   - `trend_data.json` - Historical trend data
-   - `flagged_items.json` - Items flagged for continued monitoring
+1. Check `/tmp/gh-aw/repo-memory-default/memory/default/` for previous insights
+2. Load any existing markdown files (only markdown files are allowed in repo-memory):
+   - `last_analysis_timestamp.md` - When the last full analysis was run
+   - `known_patterns.md` - Previously identified patterns
+   - `trend_data.md` - Historical trend data
+   - `flagged_items.md` - Items flagged for continued monitoring
 
 3. If the last analysis was less than 20 hours ago, focus only on new data since then
 
@@ -180,13 +184,15 @@ Connect the dots between different data sources:
 3. Find patterns that span multiple report types
 4. Track how identified patterns evolve over time
 
-### Step 4: Store Insights in Cache
+### Step 4: Store Insights in Repo Memory
 
-Save your findings to `/tmp/gh-aw/cache-memory/deep-report/`:
-- Update `known_patterns.json` with any new patterns discovered
-- Update `trend_data.json` with current metrics
-- Update `flagged_items.json` with items needing attention
-- Save `last_analysis_timestamp.txt` with current timestamp
+Save your findings to `/tmp/gh-aw/repo-memory-default/memory/default/` as markdown files:
+- Update `known_patterns.md` with any new patterns discovered
+- Update `trend_data.md` with current metrics
+- Update `flagged_items.md` with items needing attention
+- Save `last_analysis_timestamp.md` with current timestamp
+
+**Note:** Only markdown (.md) files are allowed in the repo-memory folder. Use markdown tables, lists, and formatting to structure your data.
 
 ## Report Structure
 
@@ -243,7 +249,7 @@ List all reports and data sources analyzed:
 - Discussion references with links
 - Workflow run references with links
 - Time range of data analyzed
-- Cache data used from previous analyses
+- Repo-memory data used from previous analyses (stored in memory/deep-report branch)
 
 ## Output Guidelines
 

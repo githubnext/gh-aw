@@ -33,6 +33,7 @@ func sanitizeParameterName(name string) string {
 
 // SafeInputsConfig holds the configuration for safe-inputs custom tools
 type SafeInputsConfig struct {
+	Mode  string // Transport mode: "http" (default) or "stdio"
 	Tools map[string]*SafeInputToolConfig
 }
 
@@ -45,6 +46,7 @@ type SafeInputToolConfig struct {
 	Run         string                     // Shell script implementation (mutually exclusive with Script and Py)
 	Py          string                     // Python script implementation (mutually exclusive with Script and Run)
 	Env         map[string]string          // Environment variables (typically for secrets)
+	Timeout     int                        // Timeout in seconds for tool execution (default: 60)
 }
 
 // SafeInputParam holds the configuration for a tool input parameter
@@ -58,9 +60,25 @@ type SafeInputParam struct {
 // SafeInputsFeatureFlag is the name of the feature flag for safe-inputs
 const SafeInputsFeatureFlag = "safe-inputs"
 
+// SafeInputsMode constants define the available transport modes
+const (
+	SafeInputsModeHTTP  = "http"
+	SafeInputsModeStdio = "stdio"
+)
+
 // HasSafeInputs checks if safe-inputs are configured
 func HasSafeInputs(safeInputs *SafeInputsConfig) bool {
 	return safeInputs != nil && len(safeInputs.Tools) > 0
+}
+
+// IsSafeInputsStdioMode checks if safe-inputs is configured to use stdio mode
+func IsSafeInputsStdioMode(safeInputs *SafeInputsConfig) bool {
+	return safeInputs != nil && safeInputs.Mode == SafeInputsModeStdio
+}
+
+// IsSafeInputsHTTPMode checks if safe-inputs is configured to use HTTP mode
+func IsSafeInputsHTTPMode(safeInputs *SafeInputsConfig) bool {
+	return safeInputs != nil && (safeInputs.Mode == SafeInputsModeHTTP || safeInputs.Mode == "")
 }
 
 // IsSafeInputsEnabled checks if safe-inputs are configured.
@@ -75,19 +93,36 @@ func IsSafeInputsEnabled(safeInputs *SafeInputsConfig, workflowData *WorkflowDat
 // Returns the config and a boolean indicating whether any tools were found.
 func parseSafeInputsMap(safeInputsMap map[string]any) (*SafeInputsConfig, bool) {
 	config := &SafeInputsConfig{
+		Mode:  "http", // Default to HTTP mode
 		Tools: make(map[string]*SafeInputToolConfig),
 	}
 
+	// Parse mode if specified (optional field)
+	if mode, exists := safeInputsMap["mode"]; exists {
+		if modeStr, ok := mode.(string); ok {
+			// Validate mode value
+			if modeStr == "stdio" || modeStr == "http" {
+				config.Mode = modeStr
+			}
+		}
+	}
+
 	for toolName, toolValue := range safeInputsMap {
+		// Skip the "mode" field as it's not a tool definition
+		if toolName == "mode" {
+			continue
+		}
+
 		toolMap, ok := toolValue.(map[string]any)
 		if !ok {
 			continue
 		}
 
 		toolConfig := &SafeInputToolConfig{
-			Name:   toolName,
-			Inputs: make(map[string]*SafeInputParam),
-			Env:    make(map[string]string),
+			Name:    toolName,
+			Inputs:  make(map[string]*SafeInputParam),
+			Env:     make(map[string]string),
+			Timeout: 60, // Default timeout: 60 seconds
 		}
 
 		// Parse description (required)
@@ -166,6 +201,21 @@ func parseSafeInputsMap(safeInputsMap map[string]any) (*SafeInputsConfig, bool) 
 			}
 		}
 
+		// Parse timeout (optional, default is 60 seconds)
+		if timeout, exists := toolMap["timeout"]; exists {
+			switch t := timeout.(type) {
+			case int:
+				toolConfig.Timeout = t
+			case uint64:
+				toolConfig.Timeout = int(t)
+			case float64:
+				toolConfig.Timeout = int(t)
+			case string:
+				// Try to parse string as integer
+				_, _ = fmt.Sscanf(t, "%d", &toolConfig.Timeout)
+			}
+		}
+
 		config.Tools[toolName] = toolConfig
 	}
 
@@ -220,10 +270,12 @@ const SafeInputsDirectory = "/tmp/gh-aw/safe-inputs"
 
 // SafeInputsToolJSON represents a tool configuration for the tools.json file
 type SafeInputsToolJSON struct {
-	Name        string         `json:"name"`
-	Description string         `json:"description"`
-	InputSchema map[string]any `json:"inputSchema"`
-	Handler     string         `json:"handler,omitempty"`
+	Name        string            `json:"name"`
+	Description string            `json:"description"`
+	InputSchema map[string]any    `json:"inputSchema"`
+	Handler     string            `json:"handler,omitempty"`
+	Env         map[string]string `json:"env,omitempty"`
+	Timeout     int               `json:"timeout,omitempty"`
 }
 
 // SafeInputsConfigJSON represents the tools.json configuration file structure
@@ -299,11 +351,33 @@ func generateSafeInputsToolsConfig(safeInputs *SafeInputsConfig) string {
 			handler = toolName + ".py"
 		}
 
+		// Build env list of required environment variables (not actual secrets)
+		// This documents which env vars the tool needs, but doesn't store secret values
+		// The actual values are passed as environment variables and accessed via process.env
+		var envRefs map[string]string
+		if len(toolConfig.Env) > 0 {
+			envRefs = make(map[string]string)
+			// Sort env var names for stable output
+			envVarNames := make([]string, 0, len(toolConfig.Env))
+			for envVarName := range toolConfig.Env {
+				envVarNames = append(envVarNames, envVarName)
+			}
+			sort.Strings(envVarNames)
+
+			for _, envVarName := range envVarNames {
+				// Store just the environment variable name without $ prefix or secret value
+				// Handlers access the actual value via process.env[envVarName] at runtime
+				envRefs[envVarName] = envVarName
+			}
+		}
+
 		config.Tools = append(config.Tools, SafeInputsToolJSON{
 			Name:        toolName,
 			Description: toolConfig.Description,
 			InputSchema: inputSchema,
 			Handler:     handler,
+			Env:         envRefs,
+			Timeout:     toolConfig.Timeout,
 		})
 	}
 
@@ -316,14 +390,15 @@ func generateSafeInputsToolsConfig(safeInputs *SafeInputsConfig) string {
 }
 
 // generateSafeInputsMCPServerScript generates the entry point script for the safe-inputs MCP server
-// This uses the reusable safe_inputs_mcp_server.cjs module and reads tool configuration from tools.json
+// This script chooses the transport based on mode: HTTP or stdio
 func generateSafeInputsMCPServerScript(safeInputs *SafeInputsConfig) string {
 	var sb strings.Builder
 
-	// Write a simple entry point that uses the modular MCP server
-	sb.WriteString(`// @ts-check
-// Auto-generated safe-inputs MCP server entry point
-// This script uses the reusable safe_inputs_mcp_server module
+	if IsSafeInputsStdioMode(safeInputs) {
+		// Stdio transport - server started by agent
+		sb.WriteString(`// @ts-check
+// Auto-generated safe-inputs MCP server entry point (stdio transport)
+// This script uses the reusable safe_inputs_mcp_server module with stdio transport
 
 const path = require("path");
 const { startSafeInputsServer } = require("./safe_inputs_mcp_server.cjs");
@@ -331,11 +406,41 @@ const { startSafeInputsServer } = require("./safe_inputs_mcp_server.cjs");
 // Configuration file path (generated alongside this script)
 const configPath = path.join(__dirname, "tools.json");
 
-// Start the server
+// Start the stdio server
 startSafeInputsServer(configPath, {
   logDir: "/tmp/gh-aw/safe-inputs/logs"
+}).catch(error => {
+  console.error("Failed to start safe-inputs stdio server:", error);
+  process.exit(1);
 });
 `)
+	} else {
+		// HTTP transport - server started in separate step
+		sb.WriteString(`// @ts-check
+// Auto-generated safe-inputs MCP server entry point (HTTP transport)
+// This script uses the reusable safe_inputs_mcp_server_http module
+
+const path = require("path");
+const { startHttpServer } = require("./safe_inputs_mcp_server_http.cjs");
+
+// Configuration file path (generated alongside this script)
+const configPath = path.join(__dirname, "tools.json");
+
+// Get port and API key from environment variables
+const port = parseInt(process.env.GH_AW_SAFE_INPUTS_PORT || "3000", 10);
+const apiKey = process.env.GH_AW_SAFE_INPUTS_API_KEY || "";
+
+// Start the HTTP server
+startHttpServer(configPath, {
+  port: port,
+  stateless: false,
+  logDir: "/tmp/gh-aw/safe-inputs/logs"
+}).catch(error => {
+  console.error("Failed to start safe-inputs HTTP server:", error);
+  process.exit(1);
+});
+`)
+	}
 
 	return sb.String()
 }
@@ -527,24 +632,112 @@ func collectSafeInputsSecrets(safeInputs *SafeInputsConfig) map[string]string {
 }
 
 // renderSafeInputsMCPConfigWithOptions generates the Safe Inputs MCP server configuration with engine-specific options
+// Supports both HTTP and stdio transport modes
 func renderSafeInputsMCPConfigWithOptions(yaml *strings.Builder, safeInputs *SafeInputsConfig, isLast bool, includeCopilotFields bool) {
 	envVars := getSafeInputsEnvVars(safeInputs)
 
-	renderBuiltinMCPServerBlock(
-		yaml,
-		constants.SafeInputsMCPServerID,
-		"node",
-		[]string{SafeInputsDirectory + "/mcp-server.cjs"},
-		envVars,
-		isLast,
-		includeCopilotFields,
-	)
+	yaml.WriteString("              \"" + constants.SafeInputsMCPServerID + "\": {\n")
+
+	// Choose transport based on mode
+	if IsSafeInputsStdioMode(safeInputs) {
+		// Stdio transport configuration - server started by agent
+		yaml.WriteString("                \"type\": \"stdio\",\n")
+		yaml.WriteString("                \"command\": \"node\",\n")
+		yaml.WriteString("                \"args\": [\"/tmp/gh-aw/safe-inputs/mcp-server.cjs\"],\n")
+
+		// Add tools field for Copilot
+		if includeCopilotFields {
+			yaml.WriteString("                \"tools\": [\"*\"],\n")
+		}
+
+		// Add env block for environment variable passthrough
+		yaml.WriteString("                \"env\": {\n")
+
+		// Write environment variables with appropriate escaping
+		for i, envVar := range envVars {
+			isLastEnvVar := i == len(envVars)-1
+			comma := ""
+			if !isLastEnvVar {
+				comma = ","
+			}
+
+			if includeCopilotFields {
+				// Copilot format: backslash-escaped shell variable reference
+				yaml.WriteString("                  \"" + envVar + "\": \"\\${" + envVar + "}\"" + comma + "\n")
+			} else {
+				// Claude/Custom format: direct shell variable reference
+				yaml.WriteString("                  \"" + envVar + "\": \"$" + envVar + "\"" + comma + "\n")
+			}
+		}
+
+		yaml.WriteString("                }\n")
+	} else {
+		// HTTP transport configuration - server started in separate step
+		// Add type field for HTTP (required by MCP specification for HTTP transport)
+		yaml.WriteString("                \"type\": \"http\",\n")
+
+		// HTTP URL using environment variable
+		// Use host.docker.internal to allow access from firewall container
+		if includeCopilotFields {
+			// Copilot format: backslash-escaped shell variable reference
+			yaml.WriteString("                \"url\": \"http://host.docker.internal:\\${GH_AW_SAFE_INPUTS_PORT}\",\n")
+		} else {
+			// Claude/Custom format: direct shell variable reference
+			yaml.WriteString("                \"url\": \"http://host.docker.internal:$GH_AW_SAFE_INPUTS_PORT\",\n")
+		}
+
+		// Add Authorization header with API key
+		yaml.WriteString("                \"headers\": {\n")
+		if includeCopilotFields {
+			// Copilot format: backslash-escaped shell variable reference
+			yaml.WriteString("                  \"Authorization\": \"Bearer \\${GH_AW_SAFE_INPUTS_API_KEY}\"\n")
+		} else {
+			// Claude/Custom format: direct shell variable reference
+			yaml.WriteString("                  \"Authorization\": \"Bearer $GH_AW_SAFE_INPUTS_API_KEY\"\n")
+		}
+		yaml.WriteString("                },\n")
+
+		// Add tools field for Copilot
+		if includeCopilotFields {
+			yaml.WriteString("                \"tools\": [\"*\"],\n")
+		}
+
+		// Add env block for environment variable passthrough
+		envVarsWithServerConfig := append([]string{"GH_AW_SAFE_INPUTS_PORT", "GH_AW_SAFE_INPUTS_API_KEY"}, envVars...)
+		yaml.WriteString("                \"env\": {\n")
+
+		// Write environment variables with appropriate escaping
+		for i, envVar := range envVarsWithServerConfig {
+			isLastEnvVar := i == len(envVarsWithServerConfig)-1
+			comma := ""
+			if !isLastEnvVar {
+				comma = ","
+			}
+
+			if includeCopilotFields {
+				// Copilot format: backslash-escaped shell variable reference
+				yaml.WriteString("                  \"" + envVar + "\": \"\\${" + envVar + "}\"" + comma + "\n")
+			} else {
+				// Claude/Custom format: direct shell variable reference
+				yaml.WriteString("                  \"" + envVar + "\": \"$" + envVar + "\"" + comma + "\n")
+			}
+		}
+
+		yaml.WriteString("                }\n")
+	}
+
+	if isLast {
+		yaml.WriteString("              }\n")
+	} else {
+		yaml.WriteString("              },\n")
+	}
 }
 
 // mergeSafeInputs merges safe-inputs configuration from imports into the main configuration
 func (c *Compiler) mergeSafeInputs(main *SafeInputsConfig, importedConfigs []string) *SafeInputsConfig {
 	if main == nil {
 		main = &SafeInputsConfig{
+			Mode:  "http", // Default to HTTP mode
 			Tools: make(map[string]*SafeInputToolConfig),
 		}
 	}
@@ -561,8 +754,22 @@ func (c *Compiler) mergeSafeInputs(main *SafeInputsConfig, importedConfigs []str
 			continue
 		}
 
+		// Merge mode if present in imported config and not set in main
+		if mode, exists := importedMap["mode"]; exists && main.Mode == "http" {
+			if modeStr, ok := mode.(string); ok {
+				if modeStr == "stdio" || modeStr == "http" {
+					main.Mode = modeStr
+				}
+			}
+		}
+
 		// Merge each tool from the imported config
 		for toolName, toolValue := range importedMap {
+			// Skip mode field as it's already handled
+			if toolName == "mode" {
+				continue
+			}
+
 			// Skip if tool already exists in main config (main takes precedence)
 			if _, exists := main.Tools[toolName]; exists {
 				safeInputsLog.Printf("Skipping imported tool '%s' - already defined in main config", toolName)
@@ -575,9 +782,10 @@ func (c *Compiler) mergeSafeInputs(main *SafeInputsConfig, importedConfigs []str
 			}
 
 			toolConfig := &SafeInputToolConfig{
-				Name:   toolName,
-				Inputs: make(map[string]*SafeInputParam),
-				Env:    make(map[string]string),
+				Name:    toolName,
+				Inputs:  make(map[string]*SafeInputParam),
+				Env:     make(map[string]string),
+				Timeout: 60, // Default timeout: 60 seconds
 			}
 
 			// Parse description
@@ -651,10 +859,57 @@ func (c *Compiler) mergeSafeInputs(main *SafeInputsConfig, importedConfigs []str
 				}
 			}
 
+			// Parse timeout (optional, default is 60 seconds)
+			if timeout, exists := toolMap["timeout"]; exists {
+				switch t := timeout.(type) {
+				case int:
+					toolConfig.Timeout = t
+				case uint64:
+					toolConfig.Timeout = int(t)
+				case float64:
+					toolConfig.Timeout = int(t)
+				case string:
+					// Try to parse string as integer
+					_, _ = fmt.Sscanf(t, "%d", &toolConfig.Timeout)
+				}
+			}
+
 			main.Tools[toolName] = toolConfig
 			safeInputsLog.Printf("Merged imported safe-input tool: %s", toolName)
 		}
 	}
 
 	return main
+}
+
+// Public wrapper functions for CLI use
+
+// GenerateSafeInputsToolsConfigForInspector generates the tools.json configuration for the safe-inputs MCP server
+// This is a public wrapper for use by the CLI inspector command
+func GenerateSafeInputsToolsConfigForInspector(safeInputs *SafeInputsConfig) string {
+	return generateSafeInputsToolsConfig(safeInputs)
+}
+
+// GenerateSafeInputsMCPServerScriptForInspector generates the MCP server entry point script
+// This is a public wrapper for use by the CLI inspector command
+func GenerateSafeInputsMCPServerScriptForInspector(safeInputs *SafeInputsConfig) string {
+	return generateSafeInputsMCPServerScript(safeInputs)
+}
+
+// GenerateSafeInputJavaScriptToolScriptForInspector generates a JavaScript tool handler script
+// This is a public wrapper for use by the CLI inspector command
+func GenerateSafeInputJavaScriptToolScriptForInspector(toolConfig *SafeInputToolConfig) string {
+	return generateSafeInputJavaScriptToolScript(toolConfig)
+}
+
+// GenerateSafeInputShellToolScriptForInspector generates a shell script tool handler
+// This is a public wrapper for use by the CLI inspector command
+func GenerateSafeInputShellToolScriptForInspector(toolConfig *SafeInputToolConfig) string {
+	return generateSafeInputShellToolScript(toolConfig)
+}
+
+// GenerateSafeInputPythonToolScriptForInspector generates a Python script tool handler
+// This is a public wrapper for use by the CLI inspector command
+func GenerateSafeInputPythonToolScriptForInspector(toolConfig *SafeInputToolConfig) string {
+	return generateSafeInputPythonToolScript(toolConfig)
 }

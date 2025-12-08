@@ -560,6 +560,29 @@ func TestValidateMainWorkflowFrontmatterWithSchema(t *testing.T) {
 			errContains: "additional properties 'invalid_prop' not allowed",
 		},
 		{
+			name: "invalid empty schedule array",
+			frontmatter: map[string]any{
+				"on": map[string]any{
+					"schedule": []map[string]any{},
+				},
+			},
+			wantErr:     true,
+			errContains: "minItems: got 0, want 1",
+		},
+		{
+			name: "valid schedule with multiple cron entries",
+			frontmatter: map[string]any{
+				"on": map[string]any{
+					"schedule": []map[string]any{
+						{"cron": "0 9 * * *"},
+						{"cron": "0 17 * * *"},
+					},
+				},
+				"engine": "claude",
+			},
+			wantErr: false,
+		},
+		{
 			name: "invalid workflow_dispatch with additional properties",
 			frontmatter: map[string]any{
 				"on": map[string]any{

@@ -57,7 +57,7 @@ Examples:
 			runIDOrURL := args[0]
 
 			// Parse run information from input (either numeric ID or URL)
-			runInfo, err := parseRunURL(runIDOrURL)
+			runID, owner, repo, hostname, err := parser.ParseRunURL(runIDOrURL)
 			if err != nil {
 				return err
 			}
@@ -67,7 +67,7 @@ Examples:
 			jsonOutput, _ := cmd.Flags().GetBool("json")
 			parse, _ := cmd.Flags().GetBool("parse")
 
-			return AuditWorkflowRun(runInfo, outputDir, verbose, parse, jsonOutput)
+			return AuditWorkflowRun(runID, owner, repo, hostname, outputDir, verbose, parse, jsonOutput)
 		},
 	}
 
@@ -82,35 +82,13 @@ Examples:
 	return auditCmd
 }
 
-// RunURLInfo contains the parsed information from a workflow run URL
-type RunURLInfo struct {
-	RunID    int64
-	Owner    string
-	Repo     string
-	Hostname string
-}
-
 // extractRunID extracts the run ID from either a numeric string or a GitHub Actions URL
 func extractRunID(input string) (int64, error) {
-	info, err := parseRunURL(input)
+	runID, _, _, _, err := parser.ParseRunURL(input)
 	if err != nil {
 		return 0, err
 	}
-	return info.RunID, nil
-}
-
-// parseRunURL parses a run ID or URL and extracts all relevant information
-func parseRunURL(input string) (RunURLInfo, error) {
-	runID, owner, repo, hostname, err := parser.ParseRunURL(input)
-	if err != nil {
-		return RunURLInfo{}, err
-	}
-	return RunURLInfo{
-		RunID:    runID,
-		Owner:    owner,
-		Repo:     repo,
-		Hostname: hostname,
-	}, nil
+	return runID, nil
 }
 
 // isPermissionError checks if an error is related to permissions/authentication
@@ -127,21 +105,21 @@ func isPermissionError(err error) bool {
 }
 
 // AuditWorkflowRun audits a single workflow run and generates a report
-func AuditWorkflowRun(runInfo RunURLInfo, outputDir string, verbose bool, parse bool, jsonOutput bool) error {
-	auditLog.Printf("Starting audit for workflow run: runID=%d, owner=%s, repo=%s", runInfo.RunID, runInfo.Owner, runInfo.Repo)
+func AuditWorkflowRun(runID int64, owner, repo, hostname string, outputDir string, verbose bool, parse bool, jsonOutput bool) error {
+	auditLog.Printf("Starting audit for workflow run: runID=%d, owner=%s, repo=%s", runID, owner, repo)
 
 	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Auditing workflow run %d...", runInfo.RunID)))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Auditing workflow run %d...", runID)))
 	}
 
-	runOutputDir := filepath.Join(outputDir, fmt.Sprintf("run-%d", runInfo.RunID))
+	runOutputDir := filepath.Join(outputDir, fmt.Sprintf("run-%d", runID))
 	auditLog.Printf("Using output directory: %s", runOutputDir)
 
 	// Check if we have locally cached artifacts first
 	hasLocalCache := fileutil.DirExists(runOutputDir) && !fileutil.IsDirEmpty(runOutputDir)
 
 	// Try to get run metadata from GitHub API
-	run, metadataErr := fetchWorkflowRunMetadata(runInfo, verbose)
+	run, metadataErr := fetchWorkflowRunMetadata(runID, owner, repo, hostname, verbose)
 	var useLocalCache bool
 
 	if metadataErr != nil {
@@ -158,7 +136,7 @@ func AuditWorkflowRun(runInfo RunURLInfo, outputDir string, verbose bool, parse 
 					"   - run_id: %d\n"+
 					"   - output_directory: %s\n\n"+
 					"2. After downloading, run this audit command again to analyze the cached artifacts.\n\n"+
-					"Original error: %v", runInfo.RunID, runOutputDir, metadataErr)
+					"Original error: %v", runID, runOutputDir, metadataErr)
 			}
 		} else {
 			return fmt.Errorf("failed to fetch run metadata: %w", metadataErr)
@@ -171,12 +149,12 @@ func AuditWorkflowRun(runInfo RunURLInfo, outputDir string, verbose bool, parse 
 		}
 
 		// Download artifacts for the run
-		auditLog.Printf("Downloading artifacts for run %d", runInfo.RunID)
-		err := downloadRunArtifacts(runInfo.RunID, runOutputDir, verbose)
+		auditLog.Printf("Downloading artifacts for run %d", runID)
+		err := downloadRunArtifacts(runID, runOutputDir, verbose)
 		if err != nil {
 			// Gracefully handle cases where the run legitimately has no artifacts
 			if errors.Is(err, ErrNoArtifacts) {
-				auditLog.Printf("No artifacts found for run %d", runInfo.RunID)
+				auditLog.Printf("No artifacts found for run %d", runID)
 				if verbose {
 					fmt.Fprintln(os.Stderr, console.FormatWarningMessage("No artifacts attached to this run. Proceeding with metadata-only audit."))
 				}
@@ -191,7 +169,7 @@ func AuditWorkflowRun(runInfo RunURLInfo, outputDir string, verbose bool, parse 
 						"   - run_id: %d\n"+
 						"   - output_directory: %s\n\n"+
 						"2. After downloading, run this audit command again to analyze the cached artifacts.\n\n"+
-						"Original error: %v", runInfo.RunID, runOutputDir, err)
+						"Original error: %v", runID, runOutputDir, err)
 				}
 			} else {
 				return fmt.Errorf("failed to download artifacts: %w", err)
@@ -202,8 +180,8 @@ func AuditWorkflowRun(runInfo RunURLInfo, outputDir string, verbose bool, parse 
 	// If using local cache without metadata, create a minimal run structure
 	if useLocalCache && run.DatabaseID == 0 {
 		run = WorkflowRun{
-			DatabaseID:   runInfo.RunID,
-			WorkflowName: fmt.Sprintf("Workflow Run %d", runInfo.RunID),
+			DatabaseID:   runID,
+			WorkflowName: fmt.Sprintf("Workflow Run %d", runID),
 			Status:       "unknown",
 			LogsPath:     runOutputDir,
 		}
@@ -319,13 +297,13 @@ func AuditWorkflowRun(runInfo RunURLInfo, outputDir string, verbose bool, parse 
 		if engine := extractEngineFromAwInfo(awInfoPath, verbose); engine != nil { // reuse existing helper in same package
 			if err := parseAgentLog(runOutputDir, engine, verbose); err != nil {
 				if verbose {
-					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to parse agent log for run %d: %v", runInfo.RunID, err)))
+					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to parse agent log for run %d: %v", runID, err)))
 				}
 			} else {
 				// Always show success message for parsing, not just in verbose mode
 				logMdPath := filepath.Join(runOutputDir, "log.md")
 				if _, err := os.Stat(logMdPath); err == nil {
-					fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("✓ Parsed log for run %d → %s", runInfo.RunID, logMdPath)))
+					fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("✓ Parsed log for run %d → %s", runID, logMdPath)))
 				}
 			}
 		} else if verbose {
@@ -335,13 +313,13 @@ func AuditWorkflowRun(runInfo RunURLInfo, outputDir string, verbose bool, parse 
 		// Also parse firewall logs if they exist
 		if err := parseFirewallLogs(runOutputDir, verbose); err != nil {
 			if verbose {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to parse firewall logs for run %d: %v", runInfo.RunID, err)))
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to parse firewall logs for run %d: %v", runID, err)))
 			}
 		} else {
 			// Show success message if firewall.md was created
 			firewallMdPath := filepath.Join(runOutputDir, "firewall.md")
 			if _, err := os.Stat(firewallMdPath); err == nil {
-				fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("✓ Parsed firewall logs for run %d → %s", runInfo.RunID, firewallMdPath)))
+				fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("✓ Parsed firewall logs for run %d → %s", runID, firewallMdPath)))
 			}
 		}
 	}
@@ -379,22 +357,22 @@ func AuditWorkflowRun(runInfo RunURLInfo, outputDir string, verbose bool, parse 
 }
 
 // fetchWorkflowRunMetadata fetches metadata for a single workflow run
-func fetchWorkflowRunMetadata(runInfo RunURLInfo, verbose bool) (WorkflowRun, error) {
+func fetchWorkflowRunMetadata(runID int64, owner, repo, hostname string, verbose bool) (WorkflowRun, error) {
 	// Build the API endpoint
 	var endpoint string
-	if runInfo.Owner != "" && runInfo.Repo != "" {
+	if owner != "" && repo != "" {
 		// Use explicit owner/repo from the URL
-		endpoint = fmt.Sprintf("repos/%s/%s/actions/runs/%d", runInfo.Owner, runInfo.Repo, runInfo.RunID)
+		endpoint = fmt.Sprintf("repos/%s/%s/actions/runs/%d", owner, repo, runID)
 	} else {
 		// Fall back to {owner}/{repo} placeholders for context-based resolution
-		endpoint = fmt.Sprintf("repos/{owner}/{repo}/actions/runs/%d", runInfo.RunID)
+		endpoint = fmt.Sprintf("repos/{owner}/{repo}/actions/runs/%d", runID)
 	}
 
 	args := []string{"api"}
 
 	// Add hostname flag if specified (for GitHub Enterprise)
-	if runInfo.Hostname != "" && runInfo.Hostname != "github.com" {
-		args = append(args, "--hostname", runInfo.Hostname)
+	if hostname != "" && hostname != "github.com" {
+		args = append(args, "--hostname", hostname)
 	}
 
 	args = append(args,

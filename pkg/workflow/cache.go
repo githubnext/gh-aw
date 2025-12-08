@@ -21,6 +21,7 @@ type CacheMemoryEntry struct {
 	Key           string `yaml:"key,omitempty"`            // custom cache key
 	Description   string `yaml:"description,omitempty"`    // optional description for this cache
 	RetentionDays *int   `yaml:"retention-days,omitempty"` // retention days for upload-artifact action
+	RestoreOnly   bool   `yaml:"restore-only,omitempty"`   // if true, only restore cache without saving
 }
 
 // generateDefaultCacheKey generates a default cache key for a given cache ID
@@ -126,6 +127,13 @@ func (c *Compiler) extractCacheMemoryConfig(toolsConfig *ToolsConfig) (*CacheMem
 					}
 				}
 
+				// Parse restore-only flag
+				if restoreOnly, exists := cacheMap["restore-only"]; exists {
+					if restoreOnlyBool, ok := restoreOnly.(bool); ok {
+						entry.RestoreOnly = restoreOnlyBool
+					}
+				}
+
 				config.Caches = append(config.Caches, entry)
 			}
 		}
@@ -175,6 +183,13 @@ func (c *Compiler) extractCacheMemoryConfig(toolsConfig *ToolsConfig) (*CacheMem
 			} else if retentionDaysUint64, ok := retentionDays.(uint64); ok {
 				retentionDaysIntValue := int(retentionDaysUint64)
 				entry.RetentionDays = &retentionDaysIntValue
+			}
+		}
+
+		// Parse restore-only flag
+		if restoreOnly, exists := configMap["restore-only"]; exists {
+			if restoreOnlyBool, ok := restoreOnly.(bool); ok {
+				entry.RestoreOnly = restoreOnlyBool
 			}
 		}
 
@@ -292,14 +307,15 @@ func generateCacheSteps(builder *strings.Builder, data *WorkflowData, verbose bo
 	}
 }
 
-// generateCacheMemorySteps generates cache steps for the cache-memory configuration
+// generateCacheMemorySteps generates cache setup steps (directory creation and restore) for the cache-memory configuration
 // Cache-memory provides a simple file share that LLMs can read/write freely
+// Artifact upload is handled separately by generateCacheMemoryArtifactUpload after agent execution
 func generateCacheMemorySteps(builder *strings.Builder, data *WorkflowData) {
 	if data.CacheMemoryConfig == nil || len(data.CacheMemoryConfig.Caches) == 0 {
 		return
 	}
 
-	cacheLog.Printf("Generating cache-memory steps for %d caches", len(data.CacheMemoryConfig.Caches))
+	cacheLog.Printf("Generating cache-memory setup steps for %d caches", len(data.CacheMemoryConfig.Caches))
 
 	builder.WriteString("      # Cache memory file share configuration from frontmatter processed below\n")
 
@@ -352,13 +368,33 @@ func generateCacheMemorySteps(builder *strings.Builder, data *WorkflowData) {
 			restoreKeys = append(restoreKeys, restoreKey)
 		}
 
-		// Step name
-		if useBackwardCompatiblePaths {
-			builder.WriteString("      - name: Cache memory file share data\n")
+		// Step name and action
+		// Use actions/cache/restore for restore-only caches or when threat detection is enabled
+		// When threat detection is enabled, we only restore the cache and defer saving to a separate job after detection
+		// Use actions/cache for normal caches (which auto-saves via post-action)
+		threatDetectionEnabled := data.SafeOutputs != nil && data.SafeOutputs.ThreatDetection != nil
+		useRestoreOnly := cache.RestoreOnly || threatDetectionEnabled
+
+		var actionName string
+		if useRestoreOnly {
+			actionName = "Restore cache memory file share data"
 		} else {
-			builder.WriteString(fmt.Sprintf("      - name: Cache memory file share data (%s)\n", cache.ID))
+			actionName = "Cache memory file share data"
 		}
-		builder.WriteString(fmt.Sprintf("        uses: %s\n", GetActionPin("actions/cache")))
+
+		if useBackwardCompatiblePaths {
+			builder.WriteString(fmt.Sprintf("      - name: %s\n", actionName))
+		} else {
+			builder.WriteString(fmt.Sprintf("      - name: %s (%s)\n", actionName, cache.ID))
+		}
+
+		// Use actions/cache/restore@v4 when restore-only or threat detection enabled
+		// Use actions/cache@v4 for normal caches
+		if useRestoreOnly {
+			builder.WriteString(fmt.Sprintf("        uses: %s\n", GetActionPin("actions/cache/restore")))
+		} else {
+			builder.WriteString(fmt.Sprintf("        uses: %s\n", GetActionPin("actions/cache")))
+		}
 		builder.WriteString("        with:\n")
 		fmt.Fprintf(builder, "          key: %s\n", cacheKey)
 
@@ -369,6 +405,43 @@ func generateCacheMemorySteps(builder *strings.Builder, data *WorkflowData) {
 		for _, key := range restoreKeys {
 			fmt.Fprintf(builder, "            %s\n", key)
 		}
+	}
+}
+
+// generateCacheMemoryArtifactUpload generates artifact upload steps for cache-memory
+// This should be called after agent execution steps to ensure cache is uploaded after the agent has finished
+func generateCacheMemoryArtifactUpload(builder *strings.Builder, data *WorkflowData) {
+	if data.CacheMemoryConfig == nil || len(data.CacheMemoryConfig.Caches) == 0 {
+		return
+	}
+
+	// Only upload artifacts when threat detection is enabled (needed for update_cache_memory job)
+	// When threat detection is disabled, cache is saved automatically by actions/cache post-action
+	threatDetectionEnabled := data.SafeOutputs != nil && data.SafeOutputs.ThreatDetection != nil
+	if !threatDetectionEnabled {
+		cacheLog.Print("Skipping cache-memory artifact upload (threat detection disabled)")
+		return
+	}
+
+	cacheLog.Printf("Generating cache-memory artifact upload steps for %d caches", len(data.CacheMemoryConfig.Caches))
+
+	// Use backward-compatible paths only when there's a single cache with ID "default"
+	useBackwardCompatiblePaths := len(data.CacheMemoryConfig.Caches) == 1 && data.CacheMemoryConfig.Caches[0].ID == "default"
+
+	for _, cache := range data.CacheMemoryConfig.Caches {
+		// Skip restore-only caches
+		if cache.RestoreOnly {
+			continue
+		}
+
+		// Default cache uses /tmp/gh-aw/cache-memory/ for backward compatibility
+		// Other caches use /tmp/gh-aw/cache-memory-{id}/ to prevent overlaps
+		var cacheDir string
+		if cache.ID == "default" {
+			cacheDir = "/tmp/gh-aw/cache-memory"
+		} else {
+			cacheDir = fmt.Sprintf("/tmp/gh-aw/cache-memory-%s", cache.ID)
+		}
 
 		// Add upload-artifact step for each cache (runs always)
 		if useBackwardCompatiblePaths {
@@ -377,6 +450,7 @@ func generateCacheMemorySteps(builder *strings.Builder, data *WorkflowData) {
 			builder.WriteString(fmt.Sprintf("      - name: Upload cache-memory data as artifact (%s)\n", cache.ID))
 		}
 		builder.WriteString(fmt.Sprintf("        uses: %s\n", GetActionPin("actions/upload-artifact")))
+		builder.WriteString("        if: always()\n")
 		builder.WriteString("        with:\n")
 		// Always use the new artifact name and path format
 		if useBackwardCompatiblePaths {
@@ -467,4 +541,95 @@ func generateCacheMemoryPromptSection(yaml *strings.Builder, config *CacheMemory
 		yaml.WriteString("          \n")
 		yaml.WriteString("          Feel free to create, read, update, and organize files in these folders as needed for your tasks.\n")
 	}
+}
+
+// buildUpdateCacheMemoryJob builds a job that updates cache-memory after detection passes
+// This job downloads cache-memory artifacts and saves them to GitHub Actions cache
+func (c *Compiler) buildUpdateCacheMemoryJob(data *WorkflowData, threatDetectionEnabled bool) (*Job, error) {
+	if data.CacheMemoryConfig == nil || len(data.CacheMemoryConfig.Caches) == 0 {
+		return nil, nil
+	}
+
+	// Only create this job if threat detection is enabled
+	// Otherwise, cache is updated automatically by actions/cache post-action
+	if !threatDetectionEnabled {
+		return nil, nil
+	}
+
+	cacheLog.Printf("Building update_cache_memory job for %d caches (threatDetectionEnabled=%v)", len(data.CacheMemoryConfig.Caches), threatDetectionEnabled)
+
+	var steps []string
+
+	// Build steps for each cache
+	for _, cache := range data.CacheMemoryConfig.Caches {
+		// Skip restore-only caches
+		if cache.RestoreOnly {
+			continue
+		}
+
+		// Determine artifact name and cache directory
+		var artifactName, cacheDir string
+		if cache.ID == "default" {
+			artifactName = "cache-memory"
+			cacheDir = "/tmp/gh-aw/cache-memory"
+		} else {
+			artifactName = fmt.Sprintf("cache-memory-%s", cache.ID)
+			cacheDir = fmt.Sprintf("/tmp/gh-aw/cache-memory-%s", cache.ID)
+		}
+
+		// Download artifact step
+		var downloadStep strings.Builder
+		downloadStep.WriteString(fmt.Sprintf("      - name: Download cache-memory artifact (%s)\n", cache.ID))
+		downloadStep.WriteString(fmt.Sprintf("        uses: %s\n", GetActionPin("actions/download-artifact")))
+		downloadStep.WriteString("        continue-on-error: true\n")
+		downloadStep.WriteString("        with:\n")
+		downloadStep.WriteString(fmt.Sprintf("          name: %s\n", artifactName))
+		downloadStep.WriteString(fmt.Sprintf("          path: %s\n", cacheDir))
+		steps = append(steps, downloadStep.String())
+
+		// Generate cache key (same logic as in generateCacheMemorySteps)
+		cacheKey := cache.Key
+		if cacheKey == "" {
+			if cache.ID == "default" {
+				cacheKey = "memory-${{ github.workflow }}-${{ github.run_id }}"
+			} else {
+				cacheKey = fmt.Sprintf("memory-%s-${{ github.workflow }}-${{ github.run_id }}", cache.ID)
+			}
+		}
+
+		// Automatically append -${{ github.run_id }} if the key doesn't already end with it
+		runIdSuffix := "-${{ github.run_id }}"
+		if !strings.HasSuffix(cacheKey, runIdSuffix) {
+			cacheKey = cacheKey + runIdSuffix
+		}
+
+		// Save to cache step
+		var saveStep strings.Builder
+		saveStep.WriteString(fmt.Sprintf("      - name: Save cache-memory to cache (%s)\n", cache.ID))
+		saveStep.WriteString(fmt.Sprintf("        uses: %s\n", GetActionPin("actions/cache/save")))
+		saveStep.WriteString("        with:\n")
+		saveStep.WriteString(fmt.Sprintf("          key: %s\n", cacheKey))
+		saveStep.WriteString(fmt.Sprintf("          path: %s\n", cacheDir))
+		steps = append(steps, saveStep.String())
+	}
+
+	// If no writable caches, return nil
+	if len(steps) == 0 {
+		return nil, nil
+	}
+
+	// Job condition: only run if detection passed
+	jobCondition := "always() && needs.detection.outputs.success == 'true'"
+
+	job := &Job{
+		Name:        "update_cache_memory",
+		DisplayName: "", // No display name - job ID is sufficient
+		RunsOn:      "runs-on: ubuntu-latest",
+		If:          jobCondition,
+		Permissions: NewPermissionsEmpty().RenderToYAML(), // No special permissions needed
+		Needs:       []string{"agent", "detection"},
+		Steps:       steps,
+	}
+
+	return job, nil
 }

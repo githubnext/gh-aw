@@ -52,7 +52,17 @@
                 "type": "object",
                 "description": "Input values to pass to the imported workflow. Keys are input names declared in the imported workflow's inputs section, values can be strings or expressions.",
                 "additionalProperties": {
-                  "oneOf": [{ "type": "string" }, { "type": "number" }, { "type": "boolean" }]
+                  "oneOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "boolean"
+                    }
+                  ]
                 }
               }
             }
@@ -64,7 +74,14 @@
         ["shared/mcp/gh-aw.md", "shared/jqschema.md", "shared/reporting.md"],
         ["../instructions/documentation.instructions.md"],
         [".github/agents/my-agent.md"],
-        [{ "path": "shared/discussions-data-fetch.md", "inputs": { "count": 50 } }]
+        [
+          {
+            "path": "shared/discussions-data-fetch.md",
+            "inputs": {
+              "count": 50
+            }
+          }
+        ]
       ]
     },
     "on": {
@@ -153,6 +170,7 @@
               "properties": {
                 "branches": {
                   "type": "array",
+                  "$comment": "Mutually exclusive with branches-ignore. GitHub Actions requires only one to be specified.",
                   "description": "Branches to filter on",
                   "items": {
                     "type": "string"
@@ -160,6 +178,7 @@
                 },
                 "branches-ignore": {
                   "type": "array",
+                  "$comment": "Mutually exclusive with branches. GitHub Actions requires only one to be specified.",
                   "description": "Branches to ignore",
                   "items": {
                     "type": "string"
@@ -167,6 +186,7 @@
                 },
                 "paths": {
                   "type": "array",
+                  "$comment": "Mutually exclusive with paths-ignore. GitHub Actions requires only one to be specified.",
                   "description": "Paths to filter on",
                   "items": {
                     "type": "string"
@@ -174,6 +194,7 @@
                 },
                 "paths-ignore": {
                   "type": "array",
+                  "$comment": "Mutually exclusive with paths. GitHub Actions requires only one to be specified.",
                   "description": "Paths to ignore",
                   "items": {
                     "type": "string"
@@ -231,6 +252,7 @@
                 },
                 "branches": {
                   "type": "array",
+                  "$comment": "Mutually exclusive with branches-ignore. GitHub Actions requires only one to be specified.",
                   "description": "Branches to filter on",
                   "items": {
                     "type": "string"
@@ -238,6 +260,7 @@
                 },
                 "branches-ignore": {
                   "type": "array",
+                  "$comment": "Mutually exclusive with branches. GitHub Actions requires only one to be specified.",
                   "description": "Branches to ignore",
                   "items": {
                     "type": "string"
@@ -245,6 +268,7 @@
                 },
                 "paths": {
                   "type": "array",
+                  "$comment": "Mutually exclusive with paths-ignore. GitHub Actions requires only one to be specified.",
                   "description": "Paths to filter on",
                   "items": {
                     "type": "string"
@@ -252,6 +276,7 @@
                 },
                 "paths-ignore": {
                   "type": "array",
+                  "$comment": "Mutually exclusive with paths. GitHub Actions requires only one to be specified.",
                   "description": "Paths to ignore",
                   "items": {
                     "type": "string"
@@ -407,6 +432,7 @@
             },
             "schedule": {
               "type": "array",
+              "minItems": 1,
               "description": "Scheduled trigger events",
               "items": {
                 "type": "object",
@@ -491,6 +517,7 @@
                 },
                 "branches": {
                   "type": "array",
+                  "$comment": "Mutually exclusive with branches-ignore. GitHub Actions requires only one to be specified.",
                   "description": "Branches to filter on",
                   "items": {
                     "type": "string"
@@ -498,6 +525,7 @@
                 },
                 "branches-ignore": {
                   "type": "array",
+                  "$comment": "Mutually exclusive with branches. GitHub Actions requires only one to be specified.",
                   "description": "Branches to ignore",
                   "items": {
                     "type": "string"
@@ -762,6 +790,7 @@
                 },
                 "branches": {
                   "type": "array",
+                  "$comment": "Mutually exclusive with branches-ignore. GitHub Actions requires only one to be specified.",
                   "description": "Branches to filter on",
                   "items": {
                     "type": "string"
@@ -769,6 +798,7 @@
                 },
                 "branches-ignore": {
                   "type": "array",
+                  "$comment": "Mutually exclusive with branches. GitHub Actions requires only one to be specified.",
                   "description": "Branches to ignore",
                   "items": {
                     "type": "string"
@@ -776,6 +806,7 @@
                 },
                 "paths": {
                   "type": "array",
+                  "$comment": "Mutually exclusive with paths-ignore. GitHub Actions requires only one to be specified.",
                   "description": "Paths to filter on",
                   "items": {
                     "type": "string"
@@ -783,6 +814,7 @@
                 },
                 "paths-ignore": {
                   "type": "array",
+                  "$comment": "Mutually exclusive with paths. GitHub Actions requires only one to be specified.",
                   "description": "Paths to ignore",
                   "items": {
                     "type": "string"
@@ -1792,6 +1824,16 @@
                         "type": "string"
                       }
                     },
+                    "mounts": {
+                      "type": "array",
+                      "description": "Container mounts to add when using AWF. Each mount is specified using Docker mount syntax: 'source:destination:mode' where mode can be 'ro' (read-only) or 'rw' (read-write). Example: '/host/path:/container/path:ro'",
+                      "items": {
+                        "type": "string",
+                        "pattern": "^[^:]+:[^:]+:(ro|rw)$",
+                        "description": "Mount specification in format 'source:destination:mode'"
+                      },
+                      "examples": [["/host/data:/data:ro", "/usr/local/bin/custom-tool:/usr/local/bin/custom-tool:ro"]]
+                    },
                     "config": {
                       "type": "object",
                       "description": "Custom Sandbox Runtime configuration (only applies when type is 'srt'). Note: Network configuration is controlled by the top-level 'network' field, not here.",
@@ -2046,7 +2088,7 @@
             [
               {
                 "name": "Verify Post-Steps Execution",
-                "run": "echo \"✅ Post-steps are executing correctly\"\necho \"This step runs after the AI agent completes\"\n"
+                "run": "echo \"\u2705 Post-steps are executing correctly\"\necho \"This step runs after the AI agent completes\"\n"
               },
               {
                 "name": "Upload Test Results",
@@ -2387,6 +2429,10 @@
                   "minimum": 1,
                   "maximum": 90,
                   "description": "Number of days to retain uploaded artifacts (1-90 days, default: repository setting)"
+                },
+                "restore-only": {
+                  "type": "boolean",
+                  "description": "If true, only restore the cache without saving it back. Uses actions/cache/restore instead of actions/cache. No artifact upload step will be generated."
                 }
               },
               "additionalProperties": false,
@@ -2423,6 +2469,10 @@
                     "minimum": 1,
                     "maximum": 90,
                     "description": "Number of days to retain uploaded artifacts (1-90 days, default: repository setting)"
+                  },
+                  "restore-only": {
+                    "type": "boolean",
+                    "description": "If true, only restore the cache without saving it back. Uses actions/cache/restore instead of actions/cache. No artifact upload step will be generated."
                   }
                 },
                 "required": ["id", "key"],
@@ -2633,6 +2683,167 @@
               },
               "additionalProperties": false
             }
+          ]
+        },
+        "repo-memory": {
+          "description": "Repo memory configuration for git-based persistent storage",
+          "oneOf": [
+            {
+              "type": "boolean",
+              "description": "Enable repo-memory with default settings"
+            },
+            {
+              "type": "null",
+              "description": "Enable repo-memory with default settings (same as true)"
+            },
+            {
+              "type": "object",
+              "description": "Repo-memory configuration object",
+              "properties": {
+                "target-repo": {
+                  "type": "string",
+                  "description": "Target repository for memory storage (default: current repository). Format: owner/repo"
+                },
+                "branch-name": {
+                  "type": "string",
+                  "description": "Git branch name for memory storage (default: memory/default)"
+                },
+                "file-glob": {
+                  "oneOf": [
+                    {
+                      "type": "string",
+                      "description": "Single file glob pattern for allowed files"
+                    },
+                    {
+                      "type": "array",
+                      "description": "Array of file glob patterns for allowed files",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  ]
+                },
+                "max-file-size": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 104857600,
+                  "description": "Maximum size per file in bytes (default: 10240 = 10KB)"
+                },
+                "max-file-count": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 1000,
+                  "description": "Maximum file count per commit (default: 100)"
+                },
+                "description": {
+                  "type": "string",
+                  "description": "Optional description for the memory that will be shown in the agent prompt"
+                },
+                "create-orphan": {
+                  "type": "boolean",
+                  "description": "Create orphaned branch if it doesn't exist (default: true)"
+                }
+              },
+              "additionalProperties": false,
+              "examples": [
+                {
+                  "branch-name": "memory/session-state"
+                },
+                {
+                  "target-repo": "myorg/memory-repo",
+                  "branch-name": "memory/agent-notes",
+                  "max-file-size": 524288
+                }
+              ]
+            },
+            {
+              "type": "array",
+              "description": "Array of repo-memory configurations for multiple memory locations",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "description": "Memory identifier (required for array notation, default: 'default')"
+                  },
+                  "target-repo": {
+                    "type": "string",
+                    "description": "Target repository for memory storage (default: current repository). Format: owner/repo"
+                  },
+                  "branch-name": {
+                    "type": "string",
+                    "description": "Git branch name for memory storage (default: memory/{id})"
+                  },
+                  "file-glob": {
+                    "oneOf": [
+                      {
+                        "type": "string",
+                        "description": "Single file glob pattern for allowed files"
+                      },
+                      {
+                        "type": "array",
+                        "description": "Array of file glob patterns for allowed files",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    ]
+                  },
+                  "max-file-size": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 104857600,
+                    "description": "Maximum size per file in bytes (default: 10240 = 10KB)"
+                  },
+                  "max-file-count": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 1000,
+                    "description": "Maximum file count per commit (default: 100)"
+                  },
+                  "description": {
+                    "type": "string",
+                    "description": "Optional description for this memory that will be shown in the agent prompt"
+                  },
+                  "create-orphan": {
+                    "type": "boolean",
+                    "description": "Create orphaned branch if it doesn't exist (default: true)"
+                  }
+                },
+                "additionalProperties": false
+              },
+              "minItems": 1,
+              "examples": [
+                [
+                  {
+                    "id": "default",
+                    "branch-name": "memory/default"
+                  },
+                  {
+                    "id": "session",
+                    "branch-name": "memory/session"
+                  }
+                ]
+              ]
+            }
+          ],
+          "examples": [
+            true,
+            null,
+            {
+              "branch-name": "memory/agent-state"
+            },
+            [
+              {
+                "id": "default",
+                "branch-name": "memory/default"
+              },
+              {
+                "id": "logs",
+                "branch-name": "memory/logs",
+                "max-file-size": 524288
+              }
+            ]
           ]
         }
       },
@@ -2845,6 +3056,21 @@
                 "github-token": {
                   "$ref": "#/$defs/github_token",
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
+                },
+                "expires": {
+                  "oneOf": [
+                    {
+                      "type": "integer",
+                      "minimum": 1,
+                      "description": "Number of days until expires"
+                    },
+                    {
+                      "type": "string",
+                      "pattern": "^[0-9]+[dDwWmMyY]$",
+                      "description": "Relative time (e.g., '7d', '2w', '1m', '1y')"
+                    }
+                  ],
+                  "description": "Time until the issue expires and should be automatically closed. Supports integer (days) or relative time format. When set, a maintenance workflow will be generated."
                 }
               },
               "additionalProperties": false,
@@ -2992,6 +3218,21 @@
                   "type": "boolean",
                   "description": "When true, automatically close older discussions matching the same title prefix or labels as 'outdated' with a comment linking to the new discussion. Requires title-prefix or labels to be set. Maximum 10 discussions will be closed. Only runs if discussion creation succeeds.",
                   "default": false
+                },
+                "expires": {
+                  "oneOf": [
+                    {
+                      "type": "integer",
+                      "minimum": 1,
+                      "description": "Number of days until expires"
+                    },
+                    {
+                      "type": "string",
+                      "pattern": "^[0-9]+[dDwWmMyY]$",
+                      "description": "Relative time (e.g., '7d', '2w', '1m', '1y')"
+                    }
+                  ],
+                  "description": "Time until the discussion expires and should be automatically closed. Supports integer (days) or relative time format like '7d' (7 days), '2w' (2 weeks), '1m' (1 month), '1y' (1 year). When set, a maintenance workflow will be generated."
                 }
               },
               "additionalProperties": false,
@@ -3295,6 +3536,21 @@
                 "github-token": {
                   "$ref": "#/$defs/github_token",
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
+                },
+                "expires": {
+                  "oneOf": [
+                    {
+                      "type": "integer",
+                      "minimum": 1,
+                      "description": "Number of days until expires"
+                    },
+                    {
+                      "type": "string",
+                      "pattern": "^[0-9]+[dDwWmMyY]$",
+                      "description": "Relative time (e.g., '7d', '2w', '1m', '1y')"
+                    }
+                  ],
+                  "description": "Time until the pull request expires and should be automatically closed (only for same-repo PRs without target-repo). Supports integer (days) or relative time format."
                 }
               },
               "additionalProperties": false,
@@ -4140,8 +4396,8 @@
             },
             "staged-title": {
               "type": "string",
-              "description": "Custom title template for staged mode preview. Available placeholders: {operation}. Example: '🎭 Preview: {operation}'",
-              "examples": ["🎭 Preview: {operation}", "## Staged Mode: {operation}"]
+              "description": "Custom title template for staged mode preview. Available placeholders: {operation}. Example: '\ud83c\udfad Preview: {operation}'",
+              "examples": ["\ud83c\udfad Preview: {operation}", "## Staged Mode: {operation}"]
             },
             "staged-description": {
               "type": "string",
@@ -4158,15 +4414,26 @@
             },
             "run-success": {
               "type": "string",
-              "description": "Custom message template for successful workflow completion. Available placeholders: {workflow_name}, {run_url}. Default: '✅ Agentic [{workflow_name}]({run_url}) completed successfully.'",
-              "examples": ["✅ Agentic [{workflow_name}]({run_url}) completed successfully.", "✅ [{workflow_name}]({run_url}) finished."]
+              "description": "Custom message template for successful workflow completion. Available placeholders: {workflow_name}, {run_url}. Default: '\u2705 Agentic [{workflow_name}]({run_url}) completed successfully.'",
+              "examples": [
+                "\u2705 Agentic [{workflow_name}]({run_url}) completed successfully.",
+                "\u2705 [{workflow_name}]({run_url}) finished."
+              ]
             },
             "run-failure": {
               "type": "string",
-              "description": "Custom message template for failed workflow. Available placeholders: {workflow_name}, {run_url}, {status}. Default: '❌ Agentic [{workflow_name}]({run_url}) {status} and wasn't able to produce a result.'",
+              "description": "Custom message template for failed workflow. Available placeholders: {workflow_name}, {run_url}, {status}. Default: '\u274c Agentic [{workflow_name}]({run_url}) {status} and wasn't able to produce a result.'",
               "examples": [
-                "❌ Agentic [{workflow_name}]({run_url}) {status} and wasn't able to produce a result.",
-                "❌ [{workflow_name}]({run_url}) {status}."
+                "\u274c Agentic [{workflow_name}]({run_url}) {status} and wasn't able to produce a result.",
+                "\u274c [{workflow_name}]({run_url}) {status}."
+              ]
+            },
+            "detection-failure": {
+              "type": "string",
+              "description": "Custom message template for detection job failure. Available placeholders: {workflow_name}, {run_url}. Default: '\u26a0\ufe0f Security scanning failed for [{workflow_name}]({run_url}). Review the logs for details.'",
+              "examples": [
+                "\u26a0\ufe0f Security scanning failed for [{workflow_name}]({run_url}). Review the logs for details.",
+                "\u26a0\ufe0f Detection job failed in [{workflow_name}]({run_url})."
               ]
             }
           },
@@ -4202,12 +4469,12 @@
       "additionalProperties": false
     },
     "roles": {
-      "description": "Repository access roles required to trigger agentic workflows. Defaults to ['admin', 'maintainer', 'write'] for security. Use 'all' to allow any authenticated user (⚠️ security consideration).",
+      "description": "Repository access roles required to trigger agentic workflows. Defaults to ['admin', 'maintainer', 'write'] for security. Use 'all' to allow any authenticated user (\u26a0\ufe0f security consideration).",
       "oneOf": [
         {
           "type": "string",
           "enum": ["all"],
-          "description": "Allow any authenticated user to trigger the workflow (⚠️ disables permission checking entirely - use with caution)"
+          "description": "Allow any authenticated user to trigger the workflow (\u26a0\ufe0f disables permission checking entirely - use with caution)"
         },
         {
           "type": "array",
@@ -4297,7 +4564,7 @@
       "type": "object",
       "description": "Safe inputs configuration for defining custom lightweight MCP tools as JavaScript, shell scripts, or Python scripts. Tools are mounted in an MCP server and have access to secrets specified by the user. Only one of 'script' (JavaScript), 'run' (shell), or 'py' (Python) must be specified per tool.",
       "patternProperties": {
-        "^[a-z][a-z0-9_-]*$": {
+        "^([a-ln-z][a-z0-9_-]*|m[a-np-z][a-z0-9_-]*|mo[a-ce-z][a-z0-9_-]*|mod[a-df-z][a-z0-9_-]*|mode[a-z0-9_-]+)$": {
           "type": "object",
           "description": "Custom tool definition. The key is the tool name (lowercase alphanumeric with dashes/underscores).",
           "required": ["description"],
@@ -4358,26 +4625,59 @@
                   "API_KEY": "${{ secrets.MY_API_KEY }}"
                 }
               ]
+            },
+            "timeout": {
+              "type": "integer",
+              "description": "Timeout in seconds for tool execution. Default is 60 seconds. Applies to shell (run) and Python (py) tools.",
+              "default": 60,
+              "minimum": 1,
+              "examples": [30, 60, 120, 300]
             }
           },
           "additionalProperties": false,
           "oneOf": [
             {
               "required": ["script"],
-              "not": { "anyOf": [{ "required": ["run"] }, { "required": ["py"] }] }
+              "not": {
+                "anyOf": [
+                  {
+                    "required": ["run"]
+                  },
+                  {
+                    "required": ["py"]
+                  }
+                ]
+              }
             },
             {
               "required": ["run"],
-              "not": { "anyOf": [{ "required": ["script"] }, { "required": ["py"] }] }
+              "not": {
+                "anyOf": [
+                  {
+                    "required": ["script"]
+                  },
+                  {
+                    "required": ["py"]
+                  }
+                ]
+              }
             },
             {
               "required": ["py"],
-              "not": { "anyOf": [{ "required": ["script"] }, { "required": ["run"] }] }
+              "not": {
+                "anyOf": [
+                  {
+                    "required": ["script"]
+                  },
+                  {
+                    "required": ["run"]
+                  }
+                ]
+              }
             }
           ]
         }
       },
-      "additionalProperties": false,
       "examples": [
         {
           "search-issues": {
@@ -4416,7 +4716,15 @@
             }
           }
         }
-      ]
+      ],
+      "properties": {
+        "mode": {
+          "type": "string",
+          "enum": ["http", "stdio"],
+          "default": "http",
+          "description": "Transport mode for the safe-inputs MCP server. 'http' starts the server as a separate step (default), 'stdio' starts the server directly by the agent within the firewall."
+        }
+      }
     },
     "runtimes": {
       "type": "object",
@@ -4770,7 +5078,14 @@
             }
           },
           "then": {
-            "anyOf": [{ "required": ["command"] }, { "required": ["container"] }]
+            "anyOf": [
+              {
+                "required": ["command"]
+              },
+              {
+                "required": ["container"]
+              }
+            ]
           }
         }
       ]

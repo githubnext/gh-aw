@@ -736,3 +736,165 @@ func TestUpdateWorkflow_MergeMode(t *testing.T) {
 		}
 	})
 }
+
+// TestMarshalActionsLockSorted tests that the actions lock marshaling produces sorted output
+func TestMarshalActionsLockSorted(t *testing.T) {
+	actionsLock := &actionsLockFile{
+		Entries: make(map[string]actionsLockEntry),
+	}
+
+	// Add entries in non-alphabetical order
+	actionsLock.Entries["zebra/action@v1"] = actionsLockEntry{
+		Repo:    "zebra/action",
+		Version: "v1",
+		SHA:     "abc123",
+	}
+
+	actionsLock.Entries["actions/checkout@v5"] = actionsLockEntry{
+		Repo:    "actions/checkout",
+		Version: "v5",
+		SHA:     "def456",
+	}
+
+	data, err := marshalActionsLockSorted(actionsLock)
+	if err != nil {
+		t.Fatalf("Expected no error, got: %v", err)
+	}
+
+	result := string(data)
+
+	// Check that actions/checkout comes before zebra/action
+	checkoutIdx := strings.Index(result, "actions/checkout")
+	zebraIdx := strings.Index(result, "zebra/action")
+
+	if checkoutIdx == -1 || zebraIdx == -1 {
+		t.Errorf("Expected both actions in output, got:\n%s", result)
+	}
+
+	if checkoutIdx > zebraIdx {
+		t.Errorf("Expected actions/checkout to appear before zebra/action in sorted output")
+	}
+
+	// Check JSON structure
+	if !strings.Contains(result, `"entries": {`) {
+		t.Error("Expected 'entries' key in JSON output")
+	}
+
+	if !strings.Contains(result, `"repo": "actions/checkout"`) {
+		t.Error("Expected actions/checkout repo in output")
+	}
+
+	if !strings.Contains(result, `"version": "v5"`) {
+		t.Error("Expected v5 version in output")
+	}
+
+	if !strings.Contains(result, `"sha": "def456"`) {
+		t.Error("Expected def456 SHA in output")
+	}
+}
+
+// TestGetActionSHAForTag tests that we can look up action SHAs (requires network)
+func TestGetActionSHAForTag(t *testing.T) {
+	// This test requires network access and GitHub API, so skip in CI
+	if os.Getenv("CI") != "" {
+		t.Skip("Skipping network test in CI")
+	}
+
+	// Test with a known action and version
+	sha, err := getActionSHAForTag("actions/checkout", "v4")
+	if err != nil {
+		t.Skipf("Could not resolve action SHA (network or auth issue): %v", err)
+	}
+
+	// Check SHA format
+	if len(sha) != 40 {
+		t.Errorf("Expected 40-character SHA, got %d characters: %s", len(sha), sha)
+	}
+
+	// Check that it's hexadecimal
+	for _, c := range sha {
+		if !((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f')) {
+			t.Errorf("Expected hexadecimal SHA, got character: %c", c)
+		}
+	}
+}
+
+// TestUpdateActions_NoFile tests behavior when actions-lock.json doesn't exist
+func TestUpdateActions_NoFile(t *testing.T) {
+	// Create a temporary directory without an actions-lock.json file
+	tmpDir := testutil.TempDir(t, "test-*")
+	originalDir, _ := os.Getwd()
+	defer os.Chdir(originalDir)
+
+	os.Chdir(tmpDir)
+
+	// Should not error when file doesn't exist
+	err := UpdateActions(false, false)
+	if err != nil {
+		t.Errorf("Expected no error when actions-lock.json doesn't exist, got: %v", err)
+	}
+}
+
+// TestUpdateActions_EmptyFile tests behavior with empty actions lock file
+func TestUpdateActions_EmptyFile(t *testing.T) {
+	// Create a temporary directory with an empty actions-lock.json
+	tmpDir := testutil.TempDir(t, "test-*")
+	originalDir, _ := os.Getwd()
+	defer os.Chdir(originalDir)
+
+	// Create .github/aw directory
+	awDir := filepath.Join(tmpDir, ".github", "aw")
+	if err := os.MkdirAll(awDir, 0755); err != nil {
+		t.Fatalf("Failed to create .github/aw directory: %v", err)
+	}
+
+	// Create an empty actions-lock.json
+	actionsLockPath := filepath.Join(awDir, "actions-lock.json")
+	emptyLock := `{
+  "entries": {}
+}`
+	if err := os.WriteFile(actionsLockPath, []byte(emptyLock), 0644); err != nil {
+		t.Fatalf("Failed to write empty actions-lock.json: %v", err)
+	}
+
+	os.Chdir(tmpDir)
+
+	// Should not error with empty file
+	err := UpdateActions(false, false)
+	if err != nil {
+		t.Errorf("Expected no error with empty actions-lock.json, got: %v", err)
+	}
+}
+
+// TestUpdateActions_InvalidJSON tests behavior with invalid JSON
+func TestUpdateActions_InvalidJSON(t *testing.T) {
+	// Create a temporary directory with invalid JSON
+	tmpDir := testutil.TempDir(t, "test-*")
+	originalDir, _ := os.Getwd()
+	defer os.Chdir(originalDir)
+
+	// Create .github/aw directory
+	awDir := filepath.Join(tmpDir, ".github", "aw")
+	if err := os.MkdirAll(awDir, 0755); err != nil {
+		t.Fatalf("Failed to create .github/aw directory: %v", err)
+	}
+
+	// Create an invalid actions-lock.json
+	actionsLockPath := filepath.Join(awDir, "actions-lock.json")
+	invalidJSON := `{ invalid json`
+	if err := os.WriteFile(actionsLockPath, []byte(invalidJSON), 0644); err != nil {
+		t.Fatalf("Failed to write invalid actions-lock.json: %v", err)
+	}
+
+	os.Chdir(tmpDir)
+
+	// Should error with invalid JSON
+	err := UpdateActions(false, false)
+	if err == nil {
+		t.Error("Expected error with invalid JSON, got nil")
+	}
+
+	if !strings.Contains(err.Error(), "parse") {
+		t.Errorf("Expected parse error, got: %v", err)
+	}
+}

@@ -720,6 +720,22 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 		}
 	}
 
+	// Generate maintenance workflow if any workflow uses expires field
+	if !noEmit {
+		absWorkflowDir := workflowsDir
+		if !filepath.IsAbs(absWorkflowDir) {
+			absWorkflowDir = filepath.Join(gitRoot, workflowDir)
+		}
+
+		if err := workflow.GenerateMaintenanceWorkflow(workflowDataList, absWorkflowDir, verbose); err != nil {
+			if strict {
+				return workflowDataList, fmt.Errorf("failed to generate maintenance workflow: %w", err)
+			}
+			// Non-strict mode: just report as warning
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to generate maintenance workflow: %v", err)))
+		}
+	}
+
 	// Note: Instructions are only written by the init command
 	// The compile command should not write instruction files
 

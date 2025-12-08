@@ -219,6 +219,9 @@ func renderSafeOutputsMCPConfigWithOptions(yaml *strings.Builder, isLast bool, i
 		"GH_AW_ASSETS_ALLOWED_EXTS",
 		"GITHUB_REPOSITORY",
 		"GITHUB_SERVER_URL",
+		"GITHUB_SHA",
+		"GITHUB_WORKSPACE",
+		"DEFAULT_BRANCH",
 	}
 
 	renderBuiltinMCPServerBlock(
@@ -291,7 +294,7 @@ func renderSafeOutputsMCPConfigTOML(yaml *strings.Builder) {
 	yaml.WriteString("            \"/tmp/gh-aw/safeoutputs/mcp-server.cjs\",\n")
 	yaml.WriteString("          ]\n")
 	// Use env_vars array to reference environment variables instead of embedding GitHub Actions expressions
-	yaml.WriteString("          env_vars = [\"GH_AW_SAFE_OUTPUTS\", \"GH_AW_ASSETS_BRANCH\", \"GH_AW_ASSETS_MAX_SIZE_KB\", \"GH_AW_ASSETS_ALLOWED_EXTS\", \"GITHUB_REPOSITORY\", \"GITHUB_SERVER_URL\"]\n")
+	yaml.WriteString("          env_vars = [\"GH_AW_SAFE_OUTPUTS\", \"GH_AW_ASSETS_BRANCH\", \"GH_AW_ASSETS_MAX_SIZE_KB\", \"GH_AW_ASSETS_ALLOWED_EXTS\", \"GITHUB_REPOSITORY\", \"GITHUB_SERVER_URL\", \"GITHUB_SHA\", \"GITHUB_WORKSPACE\", \"DEFAULT_BRANCH\"]\n")
 }
 
 // renderAgenticWorkflowsMCPConfigTOML generates the Agentic Workflows MCP server configuration in TOML format for Codex
@@ -950,21 +953,11 @@ func getMCPConfig(toolConfig map[string]any, toolName string) (*parser.MCPServer
 	return result, nil
 }
 
-// isMCPType checks if a type string represents an MCP-compatible type
-func isMCPType(typeStr string) bool {
-	switch typeStr {
-	case "stdio", "http", "local":
-		return true
-	default:
-		return false
-	}
-}
-
 // hasMCPConfig checks if a tool configuration has MCP configuration
 func hasMCPConfig(toolConfig map[string]any) (bool, string) {
 	// Check for direct type field
 	if mcpType, hasType := toolConfig["type"]; hasType {
-		if typeStr, ok := mcpType.(string); ok && isMCPType(typeStr) {
+		if typeStr, ok := mcpType.(string); ok && parser.IsMCPType(typeStr) {
 			// Normalize "local" to "stdio" for consistency
 			if typeStr == "local" {
 				return true, "stdio"

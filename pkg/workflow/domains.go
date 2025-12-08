@@ -19,9 +19,11 @@ var ecosystemDomains map[string][]string
 
 // CopilotDefaultDomains are the default domains required for GitHub Copilot CLI authentication and operation
 var CopilotDefaultDomains = []string{
+	"api.business.githubcopilot.com",
 	"api.enterprise.githubcopilot.com",
 	"api.github.com",
 	"github.com",
+	"host.docker.internal",
 	"raw.githubusercontent.com",
 	"registry.npmjs.org",
 }
@@ -143,9 +145,17 @@ func matchesDomain(domain, pattern string) bool {
 // GetCopilotAllowedDomains merges Copilot default domains with NetworkPermissions allowed domains
 // Returns a deduplicated, sorted, comma-separated string suitable for AWF's --allow-domains flag
 func GetCopilotAllowedDomains(network *NetworkPermissions) string {
+	return GetCopilotAllowedDomainsWithSafeInputs(network, false)
+}
+
+// GetCopilotAllowedDomainsWithSafeInputs merges Copilot default domains with NetworkPermissions allowed domains
+// Returns a deduplicated, sorted, comma-separated string suitable for AWF's --allow-domains flag
+// The hasSafeInputs parameter is maintained for backward compatibility but is no longer used
+// since host.docker.internal is now in CopilotDefaultDomains
+func GetCopilotAllowedDomainsWithSafeInputs(network *NetworkPermissions, hasSafeInputs bool) string {
 	domainMap := make(map[string]bool)
 
-	// Add Copilot default domains
+	// Add Copilot default domains (includes host.docker.internal)
 	for _, domain := range CopilotDefaultDomains {
 		domainMap[domain] = true
 	}
@@ -167,5 +177,29 @@ func GetCopilotAllowedDomains(network *NetworkPermissions) string {
 	SortStrings(domains)
 
 	// Join with commas for AWF --allow-domains flag
+	return strings.Join(domains, ",")
+}
+
+// computeAllowedDomainsForSanitization computes the allowed domains for sanitization
+// based on the engine and network configuration, matching what's provided to the firewall
+func (c *Compiler) computeAllowedDomainsForSanitization(data *WorkflowData) string {
+	// Determine which engine is being used
+	var engineID string
+	if data.EngineConfig != nil {
+		engineID = data.EngineConfig.ID
+	} else if data.AI != "" {
+		engineID = data.AI
+	}
+
+	// Compute domains based on engine type
+	// For Copilot with firewall support, use GetCopilotAllowedDomains which merges
+	// Copilot defaults with network permissions
+	// For other engines, use GetAllowedDomains which uses network permissions only
+	if engineID == "copilot" {
+		return GetCopilotAllowedDomains(data.NetworkPermissions)
+	}
+
+	// For Claude, Codex, and other engines, use network permissions
+	domains := GetAllowedDomains(data.NetworkPermissions)
 	return strings.Join(domains, ",")
 }

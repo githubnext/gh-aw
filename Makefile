@@ -99,6 +99,44 @@ fuzz:
 	go test -fuzz=FuzzParseFrontmatter -fuzztime=30s ./pkg/parser/
 	go test -fuzz=FuzzExpressionParser -fuzztime=30s ./pkg/workflow/
 
+# Run security regression tests
+.PHONY: test-security
+test-security:
+	@echo "Running security regression tests..."
+	go test -v -timeout=3m -run '^TestSecurity' ./pkg/workflow/... ./pkg/cli/...
+	@echo "Running security fuzz test seed corpus..."
+	go test -v -timeout=3m -run '^FuzzYAML|^FuzzTemplate|^FuzzInput|^FuzzNetwork|^FuzzSafeJob' ./pkg/workflow/...
+	@echo "✓ Security regression tests passed"
+
+# Security scanning with gosec, govulncheck, and trivy
+.PHONY: security-scan
+security-scan: security-gosec security-govulncheck security-trivy
+	@echo "✓ All security scans completed"
+
+.PHONY: security-gosec
+security-gosec:
+	@echo "Running gosec security scanner..."
+	@command -v gosec >/dev/null || go install github.com/securego/gosec/v2/cmd/gosec@latest
+	gosec -fmt=json -out=gosec-report.json -stdout -exclude-generated ./...
+	@echo "✓ Gosec scan complete (results in gosec-report.json)"
+
+.PHONY: security-govulncheck
+security-govulncheck:
+	@echo "Running govulncheck..."
+	@command -v govulncheck >/dev/null || go install golang.org/x/vuln/cmd/govulncheck@latest
+	govulncheck ./...
+	@echo "✓ Govulncheck complete"
+
+.PHONY: security-trivy
+security-trivy:
+	@echo "Running trivy filesystem scan..."
+	@if command -v trivy >/dev/null 2>&1; then \
+		trivy fs --severity HIGH,CRITICAL .; \
+	else \
+		echo "⚠ Trivy not installed. Install with: brew install trivy (macOS) or see https://aquasecurity.github.io/trivy/latest/getting-started/installation/"; \
+	fi
+	@echo "✓ Trivy scan complete"
+
 # Test JavaScript files
 .PHONY: test-js
 test-js: build-js
@@ -341,9 +379,27 @@ pull-main:
 release: pull-main build
 	@node scripts/changeset.js release
 
+# Generate Software Bill of Materials (SBOM)
+.PHONY: sbom
+sbom:
+	@if ! command -v syft >/dev/null 2>&1; then \
+		echo "Error: syft is not installed."; \
+		echo ""; \
+		echo "Install syft to generate SBOMs:"; \
+		echo "  curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b /usr/local/bin"; \
+		echo ""; \
+		echo "Or visit: https://github.com/anchore/syft#installation"; \
+		exit 1; \
+	fi
+	@echo "Generating SBOM in SPDX format..."
+	syft packages . -o spdx-json=sbom.spdx.json
+	@echo "Generating SBOM in CycloneDX format..."
+	syft packages . -o cyclonedx-json=sbom.cdx.json
+	@echo "✓ SBOM files generated: sbom.spdx.json, sbom.cdx.json"
+
 # Agent should run this task before finishing its turns
 .PHONY: agent-finish
-agent-finish: deps-dev fmt lint build test-all recompile dependabot generate-schema-docs generate-labs
+agent-finish: deps-dev fmt lint build test-all recompile dependabot generate-schema-docs generate-labs security-scan
 	@echo "Agent finished tasks successfully."
 
 # Help target
@@ -354,6 +410,7 @@ help:
 	@echo "  build-all        - Build binaries for all platforms"
 	@echo "  test             - Run Go tests (unit + integration)"
 	@echo "  test-unit        - Run Go unit tests only (faster)"
+	@echo "  test-security    - Run security regression tests"
 	@echo "  test-js          - Run JavaScript tests"
 	@echo "  test-all         - Run all tests (Go and JavaScript)"
 	@echo "  test-coverage    - Run tests with coverage report"
@@ -374,6 +431,10 @@ help:
 	@echo "  lint-cjs         - Lint JavaScript (.cjs) and JSON files in pkg/workflow/js"
 	@echo "  lint-json        - Lint JSON files in pkg directory (excluding pkg/workflow/js)"
 	@echo "  lint-errors      - Lint error messages for quality compliance"
+	@echo "  security-scan    - Run all security scans (gosec, govulncheck, trivy)"
+	@echo "  security-gosec   - Run gosec Go security scanner"
+	@echo "  security-govulncheck - Run govulncheck for known vulnerabilities"
+	@echo "  security-trivy   - Run trivy filesystem scanner"
 	@echo "  validate-workflows - Validate compiled workflow lock files"
 	@echo "  validate         - Run all validations (fmt-check, lint, validate-workflows)"
 	@echo "  install          - Install binary locally"
@@ -384,7 +445,8 @@ help:
 	@echo "  generate-schema-docs - Generate frontmatter full reference documentation from JSON schema"
 	@echo "  generate-labs              - Generate labs documentation page"
 
-	@echo "  agent-finish     - Complete validation sequence (build, test, recompile, fmt, lint)"
+	@echo "  agent-finish     - Complete validation sequence (build, test, recompile, fmt, lint, security-scan)"
 	@echo "  version   - Preview next version from changesets"
 	@echo "  release   - Create release using changesets (depends on test)"
+	@echo "  sbom             - Generate SBOM in SPDX and CycloneDX formats (requires syft)"
 	@echo "  help             - Show this help message"

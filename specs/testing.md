@@ -31,6 +31,11 @@ go test -run FuzzExpressionParser ./pkg/workflow/
   - 59 seed cases covering allowed expressions, malicious injections, and edge cases
   - Validates security controls against secret injection, script tags, command injection
   - Ensures parser handles malformed input without panic
+- **FuzzYAMLParsing** (`pkg/workflow/security_fuzz_test.go`): Tests YAML parsing for DoS and malformed input handling
+- **FuzzTemplateRendering** (`pkg/workflow/security_fuzz_test.go`): Tests template rendering for injection attacks
+- **FuzzInputValidation** (`pkg/workflow/security_fuzz_test.go`): Tests input validation functions for edge cases
+- **FuzzNetworkPermissions** (`pkg/workflow/security_fuzz_test.go`): Tests network permission parsing for injection
+- **FuzzSafeJobConfig** (`pkg/workflow/security_fuzz_test.go`): Tests safe job configuration parsing
 
 **Fuzz Test Results:**
 - Seed corpus includes authorized and unauthorized expression patterns
@@ -45,7 +50,56 @@ Fuzz tests can be run in CI with time limits:
   run: go test -fuzz=FuzzExpressionParser -fuzztime=30s ./pkg/workflow/
 ```
 
-### 3. Benchmarks (`pkg/*/_benchmark_test.go`)
+### 3. Security Regression Tests (`*_security_regression_test.go`)
+
+Security regression tests ensure that security fixes remain effective over time and prevent reintroduction of vulnerabilities.
+
+**Running Security Tests:**
+```bash
+# Run all security regression tests
+make test-security
+
+# Run security tests manually
+go test -v -run '^TestSecurity' ./pkg/workflow/... ./pkg/cli/...
+
+# Run specific security test category
+go test -v -run 'TestSecurityTemplate' ./pkg/workflow/
+go test -v -run 'TestSecurityDoS' ./pkg/workflow/
+go test -v -run 'TestSecurityCLI' ./pkg/cli/
+```
+
+**Security Test Categories:**
+
+#### Injection Attack Prevention (`pkg/workflow/security_regression_test.go`)
+- **Template Injection**: Tests that GitHub expression injection (e.g., `${{ secrets.TOKEN }}`) is blocked
+- **Command Injection**: Tests that shell command injection patterns are handled safely
+- **YAML Injection**: Tests that YAML-based injection attacks are prevented
+- **XSS Prevention**: Tests that script injection patterns don't leak sensitive data
+
+#### DoS Prevention (`pkg/workflow/security_regression_test.go`)
+- **Large Input Handling**: Tests that excessively large inputs don't cause resource exhaustion
+- **Nested YAML**: Tests that deeply nested structures don't cause stack overflow
+- **Billion Laughs Attack**: Tests protection against YAML entity expansion attacks
+
+#### Authorization (`pkg/workflow/security_regression_test.go`)
+- **Unauthorized Access**: Tests that unauthorized expression contexts are rejected
+- **Token Leakage**: Tests that tokens cannot be leaked through various expression paths
+- **Safe Outputs System**: Tests that safe-outputs properly restricts operations
+
+#### CLI Security (`pkg/cli/security_regression_test.go`)
+- **Command Injection Prevention**: Tests that CLI commands sanitize inputs properly
+- **Path Traversal Prevention**: Tests that file paths are sanitized
+- **Input Size Limits**: Tests that large inputs are handled without DoS
+- **Environment Variable Sanitization**: Tests safe handling of environment variables
+- **Output Directory Safety**: Tests that output directories are validated
+
+**Security Test Patterns:**
+- Use `t.Run()` for sub-tests to organize test cases
+- Use table-driven tests with clear descriptions
+- Include both positive (should block) and negative (should allow) test cases
+- Document the security vulnerability being prevented
+
+### 4. Benchmarks (`pkg/*/_benchmark_test.go`)
 
 Performance benchmarks measure the speed of critical operations. Run benchmarks to:
 - Detect performance regressions
@@ -99,7 +153,7 @@ benchstat bench_baseline.txt bench_new.txt
 - Log parsing: ~50μs - 1ms depending on log size
 - Schema validation: ~35μs - 130μs depending on complexity
 
-### 4. Test Validation Framework (`test_validation.go`)
+### 5. Test Validation Framework (`test_validation.go`)
 
 Comprehensive validation system that ensures:
 
@@ -131,6 +185,9 @@ Comprehensive validation system that ensures:
 # Run all unit tests
 go test ./pkg/... -v
 
+# Run security regression tests
+make test-security
+
 # Run comprehensive validation
 go run test_validation.go
 ```
@@ -140,6 +197,29 @@ go run test_validation.go
 - **Sample Workflows**: ✅ 5 sample files validated
 - **Test Coverage**: ✅ Coverage reporting functional
 - **CLI Behavior**: ✅ Binary builds and executes correctly
+- **Security Regression Tests**: ✅ Injection, DoS, and authorization scenarios covered
+
+## Security Testing Strategy
+
+### Defense in Depth
+Security tests are organized in layers:
+
+1. **Input Validation Layer**: Fuzz tests and input validation tests ensure all user inputs are handled safely
+2. **Expression Safety Layer**: Expression parser tests prevent secret and token leakage
+3. **Compilation Layer**: Workflow compilation tests ensure secure YAML generation
+4. **Output Layer**: Safe output tests ensure operations are properly restricted
+
+### Test-Driven Security
+When adding new features:
+1. First, add security regression tests for the feature
+2. Then, implement the feature with security controls
+3. Finally, verify all security tests pass
+
+### Continuous Security Validation
+Security tests are integrated into:
+- CI/CD pipeline (via `make test` which includes security tests)
+- Pre-commit validation (via `make agent-finish`)
+- Fuzz testing job (via the `fuzz` CI job)
 
 ## Testing Philosophy
 
@@ -163,6 +243,7 @@ As the Go implementation develops:
 - Basic workflow compilation interface
 - Error handling for malformed inputs
 - **Performance benchmarks** for critical operations (62+ benchmarks)
+- **Security regression tests** for injection, DoS, and authorization scenarios
 
 ### 🔄 Interface Testing (Ready for Implementation)
 - CLI command execution (stubs tested)
@@ -184,6 +265,7 @@ This testing framework ensures:
 3. **Behavioral Compatibility**: Go implementation will match bash behavior exactly
 4. **Code Quality**: High test coverage and comprehensive validation
 5. **Future Readiness**: Testing infrastructure scales with implementation progress
+6. **Security Assurance**: Security fixes remain effective over time
 
 ## Test Maintenance
 
@@ -192,7 +274,8 @@ The testing framework is designed to be:
 - **Comprehensive**: Covers all aspects of functionality and interface design
 - **Maintainable**: Clear structure and documentation for future updates
 - **Scalable**: Easy to add new tests as functionality is implemented
+- **Security-focused**: Security regression tests prevent reintroduction of vulnerabilities
 
 ## Conclusion
 
-This comprehensive testing framework provides a solid foundation for ensuring the Go implementation of gh-aw maintains compatibility with the bash version while providing high-quality, reliable functionality. The framework is immediately useful for current development and ready to scale as implementation progresses.
+This comprehensive testing framework provides a solid foundation for ensuring the Go implementation of gh-aw maintains compatibility with the bash version while providing high-quality, reliable, and secure functionality. The framework is immediately useful for current development and ready to scale as implementation progresses.

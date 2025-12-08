@@ -240,7 +240,7 @@ func TestGitHubToolToToolsetMap_Completeness(t *testing.T) {
 func TestGitHubToolToToolsetMap_ConsistencyWithDocumentation(t *testing.T) {
 	// Sample of tools that should be in the map based on documentation
 	expectedMappings := map[string]string{
-		"get_me":                      "context",
+		"get_me":                      "users",
 		"get_repository":              "repos",
 		"get_file_contents":           "repos",
 		"list_issues":                 "issues",

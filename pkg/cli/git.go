@@ -113,6 +113,46 @@ func stageGitAttributesIfChanged() error {
 	return exec.Command("git", "-C", gitRoot, "add", gitAttributesPath).Run()
 }
 
+// ensureLogsGitignore ensures that .github/aw/logs/.gitignore exists to ignore log files
+func ensureLogsGitignore() error {
+	gitLog.Print("Ensuring .github/aw/logs/.gitignore exists")
+	gitRoot, err := findGitRoot()
+	if err != nil {
+		return err // Not in a git repository, skip
+	}
+
+	logsDir := filepath.Join(gitRoot, ".github", "aw", "logs")
+	gitignorePath := filepath.Join(logsDir, ".gitignore")
+
+	// Check if .gitignore already exists
+	if _, err := os.Stat(gitignorePath); err == nil {
+		gitLog.Print(".github/aw/logs/.gitignore already exists")
+		return nil
+	}
+
+	gitLog.Print("Creating .github/aw/logs directory and .gitignore")
+	// Create the logs directory if it doesn't exist
+	if err := os.MkdirAll(logsDir, 0755); err != nil {
+		gitLog.Printf("Failed to create logs directory: %v", err)
+		return fmt.Errorf("failed to create .github/aw/logs directory: %w", err)
+	}
+
+	// Write the .gitignore file
+	gitignoreContent := `# Ignore all downloaded workflow logs
+*
+
+# But keep the .gitignore file itself
+!.gitignore
+`
+	if err := os.WriteFile(gitignorePath, []byte(gitignoreContent), 0644); err != nil {
+		gitLog.Printf("Failed to write .gitignore: %v", err)
+		return fmt.Errorf("failed to write .github/aw/logs/.gitignore: %w", err)
+	}
+
+	gitLog.Print("Successfully created .github/aw/logs/.gitignore")
+	return nil
+}
+
 // getCurrentBranch gets the current git branch name
 func getCurrentBranch() (string, error) {
 	gitLog.Print("Getting current git branch")
@@ -209,4 +249,106 @@ func checkCleanWorkingDirectory(verbose bool) error {
 		fmt.Printf("Working directory is clean\n")
 	}
 	return nil
+}
+
+// WorkflowFileStatus represents the status of a workflow file in git
+type WorkflowFileStatus struct {
+	IsModified         bool // File has unstaged changes
+	IsStaged           bool // File has staged changes
+	HasUnpushedCommits bool // File has unpushed commits affecting it
+}
+
+// checkWorkflowFileStatus checks if a workflow file has local modifications, staged changes, or unpushed commits
+func checkWorkflowFileStatus(workflowPath string) (*WorkflowFileStatus, error) {
+	gitLog.Printf("Checking status for workflow file: %s", workflowPath)
+
+	status := &WorkflowFileStatus{}
+
+	// Check if we're in a git repository
+	if !isGitRepo() {
+		gitLog.Print("Not in a git repository")
+		return status, nil
+	}
+
+	// Get the absolute path relative to git root
+	gitRoot, err := findGitRoot()
+	if err != nil {
+		gitLog.Printf("Failed to find git root: %v", err)
+		return status, nil // Not in a git repository, return empty status
+	}
+
+	// Make path relative to git root if it's absolute
+	var relPath string
+	if filepath.IsAbs(workflowPath) {
+		var err error
+		relPath, err = filepath.Rel(gitRoot, workflowPath)
+		if err != nil {
+			gitLog.Printf("Failed to make path relative: %v", err)
+			relPath = workflowPath
+		}
+	} else {
+		relPath = workflowPath
+	}
+
+	gitLog.Printf("Checking git status for: %s", relPath)
+
+	// Check for modified or staged changes using git status --porcelain
+	cmd := exec.Command("git", "-C", gitRoot, "status", "--porcelain", relPath)
+	output, err := cmd.Output()
+	if err != nil {
+		gitLog.Printf("Failed to check git status: %v", err)
+		return status, nil // Ignore error, return empty status
+	}
+
+	statusOutput := string(output) // Don't trim - the leading space is significant!
+	if len(statusOutput) > 0 {
+		gitLog.Printf("Git status output: %q", statusOutput)
+		// Parse the status line (format: XY filename)
+		// X = index (staged) status, Y = working tree (unstaged) status
+		// The format is exactly 2 characters followed by a space and then the filename
+		if len(statusOutput) >= 2 {
+			stagedStatus := statusOutput[0]
+			unstagedStatus := statusOutput[1]
+
+			// Check if file is staged (first character is not space or ?)
+			if stagedStatus != ' ' && stagedStatus != '?' {
+				status.IsStaged = true
+				gitLog.Print("File has staged changes")
+			}
+
+			// Check if file is modified in working tree (second character is M or other modification indicators)
+			if unstagedStatus == 'M' || unstagedStatus == 'D' || unstagedStatus == 'A' {
+				status.IsModified = true
+				gitLog.Print("File has unstaged modifications")
+			}
+		}
+	}
+
+	// Check for unpushed commits that affect this file
+	// First, check if there's a remote tracking branch
+	cmd = exec.Command("git", "-C", gitRoot, "rev-parse", "--abbrev-ref", "@{u}")
+	output, err = cmd.Output()
+	if err != nil {
+		// No upstream branch configured, skip unpushed commits check
+		gitLog.Print("No upstream branch configured")
+		return status, nil
+	}
+
+	upstream := strings.TrimSpace(string(output))
+	gitLog.Printf("Upstream branch: %s", upstream)
+
+	// Check if there are commits in the current branch that affect this file and aren't in upstream
+	cmd = exec.Command("git", "-C", gitRoot, "log", fmt.Sprintf("%s..HEAD", upstream), "--oneline", "--", relPath)
+	output, err = cmd.Output()
+	if err != nil {
+		gitLog.Printf("Failed to check unpushed commits: %v", err)
+		return status, nil // Ignore error, return current status
+	}
+
+	if len(strings.TrimSpace(string(output))) > 0 {
+		status.HasUnpushedCommits = true
+		gitLog.Print("File has unpushed commits")
+	}
+
+	return status, nil
 }

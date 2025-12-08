@@ -3,6 +3,8 @@ package workflow
 import (
 	"strings"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/parser"
 )
 
 // TestMapToolConfigGetString tests the GetString method of MapToolConfig
@@ -369,7 +371,7 @@ func TestMapToolConfigGetStringMap(t *testing.T) {
 	}
 }
 
-// TestIsMCPType tests the isMCPType function
+// TestIsMCPType tests the unified parser.IsMCPType function
 func TestIsMCPType(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -435,9 +437,9 @@ func TestIsMCPType(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := isMCPType(tt.typeStr)
+			got := parser.IsMCPType(tt.typeStr)
 			if got != tt.expected {
-				t.Errorf("isMCPType(%q) = %v, want %v", tt.typeStr, got, tt.expected)
+				t.Errorf("parser.IsMCPType(%q) = %v, want %v", tt.typeStr, got, tt.expected)
 			}
 		})
 	}

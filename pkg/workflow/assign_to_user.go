@@ -2,7 +2,11 @@ package workflow
 
 import (
 	"fmt"
+
+	"github.com/githubnext/gh-aw/pkg/logger"
 )
+
+var assignToUserLog = logger.New("workflow:assign_to_user")
 
 // AssignToUserConfig holds configuration for assigning users to issues from agent output
 type AssignToUserConfig struct {
@@ -13,6 +17,8 @@ type AssignToUserConfig struct {
 
 // buildAssignToUserJob creates the assign_to_user job
 func (c *Compiler) buildAssignToUserJob(data *WorkflowData, mainJobName string) (*Job, error) {
+	assignToUserLog.Printf("Building assign_to_user job for workflow: %s, main_job: %s", data.Name, mainJobName)
+
 	if data.SafeOutputs == nil || data.SafeOutputs.AssignToUser == nil {
 		return nil, fmt.Errorf("safe-outputs.assign-to-user configuration is required")
 	}
@@ -24,6 +30,7 @@ func (c *Compiler) buildAssignToUserJob(data *WorkflowData, mainJobName string) 
 	if cfg.Max > 0 {
 		maxCount = cfg.Max
 	}
+	assignToUserLog.Printf("Configuration: max_count=%d, allowed_count=%d, target=%s", maxCount, len(cfg.Allowed), cfg.Target)
 
 	// Build custom environment variables using shared helpers
 	listJobConfig := ListJobConfig{
@@ -66,6 +73,7 @@ func (c *Compiler) buildAssignToUserJob(data *WorkflowData, mainJobName string) 
 // parseAssignToUserConfig handles assign-to-user configuration
 func (c *Compiler) parseAssignToUserConfig(outputMap map[string]any) *AssignToUserConfig {
 	if configData, exists := outputMap["assign-to-user"]; exists {
+		assignToUserLog.Print("Parsing assign-to-user configuration")
 		assignToUserConfig := &AssignToUserConfig{}
 
 		if configMap, ok := configData.(map[string]any); ok {
@@ -76,9 +84,11 @@ func (c *Compiler) parseAssignToUserConfig(outputMap map[string]any) *AssignToUs
 
 			// Parse common base fields (github-token, max) with default max of 1
 			c.parseBaseSafeOutputConfig(configMap, &assignToUserConfig.BaseSafeOutputConfig, 1)
+			assignToUserLog.Printf("Parsed configuration: allowed_count=%d, target=%s", len(assignToUserConfig.Allowed), assignToUserConfig.Target)
 		} else {
 			// If configData is nil or not a map (e.g., "assign-to-user:" with no value),
 			// use defaults
+			assignToUserLog.Print("Using default configuration")
 			assignToUserConfig.Max = 1
 		}
 

@@ -192,3 +192,66 @@ func TestExtractActionsFromLockFileInvalidFile(t *testing.T) {
 		t.Error("Expected error when reading non-existent file, got nil")
 	}
 }
+
+func TestExtractActionsFromLockFileWithVersionComments(t *testing.T) {
+	// Create a temporary lock file with version comments
+	tmpDir := testutil.TempDir(t, "test-*")
+	lockFile := filepath.Join(tmpDir, "test.lock.yml")
+
+	lockContent := `
+name: Test Workflow
+on: push
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+      - uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6
+      - uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+      - name: Run tests
+        run: npm test
+`
+
+	if err := os.WriteFile(lockFile, []byte(lockContent), 0644); err != nil {
+		t.Fatalf("Failed to create test lock file: %v", err)
+	}
+
+	// Extract actions
+	actions, err := ExtractActionsFromLockFile(lockFile)
+	if err != nil {
+		t.Fatalf("ExtractActionsFromLockFile failed: %v", err)
+	}
+
+	// Verify we extracted the expected actions with versions
+	if len(actions) != 3 {
+		t.Errorf("Expected 3 actions, got %d", len(actions))
+	}
+
+	// Create a map to easily look up actions by repo
+	actionMap := make(map[string]ActionUsage)
+	for _, action := range actions {
+		actionMap[action.Repo] = action
+	}
+
+	// Verify versions were extracted correctly from comments
+	tests := []struct {
+		repo            string
+		expectedVersion string
+	}{
+		{"actions/checkout", "v5"},
+		{"actions/setup-node", "v6"},
+		{"actions/github-script", "v7.0.1"},
+	}
+
+	for _, tt := range tests {
+		action, found := actionMap[tt.repo]
+		if !found {
+			t.Errorf("Expected to find action %s, but it was not extracted", tt.repo)
+			continue
+		}
+
+		if action.Version != tt.expectedVersion {
+			t.Errorf("For %s: expected version %s, got %s", tt.repo, tt.expectedVersion, action.Version)
+		}
+	}
+}

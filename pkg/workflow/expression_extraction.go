@@ -122,7 +122,7 @@ func (e *ExpressionExtractor) generateEnvVarName(content string) string {
 }
 
 // ReplaceExpressionsWithEnvVars replaces all ${{ ... }} expressions in the markdown
-// with references to their corresponding environment variables
+// with references to their corresponding environment variables using placeholder format
 func (e *ExpressionExtractor) ReplaceExpressionsWithEnvVars(markdown string) string {
 	expressionExtractionLog.Printf("Replacing expressions with env vars: mapping_count=%d", len(e.mappings))
 
@@ -140,10 +140,10 @@ func (e *ExpressionExtractor) ReplaceExpressionsWithEnvVars(markdown string) str
 	})
 
 	// Replace each expression with its environment variable reference
+	// Use __VAR__ placeholder format to prevent template injection
 	for _, mapping := range mappings {
-		// Use ${VAR_NAME} syntax for safety in shell scripts
-		envVarRef := fmt.Sprintf("${%s}", mapping.EnvVar)
-		result = strings.ReplaceAll(result, mapping.Original, envVarRef)
+		placeholder := fmt.Sprintf("__%s__", mapping.EnvVar)
+		result = strings.ReplaceAll(result, mapping.Original, placeholder)
 	}
 
 	return result

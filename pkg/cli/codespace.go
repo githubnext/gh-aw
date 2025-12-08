@@ -5,27 +5,37 @@ import (
 	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/console"
+	"github.com/githubnext/gh-aw/pkg/logger"
 )
+
+var codespaceLog = logger.New("cli:codespace")
 
 // isRunningInCodespace checks if the current process is running in a GitHub Codespace
 // by checking for the CODESPACES environment variable
 func isRunningInCodespace() bool {
 	// GitHub Codespaces sets CODESPACES=true environment variable
-	return strings.ToLower(os.Getenv("CODESPACES")) == "true"
+	isCodespace := strings.ToLower(os.Getenv("CODESPACES")) == "true"
+	codespaceLog.Printf("Codespace detection: is_codespace=%v", isCodespace)
+	return isCodespace
 }
 
 // is403PermissionError checks if an error message contains indicators of a 403 permission error
 func is403PermissionError(errorMsg string) bool {
 	errorLower := strings.ToLower(errorMsg)
 	// Check for common 403 error patterns
-	return strings.Contains(errorLower, "403") ||
+	is403 := strings.Contains(errorLower, "403") ||
 		strings.Contains(errorLower, "forbidden") ||
 		(strings.Contains(errorLower, "permission") && strings.Contains(errorLower, "denied"))
+	if is403 {
+		codespaceLog.Print("Detected 403 permission error")
+	}
+	return is403
 }
 
 // getCodespacePermissionErrorMessage returns a helpful error message for codespace users
 // experiencing 403 permission errors when running workflows
 func getCodespacePermissionErrorMessage() string {
+	codespaceLog.Print("Generating codespace permission error message")
 	var msg strings.Builder
 
 	msg.WriteString("\n")

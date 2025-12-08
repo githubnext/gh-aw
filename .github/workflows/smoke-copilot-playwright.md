@@ -17,6 +17,8 @@ engine:
   id: copilot
   env:
     DEBUG: "copilot:*"  # Enable copilot CLI debug logs
+imports:
+  - shared/gh.md
 network:
   allowed:
     - defaults
@@ -30,6 +32,7 @@ network:
   firewall:
     log-level: debug  # Enable debug-level firewall logs
 tools:
+  cache-memory: true
   edit:
   bash:
     - "*"
@@ -112,7 +115,10 @@ post-steps:
 
 ## Test Requirements
 
-**Playwright MCP Testing**: Use playwright to navigate to https://github.com and verify the page title contains "GitHub"
+1. **Playwright MCP Testing**: Use playwright to navigate to https://github.com and verify the page title contains "GitHub"
+2. **Cache Memory Testing**: Write a test file to `/tmp/gh-aw/cache-memory/smoke-test-${{ github.run_id }}.txt` with content "Cache memory test for run ${{ github.run_id }}" and verify it was created successfully
+
+**Safe Input gh Tool Testing**: Use the `safeinputs-gh` tool to run "gh issues list --limit 3" to verify the tool can access GitHub issues
 
 ## Output
 

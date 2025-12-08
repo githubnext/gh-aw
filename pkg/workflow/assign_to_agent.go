@@ -2,7 +2,11 @@ package workflow
 
 import (
 	"fmt"
+
+	"github.com/githubnext/gh-aw/pkg/logger"
 )
+
+var assignToAgentLog = logger.New("workflow:assign_to_agent")
 
 // AssignToAgentConfig holds configuration for assigning agents to issues from agent output
 type AssignToAgentConfig struct {
@@ -14,6 +18,7 @@ type AssignToAgentConfig struct {
 // parseAssignToAgentConfig handles assign-to-agent configuration
 func (c *Compiler) parseAssignToAgentConfig(outputMap map[string]any) *AssignToAgentConfig {
 	if assignToAgent, exists := outputMap["assign-to-agent"]; exists {
+		assignToAgentLog.Print("Parsing assign-to-agent configuration")
 		if agentMap, ok := assignToAgent.(map[string]any); ok {
 			agentConfig := &AssignToAgentConfig{}
 
@@ -30,6 +35,7 @@ func (c *Compiler) parseAssignToAgentConfig(outputMap map[string]any) *AssignToA
 
 			// Parse common base fields (github-token, max)
 			c.parseBaseSafeOutputConfig(agentMap, &agentConfig.BaseSafeOutputConfig, 0)
+			assignToAgentLog.Printf("Parsed assign-to-agent config: default_agent=%s, target=%s", agentConfig.DefaultAgent, agentConfig.Target)
 
 			return agentConfig
 		} else if assignToAgent == nil {
@@ -43,6 +49,8 @@ func (c *Compiler) parseAssignToAgentConfig(outputMap map[string]any) *AssignToA
 
 // buildAssignToAgentJob creates the assign_to_agent job
 func (c *Compiler) buildAssignToAgentJob(data *WorkflowData, mainJobName string) (*Job, error) {
+	assignToAgentLog.Printf("Building assign_to_agent job: workflow=%s, main_job=%s", data.Name, mainJobName)
+
 	if data.SafeOutputs == nil || data.SafeOutputs.AssignToAgent == nil {
 		return nil, fmt.Errorf("safe-outputs.assign-to-agent configuration is required")
 	}
@@ -59,6 +67,7 @@ func (c *Compiler) buildAssignToAgentJob(data *WorkflowData, mainJobName string)
 	if cfg.Max > 0 {
 		maxCount = cfg.Max
 	}
+	assignToAgentLog.Printf("Configured agent assignment: default_agent=%s, max=%d", defaultAgent, maxCount)
 
 	// Build custom environment variables specific to assign-to-agent
 	var customEnvVars []string

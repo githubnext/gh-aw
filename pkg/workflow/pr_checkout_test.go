@@ -389,7 +389,7 @@ Test workflow to verify GH_TOKEN configuration.
 	}
 
 	// Verify the token uses the standard fallback pattern
-	if !strings.Contains(stepSection, "${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}") {
+	if !strings.Contains(stepSection, "${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}") {
 		t.Error("Expected standard token fallback pattern in PR checkout step")
 	}
 

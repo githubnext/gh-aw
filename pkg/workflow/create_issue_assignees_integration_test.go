@@ -93,7 +93,7 @@ This is a test workflow that should create an issue and assign it to multiple us
 	}
 
 	// Verify GH_TOKEN is set with proper token expression
-	if !strings.Contains(compiledStr, "GH_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}") {
+	if !strings.Contains(compiledStr, "GH_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}") {
 		t.Error("Expected GH_TOKEN environment variable with proper token expression in compiled workflow")
 	}
 

@@ -29,8 +29,8 @@ func appendPromptStep(yaml *strings.Builder, stepName string, renderer func(*str
 }
 
 // appendPromptStepWithHeredoc generates a workflow step that appends content to the prompt file
-// using a heredoc (cat << 'PROMPT_EOF' | envsubst >> "$GH_AW_PROMPT" pattern).
-// This is used by compiler functions that need to embed structured content.
+// using a heredoc (cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT" pattern).
+// This is used by compiler functions that need to embed static structured content without variable substitution.
 //
 // Parameters:
 //   - yaml: The string builder to write the YAML to
@@ -41,7 +41,7 @@ func appendPromptStepWithHeredoc(yaml *strings.Builder, stepName string, rendere
 	yaml.WriteString("        env:\n")
 	yaml.WriteString("          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt\n")
 	yaml.WriteString("        run: |\n")
-	yaml.WriteString("          cat << 'PROMPT_EOF' | envsubst >> \"$GH_AW_PROMPT\"\n")
+	yaml.WriteString("          cat << 'PROMPT_EOF' >> \"$GH_AW_PROMPT\"\n")
 
 	// Call the renderer to write the content
 	renderer(yaml)

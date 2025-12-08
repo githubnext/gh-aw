@@ -190,21 +190,67 @@ describe("sanitize_content.cjs", () => {
     });
 
     it("should preserve allowed safe tags", () => {
-      const allowedTags = ["details", "summary", "code", "em", "b", "p"];
+      const allowedTags = ["details", "summary", "code", "em", "b", "p", "strong", "i", "u", "br", "ul", "ol", "li", "blockquote"];
       allowedTags.forEach(tag => {
         const result = sanitizeContent(`<${tag}>content</${tag}>`);
         expect(result).toBe(`<${tag}>content</${tag}>`);
       });
     });
 
-    it("should convert self-closing tags", () => {
+    it("should preserve self-closing br tags", () => {
       const result = sanitizeContent("Hello <br/> world");
-      expect(result).toBe("Hello (br/) world");
+      expect(result).toBe("Hello <br/> world");
+    });
+
+    it("should preserve br tags without slash", () => {
+      const result = sanitizeContent("Hello <br> world");
+      expect(result).toBe("Hello <br> world");
+    });
+
+    it("should convert self-closing tags that are not allowed", () => {
+      const result = sanitizeContent("Hello <img/> world");
+      expect(result).toBe("Hello (img/) world");
     });
 
     it("should handle CDATA sections", () => {
       const result = sanitizeContent("<![CDATA[<script>alert('xss')</script>]]>");
       expect(result).toBe("(![CDATA[(script)alert('xss')(/script)]])");
+    });
+
+    it("should preserve inline formatting tags", () => {
+      const input = "This is <strong>bold</strong>, <i>italic</i>, and <u>underlined</u> text.";
+      const result = sanitizeContent(input);
+      expect(result).toBe(input);
+    });
+
+    it("should preserve list structure tags", () => {
+      const input = "<ul><li>Item 1</li><li>Item 2</li></ul>";
+      const result = sanitizeContent(input);
+      expect(result).toBe(input);
+    });
+
+    it("should preserve ordered list tags", () => {
+      const input = "<ol><li>First</li><li>Second</li></ol>";
+      const result = sanitizeContent(input);
+      expect(result).toBe(input);
+    });
+
+    it("should preserve blockquote tags", () => {
+      const input = "<blockquote>This is a quote</blockquote>";
+      const result = sanitizeContent(input);
+      expect(result).toBe(input);
+    });
+
+    it("should handle mixed allowed tags with formatting", () => {
+      const input = "<p>This is <strong>bold</strong> and <em>italic</em> text.<br>New line here.</p>";
+      const result = sanitizeContent(input);
+      expect(result).toBe(input);
+    });
+
+    it("should handle nested list structure", () => {
+      const input = "<ul><li>Item 1<ul><li>Nested item</li></ul></li><li>Item 2</li></ul>";
+      const result = sanitizeContent(input);
+      expect(result).toBe(input);
     });
   });
 

@@ -84,8 +84,15 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	// Add print flag for non-interactive mode
 	claudeArgs = append(claudeArgs, "--print")
 
+	// Disable slash commands for controlled execution
+	claudeArgs = append(claudeArgs, "--disable-slash-commands")
+
 	// Add model if specified
-	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Model != "" {
+	// Model can be configured via:
+	// 1. Explicit model in workflow config (highest priority)
+	// 2. GH_AW_MODEL_AGENT_CLAUDE environment variable (set via GitHub Actions variables)
+	modelConfigured := workflowData.EngineConfig != nil && workflowData.EngineConfig.Model != ""
+	if modelConfigured {
 		claudeLog.Printf("Using custom model: %s", workflowData.EngineConfig.Model)
 		claudeArgs = append(claudeArgs, "--model", workflowData.EngineConfig.Model)
 	}
@@ -191,6 +198,19 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	// This handles already-quoted arguments correctly and prevents double-escaping
 	command := shellJoinArgs(commandParts)
 
+	// Add conditional model flag if not explicitly configured
+	if !modelConfigured {
+		// Check if this is a detection job (has no SafeOutputs config)
+		isDetectionJob := workflowData.SafeOutputs == nil
+		var modelEnvVar string
+		if isDetectionJob {
+			modelEnvVar = constants.EnvVarModelDetectionClaude
+		} else {
+			modelEnvVar = constants.EnvVarModelAgentClaude
+		}
+		command = fmt.Sprintf(`%s${%s:+ --model "$%s"}`, command, modelEnvVar, modelEnvVar)
+	}
+
 	// Add the command with proper indentation and tee output (preserves exit code with pipefail)
 	stepLines = append(stepLines, fmt.Sprintf("          %s 2>&1 | tee %s", command, logFile))
 
@@ -253,6 +273,21 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 
 	if workflowData.EngineConfig != nil && workflowData.EngineConfig.MaxTurns != "" {
 		stepLines = append(stepLines, fmt.Sprintf("          GH_AW_MAX_TURNS: %s", workflowData.EngineConfig.MaxTurns))
+	}
+
+	// Add model environment variable if model is not explicitly configured
+	// This allows users to configure the default model via GitHub Actions variables
+	// Use different env vars for agent vs detection jobs
+	if !modelConfigured {
+		// Check if this is a detection job (has no SafeOutputs config)
+		isDetectionJob := workflowData.SafeOutputs == nil
+		if isDetectionJob {
+			// For detection, use detection-specific env var (no default fallback for Claude)
+			stepLines = append(stepLines, fmt.Sprintf("          %s: ${{ vars.%s || '' }}", constants.EnvVarModelDetectionClaude, constants.EnvVarModelDetectionClaude))
+		} else {
+			// For agent execution, use agent-specific env var
+			stepLines = append(stepLines, fmt.Sprintf("          %s: ${{ vars.%s || '' }}", constants.EnvVarModelAgentClaude, constants.EnvVarModelAgentClaude))
+		}
 	}
 
 	if workflowData.EngineConfig != nil && len(workflowData.EngineConfig.Env) > 0 {

@@ -74,7 +74,7 @@ Run ID: ${{ github.run_id }}
 	// Verify the original expressions appear in the comment header (Original Prompt section)
 	// but NOT in the actual prompt heredoc content
 	// Find the heredoc section by looking for the "cat " line
-	heredocStart := strings.Index(compiledStr, "cat << 'PROMPT_EOF' | envsubst > \"$GH_AW_PROMPT\"")
+	heredocStart := strings.Index(compiledStr, "cat << 'PROMPT_EOF' > \"$GH_AW_PROMPT\"")
 	if heredocStart == -1 {
 		t.Error("Could not find prompt heredoc section")
 	} else {
@@ -100,9 +100,9 @@ Run ID: ${{ github.run_id }}
 		}
 	}
 
-	// Verify that environment variable references ARE in the heredoc content
-	if !strings.Contains(compiledStr, "${GH_AW_GITHUB_") {
-		t.Error("Environment variable references should be in the prompt content")
+	// Verify that placeholder references ARE in the heredoc content
+	if !strings.Contains(compiledStr, "__GH_AW_GITHUB_") {
+		t.Error("Placeholder references should be in the prompt content")
 	}
 
 	// Verify environment variables are set with GitHub expressions

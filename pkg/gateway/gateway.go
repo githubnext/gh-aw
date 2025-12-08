@@ -8,10 +8,12 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"sync"
 	"time"
 
 	"github.com/githubnext/gh-aw/pkg/logger"
+	"github.com/githubnext/gh-aw/pkg/workflow"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
@@ -29,9 +31,10 @@ type MCPServerConfig struct {
 
 // GatewayConfig represents the configuration for the MCP gateway
 type GatewayConfig struct {
-	MCPServers map[string]MCPServerConfig `json:"mcpServers"`
-	Port       int                        `json:"port"`
-	APIKey     string                     `json:"apiKey,omitempty"`
+	MCPServers       map[string]MCPServerConfig `json:"mcpServers"`
+	Port             int                        `json:"port"`
+	APIKey           string                     `json:"apiKey,omitempty"`
+	SafeInputsConfig string                     `json:"-"` // Path to safe-inputs tools.json file
 }
 
 // Gateway represents an MCP gateway that proxies to multiple MCP servers
@@ -44,14 +47,14 @@ type Gateway struct {
 
 // NewGateway creates a new MCP gateway from configuration
 func NewGateway(config GatewayConfig) (*Gateway, error) {
-	log.Printf("Creating new gateway with %d MCP servers on port %d", len(config.MCPServers), config.Port)
+	log.Printf("Creating new gateway with %d MCP servers + safe-inputs on port %d", len(config.MCPServers), config.Port)
 
 	if config.Port == 0 {
 		return nil, fmt.Errorf("gateway port must be specified")
 	}
 
-	if len(config.MCPServers) == 0 {
-		return nil, fmt.Errorf("no MCP servers configured")
+	if len(config.MCPServers) == 0 && config.SafeInputsConfig == "" {
+		return nil, fmt.Errorf("no MCP servers or safe-inputs configured")
 	}
 
 	return &Gateway{
@@ -65,9 +68,18 @@ func NewGateway(config GatewayConfig) (*Gateway, error) {
 func (g *Gateway) Start(ctx context.Context) error {
 	log.Printf("Starting gateway on port %d", g.config.Port)
 
-	// Connect to all MCP servers
-	if err := g.connectToServers(ctx); err != nil {
-		return fmt.Errorf("failed to connect to MCP servers: %w", err)
+	// Connect to all MCP servers (if configured)
+	if len(g.config.MCPServers) > 0 {
+		if err := g.connectToServers(ctx); err != nil {
+			return fmt.Errorf("failed to connect to MCP servers: %w", err)
+		}
+	}
+
+	// Connect to safe-inputs server (if configured)
+	if g.config.SafeInputsConfig != "" {
+		if err := g.connectToSafeInputsServer(ctx); err != nil {
+			return fmt.Errorf("failed to connect to safe-inputs server: %w", err)
+		}
 	}
 
 	// List all available tools from all servers
@@ -145,6 +157,121 @@ func (g *Gateway) connectToServers(ctx context.Context) error {
 	}
 
 	log.Print("Successfully connected to all MCP servers")
+	return nil
+}
+
+// connectToSafeInputsServer connects to the safe-inputs MCP server
+func (g *Gateway) connectToSafeInputsServer(ctx context.Context) error {
+	log.Printf("Connecting to safe-inputs server with config: %s", g.config.SafeInputsConfig)
+
+	// Create a temporary directory for the safe-inputs server scripts
+	tmpDir, err := os.MkdirTemp("", "mcp-gateway-safeinputs-*")
+	if err != nil {
+		return fmt.Errorf("failed to create temp directory: %w", err)
+	}
+
+	log.Printf("Created temp directory for safe-inputs: %s", tmpDir)
+
+	// Get the config file directory to resolve relative handler paths
+	configDir := "."
+	if absPath, err := os.Getwd(); err == nil {
+		configDir = absPath
+	}
+	if g.config.SafeInputsConfig != "" {
+		if absConfigPath, err := filepath.Abs(g.config.SafeInputsConfig); err == nil {
+			configDir = filepath.Dir(absConfigPath)
+		}
+	}
+	log.Printf("Config directory for handler resolution: %s", configDir)
+
+	// Copy the tools.json to the temp directory, but first update handler paths to be absolute
+	toolsConfigPath := filepath.Join(tmpDir, "tools.json")
+	if err := g.prepareToolsConfig(configDir, toolsConfigPath); err != nil {
+		return fmt.Errorf("failed to prepare tools config: %w", err)
+	}
+
+	// Write the required JavaScript modules to temp directory
+	scripts := map[string]string{
+		"mcp_server_core.cjs":           workflow.GetMCPServerCoreScript(),
+		"read_buffer.cjs":               workflow.GetReadBufferScript(),
+		"safe_inputs_mcp_server.cjs":    workflow.GetSafeInputsMCPServerScript(),
+		"safe_inputs_config_loader.cjs": workflow.GetSafeInputsConfigLoaderScript(),
+		"safe_inputs_tool_factory.cjs":  workflow.GetSafeInputsToolFactoryScript(),
+		"safe_inputs_bootstrap.cjs":     workflow.GetSafeInputsBootstrapScript(),
+		"safe_inputs_validation.cjs":    workflow.GetSafeInputsValidationScript(),
+		"mcp_handler_shell.cjs":         workflow.GetMCPHandlerShellScript(),
+		"mcp_handler_python.cjs":        workflow.GetMCPHandlerPythonScript(),
+	}
+
+	for filename, content := range scripts {
+		scriptPath := filepath.Join(tmpDir, filename)
+		if err := os.WriteFile(scriptPath, []byte(content), 0644); err != nil {
+			return fmt.Errorf("failed to write %s: %w", filename, err)
+		}
+		log.Printf("Wrote script: %s", filename)
+	}
+
+	// Create the server config
+	serverConfig := MCPServerConfig{
+		Command: "node",
+		Args:    []string{filepath.Join(tmpDir, "safe_inputs_mcp_server.cjs"), toolsConfigPath},
+		Env:     make(map[string]string),
+	}
+
+	// Connect to the safe-inputs server
+	client, session, err := g.createClient(ctx, "safeinputs", serverConfig)
+	if err != nil {
+		return fmt.Errorf("failed to connect to safe-inputs server: %w", err)
+	}
+
+	g.mu.Lock()
+	g.clients["safeinputs"] = client
+	g.sessions["safeinputs"] = session
+	g.mu.Unlock()
+
+	log.Print("Successfully connected to safe-inputs server")
+	return nil
+}
+
+// prepareToolsConfig reads the tools.json config and updates handler paths to be absolute
+func (g *Gateway) prepareToolsConfig(configDir, outputPath string) error {
+	// Read the original config
+	data, err := os.ReadFile(g.config.SafeInputsConfig)
+	if err != nil {
+		return fmt.Errorf("failed to read tools config: %w", err)
+	}
+
+	var config map[string]any
+	if err := json.Unmarshal(data, &config); err != nil {
+		return fmt.Errorf("failed to parse tools config: %w", err)
+	}
+
+	// Update handler paths to be absolute
+	if tools, ok := config["tools"].([]any); ok {
+		for _, toolAny := range tools {
+			if tool, ok := toolAny.(map[string]any); ok {
+				if handler, ok := tool["handler"].(string); ok && handler != "" {
+					// Convert relative paths to absolute
+					if !filepath.IsAbs(handler) {
+						absHandler := filepath.Join(configDir, handler)
+						tool["handler"] = absHandler
+						log.Printf("Updated handler path: %s -> %s", handler, absHandler)
+					}
+				}
+			}
+		}
+	}
+
+	// Write the updated config
+	updatedData, err := json.MarshalIndent(config, "", "  ")
+	if err != nil {
+		return fmt.Errorf("failed to marshal updated config: %w", err)
+	}
+
+	if err := os.WriteFile(outputPath, updatedData, 0644); err != nil {
+		return fmt.Errorf("failed to write updated config: %w", err)
+	}
+
 	return nil
 }
 

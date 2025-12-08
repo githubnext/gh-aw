@@ -31,6 +31,7 @@ tools:
 safe-outputs:
   upload-assets:
   create-discussion:
+    expires: 3d
     title-prefix: "📰 "
     close-older-discussions: true
 imports:

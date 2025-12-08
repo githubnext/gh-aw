@@ -42,9 +42,10 @@ func ExtractActionsFromLockFile(lockFilePath string) ([]ActionUsage, error) {
 		return nil, fmt.Errorf("failed to parse lock file YAML: %w", err)
 	}
 
-	// Regular expression to match uses: owner/repo@sha
-	// This matches: owner/repo@40-char-hex-sha or owner/repo/subpath@40-char-hex-sha
-	usesPattern := regexp.MustCompile(`([a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+(?:/[a-zA-Z0-9_.-]+)*)@([0-9a-f]{40})`)
+	// Regular expression to match uses: owner/repo@sha with optional version comment
+	// This matches: owner/repo@40-char-hex-sha # version
+	// Captures: (1) repo, (2) sha, (3) version (optional)
+	usesPattern := regexp.MustCompile(`([a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+(?:/[a-zA-Z0-9_.-]+)*)@([0-9a-f]{40})(?:\s*#\s*([^\s]+))?`)
 
 	actions := make(map[string]ActionUsage) // Use map to deduplicate
 
@@ -62,12 +63,19 @@ func ExtractActionsFromLockFile(lockFilePath string) ([]ActionUsage, error) {
 				continue
 			}
 
-			actionSHACheckerLog.Printf("Found action: %s@%s", repo, sha)
-
-			// Try to determine the version tag from action_pins.json
+			// Extract version from comment if present (match[3])
 			version := ""
-			if pin, found := GetActionPinByRepo(repo); found {
-				version = pin.Version
+			if len(match) >= 4 && match[3] != "" {
+				version = match[3]
+				actionSHACheckerLog.Printf("Found action: %s@%s (version: %s)", repo, sha, version)
+			} else {
+				// Fallback: try to determine the version tag from action_pins.json
+				if pin, found := GetActionPinByRepo(repo); found {
+					version = pin.Version
+					actionSHACheckerLog.Printf("Found action: %s@%s (version from pins: %s)", repo, sha, version)
+				} else {
+					actionSHACheckerLog.Printf("Found action: %s@%s (no version)", repo, sha)
+				}
 			}
 
 			actions[repo+"@"+sha] = ActionUsage{
@@ -162,8 +170,8 @@ func ValidateActionSHAsInLockFile(lockFilePath string, cache *ActionCache, verbo
 	for _, check := range checks {
 		if check.NeedsUpdate {
 			updateCount++
-			// Emit warning
-			warningMsg := fmt.Sprintf("⚠️  %s@%s has a newer SHA available: %s → %s",
+			// Emit warning (FormatWarningMessage adds the warning emoji)
+			warningMsg := fmt.Sprintf("%s@%s has a newer SHA available: %s → %s",
 				check.Action.Repo,
 				check.Action.Version,
 				check.Action.SHA[:7],
@@ -180,6 +188,14 @@ func ValidateActionSHAsInLockFile(lockFilePath string, cache *ActionCache, verbo
 
 	if updateCount > 0 {
 		actionSHACheckerLog.Printf("Found %d actions that need updating", updateCount)
+		// Save the cache with updated SHAs so the next compilation will use them
+		if err := cache.Save(); err != nil {
+			actionSHACheckerLog.Printf("Warning: failed to save action cache: %v", err)
+		} else {
+			actionSHACheckerLog.Print("Saved updated action cache")
+		}
+		// Provide suggestion to fix the issue
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("To apply updated action SHAs, recompile with: gh aw compile"))
 		if verbose {
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Found %d action(s) with available updates", updateCount)))
 		}

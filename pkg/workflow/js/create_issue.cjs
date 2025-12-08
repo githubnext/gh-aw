@@ -14,6 +14,7 @@ const {
   serializeTemporaryIdMap,
 } = require("./temporary_id.cjs");
 const { parseAllowedRepos, getDefaultTargetRepo, validateRepo, parseRepoSlug } = require("./repo_helpers.cjs");
+const { addExpirationComment } = require("./expiration_helpers.cjs");
 
 async function main() {
   // Initialize outputs to empty strings to ensure they're always set
@@ -212,6 +213,9 @@ async function main() {
     if (trackerIDComment) {
       bodyLines.push(trackerIDComment);
     }
+
+    // Add expiration comment if expires is set
+    addExpirationComment(bodyLines, "GH_AW_ISSUE_EXPIRES", "Issue");
 
     bodyLines.push(
       ``,

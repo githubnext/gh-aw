@@ -245,7 +245,7 @@ async function runUpdateWorkflow(config) {
     if (supportsOperation && canUpdateBody && updateItem.body !== undefined && typeof updateItem.body === "string") {
       // The body was already added by buildUpdateData, but we need to handle operations
       // This will be handled by the executeUpdate function for PR-specific logic
-      updateData._operation = updateItem.operation || "replace";
+      updateData._operation = updateItem.operation || "append";
       updateData._rawBody = updateItem.body;
     }
 

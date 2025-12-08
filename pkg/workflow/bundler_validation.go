@@ -2,13 +2,22 @@
 //
 // # JavaScript Bundler Validation
 //
-// This file validates bundled JavaScript to ensure that all local module dependencies
-// have been properly inlined during the bundling process. This prevents runtime errors
-// from missing local modules when JavaScript is executed in GitHub Actions.
+// This file validates bundled JavaScript to ensure compatibility with the target runtime mode.
+// Validation functions prevent runtime errors from missing modules or incompatible module references.
+//
+// # Runtime Mode Validation
+//
+// GitHub Script Mode:
+//   - validateNoLocalRequires() - Ensures all local require() statements are inlined
+//   - validateNoModuleReferences() - Ensures no module.exports or exports.* remain
+//
+// Node.js Mode:
+//   - No strict validation - module.exports and local requires are allowed
 //
 // # Validation Functions
 //
 //   - validateNoLocalRequires() - Validates bundled JavaScript has no local require() statements
+//   - validateNoModuleReferences() - Validates no module.exports or exports references remain
 //   - isInsideStringLiteralAt() - Helper to detect if a position is inside a string literal
 //
 // # Validation Pattern: Bundling Verification
@@ -25,7 +34,7 @@
 //   - It validates JavaScript bundling correctness
 //   - It checks for missing module dependencies
 //   - It validates CommonJS require() statement resolution
-//   - It validates JavaScript code structure
+//   - It validates JavaScript code structure based on runtime mode
 //
 // For bundling functions, see bundler.go.
 // For general validation, see validation.go.
@@ -41,6 +50,14 @@ import (
 )
 
 var bundlerValidationLog = logger.New("workflow:bundler_validation")
+
+// Pre-compiled regular expressions for validation (compiled once at package initialization for performance)
+var (
+	// moduleExportsRegex matches module.exports references
+	moduleExportsRegex = regexp.MustCompile(`\bmodule\.exports\b`)
+	// exportsRegex matches exports.property references
+	exportsRegex = regexp.MustCompile(`\bexports\.\w+`)
+)
 
 // validateNoLocalRequires checks that the bundled JavaScript contains no local require() statements
 // that weren't inlined during bundling. This prevents runtime errors from missing local modules.
@@ -74,4 +91,150 @@ func validateNoLocalRequires(bundledContent string) error {
 
 	bundlerValidationLog.Print("Validation successful: no local require statements found")
 	return nil
+}
+
+// validateNoModuleReferences checks that the bundled JavaScript contains no module.exports or exports references
+// This is required for GitHub Script mode where no module system exists.
+// Returns an error if any module references are found, otherwise returns nil
+func validateNoModuleReferences(bundledContent string) error {
+	bundlerValidationLog.Printf("Validating no module references: %d bytes", len(bundledContent))
+
+	lines := strings.Split(bundledContent, "\n")
+	var foundReferences []string
+
+	for lineNum, line := range lines {
+		trimmed := strings.TrimSpace(line)
+
+		// Skip comment lines
+		if strings.HasPrefix(trimmed, "//") || strings.HasPrefix(trimmed, "/*") || strings.HasPrefix(trimmed, "*") {
+			continue
+		}
+
+		// Check for module.exports
+		if moduleExportsRegex.MatchString(line) {
+			foundReferences = append(foundReferences, fmt.Sprintf("line %d: module.exports reference", lineNum+1))
+		}
+
+		// Check for exports.
+		if exportsRegex.MatchString(line) {
+			foundReferences = append(foundReferences, fmt.Sprintf("line %d: exports reference", lineNum+1))
+		}
+	}
+
+	if len(foundReferences) > 0 {
+		bundlerValidationLog.Printf("Validation failed: found %d module references", len(foundReferences))
+		return fmt.Errorf("bundled JavaScript for GitHub Script mode contains %d module reference(s) that should have been removed:\n  %s\n\nGitHub Script mode does not support module.exports or exports; these references must be removed during bundling",
+			len(foundReferences), strings.Join(foundReferences, "\n  "))
+	}
+
+	bundlerValidationLog.Print("Validation successful: no module references found")
+	return nil
+}
+
+// ValidateEmbeddedResourceRequires checks that all embedded JavaScript files in the sources map
+// have their local require() dependencies available in the sources map. This prevents bundling failures
+// when a file requires a local module that isn't embedded.
+//
+// This validation helps catch missing files in GetJavaScriptSources() at build/test time rather than
+// at runtime when bundling fails.
+//
+// Parameters:
+//   - sources: map of file paths to their content (from GetJavaScriptSources())
+//
+// Returns an error if any embedded file has local requires that reference files not in sources
+func ValidateEmbeddedResourceRequires(sources map[string]string) error {
+	bundlerValidationLog.Printf("Validating embedded resources: checking %d files for missing local requires", len(sources))
+
+	// Regular expression to match local require statements
+	// Matches: require('./...') or require("../...")
+	localRequireRegex := regexp.MustCompile(`require\(['"](\.\.?/[^'"]+)['"]\)`)
+
+	var missingDeps []string
+
+	// Check each file in sources
+	for filePath, content := range sources {
+		bundlerValidationLog.Printf("Checking file: %s (%d bytes)", filePath, len(content))
+
+		// Find all local requires in this file
+		matches := localRequireRegex.FindAllStringSubmatch(content, -1)
+		if len(matches) == 0 {
+			continue
+		}
+
+		bundlerValidationLog.Printf("Found %d require statements in %s", len(matches), filePath)
+
+		// Check each require
+		for _, match := range matches {
+			if len(match) <= 1 {
+				continue
+			}
+
+			requirePath := match[1]
+
+			// Resolve the required file path relative to the current file
+			currentDir := ""
+			if strings.Contains(filePath, "/") {
+				parts := strings.Split(filePath, "/")
+				currentDir = strings.Join(parts[:len(parts)-1], "/")
+			}
+
+			var resolvedPath string
+			if currentDir == "" {
+				resolvedPath = requirePath
+			} else {
+				resolvedPath = currentDir + "/" + requirePath
+			}
+
+			// Ensure .cjs extension
+			if !strings.HasSuffix(resolvedPath, ".cjs") && !strings.HasSuffix(resolvedPath, ".js") {
+				resolvedPath += ".cjs"
+			}
+
+			// Normalize the path (remove ./ and ../)
+			resolvedPath = normalizePath(resolvedPath)
+
+			// Check if the required file exists in sources
+			if _, ok := sources[resolvedPath]; !ok {
+				missingDep := fmt.Sprintf("%s requires '%s' (resolved to '%s') but it's not in sources map",
+					filePath, requirePath, resolvedPath)
+				missingDeps = append(missingDeps, missingDep)
+				bundlerValidationLog.Printf("Missing dependency: %s", missingDep)
+			} else {
+				bundlerValidationLog.Printf("Dependency OK: %s -> %s", filePath, resolvedPath)
+			}
+		}
+	}
+
+	if len(missingDeps) > 0 {
+		bundlerValidationLog.Printf("Validation failed: found %d missing dependencies", len(missingDeps))
+		return fmt.Errorf("embedded JavaScript files have %d missing local require(s):\n  %s\n\nThese files must be added to GetJavaScriptSources() in js.go",
+			len(missingDeps), strings.Join(missingDeps, "\n  "))
+	}
+
+	bundlerValidationLog.Printf("Validation successful: all local requires are available in sources")
+	return nil
+}
+
+// normalizePath normalizes a file path by resolving . and .. components
+func normalizePath(path string) string {
+	// Split path into parts
+	parts := strings.Split(path, "/")
+	var result []string
+
+	for _, part := range parts {
+		if part == "" || part == "." {
+			// Skip empty parts and current directory references
+			continue
+		}
+		if part == ".." {
+			// Go up one directory
+			if len(result) > 0 {
+				result = result[:len(result)-1]
+			}
+		} else {
+			result = append(result, part)
+		}
+	}
+
+	return strings.Join(result, "/")
 }

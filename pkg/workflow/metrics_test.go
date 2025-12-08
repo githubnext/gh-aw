@@ -3,6 +3,8 @@ package workflow
 import (
 	"encoding/json"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/logger"
 )
 
 func TestExtractFirstMatch(t *testing.T) {
@@ -744,9 +746,9 @@ func TestExtractErrorMessage(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := extractErrorMessage(tt.input)
+			result := logger.ExtractErrorMessage(tt.input)
 			if result != tt.expected {
-				t.Errorf("extractErrorMessage(%q) = %q, want %q", tt.input, result, tt.expected)
+				t.Errorf("logger.ExtractErrorMessage(%q) = %q, want %q", tt.input, result, tt.expected)
 			}
 		})
 	}

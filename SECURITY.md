@@ -29,3 +29,37 @@ This information will help us triage your report more quickly.
 ## Policy
 
 See [GitHub's Safe Harbor Policy](https://docs.github.com/en/github/site-policy/github-bug-bounty-program-legal-safe-harbor#1-safe-harbor-terms)
+
+## Software Bill of Materials (SBOM)
+
+We generate Software Bill of Materials (SBOM) for this project to provide complete visibility into the dependency tree, enabling compliance reporting, vulnerability tracking, and supply chain risk assessment.
+
+### SBOM Generation
+
+SBOMs are automatically generated on every release and attached to GitHub releases as downloadable assets.
+
+Both SPDX and CycloneDX formats are generated to ensure compatibility with different compliance and security tools.
+
+### Local SBOM Generation
+
+To generate an SBOM locally, first install [syft](https://github.com/anchore/syft):
+
+```bash
+# Install syft
+curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b /usr/local/bin
+
+# Generate SBOM
+make sbom
+```
+
+This produces two files:
+- `sbom.spdx.json` - SBOM in SPDX JSON format
+- `sbom.cdx.json` - SBOM in CycloneDX JSON format
+
+### SBOM Contents
+
+The generated SBOMs include:
+- All direct and transitive Go dependencies
+- Package versions and licenses
+- Package hashes for integrity verification
+- Dependency relationships

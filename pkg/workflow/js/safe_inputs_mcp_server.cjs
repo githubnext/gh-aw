@@ -18,10 +18,10 @@
  *   startSafeInputsServer("/path/to/tools.json");
  */
 
-const path = require("path");
-const { createServer, registerTool, loadToolHandlers, start } = require("./mcp_server_core.cjs");
+const { createServer, registerTool, start } = require("./mcp_server_core.cjs");
 const { loadConfig } = require("./safe_inputs_config_loader.cjs");
 const { createToolConfig } = require("./safe_inputs_tool_factory.cjs");
+const { bootstrapSafeInputsServer, cleanupConfigFile } = require("./safe_inputs_bootstrap.cjs");
 
 /**
  * @typedef {Object} SafeInputsToolConfig
@@ -46,30 +46,29 @@ const { createToolConfig } = require("./safe_inputs_tool_factory.cjs");
  * @param {string} [options.logDir] - Override log directory from config
  */
 function startSafeInputsServer(configPath, options = {}) {
-  // Load configuration
-  const config = loadConfig(configPath);
+  // Create server first to have logger available
+  const logDir = options.logDir || undefined;
+  const server = createServer({ name: "safeinputs", version: "1.0.0" }, { logDir });
 
-  // Determine base path for resolving relative handler paths
-  const basePath = path.dirname(configPath);
+  // Bootstrap: load configuration and tools using shared logic
+  const { config, tools } = bootstrapSafeInputsServer(configPath, server);
 
-  // Create server with configuration
-  const serverName = config.serverName || "safeinputs";
-  const version = config.version || "1.0.0";
-  const logDir = options.logDir || config.logDir || undefined;
+  // Update server info with actual config values
+  server.serverInfo.name = config.serverName || "safeinputs";
+  server.serverInfo.version = config.version || "1.0.0";
 
-  const server = createServer({ name: serverName, version }, { logDir });
-
-  server.debug(`Loading safe-inputs configuration from: ${configPath}`);
-  server.debug(`Base path for handlers: ${basePath}`);
-  server.debug(`Tools to load: ${config.tools.length}`);
-
-  // Load tool handlers from file paths
-  const tools = loadToolHandlers(server, config.tools, basePath);
+  // Use logDir from config if not overridden by options
+  if (!options.logDir && config.logDir) {
+    server.logDir = config.logDir;
+  }
 
   // Register all tools with the server
   for (const tool of tools) {
     registerTool(server, tool);
   }
+
+  // Cleanup: delete the configuration file after loading
+  cleanupConfigFile(configPath, server);
 
   // Start the server
   start(server);

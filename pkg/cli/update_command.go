@@ -1,11 +1,14 @@
 package cli
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"math/rand"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/console"
@@ -28,8 +31,9 @@ func NewUpdateCommand(validateEngine func(string) error) *cobra.Command {
 
 The command:
 1. Checks if a newer version of gh-aw is available
-2. Updates workflows using the 'source' field in the workflow frontmatter
-3. Compiles each workflow immediately after update
+2. Updates GitHub Actions versions in .github/aw/actions-lock.json (unless --no-actions is set)
+3. Updates workflows using the 'source' field in the workflow frontmatter
+4. Compiles each workflow immediately after update
 
 By default, the update command replaces local workflow files with the latest version from the source
 repository, overriding any local changes. Use the --merge flag to preserve local changes by performing
@@ -40,12 +44,16 @@ For workflow updates, it fetches the latest version based on the current ref:
 - If the ref is a branch, it fetches the latest commit from that branch
 - Otherwise, it fetches the latest commit from the default branch
 
+For action updates, it checks each action in .github/aw/actions-lock.json for newer releases
+and updates the SHA to pin to the latest version. Use --no-actions to skip action updates.
+
 ` + WorkflowIDExplanation + `
 
 Examples:
-  ` + constants.CLIExtensionPrefix + ` update                    # Check gh-aw updates and update all workflows
-  ` + constants.CLIExtensionPrefix + ` update ci-doctor         # Check gh-aw updates and update specific workflow
-  ` + constants.CLIExtensionPrefix + ` update ci-doctor.md      # Check gh-aw updates and update specific workflow (alternative format)
+  ` + constants.CLIExtensionPrefix + ` update                    # Check gh-aw updates, update actions, and update all workflows
+  ` + constants.CLIExtensionPrefix + ` update ci-doctor         # Check gh-aw updates, update actions, and update specific workflow
+  ` + constants.CLIExtensionPrefix + ` update --no-actions      # Skip action updates, only update workflows
+  ` + constants.CLIExtensionPrefix + ` update ci-doctor.md      # Check gh-aw updates, update actions, and update specific workflow (alternative format)
   ` + constants.CLIExtensionPrefix + ` update ci-doctor --major # Allow major version updates
   ` + constants.CLIExtensionPrefix + ` update --merge           # Update with 3-way merge to preserve local changes
   ` + constants.CLIExtensionPrefix + ` update --pr              # Create PR with changes
@@ -61,12 +69,13 @@ Examples:
 			noStopAfter, _ := cmd.Flags().GetBool("no-stop-after")
 			stopAfter, _ := cmd.Flags().GetString("stop-after")
 			mergeFlag, _ := cmd.Flags().GetBool("merge")
+			noActions, _ := cmd.Flags().GetBool("no-actions")
 
 			if err := validateEngine(engineOverride); err != nil {
 				return err
 			}
 
-			return UpdateWorkflowsWithExtensionCheck(args, majorFlag, forceFlag, verbose, engineOverride, prFlag, workflowDir, noStopAfter, stopAfter, mergeFlag)
+			return UpdateWorkflowsWithExtensionCheck(args, majorFlag, forceFlag, verbose, engineOverride, prFlag, workflowDir, noStopAfter, stopAfter, mergeFlag, noActions)
 		},
 	}
 
@@ -78,6 +87,7 @@ Examples:
 	cmd.Flags().Bool("no-stop-after", false, "Remove any stop-after field from the workflow")
 	cmd.Flags().String("stop-after", "", "Override stop-after value in the workflow (e.g., '+48h', '2025-12-31 23:59:59')")
 	cmd.Flags().Bool("merge", false, "Merge local changes with upstream updates instead of overriding")
+	cmd.Flags().Bool("no-actions", false, "Skip updating GitHub Actions versions")
 
 	// Register completions for update command
 	cmd.ValidArgsFunction = CompleteWorkflowNames
@@ -130,23 +140,31 @@ func checkExtensionUpdate(verbose bool) error {
 
 // UpdateWorkflowsWithExtensionCheck performs the complete update process:
 // 1. Check for gh-aw extension updates
-// 2. Update workflows from source repositories (compiles each workflow after update)
-// 3. Optionally create a PR
-func UpdateWorkflowsWithExtensionCheck(workflowNames []string, allowMajor, force, verbose bool, engineOverride string, createPR bool, workflowsDir string, noStopAfter bool, stopAfter string, merge bool) error {
-	updateLog.Printf("Starting update process: workflows=%v, allowMajor=%v, force=%v, createPR=%v, merge=%v", workflowNames, allowMajor, force, createPR, merge)
+// 2. Update GitHub Actions versions (unless --no-actions flag is set)
+// 3. Update workflows from source repositories (compiles each workflow after update)
+// 4. Optionally create a PR
+func UpdateWorkflowsWithExtensionCheck(workflowNames []string, allowMajor, force, verbose bool, engineOverride string, createPR bool, workflowsDir string, noStopAfter bool, stopAfter string, merge bool, noActions bool) error {
+	updateLog.Printf("Starting update process: workflows=%v, allowMajor=%v, force=%v, createPR=%v, merge=%v, noActions=%v", workflowNames, allowMajor, force, createPR, merge, noActions)
 
 	// Step 1: Check for gh-aw extension updates
 	if err := checkExtensionUpdate(verbose); err != nil {
 		return fmt.Errorf("extension update check failed: %w", err)
 	}
 
-	// Step 2: Update workflows from source repositories
+	// Step 2: Update GitHub Actions versions (unless disabled)
+	if !noActions {
+		if err := UpdateActions(allowMajor, verbose); err != nil {
+			return fmt.Errorf("action update failed: %w", err)
+		}
+	}
+
+	// Step 3: Update workflows from source repositories
 	// Note: Each workflow is compiled immediately after update
 	if err := UpdateWorkflows(workflowNames, allowMajor, force, verbose, engineOverride, workflowsDir, noStopAfter, stopAfter, merge); err != nil {
 		return fmt.Errorf("workflow update failed: %w", err)
 	}
 
-	// Step 3: Optionally create PR if flag is set
+	// Step 4: Optionally create PR if flag is set
 	if createPR {
 		if err := createUpdatePR(verbose); err != nil {
 			return fmt.Errorf("failed to create PR: %w", err)
@@ -302,6 +320,18 @@ type workflowWithSource struct {
 type updateFailure struct {
 	Name  string
 	Error string
+}
+
+// actionsLockEntry represents a single action pin entry
+type actionsLockEntry struct {
+	Repo    string `json:"repo"`
+	Version string `json:"version"`
+	SHA     string `json:"sha"`
+}
+
+// actionsLockFile represents the structure of actions-lock.json
+type actionsLockFile struct {
+	Entries map[string]actionsLockEntry `json:"entries"`
 }
 
 // showUpdateSummary displays a summary of workflow updates using console helpers
@@ -940,4 +970,362 @@ func MergeWorkflowContent(base, current, new, oldSourceSpec, newRef string, verb
 	}
 
 	return mergedStr, hasConflicts, nil
+}
+
+// UpdateActions updates GitHub Actions versions in .github/aw/actions-lock.json
+// It checks each action for newer releases and updates the SHA if a newer version is found
+func UpdateActions(allowMajor, verbose bool) error {
+	updateLog.Print("Starting action updates")
+
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Checking for GitHub Actions updates..."))
+	}
+
+	// Get the path to actions-lock.json
+	actionsLockPath := filepath.Join(".github", "aw", "actions-lock.json")
+
+	// Check if the file exists
+	if _, err := os.Stat(actionsLockPath); os.IsNotExist(err) {
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Actions lock file not found: %s", actionsLockPath)))
+		}
+		return nil // Not an error, just skip
+	}
+
+	// Load the current actions lock file
+	data, err := os.ReadFile(actionsLockPath)
+	if err != nil {
+		return fmt.Errorf("failed to read actions lock file: %w", err)
+	}
+
+	var actionsLock actionsLockFile
+	if err := json.Unmarshal(data, &actionsLock); err != nil {
+		return fmt.Errorf("failed to parse actions lock file: %w", err)
+	}
+
+	updateLog.Printf("Loaded %d action entries from actions-lock.json", len(actionsLock.Entries))
+
+	// Track updates
+	var updatedActions []string
+	var failedActions []string
+	var skippedActions []string
+
+	// Update each action
+	for key, entry := range actionsLock.Entries {
+		updateLog.Printf("Checking action: %s@%s", entry.Repo, entry.Version)
+
+		// Check for latest release
+		latestVersion, latestSHA, err := getLatestActionRelease(entry.Repo, entry.Version, allowMajor, verbose)
+		if err != nil {
+			if verbose {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to check %s: %v", entry.Repo, err)))
+			}
+			failedActions = append(failedActions, entry.Repo)
+			continue
+		}
+
+		// Check if update is available
+		if latestVersion == entry.Version && latestSHA == entry.SHA {
+			if verbose {
+				fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("%s@%s is up to date", entry.Repo, entry.Version)))
+			}
+			skippedActions = append(skippedActions, entry.Repo)
+			continue
+		}
+
+		// Update the entry
+		updateLog.Printf("Updating %s from %s (%s) to %s (%s)", entry.Repo, entry.Version, entry.SHA[:7], latestVersion, latestSHA[:7])
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Updated %s from %s to %s", entry.Repo, entry.Version, latestVersion)))
+
+		// Update the map entry
+		actionsLock.Entries[key] = actionsLockEntry{
+			Repo:    entry.Repo,
+			Version: latestVersion,
+			SHA:     latestSHA,
+		}
+
+		updatedActions = append(updatedActions, entry.Repo)
+	}
+
+	// Show summary
+	fmt.Fprintln(os.Stderr, "")
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("=== Actions Update Summary ==="))
+	fmt.Fprintln(os.Stderr, "")
+
+	if len(updatedActions) > 0 {
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Updated %d action(s):", len(updatedActions))))
+		for _, action := range updatedActions {
+			fmt.Fprintln(os.Stderr, console.FormatListItem(action))
+		}
+		fmt.Fprintln(os.Stderr, "")
+	}
+
+	if len(skippedActions) > 0 && verbose {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("%d action(s) already up to date", len(skippedActions))))
+		fmt.Fprintln(os.Stderr, "")
+	}
+
+	if len(failedActions) > 0 {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to check %d action(s):", len(failedActions))))
+		for _, action := range failedActions {
+			fmt.Fprintf(os.Stderr, "  %s\n", action)
+		}
+		fmt.Fprintln(os.Stderr, "")
+	}
+
+	// Save the updated actions lock file if there were any updates
+	if len(updatedActions) > 0 {
+		// Marshal with sorted keys and pretty printing
+		updatedData, err := marshalActionsLockSorted(&actionsLock)
+		if err != nil {
+			return fmt.Errorf("failed to marshal updated actions lock: %w", err)
+		}
+
+		// Add trailing newline for prettier compliance
+		updatedData = append(updatedData, '\n')
+
+		if err := os.WriteFile(actionsLockPath, updatedData, 0644); err != nil {
+			return fmt.Errorf("failed to write updated actions lock file: %w", err)
+		}
+
+		updateLog.Printf("Successfully wrote updated actions-lock.json with %d updates", len(updatedActions))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Updated actions-lock.json file"))
+	}
+
+	return nil
+}
+
+// getLatestActionRelease gets the latest release for an action repository
+// It respects semantic versioning and the allowMajor flag
+func getLatestActionRelease(repo, currentVersion string, allowMajor, verbose bool) (string, string, error) {
+	updateLog.Printf("Getting latest release for %s@%s (allowMajor=%v)", repo, currentVersion, allowMajor)
+
+	// Use gh CLI to get releases
+	cmd := workflow.ExecGH("api", fmt.Sprintf("/repos/%s/releases", repo), "--jq", ".[].tag_name")
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		// Check if this is an authentication error
+		outputStr := string(output)
+		if gitutil.IsAuthError(outputStr) || gitutil.IsAuthError(err.Error()) {
+			updateLog.Printf("GitHub API authentication failed, attempting git ls-remote fallback for %s", repo)
+			// Try fallback using git ls-remote
+			latestRelease, latestSHA, gitErr := getLatestActionReleaseViaGit(repo, currentVersion, allowMajor, verbose)
+			if gitErr != nil {
+				return "", "", fmt.Errorf("failed to fetch releases via GitHub API and git: API error: %w, Git error: %v", err, gitErr)
+			}
+			return latestRelease, latestSHA, nil
+		}
+		return "", "", fmt.Errorf("failed to fetch releases: %w", err)
+	}
+
+	releases := strings.Split(strings.TrimSpace(string(output)), "\n")
+	if len(releases) == 0 || releases[0] == "" {
+		return "", "", fmt.Errorf("no releases found")
+	}
+
+	// Parse current version
+	currentVer := parseVersion(currentVersion)
+	if currentVer == nil {
+		// If current version is not a valid semantic version, just return the latest release
+		latestRelease := releases[0]
+		sha, err := getActionSHAForTag(repo, latestRelease)
+		if err != nil {
+			return "", "", fmt.Errorf("failed to get SHA for %s: %w", latestRelease, err)
+		}
+		return latestRelease, sha, nil
+	}
+
+	// Find the latest compatible release
+	var latestCompatible string
+	var latestCompatibleVersion *semanticVersion
+
+	for _, release := range releases {
+		releaseVer := parseVersion(release)
+		if releaseVer == nil {
+			continue
+		}
+
+		// Check if compatible based on major version
+		if !allowMajor && releaseVer.major != currentVer.major {
+			continue
+		}
+
+		// Check if this is newer than what we have
+		if latestCompatibleVersion == nil || releaseVer.isNewer(latestCompatibleVersion) {
+			latestCompatible = release
+			latestCompatibleVersion = releaseVer
+		}
+	}
+
+	if latestCompatible == "" {
+		return "", "", fmt.Errorf("no compatible release found")
+	}
+
+	// Get the SHA for the latest compatible release
+	sha, err := getActionSHAForTag(repo, latestCompatible)
+	if err != nil {
+		return "", "", fmt.Errorf("failed to get SHA for %s: %w", latestCompatible, err)
+	}
+
+	return latestCompatible, sha, nil
+}
+
+// getLatestActionReleaseViaGit gets the latest release using git ls-remote (fallback)
+func getLatestActionReleaseViaGit(repo, currentVersion string, allowMajor, verbose bool) (string, string, error) {
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Fetching latest release for %s via git ls-remote (current: %s, allow major: %v)", repo, currentVersion, allowMajor)))
+	}
+
+	repoURL := fmt.Sprintf("https://github.com/%s.git", repo)
+
+	// List all tags
+	cmd := exec.Command("git", "ls-remote", "--tags", repoURL)
+	output, err := cmd.Output()
+	if err != nil {
+		return "", "", fmt.Errorf("failed to fetch releases via git ls-remote: %w", err)
+	}
+
+	lines := strings.Split(strings.TrimSpace(string(output)), "\n")
+	var releases []string
+	tagToSHA := make(map[string]string)
+
+	for _, line := range lines {
+		// Parse: "<sha> refs/tags/<tag>"
+		parts := strings.Fields(line)
+		if len(parts) >= 2 {
+			sha := parts[0]
+			tagRef := parts[1]
+			// Skip ^{} annotations (they point to the commit object)
+			if strings.HasSuffix(tagRef, "^{}") {
+				continue
+			}
+			tag := strings.TrimPrefix(tagRef, "refs/tags/")
+			releases = append(releases, tag)
+			tagToSHA[tag] = sha
+		}
+	}
+
+	if len(releases) == 0 {
+		return "", "", fmt.Errorf("no releases found")
+	}
+
+	// Parse current version
+	currentVer := parseVersion(currentVersion)
+	if currentVer == nil {
+		// If current version is not a valid semantic version, just return the first release
+		latestRelease := releases[0]
+		sha := tagToSHA[latestRelease]
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Current version is not valid, using first release: %s (via git)", latestRelease)))
+		}
+		return latestRelease, sha, nil
+	}
+
+	// Find the latest compatible release
+	var latestCompatible string
+	var latestCompatibleVersion *semanticVersion
+
+	for _, release := range releases {
+		releaseVer := parseVersion(release)
+		if releaseVer == nil {
+			continue
+		}
+
+		// Check if compatible based on major version
+		if !allowMajor && releaseVer.major != currentVer.major {
+			continue
+		}
+
+		// Check if this is newer than what we have
+		if latestCompatibleVersion == nil || releaseVer.isNewer(latestCompatibleVersion) {
+			latestCompatible = release
+			latestCompatibleVersion = releaseVer
+		}
+	}
+
+	if latestCompatible == "" {
+		return "", "", fmt.Errorf("no compatible release found")
+	}
+
+	sha := tagToSHA[latestCompatible]
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Latest compatible release: %s (via git)", latestCompatible)))
+	}
+
+	return latestCompatible, sha, nil
+}
+
+// getActionSHAForTag gets the commit SHA for a given tag in an action repository
+func getActionSHAForTag(repo, tag string) (string, error) {
+	updateLog.Printf("Getting SHA for %s@%s", repo, tag)
+
+	// Use gh CLI to get the git ref for the tag
+	cmd := workflow.ExecGH("api", fmt.Sprintf("/repos/%s/git/ref/tags/%s", repo, tag), "--jq", ".object.sha")
+	output, err := cmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("failed to resolve tag: %w", err)
+	}
+
+	sha := strings.TrimSpace(string(output))
+	if sha == "" {
+		return "", fmt.Errorf("empty SHA returned for tag")
+	}
+
+	// Validate SHA format (should be 40 hex characters)
+	if len(sha) != 40 {
+		return "", fmt.Errorf("invalid SHA format: %s", sha)
+	}
+
+	return sha, nil
+}
+
+// marshalActionsLockSorted marshals the actions lock with entries sorted by key
+func marshalActionsLockSorted(actionsLock *actionsLockFile) ([]byte, error) {
+	// Extract and sort the keys
+	keys := make([]string, 0, len(actionsLock.Entries))
+	for key := range actionsLock.Entries {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+
+	// Build JSON using json.Marshal for proper encoding
+	var buf strings.Builder
+	buf.WriteString("{\n  \"entries\": {\n")
+
+	for i, key := range keys {
+		entry := actionsLock.Entries[key]
+
+		// Marshal the entry to JSON to ensure proper escaping
+		entryJSON, err := json.Marshal(entry)
+		if err != nil {
+			return nil, err
+		}
+
+		// Marshal the key to ensure proper escaping
+		keyJSON, err := json.Marshal(key)
+		if err != nil {
+			return nil, err
+		}
+
+		// Write the key-value pair with proper indentation
+		buf.WriteString("    ")
+		buf.WriteString(string(keyJSON))
+		buf.WriteString(": ")
+
+		// Pretty-print the entry JSON with proper indentation
+		var prettyEntry bytes.Buffer
+		if err := json.Indent(&prettyEntry, entryJSON, "    ", "  "); err != nil {
+			return nil, err
+		}
+		buf.WriteString(prettyEntry.String())
+
+		// Add comma if not the last entry
+		if i < len(keys)-1 {
+			buf.WriteString(",")
+		}
+		buf.WriteString("\n")
+	}
+
+	buf.WriteString("  }\n}")
+	return []byte(buf.String()), nil
 }

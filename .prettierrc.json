@@ -9,6 +9,12 @@
   "arrowParens": "avoid",
   "overrides": [
     {
+      "files": "*.cjs",
+      "options": {
+        "singleQuote": false
+      }
+    },
+    {
       "files": "*.json",
       "options": {
         "parser": "json"

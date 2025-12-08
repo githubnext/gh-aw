@@ -310,12 +310,60 @@ steps:
 
 #### Finding SHA for Actions
 
+There are several ways to find the SHA commit for a specific action version:
+
+**Method 1: Using git ls-remote (Recommended)**
 ```bash
 # Get SHA for a specific tag
 git ls-remote https://github.com/actions/checkout v4.1.1
+# Output: abc123def456...  refs/tags/v4.1.1
 
-# Or use GitHub API
-curl -s https://api.github.com/repos/actions/checkout/git/refs/tags/v4.1.1
+# For actions with subpaths (like codeql-action)
+git ls-remote https://github.com/github/codeql-action v3
+```
+
+**Method 2: Using GitHub API**
+```bash
+# Get SHA for a tag
+curl -s https://api.github.com/repos/actions/checkout/git/refs/tags/v4.1.1 | jq -r '.object.sha'
+
+# Get the latest release
+curl -s https://api.github.com/repos/actions/checkout/releases/latest | jq -r '.tag_name'
+```
+
+**Method 3: Using GitHub Web UI**
+1. Navigate to the action's GitHub repository (e.g., https://github.com/actions/checkout)
+2. Click on the "Releases" or "Tags" section
+3. Find the version tag you want (e.g., v4.1.1)
+4. Click on the tag to see the commit
+5. Copy the full SHA from the commit page
+
+**Method 4: Automated Script**
+```bash
+#!/bin/bash
+# pin-action.sh - Get SHA for an action
+
+get_sha() {
+    local action=$1
+    local version=$2
+    local repo=$(echo "$action" | cut -d'/' -f1-2)
+    
+    sha=$(git ls-remote "https://github.com/$repo" "refs/tags/$version" 2>/dev/null | awk '{print $1}')
+    
+    if [ -z "$sha" ]; then
+        sha=$(git ls-remote "https://github.com/$repo" "$version" 2>/dev/null | awk '{print $1}')
+    fi
+    
+    if [ -n "$sha" ]; then
+        echo "$action@$sha # $version"
+    else
+        echo "ERROR: Could not find SHA for $action@$version" >&2
+        return 1
+    fi
+}
+
+# Usage: get_sha "actions/checkout" "v4.1.1"
+get_sha "$1" "$2"
 ```
 
 ### Verify Action Creators
@@ -392,16 +440,109 @@ jobs:
           scan-ref: '.'
 ```
 
+### Maintaining Pinned Actions
+
+Once actions are pinned to SHA commits, they need to be updated periodically to get bug fixes and security updates.
+
+#### When to Update Pinned Actions
+
+- **Security advisories**: Immediately update when a security vulnerability is announced
+- **Major releases**: Review and update when a new major version is released
+- **Regular maintenance**: Update quarterly or semi-annually for bug fixes and improvements
+- **Breaking changes**: Test thoroughly before updating to avoid CI/CD disruptions
+
+#### Update Process
+
+1. **Check for updates**:
+   ```bash
+   # List current versions in your workflows
+   grep -r "uses:.*# v" .github/workflows/
+   
+   # Check for newer versions on GitHub
+   # Visit: https://github.com/actions/checkout/releases
+   ```
+
+2. **Get new SHA**:
+   ```bash
+   # Get SHA for new version
+   git ls-remote https://github.com/actions/checkout v4.2.0
+   ```
+
+3. **Update workflow file**:
+   ```yaml
+   # Old
+   - uses: actions/checkout@abc123... # v4.1.1
+   
+   # New
+   - uses: actions/checkout@def456... # v4.2.0
+   ```
+
+4. **Test the changes**:
+   - Run the workflow in a test branch
+   - Verify all jobs complete successfully
+   - Check for any behavioral changes
+
+5. **Document changes**:
+   - Note why the update was made (security fix, new feature, etc.)
+   - Update any related documentation
+
+#### Automated Update Tools
+
+**Dependabot** (Recommended for GitHub repositories):
+```yaml
+# .github/dependabot.yml
+version: 2
+updates:
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    # Auto-merge minor and patch updates
+    open-pull-requests-limit: 10
+```
+
+**Renovate Bot**:
+```json
+{
+  "extends": ["config:base"],
+  "github-actions": {
+    "enabled": true,
+    "pinDigests": true
+  }
+}
+```
+
+#### Finding All Unpinned Actions
+
+Use this command to identify any remaining unpinned actions:
+
+```bash
+# Find all unpinned actions (not using SHA)
+grep -r "uses:" .github/workflows/*.yml .github/workflows/*.yaml | \
+  grep -v "@[0-9a-f]\{40\}" | \
+  grep -v "^#" | \
+  grep -v ".lock.yml"
+
+# Count pinned vs unpinned
+echo "Pinned actions:"
+grep -r "uses:" .github/workflows/*.yml | grep "@[0-9a-f]\{40\}" | wc -l
+
+echo "Unpinned actions:"
+grep -r "uses:" .github/workflows/*.yml | grep -v "@[0-9a-f]\{40\}" | grep -v "^#" | wc -l
+```
+
 ### Supply Chain Security Checklist
 
 - ✅ Pin all actions to immutable SHA references
-- ✅ Add version comments to pinned SHAs
+- ✅ Add version comments to pinned SHAs (format: `@sha # v1.2.3`)
 - ✅ Review action source code before first use
 - ✅ Use actions from verified creators when possible
 - ✅ Regularly update pinned actions (but review changes)
 - ✅ Scan dependencies for vulnerabilities
 - ✅ Monitor security advisories for used actions
 - ✅ Use Dependabot or Renovate for automated updates
+- ✅ Document update procedures for your team
+- ✅ Test updated actions before merging to main branch
 
 ---
 
@@ -875,6 +1016,6 @@ Use this checklist when creating or reviewing GitHub Actions workflows:
 
 ---
 
-**Last Updated**: 2025-11-06  
+**Last Updated**: 2025-12-06  
 **Status**: ✅ Documented  
 **Implementation**: See workflow examples in `.github/workflows/` and `pkg/cli/workflows/`

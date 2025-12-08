@@ -18,6 +18,7 @@ timeout-minutes: 45
 safe-outputs:
   upload-assets:
   create-discussion:
+    expires: 3d
     category: "audits"
     max: 1
     close-older-discussions: true
@@ -30,7 +31,9 @@ tools:
   bash:
     - "*"
   edit:
-  cache-memory:
+  repo-memory:
+    branch-name: memory/firewall-reports
+    description: "Firewall analysis history and aggregated data"
 imports:
   - shared/mcp/gh-aw.md
   - shared/reporting.md
@@ -150,16 +153,16 @@ Generate a comprehensive daily report of all rejected domains across all agentic
 
 ## Instructions
 
-### Step 0: Check Cache for Recent Analysis
+### Step 0: Check Repo Memory for Recent Analysis
 
 **EFFICIENCY FIRST**: Before starting the full analysis:
 
-1. Check `/tmp/gh-aw/cache-memory/firewall-reports/` for the most recent report
+1. Check `/tmp/gh-aw/repo-memory-default/memory/default/` for the most recent report
 2. If a report exists from the last 24 hours:
    - Read the cached run IDs that were analyzed
    - Determine if any new workflow runs have occurred since then
    - If no new runs, update the existing report with current timestamp and exit early
-3. Cache the following for the next run:
+3. Store the following in repo memory for the next run:
    - Last analysis timestamp
    - List of run IDs analyzed
    - Aggregated blocked domains data

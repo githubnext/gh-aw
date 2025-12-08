@@ -83,6 +83,7 @@ type OverviewData struct {
 	Event        string    `json:"event" console:"header:Event"`
 	Branch       string    `json:"branch" console:"header:Branch"`
 	URL          string    `json:"url" console:"header:URL"`
+	LogsPath     string    `json:"logs_path,omitempty" console:"header:Files,omitempty"`
 }
 
 // MetricsData contains execution metrics
@@ -135,6 +136,7 @@ type OverviewDisplay struct {
 	Event    string `console:"header:Event"`
 	Branch   string `console:"header:Branch"`
 	URL      string `console:"header:URL"`
+	Files    string `console:"header:Files,omitempty"`
 }
 
 // buildAuditData creates structured audit data from workflow run information
@@ -155,6 +157,18 @@ func buildAuditData(processedRun ProcessedRun, metrics LogMetrics) AuditData {
 		Branch:       run.HeadBranch,
 		URL:          run.URL,
 	}
+
+	// Convert LogsPath to relative path from workspace root
+	if run.LogsPath != "" {
+		logsPathDisplay := run.LogsPath
+		if cwd, err := os.Getwd(); err == nil {
+			if relPath, err := filepath.Rel(cwd, run.LogsPath); err == nil {
+				logsPathDisplay = relPath
+			}
+		}
+		overview.LogsPath = logsPathDisplay
+	}
+
 	if run.Duration > 0 {
 		overview.Duration = timeutil.FormatDuration(run.Duration)
 	}
@@ -562,6 +576,7 @@ func renderOverview(overview OverviewData) {
 		Event:    overview.Event,
 		Branch:   overview.Branch,
 		URL:      overview.URL,
+		Files:    overview.LogsPath,
 	}
 
 	fmt.Print(console.RenderStruct(display))

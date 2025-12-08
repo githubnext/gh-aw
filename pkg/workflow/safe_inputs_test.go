@@ -602,13 +602,13 @@ func TestGenerateSafeInputsMCPServerScript(t *testing.T) {
 	// Test the entry point script
 	script := generateSafeInputsMCPServerScript(config)
 
-	// Check for modular server entry point structure
-	if !strings.Contains(script, "safe_inputs_mcp_server.cjs") {
-		t.Error("Script should reference the modular MCP server module")
+	// Check for HTTP server entry point structure
+	if !strings.Contains(script, "safe_inputs_mcp_server_http.cjs") {
+		t.Error("Script should reference the HTTP MCP server module")
 	}
 
-	if !strings.Contains(script, "startSafeInputsServer") {
-		t.Error("Script should use startSafeInputsServer function")
+	if !strings.Contains(script, "startHttpServer") {
+		t.Error("Script should use startHttpServer function")
 	}
 
 	if !strings.Contains(script, "tools.json") {
@@ -617,6 +617,14 @@ func TestGenerateSafeInputsMCPServerScript(t *testing.T) {
 
 	if !strings.Contains(script, "/tmp/gh-aw/safe-inputs/logs") {
 		t.Error("Script should specify log directory")
+	}
+
+	if !strings.Contains(script, "GH_AW_SAFE_INPUTS_PORT") {
+		t.Error("Script should reference GH_AW_SAFE_INPUTS_PORT environment variable")
+	}
+
+	if !strings.Contains(script, "GH_AW_SAFE_INPUTS_API_KEY") {
+		t.Error("Script should reference GH_AW_SAFE_INPUTS_API_KEY environment variable")
 	}
 
 	// Test the tools configuration JSON
@@ -660,6 +668,59 @@ func TestGenerateSafeInputsMCPServerScript(t *testing.T) {
 
 	if !strings.Contains(toolsJSON, `"required"`) {
 		t.Error("Tools config should contain required fields array")
+	}
+}
+
+func TestGenerateSafeInputsToolsConfigWithEnv(t *testing.T) {
+	config := &SafeInputsConfig{
+		Tools: map[string]*SafeInputToolConfig{
+			"github-query": {
+				Name:        "github-query",
+				Description: "Query GitHub with authentication",
+				Run:         "gh repo view $INPUT_REPO",
+				Inputs: map[string]*SafeInputParam{
+					"repo": {
+						Type:     "string",
+						Required: true,
+					},
+				},
+				Env: map[string]string{
+					"GH_TOKEN": "${{ secrets.GITHUB_TOKEN }}",
+					"API_KEY":  "${{ secrets.API_KEY }}",
+				},
+			},
+		},
+	}
+
+	toolsJSON := generateSafeInputsToolsConfig(config)
+
+	// Verify that env field is present in tools.json
+	if !strings.Contains(toolsJSON, `"env"`) {
+		t.Error("Tools config should contain env field")
+	}
+
+	// Verify that env contains environment variable names (not secrets or $ prefixes)
+	// The values should be just the variable names like "GH_TOKEN": "GH_TOKEN"
+	if !strings.Contains(toolsJSON, `"GH_TOKEN": "GH_TOKEN"`) {
+		t.Error("Tools config should contain GH_TOKEN env variable name")
+	}
+
+	if !strings.Contains(toolsJSON, `"API_KEY": "API_KEY"`) {
+		t.Error("Tools config should contain API_KEY env variable name")
+	}
+
+	// Verify that actual secret expressions are NOT in tools.json
+	if strings.Contains(toolsJSON, "secrets.GITHUB_TOKEN") {
+		t.Error("Tools config should NOT contain secret expressions")
+	}
+
+	if strings.Contains(toolsJSON, "secrets.API_KEY") {
+		t.Error("Tools config should NOT contain secret expressions")
+	}
+
+	// Verify that $ prefix is not used (which might suggest variable expansion)
+	if strings.Contains(toolsJSON, `"$GH_TOKEN"`) {
+		t.Error("Tools config should NOT contain $ prefix in env values")
 	}
 }
 

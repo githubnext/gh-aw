@@ -96,13 +96,14 @@ The following toolsets are enabled by default when `toolsets:` is not specified:
 - `repos` - Repository management
 - `issues` - Issue management  
 - `pull_requests` - Pull request operations
-- `users` - User profiles
+
+**Note**: The `users` toolset is not included by default and must be explicitly specified if needed.
 
 ### All Available Toolsets
 
 | Toolset | Description | Common Tools |
 |---------|-------------|--------------|
-| `context` | User and environment context | `get_me`, `get_teams`, `get_team_members` |
+| `context` | User and environment context | `get_teams`, `get_team_members` |
 | `repos` | Repository management | `get_repository`, `get_file_contents`, `search_code`, `list_commits` |
 | `issues` | Issue management | `issue_read`, `list_issues`, `create_issue`, `search_issues` |
 | `pull_requests` | Pull request operations | `pull_request_read`, `list_pull_requests`, `create_pull_request` |
@@ -119,7 +120,7 @@ The following toolsets are enabled by default when `toolsets:` is not specified:
 | `secret_protection` | Secret scanning | Secret detection and management |
 | `security_advisories` | Security advisories | Advisory creation and management |
 | `stargazers` | Repository stars | Star-related operations |
-| `users` | User profiles | `get_user`, `list_users` |
+| `users` | User profiles | `get_me`, `get_user`, `list_users` |
 | `search` | Advanced search | Search across repos, code, users |
 
 ## Available Tools by Toolset
@@ -127,7 +128,6 @@ The following toolsets are enabled by default when `toolsets:` is not specified:
 This section maps individual tools to their respective toolsets to help with migration from `allowed:` to `toolsets:`.
 
 ### Context Toolset
-- `get_me` - Get current user information
 - `get_teams` - List teams the user belongs to
 - `get_team_members` - List members of a specific team
 
@@ -177,6 +177,7 @@ This section maps individual tools to their respective toolsets to help with mig
 - `create_label` - Create a new label
 
 ### Users Toolset
+- `get_me` - Get current authenticated user information
 - `get_user` - Get user profile information
 - `list_users` - List users
 
@@ -279,7 +280,8 @@ Use this table to identify which toolset contains the tools you need:
 
 | `allowed:` Tools | Migrate to `toolsets:` |
 |------------------|------------------------|
-| `get_me`, `get_teams`, `get_team_members` | `context` |
+| `get_me` | `users` |
+| `get_teams`, `get_team_members` | `context` |
 | `get_repository`, `get_file_contents`, `search_code`, `list_commits` | `repos` |
 | `issue_read`, `list_issues`, `create_issue`, `update_issue`, `search_issues` | `issues` |
 | `pull_request_read`, `list_pull_requests`, `create_pull_request` | `pull_requests` |

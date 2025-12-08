@@ -37,6 +37,7 @@ jobs:
       attestations: write
     outputs:
       release_id: ${{ steps.get_release.outputs.release_id }}
+      release_tag: ${{ steps.get_release.outputs.release_tag }}
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -59,7 +60,58 @@ jobs:
           echo "Getting release ID for tag: $RELEASE_TAG"
           RELEASE_ID=$(gh release view "$RELEASE_TAG" --json databaseId --jq '.databaseId')
           echo "release_id=$RELEASE_ID" >> "$GITHUB_OUTPUT"
+          echo "release_tag=$RELEASE_TAG" >> "$GITHUB_OUTPUT"
           echo "✓ Release ID: $RELEASE_ID"
+          echo "✓ Release Tag: $RELEASE_TAG"
+  generate-sbom:
+    needs: ["release"]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: false  # Disabled for release security - prevent cache poisoning attacks
+
+      - name: Download Go modules
+        run: go mod download
+
+      - name: Generate SBOM (SPDX format)
+        uses: anchore/sbom-action@v0
+        with:
+          artifact-name: sbom.spdx.json
+          output-file: sbom.spdx.json
+          format: spdx-json
+
+      - name: Generate SBOM (CycloneDX format)
+        uses: anchore/sbom-action@v0
+        with:
+          artifact-name: sbom.cdx.json
+          output-file: sbom.cdx.json
+          format: cyclonedx-json
+
+      - name: Upload SBOM artifacts
+        uses: actions/upload-artifact@v5
+        with:
+          name: sbom-artifacts
+          path: |
+            sbom.spdx.json
+            sbom.cdx.json
+          retention-days: 90
+
+      - name: Attach SBOM to release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ needs.release.outputs.release_tag }}
+        run: |
+          echo "Attaching SBOM files to release: $RELEASE_TAG"
+          gh release upload "$RELEASE_TAG" sbom.spdx.json sbom.cdx.json --clobber
+          echo "✓ SBOM files attached to release"
 steps:
   - name: Setup environment and fetch release data
     env:

@@ -9,8 +9,8 @@ import (
 func TestMCPGatewayCommand(t *testing.T) {
 	cmd := NewMCPGatewayCommand()
 
-	if cmd.Use != "mcp-gateway <mcp-server.json>" {
-		t.Errorf("Expected Use to be 'mcp-gateway <mcp-server.json>', got '%s'", cmd.Use)
+	if cmd.Use != "mcp-gateway" {
+		t.Errorf("Expected Use to be 'mcp-gateway', got '%s'", cmd.Use)
 	}
 
 	if cmd.Short == "" {
@@ -36,6 +36,16 @@ func TestMCPGatewayCommand(t *testing.T) {
 	if logsDirFlag == nil {
 		t.Error("Expected --logs-dir flag to be defined")
 	}
+
+	mcpsFlag := cmd.Flags().Lookup("mcps")
+	if mcpsFlag == nil {
+		t.Error("Expected --mcps flag to be defined")
+	}
+
+	scriptsFlag := cmd.Flags().Lookup("scripts")
+	if scriptsFlag == nil {
+		t.Error("Expected --scripts flag to be defined")
+	}
 }
 
 func TestMCPGatewayInvalidConfig(t *testing.T) {
@@ -48,15 +58,15 @@ func TestMCPGatewayInvalidConfig(t *testing.T) {
 		t.Fatalf("Failed to write test config: %v", err)
 	}
 
-	// Try to run with invalid config
-	err := runMCPGateway(configPath, 0, "", "")
+	// Try to run with invalid config (as mcps config)
+	err := runMCPGateway(configPath, "", 0, "", "")
 	if err == nil {
 		t.Error("Expected error for invalid JSON, got nil")
 	}
 }
 
 func TestMCPGatewayMissingFile(t *testing.T) {
-	err := runMCPGateway("/nonexistent/config.json", 0, "", "")
+	err := runMCPGateway("/nonexistent/config.json", "", 0, "", "")
 	if err == nil {
 		t.Error("Expected error for missing file, got nil")
 	}

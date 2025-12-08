@@ -241,7 +241,8 @@ If you have existing GitHub tool configurations using `allowed:`, migrate to `to
 | `allowed: [list_issues, create_issue, update_issue]` | `toolsets: [issues]` |
 | `allowed: [list_pull_requests, create_pull_request]` | `toolsets: [pull_requests]` |
 | `allowed: [list_workflows, list_workflow_runs]` | `toolsets: [actions]` |
-| `allowed: [get_me, get_teams]` | `toolsets: [context]` |
+| `allowed: [get_me]` | `toolsets: [users]` |
+| `allowed: [get_teams]` | `toolsets: [context]` |
 | Mixed issue/PR tools | `toolsets: [default]` or `toolsets: [issues, pull_requests]` |
 
 ### Before and After Example

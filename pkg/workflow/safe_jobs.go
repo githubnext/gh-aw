@@ -157,12 +157,13 @@ func (c *Compiler) parseSafeJobsConfig(frontmatter map[string]any) map[string]*S
 }
 
 // buildSafeJobs creates custom safe-output jobs defined in SafeOutputs.Jobs
-func (c *Compiler) buildSafeJobs(data *WorkflowData, threatDetectionEnabled bool) error {
+func (c *Compiler) buildSafeJobs(data *WorkflowData, threatDetectionEnabled bool) ([]string, error) {
 	if data.SafeOutputs == nil || len(data.SafeOutputs.Jobs) == 0 {
-		return nil
+		return nil, nil
 	}
 
 	safeJobsLog.Printf("Building %d safe-jobs, threatDetectionEnabled=%v", len(data.SafeOutputs.Jobs), threatDetectionEnabled)
+	var safeJobNames []string
 	for jobName, jobConfig := range data.SafeOutputs.Jobs {
 		// Normalize job name to use underscores for consistency
 		normalizedJobName := normalizeSafeOutputIdentifier(jobName)
@@ -258,7 +259,7 @@ func (c *Compiler) buildSafeJobs(data *WorkflowData, threatDetectionEnabled bool
 
 					stepYAML, err := c.convertStepToYAML(pinnedStepMap)
 					if err != nil {
-						return fmt.Errorf("failed to convert step to YAML for safe job %s: %w", jobName, err)
+						return nil, fmt.Errorf("failed to convert step to YAML for safe job %s: %w", jobName, err)
 					}
 					steps = append(steps, stepYAML)
 				}
@@ -280,13 +281,14 @@ func (c *Compiler) buildSafeJobs(data *WorkflowData, threatDetectionEnabled bool
 		// Add the job to the job manager
 		if err := c.jobManager.AddJob(job); err != nil {
 			safeJobsLog.Printf("Failed to add safe-job %s: %v", normalizedJobName, err)
-			return fmt.Errorf("failed to add safe job %s: %w", jobName, err)
+			return nil, fmt.Errorf("failed to add safe job %s: %w", jobName, err)
 		}
 		safeJobsLog.Printf("Created safe-job: %s with %d dependencies and %d steps", normalizedJobName, len(job.Needs), len(job.Steps))
+		safeJobNames = append(safeJobNames, normalizedJobName)
 	}
 
-	safeJobsLog.Print("Successfully built all safe-jobs")
-	return nil
+	safeJobsLog.Printf("Successfully built %d safe-jobs", len(safeJobNames))
+	return safeJobNames, nil
 }
 
 // extractSafeJobsFromFrontmatter extracts safe-jobs configuration from frontmatter.

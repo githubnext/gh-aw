@@ -182,7 +182,11 @@ func (jm *JobManager) renderJob(job *Job) string {
 			yaml.WriteString(fmt.Sprintf("    needs: %s\n", job.Needs[0]))
 		} else {
 			yaml.WriteString("    needs:\n")
-			for _, dep := range job.Needs {
+			// Sort needs for consistent output
+			sortedNeeds := make([]string, len(job.Needs))
+			copy(sortedNeeds, job.Needs)
+			sort.Strings(sortedNeeds)
+			for _, dep := range sortedNeeds {
 				yaml.WriteString(fmt.Sprintf("      - %s\n", dep))
 			}
 		}
@@ -430,12 +434,21 @@ func (jm *JobManager) GenerateMermaidGraph() string {
 		mermaid.WriteString(fmt.Sprintf("  %s[\"%s\"]\n", jobName, displayName))
 	}
 
-	// Add edges for dependencies in alphabetical order of job names
+	// Collect all edges first
+	var edges []string
 	for _, jobName := range sortedJobNames {
 		job := jm.jobs[jobName]
 		for _, dep := range job.Needs {
-			mermaid.WriteString(fmt.Sprintf("  %s --> %s\n", dep, jobName))
+			edges = append(edges, fmt.Sprintf("  %s --> %s", dep, jobName))
 		}
+	}
+
+	// Sort edges alphabetically for stable output
+	sort.Strings(edges)
+
+	// Write sorted edges
+	for _, edge := range edges {
+		mermaid.WriteString(edge + "\n")
 	}
 
 	mermaid.WriteString("```")

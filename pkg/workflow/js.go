@@ -38,22 +38,22 @@ func init() {
 
 // getAddReactionAndEditCommentScript returns the bundled add_reaction_and_edit_comment script
 func getAddReactionAndEditCommentScript() string {
-	return DefaultScriptRegistry.Get("add_reaction_and_edit_comment")
+	return DefaultScriptRegistry.GetWithMode("add_reaction_and_edit_comment", RuntimeModeGitHubScript)
 }
 
 // getAssignIssueScript returns the bundled assign_issue script
 func getAssignIssueScript() string {
-	return DefaultScriptRegistry.Get("assign_issue")
+	return DefaultScriptRegistry.GetWithMode("assign_issue", RuntimeModeGitHubScript)
 }
 
 // getAddCopilotReviewerScript returns the bundled add_copilot_reviewer script
 func getAddCopilotReviewerScript() string {
-	return DefaultScriptRegistry.Get("add_copilot_reviewer")
+	return DefaultScriptRegistry.GetWithMode("add_copilot_reviewer", RuntimeModeGitHubScript)
 }
 
 // getCheckMembershipScript returns the bundled check_membership script
 func getCheckMembershipScript() string {
-	return DefaultScriptRegistry.Get("check_membership")
+	return DefaultScriptRegistry.GetWithMode("check_membership", RuntimeModeGitHubScript)
 }
 
 //go:embed js/check_stop_time.cjs
@@ -82,7 +82,7 @@ var safeOutputsMCPServerScriptSource string
 
 // getSafeOutputsMCPServerScript returns the bundled safe_outputs_mcp_server script
 func getSafeOutputsMCPServerScript() string {
-	return DefaultScriptRegistry.Get("safe_outputs_mcp_server")
+	return DefaultScriptRegistry.GetWithMode("safe_outputs_mcp_server", RuntimeModeGitHubScript)
 }
 
 //go:embed js/safe_outputs_tools.json
@@ -138,7 +138,7 @@ var updateProjectScriptSource string
 
 // getUpdateProjectScript returns the bundled update_project script
 func getUpdateProjectScript() string {
-	return DefaultScriptRegistry.Get("update_project")
+	return DefaultScriptRegistry.GetWithMode("update_project", RuntimeModeGitHubScript)
 }
 
 //go:embed js/generate_footer.cjs
@@ -146,6 +146,9 @@ var generateFooterScript string
 
 //go:embed js/get_tracker_id.cjs
 var getTrackerIDScript string
+
+//go:embed js/push_repo_memory.cjs
+var pushRepoMemoryScript string
 
 //go:embed js/messages.cjs
 var messagesScript string
@@ -167,6 +170,9 @@ var messagesCloseDiscussionScript string
 
 //go:embed js/close_older_discussions.cjs
 var closeOlderDiscussionsScript string
+
+//go:embed js/expiration_helpers.cjs
+var expirationHelpersScript string
 
 //go:embed js/get_repository_url.cjs
 var getRepositoryUrlScript string
@@ -201,6 +207,9 @@ var temporaryIdScript string
 //go:embed js/update_runner.cjs
 var updateRunnerScript string
 
+//go:embed js/update_pr_description_helpers.cjs
+var updatePRDescriptionHelpersScript string
+
 //go:embed js/read_buffer.cjs
 var readBufferScript string
 
@@ -210,11 +219,20 @@ var mcpServerCoreScript string
 //go:embed js/safe_inputs_mcp_server.cjs
 var safeInputsMCPServerScript string
 
+//go:embed js/safe_inputs_mcp_server_http.cjs
+var safeInputsMCPServerHTTPScript string
+
 //go:embed js/safe_inputs_config_loader.cjs
 var safeInputsConfigLoaderScript string
 
+//go:embed js/safe_inputs_bootstrap.cjs
+var safeInputsBootstrapScript string
+
 //go:embed js/safe_inputs_tool_factory.cjs
 var safeInputsToolFactoryScript string
+
+//go:embed js/safe_inputs_validation.cjs
+var safeInputsValidationScript string
 
 //go:embed js/mcp_handler_shell.cjs
 var mcpHandlerShellScript string
@@ -244,53 +262,76 @@ var safeOutputsToolsLoaderScript string
 // The keys are the relative paths from the js directory
 func GetJavaScriptSources() map[string]string {
 	return map[string]string{
-		"sanitize_content.cjs":            sanitizeContentScript,
-		"sanitize_label_content.cjs":      sanitizeLabelContentScript,
-		"sanitize_workflow_name.cjs":      sanitizeWorkflowNameScript,
-		"load_agent_output.cjs":           loadAgentOutputScript,
-		"staged_preview.cjs":              stagedPreviewScript,
-		"assign_agent_helpers.cjs":        assignAgentHelpersScript,
-		"safe_output_helpers.cjs":         safeOutputHelpersScript,
-		"safe_output_validator.cjs":       safeOutputValidatorScript,
-		"safe_output_processor.cjs":       safeOutputProcessorScript,
-		"temporary_id.cjs":                temporaryIdScript,
-		"is_truthy.cjs":                   isTruthyScript,
-		"log_parser_bootstrap.cjs":        logParserBootstrapScript,
-		"log_parser_shared.cjs":           logParserSharedScript,
-		"update_activation_comment.cjs":   updateActivationCommentScript,
-		"generate_footer.cjs":             generateFooterScript,
-		"get_tracker_id.cjs":              getTrackerIDScript,
-		"messages.cjs":                    messagesScript,
-		"messages_core.cjs":               messagesCoreScript,
-		"messages_footer.cjs":             messagesFooterScript,
-		"messages_staged.cjs":             messagesStagedScript,
-		"messages_run_status.cjs":         messagesRunStatusScript,
-		"messages_close_discussion.cjs":   messagesCloseDiscussionScript,
-		"close_older_discussions.cjs":     closeOlderDiscussionsScript,
-		"get_repository_url.cjs":          getRepositoryUrlScript,
-		"check_permissions_utils.cjs":     checkPermissionsUtilsScript,
-		"normalize_branch_name.cjs":       normalizeBranchNameScript,
-		"estimate_tokens.cjs":             estimateTokensScript,
-		"generate_compact_schema.cjs":     generateCompactSchemaScript,
-		"write_large_content_to_file.cjs": writeLargeContentToFileScript,
-		"get_current_branch.cjs":          getCurrentBranchScript,
-		"get_base_branch.cjs":             getBaseBranchScript,
-		"generate_git_patch.cjs":          generateGitPatchJSScript,
-		"update_runner.cjs":               updateRunnerScript,
-		"read_buffer.cjs":                 readBufferScript,
-		"mcp_server_core.cjs":             mcpServerCoreScript,
-		"safe_inputs_mcp_server.cjs":      safeInputsMCPServerScript,
-		"safe_inputs_config_loader.cjs":   safeInputsConfigLoaderScript,
-		"safe_inputs_tool_factory.cjs":    safeInputsToolFactoryScript,
-		"mcp_handler_shell.cjs":           mcpHandlerShellScript,
-		"mcp_handler_python.cjs":          mcpHandlerPythonScript,
-		"safe_output_type_validator.cjs":  safeOutputTypeValidatorScript,
-		"repo_helpers.cjs":                repoHelpersScript,
-		"safe_outputs_config.cjs":         safeOutputsConfigScript,
-		"safe_outputs_append.cjs":         safeOutputsAppendScript,
-		"safe_outputs_handlers.cjs":       safeOutputsHandlersScript,
-		"safe_outputs_tools_loader.cjs":   safeOutputsToolsLoaderScript,
-		"safe_outputs_mcp_server.cjs":     safeOutputsMCPServerScriptSource,
+		"sanitize_content.cjs":              sanitizeContentScript,
+		"sanitize_label_content.cjs":        sanitizeLabelContentScript,
+		"sanitize_workflow_name.cjs":        sanitizeWorkflowNameScript,
+		"load_agent_output.cjs":             loadAgentOutputScript,
+		"staged_preview.cjs":                stagedPreviewScript,
+		"assign_agent_helpers.cjs":          assignAgentHelpersScript,
+		"safe_output_helpers.cjs":           safeOutputHelpersScript,
+		"safe_output_validator.cjs":         safeOutputValidatorScript,
+		"safe_output_processor.cjs":         safeOutputProcessorScript,
+		"temporary_id.cjs":                  temporaryIdScript,
+		"is_truthy.cjs":                     isTruthyScript,
+		"log_parser_bootstrap.cjs":          logParserBootstrapScript,
+		"log_parser_shared.cjs":             logParserSharedScript,
+		"update_activation_comment.cjs":     updateActivationCommentScript,
+		"generate_footer.cjs":               generateFooterScript,
+		"get_tracker_id.cjs":                getTrackerIDScript,
+		"messages.cjs":                      messagesScript,
+		"messages_core.cjs":                 messagesCoreScript,
+		"messages_footer.cjs":               messagesFooterScript,
+		"messages_staged.cjs":               messagesStagedScript,
+		"messages_run_status.cjs":           messagesRunStatusScript,
+		"messages_close_discussion.cjs":     messagesCloseDiscussionScript,
+		"close_older_discussions.cjs":       closeOlderDiscussionsScript,
+		"expiration_helpers.cjs":            expirationHelpersScript,
+		"get_repository_url.cjs":            getRepositoryUrlScript,
+		"check_permissions_utils.cjs":       checkPermissionsUtilsScript,
+		"normalize_branch_name.cjs":         normalizeBranchNameScript,
+		"estimate_tokens.cjs":               estimateTokensScript,
+		"generate_compact_schema.cjs":       generateCompactSchemaScript,
+		"write_large_content_to_file.cjs":   writeLargeContentToFileScript,
+		"get_current_branch.cjs":            getCurrentBranchScript,
+		"get_base_branch.cjs":               getBaseBranchScript,
+		"generate_git_patch.cjs":            generateGitPatchJSScript,
+		"update_runner.cjs":                 updateRunnerScript,
+		"update_pr_description_helpers.cjs": updatePRDescriptionHelpersScript,
+		"read_buffer.cjs":                   readBufferScript,
+		"mcp_server_core.cjs":               mcpServerCoreScript,
+		"mcp_http_transport.cjs":            mcpHTTPTransportScriptSource,
+		"mcp_logger.cjs":                    mcpLoggerScriptSource,
+		"safe_inputs_mcp_server.cjs":        safeInputsMCPServerScript,
+		"safe_inputs_mcp_server_http.cjs":   safeInputsMCPServerHTTPScript,
+		"safe_inputs_config_loader.cjs":     safeInputsConfigLoaderScript,
+		"safe_inputs_bootstrap.cjs":         safeInputsBootstrapScript,
+		"safe_inputs_tool_factory.cjs":      safeInputsToolFactoryScript,
+		"safe_inputs_validation.cjs":        safeInputsValidationScript,
+		"mcp_handler_shell.cjs":             mcpHandlerShellScript,
+		"mcp_handler_python.cjs":            mcpHandlerPythonScript,
+		"safe_output_type_validator.cjs":    safeOutputTypeValidatorScript,
+		"repo_helpers.cjs":                  repoHelpersScript,
+		"safe_outputs_config.cjs":           safeOutputsConfigScript,
+		"safe_outputs_append.cjs":           safeOutputsAppendScript,
+		"safe_outputs_handlers.cjs":         safeOutputsHandlersScript,
+		"safe_outputs_tools_loader.cjs":     safeOutputsToolsLoaderScript,
+		"safe_outputs_mcp_server.cjs":       safeOutputsMCPServerScriptSource,
+		"add_copilot_reviewer.cjs":          addCopilotReviewerScriptSource,
+		"add_reaction_and_edit_comment.cjs": addReactionAndEditCommentScriptSource,
+		"assign_issue.cjs":                  assignIssueScriptSource,
+		"check_command_position.cjs":        checkCommandPositionScript,
+		"check_membership.cjs":              checkMembershipScriptSource,
+		"check_skip_if_match.cjs":           checkSkipIfMatchScript,
+		"check_stop_time.cjs":               checkStopTimeScript,
+		"check_workflow_timestamp_api.cjs":  checkWorkflowTimestampAPIScript,
+		"checkout_pr_branch.cjs":            checkoutPRBranchScript,
+		"create_agent_task.cjs":             createAgentTaskScript,
+		"interpolate_prompt.cjs":            interpolatePromptScript,
+		"missing_tool.cjs":                  missingToolScript,
+		"push_repo_memory.cjs":              pushRepoMemoryScript,
+		"redact_secrets.cjs":                redactSecretsScript,
+		"update_project.cjs":                updateProjectScriptSource,
+		"validate_errors.cjs":               validateErrorsScript,
 	}
 }
 
@@ -755,9 +796,24 @@ func GetMCPServerCoreScript() string {
 	return mcpServerCoreScript
 }
 
+// GetMCPHTTPTransportScript returns the embedded mcp_http_transport.cjs script
+func GetMCPHTTPTransportScript() string {
+	return mcpHTTPTransportScriptSource
+}
+
+// GetMCPLoggerScript returns the embedded mcp_logger.cjs script
+func GetMCPLoggerScript() string {
+	return mcpLoggerScriptSource
+}
+
 // GetSafeInputsMCPServerScript returns the embedded safe_inputs_mcp_server.cjs script
 func GetSafeInputsMCPServerScript() string {
 	return safeInputsMCPServerScript
+}
+
+// GetSafeInputsMCPServerHTTPScript returns the embedded safe_inputs_mcp_server_http.cjs script
+func GetSafeInputsMCPServerHTTPScript() string {
+	return safeInputsMCPServerHTTPScript
 }
 
 // GetSafeInputsConfigLoaderScript returns the embedded safe_inputs_config_loader.cjs script
@@ -768,6 +824,16 @@ func GetSafeInputsConfigLoaderScript() string {
 // GetSafeInputsToolFactoryScript returns the embedded safe_inputs_tool_factory.cjs script
 func GetSafeInputsToolFactoryScript() string {
 	return safeInputsToolFactoryScript
+}
+
+// GetSafeInputsBootstrapScript returns the embedded safe_inputs_bootstrap.cjs script
+func GetSafeInputsBootstrapScript() string {
+	return safeInputsBootstrapScript
+}
+
+// GetSafeInputsValidationScript returns the embedded safe_inputs_validation.cjs script
+func GetSafeInputsValidationScript() string {
+	return safeInputsValidationScript
 }
 
 // GetMCPHandlerShellScript returns the embedded mcp_handler_shell.cjs script

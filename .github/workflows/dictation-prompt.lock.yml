@@ -70,13 +70,14 @@
 #   create_pull_request["create_pull_request"]
 #   detection["detection"]
 #   activation --> agent
-#   agent --> conclusion
 #   activation --> conclusion
-#   create_pull_request --> conclusion
-#   agent --> create_pull_request
 #   activation --> create_pull_request
-#   detection --> create_pull_request
+#   agent --> conclusion
+#   agent --> create_pull_request
 #   agent --> detection
+#   create_pull_request --> conclusion
+#   detection --> conclusion
+#   detection --> create_pull_request
 # ```
 #
 # Original Prompt:
@@ -368,6 +369,7 @@ jobs:
       GH_AW_SAFE_OUTPUTS: /tmp/gh-aw/safeoutputs/outputs.jsonl
     outputs:
       has_patch: ${{ steps.collect_output.outputs.has_patch }}
+      model: ${{ steps.generate_aw_info.outputs.model }}
       output: ${{ steps.collect_output.outputs.output }}
       output_types: ${{ steps.collect_output.outputs.output_types }}
     steps:
@@ -378,6 +380,7 @@ jobs:
       - name: Create gh-aw temp directory
         run: |
           mkdir -p /tmp/gh-aw/agent
+          mkdir -p /tmp/gh-aw/sandbox/agent/logs
           echo "Created /tmp/gh-aw/agent directory for agentic workflow temporary files"
       - name: Configure Git credentials
         env:
@@ -395,9 +398,9 @@ jobs:
           github.event.pull_request
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
-          GH_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
         with:
-          github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+          github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
             async function main() {
               const eventName = context.eventName;
@@ -431,6 +434,12 @@ jobs:
       - name: Validate COPILOT_GITHUB_TOKEN or COPILOT_CLI_TOKEN secret
         run: |
           if [ -z "$COPILOT_GITHUB_TOKEN" ] && [ -z "$COPILOT_CLI_TOKEN" ]; then
+            {
+              echo "❌ Error: Neither COPILOT_GITHUB_TOKEN nor COPILOT_CLI_TOKEN secret is set"
+              echo "The GitHub Copilot CLI engine requires either COPILOT_GITHUB_TOKEN or COPILOT_CLI_TOKEN secret to be configured."
+              echo "Please configure one of these secrets in your repository settings."
+              echo "Documentation: https://githubnext.github.io/gh-aw/reference/engines/#github-copilot-default"
+            } >> "$GITHUB_STEP_SUMMARY"
             echo "Error: Neither COPILOT_GITHUB_TOKEN nor COPILOT_CLI_TOKEN secret is set"
             echo "The GitHub Copilot CLI engine requires either COPILOT_GITHUB_TOKEN or COPILOT_CLI_TOKEN secret to be configured."
             echo "Please configure one of these secrets in your repository settings."
@@ -438,18 +447,12 @@ jobs:
             exit 1
           fi
           
-          # Write validation results to step summary
-          {
-            echo "## Agent Environment Validation"
-            echo ""
+          # Log success to stdout (not step summary)
           if [ -n "$COPILOT_GITHUB_TOKEN" ]; then
             echo "COPILOT_GITHUB_TOKEN secret is configured"
-            echo "- ✅ **COPILOT_GITHUB_TOKEN**: Configured"
           else
             echo "COPILOT_CLI_TOKEN secret is configured (using as fallback for COPILOT_GITHUB_TOKEN)"
-            echo "- ✅ **COPILOT_CLI_TOKEN**: Configured (using as fallback for COPILOT_GITHUB_TOKEN)"
           fi
-          } >> "$GITHUB_STEP_SUMMARY"
         env:
           COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
           COPILOT_CLI_TOKEN: ${{ secrets.COPILOT_CLI_TOKEN }}
@@ -467,11 +470,11 @@ jobs:
           which awf
           awf --version
       - name: Install GitHub Copilot CLI
-        run: npm install -g @github/copilot@0.0.366
+        run: npm install -g @github/copilot@0.0.367
       - name: Downloading container images
         run: |
           set -e
-          docker pull ghcr.io/github/github-mcp-server:v0.24.0
+          docker pull ghcr.io/github/github-mcp-server:v0.24.1
       - name: Write Safe Outputs Config
         run: |
           mkdir -p /tmp/gh-aw/safeoutputs
@@ -629,6 +632,9 @@ jobs:
           cat > /tmp/gh-aw/safeoutputs/mcp-server.cjs << 'EOF'
             const fs = require("fs");
             const path = require("path");
+            const { execFile, execSync } = require("child_process");
+            const os = require("os");
+            const crypto = require("crypto");
             class ReadBuffer {
               constructor() {
                 this._buffer = null;
@@ -655,6 +661,17 @@ jobs:
                   throw new Error(`Parse error: ${error instanceof Error ? error.message : String(error)}`);
                 }
               }
+            }
+            function validateRequiredFields(args, inputSchema) {
+              const requiredFields = inputSchema && Array.isArray(inputSchema.required) ? inputSchema.required : [];
+              if (!requiredFields.length) {
+                return [];
+              }
+              const missing = requiredFields.filter(f => {
+                const value = args[f];
+                return value === undefined || value === null || (typeof value === "string" && value.trim() === "");
+              });
+              return missing;
             }
             const encoder = new TextEncoder();
             function initLogFile(server) {
@@ -838,12 +855,11 @@ jobs:
                         server.debugError(`  [${toolName}] Warning: Could not make shell script executable: `, chmodError);
                       }
                     }
-            const { execFile } = require("child_process");
-            const os = require("os");
-            function createShellHandler(server, toolName, scriptPath) {
+            function createShellHandler(server, toolName, scriptPath, timeoutSeconds = 60) {
               return async args => {
                 server.debug(`  [${toolName}] Invoking shell handler: ${scriptPath}`);
                 server.debug(`  [${toolName}] Shell handler args: ${JSON.stringify(args)}`);
+                server.debug(`  [${toolName}] Timeout: ${timeoutSeconds}s`);
                 const env = { ...process.env };
                 for (const [key, value] of Object.entries(args || {})) {
                   const envKey = `INPUT_${key.toUpperCase().replace(/-/g, "_")}`;
@@ -861,7 +877,7 @@ jobs:
                     [],
                     {
                       env,
-                      timeout: 300000, 
+                      timeout: timeoutSeconds * 1000, 
                       maxBuffer: 10 * 1024 * 1024, 
                     },
                     (error, stdout, stderr) => {
@@ -929,9 +945,10 @@ jobs:
                 });
               };
             }
-                    tool.handler = createShellHandler(server, toolName, resolvedPath);
+                    const timeout = tool.timeout || 60; 
+                    tool.handler = createShellHandler(server, toolName, resolvedPath, timeout);
                     loadedCount++;
-                    server.debug(`  [${toolName}] Shell handler created successfully`);
+                    server.debug(`  [${toolName}] Shell handler created successfully with timeout: ${timeout}s`);
                   } else if (ext === ".py") {
                     server.debug(`  [${toolName}] Detected Python script handler`);
                     try {
@@ -945,10 +962,11 @@ jobs:
                         server.debugError(`  [${toolName}] Warning: Could not make Python script executable: `, chmodError);
                       }
                     }
-            function createPythonHandler(server, toolName, scriptPath) {
+            function createPythonHandler(server, toolName, scriptPath, timeoutSeconds = 60) {
               return async args => {
                 server.debug(`  [${toolName}] Invoking Python handler: ${scriptPath}`);
                 server.debug(`  [${toolName}] Python handler args: ${JSON.stringify(args)}`);
+                server.debug(`  [${toolName}] Timeout: ${timeoutSeconds}s`);
                 const inputJson = JSON.stringify(args || {});
                 server.debug(
                   `  [${toolName}] Input JSON (${inputJson.length} bytes): ${inputJson.substring(0, 200)}${inputJson.length > 200 ? "..." : ""}`
@@ -960,7 +978,7 @@ jobs:
                     [scriptPath],
                     {
                       env: process.env,
-                      timeout: 300000, 
+                      timeout: timeoutSeconds * 1000, 
                       maxBuffer: 10 * 1024 * 1024, 
                     },
                     (error, stdout, stderr) => {
@@ -1004,9 +1022,10 @@ jobs:
                 });
               };
             }
-                    tool.handler = createPythonHandler(server, toolName, resolvedPath);
+                    const timeout = tool.timeout || 60; 
+                    tool.handler = createPythonHandler(server, toolName, resolvedPath, timeout);
                     loadedCount++;
-                    server.debug(`  [${toolName}] Python handler created successfully`);
+                    server.debug(`  [${toolName}] Python handler created successfully with timeout: ${timeout}s`);
                   } else {
                     server.debug(`  [${toolName}] Loading JavaScript handler module`);
                     const handlerModule = require(resolvedPath);
@@ -1050,6 +1069,96 @@ jobs:
             }
             function normalizeTool(name) {
               return name.replace(/-/g, "_").toLowerCase();
+            }
+            async function handleRequest(server, request, defaultHandler) {
+              const { id, method, params } = request;
+              try {
+                if (!("id" in request)) {
+                  return null;
+                }
+                let result;
+                if (method === "initialize") {
+                  const protocolVersion = params?.protocolVersion || "2024-11-05";
+                  result = {
+                    protocolVersion,
+                    serverInfo: server.serverInfo,
+                    capabilities: {
+                      tools: {},
+                    },
+                  };
+                } else if (method === "ping") {
+                  result = {};
+                } else if (method === "tools/list") {
+                  const list = [];
+                  Object.values(server.tools).forEach(tool => {
+                    const toolDef = {
+                      name: tool.name,
+                      description: tool.description,
+                      inputSchema: tool.inputSchema,
+                    };
+                    list.push(toolDef);
+                  });
+                  result = { tools: list };
+                } else if (method === "tools/call") {
+                  const name = params?.name;
+                  const args = params?.arguments ?? {};
+                  if (!name || typeof name !== "string") {
+                    throw {
+                      code: -32602,
+                      message: "Invalid params: 'name' must be a string",
+                    };
+                  }
+                  const tool = server.tools[normalizeTool(name)];
+                  if (!tool) {
+                    throw {
+                      code: -32602,
+                      message: `Tool '${name}' not found`,
+                    };
+                  }
+                  let handler = tool.handler;
+                  if (!handler && defaultHandler) {
+                    handler = defaultHandler(tool.name);
+                  }
+                  if (!handler) {
+                    throw {
+                      code: -32603,
+                      message: `No handler for tool: ${name}`,
+                    };
+                  }
+                  const missing = validateRequiredFields(args, tool.inputSchema);
+                  if (missing.length) {
+                    throw {
+                      code: -32602,
+                      message: `Invalid arguments: missing or empty ${missing.map(m => `'${m}'`).join(", ")}`,
+                    };
+                  }
+                  const handlerResult = await Promise.resolve(handler(args));
+                  const content = handlerResult && handlerResult.content ? handlerResult.content : [];
+                  result = { content, isError: false };
+                } else if (/^notifications\//.test(method)) {
+                  return null;
+                } else {
+                  throw {
+                    code: -32601,
+                    message: `Method not found: ${method}`,
+                  };
+                }
+                return {
+                  jsonrpc: "2.0",
+                  id,
+                  result,
+                };
+              } catch (error) {
+                const err = error;
+                return {
+                  jsonrpc: "2.0",
+                  id,
+                  error: {
+                    code: err.code || -32603,
+                    message: err.message || "Internal error",
+                  },
+                };
+              }
             }
             async function handleMessage(server, req, defaultHandler) {
               if (!req || typeof req !== "object") {
@@ -1109,16 +1218,10 @@ jobs:
                     server.replyError(id, -32603, `No handler for tool: ${name}`);
                     return;
                   }
-                  const requiredFields = tool.inputSchema && Array.isArray(tool.inputSchema.required) ? tool.inputSchema.required : [];
-                  if (requiredFields.length) {
-                    const missing = requiredFields.filter(f => {
-                      const value = args[f];
-                      return value === undefined || value === null || (typeof value === "string" && value.trim() === "");
-                    });
-                    if (missing.length) {
-                      server.replyError(id, -32602, `Invalid arguments: missing or empty ${missing.map(m => `'${m}'`).join(", ")}`);
-                      return;
-                    }
+                  const missing = validateRequiredFields(args, tool.inputSchema);
+                  if (missing.length) {
+                    server.replyError(id, -32602, `Invalid arguments: missing or empty ${missing.map(m => `'${m}'`).join(", ")}`);
+                    return;
                   }
                   server.debug(`Calling handler for tool: ${name}`);
                   const result = await Promise.resolve(handler(args));
@@ -1214,7 +1317,6 @@ jobs:
                 }
               };
             }
-            const crypto = require("crypto");
             function normalizeBranchName(branchName) {
               if (!branchName || typeof branchName !== "string" || branchName.trim() === "") {
                 return branchName;
@@ -1699,7 +1801,7 @@ jobs:
           
       - name: Setup MCPs
         env:
-          GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+          GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
         run: |
           mkdir -p /tmp/gh-aw/mcp-config
@@ -1720,7 +1822,7 @@ jobs:
                   "GITHUB_READ_ONLY=1",
                   "-e",
                   "GITHUB_TOOLSETS=context,repos,issues,pull_requests",
-                  "ghcr.io/github/github-mcp-server:v0.24.0"
+                  "ghcr.io/github/github-mcp-server:v0.24.1"
                 ],
                 "tools": ["*"],
                 "env": {
@@ -1738,7 +1840,10 @@ jobs:
                   "GH_AW_ASSETS_MAX_SIZE_KB": "\${GH_AW_ASSETS_MAX_SIZE_KB}",
                   "GH_AW_ASSETS_ALLOWED_EXTS": "\${GH_AW_ASSETS_ALLOWED_EXTS}",
                   "GITHUB_REPOSITORY": "\${GITHUB_REPOSITORY}",
-                  "GITHUB_SERVER_URL": "\${GITHUB_SERVER_URL}"
+                  "GITHUB_SERVER_URL": "\${GITHUB_SERVER_URL}",
+                  "GITHUB_SHA": "\${GITHUB_SHA}",
+                  "GITHUB_WORKSPACE": "\${GITHUB_WORKSPACE}",
+                  "DEFAULT_BRANCH": "\${DEFAULT_BRANCH}"
                 }
               }
             }
@@ -1752,6 +1857,7 @@ jobs:
           echo "HOME: $HOME"
           echo "GITHUB_COPILOT_CLI_MODE: $GITHUB_COPILOT_CLI_MODE"
       - name: Generate agentic run info
+        id: generate_aw_info
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
           script: |
@@ -1760,9 +1866,9 @@ jobs:
             const awInfo = {
               engine_id: "copilot",
               engine_name: "GitHub Copilot CLI",
-              model: "",
+              model: process.env.GH_AW_MODEL_AGENT_COPILOT || "",
               version: "",
-              agent_version: "0.0.366",
+              agent_version: "0.0.367",
               workflow_name: "Dictation Prompt Generator",
               experimental: false,
               supports_tools_allowlist: true,
@@ -1791,6 +1897,9 @@ jobs:
             fs.writeFileSync(tmpPath, JSON.stringify(awInfo, null, 2));
             console.log('Generated aw_info.json at:', tmpPath);
             console.log(JSON.stringify(awInfo, null, 2));
+            
+            // Set model as output for reuse in other steps/jobs
+            core.setOutput('model', awInfo.model);
       - name: Generate workflow overview
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
@@ -1837,7 +1946,7 @@ jobs:
         run: |
           PROMPT_DIR="$(dirname "$GH_AW_PROMPT")"
           mkdir -p "$PROMPT_DIR"
-          cat << 'PROMPT_EOF' | envsubst > "$GH_AW_PROMPT"
+          cat << 'PROMPT_EOF' > "$GH_AW_PROMPT"
           ## Report Formatting
           
           Structure your report with an overview followed by detailed content:
@@ -1990,7 +2099,7 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          cat << 'PROMPT_EOF' | envsubst >> "$GH_AW_PROMPT"
+          cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
           <security-guidelines>
           <description>Cross-Prompt Injection Attack (XPIA) Protection</description>
           <warning>
@@ -2012,7 +2121,7 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          cat << 'PROMPT_EOF' | envsubst >> "$GH_AW_PROMPT"
+          cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
           <temporary-files>
           <path>/tmp/gh-aw/agent/</path>
           <instruction>When you need to create temporary files or directories during your work, always use the /tmp/gh-aw/agent/ directory that has been pre-created for you. Do NOT use the root /tmp/ directory directly.</instruction>
@@ -2023,7 +2132,7 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          cat << 'PROMPT_EOF' | envsubst >> "$GH_AW_PROMPT"
+          cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
           <file-editing>
           <description>File Editing Access Permissions</description>
           <allowed-paths>
@@ -2038,7 +2147,7 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          cat << 'PROMPT_EOF' | envsubst >> "$GH_AW_PROMPT"
+          cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
           <safe-outputs>
           <description>GitHub API Access Instructions</description>
           <important>
@@ -2062,36 +2171,115 @@ jobs:
           GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
           GH_AW_GITHUB_WORKSPACE: ${{ github.workspace }}
         run: |
-          cat << 'PROMPT_EOF' | envsubst >> "$GH_AW_PROMPT"
+          cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
           <github-context>
           The following GitHub context information is available for this workflow:
-          {{#if ${GH_AW_GITHUB_ACTOR} }}
-          - **actor**: ${GH_AW_GITHUB_ACTOR}
+          {{#if __GH_AW_GITHUB_ACTOR__ }}
+          - **actor**: __GH_AW_GITHUB_ACTOR__
           {{/if}}
-          {{#if ${GH_AW_GITHUB_REPOSITORY} }}
-          - **repository**: ${GH_AW_GITHUB_REPOSITORY}
+          {{#if __GH_AW_GITHUB_REPOSITORY__ }}
+          - **repository**: __GH_AW_GITHUB_REPOSITORY__
           {{/if}}
-          {{#if ${GH_AW_GITHUB_WORKSPACE} }}
-          - **workspace**: ${GH_AW_GITHUB_WORKSPACE}
+          {{#if __GH_AW_GITHUB_WORKSPACE__ }}
+          - **workspace**: __GH_AW_GITHUB_WORKSPACE__
           {{/if}}
-          {{#if ${GH_AW_GITHUB_EVENT_ISSUE_NUMBER} }}
-          - **issue-number**: #${GH_AW_GITHUB_EVENT_ISSUE_NUMBER}
+          {{#if __GH_AW_GITHUB_EVENT_ISSUE_NUMBER__ }}
+          - **issue-number**: #__GH_AW_GITHUB_EVENT_ISSUE_NUMBER__
           {{/if}}
-          {{#if ${GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER} }}
-          - **discussion-number**: #${GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER}
+          {{#if __GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER__ }}
+          - **discussion-number**: #__GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER__
           {{/if}}
-          {{#if ${GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER} }}
-          - **pull-request-number**: #${GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER}
+          {{#if __GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER__ }}
+          - **pull-request-number**: #__GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER__
           {{/if}}
-          {{#if ${GH_AW_GITHUB_EVENT_COMMENT_ID} }}
-          - **comment-id**: ${GH_AW_GITHUB_EVENT_COMMENT_ID}
+          {{#if __GH_AW_GITHUB_EVENT_COMMENT_ID__ }}
+          - **comment-id**: __GH_AW_GITHUB_EVENT_COMMENT_ID__
           {{/if}}
-          {{#if ${GH_AW_GITHUB_RUN_ID} }}
-          - **workflow-run-id**: ${GH_AW_GITHUB_RUN_ID}
+          {{#if __GH_AW_GITHUB_RUN_ID__ }}
+          - **workflow-run-id**: __GH_AW_GITHUB_RUN_ID__
           {{/if}}
           </github-context>
           
           PROMPT_EOF
+      - name: Substitute placeholders
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        env:
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+          GH_AW_GITHUB_ACTOR: ${{ github.actor }}
+          GH_AW_GITHUB_EVENT_COMMENT_ID: ${{ github.event.comment.id }}
+          GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER: ${{ github.event.discussion.number }}
+          GH_AW_GITHUB_EVENT_ISSUE_NUMBER: ${{ github.event.issue.number }}
+          GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER: ${{ github.event.pull_request.number }}
+          GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
+          GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
+          GH_AW_GITHUB_WORKSPACE: ${{ github.workspace }}
+        with:
+          script: |
+            /**
+             * @fileoverview Safe template placeholder substitution for GitHub Actions workflows.
+             * Replaces __VAR__ placeholders in a file with environment variable values without
+             * allowing shell expansion, preventing template injection attacks.
+             *
+             * @param {object} params - The parameters object
+             * @param {string} params.file - Path to the file to process
+             * @param {object} params.substitutions - Map of placeholder names to values (without __ prefix/suffix)
+             */
+            
+            const fs = require("fs");
+            
+            const substitutePlaceholders = async ({ file, substitutions }) => {
+              // Validate inputs
+              if (!file) {
+                throw new Error("file parameter is required");
+              }
+              if (!substitutions || typeof substitutions !== "object") {
+                throw new Error("substitutions parameter must be an object");
+              }
+            
+              // Read the file content
+              let content;
+              try {
+                content = fs.readFileSync(file, "utf8");
+              } catch (error) {
+                throw new Error(`Failed to read file ${file}: ${error.message}`);
+              }
+            
+              // Perform substitutions
+              // Each placeholder is in the format __VARIABLE_NAME__
+              // We replace it with the corresponding value from the substitutions object
+              for (const [key, value] of Object.entries(substitutions)) {
+                const placeholder = `__${key}__`;
+                // Use a simple string replacement - no regex to avoid any potential issues
+                // with special characters in the value
+                content = content.split(placeholder).join(value);
+              }
+            
+              // Write the updated content back to the file
+              try {
+                fs.writeFileSync(file, content, "utf8");
+              } catch (error) {
+                throw new Error(`Failed to write file ${file}: ${error.message}`);
+              }
+            
+              return `Successfully substituted ${Object.keys(substitutions).length} placeholder(s) in ${file}`;
+            };
+            
+            
+            
+            // Call the substitution function
+            return await substitutePlaceholders({
+              file: process.env.GH_AW_PROMPT,
+              substitutions: {
+                GH_AW_GITHUB_ACTOR: process.env.GH_AW_GITHUB_ACTOR,
+                GH_AW_GITHUB_EVENT_COMMENT_ID: process.env.GH_AW_GITHUB_EVENT_COMMENT_ID,
+                GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER: process.env.GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER,
+                GH_AW_GITHUB_EVENT_ISSUE_NUMBER: process.env.GH_AW_GITHUB_EVENT_ISSUE_NUMBER,
+                GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER: process.env.GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER,
+                GH_AW_GITHUB_REPOSITORY: process.env.GH_AW_GITHUB_REPOSITORY,
+                GH_AW_GITHUB_RUN_ID: process.env.GH_AW_GITHUB_RUN_ID,
+                GH_AW_GITHUB_WORKSPACE: process.env.GH_AW_GITHUB_WORKSPACE
+              }
+            });
       - name: Interpolate variables and render templates
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
@@ -2200,17 +2388,18 @@ jobs:
         timeout-minutes: 10
         run: |
           set -o pipefail
-          sudo -E awf --env-all --container-workdir "${GITHUB_WORKSPACE}" --mount /tmp:/tmp:rw --mount "${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:rw" --mount /usr/bin/gh:/usr/bin/gh:ro --allow-domains api.enterprise.githubcopilot.com,api.github.com,github.com,raw.githubusercontent.com,registry.npmjs.org --log-level info --proxy-logs-dir /tmp/gh-aw/sandbox/firewall/logs \
-            -- npx -y @github/copilot@0.0.366 --add-dir /tmp/gh-aw/ --log-level all --log-dir /tmp/gh-aw/sandbox/agent/logs/ --add-dir "${GITHUB_WORKSPACE}" --disable-builtin-mcps --allow-all-tools --allow-all-paths --prompt "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)" \
+          sudo -E awf --env-all --container-workdir "${GITHUB_WORKSPACE}" --mount /tmp:/tmp:rw --mount "${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:rw" --mount /usr/bin/date:/usr/bin/date:ro --mount /usr/bin/gh:/usr/bin/gh:ro --mount /usr/bin/yq:/usr/bin/yq:ro --allow-domains api.business.githubcopilot.com,api.enterprise.githubcopilot.com,api.github.com,github.com,host.docker.internal,raw.githubusercontent.com,registry.npmjs.org --log-level info --proxy-logs-dir /tmp/gh-aw/sandbox/firewall/logs \
+            -- npx -y @github/copilot@0.0.367 --add-dir /tmp/gh-aw/ --log-level all --log-dir /tmp/gh-aw/sandbox/agent/logs/ --add-dir "${GITHUB_WORKSPACE}" --disable-builtin-mcps --allow-all-tools --allow-all-paths --prompt "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"${GH_AW_MODEL_AGENT_COPILOT:+ --model "$GH_AW_MODEL_AGENT_COPILOT"} \
             2>&1 | tee /tmp/gh-aw/agent-stdio.log
         env:
           COPILOT_AGENT_RUNNER_TYPE: STANDALONE
           COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN || secrets.COPILOT_CLI_TOKEN  }}
           GH_AW_MCP_CONFIG: /home/runner/.copilot/mcp-config.json
+          GH_AW_MODEL_AGENT_COPILOT: ${{ vars.GH_AW_MODEL_AGENT_COPILOT || '' }}
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
           GITHUB_HEAD_REF: ${{ github.head_ref }}
-          GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+          GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           GITHUB_REF_NAME: ${{ github.ref_name }}
           GITHUB_STEP_SUMMARY: ${{ env.GITHUB_STEP_SUMMARY }}
           GITHUB_WORKSPACE: ${{ github.workspace }}
@@ -2326,9 +2515,10 @@ jobs:
             }
             await main();
         env:
-          GH_AW_SECRET_NAMES: 'COPILOT_CLI_TOKEN,COPILOT_GITHUB_TOKEN,GH_AW_GITHUB_TOKEN,GITHUB_TOKEN'
+          GH_AW_SECRET_NAMES: 'COPILOT_CLI_TOKEN,COPILOT_GITHUB_TOKEN,GH_AW_GITHUB_MCP_SERVER_TOKEN,GH_AW_GITHUB_TOKEN,GITHUB_TOKEN'
           SECRET_COPILOT_CLI_TOKEN: ${{ secrets.COPILOT_CLI_TOKEN }}
           SECRET_COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
+          SECRET_GH_AW_GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN }}
           SECRET_GH_AW_GITHUB_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN }}
           SECRET_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Upload Safe Outputs
@@ -2343,13 +2533,14 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
-          GH_AW_ALLOWED_DOMAINS: "api.enterprise.githubcopilot.com,api.github.com,github.com,raw.githubusercontent.com,registry.npmjs.org"
+          GH_AW_ALLOWED_DOMAINS: "api.business.githubcopilot.com,api.enterprise.githubcopilot.com,api.github.com,github.com,host.docker.internal,raw.githubusercontent.com,registry.npmjs.org"
           GITHUB_SERVER_URL: ${{ github.server_url }}
           GITHUB_API_URL: ${{ github.api_url }}
         with:
           script: |
             async function main() {
               const fs = require("fs");
+              const path = require("path");
             const redactedDomains = [];
             function getRedactedDomains() {
               return [...redactedDomains];
@@ -2361,7 +2552,6 @@ jobs:
               if (redactedDomains.length === 0) {
                 return null;
               }
-              const path = require("path");
               const targetPath = filePath || "/tmp/gh-aw/redacted-urls.log";
               const dir = path.dirname(targetPath);
               if (!fs.existsSync(dir)) {
@@ -2525,7 +2715,7 @@ jobs:
                 return s.replace(/<!--[\s\S]*?-->/g, "").replace(/<!--[\s\S]*?--!>/g, "");
               }
               function convertXmlTags(s) {
-                const allowedTags = ["details", "summary", "code", "em", "b", "p"];
+                const allowedTags = ["details", "summary", "code", "em", "b", "p", "strong", "i", "u", "br", "ul", "ol", "li", "blockquote"];
                 s = s.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, (match, content) => {
                   const convertedContent = content.replace(/<(\/?[A-Za-z][A-Za-z0-9]*(?:[^>]*?))>/g, "($1)");
                   return `(![CDATA[${convertedContent}]])`;
@@ -3875,6 +4065,73 @@ jobs:
                 lines.push(`Model: ${model}`);
               }
               lines.push("");
+              const initEntry = logEntries.find(entry => entry.type === "system" && entry.subtype === "init");
+              if (initEntry && initEntry.tools && Array.isArray(initEntry.tools) && initEntry.tools.length > 0) {
+                lines.push("Available Tools:");
+                lines.push("");
+                const categories = {
+                  Builtin: [],
+                  "Safe Outputs": [],
+                  "Safe Inputs": [],
+                  "Git/GitHub": [],
+                  Playwright: [],
+                  Serena: [],
+                  MCP: [],
+                  "Custom Agents": [],
+                  Other: [],
+                };
+                const builtinTools = [
+                  "bash",
+                  "write_bash",
+                  "read_bash",
+                  "stop_bash",
+                  "list_bash",
+                  "grep",
+                  "glob",
+                  "view",
+                  "create",
+                  "edit",
+                  "store_memory",
+                  "code_review",
+                  "codeql_checker",
+                  "report_progress",
+                  "report_intent",
+                  "gh-advisory-database",
+                ];
+                const internalTools = ["fetch_copilot_cli_documentation"];
+                for (const tool of initEntry.tools) {
+                  const toolLower = tool.toLowerCase();
+                  if (builtinTools.includes(toolLower) || internalTools.includes(toolLower)) {
+                    categories["Builtin"].push(tool);
+                  } else if (tool.startsWith("safeoutputs-") || tool.startsWith("safe_outputs-")) {
+                    const toolName = tool.replace(/^safeoutputs-|^safe_outputs-/, "");
+                    categories["Safe Outputs"].push(toolName);
+                  } else if (tool.startsWith("safeinputs-") || tool.startsWith("safe_inputs-")) {
+                    const toolName = tool.replace(/^safeinputs-|^safe_inputs-/, "");
+                    categories["Safe Inputs"].push(toolName);
+                  } else if (tool.startsWith("mcp__github__")) {
+                    categories["Git/GitHub"].push(formatMcpName(tool));
+                  } else if (tool.startsWith("mcp__playwright__")) {
+                    categories["Playwright"].push(formatMcpName(tool));
+                  } else if (tool.startsWith("mcp__serena__")) {
+                    categories["Serena"].push(formatMcpName(tool));
+                  } else if (tool.startsWith("mcp__") || ["ListMcpResourcesTool", "ReadMcpResourceTool"].includes(tool)) {
+                    categories["MCP"].push(tool.startsWith("mcp__") ? formatMcpName(tool) : tool);
+                  } else if (isLikelyCustomAgent(tool)) {
+                    categories["Custom Agents"].push(tool);
+                  } else {
+                    categories["Other"].push(tool);
+                  }
+                }
+                for (const [category, tools] of Object.entries(categories)) {
+                  if (tools.length > 0) {
+                    const toolText = tools.length === 1 ? "tool" : "tools";
+                    lines.push(`${category}: ${tools.length} ${toolText}`);
+                    lines.push(tools.join(", "));
+                  }
+                }
+                lines.push("");
+              }
               const toolUsePairs = new Map();
               for (const entry of logEntries) {
                 if (entry.type === "user" && entry.message?.content) {
@@ -4039,11 +4296,6 @@ jobs:
               } catch (error) {
                 core.setFailed(error instanceof Error ? error : String(error));
               }
-            }
-            if (typeof module !== "undefined" && module.exports) {
-              module.exports = {
-                runLogParser,
-              };
             }
             function main() {
               runLogParser({
@@ -4542,12 +4794,6 @@ jobs:
               }
               return entries;
             }
-            if (typeof module !== "undefined" && module.exports) {
-              module.exports = {
-                parseCopilotLog,
-                extractPremiumRequestCount,
-              };
-            }
             main();
       - name: Upload Firewall Logs
         if: always()
@@ -4843,22 +5089,6 @@ jobs:
 
             }
 
-            if (typeof module !== "undefined" && module.exports) {
-
-              module.exports = {
-
-                parseFirewallLogLine,
-
-                isRequestAllowed,
-
-                generateFirewallSummary,
-
-                main,
-
-              };
-
-            }
-
             const isDirectExecution =
 
               typeof module === "undefined" || (typeof require !== "undefined" && typeof require.main !== "undefined" && require.main === module);
@@ -5123,9 +5353,10 @@ jobs:
 
   conclusion:
     needs:
-      - agent
       - activation
+      - agent
       - create_pull_request
+      - detection
     if: (always()) && (needs.agent.result != 'skipped')
     runs-on: ubuntu-slim
     permissions:
@@ -5168,7 +5399,7 @@ jobs:
           GH_AW_NOOP_MAX: 1
           GH_AW_WORKFLOW_NAME: "Dictation Prompt Generator"
         with:
-          github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+          github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
             const fs = require("fs");
             const MAX_LOG_CONTENT_LENGTH = 10000;
@@ -5260,7 +5491,7 @@ jobs:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_WORKFLOW_NAME: "Dictation Prompt Generator"
         with:
-          github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+          github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
             async function main() {
               const fs = require("fs");
@@ -5373,8 +5604,9 @@ jobs:
           GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           GH_AW_WORKFLOW_NAME: "Dictation Prompt Generator"
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
+          GH_AW_DETECTION_CONCLUSION: ${{ needs.detection.result }}
         with:
-          github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+          github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
             const fs = require("fs");
             const MAX_LOG_CONTENT_LENGTH = 10000;
@@ -5425,17 +5657,7 @@ jobs:
                 return null;
               }
               try {
-                const rawMessages = JSON.parse(messagesEnv);
-                return {
-                  footer: rawMessages.footer,
-                  footerInstall: rawMessages.footerInstall,
-                  stagedTitle: rawMessages.stagedTitle,
-                  stagedDescription: rawMessages.stagedDescription,
-                  runStarted: rawMessages.runStarted,
-                  runSuccess: rawMessages.runSuccess,
-                  runFailure: rawMessages.runFailure,
-                  closeOlderDiscussion: rawMessages.closeOlderDiscussion,
-                };
+                return JSON.parse(messagesEnv);
               } catch (error) {
                 core.warning(`Failed to parse GH_AW_SAFE_OUTPUT_MESSAGES: ${error instanceof Error ? error.message : String(error)}`);
                 return null;
@@ -5474,17 +5696,29 @@ jobs:
               const defaultMessage = "💀 Blimey! [{workflow_name}]({run_url}) {status} and walked the plank! No treasure today, matey! ☠️";
               return messages?.runFailure ? renderTemplate(messages.runFailure, templateContext) : renderTemplate(defaultMessage, templateContext);
             }
+            function getDetectionFailureMessage(ctx) {
+              const messages = getMessages();
+              const templateContext = toSnakeCase(ctx);
+              const defaultMessage = "⚠️ Security scanning failed for [{workflow_name}]({run_url}). Review the logs for details.";
+              return messages?.detectionFailure
+                ? renderTemplate(messages.detectionFailure, templateContext)
+                : renderTemplate(defaultMessage, templateContext);
+            }
             async function main() {
               const commentId = process.env.GH_AW_COMMENT_ID;
               const commentRepo = process.env.GH_AW_COMMENT_REPO;
               const runUrl = process.env.GH_AW_RUN_URL;
               const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
               const agentConclusion = process.env.GH_AW_AGENT_CONCLUSION || "failure";
+              const detectionConclusion = process.env.GH_AW_DETECTION_CONCLUSION;
               core.info(`Comment ID: ${commentId}`);
               core.info(`Comment Repo: ${commentRepo}`);
               core.info(`Run URL: ${runUrl}`);
               core.info(`Workflow Name: ${workflowName}`);
               core.info(`Agent Conclusion: ${agentConclusion}`);
+              if (detectionConclusion) {
+                core.info(`Detection Conclusion: ${detectionConclusion}`);
+              }
               let noopMessages = [];
               const agentOutputResult = loadAgentOutput();
               if (agentOutputResult.success && agentOutputResult.data) {
@@ -5519,7 +5753,12 @@ jobs:
               const repoName = commentRepo ? commentRepo.split("/")[1] : context.repo.repo;
               core.info(`Updating comment in ${repoOwner}/${repoName}`);
               let message;
-              if (agentConclusion === "success") {
+              if (detectionConclusion && detectionConclusion === "failure") {
+                message = getDetectionFailureMessage({
+                  workflowName,
+                  runUrl,
+                });
+              } else if (agentConclusion === "success") {
                 message = getRunSuccessMessage({
                   workflowName,
                   runUrl,
@@ -5592,8 +5831,8 @@ jobs:
 
   create_pull_request:
     needs:
-      - agent
       - activation
+      - agent
       - detection
     if: >
       (((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'create_pull_request'))) &&
@@ -5660,7 +5899,7 @@ jobs:
           GH_AW_WORKFLOW_NAME: "Dictation Prompt Generator"
           GH_AW_ENGINE_ID: "copilot"
         with:
-          github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+          github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
             const fs = require("fs");
             const crypto = require("crypto");
@@ -5776,6 +6015,19 @@ jobs:
                 return format === "markdown" ? `\n\n<!-- tracker-id: ${trackerID} -->` : trackerID;
               }
               return "";
+            }
+            function addExpirationComment(bodyLines, envVarName, entityType) {
+              const expiresEnv = process.env[envVarName];
+              if (expiresEnv) {
+                const expiresDays = parseInt(expiresEnv, 10);
+                if (!isNaN(expiresDays) && expiresDays > 0) {
+                  const expirationDate = new Date();
+                  expirationDate.setDate(expirationDate.getDate() + expiresDays);
+                  const expirationISO = expirationDate.toISOString();
+                  bodyLines.push(`<!-- gh-aw-expires: ${expirationISO} -->`);
+                  core.info(`${entityType} will expire on ${expirationISO} (${expiresDays} days)`);
+                }
+              }
             }
             function generatePatchPreview(patchContent) {
               if (!patchContent || !patchContent.trim()) {
@@ -5974,6 +6226,7 @@ jobs:
               if (trackerIDComment) {
                 bodyLines.push(trackerIDComment);
               }
+              addExpirationComment(bodyLines, "GH_AW_PR_EXPIRES", "Pull Request");
               bodyLines.push(``, ``, `> AI generated by [${workflowName}](${runUrl})`, "");
               const body = bodyLines.join("\n").trim();
               const labelsEnv = process.env.GH_AW_PR_LABELS;
@@ -6369,6 +6622,12 @@ jobs:
       - name: Validate COPILOT_GITHUB_TOKEN or COPILOT_CLI_TOKEN secret
         run: |
           if [ -z "$COPILOT_GITHUB_TOKEN" ] && [ -z "$COPILOT_CLI_TOKEN" ]; then
+            {
+              echo "❌ Error: Neither COPILOT_GITHUB_TOKEN nor COPILOT_CLI_TOKEN secret is set"
+              echo "The GitHub Copilot CLI engine requires either COPILOT_GITHUB_TOKEN or COPILOT_CLI_TOKEN secret to be configured."
+              echo "Please configure one of these secrets in your repository settings."
+              echo "Documentation: https://githubnext.github.io/gh-aw/reference/engines/#github-copilot-default"
+            } >> "$GITHUB_STEP_SUMMARY"
             echo "Error: Neither COPILOT_GITHUB_TOKEN nor COPILOT_CLI_TOKEN secret is set"
             echo "The GitHub Copilot CLI engine requires either COPILOT_GITHUB_TOKEN or COPILOT_CLI_TOKEN secret to be configured."
             echo "Please configure one of these secrets in your repository settings."
@@ -6376,18 +6635,12 @@ jobs:
             exit 1
           fi
           
-          # Write validation results to step summary
-          {
-            echo "## Agent Environment Validation"
-            echo ""
+          # Log success to stdout (not step summary)
           if [ -n "$COPILOT_GITHUB_TOKEN" ]; then
             echo "COPILOT_GITHUB_TOKEN secret is configured"
-            echo "- ✅ **COPILOT_GITHUB_TOKEN**: Configured"
           else
             echo "COPILOT_CLI_TOKEN secret is configured (using as fallback for COPILOT_GITHUB_TOKEN)"
-            echo "- ✅ **COPILOT_CLI_TOKEN**: Configured (using as fallback for COPILOT_GITHUB_TOKEN)"
           fi
-          } >> "$GITHUB_STEP_SUMMARY"
         env:
           COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
           COPILOT_CLI_TOKEN: ${{ secrets.COPILOT_CLI_TOKEN }}
@@ -6397,7 +6650,7 @@ jobs:
           node-version: '24'
           package-manager-cache: false
       - name: Install GitHub Copilot CLI
-        run: npm install -g @github/copilot@0.0.366
+        run: npm install -g @github/copilot@0.0.367
       - name: Execute GitHub Copilot CLI
         id: agentic_execution
         # Copilot CLI tool arguments (sorted):
@@ -6416,10 +6669,11 @@ jobs:
           mkdir -p /tmp/gh-aw/
           mkdir -p /tmp/gh-aw/agent/
           mkdir -p /tmp/gh-aw/sandbox/agent/logs/
-          copilot --add-dir /tmp/ --add-dir /tmp/gh-aw/ --add-dir /tmp/gh-aw/agent/ --log-level all --log-dir /tmp/gh-aw/sandbox/agent/logs/ --disable-builtin-mcps --model gpt-5-mini --allow-tool 'shell(cat)' --allow-tool 'shell(grep)' --allow-tool 'shell(head)' --allow-tool 'shell(jq)' --allow-tool 'shell(ls)' --allow-tool 'shell(tail)' --allow-tool 'shell(wc)' --prompt "$COPILOT_CLI_INSTRUCTION" 2>&1 | tee /tmp/gh-aw/threat-detection/detection.log
+          copilot --add-dir /tmp/ --add-dir /tmp/gh-aw/ --add-dir /tmp/gh-aw/agent/ --log-level all --log-dir /tmp/gh-aw/sandbox/agent/logs/ --disable-builtin-mcps --allow-tool 'shell(cat)' --allow-tool 'shell(grep)' --allow-tool 'shell(head)' --allow-tool 'shell(jq)' --allow-tool 'shell(ls)' --allow-tool 'shell(tail)' --allow-tool 'shell(wc)' --prompt "$COPILOT_CLI_INSTRUCTION"${GH_AW_MODEL_DETECTION_COPILOT:+ --model "$GH_AW_MODEL_DETECTION_COPILOT"} 2>&1 | tee /tmp/gh-aw/threat-detection/detection.log
         env:
           COPILOT_AGENT_RUNNER_TYPE: STANDALONE
           COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN || secrets.COPILOT_CLI_TOKEN  }}
+          GH_AW_MODEL_DETECTION_COPILOT: ${{ vars.GH_AW_MODEL_DETECTION_COPILOT || '' }}
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GITHUB_HEAD_REF: ${{ github.head_ref }}
           GITHUB_REF_NAME: ${{ github.ref_name }}

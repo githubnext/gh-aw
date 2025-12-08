@@ -17,10 +17,11 @@ const createTestableFunction = scriptContent => {
   scriptBody = scriptBody.replace(/\/\*\* @type \{typeof import\("crypto"\)\} \*\/\s*const crypto = require\("crypto"\);?\s*/g, "");
   scriptBody = scriptBody.replace(/const \{ updateActivationComment \} = require\("\.\/update_activation_comment\.cjs"\);?\s*/g, "");
   scriptBody = scriptBody.replace(/const \{ getTrackerID \} = require\("\.\/get_tracker_id\.cjs"\);?\s*/g, "");
+  scriptBody = scriptBody.replace(/const \{ addExpirationComment \} = require\("\.\/expiration_helpers\.cjs"\);?\s*/g, "");
 
   // Create a testable function that has the same logic but can be called with dependencies
   return new Function(`
-    const { fs, crypto, github, core, context, process, console, updateActivationComment, getTrackerID } = arguments[0];
+    const { fs, crypto, github, core, context, process, console, updateActivationComment, getTrackerID, addExpirationComment } = arguments[0];
     
     ${scriptBody}
     
@@ -163,6 +164,7 @@ describe("create_pull_request.cjs", () => {
         }
         return "";
       }),
+      addExpirationComment: vi.fn(),
     };
   });
 

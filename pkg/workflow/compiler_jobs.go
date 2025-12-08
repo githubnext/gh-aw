@@ -177,22 +177,76 @@ func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
 		return fmt.Errorf("failed to build safe outputs jobs: %w", err)
 	}
 
-	// Build safe-jobs if configured
-	// Safe-jobs should depend on agent job (always) AND detection job (if threat detection is enabled)
-	threatDetectionEnabledForSafeJobs := data.SafeOutputs != nil && data.SafeOutputs.ThreatDetection != nil
-	if threatDetectionEnabledForSafeJobs {
-		compilerJobsLog.Print("Building safe-jobs with threat detection enabled")
-	}
-	if err := c.buildSafeJobs(data, threatDetectionEnabledForSafeJobs); err != nil {
-		return fmt.Errorf("failed to build safe-jobs: %w", err)
-	}
-
 	// Build additional custom jobs from frontmatter jobs section
 	if len(data.Jobs) > 0 {
 		compilerJobsLog.Printf("Building %d custom jobs from frontmatter", len(data.Jobs))
 	}
 	if err := c.buildCustomJobs(data, activationJobCreated); err != nil {
 		return fmt.Errorf("failed to build custom jobs: %w", err)
+	}
+
+	// Build push_repo_memory job if repo-memory is configured
+	// This job downloads repo-memory artifacts and pushes changes to git branches
+	// It runs after agent job completes (even if it fails) and has contents: write permission
+	var pushRepoMemoryJobName string
+	if data.RepoMemoryConfig != nil && len(data.RepoMemoryConfig.Memories) > 0 {
+		compilerJobsLog.Print("Building push_repo_memory job")
+		// Determine if threat detection is enabled for safe-jobs
+		threatDetectionEnabledForSafeJobs := data.SafeOutputs != nil && data.SafeOutputs.ThreatDetection != nil
+		pushRepoMemoryJob, err := c.buildPushRepoMemoryJob(data, threatDetectionEnabledForSafeJobs)
+		if err != nil {
+			return fmt.Errorf("failed to build push_repo_memory job: %w", err)
+		}
+		if pushRepoMemoryJob != nil {
+			// Add detection dependency if threat detection is enabled
+			if threatDetectionEnabledForSafeJobs {
+				pushRepoMemoryJob.Needs = append(pushRepoMemoryJob.Needs, constants.DetectionJobName)
+				compilerJobsLog.Print("Added detection dependency to push_repo_memory job")
+			}
+			if err := c.jobManager.AddJob(pushRepoMemoryJob); err != nil {
+				return fmt.Errorf("failed to add push_repo_memory job: %w", err)
+			}
+			pushRepoMemoryJobName = pushRepoMemoryJob.Name
+			compilerJobsLog.Printf("Successfully added push_repo_memory job: %s", pushRepoMemoryJobName)
+		}
+	}
+
+	// Update conclusion job to depend on push_repo_memory if it exists
+	if pushRepoMemoryJobName != "" {
+		if conclusionJob, exists := c.jobManager.GetJob("conclusion"); exists {
+			conclusionJob.Needs = append(conclusionJob.Needs, pushRepoMemoryJobName)
+			compilerJobsLog.Printf("Added push_repo_memory dependency to conclusion job")
+		}
+	}
+
+	// Build update_cache_memory job if cache-memory is configured and threat detection is enabled
+	// This job downloads cache-memory artifacts and saves them to GitHub Actions cache
+	// It runs after detection job completes successfully
+	var updateCacheMemoryJobName string
+	if data.CacheMemoryConfig != nil && len(data.CacheMemoryConfig.Caches) > 0 {
+		threatDetectionEnabledForSafeJobs := data.SafeOutputs != nil && data.SafeOutputs.ThreatDetection != nil
+		if threatDetectionEnabledForSafeJobs {
+			compilerJobsLog.Print("Building update_cache_memory job")
+			updateCacheMemoryJob, err := c.buildUpdateCacheMemoryJob(data, threatDetectionEnabledForSafeJobs)
+			if err != nil {
+				return fmt.Errorf("failed to build update_cache_memory job: %w", err)
+			}
+			if updateCacheMemoryJob != nil {
+				if err := c.jobManager.AddJob(updateCacheMemoryJob); err != nil {
+					return fmt.Errorf("failed to add update_cache_memory job: %w", err)
+				}
+				updateCacheMemoryJobName = updateCacheMemoryJob.Name
+				compilerJobsLog.Printf("Successfully added update_cache_memory job: %s", updateCacheMemoryJobName)
+			}
+		}
+	}
+
+	// Update conclusion job to depend on update_cache_memory if it exists
+	if updateCacheMemoryJobName != "" {
+		if conclusionJob, exists := c.jobManager.GetJob("conclusion"); exists {
+			conclusionJob.Needs = append(conclusionJob.Needs, updateCacheMemoryJobName)
+			compilerJobsLog.Printf("Added update_cache_memory dependency to conclusion job")
+		}
 	}
 
 	compilerJobsLog.Print("Successfully built all jobs for workflow")
@@ -639,14 +693,31 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName, markdownPat
 
 	// Note: noop processing is now handled inside the conclusion job, not as a separate job
 
+	// Build safe-jobs if configured
+	// Safe-jobs should depend on agent job (always) AND detection job (if threat detection is enabled)
+	// These custom safe-jobs should also be included in the conclusion job's dependencies
+	safeJobNames, err := c.buildSafeJobs(data, threatDetectionEnabled)
+	if err != nil {
+		return fmt.Errorf("failed to build safe-jobs: %w", err)
+	}
+	// Add custom safe-job names to the list of safe output jobs
+	safeOutputJobNames = append(safeOutputJobNames, safeJobNames...)
+	compilerJobsLog.Printf("Added %d custom safe-job names to conclusion dependencies", len(safeJobNames))
+
 	// Build conclusion job if add-comment is configured OR if command trigger is configured with reactions
-	// This job runs last, after all safe output jobs, to update the activation comment on failure
+	// This job runs last, after all safe output jobs (and push_repo_memory if configured), to update the activation comment on failure
 	// The buildConclusionJob function itself will decide whether to create the job based on the configuration
 	conclusionJob, err := c.buildConclusionJob(data, jobName, safeOutputJobNames)
 	if err != nil {
 		return fmt.Errorf("failed to build conclusion job: %w", err)
 	}
 	if conclusionJob != nil {
+		// If push_repo_memory job exists, conclusion should depend on it
+		// Check if the job was already created (it's created in buildJobs)
+		if _, exists := c.jobManager.GetJob("push_repo_memory"); exists {
+			conclusionJob.Needs = append(conclusionJob.Needs, "push_repo_memory")
+			compilerJobsLog.Printf("Added push_repo_memory dependency to conclusion job")
+		}
 		if err := c.jobManager.AddJob(conclusionJob); err != nil {
 			return fmt.Errorf("failed to add conclusion job: %w", err)
 		}
@@ -1056,14 +1127,17 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 	}
 
 	// Build outputs for all engines (GH_AW_SAFE_OUTPUTS functionality)
-	// Only include output if the workflow actually uses the safe-outputs feature
-	var outputs map[string]string
+	// Build job outputs
+	// Always include model output for reuse in other jobs
+	outputs := map[string]string{
+		"model": "${{ steps.generate_aw_info.outputs.model }}",
+	}
+
+	// Add safe-output specific outputs if the workflow uses the safe-outputs feature
 	if data.SafeOutputs != nil {
-		outputs = map[string]string{
-			"output":       "${{ steps.collect_output.outputs.output }}",
-			"output_types": "${{ steps.collect_output.outputs.output_types }}",
-			"has_patch":    "${{ steps.collect_output.outputs.has_patch }}",
-		}
+		outputs["output"] = "${{ steps.collect_output.outputs.output }}"
+		outputs["output_types"] = "${{ steps.collect_output.outputs.output_types }}"
+		outputs["has_patch"] = "${{ steps.collect_output.outputs.has_patch }}"
 	}
 
 	// Build job-level environment variables for safe outputs

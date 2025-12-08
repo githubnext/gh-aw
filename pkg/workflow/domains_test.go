@@ -220,3 +220,33 @@ func TestMatchesDomain(t *testing.T) {
 		})
 	}
 }
+
+func TestCopilotDefaultDomains(t *testing.T) {
+	// Verify that expected Copilot domains are present
+	expectedDomains := []string{
+		"api.business.githubcopilot.com",
+		"api.enterprise.githubcopilot.com",
+		"api.github.com",
+		"github.com",
+		"host.docker.internal",
+		"raw.githubusercontent.com",
+		"registry.npmjs.org",
+	}
+
+	// Create a map for O(1) lookups
+	domainMap := make(map[string]bool)
+	for _, domain := range CopilotDefaultDomains {
+		domainMap[domain] = true
+	}
+
+	for _, expected := range expectedDomains {
+		if !domainMap[expected] {
+			t.Errorf("Expected domain %q not found in CopilotDefaultDomains", expected)
+		}
+	}
+
+	// Verify the count matches (no extra domains)
+	if len(CopilotDefaultDomains) != len(expectedDomains) {
+		t.Errorf("CopilotDefaultDomains has %d domains, expected %d", len(CopilotDefaultDomains), len(expectedDomains))
+	}
+}

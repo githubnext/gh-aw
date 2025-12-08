@@ -26,29 +26,48 @@ const ExpressionBreakThreshold LineLength = 100
 const DefaultMCPRegistryURL = "https://api.mcp.github.com/v0"
 
 // DefaultClaudeCodeVersion is the default version of the Claude Code CLI
-const DefaultClaudeCodeVersion Version = "2.0.58"
+const DefaultClaudeCodeVersion Version = "2.0.61"
 
 // DefaultCopilotVersion is the default version of the GitHub Copilot CLI
 // WARNING: UPGRADING COPILOT CLI REQUIRES A FULL INTEGRATION TEST RUN TO ENSURE COMPATIBILITY
-const DefaultCopilotVersion Version = "0.0.366"
+const DefaultCopilotVersion Version = "0.0.367"
 
 // DefaultCopilotDetectionModel is the default model for the Copilot engine when used in the detection job
 const DefaultCopilotDetectionModel = "gpt-5-mini"
 
+// Environment variable names for model configuration
+const (
+	// EnvVarModelAgentCopilot configures the default Copilot model for agent execution
+	EnvVarModelAgentCopilot = "GH_AW_MODEL_AGENT_COPILOT"
+	// EnvVarModelAgentClaude configures the default Claude model for agent execution
+	EnvVarModelAgentClaude = "GH_AW_MODEL_AGENT_CLAUDE"
+	// EnvVarModelAgentCodex configures the default Codex model for agent execution
+	EnvVarModelAgentCodex = "GH_AW_MODEL_AGENT_CODEX"
+	// EnvVarModelDetectionCopilot configures the default Copilot model for detection
+	EnvVarModelDetectionCopilot = "GH_AW_MODEL_DETECTION_COPILOT"
+	// EnvVarModelDetectionClaude configures the default Claude model for detection
+	EnvVarModelDetectionClaude = "GH_AW_MODEL_DETECTION_CLAUDE"
+	// EnvVarModelDetectionCodex configures the default Codex model for detection
+	EnvVarModelDetectionCodex = "GH_AW_MODEL_DETECTION_CODEX"
+)
+
 // DefaultCodexVersion is the default version of the OpenAI Codex CLI
-const DefaultCodexVersion Version = "0.64.0"
+const DefaultCodexVersion Version = "0.65.0"
 
 // DefaultGitHubMCPServerVersion is the default version of the GitHub MCP server Docker image
-const DefaultGitHubMCPServerVersion Version = "v0.24.0"
+const DefaultGitHubMCPServerVersion Version = "v0.24.1"
 
 // DefaultFirewallVersion is the default version of the gh-aw-firewall (AWF) binary
 const DefaultFirewallVersion Version = "v0.6.0"
 
 // DefaultPlaywrightMCPVersion is the default version of the @playwright/mcp package
-const DefaultPlaywrightMCPVersion Version = "0.0.49"
+const DefaultPlaywrightMCPVersion Version = "0.0.50"
 
 // DefaultPlaywrightBrowserVersion is the default version of the Playwright browser Docker image
 const DefaultPlaywrightBrowserVersion Version = "v1.57.0"
+
+// DefaultMCPSDKVersion is the default version of the @modelcontextprotocol/sdk package
+const DefaultMCPSDKVersion Version = "1.24.0"
 
 // DefaultBunVersion is the default version of Bun for runtime setup
 const DefaultBunVersion Version = "1.1"

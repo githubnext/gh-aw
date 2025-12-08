@@ -2,7 +2,11 @@ package workflow
 
 import (
 	"fmt"
+
+	"github.com/githubnext/gh-aw/pkg/logger"
 )
+
+var addReviewerLog = logger.New("workflow:add_reviewer")
 
 // AddReviewerConfig holds configuration for adding reviewers to PRs from agent output
 type AddReviewerConfig struct {
@@ -13,6 +17,8 @@ type AddReviewerConfig struct {
 
 // buildAddReviewerJob creates the add_reviewer job
 func (c *Compiler) buildAddReviewerJob(data *WorkflowData, mainJobName string) (*Job, error) {
+	addReviewerLog.Printf("Building add_reviewer job: workflow=%s, main_job=%s", data.Name, mainJobName)
+
 	if data.SafeOutputs == nil || data.SafeOutputs.AddReviewer == nil {
 		return nil, fmt.Errorf("safe-outputs configuration is required")
 	}
@@ -24,6 +30,7 @@ func (c *Compiler) buildAddReviewerJob(data *WorkflowData, mainJobName string) (
 	if cfg.Max > 0 {
 		maxCount = cfg.Max
 	}
+	addReviewerLog.Printf("Configured max reviewers: %d", maxCount)
 
 	// Build custom environment variables using shared helpers
 	listJobConfig := ListJobConfig{
@@ -66,6 +73,7 @@ func (c *Compiler) buildAddReviewerJob(data *WorkflowData, mainJobName string) (
 // parseAddReviewerConfig handles add-reviewer configuration
 func (c *Compiler) parseAddReviewerConfig(outputMap map[string]any) *AddReviewerConfig {
 	if configData, exists := outputMap["add-reviewer"]; exists {
+		addReviewerLog.Print("Parsing add-reviewer configuration")
 		addReviewerConfig := &AddReviewerConfig{}
 
 		if configMap, ok := configData.(map[string]any); ok {
@@ -89,9 +97,11 @@ func (c *Compiler) parseAddReviewerConfig(outputMap map[string]any) *AddReviewer
 			// Parse target config (target, target-repo)
 			targetConfig, isInvalid := ParseTargetConfig(configMap)
 			if isInvalid {
+				addReviewerLog.Print("Invalid target configuration for add-reviewer")
 				return nil // Invalid configuration, return nil to cause validation error
 			}
 			addReviewerConfig.SafeOutputTargetConfig = targetConfig
+			addReviewerLog.Printf("Parsed add-reviewer config: allowed_reviewers=%d, target=%s", len(addReviewerConfig.Reviewers), targetConfig.Target)
 
 			// Parse common base fields (github-token, max) with default max of 3
 			c.parseBaseSafeOutputConfig(configMap, &addReviewerConfig.BaseSafeOutputConfig, 3)

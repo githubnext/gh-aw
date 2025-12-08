@@ -49,6 +49,7 @@ import (
 	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/logger"
+	"github.com/githubnext/gh-aw/pkg/parser"
 )
 
 var mcpValidationLog = logger.New("workflow:mcp_config_validation")
@@ -65,6 +66,7 @@ func ValidateMCPConfigs(tools map[string]any) error {
 		"serena":            true,
 		"agentic-workflows": true,
 		"cache-memory":      true,
+		"repo-memory":       true,
 		"bash":              true,
 		"edit":              true,
 		"web-fetch":         true,
@@ -238,7 +240,7 @@ func validateMCPRequirements(toolName string, mcpConfig map[string]any, toolConf
 	}
 
 	// Validate type is one of the supported types
-	if !isMCPType(typeStr) {
+	if !parser.IsMCPType(typeStr) {
 		return fmt.Errorf("tool '%s' mcp configuration 'type' must be one of: stdio, http, local. Got: %s. Example:\nmcp-servers:\n  %s:\n    type: \"stdio\"\n    command: \"node server.js\"", toolName, typeStr, toolName)
 	}
 

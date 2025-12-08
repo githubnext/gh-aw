@@ -1,0 +1,191 @@
+package workflow
+
+import (
+	"strings"
+)
+
+// prompts.go consolidates all prompt-related functions for agentic workflows.
+// This file contains functions that generate workflow steps to append various
+// contextual instructions to the agent's prompt file during execution.
+//
+// Prompts are organized by feature area:
+// - Safe outputs: Instructions for using the safeoutputs MCP server
+// - Cache memory: Instructions for persistent cache folder access
+// - Tool prompts: Instructions for specific tools (edit, playwright)
+// - PR context: Instructions for pull request branch context
+
+// ============================================================================
+// Safe Outputs Prompts
+// ============================================================================
+
+// generateSafeOutputsPromptStep generates a separate step for safe outputs instructions
+// This tells agents to use the safeoutputs MCP server instead of gh CLI
+func (c *Compiler) generateSafeOutputsPromptStep(yaml *strings.Builder, hasSafeOutputs bool) {
+	generateStaticPromptStep(yaml,
+		"Append safe outputs instructions to prompt",
+		safeOutputsPromptText,
+		hasSafeOutputs)
+}
+
+// ============================================================================
+// Cache Memory Prompts
+// ============================================================================
+
+// generateCacheMemoryPromptStep generates a separate step for cache memory instructions
+// when cache-memory is enabled, informing the agent about persistent storage capabilities
+func (c *Compiler) generateCacheMemoryPromptStep(yaml *strings.Builder, config *CacheMemoryConfig) {
+	if config == nil || len(config.Caches) == 0 {
+		return
+	}
+
+	appendPromptStepWithHeredoc(yaml,
+		"Append cache memory instructions to prompt",
+		func(y *strings.Builder) {
+			generateCacheMemoryPromptSection(y, config)
+		})
+}
+
+// ============================================================================
+// Tool Prompts - Edit Tool
+// ============================================================================
+
+// hasEditTool checks if the edit tool is enabled in the tools configuration
+func hasEditTool(parsedTools *Tools) bool {
+	if parsedTools == nil {
+		return false
+	}
+	return parsedTools.Edit != nil
+}
+
+// generateEditToolPromptStep generates a separate step for edit tool accessibility instructions
+// Only generates the step if edit tool is enabled in the workflow
+func (c *Compiler) generateEditToolPromptStep(yaml *strings.Builder, data *WorkflowData) {
+	generateStaticPromptStep(yaml,
+		"Append edit tool accessibility instructions to prompt",
+		editToolPromptText,
+		hasEditTool(data.ParsedTools))
+}
+
+// ============================================================================
+// Tool Prompts - Playwright
+// ============================================================================
+
+// hasPlaywrightTool checks if the playwright tool is enabled in the tools configuration
+func hasPlaywrightTool(parsedTools *Tools) bool {
+	if parsedTools == nil {
+		return false
+	}
+	return parsedTools.Playwright != nil
+}
+
+// generatePlaywrightPromptStep generates a separate step for playwright output directory instructions
+// Only generates the step if playwright tool is enabled in the workflow
+func (c *Compiler) generatePlaywrightPromptStep(yaml *strings.Builder, data *WorkflowData) {
+	generateStaticPromptStep(yaml,
+		"Append playwright output directory instructions to prompt",
+		playwrightPromptText,
+		hasPlaywrightTool(data.ParsedTools))
+}
+
+// ============================================================================
+// PR Context Prompts
+// ============================================================================
+
+// generatePRContextPromptStep generates a separate step for PR context instructions
+func (c *Compiler) generatePRContextPromptStep(yaml *strings.Builder, data *WorkflowData) {
+	// Check if any of the workflow's event triggers are comment-related events
+	hasCommentTriggers := c.hasCommentRelatedTriggers(data)
+
+	if !hasCommentTriggers {
+		return // No comment-related triggers, skip PR context instructions
+	}
+
+	// Also check if checkout step will be added - only show prompt if checkout happens
+	needsCheckout := c.shouldAddCheckoutStep(data)
+	if !needsCheckout {
+		return // No checkout, so no PR branch checkout will happen
+	}
+
+	// Check that permissions allow contents read access
+	permParser := NewPermissionsParser(data.Permissions)
+	if !permParser.HasContentsReadAccess() {
+		return // No contents read access, cannot checkout
+	}
+
+	// Build the condition string
+	condition := BuildPRCommentCondition()
+
+	// Use shared helper but we need to render condition manually since it requires RenderConditionAsIf
+	// which is more complex than a simple if: string
+	yaml.WriteString("      - name: Append PR context instructions to prompt\n")
+	RenderConditionAsIf(yaml, condition, "          ")
+	yaml.WriteString("        env:\n")
+	yaml.WriteString("          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt\n")
+	yaml.WriteString("        run: |\n")
+	WritePromptTextToYAML(yaml, prContextPromptText, "          ")
+}
+
+// hasCommentRelatedTriggers checks if the workflow has any comment-related event triggers
+func (c *Compiler) hasCommentRelatedTriggers(data *WorkflowData) bool {
+	// Check for command trigger (which expands to comment events)
+	if data.Command != "" {
+		return true
+	}
+
+	if data.On == "" {
+		return false
+	}
+
+	// Check for comment-related event types in the "on" configuration
+	commentEvents := []string{"issue_comment", "pull_request_review_comment", "pull_request_review"}
+	for _, event := range commentEvents {
+		if strings.Contains(data.On, event) {
+			return true
+		}
+	}
+
+	return false
+}
+
+// ============================================================================
+// Security Prompts - XPIA
+// ============================================================================
+
+// generateXPIAPromptStep generates a separate step for XPIA security warnings
+func (c *Compiler) generateXPIAPromptStep(yaml *strings.Builder, data *WorkflowData) {
+	generateStaticPromptStep(yaml,
+		"Append XPIA security instructions to prompt",
+		xpiaPromptText,
+		data.SafetyPrompt)
+}
+
+// ============================================================================
+// Infrastructure Prompts - Temporary Folder
+// ============================================================================
+
+// generateTempFolderPromptStep generates a separate step for temporary folder usage instructions
+func (c *Compiler) generateTempFolderPromptStep(yaml *strings.Builder) {
+	generateStaticPromptStep(yaml,
+		"Append temporary folder instructions to prompt",
+		tempFolderPromptText,
+		true) // Always include temp folder instructions
+}
+
+// ============================================================================
+// GitHub Context Prompts
+// ============================================================================
+
+// generateGitHubContextPromptStep generates a separate step for GitHub context information
+// when the github tool is enabled. This injects repository, issue, discussion, pull request,
+// comment, and run ID information into the prompt.
+//
+// The function uses generateStaticPromptStepWithExpressions to securely handle the GitHub
+// Actions expressions in the context prompt. This extracts ${{ ... }} expressions into
+// environment variables and uses shell variable expansion in the heredoc, preventing
+// template injection vulnerabilities.
+func (c *Compiler) generateGitHubContextPromptStep(yaml *strings.Builder, data *WorkflowData) {
+	generateStaticPromptStepWithExpressions(yaml,
+		"Append GitHub context to prompt",
+		githubContextPromptText,
+		hasGitHubTool(data.ParsedTools))
+}

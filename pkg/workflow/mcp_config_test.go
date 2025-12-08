@@ -34,7 +34,7 @@ tools:
 			// With Docker MCP always enabled, default is docker (not services)
 			expectedType:        "docker",
 			expectedCommand:     "docker",
-			expectedDockerImage: "ghcr.io/github/github-mcp-server:v0.24.0",
+			expectedDockerImage: "ghcr.io/github/github-mcp-server:v0.24.1",
 		},
 	}
 
@@ -94,7 +94,7 @@ This is a test workflow for MCP configuration.
 					t.Errorf("Expected Docker image '%s' but didn't find it in:\n%s", tt.expectedDockerImage, lockContent)
 				}
 				// Security fix: Verify env block contains GitHub expression and JSON contains shell variable
-				if !strings.Contains(lockContent, `GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}`) {
+				if !strings.Contains(lockContent, `GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}`) {
 					t.Errorf("Expected GITHUB_MCP_SERVER_TOKEN in env block but didn't find it in:\n%s", lockContent)
 				}
 				if !strings.Contains(lockContent, `"GITHUB_PERSONAL_ACCESS_TOKEN": "$GITHUB_MCP_SERVER_TOKEN"`) {
@@ -175,7 +175,7 @@ func TestGenerateGitHubMCPConfig(t *testing.T) {
 				if !strings.Contains(result, `"command": "docker"`) {
 					t.Errorf("Expected Docker command but got:\n%s", result)
 				}
-				if !strings.Contains(result, `"ghcr.io/github/github-mcp-server:v0.24.0"`) {
+				if !strings.Contains(result, `"ghcr.io/github/github-mcp-server:v0.24.1"`) {
 					t.Errorf("Expected Docker image but got:\n%s", result)
 				}
 				if strings.Contains(result, `"type": "http"`) {

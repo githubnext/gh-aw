@@ -49,6 +49,7 @@
 #     - github
 #     - playwright
 # tools:
+#   cache-memory: true
 #   github:
 #     toolsets: [repos, pull_requests]
 #   playwright:
@@ -226,6 +227,8 @@
 # 2. **File Writing Testing**: Create a test file `/tmp/gh-aw/agent/smoke-test-claude-${{ github.run_id }}.txt` with content "Smoke test passed for Claude at $(date)" (create the directory if it doesn't exist)
 # 3. **Bash Tool Testing**: Execute bash commands to verify file creation was successful (use `cat` to read the file back)
 # 4. **Playwright MCP Testing**: Use playwright to navigate to https://github.com and verify the page title contains "GitHub"
+# 5. **Cache Memory Testing**: Write a test file to `/tmp/gh-aw/cache-memory/smoke-test-${{ github.run_id }}.txt` with content "Cache memory test for run ${{ github.run_id }}" and verify it was created successfully
+# 6. **Safe Input gh Tool Testing**: Use the `safeinputs-gh` tool to run "gh issues list --limit 3" to verify the tool can access GitHub issues
 #
 # ## Output
 #
@@ -238,6 +241,8 @@
 # ```
 #
 # Pinned GitHub Actions:
+#   - actions/cache@v4 (0057852bfaa89a56745cba8c7296529d2fc39830)
+#     https://github.com/actions/cache/commit/0057852bfaa89a56745cba8c7296529d2fc39830
 #   - actions/checkout@v5 (93cb6efe18208431cddfb8368fd83d5badbf9bfd)
 #     https://github.com/actions/checkout/commit/93cb6efe18208431cddfb8368fd83d5badbf9bfd
 #   - actions/download-artifact@v6 (018cc2cf5baa6db3ef3c5f8a56943fffe632ef53)
@@ -1967,7 +1972,8 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5
         with:
-          go-version: '1.25'
+          go-version-file: go.mod
+          cache: true
       - name: Setup Python
         uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
@@ -1980,16 +1986,36 @@ jobs:
         run: |
           mkdir -p /tmp/gh-aw/agent
           echo "Created /tmp/gh-aw/agent directory for agentic workflow temporary files"
+      # Cache memory file share configuration from frontmatter processed below
+      - name: Create cache-memory directory
+        run: |
+          mkdir -p /tmp/gh-aw/cache-memory
+          echo "Cache memory directory created at /tmp/gh-aw/cache-memory"
+          echo "This folder provides persistent file storage across workflow runs"
+          echo "LLMs and agentic tools can freely read and write files in this directory"
+      - name: Cache memory file share data
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          key: memory-${{ github.workflow }}-${{ github.run_id }}
+          path: /tmp/gh-aw/cache-memory
+          restore-keys: |
+            memory-${{ github.workflow }}-
+            memory-
+      - name: Upload cache-memory data as artifact
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
+        with:
+          name: cache-memory
+          path: /tmp/gh-aw/cache-memory
       - name: Configure Git credentials
         env:
           REPO_NAME: ${{ github.repository }}
-          SERVER_URL: ${{ github.server_url }}
         run: |
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git config --global user.name "github-actions[bot]"
           # Re-authenticate git with GitHub token
-          SERVER_URL_STRIPPED="${SERVER_URL#https://}"
-          git remote set-url origin "https://x-access-token:${{ github.token }}@${SERVER_URL_STRIPPED}/${REPO_NAME}.git"
+          SERVER_URL="${{ github.server_url }}"
+          SERVER_URL="${SERVER_URL#https://}"
+          git remote set-url origin "https://x-access-token:${{ github.token }}@${SERVER_URL}/${REPO_NAME}.git"
           echo "Git configured with standard GitHub Actions identity"
       - name: Checkout PR branch
         if: |
@@ -2038,19 +2064,11 @@ jobs:
             echo "Documentation: https://githubnext.github.io/gh-aw/reference/engines/#anthropic-claude-code"
             exit 1
           fi
-          
-          # Write validation results to step summary
-          {
-            echo "## Agent Environment Validation"
-            echo ""
           if [ -n "$CLAUDE_CODE_OAUTH_TOKEN" ]; then
             echo "CLAUDE_CODE_OAUTH_TOKEN secret is configured"
-            echo "- ✅ **CLAUDE_CODE_OAUTH_TOKEN**: Configured"
           else
             echo "ANTHROPIC_API_KEY secret is configured (using as fallback for CLAUDE_CODE_OAUTH_TOKEN)"
-            echo "- ✅ **ANTHROPIC_API_KEY**: Configured (using as fallback for CLAUDE_CODE_OAUTH_TOKEN)"
           fi
-          } >> "$GITHUB_STEP_SUMMARY"
         env:
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -2060,7 +2078,7 @@ jobs:
           node-version: '24'
           package-manager-cache: false
       - name: Install Claude Code CLI
-        run: npm install -g @anthropic-ai/claude-code@2.0.58
+        run: npm install -g @anthropic-ai/claude-code@2.0.56
       - name: Generate Claude Settings
         run: |
           mkdir -p /tmp/gh-aw/.claude
@@ -2175,7 +2193,7 @@ jobs:
           set -e
           docker pull ghcr.io/github/github-mcp-server:v0.24.0
           docker pull mcr.microsoft.com/playwright/mcp
-      - name: Write Safe Outputs Config
+      - name: Setup Safe Outputs Collector MCP
         run: |
           mkdir -p /tmp/gh-aw/safeoutputs
           cat > /tmp/gh-aw/safeoutputs/config.json << 'EOF'
@@ -2413,11 +2431,182 @@ jobs:
             }
           }
           EOF
-      - name: Write Safe Outputs JavaScript Files
-        run: |
           cat > /tmp/gh-aw/safeoutputs/mcp-server.cjs << 'EOF'
             const fs = require("fs");
             const path = require("path");
+            const crypto = require("crypto");
+            function normalizeBranchName(branchName) {
+              if (!branchName || typeof branchName !== "string" || branchName.trim() === "") {
+                return branchName;
+              }
+              let normalized = branchName.replace(/[^a-zA-Z0-9\-_/.]+/g, "-");
+              normalized = normalized.replace(/-+/g, "-");
+              normalized = normalized.replace(/^-+|-+$/g, "");
+              if (normalized.length > 128) {
+                normalized = normalized.substring(0, 128);
+              }
+              normalized = normalized.replace(/-+$/, "");
+              normalized = normalized.toLowerCase();
+              return normalized;
+            }
+            function estimateTokens(text) {
+              if (!text) return 0;
+              return Math.ceil(text.length / 4);
+            }
+            function generateCompactSchema(content) {
+              try {
+                const parsed = JSON.parse(content);
+                if (Array.isArray(parsed)) {
+                  if (parsed.length === 0) {
+                    return "[]";
+                  }
+                  const firstItem = parsed[0];
+                  if (typeof firstItem === "object" && firstItem !== null) {
+                    const keys = Object.keys(firstItem);
+                    return `[{${keys.join(", ")}}] (${parsed.length} items)`;
+                  }
+                  return `[${typeof firstItem}] (${parsed.length} items)`;
+                } else if (typeof parsed === "object" && parsed !== null) {
+                  const keys = Object.keys(parsed);
+                  if (keys.length > 10) {
+                    return `{${keys.slice(0, 10).join(", ")}, ...} (${keys.length} keys)`;
+                  }
+                  return `{${keys.join(", ")}}`;
+                }
+                return `${typeof parsed}`;
+              } catch {
+                return "text content";
+              }
+            }
+            function writeLargeContentToFile(content) {
+              const logsDir = "/tmp/gh-aw/safeoutputs";
+              if (!fs.existsSync(logsDir)) {
+                fs.mkdirSync(logsDir, { recursive: true });
+              }
+              const hash = crypto.createHash("sha256").update(content).digest("hex");
+              const filename = `${hash}.json`;
+              const filepath = path.join(logsDir, filename);
+              fs.writeFileSync(filepath, content, "utf8");
+              const description = generateCompactSchema(content);
+              return {
+                filename: filename,
+                description: description,
+              };
+            }
+            const { execSync } = require("child_process");
+            function getCurrentBranch() {
+              const cwd = process.env.GITHUB_WORKSPACE || process.cwd();
+              try {
+                const branch = execSync("git rev-parse --abbrev-ref HEAD", {
+                  encoding: "utf8",
+                  cwd: cwd,
+                }).trim();
+                return branch;
+              } catch (error) {
+              }
+              const ghHeadRef = process.env.GITHUB_HEAD_REF;
+              const ghRefName = process.env.GITHUB_REF_NAME;
+              if (ghHeadRef) {
+                return ghHeadRef;
+              }
+              if (ghRefName) {
+                return ghRefName;
+              }
+              throw new Error("Failed to determine current branch: git command failed and no GitHub environment variables available");
+            }
+            function getBaseBranch() {
+              return process.env.GH_AW_BASE_BRANCH || "main";
+            }
+            function generateGitPatch(branchName) {
+              const patchPath = "/tmp/gh-aw/aw.patch";
+              const cwd = process.env.GITHUB_WORKSPACE || process.cwd();
+              const defaultBranch = process.env.DEFAULT_BRANCH || getBaseBranch();
+              const githubSha = process.env.GITHUB_SHA;
+              const patchDir = path.dirname(patchPath);
+              if (!fs.existsSync(patchDir)) {
+                fs.mkdirSync(patchDir, { recursive: true });
+              }
+              let patchGenerated = false;
+              let errorMessage = null;
+              try {
+                if (branchName) {
+                  try {
+                    execSync(`git show-ref --verify --quiet refs/heads/${branchName}`, { cwd, encoding: "utf8" });
+                    let baseRef;
+                    try {
+                      execSync(`git show-ref --verify --quiet refs/remotes/origin/${branchName}`, { cwd, encoding: "utf8" });
+                      baseRef = `origin/${branchName}`;
+                    } catch {
+                      execSync(`git fetch origin ${defaultBranch}`, { cwd, encoding: "utf8" });
+                      baseRef = execSync(`git merge-base origin/${defaultBranch} ${branchName}`, { cwd, encoding: "utf8" }).trim();
+                    }
+                    const commitCount = parseInt(execSync(`git rev-list --count ${baseRef}..${branchName}`, { cwd, encoding: "utf8" }).trim(), 10);
+                    if (commitCount > 0) {
+                      const patchContent = execSync(`git format-patch ${baseRef}..${branchName} --stdout`, {
+                        cwd,
+                        encoding: "utf8",
+                      });
+                      if (patchContent && patchContent.trim()) {
+                        fs.writeFileSync(patchPath, patchContent, "utf8");
+                        patchGenerated = true;
+                      }
+                    }
+                  } catch (branchError) {
+                  }
+                }
+                if (!patchGenerated) {
+                  const currentHead = execSync("git rev-parse HEAD", { cwd, encoding: "utf8" }).trim();
+                  if (!githubSha) {
+                    errorMessage = "GITHUB_SHA environment variable is not set";
+                  } else if (currentHead === githubSha) {
+                  } else {
+                    try {
+                      execSync(`git merge-base --is-ancestor ${githubSha} HEAD`, { cwd, encoding: "utf8" });
+                      const commitCount = parseInt(execSync(`git rev-list --count ${githubSha}..HEAD`, { cwd, encoding: "utf8" }).trim(), 10);
+                      if (commitCount > 0) {
+                        const patchContent = execSync(`git format-patch ${githubSha}..HEAD --stdout`, {
+                          cwd,
+                          encoding: "utf8",
+                        });
+                        if (patchContent && patchContent.trim()) {
+                          fs.writeFileSync(patchPath, patchContent, "utf8");
+                          patchGenerated = true;
+                        }
+                      }
+                    } catch {
+                    }
+                  }
+                }
+              } catch (error) {
+                errorMessage = `Failed to generate patch: ${error instanceof Error ? error.message : String(error)}`;
+              }
+              if (patchGenerated && fs.existsSync(patchPath)) {
+                const patchContent = fs.readFileSync(patchPath, "utf8");
+                const patchSize = Buffer.byteLength(patchContent, "utf8");
+                const patchLines = patchContent.split("\n").length;
+                if (!patchContent.trim()) {
+                  return {
+                    success: false,
+                    error: "No changes to commit - patch is empty",
+                    patchPath: patchPath,
+                    patchSize: 0,
+                    patchLines: 0,
+                  };
+                }
+                return {
+                  success: true,
+                  patchPath: patchPath,
+                  patchSize: patchSize,
+                  patchLines: patchLines,
+                };
+              }
+              return {
+                success: false,
+                error: errorMessage || "No changes to commit - no commits found",
+                patchPath: patchPath,
+              };
+            }
+            const os = require("os");
             class ReadBuffer {
               constructor() {
                 this._buffer = null;
@@ -2574,61 +2763,6 @@ jobs:
                 }
               };
             }
-            function loadToolHandlers(server, tools, basePath) {
-              server.debug(`Loading tool handlers...`);
-              server.debug(`  Total tools to process: ${tools.length}`);
-              server.debug(`  Base path: ${basePath || "(not specified)"}`);
-              let loadedCount = 0;
-              let skippedCount = 0;
-              let errorCount = 0;
-              for (const tool of tools) {
-                const toolName = tool.name || "(unnamed)";
-                if (!tool.handler) {
-                  server.debug(`  [${toolName}] No handler path specified, skipping handler load`);
-                  skippedCount++;
-                  continue;
-                }
-                const handlerPath = tool.handler;
-                server.debug(`  [${toolName}] Handler path specified: ${handlerPath}`);
-                let resolvedPath = handlerPath;
-                if (basePath && !path.isAbsolute(handlerPath)) {
-                  resolvedPath = path.resolve(basePath, handlerPath);
-                  server.debug(`  [${toolName}] Resolved relative path to: ${resolvedPath}`);
-                  const normalizedBase = path.resolve(basePath);
-                  const normalizedResolved = path.resolve(resolvedPath);
-                  if (!normalizedResolved.startsWith(normalizedBase + path.sep) && normalizedResolved !== normalizedBase) {
-                    server.debug(`  [${toolName}] ERROR: Handler path escapes base directory: ${resolvedPath} is not within ${basePath}`);
-                    errorCount++;
-                    continue;
-                  }
-                } else if (path.isAbsolute(handlerPath)) {
-                  server.debug(`  [${toolName}] Using absolute path (bypasses basePath validation): ${handlerPath}`);
-                }
-                tool.handlerPath = handlerPath;
-                try {
-                  server.debug(`  [${toolName}] Loading handler from: ${resolvedPath}`);
-                  if (!fs.existsSync(resolvedPath)) {
-                    server.debug(`  [${toolName}] ERROR: Handler file does not exist: ${resolvedPath}`);
-                    errorCount++;
-                    continue;
-                  }
-                  const ext = path.extname(resolvedPath).toLowerCase();
-                  server.debug(`  [${toolName}] Handler file extension: ${ext}`);
-                  if (ext === ".sh") {
-                    server.debug(`  [${toolName}] Detected shell script handler`);
-                    try {
-                      fs.accessSync(resolvedPath, fs.constants.X_OK);
-                      server.debug(`  [${toolName}] Shell script is executable`);
-                    } catch {
-                      try {
-                        fs.chmodSync(resolvedPath, 0o755);
-                        server.debug(`  [${toolName}] Made shell script executable`);
-                      } catch (chmodError) {
-                        server.debugError(`  [${toolName}] Warning: Could not make shell script executable: `, chmodError);
-                      }
-                    }
-            const { execFile } = require("child_process");
-            const os = require("os");
             function createShellHandler(server, toolName, scriptPath) {
               return async args => {
                 server.debug(`  [${toolName}] Invoking shell handler: ${scriptPath}`);
@@ -2718,84 +2852,62 @@ jobs:
                 });
               };
             }
-                    tool.handler = createShellHandler(server, toolName, resolvedPath);
-                    loadedCount++;
-                    server.debug(`  [${toolName}] Shell handler created successfully`);
-                  } else if (ext === ".py") {
-                    server.debug(`  [${toolName}] Detected Python script handler`);
+            function loadToolHandlers(server, tools, basePath) {
+              server.debug(`Loading tool handlers...`);
+              server.debug(`  Total tools to process: ${tools.length}`);
+              server.debug(`  Base path: ${basePath || "(not specified)"}`);
+              let loadedCount = 0;
+              let skippedCount = 0;
+              let errorCount = 0;
+              for (const tool of tools) {
+                const toolName = tool.name || "(unnamed)";
+                if (!tool.handler) {
+                  server.debug(`  [${toolName}] No handler path specified, skipping handler load`);
+                  skippedCount++;
+                  continue;
+                }
+                const handlerPath = tool.handler;
+                server.debug(`  [${toolName}] Handler path specified: ${handlerPath}`);
+                let resolvedPath = handlerPath;
+                if (basePath && !path.isAbsolute(handlerPath)) {
+                  resolvedPath = path.resolve(basePath, handlerPath);
+                  server.debug(`  [${toolName}] Resolved relative path to: ${resolvedPath}`);
+                  const normalizedBase = path.resolve(basePath);
+                  const normalizedResolved = path.resolve(resolvedPath);
+                  if (!normalizedResolved.startsWith(normalizedBase + path.sep) && normalizedResolved !== normalizedBase) {
+                    server.debug(`  [${toolName}] ERROR: Handler path escapes base directory: ${resolvedPath} is not within ${basePath}`);
+                    errorCount++;
+                    continue;
+                  }
+                } else if (path.isAbsolute(handlerPath)) {
+                  server.debug(`  [${toolName}] Using absolute path (bypasses basePath validation): ${handlerPath}`);
+                }
+                tool.handlerPath = handlerPath;
+                try {
+                  server.debug(`  [${toolName}] Loading handler from: ${resolvedPath}`);
+                  if (!fs.existsSync(resolvedPath)) {
+                    server.debug(`  [${toolName}] ERROR: Handler file does not exist: ${resolvedPath}`);
+                    errorCount++;
+                    continue;
+                  }
+                  const ext = path.extname(resolvedPath).toLowerCase();
+                  server.debug(`  [${toolName}] Handler file extension: ${ext}`);
+                  if (ext === ".sh") {
+                    server.debug(`  [${toolName}] Detected shell script handler`);
                     try {
                       fs.accessSync(resolvedPath, fs.constants.X_OK);
-                      server.debug(`  [${toolName}] Python script is executable`);
+                      server.debug(`  [${toolName}] Shell script is executable`);
                     } catch {
                       try {
                         fs.chmodSync(resolvedPath, 0o755);
-                        server.debug(`  [${toolName}] Made Python script executable`);
+                        server.debug(`  [${toolName}] Made shell script executable`);
                       } catch (chmodError) {
-                        server.debugError(`  [${toolName}] Warning: Could not make Python script executable: `, chmodError);
+                        server.debugError(`  [${toolName}] Warning: Could not make shell script executable: `, chmodError);
                       }
                     }
-            function createPythonHandler(server, toolName, scriptPath) {
-              return async args => {
-                server.debug(`  [${toolName}] Invoking Python handler: ${scriptPath}`);
-                server.debug(`  [${toolName}] Python handler args: ${JSON.stringify(args)}`);
-                const inputJson = JSON.stringify(args || {});
-                server.debug(
-                  `  [${toolName}] Input JSON (${inputJson.length} bytes): ${inputJson.substring(0, 200)}${inputJson.length > 200 ? "..." : ""}`
-                );
-                return new Promise((resolve, reject) => {
-                  server.debug(`  [${toolName}] Executing Python script...`);
-                  const child = execFile(
-                    "python3",
-                    [scriptPath],
-                    {
-                      env: process.env,
-                      timeout: 300000, 
-                      maxBuffer: 10 * 1024 * 1024, 
-                    },
-                    (error, stdout, stderr) => {
-                      if (stdout) {
-                        server.debug(`  [${toolName}] stdout: ${stdout.substring(0, 500)}${stdout.length > 500 ? "..." : ""}`);
-                      }
-                      if (stderr) {
-                        server.debug(`  [${toolName}] stderr: ${stderr.substring(0, 500)}${stderr.length > 500 ? "..." : ""}`);
-                      }
-                      if (error) {
-                        server.debugError(`  [${toolName}] Python script error: `, error);
-                        reject(error);
-                        return;
-                      }
-                      let result;
-                      try {
-                        if (stdout && stdout.trim()) {
-                          result = JSON.parse(stdout.trim());
-                        } else {
-                          result = { stdout: stdout || "", stderr: stderr || "" };
-                        }
-                      } catch (parseError) {
-                        server.debug(`  [${toolName}] Output is not JSON, returning as text`);
-                        result = { stdout: stdout || "", stderr: stderr || "" };
-                      }
-                      server.debug(`  [${toolName}] Python handler completed successfully`);
-                      resolve({
-                        content: [
-                          {
-                            type: "text",
-                            text: JSON.stringify(result),
-                          },
-                        ],
-                      });
-                    }
-                  );
-                  if (child.stdin) {
-                    child.stdin.write(inputJson);
-                    child.stdin.end();
-                  }
-                });
-              };
-            }
-                    tool.handler = createPythonHandler(server, toolName, resolvedPath);
+                    tool.handler = createShellHandler(server, toolName, resolvedPath);
                     loadedCount++;
-                    server.debug(`  [${toolName}] Python handler created successfully`);
+                    server.debug(`  [${toolName}] Shell handler created successfully`);
                   } else {
                     server.debug(`  [${toolName}] Loading JavaScript handler module`);
                     const handlerModule = require(resolvedPath);
@@ -2953,533 +3065,328 @@ jobs:
               process.stdin.resume();
               server.debug(`listening...`);
             }
-            function loadConfig(server) {
-              const configPath = process.env.GH_AW_SAFE_OUTPUTS_CONFIG_PATH || "/tmp/gh-aw/safeoutputs/config.json";
-              let safeOutputsConfigRaw;
-              server.debug(`Reading config from file: ${configPath}`);
-              try {
-                if (fs.existsSync(configPath)) {
-                  server.debug(`Config file exists at: ${configPath}`);
-                  const configFileContent = fs.readFileSync(configPath, "utf8");
-                  server.debug(`Config file content length: ${configFileContent.length} characters`);
-                  server.debug(`Config file read successfully, attempting to parse JSON`);
-                  safeOutputsConfigRaw = JSON.parse(configFileContent);
-                  server.debug(`Successfully parsed config from file with ${Object.keys(safeOutputsConfigRaw).length} configuration keys`);
-                } else {
-                  server.debug(`Config file does not exist at: ${configPath}`);
-                  server.debug(`Using minimal default configuration`);
-                  safeOutputsConfigRaw = {};
-                }
-              } catch (error) {
-                server.debug(`Error reading config file: ${error instanceof Error ? error.message : String(error)}`);
-                server.debug(`Falling back to empty configuration`);
-                safeOutputsConfigRaw = {};
-              }
-              const safeOutputsConfig = Object.fromEntries(Object.entries(safeOutputsConfigRaw).map(([k, v]) => [k.replace(/-/g, "_"), v]));
-              server.debug(`Final processed config: ${JSON.stringify(safeOutputsConfig)}`);
-              const outputFile = process.env.GH_AW_SAFE_OUTPUTS || "/tmp/gh-aw/safeoutputs/outputs.jsonl";
-              if (!process.env.GH_AW_SAFE_OUTPUTS) {
-                server.debug(`GH_AW_SAFE_OUTPUTS not set, using default: ${outputFile}`);
-              }
-              const outputDir = path.dirname(outputFile);
-              if (!fs.existsSync(outputDir)) {
-                server.debug(`Creating output directory: ${outputDir}`);
-                fs.mkdirSync(outputDir, { recursive: true });
-              }
-              return {
-                config: safeOutputsConfig,
-                outputFile: outputFile,
-              };
-            }
-            function createAppendFunction(outputFile) {
-              return function appendSafeOutput(entry) {
-                if (!outputFile) throw new Error("No output file configured");
-                entry.type = entry.type.replace(/-/g, "_");
-                const jsonLine = JSON.stringify(entry) + "\n";
-                try {
-                  fs.appendFileSync(outputFile, jsonLine);
-                } catch (error) {
-                  throw new Error(`Failed to write to output file: ${error instanceof Error ? error.message : String(error)}`);
-                }
-              };
-            }
-            const crypto = require("crypto");
-            function normalizeBranchName(branchName) {
-              if (!branchName || typeof branchName !== "string" || branchName.trim() === "") {
-                return branchName;
-              }
-              let normalized = branchName.replace(/[^a-zA-Z0-9\-_/.]+/g, "-");
-              normalized = normalized.replace(/-+/g, "-");
-              normalized = normalized.replace(/^-+|-+$/g, "");
-              if (normalized.length > 128) {
-                normalized = normalized.substring(0, 128);
-              }
-              normalized = normalized.replace(/-+$/, "");
-              normalized = normalized.toLowerCase();
-              return normalized;
-            }
-            function estimateTokens(text) {
-              if (!text) return 0;
-              return Math.ceil(text.length / 4);
-            }
-            function generateCompactSchema(content) {
-              try {
-                const parsed = JSON.parse(content);
-                if (Array.isArray(parsed)) {
-                  if (parsed.length === 0) {
-                    return "[]";
-                  }
-                  const firstItem = parsed[0];
-                  if (typeof firstItem === "object" && firstItem !== null) {
-                    const keys = Object.keys(firstItem);
-                    return `[{${keys.join(", ")}}] (${parsed.length} items)`;
-                  }
-                  return `[${typeof firstItem}] (${parsed.length} items)`;
-                } else if (typeof parsed === "object" && parsed !== null) {
-                  const keys = Object.keys(parsed);
-                  if (keys.length > 10) {
-                    return `{${keys.slice(0, 10).join(", ")}, ...} (${keys.length} keys)`;
-                  }
-                  return `{${keys.join(", ")}}`;
-                }
-                return `${typeof parsed}`;
-              } catch {
-                return "text content";
-              }
-            }
-            function writeLargeContentToFile(content) {
-              const logsDir = "/tmp/gh-aw/safeoutputs";
-              if (!fs.existsSync(logsDir)) {
-                fs.mkdirSync(logsDir, { recursive: true });
-              }
-              const hash = crypto.createHash("sha256").update(content).digest("hex");
-              const filename = `${hash}.json`;
-              const filepath = path.join(logsDir, filename);
-              fs.writeFileSync(filepath, content, "utf8");
-              const description = generateCompactSchema(content);
-              return {
-                filename: filename,
-                description: description,
-              };
-            }
-            function getCurrentBranch() {
-              const cwd = process.env.GITHUB_WORKSPACE || process.cwd();
-              try {
-                const branch = execSync("git rev-parse --abbrev-ref HEAD", {
-                  encoding: "utf8",
-                  cwd: cwd,
-                }).trim();
-                return branch;
-              } catch (error) {
-              }
-              const ghHeadRef = process.env.GITHUB_HEAD_REF;
-              const ghRefName = process.env.GITHUB_REF_NAME;
-              if (ghHeadRef) {
-                return ghHeadRef;
-              }
-              if (ghRefName) {
-                return ghRefName;
-              }
-              throw new Error("Failed to determine current branch: git command failed and no GitHub environment variables available");
-            }
-            function getBaseBranch() {
-              return process.env.GH_AW_BASE_BRANCH || "main";
-            }
-            function generateGitPatch(branchName) {
-              const patchPath = "/tmp/gh-aw/aw.patch";
-              const cwd = process.env.GITHUB_WORKSPACE || process.cwd();
-              const defaultBranch = process.env.DEFAULT_BRANCH || getBaseBranch();
-              const githubSha = process.env.GITHUB_SHA;
-              const patchDir = path.dirname(patchPath);
-              if (!fs.existsSync(patchDir)) {
-                fs.mkdirSync(patchDir, { recursive: true });
-              }
-              let patchGenerated = false;
-              let errorMessage = null;
-              try {
-                if (branchName) {
-                  try {
-                    execSync(`git show-ref --verify --quiet refs/heads/${branchName}`, { cwd, encoding: "utf8" });
-                    let baseRef;
-                    try {
-                      execSync(`git show-ref --verify --quiet refs/remotes/origin/${branchName}`, { cwd, encoding: "utf8" });
-                      baseRef = `origin/${branchName}`;
-                    } catch {
-                      execSync(`git fetch origin ${defaultBranch}`, { cwd, encoding: "utf8" });
-                      baseRef = execSync(`git merge-base origin/${defaultBranch} ${branchName}`, { cwd, encoding: "utf8" }).trim();
-                    }
-                    const commitCount = parseInt(execSync(`git rev-list --count ${baseRef}..${branchName}`, { cwd, encoding: "utf8" }).trim(), 10);
-                    if (commitCount > 0) {
-                      const patchContent = execSync(`git format-patch ${baseRef}..${branchName} --stdout`, {
-                        cwd,
-                        encoding: "utf8",
-                      });
-                      if (patchContent && patchContent.trim()) {
-                        fs.writeFileSync(patchPath, patchContent, "utf8");
-                        patchGenerated = true;
-                      }
-                    }
-                  } catch (branchError) {
-                  }
-                }
-                if (!patchGenerated) {
-                  const currentHead = execSync("git rev-parse HEAD", { cwd, encoding: "utf8" }).trim();
-                  if (!githubSha) {
-                    errorMessage = "GITHUB_SHA environment variable is not set";
-                  } else if (currentHead === githubSha) {
-                  } else {
-                    try {
-                      execSync(`git merge-base --is-ancestor ${githubSha} HEAD`, { cwd, encoding: "utf8" });
-                      const commitCount = parseInt(execSync(`git rev-list --count ${githubSha}..HEAD`, { cwd, encoding: "utf8" }).trim(), 10);
-                      if (commitCount > 0) {
-                        const patchContent = execSync(`git format-patch ${githubSha}..HEAD --stdout`, {
-                          cwd,
-                          encoding: "utf8",
-                        });
-                        if (patchContent && patchContent.trim()) {
-                          fs.writeFileSync(patchPath, patchContent, "utf8");
-                          patchGenerated = true;
-                        }
-                      }
-                    } catch {
-                    }
-                  }
-                }
-              } catch (error) {
-                errorMessage = `Failed to generate patch: ${error instanceof Error ? error.message : String(error)}`;
-              }
-              if (patchGenerated && fs.existsSync(patchPath)) {
-                const patchContent = fs.readFileSync(patchPath, "utf8");
-                const patchSize = Buffer.byteLength(patchContent, "utf8");
-                const patchLines = patchContent.split("\n").length;
-                if (!patchContent.trim()) {
-                  return {
-                    success: false,
-                    error: "No changes to commit - patch is empty",
-                    patchPath: patchPath,
-                    patchSize: 0,
-                    patchLines: 0,
-                  };
-                }
-                return {
-                  success: true,
-                  patchPath: patchPath,
-                  patchSize: patchSize,
-                  patchLines: patchLines,
-                };
-              }
-              return {
-                success: false,
-                error: errorMessage || "No changes to commit - no commits found",
-                patchPath: patchPath,
-              };
-            }
-            function createHandlers(server, appendSafeOutput) {
-              const defaultHandler = type => args => {
-                const entry = { ...(args || {}), type };
-                let largeContent = null;
-                let largeFieldName = null;
-                const TOKEN_THRESHOLD = 16000;
-                for (const [key, value] of Object.entries(entry)) {
-                  if (typeof value === "string") {
-                    const tokens = estimateTokens(value);
-                    if (tokens > TOKEN_THRESHOLD) {
-                      largeContent = value;
-                      largeFieldName = key;
-                      server.debug(`Field '${key}' has ${tokens} tokens (exceeds ${TOKEN_THRESHOLD})`);
-                      break;
-                    }
-                  }
-                }
-                if (largeContent && largeFieldName) {
-                  const fileInfo = writeLargeContentToFile(largeContent);
-                  entry[largeFieldName] = `[Content too large, saved to file: ${fileInfo.filename}]`;
-                  appendSafeOutput(entry);
-                  return {
-                    content: [
-                      {
-                        type: "text",
-                        text: JSON.stringify(fileInfo),
-                      },
-                    ],
-                  };
-                }
-                appendSafeOutput(entry);
-                return {
-                  content: [
-                    {
-                      type: "text",
-                      text: JSON.stringify({ result: "success" }),
-                    },
-                  ],
-                };
-              };
-              const uploadAssetHandler = args => {
-                const branchName = process.env.GH_AW_ASSETS_BRANCH;
-                if (!branchName) throw new Error("GH_AW_ASSETS_BRANCH not set");
-                const normalizedBranchName = normalizeBranchName(branchName);
-                const { path: filePath } = args;
-                const absolutePath = path.resolve(filePath);
-                const workspaceDir = process.env.GITHUB_WORKSPACE || process.cwd();
-                const tmpDir = "/tmp";
-                const isInWorkspace = absolutePath.startsWith(path.resolve(workspaceDir));
-                const isInTmp = absolutePath.startsWith(tmpDir);
-                if (!isInWorkspace && !isInTmp) {
-                  throw new Error(
-                    `File path must be within workspace directory (${workspaceDir}) or /tmp directory. ` +
-                      `Provided path: ${filePath} (resolved to: ${absolutePath})`
-                  );
-                }
-                if (!fs.existsSync(filePath)) {
-                  throw new Error(`File not found: ${filePath}`);
-                }
-                const stats = fs.statSync(filePath);
-                const sizeBytes = stats.size;
-                const sizeKB = Math.ceil(sizeBytes / 1024);
-                const maxSizeKB = process.env.GH_AW_ASSETS_MAX_SIZE_KB ? parseInt(process.env.GH_AW_ASSETS_MAX_SIZE_KB, 10) : 10240; 
-                if (sizeKB > maxSizeKB) {
-                  throw new Error(`File size ${sizeKB} KB exceeds maximum allowed size ${maxSizeKB} KB`);
-                }
-                const ext = path.extname(filePath).toLowerCase();
-                const allowedExts = process.env.GH_AW_ASSETS_ALLOWED_EXTS
-                  ? process.env.GH_AW_ASSETS_ALLOWED_EXTS.split(",").map(ext => ext.trim())
-                  : [
-                      ".png",
-                      ".jpg",
-                      ".jpeg",
-                    ];
-                if (!allowedExts.includes(ext)) {
-                  throw new Error(`File extension '${ext}' is not allowed. Allowed extensions: ${allowedExts.join(", ")}`);
-                }
-                const assetsDir = "/tmp/gh-aw/safeoutputs/assets";
-                if (!fs.existsSync(assetsDir)) {
-                  fs.mkdirSync(assetsDir, { recursive: true });
-                }
-                const fileContent = fs.readFileSync(filePath);
-                const sha = crypto.createHash("sha256").update(fileContent).digest("hex");
-                const fileName = path.basename(filePath);
-                const fileExt = path.extname(fileName).toLowerCase();
-                const targetPath = path.join(assetsDir, fileName);
-                fs.copyFileSync(filePath, targetPath);
-                const targetFileName = (sha + fileExt).toLowerCase();
-                const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
-                const repo = process.env.GITHUB_REPOSITORY || "owner/repo";
-                const url = `${githubServer.replace("github.com", "raw.githubusercontent.com")}/${repo}/${normalizedBranchName}/${targetFileName}`;
-                const entry = {
-                  type: "upload_asset",
-                  path: filePath,
-                  fileName: fileName,
-                  sha: sha,
-                  size: sizeBytes,
-                  url: url,
-                  targetFileName: targetFileName,
-                };
-                appendSafeOutput(entry);
-                return {
-                  content: [
-                    {
-                      type: "text",
-                      text: JSON.stringify({ result: url }),
-                    },
-                  ],
-                };
-              };
-              const createPullRequestHandler = args => {
-                const entry = { ...args, type: "create_pull_request" };
-                const baseBranch = getBaseBranch();
-                if (!entry.branch || entry.branch.trim() === "" || entry.branch === baseBranch) {
-                  const detectedBranch = getCurrentBranch();
-                  if (entry.branch === baseBranch) {
-                    server.debug(`Branch equals base branch (${baseBranch}), detecting actual working branch: ${detectedBranch}`);
-                  } else {
-                    server.debug(`Using current branch for create_pull_request: ${detectedBranch}`);
-                  }
-                  entry.branch = detectedBranch;
-                }
-                server.debug(`Generating patch for create_pull_request with branch: ${entry.branch}`);
-                const patchResult = generateGitPatch(entry.branch);
-                if (!patchResult.success) {
-                  const errorMsg = patchResult.error || "Failed to generate patch";
-                  server.debug(`Patch generation failed: ${errorMsg}`);
-                  throw new Error(errorMsg);
-                }
-                server.debug(`Patch generated successfully: ${patchResult.patchPath} (${patchResult.patchSize} bytes, ${patchResult.patchLines} lines)`);
-                appendSafeOutput(entry);
-                return {
-                  content: [
-                    {
-                      type: "text",
-                      text: JSON.stringify({
-                        result: "success",
-                        patch: {
-                          path: patchResult.patchPath,
-                          size: patchResult.patchSize,
-                          lines: patchResult.patchLines,
-                        },
-                      }),
-                    },
-                  ],
-                };
-              };
-              const pushToPullRequestBranchHandler = args => {
-                const entry = { ...args, type: "push_to_pull_request_branch" };
-                const baseBranch = getBaseBranch();
-                if (!entry.branch || entry.branch.trim() === "" || entry.branch === baseBranch) {
-                  const detectedBranch = getCurrentBranch();
-                  if (entry.branch === baseBranch) {
-                    server.debug(`Branch equals base branch (${baseBranch}), detecting actual working branch: ${detectedBranch}`);
-                  } else {
-                    server.debug(`Using current branch for push_to_pull_request_branch: ${detectedBranch}`);
-                  }
-                  entry.branch = detectedBranch;
-                }
-                server.debug(`Generating patch for push_to_pull_request_branch with branch: ${entry.branch}`);
-                const patchResult = generateGitPatch(entry.branch);
-                if (!patchResult.success) {
-                  const errorMsg = patchResult.error || "Failed to generate patch";
-                  server.debug(`Patch generation failed: ${errorMsg}`);
-                  throw new Error(errorMsg);
-                }
-                server.debug(`Patch generated successfully: ${patchResult.patchPath} (${patchResult.patchSize} bytes, ${patchResult.patchLines} lines)`);
-                appendSafeOutput(entry);
-                return {
-                  content: [
-                    {
-                      type: "text",
-                      text: JSON.stringify({
-                        result: "success",
-                        patch: {
-                          path: patchResult.patchPath,
-                          size: patchResult.patchSize,
-                          lines: patchResult.patchLines,
-                        },
-                      }),
-                    },
-                  ],
-                };
-              };
-              return {
-                defaultHandler,
-                uploadAssetHandler,
-                createPullRequestHandler,
-                pushToPullRequestBranchHandler,
-              };
-            }
-            function loadTools(server) {
-              const toolsPath = process.env.GH_AW_SAFE_OUTPUTS_TOOLS_PATH || "/tmp/gh-aw/safeoutputs/tools.json";
-              let ALL_TOOLS = [];
-              server.debug(`Reading tools from file: ${toolsPath}`);
-              try {
-                if (fs.existsSync(toolsPath)) {
-                  server.debug(`Tools file exists at: ${toolsPath}`);
-                  const toolsFileContent = fs.readFileSync(toolsPath, "utf8");
-                  server.debug(`Tools file content length: ${toolsFileContent.length} characters`);
-                  server.debug(`Tools file read successfully, attempting to parse JSON`);
-                  ALL_TOOLS = JSON.parse(toolsFileContent);
-                  server.debug(`Successfully parsed ${ALL_TOOLS.length} tools from file`);
-                } else {
-                  server.debug(`Tools file does not exist at: ${toolsPath}`);
-                  server.debug(`Using empty tools array`);
-                  ALL_TOOLS = [];
-                }
-              } catch (error) {
-                server.debug(`Error reading tools file: ${error instanceof Error ? error.message : String(error)}`);
-                server.debug(`Falling back to empty tools array`);
-                ALL_TOOLS = [];
-              }
-              return ALL_TOOLS;
-            }
-            function attachHandlers(tools, handlers) {
-              tools.forEach(tool => {
-                if (tool.name === "create_pull_request") {
-                  tool.handler = handlers.createPullRequestHandler;
-                } else if (tool.name === "push_to_pull_request_branch") {
-                  tool.handler = handlers.pushToPullRequestBranchHandler;
-                } else if (tool.name === "upload_asset") {
-                  tool.handler = handlers.uploadAssetHandler;
-                }
-              });
-              return tools;
-            }
-            function registerPredefinedTools(server, tools, config, registerTool, normalizeTool) {
-              tools.forEach(tool => {
-                if (Object.keys(config).find(configKey => normalizeTool(configKey) === tool.name)) {
-                  registerTool(server, tool);
-                }
-              });
-            }
-            function registerDynamicTools(server, tools, config, outputFile, registerTool, normalizeTool) {
-              Object.keys(config).forEach(configKey => {
-                const normalizedKey = normalizeTool(configKey);
-                if (server.tools[normalizedKey]) {
-                  return;
-                }
-                if (!tools.find(t => t.name === normalizedKey)) {
-                  const jobConfig = config[configKey];
-                  const dynamicTool = {
-                    name: normalizedKey,
-                    description: jobConfig && jobConfig.description ? jobConfig.description : `Custom safe-job: ${configKey}`,
-                    inputSchema: {
-                      type: "object",
-                      properties: {},
-                      additionalProperties: true, 
-                    },
-                    handler: args => {
-                      const entry = {
-                        type: normalizedKey,
-                        ...args,
-                      };
-                      const entryJSON = JSON.stringify(entry);
-                      fs.appendFileSync(outputFile, entryJSON + "\n");
-                      const outputText =
-                        jobConfig && jobConfig.output
-                          ? jobConfig.output
-                          : `Safe-job '${configKey}' executed successfully with arguments: ${JSON.stringify(args)}`;
-                      return {
-                        content: [
-                          {
-                            type: "text",
-                            text: JSON.stringify({ result: outputText }),
-                          },
-                        ],
-                      };
-                    },
-                  };
-                  if (jobConfig && jobConfig.inputs) {
-                    dynamicTool.inputSchema.properties = {};
-                    dynamicTool.inputSchema.required = [];
-                    Object.keys(jobConfig.inputs).forEach(inputName => {
-                      const inputDef = jobConfig.inputs[inputName];
-                      const propSchema = {
-                        type: inputDef.type || "string",
-                        description: inputDef.description || `Input parameter: ${inputName}`,
-                      };
-                      if (inputDef.options && Array.isArray(inputDef.options)) {
-                        propSchema.enum = inputDef.options;
-                      }
-                      dynamicTool.inputSchema.properties[inputName] = propSchema;
-                      if (inputDef.required) {
-                        dynamicTool.inputSchema.required.push(inputName);
-                      }
-                    });
-                  }
-                  registerTool(server, dynamicTool);
-                }
-              });
-            }
             const SERVER_INFO = { name: "safeoutputs", version: "1.0.0" };
             const MCP_LOG_DIR = process.env.GH_AW_MCP_LOG_DIR;
             const server = createServer(SERVER_INFO, { logDir: MCP_LOG_DIR });
-            const { config: safeOutputsConfig, outputFile } = loadConfig(server);
-            const appendSafeOutput = createAppendFunction(outputFile);
-            const handlers = createHandlers(server, appendSafeOutput);
-            const { defaultHandler } = handlers;
-            let ALL_TOOLS = loadTools(server);
-            ALL_TOOLS = attachHandlers(ALL_TOOLS, handlers);
+            const configPath = process.env.GH_AW_SAFE_OUTPUTS_CONFIG_PATH || "/tmp/gh-aw/safeoutputs/config.json";
+            let safeOutputsConfigRaw;
+            server.debug(`Reading config from file: ${configPath}`);
+            try {
+              if (fs.existsSync(configPath)) {
+                server.debug(`Config file exists at: ${configPath}`);
+                const configFileContent = fs.readFileSync(configPath, "utf8");
+                server.debug(`Config file content length: ${configFileContent.length} characters`);
+                server.debug(`Config file read successfully, attempting to parse JSON`);
+                safeOutputsConfigRaw = JSON.parse(configFileContent);
+                server.debug(`Successfully parsed config from file with ${Object.keys(safeOutputsConfigRaw).length} configuration keys`);
+              } else {
+                server.debug(`Config file does not exist at: ${configPath}`);
+                server.debug(`Using minimal default configuration`);
+                safeOutputsConfigRaw = {};
+              }
+            } catch (error) {
+              server.debug(`Error reading config file: ${error instanceof Error ? error.message : String(error)}`);
+              server.debug(`Falling back to empty configuration`);
+              safeOutputsConfigRaw = {};
+            }
+            const safeOutputsConfig = Object.fromEntries(Object.entries(safeOutputsConfigRaw).map(([k, v]) => [k.replace(/-/g, "_"), v]));
+            server.debug(`Final processed config: ${JSON.stringify(safeOutputsConfig)}`);
+            const outputFile = process.env.GH_AW_SAFE_OUTPUTS || "/tmp/gh-aw/safeoutputs/outputs.jsonl";
+            if (!process.env.GH_AW_SAFE_OUTPUTS) {
+              server.debug(`GH_AW_SAFE_OUTPUTS not set, using default: ${outputFile}`);
+            }
+            const outputDir = path.dirname(outputFile);
+            if (!fs.existsSync(outputDir)) {
+              server.debug(`Creating output directory: ${outputDir}`);
+              fs.mkdirSync(outputDir, { recursive: true });
+            }
+            function appendSafeOutput(entry) {
+              if (!outputFile) throw new Error("No output file configured");
+              entry.type = entry.type.replace(/-/g, "_");
+              const jsonLine = JSON.stringify(entry) + "\n";
+              try {
+                fs.appendFileSync(outputFile, jsonLine);
+              } catch (error) {
+                throw new Error(`Failed to write to output file: ${error instanceof Error ? error.message : String(error)}`);
+              }
+            }
+            const defaultHandler = type => args => {
+              const entry = { ...(args || {}), type };
+              let largeContent = null;
+              let largeFieldName = null;
+              const TOKEN_THRESHOLD = 16000;
+              for (const [key, value] of Object.entries(entry)) {
+                if (typeof value === "string") {
+                  const tokens = estimateTokens(value);
+                  if (tokens > TOKEN_THRESHOLD) {
+                    largeContent = value;
+                    largeFieldName = key;
+                    server.debug(`Field '${key}' has ${tokens} tokens (exceeds ${TOKEN_THRESHOLD})`);
+                    break;
+                  }
+                }
+              }
+              if (largeContent && largeFieldName) {
+                const fileInfo = writeLargeContentToFile(largeContent);
+                entry[largeFieldName] = `[Content too large, saved to file: ${fileInfo.filename}]`;
+                appendSafeOutput(entry);
+                return {
+                  content: [
+                    {
+                      type: "text",
+                      text: JSON.stringify(fileInfo),
+                    },
+                  ],
+                };
+              }
+              appendSafeOutput(entry);
+              return {
+                content: [
+                  {
+                    type: "text",
+                    text: JSON.stringify({ result: "success" }),
+                  },
+                ],
+              };
+            };
+            const uploadAssetHandler = args => {
+              const branchName = process.env.GH_AW_ASSETS_BRANCH;
+              if (!branchName) throw new Error("GH_AW_ASSETS_BRANCH not set");
+              const normalizedBranchName = normalizeBranchName(branchName);
+              const { path: filePath } = args;
+              const absolutePath = path.resolve(filePath);
+              const workspaceDir = process.env.GITHUB_WORKSPACE || process.cwd();
+              const tmpDir = "/tmp";
+              const isInWorkspace = absolutePath.startsWith(path.resolve(workspaceDir));
+              const isInTmp = absolutePath.startsWith(tmpDir);
+              if (!isInWorkspace && !isInTmp) {
+                throw new Error(
+                  `File path must be within workspace directory (${workspaceDir}) or /tmp directory. ` +
+                    `Provided path: ${filePath} (resolved to: ${absolutePath})`
+                );
+              }
+              if (!fs.existsSync(filePath)) {
+                throw new Error(`File not found: ${filePath}`);
+              }
+              const stats = fs.statSync(filePath);
+              const sizeBytes = stats.size;
+              const sizeKB = Math.ceil(sizeBytes / 1024);
+              const maxSizeKB = process.env.GH_AW_ASSETS_MAX_SIZE_KB ? parseInt(process.env.GH_AW_ASSETS_MAX_SIZE_KB, 10) : 10240; 
+              if (sizeKB > maxSizeKB) {
+                throw new Error(`File size ${sizeKB} KB exceeds maximum allowed size ${maxSizeKB} KB`);
+              }
+              const ext = path.extname(filePath).toLowerCase();
+              const allowedExts = process.env.GH_AW_ASSETS_ALLOWED_EXTS
+                ? process.env.GH_AW_ASSETS_ALLOWED_EXTS.split(",").map(ext => ext.trim())
+                : [
+                    ".png",
+                    ".jpg",
+                    ".jpeg",
+                  ];
+              if (!allowedExts.includes(ext)) {
+                throw new Error(`File extension '${ext}' is not allowed. Allowed extensions: ${allowedExts.join(", ")}`);
+              }
+              const assetsDir = "/tmp/gh-aw/safeoutputs/assets";
+              if (!fs.existsSync(assetsDir)) {
+                fs.mkdirSync(assetsDir, { recursive: true });
+              }
+              const fileContent = fs.readFileSync(filePath);
+              const sha = crypto.createHash("sha256").update(fileContent).digest("hex");
+              const fileName = path.basename(filePath);
+              const fileExt = path.extname(fileName).toLowerCase();
+              const targetPath = path.join(assetsDir, fileName);
+              fs.copyFileSync(filePath, targetPath);
+              const targetFileName = (sha + fileExt).toLowerCase();
+              const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
+              const repo = process.env.GITHUB_REPOSITORY || "owner/repo";
+              const url = `${githubServer.replace("github.com", "raw.githubusercontent.com")}/${repo}/${normalizedBranchName}/${targetFileName}`;
+              const entry = {
+                type: "upload_asset",
+                path: filePath,
+                fileName: fileName,
+                sha: sha,
+                size: sizeBytes,
+                url: url,
+                targetFileName: targetFileName,
+              };
+              appendSafeOutput(entry);
+              return {
+                content: [
+                  {
+                    type: "text",
+                    text: JSON.stringify({ result: url }),
+                  },
+                ],
+              };
+            };
+            const createPullRequestHandler = args => {
+              const entry = { ...args, type: "create_pull_request" };
+              const baseBranch = getBaseBranch();
+              if (!entry.branch || entry.branch.trim() === "" || entry.branch === baseBranch) {
+                const detectedBranch = getCurrentBranch();
+                if (entry.branch === baseBranch) {
+                  server.debug(`Branch equals base branch (${baseBranch}), detecting actual working branch: ${detectedBranch}`);
+                } else {
+                  server.debug(`Using current branch for create_pull_request: ${detectedBranch}`);
+                }
+                entry.branch = detectedBranch;
+              }
+              server.debug(`Generating patch for create_pull_request with branch: ${entry.branch}`);
+              const patchResult = generateGitPatch(entry.branch);
+              if (!patchResult.success) {
+                const errorMsg = patchResult.error || "Failed to generate patch";
+                server.debug(`Patch generation failed: ${errorMsg}`);
+                throw new Error(errorMsg);
+              }
+              server.debug(`Patch generated successfully: ${patchResult.patchPath} (${patchResult.patchSize} bytes, ${patchResult.patchLines} lines)`);
+              appendSafeOutput(entry);
+              return {
+                content: [
+                  {
+                    type: "text",
+                    text: JSON.stringify({
+                      result: "success",
+                      patch: {
+                        path: patchResult.patchPath,
+                        size: patchResult.patchSize,
+                        lines: patchResult.patchLines,
+                      },
+                    }),
+                  },
+                ],
+              };
+            };
+            const pushToPullRequestBranchHandler = args => {
+              const entry = { ...args, type: "push_to_pull_request_branch" };
+              const baseBranch = getBaseBranch();
+              if (!entry.branch || entry.branch.trim() === "" || entry.branch === baseBranch) {
+                const detectedBranch = getCurrentBranch();
+                if (entry.branch === baseBranch) {
+                  server.debug(`Branch equals base branch (${baseBranch}), detecting actual working branch: ${detectedBranch}`);
+                } else {
+                  server.debug(`Using current branch for push_to_pull_request_branch: ${detectedBranch}`);
+                }
+                entry.branch = detectedBranch;
+              }
+              server.debug(`Generating patch for push_to_pull_request_branch with branch: ${entry.branch}`);
+              const patchResult = generateGitPatch(entry.branch);
+              if (!patchResult.success) {
+                const errorMsg = patchResult.error || "Failed to generate patch";
+                server.debug(`Patch generation failed: ${errorMsg}`);
+                throw new Error(errorMsg);
+              }
+              server.debug(`Patch generated successfully: ${patchResult.patchPath} (${patchResult.patchSize} bytes, ${patchResult.patchLines} lines)`);
+              appendSafeOutput(entry);
+              return {
+                content: [
+                  {
+                    type: "text",
+                    text: JSON.stringify({
+                      result: "success",
+                      patch: {
+                        path: patchResult.patchPath,
+                        size: patchResult.patchSize,
+                        lines: patchResult.patchLines,
+                      },
+                    }),
+                  },
+                ],
+              };
+            };
+            const toolsPath = process.env.GH_AW_SAFE_OUTPUTS_TOOLS_PATH || "/tmp/gh-aw/safeoutputs/tools.json";
+            let ALL_TOOLS = [];
+            server.debug(`Reading tools from file: ${toolsPath}`);
+            try {
+              if (fs.existsSync(toolsPath)) {
+                server.debug(`Tools file exists at: ${toolsPath}`);
+                const toolsFileContent = fs.readFileSync(toolsPath, "utf8");
+                server.debug(`Tools file content length: ${toolsFileContent.length} characters`);
+                server.debug(`Tools file read successfully, attempting to parse JSON`);
+                ALL_TOOLS = JSON.parse(toolsFileContent);
+                server.debug(`Successfully parsed ${ALL_TOOLS.length} tools from file`);
+              } else {
+                server.debug(`Tools file does not exist at: ${toolsPath}`);
+                server.debug(`Using empty tools array`);
+                ALL_TOOLS = [];
+              }
+            } catch (error) {
+              server.debug(`Error reading tools file: ${error instanceof Error ? error.message : String(error)}`);
+              server.debug(`Falling back to empty tools array`);
+              ALL_TOOLS = [];
+            }
+            ALL_TOOLS.forEach(tool => {
+              if (tool.name === "create_pull_request") {
+                tool.handler = createPullRequestHandler;
+              } else if (tool.name === "push_to_pull_request_branch") {
+                tool.handler = pushToPullRequestBranchHandler;
+              } else if (tool.name === "upload_asset") {
+                tool.handler = uploadAssetHandler;
+              }
+            });
             server.debug(`  output file: ${outputFile}`);
             server.debug(`  config: ${JSON.stringify(safeOutputsConfig)}`);
-            registerPredefinedTools(server, ALL_TOOLS, safeOutputsConfig, registerTool, normalizeTool);
-            registerDynamicTools(server, ALL_TOOLS, safeOutputsConfig, outputFile, registerTool, normalizeTool);
+            ALL_TOOLS.forEach(tool => {
+              if (Object.keys(safeOutputsConfig).find(config => normalizeTool(config) === tool.name)) {
+                registerTool(server, tool);
+              }
+            });
+            Object.keys(safeOutputsConfig).forEach(configKey => {
+              const normalizedKey = normalizeTool(configKey);
+              if (server.tools[normalizedKey]) {
+                return;
+              }
+              if (!ALL_TOOLS.find(t => t.name === normalizedKey)) {
+                const jobConfig = safeOutputsConfig[configKey];
+                const dynamicTool = {
+                  name: normalizedKey,
+                  description: jobConfig && jobConfig.description ? jobConfig.description : `Custom safe-job: ${configKey}`,
+                  inputSchema: {
+                    type: "object",
+                    properties: {},
+                    additionalProperties: true, 
+                  },
+                  handler: args => {
+                    const entry = {
+                      type: normalizedKey,
+                      ...args,
+                    };
+                    const entryJSON = JSON.stringify(entry);
+                    fs.appendFileSync(outputFile, entryJSON + "\n");
+                    const outputText =
+                      jobConfig && jobConfig.output
+                        ? jobConfig.output
+                        : `Safe-job '${configKey}' executed successfully with arguments: ${JSON.stringify(args)}`;
+                    return {
+                      content: [
+                        {
+                          type: "text",
+                          text: JSON.stringify({ result: outputText }),
+                        },
+                      ],
+                    };
+                  },
+                };
+                if (jobConfig && jobConfig.inputs) {
+                  dynamicTool.inputSchema.properties = {};
+                  dynamicTool.inputSchema.required = [];
+                  Object.keys(jobConfig.inputs).forEach(inputName => {
+                    const inputDef = jobConfig.inputs[inputName];
+                    const propSchema = {
+                      type: inputDef.type || "string",
+                      description: inputDef.description || `Input parameter: ${inputName}`,
+                    };
+                    if (inputDef.options && Array.isArray(inputDef.options)) {
+                      propSchema.enum = inputDef.options;
+                    }
+                    dynamicTool.inputSchema.properties[inputName] = propSchema;
+                    if (inputDef.required) {
+                      dynamicTool.inputSchema.required.push(inputName);
+                    }
+                  });
+                }
+                registerTool(server, dynamicTool);
+              }
+            });
             server.debug(`  tools: ${Object.keys(server.tools).join(", ")}`);
             if (!Object.keys(server.tools).length) throw new Error("No tools enabled in configuration");
             start(server, { defaultHandler });
@@ -3566,7 +3473,7 @@ jobs:
               engine_name: "Claude Code",
               model: "",
               version: "",
-              agent_version: "2.0.58",
+              agent_version: "2.0.56",
               workflow_name: "Smoke Claude",
               experimental: true,
               supports_tools_allowlist: true,
@@ -3765,6 +3672,8 @@ jobs:
           2. **File Writing Testing**: Create a test file `/tmp/gh-aw/agent/smoke-test-claude-${GH_AW_GITHUB_RUN_ID}.txt` with content "Smoke test passed for Claude at $(date)" (create the directory if it doesn't exist)
           3. **Bash Tool Testing**: Execute bash commands to verify file creation was successful (use `cat` to read the file back)
           4. **Playwright MCP Testing**: Use playwright to navigate to https://github.com and verify the page title contains "GitHub"
+          5. **Cache Memory Testing**: Write a test file to `/tmp/gh-aw/cache-memory/smoke-test-${GH_AW_GITHUB_RUN_ID}.txt` with content "Cache memory test for run ${GH_AW_GITHUB_RUN_ID}" and verify it was created successfully
+          6. **Safe Input gh Tool Testing**: Use the `safeinputs-gh` tool to run "gh issues list --limit 3" to verify the tool can access GitHub issues
           
           ## Output
           
@@ -3834,6 +3743,31 @@ jobs:
           <restriction>Do NOT attempt to edit files outside these directories as you do not have the necessary permissions.</restriction>
           </file-editing>
           
+          PROMPT_EOF
+      - name: Append cache memory instructions to prompt
+        env:
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+        run: |
+          cat << 'PROMPT_EOF' | envsubst >> "$GH_AW_PROMPT"
+          
+          ---
+          
+          ## Cache Folder Available
+          
+          You have access to a persistent cache folder at `/tmp/gh-aw/cache-memory/` where you can read and write files to create memories and store information.
+          
+          - **Read/Write Access**: You can freely read from and write to any files in this folder
+          - **Persistence**: Files in this folder persist across workflow runs via GitHub Actions cache
+          - **Last Write Wins**: If multiple processes write to the same file, the last write will be preserved
+          - **File Share**: Use this as a simple file share - organize files as you see fit
+          
+          Examples of what you can store:
+          - `/tmp/gh-aw/cache-memory/notes.txt` - general notes and observations
+          - `/tmp/gh-aw/cache-memory/preferences.json` - user preferences and settings
+          - `/tmp/gh-aw/cache-memory/history.log` - activity history and logs
+          - `/tmp/gh-aw/cache-memory/state/` - organized state files in subdirectories
+          
+          Feel free to create, read, update, and organize files in this folder as needed for your tasks.
           PROMPT_EOF
       - name: Append safe outputs instructions to prompt
         env:
@@ -4003,18 +3937,22 @@ jobs:
         # - Bash
         # - BashOutput
         # - Edit
+        # - Edit(/tmp/gh-aw/cache-memory/*)
         # - ExitPlanMode
         # - Glob
         # - Grep
         # - KillBash
         # - LS
         # - MultiEdit
+        # - MultiEdit(/tmp/gh-aw/cache-memory/*)
         # - NotebookEdit
         # - NotebookRead
         # - Read
+        # - Read(/tmp/gh-aw/cache-memory/*)
         # - Task
         # - TodoWrite
         # - Write
+        # - Write(/tmp/gh-aw/cache-memory/*)
         # - mcp__github__download_workflow_run_artifact
         # - mcp__github__get_code_scanning_alert
         # - mcp__github__get_commit
@@ -4092,7 +4030,7 @@ jobs:
         run: |
           set -o pipefail
           # Execute Claude Code CLI with prompt from file
-          claude --print --max-turns 15 --mcp-config /tmp/gh-aw/mcp-config/mcp-servers.json --allowed-tools Bash,BashOutput,Edit,ExitPlanMode,Glob,Grep,KillBash,LS,MultiEdit,NotebookEdit,NotebookRead,Read,Task,TodoWrite,Write,mcp__github__download_workflow_run_artifact,mcp__github__get_code_scanning_alert,mcp__github__get_commit,mcp__github__get_dependabot_alert,mcp__github__get_discussion,mcp__github__get_discussion_comments,mcp__github__get_file_contents,mcp__github__get_job_logs,mcp__github__get_label,mcp__github__get_latest_release,mcp__github__get_me,mcp__github__get_notification_details,mcp__github__get_pull_request,mcp__github__get_pull_request_comments,mcp__github__get_pull_request_diff,mcp__github__get_pull_request_files,mcp__github__get_pull_request_review_comments,mcp__github__get_pull_request_reviews,mcp__github__get_pull_request_status,mcp__github__get_release_by_tag,mcp__github__get_secret_scanning_alert,mcp__github__get_tag,mcp__github__get_workflow_run,mcp__github__get_workflow_run_logs,mcp__github__get_workflow_run_usage,mcp__github__issue_read,mcp__github__list_branches,mcp__github__list_code_scanning_alerts,mcp__github__list_commits,mcp__github__list_dependabot_alerts,mcp__github__list_discussion_categories,mcp__github__list_discussions,mcp__github__list_issue_types,mcp__github__list_issues,mcp__github__list_label,mcp__github__list_notifications,mcp__github__list_pull_requests,mcp__github__list_releases,mcp__github__list_secret_scanning_alerts,mcp__github__list_starred_repositories,mcp__github__list_tags,mcp__github__list_workflow_jobs,mcp__github__list_workflow_run_artifacts,mcp__github__list_workflow_runs,mcp__github__list_workflows,mcp__github__pull_request_read,mcp__github__search_code,mcp__github__search_issues,mcp__github__search_orgs,mcp__github__search_pull_requests,mcp__github__search_repositories,mcp__github__search_users,mcp__playwright__browser_click,mcp__playwright__browser_close,mcp__playwright__browser_console_messages,mcp__playwright__browser_drag,mcp__playwright__browser_evaluate,mcp__playwright__browser_file_upload,mcp__playwright__browser_fill_form,mcp__playwright__browser_handle_dialog,mcp__playwright__browser_hover,mcp__playwright__browser_install,mcp__playwright__browser_navigate,mcp__playwright__browser_navigate_back,mcp__playwright__browser_network_requests,mcp__playwright__browser_press_key,mcp__playwright__browser_resize,mcp__playwright__browser_select_option,mcp__playwright__browser_snapshot,mcp__playwright__browser_tabs,mcp__playwright__browser_take_screenshot,mcp__playwright__browser_type,mcp__playwright__browser_wait_for --debug --verbose --permission-mode bypassPermissions --output-format stream-json --settings /tmp/gh-aw/.claude/settings.json "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
+          claude --print --max-turns 15 --mcp-config /tmp/gh-aw/mcp-config/mcp-servers.json --allowed-tools 'Bash,BashOutput,Edit,Edit(/tmp/gh-aw/cache-memory/*),ExitPlanMode,Glob,Grep,KillBash,LS,MultiEdit,MultiEdit(/tmp/gh-aw/cache-memory/*),NotebookEdit,NotebookRead,Read,Read(/tmp/gh-aw/cache-memory/*),Task,TodoWrite,Write,Write(/tmp/gh-aw/cache-memory/*),mcp__github__download_workflow_run_artifact,mcp__github__get_code_scanning_alert,mcp__github__get_commit,mcp__github__get_dependabot_alert,mcp__github__get_discussion,mcp__github__get_discussion_comments,mcp__github__get_file_contents,mcp__github__get_job_logs,mcp__github__get_label,mcp__github__get_latest_release,mcp__github__get_me,mcp__github__get_notification_details,mcp__github__get_pull_request,mcp__github__get_pull_request_comments,mcp__github__get_pull_request_diff,mcp__github__get_pull_request_files,mcp__github__get_pull_request_review_comments,mcp__github__get_pull_request_reviews,mcp__github__get_pull_request_status,mcp__github__get_release_by_tag,mcp__github__get_secret_scanning_alert,mcp__github__get_tag,mcp__github__get_workflow_run,mcp__github__get_workflow_run_logs,mcp__github__get_workflow_run_usage,mcp__github__issue_read,mcp__github__list_branches,mcp__github__list_code_scanning_alerts,mcp__github__list_commits,mcp__github__list_dependabot_alerts,mcp__github__list_discussion_categories,mcp__github__list_discussions,mcp__github__list_issue_types,mcp__github__list_issues,mcp__github__list_label,mcp__github__list_notifications,mcp__github__list_pull_requests,mcp__github__list_releases,mcp__github__list_secret_scanning_alerts,mcp__github__list_starred_repositories,mcp__github__list_tags,mcp__github__list_workflow_jobs,mcp__github__list_workflow_run_artifacts,mcp__github__list_workflow_runs,mcp__github__list_workflows,mcp__github__pull_request_read,mcp__github__search_code,mcp__github__search_issues,mcp__github__search_orgs,mcp__github__search_pull_requests,mcp__github__search_repositories,mcp__github__search_users,mcp__playwright__browser_click,mcp__playwright__browser_close,mcp__playwright__browser_console_messages,mcp__playwright__browser_drag,mcp__playwright__browser_evaluate,mcp__playwright__browser_file_upload,mcp__playwright__browser_fill_form,mcp__playwright__browser_handle_dialog,mcp__playwright__browser_hover,mcp__playwright__browser_install,mcp__playwright__browser_navigate,mcp__playwright__browser_navigate_back,mcp__playwright__browser_network_requests,mcp__playwright__browser_press_key,mcp__playwright__browser_resize,mcp__playwright__browser_select_option,mcp__playwright__browser_snapshot,mcp__playwright__browser_tabs,mcp__playwright__browser_take_screenshot,mcp__playwright__browser_type,mcp__playwright__browser_wait_for' --debug --verbose --permission-mode bypassPermissions --output-format stream-json --settings /tmp/gh-aw/.claude/settings.json "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
@@ -5415,13 +5353,7 @@ jobs:
               if (lastEntry.usage) {
                 const usage = lastEntry.usage;
                 if (usage.input_tokens || usage.output_tokens) {
-                  const inputTokens = usage.input_tokens || 0;
-                  const outputTokens = usage.output_tokens || 0;
-                  const cacheCreationTokens = usage.cache_creation_input_tokens || 0;
-                  const cacheReadTokens = usage.cache_read_input_tokens || 0;
-                  const totalTokens = inputTokens + outputTokens + cacheCreationTokens + cacheReadTokens;
                   markdown += `**Token Usage:**\n`;
-                  if (totalTokens > 0) markdown += `- Total: ${totalTokens.toLocaleString()}\n`;
                   if (usage.input_tokens) markdown += `- Input: ${usage.input_tokens.toLocaleString()}\n`;
                   if (usage.cache_creation_input_tokens) markdown += `- Cache Creation: ${usage.cache_creation_input_tokens.toLocaleString()}\n`;
                   if (usage.cache_read_input_tokens) markdown += `- Cache Read: ${usage.cache_read_input_tokens.toLocaleString()}\n`;
@@ -5493,8 +5425,6 @@ jobs:
                   "Safe Outputs": [],
                   "Safe Inputs": [],
                   "Git/GitHub": [],
-                  Playwright: [],
-                  Serena: [],
                   MCP: [],
                   "Custom Agents": [],
                   Other: [],
@@ -5534,10 +5464,6 @@ jobs:
                     categories["Safe Inputs"].push(toolName);
                   } else if (tool.startsWith("mcp__github__")) {
                     categories["Git/GitHub"].push(formatMcpName(tool));
-                  } else if (tool.startsWith("mcp__playwright__")) {
-                    categories["Playwright"].push(formatMcpName(tool));
-                  } else if (tool.startsWith("mcp__serena__")) {
-                    categories["Serena"].push(formatMcpName(tool));
                   } else if (tool.startsWith("mcp__") || ["ListMcpResourcesTool", "ReadMcpResourceTool"].includes(tool)) {
                     categories["MCP"].push(tool.startsWith("mcp__") ? formatMcpName(tool) : tool);
                   } else if (isLikelyCustomAgent(tool)) {
@@ -5835,15 +5761,8 @@ jobs:
               }
               if (lastEntry?.usage) {
                 const usage = lastEntry.usage;
-                if (usage.input_tokens || usage.output_tokens) {
-                  const inputTokens = usage.input_tokens || 0;
-                  const outputTokens = usage.output_tokens || 0;
-                  const cacheCreationTokens = usage.cache_creation_input_tokens || 0;
-                  const cacheReadTokens = usage.cache_read_input_tokens || 0;
-                  const totalTokens = inputTokens + outputTokens + cacheCreationTokens + cacheReadTokens;
-                  lines.push(
-                    `  Tokens: ${totalTokens.toLocaleString()} total (${usage.input_tokens.toLocaleString()} in / ${usage.output_tokens.toLocaleString()} out)`
-                  );
+                if (usage.input_tokens && usage.output_tokens) {
+                  lines.push(`  Tokens: ${usage.input_tokens.toLocaleString()} in / ${usage.output_tokens.toLocaleString()} out`);
                 }
               }
               if (lastEntry?.total_cost_usd) {
@@ -7486,19 +7405,11 @@ jobs:
             echo "Documentation: https://githubnext.github.io/gh-aw/reference/engines/#anthropic-claude-code"
             exit 1
           fi
-          
-          # Write validation results to step summary
-          {
-            echo "## Agent Environment Validation"
-            echo ""
           if [ -n "$CLAUDE_CODE_OAUTH_TOKEN" ]; then
             echo "CLAUDE_CODE_OAUTH_TOKEN secret is configured"
-            echo "- ✅ **CLAUDE_CODE_OAUTH_TOKEN**: Configured"
           else
             echo "ANTHROPIC_API_KEY secret is configured (using as fallback for CLAUDE_CODE_OAUTH_TOKEN)"
-            echo "- ✅ **ANTHROPIC_API_KEY**: Configured (using as fallback for CLAUDE_CODE_OAUTH_TOKEN)"
           fi
-          } >> "$GITHUB_STEP_SUMMARY"
         env:
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -7508,7 +7419,7 @@ jobs:
           node-version: '24'
           package-manager-cache: false
       - name: Install Claude Code CLI
-        run: npm install -g @anthropic-ai/claude-code@2.0.58
+        run: npm install -g @anthropic-ai/claude-code@2.0.56
       - name: Execute Claude Code CLI
         id: agentic_execution
         # Allowed tools (sorted):

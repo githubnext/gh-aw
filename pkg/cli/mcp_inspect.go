@@ -2,6 +2,8 @@ package cli
 
 import (
 	"fmt"
+	"net"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -18,6 +20,12 @@ import (
 )
 
 var mcpInspectLog = logger.New("cli:mcp_inspect")
+
+const (
+	// Port range for safe-inputs HTTP server
+	safeInputsStartPort = 3000
+	safeInputsPortRange = 10
+)
 
 // filterOutSafeOutputs removes safe-outputs MCP servers from the list since they are
 // handled by the workflow compiler and not actual MCP servers that can be inspected
@@ -126,38 +134,37 @@ func InspectWorkflowMCP(workflowFile string, serverFilter string, toolFilter str
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Inspecting MCP servers in: %s", workflowPath)))
 	}
 
-	// Parse the workflow file
+	// Parse the workflow file for MCP configurations
 	content, err := os.ReadFile(workflowPath)
 	if err != nil {
 		return fmt.Errorf("failed to read workflow file: %w", err)
 	}
 
-	workflowData, err := parser.ExtractFrontmatterFromContent(string(content))
+	parsedData, err := parser.ExtractFrontmatterFromContent(string(content))
 	if err != nil {
 		return fmt.Errorf("failed to parse workflow file: %w", err)
 	}
 
 	// Validate frontmatter before analyzing MCPs
-	if err := parser.ValidateMainWorkflowFrontmatterWithSchemaAndLocation(workflowData.Frontmatter, workflowPath); err != nil {
+	if err := parser.ValidateMainWorkflowFrontmatterWithSchemaAndLocation(parsedData.Frontmatter, workflowPath); err != nil {
 		if verbose {
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Frontmatter validation failed: %v", err)))
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Continuing with MCP inspection (validation errors may affect results)"))
-		} else {
-			return fmt.Errorf("frontmatter validation failed: %w", err)
 		}
+		// Don't return error - continue with inspection even if validation fails
 	} else if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Frontmatter validation passed"))
 	}
 
 	// Process imports from frontmatter to merge imported MCP servers
 	markdownDir := filepath.Dir(workflowPath)
-	importsResult, err := parser.ProcessImportsFromFrontmatterWithManifest(workflowData.Frontmatter, markdownDir, nil)
+	importsResult, err := parser.ProcessImportsFromFrontmatterWithManifest(parsedData.Frontmatter, markdownDir, nil)
 	if err != nil {
 		return fmt.Errorf("failed to process imports from frontmatter: %w", err)
 	}
 
 	// Apply imported MCP servers to frontmatter
-	frontmatterWithImports, err := applyImportsToFrontmatter(workflowData.Frontmatter, importsResult)
+	frontmatterWithImports, err := applyImportsToFrontmatter(parsedData.Frontmatter, importsResult)
 	if err != nil {
 		return fmt.Errorf("failed to apply imports: %w", err)
 	}
@@ -186,6 +193,56 @@ func InspectWorkflowMCP(workflowFile string, serverFilter string, toolFilter str
 
 	// Filter out safe-outputs MCP servers for inspection
 	mcpConfigs = filterOutSafeOutputs(mcpConfigs)
+
+	// Check if safe-inputs are present in the workflow by parsing with the compiler
+	// (the compiler resolves imports and merges safe-inputs)
+	compiler := workflow.NewCompiler(verbose, "", "")
+	workflowData, err := compiler.ParseWorkflowFile(workflowPath)
+	if err != nil {
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to parse workflow for safe-inputs: %v", err)))
+		}
+	}
+
+	// Start safe-inputs server if present
+	var safeInputsServerCmd *exec.Cmd
+	var safeInputsTmpDir string
+	if workflowData != nil && workflowData.SafeInputs != nil && len(workflowData.SafeInputs.Tools) > 0 {
+		// Start safe-inputs server and add it to the list of MCP configs
+		config, serverCmd, tmpDir, err := startSafeInputsServer(workflowData.SafeInputs, verbose)
+		if err != nil {
+			if verbose {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to start safe-inputs server: %v", err)))
+			}
+		} else {
+			safeInputsServerCmd = serverCmd
+			safeInputsTmpDir = tmpDir
+			// Add safe-inputs config to the list of MCP servers to inspect
+			mcpConfigs = append(mcpConfigs, *config)
+		}
+	}
+
+	// Cleanup safe-inputs server when done
+	if safeInputsServerCmd != nil {
+		defer func() {
+			if safeInputsServerCmd.Process != nil {
+				// Try graceful shutdown first
+				if err := safeInputsServerCmd.Process.Signal(os.Interrupt); err != nil && verbose {
+					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to send interrupt signal: %v", err)))
+				}
+				// Wait a moment for graceful shutdown
+				time.Sleep(500 * time.Millisecond)
+				// Attempt force kill (may fail if process already exited gracefully, which is fine)
+				_ = safeInputsServerCmd.Process.Kill()
+			}
+			// Cleanup temporary directory
+			if safeInputsTmpDir != "" {
+				if err := os.RemoveAll(safeInputsTmpDir); err != nil && verbose {
+					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to cleanup temporary directory: %v", err)))
+				}
+			}
+		}()
+	}
 
 	if len(mcpConfigs) == 0 {
 		if serverFilter != "" {
@@ -251,6 +308,352 @@ func listWorkflowsWithMCP(workflowsDir string, verbose bool) error {
 	fmt.Printf("\nRun 'gh aw mcp inspect <workflow-name>' to inspect MCP servers in a specific workflow.\n")
 
 	return nil
+}
+
+// writeSafeInputsFiles writes all safe-inputs MCP server files to the specified directory
+func writeSafeInputsFiles(dir string, safeInputsConfig *workflow.SafeInputsConfig, verbose bool) error {
+	mcpInspectLog.Printf("Writing safe-inputs files to: %s", dir)
+
+	// Create logs directory
+	logsDir := filepath.Join(dir, "logs")
+	if err := os.MkdirAll(logsDir, 0755); err != nil {
+		return fmt.Errorf("failed to create logs directory: %w", err)
+	}
+
+	// Write JavaScript dependencies that are needed
+	jsFiles := []struct {
+		name    string
+		content string
+	}{
+		{"read_buffer.cjs", workflow.GetReadBufferScript()},
+		{"mcp_http_transport.cjs", workflow.GetMCPHTTPTransportScript()},
+		{"safe_inputs_config_loader.cjs", workflow.GetSafeInputsConfigLoaderScript()},
+		{"mcp_server_core.cjs", workflow.GetMCPServerCoreScript()},
+		{"safe_inputs_validation.cjs", workflow.GetSafeInputsValidationScript()},
+		{"mcp_logger.cjs", workflow.GetMCPLoggerScript()},
+		{"mcp_handler_shell.cjs", workflow.GetMCPHandlerShellScript()},
+		{"mcp_handler_python.cjs", workflow.GetMCPHandlerPythonScript()},
+		{"safe_inputs_mcp_server_http.cjs", workflow.GetSafeInputsMCPServerHTTPScript()},
+	}
+
+	for _, jsFile := range jsFiles {
+		filePath := filepath.Join(dir, jsFile.name)
+		if err := os.WriteFile(filePath, []byte(jsFile.content), 0644); err != nil {
+			return fmt.Errorf("failed to write %s: %w", jsFile.name, err)
+		}
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Wrote %s", jsFile.name)))
+		}
+	}
+
+	// Generate and write tools.json
+	toolsJSON := workflow.GenerateSafeInputsToolsConfigForInspector(safeInputsConfig)
+	toolsPath := filepath.Join(dir, "tools.json")
+	if err := os.WriteFile(toolsPath, []byte(toolsJSON), 0644); err != nil {
+		return fmt.Errorf("failed to write tools.json: %w", err)
+	}
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Wrote tools.json"))
+	}
+
+	// Generate and write mcp-server.cjs entry point
+	mcpServerScript := workflow.GenerateSafeInputsMCPServerScriptForInspector(safeInputsConfig)
+	mcpServerPath := filepath.Join(dir, "mcp-server.cjs")
+	if err := os.WriteFile(mcpServerPath, []byte(mcpServerScript), 0755); err != nil {
+		return fmt.Errorf("failed to write mcp-server.cjs: %w", err)
+	}
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Wrote mcp-server.cjs"))
+	}
+
+	// Generate and write tool handler files
+	for toolName, toolConfig := range safeInputsConfig.Tools {
+		var content string
+		var extension string
+
+		if toolConfig.Script != "" {
+			content = workflow.GenerateSafeInputJavaScriptToolScriptForInspector(toolConfig)
+			extension = ".cjs"
+		} else if toolConfig.Run != "" {
+			content = workflow.GenerateSafeInputShellToolScriptForInspector(toolConfig)
+			extension = ".sh"
+		} else if toolConfig.Py != "" {
+			content = workflow.GenerateSafeInputPythonToolScriptForInspector(toolConfig)
+			extension = ".py"
+		} else {
+			continue
+		}
+
+		toolPath := filepath.Join(dir, toolName+extension)
+		mode := os.FileMode(0644)
+		if extension == ".sh" || extension == ".py" {
+			mode = 0755
+		}
+		if err := os.WriteFile(toolPath, []byte(content), mode); err != nil {
+			return fmt.Errorf("failed to write tool %s: %w", toolName, err)
+		}
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Wrote tool handler: %s%s", toolName, extension)))
+		}
+	}
+
+	mcpInspectLog.Printf("Successfully wrote all safe-inputs files")
+	return nil
+}
+
+// startSafeInputsHTTPServer starts the safe-inputs HTTP MCP server
+func startSafeInputsHTTPServer(dir string, port int, verbose bool) (*exec.Cmd, error) {
+	mcpInspectLog.Printf("Starting safe-inputs HTTP server on port %d", port)
+
+	mcpServerPath := filepath.Join(dir, "mcp-server.cjs")
+
+	cmd := exec.Command("node", mcpServerPath)
+	cmd.Dir = dir
+	cmd.Env = append(os.Environ(),
+		fmt.Sprintf("GH_AW_SAFE_INPUTS_PORT=%d", port),
+	)
+
+	// Capture output for debugging
+	if verbose {
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+	}
+
+	if err := cmd.Start(); err != nil {
+		return nil, fmt.Errorf("failed to start server: %w", err)
+	}
+
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Started safe-inputs server (PID: %d)", cmd.Process.Pid)))
+	}
+
+	return cmd, nil
+}
+
+// findAvailablePort finds an available port starting from the given port
+func findAvailablePort(startPort int, verbose bool) int {
+	for port := startPort; port < startPort+safeInputsPortRange; port++ {
+		listener, err := net.Listen("tcp", fmt.Sprintf("localhost:%d", port))
+		if err == nil {
+			listener.Close()
+			if verbose {
+				mcpInspectLog.Printf("Found available port: %d", port)
+			}
+			return port
+		}
+	}
+	return 0
+}
+
+// waitForServerReady waits for the HTTP server to be ready by polling the endpoint
+func waitForServerReady(port int, timeout time.Duration, verbose bool) bool {
+	deadline := time.Now().Add(timeout)
+	client := &http.Client{
+		Timeout: 1 * time.Second,
+	}
+	url := fmt.Sprintf("http://localhost:%d/", port)
+
+	for time.Now().Before(deadline) {
+		resp, err := client.Get(url)
+		if err == nil {
+			resp.Body.Close()
+			if verbose {
+				mcpInspectLog.Printf("Server is ready on port %d", port)
+			}
+			return true
+		}
+		time.Sleep(200 * time.Millisecond)
+	}
+
+	mcpInspectLog.Printf("Server did not become ready within timeout")
+	return false
+}
+
+// startSafeInputsServer starts the safe-inputs HTTP server and returns the MCP config
+func startSafeInputsServer(safeInputsConfig *workflow.SafeInputsConfig, verbose bool) (*parser.MCPServerConfig, *exec.Cmd, string, error) {
+	mcpInspectLog.Printf("Starting safe-inputs server with %d tools", len(safeInputsConfig.Tools))
+
+	// Check if node is available
+	if _, err := exec.LookPath("node"); err != nil {
+		return nil, nil, "", fmt.Errorf("node not found. Please install Node.js to run the safe-inputs MCP server: %w", err)
+	}
+
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Found %d safe-input tool(s) to configure", len(safeInputsConfig.Tools))))
+	}
+
+	// Create temporary directory for safe-inputs files
+	tmpDir, err := os.MkdirTemp("", "gh-aw-safe-inputs-*")
+	if err != nil {
+		return nil, nil, "", fmt.Errorf("failed to create temporary directory: %w", err)
+	}
+
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Created temporary directory: %s", tmpDir)))
+	}
+
+	// Write safe-inputs files to temporary directory
+	if err := writeSafeInputsFiles(tmpDir, safeInputsConfig, verbose); err != nil {
+		os.RemoveAll(tmpDir)
+		return nil, nil, "", fmt.Errorf("failed to write safe-inputs files: %w", err)
+	}
+
+	// Find an available port for the HTTP server
+	port := findAvailablePort(safeInputsStartPort, verbose)
+	if port == 0 {
+		os.RemoveAll(tmpDir)
+		return nil, nil, "", fmt.Errorf("failed to find an available port for the HTTP server")
+	}
+
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Using port %d for safe-inputs HTTP server", port)))
+	}
+
+	// Start the HTTP server
+	serverCmd, err := startSafeInputsHTTPServer(tmpDir, port, verbose)
+	if err != nil {
+		os.RemoveAll(tmpDir)
+		return nil, nil, "", fmt.Errorf("failed to start safe-inputs HTTP server: %w", err)
+	}
+
+	// Wait for the server to start up
+	if !waitForServerReady(port, 5*time.Second, verbose) {
+		if serverCmd.Process != nil {
+			_ = serverCmd.Process.Kill()
+		}
+		os.RemoveAll(tmpDir)
+		return nil, nil, "", fmt.Errorf("safe-inputs HTTP server failed to start within timeout")
+	}
+
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Safe-inputs HTTP server started successfully"))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Server running on: http://localhost:%d", port)))
+	}
+
+	// Create MCP server config for the safe-inputs server
+	config := &parser.MCPServerConfig{
+		Name: "safeinputs",
+		Type: "http",
+		URL:  fmt.Sprintf("http://localhost:%d", port),
+		Env:  make(map[string]string),
+	}
+
+	return config, serverCmd, tmpDir, nil
+}
+
+// spawnSafeInputsInspector generates safe-inputs MCP server files, starts the HTTP server,
+// and launches the inspector to inspect it
+func spawnSafeInputsInspector(workflowFile string, verbose bool) error {
+	mcpInspectLog.Printf("Spawning safe-inputs inspector for workflow: %s", workflowFile)
+
+	// Check if node is available
+	if _, err := exec.LookPath("node"); err != nil {
+		return fmt.Errorf("node not found. Please install Node.js to run the safe-inputs MCP server: %w", err)
+	}
+
+	// Resolve the workflow file path
+	workflowPath, err := ResolveWorkflowPath(workflowFile)
+	if err != nil {
+		return err
+	}
+
+	// Convert to absolute path if needed
+	if !filepath.IsAbs(workflowPath) {
+		cwd, err := os.Getwd()
+		if err != nil {
+			return fmt.Errorf("failed to get current directory: %w", err)
+		}
+		workflowPath = filepath.Join(cwd, workflowPath)
+	}
+
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Inspecting safe-inputs from: %s", workflowPath)))
+	}
+
+	// Use the workflow compiler to parse the file and resolve imports
+	// This ensures that imported safe-inputs are properly merged
+	compiler := workflow.NewCompiler(verbose, "", "")
+	workflowData, err := compiler.ParseWorkflowFile(workflowPath)
+	if err != nil {
+		return fmt.Errorf("failed to parse workflow file: %w", err)
+	}
+
+	// Get safe-inputs configuration from the parsed WorkflowData
+	// This includes both direct and imported safe-inputs configurations
+	safeInputsConfig := workflowData.SafeInputs
+	if safeInputsConfig == nil || len(safeInputsConfig.Tools) == 0 {
+		return fmt.Errorf("no safe-inputs configuration found in workflow")
+	}
+
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Found %d safe-input tool(s) to configure", len(safeInputsConfig.Tools))))
+
+	// Create temporary directory for safe-inputs files
+	tmpDir, err := os.MkdirTemp("", "gh-aw-safe-inputs-*")
+	if err != nil {
+		return fmt.Errorf("failed to create temporary directory: %w", err)
+	}
+	defer func() {
+		if err := os.RemoveAll(tmpDir); err != nil && verbose {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to cleanup temporary directory: %v", err)))
+		}
+	}()
+
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Created temporary directory: %s", tmpDir)))
+	}
+
+	// Write safe-inputs files to temporary directory
+	if err := writeSafeInputsFiles(tmpDir, safeInputsConfig, verbose); err != nil {
+		return fmt.Errorf("failed to write safe-inputs files: %w", err)
+	}
+
+	// Find an available port for the HTTP server
+	port := findAvailablePort(safeInputsStartPort, verbose)
+	if port == 0 {
+		return fmt.Errorf("failed to find an available port for the HTTP server")
+	}
+
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Using port %d for safe-inputs HTTP server", port)))
+	}
+
+	// Start the HTTP server
+	serverCmd, err := startSafeInputsHTTPServer(tmpDir, port, verbose)
+	if err != nil {
+		return fmt.Errorf("failed to start safe-inputs HTTP server: %w", err)
+	}
+	defer func() {
+		if serverCmd.Process != nil {
+			// Try graceful shutdown first
+			if err := serverCmd.Process.Signal(os.Interrupt); err != nil && verbose {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to send interrupt signal: %v", err)))
+			}
+			// Wait a moment for graceful shutdown
+			time.Sleep(500 * time.Millisecond)
+			// Attempt force kill (may fail if process already exited gracefully, which is fine)
+			_ = serverCmd.Process.Kill()
+		}
+	}()
+
+	// Wait for the server to start up
+	if !waitForServerReady(port, 5*time.Second, verbose) {
+		return fmt.Errorf("safe-inputs HTTP server failed to start within timeout")
+	}
+
+	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Safe-inputs HTTP server started successfully"))
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Server running on: http://localhost:%d", port)))
+	fmt.Println()
+
+	// Create MCP server config for the safe-inputs server
+	safeInputsMCPConfig := parser.MCPServerConfig{
+		Name: "safeinputs",
+		Type: "http",
+		URL:  fmt.Sprintf("http://localhost:%d", port),
+		Env:  make(map[string]string),
+	}
+
+	// Inspect the safe-inputs MCP server using the Go SDK (like other MCP servers)
+	return inspectMCPServer(safeInputsMCPConfig, "", verbose, false)
 }
 
 // spawnMCPInspector launches the official @modelcontextprotocol/inspector tool
@@ -477,6 +880,8 @@ func NewMCPInspectSubcommand() *cobra.Command {
 This command starts each MCP server configured in the workflow, queries its capabilities,
 and displays the results in a formatted table. It supports stdio, Docker, and HTTP MCP servers.
 
+Safe-inputs servers are automatically detected and inspected when present in the workflow.
+
 The workflow-id-or-file can be:
 - A workflow ID (basename without .md extension, e.g., "weekly-research")
 - A file path (e.g., "weekly-research.md" or ".github/workflows/weekly-research.md")
@@ -493,6 +898,7 @@ Examples:
 The command will:
 - Parse the workflow file to extract MCP server configurations
 - Start each MCP server (stdio, docker, http)
+- Automatically start and inspect safe-inputs server if present
 - Query available tools, resources, and roots
 - Validate required secrets are available  
 - Display results in formatted tables with error details`,

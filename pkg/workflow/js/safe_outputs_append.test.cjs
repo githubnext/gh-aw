@@ -180,5 +180,66 @@ describe("safe_outputs_append", () => {
       const lines = content.trim().split("\n");
       expect(lines).toHaveLength(2);
     });
+
+    it("should write single-line JSON without formatting (JSONL format)", () => {
+      // Test that JSON is written as a single line, not formatted/pretty-printed
+      const entry = {
+        type: "complex-type",
+        nested: {
+          field1: "value1",
+          field2: { subfield: "value2" },
+        },
+        array: ["item1", "item2", "item3"],
+      };
+
+      appendFn(entry);
+
+      const content = fs.readFileSync(testOutputFile, "utf8");
+      const lines = content.split("\n");
+
+      // Should have exactly 2 lines: one JSON entry + one empty line from trailing \n
+      expect(lines).toHaveLength(2);
+      expect(lines[1]).toBe("");
+
+      // The first line should be parseable JSON
+      const parsed = JSON.parse(lines[0]);
+      expect(parsed.type).toBe("complex_type");
+
+      // Verify no internal newlines in the JSON (except the trailing one)
+      const firstLine = lines[0];
+      expect(firstLine).not.toContain("\n");
+      expect(firstLine).not.toContain("\r");
+
+      // Verify the line doesn't have indentation (which would indicate formatting)
+      expect(firstLine).not.toMatch(/\n\s+/);
+    });
+
+    it("should handle entries with string fields containing newlines", () => {
+      // Test that even if entry data contains newlines, the JSON line itself remains single-line
+      const entry = {
+        type: "text-with-newlines",
+        message: "Line 1\nLine 2\nLine 3",
+        description: "Multi-line\r\ntext\r\nhere",
+      };
+
+      appendFn(entry);
+
+      const content = fs.readFileSync(testOutputFile, "utf8");
+      const lines = content.split("\n");
+
+      // Should have exactly 2 lines: one JSON entry + one empty line from trailing \n
+      // The newlines in the data should be escaped in JSON, not literal
+      expect(lines).toHaveLength(2);
+      expect(lines[1]).toBe("");
+
+      // The JSON should be parseable and preserve the newlines in the data
+      const parsed = JSON.parse(lines[0]);
+      expect(parsed.message).toBe("Line 1\nLine 2\nLine 3");
+      expect(parsed.description).toBe("Multi-line\r\ntext\r\nhere");
+
+      // Verify the line contains escaped newlines, not literal ones
+      expect(lines[0]).toContain("\\n");
+      expect(lines[0]).not.toContain("\nLine 2"); // Should not have literal newline
+    });
   });
 });

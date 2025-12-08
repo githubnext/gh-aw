@@ -202,7 +202,7 @@ func (r *MCPConfigRendererUnified) renderSafeOutputsTOML(yaml *strings.Builder) 
 	yaml.WriteString("          args = [\n")
 	yaml.WriteString("            \"/tmp/gh-aw/safeoutputs/mcp-server.cjs\",\n")
 	yaml.WriteString("          ]\n")
-	yaml.WriteString("          env_vars = [\"GH_AW_SAFE_OUTPUTS\", \"GH_AW_ASSETS_BRANCH\", \"GH_AW_ASSETS_MAX_SIZE_KB\", \"GH_AW_ASSETS_ALLOWED_EXTS\", \"GITHUB_REPOSITORY\", \"GITHUB_SERVER_URL\"]\n")
+	yaml.WriteString("          env_vars = [\"GH_AW_SAFE_OUTPUTS\", \"GH_AW_ASSETS_BRANCH\", \"GH_AW_ASSETS_MAX_SIZE_KB\", \"GH_AW_ASSETS_ALLOWED_EXTS\", \"GITHUB_REPOSITORY\", \"GITHUB_SERVER_URL\", \"GITHUB_SHA\", \"GITHUB_WORKSPACE\", \"DEFAULT_BRANCH\"]\n")
 }
 
 // RenderSafeInputsMCP generates the Safe Inputs MCP server configuration
@@ -219,17 +219,20 @@ func (r *MCPConfigRendererUnified) RenderSafeInputsMCP(yaml *strings.Builder, sa
 }
 
 // renderSafeInputsTOML generates Safe Inputs MCP configuration in TOML format
+// Uses HTTP transport for consistency with JSON format (Copilot/Claude)
 func (r *MCPConfigRendererUnified) renderSafeInputsTOML(yaml *strings.Builder, safeInputs *SafeInputsConfig) {
+	envVars := getSafeInputsEnvVars(safeInputs)
+
 	yaml.WriteString("          \n")
 	yaml.WriteString("          [mcp_servers." + constants.SafeInputsMCPServerID + "]\n")
-	yaml.WriteString("          command = \"node\"\n")
-	yaml.WriteString("          args = [\n")
-	yaml.WriteString("            \"/tmp/gh-aw/safe-inputs/mcp-server.cjs\",\n")
-	yaml.WriteString("          ]\n")
-	// Add environment variables from safe-inputs config
-	envVars := getSafeInputsEnvVars(safeInputs)
+	yaml.WriteString("          type = \"http\"\n")
+	yaml.WriteString("          url = \"http://host.docker.internal:$GH_AW_SAFE_INPUTS_PORT\"\n")
+	yaml.WriteString("          headers = { Authorization = \"Bearer $GH_AW_SAFE_INPUTS_API_KEY\" }\n")
+
+	// Add environment variables: server config + tool-specific vars
+	envVarsWithServerConfig := append([]string{"GH_AW_SAFE_INPUTS_PORT", "GH_AW_SAFE_INPUTS_API_KEY"}, envVars...)
 	yaml.WriteString("          env_vars = [")
-	for i, envVar := range envVars {
+	for i, envVar := range envVarsWithServerConfig {
 		if i > 0 {
 			yaml.WriteString(", ")
 		}
