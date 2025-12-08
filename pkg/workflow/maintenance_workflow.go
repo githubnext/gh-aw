@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/logger"
 )
@@ -34,9 +35,10 @@ func GenerateMaintenanceWorkflow(workflowDataList []*WorkflowData, workflowDir s
 
 	maintenanceLog.Print("Generating maintenance workflow for expired discussions")
 
-	// Create the maintenance workflow content
-	script := getMaintenanceScript()
-	content := fmt.Sprintf(`name: Agentics Maintenance
+	// Create the maintenance workflow content using strings.Builder
+	var yaml strings.Builder
+	
+	yaml.WriteString(`name: Agentics Maintenance
 
 on:
   schedule:
@@ -55,8 +57,13 @@ jobs:
         uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
         with:
           script: |
-            %s
-`, script)
+`)
+	
+	// Add the JavaScript script with proper indentation
+	script := getMaintenanceScript()
+	WriteJavaScriptToYAML(&yaml, script)
+
+	content := yaml.String()
 
 	// Write the maintenance workflow file
 	maintenanceFile := filepath.Join(workflowDir, "agentics-maintenance.yml")

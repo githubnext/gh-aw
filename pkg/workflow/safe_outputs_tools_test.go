@@ -98,7 +98,9 @@ func TestGenerateFilteredToolsJSON(t *testing.T) {
 			name: "update issues enabled",
 			safeOutputs: &SafeOutputsConfig{
 				UpdateIssues: &UpdateIssuesConfig{
-					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 3},
+					UpdateEntityConfig: UpdateEntityConfig{
+						BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 3},
+					},
 				},
 			},
 			expectedTools: []string{"update_issue"},
@@ -151,7 +153,7 @@ func TestGenerateFilteredToolsJSON(t *testing.T) {
 				CreateCodeScanningAlerts:        &CreateCodeScanningAlertsConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 100}},
 				AddLabels:                       &AddLabelsConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 3}},
 				AddReviewer:                     &AddReviewerConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 3}},
-				UpdateIssues:                    &UpdateIssuesConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 3}},
+				UpdateIssues:                    &UpdateIssuesConfig{UpdateEntityConfig: UpdateEntityConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 3}}},
 				PushToPullRequestBranch:         &PushToPullRequestBranchConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 1}},
 				UploadAssets:                    &UploadAssetsConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 10}},
 				MissingTool:                     &MissingToolConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 5}},
