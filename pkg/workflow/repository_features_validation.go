@@ -185,6 +185,11 @@ func getCurrentRepositoryUncached() (string, error) {
 		return "", fmt.Errorf("failed to get current repository: %w", err)
 	}
 
+	// Validate that owner and name are not empty
+	if repo.Owner == "" || repo.Name == "" {
+		return "", fmt.Errorf("repository owner or name is empty (owner: %q, name: %q)", repo.Owner, repo.Name)
+	}
+
 	repoName := fmt.Sprintf("%s/%s", repo.Owner, repo.Name)
 	repositoryFeaturesLog.Printf("Cached current repository: %s", repoName)
 	return repoName, nil
