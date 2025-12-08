@@ -922,6 +922,54 @@ Line 3"}
       expect(parsedOutput.errors.some(error => error.includes("JSON parsing failed"))).toBe(true);
     });
 
+    it("should reconstruct fragmented JSON (individual fields on separate lines)", async () => {
+      const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
+      // This simulates the bug where individual JSON fields are written as separate lines
+      // Each line contains a single field from a pretty-printed JSON object
+      const ndjsonContent = `"type": "create_discussion",
+"title": "Test Discussion",
+"body": "This is the body",
+"category": "general"
+{"type": "noop", "message": "This is valid"}`;
+
+      fs.writeFileSync(testFile, ndjsonContent);
+      process.env.GH_AW_SAFE_OUTPUTS = testFile;
+      const __config = '{"create_discussion": true, "noop": true}';
+      const configPath = "/tmp/gh-aw/safeoutputs/config.json";
+      fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
+      fs.writeFileSync(configPath, __config);
+
+      await eval(`(async () => { ${collectScript} })()`);
+
+      const setOutputCalls = mockCore.setOutput.mock.calls;
+      const outputCall = setOutputCalls.find(call => call[0] === "output");
+      expect(outputCall).toBeDefined();
+
+      const parsedOutput = JSON.parse(outputCall[1]);
+      
+      // Both items should be successfully parsed after reconstruction
+      expect(parsedOutput.items).toHaveLength(2);
+      
+      // First item should be the reconstructed create_discussion
+      expect(parsedOutput.items[0].type).toBe("create_discussion");
+      expect(parsedOutput.items[0].title).toBe("Test Discussion");
+      expect(parsedOutput.items[0].body).toBe("This is the body");
+      expect(parsedOutput.items[0].category).toBe("general");
+      
+      // Second item should be the valid noop
+      expect(parsedOutput.items[1].type).toBe("noop");
+      expect(parsedOutput.items[1].message).toBe("This is valid");
+      
+      // Should have no errors since reconstruction was successful
+      expect(parsedOutput.errors).toHaveLength(0);
+      
+      // Verify that info log shows reconstruction happened
+      const infoCall = mockCore.info.mock.calls.find(call => 
+        String(call[0]).includes("Reconstructed") && String(call[0]).includes("JSON fragments")
+      );
+      expect(infoCall).toBeDefined();
+    });
+
     it("should still report error if repair fails completely", async () => {
       const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
       const ndjsonContent = `{completely broken json with no hope: of repair [[[}}}`;

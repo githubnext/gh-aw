@@ -156,6 +156,77 @@ async function main() {
       normalizedItem,
     };
   }
+  /**
+   * Detect if a line looks like a fragment of a JSON object (e.g., `"field": "value",`)
+   * This should match individual fields from a pretty-printed JSON object, not incomplete JSON.
+   * @param {string} line - The line to check
+   * @returns {boolean} True if the line appears to be a JSON fragment
+   */
+  function isJsonFragment(line) {
+    const trimmed = line.trim();
+    // Must start with a quoted field name
+    if (!trimmed.startsWith('"')) return false;
+    // Must not be a complete JSON object (starting with { or {")
+    if (trimmed.startsWith('{"') || trimmed.startsWith('{')) return false;
+    // Must not end with a closing brace (which would indicate it's just missing opening brace)
+    if (trimmed.endsWith('}')) return false;
+    // Look for pattern: "fieldname": value,? (with optional trailing comma)
+    // This matches individual fields extracted from a pretty-printed object
+    return /^"[^"]+"\s*:\s*.+,?\s*$/.test(trimmed);
+  }
+
+  /**
+   * Reconstruct fragmented JSON lines into complete JSON objects
+   * @param {string[]} lines - Array of lines
+   * @returns {string[]} Array of lines with fragments reconstructed
+   */
+  function reconstructFragmentedJson(lines) {
+    const result = [];
+    let i = 0;
+    
+    while (i < lines.length) {
+      const line = lines[i].trim();
+      
+      // Skip empty lines
+      if (line === "") {
+        i++;
+        continue;
+      }
+      
+      // Check if this line starts a sequence of JSON fragments
+      if (isJsonFragment(line)) {
+        // Collect consecutive JSON fragments
+        const fragments = [];
+        let j = i;
+        
+        while (j < lines.length && isJsonFragment(lines[j].trim())) {
+          let fragment = lines[j].trim();
+          // Remove trailing comma if present
+          if (fragment.endsWith(',')) {
+            fragment = fragment.slice(0, -1);
+          }
+          fragments.push(fragment);
+          j++;
+        }
+        
+        if (fragments.length > 0) {
+          // Reconstruct the JSON object
+          const reconstructed = '{' + fragments.join(',') + '}';
+          core.info(`Reconstructed ${fragments.length} JSON fragments into single object (lines ${i + 1}-${j})`);
+          result.push(reconstructed);
+          i = j;
+          continue;
+        }
+      }
+      
+      // Not a fragment, keep as-is
+      result.push(line);
+      i++;
+    }
+    
+    return result;
+  }
+
   function parseJsonWithRepair(jsonStr) {
     try {
       return JSON.parse(jsonStr);
@@ -211,7 +282,11 @@ async function main() {
       core.info(`Warning: Could not parse safe-outputs config: ${errorMsg}`);
     }
   }
-  const lines = outputContent.trim().split("\n");
+  let lines = outputContent.trim().split("\n");
+  
+  // Reconstruct any fragmented JSON (individual fields on separate lines)
+  lines = reconstructFragmentedJson(lines);
+  
   const parsedItems = [];
   const errors = [];
   for (let i = 0; i < lines.length; i++) {
