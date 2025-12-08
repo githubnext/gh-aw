@@ -39,6 +39,12 @@
 # safe-outputs:
 #   create-issue:
 #   staged: true
+# steps:
+#   - name: download issues data
+#     run: |
+#       gh pr list --limit 1 --json number,title,body,author,createdAt,mergedAt,state,url
+#     env:
+#       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 # ```
 #
 # Resolved workflow manifest:
@@ -230,6 +236,11 @@ jobs:
           mkdir -p /tmp/gh-aw/agent
           mkdir -p /tmp/gh-aw/sandbox/agent/logs
           echo "Created /tmp/gh-aw/agent directory for agentic workflow temporary files"
+      - env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        name: download issues data
+        run: gh pr list --limit 1 --json number,title,body,author,createdAt,mergedAt,state,url
+
       - name: Configure Git credentials
         env:
           REPO_NAME: ${{ github.repository }}

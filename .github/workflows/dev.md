@@ -16,6 +16,12 @@ imports:
 safe-outputs:
   create-issue:
   staged: true
+steps:
+  - name: download issues data
+    run: |
+      gh pr list --limit 1 --json number,title,body,author,createdAt,mergedAt,state,url
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 ---
 
 Read the last pull request using `githubissues-gh` tool
