@@ -96,7 +96,7 @@ jobs:
           format: cyclonedx-json
 
       - name: Upload SBOM artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: sbom-artifacts
           path: |
