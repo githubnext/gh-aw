@@ -1603,7 +1603,7 @@ jobs:
           {
             "mcpServers": {
               "safeinputs": {
-                "type": "stdio",
+                "type": "local",
                 "command": "node",
                 "args": ["/tmp/gh-aw/safe-inputs/mcp-server.cjs"],
                 "tools": ["*"],
