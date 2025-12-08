@@ -916,6 +916,13 @@ sandbox:
     env:
       {}
 
+    # Container mounts to add when using AWF. Each mount is specified using Docker
+    # mount syntax: 'source:destination:mode' where mode can be 'ro' (read-only) or
+    # 'rw' (read-write). Example: '/host/path:/container/path:ro'
+    # (optional)
+    mounts: []
+      # Array of Mount specification in format 'source:destination:mode'
+
     # Custom Sandbox Runtime configuration (only applies when type is 'srt'). Note:
     # Network configuration is controlled by the top-level 'network' field, not here.
     # (optional)
@@ -1506,7 +1513,7 @@ tools:
     file-glob: []
       # Array items: string
 
-    # Maximum size per file in bytes (default: 1048576 = 1MB)
+    # Maximum size per file in bytes (default: 10240 = 10KB)
     # (optional)
     max-file-size: 1
 
@@ -1645,6 +1652,18 @@ safe-outputs:
     # (optional)
     github-token: "${{ secrets.GITHUB_TOKEN }}"
 
+    # Time until the issue expires and should be automatically closed. Supports
+    # integer (days) or relative time format. When set, a maintenance workflow will be
+    # generated.
+    # (optional)
+    # This field supports multiple formats (oneOf):
+
+    # Option 1: Number of days until expires
+    expires: 1
+
+    # Option 2: Relative time (e.g., '7d', '2w', '1m', '1y')
+    expires: "example-value"
+
   # Option 2: Enable issue creation with default configuration
   create-issue: null
 
@@ -1760,6 +1779,18 @@ safe-outputs:
     # runs if discussion creation succeeds.
     # (optional)
     close-older-discussions: true
+
+    # Time until the discussion expires and should be automatically closed. Supports
+    # integer (days) or relative time format like '7d' (7 days), '2w' (2 weeks), '1m'
+    # (1 month), '1y' (1 year). When set, a maintenance workflow will be generated.
+    # (optional)
+    # This field supports multiple formats (oneOf):
+
+    # Option 1: Number of days until expires
+    expires: 1
+
+    # Option 2: Relative time (e.g., '7d', '2w', '1m', '1y')
+    expires: "example-value"
 
   # Option 2: Enable discussion creation with default configuration
   create-discussion: null
@@ -1972,6 +2003,18 @@ safe-outputs:
     # if specified.
     # (optional)
     github-token: "${{ secrets.GITHUB_TOKEN }}"
+
+    # Time until the pull request expires and should be automatically closed (only for
+    # same-repo PRs without target-repo). Supports integer (days) or relative time
+    # format.
+    # (optional)
+    # This field supports multiple formats (oneOf):
+
+    # Option 1: Number of days until expires
+    expires: 1
+
+    # Option 2: Relative time (e.g., '7d', '2w', '1m', '1y')
+    expires: "example-value"
 
   # Option 2: Enable pull request creation with default configuration
   create-pull-request: null
@@ -2578,6 +2621,12 @@ safe-outputs:
     # (optional)
     run-failure: "example-value"
 
+    # Custom message template for detection job failure. Available placeholders:
+    # {workflow_name}, {run_url}. Default: '⚠️ Security scanning failed for
+    # [{workflow_name}]({run_url}). Review the logs for details.'
+    # (optional)
+    detection-failure: "example-value"
+
   # Runner specification for all safe-outputs jobs (activation, create-issue,
   # add-comment, etc.). Single runner label (e.g., 'ubuntu-slim', 'ubuntu-latest',
   # 'windows-latest', 'self-hosted'). Defaults to 'ubuntu-slim'. See
@@ -2638,7 +2687,11 @@ strict: true
 # (JavaScript), 'run' (shell), or 'py' (Python) must be specified per tool.
 # (optional)
 safe-inputs:
-  {}
+  # Transport mode for the safe-inputs MCP server. 'http' starts the server as a
+  # separate step (default), 'stdio' starts the server directly by the agent within
+  # the firewall.
+  # (optional)
+  mode: "http"
 
 # Runtime environment version overrides. Allows customizing runtime versions
 # (e.g., Node.js, Python) or defining new runtimes. Runtimes from imported shared
