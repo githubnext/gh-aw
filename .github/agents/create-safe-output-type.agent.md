@@ -2,40 +2,15 @@
 description: Adding a New Safe Output Type to GitHub Agentic Workflows
 ---
 
-# Copilot Agent: Adding a New Safe Output Type to GitHub Agentic Workflows
+# Add New Safe Output Type
 
-## Overview
+This guide covers adding a new safe output type to process AI agent outputs in JSONL format through a validation pipeline (TypeScript types → JSON schema → JavaScript collection).
 
-You are tasked with adding a new safe output type to the GitHub Agentic Workflows system. This system processes AI agent outputs as JSONL (JSON Lines) format and validates them through a multi-step pipeline involving TypeScript types, JSON schema validation, and JavaScript collection logic.
+## Implementation Steps
 
-## Background: Understanding Safe Output Types
+### 1. Update JSON Schema (`schemas/agent-output.json`)
 
-Safe output types are structured data formats that AI agents can emit to perform GitHub actions safely. The system currently supports:
-
-- `create-issue` - Create GitHub issues
-- `create-agent-task` - Create GitHub Copilot agent tasks
-- `create-discussion` - Create GitHub discussions
-- `close-discussion` - Close GitHub discussions
-- `add-comment` - Add comments to issues/PRs
-- `create-pull-request` - Create pull requests
-- `create-pull-request-review-comment` - Add code review comments
-- `create-code-scanning-alert` - Create SARIF security alerts
-- `add-labels` - Add labels to issues/PRs
-- `assign-milestone` - Assign milestones to issues/PRs
-- `update-issue` - Update existing issues
-- `push-to-pull-request-branch` - Push commits to PR branches
-- `upload-asset` - Upload files as assets
-- `update-release` - Update GitHub releases
-- `missing-tool` - Report missing functionality
-- `noop` - No-operation for transparency and testing
-
-## Implementation Plan
-
-### Step 1: Update JSON Schema
-
-**File**: `schemas/agent-output.json`
-
-1. Add a new object definition in the `$defs` section following the pattern:
+Add object definition in `$defs` section:
    ```json
    "YourNewTypeOutput": {
      "title": "Your New Type Output",
@@ -60,22 +35,13 @@ Safe output types are structured data formats that AI agents can emit to perform
    }
    ```
 
-2. Add your new type to the `SafeOutput` oneOf array:
-   ```json
-   {"$ref": "#/$defs/YourNewTypeOutput"}
-   ```
+Add to `SafeOutput` oneOf array: `{"$ref": "#/$defs/YourNewTypeOutput"}`
 
-**Validation Notes**:
-- Use `const` for the type field to ensure exact matching
-- Include `minLength: 1` for required string fields
-- Set `additionalProperties: false` to prevent extra fields
-- Use `oneOf` for union types like `[{"type": "number"}, {"type": "string"}]` for flexible numeric fields
+**Validation Notes**: Use `const` for type field, `minLength: 1` for required strings, `additionalProperties: false`, `oneOf` for union types.
 
-### Step 2: Update TypeScript Types
+### 2. Update TypeScript Types
 
 **File**: `pkg/workflow/js/types/safe-outputs.d.ts`
-
-1. Add your interface following the pattern:
    ```typescript
    /**
     * JSONL item for [description]
@@ -87,61 +53,15 @@ Safe output types are structured data formats that AI agents can emit to perform
      /** Optional field description */
      optional_field?: string;
    }
-   ```
-
-2. Add to the `SafeOutputItem` union type:
-   ```typescript
-   type SafeOutputItem =
-     | CreateIssueItem
-     | AddCommentItem
-     // ... existing types
-     | YourNewTypeItem;
-   ```
-
-3. Add to the export list:
-   ```typescript
-   export {
-     // ... existing exports
-     YourNewTypeItem,
-   };
-   ```
-
-**File**: `pkg/workflow/js/types/safe-outputs-config.d.ts`
-
-1. Add configuration interface:
-   ```typescript
-   /**
-    * Configuration for your new type
-    */
-   interface YourNewTypeConfig extends SafeOutputConfig {
-     "custom-option"?: string;
-     "another-option"?: boolean;
    }
-   ```
 
-2. Add to the `SpecificSafeOutputConfig` union type:
-   ```typescript
-   type SpecificSafeOutputConfig =
-     | CreateIssueConfig
-     // ... existing configs
-     | YourNewTypeConfig;
-   ```
+Add to `SafeOutputItem` union type and export list.
 
-3. Add to exports:
-   ```typescript
-   export {
-     // ... existing exports
-     YourNewTypeConfig,
-   };
-   ```
+**File**: `pkg/workflow/js/types/safe-outputs-config.d.ts` - Add config interface, add to `SpecificSafeOutputConfig` union, export.
 
-### Step 3: Update Safe Outputs Tools JSON
+### 3. Update Safe Outputs Tools JSON (`pkg/workflow/js/safe_outputs_tools.json`)
 
-**File**: `pkg/workflow/js/safe_outputs_tools.json`
-
-Add a tool signature for your new safe output type to expose it to AI agents through the MCP server. This file defines the tools that AI agents can call.
-
-Add a new tool definition to the array:
+Add tool signature to expose to AI agents:
 
 ```json
 {
@@ -169,51 +89,13 @@ Add a new tool definition to the array:
 }
 ```
 
-**Tool Signature Guidelines**:
-- Tool `name` must use underscores (e.g., `your_new_type`), matching the type field in the JSONL output
-- The `name` field should match the safe output type name with underscores instead of hyphens
-- Include a clear `description` explaining what the tool does
-- Define an `inputSchema` with all fields the AI agent will provide
-- Use `required` array for mandatory fields
-- Set `additionalProperties: false` to prevent extra fields
-- For numeric fields, use `"type": ["number", "string"]` to allow both types (agents sometimes send strings)
-- Use descriptive field names and descriptions to guide AI agents
+**Guidelines**: Use underscores in tool `name`, match with type field, set `additionalProperties: false`, use `"type": ["number", "string"]` for numeric fields.
 
-**Examples from existing tools**:
-```json
-{
-  "name": "create_issue",
-  "description": "Create a new GitHub issue",
-  "inputSchema": {
-    "type": "object",
-    "required": ["title", "body"],
-    "properties": {
-      "title": { "type": "string", "description": "Issue title" },
-      "body": { "type": "string", "description": "Issue body/description" },
-      "labels": {
-        "type": "array",
-        "items": { "type": "string" },
-        "description": "Issue labels"
-      }
-    },
-    "additionalProperties": false
-  }
-}
-```
+**Important**: File is embedded via `//go:embed` - **must rebuild** with `make build` after changes.
 
-**How tools.json is used**:
-- The `safe_outputs_tools.json` file is embedded in the Go binary via `//go:embed` directive
-- At runtime, the MCP server loads this JSON file and filters it based on enabled safe outputs
-- The filtered tools are exposed to AI agents through the MCP protocol
-- **Important**: After modifying this file, you **must** rebuild the binary with `make build` for changes to take effect
+### 4. Update MCP Server JavaScript (If Custom Handler Needed) (`pkg/workflow/js/safe_outputs_mcp_server.cjs`)
 
-### Step 4: Update MCP Server JavaScript (If Custom Handler Needed)
-
-**File**: `pkg/workflow/js/safe_outputs_mcp_server.cjs`
-
-Most safe output types use the default handler which automatically writes JSONL output. However, if your safe output type requires custom handling (like `create_pull_request`, `push_to_pull_request_branch`, or `upload_asset`), you need to:
-
-1. **Create a custom handler function** (around line 300-500):
+Most types use the default JSONL handler. Add custom handler only if needed for file operations, git commands, or complex validation:
 
 ```javascript
 /**
@@ -298,30 +180,11 @@ ALL_TOOLS.forEach(tool => {
 });
 ```
 
-**When to use a custom handler**:
-- Need to perform file system operations (read/write files)
-- Need to execute shell commands (git operations, file manipulation)
-- Need to validate or transform data beyond JSON schema validation
-- Need to return complex response data to the AI agent
-- Need to perform operations before writing JSONL output
+**Default handler**: Normalizes type field, handles large content (>16000 tokens), writes JSONL, returns success.
 
-**When NOT to use a custom handler**:
-- Simple JSONL output with no side effects (use default handler)
-- Basic field validation (handled by JSON schema and collection logic)
-- Standard GitHub API operations (handled by separate JavaScript files in Step 5)
+### 5. Update Collection JavaScript (`pkg/workflow/js/collect_ndjson_output.ts`)
 
-**Default handler behavior**:
-If no custom handler is specified, the MCP server uses `defaultHandler` which:
-1. Normalizes the type field (converts dashes to underscores)
-2. Checks for large content fields (>16000 tokens) and writes them to separate files
-3. Writes the JSONL entry to the output file
-4. Returns a success response to the AI agent
-
-### Step 5: Update Collection JavaScript
-
-**File**: `pkg/workflow/js/collect_ndjson_output.ts`
-
-Add validation logic in the main switch statement around line 700+:
+Add validation in main switch statement (~line 700):
 
 ```typescript
 case "your-new-type":
@@ -345,21 +208,11 @@ case "your-new-type":
   break;
 ```
 
-**Validation Patterns**:
-- Always check required fields first with `!item.field || typeof item.field !== "expected_type"`
-- Use `sanitizeContent()` for all user-provided string content
-- Use `validatePositiveInteger()` helper for numeric fields that must be positive
-- Use `validateOptionalPositiveInteger()` for optional numeric fields
-- Use `validateIssueOrPRNumber()` for GitHub issue/PR number fields
-- Continue the loop on validation errors to process remaining items
+**Patterns**: Check required fields first, use `sanitizeContent()` for strings, use validation helpers for numbers, continue loop on errors.
 
-### Step 6: Update Go Filter Function
+### 6. Update Go Filter Function (`pkg/workflow/safe_outputs.go`)
 
-**File**: `pkg/workflow/safe_outputs.go`
-
-Update the `generateFilteredToolsJSON` function to include your new safe output type in the filtering logic. This function determines which tools from `safe_outputs_tools.json` are exposed to AI agents based on the workflow configuration.
-
-Add your new safe output type to the `enabledTools` map (around line 1120):
+Add to `enabledTools` map in `generateFilteredToolsJSON` (~line 1120):
 
 ```go
 // generateFilteredToolsJSON filters the ALL_TOOLS array based on enabled safe outputs
@@ -414,24 +267,9 @@ func generateFilteredToolsJSON(data *WorkflowData) (string, error) {
 }
 ```
 
-**Why this is needed**:
-- The MCP server only exposes tools that are enabled in the workflow configuration
-- This prevents AI agents from calling tools that aren't configured
-- Provides better error messages when agents try to use disabled features
-- Reduces token usage by not sending unused tool definitions to AI agents
+**Flow**: Workflow config → parse to struct → filter tools → write JSON → MCP server exposes to agents.
 
-**Integration flow**:
-1. Workflow defines `safe-outputs.your-new-type: {}`
-2. `extractSafeOutputsConfig()` parses config into `data.SafeOutputs.YourNewType`
-3. `generateFilteredToolsJSON()` checks if `YourNewType != nil` and adds to filter
-4. Filtered JSON is written to `/tmp/gh-aw/safeoutputs/tools.json`
-5. MCP server reads filtered JSON and exposes only enabled tools to AI agents
-
-### Step 7: Create JavaScript Implementation
-
-**File**: `pkg/workflow/js/your_new_type.cjs`
-
-Create the main implementation file:
+### 7. Create JavaScript Implementation (`pkg/workflow/js/your_new_type.cjs`)
 
 ```javascript
 async function main() {
@@ -521,48 +359,19 @@ async function main() {
 await main();
 ```
 
-**Implementation Guidelines**:
-- Always start with staged mode check for preview functionality
-- Use `core.info`, `core.error`, `core.setFailed` for logging (not console.log)
-- Use `core.summary.addRaw().write()` for step summaries in staged mode
-- Handle errors gracefully with try/catch blocks
-- Use GitHub Actions context variables for repo information
-- Follow the existing pattern for environment variable handling
+**Guidelines**: Check staged mode, use `core.*` methods (not console.log), use `core.summary` for previews, handle errors with try/catch.
 
-### Step 8: Create Test File
+### 8. Create Tests
 
-**File**: `pkg/workflow/js/your_new_type.test.cjs`
+**File**: `pkg/workflow/js/your_new_type.test.cjs` - Test empty input, valid processing, staged mode, errors. Use vitest.
 
-Create comprehensive tests following existing patterns in the codebase:
+**File**: `pkg/workflow/js/collect_ndjson_output.test.cjs` - Test validation with valid/invalid fields.
 
-**Testing Guidelines**:
-- Test empty/missing input scenarios
-- Test valid input processing  
-- Test staged mode behavior
-- Test error handling
-- Use vitest framework with proper mocking
-- Follow existing test patterns in `.test.cjs` files
+### 9. Create Test Workflows
 
-### Step 9: Update Collection Tests
+Create for each engine (claude/codex/copilot) in `pkg/cli/workflows/`:
 
-**File**: `pkg/workflow/js/collect_ndjson_output.test.cjs`
-
-Add test cases for your new type following existing patterns:
-- Test successful validation with valid fields
-- Test validation errors with missing required fields  
-- Test field type validation
-- Follow existing test structure in the file
-
-### Step 8: Create Test Agentic Workflows
-
-Create test workflows for each supported engine to validate the new safe output type:
-
-**Files**: 
-- `pkg/cli/workflows/test-claude-your-new-type.md`
-- `pkg/cli/workflows/test-codex-your-new-type.md` 
-- `pkg/cli/workflows/test-copilot-your-new-type.md`
-
-**Example**: `pkg/cli/workflows/test-claude-your-new-type.md`
+**Example**: `test-claude-your-new-type.md`
 
 ```markdown
 ---
@@ -589,11 +398,9 @@ Create a your-new-type output with:
 Output as JSONL format.
 ```
 
-### Step 11: Create Go Job Builder
+### 10. Create Go Job Builder (`pkg/workflow/your_new_type.go`)
 
-**File**: `pkg/workflow/your_new_type.go`
-
-Create the Go job builder using the refactored pattern with `buildSafeOutputJob()` helper and shared config types from `safe_output_builder.go`:
+Use `buildSafeOutputJob()` helper and shared config types:
 
 ```go
 package workflow
@@ -712,209 +519,88 @@ func getYourNewTypeScript() string {
 }
 ```
 
-**Key Implementation Points**:
+**Key Points**:
 
-1. **Use `buildSafeOutputJob()` helper**: This is the new refactored pattern that eliminates duplicate code. The helper handles:
-   - Pre-steps execution (if provided)
-   - GitHub Script step creation with artifact download
-   - Post-steps execution (if provided)
-   - Job creation with standard metadata (timeout, runs-on, permissions)
+1. **Use `buildSafeOutputJob()` helper** - Handles pre-steps, GitHub Script step with artifact download, post-steps, job creation
 
-2. **Use shared config types from `safe_output_builder.go`**: Embed these structs to reduce duplication:
-   - `SafeOutputTargetConfig`: Provides `Target` and `TargetRepoSlug` fields for operations that target specific items
-   - `SafeOutputFilterConfig`: Provides `RequiredLabels` and `RequiredTitlePrefix` for filtering operations
-   - `SafeOutputDiscussionFilterConfig`: Extends `SafeOutputFilterConfig` with `RequiredCategory` for discussion operations
-   - `CloseJobConfig`: Combined config for close operations (embeds both `SafeOutputTargetConfig` and `SafeOutputFilterConfig`)
-   - `ListJobConfig`: Combined config for list-based operations (embeds `SafeOutputTargetConfig` with `Allowed` field)
+2. **Embed shared config types** from `safe_output_builder.go`:
+   - `SafeOutputTargetConfig` - Target and TargetRepoSlug fields
+   - `SafeOutputFilterConfig` - RequiredLabels and RequiredTitlePrefix
+   - `SafeOutputDiscussionFilterConfig` - Adds RequiredCategory
+   - `CloseJobConfig` - Target + filter for close operations
+   - `ListJobConfig` - Target + allowed list
 
-3. **Use shared parsing helpers**: These reduce boilerplate in config parsing:
-   - `ParseTargetConfig(configMap)`: Parses `target` and `target-repo` fields, returns validation error if wildcard target-repo
-   - `ParseFilterConfig(configMap)`: Parses `required-labels` and `required-title-prefix` fields
-   - `ParseDiscussionFilterConfig(configMap)`: Parses filter config plus `required-category`
-   - `ParseCloseJobConfig(configMap)`: Parses all close job fields (target + filter)
-   - `ParseListJobConfig(configMap, allowedKey)`: Parses target + allowed list fields
-   - `ParseStringFromConfig(configMap, key)`: Generic string field parser
-   - `ParseStringArrayFromConfig(configMap, key)`: Generic string array parser
+3. **Use parsing helpers**: `ParseTargetConfig()`, `ParseFilterConfig()`, `ParseCloseJobConfig()`, `ParseListJobConfig()`, `ParseStringFromConfig()`, etc.
 
-4. **Use shared env var builders**: These build consistent environment variable lines:
-   - `BuildTargetEnvVar(envVarName, target)`: Builds target env var
-   - `BuildRequiredLabelsEnvVar(envVarName, labels)`: Builds comma-separated labels env var
-   - `BuildRequiredTitlePrefixEnvVar(envVarName, prefix)`: Builds title prefix env var
-   - `BuildRequiredCategoryEnvVar(envVarName, category)`: Builds category env var (discussions)
-   - `BuildMaxCountEnvVar(envVarName, count)`: Builds max count env var
-   - `BuildAllowedListEnvVar(envVarName, allowed)`: Builds comma-separated allowed list env var
-   - `BuildCloseJobEnvVars(prefix, config)`: Builds all env vars for close operations
-   - `BuildListJobEnvVars(prefix, config, maxCount)`: Builds all env vars for list-based operations
+4. **Use env var builders**: `BuildTargetEnvVar()`, `BuildRequiredLabelsEnvVar()`, `BuildCloseJobEnvVars()`, `BuildListJobEnvVars()`, etc.
 
-5. **SafeOutputJobConfig struct**: Pass configuration via this struct:
-   - `JobName`: Job identifier (e.g., "your_new_type")
-   - `StepName`: Human-readable step name
-   - `StepID`: Step identifier for outputs
-   - `MainJobName`: Main workflow job for dependencies
-   - `CustomEnvVars`: Your specific environment variables
-   - `Script`: JavaScript implementation (from `your_new_type.cjs`)
-   - `Permissions`: Job permissions using permission helpers
-   - `Outputs`: Job outputs mapping
-   - `Token`: GitHub token configuration
-   - `PreSteps`: Optional steps before main script (e.g., checkout, git config)
-   - `PostSteps`: Optional steps after main script (e.g., assignees, reviewers)
-   - `Condition`: Optional custom job condition
-   - `Needs`: Optional custom job dependencies
+5. **SafeOutputJobConfig struct** fields: `JobName`, `StepName`, `StepID`, `MainJobName`, `CustomEnvVars`, `Script`, `Permissions`, `Outputs`, `Token`, `PreSteps`, `PostSteps`, `Condition`, `Needs`
 
-6. **No manual Job construction**: The helper creates the Job struct with:
-   - Consistent 10-minute timeout
-   - Standard runs-on configuration
-   - Proper condition rendering
-   - Automatic needs configuration
+6. **Integration**: Add field to `SafeOutputsConfig` in `config.go`, call parser in `extractSafeOutputsConfig()` in `safe_outputs.go`, call builder in `compiler_jobs.go`
 
-7. **Integration Points**:
-   - Add `YourNewType *YourNewTypeConfig` field to `SafeOutputsConfig` struct in `pkg/workflow/config.go`
-   - Call `parseYourNewTypeConfig()` in `extractSafeOutputsConfig()` in `pkg/workflow/safe_outputs.go`
-   - Call `buildCreateOutputYourNewTypeJob()` in job creation logic in `pkg/workflow/compiler_jobs.go`
-
-**Example for Close Operations** (using shared CloseJobConfig):
-
+**Close Operations Example**:
 ```go
-// CloseYourTypeConfig using shared config types
 type CloseYourTypeConfig struct {
 	BaseSafeOutputConfig `yaml:",inline"`
-	CloseJobConfig       `yaml:",inline"` // Provides Target, TargetRepoSlug, RequiredLabels, RequiredTitlePrefix
+	CloseJobConfig       `yaml:",inline"`
 }
-
-// In parsing function
 closeConfig, isInvalid := ParseCloseJobConfig(configMap)
-if isInvalid {
-	return nil // target-repo validation error
-}
-yourConfig.CloseJobConfig = closeConfig
-
-// In job builder - use shared env var builder
 customEnvVars = append(customEnvVars, BuildCloseJobEnvVars("GH_AW_CLOSE_YOUR_TYPE", config.CloseJobConfig)...)
 ```
 
-**Example for List Operations** (using shared ListJobConfig):
-
+**List Operations Example**:
 ```go
-// AddYourTypeConfig using shared config types  
 type AddYourTypeConfig struct {
 	BaseSafeOutputConfig `yaml:",inline"`
-	ListJobConfig        `yaml:",inline"` // Provides Target, TargetRepoSlug, Allowed
+	ListJobConfig        `yaml:",inline"`
 }
-
-// In parsing function
 listConfig, isInvalid := ParseListJobConfig(configMap, "allowed")
-if isInvalid {
-	return nil // target-repo validation error
-}
-yourConfig.ListJobConfig = listConfig
-
-// In job builder - use shared env var builder
 customEnvVars = append(customEnvVars, BuildListJobEnvVars("GH_AW_ADD_YOUR_TYPE", config.ListJobConfig, config.Max)...)
 ```
 
-**Example with Pre/Post-Steps** (if needed):
+**Permission Helpers**: Use from `pkg/workflow/permissions.go` - `NewPermissionsContentsRead()`, `NewPermissionsContentsReadIssuesWrite()`, etc.
 
-```go
-// Build pre-steps for special setup (like create-pull-request does for checkout)
-var preSteps []string
-preSteps = append(preSteps, "      - name: Setup step\n")
-preSteps = append(preSteps, "        run: echo 'Setting up'\n")
+### 11. Build and Test
 
-// Build post-steps for additional actions (like create-issue does for assignees)
-var postSteps []string
-postSteps = append(postSteps, buildSpecialPostSteps(...)...)
-
-return c.buildSafeOutputJob(data, SafeOutputJobConfig{
-	// ... other fields ...
-	PreSteps:  preSteps,   // Executed before GitHub Script step
-	PostSteps: postSteps,  // Executed after GitHub Script step
-})
+```bash
+make js fmt-cjs lint-cjs test-unit recompile agent-finish
 ```
 
-**Adding Custom Conditions** (like update-issue does):
+### 12. Manual Validation
 
-```go
-// Build custom job condition
-var jobCondition ConditionNode = BuildSafeOutputType("your_new_type")
-if needsExtraCondition {
-	extraCondition := BuildPropertyAccess("github.event.some.field")
-	jobCondition = buildAnd(jobCondition, extraCondition)
-}
+Test workflow with staged/non-staged modes, error handling, JSON schema validation, all engines.
 
-return c.buildSafeOutputJob(data, SafeOutputJobConfig{
-	// ... other fields ...
-	Condition: jobCondition,  // Override default condition
-})
-```
+## Success Criteria
 
-**Permission Helpers**: Use existing helpers from `pkg/workflow/permissions.go`:
-- `NewPermissionsContentsRead()` - Read-only content access
-- `NewPermissionsContentsReadIssuesWrite()` - Content read + issue write
-- `NewPermissionsContentsReadDiscussionsWrite()` - Content read + discussion write
-- `NewPermissionsContentsReadIssuesWritePRWrite()` - Content read + issue/PR write
-- `NewPermissionsContentsWriteIssuesWritePRWrite()` - Content write + issue/PR write
-
-Or create a new one following the pattern:
-```go
-func NewPermissionsContentsReadYourPermissions() *Permissions {
-	return NewPermissionsFromMap(map[PermissionScope]PermissionLevel{
-		PermissionContents:    PermissionRead,
-		PermissionYourScope:   PermissionWrite,
-	})
-}
-```
-
-### Step 12: Build and Test
-
-1. **Compile TypeScript**: `make js`
-2. **Format code**: `make fmt-cjs`
-3. **Run linting**: `make lint-cjs`
-4. **Run tests**: `make test-unit`
-5. **Compile workflows**: `make recompile`
-6. **Full validation**: `make agent-finish`
-
-### Step 13: Manual Validation
-
-1. Create a simple test workflow using your new safe output type
-2. Test both staged and non-staged modes
-3. Verify error handling with invalid inputs
-4. Ensure the JSON schema validation works correctly
-5. Test with different engines (claude, codex, copilot)
-
-## Key Success Criteria
-
-- [ ] JSON schema validates your new type correctly
-- [ ] TypeScript types compile without errors
-- [ ] Safe outputs tools JSON includes the new tool signature
-- [ ] MCP server handles the new type (custom handler if needed)
-- [ ] Go filter function includes the new type in `generateFilteredToolsJSON`
-- [ ] Collection logic validates fields properly
+- [ ] JSON schema validates correctly
+- [ ] TypeScript types compile
+- [ ] Tools JSON includes tool signature  
+- [ ] MCP server handles type (custom handler if needed)
+- [ ] Go filter includes type in `generateFilteredToolsJSON`
+- [ ] Collection validates fields
 - [ ] JavaScript implementation handles all cases
-- [ ] Tests achieve good coverage
-- [ ] All existing tests still pass
-- [ ] Workflows compile successfully
+- [ ] Tests pass with good coverage
+- [ ] Workflows compile
 - [ ] Manual testing confirms functionality
 
-## Common Pitfalls to Avoid
+## Common Pitfalls
 
-1. **Inconsistent naming**: Ensure type names match exactly across all files (kebab-case in JSON, camelCase in TypeScript, underscores in tools.json)
-2. **Missing tools.json update**: Don't forget to add the tool signature in `safe_outputs_tools.json` - AI agents won't be able to call your new type without it
-3. **Missing Go filter update**: Don't forget to add your type to `generateFilteredToolsJSON` in `safe_outputs.go` - the MCP server won't expose the tool without it
-4. **Missing validation**: Always validate required fields and sanitize string content
-5. **Incorrect union types**: Add your new type to all relevant union types
-6. **Missing exports**: Export all new interfaces and types
-7. **Test coverage gaps**: Test both success and failure scenarios
-8. **Schema violations**: Follow JSON Schema draft-07 syntax strictly
-9. **GitHub API misuse**: Use proper error handling for API calls
-10. **Staged mode**: Always implement preview functionality for staged mode
-11. **Forgetting to rebuild**: After modifying `safe_outputs_tools.json`, you **must** run `make build` for changes to take effect (file is embedded via `//go:embed`)
+1. Inconsistent naming across files (kebab-case/camelCase/underscores)
+2. Missing tools.json update (agents can't call without it)
+3. Missing Go filter update (MCP won't expose tool)
+4. Missing field validation/sanitization
+5. Not adding to union types
+6. Not exporting interfaces
+7. Test coverage gaps
+8. Schema syntax violations
+9. GitHub API error handling
+10. Missing staged mode implementation
+11. Forgetting `make build` after modifying embedded files
 
-## Resources and References
+## References
 
-- **JSON Schema**: https://json-schema.org/draft-07/schema
-- **GitHub Actions Core**: https://github.com/actions/toolkit/tree/main/packages/core
-- **GitHub REST API**: https://docs.github.com/en/rest
-- **Vitest Testing**: https://vitest.dev/
-- **Existing implementations**: See other `*.cjs` files in `pkg/workflow/js/`
-
-Follow this plan methodically, testing each step before moving to the next. The modular approach ensures you can validate each component independently before integration.
+- JSON Schema: https://json-schema.org/draft-07/schema
+- GitHub Actions Core: https://github.com/actions/toolkit/tree/main/packages/core  
+- GitHub REST API: https://docs.github.com/en/rest
+- Vitest: https://vitest.dev/
+- Existing implementations: `pkg/workflow/js/*.cjs`
