@@ -233,17 +233,33 @@ The YAML frontmatter supports these fields:
       allowed:
         - "example.com"
         - "*.trusted-domain.com"
-      firewall: true                      # Optional: Enable AWF (Agent Workflow Firewall) for Copilot engine
     ```
-  - **Firewall configuration** (Copilot engine only):
-    ```yaml
-    network:
-      firewall:
-        version: "v1.0.0"                 # Optional: AWF version (defaults to latest)
-        log-level: debug                  # Optional: debug, info (default), warn, error
-        args: ["--custom-arg", "value"]   # Optional: additional AWF arguments
-    ```
-  
+  - **⚠️ Deprecated**: `firewall` field moved to `sandbox.agent` configuration
+
+- **`sandbox:`** - Sandbox environment configuration (object)
+  - **`agent:`** - Agent sandbox type for runtime isolation
+    - `awf` - Agent Workflow Firewall (default, network egress control)
+    - `srt` - Sandbox Runtime (experimental, requires `sandbox-runtime` feature flag)
+    - `false` - Disable firewall (replaces deprecated `network.firewall: false`)
+    - Example:
+      ```yaml
+      sandbox:
+        agent: awf          # Enable AWF for network control
+      ```
+  - **`mcp:`** - MCP Gateway configuration (experimental, requires `mcp-gateway` feature flag)
+    - `container:` - Docker container for MCP gateway (string)
+    - `port:` - Gateway port (integer)
+    - `api-key:` - API key for gateway authentication (must use `${{ secrets.* }}` syntax)
+    - Example:
+      ```yaml
+      sandbox:
+        agent: awf
+        mcp:
+          container: "ghcr.io/your-org/mcp-gateway"
+          port: 8080
+          api-key: "${{ secrets.MCP_GATEWAY_API_KEY }}"
+      ```
+
 - **`tools:`** - Tool configuration for coding agent
   - `github:` - GitHub API tools
     - `allowed:` - Array of allowed GitHub API functions
@@ -253,10 +269,10 @@ The YAML frontmatter supports these fields:
     - `read-only:` - Restrict to read-only operations (boolean)
     - `github-token:` - Custom GitHub token
     - `toolsets:` - Enable specific GitHub toolset groups (array only)
-      - **Default toolsets** (when unspecified): `context`, `repos`, `issues`, `pull_requests`, `users`
+      - **Default toolsets** (when unspecified): `context`, `repos`, `issues`, `pull_requests` (excludes `users` - not supported by GitHub Actions tokens)
       - **All toolsets**: `context`, `repos`, `issues`, `pull_requests`, `actions`, `code_security`, `dependabot`, `discussions`, `experiments`, `gists`, `labels`, `notifications`, `orgs`, `projects`, `secret_protection`, `security_advisories`, `stargazers`, `users`, `search`
-      - Use `[default]` for recommended toolsets, `[all]` to enable everything
-      - Examples: `toolsets: [default]`, `toolsets: [default, discussions]`, `toolsets: [repos, issues]`
+      - Use `[default]` or `[action-friendly]` for GitHub Actions-compatible toolsets, `[all]` to enable everything
+      - Examples: `toolsets: [default]`, `toolsets: [action-friendly]`, `toolsets: [default, discussions]`, `toolsets: [repos, issues]`
       - **Recommended**: Prefer `toolsets:` over `allowed:` for better organization and reduced configuration verbosity
   - `agentic-workflows:` - GitHub Agentic Workflows MCP server for workflow introspection
     - Provides tools for:
@@ -272,6 +288,35 @@ The YAML frontmatter supports these fields:
   - `bash:` - Shell command tools
   - `playwright:` - Browser automation tools
   - Custom tool names for MCP servers
+
+- **`safe-inputs:`** - Custom inline MCP tool definitions (experimental)
+  - Define custom tools inline using JavaScript, shell, or Python scripts
+  - Each tool has: `description` (required), `inputs` (parameters), implementation (`script`, `run`, or `py`), `env` (environment variables), `timeout` (seconds)
+  - Tools are automatically mounted as an MCP server at runtime
+  - Example:
+    ```yaml
+    safe-inputs:
+      greet-user:
+        description: "Greet a user by name"
+        inputs:
+          name:
+            type: string
+            required: true
+        script: |
+          return { message: `Hello, ${name}!` };
+      fetch-data:
+        description: "Fetch data from API"
+        run: |
+          curl -H "Authorization: Bearer $API_TOKEN" https://api.example.com/data
+        env:
+          API_TOKEN: "${{ secrets.API_TOKEN }}"
+        timeout: 120
+    ```
+  - **Implementation options:**
+    - `script:` - JavaScript (CommonJS) code, automatically wrapped in async function
+    - `run:` - Shell script (bash)
+    - `py:` - Python script (Python 3.1x)
+  - **Note**: Use only one implementation method per tool
 
 - **`safe-outputs:`** - Safe output processing configuration (preferred way to handle GitHub API write operations)
   - `create-issue:` - Safe GitHub issue creation (bugs, features)
@@ -873,7 +918,6 @@ network:
     - node            # Node.js/NPM ecosystem
     - containers      # Container registries
     - "api.custom.com" # Custom domain
-  firewall: true      # Enable AWF (Copilot engine only)
 
 # Or allow specific domains only
 network:
@@ -884,6 +928,10 @@ network:
 
 # Or deny all network access
 network: {}
+
+# Enable AWF (Agent Workflow Firewall) - use sandbox.agent instead
+sandbox:
+  agent: awf          # Default firewall for network control
 ```
 
 **Important Notes:**
@@ -893,7 +941,7 @@ network: {}
 - Use ecosystem identifiers (`python`, `node`, `java`, etc.) for language-specific tools
 - When custom permissions are specified with `allowed:` list, deny-by-default policy is enforced
 - Supports exact domain matches and wildcard patterns (where `*` matches any characters, including nested subdomains)
-- **Firewall support**: Copilot engine supports AWF (Agent Workflow Firewall) for domain-based access control
+- **Firewall configuration**: Use `sandbox.agent: awf` to enable AWF (Agent Workflow Firewall) for domain-based access control (replaces deprecated `network.firewall: true`)
 - Claude engine uses hooks for enforcement; Codex support planned
 
 **Permission Modes:**
