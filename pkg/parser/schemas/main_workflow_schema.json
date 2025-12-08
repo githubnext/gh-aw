@@ -170,6 +170,7 @@
               "properties": {
                 "branches": {
                   "type": "array",
+                  "$comment": "Mutually exclusive with branches-ignore. GitHub Actions requires only one to be specified.",
                   "description": "Branches to filter on",
                   "items": {
                     "type": "string"
@@ -177,6 +178,7 @@
                 },
                 "branches-ignore": {
                   "type": "array",
+                  "$comment": "Mutually exclusive with branches. GitHub Actions requires only one to be specified.",
                   "description": "Branches to ignore",
                   "items": {
                     "type": "string"
@@ -184,6 +186,7 @@
                 },
                 "paths": {
                   "type": "array",
+                  "$comment": "Mutually exclusive with paths-ignore. GitHub Actions requires only one to be specified.",
                   "description": "Paths to filter on",
                   "items": {
                     "type": "string"
@@ -191,6 +194,7 @@
                 },
                 "paths-ignore": {
                   "type": "array",
+                  "$comment": "Mutually exclusive with paths. GitHub Actions requires only one to be specified.",
                   "description": "Paths to ignore",
                   "items": {
                     "type": "string"
@@ -248,6 +252,7 @@
                 },
                 "branches": {
                   "type": "array",
+                  "$comment": "Mutually exclusive with branches-ignore. GitHub Actions requires only one to be specified.",
                   "description": "Branches to filter on",
                   "items": {
                     "type": "string"
@@ -255,6 +260,7 @@
                 },
                 "branches-ignore": {
                   "type": "array",
+                  "$comment": "Mutually exclusive with branches. GitHub Actions requires only one to be specified.",
                   "description": "Branches to ignore",
                   "items": {
                     "type": "string"
@@ -262,6 +268,7 @@
                 },
                 "paths": {
                   "type": "array",
+                  "$comment": "Mutually exclusive with paths-ignore. GitHub Actions requires only one to be specified.",
                   "description": "Paths to filter on",
                   "items": {
                     "type": "string"
@@ -269,6 +276,7 @@
                 },
                 "paths-ignore": {
                   "type": "array",
+                  "$comment": "Mutually exclusive with paths. GitHub Actions requires only one to be specified.",
                   "description": "Paths to ignore",
                   "items": {
                     "type": "string"
@@ -509,6 +517,7 @@
                 },
                 "branches": {
                   "type": "array",
+                  "$comment": "Mutually exclusive with branches-ignore. GitHub Actions requires only one to be specified.",
                   "description": "Branches to filter on",
                   "items": {
                     "type": "string"
@@ -516,6 +525,7 @@
                 },
                 "branches-ignore": {
                   "type": "array",
+                  "$comment": "Mutually exclusive with branches. GitHub Actions requires only one to be specified.",
                   "description": "Branches to ignore",
                   "items": {
                     "type": "string"
@@ -780,6 +790,7 @@
                 },
                 "branches": {
                   "type": "array",
+                  "$comment": "Mutually exclusive with branches-ignore. GitHub Actions requires only one to be specified.",
                   "description": "Branches to filter on",
                   "items": {
                     "type": "string"
@@ -787,6 +798,7 @@
                 },
                 "branches-ignore": {
                   "type": "array",
+                  "$comment": "Mutually exclusive with branches. GitHub Actions requires only one to be specified.",
                   "description": "Branches to ignore",
                   "items": {
                     "type": "string"
@@ -794,6 +806,7 @@
                 },
                 "paths": {
                   "type": "array",
+                  "$comment": "Mutually exclusive with paths-ignore. GitHub Actions requires only one to be specified.",
                   "description": "Paths to filter on",
                   "items": {
                     "type": "string"
@@ -801,6 +814,7 @@
                 },
                 "paths-ignore": {
                   "type": "array",
+                  "$comment": "Mutually exclusive with paths. GitHub Actions requires only one to be specified.",
                   "description": "Paths to ignore",
                   "items": {
                     "type": "string"
