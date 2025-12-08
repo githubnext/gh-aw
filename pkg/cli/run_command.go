@@ -63,6 +63,27 @@ func RunWorkflowOnGitHub(workflowIdOrName string, enable bool, engineOverride st
 			return fmt.Errorf("workflow '%s' cannot be run on GitHub Actions - it must have 'workflow_dispatch' trigger", workflowIdOrName)
 		}
 		runLog.Printf("Workflow is runnable: %s", workflowFile)
+
+		// Check if the workflow file has local modifications
+		if status, err := checkWorkflowFileStatus(workflowFile); err == nil && status != nil {
+			var warnings []string
+
+			if status.IsModified {
+				warnings = append(warnings, "The workflow file has unstaged changes")
+			}
+			if status.IsStaged {
+				warnings = append(warnings, "The workflow file has staged changes")
+			}
+			if status.HasUnpushedCommits {
+				warnings = append(warnings, "The workflow file has unpushed commits")
+			}
+
+			if len(warnings) > 0 {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(strings.Join(warnings, ", ")))
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage("These changes will not be reflected in the GitHub Actions run"))
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Consider pushing your changes before running the workflow"))
+			}
+		}
 	}
 
 	// Handle --enable flag logic: check workflow state and enable if needed
