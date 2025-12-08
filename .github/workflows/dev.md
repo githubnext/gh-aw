@@ -9,6 +9,7 @@ engine: copilot
 permissions:
   contents: read
   issues: read
+  pull-requests: read
 tools:
   github: false
 imports:
