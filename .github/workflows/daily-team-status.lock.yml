@@ -434,7 +434,7 @@ jobs:
       - name: Downloading container images
         run: |
           set -e
-          docker pull ghcr.io/github/github-mcp-server:v0.24.0
+          docker pull ghcr.io/github/github-mcp-server:v0.24.1
       - name: Write Safe Outputs Config
         run: |
           mkdir -p /tmp/gh-aw/safeoutputs
@@ -1772,7 +1772,7 @@ jobs:
                   "GITHUB_READ_ONLY=1",
                   "-e",
                   "GITHUB_TOOLSETS=context,repos,issues,pull_requests",
-                  "ghcr.io/github/github-mcp-server:v0.24.0"
+                  "ghcr.io/github/github-mcp-server:v0.24.1"
                 ],
                 "tools": ["*"],
                 "env": {
@@ -2604,7 +2604,7 @@ jobs:
                 return s.replace(/<!--[\s\S]*?-->/g, "").replace(/<!--[\s\S]*?--!>/g, "");
               }
               function convertXmlTags(s) {
-                const allowedTags = ["details", "summary", "code", "em", "b", "p"];
+                const allowedTags = ["details", "summary", "code", "em", "b", "p", "strong", "i", "u", "br", "ul", "ol", "li", "blockquote"];
                 s = s.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, (match, content) => {
                   const convertedContent = content.replace(/<(\/?[A-Za-z][A-Za-z0-9]*(?:[^>]*?))>/g, "($1)");
                   return `(![CDATA[${convertedContent}]])`;

@@ -664,7 +664,7 @@ jobs:
       - name: Downloading container images
         run: |
           set -e
-          docker pull ghcr.io/github/github-mcp-server:v0.24.0
+          docker pull ghcr.io/github/github-mcp-server:v0.24.1
       - name: Write Safe Outputs Config
         run: |
           mkdir -p /tmp/gh-aw/safeoutputs
@@ -2013,7 +2013,7 @@ jobs:
             "GITHUB_READ_ONLY=1",
             "-e",
             "GITHUB_TOOLSETS=context,repos,issues,pull_requests,discussions",
-            "ghcr.io/github/github-mcp-server:v0.24.0"
+            "ghcr.io/github/github-mcp-server:v0.24.1"
           ]
           env_vars = ["GITHUB_PERSONAL_ACCESS_TOKEN"]
           
