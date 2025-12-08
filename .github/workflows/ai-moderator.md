@@ -13,6 +13,7 @@ permissions:
   issues: read
   pull-requests: read
 engine: copilot
+if: needs.check_external_user.outputs.is_external == 'true'
 tools:
   github:
     toolsets: [default]
@@ -21,6 +22,49 @@ safe-outputs:
     allowed: [spam, ai-generated, link-spam]
   minimize-comment:
     max: 5
+roles: all
+jobs:
+  check_external_user:
+    runs-on: ubuntu-slim
+    outputs:
+      is_external: ${{ steps.check_actor.outputs.should_run }}
+    steps:
+      - name: Skip if actor is team member
+        id: check_actor
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const actor = context.actor;
+            const { owner, repo } = context.repo;
+            
+            try {
+              core.info(`Checking permissions for user: ${actor}`);
+              
+              // Get the user's permission level
+              const { data: permission } = await github.rest.repos.getCollaboratorPermissionLevel({
+                owner,
+                repo,
+                username: actor
+              });
+              
+              const userPermission = permission.permission;
+              core.info(`User ${actor} has permission: ${userPermission}`);
+              
+              // Skip workflow for team members (admin, maintain, write)
+              const teamPermissions = ['admin', 'maintain', 'write'];
+              if (teamPermissions.includes(userPermission)) {
+                core.info(`⏭️  Skipping workflow - ${actor} is a team member with ${userPermission} access`);
+                core.setOutput('should_run', 'false');
+              } else {
+                core.info(`✅ Running workflow - ${actor} is external user with ${userPermission} access`);
+                core.setOutput('should_run', 'true');
+              }
+            } catch (error) {
+              // If we can't determine permission (e.g., user not a collaborator), assume external and run
+              core.info(`⚠️  Could not determine permissions for ${actor}: ${error.message}`);
+              core.info(`✅ Running workflow - assuming external user`);
+              core.setOutput('should_run', 'true');
+            }
 ---
 
 # AI Moderator
@@ -102,34 +146,7 @@ Based on your analysis:
 2. **For Comments** (when comment ID is present):
    - If any type of spam or AI-generated content is detected:
      - Use the `minimize_comment` safe output to minimize the comment
-     - You need the GraphQL node ID (not the numeric comment ID) - fetch it using the GitHub tools
-     - Call `minimize_comment` with the `comment_id` parameter set to the GraphQL node ID
      - Also add appropriate labels to the parent issue/PR as described above
-
-## How to fetch the Node ID
-
-If you need to minimize a comment, you'll need its GraphQL node ID. You can fetch this using the GitHub MCP server tools:
-
-**For issue comments**, use the GitHub REST API to get the comment:
-```
-GET /repos/<owner>/<repo>/issues/comments/<comment_id>
-```
-Replace `<owner>`, `<repo>`, and `<comment_id>` with actual values from your workflow context.
-The response will include a `node_id` field.
-
-**For PR review comments**, use:
-```
-GET /repos/<owner>/<repo>/pulls/comments/<comment_id>
-```
-Replace `<owner>`, `<repo>`, and `<comment_id>` with actual values.
-The response will include a `node_id` field.
-
-The node ID is a base64-like encoded string used by GitHub's GraphQL API (e.g., `IC_kwDOABcD1M5ZJfGH`).
-
-Once you have the node ID, call the minimize_comment tool:
-```
-minimize_comment(comment_id="IC_kwDOABcD1M5ZJfGH")
-```
 
 ## Important Guidelines
 

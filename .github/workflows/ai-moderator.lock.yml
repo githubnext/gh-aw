@@ -34,6 +34,7 @@
 #   issues: read
 #   pull-requests: read
 # engine: copilot
+# if: needs.check_external_user.outputs.is_external == 'true'
 # tools:
 #   github:
 #     toolsets: [default]
@@ -42,6 +43,49 @@
 #     allowed: [spam, ai-generated, link-spam]
 #   minimize-comment:
 #     max: 5
+# roles: all
+# jobs:
+#   check_external_user:
+#     runs-on: ubuntu-slim
+#     outputs:
+#       is_external: ${{ steps.check_actor.outputs.should_run }}
+#     steps:
+#       - name: Skip if actor is team member
+#         id: check_actor
+#         uses: actions/github-script@v8
+#         with:
+#           script: |
+#             const actor = context.actor;
+#             const { owner, repo } = context.repo;
+#
+#             try {
+#               core.info(`Checking permissions for user: ${actor}`);
+#
+#               // Get the user's permission level
+#               const { data: permission } = await github.rest.repos.getCollaboratorPermissionLevel({
+#                 owner,
+#                 repo,
+#                 username: actor
+#               });
+#
+#               const userPermission = permission.permission;
+#               core.info(`User ${actor} has permission: ${userPermission}`);
+#
+#               // Skip workflow for team members (admin, maintain, write)
+#               const teamPermissions = ['admin', 'maintain', 'write'];
+#               if (teamPermissions.includes(userPermission)) {
+#                 core.info(`⏭️  Skipping workflow - ${actor} is a team member with ${userPermission} access`);
+#                 core.setOutput('should_run', 'false');
+#               } else {
+#                 core.info(`✅ Running workflow - ${actor} is external user with ${userPermission} access`);
+#                 core.setOutput('should_run', 'true');
+#               }
+#             } catch (error) {
+#               // If we can't determine permission (e.g., user not a collaborator), assume external and run
+#               core.info(`⚠️  Could not determine permissions for ${actor}: ${error.message}`);
+#               core.info(`✅ Running workflow - assuming external user`);
+#               core.setOutput('should_run', 'true');
+#             }
 # ```
 #
 # Job Dependency Graph:
@@ -50,22 +94,23 @@
 #   activation["activation"]
 #   add_labels["add_labels"]
 #   agent["agent"]
+#   check_external_user["check_external_user"]
 #   conclusion["conclusion"]
 #   detection["detection"]
 #   minimize_comment["minimize_comment"]
-#   pre_activation["pre_activation"]
 #   activation --> agent
+#   activation --> check_external_user
 #   activation --> conclusion
 #   add_labels --> conclusion
 #   agent --> add_labels
 #   agent --> conclusion
 #   agent --> detection
 #   agent --> minimize_comment
+#   check_external_user --> agent
 #   detection --> add_labels
 #   detection --> conclusion
 #   detection --> minimize_comment
 #   minimize_comment --> conclusion
-#   pre_activation --> activation
 # ```
 #
 # Original Prompt:
@@ -149,34 +194,7 @@
 # 2. **For Comments** (when comment ID is present):
 #    - If any type of spam or AI-generated content is detected:
 #      - Use the `minimize_comment` safe output to minimize the comment
-#      - You need the GraphQL node ID (not the numeric comment ID) - fetch it using the GitHub tools
-#      - Call `minimize_comment` with the `comment_id` parameter set to the GraphQL node ID
 #      - Also add appropriate labels to the parent issue/PR as described above
-#
-# ## How to fetch the Node ID
-#
-# If you need to minimize a comment, you'll need its GraphQL node ID. You can fetch this using the GitHub MCP server tools:
-#
-# **For issue comments**, use the GitHub REST API to get the comment:
-# ```
-# GET /repos/<owner>/<repo>/issues/comments/<comment_id>
-# ```
-# Replace `<owner>`, `<repo>`, and `<comment_id>` with actual values from your workflow context.
-# The response will include a `node_id` field.
-#
-# **For PR review comments**, use:
-# ```
-# GET /repos/<owner>/<repo>/pulls/comments/<comment_id>
-# ```
-# Replace `<owner>`, `<repo>`, and `<comment_id>` with actual values.
-# The response will include a `node_id` field.
-#
-# The node ID is a base64-like encoded string used by GitHub's GraphQL API (e.g., `IC_kwDOABcD1M5ZJfGH`).
-#
-# Once you have the node ID, call the minimize_comment tool:
-# ```
-# minimize_comment(comment_id="IC_kwDOABcD1M5ZJfGH")
-# ```
 #
 # ## Important Guidelines
 #
@@ -226,8 +244,6 @@ run-name: "AI Moderator"
 
 jobs:
   activation:
-    needs: pre_activation
-    if: needs.pre_activation.outputs.activated == 'true'
     runs-on: ubuntu-slim
     permissions:
       contents: read
@@ -885,7 +901,10 @@ jobs:
             await main();
 
   agent:
-    needs: activation
+    needs:
+      - activation
+      - check_external_user
+    if: needs.check_external_user.outputs.is_external == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -2554,34 +2573,7 @@ jobs:
           2. **For Comments** (when comment ID is present):
              - If any type of spam or AI-generated content is detected:
                - Use the `minimize_comment` safe output to minimize the comment
-               - You need the GraphQL node ID (not the numeric comment ID) - fetch it using the GitHub tools
-               - Call `minimize_comment` with the `comment_id` parameter set to the GraphQL node ID
                - Also add appropriate labels to the parent issue/PR as described above
-          
-          ## How to fetch the Node ID
-          
-          If you need to minimize a comment, you'll need its GraphQL node ID. You can fetch this using the GitHub MCP server tools:
-          
-          **For issue comments**, use the GitHub REST API to get the comment:
-          ```
-          GET /repos/<owner>/<repo>/issues/comments/<comment_id>
-          ```
-          Replace `<owner>`, `<repo>`, and `<comment_id>` with actual values from your workflow context.
-          The response will include a `node_id` field.
-          
-          **For PR review comments**, use:
-          ```
-          GET /repos/<owner>/<repo>/pulls/comments/<comment_id>
-          ```
-          Replace `<owner>`, `<repo>`, and `<comment_id>` with actual values.
-          The response will include a `node_id` field.
-          
-          The node ID is a base64-like encoded string used by GitHub's GraphQL API (e.g., `IC_kwDOABcD1M5ZJfGH`).
-          
-          Once you have the node ID, call the minimize_comment tool:
-          ```
-          minimize_comment(comment_id="IC_kwDOABcD1M5ZJfGH")
-          ```
           
           ## Important Guidelines
           
@@ -5920,6 +5912,49 @@ jobs:
               main();
             }
 
+  check_external_user:
+    needs: activation
+    runs-on: ubuntu-slim
+    outputs:
+      is_external: ${{ steps.check_actor.outputs.should_run }}
+    steps:
+      - name: Skip if actor is team member
+        id: check_actor
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        with:
+          script: |-
+            const actor = context.actor;
+            const { owner, repo } = context.repo;
+
+            try {
+              core.info(`Checking permissions for user: ${actor}`);
+
+              // Get the user's permission level
+              const { data: permission } = await github.rest.repos.getCollaboratorPermissionLevel({
+                owner,
+                repo,
+                username: actor
+              });
+
+              const userPermission = permission.permission;
+              core.info(`User ${actor} has permission: ${userPermission}`);
+
+              // Skip workflow for team members (admin, maintain, write)
+              const teamPermissions = ['admin', 'maintain', 'write'];
+              if (teamPermissions.includes(userPermission)) {
+                core.info(`⏭️  Skipping workflow - ${actor} is a team member with ${userPermission} access`);
+                core.setOutput('should_run', 'false');
+              } else {
+                core.info(`✅ Running workflow - ${actor} is external user with ${userPermission} access`);
+                core.setOutput('should_run', 'true');
+              }
+            } catch (error) {
+              // If we can't determine permission (e.g., user not a collaborator), assume external and run
+              core.info(`⚠️  Could not determine permissions for ${actor}: ${error.message}`);
+              core.info(`✅ Running workflow - assuming external user`);
+              core.setOutput('should_run', 'true');
+            }
+
   conclusion:
     needs:
       - activation
@@ -6794,99 +6829,6 @@ jobs:
                   core.setFailed(`Failed to minimize comment: ${errorMessage}`);
                   return;
                 }
-              }
-            }
-            await main();
-
-  pre_activation:
-    runs-on: ubuntu-slim
-    outputs:
-      activated: ${{ steps.check_membership.outputs.is_team_member == 'true' }}
-    steps:
-      - name: Check team membership for workflow
-        id: check_membership
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
-        env:
-          GH_AW_REQUIRED_ROLES: admin,maintainer,write
-        with:
-          script: |
-            function parseRequiredPermissions() {
-              const requiredPermissionsEnv = process.env.GH_AW_REQUIRED_ROLES;
-              return requiredPermissionsEnv ? requiredPermissionsEnv.split(",").filter(p => p.trim() !== "") : [];
-            }
-            async function checkRepositoryPermission(actor, owner, repo, requiredPermissions) {
-              try {
-                core.info(`Checking if user '${actor}' has required permissions for ${owner}/${repo}`);
-                core.info(`Required permissions: ${requiredPermissions.join(", ")}`);
-                const repoPermission = await github.rest.repos.getCollaboratorPermissionLevel({
-                  owner: owner,
-                  repo: repo,
-                  username: actor,
-                });
-                const permission = repoPermission.data.permission;
-                core.info(`Repository permission level: ${permission}`);
-                for (const requiredPerm of requiredPermissions) {
-                  if (permission === requiredPerm || (requiredPerm === "maintainer" && permission === "maintain")) {
-                    core.info(`✅ User has ${permission} access to repository`);
-                    return { authorized: true, permission: permission };
-                  }
-                }
-                core.warning(`User permission '${permission}' does not meet requirements: ${requiredPermissions.join(", ")}`);
-                return { authorized: false, permission: permission };
-              } catch (repoError) {
-                const errorMessage = repoError instanceof Error ? repoError.message : String(repoError);
-                core.warning(`Repository permission check failed: ${errorMessage}`);
-                return { authorized: false, error: errorMessage };
-              }
-            }
-            async function main() {
-              const { eventName } = context;
-              const actor = context.actor;
-              const { owner, repo } = context.repo;
-              const requiredPermissions = parseRequiredPermissions();
-              if (eventName === "workflow_dispatch") {
-                const hasWriteRole = requiredPermissions.includes("write");
-                if (hasWriteRole) {
-                  core.info(`✅ Event ${eventName} does not require validation (write role allowed)`);
-                  core.setOutput("is_team_member", "true");
-                  core.setOutput("result", "safe_event");
-                  return;
-                }
-                core.info(`Event ${eventName} requires validation (write role not allowed)`);
-              }
-              const safeEvents = ["schedule"];
-              if (safeEvents.includes(eventName)) {
-                core.info(`✅ Event ${eventName} does not require validation`);
-                core.setOutput("is_team_member", "true");
-                core.setOutput("result", "safe_event");
-                return;
-              }
-              if (!requiredPermissions || requiredPermissions.length === 0) {
-                core.warning("❌ Configuration error: Required permissions not specified. Contact repository administrator.");
-                core.setOutput("is_team_member", "false");
-                core.setOutput("result", "config_error");
-                core.setOutput("error_message", "Configuration error: Required permissions not specified");
-                return;
-              }
-              const result = await checkRepositoryPermission(actor, owner, repo, requiredPermissions);
-              if (result.error) {
-                core.setOutput("is_team_member", "false");
-                core.setOutput("result", "api_error");
-                core.setOutput("error_message", `Repository permission check failed: ${result.error}`);
-                return;
-              }
-              if (result.authorized) {
-                core.setOutput("is_team_member", "true");
-                core.setOutput("result", "authorized");
-                core.setOutput("user_permission", result.permission);
-              } else {
-                core.setOutput("is_team_member", "false");
-                core.setOutput("result", "insufficient_permissions");
-                core.setOutput("user_permission", result.permission);
-                core.setOutput(
-                  "error_message",
-                  `Access denied: User '${actor}' is not authorized. Required permissions: ${requiredPermissions.join(", ")}`
-                );
               }
             }
             await main();
