@@ -7042,6 +7042,73 @@ jobs:
                 lines.push(`Model: ${model}`);
               }
               lines.push("");
+              const initEntry = logEntries.find(entry => entry.type === "system" && entry.subtype === "init");
+              if (initEntry && initEntry.tools && Array.isArray(initEntry.tools) && initEntry.tools.length > 0) {
+                lines.push("Available Tools:");
+                lines.push("");
+                const categories = {
+                  Builtin: [],
+                  "Safe Outputs": [],
+                  "Safe Inputs": [],
+                  "Git/GitHub": [],
+                  Playwright: [],
+                  Serena: [],
+                  MCP: [],
+                  "Custom Agents": [],
+                  Other: [],
+                };
+                const builtinTools = [
+                  "bash",
+                  "write_bash",
+                  "read_bash",
+                  "stop_bash",
+                  "list_bash",
+                  "grep",
+                  "glob",
+                  "view",
+                  "create",
+                  "edit",
+                  "store_memory",
+                  "code_review",
+                  "codeql_checker",
+                  "report_progress",
+                  "report_intent",
+                  "gh-advisory-database",
+                ];
+                const internalTools = ["fetch_copilot_cli_documentation"];
+                for (const tool of initEntry.tools) {
+                  const toolLower = tool.toLowerCase();
+                  if (builtinTools.includes(toolLower) || internalTools.includes(toolLower)) {
+                    categories["Builtin"].push(tool);
+                  } else if (tool.startsWith("safeoutputs-") || tool.startsWith("safe_outputs-")) {
+                    const toolName = tool.replace(/^safeoutputs-|^safe_outputs-/, "");
+                    categories["Safe Outputs"].push(toolName);
+                  } else if (tool.startsWith("safeinputs-") || tool.startsWith("safe_inputs-")) {
+                    const toolName = tool.replace(/^safeinputs-|^safe_inputs-/, "");
+                    categories["Safe Inputs"].push(toolName);
+                  } else if (tool.startsWith("mcp__github__")) {
+                    categories["Git/GitHub"].push(formatMcpName(tool));
+                  } else if (tool.startsWith("mcp__playwright__")) {
+                    categories["Playwright"].push(formatMcpName(tool));
+                  } else if (tool.startsWith("mcp__serena__")) {
+                    categories["Serena"].push(formatMcpName(tool));
+                  } else if (tool.startsWith("mcp__") || ["ListMcpResourcesTool", "ReadMcpResourceTool"].includes(tool)) {
+                    categories["MCP"].push(tool.startsWith("mcp__") ? formatMcpName(tool) : tool);
+                  } else if (isLikelyCustomAgent(tool)) {
+                    categories["Custom Agents"].push(tool);
+                  } else {
+                    categories["Other"].push(tool);
+                  }
+                }
+                for (const [category, tools] of Object.entries(categories)) {
+                  if (tools.length > 0) {
+                    const toolText = tools.length === 1 ? "tool" : "tools";
+                    lines.push(`${category}: ${tools.length} ${toolText}`);
+                    lines.push(tools.join(", "));
+                  }
+                }
+                lines.push("");
+              }
               const toolUsePairs = new Map();
               for (const entry of logEntries) {
                 if (entry.type === "user" && entry.message?.content) {
