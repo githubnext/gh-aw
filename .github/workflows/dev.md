@@ -5,14 +5,11 @@ name: Dev
 description: Create a poem about GitHub and save it to repo-memory
 timeout-minutes: 5
 strict: false
-engine: claude
+engine: copilot
 permissions:
   contents: read
   issues: read
 tools:
-  repo-memory:
-    branch-name: memory/poems
-    description: "Poem collection"
   github: false
 imports:
   - shared/gh.md
