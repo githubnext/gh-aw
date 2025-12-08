@@ -171,8 +171,24 @@ async function main() {
     // Must not end with a closing brace (which would indicate it's just missing opening brace)
     if (trimmed.endsWith('}')) return false;
     // Look for pattern: "fieldname": value,? (with optional trailing comma)
-    // This matches individual fields extracted from a pretty-printed object
-    return /^"[^"]+"\s*:\s*.+,?\s*$/.test(trimmed);
+    // Use more restrictive pattern to avoid matching malformed values
+    // Value can be: string, number, boolean, null, array, or object
+    return /^"[^"]+"\s*:\s*(?:"[^"\\]*(?:\\.[^"\\]*)*"|true|false|null|[+-]?\d+\.?\d*(?:[eE][+-]?\d+)?|\[.*\]|\{.*\})\s*,?\s*$/.test(trimmed);
+  }
+
+  /**
+   * Validate that a reconstructed JSON string is valid
+   * @param {string} jsonStr - The JSON string to validate
+   * @returns {boolean} True if valid, false otherwise
+   */
+  function isValidReconstructedJson(jsonStr) {
+    try {
+      const parsed = JSON.parse(jsonStr);
+      // Must be an object (not array, string, number, etc.)
+      return typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed);
+    } catch (e) {
+      return false;
+    }
   }
 
   /**
@@ -212,8 +228,17 @@ async function main() {
         if (fragments.length > 0) {
           // Reconstruct the JSON object
           const reconstructed = '{' + fragments.join(',') + '}';
-          core.info(`Reconstructed ${fragments.length} JSON fragments into single object (lines ${i + 1}-${j})`);
-          result.push(reconstructed);
+          
+          // Validate the reconstructed JSON before adding it
+          if (isValidReconstructedJson(reconstructed)) {
+            core.info(`Reconstructed ${fragments.length} JSON fragments into single object (lines ${i + 1}-${j})`);
+            result.push(reconstructed);
+          } else {
+            // If validation fails, keep the original fragments as separate lines
+            // They'll be processed normally and produce appropriate errors
+            core.warning(`Failed to reconstruct JSON fragments (lines ${i + 1}-${j}) - keeping original lines`);
+            fragments.forEach(frag => result.push(frag));
+          }
           i = j;
           continue;
         }

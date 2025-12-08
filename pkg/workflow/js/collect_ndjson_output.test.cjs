@@ -970,6 +970,44 @@ Line 3"}
       expect(infoCall).toBeDefined();
     });
 
+    it("should handle invalid fragment reconstruction gracefully", async () => {
+      const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
+      // These look like valid fragments but can't be reconstructed because they're missing required fields
+      // (e.g., create_discussion requires both title and body)
+      const ndjsonContent = `"type": "create_discussion",
+"category": "general"
+{"type": "noop", "message": "This is valid"}`;
+
+      fs.writeFileSync(testFile, ndjsonContent);
+      process.env.GH_AW_SAFE_OUTPUTS = testFile;
+      const __config = '{"create_discussion": true, "noop": true}';
+      const configPath = "/tmp/gh-aw/safeoutputs/config.json";
+      fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
+      fs.writeFileSync(configPath, __config);
+
+      await eval(`(async () => { ${collectScript} })()`);
+
+      const setOutputCalls = mockCore.setOutput.mock.calls;
+      const outputCall = setOutputCalls.find(call => call[0] === "output");
+      expect(outputCall).toBeDefined();
+
+      const parsedOutput = JSON.parse(outputCall[1]);
+      
+      // Valid noop should be parsed
+      // Reconstructed create_discussion will have errors (missing required fields)
+      expect(parsedOutput.items).toHaveLength(1);
+      expect(parsedOutput.items[0].type).toBe("noop");
+      
+      // Should have errors for the incomplete create_discussion
+      expect(parsedOutput.errors.length).toBeGreaterThan(0);
+      
+      // Verify that reconstruction happened
+      const infoCall = mockCore.info.mock.calls.find(call => 
+        String(call[0]).includes("Reconstructed") && String(call[0]).includes("JSON fragments")
+      );
+      expect(infoCall).toBeDefined();
+    });
+
     it("should still report error if repair fails completely", async () => {
       const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
       const ndjsonContent = `{completely broken json with no hope: of repair [[[}}}`;
