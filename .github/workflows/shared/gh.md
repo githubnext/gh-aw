@@ -15,8 +15,12 @@ safe-inputs:
       GH_AW_GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     run: |
       echo "gh $INPUT_ARGS"
-      echo "  token: ${GH_AW_GH_TOKEN:0:6}..."
-      GH_TOKEN="$GH_AW_GH_TOKEN" gh $INPUT_ARGS
+      echo "  GH_AW_GH_TOKEN: ${GH_AW_GH_TOKEN:0:6}..."
+      echo "  GITHUB_TOKEN: ${GITHUB_TOKEN:0:6}..."
+      echo "  GITHUB_REPOSITORY: $GITHUB_REPOSITORY"
+      echo "  GITHUB_ACTOR: $GITHUB_ACTOR"
+      echo "  GITHUB_WORKSPACE: $GITHUB_WORKSPACE"
+      GH_TOKEN="$GH_AW_GH_TOKEN" GH_DEBUG=all gh $INPUT_ARGS
 ---
 
 **IMPORTANT**: Always use the `safeinputs-gh` tool for GitHub CLI commands instead of running `gh` directly via bash. The `safeinputs-gh` tool has proper authentication configured with `GITHUB_TOKEN`, while bash commands do not have GitHub CLI authentication by default.
