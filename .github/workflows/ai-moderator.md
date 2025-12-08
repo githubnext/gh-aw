@@ -43,7 +43,7 @@ safe-outputs:
           default: "SPAM"
       steps:
         - name: Minimize comment
-          uses: actions/github-script@v7
+          uses: actions/github-script@v8
           with:
             script: |
               const nodeId = '${{ inputs.comment_node_id }}';
