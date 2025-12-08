@@ -3255,6 +3255,7 @@ jobs:
           
           GH_TOKEN=$GH_AW_GH_TOKEN gh $INPUT_ARGS
           
+          
           EOFSH_gh
           chmod +x /tmp/gh-aw/safe-inputs/gh.sh
           
@@ -3331,7 +3332,7 @@ jobs:
               event_name: context.eventName,
               staged: false,
               network_mode: "defaults",
-              allowed_domains: ["defaults","github","api.github.com"],
+              allowed_domains: ["api.github.com","defaults","github"],
               firewall_enabled: true,
               firewall_version: "",
               steps: {

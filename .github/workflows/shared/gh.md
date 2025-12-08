@@ -12,6 +12,10 @@ safe-inputs:
       GH_AW_GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     run: |
       GH_TOKEN=$GH_AW_GH_TOKEN gh $INPUT_ARGS
+
+network:
+  allowed:
+    - api.github.com
 ---
 
 **IMPORTANT**: Always use the `safeinputs-gh` tool for GitHub CLI commands instead of running `gh` directly via bash. The `safeinputs-gh` tool has proper authentication configured with `GITHUB_TOKEN`, while bash commands do not have GitHub CLI authentication by default.
