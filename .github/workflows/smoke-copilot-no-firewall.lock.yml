@@ -114,16 +114,17 @@
 #
 # Original Prompt:
 # ```markdown
-# **IMPORTANT**: Always use the `gh` safe-input tool for GitHub CLI commands instead of running `gh` directly via bash. The safe-input tool has proper authentication configured with `GITHUB_TOKEN`, while bash commands do not have GitHub CLI authentication by default.
+# **IMPORTANT**: Always use the `safeinputs-gh` tool for GitHub CLI commands instead of running `gh` directly via bash. The `safeinputs-gh` tool has proper authentication configured with `GITHUB_TOKEN`, while bash commands do not have GitHub CLI authentication by default.
 #
 # **Correct**:
 # ```
-# Use the gh safe-input tool with args: "pr list --limit 5"
-# Use the gh safe-input tool with args: "issue view 123"
+# Use the safeinputs-gh tool with args: "pr list --limit 5"
+# Use the safeinputs-gh tool with args: "issue view 123"
 # ```
 #
 # **Incorrect**:
 # ```
+# Use the gh safe-input tool with args: "pr list --limit 5"  ❌ (Wrong tool name - use safeinputs-gh)
 # Run: gh pr list --limit 5  ❌ (No authentication in bash)
 # Execute bash: gh issue view 123  ❌ (No authentication in bash)
 # ```
@@ -141,7 +142,7 @@
 # 3. **Bash Tool Testing**: Execute bash commands to verify file creation was successful (use `cat` to read the file back)
 # 4. **Playwright MCP Testing**: Use playwright to navigate to https://github.com and verify the page title contains "GitHub"
 # 5. **Cache Memory Testing**: Write a test file to `/tmp/gh-aw/cache-memory/smoke-test-${{ github.run_id }}.txt` with content "Cache memory test for run ${{ github.run_id }}" and verify it was created successfully
-# 6. **Safe Input gh Tool Testing**: Use the `gh` safe-input tool to run "gh issues list --limit 3" to verify the tool can access GitHub issues
+# 6. **Safe Input gh Tool Testing**: Use the `safeinputs-gh` tool to run "gh issues list --limit 3" to verify the tool can access GitHub issues
 #
 # ## Output
 #
@@ -4708,7 +4709,7 @@ jobs:
             "tools": [
               {
                 "name": "gh",
-                "description": "Execute any gh CLI command. Provide the full command after 'gh' (e.g., args: 'pr list --limit 5'). The tool will run: gh \u003cargs\u003e. Use single quotes ' for complex args to avoid shell interpretation issues.",
+                "description": "Execute any gh CLI command. This tool is accessible as 'safeinputs-gh'. Provide the full command after 'gh' (e.g., args: 'pr list --limit 5'). The tool will run: gh \u003cargs\u003e. Use single quotes ' for complex args to avoid shell interpretation issues.",
                 "inputSchema": {
                   "properties": {
                     "args": {
@@ -4748,7 +4749,7 @@ jobs:
           cat > /tmp/gh-aw/safe-inputs/gh.sh << 'EOFSH_gh'
           #!/bin/bash
           # Auto-generated safe-input tool: gh
-          # Execute any gh CLI command. Provide the full command after 'gh' (e.g., args: 'pr list --limit 5'). The tool will run: gh <args>. Use single quotes ' for complex args to avoid shell interpretation issues.
+          # Execute any gh CLI command. This tool is accessible as 'safeinputs-gh'. Provide the full command after 'gh' (e.g., args: 'pr list --limit 5'). The tool will run: gh <args>. Use single quotes ' for complex args to avoid shell interpretation issues.
           
           set -euo pipefail
           
@@ -4929,16 +4930,17 @@ jobs:
           PROMPT_DIR="$(dirname "$GH_AW_PROMPT")"
           mkdir -p "$PROMPT_DIR"
           cat << 'PROMPT_EOF' > "$GH_AW_PROMPT"
-          **IMPORTANT**: Always use the `gh` safe-input tool for GitHub CLI commands instead of running `gh` directly via bash. The safe-input tool has proper authentication configured with `GITHUB_TOKEN`, while bash commands do not have GitHub CLI authentication by default.
+          **IMPORTANT**: Always use the `safeinputs-gh` tool for GitHub CLI commands instead of running `gh` directly via bash. The `safeinputs-gh` tool has proper authentication configured with `GITHUB_TOKEN`, while bash commands do not have GitHub CLI authentication by default.
           
           **Correct**:
           ```
-          Use the gh safe-input tool with args: "pr list --limit 5"
-          Use the gh safe-input tool with args: "issue view 123"
+          Use the safeinputs-gh tool with args: "pr list --limit 5"
+          Use the safeinputs-gh tool with args: "issue view 123"
           ```
           
           **Incorrect**:
           ```
+          Use the gh safe-input tool with args: "pr list --limit 5"  ❌ (Wrong tool name - use safeinputs-gh)
           Run: gh pr list --limit 5  ❌ (No authentication in bash)
           Execute bash: gh issue view 123  ❌ (No authentication in bash)
           ```
@@ -4956,7 +4958,7 @@ jobs:
           3. **Bash Tool Testing**: Execute bash commands to verify file creation was successful (use `cat` to read the file back)
           4. **Playwright MCP Testing**: Use playwright to navigate to https://github.com and verify the page title contains "GitHub"
           5. **Cache Memory Testing**: Write a test file to `/tmp/gh-aw/cache-memory/smoke-test-__GH_AW_GITHUB_RUN_ID__.txt` with content "Cache memory test for run __GH_AW_GITHUB_RUN_ID__" and verify it was created successfully
-          6. **Safe Input gh Tool Testing**: Use the `gh` safe-input tool to run "gh issues list --limit 3" to verify the tool can access GitHub issues
+          6. **Safe Input gh Tool Testing**: Use the `safeinputs-gh` tool to run "gh issues list --limit 3" to verify the tool can access GitHub issues
           
           ## Output
           
