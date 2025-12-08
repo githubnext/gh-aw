@@ -407,12 +407,14 @@ const { startSafeInputsServer } = require("./safe_inputs_mcp_server.cjs");
 const configPath = path.join(__dirname, "tools.json");
 
 // Start the stdio server
-startSafeInputsServer(configPath, {
-  logDir: "/tmp/gh-aw/safe-inputs/logs"
-}).catch(error => {
+try {
+  startSafeInputsServer(configPath, {
+    logDir: "/tmp/gh-aw/safe-inputs/logs"
+  });
+} catch (error) {
   console.error("Failed to start safe-inputs stdio server:", error);
   process.exit(1);
-});
+}
 `)
 	} else {
 		// HTTP transport - server started in separate step
