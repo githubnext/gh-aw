@@ -19,87 +19,8 @@ tools:
 safe-outputs:
   add-labels:
     allowed: [spam, ai-generated, link-spam]
-  jobs:
-    minimize-comment:
-      description: "Minimize a comment marked as spam"
-      runs-on: ubuntu-latest
-      permissions:
-        issues: write
-        pull-requests: write
-      output: "Comment minimized successfully"
-      inputs:
-        comment_id:
-          description: "The ID of the comment to minimize"
-          required: true
-          type: string
-        comment_node_id:
-          description: "The node ID of the comment to minimize"
-          required: true
-          type: string
-        classifier:
-          description: "The reason for minimizing (SPAM, ABUSE, OFF_TOPIC, OUTDATED, RESOLVED)"
-          required: true
-          type: string
-          default: "SPAM"
-      steps:
-        - name: Minimize comment
-          uses: actions/github-script@v8
-          env:
-            COMMENT_NODE_ID: ${{ inputs.comment_node_id }}
-            CLASSIFIER: ${{ inputs.classifier }}
-          with:
-            script: |
-              const nodeId = process.env.COMMENT_NODE_ID;
-              const classifierInput = process.env.CLASSIFIER;
-              
-              // Validate nodeId format (GitHub node IDs typically start with IC_, MDU_, etc.)
-              if (!nodeId || typeof nodeId !== 'string' || nodeId.length === 0) {
-                core.setFailed('Invalid comment_node_id: must be a non-empty string');
-                return;
-              }
-              
-              // Additional nodeId format validation
-              // GitHub node IDs are base64-like strings, often starting with specific prefixes
-              // We do basic validation here; the GraphQL API will perform full validation
-              if (!/^[A-Za-z0-9_=-]+$/.test(nodeId) || nodeId.length < 10) {
-                core.setFailed('Invalid comment_node_id format: must be a valid GitHub node ID');
-                return;
-              }
-              
-              // Validate classifier is a valid enum value
-              const validClassifiers = ['SPAM', 'ABUSE', 'OFF_TOPIC', 'OUTDATED', 'RESOLVED'];
-              if (!validClassifiers.includes(classifierInput)) {
-                core.setFailed(`Invalid classifier: ${classifierInput}. Must be one of: ${validClassifiers.join(', ')}`);
-                return;
-              }
-              
-              // Build the GraphQL mutation with validated inputs using variables
-              const mutation = `
-                mutation($subjectId: ID!, $classifier: ReportedContentClassifiers!) {
-                  minimizeComment(input: {
-                    subjectId: $subjectId,
-                    classifier: $classifier
-                  }) {
-                    minimizedComment {
-                      isMinimized
-                      minimizedReason
-                    }
-                  }
-                }
-              `;
-              
-              const variables = {
-                subjectId: nodeId,
-                classifier: classifierInput
-              };
-              
-              try {
-                const result = await github.graphql(mutation, variables);
-                core.info('Comment minimized successfully');
-                core.info(JSON.stringify(result, null, 2));
-              } catch (error) {
-                core.setFailed(`Failed to minimize comment: ${error.message}`);
-              }
+  minimize-comment:
+    max: 5
 ---
 
 # AI Moderator
@@ -180,16 +101,16 @@ Based on your analysis:
 
 2. **For Comments** (when comment ID is present):
    - If any type of spam or AI-generated content is detected:
-     - Use the `minimize-comment` custom safe output job to minimize the comment
-     - Note: The minimize-comment job requires `comment_node_id` (the GraphQL node ID) and `classifier` (set to "SPAM")
-     - The `comment_id` is the numeric ID, but you need to fetch the `node_id` (GraphQL node ID) using the GitHub tools
+     - Use the `minimize_comment` safe output to minimize the comment
+     - You need the GraphQL node ID (not the numeric comment ID) - fetch it using the GitHub tools
+     - Call `minimize_comment` with the `comment_id` parameter set to the GraphQL node ID
      - Also add appropriate labels to the parent issue/PR as described above
 
 ## How to fetch the Node ID
 
 If you need to minimize a comment, you'll need its GraphQL node ID. You can fetch this using the GitHub MCP server tools:
 
-**For issue comments**, use the GitHub REST API:
+**For issue comments**, use the GitHub REST API to get the comment:
 ```
 GET /repos/<owner>/<repo>/issues/comments/<comment_id>
 ```
@@ -204,6 +125,11 @@ Replace `<owner>`, `<repo>`, and `<comment_id>` with actual values.
 The response will include a `node_id` field.
 
 The node ID is a base64-like encoded string used by GitHub's GraphQL API (e.g., `IC_kwDOABcD1M5ZJfGH`).
+
+Once you have the node ID, call the minimize_comment tool:
+```
+minimize_comment(comment_id="IC_kwDOABcD1M5ZJfGH")
+```
 
 ## Important Guidelines
 

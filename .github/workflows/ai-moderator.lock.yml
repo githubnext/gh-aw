@@ -40,87 +40,8 @@
 # safe-outputs:
 #   add-labels:
 #     allowed: [spam, ai-generated, link-spam]
-#   jobs:
-#     minimize-comment:
-#       description: "Minimize a comment marked as spam"
-#       runs-on: ubuntu-latest
-#       permissions:
-#         issues: write
-#         pull-requests: write
-#       output: "Comment minimized successfully"
-#       inputs:
-#         comment_id:
-#           description: "The ID of the comment to minimize"
-#           required: true
-#           type: string
-#         comment_node_id:
-#           description: "The node ID of the comment to minimize"
-#           required: true
-#           type: string
-#         classifier:
-#           description: "The reason for minimizing (SPAM, ABUSE, OFF_TOPIC, OUTDATED, RESOLVED)"
-#           required: true
-#           type: string
-#           default: "SPAM"
-#       steps:
-#         - name: Minimize comment
-#           uses: actions/github-script@v8
-#           env:
-#             COMMENT_NODE_ID: ${{ inputs.comment_node_id }}
-#             CLASSIFIER: ${{ inputs.classifier }}
-#           with:
-#             script: |
-#               const nodeId = process.env.COMMENT_NODE_ID;
-#               const classifierInput = process.env.CLASSIFIER;
-#
-#               // Validate nodeId format (GitHub node IDs typically start with IC_, MDU_, etc.)
-#               if (!nodeId || typeof nodeId !== 'string' || nodeId.length === 0) {
-#                 core.setFailed('Invalid comment_node_id: must be a non-empty string');
-#                 return;
-#               }
-#
-#               // Additional nodeId format validation
-#               // GitHub node IDs are base64-like strings, often starting with specific prefixes
-#               // We do basic validation here; the GraphQL API will perform full validation
-#               if (!/^[A-Za-z0-9_=-]+$/.test(nodeId) || nodeId.length < 10) {
-#                 core.setFailed('Invalid comment_node_id format: must be a valid GitHub node ID');
-#                 return;
-#               }
-#
-#               // Validate classifier is a valid enum value
-#               const validClassifiers = ['SPAM', 'ABUSE', 'OFF_TOPIC', 'OUTDATED', 'RESOLVED'];
-#               if (!validClassifiers.includes(classifierInput)) {
-#                 core.setFailed(`Invalid classifier: ${classifierInput}. Must be one of: ${validClassifiers.join(', ')}`);
-#                 return;
-#               }
-#
-#               // Build the GraphQL mutation with validated inputs using variables
-#               const mutation = `
-#                 mutation($subjectId: ID!, $classifier: ReportedContentClassifiers!) {
-#                   minimizeComment(input: {
-#                     subjectId: $subjectId,
-#                     classifier: $classifier
-#                   }) {
-#                     minimizedComment {
-#                       isMinimized
-#                       minimizedReason
-#                     }
-#                   }
-#                 }
-#               `;
-#
-#               const variables = {
-#                 subjectId: nodeId,
-#                 classifier: classifierInput
-#               };
-#
-#               try {
-#                 const result = await github.graphql(mutation, variables);
-#                 core.info('Comment minimized successfully');
-#                 core.info(JSON.stringify(result, null, 2));
-#               } catch (error) {
-#                 core.setFailed(`Failed to minimize comment: ${error.message}`);
-#               }
+#   minimize-comment:
+#     max: 5
 # ```
 #
 # Job Dependency Graph:
@@ -227,16 +148,16 @@
 #
 # 2. **For Comments** (when comment ID is present):
 #    - If any type of spam or AI-generated content is detected:
-#      - Use the `minimize-comment` custom safe output job to minimize the comment
-#      - Note: The minimize-comment job requires `comment_node_id` (the GraphQL node ID) and `classifier` (set to "SPAM")
-#      - The `comment_id` is the numeric ID, but you need to fetch the `node_id` (GraphQL node ID) using the GitHub tools
+#      - Use the `minimize_comment` safe output to minimize the comment
+#      - You need the GraphQL node ID (not the numeric comment ID) - fetch it using the GitHub tools
+#      - Call `minimize_comment` with the `comment_id` parameter set to the GraphQL node ID
 #      - Also add appropriate labels to the parent issue/PR as described above
 #
 # ## How to fetch the Node ID
 #
 # If you need to minimize a comment, you'll need its GraphQL node ID. You can fetch this using the GitHub MCP server tools:
 #
-# **For issue comments**, use the GitHub REST API:
+# **For issue comments**, use the GitHub REST API to get the comment:
 # ```
 # GET /repos/<owner>/<repo>/issues/comments/<comment_id>
 # ```
@@ -251,6 +172,11 @@
 # The response will include a `node_id` field.
 #
 # The node ID is a base64-like encoded string used by GitHub's GraphQL API (e.g., `IC_kwDOABcD1M5ZJfGH`).
+#
+# Once you have the node ID, call the minimize_comment tool:
+# ```
+# minimize_comment(comment_id="IC_kwDOABcD1M5ZJfGH")
+# ```
 #
 # ## Important Guidelines
 #
@@ -1081,7 +1007,7 @@ jobs:
         run: |
           mkdir -p /tmp/gh-aw/safeoutputs
           cat > /tmp/gh-aw/safeoutputs/config.json << 'EOF'
-          {"add_labels":{"allowed":["spam","ai-generated","link-spam"],"max":3},"minimize-comment":{"description":"Minimize a comment marked as spam","inputs":{"classifier":{"default":"SPAM","description":"The reason for minimizing (SPAM, ABUSE, OFF_TOPIC, OUTDATED, RESOLVED)","required":true,"type":"string"},"comment_id":{"default":null,"description":"The ID of the comment to minimize","required":true,"type":"string"},"comment_node_id":{"default":null,"description":"The node ID of the comment to minimize","required":true,"type":"string"}},"output":"Comment minimized successfully"},"missing_tool":{"max":0},"noop":{"max":1}}
+          {"add_labels":{"allowed":["spam","ai-generated","link-spam"],"max":3},"missing_tool":{"max":0},"noop":{"max":1}}
           EOF
           cat > /tmp/gh-aw/safeoutputs/tools.json << 'EOF'
           [
@@ -1151,6 +1077,23 @@ jobs:
                 "type": "object"
               },
               "name": "noop"
+            },
+            {
+              "description": "Minimize (hide) a comment on a GitHub issue, pull request, or discussion. This collapses the comment as spam or off-topic. Use this for inappropriate, off-topic, or outdated comments. The comment_id must be a GraphQL node ID (string like 'IC_kwDOABCD123456'), not a numeric REST API comment ID.",
+              "inputSchema": {
+                "additionalProperties": false,
+                "properties": {
+                  "comment_id": {
+                    "description": "GraphQL node ID of the comment to minimize (e.g., 'IC_kwDOABCD123456'). This is the GraphQL node ID, not the numeric comment ID from REST API. Can be obtained from GraphQL queries or comment API responses.",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "comment_id"
+                ],
+                "type": "object"
+              },
+              "name": "minimize_comment"
             }
           ]
           EOF
@@ -2610,16 +2553,16 @@ jobs:
           
           2. **For Comments** (when comment ID is present):
              - If any type of spam or AI-generated content is detected:
-               - Use the `minimize-comment` custom safe output job to minimize the comment
-               - Note: The minimize-comment job requires `comment_node_id` (the GraphQL node ID) and `classifier` (set to "SPAM")
-               - The `comment_id` is the numeric ID, but you need to fetch the `node_id` (GraphQL node ID) using the GitHub tools
+               - Use the `minimize_comment` safe output to minimize the comment
+               - You need the GraphQL node ID (not the numeric comment ID) - fetch it using the GitHub tools
+               - Call `minimize_comment` with the `comment_id` parameter set to the GraphQL node ID
                - Also add appropriate labels to the parent issue/PR as described above
           
           ## How to fetch the Node ID
           
           If you need to minimize a comment, you'll need its GraphQL node ID. You can fetch this using the GitHub MCP server tools:
           
-          **For issue comments**, use the GitHub REST API:
+          **For issue comments**, use the GitHub REST API to get the comment:
           ```
           GET /repos/<owner>/<repo>/issues/comments/<comment_id>
           ```
@@ -2634,6 +2577,11 @@ jobs:
           The response will include a `node_id` field.
           
           The node ID is a base64-like encoded string used by GitHub's GraphQL API (e.g., `IC_kwDOABcD1M5ZJfGH`).
+          
+          Once you have the node ID, call the minimize_comment tool:
+          ```
+          minimize_comment(comment_id="IC_kwDOABcD1M5ZJfGH")
+          ```
           
           ## Important Guidelines
           
@@ -6704,80 +6652,149 @@ jobs:
       - agent
       - detection
     if: >
-      ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'minimize_comment'))
-    runs-on: ubuntu-latest
+      (((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'minimize_comment'))) &&
+      (needs.detection.outputs.success == 'true')
+    runs-on: ubuntu-slim
     permissions:
+      contents: read
+      discussions: write
       issues: write
       pull-requests: write
+    timeout-minutes: 10
+    outputs:
+      comment_id: ${{ steps.minimize_comment.outputs.comment_id }}
+      is_minimized: ${{ steps.minimize_comment.outputs.is_minimized }}
     steps:
       - name: Download agent output artifact
         continue-on-error: true
         uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
         with:
           name: agent_output.json
-          path: /tmp/gh-aw/safe-jobs/
-      - name: Setup Safe Job Environment Variables
+          path: /tmp/gh-aw/safeoutputs/
+      - name: Setup agent output environment variable
         run: |
-          find "/tmp/gh-aw/safe-jobs/" -type f -print
-          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safe-jobs/agent_output.json" >> "$GITHUB_ENV"
-      - name: Minimize comment
+          mkdir -p /tmp/gh-aw/safeoutputs/
+          find "/tmp/gh-aw/safeoutputs/" -type f -print
+          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> "$GITHUB_ENV"
+      - name: Minimize Comment
+        id: minimize_comment
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
-          CLASSIFIER: ${{ inputs.classifier }}
-          COMMENT_NODE_ID: ${{ inputs.comment_node_id }}
+          GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
+          GH_AW_MINIMIZE_COMMENT_MAX_COUNT: 5
+          GH_AW_WORKFLOW_NAME: "AI Moderator"
+          GH_AW_ENGINE_ID: "copilot"
         with:
-          script: |-
-            const nodeId = process.env.COMMENT_NODE_ID;
-            const classifierInput = process.env.CLASSIFIER;
-
-            // Validate nodeId format (GitHub node IDs typically start with IC_, MDU_, etc.)
-            if (!nodeId || typeof nodeId !== 'string' || nodeId.length === 0) {
-              core.setFailed('Invalid comment_node_id: must be a non-empty string');
-              return;
+          github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require("fs");
+            const MAX_LOG_CONTENT_LENGTH = 10000;
+            function truncateForLogging(content) {
+              if (content.length <= MAX_LOG_CONTENT_LENGTH) {
+                return content;
+              }
+              return content.substring(0, MAX_LOG_CONTENT_LENGTH) + `\n... (truncated, total length: ${content.length})`;
             }
-
-            // Additional nodeId format validation
-            // GitHub node IDs are base64-like strings, often starting with specific prefixes
-            // We do basic validation here; the GraphQL API will perform full validation
-            if (!/^[A-Za-z0-9_=-]+$/.test(nodeId) || nodeId.length < 10) {
-              core.setFailed('Invalid comment_node_id format: must be a valid GitHub node ID');
-              return;
+            function loadAgentOutput() {
+              const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT;
+              if (!agentOutputFile) {
+                core.info("No GH_AW_AGENT_OUTPUT environment variable found");
+                return { success: false };
+              }
+              let outputContent;
+              try {
+                outputContent = fs.readFileSync(agentOutputFile, "utf8");
+              } catch (error) {
+                const errorMessage = `Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`;
+                core.error(errorMessage);
+                return { success: false, error: errorMessage };
+              }
+              if (outputContent.trim() === "") {
+                core.info("Agent output content is empty");
+                return { success: false };
+              }
+              core.info(`Agent output content length: ${outputContent.length}`);
+              let validatedOutput;
+              try {
+                validatedOutput = JSON.parse(outputContent);
+              } catch (error) {
+                const errorMessage = `Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`;
+                core.error(errorMessage);
+                core.info(`Failed to parse content:\n${truncateForLogging(outputContent)}`);
+                return { success: false, error: errorMessage };
+              }
+              if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
+                core.info("No valid items found in agent output");
+                core.info(`Parsed content: ${truncateForLogging(JSON.stringify(validatedOutput))}`);
+                return { success: false };
+              }
+              return { success: true, items: validatedOutput.items };
             }
-
-            // Validate classifier is a valid enum value
-            const validClassifiers = ['SPAM', 'ABUSE', 'OFF_TOPIC', 'OUTDATED', 'RESOLVED'];
-            if (!validClassifiers.includes(classifierInput)) {
-              core.setFailed(`Invalid classifier: ${classifierInput}. Must be one of: ${validClassifiers.join(', ')}`);
-              return;
-            }
-
-            // Build the GraphQL mutation with validated inputs using variables
-            const mutation = `
-              mutation($subjectId: ID!, $classifier: ReportedContentClassifiers!) {
-                minimizeComment(input: {
-                  subjectId: $subjectId,
-                  classifier: $classifier
-                }) {
-                  minimizedComment {
-                    isMinimized
-                    minimizedReason
+            async function minimizeComment(github, nodeId) {
+              const query =  `
+                mutation ($nodeId: ID!) {
+                  minimizeComment(input: { subjectId: $nodeId, classifier: SPAM }) {
+                    minimizedComment {
+                      isMinimized
+                    }
                   }
                 }
-              }
-            `;
-
-            const variables = {
-              subjectId: nodeId,
-              classifier: classifierInput
-            };
-
-            try {
-              const result = await github.graphql(mutation, variables);
-              core.info('Comment minimized successfully');
-              core.info(JSON.stringify(result, null, 2));
-            } catch (error) {
-              core.setFailed(`Failed to minimize comment: ${error.message}`);
+              `;
+              const result = await github.graphql(query, { nodeId });
+              return {
+                id: nodeId,
+                isMinimized: result.minimizeComment.minimizedComment.isMinimized,
+              };
             }
+            async function main() {
+              const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
+              const result = loadAgentOutput();
+              if (!result.success) {
+                return;
+              }
+              const minimizeCommentItems = result.items.filter( item => item.type === "minimize_comment");
+              if (minimizeCommentItems.length === 0) {
+                core.info("No minimize-comment items found in agent output");
+                return;
+              }
+              core.info(`Found ${minimizeCommentItems.length} minimize-comment item(s)`);
+              if (isStaged) {
+                let summaryContent = "## 🎭 Staged Mode: Minimize Comments Preview\n\n";
+                summaryContent += "The following comments would be minimized if staged mode was disabled:\n\n";
+                for (let i = 0; i < minimizeCommentItems.length; i++) {
+                  const item = minimizeCommentItems[i];
+                  summaryContent += `### Comment ${i + 1}\n`;
+                  summaryContent += `**Node ID**: ${item.comment_id}\n`;
+                  summaryContent += `**Action**: Would be minimized as SPAM\n`;
+                  summaryContent += "\n";
+                }
+                core.summary.addRaw(summaryContent).write();
+                return;
+              }
+              for (const item of minimizeCommentItems) {
+                try {
+                  const commentId = item.comment_id;
+                  if (!commentId || typeof commentId !== "string") {
+                    throw new Error("comment_id is required and must be a string (GraphQL node ID)");
+                  }
+                  core.info(`Minimizing comment: ${commentId}`);
+                  const minimizeResult = await minimizeComment(github, commentId);
+                  if (minimizeResult.isMinimized) {
+                    core.info(`Successfully minimized comment: ${commentId}`);
+                    core.setOutput("comment_id", commentId);
+                    core.setOutput("is_minimized", "true");
+                  } else {
+                    throw new Error(`Failed to minimize comment: ${commentId}`);
+                  }
+                } catch (error) {
+                  const errorMessage = error instanceof Error ? error.message : String(error);
+                  core.error(`Failed to minimize comment: ${errorMessage}`);
+                  core.setFailed(`Failed to minimize comment: ${errorMessage}`);
+                  return;
+                }
+              }
+            }
+            await main();
 
   pre_activation:
     runs-on: ubuntu-slim

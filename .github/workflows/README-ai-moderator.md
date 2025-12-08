@@ -90,18 +90,20 @@ The workflow uses three labels:
 
 If the labels don't exist, the workflow will fail when trying to add them to issues.
 
-### Custom Safe Output: Minimize Comment
+### Safe Outputs
 
-The workflow includes a custom safe output job that uses GitHub's GraphQL API to minimize comments detected as spam. This job requires:
-- `comment_id`: The numeric ID of the comment
-- `comment_node_id`: The GraphQL node ID of the comment
-- `classifier`: The reason for minimizing (defaults to "SPAM")
+The workflow uses two built-in safe outputs:
+- **add-labels**: Adds labels to issues and PRs (spam, link-spam, ai-generated)
+- **minimize-comment**: Minimizes (hides) spam comments using GitHub's built-in functionality
+
+The minimize-comment safe output requires the GraphQL node ID of the comment, which the AI agent fetches from the GitHub API.
 
 ## Security
 
 The workflow follows security best practices:
 - **Read-only main job**: The AI analysis job only has read permissions
 - **Safe outputs**: Write operations (labeling, minimizing) are handled by separate jobs with explicit permissions
+- **Built-in safe outputs**: Uses gh-aw's built-in minimize-comment instead of custom GraphQL code
 - **Strict mode**: Enforces security constraints to prevent unauthorized actions
 
 ## Comparison with github/ai-moderator
