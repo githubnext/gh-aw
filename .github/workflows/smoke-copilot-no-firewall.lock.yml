@@ -4769,7 +4769,9 @@ jobs:
           echo "Running gh command with args:"
           echo "gh $INPUT_ARGS"
           echo "  GH_AW_GH_TOKEN: ${GH_AW_GH_TOKEN:0:6}..."
-          GH_TOKEN="$GH_AW_GH_TOKEN" GH_DEBUG=all gh $INPUT_ARGS
+          export GH_TOKEN="$GH_AW_GH_TOKEN"
+          curl -v -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github.v3+json" https://api.github.com/repos/githubnext/gh-aw/issues
+          GH_DEBUG=all gh $INPUT_ARGS
           
           EOFSH_gh
           chmod +x /tmp/gh-aw/safe-inputs/gh.sh

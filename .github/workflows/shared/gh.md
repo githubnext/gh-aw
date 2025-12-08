@@ -17,7 +17,9 @@ safe-inputs:
       echo "Running gh command with args:"
       echo "gh $INPUT_ARGS"
       echo "  GH_AW_GH_TOKEN: ${GH_AW_GH_TOKEN:0:6}..."
-      GH_TOKEN="$GH_AW_GH_TOKEN" GH_DEBUG=all gh $INPUT_ARGS
+      export GH_TOKEN="$GH_AW_GH_TOKEN"
+      curl -v -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github.v3+json" https://api.github.com/repos/githubnext/gh-aw/issues
+      GH_DEBUG=all gh $INPUT_ARGS
 ---
 
 **IMPORTANT**: Always use the `safeinputs-gh` tool for GitHub CLI commands instead of running `gh` directly via bash. The `safeinputs-gh` tool has proper authentication configured with `GITHUB_TOKEN`, while bash commands do not have GitHub CLI authentication by default.
