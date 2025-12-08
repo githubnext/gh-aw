@@ -13,7 +13,11 @@ import (
 // - No trailing punctuation (periods, exclamation marks, question marks)
 // - This is a common convention for CLI tools (e.g., Git, kubectl, gh)
 func TestShortDescriptionConsistency(t *testing.T) {
-	// Collect all commands to test
+	// Create commands that have subcommands
+	mcpCmd := cli.NewMCPCommand()
+	prCmd := cli.NewPRCommand()
+
+	// Collect all commands to test (including the parent commands with subcommands)
 	allCommands := []*cobra.Command{
 		rootCmd,
 		newCmd,
@@ -30,18 +34,16 @@ func TestShortDescriptionConsistency(t *testing.T) {
 		cli.NewAddCommand(validateEngine),
 		cli.NewUpdateCommand(validateEngine),
 		cli.NewAuditCommand(),
-		cli.NewMCPCommand(),
+		mcpCmd,
 		cli.NewMCPServerCommand(),
 		cli.NewMCPGatewayCommand(),
-		cli.NewPRCommand(),
+		prCmd,
 	}
 
-	// Also include MCP subcommands
-	mcpCmd := cli.NewMCPCommand()
+	// Add MCP subcommands
 	allCommands = append(allCommands, mcpCmd.Commands()...)
 
-	// Also include PR subcommands
-	prCmd := cli.NewPRCommand()
+	// Add PR subcommands
 	allCommands = append(allCommands, prCmd.Commands()...)
 
 	// Check each command's Short description
@@ -50,6 +52,9 @@ func TestShortDescriptionConsistency(t *testing.T) {
 			short := cmd.Short
 			if short == "" {
 				t.Skip("Command has no Short description")
+			}
+			if len(short) == 0 {
+				t.Skip("Command has empty Short description")
 			}
 
 			// Check for trailing punctuation
@@ -62,7 +67,8 @@ func TestShortDescriptionConsistency(t *testing.T) {
 }
 
 // TestLongDescriptionHasSentences verifies that Long descriptions use proper
-// sentences with punctuation, in contrast to Short descriptions
+// sentences with punctuation, in contrast to Short descriptions.
+// This is a documentation test that logs informational messages rather than failing.
 func TestLongDescriptionHasSentences(t *testing.T) {
 	// Sample commands that have Long descriptions
 	commandsWithLong := []*cobra.Command{
@@ -83,10 +89,11 @@ func TestLongDescriptionHasSentences(t *testing.T) {
 				t.Skip("Command has no Long description")
 			}
 
-			// Long descriptions should contain at least one sentence ending with a period
-			// This is just a sanity check, not a strict requirement
-			if !strings.Contains(long, ".") {
-				t.Logf("Note: Command '%s' Long description may benefit from proper sentence punctuation", cmd.Name())
+			// Long descriptions should typically contain sentence-ending punctuation
+			// This is just informational logging, not a strict requirement
+			// (Long descriptions may use various punctuation styles: periods, colons, etc.)
+			if !strings.Contains(long, ".") && !strings.Contains(long, ":") {
+				t.Logf("Note: Command '%s' Long description may benefit from sentence punctuation", cmd.Name())
 			}
 		})
 	}
