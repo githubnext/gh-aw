@@ -218,6 +218,7 @@ jobs:
       - name: Create gh-aw temp directory
         run: |
           mkdir -p /tmp/gh-aw/agent
+          mkdir -p /tmp/gh-aw/sandbox/agent/logs
           echo "Created /tmp/gh-aw/agent directory for agentic workflow temporary files"
       - name: Configure Git credentials
         env:
@@ -299,7 +300,7 @@ jobs:
           node-version: '24'
           package-manager-cache: false
       - name: Install Claude Code CLI
-        run: npm install -g @anthropic-ai/claude-code@2.0.60
+        run: npm install -g @anthropic-ai/claude-code@2.0.61
       - name: Generate Claude Settings
         run: |
           mkdir -p /tmp/gh-aw/.claude
@@ -755,10 +756,11 @@ jobs:
                         server.debugError(`  [${toolName}] Warning: Could not make shell script executable: `, chmodError);
                       }
                     }
-            function createShellHandler(server, toolName, scriptPath) {
+            function createShellHandler(server, toolName, scriptPath, timeoutSeconds = 60) {
               return async args => {
                 server.debug(`  [${toolName}] Invoking shell handler: ${scriptPath}`);
                 server.debug(`  [${toolName}] Shell handler args: ${JSON.stringify(args)}`);
+                server.debug(`  [${toolName}] Timeout: ${timeoutSeconds}s`);
                 const env = { ...process.env };
                 for (const [key, value] of Object.entries(args || {})) {
                   const envKey = `INPUT_${key.toUpperCase().replace(/-/g, "_")}`;
@@ -776,7 +778,7 @@ jobs:
                     [],
                     {
                       env,
-                      timeout: 300000, 
+                      timeout: timeoutSeconds * 1000, 
                       maxBuffer: 10 * 1024 * 1024, 
                     },
                     (error, stdout, stderr) => {
@@ -844,9 +846,10 @@ jobs:
                 });
               };
             }
-                    tool.handler = createShellHandler(server, toolName, resolvedPath);
+                    const timeout = tool.timeout || 60; 
+                    tool.handler = createShellHandler(server, toolName, resolvedPath, timeout);
                     loadedCount++;
-                    server.debug(`  [${toolName}] Shell handler created successfully`);
+                    server.debug(`  [${toolName}] Shell handler created successfully with timeout: ${timeout}s`);
                   } else if (ext === ".py") {
                     server.debug(`  [${toolName}] Detected Python script handler`);
                     try {
@@ -860,10 +863,11 @@ jobs:
                         server.debugError(`  [${toolName}] Warning: Could not make Python script executable: `, chmodError);
                       }
                     }
-            function createPythonHandler(server, toolName, scriptPath) {
+            function createPythonHandler(server, toolName, scriptPath, timeoutSeconds = 60) {
               return async args => {
                 server.debug(`  [${toolName}] Invoking Python handler: ${scriptPath}`);
                 server.debug(`  [${toolName}] Python handler args: ${JSON.stringify(args)}`);
+                server.debug(`  [${toolName}] Timeout: ${timeoutSeconds}s`);
                 const inputJson = JSON.stringify(args || {});
                 server.debug(
                   `  [${toolName}] Input JSON (${inputJson.length} bytes): ${inputJson.substring(0, 200)}${inputJson.length > 200 ? "..." : ""}`
@@ -875,7 +879,7 @@ jobs:
                     [scriptPath],
                     {
                       env: process.env,
-                      timeout: 300000, 
+                      timeout: timeoutSeconds * 1000, 
                       maxBuffer: 10 * 1024 * 1024, 
                     },
                     (error, stdout, stderr) => {
@@ -919,9 +923,10 @@ jobs:
                 });
               };
             }
-                    tool.handler = createPythonHandler(server, toolName, resolvedPath);
+                    const timeout = tool.timeout || 60; 
+                    tool.handler = createPythonHandler(server, toolName, resolvedPath, timeout);
                     loadedCount++;
-                    server.debug(`  [${toolName}] Python handler created successfully`);
+                    server.debug(`  [${toolName}] Python handler created successfully with timeout: ${timeout}s`);
                   } else {
                     server.debug(`  [${toolName}] Loading JavaScript handler module`);
                     const handlerModule = require(resolvedPath);
@@ -965,6 +970,96 @@ jobs:
             }
             function normalizeTool(name) {
               return name.replace(/-/g, "_").toLowerCase();
+            }
+            async function handleRequest(server, request, defaultHandler) {
+              const { id, method, params } = request;
+              try {
+                if (!("id" in request)) {
+                  return null;
+                }
+                let result;
+                if (method === "initialize") {
+                  const protocolVersion = params?.protocolVersion || "2024-11-05";
+                  result = {
+                    protocolVersion,
+                    serverInfo: server.serverInfo,
+                    capabilities: {
+                      tools: {},
+                    },
+                  };
+                } else if (method === "ping") {
+                  result = {};
+                } else if (method === "tools/list") {
+                  const list = [];
+                  Object.values(server.tools).forEach(tool => {
+                    const toolDef = {
+                      name: tool.name,
+                      description: tool.description,
+                      inputSchema: tool.inputSchema,
+                    };
+                    list.push(toolDef);
+                  });
+                  result = { tools: list };
+                } else if (method === "tools/call") {
+                  const name = params?.name;
+                  const args = params?.arguments ?? {};
+                  if (!name || typeof name !== "string") {
+                    throw {
+                      code: -32602,
+                      message: "Invalid params: 'name' must be a string",
+                    };
+                  }
+                  const tool = server.tools[normalizeTool(name)];
+                  if (!tool) {
+                    throw {
+                      code: -32602,
+                      message: `Tool '${name}' not found`,
+                    };
+                  }
+                  let handler = tool.handler;
+                  if (!handler && defaultHandler) {
+                    handler = defaultHandler(tool.name);
+                  }
+                  if (!handler) {
+                    throw {
+                      code: -32603,
+                      message: `No handler for tool: ${name}`,
+                    };
+                  }
+                  const missing = validateRequiredFields(args, tool.inputSchema);
+                  if (missing.length) {
+                    throw {
+                      code: -32602,
+                      message: `Invalid arguments: missing or empty ${missing.map(m => `'${m}'`).join(", ")}`,
+                    };
+                  }
+                  const handlerResult = await Promise.resolve(handler(args));
+                  const content = handlerResult && handlerResult.content ? handlerResult.content : [];
+                  result = { content, isError: false };
+                } else if (/^notifications\//.test(method)) {
+                  return null;
+                } else {
+                  throw {
+                    code: -32601,
+                    message: `Method not found: ${method}`,
+                  };
+                }
+                return {
+                  jsonrpc: "2.0",
+                  id,
+                  result,
+                };
+              } catch (error) {
+                const err =  error;
+                return {
+                  jsonrpc: "2.0",
+                  id,
+                  error: {
+                    code: err.code || -32603,
+                    message: err.message || "Internal error",
+                  },
+                };
+              }
             }
             async function handleMessage(server, req, defaultHandler) {
               if (!req || typeof req !== "object") {
@@ -1662,7 +1757,7 @@ jobs:
               engine_name: "Claude Code",
               model: process.env.GH_AW_MODEL_AGENT_CLAUDE || "",
               version: "",
-              agent_version: "2.0.60",
+              agent_version: "2.0.61",
               workflow_name: "Test Close Pull Request",
               experimental: true,
               supports_tools_allowlist: true,
@@ -1740,7 +1835,7 @@ jobs:
         run: |
           PROMPT_DIR="$(dirname "$GH_AW_PROMPT")"
           mkdir -p "$PROMPT_DIR"
-          cat << 'PROMPT_EOF' | envsubst > "$GH_AW_PROMPT"
+          cat << 'PROMPT_EOF' > "$GH_AW_PROMPT"
           # Test Close Pull Request
           
           Test the close-pull-request safe output functionality.
@@ -1760,7 +1855,7 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          cat << 'PROMPT_EOF' | envsubst >> "$GH_AW_PROMPT"
+          cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
           <security-guidelines>
           <description>Cross-Prompt Injection Attack (XPIA) Protection</description>
           <warning>
@@ -1782,7 +1877,7 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          cat << 'PROMPT_EOF' | envsubst >> "$GH_AW_PROMPT"
+          cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
           <temporary-files>
           <path>/tmp/gh-aw/agent/</path>
           <instruction>When you need to create temporary files or directories during your work, always use the /tmp/gh-aw/agent/ directory that has been pre-created for you. Do NOT use the root /tmp/ directory directly.</instruction>
@@ -1793,7 +1888,7 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          cat << 'PROMPT_EOF' | envsubst >> "$GH_AW_PROMPT"
+          cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
           <safe-outputs>
           <description>GitHub API Access Instructions</description>
           <important>
@@ -1817,36 +1912,115 @@ jobs:
           GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
           GH_AW_GITHUB_WORKSPACE: ${{ github.workspace }}
         run: |
-          cat << 'PROMPT_EOF' | envsubst >> "$GH_AW_PROMPT"
+          cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
           <github-context>
           The following GitHub context information is available for this workflow:
-          {{#if ${GH_AW_GITHUB_ACTOR} }}
-          - **actor**: ${GH_AW_GITHUB_ACTOR}
+          {{#if __GH_AW_GITHUB_ACTOR__ }}
+          - **actor**: __GH_AW_GITHUB_ACTOR__
           {{/if}}
-          {{#if ${GH_AW_GITHUB_REPOSITORY} }}
-          - **repository**: ${GH_AW_GITHUB_REPOSITORY}
+          {{#if __GH_AW_GITHUB_REPOSITORY__ }}
+          - **repository**: __GH_AW_GITHUB_REPOSITORY__
           {{/if}}
-          {{#if ${GH_AW_GITHUB_WORKSPACE} }}
-          - **workspace**: ${GH_AW_GITHUB_WORKSPACE}
+          {{#if __GH_AW_GITHUB_WORKSPACE__ }}
+          - **workspace**: __GH_AW_GITHUB_WORKSPACE__
           {{/if}}
-          {{#if ${GH_AW_GITHUB_EVENT_ISSUE_NUMBER} }}
-          - **issue-number**: #${GH_AW_GITHUB_EVENT_ISSUE_NUMBER}
+          {{#if __GH_AW_GITHUB_EVENT_ISSUE_NUMBER__ }}
+          - **issue-number**: #__GH_AW_GITHUB_EVENT_ISSUE_NUMBER__
           {{/if}}
-          {{#if ${GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER} }}
-          - **discussion-number**: #${GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER}
+          {{#if __GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER__ }}
+          - **discussion-number**: #__GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER__
           {{/if}}
-          {{#if ${GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER} }}
-          - **pull-request-number**: #${GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER}
+          {{#if __GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER__ }}
+          - **pull-request-number**: #__GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER__
           {{/if}}
-          {{#if ${GH_AW_GITHUB_EVENT_COMMENT_ID} }}
-          - **comment-id**: ${GH_AW_GITHUB_EVENT_COMMENT_ID}
+          {{#if __GH_AW_GITHUB_EVENT_COMMENT_ID__ }}
+          - **comment-id**: __GH_AW_GITHUB_EVENT_COMMENT_ID__
           {{/if}}
-          {{#if ${GH_AW_GITHUB_RUN_ID} }}
-          - **workflow-run-id**: ${GH_AW_GITHUB_RUN_ID}
+          {{#if __GH_AW_GITHUB_RUN_ID__ }}
+          - **workflow-run-id**: __GH_AW_GITHUB_RUN_ID__
           {{/if}}
           </github-context>
           
           PROMPT_EOF
+      - name: Substitute placeholders
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        env:
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+          GH_AW_GITHUB_ACTOR: ${{ github.actor }}
+          GH_AW_GITHUB_EVENT_COMMENT_ID: ${{ github.event.comment.id }}
+          GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER: ${{ github.event.discussion.number }}
+          GH_AW_GITHUB_EVENT_ISSUE_NUMBER: ${{ github.event.issue.number }}
+          GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER: ${{ github.event.pull_request.number }}
+          GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
+          GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
+          GH_AW_GITHUB_WORKSPACE: ${{ github.workspace }}
+        with:
+          script: |
+            /**
+             * @fileoverview Safe template placeholder substitution for GitHub Actions workflows.
+             * Replaces __VAR__ placeholders in a file with environment variable values without
+             * allowing shell expansion, preventing template injection attacks.
+             *
+             * @param {object} params - The parameters object
+             * @param {string} params.file - Path to the file to process
+             * @param {object} params.substitutions - Map of placeholder names to values (without __ prefix/suffix)
+             */
+            
+            const fs = require("fs");
+            
+            const substitutePlaceholders = async ({ file, substitutions }) => {
+              // Validate inputs
+              if (!file) {
+                throw new Error("file parameter is required");
+              }
+              if (!substitutions || typeof substitutions !== "object") {
+                throw new Error("substitutions parameter must be an object");
+              }
+            
+              // Read the file content
+              let content;
+              try {
+                content = fs.readFileSync(file, "utf8");
+              } catch (error) {
+                throw new Error(`Failed to read file ${file}: ${error.message}`);
+              }
+            
+              // Perform substitutions
+              // Each placeholder is in the format __VARIABLE_NAME__
+              // We replace it with the corresponding value from the substitutions object
+              for (const [key, value] of Object.entries(substitutions)) {
+                const placeholder = `__${key}__`;
+                // Use a simple string replacement - no regex to avoid any potential issues
+                // with special characters in the value
+                content = content.split(placeholder).join(value);
+              }
+            
+              // Write the updated content back to the file
+              try {
+                fs.writeFileSync(file, content, "utf8");
+              } catch (error) {
+                throw new Error(`Failed to write file ${file}: ${error.message}`);
+              }
+            
+              return `Successfully substituted ${Object.keys(substitutions).length} placeholder(s) in ${file}`;
+            };
+            
+            
+            
+            // Call the substitution function
+            return await substitutePlaceholders({
+              file: process.env.GH_AW_PROMPT,
+              substitutions: {
+                GH_AW_GITHUB_ACTOR: process.env.GH_AW_GITHUB_ACTOR,
+                GH_AW_GITHUB_EVENT_COMMENT_ID: process.env.GH_AW_GITHUB_EVENT_COMMENT_ID,
+                GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER: process.env.GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER,
+                GH_AW_GITHUB_EVENT_ISSUE_NUMBER: process.env.GH_AW_GITHUB_EVENT_ISSUE_NUMBER,
+                GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER: process.env.GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER,
+                GH_AW_GITHUB_REPOSITORY: process.env.GH_AW_GITHUB_REPOSITORY,
+                GH_AW_GITHUB_RUN_ID: process.env.GH_AW_GITHUB_RUN_ID,
+                GH_AW_GITHUB_WORKSPACE: process.env.GH_AW_GITHUB_WORKSPACE
+              }
+            });
       - name: Interpolate variables and render templates
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
@@ -4913,7 +5087,7 @@ jobs:
           node-version: '24'
           package-manager-cache: false
       - name: Install Claude Code CLI
-        run: npm install -g @anthropic-ai/claude-code@2.0.60
+        run: npm install -g @anthropic-ai/claude-code@2.0.61
       - name: Execute Claude Code CLI
         id: agentic_execution
         # Allowed tools (sorted):
