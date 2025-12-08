@@ -29,7 +29,9 @@
 # timeout-minutes: 5
 # strict: false
 # engine: copilot
+#
 # permissions: read-all
+#
 # tools:
 #   github: false
 #   edit:
@@ -40,7 +42,7 @@
 #   create-issue:
 #   staged: true
 # steps:
-#   - name: download issues data
+#   - name: Download issues data
 #     run: |
 #       gh pr list --limit 1 --json number,title,body,author,createdAt,mergedAt,state,url
 #     env:
@@ -238,7 +240,7 @@ jobs:
           echo "Created /tmp/gh-aw/agent directory for agentic workflow temporary files"
       - env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        name: download issues data
+        name: Download issues data
         run: gh pr list --limit 1 --json number,title,body,author,createdAt,mergedAt,state,url
 
       - name: Configure Git credentials
@@ -2957,7 +2959,7 @@ jobs:
           
           echo "gh $INPUT_ARGS"
           echo "  token: ${GH_AW_GH_TOKEN:0:6}..."
-          GH_TOKEN=$GH_AW_GH_TOKEN gh $INPUT_ARGS
+          GH_TOKEN="$GH_AW_GH_TOKEN" gh $INPUT_ARGS
           
           EOFSH_gh
           chmod +x /tmp/gh-aw/safe-inputs/gh.sh

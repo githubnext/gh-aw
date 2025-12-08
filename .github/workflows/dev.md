@@ -6,7 +6,9 @@ description: Create a poem about GitHub and save it to repo-memory
 timeout-minutes: 5
 strict: false
 engine: copilot
+
 permissions: read-all
+
 tools:
   github: false
   edit:
@@ -17,7 +19,7 @@ safe-outputs:
   create-issue:
   staged: true
 steps:
-  - name: download issues data
+  - name: Download issues data
     run: |
       gh pr list --limit 1 --json number,title,body,author,createdAt,mergedAt,state,url
     env:
