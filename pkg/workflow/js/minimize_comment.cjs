@@ -2,7 +2,6 @@
 /// <reference types="@actions/github-script" />
 
 const { loadAgentOutput } = require("./load_agent_output.cjs");
-const { getRepositoryUrl } = require("./get_repository_url.cjs");
 
 /**
  * Minimize (hide) a comment using the GraphQL API.
@@ -68,20 +67,27 @@ async function main() {
   for (const item of minimizeCommentItems) {
     try {
       const commentId = item.comment_id;
-      if (!commentId || typeof commentId !== "string") {
-        throw new Error("comment_id is required and must be a string");
+      if (!commentId) {
+        throw new Error("comment_id is required");
       }
 
-      core.info(`Minimizing comment: ${commentId}`);
+      // Convert numeric comment_id to string if needed (GraphQL requires string node IDs)
+      const commentNodeId = typeof commentId === "number" ? String(commentId) : commentId;
 
-      const minimizeResult = await minimizeComment(github, commentId);
+      if (typeof commentNodeId !== "string") {
+        throw new Error("comment_id must be a string or number");
+      }
+
+      core.info(`Minimizing comment: ${commentNodeId}`);
+
+      const minimizeResult = await minimizeComment(github, commentNodeId);
 
       if (minimizeResult.isMinimized) {
-        core.info(`Successfully minimized comment: ${commentId}`);
-        core.setOutput("comment_id", commentId);
+        core.info(`Successfully minimized comment: ${commentNodeId}`);
+        core.setOutput("comment_id", commentNodeId);
         core.setOutput("is_minimized", "true");
       } else {
-        throw new Error(`Failed to minimize comment: ${commentId}`);
+        throw new Error(`Failed to minimize comment: ${commentNodeId}`);
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
