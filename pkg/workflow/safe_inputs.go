@@ -372,9 +372,8 @@ const { startHttpServer } = require("./safe_inputs_mcp_server_http.cjs");
 // Configuration file path (generated alongside this script)
 const configPath = path.join(__dirname, "tools.json");
 
-// Get port and API key from environment variables
+// Get port from environment variables
 const port = parseInt(process.env.GH_AW_SAFE_INPUTS_PORT || "52000", 10);
-const apiKey = process.env.GH_AW_SAFE_INPUTS_API_KEY || "";
 
 // Start the HTTP server
 startHttpServer(configPath, {
@@ -589,47 +588,49 @@ func renderSafeInputsMCPConfigWithOptions(yaml *strings.Builder, safeInputs *Saf
 
 	// HTTP URL with hardcoded port 52000 (similar to GitHub remote MCP configuration)
 	// Use host.docker.internal to allow access from firewall container
-	yaml.WriteString("                \"url\": \"http://host.docker.internal:52000\",\n")
+	yaml.WriteString("                \"url\": \"http://host.docker.internal:52000\"")
 
-	// Add Authorization header with API key
-	yaml.WriteString("                \"headers\": {\n")
-	if includeCopilotFields {
-		// Copilot format: direct shell variable reference (no backslash escape in headers)
-		yaml.WriteString("                  \"Authorization\": \"Bearer $GH_AW_SAFE_INPUTS_API_KEY\"\n")
+	// Add comma if we have tools field or env block
+	if includeCopilotFields || len(envVars) > 0 {
+		yaml.WriteString(",\n")
 	} else {
-		// Claude/Custom format: direct shell variable reference
-		yaml.WriteString("                  \"Authorization\": \"Bearer $GH_AW_SAFE_INPUTS_API_KEY\"\n")
+		yaml.WriteString("\n")
 	}
-	yaml.WriteString("                },\n")
 
 	// Add tools field for Copilot
 	if includeCopilotFields {
-		yaml.WriteString("                \"tools\": [\"*\"],\n")
-	}
-
-	// Add env block for environment variable passthrough
-	// Note: GH_AW_SAFE_INPUTS_PORT no longer needed in env since port is hardcoded
-	envVarsWithServerConfig := append([]string{"GH_AW_SAFE_INPUTS_API_KEY"}, envVars...)
-	yaml.WriteString("                \"env\": {\n")
-
-	// Write environment variables with appropriate escaping
-	for i, envVar := range envVarsWithServerConfig {
-		isLastEnvVar := i == len(envVarsWithServerConfig)-1
-		comma := ""
-		if !isLastEnvVar {
-			comma = ","
-		}
-
-		if includeCopilotFields {
-			// Copilot format: backslash-escaped shell variable reference
-			yaml.WriteString("                  \"" + envVar + "\": \"\\${" + envVar + "}\"" + comma + "\n")
+		yaml.WriteString("                \"tools\": [\"*\"]")
+		// Add comma if we have env block
+		if len(envVars) > 0 {
+			yaml.WriteString(",\n")
 		} else {
-			// Claude/Custom format: direct shell variable reference
-			yaml.WriteString("                  \"" + envVar + "\": \"$" + envVar + "\"" + comma + "\n")
+			yaml.WriteString("\n")
 		}
 	}
 
-	yaml.WriteString("                }\n")
+	// Add env block for environment variable passthrough (only tool-specific vars, no server config)
+	if len(envVars) > 0 {
+		yaml.WriteString("                \"env\": {\n")
+
+		// Write environment variables with appropriate escaping
+		for i, envVar := range envVars {
+			isLastEnvVar := i == len(envVars)-1
+			comma := ""
+			if !isLastEnvVar {
+				comma = ","
+			}
+
+			if includeCopilotFields {
+				// Copilot format: backslash-escaped shell variable reference
+				yaml.WriteString("                  \"" + envVar + "\": \"\\${" + envVar + "}\"" + comma + "\n")
+			} else {
+				// Claude/Custom format: direct shell variable reference
+				yaml.WriteString("                  \"" + envVar + "\": \"$" + envVar + "\"" + comma + "\n")
+			}
+		}
+
+		yaml.WriteString("                }\n")
+	}
 
 	if isLast {
 		yaml.WriteString("              }\n")

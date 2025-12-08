@@ -17,7 +17,6 @@ echo "Configuration files verified"
 # Log environment configuration
 echo "Server configuration:"
 echo "  Port: $GH_AW_SAFE_INPUTS_PORT"
-echo "  API Key: ${GH_AW_SAFE_INPUTS_API_KEY:0:8}..."
 echo "  Working directory: $(pwd)"
 
 # Ensure logs directory exists
@@ -68,4 +67,3 @@ done
 
 # Output the configuration for the MCP client
 echo "port=$GH_AW_SAFE_INPUTS_PORT" >> $GITHUB_OUTPUT
-echo "api_key=$GH_AW_SAFE_INPUTS_API_KEY" >> $GITHUB_OUTPUT

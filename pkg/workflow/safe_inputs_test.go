@@ -623,8 +623,9 @@ func TestGenerateSafeInputsMCPServerScript(t *testing.T) {
 		t.Error("Script should reference GH_AW_SAFE_INPUTS_PORT environment variable")
 	}
 
-	if !strings.Contains(script, "GH_AW_SAFE_INPUTS_API_KEY") {
-		t.Error("Script should reference GH_AW_SAFE_INPUTS_API_KEY environment variable")
+	// API key should not be referenced anymore (removed for simpler local server)
+	if strings.Contains(script, "GH_AW_SAFE_INPUTS_API_KEY") {
+		t.Error("Script should not reference GH_AW_SAFE_INPUTS_API_KEY (API key removed)")
 	}
 
 	// Test the tools configuration JSON

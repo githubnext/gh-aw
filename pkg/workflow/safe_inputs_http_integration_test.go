@@ -64,23 +64,26 @@ Test safe-inputs HTTP server
 		}
 	}
 
-	// Verify API key generation step uses github-script
-	apiKeyGenChecks := []string{
+	// Verify config generation step uses github-script
+	configGenChecks := []string{
 		"uses: actions/github-script@",
 		"generateSafeInputsConfig",
-		"crypto.randomBytes",
 	}
 
-	for _, check := range apiKeyGenChecks {
+	for _, check := range configGenChecks {
 		if !strings.Contains(yamlStr, check) {
-			t.Errorf("Expected API key generation content not found: %q", check)
+			t.Errorf("Expected config generation content not found: %q", check)
 		}
+	}
+
+	// Should NOT have crypto.randomBytes (API key generation removed)
+	if strings.Contains(yamlStr, "crypto.randomBytes") {
+		t.Error("Should not have crypto.randomBytes (API key generation removed)")
 	}
 
 	// Verify HTTP server startup
 	serverStartupChecks := []string{
 		"export GH_AW_SAFE_INPUTS_PORT=52000",
-		"export GH_AW_SAFE_INPUTS_API_KEY=${{ steps.safe-inputs-config.outputs.safe_inputs_api_key }}",
 		"node mcp-server.cjs",
 		"Started safe-inputs MCP server with PID",
 	}
@@ -89,6 +92,11 @@ Test safe-inputs HTTP server
 		if !strings.Contains(yamlStr, check) {
 			t.Errorf("Expected server startup content not found: %q", check)
 		}
+	}
+
+	// Should NOT have API key export
+	if strings.Contains(yamlStr, "GH_AW_SAFE_INPUTS_API_KEY=${{") {
+		t.Error("Should not export GH_AW_SAFE_INPUTS_API_KEY (API key removed)")
 	}
 
 	// Verify health check (health endpoint doesn't require auth)
@@ -110,11 +118,7 @@ Test safe-inputs HTTP server
 		`"safeinputs": {`,
 		`"type": "http"`,
 		`"url": "http://host.docker.internal:52000"`,
-		`"headers": {`,
-		`"Authorization": "Bearer $GH_AW_SAFE_INPUTS_API_KEY"`,
 		`"tools": ["*"]`,
-		`"env": {`,
-		`"GH_AW_SAFE_INPUTS_API_KEY": "\${GH_AW_SAFE_INPUTS_API_KEY}"`,
 	}
 
 	for _, expected := range expectedMCPChecks {
@@ -123,16 +127,25 @@ Test safe-inputs HTTP server
 		}
 	}
 
+	// Should NOT have Authorization header
+	if strings.Contains(yamlStr, `"Authorization":`) && strings.Contains(yamlStr, `"safeinputs"`) {
+		t.Error("Should not have Authorization header in safeinputs config (API key removed)")
+	}
+
 	// Verify env variables are set in Setup MCPs step
 	setupMCPsEnvChecks := []string{
 		"GH_AW_SAFE_INPUTS_PORT: 52000",
-		"GH_AW_SAFE_INPUTS_API_KEY: ${{ steps.safe-inputs-start.outputs.api_key }}",
 	}
 
 	for _, check := range setupMCPsEnvChecks {
 		if !strings.Contains(yamlStr, check) {
 			t.Errorf("Expected env var in Setup MCPs not found: %q", check)
 		}
+	}
+
+	// Should NOT have API key in env
+	if strings.Contains(yamlStr, "GH_AW_SAFE_INPUTS_API_KEY: ${{") {
+		t.Error("Should not have GH_AW_SAFE_INPUTS_API_KEY in Setup MCPs env (API key removed)")
 	}
 }
 

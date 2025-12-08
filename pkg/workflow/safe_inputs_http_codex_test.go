@@ -72,13 +72,14 @@ Test safe-inputs HTTP transport for Codex
 		t.Error("Expected type field set to 'http' in TOML format")
 	}
 
-	// Should use HTTP transport (url + headers) with host.docker.internal
+	// Should use HTTP transport (url) with host.docker.internal
 	if !strings.Contains(yamlStr, `url = "http://host.docker.internal:52000"`) {
 		t.Error("Expected HTTP URL config with hardcoded port 52000 and host.docker.internal not found in TOML format")
 	}
 
-	if !strings.Contains(yamlStr, `headers = { Authorization = "Bearer $GH_AW_SAFE_INPUTS_API_KEY" }`) {
-		t.Error("Expected HTTP headers config not found in TOML format")
+	// Should NOT have Authorization headers (no API key authentication)
+	if strings.Contains(codexConfigSection, "Authorization") {
+		t.Error("Should not have Authorization header (API key removed)")
 	}
 
 	// Should NOT use stdio transport (command + args to node)
@@ -90,14 +91,14 @@ Test safe-inputs HTTP transport for Codex
 		t.Error("Codex config should not use stdio transport with mcp-server.cjs args, should use HTTP")
 	}
 
-	// Verify environment variables are included
-	// Note: GH_AW_SAFE_INPUTS_PORT is no longer in env_vars since port is hardcoded
+	// Verify environment variables
+	// Note: No server config env vars should be present (port is hardcoded, no API key)
 	if strings.Contains(codexConfigSection, "GH_AW_SAFE_INPUTS_PORT") {
 		t.Error("GH_AW_SAFE_INPUTS_PORT should not be in env vars since port is hardcoded to 52000")
 	}
 
-	if !strings.Contains(codexConfigSection, "GH_AW_SAFE_INPUTS_API_KEY") {
-		t.Error("Expected GH_AW_SAFE_INPUTS_API_KEY env var in config")
+	if strings.Contains(codexConfigSection, "GH_AW_SAFE_INPUTS_API_KEY") {
+		t.Error("GH_AW_SAFE_INPUTS_API_KEY should not be in env vars (API key removed)")
 	}
 
 	t.Logf("✓ Codex engine correctly uses HTTP transport for safe-inputs")
