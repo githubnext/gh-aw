@@ -49,16 +49,24 @@ strict: true
 
 ## Test Requirements
 
-1. **GitHub MCP Testing**: Review the last 2 merged pull requests in ${{ github.repository }}
-2. **File Writing Testing**: Create a test file `/tmp/gh-aw/agent/smoke-test-copilot-${{ github.run_id }}.txt` with content "Smoke test passed for Copilot at $(date)" (create the directory if it doesn't exist)
-3. **Bash Tool Testing**: Execute bash commands to verify file creation was successful (use `cat` to read the file back)
-4. **GitHub MCP Default Toolset Testing**: Verify that the `get_me` tool is NOT available with default toolsets. Try to use it and confirm it fails with a tool not found error.
-5. **Cache Memory Testing**: Write a test file to `/tmp/gh-aw/cache-memory/smoke-test-${{ github.run_id }}.txt` with content "Cache memory test for run ${{ github.run_id }}" and verify it was created successfully
-6. **Safe Input gh Tool Testing**: Use the `gh` safe-input tool to run "gh issues list --limit 3" to verify the tool can access GitHub issues
+1. **List Available Tools**: First, list all available MCP tools to verify what's accessible
+2. **Safe Inputs Server Debugging**: If safeinputs tools are not present in the list, attempt to connect to the safe-inputs server at http://host.docker.internal:52000 and provide detailed debugging information including:
+   - Whether the server is reachable
+   - HTTP response status and headers
+   - Any error messages
+   - Network connectivity diagnostics
+3. **GitHub MCP Testing**: Review the last 2 merged pull requests in ${{ github.repository }}
+4. **File Writing Testing**: Create a test file `/tmp/gh-aw/agent/smoke-test-copilot-${{ github.run_id }}.txt` with content "Smoke test passed for Copilot at $(date)" (create the directory if it doesn't exist)
+5. **Bash Tool Testing**: Execute bash commands to verify file creation was successful (use `cat` to read the file back)
+6. **GitHub MCP Default Toolset Testing**: Verify that the `get_me` tool is NOT available with default toolsets. Try to use it and confirm it fails with a tool not found error.
+7. **Cache Memory Testing**: Write a test file to `/tmp/gh-aw/cache-memory/smoke-test-${{ github.run_id }}.txt` with content "Cache memory test for run ${{ github.run_id }}" and verify it was created successfully
+8. **Safe Input gh Tool Testing**: Use the `gh` safe-input tool to run "gh issues list --limit 3" to verify the tool can access GitHub issues
 
 ## Output
 
 Add a **very brief** comment (max 5-10 lines) to the current pull request with:
+- List of available MCP tools
+- Safe-inputs server connection status (if applicable)
 - PR titles only (no descriptions)
 - ✅ or ❌ for each test result
 - Overall status: PASS or FAIL
