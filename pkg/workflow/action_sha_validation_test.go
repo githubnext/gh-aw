@@ -196,7 +196,7 @@ Just a simple test workflow.
 // This test doesn't require network access and uses a pre-populated cache
 func TestActionSHAValidationSavesCache(t *testing.T) {
 	testDir := testutil.TempDir(t, "test-*")
-	
+
 	// Create a lock file with an action
 	lockFile := filepath.Join(testDir, "test-workflow.lock.yml")
 	lockContent := `name: Test Workflow
@@ -214,13 +214,13 @@ jobs:
 	// Create a cache and pre-populate it with entries
 	cache := NewActionCache(testDir)
 	cache.Set("actions/checkout", "v5", "93cb6efe18208431cddfb8368fd83d5badbf9bfd")
-	
+
 	// Verify cache file doesn't exist before validation
 	cachePath := filepath.Join(testDir, ".github", "aw", CacheFileName)
 	if _, err := os.Stat(cachePath); !os.IsNotExist(err) {
 		os.RemoveAll(filepath.Join(testDir, ".github"))
 	}
-	
+
 	// Run validation - even if no updates are detected, this exercises the code path
 	// In a real scenario with network access, this would detect and save updates
 	err := ValidateActionSHAsInLockFile(lockFile, cache, false)
@@ -232,4 +232,3 @@ jobs:
 	// In CI with gh CLI access, the cache would be saved if updates were found
 	t.Logf("Validation completed successfully")
 }
-
