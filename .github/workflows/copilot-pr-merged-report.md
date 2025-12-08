@@ -18,15 +18,9 @@ strict: false
 
 tools:
   github: false
+  edit:
   bash:
-    - "gh pr *"
-    - "gh api *"
-    - "jq *"
-    - "date *"
-    - "find *"
-    - "wc *"
-    - "grep *"
-    - "awk *"
+    - "*"
 
 safe-outputs:
   create-discussion:
@@ -81,9 +75,9 @@ echo "Looking for PRs merged since: $DATE_24H_AGO"
 
 **Step 1.2: Search for Merged Copilot PRs**
 
-Use the `gh` safe-input tool to search for merged PRs from Copilot:
+Use the `safeinputs-gh` safe-input tool to search for merged PRs from Copilot:
 ```
-gh with args: "pr list --repo ${{ github.repository }} --search \"head:copilot/ is:merged merged:>=$DATE_24H_AGO\" --state merged --limit 100 --json number,title,mergedAt,additions,deletions,files,url"
+safeinputs-gh with args: "pr list --repo ${{ github.repository }} --search \"head:copilot/ is:merged merged:>=$DATE_24H_AGO\" --state merged --limit 100 --json number,title,mergedAt,additions,deletions,files,url"
 ```
 
 This searches for:
@@ -94,7 +88,7 @@ This searches for:
 
 **Step 1.3: Parse Results**
 
-Parse the JSON output from the gh command to extract:
+Parse the JSON output from the safeinputs-gh tool to extract:
 - List of PR numbers
 - Total number of merged PRs
 - Sum of lines added across all PRs
@@ -109,9 +103,9 @@ For each merged PR found in Phase 1:
 
 **Step 2.1: Get PR Files**
 
-Use the `gh` tool to get detailed file information:
+Use the `safeinputs-gh` tool to get detailed file information:
 ```
-gh with args: "pr view <PR_NUMBER> --repo ${{ github.repository }} --json files"
+safeinputs-gh with args: "pr view <PR_NUMBER> --repo ${{ github.repository }} --json files"
 ```
 
 **Step 2.2: Count Test Files**
@@ -127,19 +121,19 @@ For token usage information, we need to find the workflow run associated with th
 
 1. Get commits from the PR:
    ```
-   gh with args: "pr view <PR_NUMBER> --repo ${{ github.repository }} --json commits"
+   safeinputs-gh with args: "pr view <PR_NUMBER> --repo ${{ github.repository }} --json commits"
    ```
 
 2. For the latest commit, find associated workflow runs:
    ```
-   gh with args: "api repos/${{ github.repository }}/commits/<COMMIT_SHA>/check-runs"
+   safeinputs-gh with args: "api repos/${{ github.repository }}/commits/<COMMIT_SHA>/check-runs"
    ```
 
 3. From the check runs, identify GitHub Actions workflow runs
 
 4. Get workflow run usage data:
    ```
-   gh with args: "api repos/${{ github.repository }}/actions/runs/<RUN_ID>/timing"
+   safeinputs-gh with args: "api repos/${{ github.repository }}/actions/runs/<RUN_ID>/timing"
    ```
 
    This returns timing information including billable time.

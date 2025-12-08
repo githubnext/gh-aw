@@ -41,15 +41,9 @@
 #
 # tools:
 #   github: false
+#   edit:
 #   bash:
-#     - "gh pr *"
-#     - "gh api *"
-#     - "jq *"
-#     - "date *"
-#     - "find *"
-#     - "wc *"
-#     - "grep *"
-#     - "awk *"
+#     - "*"
 #
 # safe-outputs:
 #   create-discussion:
@@ -96,16 +90,17 @@
 #
 # Original Prompt:
 # ```markdown
-# **IMPORTANT**: Always use the `gh` safe-input tool for GitHub CLI commands instead of running `gh` directly via bash. The safe-input tool has proper authentication configured with `GITHUB_TOKEN`, while bash commands do not have GitHub CLI authentication by default.
+# **IMPORTANT**: Always use the `safeinputs-gh` tool for GitHub CLI commands instead of running `gh` directly via bash. The `safeinputs-gh` tool has proper authentication configured with `GITHUB_TOKEN`, while bash commands do not have GitHub CLI authentication by default.
 #
 # **Correct**:
 # ```
-# Use the gh safe-input tool with args: "pr list --limit 5"
-# Use the gh safe-input tool with args: "issue view 123"
+# Use the safeinputs-gh tool with args: "pr list --limit 5"
+# Use the safeinputs-gh tool with args: "issue view 123"
 # ```
 #
 # **Incorrect**:
 # ```
+# Use the gh safe-input tool with args: "pr list --limit 5"  ❌ (Wrong tool name - use safeinputs-gh)
 # Run: gh pr list --limit 5  ❌ (No authentication in bash)
 # Execute bash: gh issue view 123  ❌ (No authentication in bash)
 # ```
@@ -222,9 +217,9 @@
 #
 # **Step 1.2: Search for Merged Copilot PRs**
 #
-# Use the `gh` safe-input tool to search for merged PRs from Copilot:
+# Use the `safeinputs-gh` safe-input tool to search for merged PRs from Copilot:
 # ```
-# gh with args: "pr list --repo ${{ github.repository }} --search \"head:copilot/ is:merged merged:>=$DATE_24H_AGO\" --state merged --limit 100 --json number,title,mergedAt,additions,deletions,files,url"
+# safeinputs-gh with args: "pr list --repo ${{ github.repository }} --search \"head:copilot/ is:merged merged:>=$DATE_24H_AGO\" --state merged --limit 100 --json number,title,mergedAt,additions,deletions,files,url"
 # ```
 #
 # This searches for:
@@ -235,7 +230,7 @@
 #
 # **Step 1.3: Parse Results**
 #
-# Parse the JSON output from the gh command to extract:
+# Parse the JSON output from the safeinputs-gh tool to extract:
 # - List of PR numbers
 # - Total number of merged PRs
 # - Sum of lines added across all PRs
@@ -250,9 +245,9 @@
 #
 # **Step 2.1: Get PR Files**
 #
-# Use the `gh` tool to get detailed file information:
+# Use the `safeinputs-gh` tool to get detailed file information:
 # ```
-# gh with args: "pr view <PR_NUMBER> --repo ${{ github.repository }} --json files"
+# safeinputs-gh with args: "pr view <PR_NUMBER> --repo ${{ github.repository }} --json files"
 # ```
 #
 # **Step 2.2: Count Test Files**
@@ -268,19 +263,19 @@
 #
 # 1. Get commits from the PR:
 #    ```
-#    gh with args: "pr view <PR_NUMBER> --repo ${{ github.repository }} --json commits"
+#    safeinputs-gh with args: "pr view <PR_NUMBER> --repo ${{ github.repository }} --json commits"
 #    ```
 #
 # 2. For the latest commit, find associated workflow runs:
 #    ```
-#    gh with args: "api repos/${{ github.repository }}/commits/<COMMIT_SHA>/check-runs"
+#    safeinputs-gh with args: "api repos/${{ github.repository }}/commits/<COMMIT_SHA>/check-runs"
 #    ```
 #
 # 3. From the check runs, identify GitHub Actions workflow runs
 #
 # 4. Get workflow run usage data:
 #    ```
-#    gh with args: "api repos/${{ github.repository }}/actions/runs/<RUN_ID>/timing"
+#    safeinputs-gh with args: "api repos/${{ github.repository }}/actions/runs/<RUN_ID>/timing"
 #    ```
 #
 #    This returns timing information including billable time.
@@ -3209,7 +3204,7 @@ jobs:
             "tools": [
               {
                 "name": "gh",
-                "description": "Execute any gh CLI command. Provide the full command after 'gh' (e.g., args: 'pr list --limit 5'). The tool will run: gh \u003cargs\u003e. Use single quotes ' for complex args to avoid shell interpretation issues.",
+                "description": "Execute any gh CLI command. This tool is accessible as 'safeinputs-gh'. Provide the full command after 'gh' (e.g., args: 'pr list --limit 5'). The tool will run: gh \u003cargs\u003e. Use single quotes ' for complex args to avoid shell interpretation issues.",
                 "inputSchema": {
                   "properties": {
                     "args": {
@@ -3249,7 +3244,7 @@ jobs:
           cat > /tmp/gh-aw/safe-inputs/gh.sh << 'EOFSH_gh'
           #!/bin/bash
           # Auto-generated safe-input tool: gh
-          # Execute any gh CLI command. Provide the full command after 'gh' (e.g., args: 'pr list --limit 5'). The tool will run: gh <args>. Use single quotes ' for complex args to avoid shell interpretation issues.
+          # Execute any gh CLI command. This tool is accessible as 'safeinputs-gh'. Provide the full command after 'gh' (e.g., args: 'pr list --limit 5'). The tool will run: gh <args>. Use single quotes ' for complex args to avoid shell interpretation issues.
           
           set -euo pipefail
           
@@ -3397,16 +3392,17 @@ jobs:
           PROMPT_DIR="$(dirname "$GH_AW_PROMPT")"
           mkdir -p "$PROMPT_DIR"
           cat << 'PROMPT_EOF' > "$GH_AW_PROMPT"
-          **IMPORTANT**: Always use the `gh` safe-input tool for GitHub CLI commands instead of running `gh` directly via bash. The safe-input tool has proper authentication configured with `GITHUB_TOKEN`, while bash commands do not have GitHub CLI authentication by default.
+          **IMPORTANT**: Always use the `safeinputs-gh` tool for GitHub CLI commands instead of running `gh` directly via bash. The `safeinputs-gh` tool has proper authentication configured with `GITHUB_TOKEN`, while bash commands do not have GitHub CLI authentication by default.
           
           **Correct**:
           ```
-          Use the gh safe-input tool with args: "pr list --limit 5"
-          Use the gh safe-input tool with args: "issue view 123"
+          Use the safeinputs-gh tool with args: "pr list --limit 5"
+          Use the safeinputs-gh tool with args: "issue view 123"
           ```
           
           **Incorrect**:
           ```
+          Use the gh safe-input tool with args: "pr list --limit 5"  ❌ (Wrong tool name - use safeinputs-gh)
           Run: gh pr list --limit 5  ❌ (No authentication in bash)
           Execute bash: gh issue view 123  ❌ (No authentication in bash)
           ```
@@ -3523,9 +3519,9 @@ jobs:
           
           **Step 1.2: Search for Merged Copilot PRs**
           
-          Use the `gh` safe-input tool to search for merged PRs from Copilot:
+          Use the `safeinputs-gh` safe-input tool to search for merged PRs from Copilot:
           ```
-          gh with args: "pr list --repo __GH_AW_GITHUB_REPOSITORY__ --search \"head:copilot/ is:merged merged:>=$DATE_24H_AGO\" --state merged --limit 100 --json number,title,mergedAt,additions,deletions,files,url"
+          safeinputs-gh with args: "pr list --repo __GH_AW_GITHUB_REPOSITORY__ --search \"head:copilot/ is:merged merged:>=$DATE_24H_AGO\" --state merged --limit 100 --json number,title,mergedAt,additions,deletions,files,url"
           ```
           
           This searches for:
@@ -3536,7 +3532,7 @@ jobs:
           
           **Step 1.3: Parse Results**
           
-          Parse the JSON output from the gh command to extract:
+          Parse the JSON output from the safeinputs-gh tool to extract:
           - List of PR numbers
           - Total number of merged PRs
           - Sum of lines added across all PRs
@@ -3551,9 +3547,9 @@ jobs:
           
           **Step 2.1: Get PR Files**
           
-          Use the `gh` tool to get detailed file information:
+          Use the `safeinputs-gh` tool to get detailed file information:
           ```
-          gh with args: "pr view <PR_NUMBER> --repo __GH_AW_GITHUB_REPOSITORY__ --json files"
+          safeinputs-gh with args: "pr view <PR_NUMBER> --repo __GH_AW_GITHUB_REPOSITORY__ --json files"
           ```
           
           **Step 2.2: Count Test Files**
@@ -3569,19 +3565,19 @@ jobs:
           
           1. Get commits from the PR:
              ```
-             gh with args: "pr view <PR_NUMBER> --repo __GH_AW_GITHUB_REPOSITORY__ --json commits"
+             safeinputs-gh with args: "pr view <PR_NUMBER> --repo __GH_AW_GITHUB_REPOSITORY__ --json commits"
              ```
           
           2. For the latest commit, find associated workflow runs:
              ```
-             gh with args: "api repos/__GH_AW_GITHUB_REPOSITORY__/commits/<COMMIT_SHA>/check-runs"
+             safeinputs-gh with args: "api repos/__GH_AW_GITHUB_REPOSITORY__/commits/<COMMIT_SHA>/check-runs"
              ```
           
           3. From the check runs, identify GitHub Actions workflow runs
           
           4. Get workflow run usage data:
              ```
-             gh with args: "api repos/__GH_AW_GITHUB_REPOSITORY__/actions/runs/<RUN_ID>/timing"
+             safeinputs-gh with args: "api repos/__GH_AW_GITHUB_REPOSITORY__/actions/runs/<RUN_ID>/timing"
              ```
           
              This returns timing information including billable time.
@@ -3812,6 +3808,21 @@ jobs:
           </temporary-files>
           
           PROMPT_EOF
+      - name: Append edit tool accessibility instructions to prompt
+        env:
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+        run: |
+          cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
+          <file-editing>
+          <description>File Editing Access Permissions</description>
+          <allowed-paths>
+            <path name="workspace">$GITHUB_WORKSPACE</path>
+            <path name="temporary">/tmp/gh-aw/</path>
+          </allowed-paths>
+          <restriction>Do NOT attempt to edit files outside these directories as you do not have the necessary permissions.</restriction>
+          </file-editing>
+          
+          PROMPT_EOF
       - name: Append safe outputs instructions to prompt
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
@@ -3935,33 +3946,11 @@ jobs:
       - name: Execute GitHub Copilot CLI
         id: agentic_execution
         # Copilot CLI tool arguments (sorted):
-        # --allow-tool safeinputs
-        # --allow-tool safeoutputs
-        # --allow-tool shell(awk *)
-        # --allow-tool shell(cat)
-        # --allow-tool shell(date *)
-        # --allow-tool shell(date)
-        # --allow-tool shell(echo)
-        # --allow-tool shell(find *)
-        # --allow-tool shell(gh api *)
-        # --allow-tool shell(gh pr *)
-        # --allow-tool shell(grep *)
-        # --allow-tool shell(grep)
-        # --allow-tool shell(head)
-        # --allow-tool shell(jq *)
-        # --allow-tool shell(ls)
-        # --allow-tool shell(pwd)
-        # --allow-tool shell(sort)
-        # --allow-tool shell(tail)
-        # --allow-tool shell(uniq)
-        # --allow-tool shell(wc *)
-        # --allow-tool shell(wc)
-        # --allow-tool shell(yq)
         timeout-minutes: 10
         run: |
           set -o pipefail
           sudo -E awf --env-all --container-workdir "${GITHUB_WORKSPACE}" --mount /tmp:/tmp:rw --mount "${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:rw" --mount /usr/bin/date:/usr/bin/date:ro --mount /usr/bin/gh:/usr/bin/gh:ro --mount /usr/bin/yq:/usr/bin/yq:ro --allow-domains '*.githubusercontent.com,api.business.githubcopilot.com,api.enterprise.githubcopilot.com,api.github.com,api.snapcraft.io,archive.ubuntu.com,azure.archive.ubuntu.com,codeload.github.com,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,github-cloud.githubusercontent.com,github-cloud.s3.amazonaws.com,github.com,host.docker.internal,json-schema.org,json.schemastore.org,keyserver.ubuntu.com,lfs.github.com,objects.githubusercontent.com,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,ppa.launchpad.net,raw.githubusercontent.com,registry.npmjs.org,s.symcb.com,s.symcd.com,security.ubuntu.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com' --log-level info --proxy-logs-dir /tmp/gh-aw/sandbox/firewall/logs \
-            -- npx -y @github/copilot@0.0.367 --add-dir /tmp/gh-aw/ --log-level all --log-dir /tmp/gh-aw/sandbox/agent/logs/ --add-dir "${GITHUB_WORKSPACE}" --disable-builtin-mcps --allow-tool safeinputs --allow-tool safeoutputs --allow-tool 'shell(awk *)' --allow-tool 'shell(cat)' --allow-tool 'shell(date *)' --allow-tool 'shell(date)' --allow-tool 'shell(echo)' --allow-tool 'shell(find *)' --allow-tool 'shell(gh api *)' --allow-tool 'shell(gh pr *)' --allow-tool 'shell(grep *)' --allow-tool 'shell(grep)' --allow-tool 'shell(head)' --allow-tool 'shell(jq *)' --allow-tool 'shell(ls)' --allow-tool 'shell(pwd)' --allow-tool 'shell(sort)' --allow-tool 'shell(tail)' --allow-tool 'shell(uniq)' --allow-tool 'shell(wc *)' --allow-tool 'shell(wc)' --allow-tool 'shell(yq)' --prompt "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"${GH_AW_MODEL_AGENT_COPILOT:+ --model "$GH_AW_MODEL_AGENT_COPILOT"} \
+            -- npx -y @github/copilot@0.0.367 --add-dir /tmp/gh-aw/ --log-level all --log-dir /tmp/gh-aw/sandbox/agent/logs/ --add-dir "${GITHUB_WORKSPACE}" --disable-builtin-mcps --allow-all-tools --allow-all-paths --prompt "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"${GH_AW_MODEL_AGENT_COPILOT:+ --model "$GH_AW_MODEL_AGENT_COPILOT"} \
             2>&1 | tee /tmp/gh-aw/agent-stdio.log
         env:
           COPILOT_AGENT_RUNNER_TYPE: STANDALONE
