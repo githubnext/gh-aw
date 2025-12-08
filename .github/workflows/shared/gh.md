@@ -16,7 +16,6 @@ safe-inputs:
     run: |
       echo "gh $INPUT_ARGS"
       echo "  GH_AW_GH_TOKEN: ${GH_AW_GH_TOKEN:0:6}..."
-      echo "  GITHUB_TOKEN: ${GITHUB_TOKEN:0:6}..."
       echo "  GITHUB_REPOSITORY: $GITHUB_REPOSITORY"
       echo "  GITHUB_ACTOR: $GITHUB_ACTOR"
       echo "  GITHUB_WORKSPACE: $GITHUB_WORKSPACE"
