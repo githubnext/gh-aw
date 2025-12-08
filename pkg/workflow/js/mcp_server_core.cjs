@@ -579,7 +579,7 @@ async function handleRequest(server, request, defaultHandler) {
       result,
     };
   } catch (error) {
-    const err = /** @type {any} */ error;
+    const err = /** @type {any} */ (error);
     return {
       jsonrpc: "2.0",
       id,
