@@ -5,6 +5,10 @@ sidebar:
   order: 750
 ---
 
+:::caution[Experimental Feature]
+Safe Inputs is an experimental feature. The API and behavior may change in future releases.
+:::
+
 The `safe-inputs:` element allows you to define custom MCP (Model Context Protocol) tools directly in your workflow frontmatter using JavaScript, shell scripts, or Python. These tools are generated at runtime and mounted as an MCP server, giving your agent access to custom functionality with controlled secret access.
 
 ## Quick Start
