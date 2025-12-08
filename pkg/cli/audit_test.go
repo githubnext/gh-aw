@@ -707,6 +707,9 @@ func TestBuildAuditData(t *testing.T) {
 	if auditData.Overview.Status != "completed" {
 		t.Errorf("Expected status 'completed', got %s", auditData.Overview.Status)
 	}
+	if auditData.Overview.LogsPath != run.LogsPath {
+		t.Errorf("Expected logs path '%s', got '%s'", run.LogsPath, auditData.Overview.LogsPath)
+	}
 
 	// Verify metrics
 	if auditData.Metrics.TokenUsage != 1500 {
