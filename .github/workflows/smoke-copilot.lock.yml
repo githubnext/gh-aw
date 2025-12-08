@@ -4308,6 +4308,35 @@ jobs:
               validateRequiredFields,
             };
           EOF_VALIDATION
+          cat > /tmp/gh-aw/safe-inputs/safe_inputs_bootstrap.cjs << 'EOF_BOOTSTRAP'
+            const path = require("path");
+            const fs = require("fs");
+            const { loadConfig } = require("./safe_inputs_config_loader.cjs");
+            const { loadToolHandlers } = require("./mcp_server_core.cjs");
+            function bootstrapSafeInputsServer(configPath, logger) {
+              logger.debug(`Loading safe-inputs configuration from: ${configPath}`);
+              const config = loadConfig(configPath);
+              const basePath = path.dirname(configPath);
+              logger.debug(`Base path for handlers: ${basePath}`);
+              logger.debug(`Tools to load: ${config.tools.length}`);
+              const tools = loadToolHandlers(logger, config.tools, basePath);
+              return { config, basePath, tools };
+            }
+            function cleanupConfigFile(configPath, logger) {
+              try {
+                if (fs.existsSync(configPath)) {
+                  fs.unlinkSync(configPath);
+                  logger.debug(`Deleted configuration file: ${configPath}`);
+                }
+              } catch (error) {
+                logger.debugError(`Warning: Could not delete configuration file: `, error);
+              }
+            }
+            module.exports = {
+              bootstrapSafeInputsServer,
+              cleanupConfigFile,
+            };
+          EOF_BOOTSTRAP
           cat > /tmp/gh-aw/safe-inputs/safe_inputs_mcp_server.cjs << 'EOF_SAFE_INPUTS_SERVER'
             const { createServer, registerTool, start } = require("./mcp_server_core.cjs");
             const { loadConfig } = require("./safe_inputs_config_loader.cjs");
