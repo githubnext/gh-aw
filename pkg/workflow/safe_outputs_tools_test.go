@@ -291,6 +291,7 @@ func TestGetSafeOutputsToolsJSON(t *testing.T) {
 		"upload_asset",
 		"update_release",
 		"link_sub_issue",
+		"minimize_comment",
 		"missing_tool",
 		"noop",
 	}

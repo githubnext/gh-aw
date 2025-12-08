@@ -93,5 +93,5 @@ func (c *Compiler) buildMinimizeCommentJob(data *WorkflowData, mainJobName strin
 
 // getMinimizeCommentScript returns the JavaScript implementation
 func getMinimizeCommentScript() string {
-	return embedJavaScript("minimize_comment.cjs")
+	return DefaultScriptRegistry.GetWithMode("minimize_comment", RuntimeModeGitHubScript)
 }
