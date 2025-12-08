@@ -170,10 +170,23 @@ async function main() {
     if (trimmed.startsWith('{"') || trimmed.startsWith('{')) return false;
     // Must not end with a closing brace (which would indicate it's just missing opening brace)
     if (trimmed.endsWith('}')) return false;
-    // Look for pattern: "fieldname": value,? (with optional trailing comma)
-    // Use more restrictive pattern to avoid matching malformed values
-    // Value can be: string, number, boolean, null, array, or object
-    return /^"[^"]+"\s*:\s*(?:"[^"\\]*(?:\\.[^"\\]*)*"|true|false|null|[+-]?\d+\.?\d*(?:[eE][+-]?\d+)?|\[.*\]|\{.*\})\s*,?\s*$/.test(trimmed);
+    
+    // Define patterns for each JSON value type
+    const stringPattern = '"[^"\\\\]*(?:\\\\.[^"\\\\]*)*"';  // Escaped string
+    const numberPattern = '[+-]?\\d+\\.?\\d*(?:[eE][+-]?\\d+)?';  // Number (int, float, scientific)
+    const booleanPattern = 'true|false';  // Boolean
+    const nullPattern = 'null';  // Null
+    // For arrays and objects, use simple balanced bracket detection
+    // More complex nested structures will be caught by JSON.parse validation
+    const arrayPattern = '\\[[^\\[\\]]*\\]';  // Simple array (no nesting)
+    const objectPattern = '\\{[^{}]*\\}';  // Simple object (no nesting)
+    
+    // Combine patterns for any valid JSON value
+    const valuePattern = `(?:${stringPattern}|${numberPattern}|${booleanPattern}|${nullPattern}|${arrayPattern}|${objectPattern})`;
+    
+    // Match pattern: "fieldname": value,?
+    const fragmentPattern = new RegExp(`^"[^"]+\"\\s*:\\s*${valuePattern}\\s*,?\\s*$`);
+    return fragmentPattern.test(trimmed);
   }
 
   /**
@@ -211,13 +224,17 @@ async function main() {
       
       // Check if this line starts a sequence of JSON fragments
       if (isJsonFragment(line)) {
-        // Collect consecutive JSON fragments
+        // Collect consecutive JSON fragments (keeping originals for fallback)
         const fragments = [];
+        const originalFragments = [];
         let j = i;
         
         while (j < lines.length && isJsonFragment(lines[j].trim())) {
-          let fragment = lines[j].trim();
-          // Remove trailing comma if present
+          const originalFragment = lines[j].trim();
+          originalFragments.push(originalFragment);
+          
+          // Remove trailing comma for reconstruction
+          let fragment = originalFragment;
           if (fragment.endsWith(',')) {
             fragment = fragment.slice(0, -1);
           }
@@ -234,10 +251,9 @@ async function main() {
             core.info(`Reconstructed ${fragments.length} JSON fragments into single object (lines ${i + 1}-${j})`);
             result.push(reconstructed);
           } else {
-            // If validation fails, keep the original fragments as separate lines
-            // They'll be processed normally and produce appropriate errors
+            // If validation fails, keep the original fragments exactly as they were
             core.warning(`Failed to reconstruct JSON fragments (lines ${i + 1}-${j}) - keeping original lines`);
-            fragments.forEach(frag => result.push(frag));
+            originalFragments.forEach(frag => result.push(frag));
           }
           i = j;
           continue;
