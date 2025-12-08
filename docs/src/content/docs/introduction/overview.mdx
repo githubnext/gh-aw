@@ -27,7 +27,9 @@ safe-outputs:
 Analyze the current issue and ask for additional details if the issue is unclear.
 ```
 
-The `gh aw` cli compiles this into a [GitHub Actions Workflow](https://docs.github.com/en/actions/concepts/workflows-and-actions/workflows#about-workflows) (.yml) that runs an AI agent (Claude, Codex, ...) in a containerized environment whenever a new issue is opened in the repository. [Compilation](/gh-aw/reference/glossary/#compilation) (converting markdown to GitHub Actions YAML) ensures your workflow is secure and validated before it runs.
+The `gh aw compile` command transforms this markdown into a secure [GitHub Actions Workflow](https://docs.github.com/en/actions/concepts/workflows-and-actions/workflows#about-workflows) (`.lock.yml` file) that runs an AI agent in a containerized environment whenever a new issue is opened. 
+
+[Compilation](/gh-aw/reference/glossary/#compilation) (the process of converting markdown to GitHub Actions YAML) validates your configuration, applies security hardening, and generates the final workflow file that GitHub Actions can execute. Think of it like compiling code—you write human-friendly markdown, the compiler produces machine-ready YAML.
 
 The AI agent reads your repository context, understands the issue content, and takes appropriate actions - all defined in natural language rather than complex code.
 
