@@ -14,7 +14,8 @@ imports:
   - shared/gh.md
 ---
 
-Read the last pull request using the `safeissues-gh` tool and print its title.
+- Check the the `safeissues-gh` tool is installed and available in the environment. If not, FAIL the workflow.
+- Read the last pull request using the `safeissues-gh` tool and print its title.
 
 ```
 call safeissues-gh with pr list --limit 1
