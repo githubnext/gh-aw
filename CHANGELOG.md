@@ -2,6 +2,191 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.32.0 - 2025-12-08
+
+### Features
+
+#### Add a changeset for pull request #5782. The PR description was empty, so this defaults to a patch-level changeset for internal/tooling/documentation changes.
+
+
+### Bug Fixes
+
+#### Add support for configuring default agent and detection models via GitHub Actions
+
+variables. This exposes the following variables for workflows:
+
+- `GH_AW_MODEL_AGENT_COPILOT`, `GH_AW_MODEL_AGENT_CLAUDE`, `GH_AW_MODEL_AGENT_CODEX`
+- `GH_AW_MODEL_DETECTION_COPILOT`, `GH_AW_MODEL_DETECTION_CLAUDE`, `GH_AW_MODEL_DETECTION_CODEX`
+
+These variables provide configurable defaults for agent execution and threat
+detection models without changing workflow frontmatter.
+
+#### Add MCP tools list to action logs. `generatePlainTextSummary()` now writes a formatted
+
+list of available MCP tools to action logs (via `core.info()`), improving visibility
+when reviewing execution logs. Tests were added and workflows were recompiled.
+
+#### Add a new workflow `smoke-copilot-safe-inputs` that uses the `gh` CLI safe-input tool
+
+instead of the GitHub MCP server and sets messages to emoji-only.
+
+#### Auto-generated changeset for pull request #5729 — no description provided.
+
+This is a default `patch` changeset because the PR description is empty; internal or tooling changes are considered patch-level.
+
+#### Bump Claude Code CLI from `2.0.60` to `2.0.61`.
+
+Updated:
+- `pkg/constants/constants.go` (version constant)
+- Regenerated workflow `.lock.yml` files with new version reference
+- Updated test expectations to match new CLI version
+
+This is a patch release with no breaking changes detected.
+
+#### Add support for configuring default agent and detection models through GitHub Actions variables.
+
+This change introduces environment variables for agent execution and threat detection (e.g.
+`GH_AW_MODEL_AGENT_COPILOT`, `GH_AW_MODEL_DETECTION_COPILOT`, etc.), updates workflow
+YAML generation to inject those variables, and ensures explicit frontmatter configuration
+still takes precedence. No breaking CLI changes.
+
+#### Consolidate duplicate MCP server implementations by using a single shared core
+
+implementation and removing the duplicate `mcp_server.cjs` code.
+
+This is an internal refactor that reduces duplicated code and simplifies
+maintenance for MCP server transports (HTTP and stdio).
+
+#### Defer cache-memory saves until after threat detection validates agent output.
+
+The agent job now uploads cache-memory artifacts and the new `update_cache_memory`
+job saves those artifacts to the Actions cache only after threat detection passes.
+
+This fixes a race where cache memories could be saved before detection validated
+the agent's output.
+
+Fixes githubnext/gh-aw#5763
+
+#### Detect and report detection job failures in the conclusion job. Adds support for a
+
+`safe-outputs.messages.detection-failure` message, updates `notify_comment` and
+message rendering, and includes tests covering detection failure scenarios.
+
+#### Expose the safe-inputs MCP HTTP server via Docker's `host.docker.internal` and add `host.docker.internal` to the Copilot firewall allowlist so containerized services can access host-hosted safe-inputs.
+
+This is a patch-level change (internal/tooling) and does not introduce breaking changes.
+
+#### Fix `gh.md` to explicitly reference the `safeinputs-gh` tool name instead of the
+
+ambiguous "gh" safe-input tool; update prompt text and examples to use
+`safeinputs-gh` consistently.
+
+This patch updates documentation and smoke workflow prompts to avoid
+confusion between the `gh` CLI and the MCP tool named `safeinputs-gh`.
+
+#### Add missing agent bootstrap `safe_inputs_bootstrap.cjs` support.
+
+The pull request fixes a bug where the embedded safe inputs bootstrap script
+was not exposed via a getter and therefore not written to the
+`/tmp/gh-aw/safe-inputs/` directory. This change adds the getter and the
+file-writing step so workflows depending on `safe_inputs_bootstrap.cjs` can
+load it correctly.
+
+#### Fix safe-inputs MCP config for Copilot CLI: convert `type: stdio` to `type: local` when generating Copilot fields; fix server startup JS to avoid calling `.catch()` on undefined; update tests to assert behavior for Copilot and Claude.
+
+This is a non-breaking bugfix that ensures the Copilot CLI receives a compatible MCP `type` and that the generated server entrypoint handles errors correctly.
+
+#### Fix safe-inputs MCP config for Copilot CLI: convert `type: stdio` to `type: local` when generating Copilot fields; fix server startup JS to avoid calling `.catch()` on undefined; update tests to assert behavior for Copilot and Claude.
+
+#### Fix JavaScript export/invocation bug in placeholder substitution.
+
+Updated the JS substitution helper to export a named async function and
+adjusted the generated call site in the compiler to invoke that function.
+Recompiled workflows and verified generated scripts pass Node.js syntax
+validation.
+
+#### Implement a local MCP HTTP transport layer and remove the `@modelcontextprotocol/sdk` dependency.
+
+Adds `mcp_logger.cjs`, `mcp_server.cjs`, and `mcp_http_transport.cjs` plus unit and integration tests. Internal refactor and tooling change only; no public CLI breaking changes.
+
+#### Move `get_me` out of the default GitHub MCP toolsets and into the `users` toolset.
+
+Workflows that rely on the `get_me` tool must now opt in by adding `toolsets: [users]` under the `github` tools configuration.
+
+This change updates the toolset mappings and documentation; tests were adjusted to ensure `get_me` is not available by default.
+
+#### Refactor PR description updates: extract helper module, add `replace-island` mode for
+
+idempotent PR description sections, make footer messages customizable via workflow
+frontmatter, and add tests.
+
+This change introduces a new helper `update_pr_description_helpers.cjs`, a
+`replace-island` operation mode that updates workflow-run-scoped islands in PR
+descriptions, and customizable footer messages via `messages.footer` in the
+workflow frontmatter. Tests were added for the helper and integration scenarios.
+
+#### Refactor safe-inputs MCP server bootstrap to remove duplicated startup logic and centralize
+
+config loading, tool handler resolution, and secure config cleanup.
+
+Adds a shared `safe_inputs_bootstrap.cjs` module and updates stdio/HTTP transports to use it.
+
+Fixes githubnext/gh-aw#5786
+
+#### Fix gh.md to explicitly reference the `safeinputs-gh` tool name instead of the ambiguous "gh" safe-input tool.
+
+This updates prompt text, examples, and documentation comments to consistently use `safeinputs-gh` and prevent confusion with the `gh` CLI.
+
+#### Replaced unsafe `envsubst` usage with JavaScript-based safe placeholder
+
+substitution and fixed a JavaScript export/invocation bug in the
+placeholder substitution code. Workflows were recompiled and validated.
+
+#### Document required environment variable names for safe-inputs `tools.json` and
+
+delete the file immediately after loading to avoid leaving secrets on disk.
+
+The `tools.json` file now contains only environment variable names (e.g.
+`"GH_TOKEN": "GH_TOKEN"`) and the server removes the file after reading it.
+
+#### Add firewall health endpoint test and display the list of available tools
+
+to the `smoke-copilot` workflow. This adds non-breaking test checks that
+curl the (redacted) firewall health endpoint and prints the HTTP status
+code, and ensures the workflow displays the available tools for debugging.
+
+These are test and workflow changes only and do not modify the CLI API.
+
+#### Update Claude Code to 2.0.60 and Playwright MCP to 0.0.50. Add the new `--disable-slash-commands` flag to Claude Code CLI
+
+invocations so workflows can opt out of slash command behavior in Claude Code sessions.
+
+Fixes githubnext/gh-aw#5669
+
+<!-- This changeset was generated automatically for PR #5672 -->
+
+#### Update `github.com/spf13/cobra` dependency from v1.10.1 to v1.10.2.
+
+This patch updates the Cobra dependency to v1.10.2 which migrates its
+internal YAML dependency from the deprecated `gopkg.in/yaml.v3` package to
+`go.yaml.in/yaml/v3`. The change is internal to the dependency and is
+transparent to consumers of `gh-aw`.
+
+No code changes were required in this repository. Run the usual validation
+steps: `make test`, `make lint`, and `make agent-finish`.
+
+#### Update GitHub MCP Server from v0.24.0 to v0.24.1. This updates the default MCP server
+
+version and recompiles workflow lock files to pick up the bugfix that includes empty
+properties in the `get_me` schema for OpenAI compatibility.
+
+Changes:
+- Updated `pkg/constants/constants.go` to set `DefaultGitHubMCPServerVersion` to `v0.24.1`.
+- Recompiled workflow lock files to use `v0.24.1`.
+
+Fixes githubnext/gh-aw#5877
+
+
 ## v0.31.10 - 2025-12-05
 
 Maintenance release with dependency updates and minor improvements.
