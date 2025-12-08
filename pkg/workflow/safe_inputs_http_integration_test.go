@@ -111,7 +111,7 @@ Test safe-inputs HTTP server
 		`"type": "http"`,
 		`"url": "http://host.docker.internal:52000"`,
 		`"headers": {`,
-		`"Authorization": "Bearer \${GH_AW_SAFE_INPUTS_API_KEY}"`,
+		`"Authorization": "Bearer $GH_AW_SAFE_INPUTS_API_KEY"`,
 		`"tools": ["*"]`,
 		`"env": {`,
 		`"GH_AW_SAFE_INPUTS_API_KEY": "\${GH_AW_SAFE_INPUTS_API_KEY}"`,
