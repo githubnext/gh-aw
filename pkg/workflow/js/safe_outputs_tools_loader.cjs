@@ -109,7 +109,9 @@ function registerDynamicTools(server, tools, config, outputFile, registerTool, n
             ...args,
           };
 
-          // Write the entry to the output file
+          // Write the entry to the output file in JSONL format
+          // CRITICAL: Use JSON.stringify WITHOUT formatting parameters for JSONL format
+          // Each entry must be on a single line, followed by a newline character
           const entryJSON = JSON.stringify(entry);
           fs.appendFileSync(outputFile, entryJSON + "\n");
 

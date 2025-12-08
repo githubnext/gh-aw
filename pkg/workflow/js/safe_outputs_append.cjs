@@ -11,12 +11,19 @@ const fs = require("fs");
 function createAppendFunction(outputFile) {
   /**
    * Append an entry to the safe outputs file
+   * 
+   * CRITICAL: The output file is in JSONL (JSON Lines) format where each entry 
+   * MUST be a single line. JSON.stringify must be called WITHOUT formatting 
+   * parameters (no indentation, no pretty-printing) to ensure one JSON object per line.
+   * 
    * @param {Object} entry - The entry to append
    */
   return function appendSafeOutput(entry) {
     if (!outputFile) throw new Error("No output file configured");
     // Normalize type to use underscores (convert any dashes to underscores)
     entry.type = entry.type.replace(/-/g, "_");
+    // CRITICAL: Use JSON.stringify WITHOUT formatting parameters for JSONL format
+    // Each entry must be on a single line, followed by a newline character
     const jsonLine = JSON.stringify(entry) + "\n";
     try {
       fs.appendFileSync(outputFile, jsonLine);
