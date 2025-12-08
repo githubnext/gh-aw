@@ -1805,7 +1805,7 @@ jobs:
               event_name: context.eventName,
               staged: false,
               network_mode: "defaults",
-              allowed_domains: [],
+              allowed_domains: ["api.github.com"],
               firewall_enabled: false,
               firewall_version: "",
               steps: {

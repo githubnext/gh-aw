@@ -1,4 +1,7 @@
 ---
+network:
+  allowed:
+    - api.github.com
 safe-inputs:
   mode: stdio
   gh:
