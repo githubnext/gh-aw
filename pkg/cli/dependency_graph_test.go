@@ -18,23 +18,23 @@ func TestDependencyGraph_IsTopLevelWorkflow(t *testing.T) {
 	graph := NewDependencyGraph(workflowsDir)
 
 	tests := []struct {
-		name       string
-		path       string
+		name         string
+		path         string
 		wantTopLevel bool
 	}{
 		{
-			name:       "top-level workflow",
-			path:       filepath.Join(workflowsDir, "main.md"),
+			name:         "top-level workflow",
+			path:         filepath.Join(workflowsDir, "main.md"),
 			wantTopLevel: true,
 		},
 		{
-			name:       "shared workflow in subdirectory",
-			path:       filepath.Join(workflowsDir, "shared", "helper.md"),
+			name:         "shared workflow in subdirectory",
+			path:         filepath.Join(workflowsDir, "shared", "helper.md"),
 			wantTopLevel: false,
 		},
 		{
-			name:       "nested shared workflow",
-			path:       filepath.Join(workflowsDir, "shared", "mcp", "tool.md"),
+			name:         "nested shared workflow",
+			path:         filepath.Join(workflowsDir, "shared", "mcp", "tool.md"),
 			wantTopLevel: false,
 		},
 	}
@@ -111,7 +111,7 @@ description: Standalone workflow
 	// Test 1: Modifying the shared workflow should affect both top-level workflows that import it
 	t.Run("shared workflow modification affects importers", func(t *testing.T) {
 		affected := graph.GetAffectedWorkflows(sharedWorkflow)
-		
+
 		// Should return both main.md and secondary.md
 		expectedCount := 2
 		if len(affected) != expectedCount {
@@ -135,7 +135,7 @@ description: Standalone workflow
 	// Test 2: Modifying a top-level workflow should only affect itself
 	t.Run("top-level workflow modification affects only itself", func(t *testing.T) {
 		affected := graph.GetAffectedWorkflows(topWorkflow1)
-		
+
 		if len(affected) != 1 {
 			t.Errorf("GetAffectedWorkflows() returned %d workflows, want 1", len(affected))
 		}
@@ -148,7 +148,7 @@ description: Standalone workflow
 	// Test 3: Modifying a standalone workflow should only affect itself
 	t.Run("standalone workflow modification affects only itself", func(t *testing.T) {
 		affected := graph.GetAffectedWorkflows(topWorkflow3)
-		
+
 		if len(affected) != 1 {
 			t.Errorf("GetAffectedWorkflows() returned %d workflows, want 1", len(affected))
 		}
@@ -288,7 +288,7 @@ imports:
 	// Test: Modifying the base workflow should transitively affect the top-level workflow
 	t.Run("nested import modification affects top-level workflow", func(t *testing.T) {
 		affected := graph.GetAffectedWorkflows(baseWorkflow)
-		
+
 		// Should find the top-level workflow through the intermediate workflow
 		if len(affected) != 1 {
 			t.Errorf("GetAffectedWorkflows() returned %d workflows, want 1", len(affected))
