@@ -156,8 +156,19 @@ func buildAuditData(processedRun ProcessedRun, metrics LogMetrics) AuditData {
 		Event:        run.Event,
 		Branch:       run.HeadBranch,
 		URL:          run.URL,
-		LogsPath:     run.LogsPath,
 	}
+
+	// Convert LogsPath to relative path from workspace root
+	if run.LogsPath != "" {
+		logsPathDisplay := run.LogsPath
+		if cwd, err := os.Getwd(); err == nil {
+			if relPath, err := filepath.Rel(cwd, run.LogsPath); err == nil {
+				logsPathDisplay = relPath
+			}
+		}
+		overview.LogsPath = logsPathDisplay
+	}
+
 	if run.Duration > 0 {
 		overview.Duration = timeutil.FormatDuration(run.Duration)
 	}

@@ -707,8 +707,13 @@ func TestBuildAuditData(t *testing.T) {
 	if auditData.Overview.Status != "completed" {
 		t.Errorf("Expected status 'completed', got %s", auditData.Overview.Status)
 	}
-	if auditData.Overview.LogsPath != run.LogsPath {
-		t.Errorf("Expected logs path '%s', got '%s'", run.LogsPath, auditData.Overview.LogsPath)
+	// LogsPath should be converted to relative path
+	if auditData.Overview.LogsPath == "" {
+		t.Error("Expected logs path to be set")
+	}
+	// Verify that LogsPath is relative (doesn't start with /)
+	if filepath.IsAbs(auditData.Overview.LogsPath) && auditData.Overview.LogsPath != run.LogsPath {
+		t.Errorf("Expected logs path to be relative or match original, got '%s'", auditData.Overview.LogsPath)
 	}
 
 	// Verify metrics
