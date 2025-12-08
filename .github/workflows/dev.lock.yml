@@ -29,16 +29,24 @@
 # timeout-minutes: 5
 # strict: false
 # engine: copilot
-# permissions:
-#   contents: read
-#   issues: read
+#
+# permissions: read-all
+#
 # tools:
 #   github: false
+#   edit:
+#   bash: ["*"]
 # imports:
 #   - shared/gh.md
 # safe-outputs:
 #   create-issue:
 #   staged: true
+# steps:
+#   - name: Download issues data
+#     run: |
+#       gh pr list --limit 1 --json number,title,body,author,createdAt,mergedAt,state,url
+#     env:
+#       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 # ```
 #
 # Resolved workflow manifest:
@@ -102,9 +110,7 @@ name: "Dev"
 "on":
   workflow_dispatch: null
 
-permissions:
-  contents: read
-  issues: read
+permissions: read-all
 
 concurrency:
   group: "gh-aw-${{ github.workflow }}"
@@ -211,9 +217,7 @@ jobs:
   agent:
     needs: activation
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      issues: read
+    permissions: read-all
     concurrency:
       group: "gh-aw-copilot-${{ github.workflow }}"
     env:
@@ -234,6 +238,11 @@ jobs:
           mkdir -p /tmp/gh-aw/agent
           mkdir -p /tmp/gh-aw/sandbox/agent/logs
           echo "Created /tmp/gh-aw/agent directory for agentic workflow temporary files"
+      - env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        name: Download issues data
+        run: gh pr list --limit 1 --json number,title,body,author,createdAt,mergedAt,state,url
+
       - name: Configure Git credentials
         env:
           REPO_NAME: ${{ github.repository }}
@@ -2948,7 +2957,9 @@ jobs:
           
           set -euo pipefail
           
-          GH_TOKEN=$GH_AW_GH_TOKEN gh $INPUT_ARGS
+          echo "gh $INPUT_ARGS"
+          echo "  token: ${GH_AW_GH_TOKEN:0:6}..."
+          GH_TOKEN="$GH_AW_GH_TOKEN" gh $INPUT_ARGS
           
           EOFSH_gh
           chmod +x /tmp/gh-aw/safe-inputs/gh.sh
@@ -3144,6 +3155,21 @@ jobs:
           </temporary-files>
           
           PROMPT_EOF
+      - name: Append edit tool accessibility instructions to prompt
+        env:
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+        run: |
+          cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
+          <file-editing>
+          <description>File Editing Access Permissions</description>
+          <allowed-paths>
+            <path name="workspace">$GITHUB_WORKSPACE</path>
+            <path name="temporary">/tmp/gh-aw/</path>
+          </allowed-paths>
+          <restriction>Do NOT attempt to edit files outside these directories as you do not have the necessary permissions.</restriction>
+          </file-editing>
+          
+          PROMPT_EOF
       - name: Append safe outputs instructions to prompt
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
@@ -3195,13 +3221,11 @@ jobs:
       - name: Execute GitHub Copilot CLI
         id: agentic_execution
         # Copilot CLI tool arguments (sorted):
-        # --allow-tool safeinputs
-        # --allow-tool safeoutputs
         timeout-minutes: 5
         run: |
           set -o pipefail
           sudo -E awf --env-all --container-workdir "${GITHUB_WORKSPACE}" --mount /tmp:/tmp:rw --mount "${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:rw" --mount /usr/bin/date:/usr/bin/date:ro --mount /usr/bin/gh:/usr/bin/gh:ro --mount /usr/bin/yq:/usr/bin/yq:ro --allow-domains api.business.githubcopilot.com,api.enterprise.githubcopilot.com,api.github.com,api.individual.githubcopilot.com,api.snapcraft.io,archive.ubuntu.com,azure.archive.ubuntu.com,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,github.com,host.docker.internal,json-schema.org,json.schemastore.org,keyserver.ubuntu.com,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,ppa.launchpad.net,raw.githubusercontent.com,registry.npmjs.org,s.symcb.com,s.symcd.com,security.ubuntu.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com --log-level info --proxy-logs-dir /tmp/gh-aw/sandbox/firewall/logs \
-            -- npx -y @github/copilot@0.0.367 --add-dir /tmp/gh-aw/ --log-level all --log-dir /tmp/gh-aw/sandbox/agent/logs/ --add-dir "${GITHUB_WORKSPACE}" --disable-builtin-mcps --allow-tool safeinputs --allow-tool safeoutputs --prompt "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"${GH_AW_MODEL_AGENT_COPILOT:+ --model "$GH_AW_MODEL_AGENT_COPILOT"} \
+            -- npx -y @github/copilot@0.0.367 --add-dir /tmp/gh-aw/ --log-level all --log-dir /tmp/gh-aw/sandbox/agent/logs/ --add-dir "${GITHUB_WORKSPACE}" --disable-builtin-mcps --allow-all-tools --allow-all-paths --prompt "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"${GH_AW_MODEL_AGENT_COPILOT:+ --model "$GH_AW_MODEL_AGENT_COPILOT"} \
             2>&1 | tee /tmp/gh-aw/agent-stdio.log
         env:
           COPILOT_AGENT_RUNNER_TYPE: STANDALONE

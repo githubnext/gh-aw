@@ -58,6 +58,7 @@
 #     create-issue:
 #     add-labels:
 #       allowed: [smoke-codex]
+#     minimize-comment:
 #     messages:
 #       footer: "> 🔮 *The oracle has spoken through [{workflow_name}]({run_url})*"
 #       run-started: "🔮 The ancient spirits stir... [{workflow_name}]({run_url}) awakens to divine this {event_type}..."
@@ -76,6 +77,7 @@
 #   conclusion["conclusion"]
 #   create_issue["create_issue"]
 #   detection["detection"]
+#   minimize_comment["minimize_comment"]
 #   pre_activation["pre_activation"]
 #   update_cache_memory["update_cache_memory"]
 #   activation --> agent
@@ -87,6 +89,7 @@
 #   agent --> conclusion
 #   agent --> create_issue
 #   agent --> detection
+#   agent --> minimize_comment
 #   agent --> update_cache_memory
 #   create_issue --> add_comment
 #   create_issue --> conclusion
@@ -94,7 +97,9 @@
 #   detection --> add_labels
 #   detection --> conclusion
 #   detection --> create_issue
+#   detection --> minimize_comment
 #   detection --> update_cache_memory
+#   minimize_comment --> conclusion
 #   pre_activation --> activation
 #   update_cache_memory --> conclusion
 # ```
@@ -2098,6 +2103,23 @@ jobs:
                 "type": "object"
               },
               "name": "noop"
+            },
+            {
+              "description": "Minimize (hide) a comment on a GitHub issue, pull request, or discussion. This collapses the comment as spam or off-topic. Use this for inappropriate, off-topic, or outdated comments. The comment_id must be a GraphQL node ID (string like 'IC_kwDOABCD123456'), not a numeric REST API comment ID.",
+              "inputSchema": {
+                "additionalProperties": false,
+                "properties": {
+                  "comment_id": {
+                    "description": "GraphQL node ID of the comment to minimize (e.g., 'IC_kwDOABCD123456'). This is the GraphQL node ID, not the numeric comment ID from REST API. Can be obtained from GraphQL queries or comment API responses.",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "comment_id"
+                ],
+                "type": "object"
+              },
+              "name": "minimize_comment"
             }
           ]
           EOF
@@ -6415,6 +6437,7 @@ jobs:
       - agent
       - create_issue
       - detection
+      - minimize_comment
       - update_cache_memory
     if: ((always()) && (needs.agent.result != 'skipped')) && (!(needs.add_comment.outputs.comment_id))
     runs-on: ubuntu-slim
@@ -7731,6 +7754,156 @@ jobs:
           name: threat-detection.log
           path: /tmp/gh-aw/threat-detection/detection.log
           if-no-files-found: ignore
+
+  minimize_comment:
+    needs:
+      - agent
+      - detection
+    if: >
+      (((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'minimize_comment'))) &&
+      (needs.detection.outputs.success == 'true')
+    runs-on: ubuntu-slim
+    permissions:
+      contents: read
+      discussions: write
+      issues: write
+      pull-requests: write
+    timeout-minutes: 10
+    outputs:
+      comment_id: ${{ steps.minimize_comment.outputs.comment_id }}
+      is_minimized: ${{ steps.minimize_comment.outputs.is_minimized }}
+    steps:
+      - name: Download agent output artifact
+        continue-on-error: true
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
+        with:
+          name: agent_output.json
+          path: /tmp/gh-aw/safeoutputs/
+      - name: Setup agent output environment variable
+        run: |
+          mkdir -p /tmp/gh-aw/safeoutputs/
+          find "/tmp/gh-aw/safeoutputs/" -type f -print
+          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> "$GITHUB_ENV"
+      - name: Minimize Comment
+        id: minimize_comment
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        env:
+          GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
+          GH_AW_MINIMIZE_COMMENT_MAX_COUNT: 5
+          GH_AW_WORKFLOW_NAME: "Smoke Codex"
+          GH_AW_ENGINE_ID: "codex"
+          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🔮 *The oracle has spoken through [{workflow_name}]({run_url})*\",\"runStarted\":\"🔮 The ancient spirits stir... [{workflow_name}]({run_url}) awakens to divine this {event_type}...\",\"runSuccess\":\"✨ The prophecy is fulfilled... [{workflow_name}]({run_url}) has completed its mystical journey. The stars align. 🌟\",\"runFailure\":\"🌑 The shadows whisper... [{workflow_name}]({run_url}) {status}. The oracle requires further meditation...\"}"
+        with:
+          github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require("fs");
+            const MAX_LOG_CONTENT_LENGTH = 10000;
+            function truncateForLogging(content) {
+              if (content.length <= MAX_LOG_CONTENT_LENGTH) {
+                return content;
+              }
+              return content.substring(0, MAX_LOG_CONTENT_LENGTH) + `\n... (truncated, total length: ${content.length})`;
+            }
+            function loadAgentOutput() {
+              const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT;
+              if (!agentOutputFile) {
+                core.info("No GH_AW_AGENT_OUTPUT environment variable found");
+                return { success: false };
+              }
+              let outputContent;
+              try {
+                outputContent = fs.readFileSync(agentOutputFile, "utf8");
+              } catch (error) {
+                const errorMessage = `Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`;
+                core.error(errorMessage);
+                return { success: false, error: errorMessage };
+              }
+              if (outputContent.trim() === "") {
+                core.info("Agent output content is empty");
+                return { success: false };
+              }
+              core.info(`Agent output content length: ${outputContent.length}`);
+              let validatedOutput;
+              try {
+                validatedOutput = JSON.parse(outputContent);
+              } catch (error) {
+                const errorMessage = `Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`;
+                core.error(errorMessage);
+                core.info(`Failed to parse content:\n${truncateForLogging(outputContent)}`);
+                return { success: false, error: errorMessage };
+              }
+              if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
+                core.info("No valid items found in agent output");
+                core.info(`Parsed content: ${truncateForLogging(JSON.stringify(validatedOutput))}`);
+                return { success: false };
+              }
+              return { success: true, items: validatedOutput.items };
+            }
+            async function minimizeComment(github, nodeId) {
+              const query =  `
+                mutation ($nodeId: ID!) {
+                  minimizeComment(input: { subjectId: $nodeId, classifier: SPAM }) {
+                    minimizedComment {
+                      isMinimized
+                    }
+                  }
+                }
+              `;
+              const result = await github.graphql(query, { nodeId });
+              return {
+                id: nodeId,
+                isMinimized: result.minimizeComment.minimizedComment.isMinimized,
+              };
+            }
+            async function main() {
+              const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
+              const result = loadAgentOutput();
+              if (!result.success) {
+                return;
+              }
+              const minimizeCommentItems = result.items.filter( item => item.type === "minimize_comment");
+              if (minimizeCommentItems.length === 0) {
+                core.info("No minimize-comment items found in agent output");
+                return;
+              }
+              core.info(`Found ${minimizeCommentItems.length} minimize-comment item(s)`);
+              if (isStaged) {
+                let summaryContent = "## 🎭 Staged Mode: Minimize Comments Preview\n\n";
+                summaryContent += "The following comments would be minimized if staged mode was disabled:\n\n";
+                for (let i = 0; i < minimizeCommentItems.length; i++) {
+                  const item = minimizeCommentItems[i];
+                  summaryContent += `### Comment ${i + 1}\n`;
+                  summaryContent += `**Node ID**: ${item.comment_id}\n`;
+                  summaryContent += `**Action**: Would be minimized as SPAM\n`;
+                  summaryContent += "\n";
+                }
+                core.summary.addRaw(summaryContent).write();
+                return;
+              }
+              for (const item of minimizeCommentItems) {
+                try {
+                  const commentId = item.comment_id;
+                  if (!commentId || typeof commentId !== "string") {
+                    throw new Error("comment_id is required and must be a string (GraphQL node ID)");
+                  }
+                  core.info(`Minimizing comment: ${commentId}`);
+                  const minimizeResult = await minimizeComment(github, commentId);
+                  if (minimizeResult.isMinimized) {
+                    core.info(`Successfully minimized comment: ${commentId}`);
+                    core.setOutput("comment_id", commentId);
+                    core.setOutput("is_minimized", "true");
+                  } else {
+                    throw new Error(`Failed to minimize comment: ${commentId}`);
+                  }
+                } catch (error) {
+                  const errorMessage = error instanceof Error ? error.message : String(error);
+                  core.error(`Failed to minimize comment: ${errorMessage}`);
+                  core.setFailed(`Failed to minimize comment: ${errorMessage}`);
+                  return;
+                }
+              }
+            }
+            await main();
 
   pre_activation:
     if: >

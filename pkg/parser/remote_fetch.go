@@ -37,8 +37,8 @@ func isUnderWorkflowsDirectory(filePath string) bool {
 	return !strings.Contains(afterWorkflows, "/")
 }
 
-// resolveIncludePath resolves include path based on workflowspec format or relative path
-func resolveIncludePath(filePath, baseDir string, cache *ImportCache) (string, error) {
+// ResolveIncludePath resolves include path based on workflowspec format or relative path
+func ResolveIncludePath(filePath, baseDir string, cache *ImportCache) (string, error) {
 	remoteLog.Printf("Resolving include path: file_path=%s, base_dir=%s", filePath, baseDir)
 
 	// Check if this is a workflowspec (contains owner/repo/path format)

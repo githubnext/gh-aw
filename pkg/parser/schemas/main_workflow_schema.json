@@ -2988,7 +2988,7 @@
     "safe-outputs": {
       "type": "object",
       "description": "Safe output processing configuration that automatically creates GitHub issues, comments, and pull requests from AI workflow output without requiring write permissions in the main job",
-      "$comment": "Required if workflow creates or modifies GitHub resources. Operations requiring safe-outputs: add-comment, add-labels, add-reviewer, assign-milestone, assign-to-agent, close-discussion, close-issue, close-pull-request, create-agent-task, create-code-scanning-alert, create-discussion, create-issue, create-pull-request, create-pull-request-review-comment, link-sub-issue, missing-tool, noop, push-to-pull-request-branch, threat-detection, update-issue, update-project, update-pull-request, update-release, upload-asset. See documentation for complete details.",
+      "$comment": "Required if workflow creates or modifies GitHub resources. Operations requiring safe-outputs: add-comment, add-labels, add-reviewer, assign-milestone, assign-to-agent, close-discussion, close-issue, close-pull-request, create-agent-task, create-code-scanning-alert, create-discussion, create-issue, create-pull-request, create-pull-request-review-comment, link-sub-issue, minimize-comment, missing-tool, noop, push-to-pull-request-branch, threat-detection, update-issue, update-project, update-pull-request, update-release, upload-asset. See documentation for complete details.",
       "properties": {
         "allowed-domains": {
           "type": "array",
@@ -4003,6 +4003,35 @@
                 "commit-title-suffix": {
                   "type": "string",
                   "description": "Optional suffix to append to generated commit titles (e.g., ' [skip ci]' to prevent triggering CI on the commit)"
+                },
+                "github-token": {
+                  "$ref": "#/$defs/github_token",
+                  "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
+                }
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
+        "minimize-comment": {
+          "oneOf": [
+            {
+              "type": "null",
+              "description": "Enable comment minimization with default configuration"
+            },
+            {
+              "type": "object",
+              "description": "Configuration for minimizing (hiding) comments on GitHub issues, pull requests, or discussions from agentic workflow output",
+              "properties": {
+                "max": {
+                  "type": "integer",
+                  "description": "Maximum number of comments to minimize (default: 5)",
+                  "minimum": 1,
+                  "maximum": 100
+                },
+                "target-repo": {
+                  "type": "string",
+                  "description": "Target repository in format 'owner/repo' for cross-repository comment minimization. Takes precedence over trial target repo settings."
                 },
                 "github-token": {
                   "$ref": "#/$defs/github_token",

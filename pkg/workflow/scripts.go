@@ -52,6 +52,9 @@ var assignCopilotToCreatedIssuesScriptSource string
 //go:embed js/link_sub_issue.cjs
 var linkSubIssueScriptSource string
 
+//go:embed js/minimize_comment.cjs
+var minimizeCommentScriptSource string
+
 //go:embed js/create_discussion.cjs
 var createDiscussionScriptSource string
 
@@ -147,6 +150,7 @@ func init() {
 	DefaultScriptRegistry.Register("assign_to_user", assignToUserScriptSource)
 	DefaultScriptRegistry.Register("assign_copilot_to_created_issues", assignCopilotToCreatedIssuesScriptSource)
 	DefaultScriptRegistry.Register("link_sub_issue", linkSubIssueScriptSource)
+	DefaultScriptRegistry.Register("minimize_comment", minimizeCommentScriptSource)
 	DefaultScriptRegistry.Register("create_discussion", createDiscussionScriptSource)
 	DefaultScriptRegistry.Register("close_discussion", closeDiscussionScriptSource)
 	DefaultScriptRegistry.Register("close_expired_discussions", closeExpiredDiscussionsScriptSource)
