@@ -41,7 +41,7 @@ type CombinedTrialResult struct {
 // NewTrialCommand creates the trial command
 func NewTrialCommand(validateEngine func(string) error) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "trial <workflow>...",
+		Use:   "trial <workflow-spec>...",
 		Short: "Trial one or more agentic workflows as if they were running in a repository",
 		Long: `Trial one or more agentic workflows as if they were running in a repository.
 
