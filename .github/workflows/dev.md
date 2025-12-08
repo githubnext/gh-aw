@@ -12,6 +12,8 @@ permissions:
   pull-requests: read
 tools:
   github: false
+  edit:
+  bash: ["*"]
 imports:
   - shared/gh.md
 safe-outputs:
