@@ -9,11 +9,31 @@ This glossary provides definitions for key technical terms and concepts used in 
 
 ## Core Concepts
 
+### Agentic
+
+The term **"agentic"** means having agency—the ability to act independently, make context-aware decisions, and adapt behavior based on circumstances. When applied to workflows:
+
+- **Agentic workflows** use AI to understand context and choose appropriate actions, rather than just following predefined steps
+- **Agentic systems** can reason about situations and make informed decisions without explicit programming for every scenario
+- Contrasts with **deterministic** workflows that execute fixed sequences of actions
+
+The word comes from "agent" (an entity that acts on behalf of someone) + "-ic" (having the characteristics of).
+
 ### Agentic Workflow
 An AI-powered workflow that can reason, make decisions, and take autonomous actions using natural language instructions. Unlike traditional workflows with fixed if/then rules, agentic workflows interpret context and adapt their behavior based on the situation they encounter.
 
+**Key characteristics:**
+- Written in natural language markdown instead of complex YAML
+- Uses AI to understand repository context (issues, PRs, code)
+- Makes context-aware decisions without explicit conditionals
+- Adapts responses to different situations flexibly
+
+**Example:** Instead of "if issue has label X, do Y", you write "analyze this issue and provide helpful context", and the AI decides what's helpful based on the specific issue content.
+
 ### Agent
 The AI system (typically GitHub Copilot CLI) that executes natural language instructions in an agentic workflow. The agent interprets tasks, uses available tools, and generates outputs based on context.
+
+Think of the agent as an AI assistant with access to tools (GitHub API, file system, web search) that can understand your instructions and complete tasks autonomously. The agent is the "intelligence" that makes workflows agentic.
 
 ### Frontmatter
 The configuration section at the top of a workflow file, enclosed between `---` markers. Contains YAML settings that control when the workflow runs, what permissions it has, and what tools it can use. Separates technical configuration from natural language instructions.
