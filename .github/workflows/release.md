@@ -76,7 +76,7 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
-          cache: true
+          cache: false  # Disabled for release security - prevent cache poisoning attacks
 
       - name: Download Go modules
         run: go mod download
