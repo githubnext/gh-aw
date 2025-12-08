@@ -88,8 +88,21 @@ safe-outputs:
     labels: [automation, agentic]    # labels to attach
     assignees: [user1, copilot]      # assignees (use 'copilot' for bot)
     max: 5                           # max issues (default: 1)
+    expires: 7                       # auto-close after 7 days
     target-repo: "owner/repo"        # cross-repository
 ```
+
+#### Auto-Expiration
+
+The `expires` field automatically closes issues after a specified time period. Supports both integer (days) and relative time formats:
+
+- **Integer**: `expires: 7` (7 days)
+- **Days**: `expires: 7d` or `7D` (7 days)
+- **Weeks**: `expires: 2w` or `2W` (14 days)
+- **Months**: `expires: 1m` or `1M` (30 days, approximate)
+- **Years**: `expires: 1y` or `1Y` (365 days, approximate)
+
+When enabled, the compiler automatically generates an `agentics-maintenance.yml` workflow that runs daily to close expired items. Issues are closed as "completed" with an explanatory comment and workflow attribution.
 
 #### Temporary IDs for Issue References
 
@@ -267,6 +280,7 @@ safe-outputs:
     labels: [automation]          # labels to attach
     reviewers: [user1, copilot]   # reviewers (use 'copilot' for bot)
     draft: true                   # create as draft (default: true)
+    expires: 14                   # auto-close after 14 days (same-repo only)
     if-no-changes: "warn"         # "warn" (default), "error", or "ignore"
     target-repo: "owner/repo"     # cross-repository
 ```
@@ -274,6 +288,10 @@ safe-outputs:
 :::note
 PR creation may fail if "Allow GitHub Actions to create and approve pull requests" is disabled in Organization Settings → Actions → General → Workflow permissions. When fallback occurs, an issue is created with branch link and error details.
 :::
+
+#### Auto-Expiration (Same-Repository Only)
+
+The `expires` field automatically closes pull requests after a specified time period. **Only works for same-repository PRs** (when `target-repo` is not set). Supports the same time formats as issues: integers for days, or relative time strings (`7d`, `2w`, `1m`, `1y`).
 
 ### Close Pull Request (`close-pull-request:`)
 
@@ -376,9 +394,16 @@ safe-outputs:
   create-discussion:
     title-prefix: "[ai] "     # prefix for titles
     category: "general"       # category slug, name, or ID
+    expires: 3                # auto-close after 3 days
     max: 3                    # max discussions (default: 1)
     target-repo: "owner/repo" # cross-repository
 ```
+
+#### Auto-Expiration
+
+The `expires` field automatically closes discussions after a specified time period. Supports both integer (days) and relative time formats (`7d`, `2w`, `1m`, `1y`). Discussions are closed as "OUTDATED" with an explanatory comment.
+
+When `expires` is used in any workflow, the compiler automatically generates an `agentics-maintenance.yml` workflow that runs daily to process expired items.
 
 ### Close Discussion (`close-discussion:`)
 
