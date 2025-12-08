@@ -83,7 +83,7 @@ func (c *Compiler) buildMinimizeCommentJob(data *WorkflowData, mainJobName strin
 		MainJobName:    mainJobName,
 		CustomEnvVars:  customEnvVars,
 		Script:         getMinimizeCommentScript(),
-		Permissions:    NewPermissionsContentsReadIssuesWrite(),
+		Permissions:    NewPermissionsContentsReadIssuesWritePRWriteDiscussionsWrite(),
 		Outputs:        outputs,
 		Token:          cfg.GitHubToken,
 		Condition:      BuildSafeOutputType("minimize_comment"),
