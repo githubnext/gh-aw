@@ -76,7 +76,19 @@ The workflow uses three labels:
 - `link-spam` - Suspicious or promotional links
 - `ai-generated` - AI-generated content
 
-**Note**: These labels must exist in your repository before the workflow can add them. Create them manually or the workflow will fail when trying to add them.
+**Important**: These labels must exist in your repository before the workflow can add them. 
+
+**To create the labels**, you can:
+1. **Via GitHub UI**: Go to your repository → Issues → Labels → New label
+2. **Via GitHub CLI**:
+   ```bash
+   gh label create spam --description "Generic spam content" --color d73a4a
+   gh label create link-spam --description "Suspicious or promotional links" --color d73a4a
+   gh label create ai-generated --description "AI-generated content" --color fbca04
+   ```
+3. **Via API**: Use the GitHub REST API to create labels programmatically
+
+If the labels don't exist, the workflow will fail when trying to add them to issues.
 
 ### Custom Safe Output: Minimize Comment
 

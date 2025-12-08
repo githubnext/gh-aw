@@ -83,7 +83,7 @@
 #               // GitHub node IDs are base64-like strings, often starting with specific prefixes
 #               // We do basic validation here; the GraphQL API will perform full validation
 #               if (!/^[A-Za-z0-9_=-]+$/.test(nodeId) || nodeId.length < 10) {
-#                 core.setFailed(`Invalid comment_node_id format: ${nodeId}`);
+#                 core.setFailed('Invalid comment_node_id format: must be a valid GitHub node ID');
 #                 return;
 #               }
 #
@@ -6740,7 +6740,7 @@ jobs:
             // GitHub node IDs are base64-like strings, often starting with specific prefixes
             // We do basic validation here; the GraphQL API will perform full validation
             if (!/^[A-Za-z0-9_=-]+$/.test(nodeId) || nodeId.length < 10) {
-              core.setFailed(`Invalid comment_node_id format: ${nodeId}`);
+              core.setFailed('Invalid comment_node_id format: must be a valid GitHub node ID');
               return;
             }
 
