@@ -73,8 +73,8 @@ Test safe-inputs HTTP transport for Codex
 	}
 
 	// Should use HTTP transport (url + headers) with host.docker.internal
-	if !strings.Contains(yamlStr, `url = "http://host.docker.internal:$GH_AW_SAFE_INPUTS_PORT"`) {
-		t.Error("Expected HTTP URL config with host.docker.internal not found in TOML format")
+	if !strings.Contains(yamlStr, `url = "http://host.docker.internal:3002"`) {
+		t.Error("Expected HTTP URL config with hardcoded port 3002 and host.docker.internal not found in TOML format")
 	}
 
 	if !strings.Contains(yamlStr, `headers = { Authorization = "Bearer $GH_AW_SAFE_INPUTS_API_KEY" }`) {
@@ -91,8 +91,9 @@ Test safe-inputs HTTP transport for Codex
 	}
 
 	// Verify environment variables are included
-	if !strings.Contains(codexConfigSection, "GH_AW_SAFE_INPUTS_PORT") {
-		t.Error("Expected GH_AW_SAFE_INPUTS_PORT env var in config")
+	// Note: GH_AW_SAFE_INPUTS_PORT is no longer in env_vars since port is hardcoded
+	if strings.Contains(codexConfigSection, "GH_AW_SAFE_INPUTS_PORT") {
+		t.Error("GH_AW_SAFE_INPUTS_PORT should not be in env vars since port is hardcoded to 3002")
 	}
 
 	if !strings.Contains(codexConfigSection, "GH_AW_SAFE_INPUTS_API_KEY") {

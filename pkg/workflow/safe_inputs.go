@@ -373,7 +373,7 @@ const { startHttpServer } = require("./safe_inputs_mcp_server_http.cjs");
 const configPath = path.join(__dirname, "tools.json");
 
 // Get port and API key from environment variables
-const port = parseInt(process.env.GH_AW_SAFE_INPUTS_PORT || "3000", 10);
+const port = parseInt(process.env.GH_AW_SAFE_INPUTS_PORT || "3002", 10);
 const apiKey = process.env.GH_AW_SAFE_INPUTS_API_KEY || "";
 
 // Start the HTTP server
@@ -587,15 +587,9 @@ func renderSafeInputsMCPConfigWithOptions(yaml *strings.Builder, safeInputs *Saf
 	// Add type field for HTTP (required by MCP specification for HTTP transport)
 	yaml.WriteString("                \"type\": \"http\",\n")
 
-	// HTTP URL using environment variable
+	// HTTP URL with hardcoded port 3002 (similar to GitHub remote MCP configuration)
 	// Use host.docker.internal to allow access from firewall container
-	if includeCopilotFields {
-		// Copilot format: backslash-escaped shell variable reference
-		yaml.WriteString("                \"url\": \"http://host.docker.internal:\\${GH_AW_SAFE_INPUTS_PORT}\",\n")
-	} else {
-		// Claude/Custom format: direct shell variable reference
-		yaml.WriteString("                \"url\": \"http://host.docker.internal:$GH_AW_SAFE_INPUTS_PORT\",\n")
-	}
+	yaml.WriteString("                \"url\": \"http://host.docker.internal:3002\",\n")
 
 	// Add Authorization header with API key
 	yaml.WriteString("                \"headers\": {\n")
@@ -614,7 +608,8 @@ func renderSafeInputsMCPConfigWithOptions(yaml *strings.Builder, safeInputs *Saf
 	}
 
 	// Add env block for environment variable passthrough
-	envVarsWithServerConfig := append([]string{"GH_AW_SAFE_INPUTS_PORT", "GH_AW_SAFE_INPUTS_API_KEY"}, envVars...)
+	// Note: GH_AW_SAFE_INPUTS_PORT no longer needed in env since port is hardcoded
+	envVarsWithServerConfig := append([]string{"GH_AW_SAFE_INPUTS_API_KEY"}, envVars...)
 	yaml.WriteString("                \"env\": {\n")
 
 	// Write environment variables with appropriate escaping

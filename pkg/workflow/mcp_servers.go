@@ -420,7 +420,7 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		}
 		yaml.WriteString("          \n")
 
-		// Step 3: Generate API key and choose port for HTTP server using JavaScript
+		// Step 3: Generate API key for HTTP server using JavaScript
 		yaml.WriteString("      - name: Generate Safe Inputs MCP Server Config\n")
 		yaml.WriteString("        id: safe-inputs-config\n")
 		yaml.WriteString("        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1\n")
@@ -443,7 +443,8 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		yaml.WriteString("        id: safe-inputs-start\n")
 		yaml.WriteString("        run: |\n")
 		yaml.WriteString("          # Set environment variables for the server\n")
-		yaml.WriteString("          export GH_AW_SAFE_INPUTS_PORT=${{ steps.safe-inputs-config.outputs.safe_inputs_port }}\n")
+		yaml.WriteString("          # Port is hardcoded to 3002 (similar to GitHub remote MCP configuration)\n")
+		yaml.WriteString("          export GH_AW_SAFE_INPUTS_PORT=3002\n")
 		yaml.WriteString("          export GH_AW_SAFE_INPUTS_API_KEY=${{ steps.safe-inputs-config.outputs.safe_inputs_api_key }}\n")
 		yaml.WriteString("          \n")
 
@@ -526,8 +527,9 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 
 		// Add safe-inputs env vars if present (for secrets passthrough and server config)
 		if hasSafeInputs {
-			// Add server configuration env vars from step outputs
-			yaml.WriteString("          GH_AW_SAFE_INPUTS_PORT: ${{ steps.safe-inputs-start.outputs.port }}\n")
+			// Add server configuration env vars
+			// Port is hardcoded to 3002 (similar to GitHub remote MCP configuration)
+			yaml.WriteString("          GH_AW_SAFE_INPUTS_PORT: 3002\n")
 			yaml.WriteString("          GH_AW_SAFE_INPUTS_API_KEY: ${{ steps.safe-inputs-start.outputs.api_key }}\n")
 
 			// Add tool-specific env vars (secrets passthrough)
