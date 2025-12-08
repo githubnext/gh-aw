@@ -199,11 +199,10 @@ gh secret set GH_AW_AGENT_TOKEN -a actions --body "YOUR_AGENT_PAT"
 1. Per-output `github-token:`
 2. Global `safe-outputs.github-token:`
 3. Workflow-level `github-token:`
-4. `${{ secrets.GH_AW_AGENT_TOKEN }}`
-5. `${{ secrets.GH_AW_GITHUB_TOKEN }}` (fallback)
+4. `${{ secrets.GH_AW_AGENT_TOKEN }}` (no further fallback)
 
-:::tip
-If you're already using `GH_AW_GITHUB_TOKEN` with sufficient permissions, you don't need to set `GH_AW_AGENT_TOKEN` separately.
+:::caution
+Unlike other tokens, `GH_AW_AGENT_TOKEN` does **not** fall back to `GH_AW_GITHUB_TOKEN`. You must explicitly configure this token for agent assignment operations.
 :::
 
 ## `GITHUB_MCP_SERVER_TOKEN` (Auto-configured)
