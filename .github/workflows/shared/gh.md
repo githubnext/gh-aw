@@ -14,6 +14,8 @@ safe-inputs:
     env:
       GH_AW_GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     run: |
+      echo "gh $INPUT_ARGS"
+      echo "  token: ${GH_AW_GH_TOKEN:0:6}..."
       GH_TOKEN=$GH_AW_GH_TOKEN gh $INPUT_ARGS
 ---
 

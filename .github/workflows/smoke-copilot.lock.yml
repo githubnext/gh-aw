@@ -4674,6 +4674,8 @@ jobs:
           
           set -euo pipefail
           
+          echo "gh $INPUT_ARGS"
+          echo "  token: ${GH_AW_GH_TOKEN:0:6}..."
           GH_TOKEN=$GH_AW_GH_TOKEN gh $INPUT_ARGS
           
           EOFSH_gh
