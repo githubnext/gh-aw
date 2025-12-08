@@ -194,6 +194,9 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 	// Add --disable-builtin-mcps to disable built-in MCP servers
 	copilotArgs = append(copilotArgs, "--disable-builtin-mcps")
 
+	// Add --deny-tool to prevent access to fetch_copilot_cli_documentation by default
+	copilotArgs = append(copilotArgs, "--deny-tool", "fetch_copilot_cli_documentation")
+
 	// Add model if specified
 	// Model can be configured via:
 	// 1. Explicit model in workflow config (highest priority)

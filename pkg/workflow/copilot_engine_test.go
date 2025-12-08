@@ -147,6 +147,11 @@ func TestCopilotEngineExecutionSteps(t *testing.T) {
 		t.Errorf("Expected --disable-builtin-mcps flag in command, got:\n%s", stepContent)
 	}
 
+	// Test that --deny-tool fetch_copilot_cli_documentation flag is present
+	if !strings.Contains(stepContent, "--deny-tool fetch_copilot_cli_documentation") {
+		t.Errorf("Expected --deny-tool fetch_copilot_cli_documentation flag in command, got:\n%s", stepContent)
+	}
+
 	// Test that mkdir commands are present for --add-dir directories
 	if !strings.Contains(stepContent, "mkdir -p /tmp/") {
 		t.Errorf("Expected 'mkdir -p /tmp/' command in step content:\n%s", stepContent)
