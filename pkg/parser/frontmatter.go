@@ -228,7 +228,7 @@ func processImportsFromFrontmatterWithManifestAndSource(frontmatter map[string]a
 		}
 
 		// Resolve import path (supports workflowspec format)
-		fullPath, err := resolveIncludePath(filePath, baseDir, cache)
+		fullPath, err := ResolveIncludePath(filePath, baseDir, cache)
 		if err != nil {
 			// If we have source information, create a structured import error
 			if workflowFilePath != "" && yamlContent != "" {
@@ -354,7 +354,7 @@ func processImportsFromFrontmatterWithManifestAndSource(frontmatter map[string]a
 					}
 
 					// Resolve nested import path relative to the workflows directory, not the nested file's directory
-					nestedFullPath, err := resolveIncludePath(nestedFilePath, baseDir, cache)
+					nestedFullPath, err := ResolveIncludePath(nestedFilePath, baseDir, cache)
 					if err != nil {
 						// If we have source information for the parent workflow, create a structured error
 						if workflowFilePath != "" && yamlContent != "" {
@@ -543,7 +543,7 @@ func processIncludesWithVisited(content, baseDir string, extractTools bool, visi
 			}
 
 			// Resolve file path first to get the canonical path
-			fullPath, err := resolveIncludePath(filePath, baseDir, nil)
+			fullPath, err := ResolveIncludePath(filePath, baseDir, nil)
 			if err != nil {
 				if isOptional {
 					// For optional includes, show a friendly informational message to stdout
@@ -1002,7 +1002,7 @@ func processIncludesForField(content, baseDir string, extractFunc func(string) (
 			}
 
 			// Resolve file path
-			fullPath, err := resolveIncludePath(filePath, baseDir, nil)
+			fullPath, err := ResolveIncludePath(filePath, baseDir, nil)
 			if err != nil {
 				if isOptional {
 					// For optional includes, skip extraction

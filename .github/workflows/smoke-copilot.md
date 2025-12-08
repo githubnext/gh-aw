@@ -21,8 +21,6 @@ network:
     - github
   firewall:
     log-level: debug  # Enable debug-level firewall logs
-imports:
-  - shared/gh.md
 tools:
   cache-memory: true
   edit:
@@ -54,9 +52,7 @@ strict: true
 3. **Bash Tool Testing**: Execute bash commands to verify file creation was successful (use `cat` to read the file back)
 4. **GitHub MCP Default Toolset Testing**: Verify that the `get_me` tool is NOT available with default toolsets. Try to use it and confirm it fails with a tool not found error.
 5. **Cache Memory Testing**: Write a test file to `/tmp/gh-aw/cache-memory/smoke-test-${{ github.run_id }}.txt` with content "Cache memory test for run ${{ github.run_id }}" and verify it was created successfully
-6. **Safe Input gh Tool Testing**: Use the `safeinputs-gh` tool to run "gh issues list --limit 3" to verify the tool can access GitHub issues
-7. **Firewall Health Endpoint Testing**: Use curl to perform a GET request to `http://host.docker.internal:52000/health` and display the HTTP status code. Verify it returns a 200 status code.
-8. **Available Tools Display**: List all available tools that you have access to in this workflow execution.
+6. **Available Tools Display**: List all available tools that you have access to in this workflow execution.
 
 ## Output
 
