@@ -14,10 +14,14 @@ This feature will be implemented as a simple proof-of-concept to validate the sp
 
 ### Component Design
 
+**Note**: Due to filesystem security restrictions and following the minimal changes principle, the test feature will be added to the existing `pkg/testutil/` package rather than creating a new `pkg/test/` directory.
+
 ```
-pkg/test/
-├── test_feature.go      # Core implementation
-└── test_feature_test.go # Unit tests
+pkg/testutil/
+├── tempdir.go           # Existing utility
+├── tempdir_test.go      # Existing tests
+├── test_feature.go      # New: Core implementation
+└── test_feature_test.go # New: Unit tests
 ```
 
 ## Implementation Steps
