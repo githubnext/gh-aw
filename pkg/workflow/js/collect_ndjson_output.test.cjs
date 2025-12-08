@@ -336,16 +336,20 @@ describe("collect_ndjson_output.cjs", () => {
 
     await eval(`(async () => { ${collectScript} })()`);
 
-    // Since there are errors and no valid items, setFailed should be called
-    expect(mockCore.setFailed).toHaveBeenCalledTimes(1);
-    const failedMessage = mockCore.setFailed.mock.calls[0][0];
-    expect(failedMessage).toContain("requires a 'body' field (string)");
-    expect(failedMessage).toContain("requires a 'title' field (string)");
+    // Should show warnings but not fail the step
+    expect(mockCore.warning).toHaveBeenCalled();
+    expect(mockCore.setFailed).not.toHaveBeenCalled();
 
-    // setOutput should not be called because of early return
+    // setOutput should be called with errors and empty items
     const setOutputCalls = mockCore.setOutput.mock.calls;
     const outputCall = setOutputCalls.find(call => call[0] === "output");
-    expect(outputCall).toBeUndefined();
+    expect(outputCall).toBeDefined();
+    
+    const parsedOutput = JSON.parse(outputCall[1]);
+    expect(parsedOutput.items).toHaveLength(0);
+    expect(parsedOutput.errors.length).toBeGreaterThan(0);
+    expect(parsedOutput.errors.some(e => e.includes("requires a 'body' field (string)"))).toBe(true);
+    expect(parsedOutput.errors.some(e => e.includes("requires a 'title' field (string)"))).toBe(true);
   });
 
   it("should validate required fields for add-labels type", async () => {
@@ -935,15 +939,19 @@ Line 3"}
 
       await eval(`(async () => { ${collectScript} })()`);
 
-      // Since there are errors and no valid items, setFailed should be called
-      expect(mockCore.setFailed).toHaveBeenCalledTimes(1);
-      const failedMessage = mockCore.setFailed.mock.calls[0][0];
-      expect(failedMessage).toContain("JSON parsing failed");
+      // Should show warnings but not fail the step
+      expect(mockCore.warning).toHaveBeenCalled();
+      expect(mockCore.setFailed).not.toHaveBeenCalled();
 
-      // setOutput should not be called because of early return
+      // setOutput should be called with errors and empty items
       const setOutputCalls = mockCore.setOutput.mock.calls;
       const outputCall = setOutputCalls.find(call => call[0] === "output");
-      expect(outputCall).toBeUndefined();
+      expect(outputCall).toBeDefined();
+      
+      const parsedOutput = JSON.parse(outputCall[1]);
+      expect(parsedOutput.items).toHaveLength(0);
+      expect(parsedOutput.errors.length).toBeGreaterThan(0);
+      expect(parsedOutput.errors.some(e => e.includes("JSON parsing failed"))).toBe(true);
     });
 
     it("should preserve valid JSON without modification", async () => {
@@ -1033,18 +1041,19 @@ Line 3"}
       // Check if repair succeeded by looking at mock calls
       const setOutputCalls = mockCore.setOutput.mock.calls;
       const outputCall = setOutputCalls.find(call => call[0] === "output");
+      expect(outputCall).toBeDefined();
 
-      if (outputCall) {
+      const parsedOutput = JSON.parse(outputCall[1]);
+      if (parsedOutput.items.length > 0) {
         // Repair succeeded
-        const parsedOutput = JSON.parse(outputCall[1]);
         expect(parsedOutput.items[0].type).toBe("add_labels");
         expect(parsedOutput.items[0].labels).toEqual(["bug", "feature"]);
         expect(parsedOutput.errors).toHaveLength(0);
       } else {
-        // Repair failed, should have called setFailed
-        expect(mockCore.setFailed).toHaveBeenCalledTimes(1);
-        const failedMessage = mockCore.setFailed.mock.calls[0][0];
-        expect(failedMessage).toContain("JSON parsing failed");
+        // Repair failed, but step should not fail - just return errors
+        expect(mockCore.setFailed).not.toHaveBeenCalled();
+        expect(mockCore.warning).toHaveBeenCalled();
+        expect(parsedOutput.errors.length).toBeGreaterThan(0);
       }
     });
 
@@ -1356,15 +1365,19 @@ Line 3"}
 
       await eval(`(async () => { ${collectScript} })()`);
 
-      // Since this JSON is too malformed to repair and results in no valid items, setFailed should be called
-      expect(mockCore.setFailed).toHaveBeenCalledTimes(1);
-      const failedMessage = mockCore.setFailed.mock.calls[0][0];
-      expect(failedMessage).toContain("JSON parsing failed");
+      // Should show warnings but not fail the step
+      expect(mockCore.warning).toHaveBeenCalled();
+      expect(mockCore.setFailed).not.toHaveBeenCalled();
 
-      // setOutput should not be called because of early return
+      // setOutput should be called with errors and empty items
       const setOutputCalls = mockCore.setOutput.mock.calls;
       const outputCall = setOutputCalls.find(call => call[0] === "output");
-      expect(outputCall).toBeUndefined();
+      expect(outputCall).toBeDefined();
+      
+      const parsedOutput = JSON.parse(outputCall[1]);
+      expect(parsedOutput.items).toHaveLength(0);
+      expect(parsedOutput.errors.length).toBeGreaterThan(0);
+      expect(parsedOutput.errors.some(e => e.includes("JSON parsing failed"))).toBe(true);
     });
 
     it("should repair very long strings with multiple issues", async () => {
@@ -1487,15 +1500,19 @@ Line 3"}
 
       await eval(`(async () => { ${collectScript} })()`);
 
-      // Since this JSON is fundamentally broken and results in no valid items, setFailed should be called
-      expect(mockCore.setFailed).toHaveBeenCalledTimes(1);
-      const failedMessage = mockCore.setFailed.mock.calls[0][0];
-      expect(failedMessage).toContain("JSON parsing failed");
+      // Should show warnings but not fail the step
+      expect(mockCore.warning).toHaveBeenCalled();
+      expect(mockCore.setFailed).not.toHaveBeenCalled();
 
-      // setOutput should not be called because of early return
+      // setOutput should be called with errors and empty items
       const setOutputCalls = mockCore.setOutput.mock.calls;
       const outputCall = setOutputCalls.find(call => call[0] === "output");
-      expect(outputCall).toBeUndefined();
+      expect(outputCall).toBeDefined();
+      
+      const parsedOutput = JSON.parse(outputCall[1]);
+      expect(parsedOutput.items).toHaveLength(0);
+      expect(parsedOutput.errors.length).toBeGreaterThan(0);
+      expect(parsedOutput.errors.some(e => e.includes("JSON parsing failed"))).toBe(true);
     });
 
     it("should handle repair of JSON with missing property separators", async () => {
@@ -1511,15 +1528,19 @@ Line 3"}
 
       await eval(`(async () => { ${collectScript} })()`);
 
-      // Since this JSON likely fails to repair and results in no valid items, setFailed should be called
-      expect(mockCore.setFailed).toHaveBeenCalledTimes(1);
-      const failedMessage = mockCore.setFailed.mock.calls[0][0];
-      expect(failedMessage).toContain("JSON parsing failed");
+      // Should show warnings but not fail the step
+      expect(mockCore.warning).toHaveBeenCalled();
+      expect(mockCore.setFailed).not.toHaveBeenCalled();
 
-      // setOutput should not be called because of early return
+      // setOutput should be called with errors and empty items
       const setOutputCalls = mockCore.setOutput.mock.calls;
       const outputCall = setOutputCalls.find(call => call[0] === "output");
-      expect(outputCall).toBeUndefined();
+      expect(outputCall).toBeDefined();
+      
+      const parsedOutput = JSON.parse(outputCall[1]);
+      expect(parsedOutput.items).toHaveLength(0);
+      expect(parsedOutput.errors.length).toBeGreaterThan(0);
+      expect(parsedOutput.errors.some(e => e.includes("JSON parsing failed"))).toBe(true);
     });
 
     it("should repair arrays with mixed bracket types in complex structures", async () => {
@@ -1563,17 +1584,19 @@ Line 3"}
       const setOutputCalls = mockCore.setOutput.mock.calls;
       const outputCall = setOutputCalls.find(call => call[0] === "output");
 
-      if (outputCall) {
+      expect(outputCall).toBeDefined();
+      
+      const parsedOutput = JSON.parse(outputCall[1]);
+      if (parsedOutput.items.length > 0) {
         // Repair succeeded
-        const parsedOutput = JSON.parse(outputCall[1]);
         expect(parsedOutput.items[0].type).toBe("create_issue");
         expect(parsedOutput.items[0].title).toBe("Test");
         expect(parsedOutput.errors).toHaveLength(0);
       } else {
-        // Repair failed, should have called setFailed
-        expect(mockCore.setFailed).toHaveBeenCalledTimes(1);
-        const failedMessage = mockCore.setFailed.mock.calls[0][0];
-        expect(failedMessage).toContain("JSON parsing failed");
+        // Repair failed, but step should not fail - just return errors
+        expect(mockCore.setFailed).not.toHaveBeenCalled();
+        expect(mockCore.warning).toHaveBeenCalled();
+        expect(parsedOutput.errors.length).toBeGreaterThan(0);
       }
     });
 
@@ -1779,18 +1802,22 @@ Line 3"}
 
       await eval(`(async () => { ${collectScript} })()`);
 
-      // Since there are errors and no valid items, setFailed should be called
-      expect(mockCore.setFailed).toHaveBeenCalledTimes(1);
-      const failedMessage = mockCore.setFailed.mock.calls[0][0];
-      expect(failedMessage).toContain("create_code_scanning_alert requires a 'file' field (string)");
-      expect(failedMessage).toContain("create_code_scanning_alert 'line' is required");
-      expect(failedMessage).toContain("create_code_scanning_alert requires a 'severity' field (string)");
-      expect(failedMessage).toContain("create_code_scanning_alert requires a 'message' field (string)");
+      // Should show warnings but not fail the step
+      expect(mockCore.warning).toHaveBeenCalled();
+      expect(mockCore.setFailed).not.toHaveBeenCalled();
 
-      // setOutput should not be called because of early return
+      // setOutput should be called with errors and empty items
       const setOutputCalls = mockCore.setOutput.mock.calls;
       const outputCall = setOutputCalls.find(call => call[0] === "output");
-      expect(outputCall).toBeUndefined();
+      expect(outputCall).toBeDefined();
+      
+      const parsedOutput = JSON.parse(outputCall[1]);
+      expect(parsedOutput.items).toHaveLength(0);
+      expect(parsedOutput.errors.length).toBeGreaterThan(0);
+      expect(parsedOutput.errors.some(e => e.includes("create_code_scanning_alert requires a 'file' field (string)"))).toBe(true);
+      expect(parsedOutput.errors.some(e => e.includes("create_code_scanning_alert 'line' is required"))).toBe(true);
+      expect(parsedOutput.errors.some(e => e.includes("create_code_scanning_alert requires a 'severity' field (string)"))).toBe(true);
+      expect(parsedOutput.errors.some(e => e.includes("create_code_scanning_alert requires a 'message' field (string)"))).toBe(true);
     });
 
     it("should reject code scanning alert entries with invalid field types", async () => {
@@ -1809,18 +1836,22 @@ Line 3"}
 
       await eval(`(async () => { ${collectScript} })()`);
 
-      // Since there are errors and no valid items, setFailed should be called
-      expect(mockCore.setFailed).toHaveBeenCalledTimes(1);
-      const failedMessage = mockCore.setFailed.mock.calls[0][0];
-      expect(failedMessage).toContain("create_code_scanning_alert requires a 'file' field (string)");
-      expect(failedMessage).toContain("create_code_scanning_alert 'line' is required");
-      expect(failedMessage).toContain("create_code_scanning_alert requires a 'severity' field (string)");
-      expect(failedMessage).toContain("create_code_scanning_alert requires a 'message' field (string)");
+      // Should show warnings but not fail the step
+      expect(mockCore.warning).toHaveBeenCalled();
+      expect(mockCore.setFailed).not.toHaveBeenCalled();
 
-      // setOutput should not be called because of early return
+      // setOutput should be called with errors and empty items
       const setOutputCalls = mockCore.setOutput.mock.calls;
       const outputCall = setOutputCalls.find(call => call[0] === "output");
-      expect(outputCall).toBeUndefined();
+      expect(outputCall).toBeDefined();
+      
+      const parsedOutput = JSON.parse(outputCall[1]);
+      expect(parsedOutput.items).toHaveLength(0);
+      expect(parsedOutput.errors.length).toBeGreaterThan(0);
+      expect(parsedOutput.errors.some(e => e.includes("create_code_scanning_alert requires a 'file' field (string)"))).toBe(true);
+      expect(parsedOutput.errors.some(e => e.includes("create_code_scanning_alert 'line' is required"))).toBe(true);
+      expect(parsedOutput.errors.some(e => e.includes("create_code_scanning_alert requires a 'severity' field (string)"))).toBe(true);
+      expect(parsedOutput.errors.some(e => e.includes("create_code_scanning_alert requires a 'message' field (string)"))).toBe(true);
     });
 
     it("should reject code scanning alert entries with invalid severity levels", async () => {
@@ -1837,15 +1868,19 @@ Line 3"}
 
       await eval(`(async () => { ${collectScript} })()`);
 
-      // Since there are errors and no valid items, setFailed should be called
-      expect(mockCore.setFailed).toHaveBeenCalledTimes(1);
-      const failedMessage = mockCore.setFailed.mock.calls[0][0];
-      expect(failedMessage).toContain("create_code_scanning_alert 'severity' must be one of: error, warning, info, note");
+      // Should show warnings but not fail the step
+      expect(mockCore.warning).toHaveBeenCalled();
+      expect(mockCore.setFailed).not.toHaveBeenCalled();
 
-      // setOutput should not be called because of early return
+      // setOutput should be called with errors and empty items
       const setOutputCalls = mockCore.setOutput.mock.calls;
       const outputCall = setOutputCalls.find(call => call[0] === "output");
-      expect(outputCall).toBeUndefined();
+      expect(outputCall).toBeDefined();
+      
+      const parsedOutput = JSON.parse(outputCall[1]);
+      expect(parsedOutput.items).toHaveLength(0);
+      expect(parsedOutput.errors.length).toBeGreaterThan(0);
+      expect(parsedOutput.errors.some(e => e.includes("create_code_scanning_alert 'severity' must be one of: error, warning, info, note"))).toBe(true);
     });
 
     it("should reject code scanning alert entries with invalid optional fields", async () => {
@@ -1863,19 +1898,23 @@ Line 3"}
 
       await eval(`(async () => { ${collectScript} })()`);
 
-      // Since there are errors and no valid items, setFailed should be called
-      expect(mockCore.setFailed).toHaveBeenCalledTimes(1);
-      const failedMessage = mockCore.setFailed.mock.calls[0][0];
-      expect(failedMessage).toContain("create_code_scanning_alert 'column' must be a valid positive integer (got: invalid)");
-      expect(failedMessage).toContain("create_code_scanning_alert 'ruleIdSuffix' must be a string");
-      expect(failedMessage).toContain(
-        "create_code_scanning_alert 'ruleIdSuffix' must contain only alphanumeric characters, hyphens, and underscores"
-      );
+      // Should show warnings but not fail the step
+      expect(mockCore.warning).toHaveBeenCalled();
+      expect(mockCore.setFailed).not.toHaveBeenCalled();
 
-      // setOutput should not be called because of early return
+      // setOutput should be called with errors and empty items
       const setOutputCalls = mockCore.setOutput.mock.calls;
       const outputCall = setOutputCalls.find(call => call[0] === "output");
-      expect(outputCall).toBeUndefined();
+      expect(outputCall).toBeDefined();
+      
+      const parsedOutput = JSON.parse(outputCall[1]);
+      expect(parsedOutput.items).toHaveLength(0);
+      expect(parsedOutput.errors.length).toBeGreaterThan(0);
+      expect(parsedOutput.errors.some(e => e.includes("create_code_scanning_alert 'column' must be a valid positive integer (got: invalid)"))).toBe(true);
+      expect(parsedOutput.errors.some(e => e.includes("create_code_scanning_alert 'ruleIdSuffix' must be a string"))).toBe(true);
+      expect(parsedOutput.errors.some(e => e.includes(
+        "create_code_scanning_alert 'ruleIdSuffix' must contain only alphanumeric characters, hyphens, and underscores"
+      ))).toBe(true);
     });
 
     it("should handle mixed valid and invalid code scanning alert entries", async () => {
@@ -1923,19 +1962,23 @@ Line 3"}
 
       await eval(`(async () => { ${collectScript} })()`);
 
-      // Since there are errors and no valid items, setFailed should be called
-      expect(mockCore.setFailed).toHaveBeenCalledTimes(1);
-      const failedMessage = mockCore.setFailed.mock.calls[0][0];
-      expect(failedMessage).toContain("create_code_scanning_alert 'line' must be a valid positive integer (got: invalid)");
-      expect(failedMessage).toContain("create_code_scanning_alert 'line' must be a valid positive integer (got: 0)");
-      expect(failedMessage).toContain("create_code_scanning_alert 'line' must be a valid positive integer (got: -5)");
-      expect(failedMessage).toContain("create_code_scanning_alert 'column' must be a valid positive integer (got: abc)");
-      expect(failedMessage).toContain("create_code_scanning_alert 'column' must be a valid positive integer (got: 0)");
+      // Should show warnings but not fail the step
+      expect(mockCore.warning).toHaveBeenCalled();
+      expect(mockCore.setFailed).not.toHaveBeenCalled();
 
-      // setOutput should not be called because of early return
+      // setOutput should be called with errors and empty items
       const setOutputCalls = mockCore.setOutput.mock.calls;
       const outputCall = setOutputCalls.find(call => call[0] === "output");
-      expect(outputCall).toBeUndefined();
+      expect(outputCall).toBeDefined();
+      
+      const parsedOutput = JSON.parse(outputCall[1]);
+      expect(parsedOutput.items).toHaveLength(0);
+      expect(parsedOutput.errors.length).toBeGreaterThan(0);
+      expect(parsedOutput.errors.some(e => e.includes("create_code_scanning_alert 'line' must be a valid positive integer (got: invalid)"))).toBe(true);
+      expect(parsedOutput.errors.some(e => e.includes("create_code_scanning_alert 'line' must be a valid positive integer (got: 0)"))).toBe(true);
+      expect(parsedOutput.errors.some(e => e.includes("create_code_scanning_alert 'line' must be a valid positive integer (got: -5)"))).toBe(true);
+      expect(parsedOutput.errors.some(e => e.includes("create_code_scanning_alert 'column' must be a valid positive integer (got: abc)"))).toBe(true);
+      expect(parsedOutput.errors.some(e => e.includes("create_code_scanning_alert 'column' must be a valid positive integer (got: 0)"))).toBe(true);
     });
   });
 
@@ -2494,10 +2537,19 @@ Line 3"}
 
       await eval(`(async () => { ${collectScript} })()`);
 
-      // When there are only errors and no valid items, setFailed is called instead of setOutput
-      expect(mockCore.setFailed).toHaveBeenCalled();
-      const failedCall = mockCore.setFailed.mock.calls[0][0];
-      expect(failedCall).toContain("noop requires a 'message' field (string)");
+      // Should show warnings but not fail the step
+      expect(mockCore.warning).toHaveBeenCalled();
+      expect(mockCore.setFailed).not.toHaveBeenCalled();
+
+      // setOutput should be called with errors and empty items
+      const setOutputCalls = mockCore.setOutput.mock.calls;
+      const outputCall = setOutputCalls.find(call => call[0] === "output");
+      expect(outputCall).toBeDefined();
+      
+      const parsedOutput = JSON.parse(outputCall[1]);
+      expect(parsedOutput.items).toHaveLength(0);
+      expect(parsedOutput.errors.length).toBeGreaterThan(0);
+      expect(parsedOutput.errors.some(e => e.includes("noop requires a 'message' field (string)"))).toBe(true);
     });
 
     it("should reject noop with non-string message", async () => {
@@ -2515,10 +2567,19 @@ Line 3"}
 
       await eval(`(async () => { ${collectScript} })()`);
 
-      // When there are only errors and no valid items, setFailed is called instead of setOutput
-      expect(mockCore.setFailed).toHaveBeenCalled();
-      const failedCall = mockCore.setFailed.mock.calls[0][0];
-      expect(failedCall).toContain("noop requires a 'message' field (string)");
+      // Should show warnings but not fail the step
+      expect(mockCore.warning).toHaveBeenCalled();
+      expect(mockCore.setFailed).not.toHaveBeenCalled();
+
+      // setOutput should be called with errors and empty items
+      const setOutputCalls = mockCore.setOutput.mock.calls;
+      const outputCall = setOutputCalls.find(call => call[0] === "output");
+      expect(outputCall).toBeDefined();
+      
+      const parsedOutput = JSON.parse(outputCall[1]);
+      expect(parsedOutput.items).toHaveLength(0);
+      expect(parsedOutput.errors.length).toBeGreaterThan(0);
+      expect(parsedOutput.errors.some(e => e.includes("noop requires a 'message' field (string)"))).toBe(true);
     });
 
     it("should sanitize noop message content", async () => {
@@ -2665,15 +2726,19 @@ Line 3"}
 
       await eval(`(async () => { ${collectScript} })()`);
 
-      // Since there are errors and no valid items, setFailed should be called
-      expect(mockCore.setFailed).toHaveBeenCalledTimes(1);
-      const failedMessage = mockCore.setFailed.mock.calls[0][0];
-      expect(failedMessage).toContain("assign_to_agent 'issue_number' is required");
+      // Should show warnings but not fail the step
+      expect(mockCore.warning).toHaveBeenCalled();
+      expect(mockCore.setFailed).not.toHaveBeenCalled();
 
-      // setOutput should not be called because of early return
+      // setOutput should be called with errors and empty items
       const setOutputCalls = mockCore.setOutput.mock.calls;
       const outputCall = setOutputCalls.find(call => call[0] === "output");
-      expect(outputCall).toBeUndefined();
+      expect(outputCall).toBeDefined();
+      
+      const parsedOutput = JSON.parse(outputCall[1]);
+      expect(parsedOutput.items).toHaveLength(0);
+      expect(parsedOutput.errors.length).toBeGreaterThan(0);
+      expect(parsedOutput.errors.some(e => e.includes("assign_to_agent 'issue_number' is required"))).toBe(true);
     });
   });
 
@@ -2791,10 +2856,19 @@ Line 3"}
 
       await eval(`(async () => { ${collectScript} })()`);
 
-      // When all items fail validation, setFailed is called and output is not set
-      const setFailedCalls = mockCore.setFailed.mock.calls;
-      expect(setFailedCalls.length).toBeGreaterThan(0);
-      expect(setFailedCalls[0][0]).toContain("must be a positive integer or temporary ID");
+      // Should show warnings but not fail the step
+      expect(mockCore.warning).toHaveBeenCalled();
+      expect(mockCore.setFailed).not.toHaveBeenCalled();
+
+      // setOutput should be called with errors and empty items
+      const setOutputCalls = mockCore.setOutput.mock.calls;
+      const outputCall = setOutputCalls.find(call => call[0] === "output");
+      expect(outputCall).toBeDefined();
+      
+      const parsedOutput = JSON.parse(outputCall[1]);
+      expect(parsedOutput.items).toHaveLength(0);
+      expect(parsedOutput.errors.length).toBeGreaterThan(0);
+      expect(parsedOutput.errors.some(e => e.includes("must be a positive integer or temporary ID"))).toBe(true);
     });
 
     it("should reject same temporary ID for parent and sub", async () => {
@@ -2807,10 +2881,19 @@ Line 3"}
 
       await eval(`(async () => { ${collectScript} })()`);
 
-      // When all items fail validation, setFailed is called and output is not set
-      const setFailedCalls = mockCore.setFailed.mock.calls;
-      expect(setFailedCalls.length).toBeGreaterThan(0);
-      expect(setFailedCalls[0][0]).toContain("must be different");
+      // Should show warnings but not fail the step
+      expect(mockCore.warning).toHaveBeenCalled();
+      expect(mockCore.setFailed).not.toHaveBeenCalled();
+
+      // setOutput should be called with errors and empty items
+      const setOutputCalls = mockCore.setOutput.mock.calls;
+      const outputCall = setOutputCalls.find(call => call[0] === "output");
+      expect(outputCall).toBeDefined();
+      
+      const parsedOutput = JSON.parse(outputCall[1]);
+      expect(parsedOutput.items).toHaveLength(0);
+      expect(parsedOutput.errors.length).toBeGreaterThan(0);
+      expect(parsedOutput.errors.some(e => e.includes("must be different"))).toBe(true);
     });
   });
 });
