@@ -29,10 +29,7 @@
 # timeout-minutes: 5
 # strict: false
 # engine: copilot
-# permissions:
-#   contents: read
-#   issues: read
-#   pull-requests: read
+# permissions: read-all
 # tools:
 #   github: false
 #   edit:
@@ -105,10 +102,7 @@ name: "Dev"
 "on":
   workflow_dispatch: null
 
-permissions:
-  contents: read
-  issues: read
-  pull-requests: read
+permissions: read-all
 
 concurrency:
   group: "gh-aw-${{ github.workflow }}"
@@ -215,10 +209,7 @@ jobs:
   agent:
     needs: activation
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      issues: read
-      pull-requests: read
+    permissions: read-all
     concurrency:
       group: "gh-aw-copilot-${{ github.workflow }}"
     env:
