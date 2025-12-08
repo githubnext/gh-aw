@@ -657,6 +657,24 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName, markdownPat
 		safeOutputJobNames = append(safeOutputJobNames, linkSubIssueJob.Name)
 	}
 
+	// Build minimize_comment job if safe-outputs.minimize-comment is configured
+	if data.SafeOutputs.MinimizeComment != nil {
+		minimizeCommentJob, err := c.buildMinimizeCommentJob(data, jobName)
+		if err != nil {
+			return fmt.Errorf("failed to build minimize_comment job: %w", err)
+		}
+		// Safe-output jobs should depend on agent job (always) AND detection job (if enabled)
+		if threatDetectionEnabled {
+			minimizeCommentJob.Needs = append(minimizeCommentJob.Needs, constants.DetectionJobName)
+			// Add detection success check to the job condition
+			minimizeCommentJob.If = AddDetectionSuccessCheck(minimizeCommentJob.If)
+		}
+		if err := c.jobManager.AddJob(minimizeCommentJob); err != nil {
+			return fmt.Errorf("failed to add minimize_comment job: %w", err)
+		}
+		safeOutputJobNames = append(safeOutputJobNames, minimizeCommentJob.Name)
+	}
+
 	// Build create_agent_task job if output.create-agent-task is configured
 	if data.SafeOutputs.CreateAgentTasks != nil {
 		createAgentTaskJob, err := c.buildCreateOutputAgentTaskJob(data, jobName)

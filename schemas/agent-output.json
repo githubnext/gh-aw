@@ -47,7 +47,8 @@
         {"$ref": "#/$defs/AssignMilestoneOutput"},
         {"$ref": "#/$defs/AssignToAgentOutput"},
         {"$ref": "#/$defs/NoOpOutput"},
-        {"$ref": "#/$defs/LinkSubIssueOutput"}
+        {"$ref": "#/$defs/LinkSubIssueOutput"},
+        {"$ref": "#/$defs/MinimizeCommentOutput"}
       ]
     },
     "CreateIssueOutput": {
@@ -621,6 +622,25 @@
         }
       },
       "required": ["type", "parent_issue_number", "sub_issue_number"],
+      "additionalProperties": false
+    },
+    "MinimizeCommentOutput": {
+      "title": "Minimize Comment Output",
+      "description": "Output for minimizing (hiding) a comment on a GitHub issue, pull request, or discussion",
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "minimize_comment"
+        },
+        "comment_id": {
+          "oneOf": [
+            {"type": "number"},
+            {"type": "string"}
+          ],
+          "description": "Node ID of the comment to minimize (e.g., 'IC_kwDOABCD123456')"
+        }
+      },
+      "required": ["type", "comment_id"],
       "additionalProperties": false
     }
   }
