@@ -633,11 +633,9 @@
           "const": "minimize_comment"
         },
         "comment_id": {
-          "oneOf": [
-            {"type": "number"},
-            {"type": "string"}
-          ],
-          "description": "Node ID of the comment to minimize (e.g., 'IC_kwDOABCD123456')"
+          "type": "string",
+          "description": "Node ID of the comment to minimize (e.g., 'IC_kwDOABCD123456')",
+          "minLength": 1
         }
       },
       "required": ["type", "comment_id"],

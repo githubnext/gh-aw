@@ -533,14 +533,14 @@
   },
   {
     "name": "minimize_comment",
-    "description": "Minimize (hide) a comment on a GitHub issue, pull request, or discussion. This collapses the comment as spam or off-topic. Use this for inappropriate, off-topic, or outdated comments. To find a comment's node ID, use GraphQL queries or the GitHub API.",
+    "description": "Minimize (hide) a comment on a GitHub issue, pull request, or discussion. This collapses the comment as spam or off-topic. Use this for inappropriate, off-topic, or outdated comments. The comment_id must be a GraphQL node ID (string like 'IC_kwDOABCD123456'), not a numeric REST API comment ID.",
     "inputSchema": {
       "type": "object",
       "required": ["comment_id"],
       "properties": {
         "comment_id": {
-          "type": ["number", "string"],
-          "description": "Node ID of the comment to minimize (e.g., 'IC_kwDOABCD123456'). This is the GraphQL node ID, not the numeric comment ID. Can be obtained from GraphQL queries or comment API responses."
+          "type": "string",
+          "description": "GraphQL node ID of the comment to minimize (e.g., 'IC_kwDOABCD123456'). This is the GraphQL node ID, not the numeric comment ID from REST API. Can be obtained from GraphQL queries or comment API responses."
         }
       },
       "additionalProperties": false

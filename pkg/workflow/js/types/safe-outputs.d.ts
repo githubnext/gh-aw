@@ -281,8 +281,8 @@ interface LinkSubIssueItem extends BaseSafeOutputItem {
  */
 interface MinimizeCommentItem extends BaseSafeOutputItem {
   type: "minimize_comment";
-  /** Node ID of the comment to minimize */
-  comment_id: number | string;
+  /** GraphQL node ID of the comment to minimize (e.g., 'IC_kwDOABCD123456') */
+  comment_id: string;
 }
 
 /**
