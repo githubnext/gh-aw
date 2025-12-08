@@ -42,9 +42,10 @@ func ExtractActionsFromLockFile(lockFilePath string) ([]ActionUsage, error) {
 		return nil, fmt.Errorf("failed to parse lock file YAML: %w", err)
 	}
 
-	// Regular expression to match uses: owner/repo@sha
-	// This matches: owner/repo@40-char-hex-sha or owner/repo/subpath@40-char-hex-sha
-	usesPattern := regexp.MustCompile(`([a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+(?:/[a-zA-Z0-9_.-]+)*)@([0-9a-f]{40})`)
+	// Regular expression to match uses: owner/repo@sha with optional version comment
+	// This matches: owner/repo@40-char-hex-sha # version
+	// Captures: (1) repo, (2) sha, (3) version (optional)
+	usesPattern := regexp.MustCompile(`([a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+(?:/[a-zA-Z0-9_.-]+)*)@([0-9a-f]{40})(?:\s*#\s*([^\s]+))?`)
 
 	actions := make(map[string]ActionUsage) // Use map to deduplicate
 
@@ -62,12 +63,19 @@ func ExtractActionsFromLockFile(lockFilePath string) ([]ActionUsage, error) {
 				continue
 			}
 
-			actionSHACheckerLog.Printf("Found action: %s@%s", repo, sha)
-
-			// Try to determine the version tag from action_pins.json
+			// Extract version from comment if present (match[3])
 			version := ""
-			if pin, found := GetActionPinByRepo(repo); found {
-				version = pin.Version
+			if len(match) >= 4 && match[3] != "" {
+				version = match[3]
+				actionSHACheckerLog.Printf("Found action: %s@%s (version: %s)", repo, sha, version)
+			} else {
+				// Fallback: try to determine the version tag from action_pins.json
+				if pin, found := GetActionPinByRepo(repo); found {
+					version = pin.Version
+					actionSHACheckerLog.Printf("Found action: %s@%s (version from pins: %s)", repo, sha, version)
+				} else {
+					actionSHACheckerLog.Printf("Found action: %s@%s (no version)", repo, sha)
+				}
 			}
 
 			actions[repo+"@"+sha] = ActionUsage{
@@ -187,7 +195,7 @@ func ValidateActionSHAsInLockFile(lockFilePath string, cache *ActionCache, verbo
 			actionSHACheckerLog.Print("Saved updated action cache")
 		}
 		// Provide suggestion to fix the issue
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("To update action SHAs, run: gh aw compile --validate"))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("To apply updated action SHAs, recompile with: gh aw compile"))
 		if verbose {
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Found %d action(s) with available updates", updateCount)))
 		}
