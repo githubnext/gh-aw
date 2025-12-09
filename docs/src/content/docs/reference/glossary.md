@@ -97,6 +97,16 @@ safe-outputs:
   upload-assets:
 ```
 
+### Minimize Comment
+A safe output capability that allows workflows to hide or minimize GitHub comments without requiring write permissions. When minimized, comments are classified as SPAM. Requires GraphQL node IDs (format: `IC_kwDOABCD123456`) to identify comments. Useful for content moderation workflows.
+
+```yaml
+safe-outputs:
+  minimize-comment:
+    max: 5
+    target-repo: "owner/repo"
+```
+
 ## Workflow Components
 
 ### Engine
@@ -127,6 +137,18 @@ Controls over what external domains and services a workflow can access. Configur
 
 ### Imports
 Reusable workflow components that can be shared across multiple workflows. Specified in the `imports:` field. Can include tool configurations, common instructions, or security guidelines stored in separate files.
+
+### Labels
+Optional workflow metadata containing an array of strings for categorization and organization. Labels help organize workflows by topic, purpose, or team, and enable filtering workflows in the CLI using the `--label` flag.
+
+```yaml
+labels: ["automation", "ci", "diagnostics"]
+```
+
+View workflows with specific labels:
+```bash
+gh aw status --label automation
+```
 
 ## GitHub and Infrastructure Terms
 
