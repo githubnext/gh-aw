@@ -1,0 +1,17 @@
+name: 'Minimize Comment'
+description: 'Minimize (hide) a comment using the GraphQL API.'
+author: 'GitHub Next'
+
+outputs:
+  comment_id:
+    description: 'Output parameter: comment_id'
+  is_minimized:
+    description: 'Output parameter: is_minimized'
+
+runs:
+  using: 'node20'
+  main: 'index.js'
+
+branding:
+  icon: 'package'
+  color: 'blue'

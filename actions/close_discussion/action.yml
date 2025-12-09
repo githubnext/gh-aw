@@ -1,0 +1,19 @@
+name: 'Close Discussion'
+description: 'Get discussion details using GraphQL'
+author: 'GitHub Next'
+
+outputs:
+  comment_url:
+    description: 'Output parameter: comment_url'
+  discussion_number:
+    description: 'Output parameter: discussion_number'
+  discussion_url:
+    description: 'Output parameter: discussion_url'
+
+runs:
+  using: 'node20'
+  main: 'index.js'
+
+branding:
+  icon: 'package'
+  color: 'blue'

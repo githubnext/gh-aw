@@ -1,0 +1,15 @@
+name: 'Noop'
+description: 'Main function to handle noop safe output'
+author: 'GitHub Next'
+
+outputs:
+  noop_message:
+    description: 'Output parameter: noop_message'
+
+runs:
+  using: 'node20'
+  main: 'index.js'
+
+branding:
+  icon: 'package'
+  color: 'blue'

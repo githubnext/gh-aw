@@ -1,0 +1,11 @@
+name: 'Close Pull Request'
+description: 'Get pull request details using REST API'
+author: 'GitHub Next'
+
+runs:
+  using: 'node20'
+  main: 'index.js'
+
+branding:
+  icon: 'package'
+  color: 'blue'
