@@ -2,6 +2,28 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.32.1 - 2025-12-09
+
+### Bug Fixes
+
+#### Adds generated asset links (issues, PRs, comments, etc.) to the conclusion job's
+
+workflow completion comment so created assets appear as direct links with GitHub
+rich previews.
+
+> 🏴‍☠️ Ahoy! This treasure was crafted by [Changeset Generator](https://github.com/githubnext/gh-aw/actions/runs/20064257954)
+
+#### Convert the safe outputs MCP server to run as a Node process (follow safe inputs pattern). Refactor bootstrap, write modules as individual `.cjs` files, add tests, fix log directory and environment variables, improve ingestion logging, and remove premature config cleanup so ingestion can validate outputs correctly.
+
+#### Update CLI default versions for agent runtimes and MCP bundles:
+
+- Claude Code: 2.0.61 → 2.0.62
+- Codex: 0.65.0 → 0.66.0
+- Playwright MCP: 0.0.50 → 0.0.51
+
+All workflows recompiled and binary rebuilt as part of the PR validation.
+
+
 ## v0.32.0 - 2025-12-08
 
 ### Features
