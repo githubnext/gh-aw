@@ -288,7 +288,7 @@ describe("add_comment.cjs", () => {
 
     // Check that the footer contains the expected elements (now using messages.cjs with pirate-themed footer)
     expect(callArgs.body).toContain("Test content with source");
-    expect(callArgs.body).toContain("[Test Workflow]");
+    expect(callArgs.body).toContain("[🏴‍☠️ Test Workflow]");
     expect(callArgs.body).toContain("https://github.com/testowner/testrepo/actions/runs/12345");
     expect(callArgs.body).toContain("gh aw add githubnext/agentics/workflows/ci-doctor.md@v1.0.0");
   });
@@ -324,7 +324,7 @@ describe("add_comment.cjs", () => {
 
     // Check that the footer does NOT contain the workflow source (now using messages.cjs with pirate-themed footer)
     expect(callArgs.body).toContain("Test content without source");
-    expect(callArgs.body).toContain("[Test Workflow]");
+    expect(callArgs.body).toContain("[🏴‍☠️ Test Workflow]");
     expect(callArgs.body).not.toContain("gh aw add");
   });
 
@@ -431,7 +431,7 @@ describe("add_comment.cjs", () => {
 
     // Check that the footer includes reference to triggering issue (now using messages.cjs with pirate-themed footer)
     expect(callArgs.body).toContain("Comment from issue context");
-    expect(callArgs.body).toContain("[Test Workflow]");
+    expect(callArgs.body).toContain("[🏴‍☠️ Test Workflow]");
     expect(callArgs.body).toContain("#42");
   });
 
@@ -465,7 +465,7 @@ describe("add_comment.cjs", () => {
 
     // Check that the footer includes reference to triggering PR (now using messages.cjs with pirate-themed footer)
     expect(callArgs.body).toContain("Comment from PR context");
-    expect(callArgs.body).toContain("[Test Workflow]");
+    expect(callArgs.body).toContain("[🏴‍☠️ Test Workflow]");
     expect(callArgs.body).toContain("#123");
 
     // Clean up
