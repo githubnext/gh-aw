@@ -44,6 +44,8 @@
 #   github:
 #     toolsets: [default, pull_requests]
 #
+# if: needs.search_issues.outputs.has_issues == 'true'
+#
 # jobs:
 #   search_issues:
 #     needs: ["pre_activation"]
@@ -102,8 +104,6 @@
 #               core.setOutput('has_issues', 'false');
 #             }
 #
-# if: needs.search_issues.outputs.has_issues == 'true'
-#
 # safe-outputs:
 #   assign-to-agent:
 #     max: 3
@@ -141,6 +141,7 @@
 #   pre_activation --> activation
 #   pre_activation --> search_issues
 #   search_issues --> activation
+#   search_issues --> agent
 # ```
 #
 # Original Prompt:
@@ -1028,7 +1029,9 @@ jobs:
             await main();
 
   agent:
-    needs: activation
+    needs:
+      - activation
+      - search_issues
     runs-on: ubuntu-latest
     permissions:
       contents: read
