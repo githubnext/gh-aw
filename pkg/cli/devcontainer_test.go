@@ -246,6 +246,54 @@ func TestEnsureDevcontainerConfigWithCurrentRepo(t *testing.T) {
 	}
 }
 
+func TestEnsureDevcontainerConfigWithOwnerValidation(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "test-*")
+
+	originalDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Failed to get current directory: %v", err)
+	}
+	defer func() {
+		_ = os.Chdir(originalDir)
+	}()
+
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatalf("Failed to change to temp directory: %v", err)
+	}
+
+	// Initialize git repo
+	if err := exec.Command("git", "init").Run(); err != nil {
+		t.Skip("Git not available")
+	}
+
+	// Configure git
+	exec.Command("git", "config", "user.name", "Test User").Run()
+	exec.Command("git", "config", "user.email", "test@example.com").Run()
+
+	// Add remote with specific owner
+	exec.Command("git", "remote", "add", "origin", "https://github.com/testowner/testrepo.git").Run()
+
+	// Test that same owner succeeds
+	err = ensureDevcontainerConfig(false, []string{"testowner/repo1"})
+	if err != nil {
+		t.Fatalf("ensureDevcontainerConfig() with same owner should succeed: %v", err)
+	}
+
+	// Clean up for next test
+	os.RemoveAll(filepath.Join(".devcontainer", "gh-aw"))
+
+	// Test that different owner fails
+	err = ensureDevcontainerConfig(false, []string{"differentowner/repo2"})
+	if err == nil {
+		t.Fatal("ensureDevcontainerConfig() with different owner should fail")
+	}
+
+	// Check that error message contains expected text
+	if err.Error() == "" || len(err.Error()) < 10 {
+		t.Errorf("Expected meaningful error message, got: %v", err)
+	}
+}
+
 func TestGetCurrentRepoName(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "test-*")
 

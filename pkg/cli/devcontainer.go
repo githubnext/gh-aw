@@ -108,10 +108,19 @@ func ensureDevcontainerConfig(verbose bool, additionalRepos []string) error {
 			continue
 		}
 
-		// If repo already contains '/', use it as-is (for backwards compatibility)
+		// If repo already contains '/', validate that the owner matches
 		// Otherwise, prepend the owner
 		fullRepoName := repo
-		if !strings.Contains(repo, "/") && owner != "" {
+		if strings.Contains(repo, "/") {
+			// Validate that the owner matches the current repo's owner
+			parts := strings.Split(repo, "/")
+			if len(parts) >= 2 {
+				repoOwner := parts[0]
+				if owner != "" && repoOwner != owner {
+					return fmt.Errorf("repository '%s' is not in the same organization as the current repository (expected owner: '%s')", repo, owner)
+				}
+			}
+		} else if owner != "" {
 			fullRepoName = owner + "/" + repo
 		}
 
