@@ -1,18 +1,16 @@
 // @ts-check
 
-/**
- * Safe Outputs MCP Server Module
- *
- * This module provides a reusable MCP server for safe-outputs configuration.
- * It uses the mcp_server_core module for JSON-RPC handling and tool registration.
- *
- * Usage:
- *   node safe_outputs_mcp_server.cjs
- *
- * Or as a module:
- *   const { startSafeOutputsServer } = require("./safe_outputs_mcp_server.cjs");
- *   startSafeOutputsServer();
- */
+// Safe Outputs MCP Server Module
+//
+// This module provides a reusable MCP server for safe-outputs configuration.
+// It uses the mcp_server_core module for JSON-RPC handling and tool registration.
+//
+// Usage:
+//   node safe_outputs_mcp_server.cjs
+//
+// Or as a module:
+//   const server = require("./safe_outputs_mcp_server.cjs");
+//   server.startSafeOutputsServer();
 
 const { createServer, registerTool, normalizeTool, start } = require("./mcp_server_core.cjs");
 const { createAppendFunction } = require("./safe_outputs_append.cjs");

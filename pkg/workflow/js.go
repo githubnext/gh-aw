@@ -28,7 +28,7 @@ var checkMembershipScriptSource string
 // init registers scripts from js.go with the DefaultScriptRegistry
 func init() {
 	DefaultScriptRegistry.Register("check_membership", checkMembershipScriptSource)
-	DefaultScriptRegistry.Register("safe_outputs_mcp_server", safeOutputsMCPServerScriptSource)
+	DefaultScriptRegistry.RegisterWithMode("safe_outputs_mcp_server", safeOutputsMCPServerScriptSource, RuntimeModeNodeJS)
 	DefaultScriptRegistry.Register("update_project", updateProjectScriptSource)
 	DefaultScriptRegistry.Register("interpolate_prompt", interpolatePromptScript)
 	DefaultScriptRegistry.Register("assign_issue", assignIssueScriptSource)
@@ -82,7 +82,7 @@ var safeOutputsMCPServerScriptSource string
 
 // getSafeOutputsMCPServerScript returns the bundled safe_outputs_mcp_server script
 func getSafeOutputsMCPServerScript() string {
-	return DefaultScriptRegistry.GetWithMode("safe_outputs_mcp_server", RuntimeModeGitHubScript)
+	return DefaultScriptRegistry.GetWithMode("safe_outputs_mcp_server", RuntimeModeNodeJS)
 }
 
 //go:embed js/safe_outputs_tools.json
