@@ -4203,14 +4203,20 @@ jobs:
               const outputFile = process.env.GH_AW_SAFE_OUTPUTS;
               const configPath = process.env.GH_AW_SAFE_OUTPUTS_CONFIG_PATH || "/tmp/gh-aw/safeoutputs/config.json";
               let safeOutputsConfig;
+              core.info(`[INGESTION] Reading config from: ${configPath}`);
               try {
                 if (fs.existsSync(configPath)) {
                   const configFileContent = fs.readFileSync(configPath, "utf8");
+                  core.info(`[INGESTION] Raw config content: ${configFileContent}`);
                   safeOutputsConfig = JSON.parse(configFileContent);
+                  core.info(`[INGESTION] Parsed config keys: ${JSON.stringify(Object.keys(safeOutputsConfig))}`);
+                } else {
+                  core.info(`[INGESTION] Config file does not exist at: ${configPath}`);
                 }
               } catch (error) {
                 core.warning(`Failed to read config file from ${configPath}: ${error instanceof Error ? error.message : String(error)}`);
               }
+              core.info(`[INGESTION] Output file path: ${outputFile}`);
               if (!outputFile) {
                 core.info("GH_AW_SAFE_OUTPUTS not set, no output to collect");
                 core.setOutput("output", "");
@@ -4226,11 +4232,14 @@ jobs:
                 core.info("Output file is empty");
               }
               core.info(`Raw output content length: ${outputContent.length}`);
+              core.info(`[INGESTION] First 500 chars of output: ${outputContent.substring(0, 500)}`);
               let expectedOutputTypes = {};
               if (safeOutputsConfig) {
                 try {
+                  core.info(`[INGESTION] Normalizing config keys (dash -> underscore)`);
                   expectedOutputTypes = Object.fromEntries(Object.entries(safeOutputsConfig).map(([key, value]) => [key.replace(/-/g, "_"), value]));
-                  core.info(`Expected output types: ${JSON.stringify(Object.keys(expectedOutputTypes))}`);
+                  core.info(`[INGESTION] Expected output types after normalization: ${JSON.stringify(Object.keys(expectedOutputTypes))}`);
+                  core.info(`[INGESTION] Expected output types full config: ${JSON.stringify(expectedOutputTypes)}`);
                 } catch (error) {
                   const errorMsg = error instanceof Error ? error.message : String(error);
                   core.info(`Warning: Could not parse safe-outputs config: ${errorMsg}`);
@@ -4242,6 +4251,7 @@ jobs:
               for (let i = 0; i < lines.length; i++) {
                 const line = lines[i].trim();
                 if (line === "") continue;
+                core.info(`[INGESTION] Processing line ${i + 1}: ${line.substring(0, 200)}...`);
                 try {
                   const item = parseJsonWithRepair(line);
                   if (item === undefined) {
@@ -4252,9 +4262,12 @@ jobs:
                     errors.push(`Line ${i + 1}: Missing required 'type' field`);
                     continue;
                   }
+                  const originalType = item.type;
                   const itemType = item.type.replace(/-/g, "_");
+                  core.info(`[INGESTION] Line ${i + 1}: Original type='${originalType}', Normalized type='${itemType}'`);
                   item.type = itemType;
                   if (!expectedOutputTypes[itemType]) {
+                    core.warning(`[INGESTION] Line ${i + 1}: Type '${itemType}' not found in expected types: ${JSON.stringify(Object.keys(expectedOutputTypes))}`);
                     errors.push(`Line ${i + 1}: Unexpected output type '${itemType}'. Expected one of: ${Object.keys(expectedOutputTypes).join(", ")}`);
                     continue;
                   }
