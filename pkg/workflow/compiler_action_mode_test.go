@@ -1,0 +1,344 @@
+package workflow
+
+import (
+	"os"
+	"strings"
+	"testing"
+)
+
+// TestActionModeDetection tests the DetectActionMode function
+func TestActionModeDetection(t *testing.T) {
+	tests := []struct {
+		name          string
+		githubRef     string
+		githubEvent   string
+		envOverride   string
+		expectedMode  ActionMode
+		description   string
+	}{
+		{
+			name:         "main branch",
+			githubRef:    "refs/heads/main",
+			githubEvent:  "push",
+			expectedMode: ActionModeDev,
+			description:  "Main branch should use dev mode (not release)",
+		},
+		{
+			name:         "release tag",
+			githubRef:    "refs/tags/v1.0.0",
+			githubEvent:  "push",
+			expectedMode: ActionModeRelease,
+			description:  "Release tags should use release mode",
+		},
+		{
+			name:         "release branch",
+			githubRef:    "refs/heads/release-1.0",
+			githubEvent:  "push",
+			expectedMode: ActionModeRelease,
+			description:  "Release branches should use release mode",
+		},
+		{
+			name:         "release event",
+			githubRef:    "refs/heads/main",
+			githubEvent:  "release",
+			expectedMode: ActionModeRelease,
+			description:  "Release events should use release mode",
+		},
+		{
+			name:         "pull request",
+			githubRef:    "refs/pull/123/merge",
+			githubEvent:  "pull_request",
+			expectedMode: ActionModeDev,
+			description:  "Pull requests should use dev mode",
+		},
+		{
+			name:         "feature branch",
+			githubRef:    "refs/heads/feature/test",
+			githubEvent:  "push",
+			expectedMode: ActionModeDev,
+			description:  "Feature branches should use dev mode",
+		},
+		{
+			name:         "local development",
+			githubRef:    "",
+			githubEvent:  "",
+			expectedMode: ActionModeDev,
+			description:  "Local development (no GITHUB_REF) should use dev mode",
+		},
+		{
+			name:         "env override to inline",
+			githubRef:    "refs/heads/main",
+			githubEvent:  "push",
+			envOverride:  "inline",
+			expectedMode: ActionModeInline,
+			description:  "Environment variable should override detection",
+		},
+		{
+			name:         "env override to dev",
+			githubRef:    "refs/heads/main",
+			githubEvent:  "push",
+			envOverride:  "dev",
+			expectedMode: ActionModeDev,
+			description:  "Environment variable should override to dev mode",
+		},
+		{
+			name:         "env override to release",
+			githubRef:    "refs/heads/feature/test",
+			githubEvent:  "push",
+			envOverride:  "release",
+			expectedMode: ActionModeRelease,
+			description:  "Environment variable should override to release mode",
+		},
+		{
+			name:         "invalid env override",
+			githubRef:    "refs/heads/main",
+			githubEvent:  "push",
+			envOverride:  "invalid",
+			expectedMode: ActionModeDev,
+			description:  "Invalid environment variable should be ignored, main branch uses dev mode",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Save original environment
+			origRef := os.Getenv("GITHUB_REF")
+			origEvent := os.Getenv("GITHUB_EVENT_NAME")
+			origMode := os.Getenv("GH_AW_ACTION_MODE")
+			defer func() {
+				// Restore environment variables properly
+				if origRef != "" {
+					os.Setenv("GITHUB_REF", origRef)
+				} else {
+					os.Unsetenv("GITHUB_REF")
+				}
+				if origEvent != "" {
+					os.Setenv("GITHUB_EVENT_NAME", origEvent)
+				} else {
+					os.Unsetenv("GITHUB_EVENT_NAME")
+				}
+				if origMode != "" {
+					os.Setenv("GH_AW_ACTION_MODE", origMode)
+				} else {
+					os.Unsetenv("GH_AW_ACTION_MODE")
+				}
+			}()
+
+			// Set test environment
+			if tt.githubRef != "" {
+				os.Setenv("GITHUB_REF", tt.githubRef)
+			} else {
+				os.Unsetenv("GITHUB_REF")
+			}
+
+			if tt.githubEvent != "" {
+				os.Setenv("GITHUB_EVENT_NAME", tt.githubEvent)
+			} else {
+				os.Unsetenv("GITHUB_EVENT_NAME")
+			}
+
+			if tt.envOverride != "" {
+				os.Setenv("GH_AW_ACTION_MODE", tt.envOverride)
+			} else {
+				os.Unsetenv("GH_AW_ACTION_MODE")
+			}
+
+			// Test detection
+			mode := DetectActionMode()
+			if mode != tt.expectedMode {
+				t.Errorf("%s: expected mode %s, got %s", tt.description, tt.expectedMode, mode)
+			}
+		})
+	}
+}
+
+// TestActionModeReleaseValidation tests that release mode is valid
+func TestActionModeReleaseValidation(t *testing.T) {
+	if !ActionModeRelease.IsValid() {
+		t.Error("ActionModeRelease should be valid")
+	}
+
+	if ActionModeRelease.String() != "release" {
+		t.Errorf("Expected string 'release', got %q", ActionModeRelease.String())
+	}
+}
+
+// TestReleaseModeCompilation tests workflow compilation in release mode
+// Note: This test uses create_issue which already has ScriptName set.
+// Other safe outputs (add_labels, etc.) don't have ScriptName yet and will use inline mode.
+func TestReleaseModeCompilation(t *testing.T) {
+	// Create a temporary directory for the test
+	tempDir := t.TempDir()
+
+	// Save original environment
+	origSHA := os.Getenv("GITHUB_SHA")
+	origRef := os.Getenv("GITHUB_REF")
+	defer func() {
+		if origSHA != "" {
+			os.Setenv("GITHUB_SHA", origSHA)
+		} else {
+			os.Unsetenv("GITHUB_SHA")
+		}
+		if origRef != "" {
+			os.Setenv("GITHUB_REF", origRef)
+		} else {
+			os.Unsetenv("GITHUB_REF")
+		}
+	}()
+
+	// Set release tag for testing
+	os.Setenv("GITHUB_REF", "refs/tags/v1.0.0") // Simulate release tag for auto-detection
+
+	// Create a test workflow file
+	workflowContent := `---
+name: Test Release Mode
+on: issues
+safe-outputs:
+  create-issue:
+    max: 1
+---
+
+Test workflow with release mode.
+`
+
+	workflowPath := tempDir + "/test-workflow.md"
+	if err := os.WriteFile(workflowPath, []byte(workflowContent), 0644); err != nil {
+		t.Fatalf("Failed to write test workflow: %v", err)
+	}
+
+	// Save the original script to restore after test
+	origScript := DefaultScriptRegistry.Get("create_issue")
+	origActionPath := DefaultScriptRegistry.GetActionPath("create_issue")
+	
+	// Register test script with action path
+	testScript := `const { core } = require('@actions/core'); core.info('test');`
+	DefaultScriptRegistry.RegisterWithAction(
+		"create_issue",
+		testScript,
+		RuntimeModeGitHubScript,
+		"./actions/create-issue",
+	)
+	
+	// Restore after test
+	defer func() {
+		if origActionPath != "" {
+			DefaultScriptRegistry.RegisterWithAction("create_issue", origScript, RuntimeModeGitHubScript, origActionPath)
+		} else {
+			DefaultScriptRegistry.RegisterWithMode("create_issue", origScript, RuntimeModeGitHubScript)
+		}
+	}()
+
+	// Compile - should auto-detect release mode from GITHUB_REF
+	compiler := NewCompiler(false, "", "1.0.0")
+	// Don't set action mode explicitly - let it auto-detect
+	compiler.SetActionMode(DetectActionMode())
+	compiler.SetNoEmit(false)
+
+	if compiler.GetActionMode() != ActionModeRelease {
+		t.Fatalf("Expected auto-detected release mode, got %s", compiler.GetActionMode())
+	}
+
+	if err := compiler.CompileWorkflow(workflowPath); err != nil {
+		t.Fatalf("Compilation failed: %v", err)
+	}
+
+	// Read lock file
+	lockPath := strings.TrimSuffix(workflowPath, ".md") + ".lock.yml"
+	lockContent, err := os.ReadFile(lockPath)
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+
+	lockStr := string(lockContent)
+
+	// Verify tag-based reference exists (SHA will be resolved later via action pins)
+	expectedRef := "githubnext/gh-aw/actions/create-issue@v1.0.0"
+	if !strings.Contains(lockStr, expectedRef) {
+		t.Errorf("Expected tag-based reference %q not found", expectedRef)
+		
+		// Debug: show all uses: lines
+		lines := strings.Split(lockStr, "\n")
+		for i, line := range lines {
+			if strings.Contains(line, "uses:") && strings.Contains(line, "create-issue") {
+				t.Logf("Line %d: %s", i, line)
+			}
+		}
+	}
+}
+
+// TestDevModeCompilation tests workflow compilation in dev mode
+// Note: This test uses create_issue which already has ScriptName set.
+func TestDevModeCompilation(t *testing.T) {
+	tempDir := t.TempDir()
+
+	// Save original environment
+	origRef := os.Getenv("GITHUB_REF")
+	defer os.Setenv("GITHUB_REF", origRef)
+
+	// Set environment for dev mode
+	os.Setenv("GITHUB_REF", "") // Local development (no GITHUB_REF)
+
+	workflowContent := `---
+name: Test Dev Mode  
+on: issues
+safe-outputs:
+  create-issue:
+    max: 1
+---
+
+Test
+`
+
+	workflowPath := tempDir + "/test-workflow.md"
+	if err := os.WriteFile(workflowPath, []byte(workflowContent), 0644); err != nil {
+		t.Fatalf("Failed to write workflow: %v", err)
+	}
+
+	// Save original script
+	origScript := DefaultScriptRegistry.Get("create_issue")
+	origActionPath := DefaultScriptRegistry.GetActionPath("create_issue")
+	
+	testScript := `const { core } = require('@actions/core'); core.info('test');`
+	DefaultScriptRegistry.RegisterWithAction("create_issue", testScript, RuntimeModeGitHubScript, "./actions/create-issue")
+	
+	defer func() {
+		if origActionPath != "" {
+			DefaultScriptRegistry.RegisterWithAction("create_issue", origScript, RuntimeModeGitHubScript, origActionPath)
+		} else {
+			DefaultScriptRegistry.RegisterWithMode("create_issue", origScript, RuntimeModeGitHubScript)
+		}
+	}()
+
+	compiler := NewCompiler(false, "", "1.0.0")
+	compiler.SetActionMode(DetectActionMode())
+	compiler.SetNoEmit(false)
+
+	if compiler.GetActionMode() != ActionModeDev {
+		t.Fatalf("Expected auto-detected dev mode, got %s", compiler.GetActionMode())
+	}
+
+	if err := compiler.CompileWorkflow(workflowPath); err != nil {
+		t.Fatalf("Compilation failed: %v", err)
+	}
+
+	lockPath := strings.TrimSuffix(workflowPath, ".md") + ".lock.yml"
+	lockContent, err := os.ReadFile(lockPath)
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+
+	lockStr := string(lockContent)
+
+	// Verify local path reference
+	if !strings.Contains(lockStr, "uses: ./actions/create-issue") {
+		t.Error("Expected local action reference not found")
+		
+		lines := strings.Split(lockStr, "\n")
+		for i, line := range lines {
+			if strings.Contains(line, "uses:") && strings.Contains(line, "create-issue") {
+				t.Logf("Line %d: %s", i, line)
+			}
+		}
+	}
+}
+

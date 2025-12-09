@@ -27,7 +27,7 @@ func (c *Compiler) formatSafeOutputsRunsOn(safeOutputs *SafeOutputsConfig) strin
 // buildCustomActionStep creates a step that uses a custom action reference
 // instead of inline JavaScript via actions/github-script
 func (c *Compiler) buildCustomActionStep(data *WorkflowData, config GitHubScriptStepConfig, scriptName string) []string {
-	safeOutputsLog.Printf("Building custom action step: %s (scriptName=%s)", config.StepName, scriptName)
+	safeOutputsLog.Printf("Building custom action step: %s (scriptName=%s, actionMode=%s)", config.StepName, scriptName, c.actionMode)
 
 	var steps []string
 
@@ -38,13 +38,20 @@ func (c *Compiler) buildCustomActionStep(data *WorkflowData, config GitHubScript
 		return c.buildGitHubScriptStep(data, config)
 	}
 
+	// Resolve the action reference based on mode
+	actionRef := c.resolveActionReference(actionPath, data)
+	if actionRef == "" {
+		safeOutputsLog.Printf("WARNING: Could not resolve action reference for %s, falling back to inline mode", actionPath)
+		return c.buildGitHubScriptStep(data, config)
+	}
+
 	// Add artifact download steps before the custom action step
 	steps = append(steps, buildAgentOutputDownloadSteps()...)
 
 	// Step name and metadata
 	steps = append(steps, fmt.Sprintf("      - name: %s\n", config.StepName))
 	steps = append(steps, fmt.Sprintf("        id: %s\n", config.StepID))
-	steps = append(steps, fmt.Sprintf("        uses: %s\n", actionPath))
+	steps = append(steps, fmt.Sprintf("        uses: %s\n", actionRef))
 
 	// Environment variables section
 	steps = append(steps, "        env:\n")
@@ -728,9 +735,9 @@ func (c *Compiler) buildSafeOutputJob(data *WorkflowData, config SafeOutputJobCo
 
 	// Build the step based on action mode
 	var scriptSteps []string
-	if c.actionMode == ActionModeDev && config.ScriptName != "" {
-		// Use dev action mode if enabled and script name is provided
-		safeOutputsLog.Printf("Using dev action mode for script: %s", config.ScriptName)
+	if (c.actionMode == ActionModeDev || c.actionMode == ActionModeRelease) && config.ScriptName != "" {
+		// Use custom action mode (dev or release) if enabled and script name is provided
+		safeOutputsLog.Printf("Using custom action mode (%s) for script: %s", c.actionMode, config.ScriptName)
 		scriptSteps = c.buildCustomActionStep(data, GitHubScriptStepConfig{
 			StepName:        config.StepName,
 			StepID:          config.StepID,
