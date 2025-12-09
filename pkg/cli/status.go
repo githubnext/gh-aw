@@ -21,7 +21,8 @@ Examples:
   ` + constants.CLIExtensionPrefix + ` status                    # Show all workflow status
   ` + constants.CLIExtensionPrefix + ` status ci-                 # Show workflows with 'ci-' in name
   ` + constants.CLIExtensionPrefix + ` status --json              # Output in JSON format
-  ` + constants.CLIExtensionPrefix + ` status --ref main          # Show latest run status for main branch`,
+  ` + constants.CLIExtensionPrefix + ` status --ref main          # Show latest run status for main branch
+  ` + constants.CLIExtensionPrefix + ` status --label automation  # Show workflows with 'automation' label`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var pattern string
 			if len(args) > 0 {
@@ -30,12 +31,14 @@ Examples:
 			verbose, _ := cmd.Flags().GetBool("verbose")
 			jsonFlag, _ := cmd.Flags().GetBool("json")
 			ref, _ := cmd.Flags().GetString("ref")
-			return StatusWorkflows(pattern, verbose, jsonFlag, ref)
+			labelFilter, _ := cmd.Flags().GetString("label")
+			return StatusWorkflows(pattern, verbose, jsonFlag, ref, labelFilter)
 		},
 	}
 
 	addJSONFlag(cmd)
 	cmd.Flags().String("ref", "", "Filter runs by branch or tag name (e.g., main, v1.0.0)")
+	cmd.Flags().String("label", "", "Filter workflows by label")
 
 	// Register completions for status command
 	cmd.ValidArgsFunction = CompleteWorkflowNames
