@@ -130,6 +130,11 @@ Test workflow with safe-outputs.
 const { core } = require('@actions/core');
 core.info('Creating issue');
 `
+	// Setup cleanup to restore original script before modifying
+	t.Cleanup(func() {
+		DefaultScriptRegistry.Register("create_issue", createIssueScriptSource)
+	})
+
 	DefaultScriptRegistry.RegisterWithAction(
 		"create_issue",
 		testScript,
@@ -155,27 +160,58 @@ core.info('Creating issue');
 
 	lockStr := string(lockContent)
 
-	// Verify it uses custom action reference instead of actions/github-script
-	if !strings.Contains(lockStr, "uses: ./actions/create-issue") {
-		t.Error("Expected custom action reference './actions/create-issue' not found in lock file")
+	// Extract just the create_issue job section
+	// Find the job definition
+	createIssueJobStart := strings.Index(lockStr, "  create_issue:")
+	if createIssueJobStart == -1 {
+		t.Fatal("Could not find create_issue job in lock file")
+	}
+	
+	// Find the next top-level job (starts with "  " and ends with ":")
+	// We need to find the next line that starts with exactly 2 spaces followed by a non-space
+	remainingContent := lockStr[createIssueJobStart+15:] // Skip past "  create_issue:"
+	nextJobStart := -1
+	lines := strings.Split(remainingContent, "\n")
+	currentPos := 0
+	for i, line := range lines {
+		if strings.HasPrefix(line, "  ") && !strings.HasPrefix(line, "   ") && len(line) > 2 && line[2] != ' ' {
+			// This is a top-level job
+			nextJobStart = currentPos
+			break
+		}
+		currentPos += len(line) + 1 // +1 for the newline
+		if i >= len(lines)-1 {
+			break
+		}
+	}
+	
+	var createIssueJobSection string
+	if nextJobStart == -1 {
+		createIssueJobSection = lockStr[createIssueJobStart:]
+	} else {
+		createIssueJobSection = lockStr[createIssueJobStart : createIssueJobStart+15+nextJobStart]
 	}
 
-	// Verify it does NOT contain actions/github-script
-	if strings.Contains(lockStr, "actions/github-script@") {
-		t.Error("Lock file should not contain 'actions/github-script@' when using dev action mode")
+	t.Logf("create_issue job section (%d bytes):\n%s", len(createIssueJobSection), createIssueJobSection)
+
+	// Verify it uses custom action reference instead of actions/github-script
+	if !strings.Contains(createIssueJobSection, "uses: ./actions/create-issue") {
+		t.Error("Expected custom action reference './actions/create-issue' not found in create_issue job")
+	}
+
+	// Verify it does NOT contain actions/github-script in the create_issue job
+	if strings.Contains(createIssueJobSection, "actions/github-script@") {
+		t.Error("create_issue job should not contain 'actions/github-script@' when using dev action mode")
 	}
 
 	// Verify it has the token input instead of github-token with script
-	if strings.Contains(lockStr, "github-token:") {
+	if strings.Contains(createIssueJobSection, "github-token:") {
 		t.Error("Dev action mode should use 'token:' input, not 'github-token:'")
 	}
 
-	if !strings.Contains(lockStr, "token:") {
-		t.Error("Expected 'token:' input not found for custom action")
+	if !strings.Contains(createIssueJobSection, "token:") {
+		t.Error("Expected 'token:' input not found for custom action in create_issue job")
 	}
-
-	// Clean up: reset the registry to avoid affecting other tests
-	DefaultScriptRegistry.RegisterWithMode("create_issue", testScript, RuntimeModeGitHubScript)
 }
 
 // TestInlineActionModeCompilation tests workflow compilation with inline mode (default)
@@ -259,6 +295,10 @@ Test fallback to inline mode.
 
 	// Ensure create_issue is registered without an action path
 	testScript := `console.log('test');`
+	// Setup cleanup to restore original script before modifying
+	t.Cleanup(func() {
+		DefaultScriptRegistry.Register("create_issue", createIssueScriptSource)
+	})
 	DefaultScriptRegistry.RegisterWithMode("create_issue", testScript, RuntimeModeGitHubScript)
 
 	// Compile with dev action mode
