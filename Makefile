@@ -186,6 +186,11 @@ actions-clean:
 	@echo "Cleaning action artifacts..."
 	@go run ./internal/tools/actions-build clean
 
+.PHONY: generate-action-metadata
+generate-action-metadata:
+	@echo "Generating action metadata..."
+	@go run ./internal/tools/generate-action-metadata generate
+
 # Check Node.js version
 .PHONY: check-node-version
 check-node-version:
@@ -438,6 +443,7 @@ help:
 	@echo "  actions-build    - Build all custom GitHub Actions from source"
 	@echo "  actions-validate - Validate action.yml files"
 	@echo "  actions-clean    - Clean action build artifacts"
+	@echo "  generate-action-metadata - Generate action.yml and README.md from JavaScript modules"
 	@echo "  deps             - Install dependencies"
 	@echo "  check-node-version - Check Node.js version (20 or higher required)"
 	@echo "  lint             - Run linter"

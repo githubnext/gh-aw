@@ -29,6 +29,36 @@ Copies safe-inputs MCP server files to the agent environment. This action embeds
 
 [Documentation](./setup-safe-inputs/README.md)
 
+### noop
+
+Processes noop safe output - a fallback output type that logs messages for transparency without taking any GitHub API actions.
+
+[Documentation](./noop/README.md)
+
+### minimize_comment
+
+Minimizes (hides) a comment using the GraphQL API.
+
+[Documentation](./minimize_comment/README.md)
+
+### close_issue
+
+Closes a GitHub issue.
+
+[Documentation](./close_issue/README.md)
+
+### close_pull_request
+
+Closes a GitHub pull request.
+
+[Documentation](./close_pull_request/README.md)
+
+### close_discussion
+
+Closes a GitHub discussion.
+
+[Documentation](./close_discussion/README.md)
+
 ## Building Actions
 
 Actions are built using the Go-based build system that reuses the bundler and script registry infrastructure from the workflow compiler.
@@ -67,6 +97,29 @@ The build system uses:
 - **Embedded Sources**: All JavaScript files from `pkg/workflow/js/` via `GetJavaScriptSources()`
 
 ## Development Guidelines
+
+### Generating Actions from JavaScript Modules
+
+You can automatically generate action scaffolding from existing JavaScript modules in `pkg/workflow/js/`:
+
+```bash
+# Generate action.yml and README.md for selected JavaScript modules
+make generate-action-metadata
+# or
+go run ./internal/tools/generate-action-metadata generate
+```
+
+This tool will:
+1. Parse JavaScript files to extract inputs (from `core.getInput()`) and outputs (from `core.setOutput()`)
+2. Extract descriptions from JSDoc comments
+3. Generate `action.yml` with proper structure
+4. Generate `README.md` with usage examples
+5. Copy source files to `actions/{action-name}/src/index.js`
+
+After generation, you need to:
+1. Review and refine the generated `action.yml` and `README.md`
+2. Update the dependency mapping in `pkg/cli/actions_build_command.go`
+3. Run `make actions-build` to bundle dependencies
 
 ### Creating a New Action
 
