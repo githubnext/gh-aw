@@ -2940,9 +2940,6 @@ jobs:
               registerDynamicTools(server, toolsWithHandlers, safeOutputsConfig, outputFile, registerTool, normalizeTool);
               server.debug(`  tools: ${Object.keys(server.tools).join(", ")}`);
               if (!Object.keys(server.tools).length) throw new Error("No tools enabled in configuration");
-              if (!options.skipCleanup) {
-                cleanupConfigFile(server);
-              }
               start(server, { defaultHandler });
             }
             if (require.main === module) {

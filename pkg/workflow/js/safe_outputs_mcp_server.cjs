@@ -57,10 +57,9 @@ function startSafeOutputsServer(options = {}) {
   server.debug(`  tools: ${Object.keys(server.tools).join(", ")}`);
   if (!Object.keys(server.tools).length) throw new Error("No tools enabled in configuration");
 
-  // Cleanup: delete the configuration file after loading (unless skipCleanup is true)
-  if (!options.skipCleanup) {
-    cleanupConfigFile(server);
-  }
+  // Note: We do NOT cleanup the config file here because it's needed by the ingestion
+  // phase (collect_ndjson_output.cjs) that runs after the MCP server completes.
+  // The config file only contains schema information (no secrets), so it's safe to leave.
 
   // Start the server with the default handler
   start(server, { defaultHandler });
