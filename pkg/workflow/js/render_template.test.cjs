@@ -310,7 +310,7 @@ Continue with other tasks`;
     // Note: The expression would normally be evaluated before this step,
     // so we test with a truthy value
     const inputWithValue = input.replace("github.event.issue.number", "123");
-    
+
     const expected = `# Analysis
 
   ## Issue Analysis
@@ -321,7 +321,7 @@ Continue with other tasks`;
   - Review labels
 
 Continue with other tasks`;
-    
+
     const output = renderMarkdownTemplate(inputWithValue);
     expect(output).toBe(expected);
   });
