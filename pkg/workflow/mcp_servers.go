@@ -113,14 +113,14 @@ func writeJavaScriptFilesInChunks(yaml *strings.Builder, files []JavaScriptFileW
 		// Format: "cat > <path> << '<EOF>'\n<content>\n<EOF>\n"
 		headerSize := len(indentSpaces) + len("cat > ") + len(file.TargetPath) + len(" << '") + len(file.EOFMarker) + len("'\n")
 		footerSize := len(indentSpaces) + len(file.EOFMarker) + len("\n")
-		
+
 		// Calculate content size (each line gets indented)
 		contentLines := FormatJavaScriptForYAML(file.Content)
 		contentSize := 0
 		for _, line := range contentLines {
 			contentSize += len(line) // line already includes indentation and newline
 		}
-		
+
 		totalSize := headerSize + contentSize + footerSize
 		filesWithSizes = append(filesWithSizes, fileWithSize{file: file, size: totalSize})
 	}

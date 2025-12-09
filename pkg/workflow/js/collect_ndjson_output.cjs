@@ -247,7 +247,9 @@ async function main() {
       // Update item.type to normalized value
       item.type = itemType;
       if (!expectedOutputTypes[itemType]) {
-        core.warning(`[INGESTION] Line ${i + 1}: Type '${itemType}' not found in expected types: ${JSON.stringify(Object.keys(expectedOutputTypes))}`);
+        core.warning(
+          `[INGESTION] Line ${i + 1}: Type '${itemType}' not found in expected types: ${JSON.stringify(Object.keys(expectedOutputTypes))}`
+        );
         errors.push(`Line ${i + 1}: Unexpected output type '${itemType}'. Expected one of: ${Object.keys(expectedOutputTypes).join(", ")}`);
         continue;
       }
