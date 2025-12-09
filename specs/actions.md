@@ -7,6 +7,8 @@
 
 This document describes the custom GitHub Actions build system implemented to support migrating from inline JavaScript (using `actions/github-script`) to standalone custom actions. The system provides a foundation for creating, building, and managing custom GitHub Actions that can be referenced in compiled workflows.
 
+**Key Implementation Detail**: The build system is **entirely implemented in Go** (in `pkg/cli/actions_build_command.go`). There are no JavaScript build scripts. The system reuses the workflow compiler's bundler infrastructure and is invoked via Makefile targets during development.
+
 ## Table of Contents
 
 - [Motivation](#motivation)
@@ -46,15 +48,16 @@ Create a custom actions system that:
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│                    gh-aw CLI Tool                        │
+│                    Makefile Targets                      │
 │  ┌────────────────────────────────────────────────────┐ │
 │  │  actions-build  │  actions-validate  │  actions-clean│ │
 │  └────────────────────────────────────────────────────┘ │
 └─────────────────────────────────────────────────────────┘
                           │
-                          ▼
+                          ▼ (go run ./cmd/gh-aw)
 ┌─────────────────────────────────────────────────────────┐
 │            pkg/cli/actions_build_command.go              │
+│              (Pure Go Implementation)                    │
 │  ┌────────────────────────────────────────────────────┐ │
 │  │  • ActionsBuildCommand()                           │ │
 │  │  • ActionsValidateCommand()                        │ │
@@ -89,23 +92,29 @@ Create a custom actions system that:
 
 ### Component Responsibilities
 
-#### 1. CLI Commands (`cmd/gh-aw/main.go`)
-- Cobra command definitions for `actions-build`, `actions-validate`, `actions-clean`
+#### 1. Makefile Targets (`Makefile`)
+- Entry points for action management: `actions-build`, `actions-validate`, `actions-clean`
+- Invokes Go commands directly using `go run ./cmd/gh-aw`
+- Project-specific development commands (not end-user CLI)
+
+#### 2. CLI Command Registration (`cmd/gh-aw/main.go`)
+- Cobra command definitions for actions commands
 - Integrated into `gh aw` command hierarchy under "Development Commands" group
 - Commands delegate to `pkg/cli/actions_build_command.go`
 
-#### 2. Build Command Implementation (`pkg/cli/actions_build_command.go`)
+#### 3. Build System Implementation (`pkg/cli/actions_build_command.go`)
+- **Pure Go implementation** - No JavaScript build scripts
 - **ActionsBuildCommand()**: Builds all actions by bundling dependencies
 - **ActionsValidateCommand()**: Validates action.yml files
 - **ActionsCleanCommand()**: Removes generated index.js files
 - **getActionDependencies()**: Maps action names to required JavaScript files
 
-#### 3. JavaScript Sources (`pkg/workflow/js.go`)
+#### 4. JavaScript Sources (`pkg/workflow/js.go`)
 - `GetJavaScriptSources()`: Returns map of all embedded JavaScript files
 - Files are embedded using `//go:embed` directives
 - Single source of truth for JavaScript dependencies
 
-#### 4. Actions Directory (`actions/`)
+#### 5. Actions Directory (`actions/`)
 - Contains custom action subdirectories
 - Each action follows GitHub Actions standard structure
 - Source files in `src/`, compiled output in root
@@ -200,32 +209,21 @@ for (const [filename, content] of Object.entries(FILES)) {
 
 ### Build Process
 
-The build system follows these steps:
+The build system is implemented entirely in Go and follows these steps:
 
 1. **Discovery**: Scans `actions/` directory for action subdirectories
 2. **Validation**: Validates each `action.yml` file structure
-3. **Dependency Resolution**: Maps action name to required JavaScript files
+3. **Dependency Resolution**: Maps action name to required JavaScript files (manual mapping in Go)
 4. **File Reading**: Retrieves file contents from `workflow.GetJavaScriptSources()`
 5. **Bundling**: Creates JSON object with all dependencies
 6. **Code Generation**: Replaces `FILES` placeholder in source with bundled content
 7. **Output**: Writes bundled `index.js` to action directory
 
+**Key Point**: The build system is pure Go code in `pkg/cli/actions_build_command.go`. There are no JavaScript build scripts - everything uses the workflow compiler's existing infrastructure.
+
 ### Build Commands
 
-#### Command Line
-
-```bash
-# Build all actions
-gh aw actions-build
-
-# Validate action.yml files
-gh aw actions-validate
-
-# Clean generated files
-gh aw actions-clean
-```
-
-#### Makefile
+Use Makefile targets for building actions:
 
 ```bash
 # Build all actions
@@ -340,17 +338,20 @@ outputContent := filesRegex.ReplaceAllString(
 
 ### Decision 4: Use `go run` for Development Commands
 
-**Decision**: Run action commands via `go run ./cmd/gh-aw` instead of building binary first.
+**Decision**: Makefile targets run action commands via `go run ./cmd/gh-aw` instead of building binary first.
 
 **Rationale**:
 - Faster iteration during development
 - No stale binary issues
 - Simpler developer workflow
-- Commands are project-specific
+- Commands are project-specific (not end-user facing)
+- Eliminates need to rebuild binary for every change
 
 **Trade-offs**:
 - Slightly slower execution (compilation overhead)
 - Requires Go toolchain
+
+**Implementation**: Makefile uses `@go run ./cmd/gh-aw actions-build` pattern.
 
 ### Decision 5: Node.js 20 Runtime
 
@@ -539,12 +540,14 @@ The CI runs when:
 
 #### Key Files to Know
 
-- `pkg/cli/actions_build_command.go` - Build system logic
-- `pkg/workflow/js.go` - JavaScript source map
-- `cmd/gh-aw/main.go` - CLI command definitions
-- `Makefile` - Build targets
+- `pkg/cli/actions_build_command.go` - **Pure Go build system** (no JavaScript)
+- `pkg/workflow/js.go` - JavaScript source map and embedded files
+- `cmd/gh-aw/main.go` - CLI command definitions (invoked by Makefile)
+- `Makefile` - Primary interface for building actions (`make actions-build`)
 - `.github/workflows/ci.yml` - CI validation
 - `actions/README.md` - Actions documentation
+
+**Important**: Build process is 100% Go code. No `scripts/build-actions.js` or similar JavaScript build scripts exist.
 
 #### Debugging Tips
 
@@ -626,7 +629,7 @@ The custom GitHub Actions build system provides a foundation for migrating from 
 
 ✅ **Structured directory layout** following GitHub Actions conventions
 ✅ **Go-based build system** reusing workflow bundler infrastructure  
-✅ **CLI integration** with `gh aw actions-*` commands
+✅ **Makefile integration** for easy action management
 ✅ **CI validation** ensuring actions stay buildable
 ✅ **Two initial actions** (setup-safe-inputs, setup-safe-outputs)
 ✅ **Comprehensive documentation** for future development
