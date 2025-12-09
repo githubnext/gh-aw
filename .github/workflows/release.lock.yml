@@ -3734,7 +3734,9 @@ jobs:
                   core.info(`[INGESTION] Line ${i + 1}: Original type='${originalType}', Normalized type='${itemType}'`);
                   item.type = itemType;
                   if (!expectedOutputTypes[itemType]) {
-                    core.warning(`[INGESTION] Line ${i + 1}: Type '${itemType}' not found in expected types: ${JSON.stringify(Object.keys(expectedOutputTypes))}`);
+                    core.warning(
+                      `[INGESTION] Line ${i + 1}: Type '${itemType}' not found in expected types: ${JSON.stringify(Object.keys(expectedOutputTypes))}`
+                    );
                     errors.push(`Line ${i + 1}: Unexpected output type '${itemType}'. Expected one of: ${Object.keys(expectedOutputTypes).join(", ")}`);
                     continue;
                   }
@@ -6459,13 +6461,13 @@ jobs:
       - name: Download Go modules
         run: go mod download
       - name: Generate SBOM (SPDX format)
-        uses: anchore/sbom-action@fbfd9c6c189226748411491745178e0c2017392d # v0
+        uses: anchore/sbom-action@fbfd9c6c189226748411491745178e0c2017392d # v0.20.10
         with:
           artifact-name: sbom.spdx.json
           format: spdx-json
           output-file: sbom.spdx.json
       - name: Generate SBOM (CycloneDX format)
-        uses: anchore/sbom-action@fbfd9c6c189226748411491745178e0c2017392d # v0
+        uses: anchore/sbom-action@fbfd9c6c189226748411491745178e0c2017392d # v0.20.10
         with:
           artifact-name: sbom.cdx.json
           format: cyclonedx-json

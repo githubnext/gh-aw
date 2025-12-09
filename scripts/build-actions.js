@@ -63,10 +63,13 @@ function validateActionYml(actionPath) {
 
 /**
  * Get dependencies for a specific action
+ * 
+ * TODO: Implement automatic dependency resolution by calling Go functions
+ * that use FindJavaScriptDependencies() from pkg/workflow/bundler.go
+ * For now, we use a manual mapping that must be updated when dependencies change.
  */
 function getActionDependencies(actionName) {
-  // Call gh-aw to get dependencies (we'll implement this in Go)
-  // For now, we'll use a simple mapping
+  // Manual dependency mapping - update when adding new actions or changing dependencies
   
   const dependencyMap = {
     'safe-outputs-copy': [
