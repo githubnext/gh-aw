@@ -1297,7 +1297,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions: read-all
     env:
-      GH_AW_MCP_LOG_DIR: /tmp/gh-aw/sandbox/agent/logs
+      GH_AW_MCP_LOG_DIR: /tmp/gh-aw/mcp-logs/safeoutputs
       GH_AW_SAFE_OUTPUTS: /tmp/gh-aw/safeoutputs/outputs.jsonl
       GH_AW_SAFE_OUTPUTS_CONFIG_PATH: /tmp/gh-aw/safeoutputs/config.json
       GH_AW_SAFE_OUTPUTS_TOOLS_PATH: /tmp/gh-aw/safeoutputs/tools.json
@@ -1412,7 +1412,7 @@ jobs:
       - name: Write Safe Outputs Config
         run: |
           mkdir -p /tmp/gh-aw/safeoutputs
-          mkdir -p /tmp/gh-aw/sandbox/agent/logs
+          mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
           cat > /tmp/gh-aw/safeoutputs/config.json << 'EOF'
           {"add_labels":{"allowed":["spam","ai-generated","link-spam"],"max":3},"missing_tool":{"max":0},"noop":{"max":1}}
           EOF
