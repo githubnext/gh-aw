@@ -92,6 +92,10 @@ describe("notify_comment_error.cjs", () => {
       GH_AW_WORKFLOW_NAME: process.env.GH_AW_WORKFLOW_NAME,
       GH_AW_AGENT_CONCLUSION: process.env.GH_AW_AGENT_CONCLUSION,
       GH_AW_DETECTION_CONCLUSION: process.env.GH_AW_DETECTION_CONCLUSION,
+      GH_AW_SAFE_OUTPUT_JOBS: process.env.GH_AW_SAFE_OUTPUT_JOBS,
+      GH_AW_OUTPUT_CREATE_ISSUE_ISSUE_URL: process.env.GH_AW_OUTPUT_CREATE_ISSUE_ISSUE_URL,
+      GH_AW_OUTPUT_ADD_COMMENT_COMMENT_URL: process.env.GH_AW_OUTPUT_ADD_COMMENT_COMMENT_URL,
+      GH_AW_OUTPUT_CREATE_PULL_REQUEST_PULL_REQUEST_URL: process.env.GH_AW_OUTPUT_CREATE_PULL_REQUEST_PULL_REQUEST_URL,
     };
 
     // Read the script content
@@ -372,6 +376,88 @@ describe("notify_comment_error.cjs", () => {
       expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("API error"));
       // Should not fail the workflow
       expect(mockCore.setFailed).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("generated assets", () => {
+    it("should include generated asset links when safe output jobs produce URLs", async () => {
+      process.env.GH_AW_COMMENT_ID = "123456";
+      process.env.GH_AW_RUN_URL = "https://github.com/owner/repo/actions/runs/123";
+      process.env.GH_AW_WORKFLOW_NAME = "test-workflow";
+      process.env.GH_AW_AGENT_CONCLUSION = "success";
+      
+      // Set up safe output jobs with URLs
+      process.env.GH_AW_SAFE_OUTPUT_JOBS = JSON.stringify({
+        create_issue: "issue_url",
+        add_comment: "comment_url",
+        create_pull_request: "pull_request_url",
+      });
+      
+      // Set environment variables for the URLs
+      process.env.GH_AW_OUTPUT_CREATE_ISSUE_ISSUE_URL = "https://github.com/owner/repo/issues/42";
+      process.env.GH_AW_OUTPUT_ADD_COMMENT_COMMENT_URL = "https://github.com/owner/repo/issues/1#issuecomment-123";
+      process.env.GH_AW_OUTPUT_CREATE_PULL_REQUEST_PULL_REQUEST_URL = "https://github.com/owner/repo/pull/5";
+
+      await eval(`(async () => { ${notifyCommentScript} })()`);
+
+      expect(mockGithub.request).toHaveBeenCalledWith(
+        "PATCH /repos/{owner}/{repo}/issues/comments/{comment_id}",
+        expect.objectContaining({
+          owner: "testowner",
+          repo: "testrepo",
+          comment_id: 123456,
+          body: expect.stringMatching(/### Generated Assets[\s\S]*Created Issue.*https:\/\/github\.com\/owner\/repo\/issues\/42/),
+        })
+      );
+      
+      // Check that the body contains all asset links
+      const callArgs = mockGithub.request.mock.calls[0][1];
+      expect(callArgs.body).toContain("### Generated Assets");
+      expect(callArgs.body).toContain("Created Issue");
+      expect(callArgs.body).toContain("https://github.com/owner/repo/issues/42");
+      expect(callArgs.body).toContain("Added Comment");
+      expect(callArgs.body).toContain("https://github.com/owner/repo/issues/1#issuecomment-123");
+      expect(callArgs.body).toContain("Created Pull Request");
+      expect(callArgs.body).toContain("https://github.com/owner/repo/pull/5");
+    });
+
+    it("should not include generated assets section when no URLs are present", async () => {
+      process.env.GH_AW_COMMENT_ID = "123456";
+      process.env.GH_AW_RUN_URL = "https://github.com/owner/repo/actions/runs/123";
+      process.env.GH_AW_WORKFLOW_NAME = "test-workflow";
+      process.env.GH_AW_AGENT_CONCLUSION = "success";
+      
+      // Set up safe output jobs but no URLs
+      process.env.GH_AW_SAFE_OUTPUT_JOBS = JSON.stringify({
+        create_issue: "issue_url",
+      });
+      // Don't set GH_AW_OUTPUT_CREATE_ISSUE_ISSUE_URL
+
+      await eval(`(async () => { ${notifyCommentScript} })()`);
+
+      expect(mockGithub.request).toHaveBeenCalledWith(
+        "PATCH /repos/{owner}/{repo}/issues/comments/{comment_id}",
+        expect.objectContaining({
+          body: expect.not.stringContaining("### Generated Assets"),
+        })
+      );
+    });
+
+    it("should handle empty safe output jobs gracefully", async () => {
+      process.env.GH_AW_COMMENT_ID = "123456";
+      process.env.GH_AW_RUN_URL = "https://github.com/owner/repo/actions/runs/123";
+      process.env.GH_AW_WORKFLOW_NAME = "test-workflow";
+      process.env.GH_AW_AGENT_CONCLUSION = "success";
+      // Don't set GH_AW_SAFE_OUTPUT_JOBS
+
+      await eval(`(async () => { ${notifyCommentScript} })()`);
+
+      expect(mockGithub.request).toHaveBeenCalledWith(
+        "PATCH /repos/{owner}/{repo}/issues/comments/{comment_id}",
+        expect.objectContaining({
+          body: expect.not.stringContaining("### Generated Assets"),
+        })
+      );
     });
   });
 });

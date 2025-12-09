@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"encoding/json"
 	"fmt"
 
 	"github.com/githubnext/gh-aw/pkg/constants"
@@ -141,6 +142,16 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 		}
 	}
 
+	// Pass safe output job information for link generation
+	if len(safeOutputJobNames) > 0 {
+		safeOutputJobsJSON, jobURLEnvVars := buildSafeOutputJobsEnvVars(safeOutputJobNames)
+		if safeOutputJobsJSON != "" {
+			customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_SAFE_OUTPUT_JOBS: %q\n", safeOutputJobsJSON))
+			customEnvVars = append(customEnvVars, jobURLEnvVars...)
+			notifyCommentLog.Printf("Added safe output jobs info for %d job(s)", len(safeOutputJobNames))
+		}
+	}
+
 	// Get token from config
 	var token string
 	if data.SafeOutputs != nil && data.SafeOutputs.AddComments != nil {
@@ -239,4 +250,77 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 	}
 
 	return job, nil
+}
+
+// buildSafeOutputJobsEnvVars creates environment variables for safe output job URLs
+// Returns both a JSON mapping and the actual environment variable declarations
+func buildSafeOutputJobsEnvVars(jobNames []string) (string, []string) {
+	// Map job names to their expected URL output keys
+	jobOutputMapping := make(map[string]string)
+	var envVars []string
+
+	for _, jobName := range jobNames {
+		var urlKey string
+		switch jobName {
+		case "create_issue":
+			urlKey = "issue_url"
+		case "add_comment":
+			urlKey = "comment_url"
+		case "create_pull_request":
+			urlKey = "pull_request_url"
+		case "create_discussion":
+			urlKey = "discussion_url"
+		case "create_pr_review_comment":
+			urlKey = "review_comment_url"
+		case "close_issue":
+			urlKey = "issue_url"
+		case "close_pull_request":
+			urlKey = "pull_request_url"
+		case "close_discussion":
+			urlKey = "discussion_url"
+		case "create_agent_task":
+			urlKey = "task_url"
+		default:
+			// Skip jobs that don't have URL outputs
+			continue
+		}
+
+		jobOutputMapping[jobName] = urlKey
+
+		// Add environment variable for this job's URL output
+		envVarName := fmt.Sprintf("GH_AW_OUTPUT_%s_%s",
+			toEnvVarCase(jobName),
+			toEnvVarCase(urlKey))
+		envVars = append(envVars,
+			fmt.Sprintf("          %s: ${{ needs.%s.outputs.%s }}\n",
+				envVarName, jobName, urlKey))
+	}
+
+	if len(jobOutputMapping) == 0 {
+		return "", nil
+	}
+
+	jsonBytes, err := json.Marshal(jobOutputMapping)
+	if err != nil {
+		notifyCommentLog.Printf("Warning: failed to marshal safe output jobs info: %v", err)
+		return "", nil
+	}
+
+	return string(jsonBytes), envVars
+}
+
+// toEnvVarCase converts a string to uppercase environment variable case
+func toEnvVarCase(s string) string {
+	// Convert to uppercase and keep underscores
+	result := ""
+	for _, ch := range s {
+		if ch >= 'a' && ch <= 'z' {
+			result += string(ch - 32) // Convert to uppercase
+		} else if ch >= 'A' && ch <= 'Z' {
+			result += string(ch)
+		} else if ch == '_' {
+			result += "_"
+		}
+	}
+	return result
 }

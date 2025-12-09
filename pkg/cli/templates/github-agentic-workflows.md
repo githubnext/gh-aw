@@ -104,10 +104,6 @@ The YAML frontmatter supports these fields:
 
 - **`description:`** - Human-readable workflow description (string)
 - **`source:`** - Workflow origin tracking in format `owner/repo/path@ref` (string)
-- **`labels:`** - Workflow categorization labels (array of strings)
-  - Examples: `["automation", "ci", "diagnostics"]`
-  - Displayed in `gh aw status` command output
-  - Filter workflows using `gh aw status --label automation`
 - **`github-token:`** - Default GitHub token for workflow (must use `${{ secrets.* }}` syntax)
 - **`roles:`** - Repository access roles that can trigger workflow (array or "all")
   - Default: `[admin, maintainer, write]`
@@ -340,14 +336,6 @@ The YAML frontmatter supports these fields:
         target-repo: "owner/repo"       # Optional: cross-repository
     ```
     When using `safe-outputs.add-comment`, the main job does **not** need `issues: write` or `pull-requests: write` permissions since comment creation is handled by a separate job with appropriate permissions.
-  - `minimize-comment:` - Hide or minimize comments on issues/PRs/discussions
-    ```yaml
-    safe-outputs:
-      minimize-comment:
-        max: 5                          # Optional: maximum comments to minimize (default: 5)
-        target-repo: "owner/repo"       # Optional: cross-repository
-    ```
-    Requires GraphQL node IDs (format: `IC_kwDOABCD123456`). Comments are classified as SPAM when minimized. Useful for content moderation workflows.
   - `create-pull-request:` - Safe pull request creation with git patches
     ```yaml
     safe-outputs:
@@ -494,15 +482,6 @@ The YAML frontmatter supports these fields:
         target-repo: "owner/repo"       # Optional: cross-repository
     ```
     Requires PAT with elevated permissions as `GH_AW_AGENT_TOKEN`.
-  - `assign-to-user:` - Assign users to issues
-    ```yaml
-    safe-outputs:
-      assign-to-user:
-        allowed: [user1, user2]         # Optional: restrict to specific users
-        max: 3                          # Optional: maximum assignments (default: 1)
-        target: "*"                     # Optional: "triggering" (default), "*", or number
-        target-repo: "owner/repo"       # Optional: cross-repository
-    ```
   - `noop:` - Log completion message for transparency (auto-enabled)
     ```yaml
     safe-outputs:
