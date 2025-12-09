@@ -174,13 +174,19 @@ func TestReleaseModeCompilation(t *testing.T) {
 	origSHA := os.Getenv("GITHUB_SHA")
 	origRef := os.Getenv("GITHUB_REF")
 	defer func() {
-		os.Setenv("GITHUB_SHA", origSHA)
-		os.Setenv("GITHUB_REF", origRef)
+		if origSHA != "" {
+			os.Setenv("GITHUB_SHA", origSHA)
+		} else {
+			os.Unsetenv("GITHUB_SHA")
+		}
+		if origRef != "" {
+			os.Setenv("GITHUB_REF", origRef)
+		} else {
+			os.Unsetenv("GITHUB_REF")
+		}
 	}()
 
-	// Set mock SHA for testing
-	mockSHA := "abc123def456abc123def456abc123def456abc1"
-	os.Setenv("GITHUB_SHA", mockSHA)
+	// Set release tag for testing
 	os.Setenv("GITHUB_REF", "refs/tags/v1.0.0") // Simulate release tag for auto-detection
 
 	// Create a test workflow file
@@ -245,10 +251,10 @@ Test workflow with release mode.
 
 	lockStr := string(lockContent)
 
-	// Verify SHA-pinned reference exists
-	expectedRef := "githubnext/gh-aw/actions/create-issue@" + mockSHA
+	// Verify tag-based reference exists (SHA will be resolved later via action pins)
+	expectedRef := "githubnext/gh-aw/actions/create-issue@v1.0.0"
 	if !strings.Contains(lockStr, expectedRef) {
-		t.Errorf("Expected SHA-pinned reference %q not found", expectedRef)
+		t.Errorf("Expected tag-based reference %q not found", expectedRef)
 		
 		// Debug: show all uses: lines
 		lines := strings.Split(lockStr, "\n")
