@@ -31,25 +31,40 @@ Copies safe-inputs MCP server files to the agent environment. This action embeds
 
 ## Building Actions
 
-Actions are built using the build tooling in `scripts/build-actions.js`. The build process:
+Actions are built using the Go-based build system that reuses the bundler and script registry infrastructure from the workflow compiler.
+
+The build process:
 
 1. Reads source files from `actions/{action-name}/src/`
 2. Identifies and embeds required JavaScript dependencies from `pkg/workflow/js/`
-3. Bundles everything into `actions/{action-name}/index.js`
-4. Validates `action.yml` files
+3. Uses the same bundler infrastructure as workflow compilation
+4. Bundles everything into `actions/{action-name}/index.js`
+5. Validates `action.yml` files
 
 ### Build Commands
 
 ```bash
 # Build all actions (generates index.js files)
 make actions-build
+# or
+gh aw actions-build
 
 # Validate action.yml files
 make actions-validate
+# or
+gh aw actions-validate
 
 # Clean generated files
+# Clean generated files
 make actions-clean
+# or
+gh aw actions-clean
 ```
+
+The build system uses:
+- **Bundler Infrastructure**: Same JavaScript bundler used for workflow compilation (`pkg/workflow/bundler.go`)
+- **Script Registry**: Centralized registry for managing JavaScript sources (`pkg/workflow/script_registry.go`)
+- **Embedded Sources**: All JavaScript files from `pkg/workflow/js/` via `GetJavaScriptSources()`
 
 ## Development Guidelines
 
@@ -103,8 +118,8 @@ make actions-clean
    run();
    ```
 
-4. **Update build-actions.js:**
-   Add the action to the `dependencyMap` in `scripts/build-actions.js` to specify which JavaScript files from `pkg/workflow/js/` should be embedded.
+4. **Update dependency mapping:**
+   Add the action to the dependency map in `pkg/cli/actions_build_command.go` to specify which JavaScript files from `pkg/workflow/js/` should be embedded.
 
 5. **Build and test:**
    ```bash

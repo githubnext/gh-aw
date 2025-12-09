@@ -300,6 +300,43 @@ var versionCmd = &cobra.Command{
 	},
 }
 
+var actionsBuildCmd = &cobra.Command{
+	Use:   "actions-build",
+	Short: "Build all custom GitHub Actions from source",
+	Long: `Build all custom GitHub Actions by bundling JavaScript dependencies.
+
+This command processes actions in the actions/ directory, reads their source files from src/,
+embeds required JavaScript dependencies from pkg/workflow/js/, and generates bundled index.js files.
+
+The build process uses the same bundler infrastructure used for workflow compilation.`,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		return cli.ActionsBuildCommand()
+	},
+}
+
+var actionsValidateCmd = &cobra.Command{
+	Use:   "actions-validate",
+	Short: "Validate action.yml files",
+	Long: `Validate all action.yml files in the actions/ directory.
+
+Checks that each action.yml contains required fields (name, description, runs)
+and uses the correct runtime (node20).`,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		return cli.ActionsValidateCommand()
+	},
+}
+
+var actionsCleanCmd = &cobra.Command{
+	Use:   "actions-clean",
+	Short: "Clean generated action files",
+	Long: `Remove generated index.js files from all actions in the actions/ directory.
+
+This is useful for starting fresh or before rebuilding all actions.`,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		return cli.ActionsCleanCommand()
+	},
+}
+
 func init() {
 	// Add command groups to root command
 	rootCmd.AddGroup(&cobra.Group{
@@ -501,6 +538,9 @@ Use "` + constants.CLIExtensionPrefix + ` help all" to show help for all command
 	statusCmd.GroupID = "development"
 	mcpServerCmd.GroupID = "development"
 	mcpGatewayCmd.GroupID = "development"
+	actionsBuildCmd.GroupID = "development"
+	actionsValidateCmd.GroupID = "development"
+	actionsCleanCmd.GroupID = "development"
 
 	// Execution Commands
 	runCmd.GroupID = "execution"
@@ -534,6 +574,9 @@ Use "` + constants.CLIExtensionPrefix + ` help all" to show help for all command
 	rootCmd.AddCommand(mcpCmd)
 	rootCmd.AddCommand(mcpServerCmd)
 	rootCmd.AddCommand(mcpGatewayCmd)
+	rootCmd.AddCommand(actionsBuildCmd)
+	rootCmd.AddCommand(actionsValidateCmd)
+	rootCmd.AddCommand(actionsCleanCmd)
 	rootCmd.AddCommand(prCmd)
 	rootCmd.AddCommand(versionCmd)
 }

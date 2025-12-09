@@ -318,6 +318,7 @@ func GetJavaScriptSources() map[string]string {
 		"safe_outputs_append.cjs":           safeOutputsAppendScript,
 		"safe_outputs_handlers.cjs":         safeOutputsHandlersScript,
 		"safe_outputs_tools_loader.cjs":     safeOutputsToolsLoaderScript,
+		"safe_outputs_tools.json":           safeOutputsToolsJSON,
 		"safe_outputs_bootstrap.cjs":        safeOutputsBootstrapScript,
 		"safe_outputs_mcp_server.cjs":       safeOutputsMCPServerScriptSource,
 		"add_copilot_reviewer.cjs":          addCopilotReviewerScriptSource,

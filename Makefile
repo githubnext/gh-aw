@@ -172,19 +172,19 @@ clean:
 
 # Actions management targets
 .PHONY: actions-build
-actions-build:
+actions-build: build
 	@echo "Building all actions..."
-	node scripts/build-actions.js build
+	./gh-aw actions-build
 
 .PHONY: actions-validate
-actions-validate:
+actions-validate: build
 	@echo "Validating action.yml files..."
-	node scripts/build-actions.js validate
+	./gh-aw actions-validate
 
 .PHONY: actions-clean
-actions-clean:
+actions-clean: build
 	@echo "Cleaning action artifacts..."
-	node scripts/build-actions.js clean
+	./gh-aw actions-clean
 
 # Check Node.js version
 .PHONY: check-node-version
