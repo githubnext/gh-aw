@@ -54,6 +54,16 @@ Tracks workflow origin in format `owner/repo/path@ref`. Automatically populated 
 source: "githubnext/agentics/workflows/ci-doctor.md@v1.0.0"
 ```
 
+### Labels (`labels:`)
+
+Optional array of strings for categorizing and organizing workflows. Labels are displayed in `gh aw status` command output and can be filtered using the `--label` flag.
+
+```yaml wrap
+labels: ["automation", "ci", "diagnostics"]
+```
+
+Labels help organize workflows by purpose, team, or functionality. They appear in status command table output as `[automation ci diagnostics]` and as a JSON array in `--json` mode. Filter workflows by label using `gh aw status --label automation`.
+
 ### GitHub Token (`github-token:`)
 
 Configures the default GitHub token for engine authentication, checkout steps, and safe-output operations.

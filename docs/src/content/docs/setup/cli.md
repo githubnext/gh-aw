@@ -208,11 +208,12 @@ Show status of all workflows in the repository.
 gh aw status                                # Show all workflow status
 gh aw status --ref main                     # Show status with latest run info for main branch
 gh aw status --json --ref feature-branch    # JSON output with run status for specific branch
+gh aw status --label automation             # Filter workflows by label
 ```
 
-Lists all agentic workflows with their current state, enabled/disabled status, schedules, and configurations. When `--ref` is specified, includes the latest run status and conclusion for each workflow on that branch or tag.
+Lists all agentic workflows with their current state, enabled/disabled status, schedules, labels, and configurations. When `--ref` is specified, includes the latest run status and conclusion for each workflow on that branch or tag.
 
-**Options:** `--ref` (filter by branch or tag, shows latest run status and conclusion), `--json` (output in JSON format)
+**Options:** `--ref` (filter by branch or tag, shows latest run status and conclusion), `--label` (filter workflows by label, case-insensitive match), `--json` (output in JSON format)
 
 #### `logs`
 

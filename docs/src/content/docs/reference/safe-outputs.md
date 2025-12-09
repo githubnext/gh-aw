@@ -28,6 +28,7 @@ This declares that the workflow should create at most one new issue.
 | [**Create Issue**](#issue-creation-create-issue) | `create-issue:` | Create GitHub issues | 1 | ✅ |
 | [**Close Issue**](#close-issue-close-issue) | `close-issue:` | Close issues with comment | 1 | ✅ |
 | [**Add Comment**](#comment-creation-add-comment) | `add-comment:` | Post comments on issues, PRs, or discussions | 1 | ✅ |
+| [**Minimize Comment**](#minimize-comment-minimize-comment) | `minimize-comment:` | Hide/minimize comments on issues, PRs, or discussions | 5 | ✅ |
 | [**Update Issue**](#issue-updates-update-issue) | `update-issue:` | Update issue status, title, or body | 1 | ✅ |
 | [**Update PR**](#pull-request-updates-update-pull-request) | `update-pull-request:` | Update PR title or body | 1 | ✅ |
 | [**Link Sub-Issue**](#link-sub-issue-link-sub-issue) | `link-sub-issue:` | Link issues as sub-issues | 1 | ✅ |
@@ -160,6 +161,32 @@ safe-outputs:
 ```
 
 When combined with `create-issue`, `create-discussion`, or `create-pull-request`, comments automatically include a "Related Items" section.
+
+### Minimize Comment (`minimize-comment:`)
+
+Hides or minimizes comments on issues, pull requests, or discussions. Comments are marked as spam and collapsed in the GitHub UI. This safe output is useful for content moderation workflows.
+
+```yaml wrap
+safe-outputs:
+  minimize-comment:
+    max: 5                    # max comments to minimize (default: 5)
+    target-repo: "owner/repo" # cross-repository
+```
+
+**Requirements:**
+- Agent must provide GraphQL node IDs (strings like `IC_kwDOABCD123456`) for comments
+- REST API numeric comment IDs cannot be used (no conversion available)
+- Comments are classified as SPAM when minimized
+
+**Agent Output Format:**
+```json
+{
+  "type": "minimize_comment",
+  "comment_id": "IC_kwDOABCD123456"
+}
+```
+
+**Permissions Required:** `contents: read`, `issues: write`, `pull-requests: write`, `discussions: write`
 
 ### Add Labels (`add-labels:`)
 
