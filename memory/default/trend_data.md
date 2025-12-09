@@ -1,7 +1,7 @@
-## Trend Data (as of 2025-12-08T15:18:15Z)
+## Trend Data (as of 2025-12-09T15:15:57Z)
 
-- Workflow runs (last 20): 13 successes, 5 failures, 2 in-progress; total duration ~1.3h; tokens ~4,032,658; cost ~$1.44.
-- Frequent failures: Daily Copilot PR Merged Report (2/2 failures), Weekly Issue Summary (failure), Issue Triage Agent (failure), Super Linter Report (failure).
-- Issue stats (last 7 days dataset): 250 issues total; 56 open, 194 closed; top labels `ai-generated` (136) and `plan` (126).
-- Issue creation cadence: peaks on 2025-12-08 (35) and 2025-12-01/03/07 (~31-35 each), suggesting heavy automated openings around reporting cycles.
-- Active automated reports: multiple daily/weekly audits (code metrics, firewall, schema consistency, prompt analysis, documentation noob tests) published on Dec 8.
+- Workflow runs (last 10, past 7d): 3 successes, 4 failures, 3 in-progress; total duration ~1.2h; tokens 5,059,936; cost ~$1.16; warnings 53, errors 144.
+- Notable runs: CLI Version Checker succeeded but logged 123 errors and 1.43M tokens; Super Linter Report failed after 44m; Issue Monster failed twice (runs 20066369361, 20064869096) and has an in-progress run already at 1.08M tokens with errors.
+- Issue stats (weekly snapshot): 231 issues; 58 open, 173 closed; top labels `ai-generated` (118) and `plan` (109) followed by automation/code-quality/automated-analysis.
+- Issue creation cadence (last week focus): Dec 7 (31) and Dec 8 (36) spikes, tapering to 14 on Dec 9 so far.
+- Discussion output remains high-volume daily across audits (firewall, schema consistency, prompt-analysis), documentation consolidation, and repository quality reports.

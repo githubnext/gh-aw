@@ -1,7 +1,7 @@
-## Flagged Items for Monitoring (2025-12-08)
+## Flagged Items for Monitoring (2025-12-09)
 
-- Repeated workflow failures: Daily Copilot PR Merged Report (two recent failures) and Weekly Issue Summary (failure) — check data dependencies and auth to reduce noise.
-- Super Linter Report failed in latest window — verify rule set or recent code changes causing lint breaks.
-- High error count (183 across 20 runs) despite modest costs — investigate noisy logging or flaky tool calls.
-- Label dominance (`ai-generated`, `plan`) may mask urgent human-authored issues; consider filtering or auto-triage for untagged/urgent items.
-- Daily issue spikes (Dec 8) — ensure alerting to avoid backlog growth; open issues still 56 (22% of weekly volume).
+- Issue Monster instability: two consecutive failures (runs 20066369361, 20064869096) and an active run already emitting 7 errors/3 warnings and >1.0M tokens — investigate data sources/timeouts.
+- Super Linter Report failure (run 20066381830) after 44m — check lint configuration or recent rule changes.
+- CLI Version Checker noisy success: 123 errors logged and 1.43M tokens used in run 20068052875 — reduce error chatter and token footprint.
+- Label dominance persists (`ai-generated` 118, `plan` 109) with 58 open issues — prioritize surfacing non-automation or urgent items to avoid triage blind spots.
+- Cost/efficiency watch: 5.06M tokens across only 10 runs; monitor Copilot-heavy workflows (Issue Monster, Copilot PR Merged) for budget impact.

@@ -1,7 +1,7 @@
-## Known Patterns (2025-12-08)
+## Known Patterns (2025-12-09)
 
-- Recurring report cadence: daily code metrics, firewall reports, prompt-analysis, documentation checks, and static analyses show a strong automated reporting pipeline with heavy GitHub Actions coverage.
-- Failure hotspots: "Daily Copilot PR Merged Report" and "Weekly Issue Summary" workflows failed in the latest 20 runs; Super Linter also failed once, suggesting flaky or data-dependent steps.
-- Issue labeling skew: `ai-generated` and `plan` dominate weekly labels (136 and 126 counts), indicating automation-heavy issue creation; automation/code-quality/documentation labels also common.
-- Issue flow: 250 issues in last 7 days with 194 closed, 56 open—closure rate is high but daily creation spikes (35 on 2025-12-08) merit monitoring.
-- Workflow resource use: last 20 runs consumed ~4.0M tokens (~$1.44) with 183 errors logged, implying some runs retry or emit noisy errors despite successful conclusions.
+- Automated reporting remains dense: daily static analysis, firewall, prompt-analysis, Issue Arborist, and documentation sweeps continue to publish across Audits/Announcements/General categories with new entries on Dec 9.
+- Workflow instability clusters around Copilot-heavy jobs: Issue Monster shows repeated failures (two in last 24h plus an in-progress run already emitting errors), Issue Triage failed once, and Super Linter failed the latest run.
+- Token and error concentration: small run volume (10) still consumed ~5.1M tokens; CLI Version Checker alone used ~1.4M tokens and logged 123 errors despite success.
+- Issue labeling skew persists: `ai-generated` (118) and `plan` (109) lead counts; automation/code-quality remain top tags, signaling largely automated issue flow.
+- Issue creation peaks on Dec 7–8 (31, 36) eased to 14 on Dec 9 so far, but open issues remain elevated (58/231 for the week).
