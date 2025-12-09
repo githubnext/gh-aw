@@ -22,7 +22,7 @@ type SafeOutputTypeSchema struct {
 
 // Property represents a property in the schema
 type Property struct {
-	Type        any    // string, array, object, or map for oneOf/anyOf
+	Type        any // string, array, object, or map for oneOf/anyOf
 	Description string
 	Const       string // For type discriminator
 	Items       any    // For array types

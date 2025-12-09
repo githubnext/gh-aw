@@ -56,7 +56,7 @@ func GenerateActionMetadataCommand() error {
 
 	// Extract safe output types from the schema
 	safeOutputTypes := GetSafeOutputTypes(schema)
-	
+
 	// Filter to only types that should have custom actions
 	var targetTypes []SafeOutputTypeSchema
 	for _, typeSchema := range safeOutputTypes {
@@ -113,21 +113,21 @@ func GenerateActionMetadataCommand() error {
 			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("✗ Failed to generate action.yml: %s", err.Error())))
 			continue
 		}
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  ✓ Generated action.yml")))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("  ✓ Generated action.yml"))
 
 		// Generate README.md
 		if err := generateReadme(actionDir, metadata); err != nil {
 			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("✗ Failed to generate README.md: %s", err.Error())))
 			continue
 		}
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  ✓ Generated README.md")))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("  ✓ Generated README.md"))
 
 		// Copy source file
 		srcPath := filepath.Join(srcDir, "index.js")
 		if err := os.WriteFile(srcPath, []byte(content), 0644); err != nil {
 			return fmt.Errorf("failed to write source file: %w", err)
 		}
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  ✓ Copied source to src/index.js")))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("  ✓ Copied source to src/index.js"))
 
 		generatedCount++
 	}
@@ -144,47 +144,6 @@ func GenerateActionMetadataCommand() error {
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("  4. Test the actions in a workflow"))
 
 	return nil
-}
-
-// extractActionMetadata extracts metadata from a JavaScript file
-func extractActionMetadata(filename, content string) (*ActionMetadata, error) {
-	generateActionMetadataLog.Printf("Extracting metadata from %s", filename)
-
-	// Extract action name from filename (e.g., "noop.cjs" -> "noop")
-	actionName := strings.TrimSuffix(filename, ".cjs")
-
-	// Extract description from JSDoc comment
-	description := extractDescription(content)
-	if description == "" {
-		description = fmt.Sprintf("Process %s safe output", actionName)
-	}
-
-	// Generate human-readable name from action name
-	name := generateHumanReadableName(actionName)
-
-	// Extract inputs
-	inputs := extractInputs(content)
-
-	// Extract outputs
-	outputs := extractOutputs(content)
-
-	// Extract dependencies
-	dependencies := extractDependencies(content)
-
-	metadata := &ActionMetadata{
-		Name:         name,
-		Description:  description,
-		Filename:     filename,
-		ActionName:   actionName,
-		Inputs:       inputs,
-		Outputs:      outputs,
-		Dependencies: dependencies,
-	}
-
-	generateActionMetadataLog.Printf("Extracted metadata: %d inputs, %d outputs, %d dependencies",
-		len(inputs), len(outputs), len(dependencies))
-
-	return metadata, nil
 }
 
 // extractActionMetadataFromSchema combines schema information with JavaScript analysis
@@ -208,7 +167,7 @@ func extractActionMetadataFromSchema(filename, content string, typeSchema SafeOu
 
 	// Extract inputs from JavaScript (core.getInput calls)
 	inputs := extractInputs(content)
-	
+
 	// Add standard token input if not already present
 	hasToken := false
 	for _, input := range inputs {
