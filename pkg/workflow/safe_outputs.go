@@ -3,8 +3,6 @@ package workflow
 import (
 	"encoding/json"
 	"fmt"
-	"os"
-	"os/exec"
 	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/constants"
@@ -16,92 +14,6 @@ var safeOutputsLog = logger.New("workflow:safe_outputs")
 // ========================================
 // Safe Output Configuration
 // ========================================
-
-const (
-	// GitHubOrgRepo is the organization and repository name for custom action references
-	GitHubOrgRepo = "githubnext/gh-aw"
-)
-
-// resolveActionReference converts a local action path to the appropriate reference
-// based on the current action mode (dev vs release).
-// For dev mode: returns the local path as-is (e.g., "./actions/create-issue")
-// For release mode: converts to SHA-pinned remote reference (e.g., "githubnext/gh-aw/actions/create-issue@SHA")
-// For inline mode: returns empty string to fallback to inline mode
-func (c *Compiler) resolveActionReference(localActionPath string, data *WorkflowData) string {
-	switch c.actionMode {
-	case ActionModeDev:
-		// Return local path as-is for development
-		safeOutputsLog.Printf("Dev mode: using local action path: %s", localActionPath)
-		return localActionPath
-
-	case ActionModeRelease:
-		// Convert to SHA-pinned remote reference for release
-		remoteRef := c.convertToRemoteActionRef(localActionPath)
-		if remoteRef == "" {
-			safeOutputsLog.Printf("WARNING: Could not resolve remote reference for %s", localActionPath)
-			return ""
-		}
-		safeOutputsLog.Printf("Release mode: using remote action reference: %s", remoteRef)
-		return remoteRef
-
-	case ActionModeInline:
-		// Return empty to fallback to inline mode
-		safeOutputsLog.Print("Inline mode: returning empty to use inline JavaScript")
-		return ""
-
-	default:
-		safeOutputsLog.Printf("WARNING: Unknown action mode %s, returning empty", c.actionMode)
-		return ""
-	}
-}
-
-// convertToRemoteActionRef converts a local action path to a SHA-pinned remote reference
-// Example: "./actions/create-issue" -> "githubnext/gh-aw/actions/create-issue@abc123..."
-func (c *Compiler) convertToRemoteActionRef(localPath string) string {
-	// Strip the leading "./" if present
-	actionPath := strings.TrimPrefix(localPath, "./")
-
-	// Determine the commit SHA to use
-	sha := c.getCurrentCommitSHA()
-	if sha == "" {
-		safeOutputsLog.Print("WARNING: Could not determine current commit SHA")
-		return ""
-	}
-
-	// Construct the remote reference: githubnext/gh-aw/actions/name@SHA
-	remoteRef := fmt.Sprintf("%s/%s@%s", GitHubOrgRepo, actionPath, sha)
-	return remoteRef
-}
-
-// getCurrentCommitSHA returns the current commit SHA for SHA pinning in release mode.
-// It tries the following sources in order:
-// 1. GITHUB_SHA environment variable (when running in GitHub Actions)
-// 2. git rev-parse HEAD (when running locally)
-// Returns empty string if SHA cannot be determined.
-//
-// Security note: The git command is only executed in controlled environments
-// (local development or GitHub Actions). This is not exposed to user input.
-func (c *Compiler) getCurrentCommitSHA() string {
-	// Try GITHUB_SHA environment variable first (set in GitHub Actions)
-	if sha := os.Getenv("GITHUB_SHA"); sha != "" {
-		safeOutputsLog.Printf("Using GITHUB_SHA: %s", sha)
-		return sha
-	}
-
-	// Fall back to git rev-parse HEAD
-	// This command is safe because it runs in a controlled environment
-	// and doesn't accept any user input
-	cmd := exec.Command("git", "rev-parse", "HEAD")
-	output, err := cmd.Output()
-	if err != nil {
-		safeOutputsLog.Printf("Failed to get commit SHA via git: %v", err)
-		return ""
-	}
-
-	sha := strings.TrimSpace(string(output))
-	safeOutputsLog.Printf("Using git rev-parse HEAD: %s", sha)
-	return sha
-}
 
 // formatSafeOutputsRunsOn formats the runs-on value from SafeOutputsConfig for job output
 func (c *Compiler) formatSafeOutputsRunsOn(safeOutputs *SafeOutputsConfig) string {

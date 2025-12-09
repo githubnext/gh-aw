@@ -20,8 +20,8 @@ func TestActionModeDetection(t *testing.T) {
 			name:         "main branch",
 			githubRef:    "refs/heads/main",
 			githubEvent:  "push",
-			expectedMode: ActionModeRelease,
-			description:  "Main branch should use release mode",
+			expectedMode: ActionModeDev,
+			description:  "Main branch should use dev mode (not release)",
 		},
 		{
 			name:         "release tag",
@@ -87,8 +87,8 @@ func TestActionModeDetection(t *testing.T) {
 			githubRef:    "refs/heads/main",
 			githubEvent:  "push",
 			envOverride:  "invalid",
-			expectedMode: ActionModeRelease,
-			description:  "Invalid environment variable should be ignored",
+			expectedMode: ActionModeDev,
+			description:  "Invalid environment variable should be ignored, main branch uses dev mode",
 		},
 	}
 
@@ -156,118 +156,6 @@ func TestActionModeReleaseValidation(t *testing.T) {
 	}
 }
 
-// TestConvertToRemoteActionRef tests conversion of local paths to remote references
-func TestConvertToRemoteActionRef(t *testing.T) {
-	compiler := NewCompiler(false, "", "1.0.0")
-
-	// Mock getCurrentCommitSHA to return a known value
-	mockSHA := "abc123def456abc123def456abc123def456abc1"
-
-	// Save original GITHUB_SHA
-	origSHA := os.Getenv("GITHUB_SHA")
-	defer os.Setenv("GITHUB_SHA", origSHA)
-
-	// Set mock SHA
-	os.Setenv("GITHUB_SHA", mockSHA)
-
-	tests := []struct {
-		name        string
-		localPath   string
-		expectedRef string
-		description string
-	}{
-		{
-			name:        "local path with ./ prefix",
-			localPath:   "./actions/create-issue",
-			expectedRef: "githubnext/gh-aw/actions/create-issue@" + mockSHA,
-			description: "Should strip ./ and add repo prefix with SHA",
-		},
-		{
-			name:        "local path without ./ prefix",
-			localPath:   "actions/create-issue",
-			expectedRef: "githubnext/gh-aw/actions/create-issue@" + mockSHA,
-			description: "Should add repo prefix with SHA",
-		},
-		{
-			name:        "nested action path",
-			localPath:   "./actions/nested/action",
-			expectedRef: "githubnext/gh-aw/actions/nested/action@" + mockSHA,
-			description: "Should handle nested paths",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			ref := compiler.convertToRemoteActionRef(tt.localPath)
-			if ref != tt.expectedRef {
-				t.Errorf("%s: expected %q, got %q", tt.description, tt.expectedRef, ref)
-			}
-		})
-	}
-}
-
-// TestResolveActionReference tests the resolveActionReference function
-func TestResolveActionReference(t *testing.T) {
-	// Save original GITHUB_SHA
-	origSHA := os.Getenv("GITHUB_SHA")
-	defer os.Setenv("GITHUB_SHA", origSHA)
-
-	// Set mock SHA
-	mockSHA := "abc123def456abc123def456abc123def456abc1"
-	os.Setenv("GITHUB_SHA", mockSHA)
-
-	tests := []struct {
-		name         string
-		actionMode   ActionMode
-		localPath    string
-		expectedRef  string
-		shouldBeEmpty bool
-		description  string
-	}{
-		{
-			name:        "dev mode",
-			actionMode:  ActionModeDev,
-			localPath:   "./actions/create-issue",
-			expectedRef: "./actions/create-issue",
-			description: "Dev mode should return local path",
-		},
-		{
-			name:        "release mode",
-			actionMode:  ActionModeRelease,
-			localPath:   "./actions/create-issue",
-			expectedRef: "githubnext/gh-aw/actions/create-issue@" + mockSHA,
-			description: "Release mode should return SHA-pinned remote reference",
-		},
-		{
-			name:          "inline mode",
-			actionMode:    ActionModeInline,
-			localPath:     "./actions/create-issue",
-			shouldBeEmpty: true,
-			description:   "Inline mode should return empty string",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			compiler := NewCompiler(false, "", "1.0.0")
-			compiler.SetActionMode(tt.actionMode)
-
-			data := &WorkflowData{}
-			ref := compiler.resolveActionReference(tt.localPath, data)
-
-			if tt.shouldBeEmpty {
-				if ref != "" {
-					t.Errorf("%s: expected empty string, got %q", tt.description, ref)
-				}
-			} else {
-				if ref != tt.expectedRef {
-					t.Errorf("%s: expected %q, got %q", tt.description, tt.expectedRef, ref)
-				}
-			}
-		})
-	}
-}
-
 // TestReleaseModeCompilation tests workflow compilation in release mode
 // Note: This test uses create_issue which already has ScriptName set.
 // Other safe outputs (add_labels, etc.) don't have ScriptName yet and will use inline mode.
@@ -286,7 +174,7 @@ func TestReleaseModeCompilation(t *testing.T) {
 	// Set mock SHA for testing
 	mockSHA := "abc123def456abc123def456abc123def456abc1"
 	os.Setenv("GITHUB_SHA", mockSHA)
-	os.Setenv("GITHUB_REF", "refs/heads/main") // Simulate main branch for auto-detection
+	os.Setenv("GITHUB_REF", "refs/tags/v1.0.0") // Simulate release tag for auto-detection
 
 	// Create a test workflow file
 	workflowContent := `---
@@ -325,6 +213,7 @@ Test workflow with release mode.
 		} else {
 			DefaultScriptRegistry.RegisterWithMode("create_issue", origScript, RuntimeModeGitHubScript)
 		}
+		ResetGitSHACache()
 	}()
 
 	// Compile - should auto-detect release mode from GITHUB_REF
@@ -441,38 +330,3 @@ Test
 	}
 }
 
-// TestGetCurrentCommitSHA tests the getCurrentCommitSHA function
-func TestGetCurrentCommitSHA(t *testing.T) {
-	compiler := NewCompiler(false, "", "1.0.0")
-
-	// Save original GITHUB_SHA
-	origSHA := os.Getenv("GITHUB_SHA")
-	defer os.Setenv("GITHUB_SHA", origSHA)
-
-	t.Run("GITHUB_SHA environment variable", func(t *testing.T) {
-		mockSHA := "1234567890abcdef1234567890abcdef12345678"
-		os.Setenv("GITHUB_SHA", mockSHA)
-
-		sha := compiler.getCurrentCommitSHA()
-		if sha != mockSHA {
-			t.Errorf("Expected SHA %q from GITHUB_SHA, got %q", mockSHA, sha)
-		}
-	})
-
-	t.Run("git rev-parse fallback", func(t *testing.T) {
-		os.Unsetenv("GITHUB_SHA")
-
-		sha := compiler.getCurrentCommitSHA()
-		// The SHA should be a valid 40-character hex string
-		if len(sha) != 40 {
-			t.Errorf("Expected 40-character SHA from git rev-parse, got %d characters: %q", len(sha), sha)
-		}
-
-		// Verify it's a valid hex string
-		for _, c := range sha {
-			if !((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f')) {
-				t.Errorf("SHA contains invalid character %q: %s", c, sha)
-			}
-		}
-	})
-}
