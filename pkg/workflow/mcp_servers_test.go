@@ -100,3 +100,148 @@ func TestSafeInputsStepCodeGenerationStability(t *testing.T) {
 			alphaPos, betaPos, middlePos, zebraPos)
 	}
 }
+
+// TestJavaScriptFileChunking validates that large JavaScript files are split into multiple steps
+func TestJavaScriptFileChunking(t *testing.T) {
+	// Create a medium-sized content that won't exceed limit alone but will when combined
+	mediumContent := strings.Repeat("console.log('This is a line of JavaScript code that will be repeated many times');\n", 150)
+
+	tests := []struct {
+		name          string
+		files         []JavaScriptFileWrite
+		expectedSteps int // Exact number of steps expected
+	}{
+		{
+			name: "single small file",
+			files: []JavaScriptFileWrite{
+				{
+					Filename:   "small.cjs",
+					Content:    "console.log('small');",
+					EOFMarker:  "EOF_SMALL",
+					TargetPath: "/tmp/test/small.cjs",
+				},
+			},
+			expectedSteps: 1,
+		},
+		{
+			name: "multiple files that fit in one step",
+			files: []JavaScriptFileWrite{
+				{
+					Filename:   "file1.cjs",
+					Content:    "console.log('file1');",
+					EOFMarker:  "EOF_1",
+					TargetPath: "/tmp/test/file1.cjs",
+				},
+				{
+					Filename:   "file2.cjs",
+					Content:    "console.log('file2');",
+					EOFMarker:  "EOF_2",
+					TargetPath: "/tmp/test/file2.cjs",
+				},
+			},
+			expectedSteps: 1,
+		},
+		{
+			name: "multiple medium files requiring split into 2 steps",
+			files: []JavaScriptFileWrite{
+				{
+					Filename:   "medium1.cjs",
+					Content:    mediumContent,
+					EOFMarker:  "EOF_MEDIUM1",
+					TargetPath: "/tmp/test/medium1.cjs",
+				},
+				{
+					Filename:   "medium2.cjs",
+					Content:    mediumContent,
+					EOFMarker:  "EOF_MEDIUM2",
+					TargetPath: "/tmp/test/medium2.cjs",
+				},
+			},
+			expectedSteps: 2,
+		},
+		{
+			name: "multiple medium files requiring split into 3 steps",
+			files: []JavaScriptFileWrite{
+				{
+					Filename:   "m1.cjs",
+					Content:    mediumContent,
+					EOFMarker:  "EOF_M1",
+					TargetPath: "/tmp/test/m1.cjs",
+				},
+				{
+					Filename:   "m2.cjs",
+					Content:    mediumContent,
+					EOFMarker:  "EOF_M2",
+					TargetPath: "/tmp/test/m2.cjs",
+				},
+				{
+					Filename:   "m3.cjs",
+					Content:    mediumContent,
+					EOFMarker:  "EOF_M3",
+					TargetPath: "/tmp/test/m3.cjs",
+				},
+			},
+			expectedSteps: 3,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var yaml strings.Builder
+			writeJavaScriptFilesInChunks(&yaml, tt.files, "Test Step")
+			output := yaml.String()
+
+			// Count the number of steps generated
+			stepCount := strings.Count(output, "- name: Test Step")
+
+			if stepCount != tt.expectedSteps {
+				t.Errorf("Expected exactly %d step(s), got %d", tt.expectedSteps, stepCount)
+			}
+
+			// Verify all files are written
+			for _, file := range tt.files {
+				if !strings.Contains(output, file.TargetPath) {
+					t.Errorf("Output should contain target path %s", file.TargetPath)
+				}
+				if !strings.Contains(output, file.EOFMarker) {
+					t.Errorf("Output should contain EOF marker %s", file.EOFMarker)
+				}
+			}
+
+			// Verify each step has proper structure
+			if !strings.Contains(output, "- name:") {
+				t.Error("Output should contain step name")
+			}
+			if !strings.Contains(output, "run: |") {
+				t.Error("Output should contain run command")
+			}
+		})
+	}
+}
+
+// TestJavaScriptFileChunkingPreservesOrder validates that file order is preserved across chunks
+func TestJavaScriptFileChunkingPreservesOrder(t *testing.T) {
+	files := []JavaScriptFileWrite{
+		{Filename: "a.cjs", Content: "console.log('a');", EOFMarker: "EOF_A", TargetPath: "/tmp/a.cjs"},
+		{Filename: "b.cjs", Content: "console.log('b');", EOFMarker: "EOF_B", TargetPath: "/tmp/b.cjs"},
+		{Filename: "c.cjs", Content: "console.log('c');", EOFMarker: "EOF_C", TargetPath: "/tmp/c.cjs"},
+	}
+
+	var yaml strings.Builder
+	writeJavaScriptFilesInChunks(&yaml, files, "Test")
+	output := yaml.String()
+
+	// Find positions of each file
+	posA := strings.Index(output, "/tmp/a.cjs")
+	posB := strings.Index(output, "/tmp/b.cjs")
+	posC := strings.Index(output, "/tmp/c.cjs")
+
+	if posA == -1 || posB == -1 || posC == -1 {
+		t.Error("All files should be present in output")
+	}
+
+	// Verify order is preserved
+	if !(posA < posB && posB < posC) {
+		t.Errorf("File order should be preserved: A(%d) < B(%d) < C(%d)", posA, posB, posC)
+	}
+}

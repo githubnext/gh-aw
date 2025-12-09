@@ -555,7 +555,7 @@ jobs:
             }
           }
           EOF
-      - name: Write Safe Outputs JavaScript Files
+      - name: Write Safe Outputs JavaScript Files (part 1)
         run: |
           cat > /tmp/gh-aw/safeoutputs/estimate_tokens.cjs << 'EOF_ESTIMATE_TOKENS'
             function estimateTokens(text) {
@@ -893,6 +893,8 @@ jobs:
               createShellHandler,
             };
           EOF_MCP_HANDLER_SHELL
+      - name: Write Safe Outputs JavaScript Files (part 2)
+        run: |
           cat > /tmp/gh-aw/safeoutputs/mcp_server_core.cjs << 'EOF_MCP_SERVER_CORE'
             const fs = require("fs");
             const path = require("path");
@@ -1355,6 +1357,8 @@ jobs:
               loadToolHandlers,
             };
           EOF_MCP_SERVER_CORE
+      - name: Write Safe Outputs JavaScript Files (part 3)
+        run: |
           cat > /tmp/gh-aw/safeoutputs/normalize_branch_name.cjs << 'EOF_NORMALIZE_BRANCH_NAME'
             function normalizeBranchName(branchName) {
               if (!branchName || typeof branchName !== "string" || branchName.trim() === "") {
@@ -1746,6 +1750,8 @@ jobs:
               startSafeOutputsServer,
             };
           EOF_SAFE_OUTPUTS_MCP_SERVER
+      - name: Write Safe Outputs JavaScript Files (part 4)
+        run: |
           cat > /tmp/gh-aw/safeoutputs/safe_outputs_tools_loader.cjs << 'EOF_SAFE_OUTPUTS_TOOLS_LOADER'
             const fs = require("fs");
             function loadTools(server) {
@@ -1893,11 +1899,15 @@ jobs:
             }
             module.exports = { startSafeOutputsServer };
           EOF
+      - name: Make Safe Outputs MCP Server Executable
+        run: |
           chmod +x /tmp/gh-aw/safeoutputs/mcp-server.cjs
           
-      - name: Setup Safe Inputs JavaScript and Config
+      - name: Setup Safe Inputs Directory
         run: |
           mkdir -p /tmp/gh-aw/safe-inputs/logs
+      - name: Setup Safe Inputs JavaScript (part 1)
+        run: |
           cat > /tmp/gh-aw/safe-inputs/read_buffer.cjs << 'EOF_READ_BUFFER'
             class ReadBuffer {
               constructor() {
@@ -1930,6 +1940,8 @@ jobs:
               ReadBuffer,
             };
           EOF_READ_BUFFER
+      - name: Setup Safe Inputs JavaScript (part 2)
+        run: |
           cat > /tmp/gh-aw/safe-inputs/mcp_server_core.cjs << 'EOF_MCP_CORE'
             const fs = require("fs");
             const path = require("path");
@@ -2392,6 +2404,8 @@ jobs:
               loadToolHandlers,
             };
           EOF_MCP_CORE
+      - name: Setup Safe Inputs JavaScript (part 3)
+        run: |
           cat > /tmp/gh-aw/safe-inputs/mcp_http_transport.cjs << 'EOF_MCP_HTTP_TRANSPORT'
             const http = require("http");
             const { randomUUID } = require("crypto");
@@ -2846,6 +2860,8 @@ jobs:
               cleanupConfigFile,
             };
           EOF_BOOTSTRAP
+      - name: Setup Safe Inputs JavaScript (part 4)
+        run: |
           cat > /tmp/gh-aw/safe-inputs/safe_inputs_mcp_server.cjs << 'EOF_SAFE_INPUTS_SERVER'
             const { createServer, registerTool, start } = require("./mcp_server_core.cjs");
             const { loadConfig } = require("./safe_inputs_config_loader.cjs");
@@ -3130,6 +3146,23 @@ jobs:
               createMCPServer,
             };
           EOF_SAFE_INPUTS_SERVER_HTTP
+          cat > /tmp/gh-aw/safe-inputs/mcp-server.cjs << 'EOFSI'
+            const path = require("path");
+            const { startHttpServer } = require("./safe_inputs_mcp_server_http.cjs");
+            const configPath = path.join(__dirname, "tools.json");
+            const port = parseInt(process.env.GH_AW_SAFE_INPUTS_PORT || "3000", 10);
+            const apiKey = process.env.GH_AW_SAFE_INPUTS_API_KEY || "";
+            startHttpServer(configPath, {
+              port: port,
+              stateless: false,
+              logDir: "/tmp/gh-aw/safe-inputs/logs"
+            }).catch(error => {
+              console.error("Failed to start safe-inputs HTTP server:", error);
+              process.exit(1);
+            });
+          EOFSI
+      - name: Setup Safe Inputs Config
+        run: |
           cat > /tmp/gh-aw/safe-inputs/tools.json << 'EOF_TOOLS_JSON'
           {
             "serverName": "safeinputs",
@@ -3175,21 +3208,8 @@ jobs:
             ]
           }
           EOF_TOOLS_JSON
-          cat > /tmp/gh-aw/safe-inputs/mcp-server.cjs << 'EOFSI'
-            const path = require("path");
-            const { startHttpServer } = require("./safe_inputs_mcp_server_http.cjs");
-            const configPath = path.join(__dirname, "tools.json");
-            const port = parseInt(process.env.GH_AW_SAFE_INPUTS_PORT || "3000", 10);
-            const apiKey = process.env.GH_AW_SAFE_INPUTS_API_KEY || "";
-            startHttpServer(configPath, {
-              port: port,
-              stateless: false,
-              logDir: "/tmp/gh-aw/safe-inputs/logs"
-            }).catch(error => {
-              console.error("Failed to start safe-inputs HTTP server:", error);
-              process.exit(1);
-            });
-          EOFSI
+      - name: Make Safe Inputs MCP Server Executable
+        run: |
           chmod +x /tmp/gh-aw/safe-inputs/mcp-server.cjs
           
       - name: Setup Safe Inputs Tool Files

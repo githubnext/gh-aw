@@ -951,7 +951,7 @@ jobs:
             }
           }
           EOF
-      - name: Write Safe Outputs JavaScript Files
+      - name: Write Safe Outputs JavaScript Files (part 1)
         run: |
           cat > /tmp/gh-aw/safeoutputs/estimate_tokens.cjs << 'EOF_ESTIMATE_TOKENS'
             function estimateTokens(text) {
@@ -1289,6 +1289,8 @@ jobs:
               createShellHandler,
             };
           EOF_MCP_HANDLER_SHELL
+      - name: Write Safe Outputs JavaScript Files (part 2)
+        run: |
           cat > /tmp/gh-aw/safeoutputs/mcp_server_core.cjs << 'EOF_MCP_SERVER_CORE'
             const fs = require("fs");
             const path = require("path");
@@ -1751,6 +1753,8 @@ jobs:
               loadToolHandlers,
             };
           EOF_MCP_SERVER_CORE
+      - name: Write Safe Outputs JavaScript Files (part 3)
+        run: |
           cat > /tmp/gh-aw/safeoutputs/normalize_branch_name.cjs << 'EOF_NORMALIZE_BRANCH_NAME'
             function normalizeBranchName(branchName) {
               if (!branchName || typeof branchName !== "string" || branchName.trim() === "") {
@@ -2142,6 +2146,8 @@ jobs:
               startSafeOutputsServer,
             };
           EOF_SAFE_OUTPUTS_MCP_SERVER
+      - name: Write Safe Outputs JavaScript Files (part 4)
+        run: |
           cat > /tmp/gh-aw/safeoutputs/safe_outputs_tools_loader.cjs << 'EOF_SAFE_OUTPUTS_TOOLS_LOADER'
             const fs = require("fs");
             function loadTools(server) {
@@ -2289,6 +2295,8 @@ jobs:
             }
             module.exports = { startSafeOutputsServer };
           EOF
+      - name: Make Safe Outputs MCP Server Executable
+        run: |
           chmod +x /tmp/gh-aw/safeoutputs/mcp-server.cjs
           
       - name: Setup MCPs
