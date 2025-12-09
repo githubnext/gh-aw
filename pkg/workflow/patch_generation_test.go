@@ -52,13 +52,13 @@ This workflow tests how patches are generated automatically.
 
 	lockStr := string(lockContent)
 
-	// NOTE: Patch generation has been moved to the safe-outputs MCP server
-	// The patch is now generated when create_pull_request or push_to_pull_request_branch
-	// tools are called within the MCP server, not as a separate workflow step.
+	// NOTE: Patch generation happens in the agent job (not in MCP server)
+	// The patch is generated as a GitHub Actions step where child_process is available,
+	// then uploaded as an artifact for safe-output jobs to download.
 
-	// Check that the dedicated "Generate git patch" step is NOT in the main job anymore
-	if strings.Contains(lockStr, "Generate git patch") {
-		t.Error("Did not expect 'Generate git patch' step in main job (now handled by MCP server)")
+	// Check that the dedicated "Generate git patch" step IS in the main job
+	if !strings.Contains(lockStr, "Generate git patch") {
+		t.Error("Expected 'Generate git patch' step in main job")
 	}
 
 	// Check that patch application still happens in the create_pull_request job
@@ -81,5 +81,5 @@ This workflow tests how patches are generated automatically.
 		t.Error("Expected create_pull_request job to be generated")
 	}
 
-	t.Logf("Successfully verified patch generation workflow (patch now generated in MCP server)")
+	t.Logf("Successfully verified patch generation workflow (patch generated in agent job)")
 }

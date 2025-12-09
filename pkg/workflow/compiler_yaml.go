@@ -1395,11 +1395,11 @@ func (c *Compiler) generateGitPatchGenerationStep(yaml *strings.Builder) {
 	yaml.WriteString("          DEFAULT_BRANCH: ${{ github.ref_name }}\n")
 	yaml.WriteString("        with:\n")
 	yaml.WriteString("          script: |\n")
-	
+
 	// Inline the generateGitPatch function since it needs child_process
 	generateGitPatchScript := GetGenerateGitPatchScript()
 	WriteJavaScriptToYAML(yaml, generateGitPatchScript)
-	
+
 	// Add the actual invocation (after the bundled code)
 	yaml.WriteString("            \n")
 	yaml.WriteString("            // Invoke the function to generate the patch\n")

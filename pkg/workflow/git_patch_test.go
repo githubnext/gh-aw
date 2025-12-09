@@ -68,30 +68,19 @@ Please do the following tasks:
 
 	lockContent := string(content)
 
-	// NOTE: Git patch generation has been moved to the safe-outputs MCP server
-	// The patch is now generated when create_pull_request or push_to_pull_request_branch
-	// tools are called within the MCP server, not as a separate workflow step.
+	// NOTE: Git patch generation happens in the agent job (not in MCP server)
+	// The patch is generated as a GitHub Actions step where child_process is available,
+	// then uploaded as an artifact for safe-output jobs to download.
 
-	// Verify git patch generation step does NOT exist in main job anymore
-	if strings.Contains(lockContent, "- name: Generate git patch") {
-		t.Error("Did not expect 'Generate git patch' step in main job (now handled by MCP server)")
+	// Verify git patch generation step EXISTS in main job
+	if !strings.Contains(lockContent, "- name: Generate git patch") {
+		t.Error("Expected 'Generate git patch' step in main job")
 	}
 
-	// The patch generation script commands should NOT be in the main job
-	// Note: git commands may still appear elsewhere in the workflow (e.g., checkout, git config)
-	mainJobIndex := strings.Index(lockContent, "execute_agentic_workflow:")
-	createPRJobIndex := strings.Index(lockContent, "create_pull_request:")
-
-	var mainJobContent string
-	if mainJobIndex != -1 && createPRJobIndex != -1 {
-		mainJobContent = lockContent[mainJobIndex:createPRJobIndex]
-	} else if mainJobIndex != -1 {
-		mainJobContent = lockContent[mainJobIndex:]
-	}
-
-	// Check that the main job doesn't have patch generation commands
-	if strings.Contains(mainJobContent, "git format-patch") {
-		t.Error("Did not expect 'git format-patch' command in main job (now handled by MCP server)")
+	// The patch generation script should be in the workflow
+	// Check that the workflow has the generateGitPatch function
+	if !strings.Contains(lockContent, "function generateGitPatch") {
+		t.Error("Expected 'function generateGitPatch' in the workflow")
 	}
 
 	// Verify git patch upload step still exists (for backward compatibility with processing jobs)
@@ -136,5 +125,5 @@ Please do the following tasks:
 		t.Error("Expected upload git patch step to have 'if: always()' condition")
 	}
 
-	t.Logf("Successfully verified git patch workflow (patch now generated in MCP server)")
+	t.Logf("Successfully verified git patch workflow (patch generated in agent job)")
 }
