@@ -134,6 +134,16 @@
 #
 # The content body to analyze is available through the GitHub context. Use the GitHub tools to fetch the full context of the issue, comment, or pull request review comment that triggered this workflow.
 #
+# ## Custom Moderation Rules (Optional)
+#
+# If a custom prompt file exists at `.github/prompts/custom-moderation.prompt.yml` in the repository, read it and apply any additional moderation rules specified there. The custom prompt file follows the same YAML format as the original github/ai-moderator action and can contain repository-specific spam detection criteria.
+#
+# To check if the file exists and read it:
+# 1. Use the GitHub tools to check if `.github/prompts/custom-moderation.prompt.yml` exists
+# 2. If it exists, read its contents
+# 3. Apply any additional detection rules or criteria from the custom prompt
+# 4. Combine the custom rules with the built-in detection tasks below
+#
 # ## Detection Tasks
 #
 # Perform the following detection analyses on the content:
@@ -2512,6 +2522,16 @@ jobs:
           For issues, the issue title is: __GH_AW_GITHUB_EVENT_ISSUE_TITLE__
           
           The content body to analyze is available through the GitHub context. Use the GitHub tools to fetch the full context of the issue, comment, or pull request review comment that triggered this workflow.
+          
+          ## Custom Moderation Rules (Optional)
+          
+          If a custom prompt file exists at `.github/prompts/custom-moderation.prompt.yml` in the repository, read it and apply any additional moderation rules specified there. The custom prompt file follows the same YAML format as the original github/ai-moderator action and can contain repository-specific spam detection criteria.
+          
+          To check if the file exists and read it:
+          1. Use the GitHub tools to check if `.github/prompts/custom-moderation.prompt.yml` exists
+          2. If it exists, read its contents
+          3. Apply any additional detection rules or criteria from the custom prompt
+          4. Combine the custom rules with the built-in detection tasks below
           
           ## Detection Tasks
           

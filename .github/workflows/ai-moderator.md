@@ -86,6 +86,16 @@ For issues, the issue title is: ${{ github.event.issue.title }}
 
 The content body to analyze is available through the GitHub context. Use the GitHub tools to fetch the full context of the issue, comment, or pull request review comment that triggered this workflow.
 
+## Custom Moderation Rules (Optional)
+
+If a custom prompt file exists at `.github/prompts/custom-moderation.prompt.yml` in the repository, read it and apply any additional moderation rules specified there. The custom prompt file follows the same YAML format as the original github/ai-moderator action and can contain repository-specific spam detection criteria.
+
+To check if the file exists and read it:
+1. Use the GitHub tools to check if `.github/prompts/custom-moderation.prompt.yml` exists
+2. If it exists, read its contents
+3. Apply any additional detection rules or criteria from the custom prompt
+4. Combine the custom rules with the built-in detection tasks below
+
 ## Detection Tasks
 
 Perform the following detection analyses on the content:
@@ -284,11 +294,40 @@ The workflow follows security best practices:
 
 To customize the detection behavior:
 
-1. **Edit the workflow**: Modify `.github/workflows/ai-moderator.md`
-2. **Adjust detection criteria**: Update the prompt sections for each detection type
-3. **Change labels**: Modify the `allowed` list in `safe-outputs.add-labels`
-4. **Add/remove triggers**: Update the `on:` section
-5. **Recompile**: Run `gh aw compile ai-moderator` to generate the updated `.lock.yml` file
+1. **Custom Prompt File (Recommended)**: Create a file at `.github/prompts/custom-moderation.prompt.yml` in your repository with repository-specific spam detection rules. This file follows the same YAML format as the original github/ai-moderator action.
+   
+   Example custom prompt:
+   ```yaml
+   messages:
+     - role: system
+       content: |
+         Additional moderation rules for this repository:
+         - Flag posts mentioning competitor products
+         - Detect off-topic gaming discussions
+         - Identify cryptocurrency spam (this is not a crypto project)
+     - role: user
+       content: |
+         Analyze this content: {{stdin}}
+   model: gpt-4o
+   responseFormat: json_schema
+   jsonSchema: |-
+     {
+       "name": "custom_spam_detection",
+       "schema": {
+         "type": "object",
+         "properties": {
+           "is_spam": {"type": "boolean"},
+           "reasoning": {"type": "string"}
+         }
+       }
+     }
+   ```
+
+2. **Edit the workflow**: Modify `.github/workflows/ai-moderator.md`
+3. **Adjust detection criteria**: Update the prompt sections for each detection type
+4. **Change labels**: Modify the `allowed` list in `safe-outputs.add-labels`
+5. **Add/remove triggers**: Update the `on:` section
+6. **Recompile**: Run `gh aw compile ai-moderator` to generate the updated `.lock.yml` file
 
 ## Example Workflow Run
 
