@@ -72,6 +72,11 @@ gh-aw-test/
 /package.json
 /package-lock.json
 
+# Action build artifacts - keep bundled index.js, exclude temp files
+actions/**/node_modules/
+actions/**/*.tmp
+actions/**/.build/
+
 pkg/cli/workflows/*.yml
 .github/workflows/test-update.md
 .github/workflows/test-update.lock.yml
