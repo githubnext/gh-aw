@@ -310,3 +310,207 @@ module.exports = { main };
 		t.Errorf("Node.js mode: expected 3 module.exports statements, got %d", count)
 	}
 }
+
+func TestValidateNoRuntimeMixing_GitHubScriptWithNodeJsHelper(t *testing.T) {
+	// Create a Node.js-only helper that uses child_process
+	helperContent := `const { execSync } = require('child_process');
+
+function runCommand(cmd) {
+  return execSync(cmd).toString();
+}
+
+module.exports = { runCommand };
+`
+
+	// Create a main script that tries to use this helper in GitHub Script mode
+	mainContent := `const { runCommand } = require('./helper.cjs');
+
+function main() {
+  const result = runCommand('ls');
+  console.log(result);
+}
+
+main();
+`
+
+	sources := map[string]string{
+		"helper.cjs": helperContent,
+	}
+
+	// This should fail because GitHub Script mode cannot use Node.js-only APIs
+	_, err := BundleJavaScriptWithMode(mainContent, sources, "", RuntimeModeGitHubScript)
+	if err == nil {
+		t.Error("Expected error when bundling Node.js script in GitHub Script mode, but got nil")
+	}
+
+	// Check error message mentions runtime conflict
+	if !strings.Contains(err.Error(), "runtime mode conflict") {
+		t.Errorf("Error should mention runtime mode conflict, got: %v", err)
+	}
+}
+
+func TestValidateNoRuntimeMixing_NodeJsWithNodeJsHelper(t *testing.T) {
+	// Create a Node.js-only helper that uses child_process
+	helperContent := `const { execSync } = require('child_process');
+
+function runCommand(cmd) {
+  return execSync(cmd).toString();
+}
+
+module.exports = { runCommand };
+`
+
+	// Create a main script that uses this helper in Node.js mode
+	mainContent := `const { runCommand } = require('./helper.cjs');
+
+function main() {
+  const result = runCommand('ls');
+  console.log(result);
+}
+
+module.exports = { main };
+`
+
+	sources := map[string]string{
+		"helper.cjs": helperContent,
+	}
+
+	// This should succeed because both are Node.js mode
+	bundled, err := BundleJavaScriptWithMode(mainContent, sources, "", RuntimeModeNodeJS)
+	if err != nil {
+		t.Errorf("Expected no error when bundling Node.js script in Node.js mode, but got: %v", err)
+	}
+
+	// Verify the helper is included
+	if !strings.Contains(bundled, "function runCommand") {
+		t.Error("Bundled output does not contain runCommand function")
+	}
+}
+
+func TestValidateNoRuntimeMixing_GitHubScriptWithCompatibleHelper(t *testing.T) {
+	// Create a helper that's compatible with both modes (no runtime-specific APIs)
+	helperContent := `function add(a, b) {
+  return a + b;
+}
+
+module.exports = { add };
+`
+
+	// Create a main script for GitHub Script mode
+	mainContent := `const { add } = require('./helper.cjs');
+
+function main() {
+  console.log(add(1, 2));
+}
+
+main();
+`
+
+	sources := map[string]string{
+		"helper.cjs": helperContent,
+	}
+
+	// This should succeed because the helper is compatible with GitHub Script mode
+	bundled, err := BundleJavaScriptWithMode(mainContent, sources, "", RuntimeModeGitHubScript)
+	if err != nil {
+		t.Errorf("Expected no error when bundling compatible helper in GitHub Script mode, but got: %v", err)
+	}
+
+	// Verify the helper is included
+	if !strings.Contains(bundled, "function add") {
+		t.Error("Bundled output does not contain add function")
+	}
+
+	// Verify module.exports is removed in GitHub Script mode
+	if strings.Contains(bundled, "module.exports") {
+		t.Error("GitHub Script mode should remove module.exports")
+	}
+}
+
+func TestValidateNoRuntimeMixing_GitHubScriptWithGitHubScriptAPIs(t *testing.T) {
+	// Create a helper that uses GitHub Script APIs
+	helperContent := `async function createIssue(title) {
+  await github.rest.issues.create({
+    owner: github.context.repo.owner,
+    repo: github.context.repo.repo,
+    title: title
+  });
+}
+
+module.exports = { createIssue };
+`
+
+	// Create a main script for GitHub Script mode
+	mainContent := `const { createIssue } = require('./helper.cjs');
+
+async function main() {
+  await createIssue('Test Issue');
+  core.info('Issue created');
+}
+
+main();
+`
+
+	sources := map[string]string{
+		"helper.cjs": helperContent,
+	}
+
+	// This should succeed because both use GitHub Script APIs
+	bundled, err := BundleJavaScriptWithMode(mainContent, sources, "", RuntimeModeGitHubScript)
+	if err != nil {
+		t.Errorf("Expected no error when bundling GitHub Script helper in GitHub Script mode, but got: %v", err)
+	}
+
+	// Verify the helper is included
+	if !strings.Contains(bundled, "function createIssue") {
+		t.Error("Bundled output does not contain createIssue function")
+	}
+}
+
+func TestValidateNoRuntimeMixing_TransitiveDependency(t *testing.T) {
+	// Create a Node.js-only utility
+	utilContent := `const { execSync } = require('child_process');
+
+function exec(cmd) {
+  return execSync(cmd).toString();
+}
+
+module.exports = { exec };
+`
+
+	// Create a helper that uses the utility
+	helperContent := `const { exec } = require('./util.cjs');
+
+function runTest() {
+  return exec('echo test');
+}
+
+module.exports = { runTest };
+`
+
+	// Create a main script in GitHub Script mode
+	mainContent := `const { runTest } = require('./helper.cjs');
+
+function main() {
+  core.info(runTest());
+}
+
+main();
+`
+
+	sources := map[string]string{
+		"util.cjs":   utilContent,
+		"helper.cjs": helperContent,
+	}
+
+	// This should fail because of transitive Node.js dependency
+	_, err := BundleJavaScriptWithMode(mainContent, sources, "", RuntimeModeGitHubScript)
+	if err == nil {
+		t.Error("Expected error when bundling script with transitive Node.js dependency in GitHub Script mode")
+	}
+
+	// Check error message mentions runtime conflict
+	if !strings.Contains(err.Error(), "runtime mode conflict") {
+		t.Errorf("Error should mention runtime mode conflict, got: %v", err)
+	}
+}

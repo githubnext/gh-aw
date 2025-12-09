@@ -653,9 +653,9 @@ main();
 		"file2.cjs": file2,
 	}
 
-	bundled, err := BundleJavaScriptFromSources(mainContent, sources, "")
+	bundled, err := BundleJavaScriptWithMode(mainContent, sources, "", RuntimeModeNodeJS)
 	if err != nil {
-		t.Fatalf("BundleJavaScriptFromSources failed: %v", err)
+		t.Fatalf("BundleJavaScriptWithMode failed: %v", err)
 	}
 
 	// Check that the bundled code contains a merged require statement
