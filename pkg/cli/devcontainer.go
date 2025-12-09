@@ -75,6 +75,10 @@ func ensureDevcontainerConfig(verbose bool, additionalRepos []string) error {
 	}
 
 	// Create repository permissions map
+	// Reference: https://docs.github.com/en/codespaces/managing-your-codespaces/managing-repository-access-for-your-codespaces
+	// Default codespace permissions are read/write to the repository from which it was created.
+	// For the current repo, we grant the standard codespace write permissions plus workflows:write
+	// to enable triggering GitHub Actions workflows.
 	repositories := map[string]DevcontainerRepoPermissions{
 		repoName: {
 			Permissions: map[string]string{
@@ -91,6 +95,9 @@ func ensureDevcontainerConfig(verbose bool, additionalRepos []string) error {
 	}
 
 	// Add additional repositories with read permissions
+	// For additional repos, we grant default codespace read permissions plus workflows:read
+	// to allow reading workflow definitions without write access.
+	// Reference: https://docs.github.com/en/codespaces/managing-your-codespaces/managing-repository-access-for-your-codespaces#setting-additional-repository-permissions
 	for _, repo := range additionalRepos {
 		if repo != "" && repo != repoName && repo != "githubnext/gh-aw" {
 			repositories[repo] = DevcontainerRepoPermissions{
