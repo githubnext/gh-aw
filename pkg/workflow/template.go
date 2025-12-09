@@ -16,7 +16,8 @@ var templateLog = logger.New("workflow:template")
 func wrapExpressionsInTemplateConditionals(markdown string) string {
 	// Pattern to match {{#if expression}} where expression is not already wrapped in ${{ }}
 	// This regex captures the entire {{#if ...}} block
-	re := regexp.MustCompile(`\{\{#if\s+([^}]+)\}\}`)
+	// Uses .*? (non-greedy) with \s* to handle expressions with or without trailing spaces
+	re := regexp.MustCompile(`\{\{#if\s+(.*?)\s*\}\}`)
 
 	templateLog.Print("Wrapping expressions in template conditionals")
 

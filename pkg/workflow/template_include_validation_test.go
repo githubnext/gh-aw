@@ -225,6 +225,155 @@ End of first level.
 			wantErr: true,
 			errMsg:  "import directives cannot be used inside template regions",
 		},
+		{
+			name: "valid - two leading spaces before opening tag, include outside",
+			input: `# Test Workflow
+
+@include shared/tools.md
+
+  {{#if github.event.issue.number}}
+  Content with leading spaces
+  {{/if}}`,
+			wantErr: false,
+		},
+		{
+			name: "invalid - two leading spaces before opening tag, include inside",
+			input: `# Test Workflow
+
+  {{#if github.event.issue.number}}
+  @include shared/tools.md
+  Content with leading spaces
+  {{/if}}`,
+			wantErr: true,
+			errMsg:  "import directives cannot be used inside template regions",
+		},
+		{
+			name: "valid - four leading spaces before opening tag, include outside",
+			input: `# Test Workflow
+
+    {{#if github.actor}}
+    Content with four leading spaces
+    {{/if}}
+
+@include shared/footer.md`,
+			wantErr: false,
+		},
+		{
+			name: "invalid - four leading spaces before opening tag, include inside",
+			input: `# Test Workflow
+
+    {{#if github.actor}}
+    @include shared/tools.md
+    Content with four leading spaces
+    {{/if}}`,
+			wantErr: true,
+			errMsg:  "import directives cannot be used inside template regions",
+		},
+		{
+			name: "valid - tab before opening tag, include outside",
+			input: `# Test Workflow
+
+	{{#if github.repository}}
+	Content with tab indentation
+	{{/if}}
+
+@include shared/tools.md`,
+			wantErr: false,
+		},
+		{
+			name: "invalid - tab before opening tag, include inside",
+			input: `# Test Workflow
+
+	{{#if github.repository}}
+	@include shared/tools.md
+	Content with tab indentation
+	{{/if}}`,
+			wantErr: true,
+			errMsg:  "import directives cannot be used inside template regions",
+		},
+		{
+			name: "valid - mixed indentation levels, includes outside all blocks",
+			input: `# Test Workflow
+
+@include shared/header.md
+
+{{#if github.actor}}
+No indent
+{{/if}}
+
+  {{#if github.repository}}
+  Two space indent
+  {{/if}}
+
+    {{#if github.event.issue.number}}
+    Four space indent
+    {{/if}}
+
+@include shared/footer.md`,
+			wantErr: false,
+		},
+		{
+			name: "invalid - mixed indentation with include in middle block",
+			input: `# Test Workflow
+
+{{#if github.actor}}
+No indent
+{{/if}}
+
+  {{#if github.repository}}
+  @include shared/tools.md
+  Two space indent
+  {{/if}}
+
+    {{#if github.event.issue.number}}
+    Four space indent
+    {{/if}}`,
+			wantErr: true,
+			errMsg:  "import directives cannot be used inside template regions",
+		},
+		{
+			name: "valid - realistic linter-formatted markdown with leading spaces",
+			input: `# Analysis Workflow
+
+@include shared/setup.md
+
+## Conditional Analysis
+
+  {{#if github.event.issue.number}}
+  ### Issue Analysis
+  
+  This section analyzes issues.
+  {{/if}}
+
+  {{#if github.event.pull_request.number}}
+  ### PR Analysis
+  
+  This section analyzes pull requests.
+  {{/if}}
+
+@include shared/conclusion.md`,
+			wantErr: false,
+		},
+		{
+			name: "invalid - realistic linter-formatted markdown with include inside",
+			input: `# Analysis Workflow
+
+@include shared/setup.md
+
+## Conditional Analysis
+
+  {{#if github.event.issue.number}}
+  ### Issue Analysis
+  
+  @include shared/issue-helpers.md
+  
+  This section analyzes issues.
+  {{/if}}
+
+@include shared/conclusion.md`,
+			wantErr: true,
+			errMsg:  "import directives cannot be used inside template regions",
+		},
 	}
 
 	for _, tt := range tests {

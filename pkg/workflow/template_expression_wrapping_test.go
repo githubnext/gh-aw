@@ -125,6 +125,60 @@ Normal content here.`,
 			input:    "{{#if github.actor}}first{{/if}}\n{{#if ${GH_AW_EXPR_ABC123}}}second{{/if}}",
 			expected: "{{#if ${{ github.actor }} }}first{{/if}}\n{{#if ${GH_AW_EXPR_ABC123}}}second{{/if}}",
 		},
+		{
+			name:     "two leading spaces before opening tag",
+			input:    "  {{#if github.event.issue.number}}content{{/if}}",
+			expected: "  {{#if ${{ github.event.issue.number }} }}content{{/if}}",
+		},
+		{
+			name:     "four leading spaces before opening tag",
+			input:    "    {{#if github.actor}}content{{/if}}",
+			expected: "    {{#if ${{ github.actor }} }}content{{/if}}",
+		},
+		{
+			name:     "tab before opening tag",
+			input:    "\t{{#if github.repository}}content{{/if}}",
+			expected: "\t{{#if ${{ github.repository }} }}content{{/if}}",
+		},
+		{
+			name:     "leading spaces with multiline content",
+			input:    "  {{#if github.event.issue.number}}\n  This is indented\n  {{/if}}",
+			expected: "  {{#if ${{ github.event.issue.number }} }}\n  This is indented\n  {{/if}}",
+		},
+		{
+			name:     "mixed indentation levels",
+			input:    "{{#if github.actor}}first{{/if}}\n  {{#if github.repository}}second{{/if}}",
+			expected: "{{#if ${{ github.actor }} }}first{{/if}}\n  {{#if ${{ github.repository }} }}second{{/if}}",
+		},
+		{
+			name: "realistic markdown with indentation",
+			input: `# Header
+
+  {{#if github.event.issue.number}}
+  ## Conditional section
+  Content here
+  {{/if}}
+
+Regular content`,
+			expected: `# Header
+
+  {{#if ${{ github.event.issue.number }} }}
+  ## Conditional section
+  Content here
+  {{/if}}
+
+Regular content`,
+		},
+		{
+			name:     "leading spaces with already wrapped expression",
+			input:    "  {{#if ${{ github.event.issue.number }} }}content{{/if}}",
+			expected: "  {{#if ${{ github.event.issue.number }} }}content{{/if}}",
+		},
+		{
+			name:     "leading spaces with environment variable reference",
+			input:    "  {{#if ${GH_AW_EXPR_ABC123}}}content{{/if}}",
+			expected: "  {{#if ${GH_AW_EXPR_ABC123}}}content{{/if}}",
+		},
 	}
 
 	for _, tt := range tests {
