@@ -31,7 +31,7 @@ function getFooterMessage(ctx) {
   const templateContext = toSnakeCase(ctx);
 
   // Default footer template - pirate themed! 🏴‍☠️
-  const defaultFooter = "> 🏴‍☠️ Ahoy! This treasure was crafted by [{workflow_name}]({run_url})";
+  const defaultFooter = "> Ahoy! This treasure was crafted by [🏴‍☠️ {workflow_name}]({run_url})";
 
   // Use custom footer if configured
   let footer = messages?.footer ? renderTemplate(messages.footer, templateContext) : renderTemplate(defaultFooter, templateContext);
@@ -61,7 +61,7 @@ function getFooterInstallMessage(ctx) {
 
   // Default installation template - pirate themed! 🏴‍☠️
   const defaultInstall =
-    "> 🦜 Arr! To plunder this workflow fer yer own ship, run `gh aw add {workflow_source}`. Chart yer course at [{workflow_source_url}]({workflow_source_url})!";
+    "> Arr! To plunder this workflow fer yer own ship, run `gh aw add {workflow_source}`. Chart yer course at [🦜 {workflow_source_url}]({workflow_source_url})!";
 
   // Use custom installation message if configured
   return messages?.footerInstall

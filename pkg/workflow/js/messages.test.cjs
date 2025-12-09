@@ -163,7 +163,7 @@ describe("messages.cjs", () => {
         runUrl: "https://github.com/test/repo/actions/runs/123",
       });
 
-      expect(result).toBe("> 🏴‍☠️ Ahoy! This treasure was crafted by [Test Workflow](https://github.com/test/repo/actions/runs/123)");
+      expect(result).toBe("> Ahoy! This treasure was crafted by [🏴‍☠️ Test Workflow](https://github.com/test/repo/actions/runs/123)");
     });
 
     it("should append triggering number when provided", async () => {
@@ -176,7 +176,7 @@ describe("messages.cjs", () => {
       });
 
       expect(result).toBe(
-        "> 🏴‍☠️ Ahoy! This treasure was crafted by [Test Workflow](https://github.com/test/repo/actions/runs/123) fer issue #42 🗺️"
+        "> Ahoy! This treasure was crafted by [🏴‍☠️ Test Workflow](https://github.com/test/repo/actions/runs/123) fer issue #42 🗺️"
       );
     });
 
@@ -269,7 +269,7 @@ describe("messages.cjs", () => {
         undefined
       );
 
-      expect(result).toContain("> 🏴‍☠️ Ahoy! This treasure was crafted by [Test Workflow]");
+      expect(result).toContain("> Ahoy! This treasure was crafted by [🏴‍☠️ Test Workflow]");
       expect(result).toContain("https://github.com/test/repo/actions/runs/123");
     });
 
