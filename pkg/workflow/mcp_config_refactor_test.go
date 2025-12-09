@@ -130,11 +130,12 @@ func TestRenderSafeOutputsMCPConfigWithOptions(t *testing.T) {
 				`"tools": ["*"]`,
 				`"env": {`,
 				`"GH_AW_SAFE_OUTPUTS": "\${GH_AW_SAFE_OUTPUTS}"`,
+				`"GH_AW_SAFE_OUTPUTS_CONFIG_PATH": "\${GH_AW_SAFE_OUTPUTS_CONFIG_PATH}"`,
+				`"GH_AW_SAFE_OUTPUTS_TOOLS_PATH": "\${GH_AW_SAFE_OUTPUTS_TOOLS_PATH}"`,
 				`              }`,
 			},
 			unexpectedContent: []string{
 				`${{ env.`,
-				`GH_AW_SAFE_OUTPUTS_CONFIG`, // Config is now in file, not env var
 			},
 		},
 		{
@@ -147,6 +148,8 @@ func TestRenderSafeOutputsMCPConfigWithOptions(t *testing.T) {
 				`"args": ["/tmp/gh-aw/safeoutputs/mcp-server.cjs"]`,
 				// Security fix: Now uses shell variables instead of GitHub expressions
 				`"GH_AW_SAFE_OUTPUTS": "$GH_AW_SAFE_OUTPUTS"`,
+				`"GH_AW_SAFE_OUTPUTS_CONFIG_PATH": "$GH_AW_SAFE_OUTPUTS_CONFIG_PATH"`,
+				`"GH_AW_SAFE_OUTPUTS_TOOLS_PATH": "$GH_AW_SAFE_OUTPUTS_TOOLS_PATH"`,
 				`              },`,
 			},
 			unexpectedContent: []string{
@@ -156,7 +159,6 @@ func TestRenderSafeOutputsMCPConfigWithOptions(t *testing.T) {
 				// Verify GitHub expressions are NOT in the output (security fix)
 				`${{ env.`,
 				`${{ toJSON(`,
-				`GH_AW_SAFE_OUTPUTS_CONFIG`, // Config is now in file, not env var
 			},
 		},
 	}

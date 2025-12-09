@@ -1170,7 +1170,9 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 		// Store in agent logs directory so it's included in agent_outputs artifact
 		env["GH_AW_MCP_LOG_DIR"] = "/tmp/gh-aw/sandbox/agent/logs"
 
-		// Config is written to /tmp/gh-aw/safeoutputs/config.json file, not passed as env var
+		// Set config and tools paths (files are written to these paths)
+		env["GH_AW_SAFE_OUTPUTS_CONFIG_PATH"] = "/tmp/gh-aw/safeoutputs/config.json"
+		env["GH_AW_SAFE_OUTPUTS_TOOLS_PATH"] = "/tmp/gh-aw/safeoutputs/tools.json"
 
 		// Add asset-related environment variables if upload-assets is configured
 		if data.SafeOutputs.UploadAssets != nil {
