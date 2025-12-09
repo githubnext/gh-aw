@@ -753,6 +753,8 @@ jobs:
     env:
       GH_AW_MCP_LOG_DIR: /tmp/gh-aw/mcp-logs/safeoutputs
       GH_AW_SAFE_OUTPUTS: /tmp/gh-aw/safeoutputs/outputs.jsonl
+      GH_AW_SAFE_OUTPUTS_CONFIG_PATH: /tmp/gh-aw/safeoutputs/config.json
+      GH_AW_SAFE_OUTPUTS_TOOLS_PATH: /tmp/gh-aw/safeoutputs/tools.json
     outputs:
       has_patch: ${{ steps.collect_output.outputs.has_patch }}
       model: ${{ steps.generate_aw_info.outputs.model }}
@@ -822,6 +824,7 @@ jobs:
       - name: Write Safe Outputs Config
         run: |
           mkdir -p /tmp/gh-aw/safeoutputs
+          mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
           cat > /tmp/gh-aw/safeoutputs/config.json << 'EOF'
           {"add_labels":{"allowed":["bug","feature","enhancement","documentation","question","help-wanted","good-first-issue"],"max":3},"missing_tool":{"max":0},"noop":{"max":1}}
           EOF
@@ -950,50 +953,347 @@ jobs:
           EOF
       - name: Write Safe Outputs JavaScript Files
         run: |
-          cat > /tmp/gh-aw/safeoutputs/mcp-server.cjs << 'EOF'
+          cat > /tmp/gh-aw/safeoutputs/estimate_tokens.cjs << 'EOF_ESTIMATE_TOKENS'
+            function estimateTokens(text) {
+              if (!text) return 0;
+              return Math.ceil(text.length / 4);
+            }
+            module.exports = {
+              estimateTokens,
+            };
+          EOF_ESTIMATE_TOKENS
+          cat > /tmp/gh-aw/safeoutputs/generate_compact_schema.cjs << 'EOF_GENERATE_COMPACT_SCHEMA'
+            function generateCompactSchema(content) {
+              try {
+                const parsed = JSON.parse(content);
+                if (Array.isArray(parsed)) {
+                  if (parsed.length === 0) {
+                    return "[]";
+                  }
+                  const firstItem = parsed[0];
+                  if (typeof firstItem === "object" && firstItem !== null) {
+                    const keys = Object.keys(firstItem);
+                    return `[{${keys.join(", ")}}] (${parsed.length} items)`;
+                  }
+                  return `[${typeof firstItem}] (${parsed.length} items)`;
+                } else if (typeof parsed === "object" && parsed !== null) {
+                  const keys = Object.keys(parsed);
+                  if (keys.length > 10) {
+                    return `{${keys.slice(0, 10).join(", ")}, ...} (${keys.length} keys)`;
+                  }
+                  return `{${keys.join(", ")}}`;
+                }
+                return `${typeof parsed}`;
+              } catch {
+                return "text content";
+              }
+            }
+            module.exports = {
+              generateCompactSchema,
+            };
+          EOF_GENERATE_COMPACT_SCHEMA
+          cat > /tmp/gh-aw/safeoutputs/generate_git_patch.cjs << 'EOF_GENERATE_GIT_PATCH'
             const fs = require("fs");
             const path = require("path");
-            const { execFile, execSync } = require("child_process");
+            const { execSync } = require("child_process");
+            const { getBaseBranch } = require("./get_base_branch.cjs");
+            function generateGitPatch(branchName) {
+              const patchPath = "/tmp/gh-aw/aw.patch";
+              const cwd = process.env.GITHUB_WORKSPACE || process.cwd();
+              const defaultBranch = process.env.DEFAULT_BRANCH || getBaseBranch();
+              const githubSha = process.env.GITHUB_SHA;
+              const patchDir = path.dirname(patchPath);
+              if (!fs.existsSync(patchDir)) {
+                fs.mkdirSync(patchDir, { recursive: true });
+              }
+              let patchGenerated = false;
+              let errorMessage = null;
+              try {
+                if (branchName) {
+                  try {
+                    execSync(`git show-ref --verify --quiet refs/heads/${branchName}`, { cwd, encoding: "utf8" });
+                    let baseRef;
+                    try {
+                      execSync(`git show-ref --verify --quiet refs/remotes/origin/${branchName}`, { cwd, encoding: "utf8" });
+                      baseRef = `origin/${branchName}`;
+                    } catch {
+                      execSync(`git fetch origin ${defaultBranch}`, { cwd, encoding: "utf8" });
+                      baseRef = execSync(`git merge-base origin/${defaultBranch} ${branchName}`, { cwd, encoding: "utf8" }).trim();
+                    }
+                    const commitCount = parseInt(execSync(`git rev-list --count ${baseRef}..${branchName}`, { cwd, encoding: "utf8" }).trim(), 10);
+                    if (commitCount > 0) {
+                      const patchContent = execSync(`git format-patch ${baseRef}..${branchName} --stdout`, {
+                        cwd,
+                        encoding: "utf8",
+                      });
+                      if (patchContent && patchContent.trim()) {
+                        fs.writeFileSync(patchPath, patchContent, "utf8");
+                        patchGenerated = true;
+                      }
+                    }
+                  } catch (branchError) {
+                  }
+                }
+                if (!patchGenerated) {
+                  const currentHead = execSync("git rev-parse HEAD", { cwd, encoding: "utf8" }).trim();
+                  if (!githubSha) {
+                    errorMessage = "GITHUB_SHA environment variable is not set";
+                  } else if (currentHead === githubSha) {
+                  } else {
+                    try {
+                      execSync(`git merge-base --is-ancestor ${githubSha} HEAD`, { cwd, encoding: "utf8" });
+                      const commitCount = parseInt(execSync(`git rev-list --count ${githubSha}..HEAD`, { cwd, encoding: "utf8" }).trim(), 10);
+                      if (commitCount > 0) {
+                        const patchContent = execSync(`git format-patch ${githubSha}..HEAD --stdout`, {
+                          cwd,
+                          encoding: "utf8",
+                        });
+                        if (patchContent && patchContent.trim()) {
+                          fs.writeFileSync(patchPath, patchContent, "utf8");
+                          patchGenerated = true;
+                        }
+                      }
+                    } catch {
+                    }
+                  }
+                }
+              } catch (error) {
+                errorMessage = `Failed to generate patch: ${error instanceof Error ? error.message : String(error)}`;
+              }
+              if (patchGenerated && fs.existsSync(patchPath)) {
+                const patchContent = fs.readFileSync(patchPath, "utf8");
+                const patchSize = Buffer.byteLength(patchContent, "utf8");
+                const patchLines = patchContent.split("\n").length;
+                if (!patchContent.trim()) {
+                  return {
+                    success: false,
+                    error: "No changes to commit - patch is empty",
+                    patchPath: patchPath,
+                    patchSize: 0,
+                    patchLines: 0,
+                  };
+                }
+                return {
+                  success: true,
+                  patchPath: patchPath,
+                  patchSize: patchSize,
+                  patchLines: patchLines,
+                };
+              }
+              return {
+                success: false,
+                error: errorMessage || "No changes to commit - no commits found",
+                patchPath: patchPath,
+              };
+            }
+            module.exports = {
+              generateGitPatch,
+            };
+          EOF_GENERATE_GIT_PATCH
+          cat > /tmp/gh-aw/safeoutputs/get_base_branch.cjs << 'EOF_GET_BASE_BRANCH'
+            function getBaseBranch() {
+              return process.env.GH_AW_BASE_BRANCH || "main";
+            }
+            module.exports = {
+              getBaseBranch,
+            };
+          EOF_GET_BASE_BRANCH
+          cat > /tmp/gh-aw/safeoutputs/get_current_branch.cjs << 'EOF_GET_CURRENT_BRANCH'
+            const { execSync } = require("child_process");
+            function getCurrentBranch() {
+              const cwd = process.env.GITHUB_WORKSPACE || process.cwd();
+              try {
+                const branch = execSync("git rev-parse --abbrev-ref HEAD", {
+                  encoding: "utf8",
+                  cwd: cwd,
+                }).trim();
+                return branch;
+              } catch (error) {
+              }
+              const ghHeadRef = process.env.GITHUB_HEAD_REF;
+              const ghRefName = process.env.GITHUB_REF_NAME;
+              if (ghHeadRef) {
+                return ghHeadRef;
+              }
+              if (ghRefName) {
+                return ghRefName;
+              }
+              throw new Error("Failed to determine current branch: git command failed and no GitHub environment variables available");
+            }
+            module.exports = {
+              getCurrentBranch,
+            };
+          EOF_GET_CURRENT_BRANCH
+          cat > /tmp/gh-aw/safeoutputs/mcp_handler_python.cjs << 'EOF_MCP_HANDLER_PYTHON'
+            const { execFile } = require("child_process");
+            function createPythonHandler(server, toolName, scriptPath, timeoutSeconds = 60) {
+              return async args => {
+                server.debug(`  [${toolName}] Invoking Python handler: ${scriptPath}`);
+                server.debug(`  [${toolName}] Python handler args: ${JSON.stringify(args)}`);
+                server.debug(`  [${toolName}] Timeout: ${timeoutSeconds}s`);
+                const inputJson = JSON.stringify(args || {});
+                server.debug(
+                  `  [${toolName}] Input JSON (${inputJson.length} bytes): ${inputJson.substring(0, 200)}${inputJson.length > 200 ? "..." : ""}`
+                );
+                return new Promise((resolve, reject) => {
+                  server.debug(`  [${toolName}] Executing Python script...`);
+                  const child = execFile(
+                    "python3",
+                    [scriptPath],
+                    {
+                      env: process.env,
+                      timeout: timeoutSeconds * 1000, 
+                      maxBuffer: 10 * 1024 * 1024, 
+                    },
+                    (error, stdout, stderr) => {
+                      if (stdout) {
+                        server.debug(`  [${toolName}] stdout: ${stdout.substring(0, 500)}${stdout.length > 500 ? "..." : ""}`);
+                      }
+                      if (stderr) {
+                        server.debug(`  [${toolName}] stderr: ${stderr.substring(0, 500)}${stderr.length > 500 ? "..." : ""}`);
+                      }
+                      if (error) {
+                        server.debugError(`  [${toolName}] Python script error: `, error);
+                        reject(error);
+                        return;
+                      }
+                      let result;
+                      try {
+                        if (stdout && stdout.trim()) {
+                          result = JSON.parse(stdout.trim());
+                        } else {
+                          result = { stdout: stdout || "", stderr: stderr || "" };
+                        }
+                      } catch (parseError) {
+                        server.debug(`  [${toolName}] Output is not JSON, returning as text`);
+                        result = { stdout: stdout || "", stderr: stderr || "" };
+                      }
+                      server.debug(`  [${toolName}] Python handler completed successfully`);
+                      resolve({
+                        content: [
+                          {
+                            type: "text",
+                            text: JSON.stringify(result),
+                          },
+                        ],
+                      });
+                    }
+                  );
+                  if (child.stdin) {
+                    child.stdin.write(inputJson);
+                    child.stdin.end();
+                  }
+                });
+              };
+            }
+            module.exports = {
+              createPythonHandler,
+            };
+          EOF_MCP_HANDLER_PYTHON
+          cat > /tmp/gh-aw/safeoutputs/mcp_handler_shell.cjs << 'EOF_MCP_HANDLER_SHELL'
+            const fs = require("fs");
+            const path = require("path");
+            const { execFile } = require("child_process");
             const os = require("os");
-            const crypto = require("crypto");
-            class ReadBuffer {
-              constructor() {
-                this._buffer = null;
-              }
-              append(chunk) {
-                this._buffer = this._buffer ? Buffer.concat([this._buffer, chunk]) : chunk;
-              }
-              readMessage() {
-                if (!this._buffer) {
-                  return null;
+            function createShellHandler(server, toolName, scriptPath, timeoutSeconds = 60) {
+              return async args => {
+                server.debug(`  [${toolName}] Invoking shell handler: ${scriptPath}`);
+                server.debug(`  [${toolName}] Shell handler args: ${JSON.stringify(args)}`);
+                server.debug(`  [${toolName}] Timeout: ${timeoutSeconds}s`);
+                const env = { ...process.env };
+                for (const [key, value] of Object.entries(args || {})) {
+                  const envKey = `INPUT_${key.toUpperCase().replace(/-/g, "_")}`;
+                  env[envKey] = String(value);
+                  server.debug(`  [${toolName}] Set env: ${envKey}=${String(value).substring(0, 100)}${String(value).length > 100 ? "..." : ""}`);
                 }
-                const index = this._buffer.indexOf("\n");
-                if (index === -1) {
-                  return null;
-                }
-                const line = this._buffer.toString("utf8", 0, index).replace(/\r$/, "");
-                this._buffer = this._buffer.subarray(index + 1);
-                if (line.trim() === "") {
-                  return this.readMessage(); 
-                }
-                try {
-                  return JSON.parse(line);
-                } catch (error) {
-                  throw new Error(`Parse error: ${error instanceof Error ? error.message : String(error)}`);
-                }
-              }
+                const outputFile = path.join(os.tmpdir(), `mcp-shell-output-${Date.now()}-${Math.random().toString(36).substring(2)}.txt`);
+                env.GITHUB_OUTPUT = outputFile;
+                server.debug(`  [${toolName}] Output file: ${outputFile}`);
+                fs.writeFileSync(outputFile, "");
+                return new Promise((resolve, reject) => {
+                  server.debug(`  [${toolName}] Executing shell script...`);
+                  execFile(
+                    scriptPath,
+                    [],
+                    {
+                      env,
+                      timeout: timeoutSeconds * 1000, 
+                      maxBuffer: 10 * 1024 * 1024, 
+                    },
+                    (error, stdout, stderr) => {
+                      if (stdout) {
+                        server.debug(`  [${toolName}] stdout: ${stdout.substring(0, 500)}${stdout.length > 500 ? "..." : ""}`);
+                      }
+                      if (stderr) {
+                        server.debug(`  [${toolName}] stderr: ${stderr.substring(0, 500)}${stderr.length > 500 ? "..." : ""}`);
+                      }
+                      if (error) {
+                        server.debugError(`  [${toolName}] Shell script error: `, error);
+                        try {
+                          if (fs.existsSync(outputFile)) {
+                            fs.unlinkSync(outputFile);
+                          }
+                        } catch {
+                        }
+                        reject(error);
+                        return;
+                      }
+                      const outputs = {};
+                      try {
+                        if (fs.existsSync(outputFile)) {
+                          const outputContent = fs.readFileSync(outputFile, "utf-8");
+                          server.debug(
+                            `  [${toolName}] Output file content: ${outputContent.substring(0, 500)}${outputContent.length > 500 ? "..." : ""}`
+                          );
+                          const lines = outputContent.split("\n");
+                          for (const line of lines) {
+                            const trimmed = line.trim();
+                            if (trimmed && trimmed.includes("=")) {
+                              const eqIndex = trimmed.indexOf("=");
+                              const key = trimmed.substring(0, eqIndex);
+                              const value = trimmed.substring(eqIndex + 1);
+                              outputs[key] = value;
+                              server.debug(`  [${toolName}] Parsed output: ${key}=${value.substring(0, 100)}${value.length > 100 ? "..." : ""}`);
+                            }
+                          }
+                        }
+                      } catch (readError) {
+                        server.debugError(`  [${toolName}] Error reading output file: `, readError);
+                      }
+                      try {
+                        if (fs.existsSync(outputFile)) {
+                          fs.unlinkSync(outputFile);
+                        }
+                      } catch {
+                      }
+                      const result = {
+                        stdout: stdout || "",
+                        stderr: stderr || "",
+                        outputs,
+                      };
+                      server.debug(`  [${toolName}] Shell handler completed, outputs: ${Object.keys(outputs).join(", ") || "(none)"}`);
+                      resolve({
+                        content: [
+                          {
+                            type: "text",
+                            text: JSON.stringify(result),
+                          },
+                        ],
+                      });
+                    }
+                  );
+                });
+              };
             }
-            function validateRequiredFields(args, inputSchema) {
-              const requiredFields = inputSchema && Array.isArray(inputSchema.required) ? inputSchema.required : [];
-              if (!requiredFields.length) {
-                return [];
-              }
-              const missing = requiredFields.filter(f => {
-                const value = args[f];
-                return value === undefined || value === null || (typeof value === "string" && value.trim() === "");
-              });
-              return missing;
-            }
+            module.exports = {
+              createShellHandler,
+            };
+          EOF_MCP_HANDLER_SHELL
+          cat > /tmp/gh-aw/safeoutputs/mcp_server_core.cjs << 'EOF_MCP_SERVER_CORE'
+            const fs = require("fs");
+            const path = require("path");
+            const { ReadBuffer } = require("./read_buffer.cjs");
+            const { validateRequiredFields } = require("./safe_inputs_validation.cjs");
             const encoder = new TextEncoder();
             function initLogFile(server) {
               if (server.logFileInitialized || !server.logDir || !server.logFilePath) return;
@@ -1176,96 +1476,7 @@ jobs:
                         server.debugError(`  [${toolName}] Warning: Could not make shell script executable: `, chmodError);
                       }
                     }
-            function createShellHandler(server, toolName, scriptPath, timeoutSeconds = 60) {
-              return async args => {
-                server.debug(`  [${toolName}] Invoking shell handler: ${scriptPath}`);
-                server.debug(`  [${toolName}] Shell handler args: ${JSON.stringify(args)}`);
-                server.debug(`  [${toolName}] Timeout: ${timeoutSeconds}s`);
-                const env = { ...process.env };
-                for (const [key, value] of Object.entries(args || {})) {
-                  const envKey = `INPUT_${key.toUpperCase().replace(/-/g, "_")}`;
-                  env[envKey] = String(value);
-                  server.debug(`  [${toolName}] Set env: ${envKey}=${String(value).substring(0, 100)}${String(value).length > 100 ? "..." : ""}`);
-                }
-                const outputFile = path.join(os.tmpdir(), `mcp-shell-output-${Date.now()}-${Math.random().toString(36).substring(2)}.txt`);
-                env.GITHUB_OUTPUT = outputFile;
-                server.debug(`  [${toolName}] Output file: ${outputFile}`);
-                fs.writeFileSync(outputFile, "");
-                return new Promise((resolve, reject) => {
-                  server.debug(`  [${toolName}] Executing shell script...`);
-                  execFile(
-                    scriptPath,
-                    [],
-                    {
-                      env,
-                      timeout: timeoutSeconds * 1000, 
-                      maxBuffer: 10 * 1024 * 1024, 
-                    },
-                    (error, stdout, stderr) => {
-                      if (stdout) {
-                        server.debug(`  [${toolName}] stdout: ${stdout.substring(0, 500)}${stdout.length > 500 ? "..." : ""}`);
-                      }
-                      if (stderr) {
-                        server.debug(`  [${toolName}] stderr: ${stderr.substring(0, 500)}${stderr.length > 500 ? "..." : ""}`);
-                      }
-                      if (error) {
-                        server.debugError(`  [${toolName}] Shell script error: `, error);
-                        try {
-                          if (fs.existsSync(outputFile)) {
-                            fs.unlinkSync(outputFile);
-                          }
-                        } catch {
-                        }
-                        reject(error);
-                        return;
-                      }
-                      const outputs = {};
-                      try {
-                        if (fs.existsSync(outputFile)) {
-                          const outputContent = fs.readFileSync(outputFile, "utf-8");
-                          server.debug(
-                            `  [${toolName}] Output file content: ${outputContent.substring(0, 500)}${outputContent.length > 500 ? "..." : ""}`
-                          );
-                          const lines = outputContent.split("\n");
-                          for (const line of lines) {
-                            const trimmed = line.trim();
-                            if (trimmed && trimmed.includes("=")) {
-                              const eqIndex = trimmed.indexOf("=");
-                              const key = trimmed.substring(0, eqIndex);
-                              const value = trimmed.substring(eqIndex + 1);
-                              outputs[key] = value;
-                              server.debug(`  [${toolName}] Parsed output: ${key}=${value.substring(0, 100)}${value.length > 100 ? "..." : ""}`);
-                            }
-                          }
-                        }
-                      } catch (readError) {
-                        server.debugError(`  [${toolName}] Error reading output file: `, readError);
-                      }
-                      try {
-                        if (fs.existsSync(outputFile)) {
-                          fs.unlinkSync(outputFile);
-                        }
-                      } catch {
-                      }
-                      const result = {
-                        stdout: stdout || "",
-                        stderr: stderr || "",
-                        outputs,
-                      };
-                      server.debug(`  [${toolName}] Shell handler completed, outputs: ${Object.keys(outputs).join(", ") || "(none)"}`);
-                      resolve({
-                        content: [
-                          {
-                            type: "text",
-                            text: JSON.stringify(result),
-                          },
-                        ],
-                      });
-                    }
-                  );
-                });
-              };
-            }
+                    const { createShellHandler } = require("./mcp_handler_shell.cjs");
                     const timeout = tool.timeout || 60; 
                     tool.handler = createShellHandler(server, toolName, resolvedPath, timeout);
                     loadedCount++;
@@ -1283,66 +1494,7 @@ jobs:
                         server.debugError(`  [${toolName}] Warning: Could not make Python script executable: `, chmodError);
                       }
                     }
-            function createPythonHandler(server, toolName, scriptPath, timeoutSeconds = 60) {
-              return async args => {
-                server.debug(`  [${toolName}] Invoking Python handler: ${scriptPath}`);
-                server.debug(`  [${toolName}] Python handler args: ${JSON.stringify(args)}`);
-                server.debug(`  [${toolName}] Timeout: ${timeoutSeconds}s`);
-                const inputJson = JSON.stringify(args || {});
-                server.debug(
-                  `  [${toolName}] Input JSON (${inputJson.length} bytes): ${inputJson.substring(0, 200)}${inputJson.length > 200 ? "..." : ""}`
-                );
-                return new Promise((resolve, reject) => {
-                  server.debug(`  [${toolName}] Executing Python script...`);
-                  const child = execFile(
-                    "python3",
-                    [scriptPath],
-                    {
-                      env: process.env,
-                      timeout: timeoutSeconds * 1000, 
-                      maxBuffer: 10 * 1024 * 1024, 
-                    },
-                    (error, stdout, stderr) => {
-                      if (stdout) {
-                        server.debug(`  [${toolName}] stdout: ${stdout.substring(0, 500)}${stdout.length > 500 ? "..." : ""}`);
-                      }
-                      if (stderr) {
-                        server.debug(`  [${toolName}] stderr: ${stderr.substring(0, 500)}${stderr.length > 500 ? "..." : ""}`);
-                      }
-                      if (error) {
-                        server.debugError(`  [${toolName}] Python script error: `, error);
-                        reject(error);
-                        return;
-                      }
-                      let result;
-                      try {
-                        if (stdout && stdout.trim()) {
-                          result = JSON.parse(stdout.trim());
-                        } else {
-                          result = { stdout: stdout || "", stderr: stderr || "" };
-                        }
-                      } catch (parseError) {
-                        server.debug(`  [${toolName}] Output is not JSON, returning as text`);
-                        result = { stdout: stdout || "", stderr: stderr || "" };
-                      }
-                      server.debug(`  [${toolName}] Python handler completed successfully`);
-                      resolve({
-                        content: [
-                          {
-                            type: "text",
-                            text: JSON.stringify(result),
-                          },
-                        ],
-                      });
-                    }
-                  );
-                  if (child.stdin) {
-                    child.stdin.write(inputJson);
-                    child.stdin.end();
-                  }
-                });
-              };
-            }
+                    const { createPythonHandler } = require("./mcp_handler_python.cjs");
                     const timeout = tool.timeout || 60; 
                     tool.handler = createPythonHandler(server, toolName, resolvedPath, timeout);
                     loadedCount++;
@@ -1588,6 +1740,130 @@ jobs:
               process.stdin.resume();
               server.debug(`listening...`);
             }
+            module.exports = {
+              createServer,
+              registerTool,
+              normalizeTool,
+              handleRequest,
+              handleMessage,
+              processReadBuffer,
+              start,
+              loadToolHandlers,
+            };
+          EOF_MCP_SERVER_CORE
+          cat > /tmp/gh-aw/safeoutputs/normalize_branch_name.cjs << 'EOF_NORMALIZE_BRANCH_NAME'
+            function normalizeBranchName(branchName) {
+              if (!branchName || typeof branchName !== "string" || branchName.trim() === "") {
+                return branchName;
+              }
+              let normalized = branchName.replace(/[^a-zA-Z0-9\-_/.]+/g, "-");
+              normalized = normalized.replace(/-+/g, "-");
+              normalized = normalized.replace(/^-+|-+$/g, "");
+              if (normalized.length > 128) {
+                normalized = normalized.substring(0, 128);
+              }
+              normalized = normalized.replace(/-+$/, "");
+              normalized = normalized.toLowerCase();
+              return normalized;
+            }
+            module.exports = {
+              normalizeBranchName,
+            };
+          EOF_NORMALIZE_BRANCH_NAME
+          cat > /tmp/gh-aw/safeoutputs/read_buffer.cjs << 'EOF_READ_BUFFER'
+            class ReadBuffer {
+              constructor() {
+                this._buffer = null;
+              }
+              append(chunk) {
+                this._buffer = this._buffer ? Buffer.concat([this._buffer, chunk]) : chunk;
+              }
+              readMessage() {
+                if (!this._buffer) {
+                  return null;
+                }
+                const index = this._buffer.indexOf("\n");
+                if (index === -1) {
+                  return null;
+                }
+                const line = this._buffer.toString("utf8", 0, index).replace(/\r$/, "");
+                this._buffer = this._buffer.subarray(index + 1);
+                if (line.trim() === "") {
+                  return this.readMessage(); 
+                }
+                try {
+                  return JSON.parse(line);
+                } catch (error) {
+                  throw new Error(`Parse error: ${error instanceof Error ? error.message : String(error)}`);
+                }
+              }
+            }
+            module.exports = {
+              ReadBuffer,
+            };
+          EOF_READ_BUFFER
+          cat > /tmp/gh-aw/safeoutputs/safe_inputs_validation.cjs << 'EOF_SAFE_INPUTS_VALIDATION'
+            function validateRequiredFields(args, inputSchema) {
+              const requiredFields = inputSchema && Array.isArray(inputSchema.required) ? inputSchema.required : [];
+              if (!requiredFields.length) {
+                return [];
+              }
+              const missing = requiredFields.filter(f => {
+                const value = args[f];
+                return value === undefined || value === null || (typeof value === "string" && value.trim() === "");
+              });
+              return missing;
+            }
+            module.exports = {
+              validateRequiredFields,
+            };
+          EOF_SAFE_INPUTS_VALIDATION
+          cat > /tmp/gh-aw/safeoutputs/safe_outputs_append.cjs << 'EOF_SAFE_OUTPUTS_APPEND'
+            const fs = require("fs");
+            function createAppendFunction(outputFile) {
+              return function appendSafeOutput(entry) {
+                if (!outputFile) throw new Error("No output file configured");
+                entry.type = entry.type.replace(/-/g, "_");
+                const jsonLine = JSON.stringify(entry) + "\n";
+                try {
+                  fs.appendFileSync(outputFile, jsonLine);
+                } catch (error) {
+                  throw new Error(`Failed to write to output file: ${error instanceof Error ? error.message : String(error)}`);
+                }
+              };
+            }
+            module.exports = { createAppendFunction };
+          EOF_SAFE_OUTPUTS_APPEND
+          cat > /tmp/gh-aw/safeoutputs/safe_outputs_bootstrap.cjs << 'EOF_SAFE_OUTPUTS_BOOTSTRAP'
+            const fs = require("fs");
+            const { loadConfig } = require("./safe_outputs_config.cjs");
+            const { loadTools } = require("./safe_outputs_tools_loader.cjs");
+            function bootstrapSafeOutputsServer(logger) {
+              logger.debug("Loading safe-outputs configuration");
+              const { config, outputFile } = loadConfig(logger);
+              logger.debug("Loading safe-outputs tools");
+              const tools = loadTools(logger);
+              return { config, outputFile, tools };
+            }
+            function cleanupConfigFile(logger) {
+              const configPath = process.env.GH_AW_SAFE_OUTPUTS_CONFIG_PATH || "/tmp/gh-aw/safeoutputs/config.json";
+              try {
+                if (fs.existsSync(configPath)) {
+                  fs.unlinkSync(configPath);
+                  logger.debug(`Deleted configuration file: ${configPath}`);
+                }
+              } catch (error) {
+                logger.debugError("Warning: Could not delete configuration file: ", error);
+              }
+            }
+            module.exports = {
+              bootstrapSafeOutputsServer,
+              cleanupConfigFile,
+            };
+          EOF_SAFE_OUTPUTS_BOOTSTRAP
+          cat > /tmp/gh-aw/safeoutputs/safe_outputs_config.cjs << 'EOF_SAFE_OUTPUTS_CONFIG'
+            const fs = require("fs");
+            const path = require("path");
             function loadConfig(server) {
               const configPath = process.env.GH_AW_SAFE_OUTPUTS_CONFIG_PATH || "/tmp/gh-aw/safeoutputs/config.json";
               let safeOutputsConfigRaw;
@@ -1626,188 +1902,18 @@ jobs:
                 outputFile: outputFile,
               };
             }
-            function createAppendFunction(outputFile) {
-              return function appendSafeOutput(entry) {
-                if (!outputFile) throw new Error("No output file configured");
-                entry.type = entry.type.replace(/-/g, "_");
-                const jsonLine = JSON.stringify(entry) + "\n";
-                try {
-                  fs.appendFileSync(outputFile, jsonLine);
-                } catch (error) {
-                  throw new Error(`Failed to write to output file: ${error instanceof Error ? error.message : String(error)}`);
-                }
-              };
-            }
-            function normalizeBranchName(branchName) {
-              if (!branchName || typeof branchName !== "string" || branchName.trim() === "") {
-                return branchName;
-              }
-              let normalized = branchName.replace(/[^a-zA-Z0-9\-_/.]+/g, "-");
-              normalized = normalized.replace(/-+/g, "-");
-              normalized = normalized.replace(/^-+|-+$/g, "");
-              if (normalized.length > 128) {
-                normalized = normalized.substring(0, 128);
-              }
-              normalized = normalized.replace(/-+$/, "");
-              normalized = normalized.toLowerCase();
-              return normalized;
-            }
-            function estimateTokens(text) {
-              if (!text) return 0;
-              return Math.ceil(text.length / 4);
-            }
-            function generateCompactSchema(content) {
-              try {
-                const parsed = JSON.parse(content);
-                if (Array.isArray(parsed)) {
-                  if (parsed.length === 0) {
-                    return "[]";
-                  }
-                  const firstItem = parsed[0];
-                  if (typeof firstItem === "object" && firstItem !== null) {
-                    const keys = Object.keys(firstItem);
-                    return `[{${keys.join(", ")}}] (${parsed.length} items)`;
-                  }
-                  return `[${typeof firstItem}] (${parsed.length} items)`;
-                } else if (typeof parsed === "object" && parsed !== null) {
-                  const keys = Object.keys(parsed);
-                  if (keys.length > 10) {
-                    return `{${keys.slice(0, 10).join(", ")}, ...} (${keys.length} keys)`;
-                  }
-                  return `{${keys.join(", ")}}`;
-                }
-                return `${typeof parsed}`;
-              } catch {
-                return "text content";
-              }
-            }
-            function writeLargeContentToFile(content) {
-              const logsDir = "/tmp/gh-aw/safeoutputs";
-              if (!fs.existsSync(logsDir)) {
-                fs.mkdirSync(logsDir, { recursive: true });
-              }
-              const hash = crypto.createHash("sha256").update(content).digest("hex");
-              const filename = `${hash}.json`;
-              const filepath = path.join(logsDir, filename);
-              fs.writeFileSync(filepath, content, "utf8");
-              const description = generateCompactSchema(content);
-              return {
-                filename: filename,
-                description: description,
-              };
-            }
-            function getCurrentBranch() {
-              const cwd = process.env.GITHUB_WORKSPACE || process.cwd();
-              try {
-                const branch = execSync("git rev-parse --abbrev-ref HEAD", {
-                  encoding: "utf8",
-                  cwd: cwd,
-                }).trim();
-                return branch;
-              } catch (error) {
-              }
-              const ghHeadRef = process.env.GITHUB_HEAD_REF;
-              const ghRefName = process.env.GITHUB_REF_NAME;
-              if (ghHeadRef) {
-                return ghHeadRef;
-              }
-              if (ghRefName) {
-                return ghRefName;
-              }
-              throw new Error("Failed to determine current branch: git command failed and no GitHub environment variables available");
-            }
-            function getBaseBranch() {
-              return process.env.GH_AW_BASE_BRANCH || "main";
-            }
-            function generateGitPatch(branchName) {
-              const patchPath = "/tmp/gh-aw/aw.patch";
-              const cwd = process.env.GITHUB_WORKSPACE || process.cwd();
-              const defaultBranch = process.env.DEFAULT_BRANCH || getBaseBranch();
-              const githubSha = process.env.GITHUB_SHA;
-              const patchDir = path.dirname(patchPath);
-              if (!fs.existsSync(patchDir)) {
-                fs.mkdirSync(patchDir, { recursive: true });
-              }
-              let patchGenerated = false;
-              let errorMessage = null;
-              try {
-                if (branchName) {
-                  try {
-                    execSync(`git show-ref --verify --quiet refs/heads/${branchName}`, { cwd, encoding: "utf8" });
-                    let baseRef;
-                    try {
-                      execSync(`git show-ref --verify --quiet refs/remotes/origin/${branchName}`, { cwd, encoding: "utf8" });
-                      baseRef = `origin/${branchName}`;
-                    } catch {
-                      execSync(`git fetch origin ${defaultBranch}`, { cwd, encoding: "utf8" });
-                      baseRef = execSync(`git merge-base origin/${defaultBranch} ${branchName}`, { cwd, encoding: "utf8" }).trim();
-                    }
-                    const commitCount = parseInt(execSync(`git rev-list --count ${baseRef}..${branchName}`, { cwd, encoding: "utf8" }).trim(), 10);
-                    if (commitCount > 0) {
-                      const patchContent = execSync(`git format-patch ${baseRef}..${branchName} --stdout`, {
-                        cwd,
-                        encoding: "utf8",
-                      });
-                      if (patchContent && patchContent.trim()) {
-                        fs.writeFileSync(patchPath, patchContent, "utf8");
-                        patchGenerated = true;
-                      }
-                    }
-                  } catch (branchError) {
-                  }
-                }
-                if (!patchGenerated) {
-                  const currentHead = execSync("git rev-parse HEAD", { cwd, encoding: "utf8" }).trim();
-                  if (!githubSha) {
-                    errorMessage = "GITHUB_SHA environment variable is not set";
-                  } else if (currentHead === githubSha) {
-                  } else {
-                    try {
-                      execSync(`git merge-base --is-ancestor ${githubSha} HEAD`, { cwd, encoding: "utf8" });
-                      const commitCount = parseInt(execSync(`git rev-list --count ${githubSha}..HEAD`, { cwd, encoding: "utf8" }).trim(), 10);
-                      if (commitCount > 0) {
-                        const patchContent = execSync(`git format-patch ${githubSha}..HEAD --stdout`, {
-                          cwd,
-                          encoding: "utf8",
-                        });
-                        if (patchContent && patchContent.trim()) {
-                          fs.writeFileSync(patchPath, patchContent, "utf8");
-                          patchGenerated = true;
-                        }
-                      }
-                    } catch {
-                    }
-                  }
-                }
-              } catch (error) {
-                errorMessage = `Failed to generate patch: ${error instanceof Error ? error.message : String(error)}`;
-              }
-              if (patchGenerated && fs.existsSync(patchPath)) {
-                const patchContent = fs.readFileSync(patchPath, "utf8");
-                const patchSize = Buffer.byteLength(patchContent, "utf8");
-                const patchLines = patchContent.split("\n").length;
-                if (!patchContent.trim()) {
-                  return {
-                    success: false,
-                    error: "No changes to commit - patch is empty",
-                    patchPath: patchPath,
-                    patchSize: 0,
-                    patchLines: 0,
-                  };
-                }
-                return {
-                  success: true,
-                  patchPath: patchPath,
-                  patchSize: patchSize,
-                  patchLines: patchLines,
-                };
-              }
-              return {
-                success: false,
-                error: errorMessage || "No changes to commit - no commits found",
-                patchPath: patchPath,
-              };
-            }
+            module.exports = { loadConfig };
+          EOF_SAFE_OUTPUTS_CONFIG
+          cat > /tmp/gh-aw/safeoutputs/safe_outputs_handlers.cjs << 'EOF_SAFE_OUTPUTS_HANDLERS'
+            const fs = require("fs");
+            const path = require("path");
+            const crypto = require("crypto");
+            const { normalizeBranchName } = require("./normalize_branch_name.cjs");
+            const { estimateTokens } = require("./estimate_tokens.cjs");
+            const { writeLargeContentToFile } = require("./write_large_content_to_file.cjs");
+            const { getCurrentBranch } = require("./get_current_branch.cjs");
+            const { getBaseBranch } = require("./get_base_branch.cjs");
+            const { generateGitPatch } = require("./generate_git_patch.cjs");
             function createHandlers(server, appendSafeOutput) {
               const defaultHandler = type => args => {
                 const entry = { ...(args || {}), type };
@@ -1999,6 +2105,45 @@ jobs:
                 pushToPullRequestBranchHandler,
               };
             }
+            module.exports = { createHandlers };
+          EOF_SAFE_OUTPUTS_HANDLERS
+          cat > /tmp/gh-aw/safeoutputs/safe_outputs_mcp_server.cjs << 'EOF_SAFE_OUTPUTS_MCP_SERVER'
+            const { createServer, registerTool, normalizeTool, start } = require("./mcp_server_core.cjs");
+            const { createAppendFunction } = require("./safe_outputs_append.cjs");
+            const { createHandlers } = require("./safe_outputs_handlers.cjs");
+            const { attachHandlers, registerPredefinedTools, registerDynamicTools } = require("./safe_outputs_tools_loader.cjs");
+            const { bootstrapSafeOutputsServer, cleanupConfigFile } = require("./safe_outputs_bootstrap.cjs");
+            function startSafeOutputsServer(options = {}) {
+              const SERVER_INFO = { name: "safeoutputs", version: "1.0.0" };
+              const MCP_LOG_DIR = options.logDir || process.env.GH_AW_MCP_LOG_DIR;
+              const server = createServer(SERVER_INFO, { logDir: MCP_LOG_DIR });
+              const { config: safeOutputsConfig, outputFile, tools: ALL_TOOLS } = bootstrapSafeOutputsServer(server);
+              const appendSafeOutput = createAppendFunction(outputFile);
+              const handlers = createHandlers(server, appendSafeOutput);
+              const { defaultHandler } = handlers;
+              const toolsWithHandlers = attachHandlers(ALL_TOOLS, handlers);
+              server.debug(`  output file: ${outputFile}`);
+              server.debug(`  config: ${JSON.stringify(safeOutputsConfig)}`);
+              registerPredefinedTools(server, toolsWithHandlers, safeOutputsConfig, registerTool, normalizeTool);
+              registerDynamicTools(server, toolsWithHandlers, safeOutputsConfig, outputFile, registerTool, normalizeTool);
+              server.debug(`  tools: ${Object.keys(server.tools).join(", ")}`);
+              if (!Object.keys(server.tools).length) throw new Error("No tools enabled in configuration");
+              start(server, { defaultHandler });
+            }
+            if (require.main === module) {
+              try {
+                startSafeOutputsServer();
+              } catch (error) {
+                console.error(`Error starting safe-outputs server: ${error instanceof Error ? error.message : String(error)}`);
+                process.exit(1);
+              }
+            }
+            module.exports = {
+              startSafeOutputsServer,
+            };
+          EOF_SAFE_OUTPUTS_MCP_SERVER
+          cat > /tmp/gh-aw/safeoutputs/safe_outputs_tools_loader.cjs << 'EOF_SAFE_OUTPUTS_TOOLS_LOADER'
+            const fs = require("fs");
             function loadTools(server) {
               const toolsPath = process.env.GH_AW_SAFE_OUTPUTS_TOOLS_PATH || "/tmp/gh-aw/safeoutputs/tools.json";
               let ALL_TOOLS = [];
@@ -2101,22 +2246,48 @@ jobs:
                 }
               });
             }
-            const SERVER_INFO = { name: "safeoutputs", version: "1.0.0" };
-            const MCP_LOG_DIR = process.env.GH_AW_MCP_LOG_DIR;
-            const server = createServer(SERVER_INFO, { logDir: MCP_LOG_DIR });
-            const { config: safeOutputsConfig, outputFile } = loadConfig(server);
-            const appendSafeOutput = createAppendFunction(outputFile);
-            const handlers = createHandlers(server, appendSafeOutput);
-            const { defaultHandler } = handlers;
-            let ALL_TOOLS = loadTools(server);
-            ALL_TOOLS = attachHandlers(ALL_TOOLS, handlers);
-            server.debug(`  output file: ${outputFile}`);
-            server.debug(`  config: ${JSON.stringify(safeOutputsConfig)}`);
-            registerPredefinedTools(server, ALL_TOOLS, safeOutputsConfig, registerTool, normalizeTool);
-            registerDynamicTools(server, ALL_TOOLS, safeOutputsConfig, outputFile, registerTool, normalizeTool);
-            server.debug(`  tools: ${Object.keys(server.tools).join(", ")}`);
-            if (!Object.keys(server.tools).length) throw new Error("No tools enabled in configuration");
-            start(server, { defaultHandler });
+            module.exports = {
+              loadTools,
+              attachHandlers,
+              registerPredefinedTools,
+              registerDynamicTools,
+            };
+          EOF_SAFE_OUTPUTS_TOOLS_LOADER
+          cat > /tmp/gh-aw/safeoutputs/write_large_content_to_file.cjs << 'EOF_WRITE_LARGE_CONTENT_TO_FILE'
+            const fs = require("fs");
+            const path = require("path");
+            const crypto = require("crypto");
+            const { generateCompactSchema } = require("./generate_compact_schema.cjs");
+            function writeLargeContentToFile(content) {
+              const logsDir = "/tmp/gh-aw/safeoutputs";
+              if (!fs.existsSync(logsDir)) {
+                fs.mkdirSync(logsDir, { recursive: true });
+              }
+              const hash = crypto.createHash("sha256").update(content).digest("hex");
+              const filename = `${hash}.json`;
+              const filepath = path.join(logsDir, filename);
+              fs.writeFileSync(filepath, content, "utf8");
+              const description = generateCompactSchema(content);
+              return {
+                filename: filename,
+                description: description,
+              };
+            }
+            module.exports = {
+              writeLargeContentToFile,
+            };
+          EOF_WRITE_LARGE_CONTENT_TO_FILE
+          cat > /tmp/gh-aw/safeoutputs/mcp-server.cjs << 'EOF'
+            const { startSafeOutputsServer } = require("./safe_outputs_mcp_server.cjs");
+            if (require.main === module) {
+              try {
+                startSafeOutputsServer();
+              } catch (error) {
+                console.error(`Error starting safe-outputs server: ${error instanceof Error ? error.message : String(error)}`);
+                process.exit(1);
+              }
+            }
+            module.exports = { startSafeOutputsServer };
           EOF
           chmod +x /tmp/gh-aw/safeoutputs/mcp-server.cjs
           
@@ -2156,7 +2327,10 @@ jobs:
                 "args": ["/tmp/gh-aw/safeoutputs/mcp-server.cjs"],
                 "tools": ["*"],
                 "env": {
+                  "GH_AW_MCP_LOG_DIR": "\${GH_AW_MCP_LOG_DIR}",
                   "GH_AW_SAFE_OUTPUTS": "\${GH_AW_SAFE_OUTPUTS}",
+                  "GH_AW_SAFE_OUTPUTS_CONFIG_PATH": "\${GH_AW_SAFE_OUTPUTS_CONFIG_PATH}",
+                  "GH_AW_SAFE_OUTPUTS_TOOLS_PATH": "\${GH_AW_SAFE_OUTPUTS_TOOLS_PATH}",
                   "GH_AW_ASSETS_BRANCH": "\${GH_AW_ASSETS_BRANCH}",
                   "GH_AW_ASSETS_MAX_SIZE_KB": "\${GH_AW_ASSETS_MAX_SIZE_KB}",
                   "GH_AW_ASSETS_ALLOWED_EXTS": "\${GH_AW_ASSETS_ALLOWED_EXTS}",
@@ -3535,14 +3709,20 @@ jobs:
               const outputFile = process.env.GH_AW_SAFE_OUTPUTS;
               const configPath = process.env.GH_AW_SAFE_OUTPUTS_CONFIG_PATH || "/tmp/gh-aw/safeoutputs/config.json";
               let safeOutputsConfig;
+              core.info(`[INGESTION] Reading config from: ${configPath}`);
               try {
                 if (fs.existsSync(configPath)) {
                   const configFileContent = fs.readFileSync(configPath, "utf8");
+                  core.info(`[INGESTION] Raw config content: ${configFileContent}`);
                   safeOutputsConfig = JSON.parse(configFileContent);
+                  core.info(`[INGESTION] Parsed config keys: ${JSON.stringify(Object.keys(safeOutputsConfig))}`);
+                } else {
+                  core.info(`[INGESTION] Config file does not exist at: ${configPath}`);
                 }
               } catch (error) {
                 core.warning(`Failed to read config file from ${configPath}: ${error instanceof Error ? error.message : String(error)}`);
               }
+              core.info(`[INGESTION] Output file path: ${outputFile}`);
               if (!outputFile) {
                 core.info("GH_AW_SAFE_OUTPUTS not set, no output to collect");
                 core.setOutput("output", "");
@@ -3558,11 +3738,14 @@ jobs:
                 core.info("Output file is empty");
               }
               core.info(`Raw output content length: ${outputContent.length}`);
+              core.info(`[INGESTION] First 500 chars of output: ${outputContent.substring(0, 500)}`);
               let expectedOutputTypes = {};
               if (safeOutputsConfig) {
                 try {
+                  core.info(`[INGESTION] Normalizing config keys (dash -> underscore)`);
                   expectedOutputTypes = Object.fromEntries(Object.entries(safeOutputsConfig).map(([key, value]) => [key.replace(/-/g, "_"), value]));
-                  core.info(`Expected output types: ${JSON.stringify(Object.keys(expectedOutputTypes))}`);
+                  core.info(`[INGESTION] Expected output types after normalization: ${JSON.stringify(Object.keys(expectedOutputTypes))}`);
+                  core.info(`[INGESTION] Expected output types full config: ${JSON.stringify(expectedOutputTypes)}`);
                 } catch (error) {
                   const errorMsg = error instanceof Error ? error.message : String(error);
                   core.info(`Warning: Could not parse safe-outputs config: ${errorMsg}`);
@@ -3574,6 +3757,7 @@ jobs:
               for (let i = 0; i < lines.length; i++) {
                 const line = lines[i].trim();
                 if (line === "") continue;
+                core.info(`[INGESTION] Processing line ${i + 1}: ${line.substring(0, 200)}...`);
                 try {
                   const item = parseJsonWithRepair(line);
                   if (item === undefined) {
@@ -3584,9 +3768,12 @@ jobs:
                     errors.push(`Line ${i + 1}: Missing required 'type' field`);
                     continue;
                   }
+                  const originalType = item.type;
                   const itemType = item.type.replace(/-/g, "_");
+                  core.info(`[INGESTION] Line ${i + 1}: Original type='${originalType}', Normalized type='${itemType}'`);
                   item.type = itemType;
                   if (!expectedOutputTypes[itemType]) {
+                    core.warning(`[INGESTION] Line ${i + 1}: Type '${itemType}' not found in expected types: ${JSON.stringify(Object.keys(expectedOutputTypes))}`);
                     errors.push(`Line ${i + 1}: Unexpected output type '${itemType}'. Expected one of: ${Object.keys(expectedOutputTypes).join(", ")}`);
                     continue;
                   }

@@ -258,6 +258,9 @@ var safeOutputsHandlersScript string
 //go:embed js/safe_outputs_tools_loader.cjs
 var safeOutputsToolsLoaderScript string
 
+//go:embed js/safe_outputs_bootstrap.cjs
+var safeOutputsBootstrapScript string
+
 // GetJavaScriptSources returns a map of all embedded JavaScript sources
 // The keys are the relative paths from the js directory
 func GetJavaScriptSources() map[string]string {
@@ -315,6 +318,7 @@ func GetJavaScriptSources() map[string]string {
 		"safe_outputs_append.cjs":           safeOutputsAppendScript,
 		"safe_outputs_handlers.cjs":         safeOutputsHandlersScript,
 		"safe_outputs_tools_loader.cjs":     safeOutputsToolsLoaderScript,
+		"safe_outputs_bootstrap.cjs":        safeOutputsBootstrapScript,
 		"safe_outputs_mcp_server.cjs":       safeOutputsMCPServerScriptSource,
 		"add_copilot_reviewer.cjs":          addCopilotReviewerScriptSource,
 		"add_reaction_and_edit_comment.cjs": addReactionAndEditCommentScriptSource,
@@ -864,4 +868,9 @@ func GetSafeOutputsHandlersScript() string {
 // GetSafeOutputsToolsLoaderScript returns the embedded safe_outputs_tools_loader.cjs script
 func GetSafeOutputsToolsLoaderScript() string {
 	return safeOutputsToolsLoaderScript
+}
+
+// GetSafeOutputsBootstrapScript returns the embedded safe_outputs_bootstrap.cjs script
+func GetSafeOutputsBootstrapScript() string {
+	return safeOutputsBootstrapScript
 }

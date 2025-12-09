@@ -213,7 +213,10 @@ func renderSafeOutputsMCPConfig(yaml *strings.Builder, isLast bool) {
 // renderSafeOutputsMCPConfigWithOptions generates the Safe Outputs MCP server configuration with engine-specific options
 func renderSafeOutputsMCPConfigWithOptions(yaml *strings.Builder, isLast bool, includeCopilotFields bool) {
 	envVars := []string{
+		"GH_AW_MCP_LOG_DIR",
 		"GH_AW_SAFE_OUTPUTS",
+		"GH_AW_SAFE_OUTPUTS_CONFIG_PATH",
+		"GH_AW_SAFE_OUTPUTS_TOOLS_PATH",
 		"GH_AW_ASSETS_BRANCH",
 		"GH_AW_ASSETS_MAX_SIZE_KB",
 		"GH_AW_ASSETS_ALLOWED_EXTS",
