@@ -6191,8 +6191,9 @@ jobs:
           GH_AW_WORKFLOW_NAME: "Tidy"
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
           GH_AW_DETECTION_CONCLUSION: ${{ needs.detection.result }}
-          GH_AW_SAFE_OUTPUT_JOBS: "{\"create_pull_request\":\"pull_request_url\"}"
+          GH_AW_SAFE_OUTPUT_JOBS: "{\"create_pull_request\":\"pull_request_url\",\"push_to_pull_request_branch\":\"push_url\"}"
           GH_AW_OUTPUT_CREATE_PULL_REQUEST_PULL_REQUEST_URL: ${{ needs.create_pull_request.outputs.pull_request_url }}
+          GH_AW_OUTPUT_PUSH_TO_PULL_REQUEST_BRANCH_PUSH_URL: ${{ needs.push_to_pull_request_branch.outputs.push_url }}
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
