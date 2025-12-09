@@ -46,7 +46,8 @@ func validateNoIncludesInTemplateRegions(markdown string) error {
 
 	// Find all template regions by matching {{#if...}}...{{/if}} blocks
 	// This regex matches template conditional blocks with their content
-	templateRegionPattern := regexp.MustCompile(`(?s)\{\{#if\s+[^}]+\}\}(.*?)\{\{/if\}\}`)
+	// Uses .*? (non-greedy) with \s* to handle expressions with or without trailing spaces
+	templateRegionPattern := regexp.MustCompile(`(?s)\{\{#if\s+.*?\s*\}\}(.*?)\{\{/if\}\}`)
 
 	matches := templateRegionPattern.FindAllStringSubmatch(markdown, -1)
 	templateValidationLog.Printf("Found %d template regions to validate", len(matches))
