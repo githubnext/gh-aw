@@ -45,14 +45,15 @@ type DevcontainerConfig struct {
 	PostCreateCommand string                      `json:"postCreateCommand,omitempty"`
 }
 
-// ensureDevcontainerConfig creates or updates .devcontainer/devcontainer.json
+// ensureDevcontainerConfig creates or updates .devcontainer/gh-aw/devcontainer.json
 func ensureDevcontainerConfig(verbose bool, additionalRepos []string) error {
-	devcontainerLog.Printf("Creating or updating .devcontainer/devcontainer.json with additional repos: %v", additionalRepos)
+	devcontainerLog.Printf("Creating or updating .devcontainer/gh-aw/devcontainer.json with additional repos: %v", additionalRepos)
 
-	// Create .devcontainer directory if it doesn't exist
-	devcontainerDir := ".devcontainer"
+	// Create .devcontainer/gh-aw directory if it doesn't exist
+	// Using a subdirectory to avoid overriding existing devcontainer.json files
+	devcontainerDir := filepath.Join(".devcontainer", "gh-aw")
 	if err := os.MkdirAll(devcontainerDir, 0755); err != nil {
-		return fmt.Errorf("failed to create .devcontainer directory: %w", err)
+		return fmt.Errorf("failed to create .devcontainer/gh-aw directory: %w", err)
 	}
 	devcontainerLog.Printf("Ensured directory exists: %s", devcontainerDir)
 

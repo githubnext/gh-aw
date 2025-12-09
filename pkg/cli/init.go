@@ -116,13 +116,13 @@ func InitRepository(verbose bool, mcp bool, codespaceRepos []string) error {
 	if len(codespaceRepos) > 0 {
 		initLog.Printf("Configuring GitHub Codespaces devcontainer with additional repos: %v", codespaceRepos)
 
-		// Create .devcontainer/devcontainer.json
+		// Create .devcontainer/gh-aw/devcontainer.json
 		if err := ensureDevcontainerConfig(verbose, codespaceRepos); err != nil {
 			initLog.Printf("Failed to create devcontainer config: %v", err)
 			return fmt.Errorf("failed to create devcontainer config: %w", err)
 		}
 		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created .devcontainer/devcontainer.json"))
+			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created .devcontainer/gh-aw/devcontainer.json"))
 		}
 	}
 

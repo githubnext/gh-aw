@@ -28,7 +28,7 @@ With --mcp flag:
 - Creates .vscode/mcp.json with gh-aw MCP server configuration
 
 With --codespace flag:
-- Creates .devcontainer/devcontainer.json with universal image
+- Creates .devcontainer/gh-aw/devcontainer.json with universal image (in subfolder to avoid conflicts)
 - Configures default Codespaces permissions (contents:write, pull-requests:write) + workflows:write for current repo
 - Adds read access to githubnext/gh-aw releases
 - Adds default Codespaces read permissions (contents:read, pull-requests:read) + workflows:read to additional repositories

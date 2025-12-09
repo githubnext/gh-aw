@@ -512,7 +512,7 @@ func TestInitRepositoryWithCodespace(t *testing.T) {
 	}
 
 	// Verify .devcontainer/devcontainer.json was created
-	devcontainerPath := filepath.Join(".devcontainer", "devcontainer.json")
+	devcontainerPath := filepath.Join(".devcontainer", "gh-aw", "devcontainer.json")
 	if _, err := os.Stat(devcontainerPath); os.IsNotExist(err) {
 		t.Error("Expected .devcontainer/devcontainer.json to be created")
 	}

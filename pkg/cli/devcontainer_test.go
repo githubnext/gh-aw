@@ -41,7 +41,7 @@ func TestEnsureDevcontainerConfig(t *testing.T) {
 	}
 
 	// Verify .devcontainer/devcontainer.json was created
-	devcontainerPath := filepath.Join(".devcontainer", "devcontainer.json")
+	devcontainerPath := filepath.Join(".devcontainer", "gh-aw", "devcontainer.json")
 	if _, err := os.Stat(devcontainerPath); os.IsNotExist(err) {
 		t.Fatal("Expected .devcontainer/devcontainer.json to be created")
 	}
@@ -159,7 +159,7 @@ func TestEnsureDevcontainerConfigWithAdditionalRepos(t *testing.T) {
 	}
 
 	// Read and parse the created file
-	devcontainerPath := filepath.Join(".devcontainer", "devcontainer.json")
+	devcontainerPath := filepath.Join(".devcontainer", "gh-aw", "devcontainer.json")
 	data, err := os.ReadFile(devcontainerPath)
 	if err != nil {
 		t.Fatalf("Failed to read devcontainer.json: %v", err)
@@ -231,7 +231,7 @@ func TestEnsureDevcontainerConfigWithCurrentRepo(t *testing.T) {
 	}
 
 	// Read and parse the created file
-	devcontainerPath := filepath.Join(".devcontainer", "devcontainer.json")
+	devcontainerPath := filepath.Join(".devcontainer", "gh-aw", "devcontainer.json")
 	data, err := os.ReadFile(devcontainerPath)
 	if err != nil {
 		t.Fatalf("Failed to read devcontainer.json: %v", err)
