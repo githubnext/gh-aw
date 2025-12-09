@@ -183,6 +183,44 @@ Domain-specific validation is organized into separate files based on functional 
 - ✅ Include/import validation
 - ✅ Template region validation
 
+#### 9. **JavaScript Bundler Validation**: `bundler_validation.go`
+
+**Location**: `pkg/workflow/bundler_validation.go` (360 lines)
+
+**Purpose**: Validates JavaScript code for runtime mode compatibility and bundling correctness
+
+**Validation Functions**:
+- `validateNoLocalRequires()` - Ensures all local require() statements are bundled (GitHub Script mode)
+- `validateNoModuleReferences()` - Ensures no module.exports or exports remain (GitHub Script mode)
+- `validateNoExecSync()` - Ensures GitHub Script mode scripts use exec instead of execSync
+- `validateNoGitHubScriptGlobals()` - Ensures Node.js scripts don't use GitHub Actions globals (core.*, exec.*, github.*)
+- `ValidateEmbeddedResourceRequires()` - Validates embedded JavaScript dependencies exist
+
+**Pattern**: Runtime mode-specific validation with compile-time checks
+
+**Validation Enforcement**:
+- Compile-time: Triggered during script registration in `RegisterWithMode()`
+- Build-time: Scripts violating rules cause panics during package initialization
+- Runtime: Bundled scripts are validated before execution
+
+**When to add validation here**:
+- ✅ JavaScript runtime mode compatibility checks
+- ✅ GitHub Script vs Node.js script validation
+- ✅ Module system validation (require, exports)
+- ✅ GitHub Actions API usage validation
+- ✅ Child process execution validation (exec vs execSync)
+
+**Design Rationale**:
+The bundler validation enforces two key constraints:
+1. **GitHub Script mode**: Should not use `execSync` (use async `exec` from `@actions/exec` instead)
+2. **Node.js mode**: Should not use GitHub Actions globals (`core.*`, `exec.*`, `github.*`)
+
+These rules ensure that scripts follow platform conventions:
+- GitHub Script mode runs inline in GitHub Actions YAML with GitHub-specific globals available
+- Node.js mode runs as standalone scripts with standard Node.js APIs only
+
+Validation happens at registration time (via panic) to catch errors during development/testing rather than at runtime.
+
 ## Decision Tree: Where to Add New Validation
 
 Use this decision tree to determine where to place new validation logic:
