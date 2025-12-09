@@ -728,9 +728,9 @@ func (c *Compiler) buildSafeOutputJob(data *WorkflowData, config SafeOutputJobCo
 
 	// Build the step based on action mode
 	var scriptSteps []string
-	if c.actionMode == ActionModeCustom && config.ScriptName != "" {
-		// Use custom action mode if enabled and script name is provided
-		safeOutputsLog.Printf("Using custom action mode for script: %s", config.ScriptName)
+	if c.actionMode == ActionModeDev && config.ScriptName != "" {
+		// Use dev action mode if enabled and script name is provided
+		safeOutputsLog.Printf("Using dev action mode for script: %s", config.ScriptName)
 		scriptSteps = c.buildCustomActionStep(data, GitHubScriptStepConfig{
 			StepName:        config.StepName,
 			StepID:          config.StepID,

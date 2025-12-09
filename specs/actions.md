@@ -20,7 +20,7 @@ This document describes the custom GitHub Actions build system implemented to su
 - [CI Integration](#ci-integration)
 - [Development Guide](#development-guide)
 - [Future Work](#future-work)
-- [Compiler Integration: Custom Action Mode](#compiler-integration-custom-action-mode)
+- [Compiler Integration: Dev Action Mode](#compiler-integration-dev-action-mode)
 
 ## Motivation
 
@@ -650,16 +650,16 @@ The custom GitHub Actions build system provides a foundation for migrating from 
 
 The system is production-ready and extensible, with clear paths for enhancement and migration of existing inline scripts.
 
-## Compiler Integration: Custom Action Mode
+## Compiler Integration: Dev Action Mode
 
-> This section documents the custom action mode feature that enables the workflow compiler to generate references to custom actions instead of embedding JavaScript inline.
+> This section documents the dev action mode feature that enables the workflow compiler to generate references to custom actions instead of embedding JavaScript inline.
 
 ### Overview
 
-The custom action mode feature complements the build system by enabling the workflow compiler to generate `uses:` references to custom actions instead of embedding JavaScript inline via `actions/github-script`. This creates a complete development workflow:
+The dev action mode feature complements the build system by enabling the workflow compiler to generate `uses:` references to custom actions instead of embedding JavaScript inline via `actions/github-script`. This creates a complete development workflow:
 
 1. Create and build custom actions (using build system described above)
-2. Compile workflows with custom action mode enabled
+2. Compile workflows with dev action mode enabled
 3. Generated workflows reference local actions instead of inline JavaScript
 
 ### Implementation Details
@@ -668,7 +668,7 @@ The custom action mode feature complements the build system by enabling the work
 
 Added `ActionMode` enum type with two modes:
 - **`ActionModeInline`**: Embeds JavaScript inline using `actions/github-script` (default, backward compatible)
-- **`ActionModeCustom`**: References custom actions using local paths
+- **`ActionModeDev`**: References custom actions using local paths
 
 Includes validation methods `IsValid()` and `String()`.
 
@@ -693,7 +693,7 @@ Includes validation methods `IsValid()` and `String()`.
   - `addCustomActionGitHubToken()`
   - `addCustomActionCopilotGitHubToken()`
   - `addCustomActionAgentGitHubToken()`
-- Updated `buildSafeOutputJob()` to choose between inline and custom modes based on compiler settings
+- Updated `buildSafeOutputJob()` to choose between inline and dev modes based on compiler settings
 - Falls back to inline mode if action path is not registered
 
 #### 5. Safe Output Job Configuration
@@ -720,7 +720,7 @@ workflow.DefaultScriptRegistry.RegisterWithAction(
 
 ```go
 compiler := workflow.NewCompiler(false, "", "1.0.0")
-compiler.SetActionMode(workflow.ActionModeCustom)
+compiler.SetActionMode(workflow.ActionModeDev)
 compiler.CompileWorkflow("workflow.md")
 ```
 
@@ -774,7 +774,7 @@ jobs:
 - Example: `RegisterWithAction("create_issue", script, mode, "./actions/create-issue")`
 
 **With Compiler**:
-- `SetActionMode(ActionModeCustom)` switches from inline to custom action references
+- `SetActionMode(ActionModeDev)` switches from inline to custom action references
 - `buildSafeOutputJob()` checks mode and calls appropriate step builder
 - Falls back gracefully if action path not registered
 
@@ -785,7 +785,7 @@ jobs:
 
 ### Complete Workflow Example
 
-This example demonstrates the full integration between the build system and custom action mode:
+This example demonstrates the full integration between the build system and dev action mode:
 
 #### 1. Create a Custom Action
 
@@ -828,9 +828,9 @@ workflow.DefaultScriptRegistry.RegisterWithAction(
     "./actions/create-issue",
 )
 
-// Compile with custom action mode
+// Compile with dev action mode
 compiler := workflow.NewCompiler(false, "", "1.0.0")
-compiler.SetActionMode(workflow.ActionModeCustom)
+compiler.SetActionMode(workflow.ActionModeDev)
 compiler.CompileWorkflow("workflow.md")
 ```
 
@@ -881,7 +881,7 @@ jobs:
 4. **Cache support**: Cache compiled custom actions for faster subsequent compilations
 5. **Automatic action creation**: Generate action scaffold from script registry entries
 6. **Release mode**: Support versioned action references like `githubnext/gh-aw/.github/actions/create-issue@v1.0.0`
-7. **CLI integration**: Add `--action-mode=custom|inline` flag to compile command
+7. **CLI integration**: Add `--action-mode=dev|inline` flag to compile command
 
 ### Testing
 

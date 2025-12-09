@@ -13,7 +13,7 @@ func TestActionModeValidation(t *testing.T) {
 		valid bool
 	}{
 		{ActionModeInline, true},
-		{ActionModeCustom, true},
+		{ActionModeDev, true},
 		{ActionMode("invalid"), false},
 		{ActionMode(""), false},
 	}
@@ -34,7 +34,7 @@ func TestActionModeString(t *testing.T) {
 		want string
 	}{
 		{ActionModeInline, "inline"},
-		{ActionModeCustom, "custom"},
+		{ActionModeDev, "dev"},
 	}
 
 	for _, tt := range tests {
@@ -58,9 +58,9 @@ func TestCompilerActionModeDefault(t *testing.T) {
 func TestCompilerSetActionMode(t *testing.T) {
 	compiler := NewCompiler(false, "", "1.0.0")
 
-	compiler.SetActionMode(ActionModeCustom)
-	if compiler.GetActionMode() != ActionModeCustom {
-		t.Errorf("Expected action mode custom, got %s", compiler.GetActionMode())
+	compiler.SetActionMode(ActionModeDev)
+	if compiler.GetActionMode() != ActionModeDev {
+		t.Errorf("Expected action mode dev, got %s", compiler.GetActionMode())
 	}
 
 	compiler.SetActionMode(ActionModeInline)
@@ -137,9 +137,9 @@ core.info('Creating issue');
 		"./actions/create-issue",
 	)
 
-	// Compile with custom action mode
+	// Compile with dev action mode
 	compiler := NewCompiler(false, "", "1.0.0")
-	compiler.SetActionMode(ActionModeCustom)
+	compiler.SetActionMode(ActionModeDev)
 	compiler.SetNoEmit(false)
 
 	if err := compiler.CompileWorkflow(workflowPath); err != nil {
@@ -162,12 +162,12 @@ core.info('Creating issue');
 
 	// Verify it does NOT contain actions/github-script
 	if strings.Contains(lockStr, "actions/github-script@") {
-		t.Error("Lock file should not contain 'actions/github-script@' when using custom action mode")
+		t.Error("Lock file should not contain 'actions/github-script@' when using dev action mode")
 	}
 
 	// Verify it has the token input instead of github-token with script
 	if strings.Contains(lockStr, "github-token:") {
-		t.Error("Custom action mode should use 'token:' input, not 'github-token:'")
+		t.Error("Dev action mode should use 'token:' input, not 'github-token:'")
 	}
 
 	if !strings.Contains(lockStr, "token:") {
@@ -261,9 +261,9 @@ Test fallback to inline mode.
 	testScript := `console.log('test');`
 	DefaultScriptRegistry.RegisterWithMode("create_issue", testScript, RuntimeModeGitHubScript)
 
-	// Compile with custom action mode
+	// Compile with dev action mode
 	compiler := NewCompiler(false, "", "1.0.0")
-	compiler.SetActionMode(ActionModeCustom)
+	compiler.SetActionMode(ActionModeDev)
 	compiler.SetNoEmit(false)
 
 	if err := compiler.CompileWorkflow(workflowPath); err != nil {

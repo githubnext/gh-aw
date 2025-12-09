@@ -7,8 +7,8 @@ const (
 	// ActionModeInline embeds JavaScript inline using actions/github-script (current behavior)
 	ActionModeInline ActionMode = "inline"
 
-	// ActionModeCustom references custom actions using local paths (development mode)
-	ActionModeCustom ActionMode = "custom"
+	// ActionModeDev references custom actions using local paths (development mode)
+	ActionModeDev ActionMode = "dev"
 )
 
 // String returns the string representation of the action mode
@@ -18,5 +18,5 @@ func (m ActionMode) String() string {
 
 // IsValid checks if the action mode is valid
 func (m ActionMode) IsValid() bool {
-	return m == ActionModeInline || m == ActionModeCustom
+	return m == ActionModeInline || m == ActionModeDev
 }
