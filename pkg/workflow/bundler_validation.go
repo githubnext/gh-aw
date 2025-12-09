@@ -215,6 +215,105 @@ func ValidateEmbeddedResourceRequires(sources map[string]string) error {
 	return nil
 }
 
+// validateNoExecSync checks that GitHub Script mode scripts do not use execSync
+// GitHub Script mode should use exec instead for better async/await handling
+// Returns an error if execSync is found, otherwise returns nil
+func validateNoExecSync(scriptName string, content string, mode RuntimeMode) error {
+	// Only validate GitHub Script mode
+	if mode != RuntimeModeGitHubScript {
+		return nil
+	}
+
+	bundlerValidationLog.Printf("Validating no execSync in GitHub Script: %s (%d bytes)", scriptName, len(content))
+
+	// Regular expression to match execSync usage
+	// Matches: execSync(...) with various patterns
+	execSyncRegex := regexp.MustCompile(`\bexecSync\s*\(`)
+
+	lines := strings.Split(content, "\n")
+	var foundUsages []string
+
+	for lineNum, line := range lines {
+		trimmed := strings.TrimSpace(line)
+
+		// Skip comment lines
+		if strings.HasPrefix(trimmed, "//") || strings.HasPrefix(trimmed, "/*") || strings.HasPrefix(trimmed, "*") {
+			continue
+		}
+
+		// Check for execSync usage
+		if execSyncRegex.MatchString(line) {
+			foundUsages = append(foundUsages, fmt.Sprintf("line %d: %s", lineNum+1, strings.TrimSpace(line)))
+		}
+	}
+
+	if len(foundUsages) > 0 {
+		bundlerValidationLog.Printf("Validation failed: found %d execSync usage(s) in %s", len(foundUsages), scriptName)
+		return fmt.Errorf("GitHub Script mode script '%s' contains %d execSync usage(s):\n  %s\n\nGitHub Script mode should use exec instead of execSync for better async/await handling",
+			scriptName, len(foundUsages), strings.Join(foundUsages, "\n  "))
+	}
+
+	bundlerValidationLog.Printf("Validation successful: no execSync usage found in %s", scriptName)
+	return nil
+}
+
+// validateNoGitHubScriptGlobals checks that Node.js mode scripts do not use GitHub Actions globals
+// Node.js scripts should not rely on actions/github-script globals like core.*, exec.*, or github.*
+// Returns an error if GitHub Actions globals are found, otherwise returns nil
+func validateNoGitHubScriptGlobals(scriptName string, content string, mode RuntimeMode) error {
+	// Only validate Node.js mode
+	if mode != RuntimeModeNodeJS {
+		return nil
+	}
+
+	bundlerValidationLog.Printf("Validating no GitHub Actions globals in Node.js script: %s (%d bytes)", scriptName, len(content))
+
+	// Regular expressions to match GitHub Actions globals
+	// Matches: core.method, exec.method, github.property
+	coreGlobalRegex := regexp.MustCompile(`\bcore\.\w+`)
+	execGlobalRegex := regexp.MustCompile(`\bexec\.\w+`)
+	githubGlobalRegex := regexp.MustCompile(`\bgithub\.\w+`)
+
+	lines := strings.Split(content, "\n")
+	var foundUsages []string
+
+	for lineNum, line := range lines {
+		trimmed := strings.TrimSpace(line)
+
+		// Skip comment lines and type references
+		if strings.HasPrefix(trimmed, "//") || strings.HasPrefix(trimmed, "/*") || strings.HasPrefix(trimmed, "*") {
+			continue
+		}
+		if strings.Contains(trimmed, "/// <reference") {
+			continue
+		}
+
+		// Check for core.* usage
+		if coreGlobalRegex.MatchString(line) {
+			foundUsages = append(foundUsages, fmt.Sprintf("line %d: core.* usage: %s", lineNum+1, strings.TrimSpace(line)))
+		}
+
+		// Check for exec.* usage
+		if execGlobalRegex.MatchString(line) {
+			foundUsages = append(foundUsages, fmt.Sprintf("line %d: exec.* usage: %s", lineNum+1, strings.TrimSpace(line)))
+		}
+
+		// Check for github.* usage
+		if githubGlobalRegex.MatchString(line) {
+			foundUsages = append(foundUsages, fmt.Sprintf("line %d: github.* usage: %s", lineNum+1, strings.TrimSpace(line)))
+		}
+	}
+
+	if len(foundUsages) > 0 {
+		bundlerValidationLog.Printf("Validation failed: found %d GitHub Actions global usage(s) in %s", len(foundUsages), scriptName)
+		return fmt.Errorf("Node.js mode script '%s' contains %d GitHub Actions global usage(s):\n  %s\n\nNode.js scripts should not use GitHub Actions globals (core.*, exec.*, github.*)",
+			scriptName, len(foundUsages), strings.Join(foundUsages, "\n  "))
+	}
+
+	bundlerValidationLog.Printf("Validation successful: no GitHub Actions globals found in %s", scriptName)
+	return nil
+}
+
 // normalizePath normalizes a file path by resolving . and .. components
 func normalizePath(path string) string {
 	// Split path into parts
