@@ -40,26 +40,44 @@ type ActionOutput struct {
 }
 
 // GenerateActionMetadataCommand generates action.yml and README.md files for JavaScript modules
+// Uses the agent-output schema to discover which safe output types should have custom actions
 func GenerateActionMetadataCommand() error {
 	jsDir := "pkg/workflow/js"
 	actionsDir := "actions"
+	schemaPath := "schemas/agent-output.json"
 
-	generateActionMetadataLog.Print("Starting action metadata generation")
+	generateActionMetadataLog.Print("Starting schema-driven action metadata generation")
 
-	// Select target JavaScript files (simple ones for proof of concept)
-	targetFiles := []string{
-		"noop.cjs",
-		"minimize_comment.cjs",
-		"close_issue.cjs",
-		"close_pull_request.cjs",
-		"close_discussion.cjs",
+	// Load the safe output schema
+	schema, err := LoadSafeOutputSchema(schemaPath)
+	if err != nil {
+		return fmt.Errorf("failed to load schema: %w", err)
 	}
 
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("🔍 Generating actions for %d JavaScript modules...", len(targetFiles))))
+	// Extract safe output types from the schema
+	safeOutputTypes := GetSafeOutputTypes(schema)
+	
+	// Filter to only types that should have custom actions
+	var targetTypes []SafeOutputTypeSchema
+	for _, typeSchema := range safeOutputTypes {
+		if ShouldGenerateCustomAction(typeSchema.TypeName) {
+			targetTypes = append(targetTypes, typeSchema)
+		}
+	}
+
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("🔍 Found %d safe output types in schema", len(safeOutputTypes))))
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("🎯 Generating actions for %d types...", len(targetTypes))))
 
 	generatedCount := 0
-	for _, filename := range targetFiles {
+	for _, typeSchema := range targetTypes {
+		filename := GetJavaScriptFilename(typeSchema.TypeName)
 		jsPath := filepath.Join(jsDir, filename)
+
+		// Check if JavaScript file exists
+		if _, err := os.Stat(jsPath); os.IsNotExist(err) {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("⚠ Skipping %s: JavaScript file not found", typeSchema.TypeName)))
+			continue
+		}
 
 		// Read file content directly from filesystem
 		contentBytes, err := os.ReadFile(jsPath)
@@ -69,10 +87,10 @@ func GenerateActionMetadataCommand() error {
 		}
 		content := string(contentBytes)
 
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("\n📦 Processing: %s", filename)))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("\n📦 Processing: %s (%s)", typeSchema.TypeName, typeSchema.Title)))
 
-		// Extract metadata
-		metadata, err := extractActionMetadata(filename, content)
+		// Extract metadata from both schema and JavaScript file
+		metadata, err := extractActionMetadataFromSchema(filename, content, typeSchema)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("✗ Failed to extract metadata from %s: %s", filename, err.Error())))
 			continue
@@ -158,6 +176,67 @@ func extractActionMetadata(filename, content string) (*ActionMetadata, error) {
 		Description:  description,
 		Filename:     filename,
 		ActionName:   actionName,
+		Inputs:       inputs,
+		Outputs:      outputs,
+		Dependencies: dependencies,
+	}
+
+	generateActionMetadataLog.Printf("Extracted metadata: %d inputs, %d outputs, %d dependencies",
+		len(inputs), len(outputs), len(dependencies))
+
+	return metadata, nil
+}
+
+// extractActionMetadataFromSchema combines schema information with JavaScript analysis
+func extractActionMetadataFromSchema(filename, content string, typeSchema SafeOutputTypeSchema) (*ActionMetadata, error) {
+	generateActionMetadataLog.Printf("Extracting metadata from schema for %s", typeSchema.TypeName)
+
+	// Use schema description if available, otherwise fallback to JSDoc
+	description := typeSchema.Description
+	if description == "" {
+		description = extractDescription(content)
+	}
+	if description == "" {
+		description = fmt.Sprintf("Process %s safe output", typeSchema.TypeName)
+	}
+
+	// Use schema title for action name
+	name := typeSchema.Title
+	if name == "" {
+		name = generateHumanReadableName(typeSchema.TypeName)
+	}
+
+	// Extract inputs from JavaScript (core.getInput calls)
+	inputs := extractInputs(content)
+	
+	// Add standard token input if not already present
+	hasToken := false
+	for _, input := range inputs {
+		if input.Name == "token" {
+			hasToken = true
+			break
+		}
+	}
+	if !hasToken {
+		inputs = append([]ActionInput{{
+			Name:        "token",
+			Description: "GitHub token for API authentication",
+			Required:    true,
+			Default:     "",
+		}}, inputs...)
+	}
+
+	// Extract outputs from JavaScript (core.setOutput calls)
+	outputs := extractOutputs(content)
+
+	// Extract dependencies from require() calls
+	dependencies := extractDependencies(content)
+
+	metadata := &ActionMetadata{
+		Name:         name,
+		Description:  description,
+		Filename:     filename,
+		ActionName:   typeSchema.TypeName,
 		Inputs:       inputs,
 		Outputs:      outputs,
 		Dependencies: dependencies,
