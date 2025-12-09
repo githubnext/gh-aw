@@ -175,6 +175,7 @@ type CompileConfig struct {
 	Actionlint           bool     // Run actionlint linter on generated .lock.yml files
 	JSONOutput           bool     // Output validation results as JSON
 	RefreshStopTime      bool     // Force regeneration of stop-after times instead of preserving existing ones
+	ActionMode           string   // Action script inlining mode: inline, dev, or release
 }
 
 // CompilationStats tracks the results of workflow compilation
@@ -306,6 +307,21 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 	compiler.SetRefreshStopTime(config.RefreshStopTime)
 	if config.RefreshStopTime {
 		compileLog.Print("Stop time refresh enabled: will regenerate stop-after times")
+	}
+
+	// Set action mode if specified
+	if config.ActionMode != "" {
+		mode := workflow.ActionMode(config.ActionMode)
+		if !mode.IsValid() {
+			return nil, fmt.Errorf("invalid action mode '%s'. Must be 'inline', 'dev', or 'release'", config.ActionMode)
+		}
+		compiler.SetActionMode(mode)
+		compileLog.Printf("Action mode set to: %s", mode)
+	} else {
+		// Use auto-detection
+		mode := workflow.DetectActionMode()
+		compiler.SetActionMode(mode)
+		compileLog.Printf("Action mode auto-detected: %s", mode)
 	}
 
 	if watch {

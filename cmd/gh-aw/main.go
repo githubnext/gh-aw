@@ -192,6 +192,7 @@ Examples:
   ` + constants.CLIExtensionPrefix + ` compile --dependabot --force  # Force overwrite existing dependabot.yml`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		engineOverride, _ := cmd.Flags().GetString("engine")
+		actionMode, _ := cmd.Flags().GetString("action-mode")
 		validate, _ := cmd.Flags().GetBool("validate")
 		watch, _ := cmd.Flags().GetBool("watch")
 		dir, _ := cmd.Flags().GetString("dir")
@@ -222,6 +223,7 @@ Examples:
 			MarkdownFiles:        args,
 			Verbose:              verbose,
 			EngineOverride:       engineOverride,
+			ActionMode:           actionMode,
 			Validate:             validate,
 			Watch:                watch,
 			WorkflowDir:          workflowDir,
@@ -426,6 +428,7 @@ Use "` + constants.CLIExtensionPrefix + ` help all" to show help for all command
 
 	// Add AI flag to compile and add commands
 	compileCmd.Flags().StringP("engine", "e", "", "Override AI engine (claude, codex, copilot, custom)")
+	compileCmd.Flags().String("action-mode", "", "Action script inlining mode (inline, dev, release). Auto-detected if not specified")
 	compileCmd.Flags().Bool("validate", false, "Enable GitHub Actions workflow schema validation, container image validation, and action SHA validation")
 	compileCmd.Flags().BoolP("watch", "w", false, "Watch for changes to workflow files and recompile automatically")
 	compileCmd.Flags().String("dir", "", "Workflow directory (default: .github/workflows)")
