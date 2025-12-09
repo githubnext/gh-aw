@@ -1,4 +1,4 @@
-package cli
+package workflow
 
 import (
 	"encoding/json"
@@ -9,7 +9,7 @@ import (
 	"github.com/githubnext/gh-aw/pkg/logger"
 )
 
-var schemaParserLog = logger.New("cli:schema_parser")
+var safeOutputSchemaLog = logger.New("workflow:safe_output_schema")
 
 // SafeOutputTypeSchema represents a safe output type definition from the schema
 type SafeOutputTypeSchema struct {
@@ -47,7 +47,7 @@ type TypeDefinition struct {
 
 // LoadSafeOutputSchema loads and parses the agent-output.json schema
 func LoadSafeOutputSchema(schemaPath string) (*AgentOutputSchema, error) {
-	schemaParserLog.Printf("Loading schema from %s", schemaPath)
+	safeOutputSchemaLog.Printf("Loading schema from %s", schemaPath)
 
 	data, err := os.ReadFile(schemaPath)
 	if err != nil {
@@ -59,7 +59,7 @@ func LoadSafeOutputSchema(schemaPath string) (*AgentOutputSchema, error) {
 		return nil, fmt.Errorf("failed to parse schema JSON: %w", err)
 	}
 
-	schemaParserLog.Printf("Loaded schema with %d type definitions", len(schema.Definitions))
+	safeOutputSchemaLog.Printf("Loaded schema with %d type definitions", len(schema.Definitions))
 	return &schema, nil
 }
 
@@ -77,7 +77,7 @@ func GetSafeOutputTypes(schema *AgentOutputSchema) []SafeOutputTypeSchema {
 		// Extract the type name from the type discriminator in properties
 		typeName := extractTypeNameFromDefinition(def)
 		if typeName == "" {
-			schemaParserLog.Printf("Warning: Could not extract type name from %s", defName)
+			safeOutputSchemaLog.Printf("Warning: Could not extract type name from %s", defName)
 			continue
 		}
 
@@ -93,7 +93,7 @@ func GetSafeOutputTypes(schema *AgentOutputSchema) []SafeOutputTypeSchema {
 		})
 	}
 
-	schemaParserLog.Printf("Extracted %d safe output types", len(types))
+	safeOutputSchemaLog.Printf("Extracted %d safe output types", len(types))
 	return types
 }
 
@@ -228,4 +228,23 @@ func ShouldGenerateCustomAction(typeName string) bool {
 	}
 
 	return customActionTypes[typeName]
+}
+
+// GetCustomActionTypes returns a list of safe output type names that should have custom actions.
+// This is the single source of truth for which types get custom actions, used by both
+// the action generator (in pkg/cli) and the script registry (in pkg/workflow).
+func GetCustomActionTypes() []string {
+	return []string{
+		"noop",
+		"minimize_comment",
+		"close_issue",
+		"close_pull_request",
+		"close_discussion",
+		"add_comment",
+		"create_issue",
+		"add_labels",
+		"create_discussion",
+		"update_issue",
+		"update_pull_request",
+	}
 }

@@ -10,6 +10,7 @@ import (
 
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/logger"
+	"github.com/githubnext/gh-aw/pkg/workflow"
 )
 
 var generateActionMetadataLog = logger.New("cli:generate_action_metadata")
@@ -49,18 +50,18 @@ func GenerateActionMetadataCommand() error {
 	generateActionMetadataLog.Print("Starting schema-driven action metadata generation")
 
 	// Load the safe output schema
-	schema, err := LoadSafeOutputSchema(schemaPath)
+	schema, err := workflow.LoadSafeOutputSchema(schemaPath)
 	if err != nil {
 		return fmt.Errorf("failed to load schema: %w", err)
 	}
 
 	// Extract safe output types from the schema
-	safeOutputTypes := GetSafeOutputTypes(schema)
+	safeOutputTypes := workflow.GetSafeOutputTypes(schema)
 
 	// Filter to only types that should have custom actions
-	var targetTypes []SafeOutputTypeSchema
+	var targetTypes []workflow.SafeOutputTypeSchema
 	for _, typeSchema := range safeOutputTypes {
-		if ShouldGenerateCustomAction(typeSchema.TypeName) {
+		if workflow.ShouldGenerateCustomAction(typeSchema.TypeName) {
 			targetTypes = append(targetTypes, typeSchema)
 		}
 	}
@@ -70,7 +71,7 @@ func GenerateActionMetadataCommand() error {
 
 	generatedCount := 0
 	for _, typeSchema := range targetTypes {
-		filename := GetJavaScriptFilename(typeSchema.TypeName)
+		filename := workflow.GetJavaScriptFilename(typeSchema.TypeName)
 		jsPath := filepath.Join(jsDir, filename)
 
 		// Check if JavaScript file exists
@@ -97,7 +98,7 @@ func GenerateActionMetadataCommand() error {
 		}
 
 		// Create action directory (using hyphenated name for GitHub Actions convention)
-		actionDirName := GetActionDirectoryName(typeSchema.TypeName)
+		actionDirName := workflow.GetActionDirectoryName(typeSchema.TypeName)
 		actionDir := filepath.Join(actionsDir, actionDirName)
 		if err := os.MkdirAll(actionDir, 0755); err != nil {
 			return fmt.Errorf("failed to create directory %s: %w", actionDir, err)
@@ -148,7 +149,7 @@ func GenerateActionMetadataCommand() error {
 }
 
 // extractActionMetadataFromSchema combines schema information with JavaScript analysis
-func extractActionMetadataFromSchema(filename, content string, typeSchema SafeOutputTypeSchema) (*ActionMetadata, error) {
+func extractActionMetadataFromSchema(filename, content string, typeSchema workflow.SafeOutputTypeSchema) (*ActionMetadata, error) {
 	generateActionMetadataLog.Printf("Extracting metadata from schema for %s", typeSchema.TypeName)
 
 	// Use schema description if available, otherwise fallback to JSDoc

@@ -140,28 +140,38 @@ var substitutePlaceholdersScriptSource string
 // Scripts are bundled lazily on first access via the getter functions.
 func init() {
 	scriptsLog.Print("Registering JavaScript scripts with DefaultScriptRegistry")
-	
-	// Helper to register scripts that have custom actions
-	registerWithAction := func(name, source string) {
-		// Custom actions use hyphens instead of underscores in GitHub Actions convention
-		actionName := strings.ReplaceAll(name, "_", "-")
-		actionPath := fmt.Sprintf("./actions/%s", actionName)
-		DefaultScriptRegistry.RegisterWithAction(name, source, RuntimeModeGitHubScript, actionPath)
+
+	// Map of script type names to their embedded sources
+	scriptSources := map[string]string{
+		"noop":                noopScriptSource,
+		"minimize_comment":    minimizeCommentScriptSource,
+		"close_issue":         closeIssueScriptSource,
+		"close_pull_request":  closePullRequestScriptSource,
+		"close_discussion":    closeDiscussionScriptSource,
+		"add_comment":         addCommentScriptSource,
+		"create_issue":        createIssueScriptSource,
+		"add_labels":          addLabelsScriptSource,
+		"create_discussion":   createDiscussionScriptSource,
+		"update_issue":        updateIssueScriptSource,
+		"update_pull_request": updatePullRequestScriptSource,
 	}
-	
-	// Safe output scripts with custom actions
-	registerWithAction("noop", noopScriptSource)
-	registerWithAction("minimize_comment", minimizeCommentScriptSource)
-	registerWithAction("close_issue", closeIssueScriptSource)
-	registerWithAction("close_pull_request", closePullRequestScriptSource)
-	registerWithAction("close_discussion", closeDiscussionScriptSource)
-	registerWithAction("add_comment", addCommentScriptSource)
-	registerWithAction("create_issue", createIssueScriptSource)
-	registerWithAction("add_labels", addLabelsScriptSource)
-	registerWithAction("create_discussion", createDiscussionScriptSource)
-	registerWithAction("update_issue", updateIssueScriptSource)
-	registerWithAction("update_pull_request", updatePullRequestScriptSource)
-	
+
+	// Safe output scripts with custom actions (schema-driven)
+	// Use GetCustomActionTypes() as the single source of truth
+	customActionTypes := GetCustomActionTypes()
+	for _, typeName := range customActionTypes {
+		source, exists := scriptSources[typeName]
+		if !exists {
+			scriptsLog.Printf("Warning: No script source found for custom action type: %s", typeName)
+			continue
+		}
+
+		// Custom actions use hyphens instead of underscores in GitHub Actions convention
+		actionName := strings.ReplaceAll(typeName, "_", "-")
+		actionPath := fmt.Sprintf("./actions/%s", actionName)
+		DefaultScriptRegistry.RegisterWithAction(typeName, source, RuntimeModeGitHubScript, actionPath)
+	}
+
 	// Safe output scripts without custom actions (use inline mode)
 	DefaultScriptRegistry.Register("collect_jsonl_output", collectJSONLOutputScriptSource)
 	DefaultScriptRegistry.Register("compute_text", computeTextScriptSource)

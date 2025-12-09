@@ -166,7 +166,7 @@ core.info('Creating issue');
 	if createIssueJobStart == -1 {
 		t.Fatal("Could not find create_issue job in lock file")
 	}
-	
+
 	// Find the next top-level job (starts with "  " and ends with ":")
 	// We need to find the next line that starts with exactly 2 spaces followed by a non-space
 	remainingContent := lockStr[createIssueJobStart+15:] // Skip past "  create_issue:"
@@ -184,7 +184,7 @@ core.info('Creating issue');
 			break
 		}
 	}
-	
+
 	var createIssueJobSection string
 	if nextJobStart == -1 {
 		createIssueJobSection = lockStr[createIssueJobStart:]
