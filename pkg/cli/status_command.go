@@ -20,18 +20,19 @@ var statusLog = logger.New("cli:status_command")
 
 // WorkflowStatus represents the status of a single workflow for JSON output
 type WorkflowStatus struct {
-	Workflow      string `json:"workflow" console:"header:Workflow"`
-	EngineID      string `json:"engine_id" console:"header:Engine"`
-	Compiled      string `json:"compiled" console:"header:Compiled"`
-	Status        string `json:"status" console:"header:Status"`
-	TimeRemaining string `json:"time_remaining" console:"header:Time Remaining"`
-	On            any    `json:"on,omitempty" console:"-"`
-	RunStatus     string `json:"run_status,omitempty" console:"header:Run Status,omitempty"`
-	RunConclusion string `json:"run_conclusion,omitempty" console:"header:Run Conclusion,omitempty"`
+	Workflow      string   `json:"workflow" console:"header:Workflow"`
+	EngineID      string   `json:"engine_id" console:"header:Engine"`
+	Compiled      string   `json:"compiled" console:"header:Compiled"`
+	Status        string   `json:"status" console:"header:Status"`
+	TimeRemaining string   `json:"time_remaining" console:"header:Time Remaining"`
+	Labels        []string `json:"labels,omitempty" console:"header:Labels,omitempty"`
+	On            any      `json:"on,omitempty" console:"-"`
+	RunStatus     string   `json:"run_status,omitempty" console:"header:Run Status,omitempty"`
+	RunConclusion string   `json:"run_conclusion,omitempty" console:"header:Run Conclusion,omitempty"`
 }
 
-func StatusWorkflows(pattern string, verbose bool, jsonOutput bool, ref string) error {
-	statusLog.Printf("Checking workflow status: pattern=%s, jsonOutput=%v, ref=%s", pattern, jsonOutput, ref)
+func StatusWorkflows(pattern string, verbose bool, jsonOutput bool, ref string, labelFilter string) error {
+	statusLog.Printf("Checking workflow status: pattern=%s, jsonOutput=%v, ref=%s, labelFilter=%s", pattern, jsonOutput, ref, labelFilter)
 	if verbose && !jsonOutput {
 		fmt.Printf("Checking status of workflow files\n")
 		if pattern != "" {
@@ -154,13 +155,38 @@ func StatusWorkflows(pattern string, verbose bool, jsonOutput bool, ref string) 
 				}
 			}
 
-			// Extract "on" field from frontmatter for JSON output
+			// Extract "on" field and labels from frontmatter for JSON output
 			var onField any
+			var labels []string
 			if content, err := os.ReadFile(file); err == nil {
 				if result, err := parser.ExtractFrontmatterFromContent(string(content)); err == nil {
 					if result.Frontmatter != nil {
 						onField = result.Frontmatter["on"]
+						// Extract labels field if present
+						if labelsField, ok := result.Frontmatter["labels"]; ok {
+							if labelsArray, ok := labelsField.([]any); ok {
+								for _, label := range labelsArray {
+									if labelStr, ok := label.(string); ok {
+										labels = append(labels, labelStr)
+									}
+								}
+							}
+						}
 					}
+				}
+			}
+
+			// Skip if label filter specified and workflow doesn't have the label
+			if labelFilter != "" {
+				hasLabel := false
+				for _, label := range labels {
+					if strings.EqualFold(label, labelFilter) {
+						hasLabel = true
+						break
+					}
+				}
+				if !hasLabel {
+					continue
 				}
 			}
 
@@ -180,6 +206,7 @@ func StatusWorkflows(pattern string, verbose bool, jsonOutput bool, ref string) 
 				Compiled:      compiled,
 				Status:        status,
 				TimeRemaining: timeRemaining,
+				Labels:        labels,
 				On:            onField,
 				RunStatus:     runStatus,
 				RunConclusion: runConclusion,
@@ -250,6 +277,38 @@ func StatusWorkflows(pattern string, verbose bool, jsonOutput bool, ref string) 
 			}
 		}
 
+		// Extract labels from frontmatter
+		var labels []string
+		if content, err := os.ReadFile(file); err == nil {
+			if result, err := parser.ExtractFrontmatterFromContent(string(content)); err == nil {
+				if result.Frontmatter != nil {
+					if labelsField, ok := result.Frontmatter["labels"]; ok {
+						if labelsArray, ok := labelsField.([]any); ok {
+							for _, label := range labelsArray {
+								if labelStr, ok := label.(string); ok {
+									labels = append(labels, labelStr)
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+
+		// Skip if label filter specified and workflow doesn't have the label
+		if labelFilter != "" {
+			hasLabel := false
+			for _, label := range labels {
+				if strings.EqualFold(label, labelFilter) {
+					hasLabel = true
+					break
+				}
+			}
+			if !hasLabel {
+				continue
+			}
+		}
+
 		// Build status object
 		statuses = append(statuses, WorkflowStatus{
 			Workflow:      name,
@@ -257,6 +316,7 @@ func StatusWorkflows(pattern string, verbose bool, jsonOutput bool, ref string) 
 			Compiled:      compiled,
 			Status:        status,
 			TimeRemaining: timeRemaining,
+			Labels:        labels,
 			RunStatus:     runStatus,
 			RunConclusion: runConclusion,
 		})
