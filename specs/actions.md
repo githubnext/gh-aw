@@ -48,13 +48,26 @@ Create a custom actions system that:
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│                    Makefile Targets                      │
+│                    Makefile Interface                    │
 │  ┌────────────────────────────────────────────────────┐ │
-│  │  actions-build  │  actions-validate  │  actions-clean│ │
+│  │  make actions-build  │  make actions-validate     │ │
+│  │  make actions-clean                                │ │
 │  └────────────────────────────────────────────────────┘ │
 └─────────────────────────────────────────────────────────┘
                           │
-                          ▼ (go run ./cmd/gh-aw)
+                          ▼ (go run internal/tools/actions-build)
+┌─────────────────────────────────────────────────────────┐
+│         internal/tools/actions-build/main.go             │
+│              (Internal Development Tool)                 │
+│  ┌────────────────────────────────────────────────────┐ │
+│  │  Simple CLI dispatcher for:                        │ │
+│  │  • build command                                   │ │
+│  │  • validate command                                │ │
+│  │  • clean command                                   │ │
+│  └────────────────────────────────────────────────────┘ │
+└─────────────────────────────────────────────────────────┘
+                          │
+                          ▼
 ┌─────────────────────────────────────────────────────────┐
 │            pkg/cli/actions_build_command.go              │
 │              (Pure Go Implementation)                    │
@@ -92,15 +105,15 @@ Create a custom actions system that:
 
 ### Component Responsibilities
 
-#### 1. Makefile Targets (`Makefile`)
-- Entry points for action management: `actions-build`, `actions-validate`, `actions-clean`
-- Invokes Go commands directly using `go run ./cmd/gh-aw`
+#### 1. Makefile Interface (`Makefile`)
+- Primary entry point for building actions: `make actions-build`, `make actions-validate`, `make actions-clean`
+- Invokes internal tool via `go run ./internal/tools/actions-build <command>`
 - Project-specific development commands (not end-user CLI)
 
-#### 2. CLI Command Registration (`cmd/gh-aw/main.go`)
-- Cobra command definitions for actions commands
-- Integrated into `gh aw` command hierarchy under "Development Commands" group
-- Commands delegate to `pkg/cli/actions_build_command.go`
+#### 2. Internal Tool (`internal/tools/actions-build/main.go`)
+- Lightweight CLI dispatcher for development-only commands
+- Not part of the main `gh aw` CLI (which is for end users)
+- Routes commands to appropriate functions in `pkg/cli`
 
 #### 3. Build System Implementation (`pkg/cli/actions_build_command.go`)
 - **Pure Go implementation** - No JavaScript build scripts
@@ -541,13 +554,13 @@ The CI runs when:
 #### Key Files to Know
 
 - `pkg/cli/actions_build_command.go` - **Pure Go build system** (no JavaScript)
+- `internal/tools/actions-build/main.go` - Internal CLI tool dispatcher (development only)
 - `pkg/workflow/js.go` - JavaScript source map and embedded files
-- `cmd/gh-aw/main.go` - CLI command definitions (invoked by Makefile)
 - `Makefile` - Primary interface for building actions (`make actions-build`)
 - `.github/workflows/ci.yml` - CI validation
 - `actions/README.md` - Actions documentation
 
-**Important**: Build process is 100% Go code. No `scripts/build-actions.js` or similar JavaScript build scripts exist.
+**Important**: Build process is 100% Go code. No `scripts/build-actions.js` or similar JavaScript build scripts exist. Commands are invoked via Makefile, which runs the internal tool at `internal/tools/actions-build`.
 
 #### Debugging Tips
 

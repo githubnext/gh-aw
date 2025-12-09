@@ -174,17 +174,17 @@ clean:
 .PHONY: actions-build
 actions-build:
 	@echo "Building all actions..."
-	@go run ./cmd/gh-aw actions-build
+	@go run ./internal/tools/actions-build build
 
 .PHONY: actions-validate
 actions-validate:
 	@echo "Validating action.yml files..."
-	@go run ./cmd/gh-aw actions-validate
+	@go run ./internal/tools/actions-build validate
 
 .PHONY: actions-clean
 actions-clean:
 	@echo "Cleaning action artifacts..."
-	@go run ./cmd/gh-aw actions-clean
+	@go run ./internal/tools/actions-build clean
 
 # Check Node.js version
 .PHONY: check-node-version
