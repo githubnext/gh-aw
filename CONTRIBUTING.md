@@ -89,6 +89,25 @@ make recompile
 - Write tests for new functionality
 - Follow error message style guide (see below)
 
+#### Testing
+
+When running tests, all tests including integration tests should pass:
+
+```bash
+make test
+```
+
+**Updating Golden Files**
+
+Some tests use golden files (snapshots) to detect unintended changes to CLI output. If you intentionally modify help text or other CLI output, you'll need to update the golden files:
+
+```bash
+# Update golden files for help output tests
+UPDATE_GOLDEN=1 go test -v -tags integration -run TestHelpOutputGolden ./cmd/gh-aw
+```
+
+Golden files are located in `cmd/gh-aw/testdata/` and should be committed along with your changes.
+
 #### Error Messages
 
 All validation error messages should follow the error message template: **[what's wrong]. [what's expected]. [example]**

@@ -1,0 +1,55 @@
+GitHub Agentic Workflows from GitHub Next
+
+Common Tasks:
+  gh aw init                  # Set up a new repository
+  gh aw new my-workflow       # Create your first workflow
+  gh aw compile               # Compile all workflows
+  gh aw run my-workflow       # Execute a workflow
+  gh aw logs my-workflow      # View execution logs
+  gh aw audit <run-id>        # Debug a failed run
+
+For detailed help on any command, use:
+  gh aw [command] --help
+
+Usage:
+  gh aw [flags]
+  gh [command]
+
+Setup Commands:
+  add         Add workflows from repositories to .github/workflows
+  init        Initialize repository for agentic workflows
+  new         Create a new workflow Markdown file with example configuration
+  remove      Remove workflow files matching the given name prefix
+  update      Update workflows from their source repositories and check for gh-aw updates
+
+Development Commands:
+  compile     Compile Markdown to YAML workflows
+  mcp         Manage MCP (Model Context Protocol) servers
+  mcp-gateway Run an MCP gateway that proxies to multiple MCP servers
+  mcp-server  Run an MCP (Model Context Protocol) server exposing gh-aw commands as tools
+  status      Show status of agentic workflows
+
+Execution Commands:
+  disable     Disable agentic workflows and cancel any in-progress runs
+  enable      Enable agentic workflows
+  run         Run one or more agentic workflows on GitHub Actions
+  trial       Trial one or more agentic workflows as if they were running in a repository
+
+Analysis Commands:
+  audit       Investigate a single GitHub Actions workflow run and generate a concise report
+  logs        Download and analyze agentic workflow logs with aggregated metrics
+
+Utilities:
+  pr          Pull request utilities
+
+Additional Commands:
+  help        Help about any command
+  version     Show version information
+
+Flags:
+      --banner    Display ASCII logo banner with purple GitHub color theme
+  -h, --help      help for gh
+  -v, --verbose   Enable verbose output showing detailed information
+      --version   version for gh
+
+Use "gh [command] --help" for more information about a command.
