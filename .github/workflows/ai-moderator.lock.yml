@@ -137,11 +137,13 @@
 # **Pull Request Number** (if applicable): #${{ github.event.pull_request.number }}
 # **Comment ID** (if applicable): ${{ github.event.comment.id }}
 # **Author**: ${{ github.actor }}
-# **Manual URL** (if workflow_dispatch): ${{ github.event.inputs.issue_url }}
+# **Manual URL** (if provided via workflow_dispatch): ${{ github.event.inputs.issue_url }}
 #
 # **Content to analyze**:
 #
+# <unsafe_user_input>
 # ${{ needs.activation.outputs.text }}
+# </unsafe_user_input>
 #
 # ## Custom Moderation Rules (Optional)
 #
@@ -2900,11 +2902,13 @@ jobs:
           **Pull Request Number** (if applicable): #__GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER__
           **Comment ID** (if applicable): __GH_AW_GITHUB_EVENT_COMMENT_ID__
           **Author**: __GH_AW_GITHUB_ACTOR__
-          **Manual URL** (if workflow_dispatch): __GH_AW_GITHUB_EVENT_INPUTS_ISSUE_URL__
+          **Manual URL** (if provided via workflow_dispatch): __GH_AW_GITHUB_EVENT_INPUTS_ISSUE_URL__
           
           **Content to analyze**:
           
+          <unsafe_user_input>
           __GH_AW_NEEDS_ACTIVATION_OUTPUTS_TEXT__
+          </unsafe_user_input>
           
           ## Custom Moderation Rules (Optional)
           

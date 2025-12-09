@@ -87,11 +87,13 @@ Analyze the following content in repository ${{ github.repository }}:
 **Pull Request Number** (if applicable): #${{ github.event.pull_request.number }}
 **Comment ID** (if applicable): ${{ github.event.comment.id }}
 **Author**: ${{ github.actor }}
-**Manual URL** (if workflow_dispatch): ${{ github.event.inputs.issue_url }}
+**Manual URL** (if provided via workflow_dispatch): ${{ github.event.inputs.issue_url }}
 
 **Content to analyze**:
 
+<unsafe_user_input>
 ${{ needs.activation.outputs.text }}
+</unsafe_user_input>
 
 ## Custom Moderation Rules (Optional)
 
