@@ -769,6 +769,7 @@ jobs:
       - name: Write Safe Outputs Config
         run: |
           mkdir -p /tmp/gh-aw/safeoutputs
+          mkdir -p /tmp/gh-aw/sandbox/agent/logs
           cat > /tmp/gh-aw/safeoutputs/config.json << 'EOF'
           {"create_pull_request":{},"missing_tool":{"max":0},"noop":{"max":1}}
           EOF
