@@ -521,4 +521,3 @@ func TestInitRepositoryWithCodespace(t *testing.T) {
 		t.Error("Expected .gitattributes to be created")
 	}
 }
-

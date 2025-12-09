@@ -13,7 +13,7 @@ var devcontainerLog = logger.New("cli:devcontainer")
 
 // DevcontainerCustomizations represents VSCode customizations in devcontainer.json
 type DevcontainerCustomizations struct {
-	VSCode    *DevcontainerVSCode    `json:"vscode,omitempty"`
+	VSCode     *DevcontainerVSCode     `json:"vscode,omitempty"`
 	Codespaces *DevcontainerCodespaces `json:"codespaces,omitempty"`
 }
 
@@ -38,11 +38,11 @@ type DevcontainerFeatures map[string]any
 
 // DevcontainerConfig represents the structure of devcontainer.json
 type DevcontainerConfig struct {
-	Name           string                       `json:"name"`
-	Image          string                       `json:"image"`
-	Customizations *DevcontainerCustomizations  `json:"customizations,omitempty"`
-	Features       DevcontainerFeatures         `json:"features,omitempty"`
-	PostCreateCommand string                    `json:"postCreateCommand,omitempty"`
+	Name              string                      `json:"name"`
+	Image             string                      `json:"image"`
+	Customizations    *DevcontainerCustomizations `json:"customizations,omitempty"`
+	Features          DevcontainerFeatures        `json:"features,omitempty"`
+	PostCreateCommand string                      `json:"postCreateCommand,omitempty"`
 }
 
 // ensureDevcontainerConfig creates or updates .devcontainer/devcontainer.json
