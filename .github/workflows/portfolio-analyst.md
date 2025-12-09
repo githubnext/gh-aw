@@ -21,7 +21,7 @@ tools:
     - "gh workflow view *"
     - "jq *"
     - "ls -la .github/workflows/"
-    - "find .github/workflows/ -name *.md"
+    - "find .github/workflows/ -name '*.md'"
     - "grep *"
     - "wc *"
     - "cat .github/workflows/*.md"
@@ -46,7 +46,7 @@ Analyze all agentic workflows in this repository weekly to identify opportunitie
 ## Current Context
 
 - **Repository**: ${{ github.repository }}
-- **Analysis Date**: $(date +%Y-%m-%d)
+- **Analysis Date**: Use `date +%Y-%m-%d` command to get current date
 - **Target**: 20%+ cost reduction
 - **Time Budget**: 60 seconds
 
@@ -58,10 +58,10 @@ Collect execution data from the last 30 runs for each workflow:
 
 ```bash
 # Get list of all workflows
-gh workflow list --limit 100
+gh workflow list --limit 100 --json name,id,path
 
-# For each workflow, get last 30 runs
-gh run list --workflow="workflow-name" --limit 30 --json status,conclusion,createdAt,updatedAt,databaseId
+# For each workflow, get last 30 runs (iterate through workflow list)
+# Example: gh run list --workflow="workflow-name" --limit 30 --json status,conclusion,createdAt,updatedAt,databaseId
 ```
 
 **Key Metrics to Extract:**

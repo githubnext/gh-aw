@@ -44,7 +44,7 @@
 #     - "gh workflow view *"
 #     - "jq *"
 #     - "ls -la .github/workflows/"
-#     - "find .github/workflows/ -name *.md"
+#     - "find .github/workflows/ -name '*.md'"
 #     - "grep *"
 #     - "wc *"
 #     - "cat .github/workflows/*.md"
@@ -257,7 +257,7 @@
 # ## Current Context
 #
 # - **Repository**: ${{ github.repository }}
-# - **Analysis Date**: $(date +%Y-%m-%d)
+# - **Analysis Date**: Use `date +%Y-%m-%d` command to get current date
 # - **Target**: 20%+ cost reduction
 # - **Time Budget**: 60 seconds
 #
@@ -269,10 +269,10 @@
 #
 # ```bash
 # # Get list of all workflows
-# gh workflow list --limit 100
+# gh workflow list --limit 100 --json name,id,path
 #
-# # For each workflow, get last 30 runs
-# gh run list --workflow="workflow-name" --limit 30 --json status,conclusion,createdAt,updatedAt,databaseId
+# # For each workflow, get last 30 runs (iterate through workflow list)
+# # Example: gh run list --workflow="workflow-name" --limit 30 --json status,conclusion,createdAt,updatedAt,databaseId
 # ```
 #
 # **Key Metrics to Extract:**
@@ -2627,7 +2627,7 @@ jobs:
           ## Current Context
           
           - **Repository**: __GH_AW_GITHUB_REPOSITORY__
-          - **Analysis Date**: $(date +%Y-%m-%d)
+          - **Analysis Date**: Use `date +%Y-%m-%d` command to get current date
           - **Target**: 20%+ cost reduction
           - **Time Budget**: 60 seconds
           
@@ -2639,10 +2639,10 @@ jobs:
           
           ```bash
           # Get list of all workflows
-          gh workflow list --limit 100
+          gh workflow list --limit 100 --json name,id,path
           
-          # For each workflow, get last 30 runs
-          gh run list --workflow="workflow-name" --limit 30 --json status,conclusion,createdAt,updatedAt,databaseId
+          # For each workflow, get last 30 runs (iterate through workflow list)
+          # Example: gh run list --workflow="workflow-name" --limit 30 --json status,conclusion,createdAt,updatedAt,databaseId
           ```
           
           **Key Metrics to Extract:**
@@ -3263,7 +3263,7 @@ jobs:
         # --allow-tool shell(cat)
         # --allow-tool shell(date)
         # --allow-tool shell(echo)
-        # --allow-tool shell(find .github/workflows/ -name *.md)
+        # --allow-tool shell(find .github/workflows/ -name '*.md')
         # --allow-tool shell(gh run list --limit 30 *)
         # --allow-tool shell(gh run view *)
         # --allow-tool shell(gh workflow list)
@@ -3285,7 +3285,7 @@ jobs:
         run: |
           set -o pipefail
           sudo -E awf --env-all --container-workdir "${GITHUB_WORKSPACE}" --mount /tmp:/tmp:rw --mount "${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:rw" --mount /usr/bin/date:/usr/bin/date:ro --mount /usr/bin/gh:/usr/bin/gh:ro --mount /usr/bin/yq:/usr/bin/yq:ro --allow-domains api.business.githubcopilot.com,api.enterprise.githubcopilot.com,api.github.com,api.individual.githubcopilot.com,github.com,host.docker.internal,raw.githubusercontent.com,registry.npmjs.org --log-level info --proxy-logs-dir /tmp/gh-aw/sandbox/firewall/logs \
-            -- npx -y @github/copilot@0.0.367 --add-dir /tmp/gh-aw/ --log-level all --log-dir /tmp/gh-aw/sandbox/agent/logs/ --add-dir "${GITHUB_WORKSPACE}" --disable-builtin-mcps --allow-tool github --allow-tool safeoutputs --allow-tool 'shell(/tmp/gh-aw/jqschema.sh)' --allow-tool 'shell(cat .github/workflows/*.md)' --allow-tool 'shell(cat)' --allow-tool 'shell(date)' --allow-tool 'shell(echo)' --allow-tool 'shell(find .github/workflows/ -name *.md)' --allow-tool 'shell(gh run list --limit 30 *)' --allow-tool 'shell(gh run view *)' --allow-tool 'shell(gh workflow list)' --allow-tool 'shell(gh workflow view *)' --allow-tool 'shell(grep *)' --allow-tool 'shell(grep)' --allow-tool 'shell(head)' --allow-tool 'shell(jq *)' --allow-tool 'shell(ls -la .github/workflows/)' --allow-tool 'shell(ls)' --allow-tool 'shell(pwd)' --allow-tool 'shell(sort)' --allow-tool 'shell(tail)' --allow-tool 'shell(uniq)' --allow-tool 'shell(wc *)' --allow-tool 'shell(wc)' --allow-tool 'shell(yq)' --prompt "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"${GH_AW_MODEL_AGENT_COPILOT:+ --model "$GH_AW_MODEL_AGENT_COPILOT"} \
+            -- npx -y @github/copilot@0.0.367 --add-dir /tmp/gh-aw/ --log-level all --log-dir /tmp/gh-aw/sandbox/agent/logs/ --add-dir "${GITHUB_WORKSPACE}" --disable-builtin-mcps --allow-tool github --allow-tool safeoutputs --allow-tool 'shell(/tmp/gh-aw/jqschema.sh)' --allow-tool 'shell(cat .github/workflows/*.md)' --allow-tool 'shell(cat)' --allow-tool 'shell(date)' --allow-tool 'shell(echo)' --allow-tool 'shell(find .github/workflows/ -name '\''*.md'\'')' --allow-tool 'shell(gh run list --limit 30 *)' --allow-tool 'shell(gh run view *)' --allow-tool 'shell(gh workflow list)' --allow-tool 'shell(gh workflow view *)' --allow-tool 'shell(grep *)' --allow-tool 'shell(grep)' --allow-tool 'shell(head)' --allow-tool 'shell(jq *)' --allow-tool 'shell(ls -la .github/workflows/)' --allow-tool 'shell(ls)' --allow-tool 'shell(pwd)' --allow-tool 'shell(sort)' --allow-tool 'shell(tail)' --allow-tool 'shell(uniq)' --allow-tool 'shell(wc *)' --allow-tool 'shell(wc)' --allow-tool 'shell(yq)' --prompt "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"${GH_AW_MODEL_AGENT_COPILOT:+ --model "$GH_AW_MODEL_AGENT_COPILOT"} \
             2>&1 | tee /tmp/gh-aw/agent-stdio.log
         env:
           COPILOT_AGENT_RUNNER_TYPE: STANDALONE
