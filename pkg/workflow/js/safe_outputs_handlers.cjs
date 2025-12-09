@@ -10,7 +10,6 @@ const { estimateTokens } = require("./estimate_tokens.cjs");
 const { writeLargeContentToFile } = require("./write_large_content_to_file.cjs");
 const { getCurrentBranch } = require("./get_current_branch.cjs");
 const { getBaseBranch } = require("./get_base_branch.cjs");
-const { generateGitPatch } = require("./generate_git_patch.cjs");
 
 /**
  * Create handlers for safe output tools
@@ -186,7 +185,7 @@ function createHandlers(server, appendSafeOutput) {
   /**
    * Handler for create_pull_request tool
    * Resolves the current branch if branch is not provided or is the base branch
-   * Generates git patch for the changes
+   * Note: Patch generation happens in GitHub Actions step, not in MCP server
    */
   const createPullRequestHandler = args => {
     const entry = { ...args, type: "create_pull_request" };
@@ -206,19 +205,7 @@ function createHandlers(server, appendSafeOutput) {
       entry.branch = detectedBranch;
     }
 
-    // Generate git patch
-    server.debug(`Generating patch for create_pull_request with branch: ${entry.branch}`);
-    const patchResult = generateGitPatch(entry.branch);
-
-    if (!patchResult.success) {
-      // Patch generation failed or patch is empty
-      const errorMsg = patchResult.error || "Failed to generate patch";
-      server.debug(`Patch generation failed: ${errorMsg}`);
-      throw new Error(errorMsg);
-    }
-
-    // prettier-ignore
-    server.debug(`Patch generated successfully: ${patchResult.patchPath} (${patchResult.patchSize} bytes, ${patchResult.patchLines} lines)`);
+    server.debug(`Recording create_pull_request with branch: ${entry.branch}`);
 
     appendSafeOutput(entry);
     return {
@@ -227,11 +214,6 @@ function createHandlers(server, appendSafeOutput) {
           type: "text",
           text: JSON.stringify({
             result: "success",
-            patch: {
-              path: patchResult.patchPath,
-              size: patchResult.patchSize,
-              lines: patchResult.patchLines,
-            },
           }),
         },
       ],
@@ -241,7 +223,7 @@ function createHandlers(server, appendSafeOutput) {
   /**
    * Handler for push_to_pull_request_branch tool
    * Resolves the current branch if branch is not provided or is the base branch
-   * Generates git patch for the changes
+   * Note: Patch generation happens in GitHub Actions step, not in MCP server
    */
   const pushToPullRequestBranchHandler = args => {
     const entry = { ...args, type: "push_to_pull_request_branch" };
@@ -261,19 +243,7 @@ function createHandlers(server, appendSafeOutput) {
       entry.branch = detectedBranch;
     }
 
-    // Generate git patch
-    server.debug(`Generating patch for push_to_pull_request_branch with branch: ${entry.branch}`);
-    const patchResult = generateGitPatch(entry.branch);
-
-    if (!patchResult.success) {
-      // Patch generation failed or patch is empty
-      const errorMsg = patchResult.error || "Failed to generate patch";
-      server.debug(`Patch generation failed: ${errorMsg}`);
-      throw new Error(errorMsg);
-    }
-
-    // prettier-ignore
-    server.debug(`Patch generated successfully: ${patchResult.patchPath} (${patchResult.patchSize} bytes, ${patchResult.patchLines} lines)`);
+    server.debug(`Recording push_to_pull_request_branch with branch: ${entry.branch}`);
 
     appendSafeOutput(entry);
     return {

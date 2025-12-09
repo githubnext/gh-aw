@@ -201,6 +201,18 @@ var getBaseBranchScript string
 //go:embed js/generate_git_patch.cjs
 var generateGitPatchJSScript string
 
+// GetGenerateGitPatchScript returns the bundled generate_git_patch script for GitHub Actions
+func GetGenerateGitPatchScript() string {
+	// Bundle the script with its dependencies for GitHub Script mode
+	sources := GetJavaScriptSources()
+	bundled, err := BundleJavaScriptWithMode(generateGitPatchJSScript, sources, "", RuntimeModeGitHubScript)
+	if err != nil {
+		jsLog.Printf("Failed to bundle generate_git_patch script: %v", err)
+		return generateGitPatchJSScript // Return unbundled as fallback
+	}
+	return bundled
+}
+
 //go:embed js/temporary_id.cjs
 var temporaryIdScript string
 
