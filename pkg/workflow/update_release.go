@@ -21,33 +21,28 @@ func (c *Compiler) buildCreateOutputUpdateReleaseJob(data *WorkflowData, mainJob
 
 	cfg := data.SafeOutputs.UpdateRelease
 
-	// Build custom environment variables specific to update-release
-	// Uses buildStandardSafeOutputEnvVars for consistency with other update jobs
-	var customEnvVars []string
-
-	// Create outputs for the job
-	outputs := map[string]string{
-		"release_id":  "${{ steps.update_release.outputs.release_id }}",
-		"release_url": "${{ steps.update_release.outputs.release_url }}",
-		"release_tag": "${{ steps.update_release.outputs.release_tag }}",
-	}
-
-	// Build job condition - update_release doesn't have event context checks
-	jobCondition := BuildSafeOutputType("update_release")
-
-	params := UpdateEntityJobParams{
+	builder := UpdateEntityJobBuilder{
 		EntityType:      UpdateEntityRelease,
 		ConfigKey:       "update-release",
 		JobName:         "update_release",
 		StepName:        "Update Release",
 		ScriptGetter:    getUpdateReleaseScript,
 		PermissionsFunc: NewPermissionsContentsWrite,
-		CustomEnvVars:   customEnvVars,
-		Outputs:         outputs,
-		Condition:       jobCondition,
+		BuildCustomEnvVars: func(config *UpdateEntityConfig) []string {
+			// Update-release doesn't have entity-specific env vars like status/title/body
+			return []string{}
+		},
+		BuildOutputs: func() map[string]string {
+			return map[string]string{
+				"release_id":  "${{ steps.update_release.outputs.release_id }}",
+				"release_url": "${{ steps.update_release.outputs.release_url }}",
+				"release_tag": "${{ steps.update_release.outputs.release_tag }}",
+			}
+		},
+		// BuildEventCondition is nil - update_release doesn't have event context checks
 	}
 
-	return c.buildUpdateEntityJob(data, mainJobName, &cfg.UpdateEntityConfig, params, updateReleaseLog)
+	return c.buildUpdateEntityJobWithConfig(data, mainJobName, &cfg.UpdateEntityConfig, builder, updateReleaseLog)
 }
 
 // parseUpdateReleaseConfig handles update-release configuration
