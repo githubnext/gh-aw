@@ -56,7 +56,7 @@ function bootstrapSafeOutputsServer(logger) {
  */
 function cleanupConfigFile(logger) {
   const configPath = process.env.GH_AW_SAFE_OUTPUTS_CONFIG_PATH || "/tmp/gh-aw/safeoutputs/config.json";
-  
+
   try {
     if (fs.existsSync(configPath)) {
       fs.unlinkSync(configPath);
