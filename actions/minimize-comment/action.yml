@@ -1,0 +1,22 @@
+name: 'Minimize Comment Output'
+description: 'Output for minimizing (hiding) a comment on a GitHub issue, pull request, or discussion'
+author: 'GitHub Next'
+
+inputs:
+  token:
+    description: 'GitHub token for API authentication'
+    required: true
+
+outputs:
+  comment_id:
+    description: 'Output parameter: comment_id'
+  is_minimized:
+    description: 'Output parameter: is_minimized'
+
+runs:
+  using: 'node20'
+  main: 'index.js'
+
+branding:
+  icon: 'package'
+  color: 'blue'

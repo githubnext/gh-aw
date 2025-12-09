@@ -11,6 +11,8 @@ package workflow
 
 import (
 	_ "embed"
+	"fmt"
+	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/logger"
 )
@@ -138,37 +140,48 @@ var substitutePlaceholdersScriptSource string
 // Scripts are bundled lazily on first access via the getter functions.
 func init() {
 	scriptsLog.Print("Registering JavaScript scripts with DefaultScriptRegistry")
-	// Safe output scripts
+	
+	// Helper to register scripts that have custom actions
+	registerWithAction := func(name, source string) {
+		// Custom actions use hyphens instead of underscores in GitHub Actions convention
+		actionName := strings.ReplaceAll(name, "_", "-")
+		actionPath := fmt.Sprintf("./actions/%s", actionName)
+		DefaultScriptRegistry.RegisterWithAction(name, source, RuntimeModeGitHubScript, actionPath)
+	}
+	
+	// Safe output scripts with custom actions
+	registerWithAction("noop", noopScriptSource)
+	registerWithAction("minimize_comment", minimizeCommentScriptSource)
+	registerWithAction("close_issue", closeIssueScriptSource)
+	registerWithAction("close_pull_request", closePullRequestScriptSource)
+	registerWithAction("close_discussion", closeDiscussionScriptSource)
+	registerWithAction("add_comment", addCommentScriptSource)
+	registerWithAction("create_issue", createIssueScriptSource)
+	registerWithAction("add_labels", addLabelsScriptSource)
+	registerWithAction("create_discussion", createDiscussionScriptSource)
+	registerWithAction("update_issue", updateIssueScriptSource)
+	registerWithAction("update_pull_request", updatePullRequestScriptSource)
+	
+	// Safe output scripts without custom actions (use inline mode)
 	DefaultScriptRegistry.Register("collect_jsonl_output", collectJSONLOutputScriptSource)
 	DefaultScriptRegistry.Register("compute_text", computeTextScriptSource)
 	DefaultScriptRegistry.Register("sanitize_output", sanitizeOutputScriptSource)
-	DefaultScriptRegistry.Register("create_issue", createIssueScriptSource)
-	DefaultScriptRegistry.Register("add_labels", addLabelsScriptSource)
 	DefaultScriptRegistry.Register("add_reviewer", addReviewerScriptSource)
 	DefaultScriptRegistry.Register("assign_milestone", assignMilestoneScriptSource)
 	DefaultScriptRegistry.Register("assign_to_agent", assignToAgentScriptSource)
 	DefaultScriptRegistry.Register("assign_to_user", assignToUserScriptSource)
 	DefaultScriptRegistry.Register("assign_copilot_to_created_issues", assignCopilotToCreatedIssuesScriptSource)
 	DefaultScriptRegistry.Register("link_sub_issue", linkSubIssueScriptSource)
-	DefaultScriptRegistry.Register("minimize_comment", minimizeCommentScriptSource)
-	DefaultScriptRegistry.Register("create_discussion", createDiscussionScriptSource)
-	DefaultScriptRegistry.Register("close_discussion", closeDiscussionScriptSource)
 	DefaultScriptRegistry.Register("close_expired_discussions", closeExpiredDiscussionsScriptSource)
-	DefaultScriptRegistry.Register("close_issue", closeIssueScriptSource)
-	DefaultScriptRegistry.Register("close_pull_request", closePullRequestScriptSource)
-	DefaultScriptRegistry.Register("update_issue", updateIssueScriptSource)
-	DefaultScriptRegistry.Register("update_pull_request", updatePullRequestScriptSource)
 	DefaultScriptRegistry.Register("update_pr_description_helpers", updatePRDescriptionHelpersScriptSource)
 	DefaultScriptRegistry.Register("update_release", updateReleaseScriptSource)
 	DefaultScriptRegistry.Register("create_code_scanning_alert", createCodeScanningAlertScriptSource)
 	DefaultScriptRegistry.Register("create_pr_review_comment", createPRReviewCommentScriptSource)
-	DefaultScriptRegistry.Register("add_comment", addCommentScriptSource)
 	DefaultScriptRegistry.Register("upload_assets", uploadAssetsScriptSource)
 	DefaultScriptRegistry.Register("parse_firewall_logs", parseFirewallLogsScriptSource)
 	DefaultScriptRegistry.Register("push_to_pull_request_branch", pushToPullRequestBranchScriptSource)
 	DefaultScriptRegistry.Register("create_pull_request", createPullRequestScriptSource)
 	DefaultScriptRegistry.Register("notify_comment_error", notifyCommentErrorScriptSource)
-	DefaultScriptRegistry.Register("noop", noopScriptSource)
 	DefaultScriptRegistry.Register("generate_safe_inputs_config", generateSafeInputsConfigScriptSource)
 
 	// Log parser scripts

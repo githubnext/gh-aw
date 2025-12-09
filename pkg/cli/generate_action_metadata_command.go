@@ -96,8 +96,9 @@ func GenerateActionMetadataCommand() error {
 			continue
 		}
 
-		// Create action directory
-		actionDir := filepath.Join(actionsDir, metadata.ActionName)
+		// Create action directory (using hyphenated name for GitHub Actions convention)
+		actionDirName := GetActionDirectoryName(typeSchema.TypeName)
+		actionDir := filepath.Join(actionsDir, actionDirName)
 		if err := os.MkdirAll(actionDir, 0755); err != nil {
 			return fmt.Errorf("failed to create directory %s: %w", actionDir, err)
 		}

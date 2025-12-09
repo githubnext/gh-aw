@@ -202,6 +202,13 @@ func GetJavaScriptFilename(typeName string) string {
 	return typeName + ".cjs"
 }
 
+// GetActionDirectoryName returns the action directory name for a safe output type
+// Converts underscores to hyphens to follow GitHub Actions naming convention
+// e.g., "create_issue" -> "create-issue"
+func GetActionDirectoryName(typeName string) string {
+	return strings.ReplaceAll(typeName, "_", "-")
+}
+
 // ShouldGenerateCustomAction determines if a type should have a custom action generated
 // Currently we generate custom actions for simpler types that don't require complex dependencies
 func ShouldGenerateCustomAction(typeName string) bool {
