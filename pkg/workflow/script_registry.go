@@ -53,6 +53,7 @@
 package workflow
 
 import (
+	"fmt"
 	"sync"
 
 	"github.com/githubnext/gh-aw/pkg/logger"
@@ -107,6 +108,7 @@ func (r *ScriptRegistry) Register(name string, source string) {
 
 // RegisterWithMode adds a script source to the registry with a specific runtime mode.
 // The script will be bundled lazily on first access via Get().
+// Performs compile-time validation to ensure the script follows runtime mode conventions.
 //
 // Parameters:
 //   - name: Unique identifier for the script (e.g., "create_issue", "add_comment")
@@ -115,12 +117,30 @@ func (r *ScriptRegistry) Register(name string, source string) {
 //
 // If a script with the same name already exists, it will be overwritten.
 // This is useful for testing but should be avoided in production.
+//
+// Compile-time validations:
+//   - GitHub Script mode: validates no execSync usage (should use exec instead)
+//   - Node.js mode: validates no GitHub Actions globals (core.*, exec.*, github.*)
+//
+// Panics if validation fails, as this indicates a programming error that should be
+// caught during development and testing.
 func (r *ScriptRegistry) RegisterWithMode(name string, source string, mode RuntimeMode) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
 	if registryLog.Enabled() {
 		registryLog.Printf("Registering script: %s (%d bytes, mode: %s)", name, len(source), mode)
+	}
+
+	// Perform compile-time validation based on runtime mode
+	if err := validateNoExecSync(name, source, mode); err != nil {
+		// This is a programming error that should be caught during development
+		panic(fmt.Sprintf("Script registration validation failed: %v", err))
+	}
+
+	if err := validateNoGitHubScriptGlobals(name, source, mode); err != nil {
+		// This is a programming error that should be caught during development
+		panic(fmt.Sprintf("Script registration validation failed: %v", err))
 	}
 
 	r.scripts[name] = &scriptEntry{
