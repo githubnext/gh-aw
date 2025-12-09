@@ -82,14 +82,14 @@ jobs:
         run: go mod download
 
       - name: Generate SBOM (SPDX format)
-        uses: anchore/sbom-action@v0
+        uses: anchore/sbom-action@v0.20.10
         with:
           artifact-name: sbom.spdx.json
           output-file: sbom.spdx.json
           format: spdx-json
 
       - name: Generate SBOM (CycloneDX format)
-        uses: anchore/sbom-action@v0
+        uses: anchore/sbom-action@v0.20.10
         with:
           artifact-name: sbom.cdx.json
           output-file: sbom.cdx.json
