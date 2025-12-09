@@ -406,19 +406,19 @@ describe("notify_comment_error.cjs", () => {
           owner: "testowner",
           repo: "testrepo",
           comment_id: 123456,
-          body: expect.stringMatching(/### Generated Assets[\s\S]*Created Issue.*https:\/\/github\.com\/owner\/repo\/issues\/42/),
         })
       );
 
-      // Check that the body contains all asset links
+      // Check that the body contains all asset links without labels or title
       const callArgs = mockGithub.request.mock.calls[0][1];
-      expect(callArgs.body).toContain("### Generated Assets");
-      expect(callArgs.body).toContain("Created Issue");
       expect(callArgs.body).toContain("https://github.com/owner/repo/issues/42");
-      expect(callArgs.body).toContain("Added Comment");
       expect(callArgs.body).toContain("https://github.com/owner/repo/issues/1#issuecomment-123");
-      expect(callArgs.body).toContain("Created Pull Request");
       expect(callArgs.body).toContain("https://github.com/owner/repo/pull/5");
+      // Should NOT contain title or labels
+      expect(callArgs.body).not.toContain("### Generated Assets");
+      expect(callArgs.body).not.toContain("Created Issue");
+      expect(callArgs.body).not.toContain("Added Comment");
+      expect(callArgs.body).not.toContain("Created Pull Request");
     });
 
     it("should not include generated assets section when no URLs are present", async () => {
@@ -435,12 +435,9 @@ describe("notify_comment_error.cjs", () => {
 
       await eval(`(async () => { ${notifyCommentScript} })()`);
 
-      expect(mockGithub.request).toHaveBeenCalledWith(
-        "PATCH /repos/{owner}/{repo}/issues/comments/{comment_id}",
-        expect.objectContaining({
-          body: expect.not.stringContaining("### Generated Assets"),
-        })
-      );
+      const callArgs = mockGithub.request.mock.calls[0][1];
+      // Should end with the success message, no extra content
+      expect(callArgs.body).toMatch(/completed successfully.*⚓💰$/);
     });
 
     it("should handle empty safe output jobs gracefully", async () => {
@@ -452,12 +449,9 @@ describe("notify_comment_error.cjs", () => {
 
       await eval(`(async () => { ${notifyCommentScript} })()`);
 
-      expect(mockGithub.request).toHaveBeenCalledWith(
-        "PATCH /repos/{owner}/{repo}/issues/comments/{comment_id}",
-        expect.objectContaining({
-          body: expect.not.stringContaining("### Generated Assets"),
-        })
-      );
+      const callArgs = mockGithub.request.mock.calls[0][1];
+      // Should end with the success message, no extra content
+      expect(callArgs.body).toMatch(/completed successfully.*⚓💰$/);
     });
   });
 });

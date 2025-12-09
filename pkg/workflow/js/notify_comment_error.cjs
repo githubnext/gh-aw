@@ -10,7 +10,7 @@ const { getRunSuccessMessage, getRunFailureMessage, getDetectionFailureMessage }
 
 /**
  * Collect generated asset URLs from safe output jobs
- * @returns {Array<{label: string, url: string}>} Array of generated assets with labels and URLs
+ * @returns {Array<string>} Array of generated asset URLs
  */
 function collectGeneratedAssets() {
   const assets = [];
@@ -37,42 +37,8 @@ function collectGeneratedAssets() {
     const url = process.env[envVarName];
 
     if (url && url.trim() !== "") {
-      // Determine the label based on job name
-      let label;
-      switch (jobName) {
-        case "create_issue":
-          label = "Created Issue";
-          break;
-        case "add_comment":
-          label = "Added Comment";
-          break;
-        case "create_pull_request":
-          label = "Created Pull Request";
-          break;
-        case "create_discussion":
-          label = "Created Discussion";
-          break;
-        case "create_pr_review_comment":
-          label = "Created Review Comment";
-          break;
-        case "close_issue":
-          label = "Closed Issue";
-          break;
-        case "close_pull_request":
-          label = "Closed Pull Request";
-          break;
-        case "close_discussion":
-          label = "Closed Discussion";
-          break;
-        case "create_agent_task":
-          label = "Created Agent Task";
-          break;
-        default:
-          label = jobName.replace(/_/g, " ").replace(/\b\w/g, l => l.toUpperCase());
-      }
-
-      assets.push({ label, url });
-      core.info(`Collected asset: ${label} - ${url}`);
+      assets.push(url);
+      core.info(`Collected asset URL: ${url}`);
     }
   }
 
@@ -190,9 +156,9 @@ async function main() {
   // Collect generated asset URLs from safe output jobs
   const generatedAssets = collectGeneratedAssets();
   if (generatedAssets.length > 0) {
-    message += "\n\n### Generated Assets\n\n";
-    generatedAssets.forEach(asset => {
-      message += `- ${asset.label}: ${asset.url}\n`;
+    message += "\n\n";
+    generatedAssets.forEach(url => {
+      message += `${url}\n`;
     });
   }
 
