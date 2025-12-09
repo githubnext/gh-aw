@@ -207,7 +207,7 @@ This workflow will be added with multiple copies.
 					workflowPath = filepath.Join(workflowsDir, finalName+".md")
 				} else {
 					workflowPath = filepath.Join(workflowsDir, fmt.Sprintf("%s-%d.md", finalName, i))
-					
+
 					// Update H1 title for numbered workflows
 					lines := strings.Split(content, "\n")
 					for j, line := range lines {
@@ -275,8 +275,6 @@ This workflow will be added with multiple copies.
 	}
 }
 
-
-
 // normalizeGoldenContent normalizes file content for golden file comparison
 // by removing dynamic content like timestamps, commit SHAs, etc.
 func normalizeGoldenContent(content string) string {
@@ -309,5 +307,3 @@ func normalizeGoldenContent(content string) string {
 
 	return strings.Join(normalized, "\n")
 }
-
-
