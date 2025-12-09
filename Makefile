@@ -170,6 +170,22 @@ clean:
 	rm -f $(BINARY_NAME) $(BINARY_NAME)-* coverage.out coverage.html
 	go clean
 
+# Actions management targets
+.PHONY: actions-build
+actions-build:
+	@echo "Building all actions..."
+	@go run ./internal/tools/actions-build build
+
+.PHONY: actions-validate
+actions-validate:
+	@echo "Validating action.yml files..."
+	@go run ./internal/tools/actions-build validate
+
+.PHONY: actions-clean
+actions-clean:
+	@echo "Cleaning action artifacts..."
+	@go run ./internal/tools/actions-build clean
+
 # Check Node.js version
 .PHONY: check-node-version
 check-node-version:
@@ -419,6 +435,9 @@ help:
 	@echo "  fuzz             - Run fuzz tests for 30 seconds"
 	@echo "  bundle-js        - Build JavaScript bundler tool (./bundle-js <input> [output])"
 	@echo "  clean            - Clean build artifacts"
+	@echo "  actions-build    - Build all custom GitHub Actions from source"
+	@echo "  actions-validate - Validate action.yml files"
+	@echo "  actions-clean    - Clean action build artifacts"
 	@echo "  deps             - Install dependencies"
 	@echo "  check-node-version - Check Node.js version (20 or higher required)"
 	@echo "  lint             - Run linter"
