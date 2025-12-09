@@ -27,7 +27,7 @@ With --mcp flag:
 - Creates .github/workflows/copilot-setup-steps.yml with gh-aw installation steps
 - Creates .vscode/mcp.json with gh-aw MCP server configuration
 
-With --codespace flag:
+With --codespaces flag:
 - Creates .devcontainer/gh-aw/devcontainer.json with universal image (in subfolder to avoid conflicts)
 - Configures default Codespaces permissions (contents:write, pull-requests:write) + workflows:write for current repo
 - Adds read access to githubnext/gh-aw releases
@@ -45,12 +45,12 @@ Examples:
   ` + constants.CLIExtensionPrefix + ` init
   ` + constants.CLIExtensionPrefix + ` init -v
   ` + constants.CLIExtensionPrefix + ` init --mcp
-  ` + constants.CLIExtensionPrefix + ` init --codespace owner/repo1,owner/repo2`,
+  ` + constants.CLIExtensionPrefix + ` init --codespaces owner/repo1,owner/repo2`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			verbose, _ := cmd.Flags().GetBool("verbose")
 			mcp, _ := cmd.Flags().GetBool("mcp")
-			codespaceRepos, _ := cmd.Flags().GetStringSlice("codespace")
-			initCommandLog.Printf("Executing init command: verbose=%v, mcp=%v, codespace=%v", verbose, mcp, codespaceRepos)
+			codespaceRepos, _ := cmd.Flags().GetStringSlice("codespaces")
+			initCommandLog.Printf("Executing init command: verbose=%v, mcp=%v, codespaces=%v", verbose, mcp, codespaceRepos)
 			if err := InitRepository(verbose, mcp, codespaceRepos); err != nil {
 				initCommandLog.Printf("Init command failed: %v", err)
 				return err
@@ -61,7 +61,7 @@ Examples:
 	}
 
 	cmd.Flags().Bool("mcp", false, "Configure GitHub Copilot Agent MCP server integration")
-	cmd.Flags().StringSlice("codespace", []string{}, "Create devcontainer.json for GitHub Codespaces with agentic workflows support. Optionally specify additional repositories for read access (e.g., owner/repo1,owner/repo2)")
+	cmd.Flags().StringSlice("codespaces", []string{}, "Create devcontainer.json for GitHub Codespaces with agentic workflows support. Optionally specify additional repositories for read access (e.g., owner/repo1,owner/repo2)")
 
 	return cmd
 }

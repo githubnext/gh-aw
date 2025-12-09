@@ -42,15 +42,15 @@ func TestNewInitCommand(t *testing.T) {
 		t.Errorf("Expected mcp flag default to be 'false', got %q", mcpFlag.DefValue)
 	}
 
-	codespaceFlag := cmd.Flags().Lookup("codespace")
+	codespaceFlag := cmd.Flags().Lookup("codespaces")
 	if codespaceFlag == nil {
-		t.Error("Expected 'codespace' flag to be defined")
+		t.Error("Expected 'codespaces' flag to be defined")
 		return
 	}
 
 	// StringSlice flags have "[]" as default value
 	if codespaceFlag.DefValue != "[]" {
-		t.Errorf("Expected codespace flag default to be '[]', got %q", codespaceFlag.DefValue)
+		t.Errorf("Expected codespaces flag default to be '[]', got %q", codespaceFlag.DefValue)
 	}
 }
 
@@ -504,11 +504,11 @@ func TestInitRepositoryWithCodespace(t *testing.T) {
 	exec.Command("git", "config", "user.name", "Test User").Run()
 	exec.Command("git", "config", "user.email", "test@example.com").Run()
 
-	// Test init with --codespace flag (with additional repos)
+	// Test init with --codespaces flag (with additional repos)
 	additionalRepos := []string{"org/repo1", "owner/repo2"}
 	err = InitRepository(false, false, additionalRepos)
 	if err != nil {
-		t.Fatalf("InitRepository() with codespace failed: %v", err)
+		t.Fatalf("InitRepository() with codespaces failed: %v", err)
 	}
 
 	// Verify .devcontainer/devcontainer.json was created
