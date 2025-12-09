@@ -6,6 +6,8 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 name: Smoke SRT Custom Config
 engine: copilot
 network:

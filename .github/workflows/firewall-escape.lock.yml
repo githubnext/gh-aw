@@ -36,6 +36,7 @@
 # permissions:
 #   contents: read
 #   actions: read
+#   issues: read
 #   pull-requests: read
 #
 # strict: false
@@ -288,6 +289,7 @@ name: "Firewall Escape"
 permissions:
   actions: read
   contents: read
+  issues: read
   pull-requests: read
 
 concurrency:
@@ -403,6 +405,7 @@ jobs:
     permissions:
       actions: read
       contents: read
+      issues: read
       pull-requests: read
     outputs:
       model: ${{ steps.generate_aw_info.outputs.model }}

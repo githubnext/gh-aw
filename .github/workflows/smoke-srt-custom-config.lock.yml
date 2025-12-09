@@ -29,6 +29,8 @@
 #   workflow_dispatch:
 # permissions:
 #   contents: read
+#   issues: read
+#   pull-requests: read
 # name: Smoke SRT Custom Config
 # engine: copilot
 # network:
@@ -100,6 +102,8 @@ name: "Smoke SRT Custom Config"
 
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 
 concurrency:
   group: "gh-aw-${{ github.workflow }}"
@@ -208,6 +212,8 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      issues: read
+      pull-requests: read
     concurrency:
       group: "gh-aw-copilot-${{ github.workflow }}"
     outputs:

@@ -10,6 +10,7 @@ on:
 permissions:
   contents: read
   issues: read
+  pull-requests: read
 name: Smoke SRT
 engine: copilot
 network:
