@@ -54,10 +54,10 @@ Test workflow to verify child_process imports are merged correctly.
 		// Verify that the bundled safe-outputs MCP server contains merged child_process imports
 		// The bundler should merge:
 		// - const { execSync } = require("child_process"); (from get_current_branch.cjs)
-		// - const { execSync } = require("child_process"); (from generate_git_patch.cjs)
 		// - const { execFile } = require("child_process"); (from mcp_handler_shell.cjs)
 		// Into: const { execFile, execSync } = require("child_process");
 		//    or: const { execSync, execFile } = require("child_process");
+		// Note: generate_git_patch.cjs is NOT in the MCP server anymore - it's in the agent job
 
 		if !strings.Contains(lockContent, `require("child_process")`) {
 			t.Fatal("Compiled workflow does not contain child_process require statement")
@@ -88,10 +88,11 @@ Test workflow to verify child_process imports are merged correctly.
 			t.Error("Compiled workflow does not use execFile function")
 		}
 
-		// Count how many times child_process is required - should be exactly once after merging
+		// Count how many times child_process is required
+		// Should be exactly 2: once in MCP server, once in agent job patch generation step
 		count := strings.Count(lockContent, `require("child_process")`)
-		if count != 1 {
-			t.Errorf("Expected exactly 1 child_process require statement after merging, got %d", count)
+		if count != 2 {
+			t.Errorf("Expected exactly 2 child_process require statements (MCP server + agent job), got %d", count)
 		}
 
 		// Verify staged mode is enabled (from the frontmatter)
