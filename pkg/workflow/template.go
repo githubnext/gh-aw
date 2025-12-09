@@ -13,16 +13,14 @@ var templateLog = logger.New("workflow:template")
 // wrapExpressionsInTemplateConditionals transforms template conditionals by wrapping
 // expressions in ${{ }}. For example:
 // {{#if github.event.issue.number}} becomes {{#if ${{ github.event.issue.number }} }}
+// {#if github.event.issue.number} becomes {#if ${{ github.event.issue.number }} }
 func wrapExpressionsInTemplateConditionals(markdown string) string {
-	// Pattern to match {{#if expression}} where expression is not already wrapped in ${{ }}
-	// This regex captures the entire {{#if ...}} block
-	re := regexp.MustCompile(`\{\{#if\s+([^}]+)\}\}`)
-
 	templateLog.Print("Wrapping expressions in template conditionals")
 
-	result := re.ReplaceAllStringFunc(markdown, func(match string) string {
-		// Extract the expression part (everything between "{{#if " and "}}")
-		submatches := re.FindStringSubmatch(match)
+	// First, handle double-brace pattern: {{#if expression}}
+	doubleBraceRe := regexp.MustCompile(`\{\{#if\s+([^}]+)\}\}`)
+	result := doubleBraceRe.ReplaceAllStringFunc(markdown, func(match string) string {
+		submatches := doubleBraceRe.FindStringSubmatch(match)
 		if len(submatches) < 2 {
 			return match
 		}
@@ -30,29 +28,78 @@ func wrapExpressionsInTemplateConditionals(markdown string) string {
 		expr := strings.TrimSpace(submatches[1])
 
 		// Check if expression is already wrapped in ${{ ... }}
-		// Look for the pattern starting with "${{"
 		if strings.HasPrefix(expr, "${{") {
-			templateLog.Print("Expression already wrapped, skipping")
-			return match // Already wrapped, return as-is
+			templateLog.Print("Double-brace expression already wrapped, skipping")
+			return match
 		}
 
 		// Check if expression is an environment variable reference (starts with ${)
-		// These don't need ${{ }} wrapping as they're already evaluated
 		if strings.HasPrefix(expr, "${") {
-			templateLog.Print("Environment variable reference detected, skipping wrap")
-			return match // Environment variable reference, return as-is
+			templateLog.Print("Double-brace environment variable reference detected, skipping wrap")
+			return match
 		}
 
 		// Check if expression is a placeholder reference (starts with __)
-		// These are substituted with sed and don't need ${{ }} wrapping
 		if strings.HasPrefix(expr, "__") {
-			templateLog.Print("Placeholder reference detected, skipping wrap")
-			return match // Placeholder reference, return as-is
+			templateLog.Print("Double-brace placeholder reference detected, skipping wrap")
+			return match
 		}
 
-		// Always wrap expressions that don't start with ${{ or ${ or __
-		templateLog.Printf("Wrapping expression: %s", expr)
+		templateLog.Printf("Wrapping double-brace expression: %s", expr)
 		return "{{#if ${{ " + expr + " }} }}"
+	})
+
+	// Second, handle single-brace pattern: {#if expression}
+	// This pattern should not match {{#if}} (which was already processed above)
+	// Use negative lookbehind/lookahead to avoid matching double braces
+	singleBraceRe := regexp.MustCompile(`(?:^|[^{])\{#if\s+([^}]+)\}(?:[^}]|$)`)
+	result = singleBraceRe.ReplaceAllStringFunc(result, func(match string) string {
+		// The match may include a character before { or after }, so we need to preserve those
+		prefix := ""
+		suffix := ""
+		content := match
+
+		// Check if there's a character before the opening brace
+		if len(match) > 0 && match[0] != '{' {
+			prefix = string(match[0])
+			content = match[1:]
+		}
+
+		// Check if there's a character after the closing brace
+		if len(content) > 0 && content[len(content)-1] != '}' {
+			suffix = string(content[len(content)-1])
+			content = content[:len(content)-1]
+		}
+
+		// Now extract the expression from {#if expression}
+		innerRe := regexp.MustCompile(`\{#if\s+([^}]+)\}`)
+		submatches := innerRe.FindStringSubmatch(content)
+		if len(submatches) < 2 {
+			return match
+		}
+
+		expr := strings.TrimSpace(submatches[1])
+
+		// Check if expression is already wrapped in ${{ ... }}
+		if strings.HasPrefix(expr, "${{") {
+			templateLog.Print("Single-brace expression already wrapped, skipping")
+			return match
+		}
+
+		// Check if expression is an environment variable reference (starts with ${)
+		if strings.HasPrefix(expr, "${") {
+			templateLog.Print("Single-brace environment variable reference detected, skipping wrap")
+			return match
+		}
+
+		// Check if expression is a placeholder reference (starts with __)
+		if strings.HasPrefix(expr, "__") {
+			templateLog.Print("Single-brace placeholder reference detected, skipping wrap")
+			return match
+		}
+
+		templateLog.Printf("Wrapping single-brace expression: %s", expr)
+		return prefix + "{#if ${{ " + expr + " }} }" + suffix
 	})
 
 	return result

@@ -125,6 +125,97 @@ Normal content here.`,
 			input:    "{{#if github.actor}}first{{/if}}\n{{#if ${GH_AW_EXPR_ABC123}}}second{{/if}}",
 			expected: "{{#if ${{ github.actor }} }}first{{/if}}\n{{#if ${GH_AW_EXPR_ABC123}}}second{{/if}}",
 		},
+		// Single-brace pattern tests
+		{
+			name:     "single-brace github.event expression",
+			input:    "{#if github.event.issue.number}content{/if}",
+			expected: "{#if ${{ github.event.issue.number }} }content{/if}",
+		},
+		{
+			name:     "single-brace github.actor expression",
+			input:    "{#if github.actor}content{/if}",
+			expected: "{#if ${{ github.actor }} }content{/if}",
+		},
+		{
+			name:     "single-brace needs. expression",
+			input:    "{#if needs.activation.outputs.text}content{/if}",
+			expected: "{#if ${{ needs.activation.outputs.text }} }content{/if}",
+		},
+		{
+			name:     "single-brace already wrapped expression",
+			input:    "{#if ${{ github.event.issue.number }} }content{/if}",
+			expected: "{#if ${{ github.event.issue.number }} }content{/if}",
+		},
+		{
+			name:     "single-brace literal true",
+			input:    "{#if true}content{/if}",
+			expected: "{#if ${{ true }} }content{/if}",
+		},
+		{
+			name:     "single-brace environment variable (should not wrap)",
+			input:    "{#if ${GH_AW_EXPR_D892F163}}content{/if}",
+			expected: "{#if ${GH_AW_EXPR_D892F163}}content{/if}",
+		},
+		{
+			name:     "single-brace placeholder reference (should not wrap)",
+			input:    "{#if __PLACEHOLDER__}content{/if}",
+			expected: "{#if __PLACEHOLDER__}content{/if}",
+		},
+		{
+			name:     "mixed single and double braces",
+			input:    "{{#if github.actor}}first{{/if}}\n{#if github.repository}second{/if}",
+			expected: "{{#if ${{ github.actor }} }}first{{/if}}\n{#if ${{ github.repository }} }second{/if}",
+		},
+		{
+			name:     "single-brace with whitespace",
+			input:    "{#if   github.event.issue.number  }content{/if}",
+			expected: "{#if ${{ github.event.issue.number }} }content{/if}",
+		},
+		{
+			name:     "single-brace at start of line",
+			input:    "{#if github.actor}content{/if}",
+			expected: "{#if ${{ github.actor }} }content{/if}",
+		},
+		{
+			name:     "single-brace in middle of line",
+			input:    "prefix {#if github.actor}content{/if} suffix",
+			expected: "prefix {#if ${{ github.actor }} }content{/if} suffix",
+		},
+		{
+			name:     "multiple single-brace conditionals",
+			input:    "{#if github.actor}first{/if}\n{#if github.repository}second{/if}",
+			expected: "{#if ${{ github.actor }} }first{/if}\n{#if ${{ github.repository }} }second{/if}",
+		},
+		{
+			name: "multiline with single-brace conditionals",
+			input: `# Test Template
+
+{#if github.event.issue.number}
+This should be shown if there's an issue number.
+{/if}
+
+{#if github.actor}
+This should be shown if there's an actor.
+{/if}
+
+Normal content here.`,
+			expected: `# Test Template
+
+{#if ${{ github.event.issue.number }} }
+This should be shown if there's an issue number.
+{/if}
+
+{#if ${{ github.actor }} }
+This should be shown if there's an actor.
+{/if}
+
+Normal content here.`,
+		},
+		{
+			name:     "triple braces should not match single-brace pattern",
+			input:    "{{{#if github.actor}content{/if}",
+			expected: "{{{#if github.actor}content{/if}",
+		},
 	}
 
 	for _, tt := range tests {
