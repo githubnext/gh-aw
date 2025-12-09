@@ -36,7 +36,11 @@
         "type": "string",
         "minLength": 1
       },
-      "examples": [["automation", "security"], ["docs", "maintenance"], ["ci", "testing"]]
+      "examples": [
+        ["automation", "security"],
+        ["docs", "maintenance"],
+        ["ci", "testing"]
+      ]
     },
     "imports": {
       "type": "array",
