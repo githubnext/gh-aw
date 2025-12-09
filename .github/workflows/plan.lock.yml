@@ -1458,9 +1458,6 @@ jobs:
                 }
               }
             }
-            module.exports = {
-              ReadBuffer,
-            };
             function validateRequiredFields(args, inputSchema) {
               const requiredFields = inputSchema && Array.isArray(inputSchema.required) ? inputSchema.required : [];
               if (!requiredFields.length) {
@@ -1472,9 +1469,6 @@ jobs:
               });
               return missing;
             }
-            module.exports = {
-              validateRequiredFields,
-            };
             const encoder = new TextEncoder();
             function initLogFile(server) {
               if (server.logFileInitialized || !server.logDir || !server.logFilePath) return;
@@ -1747,9 +1741,6 @@ jobs:
                 });
               };
             }
-            module.exports = {
-              createShellHandler,
-            };
                     const timeout = tool.timeout || 60; 
                     tool.handler = createShellHandler(server, toolName, resolvedPath, timeout);
                     loadedCount++;
@@ -1827,9 +1818,6 @@ jobs:
                 });
               };
             }
-            module.exports = {
-              createPythonHandler,
-            };
                     const timeout = tool.timeout || 60; 
                     tool.handler = createPythonHandler(server, toolName, resolvedPath, timeout);
                     loadedCount++;
@@ -2075,16 +2063,6 @@ jobs:
               process.stdin.resume();
               server.debug(`listening...`);
             }
-            module.exports = {
-              createServer,
-              registerTool,
-              normalizeTool,
-              handleRequest,
-              handleMessage,
-              processReadBuffer,
-              start,
-              loadToolHandlers,
-            };
             function createAppendFunction(outputFile) {
               return function appendSafeOutput(entry) {
                 if (!outputFile) throw new Error("No output file configured");
@@ -2097,7 +2075,6 @@ jobs:
                 }
               };
             }
-            module.exports = { createAppendFunction };
             function normalizeBranchName(branchName) {
               if (!branchName || typeof branchName !== "string" || branchName.trim() === "") {
                 return branchName;
@@ -2112,16 +2089,10 @@ jobs:
               normalized = normalized.toLowerCase();
               return normalized;
             }
-            module.exports = {
-              normalizeBranchName,
-            };
             function estimateTokens(text) {
               if (!text) return 0;
               return Math.ceil(text.length / 4);
             }
-            module.exports = {
-              estimateTokens,
-            };
             function generateCompactSchema(content) {
               try {
                 const parsed = JSON.parse(content);
@@ -2147,9 +2118,6 @@ jobs:
                 return "text content";
               }
             }
-            module.exports = {
-              generateCompactSchema,
-            };
             function writeLargeContentToFile(content) {
               const logsDir = "/tmp/gh-aw/safeoutputs";
               if (!fs.existsSync(logsDir)) {
@@ -2165,9 +2133,6 @@ jobs:
                 description: description,
               };
             }
-            module.exports = {
-              writeLargeContentToFile,
-            };
             function getCurrentBranch() {
               const cwd = process.env.GITHUB_WORKSPACE || process.cwd();
               try {
@@ -2188,15 +2153,9 @@ jobs:
               }
               throw new Error("Failed to determine current branch: git command failed and no GitHub environment variables available");
             }
-            module.exports = {
-              getCurrentBranch,
-            };
             function getBaseBranch() {
               return process.env.GH_AW_BASE_BRANCH || "main";
             }
-            module.exports = {
-              getBaseBranch,
-            };
             function generateGitPatch(branchName) {
               const patchPath = "/tmp/gh-aw/aw.patch";
               const cwd = process.env.GITHUB_WORKSPACE || process.cwd();
@@ -2286,9 +2245,6 @@ jobs:
                 patchPath: patchPath,
               };
             }
-            module.exports = {
-              generateGitPatch,
-            };
             function createHandlers(server, appendSafeOutput) {
               const defaultHandler = type => args => {
                 const entry = { ...(args || {}), type };
@@ -2480,7 +2436,6 @@ jobs:
                 pushToPullRequestBranchHandler,
               };
             }
-            module.exports = { createHandlers };
             function loadTools(server) {
               const toolsPath = process.env.GH_AW_SAFE_OUTPUTS_TOOLS_PATH || "/tmp/gh-aw/safeoutputs/tools.json";
               let ALL_TOOLS = [];
@@ -2583,12 +2538,6 @@ jobs:
                 }
               });
             }
-            module.exports = {
-              loadTools,
-              attachHandlers,
-              registerPredefinedTools,
-              registerDynamicTools,
-            };
             function loadConfig(server) {
               const configPath = process.env.GH_AW_SAFE_OUTPUTS_CONFIG_PATH || "/tmp/gh-aw/safeoutputs/config.json";
               let safeOutputsConfigRaw;
@@ -2627,7 +2576,6 @@ jobs:
                 outputFile: outputFile,
               };
             }
-            module.exports = { loadConfig };
             function bootstrapSafeOutputsServer(logger) {
               logger.debug("Loading safe-outputs configuration");
               const { config, outputFile } = loadConfig(logger);
@@ -2646,10 +2594,6 @@ jobs:
                 logger.debugError("Warning: Could not delete configuration file: ", error);
               }
             }
-            module.exports = {
-              bootstrapSafeOutputsServer,
-              cleanupConfigFile,
-            };
             function startSafeOutputsServer(options = {}) {
               const SERVER_INFO = { name: "safeoutputs", version: "1.0.0" };
               const MCP_LOG_DIR = options.logDir || process.env.GH_AW_MCP_LOG_DIR;
@@ -2678,9 +2622,6 @@ jobs:
                 process.exit(1);
               }
             }
-            module.exports = {
-              startSafeOutputsServer,
-            };
             function startSafeOutputsServer(options = {}) {
               const SERVER_INFO = { name: "safeoutputs", version: "1.0.0" };
               const MCP_LOG_DIR = options.logDir || process.env.GH_AW_MCP_LOG_DIR;
@@ -2709,9 +2650,6 @@ jobs:
                 process.exit(1);
               }
             }
-            module.exports = {
-              startSafeOutputsServer,
-            };
           EOF
           chmod +x /tmp/gh-aw/safeoutputs/mcp-server.cjs
           
