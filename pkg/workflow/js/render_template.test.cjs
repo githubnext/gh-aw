@@ -224,4 +224,117 @@ End`;
     expect(output).toContain("Start");
     expect(output).toContain("End");
   });
+
+  it("should preserve leading spaces with truthy block", () => {
+    const input = `  {{#if true}}
+  Content with leading spaces
+  {{/if}}`;
+    const expected = `  Content with leading spaces
+`;
+    const output = renderMarkdownTemplate(input);
+    expect(output).toBe(expected);
+  });
+
+  it("should remove leading spaces when block is falsy", () => {
+    const input = `  {{#if false}}
+  Content that should be removed
+  {{/if}}`;
+    const expected = "";
+    const output = renderMarkdownTemplate(input);
+    expect(output).toBe(expected);
+  });
+
+  it("should handle mixed indentation levels", () => {
+    const input = `{{#if true}}
+No indent
+{{/if}}
+  {{#if true}}
+  Two space indent
+  {{/if}}
+    {{#if true}}
+    Four space indent
+    {{/if}}`;
+
+    const expected = `No indent
+  Two space indent
+    Four space indent
+`;
+    const output = renderMarkdownTemplate(input);
+    expect(output).toBe(expected);
+  });
+
+  it("should preserve indentation in content when using leading spaces", () => {
+    const input = `# Header
+
+  {{#if true}}
+  ## Indented subsection
+  This content has two leading spaces
+  {{/if}}
+
+Normal content`;
+
+    const expected = `# Header
+
+  ## Indented subsection
+  This content has two leading spaces
+
+Normal content`;
+    const output = renderMarkdownTemplate(input);
+    expect(output).toBe(expected);
+  });
+
+  it("should handle tabs as leading characters", () => {
+    const input = `\t{{#if true}}
+\tContent with tab
+\t{{/if}}`;
+    const expected = `\tContent with tab
+`;
+    const output = renderMarkdownTemplate(input);
+    expect(output).toBe(expected);
+  });
+
+  it("should handle realistic linter-formatted markdown", () => {
+    const input = `# Analysis
+
+  {{#if github.event.issue.number}}
+  ## Issue Analysis
+  
+  Analyzing issue #123
+  
+  - Check description
+  - Review labels
+  {{/if}}
+
+Continue with other tasks`;
+
+    // Note: The expression would normally be evaluated before this step,
+    // so we test with a truthy value
+    const inputWithValue = input.replace("github.event.issue.number", "123");
+    
+    const expected = `# Analysis
+
+  ## Issue Analysis
+  
+  Analyzing issue #123
+  
+  - Check description
+  - Review labels
+
+Continue with other tasks`;
+    
+    const output = renderMarkdownTemplate(inputWithValue);
+    expect(output).toBe(expected);
+  });
+
+  it("should preserve closing tag indentation", () => {
+    const input = `  {{#if true}}
+  Content
+  {{/if}}
+Next line`;
+
+    const expected = `  Content
+Next line`;
+    const output = renderMarkdownTemplate(input);
+    expect(output).toBe(expected);
+  });
 });
