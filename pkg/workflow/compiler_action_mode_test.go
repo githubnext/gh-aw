@@ -31,6 +31,13 @@ func TestActionModeDetection(t *testing.T) {
 			description:  "Release tags should use release mode",
 		},
 		{
+			name:         "release branch",
+			githubRef:    "refs/heads/release-1.0",
+			githubEvent:  "push",
+			expectedMode: ActionModeRelease,
+			description:  "Release branches should use release mode",
+		},
+		{
 			name:         "release event",
 			githubRef:    "refs/heads/main",
 			githubEvent:  "release",
@@ -213,7 +220,6 @@ Test workflow with release mode.
 		} else {
 			DefaultScriptRegistry.RegisterWithMode("create_issue", origScript, RuntimeModeGitHubScript)
 		}
-		ResetGitSHACache()
 	}()
 
 	// Compile - should auto-detect release mode from GITHUB_REF

@@ -47,28 +47,24 @@ func (c *Compiler) resolveActionReference(localActionPath string, data *Workflow
 	}
 }
 
-// convertToRemoteActionRef converts a local action path to a SHA-pinned remote reference
-// with optional tag comment.
-// Example: "./actions/create-issue" -> "githubnext/gh-aw/actions/create-issue@abc123... # v1.0.0"
+// convertToRemoteActionRef converts a local action path to a tag-based remote reference
+// that will be resolved to a SHA later in the release pipeline using action pins.
+// Example: "./actions/create-issue" -> "githubnext/gh-aw/actions/create-issue@v1.0.0"
 func convertToRemoteActionRef(localPath string) string {
 	// Strip the leading "./" if present
 	actionPath := strings.TrimPrefix(localPath, "./")
 
-	// Determine the commit SHA to use
-	sha := GetCurrentCommitSHA()
-	if sha == "" {
-		actionRefLog.Print("WARNING: Could not determine current commit SHA")
+	// Get the current release tag
+	tag := GetCurrentGitTag()
+	if tag == "" {
+		actionRefLog.Print("WARNING: No git tag available for release mode")
 		return ""
 	}
 
-	// Construct the remote reference: githubnext/gh-aw/actions/name@SHA
-	remoteRef := fmt.Sprintf("%s/%s@%s", GitHubOrgRepo, actionPath, sha)
-
-	// Add tag comment if available
-	if tag := GetCurrentGitTag(); tag != "" {
-		remoteRef = fmt.Sprintf("%s # %s", remoteRef, tag)
-		actionRefLog.Printf("Added tag comment to reference: %s", tag)
-	}
+	// Construct the remote reference with tag: githubnext/gh-aw/actions/name@tag
+	// The SHA will be resolved later by action pinning infrastructure
+	remoteRef := fmt.Sprintf("%s/%s@%s", GitHubOrgRepo, actionPath, tag)
+	actionRefLog.Printf("Using tag-based reference: %s (SHA will be resolved via action pins)", remoteRef)
 
 	return remoteRef
 }
