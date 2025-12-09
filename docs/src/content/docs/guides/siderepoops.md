@@ -331,6 +331,250 @@ Review documentation in {{inputs.docs_path}} of my-org/main-repo.
 Create a PR with suggested improvements.
 ```
 
+## Testing with Trial Mode
+
+Before deploying SideRepoOps workflows to production, use the `trial` command to test them in a safe, isolated environment. Trial mode creates a temporary repository, installs your workflow, and executes it while capturing safe outputs without making actual changes to your target repositories.
+
+### Basic Trial Usage
+
+Test a workflow against your main repository:
+
+```bash
+gh aw trial my-automation-repo/my-workflow --logical-repo my-org/main-repo
+```
+
+This simulates running the workflow as if it were installed in `my-org/main-repo`, allowing you to verify:
+- Workflow logic and agent behavior
+- GitHub API calls and permissions
+- Safe output generation (issues, PRs, comments)
+- Cross-repository operations
+
+:::tip[Safe Testing]
+Trial mode prevents actual changes to your main repository. All safe outputs are captured as artifacts, and any PRs or issues are created in the temporary trial repository, not your target repository.
+:::
+
+### Trial Mode Configuration
+
+**Key flags for SideRepoOps testing:**
+
+```bash
+# Simulate running against a specific repository
+gh aw trial my-side-repo/triage --logical-repo my-org/main-repo
+
+# Use a custom trial repository (keeps it for inspection)
+gh aw trial my-side-repo/triage --logical-repo my-org/main-repo \
+  --host-repo my-org/workflow-testing
+
+# Test with secrets from your environment
+gh aw trial my-side-repo/triage --logical-repo my-org/main-repo \
+  --use-local-secrets
+
+# Run multiple iterations to test consistency
+gh aw trial my-side-repo/triage --logical-repo my-org/main-repo \
+  --repeat 3
+
+# Auto-cleanup after testing
+gh aw trial my-side-repo/triage --logical-repo my-org/main-repo \
+  --delete-host-repo-after
+```
+
+### Repository Modes
+
+Trial mode supports different repository configurations:
+
+| Flag | Purpose | Use Case |
+|------|---------|----------|
+| `--logical-repo` | Simulate execution against target repo | Test SideRepoOps workflows (most common) |
+| `--host-repo` | Specify custom trial repository | Keep trial artifacts organized |
+| `--clone-repo` | Clone target repo contents into trial | Test with actual repository structure |
+| `--repo` | Run directly in specified repository | Production deployment (no simulation) |
+
+**Example: Test triage workflow targeting main repository:**
+
+```bash
+# Create and save triage workflow locally
+cat > triage-workflow.md << 'EOF'
+---
+on:
+  workflow_dispatch:
+
+engine: copilot
+
+permissions:
+  contents: read
+
+safe-outputs:
+  github-token: ${{ secrets.MAIN_REPO_PAT }}
+  add-labels:
+    target-repo: "my-org/main-repo"
+    max: 10
+  add-comment:
+    target-repo: "my-org/main-repo"
+
+tools:
+  github:
+    mode: remote
+    toolsets: [issues]
+---
+
+# Triage Unlabeled Issues
+
+Find unlabeled issues in my-org/main-repo and add appropriate labels.
+Review recent issues and suggest labels based on content.
+EOF
+
+# Test the workflow in trial mode
+gh aw trial ./triage-workflow.md \
+  --logical-repo my-org/main-repo \
+  --use-local-secrets \
+  --yes
+```
+
+### Understanding Trial Results
+
+After execution, trial mode provides:
+
+**1. Console Output**
+- Real-time workflow execution logs
+- Workflow run URL for GitHub Actions logs
+- Summary of artifacts collected
+
+**2. Local Trial Results** (`trials/` directory)
+```json
+{
+  "workflow_name": "triage-workflow",
+  "run_id": "123456789",
+  "safe_outputs": {
+    "add_labels": [
+      {
+        "issue_number": 42,
+        "labels": ["bug", "needs-triage"]
+      }
+    ]
+  },
+  "timestamp": "2024-01-15T10:30:00Z"
+}
+```
+
+**3. Trial Repository Artifacts**
+- Workflow run logs in GitHub Actions
+- Generated artifacts (safe outputs, patches, logs)
+- Trial results committed to `trials/` directory
+
+:::note
+Trial results are saved both locally and in the trial repository's `trials/` directory. This allows you to review outputs, compare multiple runs, and verify workflow behavior before production deployment.
+:::
+
+### Multi-Workflow Comparison
+
+Compare multiple workflow variations:
+
+```bash
+gh aw trial \
+  my-side-repo/triage-v1 \
+  my-side-repo/triage-v2 \
+  --logical-repo my-org/main-repo \
+  --use-local-secrets
+```
+
+This generates:
+- Individual results for each workflow
+- Combined comparison results
+- Side-by-side analysis of outputs
+
+Use this to:
+- A/B test workflow approaches
+- Validate workflow improvements
+- Compare different AI engines or prompts
+
+### Common Trial Patterns
+
+**Pattern 1: Pre-deployment Validation**
+```bash
+# Test workflow before deploying to side repo
+gh aw trial ./new-automation.md \
+  --logical-repo my-org/main-repo \
+  --use-local-secrets \
+  --yes
+
+# Review results in trials/ directory
+cat trials/new-automation-*.json | jq '.safe_outputs'
+
+# If satisfied, deploy to side repository
+gh aw install my-side-repo ./new-automation.md
+```
+
+**Pattern 2: Iterative Development**
+```bash
+# Keep trial repo for iterative testing
+gh aw trial ./workflow.md \
+  --logical-repo my-org/main-repo \
+  --host-repo my-org/workflow-dev \
+  --use-local-secrets
+
+# Make changes to workflow.md, then rerun
+gh aw trial ./workflow.md \
+  --logical-repo my-org/main-repo \
+  --host-repo my-org/workflow-dev \
+  --use-local-secrets \
+  --force-delete-host-repo-before
+```
+
+**Pattern 3: Integration Testing**
+```bash
+# Clone target repository structure
+gh aw trial my-side-repo/code-review \
+  --clone-repo my-org/main-repo \
+  --use-local-secrets
+
+# Workflow runs with actual codebase structure
+# (but still isolated in trial repository)
+```
+
+### Trial Mode Limitations
+
+**What trial mode tests:**
+- Workflow logic and agent reasoning
+- GitHub API calls and toolset usage  
+- Safe output generation and formatting
+- Cross-repository authentication (with proper tokens)
+
+**What trial mode doesn't test:**
+- Actual resource creation in target repositories (by design)
+- Scheduled triggers (use `workflow_dispatch` for testing)
+- Event-based triggers (simulate with `--trigger-context` flag)
+- Long-term workflow behavior or race conditions
+
+**Simulating Event Triggers:**
+```bash
+# Simulate issue-triggered workflow
+gh aw trial my-side-repo/issue-responder \
+  --logical-repo my-org/main-repo \
+  --trigger-context "https://github.com/my-org/main-repo/issues/123" \
+  --use-local-secrets
+```
+
+### Best Practices for Trial Testing
+
+**Before Deployment:**
+1. Always test workflows with `--logical-repo` matching your target
+2. Use `--use-local-secrets` to test with your credentials
+3. Review captured safe outputs in `trials/` directory
+4. Verify GitHub API calls in workflow run logs
+5. Test edge cases with different `--trigger-context` values
+
+**During Development:**
+1. Keep a dedicated trial repository (`--host-repo my-org/workflow-testing`)
+2. Use `--repeat` to catch non-deterministic behavior
+3. Compare multiple workflow versions side-by-side
+4. Save trial results for regression testing
+
+**Security:**
+1. Trial repositories are private by default
+2. Secrets pushed with `--use-local-secrets` are automatically cleaned up
+3. Review permissions before running with production PATs
+4. Use `--delete-host-repo-after` to remove sensitive trial data
+
 ## Best Practices
 
 **Security**: Rotate PATs quarterly with expiration dates, minimize token scope to required permissions, use GitHub Apps for automatic token revocation, audit workflow runs regularly, and restrict who can trigger workflows.
