@@ -252,11 +252,6 @@ function createHandlers(server, appendSafeOutput) {
           type: "text",
           text: JSON.stringify({
             result: "success",
-            patch: {
-              path: patchResult.patchPath,
-              size: patchResult.patchSize,
-              lines: patchResult.patchLines,
-            },
           }),
         },
       ],
