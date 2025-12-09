@@ -95,13 +95,18 @@ ${{ needs.activation.outputs.text }}
 
 ## Custom Moderation Rules (Optional)
 
-If a custom prompt file exists at `.github/prompts/custom-moderation.prompt.yml` in the repository, read it and apply any additional moderation rules specified there. The custom prompt file follows the same YAML format as the original github/ai-moderator action and can contain repository-specific spam detection criteria.
+If custom moderation instructions exist at `.github/prompts/custom-moderation.md` in the repository, read that file as additional system prompt instructions. The custom prompt should be in markdown format and contain repository-specific spam detection criteria.
 
-To check if the file exists and read it:
-1. Use the GitHub tools to check if `.github/prompts/custom-moderation.prompt.yml` exists
-2. If it exists, read its contents
-3. Apply any additional detection rules or criteria from the custom prompt
-4. Combine the custom rules with the built-in detection tasks below
+Example custom moderation file (`.github/prompts/custom-moderation.md`):
+```markdown
+# Custom Moderation Rules
+
+Additional spam indicators for this repository:
+- Posts mentioning competitor products (CompetitorX, CompetitorY)
+- Off-topic gaming discussions (this is a development tools project)
+- Cryptocurrency or blockchain mentions (not relevant to this project)
+- Generic "me too" comments without substance
+```
 
 ## Detection Tasks
 
@@ -301,33 +306,18 @@ The workflow follows security best practices:
 
 To customize the detection behavior:
 
-1. **Custom Prompt File (Recommended)**: Create a file at `.github/prompts/custom-moderation.prompt.yml` in your repository with repository-specific spam detection rules. This file follows the same YAML format as the original github/ai-moderator action.
+1. **Custom Prompt File (Recommended)**: Create a markdown file at `.github/prompts/custom-moderation.md` in your repository with repository-specific spam detection rules. The AI agent will read this file as additional system prompt instructions.
    
-   Example custom prompt:
-   ```yaml
-   messages:
-     - role: system
-       content: |
-         Additional moderation rules for this repository:
-         - Flag posts mentioning competitor products
-         - Detect off-topic gaming discussions
-         - Identify cryptocurrency spam (this is not a crypto project)
-     - role: user
-       content: |
-         Analyze this content: {{stdin}}
-   model: gpt-4o
-   responseFormat: json_schema
-   jsonSchema: |-
-     {
-       "name": "custom_spam_detection",
-       "schema": {
-         "type": "object",
-         "properties": {
-           "is_spam": {"type": "boolean"},
-           "reasoning": {"type": "string"}
-         }
-       }
-     }
+   Example custom moderation file:
+   ```markdown
+   # Custom Moderation Rules
+
+   Additional spam indicators for this repository:
+   - Posts mentioning competitor products (CompetitorX, CompetitorY)
+   - Off-topic gaming discussions (this is a development tools project)
+   - Cryptocurrency or blockchain mentions (not relevant to this project)
+   - Generic "me too" comments without substance
+   - Links to specific domains we don't allow: example-spam-site.com
    ```
 
 2. **Edit the workflow**: Modify `.github/workflows/ai-moderator.md`
