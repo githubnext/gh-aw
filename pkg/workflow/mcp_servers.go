@@ -14,20 +14,51 @@ import (
 
 var mcpServersLog = logger.New("workflow:mcp_servers")
 
+// getSafeOutputsMCPServerEntryScript generates the entry point script for safe-outputs MCP server
+// This script requires the individual module files (not bundled)
+func generateSafeOutputsMCPServerEntryScript() string {
+	return `// @ts-check
+// Auto-generated safe-outputs MCP server entry point
+// This script uses individual module files (not bundled)
+
+const { startSafeOutputsServer } = require("./safe_outputs_mcp_server.cjs");
+
+// Start the server
+// The server reads configuration from /tmp/gh-aw/safeoutputs/config.json
+// Log directory is configured via GH_AW_MCP_LOG_DIR environment variable
+if (require.main === module) {
+  try {
+    startSafeOutputsServer();
+  } catch (error) {
+    console.error(` + "`Error starting safe-outputs server: ${error instanceof Error ? error.message : String(error)}`" + `);
+    process.exit(1);
+  }
+}
+
+module.exports = { startSafeOutputsServer };
+`
+}
+
 // getSafeOutputsDependencies returns the list of JavaScript files required for safe-outputs MCP server
-// by analyzing the dependency tree starting from safe_outputs_mcp_server.cjs
+// by analyzing the dependency tree starting from safe_outputs_mcp_server.cjs source
 func getSafeOutputsDependencies() ([]string, error) {
 	// Get all JavaScript sources
 	sources := GetJavaScriptSources()
 
-	// Get the main safe-outputs MCP server script
-	mainScript := GetSafeOutputsMCPServerScript()
+	// Get the main safe-outputs MCP server script SOURCE (not bundled)
+	mainScript, ok := sources["safe_outputs_mcp_server.cjs"]
+	if !ok {
+		return nil, fmt.Errorf("safe_outputs_mcp_server.cjs not found in sources")
+	}
 
 	// Find all dependencies starting from the main script
 	dependencies, err := FindJavaScriptDependencies(mainScript, sources, "")
 	if err != nil {
 		return nil, fmt.Errorf("failed to analyze safe-outputs dependencies: %w", err)
 	}
+
+	// Add the main script itself to the list (dependency tracker only returns required modules)
+	dependencies["safe_outputs_mcp_server.cjs"] = true
 
 	// Convert map to sorted slice for stable generation
 	deps := make([]string, 0, len(dependencies))
@@ -38,7 +69,7 @@ func getSafeOutputsDependencies() ([]string, error) {
 	}
 	sort.Strings(deps)
 
-	mcpServersLog.Printf("Safe-outputs MCP server requires %d dependencies", len(deps))
+	mcpServersLog.Printf("Safe-outputs MCP server requires %d dependencies (including main script)", len(deps))
 	return deps, nil
 }
 
@@ -265,10 +296,10 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 			yaml.WriteString(fmt.Sprintf("          EOF_%s\n", markerName))
 		}
 
-		// Write the main MCP server entry point
+		// Write the main MCP server entry point (simple script that requires modules)
 		yaml.WriteString("          cat > /tmp/gh-aw/safeoutputs/mcp-server.cjs << 'EOF'\n")
-		// Embed the safe-outputs MCP server script
-		for _, line := range FormatJavaScriptForYAML(GetSafeOutputsMCPServerScript()) {
+		// Use the simple entry point script instead of bundled version
+		for _, line := range FormatJavaScriptForYAML(generateSafeOutputsMCPServerEntryScript()) {
 			yaml.WriteString(line)
 		}
 		yaml.WriteString("          EOF\n")
