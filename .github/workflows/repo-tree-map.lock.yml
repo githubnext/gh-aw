@@ -4242,8 +4242,8 @@ jobs:
               let logEntries;
               try {
                 logEntries = JSON.parse(logContent);
-                if (!Array.isArray(logEntries)) {
-                  throw new Error("Not a JSON array");
+                if (!Array.isArray(logEntries) || logEntries.length === 0) {
+                  throw new Error("Not a JSON array or empty array");
                 }
                 return logEntries;
               } catch (jsonArrayError) {
@@ -4595,7 +4595,7 @@ jobs:
                     logEntries = parseLogEntries(logContent);
                   }
                 }
-                if (!logEntries) {
+                if (!logEntries || logEntries.length === 0) {
                   return { markdown: "## Agent Log Summary\n\nLog format not recognized as Copilot JSON array or JSONL.\n", logEntries: [] };
                 }
                 const conversationResult = generateConversationMarkdown(logEntries, {
