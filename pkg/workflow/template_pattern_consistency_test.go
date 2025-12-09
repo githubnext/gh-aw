@@ -14,7 +14,7 @@ import (
 func TestGoJavaScriptPatternConsistency(t *testing.T) {
 	// Go pattern from template.go:20 - uses .*?\s* to handle trailing spaces
 	goPattern := regexp.MustCompile(`\{\{#if\s+(.*?)\s*\}\}`)
-	
+
 	// JavaScript patterns from render_template.cjs:32 and :48
 	// First pass handles blocks where tags are on their own lines
 	jsFirstPassPattern := regexp.MustCompile(`(?s)(\n?)([ \t]*\{\{#if\s+(.*?)\s*\}\}[ \t]*\n)([\s\S]*?)([ \t]*\{\{/if\}\}[ \t]*)(\n?)`)
@@ -131,7 +131,7 @@ func TestGoJavaScriptPatternConsistency(t *testing.T) {
 			shouldMatchGo:       true,
 			shouldMatchJsFirst:  false, // Requires newline after
 			shouldMatchJsSecond: false, // Requires closing tag
-			expectedExpr:        "123",  // Trailing space trimmed by \s*
+			expectedExpr:        "123", // Trailing space trimmed by \s*
 		},
 		{
 			name:                "evaluated expression with leading spaces",
@@ -139,7 +139,7 @@ func TestGoJavaScriptPatternConsistency(t *testing.T) {
 			shouldMatchGo:       true,
 			shouldMatchJsFirst:  false, // Requires newline after
 			shouldMatchJsSecond: false, // Requires closing tag
-			expectedExpr:        "456",  // Trailing space trimmed by \s*
+			expectedExpr:        "456", // Trailing space trimmed by \s*
 		},
 		{
 			name:                "complete block with evaluated expression and leading spaces",
@@ -147,7 +147,7 @@ func TestGoJavaScriptPatternConsistency(t *testing.T) {
 			shouldMatchGo:       true,
 			shouldMatchJsFirst:  true,
 			shouldMatchJsSecond: true,
-			expectedExpr:        "789",  // Trailing space trimmed by \s*
+			expectedExpr:        "789", // Trailing space trimmed by \s*
 		},
 	}
 
