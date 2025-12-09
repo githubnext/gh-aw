@@ -41,6 +41,22 @@ func TestNewInitCommand(t *testing.T) {
 	if mcpFlag.DefValue != "false" {
 		t.Errorf("Expected mcp flag default to be 'false', got %q", mcpFlag.DefValue)
 	}
+
+	codespaceFlag := cmd.Flags().Lookup("codespaces")
+	if codespaceFlag == nil {
+		t.Error("Expected 'codespaces' flag to be defined")
+		return
+	}
+
+	// String flags with NoOptDefVal have "" as default value
+	if codespaceFlag.DefValue != "" {
+		t.Errorf("Expected codespaces flag default to be '', got %q", codespaceFlag.DefValue)
+	}
+	
+	// Verify NoOptDefVal is set to a space (allows --codespaces without value)
+	if codespaceFlag.NoOptDefVal != " " {
+		t.Errorf("Expected codespaces flag NoOptDefVal to be ' ' (space), got %q", codespaceFlag.NoOptDefVal)
+	}
 }
 
 func TestInitCommandHelp(t *testing.T) {
@@ -88,7 +104,7 @@ func TestInitRepositoryBasic(t *testing.T) {
 	exec.Command("git", "config", "user.email", "test@example.com").Run()
 
 	// Test basic init without MCP
-	err = InitRepository(false, false)
+	err = InitRepository(false, false, []string{}, false)
 	if err != nil {
 		t.Fatalf("InitRepository() failed: %v", err)
 	}
@@ -142,7 +158,7 @@ func TestInitRepositoryWithMCP(t *testing.T) {
 	exec.Command("git", "config", "user.email", "test@example.com").Run()
 
 	// Test init with MCP flag
-	err = InitRepository(false, true)
+	err = InitRepository(false, true, []string{}, false)
 	if err != nil {
 		t.Fatalf("InitRepository() with MCP failed: %v", err)
 	}
@@ -185,7 +201,7 @@ func TestInitRepositoryVerbose(t *testing.T) {
 	exec.Command("git", "config", "user.email", "test@example.com").Run()
 
 	// Test verbose mode (should not error, just produce more output)
-	err = InitRepository(true, false)
+	err = InitRepository(true, false, []string{}, false)
 	if err != nil {
 		t.Fatalf("InitRepository() in verbose mode failed: %v", err)
 	}
@@ -212,7 +228,7 @@ func TestInitRepositoryNotInGitRepo(t *testing.T) {
 	}
 
 	// Don't initialize git repo - should fail for some operations
-	err = InitRepository(false, false)
+	err = InitRepository(false, false, []string{}, false)
 
 	// The function should handle this gracefully or return an error
 	// Based on the implementation, ensureGitAttributes requires git
@@ -246,13 +262,13 @@ func TestInitRepositoryIdempotent(t *testing.T) {
 	exec.Command("git", "config", "user.email", "test@example.com").Run()
 
 	// Run init twice
-	err = InitRepository(false, false)
+	err = InitRepository(false, false, []string{}, false)
 	if err != nil {
 		t.Fatalf("First InitRepository() failed: %v", err)
 	}
 
 	// Second run should be idempotent
-	err = InitRepository(false, false)
+	err = InitRepository(false, false, []string{}, false)
 	if err != nil {
 		t.Fatalf("Second InitRepository() failed: %v", err)
 	}
@@ -297,12 +313,12 @@ func TestInitRepositoryWithMCPIdempotent(t *testing.T) {
 	exec.Command("git", "config", "user.email", "test@example.com").Run()
 
 	// Run init with MCP twice
-	err = InitRepository(false, true)
+	err = InitRepository(false, true, []string{}, false)
 	if err != nil {
 		t.Fatalf("First InitRepository() with MCP failed: %v", err)
 	}
 
-	err = InitRepository(false, true)
+	err = InitRepository(false, true, []string{}, false)
 	if err != nil {
 		t.Fatalf("Second InitRepository() with MCP failed: %v", err)
 	}
@@ -344,7 +360,7 @@ func TestInitRepositoryCreatesDirectories(t *testing.T) {
 	exec.Command("git", "config", "user.email", "test@example.com").Run()
 
 	// Run init with MCP
-	err = InitRepository(false, true)
+	err = InitRepository(false, true, []string{}, false)
 	if err != nil {
 		t.Fatalf("InitRepository() failed: %v", err)
 	}
@@ -402,7 +418,7 @@ func TestInitRepositoryErrorHandling(t *testing.T) {
 	}
 
 	// Test init without git repo
-	err = InitRepository(false, false)
+	err = InitRepository(false, false, []string{}, false)
 
 	// Should handle error gracefully or return error
 	// The actual behavior depends on implementation
@@ -445,7 +461,7 @@ func TestInitRepositoryWithExistingFiles(t *testing.T) {
 	}
 
 	// Run init
-	err = InitRepository(false, false)
+	err = InitRepository(false, false, []string{}, false)
 	if err != nil {
 		t.Fatalf("InitRepository() failed: %v", err)
 	}
@@ -466,5 +482,125 @@ func TestInitRepositoryWithExistingFiles(t *testing.T) {
 	expectedEntry := ".github/workflows/*.lock.yml linguist-generated=true merge=ours"
 	if !strings.Contains(contentStr, expectedEntry) {
 		t.Error("Expected new entry to be added")
+	}
+}
+
+func TestInitRepositoryWithCodespace(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "test-*")
+
+	originalDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Failed to get current directory: %v", err)
+	}
+	defer func() {
+		_ = os.Chdir(originalDir)
+	}()
+
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatalf("Failed to change to temp directory: %v", err)
+	}
+
+	// Initialize git repo
+	if err := exec.Command("git", "init").Run(); err != nil {
+		t.Skip("Git not available")
+	}
+
+	// Configure git
+	exec.Command("git", "config", "user.name", "Test User").Run()
+	exec.Command("git", "config", "user.email", "test@example.com").Run()
+
+	// Test init with --codespaces flag (with additional repos)
+	additionalRepos := []string{"org/repo1", "owner/repo2"}
+	err = InitRepository(false, false, additionalRepos, true)
+	if err != nil {
+		t.Fatalf("InitRepository() with codespaces failed: %v", err)
+	}
+
+	// Verify .devcontainer/devcontainer.json was created
+	devcontainerPath := filepath.Join(".devcontainer", "gh-aw", "devcontainer.json")
+	if _, err := os.Stat(devcontainerPath); os.IsNotExist(err) {
+		t.Error("Expected .devcontainer/devcontainer.json to be created")
+	}
+
+	// Verify additional repos were added
+	data, err := os.ReadFile(devcontainerPath)
+	if err != nil {
+		t.Fatalf("Failed to read devcontainer.json: %v", err)
+	}
+
+	content := string(data)
+	if !strings.Contains(content, "org/repo1") {
+		t.Error("Expected org/repo1 to be in devcontainer.json")
+	}
+	if !strings.Contains(content, "owner/repo2") {
+		t.Error("Expected owner/repo2 to be in devcontainer.json")
+	}
+
+	// Verify basic files are still created
+	gitAttributesPath := ".gitattributes"
+	if _, err := os.Stat(gitAttributesPath); os.IsNotExist(err) {
+		t.Error("Expected .gitattributes to be created")
+	}
+}
+
+func TestInitCommandWithCodespacesNoArgs(t *testing.T) {
+	// Create a temporary directory for testing
+	tempDir := testutil.TempDir(t, "test-*")
+
+	// Save and restore original directory
+	originalDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Failed to get current directory: %v", err)
+	}
+	defer func() {
+		_ = os.Chdir(originalDir)
+	}()
+	if err := os.Chdir(tempDir); err != nil {
+		t.Fatalf("Failed to change to temp directory: %v", err)
+	}
+
+	// Initialize a git repository
+	err = exec.Command("git", "init").Run()
+	if err != nil {
+		t.Skip("Git not available")
+	}
+
+	// Create a mock git remote to test owner extraction
+	err = exec.Command("git", "remote", "add", "origin", "https://github.com/testorg/testrepo.git").Run()
+	if err != nil {
+		t.Skip("Git not available")
+	}
+
+	// Configure git
+	exec.Command("git", "config", "user.name", "Test User").Run()
+	exec.Command("git", "config", "user.email", "test@example.com").Run()
+
+	// Test init with --codespaces flag (no additional repos)
+	err = InitRepository(false, false, []string{}, true)
+	if err != nil {
+		t.Fatalf("InitRepository() with codespaces (no args) failed: %v", err)
+	}
+
+	// Verify .devcontainer/gh-aw/devcontainer.json was created
+	devcontainerPath := filepath.Join(".devcontainer", "gh-aw", "devcontainer.json")
+	if _, err := os.Stat(devcontainerPath); os.IsNotExist(err) {
+		t.Error("Expected .devcontainer/gh-aw/devcontainer.json to be created")
+	}
+
+	// Verify only current repo is configured
+	data, err := os.ReadFile(devcontainerPath)
+	if err != nil {
+		t.Fatalf("Failed to read devcontainer.json: %v", err)
+	}
+
+	content := string(data)
+	if !strings.Contains(content, "testorg/testrepo") {
+		t.Error("Expected testorg/testrepo to be in devcontainer.json")
+	}
+
+	// Verify basic files are still created
+	gitAttributesPath := ".gitattributes"
+	if _, err := os.Stat(gitAttributesPath); os.IsNotExist(err) {
+		t.Error("Expected .gitattributes to be created")
 	}
 }
