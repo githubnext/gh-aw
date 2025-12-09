@@ -37,14 +37,14 @@ type UpdateEntityJobParams struct {
 
 // UpdateEntityJobBuilder encapsulates entity-specific configuration for building update jobs
 type UpdateEntityJobBuilder struct {
-	EntityType         UpdateEntityType
-	ConfigKey          string
-	JobName            string
-	StepName           string
-	ScriptGetter       func() string
-	PermissionsFunc    func() *Permissions
-	BuildCustomEnvVars func(*UpdateEntityConfig) []string
-	BuildOutputs       func() map[string]string
+	EntityType          UpdateEntityType
+	ConfigKey           string
+	JobName             string
+	StepName            string
+	ScriptGetter        func() string
+	PermissionsFunc     func() *Permissions
+	BuildCustomEnvVars  func(*UpdateEntityConfig) []string
+	BuildOutputs        func() map[string]string
 	BuildEventCondition func(string) ConditionNode // Optional: builds event condition if target is empty
 }
 
