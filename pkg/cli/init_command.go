@@ -1,6 +1,8 @@
 package cli
 
 import (
+	"strings"
+
 	"github.com/githubnext/gh-aw/pkg/constants"
 	"github.com/githubnext/gh-aw/pkg/logger"
 	"github.com/spf13/cobra"
@@ -33,6 +35,7 @@ With --codespaces flag:
 - Configures permissions for additional repos (in same org): actions:read, contents:read, discussions:read, issues:read, pull-requests:read, workflows:read
 - Pre-installs gh aw extension CLI
 - Pre-installs @github/copilot
+- Use without value (--codespaces=) for current repo only, or with comma-separated repos (--codespaces=repo1,repo2)
 
 After running this command, you can:
 - Use GitHub Copilot Chat: type /agent and select create-agentic-workflow to create workflows interactively
@@ -44,13 +47,26 @@ Examples:
   ` + constants.CLIExtensionPrefix + ` init
   ` + constants.CLIExtensionPrefix + ` init -v
   ` + constants.CLIExtensionPrefix + ` init --mcp
-  ` + constants.CLIExtensionPrefix + ` init --codespaces repo1,repo2`,
+  ` + constants.CLIExtensionPrefix + ` init --codespaces=
+  ` + constants.CLIExtensionPrefix + ` init --codespaces=repo1,repo2`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			verbose, _ := cmd.Flags().GetBool("verbose")
 			mcp, _ := cmd.Flags().GetBool("mcp")
-			codespaceRepos, _ := cmd.Flags().GetStringSlice("codespaces")
-			initCommandLog.Printf("Executing init command: verbose=%v, mcp=%v, codespaces=%v", verbose, mcp, codespaceRepos)
-			if err := InitRepository(verbose, mcp, codespaceRepos); err != nil {
+			codespaceReposStr, _ := cmd.Flags().GetString("codespaces")
+			codespaceEnabled := cmd.Flags().Changed("codespaces")
+
+			// Parse codespace repos from comma-separated string
+			var codespaceRepos []string
+			if codespaceReposStr != "" {
+				codespaceRepos = strings.Split(codespaceReposStr, ",")
+				// Trim spaces from each repo name
+				for i, repo := range codespaceRepos {
+					codespaceRepos[i] = strings.TrimSpace(repo)
+				}
+			}
+
+			initCommandLog.Printf("Executing init command: verbose=%v, mcp=%v, codespaces=%v, codespaceEnabled=%v", verbose, mcp, codespaceRepos, codespaceEnabled)
+			if err := InitRepository(verbose, mcp, codespaceRepos, codespaceEnabled); err != nil {
 				initCommandLog.Printf("Init command failed: %v", err)
 				return err
 			}
@@ -60,7 +76,8 @@ Examples:
 	}
 
 	cmd.Flags().Bool("mcp", false, "Configure GitHub Copilot Agent MCP server integration")
-	cmd.Flags().StringSlice("codespaces", []string{}, "Create devcontainer.json for GitHub Codespaces with agentic workflows support. Specify repository names in the same organization (e.g., repo1,repo2)")
+	cmd.Flags().String("codespaces", "", "Create devcontainer.json for GitHub Codespaces with agentic workflows support. Specify comma-separated repository names in the same organization (e.g., repo1,repo2), or use without value for current repo only")
+	cmd.Flags().Lookup("codespaces").NoOptDefVal = ""
 
 	return cmd
 }

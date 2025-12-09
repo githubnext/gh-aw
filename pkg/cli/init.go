@@ -12,7 +12,7 @@ import (
 var initLog = logger.New("cli:init")
 
 // InitRepository initializes the repository for agentic workflows
-func InitRepository(verbose bool, mcp bool, codespaceRepos []string) error {
+func InitRepository(verbose bool, mcp bool, codespaceRepos []string, codespaceEnabled bool) error {
 	initLog.Print("Starting repository initialization for agentic workflows")
 
 	// Ensure we're in a git repository
@@ -113,7 +113,7 @@ func InitRepository(verbose bool, mcp bool, codespaceRepos []string) error {
 	}
 
 	// Configure Codespaces if requested
-	if len(codespaceRepos) > 0 {
+	if codespaceEnabled {
 		initLog.Printf("Configuring GitHub Codespaces devcontainer with additional repos: %v", codespaceRepos)
 
 		// Create .devcontainer/gh-aw/devcontainer.json
