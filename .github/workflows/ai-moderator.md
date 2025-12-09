@@ -13,10 +13,6 @@ on:
         description: 'Issue or discussion URL to moderate (e.g., https://github.com/owner/repo/issues/123)'
         required: true
         type: string
-permissions:
-  contents: read
-  issues: read
-  pull-requests: read
 engine: copilot
 if: needs.check_external_user.outputs.is_external == 'true'
 safe-outputs:

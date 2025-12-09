@@ -34,10 +34,6 @@
 #         description: 'Issue or discussion URL to moderate (e.g., https://github.com/owner/repo/issues/123)'
 #         required: true
 #         type: string
-# permissions:
-#   contents: read
-#   issues: read
-#   pull-requests: read
 # engine: copilot
 # if: needs.check_external_user.outputs.is_external == 'true'
 # safe-outputs:
@@ -262,10 +258,7 @@ name: "AI Moderator"
         required: true
         type: string
 
-permissions:
-  contents: read
-  issues: read
-  pull-requests: read
+permissions: read-all
 
 concurrency:
   group: "gh-aw-${{ github.workflow }}-${{ github.event.issue.number || github.event.pull_request.number }}"
@@ -1302,10 +1295,7 @@ jobs:
       - check_external_user
     if: needs.check_external_user.outputs.is_external == 'true'
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      issues: read
-      pull-requests: read
+    permissions: read-all
     env:
       GH_AW_MCP_LOG_DIR: /tmp/gh-aw/mcp-logs/safeoutputs
       GH_AW_SAFE_OUTPUTS: /tmp/gh-aw/safeoutputs/outputs.jsonl
