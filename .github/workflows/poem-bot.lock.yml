@@ -8459,13 +8459,14 @@ jobs:
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
           GH_AW_DETECTION_CONCLUSION: ${{ needs.detection.result }}
           GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🪶 *Verses penned by [{workflow_name}]({run_url})*\",\"runStarted\":\"🎭 Hear ye! The muse stirs! [{workflow_name}]({run_url}) takes quill in hand for this {event_type}...\",\"runSuccess\":\"🪶 The poem is writ! [{workflow_name}]({run_url}) has composed verses most fair. Applause! 👏\",\"runFailure\":\"🎭 Alas! [{workflow_name}]({run_url}) {status}. The muse has fled, leaving verses unsung...\"}"
-          GH_AW_SAFE_OUTPUT_JOBS: "{\"add_comment\":\"comment_url\",\"close_pull_request\":\"pull_request_url\",\"create_agent_task\":\"task_url\",\"create_discussion\":\"discussion_url\",\"create_issue\":\"issue_url\",\"create_pr_review_comment\":\"review_comment_url\",\"create_pull_request\":\"pull_request_url\"}"
+          GH_AW_SAFE_OUTPUT_JOBS: "{\"add_comment\":\"comment_url\",\"close_pull_request\":\"pull_request_url\",\"create_agent_task\":\"task_url\",\"create_discussion\":\"discussion_url\",\"create_issue\":\"issue_url\",\"create_pr_review_comment\":\"review_comment_url\",\"create_pull_request\":\"pull_request_url\",\"push_to_pull_request_branch\":\"push_url\"}"
           GH_AW_OUTPUT_CREATE_ISSUE_ISSUE_URL: ${{ needs.create_issue.outputs.issue_url }}
           GH_AW_OUTPUT_CREATE_DISCUSSION_DISCUSSION_URL: ${{ needs.create_discussion.outputs.discussion_url }}
           GH_AW_OUTPUT_CLOSE_PULL_REQUEST_PULL_REQUEST_URL: ${{ needs.close_pull_request.outputs.pull_request_url }}
           GH_AW_OUTPUT_CREATE_PULL_REQUEST_PULL_REQUEST_URL: ${{ needs.create_pull_request.outputs.pull_request_url }}
           GH_AW_OUTPUT_ADD_COMMENT_COMMENT_URL: ${{ needs.add_comment.outputs.comment_url }}
           GH_AW_OUTPUT_CREATE_PR_REVIEW_COMMENT_REVIEW_COMMENT_URL: ${{ needs.create_pr_review_comment.outputs.review_comment_url }}
+          GH_AW_OUTPUT_PUSH_TO_PULL_REQUEST_BRANCH_PUSH_URL: ${{ needs.push_to_pull_request_branch.outputs.push_url }}
           GH_AW_OUTPUT_CREATE_AGENT_TASK_TASK_URL: ${{ needs.create_agent_task.outputs.task_url }}
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}

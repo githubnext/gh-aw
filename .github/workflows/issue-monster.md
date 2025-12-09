@@ -21,6 +21,8 @@ tools:
   github:
     toolsets: [default, pull_requests]
 
+if: needs.search_issues.outputs.has_issues == 'true'
+
 jobs:
   search_issues:
     needs: ["pre_activation"]
@@ -78,8 +80,6 @@ jobs:
               core.setOutput('issue_list', '');
               core.setOutput('has_issues', 'false');
             }
-
-if: needs.search_issues.outputs.has_issues == 'true'
 
 safe-outputs:
   assign-to-agent:
