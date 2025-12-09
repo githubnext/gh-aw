@@ -30,7 +30,7 @@ With --mcp flag:
 With --codespaces flag:
 - Creates .devcontainer/gh-aw/devcontainer.json with universal image (in subfolder to avoid conflicts)
 - Configures permissions for current repo: actions:read, contents:write, discussions:read, issues:read, pull-requests:write, workflows:write
-- Configures permissions for additional repos: actions:read, contents:read, discussions:read, issues:read, pull-requests:read, workflows:read
+- Configures permissions for additional repos (in same org): actions:read, contents:read, discussions:read, issues:read, pull-requests:read, workflows:read
 - Pre-installs gh aw extension CLI
 - Pre-installs @github/copilot
 
@@ -44,7 +44,7 @@ Examples:
   ` + constants.CLIExtensionPrefix + ` init
   ` + constants.CLIExtensionPrefix + ` init -v
   ` + constants.CLIExtensionPrefix + ` init --mcp
-  ` + constants.CLIExtensionPrefix + ` init --codespaces owner/repo1,owner/repo2`,
+  ` + constants.CLIExtensionPrefix + ` init --codespaces repo1,repo2`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			verbose, _ := cmd.Flags().GetBool("verbose")
 			mcp, _ := cmd.Flags().GetBool("mcp")
@@ -60,7 +60,7 @@ Examples:
 	}
 
 	cmd.Flags().Bool("mcp", false, "Configure GitHub Copilot Agent MCP server integration")
-	cmd.Flags().StringSlice("codespaces", []string{}, "Create devcontainer.json for GitHub Codespaces with agentic workflows support. Optionally specify additional repositories for read access (e.g., owner/repo1,owner/repo2)")
+	cmd.Flags().StringSlice("codespaces", []string{}, "Create devcontainer.json for GitHub Codespaces with agentic workflows support. Specify repository names in the same organization (e.g., repo1,repo2)")
 
 	return cmd
 }

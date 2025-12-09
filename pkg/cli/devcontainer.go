@@ -4,7 +4,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/logger"
 )
@@ -74,6 +76,9 @@ func ensureDevcontainerConfig(verbose bool, additionalRepos []string) error {
 		repoName = "current-repo"
 	}
 
+	// Get the owner from the current repository
+	owner := getRepoOwner()
+
 	// Create repository permissions map
 	// Reference: https://docs.github.com/en/codespaces/managing-your-codespaces/managing-repository-access-for-your-codespaces
 	// Default codespace permissions are read/write to the repository from which it was created.
@@ -96,10 +101,22 @@ func ensureDevcontainerConfig(verbose bool, additionalRepos []string) error {
 	// Add additional repositories with read permissions
 	// For additional repos, we grant default codespace read permissions plus workflows:read
 	// to allow reading workflow definitions without write access.
+	// Since permissions must be in the same organization, we automatically prepend the owner.
 	// Reference: https://docs.github.com/en/codespaces/managing-your-codespaces/managing-repository-access-for-your-codespaces#setting-additional-repository-permissions
 	for _, repo := range additionalRepos {
-		if repo != "" && repo != repoName {
-			repositories[repo] = DevcontainerRepoPermissions{
+		if repo == "" {
+			continue
+		}
+
+		// If repo already contains '/', use it as-is (for backwards compatibility)
+		// Otherwise, prepend the owner
+		fullRepoName := repo
+		if !strings.Contains(repo, "/") && owner != "" {
+			fullRepoName = owner + "/" + repo
+		}
+
+		if fullRepoName != repoName {
+			repositories[fullRepoName] = DevcontainerRepoPermissions{
 				Permissions: map[string]string{
 					"actions":       "read",
 					"contents":      "read",
@@ -109,7 +126,7 @@ func ensureDevcontainerConfig(verbose bool, additionalRepos []string) error {
 					"workflows":     "read",
 				},
 			}
-			devcontainerLog.Printf("Added read permissions for additional repo: %s", repo)
+			devcontainerLog.Printf("Added read permissions for additional repo: %s", fullRepoName)
 		}
 	}
 
@@ -151,16 +168,63 @@ func ensureDevcontainerConfig(verbose bool, additionalRepos []string) error {
 	return nil
 }
 
-// getCurrentRepoName gets the current repository name from git remote
+// getCurrentRepoName gets the current repository name from git remote in owner/repo format
 func getCurrentRepoName() string {
 	// Try to get the repository name from git remote
-	// This is a simple implementation that may not work in all cases
-	// but provides a reasonable default
-	gitRoot, err := findGitRoot()
+	cmd := exec.Command("git", "config", "--get", "remote.origin.url")
+	output, err := cmd.Output()
+	if err != nil {
+		// Fallback to directory name
+		gitRoot, err := findGitRoot()
+		if err != nil {
+			return ""
+		}
+		return filepath.Base(gitRoot)
+	}
+
+	remoteURL := strings.TrimSpace(string(output))
+	return parseGitHubRepoFromURL(remoteURL)
+}
+
+// getRepoOwner extracts the owner from the git remote URL
+func getRepoOwner() string {
+	cmd := exec.Command("git", "config", "--get", "remote.origin.url")
+	output, err := cmd.Output()
 	if err != nil {
 		return ""
 	}
 
-	// Get the directory name as fallback
-	return filepath.Base(gitRoot)
+	remoteURL := strings.TrimSpace(string(output))
+	fullRepo := parseGitHubRepoFromURL(remoteURL)
+
+	// Extract owner from "owner/repo" format
+	parts := strings.Split(fullRepo, "/")
+	if len(parts) >= 1 {
+		return parts[0]
+	}
+	return ""
+}
+
+// parseGitHubRepoFromURL extracts owner/repo from a GitHub URL
+func parseGitHubRepoFromURL(url string) string {
+	// Remove .git suffix if present
+	url = strings.TrimSuffix(url, ".git")
+
+	// Handle HTTPS URLs: https://github.com/owner/repo
+	if strings.Contains(url, "github.com/") {
+		parts := strings.Split(url, "github.com/")
+		if len(parts) == 2 {
+			return parts[1]
+		}
+	}
+
+	// Handle SSH URLs: git@github.com:owner/repo
+	if strings.Contains(url, "git@github.com:") {
+		parts := strings.Split(url, "git@github.com:")
+		if len(parts) == 2 {
+			return parts[1]
+		}
+	}
+
+	return ""
 }
