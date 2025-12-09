@@ -72,7 +72,7 @@ function parseCopilotLog(logContent) {
       }
     }
 
-    if (!logEntries) {
+    if (!logEntries || logEntries.length === 0) {
       return { markdown: "## Agent Log Summary\n\nLog format not recognized as Copilot JSON array or JSONL.\n", logEntries: [] };
     }
 

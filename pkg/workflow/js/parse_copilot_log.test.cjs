@@ -346,6 +346,12 @@ describe("parse_copilot_log.cjs", () => {
       expect(result.markdown).toContain("Log format not recognized");
     });
 
+    it("should handle empty JSON array", () => {
+      const result = parseCopilotLog("[]");
+
+      expect(result.markdown).toContain("Log format not recognized");
+    });
+
     it("should skip internal file operations in summary", () => {
       const logWithInternalTools = JSON.stringify([
         {
