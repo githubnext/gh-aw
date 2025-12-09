@@ -35,7 +35,7 @@ With --codespaces flag:
 - Configures permissions for additional repos (in same org): actions:read, contents:read, discussions:read, issues:read, pull-requests:read, workflows:read
 - Pre-installs gh aw extension CLI
 - Pre-installs @github/copilot
-- Use without value (--codespaces=) for current repo only, or with comma-separated repos (--codespaces=repo1,repo2)
+- Use without value (--codespaces) for current repo only, or with comma-separated repos (--codespaces repo1,repo2)
 
 After running this command, you can:
 - Use GitHub Copilot Chat: type /agent and select create-agentic-workflow to create workflows interactively
@@ -47,13 +47,16 @@ Examples:
   ` + constants.CLIExtensionPrefix + ` init
   ` + constants.CLIExtensionPrefix + ` init -v
   ` + constants.CLIExtensionPrefix + ` init --mcp
-  ` + constants.CLIExtensionPrefix + ` init --codespaces=
-  ` + constants.CLIExtensionPrefix + ` init --codespaces=repo1,repo2`,
+  ` + constants.CLIExtensionPrefix + ` init --codespaces
+  ` + constants.CLIExtensionPrefix + ` init --codespaces repo1,repo2`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			verbose, _ := cmd.Flags().GetBool("verbose")
 			mcp, _ := cmd.Flags().GetBool("mcp")
 			codespaceReposStr, _ := cmd.Flags().GetString("codespaces")
 			codespaceEnabled := cmd.Flags().Changed("codespaces")
+
+			// Trim the codespace repos string (NoOptDefVal uses a space)
+			codespaceReposStr = strings.TrimSpace(codespaceReposStr)
 
 			// Parse codespace repos from comma-separated string
 			var codespaceRepos []string
@@ -77,7 +80,8 @@ Examples:
 
 	cmd.Flags().Bool("mcp", false, "Configure GitHub Copilot Agent MCP server integration")
 	cmd.Flags().String("codespaces", "", "Create devcontainer.json for GitHub Codespaces with agentic workflows support. Specify comma-separated repository names in the same organization (e.g., repo1,repo2), or use without value for current repo only")
-	cmd.Flags().Lookup("codespaces").NoOptDefVal = ""
+	// NoOptDefVal allows using --codespaces without a value (returns empty string when no value provided)
+	cmd.Flags().Lookup("codespaces").NoOptDefVal = " "
 
 	return cmd
 }
