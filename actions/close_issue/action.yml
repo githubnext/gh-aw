@@ -1,5 +1,5 @@
 name: 'Close Issue'
-description: 'Get issue details using REST API'
+description: 'Closes GitHub issues'
 author: 'GitHub Next'
 
 runs:

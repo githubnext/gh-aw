@@ -1,5 +1,5 @@
 name: 'Close Discussion'
-description: 'Get discussion details using GraphQL'
+description: 'Closes GitHub discussions'
 author: 'GitHub Next'
 
 outputs:

@@ -1,6 +1,6 @@
 # Close Issue
 
-Get issue details using REST API
+Closes GitHub issues
 
 ## Overview
 
@@ -39,6 +39,13 @@ jobs:
     steps:
       - uses: ./actions/close_issue
 ```
+
+
+## Known Limitations
+
+**Note**: This generated action currently uses `require()` statements for dependencies, which means it is not fully self-contained. This action is intended as a reference implementation that demonstrates the structure and functionality of the JavaScript module.
+
+To make this action production-ready, convert it to use the FILES embedding pattern (see `setup-safe-outputs/src/index.js` for an example) or ensure all required dependencies are available at runtime.
 
 ## License
 
