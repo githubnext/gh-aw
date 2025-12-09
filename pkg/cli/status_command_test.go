@@ -28,7 +28,7 @@ func TestStatusWorkflows_JSONOutput(t *testing.T) {
 
 	// Test JSON output without pattern
 	t.Run("JSON output without pattern", func(t *testing.T) {
-		err := StatusWorkflows("", false, true, "")
+		err := StatusWorkflows("", false, true, "", "")
 		if err != nil {
 			t.Errorf("StatusWorkflows with JSON flag failed: %v", err)
 		}
@@ -38,7 +38,7 @@ func TestStatusWorkflows_JSONOutput(t *testing.T) {
 
 	// Test JSON output with pattern
 	t.Run("JSON output with pattern", func(t *testing.T) {
-		err := StatusWorkflows("smoke", false, true, "")
+		err := StatusWorkflows("smoke", false, true, "", "")
 		if err != nil {
 			t.Errorf("StatusWorkflows with JSON flag and pattern failed: %v", err)
 		}
@@ -397,6 +397,74 @@ func TestWorkflowStatus_JSONMarshalingWithEmptyRunStatus(t *testing.T) {
 	}
 	if _, exists := unmarshaled["run_conclusion"]; exists {
 		t.Errorf("Expected run_conclusion to be omitted when empty, but it was present with value: %v", unmarshaled["run_conclusion"])
+	}
+}
+
+// TestWorkflowStatus_JSONMarshalingWithLabels tests that labels are included in JSON output
+func TestWorkflowStatus_JSONMarshalingWithLabels(t *testing.T) {
+	// Test that WorkflowStatus with labels can be marshaled to JSON
+	status := WorkflowStatus{
+		Workflow:      "test-workflow",
+		EngineID:      "copilot",
+		Compiled:      "Yes",
+		Status:        "active",
+		TimeRemaining: "N/A",
+		Labels:        []string{"automation", "testing"},
+	}
+
+	jsonBytes, err := json.Marshal(status)
+	if err != nil {
+		t.Fatalf("Failed to marshal WorkflowStatus: %v", err)
+	}
+
+	// Verify JSON contains labels field
+	var unmarshaled map[string]any
+	if err := json.Unmarshal(jsonBytes, &unmarshaled); err != nil {
+		t.Fatalf("Failed to unmarshal JSON: %v", err)
+	}
+
+	labels, ok := unmarshaled["labels"].([]any)
+	if !ok {
+		t.Fatalf("Expected labels to be an array, got %T", unmarshaled["labels"])
+	}
+
+	if len(labels) != 2 {
+		t.Errorf("Expected 2 labels, got %d", len(labels))
+	}
+
+	if labels[0] != "automation" {
+		t.Errorf("Expected first label to be 'automation', got %v", labels[0])
+	}
+	if labels[1] != "testing" {
+		t.Errorf("Expected second label to be 'testing', got %v", labels[1])
+	}
+}
+
+// TestWorkflowStatus_JSONMarshalingWithEmptyLabels tests that empty labels are omitted
+func TestWorkflowStatus_JSONMarshalingWithEmptyLabels(t *testing.T) {
+	// Test that WorkflowStatus without labels omits the field
+	status := WorkflowStatus{
+		Workflow:      "test-workflow",
+		EngineID:      "copilot",
+		Compiled:      "Yes",
+		Status:        "active",
+		TimeRemaining: "N/A",
+		// Labels is empty/nil
+	}
+
+	jsonBytes, err := json.Marshal(status)
+	if err != nil {
+		t.Fatalf("Failed to marshal WorkflowStatus: %v", err)
+	}
+
+	// Verify JSON omits empty labels field (due to omitempty)
+	var unmarshaled map[string]any
+	if err := json.Unmarshal(jsonBytes, &unmarshaled); err != nil {
+		t.Fatalf("Failed to unmarshal JSON: %v", err)
+	}
+
+	if _, exists := unmarshaled["labels"]; exists {
+		t.Errorf("Expected labels to be omitted when empty, but it was present with value: %v", unmarshaled["labels"])
 	}
 }
 
