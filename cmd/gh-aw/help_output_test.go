@@ -14,7 +14,8 @@ import (
 // This test catches unintended changes to the help text that would affect user experience.
 //
 // To update the golden file when making intentional changes:
-//   UPDATE_GOLDEN=1 go test -v -tags integration -run TestHelpOutputGolden ./cmd/gh-aw
+//
+//	UPDATE_GOLDEN=1 go test -v -tags integration -run TestHelpOutputGolden ./cmd/gh-aw
 func TestHelpOutputGolden(t *testing.T) {
 	t.Run("help output matches golden file", func(t *testing.T) {
 		// Run the binary with --help
