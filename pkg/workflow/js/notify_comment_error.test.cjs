@@ -385,14 +385,14 @@ describe("notify_comment_error.cjs", () => {
       process.env.GH_AW_RUN_URL = "https://github.com/owner/repo/actions/runs/123";
       process.env.GH_AW_WORKFLOW_NAME = "test-workflow";
       process.env.GH_AW_AGENT_CONCLUSION = "success";
-      
+
       // Set up safe output jobs with URLs
       process.env.GH_AW_SAFE_OUTPUT_JOBS = JSON.stringify({
         create_issue: "issue_url",
         add_comment: "comment_url",
         create_pull_request: "pull_request_url",
       });
-      
+
       // Set environment variables for the URLs
       process.env.GH_AW_OUTPUT_CREATE_ISSUE_ISSUE_URL = "https://github.com/owner/repo/issues/42";
       process.env.GH_AW_OUTPUT_ADD_COMMENT_COMMENT_URL = "https://github.com/owner/repo/issues/1#issuecomment-123";
@@ -409,7 +409,7 @@ describe("notify_comment_error.cjs", () => {
           body: expect.stringMatching(/### Generated Assets[\s\S]*Created Issue.*https:\/\/github\.com\/owner\/repo\/issues\/42/),
         })
       );
-      
+
       // Check that the body contains all asset links
       const callArgs = mockGithub.request.mock.calls[0][1];
       expect(callArgs.body).toContain("### Generated Assets");
@@ -426,7 +426,7 @@ describe("notify_comment_error.cjs", () => {
       process.env.GH_AW_RUN_URL = "https://github.com/owner/repo/actions/runs/123";
       process.env.GH_AW_WORKFLOW_NAME = "test-workflow";
       process.env.GH_AW_AGENT_CONCLUSION = "success";
-      
+
       // Set up safe output jobs but no URLs
       process.env.GH_AW_SAFE_OUTPUT_JOBS = JSON.stringify({
         create_issue: "issue_url",

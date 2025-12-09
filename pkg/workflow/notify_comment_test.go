@@ -486,10 +486,10 @@ func TestActivationJobWithoutMessages(t *testing.T) {
 // for safe output job URLs when safe output jobs are present
 func TestConclusionJobWithGeneratedAssets(t *testing.T) {
 	compiler := NewCompiler(false, "", "")
-	
+
 	// Create workflow data with safe outputs configuration
 	workflowData := &WorkflowData{
-		Name:   "Test Workflow",
+		Name: "Test Workflow",
 		SafeOutputs: &SafeOutputsConfig{
 			AddComments: &AddCommentsConfig{
 				BaseSafeOutputConfig: BaseSafeOutputConfig{
@@ -500,7 +500,7 @@ func TestConclusionJobWithGeneratedAssets(t *testing.T) {
 		},
 		AIReaction: "eyes",
 	}
-	
+
 	// Define safe output jobs that should have URL outputs
 	safeOutputJobNames := []string{
 		"create_issue",
@@ -508,25 +508,25 @@ func TestConclusionJobWithGeneratedAssets(t *testing.T) {
 		"create_pull_request",
 		"create_discussion",
 	}
-	
+
 	// Build the conclusion job
 	job, err := compiler.buildConclusionJob(workflowData, constants.AgentJobName, safeOutputJobNames)
 	if err != nil {
 		t.Fatalf("Failed to build conclusion job: %v", err)
 	}
-	
+
 	if job == nil {
 		t.Fatal("Expected conclusion job to be created")
 	}
-	
+
 	// Convert job to YAML string for checking
 	jobYAML := strings.Join(job.Steps, "")
-	
+
 	// Check that GH_AW_SAFE_OUTPUT_JOBS environment variable is declared with JSON mapping
 	if !strings.Contains(jobYAML, "GH_AW_SAFE_OUTPUT_JOBS:") {
 		t.Error("Expected GH_AW_SAFE_OUTPUT_JOBS environment variable to be declared")
 	}
-	
+
 	// Check that individual URL output environment variables are declared
 	expectedEnvVars := []string{
 		"GH_AW_OUTPUT_CREATE_ISSUE_ISSUE_URL: ${{ needs.create_issue.outputs.issue_url }}",
@@ -534,7 +534,7 @@ func TestConclusionJobWithGeneratedAssets(t *testing.T) {
 		"GH_AW_OUTPUT_CREATE_PULL_REQUEST_PULL_REQUEST_URL: ${{ needs.create_pull_request.outputs.pull_request_url }}",
 		"GH_AW_OUTPUT_CREATE_DISCUSSION_DISCUSSION_URL: ${{ needs.create_discussion.outputs.discussion_url }}",
 	}
-	
+
 	for _, expectedVar := range expectedEnvVars {
 		if !strings.Contains(jobYAML, expectedVar) {
 			t.Errorf("Expected environment variable not found: %s", expectedVar)
@@ -546,12 +546,12 @@ func TestConclusionJobWithGeneratedAssets(t *testing.T) {
 // for safe output job URLs
 func TestBuildSafeOutputJobsEnvVars(t *testing.T) {
 	tests := []struct {
-		name           string
-		jobNames       []string
-		expectJSON     bool
-		expectEnvVars  int
-		checkEnvVars   []string
-		checkJSONKeys  []string
+		name          string
+		jobNames      []string
+		expectJSON    bool
+		expectEnvVars int
+		checkEnvVars  []string
+		checkJSONKeys []string
 	}{
 		{
 			name:          "creates env vars for create_issue job",
@@ -592,17 +592,17 @@ func TestBuildSafeOutputJobsEnvVars(t *testing.T) {
 			expectEnvVars: 0,
 		},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			jsonStr, envVars := buildSafeOutputJobsEnvVars(tt.jobNames)
-			
+
 			// Check JSON output
 			if tt.expectJSON {
 				if jsonStr == "" {
 					t.Error("Expected non-empty JSON string")
 				}
-				
+
 				// Check that expected keys are in JSON
 				for _, key := range tt.checkJSONKeys {
 					if !strings.Contains(jsonStr, key) {
@@ -614,12 +614,12 @@ func TestBuildSafeOutputJobsEnvVars(t *testing.T) {
 					t.Errorf("Expected empty JSON string, got: %s", jsonStr)
 				}
 			}
-			
+
 			// Check env vars count
 			if len(envVars) != tt.expectEnvVars {
 				t.Errorf("Expected %d env vars, got %d", tt.expectEnvVars, len(envVars))
 			}
-			
+
 			// Check expected env var strings
 			if len(tt.checkEnvVars) > 0 {
 				envVarsStr := strings.Join(envVars, "")
