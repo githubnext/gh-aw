@@ -849,7 +849,7 @@ jobs:
     concurrency:
       group: "gh-aw-claude-${{ github.workflow }}"
     env:
-      GH_AW_MCP_LOG_DIR: /tmp/gh-aw/mcp-logs/safeoutputs
+      GH_AW_MCP_LOG_DIR: /tmp/gh-aw/sandbox/agent/logs
       GH_AW_SAFE_OUTPUTS: /tmp/gh-aw/safeoutputs/outputs.jsonl
     outputs:
       has_patch: ${{ steps.collect_output.outputs.has_patch }}

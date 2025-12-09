@@ -1167,7 +1167,8 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 		env["GH_AW_SAFE_OUTPUTS"] = "/tmp/gh-aw/safeoutputs/outputs.jsonl"
 
 		// Set GH_AW_MCP_LOG_DIR for safe outputs MCP server logging
-		env["GH_AW_MCP_LOG_DIR"] = "/tmp/gh-aw/mcp-logs/safeoutputs"
+		// Store in agent logs directory so it's included in agent_outputs artifact
+		env["GH_AW_MCP_LOG_DIR"] = "/tmp/gh-aw/sandbox/agent/logs"
 
 		// Config is written to /tmp/gh-aw/safeoutputs/config.json file, not passed as env var
 
