@@ -4,3 +4,4 @@
 .github/aw/github-agentic-workflows.md linguist-generated=true merge=ours
 pkg/cli/workflows/*.lock.yml linguist-generated=true merge=ours
 pkg/workflow/js/*.js linguist-generated=true
+actions/*/index.js linguist-generated=true
