@@ -1399,7 +1399,7 @@ jobs:
             function getFooterMessage(ctx) {
               const messages = getMessages();
               const templateContext = toSnakeCase(ctx);
-              const defaultFooter = "> 🏴‍☠️ Ahoy! This treasure was crafted by [{workflow_name}]({run_url})";
+              const defaultFooter = "> Ahoy! This treasure was crafted by [🏴‍☠️ {workflow_name}]({run_url})";
               let footer = messages?.footer ? renderTemplate(messages.footer, templateContext) : renderTemplate(defaultFooter, templateContext);
               if (ctx.triggeringNumber) {
                 footer += ` fer issue #{triggering_number} 🗺️`.replace("{triggering_number}", String(ctx.triggeringNumber));
@@ -1413,7 +1413,7 @@ jobs:
               const messages = getMessages();
               const templateContext = toSnakeCase(ctx);
               const defaultInstall =
-                "> 🦜 Arr! To plunder this workflow fer yer own ship, run `gh aw add {workflow_source}`. Chart yer course at [{workflow_source_url}]({workflow_source_url})!";
+                "> Arr! To plunder this workflow fer yer own ship, run `gh aw add {workflow_source}`. Chart yer course at [🦜 {workflow_source_url}]({workflow_source_url})!";
               return messages?.footerInstall
                 ? renderTemplate(messages.footerInstall, templateContext)
                 : renderTemplate(defaultInstall, templateContext);
