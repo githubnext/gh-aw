@@ -1,4 +1,4 @@
-name: 'Safe Inputs'
+name: 'Setup Safe Inputs'
 description: 'Copy safe-inputs MCP server files to the agent environment'
 author: 'GitHub Next'
 
