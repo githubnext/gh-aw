@@ -99,9 +99,22 @@ func TestActionModeDetection(t *testing.T) {
 			origEvent := os.Getenv("GITHUB_EVENT_NAME")
 			origMode := os.Getenv("GH_AW_ACTION_MODE")
 			defer func() {
-				os.Setenv("GITHUB_REF", origRef)
-				os.Setenv("GITHUB_EVENT_NAME", origEvent)
-				os.Setenv("GH_AW_ACTION_MODE", origMode)
+				// Restore environment variables properly
+				if origRef != "" {
+					os.Setenv("GITHUB_REF", origRef)
+				} else {
+					os.Unsetenv("GITHUB_REF")
+				}
+				if origEvent != "" {
+					os.Setenv("GITHUB_EVENT_NAME", origEvent)
+				} else {
+					os.Unsetenv("GITHUB_EVENT_NAME")
+				}
+				if origMode != "" {
+					os.Setenv("GH_AW_ACTION_MODE", origMode)
+				} else {
+					os.Unsetenv("GH_AW_ACTION_MODE")
+				}
 			}()
 
 			// Set test environment

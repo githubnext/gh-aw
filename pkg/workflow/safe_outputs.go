@@ -17,6 +17,11 @@ var safeOutputsLog = logger.New("workflow:safe_outputs")
 // Safe Output Configuration
 // ========================================
 
+const (
+	// GitHubOrgRepo is the organization and repository name for custom action references
+	GitHubOrgRepo = "githubnext/gh-aw"
+)
+
 // resolveActionReference converts a local action path to the appropriate reference
 // based on the current action mode (dev vs release).
 // For dev mode: returns the local path as-is (e.g., "./actions/create-issue")
@@ -64,7 +69,7 @@ func (c *Compiler) convertToRemoteActionRef(localPath string) string {
 	}
 
 	// Construct the remote reference: githubnext/gh-aw/actions/name@SHA
-	remoteRef := fmt.Sprintf("githubnext/gh-aw/%s@%s", actionPath, sha)
+	remoteRef := fmt.Sprintf("%s/%s@%s", GitHubOrgRepo, actionPath, sha)
 	return remoteRef
 }
 
@@ -73,6 +78,9 @@ func (c *Compiler) convertToRemoteActionRef(localPath string) string {
 // 1. GITHUB_SHA environment variable (when running in GitHub Actions)
 // 2. git rev-parse HEAD (when running locally)
 // Returns empty string if SHA cannot be determined.
+//
+// Security note: The git command is only executed in controlled environments
+// (local development or GitHub Actions). This is not exposed to user input.
 func (c *Compiler) getCurrentCommitSHA() string {
 	// Try GITHUB_SHA environment variable first (set in GitHub Actions)
 	if sha := os.Getenv("GITHUB_SHA"); sha != "" {
@@ -81,6 +89,8 @@ func (c *Compiler) getCurrentCommitSHA() string {
 	}
 
 	// Fall back to git rev-parse HEAD
+	// This command is safe because it runs in a controlled environment
+	// and doesn't accept any user input
 	cmd := exec.Command("git", "rev-parse", "HEAD")
 	output, err := cmd.Output()
 	if err != nil {
