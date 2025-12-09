@@ -90,7 +90,7 @@ yq '.jobs.*.steps[].with.path' .github/workflows/*.lock.yml | grep -v "^---$" | 
 
 **Working Directory Patterns**:
 ```bash
-yq '.jobs.*.steps[]."working-directory"' .github/workflows/*.lock.yml | grep -v "^---$" | grep -v "^null$" | sort -u
+yq '.jobs.*.steps[].working-directory' .github/workflows/*.lock.yml | grep -v "^---$" | grep -v "^null$" | sort -u
 ```
 
 ### 2. Review Go Code Patterns

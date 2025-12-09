@@ -16,12 +16,9 @@ Common GitHub Actions used across workflows (sorted by frequency of use):
 | `actions/checkout` | `93cb6efe18208431cddfb8368fd83d5badbf9bfd` | Checks out repository code | Used in almost all workflows for accessing repo content |
 | `actions/upload-artifact` | `330a01c490aca151604b8cf639adc76d48f6c5d4` | Uploads build artifacts | Used for agent outputs, patches, prompts, and logs |
 | `actions/download-artifact` | `018cc2cf5baa6db3ef3c5f8a56943fffe632ef53` | Downloads artifacts from previous jobs | Used in safe-output jobs and conclusion jobs |
-| `actions/github-script` | `60a0d83039c74a4aee543508d2ffcb1c3799cdea` | Runs GitHub API scripts (v7) | Used for GitHub API interactions |
-| `actions/github-script` | `ed597411d8f924073f98dfc5c65a23a2325f34cd` | Runs GitHub API scripts (v8) | Used for GitHub API interactions |
+| `actions/github-script` | `60a0d83039c74a4aee543508d2ffcb1c3799cdea` (v7)<br/>`ed597411d8f924073f98dfc5c65a23a2325f34cd` (v8) | Runs GitHub API scripts | Multiple versions used across workflows |
 | `actions/setup-node` | `395ad3262231945c25e8478fd5baf05154b1d79f` | Sets up Node.js environment | Used in workflows requiring npm/node |
-| `actions/cache` | `0057852bfaa89a56745cba8c7296529d2fc39830` | Cache dependencies and build outputs | Used for caching agent memory and dependencies |
-| `actions/cache/restore` | `0057852bfaa89a56745cba8c7296529d2fc39830` | Restore cached files | Used for restoring specific cache entries |
-| `actions/cache/save` | `0057852bfaa89a56745cba8c7296529d2fc39830` | Save files to cache | Used for saving specific cache entries |
+| `actions/cache` | `0057852bfaa89a56745cba8c7296529d2fc39830` | Cache dependencies and build outputs | Used for caching agent memory and dependencies. Includes sub-actions: `actions/cache/restore` and `actions/cache/save` for granular control |
 | `actions/setup-python` | `a26af69be951a213d495a4c3e4e4022e16d87065` | Sets up Python environment | Used in workflows requiring Python tools |
 | `actions/setup-go` | `d35c59abb061a4a6fb18e82ac0862c26744d6ab5` | Sets up Go environment | Used in workflows requiring Go tools |
 | `actions/ai-inference` | `b81b2afb8390ee6839b494a404766bef6493c7d9` | AI inference action | Used for AI/ML workflows |
