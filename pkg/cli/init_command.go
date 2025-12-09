@@ -31,7 +31,7 @@ With --codespace flag:
 - Creates .devcontainer/devcontainer.json with universal image
 - Configures default Codespaces permissions (contents:write, pull-requests:write) + workflows:write for current repo
 - Adds read access to githubnext/gh-aw releases
-- Adds read access to additional repositories specified (e.g., --codespace owner/repo1,owner/repo2)
+- Adds default Codespaces read permissions (contents:read, pull-requests:read) + workflows:read to additional repositories
 - Pre-installs gh aw extension CLI
 - Pre-installs @github/copilot
 

@@ -94,10 +94,12 @@ func ensureDevcontainerConfig(verbose bool, additionalRepos []string) error {
 		if repo != "" && repo != repoName && repo != "githubnext/gh-aw" {
 			repositories[repo] = DevcontainerRepoPermissions{
 				Permissions: map[string]string{
-					"contents": "read",
+					"contents":      "read",
+					"pull-requests": "read",
+					"workflows":     "read",
 				},
 			}
-			devcontainerLog.Printf("Added read permission for additional repo: %s", repo)
+			devcontainerLog.Printf("Added read permissions for additional repo: %s", repo)
 		}
 	}
 
