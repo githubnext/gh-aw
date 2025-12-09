@@ -19,29 +19,29 @@ var actionsBuildLog = logger.New("cli:actions_build")
 // ActionsBuildCommand builds all custom GitHub Actions by bundling JavaScript dependencies
 func ActionsBuildCommand() error {
 	actionsDir := "actions"
-	
+
 	actionsBuildLog.Print("Starting actions build")
-	
+
 	// Get list of action directories
 	actionDirs, err := getActionDirectories(actionsDir)
 	if err != nil {
 		return err
 	}
-	
+
 	if len(actionDirs) == 0 {
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("No action directories found in actions/"))
 		return nil
 	}
-	
+
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Building all actions..."))
-	
+
 	// Build each action
 	for _, actionName := range actionDirs {
 		if err := buildAction(actionsDir, actionName); err != nil {
 			return fmt.Errorf("failed to build action %s: %w", actionName, err)
 		}
 	}
-	
+
 	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("✨ All actions built successfully (%d actions)", len(actionDirs))))
 	return nil
 }
@@ -49,22 +49,22 @@ func ActionsBuildCommand() error {
 // ActionsValidateCommand validates all action.yml files
 func ActionsValidateCommand() error {
 	actionsDir := "actions"
-	
+
 	actionsBuildLog.Print("Starting actions validation")
-	
+
 	// Get list of action directories
 	actionDirs, err := getActionDirectories(actionsDir)
 	if err != nil {
 		return err
 	}
-	
+
 	if len(actionDirs) == 0 {
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("No action directories found in actions/"))
 		return nil
 	}
-	
+
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("✅ Validating all actions"))
-	
+
 	allValid := true
 	for _, actionName := range actionDirs {
 		actionPath := filepath.Join(actionsDir, actionName)
@@ -75,11 +75,11 @@ func ActionsValidateCommand() error {
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  ✓ %s/action.yml is valid", actionName)))
 		}
 	}
-	
+
 	if !allValid {
 		return fmt.Errorf("validation failed for one or more actions")
 	}
-	
+
 	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("✨ All actions valid"))
 	return nil
 }
@@ -87,22 +87,22 @@ func ActionsValidateCommand() error {
 // ActionsCleanCommand removes generated index.js files from all actions
 func ActionsCleanCommand() error {
 	actionsDir := "actions"
-	
+
 	actionsBuildLog.Print("Starting actions cleanup")
-	
+
 	// Get list of action directories
 	actionDirs, err := getActionDirectories(actionsDir)
 	if err != nil {
 		return err
 	}
-	
+
 	if len(actionDirs) == 0 {
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("No action directories found in actions/"))
 		return nil
 	}
-	
+
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("🧹 Cleaning generated action files"))
-	
+
 	cleanedCount := 0
 	for _, actionName := range actionDirs {
 		indexPath := filepath.Join(actionsDir, actionName, "index.js")
@@ -114,7 +114,7 @@ func ActionsCleanCommand() error {
 			cleanedCount++
 		}
 	}
-	
+
 	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("✨ Cleanup complete (%d files removed)", cleanedCount)))
 	return nil
 }
@@ -124,19 +124,19 @@ func getActionDirectories(actionsDir string) ([]string, error) {
 	if _, err := os.Stat(actionsDir); os.IsNotExist(err) {
 		return nil, fmt.Errorf("actions/ directory does not exist")
 	}
-	
+
 	entries, err := os.ReadDir(actionsDir)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read actions directory: %w", err)
 	}
-	
+
 	var dirs []string
 	for _, entry := range entries {
 		if entry.IsDir() {
 			dirs = append(dirs, entry.Name())
 		}
 	}
-	
+
 	sort.Strings(dirs)
 	return dirs, nil
 }
@@ -144,18 +144,18 @@ func getActionDirectories(actionsDir string) ([]string, error) {
 // validateActionYml validates an action.yml file
 func validateActionYml(actionPath string) error {
 	ymlPath := filepath.Join(actionPath, "action.yml")
-	
+
 	if _, err := os.Stat(ymlPath); os.IsNotExist(err) {
 		return fmt.Errorf("action.yml not found")
 	}
-	
+
 	content, err := os.ReadFile(ymlPath)
 	if err != nil {
 		return fmt.Errorf("failed to read action.yml: %w", err)
 	}
-	
+
 	contentStr := string(content)
-	
+
 	// Check required fields
 	requiredFields := []string{"name:", "description:", "runs:"}
 	for _, field := range requiredFields {
@@ -163,49 +163,49 @@ func validateActionYml(actionPath string) error {
 			return fmt.Errorf("missing required field '%s'", strings.TrimSuffix(field, ":"))
 		}
 	}
-	
+
 	// Check that it's a node20 action
 	if !strings.Contains(contentStr, "using: 'node20'") && !strings.Contains(contentStr, "using: \"node20\"") {
 		return fmt.Errorf("action must use 'node20' runtime")
 	}
-	
+
 	return nil
 }
 
 // buildAction builds a single action by bundling its dependencies
 func buildAction(actionsDir, actionName string) error {
 	actionsBuildLog.Printf("Building action: %s", actionName)
-	
+
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("\n📦 Building action: %s", actionName)))
-	
+
 	actionPath := filepath.Join(actionsDir, actionName)
 	srcPath := filepath.Join(actionPath, "src", "index.js")
 	outputPath := filepath.Join(actionPath, "index.js")
-	
+
 	// Validate action.yml
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("  ✓ Validating action.yml"))
 	if err := validateActionYml(actionPath); err != nil {
 		return err
 	}
-	
+
 	// Check if source file exists
 	if _, err := os.Stat(srcPath); os.IsNotExist(err) {
 		return fmt.Errorf("source file not found: %s", srcPath)
 	}
-	
+
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("  ✓ Reading source file"))
 	sourceContent, err := os.ReadFile(srcPath)
 	if err != nil {
 		return fmt.Errorf("failed to read source file: %w", err)
 	}
-	
+
 	// Get dependencies for this action
 	dependencies := getActionDependencies(actionName)
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  ✓ Found %d dependencies", len(dependencies))))
-	
+
 	// Get all JavaScript sources
 	sources := workflow.GetJavaScriptSources()
-	
+
 	// Read dependency files
 	files := make(map[string]string)
 	for _, dep := range dependencies {
@@ -216,30 +216,30 @@ func buildAction(actionsDir, actionName string) error {
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("    ⚠ Warning: Could not find %s", dep)))
 		}
 	}
-	
+
 	// Generate FILES object with embedded content
 	filesJSON, err := json.MarshalIndent(files, "", "  ")
 	if err != nil {
 		return fmt.Errorf("failed to marshal files: %w", err)
 	}
-	
+
 	// Indent the JSON for proper embedding
 	indentedJSON := strings.ReplaceAll(string(filesJSON), "\n", "\n  ")
 	indentedJSON = "  " + strings.TrimPrefix(indentedJSON, " ")
-	
+
 	// Replace the FILES placeholder in source
 	// Match: const FILES = { ... };
 	filesRegex := regexp.MustCompile(`(?s)const FILES = \{[^}]*\};`)
 	outputContent := filesRegex.ReplaceAllString(string(sourceContent), fmt.Sprintf("const FILES = %s;", strings.TrimSpace(indentedJSON)))
-	
+
 	// Write output file
 	if err := os.WriteFile(outputPath, []byte(outputContent), 0644); err != nil {
 		return fmt.Errorf("failed to write output file: %w", err)
 	}
-	
+
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  ✓ Built %s", outputPath)))
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  ✓ Embedded %d files", len(files))))
-	
+
 	return nil
 }
 
@@ -268,7 +268,7 @@ func getActionDependencies(actionName string) []string {
 			"mcp_logger.cjs",
 		},
 	}
-	
+
 	if deps, ok := dependencyMap[actionName]; ok {
 		return deps
 	}

@@ -817,8 +817,8 @@ function parseLogEntries(logContent) {
   // First, try to parse as JSON array (old format)
   try {
     logEntries = JSON.parse(logContent);
-    if (!Array.isArray(logEntries)) {
-      throw new Error("Not a JSON array");
+    if (!Array.isArray(logEntries) || logEntries.length === 0) {
+      throw new Error("Not a JSON array or empty array");
     }
     return logEntries;
   } catch (jsonArrayError) {

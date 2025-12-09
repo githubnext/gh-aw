@@ -4362,8 +4362,8 @@ jobs:
               let logEntries;
               try {
                 logEntries = JSON.parse(logContent);
-                if (!Array.isArray(logEntries)) {
-                  throw new Error("Not a JSON array");
+                if (!Array.isArray(logEntries) || logEntries.length === 0) {
+                  throw new Error("Not a JSON array or empty array");
                 }
                 return logEntries;
               } catch (jsonArrayError) {
@@ -4715,7 +4715,7 @@ jobs:
                     logEntries = parseLogEntries(logContent);
                   }
                 }
-                if (!logEntries) {
+                if (!logEntries || logEntries.length === 0) {
                   return { markdown: "## Agent Log Summary\n\nLog format not recognized as Copilot JSON array or JSONL.\n", logEntries: [] };
                 }
                 const conversationResult = generateConversationMarkdown(logEntries, {
@@ -6492,13 +6492,13 @@ jobs:
       - name: Download Go modules
         run: go mod download
       - name: Generate SBOM (SPDX format)
-        uses: anchore/sbom-action@fbfd9c6c189226748411491745178e0c2017392d # v0
+        uses: anchore/sbom-action@fbfd9c6c189226748411491745178e0c2017392d # v0.20.10
         with:
           artifact-name: sbom.spdx.json
           format: spdx-json
           output-file: sbom.spdx.json
       - name: Generate SBOM (CycloneDX format)
-        uses: anchore/sbom-action@fbfd9c6c189226748411491745178e0c2017392d # v0
+        uses: anchore/sbom-action@fbfd9c6c189226748411491745178e0c2017392d # v0.20.10
         with:
           artifact-name: sbom.cdx.json
           format: cyclonedx-json
