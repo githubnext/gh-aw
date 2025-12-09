@@ -1,4 +1,4 @@
-name: 'Safe Outputs Copy'
+name: 'Safe Outputs'
 description: 'Copy safe-outputs MCP server files to the agent environment'
 author: 'GitHub Next'
 

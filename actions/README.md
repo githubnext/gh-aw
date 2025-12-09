@@ -17,17 +17,17 @@ actions/{action-name}/
 
 ## Available Actions
 
-### safe-outputs-copy
+### safe-outputs
 
 Copies safe-outputs MCP server files to the agent environment. This action embeds all necessary JavaScript files for the safe-outputs MCP server and copies them to a specified destination directory.
 
-[Documentation](./safe-outputs-copy/README.md)
+[Documentation](./safe-outputs/README.md)
 
-### safe-inputs-copy
+### safe-inputs
 
 Copies safe-inputs MCP server files to the agent environment. This action embeds all necessary JavaScript files for the safe-inputs MCP server and copies them to a specified destination directory.
 
-[Documentation](./safe-inputs-copy/README.md)
+[Documentation](./safe-inputs/README.md)
 
 ## Building Actions
 
@@ -190,7 +190,7 @@ Test actions locally by:
 1. Creating a test workflow in `.github/workflows/`
 2. Using the action with a local path:
    ```yaml
-   - uses: ./actions/safe-outputs-copy
+   - uses: ./actions/safe-outputs
      with:
        destination: /tmp/test
    ```

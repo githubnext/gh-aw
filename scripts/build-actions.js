@@ -72,7 +72,7 @@ function getActionDependencies(actionName) {
   // Manual dependency mapping - update when adding new actions or changing dependencies
   
   const dependencyMap = {
-    'safe-outputs-copy': [
+    'safe-outputs': [
       'safe_outputs_mcp_server.cjs',
       'safe_outputs_bootstrap.cjs',
       'safe_outputs_tools_loader.cjs',
@@ -83,7 +83,7 @@ function getActionDependencies(actionName) {
       'mcp_logger.cjs',
       'messages.cjs',
     ],
-    'safe-inputs-copy': [
+    'safe-inputs': [
       'safe_inputs_mcp_server.cjs',
       'safe_inputs_bootstrap.cjs',
       'safe_inputs_config_loader.cjs',

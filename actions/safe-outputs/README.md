@@ -1,4 +1,4 @@
-# Safe Outputs Copy Action
+# Safe Outputs Action
 
 This action copies safe-outputs MCP server files to the agent environment.
 
@@ -10,7 +10,7 @@ The safe-outputs MCP server provides write operations for GitHub Actions workflo
 
 ```yaml
 - name: Setup Safe Outputs Files
-  uses: ./actions/safe-outputs-copy
+  uses: ./actions/safe-outputs
   with:
     # Destination directory for safe-outputs files
     # Default: /tmp/gh-aw/safeoutputs
@@ -38,7 +38,7 @@ steps:
   - uses: actions/checkout@v4
   
   - name: Setup Safe Outputs Files
-    uses: ./actions/safe-outputs-copy
+    uses: ./actions/safe-outputs
     
   - name: Use Safe Outputs
     run: |

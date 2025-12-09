@@ -1,4 +1,4 @@
-# Safe Inputs Copy Action
+# Safe Inputs Action
 
 This action copies safe-inputs MCP server files to the agent environment.
 
@@ -10,7 +10,7 @@ The safe-inputs MCP server provides read operations for GitHub Actions workflows
 
 ```yaml
 - name: Setup Safe Inputs Files
-  uses: ./actions/safe-inputs-copy
+  uses: ./actions/safe-inputs
   with:
     # Destination directory for safe-inputs files
     # Default: /tmp/gh-aw/safe-inputs
@@ -38,7 +38,7 @@ steps:
   - uses: actions/checkout@v4
   
   - name: Setup Safe Inputs Files
-    uses: ./actions/safe-inputs-copy
+    uses: ./actions/safe-inputs
     
   - name: Use Safe Inputs
     run: |
