@@ -1,5 +1,4 @@
 // @ts-check
-/// <reference types="@actions/github-script" />
 
 const { spawn } = require("child_process");
 const path = require("path");
