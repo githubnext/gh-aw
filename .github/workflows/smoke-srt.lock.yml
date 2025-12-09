@@ -33,6 +33,7 @@
 # permissions:
 #   contents: read
 #   issues: read
+#   pull-requests: read
 # name: Smoke SRT
 # engine: copilot
 # network:
@@ -120,6 +121,7 @@ name: "Smoke SRT"
 permissions:
   contents: read
   issues: read
+  pull-requests: read
 
 concurrency:
   group: "gh-aw-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}"
@@ -234,6 +236,7 @@ jobs:
     permissions:
       contents: read
       issues: read
+      pull-requests: read
     env:
       GH_AW_MCP_LOG_DIR: /tmp/gh-aw/mcp-logs/safeoutputs
       GH_AW_SAFE_OUTPUTS: /tmp/gh-aw/safeoutputs/outputs.jsonl

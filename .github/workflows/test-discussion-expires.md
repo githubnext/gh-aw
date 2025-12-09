@@ -5,6 +5,8 @@ on:
 permissions:
   contents: read
   discussions: write
+  issues: read
+  pull-requests: read
 engine: copilot
 safe-outputs:
   create-discussion:
