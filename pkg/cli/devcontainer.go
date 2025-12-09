@@ -77,7 +77,9 @@ func ensureDevcontainerConfig(verbose bool, additionalRepos []string) error {
 	repositories := map[string]DevcontainerRepoPermissions{
 		repoName: {
 			Permissions: map[string]string{
-				"workflows": "write",
+				"contents":      "write",
+				"pull-requests": "write",
+				"workflows":     "write",
 			},
 		},
 		"githubnext/gh-aw": {

@@ -29,7 +29,7 @@ With --mcp flag:
 
 With --codespace flag:
 - Creates .devcontainer/devcontainer.json with universal image
-- Configures workflows: write permission for triggering actions
+- Configures default Codespaces permissions (contents:write, pull-requests:write) + workflows:write for current repo
 - Adds read access to githubnext/gh-aw releases
 - Adds read access to additional repositories specified (e.g., --codespace owner/repo1,owner/repo2)
 - Pre-installs gh aw extension CLI
