@@ -6662,6 +6662,8 @@ jobs:
           GH_AW_WORKFLOW_NAME: "Auto-Assign Issue"
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
           GH_AW_DETECTION_CONCLUSION: ${{ needs.detection.result }}
+          GH_AW_SAFE_OUTPUT_JOBS: "{\"add_comment\":\"comment_url\"}"
+          GH_AW_OUTPUT_ADD_COMMENT_COMMENT_URL: ${{ needs.add_comment.outputs.comment_url }}
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -6761,6 +6763,29 @@ jobs:
                 ? renderTemplate(messages.detectionFailure, templateContext)
                 : renderTemplate(defaultMessage, templateContext);
             }
+            function collectGeneratedAssets() {
+              const assets = [];
+              const safeOutputJobsEnv = process.env.GH_AW_SAFE_OUTPUT_JOBS;
+              if (!safeOutputJobsEnv) {
+                return assets;
+              }
+              let jobOutputMapping;
+              try {
+                jobOutputMapping = JSON.parse(safeOutputJobsEnv);
+              } catch (error) {
+                core.warning(`Failed to parse GH_AW_SAFE_OUTPUT_JOBS: ${error instanceof Error ? error.message : String(error)}`);
+                return assets;
+              }
+              for (const [jobName, urlKey] of Object.entries(jobOutputMapping)) {
+                const envVarName = `GH_AW_OUTPUT_${jobName.toUpperCase()}_${urlKey.toUpperCase()}`;
+                const url = process.env[envVarName];
+                if (url && url.trim() !== "") {
+                  assets.push(url);
+                  core.info(`Collected asset URL: ${url}`);
+                }
+              }
+              return assets;
+            }
             async function main() {
               const commentId = process.env.GH_AW_COMMENT_ID;
               const commentRepo = process.env.GH_AW_COMMENT_REPO;
@@ -6844,6 +6869,13 @@ jobs:
                 } else {
                   message += noopMessages.map((msg, idx) => `${idx + 1}. ${msg}`).join("\n");
                 }
+              }
+              const generatedAssets = collectGeneratedAssets();
+              if (generatedAssets.length > 0) {
+                message += "\n\n";
+                generatedAssets.forEach(url => {
+                  message += `${url}\n`;
+                });
               }
               const isDiscussionComment = commentId.startsWith("DC_");
               try {

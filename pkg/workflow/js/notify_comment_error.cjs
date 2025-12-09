@@ -8,6 +8,43 @@
 const { loadAgentOutput } = require("./load_agent_output.cjs");
 const { getRunSuccessMessage, getRunFailureMessage, getDetectionFailureMessage } = require("./messages_run_status.cjs");
 
+/**
+ * Collect generated asset URLs from safe output jobs
+ * @returns {Array<string>} Array of generated asset URLs
+ */
+function collectGeneratedAssets() {
+  const assets = [];
+
+  // Get the safe output jobs mapping from environment
+  const safeOutputJobsEnv = process.env.GH_AW_SAFE_OUTPUT_JOBS;
+  if (!safeOutputJobsEnv) {
+    return assets;
+  }
+
+  let jobOutputMapping;
+  try {
+    jobOutputMapping = JSON.parse(safeOutputJobsEnv);
+  } catch (error) {
+    core.warning(`Failed to parse GH_AW_SAFE_OUTPUT_JOBS: ${error instanceof Error ? error.message : String(error)}`);
+    return assets;
+  }
+
+  // Iterate through each job and collect its URL output
+  for (const [jobName, urlKey] of Object.entries(jobOutputMapping)) {
+    // Access the job output using the GitHub Actions context
+    // The value will be set as an environment variable in the format GH_AW_OUTPUT_<JOB>_<KEY>
+    const envVarName = `GH_AW_OUTPUT_${jobName.toUpperCase()}_${urlKey.toUpperCase()}`;
+    const url = process.env[envVarName];
+
+    if (url && url.trim() !== "") {
+      assets.push(url);
+      core.info(`Collected asset URL: ${url}`);
+    }
+  }
+
+  return assets;
+}
+
 async function main() {
   const commentId = process.env.GH_AW_COMMENT_ID;
   const commentRepo = process.env.GH_AW_COMMENT_REPO;
@@ -114,6 +151,15 @@ async function main() {
     } else {
       message += noopMessages.map((msg, idx) => `${idx + 1}. ${msg}`).join("\n");
     }
+  }
+
+  // Collect generated asset URLs from safe output jobs
+  const generatedAssets = collectGeneratedAssets();
+  if (generatedAssets.length > 0) {
+    message += "\n\n";
+    generatedAssets.forEach(url => {
+      message += `${url}\n`;
+    });
   }
 
   // Check if this is a discussion comment (GraphQL node ID format)

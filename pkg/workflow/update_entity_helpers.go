@@ -35,6 +35,19 @@ type UpdateEntityJobParams struct {
 	Condition       ConditionNode     // Job condition expression
 }
 
+// UpdateEntityJobBuilder encapsulates entity-specific configuration for building update jobs
+type UpdateEntityJobBuilder struct {
+	EntityType          UpdateEntityType
+	ConfigKey           string
+	JobName             string
+	StepName            string
+	ScriptGetter        func() string
+	PermissionsFunc     func() *Permissions
+	BuildCustomEnvVars  func(*UpdateEntityConfig) []string
+	BuildOutputs        func() map[string]string
+	BuildEventCondition func(string) ConditionNode // Optional: builds event condition if target is empty
+}
+
 // parseUpdateEntityConfig is a generic function to parse update entity configurations
 func (c *Compiler) parseUpdateEntityConfig(outputMap map[string]any, params UpdateEntityJobParams, logger *logger.Logger, parseSpecificFields func(map[string]any, *UpdateEntityConfig)) *UpdateEntityConfig {
 	if configData, exists := outputMap[params.ConfigKey]; exists {
@@ -93,4 +106,52 @@ func (c *Compiler) buildUpdateEntityJob(data *WorkflowData, mainJobName string, 
 		Token:          config.GitHubToken,
 		TargetRepoSlug: config.TargetRepoSlug,
 	})
+}
+
+// buildUpdateEntityJobWithConfig is a higher-level helper that encapsulates the common pattern
+// of building update entity jobs, reducing duplication across issue/PR/release builders
+func (c *Compiler) buildUpdateEntityJobWithConfig(
+	data *WorkflowData,
+	mainJobName string,
+	config *UpdateEntityConfig,
+	builder UpdateEntityJobBuilder,
+	logger *logger.Logger,
+) (*Job, error) {
+	if config == nil {
+		return nil, fmt.Errorf("safe-outputs.%s configuration is required", builder.ConfigKey)
+	}
+
+	// Build entity-specific custom environment variables
+	customEnvVars := builder.BuildCustomEnvVars(config)
+
+	// Append target configuration environment variables
+	customEnvVars = append(customEnvVars, BuildTargetEnvVar("GH_AW_UPDATE_TARGET", config.Target)...)
+
+	// Build entity-specific outputs
+	outputs := builder.BuildOutputs()
+
+	// Build job condition with safe output type check
+	jobCondition := BuildSafeOutputType(builder.JobName)
+
+	// Add optional event condition if target is empty and event condition builder is provided
+	if builder.BuildEventCondition != nil && config.Target == "" {
+		eventCondition := builder.BuildEventCondition(config.Target)
+		jobCondition = buildAnd(jobCondition, eventCondition)
+	}
+
+	// Create UpdateEntityJobParams with all the configuration
+	params := UpdateEntityJobParams{
+		EntityType:      builder.EntityType,
+		ConfigKey:       builder.ConfigKey,
+		JobName:         builder.JobName,
+		StepName:        builder.StepName,
+		ScriptGetter:    builder.ScriptGetter,
+		PermissionsFunc: builder.PermissionsFunc,
+		CustomEnvVars:   customEnvVars,
+		Outputs:         outputs,
+		Condition:       jobCondition,
+	}
+
+	// Use the existing buildUpdateEntityJob to create the job
+	return c.buildUpdateEntityJob(data, mainJobName, config, params, logger)
 }

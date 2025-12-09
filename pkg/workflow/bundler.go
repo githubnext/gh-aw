@@ -110,6 +110,12 @@ func BundleJavaScriptWithMode(mainContent string, sources map[string]string, bas
 	bundlerLog.Printf("Bundling JavaScript: source_count=%d, base_path=%s, main_content_size=%d bytes, runtime_mode=%s",
 		len(sources), basePath, len(mainContent), mode)
 
+	// Validate that no runtime mode mixing occurs
+	if err := validateNoRuntimeMixing(mainContent, sources, mode); err != nil {
+		bundlerLog.Printf("Runtime mode validation failed: %v", err)
+		return "", err
+	}
+
 	// Track already processed files to avoid circular dependencies
 	processed := make(map[string]bool)
 

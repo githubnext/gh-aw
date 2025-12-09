@@ -44,6 +44,8 @@
 #   github:
 #     toolsets: [default, pull_requests]
 #
+# if: needs.search_issues.outputs.has_issues == 'true'
+#
 # jobs:
 #   search_issues:
 #     needs: ["pre_activation"]
@@ -102,8 +104,6 @@
 #               core.setOutput('has_issues', 'false');
 #             }
 #
-# if: needs.search_issues.outputs.has_issues == 'true'
-#
 # safe-outputs:
 #   assign-to-agent:
 #     max: 3
@@ -141,6 +141,7 @@
 #   pre_activation --> activation
 #   pre_activation --> search_issues
 #   search_issues --> activation
+#   search_issues --> agent
 # ```
 #
 # Original Prompt:
@@ -1028,7 +1029,9 @@ jobs:
             await main();
 
   agent:
-    needs: activation
+    needs:
+      - activation
+      - search_issues
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -7101,6 +7104,8 @@ jobs:
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
           GH_AW_DETECTION_CONCLUSION: ${{ needs.detection.result }}
           GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🍪 *Om nom nom by [{workflow_name}]({run_url})*\",\"runStarted\":\"🍪 ISSUE! ISSUE! [{workflow_name}]({run_url}) hungry for issues on this {event_type}! Om nom nom...\",\"runSuccess\":\"🍪 YUMMY! [{workflow_name}]({run_url}) ate the issues! That was DELICIOUS! Me want MORE! 😋\",\"runFailure\":\"🍪 Aww... [{workflow_name}]({run_url}) {status}. No cookie for monster today... 😢\"}"
+          GH_AW_SAFE_OUTPUT_JOBS: "{\"add_comment\":\"comment_url\"}"
+          GH_AW_OUTPUT_ADD_COMMENT_COMMENT_URL: ${{ needs.add_comment.outputs.comment_url }}
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -7200,6 +7205,29 @@ jobs:
                 ? renderTemplate(messages.detectionFailure, templateContext)
                 : renderTemplate(defaultMessage, templateContext);
             }
+            function collectGeneratedAssets() {
+              const assets = [];
+              const safeOutputJobsEnv = process.env.GH_AW_SAFE_OUTPUT_JOBS;
+              if (!safeOutputJobsEnv) {
+                return assets;
+              }
+              let jobOutputMapping;
+              try {
+                jobOutputMapping = JSON.parse(safeOutputJobsEnv);
+              } catch (error) {
+                core.warning(`Failed to parse GH_AW_SAFE_OUTPUT_JOBS: ${error instanceof Error ? error.message : String(error)}`);
+                return assets;
+              }
+              for (const [jobName, urlKey] of Object.entries(jobOutputMapping)) {
+                const envVarName = `GH_AW_OUTPUT_${jobName.toUpperCase()}_${urlKey.toUpperCase()}`;
+                const url = process.env[envVarName];
+                if (url && url.trim() !== "") {
+                  assets.push(url);
+                  core.info(`Collected asset URL: ${url}`);
+                }
+              }
+              return assets;
+            }
             async function main() {
               const commentId = process.env.GH_AW_COMMENT_ID;
               const commentRepo = process.env.GH_AW_COMMENT_REPO;
@@ -7283,6 +7311,13 @@ jobs:
                 } else {
                   message += noopMessages.map((msg, idx) => `${idx + 1}. ${msg}`).join("\n");
                 }
+              }
+              const generatedAssets = collectGeneratedAssets();
+              if (generatedAssets.length > 0) {
+                message += "\n\n";
+                generatedAssets.forEach(url => {
+                  message += `${url}\n`;
+                });
               }
               const isDiscussionComment = commentId.startsWith("DC_");
               try {

@@ -24,42 +24,32 @@ func (c *Compiler) buildCreateOutputUpdateIssueJob(data *WorkflowData, mainJobNa
 
 	cfg := data.SafeOutputs.UpdateIssues
 
-	// Build custom environment variables specific to update-issue
-	customEnvVars := []string{
-		fmt.Sprintf("          GH_AW_UPDATE_STATUS: %t\n", cfg.Status != nil),
-		fmt.Sprintf("          GH_AW_UPDATE_TITLE: %t\n", cfg.Title != nil),
-		fmt.Sprintf("          GH_AW_UPDATE_BODY: %t\n", cfg.Body != nil),
-	}
-
-	// Pass the target configuration
-	customEnvVars = append(customEnvVars, BuildTargetEnvVar("GH_AW_UPDATE_TARGET", cfg.Target)...)
-
-	// Create outputs for the job
-	outputs := map[string]string{
-		"issue_number": "${{ steps.update_issue.outputs.issue_number }}",
-		"issue_url":    "${{ steps.update_issue.outputs.issue_url }}",
-	}
-
-	// Build job condition with event check if target is not specified
-	jobCondition := BuildSafeOutputType("update_issue")
-	if cfg.Target == "" {
-		eventCondition := BuildPropertyAccess("github.event.issue.number")
-		jobCondition = buildAnd(jobCondition, eventCondition)
-	}
-
-	params := UpdateEntityJobParams{
+	builder := UpdateEntityJobBuilder{
 		EntityType:      UpdateEntityIssue,
 		ConfigKey:       "update-issue",
 		JobName:         "update_issue",
 		StepName:        "Update Issue",
 		ScriptGetter:    getUpdateIssueScript,
 		PermissionsFunc: NewPermissionsContentsReadIssuesWrite,
-		CustomEnvVars:   customEnvVars,
-		Outputs:         outputs,
-		Condition:       jobCondition,
+		BuildCustomEnvVars: func(config *UpdateEntityConfig) []string {
+			return []string{
+				fmt.Sprintf("          GH_AW_UPDATE_STATUS: %t\n", cfg.Status != nil),
+				fmt.Sprintf("          GH_AW_UPDATE_TITLE: %t\n", cfg.Title != nil),
+				fmt.Sprintf("          GH_AW_UPDATE_BODY: %t\n", cfg.Body != nil),
+			}
+		},
+		BuildOutputs: func() map[string]string {
+			return map[string]string{
+				"issue_number": "${{ steps.update_issue.outputs.issue_number }}",
+				"issue_url":    "${{ steps.update_issue.outputs.issue_url }}",
+			}
+		},
+		BuildEventCondition: func(target string) ConditionNode {
+			return BuildPropertyAccess("github.event.issue.number")
+		},
 	}
 
-	return c.buildUpdateEntityJob(data, mainJobName, &cfg.UpdateEntityConfig, params, updateIssueLog)
+	return c.buildUpdateEntityJobWithConfig(data, mainJobName, &cfg.UpdateEntityConfig, builder, updateIssueLog)
 }
 
 // parseUpdateIssuesConfig handles update-issue configuration

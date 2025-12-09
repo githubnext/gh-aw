@@ -94,6 +94,25 @@ func (c *Compiler) getCustomJobsDependingOnPreActivation(customJobs map[string]a
 	return jobNames
 }
 
+// getReferencedCustomJobs returns custom job names that are referenced in the given content.
+// It looks for patterns like "needs.<jobName>." or "${{ needs.<jobName>." in the content.
+func (c *Compiler) getReferencedCustomJobs(content string, customJobs map[string]any) []string {
+	if content == "" || customJobs == nil {
+		return nil
+	}
+	var referencedJobs []string
+	for jobName := range customJobs {
+		// Check for patterns like "needs.job_name." which covers:
+		// - needs.job_name.outputs.X
+		// - ${{ needs.job_name.outputs.X }}
+		// - needs.job_name.result
+		if strings.Contains(content, fmt.Sprintf("needs.%s.", jobName)) {
+			referencedJobs = append(referencedJobs, jobName)
+		}
+	}
+	return referencedJobs
+}
+
 // buildJobs creates all jobs for the workflow and adds them to the job manager
 func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
 	compilerJobsLog.Printf("Building jobs for workflow: %s", markdownPath)
@@ -1141,6 +1160,27 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 					depends = append(depends, jobName)
 				}
 			}
+		}
+	}
+
+	// IMPORTANT: Even though jobs that depend on pre_activation are transitively accessible
+	// through the activation job, if the workflow content directly references their outputs
+	// (e.g., ${{ needs.search_issues.outputs.* }}), we MUST add them as direct dependencies.
+	// This is required for GitHub Actions expression evaluation and actionlint validation.
+	referencedJobs := c.getReferencedCustomJobs(data.MarkdownContent, data.Jobs)
+	for _, jobName := range referencedJobs {
+		// Check if this job is already in depends
+		alreadyDepends := false
+		for _, dep := range depends {
+			if dep == jobName {
+				alreadyDepends = true
+				break
+			}
+		}
+		// Add it if not already present
+		if !alreadyDepends {
+			depends = append(depends, jobName)
+			compilerJobsLog.Printf("Added direct dependency on custom job '%s' because it's referenced in workflow content", jobName)
 		}
 	}
 

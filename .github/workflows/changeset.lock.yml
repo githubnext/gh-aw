@@ -6319,6 +6319,8 @@ jobs:
           GH_AW_WORKFLOW_NAME: "Changeset Generator"
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
           GH_AW_DETECTION_CONCLUSION: ${{ needs.detection.result }}
+          GH_AW_SAFE_OUTPUT_JOBS: "{\"push_to_pull_request_branch\":\"push_url\"}"
+          GH_AW_OUTPUT_PUSH_TO_PULL_REQUEST_BRANCH_PUSH_URL: ${{ needs.push_to_pull_request_branch.outputs.push_url }}
         with:
           github-token: ${{ steps.app-token.outputs.token }}
           script: |
@@ -6418,6 +6420,29 @@ jobs:
                 ? renderTemplate(messages.detectionFailure, templateContext)
                 : renderTemplate(defaultMessage, templateContext);
             }
+            function collectGeneratedAssets() {
+              const assets = [];
+              const safeOutputJobsEnv = process.env.GH_AW_SAFE_OUTPUT_JOBS;
+              if (!safeOutputJobsEnv) {
+                return assets;
+              }
+              let jobOutputMapping;
+              try {
+                jobOutputMapping = JSON.parse(safeOutputJobsEnv);
+              } catch (error) {
+                core.warning(`Failed to parse GH_AW_SAFE_OUTPUT_JOBS: ${error instanceof Error ? error.message : String(error)}`);
+                return assets;
+              }
+              for (const [jobName, urlKey] of Object.entries(jobOutputMapping)) {
+                const envVarName = `GH_AW_OUTPUT_${jobName.toUpperCase()}_${urlKey.toUpperCase()}`;
+                const url = process.env[envVarName];
+                if (url && url.trim() !== "") {
+                  assets.push(url);
+                  core.info(`Collected asset URL: ${url}`);
+                }
+              }
+              return assets;
+            }
             async function main() {
               const commentId = process.env.GH_AW_COMMENT_ID;
               const commentRepo = process.env.GH_AW_COMMENT_REPO;
@@ -6501,6 +6526,13 @@ jobs:
                 } else {
                   message += noopMessages.map((msg, idx) => `${idx + 1}. ${msg}`).join("\n");
                 }
+              }
+              const generatedAssets = collectGeneratedAssets();
+              if (generatedAssets.length > 0) {
+                message += "\n\n";
+                generatedAssets.forEach(url => {
+                  message += `${url}\n`;
+                });
               }
               const isDiscussionComment = commentId.startsWith("DC_");
               try {
