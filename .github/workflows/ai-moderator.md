@@ -7,22 +7,23 @@ on:
     types: [created]
   pull_request_review_comment:
     types: [created]
+  workflow_dispatch:
+    inputs:
+      issue_url:
+        description: 'Issue or discussion URL to moderate (e.g., https://github.com/owner/repo/issues/123)'
+        required: true
+        type: string
 permissions:
-  models: read
   contents: read
   issues: read
   pull-requests: read
 engine: copilot
 if: needs.check_external_user.outputs.is_external == 'true'
-tools:
-  github:
-    toolsets: [default]
 safe-outputs:
   add-labels:
     allowed: [spam, ai-generated, link-spam]
   minimize-comment:
     max: 5
-roles: all
 jobs:
   check_external_user:
     runs-on: ubuntu-slim
@@ -36,6 +37,13 @@ jobs:
           script: |
             const actor = context.actor;
             const { owner, repo } = context.repo;
+            
+            // For workflow_dispatch, always run (manually triggered by user)
+            if (context.eventName === 'workflow_dispatch') {
+              core.info(`✅ Running workflow - manually triggered via workflow_dispatch`);
+              core.setOutput('should_run', 'true');
+              return;
+            }
             
             try {
               core.info(`Checking permissions for user: ${actor}`);
@@ -73,18 +81,17 @@ You are an AI-powered moderation system that automatically detects spam, link sp
 
 ## Context
 
-Analyze the following content that was just posted in repository ${{ github.repository }}:
+Analyze the following content in repository ${{ github.repository }}:
 
 **Issue Number** (if applicable): #${{ github.event.issue.number }}
 **Pull Request Number** (if applicable): #${{ github.event.pull_request.number }}
 **Comment ID** (if applicable): ${{ github.event.comment.id }}
 **Author**: ${{ github.actor }}
+**Manual URL** (if workflow_dispatch): ${{ github.event.inputs.issue_url }}
 
 **Content to analyze**:
 
-For issues, the issue title is: ${{ github.event.issue.title }}
-
-The content body to analyze is available through the GitHub context. Use the GitHub tools to fetch the full context of the issue, comment, or pull request review comment that triggered this workflow.
+${{ needs.activation.outputs.text }}
 
 ## Custom Moderation Rules (Optional)
 

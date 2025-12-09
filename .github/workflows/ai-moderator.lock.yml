@@ -28,22 +28,23 @@
 #     types: [created]
 #   pull_request_review_comment:
 #     types: [created]
+#   workflow_dispatch:
+#     inputs:
+#       issue_url:
+#         description: 'Issue or discussion URL to moderate (e.g., https://github.com/owner/repo/issues/123)'
+#         required: true
+#         type: string
 # permissions:
-#   models: read
 #   contents: read
 #   issues: read
 #   pull-requests: read
 # engine: copilot
 # if: needs.check_external_user.outputs.is_external == 'true'
-# tools:
-#   github:
-#     toolsets: [default]
 # safe-outputs:
 #   add-labels:
 #     allowed: [spam, ai-generated, link-spam]
 #   minimize-comment:
 #     max: 5
-# roles: all
 # jobs:
 #   check_external_user:
 #     runs-on: ubuntu-slim
@@ -57,6 +58,13 @@
 #           script: |
 #             const actor = context.actor;
 #             const { owner, repo } = context.repo;
+#
+#             // For workflow_dispatch, always run (manually triggered by user)
+#             if (context.eventName === 'workflow_dispatch') {
+#               core.info(`✅ Running workflow - manually triggered via workflow_dispatch`);
+#               core.setOutput('should_run', 'true');
+#               return;
+#             }
 #
 #             try {
 #               core.info(`Checking permissions for user: ${actor}`);
@@ -98,6 +106,7 @@
 #   conclusion["conclusion"]
 #   detection["detection"]
 #   minimize_comment["minimize_comment"]
+#   pre_activation["pre_activation"]
 #   activation --> agent
 #   activation --> check_external_user
 #   activation --> conclusion
@@ -111,6 +120,7 @@
 #   detection --> conclusion
 #   detection --> minimize_comment
 #   minimize_comment --> conclusion
+#   pre_activation --> activation
 # ```
 #
 # Original Prompt:
@@ -121,18 +131,17 @@
 #
 # ## Context
 #
-# Analyze the following content that was just posted in repository ${{ github.repository }}:
+# Analyze the following content in repository ${{ github.repository }}:
 #
 # **Issue Number** (if applicable): #${{ github.event.issue.number }}
 # **Pull Request Number** (if applicable): #${{ github.event.pull_request.number }}
 # **Comment ID** (if applicable): ${{ github.event.comment.id }}
 # **Author**: ${{ github.actor }}
+# **Manual URL** (if workflow_dispatch): ${{ github.event.inputs.issue_url }}
 #
 # **Content to analyze**:
 #
-# For issues, the issue title is: ${{ github.event.issue.title }}
-#
-# The content body to analyze is available through the GitHub context. Use the GitHub tools to fetch the full context of the issue, comment, or pull request review comment that triggered this workflow.
+# ${{ needs.activation.outputs.text }}
 #
 # ## Custom Moderation Rules (Optional)
 #
@@ -239,11 +248,16 @@ name: "AI Moderator"
   pull_request_review_comment:
     types:
     - created
+  workflow_dispatch:
+    inputs:
+      issue_url:
+        description: Issue or discussion URL to moderate (e.g., https://github.com/owner/repo/issues/123)
+        required: true
+        type: string
 
 permissions:
   contents: read
   issues: read
-  models: read
   pull-requests: read
 
 concurrency:
@@ -254,12 +268,15 @@ run-name: "AI Moderator"
 
 jobs:
   activation:
+    needs: pre_activation
+    if: needs.pre_activation.outputs.activated == 'true'
     runs-on: ubuntu-slim
     permissions:
       contents: read
     outputs:
       comment_id: ""
       comment_repo: ""
+      text: ${{ steps.compute-text.outputs.text }}
     steps:
       - name: Check workflow file timestamps
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
@@ -348,6 +365,368 @@ jobs:
             main().catch(error => {
               core.setFailed(error instanceof Error ? error.message : String(error));
             });
+      - name: Compute current body text
+        id: compute-text
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        with:
+          script: |
+            const redactedDomains = [];
+            function getRedactedDomains() {
+              return [...redactedDomains];
+            }
+            function clearRedactedDomains() {
+              redactedDomains.length = 0;
+            }
+            function writeRedactedDomainsLog(filePath) {
+              if (redactedDomains.length === 0) {
+                return null;
+              }
+              const fs = require("fs");
+              const path = require("path");
+              const targetPath = filePath || "/tmp/gh-aw/redacted-urls.log";
+              const dir = path.dirname(targetPath);
+              if (!fs.existsSync(dir)) {
+                fs.mkdirSync(dir, { recursive: true });
+              }
+              fs.writeFileSync(targetPath, redactedDomains.join("\n") + "\n");
+              return targetPath;
+            }
+            function extractDomainsFromUrl(url) {
+              if (!url || typeof url !== "string") {
+                return [];
+              }
+              try {
+                const urlObj = new URL(url);
+                const hostname = urlObj.hostname.toLowerCase();
+                const domains = [hostname];
+                if (hostname === "github.com") {
+                  domains.push("api.github.com");
+                  domains.push("raw.githubusercontent.com");
+                  domains.push("*.githubusercontent.com");
+                }
+                else if (!hostname.startsWith("api.")) {
+                  domains.push("api." + hostname);
+                  domains.push("raw." + hostname);
+                }
+                return domains;
+              } catch (e) {
+                return [];
+              }
+            }
+            function sanitizeContent(content, maxLengthOrOptions) {
+              let maxLength;
+              let allowedAliasesLowercase = [];
+              if (typeof maxLengthOrOptions === "number") {
+                maxLength = maxLengthOrOptions;
+              } else if (maxLengthOrOptions && typeof maxLengthOrOptions === "object") {
+                maxLength = maxLengthOrOptions.maxLength;
+                allowedAliasesLowercase = (maxLengthOrOptions.allowedAliases || []).map(alias => alias.toLowerCase());
+              }
+              if (!content || typeof content !== "string") {
+                return "";
+              }
+              const allowedDomainsEnv = process.env.GH_AW_ALLOWED_DOMAINS;
+              const defaultAllowedDomains = ["github.com", "github.io", "githubusercontent.com", "githubassets.com", "github.dev", "codespaces.new"];
+              let allowedDomains = allowedDomainsEnv
+                ? allowedDomainsEnv
+                    .split(",")
+                    .map(d => d.trim())
+                    .filter(d => d)
+                : defaultAllowedDomains;
+              const githubServerUrl = process.env.GITHUB_SERVER_URL;
+              const githubApiUrl = process.env.GITHUB_API_URL;
+              if (githubServerUrl) {
+                const serverDomains = extractDomainsFromUrl(githubServerUrl);
+                allowedDomains = allowedDomains.concat(serverDomains);
+              }
+              if (githubApiUrl) {
+                const apiDomains = extractDomainsFromUrl(githubApiUrl);
+                allowedDomains = allowedDomains.concat(apiDomains);
+              }
+              allowedDomains = [...new Set(allowedDomains)];
+              let sanitized = content;
+              sanitized = neutralizeCommands(sanitized);
+              sanitized = neutralizeMentions(sanitized);
+              sanitized = removeXmlComments(sanitized);
+              sanitized = convertXmlTags(sanitized);
+              sanitized = sanitized.replace(/\x1b\[[0-9;]*[mGKH]/g, "");
+              sanitized = sanitized.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "");
+              sanitized = sanitizeUrlProtocols(sanitized);
+              sanitized = sanitizeUrlDomains(sanitized);
+              const lines = sanitized.split("\n");
+              const maxLines = 65000;
+              maxLength = maxLength || 524288;
+              if (lines.length > maxLines) {
+                const truncationMsg = "\n[Content truncated due to line count]";
+                const truncatedLines = lines.slice(0, maxLines).join("\n") + truncationMsg;
+                if (truncatedLines.length > maxLength) {
+                  sanitized = truncatedLines.substring(0, maxLength - truncationMsg.length) + truncationMsg;
+                } else {
+                  sanitized = truncatedLines;
+                }
+              } else if (sanitized.length > maxLength) {
+                sanitized = sanitized.substring(0, maxLength) + "\n[Content truncated due to length]";
+              }
+              sanitized = neutralizeBotTriggers(sanitized);
+              return sanitized.trim();
+              function sanitizeUrlDomains(s) {
+                s = s.replace(/\bhttps:\/\/([^\s\])}'"<>&\x00-\x1f,;]+)/gi, (match, rest) => {
+                  const hostname = rest.split(/[\/:\?#]/)[0].toLowerCase();
+                  const isAllowed = allowedDomains.some(allowedDomain => {
+                    const normalizedAllowed = allowedDomain.toLowerCase();
+                    return hostname === normalizedAllowed || hostname.endsWith("." + normalizedAllowed);
+                  });
+                  if (isAllowed) {
+                    return match; 
+                  }
+                  const domain = hostname;
+                  const truncated = domain.length > 12 ? domain.substring(0, 12) + "..." : domain;
+                  core.info(`Redacted URL: ${truncated}`);
+                  core.debug(`Redacted URL (full): ${match}`);
+                  redactedDomains.push(domain);
+                  const urlParts = match.split(/([?&#])/);
+                  let result = "(redacted)"; 
+                  for (let i = 1; i < urlParts.length; i++) {
+                    if (urlParts[i].match(/^[?&#]$/)) {
+                      result += urlParts[i]; 
+                    } else {
+                      result += sanitizeUrlDomains(urlParts[i]);
+                    }
+                  }
+                  return result;
+                });
+                return s;
+              }
+              function sanitizeUrlProtocols(s) {
+                return s.replace(/(?<![-\/\w])([A-Za-z][A-Za-z0-9+.-]*):(?:\/\/|(?=[^\s:]))[^\s\])}'"<>&\x00-\x1f]+/g, (match, protocol) => {
+                  if (protocol.toLowerCase() === "https") {
+                    return match;
+                  }
+                  if (match.includes("::")) {
+                    return match;
+                  }
+                  if (match.includes("://")) {
+                    const domainMatch = match.match(/^[^:]+:\/\/([^\/\s?#]+)/);
+                    const domain = domainMatch ? domainMatch[1] : match;
+                    const truncated = domain.length > 12 ? domain.substring(0, 12) + "..." : domain;
+                    core.info(`Redacted URL: ${truncated}`);
+                    core.debug(`Redacted URL (full): ${match}`);
+                    redactedDomains.push(domain);
+                    return "(redacted)";
+                  }
+                  const dangerousProtocols = ["javascript", "data", "vbscript", "file", "about", "mailto", "tel", "ssh", "ftp"];
+                  if (dangerousProtocols.includes(protocol.toLowerCase())) {
+                    const truncated = match.length > 12 ? match.substring(0, 12) + "..." : match;
+                    core.info(`Redacted URL: ${truncated}`);
+                    core.debug(`Redacted URL (full): ${match}`);
+                    redactedDomains.push(protocol + ":");
+                    return "(redacted)";
+                  }
+                  return match;
+                });
+              }
+              function neutralizeCommands(s) {
+                const commandName = process.env.GH_AW_COMMAND;
+                if (!commandName) {
+                  return s;
+                }
+                const escapedCommand = commandName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+                return s.replace(new RegExp(`^(\\s*)/(${escapedCommand})\\b`, "i"), "$1`/$2`");
+              }
+              function neutralizeMentions(s) {
+                return s.replace(/(^|[^\w`])@([A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?(?:\/[A-Za-z0-9._-]+)?)/g, (_m, p1, p2) => {
+                  const isAllowed = allowedAliasesLowercase.includes(p2.toLowerCase());
+                  if (isAllowed) {
+                    return `${p1}@${p2}`; 
+                  }
+                  return `${p1}\`@${p2}\``; 
+                });
+              }
+              function removeXmlComments(s) {
+                return s.replace(/<!--[\s\S]*?-->/g, "").replace(/<!--[\s\S]*?--!>/g, "");
+              }
+              function convertXmlTags(s) {
+                const allowedTags = ["details", "summary", "code", "em", "b", "p", "strong", "i", "u", "br", "ul", "ol", "li", "blockquote"];
+                s = s.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, (match, content) => {
+                  const convertedContent = content.replace(/<(\/?[A-Za-z][A-Za-z0-9]*(?:[^>]*?))>/g, "($1)");
+                  return `(![CDATA[${convertedContent}]])`;
+                });
+                return s.replace(/<(\/?[A-Za-z!][^>]*?)>/g, (match, tagContent) => {
+                  const tagNameMatch = tagContent.match(/^\/?\s*([A-Za-z][A-Za-z0-9]*)/);
+                  if (tagNameMatch) {
+                    const tagName = tagNameMatch[1].toLowerCase();
+                    if (allowedTags.includes(tagName)) {
+                      return match; 
+                    }
+                  }
+                  return `(${tagContent})`; 
+                });
+              }
+              function neutralizeBotTriggers(s) {
+                return s.replace(/\b(fixes?|closes?|resolves?|fix|close|resolve)\s+#(\w+)/gi, (match, action, ref) => `\`${action} #${ref}\``);
+              }
+            }
+            async function main() {
+              let text = "";
+              let allowedAliases = [];
+              const actor = context.actor;
+              const { owner, repo } = context.repo;
+              const repoPermission = await github.rest.repos.getCollaboratorPermissionLevel({
+                owner: owner,
+                repo: repo,
+                username: actor,
+              });
+              const permission = repoPermission.data.permission;
+              core.info(`Repository permission level: ${permission}`);
+              if (permission !== "admin" && permission !== "maintain") {
+                core.setOutput("text", "");
+                return;
+              }
+              switch (context.eventName) {
+                case "issues":
+                  if (context.payload.issue) {
+                    const title = context.payload.issue.title || "";
+                    const body = context.payload.issue.body || "";
+                    text = `${title}\n\n${body}`;
+                    if (context.payload.issue.user?.login) {
+                      allowedAliases.push(context.payload.issue.user.login);
+                    }
+                  }
+                  break;
+                case "pull_request":
+                  if (context.payload.pull_request) {
+                    const title = context.payload.pull_request.title || "";
+                    const body = context.payload.pull_request.body || "";
+                    text = `${title}\n\n${body}`;
+                    if (context.payload.pull_request.user?.login) {
+                      allowedAliases.push(context.payload.pull_request.user.login);
+                    }
+                  }
+                  break;
+                case "pull_request_target":
+                  if (context.payload.pull_request) {
+                    const title = context.payload.pull_request.title || "";
+                    const body = context.payload.pull_request.body || "";
+                    text = `${title}\n\n${body}`;
+                    if (context.payload.pull_request.user?.login) {
+                      allowedAliases.push(context.payload.pull_request.user.login);
+                    }
+                  }
+                  break;
+                case "issue_comment":
+                  if (context.payload.comment) {
+                    text = context.payload.comment.body || "";
+                    if (context.payload.comment.user?.login) {
+                      allowedAliases.push(context.payload.comment.user.login);
+                    }
+                    if (context.payload.issue?.user?.login) {
+                      allowedAliases.push(context.payload.issue.user.login);
+                    }
+                  }
+                  break;
+                case "pull_request_review_comment":
+                  if (context.payload.comment) {
+                    text = context.payload.comment.body || "";
+                    if (context.payload.comment.user?.login) {
+                      allowedAliases.push(context.payload.comment.user.login);
+                    }
+                    if (context.payload.pull_request?.user?.login) {
+                      allowedAliases.push(context.payload.pull_request.user.login);
+                    }
+                  }
+                  break;
+                case "pull_request_review":
+                  if (context.payload.review) {
+                    text = context.payload.review.body || "";
+                    if (context.payload.review.user?.login) {
+                      allowedAliases.push(context.payload.review.user.login);
+                    }
+                    if (context.payload.pull_request?.user?.login) {
+                      allowedAliases.push(context.payload.pull_request.user.login);
+                    }
+                  }
+                  break;
+                case "discussion":
+                  if (context.payload.discussion) {
+                    const title = context.payload.discussion.title || "";
+                    const body = context.payload.discussion.body || "";
+                    text = `${title}\n\n${body}`;
+                    if (context.payload.discussion.user?.login) {
+                      allowedAliases.push(context.payload.discussion.user.login);
+                    }
+                  }
+                  break;
+                case "discussion_comment":
+                  if (context.payload.comment) {
+                    text = context.payload.comment.body || "";
+                    if (context.payload.comment.user?.login) {
+                      allowedAliases.push(context.payload.comment.user.login);
+                    }
+                    if (context.payload.discussion?.user?.login) {
+                      allowedAliases.push(context.payload.discussion.user.login);
+                    }
+                  }
+                  break;
+                case "release":
+                  if (context.payload.release) {
+                    const name = context.payload.release.name || context.payload.release.tag_name || "";
+                    const body = context.payload.release.body || "";
+                    text = `${name}\n\n${body}`;
+                    if (context.payload.release.author?.login) {
+                      allowedAliases.push(context.payload.release.author.login);
+                    }
+                  }
+                  break;
+                case "workflow_dispatch":
+                  if (context.payload.inputs) {
+                    const releaseUrl = context.payload.inputs.release_url;
+                    const releaseId = context.payload.inputs.release_id;
+                    if (releaseUrl) {
+                      const urlMatch = releaseUrl.match(/github\.com\/([^\/]+)\/([^\/]+)\/releases\/tag\/([^\/]+)/);
+                      if (urlMatch) {
+                        const [, urlOwner, urlRepo, tag] = urlMatch;
+                        try {
+                          const { data: release } = await github.rest.repos.getReleaseByTag({
+                            owner: urlOwner,
+                            repo: urlRepo,
+                            tag: tag,
+                          });
+                          const name = release.name || release.tag_name || "";
+                          const body = release.body || "";
+                          text = `${name}\n\n${body}`;
+                        } catch (error) {
+                          core.warning(`Failed to fetch release from URL: ${error instanceof Error ? error.message : String(error)}`);
+                        }
+                      }
+                    } else if (releaseId) {
+                      try {
+                        const { data: release } = await github.rest.repos.getRelease({
+                          owner: owner,
+                          repo: repo,
+                          release_id: parseInt(releaseId, 10),
+                        });
+                        const name = release.name || release.tag_name || "";
+                        const body = release.body || "";
+                        text = `${name}\n\n${body}`;
+                      } catch (error) {
+                        core.warning(`Failed to fetch release by ID: ${error instanceof Error ? error.message : String(error)}`);
+                      }
+                    }
+                  }
+                  break;
+                default:
+                  text = "";
+                  break;
+              }
+              const sanitizedText = sanitizeContent(text, { allowedAliases });
+              core.info(`text: ${sanitizedText}`);
+              core.setOutput("text", sanitizedText);
+              const logPath = writeRedactedDomainsLog();
+              if (logPath) {
+                core.info(`Redacted URL domains written to: ${logPath}`);
+              }
+            }
+            await main();
 
   add_labels:
     needs:
@@ -919,7 +1298,6 @@ jobs:
     permissions:
       contents: read
       issues: read
-      models: read
       pull-requests: read
     env:
       GH_AW_MCP_LOG_DIR: /tmp/gh-aw/mcp-logs/safeoutputs
@@ -2496,10 +2874,11 @@ jobs:
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
           GH_AW_GITHUB_ACTOR: ${{ github.actor }}
           GH_AW_GITHUB_EVENT_COMMENT_ID: ${{ github.event.comment.id }}
+          GH_AW_GITHUB_EVENT_INPUTS_ISSUE_URL: ${{ github.event.inputs.issue_url }}
           GH_AW_GITHUB_EVENT_ISSUE_NUMBER: ${{ github.event.issue.number }}
-          GH_AW_GITHUB_EVENT_ISSUE_TITLE: ${{ github.event.issue.title }}
           GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER: ${{ github.event.pull_request.number }}
           GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
+          GH_AW_NEEDS_ACTIVATION_OUTPUTS_TEXT: ${{ needs.activation.outputs.text }}
         run: |
           PROMPT_DIR="$(dirname "$GH_AW_PROMPT")"
           mkdir -p "$PROMPT_DIR"
@@ -2510,18 +2889,17 @@ jobs:
           
           ## Context
           
-          Analyze the following content that was just posted in repository __GH_AW_GITHUB_REPOSITORY__:
+          Analyze the following content in repository __GH_AW_GITHUB_REPOSITORY__:
           
           **Issue Number** (if applicable): #__GH_AW_GITHUB_EVENT_ISSUE_NUMBER__
           **Pull Request Number** (if applicable): #__GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER__
           **Comment ID** (if applicable): __GH_AW_GITHUB_EVENT_COMMENT_ID__
           **Author**: __GH_AW_GITHUB_ACTOR__
+          **Manual URL** (if workflow_dispatch): __GH_AW_GITHUB_EVENT_INPUTS_ISSUE_URL__
           
           **Content to analyze**:
           
-          For issues, the issue title is: __GH_AW_GITHUB_EVENT_ISSUE_TITLE__
-          
-          The content body to analyze is available through the GitHub context. Use the GitHub tools to fetch the full context of the issue, comment, or pull request review comment that triggered this workflow.
+          __GH_AW_NEEDS_ACTIVATION_OUTPUTS_TEXT__
           
           ## Custom Moderation Rules (Optional)
           
@@ -2613,10 +2991,11 @@ jobs:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_GITHUB_ACTOR: ${{ github.actor }}
           GH_AW_GITHUB_EVENT_COMMENT_ID: ${{ github.event.comment.id }}
+          GH_AW_GITHUB_EVENT_INPUTS_ISSUE_URL: ${{ github.event.inputs.issue_url }}
           GH_AW_GITHUB_EVENT_ISSUE_NUMBER: ${{ github.event.issue.number }}
-          GH_AW_GITHUB_EVENT_ISSUE_TITLE: ${{ github.event.issue.title }}
           GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER: ${{ github.event.pull_request.number }}
           GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
+          GH_AW_NEEDS_ACTIVATION_OUTPUTS_TEXT: ${{ needs.activation.outputs.text }}
         with:
           script: |
             /**
@@ -2676,10 +3055,11 @@ jobs:
               substitutions: {
                 GH_AW_GITHUB_ACTOR: process.env.GH_AW_GITHUB_ACTOR,
                 GH_AW_GITHUB_EVENT_COMMENT_ID: process.env.GH_AW_GITHUB_EVENT_COMMENT_ID,
+                GH_AW_GITHUB_EVENT_INPUTS_ISSUE_URL: process.env.GH_AW_GITHUB_EVENT_INPUTS_ISSUE_URL,
                 GH_AW_GITHUB_EVENT_ISSUE_NUMBER: process.env.GH_AW_GITHUB_EVENT_ISSUE_NUMBER,
-                GH_AW_GITHUB_EVENT_ISSUE_TITLE: process.env.GH_AW_GITHUB_EVENT_ISSUE_TITLE,
                 GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER: process.env.GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER,
-                GH_AW_GITHUB_REPOSITORY: process.env.GH_AW_GITHUB_REPOSITORY
+                GH_AW_GITHUB_REPOSITORY: process.env.GH_AW_GITHUB_REPOSITORY,
+                GH_AW_NEEDS_ACTIVATION_OUTPUTS_TEXT: process.env.GH_AW_NEEDS_ACTIVATION_OUTPUTS_TEXT
               }
             });
       - name: Append XPIA security instructions to prompt
@@ -2876,10 +3256,11 @@ jobs:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_GITHUB_ACTOR: ${{ github.actor }}
           GH_AW_GITHUB_EVENT_COMMENT_ID: ${{ github.event.comment.id }}
+          GH_AW_GITHUB_EVENT_INPUTS_ISSUE_URL: ${{ github.event.inputs.issue_url }}
           GH_AW_GITHUB_EVENT_ISSUE_NUMBER: ${{ github.event.issue.number }}
-          GH_AW_GITHUB_EVENT_ISSUE_TITLE: ${{ github.event.issue.title }}
           GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER: ${{ github.event.pull_request.number }}
           GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
+          GH_AW_NEEDS_ACTIVATION_OUTPUTS_TEXT: ${{ needs.activation.outputs.text }}
         with:
           script: |
             const fs = require("fs");
@@ -5946,6 +6327,13 @@ jobs:
             const actor = context.actor;
             const { owner, repo } = context.repo;
 
+            // For workflow_dispatch, always run (manually triggered by user)
+            if (context.eventName === 'workflow_dispatch') {
+              core.info(`✅ Running workflow - manually triggered via workflow_dispatch`);
+              core.setOutput('should_run', 'true');
+              return;
+            }
+
             try {
               core.info(`Checking permissions for user: ${actor}`);
 
@@ -6849,6 +7237,99 @@ jobs:
                   core.setFailed(`Failed to minimize comment: ${errorMessage}`);
                   return;
                 }
+              }
+            }
+            await main();
+
+  pre_activation:
+    runs-on: ubuntu-slim
+    outputs:
+      activated: ${{ steps.check_membership.outputs.is_team_member == 'true' }}
+    steps:
+      - name: Check team membership for workflow
+        id: check_membership
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        env:
+          GH_AW_REQUIRED_ROLES: admin,maintainer,write
+        with:
+          script: |
+            function parseRequiredPermissions() {
+              const requiredPermissionsEnv = process.env.GH_AW_REQUIRED_ROLES;
+              return requiredPermissionsEnv ? requiredPermissionsEnv.split(",").filter(p => p.trim() !== "") : [];
+            }
+            async function checkRepositoryPermission(actor, owner, repo, requiredPermissions) {
+              try {
+                core.info(`Checking if user '${actor}' has required permissions for ${owner}/${repo}`);
+                core.info(`Required permissions: ${requiredPermissions.join(", ")}`);
+                const repoPermission = await github.rest.repos.getCollaboratorPermissionLevel({
+                  owner: owner,
+                  repo: repo,
+                  username: actor,
+                });
+                const permission = repoPermission.data.permission;
+                core.info(`Repository permission level: ${permission}`);
+                for (const requiredPerm of requiredPermissions) {
+                  if (permission === requiredPerm || (requiredPerm === "maintainer" && permission === "maintain")) {
+                    core.info(`✅ User has ${permission} access to repository`);
+                    return { authorized: true, permission: permission };
+                  }
+                }
+                core.warning(`User permission '${permission}' does not meet requirements: ${requiredPermissions.join(", ")}`);
+                return { authorized: false, permission: permission };
+              } catch (repoError) {
+                const errorMessage = repoError instanceof Error ? repoError.message : String(repoError);
+                core.warning(`Repository permission check failed: ${errorMessage}`);
+                return { authorized: false, error: errorMessage };
+              }
+            }
+            async function main() {
+              const { eventName } = context;
+              const actor = context.actor;
+              const { owner, repo } = context.repo;
+              const requiredPermissions = parseRequiredPermissions();
+              if (eventName === "workflow_dispatch") {
+                const hasWriteRole = requiredPermissions.includes("write");
+                if (hasWriteRole) {
+                  core.info(`✅ Event ${eventName} does not require validation (write role allowed)`);
+                  core.setOutput("is_team_member", "true");
+                  core.setOutput("result", "safe_event");
+                  return;
+                }
+                core.info(`Event ${eventName} requires validation (write role not allowed)`);
+              }
+              const safeEvents = ["schedule"];
+              if (safeEvents.includes(eventName)) {
+                core.info(`✅ Event ${eventName} does not require validation`);
+                core.setOutput("is_team_member", "true");
+                core.setOutput("result", "safe_event");
+                return;
+              }
+              if (!requiredPermissions || requiredPermissions.length === 0) {
+                core.warning("❌ Configuration error: Required permissions not specified. Contact repository administrator.");
+                core.setOutput("is_team_member", "false");
+                core.setOutput("result", "config_error");
+                core.setOutput("error_message", "Configuration error: Required permissions not specified");
+                return;
+              }
+              const result = await checkRepositoryPermission(actor, owner, repo, requiredPermissions);
+              if (result.error) {
+                core.setOutput("is_team_member", "false");
+                core.setOutput("result", "api_error");
+                core.setOutput("error_message", `Repository permission check failed: ${result.error}`);
+                return;
+              }
+              if (result.authorized) {
+                core.setOutput("is_team_member", "true");
+                core.setOutput("result", "authorized");
+                core.setOutput("user_permission", result.permission);
+              } else {
+                core.setOutput("is_team_member", "false");
+                core.setOutput("result", "insufficient_permissions");
+                core.setOutput("user_permission", result.permission);
+                core.setOutput(
+                  "error_message",
+                  `Access denied: User '${actor}' is not authorized. Required permissions: ${requiredPermissions.join(", ")}`
+                );
               }
             }
             await main();
