@@ -1,5 +1,6 @@
 {
-  "last_updated": "2025-12-08T10:06:19.526952",
+  "last_updated": "2025-12-09T10:04:46.729Z",
+  "report_generated": "2025-12-09T10:04:46.729Z",
   "total_runs_analyzed": 100,
   "firewall_enabled_runs": 9,
   "total_denied_domains": 10,
@@ -15,5 +16,6 @@
     20022444607,
     20022438641,
     20021157641
-  ]
+  ],
+  "notes": "Report generated for December 9, 2025. Data based on December 8, 2025 firewall summary. GitHub API access issue identified requiring GitHub MCP server configuration."
 }
