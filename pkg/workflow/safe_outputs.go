@@ -24,6 +24,83 @@ func (c *Compiler) formatSafeOutputsRunsOn(safeOutputs *SafeOutputsConfig) strin
 	return fmt.Sprintf("runs-on: %s", safeOutputs.RunsOn)
 }
 
+// buildCustomActionStep creates a step that uses a custom action reference
+// instead of inline JavaScript via actions/github-script
+func (c *Compiler) buildCustomActionStep(data *WorkflowData, config GitHubScriptStepConfig, scriptName string) []string {
+	safeOutputsLog.Printf("Building custom action step: %s (scriptName=%s)", config.StepName, scriptName)
+
+	var steps []string
+
+	// Get the action path from the script registry
+	actionPath := DefaultScriptRegistry.GetActionPath(scriptName)
+	if actionPath == "" {
+		safeOutputsLog.Printf("WARNING: No action path found for script %s, falling back to inline mode", scriptName)
+		return c.buildGitHubScriptStep(data, config)
+	}
+
+	// Add artifact download steps before the custom action step
+	steps = append(steps, buildAgentOutputDownloadSteps()...)
+
+	// Step name and metadata
+	steps = append(steps, fmt.Sprintf("      - name: %s\n", config.StepName))
+	steps = append(steps, fmt.Sprintf("        id: %s\n", config.StepID))
+	steps = append(steps, fmt.Sprintf("        uses: %s\n", actionPath))
+
+	// Environment variables section
+	steps = append(steps, "        env:\n")
+	steps = append(steps, "          GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}\n")
+	steps = append(steps, config.CustomEnvVars...)
+	c.addCustomSafeOutputEnvVars(&steps, data)
+
+	// With section for inputs (replaces github-token in actions/github-script)
+	steps = append(steps, "        with:\n")
+
+	// Map github-token to token input for custom actions
+	if config.UseAgentToken {
+		c.addCustomActionAgentGitHubToken(&steps, data, config.Token)
+	} else if config.UseCopilotToken {
+		c.addCustomActionCopilotGitHubToken(&steps, data, config.Token)
+	} else {
+		c.addCustomActionGitHubToken(&steps, data, config.Token)
+	}
+
+	return steps
+}
+
+// Helper functions to add GitHub token as action input instead of github-script parameter
+func (c *Compiler) addCustomActionGitHubToken(steps *[]string, data *WorkflowData, customToken string) {
+	token := customToken
+	if token == "" && data.SafeOutputs != nil {
+		token = data.SafeOutputs.GitHubToken
+	}
+	if token == "" {
+		token = data.GitHubToken
+	}
+	if token == "" {
+		token = "${{ secrets.GITHUB_TOKEN }}"
+	}
+	*steps = append(*steps, fmt.Sprintf("          token: %s\n", token))
+}
+
+func (c *Compiler) addCustomActionCopilotGitHubToken(steps *[]string, data *WorkflowData, customToken string) {
+	token := customToken
+	if token == "" && data.SafeOutputs != nil {
+		token = data.SafeOutputs.GitHubToken
+	}
+	if token == "" {
+		token = "${{ secrets.GH_AW_COPILOT_TOKEN || secrets.COPILOT_TOKEN || secrets.GITHUB_TOKEN }}"
+	}
+	*steps = append(*steps, fmt.Sprintf("          token: %s\n", token))
+}
+
+func (c *Compiler) addCustomActionAgentGitHubToken(steps *[]string, data *WorkflowData, customToken string) {
+	token := customToken
+	if token == "" {
+		token = "${{ env.GH_AW_AGENT_TOKEN }}"
+	}
+	*steps = append(*steps, fmt.Sprintf("          token: %s\n", token))
+}
+
 // HasSafeOutputsEnabled checks if any safe-outputs are enabled
 func HasSafeOutputsEnabled(safeOutputs *SafeOutputsConfig) bool {
 	if safeOutputs == nil {
@@ -609,6 +686,11 @@ type SafeOutputJobConfig struct {
 	// JavaScript script constant to include in the GitHub Script step
 	Script string
 
+	// Script name for looking up custom action path (optional)
+	// If provided and action mode is custom, the compiler will use a custom action
+	// instead of inline JavaScript. Example: "create_issue"
+	ScriptName string
+
 	// Job configuration
 	Permissions     *Permissions      // Job permissions
 	Outputs         map[string]string // Job outputs
@@ -629,7 +711,7 @@ type SafeOutputJobConfig struct {
 // 3. Invoke buildGitHubScriptStep
 // 4. Create Job with standard metadata
 func (c *Compiler) buildSafeOutputJob(data *WorkflowData, config SafeOutputJobConfig) (*Job, error) {
-	safeOutputsLog.Printf("Building safe output job: %s", config.JobName)
+	safeOutputsLog.Printf("Building safe output job: %s (actionMode=%s)", config.JobName, c.actionMode)
 	var steps []string
 
 	// Add GitHub App token minting step if app is configured
@@ -644,17 +726,35 @@ func (c *Compiler) buildSafeOutputJob(data *WorkflowData, config SafeOutputJobCo
 		steps = append(steps, config.PreSteps...)
 	}
 
-	// Build the GitHub Script step using the common helper
-	scriptSteps := c.buildGitHubScriptStep(data, GitHubScriptStepConfig{
-		StepName:        config.StepName,
-		StepID:          config.StepID,
-		MainJobName:     config.MainJobName,
-		CustomEnvVars:   config.CustomEnvVars,
-		Script:          config.Script,
-		Token:           config.Token,
-		UseCopilotToken: config.UseCopilotToken,
-		UseAgentToken:   config.UseAgentToken,
-	})
+	// Build the step based on action mode
+	var scriptSteps []string
+	if c.actionMode == ActionModeCustom && config.ScriptName != "" {
+		// Use custom action mode if enabled and script name is provided
+		safeOutputsLog.Printf("Using custom action mode for script: %s", config.ScriptName)
+		scriptSteps = c.buildCustomActionStep(data, GitHubScriptStepConfig{
+			StepName:        config.StepName,
+			StepID:          config.StepID,
+			MainJobName:     config.MainJobName,
+			CustomEnvVars:   config.CustomEnvVars,
+			Script:          config.Script,
+			Token:           config.Token,
+			UseCopilotToken: config.UseCopilotToken,
+			UseAgentToken:   config.UseAgentToken,
+		}, config.ScriptName)
+	} else {
+		// Use inline mode (default behavior)
+		safeOutputsLog.Printf("Using inline mode (actions/github-script)")
+		scriptSteps = c.buildGitHubScriptStep(data, GitHubScriptStepConfig{
+			StepName:        config.StepName,
+			StepID:          config.StepID,
+			MainJobName:     config.MainJobName,
+			CustomEnvVars:   config.CustomEnvVars,
+			Script:          config.Script,
+			Token:           config.Token,
+			UseCopilotToken: config.UseCopilotToken,
+			UseAgentToken:   config.UseAgentToken,
+		})
+	}
 	steps = append(steps, scriptSteps...)
 
 	// Add post-steps if provided (e.g., assignees, reviewers)

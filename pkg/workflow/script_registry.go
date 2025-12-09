@@ -63,10 +63,11 @@ var registryLog = logger.New("workflow:script_registry")
 
 // scriptEntry holds the source and bundled versions of a script
 type scriptEntry struct {
-	source  string
-	bundled string
-	mode    RuntimeMode // Runtime mode for bundling
-	once    sync.Once
+	source     string
+	bundled    string
+	mode       RuntimeMode // Runtime mode for bundling
+	actionPath string      // Optional path to custom action (e.g., "./actions/create-issue")
+	once       sync.Once
 }
 
 // ScriptRegistry manages lazy bundling of JavaScript scripts.
@@ -144,9 +145,61 @@ func (r *ScriptRegistry) RegisterWithMode(name string, source string, mode Runti
 	}
 
 	r.scripts[name] = &scriptEntry{
-		source: source,
-		mode:   mode,
+		source:     source,
+		mode:       mode,
+		actionPath: "", // No custom action by default
 	}
+}
+
+// RegisterWithAction registers a script with both inline code and a custom action path.
+// This allows the compiler to choose between inline mode (using actions/github-script)
+// or custom action mode (using the provided action path).
+//
+// Parameters:
+//   - name: Unique identifier for the script (e.g., "create_issue")
+//   - source: The raw JavaScript source code (for inline mode)
+//   - mode: Runtime mode for bundling (GitHub Script or Node.js)
+//   - actionPath: Path to custom action (e.g., "./actions/create-issue" for development)
+//
+// The actionPath should be a relative path from the repository root for development mode.
+// In the future, this can be extended to support versioned references like
+// "githubnext/gh-aw/.github/actions/create-issue@SHA" for release mode.
+func (r *ScriptRegistry) RegisterWithAction(name string, source string, mode RuntimeMode, actionPath string) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	if registryLog.Enabled() {
+		registryLog.Printf("Registering script with action: %s (%d bytes, mode: %s, action: %s)",
+			name, len(source), mode, actionPath)
+	}
+
+	// Perform compile-time validation based on runtime mode
+	if err := validateNoExecSync(name, source, mode); err != nil {
+		panic(fmt.Sprintf("Script registration validation failed: %v", err))
+	}
+
+	if err := validateNoGitHubScriptGlobals(name, source, mode); err != nil {
+		panic(fmt.Sprintf("Script registration validation failed: %v", err))
+	}
+
+	r.scripts[name] = &scriptEntry{
+		source:     source,
+		mode:       mode,
+		actionPath: actionPath,
+	}
+}
+
+// GetActionPath retrieves the custom action path for a script, if registered.
+// Returns an empty string if the script doesn't have a custom action path.
+func (r *ScriptRegistry) GetActionPath(name string) string {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	entry, exists := r.scripts[name]
+	if !exists {
+		return ""
+	}
+	return entry.actionPath
 }
 
 // Get retrieves a bundled script by name.

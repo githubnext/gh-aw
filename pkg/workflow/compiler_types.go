@@ -26,6 +26,7 @@ type Compiler struct {
 	trialMode            bool                // If true, suppress safe outputs for trial mode execution
 	trialLogicalRepoSlug string              // If set in trial mode, the logical repository to checkout
 	refreshStopTime      bool                // If true, regenerate stop-after times instead of preserving existing ones
+	actionMode           ActionMode          // Mode for generating JavaScript steps (inline vs custom actions)
 	jobManager           *JobManager         // Manages jobs and dependencies
 	engineRegistry       *EngineRegistry     // Registry of available agentic engines
 	fileTracker          FileTracker         // Optional file tracker for tracking created files
@@ -43,6 +44,7 @@ func NewCompiler(verbose bool, engineOverride string, version string) *Compiler 
 		engineOverride:   engineOverride,
 		version:          version,
 		skipValidation:   true, // Skip validation by default for now since existing workflows don't fully comply
+		actionMode:       ActionModeInline, // Default to inline mode for backwards compatibility
 		jobManager:       NewJobManager(),
 		engineRegistry:   GetGlobalEngineRegistry(),
 		stepOrderTracker: NewStepOrderTracker(),
@@ -59,6 +61,7 @@ func NewCompilerWithCustomOutput(verbose bool, engineOverride string, customOutp
 		customOutput:     customOutput,
 		version:          version,
 		skipValidation:   true, // Skip validation by default for now since existing workflows don't fully comply
+		actionMode:       ActionModeInline, // Default to inline mode for backwards compatibility
 		jobManager:       NewJobManager(),
 		engineRegistry:   GetGlobalEngineRegistry(),
 		stepOrderTracker: NewStepOrderTracker(),
@@ -100,6 +103,16 @@ func (c *Compiler) SetStrictMode(strict bool) {
 // SetRefreshStopTime configures whether to force regeneration of stop-after times
 func (c *Compiler) SetRefreshStopTime(refresh bool) {
 	c.refreshStopTime = refresh
+}
+
+// SetActionMode configures the action mode for JavaScript step generation
+func (c *Compiler) SetActionMode(mode ActionMode) {
+	c.actionMode = mode
+}
+
+// GetActionMode returns the current action mode
+func (c *Compiler) GetActionMode() ActionMode {
+	return c.actionMode
 }
 
 // IncrementWarningCount increments the warning counter

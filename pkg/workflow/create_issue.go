@@ -189,6 +189,7 @@ func (c *Compiler) buildCreateOutputIssueJob(data *WorkflowData, mainJobName str
 		MainJobName:    mainJobName,
 		CustomEnvVars:  customEnvVars,
 		Script:         getCreateIssueScript(),
+		ScriptName:     "create_issue", // For custom action mode
 		Permissions:    NewPermissionsContentsReadIssuesWrite(),
 		Outputs:        outputs,
 		PostSteps:      postSteps,
