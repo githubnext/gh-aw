@@ -71,16 +71,6 @@ func TestEnsureDevcontainerConfig(t *testing.T) {
 		t.Fatal("Expected Codespaces customizations to be set")
 	}
 
-	// Verify gh-aw repository permissions
-	ghAwRepo, exists := config.Customizations.Codespaces.Repositories["githubnext/gh-aw"]
-	if !exists {
-		t.Fatal("Expected githubnext/gh-aw repository to be configured")
-	}
-
-	if ghAwRepo.Permissions["contents"] != "read" {
-		t.Errorf("Expected contents: read permission for githubnext/gh-aw, got %q", ghAwRepo.Permissions["contents"])
-	}
-
 	// Verify VSCode extensions
 	if config.Customizations.VSCode == nil {
 		t.Fatal("Expected VSCode customizations to be set")
@@ -192,11 +182,6 @@ func TestEnsureDevcontainerConfigWithAdditionalRepos(t *testing.T) {
 	repo2 := config.Customizations.Codespaces.Repositories["owner/additional-repo2"]
 	if repo2.Permissions["contents"] != "read" {
 		t.Errorf("Expected contents: read for owner/additional-repo2, got %q", repo2.Permissions["contents"])
-	}
-
-	// Verify githubnext/gh-aw is still present
-	if _, exists := config.Customizations.Codespaces.Repositories["githubnext/gh-aw"]; !exists {
-		t.Error("Expected githubnext/gh-aw to be in repositories")
 	}
 }
 

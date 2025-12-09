@@ -29,9 +29,8 @@ With --mcp flag:
 
 With --codespaces flag:
 - Creates .devcontainer/gh-aw/devcontainer.json with universal image (in subfolder to avoid conflicts)
-- Configures default Codespaces permissions (contents:write, pull-requests:write) + workflows:write for current repo
-- Adds read access to githubnext/gh-aw releases
-- Adds default Codespaces read permissions (contents:read, pull-requests:read) + workflows:read to additional repositories
+- Configures permissions for current repo: actions:read, contents:write, discussions:read, issues:read, pull-requests:write, workflows:write
+- Configures permissions for additional repos: actions:read, contents:read, discussions:read, issues:read, pull-requests:read, workflows:read
 - Pre-installs gh aw extension CLI
 - Pre-installs @github/copilot
 
