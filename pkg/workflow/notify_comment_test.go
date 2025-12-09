@@ -576,6 +576,16 @@ func TestBuildSafeOutputJobsEnvVars(t *testing.T) {
 			checkJSONKeys: []string{"create_issue", "add_comment", "create_pull_request"},
 		},
 		{
+			name:          "creates env vars for push_to_pull_request_branch job",
+			jobNames:      []string{"push_to_pull_request_branch"},
+			expectJSON:    true,
+			expectEnvVars: 1,
+			checkEnvVars: []string{
+				"GH_AW_OUTPUT_PUSH_TO_PULL_REQUEST_BRANCH_PUSH_URL: ${{ needs.push_to_pull_request_branch.outputs.push_url }}",
+			},
+			checkJSONKeys: []string{"push_to_pull_request_branch"},
+		},
+		{
 			name:          "skips jobs without URL outputs",
 			jobNames:      []string{"create_issue", "detection", "some_custom_job"},
 			expectJSON:    true,
