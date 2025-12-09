@@ -88,7 +88,7 @@ func ensureDevcontainerConfig(verbose bool, additionalRepos []string) error {
 	repositories := map[string]DevcontainerRepoPermissions{
 		repoName: {
 			Permissions: map[string]string{
-				"actions":       "read",
+				"actions":       "write",
 				"contents":      "write",
 				"discussions":   "read",
 				"issues":        "read",
