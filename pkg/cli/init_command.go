@@ -31,6 +31,7 @@ With --codespace flag:
 - Creates .devcontainer/devcontainer.json with universal image
 - Configures workflows: write permission for triggering actions
 - Adds read access to githubnext/gh-aw releases
+- Adds read access to additional repositories specified (e.g., --codespace owner/repo1,owner/repo2)
 - Pre-installs gh aw extension CLI
 - Pre-installs @github/copilot
 
@@ -44,13 +45,13 @@ Examples:
   ` + constants.CLIExtensionPrefix + ` init
   ` + constants.CLIExtensionPrefix + ` init -v
   ` + constants.CLIExtensionPrefix + ` init --mcp
-  ` + constants.CLIExtensionPrefix + ` init --codespace`,
+  ` + constants.CLIExtensionPrefix + ` init --codespace owner/repo1,owner/repo2`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			verbose, _ := cmd.Flags().GetBool("verbose")
 			mcp, _ := cmd.Flags().GetBool("mcp")
-			codespace, _ := cmd.Flags().GetBool("codespace")
-			initCommandLog.Printf("Executing init command: verbose=%v, mcp=%v, codespace=%v", verbose, mcp, codespace)
-			if err := InitRepository(verbose, mcp, codespace); err != nil {
+			codespaceRepos, _ := cmd.Flags().GetStringSlice("codespace")
+			initCommandLog.Printf("Executing init command: verbose=%v, mcp=%v, codespace=%v", verbose, mcp, codespaceRepos)
+			if err := InitRepository(verbose, mcp, codespaceRepos); err != nil {
 				initCommandLog.Printf("Init command failed: %v", err)
 				return err
 			}
@@ -60,7 +61,7 @@ Examples:
 	}
 
 	cmd.Flags().Bool("mcp", false, "Configure GitHub Copilot Agent MCP server integration")
-	cmd.Flags().Bool("codespace", false, "Create devcontainer.json for GitHub Codespaces with agentic workflows support")
+	cmd.Flags().StringSlice("codespace", []string{}, "Create devcontainer.json for GitHub Codespaces with agentic workflows support. Optionally specify additional repositories for read access (e.g., owner/repo1,owner/repo2)")
 
 	return cmd
 }

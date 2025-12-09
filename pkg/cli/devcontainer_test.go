@@ -35,7 +35,7 @@ func TestEnsureDevcontainerConfig(t *testing.T) {
 	exec.Command("git", "config", "user.email", "test@example.com").Run()
 
 	// Test creating devcontainer.json
-	err = ensureDevcontainerConfig(false)
+	err = ensureDevcontainerConfig(false, []string{})
 	if err != nil {
 		t.Fatalf("ensureDevcontainerConfig() failed: %v", err)
 	}
@@ -121,9 +121,82 @@ func TestEnsureDevcontainerConfig(t *testing.T) {
 	}
 
 	// Test that running again doesn't fail (idempotency)
-	err = ensureDevcontainerConfig(false)
+	err = ensureDevcontainerConfig(false, []string{})
 	if err != nil {
 		t.Fatalf("ensureDevcontainerConfig() should be idempotent, but failed: %v", err)
+	}
+}
+
+func TestEnsureDevcontainerConfigWithAdditionalRepos(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "test-*")
+
+	originalDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Failed to get current directory: %v", err)
+	}
+	defer func() {
+		_ = os.Chdir(originalDir)
+	}()
+
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatalf("Failed to change to temp directory: %v", err)
+	}
+
+	// Initialize git repo
+	if err := exec.Command("git", "init").Run(); err != nil {
+		t.Skip("Git not available")
+	}
+
+	// Configure git
+	exec.Command("git", "config", "user.name", "Test User").Run()
+	exec.Command("git", "config", "user.email", "test@example.com").Run()
+
+	// Test creating devcontainer.json with additional repos
+	additionalRepos := []string{"org/additional-repo1", "owner/additional-repo2"}
+	err = ensureDevcontainerConfig(false, additionalRepos)
+	if err != nil {
+		t.Fatalf("ensureDevcontainerConfig() failed: %v", err)
+	}
+
+	// Read and parse the created file
+	devcontainerPath := filepath.Join(".devcontainer", "devcontainer.json")
+	data, err := os.ReadFile(devcontainerPath)
+	if err != nil {
+		t.Fatalf("Failed to read devcontainer.json: %v", err)
+	}
+
+	var config DevcontainerConfig
+	if err := json.Unmarshal(data, &config); err != nil {
+		t.Fatalf("Failed to parse devcontainer.json: %v", err)
+	}
+
+	// Verify additional repos are included
+	if config.Customizations == nil || config.Customizations.Codespaces == nil {
+		t.Fatal("Expected Codespaces customizations to be set")
+	}
+
+	if _, exists := config.Customizations.Codespaces.Repositories["org/additional-repo1"]; !exists {
+		t.Error("Expected org/additional-repo1 to be in repositories")
+	}
+
+	if _, exists := config.Customizations.Codespaces.Repositories["owner/additional-repo2"]; !exists {
+		t.Error("Expected owner/additional-repo2 to be in repositories")
+	}
+
+	// Verify read permissions for additional repos
+	repo1 := config.Customizations.Codespaces.Repositories["org/additional-repo1"]
+	if repo1.Permissions["contents"] != "read" {
+		t.Errorf("Expected contents: read for org/additional-repo1, got %q", repo1.Permissions["contents"])
+	}
+
+	repo2 := config.Customizations.Codespaces.Repositories["owner/additional-repo2"]
+	if repo2.Permissions["contents"] != "read" {
+		t.Errorf("Expected contents: read for owner/additional-repo2, got %q", repo2.Permissions["contents"])
+	}
+
+	// Verify githubnext/gh-aw is still present
+	if _, exists := config.Customizations.Codespaces.Repositories["githubnext/gh-aw"]; !exists {
+		t.Error("Expected githubnext/gh-aw to be in repositories")
 	}
 }
 
@@ -152,7 +225,7 @@ func TestEnsureDevcontainerConfigWithCurrentRepo(t *testing.T) {
 	exec.Command("git", "config", "user.email", "test@example.com").Run()
 
 	// Test creating devcontainer.json
-	err = ensureDevcontainerConfig(false)
+	err = ensureDevcontainerConfig(false, []string{})
 	if err != nil {
 		t.Fatalf("ensureDevcontainerConfig() failed: %v", err)
 	}

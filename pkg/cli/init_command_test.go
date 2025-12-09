@@ -48,8 +48,9 @@ func TestNewInitCommand(t *testing.T) {
 		return
 	}
 
-	if codespaceFlag.DefValue != "false" {
-		t.Errorf("Expected codespace flag default to be 'false', got %q", codespaceFlag.DefValue)
+	// StringSlice flags have "[]" as default value
+	if codespaceFlag.DefValue != "[]" {
+		t.Errorf("Expected codespace flag default to be '[]', got %q", codespaceFlag.DefValue)
 	}
 }
 
@@ -98,7 +99,7 @@ func TestInitRepositoryBasic(t *testing.T) {
 	exec.Command("git", "config", "user.email", "test@example.com").Run()
 
 	// Test basic init without MCP
-	err = InitRepository(false, false, false)
+	err = InitRepository(false, false, []string{})
 	if err != nil {
 		t.Fatalf("InitRepository() failed: %v", err)
 	}
@@ -152,7 +153,7 @@ func TestInitRepositoryWithMCP(t *testing.T) {
 	exec.Command("git", "config", "user.email", "test@example.com").Run()
 
 	// Test init with MCP flag
-	err = InitRepository(false, true, false)
+	err = InitRepository(false, true, []string{})
 	if err != nil {
 		t.Fatalf("InitRepository() with MCP failed: %v", err)
 	}
@@ -195,7 +196,7 @@ func TestInitRepositoryVerbose(t *testing.T) {
 	exec.Command("git", "config", "user.email", "test@example.com").Run()
 
 	// Test verbose mode (should not error, just produce more output)
-	err = InitRepository(true, false, false)
+	err = InitRepository(true, false, []string{})
 	if err != nil {
 		t.Fatalf("InitRepository() in verbose mode failed: %v", err)
 	}
@@ -222,7 +223,7 @@ func TestInitRepositoryNotInGitRepo(t *testing.T) {
 	}
 
 	// Don't initialize git repo - should fail for some operations
-	err = InitRepository(false, false, false)
+	err = InitRepository(false, false, []string{})
 
 	// The function should handle this gracefully or return an error
 	// Based on the implementation, ensureGitAttributes requires git
@@ -256,13 +257,13 @@ func TestInitRepositoryIdempotent(t *testing.T) {
 	exec.Command("git", "config", "user.email", "test@example.com").Run()
 
 	// Run init twice
-	err = InitRepository(false, false, false)
+	err = InitRepository(false, false, []string{})
 	if err != nil {
 		t.Fatalf("First InitRepository() failed: %v", err)
 	}
 
 	// Second run should be idempotent
-	err = InitRepository(false, false, false)
+	err = InitRepository(false, false, []string{})
 	if err != nil {
 		t.Fatalf("Second InitRepository() failed: %v", err)
 	}
@@ -307,12 +308,12 @@ func TestInitRepositoryWithMCPIdempotent(t *testing.T) {
 	exec.Command("git", "config", "user.email", "test@example.com").Run()
 
 	// Run init with MCP twice
-	err = InitRepository(false, true, false)
+	err = InitRepository(false, true, []string{})
 	if err != nil {
 		t.Fatalf("First InitRepository() with MCP failed: %v", err)
 	}
 
-	err = InitRepository(false, true, false)
+	err = InitRepository(false, true, []string{})
 	if err != nil {
 		t.Fatalf("Second InitRepository() with MCP failed: %v", err)
 	}
@@ -354,7 +355,7 @@ func TestInitRepositoryCreatesDirectories(t *testing.T) {
 	exec.Command("git", "config", "user.email", "test@example.com").Run()
 
 	// Run init with MCP
-	err = InitRepository(false, true, false)
+	err = InitRepository(false, true, []string{})
 	if err != nil {
 		t.Fatalf("InitRepository() failed: %v", err)
 	}
@@ -412,7 +413,7 @@ func TestInitRepositoryErrorHandling(t *testing.T) {
 	}
 
 	// Test init without git repo
-	err = InitRepository(false, false, false)
+	err = InitRepository(false, false, []string{})
 
 	// Should handle error gracefully or return error
 	// The actual behavior depends on implementation
@@ -455,7 +456,7 @@ func TestInitRepositoryWithExistingFiles(t *testing.T) {
 	}
 
 	// Run init
-	err = InitRepository(false, false, false)
+	err = InitRepository(false, false, []string{})
 	if err != nil {
 		t.Fatalf("InitRepository() failed: %v", err)
 	}
@@ -503,8 +504,9 @@ func TestInitRepositoryWithCodespace(t *testing.T) {
 	exec.Command("git", "config", "user.name", "Test User").Run()
 	exec.Command("git", "config", "user.email", "test@example.com").Run()
 
-	// Test init with --codespace flag
-	err = InitRepository(false, false, true)
+	// Test init with --codespace flag (with additional repos)
+	additionalRepos := []string{"org/repo1", "owner/repo2"}
+	err = InitRepository(false, false, additionalRepos)
 	if err != nil {
 		t.Fatalf("InitRepository() with codespace failed: %v", err)
 	}
@@ -513,6 +515,20 @@ func TestInitRepositoryWithCodespace(t *testing.T) {
 	devcontainerPath := filepath.Join(".devcontainer", "devcontainer.json")
 	if _, err := os.Stat(devcontainerPath); os.IsNotExist(err) {
 		t.Error("Expected .devcontainer/devcontainer.json to be created")
+	}
+
+	// Verify additional repos were added
+	data, err := os.ReadFile(devcontainerPath)
+	if err != nil {
+		t.Fatalf("Failed to read devcontainer.json: %v", err)
+	}
+
+	content := string(data)
+	if !strings.Contains(content, "org/repo1") {
+		t.Error("Expected org/repo1 to be in devcontainer.json")
+	}
+	if !strings.Contains(content, "owner/repo2") {
+		t.Error("Expected owner/repo2 to be in devcontainer.json")
 	}
 
 	// Verify basic files are still created

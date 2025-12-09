@@ -46,8 +46,8 @@ type DevcontainerConfig struct {
 }
 
 // ensureDevcontainerConfig creates or updates .devcontainer/devcontainer.json
-func ensureDevcontainerConfig(verbose bool) error {
-	devcontainerLog.Print("Creating or updating .devcontainer/devcontainer.json")
+func ensureDevcontainerConfig(verbose bool, additionalRepos []string) error {
+	devcontainerLog.Printf("Creating or updating .devcontainer/devcontainer.json with additional repos: %v", additionalRepos)
 
 	// Create .devcontainer directory if it doesn't exist
 	devcontainerDir := ".devcontainer"
@@ -73,6 +73,32 @@ func ensureDevcontainerConfig(verbose bool) error {
 		repoName = "current-repo"
 	}
 
+	// Create repository permissions map
+	repositories := map[string]DevcontainerRepoPermissions{
+		repoName: {
+			Permissions: map[string]string{
+				"workflows": "write",
+			},
+		},
+		"githubnext/gh-aw": {
+			Permissions: map[string]string{
+				"contents": "read",
+			},
+		},
+	}
+
+	// Add additional repositories with read permissions
+	for _, repo := range additionalRepos {
+		if repo != "" && repo != repoName && repo != "githubnext/gh-aw" {
+			repositories[repo] = DevcontainerRepoPermissions{
+				Permissions: map[string]string{
+					"contents": "read",
+				},
+			}
+			devcontainerLog.Printf("Added read permission for additional repo: %s", repo)
+		}
+	}
+
 	// Create devcontainer configuration
 	config := DevcontainerConfig{
 		Name:  "Agentic Workflows Development",
@@ -85,18 +111,7 @@ func ensureDevcontainerConfig(verbose bool) error {
 				},
 			},
 			Codespaces: &DevcontainerCodespaces{
-				Repositories: map[string]DevcontainerRepoPermissions{
-					repoName: {
-						Permissions: map[string]string{
-							"workflows": "write",
-						},
-					},
-					"githubnext/gh-aw": {
-						Permissions: map[string]string{
-							"contents": "read",
-						},
-					},
-				},
+				Repositories: repositories,
 			},
 		},
 		Features: DevcontainerFeatures{
