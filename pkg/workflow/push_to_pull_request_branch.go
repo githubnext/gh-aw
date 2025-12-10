@@ -106,6 +106,7 @@ func (c *Compiler) buildCreateOutputPushToPullRequestBranchJob(data *WorkflowDat
 		"branch_name": "${{ steps.push_to_pull_request_branch.outputs.branch_name }}",
 		"commit_sha":  "${{ steps.push_to_pull_request_branch.outputs.commit_sha }}",
 		"push_url":    "${{ steps.push_to_pull_request_branch.outputs.push_url }}",
+		"commit_url":  "${{ steps.push_to_pull_request_branch.outputs.commit_url }}",
 	}
 
 	safeOutputCondition := BuildSafeOutputType("push_to_pull_request_branch")
