@@ -99,7 +99,8 @@ func TestFirewallWorkflowCompilation(t *testing.T) {
 
 	// Extract and verify tools
 	tools := extractToolsFromFrontmatter(frontmatter)
-	if _, exists := tools["web-fetch"]; !exists {
+	toolsMap := tools.ToMap()
+	if _, exists := toolsMap["web-fetch"]; !exists {
 		t.Error("web-fetch tool should be present in firewall workflow")
 	}
 

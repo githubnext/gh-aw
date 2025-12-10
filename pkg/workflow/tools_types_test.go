@@ -388,20 +388,21 @@ func TestExtractToolsFromFrontmatter(t *testing.T) {
 
 	result := extractToolsFromFrontmatter(frontmatter)
 
-	if len(result) != 2 {
-		t.Errorf("expected 2 tools, got %d", len(result))
+	resultMap := result.ToMap()
+	if len(resultMap) != 2 {
+		t.Errorf("expected 2 tools, got %d", len(resultMap))
 	}
 
-	if _, ok := result["github"]; !ok {
+	if _, ok := resultMap["github"]; !ok {
 		t.Error("expected 'github' key in result")
 	}
 
-	if _, ok := result["bash"]; !ok {
+	if _, ok := resultMap["bash"]; !ok {
 		t.Error("expected 'bash' key in result")
 	}
 
 	// Should not include mcp-servers
-	if _, ok := result["my-server"]; ok {
+	if _, ok := resultMap["my-server"]; ok {
 		t.Error("unexpected 'my-server' key in result")
 	}
 }

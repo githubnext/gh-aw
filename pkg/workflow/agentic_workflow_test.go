@@ -56,7 +56,8 @@ func TestAgenticWorkflowsSyntaxVariations(t *testing.T) {
 			}
 
 			// Verify the agentic-workflows tool is present
-			if _, exists := mergedTools["agentic-workflows"]; !exists {
+			mergedToolsMap := mergedTools.ToMap()
+			if _, exists := mergedToolsMap["agentic-workflows"]; !exists {
 				t.Errorf("Expected agentic-workflows tool to be present in merged tools")
 			}
 		})

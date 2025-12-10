@@ -1358,7 +1358,6 @@ jobs:
         run: |
           set -e
           docker pull ghcr.io/github/github-mcp-server:v0.24.1
-          docker pull mcp/fetch
       - name: Write Safe Outputs Config
         run: |
           mkdir -p /tmp/gh-aw/safeoutputs
@@ -2933,16 +2932,6 @@ jobs:
                 "env": {
                   "TAVILY_API_KEY": "\${TAVILY_API_KEY}"
                 }
-              },
-              "web-fetch": {
-                "command": "docker",
-                "args": [
-                  "run",
-                  "-i",
-                  "--rm",
-                  "mcp/fetch"
-                ],
-                "tools": ["*"]
               }
             }
           }

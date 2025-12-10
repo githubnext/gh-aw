@@ -109,10 +109,12 @@ func TestApplyDefaultToolsNoLongerAddsDefaults(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := compiler.applyDefaultTools(tt.tools, nil)
+			toolsConfig, _ := ParseToolsConfig(tt.tools)
+			result := compiler.applyDefaultTools(toolsConfig, nil)
 
+			resultMap := result.ToMap()
 			// Get the github configuration
-			githubConfig, ok := result["github"].(map[string]any)
+			githubConfig, ok := resultMap["github"].(map[string]any)
 			if !ok {
 				t.Fatal("Expected github configuration to be a map")
 			}
