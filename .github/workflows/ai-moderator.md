@@ -20,7 +20,7 @@ if: needs.check_external_user.outputs.is_external == 'true'
 safe-outputs:
   add-labels:
     allowed: [spam, ai-generated, link-spam, ai-qa]
-  minimize-comment:
+  hide-comment:
     max: 5
   threat-detection: false
 jobs:
@@ -253,7 +253,7 @@ engine:
 safe-outputs:
   add-labels:
     allowed: [spam, ai-generated, link-spam, ai-qa]
-  minimize-comment:
+  hide-comment:
     max: 5
   threat-detection: false
 permissions:
@@ -275,9 +275,9 @@ The workflow uses four labels:
 
 The workflow uses two built-in safe outputs:
 - **add-labels**: Adds labels to issues and PRs (spam, link-spam, ai-generated, ai-qa)
-- **minimize-comment**: Minimizes (hides) spam comments using GitHub's built-in functionality
+- **hide-comment**: Hides spam comments using GitHub's built-in functionality
 
-The minimize-comment safe output requires the GraphQL node ID of the comment, which the AI agent fetches from the GitHub API.
+The hide-comment safe output requires the GraphQL node ID of the comment, which the AI agent fetches from the GitHub API.
 
 **Threat Detection**: Threat detection is disabled for this workflow to streamline the moderation process.
 
@@ -286,7 +286,7 @@ The minimize-comment safe output requires the GraphQL node ID of the comment, wh
 The workflow follows security best practices:
 - **Read-only main job**: The AI analysis job only has read permissions
 - **Safe outputs**: Write operations (labeling, minimizing) are handled by separate jobs with explicit permissions
-- **Built-in safe outputs**: Uses gh-aw's built-in minimize-comment instead of custom GraphQL code
+- **Built-in safe outputs**: Uses gh-aw's built-in hide-comment instead of custom GraphQL code
 - **Strict mode**: Enforces security constraints to prevent unauthorized actions
 
 ## Comparison with github/ai-moderator

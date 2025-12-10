@@ -125,7 +125,7 @@ describe("hide_comment", () => {
     await eval(`(async () => { ${hideCommentScript} })()`);
 
     expect(mockCore.info).toHaveBeenCalledWith("Found 1 hide-comment item(s)");
-    expect(mockCore.info).toHaveBeenCalledWith(`Hiding comment: ${commentNodeId}`);
+    expect(mockCore.info).toHaveBeenCalledWith(`Hiding comment: ${commentNodeId} (reason: SPAM)`);
     expect(mockCore.info).toHaveBeenCalledWith(`Successfully hidden comment: ${commentNodeId}`);
     expect(mockGithub.graphql).toHaveBeenCalledWith(
       expect.stringContaining("minimizeComment"),
@@ -222,7 +222,7 @@ describe("hide_comment", () => {
     // Execute the script
     await eval(`(async () => { ${hideCommentScript} })()`);
 
-    expect(mockCore.info).toHaveBeenCalledWith("Found 2 minimize-comment item(s)");
+    expect(mockCore.info).toHaveBeenCalledWith("Found 2 hide-comment item(s)");
     expect(mockGithub.graphql).toHaveBeenCalledTimes(2);
     expect(mockCore.info).toHaveBeenCalledWith(`Successfully hidden comment: ${commentNodeId1}`);
     expect(mockCore.info).toHaveBeenCalledWith(`Successfully hidden comment: ${commentNodeId2}`);
