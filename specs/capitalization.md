@@ -15,7 +15,7 @@ The CLI uses different capitalization based on context:
 |---------|--------|---------|
 | Product name | **Capitalized** | "GitHub Agentic Workflows CLI from GitHub Next" |
 | Generic workflows | **Lowercase** | "Enable agentic workflows" |
-| Technical terms | **Capitalized** | "Compile Markdown to YAML workflows" |
+| Technical terms | **Capitalized** | "Compile Markdown workflows to GitHub Actions YAML" |
 
 ## Design Rationale
 
@@ -48,7 +48,7 @@ Add an MCP tool to an agentic workflow
 Proper nouns and acronyms maintain their standard capitalization:
 
 ```
-Compile Markdown to YAML workflows
+Compile Markdown workflows to GitHub Actions YAML
 MCP helpers
 ```
 
@@ -65,7 +65,7 @@ graph TD
 
     C --> F[Examples:<br/>'GitHub Agentic Workflows CLI'<br/>'GitHub Agentic Workflows from GitHub Next']
     D --> G[Examples:<br/>'Enable agentic workflows'<br/>'Initialize repository for agentic workflows'<br/>'Download agentic workflow logs']
-    E --> H[Examples:<br/>'Compile Markdown to YAML workflows'<br/>'MCP helpers']
+    E --> H[Examples:<br/>'Compile Markdown workflows to GitHub Actions YAML'<br/>'MCP helpers']
 ```
 
 ## Implementation

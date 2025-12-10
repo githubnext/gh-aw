@@ -34,7 +34,7 @@ The gh-aw CLI follows context-based capitalization to distinguish between the pr
 |---------|--------|---------|
 | Product name | **Capitalized** | "GitHub Agentic Workflows CLI from GitHub Next" |
 | Generic workflows | **Lowercase** | "Enable agentic workflows" |
-| Technical terms | **Capitalized** | "Compile Markdown to YAML workflows" |
+| Technical terms | **Capitalized** | "Compile Markdown workflows to GitHub Actions YAML" |
 
 This convention distinguishes between the product name (GitHub Agentic Workflows) and the concept (agentic workflows), following industry standards similar to "GitHub Actions" vs. "actions".
 

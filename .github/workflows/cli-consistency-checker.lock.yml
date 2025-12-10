@@ -212,7 +212,7 @@
 #
 # ### Suggested Fix
 # ```
-# Compile Markdown to YAML workflows
+# Compile Markdown workflows to GitHub Actions YAML
 # ```
 # ```
 #
@@ -2297,7 +2297,7 @@ jobs:
           
           ### Suggested Fix
           ```
-          Compile Markdown to YAML workflows
+          Compile Markdown workflows to GitHub Actions YAML
           ```
           ```
           
