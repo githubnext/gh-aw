@@ -9,12 +9,12 @@ import (
 // TestActionModeDetection tests the DetectActionMode function
 func TestActionModeDetection(t *testing.T) {
 	tests := []struct {
-		name          string
-		githubRef     string
-		githubEvent   string
-		envOverride   string
-		expectedMode  ActionMode
-		description   string
+		name         string
+		githubRef    string
+		githubEvent  string
+		envOverride  string
+		expectedMode ActionMode
+		description  string
 	}{
 		{
 			name:         "main branch",
@@ -209,7 +209,7 @@ Test workflow with release mode.
 	// Save the original script to restore after test
 	origScript := DefaultScriptRegistry.Get("create_issue")
 	origActionPath := DefaultScriptRegistry.GetActionPath("create_issue")
-	
+
 	// Register test script with action path
 	testScript := `const { core } = require('@actions/core'); core.info('test');`
 	DefaultScriptRegistry.RegisterWithAction(
@@ -218,7 +218,7 @@ Test workflow with release mode.
 		RuntimeModeGitHubScript,
 		"./actions/create-issue",
 	)
-	
+
 	// Restore after test
 	defer func() {
 		if origActionPath != "" {
@@ -255,7 +255,7 @@ Test workflow with release mode.
 	expectedRef := "githubnext/gh-aw/actions/create-issue@v1.0.0"
 	if !strings.Contains(lockStr, expectedRef) {
 		t.Errorf("Expected tag-based reference %q not found", expectedRef)
-		
+
 		// Debug: show all uses: lines
 		lines := strings.Split(lockStr, "\n")
 		for i, line := range lines {
@@ -297,10 +297,10 @@ Test
 	// Save original script
 	origScript := DefaultScriptRegistry.Get("create_issue")
 	origActionPath := DefaultScriptRegistry.GetActionPath("create_issue")
-	
+
 	testScript := `const { core } = require('@actions/core'); core.info('test');`
 	DefaultScriptRegistry.RegisterWithAction("create_issue", testScript, RuntimeModeGitHubScript, "./actions/create-issue")
-	
+
 	defer func() {
 		if origActionPath != "" {
 			DefaultScriptRegistry.RegisterWithAction("create_issue", origScript, RuntimeModeGitHubScript, origActionPath)
@@ -332,7 +332,7 @@ Test
 	// Verify local path reference
 	if !strings.Contains(lockStr, "uses: ./actions/create-issue") {
 		t.Error("Expected local action reference not found")
-		
+
 		lines := strings.Split(lockStr, "\n")
 		for i, line := range lines {
 			if strings.Contains(line, "uses:") && strings.Contains(line, "create-issue") {
@@ -341,4 +341,3 @@ Test
 		}
 	}
 }
-

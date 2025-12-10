@@ -141,4 +141,3 @@ func (c *Compiler) addFriendlyScheduleComments(yamlStr string, frontmatter map[s
 
 	return strings.Join(result, "\n")
 }
-

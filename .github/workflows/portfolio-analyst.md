@@ -2,7 +2,7 @@
 description: Weekly portfolio analyst that identifies cost reduction opportunities (20%+) while improving workflow reliability
 on:
   schedule:
-    - cron: "0 9 * * 1"  # Weekly on Monday at 9 AM UTC
+    - cron: weekly on monday at 09:00
   workflow_dispatch:
 permissions:
   contents: read

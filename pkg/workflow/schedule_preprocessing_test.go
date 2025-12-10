@@ -144,7 +144,7 @@ func TestScheduleFriendlyComments(t *testing.T) {
 	}
 
 	compiler := NewCompiler(false, "", "test")
-	
+
 	// Preprocess to convert and store friendly formats
 	err := compiler.preprocessScheduleFields(frontmatter)
 	if err != nil {
