@@ -57,7 +57,11 @@ package workflow
 import (
 	"regexp"
 	"strings"
+
+	"github.com/githubnext/gh-aw/pkg/logger"
 )
+
+var stringsLog = logger.New("workflow:strings")
 
 var multipleHyphens = regexp.MustCompile(`-+`)
 
@@ -127,6 +131,17 @@ func SortPermissionScopes(s []PermissionScope) {
 //	}
 //	SanitizeName("@@@", opts) // returns "default-name"
 func SanitizeName(name string, opts *SanitizeOptions) string {
+	if stringsLog.Enabled() {
+		preserveCount := 0
+		trimHyphens := false
+		if opts != nil {
+			preserveCount = len(opts.PreserveSpecialChars)
+			trimHyphens = opts.TrimHyphens
+		}
+		stringsLog.Printf("Sanitizing name: input=%q, preserve_chars=%d, trim_hyphens=%t",
+			name, preserveCount, trimHyphens)
+	}
+
 	// Handle nil options
 	if opts == nil {
 		opts = &SanitizeOptions{}
@@ -189,9 +204,11 @@ func SanitizeName(name string, opts *SanitizeOptions) string {
 
 	// Return default value if result is empty
 	if result == "" && opts.DefaultValue != "" {
+		stringsLog.Printf("Sanitized name is empty, using default: %q", opts.DefaultValue)
 		return opts.DefaultValue
 	}
 
+	stringsLog.Printf("Sanitized name result: %q", result)
 	return result
 }
 

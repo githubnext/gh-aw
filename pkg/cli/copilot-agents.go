@@ -5,11 +5,18 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/githubnext/gh-aw/pkg/logger"
 )
+
+var copilotAgentsLog = logger.New("cli:copilot_agents")
 
 // ensureFileMatchesTemplate ensures a file in a subdirectory matches the expected template content
 func ensureFileMatchesTemplate(subdir, fileName, templateContent, fileType string, verbose bool, skipInstructions bool) error {
+	copilotAgentsLog.Printf("Ensuring file matches template: subdir=%s, file=%s, type=%s", subdir, fileName, fileType)
+
 	if skipInstructions {
+		copilotAgentsLog.Print("Skipping template update: instructions disabled")
 		return nil
 	}
 
@@ -35,6 +42,7 @@ func ensureFileMatchesTemplate(subdir, fileName, templateContent, fileType strin
 	// Check if content matches our expected template
 	expectedContent := strings.TrimSpace(templateContent)
 	if strings.TrimSpace(existingContent) == expectedContent {
+		copilotAgentsLog.Printf("File is up-to-date: %s", targetPath)
 		if verbose {
 			fmt.Printf("%s is up-to-date: %s\n", fileType, targetPath)
 		}
@@ -43,7 +51,14 @@ func ensureFileMatchesTemplate(subdir, fileName, templateContent, fileType strin
 
 	// Write the file
 	if err := os.WriteFile(targetPath, []byte(templateContent), 0644); err != nil {
+		copilotAgentsLog.Printf("Failed to write file: %s, error: %v", targetPath, err)
 		return fmt.Errorf("failed to write %s: %w", fileType, err)
+	}
+
+	if existingContent == "" {
+		copilotAgentsLog.Printf("Created %s: %s", fileType, targetPath)
+	} else {
+		copilotAgentsLog.Printf("Updated %s: %s", fileType, targetPath)
 	}
 
 	if verbose {
