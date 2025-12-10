@@ -33,10 +33,37 @@ func (c *Compiler) preprocessScheduleFields(frontmatter map[string]any) error {
 		return nil
 	}
 
+	// Handle shorthand string format: schedule: "daily at 02:00"
+	if scheduleStr, ok := scheduleValue.(string); ok {
+		// Convert string to array format with single item
+		parsedCron, original, err := parser.ParseSchedule(scheduleStr)
+		if err != nil {
+			return fmt.Errorf("invalid schedule expression: %w", err)
+		}
+
+		// Create array format
+		scheduleArray := []any{
+			map[string]any{
+				"cron": parsedCron,
+			},
+		}
+		onMap["schedule"] = scheduleArray
+
+		// Store friendly format if it was converted
+		if original != "" {
+			friendlyFormatsKey := fmt.Sprintf("%p", frontmatter)
+			friendlyFormats := make(map[int]string)
+			friendlyFormats[0] = original
+			scheduleFriendlyFormats[friendlyFormatsKey] = friendlyFormats
+		}
+
+		return nil
+	}
+
 	// Schedule should be an array of schedule items
 	scheduleArray, ok := scheduleValue.([]any)
 	if !ok {
-		return fmt.Errorf("schedule field must be an array")
+		return fmt.Errorf("schedule field must be a string or an array")
 	}
 
 	// Store friendly formats in a compiler-specific map

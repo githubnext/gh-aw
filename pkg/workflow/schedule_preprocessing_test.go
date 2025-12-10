@@ -95,6 +95,53 @@ func TestSchedulePreprocessing(t *testing.T) {
 			expectedError:  true,
 			errorSubstring: "invalid schedule expression",
 		},
+		// New tests for shorthand string format
+		{
+			name: "shorthand string format - daily",
+			frontmatter: map[string]any{
+				"on": map[string]any{
+					"schedule": "daily at 02:00",
+				},
+			},
+			expectedCron: "0 2 * * *",
+		},
+		{
+			name: "shorthand string format - weekly",
+			frontmatter: map[string]any{
+				"on": map[string]any{
+					"schedule": "weekly on monday at 06:30",
+				},
+			},
+			expectedCron: "30 6 * * 1",
+		},
+		{
+			name: "shorthand string format - interval",
+			frontmatter: map[string]any{
+				"on": map[string]any{
+					"schedule": "every 10 minutes",
+				},
+			},
+			expectedCron: "*/10 * * * *",
+		},
+		{
+			name: "shorthand string format - existing cron",
+			frontmatter: map[string]any{
+				"on": map[string]any{
+					"schedule": "0 9 * * 1",
+				},
+			},
+			expectedCron: "0 9 * * 1",
+		},
+		{
+			name: "shorthand string format - invalid",
+			frontmatter: map[string]any{
+				"on": map[string]any{
+					"schedule": "invalid format",
+				},
+			},
+			expectedError:  true,
+			errorSubstring: "invalid schedule expression",
+		},
 	}
 
 	for _, tt := range tests {
