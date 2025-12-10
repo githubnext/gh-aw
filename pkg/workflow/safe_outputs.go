@@ -720,22 +720,18 @@ func (c *Compiler) buildSafeOutputJob(data *WorkflowData, config SafeOutputJobCo
 		steps = append(steps, c.buildGitHubAppTokenMintStep(data.SafeOutputs.App, config.Permissions)...)
 	}
 
-	// Add checkout step in dev mode (needed to access local custom actions)
+	// Add sparse checkout in dev mode (needed to access local custom actions)
 	if c.actionMode == ActionModeDev {
-		safeOutputsLog.Print("Adding repository validation and checkout for dev mode")
+		safeOutputsLog.Print("Adding sparse checkout for dev mode (actions folder only)")
 
-		// Add validation step to ensure dev mode is only used in githubnext/gh-aw
-		steps = append(steps, "      - name: Validate dev mode repository\n")
-		steps = append(steps, "        run: |\n")
-		steps = append(steps, "          if [ \"${{ github.repository }}\" != \"githubnext/gh-aw\" ]; then\n")
-		steps = append(steps, "            echo \"Error: agent-mode 'dev' is only allowed in the githubnext/gh-aw repository\"\n")
-		steps = append(steps, "            echo \"Current repository: ${{ github.repository }}\"\n")
-		steps = append(steps, "            echo \"Please remove 'agent-mode: dev' from your workflow or use 'agent-mode: inline'\"\n")
-		steps = append(steps, "            exit 1\n")
-		steps = append(steps, "          fi\n")
-
-		// Add checkout step to access local custom actions
-		steps = buildCheckoutRepository(steps, c)
+		// Use sparse checkout to only checkout the actions folder
+		steps = append(steps, "      - name: Sparse checkout for dev mode\n")
+		steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/checkout")))
+		steps = append(steps, "        with:\n")
+		steps = append(steps, "          sparse-checkout: |\n")
+		steps = append(steps, "            actions\n")
+		steps = append(steps, "          sparse-checkout-cone-mode: false\n")
+		steps = append(steps, "          persist-credentials: false\n")
 	}
 
 	// Add pre-steps if provided (e.g., checkout, git config for create-pull-request)

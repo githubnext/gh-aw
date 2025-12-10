@@ -72,13 +72,12 @@ func (c *Compiler) CompileWorkflowData(workflowData *WorkflowData, markdownPath 
 		log.Printf("Setting action mode from frontmatter: %s", workflowData.AgentMode)
 		c.SetActionMode(workflowData.AgentMode)
 
-		// Validate that dev mode is only used in the githubnext/gh-aw repository
-		// This prevents users from accidentally using dev mode with local action paths
-		// in production workflows outside of this repository
+		// Validate that dev mode is only used in the githubnext/gh-aw repository at compile time
 		if workflowData.AgentMode == ActionModeDev {
-			// Add a runtime check in the compiled workflow
-			// The workflow will fail at runtime if not in the githubnext/gh-aw repository
-			log.Printf("Dev mode enabled - workflow will include repository validation")
+			if err := c.validateDevModeRepository(markdownPath); err != nil {
+				return err
+			}
+			log.Printf("Dev mode validated for githubnext/gh-aw repository")
 		}
 	}
 

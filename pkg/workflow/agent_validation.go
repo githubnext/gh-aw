@@ -47,6 +47,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/logger"
@@ -269,5 +270,51 @@ func (c *Compiler) validateWorkflowRunBranches(workflowData *WorkflowData, markd
 	fmt.Fprintln(os.Stderr, formattedWarning)
 	c.IncrementWarningCount()
 
+	return nil
+}
+
+// validateDevModeRepository validates that dev mode is only used in the githubnext/gh-aw repository
+// This prevents users from accidentally using dev mode with local action paths in production workflows
+func (c *Compiler) validateDevModeRepository(markdownPath string) error {
+	// Find the git root directory by walking up from the workflow file
+	dir := filepath.Dir(markdownPath)
+	for {
+		gitConfig := filepath.Join(dir, ".git", "config")
+		if output, err := os.ReadFile(gitConfig); err == nil {
+			// Found .git/config - check if it's the gh-aw repository
+			configStr := string(output)
+			if !strings.Contains(configStr, "githubnext/gh-aw") && !strings.Contains(configStr, "github.com:githubnext/gh-aw") {
+				message := "agent-mode 'dev' is only allowed in the githubnext/gh-aw repository.\n\n" +
+					"The 'dev' mode uses local action paths (./actions/*) which are specific to the gh-aw repository.\n" +
+					"For workflows in other repositories, please use 'agent-mode: inline' (the default) instead.\n\n" +
+					"To fix this error:\n" +
+					"  1. Remove 'agent-mode: dev' from your workflow frontmatter, OR\n" +
+					"  2. Change it to 'agent-mode: inline'"
+
+				formattedErr := console.FormatError(console.CompilerError{
+					Position: console.ErrorPosition{
+						File:   markdownPath,
+						Line:   1,
+						Column: 1,
+					},
+					Type:    "error",
+					Message: message,
+				})
+				return errors.New(formattedErr)
+			}
+			// Found gh-aw repository, validation passed
+			return nil
+		}
+
+		// Move up one directory
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			// Reached filesystem root without finding .git
+			break
+		}
+		dir = parent
+	}
+
+	// If we can't find .git config, allow it (for testing, CI, etc.)
 	return nil
 }

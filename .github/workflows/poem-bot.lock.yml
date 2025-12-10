@@ -1206,6 +1206,19 @@ jobs:
       comment_id: ${{ steps.add_comment.outputs.comment_id }}
       comment_url: ${{ steps.add_comment.outputs.comment_url }}
     steps:
+      - name: Validate dev mode repository
+        run: |
+          if [ "${{ github.repository }}" != "githubnext/gh-aw" ]; then
+            echo "Error: agent-mode 'dev' is only allowed in the githubnext/gh-aw repository"
+            echo "Current repository: ${{ github.repository }}"
+            echo "Please remove 'agent-mode: dev' from your workflow or use 'agent-mode: inline'"
+            exit 1
+          fi
+      - name: Checkout repository
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+        with:
+          persist-credentials: false
+          fetch-depth: 0
       - name: Debug agent outputs
         env:
           AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
@@ -1805,6 +1818,19 @@ jobs:
     outputs:
       labels_added: ${{ steps.add_labels.outputs.labels_added }}
     steps:
+      - name: Validate dev mode repository
+        run: |
+          if [ "${{ github.repository }}" != "githubnext/gh-aw" ]; then
+            echo "Error: agent-mode 'dev' is only allowed in the githubnext/gh-aw repository"
+            echo "Current repository: ${{ github.repository }}"
+            echo "Please remove 'agent-mode: dev' from your workflow or use 'agent-mode: inline'"
+            exit 1
+          fi
+      - name: Checkout repository
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+        with:
+          persist-credentials: false
+          fetch-depth: 0
       - name: Download agent output artifact
         continue-on-error: true
         uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
@@ -8127,6 +8153,19 @@ jobs:
       pull_request_number: ${{ steps.close_pull_request.outputs.pull_request_number }}
       pull_request_url: ${{ steps.close_pull_request.outputs.pull_request_url }}
     steps:
+      - name: Validate dev mode repository
+        run: |
+          if [ "${{ github.repository }}" != "githubnext/gh-aw" ]; then
+            echo "Error: agent-mode 'dev' is only allowed in the githubnext/gh-aw repository"
+            echo "Current repository: ${{ github.repository }}"
+            echo "Please remove 'agent-mode: dev' from your workflow or use 'agent-mode: inline'"
+            exit 1
+          fi
+      - name: Checkout repository
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+        with:
+          persist-credentials: false
+          fetch-depth: 0
       - name: Download agent output artifact
         continue-on-error: true
         uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
@@ -8740,6 +8779,19 @@ jobs:
       task_number: ${{ steps.create_agent_task.outputs.task_number }}
       task_url: ${{ steps.create_agent_task.outputs.task_url }}
     steps:
+      - name: Validate dev mode repository
+        run: |
+          if [ "${{ github.repository }}" != "githubnext/gh-aw" ]; then
+            echo "Error: agent-mode 'dev' is only allowed in the githubnext/gh-aw repository"
+            echo "Current repository: ${{ github.repository }}"
+            echo "Please remove 'agent-mode: dev' from your workflow or use 'agent-mode: inline'"
+            exit 1
+          fi
+      - name: Checkout repository
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+        with:
+          persist-credentials: false
+          fetch-depth: 0
       - name: Checkout repository for gh CLI
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
         with:
@@ -8924,6 +8976,19 @@ jobs:
       discussion_number: ${{ steps.create_discussion.outputs.discussion_number }}
       discussion_url: ${{ steps.create_discussion.outputs.discussion_url }}
     steps:
+      - name: Validate dev mode repository
+        run: |
+          if [ "${{ github.repository }}" != "githubnext/gh-aw" ]; then
+            echo "Error: agent-mode 'dev' is only allowed in the githubnext/gh-aw repository"
+            echo "Current repository: ${{ github.repository }}"
+            echo "Please remove 'agent-mode: dev' from your workflow or use 'agent-mode: inline'"
+            exit 1
+          fi
+      - name: Checkout repository
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+        with:
+          persist-credentials: false
+          fetch-depth: 0
       - name: Download agent output artifact
         continue-on-error: true
         uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
@@ -9629,6 +9694,19 @@ jobs:
       issue_url: ${{ steps.create_issue.outputs.issue_url }}
       temporary_id_map: ${{ steps.create_issue.outputs.temporary_id_map }}
     steps:
+      - name: Validate dev mode repository
+        run: |
+          if [ "${{ github.repository }}" != "githubnext/gh-aw" ]; then
+            echo "Error: agent-mode 'dev' is only allowed in the githubnext/gh-aw repository"
+            echo "Current repository: ${{ github.repository }}"
+            echo "Please remove 'agent-mode: dev' from your workflow or use 'agent-mode: inline'"
+            exit 1
+          fi
+      - name: Checkout repository
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+        with:
+          persist-credentials: false
+          fetch-depth: 0
       - name: Download agent output artifact
         continue-on-error: true
         uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
@@ -9672,6 +9750,19 @@ jobs:
       review_comment_id: ${{ steps.create_pr_review_comment.outputs.review_comment_id }}
       review_comment_url: ${{ steps.create_pr_review_comment.outputs.review_comment_url }}
     steps:
+      - name: Validate dev mode repository
+        run: |
+          if [ "${{ github.repository }}" != "githubnext/gh-aw" ]; then
+            echo "Error: agent-mode 'dev' is only allowed in the githubnext/gh-aw repository"
+            echo "Current repository: ${{ github.repository }}"
+            echo "Please remove 'agent-mode: dev' from your workflow or use 'agent-mode: inline'"
+            exit 1
+          fi
+      - name: Checkout repository
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+        with:
+          persist-credentials: false
+          fetch-depth: 0
       - name: Download agent output artifact
         continue-on-error: true
         uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
@@ -10045,6 +10136,19 @@ jobs:
       pull_request_number: ${{ steps.create_pull_request.outputs.pull_request_number }}
       pull_request_url: ${{ steps.create_pull_request.outputs.pull_request_url }}
     steps:
+      - name: Validate dev mode repository
+        run: |
+          if [ "${{ github.repository }}" != "githubnext/gh-aw" ]; then
+            echo "Error: agent-mode 'dev' is only allowed in the githubnext/gh-aw repository"
+            echo "Current repository: ${{ github.repository }}"
+            echo "Please remove 'agent-mode: dev' from your workflow or use 'agent-mode: inline'"
+            exit 1
+          fi
+      - name: Checkout repository
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+        with:
+          persist-credentials: false
+          fetch-depth: 0
       - name: Download patch artifact
         continue-on-error: true
         uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
@@ -10982,6 +11086,19 @@ jobs:
     outputs:
       linked_issues: ${{ steps.link_sub_issue.outputs.linked_issues }}
     steps:
+      - name: Validate dev mode repository
+        run: |
+          if [ "${{ github.repository }}" != "githubnext/gh-aw" ]; then
+            echo "Error: agent-mode 'dev' is only allowed in the githubnext/gh-aw repository"
+            echo "Current repository: ${{ github.repository }}"
+            echo "Please remove 'agent-mode: dev' from your workflow or use 'agent-mode: inline'"
+            exit 1
+          fi
+      - name: Checkout repository
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+        with:
+          persist-credentials: false
+          fetch-depth: 0
       - name: Download agent output artifact
         continue-on-error: true
         uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
@@ -12154,6 +12271,19 @@ jobs:
       issue_number: ${{ steps.update_issue.outputs.issue_number }}
       issue_url: ${{ steps.update_issue.outputs.issue_url }}
     steps:
+      - name: Validate dev mode repository
+        run: |
+          if [ "${{ github.repository }}" != "githubnext/gh-aw" ]; then
+            echo "Error: agent-mode 'dev' is only allowed in the githubnext/gh-aw repository"
+            echo "Current repository: ${{ github.repository }}"
+            echo "Please remove 'agent-mode: dev' from your workflow or use 'agent-mode: inline'"
+            exit 1
+          fi
+      - name: Checkout repository
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+        with:
+          persist-credentials: false
+          fetch-depth: 0
       - name: Download agent output artifact
         continue-on-error: true
         uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
@@ -12507,6 +12637,19 @@ jobs:
       branch_name: ${{ steps.upload_assets.outputs.branch_name }}
       published_count: ${{ steps.upload_assets.outputs.published_count }}
     steps:
+      - name: Validate dev mode repository
+        run: |
+          if [ "${{ github.repository }}" != "githubnext/gh-aw" ]; then
+            echo "Error: agent-mode 'dev' is only allowed in the githubnext/gh-aw repository"
+            echo "Current repository: ${{ github.repository }}"
+            echo "Please remove 'agent-mode: dev' from your workflow or use 'agent-mode: inline'"
+            exit 1
+          fi
+      - name: Checkout repository
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+        with:
+          persist-credentials: false
+          fetch-depth: 0
       - name: Checkout repository
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
         with:
