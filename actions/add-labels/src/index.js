@@ -1,26 +1,8 @@
-// Embedded files for bundling
-const FILES = {
-  // This will be populated by the build script
-};
-
-// Helper to load embedded files
-function requireFile(filename) {
-  const content = FILES[filename];
-  if (!content) {
-    throw new Error(`File not found: ${filename}`);
-  }
-  const exports = {};
-  const module = { exports };
-  const func = new Function('exports', 'module', 'require', content);
-  func(exports, module, requireFile);
-  return module.exports;
-}
-
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-const { processSafeOutput } = requireFile('safe_output_processor.cjs');
-const { validateLabels } = requireFile('safe_output_validator.cjs');
+const { processSafeOutput } = require("./safe_output_processor.cjs");
+const { validateLabels } = require("./safe_output_validator.cjs");
 
 async function main() {
   // Use shared processor for common steps

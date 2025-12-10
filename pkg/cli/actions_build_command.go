@@ -1,11 +1,9 @@
 package cli
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
-	"regexp"
 	"sort"
 	"strings"
 
@@ -172,7 +170,7 @@ func validateActionYml(actionPath string) error {
 	return nil
 }
 
-// buildAction builds a single action by bundling its dependencies
+// buildAction builds a single action by bundling its dependencies using GitHub Script mode
 func buildAction(actionsDir, actionName string) error {
 	actionsBuildLog.Printf("Building action: %s", actionName)
 
@@ -199,46 +197,25 @@ func buildAction(actionsDir, actionName string) error {
 		return fmt.Errorf("failed to read source file: %w", err)
 	}
 
-	// Get dependencies for this action
-	dependencies := getActionDependencies(actionName)
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  ✓ Found %d dependencies", len(dependencies))))
+	// Get ALL JavaScript sources - the bundler will figure out what's needed
+	allSources := workflow.GetJavaScriptSources()
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  ✓ Loaded %d source files for bundling", len(allSources))))
 
-	// Get all JavaScript sources
-	sources := workflow.GetJavaScriptSources()
-
-	// Read dependency files
-	files := make(map[string]string)
-	for _, dep := range dependencies {
-		if content, ok := sources[dep]; ok {
-			files[dep] = content
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("    - %s", dep)))
-		} else {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("    ⚠ Warning: Could not find %s", dep)))
-		}
-	}
-
-	// Generate FILES object with embedded content
-	filesJSON, err := json.MarshalIndent(files, "", "  ")
+	// Bundle using GitHub Script mode (inlines dependencies, removes exports)
+	// The bundler will recursively bundle all required dependencies
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("  ✓ Bundling with GitHub Script mode (recursive)"))
+	bundled, err := workflow.BundleJavaScriptWithMode(string(sourceContent), allSources, "", workflow.RuntimeModeGitHubScript)
 	if err != nil {
-		return fmt.Errorf("failed to marshal files: %w", err)
+		return fmt.Errorf("failed to bundle JavaScript: %w", err)
 	}
-
-	// Indent the JSON for proper embedding
-	indentedJSON := strings.ReplaceAll(string(filesJSON), "\n", "\n  ")
-	indentedJSON = "  " + strings.TrimPrefix(indentedJSON, " ")
-
-	// Replace the FILES placeholder in source
-	// Match: const FILES = { ... };
-	filesRegex := regexp.MustCompile(`(?s)const FILES = \{[^}]*\};`)
-	outputContent := filesRegex.ReplaceAllString(string(sourceContent), fmt.Sprintf("const FILES = %s;", strings.TrimSpace(indentedJSON)))
 
 	// Write output file
-	if err := os.WriteFile(outputPath, []byte(outputContent), 0644); err != nil {
+	if err := os.WriteFile(outputPath, []byte(bundled), 0644); err != nil {
 		return fmt.Errorf("failed to write output file: %w", err)
 	}
 
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  ✓ Built %s", outputPath)))
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  ✓ Embedded %d files", len(files))))
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("  ✓ Bundled dependencies inline and removed exports"))
 
 	return nil
 }

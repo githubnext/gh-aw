@@ -1,25 +1,7 @@
-// Embedded files for bundling
-const FILES = {
-  // This will be populated by the build script
-};
-
-// Helper to load embedded files
-function requireFile(filename) {
-  const content = FILES[filename];
-  if (!content) {
-    throw new Error(`File not found: ${filename}`);
-  }
-  const exports = {};
-  const module = { exports };
-  const func = new Function('exports', 'module', 'require', content);
-  func(exports, module, requireFile);
-  return module.exports;
-}
-
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-const { runUpdateWorkflow, createRenderStagedItem, createGetSummaryLine } = requireFile('update_runner.cjs');
+const { runUpdateWorkflow, createRenderStagedItem, createGetSummaryLine } = require("./update_runner.cjs");
 
 /**
  * Check if the current context is a valid issue context

@@ -1,25 +1,7 @@
-// Embedded files for bundling
-const FILES = {
-  // This will be populated by the build script
-};
-
-// Helper to load embedded files
-function requireFile(filename) {
-  const content = FILES[filename];
-  if (!content) {
-    throw new Error(`File not found: ${filename}`);
-  }
-  const exports = {};
-  const module = { exports };
-  const func = new Function('exports', 'module', 'require', content);
-  func(exports, module, requireFile);
-  return module.exports;
-}
-
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-const { processCloseEntityItems, PULL_REQUEST_CONFIG } = requireFile('close_entity_helpers.cjs');
+const { processCloseEntityItems, PULL_REQUEST_CONFIG } = require("./close_entity_helpers.cjs");
 
 /**
  * Get pull request details using REST API

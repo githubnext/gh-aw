@@ -124,13 +124,12 @@ func GenerateActionMetadataCommand() error {
 		}
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("  ✓ Generated README.md"))
 
-		// Transform source file to use FILES pattern for bundling
-		transformedContent := transformSourceForBundling(content, metadata.Dependencies)
+		// Copy source file as-is (bundling will inline dependencies)
 		srcPath := filepath.Join(srcDir, "index.js")
-		if err := os.WriteFile(srcPath, []byte(transformedContent), 0644); err != nil {
+		if err := os.WriteFile(srcPath, []byte(content), 0644); err != nil {
 			return fmt.Errorf("failed to write source file: %w", err)
 		}
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("  ✓ Generated source file for bundling"))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("  ✓ Copied source to src/index.js"))
 
 		generatedCount++
 	}
@@ -455,39 +454,4 @@ func generateReadme(actionDir string, metadata *ActionMetadata) error {
 	}
 
 	return nil
-}
-
-// transformSourceForBundling transforms JavaScript source to use FILES pattern for bundling
-// This converts require('./file.cjs') statements to use embedded FILES object
-func transformSourceForBundling(content string, dependencies []string) string {
-	var transformed strings.Builder
-
-	// Add FILES placeholder at the top (will be populated by actions-build)
-	transformed.WriteString("// Embedded files for bundling\n")
-	transformed.WriteString("const FILES = {\n")
-	transformed.WriteString("  // This will be populated by the build script\n")
-	transformed.WriteString("};\n\n")
-
-	// Add helper function to load files from FILES object
-	transformed.WriteString("// Helper to load embedded files\n")
-	transformed.WriteString("function requireFile(filename) {\n")
-	transformed.WriteString("  const content = FILES[filename];\n")
-	transformed.WriteString("  if (!content) {\n")
-	transformed.WriteString("    throw new Error(`File not found: ${filename}`);\n")
-	transformed.WriteString("  }\n")
-	transformed.WriteString("  const exports = {};\n")
-	transformed.WriteString("  const module = { exports };\n")
-	transformed.WriteString("  const func = new Function('exports', 'module', 'require', content);\n")
-	transformed.WriteString("  func(exports, module, requireFile);\n")
-	transformed.WriteString("  return module.exports;\n")
-	transformed.WriteString("}\n\n")
-
-	// Transform require() statements to use requireFile()
-	requireRegex := regexp.MustCompile(`require\(['"]\./([^'"]+\.cjs)['"]\)`)
-	transformedContent := requireRegex.ReplaceAllString(content, `requireFile('$1')`)
-
-	// Add the transformed original content
-	transformed.WriteString(transformedContent)
-
-	return transformed.String()
 }

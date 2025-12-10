@@ -171,6 +171,39 @@ var messagesCloseDiscussionScript string
 //go:embed js/close_older_discussions.cjs
 var closeOlderDiscussionsScript string
 
+//go:embed js/close_entity_helpers.cjs
+var closeEntityHelpersScript string
+
+//go:embed js/close_issue.cjs
+var closeIssueScript string
+
+//go:embed js/close_discussion.cjs
+var closeDiscussionScript string
+
+//go:embed js/close_pull_request.cjs
+var closePullRequestScript string
+
+//go:embed js/noop.cjs
+var noopScript string
+
+//go:embed js/minimize_comment.cjs
+var minimizeCommentScript string
+
+//go:embed js/add_comment.cjs
+var addCommentScript string
+
+//go:embed js/add_labels.cjs
+var addLabelsScript string
+
+//go:embed js/update_issue.cjs
+var updateIssueScript string
+
+//go:embed js/update_pull_request.cjs
+var updatePullRequestScript string
+
+//go:embed js/create_discussion.cjs
+var createDiscussionScript string
+
 //go:embed js/expiration_helpers.cjs
 var expirationHelpersScript string
 
@@ -288,6 +321,17 @@ func GetJavaScriptSources() map[string]string {
 		"messages_run_status.cjs":           messagesRunStatusScript,
 		"messages_close_discussion.cjs":     messagesCloseDiscussionScript,
 		"close_older_discussions.cjs":       closeOlderDiscussionsScript,
+		"close_entity_helpers.cjs":          closeEntityHelpersScript,
+		"close_issue.cjs":                   closeIssueScript,
+		"close_discussion.cjs":              closeDiscussionScript,
+		"close_pull_request.cjs":            closePullRequestScript,
+		"noop.cjs":                          noopScript,
+		"minimize_comment.cjs":              minimizeCommentScript,
+		"add_comment.cjs":                   addCommentScript,
+		"add_labels.cjs":                    addLabelsScript,
+		"update_issue.cjs":                  updateIssueScript,
+		"update_pull_request.cjs":           updatePullRequestScript,
+		"create_discussion.cjs":             createDiscussionScript,
 		"expiration_helpers.cjs":            expirationHelpersScript,
 		"get_repository_url.cjs":            getRepositoryUrlScript,
 		"check_permissions_utils.cjs":       checkPermissionsUtilsScript,
