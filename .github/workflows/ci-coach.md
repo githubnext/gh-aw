@@ -167,11 +167,113 @@ Look for concrete improvements in these categories:
 - Are cache keys properly scoped?
 - Example: Cache npm dependencies globally vs. per-job
 
-#### 3. **Test Suite Efficiency**
-- Are integration tests properly split across matrix jobs?
-- Could test execution order be optimized?
-- Are there redundant test runs?
-- Example: Could we skip certain tests for documentation-only changes?
+#### 3. **Test Suite Restructuring**
+
+Analyze the current test suite structure and suggest optimizations for execution time:
+
+**A. Test Splitting Analysis**
+- Review the current test matrix configuration (integration tests split into 6 groups)
+- Analyze if test groups are balanced in terms of execution time
+- Check if any test group consistently takes much longer than others
+- Suggest rebalancing test groups to minimize the longest-running group
+
+**Example Analysis:**
+```bash
+# Extract test durations from downloaded run data
+# Identify if certain matrix jobs are bottlenecks
+cat /tmp/ci-runs.json | jq '.[] | select(.conclusion=="success") | .jobs[] | select(.name | contains("Integration")) | {name, duration}'
+
+# Look for imbalanced matrix groups
+# If "Integration: Workflow" takes 8 minutes while others take 3 minutes, suggest splitting it
+```
+
+**Restructuring Suggestions:**
+- If unit tests take >5 minutes, suggest splitting by package (e.g., `./pkg/cli`, `./pkg/workflow`, `./pkg/parser`)
+- If integration matrix is imbalanced, suggest redistributing tests:
+  - Move slow tests from overloaded groups to faster groups
+  - Split large test groups (like "Workflow" with no pattern filter) into more specific groups
+  - Example: Split "CLI Logs & Firewall" if TestLogs and TestFirewall are both slow
+
+**B. Test Parallelization Within Jobs**
+- Check if tests are running sequentially when they could run in parallel
+- Suggest using `go test -parallel=N` to increase parallelism
+- Analyze if `-count=1` (disables test caching) is necessary for all tests
+- Example: Unit tests could run with `-parallel=4` to utilize multiple cores
+
+**C. Test Selection Optimization**
+- Suggest path-based test filtering to skip irrelevant tests
+- Recommend running only affected tests for non-main branch pushes
+- Example configuration:
+  ```yaml
+  - name: Check for code changes
+    id: code-changes
+    run: |
+      if git diff --name-only ${{ github.event.before }}..${{ github.event.after }} | grep -E '\.(go|js|cjs)$'; then
+        echo "has_code_changes=true" >> $GITHUB_OUTPUT
+      fi
+  
+  - name: Run tests
+    if: steps.code-changes.outputs.has_code_changes == 'true'
+    run: go test ./...
+  ```
+
+**D. Test Timeout Optimization**
+- Review current timeout settings (currently 3 minutes for tests)
+- Check if timeouts are too conservative or too tight based on actual run times
+- Suggest adjusting per-job timeouts based on historical data
+- Example: If unit tests consistently complete in 1.5 minutes, timeout could be 2 minutes instead of 3
+
+**E. Test Dependencies Analysis**
+- Examine test job dependencies (test → integration → bench/fuzz/security)
+- Suggest removing unnecessary dependencies to enable more parallelism
+- Example: Could `integration`, `bench`, `fuzz`, and `security` all depend on `lint` instead of `test`?
+  - This allows integration tests to run while unit tests are still running
+  - Only makes sense if they don't need unit test artifacts
+
+**F. Selective Test Execution**
+- Suggest running expensive tests (benchmarks, fuzz tests) only on main branch or on-demand
+- Recommend running security scans only on main or for security-related file changes
+- Example:
+  ```yaml
+  if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
+  ```
+
+**G. Test Caching Improvements**
+- Check if test results could be cached (with appropriate cache keys)
+- Suggest caching test binaries to speed up reruns
+- Example: Cache compiled test binaries keyed by go.sum + source files
+
+**H. Matrix Strategy Optimization**
+- Analyze if all 6 integration test matrix jobs are necessary
+- Check if some matrix jobs could be combined or run conditionally
+- Suggest reducing matrix size for PR builds vs. main branch builds
+- Example: Run full matrix on main, reduced matrix on PRs
+
+**I. Test Infrastructure**
+- Check if tests could benefit from faster runners (e.g., ubuntu-latest-4-core)
+- Analyze if test containers could be used to improve isolation and speed
+- Suggest pre-warming test environments with cached dependencies
+
+**Concrete Restructuring Example:**
+
+Current structure:
+```
+lint (2 min) → test (unit, 2.5 min) → integration (6 parallel groups, longest: 8 min)
+                                     → bench (3 min)
+                                     → fuzz (2 min)
+                                     → security (2 min)
+```
+
+Optimized structure suggestion:
+```
+lint (2 min) → test-unit-1 (./pkg/cli, 1.5 min) ─┐
+            → test-unit-2 (./pkg/workflow, 1.5 min) ├→ integration-fast (4 groups, 4 min)
+            → test-unit-3 (./pkg/parser, 1 min) ────┘  → integration-slow (2 groups, 4 min)
+            → bench (main only, 3 min)
+            → fuzz (main only, 2 min)
+```
+
+Benefits: Reduces critical path from 12.5 min to ~7.5 min (40% improvement)
 
 #### 4. **Resource Right-Sizing**
 - Are timeouts set appropriately?
@@ -274,6 +376,59 @@ If no improvements are found or changes are too risky:
 - Line Y: [Description of change]
 
 **Rationale**: [Why this improves efficiency]
+
+#### Example: Test Suite Restructuring
+**Type**: Test Suite Optimization
+**Impact**: ~5 minutes per run (40% reduction in test phase)
+**Risk**: Low
+**Changes**:
+- Lines 15-57: Split unit test job into 3 parallel jobs by package
+- Lines 58-117: Rebalance integration test matrix groups
+- Line 83: Split "Workflow" tests into separate groups with specific patterns
+
+**Current Test Structure:**
+```yaml
+test:
+  needs: [lint]
+  run: go test -v -count=1 -timeout=3m -tags '!integration' ./...
+  # Takes ~2.5 minutes, runs all unit tests sequentially
+
+integration:
+  needs: [test]  # Blocks on test completion
+  matrix: 6 groups (imbalanced: "Workflow" takes 8min, others 3-4min)
+```
+
+**Proposed Test Structure:**
+```yaml
+test-unit-cli:
+  needs: [lint]
+  run: go test -v -parallel=4 -timeout=2m -tags '!integration' ./pkg/cli/...
+  # ~1.5 minutes
+
+test-unit-workflow:
+  needs: [lint]
+  run: go test -v -parallel=4 -timeout=2m -tags '!integration' ./pkg/workflow/...
+  # ~1.5 minutes
+
+test-unit-parser:
+  needs: [lint]
+  run: go test -v -parallel=4 -timeout=2m -tags '!integration' ./pkg/parser/...
+  # ~1 minute
+
+integration:
+  needs: [lint]  # Run in parallel with unit tests
+  matrix: 8 balanced groups (each ~4 minutes)
+  # Split "Workflow" into 3 groups: workflow-compile, workflow-safe-outputs, workflow-tools
+```
+
+**Benefits:**
+- Unit tests run in parallel (1.5 min vs 2.5 min)
+- Integration starts immediately after lint (no waiting for unit tests)
+- Better matrix balance reduces longest job from 8 min to 4 min
+- Critical path: lint (2 min) → integration (4 min) = 6 min total
+- Previous path: lint (2 min) → test (2.5 min) → integration (8 min) = 12.5 min
+
+**Rationale**: Current integration tests wait unnecessarily for unit tests to complete. Integration tests don't use unit test outputs, so they can run in parallel. Splitting unit tests by package and rebalancing integration matrix reduces the critical path by 52%.
 
 #### 2. [Next optimization...]
 
