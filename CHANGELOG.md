@@ -14,6 +14,14 @@ Update default Claude Code CLI version from 2.0.62 to 2.0.64. This update includ
 
 The `--no-session-persistence` flag disables session persistence (sessions will not be saved to disk and cannot be resumed). This flag only works with `--print` mode and is useful for stateless/ephemeral execution contexts.
 
+To use the new flag, add it to your engine configuration:
+
+```yaml
+engine:
+  id: claude
+  args: ["--no-session-persistence"]
+```
+
 All workflows recompiled and binary rebuilt as part of the PR validation.
 
 #### Add actions directory structure and Go-based build tooling; initial actions and Makefile targets.
