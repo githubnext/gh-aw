@@ -7842,7 +7842,7 @@ jobs:
                   core.info(`Bot '${actor}' is active with permission level: ${botPermission.data.permission}`);
                   return { isBot: true, isActive: true };
                 } catch (botError) {
-                  if (botError.status === 404) {
+                  if (typeof botError === "object" && botError !== null && "status" in botError && botError.status === 404) {
                     core.warning(`Bot '${actor}' is not active/installed on ${owner}/${repo}`);
                     return { isBot: true, isActive: false };
                   }

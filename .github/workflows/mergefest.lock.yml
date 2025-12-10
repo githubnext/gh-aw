@@ -6617,8 +6617,8 @@ jobs:
           GH_AW_WORKFLOW_NAME: "Mergefest"
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
           GH_AW_DETECTION_CONCLUSION: ${{ needs.detection.result }}
-          GH_AW_SAFE_OUTPUT_JOBS: "{\"push_to_pull_request_branch\":\"push_url\"}"
-          GH_AW_OUTPUT_PUSH_TO_PULL_REQUEST_BRANCH_PUSH_URL: ${{ needs.push_to_pull_request_branch.outputs.push_url }}
+          GH_AW_SAFE_OUTPUT_JOBS: "{\"push_to_pull_request_branch\":\"commit_url\"}"
+          GH_AW_OUTPUT_PUSH_TO_PULL_REQUEST_BRANCH_COMMIT_URL: ${{ needs.push_to_pull_request_branch.outputs.commit_url }}
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -7158,7 +7158,7 @@ jobs:
                   core.info(`Bot '${actor}' is active with permission level: ${botPermission.data.permission}`);
                   return { isBot: true, isActive: true };
                 } catch (botError) {
-                  if (botError.status === 404) {
+                  if (typeof botError === "object" && botError !== null && "status" in botError && botError.status === 404) {
                     core.warning(`Bot '${actor}' is not active/installed on ${owner}/${repo}`);
                     return { isBot: true, isActive: false };
                   }
@@ -7347,6 +7347,7 @@ jobs:
     outputs:
       branch_name: ${{ steps.push_to_pull_request_branch.outputs.branch_name }}
       commit_sha: ${{ steps.push_to_pull_request_branch.outputs.commit_sha }}
+      commit_url: ${{ steps.push_to_pull_request_branch.outputs.commit_url }}
       push_url: ${{ steps.push_to_pull_request_branch.outputs.push_url }}
     steps:
       - name: Download patch artifact
@@ -7813,6 +7814,7 @@ jobs:
               core.setOutput("branch_name", branchName);
               core.setOutput("commit_sha", commitSha);
               core.setOutput("push_url", pushUrl);
+              core.setOutput("commit_url", commitUrl);
               if (hasChanges) {
                 await updateActivationCommentWithCommit(github, context, core, commitSha, commitUrl);
               }

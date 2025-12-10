@@ -15,7 +15,6 @@ GitHub Agentic Workflows authenticate using multiple tokens depending on the ope
 | `GH_AW_GITHUB_TOKEN` | PAT | Enhanced token for cross-repo and remote GitHub tools | **Yes** (required for cross-repo) |
 | `GH_AW_GITHUB_MCP_SERVER_TOKEN` | PAT | Custom token specifically for GitHub MCP server | **Yes** (optional override) |
 | `COPILOT_GITHUB_TOKEN` | PAT | Copilot authentication (recommended) | **Yes** (required for Copilot) |
-| `GH_AW_COPILOT_TOKEN` | PAT | Legacy Copilot token (deprecated) | **Yes** (legacy support) |
 | `GH_AW_AGENT_TOKEN` | PAT | Agent assignment operations | **Yes** (required for agent ops) |
 | `GITHUB_MCP_SERVER_TOKEN` | Auto-set | Automatically configured by compiler | No (auto-configured) |
 
@@ -26,11 +25,13 @@ GitHub Agentic Workflows authenticate using multiple tokens depending on the ope
 GitHub Actions automatically provides this token with scoped access to the current repository. It's used as a fallback when no custom token is configured.
 
 **Capabilities**:
+
 - Read and write access to current repository
 - Default permissions based on workflow `permissions:` configuration
 - No cost or setup required
 
 **Limitations**:
+
 - Cannot access other repositories
 - Cannot trigger workflows via GitHub API
 - Cannot assign bots (Copilot) to issues or PRs
@@ -46,31 +47,36 @@ GitHub Actions automatically provides this token with scoped access to the curre
 A fine-grained or classic Personal Access Token providing enhanced capabilities beyond `GITHUB_TOKEN`. This is the primary token for workflows that need cross-repository access or remote GitHub tools.
 
 **Required for**:
+
 - Cross-repository operations (accessing other repos)
 - Remote GitHub tools mode (faster startup without Docker)
 - Codex engine operations with GitHub MCP
 - Any operation that needs to access multiple repositories
 
 **Setup**:
+
 1. Create a [fine-grained PAT](https://github.com/settings/personal-access-tokens/new) with:
    - Repository access: Select specific repos or "All repositories"
-   - Permissions: 
+   - Permissions:
      - Contents: Read (minimum) or Read+Write (for PRs)
      - Issues: Read+Write (for issue operations)
      - Pull requests: Read+Write (for PR operations)
 
 2. Add to repository secrets:
+
 ```bash wrap
 gh secret set GH_AW_GITHUB_TOKEN -a actions --body "YOUR_PAT"
 ```
 
 **Token precedence** (highest to lowest):
+
 1. Per-output `github-token:` (safe output level)
 2. Global `safe-outputs.github-token:` (all outputs)
 3. Workflow-level `github-token:` frontmatter (top-level)
 4. Default fallback: `${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}`
 
 **Example**:
+
 ```yaml wrap
 github-token: ${{ secrets.GH_AW_GITHUB_TOKEN }}  # Workflow-level
 
@@ -88,16 +94,19 @@ safe-outputs:
 A specialized token for the GitHub MCP server that takes precedence over the standard token fallback chain. Use this when you want to provide different permissions specifically for GitHub MCP server operations versus other workflow operations.
 
 **When to use**:
+
 - You need different permission levels for MCP server vs. other operations
 - You want to isolate MCP server authentication from general workflow authentication
 - You're using remote GitHub MCP mode and need a token with specific scopes
 
 **Setup**:
+
 ```bash wrap
 gh secret set GH_AW_GITHUB_MCP_SERVER_TOKEN -a actions --body "YOUR_PAT"
 ```
 
 **Token precedence** for GitHub MCP server (highest to lowest):
+
 1. Custom token (tool-level `github-token`)
 2. Top-level `github-token` (frontmatter)
 3. `${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN }}`
@@ -112,6 +121,7 @@ env:
 ```
 
 This token is passed to the GitHub MCP server as:
+
 - `GITHUB_PERSONAL_ACCESS_TOKEN` environment variable (local/Docker mode)
 - `Authorization: Bearer` header (remote mode)
 
@@ -126,53 +136,40 @@ In most cases, you don't need to set this token separately. Use `GH_AW_GITHUB_TO
 The recommended token for all Copilot-related operations including the Copilot engine, agent task creation, and bot assignments.
 
 **Required for**:
+
 - `engine: copilot` workflows
 - `create-agent-task:` safe outputs
 - Assigning `copilot` as issue assignee
 - Adding `copilot` as PR reviewer
 
 **Setup**:
+
 1. Create a [PAT](https://github.com/settings/personal-access-tokens/new) with:
    - Resource owner: Your user account (not organization)
    - Repository access: "Public repositories" or specific repos
    - Permissions: "Copilot Requests" (required)
 
 2. Add to repository secrets:
+
 ```bash wrap
 gh secret set COPILOT_GITHUB_TOKEN -a actions --body "YOUR_COPILOT_PAT"
 ```
 
 **Copilot token precedence** (highest to lowest):
+
 1. Per-output `github-token:`
 2. Global `safe-outputs.github-token:`
 3. Workflow-level `github-token:`
 4. `${{ secrets.COPILOT_GITHUB_TOKEN }}`
-5. `${{ secrets.GH_AW_COPILOT_TOKEN }}` (legacy, deprecated)
-6. `${{ secrets.GH_AW_GITHUB_TOKEN }}` (legacy, deprecated)
+5. `${{ secrets.GH_AW_GITHUB_TOKEN }}` (legacy, deprecated)
 
-:::caution[COPILOT_CLI_TOKEN Deprecated]
-The `COPILOT_CLI_TOKEN` secret name is **no longer supported** as of v0.26+. Use `COPILOT_GITHUB_TOKEN` instead.
+:::caution[Legacy Tokens Removed]
+The `COPILOT_CLI_TOKEN` and `GH_AW_COPILOT_TOKEN` secret names are **no longer supported** as of v0.26+. Use `COPILOT_GITHUB_TOKEN` instead.
 :::
 
 :::caution
 The default `GITHUB_TOKEN` is **not** included in the Copilot fallback chain because it lacks the "Copilot Requests" permission required for Copilot operations.
 :::
-
-## `GH_AW_COPILOT_TOKEN` (Legacy)
-
-**Type**: Personal Access Token (deprecated)
-
-This token name is deprecated in favor of `COPILOT_GITHUB_TOKEN`. It's still supported for backward compatibility but should not be used in new workflows.
-
-**Migration**: Replace `GH_AW_COPILOT_TOKEN` with `COPILOT_GITHUB_TOKEN`:
-
-```bash wrap
-# Old (deprecated)
-gh secret set GH_AW_COPILOT_TOKEN -a actions --body "YOUR_PAT"
-
-# New (recommended)
-gh secret set COPILOT_GITHUB_TOKEN -a actions --body "YOUR_PAT"
-```
 
 ## `GH_AW_AGENT_TOKEN` (Agent Assignment)
 
@@ -181,16 +178,19 @@ gh secret set COPILOT_GITHUB_TOKEN -a actions --body "YOUR_PAT"
 Specialized token for `assign-to-agent:` safe outputs that assign GitHub Copilot agents to issues or pull requests.
 
 **Required for**:
+
 - `assign-to-agent:` safe outputs
 - Programmatic agent assignment operations
 
 **Required permissions**:
+
 - Actions: Write
 - Contents: Write
 - Issues: Write
 - Pull requests: Write
 
 **Setup**:
+
 1. Create a [fine-grained PAT](https://github.com/settings/personal-access-tokens/new) with the above permissions
 2. Add to repository secrets:
 
@@ -199,6 +199,7 @@ gh secret set GH_AW_AGENT_TOKEN -a actions --body "YOUR_AGENT_PAT"
 ```
 
 **Token precedence** (highest to lowest):
+
 1. Per-output `github-token:`
 2. Global `safe-outputs.github-token:`
 3. Workflow-level `github-token:`
@@ -225,6 +226,7 @@ tools:
 ```
 
 The compiler sets:
+
 ```yaml wrap
 env:
   GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
@@ -305,6 +307,7 @@ github-token: ${{ secrets.COPILOT_GITHUB_TOKEN }}
 GitHub App installation tokens provide enhanced security with short-lived, automatically-revoked credentials. This is the recommended approach for production workflows.
 
 **Benefits**:
+
 - **On-demand minting**: Tokens created at job start, minimizing exposure window
 - **Short-lived**: Tokens automatically revoked at job end (even on failure)
 - **Automatic permissions**: Compiler calculates required permissions based on safe outputs
@@ -312,6 +315,7 @@ GitHub App installation tokens provide enhanced security with short-lived, autom
 - **No PAT rotation**: Eliminates need for manual token rotation
 
 **Setup**:
+
 ```yaml wrap
 safe-outputs:
   app:
@@ -328,6 +332,7 @@ safe-outputs:
 ```
 
 **Permission mapping**:
+
 - `create-issue:` → Issues: Write
 - `create-pull-request:` → Contents: Write, Pull requests: Write
 - `add-comment:` → Issues: Write
@@ -415,22 +420,26 @@ When using Personal Access Tokens:
 ### Avoid Common Pitfalls
 
 **Don't**: Hardcode tokens in workflows
+
 ```yaml wrap
 github-token: "ghp_xxxxxxxxxxxx"  # ❌ Never do this
 ```
 
 **Do**: Use secrets
+
 ```yaml wrap
 github-token: ${{ secrets.GH_AW_GITHUB_TOKEN }}  # ✅ Correct
 ```
 
 **Don't**: Use overly permissive tokens
+
 ```yaml wrap
 # ❌ Classic PAT with full repo access for simple issue creation
 github-token: ${{ secrets.ADMIN_TOKEN }}
 ```
 
 **Do**: Use appropriately scoped tokens
+
 ```yaml wrap
 # ✅ Fine-grained PAT with Issues: Write only
 github-token: ${{ secrets.ISSUE_TOKEN }}
@@ -542,11 +551,13 @@ safe-outputs:
 **Solutions**:
 
 1. **For cross-repository operations**: Configure `GH_AW_GITHUB_TOKEN` with access to the target repository:
+
    ```bash wrap
    gh secret set GH_AW_GITHUB_TOKEN -a actions --body "YOUR_PAT"
    ```
 
 2. **For bot operations**: Use `COPILOT_GITHUB_TOKEN` with "Copilot Requests" permission:
+
    ```bash wrap
    gh secret set COPILOT_GITHUB_TOKEN -a actions --body "YOUR_COPILOT_PAT"
    ```
@@ -564,7 +575,9 @@ safe-outputs:
 **Cause**: Missing or invalid `COPILOT_GITHUB_TOKEN`.
 
 **Solution**:
+
 1. Verify the secret exists:
+
    ```bash wrap
    gh secret list -a actions
    ```
@@ -575,6 +588,7 @@ safe-outputs:
    - Permission: "Copilot Requests" (required)
 
 3. Set or update the secret:
+
    ```bash wrap
    gh secret set COPILOT_GITHUB_TOKEN -a actions --body "YOUR_PAT"
    ```
@@ -588,11 +602,13 @@ safe-outputs:
 **Solution**: Configure `GH_AW_GITHUB_TOKEN` or use local mode:
 
 **Option 1**: Add token (recommended for remote mode):
+
 ```bash wrap
 gh secret set GH_AW_GITHUB_TOKEN -a actions --body "YOUR_PAT"
 ```
 
 **Option 2**: Switch to local mode (uses Docker):
+
 ```yaml wrap
 tools:
   github:
@@ -606,6 +622,7 @@ tools:
 **Cause**: Token lacks elevated permissions required for agent operations.
 
 **Solution**: Configure `GH_AW_AGENT_TOKEN` with required permissions:
+
 1. Create PAT with permissions:
    - Actions: Write
    - Contents: Write
@@ -613,6 +630,7 @@ tools:
    - Pull requests: Write
 
 2. Add to secrets:
+
    ```bash wrap
    gh secret set GH_AW_AGENT_TOKEN -a actions --body "YOUR_AGENT_PAT"
    ```
@@ -626,6 +644,7 @@ tools:
 **Solution**: Check token precedence levels:
 
 1. **Per-output** (highest priority):
+
    ```yaml wrap
    safe-outputs:
      create-issue:
@@ -633,6 +652,7 @@ tools:
    ```
 
 2. **Global safe-outputs**:
+
    ```yaml wrap
    safe-outputs:
      github-token: ${{ secrets.MY_TOKEN }}
@@ -640,6 +660,7 @@ tools:
    ```
 
 3. **Workflow-level** (frontmatter):
+
    ```yaml wrap
    ---
    github-token: ${{ secrets.MY_TOKEN }}
@@ -653,11 +674,13 @@ tools:
 **Answer**: Yes, but consider security implications:
 
 **Good practice**: Use one general-purpose PAT for multiple workflows with similar permissions:
+
 ```bash wrap
 gh secret set GH_AW_GITHUB_TOKEN -a actions --body "YOUR_PAT"
 ```
 
 **Better practice**: Use different tokens for different permission levels:
+
 ```bash wrap
 gh secret set READ_ONLY_TOKEN -a actions --body "YOUR_READ_PAT"
 gh secret set READ_WRITE_TOKEN -a actions --body "YOUR_WRITE_PAT"
@@ -672,12 +695,15 @@ gh secret set READ_WRITE_TOKEN -a actions --body "YOUR_WRITE_PAT"
 **Cause**: PAT has expired.
 
 **Solution**:
+
 1. Check PAT expiration in [GitHub settings](https://github.com/settings/tokens)
 2. Regenerate or create new PAT
 3. Update secret:
+
    ```bash wrap
    gh secret set GH_AW_GITHUB_TOKEN -a actions --body "YOUR_NEW_PAT"
    ```
+
 4. Consider shorter expiration periods with regular rotation schedule
 
 ### Organization Policies
@@ -687,6 +713,7 @@ gh secret set READ_WRITE_TOKEN -a actions --body "YOUR_WRITE_PAT"
 **Cause**: Organization has restricted PAT creation.
 
 **Solution**: Work with your organization admin to:
+
 1. Request exemption for specific repositories
 2. Use organization-wide GitHub App instead
 3. Request pre-approved fine-grained PAT with required scopes
@@ -715,24 +742,26 @@ gh secret list -a actions
 ### Token Precedence Summary
 
 **For safe outputs** (create-issue, create-pr, add-comment, etc.):
+
 1. Per-output `github-token:` (highest)
 2. Global `safe-outputs.github-token:`
 3. Workflow-level `github-token:`
 4. `secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN` (lowest)
 
 **For Copilot operations** (create-agent-task, copilot assignee/reviewer):
+
 1. Per-output `github-token:` (highest)
 2. Global `safe-outputs.github-token:`
 3. Workflow-level `github-token:`
 4. `secrets.COPILOT_GITHUB_TOKEN`
-5. `secrets.GH_AW_COPILOT_TOKEN`
-6. `secrets.GH_AW_GITHUB_TOKEN` (lowest)
+5. `secrets.GH_AW_GITHUB_TOKEN` (lowest)
 
-:::caution[COPILOT_CLI_TOKEN Deprecated]
-The `COPILOT_CLI_TOKEN` secret name is **no longer supported** as of v0.26+. Use `COPILOT_GITHUB_TOKEN` instead.
+:::caution[Legacy Tokens Removed]
+The `COPILOT_CLI_TOKEN` and `GH_AW_COPILOT_TOKEN` secret names are **no longer supported** as of v0.26+. Use `COPILOT_GITHUB_TOKEN` instead.
 :::
 
 **For GitHub MCP server**:
+
 1. Tool-level `github-token` (highest)
 2. Workflow-level `github-token:`
 3. `secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN`
@@ -754,23 +783,26 @@ The `COPILOT_CLI_TOKEN` secret name is **no longer supported** as of v0.26+. Use
 
 | Old Token Name | New Token Name | Status |
 |---------------|----------------|--------|
-| `GH_AW_COPILOT_TOKEN` | `COPILOT_GITHUB_TOKEN` | Deprecated, still supported |
+| `GH_AW_COPILOT_TOKEN` | `COPILOT_GITHUB_TOKEN` | **Removed in v0.26+** |
 | `COPILOT_CLI_TOKEN` | `COPILOT_GITHUB_TOKEN` | **Removed in v0.26+** |
 | - | `GH_AW_GITHUB_MCP_SERVER_TOKEN` | Optional, new in v0.23+ |
 
-:::caution[COPILOT_CLI_TOKEN Removed]
-The `COPILOT_CLI_TOKEN` secret is **no longer supported** as of v0.26+. Workflows using this token will fail. Please migrate to `COPILOT_GITHUB_TOKEN`:
+:::caution[Legacy Tokens Removed]
+The `COPILOT_CLI_TOKEN` and `GH_AW_COPILOT_TOKEN` secrets are **no longer supported** as of v0.26+. Workflows using these tokens will fail. Please migrate to `COPILOT_GITHUB_TOKEN`:
 
 ```bash wrap
 # Add new secret
 gh secret set COPILOT_GITHUB_TOKEN -a actions --body "<your-github-pat>"
 ```
+
 :::
 
 To migrate from legacy tokens:
+
 ```bash wrap
-# Remove old secret
+# Remove old secrets (if present)
 gh secret remove GH_AW_COPILOT_TOKEN -a actions
+gh secret remove COPILOT_CLI_TOKEN -a actions
 
 # Add new secret
 gh secret set COPILOT_GITHUB_TOKEN -a actions --body "YOUR_PAT"

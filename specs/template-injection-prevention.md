@@ -72,7 +72,7 @@ graph TB
     id: download-sessions
     continue-on-error: true
     env:
-      GH_TOKEN: ${{ secrets.GH_AW_COPILOT_TOKEN || secrets.GH_AW_GITHUB_TOKEN }}
+      GH_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN || secrets.GH_AW_GITHUB_TOKEN }}
 +     # Security: Pass step output through environment variable to prevent template injection
 +     EXTENSION_INSTALLED: ${{ steps.install-extension.outputs.EXTENSION_INSTALLED }}
     run: |
