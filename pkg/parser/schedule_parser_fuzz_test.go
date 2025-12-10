@@ -303,10 +303,7 @@ func FuzzScheduleParser(f *testing.F) {
 
 		// 8. Validate minimum duration for interval schedules
 		if strings.HasPrefix(strings.ToLower(strings.TrimSpace(input)), "every") {
-			if err == nil {
-				// If it succeeded, make sure it's not below minimum (5 minutes)
-				// This is hard to check without parsing, so we skip detailed validation
-			} else if !strings.Contains(err.Error(), "minimum schedule interval") &&
+			if err != nil && !strings.Contains(err.Error(), "minimum schedule interval") &&
 				!strings.Contains(err.Error(), "invalid") &&
 				!strings.Contains(err.Error(), "unsupported") {
 				// If it errored for reasons other than minimum duration or format,

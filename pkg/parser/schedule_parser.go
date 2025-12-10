@@ -350,7 +350,7 @@ func (p *ScheduleParser) extractTime(startPos int) (string, error) {
 func parseTime(timeStr string) (minute string, hour string) {
 	// Check for UTC offset
 	parts := strings.Split(timeStr, " ")
-	var utcOffset int = 0
+	var utcOffset int
 	var baseTime string
 
 	if len(parts) == 2 && strings.HasPrefix(strings.ToLower(parts[1]), "utc") {
