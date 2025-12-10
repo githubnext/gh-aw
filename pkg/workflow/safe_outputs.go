@@ -3,6 +3,7 @@ package workflow
 import (
 	"encoding/json"
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/constants"
@@ -234,6 +235,9 @@ func GetEnabledSafeOutputToolNames(safeOutputs *SafeOutputsConfig) []string {
 	for jobName := range safeOutputs.Jobs {
 		tools = append(tools, jobName)
 	}
+
+	// Sort tools to ensure deterministic compilation
+	sort.Strings(tools)
 
 	if safeOutputsLog.Enabled() {
 		safeOutputsLog.Printf("Enabled safe output tools: %v", tools)

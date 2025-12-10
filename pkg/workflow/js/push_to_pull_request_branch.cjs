@@ -409,6 +409,7 @@ async function main() {
   core.setOutput("branch_name", branchName);
   core.setOutput("commit_sha", commitSha);
   core.setOutput("push_url", pushUrl);
+  core.setOutput("commit_url", commitUrl);
 
   // Update the activation comment with commit link (if a comment was created and changes were pushed)
   if (hasChanges) {
@@ -421,7 +422,7 @@ async function main() {
     ? `
 ## ${summaryTitle}
 - **Branch**: \`${branchName}\`
-- **Commit**: [${commitSha.substring(0, 7)}](${pushUrl})
+- **Commit**: [${commitSha.substring(0, 7)}](${commitUrl})
 - **URL**: [${pushUrl}](${pushUrl})
 `
     : `
