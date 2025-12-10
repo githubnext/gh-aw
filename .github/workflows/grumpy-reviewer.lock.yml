@@ -1486,7 +1486,7 @@ jobs:
               let comments = [];
               if (isDiscussion) {
                 const query =  `
-                  query($owner: String!, $repo: String!, $num: Int!) {
+                  query ($owner: String!, $repo: String!, $num: Int!) {
                     repository(owner: $owner, name: $repo) {
                       discussion(number: $num) {
                         comments(first: 100) {
