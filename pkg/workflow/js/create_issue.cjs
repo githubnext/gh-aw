@@ -21,7 +21,7 @@ const { addExpirationComment } = require("./expiration_helpers.cjs");
  * @param {string} owner - Repository owner
  * @param {string} repo - Repository name
  * @param {string} trackerID - Tracker ID to search for
- * @returns {Promise<{number: number, title: string, body: string, labels: Array<{name: string}>, html_url: string} | null>} Issue object or null if not found
+ * @returns {Promise<{number: number, title: string, body: string, labels: any, html_url: string} | null>} Issue object or null if not found
  */
 async function findExistingIssueByTrackerID(owner, repo, trackerID) {
   if (!trackerID) {

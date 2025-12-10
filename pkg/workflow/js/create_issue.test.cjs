@@ -991,4 +991,131 @@ describe("create_issue.cjs", () => {
     // Should warn about missing parent
     expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Parent temporary ID 'aw_000000000000' not found"));
   });
+
+  it("should update existing issue when tracker-id matches", async () => {
+    const trackerID = "portfolio-analyst-weekly";
+    process.env.GH_AW_TRACKER_ID = trackerID;
+
+    setAgentOutput({
+      items: [
+        {
+          type: "create_issue",
+          title: "Updated Portfolio Report",
+          body: "This is the updated report content with new findings.",
+        },
+      ],
+    });
+
+    // Mock search API to return an existing issue
+    const mockSearchResults = {
+      data: {
+        total_count: 1,
+        items: [
+          {
+            number: 6004,
+            title: "Old Portfolio Report",
+            body: `Old content\n\n<!-- tracker-id: ${trackerID} -->`,
+            labels: [{ name: "cost-optimization" }],
+            html_url: "https://github.com/testowner/testrepo/issues/6004",
+          },
+        ],
+      },
+    };
+
+    const mockUpdatedIssue = {
+      number: 6004,
+      title: "Updated Portfolio Report",
+      html_url: "https://github.com/testowner/testrepo/issues/6004",
+    };
+
+    // Mock the search API
+    mockGithub.rest.search = {
+      issuesAndPullRequests: vi.fn().mockResolvedValue(mockSearchResults),
+    };
+
+    // Mock the update API
+    mockGithub.rest.issues.update = vi.fn().mockResolvedValue({ data: mockUpdatedIssue });
+
+    // Execute the script
+    await eval(`(async () => { ${createIssueScript} })()`);
+
+    // Should search for existing issue
+    expect(mockGithub.rest.search.issuesAndPullRequests).toHaveBeenCalledWith({
+      q: expect.stringContaining(trackerID),
+      per_page: 100,
+    });
+
+    // Should update the existing issue, not create a new one
+    expect(mockGithub.rest.issues.update).toHaveBeenCalledWith({
+      owner: "testowner",
+      repo: "testrepo",
+      issue_number: 6004,
+      title: "Updated Portfolio Report",
+      body: expect.stringContaining("This is the updated report content"),
+      labels: [],
+    });
+
+    // Should NOT create a new issue
+    expect(mockGithub.rest.issues.create).not.toHaveBeenCalled();
+
+    // Should log the update
+    expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Updating existing issue"));
+    expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("✓ Updated issue"));
+  });
+
+  it("should create new issue when no matching tracker-id found", async () => {
+    const trackerID = "portfolio-analyst-weekly";
+    process.env.GH_AW_TRACKER_ID = trackerID;
+
+    setAgentOutput({
+      items: [
+        {
+          type: "create_issue",
+          title: "New Portfolio Report",
+          body: "This is a brand new report.",
+        },
+      ],
+    });
+
+    // Mock search API to return no results
+    const mockSearchResults = {
+      data: {
+        total_count: 0,
+        items: [],
+      },
+    };
+
+    const mockNewIssue = {
+      number: 6005,
+      html_url: "https://github.com/testowner/testrepo/issues/6005",
+    };
+
+    // Mock the search API
+    mockGithub.rest.search = {
+      issuesAndPullRequests: vi.fn().mockResolvedValue(mockSearchResults),
+    };
+
+    mockGithub.rest.issues.create.mockResolvedValue({ data: mockNewIssue });
+
+    // Execute the script
+    await eval(`(async () => { ${createIssueScript} })()`);
+
+    // Should search for existing issue
+    expect(mockGithub.rest.search.issuesAndPullRequests).toHaveBeenCalledWith({
+      q: expect.stringContaining(trackerID),
+      per_page: 100,
+    });
+
+    // Should create a new issue
+    expect(mockGithub.rest.issues.create).toHaveBeenCalledWith({
+      owner: "testowner",
+      repo: "testrepo",
+      title: "New Portfolio Report",
+      body: expect.stringContaining("This is a brand new report"),
+      labels: [],
+    });
+
+    // Should log the creation
+    expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Creating new issue"));
+  });
 });
