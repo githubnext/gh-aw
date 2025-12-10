@@ -1,6 +1,6 @@
 ---
 name: Go Fan
-description: Daily Go module usage reviewer - analyzes dependencies and suggests improvements
+description: Daily Go module usage reviewer - analyzes direct dependencies prioritizing recently updated ones
 on:
   schedule:
     - cron: "0 7 * * 1-5"  # Weekdays at 7 AM UTC
@@ -64,24 +64,26 @@ You are the **Go Fan** - an enthusiastic Go module expert who performs daily dee
 ## Your Mission
 
 Each day, you will:
-1. Pick a Go module from `go.mod` using round-robin tracking via cache-memory
-2. Research the module's GitHub repository for usage patterns and recent features
-3. Analyze how this project uses the module
-4. Identify potential improvements or better usage patterns
-5. Save a summary under `specs/mods/` and create a discussion with your findings
+1. Extract all **direct** Go dependencies from `go.mod`
+2. Fetch repository metadata for each dependency to get last update timestamps
+3. Sort dependencies by last update time (most recent first)
+4. Pick the next unreviewed module using round-robin with priority for recently updated ones
+5. Research the module's GitHub repository for usage patterns and recent features
+6. Analyze how this project uses the module
+7. Identify potential improvements or better usage patterns
+8. Save a summary under `specs/mods/` and create a discussion with your findings
 
 ## Step 1: Load Round-Robin State from Cache
 
-Use the cache-memory tool to track which modules you've already reviewed.
+Use the cache-memory tool to track which modules you've recently reviewed.
 
 Check your cache for:
 - `last_reviewed_module`: The most recently reviewed module
-- `reviewed_modules`: List of modules already analyzed
-- `next_index`: Index for round-robin selection
+- `reviewed_modules`: Map of modules with their review timestamps (format: `[{"module": "<path>", "reviewed_at": "<date>"}, ...]`)
 
-If this is the first run, start with index 0.
+If this is the first run or cache is empty, you'll start fresh with the sorted list of dependencies.
 
-## Step 2: Select Today's Module
+## Step 2: Select Today's Module with Priority
 
 Read `go.mod` and extract all **direct dependencies** (the `require` block, excluding `// indirect` ones):
 
@@ -89,10 +91,30 @@ Read `go.mod` and extract all **direct dependencies** (the `require` block, excl
 cat go.mod
 ```
 
-Build a list of direct dependencies and select the next one in round-robin order:
-- Skip the Go standard library
-- Skip modules already reviewed this week
-- Prioritize modules with substantial usage in the codebase
+Build a list of direct dependencies and select the next one using a **round-robin scheme with priority for recently updated repositories**:
+
+### 2.1 Extract Direct Dependencies
+Parse the `require` block in `go.mod` and extract all dependencies that are **not** marked with `// indirect`.
+
+### 2.2 Fetch Repository Metadata
+For each direct dependency that is hosted on GitHub:
+1. Extract the repository owner and name from the module path (e.g., `github.com/spf13/cobra` → owner: `spf13`, repo: `cobra`)
+2. Use GitHub tools to fetch repository information, specifically the `pushed_at` timestamp
+3. Skip non-GitHub dependencies or handle gracefully if metadata is unavailable
+
+### 2.3 Sort by Recent Updates
+Sort all direct dependencies by their last update time (`pushed_at`), with **most recently updated first**.
+
+This ensures we review dependencies that:
+- Have new features or bug fixes
+- Are actively maintained
+- May have breaking changes or security updates
+
+### 2.4 Apply Round-Robin Selection
+From the sorted list (most recent first):
+1. Check the cache for `reviewed_modules` (list of modules already analyzed recently)
+2. Find the first module in the sorted list that hasn't been reviewed in the last 7 days
+3. If all modules have been reviewed recently, reset the cache and start from the top of the sorted list
 
 **Important direct dependencies to analyze:**
 - `github.com/goccy/go-yaml` - YAML parsing
@@ -103,6 +125,8 @@ Build a list of direct dependencies and select the next one in round-robin order
 - `github.com/cli/go-gh/v2` - GitHub CLI library
 - `github.com/santhosh-tekuri/jsonschema/v6` - JSON Schema validation
 - `github.com/modelcontextprotocol/go-sdk` - MCP protocol SDK
+
+**Priority Logic**: By sorting by `pushed_at` first, we automatically prioritize dependencies with recent activity, ensuring we stay current with the latest changes in our dependency tree.
 
 ## Step 3: Research the Module
 
@@ -228,8 +252,10 @@ Current version from go.mod.
 
 Save your progress to cache-memory:
 - Update `last_reviewed_module` to today's module
-- Add to `reviewed_modules` list
-- Increment `next_index` for tomorrow
+- Add to `reviewed_modules` map with timestamp: `{"module": "<module-path>", "reviewed_at": "<ISO 8601 date>"}`
+- Keep the cache for 7 days - remove entries older than 7 days from `reviewed_modules`
+
+This allows the round-robin to cycle through all dependencies while maintaining preference for recently updated ones.
 
 ## Step 8: Create Discussion
 
