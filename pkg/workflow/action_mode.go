@@ -51,8 +51,8 @@ func DetectActionMode() ActionMode {
 	// 2. Running on a release tag (refs/tags/*)
 	// 3. Running on a release event
 	if strings.HasPrefix(githubRef, "refs/heads/release") ||
-	   strings.HasPrefix(githubRef, "refs/tags/") ||
-	   githubEventName == "release" {
+		strings.HasPrefix(githubRef, "refs/tags/") ||
+		githubEventName == "release" {
 		return ActionModeRelease
 	}
 
@@ -60,9 +60,9 @@ func DetectActionMode() ActionMode {
 	// 1. Running on a PR (refs/pull/*)
 	// 2. Running locally (no GITHUB_REF)
 	// 3. Running on any other branch (including main)
-	if strings.HasPrefix(githubRef, "refs/pull/") || 
-	   githubRef == "" ||
-	   strings.HasPrefix(githubRef, "refs/heads/") {
+	if strings.HasPrefix(githubRef, "refs/pull/") ||
+		githubRef == "" ||
+		strings.HasPrefix(githubRef, "refs/heads/") {
 		return ActionModeDev
 	}
 
