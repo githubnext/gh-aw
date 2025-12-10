@@ -421,7 +421,7 @@ async function main() {
     ? `
 ## ${summaryTitle}
 - **Branch**: \`${branchName}\`
-- **Commit**: [${commitSha.substring(0, 7)}](${pushUrl})
+- **Commit**: [${commitSha.substring(0, 7)}](${commitUrl})
 - **URL**: [${pushUrl}](${pushUrl})
 `
     : `
