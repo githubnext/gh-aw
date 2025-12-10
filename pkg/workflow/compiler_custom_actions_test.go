@@ -167,7 +167,7 @@ core.info('Creating issue');
 	if createIssueJobStart == -1 {
 		t.Fatal("Could not find create_issue job in lock file")
 	}
-	
+
 	// Find the next job (starts with "  " at the beginning of a line, not "    ")
 	remainingContent := lockStr[createIssueJobStart+17:] // Skip past "  create_issue:\n"
 	nextJobIdx := -1
@@ -183,7 +183,7 @@ core.info('Creating issue');
 			break
 		}
 	}
-	
+
 	var createIssueJobSection string
 	if nextJobIdx == -1 {
 		createIssueJobSection = lockStr[createIssueJobStart:]

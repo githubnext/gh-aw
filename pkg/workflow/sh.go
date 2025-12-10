@@ -42,9 +42,6 @@ var playwrightPromptText string
 //go:embed prompts/edit_tool_prompt.md
 var editToolPromptText string
 
-//go:embed prompts/safe_outputs_prompt.md
-var safeOutputsPromptText string
-
 // WriteShellScriptToYAML writes a shell script with proper indentation to a strings.Builder
 func WriteShellScriptToYAML(yaml *strings.Builder, script string, indent string) {
 	scriptLines := strings.Split(script, "\n")

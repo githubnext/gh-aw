@@ -24,56 +24,6 @@ func (c *Compiler) formatSafeOutputsRunsOn(safeOutputs *SafeOutputsConfig) strin
 	return fmt.Sprintf("runs-on: %s", safeOutputs.RunsOn)
 }
 
-// buildCustomActionStep creates a step that uses a custom action reference
-// instead of inline JavaScript via actions/github-script
-func (c *Compiler) buildCustomActionStep(data *WorkflowData, config GitHubScriptStepConfig, scriptName string) []string {
-	safeOutputsLog.Printf("Building custom action step: %s (scriptName=%s, actionMode=%s)", config.StepName, scriptName, c.actionMode)
-
-	var steps []string
-
-	// Get the action path from the script registry
-	actionPath := DefaultScriptRegistry.GetActionPath(scriptName)
-	if actionPath == "" {
-		safeOutputsLog.Printf("WARNING: No action path found for script %s, falling back to inline mode", scriptName)
-		return c.buildGitHubScriptStep(data, config)
-	}
-
-	// Resolve the action reference based on mode
-	actionRef := c.resolveActionReference(actionPath, data)
-	if actionRef == "" {
-		safeOutputsLog.Printf("WARNING: Could not resolve action reference for %s, falling back to inline mode", actionPath)
-		return c.buildGitHubScriptStep(data, config)
-	}
-
-	// Add artifact download steps before the custom action step
-	steps = append(steps, buildAgentOutputDownloadSteps()...)
-
-	// Step name and metadata
-	steps = append(steps, fmt.Sprintf("      - name: %s\n", config.StepName))
-	steps = append(steps, fmt.Sprintf("        id: %s\n", config.StepID))
-	steps = append(steps, fmt.Sprintf("        uses: %s\n", actionRef))
-
-	// Environment variables section
-	steps = append(steps, "        env:\n")
-	steps = append(steps, "          GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}\n")
-	steps = append(steps, config.CustomEnvVars...)
-	c.addCustomSafeOutputEnvVars(&steps, data)
-
-	// With section for inputs (replaces github-token in actions/github-script)
-	steps = append(steps, "        with:\n")
-
-	// Map github-token to token input for custom actions
-	if config.UseAgentToken {
-		c.addCustomActionAgentGitHubToken(&steps, data, config.Token)
-	} else if config.UseCopilotToken {
-		c.addCustomActionCopilotGitHubToken(&steps, data, config.Token)
-	} else {
-		c.addCustomActionGitHubToken(&steps, data, config.Token)
-	}
-
-	return steps
-}
-
 // Helper functions to add GitHub token as action input instead of github-script parameter
 func (c *Compiler) addCustomActionGitHubToken(steps *[]string, data *WorkflowData, customToken string) {
 	token := customToken

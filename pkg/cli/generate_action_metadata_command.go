@@ -95,21 +95,21 @@ func GenerateActionMetadataCommand() error {
 			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("✗ Failed to generate action.yml: %s", err.Error())))
 			continue
 		}
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  ✓ Generated action.yml")))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("  ✓ Generated action.yml"))
 
 		// Generate README.md
 		if err := generateReadme(actionDir, metadata); err != nil {
 			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("✗ Failed to generate README.md: %s", err.Error())))
 			continue
 		}
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  ✓ Generated README.md")))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("  ✓ Generated README.md"))
 
 		// Copy source file
 		srcPath := filepath.Join(srcDir, "index.js")
 		if err := os.WriteFile(srcPath, []byte(content), 0644); err != nil {
 			return fmt.Errorf("failed to write source file: %w", err)
 		}
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  ✓ Copied source to src/index.js")))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("  ✓ Copied source to src/index.js"))
 
 		generatedCount++
 	}
