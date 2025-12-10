@@ -1,7 +1,12 @@
+const core = require('@actions/core');
+// Dependencies from pkg/workflow/js/
+const path = require('path');
+const jsDir = path.join(__dirname, '..', '..', 'pkg', 'workflow', 'js');
+
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-const { loadAgentOutput } = require("./load_agent_output.cjs");
+const { loadAgentOutput } = require(path.join(jsDir, "load_agent_output.cjs"));
 
 /**
  * Main function to handle noop safe output
@@ -65,4 +70,6 @@ async function main() {
   core.info(`Successfully processed ${noopItems.length} noop message(s)`);
 }
 
-await main();
+
+// Execute main function in async IIFE
+(async () => { await main(); })();

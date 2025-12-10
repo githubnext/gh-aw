@@ -1,7 +1,12 @@
+const core = require('@actions/core');
+// Dependencies from pkg/workflow/js/
+const path = require('path');
+const jsDir = path.join(__dirname, '..', '..', 'pkg', 'workflow', 'js');
+
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-const { processCloseEntityItems, PULL_REQUEST_CONFIG } = require("./close_entity_helpers.cjs");
+const { processCloseEntityItems, PULL_REQUEST_CONFIG } = require(path.join(jsDir, "close_entity_helpers.cjs"));
 
 /**
  * Get pull request details using REST API
@@ -72,4 +77,6 @@ async function main() {
   });
 }
 
-await main();
+
+// Execute main function in async IIFE
+(async () => { await main(); })();

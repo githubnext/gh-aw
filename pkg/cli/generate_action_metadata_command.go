@@ -124,12 +124,13 @@ func GenerateActionMetadataCommand() error {
 		}
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("  ✓ Generated README.md"))
 
-		// Copy source file as-is (bundling will inline dependencies)
+		// Transform source file to use @actions/core instead of inline requires
+		transformedContent := transformSourceForEsbuild(content, typeSchema.TypeName)
 		srcPath := filepath.Join(srcDir, "index.js")
-		if err := os.WriteFile(srcPath, []byte(content), 0644); err != nil {
+		if err := os.WriteFile(srcPath, []byte(transformedContent), 0644); err != nil {
 			return fmt.Errorf("failed to write source file: %w", err)
 		}
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("  ✓ Copied source to src/index.js"))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("  ✓ Generated src/index.js with @actions/core"))
 
 		generatedCount++
 	}
@@ -454,4 +455,43 @@ func generateReadme(actionDir string, metadata *ActionMetadata) error {
 	}
 
 	return nil
+}
+
+
+// transformSourceForEsbuild transforms .cjs source to use @actions/core and be compatible with esbuild
+func transformSourceForEsbuild(content, actionName string) string {
+// Add @actions/core import at the top
+result := "const core = require('@actions/core');\n"
+
+// Add relative path imports for dependencies from pkg/workflow/js/
+result += "// Dependencies from pkg/workflow/js/\n"
+result += "const path = require('path');\n"
+result += "const jsDir = path.join(__dirname, '..', '..', 'pkg', 'workflow', 'js');\n\n"
+
+// Transform require statements to use absolute paths
+// Match: require("./filename.cjs") or require('./filename.cjs')
+requireRegex := regexp.MustCompile(`require\(["']\.\/([^"']+\.cjs)["']\)`)
+content = requireRegex.ReplaceAllString(content, `require(path.join(jsDir, "$1"))`)
+
+// Remove module.exports from original content
+content = regexp.MustCompile(`(?m)^module\.exports\s*=\s*\{[^}]*\};?\s*$`).ReplaceAllString(content, "")
+
+// Remove standalone module.exports = main
+content = regexp.MustCompile(`(?m)^module\.exports\s*=\s*main;?\s*$`).ReplaceAllString(content, "")
+
+// Remove any existing top-level await main() calls
+content = regexp.MustCompile(`(?m)^await\s+main\(\);?\s*$`).ReplaceAllString(content, "")
+
+
+// Add the transformed content
+result += content
+
+// If there's a main() function, wrap the call in an async IIFE to avoid top-level await
+if strings.Contains(content, "async function main()") {
+result += "\n// Execute main function in async IIFE\n(async () => { await main(); })();\n"
+} else if strings.Contains(content, "function main()") {
+result += "\n// Execute main function\nmain();\n"
+}
+
+return result
 }

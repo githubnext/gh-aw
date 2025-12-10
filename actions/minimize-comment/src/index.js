@@ -1,7 +1,12 @@
+const core = require('@actions/core');
+// Dependencies from pkg/workflow/js/
+const path = require('path');
+const jsDir = path.join(__dirname, '..', '..', 'pkg', 'workflow', 'js');
+
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-const { loadAgentOutput } = require("./load_agent_output.cjs");
+const { loadAgentOutput } = require(path.join(jsDir, "load_agent_output.cjs"));
 
 /**
  * Minimize (hide) a comment using the GraphQL API.
@@ -92,4 +97,6 @@ async function main() {
 }
 
 // Call the main function
-await main();
+
+// Execute main function in async IIFE
+(async () => { await main(); })();

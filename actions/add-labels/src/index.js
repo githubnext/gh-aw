@@ -1,8 +1,13 @@
+const core = require('@actions/core');
+// Dependencies from pkg/workflow/js/
+const path = require('path');
+const jsDir = path.join(__dirname, '..', '..', 'pkg', 'workflow', 'js');
+
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-const { processSafeOutput } = require("./safe_output_processor.cjs");
-const { validateLabels } = require("./safe_output_validator.cjs");
+const { processSafeOutput } = require(path.join(jsDir, "safe_output_processor.cjs"));
+const { validateLabels } = require(path.join(jsDir, "safe_output_validator.cjs"));
 
 async function main() {
   // Use shared processor for common steps
@@ -122,4 +127,6 @@ ${labelsListMarkdown}
     core.setFailed(`Failed to add labels: ${errorMessage}`);
   }
 }
-await main();
+
+// Execute main function in async IIFE
+(async () => { await main(); })();

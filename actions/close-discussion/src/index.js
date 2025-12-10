@@ -1,10 +1,15 @@
+const core = require('@actions/core');
+// Dependencies from pkg/workflow/js/
+const path = require('path');
+const jsDir = path.join(__dirname, '..', '..', 'pkg', 'workflow', 'js');
+
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-const { loadAgentOutput } = require("./load_agent_output.cjs");
-const { generateFooter } = require("./generate_footer.cjs");
-const { getTrackerID } = require("./get_tracker_id.cjs");
-const { getRepositoryUrl } = require("./get_repository_url.cjs");
+const { loadAgentOutput } = require(path.join(jsDir, "load_agent_output.cjs"));
+const { generateFooter } = require(path.join(jsDir, "generate_footer.cjs"));
+const { getTrackerID } = require(path.join(jsDir, "get_tracker_id.cjs"));
+const { getRepositoryUrl } = require(path.join(jsDir, "get_repository_url.cjs"));
 
 /**
  * Get discussion details using GraphQL
@@ -318,4 +323,6 @@ async function main() {
   core.info(`Successfully closed ${closedDiscussions.length} discussion(s)`);
   return closedDiscussions;
 }
-await main();
+
+// Execute main function in async IIFE
+(async () => { await main(); })();

@@ -1,7 +1,12 @@
+const core = require('@actions/core');
+// Dependencies from pkg/workflow/js/
+const path = require('path');
+const jsDir = path.join(__dirname, '..', '..', 'pkg', 'workflow', 'js');
+
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-const { runUpdateWorkflow, createRenderStagedItem, createGetSummaryLine } = require("./update_runner.cjs");
+const { runUpdateWorkflow, createRenderStagedItem, createGetSummaryLine } = require(path.join(jsDir, "update_runner.cjs"));
 
 /**
  * Check if the current context is a valid issue context
@@ -76,4 +81,6 @@ async function main() {
   });
 }
 
-await main();
+
+// Execute main function in async IIFE
+(async () => { await main(); })();

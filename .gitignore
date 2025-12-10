@@ -76,6 +76,7 @@ gh-aw-test/
 actions/**/node_modules/
 actions/**/*.tmp
 actions/**/.build/
+actions/package-lock.json
 
 pkg/cli/workflows/*.yml
 .github/workflows/test-update.md

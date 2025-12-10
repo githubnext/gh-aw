@@ -1,11 +1,16 @@
+const core = require('@actions/core');
+// Dependencies from pkg/workflow/js/
+const path = require('path');
+const jsDir = path.join(__dirname, '..', '..', 'pkg', 'workflow', 'js');
+
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-const { loadAgentOutput } = require("./load_agent_output.cjs");
-const { generateFooterWithMessages } = require("./messages_footer.cjs");
-const { getTrackerID } = require("./get_tracker_id.cjs");
-const { getRepositoryUrl } = require("./get_repository_url.cjs");
-const { replaceTemporaryIdReferences, loadTemporaryIdMap } = require("./temporary_id.cjs");
+const { loadAgentOutput } = require(path.join(jsDir, "load_agent_output.cjs"));
+const { generateFooterWithMessages } = require(path.join(jsDir, "messages_footer.cjs"));
+const { getTrackerID } = require(path.join(jsDir, "get_tracker_id.cjs"));
+const { getRepositoryUrl } = require(path.join(jsDir, "get_repository_url.cjs"));
+const { replaceTemporaryIdReferences, loadTemporaryIdMap } = require(path.join(jsDir, "temporary_id.cjs"));
 
 /**
  * Comment on a GitHub Discussion using GraphQL
@@ -381,4 +386,6 @@ async function main() {
   core.info(`Successfully created ${createdComments.length} comment(s)`);
   return createdComments;
 }
-await main();
+
+// Execute main function in async IIFE
+(async () => { await main(); })();

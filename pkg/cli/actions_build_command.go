@@ -3,13 +3,13 @@ package cli
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"sort"
 	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/logger"
-	"github.com/githubnext/gh-aw/pkg/workflow"
 )
 
 var actionsBuildLog = logger.New("cli:actions_build")
@@ -20,27 +20,30 @@ func ActionsBuildCommand() error {
 
 	actionsBuildLog.Print("Starting actions build")
 
-	// Get list of action directories
-	actionDirs, err := getActionDirectories(actionsDir)
-	if err != nil {
-		return err
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Building all actions with esbuild..."))
+
+	// Check if actions/package.json exists
+	packageJSON := filepath.Join(actionsDir, "package.json")
+	if _, err := os.Stat(packageJSON); os.IsNotExist(err) {
+		return fmt.Errorf("actions/package.json not found - run 'npm init' in actions/ directory")
 	}
 
-	if len(actionDirs) == 0 {
-		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("No action directories found in actions/"))
-		return nil
-	}
-
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Building all actions..."))
-
-	// Build each action
-	for _, actionName := range actionDirs {
-		if err := buildAction(actionsDir, actionName); err != nil {
-			return fmt.Errorf("failed to build action %s: %w", actionName, err)
+	// Check if node_modules exists, if not run npm install
+	nodeModules := filepath.Join(actionsDir, "node_modules")
+	if _, err := os.Stat(nodeModules); os.IsNotExist(err) {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("📦 Installing dependencies..."))
+		if err := runCommand(actionsDir, "npm", "install"); err != nil {
+			return fmt.Errorf("failed to install dependencies: %w", err)
 		}
 	}
 
-	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("✨ All actions built successfully (%d actions)", len(actionDirs))))
+	// Run the build script
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("🔨 Building actions with esbuild..."))
+	if err := runCommand(actionsDir, "npm", "run", "build"); err != nil {
+		return fmt.Errorf("failed to build actions: %w", err)
+	}
+
+	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("✨ All actions built successfully"))
 	return nil
 }
 
@@ -170,153 +173,11 @@ func validateActionYml(actionPath string) error {
 	return nil
 }
 
-// buildAction builds a single action by bundling its dependencies using GitHub Script mode
-func buildAction(actionsDir, actionName string) error {
-	actionsBuildLog.Printf("Building action: %s", actionName)
-
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("\n📦 Building action: %s", actionName)))
-
-	actionPath := filepath.Join(actionsDir, actionName)
-	srcPath := filepath.Join(actionPath, "src", "index.js")
-	outputPath := filepath.Join(actionPath, "index.js")
-
-	// Validate action.yml
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("  ✓ Validating action.yml"))
-	if err := validateActionYml(actionPath); err != nil {
-		return err
-	}
-
-	// Check if source file exists
-	if _, err := os.Stat(srcPath); os.IsNotExist(err) {
-		return fmt.Errorf("source file not found: %s", srcPath)
-	}
-
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("  ✓ Reading source file"))
-	sourceContent, err := os.ReadFile(srcPath)
-	if err != nil {
-		return fmt.Errorf("failed to read source file: %w", err)
-	}
-
-	// Get ALL JavaScript sources - the bundler will figure out what's needed
-	allSources := workflow.GetJavaScriptSources()
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  ✓ Loaded %d source files for bundling", len(allSources))))
-
-	// Bundle using GitHub Script mode (inlines dependencies, removes exports)
-	// The bundler will recursively bundle all required dependencies
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("  ✓ Bundling with GitHub Script mode (recursive)"))
-	bundled, err := workflow.BundleJavaScriptWithMode(string(sourceContent), allSources, "", workflow.RuntimeModeGitHubScript)
-	if err != nil {
-		return fmt.Errorf("failed to bundle JavaScript: %w", err)
-	}
-
-	// Write output file
-	if err := os.WriteFile(outputPath, []byte(bundled), 0644); err != nil {
-		return fmt.Errorf("failed to write output file: %w", err)
-	}
-
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  ✓ Built %s", outputPath)))
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("  ✓ Bundled dependencies inline and removed exports"))
-
-	return nil
-}
-
-// getActionDependencies returns the list of JavaScript dependencies for an action
-// This mapping defines which files from pkg/workflow/js/ are needed for each action
-func getActionDependencies(actionName string) []string {
-	dependencyMap := map[string][]string{
-		"setup-safe-outputs": {
-			"safe_outputs_mcp_server.cjs",
-			"safe_outputs_bootstrap.cjs",
-			"safe_outputs_tools_loader.cjs",
-			"safe_outputs_config.cjs",
-			"safe_outputs_handlers.cjs",
-			"safe_outputs_tools.json",
-			"mcp_server_core.cjs",
-			"mcp_logger.cjs",
-			"messages.cjs",
-		},
-		"setup-safe-inputs": {
-			"safe_inputs_mcp_server.cjs",
-			"safe_inputs_bootstrap.cjs",
-			"safe_inputs_config_loader.cjs",
-			"safe_inputs_tool_factory.cjs",
-			"safe_inputs_validation.cjs",
-			"mcp_server_core.cjs",
-			"mcp_logger.cjs",
-		},
-		"noop": {
-			"load_agent_output.cjs",
-		},
-		"minimize-comment": {
-			"load_agent_output.cjs",
-		},
-		"close-issue": {
-			"close_entity_helpers.cjs",
-		},
-		"close-pull-request": {
-			"close_entity_helpers.cjs",
-		},
-		"close-discussion": {
-			"generate_footer.cjs",
-			"get_repository_url.cjs",
-			"get_tracker_id.cjs",
-			"load_agent_output.cjs",
-		},
-		"add-comment": {
-			"add_comment_helpers.cjs",
-			"generate_footer.cjs",
-			"get_repository_url.cjs",
-			"get_tracker_id.cjs",
-			"load_agent_output.cjs",
-			"repo_helpers.cjs",
-			"sanitize_label_content.cjs",
-		},
-		"create-issue": {
-			"expiration_helpers.cjs",
-			"generate_footer.cjs",
-			"get_tracker_id.cjs",
-			"load_agent_output.cjs",
-			"repo_helpers.cjs",
-			"sanitize_label_content.cjs",
-			"staged_preview.cjs",
-			"temporary_id.cjs",
-		},
-		"add-labels": {
-			"generate_footer.cjs",
-			"get_repository_url.cjs",
-			"get_tracker_id.cjs",
-			"load_agent_output.cjs",
-			"repo_helpers.cjs",
-			"sanitize_label_content.cjs",
-		},
-		"create-discussion": {
-			"generate_footer.cjs",
-			"get_repository_url.cjs",
-			"get_tracker_id.cjs",
-			"load_agent_output.cjs",
-			"repo_helpers.cjs",
-			"sanitize_label_content.cjs",
-		},
-		"update-issue": {
-			"generate_footer.cjs",
-			"get_repository_url.cjs",
-			"get_tracker_id.cjs",
-			"load_agent_output.cjs",
-			"repo_helpers.cjs",
-			"sanitize_label_content.cjs",
-		},
-		"update-pull-request": {
-			"generate_footer.cjs",
-			"get_repository_url.cjs",
-			"get_tracker_id.cjs",
-			"load_agent_output.cjs",
-			"repo_helpers.cjs",
-			"sanitize_label_content.cjs",
-		},
-	}
-
-	if deps, ok := dependencyMap[actionName]; ok {
-		return deps
-	}
-	return []string{}
+// runCommand executes a command in the specified directory
+func runCommand(dir, name string, args ...string) error {
+	cmd := exec.Command(name, args...)
+	cmd.Dir = dir
+	cmd.Stdout = os.Stderr // Redirect stdout to stderr to maintain console formatting
+	cmd.Stderr = os.Stderr
+	return cmd.Run()
 }
