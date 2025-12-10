@@ -129,17 +129,17 @@ The command:
 
 ### With Input Parameters
 
-Pass inputs using the `--input` or `-i` flag in `key=value` format:
+Pass inputs using the `--raw-field` or `-f` flag in `key=value` format:
 
 ```bash
-gh aw run research --input topic="quantum computing"
+gh aw run research --raw-field topic="quantum computing"
 ```
 
 **Multiple inputs:**
 ```bash
 gh aw run scout \
-  --input topic="AI safety research" \
-  --input priority=high
+  --raw-field topic="AI safety research" \
+  --raw-field priority=high
 ```
 
 ### Wait for Completion
@@ -147,7 +147,7 @@ gh aw run scout \
 Monitor workflow execution and wait for results:
 
 ```bash
-gh aw run research --input topic="AI agents" --wait
+gh aw run research --raw-field topic="AI agents" --wait
 ```
 
 The `--wait` flag:
@@ -177,7 +177,7 @@ gh aw run workflow-name --repo owner/repository
 See detailed execution information:
 
 ```bash
-gh aw run research --input topic="AI" --verbose
+gh aw run research --raw-field topic="AI" --verbose
 ```
 
 ## Declaring and Referencing Inputs
@@ -347,7 +347,7 @@ Instead of pushing to main, use trial mode:
 
 ```bash
 # Test in isolated trial repository
-gh aw trial ./research.md --input topic="test query"
+gh aw trial ./research.md --raw-field topic="test query"
 ```
 
 See the [TrialOps guide](/gh-aw/guides/trialops/) for complete trial testing patterns.
@@ -380,7 +380,7 @@ EOF
 gh aw compile my-workflow
 
 # 4. Test locally with trial mode first
-gh aw trial ./my-workflow.md --input test_input="hello"
+gh aw trial ./my-workflow.md --raw-field test_input="hello"
 
 # 5. Once working, commit to branch
 git add .github/workflows/
@@ -394,7 +394,7 @@ git push origin main
 
 # 7. Switch back and test with dispatch
 git checkout feature/new-workflow
-gh aw run my-workflow --input test_input="production test"
+gh aw run my-workflow --raw-field test_input="production test"
 
 # 8. Watch results, iterate if needed
 
@@ -417,7 +417,7 @@ on:
 
 Run when needed:
 ```bash
-gh aw run research --input topic="AI safety best practices"
+gh aw run research --raw-field topic="AI safety best practices"
 ```
 
 ### Manual Operations
@@ -437,7 +437,7 @@ on:
 
 Execute specific tasks:
 ```bash
-gh aw run operations --input operation=audit
+gh aw run operations --raw-field operation=audit
 ```
 
 ### Testing and Debugging
@@ -455,7 +455,7 @@ on:
 
 Test issue handling:
 ```bash
-gh aw run triage --input test_issue_url="https://github.com/org/repo/issues/123"
+gh aw run triage --raw-field test_issue_url="https://github.com/org/repo/issues/123"
 ```
 
 ### Scheduled Workflow Testing
