@@ -3,7 +3,7 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
-engine: copilot
+engine: codex
 safe-outputs:
   update-issue:
     max: 1
@@ -14,9 +14,9 @@ safe-outputs:
 timeout-minutes: 5
 ---
 
-# Test Copilot Update Issue
+# Test Codex Update Issue
 
-This is a test workflow to verify that Copilot can update existing GitHub issues using safe-outputs.
+This is a test workflow to verify that Codex can update existing GitHub issues using safe-outputs.
 
 Your task: Update issue #1 using the update_issue tool.
 
