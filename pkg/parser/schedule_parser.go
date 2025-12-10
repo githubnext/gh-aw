@@ -308,42 +308,8 @@ func (p *ScheduleParser) parseBase() (string, error) {
 			minute, hour = parseTime(timeStr)
 		}
 
-	case "yearly":
-		// yearly on MM/DD -> 0 0 DD MM *
-		// yearly on MM/DD at HH:MM -> MM HH DD MM *
-		if len(p.tokens) < 3 || p.tokens[1] != "on" {
-			return "", fmt.Errorf("yearly schedule requires 'on mm/dd'")
-		}
-
-		dateStr := p.tokens[2]
-		parts := strings.Split(dateStr, "/")
-		if len(parts) != 2 {
-			return "", fmt.Errorf("invalid date format '%s', expected mm/dd", dateStr)
-		}
-
-		monthNum, err := strconv.Atoi(parts[0])
-		if err != nil || monthNum < 1 || monthNum > 12 {
-			return "", fmt.Errorf("invalid month '%s', must be 1-12", parts[0])
-		}
-
-		dayNum, err := strconv.Atoi(parts[1])
-		if err != nil || dayNum < 1 || dayNum > 31 {
-			return "", fmt.Errorf("invalid day '%s', must be 1-31", parts[1])
-		}
-
-		month = parts[0]
-		day = parts[1]
-
-		if len(p.tokens) > 3 {
-			timeStr, err := p.extractTime(3)
-			if err != nil {
-				return "", err
-			}
-			minute, hour = parseTime(timeStr)
-		}
-
 	default:
-		return "", fmt.Errorf("unsupported schedule type '%s', use 'daily', 'weekly', 'monthly', or 'yearly'", baseType)
+		return "", fmt.Errorf("unsupported schedule type '%s', use 'daily', 'weekly', or 'monthly'", baseType)
 	}
 
 	// Build cron expression: MIN HOUR DOM MONTH DOW

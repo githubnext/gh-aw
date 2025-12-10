@@ -97,32 +97,6 @@ func TestParseSchedule(t *testing.T) {
 			expectedOrig: "monthly on 31",
 		},
 
-		// Yearly schedules
-		{
-			name:         "yearly on 12/25",
-			input:        "yearly on 12/25",
-			expectedCron: "0 0 25 12 *",
-			expectedOrig: "yearly on 12/25",
-		},
-		{
-			name:         "yearly on 12/25 at noon",
-			input:        "yearly on 12/25 at noon",
-			expectedCron: "0 12 25 12 *",
-			expectedOrig: "yearly on 12/25 at noon",
-		},
-		{
-			name:         "yearly on 1/1",
-			input:        "yearly on 1/1",
-			expectedCron: "0 0 1 1 *",
-			expectedOrig: "yearly on 1/1",
-		},
-		{
-			name:         "yearly on 7/4 at 12:00",
-			input:        "yearly on 7/4 at 12:00",
-			expectedCron: "0 12 4 7 *",
-			expectedOrig: "yearly on 7/4 at 12:00",
-		},
-
 		// Interval schedules
 		{
 			name:         "every 10 minutes",
@@ -317,30 +291,6 @@ func TestParseSchedule(t *testing.T) {
 			input:          "monthly on 0",
 			shouldError:    true,
 			errorSubstring: "invalid day of month",
-		},
-		{
-			name:           "yearly without on",
-			input:          "yearly 12/25",
-			shouldError:    true,
-			errorSubstring: "requires 'on mm/dd'",
-		},
-		{
-			name:           "yearly invalid date format",
-			input:          "yearly on 12-25",
-			shouldError:    true,
-			errorSubstring: "invalid date format",
-		},
-		{
-			name:           "yearly invalid month",
-			input:          "yearly on 13/25",
-			shouldError:    true,
-			errorSubstring: "invalid month",
-		},
-		{
-			name:           "yearly invalid day",
-			input:          "yearly on 12/32",
-			shouldError:    true,
-			errorSubstring: "invalid day",
 		},
 		{
 			name:           "unsupported schedule type",
