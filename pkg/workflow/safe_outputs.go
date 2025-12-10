@@ -720,6 +720,24 @@ func (c *Compiler) buildSafeOutputJob(data *WorkflowData, config SafeOutputJobCo
 		steps = append(steps, c.buildGitHubAppTokenMintStep(data.SafeOutputs.App, config.Permissions)...)
 	}
 
+	// Add checkout step in dev mode (needed to access local custom actions)
+	if c.actionMode == ActionModeDev {
+		safeOutputsLog.Print("Adding repository validation and checkout for dev mode")
+
+		// Add validation step to ensure dev mode is only used in githubnext/gh-aw
+		steps = append(steps, "      - name: Validate dev mode repository\n")
+		steps = append(steps, "        run: |\n")
+		steps = append(steps, "          if [ \"${{ github.repository }}\" != \"githubnext/gh-aw\" ]; then\n")
+		steps = append(steps, "            echo \"Error: agent-mode 'dev' is only allowed in the githubnext/gh-aw repository\"\n")
+		steps = append(steps, "            echo \"Current repository: ${{ github.repository }}\"\n")
+		steps = append(steps, "            echo \"Please remove 'agent-mode: dev' from your workflow or use 'agent-mode: inline'\"\n")
+		steps = append(steps, "            exit 1\n")
+		steps = append(steps, "          fi\n")
+
+		// Add checkout step to access local custom actions
+		steps = buildCheckoutRepository(steps, c)
+	}
+
 	// Add pre-steps if provided (e.g., checkout, git config for create-pull-request)
 	if len(config.PreSteps) > 0 {
 		safeOutputsLog.Printf("Adding %d pre-steps to job", len(config.PreSteps))
