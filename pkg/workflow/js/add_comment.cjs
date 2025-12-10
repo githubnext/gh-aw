@@ -8,6 +8,189 @@ const { getRepositoryUrl } = require("./get_repository_url.cjs");
 const { replaceTemporaryIdReferences, loadTemporaryIdMap } = require("./temporary_id.cjs");
 
 /**
+ * Hide/minimize a comment using the GraphQL API
+ * @param {any} github - GitHub GraphQL instance
+ * @param {string} nodeId - Comment node ID
+ * @returns {Promise<{id: string, isMinimized: boolean}>}
+ */
+async function minimizeComment(github, nodeId) {
+  const query = /* GraphQL */ `
+    mutation ($nodeId: ID!, $classifier: ReportedContentClassifiers!) {
+      minimizeComment(input: { subjectId: $nodeId, classifier: $classifier }) {
+        minimizedComment {
+          isMinimized
+        }
+      }
+    }
+  `;
+
+  const result = await github.graphql(query, { nodeId, classifier: "OUTDATED" });
+
+  return {
+    id: nodeId,
+    isMinimized: result.minimizeComment.minimizedComment.isMinimized,
+  };
+}
+
+/**
+ * Find comments on an issue/PR with a specific tracker-id
+ * @param {any} github - GitHub REST API instance
+ * @param {string} owner - Repository owner
+ * @param {string} repo - Repository name
+ * @param {number} issueNumber - Issue/PR number
+ * @param {string} trackerId - Tracker ID to search for
+ * @returns {Promise<Array<{id: number, node_id: string, body: string}>>}
+ */
+async function findCommentsWithTrackerId(github, owner, repo, issueNumber, trackerId) {
+  const comments = [];
+  let page = 1;
+  const perPage = 100;
+
+  // Paginate through all comments
+  while (true) {
+    const { data } = await github.rest.issues.listComments({
+      owner,
+      repo,
+      issue_number: issueNumber,
+      per_page: perPage,
+      page,
+    });
+
+    if (data.length === 0) {
+      break;
+    }
+
+    // Filter comments that contain the tracker-id
+    for (const comment of data) {
+      if (comment.body && comment.body.includes(`<!-- tracker-id: ${trackerId} -->`)) {
+        comments.push({
+          id: comment.id,
+          node_id: comment.node_id,
+          body: comment.body,
+        });
+      }
+    }
+
+    if (data.length < perPage) {
+      break;
+    }
+
+    page++;
+  }
+
+  return comments;
+}
+
+/**
+ * Find comments on a discussion with a specific tracker-id
+ * @param {any} github - GitHub GraphQL instance
+ * @param {string} owner - Repository owner
+ * @param {string} repo - Repository name
+ * @param {number} discussionNumber - Discussion number
+ * @param {string} trackerId - Tracker ID to search for
+ * @returns {Promise<Array<{id: string, body: string}>>}
+ */
+async function findDiscussionCommentsWithTrackerId(github, owner, repo, discussionNumber, trackerId) {
+  const query = /* GraphQL */ `
+    query($owner: String!, $repo: String!, $num: Int!, $cursor: String) {
+      repository(owner: $owner, name: $repo) {
+        discussion(number: $num) {
+          comments(first: 100, after: $cursor) {
+            nodes {
+              id
+              body
+            }
+            pageInfo {
+              hasNextPage
+              endCursor
+            }
+          }
+        }
+      }
+    }
+  `;
+
+  const comments = [];
+  let cursor = null;
+
+  while (true) {
+    const result = await github.graphql(query, { owner, repo, num: discussionNumber, cursor });
+
+    if (!result.repository?.discussion?.comments?.nodes) {
+      break;
+    }
+
+    const nodes = result.repository.discussion.comments.nodes;
+    for (const comment of nodes) {
+      if (comment.body && comment.body.includes(`<!-- tracker-id: ${trackerId} -->`)) {
+        comments.push({
+          id: comment.id,
+          body: comment.body,
+        });
+      }
+    }
+
+    if (!result.repository.discussion.comments.pageInfo.hasNextPage) {
+      break;
+    }
+
+    cursor = result.repository.discussion.comments.pageInfo.endCursor;
+  }
+
+  return comments;
+}
+
+/**
+ * Hide all previous comments from the same workflow
+ * @param {any} github - GitHub API instance
+ * @param {string} owner - Repository owner
+ * @param {string} repo - Repository name
+ * @param {number} itemNumber - Issue/PR/Discussion number
+ * @param {string} trackerId - Tracker ID to match
+ * @param {boolean} isDiscussion - Whether this is a discussion
+ * @returns {Promise<number>} Number of comments hidden
+ */
+async function hideOlderComments(github, owner, repo, itemNumber, trackerId, isDiscussion) {
+  if (!trackerId) {
+    core.info("No tracker-id available, skipping hide-older-comments");
+    return 0;
+  }
+
+  core.info(`Searching for previous comments with tracker-id: ${trackerId}`);
+
+  let comments;
+  if (isDiscussion) {
+    comments = await findDiscussionCommentsWithTrackerId(github, owner, repo, itemNumber, trackerId);
+  } else {
+    comments = await findCommentsWithTrackerId(github, owner, repo, itemNumber, trackerId);
+  }
+
+  if (comments.length === 0) {
+    core.info("No previous comments found with matching tracker-id");
+    return 0;
+  }
+
+  core.info(`Found ${comments.length} previous comment(s) to hide`);
+
+  let hiddenCount = 0;
+  for (const comment of comments) {
+    try {
+      const nodeId = isDiscussion ? comment.id : comment.node_id;
+      core.info(`Hiding comment: ${nodeId}`);
+      await minimizeComment(github, nodeId);
+      hiddenCount++;
+      core.info(`✓ Hidden comment: ${nodeId}`);
+    } catch (error) {
+      core.warning(`Failed to hide comment: ${error instanceof Error ? error.message : String(error)}`);
+      // Continue with other comments even if one fails
+    }
+  }
+
+  core.info(`Successfully hidden ${hiddenCount} comment(s)`);
+  return hiddenCount;
+}
+
+/**
  * Comment on a GitHub Discussion using GraphQL
  * @param {any} github - GitHub REST API instance
  * @param {string} owner - Repository owner
@@ -88,6 +271,7 @@ async function main() {
   // Check if we're in staged mode
   const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
   const isDiscussionExplicit = process.env.GITHUB_AW_COMMENT_DISCUSSION === "true";
+  const hideOlderCommentsEnabled = process.env.GH_AW_HIDE_OLDER_COMMENTS === "true";
 
   // Load the temporary ID map from create_issue job
   const temporaryIdMap = loadTemporaryIdMap();
@@ -126,6 +310,12 @@ async function main() {
     context.eventName === "pull_request_review_comment";
   const isDiscussionContext = context.eventName === "discussion" || context.eventName === "discussion_comment";
   const isDiscussion = isDiscussionContext || isDiscussionExplicit;
+
+  // Get tracker-id for hiding older comments
+  const trackerId = getTrackerID();
+  if (hideOlderCommentsEnabled) {
+    core.info(`Hide-older-comments is enabled with tracker-id: ${trackerId || "(none)"}`);
+  }
 
   // If in staged mode, emit step summary instead of creating comments
   if (isStaged) {
@@ -320,6 +510,12 @@ async function main() {
     );
 
     try {
+      // Hide older comments from the same workflow if enabled
+      if (hideOlderCommentsEnabled && trackerId) {
+        core.info("Hide-older-comments is enabled, searching for previous comments to hide");
+        await hideOlderComments(github, context.repo.owner, context.repo.repo, itemNumber, trackerId, commentEndpoint === "discussions");
+      }
+
       let comment;
 
       // Use GraphQL API for discussions, REST API for issues/PRs

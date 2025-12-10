@@ -16,9 +16,10 @@ type AddCommentConfig struct {
 // AddCommentsConfig holds configuration for creating GitHub issue/PR comments from agent output
 type AddCommentsConfig struct {
 	BaseSafeOutputConfig `yaml:",inline"`
-	Target               string `yaml:"target,omitempty"`      // Target for comments: "triggering" (default), "*" (any issue), or explicit issue number
-	TargetRepoSlug       string `yaml:"target-repo,omitempty"` // Target repository in format "owner/repo" for cross-repository comments
-	Discussion           *bool  `yaml:"discussion,omitempty"`  // Target discussion comments instead of issue/PR comments. Must be true if present.
+	Target               string `yaml:"target,omitempty"`              // Target for comments: "triggering" (default), "*" (any issue), or explicit issue number
+	TargetRepoSlug       string `yaml:"target-repo,omitempty"`         // Target repository in format "owner/repo" for cross-repository comments
+	Discussion           *bool  `yaml:"discussion,omitempty"`          // Target discussion comments instead of issue/PR comments. Must be true if present.
+	HideOlderComments    bool   `yaml:"hide-older-comments,omitempty"` // When true, minimizes/hides all previous comments from the same workflow before creating the new comment
 }
 
 // buildCreateOutputAddCommentJob creates the add_comment job
@@ -48,6 +49,10 @@ func (c *Compiler) buildCreateOutputAddCommentJob(data *WorkflowData, mainJobNam
 	// Pass the discussion flag configuration
 	if data.SafeOutputs.AddComments.Discussion != nil && *data.SafeOutputs.AddComments.Discussion {
 		customEnvVars = append(customEnvVars, "          GITHUB_AW_COMMENT_DISCUSSION: \"true\"\n")
+	}
+	// Pass the hide-older-comments flag configuration
+	if data.SafeOutputs.AddComments.HideOlderComments {
+		customEnvVars = append(customEnvVars, "          GH_AW_HIDE_OLDER_COMMENTS: \"true\"\n")
 	}
 	// Add environment variables for the URLs from other safe output jobs if they exist
 	if createIssueJobName != "" {
@@ -145,6 +150,13 @@ func (c *Compiler) parseCommentsConfig(outputMap map[string]any) *AddCommentsCon
 						return nil // Invalid configuration, return nil to cause validation error
 					}
 					commentsConfig.Discussion = &discussionBool
+				}
+			}
+
+			// Parse hide-older-comments
+			if hideOlder, exists := configMap["hide-older-comments"]; exists {
+				if hideOlderBool, ok := hideOlder.(bool); ok {
+					commentsConfig.HideOlderComments = hideOlderBool
 				}
 			}
 

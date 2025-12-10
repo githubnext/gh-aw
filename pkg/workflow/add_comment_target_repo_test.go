@@ -89,3 +89,69 @@ func TestAddCommentsConfigTargetRepo(t *testing.T) {
 		})
 	}
 }
+
+func TestAddCommentsConfigHideOlderComments(t *testing.T) {
+	compiler := NewCompiler(false, "", "")
+
+	tests := []struct {
+		name                     string
+		configMap                map[string]any
+		expectedHideOlderComments bool
+	}{
+		{
+			name: "hide-older-comments enabled",
+			configMap: map[string]any{
+				"add-comment": map[string]any{
+					"max":                  1,
+					"hide-older-comments": true,
+				},
+			},
+			expectedHideOlderComments: true,
+		},
+		{
+			name: "hide-older-comments disabled",
+			configMap: map[string]any{
+				"add-comment": map[string]any{
+					"max":                  1,
+					"hide-older-comments": false,
+				},
+			},
+			expectedHideOlderComments: false,
+		},
+		{
+			name: "hide-older-comments not specified (default false)",
+			configMap: map[string]any{
+				"add-comment": map[string]any{
+					"max": 1,
+				},
+			},
+			expectedHideOlderComments: false,
+		},
+		{
+			name: "hide-older-comments with other fields",
+			configMap: map[string]any{
+				"add-comment": map[string]any{
+					"max":                  3,
+					"target":               "*",
+					"target-repo":          "owner/repo",
+					"hide-older-comments": true,
+				},
+			},
+			expectedHideOlderComments: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			config := compiler.parseCommentsConfig(tt.configMap)
+
+			if config == nil {
+				t.Fatal("Expected valid config, but got nil")
+			}
+
+			if config.HideOlderComments != tt.expectedHideOlderComments {
+				t.Errorf("Expected HideOlderComments = %v, got %v", tt.expectedHideOlderComments, config.HideOlderComments)
+			}
+		})
+	}
+}
