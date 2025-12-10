@@ -277,333 +277,74 @@ URGENT: Prioritize speed over completeness.
 
 ## Development Pattern: Branch Testing
 
-A common pattern is developing workflows in a branch before merging to main:
+### Testing Workflow Changes
 
-### Pattern 1: Push to Main, Dispatch from Branch
-
-**When to use:** Testing workflow changes without affecting production triggers.
-
-**Steps:**
-
-1. **Develop in a feature branch:**
-   ```bash
-   git checkout -b feature/improve-research-workflow
-   # Edit .github/workflows/research.md
-   ```
-
-2. **Add workflow_dispatch if not present:**
-   ```yaml
-   on:
-     schedule:
-       - cron: daily at 09:00
-     workflow_dispatch:  # Add this for testing
-   ```
-
-3. **Compile and commit to branch:**
-   ```bash
-   gh aw compile research
-   git add .github/workflows/research.md .github/workflows/research.lock.yml
-   git commit -m "Add manual dispatch for testing"
-   git push origin feature/improve-research-workflow
-   ```
-
-4. **Push workflow to main for testing:**
-   ```bash
-   # Temporarily merge or cherry-pick to main
-   git checkout main
-   git cherry-pick <commit-sha>
-   git push origin main
-   ```
-
-5. **Test by dispatching from your branch:**
-   ```bash
-   # Switch back to your branch
-   git checkout feature/improve-research-workflow
-   
-   # Run the workflow that's now on main
-   gh aw run research --ref feature/improve-research-workflow
-   ```
-
-6. **Observe behavior in your branch context:**
-   - The workflow runs with your branch's code
-   - Safe outputs (issues, PRs, comments) are created
-   - Any repository reads use your branch's state
-
-7. **Iterate and refine:**
-   - Make changes to the workflow on your branch
-   - Re-compile: `gh aw compile research`
-   - Push workflow updates to main
-   - Test again with dispatch
-
-8. **Clean up when done:**
-   - Create PR from your branch to main
-   - Remove temporary commits from main if needed
-
-### Pattern 2: Trial Mode for Isolated Testing
-
-**When to use:** Testing without affecting any production repository.
-
-Instead of pushing to main, use trial mode:
+When developing workflows in a feature branch, add `workflow_dispatch:` for testing before merging to main:
 
 ```bash
-# Test in isolated trial repository
+# 1. Develop in feature branch
+git checkout -b feature/improve-workflow
+# Edit .github/workflows/research.md and add workflow_dispatch
+
+# 2. Test in isolation first
 gh aw trial ./research.md --raw-field topic="test query"
-```
 
-See the [TrialOps guide](/gh-aw/guides/trialops/) for complete trial testing patterns.
-
-### Pattern 3: Development Workflow
-
-**Complete development cycle:**
-
-```bash
-# 1. Create feature branch
-git checkout -b feature/new-workflow
-
-# 2. Create/edit workflow with workflow_dispatch
-cat > .github/workflows/my-workflow.md <<EOF
----
-on:
-  workflow_dispatch:
-    inputs:
-      test_input:
-        description: 'Test parameter'
-        required: true
-permissions:
-  contents: read
----
-# My Workflow
-Test input: \${{ github.event.inputs.test_input }}
-EOF
-
-# 3. Compile
-gh aw compile my-workflow
-
-# 4. Test locally with trial mode first
-gh aw trial ./my-workflow.md --raw-field test_input="hello"
-
-# 5. Once working, commit to branch
-git add .github/workflows/
-git commit -m "Add new workflow"
-git push origin feature/new-workflow
-
-# 6. For testing in real repo, temporarily push to main
+# 3. For in-repo testing, temporarily push to main
 git checkout main
-git merge feature/new-workflow
+git cherry-pick <commit-sha>
 git push origin main
 
-# 7. Switch back and test with dispatch
-git checkout feature/new-workflow
-gh aw run my-workflow --raw-field test_input="production test"
+# 4. Test from your branch
+git checkout feature/improve-workflow
+gh aw run research --ref feature/improve-workflow
 
-# 8. Watch results, iterate if needed
-
-# 9. Create PR when satisfied
-gh pr create --title "Add new workflow" --body "Testing complete"
+# 5. Iterate, then create PR when satisfied
+gh pr create --title "Improve workflow"
 ```
+
+The workflow runs with your branch's code and state. Safe outputs (issues, PRs, comments) are created in your branch context. Use [trial mode](/gh-aw/guides/trialops/) for completely isolated testing without affecting the production repository.
 
 ## Common Use Cases
 
-### On-Demand Research
+**On-demand research:** Add a `topic` string input and trigger with `gh aw run research --raw-field topic="AI safety"` when needed.
 
-```yaml
-on:
-  workflow_dispatch:
-    inputs:
-      topic:
-        description: 'Research topic'
-        required: true
-```
+**Manual operations:** Use a `choice` input with predefined operations (cleanup, sync, audit) to execute specific tasks on demand.
 
-Run when needed:
-```bash
-gh aw run research --raw-field topic="AI safety best practices"
-```
+**Testing and debugging:** Add `workflow_dispatch` to event-triggered workflows (issues, PRs) with optional test URL inputs to test without creating real events.
 
-### Manual Operations
-
-```yaml
-on:
-  workflow_dispatch:
-    inputs:
-      operation:
-        description: 'Operation to perform'
-        type: choice
-        options:
-          - cleanup
-          - sync
-          - audit
-```
-
-Execute specific tasks:
-```bash
-gh aw run operations --raw-field operation=audit
-```
-
-### Testing and Debugging
-
-```yaml
-on:
-  issues:
-    types: [opened]
-  workflow_dispatch:  # Add for testing without creating real issues
-    inputs:
-      test_issue_url:
-        description: 'Test issue URL'
-        required: false
-```
-
-Test issue handling:
-```bash
-gh aw run triage --raw-field test_issue_url="https://github.com/org/repo/issues/123"
-```
-
-### Scheduled Workflow Testing
-
-```yaml
-on:
-  schedule:
-    - cron: daily at 09:00
-  workflow_dispatch:  # Test before waiting for schedule
-```
-
-Test scheduled workflows immediately:
-```bash
-gh aw run daily-report
-```
+**Scheduled workflow testing:** Combine `schedule` with `workflow_dispatch` to test scheduled workflows immediately rather than waiting for the cron schedule.
 
 ## Troubleshooting
 
-### Workflow Not Listed in GitHub UI
+**Workflow not listed in GitHub UI:** Verify `workflow_dispatch:` exists in the `on:` section, compile the workflow (`gh aw compile workflow-name`), and push both `.md` and `.lock.yml` files. The Actions page may need a refresh.
 
-**Problem:** Workflow doesn't appear in "Run workflow" dropdown.
+**"Workflow not found" error:** Use the filename without `.md` extension (`research` not `research.md`). Ensure the workflow exists in `.github/workflows/` and has been compiled.
 
-**Solutions:**
-- Verify `workflow_dispatch:` is in the `on:` section
-- Compile the workflow: `gh aw compile workflow-name`
-- Push both `.md` and `.lock.yml` files to GitHub
-- Check the compiled `.lock.yml` has `workflow_dispatch` trigger
-- Refresh the Actions page (may take a few seconds)
+**"Workflow cannot be run" error:** Add `workflow_dispatch:` to the `on:` section, recompile, and verify the `.lock.yml` includes the trigger before pushing.
 
-### "Workflow Not Found" Error
+**Permission denied:** Verify write access to the repository and check the `roles:` field in workflow frontmatter. For organization repos, confirm your org role.
 
-**Problem:** `gh aw run` can't find the workflow.
+**Inputs not appearing:** Check YAML syntax and indentation (2 spaces) in `workflow_dispatch.inputs`. Ensure input types are valid (`string`, `boolean`, `choice`, `environment`), then recompile and push.
 
-**Solutions:**
-- Use the workflow filename without `.md`: `research` not `research.md`
-- Ensure workflow exists in `.github/workflows/`
-- Check if workflow has been compiled
-- Try explicit path: `gh aw run .github/workflows/research.md`
-
-### "Workflow Cannot Be Run" Error
-
-**Problem:** Workflow found but can't be executed.
-
-**Solutions:**
-- Add `workflow_dispatch:` to the workflow's `on:` section
-- Recompile after adding: `gh aw compile workflow-name`
-- Verify the `.lock.yml` includes workflow_dispatch
-- Push changes to GitHub before running
-
-### Permission Denied
-
-**Problem:** User lacks permissions to trigger workflow.
-
-**Solutions:**
-- Verify you have write access to the repository
-- Check the `roles:` field in workflow frontmatter
-- Confirm you're not in the excluded list
-- For organization repos, verify your org role
-
-### Inputs Not Appearing
-
-**Problem:** Input fields don't show in GitHub UI.
-
-**Solutions:**
-- Check YAML syntax in `workflow_dispatch.inputs`
-- Ensure proper indentation (2 spaces)
-- Validate input type is one of: `string`, `boolean`, `choice`, `environment`
-- Recompile and push the workflow
-- Clear browser cache
-
-### Branch Context Issues
-
-**Problem:** Workflow runs with wrong branch context.
-
-**Solutions:**
-- Specify branch explicitly: `gh aw run workflow --ref branch-name`
-- In GitHub UI, select correct branch in dropdown before running
-- Verify workflow exists in the target branch
-- Check that branch has the compiled `.lock.yml` file
+**Wrong branch context:** Specify the branch explicitly with `--ref branch-name` in CLI or select the correct branch in the GitHub UI dropdown before running.
 
 ## Best Practices
 
 ### Input Design
 
-**Do:**
-- Use descriptive input names: `analysis_depth` not `depth`
-- Provide helpful descriptions: "How detailed should the analysis be?"
-- Set sensible defaults for optional inputs
-- Use `choice` type to constrain options
-- Group related inputs logically
+Use descriptive input names (`analysis_depth` not `depth`) and provide helpful descriptions to guide users. Set sensible defaults for optional inputs and use `choice` type to constrain options. Avoid creating more than 5 inputs as this becomes overwhelming. Keep truly required inputs minimal—if a default works, make it optional.
 
-**Don't:**
-- Create too many inputs (>5 typically overwhelming)
-- Use vague descriptions: "Input 1", "Value"
-- Make everything required when defaults work
-- Use `string` type for values that should be constrained
+### Development and Testing
 
-### Development Workflow
+Include `workflow_dispatch:` in all workflows during development. Test with trial mode first (`gh aw trial workflow.md`), then verify in-repo behavior with manual dispatch. Clean up test branches after merging and remove debugging inputs before production deployment.
 
-**Do:**
-- Always include `workflow_dispatch:` during development
-- Test with trial mode first: `gh aw trial workflow.md`
-- Use meaningful commit messages when testing iterations
-- Document your testing process
-- Clean up test branches after merging
+### Security
 
-**Don't:**
-- Remove `workflow_dispatch` from workflows you might need to test
-- Test directly in production without trial mode first
-- Leave debugging inputs in production workflows
-- Push untested workflow changes directly to main
-
-### Security Considerations
-
-**Do:**
-- Use `roles:` to restrict sensitive operations
-- Set `manual-approval:` for production workflows
-- Validate and sanitize string inputs in workflow logic
-- Document who should run what workflows
-- Review workflow run history regularly
-
-**Don't:**
-- Allow unrestricted workflow_dispatch on sensitive operations
-- Pass secrets or credentials via inputs
-- Trust input values without validation
-- Use workflow_dispatch as a replacement for proper CI/CD
+Use `roles:` to restrict sensitive operations and `manual-approval:` for production workflows. Validate and sanitize all string inputs in workflow logic. Never pass secrets or credentials via inputs—trust input values only after validation. Document who should run which workflows and review run history regularly.
 
 ### Combining Triggers
 
-Add `workflow_dispatch` to event-triggered workflows for testing:
-
-```yaml
-on:
-  issues:
-    types: [opened]
-  pull_request:
-    types: [opened]
-  workflow_dispatch:  # For testing without creating real issues/PRs
-    inputs:
-      test_url:
-        description: 'Test issue/PR URL'
-        required: false
-```
-
-This enables:
-- Automated execution on real events
-- Manual testing without creating test issues
-- Debugging production problems with specific examples
+Add `workflow_dispatch` to event-triggered workflows for testing without creating real issues or PRs. This enables automated execution on real events while allowing manual testing and debugging with specific examples.
 
 ## Related Documentation
 
