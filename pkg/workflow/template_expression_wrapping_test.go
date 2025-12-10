@@ -179,6 +179,51 @@ Regular content`,
 			input:    "  {{#if ${GH_AW_EXPR_ABC123}}}content{{/if}}",
 			expected: "  {{#if ${GH_AW_EXPR_ABC123}}}content{{/if}}",
 		},
+		{
+			name:     "expression with space before closing braces",
+			input:    "{{#if github.actor }}content{{/if}}",
+			expected: "{{#if ${{ github.actor }} }}content{{/if}}",
+		},
+		{
+			name:     "expression with spaces around expression",
+			input:    "{{#if  github.actor  }}content{{/if}}",
+			expected: "{{#if ${{ github.actor }} }}content{{/if}}",
+		},
+		{
+			name:     "already wrapped with space variations",
+			input:    "{{#if ${{ github.actor }}}}content{{/if}}",
+			expected: "{{#if ${{ github.actor }}}}content{{/if}}",
+		},
+		{
+			name:     "already wrapped with extra spaces",
+			input:    "{{#if ${{ github.actor }} }}content{{/if}}",
+			expected: "{{#if ${{ github.actor }} }}content{{/if}}",
+		},
+		{
+			name:     "already wrapped with space before ${{",
+			input:    "{{#if  ${{ github.actor }} }}content{{/if}}",
+			expected: "{{#if  ${{ github.actor }} }}content{{/if}}",
+		},
+		{
+			name:     "expression with trailing space in conditional",
+			input:    "{{#if github.event.issue.number }}content{{/if}}",
+			expected: "{{#if ${{ github.event.issue.number }} }}content{{/if}}",
+		},
+		{
+			name:     "expression with tab character",
+			input:    "{{#if\tgithub.actor}}content{{/if}}",
+			expected: "{{#if ${{ github.actor }} }}content{{/if}}",
+		},
+		{
+			name:     "multiple expressions with varying spaces",
+			input:    "{{#if github.actor}}A{{/if}} {{#if github.repository }}B{{/if}} {{#if ${{ github.ref }} }}C{{/if}}",
+			expected: "{{#if ${{ github.actor }} }}A{{/if}} {{#if ${{ github.repository }} }}B{{/if}} {{#if ${{ github.ref }} }}C{{/if}}",
+		},
+		{
+			name:     "complex expression with spaces",
+			input:    "{{#if needs.setup.outputs.value }}content{{/if}}",
+			expected: "{{#if ${{ needs.setup.outputs.value }} }}content{{/if}}",
+		},
 	}
 
 	for _, tt := range tests {
