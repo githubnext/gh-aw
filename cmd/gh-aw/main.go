@@ -274,7 +274,8 @@ Examples:
   gh aw run daily-perf-improver --ref main  # Run on specific branch
   gh aw run daily-perf-improver --repeat 3  # Run 3 times total
   gh aw run daily-perf-improver --enable-if-needed # Enable if disabled, run, then restore state
-  gh aw run daily-perf-improver --auto-merge-prs # Auto-merge any PRs created during execution`,
+  gh aw run daily-perf-improver --auto-merge-prs # Auto-merge any PRs created during execution
+  gh aw run daily-perf-improver -i name=value -i env=prod  # Pass workflow inputs`,
 	Args: cobra.MinimumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		repeatCount, _ := cmd.Flags().GetInt("repeat")
@@ -284,12 +285,13 @@ Examples:
 		refOverride, _ := cmd.Flags().GetString("ref")
 		autoMergePRs, _ := cmd.Flags().GetBool("auto-merge-prs")
 		pushSecrets, _ := cmd.Flags().GetBool("use-local-secrets")
+		inputs, _ := cmd.Flags().GetStringArray("input")
 
 		if err := validateEngine(engineOverride); err != nil {
 			return err
 		}
 
-		return cli.RunWorkflowsOnGitHub(args, repeatCount, enable, engineOverride, repoOverride, refOverride, autoMergePRs, pushSecrets, verboseFlag)
+		return cli.RunWorkflowsOnGitHub(args, repeatCount, enable, engineOverride, repoOverride, refOverride, autoMergePRs, pushSecrets, inputs, verboseFlag)
 	},
 }
 
@@ -475,6 +477,7 @@ Use "` + constants.CLIExtensionPrefix + ` help all" to show help for all command
 	runCmd.Flags().String("ref", "", "Branch or tag name to run the workflow on (default: current branch)")
 	runCmd.Flags().Bool("auto-merge-prs", false, "Auto-merge any pull requests created during the workflow execution")
 	runCmd.Flags().Bool("use-local-secrets", false, "Use local environment API key secrets for workflow execution (pushes and cleans up secrets in repository)")
+	runCmd.Flags().StringArrayP("input", "i", []string{}, "Set workflow input values in key=value format (can be used multiple times)")
 	// Register completions for run command
 	runCmd.ValidArgsFunction = cli.CompleteWorkflowNames
 	cli.RegisterEngineFlagCompletion(runCmd)

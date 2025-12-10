@@ -133,10 +133,10 @@ func TestProgressFlagSignature(t *testing.T) {
 	// This is a compile-time check more than a runtime check
 
 	// RunWorkflowOnGitHub should NOT accept progress parameter anymore
-	_ = RunWorkflowOnGitHub("test", false, "", "", "", false, false, false, false)
+	_ = RunWorkflowOnGitHub("test", false, "", "", "", false, false, false, []string{}, false)
 
 	// RunWorkflowsOnGitHub should NOT accept progress parameter anymore
-	_ = RunWorkflowsOnGitHub([]string{"test"}, 0, false, "", "", "", false, false, false)
+	_ = RunWorkflowsOnGitHub([]string{"test"}, 0, false, "", "", "", false, false, []string{}, false)
 
 	// getLatestWorkflowRunWithRetry should NOT accept progress parameter anymore
 	_, _ = getLatestWorkflowRunWithRetry("test.lock.yml", "", false)
@@ -146,23 +146,102 @@ func TestProgressFlagSignature(t *testing.T) {
 func TestRefFlagSignature(t *testing.T) {
 	// Test that RunWorkflowOnGitHub accepts refOverride parameter
 	// This is a compile-time check that ensures the refOverride parameter exists
-	_ = RunWorkflowOnGitHub("test", false, "", "", "main", false, false, false, false)
+	_ = RunWorkflowOnGitHub("test", false, "", "", "main", false, false, false, []string{}, false)
 
 	// Test that RunWorkflowsOnGitHub accepts refOverride parameter
-	_ = RunWorkflowsOnGitHub([]string{"test"}, 0, false, "", "", "main", false, false, false)
+	_ = RunWorkflowsOnGitHub([]string{"test"}, 0, false, "", "", "main", false, false, []string{}, false)
 }
 
 // TestRunWorkflowOnGitHubWithRef tests that the ref parameter is handled correctly
 func TestRunWorkflowOnGitHubWithRef(t *testing.T) {
 	// Test with explicit ref override (should still fail for non-existent workflow, but syntax is valid)
-	err := RunWorkflowOnGitHub("nonexistent-workflow", false, "", "", "main", false, false, false, false)
+	err := RunWorkflowOnGitHub("nonexistent-workflow", false, "", "", "main", false, false, false, []string{}, false)
 	if err == nil {
 		t.Error("RunWorkflowOnGitHub should return error for non-existent workflow even with ref flag")
 	}
 
 	// Test with ref override and repo override
-	err = RunWorkflowOnGitHub("nonexistent-workflow", false, "", "owner/repo", "feature-branch", false, false, false, false)
+	err = RunWorkflowOnGitHub("nonexistent-workflow", false, "", "owner/repo", "feature-branch", false, false, false, []string{}, false)
 	if err == nil {
 		t.Error("RunWorkflowOnGitHub should return error for non-existent workflow with both ref and repo")
+	}
+}
+
+// TestInputFlagSignature tests that the inputs parameter is supported
+func TestInputFlagSignature(t *testing.T) {
+	// Test that RunWorkflowOnGitHub accepts inputs parameter
+	// This is a compile-time check that ensures the inputs parameter exists
+	_ = RunWorkflowOnGitHub("test", false, "", "", "", false, false, false, []string{"key=value"}, false)
+
+	// Test that RunWorkflowsOnGitHub accepts inputs parameter
+	_ = RunWorkflowsOnGitHub([]string{"test"}, 0, false, "", "", "", false, false, []string{"key=value"}, false)
+}
+
+// TestInputValidation tests that input validation works correctly
+func TestInputValidation(t *testing.T) {
+	tests := []struct {
+		name        string
+		inputs      []string
+		shouldError bool
+		errorMsg    string
+	}{
+		{
+			name:        "valid single input",
+			inputs:      []string{"name=value"},
+			shouldError: false,
+		},
+		{
+			name:        "valid multiple inputs",
+			inputs:      []string{"name=value", "env=prod"},
+			shouldError: false,
+		},
+		{
+			name:        "valid input with special characters",
+			inputs:      []string{"message=hello world", "path=/tmp/file.txt"},
+			shouldError: false,
+		},
+		{
+			name:        "invalid input without equals",
+			inputs:      []string{"namevalue"},
+			shouldError: true,
+			errorMsg:    "invalid input format",
+		},
+		{
+			name:        "invalid input - empty key",
+			inputs:      []string{"=value"},
+			shouldError: false, // gh CLI will handle this
+		},
+		{
+			name:        "invalid input - empty value",
+			inputs:      []string{"name="},
+			shouldError: false, // Empty value is valid
+		},
+		{
+			name:        "mixed valid and invalid",
+			inputs:      []string{"name=value", "invalid"},
+			shouldError: true,
+			errorMsg:    "invalid input format",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Since we can't actually run workflows in tests, we'll just test the validation
+			// by checking if the function would error before attempting to run
+			err := RunWorkflowOnGitHub("nonexistent-workflow", false, "", "owner/repo", "", false, false, false, tt.inputs, false)
+
+			if tt.shouldError {
+				if err == nil {
+					t.Errorf("Expected error for inputs %v, got nil", tt.inputs)
+				} else if tt.errorMsg != "" && !strings.Contains(err.Error(), tt.errorMsg) {
+					t.Errorf("Expected error containing %q, got: %v", tt.errorMsg, err)
+				}
+			}
+			// Note: For non-error cases, we still expect an error because the workflow doesn't exist,
+			// but the error should not be about input validation
+			if !tt.shouldError && err != nil && strings.Contains(err.Error(), "invalid input format") {
+				t.Errorf("Got unexpected input validation error: %v", err)
+			}
+		})
 	}
 }
