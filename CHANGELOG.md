@@ -2,6 +2,51 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.32.2 - 2025-12-10
+
+### Bug Fixes
+
+#### Add actions directory structure and Go-based build tooling; initial actions and Makefile targets.
+
+This documents the changes introduced by PR #5953: create an `actions/` directory, add `actions-build`, `actions-validate`, and `actions-clean` targets, initial actions `setup-safe-inputs` and `setup-safe-outputs`, and supporting Go CLI commands for building and validating actions.
+
+Fixes githubnext/gh-aw#5948
+
+#### Add a new `bots` frontmatter field that allows listing GitHub Apps/bots authorized to trigger a workflow.
+
+This change documents the schema and implementation work: schema update, Go parsing and env passing, JavaScript validation, and tests.
+
+#### Added support for passing workflow inputs to `gh aw run` via the new `--raw-field` (`-f`) flag. This accepts `key=value` pairs and forwards them to `gh workflow run` as `-f key=value` arguments. The implementation validates input formatting and provides clear error messages for malformed inputs.
+
+#### Add human-friendly schedule format parser, schema updates, docs, and tests.
+
+This change introduces a deterministic parser that converts simplified
+natural-language schedule expressions into valid GitHub Actions cron
+syntax, updates the workflow schema to accept shorthand and array formats,
+adds fuzz and unit tests, and enhances documentation with usage examples.
+
+Non-breaking: this is an internal feature addition and documentation update.
+
+#### Fix Copilot log parsing so empty JSON arrays are handled correctly and the
+
+Agent Log Summary no longer shows "Log format not recognized as Copilot JSON
+array or JSONL". Includes a regression test and updated compiled workflows.
+
+#### Fix push-to-pull-request-branch summary to link commit URL instead of branch URL
+
+#### Remove support for the `COPILOT_CLI_TOKEN` environment variable.
+
+This change removes `COPILOT_CLI_TOKEN` from the Copilot engine secrets list, token
+precedence logic, and trial support. Documentation and tests were updated. Workflows
+that currently rely on `COPILOT_CLI_TOKEN` must migrate to `COPILOT_GITHUB_TOKEN`.
+
+Migration example:
+
+```bash
+gh secret set COPILOT_GITHUB_TOKEN -a actions --body "(your-github-pat)"
+```
+
+
 ## v0.32.1 - 2025-12-09
 
 ### Bug Fixes
