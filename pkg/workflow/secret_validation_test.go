@@ -28,21 +28,6 @@ func TestGenerateSecretValidationStep(t *testing.T) {
 				"ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}",
 			},
 		},
-		{
-			name:       "COPILOT_CLI_TOKEN validation",
-			secretName: "COPILOT_CLI_TOKEN",
-			engineName: "GitHub Copilot CLI",
-			docsURL:    "https://githubnext.github.io/gh-aw/reference/engines/#github-copilot-default",
-			wantStrings: []string{
-				"Validate COPILOT_CLI_TOKEN secret",
-				"Error: COPILOT_CLI_TOKEN secret is not set",
-				"The GitHub Copilot CLI engine requires the COPILOT_CLI_TOKEN secret to be configured",
-				"Please configure this secret in your repository settings",
-				"Documentation: https://githubnext.github.io/gh-aw/reference/engines/#github-copilot-default",
-				"COPILOT_CLI_TOKEN secret is configured",
-				"COPILOT_CLI_TOKEN: ${{ secrets.COPILOT_CLI_TOKEN }}",
-			},
-		},
 	}
 
 	for _, tt := range tests {
@@ -162,16 +147,13 @@ func TestCopilotEngineHasSecretValidation(t *testing.T) {
 		t.Fatal("Expected at least one installation step")
 	}
 
-	// First step should be secret validation with both new and legacy secret names
+	// First step should be secret validation
 	firstStep := strings.Join(steps[0], "\n")
-	if !strings.Contains(firstStep, "Validate COPILOT_GITHUB_TOKEN or COPILOT_CLI_TOKEN secret") {
-		t.Error("First installation step should validate COPILOT_GITHUB_TOKEN or COPILOT_CLI_TOKEN secret")
+	if !strings.Contains(firstStep, "Validate COPILOT_GITHUB_TOKEN secret") {
+		t.Error("First installation step should validate COPILOT_GITHUB_TOKEN secret")
 	}
 	if !strings.Contains(firstStep, "COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}") {
 		t.Error("Secret validation step should reference secrets.COPILOT_GITHUB_TOKEN")
-	}
-	if !strings.Contains(firstStep, "COPILOT_CLI_TOKEN: ${{ secrets.COPILOT_CLI_TOKEN }}") {
-		t.Error("Secret validation step should reference secrets.COPILOT_CLI_TOKEN for backward compatibility")
 	}
 }
 

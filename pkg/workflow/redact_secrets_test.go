@@ -24,10 +24,10 @@ func TestCollectSecretReferences(t *testing.T) {
 		{
 			name: "Multiple secret references",
 			yaml: `env:
-  GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN || secrets.COPILOT_CLI_TOKEN }}
+  GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
   API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
   TAVILY_KEY: ${{ secrets.TAVILY_API_KEY }}`,
-			expected: []string{"ANTHROPIC_API_KEY", "COPILOT_CLI_TOKEN", "COPILOT_GITHUB_TOKEN", "TAVILY_API_KEY"},
+			expected: []string{"ANTHROPIC_API_KEY", "COPILOT_GITHUB_TOKEN", "TAVILY_API_KEY"},
 		},
 		{
 			name: "Secret references with OR fallback",
@@ -129,8 +129,8 @@ Test workflow for secret redaction.
 	}
 
 	// Verify secret environment variables are passed (both new and legacy names)
-	if !strings.Contains(lockStr, "SECRET_COPILOT_GITHUB_TOKEN") && !strings.Contains(lockStr, "SECRET_COPILOT_CLI_TOKEN") {
-		t.Error("Expected SECRET_COPILOT_GITHUB_TOKEN or SECRET_COPILOT_CLI_TOKEN environment variable")
+	if !strings.Contains(lockStr, "SECRET_COPILOT_GITHUB_TOKEN") {
+		t.Error("Expected SECRET_COPILOT_GITHUB_TOKEN environment variable")
 	}
 
 	// Verify the redaction step uses actions/github-script

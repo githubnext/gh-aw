@@ -142,13 +142,6 @@ func addEngineSecret(secretName, hostRepoSlug string, tracker *TrialSecretTracke
 			if err != nil {
 				return fmt.Errorf("failed to get GitHub token for COPILOT_GITHUB_TOKEN: %w", err)
 			}
-		case "COPILOT_CLI_TOKEN":
-			// Legacy support - use the proper GitHub token helper that handles both env vars and gh CLI
-			var err error
-			secretValue, err = parser.GetGitHubToken()
-			if err != nil {
-				return fmt.Errorf("failed to get GitHub token for COPILOT_CLI_TOKEN: %w", err)
-			}
 		}
 	}
 
