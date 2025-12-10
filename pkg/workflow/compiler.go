@@ -67,6 +67,12 @@ func (c *Compiler) CompileWorkflowData(workflowData *WorkflowData, markdownPath 
 	// Reset the step order tracker for this compilation
 	c.stepOrderTracker = NewStepOrderTracker()
 
+	// Apply agent-mode from frontmatter if specified (overrides default)
+	if workflowData.AgentMode != "" {
+		log.Printf("Setting action mode from frontmatter: %s", workflowData.AgentMode)
+		c.SetActionMode(workflowData.AgentMode)
+	}
+
 	// replace the .md extension by .lock.yml
 	lockFile := strings.TrimSuffix(markdownPath, ".md") + ".lock.yml"
 

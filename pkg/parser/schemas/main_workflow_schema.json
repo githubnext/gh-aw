@@ -1523,6 +1523,11 @@
         }
       ]
     },
+    "agent-mode": {
+      "description": "Action mode for JavaScript steps in the workflow. Overrides the default inferred mode. Use 'dev' to reference custom actions using local paths (development mode), or 'inline' to embed JavaScript inline using actions/github-script.",
+      "type": "string",
+      "enum": ["inline", "dev"]
+    },
     "features": {
       "description": "Feature flags to enable experimental or optional features in the workflow. Each feature is specified as a key with a boolean value.",
       "type": "object",

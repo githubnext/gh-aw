@@ -6,6 +6,7 @@ description: Create a poem about GitHub and save it to repo-memory
 timeout-minutes: 5
 strict: false
 engine: copilot
+agent-mode: dev
 
 permissions: read-all
 

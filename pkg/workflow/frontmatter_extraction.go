@@ -369,6 +369,27 @@ func (c *Compiler) extractFeatures(frontmatter map[string]any) map[string]bool {
 	return nil
 }
 
+// extractAgentMode extracts the agent-mode field from frontmatter
+// Returns the action mode specified in frontmatter, or empty string if not specified
+func (c *Compiler) extractAgentMode(frontmatter map[string]any) ActionMode {
+	value, exists := frontmatter["agent-mode"]
+	if !exists {
+		return "" // Empty mode means use compiler default
+	}
+
+	// agent-mode should be a string ("inline" or "dev")
+	if strValue, ok := value.(string); ok {
+		mode := ActionMode(strValue)
+		if mode.IsValid() {
+			frontmatterLog.Printf("Extracted agent-mode: %s", mode)
+			return mode
+		}
+		frontmatterLog.Printf("Warning: Invalid agent-mode value: %s (expected 'inline' or 'dev')", strValue)
+	}
+
+	return "" // Invalid mode, use compiler default
+}
+
 // extractDescription extracts the description field from frontmatter
 func (c *Compiler) extractDescription(frontmatter map[string]any) string {
 	value, exists := frontmatter["description"]
