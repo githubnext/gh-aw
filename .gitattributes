@@ -5,3 +5,17 @@
 pkg/cli/workflows/*.lock.yml linguist-generated=true merge=ours
 pkg/workflow/js/*.js linguist-generated=true
 actions/*/index.js linguist-generated=true
+
+# Generated action files (created by 'make generate-action-metadata')
+# These are auto-generated from pkg/workflow/js/*.cjs
+actions/noop/** linguist-generated=true
+actions/minimize-comment/** linguist-generated=true
+actions/close-issue/** linguist-generated=true
+actions/close-pull-request/** linguist-generated=true
+actions/close-discussion/** linguist-generated=true
+actions/add-comment/** linguist-generated=true
+actions/create-issue/** linguist-generated=true
+actions/add-labels/** linguist-generated=true
+actions/create-discussion/** linguist-generated=true
+actions/update-issue/** linguist-generated=true
+actions/update-pull-request/** linguist-generated=true

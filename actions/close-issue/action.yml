@@ -1,0 +1,16 @@
+name: 'Close Issue Output'
+description: 'Output for closing a GitHub issue with a comment'
+author: 'GitHub Next'
+
+inputs:
+  token:
+    description: 'GitHub token for API authentication'
+    required: true
+
+runs:
+  using: 'node20'
+  main: 'index.js'
+
+branding:
+  icon: 'package'
+  color: 'blue'

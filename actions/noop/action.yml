@@ -1,0 +1,20 @@
+name: 'No-Op Output'
+description: 'Output for logging a message without taking any GitHub actions. Always available as a fallback to ensure human-visible artifacts.'
+author: 'GitHub Next'
+
+inputs:
+  token:
+    description: 'GitHub token for API authentication'
+    required: true
+
+outputs:
+  noop_message:
+    description: 'Output parameter: noop_message'
+
+runs:
+  using: 'node20'
+  main: 'index.js'
+
+branding:
+  icon: 'package'
+  color: 'blue'
