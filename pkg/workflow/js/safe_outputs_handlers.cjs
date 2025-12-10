@@ -15,9 +15,10 @@ const { generateGitPatch } = require("./generate_git_patch.cjs");
  * Create handlers for safe output tools
  * @param {Object} server - The MCP server instance for logging
  * @param {Function} appendSafeOutput - Function to append entries to the output file
+ * @param {Object} [config] - Optional configuration object with safe output settings
  * @returns {Object} An object containing all handler functions
  */
-function createHandlers(server, appendSafeOutput) {
+function createHandlers(server, appendSafeOutput, config = {}) {
   /**
    * Default handler for safe output tools
    * @param {string} type - The tool type
@@ -185,7 +186,7 @@ function createHandlers(server, appendSafeOutput) {
   /**
    * Handler for create_pull_request tool
    * Resolves the current branch if branch is not provided or is the base branch
-   * Generates git patch for the changes
+   * Generates git patch for the changes (unless allow-empty is true)
    */
   const createPullRequestHandler = args => {
     const entry = { ...args, type: "create_pull_request" };
@@ -203,6 +204,27 @@ function createHandlers(server, appendSafeOutput) {
       }
 
       entry.branch = detectedBranch;
+    }
+
+    // Check if allow-empty is enabled in configuration
+    const allowEmpty = config.create_pull_request?.allow_empty === true;
+
+    if (allowEmpty) {
+      server.debug(`allow-empty is enabled for create_pull_request - skipping patch generation`);
+      // Append the safe output entry without generating a patch
+      appendSafeOutput(entry);
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify({
+              result: "success",
+              message: "Pull request prepared (allow-empty mode - no patch generated)",
+              branch: entry.branch,
+            }),
+          },
+        ],
+      };
     }
 
     // Generate git patch
