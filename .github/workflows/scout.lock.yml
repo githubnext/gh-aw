@@ -1375,19 +1375,13 @@ jobs:
       comment_id: ${{ steps.add_comment.outputs.comment_id }}
       comment_url: ${{ steps.add_comment.outputs.comment_url }}
     steps:
-      - name: Validate dev mode repository
-        run: |
-          if [ "${{ github.repository }}" != "githubnext/gh-aw" ]; then
-            echo "Error: agent-mode 'dev' is only allowed in the githubnext/gh-aw repository"
-            echo "Current repository: ${{ github.repository }}"
-            echo "Please remove 'agent-mode: dev' from your workflow or use 'agent-mode: inline'"
-            exit 1
-          fi
-      - name: Checkout repository
+      - name: Sparse checkout for dev mode
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
         with:
+          sparse-checkout: |
+            actions
+          sparse-checkout-cone-mode: false
           persist-credentials: false
-          fetch-depth: 0
       - name: Debug agent outputs
         env:
           AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
