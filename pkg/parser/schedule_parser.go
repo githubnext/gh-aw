@@ -105,15 +105,15 @@ func (p *ScheduleParser) parseInterval() (string, error) {
 	if len(p.tokens) == 2 || (len(p.tokens) > 2 && p.tokens[2] != "minutes" && p.tokens[2] != "hours" && p.tokens[2] != "minute" && p.tokens[2] != "hour") {
 		// Try to parse as short duration format: "every 2h", "every 30m", "every 1d"
 		durationStr := p.tokens[1]
-		
+
 		// Check if it matches the pattern: number followed by unit letter (h, m, d, w, mo)
 		durationPattern := regexp.MustCompile(`^(\d+)([hdwm]|mo)$`)
 		matches := durationPattern.FindStringSubmatch(durationStr)
-		
+
 		if matches != nil {
 			interval, _ := strconv.Atoi(matches[1])
 			unit := matches[2]
-			
+
 			// Check for conflicting "at time" clause
 			if len(p.tokens) > 2 {
 				for i := 2; i < len(p.tokens); i++ {
@@ -122,7 +122,7 @@ func (p *ScheduleParser) parseInterval() (string, error) {
 					}
 				}
 			}
-			
+
 			// Validate minimum duration of 5 minutes
 			totalMinutes := 0
 			switch unit {
@@ -137,11 +137,11 @@ func (p *ScheduleParser) parseInterval() (string, error) {
 			case "mo":
 				totalMinutes = interval * 30 * 24 * 60 // Approximate month as 30 days
 			}
-			
+
 			if totalMinutes < 5 {
 				return "", fmt.Errorf("minimum schedule interval is 5 minutes, got %d minute(s)", totalMinutes)
 			}
-			
+
 			switch unit {
 			case "m":
 				// every Nm -> */N * * * *
@@ -221,7 +221,7 @@ func (p *ScheduleParser) parseInterval() (string, error) {
 	case "hours":
 		totalMinutes = interval * 60
 	}
-	
+
 	if totalMinutes < 5 {
 		return "", fmt.Errorf("minimum schedule interval is 5 minutes, got %d minute(s)", totalMinutes)
 	}
@@ -332,7 +332,7 @@ func (p *ScheduleParser) extractTime(startPos int) (string, error) {
 	}
 
 	timeStr := p.tokens[startPos]
-	
+
 	// Check if there's a UTC offset in the next token
 	if startPos+1 < len(p.tokens) {
 		nextToken := strings.ToLower(p.tokens[startPos+1])
@@ -341,7 +341,7 @@ func (p *ScheduleParser) extractTime(startPos int) (string, error) {
 			timeStr = timeStr + " " + p.tokens[startPos+1]
 		}
 	}
-	
+
 	return timeStr, nil
 }
 
@@ -350,13 +350,13 @@ func (p *ScheduleParser) extractTime(startPos int) (string, error) {
 func parseTime(timeStr string) (minute string, hour string) {
 	// Check for UTC offset
 	parts := strings.Split(timeStr, " ")
-	var utcOffset int = 0
+	var utcOffset int
 	var baseTime string
-	
+
 	if len(parts) == 2 && strings.HasPrefix(strings.ToLower(parts[1]), "utc") {
 		baseTime = parts[0]
 		offsetStr := strings.ToLower(parts[1])
-		
+
 		// Parse UTC offset (e.g., utc+9, utc-5, utc+09:00, utc-05:30)
 		if len(offsetStr) > 3 {
 			offsetPart := offsetStr[3:] // Skip "utc"
@@ -367,7 +367,7 @@ func parseTime(timeStr string) (minute string, hour string) {
 				sign = -1
 				offsetPart = offsetPart[1:]
 			}
-			
+
 			// Check if it's HH:MM format
 			if strings.Contains(offsetPart, ":") {
 				offsetParts := strings.Split(offsetPart, ":")
@@ -389,9 +389,9 @@ func parseTime(timeStr string) (minute string, hour string) {
 	} else {
 		baseTime = timeStr
 	}
-	
+
 	var baseMinute, baseHour int
-	
+
 	switch baseTime {
 	case "midnight":
 		baseMinute, baseHour = 0, 0
@@ -404,7 +404,7 @@ func parseTime(timeStr string) (minute string, hour string) {
 			isPM := strings.HasSuffix(lowerTime, "pm")
 			// Remove am/pm suffix
 			hourStr := lowerTime[:len(lowerTime)-2]
-			
+
 			hourNum, err := strconv.Atoi(hourStr)
 			if err == nil && hourNum >= 1 && hourNum <= 12 {
 				// Convert 12-hour to 24-hour format
@@ -447,11 +447,11 @@ func parseTime(timeStr string) (minute string, hour string) {
 			}
 		}
 	}
-	
+
 	// Apply UTC offset (convert from local time to UTC)
 	// If utc+9, we subtract 9 hours to get UTC time
 	totalMinutes := baseHour*60 + baseMinute - utcOffset
-	
+
 	// Handle wrap-around (keep within 0-1439 minutes, which is 0:00-23:59)
 	for totalMinutes < 0 {
 		totalMinutes += 24 * 60
@@ -459,10 +459,10 @@ func parseTime(timeStr string) (minute string, hour string) {
 	for totalMinutes >= 24*60 {
 		totalMinutes -= 24 * 60
 	}
-	
+
 	finalHour := totalMinutes / 60
 	finalMinute := totalMinutes % 60
-	
+
 	return strconv.Itoa(finalMinute), strconv.Itoa(finalHour)
 }
 

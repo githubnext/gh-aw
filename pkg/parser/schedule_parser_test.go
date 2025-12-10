@@ -557,8 +557,8 @@ func TestParseTime(t *testing.T) {
 		// AM/PM formats
 		{"1am", "0", "1"},
 		{"3pm", "0", "15"},
-		{"12am", "0", "0"},   // midnight
-		{"12pm", "0", "12"},  // noon
+		{"12am", "0", "0"},  // midnight
+		{"12pm", "0", "12"}, // noon
 		{"11pm", "0", "23"},
 		{"6am", "0", "6"},
 		{"9am", "0", "9"},
@@ -569,8 +569,8 @@ func TestParseTime(t *testing.T) {
 		{"25:00", "0", "0"},
 		{"12:60", "0", "0"},
 		{"12", "0", "0"},
-		{"13pm", "0", "0"},   // invalid hour for 12-hour format
-		{"0am", "0", "0"},    // invalid hour for 12-hour format
+		{"13pm", "0", "0"}, // invalid hour for 12-hour format
+		{"0am", "0", "0"},  // invalid hour for 12-hour format
 	}
 
 	for _, tt := range tests {

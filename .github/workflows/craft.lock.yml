@@ -7469,9 +7469,9 @@ jobs:
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
           GH_AW_DETECTION_CONCLUSION: ${{ needs.detection.result }}
           GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e ⚒️ *Crafted with care by [{workflow_name}]({run_url})*\",\"runStarted\":\"🛠️ Master Crafter at work! [{workflow_name}]({run_url}) is forging a new workflow on this {event_type}...\",\"runSuccess\":\"⚒️ Masterpiece complete! [{workflow_name}]({run_url}) has crafted your workflow. May it serve you well! 🎖️\",\"runFailure\":\"🛠️ Forge cooling down! [{workflow_name}]({run_url}) {status}. The anvil awaits another attempt...\"}"
-          GH_AW_SAFE_OUTPUT_JOBS: "{\"add_comment\":\"comment_url\",\"push_to_pull_request_branch\":\"push_url\"}"
+          GH_AW_SAFE_OUTPUT_JOBS: "{\"add_comment\":\"comment_url\",\"push_to_pull_request_branch\":\"commit_url\"}"
           GH_AW_OUTPUT_ADD_COMMENT_COMMENT_URL: ${{ needs.add_comment.outputs.comment_url }}
-          GH_AW_OUTPUT_PUSH_TO_PULL_REQUEST_BRANCH_PUSH_URL: ${{ needs.push_to_pull_request_branch.outputs.push_url }}
+          GH_AW_OUTPUT_PUSH_TO_PULL_REQUEST_BRANCH_COMMIT_URL: ${{ needs.push_to_pull_request_branch.outputs.commit_url }}
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -8199,6 +8199,7 @@ jobs:
     outputs:
       branch_name: ${{ steps.push_to_pull_request_branch.outputs.branch_name }}
       commit_sha: ${{ steps.push_to_pull_request_branch.outputs.commit_sha }}
+      commit_url: ${{ steps.push_to_pull_request_branch.outputs.commit_url }}
       push_url: ${{ steps.push_to_pull_request_branch.outputs.push_url }}
     steps:
       - name: Download patch artifact
@@ -8665,6 +8666,7 @@ jobs:
               core.setOutput("branch_name", branchName);
               core.setOutput("commit_sha", commitSha);
               core.setOutput("push_url", pushUrl);
+              core.setOutput("commit_url", commitUrl);
               if (hasChanges) {
                 await updateActivationCommentWithCommit(github, context, core, commitSha, commitUrl);
               }
