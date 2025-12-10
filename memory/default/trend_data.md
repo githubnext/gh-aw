@@ -1,7 +1,6 @@
-## Trend Data (as of 2025-12-09T15:15:57Z)
+## Trend Data (as of 2025-12-10T15:12:35Z)
 
-- Workflow runs (last 10, past 7d): 3 successes, 4 failures, 3 in-progress; total duration ~1.2h; tokens 5,059,936; cost ~$1.16; warnings 53, errors 144.
-- Notable runs: CLI Version Checker succeeded but logged 123 errors and 1.43M tokens; Super Linter Report failed after 44m; Issue Monster failed twice (runs 20066369361, 20064869096) and has an in-progress run already at 1.08M tokens with errors.
-- Issue stats (weekly snapshot): 231 issues; 58 open, 173 closed; top labels `ai-generated` (118) and `plan` (109) followed by automation/code-quality/automated-analysis.
-- Issue creation cadence (last week focus): Dec 7 (31) and Dec 8 (36) spikes, tapering to 14 on Dec 9 so far.
-- Discussion output remains high-volume daily across audits (firewall, schema consistency, prompt-analysis), documentation consolidation, and repository quality reports.
+- Workflow telemetry blocked this cycle (gh CLI unauthenticated); last snapshot (2025-12-09) showed 3 successes/4 failures/3 in-progress over 10 runs, ~1.2h duration, ~5.06M tokens, 53 warnings, 144 errors — refresh once auth is available.
+- Issue stats (weekly slice): 206 total; 54 open, 152 closed; top labels `ai-generated` (101), `plan` (98), then automation/code-quality/automated-analysis; authors dominated by github-actions (181 of 206).
+- Issue creation cadence: post-spike taper — Dec 7 (31), Dec 8 (36), Dec 9 (15), Dec 10 (5 so far).
+- Discussion cadence stays dense: Dec 10 produced new static analysis, firewall, prompt-analysis, Issue Arborist, team-status, doc consolidation, and performance reports; Copilot PR merged report errored (6040) and Portfolio Analysis ran with limited scope (6038).
