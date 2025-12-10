@@ -1,5 +1,5 @@
 ---
-timeout-minutes: 10
+timeout-minutes: 5
 on:
   issues:
     types: [opened]
@@ -13,13 +13,16 @@ on:
         description: 'Issue or discussion URL to moderate (e.g., https://github.com/owner/repo/issues/123)'
         required: true
         type: string
-engine: copilot
+engine:
+  id: copilot
+  model: gpt-5-mini
 if: needs.check_external_user.outputs.is_external == 'true'
 safe-outputs:
   add-labels:
-    allowed: [spam, ai-generated, link-spam]
+    allowed: [spam, ai-generated, link-spam, ai-qa]
   minimize-comment:
     max: 5
+  threat-detection: false
 jobs:
   check_external_user:
     runs-on: ubuntu-slim
@@ -162,11 +165,13 @@ Based on your analysis:
    - If link spam is detected, use the `add-labels` safe output to add the `link-spam` label to the issue
    - If AI-generated content is detected, use the `add-labels` safe output to add the `ai-generated` label to the issue
    - Multiple labels can be added if multiple types are detected
+   - **If no warnings or issues are found** and the content appears legitimate and on-topic, use the `add-labels` safe output to add the `ai-qa` label to indicate the issue has been reviewed and approved
 
 2. **For Comments** (when comment ID is present):
    - If any type of spam or AI-generated content is detected:
      - Use the `minimize_comment` safe output to minimize the comment
      - Also add appropriate labels to the parent issue/PR as described above
+   - If the comment appears legitimate and on-topic, add the `ai-qa` label to the parent issue/PR
 
 ## Important Guidelines
 
@@ -234,7 +239,7 @@ The AI agent:
 The workflow is configured in `.github/workflows/ai-moderator.md` with the following settings:
 
 ```yaml
-timeout-minutes: 10
+timeout-minutes: 5
 on:
   issues:
     types: [opened]
@@ -242,6 +247,15 @@ on:
     types: [created]
   pull_request_review_comment:
     types: [created]
+engine:
+  id: copilot
+  model: gpt-5-mini
+safe-outputs:
+  add-labels:
+    allowed: [spam, ai-generated, link-spam, ai-qa]
+  minimize-comment:
+    max: 5
+  threat-detection: false
 permissions:
   models: read
   contents: read
@@ -251,32 +265,21 @@ permissions:
 
 ### Labels
 
-The workflow uses three labels:
+The workflow uses four labels:
 - `spam` - Generic spam content
 - `link-spam` - Suspicious or promotional links
 - `ai-generated` - AI-generated content
-
-**Important**: These labels must exist in your repository before the workflow can add them. 
-
-**To create the labels**, you can:
-1. **Via GitHub UI**: Go to your repository → Issues → Labels → New label
-2. **Via GitHub CLI**:
-   ```bash
-   gh label create spam --description "Generic spam content" --color d73a4a
-   gh label create link-spam --description "Suspicious or promotional links" --color d73a4a
-   gh label create ai-generated --description "AI-generated content" --color fbca04
-   ```
-3. **Via API**: Use the GitHub REST API to create labels programmatically
-
-If the labels don't exist, the workflow will fail when trying to add them to issues.
+- `ai-qa` - Content reviewed and approved by AI moderator
 
 ### Safe Outputs
 
 The workflow uses two built-in safe outputs:
-- **add-labels**: Adds labels to issues and PRs (spam, link-spam, ai-generated)
+- **add-labels**: Adds labels to issues and PRs (spam, link-spam, ai-generated, ai-qa)
 - **minimize-comment**: Minimizes (hides) spam comments using GitHub's built-in functionality
 
 The minimize-comment safe output requires the GraphQL node ID of the comment, which the AI agent fetches from the GitHub API.
+
+**Threat Detection**: Threat detection is disabled for this workflow to streamline the moderation process.
 
 ## Security
 
