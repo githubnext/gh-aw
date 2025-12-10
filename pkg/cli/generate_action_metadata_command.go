@@ -463,15 +463,14 @@ func transformSourceForEsbuild(content, actionName string) string {
 // Add @actions/core import at the top
 result := "const core = require('@actions/core');\n"
 
-// Add relative path imports for dependencies from pkg/workflow/js/
-result += "// Dependencies from pkg/workflow/js/\n"
-result += "const path = require('path');\n"
-result += "const jsDir = path.join(__dirname, '..', '..', 'pkg', 'workflow', 'js');\n\n"
+// Add comment about dependencies
+result += "// Dependencies from pkg/workflow/js/ using relative paths for esbuild bundling\n\n"
 
-// Transform require statements to use absolute paths
+// Transform require statements to use static relative paths that esbuild can resolve
+// From actions/*/src/index.js, we need to go ../../../pkg/workflow/js/
 // Match: require("./filename.cjs") or require('./filename.cjs')
 requireRegex := regexp.MustCompile(`require\(["']\.\/([^"']+\.cjs)["']\)`)
-content = requireRegex.ReplaceAllString(content, `require(path.join(jsDir, "$1"))`)
+content = requireRegex.ReplaceAllString(content, `require("../../../pkg/workflow/js/$1")`)
 
 // Remove module.exports from original content
 content = regexp.MustCompile(`(?m)^module\.exports\s*=\s*\{[^}]*\};?\s*$`).ReplaceAllString(content, "")

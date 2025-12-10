@@ -1,12 +1,10 @@
 const core = require('@actions/core');
-// Dependencies from pkg/workflow/js/
-const path = require('path');
-const jsDir = path.join(__dirname, '..', '..', 'pkg', 'workflow', 'js');
+// Dependencies from pkg/workflow/js/ using relative paths for esbuild bundling
 
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-const { loadAgentOutput } = require(path.join(jsDir, "load_agent_output.cjs"));
+const { loadAgentOutput } = require("../../../pkg/workflow/js/load_agent_output.cjs");
 
 /**
  * Main function to handle noop safe output

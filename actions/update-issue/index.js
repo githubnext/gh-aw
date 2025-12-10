@@ -979,14 +979,14 @@ var require_util = __commonJS({
         }
         const port = url.port != null ? url.port : url.protocol === "https:" ? 443 : 80;
         let origin = url.origin != null ? url.origin : `${url.protocol}//${url.hostname}:${port}`;
-        let path2 = url.path != null ? url.path : `${url.pathname || ""}${url.search || ""}`;
+        let path = url.path != null ? url.path : `${url.pathname || ""}${url.search || ""}`;
         if (origin.endsWith("/")) {
           origin = origin.substring(0, origin.length - 1);
         }
-        if (path2 && !path2.startsWith("/")) {
-          path2 = `/${path2}`;
+        if (path && !path.startsWith("/")) {
+          path = `/${path}`;
         }
-        url = new URL(origin + path2);
+        url = new URL(origin + path);
       }
       return url;
     }
@@ -2602,19 +2602,19 @@ var require_parseParams = __commonJS({
 var require_basename = __commonJS({
   "node_modules/@fastify/busboy/lib/utils/basename.js"(exports2, module2) {
     "use strict";
-    module2.exports = function basename(path2) {
-      if (typeof path2 !== "string") {
+    module2.exports = function basename(path) {
+      if (typeof path !== "string") {
         return "";
       }
-      for (var i = path2.length - 1; i >= 0; --i) {
-        switch (path2.charCodeAt(i)) {
+      for (var i = path.length - 1; i >= 0; --i) {
+        switch (path.charCodeAt(i)) {
           case 47:
           case 92:
-            path2 = path2.slice(i + 1);
-            return path2 === ".." || path2 === "." ? "" : path2;
+            path = path.slice(i + 1);
+            return path === ".." || path === "." ? "" : path;
         }
       }
-      return path2 === ".." || path2 === "." ? "" : path2;
+      return path === ".." || path === "." ? "" : path;
     };
   }
 });
@@ -4239,18 +4239,18 @@ var require_webidl = __commonJS({
     webidl.errors.exception = function(message) {
       return new TypeError(`${message.header}: ${message.message}`);
     };
-    webidl.errors.conversionFailed = function(context) {
-      const plural = context.types.length === 1 ? "" : " one of";
-      const message = `${context.argument} could not be converted to${plural}: ${context.types.join(", ")}.`;
+    webidl.errors.conversionFailed = function(context2) {
+      const plural = context2.types.length === 1 ? "" : " one of";
+      const message = `${context2.argument} could not be converted to${plural}: ${context2.types.join(", ")}.`;
       return webidl.errors.exception({
-        header: context.prefix,
+        header: context2.prefix,
         message
       });
     };
-    webidl.errors.invalidArgument = function(context) {
+    webidl.errors.invalidArgument = function(context2) {
       return webidl.errors.exception({
-        header: context.prefix,
-        message: `"${context.value}" is an invalid ${context.type}.`
+        header: context2.prefix,
+        message: `"${context2.value}" is an invalid ${context2.type}.`
       });
     };
     webidl.brandCheck = function(V, I, opts = void 0) {
@@ -5640,7 +5640,7 @@ var require_request = __commonJS({
     }
     var Request = class _Request {
       constructor(origin, {
-        path: path2,
+        path,
         method,
         body,
         headers,
@@ -5654,11 +5654,11 @@ var require_request = __commonJS({
         throwOnError,
         expectContinue
       }, handler) {
-        if (typeof path2 !== "string") {
+        if (typeof path !== "string") {
           throw new InvalidArgumentError("path must be a string");
-        } else if (path2[0] !== "/" && !(path2.startsWith("http://") || path2.startsWith("https://")) && method !== "CONNECT") {
+        } else if (path[0] !== "/" && !(path.startsWith("http://") || path.startsWith("https://")) && method !== "CONNECT") {
           throw new InvalidArgumentError("path must be an absolute URL or start with a slash");
-        } else if (invalidPathRegex.exec(path2) !== null) {
+        } else if (invalidPathRegex.exec(path) !== null) {
           throw new InvalidArgumentError("invalid request path");
         }
         if (typeof method !== "string") {
@@ -5721,7 +5721,7 @@ var require_request = __commonJS({
         this.completed = false;
         this.aborted = false;
         this.upgrade = upgrade || null;
-        this.path = query ? util.buildURL(path2, query) : path2;
+        this.path = query ? util.buildURL(path, query) : path;
         this.origin = origin;
         this.idempotent = idempotent == null ? method === "HEAD" || method === "GET" : idempotent;
         this.blocking = blocking == null ? false : blocking;
@@ -6738,9 +6738,9 @@ var require_RedirectHandler = __commonJS({
           return this.handler.onHeaders(statusCode, headers, resume, statusText);
         }
         const { origin, pathname, search } = util.parseURL(new URL(this.location, this.opts.origin && new URL(this.opts.path, this.opts.origin)));
-        const path2 = search ? `${pathname}${search}` : pathname;
+        const path = search ? `${pathname}${search}` : pathname;
         this.opts.headers = cleanRequestHeaders(this.opts.headers, statusCode === 303, this.opts.origin !== origin);
-        this.opts.path = path2;
+        this.opts.path = path;
         this.opts.origin = origin;
         this.opts.maxRedirections = 0;
         this.opts.query = null;
@@ -7980,7 +7980,7 @@ var require_client = __commonJS({
         writeH2(client, client[kHTTP2Session], request);
         return;
       }
-      const { body, method, path: path2, host, upgrade, headers, blocking, reset } = request;
+      const { body, method, path, host, upgrade, headers, blocking, reset } = request;
       const expectsPayload = method === "PUT" || method === "POST" || method === "PATCH";
       if (body && typeof body.read === "function") {
         body.read(0);
@@ -8030,7 +8030,7 @@ var require_client = __commonJS({
       if (blocking) {
         socket[kBlocking] = true;
       }
-      let header = `${method} ${path2} HTTP/1.1\r
+      let header = `${method} ${path} HTTP/1.1\r
 `;
       if (typeof host === "string") {
         header += `host: ${host}\r
@@ -8093,7 +8093,7 @@ upgrade: ${upgrade}\r
       return true;
     }
     function writeH2(client, session, request) {
-      const { body, method, path: path2, host, upgrade, expectContinue, signal, headers: reqHeaders } = request;
+      const { body, method, path, host, upgrade, expectContinue, signal, headers: reqHeaders } = request;
       let headers;
       if (typeof reqHeaders === "string")
         headers = Request[kHTTP2CopyHeaders](reqHeaders.trim());
@@ -8139,7 +8139,7 @@ upgrade: ${upgrade}\r
         });
         return true;
       }
-      headers[HTTP2_HEADER_PATH] = path2;
+      headers[HTTP2_HEADER_PATH] = path;
       headers[HTTP2_HEADER_SCHEME] = "https";
       const expectsPayload = method === "PUT" || method === "POST" || method === "PATCH";
       if (body && typeof body.read === "function") {
@@ -9596,15 +9596,15 @@ var require_api_request = __commonJS({
         }
         addSignal(this, signal);
       }
-      onConnect(abort, context) {
+      onConnect(abort, context2) {
         if (!this.callback) {
           throw new RequestAbortedError();
         }
         this.abort = abort;
-        this.context = context;
+        this.context = context2;
       }
       onHeaders(statusCode, rawHeaders, resume, statusMessage) {
-        const { callback, opaque, abort, context, responseHeaders, highWaterMark } = this;
+        const { callback, opaque, abort, context: context2, responseHeaders, highWaterMark } = this;
         const headers = responseHeaders === "raw" ? util.parseRawHeaders(rawHeaders) : util.parseHeaders(rawHeaders);
         if (statusCode < 200) {
           if (this.onInfo) {
@@ -9631,7 +9631,7 @@ var require_api_request = __commonJS({
               trailers: this.trailers,
               opaque,
               body,
-              context
+              context: context2
             });
           }
         }
@@ -9751,15 +9751,15 @@ var require_api_stream = __commonJS({
         }
         addSignal(this, signal);
       }
-      onConnect(abort, context) {
+      onConnect(abort, context2) {
         if (!this.callback) {
           throw new RequestAbortedError();
         }
         this.abort = abort;
-        this.context = context;
+        this.context = context2;
       }
       onHeaders(statusCode, rawHeaders, resume, statusMessage) {
-        const { factory, opaque, context, callback, responseHeaders } = this;
+        const { factory, opaque, context: context2, callback, responseHeaders } = this;
         const headers = responseHeaders === "raw" ? util.parseRawHeaders(rawHeaders) : util.parseHeaders(rawHeaders);
         if (statusCode < 200) {
           if (this.onInfo) {
@@ -9787,7 +9787,7 @@ var require_api_stream = __commonJS({
             statusCode,
             headers,
             opaque,
-            context
+            context: context2
           });
           if (!res || typeof res.write !== "function" || typeof res.end !== "function" || typeof res.on !== "function") {
             throw new InvalidReturnValueError("expected Writable");
@@ -9979,17 +9979,17 @@ var require_api_pipeline = __commonJS({
         this.res = null;
         addSignal(this, signal);
       }
-      onConnect(abort, context) {
+      onConnect(abort, context2) {
         const { ret, res } = this;
         assert(!res, "pipeline cannot be retried");
         if (ret.destroyed) {
           throw new RequestAbortedError();
         }
         this.abort = abort;
-        this.context = context;
+        this.context = context2;
       }
       onHeaders(statusCode, rawHeaders, resume) {
-        const { opaque, handler, context } = this;
+        const { opaque, handler, context: context2 } = this;
         if (statusCode < 200) {
           if (this.onInfo) {
             const headers = this.responseHeaders === "raw" ? util.parseRawHeaders(rawHeaders) : util.parseHeaders(rawHeaders);
@@ -10007,7 +10007,7 @@ var require_api_pipeline = __commonJS({
             headers,
             opaque,
             body: this.res,
-            context
+            context: context2
           });
         } catch (err) {
           this.res.on("error", util.nop);
@@ -10091,7 +10091,7 @@ var require_api_upgrade = __commonJS({
         this.context = null;
         addSignal(this, signal);
       }
-      onConnect(abort, context) {
+      onConnect(abort, context2) {
         if (!this.callback) {
           throw new RequestAbortedError();
         }
@@ -10102,7 +10102,7 @@ var require_api_upgrade = __commonJS({
         throw new SocketError("bad upgrade", null);
       }
       onUpgrade(statusCode, rawHeaders, socket) {
-        const { callback, opaque, context } = this;
+        const { callback, opaque, context: context2 } = this;
         assert.strictEqual(statusCode, 101);
         removeSignal(this);
         this.callback = null;
@@ -10111,7 +10111,7 @@ var require_api_upgrade = __commonJS({
           headers,
           socket,
           opaque,
-          context
+          context: context2
         });
       }
       onError(err) {
@@ -10179,18 +10179,18 @@ var require_api_connect = __commonJS({
         this.abort = null;
         addSignal(this, signal);
       }
-      onConnect(abort, context) {
+      onConnect(abort, context2) {
         if (!this.callback) {
           throw new RequestAbortedError();
         }
         this.abort = abort;
-        this.context = context;
+        this.context = context2;
       }
       onHeaders() {
         throw new SocketError("bad connect", null);
       }
       onUpgrade(statusCode, rawHeaders, socket) {
-        const { callback, opaque, context } = this;
+        const { callback, opaque, context: context2 } = this;
         removeSignal(this);
         this.callback = null;
         let headers = rawHeaders;
@@ -10202,7 +10202,7 @@ var require_api_connect = __commonJS({
           headers,
           socket,
           opaque,
-          context
+          context: context2
         });
       }
       onError(err) {
@@ -10380,20 +10380,20 @@ var require_mock_utils = __commonJS({
       }
       return true;
     }
-    function safeUrl(path2) {
-      if (typeof path2 !== "string") {
-        return path2;
+    function safeUrl(path) {
+      if (typeof path !== "string") {
+        return path;
       }
-      const pathSegments = path2.split("?");
+      const pathSegments = path.split("?");
       if (pathSegments.length !== 2) {
-        return path2;
+        return path;
       }
       const qp = new URLSearchParams(pathSegments.pop());
       qp.sort();
       return [...pathSegments, qp.toString()].join("?");
     }
-    function matchKey(mockDispatch2, { path: path2, method, body, headers }) {
-      const pathMatch = matchValue(mockDispatch2.path, path2);
+    function matchKey(mockDispatch2, { path, method, body, headers }) {
+      const pathMatch = matchValue(mockDispatch2.path, path);
       const methodMatch = matchValue(mockDispatch2.method, method);
       const bodyMatch = typeof mockDispatch2.body !== "undefined" ? matchValue(mockDispatch2.body, body) : true;
       const headersMatch = matchHeaders(mockDispatch2, headers);
@@ -10411,7 +10411,7 @@ var require_mock_utils = __commonJS({
     function getMockDispatch(mockDispatches, key) {
       const basePath = key.query ? buildURL(key.path, key.query) : key.path;
       const resolvedPath = typeof basePath === "string" ? safeUrl(basePath) : basePath;
-      let matchedMockDispatches = mockDispatches.filter(({ consumed }) => !consumed).filter(({ path: path2 }) => matchValue(safeUrl(path2), resolvedPath));
+      let matchedMockDispatches = mockDispatches.filter(({ consumed }) => !consumed).filter(({ path }) => matchValue(safeUrl(path), resolvedPath));
       if (matchedMockDispatches.length === 0) {
         throw new MockNotMatchedError(`Mock dispatch not matched for path '${resolvedPath}'`);
       }
@@ -10448,9 +10448,9 @@ var require_mock_utils = __commonJS({
       }
     }
     function buildKey(opts) {
-      const { path: path2, method, body, headers, query } = opts;
+      const { path, method, body, headers, query } = opts;
       return {
-        path: path2,
+        path,
         method,
         body,
         headers,
@@ -10899,10 +10899,10 @@ var require_pending_interceptors_formatter = __commonJS({
       }
       format(pendingInterceptors) {
         const withPrettyHeaders = pendingInterceptors.map(
-          ({ method, path: path2, data: { statusCode }, persist, times, timesInvoked, origin }) => ({
+          ({ method, path, data: { statusCode }, persist, times, timesInvoked, origin }) => ({
             Method: method,
             Origin: origin,
-            Path: path2,
+            Path: path,
             "Status code": statusCode,
             Persistent: persist ? "\u2705" : "\u274C",
             Invocations: timesInvoked,
@@ -15527,8 +15527,8 @@ var require_util6 = __commonJS({
         }
       }
     }
-    function validateCookiePath(path2) {
-      for (const char of path2) {
+    function validateCookiePath(path) {
+      for (const char of path) {
         const code = char.charCodeAt(0);
         if (code < 33 || char === ";") {
           throw new Error("Invalid cookie path");
@@ -17208,11 +17208,11 @@ var require_undici = __commonJS({
           if (typeof opts.path !== "string") {
             throw new InvalidArgumentError("invalid opts.path");
           }
-          let path2 = opts.path;
+          let path = opts.path;
           if (!opts.path.startsWith("/")) {
-            path2 = `/${path2}`;
+            path = `/${path}`;
           }
-          url = new URL(util.parseOrigin(url).origin + path2);
+          url = new URL(util.parseOrigin(url).origin + path);
         } else {
           if (!opts) {
             opts = typeof url === "object" ? url : {};
@@ -18445,7 +18445,7 @@ var require_path_utils = __commonJS({
     };
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.toPlatformPath = exports2.toWin32Path = exports2.toPosixPath = void 0;
-    var path2 = __importStar(require("path"));
+    var path = __importStar(require("path"));
     function toPosixPath(pth) {
       return pth.replace(/[\\]/g, "/");
     }
@@ -18455,7 +18455,7 @@ var require_path_utils = __commonJS({
     }
     exports2.toWin32Path = toWin32Path;
     function toPlatformPath(pth) {
-      return pth.replace(/[/\\]/g, path2.sep);
+      return pth.replace(/[/\\]/g, path.sep);
     }
     exports2.toPlatformPath = toPlatformPath;
   }
@@ -18524,7 +18524,7 @@ var require_io_util = __commonJS({
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.getCmdPath = exports2.tryGetExecutablePath = exports2.isRooted = exports2.isDirectory = exports2.exists = exports2.READONLY = exports2.UV_FS_O_EXLOCK = exports2.IS_WINDOWS = exports2.unlink = exports2.symlink = exports2.stat = exports2.rmdir = exports2.rm = exports2.rename = exports2.readlink = exports2.readdir = exports2.open = exports2.mkdir = exports2.lstat = exports2.copyFile = exports2.chmod = void 0;
     var fs = __importStar(require("fs"));
-    var path2 = __importStar(require("path"));
+    var path = __importStar(require("path"));
     _a = fs.promises, exports2.chmod = _a.chmod, exports2.copyFile = _a.copyFile, exports2.lstat = _a.lstat, exports2.mkdir = _a.mkdir, exports2.open = _a.open, exports2.readdir = _a.readdir, exports2.readlink = _a.readlink, exports2.rename = _a.rename, exports2.rm = _a.rm, exports2.rmdir = _a.rmdir, exports2.stat = _a.stat, exports2.symlink = _a.symlink, exports2.unlink = _a.unlink;
     exports2.IS_WINDOWS = process.platform === "win32";
     exports2.UV_FS_O_EXLOCK = 268435456;
@@ -18573,7 +18573,7 @@ var require_io_util = __commonJS({
         }
         if (stats && stats.isFile()) {
           if (exports2.IS_WINDOWS) {
-            const upperExt = path2.extname(filePath).toUpperCase();
+            const upperExt = path.extname(filePath).toUpperCase();
             if (extensions.some((validExt) => validExt.toUpperCase() === upperExt)) {
               return filePath;
             }
@@ -18597,11 +18597,11 @@ var require_io_util = __commonJS({
           if (stats && stats.isFile()) {
             if (exports2.IS_WINDOWS) {
               try {
-                const directory = path2.dirname(filePath);
-                const upperName = path2.basename(filePath).toUpperCase();
+                const directory = path.dirname(filePath);
+                const upperName = path.basename(filePath).toUpperCase();
                 for (const actualName of yield exports2.readdir(directory)) {
                   if (upperName === actualName.toUpperCase()) {
-                    filePath = path2.join(directory, actualName);
+                    filePath = path.join(directory, actualName);
                     break;
                   }
                 }
@@ -18701,7 +18701,7 @@ var require_io = __commonJS({
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.findInPath = exports2.which = exports2.mkdirP = exports2.rmRF = exports2.mv = exports2.cp = void 0;
     var assert_1 = require("assert");
-    var path2 = __importStar(require("path"));
+    var path = __importStar(require("path"));
     var ioUtil = __importStar(require_io_util());
     function cp(source, dest, options = {}) {
       return __awaiter(this, void 0, void 0, function* () {
@@ -18710,7 +18710,7 @@ var require_io = __commonJS({
         if (destStat && destStat.isFile() && !force) {
           return;
         }
-        const newDest = destStat && destStat.isDirectory() && copySourceDirectory ? path2.join(dest, path2.basename(source)) : dest;
+        const newDest = destStat && destStat.isDirectory() && copySourceDirectory ? path.join(dest, path.basename(source)) : dest;
         if (!(yield ioUtil.exists(source))) {
           throw new Error(`no such file or directory: ${source}`);
         }
@@ -18722,7 +18722,7 @@ var require_io = __commonJS({
             yield cpDirRecursive(source, newDest, 0, force);
           }
         } else {
-          if (path2.relative(source, newDest) === "") {
+          if (path.relative(source, newDest) === "") {
             throw new Error(`'${newDest}' and '${source}' are the same file`);
           }
           yield copyFile(source, newDest, force);
@@ -18735,7 +18735,7 @@ var require_io = __commonJS({
         if (yield ioUtil.exists(dest)) {
           let destExists = true;
           if (yield ioUtil.isDirectory(dest)) {
-            dest = path2.join(dest, path2.basename(source));
+            dest = path.join(dest, path.basename(source));
             destExists = yield ioUtil.exists(dest);
           }
           if (destExists) {
@@ -18746,7 +18746,7 @@ var require_io = __commonJS({
             }
           }
         }
-        yield mkdirP(path2.dirname(dest));
+        yield mkdirP(path.dirname(dest));
         yield ioUtil.rename(source, dest);
       });
     }
@@ -18809,7 +18809,7 @@ var require_io = __commonJS({
         }
         const extensions = [];
         if (ioUtil.IS_WINDOWS && process.env["PATHEXT"]) {
-          for (const extension of process.env["PATHEXT"].split(path2.delimiter)) {
+          for (const extension of process.env["PATHEXT"].split(path.delimiter)) {
             if (extension) {
               extensions.push(extension);
             }
@@ -18822,12 +18822,12 @@ var require_io = __commonJS({
           }
           return [];
         }
-        if (tool.includes(path2.sep)) {
+        if (tool.includes(path.sep)) {
           return [];
         }
         const directories = [];
         if (process.env.PATH) {
-          for (const p of process.env.PATH.split(path2.delimiter)) {
+          for (const p of process.env.PATH.split(path.delimiter)) {
             if (p) {
               directories.push(p);
             }
@@ -18835,7 +18835,7 @@ var require_io = __commonJS({
         }
         const matches = [];
         for (const directory of directories) {
-          const filePath = yield ioUtil.tryGetExecutablePath(path2.join(directory, tool), extensions);
+          const filePath = yield ioUtil.tryGetExecutablePath(path.join(directory, tool), extensions);
           if (filePath) {
             matches.push(filePath);
           }
@@ -18956,7 +18956,7 @@ var require_toolrunner = __commonJS({
     var os = __importStar(require("os"));
     var events = __importStar(require("events"));
     var child = __importStar(require("child_process"));
-    var path2 = __importStar(require("path"));
+    var path = __importStar(require("path"));
     var io = __importStar(require_io());
     var ioUtil = __importStar(require_io_util());
     var timers_1 = require("timers");
@@ -19171,7 +19171,7 @@ var require_toolrunner = __commonJS({
       exec() {
         return __awaiter(this, void 0, void 0, function* () {
           if (!ioUtil.isRooted(this.toolPath) && (this.toolPath.includes("/") || IS_WINDOWS && this.toolPath.includes("\\"))) {
-            this.toolPath = path2.resolve(process.cwd(), this.options.cwd || process.cwd(), this.toolPath);
+            this.toolPath = path.resolve(process.cwd(), this.options.cwd || process.cwd(), this.toolPath);
           }
           this.toolPath = yield io.which(this.toolPath, true);
           return new Promise((resolve, reject) => __awaiter(this, void 0, void 0, function* () {
@@ -19686,7 +19686,7 @@ var require_core = __commonJS({
     var file_command_1 = require_file_command();
     var utils_1 = require_utils();
     var os = __importStar(require("os"));
-    var path2 = __importStar(require("path"));
+    var path = __importStar(require("path"));
     var oidc_utils_1 = require_oidc_utils();
     var ExitCode;
     (function(ExitCode2) {
@@ -19714,7 +19714,7 @@ var require_core = __commonJS({
       } else {
         (0, command_1.issueCommand)("add-path", {}, inputPath);
       }
-      process.env["PATH"] = `${inputPath}${path2.delimiter}${process.env["PATH"]}`;
+      process.env["PATH"] = `${inputPath}${path.delimiter}${process.env["PATH"]}`;
     }
     exports2.addPath = addPath;
     function getInput(name, options) {
@@ -19851,11 +19851,335 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
   }
 });
 
+// ../pkg/workflow/js/load_agent_output.cjs
+var require_load_agent_output = __commonJS({
+  "../pkg/workflow/js/load_agent_output.cjs"(exports2, module2) {
+    "use strict";
+    var fs = require("fs");
+    var MAX_LOG_CONTENT_LENGTH = 1e4;
+    function truncateForLogging(content) {
+      if (content.length <= MAX_LOG_CONTENT_LENGTH) {
+        return content;
+      }
+      return content.substring(0, MAX_LOG_CONTENT_LENGTH) + `
+... (truncated, total length: ${content.length})`;
+    }
+    function loadAgentOutput() {
+      const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT;
+      if (!agentOutputFile) {
+        core.info("No GH_AW_AGENT_OUTPUT environment variable found");
+        return { success: false };
+      }
+      let outputContent;
+      try {
+        outputContent = fs.readFileSync(agentOutputFile, "utf8");
+      } catch (error) {
+        const errorMessage = `Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`;
+        core.error(errorMessage);
+        return { success: false, error: errorMessage };
+      }
+      if (outputContent.trim() === "") {
+        core.info("Agent output content is empty");
+        return { success: false };
+      }
+      core.info(`Agent output content length: ${outputContent.length}`);
+      let validatedOutput;
+      try {
+        validatedOutput = JSON.parse(outputContent);
+      } catch (error) {
+        const errorMessage = `Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`;
+        core.error(errorMessage);
+        core.info(`Failed to parse content:
+${truncateForLogging(outputContent)}`);
+        return { success: false, error: errorMessage };
+      }
+      if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
+        core.info("No valid items found in agent output");
+        core.info(`Parsed content: ${truncateForLogging(JSON.stringify(validatedOutput))}`);
+        return { success: false };
+      }
+      return { success: true, items: validatedOutput.items };
+    }
+    module2.exports = { loadAgentOutput, truncateForLogging, MAX_LOG_CONTENT_LENGTH };
+  }
+});
+
+// ../pkg/workflow/js/staged_preview.cjs
+var require_staged_preview = __commonJS({
+  "../pkg/workflow/js/staged_preview.cjs"(exports2, module2) {
+    "use strict";
+    async function generateStagedPreview(options) {
+      const { title, description, items, renderItem } = options;
+      let summaryContent = `## \u{1F3AD} Staged Mode: ${title} Preview
+
+`;
+      summaryContent += `${description}
+
+`;
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        summaryContent += renderItem(item, i);
+        summaryContent += "---\n\n";
+      }
+      try {
+        await core.summary.addRaw(summaryContent).write();
+        core.info(summaryContent);
+        core.info(`\u{1F4DD} ${title} preview written to step summary`);
+      } catch (error) {
+        core.setFailed(error instanceof Error ? error : String(error));
+      }
+    }
+    module2.exports = { generateStagedPreview };
+  }
+});
+
+// ../pkg/workflow/js/update_runner.cjs
+var require_update_runner = __commonJS({
+  "../pkg/workflow/js/update_runner.cjs"(exports2, module2) {
+    "use strict";
+    var { loadAgentOutput } = require_load_agent_output();
+    var { generateStagedPreview } = require_staged_preview();
+    function resolveTargetNumber(params) {
+      const { updateTarget, item, numberField, isValidContext, contextNumber, displayName } = params;
+      if (updateTarget === "*") {
+        const explicitNumber = item[numberField];
+        if (explicitNumber) {
+          const parsed = parseInt(explicitNumber, 10);
+          if (isNaN(parsed) || parsed <= 0) {
+            return { success: false, error: `Invalid ${numberField} specified: ${explicitNumber}` };
+          }
+          return { success: true, number: parsed };
+        } else {
+          return { success: false, error: `Target is "*" but no ${numberField} specified in update item` };
+        }
+      } else if (updateTarget && updateTarget !== "triggering") {
+        const parsed = parseInt(updateTarget, 10);
+        if (isNaN(parsed) || parsed <= 0) {
+          return { success: false, error: `Invalid ${displayName} number in target configuration: ${updateTarget}` };
+        }
+        return { success: true, number: parsed };
+      } else {
+        if (isValidContext && contextNumber) {
+          return { success: true, number: contextNumber };
+        }
+        return { success: false, error: `Could not determine ${displayName} number` };
+      }
+    }
+    function buildUpdateData(params) {
+      const { item, canUpdateStatus, canUpdateTitle, canUpdateBody, supportsStatus } = params;
+      const updateData = {};
+      let hasUpdates = false;
+      const logMessages = [];
+      if (supportsStatus && canUpdateStatus && item.status !== void 0) {
+        if (item.status === "open" || item.status === "closed") {
+          updateData.state = item.status;
+          hasUpdates = true;
+          logMessages.push(`Will update status to: ${item.status}`);
+        } else {
+          logMessages.push(`Invalid status value: ${item.status}. Must be 'open' or 'closed'`);
+        }
+      }
+      if (canUpdateTitle && item.title !== void 0) {
+        const trimmedTitle = typeof item.title === "string" ? item.title.trim() : "";
+        if (trimmedTitle.length > 0) {
+          updateData.title = trimmedTitle;
+          hasUpdates = true;
+          logMessages.push(`Will update title to: ${trimmedTitle}`);
+        } else {
+          logMessages.push("Invalid title value: must be a non-empty string");
+        }
+      }
+      if (canUpdateBody && item.body !== void 0) {
+        if (typeof item.body === "string") {
+          updateData.body = item.body;
+          hasUpdates = true;
+          logMessages.push(`Will update body (length: ${item.body.length})`);
+        } else {
+          logMessages.push("Invalid body value: must be a string");
+        }
+      }
+      return { hasUpdates, updateData, logMessages };
+    }
+    async function runUpdateWorkflow2(config) {
+      const {
+        itemType,
+        displayName,
+        displayNamePlural,
+        numberField,
+        outputNumberKey,
+        outputUrlKey,
+        isValidContext,
+        getContextNumber,
+        supportsStatus,
+        supportsOperation,
+        renderStagedItem: renderStagedItem2,
+        executeUpdate,
+        getSummaryLine: getSummaryLine2
+      } = config;
+      const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
+      const result = loadAgentOutput();
+      if (!result.success) {
+        return;
+      }
+      const updateItems = result.items.filter(
+        /** @param {any} item */
+        (item) => item.type === itemType
+      );
+      if (updateItems.length === 0) {
+        core.info(`No ${itemType} items found in agent output`);
+        return;
+      }
+      core.info(`Found ${updateItems.length} ${itemType} item(s)`);
+      if (isStaged) {
+        await generateStagedPreview({
+          title: `Update ${displayNamePlural.charAt(0).toUpperCase() + displayNamePlural.slice(1)}`,
+          description: `The following ${displayName} updates would be applied if staged mode was disabled:`,
+          items: updateItems,
+          renderItem: renderStagedItem2
+        });
+        return;
+      }
+      const updateTarget = process.env.GH_AW_UPDATE_TARGET || "triggering";
+      const canUpdateStatus = process.env.GH_AW_UPDATE_STATUS === "true";
+      const canUpdateTitle = process.env.GH_AW_UPDATE_TITLE === "true";
+      const canUpdateBody = process.env.GH_AW_UPDATE_BODY === "true";
+      core.info(`Update target configuration: ${updateTarget}`);
+      if (supportsStatus) {
+        core.info(`Can update status: ${canUpdateStatus}, title: ${canUpdateTitle}, body: ${canUpdateBody}`);
+      } else {
+        core.info(`Can update title: ${canUpdateTitle}, body: ${canUpdateBody}`);
+      }
+      const contextIsValid = isValidContext(context.eventName, context.payload);
+      const contextNumber = getContextNumber(context.payload);
+      if (updateTarget === "triggering" && !contextIsValid) {
+        core.info(`Target is "triggering" but not running in ${displayName} context, skipping ${displayName} update`);
+        return;
+      }
+      const updatedItems = [];
+      for (let i = 0; i < updateItems.length; i++) {
+        const updateItem = updateItems[i];
+        core.info(`Processing ${itemType} item ${i + 1}/${updateItems.length}`);
+        const targetResult = resolveTargetNumber({
+          updateTarget,
+          item: updateItem,
+          numberField,
+          isValidContext: contextIsValid,
+          contextNumber,
+          displayName
+        });
+        if (!targetResult.success) {
+          core.info(targetResult.error);
+          continue;
+        }
+        const targetNumber = targetResult.number;
+        core.info(`Updating ${displayName} #${targetNumber}`);
+        const { hasUpdates, updateData, logMessages } = buildUpdateData({
+          item: updateItem,
+          canUpdateStatus,
+          canUpdateTitle,
+          canUpdateBody,
+          supportsStatus
+        });
+        for (const msg of logMessages) {
+          core.info(msg);
+        }
+        if (supportsOperation && canUpdateBody && updateItem.body !== void 0 && typeof updateItem.body === "string") {
+          updateData._operation = updateItem.operation || "append";
+          updateData._rawBody = updateItem.body;
+        }
+        if (!hasUpdates) {
+          core.info("No valid updates to apply for this item");
+          continue;
+        }
+        try {
+          const updatedItem = await executeUpdate(github, context, targetNumber, updateData);
+          core.info(`Updated ${displayName} #${updatedItem.number}: ${updatedItem.html_url}`);
+          updatedItems.push(updatedItem);
+          if (i === updateItems.length - 1) {
+            core.setOutput(outputNumberKey, updatedItem.number);
+            core.setOutput(outputUrlKey, updatedItem.html_url);
+          }
+        } catch (error) {
+          core.error(`\u2717 Failed to update ${displayName} #${targetNumber}: ${error instanceof Error ? error.message : String(error)}`);
+          throw error;
+        }
+      }
+      if (updatedItems.length > 0) {
+        let summaryContent = `
+
+## Updated ${displayNamePlural.charAt(0).toUpperCase() + displayNamePlural.slice(1)}
+`;
+        for (const item of updatedItems) {
+          summaryContent += getSummaryLine2(item);
+        }
+        await core.summary.addRaw(summaryContent).write();
+      }
+      core.info(`Successfully updated ${updatedItems.length} ${displayName}(s)`);
+      return updatedItems;
+    }
+    function createRenderStagedItem2(config) {
+      const { entityName, numberField, targetLabel, currentTargetText, includeOperation = false } = config;
+      return function renderStagedItem2(item, index) {
+        let content = `### ${entityName} Update ${index + 1}
+`;
+        if (item[numberField]) {
+          content += `**${targetLabel}** #${item[numberField]}
+
+`;
+        } else {
+          content += `**Target:** ${currentTargetText}
+
+`;
+        }
+        if (item.title !== void 0) {
+          content += `**New Title:** ${item.title}
+
+`;
+        }
+        if (item.body !== void 0) {
+          if (includeOperation) {
+            const operation = item.operation || "append";
+            content += `**Operation:** ${operation}
+`;
+            content += `**Body Content:**
+${item.body}
+
+`;
+          } else {
+            content += `**New Body:**
+${item.body}
+
+`;
+          }
+        }
+        if (item.status !== void 0) {
+          content += `**New Status:** ${item.status}
+
+`;
+        }
+        return content;
+      };
+    }
+    function createGetSummaryLine2(config) {
+      const { entityPrefix } = config;
+      return function getSummaryLine2(item) {
+        return `- ${entityPrefix} #${item.number}: [${item.title}](${item.html_url})
+`;
+      };
+    }
+    module2.exports = {
+      runUpdateWorkflow: runUpdateWorkflow2,
+      resolveTargetNumber,
+      buildUpdateData,
+      createRenderStagedItem: createRenderStagedItem2,
+      createGetSummaryLine: createGetSummaryLine2
+    };
+  }
+});
+
 // update-issue/src/index.js
-var core = require_core();
-var path = require("path");
-var jsDir = path.join(__dirname, "..", "..", "pkg", "workflow", "js");
-var { runUpdateWorkflow, createRenderStagedItem, createGetSummaryLine } = require(path.join(jsDir, "update_runner.cjs"));
+var core2 = require_core();
+var { runUpdateWorkflow, createRenderStagedItem, createGetSummaryLine } = require_update_runner();
 function isIssueContext(eventName, _payload) {
   return eventName === "issues" || eventName === "issue_comment";
 }
@@ -19869,11 +20193,11 @@ var renderStagedItem = createRenderStagedItem({
   currentTargetText: "Current issue",
   includeOperation: false
 });
-async function executeIssueUpdate(github, context, issueNumber, updateData) {
+async function executeIssueUpdate(github2, context2, issueNumber, updateData) {
   const { _operation, _rawBody, ...apiData } = updateData;
-  const { data: issue } = await github.rest.issues.update({
-    owner: context.repo.owner,
-    repo: context.repo.repo,
+  const { data: issue } = await github2.rest.issues.update({
+    owner: context2.repo.owner,
+    repo: context2.repo.repo,
     issue_number: issueNumber,
     ...apiData
   });

@@ -1,15 +1,13 @@
 const core = require('@actions/core');
-// Dependencies from pkg/workflow/js/
-const path = require('path');
-const jsDir = path.join(__dirname, '..', '..', 'pkg', 'workflow', 'js');
+// Dependencies from pkg/workflow/js/ using relative paths for esbuild bundling
 
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-const { loadAgentOutput } = require(path.join(jsDir, "load_agent_output.cjs"));
-const { generateFooter } = require(path.join(jsDir, "generate_footer.cjs"));
-const { getTrackerID } = require(path.join(jsDir, "get_tracker_id.cjs"));
-const { getRepositoryUrl } = require(path.join(jsDir, "get_repository_url.cjs"));
+const { loadAgentOutput } = require("../../../pkg/workflow/js/load_agent_output.cjs");
+const { generateFooter } = require("../../../pkg/workflow/js/generate_footer.cjs");
+const { getTrackerID } = require("../../../pkg/workflow/js/get_tracker_id.cjs");
+const { getRepositoryUrl } = require("../../../pkg/workflow/js/get_repository_url.cjs");
 
 /**
  * Get discussion details using GraphQL

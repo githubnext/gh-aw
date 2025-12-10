@@ -1,13 +1,11 @@
 const core = require('@actions/core');
-// Dependencies from pkg/workflow/js/
-const path = require('path');
-const jsDir = path.join(__dirname, '..', '..', 'pkg', 'workflow', 'js');
+// Dependencies from pkg/workflow/js/ using relative paths for esbuild bundling
 
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-const { runUpdateWorkflow, createRenderStagedItem, createGetSummaryLine } = require(path.join(jsDir, "update_runner.cjs"));
-const { updatePRBody } = require(path.join(jsDir, "update_pr_description_helpers.cjs"));
+const { runUpdateWorkflow, createRenderStagedItem, createGetSummaryLine } = require("../../../pkg/workflow/js/update_runner.cjs");
+const { updatePRBody } = require("../../../pkg/workflow/js/update_pr_description_helpers.cjs");
 
 /**
  * Check if the current context is a valid pull request context

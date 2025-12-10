@@ -1,13 +1,11 @@
 const core = require('@actions/core');
-// Dependencies from pkg/workflow/js/
-const path = require('path');
-const jsDir = path.join(__dirname, '..', '..', 'pkg', 'workflow', 'js');
+// Dependencies from pkg/workflow/js/ using relative paths for esbuild bundling
 
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-const { processSafeOutput } = require(path.join(jsDir, "safe_output_processor.cjs"));
-const { validateLabels } = require(path.join(jsDir, "safe_output_validator.cjs"));
+const { processSafeOutput } = require("../../../pkg/workflow/js/safe_output_processor.cjs");
+const { validateLabels } = require("../../../pkg/workflow/js/safe_output_validator.cjs");
 
 async function main() {
   // Use shared processor for common steps

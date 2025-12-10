@@ -1,16 +1,14 @@
 const core = require('@actions/core');
-// Dependencies from pkg/workflow/js/
-const path = require('path');
-const jsDir = path.join(__dirname, '..', '..', 'pkg', 'workflow', 'js');
+// Dependencies from pkg/workflow/js/ using relative paths for esbuild bundling
 
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-const { loadAgentOutput } = require(path.join(jsDir, "load_agent_output.cjs"));
-const { generateFooterWithMessages } = require(path.join(jsDir, "messages_footer.cjs"));
-const { getTrackerID } = require(path.join(jsDir, "get_tracker_id.cjs"));
-const { getRepositoryUrl } = require(path.join(jsDir, "get_repository_url.cjs"));
-const { replaceTemporaryIdReferences, loadTemporaryIdMap } = require(path.join(jsDir, "temporary_id.cjs"));
+const { loadAgentOutput } = require("../../../pkg/workflow/js/load_agent_output.cjs");
+const { generateFooterWithMessages } = require("../../../pkg/workflow/js/messages_footer.cjs");
+const { getTrackerID } = require("../../../pkg/workflow/js/get_tracker_id.cjs");
+const { getRepositoryUrl } = require("../../../pkg/workflow/js/get_repository_url.cjs");
+const { replaceTemporaryIdReferences, loadTemporaryIdMap } = require("../../../pkg/workflow/js/temporary_id.cjs");
 
 /**
  * Comment on a GitHub Discussion using GraphQL

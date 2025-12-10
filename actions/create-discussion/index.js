@@ -979,14 +979,14 @@ var require_util = __commonJS({
         }
         const port = url.port != null ? url.port : url.protocol === "https:" ? 443 : 80;
         let origin = url.origin != null ? url.origin : `${url.protocol}//${url.hostname}:${port}`;
-        let path2 = url.path != null ? url.path : `${url.pathname || ""}${url.search || ""}`;
+        let path = url.path != null ? url.path : `${url.pathname || ""}${url.search || ""}`;
         if (origin.endsWith("/")) {
           origin = origin.substring(0, origin.length - 1);
         }
-        if (path2 && !path2.startsWith("/")) {
-          path2 = `/${path2}`;
+        if (path && !path.startsWith("/")) {
+          path = `/${path}`;
         }
-        url = new URL(origin + path2);
+        url = new URL(origin + path);
       }
       return url;
     }
@@ -2602,19 +2602,19 @@ var require_parseParams = __commonJS({
 var require_basename = __commonJS({
   "node_modules/@fastify/busboy/lib/utils/basename.js"(exports2, module2) {
     "use strict";
-    module2.exports = function basename(path2) {
-      if (typeof path2 !== "string") {
+    module2.exports = function basename(path) {
+      if (typeof path !== "string") {
         return "";
       }
-      for (var i = path2.length - 1; i >= 0; --i) {
-        switch (path2.charCodeAt(i)) {
+      for (var i = path.length - 1; i >= 0; --i) {
+        switch (path.charCodeAt(i)) {
           case 47:
           case 92:
-            path2 = path2.slice(i + 1);
-            return path2 === ".." || path2 === "." ? "" : path2;
+            path = path.slice(i + 1);
+            return path === ".." || path === "." ? "" : path;
         }
       }
-      return path2 === ".." || path2 === "." ? "" : path2;
+      return path === ".." || path === "." ? "" : path;
     };
   }
 });
@@ -5640,7 +5640,7 @@ var require_request = __commonJS({
     }
     var Request = class _Request {
       constructor(origin, {
-        path: path2,
+        path,
         method,
         body,
         headers,
@@ -5654,11 +5654,11 @@ var require_request = __commonJS({
         throwOnError,
         expectContinue
       }, handler) {
-        if (typeof path2 !== "string") {
+        if (typeof path !== "string") {
           throw new InvalidArgumentError("path must be a string");
-        } else if (path2[0] !== "/" && !(path2.startsWith("http://") || path2.startsWith("https://")) && method !== "CONNECT") {
+        } else if (path[0] !== "/" && !(path.startsWith("http://") || path.startsWith("https://")) && method !== "CONNECT") {
           throw new InvalidArgumentError("path must be an absolute URL or start with a slash");
-        } else if (invalidPathRegex.exec(path2) !== null) {
+        } else if (invalidPathRegex.exec(path) !== null) {
           throw new InvalidArgumentError("invalid request path");
         }
         if (typeof method !== "string") {
@@ -5721,7 +5721,7 @@ var require_request = __commonJS({
         this.completed = false;
         this.aborted = false;
         this.upgrade = upgrade || null;
-        this.path = query ? util.buildURL(path2, query) : path2;
+        this.path = query ? util.buildURL(path, query) : path;
         this.origin = origin;
         this.idempotent = idempotent == null ? method === "HEAD" || method === "GET" : idempotent;
         this.blocking = blocking == null ? false : blocking;
@@ -6738,9 +6738,9 @@ var require_RedirectHandler = __commonJS({
           return this.handler.onHeaders(statusCode, headers, resume, statusText);
         }
         const { origin, pathname, search } = util.parseURL(new URL(this.location, this.opts.origin && new URL(this.opts.path, this.opts.origin)));
-        const path2 = search ? `${pathname}${search}` : pathname;
+        const path = search ? `${pathname}${search}` : pathname;
         this.opts.headers = cleanRequestHeaders(this.opts.headers, statusCode === 303, this.opts.origin !== origin);
-        this.opts.path = path2;
+        this.opts.path = path;
         this.opts.origin = origin;
         this.opts.maxRedirections = 0;
         this.opts.query = null;
@@ -7980,7 +7980,7 @@ var require_client = __commonJS({
         writeH2(client, client[kHTTP2Session], request);
         return;
       }
-      const { body, method, path: path2, host, upgrade, headers, blocking, reset } = request;
+      const { body, method, path, host, upgrade, headers, blocking, reset } = request;
       const expectsPayload = method === "PUT" || method === "POST" || method === "PATCH";
       if (body && typeof body.read === "function") {
         body.read(0);
@@ -8030,7 +8030,7 @@ var require_client = __commonJS({
       if (blocking) {
         socket[kBlocking] = true;
       }
-      let header = `${method} ${path2} HTTP/1.1\r
+      let header = `${method} ${path} HTTP/1.1\r
 `;
       if (typeof host === "string") {
         header += `host: ${host}\r
@@ -8093,7 +8093,7 @@ upgrade: ${upgrade}\r
       return true;
     }
     function writeH2(client, session, request) {
-      const { body, method, path: path2, host, upgrade, expectContinue, signal, headers: reqHeaders } = request;
+      const { body, method, path, host, upgrade, expectContinue, signal, headers: reqHeaders } = request;
       let headers;
       if (typeof reqHeaders === "string")
         headers = Request[kHTTP2CopyHeaders](reqHeaders.trim());
@@ -8139,7 +8139,7 @@ upgrade: ${upgrade}\r
         });
         return true;
       }
-      headers[HTTP2_HEADER_PATH] = path2;
+      headers[HTTP2_HEADER_PATH] = path;
       headers[HTTP2_HEADER_SCHEME] = "https";
       const expectsPayload = method === "PUT" || method === "POST" || method === "PATCH";
       if (body && typeof body.read === "function") {
@@ -10380,20 +10380,20 @@ var require_mock_utils = __commonJS({
       }
       return true;
     }
-    function safeUrl(path2) {
-      if (typeof path2 !== "string") {
-        return path2;
+    function safeUrl(path) {
+      if (typeof path !== "string") {
+        return path;
       }
-      const pathSegments = path2.split("?");
+      const pathSegments = path.split("?");
       if (pathSegments.length !== 2) {
-        return path2;
+        return path;
       }
       const qp = new URLSearchParams(pathSegments.pop());
       qp.sort();
       return [...pathSegments, qp.toString()].join("?");
     }
-    function matchKey(mockDispatch2, { path: path2, method, body, headers }) {
-      const pathMatch = matchValue(mockDispatch2.path, path2);
+    function matchKey(mockDispatch2, { path, method, body, headers }) {
+      const pathMatch = matchValue(mockDispatch2.path, path);
       const methodMatch = matchValue(mockDispatch2.method, method);
       const bodyMatch = typeof mockDispatch2.body !== "undefined" ? matchValue(mockDispatch2.body, body) : true;
       const headersMatch = matchHeaders(mockDispatch2, headers);
@@ -10411,7 +10411,7 @@ var require_mock_utils = __commonJS({
     function getMockDispatch(mockDispatches, key) {
       const basePath = key.query ? buildURL(key.path, key.query) : key.path;
       const resolvedPath = typeof basePath === "string" ? safeUrl(basePath) : basePath;
-      let matchedMockDispatches = mockDispatches.filter(({ consumed }) => !consumed).filter(({ path: path2 }) => matchValue(safeUrl(path2), resolvedPath));
+      let matchedMockDispatches = mockDispatches.filter(({ consumed }) => !consumed).filter(({ path }) => matchValue(safeUrl(path), resolvedPath));
       if (matchedMockDispatches.length === 0) {
         throw new MockNotMatchedError(`Mock dispatch not matched for path '${resolvedPath}'`);
       }
@@ -10448,9 +10448,9 @@ var require_mock_utils = __commonJS({
       }
     }
     function buildKey(opts) {
-      const { path: path2, method, body, headers, query } = opts;
+      const { path, method, body, headers, query } = opts;
       return {
-        path: path2,
+        path,
         method,
         body,
         headers,
@@ -10899,10 +10899,10 @@ var require_pending_interceptors_formatter = __commonJS({
       }
       format(pendingInterceptors) {
         const withPrettyHeaders = pendingInterceptors.map(
-          ({ method, path: path2, data: { statusCode }, persist, times, timesInvoked, origin }) => ({
+          ({ method, path, data: { statusCode }, persist, times, timesInvoked, origin }) => ({
             Method: method,
             Origin: origin,
-            Path: path2,
+            Path: path,
             "Status code": statusCode,
             Persistent: persist ? "\u2705" : "\u274C",
             Invocations: timesInvoked,
@@ -15527,8 +15527,8 @@ var require_util6 = __commonJS({
         }
       }
     }
-    function validateCookiePath(path2) {
-      for (const char of path2) {
+    function validateCookiePath(path) {
+      for (const char of path) {
         const code = char.charCodeAt(0);
         if (code < 33 || char === ";") {
           throw new Error("Invalid cookie path");
@@ -17208,11 +17208,11 @@ var require_undici = __commonJS({
           if (typeof opts.path !== "string") {
             throw new InvalidArgumentError("invalid opts.path");
           }
-          let path2 = opts.path;
+          let path = opts.path;
           if (!opts.path.startsWith("/")) {
-            path2 = `/${path2}`;
+            path = `/${path}`;
           }
-          url = new URL(util.parseOrigin(url).origin + path2);
+          url = new URL(util.parseOrigin(url).origin + path);
         } else {
           if (!opts) {
             opts = typeof url === "object" ? url : {};
@@ -18445,7 +18445,7 @@ var require_path_utils = __commonJS({
     };
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.toPlatformPath = exports2.toWin32Path = exports2.toPosixPath = void 0;
-    var path2 = __importStar(require("path"));
+    var path = __importStar(require("path"));
     function toPosixPath(pth) {
       return pth.replace(/[\\]/g, "/");
     }
@@ -18455,7 +18455,7 @@ var require_path_utils = __commonJS({
     }
     exports2.toWin32Path = toWin32Path;
     function toPlatformPath(pth) {
-      return pth.replace(/[/\\]/g, path2.sep);
+      return pth.replace(/[/\\]/g, path.sep);
     }
     exports2.toPlatformPath = toPlatformPath;
   }
@@ -18524,7 +18524,7 @@ var require_io_util = __commonJS({
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.getCmdPath = exports2.tryGetExecutablePath = exports2.isRooted = exports2.isDirectory = exports2.exists = exports2.READONLY = exports2.UV_FS_O_EXLOCK = exports2.IS_WINDOWS = exports2.unlink = exports2.symlink = exports2.stat = exports2.rmdir = exports2.rm = exports2.rename = exports2.readlink = exports2.readdir = exports2.open = exports2.mkdir = exports2.lstat = exports2.copyFile = exports2.chmod = void 0;
     var fs = __importStar(require("fs"));
-    var path2 = __importStar(require("path"));
+    var path = __importStar(require("path"));
     _a = fs.promises, exports2.chmod = _a.chmod, exports2.copyFile = _a.copyFile, exports2.lstat = _a.lstat, exports2.mkdir = _a.mkdir, exports2.open = _a.open, exports2.readdir = _a.readdir, exports2.readlink = _a.readlink, exports2.rename = _a.rename, exports2.rm = _a.rm, exports2.rmdir = _a.rmdir, exports2.stat = _a.stat, exports2.symlink = _a.symlink, exports2.unlink = _a.unlink;
     exports2.IS_WINDOWS = process.platform === "win32";
     exports2.UV_FS_O_EXLOCK = 268435456;
@@ -18573,7 +18573,7 @@ var require_io_util = __commonJS({
         }
         if (stats && stats.isFile()) {
           if (exports2.IS_WINDOWS) {
-            const upperExt = path2.extname(filePath).toUpperCase();
+            const upperExt = path.extname(filePath).toUpperCase();
             if (extensions.some((validExt) => validExt.toUpperCase() === upperExt)) {
               return filePath;
             }
@@ -18597,11 +18597,11 @@ var require_io_util = __commonJS({
           if (stats && stats.isFile()) {
             if (exports2.IS_WINDOWS) {
               try {
-                const directory = path2.dirname(filePath);
-                const upperName = path2.basename(filePath).toUpperCase();
+                const directory = path.dirname(filePath);
+                const upperName = path.basename(filePath).toUpperCase();
                 for (const actualName of yield exports2.readdir(directory)) {
                   if (upperName === actualName.toUpperCase()) {
-                    filePath = path2.join(directory, actualName);
+                    filePath = path.join(directory, actualName);
                     break;
                   }
                 }
@@ -18701,7 +18701,7 @@ var require_io = __commonJS({
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.findInPath = exports2.which = exports2.mkdirP = exports2.rmRF = exports2.mv = exports2.cp = void 0;
     var assert_1 = require("assert");
-    var path2 = __importStar(require("path"));
+    var path = __importStar(require("path"));
     var ioUtil = __importStar(require_io_util());
     function cp(source, dest, options = {}) {
       return __awaiter(this, void 0, void 0, function* () {
@@ -18710,7 +18710,7 @@ var require_io = __commonJS({
         if (destStat && destStat.isFile() && !force) {
           return;
         }
-        const newDest = destStat && destStat.isDirectory() && copySourceDirectory ? path2.join(dest, path2.basename(source)) : dest;
+        const newDest = destStat && destStat.isDirectory() && copySourceDirectory ? path.join(dest, path.basename(source)) : dest;
         if (!(yield ioUtil.exists(source))) {
           throw new Error(`no such file or directory: ${source}`);
         }
@@ -18722,7 +18722,7 @@ var require_io = __commonJS({
             yield cpDirRecursive(source, newDest, 0, force);
           }
         } else {
-          if (path2.relative(source, newDest) === "") {
+          if (path.relative(source, newDest) === "") {
             throw new Error(`'${newDest}' and '${source}' are the same file`);
           }
           yield copyFile(source, newDest, force);
@@ -18735,7 +18735,7 @@ var require_io = __commonJS({
         if (yield ioUtil.exists(dest)) {
           let destExists = true;
           if (yield ioUtil.isDirectory(dest)) {
-            dest = path2.join(dest, path2.basename(source));
+            dest = path.join(dest, path.basename(source));
             destExists = yield ioUtil.exists(dest);
           }
           if (destExists) {
@@ -18746,7 +18746,7 @@ var require_io = __commonJS({
             }
           }
         }
-        yield mkdirP(path2.dirname(dest));
+        yield mkdirP(path.dirname(dest));
         yield ioUtil.rename(source, dest);
       });
     }
@@ -18809,7 +18809,7 @@ var require_io = __commonJS({
         }
         const extensions = [];
         if (ioUtil.IS_WINDOWS && process.env["PATHEXT"]) {
-          for (const extension of process.env["PATHEXT"].split(path2.delimiter)) {
+          for (const extension of process.env["PATHEXT"].split(path.delimiter)) {
             if (extension) {
               extensions.push(extension);
             }
@@ -18822,12 +18822,12 @@ var require_io = __commonJS({
           }
           return [];
         }
-        if (tool.includes(path2.sep)) {
+        if (tool.includes(path.sep)) {
           return [];
         }
         const directories = [];
         if (process.env.PATH) {
-          for (const p of process.env.PATH.split(path2.delimiter)) {
+          for (const p of process.env.PATH.split(path.delimiter)) {
             if (p) {
               directories.push(p);
             }
@@ -18835,7 +18835,7 @@ var require_io = __commonJS({
         }
         const matches = [];
         for (const directory of directories) {
-          const filePath = yield ioUtil.tryGetExecutablePath(path2.join(directory, tool), extensions);
+          const filePath = yield ioUtil.tryGetExecutablePath(path.join(directory, tool), extensions);
           if (filePath) {
             matches.push(filePath);
           }
@@ -18956,7 +18956,7 @@ var require_toolrunner = __commonJS({
     var os = __importStar(require("os"));
     var events = __importStar(require("events"));
     var child = __importStar(require("child_process"));
-    var path2 = __importStar(require("path"));
+    var path = __importStar(require("path"));
     var io = __importStar(require_io());
     var ioUtil = __importStar(require_io_util());
     var timers_1 = require("timers");
@@ -19171,7 +19171,7 @@ var require_toolrunner = __commonJS({
       exec() {
         return __awaiter(this, void 0, void 0, function* () {
           if (!ioUtil.isRooted(this.toolPath) && (this.toolPath.includes("/") || IS_WINDOWS && this.toolPath.includes("\\"))) {
-            this.toolPath = path2.resolve(process.cwd(), this.options.cwd || process.cwd(), this.toolPath);
+            this.toolPath = path.resolve(process.cwd(), this.options.cwd || process.cwd(), this.toolPath);
           }
           this.toolPath = yield io.which(this.toolPath, true);
           return new Promise((resolve, reject) => __awaiter(this, void 0, void 0, function* () {
@@ -19686,7 +19686,7 @@ var require_core = __commonJS({
     var file_command_1 = require_file_command();
     var utils_1 = require_utils();
     var os = __importStar(require("os"));
-    var path2 = __importStar(require("path"));
+    var path = __importStar(require("path"));
     var oidc_utils_1 = require_oidc_utils();
     var ExitCode;
     (function(ExitCode2) {
@@ -19714,7 +19714,7 @@ var require_core = __commonJS({
       } else {
         (0, command_1.issueCommand)("add-path", {}, inputPath);
       }
-      process.env["PATH"] = `${inputPath}${path2.delimiter}${process.env["PATH"]}`;
+      process.env["PATH"] = `${inputPath}${path.delimiter}${process.env["PATH"]}`;
     }
     exports2.addPath = addPath;
     function getInput(name, options) {
@@ -19851,16 +19851,489 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
   }
 });
 
+// ../pkg/workflow/js/load_agent_output.cjs
+var require_load_agent_output = __commonJS({
+  "../pkg/workflow/js/load_agent_output.cjs"(exports2, module2) {
+    "use strict";
+    var fs = require("fs");
+    var MAX_LOG_CONTENT_LENGTH = 1e4;
+    function truncateForLogging(content) {
+      if (content.length <= MAX_LOG_CONTENT_LENGTH) {
+        return content;
+      }
+      return content.substring(0, MAX_LOG_CONTENT_LENGTH) + `
+... (truncated, total length: ${content.length})`;
+    }
+    function loadAgentOutput2() {
+      const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT;
+      if (!agentOutputFile) {
+        core.info("No GH_AW_AGENT_OUTPUT environment variable found");
+        return { success: false };
+      }
+      let outputContent;
+      try {
+        outputContent = fs.readFileSync(agentOutputFile, "utf8");
+      } catch (error) {
+        const errorMessage = `Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`;
+        core.error(errorMessage);
+        return { success: false, error: errorMessage };
+      }
+      if (outputContent.trim() === "") {
+        core.info("Agent output content is empty");
+        return { success: false };
+      }
+      core.info(`Agent output content length: ${outputContent.length}`);
+      let validatedOutput;
+      try {
+        validatedOutput = JSON.parse(outputContent);
+      } catch (error) {
+        const errorMessage = `Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`;
+        core.error(errorMessage);
+        core.info(`Failed to parse content:
+${truncateForLogging(outputContent)}`);
+        return { success: false, error: errorMessage };
+      }
+      if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
+        core.info("No valid items found in agent output");
+        core.info(`Parsed content: ${truncateForLogging(JSON.stringify(validatedOutput))}`);
+        return { success: false };
+      }
+      return { success: true, items: validatedOutput.items };
+    }
+    module2.exports = { loadAgentOutput: loadAgentOutput2, truncateForLogging, MAX_LOG_CONTENT_LENGTH };
+  }
+});
+
+// ../pkg/workflow/js/get_tracker_id.cjs
+var require_get_tracker_id = __commonJS({
+  "../pkg/workflow/js/get_tracker_id.cjs"(exports2, module2) {
+    "use strict";
+    function getTrackerID2(format) {
+      const trackerID = process.env.GH_AW_TRACKER_ID || "";
+      if (trackerID) {
+        core.info(`Tracker ID: ${trackerID}`);
+        return format === "markdown" ? `
+
+<!-- tracker-id: ${trackerID} -->` : trackerID;
+      }
+      return "";
+    }
+    module2.exports = {
+      getTrackerID: getTrackerID2
+    };
+  }
+});
+
+// ../pkg/workflow/js/messages_core.cjs
+var require_messages_core = __commonJS({
+  "../pkg/workflow/js/messages_core.cjs"(exports2, module2) {
+    "use strict";
+    function getMessages() {
+      const messagesEnv = process.env.GH_AW_SAFE_OUTPUT_MESSAGES;
+      if (!messagesEnv) {
+        return null;
+      }
+      try {
+        return JSON.parse(messagesEnv);
+      } catch (error) {
+        core.warning(`Failed to parse GH_AW_SAFE_OUTPUT_MESSAGES: ${error instanceof Error ? error.message : String(error)}`);
+        return null;
+      }
+    }
+    function renderTemplate(template, context2) {
+      return template.replace(/\{(\w+)\}/g, (match, key) => {
+        const value = context2[key];
+        return value !== void 0 && value !== null ? String(value) : match;
+      });
+    }
+    function toSnakeCase(obj) {
+      const result = {};
+      for (const [key, value] of Object.entries(obj)) {
+        const snakeKey = key.replace(/([A-Z])/g, "_$1").toLowerCase();
+        result[snakeKey] = value;
+        result[key] = value;
+      }
+      return result;
+    }
+    module2.exports = {
+      getMessages,
+      renderTemplate,
+      toSnakeCase
+    };
+  }
+});
+
+// ../pkg/workflow/js/messages_close_discussion.cjs
+var require_messages_close_discussion = __commonJS({
+  "../pkg/workflow/js/messages_close_discussion.cjs"(exports2, module2) {
+    "use strict";
+    var { getMessages, renderTemplate, toSnakeCase } = require_messages_core();
+    function getCloseOlderDiscussionMessage(ctx) {
+      const messages = getMessages();
+      const templateContext = toSnakeCase(ctx);
+      const defaultMessage = `\u2693 Avast! This discussion be marked as **outdated** by [{workflow_name}]({run_url}).
+
+\u{1F5FA}\uFE0F A newer treasure map awaits ye at **[Discussion #{new_discussion_number}]({new_discussion_url})**.
+
+Fair winds, matey! \u{1F3F4}\u200D\u2620\uFE0F`;
+      return messages?.closeOlderDiscussion ? renderTemplate(messages.closeOlderDiscussion, templateContext) : renderTemplate(defaultMessage, templateContext);
+    }
+    module2.exports = {
+      getCloseOlderDiscussionMessage
+    };
+  }
+});
+
+// ../pkg/workflow/js/close_older_discussions.cjs
+var require_close_older_discussions = __commonJS({
+  "../pkg/workflow/js/close_older_discussions.cjs"(exports2, module2) {
+    "use strict";
+    var { getCloseOlderDiscussionMessage } = require_messages_close_discussion();
+    var MAX_CLOSE_COUNT = 10;
+    var GRAPHQL_DELAY_MS = 500;
+    function delay(ms) {
+      return new Promise((resolve) => setTimeout(resolve, ms));
+    }
+    async function searchOlderDiscussions(github2, owner, repo, titlePrefix, labels, categoryId, excludeNumber) {
+      let searchQuery = `repo:${owner}/${repo} is:open`;
+      if (titlePrefix) {
+        const escapedPrefix = titlePrefix.replace(/"/g, '\\"');
+        searchQuery += ` in:title "${escapedPrefix}"`;
+      }
+      if (labels && labels.length > 0) {
+        for (const label of labels) {
+          const escapedLabel = label.replace(/"/g, '\\"');
+          searchQuery += ` label:"${escapedLabel}"`;
+        }
+      }
+      const result = await github2.graphql(
+        `
+    query($searchTerms: String!, $first: Int!) {
+      search(query: $searchTerms, type: DISCUSSION, first: $first) {
+        nodes {
+          ... on Discussion {
+            id
+            number
+            title
+            url
+            category {
+              id
+            }
+            labels(first: 100) {
+              nodes {
+                name
+              }
+            }
+            closed
+          }
+        }
+      }
+    }`,
+        { searchTerms: searchQuery, first: 50 }
+      );
+      if (!result || !result.search || !result.search.nodes) {
+        return [];
+      }
+      return result.search.nodes.filter(
+        /** @param {any} d */
+        (d) => {
+          if (!d || d.number === excludeNumber || d.closed) {
+            return false;
+          }
+          if (titlePrefix && d.title && !d.title.startsWith(titlePrefix)) {
+            return false;
+          }
+          if (labels && labels.length > 0) {
+            const discussionLabels = d.labels?.nodes?.map((l) => l.name) || [];
+            const hasAllLabels = labels.every((label) => discussionLabels.includes(label));
+            if (!hasAllLabels) {
+              return false;
+            }
+          }
+          if (categoryId && (!d.category || d.category.id !== categoryId)) {
+            return false;
+          }
+          return true;
+        }
+      ).map(
+        /** @param {any} d */
+        (d) => ({
+          id: d.id,
+          number: d.number,
+          title: d.title,
+          url: d.url
+        })
+      );
+    }
+    async function addDiscussionComment(github2, discussionId, message) {
+      const result = await github2.graphql(
+        `
+    mutation($dId: ID!, $body: String!) {
+      addDiscussionComment(input: { discussionId: $dId, body: $body }) {
+        comment { 
+          id 
+          url
+        }
+      }
+    }`,
+        { dId: discussionId, body: message }
+      );
+      return result.addDiscussionComment.comment;
+    }
+    async function closeDiscussionAsOutdated(github2, discussionId) {
+      const result = await github2.graphql(
+        `
+    mutation($dId: ID!) {
+      closeDiscussion(input: { discussionId: $dId, reason: OUTDATED }) {
+        discussion { 
+          id
+          url
+        }
+      }
+    }`,
+        { dId: discussionId }
+      );
+      return result.closeDiscussion.discussion;
+    }
+    async function closeOlderDiscussions2(github2, owner, repo, titlePrefix, labels, categoryId, newDiscussion, workflowName, runUrl) {
+      const searchCriteria = [];
+      if (titlePrefix)
+        searchCriteria.push(`title prefix: "${titlePrefix}"`);
+      if (labels && labels.length > 0)
+        searchCriteria.push(`labels: [${labels.join(", ")}]`);
+      core.info(`Searching for older discussions with ${searchCriteria.join(" and ")}`);
+      const olderDiscussions = await searchOlderDiscussions(github2, owner, repo, titlePrefix, labels, categoryId, newDiscussion.number);
+      if (olderDiscussions.length === 0) {
+        core.info("No older discussions found to close");
+        return [];
+      }
+      core.info(`Found ${olderDiscussions.length} older discussion(s) to close`);
+      const discussionsToClose = olderDiscussions.slice(0, MAX_CLOSE_COUNT);
+      if (olderDiscussions.length > MAX_CLOSE_COUNT) {
+        core.warning(`Found ${olderDiscussions.length} older discussions, but only closing the first ${MAX_CLOSE_COUNT}`);
+      }
+      const closedDiscussions = [];
+      for (let i = 0; i < discussionsToClose.length; i++) {
+        const discussion = discussionsToClose[i];
+        try {
+          const closingMessage = getCloseOlderDiscussionMessage({
+            newDiscussionUrl: newDiscussion.url,
+            newDiscussionNumber: newDiscussion.number,
+            workflowName,
+            runUrl
+          });
+          core.info(`Adding closing comment to discussion #${discussion.number}`);
+          await addDiscussionComment(github2, discussion.id, closingMessage);
+          core.info(`Closing discussion #${discussion.number} as outdated`);
+          await closeDiscussionAsOutdated(github2, discussion.id);
+          closedDiscussions.push({
+            number: discussion.number,
+            url: discussion.url
+          });
+          core.info(`\u2713 Closed discussion #${discussion.number}: ${discussion.url}`);
+        } catch (error) {
+          core.error(`\u2717 Failed to close discussion #${discussion.number}: ${error instanceof Error ? error.message : String(error)}`);
+        }
+        if (i < discussionsToClose.length - 1) {
+          await delay(GRAPHQL_DELAY_MS);
+        }
+      }
+      return closedDiscussions;
+    }
+    module2.exports = {
+      closeOlderDiscussions: closeOlderDiscussions2,
+      searchOlderDiscussions,
+      addDiscussionComment,
+      closeDiscussionAsOutdated,
+      MAX_CLOSE_COUNT,
+      GRAPHQL_DELAY_MS
+    };
+  }
+});
+
+// ../pkg/workflow/js/temporary_id.cjs
+var require_temporary_id = __commonJS({
+  "../pkg/workflow/js/temporary_id.cjs"(exports2, module2) {
+    "use strict";
+    var crypto = require("crypto");
+    var TEMPORARY_ID_PATTERN = /#(aw_[0-9a-f]{12})/gi;
+    function generateTemporaryId() {
+      return "aw_" + crypto.randomBytes(6).toString("hex");
+    }
+    function isTemporaryId(value) {
+      if (typeof value === "string") {
+        return /^aw_[0-9a-f]{12}$/i.test(value);
+      }
+      return false;
+    }
+    function normalizeTemporaryId(tempId) {
+      return String(tempId).toLowerCase();
+    }
+    function replaceTemporaryIdReferences2(text, tempIdMap, currentRepo) {
+      return text.replace(TEMPORARY_ID_PATTERN, (match, tempId) => {
+        const resolved = tempIdMap.get(normalizeTemporaryId(tempId));
+        if (resolved !== void 0) {
+          if (currentRepo && resolved.repo === currentRepo) {
+            return `#${resolved.number}`;
+          }
+          return `${resolved.repo}#${resolved.number}`;
+        }
+        return match;
+      });
+    }
+    function replaceTemporaryIdReferencesLegacy(text, tempIdMap) {
+      return text.replace(TEMPORARY_ID_PATTERN, (match, tempId) => {
+        const issueNumber = tempIdMap.get(normalizeTemporaryId(tempId));
+        if (issueNumber !== void 0) {
+          return `#${issueNumber}`;
+        }
+        return match;
+      });
+    }
+    function loadTemporaryIdMap2() {
+      const mapJson = process.env.GH_AW_TEMPORARY_ID_MAP;
+      if (!mapJson || mapJson === "{}") {
+        return /* @__PURE__ */ new Map();
+      }
+      try {
+        const mapObject = JSON.parse(mapJson);
+        const result = /* @__PURE__ */ new Map();
+        for (const [key, value] of Object.entries(mapObject)) {
+          const normalizedKey = normalizeTemporaryId(key);
+          if (typeof value === "number") {
+            const contextRepo = `${context.repo.owner}/${context.repo.repo}`;
+            result.set(normalizedKey, { repo: contextRepo, number: value });
+          } else if (typeof value === "object" && value !== null && "repo" in value && "number" in value) {
+            result.set(normalizedKey, { repo: String(value.repo), number: Number(value.number) });
+          }
+        }
+        return result;
+      } catch (error) {
+        if (typeof core !== "undefined") {
+          core.warning(`Failed to parse temporary ID map: ${error instanceof Error ? error.message : String(error)}`);
+        }
+        return /* @__PURE__ */ new Map();
+      }
+    }
+    function resolveIssueNumber(value, temporaryIdMap) {
+      if (value === void 0 || value === null) {
+        return { resolved: null, wasTemporaryId: false, errorMessage: "Issue number is missing" };
+      }
+      const valueStr = String(value);
+      if (isTemporaryId(valueStr)) {
+        const resolvedPair = temporaryIdMap.get(normalizeTemporaryId(valueStr));
+        if (resolvedPair !== void 0) {
+          return { resolved: resolvedPair, wasTemporaryId: true, errorMessage: null };
+        }
+        return {
+          resolved: null,
+          wasTemporaryId: true,
+          errorMessage: `Temporary ID '${valueStr}' not found in map. Ensure the issue was created before linking.`
+        };
+      }
+      const issueNumber = typeof value === "number" ? value : parseInt(valueStr, 10);
+      if (isNaN(issueNumber) || issueNumber <= 0) {
+        return { resolved: null, wasTemporaryId: false, errorMessage: `Invalid issue number: ${value}` };
+      }
+      const contextRepo = typeof context !== "undefined" ? `${context.repo.owner}/${context.repo.repo}` : "";
+      return { resolved: { repo: contextRepo, number: issueNumber }, wasTemporaryId: false, errorMessage: null };
+    }
+    function serializeTemporaryIdMap(tempIdMap) {
+      const obj = Object.fromEntries(tempIdMap);
+      return JSON.stringify(obj);
+    }
+    module2.exports = {
+      TEMPORARY_ID_PATTERN,
+      generateTemporaryId,
+      isTemporaryId,
+      normalizeTemporaryId,
+      replaceTemporaryIdReferences: replaceTemporaryIdReferences2,
+      replaceTemporaryIdReferencesLegacy,
+      loadTemporaryIdMap: loadTemporaryIdMap2,
+      resolveIssueNumber,
+      serializeTemporaryIdMap
+    };
+  }
+});
+
+// ../pkg/workflow/js/repo_helpers.cjs
+var require_repo_helpers = __commonJS({
+  "../pkg/workflow/js/repo_helpers.cjs"(exports2, module2) {
+    "use strict";
+    function parseAllowedRepos2() {
+      const allowedReposEnv = process.env.GH_AW_ALLOWED_REPOS;
+      const set = /* @__PURE__ */ new Set();
+      if (allowedReposEnv) {
+        allowedReposEnv.split(",").map((repo) => repo.trim()).filter((repo) => repo).forEach((repo) => set.add(repo));
+      }
+      return set;
+    }
+    function getDefaultTargetRepo2() {
+      const targetRepoSlug = process.env.GH_AW_TARGET_REPO_SLUG;
+      if (targetRepoSlug) {
+        return targetRepoSlug;
+      }
+      return `${context.repo.owner}/${context.repo.repo}`;
+    }
+    function validateRepo2(repo, defaultRepo, allowedRepos) {
+      if (repo === defaultRepo) {
+        return { valid: true, error: null };
+      }
+      if (allowedRepos.has(repo)) {
+        return { valid: true, error: null };
+      }
+      return {
+        valid: false,
+        error: `Repository '${repo}' is not in the allowed-repos list. Allowed: ${defaultRepo}${allowedRepos.size > 0 ? ", " + Array.from(allowedRepos).join(", ") : ""}`
+      };
+    }
+    function parseRepoSlug2(repoSlug) {
+      const parts = repoSlug.split("/");
+      if (parts.length !== 2 || !parts[0] || !parts[1]) {
+        return null;
+      }
+      return { owner: parts[0], repo: parts[1] };
+    }
+    module2.exports = {
+      parseAllowedRepos: parseAllowedRepos2,
+      getDefaultTargetRepo: getDefaultTargetRepo2,
+      validateRepo: validateRepo2,
+      parseRepoSlug: parseRepoSlug2
+    };
+  }
+});
+
+// ../pkg/workflow/js/expiration_helpers.cjs
+var require_expiration_helpers = __commonJS({
+  "../pkg/workflow/js/expiration_helpers.cjs"(exports2, module2) {
+    "use strict";
+    function addExpirationComment2(bodyLines, envVarName, entityType) {
+      const expiresEnv = process.env[envVarName];
+      if (expiresEnv) {
+        const expiresDays = parseInt(expiresEnv, 10);
+        if (!isNaN(expiresDays) && expiresDays > 0) {
+          const expirationDate = /* @__PURE__ */ new Date();
+          expirationDate.setDate(expirationDate.getDate() + expiresDays);
+          const expirationISO = expirationDate.toISOString();
+          bodyLines.push(`<!-- gh-aw-expires: ${expirationISO} -->`);
+          core.info(`${entityType} will expire on ${expirationISO} (${expiresDays} days)`);
+        }
+      }
+    }
+    module2.exports = {
+      addExpirationComment: addExpirationComment2
+    };
+  }
+});
+
 // create-discussion/src/index.js
-var core = require_core();
-var path = require("path");
-var jsDir = path.join(__dirname, "..", "..", "pkg", "workflow", "js");
-var { loadAgentOutput } = require(path.join(jsDir, "load_agent_output.cjs"));
-var { getTrackerID } = require(path.join(jsDir, "get_tracker_id.cjs"));
-var { closeOlderDiscussions } = require(path.join(jsDir, "close_older_discussions.cjs"));
-var { replaceTemporaryIdReferences, loadTemporaryIdMap } = require(path.join(jsDir, "temporary_id.cjs"));
-var { parseAllowedRepos, getDefaultTargetRepo, validateRepo, parseRepoSlug } = require(path.join(jsDir, "repo_helpers.cjs"));
-var { addExpirationComment } = require(path.join(jsDir, "expiration_helpers.cjs"));
+var core2 = require_core();
+var { loadAgentOutput } = require_load_agent_output();
+var { getTrackerID } = require_get_tracker_id();
+var { closeOlderDiscussions } = require_close_older_discussions();
+var { replaceTemporaryIdReferences, loadTemporaryIdMap } = require_temporary_id();
+var { parseAllowedRepos, getDefaultTargetRepo, validateRepo, parseRepoSlug } = require_repo_helpers();
+var { addExpirationComment } = require_expiration_helpers();
 async function fetchRepoDiscussionInfo(owner, repo) {
   const repositoryQuery = `
     query($owner: String!, $repo: String!) {
@@ -19916,11 +20389,11 @@ function resolveCategoryId(categoryConfig, itemCategory, categories) {
   return void 0;
 }
 async function main() {
-  core.setOutput("discussion_number", "");
-  core.setOutput("discussion_url", "");
+  core2.setOutput("discussion_number", "");
+  core2.setOutput("discussion_url", "");
   const temporaryIdMap = loadTemporaryIdMap();
   if (temporaryIdMap.size > 0) {
-    core.info(`Loaded temporary ID map with ${temporaryIdMap.size} entries`);
+    core2.info(`Loaded temporary ID map with ${temporaryIdMap.size} entries`);
   }
   const result = loadAgentOutput();
   if (!result.success) {
@@ -19928,15 +20401,15 @@ async function main() {
   }
   const createDiscussionItems = result.items.filter((item) => item.type === "create_discussion");
   if (createDiscussionItems.length === 0) {
-    core.warning("No create-discussion items found in agent output");
+    core2.warning("No create-discussion items found in agent output");
     return;
   }
-  core.info(`Found ${createDiscussionItems.length} create-discussion item(s)`);
+  core2.info(`Found ${createDiscussionItems.length} create-discussion item(s)`);
   const allowedRepos = parseAllowedRepos();
   const defaultTargetRepo = getDefaultTargetRepo();
-  core.info(`Default target repo: ${defaultTargetRepo}`);
+  core2.info(`Default target repo: ${defaultTargetRepo}`);
   if (allowedRepos.size > 0) {
-    core.info(`Allowed repos: ${Array.from(allowedRepos).join(", ")}`);
+    core2.info(`Allowed repos: ${Array.from(allowedRepos).join(", ")}`);
   }
   if (process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true") {
     let summaryContent = "## \u{1F3AD} Staged Mode: Create Discussions Preview\n\n";
@@ -19966,8 +20439,8 @@ ${item.body}
       }
       summaryContent += "---\n\n";
     }
-    await core.summary.addRaw(summaryContent).write();
-    core.info("\u{1F4DD} Discussion creation preview written to step summary");
+    await core2.summary.addRaw(summaryContent).write();
+    core2.info("\u{1F4DD} Discussion creation preview written to step summary");
     return;
   }
   const repoInfoCache = /* @__PURE__ */ new Map();
@@ -19987,12 +20460,12 @@ ${item.body}
     const itemRepo = createDiscussionItem.repo ? String(createDiscussionItem.repo).trim() : defaultTargetRepo;
     const repoValidation = validateRepo(itemRepo, defaultTargetRepo, allowedRepos);
     if (!repoValidation.valid) {
-      core.warning(`Skipping discussion: ${repoValidation.error}`);
+      core2.warning(`Skipping discussion: ${repoValidation.error}`);
       continue;
     }
     const repoParts = parseRepoSlug(itemRepo);
     if (!repoParts) {
-      core.warning(`Skipping discussion: Invalid repository format '${itemRepo}'. Expected 'owner/repo'.`);
+      core2.warning(`Skipping discussion: Invalid repository format '${itemRepo}'. Expected 'owner/repo'.`);
       continue;
     }
     let repoInfo = repoInfoCache.get(itemRepo);
@@ -20000,46 +20473,46 @@ ${item.body}
       try {
         const fetchedInfo = await fetchRepoDiscussionInfo(repoParts.owner, repoParts.repo);
         if (!fetchedInfo) {
-          core.warning(`Skipping discussion: Failed to fetch repository information for '${itemRepo}'`);
+          core2.warning(`Skipping discussion: Failed to fetch repository information for '${itemRepo}'`);
           continue;
         }
         repoInfo = fetchedInfo;
         repoInfoCache.set(itemRepo, repoInfo);
-        core.info(
+        core2.info(
           `Fetched discussion categories for ${itemRepo}: ${JSON.stringify(repoInfo.discussionCategories.map((cat) => ({ name: cat.name, id: cat.id })))}`
         );
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
         if (errorMessage.includes("Not Found") || errorMessage.includes("not found") || errorMessage.includes("Could not resolve to a Repository")) {
-          core.warning(`Skipping discussion: Discussions are not enabled for repository '${itemRepo}'`);
+          core2.warning(`Skipping discussion: Discussions are not enabled for repository '${itemRepo}'`);
           continue;
         }
-        core.error(`Failed to get discussion categories for ${itemRepo}: ${errorMessage}`);
+        core2.error(`Failed to get discussion categories for ${itemRepo}: ${errorMessage}`);
         throw error;
       }
     }
     const categoryInfo = resolveCategoryId(configCategory, createDiscussionItem.category, repoInfo.discussionCategories);
     if (!categoryInfo) {
-      core.warning(`Skipping discussion in ${itemRepo}: No discussion category available`);
+      core2.warning(`Skipping discussion in ${itemRepo}: No discussion category available`);
       continue;
     }
     if (categoryInfo.matchType === "name") {
-      core.info(`Using category by name: ${categoryInfo.name} (${categoryInfo.id})`);
+      core2.info(`Using category by name: ${categoryInfo.name} (${categoryInfo.id})`);
     } else if (categoryInfo.matchType === "slug") {
-      core.info(`Using category by slug: ${categoryInfo.name} (${categoryInfo.id})`);
+      core2.info(`Using category by slug: ${categoryInfo.name} (${categoryInfo.id})`);
     } else if (categoryInfo.matchType === "fallback") {
       if (categoryInfo.requestedCategory) {
         const availableCategoryNames = repoInfo.discussionCategories.map((cat) => cat.name).join(", ");
-        core.warning(
+        core2.warning(
           `Category "${categoryInfo.requestedCategory}" not found by ID, name, or slug. Available categories: ${availableCategoryNames}`
         );
-        core.info(`Falling back to default category: ${categoryInfo.name} (${categoryInfo.id})`);
+        core2.info(`Falling back to default category: ${categoryInfo.name} (${categoryInfo.id})`);
       } else {
-        core.info(`Using default first category: ${categoryInfo.name} (${categoryInfo.id})`);
+        core2.info(`Using default first category: ${categoryInfo.name} (${categoryInfo.id})`);
       }
     }
     const categoryId = categoryInfo.id;
-    core.info(
+    core2.info(
       `Processing create-discussion item ${i + 1}/${createDiscussionItems.length}: title=${createDiscussionItem.title}, bodyLength=${createDiscussionItem.body?.length || 0}, repo=${itemRepo}`
     );
     let title = createDiscussionItem.title ? replaceTemporaryIdReferences(createDiscussionItem.title.trim(), temporaryIdMap, itemRepo) : "";
@@ -20058,9 +20531,9 @@ ${item.body}
     addExpirationComment(bodyLines, "GH_AW_DISCUSSION_EXPIRES", "Discussion");
     bodyLines.push(``, ``, `> AI generated by [${workflowName}](${runUrl})`, "");
     const body = bodyLines.join("\n").trim();
-    core.info(`Creating discussion in ${itemRepo} with title: ${title}`);
-    core.info(`Category ID: ${categoryId}`);
-    core.info(`Body length: ${body.length}`);
+    core2.info(`Creating discussion in ${itemRepo} with title: ${title}`);
+    core2.info(`Category ID: ${categoryId}`);
+    core2.info(`Body length: ${body.length}`);
     try {
       const createDiscussionMutation = `
         mutation($repositoryId: ID!, $categoryId: ID!, $title: String!, $body: String!) {
@@ -20087,18 +20560,18 @@ ${item.body}
       });
       const discussion = mutationResult.createDiscussion.discussion;
       if (!discussion) {
-        core.error(`Failed to create discussion in ${itemRepo}: No discussion data returned`);
+        core2.error(`Failed to create discussion in ${itemRepo}: No discussion data returned`);
         continue;
       }
-      core.info(`Created discussion ${itemRepo}#${discussion.number}: ${discussion.url}`);
+      core2.info(`Created discussion ${itemRepo}#${discussion.number}: ${discussion.url}`);
       createdDiscussions.push({ ...discussion, _repo: itemRepo });
       if (i === createDiscussionItems.length - 1) {
-        core.setOutput("discussion_number", discussion.number);
-        core.setOutput("discussion_url", discussion.url);
+        core2.setOutput("discussion_number", discussion.number);
+        core2.setOutput("discussion_url", discussion.url);
       }
       const hasMatchingCriteria = titlePrefix || labels.length > 0;
       if (closeOlderEnabled && hasMatchingCriteria) {
-        core.info("close-older-discussions is enabled, searching for older discussions to close...");
+        core2.info("close-older-discussions is enabled, searching for older discussions to close...");
         try {
           const closedDiscussions = await closeOlderDiscussions(
             github,
@@ -20113,16 +20586,16 @@ ${item.body}
           );
           if (closedDiscussions.length > 0) {
             closedDiscussionsSummary.push(...closedDiscussions);
-            core.info(`Closed ${closedDiscussions.length} older discussion(s) as outdated`);
+            core2.info(`Closed ${closedDiscussions.length} older discussion(s) as outdated`);
           }
         } catch (closeError) {
-          core.warning(`Failed to close older discussions: ${closeError instanceof Error ? closeError.message : String(closeError)}`);
+          core2.warning(`Failed to close older discussions: ${closeError instanceof Error ? closeError.message : String(closeError)}`);
         }
       } else if (closeOlderEnabled && !hasMatchingCriteria) {
-        core.warning("close-older-discussions is enabled but no title-prefix or labels are set - skipping close older discussions");
+        core2.warning("close-older-discussions is enabled but no title-prefix or labels are set - skipping close older discussions");
       }
     } catch (error) {
-      core.error(`\u2717 Failed to create discussion "${title}" in ${itemRepo}: ${error instanceof Error ? error.message : String(error)}`);
+      core2.error(`\u2717 Failed to create discussion "${title}" in ${itemRepo}: ${error instanceof Error ? error.message : String(error)}`);
       throw error;
     }
   }
@@ -20140,9 +20613,9 @@ ${item.body}
 `;
       }
     }
-    await core.summary.addRaw(summaryContent).write();
+    await core2.summary.addRaw(summaryContent).write();
   }
-  core.info(`Successfully created ${createdDiscussions.length} discussion(s)`);
+  core2.info(`Successfully created ${createdDiscussions.length} discussion(s)`);
 }
 (async () => {
   await main();

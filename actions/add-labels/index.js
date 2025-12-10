@@ -979,14 +979,14 @@ var require_util = __commonJS({
         }
         const port = url.port != null ? url.port : url.protocol === "https:" ? 443 : 80;
         let origin = url.origin != null ? url.origin : `${url.protocol}//${url.hostname}:${port}`;
-        let path2 = url.path != null ? url.path : `${url.pathname || ""}${url.search || ""}`;
+        let path = url.path != null ? url.path : `${url.pathname || ""}${url.search || ""}`;
         if (origin.endsWith("/")) {
           origin = origin.substring(0, origin.length - 1);
         }
-        if (path2 && !path2.startsWith("/")) {
-          path2 = `/${path2}`;
+        if (path && !path.startsWith("/")) {
+          path = `/${path}`;
         }
-        url = new URL(origin + path2);
+        url = new URL(origin + path);
       }
       return url;
     }
@@ -2602,19 +2602,19 @@ var require_parseParams = __commonJS({
 var require_basename = __commonJS({
   "node_modules/@fastify/busboy/lib/utils/basename.js"(exports2, module2) {
     "use strict";
-    module2.exports = function basename(path2) {
-      if (typeof path2 !== "string") {
+    module2.exports = function basename(path) {
+      if (typeof path !== "string") {
         return "";
       }
-      for (var i = path2.length - 1; i >= 0; --i) {
-        switch (path2.charCodeAt(i)) {
+      for (var i = path.length - 1; i >= 0; --i) {
+        switch (path.charCodeAt(i)) {
           case 47:
           case 92:
-            path2 = path2.slice(i + 1);
-            return path2 === ".." || path2 === "." ? "" : path2;
+            path = path.slice(i + 1);
+            return path === ".." || path === "." ? "" : path;
         }
       }
-      return path2 === ".." || path2 === "." ? "" : path2;
+      return path === ".." || path === "." ? "" : path;
     };
   }
 });
@@ -5640,7 +5640,7 @@ var require_request = __commonJS({
     }
     var Request = class _Request {
       constructor(origin, {
-        path: path2,
+        path,
         method,
         body,
         headers,
@@ -5654,11 +5654,11 @@ var require_request = __commonJS({
         throwOnError,
         expectContinue
       }, handler) {
-        if (typeof path2 !== "string") {
+        if (typeof path !== "string") {
           throw new InvalidArgumentError("path must be a string");
-        } else if (path2[0] !== "/" && !(path2.startsWith("http://") || path2.startsWith("https://")) && method !== "CONNECT") {
+        } else if (path[0] !== "/" && !(path.startsWith("http://") || path.startsWith("https://")) && method !== "CONNECT") {
           throw new InvalidArgumentError("path must be an absolute URL or start with a slash");
-        } else if (invalidPathRegex.exec(path2) !== null) {
+        } else if (invalidPathRegex.exec(path) !== null) {
           throw new InvalidArgumentError("invalid request path");
         }
         if (typeof method !== "string") {
@@ -5721,7 +5721,7 @@ var require_request = __commonJS({
         this.completed = false;
         this.aborted = false;
         this.upgrade = upgrade || null;
-        this.path = query ? util.buildURL(path2, query) : path2;
+        this.path = query ? util.buildURL(path, query) : path;
         this.origin = origin;
         this.idempotent = idempotent == null ? method === "HEAD" || method === "GET" : idempotent;
         this.blocking = blocking == null ? false : blocking;
@@ -6738,9 +6738,9 @@ var require_RedirectHandler = __commonJS({
           return this.handler.onHeaders(statusCode, headers, resume, statusText);
         }
         const { origin, pathname, search } = util.parseURL(new URL(this.location, this.opts.origin && new URL(this.opts.path, this.opts.origin)));
-        const path2 = search ? `${pathname}${search}` : pathname;
+        const path = search ? `${pathname}${search}` : pathname;
         this.opts.headers = cleanRequestHeaders(this.opts.headers, statusCode === 303, this.opts.origin !== origin);
-        this.opts.path = path2;
+        this.opts.path = path;
         this.opts.origin = origin;
         this.opts.maxRedirections = 0;
         this.opts.query = null;
@@ -7980,7 +7980,7 @@ var require_client = __commonJS({
         writeH2(client, client[kHTTP2Session], request);
         return;
       }
-      const { body, method, path: path2, host, upgrade, headers, blocking, reset } = request;
+      const { body, method, path, host, upgrade, headers, blocking, reset } = request;
       const expectsPayload = method === "PUT" || method === "POST" || method === "PATCH";
       if (body && typeof body.read === "function") {
         body.read(0);
@@ -8030,7 +8030,7 @@ var require_client = __commonJS({
       if (blocking) {
         socket[kBlocking] = true;
       }
-      let header = `${method} ${path2} HTTP/1.1\r
+      let header = `${method} ${path} HTTP/1.1\r
 `;
       if (typeof host === "string") {
         header += `host: ${host}\r
@@ -8093,7 +8093,7 @@ upgrade: ${upgrade}\r
       return true;
     }
     function writeH2(client, session, request) {
-      const { body, method, path: path2, host, upgrade, expectContinue, signal, headers: reqHeaders } = request;
+      const { body, method, path, host, upgrade, expectContinue, signal, headers: reqHeaders } = request;
       let headers;
       if (typeof reqHeaders === "string")
         headers = Request[kHTTP2CopyHeaders](reqHeaders.trim());
@@ -8139,7 +8139,7 @@ upgrade: ${upgrade}\r
         });
         return true;
       }
-      headers[HTTP2_HEADER_PATH] = path2;
+      headers[HTTP2_HEADER_PATH] = path;
       headers[HTTP2_HEADER_SCHEME] = "https";
       const expectsPayload = method === "PUT" || method === "POST" || method === "PATCH";
       if (body && typeof body.read === "function") {
@@ -10380,20 +10380,20 @@ var require_mock_utils = __commonJS({
       }
       return true;
     }
-    function safeUrl(path2) {
-      if (typeof path2 !== "string") {
-        return path2;
+    function safeUrl(path) {
+      if (typeof path !== "string") {
+        return path;
       }
-      const pathSegments = path2.split("?");
+      const pathSegments = path.split("?");
       if (pathSegments.length !== 2) {
-        return path2;
+        return path;
       }
       const qp = new URLSearchParams(pathSegments.pop());
       qp.sort();
       return [...pathSegments, qp.toString()].join("?");
     }
-    function matchKey(mockDispatch2, { path: path2, method, body, headers }) {
-      const pathMatch = matchValue(mockDispatch2.path, path2);
+    function matchKey(mockDispatch2, { path, method, body, headers }) {
+      const pathMatch = matchValue(mockDispatch2.path, path);
       const methodMatch = matchValue(mockDispatch2.method, method);
       const bodyMatch = typeof mockDispatch2.body !== "undefined" ? matchValue(mockDispatch2.body, body) : true;
       const headersMatch = matchHeaders(mockDispatch2, headers);
@@ -10411,7 +10411,7 @@ var require_mock_utils = __commonJS({
     function getMockDispatch(mockDispatches, key) {
       const basePath = key.query ? buildURL(key.path, key.query) : key.path;
       const resolvedPath = typeof basePath === "string" ? safeUrl(basePath) : basePath;
-      let matchedMockDispatches = mockDispatches.filter(({ consumed }) => !consumed).filter(({ path: path2 }) => matchValue(safeUrl(path2), resolvedPath));
+      let matchedMockDispatches = mockDispatches.filter(({ consumed }) => !consumed).filter(({ path }) => matchValue(safeUrl(path), resolvedPath));
       if (matchedMockDispatches.length === 0) {
         throw new MockNotMatchedError(`Mock dispatch not matched for path '${resolvedPath}'`);
       }
@@ -10448,9 +10448,9 @@ var require_mock_utils = __commonJS({
       }
     }
     function buildKey(opts) {
-      const { path: path2, method, body, headers, query } = opts;
+      const { path, method, body, headers, query } = opts;
       return {
-        path: path2,
+        path,
         method,
         body,
         headers,
@@ -10899,10 +10899,10 @@ var require_pending_interceptors_formatter = __commonJS({
       }
       format(pendingInterceptors) {
         const withPrettyHeaders = pendingInterceptors.map(
-          ({ method, path: path2, data: { statusCode }, persist, times, timesInvoked, origin }) => ({
+          ({ method, path, data: { statusCode }, persist, times, timesInvoked, origin }) => ({
             Method: method,
             Origin: origin,
-            Path: path2,
+            Path: path,
             "Status code": statusCode,
             Persistent: persist ? "\u2705" : "\u274C",
             Invocations: timesInvoked,
@@ -15527,8 +15527,8 @@ var require_util6 = __commonJS({
         }
       }
     }
-    function validateCookiePath(path2) {
-      for (const char of path2) {
+    function validateCookiePath(path) {
+      for (const char of path) {
         const code = char.charCodeAt(0);
         if (code < 33 || char === ";") {
           throw new Error("Invalid cookie path");
@@ -17208,11 +17208,11 @@ var require_undici = __commonJS({
           if (typeof opts.path !== "string") {
             throw new InvalidArgumentError("invalid opts.path");
           }
-          let path2 = opts.path;
+          let path = opts.path;
           if (!opts.path.startsWith("/")) {
-            path2 = `/${path2}`;
+            path = `/${path}`;
           }
-          url = new URL(util.parseOrigin(url).origin + path2);
+          url = new URL(util.parseOrigin(url).origin + path);
         } else {
           if (!opts) {
             opts = typeof url === "object" ? url : {};
@@ -18445,7 +18445,7 @@ var require_path_utils = __commonJS({
     };
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.toPlatformPath = exports2.toWin32Path = exports2.toPosixPath = void 0;
-    var path2 = __importStar(require("path"));
+    var path = __importStar(require("path"));
     function toPosixPath(pth) {
       return pth.replace(/[\\]/g, "/");
     }
@@ -18455,7 +18455,7 @@ var require_path_utils = __commonJS({
     }
     exports2.toWin32Path = toWin32Path;
     function toPlatformPath(pth) {
-      return pth.replace(/[/\\]/g, path2.sep);
+      return pth.replace(/[/\\]/g, path.sep);
     }
     exports2.toPlatformPath = toPlatformPath;
   }
@@ -18524,7 +18524,7 @@ var require_io_util = __commonJS({
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.getCmdPath = exports2.tryGetExecutablePath = exports2.isRooted = exports2.isDirectory = exports2.exists = exports2.READONLY = exports2.UV_FS_O_EXLOCK = exports2.IS_WINDOWS = exports2.unlink = exports2.symlink = exports2.stat = exports2.rmdir = exports2.rm = exports2.rename = exports2.readlink = exports2.readdir = exports2.open = exports2.mkdir = exports2.lstat = exports2.copyFile = exports2.chmod = void 0;
     var fs = __importStar(require("fs"));
-    var path2 = __importStar(require("path"));
+    var path = __importStar(require("path"));
     _a = fs.promises, exports2.chmod = _a.chmod, exports2.copyFile = _a.copyFile, exports2.lstat = _a.lstat, exports2.mkdir = _a.mkdir, exports2.open = _a.open, exports2.readdir = _a.readdir, exports2.readlink = _a.readlink, exports2.rename = _a.rename, exports2.rm = _a.rm, exports2.rmdir = _a.rmdir, exports2.stat = _a.stat, exports2.symlink = _a.symlink, exports2.unlink = _a.unlink;
     exports2.IS_WINDOWS = process.platform === "win32";
     exports2.UV_FS_O_EXLOCK = 268435456;
@@ -18573,7 +18573,7 @@ var require_io_util = __commonJS({
         }
         if (stats && stats.isFile()) {
           if (exports2.IS_WINDOWS) {
-            const upperExt = path2.extname(filePath).toUpperCase();
+            const upperExt = path.extname(filePath).toUpperCase();
             if (extensions.some((validExt) => validExt.toUpperCase() === upperExt)) {
               return filePath;
             }
@@ -18597,11 +18597,11 @@ var require_io_util = __commonJS({
           if (stats && stats.isFile()) {
             if (exports2.IS_WINDOWS) {
               try {
-                const directory = path2.dirname(filePath);
-                const upperName = path2.basename(filePath).toUpperCase();
+                const directory = path.dirname(filePath);
+                const upperName = path.basename(filePath).toUpperCase();
                 for (const actualName of yield exports2.readdir(directory)) {
                   if (upperName === actualName.toUpperCase()) {
-                    filePath = path2.join(directory, actualName);
+                    filePath = path.join(directory, actualName);
                     break;
                   }
                 }
@@ -18701,7 +18701,7 @@ var require_io = __commonJS({
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.findInPath = exports2.which = exports2.mkdirP = exports2.rmRF = exports2.mv = exports2.cp = void 0;
     var assert_1 = require("assert");
-    var path2 = __importStar(require("path"));
+    var path = __importStar(require("path"));
     var ioUtil = __importStar(require_io_util());
     function cp(source, dest, options = {}) {
       return __awaiter(this, void 0, void 0, function* () {
@@ -18710,7 +18710,7 @@ var require_io = __commonJS({
         if (destStat && destStat.isFile() && !force) {
           return;
         }
-        const newDest = destStat && destStat.isDirectory() && copySourceDirectory ? path2.join(dest, path2.basename(source)) : dest;
+        const newDest = destStat && destStat.isDirectory() && copySourceDirectory ? path.join(dest, path.basename(source)) : dest;
         if (!(yield ioUtil.exists(source))) {
           throw new Error(`no such file or directory: ${source}`);
         }
@@ -18722,7 +18722,7 @@ var require_io = __commonJS({
             yield cpDirRecursive(source, newDest, 0, force);
           }
         } else {
-          if (path2.relative(source, newDest) === "") {
+          if (path.relative(source, newDest) === "") {
             throw new Error(`'${newDest}' and '${source}' are the same file`);
           }
           yield copyFile(source, newDest, force);
@@ -18735,7 +18735,7 @@ var require_io = __commonJS({
         if (yield ioUtil.exists(dest)) {
           let destExists = true;
           if (yield ioUtil.isDirectory(dest)) {
-            dest = path2.join(dest, path2.basename(source));
+            dest = path.join(dest, path.basename(source));
             destExists = yield ioUtil.exists(dest);
           }
           if (destExists) {
@@ -18746,7 +18746,7 @@ var require_io = __commonJS({
             }
           }
         }
-        yield mkdirP(path2.dirname(dest));
+        yield mkdirP(path.dirname(dest));
         yield ioUtil.rename(source, dest);
       });
     }
@@ -18809,7 +18809,7 @@ var require_io = __commonJS({
         }
         const extensions = [];
         if (ioUtil.IS_WINDOWS && process.env["PATHEXT"]) {
-          for (const extension of process.env["PATHEXT"].split(path2.delimiter)) {
+          for (const extension of process.env["PATHEXT"].split(path.delimiter)) {
             if (extension) {
               extensions.push(extension);
             }
@@ -18822,12 +18822,12 @@ var require_io = __commonJS({
           }
           return [];
         }
-        if (tool.includes(path2.sep)) {
+        if (tool.includes(path.sep)) {
           return [];
         }
         const directories = [];
         if (process.env.PATH) {
-          for (const p of process.env.PATH.split(path2.delimiter)) {
+          for (const p of process.env.PATH.split(path.delimiter)) {
             if (p) {
               directories.push(p);
             }
@@ -18835,7 +18835,7 @@ var require_io = __commonJS({
         }
         const matches = [];
         for (const directory of directories) {
-          const filePath = yield ioUtil.tryGetExecutablePath(path2.join(directory, tool), extensions);
+          const filePath = yield ioUtil.tryGetExecutablePath(path.join(directory, tool), extensions);
           if (filePath) {
             matches.push(filePath);
           }
@@ -18956,7 +18956,7 @@ var require_toolrunner = __commonJS({
     var os = __importStar(require("os"));
     var events = __importStar(require("events"));
     var child = __importStar(require("child_process"));
-    var path2 = __importStar(require("path"));
+    var path = __importStar(require("path"));
     var io = __importStar(require_io());
     var ioUtil = __importStar(require_io_util());
     var timers_1 = require("timers");
@@ -19171,7 +19171,7 @@ var require_toolrunner = __commonJS({
       exec() {
         return __awaiter(this, void 0, void 0, function* () {
           if (!ioUtil.isRooted(this.toolPath) && (this.toolPath.includes("/") || IS_WINDOWS && this.toolPath.includes("\\"))) {
-            this.toolPath = path2.resolve(process.cwd(), this.options.cwd || process.cwd(), this.toolPath);
+            this.toolPath = path.resolve(process.cwd(), this.options.cwd || process.cwd(), this.toolPath);
           }
           this.toolPath = yield io.which(this.toolPath, true);
           return new Promise((resolve, reject) => __awaiter(this, void 0, void 0, function* () {
@@ -19686,7 +19686,7 @@ var require_core = __commonJS({
     var file_command_1 = require_file_command();
     var utils_1 = require_utils();
     var os = __importStar(require("os"));
-    var path2 = __importStar(require("path"));
+    var path = __importStar(require("path"));
     var oidc_utils_1 = require_oidc_utils();
     var ExitCode;
     (function(ExitCode2) {
@@ -19714,7 +19714,7 @@ var require_core = __commonJS({
       } else {
         (0, command_1.issueCommand)("add-path", {}, inputPath);
       }
-      process.env["PATH"] = `${inputPath}${path2.delimiter}${process.env["PATH"]}`;
+      process.env["PATH"] = `${inputPath}${path.delimiter}${process.env["PATH"]}`;
     }
     exports2.addPath = addPath;
     function getInput(name, options) {
@@ -19851,12 +19851,491 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
   }
 });
 
+// ../pkg/workflow/js/load_agent_output.cjs
+var require_load_agent_output = __commonJS({
+  "../pkg/workflow/js/load_agent_output.cjs"(exports2, module2) {
+    "use strict";
+    var fs = require("fs");
+    var MAX_LOG_CONTENT_LENGTH = 1e4;
+    function truncateForLogging(content) {
+      if (content.length <= MAX_LOG_CONTENT_LENGTH) {
+        return content;
+      }
+      return content.substring(0, MAX_LOG_CONTENT_LENGTH) + `
+... (truncated, total length: ${content.length})`;
+    }
+    function loadAgentOutput() {
+      const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT;
+      if (!agentOutputFile) {
+        core.info("No GH_AW_AGENT_OUTPUT environment variable found");
+        return { success: false };
+      }
+      let outputContent;
+      try {
+        outputContent = fs.readFileSync(agentOutputFile, "utf8");
+      } catch (error) {
+        const errorMessage = `Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`;
+        core.error(errorMessage);
+        return { success: false, error: errorMessage };
+      }
+      if (outputContent.trim() === "") {
+        core.info("Agent output content is empty");
+        return { success: false };
+      }
+      core.info(`Agent output content length: ${outputContent.length}`);
+      let validatedOutput;
+      try {
+        validatedOutput = JSON.parse(outputContent);
+      } catch (error) {
+        const errorMessage = `Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`;
+        core.error(errorMessage);
+        core.info(`Failed to parse content:
+${truncateForLogging(outputContent)}`);
+        return { success: false, error: errorMessage };
+      }
+      if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
+        core.info("No valid items found in agent output");
+        core.info(`Parsed content: ${truncateForLogging(JSON.stringify(validatedOutput))}`);
+        return { success: false };
+      }
+      return { success: true, items: validatedOutput.items };
+    }
+    module2.exports = { loadAgentOutput, truncateForLogging, MAX_LOG_CONTENT_LENGTH };
+  }
+});
+
+// ../pkg/workflow/js/staged_preview.cjs
+var require_staged_preview = __commonJS({
+  "../pkg/workflow/js/staged_preview.cjs"(exports2, module2) {
+    "use strict";
+    async function generateStagedPreview(options) {
+      const { title, description, items, renderItem } = options;
+      let summaryContent = `## \u{1F3AD} Staged Mode: ${title} Preview
+
+`;
+      summaryContent += `${description}
+
+`;
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        summaryContent += renderItem(item, i);
+        summaryContent += "---\n\n";
+      }
+      try {
+        await core.summary.addRaw(summaryContent).write();
+        core.info(summaryContent);
+        core.info(`\u{1F4DD} ${title} preview written to step summary`);
+      } catch (error) {
+        core.setFailed(error instanceof Error ? error : String(error));
+      }
+    }
+    module2.exports = { generateStagedPreview };
+  }
+});
+
+// ../pkg/workflow/js/safe_output_helpers.cjs
+var require_safe_output_helpers = __commonJS({
+  "../pkg/workflow/js/safe_output_helpers.cjs"(exports2, module2) {
+    "use strict";
+    function parseAllowedItems(envValue) {
+      const trimmed = envValue?.trim();
+      if (!trimmed) {
+        return void 0;
+      }
+      return trimmed.split(",").map((item) => item.trim()).filter((item) => item);
+    }
+    function parseMaxCount(envValue, defaultValue = 3) {
+      if (!envValue) {
+        return { valid: true, value: defaultValue };
+      }
+      const parsed = parseInt(envValue, 10);
+      if (isNaN(parsed) || parsed < 1) {
+        return {
+          valid: false,
+          error: `Invalid max value: ${envValue}. Must be a positive integer`
+        };
+      }
+      return { valid: true, value: parsed };
+    }
+    function resolveTarget(params) {
+      const { targetConfig, item, context: context2, itemType, supportsPR = false } = params;
+      const isIssueContext = context2.eventName === "issues" || context2.eventName === "issue_comment";
+      const isPRContext = context2.eventName === "pull_request" || context2.eventName === "pull_request_review" || context2.eventName === "pull_request_review_comment";
+      const target = targetConfig || "triggering";
+      if (target === "triggering") {
+        if (supportsPR) {
+          if (!isIssueContext && !isPRContext) {
+            return {
+              success: false,
+              error: `Target is "triggering" but not running in issue or pull request context, skipping ${itemType}`,
+              shouldFail: false
+              // Just skip, don't fail the workflow
+            };
+          }
+        } else {
+          if (!isPRContext) {
+            return {
+              success: false,
+              error: `Target is "triggering" but not running in pull request context, skipping ${itemType}`,
+              shouldFail: false
+              // Just skip, don't fail the workflow
+            };
+          }
+        }
+      }
+      let itemNumber;
+      let contextType;
+      if (target === "*") {
+        const numberField = supportsPR ? item.item_number || item.issue_number || item.pull_request_number : item.pull_request_number;
+        if (numberField) {
+          itemNumber = typeof numberField === "number" ? numberField : parseInt(String(numberField), 10);
+          if (isNaN(itemNumber) || itemNumber <= 0) {
+            return {
+              success: false,
+              error: `Invalid ${supportsPR ? "item_number/issue_number/pull_request_number" : "pull_request_number"} specified: ${numberField}`,
+              shouldFail: true
+            };
+          }
+          contextType = supportsPR && (item.item_number || item.issue_number) ? "issue" : "pull request";
+        } else {
+          return {
+            success: false,
+            error: `Target is "*" but no ${supportsPR ? "item_number/issue_number" : "pull_request_number"} specified in ${itemType} item`,
+            shouldFail: true
+          };
+        }
+      } else if (target !== "triggering") {
+        itemNumber = parseInt(target, 10);
+        if (isNaN(itemNumber) || itemNumber <= 0) {
+          return {
+            success: false,
+            error: `Invalid ${supportsPR ? "issue" : "pull request"} number in target configuration: ${target}`,
+            shouldFail: true
+          };
+        }
+        contextType = supportsPR ? "issue" : "pull request";
+      } else {
+        if (isIssueContext) {
+          if (context2.payload.issue) {
+            itemNumber = context2.payload.issue.number;
+            contextType = "issue";
+          } else {
+            return {
+              success: false,
+              error: "Issue context detected but no issue found in payload",
+              shouldFail: true
+            };
+          }
+        } else if (isPRContext) {
+          if (context2.payload.pull_request) {
+            itemNumber = context2.payload.pull_request.number;
+            contextType = "pull request";
+          } else {
+            return {
+              success: false,
+              error: "Pull request context detected but no pull request found in payload",
+              shouldFail: true
+            };
+          }
+        }
+      }
+      if (!itemNumber) {
+        return {
+          success: false,
+          error: `Could not determine ${supportsPR ? "issue or pull request" : "pull request"} number`,
+          shouldFail: true
+        };
+      }
+      return {
+        success: true,
+        number: itemNumber,
+        contextType: contextType || (supportsPR ? "issue" : "pull request")
+      };
+    }
+    module2.exports = {
+      parseAllowedItems,
+      parseMaxCount,
+      resolveTarget
+    };
+  }
+});
+
+// ../pkg/workflow/js/sanitize_label_content.cjs
+var require_sanitize_label_content = __commonJS({
+  "../pkg/workflow/js/sanitize_label_content.cjs"(exports2, module2) {
+    "use strict";
+    function sanitizeLabelContent(content) {
+      if (!content || typeof content !== "string") {
+        return "";
+      }
+      let sanitized = content.trim();
+      sanitized = sanitized.replace(/\x1b\[[0-9;]*[mGKH]/g, "");
+      sanitized = sanitized.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "");
+      sanitized = sanitized.replace(
+        /(^|[^\w`])@([A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?(?:\/[A-Za-z0-9._-]+)?)/g,
+        (_m, p1, p2) => `${p1}\`@${p2}\``
+      );
+      sanitized = sanitized.replace(/[<>&'"]/g, "");
+      return sanitized.trim();
+    }
+    module2.exports = { sanitizeLabelContent };
+  }
+});
+
+// ../pkg/workflow/js/safe_output_validator.cjs
+var require_safe_output_validator = __commonJS({
+  "../pkg/workflow/js/safe_output_validator.cjs"(exports2, module2) {
+    "use strict";
+    var fs = require("fs");
+    var { sanitizeLabelContent } = require_sanitize_label_content();
+    function loadSafeOutputsConfig() {
+      const configPath = "/tmp/gh-aw/safeoutputs/config.json";
+      try {
+        if (!fs.existsSync(configPath)) {
+          core.warning(`Config file not found at ${configPath}, using defaults`);
+          return {};
+        }
+        const configContent = fs.readFileSync(configPath, "utf8");
+        return JSON.parse(configContent);
+      } catch (error) {
+        core.warning(`Failed to load config: ${error instanceof Error ? error.message : String(error)}`);
+        return {};
+      }
+    }
+    function getSafeOutputConfig(outputType) {
+      const config = loadSafeOutputsConfig();
+      return config[outputType] || {};
+    }
+    function validateTitle(title, fieldName = "title") {
+      if (title === void 0 || title === null) {
+        return { valid: false, error: `${fieldName} is required` };
+      }
+      if (typeof title !== "string") {
+        return { valid: false, error: `${fieldName} must be a string` };
+      }
+      const trimmed = title.trim();
+      if (trimmed.length === 0) {
+        return { valid: false, error: `${fieldName} cannot be empty` };
+      }
+      return { valid: true, value: trimmed };
+    }
+    function validateBody(body, fieldName = "body", required = false) {
+      if (body === void 0 || body === null) {
+        if (required) {
+          return { valid: false, error: `${fieldName} is required` };
+        }
+        return { valid: true, value: "" };
+      }
+      if (typeof body !== "string") {
+        return { valid: false, error: `${fieldName} must be a string` };
+      }
+      return { valid: true, value: body };
+    }
+    function validateLabels2(labels, allowedLabels = void 0, maxCount = 3) {
+      if (!labels || !Array.isArray(labels)) {
+        return { valid: false, error: "labels must be an array" };
+      }
+      for (const label of labels) {
+        if (label && typeof label === "string" && label.startsWith("-")) {
+          return { valid: false, error: `Label removal is not permitted. Found line starting with '-': ${label}` };
+        }
+      }
+      let validLabels = labels;
+      if (allowedLabels && allowedLabels.length > 0) {
+        validLabels = labels.filter((label) => allowedLabels.includes(label));
+      }
+      const uniqueLabels = validLabels.filter((label) => label != null && label !== false && label !== 0).map((label) => String(label).trim()).filter((label) => label).map((label) => sanitizeLabelContent(label)).filter((label) => label).map((label) => label.length > 64 ? label.substring(0, 64) : label).filter((label, index, arr) => arr.indexOf(label) === index);
+      if (uniqueLabels.length > maxCount) {
+        core.info(`Too many labels (${uniqueLabels.length}), limiting to ${maxCount}`);
+        return { valid: true, value: uniqueLabels.slice(0, maxCount) };
+      }
+      if (uniqueLabels.length === 0) {
+        return { valid: false, error: "No valid labels found after sanitization" };
+      }
+      return { valid: true, value: uniqueLabels };
+    }
+    function validateMaxCount(envValue, configDefault, fallbackDefault = 1) {
+      const defaultValue = configDefault !== void 0 ? configDefault : fallbackDefault;
+      if (!envValue) {
+        return { valid: true, value: defaultValue };
+      }
+      const parsed = parseInt(envValue, 10);
+      if (isNaN(parsed) || parsed < 1) {
+        return {
+          valid: false,
+          error: `Invalid max value: ${envValue}. Must be a positive integer`
+        };
+      }
+      return { valid: true, value: parsed };
+    }
+    module2.exports = {
+      loadSafeOutputsConfig,
+      getSafeOutputConfig,
+      validateTitle,
+      validateBody,
+      validateLabels: validateLabels2,
+      validateMaxCount
+    };
+  }
+});
+
+// ../pkg/workflow/js/safe_output_processor.cjs
+var require_safe_output_processor = __commonJS({
+  "../pkg/workflow/js/safe_output_processor.cjs"(exports2, module2) {
+    "use strict";
+    var { loadAgentOutput } = require_load_agent_output();
+    var { generateStagedPreview } = require_staged_preview();
+    var { parseAllowedItems, resolveTarget } = require_safe_output_helpers();
+    var { getSafeOutputConfig, validateMaxCount } = require_safe_output_validator();
+    async function processSafeOutput2(config, stagedPreviewOptions) {
+      const {
+        itemType,
+        configKey,
+        displayName,
+        itemTypeName,
+        supportsPR = false,
+        supportsIssue = false,
+        findMultiple = false,
+        envVars
+      } = config;
+      const result = loadAgentOutput();
+      if (!result.success) {
+        return { success: false, reason: "Agent output not available" };
+      }
+      let items;
+      if (findMultiple) {
+        items = result.items.filter((item2) => item2.type === itemType);
+        if (items.length === 0) {
+          core.info(`No ${itemType} items found in agent output`);
+          return { success: false, reason: `No ${itemType} items found` };
+        }
+        core.info(`Found ${items.length} ${itemType} item(s)`);
+      } else {
+        const item2 = result.items.find((item3) => item3.type === itemType);
+        if (!item2) {
+          core.warning(`No ${itemType.replace(/_/g, "-")} item found in agent output`);
+          return { success: false, reason: `No ${itemType} item found` };
+        }
+        items = [item2];
+        const itemDetails = getItemDetails(item2);
+        if (itemDetails) {
+          core.info(`Found ${itemType.replace(/_/g, "-")} item with ${itemDetails}`);
+        }
+      }
+      if (process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true") {
+        await generateStagedPreview({
+          title: stagedPreviewOptions.title,
+          description: stagedPreviewOptions.description,
+          items,
+          renderItem: stagedPreviewOptions.renderItem
+        });
+        return { success: false, reason: "Staged mode - preview generated" };
+      }
+      const safeOutputConfig = getSafeOutputConfig(configKey);
+      const allowedEnvValue = envVars.allowed ? process.env[envVars.allowed] : void 0;
+      const allowed = parseAllowedItems(allowedEnvValue) || safeOutputConfig.allowed;
+      if (allowed) {
+        core.info(`Allowed ${itemTypeName}s: ${JSON.stringify(allowed)}`);
+      } else {
+        core.info(`No ${itemTypeName} restrictions - any ${itemTypeName}s are allowed`);
+      }
+      const maxCountEnvValue = envVars.maxCount ? process.env[envVars.maxCount] : void 0;
+      const maxCountResult = validateMaxCount(maxCountEnvValue, safeOutputConfig.max);
+      if (!maxCountResult.valid) {
+        core.setFailed(maxCountResult.error);
+        return { success: false, reason: "Invalid max count configuration" };
+      }
+      const maxCount = maxCountResult.value;
+      core.info(`Max count: ${maxCount}`);
+      const target = envVars.target ? process.env[envVars.target] || "triggering" : "triggering";
+      core.info(`${displayName} target configuration: ${target}`);
+      if (findMultiple) {
+        return {
+          success: true,
+          items,
+          config: {
+            allowed,
+            maxCount,
+            target
+          }
+        };
+      }
+      const item = items[0];
+      const targetResult = resolveTarget({
+        targetConfig: target,
+        item,
+        context,
+        itemType: itemTypeName,
+        // supportsPR in resolveTarget: true=both issue and PR contexts, false=PR-only
+        // If supportsIssue is true, we pass supportsPR=true to enable both contexts
+        supportsPR: supportsPR || supportsIssue
+      });
+      if (!targetResult.success) {
+        if (targetResult.shouldFail) {
+          core.setFailed(targetResult.error);
+        } else {
+          core.info(targetResult.error);
+        }
+        return { success: false, reason: targetResult.error };
+      }
+      return {
+        success: true,
+        item,
+        config: {
+          allowed,
+          maxCount,
+          target
+        },
+        targetResult: {
+          number: targetResult.number,
+          contextType: targetResult.contextType
+        }
+      };
+    }
+    function getItemDetails(item) {
+      if (item.labels && Array.isArray(item.labels)) {
+        return `${item.labels.length} labels`;
+      }
+      if (item.reviewers && Array.isArray(item.reviewers)) {
+        return `${item.reviewers.length} reviewers`;
+      }
+      return null;
+    }
+    function sanitizeItems(items) {
+      return items.filter((item) => item != null && item !== false && item !== 0).map((item) => String(item).trim()).filter((item) => item).filter((item, index, arr) => arr.indexOf(item) === index);
+    }
+    function filterByAllowed(items, allowed) {
+      if (!allowed || allowed.length === 0) {
+        return items;
+      }
+      return items.filter((item) => allowed.includes(item));
+    }
+    function limitToMaxCount(items, maxCount) {
+      if (items.length > maxCount) {
+        core.info(`Too many items (${items.length}), limiting to ${maxCount}`);
+        return items.slice(0, maxCount);
+      }
+      return items;
+    }
+    function processItems(rawItems, allowed, maxCount) {
+      const filtered = filterByAllowed(rawItems, allowed);
+      const sanitized = sanitizeItems(filtered);
+      return limitToMaxCount(sanitized, maxCount);
+    }
+    module2.exports = {
+      processSafeOutput: processSafeOutput2,
+      sanitizeItems,
+      filterByAllowed,
+      limitToMaxCount,
+      processItems
+    };
+  }
+});
+
 // add-labels/src/index.js
-var core = require_core();
-var path = require("path");
-var jsDir = path.join(__dirname, "..", "..", "pkg", "workflow", "js");
-var { processSafeOutput } = require(path.join(jsDir, "safe_output_processor.cjs"));
-var { validateLabels } = require(path.join(jsDir, "safe_output_validator.cjs"));
+var core2 = require_core();
+var { processSafeOutput } = require_safe_output_processor();
+var { validateLabels } = require_safe_output_validator();
 async function main() {
   const result = await processSafeOutput(
     {
@@ -19900,20 +20379,20 @@ async function main() {
   }
   const { item: labelsItem, config, targetResult } = result;
   if (!config || !targetResult || targetResult.number === void 0) {
-    core.setFailed("Internal error: config, targetResult, or targetResult.number is undefined");
+    core2.setFailed("Internal error: config, targetResult, or targetResult.number is undefined");
     return;
   }
   const { allowed: allowedLabels, maxCount } = config;
   const itemNumber = targetResult.number;
   const { contextType } = targetResult;
   const requestedLabels = labelsItem.labels || [];
-  core.info(`Requested labels: ${JSON.stringify(requestedLabels)}`);
+  core2.info(`Requested labels: ${JSON.stringify(requestedLabels)}`);
   const labelsResult = validateLabels(requestedLabels, allowedLabels, maxCount);
   if (!labelsResult.valid) {
     if (labelsResult.error && labelsResult.error.includes("No valid labels")) {
-      core.info("No labels to add");
-      core.setOutput("labels_added", "");
-      await core.summary.addRaw(
+      core2.info("No labels to add");
+      core2.setOutput("labels_added", "");
+      await core2.summary.addRaw(
         `
 ## Label Addition
 
@@ -19922,14 +20401,14 @@ No labels were added (no valid labels found in agent output).
       ).write();
       return;
     }
-    core.setFailed(labelsResult.error || "Invalid labels");
+    core2.setFailed(labelsResult.error || "Invalid labels");
     return;
   }
   const uniqueLabels = labelsResult.value || [];
   if (uniqueLabels.length === 0) {
-    core.info("No labels to add");
-    core.setOutput("labels_added", "");
-    await core.summary.addRaw(
+    core2.info("No labels to add");
+    core2.setOutput("labels_added", "");
+    await core2.summary.addRaw(
       `
 ## Label Addition
 
@@ -19938,7 +20417,7 @@ No labels were added (no valid labels found in agent output).
     ).write();
     return;
   }
-  core.info(`Adding ${uniqueLabels.length} labels to ${contextType} #${itemNumber}: ${JSON.stringify(uniqueLabels)}`);
+  core2.info(`Adding ${uniqueLabels.length} labels to ${contextType} #${itemNumber}: ${JSON.stringify(uniqueLabels)}`);
   try {
     await github.rest.issues.addLabels({
       owner: context.repo.owner,
@@ -19946,10 +20425,10 @@ No labels were added (no valid labels found in agent output).
       issue_number: itemNumber,
       labels: uniqueLabels
     });
-    core.info(`Successfully added ${uniqueLabels.length} labels to ${contextType} #${itemNumber}`);
-    core.setOutput("labels_added", uniqueLabels.join("\n"));
+    core2.info(`Successfully added ${uniqueLabels.length} labels to ${contextType} #${itemNumber}`);
+    core2.setOutput("labels_added", uniqueLabels.join("\n"));
     const labelsListMarkdown = uniqueLabels.map((label) => `- \`${label}\``).join("\n");
-    await core.summary.addRaw(
+    await core2.summary.addRaw(
       `
 ## Label Addition
 
@@ -19960,8 +20439,8 @@ ${labelsListMarkdown}
     ).write();
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    core.error(`Failed to add labels: ${errorMessage}`);
-    core.setFailed(`Failed to add labels: ${errorMessage}`);
+    core2.error(`Failed to add labels: ${errorMessage}`);
+    core2.setFailed(`Failed to add labels: ${errorMessage}`);
   }
 }
 (async () => {

@@ -1,12 +1,10 @@
 const core = require('@actions/core');
-// Dependencies from pkg/workflow/js/
-const path = require('path');
-const jsDir = path.join(__dirname, '..', '..', 'pkg', 'workflow', 'js');
+// Dependencies from pkg/workflow/js/ using relative paths for esbuild bundling
 
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-const { processCloseEntityItems, ISSUE_CONFIG } = require(path.join(jsDir, "close_entity_helpers.cjs"));
+const { processCloseEntityItems, ISSUE_CONFIG } = require("../../../pkg/workflow/js/close_entity_helpers.cjs");
 
 /**
  * Get issue details using REST API

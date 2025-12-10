@@ -1,25 +1,23 @@
 const core = require('@actions/core');
-// Dependencies from pkg/workflow/js/
-const path = require('path');
-const jsDir = path.join(__dirname, '..', '..', 'pkg', 'workflow', 'js');
+// Dependencies from pkg/workflow/js/ using relative paths for esbuild bundling
 
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-const { sanitizeLabelContent } = require(path.join(jsDir, "sanitize_label_content.cjs"));
-const { loadAgentOutput } = require(path.join(jsDir, "load_agent_output.cjs"));
-const { generateStagedPreview } = require(path.join(jsDir, "staged_preview.cjs"));
-const { generateFooter } = require(path.join(jsDir, "generate_footer.cjs"));
-const { getTrackerID } = require(path.join(jsDir, "get_tracker_id.cjs"));
+const { sanitizeLabelContent } = require("../../../pkg/workflow/js/sanitize_label_content.cjs");
+const { loadAgentOutput } = require("../../../pkg/workflow/js/load_agent_output.cjs");
+const { generateStagedPreview } = require("../../../pkg/workflow/js/staged_preview.cjs");
+const { generateFooter } = require("../../../pkg/workflow/js/generate_footer.cjs");
+const { getTrackerID } = require("../../../pkg/workflow/js/get_tracker_id.cjs");
 const {
   generateTemporaryId,
   isTemporaryId,
   normalizeTemporaryId,
   replaceTemporaryIdReferences,
   serializeTemporaryIdMap,
-} = require(path.join(jsDir, "temporary_id.cjs"));
-const { parseAllowedRepos, getDefaultTargetRepo, validateRepo, parseRepoSlug } = require(path.join(jsDir, "repo_helpers.cjs"));
-const { addExpirationComment } = require(path.join(jsDir, "expiration_helpers.cjs"));
+} = require("../../../pkg/workflow/js/temporary_id.cjs");
+const { parseAllowedRepos, getDefaultTargetRepo, validateRepo, parseRepoSlug } = require("../../../pkg/workflow/js/repo_helpers.cjs");
+const { addExpirationComment } = require("../../../pkg/workflow/js/expiration_helpers.cjs");
 
 async function main() {
   // Initialize outputs to empty strings to ensure they're always set

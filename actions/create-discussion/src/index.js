@@ -1,17 +1,15 @@
 const core = require('@actions/core');
-// Dependencies from pkg/workflow/js/
-const path = require('path');
-const jsDir = path.join(__dirname, '..', '..', 'pkg', 'workflow', 'js');
+// Dependencies from pkg/workflow/js/ using relative paths for esbuild bundling
 
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-const { loadAgentOutput } = require(path.join(jsDir, "load_agent_output.cjs"));
-const { getTrackerID } = require(path.join(jsDir, "get_tracker_id.cjs"));
-const { closeOlderDiscussions } = require(path.join(jsDir, "close_older_discussions.cjs"));
-const { replaceTemporaryIdReferences, loadTemporaryIdMap } = require(path.join(jsDir, "temporary_id.cjs"));
-const { parseAllowedRepos, getDefaultTargetRepo, validateRepo, parseRepoSlug } = require(path.join(jsDir, "repo_helpers.cjs"));
-const { addExpirationComment } = require(path.join(jsDir, "expiration_helpers.cjs"));
+const { loadAgentOutput } = require("../../../pkg/workflow/js/load_agent_output.cjs");
+const { getTrackerID } = require("../../../pkg/workflow/js/get_tracker_id.cjs");
+const { closeOlderDiscussions } = require("../../../pkg/workflow/js/close_older_discussions.cjs");
+const { replaceTemporaryIdReferences, loadTemporaryIdMap } = require("../../../pkg/workflow/js/temporary_id.cjs");
+const { parseAllowedRepos, getDefaultTargetRepo, validateRepo, parseRepoSlug } = require("../../../pkg/workflow/js/repo_helpers.cjs");
+const { addExpirationComment } = require("../../../pkg/workflow/js/expiration_helpers.cjs");
 
 /**
  * Fetch repository ID and discussion categories for a repository
