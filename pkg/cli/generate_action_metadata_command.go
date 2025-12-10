@@ -460,14 +460,42 @@ func generateReadme(actionDir string, metadata *ActionMetadata) error {
 
 // transformSourceForEsbuild transforms .cjs source to use @actions/core and be compatible with esbuild
 func transformSourceForEsbuild(content, actionName string) string {
-// Add @actions/core import at the top and make it globally available
-// The .cjs files expect 'core' to be a global variable (from github-script context)
-result := "const core = require('@actions/core');\n"
-result += "// Make core globally available for .cjs files that expect it\n"
-result += "global.core = core;\n\n"
+	// Scan content for usage of github-script globals (core, github, context)
+	// These are the globals that .cjs files expect from github-script context
+	needsCore := strings.Contains(content, "core.")
+	needsGithub := strings.Contains(content, "github.")
+	needsContext := strings.Contains(content, "context.")
+	
+	result := ""
+	
+	// Import and make available the globals that are used
+	if needsCore {
+		result += "const core = require('@actions/core');\n"
+	}
+	if needsGithub || needsContext {
+		// Both github and context come from @actions/github
+		result += "const github = require('@actions/github');\n"
+		if needsContext {
+			result += "const context = github.context;\n"
+		}
+	}
+	
+	if needsCore || needsGithub || needsContext {
+		result += "// Make globals available for .cjs files that expect github-script context\n"
+		if needsCore {
+			result += "global.core = core;\n"
+		}
+		if needsGithub {
+			result += "global.github = github;\n"
+		}
+		if needsContext {
+			result += "global.context = context;\n"
+		}
+		result += "\n"
+	}
 
-// Add comment about dependencies
-result += "// Dependencies from pkg/workflow/js/ using relative paths for esbuild bundling\n\n"
+	// Add comment about dependencies
+	result += "// Dependencies from pkg/workflow/js/ using relative paths for esbuild bundling\n\n"
 
 // Transform require statements to use static relative paths that esbuild can resolve
 // From actions/*/src/index.js, we need to go ../../../pkg/workflow/js/

@@ -1,6 +1,8 @@
 const core = require('@actions/core');
-// Make core globally available for .cjs files that expect it
+const github = require('@actions/github');
+// Make globals available for .cjs files that expect github-script context
 global.core = core;
+global.github = github;
 
 // Dependencies from pkg/workflow/js/ using relative paths for esbuild bundling
 
