@@ -16,9 +16,10 @@ permissions:
   pull-requests: read
 engine: copilot
 tools:
-  agentic-workflows:
   github:
     toolsets: [pull_requests, actions, repos]
+imports:
+  - shared/mcp/gh-aw.md
 safe-outputs:
   add-comment:
     max: 1
@@ -70,11 +71,11 @@ Once you've confirmed a PR exists:
 - Calculate execution time if available
 
 **For failed/cancelled workflows:**
-- Use the agentic-workflows `audit` tool with run_id `${{ github.event.workflow_run.id }}` to:
+- Use the gh-aw MCP server `audit` tool with run_id `${{ github.event.workflow_run.id }}` to:
   - Investigate the failure
   - Identify root cause errors
   - Extract relevant error messages and patterns
-- Use the agentic-workflows `logs` tool to download logs if needed for additional context
+- Use the gh-aw MCP server `logs` tool to download logs if needed for additional context
 - Analyze error patterns and categorize the failure type:
   - Code issues (syntax, logic, tests)
   - Infrastructure problems
@@ -128,7 +129,7 @@ The Dev workflow completed successfully! 🎉
 - **Always verify PR exists first** - abandon if no PR is found
 - **Be thorough** in analysis but concise in reporting
 - **Focus on actionable insights** rather than just describing what happened
-- **Use the agentic-workflows audit tool** for automated failure investigation
+- **Use the gh-aw MCP server audit tool** for automated failure investigation
 - **Include specific error messages** and file locations when available
 - **Categorize failures** to help developers understand the type of issue
 - **Always include the run URL** for easy navigation to the full logs
