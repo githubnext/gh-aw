@@ -2689,7 +2689,7 @@ jobs:
           <instructions>
           To create or modify GitHub resources (issues, discussions, pull requests, etc.), you MUST call the appropriate safe output tool. Simply writing content will NOT work - the workflow requires actual tool calls.
           
-          **Available tools**: create_pull_request, push_to_pull_request_branch, missing_tool, noop
+          **Available tools**: create_pull_request, missing_tool, noop, push_to_pull_request_branch
           
           **Critical**: Tool calls write structured data that downstream jobs process. Without tool calls, follow-up actions will be skipped.
           </instructions>
