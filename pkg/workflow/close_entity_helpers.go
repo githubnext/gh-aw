@@ -47,6 +47,7 @@ func (c *Compiler) parseCloseEntityConfig(outputMap map[string]any, params Close
 		if configMap, ok := configData.(map[string]any); ok {
 			// For discussions, parse target and filter configs separately
 			if params.EntityType == CloseEntityDiscussion {
+				logger.Printf("Parsing discussion-specific configuration for %s", params.ConfigKey)
 				// Parse target config
 				targetConfig, isInvalid := ParseTargetConfig(configMap)
 				if isInvalid {
@@ -59,6 +60,7 @@ func (c *Compiler) parseCloseEntityConfig(outputMap map[string]any, params Close
 				config.SafeOutputDiscussionFilterConfig = ParseDiscussionFilterConfig(configMap)
 				config.SafeOutputFilterConfig = config.SafeOutputDiscussionFilterConfig.SafeOutputFilterConfig
 			} else {
+				logger.Printf("Parsing standard close job configuration for %s", params.EntityType)
 				// For issues and PRs, use the standard close job config parser
 				closeJobConfig, isInvalid := ParseCloseJobConfig(configMap)
 				if isInvalid {
@@ -71,14 +73,17 @@ func (c *Compiler) parseCloseEntityConfig(outputMap map[string]any, params Close
 
 			// Parse common base fields with default max of 1
 			c.parseBaseSafeOutputConfig(configMap, &config.BaseSafeOutputConfig, 1)
+			logger.Printf("Parsed %s configuration: max=%d, target=%s", params.ConfigKey, config.Max, config.Target)
 		} else {
 			// If configData is nil or not a map, still set the default max
+			logger.Print("Config is not a map, using default max=1")
 			config.Max = 1
 		}
 
 		return config
 	}
 
+	logger.Printf("No configuration found for %s", params.ConfigKey)
 	return nil
 }
 

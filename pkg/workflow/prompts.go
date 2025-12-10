@@ -3,7 +3,11 @@ package workflow
 import (
 	"fmt"
 	"strings"
+
+	"github.com/githubnext/gh-aw/pkg/logger"
 )
+
+var promptsLog = logger.New("workflow:prompts")
 
 // prompts.go consolidates all prompt-related functions for agentic workflows.
 // This file contains functions that generate workflow steps to append various
@@ -31,6 +35,8 @@ func (c *Compiler) generateSafeOutputsPromptStep(yaml *strings.Builder, safeOutp
 	if len(enabledTools) == 0 {
 		return
 	}
+
+	promptsLog.Printf("Generating safe outputs prompt step with %d enabled tools", len(enabledTools))
 
 	// Create a comma-separated list of tool names for the prompt
 	toolsList := strings.Join(enabledTools, ", ")
@@ -66,6 +72,8 @@ func (c *Compiler) generateCacheMemoryPromptStep(yaml *strings.Builder, config *
 	if config == nil || len(config.Caches) == 0 {
 		return
 	}
+
+	promptsLog.Printf("Generating cache memory prompt step with %d caches", len(config.Caches))
 
 	appendPromptStepWithHeredoc(yaml,
 		"Append cache memory instructions to prompt",
@@ -126,14 +134,18 @@ func (c *Compiler) generatePRContextPromptStep(yaml *strings.Builder, data *Work
 	hasCommentTriggers := c.hasCommentRelatedTriggers(data)
 
 	if !hasCommentTriggers {
+		promptsLog.Print("Skipping PR context prompt: no comment-related triggers")
 		return // No comment-related triggers, skip PR context instructions
 	}
 
 	// Also check if checkout step will be added - only show prompt if checkout happens
 	needsCheckout := c.shouldAddCheckoutStep(data)
 	if !needsCheckout {
+		promptsLog.Print("Skipping PR context prompt: no checkout step needed")
 		return // No checkout, so no PR branch checkout will happen
 	}
+
+	promptsLog.Print("Generating PR context prompt step for comment-triggered workflow")
 
 	// Check that permissions allow contents read access
 	permParser := NewPermissionsParser(data.Permissions)

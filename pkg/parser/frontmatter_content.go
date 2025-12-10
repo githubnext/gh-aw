@@ -170,6 +170,8 @@ func ExtractMarkdownContent(content string) (string, error) {
 // ExtractYamlChunk extracts a specific YAML section with proper indentation handling
 // This matches the bash extract_yaml_chunk function exactly
 func ExtractYamlChunk(yamlContent, key string) (string, error) {
+	log.Printf("Extracting YAML chunk: key=%s, content_size=%d bytes", key, len(yamlContent))
+
 	if yamlContent == "" || key == "" {
 		return "", nil
 	}
@@ -238,6 +240,8 @@ func ExtractYamlChunk(yamlContent, key string) (string, error) {
 // ExtractWorkflowNameFromMarkdown extracts workflow name from first H1 header
 // This matches the bash extract_workflow_name_from_markdown function exactly
 func ExtractWorkflowNameFromMarkdown(filePath string) (string, error) {
+	log.Printf("Extracting workflow name from markdown: file=%s", filePath)
+
 	// First extract markdown content (excluding frontmatter)
 	markdownContent, err := ExtractMarkdown(filePath)
 	if err != nil {
@@ -250,12 +254,16 @@ func ExtractWorkflowNameFromMarkdown(filePath string) (string, error) {
 		line := strings.TrimSpace(scanner.Text())
 		if strings.HasPrefix(line, "# ") {
 			// Extract text after "# "
-			return strings.TrimSpace(line[2:]), nil
+			workflowName := strings.TrimSpace(line[2:])
+			log.Printf("Found workflow name from H1 header: %s", workflowName)
+			return workflowName, nil
 		}
 	}
 
 	// No H1 header found, generate default name from filename
-	return generateDefaultWorkflowName(filePath), nil
+	defaultName := generateDefaultWorkflowName(filePath)
+	log.Printf("No H1 header found, using default name: %s", defaultName)
+	return defaultName, nil
 }
 
 // generateDefaultWorkflowName creates a default workflow name from filename
