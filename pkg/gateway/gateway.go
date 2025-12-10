@@ -13,28 +13,19 @@ import (
 	"time"
 
 	"github.com/githubnext/gh-aw/pkg/logger"
+	"github.com/githubnext/gh-aw/pkg/parser"
 	"github.com/githubnext/gh-aw/pkg/workflow"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
 var log = logger.New("pkg:gateway")
 
-// MCPServerConfig represents a single MCP server configuration
-type MCPServerConfig struct {
-	Type      string            `json:"type,omitempty"`
-	Command   string            `json:"command,omitempty"`
-	Container string            `json:"container,omitempty"`
-	Args      []string          `json:"args,omitempty"`
-	Env       map[string]string `json:"env,omitempty"`
-	URL       string            `json:"url,omitempty"`
-}
-
 // GatewayConfig represents the configuration for the MCP gateway
 type GatewayConfig struct {
-	MCPServers       map[string]MCPServerConfig `json:"mcpServers"`
-	Port             int                        `json:"port"`
-	APIKey           string                     `json:"apiKey,omitempty"`
-	SafeInputsConfig string                     `json:"-"` // Path to safe-inputs tools.json file
+	MCPServers       map[string]parser.MCPServerConfig `json:"mcpServers"`
+	Port             int                               `json:"port"`
+	APIKey           string                            `json:"apiKey,omitempty"`
+	SafeInputsConfig string                            `json:"-"` // Path to safe-inputs tools.json file
 }
 
 // Gateway represents an MCP gateway that proxies to multiple MCP servers
@@ -212,7 +203,7 @@ func (g *Gateway) connectToSafeInputsServer(ctx context.Context) error {
 	}
 
 	// Create the server config
-	serverConfig := MCPServerConfig{
+	serverConfig := parser.MCPServerConfig{
 		Command: "node",
 		Args:    []string{filepath.Join(tmpDir, "safe_inputs_mcp_server.cjs"), toolsConfigPath},
 		Env:     make(map[string]string),
@@ -276,7 +267,7 @@ func (g *Gateway) prepareToolsConfig(configDir, outputPath string) error {
 }
 
 // createClient creates and connects an MCP client based on the server configuration
-func (g *Gateway) createClient(ctx context.Context, name string, config MCPServerConfig) (*mcp.Client, *mcp.ClientSession, error) {
+func (g *Gateway) createClient(ctx context.Context, name string, config parser.MCPServerConfig) (*mcp.Client, *mcp.ClientSession, error) {
 	client := mcp.NewClient(&mcp.Implementation{
 		Name:    fmt.Sprintf("gateway-client-%s", name),
 		Version: "1.0.0",
@@ -321,14 +312,14 @@ func (g *Gateway) createClient(ctx context.Context, name string, config MCPServe
 }
 
 // createHTTPTransport creates an HTTP transport for an MCP server
-func (g *Gateway) createHTTPTransport(config MCPServerConfig) (mcp.Transport, error) {
+func (g *Gateway) createHTTPTransport(config parser.MCPServerConfig) (mcp.Transport, error) {
 	return &mcp.SSEClientTransport{
 		Endpoint: config.URL,
 	}, nil
 }
 
 // createStdioTransport creates a stdio transport for an MCP server
-func (g *Gateway) createStdioTransport(config MCPServerConfig) (mcp.Transport, error) {
+func (g *Gateway) createStdioTransport(config parser.MCPServerConfig) (mcp.Transport, error) {
 	cmd := exec.Command(config.Command, config.Args...)
 
 	// Set environment variables
@@ -345,7 +336,7 @@ func (g *Gateway) createStdioTransport(config MCPServerConfig) (mcp.Transport, e
 }
 
 // createDockerTransport creates a Docker transport for an MCP server
-func (g *Gateway) createDockerTransport(config MCPServerConfig) (mcp.Transport, error) {
+func (g *Gateway) createDockerTransport(config parser.MCPServerConfig) (mcp.Transport, error) {
 	// Build docker run command
 	args := []string{"run", "--rm", "-i"}
 

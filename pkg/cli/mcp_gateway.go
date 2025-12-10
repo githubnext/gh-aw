@@ -10,6 +10,7 @@ import (
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/gateway"
 	"github.com/githubnext/gh-aw/pkg/logger"
+	"github.com/githubnext/gh-aw/pkg/parser"
 	"github.com/spf13/cobra"
 )
 
@@ -138,7 +139,7 @@ func runMCPGateway(mcpsConfigFile string, scriptsConfigFile string, portOverride
 	} else {
 		// Initialize empty config
 		config = gateway.GatewayConfig{
-			MCPServers: make(map[string]gateway.MCPServerConfig),
+			MCPServers: make(map[string]parser.MCPServerConfig),
 		}
 	}
 
