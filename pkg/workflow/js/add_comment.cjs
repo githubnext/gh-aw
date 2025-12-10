@@ -143,13 +143,13 @@ async function main() {
     if (createdIssueUrl || createdDiscussionUrl || createdPullRequestUrl) {
       summaryContent += "#### Related Items\n\n";
       if (createdIssueUrl && createdIssueNumber) {
-        summaryContent += `- Issue: [#${createdIssueNumber}](${createdIssueUrl})\n`;
+        summaryContent += `- Issue: #${createdIssueNumber}\n`;
       }
       if (createdDiscussionUrl && createdDiscussionNumber) {
-        summaryContent += `- Discussion: [#${createdDiscussionNumber}](${createdDiscussionUrl})\n`;
+        summaryContent += `- Discussion: #${createdDiscussionNumber}\n`;
       }
       if (createdPullRequestUrl && createdPullRequestNumber) {
-        summaryContent += `- Pull Request: [#${createdPullRequestNumber}](${createdPullRequestUrl})\n`;
+        summaryContent += `- Pull Request: #${createdPullRequestNumber}\n`;
       }
       summaryContent += "\n";
     }
@@ -280,15 +280,15 @@ async function main() {
     let referencesSection = "\n\n#### Related Items\n\n";
 
     if (createdIssueUrl && createdIssueNumber) {
-      referencesSection += `- Issue: [#${createdIssueNumber}](${createdIssueUrl})\n`;
+      referencesSection += `- Issue: #${createdIssueNumber}\n`;
       hasReferences = true;
     }
     if (createdDiscussionUrl && createdDiscussionNumber) {
-      referencesSection += `- Discussion: [#${createdDiscussionNumber}](${createdDiscussionUrl})\n`;
+      referencesSection += `- Discussion: #${createdDiscussionNumber}\n`;
       hasReferences = true;
     }
     if (createdPullRequestUrl && createdPullRequestNumber) {
-      referencesSection += `- Pull Request: [#${createdPullRequestNumber}](${createdPullRequestUrl})\n`;
+      referencesSection += `- Pull Request: #${createdPullRequestNumber}\n`;
       hasReferences = true;
     }
 

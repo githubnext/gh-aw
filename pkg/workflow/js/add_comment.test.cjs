@@ -511,10 +511,14 @@ describe("add_comment.cjs", () => {
     expect(callArgs.body).not.toMatch(/^##\s+Related Items/m);
     expect(callArgs.body).not.toMatch(/\*\*Related Items:\*\*/);
 
-    // Check that the references are included
-    expect(callArgs.body).toContain("- Issue: [#456](https://github.com/testowner/testrepo/issues/456)");
-    expect(callArgs.body).toContain("- Discussion: [#789](https://github.com/testowner/testrepo/discussions/789)");
-    expect(callArgs.body).toContain("- Pull Request: [#101](https://github.com/testowner/testrepo/pull/101)");
+    // Check that the references are included with short GitHub syntax
+    expect(callArgs.body).toContain("- Issue: #456");
+    expect(callArgs.body).toContain("- Discussion: #789");
+    expect(callArgs.body).toContain("- Pull Request: #101");
+    // Verify that full URLs are NOT included
+    expect(callArgs.body).not.toContain("https://github.com/testowner/testrepo/issues/456");
+    expect(callArgs.body).not.toContain("https://github.com/testowner/testrepo/discussions/789");
+    expect(callArgs.body).not.toContain("https://github.com/testowner/testrepo/pull/101");
 
     // Clean up
     delete process.env.GH_AW_CREATED_ISSUE_URL;
@@ -562,10 +566,14 @@ describe("add_comment.cjs", () => {
     expect(summaryContent).not.toMatch(/^##\s+Related Items/m);
     expect(summaryContent).not.toMatch(/\*\*Related Items:\*\*/);
 
-    // Check that the references are included
-    expect(summaryContent).toContain("- Issue: [#456](https://github.com/testowner/testrepo/issues/456)");
-    expect(summaryContent).toContain("- Discussion: [#789](https://github.com/testowner/testrepo/discussions/789)");
-    expect(summaryContent).toContain("- Pull Request: [#101](https://github.com/testowner/testrepo/pull/101)");
+    // Check that the references are included with short GitHub syntax
+    expect(summaryContent).toContain("- Issue: #456");
+    expect(summaryContent).toContain("- Discussion: #789");
+    expect(summaryContent).toContain("- Pull Request: #101");
+    // Verify that full URLs are NOT included
+    expect(summaryContent).not.toContain("https://github.com/testowner/testrepo/issues/456");
+    expect(summaryContent).not.toContain("https://github.com/testowner/testrepo/discussions/789");
+    expect(summaryContent).not.toContain("https://github.com/testowner/testrepo/pull/101");
 
     // Clean up
     delete process.env.GH_AW_SAFE_OUTPUTS_STAGED;
