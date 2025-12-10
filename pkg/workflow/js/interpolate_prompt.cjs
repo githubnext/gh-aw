@@ -38,7 +38,7 @@ function renderMarkdownTemplate(markdown) {
   // First pass: Handle blocks where tags are on their own lines
   // Captures: (leading newline)(opening tag line)(condition)(body)(closing tag line)(trailing newline)
   let result = markdown.replace(
-    /(\n?)([ \t]*{{#if\s+([^}]+)}}[ \t]*\n)([\s\S]*?)([ \t]*{{\/if}}[ \t]*)(\n?)/g,
+    /(\n?)([ \t]*{{#if\s+([^}]*)}}[ \t]*\n)([\s\S]*?)([ \t]*{{\/if}}[ \t]*)(\n?)/g,
     (match, leadNL, openLine, cond, body, closeLine, trailNL) => {
       if (isTruthy(cond)) {
         // Keep body with leading newline if there was one before the opening tag
@@ -51,7 +51,7 @@ function renderMarkdownTemplate(markdown) {
   );
 
   // Second pass: Handle inline conditionals (tags not on their own lines)
-  result = result.replace(/{{#if\s+([^}]+)}}([\s\S]*?){{\/if}}/g, (_, cond, body) => (isTruthy(cond) ? body : ""));
+  result = result.replace(/{{#if\s+([^}]*)}}([\s\S]*?){{\/if}}/g, (_, cond, body) => (isTruthy(cond) ? body : ""));
 
   // Clean up excessive blank lines (more than one blank line = 2 newlines)
   result = result.replace(/\n{3,}/g, "\n\n");

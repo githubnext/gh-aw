@@ -313,12 +313,12 @@ Always visible instructions here.`;
       expect(output).toBe(input);
     });
 
-    it("should handle empty condition expression (not matched)", () => {
+    it("should handle empty condition expression (treated as false)", () => {
       const input = "{{#if }}Content{{/if}}";
       const output = renderMarkdownTemplate(input);
-      // The regex requires at least one character in condition: [^}]+
-      // So {{#if }} doesn't match and is left unchanged
-      expect(output).toBe(input);
+      // The regex now allows empty expressions: [^}]*
+      // Empty expressions are treated as false by isTruthy
+      expect(output).toBe("");
     });
 
     it("should handle condition with only whitespace", () => {

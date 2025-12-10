@@ -224,6 +224,21 @@ Regular content`,
 			input:    "{{#if needs.setup.outputs.value }}content{{/if}}",
 			expected: "{{#if ${{ needs.setup.outputs.value }} }}content{{/if}}",
 		},
+		{
+			name:     "empty expression (treated as false)",
+			input:    "{{#if }}content{{/if}}",
+			expected: "{{#if ${{ false }} }}content{{/if}}",
+		},
+		{
+			name:     "empty expression with only spaces (treated as false)",
+			input:    "{{#if   }}content{{/if}}",
+			expected: "{{#if ${{ false }} }}content{{/if}}",
+		},
+		{
+			name:     "multiple conditionals including empty",
+			input:    "{{#if github.actor}}A{{/if}} {{#if }}B{{/if}} {{#if true}}C{{/if}}",
+			expected: "{{#if ${{ github.actor }} }}A{{/if}} {{#if ${{ false }} }}B{{/if}} {{#if ${{ true }} }}C{{/if}}",
+		},
 	}
 
 	for _, tt := range tests {
