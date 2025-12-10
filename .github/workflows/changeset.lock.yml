@@ -6801,6 +6801,40 @@ jobs:
               const requiredPermissionsEnv = process.env.GH_AW_REQUIRED_ROLES;
               return requiredPermissionsEnv ? requiredPermissionsEnv.split(",").filter(p => p.trim() !== "") : [];
             }
+            function parseAllowedBots() {
+              const allowedBotsEnv = process.env.GH_AW_ALLOWED_BOTS;
+              return allowedBotsEnv ? allowedBotsEnv.split(",").filter(b => b.trim() !== "") : [];
+            }
+            async function checkBotStatus(actor, owner, repo) {
+              try {
+                const isBot = actor.endsWith("[bot]");
+                if (!isBot) {
+                  return { isBot: false, isActive: false };
+                }
+                core.info(`Checking if bot '${actor}' is active on ${owner}/${repo}`);
+                try {
+                  const botPermission = await github.rest.repos.getCollaboratorPermissionLevel({
+                    owner: owner,
+                    repo: repo,
+                    username: actor,
+                  });
+                  core.info(`Bot '${actor}' is active with permission level: ${botPermission.data.permission}`);
+                  return { isBot: true, isActive: true };
+                } catch (botError) {
+                  if (botError.status === 404) {
+                    core.warning(`Bot '${actor}' is not active/installed on ${owner}/${repo}`);
+                    return { isBot: true, isActive: false };
+                  }
+                  const errorMessage = botError instanceof Error ? botError.message : String(botError);
+                  core.warning(`Failed to check bot status: ${errorMessage}`);
+                  return { isBot: true, isActive: false, error: errorMessage };
+                }
+              } catch (error) {
+                const errorMessage = error instanceof Error ? error.message : String(error);
+                core.warning(`Error checking bot status: ${errorMessage}`);
+                return { isBot: false, isActive: false, error: errorMessage };
+              }
+            }
             async function checkRepositoryPermission(actor, owner, repo, requiredPermissions) {
               try {
                 core.info(`Checking if user '${actor}' has required permissions for ${owner}/${repo}`);
@@ -6831,6 +6865,7 @@ jobs:
               const actor = context.actor;
               const { owner, repo } = context.repo;
               const requiredPermissions = parseRequiredPermissions();
+              const allowedBots = parseAllowedBots();
               if (eventName === "workflow_dispatch") {
                 const hasWriteRole = requiredPermissions.includes("write");
                 if (hasWriteRole) {
@@ -6867,6 +6902,29 @@ jobs:
                 core.setOutput("result", "authorized");
                 core.setOutput("user_permission", result.permission);
               } else {
+                if (allowedBots && allowedBots.length > 0) {
+                  core.info(`Checking if actor '${actor}' is in allowed bots list: ${allowedBots.join(", ")}`);
+                  if (allowedBots.includes(actor)) {
+                    core.info(`Actor '${actor}' is in the allowed bots list`);
+                    const botStatus = await checkBotStatus(actor, owner, repo);
+                    if (botStatus.isBot && botStatus.isActive) {
+                      core.info(`✅ Bot '${actor}' is active on the repository and authorized`);
+                      core.setOutput("is_team_member", "true");
+                      core.setOutput("result", "authorized_bot");
+                      core.setOutput("user_permission", "bot");
+                      return;
+                    } else if (botStatus.isBot && !botStatus.isActive) {
+                      core.warning(`Bot '${actor}' is in the allowed list but not active/installed on ${owner}/${repo}`);
+                      core.setOutput("is_team_member", "false");
+                      core.setOutput("result", "bot_not_active");
+                      core.setOutput("user_permission", result.permission);
+                      core.setOutput("error_message", `Access denied: Bot '${actor}' is not active/installed on this repository`);
+                      return;
+                    } else {
+                      core.info(`Actor '${actor}' is in allowed bots list but bot status check failed`);
+                    }
+                  }
+                }
                 core.setOutput("is_team_member", "false");
                 core.setOutput("result", "insufficient_permissions");
                 core.setOutput("user_permission", result.permission);

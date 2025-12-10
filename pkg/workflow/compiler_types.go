@@ -224,6 +224,7 @@ type WorkflowData struct {
 	SafeOutputs         *SafeOutputsConfig   // output configuration for automatic output routes
 	SafeInputs          *SafeInputsConfig    // safe-inputs configuration for custom MCP tools
 	Roles               []string             // permission levels required to trigger workflow
+	Bots                []string             // allow list of bot identifiers that can trigger workflow
 	CacheMemoryConfig   *CacheMemoryConfig   // parsed cache-memory configuration
 	RepoMemoryConfig    *RepoMemoryConfig    // parsed repo-memory configuration
 	SafetyPrompt        bool                 // whether to include XPIA safety prompt (default true)

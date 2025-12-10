@@ -631,6 +631,7 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	workflowData.Command, workflowData.CommandEvents = c.extractCommandConfig(result.Frontmatter)
 	workflowData.Jobs = c.extractJobsFromFrontmatter(result.Frontmatter)
 	workflowData.Roles = c.extractRoles(result.Frontmatter)
+	workflowData.Bots = c.extractBots(result.Frontmatter)
 
 	// Use the already extracted output configuration
 	workflowData.SafeOutputs = safeOutputs

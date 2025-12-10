@@ -23,6 +23,9 @@ func (c *Compiler) generateMembershipCheck(data *WorkflowData, steps []string) [
 	// Add environment variables for permission check
 	steps = append(steps, "        env:\n")
 	steps = append(steps, fmt.Sprintf("          GH_AW_REQUIRED_ROLES: %s\n", strings.Join(data.Roles, ",")))
+	if len(data.Bots) > 0 {
+		steps = append(steps, fmt.Sprintf("          GH_AW_ALLOWED_BOTS: %s\n", strings.Join(data.Bots, ",")))
+	}
 
 	steps = append(steps, "        with:\n")
 	steps = append(steps, "          script: |\n")
@@ -86,6 +89,35 @@ func (c *Compiler) extractRoles(frontmatter map[string]any) []string {
 	defaultRoles := []string{"admin", "maintainer", "write"}
 	roleLog.Printf("No roles specified, using defaults: %v", defaultRoles)
 	return defaultRoles
+}
+
+// extractBots extracts the 'bots' field from frontmatter to determine allowed bot identifiers
+func (c *Compiler) extractBots(frontmatter map[string]any) []string {
+	if botsValue, exists := frontmatter["bots"]; exists {
+		switch v := botsValue.(type) {
+		case []any:
+			// Array of bot identifiers
+			var bots []string
+			for _, item := range v {
+				if str, ok := item.(string); ok {
+					bots = append(bots, str)
+				}
+			}
+			roleLog.Printf("Extracted %d bot identifiers from array: %v", len(bots), bots)
+			return bots
+		case []string:
+			// Already a string slice
+			roleLog.Printf("Extracted %d bot identifiers: %v", len(v), v)
+			return v
+		case string:
+			// Single bot identifier as string
+			roleLog.Printf("Extracted single bot identifier: %s", v)
+			return []string{v}
+		}
+	}
+	// No bots specified, return empty array
+	roleLog.Print("No bots specified")
+	return []string{}
 }
 
 // needsRoleCheck determines if the workflow needs permission checks with full context
