@@ -4,7 +4,7 @@ description: Analyzes prompt patterns used in Copilot PR interactions to identif
 on:
   schedule:
     # Every day at 9am UTC
-    - cron: "0 9 * * *"
+    - cron: daily at 9:00
   workflow_dispatch:
 
 permissions:

@@ -4,7 +4,7 @@ description: Consolidates and organizes developer documentation from multiple so
 on:
   schedule:
     # Run daily at 3:17 AM UTC (random time to distribute load)
-    - cron: "17 3 * * *"
+    - cron: daily at 3:17
   workflow_dispatch:
 
 permissions:

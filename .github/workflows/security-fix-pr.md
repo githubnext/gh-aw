@@ -3,7 +3,7 @@ name: Security Fix PR
 description: Identifies and automatically fixes code security issues by creating pull requests with remediation
 on:
   schedule:
-    - cron: "0 */4 * * *"  # Every 4 hours
+    - cron: every 4h
   workflow_dispatch:
     inputs:
       security_url:

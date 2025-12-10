@@ -4,7 +4,7 @@ description: Automatically updates GitHub Actions versions and creates a PR if c
 on:
   schedule:
     # Every day at 3am UTC
-    - cron: "0 3 * * *"
+    - cron: daily at 3:00
   workflow_dispatch:
 
 permissions:

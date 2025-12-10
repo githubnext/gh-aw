@@ -2,7 +2,7 @@
 description: Analyzes workflow examples to identify patterns, best practices, and potential improvements
 on:
   schedule:
-    - cron: "0 9 * * 1"  # Monday 9AM
+    - cron: weekly on monday at 09:00
   workflow_dispatch:
 permissions:
   contents: read

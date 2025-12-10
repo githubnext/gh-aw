@@ -188,7 +188,7 @@ safe-outputs:
 ```yaml
 on:
   schedule:
-    - cron: "0 9 * * 1"  # Monday 9AM
+    - cron: weekly on monday at 09:00
 permissions:
   contents: read
 safe-outputs:

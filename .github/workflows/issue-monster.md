@@ -4,7 +4,7 @@ description: The Cookie Monster of issues - assigns issues to Copilot agents one
 on:
   workflow_dispatch:
   schedule:
-    - cron: "0 * * * *"
+    - cron: every 1h
   skip-if-match:
     query: "is:pr is:open is:draft author:app/copilot-swe-agent"
     max: 5
