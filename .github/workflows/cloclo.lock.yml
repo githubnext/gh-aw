@@ -8458,10 +8458,7 @@ jobs:
                       core.setOutput("is_team_member", "false");
                       core.setOutput("result", "bot_not_active");
                       core.setOutput("user_permission", result.permission);
-                      core.setOutput(
-                        "error_message",
-                        `Access denied: Bot '${actor}' is not active/installed on this repository`
-                      );
+                      core.setOutput("error_message", `Access denied: Bot '${actor}' is not active/installed on this repository`);
                       return;
                     } else {
                       core.info(`Actor '${actor}' is in allowed bots list but bot status check failed`);
