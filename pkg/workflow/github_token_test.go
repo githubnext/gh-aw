@@ -66,7 +66,7 @@ func TestGetEffectiveCopilotGitHubToken(t *testing.T) {
 			name:          "default fallback for Copilot includes multiple tokens",
 			customToken:   "",
 			toplevelToken: "",
-			expected:      "${{ secrets.COPILOT_GITHUB_TOKEN || secrets.COPILOT_CLI_TOKEN || secrets.GH_AW_COPILOT_TOKEN || secrets.GH_AW_GITHUB_TOKEN }}",
+			expected:      "${{ secrets.COPILOT_GITHUB_TOKEN || secrets.GH_AW_COPILOT_TOKEN || secrets.GH_AW_GITHUB_TOKEN }}",
 		},
 	}
 

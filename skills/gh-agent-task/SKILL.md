@@ -185,12 +185,11 @@ Agent task creation requires elevated permissions beyond the default `GITHUB_TOK
 
 **Token Precedence:**
 1. `COPILOT_GITHUB_TOKEN` - Dedicated Copilot operations token (recommended)
-2. `COPILOT_CLI_TOKEN` - Alternative Copilot token
-3. `GH_AW_COPILOT_TOKEN` - Legacy Copilot token (for backward compatibility)
-4. `GH_AW_GITHUB_TOKEN` - General override token (legacy)
-5. Custom token via `github-token` configuration field
+2. `GH_AW_COPILOT_TOKEN` - Legacy Copilot token (for backward compatibility)
+3. `GH_AW_GITHUB_TOKEN` - General override token (legacy)
+4. Custom token via `github-token` configuration field
 
-**Note**: The default `GITHUB_TOKEN` is **not** supported as it lacks required permissions.
+**Note**: The default `GITHUB_TOKEN` is **not** supported as it lacks required permissions. The `COPILOT_CLI_TOKEN` secret is no longer supported as of v0.26+.
 
 ### Setting Up Authentication
 
@@ -215,7 +214,7 @@ Error: failed to create agent task
 authentication required
 ```
 
-**Solution**: Configure `COPILOT_GITHUB_TOKEN`, `COPILOT_CLI_TOKEN`, or legacy `GH_AW_COPILOT_TOKEN` / `GH_AW_GITHUB_TOKEN` with a PAT.
+**Solution**: Configure `COPILOT_GITHUB_TOKEN` or legacy `GH_AW_COPILOT_TOKEN` / `GH_AW_GITHUB_TOKEN` with a PAT.
 
 ### Permission Errors
 

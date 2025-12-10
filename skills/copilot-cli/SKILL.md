@@ -26,9 +26,11 @@ npm install -g @github/copilot
 ```
 
 **Environment Variables:**
-- `GITHUB_TOKEN` or `COPILOT_GITHUB_TOKEN`: GitHub token for authentication (legacy name `COPILOT_CLI_TOKEN` also supported)
+- `GITHUB_TOKEN` or `COPILOT_GITHUB_TOKEN`: GitHub token for authentication
 - `XDG_CONFIG_HOME`: Configuration directory (defaults to `/tmp/gh-aw/.copilot/`)
 - `XDG_STATE_HOME`: State/cache directory (defaults to `/tmp/gh-aw/.copilot/`)
+
+**Note**: The `COPILOT_CLI_TOKEN` environment variable is no longer supported as of v0.26+. Use `COPILOT_GITHUB_TOKEN` instead.
 
 ## Core Command Structure
 
@@ -140,11 +142,13 @@ engine:
 - Custom tools require proper MCP server configuration
 
 ### Authentication
-- Use `COPILOT_GITHUB_TOKEN` secret for GitHub token (legacy `COPILOT_CLI_TOKEN` also supported)
+- Use `COPILOT_GITHUB_TOKEN` secret for GitHub token
 - GitHub Actions default token is incompatible with Copilot CLI
 - Must use Personal Access Token (PAT)
 - Ensure token has appropriate permissions for repository access
 - Token is passed via environment variables to CLI
+
+**Note**: The `COPILOT_CLI_TOKEN` secret name is no longer supported as of v0.26+.
 
 ## Development Guidelines
 
@@ -212,7 +216,7 @@ copilot --add-dir /tmp/gh-aw \
 
 ### Authentication Issues
 - **GitHub Actions Token Incompatibility**: The default `GITHUB_TOKEN` does NOT work with Copilot CLI
-- Verify you're using a Personal Access Token in `COPILOT_GITHUB_TOKEN` secret (or legacy `COPILOT_CLI_TOKEN`)
+- Verify you're using a Personal Access Token in `COPILOT_GITHUB_TOKEN` secret
 - Verify the token is associated with a Copilot-enabled GitHub account
 - For GitHub Enterprise, contact admin for Copilot CLI token access
 

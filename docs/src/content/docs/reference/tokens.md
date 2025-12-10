@@ -147,9 +147,12 @@ gh secret set COPILOT_GITHUB_TOKEN -a actions --body "YOUR_COPILOT_PAT"
 2. Global `safe-outputs.github-token:`
 3. Workflow-level `github-token:`
 4. `${{ secrets.COPILOT_GITHUB_TOKEN }}`
-5. `${{ secrets.COPILOT_CLI_TOKEN }}` (alternative)
-6. `${{ secrets.GH_AW_COPILOT_TOKEN }}` (legacy, deprecated)
-7. `${{ secrets.GH_AW_GITHUB_TOKEN }}` (legacy, deprecated)
+5. `${{ secrets.GH_AW_COPILOT_TOKEN }}` (legacy, deprecated)
+6. `${{ secrets.GH_AW_GITHUB_TOKEN }}` (legacy, deprecated)
+
+:::caution[COPILOT_CLI_TOKEN Deprecated]
+The `COPILOT_CLI_TOKEN` secret name is **no longer supported** as of v0.26+. Use `COPILOT_GITHUB_TOKEN` instead.
+:::
 
 :::caution
 The default `GITHUB_TOKEN` is **not** included in the Copilot fallback chain because it lacks the "Copilot Requests" permission required for Copilot operations.
@@ -722,9 +725,12 @@ gh secret list -a actions
 2. Global `safe-outputs.github-token:`
 3. Workflow-level `github-token:`
 4. `secrets.COPILOT_GITHUB_TOKEN`
-5. `secrets.COPILOT_CLI_TOKEN`
-6. `secrets.GH_AW_COPILOT_TOKEN`
-7. `secrets.GH_AW_GITHUB_TOKEN` (lowest)
+5. `secrets.GH_AW_COPILOT_TOKEN`
+6. `secrets.GH_AW_GITHUB_TOKEN` (lowest)
+
+:::caution[COPILOT_CLI_TOKEN Deprecated]
+The `COPILOT_CLI_TOKEN` secret name is **no longer supported** as of v0.26+. Use `COPILOT_GITHUB_TOKEN` instead.
+:::
 
 **For GitHub MCP server**:
 1. Tool-level `github-token` (highest)
@@ -749,10 +755,19 @@ gh secret list -a actions
 | Old Token Name | New Token Name | Status |
 |---------------|----------------|--------|
 | `GH_AW_COPILOT_TOKEN` | `COPILOT_GITHUB_TOKEN` | Deprecated, still supported |
-| `COPILOT_CLI_TOKEN` | `COPILOT_GITHUB_TOKEN` | Alternative, still supported |
+| `COPILOT_CLI_TOKEN` | `COPILOT_GITHUB_TOKEN` | **Removed in v0.26+** |
 | - | `GH_AW_GITHUB_MCP_SERVER_TOKEN` | Optional, new in v0.23+ |
 
-To migrate:
+:::caution[COPILOT_CLI_TOKEN Removed]
+The `COPILOT_CLI_TOKEN` secret is **no longer supported** as of v0.26+. Workflows using this token will fail. Please migrate to `COPILOT_GITHUB_TOKEN`:
+
+```bash wrap
+# Add new secret
+gh secret set COPILOT_GITHUB_TOKEN -a actions --body "<your-github-pat>"
+```
+:::
+
+To migrate from legacy tokens:
 ```bash wrap
 # Remove old secret
 gh secret remove GH_AW_COPILOT_TOKEN -a actions
