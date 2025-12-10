@@ -999,9 +999,9 @@ func TestGetEnabledSafeOutputToolNames(t *testing.T) {
 		{
 			name: "multiple tools in alphabetical order",
 			safeOutputs: &SafeOutputsConfig{
-				AddComments:   &AddCommentsConfig{},
-				CreateIssues:  &CreateIssuesConfig{},
-				UpdateIssues:  &UpdateIssuesConfig{},
+				AddComments:  &AddCommentsConfig{},
+				CreateIssues: &CreateIssuesConfig{},
+				UpdateIssues: &UpdateIssuesConfig{},
 			},
 			expected: []string{"add_comment", "create_issue", "update_issue"},
 		},
@@ -1011,9 +1011,9 @@ func TestGetEnabledSafeOutputToolNames(t *testing.T) {
 				CreateIssues: &CreateIssuesConfig{},
 				UpdateIssues: &UpdateIssuesConfig{},
 				Jobs: map[string]*SafeJobConfig{
-					"zzz_custom":     {},
-					"aaa_custom":     {},
-					"middle_custom":  {},
+					"zzz_custom":    {},
+					"aaa_custom":    {},
+					"middle_custom": {},
 				},
 			},
 			expected: []string{"aaa_custom", "create_issue", "middle_custom", "update_issue", "zzz_custom"},
@@ -1021,20 +1021,20 @@ func TestGetEnabledSafeOutputToolNames(t *testing.T) {
 		{
 			name: "all standard tools are sorted",
 			safeOutputs: &SafeOutputsConfig{
-				CreateIssues:           &CreateIssuesConfig{},
-				CreateAgentTasks:       &CreateAgentTaskConfig{},
-				CreateDiscussions:      &CreateDiscussionsConfig{},
-				CloseDiscussions:       &CloseDiscussionsConfig{},
-				CloseIssues:            &CloseIssuesConfig{},
-				ClosePullRequests:      &ClosePullRequestsConfig{},
-				AddComments:            &AddCommentsConfig{},
-				CreatePullRequests:     &CreatePullRequestsConfig{},
-				AddLabels:              &AddLabelsConfig{},
-				AddReviewer:            &AddReviewerConfig{},
-				AssignMilestone:        &AssignMilestoneConfig{},
-				UpdateIssues:           &UpdateIssuesConfig{},
-				UpdatePullRequests:     &UpdatePullRequestsConfig{},
-				NoOp:                   &NoOpConfig{},
+				CreateIssues:       &CreateIssuesConfig{},
+				CreateAgentTasks:   &CreateAgentTaskConfig{},
+				CreateDiscussions:  &CreateDiscussionsConfig{},
+				CloseDiscussions:   &CloseDiscussionsConfig{},
+				CloseIssues:        &CloseIssuesConfig{},
+				ClosePullRequests:  &ClosePullRequestsConfig{},
+				AddComments:        &AddCommentsConfig{},
+				CreatePullRequests: &CreatePullRequestsConfig{},
+				AddLabels:          &AddLabelsConfig{},
+				AddReviewer:        &AddReviewerConfig{},
+				AssignMilestone:    &AssignMilestoneConfig{},
+				UpdateIssues:       &UpdateIssuesConfig{},
+				UpdatePullRequests: &UpdatePullRequestsConfig{},
+				NoOp:               &NoOpConfig{},
 			},
 			// Expected order is alphabetical
 			expected: []string{
@@ -1059,18 +1059,18 @@ func TestGetEnabledSafeOutputToolNames(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := GetEnabledSafeOutputToolNames(tt.safeOutputs)
-			
+
 			if len(result) != len(tt.expected) {
 				t.Errorf("Expected %d tools, got %d: %v", len(tt.expected), len(result), result)
 				return
 			}
-			
+
 			for i, tool := range result {
 				if tool != tt.expected[i] {
 					t.Errorf("Tool at index %d: expected %q, got %q", i, tt.expected[i], tool)
 				}
 			}
-			
+
 			// Verify the list is sorted
 			for i := 1; i < len(result); i++ {
 				if result[i-1] > result[i] {
