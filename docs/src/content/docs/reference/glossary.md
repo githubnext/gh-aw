@@ -69,6 +69,18 @@ Capabilities that an AI agent can use during workflow execution. Tools are confi
 ### Safe Inputs
 Custom MCP tools defined inline in the workflow frontmatter using JavaScript or shell scripts. Allows lightweight tool creation without external dependencies while maintaining controlled access to secrets. Tools are generated at runtime and mounted as an MCP server. Each tool can have typed input parameters, default values, and environment variables. Configured using the `safe-inputs:` section in frontmatter.
 
+### SARIF
+Static Analysis Results Interchange Format - a standardized JSON format for reporting results from static analysis tools. Used by GitHub Code Scanning to display security vulnerabilities and code quality issues. Workflows can generate SARIF files using the `create-code-scanning-alert` safe output to report security findings discovered during AI analysis.
+
+```yaml
+safe-outputs:
+  create-code-scanning-alert:
+    max: 1
+```
+
+### SBOM
+Software Bill of Materials - a comprehensive inventory of all components, libraries, and dependencies in a software project. Used for security auditing, vulnerability tracking, and compliance requirements. Helps identify when dependencies have known security issues. Common formats include SPDX and CycloneDX.
+
 ### Safe Outputs
 Pre-approved actions the AI can take without requiring elevated permissions. The AI generates structured output describing what it wants to create (issues, comments, pull requests), which is processed by separate, permission-controlled jobs. Configured using the `safe-outputs:` section in frontmatter. This approach lets AI agents create GitHub content without direct write access, reducing security risks.
 
