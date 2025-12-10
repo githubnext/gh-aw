@@ -30,6 +30,7 @@ safe-outputs:
     labels: [cost-optimization, automation, analysis]
 timeout-minutes: 20
 imports:
+  - shared/mcp/gh-aw.md
   - shared/reporting.md
   - shared/jqschema.md
 ---
