@@ -15,8 +15,7 @@ tools:
   github:
     toolsets: [default]
   bash:
-    - "gh run list --limit 30 *"
-    - "gh run view *"
+    - "gh aw logs *"
     - "gh workflow list"
     - "gh workflow view *"
     - "jq *"
@@ -54,22 +53,32 @@ Analyze all agentic workflows in this repository weekly to identify opportunitie
 
 ### Phase 1: Data Collection (10 seconds)
 
-Collect execution data from the last 30 runs for each workflow:
+Collect execution data from the last 30 runs for each workflow using `gh aw logs`:
 
 ```bash
-# Get list of all workflows
-gh workflow list --limit 100 --json name,id,path
+# Get list of all agentic workflows
+find .github/workflows/ -name '*.md' -type f
 
-# For each workflow, get last 30 runs (iterate through workflow list)
-# Example: gh run list --workflow="workflow-name" --limit 30 --json status,conclusion,createdAt,updatedAt,databaseId
+# For each workflow, get real cost and execution data from last 30 runs
+# Example: gh aw logs workflow-name --json -c 30
+# This provides ACTUAL cost data, not estimates
 ```
 
-**Key Metrics to Extract:**
+**Key Metrics to Extract (from gh aw logs --json output):**
+- `estimated_cost` - **Real cost per run calculated from actual token usage** (field name says "estimated" but contains calculated cost from actual usage)
+- `token_usage` - Actual token consumption
+- `duration` - Actual runtime
+- `conclusion` - Success/failure status (success, failure, cancelled)
+- `created_at` - When the run was executed
+- `error_count` - Number of errors in the run
+- `warning_count` - Number of warnings in the run
+
+**Calculate from real data:**
 - Total runs in last 30 days
-- Success/failure counts
-- Last run date
-- Run frequency
-- Estimated cost per run (based on runtime and engine)
+- Success/failure counts from `conclusion` field
+- Last run date from `created_at` field
+- Monthly cost: sum of `estimated_cost` for all runs
+- Average cost per run: total cost / total runs
 
 **Triage Early:**
 - Skip workflows with 100% success rate, normal frequency, and last run < 7 days
@@ -90,8 +99,9 @@ Analyze each workflow across five dimensions:
 - Assess actual usage vs. configured schedule
 
 #### 3. Cost Efficiency
-- Calculate monthly cost estimate (runtime × engine cost)
-- **Flag workflows costing >$10/month**
+- Use **ACTUAL cost data** from `gh aw logs --json` output
+- Sum `estimated_cost` from all runs in the last 30 days for real monthly cost
+- **Flag workflows costing >$10/month** (based on actual spend, not estimates)
 - Identify over-scheduled workflows (daily when weekly would suffice)
 
 #### 4. Operational Health
@@ -139,38 +149,54 @@ Skip everything else to stay within time budget.
 
 ### Phase 5: Savings Calculation (10 seconds)
 
-Calculate specific dollar amounts for four strategies:
+Calculate specific dollar amounts using **ACTUAL cost data from `gh aw logs`**:
 
 #### Strategy 1: Remove Unused Workflows
-```
+```bash
+# Use gh aw logs to get real cost data
+gh aw logs workflow-name --json -c 30 | jq '.summary.total_cost'
+
 For each workflow with no runs in 60+ days:
-- Current monthly cost: $X
-- Savings: $X/month
+- Current monthly cost: Sum of estimated_cost from last 30 days
+- Savings: $X/month (actual spend, not estimate)
 - Total savings: Sum all
 ```
 
 #### Strategy 2: Reduce Schedule Frequency
-```
+```bash
+# Get actual runs and cost from gh aw logs
+gh aw logs workflow-name --json -c 30 | jq '{runs: .summary.total_runs, cost: .summary.total_cost}'
+
 For each over-scheduled workflow:
-- Current frequency: Daily (30 runs/month)
+- Current frequency: Count runs in last 30 days from gh aw logs
+- Average cost per run: total_cost / total_runs (from actual data)
 - Recommended: Weekly (4 runs/month)
-- Savings: (30-4) × cost_per_run = $Y/month
+- Savings: (current_runs - 4) × avg_cost_per_run = $Y/month
 ```
 
 #### Strategy 3: Consolidate Duplicates
-```
+```bash
+# Get cost for each duplicate workflow
+gh aw logs workflow-1 --json -c 30 | jq '.summary.total_cost'
+gh aw logs workflow-2 --json -c 30 | jq '.summary.total_cost'
+
 For each duplicate set:
 - Number of duplicates: N
-- Cost per workflow: $X
+- Cost per workflow: $X (from gh aw logs actual data)
 - Savings: (N-1) × $X/month
 ```
 
 #### Strategy 4: Fix High-Failure Workflows
-```
+```bash
+# Get failure rate and cost from gh aw logs
+gh aw logs workflow-name --json -c 30 | jq '[.runs[] | select(.conclusion == "failure") | .estimated_cost] | add'
+
 For each workflow with >30% failure rate:
-- Failure rate: X%
-- Wasted spending: cost × (X/100)
-- Potential savings: $Y/month (after fixing)
+- Total runs: Count from gh aw logs
+- Failed runs: Count where conclusion == "failure"
+- Failure rate: (failed_runs / total_runs) × 100
+- Wasted spending: Sum of estimated_cost for failed runs
+- Potential savings: $Y/month (actual wasted cost on failures)
 ```
 
 **Total Savings Target: ≥20% of current spending**
@@ -187,9 +213,10 @@ Generate a concise, action-oriented GitHub issue under 2000 words.
 ## Executive Summary
 
 - **Total Workflows Analyzed**: [N]
-- **Current Monthly Cost**: $[X]
+- **Current Monthly Cost**: $[X] (from actual `gh aw logs` data, last 30 days)
 - **Potential Savings**: $[Y] ([Z]%)
 - **High-Impact Issues**: [N]
+- **Data Source**: Real workflow execution data from `gh aw logs`, not estimates
 
 ## Cost Reduction Strategies
 
@@ -215,11 +242,11 @@ Generate a concise, action-oriented GitHub issue under 2000 words.
 
 ### 2. Reduce Schedule Frequency ($[Y]/month)
 
-[Only list over-scheduled workflows]
+[Only list over-scheduled workflows based on actual run data from gh aw logs]
 
-- **`daily-report.md`** - Runs: 30/month, Cost: $[Y]/month
+- **`daily-report.md`** - Runs: [actual count from last 30 days], Avg cost/run: $[actual from gh aw logs], Total: $[Y]/month
   - Line 4: Change from daily to weekly
-  - Rationale: Activity patterns show weekly is sufficient
+  - Rationale: Actual execution data shows workflow runs [X] times in last 30 days
   ```yaml
   # Current (line 4):
   cron: "0 9 * * *"  # Daily
@@ -227,7 +254,9 @@ Generate a concise, action-oriented GitHub issue under 2000 words.
   # Change to (line 4):
   cron: "0 9 * * 1"  # Weekly on Monday
   ```
-  - **Savings**: $[Z]/month (86% reduction)
+  - **Current**: [actual runs] runs × $[actual cost per run] = $[Y]/month
+  - **After**: 4 runs × $[actual cost per run] = $[lower amount]/month
+  - **Savings**: $[Z]/month ([percentage]% reduction)
 
 **Subtotal Savings: $[Y]/month**
 
@@ -249,10 +278,11 @@ Generate a concise, action-oriented GitHub issue under 2000 words.
 
 ### 4. Fix High-Failure Workflows ($[W]/month)
 
-[Only list workflows with >30% failure rate]
+[Only list workflows with >30% failure rate based on actual conclusion data from gh aw logs]
 
-- **`data-processor.md`** - Failure rate: 45%, Wasted: $[W]/month
-  - Root cause: Missing permissions
+- **`data-processor.md`** - Failure rate: [actual %] ([X] failures out of [Y] runs), Wasted: $[W]/month
+  - **Wasted Cost**: Sum of `estimated_cost` for all failed runs = $[W]/month (actual spend on failures)
+  - Root cause: [analyze error_count and logs]
   - Fix (line 7): Add required permission
   ```yaml
   # Add to permissions section (line 7):
@@ -260,17 +290,20 @@ Generate a concise, action-oriented GitHub issue under 2000 words.
     contents: read
     issues: write  # <- Add this
   ```
-  - **Savings**: $[W]/month (after fixing failures)
+  - **Savings**: $[W]/month (actual wasted spend on failures, recoverable after fix)
 
 **Subtotal Savings: $[W]/month**
 
 ## Total Potential Savings
 
-- **Strategy 1 (Remove)**: $[X]/month
-- **Strategy 2 (Reduce)**: $[Y]/month
-- **Strategy 3 (Consolidate)**: $[Z]/month
-- **Strategy 4 (Fix)**: $[W]/month
+**All costs are from actual workflow execution data (last 30 days), not estimates:**
+
+- **Strategy 1 (Remove)**: $[X]/month (sum of actual monthly spend on unused workflows)
+- **Strategy 2 (Reduce)**: $[Y]/month (calculated from actual cost per run × reduced frequency)
+- **Strategy 3 (Consolidate)**: $[Z]/month (sum of actual monthly spend on duplicate workflows)
+- **Strategy 4 (Fix)**: $[W]/month (sum of actual spend on failed runs)
 - **Total**: $[TOTAL]/month ([PERCENT]% reduction)
+- **Current Monthly Spend**: $[CURRENT]/month (from gh aw logs actual data)
 
 ## Implementation Checklist
 
@@ -296,17 +329,25 @@ Each fix takes <1 hour:
 
 ## Critical Guidelines
 
+### Use Real Data, Not Guesswork
+- **ALWAYS use `gh aw logs --json`** to get actual execution data
+- **Use calculated costs** - the `estimated_cost` field contains costs calculated from actual token usage
+- **Parse JSON with jq** - extract precise metrics from gh aw logs output
+- **Sum actual costs** - add up `estimated_cost` for all runs in last 30 days
+- **Calculate from actuals** - failure rates, run frequency, cost per run all from real workflow execution data
+
 ### Speed Optimization
 - **Skip healthy workflows** - Don't waste time analyzing what works
-- **Focus on high-impact only** - Workflows >$10/month or >30% failure
-- **Batch operations** - Collect all data at once, analyze in parallel
+- **Focus on high-impact only** - Workflows >$10/month or >30% failure (from actual data)
+- **Batch operations** - Run `gh aw logs` for all workflows, analyze results
 - **Use templates** - Pre-format output structure
 
 ### Precision Requirements
 - **Exact filenames** - Include `.md` extension
 - **Exact line numbers** - Specify which lines to modify
 - **Copy-paste snippets** - Show before/after for each fix
-- **Dollar amounts** - Calculate specific savings, not ranges
+- **Dollar amounts** - Use actual costs from gh aw logs, not estimates or ranges
+- **Show calculations** - Display how you calculated savings from actual data
 
 ### Quality Standards
 - **<2000 words** - Be concise, focus on actionable items
@@ -318,17 +359,19 @@ Each fix takes <1 hour:
 - **60-70% should be skipped** - Most workflows should be healthy
 - **Focus 80% of content on 20% of issues** - High-impact problems only
 - **Clear categories** - Remove, Reduce, Consolidate, or Fix
-- **Evidence-based** - Use actual run data, not assumptions
+- **Evidence-based** - Use actual run data from `gh aw logs`, not assumptions or estimates
 
 ## Success Criteria
 
 ✅ Analysis completes in <60 seconds
-✅ Identifies ≥20% cost savings opportunities
+✅ Uses **real data from `gh aw logs --json`**, not estimates
+✅ Identifies ≥20% cost savings opportunities based on actual spend
 ✅ Issue is <2000 words
 ✅ Every recommendation includes exact line numbers
 ✅ Every recommendation includes before/after snippets
 ✅ Every fix takes <1 hour to implement
-✅ Math adds up correctly
+✅ Math adds up correctly (all costs from actual gh aw logs data)
 ✅ Healthy workflows are briefly mentioned but not analyzed
+✅ All dollar amounts are from actual workflow execution data
 
-Begin your analysis now. Move fast, focus on high-impact issues, and deliver actionable recommendations.
+Begin your analysis now. Use `gh aw logs --json` to get real execution data for each workflow. Move fast, focus on high-impact issues, and deliver actionable recommendations based on actual costs.
