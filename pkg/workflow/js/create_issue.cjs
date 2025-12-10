@@ -16,6 +16,67 @@ const {
 const { parseAllowedRepos, getDefaultTargetRepo, validateRepo, parseRepoSlug } = require("./repo_helpers.cjs");
 const { addExpirationComment } = require("./expiration_helpers.cjs");
 
+/**
+ * Find an existing open issue with the given tracker-id
+ * @param {string} owner - Repository owner
+ * @param {string} repo - Repository name
+ * @param {string} trackerID - Tracker ID to search for
+ * @returns {Promise<{number: number, title: string, body: string, labels: Array<{name: string}>, html_url: string} | null>} Issue object or null if not found
+ */
+async function findExistingIssueByTrackerID(owner, repo, trackerID) {
+  if (!trackerID) {
+    return null;
+  }
+
+  core.info(`Searching for existing open issue with tracker-id: ${trackerID} in ${owner}/${repo}`);
+
+  try {
+    // Search for open issues containing the tracker-id comment
+    // We search in the body for the HTML comment format: <!-- tracker-id: portfolio-analyst-weekly -->
+    const searchQuery = `repo:${owner}/${repo} is:issue is:open "${trackerID}" in:body`;
+    core.info(`Search query: ${searchQuery}`);
+
+    const searchResults = await github.rest.search.issuesAndPullRequests({
+      q: searchQuery,
+      per_page: 100,
+    });
+
+    core.info(`Found ${searchResults.data.total_count} potential matches`);
+
+    // Filter results to ensure the tracker-id is in the correct HTML comment format
+    // This prevents false positives from issues that just mention the tracker-id in text
+    const trackerIDPattern = new RegExp(`<!--\\s*tracker-id:\\s*${trackerID.replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&")}\\s*-->`);
+
+    for (const issue of searchResults.data.items) {
+      // Skip pull requests
+      if (issue.pull_request) {
+        continue;
+      }
+
+      core.info(`Checking issue #${issue.number}: ${issue.title}`);
+
+      if (trackerIDPattern.test(issue.body || "")) {
+        core.info(`✓ Found matching issue #${issue.number} with tracker-id: ${trackerID}`);
+        return {
+          number: issue.number,
+          title: issue.title,
+          body: issue.body || "",
+          labels: issue.labels,
+          html_url: issue.html_url,
+        };
+      } else {
+        core.info(`✗ Issue #${issue.number} does not contain tracker-id comment in correct format`);
+      }
+    }
+
+    core.info(`No existing open issue found with tracker-id: ${trackerID}`);
+    return null;
+  } catch (error) {
+    core.warning(`Error searching for existing issue: ${error instanceof Error ? error.message : String(error)}`);
+    return null;
+  }
+}
+
 async function main() {
   // Initialize outputs to empty strings to ensure they're always set
   core.setOutput("issue_number", "");
@@ -230,18 +291,49 @@ async function main() {
       ""
     );
     const body = bodyLines.join("\n").trim();
-    core.info(`Creating issue in ${itemRepo} with title: ${title}`);
-    core.info(`Labels: ${labels}`);
-    core.info(`Body length: ${body.length}`);
+
+    // Check if an issue with this tracker-id already exists
+    const trackerID = getTrackerID("text");
+    const existingIssue = trackerID ? await findExistingIssueByTrackerID(repoParts.owner, repoParts.repo, trackerID) : null;
+
+    let issue;
     try {
-      const { data: issue } = await github.rest.issues.create({
-        owner: repoParts.owner,
-        repo: repoParts.repo,
-        title: title,
-        body: body,
-        labels: labels,
-      });
-      core.info(`Created issue ${itemRepo}#${issue.number}: ${issue.html_url}`);
+      if (existingIssue) {
+        // Update the existing issue
+        core.info(`Updating existing issue ${itemRepo}#${existingIssue.number} with tracker-id: ${trackerID}`);
+        core.info(`Old title: ${existingIssue.title}`);
+        core.info(`New title: ${title}`);
+        core.info(`Body length: ${body.length}`);
+
+        const { data: updatedIssue } = await github.rest.issues.update({
+          owner: repoParts.owner,
+          repo: repoParts.repo,
+          issue_number: existingIssue.number,
+          title: title,
+          body: body,
+          labels: labels,
+        });
+
+        core.info(`✓ Updated issue ${itemRepo}#${updatedIssue.number}: ${updatedIssue.html_url}`);
+        issue = updatedIssue;
+      } else {
+        // Create a new issue
+        core.info(`Creating new issue in ${itemRepo} with title: ${title}`);
+        core.info(`Labels: ${labels}`);
+        core.info(`Body length: ${body.length}`);
+
+        const { data: newIssue } = await github.rest.issues.create({
+          owner: repoParts.owner,
+          repo: repoParts.repo,
+          title: title,
+          body: body,
+          labels: labels,
+        });
+
+        core.info(`✓ Created issue ${itemRepo}#${newIssue.number}: ${newIssue.html_url}`);
+        issue = newIssue;
+      }
+
       createdIssues.push({ ...issue, _repo: itemRepo });
 
       // Store the mapping of temporary_id -> {repo, number}
@@ -338,12 +430,13 @@ async function main() {
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
+      const operationVerb = existingIssue ? "update" : "create";
       if (errorMessage.includes("Issues has been disabled in this repository")) {
-        core.info(`⚠ Cannot create issue "${title}" in ${itemRepo}: Issues are disabled for this repository`);
+        core.info(`⚠ Cannot ${operationVerb} issue "${title}" in ${itemRepo}: Issues are disabled for this repository`);
         core.info("Consider enabling issues in repository settings if you want to create issues automatically");
         continue;
       }
-      core.error(`✗ Failed to create issue "${title}" in ${itemRepo}: ${errorMessage}`);
+      core.error(`✗ Failed to ${operationVerb} issue "${title}" in ${itemRepo}: ${errorMessage}`);
       throw error;
     }
   }

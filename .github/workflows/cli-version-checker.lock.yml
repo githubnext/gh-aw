@@ -6238,6 +6238,45 @@ jobs:
                 }
               }
             }
+            async function findExistingIssueByTrackerID(owner, repo, trackerID) {
+              if (!trackerID) {
+                return null;
+              }
+              core.info(`Searching for existing open issue with tracker-id: ${trackerID} in ${owner}/${repo}`);
+              try {
+                const searchQuery = `repo:${owner}/${repo} is:issue is:open "${trackerID}" in:body`;
+                core.info(`Search query: ${searchQuery}`);
+                const searchResults = await github.rest.search.issuesAndPullRequests({
+                  q: searchQuery,
+                  per_page: 100,
+                });
+                core.info(`Found ${searchResults.data.total_count} potential matches`);
+                const trackerIDPattern = new RegExp(`<!--\\s*tracker-id:\\s*${trackerID.replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&")}\\s*-->`);
+                for (const issue of searchResults.data.items) {
+                  if (issue.pull_request) {
+                    continue;
+                  }
+                  core.info(`Checking issue #${issue.number}: ${issue.title}`);
+                  if (trackerIDPattern.test(issue.body || "")) {
+                    core.info(`✓ Found matching issue #${issue.number} with tracker-id: ${trackerID}`);
+                    return {
+                      number: issue.number,
+                      title: issue.title,
+                      body: issue.body || "",
+                      labels: issue.labels,
+                      html_url: issue.html_url,
+                    };
+                  } else {
+                    core.info(`✗ Issue #${issue.number} does not contain tracker-id comment in correct format`);
+                  }
+                }
+                core.info(`No existing open issue found with tracker-id: ${trackerID}`);
+                return null;
+              } catch (error) {
+                core.warning(`Error searching for existing issue: ${error instanceof Error ? error.message : String(error)}`);
+                return null;
+              }
+            }
             async function main() {
               core.setOutput("issue_number", "");
               core.setOutput("issue_url", "");
@@ -6414,18 +6453,39 @@ jobs:
                   ""
                 );
                 const body = bodyLines.join("\n").trim();
-                core.info(`Creating issue in ${itemRepo} with title: ${title}`);
-                core.info(`Labels: ${labels}`);
-                core.info(`Body length: ${body.length}`);
+                const trackerID = getTrackerID("text");
+                const existingIssue = trackerID ? await findExistingIssueByTrackerID(repoParts.owner, repoParts.repo, trackerID) : null;
+                let issue;
                 try {
-                  const { data: issue } = await github.rest.issues.create({
-                    owner: repoParts.owner,
-                    repo: repoParts.repo,
-                    title: title,
-                    body: body,
-                    labels: labels,
-                  });
-                  core.info(`Created issue ${itemRepo}#${issue.number}: ${issue.html_url}`);
+                  if (existingIssue) {
+                    core.info(`Updating existing issue ${itemRepo}#${existingIssue.number} with tracker-id: ${trackerID}`);
+                    core.info(`Old title: ${existingIssue.title}`);
+                    core.info(`New title: ${title}`);
+                    core.info(`Body length: ${body.length}`);
+                    const { data: updatedIssue } = await github.rest.issues.update({
+                      owner: repoParts.owner,
+                      repo: repoParts.repo,
+                      issue_number: existingIssue.number,
+                      title: title,
+                      body: body,
+                      labels: labels,
+                    });
+                    core.info(`✓ Updated issue ${itemRepo}#${updatedIssue.number}: ${updatedIssue.html_url}`);
+                    issue = updatedIssue;
+                  } else {
+                    core.info(`Creating new issue in ${itemRepo} with title: ${title}`);
+                    core.info(`Labels: ${labels}`);
+                    core.info(`Body length: ${body.length}`);
+                    const { data: newIssue } = await github.rest.issues.create({
+                      owner: repoParts.owner,
+                      repo: repoParts.repo,
+                      title: title,
+                      body: body,
+                      labels: labels,
+                    });
+                    core.info(`✓ Created issue ${itemRepo}#${newIssue.number}: ${newIssue.html_url}`);
+                    issue = newIssue;
+                  }
                   createdIssues.push({ ...issue, _repo: itemRepo });
                   temporaryIdMap.set(normalizeTemporaryId(temporaryId), { repo: itemRepo, number: issue.number });
                   core.info(`Stored temporary ID mapping: ${temporaryId} -> ${itemRepo}#${issue.number}`);
@@ -6506,12 +6566,13 @@ jobs:
                   }
                 } catch (error) {
                   const errorMessage = error instanceof Error ? error.message : String(error);
+                  const operationVerb = existingIssue ? "update" : "create";
                   if (errorMessage.includes("Issues has been disabled in this repository")) {
-                    core.info(`⚠ Cannot create issue "${title}" in ${itemRepo}: Issues are disabled for this repository`);
+                    core.info(`⚠ Cannot ${operationVerb} issue "${title}" in ${itemRepo}: Issues are disabled for this repository`);
                     core.info("Consider enabling issues in repository settings if you want to create issues automatically");
                     continue;
                   }
-                  core.error(`✗ Failed to create issue "${title}" in ${itemRepo}: ${errorMessage}`);
+                  core.error(`✗ Failed to ${operationVerb} issue "${title}" in ${itemRepo}: ${errorMessage}`);
                   throw error;
                 }
               }
