@@ -17,6 +17,15 @@ const { parseAllowedRepos, getDefaultTargetRepo, validateRepo, parseRepoSlug } =
 const { addExpirationComment } = require("./expiration_helpers.cjs");
 
 /**
+ * Escape special regex characters in a string
+ * @param {string} str - String to escape
+ * @returns {string} Escaped string safe for use in RegExp
+ */
+function escapeRegex(str) {
+  return str.replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&");
+}
+
+/**
  * Find an existing open issue with the given tracker-id
  * @param {string} owner - Repository owner
  * @param {string} repo - Repository name
@@ -45,7 +54,7 @@ async function findExistingIssueByTrackerID(owner, repo, trackerID) {
 
     // Filter results to ensure the tracker-id is in the correct HTML comment format
     // This prevents false positives from issues that just mention the tracker-id in text
-    const trackerIDPattern = new RegExp(`<!--\\s*tracker-id:\\s*${trackerID.replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&")}\\s*-->`);
+    const trackerIDPattern = new RegExp(`<!--\\s*tracker-id:\\s*${escapeRegex(trackerID)}\\s*-->`);
 
     for (const issue of searchResults.data.items) {
       // Skip pull requests
