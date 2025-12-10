@@ -392,11 +392,11 @@ The YAML frontmatter supports these fields:
         target-repo: "owner/repo"           # Optional: cross-repository
     ```
     When using `safe-outputs.close-pull-request`, the main job does **not** need `pull-requests: write` permission since PR closing is handled by a separate job with appropriate permissions.
-  - `add-labels:` - Safe label addition to issues or PRs. Labels will be created if they don't already exist in the repository.
+  - `add-labels:` - Safe label addition to issues or PRs
     ```yaml
     safe-outputs:
       add-labels:
-        allowed: [bug, enhancement, documentation]  # Optional: restrict to specific labels (will be created if missing)
+        allowed: [bug, enhancement, documentation]  # Optional: restrict to specific labels
         max: 3                                      # Optional: maximum number of labels (default: 3)
         target: "*"                                 # Optional: "triggering" (default), "*" (any issue/PR), or number
         target-repo: "owner/repo"                   # Optional: cross-repository
