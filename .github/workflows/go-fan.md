@@ -116,16 +116,6 @@ From the sorted list (most recent first):
 2. Find the first module in the sorted list that hasn't been reviewed in the last 7 days
 3. If all modules have been reviewed recently, reset the cache and start from the top of the sorted list
 
-**Important direct dependencies to analyze:**
-- `github.com/goccy/go-yaml` - YAML parsing
-- `github.com/spf13/cobra` - CLI framework
-- `github.com/stretchr/testify` - Testing utilities
-- `github.com/charmbracelet/lipgloss` - Terminal styling
-- `github.com/charmbracelet/huh` - Terminal forms
-- `github.com/cli/go-gh/v2` - GitHub CLI library
-- `github.com/santhosh-tekuri/jsonschema/v6` - JSON Schema validation
-- `github.com/modelcontextprotocol/go-sdk` - MCP protocol SDK
-
 **Priority Logic**: By sorting by `pushed_at` first, we automatically prioritize dependencies with recent activity, ensuring we stay current with the latest changes in our dependency tree.
 
 ## Step 3: Research the Module
