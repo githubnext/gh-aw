@@ -619,6 +619,7 @@ name: "DeepReport - Intelligence Gathering Agent"
 "on":
   schedule:
   - cron: "0 15 * * 1-5"
+    # Friendly format: daily at midnight
   workflow_dispatch: null
 
 permissions:
