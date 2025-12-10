@@ -22,42 +22,60 @@ Learn about the concepts behind agentic workflows, explore available workflow ty
 
 ## How It Works
 
-GitHub Agentic Workflows transforms natural language markdown files into GitHub Actions that are executed by AI agents. Here's a simple example:
+GitHub Agentic Workflows transforms natural language markdown files into GitHub Actions that are executed by AI agents. Here's an example:
 
 ```markdown
 ---
+description: Daily report analyzing repository issues
 on:
-  issues:
-    types: [opened]
+  schedule:
+    - cron: "0 6 * * *"  # Daily at 6 AM UTC
+  workflow_dispatch:
 
-permissions: read-all 
+permissions:
+  contents: read
+  actions: read
+  issues: read
+  discussions: write
+
+engine: codex
+
+tools:
+  github:
+    toolsets: [default, discussions]
 
 safe-outputs:
-  add-comment:
+  upload-assets:
+  create-discussion:
+    expires: 3d
+    category: "General"
+    title-prefix: "[daily issues] "
+    max: 1
+    close-older-discussions: true
+
+timeout-minutes: 30
 ---
 
-# Issue Clarifier
+# Daily Issues Report Generator
 
-Analyze the current issue and ask for additional details if the issue is unclear.
+You are an expert analyst that generates comprehensive daily reports 
+about repository issues.
+
+## Mission
+
+Generate a daily report analyzing issues from the repository:
+1. Cluster issues by topic/theme using natural language analysis
+2. Calculate metrics (open/closed rates, response times, label distribution)
+3. Generate trend charts showing issue activity over time
+4. Create a new discussion with the report
+5. Close previous daily reports to avoid clutter
 ```
 
-The `gh aw` cli converts this into a GitHub Actions Workflow (.yml) that runs an AI agent (Copilot, Claude, Codex, ...) in a containerized environment whenever a new issue is opened in the repository.
+The `gh aw` cli converts this into a GitHub Actions Workflow (.yml) that runs an AI agent (Copilot, Claude, Codex, ...) in a containerized environment on a schedule or manually.
 
-The AI agent reads your repository context, understands the issue content, and takes appropriate actions - all defined in natural language rather than complex code.
+The AI agent reads your repository context, analyzes issues, generates visualizations, and creates reports - all defined in natural language rather than complex code.
 
 **Security Benefits:** Workflows use read-only permissions by default, with write operations only allowed through sanitized `safe-outputs`. Access can be gated to team members only, ensuring AI agents operate within controlled boundaries.
-
-## Spec-Kit Integration
-
-This repository uses [spec-kit](https://github.com/github/spec-kit) for spec-driven development. Spec-kit enables writing specifications that become executable, guiding implementation through a structured workflow:
-
-- **Constitution**: Project principles and development guidelines in `.specify/memory/constitution.md`
-- **Specifications**: Feature requirements and user stories created with `/speckit.specify`
-- **Plans**: Technical implementation approaches with `/speckit.plan`
-- **Tasks**: Actionable task breakdowns with `/speckit.tasks`
-- **Implementation**: Automated execution via the spec-kit-executor workflow
-
-The spec-kit-executor workflow runs daily at 8am UTC, scanning for pending tasks and implementing them automatically. See [.specify/README.md](.specify/README.md) for details on using spec-kit with this repository.
 
 ## Documentation
 
