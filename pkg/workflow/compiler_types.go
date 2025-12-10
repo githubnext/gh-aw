@@ -269,7 +269,7 @@ type SafeOutputsConfig struct {
 	CreateAgentTasks                *CreateAgentTaskConfig                 `yaml:"create-agent-task,omitempty"` // Create GitHub Copilot agent tasks
 	UpdateProjects                  *UpdateProjectConfig                   `yaml:"update-project,omitempty"`    // Smart project board management (create/add/update)
 	LinkSubIssue                    *LinkSubIssueConfig                    `yaml:"link-sub-issue,omitempty"`    // Link issues as sub-issues
-	MinimizeComment                 *MinimizeCommentConfig                 `yaml:"minimize-comment,omitempty"`  // Minimize (hide) comments
+	HideComment                     *HideCommentConfig                     `yaml:"hide-comment,omitempty"`      // Hide comments
 	MissingTool                     *MissingToolConfig                     `yaml:"missing-tool,omitempty"`      // Optional for reporting missing functionality
 	NoOp                            *NoOpConfig                            `yaml:"noop,omitempty"`              // No-op output for logging only (always available as fallback)
 	ThreatDetection                 *ThreatDetectionConfig                 `yaml:"threat-detection,omitempty"`  // Threat detection configuration

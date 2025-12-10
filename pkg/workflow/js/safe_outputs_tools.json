@@ -532,15 +532,20 @@
     }
   },
   {
-    "name": "minimize_comment",
-    "description": "Minimize (hide) a comment on a GitHub issue, pull request, or discussion. This collapses the comment as spam or off-topic. Use this for inappropriate, off-topic, or outdated comments. The comment_id must be a GraphQL node ID (string like 'IC_kwDOABCD123456'), not a numeric REST API comment ID.",
+    "name": "hide_comment",
+    "description": "Hide a comment on a GitHub issue, pull request, or discussion. This collapses the comment and marks it as spam, abuse, off-topic, outdated, or resolved. Use this for inappropriate, off-topic, or outdated comments. The comment_id must be a GraphQL node ID (string like 'IC_kwDOABCD123456'), not a numeric REST API comment ID.",
     "inputSchema": {
       "type": "object",
       "required": ["comment_id"],
       "properties": {
         "comment_id": {
           "type": "string",
-          "description": "GraphQL node ID of the comment to minimize (e.g., 'IC_kwDOABCD123456'). This is the GraphQL node ID, not the numeric comment ID from REST API. Can be obtained from GraphQL queries or comment API responses."
+          "description": "GraphQL node ID of the comment to hide (e.g., 'IC_kwDOABCD123456'). This is the GraphQL node ID, not the numeric comment ID from REST API. Can be obtained from GraphQL queries or comment API responses."
+        },
+        "reason": {
+          "type": "string",
+          "enum": ["SPAM", "ABUSE", "OFF_TOPIC", "OUTDATED", "RESOLVED"],
+          "description": "Optional reason for hiding the comment. Defaults to SPAM if not provided. Valid values: SPAM (spam content), ABUSE (abusive/harassment content), OFF_TOPIC (not relevant to discussion), OUTDATED (no longer applicable), RESOLVED (issue/question has been resolved)."
         }
       },
       "additionalProperties": false

@@ -43,8 +43,8 @@ global.core = mockCore;
 global.github = mockGithub;
 global.context = mockContext;
 
-describe("minimize_comment", () => {
-  let minimizeCommentScript;
+describe("hide_comment", () => {
+  let hideCommentScript;
   let tempFilePath;
 
   // Helper function to set agent output via file
@@ -69,8 +69,8 @@ describe("minimize_comment", () => {
     global.context.payload.issue = { number: 42 };
 
     // Read the script content
-    const scriptPath = path.join(process.cwd(), "minimize_comment.cjs");
-    minimizeCommentScript = fs.readFileSync(scriptPath, "utf8");
+    const scriptPath = path.join(process.cwd(), "hide_comment.cjs");
+    hideCommentScript = fs.readFileSync(scriptPath, "utf8");
   });
 
   afterEach(() => {
@@ -85,34 +85,34 @@ describe("minimize_comment", () => {
     setAgentOutput({ items: [], errors: [] });
 
     // Execute the script
-    await eval(`(async () => { ${minimizeCommentScript} })()`);
+    await eval(`(async () => { ${hideCommentScript} })()`);
 
-    expect(mockCore.info).toHaveBeenCalledWith("No minimize-comment items found in agent output");
+    expect(mockCore.info).toHaveBeenCalledWith("No hide-comment items found in agent output");
   });
 
   it("should handle missing agent output", async () => {
     // Don't set GH_AW_AGENT_OUTPUT
 
     // Execute the script
-    await eval(`(async () => { ${minimizeCommentScript} })()`);
+    await eval(`(async () => { ${hideCommentScript} })()`);
 
     expect(mockCore.info).toHaveBeenCalledWith("No GH_AW_AGENT_OUTPUT environment variable found");
   });
 
-  it("should minimize a comment successfully", async () => {
+  it("should hide a comment successfully", async () => {
     const commentNodeId = "IC_kwDOABCD123456";
 
     setAgentOutput({
       items: [
         {
-          type: "minimize_comment",
+          type: "hide_comment",
           comment_id: commentNodeId,
         },
       ],
       errors: [],
     });
 
-    // Mock GraphQL response for minimize comment
+    // Mock GraphQL response for hide comment
     mockGithub.graphql.mockResolvedValueOnce({
       minimizeComment: {
         minimizedComment: {
@@ -122,17 +122,17 @@ describe("minimize_comment", () => {
     });
 
     // Execute the script
-    await eval(`(async () => { ${minimizeCommentScript} })()`);
+    await eval(`(async () => { ${hideCommentScript} })()`);
 
-    expect(mockCore.info).toHaveBeenCalledWith("Found 1 minimize-comment item(s)");
-    expect(mockCore.info).toHaveBeenCalledWith(`Minimizing comment: ${commentNodeId}`);
-    expect(mockCore.info).toHaveBeenCalledWith(`Successfully minimized comment: ${commentNodeId}`);
+    expect(mockCore.info).toHaveBeenCalledWith("Found 1 hide-comment item(s)");
+    expect(mockCore.info).toHaveBeenCalledWith(`Hiding comment: ${commentNodeId}`);
+    expect(mockCore.info).toHaveBeenCalledWith(`Successfully hidden comment: ${commentNodeId}`);
     expect(mockGithub.graphql).toHaveBeenCalledWith(
       expect.stringContaining("minimizeComment"),
       expect.objectContaining({ nodeId: commentNodeId })
     );
     expect(mockCore.setOutput).toHaveBeenCalledWith("comment_id", commentNodeId);
-    expect(mockCore.setOutput).toHaveBeenCalledWith("is_minimized", "true");
+    expect(mockCore.setOutput).toHaveBeenCalledWith("is_hidden", "true");
   });
 
   it("should handle GraphQL errors", async () => {
@@ -141,7 +141,7 @@ describe("minimize_comment", () => {
     setAgentOutput({
       items: [
         {
-          type: "minimize_comment",
+          type: "hide_comment",
           comment_id: commentNodeId,
         },
       ],
@@ -153,13 +153,13 @@ describe("minimize_comment", () => {
     mockGithub.graphql.mockRejectedValueOnce(new Error(errorMessage));
 
     // Execute the script
-    await eval(`(async () => { ${minimizeCommentScript} })()`);
+    await eval(`(async () => { ${hideCommentScript} })()`);
 
     expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining(errorMessage));
     expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining(errorMessage));
   });
 
-  it("should preview minimization in staged mode", async () => {
+  it("should preview hiding in staged mode", async () => {
     process.env.GH_AW_SAFE_OUTPUTS_STAGED = "true";
 
     const commentNodeId = "IC_kwDOABCD123456";
@@ -167,7 +167,7 @@ describe("minimize_comment", () => {
     setAgentOutput({
       items: [
         {
-          type: "minimize_comment",
+          type: "hide_comment",
           comment_id: commentNodeId,
         },
       ],
@@ -175,27 +175,27 @@ describe("minimize_comment", () => {
     });
 
     // Execute the script
-    await eval(`(async () => { ${minimizeCommentScript} })()`);
+    await eval(`(async () => { ${hideCommentScript} })()`);
 
-    expect(mockCore.info).toHaveBeenCalledWith("Found 1 minimize-comment item(s)");
-    expect(mockCore.summary.addRaw).toHaveBeenCalledWith(expect.stringContaining("Staged Mode: Minimize Comments Preview"));
+    expect(mockCore.info).toHaveBeenCalledWith("Found 1 hide-comment item(s)");
+    expect(mockCore.summary.addRaw).toHaveBeenCalledWith(expect.stringContaining("Staged Mode: Hide Comments Preview"));
     expect(mockCore.summary.addRaw).toHaveBeenCalledWith(expect.stringContaining(commentNodeId));
     expect(mockCore.summary.write).toHaveBeenCalled();
     expect(mockGithub.graphql).not.toHaveBeenCalled();
   });
 
-  it("should handle multiple minimize-comment items", async () => {
+  it("should handle multiple hide-comment items", async () => {
     const commentNodeId1 = "IC_kwDOABCD111111";
     const commentNodeId2 = "IC_kwDOABCD222222";
 
     setAgentOutput({
       items: [
         {
-          type: "minimize_comment",
+          type: "hide_comment",
           comment_id: commentNodeId1,
         },
         {
-          type: "minimize_comment",
+          type: "hide_comment",
           comment_id: commentNodeId2,
         },
       ],
@@ -220,19 +220,19 @@ describe("minimize_comment", () => {
       });
 
     // Execute the script
-    await eval(`(async () => { ${minimizeCommentScript} })()`);
+    await eval(`(async () => { ${hideCommentScript} })()`);
 
     expect(mockCore.info).toHaveBeenCalledWith("Found 2 minimize-comment item(s)");
     expect(mockGithub.graphql).toHaveBeenCalledTimes(2);
-    expect(mockCore.info).toHaveBeenCalledWith(`Successfully minimized comment: ${commentNodeId1}`);
-    expect(mockCore.info).toHaveBeenCalledWith(`Successfully minimized comment: ${commentNodeId2}`);
+    expect(mockCore.info).toHaveBeenCalledWith(`Successfully hidden comment: ${commentNodeId1}`);
+    expect(mockCore.info).toHaveBeenCalledWith(`Successfully hidden comment: ${commentNodeId2}`);
   });
 
   it("should fail when comment_id is missing", async () => {
     setAgentOutput({
       items: [
         {
-          type: "minimize_comment",
+          type: "hide_comment",
           // Missing comment_id
         },
       ],
@@ -240,19 +240,19 @@ describe("minimize_comment", () => {
     });
 
     // Execute the script
-    await eval(`(async () => { ${minimizeCommentScript} })()`);
+    await eval(`(async () => { ${hideCommentScript} })()`);
 
     expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("comment_id is required"));
     expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("comment_id is required"));
   });
 
-  it("should fail when minimize returns false", async () => {
+  it("should fail when hiding returns false", async () => {
     const commentNodeId = "IC_kwDOABCD123456";
 
     setAgentOutput({
       items: [
         {
-          type: "minimize_comment",
+          type: "hide_comment",
           comment_id: commentNodeId,
         },
       ],
@@ -269,9 +269,9 @@ describe("minimize_comment", () => {
     });
 
     // Execute the script
-    await eval(`(async () => { ${minimizeCommentScript} })()`);
+    await eval(`(async () => { ${hideCommentScript} })()`);
 
-    expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("Failed to minimize comment"));
-    expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("Failed to minimize comment"));
+    expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("Failed to hide comment"));
+    expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("Failed to hide comment"));
   });
 });
