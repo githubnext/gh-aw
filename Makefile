@@ -176,6 +176,11 @@ actions-build:
 	@echo "Building all actions..."
 	@go run ./internal/tools/actions-build build
 
+.PHONY: actions-build-release
+actions-build-release:
+	@echo "Building all actions (release mode - minified)..."
+	@go run ./internal/tools/actions-build build-release
+
 .PHONY: actions-validate
 actions-validate:
 	@echo "Validating action.yml files..."

@@ -12,9 +12,10 @@ func main() {
 		fmt.Fprintln(os.Stderr, "Usage: actions-build <command>")
 		fmt.Fprintln(os.Stderr, "")
 		fmt.Fprintln(os.Stderr, "Commands:")
-		fmt.Fprintln(os.Stderr, "  build     Build all custom GitHub Actions")
-		fmt.Fprintln(os.Stderr, "  validate  Validate all action.yml files")
-		fmt.Fprintln(os.Stderr, "  clean     Remove generated index.js files")
+		fmt.Fprintln(os.Stderr, "  build          Build all custom GitHub Actions (dev mode - readable)")
+		fmt.Fprintln(os.Stderr, "  build-release  Build all custom GitHub Actions (release mode - minified)")
+		fmt.Fprintln(os.Stderr, "  validate       Validate all action.yml files")
+		fmt.Fprintln(os.Stderr, "  clean          Remove generated index.js files")
 		os.Exit(1)
 	}
 
@@ -24,6 +25,8 @@ func main() {
 	switch command {
 	case "build":
 		err = cli.ActionsBuildCommand()
+	case "build-release":
+		err = cli.ActionsBuildReleaseCommand()
 	case "validate":
 		err = cli.ActionsValidateCommand()
 	case "clean":

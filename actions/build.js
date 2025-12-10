@@ -4,6 +4,9 @@ const esbuild = require('esbuild');
 const fs = require('fs');
 const path = require('path');
 
+// Check if we're building in release mode (minification enabled)
+const isRelease = process.env.RELEASE_MODE === 'true' || process.env.NODE_ENV === 'production';
+
 // Get all action directories
 const actionsDir = __dirname;
 const entries = fs.readdirSync(actionsDir, { withFileTypes: true });
@@ -12,7 +15,7 @@ const actionDirs = entries
   .filter(entry => entry.isDirectory() && fs.existsSync(path.join(actionsDir, entry.name, 'src', 'index.js')))
   .map(entry => entry.name);
 
-console.log(`Building ${actionDirs.length} actions...`);
+console.log(`Building ${actionDirs.length} actions${isRelease ? ' (release mode - minified)' : ' (dev mode - readable)'}...`);
 
 // Build each action
 for (const actionName of actionDirs) {
@@ -28,7 +31,7 @@ for (const actionName of actionDirs) {
     target: 'node20',
     outfile: outPath,
     format: 'cjs',
-    minify: false,
+    minify: isRelease,
     sourcemap: false,
   });
   

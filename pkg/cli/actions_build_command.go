@@ -16,11 +16,25 @@ var actionsBuildLog = logger.New("cli:actions_build")
 
 // ActionsBuildCommand builds all custom GitHub Actions by bundling JavaScript dependencies
 func ActionsBuildCommand() error {
+	return actionsBuildCommandWithMode(false)
+}
+
+// ActionsBuildReleaseCommand builds all custom GitHub Actions with minification enabled
+func ActionsBuildReleaseCommand() error {
+	return actionsBuildCommandWithMode(true)
+}
+
+// actionsBuildCommandWithMode builds actions with optional release mode (minification)
+func actionsBuildCommandWithMode(releaseMode bool) error {
 	actionsDir := "actions"
 
 	actionsBuildLog.Print("Starting actions build")
 
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Building all actions with esbuild..."))
+	buildMode := "dev mode - readable"
+	if releaseMode {
+		buildMode = "release mode - minified"
+	}
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Building all actions with esbuild (%s)...", buildMode)))
 
 	// Check if actions/package.json exists
 	packageJSON := filepath.Join(actionsDir, "package.json")
@@ -37,9 +51,13 @@ func ActionsBuildCommand() error {
 		}
 	}
 
-	// Run the build script
+	// Run the build script (with or without release mode)
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("🔨 Building actions with esbuild..."))
-	if err := runCommand(actionsDir, "npm", "run", "build"); err != nil {
+	buildScript := "build"
+	if releaseMode {
+		buildScript = "build:release"
+	}
+	if err := runCommand(actionsDir, "npm", "run", buildScript); err != nil {
 		return fmt.Errorf("failed to build actions: %w", err)
 	}
 
