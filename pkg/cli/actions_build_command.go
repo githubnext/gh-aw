@@ -28,11 +28,11 @@ func ActionsBuildCommand() error {
 		return fmt.Errorf("actions/package.json not found - run 'npm init' in actions/ directory")
 	}
 
-	// Check if node_modules exists, if not run npm install
+	// Check if node_modules exists, if not run npm ci for reproducible builds
 	nodeModules := filepath.Join(actionsDir, "node_modules")
 	if _, err := os.Stat(nodeModules); os.IsNotExist(err) {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("📦 Installing dependencies..."))
-		if err := runCommand(actionsDir, "npm", "install"); err != nil {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("📦 Installing dependencies with npm ci..."))
+		if err := runCommand(actionsDir, "npm", "ci"); err != nil {
 			return fmt.Errorf("failed to install dependencies: %w", err)
 		}
 	}

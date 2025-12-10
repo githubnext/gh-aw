@@ -76,7 +76,11 @@ gh-aw-test/
 actions/**/node_modules/
 actions/**/*.tmp
 actions/**/.build/
-actions/package-lock.json
+# Keep package-lock.json for reproducible builds
+# actions/package-lock.json
+
+# Generated .cjs files in src directories - these are intermediate build artifacts
+actions/*/src/*.cjs
 
 pkg/cli/workflows/*.yml
 .github/workflows/test-update.md
