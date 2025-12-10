@@ -209,7 +209,8 @@ func TestInputValidation(t *testing.T) {
 		{
 			name:        "invalid input - empty key",
 			inputs:      []string{"=value"},
-			shouldError: false, // gh CLI will handle this
+			shouldError: true,
+			errorMsg:    "key cannot be empty",
 		},
 		{
 			name:        "invalid input - empty value",

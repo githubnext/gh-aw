@@ -33,6 +33,11 @@ func RunWorkflowOnGitHub(workflowIdOrName string, enable bool, engineOverride st
 		if !strings.Contains(input, "=") {
 			return fmt.Errorf("invalid input format '%s': expected key=value", input)
 		}
+		// Check that key (before '=') is not empty
+		parts := strings.SplitN(input, "=", 2)
+		if len(parts[0]) == 0 {
+			return fmt.Errorf("invalid input format '%s': key cannot be empty", input)
+		}
 	}
 
 	if verbose {
