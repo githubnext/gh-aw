@@ -107,7 +107,7 @@ Examples:
 
 var removeCmd = &cobra.Command{
 	Use:   "remove [workflow-id-pattern]",
-	Short: "Remove agentic workflow files matching the given name prefix",
+	Short: "Remove workflow files matching the given name prefix",
 	Long: `Remove workflow files matching the given workflow-id pattern.
 
 The workflow-id is the basename of the Markdown file without the .md extension.
@@ -128,7 +128,7 @@ Examples:
 
 var enableCmd = &cobra.Command{
 	Use:   "enable [workflow-id]...",
-	Short: "Enable agentic workflows",
+	Short: "Enable workflows",
 	Long: `Enable one or more workflows by ID, or all workflows if no IDs are provided.
 
 ` + cli.WorkflowIDExplanation + `
@@ -147,7 +147,7 @@ Examples:
 
 var disableCmd = &cobra.Command{
 	Use:   "disable [workflow-id]...",
-	Short: "Disable agentic workflows and cancel any in-progress runs",
+	Short: "Disable workflows and cancel any in-progress runs",
 	Long: `Disable one or more workflows by ID, or all workflows if no IDs are provided.
 
 ` + cli.WorkflowIDExplanation + `
@@ -166,7 +166,7 @@ Examples:
 
 var compileCmd = &cobra.Command{
 	Use:   "compile [workflow-id]...",
-	Short: "Compile agentic workflow Markdown to GitHub Actions YAML",
+	Short: "Compile workflow Markdown to GitHub Actions YAML",
 	Long: `Compile one or more workflow IDs or Markdown files to YAML workflows.
 
 If no workflows are specified, all Markdown files in .github/workflows will be compiled.
@@ -255,7 +255,7 @@ Examples:
 
 var runCmd = &cobra.Command{
 	Use:   "run <workflow-id>...",
-	Short: "Run one or more agentic workflows on GitHub Actions",
+	Short: "Run one or more workflows on GitHub Actions",
 	Long: `Run one or more agentic workflows on GitHub Actions using the workflow_dispatch trigger.
 
 This command accepts one or more workflow IDs.

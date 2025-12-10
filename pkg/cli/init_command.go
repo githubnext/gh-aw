@@ -14,7 +14,7 @@ var initCommandLog = logger.New("cli:init_command")
 func NewInitCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "init",
-		Short: "Initialize repository for agentic workflows",
+		Short: "Initialize repository for workflows",
 		Long: `Initialize the repository for agentic workflows by configuring .gitattributes and creating GitHub Copilot instruction files.
 
 This command:

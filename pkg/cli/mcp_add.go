@@ -303,7 +303,7 @@ func NewMCPAddSubcommand() *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "add [workflow-id-or-file] [mcp-server-name]",
-		Short: "Add an MCP tool to an agentic workflow",
+		Short: "Add an MCP tool to a workflow",
 		Long: `Add an MCP tool to an agentic workflow by searching the MCP registry.
 
 This command searches the MCP registry for the specified server, adds it to the workflow's tools section,

@@ -42,7 +42,7 @@ type CombinedTrialResult struct {
 func NewTrialCommand(validateEngine func(string) error) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "trial <workflow-spec>...",
-		Short: "Trial one or more agentic workflows as if they were running in a repository",
+		Short: "Trial one or more workflows as if they were running in a repository",
 		Long: `Trial one or more agentic workflows as if they were running in a repository.
 
 This command creates a temporary private repository in your GitHub space, installs the specified
