@@ -22,6 +22,8 @@ engine:
   args: ["--no-session-persistence"]
 ```
 
+Note: The Claude engine automatically uses `--print` mode, so you don't need to specify it separately.
+
 All workflows recompiled and binary rebuilt as part of the PR validation.
 
 #### Add actions directory structure and Go-based build tooling; initial actions and Makefile targets.
