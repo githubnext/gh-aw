@@ -107,7 +107,7 @@ Examples:
 
 var removeCmd = &cobra.Command{
 	Use:   "remove [workflow-id-pattern]",
-	Short: "Remove workflow files matching the given name prefix",
+	Short: "Remove agentic workflow files matching the given name prefix",
 	Long: `Remove workflow files matching the given workflow-id pattern.
 
 The workflow-id is the basename of the Markdown file without the .md extension.
@@ -166,7 +166,7 @@ Examples:
 
 var compileCmd = &cobra.Command{
 	Use:   "compile [workflow-id]...",
-	Short: "Compile Markdown workflows to GitHub Actions YAML",
+	Short: "Compile agentic workflow Markdown to GitHub Actions YAML",
 	Long: `Compile one or more workflow IDs or Markdown files to YAML workflows.
 
 If no workflows are specified, all Markdown files in .github/workflows will be compiled.

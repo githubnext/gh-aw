@@ -26,7 +26,7 @@ var updateLog = logger.New("cli:update_command")
 func NewUpdateCommand(validateEngine func(string) error) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "update [workflow-id]...",
-		Short: "Update workflows from their source repositories and check for gh-aw updates",
+		Short: "Update agentic workflows from their source repositories and check for gh-aw updates",
 		Long: `Update one or more workflows from their source repositories and check for gh-aw updates.
 
 The command:
