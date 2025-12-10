@@ -65,7 +65,7 @@ find .github/workflows/ -name '*.md' -type f
 ```
 
 **Key Metrics to Extract (from gh aw logs --json output):**
-- `estimated_cost` - **ACTUAL cost per run** (not an estimate despite the name)
+- `estimated_cost` - **Real cost per run calculated from actual token usage** (field name says "estimated" but contains calculated cost from actual usage)
 - `token_usage` - Actual token consumption
 - `duration` - Actual runtime
 - `conclusion` - Success/failure status (success, failure, cancelled)
@@ -189,7 +189,7 @@ For each duplicate set:
 #### Strategy 4: Fix High-Failure Workflows
 ```bash
 # Get failure rate and cost from gh aw logs
-gh aw logs workflow-name --json -c 30 | jq '.runs[] | select(.conclusion == "failure") | .estimated_cost' | jq -s 'add'
+gh aw logs workflow-name --json -c 30 | jq '[.runs[] | select(.conclusion == "failure") | .estimated_cost] | add'
 
 For each workflow with >30% failure rate:
 - Total runs: Count from gh aw logs
@@ -329,12 +329,12 @@ Each fix takes <1 hour:
 
 ## Critical Guidelines
 
-### Use Real Data, Not Estimates
+### Use Real Data, Not Guesswork
 - **ALWAYS use `gh aw logs --json`** to get actual execution data
-- **NEVER estimate costs** - use actual `estimated_cost` from workflow runs
+- **Use calculated costs** - the `estimated_cost` field contains costs calculated from actual token usage
 - **Parse JSON with jq** - extract precise metrics from gh aw logs output
 - **Sum actual costs** - add up `estimated_cost` for all runs in last 30 days
-- **Calculate from actuals** - failure rates, run frequency, cost per run all from real data
+- **Calculate from actuals** - failure rates, run frequency, cost per run all from real workflow execution data
 
 ### Speed Optimization
 - **Skip healthy workflows** - Don't waste time analyzing what works
