@@ -6,6 +6,16 @@ All notable changes to this project will be documented in this file.
 
 ### Bug Fixes
 
+#### Update Claude Code CLI to v2.0.64
+
+Update default Claude Code CLI version from 2.0.62 to 2.0.64. This update includes:
+- v2.0.63: Added `--no-session-persistence` flag for stateless execution contexts
+- v2.0.64: Maintenance release with no visible CLI changes
+
+The `--no-session-persistence` flag disables session persistence (sessions will not be saved to disk and cannot be resumed). This flag only works with `--print` mode and is useful for stateless/ephemeral execution contexts.
+
+All workflows recompiled and binary rebuilt as part of the PR validation.
+
 #### Add actions directory structure and Go-based build tooling; initial actions and Makefile targets.
 
 This documents the changes introduced by PR #5953: create an `actions/` directory, add `actions-build`, `actions-validate`, and `actions-clean` targets, initial actions `setup-safe-inputs` and `setup-safe-outputs`, and supporting Go CLI commands for building and validating actions.
