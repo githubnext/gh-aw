@@ -21,11 +21,23 @@ import (
 var runLog = logger.New("cli:run_command")
 
 // RunWorkflowOnGitHub runs an agentic workflow on GitHub Actions
-func RunWorkflowOnGitHub(workflowIdOrName string, enable bool, engineOverride string, repoOverride string, refOverride string, autoMergePRs bool, pushSecrets bool, waitForCompletion bool, verbose bool) error {
-	runLog.Printf("Starting workflow run: workflow=%s, enable=%v, engineOverride=%s, repo=%s, ref=%s, wait=%v", workflowIdOrName, enable, engineOverride, repoOverride, refOverride, waitForCompletion)
+func RunWorkflowOnGitHub(workflowIdOrName string, enable bool, engineOverride string, repoOverride string, refOverride string, autoMergePRs bool, pushSecrets bool, waitForCompletion bool, inputs []string, verbose bool) error {
+	runLog.Printf("Starting workflow run: workflow=%s, enable=%v, engineOverride=%s, repo=%s, ref=%s, wait=%v, inputs=%v", workflowIdOrName, enable, engineOverride, repoOverride, refOverride, waitForCompletion, inputs)
 
 	if workflowIdOrName == "" {
 		return fmt.Errorf("workflow name or ID is required")
+	}
+
+	// Validate input format early before attempting workflow validation
+	for _, input := range inputs {
+		if !strings.Contains(input, "=") {
+			return fmt.Errorf("invalid input format '%s': expected key=value", input)
+		}
+		// Check that key (before '=') is not empty
+		parts := strings.SplitN(input, "=", 2)
+		if len(parts[0]) == 0 {
+			return fmt.Errorf("invalid input format '%s': key cannot be empty", input)
+		}
 	}
 
 	if verbose {
@@ -303,6 +315,14 @@ func RunWorkflowOnGitHub(workflowIdOrName string, enable bool, engineOverride st
 		args = append(args, "--ref", ref)
 	}
 
+	// Add workflow inputs if provided
+	if len(inputs) > 0 {
+		for _, input := range inputs {
+			// Add as raw field flag to gh workflow run
+			args = append(args, "-f", input)
+		}
+	}
+
 	// Record the start time for auto-merge PR filtering
 	workflowStartTime := time.Now()
 
@@ -317,6 +337,11 @@ func RunWorkflowOnGitHub(workflowIdOrName string, enable bool, engineOverride st
 		}
 		if ref != "" {
 			cmdParts = append(cmdParts, "--ref", ref)
+		}
+		if len(inputs) > 0 {
+			for _, input := range inputs {
+				cmdParts = append(cmdParts, "-f", input)
+			}
 		}
 		fmt.Printf("Executing: %s\n", strings.Join(cmdParts, " "))
 	}
@@ -427,7 +452,7 @@ func RunWorkflowOnGitHub(workflowIdOrName string, enable bool, engineOverride st
 }
 
 // RunWorkflowsOnGitHub runs multiple agentic workflows on GitHub Actions, optionally repeating a specified number of times
-func RunWorkflowsOnGitHub(workflowNames []string, repeatCount int, enable bool, engineOverride string, repoOverride string, refOverride string, autoMergePRs bool, pushSecrets bool, verbose bool) error {
+func RunWorkflowsOnGitHub(workflowNames []string, repeatCount int, enable bool, engineOverride string, repoOverride string, refOverride string, autoMergePRs bool, pushSecrets bool, inputs []string, verbose bool) error {
 	if len(workflowNames) == 0 {
 		return fmt.Errorf("at least one workflow name or ID is required")
 	}
@@ -474,7 +499,7 @@ func RunWorkflowsOnGitHub(workflowNames []string, repeatCount int, enable bool, 
 				fmt.Println(console.FormatProgressMessage(fmt.Sprintf("Running workflow %d/%d: %s", i+1, len(workflowNames), workflowName)))
 			}
 
-			if err := RunWorkflowOnGitHub(workflowName, enable, engineOverride, repoOverride, refOverride, autoMergePRs, pushSecrets, waitForCompletion, verbose); err != nil {
+			if err := RunWorkflowOnGitHub(workflowName, enable, engineOverride, repoOverride, refOverride, autoMergePRs, pushSecrets, waitForCompletion, inputs, verbose); err != nil {
 				return fmt.Errorf("failed to run workflow '%s': %w", workflowName, err)
 			}
 
