@@ -55,7 +55,7 @@ async function checkBotStatus(actor, owner, repo) {
       return { isBot: true, isActive: true };
     } catch (botError) {
       // If we get a 404, the bot is not installed/active on this repository
-      if (botError.status === 404) {
+      if (typeof botError === "object" && botError !== null && "status" in botError && botError.status === 404) {
         core.warning(`Bot '${actor}' is not active/installed on ${owner}/${repo}`);
         return { isBot: true, isActive: false };
       }
