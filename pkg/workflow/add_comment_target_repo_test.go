@@ -94,15 +94,15 @@ func TestAddCommentsConfigHideOlderComments(t *testing.T) {
 	compiler := NewCompiler(false, "", "")
 
 	tests := []struct {
-		name                     string
-		configMap                map[string]any
+		name                      string
+		configMap                 map[string]any
 		expectedHideOlderComments bool
 	}{
 		{
 			name: "hide-older-comments enabled",
 			configMap: map[string]any{
 				"add-comment": map[string]any{
-					"max":                  1,
+					"max":                 1,
 					"hide-older-comments": true,
 				},
 			},
@@ -112,7 +112,7 @@ func TestAddCommentsConfigHideOlderComments(t *testing.T) {
 			name: "hide-older-comments disabled",
 			configMap: map[string]any{
 				"add-comment": map[string]any{
-					"max":                  1,
+					"max":                 1,
 					"hide-older-comments": false,
 				},
 			},
@@ -131,9 +131,9 @@ func TestAddCommentsConfigHideOlderComments(t *testing.T) {
 			name: "hide-older-comments with other fields",
 			configMap: map[string]any{
 				"add-comment": map[string]any{
-					"max":                  3,
-					"target":               "*",
-					"target-repo":          "owner/repo",
+					"max":                 3,
+					"target":              "*",
+					"target-repo":         "owner/repo",
 					"hide-older-comments": true,
 				},
 			},

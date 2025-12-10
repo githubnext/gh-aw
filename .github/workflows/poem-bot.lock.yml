@@ -1548,7 +1548,7 @@ jobs:
             }
             async function findDiscussionCommentsWithTrackerId(github, owner, repo, discussionNumber, trackerId) {
               const query =  `
-                query($owner: String!, $repo: String!, $num: Int!, $cursor: String) {
+                query ($owner: String!, $repo: String!, $num: Int!, $cursor: String) {
                   repository(owner: $owner, name: $repo) {
                     discussion(number: $num) {
                       comments(first: 100, after: $cursor) {

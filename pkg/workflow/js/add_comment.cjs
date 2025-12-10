@@ -92,7 +92,7 @@ async function findCommentsWithTrackerId(github, owner, repo, issueNumber, track
  */
 async function findDiscussionCommentsWithTrackerId(github, owner, repo, discussionNumber, trackerId) {
   const query = /* GraphQL */ `
-    query($owner: String!, $repo: String!, $num: Int!, $cursor: String) {
+    query ($owner: String!, $repo: String!, $num: Int!, $cursor: String) {
       repository(owner: $owner, name: $repo) {
         discussion(number: $num) {
           comments(first: 100, after: $cursor) {

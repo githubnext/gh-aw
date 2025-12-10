@@ -154,13 +154,41 @@ Posts comments on issues, PRs, or discussions. Defaults to triggering item; conf
 ```yaml wrap
 safe-outputs:
   add-comment:
-    max: 3                    # max comments (default: 1)
-    target: "*"               # "triggering" (default), "*", or number
-    discussion: true          # target discussions
-    target-repo: "owner/repo" # cross-repository
+    max: 3                       # max comments (default: 1)
+    target: "*"                  # "triggering" (default), "*", or number
+    discussion: true             # target discussions
+    target-repo: "owner/repo"    # cross-repository
+    hide-older-comments: true    # hide previous comments from same workflow
 ```
 
 When combined with `create-issue`, `create-discussion`, or `create-pull-request`, comments automatically include a "Related Items" section.
+
+#### Hide Older Comments
+
+The `hide-older-comments` field automatically minimizes all previous comments from the same agentic workflow before creating a new comment. This is useful for workflows that provide status updates, where you want to keep the conversation clean by hiding outdated information.
+
+**How it works:**
+- Comments from the same workflow are identified by matching `tracker-id` values
+- All matching older comments are minimized/hidden with reason "OUTDATED"
+- The new comment is then created normally
+- Works for both issue/PR comments and discussion comments
+
+**Requirements:**
+- A `tracker-id` must be configured in the workflow frontmatter
+- Only comments with matching `tracker-id` will be hidden
+- Requires write permissions (automatically granted to the safe-output job)
+
+**Example workflow:**
+```yaml wrap
+---
+tracker-id: status-reporter
+safe-outputs:
+  add-comment:
+    hide-older-comments: true
+---
+
+Current status: {{ statusMessage }}
+```
 
 ### Hide Comment (`hide-comment:`)
 
