@@ -253,7 +253,7 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		}
 	}
 
-	var tools map[string]any
+	var toolsConfig *ToolsConfig
 
 	// Extract tools from the main file
 	topTools := extractToolsFromFrontmatter(result.Frontmatter)
@@ -290,11 +290,14 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	}
 
 	// Merge tools including mcp-servers
-	tools, err = c.mergeToolsAndMCPServers(topTools, allMCPServers, allIncludedTools)
+	toolsConfig, err = c.mergeToolsAndMCPServers(topTools, allMCPServers, allIncludedTools)
 
 	if err != nil {
 		return nil, fmt.Errorf("failed to merge tools: %w", err)
 	}
+
+	// Convert to map for legacy code compatibility
+	tools := toolsConfig.ToMap()
 
 	// Extract safety-prompt setting from merged tools (defaults to true)
 	safetyPrompt := c.extractSafetyPromptSetting(tools)
@@ -310,6 +313,9 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	delete(tools, "safety-prompt")
 	delete(tools, "timeout")
 	delete(tools, "startup-timeout")
+
+	// Update toolsConfig after removing meta fields
+	toolsConfig, _ = ParseToolsConfig(tools)
 
 	// Extract and merge runtimes from frontmatter and imports
 	topRuntimes := extractRuntimesFromFrontmatter(result.Frontmatter)
@@ -418,7 +424,7 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		IncludedFiles:       allIncludedFiles,
 		ImportInputs:        importsResult.ImportInputs,
 		Tools:               tools,
-		ParsedTools:         NewTools(tools),
+		ParsedTools:         toolsConfig,
 		Runtimes:            runtimes,
 		MarkdownContent:     markdownContent,
 		AI:                  engineSetting,
@@ -600,10 +606,7 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	workflowData.CacheMemoryConfig = cacheMemoryConfig
 
 	// Extract repo-memory config and check for errors
-	toolsConfig, err := ParseToolsConfig(tools)
-	if err != nil {
-		return nil, err
-	}
+	// toolsConfig already defined earlier, just use it
 	repoMemoryConfig, err := c.extractRepoMemoryConfig(toolsConfig)
 	if err != nil {
 		return nil, err

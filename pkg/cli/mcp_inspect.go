@@ -96,8 +96,8 @@ func applyImportsToFrontmatter(frontmatter map[string]any, importsResult *parser
 	}
 
 	// Update tools in the result
-	if len(mergedTools) > 0 {
-		result["tools"] = mergedTools
+	if mergedTools != nil && len(mergedTools.GetToolNames()) > 0 {
+		result["tools"] = mergedTools.ToMap()
 	}
 
 	return result, nil

@@ -206,13 +206,12 @@ func (c *Compiler) mergeSafeJobsFromIncludedConfigs(topSafeJobs map[string]*Safe
 }
 
 // applyDefaultTools adds default read-only GitHub MCP tools, creating github tool if not present
-func (c *Compiler) applyDefaultTools(tools map[string]any, safeOutputs *SafeOutputsConfig) map[string]any {
-	compilerSafeOutputsLog.Printf("Applying default tools: existingToolCount=%d", len(tools))
+func (c *Compiler) applyDefaultTools(toolsConfig *ToolsConfig, safeOutputs *SafeOutputsConfig) *ToolsConfig {
+	compilerSafeOutputsLog.Printf("Applying default tools: existingToolCount=%d", len(toolsConfig.GetToolNames()))
 	// Always apply default GitHub tools (create github section if it doesn't exist)
 
-	if tools == nil {
-		tools = make(map[string]any)
-	}
+	// Convert to map for easier manipulation
+	tools := toolsConfig.ToMap()
 
 	// Get existing github tool configuration
 	githubTool := tools["github"]
@@ -368,7 +367,9 @@ func (c *Compiler) applyDefaultTools(tools map[string]any, safeOutputs *SafeOutp
 		}
 	}
 
-	return tools
+	// Convert back to ToolsConfig
+	result, _ := ParseToolsConfig(tools)
+	return result
 }
 
 // needsGitCommands checks if safe outputs configuration requires Git commands

@@ -14,12 +14,12 @@ var importsLog = logger.New("workflow:imports")
 
 // MergeTools merges two tools maps, combining allowed arrays when keys coincide
 // Handles newline-separated JSON objects from multiple imports/includes
-func (c *Compiler) MergeTools(topTools map[string]any, includedToolsJSON string) (map[string]any, error) {
+func (c *Compiler) MergeTools(topTools map[string]any, includedToolsJSON string) (*ToolsConfig, error) {
 	importsLog.Print("Merging tools from imports")
 
 	if includedToolsJSON == "" || includedToolsJSON == "{}" {
 		importsLog.Print("No included tools to merge")
-		return topTools, nil
+		return ParseToolsConfig(topTools)
 	}
 
 	// Split by newlines to handle multiple JSON objects from different imports/includes
@@ -52,7 +52,7 @@ func (c *Compiler) MergeTools(topTools map[string]any, includedToolsJSON string)
 	}
 
 	importsLog.Printf("Successfully merged %d tools", len(result))
-	return result, nil
+	return ParseToolsConfig(result)
 }
 
 // MergeMCPServers merges mcp-servers from imports with top-level mcp-servers

@@ -148,9 +148,10 @@ func (c *Compiler) applyDefaults(data *WorkflowData, markdownPath string) {
 		data.RunsOn = "runs-on: ubuntu-latest"
 	}
 	// Apply default tools
-	data.Tools = c.applyDefaultTools(data.Tools, data.SafeOutputs)
-	// Update ParsedTools to reflect changes made by applyDefaultTools
-	data.ParsedTools = NewTools(data.Tools)
+	parsedTools := c.applyDefaultTools(data.ParsedTools, data.SafeOutputs)
+	// Update both Tools map and ParsedTools to reflect changes made by applyDefaultTools
+	data.Tools = parsedTools.ToMap()
+	data.ParsedTools = parsedTools
 }
 
 // extractMapFromFrontmatter is a generic helper to extract a map[string]any from frontmatter
@@ -164,8 +165,10 @@ func extractMapFromFrontmatter(frontmatter map[string]any, key string) map[strin
 }
 
 // extractToolsFromFrontmatter extracts tools section from frontmatter map
-func extractToolsFromFrontmatter(frontmatter map[string]any) map[string]any {
-	return extractMapFromFrontmatter(frontmatter, "tools")
+func extractToolsFromFrontmatter(frontmatter map[string]any) *ToolsConfig {
+	toolsMap := extractMapFromFrontmatter(frontmatter, "tools")
+	config, _ := ParseToolsConfig(toolsMap)
+	return config
 }
 
 // extractMCPServersFromFrontmatter extracts mcp-servers section from frontmatter
@@ -179,11 +182,11 @@ func extractRuntimesFromFrontmatter(frontmatter map[string]any) map[string]any {
 }
 
 // mergeToolsAndMCPServers merges tools, mcp-servers, and included tools
-func (c *Compiler) mergeToolsAndMCPServers(topTools, mcpServers map[string]any, includedTools string) (map[string]any, error) {
-	toolsLog.Printf("Merging tools and MCP servers: topTools=%d, mcpServers=%d", len(topTools), len(mcpServers))
+func (c *Compiler) mergeToolsAndMCPServers(topTools *ToolsConfig, mcpServers map[string]any, includedTools string) (*ToolsConfig, error) {
+	toolsLog.Printf("Merging tools and MCP servers: topTools=%d, mcpServers=%d", len(topTools.ToMap()), len(mcpServers))
 
-	// Start with top-level tools
-	result := topTools
+	// Convert topTools to map for merging
+	result := topTools.ToMap()
 	if result == nil {
 		result = make(map[string]any)
 	}
