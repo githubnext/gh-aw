@@ -41,7 +41,7 @@
 # safe-outputs:
 #   add-labels:
 #     allowed: [spam, ai-generated, link-spam, ai-qa]
-#   minimize-comment:
+#   hide-comment:
 #     max: 5
 #   threat-detection: false
 # jobs:
@@ -103,7 +103,7 @@
 #   agent["agent"]
 #   check_external_user["check_external_user"]
 #   conclusion["conclusion"]
-#   minimize_comment["minimize_comment"]
+#   hide_comment["hide_comment"]
 #   pre_activation["pre_activation"]
 #   activation --> agent
 #   activation --> check_external_user
@@ -111,9 +111,9 @@
 #   add_labels --> conclusion
 #   agent --> add_labels
 #   agent --> conclusion
-#   agent --> minimize_comment
+#   agent --> hide_comment
 #   check_external_user --> agent
-#   minimize_comment --> conclusion
+#   hide_comment --> conclusion
 #   pre_activation --> activation
 # ```
 #
@@ -1480,12 +1480,23 @@ jobs:
               "name": "noop"
             },
             {
-              "description": "Minimize (hide) a comment on a GitHub issue, pull request, or discussion. This collapses the comment as spam or off-topic. Use this for inappropriate, off-topic, or outdated comments. The comment_id must be a GraphQL node ID (string like 'IC_kwDOABCD123456'), not a numeric REST API comment ID.",
+              "description": "Hide a comment on a GitHub issue, pull request, or discussion. This collapses the comment and marks it as spam, abuse, off-topic, outdated, or resolved. Use this for inappropriate, off-topic, or outdated comments. The comment_id must be a GraphQL node ID (string like 'IC_kwDOABCD123456'), not a numeric REST API comment ID.",
               "inputSchema": {
                 "additionalProperties": false,
                 "properties": {
                   "comment_id": {
-                    "description": "GraphQL node ID of the comment to minimize (e.g., 'IC_kwDOABCD123456'). This is the GraphQL node ID, not the numeric comment ID from REST API. Can be obtained from GraphQL queries or comment API responses.",
+                    "description": "GraphQL node ID of the comment to hide (e.g., 'IC_kwDOABCD123456'). This is the GraphQL node ID, not the numeric comment ID from REST API. Can be obtained from GraphQL queries or comment API responses.",
+                    "type": "string"
+                  },
+                  "reason": {
+                    "description": "Optional reason for hiding the comment. Defaults to SPAM if not provided. Valid values: SPAM (spam content), ABUSE (abusive/harassment content), OFF_TOPIC (not relevant to discussion), OUTDATED (no longer applicable), RESOLVED (issue/question has been resolved).",
+                    "enum": [
+                      "SPAM",
+                      "ABUSE",
+                      "OFF_TOPIC",
+                      "OUTDATED",
+                      "RESOLVED"
+                    ],
                     "type": "string"
                   }
                 },
@@ -1494,7 +1505,7 @@ jobs:
                 ],
                 "type": "object"
               },
-              "name": "minimize_comment"
+              "name": "hide_comment"
             }
           ]
           EOF
@@ -3282,7 +3293,7 @@ jobs:
           <instructions>
           To create or modify GitHub resources (issues, discussions, pull requests, etc.), you MUST call the appropriate safe output tool. Simply writing content will NOT work - the workflow requires actual tool calls.
           
-          **Available tools**: add_labels, minimize_comment, missing_tool, noop
+          **Available tools**: add_labels, hide_comment, missing_tool, noop
           
           **Critical**: Tool calls write structured data that downstream jobs process. Without tool calls, follow-up actions will be skipped.
           </instructions>
@@ -6559,7 +6570,7 @@ jobs:
       - activation
       - add_labels
       - agent
-      - minimize_comment
+      - hide_comment
     if: (always()) && (needs.agent.result != 'skipped')
     runs-on: ubuntu-slim
     permissions:
@@ -7061,10 +7072,9 @@ jobs:
               core.setFailed(error instanceof Error ? error.message : String(error));
             });
 
-  minimize_comment:
+  hide_comment:
     needs: agent
-    if: >
-      ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'minimize_comment'))
+    if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'hide_comment'))
     runs-on: ubuntu-slim
     permissions:
       contents: read
@@ -7073,8 +7083,8 @@ jobs:
       pull-requests: write
     timeout-minutes: 10
     outputs:
-      comment_id: ${{ steps.minimize_comment.outputs.comment_id }}
-      is_minimized: ${{ steps.minimize_comment.outputs.is_minimized }}
+      comment_id: ${{ steps.hide_comment.outputs.comment_id }}
+      is_hidden: ${{ steps.hide_comment.outputs.is_hidden }}
     steps:
       - name: Download agent output artifact
         continue-on-error: true
@@ -7087,12 +7097,12 @@ jobs:
           mkdir -p /tmp/gh-aw/safeoutputs/
           find "/tmp/gh-aw/safeoutputs/" -type f -print
           echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> "$GITHUB_ENV"
-      - name: Minimize Comment
-        id: minimize_comment
+      - name: Hide Comment
+        id: hide_comment
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_MINIMIZE_COMMENT_MAX_COUNT: 5
+          GH_AW_HIDE_COMMENT_MAX_COUNT: 5
           GH_AW_WORKFLOW_NAME: "AI Moderator"
           GH_AW_ENGINE_ID: "copilot"
           GH_AW_ENGINE_MODEL: "gpt-5-mini"
@@ -7142,17 +7152,17 @@ jobs:
               }
               return { success: true, items: validatedOutput.items };
             }
-            async function minimizeComment(github, nodeId) {
+            async function hideComment(github, nodeId, reason = "SPAM") {
               const query =  `
-                mutation ($nodeId: ID!) {
-                  minimizeComment(input: { subjectId: $nodeId, classifier: SPAM }) {
+                mutation ($nodeId: ID!, $classifier: ReportedContentClassifiers!) {
+                  minimizeComment(input: { subjectId: $nodeId, classifier: $classifier }) {
                     minimizedComment {
                       isMinimized
                     }
                   }
                 }
               `;
-              const result = await github.graphql(query, { nodeId });
+              const result = await github.graphql(query, { nodeId, classifier: reason });
               return {
                 id: nodeId,
                 isMinimized: result.minimizeComment.minimizedComment.isMinimized,
@@ -7164,44 +7174,46 @@ jobs:
               if (!result.success) {
                 return;
               }
-              const minimizeCommentItems = result.items.filter( item => item.type === "minimize_comment");
-              if (minimizeCommentItems.length === 0) {
-                core.info("No minimize-comment items found in agent output");
+              const hideCommentItems = result.items.filter( item => item.type === "hide_comment");
+              if (hideCommentItems.length === 0) {
+                core.info("No hide-comment items found in agent output");
                 return;
               }
-              core.info(`Found ${minimizeCommentItems.length} minimize-comment item(s)`);
+              core.info(`Found ${hideCommentItems.length} hide-comment item(s)`);
               if (isStaged) {
-                let summaryContent = "## 🎭 Staged Mode: Minimize Comments Preview\n\n";
-                summaryContent += "The following comments would be minimized if staged mode was disabled:\n\n";
-                for (let i = 0; i < minimizeCommentItems.length; i++) {
-                  const item = minimizeCommentItems[i];
+                let summaryContent = "## 🎭 Staged Mode: Hide Comments Preview\n\n";
+                summaryContent += "The following comments would be hidden if staged mode was disabled:\n\n";
+                for (let i = 0; i < hideCommentItems.length; i++) {
+                  const item = hideCommentItems[i];
+                  const reason = item.reason || "SPAM";
                   summaryContent += `### Comment ${i + 1}\n`;
                   summaryContent += `**Node ID**: ${item.comment_id}\n`;
-                  summaryContent += `**Action**: Would be minimized as SPAM\n`;
+                  summaryContent += `**Action**: Would be hidden as ${reason}\n`;
                   summaryContent += "\n";
                 }
                 core.summary.addRaw(summaryContent).write();
                 return;
               }
-              for (const item of minimizeCommentItems) {
+              for (const item of hideCommentItems) {
                 try {
                   const commentId = item.comment_id;
                   if (!commentId || typeof commentId !== "string") {
                     throw new Error("comment_id is required and must be a string (GraphQL node ID)");
                   }
-                  core.info(`Minimizing comment: ${commentId}`);
-                  const minimizeResult = await minimizeComment(github, commentId);
-                  if (minimizeResult.isMinimized) {
-                    core.info(`Successfully minimized comment: ${commentId}`);
+                  const reason = item.reason || "SPAM";
+                  core.info(`Hiding comment: ${commentId} (reason: ${reason})`);
+                  const hideResult = await hideComment(github, commentId, reason);
+                  if (hideResult.isMinimized) {
+                    core.info(`Successfully hidden comment: ${commentId}`);
                     core.setOutput("comment_id", commentId);
-                    core.setOutput("is_minimized", "true");
+                    core.setOutput("is_hidden", "true");
                   } else {
-                    throw new Error(`Failed to minimize comment: ${commentId}`);
+                    throw new Error(`Failed to hide comment: ${commentId}`);
                   }
                 } catch (error) {
                   const errorMessage = error instanceof Error ? error.message : String(error);
-                  core.error(`Failed to minimize comment: ${errorMessage}`);
-                  core.setFailed(`Failed to minimize comment: ${errorMessage}`);
+                  core.error(`Failed to hide comment: ${errorMessage}`);
+                  core.setFailed(`Failed to hide comment: ${errorMessage}`);
                   return;
                 }
               }
