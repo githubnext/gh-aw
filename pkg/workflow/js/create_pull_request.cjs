@@ -121,7 +121,7 @@ async function main() {
 
   let patchContent = "";
   let isEmpty = true;
-  
+
   if (fs.existsSync("/tmp/gh-aw/aw.patch")) {
     patchContent = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
     isEmpty = !patchContent || !patchContent.trim();
@@ -194,7 +194,7 @@ async function main() {
 
     core.info("Patch size validation passed");
   }
-  
+
   if (isEmpty && !isStaged && !allowEmpty) {
     const message = "Patch file is empty - no changes to apply (noop operation)";
 
