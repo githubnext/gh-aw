@@ -19,7 +19,7 @@ steps:
   - name: Download logs from last 30 days
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    run: ./gh-aw logs --start-date -30d -o /tmp/portfolio-logs --json
+    run: gh aw logs --start-date -30d -o /tmp/portfolio-logs --json
 safe-outputs:
   create-discussion:
     title-prefix: "[portfolio] "
