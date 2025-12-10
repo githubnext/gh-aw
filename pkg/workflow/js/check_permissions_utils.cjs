@@ -35,13 +35,13 @@ async function checkBotStatus(actor, owner, repo) {
   try {
     // Check if the actor looks like a bot (ends with [bot])
     const isBot = actor.endsWith("[bot]");
-    
+
     if (!isBot) {
       return { isBot: false, isActive: false };
     }
-    
+
     core.info(`Checking if bot '${actor}' is active on ${owner}/${repo}`);
-    
+
     // Try to get the bot's permission level to verify it's installed/active on the repo
     // GitHub Apps/bots that are installed on a repository show up in the collaborators
     try {
@@ -50,7 +50,7 @@ async function checkBotStatus(actor, owner, repo) {
         repo: repo,
         username: actor,
       });
-      
+
       core.info(`Bot '${actor}' is active with permission level: ${botPermission.data.permission}`);
       return { isBot: true, isActive: true };
     } catch (botError) {

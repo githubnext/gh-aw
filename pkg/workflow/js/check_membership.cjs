@@ -63,13 +63,13 @@ async function main() {
     // User doesn't have required permissions, check if they're an allowed bot
     if (allowedBots && allowedBots.length > 0) {
       core.info(`Checking if actor '${actor}' is in allowed bots list: ${allowedBots.join(", ")}`);
-      
+
       if (allowedBots.includes(actor)) {
         core.info(`Actor '${actor}' is in the allowed bots list`);
-        
+
         // Verify the bot is active/installed on the repository
         const botStatus = await checkBotStatus(actor, owner, repo);
-        
+
         if (botStatus.isBot && botStatus.isActive) {
           core.info(`✅ Bot '${actor}' is active on the repository and authorized`);
           core.setOutput("is_team_member", "true");
@@ -81,17 +81,14 @@ async function main() {
           core.setOutput("is_team_member", "false");
           core.setOutput("result", "bot_not_active");
           core.setOutput("user_permission", result.permission);
-          core.setOutput(
-            "error_message",
-            `Access denied: Bot '${actor}' is not active/installed on this repository`
-          );
+          core.setOutput("error_message", `Access denied: Bot '${actor}' is not active/installed on this repository`);
           return;
         } else {
           core.info(`Actor '${actor}' is in allowed bots list but bot status check failed`);
         }
       }
     }
-    
+
     // Not authorized by role or bot
     core.setOutput("is_team_member", "false");
     core.setOutput("result", "insufficient_permissions");

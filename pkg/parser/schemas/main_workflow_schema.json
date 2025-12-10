@@ -4538,10 +4538,7 @@
         "minLength": 1,
         "description": "Bot identifier/name (e.g., 'dependabot[bot]', 'renovate[bot]', 'github-actions[bot]')"
       },
-      "examples": [
-        ["dependabot[bot]", "renovate[bot]"],
-        ["github-actions[bot]"]
-      ]
+      "examples": [["dependabot[bot]", "renovate[bot]"], ["github-actions[bot]"]]
     },
     "githubActionsStep": {
       "type": "object",
