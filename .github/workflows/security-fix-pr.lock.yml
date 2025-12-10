@@ -26,7 +26,7 @@
 # description: Identifies and automatically fixes code security issues by creating pull requests with remediation
 # on:
 #   schedule:
-#     - cron: "0 */4 * * *"  # Every 4 hours
+#     - cron: every 4h
 #   workflow_dispatch:
 #     inputs:
 #       security_url:
@@ -239,6 +239,7 @@ name: "Security Fix PR"
 "on":
   schedule:
   - cron: "0 */4 * * *"
+    # Friendly format: every 4h
   # skip-if-match: is:pr is:open in:title "[security-fix]" # Skip-if-match processed as search check in pre-activation job
   workflow_dispatch:
     inputs:

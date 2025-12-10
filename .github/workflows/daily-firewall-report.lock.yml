@@ -26,7 +26,7 @@
 # on:
 #   schedule:
 #     # Every day at 10am UTC
-#     - cron: "0 10 * * *"
+#     - cron: daily at 10:00
 #   workflow_dispatch:
 #
 # permissions:
@@ -727,6 +727,7 @@ name: "Daily Firewall Logs Collector and Reporter"
 "on":
   schedule:
   - cron: "0 10 * * *"
+    # Friendly format: daily at 10:00
   workflow_dispatch: null
 
 permissions:

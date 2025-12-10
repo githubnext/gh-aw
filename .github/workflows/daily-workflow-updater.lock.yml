@@ -27,7 +27,7 @@
 # on:
 #   schedule:
 #     # Every day at 3am UTC
-#     - cron: "0 3 * * *"
+#     - cron: daily at 3:00
 #   workflow_dispatch:
 #
 # permissions:
@@ -260,6 +260,7 @@ name: "Daily Workflow Updater"
 "on":
   schedule:
   - cron: "0 3 * * *"
+    # Friendly format: daily at 3:00
   workflow_dispatch: null
 
 permissions:

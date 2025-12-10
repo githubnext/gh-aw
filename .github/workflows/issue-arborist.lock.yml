@@ -26,7 +26,7 @@
 # name: Issue Arborist
 # on:
 #   schedule:
-#     - cron: "0 9 * * *"  # Daily at 9 AM UTC
+#     - cron: daily at 09:00
 #   workflow_dispatch:
 # permissions:
 #   contents: read
@@ -340,6 +340,7 @@ name: "Issue Arborist"
 "on":
   schedule:
   - cron: "0 9 * * *"
+    # Friendly format: daily at 09:00
   workflow_dispatch: null
 
 permissions:

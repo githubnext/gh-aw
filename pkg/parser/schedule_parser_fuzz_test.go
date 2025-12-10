@@ -69,6 +69,17 @@ func FuzzScheduleParser(f *testing.F) {
 	f.Add("monthly on 15 at 12:00 utc-8")
 	f.Add("daily at 00:00 utc+0")
 	
+	// AM/PM time formats
+	f.Add("daily at 3pm")
+	f.Add("daily at 1am")
+	f.Add("daily at 12am")
+	f.Add("daily at 12pm")
+	f.Add("daily at 11pm")
+	f.Add("daily at 6am")
+	f.Add("weekly on friday at 5pm")
+	f.Add("monthly on 15 at 9am")
+	f.Add("daily at 3pm utc+9")
+	
 	// Valid cron expressions (passthrough)
 	f.Add("0 0 * * *")
 	f.Add("*/5 * * * *")

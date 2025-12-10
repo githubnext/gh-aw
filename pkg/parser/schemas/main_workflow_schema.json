@@ -444,12 +444,12 @@
               }
             },
             "schedule": {
-              "description": "Scheduled trigger events using human-friendly format or standard cron expressions. Supports shorthand string notation (e.g., 'daily at 02:00') or array of schedule objects. Human-friendly formats are automatically converted to cron expressions with the original format preserved as comments in the generated workflow.",
+              "description": "Scheduled trigger events using human-friendly format or standard cron expressions. Supports shorthand string notation (e.g., 'daily at 3pm') or array of schedule objects. Human-friendly formats are automatically converted to cron expressions with the original format preserved as comments in the generated workflow.",
               "oneOf": [
                 {
                   "type": "string",
                   "minLength": 1,
-                  "description": "Shorthand schedule string using human-friendly format. Examples: 'daily at 02:00', 'weekly on monday at 06:30', 'monthly on 15 at 09:00', 'every 10 minutes', 'every 2h', 'every 1d', 'daily at 02:00 utc+9' (with UTC offset). Minimum interval is 5 minutes. Converted to standard cron expression automatically."
+                  "description": "Shorthand schedule string using human-friendly format. Examples: 'daily at 02:00', 'daily at 3pm', 'daily at 6am', 'weekly on monday at 06:30', 'weekly on friday at 5pm', 'monthly on 15 at 09:00', 'monthly on 15 at 9am', 'every 10 minutes', 'every 2h', 'every 1d', 'daily at 02:00 utc+9', 'daily at 3pm utc+9'. Supports 12-hour format (1am-12am, 1pm-12pm), 24-hour format (HH:MM), midnight, noon. Minimum interval is 5 minutes. Converted to standard cron expression automatically."
                 },
                 {
                   "type": "array",
@@ -460,7 +460,7 @@
                     "properties": {
                       "cron": {
                         "type": "string",
-                        "description": "Cron expression using standard format (e.g., '0 9 * * 1') or human-friendly format (e.g., 'daily at 02:00', 'weekly on monday', 'every 10 minutes', 'every 2h', 'daily at 02:00 utc+9'). Human-friendly formats support: daily/weekly/monthly schedules with optional time, interval schedules (minimum 5 minutes), short duration units (m/h/d/w/mo), and UTC timezone offsets (utc+N or utc+HH:MM)."
+                        "description": "Cron expression using standard format (e.g., '0 9 * * 1') or human-friendly format (e.g., 'daily at 02:00', 'daily at 3pm', 'daily at 6am', 'weekly on monday', 'weekly on friday at 5pm', 'every 10 minutes', 'every 2h', 'daily at 02:00 utc+9', 'daily at 3pm utc+9'). Human-friendly formats support: daily/weekly/monthly schedules with optional time, interval schedules (minimum 5 minutes), short duration units (m/h/d/w/mo), 12-hour time format (Npm/Nam where N is 1-12), and UTC timezone offsets (utc+N or utc+HH:MM)."
                       }
                     },
                     "required": ["cron"],

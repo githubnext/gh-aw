@@ -26,7 +26,7 @@
 # on:
 #   workflow_dispatch:
 #   schedule:
-#     - cron: "0 12 * * 3"  # Weekly on Wednesday at 12:00 UTC
+#     - cron: weekly on wednesday at 12:00
 # permissions:
 #   contents: read
 #   issues: read
@@ -444,6 +444,7 @@ name: "Blog Auditor"
 "on":
   schedule:
   - cron: "0 12 * * 3"
+    # Friendly format: weekly on wednesday at 12:00
   workflow_dispatch: null
 
 permissions:

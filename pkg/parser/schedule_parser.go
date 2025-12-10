@@ -346,7 +346,7 @@ func (p *ScheduleParser) extractTime(startPos int) (string, error) {
 }
 
 // parseTime converts a time string to minute and hour, with optional UTC offset
-// Supports formats: HH:MM, midnight, noon, HH:MM utc+N, HH:MM utc+HH:MM, HH:MM utc-N
+// Supports formats: HH:MM, midnight, noon, 3pm, 1am, HH:MM utc+N, HH:MM utc+HH:MM, HH:MM utc-N, 3pm utc+9
 func parseTime(timeStr string) (minute string, hour string) {
 	// Check for UTC offset
 	parts := strings.Split(timeStr, " ")
@@ -398,16 +398,45 @@ func parseTime(timeStr string) (minute string, hour string) {
 	case "noon":
 		baseMinute, baseHour = 0, 12
 	default:
-		// Parse HH:MM format
-		timeParts := strings.Split(baseTime, ":")
-		if len(timeParts) == 2 {
-			// Validate hour
-			hourNum, err := strconv.Atoi(timeParts[0])
-			if err == nil && hourNum >= 0 && hourNum <= 23 {
-				// Validate minute
-				minNum, err := strconv.Atoi(timeParts[1])
-				if err == nil && minNum >= 0 && minNum <= 59 {
-					baseMinute, baseHour = minNum, hourNum
+		// Check for am/pm format (e.g., "3pm", "11am")
+		lowerTime := strings.ToLower(baseTime)
+		if strings.HasSuffix(lowerTime, "am") || strings.HasSuffix(lowerTime, "pm") {
+			isPM := strings.HasSuffix(lowerTime, "pm")
+			// Remove am/pm suffix
+			hourStr := lowerTime[:len(lowerTime)-2]
+			
+			hourNum, err := strconv.Atoi(hourStr)
+			if err == nil && hourNum >= 1 && hourNum <= 12 {
+				// Convert 12-hour to 24-hour format
+				if isPM {
+					if hourNum != 12 {
+						hourNum += 12
+					}
+				} else { // AM
+					if hourNum == 12 {
+						hourNum = 0
+					}
+				}
+				baseMinute, baseHour = 0, hourNum
+			} else {
+				// Invalid format, return defaults
+				return "0", "0"
+			}
+		} else {
+			// Parse HH:MM format
+			timeParts := strings.Split(baseTime, ":")
+			if len(timeParts) == 2 {
+				// Validate hour
+				hourNum, err := strconv.Atoi(timeParts[0])
+				if err == nil && hourNum >= 0 && hourNum <= 23 {
+					// Validate minute
+					minNum, err := strconv.Atoi(timeParts[1])
+					if err == nil && minNum >= 0 && minNum <= 59 {
+						baseMinute, baseHour = minNum, hourNum
+					} else {
+						// Invalid format, return defaults
+						return "0", "0"
+					}
 				} else {
 					// Invalid format, return defaults
 					return "0", "0"
@@ -416,9 +445,6 @@ func parseTime(timeStr string) (minute string, hour string) {
 				// Invalid format, return defaults
 				return "0", "0"
 			}
-		} else {
-			// Invalid format, return defaults
-			return "0", "0"
 		}
 	}
 	

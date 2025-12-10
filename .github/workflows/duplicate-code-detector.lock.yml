@@ -27,7 +27,7 @@
 # on:
 #   workflow_dispatch:
 #   schedule:
-#     - cron: "0 21 * * *"  # Daily at 9 PM UTC
+#     - cron: daily at 21:00
 # permissions:
 #   contents: read
 #   issues: read
@@ -309,6 +309,7 @@ name: "Duplicate Code Detector"
 "on":
   schedule:
   - cron: "0 21 * * *"
+    # Friendly format: daily at 21:00
   workflow_dispatch: null
 
 permissions:

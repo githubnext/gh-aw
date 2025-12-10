@@ -98,15 +98,19 @@ on:
 ```
 
 **Supported Formats:**
-- **Daily**: `daily` or `daily at HH:MM` or `daily at midnight/noon`
+- **Daily**: `daily` or `daily at HH:MM` or `daily at midnight/noon` or `daily at Npm/Nam`
   - `daily at 02:00` → `0 2 * * *`
   - `daily at midnight` → `0 0 * * *`
-- **Weekly**: `weekly on <day>` or `weekly on <day> at HH:MM`
+  - `daily at 3pm` → `0 15 * * *`
+  - `daily at 6am` → `0 6 * * *`
+- **Weekly**: `weekly on <day>` or `weekly on <day> at HH:MM` or `weekly on <day> at Npm/Nam`
   - `weekly on monday at 06:30` → `30 6 * * 1`
   - `weekly on friday` → `0 0 * * 5`
-- **Monthly**: `monthly on <day>` or `monthly on <day> at HH:MM`
+  - `weekly on friday at 5pm` → `0 17 * * 5`
+- **Monthly**: `monthly on <day>` or `monthly on <day> at HH:MM` or `monthly on <day> at Npm/Nam`
   - `monthly on 15 at 09:00` → `0 9 15 * *`
   - `monthly on 1` → `0 0 1 * *`
+  - `monthly on 15 at 9am` → `0 9 15 * *`
 - **Intervals**: `every N minutes/hours` or `every Nm/Nh/Nd/Nw/Nmo` (minimum 5 minutes)
   - `every 10 minutes` → `*/10 * * * *`
   - `every 2h` → `0 */2 * * *`
@@ -117,6 +121,11 @@ on:
   - `daily at 02:00 utc+9` → `0 17 * * *` (2 AM JST → 5 PM UTC previous day)
   - `daily at 14:00 utc-5` → `0 19 * * *` (2 PM EST → 7 PM UTC)
   - `weekly on monday at 09:30 utc+05:30` → `0 4 * * 1` (9:30 AM IST → 4 AM UTC)
+  - `daily at 3pm utc+9` → `0 6 * * *` (3 PM JST → 6 AM UTC)
+- **Time Formats**: `HH:MM` (24-hour), `midnight`, `noon`, `Npm` (1pm-12pm), `Nam` (1am-12am)
+  - `12am` = midnight (00:00)
+  - `12pm` = noon (12:00)
+  - `1am` = 01:00, `11pm` = 23:00
 
 The human-friendly format is automatically converted to standard cron expressions, with the original format preserved as a comment in the generated workflow file.
 

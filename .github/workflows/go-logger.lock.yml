@@ -26,8 +26,7 @@
 # description: Analyzes and enhances Go logging practices across the codebase for improved debugging and observability
 # on:
 #   schedule:
-#     # Daily at 12pm UTC
-#     - cron: "0 12 * * *"
+#     - cron: daily at 12:00
 #   workflow_dispatch:
 #
 # permissions:
@@ -385,6 +384,7 @@ name: "Go Logger Enhancement"
 "on":
   schedule:
   - cron: "0 12 * * *"
+    # Friendly format: daily at 12:00
   workflow_dispatch: null
 
 permissions:

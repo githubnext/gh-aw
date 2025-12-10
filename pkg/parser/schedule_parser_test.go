@@ -38,6 +38,42 @@ func TestParseSchedule(t *testing.T) {
 			expectedCron: "0 12 * * *",
 			expectedOrig: "daily at noon",
 		},
+		{
+			name:         "daily at 3pm",
+			input:        "daily at 3pm",
+			expectedCron: "0 15 * * *",
+			expectedOrig: "daily at 3pm",
+		},
+		{
+			name:         "daily at 1am",
+			input:        "daily at 1am",
+			expectedCron: "0 1 * * *",
+			expectedOrig: "daily at 1am",
+		},
+		{
+			name:         "daily at 12am (midnight)",
+			input:        "daily at 12am",
+			expectedCron: "0 0 * * *",
+			expectedOrig: "daily at 12am",
+		},
+		{
+			name:         "daily at 12pm (noon)",
+			input:        "daily at 12pm",
+			expectedCron: "0 12 * * *",
+			expectedOrig: "daily at 12pm",
+		},
+		{
+			name:         "daily at 11pm",
+			input:        "daily at 11pm",
+			expectedCron: "0 23 * * *",
+			expectedOrig: "daily at 11pm",
+		},
+		{
+			name:         "daily at 6am",
+			input:        "daily at 6am",
+			expectedCron: "0 6 * * *",
+			expectedOrig: "daily at 6am",
+		},
 
 		// Weekly schedules
 		{
@@ -99,6 +135,24 @@ func TestParseSchedule(t *testing.T) {
 			input:        "monthly on 15 at 12:00 utc-8",
 			expectedCron: "0 20 15 * *",
 			expectedOrig: "monthly on 15 at 12:00 utc-8",
+		},
+		{
+			name:         "daily at 3pm utc+9",
+			input:        "daily at 3pm utc+9",
+			expectedCron: "0 6 * * *",
+			expectedOrig: "daily at 3pm utc+9",
+		},
+		{
+			name:         "weekly on friday at 5pm",
+			input:        "weekly on friday at 5pm",
+			expectedCron: "0 17 * * 5",
+			expectedOrig: "weekly on friday at 5pm",
+		},
+		{
+			name:         "monthly on 15 at 9am",
+			input:        "monthly on 15 at 9am",
+			expectedCron: "0 9 15 * *",
+			expectedOrig: "monthly on 15 at 9am",
 		},
 
 		// Monthly schedules
@@ -452,11 +506,23 @@ func TestParseTime(t *testing.T) {
 		{"06:30", "30", "6"},
 		{"23:59", "59", "23"},
 		{"09:15", "15", "9"},
+		// AM/PM formats
+		{"1am", "0", "1"},
+		{"3pm", "0", "15"},
+		{"12am", "0", "0"},   // midnight
+		{"12pm", "0", "12"},  // noon
+		{"11pm", "0", "23"},
+		{"6am", "0", "6"},
+		{"9am", "0", "9"},
+		{"5pm", "0", "17"},
+		{"10pm", "0", "22"},
 		// Invalid formats fall back to defaults
 		{"invalid", "0", "0"},
 		{"25:00", "0", "0"},
 		{"12:60", "0", "0"},
 		{"12", "0", "0"},
+		{"13pm", "0", "0"},   // invalid hour for 12-hour format
+		{"0am", "0", "0"},    // invalid hour for 12-hour format
 	}
 
 	for _, tt := range tests {
