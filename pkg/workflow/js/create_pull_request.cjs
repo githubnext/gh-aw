@@ -82,71 +82,89 @@ async function main() {
   }
 
   const ifNoChanges = process.env.GH_AW_PR_IF_NO_CHANGES || "warn";
+  const allowEmpty = (process.env.GH_AW_PR_ALLOW_EMPTY || "false").toLowerCase() === "true";
 
   // Check if patch file exists and has valid content
   if (!fs.existsSync("/tmp/gh-aw/aw.patch")) {
-    const message = "No patch file found - cannot create pull request without changes";
+    // If allow-empty is enabled, we can proceed without a patch file
+    if (allowEmpty) {
+      core.info("No patch file found, but allow-empty is enabled - will create empty PR");
+    } else {
+      const message = "No patch file found - cannot create pull request without changes";
 
-    // If in staged mode, still show preview
-    if (isStaged) {
-      let summaryContent = "## 🎭 Staged Mode: Create Pull Request Preview\n\n";
-      summaryContent += "The following pull request would be created if staged mode was disabled:\n\n";
-      summaryContent += `**Status:** ⚠️ No patch file found\n\n`;
-      summaryContent += `**Message:** ${message}\n\n`;
+      // If in staged mode, still show preview
+      if (isStaged) {
+        let summaryContent = "## 🎭 Staged Mode: Create Pull Request Preview\n\n";
+        summaryContent += "The following pull request would be created if staged mode was disabled:\n\n";
+        summaryContent += `**Status:** ⚠️ No patch file found\n\n`;
+        summaryContent += `**Message:** ${message}\n\n`;
 
-      // Write to step summary
-      await core.summary.addRaw(summaryContent).write();
-      core.info("📝 Pull request creation preview written to step summary (no patch file)");
-      return;
-    }
-
-    switch (ifNoChanges) {
-      case "error":
-        throw new Error(message);
-      case "ignore":
-        // Silent success - no console output
+        // Write to step summary
+        await core.summary.addRaw(summaryContent).write();
+        core.info("📝 Pull request creation preview written to step summary (no patch file)");
         return;
-      case "warn":
-      default:
-        core.warning(message);
-        return;
+      }
+
+      switch (ifNoChanges) {
+        case "error":
+          throw new Error(message);
+        case "ignore":
+          // Silent success - no console output
+          return;
+        case "warn":
+        default:
+          core.warning(message);
+          return;
+      }
     }
   }
 
-  const patchContent = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
+  let patchContent = "";
+  let isEmpty = true;
+  
+  if (fs.existsSync("/tmp/gh-aw/aw.patch")) {
+    patchContent = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
+    isEmpty = !patchContent || !patchContent.trim();
+  }
 
   // Check for actual error conditions (but allow empty patches as valid noop)
   if (patchContent.includes("Failed to generate patch")) {
-    const message = "Patch file contains error message - cannot create pull request without changes";
+    // If allow-empty is enabled, ignore patch errors and proceed
+    if (allowEmpty) {
+      core.info("Patch file contains error, but allow-empty is enabled - will create empty PR");
+      patchContent = "";
+      isEmpty = true;
+    } else {
+      const message = "Patch file contains error message - cannot create pull request without changes";
 
-    // If in staged mode, still show preview
-    if (isStaged) {
-      let summaryContent = "## 🎭 Staged Mode: Create Pull Request Preview\n\n";
-      summaryContent += "The following pull request would be created if staged mode was disabled:\n\n";
-      summaryContent += `**Status:** ⚠️ Patch file contains error\n\n`;
-      summaryContent += `**Message:** ${message}\n\n`;
+      // If in staged mode, still show preview
+      if (isStaged) {
+        let summaryContent = "## 🎭 Staged Mode: Create Pull Request Preview\n\n";
+        summaryContent += "The following pull request would be created if staged mode was disabled:\n\n";
+        summaryContent += `**Status:** ⚠️ Patch file contains error\n\n`;
+        summaryContent += `**Message:** ${message}\n\n`;
 
-      // Write to step summary
-      await core.summary.addRaw(summaryContent).write();
-      core.info("📝 Pull request creation preview written to step summary (patch error)");
-      return;
-    }
-
-    switch (ifNoChanges) {
-      case "error":
-        throw new Error(message);
-      case "ignore":
-        // Silent success - no console output
+        // Write to step summary
+        await core.summary.addRaw(summaryContent).write();
+        core.info("📝 Pull request creation preview written to step summary (patch error)");
         return;
-      case "warn":
-      default:
-        core.warning(message);
-        return;
+      }
+
+      switch (ifNoChanges) {
+        case "error":
+          throw new Error(message);
+        case "ignore":
+          // Silent success - no console output
+          return;
+        case "warn":
+        default:
+          core.warning(message);
+          return;
+      }
     }
   }
 
   // Validate patch size (unless empty)
-  const isEmpty = !patchContent || !patchContent.trim();
   if (!isEmpty) {
     // Get maximum patch size from environment (default: 1MB = 1024 KB)
     const maxSizeKb = parseInt(process.env.GH_AW_MAX_PATCH_SIZE || "1024", 10);
@@ -176,7 +194,8 @@ async function main() {
 
     core.info("Patch size validation passed");
   }
-  if (isEmpty && !isStaged) {
+  
+  if (isEmpty && !isStaged && !allowEmpty) {
     const message = "Patch file is empty - no changes to apply (noop operation)";
 
     switch (ifNoChanges) {
@@ -195,6 +214,8 @@ async function main() {
   core.info(`Agent output content length: ${outputContent.length}`);
   if (!isEmpty) {
     core.info("Patch content validation passed");
+  } else if (allowEmpty) {
+    core.info("Patch file is empty - processing empty PR creation (allow-empty is enabled)");
   } else {
     core.info("Patch file is empty - processing noop operation");
   }
@@ -487,19 +508,53 @@ ${patchPreview}`;
   } else {
     core.info("Skipping patch application (empty patch)");
 
-    // For empty patches, handle if-no-changes configuration
-    const message = "No changes to apply - noop operation completed successfully";
+    // For empty patches with allow-empty, we still need to push the branch
+    if (allowEmpty) {
+      core.info("allow-empty is enabled - will create branch and push without changes");
+      // Push the branch without any changes
+      try {
+        // Check if remote branch already exists (optional precheck)
+        let remoteBranchExists = false;
+        try {
+          const { stdout } = await exec.getExecOutput(`git ls-remote --heads origin ${branchName}`);
+          if (stdout.trim()) {
+            remoteBranchExists = true;
+          }
+        } catch (checkError) {
+          core.info(`Remote branch check failed (non-fatal): ${checkError instanceof Error ? checkError.message : String(checkError)}`);
+        }
 
-    switch (ifNoChanges) {
-      case "error":
-        throw new Error("No changes to apply - failing as configured by if-no-changes: error");
-      case "ignore":
-        // Silent success - no console output
+        if (remoteBranchExists) {
+          core.warning(`Remote branch ${branchName} already exists - appending random suffix`);
+          const extraHex = crypto.randomBytes(4).toString("hex");
+          const oldBranch = branchName;
+          branchName = `${branchName}-${extraHex}`;
+          // Rename local branch
+          await exec.exec(`git branch -m ${oldBranch} ${branchName}`);
+          core.info(`Renamed branch to ${branchName}`);
+        }
+
+        await exec.exec(`git push origin ${branchName}`);
+        core.info("Empty branch pushed successfully");
+      } catch (pushError) {
+        core.setFailed(`Failed to push empty branch: ${pushError instanceof Error ? pushError.message : String(pushError)}`);
         return;
-      case "warn":
-      default:
-        core.warning(message);
-        return;
+      }
+    } else {
+      // For empty patches without allow-empty, handle if-no-changes configuration
+      const message = "No changes to apply - noop operation completed successfully";
+
+      switch (ifNoChanges) {
+        case "error":
+          throw new Error("No changes to apply - failing as configured by if-no-changes: error");
+        case "ignore":
+          // Silent success - no console output
+          return;
+        case "warn":
+        default:
+          core.warning(message);
+          return;
+      }
     }
   }
 

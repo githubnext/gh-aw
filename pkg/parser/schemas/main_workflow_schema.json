@@ -3552,6 +3552,10 @@
                   "enum": ["warn", "error", "ignore"],
                   "description": "Behavior when no changes to push: 'warn' (default - log warning but succeed), 'error' (fail the action), or 'ignore' (silent success)"
                 },
+                "allow-empty": {
+                  "type": "boolean",
+                  "description": "When true, allows creating a pull request without any initial changes or git patch. This is useful for preparing a feature branch that an agent can push changes to later. The branch will be created from the base branch without applying any patch. Defaults to false."
+                },
                 "target-repo": {
                   "type": "string",
                   "description": "Target repository in format 'owner/repo' for cross-repository pull request creation. Takes precedence over trial target repo settings."
