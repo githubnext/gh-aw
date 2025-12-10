@@ -12,7 +12,7 @@ var addLabelsLog = logger.New("workflow:add_labels")
 type AddLabelsConfig struct {
 	BaseSafeOutputConfig   `yaml:",inline"`
 	SafeOutputTargetConfig `yaml:",inline"`
-	Allowed                []string `yaml:"allowed,omitempty"` // Optional list of allowed labels. If omitted, any labels are allowed (including creating new ones).
+	Allowed                []string `yaml:"allowed,omitempty"` // Optional list of allowed labels. Labels will be created if they don't already exist in the repository. If omitted, any labels are allowed (including creating new ones).
 }
 
 // parseAddLabelsConfig handles add-labels configuration

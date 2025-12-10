@@ -3657,15 +3657,15 @@
           "oneOf": [
             {
               "type": "null",
-              "description": "Null configuration allows any labels"
+              "description": "Null configuration allows any labels. Labels will be created if they don't already exist in the repository."
             },
             {
               "type": "object",
-              "description": "Configuration for adding labels to issues/PRs from agentic workflow output",
+              "description": "Configuration for adding labels to issues/PRs from agentic workflow output. Labels will be created if they don't already exist in the repository.",
               "properties": {
                 "allowed": {
                   "type": "array",
-                  "description": "Optional list of allowed labels that can be added. If omitted, any labels are allowed (including creating new ones).",
+                  "description": "Optional list of allowed labels that can be added. Labels will be created if they don't already exist in the repository. If omitted, any labels are allowed (including creating new ones).",
                   "items": {
                     "type": "string"
                   },
