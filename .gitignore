@@ -79,8 +79,9 @@ actions/**/.build/
 # Keep package-lock.json for reproducible builds
 # actions/package-lock.json
 
-# Generated .cjs files in src directories - these are intermediate build artifacts
+# Generated source files in src directories - these are build artifacts
 actions/*/src/*.cjs
+actions/*/src/index.js
 
 pkg/cli/workflows/*.yml
 .github/workflows/test-update.md
