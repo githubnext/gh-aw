@@ -199,17 +199,21 @@ func (c *Compiler) parseWorkflowMarkdownContentWithToolsString(content string) (
 	topTools := extractToolsFromFrontmatter(result.Frontmatter)
 	topTools = c.applyDefaultTools(topTools, safeOutputs)
 
+	// Convert to map for legacy code
+	topToolsMap := topTools.ToMap()
+
 	// Extract cache-memory config
-	cacheMemoryConfig, _ := c.extractCacheMemoryConfigFromMap(topTools)
+	cacheMemoryConfig, _ := c.extractCacheMemoryConfigFromMap(topToolsMap)
 
 	// Build basic workflow data for testing
 	workflowData := &WorkflowData{
 		Name:        "Test Workflow",
-		Tools:       topTools,
+		Tools:       topToolsMap,
+		ParsedTools: topTools,
 		SafeOutputs: safeOutputs,
 		AI:          "claude",
 	}
-	allowedToolsStr := engine.computeAllowedClaudeToolsString(topTools, safeOutputs, cacheMemoryConfig)
+	allowedToolsStr := engine.computeAllowedClaudeToolsString(topToolsMap, safeOutputs, cacheMemoryConfig)
 
 	return workflowData, allowedToolsStr, nil
 }

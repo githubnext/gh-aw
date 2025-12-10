@@ -22,11 +22,13 @@ func parseWorkflowFromContent(t *testing.T, content string, filename string) *Wo
 	safeOutputs := compiler.extractSafeOutputsConfig(result.Frontmatter)
 	topTools := extractToolsFromFrontmatter(result.Frontmatter)
 
+	topToolsMap := topTools.ToMap()
 	workflowData := &WorkflowData{
 		Name:            filename,
 		FrontmatterName: extractStringFromMap(result.Frontmatter, "name", nil),
 		SafeOutputs:     safeOutputs,
-		Tools:           topTools,
+		Tools:           topToolsMap,
+		ParsedTools:     topTools,
 	}
 
 	return workflowData

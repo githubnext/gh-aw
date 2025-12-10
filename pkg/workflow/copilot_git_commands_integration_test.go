@@ -122,14 +122,18 @@ func (c *Compiler) parseCopilotWorkflowMarkdownContentWithToolArgs(content strin
 	topTools := extractToolsFromFrontmatter(result.Frontmatter)
 	topTools = c.applyDefaultTools(topTools, safeOutputs)
 
+	// Convert to map for legacy code
+	topToolsMap := topTools.ToMap()
+
 	// Build basic workflow data for testing
 	workflowData := &WorkflowData{
 		Name:        "Test Workflow",
-		Tools:       topTools,
+		Tools:       topToolsMap,
+		ParsedTools: topTools,
 		SafeOutputs: safeOutputs,
 		AI:          "copilot",
 	}
-	allowedToolArgs := engine.computeCopilotToolArguments(topTools, safeOutputs, nil, workflowData)
+	allowedToolArgs := engine.computeCopilotToolArguments(topToolsMap, safeOutputs, nil, workflowData)
 
 	return workflowData, allowedToolArgs, nil
 }
