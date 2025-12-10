@@ -169,7 +169,7 @@ The word "markdown" should be capitalized consistently with other commands.
 
 ### Suggested Fix
 ```
-Compile Markdown to YAML workflows
+Compile Markdown workflows to GitHub Actions YAML
 ```
 ```
 
