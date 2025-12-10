@@ -5,6 +5,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/githubnext/gh-aw/pkg/parser"
 )
 
 func TestNewGateway(t *testing.T) {
@@ -17,7 +19,7 @@ func TestNewGateway(t *testing.T) {
 			name: "valid config",
 			config: GatewayConfig{
 				Port: 8088,
-				MCPServers: map[string]MCPServerConfig{
+				MCPServers: map[string]parser.MCPServerConfig{
 					"test": {
 						Command: "echo",
 						Args:    []string{"hello"},
@@ -30,7 +32,7 @@ func TestNewGateway(t *testing.T) {
 			name: "missing port",
 			config: GatewayConfig{
 				Port: 0,
-				MCPServers: map[string]MCPServerConfig{
+				MCPServers: map[string]parser.MCPServerConfig{
 					"test": {
 						Command: "echo",
 					},
@@ -42,7 +44,7 @@ func TestNewGateway(t *testing.T) {
 			name: "no servers",
 			config: GatewayConfig{
 				Port:       8088,
-				MCPServers: map[string]MCPServerConfig{},
+				MCPServers: map[string]parser.MCPServerConfig{},
 			},
 			wantErr: true,
 		},
@@ -122,12 +124,12 @@ func TestCreateTransports(t *testing.T) {
 	gw := &Gateway{
 		config: GatewayConfig{
 			Port:       8088,
-			MCPServers: map[string]MCPServerConfig{},
+			MCPServers: map[string]parser.MCPServerConfig{},
 		},
 	}
 
 	t.Run("stdio transport", func(t *testing.T) {
-		config := MCPServerConfig{
+		config := parser.MCPServerConfig{
 			Command: "echo",
 			Args:    []string{"hello"},
 			Env: map[string]string{
@@ -146,7 +148,7 @@ func TestCreateTransports(t *testing.T) {
 	})
 
 	t.Run("http transport", func(t *testing.T) {
-		config := MCPServerConfig{
+		config := parser.MCPServerConfig{
 			URL: "http://localhost:3000",
 		}
 
@@ -161,7 +163,7 @@ func TestCreateTransports(t *testing.T) {
 	})
 
 	t.Run("docker transport", func(t *testing.T) {
-		config := MCPServerConfig{
+		config := parser.MCPServerConfig{
 			Container: "my-server:latest",
 			Args:      []string{"--port", "3000"},
 			Env: map[string]string{
@@ -184,7 +186,7 @@ func TestGatewayLifecycle(t *testing.T) {
 	// This is a basic lifecycle test that doesn't actually start servers
 	config := GatewayConfig{
 		Port: 8088,
-		MCPServers: map[string]MCPServerConfig{
+		MCPServers: map[string]parser.MCPServerConfig{
 			"test": {
 				Command: "echo",
 				Args:    []string{"test"},
@@ -214,7 +216,7 @@ func TestGatewayContext(t *testing.T) {
 
 	config := GatewayConfig{
 		Port: 8081, // Use a different port for test
-		MCPServers: map[string]MCPServerConfig{
+		MCPServers: map[string]parser.MCPServerConfig{
 			"test": {
 				Command: "sleep",
 				Args:    []string{"60"}, // Long-running command
