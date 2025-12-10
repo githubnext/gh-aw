@@ -45,6 +45,11 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		return nil, fmt.Errorf("no markdown content found")
 	}
 
+	// Preprocess schedule fields to convert human-friendly format to cron expressions
+	if err := c.preprocessScheduleFields(result.Frontmatter); err != nil {
+		return nil, err
+	}
+
 	// Validate main workflow frontmatter contains only expected entries
 	if err := parser.ValidateMainWorkflowFrontmatterWithSchemaAndLocation(result.Frontmatter, markdownPath); err != nil {
 		return nil, err
