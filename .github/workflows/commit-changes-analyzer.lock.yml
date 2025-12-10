@@ -4190,18 +4190,14 @@ jobs:
               const hasPatch = fs.existsSync(patchPath);
               core.info(`Patch file ${hasPatch ? "exists" : "does not exist"} at: ${patchPath}`);
               let allowEmptyPR = false;
-              const configPath = process.env.GH_AW_SAFE_OUTPUTS_CONFIG_PATH || "/tmp/gh-aw/safeoutputs/config.json";
-              try {
-                if (fs.existsSync(configPath)) {
-                  const configContent = fs.readFileSync(configPath, "utf8");
-                  const config = JSON.parse(configContent);
-                  if (config["create-pull-request"]?.["allow-empty"] === true || config["create_pull_request"]?.["allow_empty"] === true) {
-                    allowEmptyPR = true;
-                    core.info(`allow-empty is enabled for create-pull-request`);
-                  }
+              if (safeOutputsConfig) {
+                if (
+                  safeOutputsConfig["create-pull-request"]?.["allow-empty"] === true ||
+                  safeOutputsConfig["create_pull_request"]?.["allow_empty"] === true
+                ) {
+                  allowEmptyPR = true;
+                  core.info(`allow-empty is enabled for create-pull-request`);
                 }
-              } catch (error) {
-                core.debug(`Failed to load config for allow-empty check: ${error instanceof Error ? error.message : String(error)}`);
               }
               if (allowEmptyPR && !hasPatch && outputTypes.includes("create_pull_request")) {
                 core.info(`allow-empty is enabled and no patch exists - will create empty PR`);

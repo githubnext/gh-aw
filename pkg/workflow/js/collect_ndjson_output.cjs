@@ -337,21 +337,17 @@ async function main() {
   const hasPatch = fs.existsSync(patchPath);
   core.info(`Patch file ${hasPatch ? "exists" : "does not exist"} at: ${patchPath}`);
 
-  // Load safe outputs config to check for allow-empty on create_pull_request
+  // Check if allow-empty is enabled for create_pull_request (reuse already loaded config)
   let allowEmptyPR = false;
-  const configPath = process.env.GH_AW_SAFE_OUTPUTS_CONFIG_PATH || "/tmp/gh-aw/safeoutputs/config.json";
-  try {
-    if (fs.existsSync(configPath)) {
-      const configContent = fs.readFileSync(configPath, "utf8");
-      const config = JSON.parse(configContent);
-      // Check if create-pull-request has allow-empty enabled
-      if (config["create-pull-request"]?.["allow-empty"] === true || config["create_pull_request"]?.["allow_empty"] === true) {
-        allowEmptyPR = true;
-        core.info(`allow-empty is enabled for create-pull-request`);
-      }
+  if (safeOutputsConfig) {
+    // Check if create-pull-request has allow-empty enabled
+    if (
+      safeOutputsConfig["create-pull-request"]?.["allow-empty"] === true ||
+      safeOutputsConfig["create_pull_request"]?.["allow_empty"] === true
+    ) {
+      allowEmptyPR = true;
+      core.info(`allow-empty is enabled for create-pull-request`);
     }
-  } catch (error) {
-    core.debug(`Failed to load config for allow-empty check: ${error instanceof Error ? error.message : String(error)}`);
   }
 
   // If allow-empty is enabled for create_pull_request and there's no patch, that's OK
