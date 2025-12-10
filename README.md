@@ -26,49 +26,20 @@ GitHub Agentic Workflows transforms natural language markdown files into GitHub 
 
 ```markdown
 ---
-description: Daily report analyzing repository issues
 on:
   schedule:
-    - cron: "0 6 * * *"  # Daily at 6 AM UTC
-  workflow_dispatch:
+    - cron: "0 6 * * *"
 
-permissions:
-  contents: read
-  actions: read
-  issues: read
-  discussions: write
-
-engine: codex
-
-tools:
-  github:
-    toolsets: [default, discussions]
+permissions: read
 
 safe-outputs:
-  upload-assets:
   create-discussion:
-    expires: 3d
-    category: "General"
-    title-prefix: "[daily issues] "
-    max: 1
-    close-older-discussions: true
-
-timeout-minutes: 30
 ---
 
-# Daily Issues Report Generator
+# Daily Issues Report
 
-You are an expert analyst that generates comprehensive daily reports 
-about repository issues.
-
-## Mission
-
-Generate a daily report analyzing issues from the repository:
-1. Cluster issues by topic/theme using natural language analysis
-2. Calculate metrics (open/closed rates, response times, label distribution)
-3. Generate trend charts showing issue activity over time
-4. Create a new discussion with the report
-5. Close previous daily reports to avoid clutter
+Analyze repository issues and create a daily discussion 
+with metrics, trends, and key insights.
 ```
 
 The `gh aw` cli converts this into a GitHub Actions Workflow (.yml) that runs an AI agent (Copilot, Claude, Codex, ...) in a containerized environment on a schedule or manually.
