@@ -4,7 +4,7 @@ description: Analyzes GitHub Copilot agent usage patterns in pull requests to pr
 on:
   schedule:
     # Every day at 6pm UTC
-    - cron: "0 18 * * *"
+    - cron: daily at 18:00
   workflow_dispatch:
 
 permissions:

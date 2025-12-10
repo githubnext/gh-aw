@@ -3,7 +3,7 @@ description: Collects and reports on firewall log events to monitor network secu
 on:
   schedule:
     # Every day at 10am UTC
-    - cron: "0 10 * * *"
+    - cron: daily at 10:00
   workflow_dispatch:
 
 permissions:

@@ -10,7 +10,7 @@ on:
         type: string
         default: github
   schedule:
-    - cron: "3 2 1 * *"  # Monthly on the 1st at 2:03 AM UTC
+    - cron: monthly on 1 at 02:03
 
 permissions:
   contents: read

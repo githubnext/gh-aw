@@ -3,7 +3,7 @@ description: Verifies that the GitHub Next Agentic Workflows blog page is access
 on:
   workflow_dispatch:
   schedule:
-    - cron: "0 12 * * 3"  # Weekly on Wednesday at 12:00 UTC
+    - cron: weekly on wednesday at 12:00
 permissions:
   contents: read
   issues: read

@@ -27,7 +27,7 @@
 # on:
 #   schedule:
 #     # Every day at 6am UTC
-#     - cron: "0 6 * * *"
+#     - cron: daily at 6:00
 #   workflow_dispatch:
 #
 # permissions:
@@ -273,6 +273,7 @@ name: "Daily Documentation Updater"
 "on":
   schedule:
   - cron: "0 6 * * *"
+    # Friendly format: daily at 6:00
   workflow_dispatch: null
 
 permissions:

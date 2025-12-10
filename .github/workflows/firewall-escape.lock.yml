@@ -28,7 +28,7 @@
 # on:
 #   workflow_dispatch:
 #   schedule:
-#     - cron: "0 9 * * *"  # Daily at 1 AM PST (9 AM UTC)
+#     - cron: daily at 9:00
 #   pull_request:
 #     types: [labeled]
 #     names: ['firewall-escape-test']
@@ -284,6 +284,7 @@ name: "Firewall Escape"
     - labeled
   schedule:
   - cron: "0 9 * * *"
+    # Friendly format: daily at 9:00
   workflow_dispatch: null
 
 permissions:

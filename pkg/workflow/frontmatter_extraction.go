@@ -115,6 +115,8 @@ func (c *Compiler) extractTopLevelYAMLSection(frontmatter map[string]any, key st
 		yamlStr = c.commentOutProcessedFieldsInOnSection(yamlStr)
 		// Add zizmor ignore comment if workflow_run trigger is present
 		yamlStr = c.addZizmorIgnoreForWorkflowRun(yamlStr)
+		// Add friendly format comments for schedule cron expressions
+		yamlStr = c.addFriendlyScheduleComments(yamlStr, frontmatter)
 	}
 
 	return yamlStr

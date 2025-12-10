@@ -27,7 +27,7 @@
 # on:
 #   schedule:
 #     # Every day at 6pm UTC
-#     - cron: "0 18 * * *"
+#     - cron: daily at 18:00
 #   workflow_dispatch:
 #
 # permissions:
@@ -728,6 +728,7 @@ name: "Copilot Agent PR Analysis"
 "on":
   schedule:
   - cron: "0 18 * * *"
+    # Friendly format: daily at 18:00
   workflow_dispatch: null
 
 permissions:

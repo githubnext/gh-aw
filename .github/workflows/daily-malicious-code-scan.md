@@ -2,7 +2,7 @@
 description: Daily security scan that reviews code changes from the last 3 days for suspicious patterns indicating malicious agentic threats
 on:
   schedule:
-    - cron: "0 9 * * *"  # Daily at 9 AM UTC
+    - cron: daily at 9:00
   workflow_dispatch:
 permissions:
   contents: read

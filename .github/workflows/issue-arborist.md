@@ -3,7 +3,7 @@ description: Daily workflow that analyzes recent issues and links related issues
 name: Issue Arborist
 on:
   schedule:
-    - cron: "0 9 * * *"  # Daily at 9 AM UTC
+    - cron: daily at 09:00
   workflow_dispatch:
 permissions:
   contents: read

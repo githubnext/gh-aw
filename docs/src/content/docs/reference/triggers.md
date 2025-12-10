@@ -81,13 +81,61 @@ Provide a comprehensive summary with key findings and recommendations.
 
 ### Scheduled Triggers (`schedule:`)
 
-Run workflows on a recurring schedule using [cron syntax](https://docs.github.com/en/actions/using-workflows/events-that-trigger-workflows#schedule).
+Run workflows on a recurring schedule using human-friendly expressions or [cron syntax](https://docs.github.com/en/actions/using-workflows/events-that-trigger-workflows#schedule).
+
+**Human-Friendly Format (Recommended):**
+
+```yaml wrap
+on:
+  schedule: daily at 02:00  # Shorthand string format
+```
 
 ```yaml wrap
 on:
   schedule:
-    - cron: "0 9 * * 1"  # Every Monday at 9 AM
-  stop-after: "+7d"     # Stop after a week
+    - cron: weekly on monday at 09:00
+    - cron: monthly on 15 at 12:00
+```
+
+**Supported Formats:**
+- **Daily**: `daily` or `daily at HH:MM` or `daily at midnight/noon` or `daily at Npm/Nam`
+  - `daily at 02:00` → `0 2 * * *`
+  - `daily at midnight` → `0 0 * * *`
+  - `daily at 3pm` → `0 15 * * *`
+  - `daily at 6am` → `0 6 * * *`
+- **Weekly**: `weekly on <day>` or `weekly on <day> at HH:MM` or `weekly on <day> at Npm/Nam`
+  - `weekly on monday at 06:30` → `30 6 * * 1`
+  - `weekly on friday` → `0 0 * * 5`
+  - `weekly on friday at 5pm` → `0 17 * * 5`
+- **Monthly**: `monthly on <day>` or `monthly on <day> at HH:MM` or `monthly on <day> at Npm/Nam`
+  - `monthly on 15 at 09:00` → `0 9 15 * *`
+  - `monthly on 1` → `0 0 1 * *`
+  - `monthly on 15 at 9am` → `0 9 15 * *`
+- **Intervals**: `every N minutes/hours` or `every Nm/Nh/Nd/Nw/Nmo` (minimum 5 minutes)
+  - `every 10 minutes` → `*/10 * * * *`
+  - `every 2h` → `0 */2 * * *`
+  - `every 1d` → `0 0 * * *`
+  - `every 1w` → `0 0 * * 0`
+  - `every 1mo` → `0 0 1 * *`
+- **UTC Offsets**: Add `utc+N` or `utc-N` or `utc+HH:MM` to convert from local time to UTC
+  - `daily at 02:00 utc+9` → `0 17 * * *` (2 AM JST → 5 PM UTC previous day)
+  - `daily at 14:00 utc-5` → `0 19 * * *` (2 PM EST → 7 PM UTC)
+  - `weekly on monday at 09:30 utc+05:30` → `0 4 * * 1` (9:30 AM IST → 4 AM UTC)
+  - `daily at 3pm utc+9` → `0 6 * * *` (3 PM JST → 6 AM UTC)
+- **Time Formats**: `HH:MM` (24-hour), `midnight`, `noon`, `Npm` (1pm-12pm), `Nam` (1am-12am)
+  - `12am` = midnight (00:00)
+  - `12pm` = noon (12:00)
+  - `1am` = 01:00, `11pm` = 23:00
+
+The human-friendly format is automatically converted to standard cron expressions, with the original format preserved as a comment in the generated workflow file.
+
+**Standard Cron Format:**
+
+```yaml wrap
+on:
+  schedule:
+    - cron: "0 9 * * 1"  # Every Monday at 9 AM UTC
+  stop-after: "+7d"      # Stop after a week
 ```
 
 ### Issue Triggers (`issues:`)

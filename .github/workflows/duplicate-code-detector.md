@@ -4,7 +4,7 @@ description: Identifies duplicate code patterns across the codebase and suggests
 on:
   workflow_dispatch:
   schedule:
-    - cron: "0 21 * * *"  # Daily at 9 PM UTC
+    - cron: daily at 21:00
 permissions:
   contents: read
   issues: read

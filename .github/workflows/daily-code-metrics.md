@@ -2,7 +2,7 @@
 description: Tracks and visualizes daily code metrics and trends to monitor repository health and development patterns
 on:
   schedule:
-    - cron: "0 8 * * *"  # Daily at 8 AM UTC
+    - cron: daily at 8:00
   workflow_dispatch:
 permissions:
   contents: read

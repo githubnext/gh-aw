@@ -2,7 +2,7 @@
 description: Scans agentic workflows daily for security vulnerabilities using zizmor, poutine, and actionlint
 on:
   schedule:
-    - cron: "0 9 * * *"  # Daily at 9 AM UTC
+    - cron: daily at 09:00
   workflow_dispatch:
 permissions:
   contents: read
