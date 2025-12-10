@@ -281,7 +281,7 @@ func buildSafeOutputJobsEnvVars(jobNames []string) (string, []string) {
 		case "create_agent_task":
 			urlKey = "task_url"
 		case "push_to_pull_request_branch":
-			urlKey = "push_url"
+			urlKey = "commit_url"
 		default:
 			// Skip jobs that don't have URL outputs
 			continue
