@@ -3484,6 +3484,10 @@
                   "type": "boolean",
                   "const": true,
                   "description": "Target discussion comments instead of issue/PR comments. Must be true if present."
+                },
+                "hide-older-comments": {
+                  "type": "boolean",
+                  "description": "Minimize (hide) all previous comments from the same workflow before adding the new comment. Default: false"
                 }
               },
               "additionalProperties": false,

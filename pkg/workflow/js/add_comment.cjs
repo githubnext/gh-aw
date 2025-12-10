@@ -84,6 +84,120 @@ async function commentOnDiscussion(github, owner, repo, discussionNumber, messag
   };
 }
 
+/**
+ * Minimize a comment using the GraphQL API
+ * @param {any} github - GitHub GraphQL instance
+ * @param {string} nodeId - Comment node ID
+ * @returns {Promise<boolean>} True if successfully minimized
+ */
+async function minimizeComment(github, nodeId) {
+  const query = /* GraphQL */ `
+    mutation ($nodeId: ID!) {
+      minimizeComment(input: { subjectId: $nodeId, classifier: SPAM }) {
+        minimizedComment {
+          isMinimized
+        }
+      }
+    }
+  `;
+
+  const result = await github.graphql(query, { nodeId });
+  return result.minimizeComment.minimizedComment.isMinimized;
+}
+
+/**
+ * Find and minimize older comments from the same workflow
+ * @param {any} github - GitHub API instance
+ * @param {string} owner - Repository owner
+ * @param {string} repo - Repository name
+ * @param {number} itemNumber - Issue/PR/Discussion number
+ * @param {string} trackerID - Tracker ID to identify workflow comments
+ * @param {boolean} isDiscussion - Whether this is a discussion
+ * @returns {Promise<number>} Number of comments minimized
+ */
+async function hideOlderWorkflowComments(github, owner, repo, itemNumber, trackerID, isDiscussion) {
+  if (!trackerID) {
+    core.info("No tracker ID available, skipping hide-older-comments");
+    return 0;
+  }
+
+  core.info(`Looking for older comments with tracker ID: ${trackerID}`);
+  
+  let comments = [];
+  
+  if (isDiscussion) {
+    // For discussions, use GraphQL to fetch comments
+    const query = /* GraphQL */ `
+      query($owner: String!, $repo: String!, $num: Int!) {
+        repository(owner: $owner, name: $repo) {
+          discussion(number: $num) {
+            comments(first: 100) {
+              nodes {
+                id
+                body
+                isMinimized
+                author {
+                  login
+                }
+              }
+            }
+          }
+        }
+      }
+    `;
+    
+    const result = await github.graphql(query, { owner, repo, num: itemNumber });
+    if (result?.repository?.discussion?.comments?.nodes) {
+      comments = result.repository.discussion.comments.nodes.map(comment => ({
+        node_id: comment.id,
+        body: comment.body,
+        isMinimized: comment.isMinimized,
+        author: comment.author?.login,
+      }));
+    }
+  } else {
+    // For issues/PRs, use REST API
+    const { data: issueComments } = await github.rest.issues.listComments({
+      owner,
+      repo,
+      issue_number: itemNumber,
+      per_page: 100,
+    });
+    comments = issueComments.map(comment => ({
+      node_id: comment.node_id,
+      body: comment.body,
+      isMinimized: false, // REST API doesn't expose this
+      author: comment.user?.login,
+    }));
+  }
+
+  core.info(`Found ${comments.length} total comments`);
+
+  // Filter comments that have our tracker ID and are not already minimized
+  const targetComments = comments.filter(comment => {
+    const hasTrackerID = comment.body && comment.body.includes(`<!-- tracker-id: ${trackerID} -->`);
+    return hasTrackerID && !comment.isMinimized;
+  });
+
+  core.info(`Found ${targetComments.length} workflow comments to minimize`);
+
+  let minimizedCount = 0;
+  for (const comment of targetComments) {
+    try {
+      const isMinimized = await minimizeComment(github, comment.node_id);
+      if (isMinimized) {
+        core.info(`Minimized comment: ${comment.node_id}`);
+        minimizedCount++;
+      }
+    } catch (error) {
+      core.warning(`Failed to minimize comment ${comment.node_id}: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  core.info(`Successfully minimized ${minimizedCount} older comment(s)`);
+  return minimizedCount;
+}
+
 async function main() {
   // Check if we're in staged mode
   const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
@@ -318,6 +432,29 @@ async function main() {
       triggeringPRNumber,
       triggeringDiscussionNumber
     );
+
+    // Hide older comments if configured
+    const hideOlderComments = process.env.GH_AW_HIDE_OLDER_COMMENTS === "true";
+    if (hideOlderComments) {
+      const trackerID = process.env.GH_AW_TRACKER_ID || "";
+      if (trackerID) {
+        core.info("hide-older-comments is enabled, minimizing previous workflow comments");
+        try {
+          await hideOlderWorkflowComments(
+            github,
+            context.repo.owner,
+            context.repo.repo,
+            itemNumber,
+            trackerID,
+            commentEndpoint === "discussions"
+          );
+        } catch (error) {
+          core.warning(`Failed to hide older comments: ${error instanceof Error ? error.message : String(error)}`);
+        }
+      } else {
+        core.info("hide-older-comments is enabled but no tracker ID found");
+      }
+    }
 
     try {
       let comment;

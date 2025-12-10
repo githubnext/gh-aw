@@ -154,13 +154,16 @@ Posts comments on issues, PRs, or discussions. Defaults to triggering item; conf
 ```yaml wrap
 safe-outputs:
   add-comment:
-    max: 3                    # max comments (default: 1)
-    target: "*"               # "triggering" (default), "*", or number
-    discussion: true          # target discussions
-    target-repo: "owner/repo" # cross-repository
+    max: 3                       # max comments (default: 1)
+    target: "*"                  # "triggering" (default), "*", or number
+    discussion: true             # target discussions
+    hide-older-comments: true    # minimize previous workflow comments
+    target-repo: "owner/repo"    # cross-repository
 ```
 
 When combined with `create-issue`, `create-discussion`, or `create-pull-request`, comments automatically include a "Related Items" section.
+
+**Hide Older Comments**: When `hide-older-comments: true`, all previous comments from the same agentic workflow (identified by tracker ID) will be minimized/hidden before the new comment is posted. This is useful for keeping issue threads clean when workflows post updates.
 
 ### Minimize Comment (`minimize-comment:`)
 
