@@ -26,9 +26,10 @@ tools:
     - "wc *"
     - "cat .github/workflows/*.md"
 safe-outputs:
-  create-issue:
+  create-discussion:
     title-prefix: "[portfolio] "
-    labels: [cost-optimization, automation, analysis]
+    category: "Audits"
+    close-older-discussions: true
 timeout-minutes: 20
 imports:
   - shared/reporting.md
