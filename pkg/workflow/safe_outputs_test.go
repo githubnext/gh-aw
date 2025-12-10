@@ -967,3 +967,116 @@ func TestBuildStandardSafeOutputEnvVars(t *testing.T) {
 		})
 	}
 }
+
+// ========================================
+// GetEnabledSafeOutputToolNames Tests
+// ========================================
+
+// TestGetEnabledSafeOutputToolNames tests that tool names are returned in sorted order
+func TestGetEnabledSafeOutputToolNames(t *testing.T) {
+	tests := []struct {
+		name        string
+		safeOutputs *SafeOutputsConfig
+		expected    []string
+	}{
+		{
+			name:        "nil safe outputs returns nil",
+			safeOutputs: nil,
+			expected:    nil,
+		},
+		{
+			name:        "empty safe outputs returns empty slice",
+			safeOutputs: &SafeOutputsConfig{},
+			expected:    nil,
+		},
+		{
+			name: "single tool",
+			safeOutputs: &SafeOutputsConfig{
+				CreateIssues: &CreateIssuesConfig{},
+			},
+			expected: []string{"create_issue"},
+		},
+		{
+			name: "multiple tools in alphabetical order",
+			safeOutputs: &SafeOutputsConfig{
+				AddComments:   &AddCommentsConfig{},
+				CreateIssues:  &CreateIssuesConfig{},
+				UpdateIssues:  &UpdateIssuesConfig{},
+			},
+			expected: []string{"add_comment", "create_issue", "update_issue"},
+		},
+		{
+			name: "custom jobs are sorted with standard tools",
+			safeOutputs: &SafeOutputsConfig{
+				CreateIssues: &CreateIssuesConfig{},
+				UpdateIssues: &UpdateIssuesConfig{},
+				Jobs: map[string]*SafeJobConfig{
+					"zzz_custom":     {},
+					"aaa_custom":     {},
+					"middle_custom":  {},
+				},
+			},
+			expected: []string{"aaa_custom", "create_issue", "middle_custom", "update_issue", "zzz_custom"},
+		},
+		{
+			name: "all standard tools are sorted",
+			safeOutputs: &SafeOutputsConfig{
+				CreateIssues:           &CreateIssuesConfig{},
+				CreateAgentTasks:       &CreateAgentTaskConfig{},
+				CreateDiscussions:      &CreateDiscussionsConfig{},
+				CloseDiscussions:       &CloseDiscussionsConfig{},
+				CloseIssues:            &CloseIssuesConfig{},
+				ClosePullRequests:      &ClosePullRequestsConfig{},
+				AddComments:            &AddCommentsConfig{},
+				CreatePullRequests:     &CreatePullRequestsConfig{},
+				AddLabels:              &AddLabelsConfig{},
+				AddReviewer:            &AddReviewerConfig{},
+				AssignMilestone:        &AssignMilestoneConfig{},
+				UpdateIssues:           &UpdateIssuesConfig{},
+				UpdatePullRequests:     &UpdatePullRequestsConfig{},
+				NoOp:                   &NoOpConfig{},
+			},
+			// Expected order is alphabetical
+			expected: []string{
+				"add_comment",
+				"add_labels",
+				"add_reviewer",
+				"assign_milestone",
+				"close_discussion",
+				"close_issue",
+				"close_pull_request",
+				"create_agent_task",
+				"create_discussion",
+				"create_issue",
+				"create_pull_request",
+				"noop",
+				"update_issue",
+				"update_pull_request",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := GetEnabledSafeOutputToolNames(tt.safeOutputs)
+			
+			if len(result) != len(tt.expected) {
+				t.Errorf("Expected %d tools, got %d: %v", len(tt.expected), len(result), result)
+				return
+			}
+			
+			for i, tool := range result {
+				if tool != tt.expected[i] {
+					t.Errorf("Tool at index %d: expected %q, got %q", i, tt.expected[i], tool)
+				}
+			}
+			
+			// Verify the list is sorted
+			for i := 1; i < len(result); i++ {
+				if result[i-1] > result[i] {
+					t.Errorf("Tools not in sorted order: %q comes after %q", result[i-1], result[i])
+				}
+			}
+		})
+	}
+}
