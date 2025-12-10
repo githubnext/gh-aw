@@ -347,7 +347,7 @@ See **[MCP Server Guide](/gh-aw/setup/mcp-server/)** for integration details.
 
 #### `version`
 
-Show gh-aw version information.
+Show gh aw extension version information.
 
 ```bash wrap
 gh aw version
