@@ -52,7 +52,7 @@ func TestNewInitCommand(t *testing.T) {
 	if codespaceFlag.DefValue != "" {
 		t.Errorf("Expected codespaces flag default to be '', got %q", codespaceFlag.DefValue)
 	}
-	
+
 	// Verify NoOptDefVal is set to a space (allows --codespaces without value)
 	if codespaceFlag.NoOptDefVal != " " {
 		t.Errorf("Expected codespaces flag NoOptDefVal to be ' ' (space), got %q", codespaceFlag.NoOptDefVal)

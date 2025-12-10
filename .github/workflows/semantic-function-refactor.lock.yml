@@ -3342,13 +3342,16 @@ jobs:
           <safe-outputs>
           <description>GitHub API Access Instructions</description>
           <important>
-          The gh (GitHub CLI) command is NOT authenticated in this environment. Do NOT use gh commands for GitHub API operations.
+          The gh CLI is NOT authenticated. Do NOT use gh commands for GitHub operations.
           </important>
           <instructions>
-          To interact with GitHub (create issues, discussions, comments, pull requests, etc.), use the safe output tools provided by the safeoutputs MCP server instead of the gh CLI.
+          To create or modify GitHub resources (issues, discussions, pull requests, etc.), you MUST call the appropriate safe output tool. Simply writing content will NOT work - the workflow requires actual tool calls.
+          
+          **Available tools**: create_issue, close_issue, missing_tool, noop
+          
+          **Critical**: Tool calls write structured data that downstream jobs process. Without tool calls, follow-up actions will be skipped.
           </instructions>
           </safe-outputs>
-          
           PROMPT_EOF
       - name: Append GitHub context to prompt
         env:

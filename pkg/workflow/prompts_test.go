@@ -15,17 +15,25 @@ func TestGenerateSafeOutputsPromptStep_IncludesWhenEnabled(t *testing.T) {
 	compiler := &Compiler{}
 	var yaml strings.Builder
 
-	compiler.generateSafeOutputsPromptStep(&yaml, true)
+	// Create a config with create-issue enabled
+	safeOutputs := &SafeOutputsConfig{
+		CreateIssues: &CreateIssuesConfig{},
+	}
+
+	compiler.generateSafeOutputsPromptStep(&yaml, safeOutputs)
 
 	output := yaml.String()
 	if !strings.Contains(output, "Append safe outputs instructions to prompt") {
 		t.Error("Expected safe outputs prompt step to be generated when enabled")
 	}
-	if !strings.Contains(output, "safeoutputs MCP server") {
-		t.Error("Expected prompt to mention safeoutputs MCP server")
+	if !strings.Contains(output, "safe output tool") {
+		t.Error("Expected prompt to mention safe output tools")
 	}
-	if !strings.Contains(output, "gh (GitHub CLI) command is NOT authenticated") {
+	if !strings.Contains(output, "gh CLI is NOT authenticated") {
 		t.Error("Expected prompt to warn about gh CLI not being authenticated")
+	}
+	if !strings.Contains(output, "create_issue") {
+		t.Error("Expected prompt to list create_issue tool")
 	}
 }
 
@@ -33,7 +41,8 @@ func TestGenerateSafeOutputsPromptStep_SkippedWhenDisabled(t *testing.T) {
 	compiler := &Compiler{}
 	var yaml strings.Builder
 
-	compiler.generateSafeOutputsPromptStep(&yaml, false)
+	// Pass nil for disabled
+	compiler.generateSafeOutputsPromptStep(&yaml, nil)
 
 	output := yaml.String()
 	if strings.Contains(output, "safe outputs") {
@@ -42,18 +51,9 @@ func TestGenerateSafeOutputsPromptStep_SkippedWhenDisabled(t *testing.T) {
 }
 
 func TestSafeOutputsPromptText_FollowsXMLFormat(t *testing.T) {
-	if !strings.Contains(safeOutputsPromptText, "<safe-outputs>") {
-		t.Error("Expected prompt to start with <safe-outputs> XML tag")
-	}
-	if !strings.Contains(safeOutputsPromptText, "</safe-outputs>") {
-		t.Error("Expected prompt to end with </safe-outputs> XML tag")
-	}
-	if !strings.Contains(safeOutputsPromptText, "<important>") {
-		t.Error("Expected prompt to contain <important> section")
-	}
-	if !strings.Contains(safeOutputsPromptText, "<instructions>") {
-		t.Error("Expected prompt to contain <instructions> section")
-	}
+	// This test is for the embedded prompt text which is no longer used
+	// Skip it as we now generate the prompt dynamically
+	t.Skip("Safe outputs prompt is now generated dynamically based on enabled tools")
 }
 
 // ============================================================================

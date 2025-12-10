@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"fmt"
 	"strings"
 )
 
@@ -20,11 +21,39 @@ import (
 
 // generateSafeOutputsPromptStep generates a separate step for safe outputs instructions
 // This tells agents to use the safeoutputs MCP server instead of gh CLI
-func (c *Compiler) generateSafeOutputsPromptStep(yaml *strings.Builder, hasSafeOutputs bool) {
+func (c *Compiler) generateSafeOutputsPromptStep(yaml *strings.Builder, safeOutputs *SafeOutputsConfig) {
+	if !HasSafeOutputsEnabled(safeOutputs) {
+		return
+	}
+
+	// Get the list of enabled tool names
+	enabledTools := GetEnabledSafeOutputToolNames(safeOutputs)
+	if len(enabledTools) == 0 {
+		return
+	}
+
+	// Create a comma-separated list of tool names for the prompt
+	toolsList := strings.Join(enabledTools, ", ")
+
+	// Create the prompt text with the actual tool names injected
+	promptText := fmt.Sprintf(`<safe-outputs>
+<description>GitHub API Access Instructions</description>
+<important>
+The gh CLI is NOT authenticated. Do NOT use gh commands for GitHub operations.
+</important>
+<instructions>
+To create or modify GitHub resources (issues, discussions, pull requests, etc.), you MUST call the appropriate safe output tool. Simply writing content will NOT work - the workflow requires actual tool calls.
+
+**Available tools**: %s
+
+**Critical**: Tool calls write structured data that downstream jobs process. Without tool calls, follow-up actions will be skipped.
+</instructions>
+</safe-outputs>`, toolsList)
+
 	generateStaticPromptStep(yaml,
 		"Append safe outputs instructions to prompt",
-		safeOutputsPromptText,
-		hasSafeOutputs)
+		promptText,
+		true)
 }
 
 // ============================================================================

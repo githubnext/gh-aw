@@ -838,7 +838,7 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 
 	// Add safe outputs instructions to prompt when safe-outputs are configured
 	// This tells agents to use the safeoutputs MCP server instead of gh CLI
-	c.generateSafeOutputsPromptStep(yaml, HasSafeOutputsEnabled(data.SafeOutputs))
+	c.generateSafeOutputsPromptStep(yaml, data.SafeOutputs)
 
 	// Add GitHub context prompt as separate step if GitHub tool is enabled
 	c.generateGitHubContextPromptStep(yaml, data)
