@@ -216,7 +216,7 @@ safe-outputs:
 
 **Target**: `"triggering"` (requires PR event), `"*"` (any PR), or number (specific PR).
 
-Use `reviewers: copilot` to assign the Copilot PR reviewer bot. Requires a PAT stored as `COPILOT_GITHUB_TOKEN` or legacy `GH_AW_COPILOT_TOKEN` / `GH_AW_GITHUB_TOKEN`.
+Use `reviewers: copilot` to assign the Copilot PR reviewer bot. Requires a PAT stored as `COPILOT_GITHUB_TOKEN` or `GH_AW_GITHUB_TOKEN` (legacy).
 
 ### Assign Milestone (`assign-milestone:`)
 
@@ -453,7 +453,7 @@ safe-outputs:
 
 ### Agent Task Creation (`create-agent-task:`)
 
-Creates GitHub Copilot agent tasks. Requires a PAT stored as `COPILOT_GITHUB_TOKEN` (recommended) or legacy `GH_AW_COPILOT_TOKEN` / `GH_AW_GITHUB_TOKEN`. The default `GITHUB_TOKEN` lacks agent task permissions.
+Creates GitHub Copilot agent tasks. Requires a PAT stored as `COPILOT_GITHUB_TOKEN` (recommended) or `GH_AW_GITHUB_TOKEN` (legacy). The default `GITHUB_TOKEN` lacks agent task permissions.
 
 ```yaml wrap
 safe-outputs:
@@ -625,7 +625,7 @@ safe-outputs:
 
 ## Assigning to Copilot
 
-Use `assignees: copilot` or `reviewers: copilot` to assign to the Copilot bot. Requires a PAT stored as `COPILOT_GITHUB_TOKEN` (recommended) or legacy `GH_AW_COPILOT_TOKEN` / `GH_AW_GITHUB_TOKEN`. The default `GITHUB_TOKEN` lacks bot assignment permissions.
+Use `assignees: copilot` or `reviewers: copilot` to assign to the Copilot bot. Requires a PAT stored as `COPILOT_GITHUB_TOKEN` (recommended) or `GH_AW_GITHUB_TOKEN` (legacy). The default `GITHUB_TOKEN` lacks bot assignment permissions.
 
 ```yaml wrap
 safe-outputs:

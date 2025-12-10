@@ -59,10 +59,10 @@ To use the Copilot engine, you need a fine-grained Personal Access Token with th
 gh secret set COPILOT_GITHUB_TOKEN -a actions --body "<your-github-pat>"
 ```
 
-:::caution[COPILOT_CLI_TOKEN Deprecated]
-The `COPILOT_CLI_TOKEN` secret name is **no longer supported** as of v0.26+. If you're using this token, please migrate to `COPILOT_GITHUB_TOKEN`.
+:::caution[Legacy Tokens Removed]
+The `COPILOT_CLI_TOKEN` and `GH_AW_COPILOT_TOKEN` secret names are **no longer supported** as of v0.26+. If you're using these tokens, please migrate to `COPILOT_GITHUB_TOKEN`.
 
-The legacy secret names `GH_AW_COPILOT_TOKEN` and `GH_AW_GITHUB_TOKEN` are still supported for backward compatibility, but `COPILOT_GITHUB_TOKEN` is now the recommended name for Copilot operations.
+The legacy secret name `GH_AW_GITHUB_TOKEN` is still supported for backward compatibility, but `COPILOT_GITHUB_TOKEN` is now the recommended name for Copilot operations.
 :::
 
 For GitHub Tools Remote Mode, also configure:

@@ -185,11 +185,10 @@ Agent task creation requires elevated permissions beyond the default `GITHUB_TOK
 
 **Token Precedence:**
 1. `COPILOT_GITHUB_TOKEN` - Dedicated Copilot operations token (recommended)
-2. `GH_AW_COPILOT_TOKEN` - Legacy Copilot token (for backward compatibility)
-3. `GH_AW_GITHUB_TOKEN` - General override token (legacy)
-4. Custom token via `github-token` configuration field
+2. `GH_AW_GITHUB_TOKEN` - General override token (legacy)
+3. Custom token via `github-token` configuration field
 
-**Note**: The default `GITHUB_TOKEN` is **not** supported as it lacks required permissions. The `COPILOT_CLI_TOKEN` secret is no longer supported as of v0.26+.
+**Note**: The default `GITHUB_TOKEN` is **not** supported as it lacks required permissions. The `COPILOT_CLI_TOKEN` and `GH_AW_COPILOT_TOKEN` secrets are no longer supported as of v0.26+.
 
 ### Setting Up Authentication
 
@@ -202,7 +201,7 @@ Store your Personal Access Token in repository secrets:
 ```
 
 :::note[Backward Compatibility]
-Legacy token names `GH_AW_COPILOT_TOKEN` and `GH_AW_GITHUB_TOKEN` are still supported for backward compatibility.
+Legacy token name `GH_AW_GITHUB_TOKEN` is still supported for backward compatibility. The `GH_AW_COPILOT_TOKEN` token is no longer supported as of v0.26+.
 :::
 
 ## Error Handling
@@ -214,7 +213,7 @@ Error: failed to create agent task
 authentication required
 ```
 
-**Solution**: Configure `COPILOT_GITHUB_TOKEN` or legacy `GH_AW_COPILOT_TOKEN` / `GH_AW_GITHUB_TOKEN` with a PAT.
+**Solution**: Configure `COPILOT_GITHUB_TOKEN` or legacy `GH_AW_GITHUB_TOKEN` with a PAT.
 
 ### Permission Errors
 
@@ -332,7 +331,7 @@ Create agent task in backend repository to implement the API changes described i
 **Symptom**: No error but no task created
 
 **Check**:
-1. Verify `COPILOT_GITHUB_TOKEN` (or legacy `GH_AW_COPILOT_TOKEN`) is set in repository secrets
+1. Verify `COPILOT_GITHUB_TOKEN` is set in repository secrets
 2. Confirm token has required permissions
 3. Check job logs for error messages
 4. Verify target repository exists and is accessible

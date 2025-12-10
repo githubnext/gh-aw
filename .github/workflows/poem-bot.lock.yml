@@ -8767,7 +8767,7 @@ jobs:
           GH_AW_SAFE_OUTPUTS_STAGED: "true"
           GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🪶 *Verses penned by [{workflow_name}]({run_url})*\",\"runStarted\":\"🎭 Hear ye! The muse stirs! [{workflow_name}]({run_url}) takes quill in hand for this {event_type}...\",\"runSuccess\":\"🪶 The poem is writ! [{workflow_name}]({run_url}) has composed verses most fair. Applause! 👏\",\"runFailure\":\"🎭 Alas! [{workflow_name}]({run_url}) {status}. The muse has fled, leaving verses unsung...\"}"
         with:
-          github-token: ${{ secrets.COPILOT_GITHUB_TOKEN || secrets.GH_AW_COPILOT_TOKEN || secrets.GH_AW_GITHUB_TOKEN }}
+          github-token: ${{ secrets.COPILOT_GITHUB_TOKEN || secrets.GH_AW_GITHUB_TOKEN }}
           script: |
             const fs = require("fs");
             const path = require("path");
@@ -8866,7 +8866,7 @@ jobs:
                     ) {
                       core.error(`Task ${index + 1}: Failed to create agent task due to authentication/permission error.`);
                       core.error(`The default GITHUB_TOKEN does not have permission to create agent tasks.`);
-                      core.error(`You must configure a Personal Access Token (PAT) as GH_AW_COPILOT_TOKEN or GH_AW_GITHUB_TOKEN.`);
+                      core.error(`You must configure a Personal Access Token (PAT) as COPILOT_GITHUB_TOKEN or GH_AW_GITHUB_TOKEN.`);
                       core.error(`See documentation: https://githubnext.github.io/gh-aw/reference/safe-outputs/#agent-task-creation-create-agent-task`);
                     } else {
                       core.error(`Task ${index + 1}: Failed to create agent task: ${errorMessage}`);
