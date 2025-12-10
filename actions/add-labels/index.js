@@ -20334,6 +20334,7 @@ var require_safe_output_processor = __commonJS({
 
 // add-labels/src/index.js
 var core2 = require_core();
+global.core = core2;
 var { processSafeOutput } = require_safe_output_processor();
 var { validateLabels } = require_safe_output_validator();
 async function main() {

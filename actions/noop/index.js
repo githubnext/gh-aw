@@ -19906,6 +19906,7 @@ ${truncateForLogging(outputContent)}`);
 
 // noop/src/index.js
 var core2 = require_core();
+global.core = core2;
 var { loadAgentOutput } = require_load_agent_output();
 async function main() {
   const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";

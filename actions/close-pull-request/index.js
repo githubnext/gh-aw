@@ -20273,6 +20273,7 @@ ${item.body || "No content provided"}
 
 // close-pull-request/src/index.js
 var core2 = require_core();
+global.core = core2;
 var { processCloseEntityItems, PULL_REQUEST_CONFIG } = require_close_entity_helpers();
 async function getPullRequestDetails(github2, owner, repo, prNumber) {
   const { data: pr } = await github2.rest.pulls.get({

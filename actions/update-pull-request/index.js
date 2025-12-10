@@ -20386,6 +20386,7 @@ ${newContent}${aiFooter}`;
 
 // update-pull-request/src/index.js
 var core2 = require_core();
+global.core = core2;
 var { runUpdateWorkflow, createRenderStagedItem, createGetSummaryLine } = require_update_runner();
 var { updatePRBody } = require_update_pr_description_helpers();
 function isPRContext(eventName, payload) {

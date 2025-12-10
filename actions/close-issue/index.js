@@ -20273,6 +20273,7 @@ ${item.body || "No content provided"}
 
 // close-issue/src/index.js
 var core2 = require_core();
+global.core = core2;
 var { processCloseEntityItems, ISSUE_CONFIG } = require_close_entity_helpers();
 async function getIssueDetails(github2, owner, repo, issueNumber) {
   const { data: issue } = await github2.rest.issues.get({

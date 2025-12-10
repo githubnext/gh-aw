@@ -20205,6 +20205,7 @@ var require_expiration_helpers = __commonJS({
 
 // create-issue/src/index.js
 var core2 = require_core();
+global.core = core2;
 var { sanitizeLabelContent } = require_sanitize_label_content();
 var { loadAgentOutput } = require_load_agent_output();
 var { generateStagedPreview } = require_staged_preview();

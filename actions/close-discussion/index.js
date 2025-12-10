@@ -20001,6 +20001,7 @@ var require_get_repository_url = __commonJS({
 
 // close-discussion/src/index.js
 var core2 = require_core();
+global.core = core2;
 var { loadAgentOutput } = require_load_agent_output();
 var { generateFooter } = require_generate_footer();
 var { getTrackerID } = require_get_tracker_id();

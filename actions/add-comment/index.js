@@ -20172,6 +20172,7 @@ var require_temporary_id = __commonJS({
 
 // add-comment/src/index.js
 var core2 = require_core();
+global.core = core2;
 var { loadAgentOutput } = require_load_agent_output();
 var { generateFooterWithMessages } = require_messages_footer();
 var { getTrackerID } = require_get_tracker_id();

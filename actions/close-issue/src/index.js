@@ -1,4 +1,7 @@
 const core = require('@actions/core');
+// Make core globally available for .cjs files that expect it
+global.core = core;
+
 // Dependencies from pkg/workflow/js/ using relative paths for esbuild bundling
 
 // @ts-check

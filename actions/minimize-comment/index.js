@@ -19906,6 +19906,7 @@ ${truncateForLogging(outputContent)}`);
 
 // minimize-comment/src/index.js
 var core2 = require_core();
+global.core = core2;
 var { loadAgentOutput } = require_load_agent_output();
 async function minimizeComment(github2, nodeId) {
   const query = (

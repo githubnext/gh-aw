@@ -460,8 +460,11 @@ func generateReadme(actionDir string, metadata *ActionMetadata) error {
 
 // transformSourceForEsbuild transforms .cjs source to use @actions/core and be compatible with esbuild
 func transformSourceForEsbuild(content, actionName string) string {
-// Add @actions/core import at the top
+// Add @actions/core import at the top and make it globally available
+// The .cjs files expect 'core' to be a global variable (from github-script context)
 result := "const core = require('@actions/core');\n"
+result += "// Make core globally available for .cjs files that expect it\n"
+result += "global.core = core;\n\n"
 
 // Add comment about dependencies
 result += "// Dependencies from pkg/workflow/js/ using relative paths for esbuild bundling\n\n"

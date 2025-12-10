@@ -20179,6 +20179,7 @@ ${item.body}
 
 // update-issue/src/index.js
 var core2 = require_core();
+global.core = core2;
 var { runUpdateWorkflow, createRenderStagedItem, createGetSummaryLine } = require_update_runner();
 function isIssueContext(eventName, _payload) {
   return eventName === "issues" || eventName === "issue_comment";
