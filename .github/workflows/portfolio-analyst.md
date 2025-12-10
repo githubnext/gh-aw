@@ -12,6 +12,7 @@ permissions:
 tracker-id: portfolio-analyst-weekly
 engine: copilot
 tools:
+  agentic-workflows:
   github:
     toolsets: [default]
   bash:
@@ -30,7 +31,6 @@ safe-outputs:
     labels: [cost-optimization, automation, analysis]
 timeout-minutes: 20
 imports:
-  - shared/gh-aw.md
   - shared/reporting.md
   - shared/jqschema.md
 ---
