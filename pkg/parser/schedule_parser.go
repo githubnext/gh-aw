@@ -95,10 +95,75 @@ func (p *ScheduleParser) parse() (string, error) {
 	return p.parseBase()
 }
 
-// parseInterval parses interval-based schedules like "every 10 minutes"
+// parseInterval parses interval-based schedules like "every 10 minutes" or "every 2h"
 func (p *ScheduleParser) parseInterval() (string, error) {
+	if len(p.tokens) < 2 {
+		return "", fmt.Errorf("invalid interval format, expected 'every N unit' or 'every Nunit'")
+	}
+
+	// Check if the second token is a duration format like "2h", "30m", "1d"
+	if len(p.tokens) == 2 || (len(p.tokens) > 2 && p.tokens[2] != "minutes" && p.tokens[2] != "hours" && p.tokens[2] != "minute" && p.tokens[2] != "hour") {
+		// Try to parse as short duration format: "every 2h", "every 30m", "every 1d"
+		durationStr := p.tokens[1]
+		
+		// Check if it matches the pattern: number followed by unit letter (h, m, d, w, mo)
+		durationPattern := regexp.MustCompile(`^(\d+)([hdwm]|mo)$`)
+		matches := durationPattern.FindStringSubmatch(durationStr)
+		
+		if matches != nil {
+			interval, _ := strconv.Atoi(matches[1])
+			unit := matches[2]
+			
+			// Check for conflicting "at time" clause
+			if len(p.tokens) > 2 {
+				for i := 2; i < len(p.tokens); i++ {
+					if p.tokens[i] == "at" {
+						return "", fmt.Errorf("interval schedules cannot have 'at time' clause")
+					}
+				}
+			}
+			
+			switch unit {
+			case "m":
+				// every Nm -> */N * * * *
+				return fmt.Sprintf("*/%d * * * *", interval), nil
+			case "h":
+				// every Nh -> 0 */N * * *
+				return fmt.Sprintf("0 */%d * * *", interval), nil
+			case "d":
+				// every Nd -> daily at midnight, repeated N times
+				// For single day, use daily. For multiple days, use interval in hours
+				if interval == 1 {
+					return "0 0 * * *", nil // daily
+				}
+				// Convert days to hours for cron expression
+				return fmt.Sprintf("0 0 */%d * *", interval), nil
+			case "w":
+				// every Nw -> weekly interval
+				// For single week, use weekly on sunday. For multiple weeks, convert to days
+				if interval == 1 {
+					return "0 0 * * 0", nil // weekly on sunday
+				}
+				// Convert weeks to days for cron expression
+				days := interval * 7
+				return fmt.Sprintf("0 0 */%d * *", days), nil
+			case "mo":
+				// every Nmo -> monthly interval
+				// Cron doesn't support every N months directly, use day of month pattern
+				if interval == 1 {
+					return "0 0 1 * *", nil // first day of every month
+				}
+				// For multiple months, use month interval
+				return fmt.Sprintf("0 0 1 */%d *", interval), nil
+			default:
+				return "", fmt.Errorf("unsupported duration unit '%s'", unit)
+			}
+		}
+	}
+
+	// Fall back to original parsing for "every N minutes" format
 	if len(p.tokens) < 3 {
-		return "", fmt.Errorf("invalid interval format, expected 'every N unit' or 'every N unit at time'")
+		return "", fmt.Errorf("invalid interval format, expected 'every N unit' or 'every Nunit' (e.g., 'every 2h')")
 	}
 
 	// Parse the interval number

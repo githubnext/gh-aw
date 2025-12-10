@@ -167,6 +167,68 @@ func TestParseSchedule(t *testing.T) {
 			expectedOrig: "every 12 hours",
 		},
 
+		// Short duration formats (like stop-after)
+		{
+			name:         "every 30m",
+			input:        "every 30m",
+			expectedCron: "*/30 * * * *",
+			expectedOrig: "every 30m",
+		},
+		{
+			name:         "every 1h",
+			input:        "every 1h",
+			expectedCron: "0 */1 * * *",
+			expectedOrig: "every 1h",
+		},
+		{
+			name:         "every 2h",
+			input:        "every 2h",
+			expectedCron: "0 */2 * * *",
+			expectedOrig: "every 2h",
+		},
+		{
+			name:         "every 6h",
+			input:        "every 6h",
+			expectedCron: "0 */6 * * *",
+			expectedOrig: "every 6h",
+		},
+		{
+			name:         "every 1d",
+			input:        "every 1d",
+			expectedCron: "0 0 * * *",
+			expectedOrig: "every 1d",
+		},
+		{
+			name:         "every 2d",
+			input:        "every 2d",
+			expectedCron: "0 0 */2 * *",
+			expectedOrig: "every 2d",
+		},
+		{
+			name:         "every 1w",
+			input:        "every 1w",
+			expectedCron: "0 0 * * 0",
+			expectedOrig: "every 1w",
+		},
+		{
+			name:         "every 2w",
+			input:        "every 2w",
+			expectedCron: "0 0 */14 * *",
+			expectedOrig: "every 2w",
+		},
+		{
+			name:         "every 1mo",
+			input:        "every 1mo",
+			expectedCron: "0 0 1 * *",
+			expectedOrig: "every 1mo",
+		},
+		{
+			name:         "every 2mo",
+			input:        "every 2mo",
+			expectedCron: "0 0 1 */2 *",
+			expectedOrig: "every 2mo",
+		},
+
 		// Case insensitivity
 		{
 			name:         "DAILY uppercase",
