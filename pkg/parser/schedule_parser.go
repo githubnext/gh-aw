@@ -317,7 +317,7 @@ func (p *ScheduleParser) parseBase() (string, error) {
 }
 
 // extractTime extracts the time specification from tokens starting at startPos
-// Returns the time string (HH:MM, midnight, or noon)
+// Returns the time string (HH:MM, midnight, or noon) with optional UTC offset
 func (p *ScheduleParser) extractTime(startPos int) (string, error) {
 	if startPos >= len(p.tokens) {
 		return "", fmt.Errorf("expected time specification")
@@ -332,34 +332,112 @@ func (p *ScheduleParser) extractTime(startPos int) (string, error) {
 	}
 
 	timeStr := p.tokens[startPos]
+	
+	// Check if there's a UTC offset in the next token
+	if startPos+1 < len(p.tokens) {
+		nextToken := strings.ToLower(p.tokens[startPos+1])
+		if strings.HasPrefix(nextToken, "utc") {
+			// Combine time and UTC offset
+			timeStr = timeStr + " " + p.tokens[startPos+1]
+		}
+	}
+	
 	return timeStr, nil
 }
 
-// parseTime converts a time string to minute and hour
+// parseTime converts a time string to minute and hour, with optional UTC offset
+// Supports formats: HH:MM, midnight, noon, HH:MM utc+N, HH:MM utc+HH:MM, HH:MM utc-N
 func parseTime(timeStr string) (minute string, hour string) {
-	switch timeStr {
-	case "midnight":
-		return "0", "0"
-	case "noon":
-		return "0", "12"
-	default:
-		// Parse HH:MM format
-		parts := strings.Split(timeStr, ":")
-		if len(parts) == 2 {
-			// Validate hour
-			hourNum, err := strconv.Atoi(parts[0])
-			if err == nil && hourNum >= 0 && hourNum <= 23 {
-				// Validate minute
-				minNum, err := strconv.Atoi(parts[1])
-				if err == nil && minNum >= 0 && minNum <= 59 {
-					// Return as strings without leading zeros
-					return strconv.Itoa(minNum), strconv.Itoa(hourNum)
+	// Check for UTC offset
+	parts := strings.Split(timeStr, " ")
+	var utcOffset int = 0
+	var baseTime string
+	
+	if len(parts) == 2 && strings.HasPrefix(strings.ToLower(parts[1]), "utc") {
+		baseTime = parts[0]
+		offsetStr := strings.ToLower(parts[1])
+		
+		// Parse UTC offset (e.g., utc+9, utc-5, utc+09:00, utc-05:30)
+		if len(offsetStr) > 3 {
+			offsetPart := offsetStr[3:] // Skip "utc"
+			sign := 1
+			if strings.HasPrefix(offsetPart, "+") {
+				offsetPart = offsetPart[1:]
+			} else if strings.HasPrefix(offsetPart, "-") {
+				sign = -1
+				offsetPart = offsetPart[1:]
+			}
+			
+			// Check if it's HH:MM format
+			if strings.Contains(offsetPart, ":") {
+				offsetParts := strings.Split(offsetPart, ":")
+				if len(offsetParts) == 2 {
+					hours, err1 := strconv.Atoi(offsetParts[0])
+					mins, err2 := strconv.Atoi(offsetParts[1])
+					if err1 == nil && err2 == nil {
+						utcOffset = sign * (hours*60 + mins)
+					}
+				}
+			} else {
+				// Just hours (e.g., utc+9)
+				hours, err := strconv.Atoi(offsetPart)
+				if err == nil {
+					utcOffset = sign * hours * 60
 				}
 			}
 		}
-		// Invalid format, return defaults
-		return "0", "0"
+	} else {
+		baseTime = timeStr
 	}
+	
+	var baseMinute, baseHour int
+	
+	switch baseTime {
+	case "midnight":
+		baseMinute, baseHour = 0, 0
+	case "noon":
+		baseMinute, baseHour = 0, 12
+	default:
+		// Parse HH:MM format
+		timeParts := strings.Split(baseTime, ":")
+		if len(timeParts) == 2 {
+			// Validate hour
+			hourNum, err := strconv.Atoi(timeParts[0])
+			if err == nil && hourNum >= 0 && hourNum <= 23 {
+				// Validate minute
+				minNum, err := strconv.Atoi(timeParts[1])
+				if err == nil && minNum >= 0 && minNum <= 59 {
+					baseMinute, baseHour = minNum, hourNum
+				} else {
+					// Invalid format, return defaults
+					return "0", "0"
+				}
+			} else {
+				// Invalid format, return defaults
+				return "0", "0"
+			}
+		} else {
+			// Invalid format, return defaults
+			return "0", "0"
+		}
+	}
+	
+	// Apply UTC offset (convert from local time to UTC)
+	// If utc+9, we subtract 9 hours to get UTC time
+	totalMinutes := baseHour*60 + baseMinute - utcOffset
+	
+	// Handle wrap-around (keep within 0-1439 minutes, which is 0:00-23:59)
+	for totalMinutes < 0 {
+		totalMinutes += 24 * 60
+	}
+	for totalMinutes >= 24*60 {
+		totalMinutes -= 24 * 60
+	}
+	
+	finalHour := totalMinutes / 60
+	finalMinute := totalMinutes % 60
+	
+	return strconv.Itoa(finalMinute), strconv.Itoa(finalHour)
 }
 
 // mapWeekday maps day names to cron day-of-week numbers (0=Sunday, 6=Saturday)

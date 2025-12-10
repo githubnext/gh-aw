@@ -70,6 +70,36 @@ func TestParseSchedule(t *testing.T) {
 			expectedCron: "0 0 * * 6",
 			expectedOrig: "weekly on saturday at midnight",
 		},
+		{
+			name:         "daily at 02:00 utc+9",
+			input:        "daily at 02:00 utc+9",
+			expectedCron: "0 17 * * *",
+			expectedOrig: "daily at 02:00 utc+9",
+		},
+		{
+			name:         "daily at 14:00 utc-5",
+			input:        "daily at 14:00 utc-5",
+			expectedCron: "0 19 * * *",
+			expectedOrig: "daily at 14:00 utc-5",
+		},
+		{
+			name:         "daily at 09:30 utc+05:30",
+			input:        "daily at 09:30 utc+05:30",
+			expectedCron: "0 4 * * *",
+			expectedOrig: "daily at 09:30 utc+05:30",
+		},
+		{
+			name:         "weekly on monday at 08:00 utc+0",
+			input:        "weekly on monday at 08:00 utc+0",
+			expectedCron: "0 8 * * 1",
+			expectedOrig: "weekly on monday at 08:00 utc+0",
+		},
+		{
+			name:         "monthly on 15 at 12:00 utc-8",
+			input:        "monthly on 15 at 12:00 utc-8",
+			expectedCron: "0 20 15 * *",
+			expectedOrig: "monthly on 15 at 12:00 utc-8",
+		},
 
 		// Monthly schedules
 		{
