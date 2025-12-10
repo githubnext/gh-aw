@@ -360,6 +360,37 @@ func TestParseSchedule(t *testing.T) {
 			shouldError:    true,
 			errorSubstring: "invalid interval",
 		},
+		// Minimum duration validation (5 minutes)
+		{
+			name:           "interval below minimum - 1m",
+			input:          "every 1m",
+			shouldError:    true,
+			errorSubstring: "minimum schedule interval is 5 minutes",
+		},
+		{
+			name:           "interval below minimum - 2 minutes",
+			input:          "every 2 minutes",
+			shouldError:    true,
+			errorSubstring: "minimum schedule interval is 5 minutes",
+		},
+		{
+			name:           "interval below minimum - 4m",
+			input:          "every 4m",
+			shouldError:    true,
+			errorSubstring: "minimum schedule interval is 5 minutes",
+		},
+		{
+			name:         "interval at minimum - 5m",
+			input:        "every 5m",
+			expectedCron: "*/5 * * * *",
+			expectedOrig: "every 5m",
+		},
+		{
+			name:         "interval at minimum - 5 minutes",
+			input:        "every 5 minutes",
+			expectedCron: "*/5 * * * *",
+			expectedOrig: "every 5 minutes",
+		},
 	}
 
 	for _, tt := range tests {

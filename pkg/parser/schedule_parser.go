@@ -123,6 +123,25 @@ func (p *ScheduleParser) parseInterval() (string, error) {
 				}
 			}
 			
+			// Validate minimum duration of 5 minutes
+			totalMinutes := 0
+			switch unit {
+			case "m":
+				totalMinutes = interval
+			case "h":
+				totalMinutes = interval * 60
+			case "d":
+				totalMinutes = interval * 24 * 60
+			case "w":
+				totalMinutes = interval * 7 * 24 * 60
+			case "mo":
+				totalMinutes = interval * 30 * 24 * 60 // Approximate month as 30 days
+			}
+			
+			if totalMinutes < 5 {
+				return "", fmt.Errorf("minimum schedule interval is 5 minutes, got %d minute(s)", totalMinutes)
+			}
+			
 			switch unit {
 			case "m":
 				// every Nm -> */N * * * *
@@ -187,6 +206,24 @@ func (p *ScheduleParser) parseInterval() (string, error) {
 				return "", fmt.Errorf("interval schedules cannot have 'at time' clause")
 			}
 		}
+	}
+
+	// Validate unit before checking minimum duration
+	if unit != "minutes" && unit != "hours" {
+		return "", fmt.Errorf("unsupported interval unit '%s', use 'minutes' or 'hours'", unit)
+	}
+
+	// Validate minimum duration of 5 minutes
+	totalMinutes := 0
+	switch unit {
+	case "minutes":
+		totalMinutes = interval
+	case "hours":
+		totalMinutes = interval * 60
+	}
+	
+	if totalMinutes < 5 {
+		return "", fmt.Errorf("minimum schedule interval is 5 minutes, got %d minute(s)", totalMinutes)
 	}
 
 	switch unit {
