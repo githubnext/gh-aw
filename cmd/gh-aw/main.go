@@ -297,7 +297,7 @@ Examples:
 
 var versionCmd = &cobra.Command{
 	Use:   "version",
-	Short: "Show version information",
+	Short: "Show gh aw extension version information",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		fmt.Printf("%s version %s\n", constants.CLIExtensionPrefix, version)
 		return nil
