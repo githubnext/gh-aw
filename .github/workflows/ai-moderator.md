@@ -271,21 +271,6 @@ The workflow uses four labels:
 - `ai-generated` - AI-generated content
 - `ai-qa` - Content reviewed and approved by AI moderator
 
-**Important**: These labels must exist in your repository before the workflow can add them. 
-
-**To create the labels**, you can:
-1. **Via GitHub UI**: Go to your repository → Issues → Labels → New label
-2. **Via GitHub CLI**:
-   ```bash
-   gh label create spam --description "Generic spam content" --color d73a4a
-   gh label create link-spam --description "Suspicious or promotional links" --color d73a4a
-   gh label create ai-generated --description "AI-generated content" --color fbca04
-   gh label create ai-qa --description "Content reviewed and approved by AI moderator" --color 0e8a16
-   ```
-3. **Via API**: Use the GitHub REST API to create labels programmatically
-
-If the labels don't exist, the workflow will fail when trying to add them to issues.
-
 ### Safe Outputs
 
 The workflow uses two built-in safe outputs:
