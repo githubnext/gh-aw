@@ -776,6 +776,109 @@ func buildAgentOutputDownloadSteps() []string {
 	})
 }
 
+// buildGitHubScriptStepWithContinueOnError creates a GitHub Script step with continue-on-error enabled
+func (c *Compiler) buildGitHubScriptStepWithContinueOnError(data *WorkflowData, config GitHubScriptStepConfig) []string {
+	safeOutputsLog.Printf("Building GitHub Script step with continue-on-error: %s", config.StepName)
+
+	var steps []string
+
+	// Add artifact download steps before the GitHub Script step
+	steps = append(steps, buildAgentOutputDownloadSteps()...)
+
+	// Step name and metadata
+	steps = append(steps, fmt.Sprintf("      - name: %s\n", config.StepName))
+	steps = append(steps, fmt.Sprintf("        id: %s\n", config.StepID))
+	steps = append(steps, "        continue-on-error: true\n")
+	steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))
+
+	// Environment variables section
+	steps = append(steps, "        env:\n")
+	steps = append(steps, "          GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}\n")
+	steps = append(steps, config.CustomEnvVars...)
+	c.addCustomSafeOutputEnvVars(&steps, data)
+
+	// With section for github-token
+	steps = append(steps, "        with:\n")
+	if config.UseAgentToken {
+		c.addSafeOutputAgentGitHubTokenForConfig(&steps, data, config.Token)
+	} else if config.UseCopilotToken {
+		c.addSafeOutputCopilotGitHubTokenForConfig(&steps, data, config.Token)
+	} else {
+		c.addSafeOutputGitHubTokenForConfig(&steps, data, config.Token)
+	}
+
+	steps = append(steps, "          script: |\n")
+
+	// Add the formatted JavaScript script
+	formattedScript := FormatJavaScriptForYAML(config.Script)
+	steps = append(steps, formattedScript...)
+
+	return steps
+}
+
+// buildCustomActionStepWithContinueOnError creates a custom action step with continue-on-error enabled
+func (c *Compiler) buildCustomActionStepWithContinueOnError(data *WorkflowData, config GitHubScriptStepConfig, scriptName string) []string {
+	safeOutputsLog.Printf("Building custom action step with continue-on-error: %s", config.StepName)
+
+	var steps []string
+
+	// Get the action path from the script registry
+	actionPath := DefaultScriptRegistry.GetActionPath(scriptName)
+	if actionPath == "" {
+		safeOutputsLog.Printf("WARNING: No action path found for script %s, falling back to inline mode", scriptName)
+		return c.buildGitHubScriptStepWithContinueOnError(data, config)
+	}
+
+	// Resolve the action reference based on mode
+	actionRef := c.resolveActionReference(actionPath, data)
+	if actionRef == "" {
+		safeOutputsLog.Printf("WARNING: Could not resolve action reference for %s, falling back to inline mode", actionPath)
+		return c.buildGitHubScriptStepWithContinueOnError(data, config)
+	}
+
+	// Add artifact download steps before the custom action step
+	steps = append(steps, buildAgentOutputDownloadSteps()...)
+
+	// Step name and metadata
+	steps = append(steps, fmt.Sprintf("      - name: %s\n", config.StepName))
+	steps = append(steps, fmt.Sprintf("        id: %s\n", config.StepID))
+	steps = append(steps, "        continue-on-error: true\n")
+	steps = append(steps, fmt.Sprintf("        uses: %s\n", actionRef))
+
+	// Environment variables section
+	steps = append(steps, "        env:\n")
+	steps = append(steps, "          GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}\n")
+	steps = append(steps, config.CustomEnvVars...)
+	c.addCustomSafeOutputEnvVars(&steps, data)
+
+	// With section for inputs
+	steps = append(steps, "        with:\n")
+
+	// Map github-token to token input for custom actions
+	if config.UseAgentToken {
+		c.addCustomActionAgentGitHubToken(&steps, data, config.Token)
+	} else if config.UseCopilotToken {
+		c.addCustomActionCopilotGitHubToken(&steps, data, config.Token)
+	} else {
+		c.addCustomActionGitHubToken(&steps, data, config.Token)
+	}
+
+	return steps
+}
+
+// buildErrorCaptureStep creates a step that captures errors from the previous step
+func (c *Compiler) buildErrorCaptureStep(previousStepID string) []string {
+	var steps []string
+
+	steps = append(steps, "      - name: Capture error if step failed\n")
+	steps = append(steps, "        id: capture_error\n")
+	steps = append(steps, fmt.Sprintf("        if: steps.%s.outcome == 'failure'\n", previousStepID))
+	steps = append(steps, "        run: |\n")
+	steps = append(steps, fmt.Sprintf("          echo \"error_message=Safe output job %s failed\" >> \"$GITHUB_OUTPUT\"\n", previousStepID))
+
+	return steps
+}
+
 // SafeOutputJobConfig holds configuration for building a safe output job
 // This config struct extracts the common parameters across all safe output job builders
 type SafeOutputJobConfig struct {
@@ -836,7 +939,7 @@ func (c *Compiler) buildSafeOutputJob(data *WorkflowData, config SafeOutputJobCo
 	if (c.actionMode == ActionModeDev || c.actionMode == ActionModeRelease) && config.ScriptName != "" {
 		// Use custom action mode (dev or release) if enabled and script name is provided
 		safeOutputsLog.Printf("Using custom action mode (%s) for script: %s", c.actionMode, config.ScriptName)
-		scriptSteps = c.buildCustomActionStep(data, GitHubScriptStepConfig{
+		scriptSteps = c.buildCustomActionStepWithContinueOnError(data, GitHubScriptStepConfig{
 			StepName:        config.StepName,
 			StepID:          config.StepID,
 			MainJobName:     config.MainJobName,
@@ -849,7 +952,7 @@ func (c *Compiler) buildSafeOutputJob(data *WorkflowData, config SafeOutputJobCo
 	} else {
 		// Use inline mode (default behavior)
 		safeOutputsLog.Printf("Using inline mode (actions/github-script)")
-		scriptSteps = c.buildGitHubScriptStep(data, GitHubScriptStepConfig{
+		scriptSteps = c.buildGitHubScriptStepWithContinueOnError(data, GitHubScriptStepConfig{
 			StepName:        config.StepName,
 			StepID:          config.StepID,
 			MainJobName:     config.MainJobName,
@@ -861,6 +964,9 @@ func (c *Compiler) buildSafeOutputJob(data *WorkflowData, config SafeOutputJobCo
 		})
 	}
 	steps = append(steps, scriptSteps...)
+
+	// Add error capture step after the main script step
+	steps = append(steps, c.buildErrorCaptureStep(config.StepID)...)
 
 	// Add post-steps if provided (e.g., assignees, reviewers)
 	if len(config.PostSteps) > 0 {
@@ -887,6 +993,13 @@ func (c *Compiler) buildSafeOutputJob(data *WorkflowData, config SafeOutputJobCo
 	}
 	safeOutputsLog.Printf("Job %s needs: %v", config.JobName, needs)
 
+	// Add error_message output to all safe output jobs
+	outputs := config.Outputs
+	if outputs == nil {
+		outputs = make(map[string]string)
+	}
+	outputs["error_message"] = "${{ steps.capture_error.outputs.error_message }}"
+
 	// Create the job with standard configuration
 	job := &Job{
 		Name:           config.JobName,
@@ -895,7 +1008,7 @@ func (c *Compiler) buildSafeOutputJob(data *WorkflowData, config SafeOutputJobCo
 		Permissions:    config.Permissions.RenderToYAML(),
 		TimeoutMinutes: 10, // 10-minute timeout as required for all safe output jobs
 		Steps:          steps,
-		Outputs:        config.Outputs,
+		Outputs:        outputs,
 		Needs:          needs,
 	}
 

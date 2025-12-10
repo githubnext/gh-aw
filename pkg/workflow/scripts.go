@@ -109,6 +109,9 @@ var notifyCommentErrorScriptSource string
 //go:embed js/noop.cjs
 var noopScriptSource string
 
+//go:embed js/safe_output_failure_tracking.cjs
+var safeOutputFailureTrackingScriptSource string
+
 //go:embed js/generate_safe_inputs_config.cjs
 var generateSafeInputsConfigScriptSource string
 
@@ -169,6 +172,7 @@ func init() {
 	DefaultScriptRegistry.Register("create_pull_request", createPullRequestScriptSource)
 	DefaultScriptRegistry.Register("notify_comment_error", notifyCommentErrorScriptSource)
 	DefaultScriptRegistry.Register("noop", noopScriptSource)
+	DefaultScriptRegistry.Register("safe_output_failure_tracking", safeOutputFailureTrackingScriptSource)
 	DefaultScriptRegistry.Register("generate_safe_inputs_config", generateSafeInputsConfigScriptSource)
 
 	// Log parser scripts
@@ -327,6 +331,11 @@ func getNotifyCommentErrorScript() string {
 // getNoOpScript returns the bundled noop script
 func getNoOpScript() string {
 	return DefaultScriptRegistry.GetWithMode("noop", RuntimeModeGitHubScript)
+}
+
+// getSafeOutputFailureTrackingScript returns the bundled safe_output_failure_tracking script
+func getSafeOutputFailureTrackingScript() string {
+	return DefaultScriptRegistry.GetWithMode("safe_output_failure_tracking", RuntimeModeGitHubScript)
 }
 
 // getInterpolatePromptScript returns the bundled interpolate_prompt script

@@ -129,8 +129,8 @@ func TestBuildCreateOutputAgentTaskJob(t *testing.T) {
 		t.Errorf("buildCreateOutputAgentTaskJob().TimeoutMinutes = %v, want 10", job.TimeoutMinutes)
 	}
 
-	if len(job.Outputs) != 2 {
-		t.Errorf("buildCreateOutputAgentTaskJob().Outputs length = %v, want 2", len(job.Outputs))
+	if len(job.Outputs) != 3 {
+		t.Errorf("buildCreateOutputAgentTaskJob().Outputs length = %v, want 3 (including error_message)", len(job.Outputs))
 	}
 
 	if _, ok := job.Outputs["task_number"]; !ok {
@@ -139,6 +139,10 @@ func TestBuildCreateOutputAgentTaskJob(t *testing.T) {
 
 	if _, ok := job.Outputs["task_url"]; !ok {
 		t.Error("buildCreateOutputAgentTaskJob().Outputs missing 'task_url'")
+	}
+
+	if _, ok := job.Outputs["error_message"]; !ok {
+		t.Error("buildCreateOutputAgentTaskJob().Outputs missing 'error_message'")
 	}
 
 	if len(job.Steps) == 0 {

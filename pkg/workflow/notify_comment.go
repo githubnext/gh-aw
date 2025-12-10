@@ -169,6 +169,26 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 	})
 	steps = append(steps, scriptSteps...)
 
+	// Add safe output failure tracking step
+	if len(safeOutputJobNames) > 0 {
+		failureTrackingEnvVars := buildSafeOutputFailureEnvVars(safeOutputJobNames)
+		failureTrackingEnvVars = append(failureTrackingEnvVars, fmt.Sprintf("          GH_AW_WORKFLOW_NAME: %q\n", data.Name))
+		failureTrackingEnvVars = append(failureTrackingEnvVars, "          GH_AW_RUN_ID: ${{ github.run_id }}\n")
+		failureTrackingEnvVars = append(failureTrackingEnvVars, "          GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\n")
+		failureTrackingEnvVars = append(failureTrackingEnvVars, "          GH_AW_REPOSITORY: ${{ github.repository }}\n")
+
+		failureTrackingSteps := c.buildGitHubScriptStepWithoutDownload(data, GitHubScriptStepConfig{
+			StepName:      "Track safe output failures",
+			StepID:        "track_failures",
+			MainJobName:   mainJobName,
+			CustomEnvVars: failureTrackingEnvVars,
+			Script:        getSafeOutputFailureTrackingScript(),
+			Token:         token,
+		})
+		steps = append(steps, failureTrackingSteps...)
+		notifyCommentLog.Print("Added safe output failure tracking step to conclusion job")
+	}
+
 	// Add GitHub App token invalidation step if app is configured
 	if data.SafeOutputs.App != nil {
 		notifyCommentLog.Print("Adding GitHub App token invalidation step to conclusion job")
@@ -325,4 +345,23 @@ func toEnvVarCase(s string) string {
 		}
 	}
 	return result
+}
+
+// buildSafeOutputFailureEnvVars creates environment variables for detecting safe output job failures
+func buildSafeOutputFailureEnvVars(jobNames []string) []string {
+	var envVars []string
+
+	for _, jobName := range jobNames {
+		// Add environment variable for job result
+		envVarName := fmt.Sprintf("GH_AW_JOB_%s_RESULT", toEnvVarCase(jobName))
+		envVars = append(envVars,
+			fmt.Sprintf("          %s: ${{ needs.%s.result }}\n", envVarName, jobName))
+
+		// Add environment variable for error message
+		envVarName = fmt.Sprintf("GH_AW_JOB_%s_ERROR", toEnvVarCase(jobName))
+		envVars = append(envVars,
+			fmt.Sprintf("          %s: ${{ needs.%s.outputs.error_message }}\n", envVarName, jobName))
+	}
+
+	return envVars
 }

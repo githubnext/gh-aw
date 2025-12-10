@@ -1205,6 +1205,7 @@ jobs:
     outputs:
       comment_id: ${{ steps.add_comment.outputs.comment_id }}
       comment_url: ${{ steps.add_comment.outputs.comment_url }}
+      error_message: ${{ steps.capture_error.outputs.error_message }}
     steps:
       - name: Debug agent outputs
         env:
@@ -1226,6 +1227,7 @@ jobs:
           echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> "$GITHUB_ENV"
       - name: Add Issue Comment
         id: add_comment
+        continue-on-error: true
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
@@ -1788,6 +1790,11 @@ jobs:
               return createdComments;
             }
             await main();
+      - name: Capture error if step failed
+        id: capture_error
+        if: steps.add_comment.outcome == 'failure'
+        run: |
+          echo "error_message=Safe output job add_comment failed" >> "$GITHUB_OUTPUT"
 
   add_labels:
     needs:
@@ -1803,6 +1810,7 @@ jobs:
       pull-requests: write
     timeout-minutes: 10
     outputs:
+      error_message: ${{ steps.capture_error.outputs.error_message }}
       labels_added: ${{ steps.add_labels.outputs.labels_added }}
     steps:
       - name: Download agent output artifact
@@ -1818,6 +1826,7 @@ jobs:
           echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> "$GITHUB_ENV"
       - name: Add Labels
         id: add_labels
+        continue-on-error: true
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
@@ -2352,6 +2361,11 @@ jobs:
               }
             }
             await main();
+      - name: Capture error if step failed
+        id: capture_error
+        if: steps.add_labels.outcome == 'failure'
+        run: |
+          echo "error_message=Safe output job add_labels failed" >> "$GITHUB_OUTPUT"
 
   agent:
     needs: activation
@@ -8127,6 +8141,7 @@ jobs:
     timeout-minutes: 10
     outputs:
       comment_url: ${{ steps.close_pull_request.outputs.comment_url }}
+      error_message: ${{ steps.capture_error.outputs.error_message }}
       pull_request_number: ${{ steps.close_pull_request.outputs.pull_request_number }}
       pull_request_url: ${{ steps.close_pull_request.outputs.pull_request_url }}
     steps:
@@ -8143,6 +8158,7 @@ jobs:
           echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> "$GITHUB_ENV"
       - name: Close Pull Request
         id: close_pull_request
+        continue-on-error: true
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
@@ -8195,6 +8211,11 @@ jobs:
               });
             }
             await main();
+      - name: Capture error if step failed
+        id: capture_error
+        if: steps.close_pull_request.outcome == 'failure'
+        run: |
+          echo "error_message=Safe output job close_pull_request failed" >> "$GITHUB_OUTPUT"
 
   conclusion:
     needs:
@@ -8725,6 +8746,138 @@ jobs:
             main().catch(error => {
               core.setFailed(error instanceof Error ? error.message : String(error));
             });
+      - name: Track safe output failures
+        id: track_failures
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        env:
+          GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
+          GH_AW_JOB_CREATE_ISSUE_RESULT: ${{ needs.create_issue.result }}
+          GH_AW_JOB_CREATE_ISSUE_ERROR: ${{ needs.create_issue.outputs.error_message }}
+          GH_AW_JOB_CREATE_DISCUSSION_RESULT: ${{ needs.create_discussion.result }}
+          GH_AW_JOB_CREATE_DISCUSSION_ERROR: ${{ needs.create_discussion.outputs.error_message }}
+          GH_AW_JOB_CLOSE_PULL_REQUEST_RESULT: ${{ needs.close_pull_request.result }}
+          GH_AW_JOB_CLOSE_PULL_REQUEST_ERROR: ${{ needs.close_pull_request.outputs.error_message }}
+          GH_AW_JOB_CREATE_PULL_REQUEST_RESULT: ${{ needs.create_pull_request.result }}
+          GH_AW_JOB_CREATE_PULL_REQUEST_ERROR: ${{ needs.create_pull_request.outputs.error_message }}
+          GH_AW_JOB_ADD_COMMENT_RESULT: ${{ needs.add_comment.result }}
+          GH_AW_JOB_ADD_COMMENT_ERROR: ${{ needs.add_comment.outputs.error_message }}
+          GH_AW_JOB_CREATE_PR_REVIEW_COMMENT_RESULT: ${{ needs.create_pr_review_comment.result }}
+          GH_AW_JOB_CREATE_PR_REVIEW_COMMENT_ERROR: ${{ needs.create_pr_review_comment.outputs.error_message }}
+          GH_AW_JOB_ADD_LABELS_RESULT: ${{ needs.add_labels.result }}
+          GH_AW_JOB_ADD_LABELS_ERROR: ${{ needs.add_labels.outputs.error_message }}
+          GH_AW_JOB_UPDATE_ISSUE_RESULT: ${{ needs.update_issue.result }}
+          GH_AW_JOB_UPDATE_ISSUE_ERROR: ${{ needs.update_issue.outputs.error_message }}
+          GH_AW_JOB_PUSH_TO_PULL_REQUEST_BRANCH_RESULT: ${{ needs.push_to_pull_request_branch.result }}
+          GH_AW_JOB_PUSH_TO_PULL_REQUEST_BRANCH_ERROR: ${{ needs.push_to_pull_request_branch.outputs.error_message }}
+          GH_AW_JOB_UPLOAD_ASSETS_RESULT: ${{ needs.upload_assets.result }}
+          GH_AW_JOB_UPLOAD_ASSETS_ERROR: ${{ needs.upload_assets.outputs.error_message }}
+          GH_AW_JOB_LINK_SUB_ISSUE_RESULT: ${{ needs.link_sub_issue.result }}
+          GH_AW_JOB_LINK_SUB_ISSUE_ERROR: ${{ needs.link_sub_issue.outputs.error_message }}
+          GH_AW_JOB_CREATE_AGENT_TASK_RESULT: ${{ needs.create_agent_task.result }}
+          GH_AW_JOB_CREATE_AGENT_TASK_ERROR: ${{ needs.create_agent_task.outputs.error_message }}
+          GH_AW_WORKFLOW_NAME: "Poem Bot - A Creative Agentic Workflow"
+          GH_AW_RUN_ID: ${{ github.run_id }}
+          GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          GH_AW_REPOSITORY: ${{ github.repository }}
+        with:
+          github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+          script: |
+            async function main() {
+              const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Unknown Workflow";
+              const runId = process.env.GH_AW_RUN_ID || "unknown";
+              const runUrl = process.env.GH_AW_RUN_URL || "";
+              const repository = process.env.GH_AW_REPOSITORY || "";
+              const [owner, repo] = repository.split("/");
+              if (!owner || !repo) {
+                core.info("Invalid repository format, skipping failure tracking");
+                return;
+              }
+              const failedJobs = [];
+              for (const [key, value] of Object.entries(process.env)) {
+                if (key.startsWith("GH_AW_JOB_") && key.endsWith("_RESULT")) {
+                  if (value === "failure") {
+                    const jobName = key.replace("GH_AW_JOB_", "").replace("_RESULT", "").toLowerCase().replace(/_/g, "_");
+                    const errorKey = `GH_AW_JOB_${jobName.toUpperCase().replace(/-/g, "_")}_ERROR`;
+                    const errorMessage = process.env[errorKey] || "No error message available";
+                    failedJobs.push({
+                      name: jobName,
+                      error: errorMessage,
+                    });
+                  }
+                }
+              }
+              if (failedJobs.length === 0) {
+                core.info("No safe output jobs failed, skipping failure tracking");
+                return;
+              }
+              core.info(`Found ${failedJobs.length} failed safe output job(s)`);
+              for (const job of failedJobs) {
+                core.info(`  - ${job.name}`);
+              }
+              const titlePrefix = "[ca] ";
+              const label = "agentics";
+              const issueTitle = `${titlePrefix}Safe Output Failure: ${workflowName}`;
+              let existingIssue = null;
+              try {
+                const issues = await github.rest.issues.listForRepo({
+                  owner,
+                  repo,
+                  state: "open",
+                  labels: label,
+                  per_page: 100,
+                });
+                existingIssue = issues.data.find(issue => issue.title === issueTitle);
+              } catch (error) {
+                core.warning(`Failed to search for existing issues: ${error instanceof Error ? error.message : String(error)}`);
+              }
+              const failureDetails = failedJobs.map(job => `- **${job.name}**: Run [#${runId}](${runUrl})`).join("\n");
+              const timestamp = new Date().toISOString();
+              const commentBody = `## Safe Output Failure Report
+            **Workflow:** ${workflowName}
+            **Run ID:** [${runId}](${runUrl})
+            **Timestamp:** ${timestamp}
+            ### Failed Jobs:
+            ${failureDetails}
+            ---
+            *This is an automated report. Do not include error messages as they may be tainted.*`;
+              if (existingIssue) {
+                try {
+                  await github.rest.issues.createComment({
+                    owner,
+                    repo,
+                    issue_number: existingIssue.number,
+                    body: commentBody,
+                  });
+                  core.info(`Added comment to existing issue #${existingIssue.number}: ${existingIssue.html_url}`);
+                  await core.summary
+                    .addRaw(`\n\n## ⚠️ Safe Output Failure Tracked\n\nAdded comment to issue [#${existingIssue.number}](${existingIssue.html_url})\n`)
+                    .write();
+                } catch (error) {
+                  core.error(`Failed to add comment to issue: ${error instanceof Error ? error.message : String(error)}`);
+                }
+              } else {
+                const issueBody = `## Safe Output Failure Tracking
+            This issue tracks failures in safe output jobs for the workflow: **${workflowName}**
+            ### Latest Failure:
+            ${commentBody}`;
+                try {
+                  const issue = await github.rest.issues.create({
+                    owner,
+                    repo,
+                    title: issueTitle,
+                    body: issueBody,
+                    labels: [label],
+                  });
+                  core.info(`Created new issue #${issue.data.number}: ${issue.data.html_url}`);
+                  await core.summary
+                    .addRaw(`\n\n## ⚠️ Safe Output Failure Tracked\n\nCreated issue [#${issue.data.number}](${issue.data.html_url})\n`)
+                    .write();
+                } catch (error) {
+                  core.error(`Failed to create issue: ${error instanceof Error ? error.message : String(error)}`);
+                }
+              }
+            }
+            await main();
 
   create_agent_task:
     needs:
@@ -8740,6 +8893,7 @@ jobs:
       pull-requests: write
     timeout-minutes: 10
     outputs:
+      error_message: ${{ steps.capture_error.outputs.error_message }}
       task_number: ${{ steps.create_agent_task.outputs.task_number }}
       task_url: ${{ steps.create_agent_task.outputs.task_url }}
     steps:
@@ -8760,6 +8914,7 @@ jobs:
           echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> "$GITHUB_ENV"
       - name: Create Agent Task
         id: create_agent_task
+        continue-on-error: true
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
@@ -8909,6 +9064,11 @@ jobs:
             main().catch(error => {
               core.setFailed(error instanceof Error ? error.message : String(error));
             });
+      - name: Capture error if step failed
+        id: capture_error
+        if: steps.create_agent_task.outcome == 'failure'
+        run: |
+          echo "error_message=Safe output job create_agent_task failed" >> "$GITHUB_OUTPUT"
 
   create_discussion:
     needs:
@@ -8926,6 +9086,7 @@ jobs:
     outputs:
       discussion_number: ${{ steps.create_discussion.outputs.discussion_number }}
       discussion_url: ${{ steps.create_discussion.outputs.discussion_url }}
+      error_message: ${{ steps.capture_error.outputs.error_message }}
     steps:
       - name: Download agent output artifact
         continue-on-error: true
@@ -8940,6 +9101,7 @@ jobs:
           echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> "$GITHUB_ENV"
       - name: Create Output Discussion
         id: create_discussion
+        continue-on-error: true
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
@@ -9614,6 +9776,11 @@ jobs:
               core.info(`Successfully created ${createdDiscussions.length} discussion(s)`);
             }
             await main();
+      - name: Capture error if step failed
+        id: capture_error
+        if: steps.create_discussion.outcome == 'failure'
+        run: |
+          echo "error_message=Safe output job create_discussion failed" >> "$GITHUB_OUTPUT"
 
   create_issue:
     needs:
@@ -9628,6 +9795,7 @@ jobs:
       issues: write
     timeout-minutes: 10
     outputs:
+      error_message: ${{ steps.capture_error.outputs.error_message }}
       issue_number: ${{ steps.create_issue.outputs.issue_number }}
       issue_url: ${{ steps.create_issue.outputs.issue_url }}
       temporary_id_map: ${{ steps.create_issue.outputs.temporary_id_map }}
@@ -9645,6 +9813,7 @@ jobs:
           echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> "$GITHUB_ENV"
       - name: Create Output Issue
         id: create_issue
+        continue-on-error: true
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
@@ -10223,6 +10392,11 @@ jobs:
             (async () => {
               await main();
             })();
+      - name: Capture error if step failed
+        id: capture_error
+        if: steps.create_issue.outcome == 'failure'
+        run: |
+          echo "error_message=Safe output job create_issue failed" >> "$GITHUB_OUTPUT"
 
   create_pr_review_comment:
     needs:
@@ -10238,6 +10412,7 @@ jobs:
       pull-requests: write
     timeout-minutes: 10
     outputs:
+      error_message: ${{ steps.capture_error.outputs.error_message }}
       review_comment_id: ${{ steps.create_pr_review_comment.outputs.review_comment_id }}
       review_comment_url: ${{ steps.create_pr_review_comment.outputs.review_comment_url }}
     steps:
@@ -10254,6 +10429,7 @@ jobs:
           echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> "$GITHUB_ENV"
       - name: Create PR Review Comment
         id: create_pr_review_comment
+        continue-on-error: true
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
@@ -10591,6 +10767,11 @@ jobs:
               return createdComments;
             }
             await main();
+      - name: Capture error if step failed
+        id: capture_error
+        if: steps.create_pr_review_comment.outcome == 'failure'
+        run: |
+          echo "error_message=Safe output job create_pr_review_comment failed" >> "$GITHUB_OUTPUT"
 
   create_pull_request:
     needs:
@@ -10608,6 +10789,7 @@ jobs:
     timeout-minutes: 10
     outputs:
       branch_name: ${{ steps.create_pull_request.outputs.branch_name }}
+      error_message: ${{ steps.capture_error.outputs.error_message }}
       fallback_used: ${{ steps.create_pull_request.outputs.fallback_used }}
       issue_number: ${{ steps.create_pull_request.outputs.issue_number }}
       issue_url: ${{ steps.create_pull_request.outputs.issue_url }}
@@ -10649,6 +10831,7 @@ jobs:
           echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> "$GITHUB_ENV"
       - name: Create Pull Request
         id: create_pull_request
+        continue-on-error: true
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
@@ -11234,6 +11417,11 @@ jobs:
               }
             }
             await main();
+      - name: Capture error if step failed
+        id: capture_error
+        if: steps.create_pull_request.outcome == 'failure'
+        run: |
+          echo "error_message=Safe output job create_pull_request failed" >> "$GITHUB_OUTPUT"
       - name: Checkout repository for gh CLI
         if: steps.create_pull_request.outputs.pull_request_url != ''
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
@@ -11549,6 +11737,7 @@ jobs:
       issues: write
     timeout-minutes: 10
     outputs:
+      error_message: ${{ steps.capture_error.outputs.error_message }}
       linked_issues: ${{ steps.link_sub_issue.outputs.linked_issues }}
     steps:
       - name: Download agent output artifact
@@ -11564,6 +11753,7 @@ jobs:
           echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> "$GITHUB_ENV"
       - name: Link Sub-Issue
         id: link_sub_issue
+        continue-on-error: true
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
@@ -12029,6 +12219,11 @@ jobs:
               }
             }
             await main();
+      - name: Capture error if step failed
+        id: capture_error
+        if: steps.link_sub_issue.outcome == 'failure'
+        run: |
+          echo "error_message=Safe output job link_sub_issue failed" >> "$GITHUB_OUTPUT"
 
   pre_activation:
     if: >
@@ -12720,6 +12915,7 @@ jobs:
       issues: write
     timeout-minutes: 10
     outputs:
+      error_message: ${{ steps.capture_error.outputs.error_message }}
       issue_number: ${{ steps.update_issue.outputs.issue_number }}
       issue_url: ${{ steps.update_issue.outputs.issue_url }}
     steps:
@@ -12736,6 +12932,7 @@ jobs:
           echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> "$GITHUB_ENV"
       - name: Update Issue
         id: update_issue
+        continue-on-error: true
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
@@ -13060,6 +13257,11 @@ jobs:
               });
             }
             await main();
+      - name: Capture error if step failed
+        id: capture_error
+        if: steps.update_issue.outcome == 'failure'
+        run: |
+          echo "error_message=Safe output job update_issue failed" >> "$GITHUB_OUTPUT"
 
   upload_assets:
     needs:
@@ -13074,6 +13276,7 @@ jobs:
     timeout-minutes: 10
     outputs:
       branch_name: ${{ steps.upload_assets.outputs.branch_name }}
+      error_message: ${{ steps.capture_error.outputs.error_message }}
       published_count: ${{ steps.upload_assets.outputs.published_count }}
     steps:
       - name: Checkout repository
@@ -13116,6 +13319,7 @@ jobs:
           echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> "$GITHUB_ENV"
       - name: Upload Assets to Orphaned Branch
         id: upload_assets
+        continue-on-error: true
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
@@ -13296,4 +13500,9 @@ jobs:
               core.setOutput("branch_name", normalizedBranchName);
             }
             await main();
+      - name: Capture error if step failed
+        id: capture_error
+        if: steps.upload_assets.outcome == 'failure'
+        run: |
+          echo "error_message=Safe output job upload_assets failed" >> "$GITHUB_OUTPUT"
 

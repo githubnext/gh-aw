@@ -160,18 +160,49 @@ core.info('Creating issue');
 		t.Error("Expected custom action reference './actions/create-issue' not found in lock file")
 	}
 
-	// Verify it does NOT contain actions/github-script
-	if strings.Contains(lockStr, "actions/github-script@") {
-		t.Error("Lock file should not contain 'actions/github-script@' when using dev action mode")
+	// Extract the create_issue job section to verify it doesn't use actions/github-script
+	// The test should check the safe output job (create_issue), not the entire workflow
+	// (conclusion job may still use actions/github-script for failure tracking)
+	createIssueJobStart := strings.Index(lockStr, "  create_issue:")
+	if createIssueJobStart == -1 {
+		t.Fatal("Could not find create_issue job in lock file")
+	}
+	
+	// Find the next job (starts with "  " at the beginning of a line, not "    ")
+	remainingContent := lockStr[createIssueJobStart+17:] // Skip past "  create_issue:\n"
+	nextJobIdx := -1
+	lines := strings.Split(remainingContent, "\n")
+	for i, line := range lines {
+		// A new job starts with exactly 2 spaces at the start and is not indented further
+		if len(line) >= 2 && line[0:2] == "  " && len(line) > 2 && line[2] != ' ' {
+			// Calculate position in remaining content
+			nextJobIdx = 0
+			for j := 0; j < i; j++ {
+				nextJobIdx += len(lines[j]) + 1 // +1 for newline
+			}
+			break
+		}
+	}
+	
+	var createIssueJobSection string
+	if nextJobIdx == -1 {
+		createIssueJobSection = lockStr[createIssueJobStart:]
+	} else {
+		createIssueJobSection = lockStr[createIssueJobStart : createIssueJobStart+17+nextJobIdx]
 	}
 
-	// Verify it has the token input instead of github-token with script
-	if strings.Contains(lockStr, "github-token:") {
-		t.Error("Dev action mode should use 'token:' input, not 'github-token:'")
+	// Verify create_issue job does NOT contain actions/github-script
+	if strings.Contains(createIssueJobSection, "actions/github-script@") {
+		t.Error("create_issue job should not contain 'actions/github-script@' when using dev action mode")
 	}
 
-	if !strings.Contains(lockStr, "token:") {
-		t.Error("Expected 'token:' input not found for custom action")
+	// Verify create_issue job has the token input instead of github-token with script
+	if strings.Contains(createIssueJobSection, "github-token:") {
+		t.Error("create_issue job in dev action mode should use 'token:' input, not 'github-token:'")
+	}
+
+	if !strings.Contains(createIssueJobSection, "token:") {
+		t.Error("Expected 'token:' input not found for custom action in create_issue job")
 	}
 
 	// Clean up: reset the registry to avoid affecting other tests
