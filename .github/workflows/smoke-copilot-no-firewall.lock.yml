@@ -1064,6 +1064,89 @@ jobs:
                 discussion_url: discussionUrl,
               };
             }
+            async function minimizeComment(github, nodeId) {
+              const query =  `
+                mutation ($nodeId: ID!) {
+                  minimizeComment(input: { subjectId: $nodeId, classifier: SPAM }) {
+                    minimizedComment {
+                      isMinimized
+                    }
+                  }
+                }
+              `;
+              const result = await github.graphql(query, { nodeId });
+              return result.minimizeComment.minimizedComment.isMinimized;
+            }
+            async function hideOlderWorkflowComments(github, owner, repo, itemNumber, trackerID, isDiscussion) {
+              if (!trackerID) {
+                core.info("No tracker ID available, skipping hide-older-comments");
+                return 0;
+              }
+              core.info(`Looking for older comments with tracker ID: ${trackerID}`);
+              let comments = [];
+              if (isDiscussion) {
+                const query =  `
+                  query($owner: String!, $repo: String!, $num: Int!) {
+                    repository(owner: $owner, name: $repo) {
+                      discussion(number: $num) {
+                        comments(first: 100) {
+                          nodes {
+                            id
+                            body
+                            isMinimized
+                            author {
+                              login
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                `;
+                const result = await github.graphql(query, { owner, repo, num: itemNumber });
+                if (result?.repository?.discussion?.comments?.nodes) {
+                  comments = result.repository.discussion.comments.nodes.map(comment => ({
+                    node_id: comment.id,
+                    body: comment.body,
+                    isMinimized: comment.isMinimized,
+                    author: comment.author?.login,
+                  }));
+                }
+              } else {
+                const { data: issueComments } = await github.rest.issues.listComments({
+                  owner,
+                  repo,
+                  issue_number: itemNumber,
+                  per_page: 100,
+                });
+                comments = issueComments.map(comment => ({
+                  node_id: comment.node_id,
+                  body: comment.body,
+                  isMinimized: false, 
+                  author: comment.user?.login,
+                }));
+              }
+              core.info(`Found ${comments.length} total comments`);
+              const targetComments = comments.filter(comment => {
+                const hasTrackerID = comment.body && comment.body.includes(`<!-- tracker-id: ${trackerID} -->`);
+                return hasTrackerID && !comment.isMinimized;
+              });
+              core.info(`Found ${targetComments.length} workflow comments to minimize`);
+              let minimizedCount = 0;
+              for (const comment of targetComments) {
+                try {
+                  const isMinimized = await minimizeComment(github, comment.node_id);
+                  if (isMinimized) {
+                    core.info(`Minimized comment: ${comment.node_id}`);
+                    minimizedCount++;
+                  }
+                } catch (error) {
+                  core.warning(`Failed to minimize comment ${comment.node_id}: ${error instanceof Error ? error.message : String(error)}`);
+                }
+              }
+              core.info(`Successfully minimized ${minimizedCount} older comment(s)`);
+              return minimizedCount;
+            }
             async function main() {
               const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
               const isDiscussionExplicit = process.env.GITHUB_AW_COMMENT_DISCUSSION === "true";
@@ -1250,6 +1333,27 @@ jobs:
                   triggeringPRNumber,
                   triggeringDiscussionNumber
                 );
+                const hideOlderComments = process.env.GH_AW_HIDE_OLDER_COMMENTS === "true";
+                if (hideOlderComments) {
+                  const trackerID = process.env.GH_AW_TRACKER_ID || "";
+                  if (trackerID) {
+                    core.info("hide-older-comments is enabled, minimizing previous workflow comments");
+                    try {
+                      await hideOlderWorkflowComments(
+                        github,
+                        context.repo.owner,
+                        context.repo.repo,
+                        itemNumber,
+                        trackerID,
+                        commentEndpoint === "discussions"
+                      );
+                    } catch (error) {
+                      core.warning(`Failed to hide older comments: ${error instanceof Error ? error.message : String(error)}`);
+                    }
+                  } else {
+                    core.info("hide-older-comments is enabled but no tracker ID found");
+                  }
+                }
                 try {
                   let comment;
                   if (commentEndpoint === "discussions") {

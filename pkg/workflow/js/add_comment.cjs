@@ -122,13 +122,13 @@ async function hideOlderWorkflowComments(github, owner, repo, itemNumber, tracke
   }
 
   core.info(`Looking for older comments with tracker ID: ${trackerID}`);
-  
+
   let comments = [];
-  
+
   if (isDiscussion) {
     // For discussions, use GraphQL to fetch comments
     const query = /* GraphQL */ `
-      query($owner: String!, $repo: String!, $num: Int!) {
+      query ($owner: String!, $repo: String!, $num: Int!) {
         repository(owner: $owner, name: $repo) {
           discussion(number: $num) {
             comments(first: 100) {
@@ -145,7 +145,7 @@ async function hideOlderWorkflowComments(github, owner, repo, itemNumber, tracke
         }
       }
     `;
-    
+
     const result = await github.graphql(query, { owner, repo, num: itemNumber });
     if (result?.repository?.discussion?.comments?.nodes) {
       comments = result.repository.discussion.comments.nodes.map(comment => ({
