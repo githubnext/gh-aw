@@ -1,20 +1,38 @@
+// Embedded files for bundling
+const FILES = {
+  // This will be populated by the build script
+};
+
+// Helper to load embedded files
+function requireFile(filename) {
+  const content = FILES[filename];
+  if (!content) {
+    throw new Error(`File not found: ${filename}`);
+  }
+  const exports = {};
+  const module = { exports };
+  const func = new Function('exports', 'module', 'require', content);
+  func(exports, module, requireFile);
+  return module.exports;
+}
+
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-const { sanitizeLabelContent } = require("./sanitize_label_content.cjs");
-const { loadAgentOutput } = require("./load_agent_output.cjs");
-const { generateStagedPreview } = require("./staged_preview.cjs");
-const { generateFooter } = require("./generate_footer.cjs");
-const { getTrackerID } = require("./get_tracker_id.cjs");
+const { sanitizeLabelContent } = requireFile('sanitize_label_content.cjs');
+const { loadAgentOutput } = requireFile('load_agent_output.cjs');
+const { generateStagedPreview } = requireFile('staged_preview.cjs');
+const { generateFooter } = requireFile('generate_footer.cjs');
+const { getTrackerID } = requireFile('get_tracker_id.cjs');
 const {
   generateTemporaryId,
   isTemporaryId,
   normalizeTemporaryId,
   replaceTemporaryIdReferences,
   serializeTemporaryIdMap,
-} = require("./temporary_id.cjs");
-const { parseAllowedRepos, getDefaultTargetRepo, validateRepo, parseRepoSlug } = require("./repo_helpers.cjs");
-const { addExpirationComment } = require("./expiration_helpers.cjs");
+} = requireFile('temporary_id.cjs');
+const { parseAllowedRepos, getDefaultTargetRepo, validateRepo, parseRepoSlug } = requireFile('repo_helpers.cjs');
+const { addExpirationComment } = requireFile('expiration_helpers.cjs');
 
 async function main() {
   // Initialize outputs to empty strings to ensure they're always set

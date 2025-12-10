@@ -1,10 +1,28 @@
+// Embedded files for bundling
+const FILES = {
+  // This will be populated by the build script
+};
+
+// Helper to load embedded files
+function requireFile(filename) {
+  const content = FILES[filename];
+  if (!content) {
+    throw new Error(`File not found: ${filename}`);
+  }
+  const exports = {};
+  const module = { exports };
+  const func = new Function('exports', 'module', 'require', content);
+  func(exports, module, requireFile);
+  return module.exports;
+}
+
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-const { loadAgentOutput } = require("./load_agent_output.cjs");
-const { generateFooter } = require("./generate_footer.cjs");
-const { getTrackerID } = require("./get_tracker_id.cjs");
-const { getRepositoryUrl } = require("./get_repository_url.cjs");
+const { loadAgentOutput } = requireFile('load_agent_output.cjs');
+const { generateFooter } = requireFile('generate_footer.cjs');
+const { getTrackerID } = requireFile('get_tracker_id.cjs');
+const { getRepositoryUrl } = requireFile('get_repository_url.cjs');
 
 /**
  * Get discussion details using GraphQL

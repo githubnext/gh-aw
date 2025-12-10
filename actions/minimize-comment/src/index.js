@@ -1,7 +1,25 @@
+// Embedded files for bundling
+const FILES = {
+  // This will be populated by the build script
+};
+
+// Helper to load embedded files
+function requireFile(filename) {
+  const content = FILES[filename];
+  if (!content) {
+    throw new Error(`File not found: ${filename}`);
+  }
+  const exports = {};
+  const module = { exports };
+  const func = new Function('exports', 'module', 'require', content);
+  func(exports, module, requireFile);
+  return module.exports;
+}
+
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-const { loadAgentOutput } = require("./load_agent_output.cjs");
+const { loadAgentOutput } = requireFile('load_agent_output.cjs');
 
 /**
  * Minimize (hide) a comment using the GraphQL API.

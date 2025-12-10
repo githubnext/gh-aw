@@ -1,12 +1,30 @@
+// Embedded files for bundling
+const FILES = {
+  // This will be populated by the build script
+};
+
+// Helper to load embedded files
+function requireFile(filename) {
+  const content = FILES[filename];
+  if (!content) {
+    throw new Error(`File not found: ${filename}`);
+  }
+  const exports = {};
+  const module = { exports };
+  const func = new Function('exports', 'module', 'require', content);
+  func(exports, module, requireFile);
+  return module.exports;
+}
+
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-const { loadAgentOutput } = require("./load_agent_output.cjs");
-const { getTrackerID } = require("./get_tracker_id.cjs");
-const { closeOlderDiscussions } = require("./close_older_discussions.cjs");
-const { replaceTemporaryIdReferences, loadTemporaryIdMap } = require("./temporary_id.cjs");
-const { parseAllowedRepos, getDefaultTargetRepo, validateRepo, parseRepoSlug } = require("./repo_helpers.cjs");
-const { addExpirationComment } = require("./expiration_helpers.cjs");
+const { loadAgentOutput } = requireFile('load_agent_output.cjs');
+const { getTrackerID } = requireFile('get_tracker_id.cjs');
+const { closeOlderDiscussions } = requireFile('close_older_discussions.cjs');
+const { replaceTemporaryIdReferences, loadTemporaryIdMap } = requireFile('temporary_id.cjs');
+const { parseAllowedRepos, getDefaultTargetRepo, validateRepo, parseRepoSlug } = requireFile('repo_helpers.cjs');
+const { addExpirationComment } = requireFile('expiration_helpers.cjs');
 
 /**
  * Fetch repository ID and discussion categories for a repository

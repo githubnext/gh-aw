@@ -1,7 +1,23 @@
+// Embedded files for bundling
+const FILES = {};
+
+// Helper to load embedded files
+function requireFile(filename) {
+  const content = FILES[filename];
+  if (!content) {
+    throw new Error(`File not found: ${filename}`);
+  }
+  const exports = {};
+  const module = { exports };
+  const func = new Function('exports', 'module', 'require', content);
+  func(exports, module, requireFile);
+  return module.exports;
+}
+
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-const { processCloseEntityItems, ISSUE_CONFIG } = require("./close_entity_helpers.cjs");
+const { processCloseEntityItems, ISSUE_CONFIG } = requireFile('close_entity_helpers.cjs');
 
 /**
  * Get issue details using REST API

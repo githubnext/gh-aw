@@ -270,20 +270,71 @@ func getActionDependencies(actionName string) []string {
 		"noop": {
 			"load_agent_output.cjs",
 		},
-		"minimize_comment": {
+		"minimize-comment": {
 			"load_agent_output.cjs",
 		},
-		"close_issue": {
+		"close-issue": {
 			"close_entity_helpers.cjs",
 		},
-		"close_pull_request": {
+		"close-pull-request": {
 			"close_entity_helpers.cjs",
 		},
-		"close_discussion": {
+		"close-discussion": {
 			"generate_footer.cjs",
 			"get_repository_url.cjs",
 			"get_tracker_id.cjs",
 			"load_agent_output.cjs",
+		},
+		"add-comment": {
+			"add_comment_helpers.cjs",
+			"generate_footer.cjs",
+			"get_repository_url.cjs",
+			"get_tracker_id.cjs",
+			"load_agent_output.cjs",
+			"repo_helpers.cjs",
+			"sanitize_label_content.cjs",
+		},
+		"create-issue": {
+			"expiration_helpers.cjs",
+			"generate_footer.cjs",
+			"get_tracker_id.cjs",
+			"load_agent_output.cjs",
+			"repo_helpers.cjs",
+			"sanitize_label_content.cjs",
+			"staged_preview.cjs",
+			"temporary_id.cjs",
+		},
+		"add-labels": {
+			"generate_footer.cjs",
+			"get_repository_url.cjs",
+			"get_tracker_id.cjs",
+			"load_agent_output.cjs",
+			"repo_helpers.cjs",
+			"sanitize_label_content.cjs",
+		},
+		"create-discussion": {
+			"generate_footer.cjs",
+			"get_repository_url.cjs",
+			"get_tracker_id.cjs",
+			"load_agent_output.cjs",
+			"repo_helpers.cjs",
+			"sanitize_label_content.cjs",
+		},
+		"update-issue": {
+			"generate_footer.cjs",
+			"get_repository_url.cjs",
+			"get_tracker_id.cjs",
+			"load_agent_output.cjs",
+			"repo_helpers.cjs",
+			"sanitize_label_content.cjs",
+		},
+		"update-pull-request": {
+			"generate_footer.cjs",
+			"get_repository_url.cjs",
+			"get_tracker_id.cjs",
+			"load_agent_output.cjs",
+			"repo_helpers.cjs",
+			"sanitize_label_content.cjs",
 		},
 	}
 
