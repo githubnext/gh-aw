@@ -261,7 +261,7 @@ The YAML frontmatter supports these fields:
   - `agentic-workflows:` - GitHub Agentic Workflows MCP server for workflow introspection
     - Provides tools for:
       - `status` - Show status of workflow files in the repository
-      - `compile` - Compile markdown workflows to YAML
+      - `compile` - Compile Markdown workflows to GitHub Actions YAML
       - `logs` - Download and analyze workflow run logs
       - `audit` - Investigate workflow run failures and generate reports
     - **Use case**: Enable AI agents to analyze GitHub Actions traces and improve workflows based on execution history

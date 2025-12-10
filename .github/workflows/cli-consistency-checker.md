@@ -161,7 +161,7 @@ For each finding, create a separate issue with:
 
 ### Current Output (from running ./gh-aw compile --help)
 ```
-Compile markdown to YAML workflows
+Compile Markdown workflows to GitHub Actions YAML
 ```
 
 ### Issue

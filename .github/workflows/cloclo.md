@@ -134,7 +134,7 @@ This is a hard constraint. If the user request involves workflow modifications:
 
 You have access to the gh-aw MCP which provides:
 - `status`: Show status of workflow files in the repository
-- `compile`: Compile markdown workflows to YAML
+- `compile`: Compile Markdown workflows to GitHub Actions YAML
 - `logs`: Download and analyze workflow run logs
 - `audit`: Investigate workflow run failures
 
