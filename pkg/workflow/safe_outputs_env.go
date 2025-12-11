@@ -1,0 +1,176 @@
+package workflow
+
+import (
+	"fmt"
+	"strings"
+
+	"github.com/githubnext/gh-aw/pkg/logger"
+)
+
+var safeOutputsEnvLog = logger.New("workflow:safe_outputs_env")
+
+// ========================================
+// Safe Output Environment Variables
+// ========================================
+
+// applySafeOutputEnvToMap adds safe-output related environment variables to an env map
+// This extracts the duplicated safe-output env setup logic across all engines (copilot, codex, claude, custom)
+func applySafeOutputEnvToMap(env map[string]string, data *WorkflowData) {
+	if data.SafeOutputs == nil {
+		return
+	}
+
+	env["GH_AW_SAFE_OUTPUTS"] = "${{ env.GH_AW_SAFE_OUTPUTS }}"
+
+	// Add staged flag if specified
+	if data.TrialMode || data.SafeOutputs.Staged {
+		env["GH_AW_SAFE_OUTPUTS_STAGED"] = "true"
+	}
+	if data.TrialMode && data.TrialLogicalRepo != "" {
+		env["GH_AW_TARGET_REPO_SLUG"] = data.TrialLogicalRepo
+	}
+
+	// Add branch name if upload assets is configured
+	if data.SafeOutputs.UploadAssets != nil {
+		env["GH_AW_ASSETS_BRANCH"] = fmt.Sprintf("%q", data.SafeOutputs.UploadAssets.BranchName)
+		env["GH_AW_ASSETS_MAX_SIZE_KB"] = fmt.Sprintf("%d", data.SafeOutputs.UploadAssets.MaxSizeKB)
+		env["GH_AW_ASSETS_ALLOWED_EXTS"] = fmt.Sprintf("%q", strings.Join(data.SafeOutputs.UploadAssets.AllowedExts, ","))
+	}
+}
+
+// applySafeOutputEnvToSlice adds safe-output related environment variables to a YAML string slice
+// This is for engines that build YAML line-by-line (like Claude)
+func applySafeOutputEnvToSlice(stepLines *[]string, workflowData *WorkflowData) {
+	if workflowData.SafeOutputs == nil {
+		return
+	}
+
+	*stepLines = append(*stepLines, "          GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}")
+
+	// Add staged flag if specified
+	if workflowData.TrialMode || workflowData.SafeOutputs.Staged {
+		*stepLines = append(*stepLines, "          GH_AW_SAFE_OUTPUTS_STAGED: \"true\"")
+	}
+	if workflowData.TrialMode && workflowData.TrialLogicalRepo != "" {
+		*stepLines = append(*stepLines, fmt.Sprintf("          GH_AW_TARGET_REPO_SLUG: %q", workflowData.TrialLogicalRepo))
+	}
+
+	// Add branch name if upload assets is configured
+	if workflowData.SafeOutputs.UploadAssets != nil {
+		*stepLines = append(*stepLines, fmt.Sprintf("          GH_AW_ASSETS_BRANCH: %q", workflowData.SafeOutputs.UploadAssets.BranchName))
+		*stepLines = append(*stepLines, fmt.Sprintf("          GH_AW_ASSETS_MAX_SIZE_KB: %d", workflowData.SafeOutputs.UploadAssets.MaxSizeKB))
+		*stepLines = append(*stepLines, fmt.Sprintf("          GH_AW_ASSETS_ALLOWED_EXTS: %q", strings.Join(workflowData.SafeOutputs.UploadAssets.AllowedExts, ",")))
+	}
+}
+
+// buildWorkflowMetadataEnvVars builds workflow name and source environment variables
+// This extracts the duplicated workflow metadata setup logic from safe-output job builders
+func buildWorkflowMetadataEnvVars(workflowName string, workflowSource string) []string {
+	var customEnvVars []string
+
+	// Add workflow name
+	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_WORKFLOW_NAME: %q\n", workflowName))
+
+	// Add workflow source and source URL if present
+	if workflowSource != "" {
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_WORKFLOW_SOURCE: %q\n", workflowSource))
+		sourceURL := buildSourceURL(workflowSource)
+		if sourceURL != "" {
+			customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_WORKFLOW_SOURCE_URL: %q\n", sourceURL))
+		}
+	}
+
+	return customEnvVars
+}
+
+// buildWorkflowMetadataEnvVarsWithTrackerID builds workflow metadata env vars including tracker-id
+func buildWorkflowMetadataEnvVarsWithTrackerID(workflowName string, workflowSource string, trackerID string) []string {
+	customEnvVars := buildWorkflowMetadataEnvVars(workflowName, workflowSource)
+
+	// Add tracker-id if present
+	if trackerID != "" {
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_TRACKER_ID: %q\n", trackerID))
+	}
+
+	return customEnvVars
+}
+
+// buildSafeOutputJobEnvVars builds environment variables for safe-output jobs with staged/target repo handling
+// This extracts the duplicated env setup logic in safe-output job builders (create_issue, add_comment, etc.)
+func buildSafeOutputJobEnvVars(trialMode bool, trialLogicalRepoSlug string, staged bool, targetRepoSlug string) []string {
+	var customEnvVars []string
+
+	// Pass the staged flag if it's set to true
+	if trialMode || staged {
+		customEnvVars = append(customEnvVars, "          GH_AW_SAFE_OUTPUTS_STAGED: \"true\"\n")
+	}
+
+	// Set GH_AW_TARGET_REPO_SLUG - prefer target-repo config over trial target repo
+	if targetRepoSlug != "" {
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_TARGET_REPO_SLUG: %q\n", targetRepoSlug))
+	} else if trialMode && trialLogicalRepoSlug != "" {
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_TARGET_REPO_SLUG: %q\n", trialLogicalRepoSlug))
+	}
+
+	return customEnvVars
+}
+
+// buildStandardSafeOutputEnvVars builds the standard set of environment variables
+// that all safe-output job builders need: metadata + staged/target repo handling
+// This reduces duplication in safe-output job builders
+func (c *Compiler) buildStandardSafeOutputEnvVars(data *WorkflowData, targetRepoSlug string) []string {
+	var customEnvVars []string
+
+	// Add workflow metadata (name, source, and tracker-id)
+	customEnvVars = append(customEnvVars, buildWorkflowMetadataEnvVarsWithTrackerID(data.Name, data.Source, data.TrackerID)...)
+
+	// Add engine metadata (id, version, model) for XML comment marker
+	customEnvVars = append(customEnvVars, buildEngineMetadataEnvVars(data.EngineConfig)...)
+
+	// Add common safe output job environment variables (staged/target repo)
+	customEnvVars = append(customEnvVars, buildSafeOutputJobEnvVars(
+		c.trialMode,
+		c.trialLogicalRepoSlug,
+		data.SafeOutputs.Staged,
+		targetRepoSlug,
+	)...)
+
+	// Add messages config if present
+	if data.SafeOutputs.Messages != nil {
+		messagesJSON, err := serializeMessagesConfig(data.SafeOutputs.Messages)
+		if err != nil {
+			safeOutputsEnvLog.Printf("Warning: failed to serialize messages config: %v", err)
+		} else if messagesJSON != "" {
+			customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_SAFE_OUTPUT_MESSAGES: %q\n", messagesJSON))
+		}
+	}
+
+	return customEnvVars
+}
+
+// buildEngineMetadataEnvVars builds engine metadata environment variables (id, version, model)
+// These are used by the JavaScript footer generation to create XML comment markers for traceability
+func buildEngineMetadataEnvVars(engineConfig *EngineConfig) []string {
+	var customEnvVars []string
+
+	if engineConfig == nil {
+		return customEnvVars
+	}
+
+	// Add engine ID if present
+	if engineConfig.ID != "" {
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_ENGINE_ID: %q\n", engineConfig.ID))
+	}
+
+	// Add engine version if present
+	if engineConfig.Version != "" {
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_ENGINE_VERSION: %q\n", engineConfig.Version))
+	}
+
+	// Add engine model if present
+	if engineConfig.Model != "" {
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_ENGINE_MODEL: %q\n", engineConfig.Model))
+	}
+
+	return customEnvVars
+}

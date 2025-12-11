@@ -1456,7 +1456,7 @@ jobs:
               let hiddenCount = 0;
               for (const comment of comments) {
                 try {
-                  const nodeId = isDiscussion ? comment.id : comment.node_id;
+                  const nodeId = isDiscussion ? String(comment.id) : (comment).node_id;
                   core.info(`Hiding comment: ${nodeId}`);
                   await minimizeComment(github, nodeId, normalizedReason);
                   hiddenCount++;
@@ -1933,7 +1933,7 @@ jobs:
           node-version: '24'
           package-manager-cache: false
       - name: Install Claude Code CLI
-        run: npm install -g @anthropic-ai/claude-code@2.0.62
+        run: npm install -g @anthropic-ai/claude-code@2.0.65
       - name: Generate Claude Settings
         run: |
           mkdir -p /tmp/gh-aw/.claude
@@ -3699,7 +3699,7 @@ jobs:
               engine_name: "Claude Code",
               model: process.env.GH_AW_MODEL_AGENT_CLAUDE || "",
               version: "",
-              agent_version: "2.0.62",
+              agent_version: "2.0.65",
               workflow_name: "Documentation Unbloat",
               experimental: true,
               supports_tools_allowlist: true,
@@ -8420,7 +8420,7 @@ jobs:
           node-version: '24'
           package-manager-cache: false
       - name: Install Claude Code CLI
-        run: npm install -g @anthropic-ai/claude-code@2.0.62
+        run: npm install -g @anthropic-ai/claude-code@2.0.65
       - name: Execute Claude Code CLI
         id: agentic_execution
         # Allowed tools (sorted):

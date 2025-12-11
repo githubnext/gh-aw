@@ -188,5 +188,77 @@ else
     exit 1
 fi
 
+# Test 8: Verify fetch_release_data function exists and has correct logic
+echo ""
+echo "Test 8: Verify fetch_release_data function logic"
+
+# Extract and test the function
+if grep -q "fetch_release_data()" "$PROJECT_ROOT/install-gh-aw.sh"; then
+    echo "  ✓ PASS: fetch_release_data function exists"
+else
+    echo "  ✗ FAIL: fetch_release_data function not found"
+    exit 1
+fi
+
+# Verify the function checks for GH_TOKEN
+if grep -q 'if \[ -n "\$GH_TOKEN" \]; then' "$PROJECT_ROOT/install-gh-aw.sh"; then
+    echo "  ✓ PASS: Function checks for GH_TOKEN"
+else
+    echo "  ✗ FAIL: Function does not check for GH_TOKEN"
+    exit 1
+fi
+
+# Verify the function includes fallback logic
+if grep -q "Retrying without authentication" "$PROJECT_ROOT/install-gh-aw.sh"; then
+    echo "  ✓ PASS: Function includes retry fallback with warning"
+else
+    echo "  ✗ FAIL: Function does not include retry fallback"
+    exit 1
+fi
+
+# Verify the warning mentions incompatible token
+if grep -q "incompatible" "$PROJECT_ROOT/install-gh-aw.sh"; then
+    echo "  ✓ PASS: Warning message mentions incompatible token"
+else
+    echo "  ✗ FAIL: Warning message does not mention incompatible token"
+    exit 1
+fi
+
+# Verify the function uses Authorization header with Bearer
+if grep -q 'Authorization: Bearer' "$PROJECT_ROOT/install-gh-aw.sh"; then
+    echo "  ✓ PASS: Function uses proper Authorization header with Bearer"
+else
+    echo "  ✗ FAIL: Function does not use Authorization header with Bearer"
+    exit 1
+fi
+
+# Test 9: Verify retry logic for downloads
+echo ""
+echo "Test 9: Verify download retry logic"
+
+# Check for MAX_RETRIES variable
+if grep -q "MAX_RETRIES=" "$PROJECT_ROOT/install-gh-aw.sh"; then
+    echo "  ✓ PASS: MAX_RETRIES variable exists"
+else
+    echo "  ✗ FAIL: MAX_RETRIES variable not found"
+    exit 1
+fi
+
+# Check for retry loop
+if grep -q "for attempt in" "$PROJECT_ROOT/install-gh-aw.sh"; then
+    echo "  ✓ PASS: Retry loop exists"
+else
+    echo "  ✗ FAIL: Retry loop not found"
+    exit 1
+fi
+
+# Check for exponential backoff
+if grep -q "RETRY_DELAY=\$((RETRY_DELAY \* 2))" "$PROJECT_ROOT/install-gh-aw.sh"; then
+    echo "  ✓ PASS: Exponential backoff implemented"
+else
+    echo "  ✗ FAIL: Exponential backoff not found"
+    exit 1
+fi
+
 echo ""
 echo "=== All tests passed ==="
