@@ -39,6 +39,7 @@ global.core = mockCore;
 global.context = mockContext;
 
 const {
+  createEntityCallbacks,
   checkLabelFilter,
   checkTitlePrefixFilter,
   parseEntityConfig,
@@ -296,6 +297,188 @@ describe("close_entity_helpers", () => {
 
     it("should have correct URL path", () => {
       expect(PULL_REQUEST_CONFIG.urlPath).toBe("pull");
+    });
+  });
+
+  describe("createEntityCallbacks", () => {
+    let mockGithub;
+
+    beforeEach(() => {
+      mockGithub = {
+        rest: {
+          issues: {
+            get: vi.fn(),
+            createComment: vi.fn(),
+            update: vi.fn(),
+          },
+          pulls: {
+            get: vi.fn(),
+            update: vi.fn(),
+          },
+        },
+      };
+    });
+
+    describe("for issues", () => {
+      it("should create getDetails callback that fetches issue", async () => {
+        const callbacks = createEntityCallbacks(ISSUE_CONFIG);
+
+        mockGithub.rest.issues.get.mockResolvedValue({
+          data: {
+            number: 42,
+            title: "Test Issue",
+            labels: [{ name: "bug" }],
+            html_url: "https://github.com/testowner/testrepo/issues/42",
+            state: "open",
+          },
+        });
+
+        const result = await callbacks.getDetails(mockGithub, "testowner", "testrepo", 42);
+
+        expect(mockGithub.rest.issues.get).toHaveBeenCalledWith({
+          owner: "testowner",
+          repo: "testrepo",
+          issue_number: 42,
+        });
+        expect(result.number).toBe(42);
+        expect(result.title).toBe("Test Issue");
+      });
+
+      it("should create addComment callback that adds issue comment", async () => {
+        const callbacks = createEntityCallbacks(ISSUE_CONFIG);
+
+        mockGithub.rest.issues.createComment.mockResolvedValue({
+          data: {
+            id: 123,
+            html_url: "https://github.com/testowner/testrepo/issues/42#issuecomment-123",
+          },
+        });
+
+        const result = await callbacks.addComment(mockGithub, "testowner", "testrepo", 42, "Test comment");
+
+        expect(mockGithub.rest.issues.createComment).toHaveBeenCalledWith({
+          owner: "testowner",
+          repo: "testrepo",
+          issue_number: 42,
+          body: "Test comment",
+        });
+        expect(result.id).toBe(123);
+      });
+
+      it("should create closeEntity callback that closes issue", async () => {
+        const callbacks = createEntityCallbacks(ISSUE_CONFIG);
+
+        mockGithub.rest.issues.update.mockResolvedValue({
+          data: {
+            number: 42,
+            html_url: "https://github.com/testowner/testrepo/issues/42",
+            title: "Test Issue",
+          },
+        });
+
+        const result = await callbacks.closeEntity(mockGithub, "testowner", "testrepo", 42);
+
+        expect(mockGithub.rest.issues.update).toHaveBeenCalledWith({
+          owner: "testowner",
+          repo: "testrepo",
+          issue_number: 42,
+          state: "closed",
+        });
+        expect(result.number).toBe(42);
+      });
+
+      it("should throw error when issue not found", async () => {
+        const callbacks = createEntityCallbacks(ISSUE_CONFIG);
+
+        mockGithub.rest.issues.get.mockResolvedValue({
+          data: null,
+        });
+
+        await expect(callbacks.getDetails(mockGithub, "testowner", "testrepo", 42)).rejects.toThrow(
+          "Issue #42 not found in testowner/testrepo"
+        );
+      });
+    });
+
+    describe("for pull requests", () => {
+      it("should create getDetails callback that fetches PR", async () => {
+        const callbacks = createEntityCallbacks(PULL_REQUEST_CONFIG);
+
+        mockGithub.rest.pulls.get.mockResolvedValue({
+          data: {
+            number: 100,
+            title: "Test PR",
+            labels: [{ name: "enhancement" }],
+            html_url: "https://github.com/testowner/testrepo/pull/100",
+            state: "open",
+          },
+        });
+
+        const result = await callbacks.getDetails(mockGithub, "testowner", "testrepo", 100);
+
+        expect(mockGithub.rest.pulls.get).toHaveBeenCalledWith({
+          owner: "testowner",
+          repo: "testrepo",
+          pull_number: 100,
+        });
+        expect(result.number).toBe(100);
+        expect(result.title).toBe("Test PR");
+      });
+
+      it("should create addComment callback that adds PR comment", async () => {
+        const callbacks = createEntityCallbacks(PULL_REQUEST_CONFIG);
+
+        mockGithub.rest.issues.createComment.mockResolvedValue({
+          data: {
+            id: 456,
+            html_url: "https://github.com/testowner/testrepo/issues/100#issuecomment-456",
+          },
+        });
+
+        const result = await callbacks.addComment(mockGithub, "testowner", "testrepo", 100, "Test PR comment");
+
+        expect(mockGithub.rest.issues.createComment).toHaveBeenCalledWith({
+          owner: "testowner",
+          repo: "testrepo",
+          issue_number: 100,
+          body: "Test PR comment",
+        });
+        expect(result.id).toBe(456);
+      });
+
+      it("should create closeEntity callback that closes PR", async () => {
+        const callbacks = createEntityCallbacks(PULL_REQUEST_CONFIG);
+
+        mockGithub.rest.pulls.update.mockResolvedValue({
+          data: {
+            number: 100,
+            html_url: "https://github.com/testowner/testrepo/pull/100",
+            title: "Test PR",
+          },
+        });
+
+        const result = await callbacks.closeEntity(mockGithub, "testowner", "testrepo", 100);
+
+        expect(mockGithub.rest.pulls.update).toHaveBeenCalledWith({
+          owner: "testowner",
+          repo: "testrepo",
+          pull_number: 100,
+          state: "closed",
+        });
+        expect(result.number).toBe(100);
+      });
+
+      it("should throw error when PR not found", async () => {
+        const callbacks = createEntityCallbacks(PULL_REQUEST_CONFIG);
+
+        mockGithub.rest.pulls.get.mockResolvedValue({
+          data: null,
+        });
+
+        await expect(callbacks.getDetails(mockGithub, "testowner", "testrepo", 100)).rejects.toThrow(
+          "Pull Request #100 not found in testowner/testrepo"
+        );
+      });
     });
   });
 });

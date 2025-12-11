@@ -34,6 +34,77 @@ const { getRepositoryUrl } = require("./get_repository_url.cjs");
  */
 
 /**
+ * Create REST API wrappers for a specific entity type
+ * @param {EntityConfig} config - Entity configuration
+ * @returns {EntityCallbacks} Entity-specific REST API callbacks
+ */
+function createEntityCallbacks(config) {
+  /**
+   * Get entity details using REST API
+   * @param {any} github - GitHub REST API instance
+   * @param {string} owner - Repository owner
+   * @param {string} repo - Repository name
+   * @param {number} entityNumber - Entity number
+   * @returns {Promise<{number: number, title: string, labels: Array<{name: string}>, html_url: string, state: string}>} Entity details
+   */
+  async function getDetails(github, owner, repo, entityNumber) {
+    const params = config.entityType === "issue" ? { owner, repo, issue_number: entityNumber } : { owner, repo, pull_number: entityNumber };
+
+    const endpoint = config.entityType === "issue" ? github.rest.issues.get : github.rest.pulls.get;
+    const { data: entity } = await endpoint(params);
+
+    if (!entity) {
+      throw new Error(`${config.displayNameCapitalized} #${entityNumber} not found in ${owner}/${repo}`);
+    }
+
+    return entity;
+  }
+
+  /**
+   * Add comment to a GitHub entity using REST API
+   * @param {any} github - GitHub REST API instance
+   * @param {string} owner - Repository owner
+   * @param {string} repo - Repository name
+   * @param {number} entityNumber - Entity number
+   * @param {string} message - Comment body
+   * @returns {Promise<{id: number, html_url: string}>} Comment details
+   */
+  async function addComment(github, owner, repo, entityNumber, message) {
+    // Both issues and PRs use the same comment API
+    const { data: comment } = await github.rest.issues.createComment({
+      owner,
+      repo,
+      issue_number: entityNumber,
+      body: message,
+    });
+
+    return comment;
+  }
+
+  /**
+   * Close a GitHub entity using REST API
+   * @param {any} github - GitHub REST API instance
+   * @param {string} owner - Repository owner
+   * @param {string} repo - Repository name
+   * @param {number} entityNumber - Entity number
+   * @returns {Promise<{number: number, html_url: string, title: string}>} Entity details
+   */
+  async function closeEntity(github, owner, repo, entityNumber) {
+    const params =
+      config.entityType === "issue"
+        ? { owner, repo, issue_number: entityNumber, state: "closed" }
+        : { owner, repo, pull_number: entityNumber, state: "closed" };
+
+    const endpoint = config.entityType === "issue" ? github.rest.issues.update : github.rest.pulls.update;
+    const { data: entity } = await endpoint(params);
+
+    return entity;
+  }
+
+  return { getDetails, addComment, closeEntity };
+}
+
+/**
  * Build the run URL for the current workflow
  * @returns {string} The workflow run URL
  */
@@ -392,6 +463,7 @@ const PULL_REQUEST_CONFIG = {
 };
 
 module.exports = {
+  createEntityCallbacks,
   processCloseEntityItems,
   generateCloseEntityStagedPreview,
   checkLabelFilter,
