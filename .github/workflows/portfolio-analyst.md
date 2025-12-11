@@ -12,7 +12,6 @@ permissions:
 tracker-id: portfolio-analyst-weekly
 engine: copilot
 tools:
-  agentic-workflows:
   github:
     toolsets: [default]
   bash: ["*"]
