@@ -10,11 +10,11 @@ type CreateProjectConfig struct {
 func (c *Compiler) parseCreateProjectConfig(outputMap map[string]any) *CreateProjectConfig {
 	if configData, exists := outputMap["create-project"]; exists {
 		createProjectConfig := &CreateProjectConfig{}
-		createProjectConfig.Max = 10 // Default max is 10
+		createProjectConfig.Max = 1 // Default max is 1
 
 		if configMap, ok := configData.(map[string]any); ok {
 			// Parse base config (max, github-token)
-			c.parseBaseSafeOutputConfig(configMap, &createProjectConfig.BaseSafeOutputConfig, 10)
+			c.parseBaseSafeOutputConfig(configMap, &createProjectConfig.BaseSafeOutputConfig, 1)
 
 			// Parse github-token override if specified
 			if token, exists := configMap["github-token"]; exists {

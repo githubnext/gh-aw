@@ -339,7 +339,7 @@ Creates new GitHub Projects v2 boards. Generated job runs with `projects: write`
 ```yaml wrap
 safe-outputs:
   create-project:
-    max: 5                          # max project creations (default: 10)
+    max: 5                          # max project creations (default: 1)
     github-token: ${{ secrets.PROJECTS_PAT }} # token override with projects:write
 ```
 

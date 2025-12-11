@@ -1161,7 +1161,7 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 		if data.SafeOutputs.CreateProjects != nil {
 			createProjectConfig := map[string]any{}
 			// Always include max (use configured value or default)
-			maxValue := 10 // default
+			maxValue := 1 // default
 			if data.SafeOutputs.CreateProjects.Max > 0 {
 				maxValue = data.SafeOutputs.CreateProjects.Max
 			}

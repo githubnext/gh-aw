@@ -1,4 +1,5 @@
 const { loadAgentOutput } = require("./load_agent_output.cjs");
+const { generateCampaignId, normalizeProjectName } = require("./project_helpers.cjs");
 
 /**
  * @typedef {Object} CreateProjectOutput
@@ -6,25 +7,6 @@ const { loadAgentOutput } = require("./load_agent_output.cjs");
  * @property {string} project - Project title to create
  * @property {string} [campaign_id] - Campaign tracking ID (auto-generated if not provided)
  */
-
-/**
- * Generate a campaign ID from project name
- * @param {string} projectName - The project/campaign name
- * @returns {string} Campaign ID in format: slug-timestamp (e.g., "perf-q1-2025-a3f2b4c8")
- */
-function generateCampaignId(projectName) {
-  // Create slug from project name
-  const slug = projectName
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .substring(0, 30);
-
-  // Add short timestamp hash for uniqueness
-  const timestamp = Date.now().toString(36).substring(0, 8);
-
-  return `${slug}-${timestamp}`;
-}
 
 /**
  * Create a new GitHub Project v2
@@ -35,26 +17,13 @@ async function createProject(output) {
   // In actions/github-script, 'github' and 'context' are already available
   const { owner, repo } = context.repo;
 
-  if (!output.project || typeof output.project !== "string") {
-    throw new Error(
-      `Invalid project name: expected string, got ${typeof output.project}. The "project" field is required and must be a project title.`
-    );
-  }
+  // Normalize and validate project name
+  const normalizedProjectName = normalizeProjectName(output.project);
 
-  const campaignId = output.campaign_id || generateCampaignId(output.project);
+  const campaignId = output.campaign_id || generateCampaignId(normalizedProjectName);
 
-  let githubClient = github;
-  if (process.env.PROJECT_GITHUB_TOKEN) {
-    const { Octokit } = require("@octokit/rest");
-    const octokit = new Octokit({
-      auth: process.env.PROJECT_GITHUB_TOKEN,
-      baseUrl: process.env.GITHUB_API_URL || "https://api.github.com",
-    });
-    githubClient = {
-      graphql: octokit.graphql.bind(octokit),
-      rest: octokit.rest,
-    };
-  }
+  // Use the github client that's already configured with the token via github-token parameter
+  const githubClient = github;
 
   try {
     // Step 1: Get repository and owner IDs
@@ -96,7 +65,7 @@ async function createProject(output) {
     const ownerProjectsResult = await githubClient.graphql(ownerQuery, { login: owner });
     const ownerProjects = ownerProjectsResult.organization.projectsV2.nodes;
 
-    const existingProject = ownerProjects.find(p => p.title === output.project);
+    const existingProject = ownerProjects.find(p => p.title === normalizedProjectName);
     if (existingProject) {
       core.info(`✓ Project already exists: ${existingProject.title} (#${existingProject.number})`);
       core.setOutput("project-id", existingProject.id);
@@ -143,7 +112,7 @@ async function createProject(output) {
       }`,
       {
         ownerId: ownerId,
-        title: output.project,
+        title: normalizedProjectName,
       }
     );
 
@@ -172,14 +141,12 @@ async function createProject(output) {
   } catch (error) {
     // Provide helpful error messages for common permission issues
     if (error.message && error.message.includes("does not have permission to create projects")) {
-      const usingCustomToken = !!process.env.PROJECT_GITHUB_TOKEN;
       core.error(
         `Failed to create project: ${error.message}\n\n` +
           `Troubleshooting:\n` +
           `  • Create the project manually at https://github.com/orgs/${owner}/projects/new.\n` +
-          `  • Or supply a PAT with project scope via PROJECT_GITHUB_TOKEN.\n` +
-          `  • Ensure the workflow grants projects: write.\n\n` +
-          `${usingCustomToken ? "PROJECT_GITHUB_TOKEN is set but lacks access." : "Using default GITHUB_TOKEN without project create rights."}`
+          `  • Or supply a PAT with project scope via github-token configuration.\n` +
+          `  • Ensure the workflow grants projects: write.\n`
       );
     } else {
       core.error(`Failed to create project: ${error.message}`);
@@ -213,7 +180,7 @@ async function main() {
 
 // Export for testing
 if (typeof module !== "undefined" && module.exports) {
-  module.exports = { createProject, generateCampaignId, main };
+  module.exports = { createProject, main };
 }
 
 // Run automatically in GitHub Actions (module undefined) or when executed directly via Node

@@ -3161,7 +3161,7 @@
               "properties": {
                 "max": {
                   "type": "integer",
-                  "description": "Maximum number of project creation operations to perform (default: 10).",
+                  "description": "Maximum number of project creation operations to perform (default: 1).",
                   "minimum": 1,
                   "maximum": 100
                 },
@@ -3183,7 +3183,7 @@
             },
             {
               "type": "null",
-              "description": "Enable project creation with default configuration (max=10)"
+              "description": "Enable project creation with default configuration (max=1)"
             }
           ]
         },

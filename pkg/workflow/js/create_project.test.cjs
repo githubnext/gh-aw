@@ -45,7 +45,11 @@ beforeAll(async () => {
   const mod = await import("./create_project.cjs");
   const exports = mod.default || mod;
   createProject = exports.createProject;
-  generateCampaignId = exports.generateCampaignId;
+
+  // Import generateCampaignId from helper
+  const helperMod = await import("./project_helpers.cjs");
+  const helperExports = helperMod.default || helperMod;
+  generateCampaignId = helperExports.generateCampaignId;
 });
 
 function clearMock(fn) {
