@@ -415,11 +415,16 @@ If you identify improvements worth implementing:
    EOF
    ```
 
-5. **Use create pull request** safe output with:
-   - Clear title indicating optimization focus
-   - Comprehensive description with impact analysis
-   - Reference to this workflow run for traceability
-   - Note that all validations (lint, build, test) have passed
+5. **Create the pull request** using the `create_pull_request` tool with:
+   - **Title**: Clear description of the optimization focus (e.g., "Optimize CI test parallelization")
+   - **Body**: Comprehensive description including:
+     - Summary of optimizations proposed
+     - Expected impact (time/cost savings)
+     - Risk assessment
+     - List of changes made to `.github/workflows/ci.yml`
+     - Validation results (make lint, make build, make test-unit)
+     - Reference to this workflow run (#${{ github.run_number }})
+   - The title will automatically be prefixed with "[ci-coach] " as configured in safe-outputs
 
 ### Phase 8: No Changes Path
 
