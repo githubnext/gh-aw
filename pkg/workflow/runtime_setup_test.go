@@ -229,7 +229,7 @@ func TestDetectFromMCPConfigs(t *testing.T) {
 		{
 			name: "detects npx from MCP command",
 			tools: map[string]any{
-				"playwright": map[string]any{
+				"custom-playwright": map[string]any{
 					"command": "npx",
 					"args":    []string{"@playwright/mcp"},
 				},
@@ -251,7 +251,8 @@ func TestDetectFromMCPConfigs(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			requirements := make(map[string]*RuntimeRequirement)
-			detectFromMCPConfigs(tt.tools, requirements)
+			parsedTools := NewTools(tt.tools)
+			detectFromMCPConfigs(parsedTools, requirements)
 
 			if len(requirements) != len(tt.expected) {
 				t.Errorf("Expected %d requirements, got %d: %v", len(tt.expected), len(requirements), getRequirementIDs(requirements))
@@ -510,13 +511,15 @@ func stepsToString(steps []GitHubActionStep) string {
 
 func TestUVDetectionAddsPython(t *testing.T) {
 	// Test that when uv is detected, python is also added
-	workflowData := &WorkflowData{
-		Tools: map[string]any{
-			"serena": map[string]any{
-				"command": "uvx",
-				"args":    []any{"--from", "git+https://github.com/oraios/serena", "serena", "start-mcp-server"},
-			},
+	tools := map[string]any{
+		"serena": map[string]any{
+			"command": "uvx",
+			"args":    []any{"--from", "git+https://github.com/oraios/serena", "serena", "start-mcp-server"},
 		},
+	}
+	workflowData := &WorkflowData{
+		Tools:       tools,
+		ParsedTools: NewTools(tools),
 	}
 
 	requirements := DetectRuntimeRequirements(workflowData)
@@ -545,6 +548,11 @@ func TestUVDetectionAddsPython(t *testing.T) {
 func TestRuntimeFilteringWithExistingSetupActions(t *testing.T) {
 	// Test that runtimes are detected even when setup actions already exist
 	// The deduplication happens later in the compiler, not during detection
+	tools := map[string]any{
+		"serena": map[string]any{
+			"command": "uvx",
+		},
+	}
 	workflowData := &WorkflowData{
 		CustomSteps: `steps:
   - uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5
@@ -552,11 +560,8 @@ func TestRuntimeFilteringWithExistingSetupActions(t *testing.T) {
       go-version-file: go.mod
   - run: go build
   - run: uv pip install package`,
-		Tools: map[string]any{
-			"serena": map[string]any{
-				"command": "uvx",
-			},
-		},
+		Tools:       tools,
+		ParsedTools: NewTools(tools),
 	}
 
 	requirements := DetectRuntimeRequirements(workflowData)
