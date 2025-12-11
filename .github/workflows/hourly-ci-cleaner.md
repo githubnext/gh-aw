@@ -78,6 +78,8 @@ The CI workflow has failed on the main branch. Follow the instructions from the 
 3. **Run tests** - Run `make test-unit` and fix failures
 4. **Recompile workflows** - Run `make recompile` to update lock files
 
+**IMPORTANT**: When creating your pull request, **DO NOT commit any `.lock.yml` files**. Only commit source code changes (`.go`, `.js`, `.cjs`, `.md` files, etc.). Lock files are compiled workflow files that should not be included in the PR.
+
 ## Execution Guidelines
 
 - Work through each step systematically
@@ -89,6 +91,13 @@ The CI workflow has failed on the main branch. Follow the instructions from the 
 ## Pull Request Guidelines
 
 After all fixes are completed and validated, **use the create-pull-request safe-output** to create a PR with your changes.
+
+**CRITICAL - DO NOT COMMIT LOCK FILES:**
+- Before creating your pull request, **DO NOT** include any `.lock.yml` files in your commits
+- These are compiled workflow files that should not be committed
+- Only commit source code fixes (`.go`, `.js`, `.cjs`, `.md` files, etc.)
+- Use `git status` to verify no lock files are staged
+- If lock files are staged, unstage them: `git restore --staged .github/workflows/*.lock.yml`
 
 Your pull request should:
 - Have a clear title describing what was fixed (e.g., "Fix formatting and linting issues", "Fix test failures in pkg/cli")
