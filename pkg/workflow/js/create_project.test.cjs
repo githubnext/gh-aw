@@ -219,10 +219,7 @@ describe("createProject", () => {
   it("warns when linking project fails (non-fatal)", async () => {
     const output = { type: "create_project", project: "Existing Campaign" };
 
-    queueResponses([
-      repoResponse(),
-      ownerProjectsResponse([{ id: "existing-project-123", title: "Existing Campaign", number: 5 }]),
-    ]);
+    queueResponses([repoResponse(), ownerProjectsResponse([{ id: "existing-project-123", title: "Existing Campaign", number: 5 }])]);
 
     mockGithub.graphql.mockRejectedValueOnce(new Error("Link failed"));
 

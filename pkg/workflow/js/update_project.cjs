@@ -150,9 +150,10 @@ async function updateProject(output) {
 
     if (!existingProject) {
       const projectDisplay = parsedProjectNumber ? `project #${parsedProjectNumber}` : `project "${parsedProjectName}"`;
-      const createHint = ownerType === "User" 
-        ? `Create it manually at https://github.com/users/${owner}/projects/new or use create-project safe-output.` 
-        : `Use create-project safe-output to create it first.`;
+      const createHint =
+        ownerType === "User"
+          ? `Create it manually at https://github.com/users/${owner}/projects/new or use create-project safe-output.`
+          : `Use create-project safe-output to create it first.`;
       core.error(`Cannot find ${projectDisplay}. ${createHint}`);
       throw new Error(`Project not found: ${projectDisplay}`);
     }

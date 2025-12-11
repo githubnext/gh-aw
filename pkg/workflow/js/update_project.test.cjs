@@ -177,10 +177,7 @@ describe("updateProject", () => {
   it("requires project to exist", async () => {
     const output = { type: "update_project", project: "NonExistent Campaign" };
 
-    queueResponses([
-      repoResponse(),
-      ownerProjectsResponse([]),
-    ]);
+    queueResponses([repoResponse(), ownerProjectsResponse([])]);
 
     await expect(updateProject(output)).rejects.toThrow(/Project not found/);
     expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("Cannot find"));
