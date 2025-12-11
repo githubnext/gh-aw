@@ -11,8 +11,8 @@ package campaign
 // workflows and repo-memory conventions.
 type CampaignSpec struct {
 	ID          string `yaml:"id" json:"id" console:"header:ID"`
-	Name        string `yaml:"name" json:"name" console:"header:Name"`
-	Description string `yaml:"description,omitempty" json:"description,omitempty" console:"header:Description,omitempty"`
+	Name        string `yaml:"name" json:"name" console:"header:Name,maxlen:30"`
+	Description string `yaml:"description,omitempty" json:"description,omitempty" console:"header:Description,omitempty,maxlen:60"`
 
 	// Version is an optional spec version string (for example: v1).
 	// When omitted, it defaults to v1 during validation.
@@ -20,25 +20,25 @@ type CampaignSpec struct {
 
 	// Workflows associates this campaign with one or more workflow IDs
 	// (basename of the Markdown file without .md).
-	Workflows []string `yaml:"workflows,omitempty" json:"workflows,omitempty" console:"header:Workflows,omitempty"`
+	Workflows []string `yaml:"workflows,omitempty" json:"workflows,omitempty" console:"header:Workflows,omitempty,maxlen:40"`
 
 	// MemoryPaths documents where this campaign writes its repo-memory
 	// (for example: memory/campaigns/incident-*/**).
-	MemoryPaths []string `yaml:"memory-paths,omitempty" json:"memory_paths,omitempty" console:"header:Memory Paths,omitempty"`
+	MemoryPaths []string `yaml:"memory-paths,omitempty" json:"memory_paths,omitempty" console:"header:Memory Paths,omitempty,maxlen:40"`
 
 	// MetricsGlob is an optional glob (relative to the repository root)
 	// used to locate JSON metrics snapshots stored in the
 	// memory/campaigns branch. When set, `gh aw campaign status` will
 	// attempt to read the latest matching metrics file and surface a few
 	// key fields.
-	MetricsGlob string `yaml:"metrics-glob,omitempty" json:"metrics_glob,omitempty" console:"header:Metrics Glob,omitempty"`
+	MetricsGlob string `yaml:"metrics-glob,omitempty" json:"metrics_glob,omitempty" console:"header:Metrics Glob,omitempty,maxlen:30"`
 
 	// Owners lists the primary human owners for this campaign.
-	Owners []string `yaml:"owners,omitempty" json:"owners,omitempty" console:"header:Owners,omitempty"`
+	Owners []string `yaml:"owners,omitempty" json:"owners,omitempty" console:"header:Owners,omitempty,maxlen:30"`
 
 	// ExecutiveSponsors lists executive stakeholders or sponsors who are
 	// accountable for the outcome of this campaign.
-	ExecutiveSponsors []string `yaml:"executive-sponsors,omitempty" json:"executive_sponsors,omitempty" console:"header:Executive Sponsors,omitempty"`
+	ExecutiveSponsors []string `yaml:"executive-sponsors,omitempty" json:"executive_sponsors,omitempty" console:"header:Executive Sponsors,omitempty,maxlen:30"`
 
 	// RiskLevel is an optional free-form field (e.g. low/medium/high).
 	RiskLevel string `yaml:"risk-level,omitempty" json:"risk_level,omitempty" console:"header:Risk Level,omitempty"`
@@ -53,13 +53,13 @@ type CampaignSpec struct {
 
 	// Tags provide free-form categorization for reporting (for example:
 	// security, modernization, rollout).
-	Tags []string `yaml:"tags,omitempty" json:"tags,omitempty" console:"header:Tags,omitempty"`
+	Tags []string `yaml:"tags,omitempty" json:"tags,omitempty" console:"header:Tags,omitempty,maxlen:30"`
 
 	// AllowedSafeOutputs documents which safe-outputs operations this
 	// campaign is expected to use (for example: create-issue,
 	// create-pull-request). This is currently informational but can be
 	// enforced by validation in the future.
-	AllowedSafeOutputs []string `yaml:"allowed-safe-outputs,omitempty" json:"allowed_safe_outputs,omitempty" console:"header:Allowed Safe Outputs,omitempty"`
+	AllowedSafeOutputs []string `yaml:"allowed-safe-outputs,omitempty" json:"allowed_safe_outputs,omitempty" console:"header:Allowed Safe Outputs,omitempty,maxlen:30"`
 
 	// ApprovalPolicy describes high-level approval expectations for this
 	// campaign (for example: number of approvals and required roles).
@@ -67,7 +67,7 @@ type CampaignSpec struct {
 
 	// ConfigPath is populated at load time with the relative path of
 	// the YAML file on disk, to help users locate definitions.
-	ConfigPath string `yaml:"-" json:"config_path" console:"header:Config Path"`
+	ConfigPath string `yaml:"-" json:"config_path" console:"header:Config Path,maxlen:60"`
 }
 
 // CampaignApprovalPolicy captures basic approval expectations for a
