@@ -4,7 +4,10 @@ import (
 	"fmt"
 
 	"github.com/githubnext/gh-aw/pkg/console"
+	"github.com/githubnext/gh-aw/pkg/logger"
 )
+
+var engineFirewallSupportLog = logger.New("workflow:engine_firewall_support")
 
 // hasNetworkRestrictions checks if the workflow has network restrictions defined
 // Network restrictions exist if:
@@ -32,6 +35,8 @@ func hasNetworkRestrictions(networkPermissions *NetworkPermissions) bool {
 // checkNetworkSupport validates that the selected engine supports network restrictions
 // when network restrictions are defined in the workflow
 func (c *Compiler) checkNetworkSupport(engine CodingAgentEngine, networkPermissions *NetworkPermissions) error {
+	engineFirewallSupportLog.Printf("Checking network support: engine=%s, strict_mode=%t", engine.GetID(), c.strictMode)
+
 	// First, check for explicit firewall disable
 	if err := c.checkFirewallDisable(engine, networkPermissions); err != nil {
 		return err
@@ -39,16 +44,19 @@ func (c *Compiler) checkNetworkSupport(engine CodingAgentEngine, networkPermissi
 
 	// Check if network restrictions exist
 	if !hasNetworkRestrictions(networkPermissions) {
+		engineFirewallSupportLog.Print("No network restrictions defined, skipping validation")
 		// No restrictions, no validation needed
 		return nil
 	}
 
 	// Check if engine supports firewall
 	if engine.SupportsFirewall() {
+		engineFirewallSupportLog.Printf("Engine supports firewall: %s", engine.GetID())
 		// Engine supports firewall, no issue
 		return nil
 	}
 
+	engineFirewallSupportLog.Printf("Warning: engine does not support firewall but network restrictions exist: %s", engine.GetID())
 	// Engine does not support firewall, but network restrictions are present
 	message := fmt.Sprintf(
 		"Selected engine '%s' does not support network firewalling; workflow specifies network restrictions (network.allowed). Network may not be sandboxed.",
