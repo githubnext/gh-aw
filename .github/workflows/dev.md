@@ -32,8 +32,8 @@ steps:
 
 Create a new GitHub Projects v2 board and then add items to it.
 
-1. Use the `create-project` safe output to create a project board named "Dev Project Test" linked to this repository.
+1. Use the `create-project` safe output **with a `project` field** to create a project board named exactly `Dev Project Test` linked to this repository. For example, your safe-output item must include `project: "Dev Project Test"`.
 2. Confirm the project exists (idempotent: re-using the same name should return the existing board).
-3. Use the `update-project` safe output to add at least one issue from this repository to the "Dev Project Test" project.
-4. Set simple fields on the project item such as Status (e.g., "Todo") and Priority (e.g., "Medium").
+3. Use the `update-project` safe output **with a `project` field** set to `Dev Project Test` to add at least one issue from this repository to the project.
+4. When calling `update-project`, also include `content_number` for the issue number you are adding, and set simple fields on the project item such as Status (e.g., "Todo") and Priority (e.g., "Medium").
 5. If any step fails, explain what happened and how to fix it in a short summary.
