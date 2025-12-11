@@ -63,6 +63,7 @@ describe("hide_comment", () => {
     delete process.env.GH_AW_SAFE_OUTPUTS_STAGED;
     delete process.env.GH_AW_AGENT_OUTPUT;
     delete process.env.GITHUB_SERVER_URL;
+    delete process.env.GH_AW_HIDE_COMMENT_ALLOWED_REASONS;
 
     // Reset context to default state
     global.context.eventName = "issue_comment";
@@ -273,5 +274,97 @@ describe("hide_comment", () => {
 
     expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("Failed to hide comment"));
     expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("Failed to hide comment"));
+  });
+
+  it("should respect allowed-reasons when hiding comments", async () => {
+    setAgentOutput({
+      items: [
+        {
+          type: "hide_comment",
+          comment_id: "IC_kwDOABCD123456",
+          reason: "SPAM",
+        },
+      ],
+    });
+    process.env.GH_AW_HIDE_COMMENT_ALLOWED_REASONS = JSON.stringify(["SPAM", "ABUSE"]);
+
+    // Mock successful GraphQL response
+    mockGithub.graphql.mockResolvedValueOnce({
+      minimizeComment: {
+        minimizedComment: {
+          isMinimized: true,
+        },
+      },
+    });
+
+    // Execute the script
+    await eval(`(async () => { ${hideCommentScript} })()`);
+
+    // Verify that graphql was called with SPAM reason
+    expect(mockGithub.graphql).toHaveBeenCalledWith(
+      expect.stringContaining("minimizeComment"),
+      expect.objectContaining({
+        nodeId: "IC_kwDOABCD123456",
+        classifier: "SPAM",
+      })
+    );
+    expect(mockCore.info).toHaveBeenCalledWith("Allowed reasons for hiding: [SPAM, ABUSE]");
+    expect(mockCore.info).toHaveBeenCalledWith("Successfully hidden comment: IC_kwDOABCD123456");
+  });
+
+  it("should skip hiding when reason is not in allowed-reasons", async () => {
+    setAgentOutput({
+      items: [
+        {
+          type: "hide_comment",
+          comment_id: "IC_kwDOABCD123456",
+          reason: "OUTDATED",
+        },
+      ],
+    });
+    // Only allow SPAM
+    process.env.GH_AW_HIDE_COMMENT_ALLOWED_REASONS = JSON.stringify(["SPAM"]);
+
+    // Execute the script
+    await eval(`(async () => { ${hideCommentScript} })()`);
+
+    // Verify that hiding was skipped
+    expect(mockGithub.graphql).not.toHaveBeenCalled();
+    expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining('Reason "OUTDATED" is not in allowed-reasons list'));
+  });
+
+  it("should allow all reasons when allowed-reasons is not specified", async () => {
+    setAgentOutput({
+      items: [
+        {
+          type: "hide_comment",
+          comment_id: "IC_kwDOABCD123456",
+          reason: "RESOLVED",
+        },
+      ],
+    });
+    // Don't set GH_AW_HIDE_COMMENT_ALLOWED_REASONS
+
+    // Mock successful GraphQL response
+    mockGithub.graphql.mockResolvedValueOnce({
+      minimizeComment: {
+        minimizedComment: {
+          isMinimized: true,
+        },
+      },
+    });
+
+    // Execute the script
+    await eval(`(async () => { ${hideCommentScript} })()`);
+
+    // Verify that graphql was called with RESOLVED reason
+    expect(mockGithub.graphql).toHaveBeenCalledWith(
+      expect.stringContaining("minimizeComment"),
+      expect.objectContaining({
+        nodeId: "IC_kwDOABCD123456",
+        classifier: "RESOLVED",
+      })
+    );
+    expect(mockCore.info).toHaveBeenCalledWith("Successfully hidden comment: IC_kwDOABCD123456");
   });
 });

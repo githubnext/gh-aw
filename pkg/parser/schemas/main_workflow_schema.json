@@ -4071,6 +4071,14 @@
                 "github-token": {
                   "$ref": "#/$defs/github_token",
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
+                },
+                "allowed-reasons": {
+                  "type": "array",
+                  "description": "List of allowed reasons for hiding comments. Default: all reasons allowed (SPAM, ABUSE, OFF_TOPIC, OUTDATED, RESOLVED).",
+                  "items": {
+                    "type": "string",
+                    "enum": ["SPAM", "ABUSE", "OFF_TOPIC", "OUTDATED", "RESOLVED"]
+                  }
                 }
               },
               "additionalProperties": false
