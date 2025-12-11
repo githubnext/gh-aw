@@ -911,10 +911,11 @@ More log content
       expect(mockCore.summary.write).toHaveBeenCalled();
       expect(mockCore.setFailed).not.toHaveBeenCalled();
 
-      // Check that markdown was added to summary
+      // Check that Copilot CLI style markdown was added to summary
       const markdownCall = mockCore.summary.addRaw.mock.calls[0];
-      expect(markdownCall[0]).toContain("🚀 Initialization");
-      expect(markdownCall[0]).toContain("integration-test");
+      expect(markdownCall[0]).toContain("```");
+      expect(markdownCall[0]).toContain("Conversation:");
+      expect(markdownCall[0]).toContain("Statistics:");
 
       // Verify that core.info was called with plain text summary (contains parser name and model info)
       expect(mockCore.info).toHaveBeenCalled();

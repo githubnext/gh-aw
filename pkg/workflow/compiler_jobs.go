@@ -1249,13 +1249,9 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 }
 
 // extractJobsFromFrontmatter extracts job configuration from frontmatter
+// This now uses the structured extraction helper for consistency
 func (c *Compiler) extractJobsFromFrontmatter(frontmatter map[string]any) map[string]any {
-	if jobs, exists := frontmatter["jobs"]; exists {
-		if jobsMap, ok := jobs.(map[string]any); ok {
-			return jobsMap
-		}
-	}
-	return make(map[string]any)
+	return ExtractMapField(frontmatter, "jobs")
 }
 
 // buildCustomJobs creates custom jobs defined in the frontmatter jobs section
