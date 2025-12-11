@@ -92,9 +92,7 @@ function processRuntimeImport(filepath, optional, workspaceDir) {
 
   // Check for GitHub Actions macros and error if found
   if (hasGitHubActionsMacros(content)) {
-    throw new Error(
-      `File ${filepath} contains GitHub Actions macros ($\{{ ... }}) which are not allowed in runtime imports`
-    );
+    throw new Error(`File ${filepath} contains GitHub Actions macros ($\{{ ... }}) which are not allowed in runtime imports`);
   }
 
   return content;

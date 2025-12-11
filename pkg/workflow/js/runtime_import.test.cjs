@@ -141,9 +141,7 @@ describe("runtime_import", () => {
     });
 
     it("should throw error for missing required file", () => {
-      expect(() => processRuntimeImport("missing.md", false, tempDir)).toThrow(
-        "Runtime import file not found: missing.md"
-      );
+      expect(() => processRuntimeImport("missing.md", false, tempDir)).toThrow("Runtime import file not found: missing.md");
     });
 
     it("should return empty string for missing optional file", () => {
@@ -161,9 +159,7 @@ describe("runtime_import", () => {
       expect(result).toContain("# Content");
       expect(result).toContain("Actual content.");
       expect(result).not.toContain("title: Test");
-      expect(core.warning).toHaveBeenCalledWith(
-        `File ${filepath} contains front matter which will be ignored in runtime import`
-      );
+      expect(core.warning).toHaveBeenCalledWith(`File ${filepath} contains front matter which will be ignored in runtime import`);
     });
 
     it("should remove XML comments", () => {
@@ -281,9 +277,7 @@ describe("runtime_import", () => {
 
       const content = "{{#runtime-import import.md}}\n{{#runtime-import import.md}}";
       processRuntimeImports(content, tempDir);
-      expect(core.warning).toHaveBeenCalledWith(
-        `File ${filepath} is imported multiple times, which may indicate a circular reference`
-      );
+      expect(core.warning).toHaveBeenCalledWith(`File ${filepath} is imported multiple times, which may indicate a circular reference`);
     });
 
     it("should handle macros with extra whitespace", () => {
@@ -438,16 +432,12 @@ describe("runtime_import", () => {
       fs.writeFileSync(path.join(tempDir, filepath), "${{ github.actor }}");
 
       const content = "{{#runtime-import bad.md}}";
-      expect(() => processRuntimeImports(content, tempDir)).toThrow(
-        "Failed to process runtime import for bad.md"
-      );
+      expect(() => processRuntimeImports(content, tempDir)).toThrow("Failed to process runtime import for bad.md");
     });
 
     it("should provide clear error for missing required files", () => {
       const content = "{{#runtime-import nonexistent.md}}";
-      expect(() => processRuntimeImports(content, tempDir)).toThrow(
-        "Failed to process runtime import for nonexistent.md"
-      );
+      expect(() => processRuntimeImports(content, tempDir)).toThrow("Failed to process runtime import for nonexistent.md");
     });
   });
 });
