@@ -128,6 +128,4 @@ ${assigneesListMarkdown}
   }
 }
 
-(async () => {
-  await main();
-})();
+await main();

@@ -65,6 +65,4 @@ async function main() {
   core.info(`Successfully processed ${noopItems.length} noop message(s)`);
 }
 
-(async () => {
-  await main();
-})();
+await main();

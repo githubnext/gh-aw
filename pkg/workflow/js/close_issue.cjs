@@ -71,6 +71,5 @@ async function main() {
     closeEntity: closeIssue,
   });
 }
-(async () => {
-  await main();
-})();
+
+await main();

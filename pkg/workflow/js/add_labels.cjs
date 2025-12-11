@@ -122,6 +122,4 @@ ${labelsListMarkdown}
     core.setFailed(`Failed to add labels: ${errorMessage}`);
   }
 }
-(async () => {
-  await main();
-})();
+await main();

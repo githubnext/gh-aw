@@ -271,6 +271,4 @@ async function main() {
   core.info(`Successfully created ${createdComments.length} review comment(s)`);
   return createdComments;
 }
-(async () => {
-  await main();
-})();
+await main();

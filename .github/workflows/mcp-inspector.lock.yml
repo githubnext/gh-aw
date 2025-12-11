@@ -3448,9 +3448,7 @@ jobs:
                 core.setFailed(`Secret redaction failed: ${error instanceof Error ? error.message : String(error)}`);
               }
             }
-            (async () => {
-              await main();
-            })();
+            await main();
         env:
           GH_AW_SECRET_NAMES: 'AZURE_CLIENT_ID,AZURE_CLIENT_SECRET,AZURE_TENANT_ID,BRAVE_API_KEY,CONTEXT7_API_KEY,COPILOT_GITHUB_TOKEN,DD_API_KEY,DD_APPLICATION_KEY,DD_SITE,GH_AW_GITHUB_MCP_SERVER_TOKEN,GH_AW_GITHUB_TOKEN,GITHUB_TOKEN,NOTION_API_TOKEN,SENTRY_ACCESS_TOKEN,SENTRY_OPENAI_API_KEY,TAVILY_API_KEY'
           SECRET_AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
@@ -4442,9 +4440,7 @@ jobs:
                 core.setOutput("has_patch", hasPatch ? "true" : "false");
               }
             }
-            (async () => {
-              await main();
-            })();
+            await main();
       - name: Upload sanitized agent output
         if: always() && env.GH_AW_AGENT_OUTPUT
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
@@ -6484,9 +6480,7 @@ jobs:
               }
               core.info(`Successfully processed ${noopItems.length} noop message(s)`);
             }
-            (async () => {
-              await main();
-            })();
+            await main();
       - name: Record Missing Tool
         id: missing_tool
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
@@ -7581,9 +7575,7 @@ jobs:
               }
               core.info(`Successfully created ${createdDiscussions.length} discussion(s)`);
             }
-            (async () => {
-              await main();
-            })();
+            await main();
 
   detection:
     needs: agent

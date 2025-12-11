@@ -251,6 +251,5 @@ async function main() {
     core.info(`Successfully locked ${lockedCount} issue(s)`);
   }
 }
-(async () => {
-  await main();
-})();
+
+await main();

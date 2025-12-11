@@ -435,6 +435,4 @@ async function main() {
   await core.summary.addRaw(summaryContent).write();
 }
 
-(async () => {
-  await main();
-})();
+await main();

@@ -364,6 +364,4 @@ async function main() {
   }
   core.info(`Successfully created ${createdDiscussions.length} discussion(s)`);
 }
-(async () => {
-  await main();
-})();
+await main();

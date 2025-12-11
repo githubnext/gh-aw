@@ -364,6 +364,4 @@ async function main() {
   }
 }
 
-(async () => {
-  await main();
-})();
+await main();

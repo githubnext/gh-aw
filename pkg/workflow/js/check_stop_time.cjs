@@ -37,6 +37,4 @@ async function main() {
 
   core.setOutput("stop_time_ok", "true");
 }
-(async () => {
-  await main();
-})();
+await main();

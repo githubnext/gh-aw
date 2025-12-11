@@ -59,6 +59,4 @@ async function main() {
     return;
   }
 }
-(async () => {
-  await main();
-})();
+await main();

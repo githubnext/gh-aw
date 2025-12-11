@@ -460,6 +460,4 @@ async function addCommentWithWorkflowLink(endpoint, runUrl, eventName) {
   }
 }
 
-(async () => {
-  await main();
-})();
+await main();

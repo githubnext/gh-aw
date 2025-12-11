@@ -200,6 +200,4 @@ async function main() {
   core.setOutput("branch_name", normalizedBranchName);
 }
 
-(async () => {
-  await main();
-})();
+await main();

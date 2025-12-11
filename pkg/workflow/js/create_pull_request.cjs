@@ -681,6 +681,4 @@ You can manually create a pull request from the branch if needed.${patchPreview}
     }
   }
 }
-(async () => {
-  await main();
-})();
+await main();

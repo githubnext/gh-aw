@@ -359,6 +359,4 @@ async function main() {
     core.setOutput("has_patch", hasPatch ? "true" : "false");
   }
 }
-(async () => {
-  await main();
-})();
+await main();
