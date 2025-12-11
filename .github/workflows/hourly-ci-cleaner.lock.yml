@@ -407,17 +407,30 @@
 # - Fix issues as you encounter them
 # - Re-run checks after fixes to verify
 # - Only proceed to next step when current step passes
-# - Create a pull request with all fixes
+# - **Create a pull request with all fixes using the safe-outputs create-pull-request tool**
 #
 # ## Pull Request Guidelines
 #
+# After all fixes are completed and validated, **use the create-pull-request safe-output** to create a PR with your changes.
+#
 # Your pull request should:
-# - Have a clear title describing what was fixed (e.g., "[ca] Fix formatting and linting issues")
+# - Have a clear title describing what was fixed (e.g., "Fix formatting and linting issues", "Fix test failures in pkg/cli")
 # - Include a description of:
 #   - What CI failures were found
 #   - What fixes were applied
 #   - Confirmation that all checks now pass
 # - Be ready for review and merge
+#
+# **To create the pull request:**
+# 1. Commit all your changes to a new branch
+# 2. Use the `safeoutputs-create_pull_request` tool with:
+#    - **Title**: Clear description of what was fixed
+#    - **Body**: Detailed description including:
+#      - Summary of CI failures discovered
+#      - List of fixes applied (formatting, linting, test fixes, recompilation)
+#      - Confirmation that `make fmt`, `make lint`, `make test-unit`, and `make recompile` all pass
+#      - Link to the failed CI run that triggered this fix
+#    - The title will automatically be prefixed with "[ca] " as configured in safe-outputs
 #
 # Begin by checking out the main branch and running the CI cleaner steps.
 # ```
@@ -2646,17 +2659,30 @@ jobs:
           - Fix issues as you encounter them
           - Re-run checks after fixes to verify
           - Only proceed to next step when current step passes
-          - Create a pull request with all fixes
+          - **Create a pull request with all fixes using the safe-outputs create-pull-request tool**
           
           ## Pull Request Guidelines
           
+          After all fixes are completed and validated, **use the create-pull-request safe-output** to create a PR with your changes.
+          
           Your pull request should:
-          - Have a clear title describing what was fixed (e.g., "[ca] Fix formatting and linting issues")
+          - Have a clear title describing what was fixed (e.g., "Fix formatting and linting issues", "Fix test failures in pkg/cli")
           - Include a description of:
             - What CI failures were found
             - What fixes were applied
             - Confirmation that all checks now pass
           - Be ready for review and merge
+          
+          **To create the pull request:**
+          1. Commit all your changes to a new branch
+          2. Use the `safeoutputs-create_pull_request` tool with:
+             - **Title**: Clear description of what was fixed
+             - **Body**: Detailed description including:
+               - Summary of CI failures discovered
+               - List of fixes applied (formatting, linting, test fixes, recompilation)
+               - Confirmation that `make fmt`, `make lint`, `make test-unit`, and `make recompile` all pass
+               - Link to the failed CI run that triggered this fix
+             - The title will automatically be prefixed with "[ca] " as configured in safe-outputs
           
           Begin by checking out the main branch and running the CI cleaner steps.
           
