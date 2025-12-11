@@ -31,9 +31,9 @@ Then execute:
 gh aw audit 20135841934 --json
 ```
 
-Or if `gh aw` is not authenticated, use the MCP tool:
+Or if `gh aw` is not authenticated, use the `agentic-workflows` tool:
 ```
-agentic_workflows__audit with run_id: 20135841934
+Use the audit tool with run_id: 20135841934
 ```
 
 Analyze the output focusing on:
@@ -62,17 +62,17 @@ Report back with specific findings and actionable fixes.
 - `gh aw audit <run-id> --json` → investigate a specific run with JSON output
 - `gh aw status` → show status of agentic workflows in the repository
 
-:::note[Alternative: GitHub-agentic-workflows MCP Server]
-If `gh aw` is not authenticated (e.g., running in a Copilot agent environment without GitHub CLI auth), use the corresponding tools exposed by the **GitHub-agentic-workflows MCP server** instead:
-- `agentic_workflows__status` → equivalent to `gh aw status`
-- `agentic_workflows__compile` → equivalent to `gh aw compile`
-- `agentic_workflows__logs` → equivalent to `gh aw logs`
-- `agentic_workflows__audit` → equivalent to `gh aw audit`
-- `agentic_workflows__update` → equivalent to `gh aw update`
-- `agentic_workflows__add` → equivalent to `gh aw add`
-- `agentic_workflows__mcp_inspect` → equivalent to `gh aw mcp inspect`
+:::note[Alternative: agentic-workflows Tool]
+If `gh aw` is not authenticated (e.g., running in a Copilot agent environment without GitHub CLI auth), use the corresponding tools from the **agentic-workflows** tool instead:
+- `status` tool → equivalent to `gh aw status`
+- `compile` tool → equivalent to `gh aw compile`
+- `logs` tool → equivalent to `gh aw logs`
+- `audit` tool → equivalent to `gh aw audit`
+- `update` tool → equivalent to `gh aw update`
+- `add` tool → equivalent to `gh aw add`
+- `mcp-inspect` tool → equivalent to `gh aw mcp inspect`
 
-These MCP tools provide the same functionality without requiring GitHub CLI authentication.
+These tools provide the same functionality without requiring GitHub CLI authentication. Enable by adding `agentic-workflows:` to your workflow's `tools:` section.
 :::
 
 ## Starting the Conversation
@@ -149,9 +149,9 @@ When the user provides a workflow run URL (e.g., `https://github.com/githubnext/
    gh aw audit <run-id> --json
    ```
    
-   Or if `gh aw` is not authenticated, use the MCP tool:
+   Or if `gh aw` is not authenticated, use the `agentic-workflows` tool:
    ```
-   agentic_workflows__audit with run_id: <run-id>
+   Use the audit tool with run_id: <run-id>
    ```
    
    This command:
