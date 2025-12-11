@@ -1609,6 +1609,14 @@ jobs:
               const obj = Object.fromEntries(tempIdMap);
               return JSON.stringify(obj);
             }
+            function getTrackerID(format) {
+              const trackerID = process.env.GH_AW_TRACKER_ID || "";
+              if (trackerID) {
+                core.info(`Tracker ID: ${trackerID}`);
+                return format === "markdown" ? `\n\n<!-- tracker-id: ${trackerID} -->` : trackerID;
+              }
+              return "";
+            }
             async function minimizeComment(github, nodeId, reason = "outdated") {
               const query =  `
                 mutation ($nodeId: ID!, $classifier: ReportedContentClassifiers!) {
@@ -1993,6 +2001,10 @@ jobs:
                   : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
                 if (workflowId) {
                   body += `\n\n<!-- workflow-id: ${workflowId} -->`;
+                }
+                const trackerIDComment = getTrackerID("markdown");
+                if (trackerIDComment) {
+                  body += trackerIDComment;
                 }
                 body += `\n\n<!-- comment-type: add-comment -->`;
                 body += generateFooterWithMessages(
