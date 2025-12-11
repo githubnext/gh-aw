@@ -196,15 +196,27 @@ if [ -f "$BINARY_PATH" ]; then
     print_warning "Binary '$BINARY_PATH' already exists. It will be overwritten."
 fi
 
-# Download the binary
+# Download the binary with retry logic
 print_info "Downloading gh-aw binary..."
-if curl -L -f -o "$BINARY_PATH" "$DOWNLOAD_URL"; then
-    print_success "Binary downloaded successfully"
-else
-    print_error "Failed to download binary from $DOWNLOAD_URL"
-    print_info "Please check if the version and platform combination exists in the releases."
-    exit 1
-fi
+MAX_RETRIES=3
+RETRY_DELAY=2
+
+for attempt in $(seq 1 $MAX_RETRIES); do
+    if curl -L -f -o "$BINARY_PATH" "$DOWNLOAD_URL"; then
+        print_success "Binary downloaded successfully"
+        break
+    else
+        if [ $attempt -eq $MAX_RETRIES ]; then
+            print_error "Failed to download binary from $DOWNLOAD_URL after $MAX_RETRIES attempts"
+            print_info "Please check if the version and platform combination exists in the releases."
+            exit 1
+        else
+            print_warning "Download attempt $attempt failed. Retrying in ${RETRY_DELAY}s..."
+            sleep $RETRY_DELAY
+            RETRY_DELAY=$((RETRY_DELAY * 2))
+        fi
+    fi
+done
 
 # Make it executable
 print_info "Making binary executable..."

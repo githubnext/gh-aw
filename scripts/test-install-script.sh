@@ -232,5 +232,33 @@ else
     exit 1
 fi
 
+# Test 9: Verify retry logic for downloads
+echo ""
+echo "Test 9: Verify download retry logic"
+
+# Check for MAX_RETRIES variable
+if grep -q "MAX_RETRIES=" "$PROJECT_ROOT/install-gh-aw.sh"; then
+    echo "  ✓ PASS: MAX_RETRIES variable exists"
+else
+    echo "  ✗ FAIL: MAX_RETRIES variable not found"
+    exit 1
+fi
+
+# Check for retry loop
+if grep -q "for attempt in" "$PROJECT_ROOT/install-gh-aw.sh"; then
+    echo "  ✓ PASS: Retry loop exists"
+else
+    echo "  ✗ FAIL: Retry loop not found"
+    exit 1
+fi
+
+# Check for exponential backoff
+if grep -q "RETRY_DELAY=\$((RETRY_DELAY \* 2))" "$PROJECT_ROOT/install-gh-aw.sh"; then
+    echo "  ✓ PASS: Exponential backoff implemented"
+else
+    echo "  ✗ FAIL: Exponential backoff not found"
+    exit 1
+fi
+
 echo ""
 echo "=== All tests passed ==="
