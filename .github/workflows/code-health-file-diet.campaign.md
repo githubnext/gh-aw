@@ -51,6 +51,11 @@ maintainability measurable.
 - **Metrics**: Daily snapshots of largest-file size and count of
   over-threshold files stored under
   `memory/campaigns/code-health-file-diet-*/metrics/`
+- **Project Board**: GitHub Projects board named `Code Health: File
+  Diet` used as the primary campaign dashboard. The
+  `daily-file-diet` worker and `code-health-file-diet-monitor`
+  workflows keep this board in sync via the `update-project`
+  safe-output.
 
 Use this spec as the enterprise-facing description of the campaign for
 owners, sponsors, and reporting.

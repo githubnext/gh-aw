@@ -36,22 +36,28 @@
 #   pull-requests: read
 #
 # tracker-id: daily-file-diet
-# engine: codex
+# engine: copilot
 #
 # imports:
 #   - shared/reporting.md
 #   - shared/safe-output-app.md
+#   - shared/trends.md
 #
 # safe-outputs:
 #   create-issue:
 #     title-prefix: "[file-diet] "
-#     labels: [refactoring, code-health, automated-analysis]
+#     labels: [refactoring, code-health, automated-analysis, "campaign:code-health-file-diet"]
 #     max: 1
+#   update-project:
+#     max: 10
 #
 # tools:
 #   serena: ["go"]
 #   github:
 #     toolsets: [default]
+#   repo-memory:
+#     branch-name: memory/campaigns
+#     file-glob: "code-health-file-diet-*/**"
 #   edit:
 #   bash:
 #     - "find pkg -name '*.go' ! -name '*_test.go' -type f -exec wc -l {} \\; | sort -rn"
@@ -69,6 +75,8 @@
 #   Imports:
 #     - shared/reporting.md
 #     - shared/safe-output-app.md
+#     - shared/trends.md
+#     - shared/python-dataviz.md
 #
 # Job Dependency Graph:
 # ```mermaid
@@ -79,15 +87,31 @@
 #   create_issue["create_issue"]
 #   detection["detection"]
 #   pre_activation["pre_activation"]
+#   push_repo_memory["push_repo_memory"]
+#   update_cache_memory["update_cache_memory"]
+#   update_project["update_project"]
+#   upload_assets["upload_assets"]
 #   activation --> agent
 #   activation --> conclusion
 #   agent --> conclusion
 #   agent --> create_issue
 #   agent --> detection
+#   agent --> push_repo_memory
+#   agent --> update_cache_memory
+#   agent --> update_project
+#   agent --> upload_assets
 #   create_issue --> conclusion
 #   detection --> conclusion
 #   detection --> create_issue
+#   detection --> push_repo_memory
+#   detection --> update_cache_memory
+#   detection --> update_project
+#   detection --> upload_assets
 #   pre_activation --> activation
+#   push_repo_memory --> conclusion
+#   update_cache_memory --> conclusion
+#   update_project --> conclusion
+#   upload_assets --> conclusion
 # ```
 #
 # Original Prompt:
@@ -171,6 +195,426 @@
 #
 #
 #
+# # Trends Visualization Guide
+#
+# You are an expert at creating compelling trend visualizations that reveal insights from data over time.
+#
+# ## Trending Chart Best Practices
+#
+# When generating trending charts, focus on:
+#
+# ### 1. **Time Series Excellence**
+# - Use line charts for continuous trends over time
+# - Add trend lines or moving averages to highlight patterns
+# - Include clear date/time labels on the x-axis
+# - Show confidence intervals or error bands when relevant
+#
+# ### 2. **Comparative Trends**
+# - Use multi-line charts to compare multiple trends
+# - Apply distinct colors for each series with a clear legend
+# - Consider using area charts for stacked trends
+# - Highlight key inflection points or anomalies
+#
+# ### 3. **Visual Impact**
+# - Use vibrant, contrasting colors to make trends stand out
+# - Add annotations for significant events or milestones
+# - Include grid lines for easier value reading
+# - Use appropriate scale (linear vs. logarithmic)
+#
+# ### 4. **Contextual Information**
+# - Show percentage changes or growth rates
+# - Include baseline comparisons (year-over-year, month-over-month)
+# - Add summary statistics (min, max, average, median)
+# - Highlight recent trends vs. historical patterns
+#
+# ## Example Trend Chart Types
+#
+# ### Temporal Trends
+# ```python
+# # Line chart with multiple trends
+# fig, ax = plt.subplots(figsize=(12, 7), dpi=300)
+# for column in data.columns:
+#     ax.plot(data.index, data[column], marker='o', label=column, linewidth=2)
+# ax.set_title('Trends Over Time', fontsize=16, fontweight='bold')
+# ax.set_xlabel('Date', fontsize=12)
+# ax.set_ylabel('Value', fontsize=12)
+# ax.legend(loc='best')
+# ax.grid(True, alpha=0.3)
+# plt.xticks(rotation=45)
+# ```
+#
+# ### Growth Rates
+# ```python
+# # Bar chart showing period-over-period growth
+# fig, ax = plt.subplots(figsize=(10, 6), dpi=300)
+# growth_data.plot(kind='bar', ax=ax, color=sns.color_palette("husl"))
+# ax.set_title('Growth Rates by Period', fontsize=16, fontweight='bold')
+# ax.axhline(y=0, color='black', linestyle='-', linewidth=0.8)
+# ax.set_ylabel('Growth %', fontsize=12)
+# ```
+#
+# ### Moving Averages
+# ```python
+# # Trend with moving average overlay
+# fig, ax = plt.subplots(figsize=(12, 7), dpi=300)
+# ax.plot(dates, values, label='Actual', alpha=0.5, linewidth=1)
+# ax.plot(dates, moving_avg, label='7-day Moving Average', linewidth=2.5)
+# ax.fill_between(dates, values, moving_avg, alpha=0.2)
+# ```
+#
+# ## Data Preparation for Trends
+#
+# ### Time-Based Indexing
+# ```python
+# # Convert to datetime and set as index
+# data['date'] = pd.to_datetime(data['date'])
+# data.set_index('date', inplace=True)
+# data = data.sort_index()
+# ```
+#
+# ### Resampling and Aggregation
+# ```python
+# # Resample daily data to weekly
+# weekly_data = data.resample('W').mean()
+#
+# # Calculate rolling statistics
+# data['rolling_mean'] = data['value'].rolling(window=7).mean()
+# data['rolling_std'] = data['value'].rolling(window=7).std()
+# ```
+#
+# ### Growth Calculations
+# ```python
+# # Calculate percentage change
+# data['pct_change'] = data['value'].pct_change() * 100
+#
+# # Calculate year-over-year growth
+# data['yoy_growth'] = data['value'].pct_change(periods=365) * 100
+# ```
+#
+# ## Color Palettes for Trends
+#
+# Use these palettes for impactful trend visualizations:
+#
+# - **Sequential trends**: `sns.color_palette("viridis", n_colors=5)`
+# - **Diverging trends**: `sns.color_palette("RdYlGn", n_colors=7)`
+# - **Multiple series**: `sns.color_palette("husl", n_colors=8)`
+# - **Categorical**: `sns.color_palette("Set2", n_colors=6)`
+#
+# ## Annotation Best Practices
+#
+# ```python
+# # Annotate key points
+# max_idx = data['value'].idxmax()
+# max_val = data['value'].max()
+# ax.annotate(f'Peak: {max_val:.2f}',
+#             xy=(max_idx, max_val),
+#             xytext=(10, 20),
+#             textcoords='offset points',
+#             arrowprops=dict(arrowstyle='->', color='red'),
+#             fontsize=10,
+#             fontweight='bold')
+# ```
+#
+# ## Styling for Awesome Charts
+#
+# ```python
+# import matplotlib.pyplot as plt
+# import seaborn as sns
+#
+# # Set professional style
+# sns.set_style("whitegrid")
+# sns.set_context("notebook", font_scale=1.2)
+#
+# # Custom color palette
+# custom_colors = ["#FF6B6B", "#4ECDC4", "#45B7D1", "#FFA07A", "#98D8C8"]
+# sns.set_palette(custom_colors)
+#
+# # Figure with optimal dimensions
+# fig, ax = plt.subplots(figsize=(14, 8), dpi=300)
+#
+# # ... your plotting code ...
+#
+# # Tight layout for clean appearance
+# plt.tight_layout()
+#
+# # Save with high quality
+# plt.savefig('/tmp/gh-aw/python/charts/trend_chart.png',
+#             dpi=300,
+#             bbox_inches='tight',
+#             facecolor='white',
+#             edgecolor='none')
+# ```
+#
+# ## Tips for Trending Charts
+#
+# 1. **Start with the story**: What trend are you trying to show?
+# 2. **Choose the right timeframe**: Match granularity to the pattern
+# 3. **Smooth noise**: Use moving averages for volatile data
+# 4. **Show context**: Include historical baselines or benchmarks
+# 5. **Highlight insights**: Use annotations to draw attention
+# 6. **Test readability**: Ensure labels and legends are clear
+# 7. **Optimize colors**: Use colorblind-friendly palettes
+# 8. **Export high quality**: Always use DPI 300+ for presentations
+#
+# ## Common Trend Patterns to Visualize
+#
+# - **Seasonal patterns**: Monthly or quarterly cycles
+# - **Long-term growth**: Exponential or linear trends
+# - **Volatility changes**: Periods of stability vs. fluctuation
+# - **Correlations**: How multiple trends relate
+# - **Anomalies**: Outliers or unusual events
+# - **Forecasts**: Projected future trends with uncertainty
+#
+# Remember: The best trending charts tell a clear story, make patterns obvious, and inspire action based on the insights revealed.
+#
+# # Python Data Visualization Guide
+#
+# Python scientific libraries have been installed and are ready for use. A temporary folder structure has been created at `/tmp/gh-aw/python/` for organizing scripts, data, and outputs.
+#
+# ## Installed Libraries
+#
+# - **NumPy**: Array processing and numerical operations
+# - **Pandas**: Data manipulation and analysis
+# - **Matplotlib**: Chart generation and plotting
+# - **Seaborn**: Statistical data visualization
+# - **SciPy**: Scientific computing utilities
+#
+# ## Directory Structure
+#
+# ```
+# /tmp/gh-aw/python/
+# ├── data/          # Store all data files here (CSV, JSON, etc.)
+# ├── charts/        # Generated chart images (PNG)
+# ├── artifacts/     # Additional output files
+# └── *.py           # Python scripts
+# ```
+#
+# ## Data Separation Requirement
+#
+# **CRITICAL**: Data must NEVER be inlined in Python code. Always store data in external files and load using pandas.
+#
+# ### ❌ PROHIBITED - Inline Data
+# ```python
+# # DO NOT do this
+# data = [10, 20, 30, 40, 50]
+# labels = ['A', 'B', 'C', 'D', 'E']
+# ```
+#
+# ### ✅ REQUIRED - External Data Files
+# ```python
+# # Always load data from external files
+# import pandas as pd
+#
+# # Load data from CSV
+# data = pd.read_csv('/tmp/gh-aw/python/data/data.csv')
+#
+# # Or from JSON
+# data = pd.read_json('/tmp/gh-aw/python/data/data.json')
+# ```
+#
+# ## Chart Generation Best Practices
+#
+# ### High-Quality Chart Settings
+#
+# ```python
+# import matplotlib.pyplot as plt
+# import seaborn as sns
+#
+# # Set style for better aesthetics
+# sns.set_style("whitegrid")
+# sns.set_palette("husl")
+#
+# # Create figure with high DPI
+# fig, ax = plt.subplots(figsize=(10, 6), dpi=300)
+#
+# # Your plotting code here
+# # ...
+#
+# # Save with high quality
+# plt.savefig('/tmp/gh-aw/python/charts/chart.png', 
+#             dpi=300, 
+#             bbox_inches='tight',
+#             facecolor='white',
+#             edgecolor='none')
+# ```
+#
+# ### Chart Quality Guidelines
+#
+# - **DPI**: Use 300 or higher for publication quality
+# - **Figure Size**: Standard is 10x6 inches (adjustable based on needs)
+# - **Labels**: Always include clear axis labels and titles
+# - **Legend**: Add legends when plotting multiple series
+# - **Grid**: Enable grid lines for easier reading
+# - **Colors**: Use colorblind-friendly palettes (seaborn defaults are good)
+#
+# ## Including Images in Reports
+#
+# When creating reports (issues, discussions, etc.), use the `upload asset` tool to make images URL-addressable and include them in markdown:
+#
+# ### Step 1: Generate and Upload Chart
+# ```python
+# # Generate your chart
+# plt.savefig('/tmp/gh-aw/python/charts/my_chart.png', dpi=300, bbox_inches='tight')
+# ```
+#
+# ### Step 2: Upload as Asset
+# Use the `upload asset` tool to upload the chart file. The tool will return a GitHub raw content URL.
+#
+# ### Step 3: Include in Markdown Report
+# When creating your discussion or issue, include the image using markdown:
+#
+# ```markdown
+# ## Visualization Results
+#
+# ![Chart Description](https://raw.githubusercontent.com/owner/repo/assets/workflow-name/my_chart.png)
+#
+# The chart above shows...
+# ```
+#
+# **Important**: Assets are published to an orphaned git branch and become URL-addressable after workflow completion.
+#
+# ## Cache Memory Integration
+#
+# The cache memory at `/tmp/gh-aw/cache-memory/` is available for storing reusable code:
+#
+# **Helper Functions to Cache:**
+# - Data loading utilities: `data_loader.py`
+# - Chart styling functions: `chart_utils.py`
+# - Common data transformations: `transforms.py`
+#
+# **Check Cache Before Creating:**
+# ```bash
+# # Check if helper exists in cache
+# if [ -f /tmp/gh-aw/cache-memory/data_loader.py ]; then
+#   cp /tmp/gh-aw/cache-memory/data_loader.py /tmp/gh-aw/python/
+#   echo "Using cached data_loader.py"
+# fi
+# ```
+#
+# **Save to Cache for Future Runs:**
+# ```bash
+# # Save useful helpers to cache
+# cp /tmp/gh-aw/python/data_loader.py /tmp/gh-aw/cache-memory/
+# echo "Saved data_loader.py to cache for future runs"
+# ```
+#
+# ## Complete Example Workflow
+#
+# ```python
+# #!/usr/bin/env python3
+# """
+# Example data visualization script
+# Generates a bar chart from external data
+# """
+# import pandas as pd
+# import matplotlib.pyplot as plt
+# import seaborn as sns
+#
+# # Set style
+# sns.set_style("whitegrid")
+# sns.set_palette("husl")
+#
+# # Load data from external file (NEVER inline)
+# data = pd.read_csv('/tmp/gh-aw/python/data/data.csv')
+#
+# # Process data
+# summary = data.groupby('category')['value'].sum()
+#
+# # Create chart
+# fig, ax = plt.subplots(figsize=(10, 6), dpi=300)
+# summary.plot(kind='bar', ax=ax)
+#
+# # Customize
+# ax.set_title('Data Summary by Category', fontsize=16, fontweight='bold')
+# ax.set_xlabel('Category', fontsize=12)
+# ax.set_ylabel('Value', fontsize=12)
+# ax.grid(True, alpha=0.3)
+#
+# # Save chart
+# plt.savefig('/tmp/gh-aw/python/charts/chart.png',
+#             dpi=300,
+#             bbox_inches='tight',
+#             facecolor='white')
+#
+# print("Chart saved to /tmp/gh-aw/python/charts/chart.png")
+# ```
+#
+# ## Error Handling
+#
+# **Check File Existence:**
+# ```python
+# import os
+#
+# data_file = '/tmp/gh-aw/python/data/data.csv'
+# if not os.path.exists(data_file):
+#     raise FileNotFoundError(f"Data file not found: {data_file}")
+# ```
+#
+# **Validate Data:**
+# ```python
+# # Check for required columns
+# required_cols = ['category', 'value']
+# missing = set(required_cols) - set(data.columns)
+# if missing:
+#     raise ValueError(f"Missing columns: {missing}")
+# ```
+#
+# ## Artifact Upload
+#
+# Charts and source files are automatically uploaded as artifacts:
+#
+# **Charts Artifact:**
+# - Name: `data-charts`
+# - Contents: PNG files from `/tmp/gh-aw/python/charts/`
+# - Retention: 30 days
+#
+# **Source and Data Artifact:**
+# - Name: `python-source-and-data`
+# - Contents: Python scripts and data files
+# - Retention: 30 days
+#
+# Both artifacts are uploaded with `if: always()` condition, ensuring they're available even if the workflow fails.
+#
+# ## Tips for Success
+#
+# 1. **Always Separate Data**: Store data in files, never inline in code
+# 2. **Use Cache Memory**: Store reusable helpers for faster execution
+# 3. **High Quality Charts**: Use DPI 300+ and proper sizing
+# 4. **Clear Documentation**: Add docstrings and comments
+# 5. **Error Handling**: Validate data and check file existence
+# 6. **Type Hints**: Use type annotations for better code quality
+# 7. **Seaborn Defaults**: Leverage seaborn for better aesthetics
+# 8. **Reproducibility**: Set random seeds when needed
+#
+# ## Common Data Sources
+#
+# Based on common use cases:
+#
+# **Repository Statistics:**
+# ```python
+# # Collect via GitHub API, save to data.csv
+# # Then load and visualize
+# data = pd.read_csv('/tmp/gh-aw/python/data/repo_stats.csv')
+# ```
+#
+# **Workflow Metrics:**
+# ```python
+# # Collect via GitHub Actions API, save to data.json
+# data = pd.read_json('/tmp/gh-aw/python/data/workflow_metrics.json')
+# ```
+#
+# **Sample Data Generation:**
+# ```python
+# # Generate with NumPy, save to file first
+# import numpy as np
+# data = np.random.randn(100, 2)
+# df = pd.DataFrame(data, columns=['x', 'y'])
+# df.to_csv('/tmp/gh-aw/python/data/sample_data.csv', index=False)
+#
+# # Then load it back (demonstrating the pattern)
+# data = pd.read_csv('/tmp/gh-aw/python/data/sample_data.csv')
+# ```
+#
 # {{#runtime-import? .github/shared-instructions.md}}
 #
 # # Daily File Diet Agent 🏋️
@@ -186,6 +630,12 @@
 # - **Repository**: ${{ github.repository }}
 # - **Analysis Date**: $(date +%Y-%m-%d)
 # - **Workspace**: ${{ github.workspace }}
+#
+# ## Campaign Context
+#
+# - **Campaign ID**: `code-health-file-diet`
+# - **Campaign Label**: `campaign:code-health-file-diet`
+# - **Memory Path Prefix**: `memory/campaigns/code-health-file-diet-*/**`
 #
 # ## Analysis Process
 #
@@ -354,6 +804,123 @@
 #
 # 2. **If largest file ≥ 1000 lines**: Create an issue with the detailed description above
 #
+# In both cases, update campaign metrics and trend charts as described below.
+#
+# ## Campaign Metrics & Trend Charts
+#
+# To support enterprise reporting and visual trends for the
+# `code-health-file-diet` campaign:
+#
+# 1. **Write a campaign metrics snapshot** to repo-memory on each run using
+#    the `repo-memory` tool. Follow the `CampaignMetricsSnapshot` schema
+#    used by the campaign system:
+#
+#    - `date`: analysis date (YYYY-MM-DD)
+#    - `campaign_id`: `"code-health-file-diet"`
+#    - `tasks_total`: total number of refactor issues for this campaign
+#      (open + closed) labeled `campaign:code-health-file-diet`
+#    - `tasks_completed`: number of closed refactor issues labeled
+#      `campaign:code-health-file-diet`
+#    - `tasks_in_progress`: number of open refactor issues labeled
+#      `campaign:code-health-file-diet`
+#    - `tasks_blocked`: number of campaign issues marked as blocked (for
+#      example, with a `status:blocked` label, if present)
+#    - `velocity_per_day`: approximate completion velocity based on recent
+#      history (you can estimate this from the last 7–14 days of
+#      completions)
+#    - `estimated_completion`: optional human-readable ETA string
+#
+#    Also include additional file-diet specific fields in the same JSON
+#    document:
+#
+#    - `largest_file_path`: path of the largest file analyzed
+#    - `largest_file_loc`: line count of the largest file
+#    - `files_over_threshold`: count of files over the 1000-line threshold
+#
+#    Store this snapshot under the campaign metrics path so it matches the
+#    campaign spec `metrics-glob`:
+#
+#    - `memory/campaigns/code-health-file-diet-${{ github.run_id }}/metrics/<DATE>.json`
+#
+# 2. **Aggregate historical snapshots** from repo-memory when generating a
+#    report:
+#
+#    - Read all existing JSON snapshots matching
+#      `memory/campaigns/code-health-file-diet-*/metrics/*.json`.
+#    - Build a time-series table keyed by `date` with columns like:
+#      `largest_file_loc`, `files_over_threshold`, `tasks_total`,
+#      `tasks_completed`, `velocity_per_day`.
+#
+# 3. **Generate trend charts using Python data viz** (provided via the
+#    `shared/trends.md` / `shared/python-dataviz.md` imports):
+#
+#    - Write the aggregated metrics table to
+#      `/tmp/gh-aw/python/data/file-diet-metrics.json` or `.csv`.
+#    - Use Pandas + Matplotlib/Seaborn to create at least two PNG charts
+#      in `/tmp/gh-aw/python/charts/`:
+#      - **Chart 1**: `largest_file_loc` over time (line chart) to show
+#        how the maximum file size is trending.
+#      - **Chart 2**: `tasks_total` vs `tasks_completed` over time to show
+#        campaign progress.
+#    - Follow the styling and quality guidelines from `shared/trends.md`
+#      (DPI 300, clear labels, professional styling).
+#
+# 4. **Upload charts as assets and use them as screenshots**:
+#
+#    - Use the `upload-assets` safe-output (from `shared/python-dataviz.md`)
+#      to upload the generated PNGs and obtain URLs.
+#    - When you create a refactor issue (for files ≥1000 lines), embed the
+#      most relevant chart URLs in the issue body using Markdown image
+#      syntax so humans see them as screenshots, for example under a
+#      `## Trend` section:
+#
+#      ```markdown
+#      ## Trend
+#
+#      ![Largest file size over time](FILE_DIET_LARGEST_FILE_TREND_URL)
+#
+#      ![Refactor tasks progress](FILE_DIET_TASKS_TREND_URL)
+#      ```
+#
+#    - When no issue is created (all files healthy), you may still update
+#      the metrics snapshot and generate charts so artifacts remain
+#      up-to-date for campaign-level intelligence workflows.
+#
+# ## Project Board Integration
+#
+# Enterprises expect every campaign to have a GitHub Projects board as
+# its primary dashboard. Use the `update-project` safe output to keep the
+# board in sync with refactor issues:
+#
+# 1. **Choose the board**:
+#
+#    - Prefer an organization or repository project named
+#      `Code Health: File Diet`.
+#    - If it does not exist and permissions allow, the `update-project`
+#      safe output can create it automatically; otherwise humans can
+#      create the board and re-run the workflow.
+#
+# 2. **Add each refactor issue to the board** when you create it:
+#
+#    - Call `update-project` with:
+#      - `project`: the board name or URL (for example,
+#        `"Code Health: File Diet"`).
+#      - `content_number`: the GitHub issue number of the refactor task
+#        you just created.
+#      - `content_type`: `"issue"`.
+#      - `campaign_id`: `"code-health-file-diet"` so the tooling can
+#        apply consistent campaign metadata.
+#    - Let the smart project updater handle adding the issue to the board
+#      and avoiding duplicates.
+#
+# 3. **Set fields or status columns** (if the board defines them):
+#
+#    - When supported by the project, use `fields` in the `update-project`
+#      payload to set values like status (for example, `Todo`), priority,
+#      or team ownership.
+#    - Keep field usage simple and aligned with how your teams already
+#      use project boards.
+#
 # ## Important Guidelines
 #
 # - **Do NOT create tasks for small files**: Only create issues when threshold is exceeded
@@ -380,6 +947,10 @@
 # ```
 #
 # Pinned GitHub Actions:
+#   - actions/cache/restore@v4 (0057852bfaa89a56745cba8c7296529d2fc39830)
+#     https://github.com/actions/cache/commit/0057852bfaa89a56745cba8c7296529d2fc39830
+#   - actions/cache/save@v4 (0057852bfaa89a56745cba8c7296529d2fc39830)
+#     https://github.com/actions/cache/commit/0057852bfaa89a56745cba8c7296529d2fc39830
 #   - actions/checkout@v5 (93cb6efe18208431cddfb8368fd83d5badbf9bfd)
 #     https://github.com/actions/checkout/commit/93cb6efe18208431cddfb8368fd83d5badbf9bfd
 #   - actions/create-github-app-token@v2 (29824e69f54612133e76f7eaac726eef6c875baf)
@@ -523,8 +1094,11 @@ jobs:
       issues: read
       pull-requests: read
     concurrency:
-      group: "gh-aw-codex-${{ github.workflow }}"
+      group: "gh-aw-copilot-${{ github.workflow }}"
     env:
+      GH_AW_ASSETS_ALLOWED_EXTS: ".png,.jpg,.jpeg"
+      GH_AW_ASSETS_BRANCH: "assets/${{ github.workflow }}"
+      GH_AW_ASSETS_MAX_SIZE_KB: 10240
       GH_AW_MCP_LOG_DIR: /tmp/gh-aw/mcp-logs/safeoutputs
       GH_AW_SAFE_OUTPUTS: /tmp/gh-aw/safeoutputs/outputs.jsonl
       GH_AW_SAFE_OUTPUTS_CONFIG_PATH: /tmp/gh-aw/safeoutputs/config.json
@@ -556,6 +1130,73 @@ jobs:
           mkdir -p /tmp/gh-aw/agent
           mkdir -p /tmp/gh-aw/sandbox/agent/logs
           echo "Created /tmp/gh-aw/agent directory for agentic workflow temporary files"
+      - name: Setup Python environment
+        run: "# Create working directory for Python scripts\nmkdir -p /tmp/gh-aw/python\nmkdir -p /tmp/gh-aw/python/data\nmkdir -p /tmp/gh-aw/python/charts\nmkdir -p /tmp/gh-aw/python/artifacts\n\necho \"Python environment setup complete\"\necho \"Working directory: /tmp/gh-aw/python\"\necho \"Data directory: /tmp/gh-aw/python/data\"\necho \"Charts directory: /tmp/gh-aw/python/charts\"\necho \"Artifacts directory: /tmp/gh-aw/python/artifacts\"\n"
+      - name: Install Python scientific libraries
+        run: "pip install --user numpy pandas matplotlib seaborn scipy\n\n# Verify installations\npython3 -c \"import numpy; print(f'NumPy {numpy.__version__} installed')\"\npython3 -c \"import pandas; print(f'Pandas {pandas.__version__} installed')\"\npython3 -c \"import matplotlib; print(f'Matplotlib {matplotlib.__version__} installed')\"\npython3 -c \"import seaborn; print(f'Seaborn {seaborn.__version__} installed')\"\npython3 -c \"import scipy; print(f'SciPy {scipy.__version__} installed')\"\n\necho \"All scientific libraries installed successfully\"\n"
+      - if: always()
+        name: Upload generated charts
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
+        with:
+          if-no-files-found: warn
+          name: data-charts
+          path: /tmp/gh-aw/python/charts/*.png
+          retention-days: 30
+      - if: always()
+        name: Upload source files and data
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
+        with:
+          if-no-files-found: warn
+          name: python-source-and-data
+          path: |
+            /tmp/gh-aw/python/*.py
+            /tmp/gh-aw/python/data/*
+          retention-days: 30
+
+      # Cache memory file share configuration from frontmatter processed below
+      - name: Create cache-memory directory
+        run: |
+          mkdir -p /tmp/gh-aw/cache-memory
+          echo "Cache memory directory created at /tmp/gh-aw/cache-memory"
+          echo "This folder provides persistent file storage across workflow runs"
+          echo "LLMs and agentic tools can freely read and write files in this directory"
+      - name: Restore cache memory file share data
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          key: memory-${{ github.workflow }}-${{ github.run_id }}
+          path: /tmp/gh-aw/cache-memory
+          restore-keys: |
+            memory-${{ github.workflow }}-
+            memory-
+      # Repo memory git-based storage configuration from frontmatter processed below
+      - name: Clone repo-memory branch (default)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BRANCH_NAME: memory/campaigns
+        run: |
+          set +e  # Don't fail if branch doesn't exist
+          git clone --depth 1 --single-branch --branch "memory/campaigns" "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git" "/tmp/gh-aw/repo-memory-default" 2>/dev/null
+          CLONE_EXIT_CODE=$?
+          set -e
+          
+          if [ $CLONE_EXIT_CODE -ne 0 ]; then
+            echo "Branch memory/campaigns does not exist, creating orphan branch"
+            mkdir -p "/tmp/gh-aw/repo-memory-default"
+            cd "/tmp/gh-aw/repo-memory-default"
+            git init
+            git checkout --orphan "$BRANCH_NAME"
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git"
+          else
+            echo "Successfully cloned memory/campaigns branch"
+            cd "/tmp/gh-aw/repo-memory-default"
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+          fi
+          
+          mkdir -p "/tmp/gh-aw/repo-memory-default/memory/default"
+          echo "Repo memory directory ready at /tmp/gh-aw/repo-memory-default/memory/default"
       - name: Configure Git credentials
         env:
           REPO_NAME: ${{ github.repository }}
@@ -605,38 +1246,43 @@ jobs:
             main().catch(error => {
               core.setFailed(error instanceof Error ? error.message : String(error));
             });
-      - name: Validate CODEX_API_KEY or OPENAI_API_KEY secret
+      - name: Validate COPILOT_GITHUB_TOKEN secret
         run: |
-          if [ -z "$CODEX_API_KEY" ] && [ -z "$OPENAI_API_KEY" ]; then
+          if [ -z "$COPILOT_GITHUB_TOKEN" ]; then
             {
-              echo "❌ Error: Neither CODEX_API_KEY nor OPENAI_API_KEY secret is set"
-              echo "The Codex engine requires either CODEX_API_KEY or OPENAI_API_KEY secret to be configured."
+              echo "❌ Error: None of the following secrets are set: COPILOT_GITHUB_TOKEN"
+              echo "The GitHub Copilot CLI engine requires either COPILOT_GITHUB_TOKEN secret to be configured."
               echo "Please configure one of these secrets in your repository settings."
-              echo "Documentation: https://githubnext.github.io/gh-aw/reference/engines/#openai-codex"
+              echo "Documentation: https://githubnext.github.io/gh-aw/reference/engines/#github-copilot-default"
             } >> "$GITHUB_STEP_SUMMARY"
-            echo "Error: Neither CODEX_API_KEY nor OPENAI_API_KEY secret is set"
-            echo "The Codex engine requires either CODEX_API_KEY or OPENAI_API_KEY secret to be configured."
+            echo "Error: None of the following secrets are set: COPILOT_GITHUB_TOKEN"
+            echo "The GitHub Copilot CLI engine requires either COPILOT_GITHUB_TOKEN secret to be configured."
             echo "Please configure one of these secrets in your repository settings."
-            echo "Documentation: https://githubnext.github.io/gh-aw/reference/engines/#openai-codex"
+            echo "Documentation: https://githubnext.github.io/gh-aw/reference/engines/#github-copilot-default"
             exit 1
           fi
           
           # Log success to stdout (not step summary)
-          if [ -n "$CODEX_API_KEY" ]; then
-            echo "CODEX_API_KEY secret is configured"
-          else
-            echo "OPENAI_API_KEY secret is configured (using as fallback for CODEX_API_KEY)"
+          if [ -n "$COPILOT_GITHUB_TOKEN" ]; then
+            echo "COPILOT_GITHUB_TOKEN secret is configured"
           fi
         env:
-          CODEX_API_KEY: ${{ secrets.CODEX_API_KEY }}
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
       - name: Setup Node.js
         uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6
         with:
           node-version: '24'
           package-manager-cache: false
-      - name: Install Codex
-        run: npm install -g @openai/codex@0.69.0
+      - name: Install awf binary
+        run: |
+          echo "Installing awf from release: v0.6.0"
+          curl -L https://github.com/githubnext/gh-aw-firewall/releases/download/v0.6.0/awf-linux-x64 -o awf
+          chmod +x awf
+          sudo mv awf /usr/local/bin/
+          which awf
+          awf --version
+      - name: Install GitHub Copilot CLI
+        run: npm install -g @github/copilot@0.0.368
       - name: Downloading container images
         run: |
           set -e
@@ -646,12 +1292,12 @@ jobs:
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
           cat > /tmp/gh-aw/safeoutputs/config.json << 'EOF'
-          {"create_issue":{"max":1},"missing_tool":{"max":0},"noop":{"max":1}}
+          {"create_issue":{"max":1},"missing_tool":{"max":0},"noop":{"max":1},"update_project":{"max":10},"upload_asset":{"max":0}}
           EOF
           cat > /tmp/gh-aw/safeoutputs/tools.json << 'EOF'
           [
             {
-              "description": "Create a new GitHub issue for tracking bugs, feature requests, or tasks. Use this for actionable work items that need assignment, labeling, and status tracking. For reports, announcements, or status updates that don't require task tracking, use create_discussion instead. CONSTRAINTS: Maximum 1 issue(s) can be created. Title will be prefixed with \"[file-diet] \". Labels [refactoring code-health automated-analysis] will be automatically added.",
+              "description": "Create a new GitHub issue for tracking bugs, feature requests, or tasks. Use this for actionable work items that need assignment, labeling, and status tracking. For reports, announcements, or status updates that don't require task tracking, use create_discussion instead. CONSTRAINTS: Maximum 1 issue(s) can be created. Title will be prefixed with \"[file-diet] \". Labels [refactoring code-health automated-analysis campaign:code-health-file-diet] will be automatically added.",
               "inputSchema": {
                 "additionalProperties": false,
                 "properties": {
@@ -689,6 +1335,23 @@ jobs:
                 "type": "object"
               },
               "name": "create_issue"
+            },
+            {
+              "description": "Upload a file as a URL-addressable asset that can be referenced in issues, PRs, or comments. The file is stored on an orphaned git branch and returns a permanent URL. Use this for images, diagrams, or other files that need to be embedded in GitHub content. CONSTRAINTS: Maximum file size: 10240KB. Allowed file extensions: [.png .jpg .jpeg].",
+              "inputSchema": {
+                "additionalProperties": false,
+                "properties": {
+                  "path": {
+                    "description": "Absolute file path to upload (e.g., '/tmp/chart.png'). Must be under the workspace or /tmp directory. By default, only image files (.png, .jpg, .jpeg) are allowed; other file types require workflow configuration.",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "path"
+                ],
+                "type": "object"
+              },
+              "name": "upload_asset"
             },
             {
               "description": "Report that a tool or capability needed to complete the task is not available. Use this when you cannot accomplish what was requested because the required functionality is missing or access is restricted.",
@@ -800,6 +1463,15 @@ jobs:
                   "type": "string",
                   "sanitize": true,
                   "maxLength": 65000
+                }
+              }
+            },
+            "upload_asset": {
+              "defaultMax": 10,
+              "fields": {
+                "path": {
+                  "required": true,
+                  "type": "string"
                 }
               }
             }
@@ -2166,55 +2838,71 @@ jobs:
         env:
           GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
+          GH_AW_ASSETS_BRANCH: ${{ env.GH_AW_ASSETS_BRANCH }}
+          GH_AW_ASSETS_MAX_SIZE_KB: ${{ env.GH_AW_ASSETS_MAX_SIZE_KB }}
+          GH_AW_ASSETS_ALLOWED_EXTS: ${{ env.GH_AW_ASSETS_ALLOWED_EXTS }}
         run: |
           mkdir -p /tmp/gh-aw/mcp-config
-          cat > /tmp/gh-aw/mcp-config/config.toml << EOF
-          [history]
-          persistence = "none"
-          
-          [shell_environment_policy]
-          inherit = "core"
-          include_only = ["CODEX_API_KEY", "GH_AW_ASSETS_ALLOWED_EXTS", "GH_AW_ASSETS_BRANCH", "GH_AW_ASSETS_MAX_SIZE_KB", "GH_AW_SAFE_OUTPUTS", "GITHUB_PERSONAL_ACCESS_TOKEN", "GITHUB_REPOSITORY", "GITHUB_SERVER_URL", "HOME", "OPENAI_API_KEY", "PATH"]
-          
-          [mcp_servers.github]
-          user_agent = "daily-file-diet"
-          startup_timeout_sec = 120
-          tool_timeout_sec = 60
-          command = "docker"
-          args = [
-            "run",
-            "-i",
-            "--rm",
-            "-e",
-            "GITHUB_PERSONAL_ACCESS_TOKEN",
-            "-e",
-            "GITHUB_READ_ONLY=1",
-            "-e",
-            "GITHUB_TOOLSETS=context,repos,issues,pull_requests",
-            "ghcr.io/github/github-mcp-server:v0.24.1"
-          ]
-          env_vars = ["GITHUB_PERSONAL_ACCESS_TOKEN"]
-          
-          [mcp_servers.safeoutputs]
-          command = "node"
-          args = [
-            "/tmp/gh-aw/safeoutputs/mcp-server.cjs",
-          ]
-          env_vars = ["GH_AW_MCP_LOG_DIR", "GH_AW_SAFE_OUTPUTS", "GH_AW_SAFE_OUTPUTS_CONFIG_PATH", "GH_AW_SAFE_OUTPUTS_TOOLS_PATH", "GH_AW_ASSETS_BRANCH", "GH_AW_ASSETS_MAX_SIZE_KB", "GH_AW_ASSETS_ALLOWED_EXTS", "GITHUB_REPOSITORY", "GITHUB_SERVER_URL", "GITHUB_SHA", "GITHUB_WORKSPACE", "DEFAULT_BRANCH"]
-          
-          [mcp_servers.serena]
-          command = "uvx"
-          args = [
-            "--from",
-            "git+https://github.com/oraios/serena",
-            "serena",
-            "start-mcp-server",
-            "--context",
-            "codex",
-            "--project",
-            "${{ github.workspace }}"
-          ]
+          mkdir -p /home/runner/.copilot
+          cat > /home/runner/.copilot/mcp-config.json << EOF
+          {
+            "mcpServers": {
+              "github": {
+                "type": "local",
+                "command": "docker",
+                "args": [
+                  "run",
+                  "-i",
+                  "--rm",
+                  "-e",
+                  "GITHUB_PERSONAL_ACCESS_TOKEN",
+                  "-e",
+                  "GITHUB_READ_ONLY=1",
+                  "-e",
+                  "GITHUB_TOOLSETS=context,repos,issues,pull_requests",
+                  "ghcr.io/github/github-mcp-server:v0.24.1"
+                ],
+                "tools": ["*"],
+                "env": {
+                  "GITHUB_PERSONAL_ACCESS_TOKEN": "\${GITHUB_MCP_SERVER_TOKEN}"
+                }
+              },
+              "safeoutputs": {
+                "type": "local",
+                "command": "node",
+                "args": ["/tmp/gh-aw/safeoutputs/mcp-server.cjs"],
+                "tools": ["*"],
+                "env": {
+                  "GH_AW_MCP_LOG_DIR": "\${GH_AW_MCP_LOG_DIR}",
+                  "GH_AW_SAFE_OUTPUTS": "\${GH_AW_SAFE_OUTPUTS}",
+                  "GH_AW_SAFE_OUTPUTS_CONFIG_PATH": "\${GH_AW_SAFE_OUTPUTS_CONFIG_PATH}",
+                  "GH_AW_SAFE_OUTPUTS_TOOLS_PATH": "\${GH_AW_SAFE_OUTPUTS_TOOLS_PATH}",
+                  "GH_AW_ASSETS_BRANCH": "\${GH_AW_ASSETS_BRANCH}",
+                  "GH_AW_ASSETS_MAX_SIZE_KB": "\${GH_AW_ASSETS_MAX_SIZE_KB}",
+                  "GH_AW_ASSETS_ALLOWED_EXTS": "\${GH_AW_ASSETS_ALLOWED_EXTS}",
+                  "GITHUB_REPOSITORY": "\${GITHUB_REPOSITORY}",
+                  "GITHUB_SERVER_URL": "\${GITHUB_SERVER_URL}",
+                  "GITHUB_SHA": "\${GITHUB_SHA}",
+                  "GITHUB_WORKSPACE": "\${GITHUB_WORKSPACE}",
+                  "DEFAULT_BRANCH": "\${DEFAULT_BRANCH}"
+                }
+              },
+              "serena": {
+                "type": "local",
+                "command": "uvx",
+                "args": ["--from", "git+https://github.com/oraios/serena", "serena", "start-mcp-server", "--context", "codex", "--project", "${{ github.workspace }}"],
+                "tools": ["*"]
+              }
+            }
+          }
           EOF
+          echo "-------START MCP CONFIG-----------"
+          cat /home/runner/.copilot/mcp-config.json
+          echo "-------END MCP CONFIG-----------"
+          echo "-------/home/runner/.copilot-----------"
+          find /home/runner/.copilot
+          echo "HOME: $HOME"
+          echo "GITHUB_COPILOT_CLI_MODE: $GITHUB_COPILOT_CLI_MODE"
       - name: Generate agentic run info
         id: generate_aw_info
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
@@ -2223,13 +2911,13 @@ jobs:
             const fs = require('fs');
             
             const awInfo = {
-              engine_id: "codex",
-              engine_name: "Codex",
-              model: process.env.GH_AW_MODEL_AGENT_CODEX || "",
+              engine_id: "copilot",
+              engine_name: "GitHub Copilot CLI",
+              model: process.env.GH_AW_MODEL_AGENT_COPILOT || "",
               version: "",
-              agent_version: "0.69.0",
+              agent_version: "0.0.368",
               workflow_name: "Daily File Diet",
-              experimental: true,
+              experimental: false,
               supports_tools_allowlist: true,
               supports_http_transport: true,
               run_id: context.runId,
@@ -2242,11 +2930,11 @@ jobs:
               event_name: context.eventName,
               staged: false,
               network_mode: "defaults",
-              allowed_domains: [],
-              firewall_enabled: false,
+              allowed_domains: ["defaults","python"],
+              firewall_enabled: true,
               firewall_version: "",
               steps: {
-                firewall: ""
+                firewall: "squid"
               },
               created_at: new Date().toISOString()
             };
@@ -2303,6 +2991,7 @@ jobs:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
           GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
+          GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
           GH_AW_GITHUB_WORKSPACE: ${{ github.workspace }}
         run: |
           PROMPT_DIR="$(dirname "$GH_AW_PROMPT")"
@@ -2387,6 +3076,426 @@ jobs:
           
           
           
+          # Trends Visualization Guide
+          
+          You are an expert at creating compelling trend visualizations that reveal insights from data over time.
+          
+          ## Trending Chart Best Practices
+          
+          When generating trending charts, focus on:
+          
+          ### 1. **Time Series Excellence**
+          - Use line charts for continuous trends over time
+          - Add trend lines or moving averages to highlight patterns
+          - Include clear date/time labels on the x-axis
+          - Show confidence intervals or error bands when relevant
+          
+          ### 2. **Comparative Trends**
+          - Use multi-line charts to compare multiple trends
+          - Apply distinct colors for each series with a clear legend
+          - Consider using area charts for stacked trends
+          - Highlight key inflection points or anomalies
+          
+          ### 3. **Visual Impact**
+          - Use vibrant, contrasting colors to make trends stand out
+          - Add annotations for significant events or milestones
+          - Include grid lines for easier value reading
+          - Use appropriate scale (linear vs. logarithmic)
+          
+          ### 4. **Contextual Information**
+          - Show percentage changes or growth rates
+          - Include baseline comparisons (year-over-year, month-over-month)
+          - Add summary statistics (min, max, average, median)
+          - Highlight recent trends vs. historical patterns
+          
+          ## Example Trend Chart Types
+          
+          ### Temporal Trends
+          ```python
+          # Line chart with multiple trends
+          fig, ax = plt.subplots(figsize=(12, 7), dpi=300)
+          for column in data.columns:
+              ax.plot(data.index, data[column], marker='o', label=column, linewidth=2)
+          ax.set_title('Trends Over Time', fontsize=16, fontweight='bold')
+          ax.set_xlabel('Date', fontsize=12)
+          ax.set_ylabel('Value', fontsize=12)
+          ax.legend(loc='best')
+          ax.grid(True, alpha=0.3)
+          plt.xticks(rotation=45)
+          ```
+          
+          ### Growth Rates
+          ```python
+          # Bar chart showing period-over-period growth
+          fig, ax = plt.subplots(figsize=(10, 6), dpi=300)
+          growth_data.plot(kind='bar', ax=ax, color=sns.color_palette("husl"))
+          ax.set_title('Growth Rates by Period', fontsize=16, fontweight='bold')
+          ax.axhline(y=0, color='black', linestyle='-', linewidth=0.8)
+          ax.set_ylabel('Growth %', fontsize=12)
+          ```
+          
+          ### Moving Averages
+          ```python
+          # Trend with moving average overlay
+          fig, ax = plt.subplots(figsize=(12, 7), dpi=300)
+          ax.plot(dates, values, label='Actual', alpha=0.5, linewidth=1)
+          ax.plot(dates, moving_avg, label='7-day Moving Average', linewidth=2.5)
+          ax.fill_between(dates, values, moving_avg, alpha=0.2)
+          ```
+          
+          ## Data Preparation for Trends
+          
+          ### Time-Based Indexing
+          ```python
+          # Convert to datetime and set as index
+          data['date'] = pd.to_datetime(data['date'])
+          data.set_index('date', inplace=True)
+          data = data.sort_index()
+          ```
+          
+          ### Resampling and Aggregation
+          ```python
+          # Resample daily data to weekly
+          weekly_data = data.resample('W').mean()
+          
+          # Calculate rolling statistics
+          data['rolling_mean'] = data['value'].rolling(window=7).mean()
+          data['rolling_std'] = data['value'].rolling(window=7).std()
+          ```
+          
+          ### Growth Calculations
+          ```python
+          # Calculate percentage change
+          data['pct_change'] = data['value'].pct_change() * 100
+          
+          # Calculate year-over-year growth
+          data['yoy_growth'] = data['value'].pct_change(periods=365) * 100
+          ```
+          
+          ## Color Palettes for Trends
+          
+          Use these palettes for impactful trend visualizations:
+          
+          - **Sequential trends**: `sns.color_palette("viridis", n_colors=5)`
+          - **Diverging trends**: `sns.color_palette("RdYlGn", n_colors=7)`
+          - **Multiple series**: `sns.color_palette("husl", n_colors=8)`
+          - **Categorical**: `sns.color_palette("Set2", n_colors=6)`
+          
+          ## Annotation Best Practices
+          
+          ```python
+          # Annotate key points
+          max_idx = data['value'].idxmax()
+          max_val = data['value'].max()
+          ax.annotate(f'Peak: {max_val:.2f}',
+                      xy=(max_idx, max_val),
+                      xytext=(10, 20),
+                      textcoords='offset points',
+                      arrowprops=dict(arrowstyle='->', color='red'),
+                      fontsize=10,
+                      fontweight='bold')
+          ```
+          
+          ## Styling for Awesome Charts
+          
+          ```python
+          import matplotlib.pyplot as plt
+          import seaborn as sns
+          
+          # Set professional style
+          sns.set_style("whitegrid")
+          sns.set_context("notebook", font_scale=1.2)
+          
+          # Custom color palette
+          custom_colors = ["#FF6B6B", "#4ECDC4", "#45B7D1", "#FFA07A", "#98D8C8"]
+          sns.set_palette(custom_colors)
+          
+          # Figure with optimal dimensions
+          fig, ax = plt.subplots(figsize=(14, 8), dpi=300)
+          
+          # ... your plotting code ...
+          
+          # Tight layout for clean appearance
+          plt.tight_layout()
+          
+          # Save with high quality
+          plt.savefig('/tmp/gh-aw/python/charts/trend_chart.png',
+                      dpi=300,
+                      bbox_inches='tight',
+                      facecolor='white',
+                      edgecolor='none')
+          ```
+          
+          ## Tips for Trending Charts
+          
+          1. **Start with the story**: What trend are you trying to show?
+          2. **Choose the right timeframe**: Match granularity to the pattern
+          3. **Smooth noise**: Use moving averages for volatile data
+          4. **Show context**: Include historical baselines or benchmarks
+          5. **Highlight insights**: Use annotations to draw attention
+          6. **Test readability**: Ensure labels and legends are clear
+          7. **Optimize colors**: Use colorblind-friendly palettes
+          8. **Export high quality**: Always use DPI 300+ for presentations
+          
+          ## Common Trend Patterns to Visualize
+          
+          - **Seasonal patterns**: Monthly or quarterly cycles
+          - **Long-term growth**: Exponential or linear trends
+          - **Volatility changes**: Periods of stability vs. fluctuation
+          - **Correlations**: How multiple trends relate
+          - **Anomalies**: Outliers or unusual events
+          - **Forecasts**: Projected future trends with uncertainty
+          
+          Remember: The best trending charts tell a clear story, make patterns obvious, and inspire action based on the insights revealed.
+          
+          # Python Data Visualization Guide
+          
+          Python scientific libraries have been installed and are ready for use. A temporary folder structure has been created at `/tmp/gh-aw/python/` for organizing scripts, data, and outputs.
+          
+          ## Installed Libraries
+          
+          - **NumPy**: Array processing and numerical operations
+          - **Pandas**: Data manipulation and analysis
+          - **Matplotlib**: Chart generation and plotting
+          - **Seaborn**: Statistical data visualization
+          - **SciPy**: Scientific computing utilities
+          
+          ## Directory Structure
+          
+          ```
+          /tmp/gh-aw/python/
+          ├── data/          # Store all data files here (CSV, JSON, etc.)
+          ├── charts/        # Generated chart images (PNG)
+          ├── artifacts/     # Additional output files
+          └── *.py           # Python scripts
+          ```
+          
+          ## Data Separation Requirement
+          
+          **CRITICAL**: Data must NEVER be inlined in Python code. Always store data in external files and load using pandas.
+          
+          ### ❌ PROHIBITED - Inline Data
+          ```python
+          # DO NOT do this
+          data = [10, 20, 30, 40, 50]
+          labels = ['A', 'B', 'C', 'D', 'E']
+          ```
+          
+          ### ✅ REQUIRED - External Data Files
+          ```python
+          # Always load data from external files
+          import pandas as pd
+          
+          # Load data from CSV
+          data = pd.read_csv('/tmp/gh-aw/python/data/data.csv')
+          
+          # Or from JSON
+          data = pd.read_json('/tmp/gh-aw/python/data/data.json')
+          ```
+          
+          ## Chart Generation Best Practices
+          
+          ### High-Quality Chart Settings
+          
+          ```python
+          import matplotlib.pyplot as plt
+          import seaborn as sns
+          
+          # Set style for better aesthetics
+          sns.set_style("whitegrid")
+          sns.set_palette("husl")
+          
+          # Create figure with high DPI
+          fig, ax = plt.subplots(figsize=(10, 6), dpi=300)
+          
+          # Your plotting code here
+          # ...
+          
+          # Save with high quality
+          plt.savefig('/tmp/gh-aw/python/charts/chart.png', 
+                      dpi=300, 
+                      bbox_inches='tight',
+                      facecolor='white',
+                      edgecolor='none')
+          ```
+          
+          ### Chart Quality Guidelines
+          
+          - **DPI**: Use 300 or higher for publication quality
+          - **Figure Size**: Standard is 10x6 inches (adjustable based on needs)
+          - **Labels**: Always include clear axis labels and titles
+          - **Legend**: Add legends when plotting multiple series
+          - **Grid**: Enable grid lines for easier reading
+          - **Colors**: Use colorblind-friendly palettes (seaborn defaults are good)
+          
+          ## Including Images in Reports
+          
+          When creating reports (issues, discussions, etc.), use the `upload asset` tool to make images URL-addressable and include them in markdown:
+          
+          ### Step 1: Generate and Upload Chart
+          ```python
+          # Generate your chart
+          plt.savefig('/tmp/gh-aw/python/charts/my_chart.png', dpi=300, bbox_inches='tight')
+          ```
+          
+          ### Step 2: Upload as Asset
+          Use the `upload asset` tool to upload the chart file. The tool will return a GitHub raw content URL.
+          
+          ### Step 3: Include in Markdown Report
+          When creating your discussion or issue, include the image using markdown:
+          
+          ```markdown
+          ## Visualization Results
+          
+          ![Chart Description](https://raw.githubusercontent.com/owner/repo/assets/workflow-name/my_chart.png)
+          
+          The chart above shows...
+          ```
+          
+          **Important**: Assets are published to an orphaned git branch and become URL-addressable after workflow completion.
+          
+          ## Cache Memory Integration
+          
+          The cache memory at `/tmp/gh-aw/cache-memory/` is available for storing reusable code:
+          
+          **Helper Functions to Cache:**
+          - Data loading utilities: `data_loader.py`
+          - Chart styling functions: `chart_utils.py`
+          - Common data transformations: `transforms.py`
+          
+          **Check Cache Before Creating:**
+          ```bash
+          # Check if helper exists in cache
+          if [ -f /tmp/gh-aw/cache-memory/data_loader.py ]; then
+            cp /tmp/gh-aw/cache-memory/data_loader.py /tmp/gh-aw/python/
+            echo "Using cached data_loader.py"
+          fi
+          ```
+          
+          **Save to Cache for Future Runs:**
+          ```bash
+          # Save useful helpers to cache
+          cp /tmp/gh-aw/python/data_loader.py /tmp/gh-aw/cache-memory/
+          echo "Saved data_loader.py to cache for future runs"
+          ```
+          
+          ## Complete Example Workflow
+          
+          ```python
+          #!/usr/bin/env python3
+          """
+          Example data visualization script
+          Generates a bar chart from external data
+          """
+          import pandas as pd
+          import matplotlib.pyplot as plt
+          import seaborn as sns
+          
+          # Set style
+          sns.set_style("whitegrid")
+          sns.set_palette("husl")
+          
+          # Load data from external file (NEVER inline)
+          data = pd.read_csv('/tmp/gh-aw/python/data/data.csv')
+          
+          # Process data
+          summary = data.groupby('category')['value'].sum()
+          
+          # Create chart
+          fig, ax = plt.subplots(figsize=(10, 6), dpi=300)
+          summary.plot(kind='bar', ax=ax)
+          
+          # Customize
+          ax.set_title('Data Summary by Category', fontsize=16, fontweight='bold')
+          ax.set_xlabel('Category', fontsize=12)
+          ax.set_ylabel('Value', fontsize=12)
+          ax.grid(True, alpha=0.3)
+          
+          # Save chart
+          plt.savefig('/tmp/gh-aw/python/charts/chart.png',
+                      dpi=300,
+                      bbox_inches='tight',
+                      facecolor='white')
+          
+          print("Chart saved to /tmp/gh-aw/python/charts/chart.png")
+          ```
+          
+          ## Error Handling
+          
+          **Check File Existence:**
+          ```python
+          import os
+          
+          data_file = '/tmp/gh-aw/python/data/data.csv'
+          if not os.path.exists(data_file):
+              raise FileNotFoundError(f"Data file not found: {data_file}")
+          ```
+          
+          **Validate Data:**
+          ```python
+          # Check for required columns
+          required_cols = ['category', 'value']
+          missing = set(required_cols) - set(data.columns)
+          if missing:
+              raise ValueError(f"Missing columns: {missing}")
+          ```
+          
+          ## Artifact Upload
+          
+          Charts and source files are automatically uploaded as artifacts:
+          
+          **Charts Artifact:**
+          - Name: `data-charts`
+          - Contents: PNG files from `/tmp/gh-aw/python/charts/`
+          - Retention: 30 days
+          
+          **Source and Data Artifact:**
+          - Name: `python-source-and-data`
+          - Contents: Python scripts and data files
+          - Retention: 30 days
+          
+          Both artifacts are uploaded with `if: always()` condition, ensuring they're available even if the workflow fails.
+          
+          ## Tips for Success
+          
+          1. **Always Separate Data**: Store data in files, never inline in code
+          2. **Use Cache Memory**: Store reusable helpers for faster execution
+          3. **High Quality Charts**: Use DPI 300+ and proper sizing
+          4. **Clear Documentation**: Add docstrings and comments
+          5. **Error Handling**: Validate data and check file existence
+          6. **Type Hints**: Use type annotations for better code quality
+          7. **Seaborn Defaults**: Leverage seaborn for better aesthetics
+          8. **Reproducibility**: Set random seeds when needed
+          
+          ## Common Data Sources
+          
+          Based on common use cases:
+          
+          **Repository Statistics:**
+          ```python
+          # Collect via GitHub API, save to data.csv
+          # Then load and visualize
+          data = pd.read_csv('/tmp/gh-aw/python/data/repo_stats.csv')
+          ```
+          
+          **Workflow Metrics:**
+          ```python
+          # Collect via GitHub Actions API, save to data.json
+          data = pd.read_json('/tmp/gh-aw/python/data/workflow_metrics.json')
+          ```
+          
+          **Sample Data Generation:**
+          ```python
+          # Generate with NumPy, save to file first
+          import numpy as np
+          data = np.random.randn(100, 2)
+          df = pd.DataFrame(data, columns=['x', 'y'])
+          df.to_csv('/tmp/gh-aw/python/data/sample_data.csv', index=False)
+          
+          # Then load it back (demonstrating the pattern)
+          data = pd.read_csv('/tmp/gh-aw/python/data/sample_data.csv')
+          ```
+          
           {{#runtime-import? .github/shared-instructions.md}}
           
           # Daily File Diet Agent 🏋️
@@ -2402,6 +3511,90 @@ jobs:
           - **Repository**: __GH_AW_GITHUB_REPOSITORY__
           - **Analysis Date**: $(date +%Y-%m-%d)
           - **Workspace**: __GH_AW_GITHUB_WORKSPACE__
+          
+          ## Campaign Context
+          
+          PROMPT_EOF
+      - name: Substitute placeholders
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        env:
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+          GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
+          GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
+          GH_AW_GITHUB_WORKSPACE: ${{ github.workspace }}
+        with:
+          script: |
+            /**
+             * @fileoverview Safe template placeholder substitution for GitHub Actions workflows.
+             * Replaces __VAR__ placeholders in a file with environment variable values without
+             * allowing shell expansion, preventing template injection attacks.
+             *
+             * @param {object} params - The parameters object
+             * @param {string} params.file - Path to the file to process
+             * @param {object} params.substitutions - Map of placeholder names to values (without __ prefix/suffix)
+             */
+            
+            const fs = require("fs");
+            
+            const substitutePlaceholders = async ({ file, substitutions }) => {
+              // Validate inputs
+              if (!file) {
+                throw new Error("file parameter is required");
+              }
+              if (!substitutions || typeof substitutions !== "object") {
+                throw new Error("substitutions parameter must be an object");
+              }
+            
+              // Read the file content
+              let content;
+              try {
+                content = fs.readFileSync(file, "utf8");
+              } catch (error) {
+                throw new Error(`Failed to read file ${file}: ${error.message}`);
+              }
+            
+              // Perform substitutions
+              // Each placeholder is in the format __VARIABLE_NAME__
+              // We replace it with the corresponding value from the substitutions object
+              for (const [key, value] of Object.entries(substitutions)) {
+                const placeholder = `__${key}__`;
+                // Use a simple string replacement - no regex to avoid any potential issues
+                // with special characters in the value
+                content = content.split(placeholder).join(value);
+              }
+            
+              // Write the updated content back to the file
+              try {
+                fs.writeFileSync(file, content, "utf8");
+              } catch (error) {
+                throw new Error(`Failed to write file ${file}: ${error.message}`);
+              }
+            
+              return `Successfully substituted ${Object.keys(substitutions).length} placeholder(s) in ${file}`;
+            };
+            
+            
+            
+            // Call the substitution function
+            return await substitutePlaceholders({
+              file: process.env.GH_AW_PROMPT,
+              substitutions: {
+                GH_AW_GITHUB_REPOSITORY: process.env.GH_AW_GITHUB_REPOSITORY,
+                GH_AW_GITHUB_RUN_ID: process.env.GH_AW_GITHUB_RUN_ID,
+                GH_AW_GITHUB_WORKSPACE: process.env.GH_AW_GITHUB_WORKSPACE
+              }
+            });
+      - name: Append prompt (part 2)
+        env:
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+          GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
+          GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
+          GH_AW_GITHUB_WORKSPACE: ${{ github.workspace }}
+        run: |
+          cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
+          - **Campaign ID**: `code-health-file-diet`
+          - **Campaign Label**: `campaign:code-health-file-diet`
+          - **Memory Path Prefix**: `memory/campaigns/code-health-file-diet-*/**`
           
           ## Analysis Process
           
@@ -2570,6 +3763,123 @@ jobs:
           
           2. **If largest file ≥ 1000 lines**: Create an issue with the detailed description above
           
+          In both cases, update campaign metrics and trend charts as described below.
+          
+          ## Campaign Metrics & Trend Charts
+          
+          To support enterprise reporting and visual trends for the
+          `code-health-file-diet` campaign:
+          
+          1. **Write a campaign metrics snapshot** to repo-memory on each run using
+             the `repo-memory` tool. Follow the `CampaignMetricsSnapshot` schema
+             used by the campaign system:
+          
+             - `date`: analysis date (YYYY-MM-DD)
+             - `campaign_id`: `"code-health-file-diet"`
+             - `tasks_total`: total number of refactor issues for this campaign
+               (open + closed) labeled `campaign:code-health-file-diet`
+             - `tasks_completed`: number of closed refactor issues labeled
+               `campaign:code-health-file-diet`
+             - `tasks_in_progress`: number of open refactor issues labeled
+               `campaign:code-health-file-diet`
+             - `tasks_blocked`: number of campaign issues marked as blocked (for
+               example, with a `status:blocked` label, if present)
+             - `velocity_per_day`: approximate completion velocity based on recent
+               history (you can estimate this from the last 7–14 days of
+               completions)
+             - `estimated_completion`: optional human-readable ETA string
+          
+             Also include additional file-diet specific fields in the same JSON
+             document:
+          
+             - `largest_file_path`: path of the largest file analyzed
+             - `largest_file_loc`: line count of the largest file
+             - `files_over_threshold`: count of files over the 1000-line threshold
+          
+             Store this snapshot under the campaign metrics path so it matches the
+             campaign spec `metrics-glob`:
+          
+             - `memory/campaigns/code-health-file-diet-__GH_AW_GITHUB_RUN_ID__/metrics/<DATE>.json`
+          
+          2. **Aggregate historical snapshots** from repo-memory when generating a
+             report:
+          
+             - Read all existing JSON snapshots matching
+               `memory/campaigns/code-health-file-diet-*/metrics/*.json`.
+             - Build a time-series table keyed by `date` with columns like:
+               `largest_file_loc`, `files_over_threshold`, `tasks_total`,
+               `tasks_completed`, `velocity_per_day`.
+          
+          3. **Generate trend charts using Python data viz** (provided via the
+             `shared/trends.md` / `shared/python-dataviz.md` imports):
+          
+             - Write the aggregated metrics table to
+               `/tmp/gh-aw/python/data/file-diet-metrics.json` or `.csv`.
+             - Use Pandas + Matplotlib/Seaborn to create at least two PNG charts
+               in `/tmp/gh-aw/python/charts/`:
+               - **Chart 1**: `largest_file_loc` over time (line chart) to show
+                 how the maximum file size is trending.
+               - **Chart 2**: `tasks_total` vs `tasks_completed` over time to show
+                 campaign progress.
+             - Follow the styling and quality guidelines from `shared/trends.md`
+               (DPI 300, clear labels, professional styling).
+          
+          4. **Upload charts as assets and use them as screenshots**:
+          
+             - Use the `upload-assets` safe-output (from `shared/python-dataviz.md`)
+               to upload the generated PNGs and obtain URLs.
+             - When you create a refactor issue (for files ≥1000 lines), embed the
+               most relevant chart URLs in the issue body using Markdown image
+               syntax so humans see them as screenshots, for example under a
+               `## Trend` section:
+          
+               ```markdown
+               ## Trend
+          
+               ![Largest file size over time](FILE_DIET_LARGEST_FILE_TREND_URL)
+          
+               ![Refactor tasks progress](FILE_DIET_TASKS_TREND_URL)
+               ```
+          
+             - When no issue is created (all files healthy), you may still update
+               the metrics snapshot and generate charts so artifacts remain
+               up-to-date for campaign-level intelligence workflows.
+          
+          ## Project Board Integration
+          
+          Enterprises expect every campaign to have a GitHub Projects board as
+          its primary dashboard. Use the `update-project` safe output to keep the
+          board in sync with refactor issues:
+          
+          1. **Choose the board**:
+          
+             - Prefer an organization or repository project named
+               `Code Health: File Diet`.
+             - If it does not exist and permissions allow, the `update-project`
+               safe output can create it automatically; otherwise humans can
+               create the board and re-run the workflow.
+          
+          2. **Add each refactor issue to the board** when you create it:
+          
+             - Call `update-project` with:
+               - `project`: the board name or URL (for example,
+                 `"Code Health: File Diet"`).
+               - `content_number`: the GitHub issue number of the refactor task
+                 you just created.
+               - `content_type`: `"issue"`.
+               - `campaign_id`: `"code-health-file-diet"` so the tooling can
+                 apply consistent campaign metadata.
+             - Let the smart project updater handle adding the issue to the board
+               and avoiding duplicates.
+          
+          3. **Set fields or status columns** (if the board defines them):
+          
+             - When supported by the project, use `fields` in the `update-project`
+               payload to set values like status (for example, `Todo`), priority,
+               or team ownership.
+             - Keep field usage simple and aligned with how your teams already
+               use project boards.
+          
           ## Important Guidelines
           
           - **Do NOT create tasks for small files**: Only create issues when threshold is exceeded
@@ -2600,6 +3910,7 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
+          GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
           GH_AW_GITHUB_WORKSPACE: ${{ github.workspace }}
         with:
           script: |
@@ -2659,6 +3970,7 @@ jobs:
               file: process.env.GH_AW_PROMPT,
               substitutions: {
                 GH_AW_GITHUB_REPOSITORY: process.env.GH_AW_GITHUB_REPOSITORY,
+                GH_AW_GITHUB_RUN_ID: process.env.GH_AW_GITHUB_RUN_ID,
                 GH_AW_GITHUB_WORKSPACE: process.env.GH_AW_GITHUB_WORKSPACE
               }
             });
@@ -2710,6 +4022,61 @@ jobs:
           </file-editing>
           
           PROMPT_EOF
+      - name: Append cache memory instructions to prompt
+        env:
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+        run: |
+          cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
+          
+          ---
+          
+          ## Cache Folder Available
+          
+          You have access to a persistent cache folder at `/tmp/gh-aw/cache-memory/` where you can read and write files to create memories and store information.
+          
+          - **Read/Write Access**: You can freely read from and write to any files in this folder
+          - **Persistence**: Files in this folder persist across workflow runs via GitHub Actions cache
+          - **Last Write Wins**: If multiple processes write to the same file, the last write will be preserved
+          - **File Share**: Use this as a simple file share - organize files as you see fit
+          
+          Examples of what you can store:
+          - `/tmp/gh-aw/cache-memory/notes.txt` - general notes and observations
+          - `/tmp/gh-aw/cache-memory/preferences.json` - user preferences and settings
+          - `/tmp/gh-aw/cache-memory/history.log` - activity history and logs
+          - `/tmp/gh-aw/cache-memory/state/` - organized state files in subdirectories
+          
+          Feel free to create, read, update, and organize files in this folder as needed for your tasks.
+          PROMPT_EOF
+      - name: Append repo memory instructions to prompt
+        env:
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+        run: |
+          cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
+          
+          ---
+          
+          ## Repo Memory Available
+          
+          You have access to a persistent repo memory folder at `/tmp/gh-aw/repo-memory-default/memory/default/` where you can read and write files that are stored in a git branch.
+          
+          - **Read/Write Access**: You can freely read from and write to any files in this folder
+          - **Git Branch Storage**: Files are stored in the `memory/campaigns` branch of the current repository
+          - **Automatic Push**: Changes are automatically committed and pushed after the workflow completes
+          - **Merge Strategy**: In case of conflicts, your changes (current version) win
+          - **Persistence**: Files persist across workflow runs via git branch storage
+          
+          **Constraints:**
+          - **Allowed Files**: Only files matching patterns: code-health-file-diet-*/**
+          - **Max File Size**: 10240 bytes (0.01 MB) per file
+          - **Max File Count**: 100 files per commit
+          
+          Examples of what you can store:
+          - `/tmp/gh-aw/repo-memory-default/memory/default/notes.md` - general notes and observations
+          - `/tmp/gh-aw/repo-memory-default/memory/default/state.json` - structured state data
+          - `/tmp/gh-aw/repo-memory-default/memory/default/history/` - organized history files in subdirectories
+          
+          Feel free to create, read, update, and organize files in this folder as needed for your tasks.
+          PROMPT_EOF
       - name: Append safe outputs instructions to prompt
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
@@ -2723,7 +4090,7 @@ jobs:
           <instructions>
           To create or modify GitHub resources (issues, discussions, pull requests, etc.), you MUST call the appropriate safe output tool. Simply writing content will NOT work - the workflow requires actual tool calls.
           
-          **Available tools**: create_issue, missing_tool, noop
+          **Available tools**: create_issue, missing_tool, noop, update_project, upload_assets
           
           **Critical**: Tool calls write structured data that downstream jobs process. Without tool calls, follow-up actions will be skipped.
           </instructions>
@@ -2855,6 +4222,7 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
+          GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
           GH_AW_GITHUB_WORKSPACE: ${{ github.workspace }}
         with:
           script: |
@@ -3039,24 +4407,31 @@ jobs:
           name: aw_info.json
           path: /tmp/gh-aw/aw_info.json
           if-no-files-found: warn
-      - name: Run Codex
+      - name: Execute GitHub Copilot CLI
+        id: agentic_execution
+        # Copilot CLI tool arguments (sorted):
+        timeout-minutes: 20
         run: |
           set -o pipefail
-          INSTRUCTION="$(cat "$GH_AW_PROMPT")"
-          mkdir -p "$CODEX_HOME/logs"
-          codex ${GH_AW_MODEL_AGENT_CODEX:+-c model="$GH_AW_MODEL_AGENT_CODEX" }exec --full-auto --skip-git-repo-check "$INSTRUCTION" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
+          sudo -E awf --env-all --container-workdir "${GITHUB_WORKSPACE}" --mount /tmp:/tmp:rw --mount "${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:rw" --mount /usr/bin/date:/usr/bin/date:ro --mount /usr/bin/gh:/usr/bin/gh:ro --mount /usr/bin/yq:/usr/bin/yq:ro --allow-domains api.business.githubcopilot.com,api.enterprise.githubcopilot.com,api.github.com,api.individual.githubcopilot.com,api.snapcraft.io,archive.ubuntu.com,azure.archive.ubuntu.com,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,github.com,host.docker.internal,json-schema.org,json.schemastore.org,keyserver.ubuntu.com,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,ppa.launchpad.net,raw.githubusercontent.com,registry.npmjs.org,s.symcb.com,s.symcd.com,security.ubuntu.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com --log-level info --proxy-logs-dir /tmp/gh-aw/sandbox/firewall/logs \
+            -- npx -y @github/copilot@0.0.368 --add-dir /tmp/gh-aw/ --log-level all --log-dir /tmp/gh-aw/sandbox/agent/logs/ --add-dir "${GITHUB_WORKSPACE}" --disable-builtin-mcps --allow-all-tools --add-dir /tmp/gh-aw/cache-memory/ --allow-all-paths --prompt "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"${GH_AW_MODEL_AGENT_COPILOT:+ --model "$GH_AW_MODEL_AGENT_COPILOT"} \
+            2>&1 | tee /tmp/gh-aw/agent-stdio.log
         env:
-          CODEX_API_KEY: ${{ secrets.CODEX_API_KEY || secrets.OPENAI_API_KEY }}
-          CODEX_HOME: /tmp/gh-aw/mcp-config
-          GH_AW_GITHUB_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
-          GH_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/config.toml
-          GH_AW_MODEL_AGENT_CODEX: ${{ vars.GH_AW_MODEL_AGENT_CODEX || '' }}
+          COPILOT_AGENT_RUNNER_TYPE: STANDALONE
+          COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
+          GH_AW_ASSETS_ALLOWED_EXTS: ".png,.jpg,.jpeg"
+          GH_AW_ASSETS_BRANCH: "assets/${{ github.workflow }}"
+          GH_AW_ASSETS_MAX_SIZE_KB: 10240
+          GH_AW_MCP_CONFIG: /home/runner/.copilot/mcp-config.json
+          GH_AW_MODEL_AGENT_COPILOT: ${{ vars.GH_AW_MODEL_AGENT_COPILOT || '' }}
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
-          GITHUB_PERSONAL_ACCESS_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+          GITHUB_HEAD_REF: ${{ github.head_ref }}
+          GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+          GITHUB_REF_NAME: ${{ github.ref_name }}
           GITHUB_STEP_SUMMARY: ${{ env.GITHUB_STEP_SUMMARY }}
-          OPENAI_API_KEY: ${{ secrets.CODEX_API_KEY || secrets.OPENAI_API_KEY }}
-          RUST_LOG: trace,hyper_util=info,mio=info,reqwest=info,os_info=info,codex_otel=warn,codex_core=debug,ocodex_exec=debug
+          GITHUB_WORKSPACE: ${{ github.workspace }}
+          XDG_CONFIG_HOME: /home/runner
       - name: Redact secrets in logs
         if: always()
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
@@ -3168,12 +4543,11 @@ jobs:
             }
             await main();
         env:
-          GH_AW_SECRET_NAMES: 'CODEX_API_KEY,GH_AW_GITHUB_MCP_SERVER_TOKEN,GH_AW_GITHUB_TOKEN,GITHUB_TOKEN,OPENAI_API_KEY'
-          SECRET_CODEX_API_KEY: ${{ secrets.CODEX_API_KEY }}
+          GH_AW_SECRET_NAMES: 'COPILOT_GITHUB_TOKEN,GH_AW_GITHUB_MCP_SERVER_TOKEN,GH_AW_GITHUB_TOKEN,GITHUB_TOKEN'
+          SECRET_COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
           SECRET_GH_AW_GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN }}
           SECRET_GH_AW_GITHUB_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN }}
           SECRET_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          SECRET_OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       - name: Upload Safe Outputs
         if: always()
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
@@ -3186,7 +4560,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
-          GH_AW_ALLOWED_DOMAINS: "crl3.digicert.com,crl4.digicert.com,ocsp.digicert.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com,crl.geotrust.com,ocsp.geotrust.com,crl.thawte.com,ocsp.thawte.com,crl.verisign.com,ocsp.verisign.com,crl.globalsign.com,ocsp.globalsign.com,crls.ssl.com,ocsp.ssl.com,crl.identrust.com,ocsp.identrust.com,crl.sectigo.com,ocsp.sectigo.com,crl.usertrust.com,ocsp.usertrust.com,s.symcb.com,s.symcd.com,json-schema.org,json.schemastore.org,archive.ubuntu.com,security.ubuntu.com,ppa.launchpad.net,keyserver.ubuntu.com,azure.archive.ubuntu.com,api.snapcraft.io,packagecloud.io,packages.cloud.google.com,packages.microsoft.com"
+          GH_AW_ALLOWED_DOMAINS: "api.business.githubcopilot.com,api.enterprise.githubcopilot.com,api.github.com,api.individual.githubcopilot.com,api.snapcraft.io,archive.ubuntu.com,azure.archive.ubuntu.com,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,github.com,host.docker.internal,json-schema.org,json.schemastore.org,keyserver.ubuntu.com,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,ppa.launchpad.net,raw.githubusercontent.com,registry.npmjs.org,s.symcb.com,s.symcd.com,security.ubuntu.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com"
           GITHUB_SERVER_URL: ${{ github.server_url }}
           GITHUB_API_URL: ${{ github.api_url }}
         with:
@@ -4162,7 +5536,7 @@ jobs:
         with:
           name: agent_outputs
           path: |
-            /tmp/gh-aw/mcp-config/logs/
+            /tmp/gh-aw/sandbox/agent/logs/
             /tmp/gh-aw/redacted-urls.log
           if-no-files-found: ignore
       - name: Upload MCP logs
@@ -4176,7 +5550,7 @@ jobs:
         if: always()
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
-          GH_AW_AGENT_OUTPUT: /tmp/gh-aw/agent-stdio.log
+          GH_AW_AGENT_OUTPUT: /tmp/gh-aw/sandbox/agent/logs/
         with:
           script: |
             const MAX_TOOL_OUTPUT_LENGTH = 256;
@@ -5012,308 +6386,809 @@ jobs:
             }
             function main() {
               runLogParser({
-                parseLog: parseCodexLog,
-                parserName: "Codex",
-                supportsDirectories: false,
+                parseLog: parseCopilotLog,
+                parserName: "Copilot",
+                supportsDirectories: true,
               });
             }
-            function extractMCPInitialization(lines) {
-              const mcpServers = new Map(); 
-              let serverCount = 0;
-              let connectedCount = 0;
-              let availableTools = [];
-              for (const line of lines) {
-                if (line.includes("Initializing MCP servers") || (line.includes("mcp") && line.includes("init"))) {
-                }
-                const countMatch = line.match(/Found (\d+) MCP servers? in configuration/i);
-                if (countMatch) {
-                  serverCount = parseInt(countMatch[1]);
-                }
-                const connectingMatch = line.match(/Connecting to MCP server[:\s]+['"]?(\w+)['"]?/i);
-                if (connectingMatch) {
-                  const serverName = connectingMatch[1];
-                  if (!mcpServers.has(serverName)) {
-                    mcpServers.set(serverName, { name: serverName, status: "connecting" });
+            function extractPremiumRequestCount(logContent) {
+              const patterns = [
+                /premium\s+requests?\s+consumed:?\s*(\d+)/i,
+                /(\d+)\s+premium\s+requests?\s+consumed/i,
+                /consumed\s+(\d+)\s+premium\s+requests?/i,
+              ];
+              for (const pattern of patterns) {
+                const match = logContent.match(pattern);
+                if (match && match[1]) {
+                  const count = parseInt(match[1], 10);
+                  if (!isNaN(count) && count > 0) {
+                    return count;
                   }
                 }
-                const connectedMatch = line.match(/MCP server ['"](\w+)['"] connected successfully/i);
-                if (connectedMatch) {
-                  const serverName = connectedMatch[1];
-                  mcpServers.set(serverName, { name: serverName, status: "connected" });
-                  connectedCount++;
-                }
-                const failedMatch = line.match(/Failed to connect to MCP server ['"](\w+)['"][:]\s*(.+)/i);
-                if (failedMatch) {
-                  const serverName = failedMatch[1];
-                  const error = failedMatch[2].trim();
-                  mcpServers.set(serverName, { name: serverName, status: "failed", error });
-                }
-                const initFailedMatch = line.match(/MCP server ['"](\w+)['"] initialization failed/i);
-                if (initFailedMatch) {
-                  const serverName = initFailedMatch[1];
-                  const existing = mcpServers.get(serverName);
-                  if (existing && existing.status !== "failed") {
-                    mcpServers.set(serverName, { name: serverName, status: "failed", error: "Initialization failed" });
-                  }
-                }
-                const toolsMatch = line.match(/Available tools:\s*(.+)/i);
-                if (toolsMatch) {
-                  const toolsStr = toolsMatch[1];
-                  availableTools = toolsStr
-                    .split(",")
-                    .map(t => t.trim())
-                    .filter(t => t.length > 0);
-                }
               }
-              let markdown = "";
-              const hasInfo = mcpServers.size > 0 || availableTools.length > 0;
-              if (mcpServers.size > 0) {
-                markdown += "**MCP Servers:**\n";
-                const servers = Array.from(mcpServers.values());
-                const connected = servers.filter(s => s.status === "connected");
-                const failed = servers.filter(s => s.status === "failed");
-                markdown += `- Total: ${servers.length}${serverCount > 0 && servers.length !== serverCount ? ` (configured: ${serverCount})` : ""}\n`;
-                markdown += `- Connected: ${connected.length}\n`;
-                if (failed.length > 0) {
-                  markdown += `- Failed: ${failed.length}\n`;
-                }
-                markdown += "\n";
-                for (const server of servers) {
-                  const statusIcon = server.status === "connected" ? "✅" : server.status === "failed" ? "❌" : "⏳";
-                  markdown += `- ${statusIcon} **${server.name}** (${server.status})`;
-                  if (server.error) {
-                    markdown += `\n  - Error: ${server.error}`;
-                  }
-                  markdown += "\n";
-                }
-                markdown += "\n";
-              }
-              if (availableTools.length > 0) {
-                markdown += "**Available MCP Tools:**\n";
-                markdown += `- Total: ${availableTools.length} tools\n`;
-                markdown += `- Tools: ${availableTools.slice(0, 10).join(", ")}${availableTools.length > 10 ? ", ..." : ""}\n\n`;
-              }
-              return {
-                hasInfo,
-                markdown,
-                servers: Array.from(mcpServers.values()),
-              };
+              return 1;
             }
-            function parseCodexLog(logContent) {
+            function parseCopilotLog(logContent) {
               try {
-                const lines = logContent.split("\n");
-                const LOOKAHEAD_WINDOW = 50;
-                let markdown = "";
-                const mcpInfo = extractMCPInitialization(lines);
-                if (mcpInfo.hasInfo) {
-                  markdown += "## 🚀 Initialization\n\n";
-                  markdown += mcpInfo.markdown;
+                let logEntries;
+                try {
+                  logEntries = JSON.parse(logContent);
+                  if (!Array.isArray(logEntries)) {
+                    throw new Error("Not a JSON array");
+                  }
+                } catch (jsonArrayError) {
+                  const debugLogEntries = parseDebugLogFormat(logContent);
+                  if (debugLogEntries && debugLogEntries.length > 0) {
+                    logEntries = debugLogEntries;
+                  } else {
+                    logEntries = parseLogEntries(logContent);
+                  }
                 }
-                markdown += "## 🤖 Reasoning\n\n";
-                let inThinkingSection = false;
-                for (let i = 0; i < lines.length; i++) {
-                  const line = lines[i];
-                  if (
-                    line.includes("OpenAI Codex") ||
-                    line.startsWith("--------") ||
-                    line.includes("workdir:") ||
-                    line.includes("model:") ||
-                    line.includes("provider:") ||
-                    line.includes("approval:") ||
-                    line.includes("sandbox:") ||
-                    line.includes("reasoning effort:") ||
-                    line.includes("reasoning summaries:") ||
-                    line.includes("tokens used:") ||
-                    line.includes("DEBUG codex") ||
-                    line.includes("INFO codex") ||
-                    line.match(/^\d{4}-\d{2}-\d{2}T[\d:.]+Z\s+(DEBUG|INFO|WARN|ERROR)/)
-                  ) {
-                    continue;
+                if (!logEntries || logEntries.length === 0) {
+                  return { markdown: "## Agent Log Summary\n\nLog format not recognized as Copilot JSON array or JSONL.\n", logEntries: [] };
+                }
+                const conversationResult = generateConversationMarkdown(logEntries, {
+                  formatToolCallback: (toolUse, toolResult) => formatToolUse(toolUse, toolResult, { includeDetailedParameters: true }),
+                  formatInitCallback: initEntry =>
+                    formatInitializationSummary(initEntry, {
+                      includeSlashCommands: false,
+                      modelInfoCallback: entry => {
+                        if (!entry.model_info) return "";
+                        const modelInfo = entry.model_info;
+                        let markdown = "";
+                        if (modelInfo.name) {
+                          markdown += `**Model Name:** ${modelInfo.name}`;
+                          if (modelInfo.vendor) {
+                            markdown += ` (${modelInfo.vendor})`;
+                          }
+                          markdown += "\n\n";
+                        }
+                        if (modelInfo.billing) {
+                          const billing = modelInfo.billing;
+                          if (billing.is_premium === true) {
+                            markdown += `**Premium Model:** Yes`;
+                            if (billing.multiplier && billing.multiplier !== 1) {
+                              markdown += ` (${billing.multiplier}x cost multiplier)`;
+                            }
+                            markdown += "\n";
+                            if (billing.restricted_to && Array.isArray(billing.restricted_to) && billing.restricted_to.length > 0) {
+                              markdown += `**Required Plans:** ${billing.restricted_to.join(", ")}\n`;
+                            }
+                            markdown += "\n";
+                          } else if (billing.is_premium === false) {
+                            markdown += `**Premium Model:** No\n\n`;
+                          }
+                        }
+                        return markdown;
+                      },
+                    }),
+                });
+                let markdown = conversationResult.markdown;
+                const lastEntry = logEntries[logEntries.length - 1];
+                const initEntry = logEntries.find(entry => entry.type === "system" && entry.subtype === "init");
+                markdown += generateInformationSection(lastEntry, {
+                  additionalInfoCallback: entry => {
+                    const isPremiumModel =
+                      initEntry && initEntry.model_info && initEntry.model_info.billing && initEntry.model_info.billing.is_premium === true;
+                    if (isPremiumModel) {
+                      const premiumRequestCount = extractPremiumRequestCount(logContent);
+                      return `**Premium Requests Consumed:** ${premiumRequestCount}\n\n`;
+                    }
+                    return "";
+                  },
+                });
+                return { markdown, logEntries };
+              } catch (error) {
+                const errorMessage = error instanceof Error ? error.message : String(error);
+                return {
+                  markdown: `## Agent Log Summary\n\nError parsing Copilot log (tried both JSON array and JSONL formats): ${errorMessage}\n`,
+                  logEntries: [],
+                };
+              }
+            }
+            function scanForToolErrors(logContent) {
+              const toolErrors = new Map();
+              const lines = logContent.split("\n");
+              const recentToolCalls = [];
+              const MAX_RECENT_TOOLS = 10;
+              for (let i = 0; i < lines.length; i++) {
+                const line = lines[i];
+                if (line.includes('"tool_calls":') && !line.includes('\\"tool_calls\\"')) {
+                  for (let j = i + 1; j < Math.min(i + 30, lines.length); j++) {
+                    const nextLine = lines[j];
+                    const idMatch = nextLine.match(/"id":\s*"([^"]+)"/);
+                    const nameMatch = nextLine.match(/"name":\s*"([^"]+)"/) && !nextLine.includes('\\"name\\"');
+                    if (idMatch) {
+                      const toolId = idMatch[1];
+                      for (let k = j; k < Math.min(j + 10, lines.length); k++) {
+                        const nameLine = lines[k];
+                        const funcNameMatch = nameLine.match(/"name":\s*"([^"]+)"/);
+                        if (funcNameMatch && !nameLine.includes('\\"name\\"')) {
+                          const toolName = funcNameMatch[1];
+                          recentToolCalls.unshift({ id: toolId, name: toolName });
+                          if (recentToolCalls.length > MAX_RECENT_TOOLS) {
+                            recentToolCalls.pop();
+                          }
+                          break;
+                        }
+                      }
+                    }
                   }
-                  if (line.trim() === "thinking") {
-                    inThinkingSection = true;
-                    continue;
+                }
+                const errorMatch = line.match(/\[ERROR\].*(?:Tool execution failed|Permission denied|Resource not accessible|Error executing tool)/i);
+                if (errorMatch) {
+                  const toolNameMatch = line.match(/Tool execution failed:\s*([^\s]+)/i);
+                  const toolIdMatch = line.match(/tool_call_id:\s*([^\s]+)/i);
+                  if (toolNameMatch) {
+                    const toolName = toolNameMatch[1];
+                    toolErrors.set(toolName, true);
+                    const matchingTool = recentToolCalls.find(t => t.name === toolName);
+                    if (matchingTool) {
+                      toolErrors.set(matchingTool.id, true);
+                    }
+                  } else if (toolIdMatch) {
+                    toolErrors.set(toolIdMatch[1], true);
+                  } else if (recentToolCalls.length > 0) {
+                    const lastTool = recentToolCalls[0];
+                    toolErrors.set(lastTool.id, true);
+                    toolErrors.set(lastTool.name, true);
                   }
-                  const toolMatch = line.match(/^tool\s+(\w+)\.(\w+)\(/);
-                  if (toolMatch) {
-                    inThinkingSection = false;
-                    const server = toolMatch[1];
-                    const toolName = toolMatch[2];
-                    let statusIcon = "❓"; 
-                    for (let j = i + 1; j < Math.min(i + LOOKAHEAD_WINDOW, lines.length); j++) {
-                      const nextLine = lines[j];
-                      if (nextLine.includes(`${server}.${toolName}(`) && nextLine.includes("success in")) {
-                        statusIcon = "✅";
-                        break;
-                      } else if (nextLine.includes(`${server}.${toolName}(`) && (nextLine.includes("failed in") || nextLine.includes("error"))) {
-                        statusIcon = "❌";
+                }
+              }
+              return toolErrors;
+            }
+            function parseDebugLogFormat(logContent) {
+              const entries = [];
+              const lines = logContent.split("\n");
+              const toolErrors = scanForToolErrors(logContent);
+              let model = "unknown";
+              let sessionId = null;
+              let modelInfo = null;
+              let tools = [];
+              const modelMatch = logContent.match(/Starting Copilot CLI: ([\d.]+)/);
+              if (modelMatch) {
+                sessionId = `copilot-${modelMatch[1]}-${Date.now()}`;
+              }
+              const gotModelInfoIndex = logContent.indexOf("[DEBUG] Got model info: {");
+              if (gotModelInfoIndex !== -1) {
+                const jsonStart = logContent.indexOf("{", gotModelInfoIndex);
+                if (jsonStart !== -1) {
+                  let braceCount = 0;
+                  let inString = false;
+                  let escapeNext = false;
+                  let jsonEnd = -1;
+                  for (let i = jsonStart; i < logContent.length; i++) {
+                    const char = logContent[i];
+                    if (escapeNext) {
+                      escapeNext = false;
+                      continue;
+                    }
+                    if (char === "\\") {
+                      escapeNext = true;
+                      continue;
+                    }
+                    if (char === '"' && !escapeNext) {
+                      inString = !inString;
+                      continue;
+                    }
+                    if (inString) continue;
+                    if (char === "{") {
+                      braceCount++;
+                    } else if (char === "}") {
+                      braceCount--;
+                      if (braceCount === 0) {
+                        jsonEnd = i + 1;
                         break;
                       }
                     }
-                    markdown += `${statusIcon} ${server}::${toolName}(...)\n\n`;
-                    continue;
                   }
-                  if (inThinkingSection && line.trim().length > 20 && !line.match(/^\d{4}-\d{2}-\d{2}T/)) {
-                    const trimmed = line.trim();
-                    markdown += `${trimmed}\n\n`;
+                  if (jsonEnd !== -1) {
+                    const modelInfoJson = logContent.substring(jsonStart, jsonEnd);
+                    try {
+                      modelInfo = JSON.parse(modelInfoJson);
+                    } catch (e) {
+                    }
                   }
                 }
-                markdown += "## 🤖 Commands and Tools\n\n";
-                for (let i = 0; i < lines.length; i++) {
-                  const line = lines[i];
-                  const toolMatch = line.match(/^\[.*?\]\s+tool\s+(\w+)\.(\w+)\((.+)\)/) || line.match(/ToolCall:\s+(\w+)__(\w+)\s+(\{.+\})/);
-                  const bashMatch = line.match(/^\[.*?\]\s+exec\s+bash\s+-lc\s+'([^']+)'/);
-                  if (toolMatch) {
-                    const server = toolMatch[1];
-                    const toolName = toolMatch[2];
-                    const params = toolMatch[3];
-                    let statusIcon = "❓";
-                    let response = "";
-                    let isError = false;
-                    for (let j = i + 1; j < Math.min(i + LOOKAHEAD_WINDOW, lines.length); j++) {
-                      const nextLine = lines[j];
-                      if (nextLine.includes(`${server}.${toolName}(`) && (nextLine.includes("success in") || nextLine.includes("failed in"))) {
-                        isError = nextLine.includes("failed in");
-                        statusIcon = isError ? "❌" : "✅";
-                        let jsonLines = [];
-                        let braceCount = 0;
-                        let inJson = false;
-                        for (let k = j + 1; k < Math.min(j + 30, lines.length); k++) {
-                          const respLine = lines[k];
-                          if (respLine.includes("tool ") || respLine.includes("ToolCall:") || respLine.includes("tokens used")) {
-                            break;
+              }
+              const toolsIndex = logContent.indexOf("[DEBUG] Tools:");
+              if (toolsIndex !== -1) {
+                const afterToolsLine = logContent.indexOf("\n", toolsIndex);
+                let toolsStart = logContent.indexOf("[DEBUG] [", afterToolsLine);
+                if (toolsStart !== -1) {
+                  toolsStart = logContent.indexOf("[", toolsStart + 7); 
+                }
+                if (toolsStart !== -1) {
+                  let bracketCount = 0;
+                  let inString = false;
+                  let escapeNext = false;
+                  let toolsEnd = -1;
+                  for (let i = toolsStart; i < logContent.length; i++) {
+                    const char = logContent[i];
+                    if (escapeNext) {
+                      escapeNext = false;
+                      continue;
+                    }
+                    if (char === "\\") {
+                      escapeNext = true;
+                      continue;
+                    }
+                    if (char === '"' && !escapeNext) {
+                      inString = !inString;
+                      continue;
+                    }
+                    if (inString) continue;
+                    if (char === "[") {
+                      bracketCount++;
+                    } else if (char === "]") {
+                      bracketCount--;
+                      if (bracketCount === 0) {
+                        toolsEnd = i + 1;
+                        break;
+                      }
+                    }
+                  }
+                  if (toolsEnd !== -1) {
+                    let toolsJson = logContent.substring(toolsStart, toolsEnd);
+                    toolsJson = toolsJson.replace(/^\d{4}-\d{2}-\d{2}T[\d:.]+Z \[DEBUG\] /gm, "");
+                    try {
+                      const toolsArray = JSON.parse(toolsJson);
+                      if (Array.isArray(toolsArray)) {
+                        tools = toolsArray
+                          .map(tool => {
+                            if (tool.type === "function" && tool.function && tool.function.name) {
+                              let name = tool.function.name;
+                              if (name.startsWith("github-")) {
+                                name = "mcp__github__" + name.substring(7);
+                              } else if (name.startsWith("safe_outputs-")) {
+                                name = name; 
+                              }
+                              return name;
+                            }
+                            return null;
+                          })
+                          .filter(name => name !== null);
+                      }
+                    } catch (e) {
+                    }
+                  }
+                }
+              }
+              let inDataBlock = false;
+              let currentJsonLines = [];
+              let turnCount = 0;
+              for (let i = 0; i < lines.length; i++) {
+                const line = lines[i];
+                if (line.includes("[DEBUG] data:")) {
+                  inDataBlock = true;
+                  currentJsonLines = [];
+                  continue;
+                }
+                if (inDataBlock) {
+                  const hasTimestamp = line.match(/^\d{4}-\d{2}-\d{2}T[\d:.]+Z /);
+                  if (hasTimestamp) {
+                    const cleanLine = line.replace(/^\d{4}-\d{2}-\d{2}T[\d:.]+Z \[DEBUG\] /, "");
+                    const isJsonContent = /^[{\[}\]"]/.test(cleanLine) || cleanLine.trim().startsWith('"');
+                    if (!isJsonContent) {
+                      if (currentJsonLines.length > 0) {
+                        try {
+                          const jsonStr = currentJsonLines.join("\n");
+                          const jsonData = JSON.parse(jsonStr);
+                          if (jsonData.model) {
+                            model = jsonData.model;
                           }
-                          for (const char of respLine) {
-                            if (char === "{") {
-                              braceCount++;
-                              inJson = true;
-                            } else if (char === "}") {
-                              braceCount--;
+                          if (jsonData.choices && Array.isArray(jsonData.choices)) {
+                            for (const choice of jsonData.choices) {
+                              if (choice.message) {
+                                const message = choice.message;
+                                const content = [];
+                                const toolResults = []; 
+                                if (message.content && message.content.trim()) {
+                                  content.push({
+                                    type: "text",
+                                    text: message.content,
+                                  });
+                                }
+                                if (message.tool_calls && Array.isArray(message.tool_calls)) {
+                                  for (const toolCall of message.tool_calls) {
+                                    if (toolCall.function) {
+                                      let toolName = toolCall.function.name;
+                                      const originalToolName = toolName; 
+                                      const toolId = toolCall.id || `tool_${Date.now()}_${Math.random()}`;
+                                      let args = {};
+                                      if (toolName.startsWith("github-")) {
+                                        toolName = "mcp__github__" + toolName.substring(7);
+                                      } else if (toolName === "bash") {
+                                        toolName = "Bash";
+                                      }
+                                      try {
+                                        args = JSON.parse(toolCall.function.arguments);
+                                      } catch (e) {
+                                        args = {};
+                                      }
+                                      content.push({
+                                        type: "tool_use",
+                                        id: toolId,
+                                        name: toolName,
+                                        input: args,
+                                      });
+                                      const hasError = toolErrors.has(toolId) || toolErrors.has(originalToolName);
+                                      toolResults.push({
+                                        type: "tool_result",
+                                        tool_use_id: toolId,
+                                        content: hasError ? "Permission denied or tool execution failed" : "", 
+                                        is_error: hasError, 
+                                      });
+                                    }
+                                  }
+                                }
+                                if (content.length > 0) {
+                                  entries.push({
+                                    type: "assistant",
+                                    message: { content },
+                                  });
+                                  turnCount++;
+                                  if (toolResults.length > 0) {
+                                    entries.push({
+                                      type: "user",
+                                      message: { content: toolResults },
+                                    });
+                                  }
+                                }
+                              }
+                            }
+                            if (jsonData.usage) {
+                              if (!entries._accumulatedUsage) {
+                                entries._accumulatedUsage = {
+                                  input_tokens: 0,
+                                  output_tokens: 0,
+                                };
+                              }
+                              if (jsonData.usage.prompt_tokens) {
+                                entries._accumulatedUsage.input_tokens += jsonData.usage.prompt_tokens;
+                              }
+                              if (jsonData.usage.completion_tokens) {
+                                entries._accumulatedUsage.output_tokens += jsonData.usage.completion_tokens;
+                              }
+                              entries._lastResult = {
+                                type: "result",
+                                num_turns: turnCount,
+                                usage: entries._accumulatedUsage,
+                              };
                             }
                           }
-                          if (inJson) {
-                            jsonLines.push(respLine);
-                          }
-                          if (inJson && braceCount === 0) {
-                            break;
-                          }
+                        } catch (e) {
                         }
-                        response = jsonLines.join("\n");
-                        break;
                       }
+                      inDataBlock = false;
+                      currentJsonLines = [];
+                      continue; 
+                    } else if (hasTimestamp && isJsonContent) {
+                      currentJsonLines.push(cleanLine);
                     }
-                    markdown += formatCodexToolCall(server, toolName, params, response, statusIcon);
-                  } else if (bashMatch) {
-                    const command = bashMatch[1];
-                    let statusIcon = "❓";
-                    let response = "";
-                    let isError = false;
-                    for (let j = i + 1; j < Math.min(i + LOOKAHEAD_WINDOW, lines.length); j++) {
-                      const nextLine = lines[j];
-                      if (nextLine.includes("bash -lc") && (nextLine.includes("succeeded in") || nextLine.includes("failed in"))) {
-                        isError = nextLine.includes("failed in");
-                        statusIcon = isError ? "❌" : "✅";
-                        let responseLines = [];
-                        for (let k = j + 1; k < Math.min(j + 20, lines.length); k++) {
-                          const respLine = lines[k];
-                          if (
-                            respLine.includes("tool ") ||
-                            respLine.includes("exec ") ||
-                            respLine.includes("ToolCall:") ||
-                            respLine.includes("tokens used") ||
-                            respLine.includes("thinking")
-                          ) {
-                            break;
-                          }
-                          responseLines.push(respLine);
-                        }
-                        response = responseLines.join("\n").trim();
-                        break;
-                      }
-                    }
-                    markdown += formatCodexBashCall(command, response, statusIcon);
+                  } else {
+                    const cleanLine = line.replace(/^\d{4}-\d{2}-\d{2}T[\d:.]+Z \[DEBUG\] /, "");
+                    currentJsonLines.push(cleanLine);
                   }
                 }
-                markdown += "\n## 📊 Information\n\n";
-                let totalTokens = 0;
-                const tokenCountMatches = logContent.matchAll(/total_tokens:\s*(\d+)/g);
-                for (const match of tokenCountMatches) {
-                  const tokens = parseInt(match[1]);
-                  totalTokens = Math.max(totalTokens, tokens); 
+              }
+              if (inDataBlock && currentJsonLines.length > 0) {
+                try {
+                  const jsonStr = currentJsonLines.join("\n");
+                  const jsonData = JSON.parse(jsonStr);
+                  if (jsonData.model) {
+                    model = jsonData.model;
+                  }
+                  if (jsonData.choices && Array.isArray(jsonData.choices)) {
+                    for (const choice of jsonData.choices) {
+                      if (choice.message) {
+                        const message = choice.message;
+                        const content = [];
+                        const toolResults = []; 
+                        if (message.content && message.content.trim()) {
+                          content.push({
+                            type: "text",
+                            text: message.content,
+                          });
+                        }
+                        if (message.tool_calls && Array.isArray(message.tool_calls)) {
+                          for (const toolCall of message.tool_calls) {
+                            if (toolCall.function) {
+                              let toolName = toolCall.function.name;
+                              const originalToolName = toolName;
+                              const toolId = toolCall.id || `tool_${Date.now()}_${Math.random()}`;
+                              let args = {};
+                              if (toolName.startsWith("github-")) {
+                                toolName = "mcp__github__" + toolName.substring(7);
+                              } else if (toolName === "bash") {
+                                toolName = "Bash";
+                              }
+                              try {
+                                args = JSON.parse(toolCall.function.arguments);
+                              } catch (e) {
+                                args = {};
+                              }
+                              content.push({
+                                type: "tool_use",
+                                id: toolId,
+                                name: toolName,
+                                input: args,
+                              });
+                              const hasError = toolErrors.has(toolId) || toolErrors.has(originalToolName);
+                              toolResults.push({
+                                type: "tool_result",
+                                tool_use_id: toolId,
+                                content: hasError ? "Permission denied or tool execution failed" : "",
+                                is_error: hasError,
+                              });
+                            }
+                          }
+                        }
+                        if (content.length > 0) {
+                          entries.push({
+                            type: "assistant",
+                            message: { content },
+                          });
+                          turnCount++;
+                          if (toolResults.length > 0) {
+                            entries.push({
+                              type: "user",
+                              message: { content: toolResults },
+                            });
+                          }
+                        }
+                      }
+                    }
+                    if (jsonData.usage) {
+                      if (!entries._accumulatedUsage) {
+                        entries._accumulatedUsage = {
+                          input_tokens: 0,
+                          output_tokens: 0,
+                        };
+                      }
+                      if (jsonData.usage.prompt_tokens) {
+                        entries._accumulatedUsage.input_tokens += jsonData.usage.prompt_tokens;
+                      }
+                      if (jsonData.usage.completion_tokens) {
+                        entries._accumulatedUsage.output_tokens += jsonData.usage.completion_tokens;
+                      }
+                      entries._lastResult = {
+                        type: "result",
+                        num_turns: turnCount,
+                        usage: entries._accumulatedUsage,
+                      };
+                    }
+                  }
+                } catch (e) {
                 }
-                const finalTokensMatch = logContent.match(/tokens used\n([\d,]+)/);
-                if (finalTokensMatch) {
-                  totalTokens = parseInt(finalTokensMatch[1].replace(/,/g, ""));
+              }
+              if (entries.length > 0) {
+                const initEntry = {
+                  type: "system",
+                  subtype: "init",
+                  session_id: sessionId,
+                  model: model,
+                  tools: tools, 
+                };
+                if (modelInfo) {
+                  initEntry.model_info = modelInfo;
                 }
-                if (totalTokens > 0) {
-                  markdown += `**Total Tokens Used:** ${totalTokens.toLocaleString()}\n\n`;
+                entries.unshift(initEntry);
+                if (entries._lastResult) {
+                  entries.push(entries._lastResult);
+                  delete entries._lastResult;
                 }
-                const toolCalls = (logContent.match(/ToolCall:\s+\w+__\w+/g) || []).length;
-                if (toolCalls > 0) {
-                  markdown += `**Tool Calls:** ${toolCalls}\n\n`;
-                }
-                return markdown;
-              } catch (error) {
-                core.error(`Error parsing Codex log: ${error}`);
-                return "## 🤖 Commands and Tools\n\nError parsing log content.\n\n## 🤖 Reasoning\n\nUnable to parse reasoning from log.\n\n";
               }
-            }
-            function formatCodexToolCall(server, toolName, params, response, statusIcon) {
-              const totalTokens = estimateTokens(params) + estimateTokens(response);
-              let metadata = "";
-              if (totalTokens > 0) {
-                metadata = `<code>~${totalTokens}t</code>`;
-              }
-              const summary = `<code>${server}::${toolName}</code>`;
-              const sections = [];
-              if (params && params.trim()) {
-                sections.push({
-                  label: "Parameters",
-                  content: params,
-                  language: "json",
-                });
-              }
-              if (response && response.trim()) {
-                sections.push({
-                  label: "Response",
-                  content: response,
-                  language: "json",
-                });
-              }
-              return formatToolCallAsDetails({
-                summary,
-                statusIcon,
-                metadata,
-                sections,
-              });
-            }
-            function formatCodexBashCall(command, response, statusIcon) {
-              const totalTokens = estimateTokens(command) + estimateTokens(response);
-              let metadata = "";
-              if (totalTokens > 0) {
-                metadata = `<code>~${totalTokens}t</code>`;
-              }
-              const summary = `<code>bash: ${truncateString(command, 60)}</code>`;
-              const sections = [];
-              sections.push({
-                label: "Command",
-                content: command,
-                language: "bash",
-              });
-              if (response && response.trim()) {
-                sections.push({
-                  label: "Output",
-                  content: response,
-                });
-              }
-              return formatToolCallAsDetails({
-                summary,
-                statusIcon,
-                metadata,
-                sections,
-              });
+              return entries;
             }
             main();
+      - name: Upload Firewall Logs
+        if: always()
+        continue-on-error: true
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
+        with:
+          name: firewall-logs-daily-file-diet
+          path: /tmp/gh-aw/sandbox/firewall/logs/
+          if-no-files-found: ignore
+      - name: Parse firewall logs for step summary
+        if: always()
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        with:
+          script: |
+            function sanitizeWorkflowName(name) {
+
+              return name
+
+                .toLowerCase()
+
+                .replace(/[:\\/\s]/g, "-")
+
+                .replace(/[^a-z0-9._-]/g, "-");
+
+            }
+
+            function main() {
+
+              const fs = require("fs");
+
+              const path = require("path");
+
+              try {
+
+                const squidLogsDir = `/tmp/gh-aw/sandbox/firewall/logs/`;
+
+                if (!fs.existsSync(squidLogsDir)) {
+
+                  core.info(`No firewall logs directory found at: ${squidLogsDir}`);
+
+                  return;
+
+                }
+
+                const files = fs.readdirSync(squidLogsDir).filter(file => file.endsWith(".log"));
+
+                if (files.length === 0) {
+
+                  core.info(`No firewall log files found in: ${squidLogsDir}`);
+
+                  return;
+
+                }
+
+                core.info(`Found ${files.length} firewall log file(s)`);
+
+                let totalRequests = 0;
+
+                let allowedRequests = 0;
+
+                let deniedRequests = 0;
+
+                const allowedDomains = new Set();
+
+                const deniedDomains = new Set();
+
+                const requestsByDomain = new Map();
+
+                for (const file of files) {
+
+                  const filePath = path.join(squidLogsDir, file);
+
+                  core.info(`Parsing firewall log: ${file}`);
+
+                  const content = fs.readFileSync(filePath, "utf8");
+
+                  const lines = content.split("\n").filter(line => line.trim());
+
+                  for (const line of lines) {
+
+                    const entry = parseFirewallLogLine(line);
+
+                    if (!entry) {
+
+                      continue;
+
+                    }
+
+                    totalRequests++;
+
+                    const isAllowed = isRequestAllowed(entry.decision, entry.status);
+
+                    if (isAllowed) {
+
+                      allowedRequests++;
+
+                      allowedDomains.add(entry.domain);
+
+                    } else {
+
+                      deniedRequests++;
+
+                      deniedDomains.add(entry.domain);
+
+                    }
+
+                    if (!requestsByDomain.has(entry.domain)) {
+
+                      requestsByDomain.set(entry.domain, { allowed: 0, denied: 0 });
+
+                    }
+
+                    const domainStats = requestsByDomain.get(entry.domain);
+
+                    if (isAllowed) {
+
+                      domainStats.allowed++;
+
+                    } else {
+
+                      domainStats.denied++;
+
+                    }
+
+                  }
+
+                }
+
+                const summary = generateFirewallSummary({
+
+                  totalRequests,
+
+                  allowedRequests,
+
+                  deniedRequests,
+
+                  allowedDomains: Array.from(allowedDomains).sort(),
+
+                  deniedDomains: Array.from(deniedDomains).sort(),
+
+                  requestsByDomain,
+
+                });
+
+                core.summary.addRaw(summary).write();
+
+                core.info("Firewall log summary generated successfully");
+
+              } catch (error) {
+
+                core.setFailed(error instanceof Error ? error : String(error));
+
+              }
+
+            }
+
+            function parseFirewallLogLine(line) {
+
+              const trimmed = line.trim();
+
+              if (!trimmed || trimmed.startsWith("#")) {
+
+                return null;
+
+              }
+
+              const fields = trimmed.match(/(?:[^\s"]+|"[^"]*")+/g);
+
+              if (!fields || fields.length < 10) {
+
+                return null;
+
+              }
+
+              const timestamp = fields[0];
+
+              if (!/^\d+(\.\d+)?$/.test(timestamp)) {
+
+                return null;
+
+              }
+
+              return {
+
+                timestamp,
+
+                clientIpPort: fields[1],
+
+                domain: fields[2],
+
+                destIpPort: fields[3],
+
+                proto: fields[4],
+
+                method: fields[5],
+
+                status: fields[6],
+
+                decision: fields[7],
+
+                url: fields[8],
+
+                userAgent: fields[9]?.replace(/^"|"$/g, "") || "-",
+
+              };
+
+            }
+
+            function isRequestAllowed(decision, status) {
+
+              const statusCode = parseInt(status, 10);
+
+              if (statusCode === 200 || statusCode === 206 || statusCode === 304) {
+
+                return true;
+
+              }
+
+              if (decision.includes("TCP_TUNNEL") || decision.includes("TCP_HIT") || decision.includes("TCP_MISS")) {
+
+                return true;
+
+              }
+
+              if (decision.includes("NONE_NONE") || decision.includes("TCP_DENIED") || statusCode === 403 || statusCode === 407) {
+
+                return false;
+
+              }
+
+              return false;
+
+            }
+
+            function generateFirewallSummary(analysis) {
+
+              const { totalRequests, requestsByDomain } = analysis;
+
+              const validDomains = Array.from(requestsByDomain.keys())
+
+                .filter(domain => domain !== "-")
+
+                .sort();
+
+              const uniqueDomainCount = validDomains.length;
+
+              let validAllowedRequests = 0;
+
+              let validDeniedRequests = 0;
+
+              for (const domain of validDomains) {
+
+                const stats = requestsByDomain.get(domain);
+
+                validAllowedRequests += stats.allowed;
+
+                validDeniedRequests += stats.denied;
+
+              }
+
+              let summary = "### 🔥 Firewall Activity\n\n";
+
+              summary += "<details>\n";
+
+              summary += `<summary>📊 ${totalRequests} request${totalRequests !== 1 ? "s" : ""} | `;
+
+              summary += `${validAllowedRequests} allowed | `;
+
+              summary += `${validDeniedRequests} blocked | `;
+
+              summary += `${uniqueDomainCount} unique domain${uniqueDomainCount !== 1 ? "s" : ""}</summary>\n\n`;
+
+              if (uniqueDomainCount > 0) {
+
+                summary += "| Domain | Allowed | Denied |\n";
+
+                summary += "|--------|---------|--------|\n";
+
+                for (const domain of validDomains) {
+
+                  const stats = requestsByDomain.get(domain);
+
+                  summary += `| ${domain} | ${stats.allowed} | ${stats.denied} |\n`;
+
+                }
+
+              } else {
+
+                summary += "No firewall activity detected.\n";
+
+              }
+
+              summary += "\n</details>\n\n";
+
+              return summary;
+
+            }
+
+            const isDirectExecution =
+
+              typeof module === "undefined" || (typeof require !== "undefined" && typeof require.main !== "undefined" && require.main === module);
+
+            if (isDirectExecution) {
+
+              main();
+
+            }
+
       - name: Upload Agent Stdio
         if: always()
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
@@ -5321,12 +7196,34 @@ jobs:
           name: agent-stdio.log
           path: /tmp/gh-aw/agent-stdio.log
           if-no-files-found: warn
+      # Upload repo memory as artifacts for push job
+      - name: Upload repo-memory artifact (default)
+        if: always()
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
+        with:
+          name: repo-memory-default
+          path: /tmp/gh-aw/repo-memory-default
+          retention-days: 1
+          if-no-files-found: ignore
+      - name: Upload cache-memory data as artifact
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
+        if: always()
+        with:
+          name: cache-memory
+          path: /tmp/gh-aw/cache-memory
+      - name: Upload safe outputs assets
+        if: always()
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
+        with:
+          name: safe-outputs-assets
+          path: /tmp/gh-aw/safeoutputs/assets/
+          if-no-files-found: ignore
       - name: Validate agent logs for errors
         if: always()
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
-          GH_AW_AGENT_OUTPUT: /tmp/gh-aw/agent-stdio.log
-          GH_AW_ERROR_PATTERNS: "[{\"id\":\"\",\"pattern\":\"::(error)(?:\\\\s+[^:]*)?::(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"GitHub Actions workflow command - error\"},{\"id\":\"\",\"pattern\":\"::(warning)(?:\\\\s+[^:]*)?::(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"GitHub Actions workflow command - warning\"},{\"id\":\"\",\"pattern\":\"::(notice)(?:\\\\s+[^:]*)?::(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"GitHub Actions workflow command - notice\"},{\"id\":\"\",\"pattern\":\"(ERROR|Error):\\\\s+(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"Generic ERROR messages\"},{\"id\":\"\",\"pattern\":\"(WARNING|Warning):\\\\s+(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"Generic WARNING messages\"},{\"id\":\"\",\"pattern\":\"(\\\\d{4}-\\\\d{2}-\\\\d{2}T[\\\\d:.]+Z)\\\\s+(ERROR)\\\\s+(.+)\",\"level_group\":2,\"message_group\":3,\"description\":\"Codex ERROR messages with timestamp\"},{\"id\":\"\",\"pattern\":\"(\\\\d{4}-\\\\d{2}-\\\\d{2}T[\\\\d:.]+Z)\\\\s+(WARN|WARNING)\\\\s+(.+)\",\"level_group\":2,\"message_group\":3,\"description\":\"Codex warning messages with timestamp\"}]"
+          GH_AW_AGENT_OUTPUT: /tmp/gh-aw/sandbox/agent/logs/
+          GH_AW_ERROR_PATTERNS: "[{\"id\":\"\",\"pattern\":\"::(error)(?:\\\\s+[^:]*)?::(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"GitHub Actions workflow command - error\"},{\"id\":\"\",\"pattern\":\"::(warning)(?:\\\\s+[^:]*)?::(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"GitHub Actions workflow command - warning\"},{\"id\":\"\",\"pattern\":\"::(notice)(?:\\\\s+[^:]*)?::(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"GitHub Actions workflow command - notice\"},{\"id\":\"\",\"pattern\":\"(ERROR|Error):\\\\s+(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"Generic ERROR messages\"},{\"id\":\"\",\"pattern\":\"(WARNING|Warning):\\\\s+(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"Generic WARNING messages\"},{\"id\":\"\",\"pattern\":\"(\\\\d{4}-\\\\d{2}-\\\\d{2}T\\\\d{2}:\\\\d{2}:\\\\d{2}\\\\.\\\\d{3}Z)\\\\s+\\\\[(ERROR)\\\\]\\\\s+(.+)\",\"level_group\":2,\"message_group\":3,\"description\":\"Copilot CLI timestamped ERROR messages\"},{\"id\":\"\",\"pattern\":\"(\\\\d{4}-\\\\d{2}-\\\\d{2}T\\\\d{2}:\\\\d{2}:\\\\d{2}\\\\.\\\\d{3}Z)\\\\s+\\\\[(WARN|WARNING)\\\\]\\\\s+(.+)\",\"level_group\":2,\"message_group\":3,\"description\":\"Copilot CLI timestamped WARNING messages\"},{\"id\":\"\",\"pattern\":\"\\\\[(\\\\d{4}-\\\\d{2}-\\\\d{2}T\\\\d{2}:\\\\d{2}:\\\\d{2}\\\\.\\\\d{3}Z)\\\\]\\\\s+(CRITICAL|ERROR):\\\\s+(.+)\",\"level_group\":2,\"message_group\":3,\"description\":\"Copilot CLI bracketed critical/error messages with timestamp\"},{\"id\":\"\",\"pattern\":\"\\\\[(\\\\d{4}-\\\\d{2}-\\\\d{2}T\\\\d{2}:\\\\d{2}:\\\\d{2}\\\\.\\\\d{3}Z)\\\\]\\\\s+(WARNING):\\\\s+(.+)\",\"level_group\":2,\"message_group\":3,\"description\":\"Copilot CLI bracketed warning messages with timestamp\"},{\"id\":\"\",\"pattern\":\"✗\\\\s+(.+)\",\"level_group\":0,\"message_group\":1,\"description\":\"Copilot CLI failed command indicator\"},{\"id\":\"\",\"pattern\":\"(?:command not found|not found):\\\\s*(.+)|(.+):\\\\s*(?:command not found|not found)\",\"level_group\":0,\"message_group\":0,\"description\":\"Shell command not found error\"},{\"id\":\"\",\"pattern\":\"Cannot find module\\\\s+['\\\"](.+)['\\\"]\",\"level_group\":0,\"message_group\":1,\"description\":\"Node.js module not found error\"},{\"id\":\"\",\"pattern\":\"Permission denied and could not request permission from user\",\"level_group\":0,\"message_group\":0,\"description\":\"Copilot CLI permission denied warning (user interaction required)\"},{\"id\":\"\",\"pattern\":\"\\\\berror\\\\b.*permission.*denied\",\"level_group\":0,\"message_group\":0,\"description\":\"Permission denied error (requires error context)\"},{\"id\":\"\",\"pattern\":\"\\\\berror\\\\b.*unauthorized\",\"level_group\":0,\"message_group\":0,\"description\":\"Unauthorized access error (requires error context)\"},{\"id\":\"\",\"pattern\":\"\\\\berror\\\\b.*forbidden\",\"level_group\":0,\"message_group\":0,\"description\":\"Forbidden access error (requires error context)\"}]"
         with:
           script: |
             function main() {
@@ -5563,6 +7460,10 @@ jobs:
       - agent
       - create_issue
       - detection
+      - push_repo_memory
+      - update_cache_memory
+      - update_project
+      - upload_assets
     if: (always()) && (needs.agent.result != 'skipped')
     runs-on: ubuntu-slim
     permissions:
@@ -6140,10 +8041,10 @@ jobs:
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_ISSUE_TITLE_PREFIX: "[file-diet] "
-          GH_AW_ISSUE_LABELS: "refactoring,code-health,automated-analysis"
+          GH_AW_ISSUE_LABELS: "refactoring,code-health,automated-analysis,campaign:code-health-file-diet"
           GH_AW_WORKFLOW_NAME: "Daily File Diet"
           GH_AW_TRACKER_ID: "daily-file-diet"
-          GH_AW_ENGINE_ID: "codex"
+          GH_AW_ENGINE_ID: "copilot"
         with:
           github-token: ${{ steps.app-token.outputs.token }}
           script: |
@@ -6752,7 +8653,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions: {}
     concurrency:
-      group: "gh-aw-codex-${{ github.workflow }}"
+      group: "gh-aw-copilot-${{ github.workflow }}"
     timeout-minutes: 10
     outputs:
       success: ${{ steps.parse_results.outputs.success }}
@@ -6890,55 +8791,64 @@ jobs:
         run: |
           mkdir -p /tmp/gh-aw/threat-detection
           touch /tmp/gh-aw/threat-detection/detection.log
-      - name: Validate CODEX_API_KEY or OPENAI_API_KEY secret
+      - name: Validate COPILOT_GITHUB_TOKEN secret
         run: |
-          if [ -z "$CODEX_API_KEY" ] && [ -z "$OPENAI_API_KEY" ]; then
+          if [ -z "$COPILOT_GITHUB_TOKEN" ]; then
             {
-              echo "❌ Error: Neither CODEX_API_KEY nor OPENAI_API_KEY secret is set"
-              echo "The Codex engine requires either CODEX_API_KEY or OPENAI_API_KEY secret to be configured."
+              echo "❌ Error: None of the following secrets are set: COPILOT_GITHUB_TOKEN"
+              echo "The GitHub Copilot CLI engine requires either COPILOT_GITHUB_TOKEN secret to be configured."
               echo "Please configure one of these secrets in your repository settings."
-              echo "Documentation: https://githubnext.github.io/gh-aw/reference/engines/#openai-codex"
+              echo "Documentation: https://githubnext.github.io/gh-aw/reference/engines/#github-copilot-default"
             } >> "$GITHUB_STEP_SUMMARY"
-            echo "Error: Neither CODEX_API_KEY nor OPENAI_API_KEY secret is set"
-            echo "The Codex engine requires either CODEX_API_KEY or OPENAI_API_KEY secret to be configured."
+            echo "Error: None of the following secrets are set: COPILOT_GITHUB_TOKEN"
+            echo "The GitHub Copilot CLI engine requires either COPILOT_GITHUB_TOKEN secret to be configured."
             echo "Please configure one of these secrets in your repository settings."
-            echo "Documentation: https://githubnext.github.io/gh-aw/reference/engines/#openai-codex"
+            echo "Documentation: https://githubnext.github.io/gh-aw/reference/engines/#github-copilot-default"
             exit 1
           fi
           
           # Log success to stdout (not step summary)
-          if [ -n "$CODEX_API_KEY" ]; then
-            echo "CODEX_API_KEY secret is configured"
-          else
-            echo "OPENAI_API_KEY secret is configured (using as fallback for CODEX_API_KEY)"
+          if [ -n "$COPILOT_GITHUB_TOKEN" ]; then
+            echo "COPILOT_GITHUB_TOKEN secret is configured"
           fi
         env:
-          CODEX_API_KEY: ${{ secrets.CODEX_API_KEY }}
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
       - name: Setup Node.js
         uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6
         with:
           node-version: '24'
           package-manager-cache: false
-      - name: Install Codex
-        run: npm install -g @openai/codex@0.69.0
-      - name: Run Codex
+      - name: Install GitHub Copilot CLI
+        run: npm install -g @github/copilot@0.0.368
+      - name: Execute GitHub Copilot CLI
+        id: agentic_execution
+        # Copilot CLI tool arguments (sorted):
+        # --allow-tool shell(cat)
+        # --allow-tool shell(grep)
+        # --allow-tool shell(head)
+        # --allow-tool shell(jq)
+        # --allow-tool shell(ls)
+        # --allow-tool shell(tail)
+        # --allow-tool shell(wc)
+        timeout-minutes: 20
         run: |
           set -o pipefail
-          INSTRUCTION="$(cat "$GH_AW_PROMPT")"
-          mkdir -p "$CODEX_HOME/logs"
-          codex ${GH_AW_MODEL_DETECTION_CODEX:+-c model="$GH_AW_MODEL_DETECTION_CODEX" }exec --full-auto --skip-git-repo-check "$INSTRUCTION" 2>&1 | tee /tmp/gh-aw/threat-detection/detection.log
+          COPILOT_CLI_INSTRUCTION="$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"
+          mkdir -p /tmp/
+          mkdir -p /tmp/gh-aw/
+          mkdir -p /tmp/gh-aw/agent/
+          mkdir -p /tmp/gh-aw/sandbox/agent/logs/
+          copilot --add-dir /tmp/ --add-dir /tmp/gh-aw/ --add-dir /tmp/gh-aw/agent/ --log-level all --log-dir /tmp/gh-aw/sandbox/agent/logs/ --disable-builtin-mcps --allow-tool 'shell(cat)' --allow-tool 'shell(grep)' --allow-tool 'shell(head)' --allow-tool 'shell(jq)' --allow-tool 'shell(ls)' --allow-tool 'shell(tail)' --allow-tool 'shell(wc)' --prompt "$COPILOT_CLI_INSTRUCTION"${GH_AW_MODEL_DETECTION_COPILOT:+ --model "$GH_AW_MODEL_DETECTION_COPILOT"} 2>&1 | tee /tmp/gh-aw/threat-detection/detection.log
         env:
-          CODEX_API_KEY: ${{ secrets.CODEX_API_KEY || secrets.OPENAI_API_KEY }}
-          CODEX_HOME: /tmp/gh-aw/mcp-config
-          GH_AW_GITHUB_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
-          GH_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/config.toml
-          GH_AW_MODEL_DETECTION_CODEX: ${{ vars.GH_AW_MODEL_DETECTION_CODEX || '' }}
+          COPILOT_AGENT_RUNNER_TYPE: STANDALONE
+          COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
+          GH_AW_MODEL_DETECTION_COPILOT: ${{ vars.GH_AW_MODEL_DETECTION_COPILOT || '' }}
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-          GITHUB_PERSONAL_ACCESS_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+          GITHUB_HEAD_REF: ${{ github.head_ref }}
+          GITHUB_REF_NAME: ${{ github.ref_name }}
           GITHUB_STEP_SUMMARY: ${{ env.GITHUB_STEP_SUMMARY }}
-          OPENAI_API_KEY: ${{ secrets.CODEX_API_KEY || secrets.OPENAI_API_KEY }}
-          RUST_LOG: trace,hyper_util=info,mio=info,reqwest=info,os_info=info,codex_otel=warn,codex_core=debug,ocodex_exec=debug
+          GITHUB_WORKSPACE: ${{ github.workspace }}
+          XDG_CONFIG_HOME: /home/runner
       - name: Parse threat detection results
         id: parse_results
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
@@ -7189,4 +9099,1072 @@ jobs:
               }
             }
             await main();
+
+  push_repo_memory:
+    needs:
+      - agent
+      - detection
+    if: always() && needs.detection.outputs.success == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+        with:
+          persist-credentials: false
+          sparse-checkout: .
+      - name: Configure Git credentials
+        env:
+          REPO_NAME: ${{ github.repository }}
+          SERVER_URL: ${{ github.server_url }}
+        run: |
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "github-actions[bot]"
+          # Re-authenticate git with GitHub token
+          SERVER_URL_STRIPPED="${SERVER_URL#https://}"
+          git remote set-url origin "https://x-access-token:${{ github.token }}@${SERVER_URL_STRIPPED}/${REPO_NAME}.git"
+          echo "Git configured with standard GitHub Actions identity"
+      - name: Download repo-memory artifact (default)
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
+        continue-on-error: true
+        with:
+          name: repo-memory-default
+          path: /tmp/gh-aw/repo-memory-default
+      - name: Push repo-memory changes (default)
+        if: always()
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_RUN_ID: ${{ github.run_id }}
+          ARTIFACT_DIR: /tmp/gh-aw/repo-memory-default
+          MEMORY_ID: default
+          TARGET_REPO: ${{ github.repository }}
+          BRANCH_NAME: memory/campaigns
+          MAX_FILE_SIZE: 10240
+          MAX_FILE_COUNT: 100
+          FILE_GLOB_FILTER: "code-health-file-diet-*/**"
+        with:
+          script: |
+            const fs = require("fs");
+            const path = require("path");
+            const { execSync } = require("child_process");
+            async function main() {
+              const artifactDir = process.env.ARTIFACT_DIR;
+              const memoryId = process.env.MEMORY_ID;
+              const targetRepo = process.env.TARGET_REPO;
+              const branchName = process.env.BRANCH_NAME;
+              const maxFileSize = parseInt(process.env.MAX_FILE_SIZE || "10240", 10);
+              const maxFileCount = parseInt(process.env.MAX_FILE_COUNT || "100", 10);
+              const fileGlobFilter = process.env.FILE_GLOB_FILTER || "";
+              const ghToken = process.env.GH_TOKEN;
+              const githubRunId = process.env.GITHUB_RUN_ID || "unknown";
+              if (!artifactDir || !memoryId || !targetRepo || !branchName || !ghToken) {
+                core.setFailed("Missing required environment variables: ARTIFACT_DIR, MEMORY_ID, TARGET_REPO, BRANCH_NAME, GH_TOKEN");
+                return;
+              }
+              const sourceMemoryPath = path.join(artifactDir, "memory", memoryId);
+              if (!fs.existsSync(sourceMemoryPath)) {
+                core.info(`Memory directory not found in artifact: ${sourceMemoryPath}`);
+                return;
+              }
+              const workspaceDir = process.env.GITHUB_WORKSPACE || process.cwd();
+              core.info(`Working in repository: ${workspaceDir}`);
+              core.info(`Disabling sparse checkout...`);
+              try {
+                execSync("git sparse-checkout disable", { stdio: "pipe" });
+              } catch (error) {
+                core.info("Sparse checkout was not enabled or already disabled");
+              }
+              core.info(`Checking out branch: ${branchName}...`);
+              try {
+                const repoUrl = `https://x-access-token:${ghToken}@github.com/${targetRepo}.git`;
+                try {
+                  execSync(`git fetch "${repoUrl}" "${branchName}:${branchName}"`, { stdio: "pipe" });
+                  execSync(`git checkout "${branchName}"`, { stdio: "inherit" });
+                  core.info(`Checked out existing branch: ${branchName}`);
+                } catch (fetchError) {
+                  core.info(`Branch ${branchName} does not exist, creating orphan branch...`);
+                  execSync(`git checkout --orphan "${branchName}"`, { stdio: "inherit" });
+                  execSync("git rm -rf . || true", { stdio: "pipe" });
+                  core.info(`Created orphan branch: ${branchName}`);
+                }
+              } catch (error) {
+                core.setFailed(`Failed to checkout branch: ${error instanceof Error ? error.message : String(error)}`);
+                return;
+              }
+              const destMemoryPath = path.join(workspaceDir, "memory", memoryId);
+              fs.mkdirSync(destMemoryPath, { recursive: true });
+              core.info(`Destination directory: ${destMemoryPath}`);
+              let filesToCopy = [];
+              try {
+                const files = fs.readdirSync(sourceMemoryPath, { withFileTypes: true });
+                for (const file of files) {
+                  if (!file.isFile()) {
+                    continue; 
+                  }
+                  const fileName = file.name;
+                  const sourceFilePath = path.join(sourceMemoryPath, fileName);
+                  const stats = fs.statSync(sourceFilePath);
+                  if (fileGlobFilter) {
+                    const patterns = fileGlobFilter.split(/\s+/).map(pattern => {
+                      const regexPattern = pattern.replace(/\./g, "\\.").replace(/\*/g, "[^/]*");
+                      return new RegExp(`^${regexPattern}$`);
+                    });
+                    if (!patterns.some(pattern => pattern.test(fileName))) {
+                      core.error(`File does not match allowed patterns: ${fileName}`);
+                      core.error(`Allowed patterns: ${fileGlobFilter}`);
+                      core.setFailed("File pattern validation failed");
+                      return;
+                    }
+                  }
+                  if (stats.size > maxFileSize) {
+                    core.error(`File exceeds size limit: ${fileName} (${stats.size} bytes > ${maxFileSize} bytes)`);
+                    core.setFailed("File size validation failed");
+                    return;
+                  }
+                  filesToCopy.push({ name: fileName, source: sourceFilePath, size: stats.size });
+                }
+              } catch (error) {
+                core.setFailed(`Failed to read artifact directory: ${error instanceof Error ? error.message : String(error)}`);
+                return;
+              }
+              if (filesToCopy.length > maxFileCount) {
+                core.setFailed(`Too many files (${filesToCopy.length} > ${maxFileCount})`);
+                return;
+              }
+              if (filesToCopy.length === 0) {
+                core.info("No files to copy from artifact");
+                return;
+              }
+              core.info(`Copying ${filesToCopy.length} validated file(s)...`);
+              for (const file of filesToCopy) {
+                const destFilePath = path.join(destMemoryPath, file.name);
+                try {
+                  fs.copyFileSync(file.source, destFilePath);
+                  core.info(`Copied: ${file.name} (${file.size} bytes)`);
+                } catch (error) {
+                  core.setFailed(`Failed to copy file ${file.name}: ${error instanceof Error ? error.message : String(error)}`);
+                  return;
+                }
+              }
+              let hasChanges = false;
+              try {
+                const status = execSync("git status --porcelain", { encoding: "utf8" });
+                hasChanges = status.trim().length > 0;
+              } catch (error) {
+                core.setFailed(`Failed to check git status: ${error instanceof Error ? error.message : String(error)}`);
+                return;
+              }
+              if (!hasChanges) {
+                core.info("No changes detected after copying files");
+                return;
+              }
+              core.info("Changes detected, committing and pushing...");
+              try {
+                execSync("git add .", { stdio: "inherit" });
+              } catch (error) {
+                core.setFailed(`Failed to stage changes: ${error instanceof Error ? error.message : String(error)}`);
+                return;
+              }
+              try {
+                execSync(`git commit -m "Update repo memory from workflow run ${githubRunId}"`, { stdio: "inherit" });
+              } catch (error) {
+                core.setFailed(`Failed to commit changes: ${error instanceof Error ? error.message : String(error)}`);
+                return;
+              }
+              core.info(`Pulling latest changes from ${branchName}...`);
+              try {
+                const repoUrl = `https://x-access-token:${ghToken}@github.com/${targetRepo}.git`;
+                execSync(`git pull --no-rebase -X ours "${repoUrl}" "${branchName}"`, { stdio: "inherit" });
+              } catch (error) {
+                core.warning(`Pull failed (this may be expected): ${error instanceof Error ? error.message : String(error)}`);
+              }
+              core.info(`Pushing changes to ${branchName}...`);
+              try {
+                const repoUrl = `https://x-access-token:${ghToken}@github.com/${targetRepo}.git`;
+                execSync(`git push "${repoUrl}" HEAD:"${branchName}"`, { stdio: "inherit" });
+                core.info(`Successfully pushed changes to ${branchName} branch`);
+              } catch (error) {
+                core.setFailed(`Failed to push changes: ${error instanceof Error ? error.message : String(error)}`);
+                return;
+              }
+            }
+            main().catch(error => {
+              core.setFailed(`Unexpected error: ${error instanceof Error ? error.message : String(error)}`);
+            });
+
+  update_cache_memory:
+    needs:
+      - agent
+      - detection
+    if: always() && needs.detection.outputs.success == 'true'
+    runs-on: ubuntu-latest
+    permissions: {}
+    steps:
+      - name: Download cache-memory artifact (default)
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
+        continue-on-error: true
+        with:
+          name: cache-memory
+          path: /tmp/gh-aw/cache-memory
+      - name: Save cache-memory to cache (default)
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          key: memory-${{ github.workflow }}-${{ github.run_id }}
+          path: /tmp/gh-aw/cache-memory
+
+  update_project:
+    needs:
+      - agent
+      - detection
+    if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'update_project'))
+    runs-on: ubuntu-slim
+    permissions:
+      contents: read
+      repository-projects: write
+    timeout-minutes: 10
+    steps:
+      - name: Download agent output artifact
+        continue-on-error: true
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
+        with:
+          name: agent_output.json
+          path: /tmp/gh-aw/safeoutputs/
+      - name: Setup agent output environment variable
+        run: |
+          mkdir -p /tmp/gh-aw/safeoutputs/
+          find "/tmp/gh-aw/safeoutputs/" -type f -print
+          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> "$GITHUB_ENV"
+      - name: Update Project
+        id: update_project
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        env:
+          GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
+        with:
+          github-token: ${{ steps.app-token.outputs.token }}
+          script: |
+            const fs = require("fs");
+            const MAX_LOG_CONTENT_LENGTH = 10000;
+            function truncateForLogging(content) {
+              if (content.length <= MAX_LOG_CONTENT_LENGTH) {
+                return content;
+              }
+              return content.substring(0, MAX_LOG_CONTENT_LENGTH) + `\n... (truncated, total length: ${content.length})`;
+            }
+            function loadAgentOutput() {
+              const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT;
+              if (!agentOutputFile) {
+                core.info("No GH_AW_AGENT_OUTPUT environment variable found");
+                return { success: false };
+              }
+              let outputContent;
+              try {
+                outputContent = fs.readFileSync(agentOutputFile, "utf8");
+              } catch (error) {
+                const errorMessage = `Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`;
+                core.error(errorMessage);
+                return { success: false, error: errorMessage };
+              }
+              if (outputContent.trim() === "") {
+                core.info("Agent output content is empty");
+                return { success: false };
+              }
+              core.info(`Agent output content length: ${outputContent.length}`);
+              let validatedOutput;
+              try {
+                validatedOutput = JSON.parse(outputContent);
+              } catch (error) {
+                const errorMessage = `Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`;
+                core.error(errorMessage);
+                core.info(`Failed to parse content:\n${truncateForLogging(outputContent)}`);
+                return { success: false, error: errorMessage };
+              }
+              if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
+                core.info("No valid items found in agent output");
+                core.info(`Parsed content: ${truncateForLogging(JSON.stringify(validatedOutput))}`);
+                return { success: false };
+              }
+              return { success: true, items: validatedOutput.items };
+            }
+            function parseProjectInput(projectInput) {
+              if (!projectInput || typeof projectInput !== "string") {
+                throw new Error(
+                  `Invalid project input: expected string, got ${typeof projectInput}. The "project" field is required and must be a GitHub project URL, number, or name.`
+                );
+              }
+              const urlMatch = projectInput.match(/github\.com\/(?:users|orgs)\/[^/]+\/projects\/(\d+)/);
+              if (urlMatch) {
+                return {
+                  projectNumber: urlMatch[1],
+                  projectName: null,
+                };
+              }
+              return {
+                projectNumber: /^\d+$/.test(projectInput) ? projectInput : null,
+                projectName: /^\d+$/.test(projectInput) ? null : projectInput,
+              };
+            }
+            function generateCampaignId(projectName) {
+              const slug = projectName
+                .toLowerCase()
+                .replace(/[^a-z0-9]+/g, "-")
+                .replace(/^-+|-+$/g, "")
+                .substring(0, 30);
+              const timestamp = Date.now().toString(36).substring(0, 8);
+              return `${slug}-${timestamp}`;
+            }
+            async function updateProject(output) {
+              const { owner, repo } = context.repo;
+              const { projectNumber: parsedProjectNumber, projectName: parsedProjectName } = parseProjectInput(output.project);
+              const displayName = parsedProjectName || parsedProjectNumber || output.project;
+              const campaignId = output.campaign_id || generateCampaignId(displayName);
+              let githubClient = github;
+              if (process.env.PROJECT_GITHUB_TOKEN) {
+                const { Octokit } = require("@octokit/rest");
+                const octokit = new Octokit({
+                  auth: process.env.PROJECT_GITHUB_TOKEN,
+                  baseUrl: process.env.GITHUB_API_URL || "https://api.github.com",
+                });
+                githubClient = {
+                  graphql: octokit.graphql.bind(octokit),
+                  rest: octokit.rest,
+                };
+              }
+              try {
+                const repoResult = await githubClient.graphql(
+                  `query($owner: String!, $repo: String!) {
+                    repository(owner: $owner, name: $repo) {
+                      id
+                      owner {
+                        id
+                        __typename
+                      }
+                    }
+                  }`,
+                  { owner, repo }
+                );
+                const repositoryId = repoResult.repository.id;
+                const ownerId = repoResult.repository.owner.id;
+                const ownerType = repoResult.repository.owner.__typename;
+                let projectId;
+                let projectNumber;
+                let existingProject = null;
+                const ownerQuery =
+                  ownerType === "User"
+                    ? `query($login: String!) {
+                        user(login: $login) {
+                          projectsV2(first: 100) {
+                            nodes {
+                              id
+                              title
+                              number
+                            }
+                          }
+                        }
+                      }`
+                    : `query($login: String!) {
+                        organization(login: $login) {
+                          projectsV2(first: 100) {
+                            nodes {
+                              id
+                              title
+                              number
+                            }
+                          }
+                        }
+                      }`;
+                const ownerProjectsResult = await githubClient.graphql(ownerQuery, { login: owner });
+                const ownerProjects =
+                  ownerType === "User" ? ownerProjectsResult.user.projectsV2.nodes : ownerProjectsResult.organization.projectsV2.nodes;
+                existingProject = ownerProjects.find(p => {
+                  if (parsedProjectNumber) {
+                    return p.number.toString() === parsedProjectNumber;
+                  }
+                  return p.title === parsedProjectName;
+                });
+                if (existingProject) {
+                  try {
+                    await githubClient.graphql(
+                      `mutation($projectId: ID!, $repositoryId: ID!) {
+                        linkProjectV2ToRepository(input: {
+                          projectId: $projectId,
+                          repositoryId: $repositoryId
+                        }) {
+                          repository {
+                            id
+                          }
+                        }
+                      }`,
+                      { projectId: existingProject.id, repositoryId }
+                    );
+                  } catch (linkError) {
+                    if (!linkError.message || !linkError.message.includes("already linked")) {
+                      core.warning(`Could not link project: ${linkError.message}`);
+                    }
+                  }
+                }
+                if (existingProject) {
+                  projectId = existingProject.id;
+                  projectNumber = existingProject.number;
+                } else {
+                  if (ownerType === "User") {
+                    const projectDisplay = parsedProjectNumber ? `project #${parsedProjectNumber}` : `project "${parsedProjectName}"`;
+                    core.error(`Cannot find ${projectDisplay}. Create it manually at https://github.com/users/${owner}/projects/new.`);
+                    throw new Error(`Cannot find ${projectDisplay} on user account.`);
+                  }
+                  const createResult = await githubClient.graphql(
+                    `mutation($ownerId: ID!, $title: String!) {
+                      createProjectV2(input: {
+                        ownerId: $ownerId,
+                        title: $title
+                      }) {
+                        projectV2 {
+                          id
+                          title
+                          url
+                          number
+                        }
+                      }
+                    }`,
+                    {
+                      ownerId: ownerId, 
+                      title: output.project,
+                    }
+                  );
+                  const newProject = createResult.createProjectV2.projectV2;
+                  projectId = newProject.id;
+                  projectNumber = newProject.number;
+                  await githubClient.graphql(
+                    `mutation($projectId: ID!, $repositoryId: ID!) {
+                      linkProjectV2ToRepository(input: {
+                        projectId: $projectId,
+                        repositoryId: $repositoryId
+                      }) {
+                        repository {
+                          id
+                        }
+                      }
+                    }`,
+                    { projectId, repositoryId }
+                  );
+                  core.info(`✓ Created project: ${newProject.title}`);
+                  core.setOutput("project-id", projectId);
+                  core.setOutput("project-number", projectNumber);
+                  core.setOutput("project-url", newProject.url);
+                  core.setOutput("campaign-id", campaignId);
+                }
+                const hasContentNumber = output.content_number !== undefined && output.content_number !== null;
+                const hasIssue = output.issue !== undefined && output.issue !== null;
+                const hasPullRequest = output.pull_request !== undefined && output.pull_request !== null;
+                const values = [];
+                if (hasContentNumber) values.push({ key: "content_number", value: output.content_number });
+                if (hasIssue) values.push({ key: "issue", value: output.issue });
+                if (hasPullRequest) values.push({ key: "pull_request", value: output.pull_request });
+                if (values.length > 1) {
+                  const uniqueValues = [...new Set(values.map(v => String(v.value)))];
+                  const list = values.map(v => `${v.key}=${v.value}`).join(", ");
+                  const descriptor = uniqueValues.length > 1 ? "different values" : `same value "${uniqueValues[0]}"`;
+                  core.warning(`Multiple content number fields (${descriptor}): ${list}. Using priority content_number > issue > pull_request.`);
+                }
+                if (hasIssue) {
+                  core.warning('Field "issue" deprecated; use "content_number" instead.');
+                }
+                if (hasPullRequest) {
+                  core.warning('Field "pull_request" deprecated; use "content_number" instead.');
+                }
+                let contentNumber = null;
+                if (hasContentNumber || hasIssue || hasPullRequest) {
+                  const rawContentNumber = hasContentNumber ? output.content_number : hasIssue ? output.issue : output.pull_request;
+                  const sanitizedContentNumber =
+                    rawContentNumber === undefined || rawContentNumber === null
+                      ? ""
+                      : typeof rawContentNumber === "number"
+                        ? rawContentNumber.toString()
+                        : String(rawContentNumber).trim();
+                  if (!sanitizedContentNumber) {
+                    core.warning("Content number field provided but empty; skipping project item update.");
+                  } else if (!/^\d+$/.test(sanitizedContentNumber)) {
+                    throw new Error(`Invalid content number "${rawContentNumber}". Provide a positive integer.`);
+                  } else {
+                    contentNumber = Number.parseInt(sanitizedContentNumber, 10);
+                  }
+                }
+                if (contentNumber !== null) {
+                  const contentType =
+                    output.content_type === "pull_request"
+                      ? "PullRequest"
+                      : output.content_type === "issue"
+                        ? "Issue"
+                        : output.issue
+                          ? "Issue"
+                          : "PullRequest";
+                  const contentQuery =
+                    contentType === "Issue"
+                      ? `query($owner: String!, $repo: String!, $number: Int!) {
+                        repository(owner: $owner, name: $repo) {
+                          issue(number: $number) {
+                            id
+                          }
+                        }
+                      }`
+                      : `query($owner: String!, $repo: String!, $number: Int!) {
+                        repository(owner: $owner, name: $repo) {
+                          pullRequest(number: $number) {
+                            id
+                          }
+                        }
+                      }`;
+                  const contentResult = await githubClient.graphql(contentQuery, {
+                    owner,
+                    repo,
+                    number: contentNumber,
+                  });
+                  const contentId = contentType === "Issue" ? contentResult.repository.issue.id : contentResult.repository.pullRequest.id;
+                  async function findExistingProjectItem(projectId, contentId) {
+                    let hasNextPage = true;
+                    let endCursor = null;
+                    while (hasNextPage) {
+                      const result = await githubClient.graphql(
+                        `query($projectId: ID!, $after: String) {
+                          node(id: $projectId) {
+                            ... on ProjectV2 {
+                              items(first: 100, after: $after) {
+                                nodes {
+                                  id
+                                  content {
+                                    ... on Issue {
+                                      id
+                                    }
+                                    ... on PullRequest {
+                                      id
+                                    }
+                                  }
+                                }
+                                pageInfo {
+                                  hasNextPage
+                                  endCursor
+                                }
+                              }
+                            }
+                          }
+                        }`,
+                        { projectId, after: endCursor }
+                      );
+                      const items = result.node.items.nodes;
+                      const found = items.find(item => item.content && item.content.id === contentId);
+                      if (found) {
+                        return found;
+                      }
+                      hasNextPage = result.node.items.pageInfo.hasNextPage;
+                      endCursor = result.node.items.pageInfo.endCursor;
+                    }
+                    return null;
+                  }
+                  const existingItem = await findExistingProjectItem(projectId, contentId);
+                  let itemId;
+                  if (existingItem) {
+                    itemId = existingItem.id;
+                    core.info("✓ Item already on board");
+                  } else {
+                    const addResult = await githubClient.graphql(
+                      `mutation($projectId: ID!, $contentId: ID!) {
+                        addProjectV2ItemById(input: {
+                          projectId: $projectId,
+                          contentId: $contentId
+                        }) {
+                          item {
+                            id
+                          }
+                        }
+                      }`,
+                      { projectId, contentId }
+                    );
+                    itemId = addResult.addProjectV2ItemById.item.id;
+                    try {
+                      await githubClient.rest.issues.addLabels({
+                        owner,
+                        repo,
+                        issue_number: contentNumber,
+                        labels: [`campaign:${campaignId}`],
+                      });
+                    } catch (labelError) {
+                      core.warning(`Failed to add campaign label: ${labelError.message}`);
+                    }
+                  }
+                  if (output.fields && Object.keys(output.fields).length > 0) {
+                    const fieldsResult = await githubClient.graphql(
+                      `query($projectId: ID!) {
+                        node(id: $projectId) {
+                          ... on ProjectV2 {
+                            fields(first: 20) {
+                              nodes {
+                                ... on ProjectV2Field {
+                                  id
+                                  name
+                                }
+                                ... on ProjectV2SingleSelectField {
+                                  id
+                                  name
+                                  options {
+                                    id
+                                    name
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }`,
+                      { projectId }
+                    );
+                    const projectFields = fieldsResult.node.fields.nodes;
+                    for (const [fieldName, fieldValue] of Object.entries(output.fields)) {
+                      const normalizedFieldName = fieldName
+                        .split(/[\s_-]+/)
+                        .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+                        .join(" ");
+                      let field = projectFields.find(f => f.name.toLowerCase() === normalizedFieldName.toLowerCase());
+                      if (!field) {
+                        const isTextField =
+                          fieldName.toLowerCase() === "classification" || (typeof fieldValue === "string" && fieldValue.includes("|"));
+                        if (isTextField) {
+                          try {
+                            const createFieldResult = await githubClient.graphql(
+                              `mutation($projectId: ID!, $name: String!, $dataType: ProjectV2CustomFieldType!) {
+                                createProjectV2Field(input: {
+                                  projectId: $projectId,
+                                  name: $name,
+                                  dataType: $dataType
+                                }) {
+                                  projectV2Field {
+                                    ... on ProjectV2Field {
+                                      id
+                                      name
+                                    }
+                                    ... on ProjectV2SingleSelectField {
+                                      id
+                                      name
+                                      options { id name }
+                                    }
+                                  }
+                                }
+                              }`,
+                              {
+                                projectId,
+                                name: normalizedFieldName,
+                                dataType: "TEXT",
+                              }
+                            );
+                            field = createFieldResult.createProjectV2Field.projectV2Field;
+                          } catch (createError) {
+                            core.warning(`Failed to create field "${fieldName}": ${createError.message}`);
+                            continue;
+                          }
+                        } else {
+                          try {
+                            const createFieldResult = await githubClient.graphql(
+                              `mutation($projectId: ID!, $name: String!, $dataType: ProjectV2CustomFieldType!, $options: [ProjectV2SingleSelectFieldOptionInput!]!) {
+                                createProjectV2Field(input: {
+                                  projectId: $projectId,
+                                  name: $name,
+                                  dataType: $dataType,
+                                  singleSelectOptions: $options
+                                }) {
+                                  projectV2Field {
+                                    ... on ProjectV2SingleSelectField {
+                                      id
+                                      name
+                                      options { id name }
+                                    }
+                                    ... on ProjectV2Field {
+                                      id
+                                      name
+                                    }
+                                  }
+                                }
+                              }`,
+                              {
+                                projectId,
+                                name: normalizedFieldName,
+                                dataType: "SINGLE_SELECT",
+                                options: [{ name: String(fieldValue), description: "", color: "GRAY" }],
+                              }
+                            );
+                            field = createFieldResult.createProjectV2Field.projectV2Field;
+                          } catch (createError) {
+                            core.warning(`Failed to create field "${fieldName}": ${createError.message}`);
+                            continue;
+                          }
+                        }
+                      }
+                      let valueToSet;
+                      if (field.options) {
+                        let option = field.options.find(o => o.name === fieldValue);
+                        if (!option) {
+                          try {
+                            const allOptions = [
+                              ...field.options.map(o => ({ name: o.name, description: "" })),
+                              { name: String(fieldValue), description: "" },
+                            ];
+                            const createOptionResult = await githubClient.graphql(
+                              `mutation($fieldId: ID!, $fieldName: String!, $options: [ProjectV2SingleSelectFieldOptionInput!]!) {
+                                updateProjectV2Field(input: {
+                                  fieldId: $fieldId,
+                                  name: $fieldName,
+                                  singleSelectOptions: $options
+                                }) {
+                                  projectV2Field {
+                                    ... on ProjectV2SingleSelectField {
+                                      id
+                                      options {
+                                        id
+                                        name
+                                      }
+                                    }
+                                  }
+                                }
+                              }`,
+                              {
+                                fieldId: field.id,
+                                fieldName: field.name,
+                                options: allOptions,
+                              }
+                            );
+                            const updatedField = createOptionResult.updateProjectV2Field.projectV2Field;
+                            option = updatedField.options.find(o => o.name === fieldValue);
+                            field = updatedField; 
+                          } catch (createError) {
+                            core.warning(`Failed to create option "${fieldValue}": ${createError.message}`);
+                            continue;
+                          }
+                        }
+                        if (option) {
+                          valueToSet = { singleSelectOptionId: option.id };
+                        } else {
+                          core.warning(`Could not get option ID for "${fieldValue}" in field "${fieldName}"`);
+                          continue;
+                        }
+                      } else {
+                        valueToSet = { text: String(fieldValue) };
+                      }
+                      await githubClient.graphql(
+                        `mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $value: ProjectV2FieldValue!) {
+                          updateProjectV2ItemFieldValue(input: {
+                            projectId: $projectId,
+                            itemId: $itemId,
+                            fieldId: $fieldId,
+                            value: $value
+                          }) {
+                            projectV2Item {
+                              id
+                            }
+                          }
+                        }`,
+                        {
+                          projectId,
+                          itemId,
+                          fieldId: field.id,
+                          value: valueToSet,
+                        }
+                      );
+                    }
+                  }
+                  core.setOutput("item-id", itemId);
+                }
+              } catch (error) {
+                if (error.message && error.message.includes("does not have permission to create projects")) {
+                  const usingCustomToken = !!process.env.PROJECT_GITHUB_TOKEN;
+                  core.error(
+                    `Failed to manage project: ${error.message}\n\n` +
+                      `Troubleshooting:\n` +
+                      `  • Create the project manually at https://github.com/orgs/${owner}/projects/new.\n` +
+                      `  • Or supply a PAT with project scope via PROJECT_GITHUB_TOKEN.\n` +
+                      `  • Ensure the workflow grants projects: write.\n\n` +
+                      `${usingCustomToken ? "PROJECT_GITHUB_TOKEN is set but lacks access." : "Using default GITHUB_TOKEN without project create rights."}`
+                  );
+                } else {
+                  core.error(`Failed to manage project: ${error.message}`);
+                }
+                throw error;
+              }
+            }
+            async function main() {
+              const result = loadAgentOutput();
+              if (!result.success) {
+                return;
+              }
+              const updateProjectItems = result.items.filter(item => item.type === "update_project");
+              if (updateProjectItems.length === 0) {
+                return;
+              }
+              for (let i = 0; i < updateProjectItems.length; i++) {
+                const output = updateProjectItems[i];
+                try {
+                  await updateProject(output);
+                } catch (error) {
+                  core.error(`Failed to process item ${i + 1}: ${error.message}`);
+                }
+              }
+            }
+            if (typeof module === "undefined" || require.main === module) {
+              main();
+            }
+
+  upload_assets:
+    needs:
+      - agent
+      - detection
+    if: >
+      (((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'upload_asset'))) &&
+      (needs.detection.outputs.success == 'true')
+    runs-on: ubuntu-slim
+    permissions:
+      contents: write
+    timeout-minutes: 10
+    outputs:
+      branch_name: ${{ steps.upload_assets.outputs.branch_name }}
+      published_count: ${{ steps.upload_assets.outputs.published_count }}
+    steps:
+      - name: Generate GitHub App token
+        id: app-token
+        uses: actions/create-github-app-token@29824e69f54612133e76f7eaac726eef6c875baf # v2
+        with:
+          app-id: ${{ vars.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: ${{ github.event.repository.name }}
+          github-api-url: ${{ github.api_url }}
+          permission-contents: write
+      - name: Checkout repository
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Configure Git credentials
+        env:
+          REPO_NAME: ${{ github.repository }}
+          SERVER_URL: ${{ github.server_url }}
+        run: |
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "github-actions[bot]"
+          # Re-authenticate git with GitHub token
+          SERVER_URL_STRIPPED="${SERVER_URL#https://}"
+          git remote set-url origin "https://x-access-token:${{ github.token }}@${SERVER_URL_STRIPPED}/${REPO_NAME}.git"
+          echo "Git configured with standard GitHub Actions identity"
+      - name: Download assets
+        continue-on-error: true
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
+        with:
+          name: safe-outputs-assets
+          path: /tmp/gh-aw/safeoutputs/assets/
+      - name: List downloaded asset files
+        continue-on-error: true
+        run: |
+          echo "Downloaded asset files:"
+          ls -la /tmp/gh-aw/safeoutputs/assets/
+      - name: Download agent output artifact
+        continue-on-error: true
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
+        with:
+          name: agent_output.json
+          path: /tmp/gh-aw/safeoutputs/
+      - name: Setup agent output environment variable
+        run: |
+          mkdir -p /tmp/gh-aw/safeoutputs/
+          find "/tmp/gh-aw/safeoutputs/" -type f -print
+          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> "$GITHUB_ENV"
+      - name: Upload Assets to Orphaned Branch
+        id: upload_assets
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        env:
+          GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
+          GH_AW_ASSETS_BRANCH: "assets/${{ github.workflow }}"
+          GH_AW_ASSETS_MAX_SIZE_KB: 10240
+          GH_AW_ASSETS_ALLOWED_EXTS: ".png,.jpg,.jpeg"
+          GH_AW_WORKFLOW_NAME: "Daily File Diet"
+          GH_AW_TRACKER_ID: "daily-file-diet"
+          GH_AW_ENGINE_ID: "copilot"
+        with:
+          github-token: ${{ steps.app-token.outputs.token }}
+          script: |
+            const fs = require("fs");
+            const path = require("path");
+            const crypto = require("crypto");
+            const MAX_LOG_CONTENT_LENGTH = 10000;
+            function truncateForLogging(content) {
+              if (content.length <= MAX_LOG_CONTENT_LENGTH) {
+                return content;
+              }
+              return content.substring(0, MAX_LOG_CONTENT_LENGTH) + `\n... (truncated, total length: ${content.length})`;
+            }
+            function loadAgentOutput() {
+              const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT;
+              if (!agentOutputFile) {
+                core.info("No GH_AW_AGENT_OUTPUT environment variable found");
+                return { success: false };
+              }
+              let outputContent;
+              try {
+                outputContent = fs.readFileSync(agentOutputFile, "utf8");
+              } catch (error) {
+                const errorMessage = `Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`;
+                core.error(errorMessage);
+                return { success: false, error: errorMessage };
+              }
+              if (outputContent.trim() === "") {
+                core.info("Agent output content is empty");
+                return { success: false };
+              }
+              core.info(`Agent output content length: ${outputContent.length}`);
+              let validatedOutput;
+              try {
+                validatedOutput = JSON.parse(outputContent);
+              } catch (error) {
+                const errorMessage = `Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`;
+                core.error(errorMessage);
+                core.info(`Failed to parse content:\n${truncateForLogging(outputContent)}`);
+                return { success: false, error: errorMessage };
+              }
+              if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
+                core.info("No valid items found in agent output");
+                core.info(`Parsed content: ${truncateForLogging(JSON.stringify(validatedOutput))}`);
+                return { success: false };
+              }
+              return { success: true, items: validatedOutput.items };
+            }
+            function normalizeBranchName(branchName) {
+              if (!branchName || typeof branchName !== "string" || branchName.trim() === "") {
+                return branchName;
+              }
+              let normalized = branchName.replace(/[^a-zA-Z0-9\-_/.]+/g, "-");
+              normalized = normalized.replace(/-+/g, "-");
+              normalized = normalized.replace(/^-+|-+$/g, "");
+              if (normalized.length > 128) {
+                normalized = normalized.substring(0, 128);
+              }
+              normalized = normalized.replace(/-+$/, "");
+              normalized = normalized.toLowerCase();
+              return normalized;
+            }
+            async function main() {
+              const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
+              const branchName = process.env.GH_AW_ASSETS_BRANCH;
+              if (!branchName || typeof branchName !== "string") {
+                core.setFailed("GH_AW_ASSETS_BRANCH environment variable is required but not set");
+                return;
+              }
+              const normalizedBranchName = normalizeBranchName(branchName);
+              core.info(`Using assets branch: ${normalizedBranchName}`);
+              const result = loadAgentOutput();
+              if (!result.success) {
+                core.setOutput("upload_count", "0");
+                core.setOutput("branch_name", normalizedBranchName);
+                return;
+              }
+              const uploadItems = result.items.filter( item => item.type === "upload_assets");
+              const uploadAssetItems = result.items.filter( item => item.type === "upload_asset");
+              const allUploadItems = [...uploadItems, ...uploadAssetItems];
+              if (allUploadItems.length === 0) {
+                core.info("No upload-asset items found in agent output");
+                core.setOutput("upload_count", "0");
+                core.setOutput("branch_name", normalizedBranchName);
+                return;
+              }
+              core.info(`Found ${allUploadItems.length} upload-asset item(s)`);
+              let uploadCount = 0;
+              let hasChanges = false;
+              try {
+                try {
+                  await exec.exec(`git rev-parse --verify origin/${normalizedBranchName}`);
+                  await exec.exec(`git checkout -B ${normalizedBranchName} origin/${normalizedBranchName}`);
+                  core.info(`Checked out existing branch from origin: ${normalizedBranchName}`);
+                } catch (originError) {
+                  if (!normalizedBranchName.startsWith("assets/")) {
+                    core.setFailed(
+                      `Branch '${normalizedBranchName}' does not start with the required 'assets/' prefix. ` +
+                        `Orphaned branches can only be automatically created under the 'assets/' prefix. ` +
+                        `Please create the branch manually first, or use a branch name starting with 'assets/'.`
+                    );
+                    return;
+                  }
+                  core.info(`Creating new orphaned branch: ${normalizedBranchName}`);
+                  await exec.exec(`git checkout --orphan ${normalizedBranchName}`);
+                  await exec.exec(`git rm -rf .`);
+                  await exec.exec(`git clean -fdx`);
+                }
+                for (const asset of uploadAssetItems) {
+                  try {
+                    const { fileName, sha, size, targetFileName } = asset;
+                    if (!fileName || !sha || !targetFileName) {
+                      core.error(`Invalid asset entry missing required fields: ${JSON.stringify(asset)}`);
+                      continue;
+                    }
+                    const assetSourcePath = path.join("/tmp/gh-aw/safeoutputs/assets", fileName);
+                    if (!fs.existsSync(assetSourcePath)) {
+                      core.warning(`Asset file not found: ${assetSourcePath}`);
+                      continue;
+                    }
+                    const fileContent = fs.readFileSync(assetSourcePath);
+                    const computedSha = crypto.createHash("sha256").update(fileContent).digest("hex");
+                    if (computedSha !== sha) {
+                      core.warning(`SHA mismatch for ${fileName}: expected ${sha}, got ${computedSha}`);
+                      continue;
+                    }
+                    if (fs.existsSync(targetFileName)) {
+                      core.info(`Asset ${targetFileName} already exists, skipping`);
+                      continue;
+                    }
+                    fs.copyFileSync(assetSourcePath, targetFileName);
+                    await exec.exec(`git add "${targetFileName}"`);
+                    uploadCount++;
+                    hasChanges = true;
+                    core.info(`Added asset: ${targetFileName} (${size} bytes)`);
+                  } catch (error) {
+                    core.warning(`Failed to process asset ${asset.fileName}: ${error instanceof Error ? error.message : String(error)}`);
+                  }
+                }
+                if (hasChanges) {
+                  const commitMessage = `[skip-ci] Add ${uploadCount} asset(s)`;
+                  await exec.exec(`git`, [`commit`, `-m`, commitMessage]);
+                  if (isStaged) {
+                    core.summary.addRaw("## Staged Asset Publication");
+                  } else {
+                    await exec.exec(`git push origin ${normalizedBranchName}`);
+                    core.summary
+                      .addRaw("## Assets")
+                      .addRaw(`Successfully uploaded **${uploadCount}** assets to branch \`${normalizedBranchName}\``)
+                      .addRaw("");
+                    core.info(`Successfully uploaded ${uploadCount} assets to branch ${normalizedBranchName}`);
+                  }
+                  for (const asset of uploadAssetItems) {
+                    if (asset.fileName && asset.sha && asset.size && asset.url) {
+                      core.summary.addRaw(`- [\`${asset.fileName}\`](${asset.url}) → \`${asset.targetFileName}\` (${asset.size} bytes)`);
+                    }
+                  }
+                  core.summary.write();
+                } else {
+                  core.info("No new assets to upload");
+                }
+              } catch (error) {
+                core.setFailed(`Failed to upload assets: ${error instanceof Error ? error.message : String(error)}`);
+                return;
+              }
+              core.setOutput("upload_count", uploadCount.toString());
+              core.setOutput("branch_name", normalizedBranchName);
+            }
+            await main();
+      - name: Invalidate GitHub App token
+        if: always() && steps.app-token.outputs.token != ''
+        env:
+          TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          echo "Revoking GitHub App installation token..."
+          # GitHub CLI will auth with the token being revoked.
+          gh api \
+            --method DELETE \
+            -H "Authorization: token $TOKEN" \
+            /installation/token || echo "Token revoke may already be expired."
+          
+          echo "Token invalidation step complete."
 
