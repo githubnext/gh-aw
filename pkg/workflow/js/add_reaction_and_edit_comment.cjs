@@ -328,6 +328,22 @@ async function addCommentWithWorkflowLink(endpoint, runUrl, eventName) {
       eventType: eventTypeDescription,
     });
 
+    // Add workflow-id and tracker-id markers for hide-older-comments feature
+    const workflowId = process.env.GITHUB_WORKFLOW || "";
+    const trackerId = process.env.GH_AW_TRACKER_ID || "";
+
+    let commentBody = workflowLinkText;
+
+    // Add workflow-id marker if available
+    if (workflowId) {
+      commentBody += `\n\n<!-- workflow-id: ${workflowId} -->`;
+    }
+
+    // Add tracker-id marker if available (for backwards compatibility)
+    if (trackerId) {
+      commentBody += `\n\n<!-- tracker-id: ${trackerId} -->`;
+    }
+
     // Handle discussion events specially
     if (eventName === "discussion") {
       // Parse discussion number from special format: "discussion:NUMBER"
@@ -358,7 +374,7 @@ async function addCommentWithWorkflowLink(endpoint, runUrl, eventName) {
             }
           }
         }`,
-        { dId: discussionId, body: workflowLinkText }
+        { dId: discussionId, body: commentBody }
       );
 
       const comment = result.addDiscussionComment.comment;
@@ -402,7 +418,7 @@ async function addCommentWithWorkflowLink(endpoint, runUrl, eventName) {
             }
           }
         }`,
-        { dId: discussionId, body: workflowLinkText, replyToId: commentNodeId }
+        { dId: discussionId, body: commentBody, replyToId: commentNodeId }
       );
 
       const comment = result.addDiscussionComment.comment;
@@ -418,7 +434,7 @@ async function addCommentWithWorkflowLink(endpoint, runUrl, eventName) {
 
     // Create a new comment for non-discussion events
     const createResponse = await github.request("POST " + endpoint, {
-      body: workflowLinkText,
+      body: commentBody,
       headers: {
         Accept: "application/vnd.github+json",
       },
