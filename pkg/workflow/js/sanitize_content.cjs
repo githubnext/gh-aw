@@ -360,12 +360,13 @@ function sanitizeContent(content, maxLengthOrOptions) {
    * @returns {string} The string with XML tags converted to parentheses
    */
   function convertXmlTags(s) {
-    // Allow safe HTML tags: b, blockquote, br, code, em, h1–h6, hr, i, li, ol, p, pre, strong, sub, sup, table, tbody, td, th, thead, tr, ul
+    // Allow safe HTML tags: b, blockquote, br, code, details, em, h1–h6, hr, i, li, ol, p, pre, strong, sub, summary, sup, table, tbody, td, th, thead, tr, ul
     const allowedTags = [
       "b",
       "blockquote",
       "br",
       "code",
+      "details",
       "em",
       "h1",
       "h2",
@@ -381,6 +382,7 @@ function sanitizeContent(content, maxLengthOrOptions) {
       "pre",
       "strong",
       "sub",
+      "summary",
       "sup",
       "table",
       "tbody",
