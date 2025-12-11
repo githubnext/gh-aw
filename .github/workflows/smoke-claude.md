@@ -17,7 +17,6 @@ name: Smoke Claude
 engine:
   id: claude
   max-turns: 15
-tracker-id: smoke-claude
 strict: false
 imports:
   - shared/mcp-pagination.md

@@ -94,6 +94,7 @@ describe("add_comment.cjs", () => {
 
     // Reset environment variables
     delete process.env.GH_AW_AGENT_OUTPUT;
+    delete process.env.GITHUB_WORKFLOW;
 
     // Reset context to default state
     global.context.eventName = "issues";
@@ -948,23 +949,23 @@ describe("add_comment.cjs", () => {
         },
       ],
     });
-    process.env.GH_AW_TRACKER_ID = "test-workflow-123";
+    process.env.GITHUB_WORKFLOW = "test-workflow-123";
     process.env.GH_AW_HIDE_OLDER_COMMENTS = "true";
     global.context.eventName = "issues";
     global.context.payload.issue = { number: 100 };
 
-    // Mock existing comments with the same tracker-id
+    // Mock existing comments with the same workflow-id
     mockGithub.rest.issues.listComments = vi.fn().mockResolvedValue({
       data: [
         {
           id: 1,
           node_id: "IC_oldcomment1",
-          body: "Old comment 1\n\n<!-- tracker-id: test-workflow-123 -->",
+          body: "Old comment 1\n\n<!-- workflow-id: test-workflow-123 -->",
         },
         {
           id: 2,
           node_id: "IC_oldcomment2",
-          body: "Old comment 2\n\n<!-- tracker-id: test-workflow-123 -->",
+          body: "Old comment 2\n\n<!-- workflow-id: test-workflow-123 -->",
         },
         {
           id: 3,
@@ -1029,7 +1030,7 @@ describe("add_comment.cjs", () => {
     );
 
     // Clean up
-    delete process.env.GH_AW_TRACKER_ID;
+    delete process.env.GITHUB_WORKFLOW;
     delete process.env.GH_AW_HIDE_OLDER_COMMENTS;
   });
 
@@ -1042,7 +1043,7 @@ describe("add_comment.cjs", () => {
         },
       ],
     });
-    process.env.GH_AW_TRACKER_ID = "test-workflow-456";
+    process.env.GITHUB_WORKFLOW = "test-workflow-456";
     // Note: GH_AW_HIDE_OLDER_COMMENTS is not set
     global.context.eventName = "issues";
     global.context.payload.issue = { number: 200 };
@@ -1067,19 +1068,19 @@ describe("add_comment.cjs", () => {
     expect(mockGithub.rest.issues.createComment).toHaveBeenCalled();
 
     // Clean up
-    delete process.env.GH_AW_TRACKER_ID;
+    delete process.env.GITHUB_WORKFLOW;
   });
 
-  it("should skip hiding when tracker-id is not available", async () => {
+  it("should skip hiding when workflow-id is not available", async () => {
     setAgentOutput({
       items: [
         {
           type: "add_comment",
-          body: "Comment without tracker-id",
+          body: "Comment without workflow-id",
         },
       ],
     });
-    // Note: GH_AW_TRACKER_ID is not set
+    // Note: GITHUB_WORKFLOW is not set
     process.env.GH_AW_HIDE_OLDER_COMMENTS = "true";
     global.context.eventName = "issues";
     global.context.payload.issue = { number: 300 };
@@ -1096,7 +1097,7 @@ describe("add_comment.cjs", () => {
     // Execute the script
     await eval(`(async () => { ${createCommentScript} })()`);
 
-    // Verify that hiding was skipped (no tracker-id available)
+    // Verify that hiding was skipped (no workflow-id available)
     expect(mockGithub.rest.issues.listComments).not.toHaveBeenCalled();
     expect(mockGithub.graphql).not.toHaveBeenCalled();
 
@@ -1116,7 +1117,7 @@ describe("add_comment.cjs", () => {
         },
       ],
     });
-    process.env.GH_AW_TRACKER_ID = "test-workflow-789";
+    process.env.GITHUB_WORKFLOW = "test-workflow-789";
     process.env.GH_AW_HIDE_OLDER_COMMENTS = "true";
     process.env.GH_AW_ALLOWED_REASONS = JSON.stringify(["OUTDATED", "RESOLVED"]);
     global.context.eventName = "issues";
@@ -1128,7 +1129,7 @@ describe("add_comment.cjs", () => {
         {
           id: 1,
           node_id: "IC_oldcomment1",
-          body: "Old comment\n\n<!-- tracker-id: test-workflow-789 -->",
+          body: "Old comment\n\n<!-- workflow-id: test-workflow-789 -->",
         },
       ],
     });
@@ -1161,7 +1162,7 @@ describe("add_comment.cjs", () => {
     );
 
     // Clean up
-    delete process.env.GH_AW_TRACKER_ID;
+    delete process.env.GITHUB_WORKFLOW;
     delete process.env.GH_AW_HIDE_OLDER_COMMENTS;
     delete process.env.GH_AW_ALLOWED_REASONS;
   });
@@ -1175,7 +1176,7 @@ describe("add_comment.cjs", () => {
         },
       ],
     });
-    process.env.GH_AW_TRACKER_ID = "test-workflow-999";
+    process.env.GITHUB_WORKFLOW = "test-workflow-999";
     process.env.GH_AW_HIDE_OLDER_COMMENTS = "true";
     // Only allow SPAM, but default reason is OUTDATED
     process.env.GH_AW_ALLOWED_REASONS = JSON.stringify(["SPAM"]);
@@ -1202,7 +1203,7 @@ describe("add_comment.cjs", () => {
     expect(mockGithub.rest.issues.createComment).toHaveBeenCalled();
 
     // Clean up
-    delete process.env.GH_AW_TRACKER_ID;
+    delete process.env.GITHUB_WORKFLOW;
     delete process.env.GH_AW_HIDE_OLDER_COMMENTS;
     delete process.env.GH_AW_ALLOWED_REASONS;
   });
@@ -1216,7 +1217,7 @@ describe("add_comment.cjs", () => {
         },
       ],
     });
-    process.env.GH_AW_TRACKER_ID = "test-workflow-lowercase";
+    process.env.GITHUB_WORKFLOW = "test-workflow-lowercase";
     process.env.GH_AW_HIDE_OLDER_COMMENTS = "true";
     // Use lowercase reasons
     process.env.GH_AW_ALLOWED_REASONS = JSON.stringify(["outdated", "resolved"]);
@@ -1229,7 +1230,7 @@ describe("add_comment.cjs", () => {
         {
           id: 1,
           node_id: "IC_oldcomment1",
-          body: "Old comment\n\n<!-- tracker-id: test-workflow-lowercase -->",
+          body: "Old comment\n\n<!-- workflow-id: test-workflow-lowercase -->",
         },
       ],
     });
@@ -1262,7 +1263,7 @@ describe("add_comment.cjs", () => {
     );
 
     // Clean up
-    delete process.env.GH_AW_TRACKER_ID;
+    delete process.env.GITHUB_WORKFLOW;
     delete process.env.GH_AW_HIDE_OLDER_COMMENTS;
     delete process.env.GH_AW_ALLOWED_REASONS;
   });

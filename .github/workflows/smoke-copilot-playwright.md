@@ -17,7 +17,6 @@ engine:
   id: copilot
   env:
     DEBUG: "copilot:*"  # Enable copilot CLI debug logs
-tracker-id: smoke-copilot-playwright
 imports:
   - shared/gh.md
 network:

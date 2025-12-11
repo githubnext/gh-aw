@@ -37,7 +37,6 @@
 #   issues: read
 # name: Smoke Copilot
 # engine: copilot
-# tracker-id: smoke-copilot
 # network:
 #   allowed:
 #     - defaults
@@ -708,7 +707,6 @@ jobs:
           GH_AW_CREATED_ISSUE_NUMBER: ${{ needs.create_issue.outputs.issue_number }}
           GH_AW_TEMPORARY_ID_MAP: ${{ needs.create_issue.outputs.temporary_id_map }}
           GH_AW_WORKFLOW_NAME: "Smoke Copilot"
-          GH_AW_TRACKER_ID: "smoke-copilot"
           GH_AW_ENGINE_ID: "copilot"
           GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 📰 *BREAKING: Report filed by [{workflow_name}]({run_url})*\",\"runStarted\":\"📰 BREAKING: [{workflow_name}]({run_url}) is now investigating this {event_type}. Sources say the story is developing...\",\"runSuccess\":\"📰 VERDICT: [{workflow_name}]({run_url}) has concluded. All systems operational. This is a developing story. 🎤\",\"runFailure\":\"📰 DEVELOPING STORY: [{workflow_name}]({run_url}) reports {status}. Our correspondents are investigating the incident...\"}"
         with:
@@ -862,14 +860,6 @@ jobs:
               footer += "\n";
               return footer;
             }
-            function getTrackerID(format) {
-              const trackerID = process.env.GH_AW_TRACKER_ID || "";
-              if (trackerID) {
-                core.info(`Tracker ID: ${trackerID}`);
-                return format === "markdown" ? `\n\n<!-- tracker-id: ${trackerID} -->` : trackerID;
-              }
-              return "";
-            }
             function getRepositoryUrl() {
               const targetRepoSlug = process.env.GH_AW_TARGET_REPO_SLUG;
               if (targetRepoSlug) {
@@ -968,7 +958,7 @@ jobs:
               const obj = Object.fromEntries(tempIdMap);
               return JSON.stringify(obj);
             }
-            async function minimizeComment(github, nodeId, reason = "OUTDATED") {
+            async function minimizeComment(github, nodeId, reason = "outdated") {
               const query =  `
                 mutation ($nodeId: ID!, $classifier: ReportedContentClassifiers!) {
                   minimizeComment(input: { subjectId: $nodeId, classifier: $classifier }) {
@@ -984,7 +974,7 @@ jobs:
                 isMinimized: result.minimizeComment.minimizedComment.isMinimized,
               };
             }
-            async function findCommentsWithTrackerId(github, owner, repo, issueNumber, trackerId) {
+            async function findCommentsWithTrackerId(github, owner, repo, issueNumber, workflowId) {
               const comments = [];
               let page = 1;
               const perPage = 100;
@@ -1000,7 +990,7 @@ jobs:
                   break;
                 }
                 for (const comment of data) {
-                  if (comment.body && comment.body.includes(`<!-- tracker-id: ${trackerId} -->`)) {
+                  if (comment.body && comment.body.includes(`<!-- workflow-id: ${workflowId} -->`)) {
                     comments.push({
                       id: comment.id,
                       node_id: comment.node_id,
@@ -1015,7 +1005,7 @@ jobs:
               }
               return comments;
             }
-            async function findDiscussionCommentsWithTrackerId(github, owner, repo, discussionNumber, trackerId) {
+            async function findDiscussionCommentsWithTrackerId(github, owner, repo, discussionNumber, workflowId) {
               const query =  `
                 query ($owner: String!, $repo: String!, $num: Int!, $cursor: String) {
                   repository(owner: $owner, name: $repo) {
@@ -1043,7 +1033,7 @@ jobs:
                 }
                 const nodes = result.repository.discussion.comments.nodes;
                 for (const comment of nodes) {
-                  if (comment.body && comment.body.includes(`<!-- tracker-id: ${trackerId} -->`)) {
+                  if (comment.body && comment.body.includes(`<!-- workflow-id: ${workflowId} -->`)) {
                     comments.push({
                       id: comment.id,
                       body: comment.body,
@@ -1057,9 +1047,9 @@ jobs:
               }
               return comments;
             }
-            async function hideOlderComments(github, owner, repo, itemNumber, trackerId, isDiscussion, reason = "OUTDATED", allowedReasons = null) {
-              if (!trackerId) {
-                core.info("No tracker-id available, skipping hide-older-comments");
+            async function hideOlderComments(github, owner, repo, itemNumber, workflowId, isDiscussion, reason = "outdated", allowedReasons = null) {
+              if (!workflowId) {
+                core.info("No workflow ID available, skipping hide-older-comments");
                 return 0;
               }
               const normalizedReason = reason.toUpperCase();
@@ -1070,15 +1060,15 @@ jobs:
                   return 0;
                 }
               }
-              core.info(`Searching for previous comments with tracker-id: ${trackerId}`);
+              core.info(`Searching for previous comments with workflow ID: ${workflowId}`);
               let comments;
               if (isDiscussion) {
-                comments = await findDiscussionCommentsWithTrackerId(github, owner, repo, itemNumber, trackerId);
+                comments = await findDiscussionCommentsWithTrackerId(github, owner, repo, itemNumber, workflowId);
               } else {
-                comments = await findCommentsWithTrackerId(github, owner, repo, itemNumber, trackerId);
+                comments = await findCommentsWithTrackerId(github, owner, repo, itemNumber, workflowId);
               }
               if (comments.length === 0) {
-                core.info("No previous comments found with matching tracker-id");
+                core.info("No previous comments found with matching workflow ID");
                 return 0;
               }
               core.info(`Found ${comments.length} previous comment(s) to hide with reason: ${normalizedReason}`);
@@ -1184,7 +1174,7 @@ jobs:
                 context.eventName === "pull_request_review_comment";
               const isDiscussionContext = context.eventName === "discussion" || context.eventName === "discussion_comment";
               const isDiscussion = isDiscussionContext || isDiscussionExplicit;
-              const trackerId = getTrackerID();
+              const workflowId = process.env.GITHUB_WORKFLOW || "";
               let allowedReasons = null;
               if (process.env.GH_AW_ALLOWED_REASONS) {
                 try {
@@ -1195,7 +1185,7 @@ jobs:
                 }
               }
               if (hideOlderCommentsEnabled) {
-                core.info(`Hide-older-comments is enabled with tracker-id: ${trackerId || "(none)"}`);
+                core.info(`Hide-older-comments is enabled with workflow ID: ${workflowId || "(none)"}`);
               }
               if (isStaged) {
                 let summaryContent = "## 🎭 Staged Mode: Add Comments Preview\n\n";
@@ -1344,7 +1334,9 @@ jobs:
                 const runUrl = context.payload.repository
                   ? `${context.payload.repository.html_url}/actions/runs/${runId}`
                   : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
-                body += getTrackerID("markdown");
+                if (workflowId) {
+                  body += `\n\n<!-- workflow-id: ${workflowId} -->`;
+                }
                 body += generateFooterWithMessages(
                   workflowName,
                   runUrl,
@@ -1355,16 +1347,16 @@ jobs:
                   triggeringDiscussionNumber
                 );
                 try {
-                  if (hideOlderCommentsEnabled && trackerId) {
+                  if (hideOlderCommentsEnabled && workflowId) {
                     core.info("Hide-older-comments is enabled, searching for previous comments to hide");
                     await hideOlderComments(
                       github,
                       context.repo.owner,
                       context.repo.repo,
                       itemNumber,
-                      trackerId,
+                      workflowId,
                       commentEndpoint === "discussions",
-                      "OUTDATED",
+                      "outdated",
                       allowedReasons
                     );
                   }
@@ -1449,7 +1441,6 @@ jobs:
           GH_AW_LABELS_ALLOWED: "smoke-copilot"
           GH_AW_LABELS_MAX_COUNT: 3
           GH_AW_WORKFLOW_NAME: "Smoke Copilot"
-          GH_AW_TRACKER_ID: "smoke-copilot"
           GH_AW_ENGINE_ID: "copilot"
           GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 📰 *BREAKING: Report filed by [{workflow_name}]({run_url})*\",\"runStarted\":\"📰 BREAKING: [{workflow_name}]({run_url}) is now investigating this {event_type}. Sources say the story is developing...\",\"runSuccess\":\"📰 VERDICT: [{workflow_name}]({run_url}) has concluded. All systems operational. This is a developing story. 🎤\",\"runFailure\":\"📰 DEVELOPING STORY: [{workflow_name}]({run_url}) reports {status}. Our correspondents are investigating the incident...\"}"
         with:
@@ -7271,7 +7262,6 @@ jobs:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_NOOP_MAX: 1
           GH_AW_WORKFLOW_NAME: "Smoke Copilot"
-          GH_AW_TRACKER_ID: "smoke-copilot"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -7364,7 +7354,6 @@ jobs:
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_WORKFLOW_NAME: "Smoke Copilot"
-          GH_AW_TRACKER_ID: "smoke-copilot"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -7478,7 +7467,6 @@ jobs:
           GH_AW_COMMENT_REPO: ${{ needs.activation.outputs.comment_repo }}
           GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           GH_AW_WORKFLOW_NAME: "Smoke Copilot"
-          GH_AW_TRACKER_ID: "smoke-copilot"
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
           GH_AW_DETECTION_CONCLUSION: ${{ needs.detection.result }}
           GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 📰 *BREAKING: Report filed by [{workflow_name}]({run_url})*\",\"runStarted\":\"📰 BREAKING: [{workflow_name}]({run_url}) is now investigating this {event_type}. Sources say the story is developing...\",\"runSuccess\":\"📰 VERDICT: [{workflow_name}]({run_url}) has concluded. All systems operational. This is a developing story. 🎤\",\"runFailure\":\"📰 DEVELOPING STORY: [{workflow_name}]({run_url}) reports {status}. Our correspondents are investigating the incident...\"}"
@@ -7773,7 +7761,6 @@ jobs:
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_WORKFLOW_NAME: "Smoke Copilot"
-          GH_AW_TRACKER_ID: "smoke-copilot"
           GH_AW_ENGINE_ID: "copilot"
           GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 📰 *BREAKING: Report filed by [{workflow_name}]({run_url})*\",\"runStarted\":\"📰 BREAKING: [{workflow_name}]({run_url}) is now investigating this {event_type}. Sources say the story is developing...\",\"runSuccess\":\"📰 VERDICT: [{workflow_name}]({run_url}) has concluded. All systems operational. This is a developing story. 🎤\",\"runFailure\":\"📰 DEVELOPING STORY: [{workflow_name}]({run_url}) reports {status}. Our correspondents are investigating the incident...\"}"
         with:

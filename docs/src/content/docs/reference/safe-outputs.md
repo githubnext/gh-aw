@@ -177,7 +177,7 @@ safe-outputs:
 ```
 
 **How it works:**
-- Comments from the same workflow are identified by matching `tracker-id` values
+- Comments from the same workflow are identified by the workflow ID (automatically from `GITHUB_WORKFLOW` environment variable)
 - All matching older comments are minimized/hidden with reason "outdated" (by default)
 - The new comment is then created normally
 - Works for both issue/PR comments and discussion comments
@@ -193,14 +193,13 @@ Use `allowed-reasons` to restrict which reasons can be used when hiding comments
 If `allowed-reasons` is not specified, all reasons are allowed. If specified, only the listed reasons can be used. If the default reason (outdated) is not in the allowed list, hiding will be skipped with a warning.
 
 **Requirements:**
-- A `tracker-id` must be configured in the workflow frontmatter
-- Only comments with matching `tracker-id` will be hidden
+- Workflow ID is automatically obtained from the `GITHUB_WORKFLOW` environment variable
+- Only comments with matching workflow ID will be hidden
 - Requires write permissions (automatically granted to the safe-output job)
 
 **Example workflow:**
 ```yaml wrap
 ---
-tracker-id: status-reporter
 safe-outputs:
   add-comment:
     hide-older-comments: true

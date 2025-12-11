@@ -9,11 +9,10 @@ permissions:
   issues: read
   pull-requests: read
 engine: copilot
-tracker-id: test-hide-comments-workflow
 safe-outputs:
   add-comment:
     hide-older-comments: true
-    allowed-reasons: [OUTDATED, RESOLVED]
+    allowed-reasons: [outdated, resolved]
 timeout-minutes: 5
 ---
 
@@ -21,7 +20,7 @@ timeout-minutes: 5
 
 This is a test workflow to verify the hide-older-comments field works correctly.
 
-When this workflow runs multiple times on the same issue, it will hide all previous comments from this workflow (identified by the tracker-id) before adding a new comment.
+When this workflow runs multiple times on the same issue, it will hide all previous comments from this workflow (identified by the workflow ID from `GITHUB_WORKFLOW`) before adding a new comment.
 
 The comment will include a timestamp to help verify the hiding behavior.
 

@@ -14,7 +14,6 @@ permissions:
   issues: read
 name: Smoke Copilot
 engine: copilot
-tracker-id: smoke-copilot
 network:
   allowed:
     - defaults

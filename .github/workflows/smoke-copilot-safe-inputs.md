@@ -14,7 +14,6 @@ permissions:
   issues: read
 name: Smoke Copilot Safe Inputs
 engine: copilot
-tracker-id: smoke-copilot-safe-inputs
 network:
   allowed:
     - defaults

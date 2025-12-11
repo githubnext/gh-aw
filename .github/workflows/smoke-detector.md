@@ -34,7 +34,6 @@ permissions:
   issues: read
   pull-requests: read
   actions: read
-tracker-id: smoke-detector
 safe-outputs:
   add-comment:
     target: "*"

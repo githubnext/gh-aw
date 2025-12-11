@@ -14,7 +14,6 @@ permissions:
   pull-requests: read
 name: Smoke Codex
 engine: codex
-tracker-id: smoke-codex
 strict: false
 network:
   allowed:
