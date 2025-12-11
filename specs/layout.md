@@ -1,11 +1,11 @@
 # GitHub Actions Workflow Layout Specification
 
 > Auto-generated specification documenting patterns used in compiled `.lock.yml` files.
-> Last updated: 2025-12-10
+> Last updated: 2025-12-11
 
 ## Overview
 
-This document catalogs all file paths, folder names, artifact names, and other patterns used across our compiled GitHub Actions workflows (`.lock.yml` files). The repository currently contains **115 compiled lock.yml files** with **19 unique GitHub Actions**, **85 unique artifact patterns**, and **37 unique job types**.
+This document catalogs all file paths, folder names, artifact names, and other patterns used across our compiled GitHub Actions workflows (`.lock.yml` files). The repository currently contains **118 compiled lock.yml files** with **19 unique GitHub Actions**, **85+ unique artifact patterns**, and **38 unique job types**.
 
 ## GitHub Actions
 
@@ -132,6 +132,7 @@ Standard job names across workflows (37 unique job types):
 |----------|-------------|---------|
 | `add_comment` | Adds comment to issue/PR | Safe-output job for commenting |
 | `add_labels` | Adds labels to issue/PR | Safe-output job for labeling |
+| `hide_comment` | Hides a comment | Safe-output job for comment moderation |
 | `notion_add_comment` | Adds comment to Notion | Safe-output job for Notion integration |
 
 ### Safe Output Jobs - Assignment & Linking
@@ -149,6 +150,7 @@ Standard job names across workflows (37 unique job types):
 | `close_issue` | Closes an issue | Safe-output job for issue closure |
 | `close_pull_request` | Closes a PR | Safe-output job for PR closure |
 | `close_discussion` | Closes a discussion | Safe-output job for discussion closure |
+| `hide_comment` | Hides a comment (duplicate - see Comments section) | Safe-output job for comment moderation |
 | `minimize_comment` | Minimizes a comment | Safe-output job for comment moderation |
 
 ### Safe Output Jobs - External Integration
@@ -270,7 +272,7 @@ Key directories used across the codebase:
 
 | Folder | Description | Context |
 |--------|-------------|---------|
-| `.github/workflows/` | Workflow files (source and compiled) | Primary location for all `.md` and `.lock.yml` files (115 workflows) |
+| `.github/workflows/` | Workflow files (source and compiled) | Primary location for all `.md` and `.lock.yml` files (118 workflows) |
 | `.github/workflows/shared/` | Shared workflow components | Reusable workflow imports |
 | `.github/aw/` | Agentic workflow configuration | Contains `actions-lock.json` and cache files |
 | `.github/agents/` | Agent definition files | Custom agent markdown definitions |
@@ -413,23 +415,25 @@ const utilsPath = path.join(import.meta.dirname, "utils.cjs");
 
 ## Statistics Summary
 
-- **Total lock.yml files**: 115
+- **Total lock.yml files**: 118
 - **Unique GitHub Actions**: 19
 - **Unique upload artifact names**: 85+
 - **Unique download artifact names**: 8 (core artifacts reused across workflows)
-- **Unique job names**: 37
+- **Unique job names**: 38
 - **Unique file path patterns**: 32
-- **Safe output job types**: 26
+- **Safe output job types**: 27
+- **Total action uses across all workflows**: 4,374
+- **Total artifact uploads across all workflows**: 1,041
 
 ## Safe Output Jobs Overview
 
-The repository uses 26 different safe-output job types for controlled GitHub API interactions:
+The repository uses 27 different safe-output job types for controlled GitHub API interactions:
 
 **Resource Creation** (6): create_pull_request, create_issue, create_discussion, create_pr_review_comment, create_agent_task, create_code_scanning_alert
 
 **Resource Updates** (5): update_issue, update_pull_request, update_project, update_release, update_cache_memory
 
-**Comments & Interaction** (3): add_comment, add_labels, notion_add_comment
+**Comments & Interaction** (4): add_comment, add_labels, hide_comment, notion_add_comment
 
 **Assignment & Linking** (3): assign_to_agent, assign_to_user, link_sub_issue
 
