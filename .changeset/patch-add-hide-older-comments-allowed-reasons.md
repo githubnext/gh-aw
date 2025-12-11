@@ -2,12 +2,7 @@
 "gh-aw": patch
 ---
 
-Add `hide-older-comments` and `allowed-reasons` fields to `add-comment` and `hide-comment` safe outputs.
+Add `hide-older-comments` boolean and `allowed-reasons` array fields to `add-comment` and `hide-comment` safe outputs; includes parsing, JavaScript hiding logic, tests, and documentation updates.
 
-This change:
-- Adds `hide-older-comments` boolean to `add-comment` to automatically minimize previous comments from the same workflow.
-- Adds `allowed-reasons` array to `add-comment` and `hide-comment` with restricted lowercase values: `spam`, `abuse`, `off_topic`, `outdated`, `resolved`.
-- Implements parsing, JavaScript hiding logic, tests, and documentation updates.
-
-These are non-breaking, backwards-compatible additions.
+This change adds support for hiding older comments from the same workflow (identified by workflow-id) and allows restricting which hide reasons are permitted via the `allowed-reasons` field. Backwards compatible: if `allowed-reasons` is omitted, all reasons are allowed.
 
