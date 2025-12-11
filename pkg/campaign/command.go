@@ -26,7 +26,7 @@ func NewCommand() *cobra.Command {
 
 Campaigns are defined using Markdown files with YAML frontmatter under the local repository:
 
-	campaigns/*.campaign.md
+	.github/workflows/*.campaign.md
 
 Each file describes a campaign pattern (ID, name, owners, associated
 workflows, repo-memory paths, and risk level). This command provides a
