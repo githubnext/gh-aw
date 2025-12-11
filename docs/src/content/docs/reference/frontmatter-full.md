@@ -1312,6 +1312,7 @@ tools:
   # GitHub Agentic Workflows MCP server for workflow introspection and analysis.
   # Provides tools for checking status, compiling workflows, downloading logs, and
   # auditing runs.
+  # IMPORTANT: Requires 'actions: read' permission to access workflow logs and run data.
   # (optional)
   # This field supports multiple formats (oneOf):
 

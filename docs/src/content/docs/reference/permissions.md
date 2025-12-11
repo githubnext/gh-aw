@@ -97,6 +97,15 @@ Write operations use safe outputs instead of direct API access. This provides co
 
 Run `gh aw compile workflow.md` to validate permissions. Common errors include undefined permissions, direct write permissions in the main job (use safe outputs instead), and insufficient permissions for declared tools. Use `--strict` mode to enforce read-only permissions and require explicit network configuration.
 
+### Tool-Specific Requirements
+
+Some tools require specific permissions to function:
+
+- **`agentic-workflows`**: Requires `actions: read` to access workflow logs and run data
+- **GitHub MCP toolsets**: See [Tools](/gh-aw/reference/tools/) for GitHub API permission requirements
+
+The compiler validates these requirements and provides clear error messages when permissions are missing.
+
 ## Related Documentation
 
 - [Safe Outputs](/gh-aw/reference/safe-outputs/) - Secure write operations with content sanitization
