@@ -161,7 +161,7 @@ async function main() {
     case "workflow_dispatch":
       // Add the actor who triggered the workflow_dispatch to allowed aliases
       allowedAliases.push(actor);
-      
+
       // For workflow dispatch: check for release_url or release_id in inputs
       if (context.payload.inputs) {
         const releaseUrl = context.payload.inputs.release_url;
