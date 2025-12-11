@@ -754,6 +754,7 @@ jobs:
                   }
                   break;
                 case "workflow_dispatch":
+                  allowedAliases.push(actor);
                   if (context.payload.inputs) {
                     const releaseUrl = context.payload.inputs.release_url;
                     const releaseId = context.payload.inputs.release_id;
@@ -770,6 +771,9 @@ jobs:
                           const name = release.name || release.tag_name || "";
                           const body = release.body || "";
                           text = `${name}\n\n${body}`;
+                          if (release.author?.login) {
+                            allowedAliases.push(release.author.login);
+                          }
                         } catch (error) {
                           core.warning(`Failed to fetch release from URL: ${error instanceof Error ? error.message : String(error)}`);
                         }
@@ -784,6 +788,9 @@ jobs:
                         const name = release.name || release.tag_name || "";
                         const body = release.body || "";
                         text = `${name}\n\n${body}`;
+                        if (release.author?.login) {
+                          allowedAliases.push(release.author.login);
+                        }
                       } catch (error) {
                         core.warning(`Failed to fetch release by ID: ${error instanceof Error ? error.message : String(error)}`);
                       }

@@ -599,5 +599,76 @@ describe("compute_text.cjs", () => {
       // @other should be neutralized
       expect(outputCall[1]).toContain("`@other`");
     });
+
+    it("should allow workflow_dispatch actor mention without neutralization", async () => {
+      // Set up actor and event
+      mockContext.actor = "dispatchActor";
+      mockContext.eventName = "workflow_dispatch";
+      mockContext.payload = {
+        inputs: {
+          release_id: "12345",
+        },
+      };
+
+      // Mock the release fetch
+      mockGithub.rest.repos.getRelease = vi.fn().mockResolvedValue({
+        data: {
+          name: "v1.0.0",
+          body: "Release by @dispatchActor and @releaseAuthor and @other",
+          author: { login: "releaseAuthor" },
+        },
+      });
+
+      await testMain();
+
+      const outputCall = mockCore.setOutput.mock.calls[0];
+      // @dispatchActor should not be neutralized (workflow_dispatch actor)
+      expect(outputCall[1]).toContain("@dispatchActor");
+      expect(outputCall[1]).not.toContain("`@dispatchActor`");
+      // @releaseAuthor should also not be neutralized
+      expect(outputCall[1]).toContain("@releaseAuthor");
+      expect(outputCall[1]).not.toContain("`@releaseAuthor`");
+      // @other should be neutralized
+      expect(outputCall[1]).toContain("`@other`");
+    });
+
+    it("should handle workflow_dispatch without release inputs", async () => {
+      mockContext.actor = "dispatchActor";
+      mockContext.eventName = "workflow_dispatch";
+      mockContext.payload = {
+        inputs: {},
+      };
+
+      await testMain();
+
+      // Should produce empty text but not error
+      expect(mockCore.setOutput).toHaveBeenCalledWith("text", "");
+    });
+
+    it("should allow workflow_dispatch actor with release_url", async () => {
+      mockContext.actor = "dispatchActor";
+      mockContext.eventName = "workflow_dispatch";
+      mockContext.payload = {
+        inputs: {
+          release_url: "https://github.com/test-owner/test-repo/releases/tag/v1.0.0",
+        },
+      };
+
+      // Mock the release fetch by tag
+      mockGithub.rest.repos.getReleaseByTag = vi.fn().mockResolvedValue({
+        data: {
+          name: "v1.0.0",
+          body: "Release notes mentioning @dispatchActor",
+          author: { login: "releaseAuthor" },
+        },
+      });
+
+      await testMain();
+
+      const outputCall = mockCore.setOutput.mock.calls[0];
+      // @dispatchActor should not be neutralized
+      expect(outputCall[1]).toContain("@dispatchActor");
+      expect(outputCall[1]).not.toContain("`@dispatchActor`");
+    });
   });
 });
