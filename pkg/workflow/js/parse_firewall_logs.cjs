@@ -166,7 +166,7 @@ function isRequestAllowed(decision, status) {
  * @returns {string} Markdown formatted summary
  */
 function generateFirewallSummary(analysis) {
-  const { totalRequests, allowedRequests, deniedRequests, requestsByDomain } = analysis;
+  const { totalRequests, requestsByDomain } = analysis;
 
   // Filter out invalid domains (placeholder "-" values)
   const validDomains = Array.from(requestsByDomain.keys())
@@ -174,9 +174,14 @@ function generateFirewallSummary(analysis) {
     .sort();
   const uniqueDomainCount = validDomains.length;
 
-  // Calculate valid denied requests (excluding placeholder domains)
-  const validDeniedRequests = validDomains.reduce((sum, domain) => sum + (requestsByDomain.get(domain)?.denied || 0), 0);
-  const validAllowedRequests = validDomains.reduce((sum, domain) => sum + (requestsByDomain.get(domain)?.allowed || 0), 0);
+  // Calculate valid allowed and denied requests in a single pass
+  let validAllowedRequests = 0;
+  let validDeniedRequests = 0;
+  for (const domain of validDomains) {
+    const stats = requestsByDomain.get(domain);
+    validAllowedRequests += stats.allowed;
+    validDeniedRequests += stats.denied;
+  }
 
   let summary = "### 🔥 Firewall Activity\n\n";
 
