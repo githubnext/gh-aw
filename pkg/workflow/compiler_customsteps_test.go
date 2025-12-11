@@ -26,7 +26,7 @@ func TestCustomStepsIndentation(t *testing.T) {
   - name: Checkout code
     uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd
   - name: Set up Go
-    uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5
+    uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c
     with:
       go-version-file: go.mod
       cache: true`,
