@@ -62,7 +62,7 @@ npx --yes @github/copilot -i "activate https://raw.githubusercontent.com/githubn
 
 :::tip[What is "compilation" in agentic workflows?]
 
-You'll write workflows in simple **Markdown files** (`.md`). GitHub Agentic Workflows **compiles** them into **GitHub Actions YAML files** (`.lock.yml`) that GitHub can execute. Think of it like Markdown → HTML: you write in an easy format, and it gets converted to what GitHub needs.
+You'll write workflows in simple **Markdown files** (`.md`). GitHub Agentic Workflows **compiles** them into **GitHub Actions YAML files** ([`.lock.yml`](/gh-aw/reference/glossary/#workflow-lock-file-lockyml)) that GitHub can execute. Think of it like Markdown → HTML: you write in an easy format, and it gets converted to what GitHub needs.
 
 **Why compile?** It translates your natural language instructions into precise GitHub Actions configuration with security hardening applied.
 
@@ -85,13 +85,13 @@ Before installing anything, it helps to understand the workflow lifecycle:
 
 **Why two files?**
 - **`.md` file**: Human-friendly markdown with natural language instructions and simple YAML configuration. This is what you write and edit.
-- **`.lock.yml` file**: Machine-ready GitHub Actions YAML with security hardening applied. This is what GitHub Actions runs.
+- **[`.lock.yml` file](/gh-aw/reference/glossary/#workflow-lock-file-lockyml)**: Machine-ready GitHub Actions YAML with security hardening applied. This is what GitHub Actions runs.
 - **Compilation**: The `gh aw compile` command translates your markdown into validated, secure GitHub Actions YAML.
 
 Think of it like writing code in a high-level language (Python, JavaScript) that gets compiled to machine code. You write natural language, GitHub runs the compiled workflow.
 
 :::caution[Important]
-**Never edit `.lock.yml` files directly.** These are auto-generated. Always edit the `.md` file and recompile with `gh aw compile`.
+**Never edit [`.lock.yml` files](/gh-aw/reference/glossary/#workflow-lock-file-lockyml) directly.** These are auto-generated. Always edit the `.md` file and recompile with `gh aw compile`.
 :::
 
 ### Step 1 — Install the extension

@@ -29,7 +29,7 @@ Maintains and updates project planning issues with current priorities, ensuring 
 Searches for information on a given topic, analyzes results, and creates structured summaries with relevant sources. Triggered manually via workflow_dispatch with research topic input. Workflow file: `.github/workflows/research.md`
 
 ### MCP Inspector
-Analyzes all MCP configuration files, extracts server details, and generates comprehensive inventory reports to maintain visibility into available MCP servers and their capabilities. Runs weekly on Mondays at 10am UTC, or manually via workflow_dispatch. Workflow file: `.github/workflows/mcp-inspector.md`
+Analyzes all [MCP](/gh-aw/reference/glossary/#mcp-model-context-protocol) configuration files, extracts server details, and generates comprehensive inventory reports to maintain visibility into available [MCP servers](/gh-aw/reference/glossary/#mcp-server) and their capabilities. Runs weekly on Mondays at 10am UTC, or manually via workflow_dispatch. Workflow file: `.github/workflows/mcp-inspector.md`
 
 > [!WARNING]
 > GitHub Agentic Workflows is a research demonstrator, and not for production use.
