@@ -336,6 +336,27 @@ async function main() {
   const patchPath = "/tmp/gh-aw/aw.patch";
   const hasPatch = fs.existsSync(patchPath);
   core.info(`Patch file ${hasPatch ? "exists" : "does not exist"} at: ${patchPath}`);
-  core.setOutput("has_patch", hasPatch ? "true" : "false");
+
+  // Check if allow-empty is enabled for create_pull_request (reuse already loaded config)
+  let allowEmptyPR = false;
+  if (safeOutputsConfig) {
+    // Check if create-pull-request has allow-empty enabled
+    if (
+      safeOutputsConfig["create-pull-request"]?.["allow-empty"] === true ||
+      safeOutputsConfig["create_pull_request"]?.["allow_empty"] === true
+    ) {
+      allowEmptyPR = true;
+      core.info(`allow-empty is enabled for create-pull-request`);
+    }
+  }
+
+  // If allow-empty is enabled for create_pull_request and there's no patch, that's OK
+  // Set has_patch to true so the create_pull_request job will run
+  if (allowEmptyPR && !hasPatch && outputTypes.includes("create_pull_request")) {
+    core.info(`allow-empty is enabled and no patch exists - will create empty PR`);
+    core.setOutput("has_patch", "true");
+  } else {
+    core.setOutput("has_patch", hasPatch ? "true" : "false");
+  }
 }
 await main();

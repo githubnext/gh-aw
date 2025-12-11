@@ -1619,7 +1619,7 @@ jobs:
             const { getCurrentBranch } = require("./get_current_branch.cjs");
             const { getBaseBranch } = require("./get_base_branch.cjs");
             const { generateGitPatch } = require("./generate_git_patch.cjs");
-            function createHandlers(server, appendSafeOutput) {
+            function createHandlers(server, appendSafeOutput, config = {}) {
               const defaultHandler = type => args => {
                 const entry = { ...(args || {}), type };
                 let largeContent = null;
@@ -1741,6 +1741,23 @@ jobs:
                   }
                   entry.branch = detectedBranch;
                 }
+                const allowEmpty = config.create_pull_request?.allow_empty === true;
+                if (allowEmpty) {
+                  server.debug(`allow-empty is enabled for create_pull_request - skipping patch generation`);
+                  appendSafeOutput(entry);
+                  return {
+                    content: [
+                      {
+                        type: "text",
+                        text: JSON.stringify({
+                          result: "success",
+                          message: "Pull request prepared (allow-empty mode - no patch generated)",
+                          branch: entry.branch,
+                        }),
+                      },
+                    ],
+                  };
+                }
                 server.debug(`Generating patch for create_pull_request with branch: ${entry.branch}`);
                 const patchResult = generateGitPatch(entry.branch);
                 if (!patchResult.success) {
@@ -1824,7 +1841,7 @@ jobs:
               const server = createServer(SERVER_INFO, { logDir: MCP_LOG_DIR });
               const { config: safeOutputsConfig, outputFile, tools: ALL_TOOLS } = bootstrapSafeOutputsServer(server);
               const appendSafeOutput = createAppendFunction(outputFile);
-              const handlers = createHandlers(server, appendSafeOutput);
+              const handlers = createHandlers(server, appendSafeOutput, safeOutputsConfig);
               const { defaultHandler } = handlers;
               const toolsWithHandlers = attachHandlers(ALL_TOOLS, handlers);
               server.debug(`  output file: ${outputFile}`);
@@ -3696,7 +3713,22 @@ jobs:
               const patchPath = "/tmp/gh-aw/aw.patch";
               const hasPatch = fs.existsSync(patchPath);
               core.info(`Patch file ${hasPatch ? "exists" : "does not exist"} at: ${patchPath}`);
-              core.setOutput("has_patch", hasPatch ? "true" : "false");
+              let allowEmptyPR = false;
+              if (safeOutputsConfig) {
+                if (
+                  safeOutputsConfig["create-pull-request"]?.["allow-empty"] === true ||
+                  safeOutputsConfig["create_pull_request"]?.["allow_empty"] === true
+                ) {
+                  allowEmptyPR = true;
+                  core.info(`allow-empty is enabled for create-pull-request`);
+                }
+              }
+              if (allowEmptyPR && !hasPatch && outputTypes.includes("create_pull_request")) {
+                core.info(`allow-empty is enabled and no patch exists - will create empty PR`);
+                core.setOutput("has_patch", "true");
+              } else {
+                core.setOutput("has_patch", hasPatch ? "true" : "false");
+              }
             }
             await main();
       - name: Upload sanitized agent output
