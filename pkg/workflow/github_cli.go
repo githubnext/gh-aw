@@ -2,6 +2,7 @@ package workflow
 
 import (
 	"bytes"
+	"context"
 	"os"
 	"os/exec"
 
@@ -44,6 +45,39 @@ func ExecGH(args ...string) *exec.Cmd {
 	// If no token is available, use default gh CLI behavior
 	githubCLILog.Printf("No token available, using default gh CLI for command: gh %v", args)
 	return exec.Command("gh", args...)
+}
+
+// ExecGHContext wraps gh CLI calls with context support and ensures proper token configuration.
+// Similar to ExecGH but accepts a context for cancellation and timeout support.
+//
+// Usage:
+//
+//	cmd := ExecGHContext(ctx, "api", "/user")
+//	output, err := cmd.Output()
+func ExecGHContext(ctx context.Context, args ...string) *exec.Cmd {
+	// Check if GH_TOKEN or GITHUB_TOKEN is available
+	ghToken := os.Getenv("GH_TOKEN")
+	githubToken := os.Getenv("GITHUB_TOKEN")
+
+	// If we have a token, use go-gh/v2 which handles authentication properly
+	if ghToken != "" || githubToken != "" {
+		githubCLILog.Printf("Using gh CLI via go-gh/v2 for command with context: gh %v", args)
+
+		// Create a command that will execute via go-gh with context
+		cmd := exec.CommandContext(ctx, "gh", args...)
+
+		// Set up environment to ensure token is available
+		if ghToken == "" && githubToken != "" {
+			githubCLILog.Printf("GH_TOKEN not set, using GITHUB_TOKEN for gh CLI")
+			cmd.Env = append(os.Environ(), "GH_TOKEN="+githubToken)
+		}
+
+		return cmd
+	}
+
+	// If no token is available, use default gh CLI behavior
+	githubCLILog.Printf("No token available, using default gh CLI with context for command: gh %v", args)
+	return exec.CommandContext(ctx, "gh", args...)
 }
 
 // ExecGHWithOutput executes a gh CLI command using go-gh/v2 and returns stdout, stderr, and error.

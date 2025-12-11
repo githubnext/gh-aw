@@ -3,10 +3,10 @@ package cli
 import (
 	"encoding/json"
 	"fmt"
-	"os/exec"
 	"strconv"
 
 	"github.com/githubnext/gh-aw/pkg/console"
+	"github.com/githubnext/gh-aw/pkg/workflow"
 	"github.com/githubnext/gh-aw/pkg/logger"
 )
 
@@ -20,7 +20,7 @@ func cancelWorkflowRuns(workflowID int64) error {
 	spinner.Start()
 
 	// Get running workflow runs
-	cmd := exec.Command("gh", "run", "list", "--workflow", strconv.FormatInt(workflowID, 10), "--status", "in_progress", "--json", "databaseId")
+	cmd := workflow.ExecGH("run", "list", "--workflow", strconv.FormatInt(workflowID, 10), "--status", "in_progress", "--json", "databaseId")
 	output, err := cmd.Output()
 	if err != nil {
 		cancelLog.Printf("Failed to list workflow runs: %v", err)
@@ -43,7 +43,7 @@ func cancelWorkflowRuns(workflowID int64) error {
 	totalRuns := len(runs)
 	for i, run := range runs {
 		cancelLog.Printf("Cancelling workflow run: %d", run.DatabaseID)
-		cancelCmd := exec.Command("gh", "run", "cancel", strconv.FormatInt(run.DatabaseID, 10))
+		cancelCmd := workflow.ExecGH("run", "cancel", strconv.FormatInt(run.DatabaseID, 10))
 		_ = cancelCmd.Run() // Ignore errors for individual cancellations
 		// Update spinner with progress after cancellation completes
 		spinner.UpdateMessage(fmt.Sprintf("Cancelling workflow runs... (%d/%d completed)", i+1, totalRuns))
@@ -67,7 +67,7 @@ func cancelWorkflowRunsByLockFile(lockFileName string) error {
 	spinner.Start()
 
 	// Get running workflow runs by lock file name
-	cmd := exec.Command("gh", "run", "list", "--workflow", lockFileName, "--status", "in_progress", "--json", "databaseId")
+	cmd := workflow.ExecGH("run", "list", "--workflow", lockFileName, "--status", "in_progress", "--json", "databaseId")
 	output, err := cmd.Output()
 	if err != nil {
 		cancelLog.Printf("Failed to list workflow runs by lock file: %v", err)
@@ -90,7 +90,7 @@ func cancelWorkflowRunsByLockFile(lockFileName string) error {
 	totalRuns := len(runs)
 	for i, run := range runs {
 		cancelLog.Printf("Cancelling workflow run: %d", run.DatabaseID)
-		cancelCmd := exec.Command("gh", "run", "cancel", strconv.FormatInt(run.DatabaseID, 10))
+		cancelCmd := workflow.ExecGH("run", "cancel", strconv.FormatInt(run.DatabaseID, 10))
 		_ = cancelCmd.Run() // Ignore errors for individual cancellations
 		// Update spinner with progress after cancellation completes
 		spinner.UpdateMessage(fmt.Sprintf("Cancelling workflow runs... (%d/%d completed)", i+1, totalRuns))

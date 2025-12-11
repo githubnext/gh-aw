@@ -5,12 +5,12 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/console"
+	"github.com/githubnext/gh-aw/pkg/workflow"
 	"github.com/githubnext/gh-aw/pkg/constants"
 	"github.com/githubnext/gh-aw/pkg/logger"
 	"github.com/githubnext/gh-aw/pkg/parser"
@@ -75,7 +75,7 @@ func fetchGitHubWorkflows(repoOverride string, verbose bool) (map[string]*GitHub
 	if repoOverride != "" {
 		args = append(args, "--repo", repoOverride)
 	}
-	cmd := exec.Command("gh", args...)
+	cmd := workflow.ExecGH(args...)
 	output, err := cmd.Output()
 
 	if err != nil {
@@ -171,7 +171,7 @@ func restoreWorkflowState(workflowIdOrName string, workflowID int64, repoOverrid
 	if repoOverride != "" {
 		args = append(args, "--repo", repoOverride)
 	}
-	cmd := exec.Command("gh", args...)
+	cmd := workflow.ExecGH(args...)
 	if err := cmd.Run(); err != nil {
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to restore workflow '%s' to disabled state: %v", workflowIdOrName, err)))
 	} else {

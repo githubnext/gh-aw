@@ -151,7 +151,7 @@ func createForkIfNeeded(targetOwner, targetRepo string, verbose bool) (forkOwner
 
 	// Check if fork already exists
 	forkRepoSpec := fmt.Sprintf("%s/%s", currentUser, targetRepo)
-	checkCmd := exec.Command("gh", "repo", "view", forkRepoSpec, "--json", "name")
+	checkCmd := workflow.ExecGH("repo", "view", forkRepoSpec, "--json", "name")
 	if checkCmd.Run() == nil {
 		if verbose {
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Fork already exists: %s", forkRepoSpec)))
@@ -164,7 +164,7 @@ func createForkIfNeeded(targetOwner, targetRepo string, verbose bool) (forkOwner
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Creating fork of %s/%s...", targetOwner, targetRepo)))
 	}
 
-	forkCmd := exec.Command("gh", "repo", "fork", fmt.Sprintf("%s/%s", targetOwner, targetRepo), "--clone=false")
+	forkCmd := workflow.ExecGH("repo", "fork", fmt.Sprintf("%s/%s", targetOwner, targetRepo), "--clone=false")
 	if err := forkCmd.Run(); err != nil {
 		return "", "", fmt.Errorf("failed to create fork: %w", err)
 	}
@@ -225,7 +225,7 @@ func createPatchFromPR(sourceOwner, sourceRepo string, prInfo *PRInfo, verbose b
 	}
 
 	// Use gh pr diff command directly - this is the most reliable method
-	cmd := exec.Command("gh", "pr", "diff", fmt.Sprintf("%d", prInfo.Number), "--repo", fmt.Sprintf("%s/%s", sourceOwner, sourceRepo))
+	cmd := workflow.ExecGH("pr", "diff", fmt.Sprintf("%d", prInfo.Number), "--repo", fmt.Sprintf("%s/%s", sourceOwner, sourceRepo))
 	diffContent, err := cmd.Output()
 	if err != nil {
 		return "", fmt.Errorf("failed to get PR diff: %w", err)
@@ -535,7 +535,7 @@ func createTransferPR(targetOwner, targetRepo string, prInfo *PRInfo, branchName
 		headRef = branchName
 	}
 
-	cmd := exec.Command("gh", "pr", "create",
+	cmd := workflow.ExecGH("pr", "create",
 		"--repo", repoFlag,
 		"--title", prInfo.Title,
 		"--body", prBody,
@@ -634,7 +634,7 @@ func transferPR(prURL, targetRepo string, verbose bool) error {
 						return fmt.Errorf("failed to create temp directory for repo: %w", err)
 					}
 
-					cloneCmd := exec.Command("gh", "repo", "clone", fmt.Sprintf("%s/%s", targetOwner, targetRepoName), tempDir)
+					cloneCmd := workflow.ExecGH("repo", "clone", fmt.Sprintf("%s/%s", targetOwner, targetRepoName), tempDir)
 					if err := cloneCmd.Run(); err != nil {
 						os.RemoveAll(tempDir)
 						return fmt.Errorf("failed to clone target repository: %w", err)
@@ -659,7 +659,7 @@ func transferPR(prURL, targetRepo string, verbose bool) error {
 					return fmt.Errorf("failed to create temp directory for repo: %w", err)
 				}
 
-				cloneCmd := exec.Command("gh", "repo", "clone", fmt.Sprintf("%s/%s", targetOwner, targetRepoName), tempDir)
+				cloneCmd := workflow.ExecGH("repo", "clone", fmt.Sprintf("%s/%s", targetOwner, targetRepoName), tempDir)
 				if err := cloneCmd.Run(); err != nil {
 					os.RemoveAll(tempDir)
 					return fmt.Errorf("failed to clone target repository: %w", err)
@@ -684,7 +684,7 @@ func transferPR(prURL, targetRepo string, verbose bool) error {
 				return fmt.Errorf("failed to create temp directory for repo: %w", err)
 			}
 
-			cloneCmd := exec.Command("gh", "repo", "clone", fmt.Sprintf("%s/%s", targetOwner, targetRepoName), tempDir)
+			cloneCmd := workflow.ExecGH("repo", "clone", fmt.Sprintf("%s/%s", targetOwner, targetRepoName), tempDir)
 			if err := cloneCmd.Run(); err != nil {
 				os.RemoveAll(tempDir)
 				return fmt.Errorf("failed to clone target repository: %w", err)
@@ -768,7 +768,7 @@ func createPR(branchName, title, body string, verbose bool) error {
 	}
 
 	// Get the current repository info to ensure PR is created in the correct repo
-	cmd := exec.Command("gh", "repo", "view", "--json", "owner,name")
+	cmd := workflow.ExecGH("repo", "view", "--json", "owner,name")
 	repoOutput, err := cmd.Output()
 	if err != nil {
 		return fmt.Errorf("failed to get current repository info: %w", err)
@@ -788,7 +788,7 @@ func createPR(branchName, title, body string, verbose bool) error {
 	repoSpec := fmt.Sprintf("%s/%s", repoInfo.Owner.Login, repoInfo.Name)
 
 	// Explicitly specify the repository to ensure PR is created in the current repo (not upstream)
-	cmd = exec.Command("gh", "pr", "create", "--repo", repoSpec, "--title", title, "--body", body, "--head", branchName)
+	cmd = workflow.ExecGH("pr", "create", "--repo", repoSpec, "--title", title, "--body", body, "--head", branchName)
 	output, err := cmd.Output()
 	if err != nil {
 		// Try to get stderr for better error reporting
