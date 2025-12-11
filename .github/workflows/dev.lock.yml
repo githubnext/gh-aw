@@ -18,14 +18,14 @@
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/aw/github-agentic-workflows.md
 #
-# Create an empty pull request for agent to push changes to
+# Lock the last issue with copilot-no-firewall label
 #
 # Original Frontmatter:
 # ```yaml
 # on: 
 #   workflow_dispatch:
 # name: Dev
-# description: Create an empty pull request for agent to push changes to
+# description: Lock the last issue with copilot-no-firewall label
 # timeout-minutes: 5
 # strict: false
 # engine: copilot
@@ -39,15 +39,13 @@
 # imports:
 #   - shared/gh.md
 # safe-outputs:
-#   create-pull-request:
-#     allow-empty: true
 #   lock-issue:
 #     labels: [copilot-no-firewall]
 #     max: 5
 # steps:
 #   - name: Download issues data
 #     run: |
-#       gh pr list --limit 1 --json number,title,body,author,createdAt,mergedAt,state,url
+#       gh issue list --limit 10 --json number,title,body,labels,state --label copilot-no-firewall
 #     env:
 #       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 # ```
@@ -62,19 +60,14 @@
 #   activation["activation"]
 #   agent["agent"]
 #   conclusion["conclusion"]
-#   create_pull_request["create_pull_request"]
 #   detection["detection"]
 #   lock_issue["lock_issue"]
 #   activation --> agent
 #   activation --> conclusion
-#   activation --> create_pull_request
 #   agent --> conclusion
-#   agent --> create_pull_request
 #   agent --> detection
 #   agent --> lock_issue
-#   create_pull_request --> conclusion
 #   detection --> conclusion
-#   detection --> create_pull_request
 #   detection --> lock_issue
 #   lock_issue --> conclusion
 # ```
@@ -98,11 +91,11 @@
 #
 #
 #
-# Create an empty pull request that prepares a branch for future changes.
-# The pull request should have:
-# - Title: "Feature: Prepare branch for agent updates"
-# - Body: "This is an empty pull request created to prepare a feature branch that an agent can push changes to later."
-# - Branch name: "feature/agent-updates"
+# Lock the last open issue that has the "copilot-no-firewall" label.
+#
+# Find the most recent open issue with the "copilot-no-firewall" label and lock it with:
+# - A comment explaining why it's being locked: "Locking this issue as it has the copilot-no-firewall label"
+# - Lock reason: "resolved"
 # ```
 #
 # Pinned GitHub Actions:
@@ -254,7 +247,7 @@ jobs:
       - env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         name: Download issues data
-        run: gh pr list --limit 1 --json number,title,body,author,createdAt,mergedAt,state,url
+        run: gh issue list --limit 10 --json number,title,body,labels,state --label copilot-no-firewall
 
       - name: Configure Git credentials
         env:
@@ -347,7 +340,7 @@ jobs:
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
           cat > /tmp/gh-aw/safeoutputs/config.json << 'EOF'
-          {"create_pull_request":{"allow_empty":true},"missing_tool":{"max":0},"noop":{"max":1}}
+          {"missing_tool":{"max":0},"noop":{"max":1}}
           EOF
           cat > /tmp/gh-aw/safeoutputs/tools.json << 'EOF'
           [
@@ -384,39 +377,6 @@ jobs:
                 "type": "object"
               },
               "name": "lock_issue"
-            },
-            {
-              "description": "Create a new GitHub pull request to propose code changes. Use this after making file edits to submit them for review and merging. The PR will be created from the current branch with your committed changes. For code review comments on an existing PR, use create_pull_request_review_comment instead. CONSTRAINTS: Maximum 1 pull request(s) can be created.",
-              "inputSchema": {
-                "additionalProperties": false,
-                "properties": {
-                  "body": {
-                    "description": "Detailed PR description in Markdown. Include what changes were made, why, testing notes, and any breaking changes. Do NOT repeat the title as a heading.",
-                    "type": "string"
-                  },
-                  "branch": {
-                    "description": "Source branch name containing the changes. If omitted, uses the current working branch.",
-                    "type": "string"
-                  },
-                  "labels": {
-                    "description": "Labels to categorize the PR (e.g., 'enhancement', 'bugfix'). Labels must exist in the repository.",
-                    "items": {
-                      "type": "string"
-                    },
-                    "type": "array"
-                  },
-                  "title": {
-                    "description": "Concise PR title describing the changes. Follow repository conventions (e.g., conventional commits). The title appears as the main heading.",
-                    "type": "string"
-                  }
-                },
-                "required": [
-                  "title",
-                  "body"
-                ],
-                "type": "object"
-              },
-              "name": "create_pull_request"
             },
             {
               "description": "Report that a tool or capability needed to complete the task is not available. Use this when you cannot accomplish what was requested because the required functionality is missing or access is restricted.",
@@ -465,35 +425,6 @@ jobs:
           EOF
           cat > /tmp/gh-aw/safeoutputs/validation.json << 'EOF'
           {
-            "create_pull_request": {
-              "defaultMax": 1,
-              "fields": {
-                "body": {
-                  "required": true,
-                  "type": "string",
-                  "sanitize": true,
-                  "maxLength": 65000
-                },
-                "branch": {
-                  "required": true,
-                  "type": "string",
-                  "sanitize": true,
-                  "maxLength": 256
-                },
-                "labels": {
-                  "type": "array",
-                  "itemType": "string",
-                  "itemSanitize": true,
-                  "itemMaxLength": 128
-                },
-                "title": {
-                  "required": true,
-                  "type": "string",
-                  "sanitize": true,
-                  "maxLength": 128
-                }
-              }
-            },
             "missing_tool": {
               "defaultMax": 20,
               "fields": {
@@ -3340,11 +3271,11 @@ jobs:
           
           
           
-          Create an empty pull request that prepares a branch for future changes.
-          The pull request should have:
-          - Title: "Feature: Prepare branch for agent updates"
-          - Body: "This is an empty pull request created to prepare a feature branch that an agent can push changes to later."
-          - Branch name: "feature/agent-updates"
+          Lock the last open issue that has the "copilot-no-firewall" label.
+          
+          Find the most recent open issue with the "copilot-no-firewall" label and lock it with:
+          - A comment explaining why it's being locked: "Locking this issue as it has the copilot-no-firewall label"
+          - Lock reason: "resolved"
           
           PROMPT_EOF
       - name: Append XPIA security instructions to prompt
@@ -3408,7 +3339,7 @@ jobs:
           <instructions>
           To create or modify GitHub resources (issues, discussions, pull requests, etc.), you MUST call the appropriate safe output tool. Simply writing content will NOT work - the workflow requires actual tool calls.
           
-          **Available tools**: create_pull_request, missing_tool, noop
+          **Available tools**: missing_tool, noop
           
           **Critical**: Tool calls write structured data that downstream jobs process. Without tool calls, follow-up actions will be skipped.
           </instructions>
@@ -6434,19 +6365,11 @@ jobs:
             if (typeof module === "undefined" || require.main === module) {
               main();
             }
-      - name: Upload git patch
-        if: always()
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
-        with:
-          name: aw.patch
-          path: /tmp/gh-aw/aw.patch
-          if-no-files-found: ignore
 
   conclusion:
     needs:
       - activation
       - agent
-      - create_pull_request
       - detection
       - lock_issue
     if: (always()) && (needs.agent.result != 'skipped')
@@ -6697,8 +6620,6 @@ jobs:
           GH_AW_WORKFLOW_NAME: "Dev"
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
           GH_AW_DETECTION_CONCLUSION: ${{ needs.detection.result }}
-          GH_AW_SAFE_OUTPUT_JOBS: "{\"create_pull_request\":\"pull_request_url\"}"
-          GH_AW_OUTPUT_CREATE_PULL_REQUEST_PULL_REQUEST_URL: ${{ needs.create_pull_request.outputs.pull_request_url }}
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -6953,688 +6874,6 @@ jobs:
               core.setFailed(error instanceof Error ? error.message : String(error));
             });
 
-  create_pull_request:
-    needs:
-      - activation
-      - agent
-      - detection
-    if: >
-      (((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'create_pull_request'))) &&
-      (needs.detection.outputs.success == 'true')
-    runs-on: ubuntu-slim
-    permissions:
-      contents: write
-      issues: write
-      pull-requests: write
-    timeout-minutes: 10
-    outputs:
-      branch_name: ${{ steps.create_pull_request.outputs.branch_name }}
-      fallback_used: ${{ steps.create_pull_request.outputs.fallback_used }}
-      issue_number: ${{ steps.create_pull_request.outputs.issue_number }}
-      issue_url: ${{ steps.create_pull_request.outputs.issue_url }}
-      pull_request_number: ${{ steps.create_pull_request.outputs.pull_request_number }}
-      pull_request_url: ${{ steps.create_pull_request.outputs.pull_request_url }}
-    steps:
-      - name: Download patch artifact
-        continue-on-error: true
-        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
-        with:
-          name: aw.patch
-          path: /tmp/gh-aw/
-      - name: Checkout repository
-        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
-        with:
-          persist-credentials: false
-          fetch-depth: 0
-      - name: Configure Git credentials
-        env:
-          REPO_NAME: ${{ github.repository }}
-          SERVER_URL: ${{ github.server_url }}
-        run: |
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git config --global user.name "github-actions[bot]"
-          # Re-authenticate git with GitHub token
-          SERVER_URL_STRIPPED="${SERVER_URL#https://}"
-          git remote set-url origin "https://x-access-token:${{ github.token }}@${SERVER_URL_STRIPPED}/${REPO_NAME}.git"
-          echo "Git configured with standard GitHub Actions identity"
-      - name: Download agent output artifact
-        continue-on-error: true
-        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
-        with:
-          name: agent_output.json
-          path: /tmp/gh-aw/safeoutputs/
-      - name: Setup agent output environment variable
-        run: |
-          mkdir -p /tmp/gh-aw/safeoutputs/
-          find "/tmp/gh-aw/safeoutputs/" -type f -print
-          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> "$GITHUB_ENV"
-      - name: Create Pull Request
-        id: create_pull_request
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
-        env:
-          GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_WORKFLOW_ID: "agent"
-          GH_AW_BASE_BRANCH: ${{ github.ref_name }}
-          GH_AW_PR_DRAFT: "true"
-          GH_AW_PR_IF_NO_CHANGES: "warn"
-          GH_AW_PR_ALLOW_EMPTY: "true"
-          GH_AW_MAX_PATCH_SIZE: 1024
-          GH_AW_WORKFLOW_NAME: "Dev"
-          GH_AW_ENGINE_ID: "copilot"
-        with:
-          github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
-          script: |
-            const fs = require("fs");
-            const crypto = require("crypto");
-            async function updateActivationComment(github, context, core, itemUrl, itemNumber, itemType = "pull_request") {
-              const itemLabel = itemType === "issue" ? "issue" : "pull request";
-              const linkMessage =
-                itemType === "issue"
-                  ? `\n\n✅ Issue created: [#${itemNumber}](${itemUrl})`
-                  : `\n\n✅ Pull request created: [#${itemNumber}](${itemUrl})`;
-              await updateActivationCommentWithMessage(github, context, core, linkMessage, itemLabel);
-            }
-            async function updateActivationCommentWithCommit(github, context, core, commitSha, commitUrl) {
-              const shortSha = commitSha.substring(0, 7);
-              const message = `\n\n✅ Commit pushed: [\`${shortSha}\`](${commitUrl})`;
-              await updateActivationCommentWithMessage(github, context, core, message, "commit");
-            }
-            async function updateActivationCommentWithMessage(github, context, core, message, label = "") {
-              const commentId = process.env.GH_AW_COMMENT_ID;
-              const commentRepo = process.env.GH_AW_COMMENT_REPO;
-              if (!commentId) {
-                core.info("No activation comment to update (GH_AW_COMMENT_ID not set)");
-                return;
-              }
-              core.info(`Updating activation comment ${commentId}`);
-              let repoOwner = context.repo.owner;
-              let repoName = context.repo.repo;
-              if (commentRepo) {
-                const parts = commentRepo.split("/");
-                if (parts.length === 2) {
-                  repoOwner = parts[0];
-                  repoName = parts[1];
-                } else {
-                  core.warning(`Invalid comment repo format: ${commentRepo}, expected "owner/repo". Falling back to context.repo.`);
-                }
-              }
-              core.info(`Updating comment in ${repoOwner}/${repoName}`);
-              const isDiscussionComment = commentId.startsWith("DC_");
-              try {
-                if (isDiscussionComment) {
-                  const currentComment = await github.graphql(
-                    `
-                    query($commentId: ID!) {
-                      node(id: $commentId) {
-                        ... on DiscussionComment {
-                          body
-                        }
-                      }
-                    }`,
-                    { commentId: commentId }
-                  );
-                  if (!currentComment?.node?.body) {
-                    core.warning("Unable to fetch current comment body, comment may have been deleted or is inaccessible");
-                    return;
-                  }
-                  const currentBody = currentComment.node.body;
-                  const updatedBody = currentBody + message;
-                  const result = await github.graphql(
-                    `
-                    mutation($commentId: ID!, $body: String!) {
-                      updateDiscussionComment(input: { commentId: $commentId, body: $body }) {
-                        comment {
-                          id
-                          url
-                        }
-                      }
-                    }`,
-                    { commentId: commentId, body: updatedBody }
-                  );
-                  const comment = result.updateDiscussionComment.comment;
-                  const successMessage = label
-                    ? `Successfully updated discussion comment with ${label} link`
-                    : "Successfully updated discussion comment";
-                  core.info(successMessage);
-                  core.info(`Comment ID: ${comment.id}`);
-                  core.info(`Comment URL: ${comment.url}`);
-                } else {
-                  const currentComment = await github.request("GET /repos/{owner}/{repo}/issues/comments/{comment_id}", {
-                    owner: repoOwner,
-                    repo: repoName,
-                    comment_id: parseInt(commentId, 10),
-                    headers: {
-                      Accept: "application/vnd.github+json",
-                    },
-                  });
-                  if (!currentComment?.data?.body) {
-                    core.warning("Unable to fetch current comment body, comment may have been deleted");
-                    return;
-                  }
-                  const currentBody = currentComment.data.body;
-                  const updatedBody = currentBody + message;
-                  const response = await github.request("PATCH /repos/{owner}/{repo}/issues/comments/{comment_id}", {
-                    owner: repoOwner,
-                    repo: repoName,
-                    comment_id: parseInt(commentId, 10),
-                    body: updatedBody,
-                    headers: {
-                      Accept: "application/vnd.github+json",
-                    },
-                  });
-                  const successMessage = label ? `Successfully updated comment with ${label} link` : "Successfully updated comment";
-                  core.info(successMessage);
-                  core.info(`Comment ID: ${response.data.id}`);
-                  core.info(`Comment URL: ${response.data.html_url}`);
-                }
-              } catch (error) {
-                core.warning(`Failed to update activation comment: ${error instanceof Error ? error.message : String(error)}`);
-              }
-            }
-            function getTrackerID(format) {
-              const trackerID = process.env.GH_AW_TRACKER_ID || "";
-              if (trackerID) {
-                core.info(`Tracker ID: ${trackerID}`);
-                return format === "markdown" ? `\n\n<!-- tracker-id: ${trackerID} -->` : trackerID;
-              }
-              return "";
-            }
-            function addExpirationComment(bodyLines, envVarName, entityType) {
-              const expiresEnv = process.env[envVarName];
-              if (expiresEnv) {
-                const expiresDays = parseInt(expiresEnv, 10);
-                if (!isNaN(expiresDays) && expiresDays > 0) {
-                  const expirationDate = new Date();
-                  expirationDate.setDate(expirationDate.getDate() + expiresDays);
-                  const expirationISO = expirationDate.toISOString();
-                  bodyLines.push(`<!-- gh-aw-expires: ${expirationISO} -->`);
-                  core.info(`${entityType} will expire on ${expirationISO} (${expiresDays} days)`);
-                }
-              }
-            }
-            function generatePatchPreview(patchContent) {
-              if (!patchContent || !patchContent.trim()) {
-                return "";
-              }
-              const lines = patchContent.split("\n");
-              const maxLines = 500;
-              const maxChars = 2000;
-              let preview = lines.length <= maxLines ? patchContent : lines.slice(0, maxLines).join("\n");
-              const lineTruncated = lines.length > maxLines;
-              const charTruncated = preview.length > maxChars;
-              if (charTruncated) {
-                preview = preview.slice(0, maxChars);
-              }
-              const truncated = lineTruncated || charTruncated;
-              const summary = truncated
-                ? `Show patch preview (${Math.min(maxLines, lines.length)} of ${lines.length} lines)`
-                : `Show patch (${lines.length} lines)`;
-              return `\n\n<details><summary>${summary}</summary>\n\n\`\`\`diff\n${preview}${truncated ? "\n... (truncated)" : ""}\n\`\`\`\n\n</details>`;
-            }
-            async function main() {
-              core.setOutput("pull_request_number", "");
-              core.setOutput("pull_request_url", "");
-              core.setOutput("issue_number", "");
-              core.setOutput("issue_url", "");
-              core.setOutput("branch_name", "");
-              core.setOutput("fallback_used", "");
-              const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
-              const workflowId = process.env.GH_AW_WORKFLOW_ID;
-              if (!workflowId) {
-                throw new Error("GH_AW_WORKFLOW_ID environment variable is required");
-              }
-              const baseBranch = process.env.GH_AW_BASE_BRANCH;
-              if (!baseBranch) {
-                throw new Error("GH_AW_BASE_BRANCH environment variable is required");
-              }
-              const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT || "";
-              let outputContent = "";
-              if (agentOutputFile.trim() !== "") {
-                try {
-                  outputContent = fs.readFileSync(agentOutputFile, "utf8");
-                } catch (error) {
-                  core.setFailed(`Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`);
-                  return;
-                }
-              }
-              if (outputContent.trim() === "") {
-                core.info("Agent output content is empty");
-              }
-              const ifNoChanges = process.env.GH_AW_PR_IF_NO_CHANGES || "warn";
-              const allowEmpty = (process.env.GH_AW_PR_ALLOW_EMPTY || "false").toLowerCase() === "true";
-              if (!fs.existsSync("/tmp/gh-aw/aw.patch")) {
-                if (allowEmpty) {
-                  core.info("No patch file found, but allow-empty is enabled - will create empty PR");
-                } else {
-                  const message = "No patch file found - cannot create pull request without changes";
-                  if (isStaged) {
-                    let summaryContent = "## 🎭 Staged Mode: Create Pull Request Preview\n\n";
-                    summaryContent += "The following pull request would be created if staged mode was disabled:\n\n";
-                    summaryContent += `**Status:** ⚠️ No patch file found\n\n`;
-                    summaryContent += `**Message:** ${message}\n\n`;
-                    await core.summary.addRaw(summaryContent).write();
-                    core.info("📝 Pull request creation preview written to step summary (no patch file)");
-                    return;
-                  }
-                  switch (ifNoChanges) {
-                    case "error":
-                      throw new Error(message);
-                    case "ignore":
-                      return;
-                    case "warn":
-                    default:
-                      core.warning(message);
-                      return;
-                  }
-                }
-              }
-              let patchContent = "";
-              let isEmpty = true;
-              if (fs.existsSync("/tmp/gh-aw/aw.patch")) {
-                patchContent = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
-                isEmpty = !patchContent || !patchContent.trim();
-              }
-              if (patchContent.includes("Failed to generate patch")) {
-                if (allowEmpty) {
-                  core.info("Patch file contains error, but allow-empty is enabled - will create empty PR");
-                  patchContent = "";
-                  isEmpty = true;
-                } else {
-                  const message = "Patch file contains error message - cannot create pull request without changes";
-                  if (isStaged) {
-                    let summaryContent = "## 🎭 Staged Mode: Create Pull Request Preview\n\n";
-                    summaryContent += "The following pull request would be created if staged mode was disabled:\n\n";
-                    summaryContent += `**Status:** ⚠️ Patch file contains error\n\n`;
-                    summaryContent += `**Message:** ${message}\n\n`;
-                    await core.summary.addRaw(summaryContent).write();
-                    core.info("📝 Pull request creation preview written to step summary (patch error)");
-                    return;
-                  }
-                  switch (ifNoChanges) {
-                    case "error":
-                      throw new Error(message);
-                    case "ignore":
-                      return;
-                    case "warn":
-                    default:
-                      core.warning(message);
-                      return;
-                  }
-                }
-              }
-              if (!isEmpty) {
-                const maxSizeKb = parseInt(process.env.GH_AW_MAX_PATCH_SIZE || "1024", 10);
-                const patchSizeBytes = Buffer.byteLength(patchContent, "utf8");
-                const patchSizeKb = Math.ceil(patchSizeBytes / 1024);
-                core.info(`Patch size: ${patchSizeKb} KB (maximum allowed: ${maxSizeKb} KB)`);
-                if (patchSizeKb > maxSizeKb) {
-                  const message = `Patch size (${patchSizeKb} KB) exceeds maximum allowed size (${maxSizeKb} KB)`;
-                  if (isStaged) {
-                    let summaryContent = "## 🎭 Staged Mode: Create Pull Request Preview\n\n";
-                    summaryContent += "The following pull request would be created if staged mode was disabled:\n\n";
-                    summaryContent += `**Status:** ❌ Patch size exceeded\n\n`;
-                    summaryContent += `**Message:** ${message}\n\n`;
-                    await core.summary.addRaw(summaryContent).write();
-                    core.info("📝 Pull request creation preview written to step summary (patch size error)");
-                    return;
-                  }
-                  throw new Error(message);
-                }
-                core.info("Patch size validation passed");
-              }
-              if (isEmpty && !isStaged && !allowEmpty) {
-                const message = "Patch file is empty - no changes to apply (noop operation)";
-                switch (ifNoChanges) {
-                  case "error":
-                    throw new Error("No changes to push - failing as configured by if-no-changes: error");
-                  case "ignore":
-                    return;
-                  case "warn":
-                  default:
-                    core.warning(message);
-                    return;
-                }
-              }
-              core.info(`Agent output content length: ${outputContent.length}`);
-              if (!isEmpty) {
-                core.info("Patch content validation passed");
-              } else if (allowEmpty) {
-                core.info("Patch file is empty - processing empty PR creation (allow-empty is enabled)");
-              } else {
-                core.info("Patch file is empty - processing noop operation");
-              }
-              let validatedOutput;
-              try {
-                validatedOutput = JSON.parse(outputContent);
-              } catch (error) {
-                core.setFailed(`Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`);
-                return;
-              }
-              if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
-                core.warning("No valid items found in agent output");
-                return;
-              }
-              const pullRequestItem = validatedOutput.items.find( item => item.type === "create_pull_request");
-              if (!pullRequestItem) {
-                core.warning("No create-pull-request item found in agent output");
-                return;
-              }
-              core.info(`Found create-pull-request item: title="${pullRequestItem.title}", bodyLength=${pullRequestItem.body.length}`);
-              if (isStaged) {
-                let summaryContent = "## 🎭 Staged Mode: Create Pull Request Preview\n\n";
-                summaryContent += "The following pull request would be created if staged mode was disabled:\n\n";
-                summaryContent += `**Title:** ${pullRequestItem.title || "No title provided"}\n\n`;
-                summaryContent += `**Branch:** ${pullRequestItem.branch || "auto-generated"}\n\n`;
-                summaryContent += `**Base:** ${baseBranch}\n\n`;
-                if (pullRequestItem.body) {
-                  summaryContent += `**Body:**\n${pullRequestItem.body}\n\n`;
-                }
-                if (fs.existsSync("/tmp/gh-aw/aw.patch")) {
-                  const patchStats = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
-                  if (patchStats.trim()) {
-                    summaryContent += `**Changes:** Patch file exists with ${patchStats.split("\n").length} lines\n\n`;
-                    summaryContent += `<details><summary>Show patch preview</summary>\n\n\`\`\`diff\n${patchStats.slice(0, 2000)}${patchStats.length > 2000 ? "\n... (truncated)" : ""}\n\`\`\`\n\n</details>\n\n`;
-                  } else {
-                    summaryContent += `**Changes:** No changes (empty patch)\n\n`;
-                  }
-                }
-                await core.summary.addRaw(summaryContent).write();
-                core.info("📝 Pull request creation preview written to step summary");
-                return;
-              }
-              let title = pullRequestItem.title.trim();
-              let bodyLines = pullRequestItem.body.split("\n");
-              let branchName = pullRequestItem.branch ? pullRequestItem.branch.trim() : null;
-              if (!title) {
-                title = "Agent Output";
-              }
-              const titlePrefix = process.env.GH_AW_PR_TITLE_PREFIX;
-              if (titlePrefix && !title.startsWith(titlePrefix)) {
-                title = titlePrefix + title;
-              }
-              const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
-              const runId = context.runId;
-              const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
-              const runUrl = context.payload.repository
-                ? `${context.payload.repository.html_url}/actions/runs/${runId}`
-                : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
-              const trackerIDComment = getTrackerID("markdown");
-              if (trackerIDComment) {
-                bodyLines.push(trackerIDComment);
-              }
-              addExpirationComment(bodyLines, "GH_AW_PR_EXPIRES", "Pull Request");
-              bodyLines.push(``, ``, `> AI generated by [${workflowName}](${runUrl})`, "");
-              const body = bodyLines.join("\n").trim();
-              const labelsEnv = process.env.GH_AW_PR_LABELS;
-              const labels = labelsEnv
-                ? labelsEnv
-                    .split(",")
-                    .map( label => label.trim())
-                    .filter( label => label)
-                : [];
-              const draftEnv = process.env.GH_AW_PR_DRAFT;
-              const draft = draftEnv ? draftEnv.toLowerCase() === "true" : true;
-              core.info(`Creating pull request with title: ${title}`);
-              core.info(`Labels: ${JSON.stringify(labels)}`);
-              core.info(`Draft: ${draft}`);
-              core.info(`Body length: ${body.length}`);
-              const randomHex = crypto.randomBytes(8).toString("hex");
-              if (!branchName) {
-                core.info("No branch name provided in JSONL, generating unique branch name");
-                branchName = `${workflowId}-${randomHex}`;
-              } else {
-                branchName = `${branchName}-${randomHex}`;
-                core.info(`Using branch name from JSONL with added salt: ${branchName}`);
-              }
-              core.info(`Generated branch name: ${branchName}`);
-              core.info(`Base branch: ${baseBranch}`);
-              core.info(`Fetching latest changes and checking out base branch: ${baseBranch}`);
-              await exec.exec("git fetch origin");
-              await exec.exec(`git checkout ${baseBranch}`);
-              core.info(`Branch should not exist locally, creating new branch from base: ${branchName}`);
-              await exec.exec(`git checkout -b ${branchName}`);
-              core.info(`Created new branch from base: ${branchName}`);
-              if (!isEmpty) {
-                core.info("Applying patch...");
-                const patchLines = patchContent.split("\n");
-                const previewLineCount = Math.min(500, patchLines.length);
-                core.info(`Patch preview (first ${previewLineCount} of ${patchLines.length} lines):`);
-                for (let i = 0; i < previewLineCount; i++) {
-                  core.info(patchLines[i]);
-                }
-                try {
-                  await exec.exec("git am /tmp/gh-aw/aw.patch");
-                  core.info("Patch applied successfully");
-                } catch (patchError) {
-                  core.error(`Failed to apply patch: ${patchError instanceof Error ? patchError.message : String(patchError)}`);
-                  try {
-                    core.info("Investigating patch failure...");
-                    const statusResult = await exec.getExecOutput("git", ["status"]);
-                    core.info("Git status output:");
-                    core.info(statusResult.stdout);
-                    const patchResult = await exec.getExecOutput("git", ["am", "--show-current-patch=diff"]);
-                    core.info("Failed patch content:");
-                    core.info(patchResult.stdout);
-                  } catch (investigateError) {
-                    core.warning(
-                      `Failed to investigate patch failure: ${investigateError instanceof Error ? investigateError.message : String(investigateError)}`
-                    );
-                  }
-                  core.setFailed("Failed to apply patch");
-                  return;
-                }
-                try {
-                  let remoteBranchExists = false;
-                  try {
-                    const { stdout } = await exec.getExecOutput(`git ls-remote --heads origin ${branchName}`);
-                    if (stdout.trim()) {
-                      remoteBranchExists = true;
-                    }
-                  } catch (checkError) {
-                    core.info(`Remote branch check failed (non-fatal): ${checkError instanceof Error ? checkError.message : String(checkError)}`);
-                  }
-                  if (remoteBranchExists) {
-                    core.warning(`Remote branch ${branchName} already exists - appending random suffix`);
-                    const extraHex = crypto.randomBytes(4).toString("hex");
-                    const oldBranch = branchName;
-                    branchName = `${branchName}-${extraHex}`;
-                    await exec.exec(`git branch -m ${oldBranch} ${branchName}`);
-                    core.info(`Renamed branch to ${branchName}`);
-                  }
-                  await exec.exec(`git push origin ${branchName}`);
-                  core.info("Changes pushed to branch");
-                } catch (pushError) {
-                  core.error(`Git push failed: ${pushError instanceof Error ? pushError.message : String(pushError)}`);
-                  core.warning("Git push operation failed - creating fallback issue instead of pull request");
-                  const runId = context.runId;
-                  const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
-                  const runUrl = context.payload.repository
-                    ? `${context.payload.repository.html_url}/actions/runs/${runId}`
-                    : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
-                  let patchPreview = "";
-                  if (fs.existsSync("/tmp/gh-aw/aw.patch")) {
-                    const patchContent = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
-                    patchPreview = generatePatchPreview(patchContent);
-                  }
-                  const fallbackBody = `${body}
-            ---
-            > [!NOTE]
-            > This was originally intended as a pull request, but the git push operation failed.
-            >
-            > **Workflow Run:** [View run details and download patch artifact](${runUrl})
-            >
-            > The patch file is available as an artifact (\`aw.patch\`) in the workflow run linked above.
-            To apply the patch locally:
-            \`\`\`sh
-            # Download the artifact from the workflow run ${runUrl}
-            # (Use GitHub MCP tools if gh CLI is not available)
-            gh run download ${runId} -n aw.patch
-            # Apply the patch
-            git am aw.patch
-            \`\`\`
-            ${patchPreview}`;
-                  try {
-                    const { data: issue } = await github.rest.issues.create({
-                      owner: context.repo.owner,
-                      repo: context.repo.repo,
-                      title: title,
-                      body: fallbackBody,
-                      labels: labels,
-                    });
-                    core.info(`Created fallback issue #${issue.number}: ${issue.html_url}`);
-                    await updateActivationComment(github, context, core, issue.html_url, issue.number, "issue");
-                    core.setOutput("issue_number", issue.number);
-                    core.setOutput("issue_url", issue.html_url);
-                    core.setOutput("branch_name", branchName);
-                    core.setOutput("fallback_used", "true");
-                    core.setOutput("push_failed", "true");
-                    await core.summary
-                      .addRaw(
-                        `
-            ## Push Failure Fallback
-            - **Push Error:** ${pushError instanceof Error ? pushError.message : String(pushError)}
-            - **Fallback Issue:** [#${issue.number}](${issue.html_url})
-            - **Patch Artifact:** Available in workflow run artifacts
-            - **Note:** Push failed, created issue as fallback
-            `
-                      )
-                      .write();
-                    return;
-                  } catch (issueError) {
-                    core.setFailed(
-                      `Failed to push and failed to create fallback issue. Push error: ${pushError instanceof Error ? pushError.message : String(pushError)}. Issue error: ${issueError instanceof Error ? issueError.message : String(issueError)}`
-                    );
-                    return;
-                  }
-                }
-              } else {
-                core.info("Skipping patch application (empty patch)");
-                if (allowEmpty) {
-                  core.info("allow-empty is enabled - will create branch and push without changes");
-                  try {
-                    let remoteBranchExists = false;
-                    try {
-                      const { stdout } = await exec.getExecOutput(`git ls-remote --heads origin ${branchName}`);
-                      if (stdout.trim()) {
-                        remoteBranchExists = true;
-                      }
-                    } catch (checkError) {
-                      core.info(`Remote branch check failed (non-fatal): ${checkError instanceof Error ? checkError.message : String(checkError)}`);
-                    }
-                    if (remoteBranchExists) {
-                      core.warning(`Remote branch ${branchName} already exists - appending random suffix`);
-                      const extraHex = crypto.randomBytes(4).toString("hex");
-                      const oldBranch = branchName;
-                      branchName = `${branchName}-${extraHex}`;
-                      await exec.exec(`git branch -m ${oldBranch} ${branchName}`);
-                      core.info(`Renamed branch to ${branchName}`);
-                    }
-                    await exec.exec(`git push origin ${branchName}`);
-                    core.info("Empty branch pushed successfully");
-                  } catch (pushError) {
-                    core.setFailed(`Failed to push empty branch: ${pushError instanceof Error ? pushError.message : String(pushError)}`);
-                    return;
-                  }
-                } else {
-                  const message = "No changes to apply - noop operation completed successfully";
-                  switch (ifNoChanges) {
-                    case "error":
-                      throw new Error("No changes to apply - failing as configured by if-no-changes: error");
-                    case "ignore":
-                      return;
-                    case "warn":
-                    default:
-                      core.warning(message);
-                      return;
-                  }
-                }
-              }
-              try {
-                const { data: pullRequest } = await github.rest.pulls.create({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  title: title,
-                  body: body,
-                  head: branchName,
-                  base: baseBranch,
-                  draft: draft,
-                });
-                core.info(`Created pull request #${pullRequest.number}: ${pullRequest.html_url}`);
-                if (labels.length > 0) {
-                  await github.rest.issues.addLabels({
-                    owner: context.repo.owner,
-                    repo: context.repo.repo,
-                    issue_number: pullRequest.number,
-                    labels: labels,
-                  });
-                  core.info(`Added labels to pull request: ${JSON.stringify(labels)}`);
-                }
-                core.setOutput("pull_request_number", pullRequest.number);
-                core.setOutput("pull_request_url", pullRequest.html_url);
-                core.setOutput("branch_name", branchName);
-                await updateActivationComment(github, context, core, pullRequest.html_url, pullRequest.number);
-                await core.summary
-                  .addRaw(
-                    `
-            ## Pull Request
-            - **Pull Request**: [#${pullRequest.number}](${pullRequest.html_url})
-            - **Branch**: \`${branchName}\`
-            - **Base Branch**: \`${baseBranch}\`
-            `
-                  )
-                  .write();
-              } catch (prError) {
-                core.warning(`Failed to create pull request: ${prError instanceof Error ? prError.message : String(prError)}`);
-                core.info("Falling back to creating an issue instead");
-                const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
-                const branchUrl = context.payload.repository
-                  ? `${context.payload.repository.html_url}/tree/${branchName}`
-                  : `${githubServer}/${context.repo.owner}/${context.repo.repo}/tree/${branchName}`;
-                let patchPreview = "";
-                if (fs.existsSync("/tmp/gh-aw/aw.patch")) {
-                  const patchContent = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
-                  patchPreview = generatePatchPreview(patchContent);
-                }
-                const fallbackBody = `${body}
-            ---
-            **Note:** This was originally intended as a pull request, but PR creation failed. The changes have been pushed to the branch [\`${branchName}\`](${branchUrl}).
-            **Original error:** ${prError instanceof Error ? prError.message : String(prError)}
-            You can manually create a pull request from the branch if needed.${patchPreview}`;
-                try {
-                  const { data: issue } = await github.rest.issues.create({
-                    owner: context.repo.owner,
-                    repo: context.repo.repo,
-                    title: title,
-                    body: fallbackBody,
-                    labels: labels,
-                  });
-                  core.info(`Created fallback issue #${issue.number}: ${issue.html_url}`);
-                  await updateActivationComment(github, context, core, issue.html_url, issue.number, "issue");
-                  core.setOutput("issue_number", issue.number);
-                  core.setOutput("issue_url", issue.html_url);
-                  core.setOutput("branch_name", branchName);
-                  core.setOutput("fallback_used", "true");
-                  await core.summary
-                    .addRaw(
-                      `
-            ## Fallback Issue Created
-            - **Issue**: [#${issue.number}](${issue.html_url})
-            - **Branch**: [\`${branchName}\`](${branchUrl})
-            - **Base Branch**: \`${baseBranch}\`
-            - **Note**: Pull request creation failed, created issue as fallback
-            `
-                    )
-                    .write();
-                } catch (issueError) {
-                  core.setFailed(
-                    `Failed to create both pull request and fallback issue. PR error: ${prError instanceof Error ? prError.message : String(prError)}. Issue error: ${issueError instanceof Error ? issueError.message : String(issueError)}`
-                  );
-                  return;
-                }
-              }
-            }
-            await main();
-
   detection:
     needs: agent
     if: needs.agent.outputs.output_types != '' || needs.agent.outputs.has_patch == 'true'
@@ -7673,7 +6912,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           WORKFLOW_NAME: "Dev"
-          WORKFLOW_DESCRIPTION: "Create an empty pull request for agent to push changes to"
+          WORKFLOW_DESCRIPTION: "Lock the last issue with copilot-no-firewall label"
         with:
           script: |
             const fs = require('fs');

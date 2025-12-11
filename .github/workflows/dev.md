@@ -2,7 +2,7 @@
 on: 
   workflow_dispatch:
 name: Dev
-description: Create an empty pull request for agent to push changes to
+description: Lock the last issue with copilot-no-firewall label
 timeout-minutes: 5
 strict: false
 engine: copilot
@@ -16,21 +16,19 @@ tools:
 imports:
   - shared/gh.md
 safe-outputs:
-  create-pull-request:
-    allow-empty: true
   lock-issue:
     labels: [copilot-no-firewall]
     max: 5
 steps:
   - name: Download issues data
     run: |
-      gh pr list --limit 1 --json number,title,body,author,createdAt,mergedAt,state,url
+      gh issue list --limit 10 --json number,title,body,labels,state --label copilot-no-firewall
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 ---
 
-Create an empty pull request that prepares a branch for future changes.
-The pull request should have:
-- Title: "Feature: Prepare branch for agent updates"
-- Body: "This is an empty pull request created to prepare a feature branch that an agent can push changes to later."
-- Branch name: "feature/agent-updates"
+Lock the last open issue that has the "copilot-no-firewall" label.
+
+Find the most recent open issue with the "copilot-no-firewall" label and lock it with:
+- A comment explaining why it's being locked: "Locking this issue as it has the copilot-no-firewall label"
+- Lock reason: "resolved"
