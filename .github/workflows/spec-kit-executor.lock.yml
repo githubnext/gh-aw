@@ -7078,8 +7078,10 @@ jobs:
               } else {
                 core.info("Skipping patch application (empty patch)");
                 if (allowEmpty) {
-                  core.info("allow-empty is enabled - will create branch and push without changes");
+                  core.info("allow-empty is enabled - will create branch and push with empty commit");
                   try {
+                    await exec.exec(`git commit --allow-empty -m "Initialize"`);
+                    core.info("Created empty commit");
                     let remoteBranchExists = false;
                     try {
                       const { stdout } = await exec.getExecOutput(`git ls-remote --heads origin ${branchName}`);
