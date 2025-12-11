@@ -887,6 +887,7 @@ jobs:
                 "github-cloud.githubusercontent.com",
                 "github-cloud.s3.amazonaws.com",
                 "github.com",
+                "github.githubassets.com",
                 "go.dev",
                 "golang.org",
                 "goproxy.io",
