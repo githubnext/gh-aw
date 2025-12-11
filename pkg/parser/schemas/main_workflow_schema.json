@@ -3484,6 +3484,18 @@
                   "type": "boolean",
                   "const": true,
                   "description": "Target discussion comments instead of issue/PR comments. Must be true if present."
+                },
+                "hide-older-comments": {
+                  "type": "boolean",
+                  "description": "When true, minimizes/hides all previous comments from the same agentic workflow (identified by tracker-id) before creating the new comment. Default: false."
+                },
+                "allowed-reasons": {
+                  "type": "array",
+                  "description": "List of allowed reasons for hiding older comments when hide-older-comments is enabled. Default: all reasons allowed (spam, abuse, off_topic, outdated, resolved).",
+                  "items": {
+                    "type": "string",
+                    "enum": ["spam", "abuse", "off_topic", "outdated", "resolved"]
+                  }
                 }
               },
               "additionalProperties": false,
@@ -4063,6 +4075,14 @@
                 "github-token": {
                   "$ref": "#/$defs/github_token",
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
+                },
+                "allowed-reasons": {
+                  "type": "array",
+                  "description": "List of allowed reasons for hiding comments. Default: all reasons allowed (spam, abuse, off_topic, outdated, resolved).",
+                  "items": {
+                    "type": "string",
+                    "enum": ["spam", "abuse", "off_topic", "outdated", "resolved"]
+                  }
                 }
               },
               "additionalProperties": false

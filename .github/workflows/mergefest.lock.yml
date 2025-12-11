@@ -827,6 +827,16 @@ jobs:
                   runUrl: runUrl,
                   eventType: eventTypeDescription,
                 });
+                const workflowId = process.env.GITHUB_WORKFLOW || "";
+                const trackerId = process.env.GH_AW_TRACKER_ID || "";
+                let commentBody = workflowLinkText;
+                if (workflowId) {
+                  commentBody += `\n\n<!-- workflow-id: ${workflowId} -->`;
+                }
+                if (trackerId) {
+                  commentBody += `\n\n<!-- tracker-id: ${trackerId} -->`;
+                }
+                commentBody += `\n\n<!-- comment-type: reaction -->`;
                 if (eventName === "discussion") {
                   const discussionNumber = parseInt(endpoint.split(":")[1], 10);
                   const { repository } = await github.graphql(
@@ -851,7 +861,7 @@ jobs:
                         }
                       }
                     }`,
-                    { dId: discussionId, body: workflowLinkText }
+                    { dId: discussionId, body: commentBody }
                   );
                   const comment = result.addDiscussionComment.comment;
                   core.info(`Successfully created discussion comment with workflow link`);
@@ -887,7 +897,7 @@ jobs:
                         }
                       }
                     }`,
-                    { dId: discussionId, body: workflowLinkText, replyToId: commentNodeId }
+                    { dId: discussionId, body: commentBody, replyToId: commentNodeId }
                   );
                   const comment = result.addDiscussionComment.comment;
                   core.info(`Successfully created discussion comment with workflow link`);
@@ -900,7 +910,7 @@ jobs:
                   return;
                 }
                 const createResponse = await github.request("POST " + endpoint, {
-                  body: workflowLinkText,
+                  body: commentBody,
                   headers: {
                     Accept: "application/vnd.github+json",
                   },

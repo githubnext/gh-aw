@@ -29,6 +29,7 @@ tools:
   github:
 safe-outputs:
     add-comment:
+      hide-older-comments: true
     create-issue:
     add-labels:
       allowed: [smoke-copilot]
