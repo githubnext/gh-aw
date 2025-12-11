@@ -10,11 +10,10 @@ engine: copilot
 permissions: read-all
 
 tools:
-  github: false
+  github:
+    toolsets: [issues]
   edit:
   bash: ["*"]
-imports:
-  - shared/gh.md
 safe-outputs:
   lock-issue:
     labels: [copilot-no-firewall]
