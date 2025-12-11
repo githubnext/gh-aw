@@ -430,153 +430,153 @@ func TestGetActionPinByRepo(t *testing.T) {
 
 // TestApplyActionPinToTypedStep tests the ApplyActionPinToTypedStep function with typed steps
 func TestApplyActionPinToTypedStep(t *testing.T) {
-tests := []struct {
-name         string
-step         *WorkflowStep
-expectPinned bool
-expectedUses string
-}{
-{
-name: "step with pinned action (checkout)",
-step: &WorkflowStep{
-Name: "Checkout code",
-Uses: "actions/checkout@v5",
-},
-expectPinned: true,
-expectedUses: "actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5",
-},
-{
-name: "step with pinned action (setup-node)",
-step: &WorkflowStep{
-Name: "Setup Node",
-Uses: "actions/setup-node@v6",
-With: map[string]any{
-"node-version": "20",
-},
-},
-expectPinned: true,
-expectedUses: "actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6",
-},
-{
-name: "step with unpinned action",
-step: &WorkflowStep{
-Name: "Custom action",
-Uses: "my-org/my-action@v1",
-},
-expectPinned: false,
-expectedUses: "my-org/my-action@v1",
-},
-{
-name: "step without uses field",
-step: &WorkflowStep{
-Name: "Run command",
-Run:  "echo hello",
-},
-expectPinned: false,
-expectedUses: "",
-},
-{
-name: "nil step",
-step: nil,
-expectPinned: false,
-expectedUses: "",
-},
-{
-name: "step preserves other fields",
-step: &WorkflowStep{
-Name: "Complex step",
-ID:   "test-id",
-Uses: "actions/checkout@v5",
-With: map[string]any{
-"fetch-depth": "0",
-},
-Env: map[string]string{
-"TEST": "value",
-},
-},
-expectPinned: true,
-expectedUses: "actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5",
-},
-}
+	tests := []struct {
+		name         string
+		step         *WorkflowStep
+		expectPinned bool
+		expectedUses string
+	}{
+		{
+			name: "step with pinned action (checkout)",
+			step: &WorkflowStep{
+				Name: "Checkout code",
+				Uses: "actions/checkout@v5",
+			},
+			expectPinned: true,
+			expectedUses: "actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5",
+		},
+		{
+			name: "step with pinned action (setup-node)",
+			step: &WorkflowStep{
+				Name: "Setup Node",
+				Uses: "actions/setup-node@v6",
+				With: map[string]any{
+					"node-version": "20",
+				},
+			},
+			expectPinned: true,
+			expectedUses: "actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6",
+		},
+		{
+			name: "step with unpinned action",
+			step: &WorkflowStep{
+				Name: "Custom action",
+				Uses: "my-org/my-action@v1",
+			},
+			expectPinned: false,
+			expectedUses: "my-org/my-action@v1",
+		},
+		{
+			name: "step without uses field",
+			step: &WorkflowStep{
+				Name: "Run command",
+				Run:  "echo hello",
+			},
+			expectPinned: false,
+			expectedUses: "",
+		},
+		{
+			name:         "nil step",
+			step:         nil,
+			expectPinned: false,
+			expectedUses: "",
+		},
+		{
+			name: "step preserves other fields",
+			step: &WorkflowStep{
+				Name: "Complex step",
+				ID:   "test-id",
+				Uses: "actions/checkout@v5",
+				With: map[string]any{
+					"fetch-depth": "0",
+				},
+				Env: map[string]string{
+					"TEST": "value",
+				},
+			},
+			expectPinned: true,
+			expectedUses: "actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5",
+		},
+	}
 
-for _, tt := range tests {
-t.Run(tt.name, func(t *testing.T) {
-// Create a test WorkflowData
-data := &WorkflowData{}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Create a test WorkflowData
+			data := &WorkflowData{}
 
-result := ApplyActionPinToTypedStep(tt.step, data)
+			result := ApplyActionPinToTypedStep(tt.step, data)
 
-if tt.step == nil {
-if result != nil {
-t.Errorf("ApplyActionPinToTypedStep(nil) = %v, want nil", result)
-}
-return
-}
+			if tt.step == nil {
+				if result != nil {
+					t.Errorf("ApplyActionPinToTypedStep(nil) = %v, want nil", result)
+				}
+				return
+			}
 
-if result == nil {
-t.Fatalf("ApplyActionPinToTypedStep() returned nil")
-}
+			if result == nil {
+				t.Fatalf("ApplyActionPinToTypedStep() returned nil")
+			}
 
-// Check uses field
-if result.Uses != tt.expectedUses {
-t.Errorf("ApplyActionPinToTypedStep() uses = %q, want %q", result.Uses, tt.expectedUses)
-}
+			// Check uses field
+			if result.Uses != tt.expectedUses {
+				t.Errorf("ApplyActionPinToTypedStep() uses = %q, want %q", result.Uses, tt.expectedUses)
+			}
 
-// Verify other fields are preserved
-if result.Name != tt.step.Name {
-t.Errorf("ApplyActionPinToTypedStep() changed name from %q to %q", tt.step.Name, result.Name)
-}
-if result.ID != tt.step.ID {
-t.Errorf("ApplyActionPinToTypedStep() changed id from %q to %q", tt.step.ID, result.ID)
-}
-if result.Run != tt.step.Run {
-t.Errorf("ApplyActionPinToTypedStep() changed run from %q to %q", tt.step.Run, result.Run)
-}
+			// Verify other fields are preserved
+			if result.Name != tt.step.Name {
+				t.Errorf("ApplyActionPinToTypedStep() changed name from %q to %q", tt.step.Name, result.Name)
+			}
+			if result.ID != tt.step.ID {
+				t.Errorf("ApplyActionPinToTypedStep() changed id from %q to %q", tt.step.ID, result.ID)
+			}
+			if result.Run != tt.step.Run {
+				t.Errorf("ApplyActionPinToTypedStep() changed run from %q to %q", tt.step.Run, result.Run)
+			}
 
-// Verify original step is not modified
-if tt.expectPinned && tt.step.Uses == result.Uses {
-// For pinned actions, the uses should be different
-// But this doesn't apply if the step is already pinned or doesn't have uses
-if tt.step.Uses != "" && !isValidSHA(extractActionVersion(tt.step.Uses)) {
-// Original uses is not a SHA, so it should be different from pinned result
-if tt.step.Uses == result.Uses {
-t.Errorf("ApplyActionPinToTypedStep() did not create a copy, original uses still %q", tt.step.Uses)
-}
-}
-}
-})
-}
+			// Verify original step is not modified
+			if tt.expectPinned && tt.step.Uses == result.Uses {
+				// For pinned actions, the uses should be different
+				// But this doesn't apply if the step is already pinned or doesn't have uses
+				if tt.step.Uses != "" && !isValidSHA(extractActionVersion(tt.step.Uses)) {
+					// Original uses is not a SHA, so it should be different from pinned result
+					if tt.step.Uses == result.Uses {
+						t.Errorf("ApplyActionPinToTypedStep() did not create a copy, original uses still %q", tt.step.Uses)
+					}
+				}
+			}
+		})
+	}
 }
 
 // TestApplyActionPinToTypedStep_Immutability verifies that the original step is not modified
 func TestApplyActionPinToTypedStep_Immutability(t *testing.T) {
-originalStep := &WorkflowStep{
-Name: "Test step",
-Uses: "actions/checkout@v5",
-With: map[string]any{
-"fetch-depth": "0",
-},
-}
+	originalStep := &WorkflowStep{
+		Name: "Test step",
+		Uses: "actions/checkout@v5",
+		With: map[string]any{
+			"fetch-depth": "0",
+		},
+	}
 
-// Keep a copy of the original uses value
-originalUses := originalStep.Uses
+	// Keep a copy of the original uses value
+	originalUses := originalStep.Uses
 
-data := &WorkflowData{}
-result := ApplyActionPinToTypedStep(originalStep, data)
+	data := &WorkflowData{}
+	result := ApplyActionPinToTypedStep(originalStep, data)
 
-// Verify the original step was not modified
-if originalStep.Uses != originalUses {
-t.Errorf("ApplyActionPinToTypedStep() modified original step uses: %q -> %q", originalUses, originalStep.Uses)
-}
+	// Verify the original step was not modified
+	if originalStep.Uses != originalUses {
+		t.Errorf("ApplyActionPinToTypedStep() modified original step uses: %q -> %q", originalUses, originalStep.Uses)
+	}
 
-// Verify the result is different
-if result.Uses == originalUses {
-t.Errorf("ApplyActionPinToTypedStep() did not pin the action")
-}
+	// Verify the result is different
+	if result.Uses == originalUses {
+		t.Errorf("ApplyActionPinToTypedStep() did not pin the action")
+	}
 
-// Verify modifying result doesn't affect original
-result.Name = "Modified name"
-if originalStep.Name == "Modified name" {
-t.Errorf("ApplyActionPinToTypedStep() did not return an independent copy")
-}
+	// Verify modifying result doesn't affect original
+	result.Name = "Modified name"
+	if originalStep.Name == "Modified name" {
+		t.Errorf("ApplyActionPinToTypedStep() did not return an independent copy")
+	}
 }
