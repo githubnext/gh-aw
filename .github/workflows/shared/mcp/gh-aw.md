@@ -15,6 +15,8 @@ steps:
     run: make deps-dev
   - name: Install binary as 'gh-aw'
     run: make install
+    env:
+      GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
   - name: Start MCP server
     run: |
       set -e
