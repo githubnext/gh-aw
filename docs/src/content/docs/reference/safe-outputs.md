@@ -159,6 +159,7 @@ safe-outputs:
     discussion: true             # target discussions
     target-repo: "owner/repo"    # cross-repository
     hide-older-comments: true    # hide previous comments from same workflow
+    allowed-reasons: [OUTDATED]  # restrict hiding reasons (optional)
 ```
 
 When combined with `create-issue`, `create-discussion`, or `create-pull-request`, comments automatically include a "Related Items" section.
@@ -167,11 +168,29 @@ When combined with `create-issue`, `create-discussion`, or `create-pull-request`
 
 The `hide-older-comments` field automatically minimizes all previous comments from the same agentic workflow before creating a new comment. This is useful for workflows that provide status updates, where you want to keep the conversation clean by hiding outdated information.
 
+**Configuration:**
+```yaml wrap
+safe-outputs:
+  add-comment:
+    hide-older-comments: true
+    allowed-reasons: [OUTDATED, RESOLVED]  # optional: restrict reasons
+```
+
 **How it works:**
 - Comments from the same workflow are identified by matching `tracker-id` values
-- All matching older comments are minimized/hidden with reason "OUTDATED"
+- All matching older comments are minimized/hidden with reason "OUTDATED" (by default)
 - The new comment is then created normally
 - Works for both issue/PR comments and discussion comments
+
+**Allowed Reasons:**
+Use `allowed-reasons` to restrict which reasons can be used when hiding comments. Valid reasons are:
+- `SPAM` - Mark as spam
+- `ABUSE` - Mark as abusive
+- `OFF_TOPIC` - Mark as off-topic
+- `OUTDATED` - Mark as outdated (default)
+- `RESOLVED` - Mark as resolved
+
+If `allowed-reasons` is not specified, all reasons are allowed. If specified, only the listed reasons can be used. If the default reason (OUTDATED) is not in the allowed list, hiding will be skipped with a warning.
 
 **Requirements:**
 - A `tracker-id` must be configured in the workflow frontmatter
@@ -185,6 +204,7 @@ tracker-id: status-reporter
 safe-outputs:
   add-comment:
     hide-older-comments: true
+    allowed-reasons: [OUTDATED, RESOLVED]
 ---
 
 Current status: {{ statusMessage }}

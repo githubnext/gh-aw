@@ -11,9 +11,10 @@ const { replaceTemporaryIdReferences, loadTemporaryIdMap } = require("./temporar
  * Hide/minimize a comment using the GraphQL API
  * @param {any} github - GitHub GraphQL instance
  * @param {string} nodeId - Comment node ID
+ * @param {string} reason - Reason for hiding (default: OUTDATED)
  * @returns {Promise<{id: string, isMinimized: boolean}>}
  */
-async function minimizeComment(github, nodeId) {
+async function minimizeComment(github, nodeId, reason = "OUTDATED") {
   const query = /* GraphQL */ `
     mutation ($nodeId: ID!, $classifier: ReportedContentClassifiers!) {
       minimizeComment(input: { subjectId: $nodeId, classifier: $classifier }) {
@@ -24,7 +25,7 @@ async function minimizeComment(github, nodeId) {
     }
   `;
 
-  const result = await github.graphql(query, { nodeId, classifier: "OUTDATED" });
+  const result = await github.graphql(query, { nodeId, classifier: reason });
 
   return {
     id: nodeId,
@@ -148,12 +149,22 @@ async function findDiscussionCommentsWithTrackerId(github, owner, repo, discussi
  * @param {number} itemNumber - Issue/PR/Discussion number
  * @param {string} trackerId - Tracker ID to match
  * @param {boolean} isDiscussion - Whether this is a discussion
+ * @param {string} reason - Reason for hiding (default: OUTDATED)
+ * @param {string[]} allowedReasons - List of allowed reasons (default: all)
  * @returns {Promise<number>} Number of comments hidden
  */
-async function hideOlderComments(github, owner, repo, itemNumber, trackerId, isDiscussion) {
+async function hideOlderComments(github, owner, repo, itemNumber, trackerId, isDiscussion, reason = "OUTDATED", allowedReasons = null) {
   if (!trackerId) {
     core.info("No tracker-id available, skipping hide-older-comments");
     return 0;
+  }
+
+  // Validate reason against allowed reasons if specified
+  if (allowedReasons && allowedReasons.length > 0) {
+    if (!allowedReasons.includes(reason)) {
+      core.warning(`Reason "${reason}" is not in allowed-reasons list [${allowedReasons.join(", ")}]. Skipping hide-older-comments.`);
+      return 0;
+    }
   }
 
   core.info(`Searching for previous comments with tracker-id: ${trackerId}`);
@@ -170,14 +181,14 @@ async function hideOlderComments(github, owner, repo, itemNumber, trackerId, isD
     return 0;
   }
 
-  core.info(`Found ${comments.length} previous comment(s) to hide`);
+  core.info(`Found ${comments.length} previous comment(s) to hide with reason: ${reason}`);
 
   let hiddenCount = 0;
   for (const comment of comments) {
     try {
       const nodeId = isDiscussion ? comment.id : comment.node_id;
       core.info(`Hiding comment: ${nodeId}`);
-      await minimizeComment(github, nodeId);
+      await minimizeComment(github, nodeId, reason);
       hiddenCount++;
       core.info(`✓ Hidden comment: ${nodeId}`);
     } catch (error) {
@@ -313,6 +324,18 @@ async function main() {
 
   // Get tracker-id for hiding older comments
   const trackerId = getTrackerID();
+
+  // Parse allowed reasons from environment variable
+  let allowedReasons = null;
+  if (process.env.GH_AW_ALLOWED_REASONS) {
+    try {
+      allowedReasons = JSON.parse(process.env.GH_AW_ALLOWED_REASONS);
+      core.info(`Allowed reasons for hiding: [${allowedReasons.join(", ")}]`);
+    } catch (error) {
+      core.warning(`Failed to parse GH_AW_ALLOWED_REASONS: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
   if (hideOlderCommentsEnabled) {
     core.info(`Hide-older-comments is enabled with tracker-id: ${trackerId || "(none)"}`);
   }
@@ -513,7 +536,16 @@ async function main() {
       // Hide older comments from the same workflow if enabled
       if (hideOlderCommentsEnabled && trackerId) {
         core.info("Hide-older-comments is enabled, searching for previous comments to hide");
-        await hideOlderComments(github, context.repo.owner, context.repo.repo, itemNumber, trackerId, commentEndpoint === "discussions");
+        await hideOlderComments(
+          github,
+          context.repo.owner,
+          context.repo.repo,
+          itemNumber,
+          trackerId,
+          commentEndpoint === "discussions",
+          "OUTDATED",
+          allowedReasons
+        );
       }
 
       let comment;

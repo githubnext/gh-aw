@@ -3488,6 +3488,14 @@
                 "hide-older-comments": {
                   "type": "boolean",
                   "description": "When true, minimizes/hides all previous comments from the same agentic workflow (identified by tracker-id) before creating the new comment. Default: false."
+                },
+                "allowed-reasons": {
+                  "type": "array",
+                  "description": "List of allowed reasons for hiding older comments when hide-older-comments is enabled. Default: all reasons allowed (SPAM, ABUSE, OFF_TOPIC, OUTDATED, RESOLVED).",
+                  "items": {
+                    "type": "string",
+                    "enum": ["SPAM", "ABUSE", "OFF_TOPIC", "OUTDATED", "RESOLVED"]
+                  }
                 }
               },
               "additionalProperties": false,

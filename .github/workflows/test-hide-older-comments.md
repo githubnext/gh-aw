@@ -13,6 +13,7 @@ tracker-id: test-hide-comments-workflow
 safe-outputs:
   add-comment:
     hide-older-comments: true
+    allowed-reasons: [OUTDATED, RESOLVED]
 timeout-minutes: 5
 ---
 
