@@ -116,12 +116,24 @@ func ParseFrontmatterConfig(frontmatter map[string]any) (*FrontmatterConfig, err
 //
 // Returns an empty map if the key doesn't exist (for backward compatibility).
 func ExtractMapField(frontmatter map[string]any, key string) map[string]any {
+	// Check if key exists and value is not nil
+	value, exists := frontmatter[key]
+	if !exists || value == nil {
+		return make(map[string]any)
+	}
+	
 	var result map[string]any
 	err := unmarshalFromMap(frontmatter, key, &result)
 	if err != nil {
 		// For backward compatibility, return empty map instead of error
 		return make(map[string]any)
 	}
+	
+	// Handle case where unmarshal succeeded but result is still nil
+	if result == nil {
+		return make(map[string]any)
+	}
+	
 	return result
 }
 
