@@ -15,14 +15,21 @@ steps:
     run: make deps-dev
   - name: Install binary as 'gh-aw'
     run: |
-      # Check if gh-aw extension is already installed
-      if gh extension list | grep -q "githubnext/gh-aw"; then
-        echo "gh-aw extension already installed, upgrading..."
-        gh extension upgrade gh-aw || true
-      else
-        echo "Installing gh-aw extension..."
-        make install
+      # Check if any extension provides the 'aw' command and remove it
+      # gh extension list format: NAME  COMMAND  VERSION
+      # We need to find extensions where COMMAND column is 'aw'
+      EXISTING_EXTENSION=$(gh extension list | awk '$2 == "aw" {print $1}' | head -n1)
+      if [ -n "$EXISTING_EXTENSION" ]; then
+        echo "Found existing extension providing 'aw' command: $EXISTING_EXTENSION"
+        echo "Removing existing extension..."
+        gh extension remove "$EXISTING_EXTENSION" || true
       fi
+      
+      # Install the extension
+      echo "Installing gh-aw extension..."
+      make install
+      
+      # Verify installation
       gh aw --version
     env:
       GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
