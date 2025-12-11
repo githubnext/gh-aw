@@ -5,6 +5,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/githubnext/gh-aw/pkg/campaign"
 	"github.com/githubnext/gh-aw/pkg/cli"
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/constants"
@@ -492,7 +493,7 @@ Use "` + constants.CLIExtensionPrefix + ` help all" to show help for all command
 	mcpServerCmd := cli.NewMCPServerCommand()
 	mcpGatewayCmd := cli.NewMCPGatewayCommand()
 	prCmd := cli.NewPRCommand()
-	campaignCmd := cli.NewCampaignCommand()
+	campaignCmd := campaign.NewCommand()
 
 	// Assign commands to groups
 	// Setup Commands
