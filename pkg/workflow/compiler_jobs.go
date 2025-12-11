@@ -712,6 +712,22 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName, markdownPat
 		safeOutputJobNames = append(safeOutputJobNames, createAgentTaskJob.Name)
 	}
 
+	// Build create_project job if safe-outputs.create-project is configured
+	if data.SafeOutputs.CreateProjects != nil {
+		createProjectJob, err := c.buildCreateProjectJob(data, jobName)
+		if err != nil {
+			return fmt.Errorf("failed to build create_project job: %w", err)
+		}
+		// Safe-output jobs should depend on agent job (always) AND detection job (if enabled)
+		if threatDetectionEnabled {
+			createProjectJob.Needs = append(createProjectJob.Needs, constants.DetectionJobName)
+		}
+		if err := c.jobManager.AddJob(createProjectJob); err != nil {
+			return fmt.Errorf("failed to add create_project job: %w", err)
+		}
+		safeOutputJobNames = append(safeOutputJobNames, createProjectJob.Name)
+	}
+
 	// Build update_project job if safe-outputs.update-project is configured
 	if data.SafeOutputs.UpdateProjects != nil {
 		updateProjectJob, err := c.buildUpdateProjectJob(data, jobName)

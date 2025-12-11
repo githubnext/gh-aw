@@ -25,11 +25,15 @@ var addReactionAndEditCommentScriptSource string
 //go:embed js/check_membership.cjs
 var checkMembershipScriptSource string
 
+//go:embed js/create_project.cjs
+var createProjectScriptSource string
+
 // init registers scripts from js.go with the DefaultScriptRegistry
 func init() {
 	DefaultScriptRegistry.Register("check_membership", checkMembershipScriptSource)
 	DefaultScriptRegistry.Register("safe_outputs_mcp_server", safeOutputsMCPServerScriptSource)
 	DefaultScriptRegistry.Register("update_project", updateProjectScriptSource)
+	DefaultScriptRegistry.Register("create_project", createProjectScriptSource)
 	DefaultScriptRegistry.Register("interpolate_prompt", interpolatePromptScript)
 	DefaultScriptRegistry.Register("assign_issue", assignIssueScriptSource)
 	DefaultScriptRegistry.Register("add_copilot_reviewer", addCopilotReviewerScriptSource)
@@ -139,6 +143,11 @@ var updateProjectScriptSource string
 // getUpdateProjectScript returns the bundled update_project script
 func getUpdateProjectScript() string {
 	return DefaultScriptRegistry.GetWithMode("update_project", RuntimeModeGitHubScript)
+}
+
+// getCreateProjectScript returns the bundled create_project script
+func getCreateProjectScript() string {
+	return DefaultScriptRegistry.GetWithMode("create_project", RuntimeModeGitHubScript)
 }
 
 //go:embed js/generate_footer.cjs

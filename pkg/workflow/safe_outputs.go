@@ -215,6 +215,9 @@ func GetEnabledSafeOutputToolNames(safeOutputs *SafeOutputsConfig) []string {
 	if safeOutputs.UpdateRelease != nil {
 		tools = append(tools, "update_release")
 	}
+	if safeOutputs.CreateProjects != nil {
+		tools = append(tools, "create_project")
+	}
 	if safeOutputs.UpdateProjects != nil {
 		tools = append(tools, "update_project")
 	}
@@ -272,7 +275,13 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 				config.CreateAgentTasks = agentTaskConfig
 			}
 
-			// Handle update-project (smart project board management)
+			// Handle create-project (GitHub Projects v2 board creation)
+			createProjectConfig := c.parseCreateProjectConfig(outputMap)
+			if createProjectConfig != nil {
+				config.CreateProjects = createProjectConfig
+			}
+
+			// Handle update-project (add items to boards, update fields)
 			updateProjectConfig := c.parseUpdateProjectConfig(outputMap)
 			if updateProjectConfig != nil {
 				config.UpdateProjects = updateProjectConfig
@@ -1144,6 +1153,16 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 			}
 			missingToolConfig["max"] = maxValue
 			safeOutputsConfig["missing_tool"] = missingToolConfig
+		}
+		if data.SafeOutputs.CreateProjects != nil {
+			createProjectConfig := map[string]any{}
+			// Always include max (use configured value or default)
+			maxValue := 10 // default
+			if data.SafeOutputs.CreateProjects.Max > 0 {
+				maxValue = data.SafeOutputs.CreateProjects.Max
+			}
+			createProjectConfig["max"] = maxValue
+			safeOutputsConfig["create_project"] = createProjectConfig
 		}
 		if data.SafeOutputs.UpdateProjects != nil {
 			updateProjectConfig := map[string]any{}

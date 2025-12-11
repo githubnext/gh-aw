@@ -267,7 +267,8 @@ type SafeOutputsConfig struct {
 	UploadAssets                    *UploadAssetsConfig                    `yaml:"upload-assets,omitempty"`
 	UpdateRelease                   *UpdateReleaseConfig                   `yaml:"update-release,omitempty"`    // Update GitHub release descriptions
 	CreateAgentTasks                *CreateAgentTaskConfig                 `yaml:"create-agent-task,omitempty"` // Create GitHub Copilot agent tasks
-	UpdateProjects                  *UpdateProjectConfig                   `yaml:"update-project,omitempty"`    // Smart project board management (create/add/update)
+	CreateProjects                  *CreateProjectConfig                   `yaml:"create-project,omitempty"`    // Create GitHub Projects v2 boards
+	UpdateProjects                  *UpdateProjectConfig                   `yaml:"update-project,omitempty"`    // Add items to project boards and update fields
 	LinkSubIssue                    *LinkSubIssueConfig                    `yaml:"link-sub-issue,omitempty"`    // Link issues as sub-issues
 	HideComment                     *HideCommentConfig                     `yaml:"hide-comment,omitempty"`      // Hide comments
 	MissingTool                     *MissingToolConfig                     `yaml:"missing-tool,omitempty"`      // Optional for reporting missing functionality
