@@ -9,116 +9,17 @@ import (
 
 // TestSafeInputsStdioMode verifies that stdio mode generates correct configuration
 func TestSafeInputsStdioMode(t *testing.T) {
-	// Create a temporary workflow file
-	tempDir := t.TempDir()
-	workflowPath := filepath.Join(tempDir, "test-workflow.md")
-
-	workflowContent := `---
-on: workflow_dispatch
-engine: copilot
-safe-inputs:
-  mode: stdio
-  test-tool:
-    description: Test tool
-    script: |
-      return { result: "test" };
----
-
-Test safe-inputs stdio mode
-`
-
-	err := os.WriteFile(workflowPath, []byte(workflowContent), 0644)
-	if err != nil {
-		t.Fatalf("Failed to write workflow file: %v", err)
-	}
-
-	// Compile the workflow
-	compiler := NewCompiler(false, "", "test")
-	err = compiler.CompileWorkflow(workflowPath)
-	if err != nil {
-		t.Fatalf("Failed to compile workflow: %v", err)
-	}
-
-	// Read the generated lock file
-	lockPath := strings.TrimSuffix(workflowPath, ".md") + ".lock.yml"
-	lockContent, err := os.ReadFile(lockPath)
-	if err != nil {
-		t.Fatalf("Failed to read lock file: %v", err)
-	}
-
-	yamlStr := string(lockContent)
-
-	// Verify that HTTP server startup steps are NOT present
-	unexpectedSteps := []string{
-		"Generate Safe Inputs MCP Server Config",
-		"Start Safe Inputs MCP HTTP Server",
-	}
-
-	for _, stepName := range unexpectedSteps {
-		if strings.Contains(yamlStr, stepName) {
-			t.Errorf("Unexpected HTTP server step found in stdio mode: %q", stepName)
-		}
-	}
-
-	// Verify stdio configuration in MCP setup
-	if !strings.Contains(yamlStr, `"safeinputs"`) {
-		t.Error("Safe-inputs MCP server config not found")
-	}
-
-	// Should use local transport for Copilot (stdio is converted to local for Copilot CLI compatibility)
-	if !strings.Contains(yamlStr, `"type": "local"`) {
-		t.Error("Expected type field set to 'local' in MCP config for Copilot engine")
-	}
-
-	if !strings.Contains(yamlStr, `"command": "node"`) {
-		t.Error("Expected command field in stdio config")
-	}
-
-	if !strings.Contains(yamlStr, `"/tmp/gh-aw/safe-inputs/mcp-server.cjs"`) {
-		t.Error("Expected mcp-server.cjs in args for stdio mode")
-	}
-
-	// Should NOT have HTTP-specific fields
-	safeinputsConfig := extractSafeinputsConfigSection(yamlStr)
-	if strings.Contains(safeinputsConfig, `"url"`) {
-		t.Error("Stdio mode should not have URL field")
-	}
-
-	if strings.Contains(safeinputsConfig, `"headers"`) {
-		t.Error("Stdio mode should not have headers field")
-	}
-
-	// Verify the entry point script uses stdio
-	if !strings.Contains(yamlStr, "startSafeInputsServer") {
-		t.Error("Expected stdio entry point to use startSafeInputsServer")
-	}
-
-	// Check the actual mcp-server.cjs entry point uses stdio server
-	entryPointSection := extractMCPServerEntryPoint(yamlStr)
-	if !strings.Contains(entryPointSection, "startSafeInputsServer(configPath") {
-		t.Error("Entry point should call startSafeInputsServer for stdio mode")
-	}
-
-	if strings.Contains(entryPointSection, "startHttpServer") {
-		t.Error("Stdio mode entry point should not call startHttpServer")
-	}
-
-	t.Logf("✓ Stdio mode correctly configured without HTTP server steps")
-}
-
-// TestSafeInputsHTTPMode verifies that HTTP mode generates correct configuration
-func TestSafeInputsHTTPMode(t *testing.T) {
 	testCases := []struct {
 		name string
 		mode string // empty string tests default behavior
 	}{
 		{
-			name: "explicit_http_mode",
-			mode: "http",
+			name: "explicit_stdio_mode",
+			mode: "stdio",
 		},
 		{
 			name: "default_mode",
-			mode: "", // No mode specified, should default to HTTP
+			mode: "", // No mode specified, should default to stdio (agent mode)
 		},
 	}
 
@@ -143,7 +44,7 @@ safe-inputs:
       return { result: "test" };
 ---
 
-Test safe-inputs HTTP mode
+Test safe-inputs stdio mode
 `
 
 			err := os.WriteFile(workflowPath, []byte(workflowContent), 0644)
@@ -167,54 +68,153 @@ Test safe-inputs HTTP mode
 
 			yamlStr := string(lockContent)
 
-			// Verify that HTTP server startup steps ARE present
-			expectedSteps := []string{
+			// Verify that HTTP server startup steps are NOT present
+			unexpectedSteps := []string{
 				"Generate Safe Inputs MCP Server Config",
 				"Start Safe Inputs MCP HTTP Server",
 			}
 
-			for _, stepName := range expectedSteps {
-				if !strings.Contains(yamlStr, stepName) {
-					t.Errorf("Expected HTTP server step not found: %q", stepName)
+			for _, stepName := range unexpectedSteps {
+				if strings.Contains(yamlStr, stepName) {
+					t.Errorf("Unexpected HTTP server step found in stdio mode: %q", stepName)
 				}
 			}
 
-			// Verify HTTP configuration in MCP setup
+			// Verify stdio configuration in MCP setup
 			if !strings.Contains(yamlStr, `"safeinputs"`) {
 				t.Error("Safe-inputs MCP server config not found")
 			}
 
-			// Should use HTTP transport
-			if !strings.Contains(yamlStr, `"type": "http"`) {
-				t.Error("Expected type field set to 'http' in MCP config")
+			// Should use local transport for Copilot (stdio is converted to local for Copilot CLI compatibility)
+			if !strings.Contains(yamlStr, `"type": "local"`) {
+				t.Error("Expected type field set to 'local' in MCP config for Copilot engine")
 			}
 
-			if !strings.Contains(yamlStr, `"url": "http://host.docker.internal`) {
-				t.Error("Expected HTTP URL in config")
+			if !strings.Contains(yamlStr, `"command": "node"`) {
+				t.Error("Expected command field in stdio config")
 			}
 
-			if !strings.Contains(yamlStr, `"headers"`) {
-				t.Error("Expected headers field in HTTP config")
+			if !strings.Contains(yamlStr, `"/tmp/gh-aw/safe-inputs/mcp-server.cjs"`) {
+				t.Error("Expected mcp-server.cjs in args for stdio mode")
 			}
 
-			// Verify the entry point script uses HTTP
-			if !strings.Contains(yamlStr, "startHttpServer") {
-				t.Error("Expected HTTP entry point to use startHttpServer")
+			// Should NOT have HTTP-specific fields
+			safeinputsConfig := extractSafeinputsConfigSection(yamlStr)
+			if strings.Contains(safeinputsConfig, `"url"`) {
+				t.Error("Stdio mode should not have URL field")
 			}
 
-			// Check the actual mcp-server.cjs entry point uses HTTP server
+			if strings.Contains(safeinputsConfig, `"headers"`) {
+				t.Error("Stdio mode should not have headers field")
+			}
+
+			// Verify the entry point script uses stdio
+			if !strings.Contains(yamlStr, "startSafeInputsServer") {
+				t.Error("Expected stdio entry point to use startSafeInputsServer")
+			}
+
+			// Check the actual mcp-server.cjs entry point uses stdio server
 			entryPointSection := extractMCPServerEntryPoint(yamlStr)
-			if !strings.Contains(entryPointSection, "startHttpServer(configPath") {
-				t.Error("Entry point should call startHttpServer for HTTP mode")
+			if !strings.Contains(entryPointSection, "startSafeInputsServer(configPath") {
+				t.Error("Entry point should call startSafeInputsServer for stdio mode")
 			}
 
-			if strings.Contains(entryPointSection, "startSafeInputsServer(configPath") {
-				t.Error("HTTP mode entry point should not call startSafeInputsServer")
+			if strings.Contains(entryPointSection, "startHttpServer") {
+				t.Error("Stdio mode entry point should not call startHttpServer")
 			}
 
-			t.Logf("✓ HTTP mode correctly configured with HTTP server steps")
+			t.Logf("✓ Stdio mode correctly configured without HTTP server steps")
 		})
 	}
+}
+
+// TestSafeInputsHTTPMode verifies that HTTP mode generates correct configuration
+func TestSafeInputsHTTPMode(t *testing.T) {
+	// Create a temporary workflow file
+	tempDir := t.TempDir()
+	workflowPath := filepath.Join(tempDir, "test-workflow.md")
+
+	workflowContent := `---
+on: workflow_dispatch
+engine: copilot
+safe-inputs:
+  mode: http
+  test-tool:
+    description: Test tool
+    script: |
+      return { result: "test" };
+---
+
+Test safe-inputs HTTP mode
+`
+
+	err := os.WriteFile(workflowPath, []byte(workflowContent), 0644)
+	if err != nil {
+		t.Fatalf("Failed to write workflow file: %v", err)
+	}
+
+	// Compile the workflow
+	compiler := NewCompiler(false, "", "test")
+	err = compiler.CompileWorkflow(workflowPath)
+	if err != nil {
+		t.Fatalf("Failed to compile workflow: %v", err)
+	}
+
+	// Read the generated lock file
+	lockPath := strings.TrimSuffix(workflowPath, ".md") + ".lock.yml"
+	lockContent, err := os.ReadFile(lockPath)
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+
+	yamlStr := string(lockContent)
+
+	// Verify that HTTP server startup steps ARE present
+	expectedSteps := []string{
+		"Generate Safe Inputs MCP Server Config",
+		"Start Safe Inputs MCP HTTP Server",
+	}
+
+	for _, stepName := range expectedSteps {
+		if !strings.Contains(yamlStr, stepName) {
+			t.Errorf("Expected HTTP server step not found: %q", stepName)
+		}
+	}
+
+	// Verify HTTP configuration in MCP setup
+	if !strings.Contains(yamlStr, `"safeinputs"`) {
+		t.Error("Safe-inputs MCP server config not found")
+	}
+
+	// Should use HTTP transport
+	if !strings.Contains(yamlStr, `"type": "http"`) {
+		t.Error("Expected type field set to 'http' in MCP config")
+	}
+
+	if !strings.Contains(yamlStr, `"url": "http://host.docker.internal`) {
+		t.Error("Expected HTTP URL in config")
+	}
+
+	if !strings.Contains(yamlStr, `"headers"`) {
+		t.Error("Expected headers field in HTTP config")
+	}
+
+	// Verify the entry point script uses HTTP
+	if !strings.Contains(yamlStr, "startHttpServer") {
+		t.Error("Expected HTTP entry point to use startHttpServer")
+	}
+
+	// Check the actual mcp-server.cjs entry point uses HTTP server
+	entryPointSection := extractMCPServerEntryPoint(yamlStr)
+	if !strings.Contains(entryPointSection, "startHttpServer(configPath") {
+		t.Error("Entry point should call startHttpServer for HTTP mode")
+	}
+
+	if strings.Contains(entryPointSection, "startSafeInputsServer(configPath") {
+		t.Error("HTTP mode entry point should not call startSafeInputsServer")
+	}
+
+	t.Logf("✓ HTTP mode correctly configured with HTTP server steps")
 }
 
 // TestSafeInputsModeInImport verifies that mode can be set via imports

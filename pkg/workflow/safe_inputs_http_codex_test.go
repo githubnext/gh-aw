@@ -8,7 +8,7 @@ import (
 )
 
 // TestCodexSafeInputsHTTPTransport verifies that Codex engine uses HTTP transport for safe-inputs
-// (not stdio transport) to be consistent with Copilot and Claude engines
+// when explicitly configured with mode: http
 func TestCodexSafeInputsHTTPTransport(t *testing.T) {
 	// Create a temporary workflow file
 	tempDir := t.TempDir()
@@ -18,6 +18,7 @@ func TestCodexSafeInputsHTTPTransport(t *testing.T) {
 on: workflow_dispatch
 engine: codex
 safe-inputs:
+  mode: http
   test-tool:
     description: Test tool
     script: |

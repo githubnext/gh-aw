@@ -16,6 +16,7 @@ func TestSafeInputsHTTPServer_Integration(t *testing.T) {
 on: workflow_dispatch
 engine: copilot
 safe-inputs:
+  mode: http
   echo-tool:
     description: Echo a message
     inputs:
@@ -146,6 +147,7 @@ func TestSafeInputsHTTPWithSecrets_Integration(t *testing.T) {
 on: workflow_dispatch
 engine: copilot
 safe-inputs:
+  mode: http
   api-call:
     description: Make an API call
     inputs:
@@ -230,6 +232,7 @@ func TestSafeInputsHTTPEntryPointScript_Integration(t *testing.T) {
 on: workflow_dispatch
 engine: copilot
 safe-inputs:
+  mode: http
   test-tool:
     description: Test tool
     script: return 'test';
@@ -294,6 +297,7 @@ func TestSafeInputsHTTPServerReadinessCheck_Integration(t *testing.T) {
 on: workflow_dispatch
 engine: copilot
 safe-inputs:
+  mode: http
   test-tool:
     description: Test tool
     script: return 'test';

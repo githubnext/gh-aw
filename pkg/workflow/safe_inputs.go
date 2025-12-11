@@ -78,7 +78,7 @@ func IsSafeInputsStdioMode(safeInputs *SafeInputsConfig) bool {
 
 // IsSafeInputsHTTPMode checks if safe-inputs is configured to use HTTP mode
 func IsSafeInputsHTTPMode(safeInputs *SafeInputsConfig) bool {
-	return safeInputs != nil && (safeInputs.Mode == SafeInputsModeHTTP || safeInputs.Mode == "")
+	return safeInputs != nil && safeInputs.Mode == SafeInputsModeHTTP
 }
 
 // IsSafeInputsEnabled checks if safe-inputs are configured.
@@ -93,7 +93,7 @@ func IsSafeInputsEnabled(safeInputs *SafeInputsConfig, workflowData *WorkflowDat
 // Returns the config and a boolean indicating whether any tools were found.
 func parseSafeInputsMap(safeInputsMap map[string]any) (*SafeInputsConfig, bool) {
 	config := &SafeInputsConfig{
-		Mode:  "http", // Default to HTTP mode
+		Mode:  "stdio", // Default to stdio mode (agent mode)
 		Tools: make(map[string]*SafeInputToolConfig),
 	}
 
@@ -746,7 +746,7 @@ func renderSafeInputsMCPConfigWithOptions(yaml *strings.Builder, safeInputs *Saf
 func (c *Compiler) mergeSafeInputs(main *SafeInputsConfig, importedConfigs []string) *SafeInputsConfig {
 	if main == nil {
 		main = &SafeInputsConfig{
-			Mode:  "http", // Default to HTTP mode
+			Mode:  "stdio", // Default to stdio mode (agent mode)
 			Tools: make(map[string]*SafeInputToolConfig),
 		}
 	}
@@ -764,7 +764,7 @@ func (c *Compiler) mergeSafeInputs(main *SafeInputsConfig, importedConfigs []str
 		}
 
 		// Merge mode if present in imported config and not set in main
-		if mode, exists := importedMap["mode"]; exists && main.Mode == "http" {
+		if mode, exists := importedMap["mode"]; exists && main.Mode == "stdio" {
 			if modeStr, ok := mode.(string); ok {
 				if modeStr == "stdio" || modeStr == "http" {
 					main.Mode = modeStr

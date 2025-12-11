@@ -142,7 +142,8 @@ Test workflow for .cjs extension verification`
 	}
 
 	// Verify require statements in generated entry point use .cjs
-	if !strings.Contains(yaml, `require("./safe_inputs_mcp_server_http.cjs")`) {
+	// Default mode is now stdio, so check for stdio module
+	if !strings.Contains(yaml, `require("./safe_inputs_mcp_server.cjs")`) {
 		t.Error("Expected require statement to reference .cjs extension")
 	}
 }
