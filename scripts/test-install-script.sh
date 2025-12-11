@@ -188,5 +188,49 @@ else
     exit 1
 fi
 
+# Test 8: Verify fetch_release_data function exists and has correct logic
+echo ""
+echo "Test 8: Verify fetch_release_data function logic"
+
+# Extract and test the function
+if grep -q "fetch_release_data()" "$PROJECT_ROOT/install-gh-aw.sh"; then
+    echo "  ✓ PASS: fetch_release_data function exists"
+else
+    echo "  ✗ FAIL: fetch_release_data function not found"
+    exit 1
+fi
+
+# Verify the function checks for GH_TOKEN
+if grep -q 'if \[ -n "\$GH_TOKEN" \]; then' "$PROJECT_ROOT/install-gh-aw.sh"; then
+    echo "  ✓ PASS: Function checks for GH_TOKEN"
+else
+    echo "  ✗ FAIL: Function does not check for GH_TOKEN"
+    exit 1
+fi
+
+# Verify the function includes fallback logic
+if grep -q "Retrying without authentication" "$PROJECT_ROOT/install-gh-aw.sh"; then
+    echo "  ✓ PASS: Function includes retry fallback with warning"
+else
+    echo "  ✗ FAIL: Function does not include retry fallback"
+    exit 1
+fi
+
+# Verify the warning mentions invalid token
+if grep -q "invalid token" "$PROJECT_ROOT/install-gh-aw.sh"; then
+    echo "  ✓ PASS: Warning message mentions invalid token"
+else
+    echo "  ✗ FAIL: Warning message does not mention invalid token"
+    exit 1
+fi
+
+# Verify the function uses Authorization header
+if grep -q 'Authorization: token' "$PROJECT_ROOT/install-gh-aw.sh"; then
+    echo "  ✓ PASS: Function uses proper Authorization header"
+else
+    echo "  ✗ FAIL: Function does not use Authorization header"
+    exit 1
+fi
+
 echo ""
 echo "=== All tests passed ==="
