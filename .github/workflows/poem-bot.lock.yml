@@ -2582,7 +2582,7 @@ jobs:
               "name": "create_discussion"
             },
             {
-              "description": "Close a pull request WITHOUT merging, adding a closing comment. Use this for PRs that should be abandoned, superseded, or closed for other reasons. The closing comment should explain why the PR is being closed. This does NOT merge the changes. CONSTRAINTS: Maximum 2 pull request(s) can be closed. Target: *. Only PRs with labels [poetry automation] can be closed. Only PRs with title prefix \"[🎨 POETRY]\" can be closed.",
+              "description": "Close a pull request WITHOUT merging, adding a closing comment. Use this for PRs that should be abandoned, superseded, or closed for other reasons. The closing comment should explain why the PR is being closed. This does NOT merge the changes. CONSTRAINTS: Maximum 2 pull request(s) can be closed. Target: *. Only PRs with title prefix \"[🎨 POETRY]\" can be closed.",
               "inputSchema": {
                 "additionalProperties": false,
                 "properties": {
@@ -8175,7 +8175,6 @@ jobs:
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_CLOSE_PR_TARGET: "*"
-          GH_AW_CLOSE_PR_REQUIRED_LABELS: "poetry,automation"
           GH_AW_CLOSE_PR_REQUIRED_TITLE_PREFIX: "[🎨 POETRY]"
           GH_AW_WORKFLOW_NAME: "Poem Bot - A Creative Agentic Workflow"
           GH_AW_ENGINE_ID: "copilot"

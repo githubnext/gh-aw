@@ -392,6 +392,8 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName, markdownPat
 			// Add detection success check to the job condition
 			lockIssueJob.If = AddDetectionSuccessCheck(lockIssueJob.If)
 		}
+		// Lock issue job should run after all other safe output jobs
+		lockIssueJob.Needs = append(lockIssueJob.Needs, safeOutputJobNames...)
 		if err := c.jobManager.AddJob(lockIssueJob); err != nil {
 			return fmt.Errorf("failed to add lock_issue job: %w", err)
 		}

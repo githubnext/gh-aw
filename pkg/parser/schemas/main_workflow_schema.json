@@ -3409,19 +3409,12 @@
               "type": "object",
               "description": "Configuration for locking GitHub issues with comment from agentic workflow output",
               "properties": {
-                "required-labels": {
-                  "type": "array",
-                  "items": {
-                    "type": "string"
-                  },
-                  "description": "Only lock issues that have all of these labels. Can also use 'labels' as an alias for this field."
-                },
                 "labels": {
                   "type": "array",
                   "items": {
                     "type": "string"
                   },
-                  "description": "Alias for 'required-labels'. Only lock issues that have all of these labels."
+                  "description": "Only lock issues that have all of these labels"
                 },
                 "required-title-prefix": {
                   "type": "string",
@@ -3456,7 +3449,7 @@
                   "max": 2
                 },
                 {
-                  "required-labels": ["resolved"],
+                  "labels": ["resolved"],
                   "target": "*"
                 }
               ]

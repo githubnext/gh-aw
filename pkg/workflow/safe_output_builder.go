@@ -81,23 +81,11 @@ func ParseDiscussionFilterConfig(configMap map[string]any) SafeOutputDiscussionF
 	return config
 }
 
-// parseRequiredLabelsFromConfig extracts and validates required-labels from a config map.
+// parseRequiredLabelsFromConfig extracts and validates labels from a config map.
 // Returns a slice of label strings, or nil if not present or invalid.
+// Note: This function looks for the "labels" field (not "required-labels").
 func parseRequiredLabelsFromConfig(configMap map[string]any) []string {
-	// Try "required-labels" first for backward compatibility
-	if requiredLabels, exists := configMap["required-labels"]; exists {
-		if labelsArray, ok := requiredLabels.([]any); ok {
-			var labels []string
-			for _, label := range labelsArray {
-				if labelStr, ok := label.(string); ok {
-					labels = append(labels, labelStr)
-				}
-			}
-			return labels
-		}
-	}
-
-	// Fall back to "labels" for simpler syntax
+	// Check for "labels" field
 	if labels, exists := configMap["labels"]; exists {
 		if labelsArray, ok := labels.([]any); ok {
 			var labelsList []string
