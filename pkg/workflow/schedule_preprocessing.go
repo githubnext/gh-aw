@@ -4,8 +4,11 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/githubnext/gh-aw/pkg/logger"
 	"github.com/githubnext/gh-aw/pkg/parser"
 )
+
+var schedulePreprocessingLog = logger.New("workflow:schedule_preprocessing")
 
 // scheduleFriendlyFormats stores the friendly formats for schedule cron expressions
 // Key is: "on.schedule[index]"
@@ -14,6 +17,8 @@ var scheduleFriendlyFormats = make(map[string]map[int]string)
 // preprocessScheduleFields converts human-friendly schedule expressions to cron expressions
 // in the frontmatter's "on" section. It modifies the frontmatter map in place.
 func (c *Compiler) preprocessScheduleFields(frontmatter map[string]any) error {
+	schedulePreprocessingLog.Print("Preprocessing schedule fields in frontmatter")
+
 	// Check if "on" field exists
 	onValue, exists := frontmatter["on"]
 	if !exists {
@@ -35,6 +40,7 @@ func (c *Compiler) preprocessScheduleFields(frontmatter map[string]any) error {
 
 	// Handle shorthand string format: schedule: "daily at 02:00"
 	if scheduleStr, ok := scheduleValue.(string); ok {
+		schedulePreprocessingLog.Printf("Converting shorthand schedule string to array format: %s", scheduleStr)
 		// Convert string to array format with single item
 		parsedCron, original, err := parser.ParseSchedule(scheduleStr)
 		if err != nil {
@@ -72,6 +78,7 @@ func (c *Compiler) preprocessScheduleFields(frontmatter map[string]any) error {
 	friendlyFormats := make(map[int]string)
 
 	// Process each schedule item
+	schedulePreprocessingLog.Printf("Processing %d schedule items", len(scheduleArray))
 	for i, item := range scheduleArray {
 		itemMap, ok := item.(map[string]any)
 		if !ok {
