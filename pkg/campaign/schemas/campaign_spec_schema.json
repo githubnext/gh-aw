@@ -99,7 +99,7 @@
       "type": "object",
       "description": "Approval expectations for this campaign",
       "properties": {
-  		"required-approvals": {
+        "required-approvals": {
           "type": "integer",
           "description": "Number of required approvals",
           "minimum": 0

@@ -1445,7 +1445,7 @@ func validateCampaigns(workflowDir string, verbose bool) error {
 	for _, spec := range specs {
 		// Validate the spec itself
 		problems := campaign.ValidateSpec(&spec)
-		
+
 		// Validate that referenced workflows exist
 		workflowProblems := campaign.ValidateWorkflowsExist(&spec, absWorkflowDir)
 		problems = append(problems, workflowProblems...)
