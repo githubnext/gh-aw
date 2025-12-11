@@ -59,3 +59,39 @@ func GenerateNpmInstallStepsWithScope(packageName, version, stepName, cacheKeyPr
 
 	return steps
 }
+
+// GenerateNpmInstallStepsWithVerification generates npm installation steps with CLI verification commands
+// This is used for CLI packages like @github/copilot that support help commands
+func GenerateNpmInstallStepsWithVerification(packageName, version, stepName, cliName string, includeNodeSetup bool, isGlobal bool) []GitHubActionStep {
+	nodejsLog.Printf("Generating npm install steps with verification: package=%s, version=%s, cli=%s", packageName, version, cliName)
+
+	var steps []GitHubActionStep
+
+	// Add Node.js setup if requested
+	if includeNodeSetup {
+		nodejsLog.Print("Including Node.js setup step")
+		steps = append(steps, GenerateNodeJsSetupStep())
+	}
+
+	// Build npm install command
+	globalFlag := ""
+	if isGlobal {
+		globalFlag = "-g "
+	}
+	installCmd := fmt.Sprintf("npm install %s%s@%s", globalFlag, packageName, version)
+
+	// Build verification commands for Copilot CLI
+	// Run help on top-level commands to check for flag changes
+	var stepLines []string
+	stepLines = append(stepLines, fmt.Sprintf("      - name: %s", stepName))
+	stepLines = append(stepLines, "        run: |")
+	stepLines = append(stepLines, fmt.Sprintf("          %s", installCmd))
+	stepLines = append(stepLines, fmt.Sprintf("          %s --version", cliName))
+	stepLines = append(stepLines, "          # Check help on key commands to detect flag changes")
+	stepLines = append(stepLines, fmt.Sprintf("          %s help config || true", cliName))
+	stepLines = append(stepLines, fmt.Sprintf("          %s help environment || true", cliName))
+
+	steps = append(steps, GitHubActionStep(stepLines))
+
+	return steps
+}

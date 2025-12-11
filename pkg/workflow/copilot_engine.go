@@ -76,19 +76,22 @@ func (e *CopilotEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHu
 	installGlobally := !isSRTEnabled(workflowData)
 
 	// Generate npm install steps based on installation scope
+	// Use GenerateNpmInstallStepsWithVerification to check for CLI flag changes
 	var npmSteps []GitHubActionStep
 	if installGlobally {
-		npmSteps = BuildStandardNpmEngineInstallSteps(
+		copilotLog.Print("Using global Copilot installation with verification")
+		npmSteps = GenerateNpmInstallStepsWithVerification(
 			config.NpmPackage,
 			copilotVersion,
 			config.InstallStepName,
 			config.CliName,
-			workflowData,
+			true, // Include Node.js setup
+			true, // Install globally
 		)
 	} else {
 		// For SRT: install locally without -g flag
-		copilotLog.Print("Using local Copilot installation for SRT compatibility")
-		npmSteps = GenerateNpmInstallStepsWithScope(
+		copilotLog.Print("Using local Copilot installation for SRT compatibility with verification")
+		npmSteps = GenerateNpmInstallStepsWithVerification(
 			config.NpmPackage,
 			copilotVersion,
 			config.InstallStepName,

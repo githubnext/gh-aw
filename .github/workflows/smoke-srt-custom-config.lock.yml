@@ -325,7 +325,12 @@ jobs:
           npm install @anthropic-ai/sandbox-runtime
           echo "Sandbox Runtime installed successfully"
       - name: Install GitHub Copilot CLI
-        run: npm install @github/copilot@0.0.368
+        run: |
+          npm install @github/copilot@0.0.368
+          copilot --version
+          # Check help on key commands to detect flag changes
+          copilot help config || true
+          copilot help environment || true
       - name: Downloading container images
         run: |
           set -e

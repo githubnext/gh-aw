@@ -1316,7 +1316,12 @@ jobs:
           which awf
           awf --version
       - name: Install GitHub Copilot CLI
-        run: npm install -g @github/copilot@0.0.368
+        run: |
+          npm install -g @github/copilot@0.0.368
+          copilot --version
+          # Check help on key commands to detect flag changes
+          copilot help config || true
+          copilot help environment || true
       - name: Downloading container images
         run: |
           set -e
@@ -8030,7 +8035,12 @@ jobs:
           node-version: '24'
           package-manager-cache: false
       - name: Install GitHub Copilot CLI
-        run: npm install -g @github/copilot@0.0.368
+        run: |
+          npm install -g @github/copilot@0.0.368
+          copilot --version
+          # Check help on key commands to detect flag changes
+          copilot help config || true
+          copilot help environment || true
       - name: Execute GitHub Copilot CLI
         id: agentic_execution
         # Copilot CLI tool arguments (sorted):
