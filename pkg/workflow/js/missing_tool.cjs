@@ -105,7 +105,7 @@ async function main() {
 
     // Create structured summary for GitHub Actions step summary
     core.summary
-      .addHeading("Missing Tools Report", 2)
+      .addHeading("Missing Tools Report", 3)
       .addRaw(`Found **${missingTools.length}** missing tool${missingTools.length > 1 ? "s" : ""} in this workflow execution.\n\n`);
 
     missingTools.forEach((tool, index) => {
@@ -118,7 +118,7 @@ async function main() {
       core.info("");
 
       // Add to summary with structured formatting
-      core.summary.addRaw(`### ${index + 1}. \`${tool.tool}\`\n\n`).addRaw(`**Reason:** ${tool.reason}\n\n`);
+      core.summary.addRaw(`#### ${index + 1}. \`${tool.tool}\`\n\n`).addRaw(`**Reason:** ${tool.reason}\n\n`);
 
       if (tool.alternatives) {
         core.summary.addRaw(`**Alternatives:** ${tool.alternatives}\n\n`);
@@ -130,7 +130,7 @@ async function main() {
     core.summary.write();
   } else {
     core.info("No missing tools reported in this workflow execution.");
-    core.summary.addHeading("Missing Tools Report", 2).addRaw("✅ No missing tools reported in this workflow execution.").write();
+    core.summary.addHeading("Missing Tools Report", 3).addRaw("✅ No missing tools reported in this workflow execution.").write();
   }
 }
 

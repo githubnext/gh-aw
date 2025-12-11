@@ -1,5 +1,5 @@
 {
-  echo "## Safe Outputs (JSONL)"
+  echo "### Safe Outputs (JSONL)"
   echo ""
   echo '```json'
   if [ -f ${{ env.GH_AW_SAFE_OUTPUTS }} ]; then
