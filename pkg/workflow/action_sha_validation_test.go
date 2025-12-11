@@ -182,7 +182,7 @@ Just a simple test workflow.
 		"actions/cache@v4",
 		"actions/setup-node@v6",
 		"actions/setup-python@v5",
-		"actions/setup-go@v5",
+		"actions/setup-go@v6",
 	}
 
 	for _, forbidden := range forbiddenPatterns {

@@ -143,7 +143,7 @@ describe("parse_firewall_logs.cjs", () => {
   });
 
   describe("generateFirewallSummary", () => {
-    test("should generate summary with blocked requests only", () => {
+    test("should generate summary with details/summary structure", () => {
       const analysis = {
         totalRequests: 5,
         allowedRequests: 3,
@@ -151,6 +151,8 @@ describe("parse_firewall_logs.cjs", () => {
         allowedDomains: ["api.github.com:443", "api.npmjs.org:443"],
         deniedDomains: ["blocked.example.com:443", "denied.test.com:443"],
         requestsByDomain: new Map([
+          ["api.github.com:443", { allowed: 2, denied: 0 }],
+          ["api.npmjs.org:443", { allowed: 1, denied: 0 }],
           ["blocked.example.com:443", { allowed: 0, denied: 1 }],
           ["denied.test.com:443", { allowed: 0, denied: 1 }],
         ]),
@@ -158,24 +160,25 @@ describe("parse_firewall_logs.cjs", () => {
 
       const summary = generateFirewallSummary(analysis);
 
-      // Should focus on blocked requests
-      expect(summary).toContain("🔥 Firewall Blocked Requests");
-      expect(summary).toContain("**2** requests blocked");
-      expect(summary).toContain("**2** unique domains");
-      expect(summary).toContain("40% of total traffic");
+      // Should have firewall activity header
+      expect(summary).toContain("🔥 Firewall Activity");
 
-      // Should wrap blocked domains in details tag
+      // Should wrap entire summary in details tag
       expect(summary).toContain("<details>");
       expect(summary).toContain("</details>");
-      expect(summary).toContain("<summary>🚫 Blocked Domains (click to expand)</summary>");
 
-      // Should show blocked domains table
-      expect(summary).toContain("blocked.example.com:443");
-      expect(summary).toContain("denied.test.com:443");
+      // Should have summary with basic stats
+      expect(summary).toContain("<summary>📊 5 requests");
+      expect(summary).toContain("3 allowed");
+      expect(summary).toContain("2 blocked");
+      expect(summary).toContain("4 unique domains</summary>");
 
-      // Should NOT show allowed domains section
-      expect(summary).not.toContain("✅ Allowed Domains");
-      expect(summary).not.toContain("api.github.com:443");
+      // Should show domain table with all domains
+      expect(summary).toContain("| Domain | Allowed | Denied |");
+      expect(summary).toContain("| api.github.com:443 | 2 | 0 |");
+      expect(summary).toContain("| api.npmjs.org:443 | 1 | 0 |");
+      expect(summary).toContain("| blocked.example.com:443 | 0 | 1 |");
+      expect(summary).toContain("| denied.test.com:443 | 0 | 1 |");
     });
 
     test("should filter out placeholder domains", () => {
@@ -187,51 +190,86 @@ describe("parse_firewall_logs.cjs", () => {
         deniedDomains: ["-", "example.com:443"],
         requestsByDomain: new Map([
           ["-", { allowed: 0, denied: 2 }],
+          ["api.github.com:443", { allowed: 2, denied: 0 }],
           ["example.com:443", { allowed: 0, denied: 1 }],
         ]),
       };
 
       const summary = generateFirewallSummary(analysis);
 
-      // Should only count valid domains
-      expect(summary).toContain("**1** request blocked");
-      expect(summary).toContain("**1** unique domain");
+      // Should only count valid domains (2 unique: api.github.com and example.com)
+      expect(summary).toContain("2 unique domains");
 
-      // Should show example.com but not "-"
-      expect(summary).toContain("example.com:443");
+      // Should show both allowed and denied counts for valid domains
+      expect(summary).toContain("2 allowed");
+      expect(summary).toContain("1 blocked");
+
+      // Should show api.github.com and example.com but not "-"
+      expect(summary).toContain("| api.github.com:443 | 2 | 0 |");
+      expect(summary).toContain("| example.com:443 | 0 | 1 |");
       expect(summary).not.toContain("| - |");
     });
 
-    test("should show success message when no blocked requests", () => {
+    test("should show appropriate message when no firewall activity", () => {
       const analysis = {
         totalRequests: 3,
         allowedRequests: 3,
         deniedRequests: 0,
         allowedDomains: ["api.github.com:443"],
         deniedDomains: [],
-        requestsByDomain: new Map(),
+        requestsByDomain: new Map([["api.github.com:443", { allowed: 3, denied: 0 }]]),
       };
 
       const summary = generateFirewallSummary(analysis);
 
-      expect(summary).toContain("✅ **No blocked requests detected**");
-      expect(summary).toContain("All 3 requests were allowed");
+      expect(summary).toContain("🔥 Firewall Activity");
+      expect(summary).toContain("3 requests");
+      expect(summary).toContain("3 allowed");
+      expect(summary).toContain("0 blocked");
+      expect(summary).toContain("1 unique domain");
+      expect(summary).toContain("| api.github.com:443 | 3 | 0 |");
     });
 
-    test("should show success message when only placeholder domains are blocked", () => {
+    test("should show appropriate message when only placeholder domains are blocked", () => {
       const analysis = {
         totalRequests: 3,
         allowedRequests: 2,
         deniedRequests: 1,
         allowedDomains: ["api.github.com:443"],
         deniedDomains: ["-"],
-        requestsByDomain: new Map([["-", { allowed: 0, denied: 1 }]]),
+        requestsByDomain: new Map([
+          ["-", { allowed: 0, denied: 1 }],
+          ["api.github.com:443", { allowed: 2, denied: 0 }],
+        ]),
       };
 
       const summary = generateFirewallSummary(analysis);
 
-      // Should show success when only invalid domains are blocked
-      expect(summary).toContain("✅ **No blocked requests detected**");
+      // Should only count valid domains and their stats
+      expect(summary).toContain("1 unique domain");
+      expect(summary).toContain("2 allowed");
+      expect(summary).toContain("0 blocked");
+      expect(summary).toContain("| api.github.com:443 | 2 | 0 |");
+    });
+
+    test("should show appropriate message when no valid domains", () => {
+      const analysis = {
+        totalRequests: 0,
+        allowedRequests: 0,
+        deniedRequests: 0,
+        allowedDomains: [],
+        deniedDomains: [],
+        requestsByDomain: new Map(),
+      };
+
+      const summary = generateFirewallSummary(analysis);
+
+      expect(summary).toContain("🔥 Firewall Activity");
+      expect(summary).toContain("0 requests");
+      expect(summary).toContain("0 allowed");
+      expect(summary).toContain("0 blocked");
+      expect(summary).toContain("0 unique domains");
+      expect(summary).toContain("No firewall activity detected.");
     });
   });
 });

@@ -1,3 +1,5 @@
+//go:build !integration
+
 package cli
 
 import (
@@ -468,7 +470,7 @@ func TestWorkflowStepStructure(t *testing.T) {
 			name: "step with with parameters",
 			step: WorkflowStep{
 				Name: "Setup",
-				Uses: "actions/setup-go@v5",
+				Uses: "actions/setup-go@v6",
 				With: map[string]any{
 					"go-version": "1.21",
 				},

@@ -1528,73 +1528,6 @@ jobs:
                 lines.push(`Model: ${model}`);
               }
               lines.push("");
-              const initEntry = logEntries.find(entry => entry.type === "system" && entry.subtype === "init");
-              if (initEntry && initEntry.tools && Array.isArray(initEntry.tools) && initEntry.tools.length > 0) {
-                lines.push("Available Tools:");
-                lines.push("");
-                const categories = {
-                  Builtin: [],
-                  "Safe Outputs": [],
-                  "Safe Inputs": [],
-                  "Git/GitHub": [],
-                  Playwright: [],
-                  Serena: [],
-                  MCP: [],
-                  "Custom Agents": [],
-                  Other: [],
-                };
-                const builtinTools = [
-                  "bash",
-                  "write_bash",
-                  "read_bash",
-                  "stop_bash",
-                  "list_bash",
-                  "grep",
-                  "glob",
-                  "view",
-                  "create",
-                  "edit",
-                  "store_memory",
-                  "code_review",
-                  "codeql_checker",
-                  "report_progress",
-                  "report_intent",
-                  "gh-advisory-database",
-                ];
-                const internalTools = ["fetch_copilot_cli_documentation"];
-                for (const tool of initEntry.tools) {
-                  const toolLower = tool.toLowerCase();
-                  if (builtinTools.includes(toolLower) || internalTools.includes(toolLower)) {
-                    categories["Builtin"].push(tool);
-                  } else if (tool.startsWith("safeoutputs-") || tool.startsWith("safe_outputs-")) {
-                    const toolName = tool.replace(/^safeoutputs-|^safe_outputs-/, "");
-                    categories["Safe Outputs"].push(toolName);
-                  } else if (tool.startsWith("safeinputs-") || tool.startsWith("safe_inputs-")) {
-                    const toolName = tool.replace(/^safeinputs-|^safe_inputs-/, "");
-                    categories["Safe Inputs"].push(toolName);
-                  } else if (tool.startsWith("mcp__github__")) {
-                    categories["Git/GitHub"].push(formatMcpName(tool));
-                  } else if (tool.startsWith("mcp__playwright__")) {
-                    categories["Playwright"].push(formatMcpName(tool));
-                  } else if (tool.startsWith("mcp__serena__")) {
-                    categories["Serena"].push(formatMcpName(tool));
-                  } else if (tool.startsWith("mcp__") || ["ListMcpResourcesTool", "ReadMcpResourceTool"].includes(tool)) {
-                    categories["MCP"].push(tool.startsWith("mcp__") ? formatMcpName(tool) : tool);
-                  } else if (isLikelyCustomAgent(tool)) {
-                    categories["Custom Agents"].push(tool);
-                  } else {
-                    categories["Other"].push(tool);
-                  }
-                }
-                for (const [category, tools] of Object.entries(categories)) {
-                  if (tools.length > 0) {
-                    const toolText = tools.length === 1 ? "tool" : "tools";
-                    lines.push(`${category}: ${tools.length} ${toolText}`);
-                    lines.push(tools.join(", "));
-                  }
-                }
-                lines.push("");
-              }
               const toolUsePairs = new Map();
               for (const entry of logEntries) {
                 if (entry.type === "user" && entry.message?.content) {
@@ -1605,48 +1538,72 @@ jobs:
                   }
                 }
               }
-              const toolCounts = { total: 0, success: 0, error: 0 };
-              const toolSummary = [];
+              lines.push("Conversation:");
+              lines.push("");
+              let conversationLineCount = 0;
+              const MAX_CONVERSATION_LINES = 50; 
+              let conversationTruncated = false;
               for (const entry of logEntries) {
+                if (conversationLineCount >= MAX_CONVERSATION_LINES) {
+                  conversationTruncated = true;
+                  break;
+                }
                 if (entry.type === "assistant" && entry.message?.content) {
                   for (const content of entry.message.content) {
-                    if (content.type === "tool_use") {
+                    if (conversationLineCount >= MAX_CONVERSATION_LINES) {
+                      conversationTruncated = true;
+                      break;
+                    }
+                    if (content.type === "text" && content.text) {
+                      const text = content.text.trim();
+                      if (text && text.length > 0) {
+                        const maxTextLength = 500;
+                        let displayText = text;
+                        if (displayText.length > maxTextLength) {
+                          displayText = displayText.substring(0, maxTextLength) + "...";
+                        }
+                        const textLines = displayText.split("\n");
+                        for (const line of textLines) {
+                          if (conversationLineCount >= MAX_CONVERSATION_LINES) {
+                            conversationTruncated = true;
+                            break;
+                          }
+                          lines.push(`Agent: ${line}`);
+                          conversationLineCount++;
+                        }
+                        lines.push(""); 
+                        conversationLineCount++;
+                      }
+                    } else if (content.type === "tool_use") {
                       const toolName = content.name;
                       const input = content.input || {};
                       if (["Read", "Write", "Edit", "MultiEdit", "LS", "Grep", "Glob", "TodoWrite"].includes(toolName)) {
                         continue;
                       }
-                      toolCounts.total++;
                       const toolResult = toolUsePairs.get(content.id);
                       const isError = toolResult?.is_error === true;
-                      if (isError) {
-                        toolCounts.error++;
-                      } else {
-                        toolCounts.success++;
-                      }
                       const statusIcon = isError ? "✗" : "✓";
                       let displayName;
                       if (toolName === "Bash") {
-                        const cmd = formatBashCommand(input.command || "").slice(0, MAX_BASH_COMMAND_DISPLAY_LENGTH);
-                        displayName = `bash: ${cmd}`;
+                        const cmd = formatBashCommand(input.command || "");
+                        const maxCmdLength = 100;
+                        const displayCmd = cmd.length > maxCmdLength ? cmd.substring(0, maxCmdLength) + "..." : cmd;
+                        displayName = `bash: ${displayCmd}`;
                       } else if (toolName.startsWith("mcp__")) {
                         displayName = formatMcpName(toolName);
                       } else {
                         displayName = toolName;
                       }
-                      if (toolSummary.length < 20) {
-                        toolSummary.push(`  [${statusIcon}] ${displayName}`);
-                      }
+                      lines.push(`Tool: [${statusIcon}] ${displayName}`);
+                      conversationLineCount++;
+                      lines.push(""); 
+                      conversationLineCount++;
                     }
                   }
                 }
               }
-              if (toolSummary.length > 0) {
-                lines.push("Tools/Commands:");
-                lines.push(...toolSummary);
-                if (toolCounts.total > 20) {
-                  lines.push(`  ... and ${toolCounts.total - 20} more`);
-                }
+              if (conversationTruncated) {
+                lines.push("... (conversation truncated)");
                 lines.push("");
               }
               const lastEntry = logEntries[logEntries.length - 1];
@@ -1658,6 +1615,27 @@ jobs:
                 const duration = formatDuration(lastEntry.duration_ms);
                 if (duration) {
                   lines.push(`  Duration: ${duration}`);
+                }
+              }
+              let toolCounts = { total: 0, success: 0, error: 0 };
+              for (const entry of logEntries) {
+                if (entry.type === "assistant" && entry.message?.content) {
+                  for (const content of entry.message.content) {
+                    if (content.type === "tool_use") {
+                      const toolName = content.name;
+                      if (["Read", "Write", "Edit", "MultiEdit", "LS", "Grep", "Glob", "TodoWrite"].includes(toolName)) {
+                        continue;
+                      }
+                      toolCounts.total++;
+                      const toolResult = toolUsePairs.get(content.id);
+                      const isError = toolResult?.is_error === true;
+                      if (isError) {
+                        toolCounts.error++;
+                      } else {
+                        toolCounts.success++;
+                      }
+                    }
+                  }
                 }
               }
               if (toolCounts.total > 0) {
@@ -2291,11 +2269,7 @@ jobs:
 
               try {
 
-                const workflowName = process.env.GITHUB_WORKFLOW || "workflow";
-
-                const sanitizedName = sanitizeWorkflowName(workflowName);
-
-                const squidLogsDir = `/tmp/gh-aw/squid-logs-${sanitizedName}/`;
+                const squidLogsDir = `/tmp/gh-aw/sandbox/firewall/logs/`;
 
                 if (!fs.existsSync(squidLogsDir)) {
 
@@ -2497,53 +2471,63 @@ jobs:
 
             function generateFirewallSummary(analysis) {
 
-              const { totalRequests, deniedRequests, deniedDomains, requestsByDomain } = analysis;
+              const { totalRequests, requestsByDomain } = analysis;
 
-              let summary = "### 🔥 Firewall Blocked Requests\n\n";
+              const validDomains = Array.from(requestsByDomain.keys())
 
-              const validDeniedDomains = deniedDomains.filter(domain => domain !== "-");
+                .filter(domain => domain !== "-")
 
-              const validDeniedRequests = validDeniedDomains.reduce((sum, domain) => sum + (requestsByDomain.get(domain)?.denied || 0), 0);
+                .sort();
 
-              if (validDeniedRequests > 0) {
+              const uniqueDomainCount = validDomains.length;
 
-                summary += `**${validDeniedRequests}** request${validDeniedRequests !== 1 ? "s" : ""} blocked across **${validDeniedDomains.length}** unique domain${validDeniedDomains.length !== 1 ? "s" : ""}`;
+              let validAllowedRequests = 0;
 
-                summary += ` (${totalRequests > 0 ? Math.round((validDeniedRequests / totalRequests) * 100) : 0}% of total traffic)\n\n`;
+              let validDeniedRequests = 0;
 
-                summary += "<details>\n";
+              for (const domain of validDomains) {
 
-                summary += "<summary>🚫 Blocked Domains (click to expand)</summary>\n\n";
+                const stats = requestsByDomain.get(domain);
 
-                summary += "| Domain | Blocked Requests |\n";
+                validAllowedRequests += stats.allowed;
 
-                summary += "|--------|------------------|\n";
+                validDeniedRequests += stats.denied;
 
-                for (const domain of validDeniedDomains) {
+              }
+
+              let summary = "### 🔥 Firewall Activity\n\n";
+
+              summary += "<details>\n";
+
+              summary += `<summary>📊 ${totalRequests} request${totalRequests !== 1 ? "s" : ""} | `;
+
+              summary += `${validAllowedRequests} allowed | `;
+
+              summary += `${validDeniedRequests} blocked | `;
+
+              summary += `${uniqueDomainCount} unique domain${uniqueDomainCount !== 1 ? "s" : ""}</summary>\n\n`;
+
+              if (uniqueDomainCount > 0) {
+
+                summary += "| Domain | Allowed | Denied |\n";
+
+                summary += "|--------|---------|--------|\n";
+
+                for (const domain of validDomains) {
 
                   const stats = requestsByDomain.get(domain);
 
-                  summary += `| ${domain} | ${stats.denied} |\n`;
+                  summary += `| ${domain} | ${stats.allowed} | ${stats.denied} |\n`;
 
                 }
-
-                summary += "\n</details>\n\n";
 
               } else {
 
-                summary += "✅ **No blocked requests detected**\n\n";
-
-                if (totalRequests > 0) {
-
-                  summary += `All ${totalRequests} request${totalRequests !== 1 ? "s" : ""} were allowed through the firewall.\n\n`;
-
-                } else {
-
-                  summary += "No firewall activity detected.\n\n";
-
-                }
+                summary += "No firewall activity detected.\n";
 
               }
+
+              summary += "\n</details>\n\n";
 
               return summary;
 
