@@ -13,10 +13,8 @@ function main() {
   const path = require("path");
 
   try {
-    // Get the squid logs directory path from environment or use default
-    const workflowName = process.env.GITHUB_WORKFLOW || "workflow";
-    const sanitizedName = sanitizeWorkflowName(workflowName);
-    const squidLogsDir = `/tmp/gh-aw/squid-logs-${sanitizedName}/`;
+    // Get the firewall logs directory path - awf writes logs to /tmp/gh-aw/sandbox/firewall/logs
+    const squidLogsDir = `/tmp/gh-aw/sandbox/firewall/logs/`;
 
     if (!fs.existsSync(squidLogsDir)) {
       core.info(`No firewall logs directory found at: ${squidLogsDir}`);

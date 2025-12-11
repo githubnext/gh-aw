@@ -3103,7 +3103,8 @@ jobs:
                 },
                 "handler": "gh.sh",
                 "env": {
-                  "GH_AW_GH_TOKEN": "GH_AW_GH_TOKEN"
+                  "GH_AW_GH_TOKEN": "GH_AW_GH_TOKEN",
+                  "GH_DEBUG": "GH_DEBUG"
                 },
                 "timeout": 60
               }
@@ -3146,6 +3147,7 @@ jobs:
         env:
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
           GH_AW_GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_DEBUG: 1
         run: |
           mkdir -p /tmp/gh-aw/mcp-config
           mkdir -p /home/runner/.copilot
@@ -3158,7 +3160,8 @@ jobs:
                 "args": ["/tmp/gh-aw/safe-inputs/mcp-server.cjs"],
                 "tools": ["*"],
                 "env": {
-                  "GH_AW_GH_TOKEN": "\${GH_AW_GH_TOKEN}"
+                  "GH_AW_GH_TOKEN": "\${GH_AW_GH_TOKEN}",
+                  "GH_DEBUG": "\${GH_DEBUG}"
                 }
               },
               "safeoutputs": {
@@ -3254,22 +3257,22 @@ jobs:
             }
             
             const summary = '<details>\n' +
-              '<summary>🤖 Agentic Workflow Run Overview</summary>\n\n' +
-              '### Engine Configuration\n' +
+              '<summary>Run details</summary>\n\n' +
+              '#### Engine Configuration\n' +
               '| Property | Value |\n' +
               '|----------|-------|\n' +
               `| Engine ID | ${awInfo.engine_id} |\n` +
               `| Engine Name | ${awInfo.engine_name} |\n` +
               `| Model | ${awInfo.model || '(default)'} |\n` +
               '\n' +
-              '### Network Configuration\n' +
+              '#### Network Configuration\n' +
               '| Property | Value |\n' +
               '|----------|-------|\n' +
               `| Mode | ${awInfo.network_mode || 'defaults'} |\n` +
               `| Firewall | ${awInfo.firewall_enabled ? '✅ Enabled' : '❌ Disabled'} |\n` +
               `| Firewall Version | ${awInfo.firewall_version || '(latest)'} |\n` +
               '\n' +
-              (networkDetails ? `#### Allowed Domains\n${networkDetails}\n` : '') +
+              (networkDetails ? `##### Allowed Domains\n${networkDetails}\n` : '') +
               '</details>';
             
             await core.summary.addRaw(summary).write();
@@ -3422,6 +3425,7 @@ jobs:
           GH_AW_MODEL_AGENT_COPILOT: ${{ vars.GH_AW_MODEL_AGENT_COPILOT || '' }}
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
+          GH_DEBUG: 1
           GITHUB_HEAD_REF: ${{ github.head_ref }}
           GITHUB_REF_NAME: ${{ github.ref_name }}
           GITHUB_STEP_SUMMARY: ${{ env.GITHUB_STEP_SUMMARY }}
@@ -5913,11 +5917,7 @@ jobs:
 
               try {
 
-                const workflowName = process.env.GITHUB_WORKFLOW || "workflow";
-
-                const sanitizedName = sanitizeWorkflowName(workflowName);
-
-                const squidLogsDir = `/tmp/gh-aw/squid-logs-${sanitizedName}/`;
+                const squidLogsDir = `/tmp/gh-aw/sandbox/firewall/logs/`;
 
                 if (!fs.existsSync(squidLogsDir)) {
 
@@ -6648,7 +6648,7 @@ jobs:
               if (missingTools.length > 0) {
                 core.info("Missing tools summary:");
                 core.summary
-                  .addHeading("Missing Tools Report", 2)
+                  .addHeading("Missing Tools Report", 3)
                   .addRaw(`Found **${missingTools.length}** missing tool${missingTools.length > 1 ? "s" : ""} in this workflow execution.\n\n`);
                 missingTools.forEach((tool, index) => {
                   core.info(`${index + 1}. Tool: ${tool.tool}`);
@@ -6658,7 +6658,7 @@ jobs:
                   }
                   core.info(`   Reported at: ${tool.timestamp}`);
                   core.info("");
-                  core.summary.addRaw(`### ${index + 1}. \`${tool.tool}\`\n\n`).addRaw(`**Reason:** ${tool.reason}\n\n`);
+                  core.summary.addRaw(`#### ${index + 1}. \`${tool.tool}\`\n\n`).addRaw(`**Reason:** ${tool.reason}\n\n`);
                   if (tool.alternatives) {
                     core.summary.addRaw(`**Alternatives:** ${tool.alternatives}\n\n`);
                   }
@@ -6667,7 +6667,7 @@ jobs:
                 core.summary.write();
               } else {
                 core.info("No missing tools reported in this workflow execution.");
-                core.summary.addHeading("Missing Tools Report", 2).addRaw("✅ No missing tools reported in this workflow execution.").write();
+                core.summary.addHeading("Missing Tools Report", 3).addRaw("✅ No missing tools reported in this workflow execution.").write();
               }
             }
             main().catch(error => {

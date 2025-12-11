@@ -5,6 +5,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/githubnext/gh-aw/pkg/campaign"
 	"github.com/githubnext/gh-aw/pkg/cli"
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/constants"
@@ -492,6 +493,7 @@ Use "` + constants.CLIExtensionPrefix + ` help all" to show help for all command
 	mcpServerCmd := cli.NewMCPServerCommand()
 	mcpGatewayCmd := cli.NewMCPGatewayCommand()
 	prCmd := cli.NewPRCommand()
+	campaignCmd := campaign.NewCommand()
 
 	// Assign commands to groups
 	// Setup Commands
@@ -517,6 +519,7 @@ Use "` + constants.CLIExtensionPrefix + ` help all" to show help for all command
 	// Analysis Commands
 	logsCmd.GroupID = "analysis"
 	auditCmd.GroupID = "analysis"
+	campaignCmd.GroupID = "analysis"
 
 	// Utilities
 	prCmd.GroupID = "utilities"
@@ -542,6 +545,7 @@ Use "` + constants.CLIExtensionPrefix + ` help all" to show help for all command
 	rootCmd.AddCommand(mcpGatewayCmd)
 	rootCmd.AddCommand(prCmd)
 	rootCmd.AddCommand(versionCmd)
+	rootCmd.AddCommand(campaignCmd)
 }
 
 func main() {
