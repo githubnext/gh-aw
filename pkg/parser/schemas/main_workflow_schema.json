@@ -3011,7 +3011,7 @@
     "safe-outputs": {
       "type": "object",
       "description": "Safe output processing configuration that automatically creates GitHub issues, comments, and pull requests from AI workflow output without requiring write permissions in the main job",
-      "$comment": "Required if workflow creates or modifies GitHub resources. Operations requiring safe-outputs: add-comment, add-labels, add-reviewer, assign-milestone, assign-to-agent, close-discussion, close-issue, close-pull-request, create-agent-task, create-code-scanning-alert, create-discussion, create-issue, create-pull-request, create-pull-request-review-comment, hide-comment, link-sub-issue, missing-tool, noop, push-to-pull-request-branch, threat-detection, update-issue, update-project, update-pull-request, update-release, upload-asset. See documentation for complete details.",
+      "$comment": "Required if workflow creates or modifies GitHub resources. Operations requiring safe-outputs: add-comment, add-labels, add-reviewer, assign-milestone, assign-to-agent, close-discussion, close-issue, close-pull-request, create-agent-task, create-code-scanning-alert, create-discussion, create-issue, create-pull-request, create-pull-request-review-comment, hide-comment, link-sub-issue, lock-issue, missing-tool, noop, push-to-pull-request-branch, threat-detection, update-issue, update-project, update-pull-request, update-release, upload-asset. See documentation for complete details.",
       "properties": {
         "allowed-domains": {
           "type": "array",
@@ -3400,6 +3400,70 @@
             {
               "type": "null",
               "description": "Enable issue closing with default configuration"
+            }
+          ]
+        },
+        "lock-issue": {
+          "oneOf": [
+            {
+              "type": "object",
+              "description": "Configuration for locking GitHub issues with comment from agentic workflow output",
+              "properties": {
+                "required-labels": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "Only lock issues that have all of these labels. Can also use 'labels' as an alias for this field."
+                },
+                "labels": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "Alias for 'required-labels'. Only lock issues that have all of these labels."
+                },
+                "required-title-prefix": {
+                  "type": "string",
+                  "description": "Only lock issues with this title prefix"
+                },
+                "target": {
+                  "type": "string",
+                  "description": "Target for locking: 'triggering' (default, current issue), or '*' (any issue with issue_number field)"
+                },
+                "max": {
+                  "type": "integer",
+                  "description": "Maximum number of issues to lock (default: 1)",
+                  "minimum": 1,
+                  "maximum": 100
+                },
+                "target-repo": {
+                  "type": "string",
+                  "description": "Target repository in format 'owner/repo' for cross-repository operations. Takes precedence over trial target repo settings."
+                },
+                "github-token": {
+                  "$ref": "#/$defs/github_token",
+                  "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
+                }
+              },
+              "additionalProperties": false,
+              "examples": [
+                {
+                  "required-title-prefix": "[spam] "
+                },
+                {
+                  "labels": ["spam", "lock-candidate"],
+                  "max": 2
+                },
+                {
+                  "required-labels": ["resolved"],
+                  "target": "*"
+                }
+              ]
+            },
+            {
+              "type": "null",
+              "description": "Enable issue locking with default configuration"
             }
           ]
         },

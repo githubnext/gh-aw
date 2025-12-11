@@ -11,7 +11,7 @@ tools:
 safe-outputs:
   lock-issue:
     target: "*"
-    required-labels: "spam,lock-candidate"
+    labels: [spam, lock-candidate]
     max: 2
 timeout-minutes: 5
 strict: false
@@ -30,7 +30,7 @@ Create lock_issue outputs to lock issues that have both "spam" and "lock-candida
 3. Output as JSONL format with type "lock_issue"
 
 The lock-issue safe output should:
-- Only lock issues that have BOTH "spam" AND "lock-candidate" labels (configured via required-labels filter)
+- Only lock issues that have BOTH "spam" AND "lock-candidate" labels (configured via labels filter)
 - Lock specific issues by number (target is configured as "*")
 - Add appropriate comments before locking
 - Apply the specified lock reasons
