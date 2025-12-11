@@ -12,7 +12,7 @@ func TestGenerateSerenaLanguageServiceStepsDeterministicOrder(t *testing.T) {
 	// Create a Serena configuration with multiple languages in map form
 	// Maps have non-deterministic iteration order in Go, so this tests
 	// that we properly sort the languages before generating steps
-	tools := map[string]any{
+	tools := NewTools(map[string]any{
 		"serena": map[string]any{
 			"languages": map[string]any{
 				"typescript": map[string]any{},
@@ -21,7 +21,7 @@ func TestGenerateSerenaLanguageServiceStepsDeterministicOrder(t *testing.T) {
 				"rust":       map[string]any{},
 			},
 		},
-	}
+	})
 
 	// Generate steps multiple times and verify they're always in the same order
 	var firstResult []GitHubActionStep
