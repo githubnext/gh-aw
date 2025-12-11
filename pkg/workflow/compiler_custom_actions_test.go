@@ -126,6 +126,10 @@ Test workflow with safe-outputs.
 	}
 
 	// Register a test script with an action path
+	// Save original state first
+	origSource := DefaultScriptRegistry.GetSource("create_issue")
+	origActionPath := DefaultScriptRegistry.GetActionPath("create_issue")
+
 	testScript := `
 const { core } = require('@actions/core');
 core.info('Creating issue');
@@ -136,6 +140,17 @@ core.info('Creating issue');
 		RuntimeModeGitHubScript,
 		"./actions/create-issue",
 	)
+
+	// Restore after test
+	defer func() {
+		if origSource != "" {
+			if origActionPath != "" {
+				DefaultScriptRegistry.RegisterWithAction("create_issue", origSource, RuntimeModeGitHubScript, origActionPath)
+			} else {
+				DefaultScriptRegistry.RegisterWithMode("create_issue", origSource, RuntimeModeGitHubScript)
+			}
+		}
+	}()
 
 	// Compile with dev action mode
 	compiler := NewCompiler(false, "", "1.0.0")
@@ -155,27 +170,55 @@ core.info('Creating issue');
 
 	lockStr := string(lockContent)
 
+	// Extract the create_issue job section for more precise testing
+	createIssueJobStart := strings.Index(lockStr, "  create_issue:")
+	if createIssueJobStart == -1 {
+		t.Fatal("create_issue job not found in lock file")
+	}
+
+	// Find the next job (at same indentation level "  <job_name>:")
+	// Start searching after the job name line
+	searchStart := createIssueJobStart + len("  create_issue:")
+	var createIssueJobSection string
+
+	// Search for next job at root jobs level
+	restOfFile := lockStr[searchStart:]
+	nextJobIdx := -1
+	for idx := 0; idx < len(restOfFile); idx++ {
+		if idx > 0 && restOfFile[idx-1] == '\n' && idx+2 < len(restOfFile) {
+			// Check if we found a new job (two spaces followed by non-space at start of line)
+			if restOfFile[idx:idx+2] == "  " && idx+2 < len(restOfFile) && restOfFile[idx+2] != ' ' {
+				nextJobIdx = idx
+				break
+			}
+		}
+	}
+
+	if nextJobIdx == -1 {
+		createIssueJobSection = lockStr[createIssueJobStart:]
+	} else {
+		createIssueJobSection = lockStr[createIssueJobStart : searchStart+nextJobIdx]
+	}
+
 	// Verify it uses custom action reference instead of actions/github-script
 	if !strings.Contains(lockStr, "uses: ./actions/create-issue") {
 		t.Error("Expected custom action reference './actions/create-issue' not found in lock file")
 	}
 
-	// Verify it does NOT contain actions/github-script
-	if strings.Contains(lockStr, "actions/github-script@") {
-		t.Error("Lock file should not contain 'actions/github-script@' when using dev action mode")
+	// Verify the create_issue job does NOT use actions/github-script for the main action step
+	// (other jobs may still use it, which is fine)
+	if strings.Contains(createIssueJobSection, "actions/github-script@") {
+		t.Error("create_issue job should not use 'actions/github-script@' when using dev action mode")
 	}
 
-	// Verify it has the token input instead of github-token with script
-	if strings.Contains(lockStr, "github-token:") {
-		t.Error("Dev action mode should use 'token:' input, not 'github-token:'")
+	// Verify the create_issue job uses the token input instead of github-token
+	if strings.Contains(createIssueJobSection, "github-token:") && strings.Contains(createIssueJobSection, "uses: ./actions/create-issue") {
+		t.Error("Dev action mode should use 'token:' input for custom action, not 'github-token:'")
 	}
 
-	if !strings.Contains(lockStr, "token:") {
-		t.Error("Expected 'token:' input not found for custom action")
+	if !strings.Contains(createIssueJobSection, "token:") {
+		t.Error("Expected 'token:' input not found in create_issue job for custom action")
 	}
-
-	// Clean up: reset the registry to avoid affecting other tests
-	DefaultScriptRegistry.RegisterWithMode("create_issue", testScript, RuntimeModeGitHubScript)
 }
 
 // TestInlineActionModeCompilation tests workflow compilation with inline mode (default)
@@ -258,8 +301,23 @@ Test fallback to inline mode.
 	}
 
 	// Ensure create_issue is registered without an action path
+	// Save original state first
+	origSource := DefaultScriptRegistry.GetSource("create_issue")
+	origActionPath := DefaultScriptRegistry.GetActionPath("create_issue")
+
 	testScript := `console.log('test');`
 	DefaultScriptRegistry.RegisterWithMode("create_issue", testScript, RuntimeModeGitHubScript)
+
+	// Restore after test
+	defer func() {
+		if origSource != "" {
+			if origActionPath != "" {
+				DefaultScriptRegistry.RegisterWithAction("create_issue", origSource, RuntimeModeGitHubScript, origActionPath)
+			} else {
+				DefaultScriptRegistry.RegisterWithMode("create_issue", origSource, RuntimeModeGitHubScript)
+			}
+		}
+	}()
 
 	// Compile with dev action mode
 	compiler := NewCompiler(false, "", "1.0.0")
