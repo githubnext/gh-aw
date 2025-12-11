@@ -177,8 +177,8 @@ func DetectRuntimeRequirements(workflowData *WorkflowData) []RuntimeRequirement 
 	}
 
 	// Detect from MCP server configurations
-	if workflowData.Tools != nil {
-		detectFromMCPConfigs(workflowData.Tools, requirements)
+	if workflowData.ParsedTools != nil {
+		detectFromMCPConfigs(workflowData.ParsedTools, requirements)
 	}
 
 	// Detect from engine requirements
@@ -277,15 +277,21 @@ func detectRuntimeFromCommand(cmdLine string, requirements map[string]*RuntimeRe
 }
 
 // detectFromMCPConfigs scans MCP server configurations for runtime commands
-func detectFromMCPConfigs(tools map[string]any, requirements map[string]*RuntimeRequirement) {
-	log.Printf("Scanning %d MCP configurations for runtime commands", len(tools))
-	for toolName, tool := range tools {
-		// Special handling for Serena tool - detect language services
-		if toolName == "serena" {
-			detectSerenaLanguages(tool, requirements)
-			continue
-		}
-
+func detectFromMCPConfigs(tools *ToolsConfig, requirements map[string]*RuntimeRequirement) {
+	if tools == nil {
+		return
+	}
+	
+	allTools := tools.ToMap()
+	log.Printf("Scanning %d MCP configurations for runtime commands", len(allTools))
+	
+	// Special handling for Serena tool - detect language services
+	if tools.Serena != nil {
+		detectSerenaLanguages(tools.Serena, requirements)
+	}
+	
+	// Scan custom MCP tools for runtime commands
+	for _, tool := range tools.Custom {
 		// Handle structured MCP config with command field
 		if toolMap, ok := tool.(map[string]any); ok {
 			if command, exists := toolMap["command"]; exists {
@@ -304,7 +310,11 @@ func detectFromMCPConfigs(tools map[string]any, requirements map[string]*Runtime
 }
 
 // detectSerenaLanguages detects runtime requirements from Serena language configuration
-func detectSerenaLanguages(serenaTool any, requirements map[string]*RuntimeRequirement) {
+func detectSerenaLanguages(serenaConfig *SerenaToolConfig, requirements map[string]*RuntimeRequirement) {
+	if serenaConfig == nil {
+		return
+	}
+	
 	runtimeSetupLog.Print("Detecting Serena language requirements")
 
 	// First, ensure UV is detected (Serena requires uvx)
@@ -313,24 +323,16 @@ func detectSerenaLanguages(serenaTool any, requirements map[string]*RuntimeRequi
 		updateRequiredRuntime(uvRuntime, "", requirements)
 	}
 
-	// Parse Serena configuration to get languages
+	// Collect all languages from the configuration
 	var languages []string
-
+	
 	// Handle short syntax: ["go", "typescript"]
-	if langArray, ok := serenaTool.([]any); ok {
-		for _, item := range langArray {
-			if str, ok := item.(string); ok {
-				languages = append(languages, str)
-			}
-		}
-	}
-
-	// Handle object syntax with languages field
-	if toolMap, ok := serenaTool.(map[string]any); ok {
-		if languagesVal, ok := toolMap["languages"].(map[string]any); ok {
-			for langName := range languagesVal {
-				languages = append(languages, langName)
-			}
+	if len(serenaConfig.ShortSyntax) > 0 {
+		languages = serenaConfig.ShortSyntax
+	} else if serenaConfig.Languages != nil {
+		// Handle object syntax with languages field
+		for langName := range serenaConfig.Languages {
+			languages = append(languages, langName)
 		}
 	}
 
@@ -346,20 +348,15 @@ func detectSerenaLanguages(serenaTool any, requirements map[string]*RuntimeRequi
 				// Check if there's a version or go-mod-file specified in language config
 				version := ""
 				goModFile := ""
-				if toolMap, ok := serenaTool.(map[string]any); ok {
-					if languagesVal, ok := toolMap["languages"].(map[string]any); ok {
-						if goConfig, ok := languagesVal["go"].(map[string]any); ok {
-							if v, ok := goConfig["version"].(string); ok {
-								version = v
-							} else if vNum, ok := goConfig["version"].(float64); ok {
-								version = fmt.Sprintf("%.0f", vNum)
-							}
-							if gmf, ok := goConfig["go-mod-file"].(string); ok {
-								goModFile = gmf
-							}
-						}
+				
+				// Access structured config directly - no type assertions needed!
+				if serenaConfig.Languages != nil {
+					if goConfig := serenaConfig.Languages["go"]; goConfig != nil {
+						version = goConfig.Version
+						goModFile = goConfig.GoModFile
 					}
 				}
+				
 				// Create requirement with go-mod-file if specified
 				req := &RuntimeRequirement{
 					Runtime:   goRuntime,
@@ -454,34 +451,27 @@ func GenerateRuntimeSetupSteps(requirements []RuntimeRequirement) []GitHubAction
 
 // GenerateSerenaLanguageServiceSteps creates installation steps for Serena language services
 // This is called after runtime detection to install the language servers needed by Serena
-func GenerateSerenaLanguageServiceSteps(tools map[string]any) []GitHubActionStep {
+func GenerateSerenaLanguageServiceSteps(tools *ToolsConfig) []GitHubActionStep {
 	runtimeSetupLog.Print("Generating Serena language service installation steps")
 	var steps []GitHubActionStep
 
 	// Check if Serena is configured
-	serenaTool, hasSerena := tools["serena"]
-	if !hasSerena {
+	if tools == nil || tools.Serena == nil {
 		return steps
 	}
 
-	// Detect languages from Serena configuration
+	serenaConfig := tools.Serena
+	
+	// Collect all languages from the configuration
 	var languages []string
-
+	
 	// Handle short syntax: ["go", "typescript"]
-	if langArray, ok := serenaTool.([]any); ok {
-		for _, item := range langArray {
-			if str, ok := item.(string); ok {
-				languages = append(languages, str)
-			}
-		}
-	}
-
-	// Handle object syntax with languages field
-	if toolMap, ok := serenaTool.(map[string]any); ok {
-		if languagesVal, ok := toolMap["languages"].(map[string]any); ok {
-			for langName := range languagesVal {
-				languages = append(languages, langName)
-			}
+	if len(serenaConfig.ShortSyntax) > 0 {
+		languages = serenaConfig.ShortSyntax
+	} else if serenaConfig.Languages != nil {
+		// Handle object syntax with languages field
+		for langName := range serenaConfig.Languages {
+			languages = append(languages, langName)
 		}
 	}
 
@@ -497,13 +487,9 @@ func GenerateSerenaLanguageServiceSteps(tools map[string]any) []GitHubActionStep
 			// Install gopls for Go language service
 			// Check if there's a custom gopls version specified
 			goplsVersion := "latest"
-			if toolMap, ok := serenaTool.(map[string]any); ok {
-				if languagesVal, ok := toolMap["languages"].(map[string]any); ok {
-					if goConfig, ok := languagesVal["go"].(map[string]any); ok {
-						if gv, ok := goConfig["gopls-version"].(string); ok {
-							goplsVersion = gv
-						}
-					}
+			if serenaConfig.Languages != nil {
+				if goConfig := serenaConfig.Languages["go"]; goConfig != nil && goConfig.GoplsVersion != "" {
+					goplsVersion = goConfig.GoplsVersion
 				}
 			}
 			steps = append(steps, GitHubActionStep{
