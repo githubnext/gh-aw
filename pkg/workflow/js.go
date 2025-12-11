@@ -246,6 +246,9 @@ var safeOutputTypeValidatorScript string
 //go:embed js/repo_helpers.cjs
 var repoHelpersScript string
 
+//go:embed js/remove_duplicate_title.cjs
+var removeDuplicateTitleScript string
+
 //go:embed js/safe_outputs_config.cjs
 var safeOutputsConfigScript string
 
@@ -314,6 +317,7 @@ func GetJavaScriptSources() map[string]string {
 		"mcp_handler_python.cjs":            mcpHandlerPythonScript,
 		"safe_output_type_validator.cjs":    safeOutputTypeValidatorScript,
 		"repo_helpers.cjs":                  repoHelpersScript,
+		"remove_duplicate_title.cjs":        removeDuplicateTitleScript,
 		"safe_outputs_config.cjs":           safeOutputsConfigScript,
 		"safe_outputs_append.cjs":           safeOutputsAppendScript,
 		"safe_outputs_handlers.cjs":         safeOutputsHandlersScript,
