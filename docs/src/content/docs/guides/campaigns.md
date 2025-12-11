@@ -3,106 +3,33 @@ title: Campaigns
 description: Enterprise-ready patterns for finite, accountable initiatives with governance, tracking, and reporting
 ---
 
-A **campaign** is a finite initiative with explicit ownership, approval gates, budget constraints, and executive visibility. Campaigns solve organizational challenges that regular workflows don't address: accountability, governance, cross-team coordination, and stakeholder reporting.
+A **campaign** is a finite initiative with explicit ownership, approval gates, budget constraints, and executive visibility. Campaigns extend regular workflows with enterprise requirements: accountability, governance, cross-team coordination, stakeholder reporting, and AI-assisted decision-making at scale.
 
-**The AI-Human Collaboration Model**: Campaigns aren't about full automation - they're about **AI-assisted decision-making at scale**. AI discovers and analyzes, humans decide and validate, AI executes with guardrails, everyone learns from outcomes.
+Campaigns use standard primitives (tracker labels, repo-memory, safe-outputs, scheduled triggers) with no special infrastructure required. The key difference is organizational structure: clear ownership with executive sponsors, defined budgets with ROI tracking, approval gates with compliance audit trails, and business metrics for stakeholder reporting.
 
-## Why Campaigns Matter for Enterprises
+## Enterprise Value
 
-**Technical Reality**: Campaigns use the same primitives as regular workflows (tracker-id via labels, repo-memory, safe-outputs, scheduled triggers). No special infrastructure required.
+Campaigns transform automation into sanctioned initiatives that fit enterprise processes. Regular workflows execute operations (triage issues, run tests); campaigns orchestrate business initiatives with measurable outcomes. The pattern: AI discovers and analyzes → humans decide and approve → AI executes with guardrails → humans validate → capture learnings for future campaigns.
 
-**Organizational Value**: Campaigns provide the structure enterprises need for:
+## Regular Workflow vs Campaign
 
-### 1. **Accountability & Ownership**
-- **Regular workflow**: "Who's responsible for this automation?"
-- **Campaign**: "Sarah owns Q1 Security Campaign" - clear ownership, executive sponsor, RACI model
+| Aspect | Regular Workflow | Campaign |
+|--------|------------------|----------|
+| **Duration** | One run or recurring forever | Finite (days to months) |
+| **Goal** | Execute operation | Achieve business outcome |
+| **Ownership** | Team/developer | Named owner + executive sponsor |
+| **Approval** | Code review | Formal approval gate, change control |
+| **Budget** | Unknown ongoing cost | Defined budget, ROI tracking |
+| **Memory** | Stateless (logs only) | Stateful (repo-memory for audit) |
+| **Tracking** | Individual run status | KPIs, executive dashboards |
+| **Governance** | Standard CI/CD | Compliance audit trail, review gates |
+| **Coordination** | Independent execution | Cross-team/repo coordination |
 
-### 2. **Approval & Governance**
-- **Regular workflow**: Runs indefinitely, unclear approval status
-- **Campaign**: Explicit start/end, approval gate before launch, compliance audit trail, review checkpoints
+**Examples:**
 
-### 3. **Budget & Resource Allocation**
-- **Regular workflow**: Unknown ongoing cost
-- **Campaign**: "Q1 campaign budget: $5K AI cost, 200 hours" - finite budget, ROI calculation, cost tracking
+*Regular workflow* - `daily-issue-triage.md`: Runs every day at 9 AM processing issues. Dev team owns it. No budget tracking or executive reporting.
 
-### 4. **Executive Reporting**
-- **Regular workflow**: "The bot processed 47 issues today"
-- **Campaign**: "Q1 Security: 197/200 vulns fixed (98.5%), 2 weeks ahead of schedule, $12K saved vs manual" - KPIs, dashboards, business impact
-
-### 5. **Cross-Team Coordination**
-- **Regular workflow**: Each team's isolated automation
-- **Campaign**: "Org-wide modernization across 50 repos, 10 teams" - centralized tracking, dependencies, coordination
-
-### 6. **Risk Management**
-- **Regular workflow**: Continues running regardless of business context changes
-- **Campaign**: Completion criteria, periodic review, can pause/stop/pivot, change control
-
-### 7. **Change Management**
-- **Regular workflow**: "The system does stuff automatically" (shadow IT)
-- **Campaign**: "Launching Q1 modernization campaign next week" - stakeholder communication, expectation management, rollout planning
-
-### 8. **AI-Human Collaboration**
-- **Regular workflow**: Fully automated or fully manual
-- **Campaign**: AI discovers & proposes → Humans decide & approve → AI executes with guardrails → Humans validate → AI learns from outcomes
-
-**The Enterprise Reality**: Without campaigns, you get shadow automation that executives don't understand or trust. With campaigns, you get sanctioned, tracked, reportable initiatives that fit enterprise processes for budgeting, approval, governance, and compliance.
-
-**The AI Value**: Campaigns leverage AI for intelligence (what needs fixing?) and execution (safe automated changes), while keeping humans in control for judgment (what should we fix?) and validation (did it work?).
-
-## What Makes a Campaign Different
-
-**Campaigns are characterized by**:
-- **Finite scope**: Specific goal with completion criteria ("fix 200 security issues in Q1")
-- **Clear ownership**: Named owner, executive sponsor, approval chain
-- **Budget constraints**: Defined cost limits, ROI tracking
-- **AI-human collaboration**: AI discovers/proposes, humans decide/validate, AI executes with guardrails
-- **Persistent memory**: Progress in repo-memory for audit trail and learning
-- **Coordinated work**: Multiple tasks/teams linked via campaign ID
-- **Executive reporting**: KPIs, dashboards, business impact metrics
-- **Governance**: Approval gates, review checkpoints, change control
-- **Continuous learning**: Capture outcomes to improve future campaigns
-
-**Regular workflows** execute operations (triage issues, run tests, deploy code). **Campaigns** orchestrate business initiatives with the accountability, tracking, and AI-assisted decision-making that enterprises require.
-
-### Regular Workflow vs Campaign
-| **Duration** | One run or recurring forever | Finite (days to months) with defined end date |
-| **Goal** | Execute operation | Achieve business outcome with measurable impact |
-| **Ownership** | Team/developer owns automation | Named owner + executive sponsor |
-| **Approval** | Code review | Formal approval gate, change control board |
-| **Budget** | Unknown ongoing cost | Defined budget, cost tracking, ROI calculation |
-| **Memory** | Stateless (logs only) | Stateful (repo-memory for audit trail) |
-| **Tracking** | Individual run status | Aggregated progress, KPIs, executive dashboards |
-| **Reporting** | Run logs for developers | Business impact reports for stakeholders |
-| **Governance** | Standard CI/CD process | Compliance requirements, audit trail, review gates |
-| **Coordination** | Independent execution | Cross-team/repo coordination, dependencies |
-| **Completion** | N/A (operational) | Clear end state, success criteria, retrospective |
-
-**Example - Regular Workflow:**
-```yaml
-daily-issue-triage.md
-- Runs: Every day at 9 AM, forever
-- Goal: Process today's issues (ongoing operations)
-- Owner: Dev team
-- Budget: Unknown ongoing cost
-- Memory: None (each run independent)
-- Tracking: Workflow run logs
-- Reporting: Developer-facing only
-```
-
-**Example - Campaign:**
-```yaml
-campaign-security-q1-2025.md
-- Runs: Launcher once, then workers over 6 weeks
-- Goal: Fix 200 critical vulnerabilities (business requirement)
-- Owner: Security lead + VP Engineering sponsor
-- Budget: $8K AI cost, approved by finance
-- Approval: Security review board approved
-- Memory: Baseline, daily metrics, learnings for audit
-- Tracking: Epic issue + daily reports + executive dashboard
-- Reporting: Weekly to exec team: progress, ETA, blockers, ROI
-- Completion: When 200 vulns fixed → final report, retrospective
-- Governance: Change control process, compliance documentation
-```
+*Campaign* - `campaign-security-q1-2025.md`: Launcher runs once, workers execute over 6 weeks to fix 200 vulnerabilities. Security lead owns it with VP Engineering sponsor. $8K approved budget. Weekly reporting to execs with progress, ETA, and ROI metrics. Baseline, daily metrics, and learnings stored in repo-memory for audit.
 
 ## Enterprise Campaign Patterns
 
@@ -194,113 +121,25 @@ on:
 # External security scanner triggers campaign
 ```
 
-## What Are Campaigns?
-
-Campaigns are **coordination patterns** for enterprise initiatives that require:
-
-- **Cross-repo orchestration**: Changes affecting 100+ repositories
-- **Human-AI collaboration**: AI analyzes at scale, humans make decisions, AI executes approved actions
-- **Governance & approval chains**: CISO approval, change control board, compliance audit trails
-- **Multi-team coordination**: Central command center tracking work across teams
-- **Business context**: Budget tracking, ROI measurement, executive reporting
-- **Learning over time**: Intelligence that improves with each campaign
-
-Campaigns use the same primitives as regular workflows (tracker-id, repo-memory, safe-outputs) but organize them into patterns that enterprises need for accountability, governance, and coordination.
-
 ## When to Use Campaigns
 
-Use campaigns when you need:
+Use campaigns for:
 
-**Cross-Repository Coordination**
-- Rolling out changes across 50-200+ repositories
-- Dependency-aware phased execution
-- Centralized progress tracking
-- Example: "Update all repos to Node 20"
-
-**Governance & Compliance**
-- Approval chains (security team → engineering → change control)
-- Audit trail with business justification
-- Compliance framework mapping (SOC2, GDPR, HIPAA)
-- Example: "Remediate 200 security vulnerabilities before audit"
-
-**Incident Response**
-- Multi-team coordination under SLA pressure
-- Risk-tiered decision gates (low/medium/high risk actions)
-- Stakeholder communication every 30 minutes
-- Post-mortem generation with timeline
-- Example: "Production API down affecting 5 services"
-
-**Human-in-Loop at Scale**
-- AI analyzes hundreds of items
-- Generates risk-tiered recommendations
-- Humans review and approve by risk tier
-- AI executes only approved actions
-- Example: "AI triages 500 issues, humans decide which 50 to fix"
-
-**Organizational Learning**
-- Cross-initiative intelligence
-- Pattern recognition across campaigns
-- Predictive recommendations
-- Example: "Analyze 20 security audits to improve future campaigns"
+- **Cross-repo orchestration**: Rolling out changes across 50-200+ repositories with dependency-aware phased execution
+- **Governance & compliance**: Approval chains, audit trails, compliance framework mapping (SOC2, GDPR, HIPAA)
+- **Incident response**: Multi-team coordination under SLA pressure with risk-tiered decision gates
+- **Human-in-loop at scale**: AI analyzes hundreds of items, generates risk-tiered recommendations, humans approve, AI executes
+- **Organizational learning**: Cross-initiative intelligence and pattern recognition to improve future campaigns
 
 ## Available Campaign Patterns
 
-The repository includes five campaign patterns demonstrating enterprise coordination needs:
+See `.github/workflows/*.md` for complete examples:
 
-### 1. **incident-response.md**
-Multi-team incident coordination under SLA pressure
-
-**Use case**: Production outage affecting multiple services and teams
-
-**Pattern**: Command center issue → AI analysis with hypotheses → Risk-tiered recommendations (low/medium/high) → Human approval gates → AI executes approved actions → Status updates every 30min → Post-mortem generation
-
-**Key features**: SLA tracking, approval chains by risk level, stakeholder communication, timeline for audit
-
-### 2. **org-wide-rollout.md**
-Cross-repository changes with dependency awareness
-
-**Use case**: Update 100+ repos (e.g., Node 18 → Node 20, add CODEOWNERS)
-
-**Pattern**: Discover repos → Build dependency graph → Phased batches (dependencies first) → Approval between batches → Automated rollback if failure threshold exceeded → Learning capture
-
-**Key features**: Dependency-aware sequencing, batch approval gates, rollback capability, per-repo tracking
-
-### 3. **security-compliance.md**
-Security remediation with compliance audit trail
-
-**Use case**: Fix 200 vulnerabilities before SOC2/GDPR/HIPAA audit
-
-**Pattern**: Scan & baseline → Prioritize by severity and business impact → CISO approval → Remediation with CVE documentation → Weekly executive reporting → Compliance evidence package
-
-**Key features**: Compliance framework mapping, executive sponsor approval, audit documentation, cost tracking
-
-### 4. **human-ai-collaboration.md** (Core Pattern)
-AI-assisted decision-making at scale
-
-**Use case**: AI analyzes 500 items, humans decide actions
-
-**Pattern**: AI analyzes items → Generates risk-tiered recommendations (low 87 items, medium 45, high 12, critical 3) → Humans review and approve by tier (auto-approve low, team lead medium, architect high, defer critical) → AI executes approved → Humans validate → AI learns from outcomes
-
-**Key features**: Risk-based approval tiers, recommendation accuracy tracking, decision learning
-
-### 5. **intelligence.md** (Cross-Campaign Learning)
-Organizational intelligence from past campaigns
-
-**Use case**: Learn from 20+ campaigns to improve future ones
-
-**Pattern**: Query all campaign data → Analyze by type (incident, rollout, security) → Generate trends → Predict optimal timing → Create playbooks → Organizational maturity model
-
-**Key features**: Pattern recognition, predictive recommendations, compounding value (each campaign makes next one smarter)
-
-## Campaign Examples
-
-See the actual campaign workflows in `.github/workflows/*.md` for complete, runnable examples:
-
-- **incident-response.md** - Multi-team incident coordination
-- **org-wide-rollout.md** - Cross-repo changes with phased execution
-- **security-compliance.md** - Compliance with governance
-- **human-ai-collaboration.md** - AI-assisted decision-making pattern
-- **intelligence.md** - Cross-campaign learning
+- **incident-response.md**: Multi-team coordination under SLA pressure with risk-tiered recommendations and approval gates
+- **org-wide-rollout.md**: Cross-repo changes with dependency-aware phased execution and rollback capability
+- **security-compliance.md**: Security remediation with CISO approval and compliance audit trail
+- **human-ai-collaboration.md**: AI analyzes at scale, generates risk-tiered recommendations, humans approve, AI executes
+- **intelligence.md**: Cross-campaign learning with pattern recognition and predictive recommendations
 
 ## Recommended Default Wiring for Campaigns
 
@@ -701,43 +540,15 @@ memory/campaigns/
 
 ### Campaign IDs and Labels
 
-### Campaign IDs and Labels
+**Campaign ID Format**: `<type>-<identifier>` (e.g., `security-q1-2025`, `modernization-winter2025`)
 
-**Campaign ID Format**: `<type>-<identifier>`
-- Examples: `security-q1-2025`, `issue-cleanup-12345`, `modernization-winter2025`
-- Applied as label: `campaign:security-q1-2025`
-- Links all related issues, PRs, and memory data
+Apply as label `campaign:<id>` to link all related issues, PRs, and memory data. Use `campaign-tracker` label for epic issues.
 
-**How Campaigns Use Labels**:
-```yaml
-# Launcher creates epic
-create-issue:
-  title: "Campaign: Security Q1 2025"
-  labels: ["campaign-tracker", "epic", "campaign:security-q1-2025"]
-
-# Launcher creates task issues  
-create-issue:
-  title: "Fix vulnerability in auth module"
-  labels: ["security", "campaign:security-q1-2025"]
-
-# Workers filter by campaign label
-if issue has labels: ["campaign:security-q1-2025", "type:vulnerability"]
-  → process this issue
-```
-
-**Query Campaign Work**:
+**Query campaign work**:
 ```bash
-# All campaign issues
-gh issue list --label "campaign:security-q1-2025"
-
-# All campaign PRs
-gh pr list --label "campaign:security-q1-2025"
-
-# Find campaign epic
-gh issue list --label "campaign-tracker" --label "campaign:security-q1-2025"
-
-# Track active campaigns
-gh issue list --label "campaign-tracker" --state open
+gh issue list --label "campaign:security-q1-2025"  # All campaign issues
+gh pr list --label "campaign:security-q1-2025"     # All campaign PRs
+gh issue list --label "campaign-tracker" --state open  # Active campaigns
 ```
 
 ## How Campaigns Work
@@ -977,90 +788,23 @@ Campaigns store persistent data in repo-memory:
 
 ## Best Practices
 
-### Planning
+**Planning**: Define measurable goals and completion criteria. Identify stakeholders (owner, exec sponsor, approvers). Establish budget with ROI target. Get change control and budget approval. Estimate duration based on similar past campaigns from repo-memory learnings.
 
-- **Define measurable goals**: "Fix 200 vulns by March 31" not "improve security"
-- **Set completion criteria**: Clear definition of done, success metrics
-- **Identify stakeholders**: Owner, exec sponsor, approvers, teams involved
-- **Establish budget**: AI costs, runner time, engineering hours, ROI target
-- **Get approval**: Change control board, security review, budget approval
-- **Estimate duration**: Based on similar past campaigns (use repo-memory learnings)
-- **Define governance**: Review checkpoints, escalation paths, pause criteria
+**Execution**: Store baseline in repo-memory for audit trail. Use consistent `campaign:<id>` labeling. Update epic regularly with progress. Handle failures gracefully by logging errors and escalating blockers. Track costs for budget compliance.
 
-### Execution
+**Monitoring**: Run monitor daily to catch stalled work. Track velocity for realistic ETAs. Identify blockers stuck >7 days for escalation. Alert stakeholders when campaigns are at risk.
 
-- **Start with baseline**: Store initial state in repo-memory for audit trail
-- **Use consistent labeling**: `campaign:<id>` on all issues/PRs for tracking
-- **Update epic regularly**: Workers comment progress, monitor posts daily reports
-- **Handle failures gracefully**: Log errors, document blockers, escalate when needed
-- **Preserve context**: Store decisions, rationale, changes in repo-memory
-- **Track costs**: Monitor AI usage, runner time for budget compliance
-- **Communicate status**: Regular updates to stakeholders on progress/blockers
+**Completion**: Generate final report with metrics, learnings, and ROI in repo-memory. Calculate ROI (campaign cost vs manual effort saved vs business value). Document what worked and didn't work to improve future campaigns. Preserve audit trail for compliance.
 
-### Monitoring
+**Learning**: Compare campaigns over time to measure improvement. Build playbooks based on learnings. Share successful patterns as organizational templates. Maintain centralized knowledge base of campaign learnings.
 
-- **Daily check-ins**: Monitor runs daily to catch stalled work early
-- **Track velocity**: Tasks per day → realistic ETA for stakeholders
-- **Identify blockers**: What's stuck >7 days → needs escalation
-- **Alert stakeholders**: Automated notifications when campaigns at risk
-- **Budget tracking**: Compare actual vs budgeted costs, forecast overruns
-- **Adjust as needed**: Campaigns can pause/pivot based on learnings
+## Decision Guide
 
-### Completion
+**Use campaigns** for finite business goals requiring executive approval, budget tracking, cross-team coordination, stakeholder reporting, governance/compliance, or organizational learning.
 
-- **Generate final report**: Metrics, learnings, ROI in repo-memory for audit
-- **Calculate ROI**: Cost of campaign vs manual effort saved vs business value
-- **Archive campaign**: Close epic, mark complete in systems
-- **Document learnings**: What worked, what didn't → improve next campaigns
-- **Preserve audit trail**: Keep all issues/PRs/memory for compliance
-- **Executive summary**: Business impact, outcomes achieved, lessons learned
-- **Celebrate wins**: Share success with team/stakeholders, recognize contributors
+**Use regular workflows** for operational automation, single-team scope, developer-only audience, standard CI/CD, or simple reporting.
 
-### Learning & Improvement
-
-- **Compare campaigns**: Q1 vs Q2 security → getting faster? More efficient?
-- **Build playbooks**: "Security campaign playbook" based on learnings
-- **Share patterns**: Successful campaign structures → templates for org
-- **Measure ROI trends**: Are campaigns becoming more cost-effective over time?
-- **Iterate governance**: Refine approval/review processes based on experience
-- **Knowledge base**: Centralized repository of campaign learnings for organization
-
-## Decision Guide: When to Use Campaigns
-
-### Use a Campaign When:
-
-✅ **Enterprise requirements**: Need approval, budget tracking, executive reporting, compliance
-✅ **Clear ownership needed**: Named owner and executive sponsor required
-✅ **Cross-team coordination**: Multiple teams/repos must work together
-✅ **Stakeholder visibility**: Non-technical stakeholders need progress updates
-✅ **Finite business goal**: Specific outcome with measurable success ("fix 200 vulns")
-✅ **Budget constraints**: Need to track costs, calculate ROI, justify spending
-✅ **Governance required**: Audit trail, compliance, change control processes
-✅ **Learning desired**: Capture what worked/didn't for future similar initiatives
-
-### Use Regular Workflow When:
-
-❌ **Operational automation**: Ongoing tasks with no defined end state
-❌ **Single team scope**: No cross-team coordination needed
-❌ **Developer-only audience**: No need for executive/stakeholder visibility
-❌ **No budget tracking**: Cost tracking not required
-❌ **Standard CI/CD**: Fits normal development process, no special approval
-❌ **Simple reporting**: Run logs sufficient, no business metrics needed
-
-### Examples:
-
-| Scenario | Use Campaign? | Why |
-|----------|--------------|-----|
-| Fix 200 security vulns in Q1 | ✅ Yes | Executive mandate, budget approval, compliance requirement, cross-team effort |
-| Daily issue triage | ❌ No | Ongoing ops, no end state, dev team only |
-| Update deps in 100 repos (org-wide) | ✅ Yes | Enterprise scale, exec sponsor, budget, coordination, stakeholder reporting |
-| Format code in one PR | ❌ No | Single task, quick, no tracking/governance needed |
-| SOC2 compliance remediation | ✅ Yes | Audit requirement, exec visibility, compliance documentation, budget |
-| Test new GitHub feature | ❌ No | Developer experiment, no business impact |
-| Migrate 30 services to new platform | ✅ Yes | Strategic initiative, exec sponsor, budget, multi-team, phased rollout |
-| Run tests on every PR | ❌ No | Standard CI/CD, ongoing, no special governance |
-
-**Key insight**: If you need to explain it to executives, get budget approval, or track business ROI → it's a campaign. If it's normal developer automation → it's a regular workflow.
+**Examples**: Fix 200 security vulns before audit (campaign). Update 100 repos org-wide (campaign). Migrate services to new platform (campaign). Daily issue triage (workflow). Run tests on PRs (workflow).
 
 ## Quick Start
 
