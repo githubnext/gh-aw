@@ -14,7 +14,16 @@ steps:
   - name: Install dependencies
     run: make deps-dev
   - name: Install binary as 'gh-aw'
-    run: make install
+    run: |
+      # Check if gh-aw extension is already installed
+      if gh extension list | grep -q "githubnext/gh-aw"; then
+        echo "gh-aw extension already installed, upgrading..."
+        gh extension upgrade gh-aw || true
+      else
+        echo "Installing gh-aw extension..."
+        make install
+      fi
+      gh aw --version
     env:
       GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
   - name: Start MCP server
