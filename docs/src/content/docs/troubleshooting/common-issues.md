@@ -34,6 +34,22 @@ GitHub Codespaces may have limited permissions for installing GitHub CLI extensi
 1. Try the standalone installer (recommended for Codespaces)
 2. Or grant additional permissions to your Codespace token
 
+## Platform Compatibility
+
+### Azure DevOps / GitLab / Bitbucket Not Supported
+
+GitHub Agentic Workflows requires GitHub as the repository host and execution environment. External platforms like Azure DevOps Repos, GitLab, and Bitbucket are not directly supported.
+
+**Workarounds:**
+
+1. **Mirror your repository to GitHub** (recommended) - Set up automatic syncing and run workflows on the GitHub mirror. See [Working with External Repositories](/gh-aw/guides/external-repos/#mirror-to-github-recommended).
+
+2. **SideRepoOps pattern** - Host workflows in a separate GitHub repository that clones and analyzes your external repository. See [SideRepoOps Guide](/gh-aw/guides/siderepoops/).
+
+3. **Custom MCP integration** - Create an MCP server that wraps your platform's API. See [Working with External Repositories](/gh-aw/guides/external-repos/).
+
+For complete guidance on working with external repositories, see [Working with External Repositories](/gh-aw/guides/external-repos/).
+
 ## Workflow Compilation Issues
 
 ### Workflow Won't Compile
