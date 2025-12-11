@@ -159,6 +159,9 @@ async function main() {
       break;
 
     case "workflow_dispatch":
+      // Add the actor who triggered the workflow_dispatch to allowed aliases
+      allowedAliases.push(actor);
+
       // For workflow dispatch: check for release_url or release_id in inputs
       if (context.payload.inputs) {
         const releaseUrl = context.payload.inputs.release_url;
@@ -178,6 +181,10 @@ async function main() {
               const name = release.name || release.tag_name || "";
               const body = release.body || "";
               text = `${name}\n\n${body}`;
+              // Add release author to allowed aliases
+              if (release.author?.login) {
+                allowedAliases.push(release.author.login);
+              }
             } catch (error) {
               core.warning(`Failed to fetch release from URL: ${error instanceof Error ? error.message : String(error)}`);
             }
@@ -193,6 +200,10 @@ async function main() {
             const name = release.name || release.tag_name || "";
             const body = release.body || "";
             text = `${name}\n\n${body}`;
+            // Add release author to allowed aliases
+            if (release.author?.login) {
+              allowedAliases.push(release.author.login);
+            }
           } catch (error) {
             core.warning(`Failed to fetch release by ID: ${error instanceof Error ? error.message : String(error)}`);
           }

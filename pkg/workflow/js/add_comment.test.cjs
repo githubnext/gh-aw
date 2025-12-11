@@ -94,6 +94,7 @@ describe("add_comment.cjs", () => {
 
     // Reset environment variables
     delete process.env.GH_AW_AGENT_OUTPUT;
+    delete process.env.GITHUB_WORKFLOW;
 
     // Reset context to default state
     global.context.eventName = "issues";
@@ -937,5 +938,333 @@ describe("add_comment.cjs", () => {
     delete process.env.GH_AW_SAFE_OUTPUT_MESSAGES;
     delete process.env.GH_AW_WORKFLOW_SOURCE;
     delete process.env.GH_AW_WORKFLOW_SOURCE_URL;
+  });
+
+  it("should hide older comments when hide-older-comments is enabled", async () => {
+    setAgentOutput({
+      items: [
+        {
+          type: "add_comment",
+          body: "New comment from workflow",
+        },
+      ],
+    });
+    process.env.GITHUB_WORKFLOW = "test-workflow-123";
+    process.env.GH_AW_HIDE_OLDER_COMMENTS = "true";
+    global.context.eventName = "issues";
+    global.context.payload.issue = { number: 100 };
+
+    // Mock existing comments with the same workflow-id
+    mockGithub.rest.issues.listComments = vi.fn().mockResolvedValue({
+      data: [
+        {
+          id: 1,
+          node_id: "IC_oldcomment1",
+          body: "Old comment 1\n\n<!-- workflow-id: test-workflow-123 -->",
+        },
+        {
+          id: 2,
+          node_id: "IC_oldcomment2",
+          body: "Old comment 2\n\n<!-- workflow-id: test-workflow-123 -->",
+        },
+        {
+          id: 3,
+          node_id: "IC_othercomment",
+          body: "Comment from different workflow",
+        },
+      ],
+    });
+
+    // Mock the minimizeComment GraphQL mutation
+    mockGithub.graphql = vi.fn().mockResolvedValue({
+      minimizeComment: {
+        minimizedComment: {
+          isMinimized: true,
+        },
+      },
+    });
+
+    const mockNewComment = {
+      id: 4,
+      html_url: "https://github.com/testowner/testrepo/issues/100#issuecomment-4",
+    };
+    mockGithub.rest.issues.createComment.mockResolvedValue({ data: mockNewComment });
+
+    // Execute the script
+    await eval(`(async () => { ${createCommentScript} })()`);
+
+    // Verify that listComments was called
+    expect(mockGithub.rest.issues.listComments).toHaveBeenCalledWith({
+      owner: "testowner",
+      repo: "testrepo",
+      issue_number: 100,
+      per_page: 100,
+      page: 1,
+    });
+
+    // Verify that minimizeComment was called twice (for the two matching comments)
+    expect(mockGithub.graphql).toHaveBeenCalledTimes(2);
+    expect(mockGithub.graphql).toHaveBeenCalledWith(
+      expect.stringContaining("minimizeComment"),
+      expect.objectContaining({
+        nodeId: "IC_oldcomment1",
+        classifier: "OUTDATED",
+      })
+    );
+    expect(mockGithub.graphql).toHaveBeenCalledWith(
+      expect.stringContaining("minimizeComment"),
+      expect.objectContaining({
+        nodeId: "IC_oldcomment2",
+        classifier: "OUTDATED",
+      })
+    );
+
+    // Verify that the new comment was created
+    expect(mockGithub.rest.issues.createComment).toHaveBeenCalledWith(
+      expect.objectContaining({
+        owner: "testowner",
+        repo: "testrepo",
+        issue_number: 100,
+        body: expect.stringContaining("New comment from workflow"),
+      })
+    );
+
+    // Clean up
+    delete process.env.GITHUB_WORKFLOW;
+    delete process.env.GH_AW_HIDE_OLDER_COMMENTS;
+  });
+
+  it("should not hide comments when hide-older-comments is not enabled", async () => {
+    setAgentOutput({
+      items: [
+        {
+          type: "add_comment",
+          body: "New comment without hiding",
+        },
+      ],
+    });
+    process.env.GITHUB_WORKFLOW = "test-workflow-456";
+    // Note: GH_AW_HIDE_OLDER_COMMENTS is not set
+    global.context.eventName = "issues";
+    global.context.payload.issue = { number: 200 };
+
+    mockGithub.rest.issues.listComments = vi.fn();
+    mockGithub.graphql = vi.fn();
+
+    const mockNewComment = {
+      id: 5,
+      html_url: "https://github.com/testowner/testrepo/issues/200#issuecomment-5",
+    };
+    mockGithub.rest.issues.createComment.mockResolvedValue({ data: mockNewComment });
+
+    // Execute the script
+    await eval(`(async () => { ${createCommentScript} })()`);
+
+    // Verify that listComments was NOT called (hide feature not enabled)
+    expect(mockGithub.rest.issues.listComments).not.toHaveBeenCalled();
+    expect(mockGithub.graphql).not.toHaveBeenCalled();
+
+    // Verify that the new comment was created
+    expect(mockGithub.rest.issues.createComment).toHaveBeenCalled();
+
+    // Clean up
+    delete process.env.GITHUB_WORKFLOW;
+  });
+
+  it("should skip hiding when workflow-id is not available", async () => {
+    setAgentOutput({
+      items: [
+        {
+          type: "add_comment",
+          body: "Comment without workflow-id",
+        },
+      ],
+    });
+    // Note: GITHUB_WORKFLOW is not set
+    process.env.GH_AW_HIDE_OLDER_COMMENTS = "true";
+    global.context.eventName = "issues";
+    global.context.payload.issue = { number: 300 };
+
+    mockGithub.rest.issues.listComments = vi.fn();
+    mockGithub.graphql = vi.fn();
+
+    const mockNewComment = {
+      id: 6,
+      html_url: "https://github.com/testowner/testrepo/issues/300#issuecomment-6",
+    };
+    mockGithub.rest.issues.createComment.mockResolvedValue({ data: mockNewComment });
+
+    // Execute the script
+    await eval(`(async () => { ${createCommentScript} })()`);
+
+    // Verify that hiding was skipped (no workflow-id available)
+    expect(mockGithub.rest.issues.listComments).not.toHaveBeenCalled();
+    expect(mockGithub.graphql).not.toHaveBeenCalled();
+
+    // Verify that the new comment was created
+    expect(mockGithub.rest.issues.createComment).toHaveBeenCalled();
+
+    // Clean up
+    delete process.env.GH_AW_HIDE_OLDER_COMMENTS;
+  });
+
+  it("should respect allowed-reasons when hiding comments", async () => {
+    setAgentOutput({
+      items: [
+        {
+          type: "add_comment",
+          body: "New comment with allowed reasons",
+        },
+      ],
+    });
+    process.env.GITHUB_WORKFLOW = "test-workflow-789";
+    process.env.GH_AW_HIDE_OLDER_COMMENTS = "true";
+    process.env.GH_AW_ALLOWED_REASONS = JSON.stringify(["OUTDATED", "RESOLVED"]);
+    global.context.eventName = "issues";
+    global.context.payload.issue = { number: 400 };
+
+    // Mock existing comments
+    mockGithub.rest.issues.listComments = vi.fn().mockResolvedValue({
+      data: [
+        {
+          id: 1,
+          node_id: "IC_oldcomment1",
+          body: "Old comment\n\n<!-- workflow-id: test-workflow-789 -->",
+        },
+      ],
+    });
+
+    // Mock the minimizeComment GraphQL mutation
+    mockGithub.graphql = vi.fn().mockResolvedValue({
+      minimizeComment: {
+        minimizedComment: {
+          isMinimized: true,
+        },
+      },
+    });
+
+    const mockNewComment = {
+      id: 2,
+      html_url: "https://github.com/testowner/testrepo/issues/400#issuecomment-2",
+    };
+    mockGithub.rest.issues.createComment.mockResolvedValue({ data: mockNewComment });
+
+    // Execute the script
+    await eval(`(async () => { ${createCommentScript} })()`);
+
+    // Verify that minimizeComment was called with OUTDATED (the default)
+    expect(mockGithub.graphql).toHaveBeenCalledWith(
+      expect.stringContaining("minimizeComment"),
+      expect.objectContaining({
+        nodeId: "IC_oldcomment1",
+        classifier: "OUTDATED",
+      })
+    );
+
+    // Clean up
+    delete process.env.GITHUB_WORKFLOW;
+    delete process.env.GH_AW_HIDE_OLDER_COMMENTS;
+    delete process.env.GH_AW_ALLOWED_REASONS;
+  });
+
+  it("should skip hiding when reason is not in allowed-reasons", async () => {
+    setAgentOutput({
+      items: [
+        {
+          type: "add_comment",
+          body: "New comment with restricted reasons",
+        },
+      ],
+    });
+    process.env.GITHUB_WORKFLOW = "test-workflow-999";
+    process.env.GH_AW_HIDE_OLDER_COMMENTS = "true";
+    // Only allow SPAM, but default reason is OUTDATED
+    process.env.GH_AW_ALLOWED_REASONS = JSON.stringify(["SPAM"]);
+    global.context.eventName = "issues";
+    global.context.payload.issue = { number: 500 };
+
+    mockGithub.rest.issues.listComments = vi.fn();
+    mockGithub.graphql = vi.fn();
+
+    const mockNewComment = {
+      id: 3,
+      html_url: "https://github.com/testowner/testrepo/issues/500#issuecomment-3",
+    };
+    mockGithub.rest.issues.createComment.mockResolvedValue({ data: mockNewComment });
+
+    // Execute the script
+    await eval(`(async () => { ${createCommentScript} })()`);
+
+    // Verify that hiding was skipped (OUTDATED not in allowed reasons)
+    expect(mockGithub.rest.issues.listComments).not.toHaveBeenCalled();
+    expect(mockGithub.graphql).not.toHaveBeenCalled();
+
+    // Verify that the new comment was still created
+    expect(mockGithub.rest.issues.createComment).toHaveBeenCalled();
+
+    // Clean up
+    delete process.env.GITHUB_WORKFLOW;
+    delete process.env.GH_AW_HIDE_OLDER_COMMENTS;
+    delete process.env.GH_AW_ALLOWED_REASONS;
+  });
+
+  it("should support lowercase allowed-reasons", async () => {
+    setAgentOutput({
+      items: [
+        {
+          type: "add_comment",
+          body: "New comment with lowercase reasons",
+        },
+      ],
+    });
+    process.env.GITHUB_WORKFLOW = "test-workflow-lowercase";
+    process.env.GH_AW_HIDE_OLDER_COMMENTS = "true";
+    // Use lowercase reasons
+    process.env.GH_AW_ALLOWED_REASONS = JSON.stringify(["outdated", "resolved"]);
+    global.context.eventName = "issues";
+    global.context.payload.issue = { number: 600 };
+
+    // Mock existing comments
+    mockGithub.rest.issues.listComments = vi.fn().mockResolvedValue({
+      data: [
+        {
+          id: 1,
+          node_id: "IC_oldcomment1",
+          body: "Old comment\n\n<!-- workflow-id: test-workflow-lowercase -->",
+        },
+      ],
+    });
+
+    // Mock the minimizeComment GraphQL mutation
+    mockGithub.graphql = vi.fn().mockResolvedValue({
+      minimizeComment: {
+        minimizedComment: {
+          isMinimized: true,
+        },
+      },
+    });
+
+    const mockNewComment = {
+      id: 4,
+      html_url: "https://github.com/testowner/testrepo/issues/600#issuecomment-4",
+    };
+    mockGithub.rest.issues.createComment.mockResolvedValue({ data: mockNewComment });
+
+    // Execute the script
+    await eval(`(async () => { ${createCommentScript} })()`);
+
+    // Verify that minimizeComment was called with OUTDATED (uppercase, normalized)
+    expect(mockGithub.graphql).toHaveBeenCalledWith(
+      expect.stringContaining("minimizeComment"),
+      expect.objectContaining({
+        nodeId: "IC_oldcomment1",
+        classifier: "OUTDATED",
+      })
+    );
+
+    // Clean up
+    delete process.env.GITHUB_WORKFLOW;
+    delete process.env.GH_AW_HIDE_OLDER_COMMENTS;
+    delete process.env.GH_AW_ALLOWED_REASONS;
   });
 });

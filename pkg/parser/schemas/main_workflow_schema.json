@@ -3518,6 +3518,18 @@
                   "type": "boolean",
                   "const": true,
                   "description": "Target discussion comments instead of issue/PR comments. Must be true if present."
+                },
+                "hide-older-comments": {
+                  "type": "boolean",
+                  "description": "When true, minimizes/hides all previous comments from the same agentic workflow (identified by tracker-id) before creating the new comment. Default: false."
+                },
+                "allowed-reasons": {
+                  "type": "array",
+                  "description": "List of allowed reasons for hiding older comments when hide-older-comments is enabled. Default: all reasons allowed (spam, abuse, off_topic, outdated, resolved).",
+                  "items": {
+                    "type": "string",
+                    "enum": ["spam", "abuse", "off_topic", "outdated", "resolved"]
+                  }
                 }
               },
               "additionalProperties": false,
@@ -3585,6 +3597,10 @@
                   "type": "string",
                   "enum": ["warn", "error", "ignore"],
                   "description": "Behavior when no changes to push: 'warn' (default - log warning but succeed), 'error' (fail the action), or 'ignore' (silent success)"
+                },
+                "allow-empty": {
+                  "type": "boolean",
+                  "description": "When true, allows creating a pull request without any initial changes or git patch. This is useful for preparing a feature branch that an agent can push changes to later. The branch will be created from the base branch without applying any patch. Defaults to false."
                 },
                 "target-repo": {
                   "type": "string",
@@ -4093,6 +4109,14 @@
                 "github-token": {
                   "$ref": "#/$defs/github_token",
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
+                },
+                "allowed-reasons": {
+                  "type": "array",
+                  "description": "List of allowed reasons for hiding comments. Default: all reasons allowed (spam, abuse, off_topic, outdated, resolved).",
+                  "items": {
+                    "type": "string",
+                    "enum": ["spam", "abuse", "off_topic", "outdated", "resolved"]
+                  }
                 }
               },
               "additionalProperties": false

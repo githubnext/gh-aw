@@ -4,7 +4,10 @@ import (
 	"fmt"
 
 	"github.com/githubnext/gh-aw/pkg/constants"
+	"github.com/githubnext/gh-aw/pkg/logger"
 )
+
+var pushToPullRequestBranchLog = logger.New("workflow:push_to_pull_request_branch")
 
 // PushToPullRequestBranchConfig holds configuration for pushing changes to a specific branch from agent output
 type PushToPullRequestBranchConfig struct {
@@ -18,6 +21,8 @@ type PushToPullRequestBranchConfig struct {
 
 // buildCreateOutputPushToPullRequestBranchJob creates the push_to_pull_request_branch job
 func (c *Compiler) buildCreateOutputPushToPullRequestBranchJob(data *WorkflowData, mainJobName string) (*Job, error) {
+	pushToPullRequestBranchLog.Printf("Building push-to-pull-request-branch job: mainJob=%s", mainJobName)
+
 	if data.SafeOutputs == nil || data.SafeOutputs.PushToPullRequestBranch == nil {
 		return nil, fmt.Errorf("safe-outputs.push-to-pull-request-branch configuration is required")
 	}
@@ -26,6 +31,7 @@ func (c *Compiler) buildCreateOutputPushToPullRequestBranchJob(data *WorkflowDat
 
 	// Add GitHub App token minting step if app is configured
 	if data.SafeOutputs.App != nil {
+		pushToPullRequestBranchLog.Print("GitHub App configured, adding token minting step")
 		// Get permissions for the job to pass to the app token minting step
 		permissions := NewPermissionsContentsWriteIssuesWritePRWriteDiscussionsWrite()
 		steps = append(steps, c.buildGitHubAppTokenMintStep(data.SafeOutputs.App, permissions)...)
@@ -159,6 +165,7 @@ func buildCheckoutRepository(steps []string, c *Compiler) []string {
 // parsePushToPullRequestBranchConfig handles push-to-pull-request-branch configuration
 func (c *Compiler) parsePushToPullRequestBranchConfig(outputMap map[string]any) *PushToPullRequestBranchConfig {
 	if configData, exists := outputMap["push-to-pull-request-branch"]; exists {
+		pushToPullRequestBranchLog.Print("Parsing push-to-pull-request-branch configuration")
 		pushToBranchConfig := &PushToPullRequestBranchConfig{
 			IfNoChanges: "warn", // Default behavior: warn when no changes
 		}

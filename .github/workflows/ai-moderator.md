@@ -22,6 +22,7 @@ safe-outputs:
     allowed: [spam, ai-generated, link-spam, ai-qa]
   hide-comment:
     max: 5
+    allowed-reasons: [spam]
   threat-detection: false
 jobs:
   check_external_user:
@@ -73,6 +74,8 @@ jobs:
               core.setOutput('should_run', 'true');
             }
 ---
+
+{{#runtime-import? .github/shared-instructions.md}}
 
 # AI Moderator
 

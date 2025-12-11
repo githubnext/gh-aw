@@ -3,11 +3,17 @@ package workflow
 import (
 	"fmt"
 	"strings"
+
+	"github.com/githubnext/gh-aw/pkg/logger"
 )
+
+var toolDescriptionEnhancerLog = logger.New("workflow:tool_description_enhancer")
 
 // enhanceToolDescription adds configuration-specific constraints to tool descriptions
 // This provides agents with context about limits and restrictions configured in the workflow
 func enhanceToolDescription(toolName, baseDescription string, safeOutputs *SafeOutputsConfig) string {
+	toolDescriptionEnhancerLog.Printf("Enhancing tool description: tool=%s", toolName)
+
 	if safeOutputs == nil {
 		return baseDescription
 	}
@@ -266,9 +272,11 @@ func enhanceToolDescription(toolName, baseDescription string, safeOutputs *SafeO
 	}
 
 	if len(constraints) == 0 {
+		toolDescriptionEnhancerLog.Printf("No constraints found for tool: %s", toolName)
 		return baseDescription
 	}
 
+	toolDescriptionEnhancerLog.Printf("Added %d constraints to tool description: tool=%s", len(constraints), toolName)
 	// Add constraints as a new paragraph at the end of the description
 	return baseDescription + " CONSTRAINTS: " + strings.Join(constraints, " ")
 }

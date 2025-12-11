@@ -282,7 +282,7 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 		}
 
 		// Add Serena language service installation steps if Serena is configured
-		serenaLanguageSteps := GenerateSerenaLanguageServiceSteps(data.Tools)
+		serenaLanguageSteps := GenerateSerenaLanguageServiceSteps(data.ParsedTools)
 		if len(serenaLanguageSteps) > 0 {
 			compilerYamlLog.Printf("Adding %d Serena language service installation steps", len(serenaLanguageSteps))
 			for _, step := range serenaLanguageSteps {
@@ -305,7 +305,7 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 			// Custom steps contain checkout and we have runtime steps to insert
 			// Insert runtime steps after the first checkout step
 			compilerYamlLog.Printf("Calling addCustomStepsWithRuntimeInsertion: %d runtime steps to insert after checkout", len(runtimeSetupSteps))
-			c.addCustomStepsWithRuntimeInsertion(yaml, data.CustomSteps, runtimeSetupSteps, data.Tools)
+			c.addCustomStepsWithRuntimeInsertion(yaml, data.CustomSteps, runtimeSetupSteps, data.ParsedTools)
 		} else {
 			// No checkout in custom steps or no runtime steps, just add custom steps as-is
 			compilerYamlLog.Printf("Calling addCustomStepsAsIs (customStepsContainCheckout=%t, runtimeStepsCount=%d)", customStepsContainCheckout, len(runtimeSetupSteps))
@@ -1287,7 +1287,7 @@ func (c *Compiler) addCustomStepsAsIs(yaml *strings.Builder, customSteps string)
 }
 
 // addCustomStepsWithRuntimeInsertion adds custom steps and inserts runtime steps after the first checkout
-func (c *Compiler) addCustomStepsWithRuntimeInsertion(yaml *strings.Builder, customSteps string, runtimeSetupSteps []GitHubActionStep, tools map[string]any) {
+func (c *Compiler) addCustomStepsWithRuntimeInsertion(yaml *strings.Builder, customSteps string, runtimeSetupSteps []GitHubActionStep, tools *ToolsConfig) {
 	// Remove "steps:" line and adjust indentation
 	lines := strings.Split(customSteps, "\n")
 	if len(lines) <= 1 {

@@ -95,6 +95,9 @@ var safeOutputsToolsJSON string
 //go:embed js/interpolate_prompt.cjs
 var interpolatePromptScript string
 
+//go:embed js/runtime_import.cjs
+var runtimeImportScript string
+
 //go:embed js/checkout_pr_branch.cjs
 var checkoutPRBranchScript string
 
@@ -255,6 +258,9 @@ var safeOutputTypeValidatorScript string
 //go:embed js/repo_helpers.cjs
 var repoHelpersScript string
 
+//go:embed js/remove_duplicate_title.cjs
+var removeDuplicateTitleScript string
+
 //go:embed js/safe_outputs_config.cjs
 var safeOutputsConfigScript string
 
@@ -323,6 +329,7 @@ func GetJavaScriptSources() map[string]string {
 		"mcp_handler_python.cjs":            mcpHandlerPythonScript,
 		"safe_output_type_validator.cjs":    safeOutputTypeValidatorScript,
 		"repo_helpers.cjs":                  repoHelpersScript,
+		"remove_duplicate_title.cjs":        removeDuplicateTitleScript,
 		"safe_outputs_config.cjs":           safeOutputsConfigScript,
 		"safe_outputs_append.cjs":           safeOutputsAppendScript,
 		"safe_outputs_handlers.cjs":         safeOutputsHandlersScript,
@@ -341,6 +348,7 @@ func GetJavaScriptSources() map[string]string {
 		"checkout_pr_branch.cjs":            checkoutPRBranchScript,
 		"create_agent_task.cjs":             createAgentTaskScript,
 		"interpolate_prompt.cjs":            interpolatePromptScript,
+		"runtime_import.cjs":                runtimeImportScript,
 		"missing_tool.cjs":                  missingToolScript,
 		"push_repo_memory.cjs":              pushRepoMemoryScript,
 		"redact_secrets.cjs":                redactSecretsScript,

@@ -32,6 +32,7 @@ tools:
   serena: ["go"]
 safe-outputs:
     add-comment:
+      hide-older-comments: true
     create-issue:
     add-labels:
       allowed: [smoke-codex]

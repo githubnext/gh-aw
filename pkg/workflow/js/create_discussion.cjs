@@ -7,6 +7,7 @@ const { closeOlderDiscussions } = require("./close_older_discussions.cjs");
 const { replaceTemporaryIdReferences, loadTemporaryIdMap } = require("./temporary_id.cjs");
 const { parseAllowedRepos, getDefaultTargetRepo, validateRepo, parseRepoSlug } = require("./repo_helpers.cjs");
 const { addExpirationComment } = require("./expiration_helpers.cjs");
+const { removeDuplicateTitleFromDescription } = require("./remove_duplicate_title.cjs");
 
 /**
  * Fetch repository ID and discussion categories for a repository
@@ -247,7 +248,12 @@ async function main() {
     let title = createDiscussionItem.title ? replaceTemporaryIdReferences(createDiscussionItem.title.trim(), temporaryIdMap, itemRepo) : "";
     // Replace temporary ID references in body (with defensive null check)
     const bodyText = createDiscussionItem.body || "";
-    let bodyLines = replaceTemporaryIdReferences(bodyText, temporaryIdMap, itemRepo).split("\n");
+    let processedBody = replaceTemporaryIdReferences(bodyText, temporaryIdMap, itemRepo);
+
+    // Remove duplicate title from description if it starts with a header matching the title
+    processedBody = removeDuplicateTitleFromDescription(title, processedBody);
+
+    let bodyLines = processedBody.split("\n");
     if (!title) {
       title = replaceTemporaryIdReferences(bodyText, temporaryIdMap, itemRepo) || "Agent Output";
     }

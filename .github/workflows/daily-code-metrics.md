@@ -28,6 +28,8 @@ imports:
   - shared/trending-charts-simple.md
 ---
 
+{{#runtime-import? .github/shared-instructions.md}}
+
 # Daily Code Metrics and Trend Tracking Agent
 
 You are the Daily Code Metrics Agent - an expert system that tracks comprehensive code quality and codebase health metrics over time, providing trend analysis and actionable insights.

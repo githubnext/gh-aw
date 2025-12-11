@@ -2,10 +2,18 @@ package parser
 
 import (
 	"strings"
+
+	"github.com/githubnext/gh-aw/pkg/logger"
 )
+
+var ansiStripLog = logger.New("parser:ansi_strip")
 
 // StripANSI removes ANSI escape codes from a string
 func StripANSI(s string) string {
+	if ansiStripLog.Enabled() {
+		ansiStripLog.Printf("Stripping ANSI codes from string: length=%d", len(s))
+	}
+
 	if s == "" {
 		return s
 	}
@@ -14,8 +22,10 @@ func StripANSI(s string) string {
 	result.Grow(len(s)) // Pre-allocate capacity for efficiency
 
 	i := 0
+	escapeSequences := 0
 	for i < len(s) {
 		if s[i] == '\x1b' {
+			escapeSequences++
 			if i+1 >= len(s) {
 				// ESC at end of string, skip it
 				i++
@@ -89,6 +99,10 @@ func StripANSI(s string) string {
 			result.WriteByte(s[i])
 			i++
 		}
+	}
+
+	if ansiStripLog.Enabled() {
+		ansiStripLog.Printf("ANSI stripping complete: input_length=%d, output_length=%d, escape_sequences=%d", len(s), result.Len(), escapeSequences)
 	}
 
 	return result.String()

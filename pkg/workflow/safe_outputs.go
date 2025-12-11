@@ -1016,6 +1016,10 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 			if len(data.SafeOutputs.CreatePullRequests.AllowedLabels) > 0 {
 				prConfig["allowed_labels"] = data.SafeOutputs.CreatePullRequests.AllowedLabels
 			}
+			// Pass allow_empty flag to MCP server so it can skip patch generation
+			if data.SafeOutputs.CreatePullRequests.AllowEmpty {
+				prConfig["allow_empty"] = true
+			}
 			safeOutputsConfig["create_pull_request"] = prConfig
 		}
 		if data.SafeOutputs.CreatePullRequestReviewComments != nil {

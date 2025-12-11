@@ -146,6 +146,8 @@
 #
 # Original Prompt:
 # ```markdown
+# {{#runtime-import? .github/shared-instructions.md}}
+#
 # # Issue Monster 🍪
 #
 # You are the **Issue Monster** - the Cookie Monster of issues! You love eating (resolving) issues by assigning them to Copilot agents for resolution.
@@ -633,14 +635,6 @@ jobs:
               footer += "\n";
               return footer;
             }
-            function getTrackerID(format) {
-              const trackerID = process.env.GH_AW_TRACKER_ID || "";
-              if (trackerID) {
-                core.info(`Tracker ID: ${trackerID}`);
-                return format === "markdown" ? `\n\n<!-- tracker-id: ${trackerID} -->` : trackerID;
-              }
-              return "";
-            }
             function getRepositoryUrl() {
               const targetRepoSlug = process.env.GH_AW_TARGET_REPO_SLUG;
               if (targetRepoSlug) {
@@ -739,6 +733,149 @@ jobs:
               const obj = Object.fromEntries(tempIdMap);
               return JSON.stringify(obj);
             }
+            function getTrackerID(format) {
+              const trackerID = process.env.GH_AW_TRACKER_ID || "";
+              if (trackerID) {
+                core.info(`Tracker ID: ${trackerID}`);
+                return format === "markdown" ? `\n\n<!-- tracker-id: ${trackerID} -->` : trackerID;
+              }
+              return "";
+            }
+            async function minimizeComment(github, nodeId, reason = "outdated") {
+              const query =  `
+                mutation ($nodeId: ID!, $classifier: ReportedContentClassifiers!) {
+                  minimizeComment(input: { subjectId: $nodeId, classifier: $classifier }) {
+                    minimizedComment {
+                      isMinimized
+                    }
+                  }
+                }
+              `;
+              const result = await github.graphql(query, { nodeId, classifier: reason });
+              return {
+                id: nodeId,
+                isMinimized: result.minimizeComment.minimizedComment.isMinimized,
+              };
+            }
+            async function findCommentsWithTrackerId(github, owner, repo, issueNumber, workflowId) {
+              const comments = [];
+              let page = 1;
+              const perPage = 100;
+              while (true) {
+                const { data } = await github.rest.issues.listComments({
+                  owner,
+                  repo,
+                  issue_number: issueNumber,
+                  per_page: perPage,
+                  page,
+                });
+                if (data.length === 0) {
+                  break;
+                }
+                for (const comment of data) {
+                  if (comment.body && comment.body.includes(`<!-- workflow-id: ${workflowId} -->`)) {
+                    if (comment.body.includes(`<!-- comment-type: reaction -->`)) {
+                      continue;
+                    }
+                    comments.push({
+                      id: comment.id,
+                      node_id: comment.node_id,
+                      body: comment.body,
+                    });
+                  }
+                }
+                if (data.length < perPage) {
+                  break;
+                }
+                page++;
+              }
+              return comments;
+            }
+            async function findDiscussionCommentsWithTrackerId(github, owner, repo, discussionNumber, workflowId) {
+              const query =  `
+                query ($owner: String!, $repo: String!, $num: Int!, $cursor: String) {
+                  repository(owner: $owner, name: $repo) {
+                    discussion(number: $num) {
+                      comments(first: 100, after: $cursor) {
+                        nodes {
+                          id
+                          body
+                        }
+                        pageInfo {
+                          hasNextPage
+                          endCursor
+                        }
+                      }
+                    }
+                  }
+                }
+              `;
+              const comments = [];
+              let cursor = null;
+              while (true) {
+                const result = await github.graphql(query, { owner, repo, num: discussionNumber, cursor });
+                if (!result.repository?.discussion?.comments?.nodes) {
+                  break;
+                }
+                const nodes = result.repository.discussion.comments.nodes;
+                for (const comment of nodes) {
+                  if (comment.body && comment.body.includes(`<!-- workflow-id: ${workflowId} -->`)) {
+                    if (comment.body.includes(`<!-- comment-type: reaction -->`)) {
+                      continue;
+                    }
+                    comments.push({
+                      id: comment.id,
+                      body: comment.body,
+                    });
+                  }
+                }
+                if (!result.repository.discussion.comments.pageInfo.hasNextPage) {
+                  break;
+                }
+                cursor = result.repository.discussion.comments.pageInfo.endCursor;
+              }
+              return comments;
+            }
+            async function hideOlderComments(github, owner, repo, itemNumber, workflowId, isDiscussion, reason = "outdated", allowedReasons = null) {
+              if (!workflowId) {
+                core.info("No workflow ID available, skipping hide-older-comments");
+                return 0;
+              }
+              const normalizedReason = reason.toUpperCase();
+              if (allowedReasons && allowedReasons.length > 0) {
+                const normalizedAllowedReasons = allowedReasons.map(r => r.toUpperCase());
+                if (!normalizedAllowedReasons.includes(normalizedReason)) {
+                  core.warning(`Reason "${reason}" is not in allowed-reasons list [${allowedReasons.join(", ")}]. Skipping hide-older-comments.`);
+                  return 0;
+                }
+              }
+              core.info(`Searching for previous comments with workflow ID: ${workflowId}`);
+              let comments;
+              if (isDiscussion) {
+                comments = await findDiscussionCommentsWithTrackerId(github, owner, repo, itemNumber, workflowId);
+              } else {
+                comments = await findCommentsWithTrackerId(github, owner, repo, itemNumber, workflowId);
+              }
+              if (comments.length === 0) {
+                core.info("No previous comments found with matching workflow ID");
+                return 0;
+              }
+              core.info(`Found ${comments.length} previous comment(s) to hide with reason: ${normalizedReason}`);
+              let hiddenCount = 0;
+              for (const comment of comments) {
+                try {
+                  const nodeId = isDiscussion ? comment.id : comment.node_id;
+                  core.info(`Hiding comment: ${nodeId}`);
+                  await minimizeComment(github, nodeId, normalizedReason);
+                  hiddenCount++;
+                  core.info(`✓ Hidden comment: ${nodeId}`);
+                } catch (error) {
+                  core.warning(`Failed to hide comment: ${error instanceof Error ? error.message : String(error)}`);
+                }
+              }
+              core.info(`Successfully hidden ${hiddenCount} comment(s)`);
+              return hiddenCount;
+            }
             async function commentOnDiscussion(github, owner, repo, discussionNumber, message, replyToId) {
               const { repository } = await github.graphql(
                 `
@@ -799,6 +936,7 @@ jobs:
             async function main() {
               const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
               const isDiscussionExplicit = process.env.GITHUB_AW_COMMENT_DISCUSSION === "true";
+              const hideOlderCommentsEnabled = process.env.GH_AW_HIDE_OLDER_COMMENTS === "true";
               const temporaryIdMap = loadTemporaryIdMap();
               if (temporaryIdMap.size > 0) {
                 core.info(`Loaded temporary ID map with ${temporaryIdMap.size} entries`);
@@ -825,6 +963,19 @@ jobs:
                 context.eventName === "pull_request_review_comment";
               const isDiscussionContext = context.eventName === "discussion" || context.eventName === "discussion_comment";
               const isDiscussion = isDiscussionContext || isDiscussionExplicit;
+              const workflowId = process.env.GITHUB_WORKFLOW || "";
+              let allowedReasons = null;
+              if (process.env.GH_AW_ALLOWED_REASONS) {
+                try {
+                  allowedReasons = JSON.parse(process.env.GH_AW_ALLOWED_REASONS);
+                  core.info(`Allowed reasons for hiding: [${allowedReasons.join(", ")}]`);
+                } catch (error) {
+                  core.warning(`Failed to parse GH_AW_ALLOWED_REASONS: ${error instanceof Error ? error.message : String(error)}`);
+                }
+              }
+              if (hideOlderCommentsEnabled) {
+                core.info(`Hide-older-comments is enabled with workflow ID: ${workflowId || "(none)"}`);
+              }
               if (isStaged) {
                 let summaryContent = "## 🎭 Staged Mode: Add Comments Preview\n\n";
                 summaryContent += "The following comments would be added if staged mode was disabled:\n\n";
@@ -972,7 +1123,14 @@ jobs:
                 const runUrl = context.payload.repository
                   ? `${context.payload.repository.html_url}/actions/runs/${runId}`
                   : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
-                body += getTrackerID("markdown");
+                if (workflowId) {
+                  body += `\n\n<!-- workflow-id: ${workflowId} -->`;
+                }
+                const trackerIDComment = getTrackerID("markdown");
+                if (trackerIDComment) {
+                  body += trackerIDComment;
+                }
+                body += `\n\n<!-- comment-type: add-comment -->`;
                 body += generateFooterWithMessages(
                   workflowName,
                   runUrl,
@@ -983,6 +1141,19 @@ jobs:
                   triggeringDiscussionNumber
                 );
                 try {
+                  if (hideOlderCommentsEnabled && workflowId) {
+                    core.info("Hide-older-comments is enabled, searching for previous comments to hide");
+                    await hideOlderComments(
+                      github,
+                      context.repo.owner,
+                      context.repo.repo,
+                      itemNumber,
+                      workflowId,
+                      commentEndpoint === "discussions",
+                      "outdated",
+                      allowedReasons
+                    );
+                  }
                   let comment;
                   if (commentEndpoint === "discussions") {
                     core.info(`Creating comment on discussion #${itemNumber}`);
@@ -2278,7 +2449,7 @@ jobs:
             const { getCurrentBranch } = require("./get_current_branch.cjs");
             const { getBaseBranch } = require("./get_base_branch.cjs");
             const { generateGitPatch } = require("./generate_git_patch.cjs");
-            function createHandlers(server, appendSafeOutput) {
+            function createHandlers(server, appendSafeOutput, config = {}) {
               const defaultHandler = type => args => {
                 const entry = { ...(args || {}), type };
                 let largeContent = null;
@@ -2400,6 +2571,23 @@ jobs:
                   }
                   entry.branch = detectedBranch;
                 }
+                const allowEmpty = config.create_pull_request?.allow_empty === true;
+                if (allowEmpty) {
+                  server.debug(`allow-empty is enabled for create_pull_request - skipping patch generation`);
+                  appendSafeOutput(entry);
+                  return {
+                    content: [
+                      {
+                        type: "text",
+                        text: JSON.stringify({
+                          result: "success",
+                          message: "Pull request prepared (allow-empty mode - no patch generated)",
+                          branch: entry.branch,
+                        }),
+                      },
+                    ],
+                  };
+                }
                 server.debug(`Generating patch for create_pull_request with branch: ${entry.branch}`);
                 const patchResult = generateGitPatch(entry.branch);
                 if (!patchResult.success) {
@@ -2483,7 +2671,7 @@ jobs:
               const server = createServer(SERVER_INFO, { logDir: MCP_LOG_DIR });
               const { config: safeOutputsConfig, outputFile, tools: ALL_TOOLS } = bootstrapSafeOutputsServer(server);
               const appendSafeOutput = createAppendFunction(outputFile);
-              const handlers = createHandlers(server, appendSafeOutput);
+              const handlers = createHandlers(server, appendSafeOutput, safeOutputsConfig);
               const { defaultHandler } = handlers;
               const toolsWithHandlers = attachHandlers(ALL_TOOLS, handlers);
               server.debug(`  output file: ${outputFile}`);
@@ -2810,6 +2998,8 @@ jobs:
           PROMPT_DIR="$(dirname "$GH_AW_PROMPT")"
           mkdir -p "$PROMPT_DIR"
           cat << 'PROMPT_EOF' > "$GH_AW_PROMPT"
+          {{#runtime-import? .github/shared-instructions.md}}
+          
           # Issue Monster 🍪
           
           You are the **Issue Monster** - the Cookie Monster of issues! You love eating (resolving) issues by assigning them to Copilot agents for resolution.
@@ -3223,9 +3413,81 @@ jobs:
         with:
           script: |
             const fs = require("fs");
+            const path = require("path");
             function isTruthy(expr) {
               const v = expr.trim().toLowerCase();
               return !(v === "" || v === "false" || v === "0" || v === "null" || v === "undefined");
+            }
+            function hasFrontMatter(content) {
+              return content.trimStart().startsWith("---\n") || content.trimStart().startsWith("---\r\n");
+            }
+            function removeXMLComments(content) {
+              return content.replace(/<!--[\s\S]*?-->/g, "");
+            }
+            function hasGitHubActionsMacros(content) {
+              return /\$\{\{[\s\S]*?\}\}/.test(content);
+            }
+            function processRuntimeImport(filepath, optional, workspaceDir) {
+              const absolutePath = path.resolve(workspaceDir, filepath);
+              if (!fs.existsSync(absolutePath)) {
+                if (optional) {
+                  core.warning(`Optional runtime import file not found: ${filepath}`);
+                  return "";
+                }
+                throw new Error(`Runtime import file not found: ${filepath}`);
+              }
+              let content = fs.readFileSync(absolutePath, "utf8");
+              if (hasFrontMatter(content)) {
+                core.warning(`File ${filepath} contains front matter which will be ignored in runtime import`);
+                const lines = content.split("\n");
+                let inFrontMatter = false;
+                let frontMatterCount = 0;
+                const processedLines = [];
+                for (const line of lines) {
+                  if (line.trim() === "---" || line.trim() === "---\r") {
+                    frontMatterCount++;
+                    if (frontMatterCount === 1) {
+                      inFrontMatter = true;
+                      continue;
+                    } else if (frontMatterCount === 2) {
+                      inFrontMatter = false;
+                      continue;
+                    }
+                  }
+                  if (!inFrontMatter && frontMatterCount >= 2) {
+                    processedLines.push(line);
+                  }
+                }
+                content = processedLines.join("\n");
+              }
+              content = removeXMLComments(content);
+              if (hasGitHubActionsMacros(content)) {
+                throw new Error(`File ${filepath} contains GitHub Actions macros ($\{{ ... }}) which are not allowed in runtime imports`);
+              }
+              return content;
+            }
+            function processRuntimeImports(content, workspaceDir) {
+              const pattern = /\{\{#runtime-import(\?)?[ \t]+([^\}]+?)\}\}/g;
+              let processedContent = content;
+              let match;
+              const importedFiles = new Set();
+              pattern.lastIndex = 0;
+              while ((match = pattern.exec(content)) !== null) {
+                const optional = match[1] === "?";
+                const filepath = match[2].trim();
+                const fullMatch = match[0];
+                if (importedFiles.has(filepath)) {
+                  core.warning(`File ${filepath} is imported multiple times, which may indicate a circular reference`);
+                }
+                importedFiles.add(filepath);
+                try {
+                  const importedContent = processRuntimeImport(filepath, optional, workspaceDir);
+                  processedContent = processedContent.replace(fullMatch, importedContent);
+                } catch (error) {
+                  throw new Error(`Failed to process runtime import for ${filepath}: ${error.message}`);
+                }
+              }
+              return processedContent;
             }
             function interpolateVariables(content, variables) {
               let result = content;
@@ -3257,7 +3519,20 @@ jobs:
                   core.setFailed("GH_AW_PROMPT environment variable is not set");
                   return;
                 }
+                const workspaceDir = process.env.GITHUB_WORKSPACE;
+                if (!workspaceDir) {
+                  core.setFailed("GITHUB_WORKSPACE environment variable is not set");
+                  return;
+                }
                 let content = fs.readFileSync(promptPath, "utf8");
+                const hasRuntimeImports = /{{#runtime-import\??[ \t]+[^\}]+}}/.test(content);
+                if (hasRuntimeImports) {
+                  core.info("Processing runtime import macros");
+                  content = processRuntimeImports(content, workspaceDir);
+                  core.info("Runtime imports processed successfully");
+                } else {
+                  core.info("No runtime import macros found, skipping runtime import processing");
+                }
                 const variables = {};
                 for (const [key, value] of Object.entries(process.env)) {
                   if (key.startsWith("GH_AW_EXPR_")) {
@@ -3652,7 +3927,35 @@ jobs:
                 return s.replace(/<!--[\s\S]*?-->/g, "").replace(/<!--[\s\S]*?--!>/g, "");
               }
               function convertXmlTags(s) {
-                const allowedTags = ["details", "summary", "code", "em", "b", "p", "strong", "i", "u", "br", "ul", "ol", "li", "blockquote"];
+                const allowedTags = [
+                  "b",
+                  "blockquote",
+                  "br",
+                  "code",
+                  "em",
+                  "h1",
+                  "h2",
+                  "h3",
+                  "h4",
+                  "h5",
+                  "h6",
+                  "hr",
+                  "i",
+                  "li",
+                  "ol",
+                  "p",
+                  "pre",
+                  "strong",
+                  "sub",
+                  "sup",
+                  "table",
+                  "tbody",
+                  "td",
+                  "th",
+                  "thead",
+                  "tr",
+                  "ul",
+                ];
                 s = s.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, (match, content) => {
                   const convertedContent = content.replace(/<(\/?[A-Za-z][A-Za-z0-9]*(?:[^>]*?))>/g, "($1)");
                   return `(![CDATA[${convertedContent}]])`;
@@ -4386,7 +4689,22 @@ jobs:
               const patchPath = "/tmp/gh-aw/aw.patch";
               const hasPatch = fs.existsSync(patchPath);
               core.info(`Patch file ${hasPatch ? "exists" : "does not exist"} at: ${patchPath}`);
-              core.setOutput("has_patch", hasPatch ? "true" : "false");
+              let allowEmptyPR = false;
+              if (safeOutputsConfig) {
+                if (
+                  safeOutputsConfig["create-pull-request"]?.["allow-empty"] === true ||
+                  safeOutputsConfig["create_pull_request"]?.["allow_empty"] === true
+                ) {
+                  allowEmptyPR = true;
+                  core.info(`allow-empty is enabled for create-pull-request`);
+                }
+              }
+              if (allowEmptyPR && !hasPatch && outputTypes.includes("create_pull_request")) {
+                core.info(`allow-empty is enabled and no patch exists - will create empty PR`);
+                core.setOutput("has_patch", "true");
+              } else {
+                core.setOutput("has_patch", hasPatch ? "true" : "false");
+              }
             }
             await main();
       - name: Upload sanitized agent output

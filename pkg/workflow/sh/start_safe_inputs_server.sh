@@ -24,10 +24,12 @@ echo "  Working directory: $(pwd)"
 mkdir -p /tmp/gh-aw/safe-inputs/logs
 
 # Create initial server.log file for artifact upload
-echo "Safe Inputs MCP Server Log" > /tmp/gh-aw/safe-inputs/logs/server.log
-echo "Start time: $(date)" >> /tmp/gh-aw/safe-inputs/logs/server.log
-echo "===========================================" >> /tmp/gh-aw/safe-inputs/logs/server.log
-echo "" >> /tmp/gh-aw/safe-inputs/logs/server.log
+{
+  echo "Safe Inputs MCP Server Log"
+  echo "Start time: $(date)"
+  echo "==========================================="
+  echo ""
+} > /tmp/gh-aw/safe-inputs/logs/server.log
 
 # Start the HTTP server in the background
 echo "Starting safe-inputs MCP HTTP server..."
@@ -47,18 +49,18 @@ for i in {1..10}; do
   fi
   
   # Check if server is responding
-  if curl -s -f http://localhost:$GH_AW_SAFE_INPUTS_PORT/health > /dev/null 2>&1; then
+  if curl -s -f "http://localhost:$GH_AW_SAFE_INPUTS_PORT/health" > /dev/null 2>&1; then
     echo "Safe Inputs MCP server is ready (attempt $i/10)"
     break
   fi
   
-  if [ $i -eq 10 ]; then
+  if [ "$i" -eq 10 ]; then
     echo "ERROR: Safe Inputs MCP server failed to start after 10 seconds"
-    echo "Process status: $(ps aux | grep '[m]cp-server.cjs' || echo 'not running')"
+    echo "Process status: $(pgrep -f 'mcp-server.cjs' || echo 'not running')"
     echo "Server log contents:"
     cat /tmp/gh-aw/safe-inputs/logs/server.log
     echo "Checking port availability:"
-    netstat -tuln | grep $GH_AW_SAFE_INPUTS_PORT || echo "Port $GH_AW_SAFE_INPUTS_PORT not listening"
+    netstat -tuln | grep "$GH_AW_SAFE_INPUTS_PORT" || echo "Port $GH_AW_SAFE_INPUTS_PORT not listening"
     exit 1
   fi
   
@@ -67,5 +69,5 @@ for i in {1..10}; do
 done
 
 # Output the configuration for the MCP client
-echo "port=$GH_AW_SAFE_INPUTS_PORT" >> $GITHUB_OUTPUT
-echo "api_key=$GH_AW_SAFE_INPUTS_API_KEY" >> $GITHUB_OUTPUT
+echo "port=$GH_AW_SAFE_INPUTS_PORT" >> "$GITHUB_OUTPUT"
+echo "api_key=$GH_AW_SAFE_INPUTS_API_KEY" >> "$GITHUB_OUTPUT"

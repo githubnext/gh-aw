@@ -224,6 +224,8 @@ imports:
   - shared/trends.md
 ---
 
+{{#runtime-import? .github/shared-instructions.md}}
+
 # Daily News
 
 Write an upbeat, friendly, motivating summary of recent activity in the repo.
