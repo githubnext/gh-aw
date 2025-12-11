@@ -38,8 +38,8 @@ function startSafeOutputsServer(options = {}) {
   // Create append function
   const appendSafeOutput = createAppendFunction(outputFile);
 
-  // Create handlers
-  const handlers = createHandlers(server, appendSafeOutput);
+  // Create handlers with configuration
+  const handlers = createHandlers(server, appendSafeOutput, safeOutputsConfig);
   const { defaultHandler } = handlers;
 
   // Attach handlers to tools

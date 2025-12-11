@@ -3047,7 +3047,7 @@ jobs:
             const { getCurrentBranch } = require("./get_current_branch.cjs");
             const { getBaseBranch } = require("./get_base_branch.cjs");
             const { generateGitPatch } = require("./generate_git_patch.cjs");
-            function createHandlers(server, appendSafeOutput) {
+            function createHandlers(server, appendSafeOutput, config = {}) {
               const defaultHandler = type => args => {
                 const entry = { ...(args || {}), type };
                 let largeContent = null;
@@ -3169,6 +3169,23 @@ jobs:
                   }
                   entry.branch = detectedBranch;
                 }
+                const allowEmpty = config.create_pull_request?.allow_empty === true;
+                if (allowEmpty) {
+                  server.debug(`allow-empty is enabled for create_pull_request - skipping patch generation`);
+                  appendSafeOutput(entry);
+                  return {
+                    content: [
+                      {
+                        type: "text",
+                        text: JSON.stringify({
+                          result: "success",
+                          message: "Pull request prepared (allow-empty mode - no patch generated)",
+                          branch: entry.branch,
+                        }),
+                      },
+                    ],
+                  };
+                }
                 server.debug(`Generating patch for create_pull_request with branch: ${entry.branch}`);
                 const patchResult = generateGitPatch(entry.branch);
                 if (!patchResult.success) {
@@ -3252,7 +3269,7 @@ jobs:
               const server = createServer(SERVER_INFO, { logDir: MCP_LOG_DIR });
               const { config: safeOutputsConfig, outputFile, tools: ALL_TOOLS } = bootstrapSafeOutputsServer(server);
               const appendSafeOutput = createAppendFunction(outputFile);
-              const handlers = createHandlers(server, appendSafeOutput);
+              const handlers = createHandlers(server, appendSafeOutput, safeOutputsConfig);
               const { defaultHandler } = handlers;
               const toolsWithHandlers = attachHandlers(ALL_TOOLS, handlers);
               server.debug(`  output file: ${outputFile}`);
@@ -4216,7 +4233,7 @@ jobs:
             }
             function renderMarkdownTemplate(markdown) {
               let result = markdown.replace(
-                /(\n?)([ \t]*{{#if\s+([^}]+)}}[ \t]*\n)([\s\S]*?)([ \t]*{{\/if}}[ \t]*)(\n?)/g,
+                /(\n?)([ \t]*{{#if\s+([^}]*)}}[ \t]*\n)([\s\S]*?)([ \t]*{{\/if}}[ \t]*)(\n?)/g,
                 (match, leadNL, openLine, cond, body, closeLine, trailNL) => {
                   if (isTruthy(cond)) {
                     return leadNL + body;
@@ -4225,7 +4242,7 @@ jobs:
                   }
                 }
               );
-              result = result.replace(/{{#if\s+([^}]+)}}([\s\S]*?){{\/if}}/g, (_, cond, body) => (isTruthy(cond) ? body : ""));
+              result = result.replace(/{{#if\s+([^}]*)}}([\s\S]*?){{\/if}}/g, (_, cond, body) => (isTruthy(cond) ? body : ""));
               result = result.replace(/\n{3,}/g, "\n\n");
               return result;
             }
@@ -5501,7 +5518,22 @@ jobs:
               const patchPath = "/tmp/gh-aw/aw.patch";
               const hasPatch = fs.existsSync(patchPath);
               core.info(`Patch file ${hasPatch ? "exists" : "does not exist"} at: ${patchPath}`);
-              core.setOutput("has_patch", hasPatch ? "true" : "false");
+              let allowEmptyPR = false;
+              if (safeOutputsConfig) {
+                if (
+                  safeOutputsConfig["create-pull-request"]?.["allow-empty"] === true ||
+                  safeOutputsConfig["create_pull_request"]?.["allow_empty"] === true
+                ) {
+                  allowEmptyPR = true;
+                  core.info(`allow-empty is enabled for create-pull-request`);
+                }
+              }
+              if (allowEmptyPR && !hasPatch && outputTypes.includes("create_pull_request")) {
+                core.info(`allow-empty is enabled and no patch exists - will create empty PR`);
+                core.setOutput("has_patch", "true");
+              } else {
+                core.setOutput("has_patch", hasPatch ? "true" : "false");
+              }
             }
             await main();
       - name: Upload sanitized agent output
@@ -7277,6 +7309,7 @@ jobs:
           GH_AW_PR_LABELS: "documentation,automation"
           GH_AW_PR_DRAFT: "true"
           GH_AW_PR_IF_NO_CHANGES: "warn"
+          GH_AW_PR_ALLOW_EMPTY: "false"
           GH_AW_MAX_PATCH_SIZE: 1024
           GH_AW_COMMENT_ID: ${{ needs.activation.outputs.comment_id }}
           GH_AW_COMMENT_REPO: ${{ needs.activation.outputs.comment_repo }}
@@ -7463,52 +7496,67 @@ jobs:
                 core.info("Agent output content is empty");
               }
               const ifNoChanges = process.env.GH_AW_PR_IF_NO_CHANGES || "warn";
+              const allowEmpty = (process.env.GH_AW_PR_ALLOW_EMPTY || "false").toLowerCase() === "true";
               if (!fs.existsSync("/tmp/gh-aw/aw.patch")) {
-                const message = "No patch file found - cannot create pull request without changes";
-                if (isStaged) {
-                  let summaryContent = "## 🎭 Staged Mode: Create Pull Request Preview\n\n";
-                  summaryContent += "The following pull request would be created if staged mode was disabled:\n\n";
-                  summaryContent += `**Status:** ⚠️ No patch file found\n\n`;
-                  summaryContent += `**Message:** ${message}\n\n`;
-                  await core.summary.addRaw(summaryContent).write();
-                  core.info("📝 Pull request creation preview written to step summary (no patch file)");
-                  return;
-                }
-                switch (ifNoChanges) {
-                  case "error":
-                    throw new Error(message);
-                  case "ignore":
+                if (allowEmpty) {
+                  core.info("No patch file found, but allow-empty is enabled - will create empty PR");
+                } else {
+                  const message = "No patch file found - cannot create pull request without changes";
+                  if (isStaged) {
+                    let summaryContent = "## 🎭 Staged Mode: Create Pull Request Preview\n\n";
+                    summaryContent += "The following pull request would be created if staged mode was disabled:\n\n";
+                    summaryContent += `**Status:** ⚠️ No patch file found\n\n`;
+                    summaryContent += `**Message:** ${message}\n\n`;
+                    await core.summary.addRaw(summaryContent).write();
+                    core.info("📝 Pull request creation preview written to step summary (no patch file)");
                     return;
-                  case "warn":
-                  default:
-                    core.warning(message);
-                    return;
+                  }
+                  switch (ifNoChanges) {
+                    case "error":
+                      throw new Error(message);
+                    case "ignore":
+                      return;
+                    case "warn":
+                    default:
+                      core.warning(message);
+                      return;
+                  }
                 }
               }
-              const patchContent = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
+              let patchContent = "";
+              let isEmpty = true;
+              if (fs.existsSync("/tmp/gh-aw/aw.patch")) {
+                patchContent = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
+                isEmpty = !patchContent || !patchContent.trim();
+              }
               if (patchContent.includes("Failed to generate patch")) {
-                const message = "Patch file contains error message - cannot create pull request without changes";
-                if (isStaged) {
-                  let summaryContent = "## 🎭 Staged Mode: Create Pull Request Preview\n\n";
-                  summaryContent += "The following pull request would be created if staged mode was disabled:\n\n";
-                  summaryContent += `**Status:** ⚠️ Patch file contains error\n\n`;
-                  summaryContent += `**Message:** ${message}\n\n`;
-                  await core.summary.addRaw(summaryContent).write();
-                  core.info("📝 Pull request creation preview written to step summary (patch error)");
-                  return;
-                }
-                switch (ifNoChanges) {
-                  case "error":
-                    throw new Error(message);
-                  case "ignore":
+                if (allowEmpty) {
+                  core.info("Patch file contains error, but allow-empty is enabled - will create empty PR");
+                  patchContent = "";
+                  isEmpty = true;
+                } else {
+                  const message = "Patch file contains error message - cannot create pull request without changes";
+                  if (isStaged) {
+                    let summaryContent = "## 🎭 Staged Mode: Create Pull Request Preview\n\n";
+                    summaryContent += "The following pull request would be created if staged mode was disabled:\n\n";
+                    summaryContent += `**Status:** ⚠️ Patch file contains error\n\n`;
+                    summaryContent += `**Message:** ${message}\n\n`;
+                    await core.summary.addRaw(summaryContent).write();
+                    core.info("📝 Pull request creation preview written to step summary (patch error)");
                     return;
-                  case "warn":
-                  default:
-                    core.warning(message);
-                    return;
+                  }
+                  switch (ifNoChanges) {
+                    case "error":
+                      throw new Error(message);
+                    case "ignore":
+                      return;
+                    case "warn":
+                    default:
+                      core.warning(message);
+                      return;
+                  }
                 }
               }
-              const isEmpty = !patchContent || !patchContent.trim();
               if (!isEmpty) {
                 const maxSizeKb = parseInt(process.env.GH_AW_MAX_PATCH_SIZE || "1024", 10);
                 const patchSizeBytes = Buffer.byteLength(patchContent, "utf8");
@@ -7529,7 +7577,7 @@ jobs:
                 }
                 core.info("Patch size validation passed");
               }
-              if (isEmpty && !isStaged) {
+              if (isEmpty && !isStaged && !allowEmpty) {
                 const message = "Patch file is empty - no changes to apply (noop operation)";
                 switch (ifNoChanges) {
                   case "error":
@@ -7545,6 +7593,8 @@ jobs:
               core.info(`Agent output content length: ${outputContent.length}`);
               if (!isEmpty) {
                 core.info("Patch content validation passed");
+              } else if (allowEmpty) {
+                core.info("Patch file is empty - processing empty PR creation (allow-empty is enabled)");
               } else {
                 core.info("Patch file is empty - processing noop operation");
               }
@@ -7754,16 +7804,44 @@ jobs:
                 }
               } else {
                 core.info("Skipping patch application (empty patch)");
-                const message = "No changes to apply - noop operation completed successfully";
-                switch (ifNoChanges) {
-                  case "error":
-                    throw new Error("No changes to apply - failing as configured by if-no-changes: error");
-                  case "ignore":
+                if (allowEmpty) {
+                  core.info("allow-empty is enabled - will create branch and push without changes");
+                  try {
+                    let remoteBranchExists = false;
+                    try {
+                      const { stdout } = await exec.getExecOutput(`git ls-remote --heads origin ${branchName}`);
+                      if (stdout.trim()) {
+                        remoteBranchExists = true;
+                      }
+                    } catch (checkError) {
+                      core.info(`Remote branch check failed (non-fatal): ${checkError instanceof Error ? checkError.message : String(checkError)}`);
+                    }
+                    if (remoteBranchExists) {
+                      core.warning(`Remote branch ${branchName} already exists - appending random suffix`);
+                      const extraHex = crypto.randomBytes(4).toString("hex");
+                      const oldBranch = branchName;
+                      branchName = `${branchName}-${extraHex}`;
+                      await exec.exec(`git branch -m ${oldBranch} ${branchName}`);
+                      core.info(`Renamed branch to ${branchName}`);
+                    }
+                    await exec.exec(`git push origin ${branchName}`);
+                    core.info("Empty branch pushed successfully");
+                  } catch (pushError) {
+                    core.setFailed(`Failed to push empty branch: ${pushError instanceof Error ? pushError.message : String(pushError)}`);
                     return;
-                  case "warn":
-                  default:
-                    core.warning(message);
-                    return;
+                  }
+                } else {
+                  const message = "No changes to apply - noop operation completed successfully";
+                  switch (ifNoChanges) {
+                    case "error":
+                      throw new Error("No changes to apply - failing as configured by if-no-changes: error");
+                    case "ignore":
+                      return;
+                    case "warn":
+                    default:
+                      core.warning(message);
+                      return;
+                  }
                 }
               }
               try {

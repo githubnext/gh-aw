@@ -135,7 +135,7 @@ func HasSafeOutputsEnabled(safeOutputs *SafeOutputsConfig) bool {
 		safeOutputs.MissingTool != nil ||
 		safeOutputs.NoOp != nil ||
 		safeOutputs.LinkSubIssue != nil ||
-		safeOutputs.MinimizeComment != nil ||
+		safeOutputs.HideComment != nil ||
 		len(safeOutputs.Jobs) > 0
 
 	if safeOutputsLog.Enabled() {
@@ -221,8 +221,8 @@ func GetEnabledSafeOutputToolNames(safeOutputs *SafeOutputsConfig) []string {
 	if safeOutputs.LinkSubIssue != nil {
 		tools = append(tools, "link_sub_issue")
 	}
-	if safeOutputs.MinimizeComment != nil {
-		tools = append(tools, "minimize_comment")
+	if safeOutputs.HideComment != nil {
+		tools = append(tools, "hide_comment")
 	}
 	if safeOutputs.MissingTool != nil {
 		tools = append(tools, "missing_tool")
@@ -405,10 +405,10 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 				config.LinkSubIssue = linkSubIssueConfig
 			}
 
-			// Handle minimize-comment
-			minimizeCommentConfig := c.parseMinimizeCommentConfig(outputMap)
-			if minimizeCommentConfig != nil {
-				config.MinimizeComment = minimizeCommentConfig
+			// Handle hide-comment
+			hideCommentConfig := c.parseHideCommentConfig(outputMap)
+			if hideCommentConfig != nil {
+				config.HideComment = hideCommentConfig
 			}
 
 			// Handle missing-tool (parse configuration if present, or enable by default)
@@ -1007,6 +1007,10 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 			if len(data.SafeOutputs.CreatePullRequests.AllowedLabels) > 0 {
 				prConfig["allowed_labels"] = data.SafeOutputs.CreatePullRequests.AllowedLabels
 			}
+			// Pass allow_empty flag to MCP server so it can skip patch generation
+			if data.SafeOutputs.CreatePullRequests.AllowEmpty {
+				prConfig["allow_empty"] = true
+			}
 			safeOutputsConfig["create_pull_request"] = prConfig
 		}
 		if data.SafeOutputs.CreatePullRequestReviewComments != nil {
@@ -1321,8 +1325,8 @@ func generateFilteredToolsJSON(data *WorkflowData) (string, error) {
 	if data.SafeOutputs.LinkSubIssue != nil {
 		enabledTools["link_sub_issue"] = true
 	}
-	if data.SafeOutputs.MinimizeComment != nil {
-		enabledTools["minimize_comment"] = true
+	if data.SafeOutputs.HideComment != nil {
+		enabledTools["hide_comment"] = true
 	}
 
 	// Filter tools to only include enabled ones and enhance descriptions

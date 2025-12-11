@@ -105,6 +105,11 @@ func TestEnsureDevcontainerConfig(t *testing.T) {
 		t.Error("Expected GitHub CLI feature to be included")
 	}
 
+	// Verify Copilot CLI feature
+	if _, exists := config.Features["ghcr.io/devcontainers/features/copilot-cli:1"]; !exists {
+		t.Error("Expected Copilot CLI feature to be included")
+	}
+
 	// Verify postCreateCommand
 	if config.PostCreateCommand == "" {
 		t.Error("Expected postCreateCommand to be set")

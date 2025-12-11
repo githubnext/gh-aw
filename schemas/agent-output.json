@@ -48,7 +48,7 @@
         {"$ref": "#/$defs/AssignToAgentOutput"},
         {"$ref": "#/$defs/NoOpOutput"},
         {"$ref": "#/$defs/LinkSubIssueOutput"},
-        {"$ref": "#/$defs/MinimizeCommentOutput"}
+        {"$ref": "#/$defs/HideCommentOutput"}
       ]
     },
     "CreateIssueOutput": {
@@ -624,18 +624,23 @@
       "required": ["type", "parent_issue_number", "sub_issue_number"],
       "additionalProperties": false
     },
-    "MinimizeCommentOutput": {
-      "title": "Minimize Comment Output",
-      "description": "Output for minimizing (hiding) a comment on a GitHub issue, pull request, or discussion",
+    "HideCommentOutput": {
+      "title": "Hide Comment Output",
+      "description": "Output for hiding a comment on a GitHub issue, pull request, or discussion",
       "type": "object",
       "properties": {
         "type": {
-          "const": "minimize_comment"
+          "const": "hide_comment"
         },
         "comment_id": {
           "type": "string",
-          "description": "Node ID of the comment to minimize (e.g., 'IC_kwDOABCD123456')",
+          "description": "Node ID of the comment to hide (e.g., 'IC_kwDOABCD123456')",
           "minLength": 1
+        },
+        "reason": {
+          "type": "string",
+          "enum": ["SPAM", "ABUSE", "OFF_TOPIC", "OUTDATED", "RESOLVED"],
+          "description": "Optional reason for hiding the comment (default: SPAM). Valid values: SPAM, ABUSE, OFF_TOPIC, OUTDATED, RESOLVED"
         }
       },
       "required": ["type", "comment_id"],

@@ -277,12 +277,14 @@ interface LinkSubIssueItem extends BaseSafeOutputItem {
 }
 
 /**
- * JSONL item for minimizing (hiding) a comment
+ * JSONL item for hiding a comment
  */
-interface MinimizeCommentItem extends BaseSafeOutputItem {
-  type: "minimize_comment";
-  /** GraphQL node ID of the comment to minimize (e.g., 'IC_kwDOABCD123456') */
+interface HideCommentItem extends BaseSafeOutputItem {
+  type: "hide_comment";
+  /** GraphQL node ID of the comment to hide (e.g., 'IC_kwDOABCD123456') */
   comment_id: string;
+  /** Optional reason for hiding the comment (default: SPAM) */
+  reason?: "SPAM" | "ABUSE" | "OFF_TOPIC" | "OUTDATED" | "RESOLVED";
 }
 
 /**
@@ -310,7 +312,7 @@ type SafeOutputItem =
   | UpdateReleaseItem
   | NoOpItem
   | LinkSubIssueItem
-  | MinimizeCommentItem;
+  | HideCommentItem;
 
 /**
  * Sanitized safe output items
@@ -344,7 +346,7 @@ export {
   UpdateReleaseItem,
   NoOpItem,
   LinkSubIssueItem,
-  MinimizeCommentItem,
+  HideCommentItem,
   SafeOutputItem,
   SafeOutputItems,
 };

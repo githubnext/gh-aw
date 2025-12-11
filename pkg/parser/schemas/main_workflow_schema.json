@@ -3011,7 +3011,7 @@
     "safe-outputs": {
       "type": "object",
       "description": "Safe output processing configuration that automatically creates GitHub issues, comments, and pull requests from AI workflow output without requiring write permissions in the main job",
-      "$comment": "Required if workflow creates or modifies GitHub resources. Operations requiring safe-outputs: add-comment, add-labels, add-reviewer, assign-milestone, assign-to-agent, close-discussion, close-issue, close-pull-request, create-agent-task, create-code-scanning-alert, create-discussion, create-issue, create-pull-request, create-pull-request-review-comment, link-sub-issue, minimize-comment, missing-tool, noop, push-to-pull-request-branch, threat-detection, update-issue, update-project, update-pull-request, update-release, upload-asset. See documentation for complete details.",
+      "$comment": "Required if workflow creates or modifies GitHub resources. Operations requiring safe-outputs: add-comment, add-labels, add-reviewer, assign-milestone, assign-to-agent, close-discussion, close-issue, close-pull-request, create-agent-task, create-code-scanning-alert, create-discussion, create-issue, create-pull-request, create-pull-request-review-comment, hide-comment, link-sub-issue, missing-tool, noop, push-to-pull-request-branch, threat-detection, update-issue, update-project, update-pull-request, update-release, upload-asset. See documentation for complete details.",
       "properties": {
         "allowed-domains": {
           "type": "array",
@@ -3552,6 +3552,10 @@
                   "enum": ["warn", "error", "ignore"],
                   "description": "Behavior when no changes to push: 'warn' (default - log warning but succeed), 'error' (fail the action), or 'ignore' (silent success)"
                 },
+                "allow-empty": {
+                  "type": "boolean",
+                  "description": "When true, allows creating a pull request without any initial changes or git patch. This is useful for preparing a feature branch that an agent can push changes to later. The branch will be created from the base branch without applying any patch. Defaults to false."
+                },
                 "target-repo": {
                   "type": "string",
                   "description": "Target repository in format 'owner/repo' for cross-repository pull request creation. Takes precedence over trial target repo settings."
@@ -4036,25 +4040,25 @@
             }
           ]
         },
-        "minimize-comment": {
+        "hide-comment": {
           "oneOf": [
             {
               "type": "null",
-              "description": "Enable comment minimization with default configuration"
+              "description": "Enable comment hiding with default configuration"
             },
             {
               "type": "object",
-              "description": "Configuration for minimizing (hiding) comments on GitHub issues, pull requests, or discussions from agentic workflow output",
+              "description": "Configuration for hiding comments on GitHub issues, pull requests, or discussions from agentic workflow output",
               "properties": {
                 "max": {
                   "type": "integer",
-                  "description": "Maximum number of comments to minimize (default: 5)",
+                  "description": "Maximum number of comments to hide (default: 5)",
                   "minimum": 1,
                   "maximum": 100
                 },
                 "target-repo": {
                   "type": "string",
-                  "description": "Target repository in format 'owner/repo' for cross-repository comment minimization. Takes precedence over trial target repo settings."
+                  "description": "Target repository in format 'owner/repo' for cross-repository comment hiding. Takes precedence over trial target repo settings."
                 },
                 "github-token": {
                   "$ref": "#/$defs/github_token",

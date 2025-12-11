@@ -2,7 +2,7 @@
 on: 
   workflow_dispatch:
 name: Dev
-description: Create a poem about GitHub and save it to repo-memory
+description: Create an empty pull request for agent to push changes to
 timeout-minutes: 5
 strict: false
 engine: copilot
@@ -16,7 +16,8 @@ tools:
 imports:
   - shared/gh.md
 safe-outputs:
-  create-issue:
+  create-pull-request:
+    allow-empty: true
   staged: true
 steps:
   - name: Download issues data
@@ -26,5 +27,8 @@ steps:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 ---
 
-Read the last pull request using `githubissues-gh` tool
-and create an issue with the summary.
+Create an empty pull request that prepares a branch for future changes.
+The pull request should have:
+- Title: "Feature: Prepare branch for agent updates"
+- Body: "This is an empty pull request created to prepare a feature branch that an agent can push changes to later."
+- Branch name: "feature/agent-updates"

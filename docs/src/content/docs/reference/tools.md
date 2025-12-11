@@ -158,6 +158,46 @@ tools:
 
 **Domain Access**: Uses same ecosystem bundles as `network:` configuration (`defaults`, `github`, `node`, `python`, etc.). Default is `["localhost", "127.0.0.1"]` for security. Domains automatically include subdomains (e.g., `example.com` includes `api.example.com`).
 
+## Built-in MCP Tools
+
+### Agentic Workflows (`agentic-workflows:`)
+
+Provides CLI tools for workflow introspection, log analysis, and debugging. Enables checking workflow status, downloading logs, and auditing workflow runs.
+
+```yaml wrap
+tools:
+  agentic-workflows:
+```
+
+**Required Permission**: This tool requires `actions: read` permission to access workflow logs and run data:
+
+```yaml wrap
+permissions:
+  actions: read
+tools:
+  agentic-workflows:
+```
+
+The compiler validates this requirement and will reject workflows that use `agentic-workflows` without `actions: read` permission. See [MCP Server](/gh-aw/setup/mcp-server/#using-as-agentic-workflows-tool) for available operations.
+
+### Cache Memory (`cache-memory:`)
+
+Enables persistent memory storage across workflow runs for tracking trends and historical data.
+
+```yaml wrap
+tools:
+  cache-memory:
+```
+
+### Repo Memory (`repo-memory:`)
+
+Provides access to repository-specific memory storage for maintaining context across workflow executions.
+
+```yaml wrap
+tools:
+  repo-memory:
+```
+
 ## Custom MCP Servers (`mcp-servers:`)
 
 Integrate custom Model Context Protocol servers for third-party services, APIs, or specialized tools:
