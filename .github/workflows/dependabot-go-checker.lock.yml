@@ -3650,7 +3650,35 @@ jobs:
                 return s.replace(/<!--[\s\S]*?-->/g, "").replace(/<!--[\s\S]*?--!>/g, "");
               }
               function convertXmlTags(s) {
-                const allowedTags = ["details", "summary", "code", "em", "b", "p", "strong", "i", "u", "br", "ul", "ol", "li", "blockquote"];
+                const allowedTags = [
+                  "b",
+                  "blockquote",
+                  "br",
+                  "code",
+                  "em",
+                  "h1",
+                  "h2",
+                  "h3",
+                  "h4",
+                  "h5",
+                  "h6",
+                  "hr",
+                  "i",
+                  "li",
+                  "ol",
+                  "p",
+                  "pre",
+                  "strong",
+                  "sub",
+                  "sup",
+                  "table",
+                  "tbody",
+                  "td",
+                  "th",
+                  "thead",
+                  "tr",
+                  "ul",
+                ];
                 s = s.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, (match, content) => {
                   const convertedContent = content.replace(/<(\/?[A-Za-z][A-Za-z0-9]*(?:[^>]*?))>/g, "($1)");
                   return `(![CDATA[${convertedContent}]])`;

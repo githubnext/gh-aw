@@ -190,7 +190,35 @@ describe("sanitize_content.cjs", () => {
     });
 
     it("should preserve allowed safe tags", () => {
-      const allowedTags = ["details", "summary", "code", "em", "b", "p", "strong", "i", "u", "br", "ul", "ol", "li", "blockquote"];
+      const allowedTags = [
+        "b",
+        "blockquote",
+        "br",
+        "code",
+        "em",
+        "h1",
+        "h2",
+        "h3",
+        "h4",
+        "h5",
+        "h6",
+        "hr",
+        "i",
+        "li",
+        "ol",
+        "p",
+        "pre",
+        "strong",
+        "sub",
+        "sup",
+        "table",
+        "tbody",
+        "td",
+        "th",
+        "thead",
+        "tr",
+        "ul",
+      ];
       allowedTags.forEach(tag => {
         const result = sanitizeContent(`<${tag}>content</${tag}>`);
         expect(result).toBe(`<${tag}>content</${tag}>`);
@@ -218,7 +246,7 @@ describe("sanitize_content.cjs", () => {
     });
 
     it("should preserve inline formatting tags", () => {
-      const input = "This is <strong>bold</strong>, <i>italic</i>, and <u>underlined</u> text.";
+      const input = "This is <strong>bold</strong>, <i>italic</i>, and <b>bold too</b> text.";
       const result = sanitizeContent(input);
       expect(result).toBe(input);
     });
@@ -249,6 +277,54 @@ describe("sanitize_content.cjs", () => {
 
     it("should handle nested list structure", () => {
       const input = "<ul><li>Item 1<ul><li>Nested item</li></ul></li><li>Item 2</li></ul>";
+      const result = sanitizeContent(input);
+      expect(result).toBe(input);
+    });
+
+    it("should convert removed tags that are no longer allowed", () => {
+      // Tags that were previously allowed but are now removed: details, summary, u
+      const result1 = sanitizeContent("<details>content</details>");
+      expect(result1).toBe("(details)content(/details)");
+
+      const result2 = sanitizeContent("<summary>content</summary>");
+      expect(result2).toBe("(summary)content(/summary)");
+
+      const result3 = sanitizeContent("<u>content</u>");
+      expect(result3).toBe("(u)content(/u)");
+    });
+
+    it("should preserve heading tags h1-h6", () => {
+      const headings = ["h1", "h2", "h3", "h4", "h5", "h6"];
+      headings.forEach(tag => {
+        const input = `<${tag}>Heading</${tag}>`;
+        const result = sanitizeContent(input);
+        expect(result).toBe(input);
+      });
+    });
+
+    it("should preserve hr tag", () => {
+      const result = sanitizeContent("Content before<hr>Content after");
+      expect(result).toBe("Content before<hr>Content after");
+    });
+
+    it("should preserve pre tag", () => {
+      const input = "<pre>Code block content</pre>";
+      const result = sanitizeContent(input);
+      expect(result).toBe(input);
+    });
+
+    it("should preserve sub and sup tags", () => {
+      const input1 = "H<sub>2</sub>O";
+      const result1 = sanitizeContent(input1);
+      expect(result1).toBe(input1);
+
+      const input2 = "E=mc<sup>2</sup>";
+      const result2 = sanitizeContent(input2);
+      expect(result2).toBe(input2);
+    });
+
+    it("should preserve table structure tags", () => {
+      const input = "<table><thead><tr><th>Header</th></tr></thead><tbody><tr><td>Data</td></tr></tbody></table>";
       const result = sanitizeContent(input);
       expect(result).toBe(input);
     });
@@ -465,7 +541,7 @@ describe("sanitize_content.cjs", () => {
     });
 
     it("should preserve allowed HTML in safe context", () => {
-      const input = "<details><summary>Click here</summary>Content</details>";
+      const input = "<table><thead><tr><th>Header</th></tr></thead><tbody><tr><td>Data</td></tr></tbody></table>";
       const result = sanitizeContent(input);
 
       expect(result).toBe(input);
