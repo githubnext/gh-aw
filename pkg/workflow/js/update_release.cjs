@@ -168,4 +168,6 @@ async function main() {
 }
 
 // Call the main function
-await main();
+(async () => {
+  await main();
+})();

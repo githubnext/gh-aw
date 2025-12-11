@@ -279,4 +279,6 @@ async function main() {
   core.info(`Successfully closed ${closedCount} expired discussion(s)`);
 }
 
-await main();
+(async () => {
+  await main();
+})();

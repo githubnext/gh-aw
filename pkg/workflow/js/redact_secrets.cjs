@@ -148,4 +148,6 @@ async function main() {
     core.setFailed(`Secret redaction failed: ${error instanceof Error ? error.message : String(error)}`);
   }
 }
-await main();
+(async () => {
+  await main();
+})();

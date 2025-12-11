@@ -318,4 +318,6 @@ async function main() {
   core.info(`Successfully closed ${closedDiscussions.length} discussion(s)`);
   return closedDiscussions;
 }
-await main();
+(async () => {
+  await main();
+})();

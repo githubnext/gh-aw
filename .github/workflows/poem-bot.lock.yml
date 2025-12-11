@@ -818,7 +818,9 @@ jobs:
                 core.info(`Redacted URL domains written to: ${logPath}`);
               }
             }
-            await main();
+            (async () => {
+              await main();
+            })();
       - name: Add eyes reaction to the triggering item
         id: react
         if: github.event_name == 'issues' || github.event_name == 'issue_comment' || github.event_name == 'pull_request_review_comment' || github.event_name == 'discussion' || github.event_name == 'discussion_comment' || (github.event_name == 'pull_request') && (github.event.pull_request.head.repo.id == github.repository_id)
@@ -1221,7 +1223,9 @@ jobs:
                 );
               }
             }
-            await main();
+            (async () => {
+              await main();
+            })();
 
   add_comment:
     needs:
@@ -1982,7 +1986,9 @@ jobs:
               core.info(`Successfully created ${createdComments.length} comment(s)`);
               return createdComments;
             }
-            await main();
+            (async () => {
+              await main();
+            })();
 
   add_labels:
     needs:
@@ -2546,7 +2552,9 @@ jobs:
                 core.setFailed(`Failed to add labels: ${errorMessage}`);
               }
             }
-            await main();
+            (async () => {
+              await main();
+            })();
 
   agent:
     needs: activation
@@ -5548,7 +5556,9 @@ jobs:
                 core.setFailed(`Secret redaction failed: ${error instanceof Error ? error.message : String(error)}`);
               }
             }
-            await main();
+            (async () => {
+              await main();
+            })();
         env:
           GH_AW_SECRET_NAMES: 'COPILOT_GITHUB_TOKEN,GH_AW_GITHUB_MCP_SERVER_TOKEN,GH_AW_GITHUB_TOKEN,GITHUB_TOKEN'
           SECRET_COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
@@ -6529,7 +6539,9 @@ jobs:
                 core.setOutput("has_patch", hasPatch ? "true" : "false");
               }
             }
-            await main();
+            (async () => {
+              await main();
+            })();
       - name: Upload sanitized agent output
         if: always() && env.GH_AW_AGENT_OUTPUT
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
@@ -8529,7 +8541,9 @@ jobs:
                 closeEntity: closePullRequest,
               });
             }
-            await main();
+            (async () => {
+              await main();
+            })();
 
   conclusion:
     needs:
@@ -8675,7 +8689,9 @@ jobs:
               }
               core.info(`Successfully processed ${noopItems.length} noop message(s)`);
             }
-            await main();
+            (async () => {
+              await main();
+            })();
       - name: Record Missing Tool
         id: missing_tool
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
@@ -9969,7 +9985,9 @@ jobs:
               }
               core.info(`Successfully created ${createdDiscussions.length} discussion(s)`);
             }
-            await main();
+            (async () => {
+              await main();
+            })();
 
   create_issue:
     needs:
@@ -10966,7 +10984,9 @@ jobs:
               core.info(`Successfully created ${createdComments.length} review comment(s)`);
               return createdComments;
             }
-            await main();
+            (async () => {
+              await main();
+            })();
 
   create_pull_request:
     needs:
@@ -11678,7 +11698,9 @@ jobs:
                 }
               }
             }
-            await main();
+            (async () => {
+              await main();
+            })();
       - name: Checkout repository for gh CLI
         if: steps.create_pull_request.outputs.pull_request_url != ''
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
@@ -12470,7 +12492,9 @@ jobs:
                 core.warning(`Failed to link ${failureCount} sub-issue(s). See step summary for details.`);
               }
             }
-            await main();
+            (async () => {
+              await main();
+            })();
 
   pre_activation:
     if: >
@@ -12624,7 +12648,9 @@ jobs:
                 );
               }
             }
-            await main();
+            (async () => {
+              await main();
+            })();
       - name: Check command position
         id: check_command_position
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
@@ -12679,7 +12705,9 @@ jobs:
                 core.setFailed(error instanceof Error ? error.message : String(error));
               }
             }
-            await main();
+            (async () => {
+              await main();
+            })();
 
   push_to_pull_request_branch:
     needs:
@@ -13187,7 +13215,9 @@ jobs:
             `;
               await core.summary.addRaw(summaryContent).write();
             }
-            await main();
+            (async () => {
+              await main();
+            })();
 
   update_cache_memory:
     needs:
@@ -13586,7 +13616,9 @@ jobs:
                 getSummaryLine,
               });
             }
-            await main();
+            (async () => {
+              await main();
+            })();
 
   upload_assets:
     needs:
@@ -13822,5 +13854,7 @@ jobs:
               core.setOutput("upload_count", uploadCount.toString());
               core.setOutput("branch_name", normalizedBranchName);
             }
-            await main();
+            (async () => {
+              await main();
+            })();
 

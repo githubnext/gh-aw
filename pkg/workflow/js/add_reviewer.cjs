@@ -129,4 +129,6 @@ ${reviewersListMarkdown}
   }
 }
 
-await main();
+(async () => {
+  await main();
+})();

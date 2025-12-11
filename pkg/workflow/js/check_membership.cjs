@@ -99,4 +99,6 @@ async function main() {
     );
   }
 }
-await main();
+(async () => {
+  await main();
+})();

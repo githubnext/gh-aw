@@ -1076,7 +1076,9 @@ jobs:
               core.info(`Successfully created ${createdComments.length} comment(s)`);
               return createdComments;
             }
-            await main();
+            (async () => {
+              await main();
+            })();
 
   agent:
     needs: activation
@@ -3555,7 +3557,9 @@ jobs:
                 core.setFailed(`Secret redaction failed: ${error instanceof Error ? error.message : String(error)}`);
               }
             }
-            await main();
+            (async () => {
+              await main();
+            })();
         env:
           GH_AW_SECRET_NAMES: 'COPILOT_GITHUB_TOKEN,GH_AW_GITHUB_MCP_SERVER_TOKEN,GH_AW_GITHUB_TOKEN,GITHUB_TOKEN'
           SECRET_COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
@@ -4535,7 +4539,9 @@ jobs:
                 core.setOutput("has_patch", hasPatch ? "true" : "false");
               }
             }
-            await main();
+            (async () => {
+              await main();
+            })();
       - name: Upload sanitized agent output
         if: always() && env.GH_AW_AGENT_OUTPUT
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
@@ -6566,7 +6572,9 @@ jobs:
               }
               core.info(`Successfully processed ${noopItems.length} noop message(s)`);
             }
-            await main();
+            (async () => {
+              await main();
+            })();
       - name: Record Missing Tool
         id: missing_tool
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
@@ -7344,5 +7352,7 @@ jobs:
                 );
               }
             }
-            await main();
+            (async () => {
+              await main();
+            })();
 

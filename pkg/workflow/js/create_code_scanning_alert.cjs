@@ -243,4 +243,6 @@ async function main() {
     findings: validFindings,
   };
 }
-await main();
+(async () => {
+  await main();
+})();
