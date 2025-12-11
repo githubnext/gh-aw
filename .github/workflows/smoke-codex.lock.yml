@@ -4125,9 +4125,7 @@ jobs:
               }
               content = removeXMLComments(content);
               if (hasGitHubActionsMacros(content)) {
-                throw new Error(
-                  `File ${filepath} contains GitHub Actions macros ($\{{ ... }}) which are not allowed in runtime imports`
-                );
+                throw new Error(`File ${filepath} contains GitHub Actions macros ($\{{ ... }}) which are not allowed in runtime imports`);
               }
               return content;
             }
