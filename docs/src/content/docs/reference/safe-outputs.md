@@ -32,7 +32,8 @@ This declares that the workflow should create at most one new issue.
 | [**Update Issue**](#issue-updates-update-issue) | `update-issue:` | Update issue status, title, or body | 1 | ✅ |
 | [**Update PR**](#pull-request-updates-update-pull-request) | `update-pull-request:` | Update PR title or body | 1 | ✅ |
 | [**Link Sub-Issue**](#link-sub-issue-link-sub-issue) | `link-sub-issue:` | Link issues as sub-issues | 1 | ✅ |
-| [**Update Project**](#project-board-updates-update-project) | `update-project:` | Manage GitHub Projects boards and campaign labels | 10 | ❌ |
+| [**Create Project**](#project-creation-create-project) | `create-project:` | Create GitHub Projects v2 boards | 10 | ❌ |
+| [**Update Project**](#project-board-updates-update-project) | `update-project:` | Add items to project boards and update fields | 10 | ❌ |
 | [**Add Labels**](#add-labels-add-labels) | `add-labels:` | Add labels to issues or PRs | 3 | ✅ |
 | [**Add Reviewer**](#add-reviewer-add-reviewer) | `add-reviewer:` | Add reviewers to pull requests | 3 | ✅ |
 | [**Assign Milestone**](#assign-milestone-assign-milestone) | `assign-milestone:` | Assign issues to milestones | 1 | ✅ |
@@ -284,9 +285,26 @@ safe-outputs:
 
 Agent output includes `parent_issue_number` and `sub_issue_number`. Validation ensures both issues exist and meet label/prefix requirements before linking.
 
+### Project Creation (`create-project:`)
+
+Creates new GitHub Projects v2 boards. Generated job runs with `projects: write` permissions, creates the project, and links it to the repository.
+
+```yaml wrap
+safe-outputs:
+  create-project:
+    max: 5                          # max project creations (default: 10)
+    github-token: ${{ secrets.PROJECTS_PAT }} # token override with projects:write
+```
+
+Agent output must include a `project` name and can supply a custom `campaign_id`. The job creates the project if it doesn't exist (idempotent - returns existing project if name matches), links it to the repository, and exposes `project-id`, `project-number`, `project-url`, and `campaign-id` outputs.
+
+:::note[Organization Only]
+Project creation only works for organization repositories. User accounts must create projects manually at `https://github.com/users/{username}/projects/new`.
+:::
+
 ### Project Board Updates (`update-project:`)
 
-Manages GitHub Projects boards. Generated job runs with `projects: write` permissions, links the board to the repository, and maintains campaign metadata.
+Adds items to GitHub Projects v2 boards and updates custom fields. Project must already exist (use `create-project` to create). Generated job runs with `projects: write` permissions.
 
 ```yaml wrap
 safe-outputs:
@@ -295,7 +313,7 @@ safe-outputs:
     github-token: ${{ secrets.PROJECTS_PAT }} # token override with projects:write
 ```
 
-Agent output must include a `project` identifier (name, number, or URL) and can supply `content_number`, `content_type`, `fields`, and `campaign_id`. The job adds the issue or PR to the board, updates custom fields, applies `campaign:<id>` labels, and exposes `project-id`, `project-number`, `project-url`, `campaign-id`, and `item-id` outputs. Cross-repository targeting not supported.
+Agent output must include a `project` identifier (name, number, or URL) and can supply `content_number`, `content_type`, `fields`, and `campaign_id`. The job finds the existing project, adds the issue or PR to the board, updates custom fields, applies `campaign:<id>` labels, and exposes `project-id`, `project-number`, `campaign-id`, and `item-id` outputs. If the project doesn't exist, the job fails with an error message suggesting to use `create-project` first. Cross-repository targeting not supported.
 
 ### Pull Request Creation (`create-pull-request:`)
 
@@ -658,7 +676,7 @@ safe-outputs:
 
 ## Campaign Workflows
 
-Combine `create-issue` with `update-project` to launch coordinated initiatives. The project job returns a campaign identifier, applies `campaign:<id>` labels, and keeps boards synchronized. See [Campaign Workflows](/gh-aw/guides/campaigns/).
+Combine `create-issue` with `create-project` and `update-project` to launch coordinated initiatives. Use `create-project` to set up the board, then `update-project` to add issues and apply `campaign:<id>` labels for synchronized tracking. See [Campaign Workflows](/gh-aw/guides/campaigns/).
 
 ## Custom Messages (`messages:`)
 
