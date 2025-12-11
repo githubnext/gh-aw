@@ -29,7 +29,6 @@ on:
         default: '10'
       approval_required:
         description: 'Require approval between batches?'
-        type: boolean
         required: false
         default: 'true'
 

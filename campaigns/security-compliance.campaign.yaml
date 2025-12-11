@@ -4,7 +4,7 @@ name: "Security Compliance Campaign"
 description: "Security remediation with compliance audit trail and executive reporting."
 
 workflows:
-  - campaign-security-compliance
+  - security-compliance
 
 memory_paths:
   - "memory/campaigns/security-compliance-*/**"

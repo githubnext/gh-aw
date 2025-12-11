@@ -130,7 +130,7 @@ func TestValidateCampaignSpec_Basic(t *testing.T) {
 	spec := &CampaignSpec{
 		ID:           "security-compliance",
 		Name:         "Security Compliance",
-		Workflows:    []string{"campaign-security-compliance"},
+		Workflows:    []string{"security-compliance"},
 		TrackerLabel: "campaign:security-compliance",
 	}
 
@@ -150,7 +150,7 @@ func TestValidateCampaignSpec_InvalidState(t *testing.T) {
 	spec := &CampaignSpec{
 		ID:           "rollout-q1-2025",
 		Name:         "Rollout",
-		Workflows:    []string{"campaign-org-wide-rollout"},
+		Workflows:    []string{"org-wide-rollout"},
 		TrackerLabel: "campaign:rollout-q1-2025",
 		State:        "launching", // invalid
 	}

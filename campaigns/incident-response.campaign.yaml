@@ -4,7 +4,7 @@ name: "Incident Response Campaign"
 description: "Multi-team incident coordination with command center, SLA tracking, and post-mortem."
 
 workflows:
-  - campaign-incident-response
+  - incident-response
 
 memory_paths:
   - "memory/campaigns/incident-*/**"

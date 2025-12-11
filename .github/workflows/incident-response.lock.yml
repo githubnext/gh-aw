@@ -18,43 +18,35 @@
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/aw/github-agentic-workflows.md
 #
-# Coordinate changes across 100+ repos with phased rollout, dependency tracking, and rollback
+# Coordinate multi-team incident response with SLA tracking, stakeholder updates, and post-mortem
 #
 # Original Frontmatter:
 # ```yaml
-# name: Campaign - Org-Wide Rollout
-# description: Coordinate changes across 100+ repos with phased rollout, dependency tracking, and rollback
-# timeout-minutes: 480  # 8 hours for large orgs
+# name: Campaign - Incident Response
+# description: Coordinate multi-team incident response with SLA tracking, stakeholder updates, and post-mortem
+# timeout-minutes: 60
 # strict: true
 #
 # on:
 #   workflow_dispatch:
 #     inputs:
-#       rollout_type:
-#         description: 'Type of rollout'
+#       incident_severity:
+#         description: 'Incident severity'
 #         type: choice
 #         required: true
 #         options:
-#           - dependency-upgrade
-#           - policy-enforcement
-#           - tooling-migration
-#           - security-hardening
-#       target_repos:
-#         description: 'Repo pattern (e.g., "githubnext/*" or comma-separated list)'
+#           - critical
+#           - high
+#           - medium
+#       incident_description:
+#         description: 'Brief incident description'
 #         required: true
-#         default: 'githubnext/*'
-#       change_description:
-#         description: 'What is being rolled out?'
+#       affected_services:
+#         description: 'Comma-separated list of affected services/repos'
 #         required: true
-#       batch_size:
-#         description: 'Number of repos per batch'
+#       stakeholder_issue:
+#         description: 'Issue number for stakeholder updates'
 #         required: false
-#         default: '10'
-#       approval_required:
-#         description: 'Require approval between batches?'
-#         type: boolean
-#         required: false
-#         default: 'true'
 #
 # permissions:
 #   contents: read
@@ -68,15 +60,15 @@
 #     toolsets: [repos, issues, pull_requests, search]
 #   repo-memory:
 #     branch-name: memory/campaigns
-#     file-glob: "org-rollout-*/**"
+#     file-glob: "incident-*/**"
 #
 # safe-outputs:
 #   create-issue:
-#     labels: [campaign-tracker, org-rollout]
-#   create-pull-request:
-#     labels: [campaign-pr, org-rollout]
+#     labels: [campaign-tracker, incident]
 #   add-comment: {}
 #   add-labels: {}
+#   create-pull-request:
+#     labels: [campaign-fix, incident]
 # ```
 #
 # Job Dependency Graph:
@@ -118,418 +110,401 @@
 #
 # Original Prompt:
 # ```markdown
-# # Campaign: Organization-Wide Rollout
+# # Campaign: Incident Response Coordination
 #
-# **Purpose**: Coordinate changes across 100+ repositories that GitHub Actions cannot orchestrate.
+# **Purpose**: Coordinate cross-team incident response that GitHub Actions/basic workflows cannot handle.
 #
-# **Campaign ID**: `org-rollout-${{ github.run_id }}`
+# **Campaign ID**: `incident-${{ github.run_id }}`
 #
-# **Rollout Type**: `${{ github.event.inputs.rollout_type }}`
+# **Severity**: `${{ github.event.inputs.incident_severity }}`
 #
 # ## Why Campaigns Solve This (Not GitHub Actions)
 #
-# **Problem**: "Update all 200 repos from Node 18 → Node 20" or "Add CODEOWNERS to all repos" requires:
-# - Discovery of all affected repos
-# - Dependency analysis (which repos depend on which)
-# - Phased rollout (batch 1 → test → batch 2)
-# - Per-repo tracking (success/failure/blocked)
-# - Rollback capability if failures exceed threshold
-# - Cross-repo coordination (wait for dependencies)
-# - Executive reporting (progress dashboard)
+# **Problem**: Production incident affecting multiple repos/teams requires:
+# - Central command & control
+# - Multi-team coordination
+# - Real-time status tracking
+# - Stakeholder communication every 30min
+# - SLA pressure (time-to-mitigation)
+# - Post-mortem with business context
+# - Approval gates for emergency fixes
 #
-# **GitHub Actions fails**: Each repo runs independently, no cross-repo orchestration, no phased rollout, no dependency awareness
+# **GitHub Actions fails**: No cross-team coordination, no SLA tracking, no stakeholder communication pattern
 #
-# **Basic agentic workflow fails**: Single repo context, no multi-repo coordination, no progress tracking across org
+# **Basic agentic workflow fails**: Single execution, no orchestration, no persistent command center
 #
-# **Campaign solves**: Central orchestration + phased execution + dependency tracking + rollback + reporting
+# **Campaign solves**: Human-AI collaboration + persistent memory + coordination + governance
 #
-# ## Rollout Phases
+# ## Incident Response Steps
 #
-# ### Phase 1: Discovery & Planning
+# ### 1. Initialize Command Center (repo-memory)
 #
-# #### 1. Discover Target Repos
-#
-# **Query GitHub** for repos matching `${{ github.event.inputs.target_repos }}`:
-# - If pattern like "githubnext/*": List all org repos
-# - If comma-separated: Parse specific repos
-# - Filter: Active repos (not archived), with required access
-#
-# **Store discovery** in `memory/campaigns/org-rollout-${{ github.run_id }}/discovery.json`:
+# Create file `memory/campaigns/incident-${{ github.run_id }}/command-center.json`:
 # ```json
 # {
-#   "campaign_id": "org-rollout-${{ github.run_id }}",
+#   "campaign_id": "incident-${{ github.run_id }}",
+#   "incident_id": "INC-${{ github.run_id }}",
+#   "severity": "${{ github.event.inputs.incident_severity }}",
+#   "description": "${{ github.event.inputs.incident_description }}",
 #   "started": "[timestamp]",
-#   "rollout_type": "${{ github.event.inputs.rollout_type }}",
-#   "change_description": "${{ github.event.inputs.change_description }}",
-#   "target_pattern": "${{ github.event.inputs.target_repos }}",
-#   "discovered_repos": [
-#     {"name": "repo1", "language": "JavaScript", "stars": 150, "active": true},
-#     {"name": "repo2", "language": "Python", "stars": 89, "active": true}
-#   ],
-#   "total_repos": 147,
-#   "batch_size": ${{ github.event.inputs.batch_size }},
-#   "total_batches": 15
+#   "affected_services": "${{ github.event.inputs.affected_services }}".split(","),
+#   "sla_target_minutes": {
+#     "critical": 30,
+#     "high": 120,
+#     "medium": 480
+#   }["${{ github.event.inputs.incident_severity }}"],
+#   "status": "investigating",
+#   "teams_involved": [],
+#   "timeline": []
 # }
 # ```
 #
-# #### 2. Analyze Dependencies
+# ### 2. Create Command Center Issue
 #
-# **For each discovered repo**:
-# - Check if it's a dependency of other repos (package.json, go.mod, etc.)
-# - Check if it depends on other discovered repos
-# - Build dependency graph
+# Use `create-issue`:
 #
-# **Store dependency graph** in `memory/campaigns/org-rollout-${{ github.run_id }}/dependencies.json`:
+# **Title**: `🚨 INCIDENT [${{ github.event.inputs.incident_severity }}]: ${{ github.event.inputs.incident_description }}`
+#
+# **Labels**: `campaign-tracker`, `tracker:incident-${{ github.run_id }}`, `incident`, `severity:${{ github.event.inputs.incident_severity }}`
+#
+# **Body**:
+# ```markdown
+# # Incident Response: INC-${{ github.run_id }}
+#
+# **Campaign ID**: `incident-${{ github.run_id }}`
+# **Severity**: ${{ github.event.inputs.incident_severity }}
+# **Started**: [timestamp]
+# **SLA Target**: [minutes based on severity]
+#
+# ## Incident Details
+#
+# **Description**: ${{ github.event.inputs.incident_description }}
+#
+# **Affected Services**: ${{ github.event.inputs.affected_services }}
+#
+# ## Response Status
+#
+# **Current Status**: 🔍 Investigating
+#
+# **Teams Involved**: [AI to identify from affected services]
+#
+# **Timeline**:
+# - [timestamp] - Incident detected and campaign initiated
+#
+# ## Coordination
+#
+# **Query all incident work**:
+# ```bash
+# gh issue list --search "tracker:incident-${{ github.run_id }}"
+# gh pr list --search "tracker:incident-${{ github.run_id }}"
+# ```
+#
+# **Command Center Data**: `memory/campaigns/incident-${{ github.run_id }}/`
+#
+# ## SLA Tracking
+#
+# **Target Resolution**: [SLA minutes] minutes from start
+# **Time Remaining**: [calculated]
+#
+# ---
+#
+# **Updates will be posted here every 30 minutes or on status changes**
+# ```
+#
+# ### 3. AI Analysis Phase
+#
+# **For each affected service/repo**:
+#
+# 1. **Search for related issues/PRs** (recent errors, deployment failures)
+# 2. **Identify recent changes** (PRs merged in last 48h)
+# 3. **Check dependencies** (related services that might be impacted)
+# 4. **Analyze error patterns** (common failure modes)
+#
+# **Generate hypothesis**:
+# - Likely root causes (ranked by probability)
+# - Affected blast radius (repos, users, services)
+# - Recommended immediate actions
+# - Teams that need to be involved
+#
+# ### 4. Human Decision Checkpoint
+#
+# **AI presents findings to command center issue**:
+#
+# ```markdown
+# ## 🤖 AI Analysis Complete
+#
+# ### Likely Root Causes (by probability)
+# 1. [Cause A] - 60% confidence
+#    - Evidence: [specific findings]
+#    - Impact: [scope]
+#    - Recommended action: [specific fix]
+#    - Risk: [rollback complexity]
+#
+# 2. [Cause B] - 25% confidence
+#    - Evidence: [specific findings]
+#    - Recommended action: [specific fix]
+#
+# ### Blast Radius
+# - Affected repos: [list]
+# - Affected users: [estimate]
+# - Downstream dependencies: [list]
+#
+# ### Recommended Actions (Risk-Tiered)
+#
+# **IMMEDIATE (Low Risk - AI can execute)**:
+# - [ ] Rollback deployment in repo X
+# - [ ] Increase timeout in service Y
+# - [ ] Scale up instances in service Z
+#
+# **REQUIRES APPROVAL (Medium Risk - needs team lead)**:
+# - [ ] Apply hotfix PR #123
+# - [ ] Disable feature flag "new-api"
+#
+# **REQUIRES EXECUTIVE APPROVAL (High Risk - data/security impact)**:
+# - [ ] Database migration rollback
+# - [ ] Traffic failover to backup region
+#
+# ### Teams to Involve
+# - @team-api - [reason]
+# - @team-database - [reason]
+# - @team-frontend - [reason]
+#
+# ---
+#
+# **🚦 Awaiting incident commander decision on recommended actions**
+#
+# Reply with:
+# - "execute-immediate" - Run all low-risk actions
+# - "approve-medium [action numbers]" - Approve specific medium-risk actions
+# - "escalate-high" - Escalate high-risk actions to executive
+# - "investigate-more [cause]" - Deep dive into specific cause
+# ```
+#
+# ### 5. Execute Approved Actions
+#
+# **Based on human decisions**:
+#
+# **If "execute-immediate"**:
+# - Create PRs for rollbacks/hotfixes
+# - Apply labels: `incident-fix`, `tracker:incident-${{ github.run_id }}`
+# - Add comments linking back to command center
+# - Update command center with execution status
+#
+# **If "approve-medium [actions]"**:
+# - Create issues for each approved action
+# - Assign to relevant teams
+# - Track progress in command center
+# - Update SLA countdown
+#
+# **If "escalate-high"**:
+# - Create executive escalation issue
+# - Tag VP/CTO for approval
+# - Document business impact
+# - Pause until approval received
+#
+# ### 6. Status Updates (Every 30min)
+#
+# Add comment to command center issue:
+#
+# ```markdown
+# ## 🕐 Status Update: [HH:MM] ([X] minutes since start)
+#
+# **SLA Status**: ⏰ [minutes remaining] / [target minutes]
+#
+# **Current Status**: [investigating/mitigating/resolved]
+#
+# **Actions Completed** (last 30min):
+# - ✅ [Action A] - [outcome]
+# - ✅ [Action B] - [outcome]
+#
+# **Actions In Progress**:
+# - 🔄 [Action C] - [team] - ETA [time]
+# - 🔄 [Action D] - [team] - ETA [time]
+#
+# **Blockers**:
+# - 🚫 [Blocker A] - [reason] - [action needed]
+#
+# **Next Steps**:
+# - [Next action 1]
+# - [Next action 2]
+#
+# **Metrics**:
+# - Error rate: [current vs baseline]
+# - User impact: [affected users]
+# - Service health: [status]
+# ```
+#
+# {% if github.event.inputs.stakeholder_issue %}
+# Also post sanitized update to stakeholder issue #${{ github.event.inputs.stakeholder_issue }}.
+# {% endif %}
+#
+# ### 7. Store Timeline Events (repo-memory)
+#
+# Update `memory/campaigns/incident-${{ github.run_id }}/timeline.json` continuously:
 # ```json
 # {
-#   "dependency_graph": {
-#     "repo1": {
-#       "depends_on": [],
-#       "depended_by": ["repo3", "repo5"],
-#       "priority": "high"
+#   "incident_id": "INC-${{ github.run_id }}",
+#   "timeline": [
+#     {
+#       "timestamp": "[time]",
+#       "event": "incident_detected",
+#       "details": "Description",
+#       "actor": "system"
 #     },
-#     "repo2": {
-#       "depends_on": ["repo1"],
-#       "depended_by": [],
-#       "priority": "normal"
+#     {
+#       "timestamp": "[time]",
+#       "event": "ai_analysis_complete",
+#       "hypotheses": ["cause A", "cause B"],
+#       "confidence": {"cause A": 0.6, "cause B": 0.25},
+#       "actor": "ai"
+#     },
+#     {
+#       "timestamp": "[time]",
+#       "event": "human_decision",
+#       "decision": "execute-immediate",
+#       "actions_approved": ["rollback X", "scale Y"],
+#       "actor": "@incident-commander"
+#     },
+#     {
+#       "timestamp": "[time]",
+#       "event": "action_executed",
+#       "action": "rollback X",
+#       "outcome": "success",
+#       "actor": "ai"
+#     },
+#     {
+#       "timestamp": "[time]",
+#       "event": "incident_resolved",
+#       "resolution": "Rollback deployed, error rate back to baseline",
+#       "duration_minutes": 45,
+#       "actor": "@incident-commander"
 #     }
-#   },
-#   "rollout_order": [
-#     "batch1": ["repo1", "repo7", "repo12"],  // No dependencies
-#     "batch2": ["repo2", "repo8"],  // Depend on batch1
-#     "batch3": ["repo3", "repo4"]   // Depend on batch2
 #   ]
 # }
 # ```
 #
-# #### 3. Create Command Center Issue
+# ### 8. Incident Resolution
 #
-# Use `create-issue`:
-#
-# **Title**: `🚀 ORG ROLLOUT: ${{ github.event.inputs.change_description }}`
-#
-# **Labels**: `campaign-tracker`, `tracker:org-rollout-${{ github.run_id }}`, `org-rollout`, `type:${{ github.event.inputs.rollout_type }}`
-#
-# **Body**:
-# ```markdown
-# # Org-Wide Rollout Campaign
-#
-# **Campaign ID**: `org-rollout-${{ github.run_id }}`
-# **Type**: ${{ github.event.inputs.rollout_type }}
-# **Change**: ${{ github.event.inputs.change_description }}
-#
-# ## Scope
-#
-# **Target Pattern**: `${{ github.event.inputs.target_repos }}`
-# **Discovered Repos**: [count]
-# **Total Batches**: [count] (batch size: ${{ github.event.inputs.batch_size }})
-# **Approval Required**: ${{ github.event.inputs.approval_required }}
-#
-# ## Rollout Strategy
-#
-# **Phased Rollout** (respecting dependencies):
-# 1. **Batch 1**: Core dependencies (repos with no dependencies)
-# 2. **Batch 2-N**: Dependent repos (after dependencies succeed)
-#
-# **Success Criteria** (per batch):
-# - ✅ All PRs created successfully
-# - ✅ 90% of PRs merged without conflicts
-# - ✅ No critical failures in CI/tests
-# - ✅ Rollback threshold not exceeded (<10% failures)
-#
-# **Rollback Trigger**:
-# - If >10% of batch fails CI/tests
-# - If critical dependency breaks
-# - If manual intervention required
-#
-# ## Progress Dashboard
-#
-# | Batch | Repos | Status | Success Rate | Issues |
-# |-------|-------|--------|--------------|--------|
-# | 1 | 10 | ✅ Complete | 100% (10/10) | 0 |
-# | 2 | 10 | 🔄 In Progress | 80% (8/10) | 2 blocked |
-# | 3 | 10 | ⏳ Waiting | - | - |
-#
-# **Overall Progress**: [X]% ([Y]/[total] repos complete)
-#
-# ## Query Rollout Work
-#
-# ```bash
-# gh issue list --search "tracker:org-rollout-${{ github.run_id }}"
-# gh pr list --search "tracker:org-rollout-${{ github.run_id }}"
-# ```
-#
-# **Campaign Data**: `memory/campaigns/org-rollout-${{ github.run_id }}/`
-#
-# ---
-#
-# **Updates will be posted after each batch completes**
-# ```
-#
-# ### Phase 2: Batch Execution
-#
-# #### 4. Execute Batch 1 (Foundational Repos)
-#
-# **For each repo in Batch 1** (no dependencies):
-#
-# 1. **Create PR** with change:
-#    - Branch: `campaign/org-rollout-${{ github.run_id }}`
-#    - Title: `[${{ github.event.inputs.rollout_type }}] ${{ github.event.inputs.change_description }}`
-#    - Labels: `campaign-pr`, `tracker:org-rollout-${{ github.run_id }}`
-#    - Body:
-#      ```markdown
-#      ## Org-Wide Rollout
-#
-#      **Campaign**: org-rollout-${{ github.run_id }}
-#      **Type**: ${{ github.event.inputs.rollout_type }}
-#      **Change**: ${{ github.event.inputs.change_description }}
-#
-#      ## What Changed
-#
-#      [AI-generated description of specific changes to this repo]
-#
-#      ## Testing
-#
-#      - [ ] CI/tests pass
-#      - [ ] Manual verification (if required)
-#
-#      ## Rollout Status
-#
-#      **Batch**: 1 of [total]
-#      **Dependent Repos**: [list repos that depend on this one]
-#
-#      Command center: [link to command center issue]
-#      ```
-#
-# 2. **Create tracking issue** for repo:
-#    - Title: `[Rollout Tracking] ${{ github.event.inputs.change_description }} - [repo-name]`
-#    - Labels: `tracker:org-rollout-${{ github.run_id }}`, `repo-tracking`
-#    - Body: Link to PR, status, blockers
-#
-# 3. **Monitor PR status**:
-#    - Check CI/test results
-#    - Track merge status
-#    - Identify blockers
-#
-# #### 5. Batch 1 Analysis
-#
-# **After Batch 1 completes (all PRs merged or failed)**:
-#
-# **Store batch results** in `memory/campaigns/org-rollout-${{ github.run_id }}/batch-1-results.json`:
-# ```json
-# {
-#   "batch_number": 1,
-#   "completed": "[timestamp]",
-#   "repos": [
-#     {
-#       "name": "repo1",
-#       "pr_number": 123,
-#       "status": "merged",
-#       "ci_passed": true,
-#       "merge_time_hours": 2.5,
-#       "blockers": []
-#     },
-#     {
-#       "name": "repo2",
-#       "pr_number": 124,
-#       "status": "failed",
-#       "ci_passed": false,
-#       "error": "Test failures in auth module",
-#       "blockers": ["needs manual fix"]
-#     }
-#   ],
-#   "success_rate": 0.90,
-#   "total": 10,
-#   "succeeded": 9,
-#   "failed": 1,
-#   "avg_merge_time_hours": 3.2,
-#   "rollback_triggered": false
-# }
-# ```
-#
-# **Update command center** with batch results:
+# When resolved, create final summary in command center:
 #
 # ```markdown
-# ## ✅ Batch 1 Complete
+# ## ✅ Incident Resolved
 #
-# **Success Rate**: 90% (9/10 repos)
-# **Avg Time to Merge**: 3.2 hours
-# **Blockers**: 1 repo needs manual intervention
+# **Duration**: [X] minutes
+# **SLA Status**: ✅ Within SLA / ⚠️ Exceeded by [X] minutes
 #
-# **Details**:
-# - ✅ repo1 - Merged in 2.5h
-# - ✅ repo2 - Merged in 1.8h
-# - ...
-# - ❌ repo10 - CI failed (auth test failures)
+# **Root Cause**: [confirmed cause]
 #
-# **Next**: Proceeding with Batch 2
-# ```
+# **Resolution**: [what fixed it]
 #
-# #### 6. Human Approval Checkpoint (if enabled)
+# **Impact**:
+# - Affected users: [count]
+# - Services impacted: [list]
+# - Duration: [minutes]
+# - Data loss: Yes/No
 #
-# **If `${{ github.event.inputs.approval_required }}` is true**:
+# **Teams Involved**:
+# - [Team A] - [contribution]
+# - [Team B] - [contribution]
 #
-# Add comment to command center:
+# **PRs/Fixes Applied**:
+# - #123 - [description]
+# - #124 - [description]
 #
-# ```markdown
-# ## 🚦 Approval Required: Batch 2
+# **Post-Mortem Required**: Yes
 #
-# **Batch 1 Results**: 90% success (9/10)
-#
-# **Batch 2 Plan**: 10 repos (depends on Batch 1 completions)
-#
-# **Repos in Batch 2**:
-# - repo11 (depends on: repo1 ✅)
-# - repo12 (depends on: repo3 ✅)
-# - ...
-#
-# **AI Recommendation**: ✅ Proceed - success rate above threshold
-#
-# **Risks**:
-# - 1 repo in Batch 1 still failing (repo10)
-# - If repo10 is critical dependency, may impact Batch 2
-#
-# ---
-#
-# **👤 Human Decision Required**
-#
-# Reply with:
-# - "approve-batch-2" - Proceed with Batch 2
-# - "fix-batch-1" - Pause and fix failing repo10 first
-# - "rollback" - Revert all Batch 1 changes
-# - "adjust-batch-2 [repo-list]" - Modify which repos in Batch 2
-# ```
-#
-# **Pause execution until human responds**
-#
-# #### 7. Execute Remaining Batches
-#
-# Repeat steps 4-6 for each batch, respecting:
-# - Dependency order (batch N only starts after dependencies in batch N-1 succeed)
-# - Approval gates (if enabled)
-# - Rollback threshold (stop if >10% failure rate)
-#
-# ### Phase 3: Completion & Learning
-#
-# #### 8. Final Summary
-#
-# When all batches complete, add to command center:
-#
-# ```markdown
-# ## 🎉 Rollout Complete
-#
-# **Duration**: [X] hours
-# **Total Repos**: [count]
-# **Success Rate**: [Y]% ([Z] repos)
-#
-# **Breakdown**:
-# - ✅ Succeeded: [count] repos
-# - ❌ Failed: [count] repos (require manual intervention)
-# - ⏭️ Skipped: [count] repos (dependencies failed)
-#
-# **Timing**:
-# - Fastest merge: [repo] - [minutes]
-# - Slowest merge: [repo] - [hours]
-# - Average merge: [hours]
-#
-# **Blockers Encountered**:
-# - [Blocker type A]: [count] repos
-# - [Blocker type B]: [count] repos
-#
-# **Failed Repos** (need manual attention):
-# - repo10 - [reason] - [tracking issue]
-# - repo47 - [reason] - [tracking issue]
-#
-# ## Impact
-#
-# **Repos Updated**: [count] / [total]
-# **Coverage**: [percentage]%
-# **Time Saved vs Manual**: ~[hours] (estimated [X] hours manual × [repos])
-#
-# ## Next Steps
-#
-# - [ ] Address [count] failed repos manually
-# - [ ] Monitor deployed changes for [timeframe]
-# - [ ] Document learnings for future rollouts
-#
-# See complete campaign data: `memory/campaigns/org-rollout-${{ github.run_id }}/`
+# See full timeline and analysis: `memory/campaigns/incident-${{ github.run_id }}/`
 #
 # ---
 #
 # Campaign closed.
 # ```
 #
-# #### 9. Generate Learnings
+# ### 9. Generate Post-Mortem Template
 #
-# Create `memory/campaigns/org-rollout-${{ github.run_id }}/learnings.json`:
-# ```json
-# {
-#   "campaign_id": "org-rollout-${{ github.run_id }}",
-#   "rollout_type": "${{ github.event.inputs.rollout_type }}",
-#   "total_repos": 147,
-#   "success_rate": 0.94,
-#   "duration_hours": 18.5,
-#   "learnings": {
-#     "what_worked_well": [
-#       "Dependency-aware batching prevented cascading failures",
-#       "Approval gates caught issues in Batch 3 before wider impact",
-#       "Automated PR creation saved ~40 hours of manual work"
-#     ],
-#     "what_went_wrong": [
-#       "Batch 5 had higher failure rate (15%) - auth module changes not tested",
-#       "Dependency detection missed some implicit dependencies",
-#       "PR merge time varied widely (1h - 8h) due to different CI configs"
-#     ],
-#     "common_blockers": {
-#       "ci_test_failures": 8,
-#       "merge_conflicts": 3,
-#       "missing_permissions": 2,
-#       "manual_review_required": 4
-#     },
-#     "recommendations_for_future": [
-#       "Add pre-rollout testing for common change types",
-#       "Improve dependency detection (analyze actual imports, not just manifests)",
-#       "Consider weekend/off-hours batches to reduce merge time variance",
-#       "Add automated rollback for failed batches"
-#     ]
-#   },
-#   "roi_estimate": {
-#     "time_saved_hours": 120,
-#     "cost_ai_dollars": 45,
-#     "cost_engineering_hours": 8,
-#     "roi_multiplier": "15x"
-#   }
-# }
+# Create `memory/campaigns/incident-${{ github.run_id }}/post-mortem-template.md`:
+#
+# ```markdown
+# # Post-Mortem: INC-${{ github.run_id }}
+#
+# **Date**: [date]
+# **Severity**: ${{ github.event.inputs.incident_severity }}
+# **Duration**: [minutes]
+# **Impact**: [user impact summary]
+#
+# ## Timeline
+#
+# [AI-generated timeline from timeline.json with human-readable descriptions]
+#
+# ## Root Cause
+#
+# [Confirmed root cause with technical details]
+#
+# ## What Went Well
+#
+# - [AI-assisted analysis provided accurate hypothesis in X minutes]
+# - [Team Y responded quickly with fix]
+# - [Rollback procedure worked as designed]
+#
+# ## What Went Wrong
+#
+# - [Detection delay - [X] minutes before incident noticed]
+# - [Communication gap between teams]
+# - [Missing monitoring for [specific metric]]
+#
+# ## Action Items
+#
+# **Prevent Recurrence**:
+# - [ ] [Action 1] - Owner: [team] - Due: [date]
+# - [ ] [Action 2] - Owner: [team] - Due: [date]
+#
+# **Improve Response**:
+# - [ ] [Action 3] - Owner: [team] - Due: [date]
+# - [ ] [Action 4] - Owner: [team] - Due: [date]
+#
+# **Improve Detection**:
+# - [ ] [Action 5] - Owner: [team] - Due: [date]
+#
+# ## Lessons Learned
+#
+# [AI-generated insights from timeline analysis]
+#
+# ## Campaign Metrics
+#
+# - Time to detection: [minutes]
+# - Time to AI analysis: [minutes]
+# - Time to human decision: [minutes]
+# - Time to resolution: [minutes]
+# - Actions taken: [count]
+# - Teams coordinated: [count]
 # ```
 #
 # ## Why This Campaign Cannot Be Done Without Campaigns
 #
-# **Cross-repo orchestration**: Coordinate 100+ repos from central command
-# **Dependency awareness**: Respect dependency graph in rollout order
-# **Phased execution**: Batch-by-batch with approval gates
-# **Rollback capability**: Automatic rollback if failure threshold exceeded
-# **Progress tracking**: Dashboard showing per-repo status across org
-# **Human-in-loop**: Approval gates between batches for risk management
-# **Learning capture**: What worked, what didn't, for future rollouts
-# **ROI tracking**: Time saved vs manual × cost
+# **Cross-team coordination**: Command center orchestrates multiple teams across repos
+# **SLA tracking**: Time pressure and deadline monitoring
+# **Human-in-loop**: AI analyzes, humans decide on risk-tiered actions
+# **Stakeholder communication**: Regular status updates with business context
+# **Audit trail**: Complete timeline with business justification for every decision
+# **Post-mortem**: Learning capture with action items and ownership
+# **Governance**: Approval gates for high-risk emergency actions
 #
-# **GitHub Actions**: Each repo independent, no cross-repo orchestration, no phased rollout concept
-# **Basic workflows**: Single repo context, no multi-repo coordination, no progress aggregation
+# **GitHub Actions**: Can't coordinate across teams, no SLA concept, no stakeholder communication
+# **Basic workflows**: Single execution, no orchestration, no persistent command center
 #
 # ## Output
 #
 # Provide summary:
-# - Campaign ID: `org-rollout-${{ github.run_id }}`
+# - Campaign ID: `incident-${{ github.run_id }}`
+# - Incident ID: `INC-${{ github.run_id }}`
 # - Command center issue: #[number]
-# - Rollout type: ${{ github.event.inputs.rollout_type }}
-# - Total repos: [count]
-# - Success rate: [percentage]%
-# - Duration: [hours]
-# - Batches executed: [count]
-# - Approvals required: [count]
-# - Rollbacks triggered: [count]
-# - Memory location: `memory/campaigns/org-rollout-${{ github.run_id }}/`
-# - Learnings captured for future rollouts
+# - Severity: ${{ github.event.inputs.incident_severity }}
+# - Status: [investigating/mitigating/resolved]
+# - Duration: [minutes] / SLA: [target minutes]
+# - Teams involved: [count]
+# - Actions taken: [count]
+# - Memory location: `memory/campaigns/incident-${{ github.run_id }}/`
+# - Post-mortem template: Ready for human review
 # ```
 #
 # Pinned GitHub Actions:
@@ -544,35 +519,27 @@
 #   - actions/upload-artifact@v5 (330a01c490aca151604b8cf639adc76d48f6c5d4)
 #     https://github.com/actions/upload-artifact/commit/330a01c490aca151604b8cf639adc76d48f6c5d4
 
-name: "Campaign - Org-Wide Rollout"
+name: "Campaign - Incident Response"
 "on":
   workflow_dispatch:
     inputs:
-      approval_required:
-        default: "true"
-        description: Require approval between batches?
-        required: false
-        type: boolean
-      batch_size:
-        default: "10"
-        description: Number of repos per batch
-        required: false
-      change_description:
-        description: What is being rolled out?
+      affected_services:
+        description: Comma-separated list of affected services/repos
         required: true
-      rollout_type:
-        description: Type of rollout
+      incident_description:
+        description: Brief incident description
+        required: true
+      incident_severity:
+        description: Incident severity
         options:
-        - dependency-upgrade
-        - policy-enforcement
-        - tooling-migration
-        - security-hardening
+        - critical
+        - high
+        - medium
         required: true
         type: choice
-      target_repos:
-        default: githubnext/*
-        description: Repo pattern (e.g., "githubnext/*" or comma-separated list)
-        required: true
+      stakeholder_issue:
+        description: Issue number for stakeholder updates
+        required: false
 
 permissions:
   contents: read
@@ -582,7 +549,7 @@ permissions:
 concurrency:
   group: "gh-aw-${{ github.workflow }}"
 
-run-name: "Campaign - Org-Wide Rollout"
+run-name: "Campaign - Incident Response"
 
 jobs:
   activation:
@@ -596,7 +563,7 @@ jobs:
       - name: Check workflow file timestamps
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
-          GH_AW_WORKFLOW_FILE: "campaign-org-wide-rollout.lock.yml"
+          GH_AW_WORKFLOW_FILE: "incident-response.lock.yml"
         with:
           script: |
             async function main() {
@@ -730,7 +697,7 @@ jobs:
           GH_AW_TEMPORARY_ID_MAP: ${{ needs.create_issue.outputs.temporary_id_map }}
           GH_AW_CREATED_PULL_REQUEST_URL: ${{ needs.create_pull_request.outputs.pull_request_url }}
           GH_AW_CREATED_PULL_REQUEST_NUMBER: ${{ needs.create_pull_request.outputs.pull_request_number }}
-          GH_AW_WORKFLOW_NAME: "Campaign - Org-Wide Rollout"
+          GH_AW_WORKFLOW_NAME: "Campaign - Incident Response"
           GH_AW_ENGINE_ID: "copilot"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
@@ -883,14 +850,6 @@ jobs:
               footer += "\n";
               return footer;
             }
-            function getTrackerID(format) {
-              const trackerID = process.env.GH_AW_TRACKER_ID || "";
-              if (trackerID) {
-                core.info(`Tracker ID: ${trackerID}`);
-                return format === "markdown" ? `\n\n<!-- tracker-id: ${trackerID} -->` : trackerID;
-              }
-              return "";
-            }
             function getRepositoryUrl() {
               const targetRepoSlug = process.env.GH_AW_TARGET_REPO_SLUG;
               if (targetRepoSlug) {
@@ -989,6 +948,141 @@ jobs:
               const obj = Object.fromEntries(tempIdMap);
               return JSON.stringify(obj);
             }
+            async function minimizeComment(github, nodeId, reason = "outdated") {
+              const query =  `
+                mutation ($nodeId: ID!, $classifier: ReportedContentClassifiers!) {
+                  minimizeComment(input: { subjectId: $nodeId, classifier: $classifier }) {
+                    minimizedComment {
+                      isMinimized
+                    }
+                  }
+                }
+              `;
+              const result = await github.graphql(query, { nodeId, classifier: reason });
+              return {
+                id: nodeId,
+                isMinimized: result.minimizeComment.minimizedComment.isMinimized,
+              };
+            }
+            async function findCommentsWithTrackerId(github, owner, repo, issueNumber, workflowId) {
+              const comments = [];
+              let page = 1;
+              const perPage = 100;
+              while (true) {
+                const { data } = await github.rest.issues.listComments({
+                  owner,
+                  repo,
+                  issue_number: issueNumber,
+                  per_page: perPage,
+                  page,
+                });
+                if (data.length === 0) {
+                  break;
+                }
+                for (const comment of data) {
+                  if (comment.body && comment.body.includes(`<!-- workflow-id: ${workflowId} -->`)) {
+                    if (comment.body.includes(`<!-- comment-type: reaction -->`)) {
+                      continue;
+                    }
+                    comments.push({
+                      id: comment.id,
+                      node_id: comment.node_id,
+                      body: comment.body,
+                    });
+                  }
+                }
+                if (data.length < perPage) {
+                  break;
+                }
+                page++;
+              }
+              return comments;
+            }
+            async function findDiscussionCommentsWithTrackerId(github, owner, repo, discussionNumber, workflowId) {
+              const query =  `
+                query ($owner: String!, $repo: String!, $num: Int!, $cursor: String) {
+                  repository(owner: $owner, name: $repo) {
+                    discussion(number: $num) {
+                      comments(first: 100, after: $cursor) {
+                        nodes {
+                          id
+                          body
+                        }
+                        pageInfo {
+                          hasNextPage
+                          endCursor
+                        }
+                      }
+                    }
+                  }
+                }
+              `;
+              const comments = [];
+              let cursor = null;
+              while (true) {
+                const result = await github.graphql(query, { owner, repo, num: discussionNumber, cursor });
+                if (!result.repository?.discussion?.comments?.nodes) {
+                  break;
+                }
+                const nodes = result.repository.discussion.comments.nodes;
+                for (const comment of nodes) {
+                  if (comment.body && comment.body.includes(`<!-- workflow-id: ${workflowId} -->`)) {
+                    if (comment.body.includes(`<!-- comment-type: reaction -->`)) {
+                      continue;
+                    }
+                    comments.push({
+                      id: comment.id,
+                      body: comment.body,
+                    });
+                  }
+                }
+                if (!result.repository.discussion.comments.pageInfo.hasNextPage) {
+                  break;
+                }
+                cursor = result.repository.discussion.comments.pageInfo.endCursor;
+              }
+              return comments;
+            }
+            async function hideOlderComments(github, owner, repo, itemNumber, workflowId, isDiscussion, reason = "outdated", allowedReasons = null) {
+              if (!workflowId) {
+                core.info("No workflow ID available, skipping hide-older-comments");
+                return 0;
+              }
+              const normalizedReason = reason.toUpperCase();
+              if (allowedReasons && allowedReasons.length > 0) {
+                const normalizedAllowedReasons = allowedReasons.map(r => r.toUpperCase());
+                if (!normalizedAllowedReasons.includes(normalizedReason)) {
+                  core.warning(`Reason "${reason}" is not in allowed-reasons list [${allowedReasons.join(", ")}]. Skipping hide-older-comments.`);
+                  return 0;
+                }
+              }
+              core.info(`Searching for previous comments with workflow ID: ${workflowId}`);
+              let comments;
+              if (isDiscussion) {
+                comments = await findDiscussionCommentsWithTrackerId(github, owner, repo, itemNumber, workflowId);
+              } else {
+                comments = await findCommentsWithTrackerId(github, owner, repo, itemNumber, workflowId);
+              }
+              if (comments.length === 0) {
+                core.info("No previous comments found with matching workflow ID");
+                return 0;
+              }
+              core.info(`Found ${comments.length} previous comment(s) to hide with reason: ${normalizedReason}`);
+              let hiddenCount = 0;
+              for (const comment of comments) {
+                try {
+                  const nodeId = isDiscussion ? comment.id : comment.node_id;
+                  core.info(`Hiding comment: ${nodeId}`);
+                  await minimizeComment(github, nodeId, normalizedReason);
+                  hiddenCount++;
+                  core.info(`✓ Hidden comment: ${nodeId}`);
+                } catch (error) {
+                  core.warning(`Failed to hide comment: ${error instanceof Error ? error.message : String(error)}`);
+                }
+              }
+              core.info(`Successfully hidden ${hiddenCount} comment(s)`);
+              return hiddenCount;
+            }
             async function commentOnDiscussion(github, owner, repo, discussionNumber, message, replyToId) {
               const { repository } = await github.graphql(
                 `
@@ -1049,6 +1143,7 @@ jobs:
             async function main() {
               const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
               const isDiscussionExplicit = process.env.GITHUB_AW_COMMENT_DISCUSSION === "true";
+              const hideOlderCommentsEnabled = process.env.GH_AW_HIDE_OLDER_COMMENTS === "true";
               const temporaryIdMap = loadTemporaryIdMap();
               if (temporaryIdMap.size > 0) {
                 core.info(`Loaded temporary ID map with ${temporaryIdMap.size} entries`);
@@ -1075,6 +1170,19 @@ jobs:
                 context.eventName === "pull_request_review_comment";
               const isDiscussionContext = context.eventName === "discussion" || context.eventName === "discussion_comment";
               const isDiscussion = isDiscussionContext || isDiscussionExplicit;
+              const workflowId = process.env.GITHUB_WORKFLOW || "";
+              let allowedReasons = null;
+              if (process.env.GH_AW_ALLOWED_REASONS) {
+                try {
+                  allowedReasons = JSON.parse(process.env.GH_AW_ALLOWED_REASONS);
+                  core.info(`Allowed reasons for hiding: [${allowedReasons.join(", ")}]`);
+                } catch (error) {
+                  core.warning(`Failed to parse GH_AW_ALLOWED_REASONS: ${error instanceof Error ? error.message : String(error)}`);
+                }
+              }
+              if (hideOlderCommentsEnabled) {
+                core.info(`Hide-older-comments is enabled with workflow ID: ${workflowId || "(none)"}`);
+              }
               if (isStaged) {
                 let summaryContent = "## 🎭 Staged Mode: Add Comments Preview\n\n";
                 summaryContent += "The following comments would be added if staged mode was disabled:\n\n";
@@ -1222,7 +1330,10 @@ jobs:
                 const runUrl = context.payload.repository
                   ? `${context.payload.repository.html_url}/actions/runs/${runId}`
                   : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
-                body += getTrackerID("markdown");
+                if (workflowId) {
+                  body += `\n\n<!-- workflow-id: ${workflowId} -->`;
+                }
+                body += `\n\n<!-- comment-type: add-comment -->`;
                 body += generateFooterWithMessages(
                   workflowName,
                   runUrl,
@@ -1233,6 +1344,19 @@ jobs:
                   triggeringDiscussionNumber
                 );
                 try {
+                  if (hideOlderCommentsEnabled && workflowId) {
+                    core.info("Hide-older-comments is enabled, searching for previous comments to hide");
+                    await hideOlderComments(
+                      github,
+                      context.repo.owner,
+                      context.repo.repo,
+                      itemNumber,
+                      workflowId,
+                      commentEndpoint === "discussions",
+                      "outdated",
+                      allowedReasons
+                    );
+                  }
                   let comment;
                   if (commentEndpoint === "discussions") {
                     core.info(`Creating comment on discussion #${itemNumber}`);
@@ -1313,7 +1437,7 @@ jobs:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_LABELS_ALLOWED: ""
           GH_AW_LABELS_MAX_COUNT: 3
-          GH_AW_WORKFLOW_NAME: "Campaign - Org-Wide Rollout"
+          GH_AW_WORKFLOW_NAME: "Campaign - Incident Response"
           GH_AW_ENGINE_ID: "copilot"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
@@ -1998,7 +2122,7 @@ jobs:
           cat > /tmp/gh-aw/safeoutputs/tools.json << 'EOF'
           [
             {
-              "description": "Create a new GitHub issue for tracking bugs, feature requests, or tasks. Use this for actionable work items that need assignment, labeling, and status tracking. For reports, announcements, or status updates that don't require task tracking, use create_discussion instead. CONSTRAINTS: Maximum 1 issue(s) can be created. Labels [campaign-tracker org-rollout] will be automatically added.",
+              "description": "Create a new GitHub issue for tracking bugs, feature requests, or tasks. Use this for actionable work items that need assignment, labeling, and status tracking. For reports, announcements, or status updates that don't require task tracking, use create_discussion instead. CONSTRAINTS: Maximum 1 issue(s) can be created. Labels [campaign-tracker incident] will be automatically added.",
               "inputSchema": {
                 "additionalProperties": false,
                 "properties": {
@@ -2060,7 +2184,7 @@ jobs:
               "name": "add_comment"
             },
             {
-              "description": "Create a new GitHub pull request to propose code changes. Use this after making file edits to submit them for review and merging. The PR will be created from the current branch with your committed changes. For code review comments on an existing PR, use create_pull_request_review_comment instead. CONSTRAINTS: Maximum 1 pull request(s) can be created. Labels [campaign-pr org-rollout] will be automatically added.",
+              "description": "Create a new GitHub pull request to propose code changes. Use this after making file edits to submit them for review and merging. The PR will be created from the current branch with your committed changes. For code review comments on an existing PR, use create_pull_request_review_comment instead. CONSTRAINTS: Maximum 1 pull request(s) can be created. Labels [campaign-fix incident] will be automatically added.",
               "inputSchema": {
                 "additionalProperties": false,
                 "properties": {
@@ -3719,7 +3843,7 @@ jobs:
               model: process.env.GH_AW_MODEL_AGENT_COPILOT || "",
               version: "",
               agent_version: "0.0.367",
-              workflow_name: "Campaign - Org-Wide Rollout",
+              workflow_name: "Campaign - Incident Response",
               experimental: false,
               supports_tools_allowlist: true,
               supports_http_transport: true,
@@ -3793,439 +3917,420 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
-          GH_AW_GITHUB_EVENT_INPUTS_APPROVAL_REQUIRED: ${{ github.event.inputs.approval_required }}
-          GH_AW_GITHUB_EVENT_INPUTS_BATCH_SIZE: ${{ github.event.inputs.batch_size }}
-          GH_AW_GITHUB_EVENT_INPUTS_CHANGE_DESCRIPTION: ${{ github.event.inputs.change_description }}
-          GH_AW_GITHUB_EVENT_INPUTS_ROLLOUT_TYPE: ${{ github.event.inputs.rollout_type }}
-          GH_AW_GITHUB_EVENT_INPUTS_TARGET_REPOS: ${{ github.event.inputs.target_repos }}
+          GH_AW_GITHUB_EVENT_INPUTS_AFFECTED_SERVICES: ${{ github.event.inputs.affected_services }}
+          GH_AW_GITHUB_EVENT_INPUTS_INCIDENT_DESCRIPTION: ${{ github.event.inputs.incident_description }}
+          GH_AW_GITHUB_EVENT_INPUTS_INCIDENT_SEVERITY: ${{ github.event.inputs.incident_severity }}
+          GH_AW_GITHUB_EVENT_INPUTS_STAKEHOLDER_ISSUE: ${{ github.event.inputs.stakeholder_issue }}
           GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
         run: |
           PROMPT_DIR="$(dirname "$GH_AW_PROMPT")"
           mkdir -p "$PROMPT_DIR"
           cat << 'PROMPT_EOF' > "$GH_AW_PROMPT"
-          # Campaign: Organization-Wide Rollout
+          # Campaign: Incident Response Coordination
           
-          **Purpose**: Coordinate changes across 100+ repositories that GitHub Actions cannot orchestrate.
+          **Purpose**: Coordinate cross-team incident response that GitHub Actions/basic workflows cannot handle.
           
-          **Campaign ID**: `org-rollout-__GH_AW_GITHUB_RUN_ID__`
+          **Campaign ID**: `incident-__GH_AW_GITHUB_RUN_ID__`
           
-          **Rollout Type**: `__GH_AW_GITHUB_EVENT_INPUTS_ROLLOUT_TYPE__`
+          **Severity**: `__GH_AW_GITHUB_EVENT_INPUTS_INCIDENT_SEVERITY__`
           
           ## Why Campaigns Solve This (Not GitHub Actions)
           
-          **Problem**: "Update all 200 repos from Node 18 → Node 20" or "Add CODEOWNERS to all repos" requires:
-          - Discovery of all affected repos
-          - Dependency analysis (which repos depend on which)
-          - Phased rollout (batch 1 → test → batch 2)
-          - Per-repo tracking (success/failure/blocked)
-          - Rollback capability if failures exceed threshold
-          - Cross-repo coordination (wait for dependencies)
-          - Executive reporting (progress dashboard)
+          **Problem**: Production incident affecting multiple repos/teams requires:
+          - Central command & control
+          - Multi-team coordination
+          - Real-time status tracking
+          - Stakeholder communication every 30min
+          - SLA pressure (time-to-mitigation)
+          - Post-mortem with business context
+          - Approval gates for emergency fixes
           
-          **GitHub Actions fails**: Each repo runs independently, no cross-repo orchestration, no phased rollout, no dependency awareness
+          **GitHub Actions fails**: No cross-team coordination, no SLA tracking, no stakeholder communication pattern
           
-          **Basic agentic workflow fails**: Single repo context, no multi-repo coordination, no progress tracking across org
+          **Basic agentic workflow fails**: Single execution, no orchestration, no persistent command center
           
-          **Campaign solves**: Central orchestration + phased execution + dependency tracking + rollback + reporting
+          **Campaign solves**: Human-AI collaboration + persistent memory + coordination + governance
           
-          ## Rollout Phases
+          ## Incident Response Steps
           
-          ### Phase 1: Discovery & Planning
+          ### 1. Initialize Command Center (repo-memory)
           
-          #### 1. Discover Target Repos
-          
-          **Query GitHub** for repos matching `__GH_AW_GITHUB_EVENT_INPUTS_TARGET_REPOS__`:
-          - If pattern like "githubnext/*": List all org repos
-          - If comma-separated: Parse specific repos
-          - Filter: Active repos (not archived), with required access
-          
-          **Store discovery** in `memory/campaigns/org-rollout-__GH_AW_GITHUB_RUN_ID__/discovery.json`:
+          Create file `memory/campaigns/incident-__GH_AW_GITHUB_RUN_ID__/command-center.json`:
           ```json
           {
-            "campaign_id": "org-rollout-__GH_AW_GITHUB_RUN_ID__",
+            "campaign_id": "incident-__GH_AW_GITHUB_RUN_ID__",
+            "incident_id": "INC-__GH_AW_GITHUB_RUN_ID__",
+            "severity": "__GH_AW_GITHUB_EVENT_INPUTS_INCIDENT_SEVERITY__",
+            "description": "__GH_AW_GITHUB_EVENT_INPUTS_INCIDENT_DESCRIPTION__",
             "started": "[timestamp]",
-            "rollout_type": "__GH_AW_GITHUB_EVENT_INPUTS_ROLLOUT_TYPE__",
-            "change_description": "__GH_AW_GITHUB_EVENT_INPUTS_CHANGE_DESCRIPTION__",
-            "target_pattern": "__GH_AW_GITHUB_EVENT_INPUTS_TARGET_REPOS__",
-            "discovered_repos": [
-              {"name": "repo1", "language": "JavaScript", "stars": 150, "active": true},
-              {"name": "repo2", "language": "Python", "stars": 89, "active": true}
-            ],
-            "total_repos": 147,
-            "batch_size": __GH_AW_GITHUB_EVENT_INPUTS_BATCH_SIZE__,
-            "total_batches": 15
+            "affected_services": "__GH_AW_GITHUB_EVENT_INPUTS_AFFECTED_SERVICES__".split(","),
+            "sla_target_minutes": {
+              "critical": 30,
+              "high": 120,
+              "medium": 480
+            }["__GH_AW_GITHUB_EVENT_INPUTS_INCIDENT_SEVERITY__"],
+            "status": "investigating",
+            "teams_involved": [],
+            "timeline": []
           }
           ```
           
-          #### 2. Analyze Dependencies
+          ### 2. Create Command Center Issue
           
-          **For each discovered repo**:
-          - Check if it's a dependency of other repos (package.json, go.mod, etc.)
-          - Check if it depends on other discovered repos
-          - Build dependency graph
+          Use `create-issue`:
           
-          **Store dependency graph** in `memory/campaigns/org-rollout-__GH_AW_GITHUB_RUN_ID__/dependencies.json`:
+          **Title**: `🚨 INCIDENT [__GH_AW_GITHUB_EVENT_INPUTS_INCIDENT_SEVERITY__]: __GH_AW_GITHUB_EVENT_INPUTS_INCIDENT_DESCRIPTION__`
+          
+          **Labels**: `campaign-tracker`, `tracker:incident-__GH_AW_GITHUB_RUN_ID__`, `incident`, `severity:__GH_AW_GITHUB_EVENT_INPUTS_INCIDENT_SEVERITY__`
+          
+          **Body**:
+          ```markdown
+          # Incident Response: INC-__GH_AW_GITHUB_RUN_ID__
+          
+          **Campaign ID**: `incident-__GH_AW_GITHUB_RUN_ID__`
+          **Severity**: __GH_AW_GITHUB_EVENT_INPUTS_INCIDENT_SEVERITY__
+          **Started**: [timestamp]
+          **SLA Target**: [minutes based on severity]
+          
+          ## Incident Details
+          
+          **Description**: __GH_AW_GITHUB_EVENT_INPUTS_INCIDENT_DESCRIPTION__
+          
+          **Affected Services**: __GH_AW_GITHUB_EVENT_INPUTS_AFFECTED_SERVICES__
+          
+          ## Response Status
+          
+          **Current Status**: 🔍 Investigating
+          
+          **Teams Involved**: [AI to identify from affected services]
+          
+          **Timeline**:
+          - [timestamp] - Incident detected and campaign initiated
+          
+          ## Coordination
+          
+          **Query all incident work**:
+          ```bash
+          gh issue list --search "tracker:incident-__GH_AW_GITHUB_RUN_ID__"
+          gh pr list --search "tracker:incident-__GH_AW_GITHUB_RUN_ID__"
+          ```
+          
+          **Command Center Data**: `memory/campaigns/incident-__GH_AW_GITHUB_RUN_ID__/`
+          
+          ## SLA Tracking
+          
+          **Target Resolution**: [SLA minutes] minutes from start
+          **Time Remaining**: [calculated]
+          
+          ---
+          
+          **Updates will be posted here every 30 minutes or on status changes**
+          ```
+          
+          ### 3. AI Analysis Phase
+          
+          **For each affected service/repo**:
+          
+          1. **Search for related issues/PRs** (recent errors, deployment failures)
+          2. **Identify recent changes** (PRs merged in last 48h)
+          3. **Check dependencies** (related services that might be impacted)
+          4. **Analyze error patterns** (common failure modes)
+          
+          **Generate hypothesis**:
+          - Likely root causes (ranked by probability)
+          - Affected blast radius (repos, users, services)
+          - Recommended immediate actions
+          - Teams that need to be involved
+          
+          ### 4. Human Decision Checkpoint
+          
+          **AI presents findings to command center issue**:
+          
+          ```markdown
+          ## 🤖 AI Analysis Complete
+          
+          ### Likely Root Causes (by probability)
+          1. [Cause A] - 60% confidence
+             - Evidence: [specific findings]
+             - Impact: [scope]
+             - Recommended action: [specific fix]
+             - Risk: [rollback complexity]
+             
+          2. [Cause B] - 25% confidence
+             - Evidence: [specific findings]
+             - Recommended action: [specific fix]
+          
+          ### Blast Radius
+          - Affected repos: [list]
+          - Affected users: [estimate]
+          - Downstream dependencies: [list]
+          
+          ### Recommended Actions (Risk-Tiered)
+          
+          **IMMEDIATE (Low Risk - AI can execute)**:
+          - [ ] Rollback deployment in repo X
+          - [ ] Increase timeout in service Y
+          - [ ] Scale up instances in service Z
+          
+          **REQUIRES APPROVAL (Medium Risk - needs team lead)**:
+          - [ ] Apply hotfix PR #123
+          - [ ] Disable feature flag "new-api"
+          
+          **REQUIRES EXECUTIVE APPROVAL (High Risk - data/security impact)**:
+          - [ ] Database migration rollback
+          - [ ] Traffic failover to backup region
+          
+          ### Teams to Involve
+          - @team-api - [reason]
+          - @team-database - [reason]
+          - @team-frontend - [reason]
+          
+          ---
+          
+          **🚦 Awaiting incident commander decision on recommended actions**
+          
+          Reply with:
+          - "execute-immediate" - Run all low-risk actions
+          - "approve-medium [action numbers]" - Approve specific medium-risk actions
+          - "escalate-high" - Escalate high-risk actions to executive
+          - "investigate-more [cause]" - Deep dive into specific cause
+          ```
+          
+          ### 5. Execute Approved Actions
+          
+          **Based on human decisions**:
+          
+          **If "execute-immediate"**:
+          - Create PRs for rollbacks/hotfixes
+          - Apply labels: `incident-fix`, `tracker:incident-__GH_AW_GITHUB_RUN_ID__`
+          - Add comments linking back to command center
+          - Update command center with execution status
+          
+          **If "approve-medium [actions]"**:
+          - Create issues for each approved action
+          - Assign to relevant teams
+          - Track progress in command center
+          - Update SLA countdown
+          
+          **If "escalate-high"**:
+          - Create executive escalation issue
+          - Tag VP/CTO for approval
+          - Document business impact
+          - Pause until approval received
+          
+          ### 6. Status Updates (Every 30min)
+          
+          Add comment to command center issue:
+          
+          ```markdown
+          ## 🕐 Status Update: [HH:MM] ([X] minutes since start)
+          
+          **SLA Status**: ⏰ [minutes remaining] / [target minutes]
+          
+          **Current Status**: [investigating/mitigating/resolved]
+          
+          **Actions Completed** (last 30min):
+          - ✅ [Action A] - [outcome]
+          - ✅ [Action B] - [outcome]
+          
+          **Actions In Progress**:
+          - 🔄 [Action C] - [team] - ETA [time]
+          - 🔄 [Action D] - [team] - ETA [time]
+          
+          **Blockers**:
+          - 🚫 [Blocker A] - [reason] - [action needed]
+          
+          **Next Steps**:
+          - [Next action 1]
+          - [Next action 2]
+          
+          **Metrics**:
+          - Error rate: [current vs baseline]
+          - User impact: [affected users]
+          - Service health: [status]
+          ```
+          
+          {% if github.event.inputs.stakeholder_issue %}
+          Also post sanitized update to stakeholder issue #__GH_AW_GITHUB_EVENT_INPUTS_STAKEHOLDER_ISSUE__.
+          {% endif %}
+          
+          ### 7. Store Timeline Events (repo-memory)
+          
+          Update `memory/campaigns/incident-__GH_AW_GITHUB_RUN_ID__/timeline.json` continuously:
           ```json
           {
-            "dependency_graph": {
-              "repo1": {
-                "depends_on": [],
-                "depended_by": ["repo3", "repo5"],
-                "priority": "high"
+            "incident_id": "INC-__GH_AW_GITHUB_RUN_ID__",
+            "timeline": [
+              {
+                "timestamp": "[time]",
+                "event": "incident_detected",
+                "details": "Description",
+                "actor": "system"
               },
-              "repo2": {
-                "depends_on": ["repo1"],
-                "depended_by": [],
-                "priority": "normal"
+              {
+                "timestamp": "[time]",
+                "event": "ai_analysis_complete",
+                "hypotheses": ["cause A", "cause B"],
+                "confidence": {"cause A": 0.6, "cause B": 0.25},
+                "actor": "ai"
+              },
+              {
+                "timestamp": "[time]",
+                "event": "human_decision",
+                "decision": "execute-immediate",
+                "actions_approved": ["rollback X", "scale Y"],
+                "actor": "@incident-commander"
+              },
+              {
+                "timestamp": "[time]",
+                "event": "action_executed",
+                "action": "rollback X",
+                "outcome": "success",
+                "actor": "ai"
+              },
+              {
+                "timestamp": "[time]",
+                "event": "incident_resolved",
+                "resolution": "Rollback deployed, error rate back to baseline",
+                "duration_minutes": 45,
+                "actor": "@incident-commander"
               }
-            },
-            "rollout_order": [
-              "batch1": ["repo1", "repo7", "repo12"],  // No dependencies
-              "batch2": ["repo2", "repo8"],  // Depend on batch1
-              "batch3": ["repo3", "repo4"]   // Depend on batch2
             ]
           }
           ```
           
-          #### 3. Create Command Center Issue
+          ### 8. Incident Resolution
           
-          Use `create-issue`:
-          
-          **Title**: `🚀 ORG ROLLOUT: __GH_AW_GITHUB_EVENT_INPUTS_CHANGE_DESCRIPTION__`
-          
-          **Labels**: `campaign-tracker`, `tracker:org-rollout-__GH_AW_GITHUB_RUN_ID__`, `org-rollout`, `type:__GH_AW_GITHUB_EVENT_INPUTS_ROLLOUT_TYPE__`
-          
-          **Body**:
-          ```markdown
-          # Org-Wide Rollout Campaign
-          
-          **Campaign ID**: `org-rollout-__GH_AW_GITHUB_RUN_ID__`
-          **Type**: __GH_AW_GITHUB_EVENT_INPUTS_ROLLOUT_TYPE__
-          **Change**: __GH_AW_GITHUB_EVENT_INPUTS_CHANGE_DESCRIPTION__
-          
-          ## Scope
-          
-          **Target Pattern**: `__GH_AW_GITHUB_EVENT_INPUTS_TARGET_REPOS__`
-          **Discovered Repos**: [count]
-          **Total Batches**: [count] (batch size: __GH_AW_GITHUB_EVENT_INPUTS_BATCH_SIZE__)
-          **Approval Required**: __GH_AW_GITHUB_EVENT_INPUTS_APPROVAL_REQUIRED__
-          
-          ## Rollout Strategy
-          
-          **Phased Rollout** (respecting dependencies):
-          1. **Batch 1**: Core dependencies (repos with no dependencies)
-          2. **Batch 2-N**: Dependent repos (after dependencies succeed)
-          
-          **Success Criteria** (per batch):
-          - ✅ All PRs created successfully
-          - ✅ 90% of PRs merged without conflicts
-          - ✅ No critical failures in CI/tests
-          - ✅ Rollback threshold not exceeded (<10% failures)
-          
-          **Rollback Trigger**:
-          - If >10% of batch fails CI/tests
-          - If critical dependency breaks
-          - If manual intervention required
-          
-          ## Progress Dashboard
-          
-          | Batch | Repos | Status | Success Rate | Issues |
-          |-------|-------|--------|--------------|--------|
-          | 1 | 10 | ✅ Complete | 100% (10/10) | 0 |
-          | 2 | 10 | 🔄 In Progress | 80% (8/10) | 2 blocked |
-          | 3 | 10 | ⏳ Waiting | - | - |
-          
-          **Overall Progress**: [X]% ([Y]/[total] repos complete)
-          
-          ## Query Rollout Work
-          
-          ```bash
-          gh issue list --search "tracker:org-rollout-__GH_AW_GITHUB_RUN_ID__"
-          gh pr list --search "tracker:org-rollout-__GH_AW_GITHUB_RUN_ID__"
-          ```
-          
-          **Campaign Data**: `memory/campaigns/org-rollout-__GH_AW_GITHUB_RUN_ID__/`
-          
-          ---
-          
-          **Updates will be posted after each batch completes**
-          ```
-          
-          ### Phase 2: Batch Execution
-          
-          #### 4. Execute Batch 1 (Foundational Repos)
-          
-          **For each repo in Batch 1** (no dependencies):
-          
-          1. **Create PR** with change:
-             - Branch: `campaign/org-rollout-__GH_AW_GITHUB_RUN_ID__`
-             - Title: `[__GH_AW_GITHUB_EVENT_INPUTS_ROLLOUT_TYPE__] __GH_AW_GITHUB_EVENT_INPUTS_CHANGE_DESCRIPTION__`
-             - Labels: `campaign-pr`, `tracker:org-rollout-__GH_AW_GITHUB_RUN_ID__`
-             - Body:
-               ```markdown
-               ## Org-Wide Rollout
-               
-               **Campaign**: org-rollout-__GH_AW_GITHUB_RUN_ID__
-               **Type**: __GH_AW_GITHUB_EVENT_INPUTS_ROLLOUT_TYPE__
-               **Change**: __GH_AW_GITHUB_EVENT_INPUTS_CHANGE_DESCRIPTION__
-               
-               ## What Changed
-               
-               [AI-generated description of specific changes to this repo]
-               
-               ## Testing
-               
-               - [ ] CI/tests pass
-               - [ ] Manual verification (if required)
-               
-               ## Rollout Status
-               
-               **Batch**: 1 of [total]
-               **Dependent Repos**: [list repos that depend on this one]
-               
-               Command center: [link to command center issue]
-               ```
-          
-          2. **Create tracking issue** for repo:
-             - Title: `[Rollout Tracking] __GH_AW_GITHUB_EVENT_INPUTS_CHANGE_DESCRIPTION__ - [repo-name]`
-             - Labels: `tracker:org-rollout-__GH_AW_GITHUB_RUN_ID__`, `repo-tracking`
-             - Body: Link to PR, status, blockers
-          
-          3. **Monitor PR status**:
-             - Check CI/test results
-             - Track merge status
-             - Identify blockers
-          
-          #### 5. Batch 1 Analysis
-          
-          **After Batch 1 completes (all PRs merged or failed)**:
-          
-          **Store batch results** in `memory/campaigns/org-rollout-__GH_AW_GITHUB_RUN_ID__/batch-1-results.json`:
-          ```json
-          {
-            "batch_number": 1,
-            "completed": "[timestamp]",
-            "repos": [
-              {
-                "name": "repo1",
-                "pr_number": 123,
-                "status": "merged",
-                "ci_passed": true,
-                "merge_time_hours": 2.5,
-                "blockers": []
-              },
-              {
-                "name": "repo2",
-                "pr_number": 124,
-                "status": "failed",
-                "ci_passed": false,
-                "error": "Test failures in auth module",
-                "blockers": ["needs manual fix"]
-              }
-            ],
-            "success_rate": 0.90,
-            "total": 10,
-            "succeeded": 9,
-            "failed": 1,
-            "avg_merge_time_hours": 3.2,
-            "rollback_triggered": false
-          }
-          ```
-          
-          **Update command center** with batch results:
+          When resolved, create final summary in command center:
           
           ```markdown
-          ## ✅ Batch 1 Complete
+          ## ✅ Incident Resolved
           
-          **Success Rate**: 90% (9/10 repos)
-          **Avg Time to Merge**: 3.2 hours
-          **Blockers**: 1 repo needs manual intervention
+          **Duration**: [X] minutes
+          **SLA Status**: ✅ Within SLA / ⚠️ Exceeded by [X] minutes
           
-          **Details**:
-          - ✅ repo1 - Merged in 2.5h
-          - ✅ repo2 - Merged in 1.8h
-          - ...
-          - ❌ repo10 - CI failed (auth test failures)
+          **Root Cause**: [confirmed cause]
           
-          **Next**: Proceeding with Batch 2
-          ```
+          **Resolution**: [what fixed it]
           
-          #### 6. Human Approval Checkpoint (if enabled)
+          **Impact**:
+          - Affected users: [count]
+          - Services impacted: [list]
+          - Duration: [minutes]
+          - Data loss: Yes/No
           
-          **If `__GH_AW_GITHUB_EVENT_INPUTS_APPROVAL_REQUIRED__` is true**:
+          **Teams Involved**:
+          - [Team A] - [contribution]
+          - [Team B] - [contribution]
           
-          Add comment to command center:
+          **PRs/Fixes Applied**:
+          - #123 - [description]
+          - #124 - [description]
           
-          ```markdown
-          ## 🚦 Approval Required: Batch 2
+          **Post-Mortem Required**: Yes
           
-          **Batch 1 Results**: 90% success (9/10)
-          
-          **Batch 2 Plan**: 10 repos (depends on Batch 1 completions)
-          
-          **Repos in Batch 2**:
-          - repo11 (depends on: repo1 ✅)
-          - repo12 (depends on: repo3 ✅)
-          - ...
-          
-          **AI Recommendation**: ✅ Proceed - success rate above threshold
-          
-          **Risks**:
-          - 1 repo in Batch 1 still failing (repo10)
-          - If repo10 is critical dependency, may impact Batch 2
-          
-          ---
-          
-          **👤 Human Decision Required**
-          
-          Reply with:
-          - "approve-batch-2" - Proceed with Batch 2
-          - "fix-batch-1" - Pause and fix failing repo10 first
-          - "rollback" - Revert all Batch 1 changes
-          - "adjust-batch-2 [repo-list]" - Modify which repos in Batch 2
-          ```
-          
-          **Pause execution until human responds**
-          
-          #### 7. Execute Remaining Batches
-          
-          Repeat steps 4-6 for each batch, respecting:
-          - Dependency order (batch N only starts after dependencies in batch N-1 succeed)
-          - Approval gates (if enabled)
-          - Rollback threshold (stop if >10% failure rate)
-          
-          ### Phase 3: Completion & Learning
-          
-          #### 8. Final Summary
-          
-          When all batches complete, add to command center:
-          
-          ```markdown
-          ## 🎉 Rollout Complete
-          
-          **Duration**: [X] hours
-          **Total Repos**: [count]
-          **Success Rate**: [Y]% ([Z] repos)
-          
-          **Breakdown**:
-          - ✅ Succeeded: [count] repos
-          - ❌ Failed: [count] repos (require manual intervention)
-          - ⏭️ Skipped: [count] repos (dependencies failed)
-          
-          **Timing**:
-          - Fastest merge: [repo] - [minutes]
-          - Slowest merge: [repo] - [hours]
-          - Average merge: [hours]
-          
-          **Blockers Encountered**:
-          - [Blocker type A]: [count] repos
-          - [Blocker type B]: [count] repos
-          
-          **Failed Repos** (need manual attention):
-          - repo10 - [reason] - [tracking issue]
-          - repo47 - [reason] - [tracking issue]
-          
-          ## Impact
-          
-          **Repos Updated**: [count] / [total]
-          **Coverage**: [percentage]%
-          **Time Saved vs Manual**: ~[hours] (estimated [X] hours manual × [repos])
-          
-          ## Next Steps
-          
-          - [ ] Address [count] failed repos manually
-          - [ ] Monitor deployed changes for [timeframe]
-          - [ ] Document learnings for future rollouts
-          
-          See complete campaign data: `memory/campaigns/org-rollout-__GH_AW_GITHUB_RUN_ID__/`
+          See full timeline and analysis: `memory/campaigns/incident-__GH_AW_GITHUB_RUN_ID__/`
           
           ---
           
           Campaign closed.
           ```
           
-          #### 9. Generate Learnings
+          ### 9. Generate Post-Mortem Template
           
-          Create `memory/campaigns/org-rollout-__GH_AW_GITHUB_RUN_ID__/learnings.json`:
-          ```json
-          {
-            "campaign_id": "org-rollout-__GH_AW_GITHUB_RUN_ID__",
-            "rollout_type": "__GH_AW_GITHUB_EVENT_INPUTS_ROLLOUT_TYPE__",
-            "total_repos": 147,
-            "success_rate": 0.94,
-            "duration_hours": 18.5,
-            "learnings": {
-              "what_worked_well": [
-                "Dependency-aware batching prevented cascading failures",
-                "Approval gates caught issues in Batch 3 before wider impact",
-                "Automated PR creation saved ~40 hours of manual work"
-              ],
-              "what_went_wrong": [
-                "Batch 5 had higher failure rate (15%) - auth module changes not tested",
-                "Dependency detection missed some implicit dependencies",
-                "PR merge time varied widely (1h - 8h) due to different CI configs"
-              ],
-              "common_blockers": {
-                "ci_test_failures": 8,
-                "merge_conflicts": 3,
-                "missing_permissions": 2,
-                "manual_review_required": 4
-              },
-              "recommendations_for_future": [
-                "Add pre-rollout testing for common change types",
-                "Improve dependency detection (analyze actual imports, not just manifests)",
-                "Consider weekend/off-hours batches to reduce merge time variance",
-                "Add automated rollback for failed batches"
-              ]
-            },
-            "roi_estimate": {
-              "time_saved_hours": 120,
-              "cost_ai_dollars": 45,
-              "cost_engineering_hours": 8,
-              "roi_multiplier": "15x"
-            }
-          }
+          Create `memory/campaigns/incident-__GH_AW_GITHUB_RUN_ID__/post-mortem-template.md`:
+          
+          ```markdown
+          # Post-Mortem: INC-__GH_AW_GITHUB_RUN_ID__
+          
+          **Date**: [date]
+          **Severity**: __GH_AW_GITHUB_EVENT_INPUTS_INCIDENT_SEVERITY__
+          **Duration**: [minutes]
+          **Impact**: [user impact summary]
+          
+          ## Timeline
+          
+          [AI-generated timeline from timeline.json with human-readable descriptions]
+          
+          ## Root Cause
+          
+          [Confirmed root cause with technical details]
+          
+          ## What Went Well
+          
+          - [AI-assisted analysis provided accurate hypothesis in X minutes]
+          - [Team Y responded quickly with fix]
+          - [Rollback procedure worked as designed]
+          
+          ## What Went Wrong
+          
+          - [Detection delay - [X] minutes before incident noticed]
+          - [Communication gap between teams]
+          - [Missing monitoring for [specific metric]]
+          
+          ## Action Items
+          
+          **Prevent Recurrence**:
+          - [ ] [Action 1] - Owner: [team] - Due: [date]
+          - [ ] [Action 2] - Owner: [team] - Due: [date]
+          
+          **Improve Response**:
+          - [ ] [Action 3] - Owner: [team] - Due: [date]
+          - [ ] [Action 4] - Owner: [team] - Due: [date]
+          
+          **Improve Detection**:
+          - [ ] [Action 5] - Owner: [team] - Due: [date]
+          
+          ## Lessons Learned
+          
+          [AI-generated insights from timeline analysis]
+          
+          ## Campaign Metrics
+          
+          - Time to detection: [minutes]
+          - Time to AI analysis: [minutes]
+          - Time to human decision: [minutes]
+          - Time to resolution: [minutes]
+          - Actions taken: [count]
+          - Teams coordinated: [count]
           ```
           
           ## Why This Campaign Cannot Be Done Without Campaigns
           
-          **Cross-repo orchestration**: Coordinate 100+ repos from central command
-          **Dependency awareness**: Respect dependency graph in rollout order
-          **Phased execution**: Batch-by-batch with approval gates
-          **Rollback capability**: Automatic rollback if failure threshold exceeded
-          **Progress tracking**: Dashboard showing per-repo status across org
-          **Human-in-loop**: Approval gates between batches for risk management
-          **Learning capture**: What worked, what didn't, for future rollouts
-          **ROI tracking**: Time saved vs manual × cost
+          **Cross-team coordination**: Command center orchestrates multiple teams across repos
+          **SLA tracking**: Time pressure and deadline monitoring
+          **Human-in-loop**: AI analyzes, humans decide on risk-tiered actions
+          **Stakeholder communication**: Regular status updates with business context
+          **Audit trail**: Complete timeline with business justification for every decision
+          **Post-mortem**: Learning capture with action items and ownership
+          **Governance**: Approval gates for high-risk emergency actions
           
-          **GitHub Actions**: Each repo independent, no cross-repo orchestration, no phased rollout concept
-          **Basic workflows**: Single repo context, no multi-repo coordination, no progress aggregation
+          **GitHub Actions**: Can't coordinate across teams, no SLA concept, no stakeholder communication
+          **Basic workflows**: Single execution, no orchestration, no persistent command center
           
           ## Output
           
           Provide summary:
-          - Campaign ID: `org-rollout-__GH_AW_GITHUB_RUN_ID__`
+          - Campaign ID: `incident-__GH_AW_GITHUB_RUN_ID__`
+          - Incident ID: `INC-__GH_AW_GITHUB_RUN_ID__`
           - Command center issue: #[number]
-          - Rollout type: __GH_AW_GITHUB_EVENT_INPUTS_ROLLOUT_TYPE__
-          - Total repos: [count]
-          - Success rate: [percentage]%
-          - Duration: [hours]
-          - Batches executed: [count]
-          - Approvals required: [count]
-          - Rollbacks triggered: [count]
-          - Memory location: `memory/campaigns/org-rollout-__GH_AW_GITHUB_RUN_ID__/`
-          - Learnings captured for future rollouts
+          - Severity: __GH_AW_GITHUB_EVENT_INPUTS_INCIDENT_SEVERITY__
+          - Status: [investigating/mitigating/resolved]
+          - Duration: [minutes] / SLA: [target minutes]
+          - Teams involved: [count]
+          - Actions taken: [count]
+          - Memory location: `memory/campaigns/incident-__GH_AW_GITHUB_RUN_ID__/`
+          - Post-mortem template: Ready for human review
           
           PROMPT_EOF
       - name: Substitute placeholders
         uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-          GH_AW_GITHUB_EVENT_INPUTS_APPROVAL_REQUIRED: ${{ github.event.inputs.approval_required }}
-          GH_AW_GITHUB_EVENT_INPUTS_BATCH_SIZE: ${{ github.event.inputs.batch_size }}
-          GH_AW_GITHUB_EVENT_INPUTS_CHANGE_DESCRIPTION: ${{ github.event.inputs.change_description }}
-          GH_AW_GITHUB_EVENT_INPUTS_ROLLOUT_TYPE: ${{ github.event.inputs.rollout_type }}
-          GH_AW_GITHUB_EVENT_INPUTS_TARGET_REPOS: ${{ github.event.inputs.target_repos }}
+          GH_AW_GITHUB_EVENT_INPUTS_AFFECTED_SERVICES: ${{ github.event.inputs.affected_services }}
+          GH_AW_GITHUB_EVENT_INPUTS_INCIDENT_DESCRIPTION: ${{ github.event.inputs.incident_description }}
+          GH_AW_GITHUB_EVENT_INPUTS_INCIDENT_SEVERITY: ${{ github.event.inputs.incident_severity }}
+          GH_AW_GITHUB_EVENT_INPUTS_STAKEHOLDER_ISSUE: ${{ github.event.inputs.stakeholder_issue }}
           GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
         with:
           script: |
@@ -4284,11 +4389,10 @@ jobs:
             return await substitutePlaceholders({
               file: process.env.GH_AW_PROMPT,
               substitutions: {
-                GH_AW_GITHUB_EVENT_INPUTS_APPROVAL_REQUIRED: process.env.GH_AW_GITHUB_EVENT_INPUTS_APPROVAL_REQUIRED,
-                GH_AW_GITHUB_EVENT_INPUTS_BATCH_SIZE: process.env.GH_AW_GITHUB_EVENT_INPUTS_BATCH_SIZE,
-                GH_AW_GITHUB_EVENT_INPUTS_CHANGE_DESCRIPTION: process.env.GH_AW_GITHUB_EVENT_INPUTS_CHANGE_DESCRIPTION,
-                GH_AW_GITHUB_EVENT_INPUTS_ROLLOUT_TYPE: process.env.GH_AW_GITHUB_EVENT_INPUTS_ROLLOUT_TYPE,
-                GH_AW_GITHUB_EVENT_INPUTS_TARGET_REPOS: process.env.GH_AW_GITHUB_EVENT_INPUTS_TARGET_REPOS,
+                GH_AW_GITHUB_EVENT_INPUTS_AFFECTED_SERVICES: process.env.GH_AW_GITHUB_EVENT_INPUTS_AFFECTED_SERVICES,
+                GH_AW_GITHUB_EVENT_INPUTS_INCIDENT_DESCRIPTION: process.env.GH_AW_GITHUB_EVENT_INPUTS_INCIDENT_DESCRIPTION,
+                GH_AW_GITHUB_EVENT_INPUTS_INCIDENT_SEVERITY: process.env.GH_AW_GITHUB_EVENT_INPUTS_INCIDENT_SEVERITY,
+                GH_AW_GITHUB_EVENT_INPUTS_STAKEHOLDER_ISSUE: process.env.GH_AW_GITHUB_EVENT_INPUTS_STAKEHOLDER_ISSUE,
                 GH_AW_GITHUB_RUN_ID: process.env.GH_AW_GITHUB_RUN_ID
               }
             });
@@ -4359,7 +4463,7 @@ jobs:
           - **Persistence**: Files persist across workflow runs via git branch storage
           
           **Constraints:**
-          - **Allowed Files**: Only files matching patterns: org-rollout-*/**
+          - **Allowed Files**: Only files matching patterns: incident-*/**
           - **Max File Size**: 10240 bytes (0.01 MB) per file
           - **Max File Count**: 100 files per commit
           
@@ -4514,18 +4618,89 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-          GH_AW_GITHUB_EVENT_INPUTS_APPROVAL_REQUIRED: ${{ github.event.inputs.approval_required }}
-          GH_AW_GITHUB_EVENT_INPUTS_BATCH_SIZE: ${{ github.event.inputs.batch_size }}
-          GH_AW_GITHUB_EVENT_INPUTS_CHANGE_DESCRIPTION: ${{ github.event.inputs.change_description }}
-          GH_AW_GITHUB_EVENT_INPUTS_ROLLOUT_TYPE: ${{ github.event.inputs.rollout_type }}
-          GH_AW_GITHUB_EVENT_INPUTS_TARGET_REPOS: ${{ github.event.inputs.target_repos }}
+          GH_AW_GITHUB_EVENT_INPUTS_AFFECTED_SERVICES: ${{ github.event.inputs.affected_services }}
+          GH_AW_GITHUB_EVENT_INPUTS_INCIDENT_DESCRIPTION: ${{ github.event.inputs.incident_description }}
+          GH_AW_GITHUB_EVENT_INPUTS_INCIDENT_SEVERITY: ${{ github.event.inputs.incident_severity }}
+          GH_AW_GITHUB_EVENT_INPUTS_STAKEHOLDER_ISSUE: ${{ github.event.inputs.stakeholder_issue }}
           GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
         with:
           script: |
             const fs = require("fs");
+            const path = require("path");
             function isTruthy(expr) {
               const v = expr.trim().toLowerCase();
               return !(v === "" || v === "false" || v === "0" || v === "null" || v === "undefined");
+            }
+            function hasFrontMatter(content) {
+              return content.trimStart().startsWith("---\n") || content.trimStart().startsWith("---\r\n");
+            }
+            function removeXMLComments(content) {
+              return content.replace(/<!--[\s\S]*?-->/g, "");
+            }
+            function hasGitHubActionsMacros(content) {
+              return /\$\{\{[\s\S]*?\}\}/.test(content);
+            }
+            function processRuntimeImport(filepath, optional, workspaceDir) {
+              const absolutePath = path.resolve(workspaceDir, filepath);
+              if (!fs.existsSync(absolutePath)) {
+                if (optional) {
+                  core.warning(`Optional runtime import file not found: ${filepath}`);
+                  return "";
+                }
+                throw new Error(`Runtime import file not found: ${filepath}`);
+              }
+              let content = fs.readFileSync(absolutePath, "utf8");
+              if (hasFrontMatter(content)) {
+                core.warning(`File ${filepath} contains front matter which will be ignored in runtime import`);
+                const lines = content.split("\n");
+                let inFrontMatter = false;
+                let frontMatterCount = 0;
+                const processedLines = [];
+                for (const line of lines) {
+                  if (line.trim() === "---" || line.trim() === "---\r") {
+                    frontMatterCount++;
+                    if (frontMatterCount === 1) {
+                      inFrontMatter = true;
+                      continue;
+                    } else if (frontMatterCount === 2) {
+                      inFrontMatter = false;
+                      continue;
+                    }
+                  }
+                  if (!inFrontMatter && frontMatterCount >= 2) {
+                    processedLines.push(line);
+                  }
+                }
+                content = processedLines.join("\n");
+              }
+              content = removeXMLComments(content);
+              if (hasGitHubActionsMacros(content)) {
+                throw new Error(`File ${filepath} contains GitHub Actions macros ($\{{ ... }}) which are not allowed in runtime imports`);
+              }
+              return content;
+            }
+            function processRuntimeImports(content, workspaceDir) {
+              const pattern = /\{\{#runtime-import(\?)?[ \t]+([^\}]+?)\}\}/g;
+              let processedContent = content;
+              let match;
+              const importedFiles = new Set();
+              pattern.lastIndex = 0;
+              while ((match = pattern.exec(content)) !== null) {
+                const optional = match[1] === "?";
+                const filepath = match[2].trim();
+                const fullMatch = match[0];
+                if (importedFiles.has(filepath)) {
+                  core.warning(`File ${filepath} is imported multiple times, which may indicate a circular reference`);
+                }
+                importedFiles.add(filepath);
+                try {
+                  const importedContent = processRuntimeImport(filepath, optional, workspaceDir);
+                  processedContent = processedContent.replace(fullMatch, importedContent);
+                } catch (error) {
+                  throw new Error(`Failed to process runtime import for ${filepath}: ${error.message}`);
+                }
+              }
+              return processedContent;
             }
             function interpolateVariables(content, variables) {
               let result = content;
@@ -4557,7 +4732,20 @@ jobs:
                   core.setFailed("GH_AW_PROMPT environment variable is not set");
                   return;
                 }
+                const workspaceDir = process.env.GITHUB_WORKSPACE;
+                if (!workspaceDir) {
+                  core.setFailed("GITHUB_WORKSPACE environment variable is not set");
+                  return;
+                }
                 let content = fs.readFileSync(promptPath, "utf8");
+                const hasRuntimeImports = /{{#runtime-import\??[ \t]+[^\}]+}}/.test(content);
+                if (hasRuntimeImports) {
+                  core.info("Processing runtime import macros");
+                  content = processRuntimeImports(content, workspaceDir);
+                  core.info("Runtime imports processed successfully");
+                } else {
+                  core.info("No runtime import macros found, skipping runtime import processing");
+                }
                 const variables = {};
                 for (const [key, value] of Object.entries(process.env)) {
                   if (key.startsWith("GH_AW_EXPR_")) {
@@ -4644,7 +4832,7 @@ jobs:
         # --allow-tool shell(wc)
         # --allow-tool shell(yq)
         # --allow-tool write
-        timeout-minutes: 480
+        timeout-minutes: 60
         run: |
           set -o pipefail
           sudo -E awf --env-all --container-workdir "${GITHUB_WORKSPACE}" --mount /tmp:/tmp:rw --mount "${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:rw" --mount /usr/bin/date:/usr/bin/date:ro --mount /usr/bin/gh:/usr/bin/gh:ro --mount /usr/bin/yq:/usr/bin/yq:ro --allow-domains api.business.githubcopilot.com,api.enterprise.githubcopilot.com,api.github.com,api.individual.githubcopilot.com,github.com,host.docker.internal,raw.githubusercontent.com,registry.npmjs.org --log-level info --proxy-logs-dir /tmp/gh-aw/sandbox/firewall/logs \
@@ -4973,7 +5161,35 @@ jobs:
                 return s.replace(/<!--[\s\S]*?-->/g, "").replace(/<!--[\s\S]*?--!>/g, "");
               }
               function convertXmlTags(s) {
-                const allowedTags = ["details", "summary", "code", "em", "b", "p", "strong", "i", "u", "br", "ul", "ol", "li", "blockquote"];
+                const allowedTags = [
+                  "b",
+                  "blockquote",
+                  "br",
+                  "code",
+                  "em",
+                  "h1",
+                  "h2",
+                  "h3",
+                  "h4",
+                  "h5",
+                  "h6",
+                  "hr",
+                  "i",
+                  "li",
+                  "ol",
+                  "p",
+                  "pre",
+                  "strong",
+                  "sub",
+                  "sup",
+                  "table",
+                  "tbody",
+                  "td",
+                  "th",
+                  "thead",
+                  "tr",
+                  "ul",
+                ];
                 s = s.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, (match, content) => {
                   const convertedContent = content.replace(/<(\/?[A-Za-z][A-Za-z0-9]*(?:[^>]*?))>/g, "($1)");
                   return `(![CDATA[${convertedContent}]])`;
@@ -7084,7 +7300,7 @@ jobs:
         continue-on-error: true
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
         with:
-          name: firewall-logs-campaign-org-wide-rollout
+          name: firewall-logs-campaign-incident-response
           path: /tmp/gh-aw/sandbox/firewall/logs/
           if-no-files-found: ignore
       - name: Parse firewall logs for step summary
@@ -7689,7 +7905,7 @@ jobs:
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_NOOP_MAX: 1
-          GH_AW_WORKFLOW_NAME: "Campaign - Org-Wide Rollout"
+          GH_AW_WORKFLOW_NAME: "Campaign - Incident Response"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -7781,7 +7997,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_WORKFLOW_NAME: "Campaign - Org-Wide Rollout"
+          GH_AW_WORKFLOW_NAME: "Campaign - Incident Response"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -7894,7 +8110,7 @@ jobs:
           GH_AW_COMMENT_ID: ${{ needs.activation.outputs.comment_id }}
           GH_AW_COMMENT_REPO: ${{ needs.activation.outputs.comment_repo }}
           GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          GH_AW_WORKFLOW_NAME: "Campaign - Org-Wide Rollout"
+          GH_AW_WORKFLOW_NAME: "Campaign - Incident Response"
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
           GH_AW_DETECTION_CONCLUSION: ${{ needs.detection.result }}
           GH_AW_SAFE_OUTPUT_JOBS: "{\"add_comment\":\"comment_url\",\"create_issue\":\"issue_url\",\"create_pull_request\":\"pull_request_url\"}"
@@ -8188,8 +8404,8 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_ISSUE_LABELS: "campaign-tracker,org-rollout"
-          GH_AW_WORKFLOW_NAME: "Campaign - Org-Wide Rollout"
+          GH_AW_ISSUE_LABELS: "campaign-tracker,incident"
+          GH_AW_WORKFLOW_NAME: "Campaign - Incident Response"
           GH_AW_ENGINE_ID: "copilot"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
@@ -8460,6 +8676,25 @@ jobs:
                 }
               }
             }
+            function removeDuplicateTitleFromDescription(title, description) {
+              if (!title || typeof title !== "string") {
+                return description || "";
+              }
+              if (!description || typeof description !== "string") {
+                return "";
+              }
+              const trimmedTitle = title.trim();
+              const trimmedDescription = description.trim();
+              if (!trimmedTitle || !trimmedDescription) {
+                return trimmedDescription;
+              }
+              const escapedTitle = trimmedTitle.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+              const headerRegex = new RegExp(`^#{1,6}\\s+${escapedTitle}\\s*(?:\\r?\\n)*`, "i");
+              if (headerRegex.test(trimmedDescription)) {
+                return trimmedDescription.replace(headerRegex, "").trim();
+              }
+              return trimmedDescription;
+            }
             async function main() {
               core.setOutput("issue_number", "");
               core.setOutput("issue_url", "");
@@ -8592,6 +8827,7 @@ jobs:
                   .filter((label, index, arr) => arr.indexOf(label) === index);
                 let title = createIssueItem.title ? createIssueItem.title.trim() : "";
                 let processedBody = replaceTemporaryIdReferences(createIssueItem.body, temporaryIdMap, itemRepo);
+                processedBody = removeDuplicateTitleFromDescription(title, processedBody);
                 let bodyLines = processedBody.split("\n");
                 if (!title) {
                   title = createIssueItem.body || "Agent Output";
@@ -8822,12 +9058,12 @@ jobs:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_WORKFLOW_ID: "agent"
           GH_AW_BASE_BRANCH: ${{ github.ref_name }}
-          GH_AW_PR_LABELS: "campaign-pr,org-rollout"
+          GH_AW_PR_LABELS: "campaign-fix,incident"
           GH_AW_PR_DRAFT: "true"
           GH_AW_PR_IF_NO_CHANGES: "warn"
           GH_AW_PR_ALLOW_EMPTY: "false"
           GH_AW_MAX_PATCH_SIZE: 1024
-          GH_AW_WORKFLOW_NAME: "Campaign - Org-Wide Rollout"
+          GH_AW_WORKFLOW_NAME: "Campaign - Incident Response"
           GH_AW_ENGINE_ID: "copilot"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
@@ -8959,6 +9195,25 @@ jobs:
                   core.info(`${entityType} will expire on ${expirationISO} (${expiresDays} days)`);
                 }
               }
+            }
+            function removeDuplicateTitleFromDescription(title, description) {
+              if (!title || typeof title !== "string") {
+                return description || "";
+              }
+              if (!description || typeof description !== "string") {
+                return "";
+              }
+              const trimmedTitle = title.trim();
+              const trimmedDescription = description.trim();
+              if (!trimmedTitle || !trimmedDescription) {
+                return trimmedDescription;
+              }
+              const escapedTitle = trimmedTitle.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+              const headerRegex = new RegExp(`^#{1,6}\\s+${escapedTitle}\\s*(?:\\r?\\n)*`, "i");
+              if (headerRegex.test(trimmedDescription)) {
+                return trimmedDescription.replace(headerRegex, "").trim();
+              }
+              return trimmedDescription;
             }
             function generatePatchPreview(patchContent) {
               if (!patchContent || !patchContent.trim()) {
@@ -9151,7 +9406,9 @@ jobs:
                 return;
               }
               let title = pullRequestItem.title.trim();
-              let bodyLines = pullRequestItem.body.split("\n");
+              let processedBody = pullRequestItem.body;
+              processedBody = removeDuplicateTitleFromDescription(title, processedBody);
+              let bodyLines = processedBody.split("\n");
               let branchName = pullRequestItem.branch ? pullRequestItem.branch.trim() : null;
               if (!title) {
                 title = "Agent Output";
@@ -9318,8 +9575,10 @@ jobs:
               } else {
                 core.info("Skipping patch application (empty patch)");
                 if (allowEmpty) {
-                  core.info("allow-empty is enabled - will create branch and push without changes");
+                  core.info("allow-empty is enabled - will create branch and push with empty commit");
                   try {
+                    await exec.exec(`git commit --allow-empty -m "Initialize"`);
+                    core.info("Created empty commit");
                     let remoteBranchExists = false;
                     try {
                       const { stdout } = await exec.getExecOutput(`git ls-remote --heads origin ${branchName}`);
@@ -9480,8 +9739,8 @@ jobs:
       - name: Setup threat detection
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
-          WORKFLOW_NAME: "Campaign - Org-Wide Rollout"
-          WORKFLOW_DESCRIPTION: "Coordinate changes across 100+ repos with phased rollout, dependency tracking, and rollback"
+          WORKFLOW_NAME: "Campaign - Incident Response"
+          WORKFLOW_DESCRIPTION: "Coordinate multi-team incident response with SLA tracking, stakeholder updates, and post-mortem"
         with:
           script: |
             const fs = require('fs');
@@ -9735,7 +9994,7 @@ jobs:
           BRANCH_NAME: memory/campaigns
           MAX_FILE_SIZE: 10240
           MAX_FILE_COUNT: 100
-          FILE_GLOB_FILTER: "org-rollout-*/**"
+          FILE_GLOB_FILTER: "incident-*/**"
         with:
           script: |
             const fs = require("fs");

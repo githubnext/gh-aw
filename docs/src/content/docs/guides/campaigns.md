@@ -65,9 +65,6 @@ A **campaign** is a finite initiative with explicit ownership, approval gates, b
 **Regular workflows** execute operations (triage issues, run tests, deploy code). **Campaigns** orchestrate business initiatives with the accountability, tracking, and AI-assisted decision-making that enterprises require.
 
 ### Regular Workflow vs Campaign
-
-| Aspect | Regular Workflow | Campaign |
-|--------|-----------------|----------|
 | **Duration** | One run or recurring forever | Finite (days to months) with defined end date |
 | **Goal** | Execute operation | Achieve business outcome with measurable impact |
 | **Ownership** | Team/developer owns automation | Named owner + executive sponsor |
@@ -250,7 +247,7 @@ Use campaigns when you need:
 
 The repository includes five campaign patterns demonstrating enterprise coordination needs:
 
-### 1. **campaign-incident-response.md**
+### 1. **incident-response.md**
 Multi-team incident coordination under SLA pressure
 
 **Use case**: Production outage affecting multiple services and teams
@@ -259,7 +256,7 @@ Multi-team incident coordination under SLA pressure
 
 **Key features**: SLA tracking, approval chains by risk level, stakeholder communication, timeline for audit
 
-### 2. **campaign-org-wide-rollout.md**
+### 2. **org-wide-rollout.md**
 Cross-repository changes with dependency awareness
 
 **Use case**: Update 100+ repos (e.g., Node 18 → Node 20, add CODEOWNERS)
@@ -268,7 +265,7 @@ Cross-repository changes with dependency awareness
 
 **Key features**: Dependency-aware sequencing, batch approval gates, rollback capability, per-repo tracking
 
-### 3. **campaign-security-compliance.md**
+### 3. **security-compliance.md**
 Security remediation with compliance audit trail
 
 **Use case**: Fix 200 vulnerabilities before SOC2/GDPR/HIPAA audit
@@ -277,7 +274,7 @@ Security remediation with compliance audit trail
 
 **Key features**: Compliance framework mapping, executive sponsor approval, audit documentation, cost tracking
 
-### 4. **campaign-human-ai-collaboration.md** (Core Pattern)
+### 4. **human-ai-collaboration.md** (Core Pattern)
 AI-assisted decision-making at scale
 
 **Use case**: AI analyzes 500 items, humans decide actions
@@ -286,7 +283,7 @@ AI-assisted decision-making at scale
 
 **Key features**: Risk-based approval tiers, recommendation accuracy tracking, decision learning
 
-### 5. **campaign-intelligence.md** (Cross-Campaign Learning)
+### 5. **intelligence.md** (Cross-Campaign Learning)
 Organizational intelligence from past campaigns
 
 **Use case**: Learn from 20+ campaigns to improve future ones
@@ -297,17 +294,17 @@ Organizational intelligence from past campaigns
 
 ## Campaign Examples
 
-See the actual campaign workflows in `.github/workflows/campaign-*.md` for complete, runnable examples:
+See the actual campaign workflows in `.github/workflows/*.md` for complete, runnable examples:
 
-- **campaign-incident-response.md** - Multi-team incident coordination
-- **campaign-org-wide-rollout.md** - Cross-repo changes with phased execution
-- **campaign-security-compliance.md** - Compliance with governance
-- **campaign-human-ai-collaboration.md** - AI-assisted decision-making pattern
-- **campaign-intelligence.md** - Cross-campaign learning
+- **incident-response.md** - Multi-team incident coordination
+- **org-wide-rollout.md** - Cross-repo changes with phased execution
+- **security-compliance.md** - Compliance with governance
+- **human-ai-collaboration.md** - AI-assisted decision-making pattern
+- **intelligence.md** - Cross-campaign learning
 
 ### Visualizing Campaign Trends
 
-The `campaign-intelligence.md` workflow can turn your campaign metrics into **trend charts** using the shared Python visualization imports.
+The `intelligence.md` workflow can turn your campaign metrics into **trend charts** using the shared Python visualization imports.
 
 - The workflow imports `shared/trends.md`, which brings in a Python data viz environment and best practices for trend charts.
 - As part of the analysis, it aggregates a flat metrics table across campaigns (date, campaign_id, type, velocity, success rate, ROI, cost per item) and writes it to `/tmp/gh-aw/python/data/campaign-metrics.csv`.
@@ -316,7 +313,7 @@ The `campaign-intelligence.md` workflow can turn your campaign metrics into **tr
 
 **Where to surface the charts**:
 
-- Link to the artifacts from the **monthly intelligence issue** (created by `campaign-intelligence.md` via `safe-outputs.create-issue`).
+- Link to the artifacts from the **monthly intelligence issue** (created by `intelligence.md` via `safe-outputs.create-issue`).
 - Embed 1–2 key charts in each campaign's final report under `memory/campaigns/.../final-report.md`.
 - Optionally maintain a pinned "Campaign Intelligence" GitHub Discussion that links to monthly issues and includes the most important charts inline.
 
@@ -338,7 +335,7 @@ name: "Incident Response Campaign"
 description: "Multi-team incident coordination with command center, SLA tracking, and post-mortem."
 
 workflows:
-  - campaign-incident-response
+  - incident-response
 
 memory_paths:
   - "memory/campaigns/incident-*/**"
