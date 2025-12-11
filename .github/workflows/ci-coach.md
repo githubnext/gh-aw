@@ -30,7 +30,7 @@ steps:
       
       # Download artifacts from recent runs (last 5 successful runs)
       echo "Downloading artifacts from recent CI runs..."
-      gh run list --repo ${{ github.repository }} --workflow=ci.yml --status success --limit 5 --json databaseId | jq -r '.[].databaseId' | while read run_id; do
+      gh run list --repo ${{ github.repository }} --workflow=ci.yml --status success --limit 5 --json databaseId | jq -r '.[].databaseId' | while read -r run_id; do
         echo "Processing run $run_id"
         gh run download "$run_id" --repo ${{ github.repository }} --dir "/tmp/ci-artifacts/$run_id" 2>/dev/null || echo "No artifacts for run $run_id"
       done
