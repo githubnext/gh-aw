@@ -138,6 +138,19 @@ func TestWorkflowStep_ToMap(t *testing.T) {
 				"uses": "actions/checkout@v4",
 			},
 		},
+		{
+			name: "step with string continue-on-error",
+			step: &WorkflowStep{
+				Name:            "Test step",
+				Run:             "npm test",
+				ContinueOnError: "false",
+			},
+			want: map[string]any{
+				"name":              "Test step",
+				"run":               "npm test",
+				"continue-on-error": "false",
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -236,6 +249,20 @@ func TestMapToStep(t *testing.T) {
 			name:    "empty step map",
 			stepMap: map[string]any{},
 			want:    &WorkflowStep{},
+			wantErr: false,
+		},
+		{
+			name: "step with string continue-on-error",
+			stepMap: map[string]any{
+				"name":              "Test step",
+				"run":               "npm test",
+				"continue-on-error": "false",
+			},
+			want: &WorkflowStep{
+				Name:            "Test step",
+				Run:             "npm test",
+				ContinueOnError: "false",
+			},
 			wantErr: false,
 		},
 	}
@@ -444,7 +471,12 @@ func compareSteps(a, b *WorkflowStep) bool {
 	if a.Name != b.Name || a.ID != b.ID || a.If != b.If ||
 		a.Uses != b.Uses || a.Run != b.Run ||
 		a.WorkingDirectory != b.WorkingDirectory || a.Shell != b.Shell ||
-		a.ContinueOnError != b.ContinueOnError || a.TimeoutMinutes != b.TimeoutMinutes {
+		a.TimeoutMinutes != b.TimeoutMinutes {
+		return false
+	}
+
+	// Compare ContinueOnError (can be any type)
+	if !compareStepValues(a.ContinueOnError, b.ContinueOnError) {
 		return false
 	}
 

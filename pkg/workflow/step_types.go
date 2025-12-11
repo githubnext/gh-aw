@@ -9,17 +9,17 @@ import (
 // WorkflowStep represents a single step in a GitHub Actions workflow job
 // This struct provides type safety and compile-time validation for step configurations
 type WorkflowStep struct {
-	Name            string            `yaml:"name,omitempty"`
-	ID              string            `yaml:"id,omitempty"`
-	If              string            `yaml:"if,omitempty"`
-	Uses            string            `yaml:"uses,omitempty"`
-	Run             string            `yaml:"run,omitempty"`
-	WorkingDirectory string           `yaml:"working-directory,omitempty"`
-	Shell           string            `yaml:"shell,omitempty"`
-	With            map[string]any    `yaml:"with,omitempty"`
-	Env             map[string]string `yaml:"env,omitempty"`
-	ContinueOnError bool              `yaml:"continue-on-error,omitempty"`
-	TimeoutMinutes  int               `yaml:"timeout-minutes,omitempty"`
+	Name             string            `yaml:"name,omitempty"`
+	ID               string            `yaml:"id,omitempty"`
+	If               string            `yaml:"if,omitempty"`
+	Uses             string            `yaml:"uses,omitempty"`
+	Run              string            `yaml:"run,omitempty"`
+	WorkingDirectory string            `yaml:"working-directory,omitempty"`
+	Shell            string            `yaml:"shell,omitempty"`
+	With             map[string]any    `yaml:"with,omitempty"`
+	Env              map[string]string `yaml:"env,omitempty"`
+	ContinueOnError  any               `yaml:"continue-on-error,omitempty"` // Can be bool or string expression
+	TimeoutMinutes   int               `yaml:"timeout-minutes,omitempty"`
 }
 
 // IsUsesStep returns true if this step uses an action (has a "uses" field)
@@ -64,7 +64,7 @@ func (s *WorkflowStep) ToMap() map[string]any {
 	if len(s.Env) > 0 {
 		result["env"] = s.Env
 	}
-	if s.ContinueOnError {
+	if s.ContinueOnError != nil {
 		result["continue-on-error"] = s.ContinueOnError
 	}
 	if s.TimeoutMinutes > 0 {
@@ -116,7 +116,8 @@ func MapToStep(stepMap map[string]any) (*WorkflowStep, error) {
 			}
 		}
 	}
-	if continueOnError, ok := stepMap["continue-on-error"].(bool); ok {
+	if continueOnError, ok := stepMap["continue-on-error"]; ok {
+		// Preserve the original type (bool or string)
 		step.ContinueOnError = continueOnError
 	}
 	if timeoutMinutes, ok := stepMap["timeout-minutes"].(int); ok {
