@@ -18,128 +18,339 @@
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/aw/github-agentic-workflows.md
 #
-# Monthly workflow that identifies stale repositories in an organization and creates detailed activity reports
+# Weekly summary of file-diet campaign metrics and trend charts
 #
 # Original Frontmatter:
 # ```yaml
-# description: Monthly workflow that identifies stale repositories in an organization and creates detailed activity reports
-# name: Stale Repository Identifier
+# name: Code Health File Diet Monitor
+# description: Weekly summary of file-diet campaign metrics and trend charts
+#
 # on:
-#   workflow_dispatch:
-#     inputs:
-#       organization:
-#         description: "GitHub organization to scan for stale repositories"
-#         required: true
-#         type: string
-#         default: github
 #   schedule:
-#     - cron: monthly on 1 at 02:03
+#     - cron: "0 9 * * 1" # Mondays at 9 AM UTC
+#   workflow_dispatch:
 #
 # permissions:
 #   contents: read
 #   issues: read
 #   pull-requests: read
-#   actions: read
 #
 # engine: copilot
-# strict: false
-# timeout-minutes: 45
 #
 # imports:
-#   - shared/python-dataviz.md
-#   - shared/jqschema.md
-#   - shared/trending-charts-simple.md
-#
-# network:
-#   allowed:
-#     - defaults
-#     - github
-#
-# safe-outputs:
-#   create-issue:
-#     title-prefix: "[Stale Repository] "
-#     labels: [stale-repository, automated-analysis]
-#     max: 10
-#   upload-assets:
-#   messages:
-#     footer: "> 🔍 *Analysis by [{workflow_name}]({run_url})*"
-#     run-started: "🔍 Stale Repository Identifier starting! [{workflow_name}]({run_url}) is analyzing repository activity..."
-#     run-success: "✅ Analysis complete! [{workflow_name}]({run_url}) has finished analyzing stale repositories."
-#     run-failure: "⚠️ Analysis interrupted! [{workflow_name}]({run_url}) {status}."
+#   - shared/reporting.md
+#   - shared/trends.md
 #
 # tools:
 #   github:
-#     read-only: true
-#     lockdown: true
-#     toolsets:
-#       - repos
-#       - issues
-#       - pull_requests
-#   cache-memory:
-#     key: stale-repos-analysis-${{ github.workflow }}-${{ github.run_id }}
-#   bash:
-#     - "*"
-#   edit:
+#     toolsets: [repos, issues, search]
+#   repo-memory:
+#     branch-name: memory/campaigns
+#     file-glob: "code-health-file-diet-*/**"
 #
-# env:
-#   # For scheduled runs, set a default organization or use repository variables
-#   ORGANIZATION: ${{ github.event.inputs.organization || 'github' }}
+# safe-outputs:
+#   add-comment:
+#     max: 3
+#   create-issue:
+#     labels: [code-health, campaign-tracker, "campaign:code-health-file-diet"]
+#     max: 1
 #
-# steps:
-#   - name: Run stale_repos tool
-#     id: stale-repos
-#     uses: github/stale-repos@v3
-#     env:
-#       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-#       ORGANIZATION: ${{ env.ORGANIZATION }}
-#       EXEMPT_TOPICS: "keep,template"
-#       INACTIVE_DAYS: 365
-#       ADDITIONAL_METRICS: "release,pr"
-#
-#   - name: Save stale repos output
-#     env:
-#       INACTIVE_REPOS: ${{ steps.stale-repos.outputs.inactiveRepos }}
-#     run: |
-#       mkdir -p /tmp/stale-repos-data
-#       echo "$INACTIVE_REPOS" > /tmp/stale-repos-data/inactive-repos.json
-#       echo "Stale repositories data saved"
-#       echo "Total stale repositories: $(jq 'length' /tmp/stale-repos-data/inactive-repos.json)"
+# timeout-minutes: 20
+# strict: true
 # ```
 #
 # Resolved workflow manifest:
 #   Imports:
+#     - shared/reporting.md
+#     - shared/trends.md
 #     - shared/python-dataviz.md
-#     - shared/jqschema.md
-#     - shared/trending-charts-simple.md
 #
 # Job Dependency Graph:
 # ```mermaid
 # graph LR
 #   activation["activation"]
+#   add_comment["add_comment"]
 #   agent["agent"]
 #   conclusion["conclusion"]
 #   create_issue["create_issue"]
 #   detection["detection"]
+#   push_repo_memory["push_repo_memory"]
 #   update_cache_memory["update_cache_memory"]
 #   upload_assets["upload_assets"]
 #   activation --> agent
 #   activation --> conclusion
+#   add_comment --> conclusion
+#   agent --> add_comment
 #   agent --> conclusion
 #   agent --> create_issue
 #   agent --> detection
+#   agent --> push_repo_memory
 #   agent --> update_cache_memory
 #   agent --> upload_assets
+#   create_issue --> add_comment
 #   create_issue --> conclusion
+#   detection --> add_comment
 #   detection --> conclusion
 #   detection --> create_issue
+#   detection --> push_repo_memory
 #   detection --> update_cache_memory
 #   detection --> upload_assets
+#   push_repo_memory --> conclusion
 #   update_cache_memory --> conclusion
 #   upload_assets --> conclusion
 # ```
 #
 # Original Prompt:
 # ```markdown
+# ## Report Formatting
+#
+# Structure your report with an overview followed by detailed content:
+#
+# 1. **Content Overview**: Start with 1-2 paragraphs that summarize the key findings, highlights, or main points of your report. This should give readers a quick understanding of what the report contains without needing to expand the details.
+#
+# 2. **Detailed Content**: Place the rest of your report inside HTML `<details>` and `<summary>` tags to allow readers to expand and view the full information. **IMPORTANT**: Always wrap the summary text in `<b>` tags to make it bold.
+#
+# **Example format:**
+#
+# `````markdown
+# Brief overview paragraph 1 introducing the report and its main findings.
+#
+# Optional overview paragraph 2 with additional context or highlights.
+#
+# <details>
+# <summary><b>Full Report Details</b></summary>
+#
+# ## Detailed Analysis
+#
+# Full report content with all sections, tables, and detailed information goes here.
+#
+# ### Section 1
+# [Content]
+#
+# ### Section 2
+# [Content]
+#
+# </details>
+# `````
+#
+# ## Reporting Workflow Run Information
+#
+# When analyzing workflow run logs or reporting information from GitHub Actions runs:
+#
+# ### 1. Workflow Run ID Formatting
+#
+# **Always render workflow run IDs as clickable URLs** when mentioning them in your report. The workflow run data includes a `url` field that provides the full GitHub Actions run page URL.
+#
+# **Format:**
+#
+# `````markdown
+# [§12345](https://github.com/owner/repo/actions/runs/12345)
+# `````
+#
+# **Example:**
+#
+# `````markdown
+# Analysis based on [§456789](https://github.com/githubnext/gh-aw/actions/runs/456789)
+# `````
+#
+# ### 2. Document References for Workflow Runs
+#
+# When your analysis is based on information mined from one or more workflow runs, **include up to 3 workflow run URLs as document references** at the end of your report.
+#
+# **Format:**
+#
+# `````markdown
+# ---
+#
+# **References:**
+# - [§12345](https://github.com/owner/repo/actions/runs/12345)
+# - [§12346](https://github.com/owner/repo/actions/runs/12346)
+# - [§12347](https://github.com/owner/repo/actions/runs/12347)
+# `````
+#
+# **Guidelines:**
+#
+# - Include **maximum 3 references** to keep reports concise
+# - Choose the most relevant or representative runs (e.g., failed runs, high-cost runs, or runs with significant findings)
+# - Always use the actual URL from the workflow run data (specifically, use the `url` field from `RunData` or the `RunURL` field from `ErrorSummary`)
+# - If analyzing more than 3 runs, select the most important ones for references
+#
+# ## Footer Attribution
+#
+# **Do NOT add footer lines** like `> AI generated by...` to your comment. The system automatically appends attribution after your content to prevent duplicates.
+#
+# # Trends Visualization Guide
+#
+# You are an expert at creating compelling trend visualizations that reveal insights from data over time.
+#
+# ## Trending Chart Best Practices
+#
+# When generating trending charts, focus on:
+#
+# ### 1. **Time Series Excellence**
+# - Use line charts for continuous trends over time
+# - Add trend lines or moving averages to highlight patterns
+# - Include clear date/time labels on the x-axis
+# - Show confidence intervals or error bands when relevant
+#
+# ### 2. **Comparative Trends**
+# - Use multi-line charts to compare multiple trends
+# - Apply distinct colors for each series with a clear legend
+# - Consider using area charts for stacked trends
+# - Highlight key inflection points or anomalies
+#
+# ### 3. **Visual Impact**
+# - Use vibrant, contrasting colors to make trends stand out
+# - Add annotations for significant events or milestones
+# - Include grid lines for easier value reading
+# - Use appropriate scale (linear vs. logarithmic)
+#
+# ### 4. **Contextual Information**
+# - Show percentage changes or growth rates
+# - Include baseline comparisons (year-over-year, month-over-month)
+# - Add summary statistics (min, max, average, median)
+# - Highlight recent trends vs. historical patterns
+#
+# ## Example Trend Chart Types
+#
+# ### Temporal Trends
+# ```python
+# # Line chart with multiple trends
+# fig, ax = plt.subplots(figsize=(12, 7), dpi=300)
+# for column in data.columns:
+#     ax.plot(data.index, data[column], marker='o', label=column, linewidth=2)
+# ax.set_title('Trends Over Time', fontsize=16, fontweight='bold')
+# ax.set_xlabel('Date', fontsize=12)
+# ax.set_ylabel('Value', fontsize=12)
+# ax.legend(loc='best')
+# ax.grid(True, alpha=0.3)
+# plt.xticks(rotation=45)
+# ```
+#
+# ### Growth Rates
+# ```python
+# # Bar chart showing period-over-period growth
+# fig, ax = plt.subplots(figsize=(10, 6), dpi=300)
+# growth_data.plot(kind='bar', ax=ax, color=sns.color_palette("husl"))
+# ax.set_title('Growth Rates by Period', fontsize=16, fontweight='bold')
+# ax.axhline(y=0, color='black', linestyle='-', linewidth=0.8)
+# ax.set_ylabel('Growth %', fontsize=12)
+# ```
+#
+# ### Moving Averages
+# ```python
+# # Trend with moving average overlay
+# fig, ax = plt.subplots(figsize=(12, 7), dpi=300)
+# ax.plot(dates, values, label='Actual', alpha=0.5, linewidth=1)
+# ax.plot(dates, moving_avg, label='7-day Moving Average', linewidth=2.5)
+# ax.fill_between(dates, values, moving_avg, alpha=0.2)
+# ```
+#
+# ## Data Preparation for Trends
+#
+# ### Time-Based Indexing
+# ```python
+# # Convert to datetime and set as index
+# data['date'] = pd.to_datetime(data['date'])
+# data.set_index('date', inplace=True)
+# data = data.sort_index()
+# ```
+#
+# ### Resampling and Aggregation
+# ```python
+# # Resample daily data to weekly
+# weekly_data = data.resample('W').mean()
+#
+# # Calculate rolling statistics
+# data['rolling_mean'] = data['value'].rolling(window=7).mean()
+# data['rolling_std'] = data['value'].rolling(window=7).std()
+# ```
+#
+# ### Growth Calculations
+# ```python
+# # Calculate percentage change
+# data['pct_change'] = data['value'].pct_change() * 100
+#
+# # Calculate year-over-year growth
+# data['yoy_growth'] = data['value'].pct_change(periods=365) * 100
+# ```
+#
+# ## Color Palettes for Trends
+#
+# Use these palettes for impactful trend visualizations:
+#
+# - **Sequential trends**: `sns.color_palette("viridis", n_colors=5)`
+# - **Diverging trends**: `sns.color_palette("RdYlGn", n_colors=7)`
+# - **Multiple series**: `sns.color_palette("husl", n_colors=8)`
+# - **Categorical**: `sns.color_palette("Set2", n_colors=6)`
+#
+# ## Annotation Best Practices
+#
+# ```python
+# # Annotate key points
+# max_idx = data['value'].idxmax()
+# max_val = data['value'].max()
+# ax.annotate(f'Peak: {max_val:.2f}',
+#             xy=(max_idx, max_val),
+#             xytext=(10, 20),
+#             textcoords='offset points',
+#             arrowprops=dict(arrowstyle='->', color='red'),
+#             fontsize=10,
+#             fontweight='bold')
+# ```
+#
+# ## Styling for Awesome Charts
+#
+# ```python
+# import matplotlib.pyplot as plt
+# import seaborn as sns
+#
+# # Set professional style
+# sns.set_style("whitegrid")
+# sns.set_context("notebook", font_scale=1.2)
+#
+# # Custom color palette
+# custom_colors = ["#FF6B6B", "#4ECDC4", "#45B7D1", "#FFA07A", "#98D8C8"]
+# sns.set_palette(custom_colors)
+#
+# # Figure with optimal dimensions
+# fig, ax = plt.subplots(figsize=(14, 8), dpi=300)
+#
+# # ... your plotting code ...
+#
+# # Tight layout for clean appearance
+# plt.tight_layout()
+#
+# # Save with high quality
+# plt.savefig('/tmp/gh-aw/python/charts/trend_chart.png',
+#             dpi=300,
+#             bbox_inches='tight',
+#             facecolor='white',
+#             edgecolor='none')
+# ```
+#
+# ## Tips for Trending Charts
+#
+# 1. **Start with the story**: What trend are you trying to show?
+# 2. **Choose the right timeframe**: Match granularity to the pattern
+# 3. **Smooth noise**: Use moving averages for volatile data
+# 4. **Show context**: Include historical baselines or benchmarks
+# 5. **Highlight insights**: Use annotations to draw attention
+# 6. **Test readability**: Ensure labels and legends are clear
+# 7. **Optimize colors**: Use colorblind-friendly palettes
+# 8. **Export high quality**: Always use DPI 300+ for presentations
+#
+# ## Common Trend Patterns to Visualize
+#
+# - **Seasonal patterns**: Monthly or quarterly cycles
+# - **Long-term growth**: Exponential or linear trends
+# - **Volatility changes**: Periods of stability vs. fluctuation
+# - **Correlations**: How multiple trends relate
+# - **Anomalies**: Outliers or unusual events
+# - **Forecasts**: Projected future trends with uncertainty
+#
+# Remember: The best trending charts tell a clear story, make patterns obvious, and inspire action based on the insights revealed.
+#
 # # Python Data Visualization Guide
 #
 # Python scientific libraries have been installed and are ready for use. A temporary folder structure has been created at `/tmp/gh-aw/python/` for organizing scripts, data, and outputs.
@@ -388,599 +599,148 @@
 # data = pd.read_csv('/tmp/gh-aw/python/data/sample_data.csv')
 # ```
 #
-# ## jqschema - JSON Schema Discovery
+# {{#runtime-import? .github/shared-instructions.md}}
+#
+# # Code Health File Diet Monitor
+#
+# You are the monitor for the `code-health-file-diet` campaign. Your job
+# is to turn daily file-diet metrics into long-term trends and an
+# executive-friendly status signal.
+#
+# ## Objectives
+#
+# 1. Track the campaign over time using metrics snapshots written by the
+#    `daily-file-diet` workflow.
+# 2. Generate visual trend charts (PNG) for key metrics.
+# 3. Post a concise summary comment (with embedded charts) to the campaign
+#    epic issue, or create one if it does not exist.
+#
+# ## Data Sources
+#
+# - **Campaign ID**: `code-health-file-diet`
+# - **Campaign Label**: `campaign:code-health-file-diet`
+# - **Metrics Snapshots**: JSON files in repo-memory matching
+#   `memory/campaigns/code-health-file-diet-*/metrics/*.json`
+#
+# Each snapshot should follow the `CampaignMetricsSnapshot` schema plus
+# file-diet specific fields:
+#
+# - `date`
+# - `campaign_id`
+# - `tasks_total`
+# - `tasks_completed`
+# - `tasks_in_progress`
+# - `tasks_blocked`
+# - `velocity_per_day`
+# - `estimated_completion`
+# - `largest_file_path`
+# - `largest_file_loc`
+# - `files_over_threshold`
+#
+# ## Monitoring Process
+#
+# ### 1. Load Metrics History
+#
+# 1. Use `repo-memory` to list and read all snapshot JSON files matching
+#    `memory/campaigns/code-health-file-diet-*/metrics/*.json`.
+# 2. Parse them into a time-series table keyed by `date`, with columns at
+#    least:
+#    - `largest_file_loc`
+#    - `files_over_threshold`
+#    - `tasks_total`
+#    - `tasks_completed`
+#    - `velocity_per_day`
+#
+# ### 2. Compute Long-Term Trends
+#
+# From the time-series table, compute and summarize:
+#
+# - **Current largest file size** (lines) and change vs 30 days ago.
+# - **Number of files over threshold** and change vs 30 days ago.
+# - **Campaign progress**: `tasks_completed / tasks_total` (%), including
+#   trend over the last few weeks.
+# - **Velocity**: approximate tasks completed per day and direction
+#   (speeding up, steady, slowing down).
+#
+# If there is not enough history for a full 30-day comparison, fall back
+# to whatever history is available and clearly state the window used.
+#
+# ### 3. Generate Trend Charts (Screenshots)
+#
+# Using the Python data visualization environment from `shared/trends.md`
+# and `shared/python-dataviz.md`:
+#
+# 1. Write the aggregated metrics table to
+#    `/tmp/gh-aw/python/data/file-diet-metrics.json` or `.csv`.
+# 2. Use Pandas + Matplotlib/Seaborn to generate at least two charts in
+#    `/tmp/gh-aw/python/charts/`:
+#    - **Chart A**: `largest_file_loc` over time (line chart) with clear
+#      title, labels, and grid.
+#    - **Chart B**: `tasks_total` vs `tasks_completed` over time
+#      (multi-line chart) to show campaign completion curve.
+# 3. Follow the high-quality chart settings from `shared/trends.md`:
+#    DPI ≥300, professional styling, readable legends and axes.
+# 4. Let the shared Python viz import upload these PNGs as artifacts, and
+#    additionally use `upload-assets` (provided by `shared/python-dataviz.md`)
+#    so you get direct URLs for embedding in markdown.
+#
+# ### 4. Find or Create Campaign Epic Issue
+#
+# 1. Use the `github` tool to search for an open issue that:
+#    - Belongs to this repository.
+#    - Has labels `campaign-tracker` and `campaign:code-health-file-diet`.
+# 2. If found, treat it as the **campaign epic**.
+# 3. If not found, create one epic issue using `create-issue` with:
+#    - **Title**: `Code Health File Diet Campaign Epic`
+#    - **Labels**: `campaign-tracker`, `code-health`,
+#      `campaign:code-health-file-diet`.
+#    - **Body**: Brief description of the campaign’s goals, success
+#      metrics, and a note that weekly monitor updates will appear as
+#      comments.
+#
+# ### 5. Post Weekly Status Comment (with Charts)
+#
+# Using `add-comment`, post a summarized weekly status update to the
+# campaign epic, with this structure and embedded chart screenshots:
 #
-# A utility script is available at `/tmp/gh-aw/jqschema.sh` to help you discover the structure of complex JSON responses.
-#
-# ### Purpose
-#
-# Generate a compact structural schema (keys + types) from JSON input. This is particularly useful when:
-# - Analyzing tool outputs from GitHub search (search_code, search_issues, search_repositories)
-# - Exploring API responses with large payloads
-# - Understanding the structure of unfamiliar data without verbose output
-# - Planning queries before fetching full data
-#
-# ### Usage
-#
-# ```bash
-# # Analyze a file
-# cat data.json | /tmp/gh-aw/jqschema.sh
-#
-# # Analyze command output
-# echo '{"name": "test", "count": 42, "items": [{"id": 1}]}' | /tmp/gh-aw/jqschema.sh
-#
-# # Analyze GitHub search results
-# gh api search/repositories?q=language:go | /tmp/gh-aw/jqschema.sh
-# ```
-#
-# ### How It Works
-#
-# The script transforms JSON data by:
-# 1. Replacing object values with their type names ("string", "number", "boolean", "null")
-# 2. Reducing arrays to their first element's structure (or empty array if empty)
-# 3. Recursively processing nested structures
-# 4. Outputting compact (minified) JSON
-#
-# ### Example
-#
-# **Input:**
-# ```json
-# {
-#   "total_count": 1000,
-#   "items": [
-#     {"login": "user1", "id": 123, "verified": true},
-#     {"login": "user2", "id": 456, "verified": false}
-#   ]
-# }
-# ```
-#
-# **Output:**
-# ```json
-# {"total_count":"number","items":[{"login":"string","id":"number","verified":"boolean"}]}
-# ```
-#
-# ### Best Practices
-#
-# **Use this script when:**
-# - You need to understand the structure of tool outputs before requesting full data
-# - GitHub search tools return large datasets (use `perPage: 1` and pipe through schema minifier first)
-# - Exploring unfamiliar APIs or data structures
-# - Planning data extraction strategies
-#
-# **Example workflow for GitHub search tools:**
-# ```bash
-# # Step 1: Get schema with minimal data (fetch just 1 result)
-# # This helps understand the structure before requesting large datasets
-# echo '{}' | gh api search/repositories -f q="language:go" -f per_page=1 | /tmp/gh-aw/jqschema.sh
-#
-# # Output shows the schema:
-# # {"incomplete_results":"boolean","items":[{...}],"total_count":"number"}
-#
-# # Step 2: Review schema to understand available fields
-#
-# # Step 3: Request full data with confidence about structure
-# # Now you know what fields are available and can query efficiently
-# ```
-#
-# **Using with GitHub MCP tools:**
-# When using tools like `search_code`, `search_issues`, or `search_repositories`, pipe the output through jqschema to discover available fields:
-# ```bash
-# # Save a minimal search result to a file
-# gh api search/code -f q="jq in:file language:bash" -f per_page=1 > /tmp/sample.json
-#
-# # Generate schema to understand structure
-# cat /tmp/sample.json | /tmp/gh-aw/jqschema.sh
-#
-# # Now you know which fields exist and can use them in your analysis
-# ```
-#
-# # Trending Charts - Quick Start Guide
-#
-# You have a complete Python environment with scientific libraries ready for generating trend charts with persistent data storage.
-#
-# ## Cache-Memory for Trending Data
-#
-# Persistent cache-memory is available at `/tmp/gh-aw/cache-memory/` that survives across workflow runs. Use it to store historical trending data.
-#
-# **Recommended Structure:**
-# ```
-# /tmp/gh-aw/cache-memory/
-# ├── trending/
-# │   ├── <metric-name>/
-# │   │   └── history.jsonl      # Time-series data (JSON Lines format)
-# │   └── index.json              # Index of all tracked metrics
-# ```
-#
-# ## Quick Start Pattern 1: Daily Metrics Tracking
-#
-# Track daily metrics and visualize trends over time:
-#
-# ```python
-# #!/usr/bin/env python3
-# """Daily metrics trending"""
-# import pandas as pd
-# import matplotlib.pyplot as plt
-# import seaborn as sns
-# import json
-# import os
-# from datetime import datetime
-#
-# # Configuration
-# CACHE_DIR = '/tmp/gh-aw/cache-memory/trending'
-# METRIC_NAME = 'daily_metrics'
-# HISTORY_FILE = f'{CACHE_DIR}/{METRIC_NAME}/history.jsonl'
-# CHARTS_DIR = '/tmp/gh-aw/python/charts'
-#
-# # Ensure directories exist
-# os.makedirs(f'{CACHE_DIR}/{METRIC_NAME}', exist_ok=True)
-# os.makedirs(CHARTS_DIR, exist_ok=True)
-#
-# # Collect today's data (customize this section)
-# today_data = {
-#     "timestamp": datetime.now().isoformat(),
-#     "metric_a": 42,
-#     "metric_b": 85,
-#     "metric_c": 23
-# }
-#
-# # Append to history
-# with open(HISTORY_FILE, 'a') as f:
-#     f.write(json.dumps(today_data) + '\n')
-#
-# # Load all historical data
-# if os.path.exists(HISTORY_FILE):
-#     df = pd.read_json(HISTORY_FILE, lines=True)
-#     df['date'] = pd.to_datetime(df['timestamp']).dt.date
-#     df = df.sort_values('timestamp')
-#     daily_stats = df.groupby('date').sum()
-#
-#     # Generate trend chart
-#     sns.set_style("whitegrid")
-#     sns.set_palette("husl")
-#
-#     fig, ax = plt.subplots(figsize=(12, 7), dpi=300)
-#     daily_stats.plot(ax=ax, marker='o', linewidth=2)
-#     ax.set_title('Daily Metrics Trends', fontsize=16, fontweight='bold')
-#     ax.set_xlabel('Date', fontsize=12)
-#     ax.set_ylabel('Count', fontsize=12)
-#     ax.legend(loc='best')
-#     ax.grid(True, alpha=0.3)
-#     plt.xticks(rotation=45)
-#     plt.tight_layout()
-#
-#     plt.savefig(f'{CHARTS_DIR}/daily_metrics_trend.png',
-#                 dpi=300, bbox_inches='tight', facecolor='white')
-#
-#     print(f"✅ Chart generated with {len(df)} data points")
-# else:
-#     print("No historical data yet. Run again tomorrow to see trends.")
-# ```
-#
-# ## Quick Start Pattern 2: Moving Averages
-#
-# Smooth volatile data with moving averages:
-#
-# ```python
-# #!/usr/bin/env python3
-# """Moving average trending"""
-# import pandas as pd
-# import matplotlib.pyplot as plt
-# import seaborn as sns
-# import os
-#
-# # Load historical data
-# history_file = '/tmp/gh-aw/cache-memory/trending/metrics/history.jsonl'
-# if os.path.exists(history_file):
-#     df = pd.read_json(history_file, lines=True)
-#     df['date'] = pd.to_datetime(df['timestamp']).dt.date
-#     df = df.sort_values('timestamp')
-#
-#     # Calculate 7-day moving average
-#     df['rolling_avg'] = df['value'].rolling(window=7, min_periods=1).mean()
-#
-#     # Plot with trend line
-#     sns.set_style("whitegrid")
-#     fig, ax = plt.subplots(figsize=(12, 7), dpi=300)
-#     ax.plot(df['date'], df['value'], label='Actual', alpha=0.5, marker='o')
-#     ax.plot(df['date'], df['rolling_avg'], label='7-day Average', linewidth=2.5)
-#     ax.fill_between(df['date'], df['value'], df['rolling_avg'], alpha=0.2)
-#     ax.set_title('Trend with Moving Average', fontsize=16, fontweight='bold')
-#     ax.set_xlabel('Date', fontsize=12)
-#     ax.set_ylabel('Value', fontsize=12)
-#     ax.legend(loc='best')
-#     ax.grid(True, alpha=0.3)
-#     plt.xticks(rotation=45)
-#     plt.tight_layout()
-#     plt.savefig('/tmp/gh-aw/python/charts/moving_average_trend.png',
-#                 dpi=300, bbox_inches='tight', facecolor='white')
-#     print("✅ Moving average chart generated")
-# ```
-#
-# ## Quick Start Pattern 3: Comparative Trends
-#
-# Compare multiple metrics over time:
-#
-# ```python
-# #!/usr/bin/env python3
-# """Comparative trending"""
-# import pandas as pd
-# import matplotlib.pyplot as plt
-# import seaborn as sns
-# import os
-#
-# history_file = '/tmp/gh-aw/cache-memory/trending/multi_metrics/history.jsonl'
-# if os.path.exists(history_file):
-#     df = pd.read_json(history_file, lines=True)
-#     df['timestamp'] = pd.to_datetime(df['timestamp'])
-#
-#     # Plot multiple metrics
-#     sns.set_style("whitegrid")
-#     sns.set_palette("husl")
-#     fig, ax = plt.subplots(figsize=(14, 8), dpi=300)
-#
-#     for metric in df['metric'].unique():
-#         metric_data = df[df['metric'] == metric]
-#         ax.plot(metric_data['timestamp'], metric_data['value'], 
-#                 marker='o', label=metric, linewidth=2)
-#
-#     ax.set_title('Comparative Metrics Trends', fontsize=16, fontweight='bold')
-#     ax.set_xlabel('Date', fontsize=12)
-#     ax.set_ylabel('Value', fontsize=12)
-#     ax.legend(loc='best', fontsize=12)
-#     ax.grid(True, alpha=0.3)
-#     plt.xticks(rotation=45)
-#     plt.tight_layout()
-#     plt.savefig('/tmp/gh-aw/python/charts/comparative_trends.png',
-#                 dpi=300, bbox_inches='tight', facecolor='white')
-#     print("✅ Comparative trends chart generated")
-# ```
-#
-# ## Best Practices
-#
-# ### 1. Use JSON Lines Format
-#
-# Store trending data as JSON Lines (`.jsonl`) for efficient append-only storage:
-# ```python
-# # Append new data point
-# with open(history_file, 'a') as f:
-#     f.write(json.dumps(data_point) + '\n')
-#
-# # Load all data
-# df = pd.read_json(history_file, lines=True)
-# ```
-#
-# ### 2. Include Timestamps
-#
-# Always include ISO 8601 timestamps:
-# ```python
-# data_point = {
-#     "timestamp": datetime.now().isoformat(),
-#     "metric": "issue_count",
-#     "value": 42
-# }
-# ```
-#
-# ### 3. Data Retention
-#
-# Implement retention policies to prevent unbounded growth:
-# ```python
-# from datetime import datetime, timedelta
-#
-# # Keep only last 90 days
-# cutoff_date = datetime.now() - timedelta(days=90)
-# df = df[df['timestamp'] >= cutoff_date]
-#
-# # Save pruned data
-# df.to_json(history_file, orient='records', lines=True)
-# ```
-#
-# ## Directory Structure
-#
-# ```
-# /tmp/gh-aw/
-# ├── python/
-# │   ├── data/          # Current run data files
-# │   ├── charts/        # Generated charts (auto-uploaded as artifacts)
-# │   ├── artifacts/     # Additional output files
-# │   └── *.py           # Python scripts
-# └── cache-memory/
-#     └── trending/      # Persistent historical data (survives runs)
-#         └── <metric>/
-#             └── history.jsonl
-# ```
-#
-# ## Chart Quality Guidelines
-#
-# - **DPI**: Use 300 or higher for publication quality
-# - **Figure Size**: Standard is 12x7 inches for trend charts
-# - **Labels**: Always include clear axis labels and titles
-# - **Legend**: Add legends when plotting multiple series
-# - **Grid**: Enable grid lines for easier reading
-# - **Colors**: Use colorblind-friendly palettes (seaborn defaults)
-#
-# ## Tips for Success
-#
-# 1. **Consistency**: Use same metric names across runs
-# 2. **Validation**: Check data quality before appending
-# 3. **Documentation**: Comment your data schemas
-# 4. **Testing**: Validate charts before uploading
-# 5. **Cleanup**: Implement retention policies for cache-memory
-#
-# ---
-#
-# Remember: The power of trending comes from consistent data collection over time. Use cache-memory to build a rich historical dataset that reveals insights and patterns!
-#
-# # Stale Repository Identifier 🔍
-#
-# You are an expert repository analyst that deeply investigates potentially stale repositories to determine if they are truly inactive and produces comprehensive activity reports.
-#
-# ## Mission
-#
-# Analyze repositories identified as potentially stale by the stale-repos tool and conduct deep research to:
-# 1. Verify that repositories are actually inactive
-# 2. Understand the repository's purpose and state
-# 3. Analyze recent activity patterns across commits, issues, and pull requests
-# 4. Assess whether the repository should remain active or be archived
-# 5. Create detailed reports as GitHub issues with findings
-#
-# ## Context
-#
-# - **Organization**: ${{ env.ORGANIZATION }}
-# - **Inactive Threshold**: 365 days
-# - **Exempt Topics**: keep, template
-# - **Repository**: ${{ github.repository }}
-# - **Run ID**: ${{ github.run_id }}
-#
-# ## Data Available
-#
-# The stale-repos tool has identified potentially inactive repositories. The output is saved at:
-# - **File**: `/tmp/stale-repos-data/inactive-repos.json`
-#
-# This file contains an array of repository objects with information about each stale repository.
-#
-# ## Investigation Process
-#
-# ### Step 1: Load Stale Repositories Data
-#
-# Read the stale repositories data:
-# ```bash
-# cat /tmp/stale-repos-data/inactive-repos.json | jq .
-# ```
-#
-# Analyze the structure and count:
-# ```bash
-# echo "Total stale repositories: $(jq 'length' /tmp/stale-repos-data/inactive-repos.json)"
-# ```
-#
-# ### Step 2: Deep Research Each Repository
-#
-# For EACH **PUBLIC** repository in the list, conduct a thorough investigation:
-#
-# **CRITICAL**: Before analyzing any repository, verify it is public. Skip all private repositories.
-#
-# #### 2.1 Repository Overview
-# Use the GitHub MCP tools to gather:
-# - Repository name, description, and topics
-# - Primary language and size
-# - Creation date and last update date
-# - Default branch
-# - Visibility (public/private) - **ONLY ANALYZE PUBLIC REPOSITORIES**
-# - Archive status
-#
-# **IMPORTANT**: Skip any private repositories. This workflow only reviews public repositories.
-#
-# #### 2.2 Commit Activity Analysis
-# Analyze commit history:
-# - Last commit date and author
-# - Commit frequency over the last 2 years
-# - Number of unique contributors in the last year
-# - Trend analysis: Is activity declining or has it stopped abruptly?
-#
-# Use the GitHub MCP `list_commits` tool to get commit history:
-# ```
-# List commits for the repository to analyze recent activity
-# ```
-#
-# #### 2.3 Issue Activity Analysis
-# Examine issue activity:
-# - Total open and closed issues
-# - Recent issue activity (last 6 months)
-# - Average time to close issues
-# - Any open issues that need attention
-#
-# Use the GitHub MCP `search_issues` or `list_issues` tool:
-# ```
-# Search for recent issues in the repository
-# ```
-#
-# #### 2.4 Pull Request Activity
-# Review pull request patterns:
-# - Recent PRs (last 6 months)
-# - Merged vs. closed without merging
-# - Outstanding open PRs
-# - Review activity
-#
-# Use the GitHub MCP `list_pull_requests` or `search_pull_requests` tool:
-# ```
-# List pull requests to understand merge activity
-# ```
-#
-# #### 2.5 Release Activity
-# If the repository has releases:
-# - Last release date
-# - Release frequency
-# - Version progression
-#
-# Use the GitHub MCP `list_releases` tool:
-# ```
-# List releases to check deployment activity
-# ```
-#
-# #### 2.6 Repository Health Indicators
-# Assess repository health:
-# - **Active Development**: Recent commits, PRs, and issues
-# - **Community Engagement**: External contributions, issue discussions
-# - **Maintenance Status**: Response to issues/PRs, dependency updates
-# - **Documentation**: README quality, up-to-date docs
-# - **Dependencies**: Outdated dependencies, security alerts
-#
-# ### Step 3: Determine True Status
-#
-# Based on your research, classify each repository:
-#
-# 1. **Truly Stale**: No meaningful activity, should be archived
-#    - No commits in 365+ days
-#    - No open issues or PRs requiring attention
-#    - No ongoing projects or roadmap items
-#    - No active community engagement
-#
-# 2. **Low Activity but Active**: Slow-moving but not abandoned
-#    - Occasional commits or maintenance
-#    - Responsive to critical issues
-#    - Stable mature project with low change rate
-#
-# 3. **False Positive**: Appears stale but actually active
-#    - Activity in other branches
-#    - External development (forks, dependent projects)
-#    - Strategic repository (documentation, templates)
-#    - Recently migrated or reorganized
-#
-# 4. **Requires Attention**: Active but needs maintenance
-#    - Outstanding security issues
-#    - Outdated dependencies
-#    - Unanswered issues or PRs
-#
-# ### Edge Cases to Consider
-#
-# When analyzing repositories, be aware of these special cases:
-#
-# - **Private Repositories**: ALWAYS skip private repositories. This workflow only analyzes public repositories.
-# - **Already Archived**: If a repository is already archived, skip it (no issue needed)
-# - **Seasonal Projects**: Some repositories have cyclical activity patterns (e.g., annual conference sites, seasonal tools). Look for historical patterns.
-# - **Dependency Repositories**: Check if other projects depend on this repository. Use GitHub's "Used by" information if available.
-# - **Template/Example Repositories**: Repositories marked with "template" topic or containing example/demo code may intentionally have low activity.
-# - **Documentation Repositories**: Documentation-only repos often have legitimate periods of low activity between major updates.
-# - **Mono-repo Subprojects**: Activity might be happening in a parent repository or related repos.
-# - **Bot-Maintained Repositories**: Some repos are primarily maintained by automated systems and may appear to have "stale" human activity.
-#
-# ### Step 4: Create Detailed Issue Reports
-#
-# For each repository classified as **Truly Stale** or **Requires Attention**, create an issue with:
-#
-# **Issue Title Format**: `[Stale Repository] <repository-name> - <status>`
-#
-# **Issue Body Template**:
 # ```markdown
-# ## Repository Analysis: [Repository Name]
+# ## 📊 Code Health File Diet Weekly Snapshot
 #
-# **Repository URL**: [repository URL]
-# **Last Activity**: [date]
-# **Classification**: [Truly Stale / Requires Attention]
-# **Workflow Run ID**: ${{ github.run_id }}
+# **As of**: [latest snapshot date]
 #
-# ### 📊 Activity Summary
+# - **Largest file size**: [current LOC] (Δ vs 30 days: [delta])
+# - **Files over threshold**: [count] (Δ vs 30 days: [delta])
+# - **Tasks**: [tasks_completed]/[tasks_total] completed
+# - **Velocity**: ~[velocity_per_day] issues/day (trend: [speeding up |
+#   steady | slowing down])
+# - **Estimated completion**: [estimated_completion or "N/A"]
 #
-# #### Commits
-# - **Last Commit**: [date] by [author]
-# - **Commits (Last Year)**: [count]
-# - **Contributors (Last Year)**: [count]
-# - **Activity Trend**: [Declining / Stopped / Sporadic]
+# ### Trend Charts
 #
-# #### Issues
-# - **Open Issues**: [count]
-# - **Closed Issues (Last 6mo)**: [count]
-# - **Recent Issue Activity**: [Yes/No - describe]
-# - **Issues Needing Attention**: [list or "None"]
+# ![Largest file size over time](FILE_DIET_LARGEST_FILE_TREND_URL)
 #
-# #### Pull Requests
-# - **Open PRs**: [count]
-# - **Merged PRs (Last 6mo)**: [count]
-# - **Outstanding PRs**: [list or "None"]
+# ![Refactor tasks progress](FILE_DIET_TASKS_TREND_URL)
 #
-# #### Releases
-# - **Last Release**: [date and version] or [No releases]
-# - **Release Frequency**: [describe pattern]
+# ### Notes
 #
-# ### 🔍 Deep Analysis
-#
-# [Provide 2-3 paragraphs analyzing:
-# - What the repository was used for
-# - Why activity stopped or declined
-# - Current state and relevance
-# - Any dependencies or downstream impacts
-# - Community engagement patterns]
-#
-# ### 💡 Recommendation
-#
-# **Action**: [Archive / Maintain / Investigate Further / Transfer Ownership]
-#
-# **Reasoning**: [Explain why this recommendation makes sense based on the analysis]
-#
-# **Impact**: [Describe what happens if this recommendation is followed]
-#
-# ### ⚠️ Important Considerations
-#
-# [List any concerns, blockers, or things to consider before taking action:
-# - Outstanding issues or PRs
-# - Active forks or dependencies
-# - Documentation or historical value
-# - Team ownership or handoff needs]
-#
-# ### 📋 Next Steps
-#
-# - [ ] Review this analysis
-# - [ ] Contact repository owner/team
-# - [ ] [Specific action based on recommendation]
-# - [ ] Update repository topics/status
-# - [ ] [Additional steps as needed]
-#
-# ---
-# *This analysis was generated by the Stale Repository Identifier workflow. Please verify findings before taking any archival actions.*
+# - [Brief bullet list of notable changes, risks, or blockers]
+# - [Optional callouts for teams or services that need attention]
 # ```
 #
-# ### Step 5: Summary Report
+# Always keep the commentary concise, focused on trends, and suitable for
+# engineering managers and executives.
 #
-# After analyzing all repositories, provide a summary to stdout (not as an issue):
+# ### 6. Robustness
 #
-# ```
-# ## Stale Repository Analysis Summary
+# - If metrics history is missing or incomplete, clearly state that this
+#   is an initial or partial snapshot.
+# - If charts cannot be generated for any reason, still post a textual
+#   summary and include a short note about the visualization error.
+# - Never leak raw paths or internal details beyond what’s necessary to
+#   understand trends.
 #
-# **Total Repositories Analyzed**: [count]
-#
-# **Classification Breakdown**:
-# - Truly Stale: [count]
-# - Low Activity but Active: [count]
-# - False Positives: [count]
-# - Requires Attention: [count]
-#
-# **Issues Created**: [count]
-#
-# **Key Findings**:
-# [Brief summary of overall patterns and insights]
-# ```
-#
-# ## Important Guidelines
-#
-# 1. **Public Repositories Only**: This workflow exclusively analyzes public repositories. Always verify repository visibility and skip private repositories.
-# 2. **Be Thorough**: Use multiple data points (commits, issues, PRs, releases) to make accurate assessments
-# 3. **Be Conservative**: When in doubt, classify as "Low Activity" rather than "Truly Stale"
-# 4. **Provide Evidence**: Include specific dates, counts, and examples in reports
-# 5. **Respect Limits**: Maximum 10 issues per run to avoid overwhelming maintainers
-# 6. **Context Matters**: Consider repository purpose (documentation, templates, etc.)
-# 7. **Focus on Value**: Prioritize repositories that are truly abandoned vs. intentionally stable
-#
-# ## Rate Limiting
-#
-# To avoid GitHub API rate limits:
-# - Batch API calls when possible
-# - Add small delays between repositories if needed
-# - If you hit rate limits, note which repositories couldn't be analyzed
-#
-# ## Output
-#
-# - Create GitHub issues for repositories needing attention (max 10)
-# - Print summary statistics to stdout
-# - Be clear and actionable in recommendations
+# Begin your monitoring run now: load metrics, compute trends, generate
+# charts, and post the weekly snapshot.
 # ```
 #
 # Pinned GitHub Actions:
@@ -999,21 +759,13 @@
 #   - actions/upload-artifact@v5 (330a01c490aca151604b8cf639adc76d48f6c5d4)
 #     https://github.com/actions/upload-artifact/commit/330a01c490aca151604b8cf639adc76d48f6c5d4
 
-name: "Stale Repository Identifier"
+name: "Code Health File Diet Monitor"
 "on":
   schedule:
-  - cron: "3 2 1 * *"
-    # Friendly format: monthly on 1 at 02:03
-  workflow_dispatch:
-    inputs:
-      organization:
-        default: github
-        description: GitHub organization to scan for stale repositories
-        required: true
-        type: string
+  - cron: "0 9 * * 1"
+  workflow_dispatch: null
 
 permissions:
-  actions: read
   contents: read
   issues: read
   pull-requests: read
@@ -1021,10 +773,7 @@ permissions:
 concurrency:
   group: "gh-aw-${{ github.workflow }}"
 
-run-name: "Stale Repository Identifier"
-
-env:
-  ORGANIZATION: ${{ github.event.inputs.organization || 'github' }}
+run-name: "Code Health File Diet Monitor"
 
 jobs:
   activation:
@@ -1038,7 +787,7 @@ jobs:
       - name: Check workflow file timestamps
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
-          GH_AW_WORKFLOW_FILE: "stale-repo-identifier.lock.yml"
+          GH_AW_WORKFLOW_FILE: "code-health-file-diet-monitor.lock.yml"
         with:
           script: |
             async function main() {
@@ -1123,11 +872,774 @@ jobs:
               core.setFailed(error instanceof Error ? error.message : String(error));
             });
 
+  add_comment:
+    needs:
+      - agent
+      - create_issue
+      - detection
+    if: >
+      ((((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'add_comment'))) &&
+      (((github.event.issue.number) || (github.event.pull_request.number)) || (github.event.discussion.number))) &&
+      (needs.detection.outputs.success == 'true')
+    runs-on: ubuntu-slim
+    permissions:
+      contents: read
+      discussions: write
+      issues: write
+      pull-requests: write
+    timeout-minutes: 10
+    outputs:
+      comment_id: ${{ steps.add_comment.outputs.comment_id }}
+      comment_url: ${{ steps.add_comment.outputs.comment_url }}
+    steps:
+      - name: Debug agent outputs
+        env:
+          AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
+          AGENT_OUTPUT_TYPES: ${{ needs.agent.outputs.output_types }}
+        run: |
+          echo "Output: $AGENT_OUTPUT"
+          echo "Output types: $AGENT_OUTPUT_TYPES"
+      - name: Download agent output artifact
+        continue-on-error: true
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
+        with:
+          name: agent_output.json
+          path: /tmp/gh-aw/safeoutputs/
+      - name: Setup agent output environment variable
+        run: |
+          mkdir -p /tmp/gh-aw/safeoutputs/
+          find "/tmp/gh-aw/safeoutputs/" -type f -print
+          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> "$GITHUB_ENV"
+      - name: Add Issue Comment
+        id: add_comment
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        env:
+          GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
+          GH_AW_CREATED_ISSUE_URL: ${{ needs.create_issue.outputs.issue_url }}
+          GH_AW_CREATED_ISSUE_NUMBER: ${{ needs.create_issue.outputs.issue_number }}
+          GH_AW_TEMPORARY_ID_MAP: ${{ needs.create_issue.outputs.temporary_id_map }}
+          GH_AW_WORKFLOW_NAME: "Code Health File Diet Monitor"
+          GH_AW_ENGINE_ID: "copilot"
+        with:
+          github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require("fs");
+            const crypto = require("crypto");
+            const MAX_LOG_CONTENT_LENGTH = 10000;
+            function truncateForLogging(content) {
+              if (content.length <= MAX_LOG_CONTENT_LENGTH) {
+                return content;
+              }
+              return content.substring(0, MAX_LOG_CONTENT_LENGTH) + `\n... (truncated, total length: ${content.length})`;
+            }
+            function loadAgentOutput() {
+              const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT;
+              if (!agentOutputFile) {
+                core.info("No GH_AW_AGENT_OUTPUT environment variable found");
+                return { success: false };
+              }
+              let outputContent;
+              try {
+                outputContent = fs.readFileSync(agentOutputFile, "utf8");
+              } catch (error) {
+                const errorMessage = `Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`;
+                core.error(errorMessage);
+                return { success: false, error: errorMessage };
+              }
+              if (outputContent.trim() === "") {
+                core.info("Agent output content is empty");
+                return { success: false };
+              }
+              core.info(`Agent output content length: ${outputContent.length}`);
+              let validatedOutput;
+              try {
+                validatedOutput = JSON.parse(outputContent);
+              } catch (error) {
+                const errorMessage = `Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`;
+                core.error(errorMessage);
+                core.info(`Failed to parse content:\n${truncateForLogging(outputContent)}`);
+                return { success: false, error: errorMessage };
+              }
+              if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
+                core.info("No valid items found in agent output");
+                core.info(`Parsed content: ${truncateForLogging(JSON.stringify(validatedOutput))}`);
+                return { success: false };
+              }
+              return { success: true, items: validatedOutput.items };
+            }
+            function getMessages() {
+              const messagesEnv = process.env.GH_AW_SAFE_OUTPUT_MESSAGES;
+              if (!messagesEnv) {
+                return null;
+              }
+              try {
+                return JSON.parse(messagesEnv);
+              } catch (error) {
+                core.warning(`Failed to parse GH_AW_SAFE_OUTPUT_MESSAGES: ${error instanceof Error ? error.message : String(error)}`);
+                return null;
+              }
+            }
+            function renderTemplate(template, context) {
+              return template.replace(/\{(\w+)\}/g, (match, key) => {
+                const value = context[key];
+                return value !== undefined && value !== null ? String(value) : match;
+              });
+            }
+            function toSnakeCase(obj) {
+              const result = {};
+              for (const [key, value] of Object.entries(obj)) {
+                const snakeKey = key.replace(/([A-Z])/g, "_$1").toLowerCase();
+                result[snakeKey] = value;
+                result[key] = value;
+              }
+              return result;
+            }
+            function getFooterMessage(ctx) {
+              const messages = getMessages();
+              const templateContext = toSnakeCase(ctx);
+              const defaultFooter = "> Ahoy! This treasure was crafted by [🏴‍☠️ {workflow_name}]({run_url})";
+              let footer = messages?.footer ? renderTemplate(messages.footer, templateContext) : renderTemplate(defaultFooter, templateContext);
+              if (ctx.triggeringNumber) {
+                footer += ` fer issue #{triggering_number} 🗺️`.replace("{triggering_number}", String(ctx.triggeringNumber));
+              }
+              return footer;
+            }
+            function getFooterInstallMessage(ctx) {
+              if (!ctx.workflowSource || !ctx.workflowSourceUrl) {
+                return "";
+              }
+              const messages = getMessages();
+              const templateContext = toSnakeCase(ctx);
+              const defaultInstall =
+                "> Arr! To plunder this workflow fer yer own ship, run `gh aw add {workflow_source}`. Chart yer course at [🦜 {workflow_source_url}]({workflow_source_url})!";
+              return messages?.footerInstall
+                ? renderTemplate(messages.footerInstall, templateContext)
+                : renderTemplate(defaultInstall, templateContext);
+            }
+            function generateXMLMarker(workflowName, runUrl) {
+              const engineId = process.env.GH_AW_ENGINE_ID || "";
+              const engineVersion = process.env.GH_AW_ENGINE_VERSION || "";
+              const engineModel = process.env.GH_AW_ENGINE_MODEL || "";
+              const trackerId = process.env.GH_AW_TRACKER_ID || "";
+              const parts = [];
+              parts.push(`agentic-workflow: ${workflowName}`);
+              if (trackerId) {
+                parts.push(`tracker-id: ${trackerId}`);
+              }
+              if (engineId) {
+                parts.push(`engine: ${engineId}`);
+              }
+              if (engineVersion) {
+                parts.push(`version: ${engineVersion}`);
+              }
+              if (engineModel) {
+                parts.push(`model: ${engineModel}`);
+              }
+              parts.push(`run: ${runUrl}`);
+              return `<!-- ${parts.join(", ")} -->`;
+            }
+            function generateFooterWithMessages(
+              workflowName,
+              runUrl,
+              workflowSource,
+              workflowSourceURL,
+              triggeringIssueNumber,
+              triggeringPRNumber,
+              triggeringDiscussionNumber
+            ) {
+              let triggeringNumber;
+              if (triggeringIssueNumber) {
+                triggeringNumber = triggeringIssueNumber;
+              } else if (triggeringPRNumber) {
+                triggeringNumber = triggeringPRNumber;
+              } else if (triggeringDiscussionNumber) {
+                triggeringNumber = `discussion #${triggeringDiscussionNumber}`;
+              }
+              const ctx = {
+                workflowName,
+                runUrl,
+                workflowSource,
+                workflowSourceUrl: workflowSourceURL,
+                triggeringNumber,
+              };
+              let footer = "\n\n" + getFooterMessage(ctx);
+              const installMessage = getFooterInstallMessage(ctx);
+              if (installMessage) {
+                footer += "\n>\n" + installMessage;
+              }
+              footer += "\n\n" + generateXMLMarker(workflowName, runUrl);
+              footer += "\n";
+              return footer;
+            }
+            function getRepositoryUrl() {
+              const targetRepoSlug = process.env.GH_AW_TARGET_REPO_SLUG;
+              if (targetRepoSlug) {
+                const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
+                return `${githubServer}/${targetRepoSlug}`;
+              } else if (context.payload.repository?.html_url) {
+                return context.payload.repository.html_url;
+              } else {
+                const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
+                return `${githubServer}/${context.repo.owner}/${context.repo.repo}`;
+              }
+            }
+            const TEMPORARY_ID_PATTERN = /#(aw_[0-9a-f]{12})/gi;
+            function generateTemporaryId() {
+              return "aw_" + crypto.randomBytes(6).toString("hex");
+            }
+            function isTemporaryId(value) {
+              if (typeof value === "string") {
+                return /^aw_[0-9a-f]{12}$/i.test(value);
+              }
+              return false;
+            }
+            function normalizeTemporaryId(tempId) {
+              return String(tempId).toLowerCase();
+            }
+            function replaceTemporaryIdReferences(text, tempIdMap, currentRepo) {
+              return text.replace(TEMPORARY_ID_PATTERN, (match, tempId) => {
+                const resolved = tempIdMap.get(normalizeTemporaryId(tempId));
+                if (resolved !== undefined) {
+                  if (currentRepo && resolved.repo === currentRepo) {
+                    return `#${resolved.number}`;
+                  }
+                  return `${resolved.repo}#${resolved.number}`;
+                }
+                return match;
+              });
+            }
+            function replaceTemporaryIdReferencesLegacy(text, tempIdMap) {
+              return text.replace(TEMPORARY_ID_PATTERN, (match, tempId) => {
+                const issueNumber = tempIdMap.get(normalizeTemporaryId(tempId));
+                if (issueNumber !== undefined) {
+                  return `#${issueNumber}`;
+                }
+                return match;
+              });
+            }
+            function loadTemporaryIdMap() {
+              const mapJson = process.env.GH_AW_TEMPORARY_ID_MAP;
+              if (!mapJson || mapJson === "{}") {
+                return new Map();
+              }
+              try {
+                const mapObject = JSON.parse(mapJson);
+                const result = new Map();
+                for (const [key, value] of Object.entries(mapObject)) {
+                  const normalizedKey = normalizeTemporaryId(key);
+                  if (typeof value === "number") {
+                    const contextRepo = `${context.repo.owner}/${context.repo.repo}`;
+                    result.set(normalizedKey, { repo: contextRepo, number: value });
+                  } else if (typeof value === "object" && value !== null && "repo" in value && "number" in value) {
+                    result.set(normalizedKey, { repo: String(value.repo), number: Number(value.number) });
+                  }
+                }
+                return result;
+              } catch (error) {
+                if (typeof core !== "undefined") {
+                  core.warning(`Failed to parse temporary ID map: ${error instanceof Error ? error.message : String(error)}`);
+                }
+                return new Map();
+              }
+            }
+            function resolveIssueNumber(value, temporaryIdMap) {
+              if (value === undefined || value === null) {
+                return { resolved: null, wasTemporaryId: false, errorMessage: "Issue number is missing" };
+              }
+              const valueStr = String(value);
+              if (isTemporaryId(valueStr)) {
+                const resolvedPair = temporaryIdMap.get(normalizeTemporaryId(valueStr));
+                if (resolvedPair !== undefined) {
+                  return { resolved: resolvedPair, wasTemporaryId: true, errorMessage: null };
+                }
+                return {
+                  resolved: null,
+                  wasTemporaryId: true,
+                  errorMessage: `Temporary ID '${valueStr}' not found in map. Ensure the issue was created before linking.`,
+                };
+              }
+              const issueNumber = typeof value === "number" ? value : parseInt(valueStr, 10);
+              if (isNaN(issueNumber) || issueNumber <= 0) {
+                return { resolved: null, wasTemporaryId: false, errorMessage: `Invalid issue number: ${value}` };
+              }
+              const contextRepo = typeof context !== "undefined" ? `${context.repo.owner}/${context.repo.repo}` : "";
+              return { resolved: { repo: contextRepo, number: issueNumber }, wasTemporaryId: false, errorMessage: null };
+            }
+            function serializeTemporaryIdMap(tempIdMap) {
+              const obj = Object.fromEntries(tempIdMap);
+              return JSON.stringify(obj);
+            }
+            function getTrackerID(format) {
+              const trackerID = process.env.GH_AW_TRACKER_ID || "";
+              if (trackerID) {
+                core.info(`Tracker ID: ${trackerID}`);
+                return format === "markdown" ? `\n\n<!-- tracker-id: ${trackerID} -->` : trackerID;
+              }
+              return "";
+            }
+            async function minimizeComment(github, nodeId, reason = "outdated") {
+              const query =  `
+                mutation ($nodeId: ID!, $classifier: ReportedContentClassifiers!) {
+                  minimizeComment(input: { subjectId: $nodeId, classifier: $classifier }) {
+                    minimizedComment {
+                      isMinimized
+                    }
+                  }
+                }
+              `;
+              const result = await github.graphql(query, { nodeId, classifier: reason });
+              return {
+                id: nodeId,
+                isMinimized: result.minimizeComment.minimizedComment.isMinimized,
+              };
+            }
+            async function findCommentsWithTrackerId(github, owner, repo, issueNumber, workflowId) {
+              const comments = [];
+              let page = 1;
+              const perPage = 100;
+              while (true) {
+                const { data } = await github.rest.issues.listComments({
+                  owner,
+                  repo,
+                  issue_number: issueNumber,
+                  per_page: perPage,
+                  page,
+                });
+                if (data.length === 0) {
+                  break;
+                }
+                for (const comment of data) {
+                  if (comment.body && comment.body.includes(`<!-- workflow-id: ${workflowId} -->`)) {
+                    if (comment.body.includes(`<!-- comment-type: reaction -->`)) {
+                      continue;
+                    }
+                    comments.push({
+                      id: comment.id,
+                      node_id: comment.node_id,
+                      body: comment.body,
+                    });
+                  }
+                }
+                if (data.length < perPage) {
+                  break;
+                }
+                page++;
+              }
+              return comments;
+            }
+            async function findDiscussionCommentsWithTrackerId(github, owner, repo, discussionNumber, workflowId) {
+              const query =  `
+                query ($owner: String!, $repo: String!, $num: Int!, $cursor: String) {
+                  repository(owner: $owner, name: $repo) {
+                    discussion(number: $num) {
+                      comments(first: 100, after: $cursor) {
+                        nodes {
+                          id
+                          body
+                        }
+                        pageInfo {
+                          hasNextPage
+                          endCursor
+                        }
+                      }
+                    }
+                  }
+                }
+              `;
+              const comments = [];
+              let cursor = null;
+              while (true) {
+                const result = await github.graphql(query, { owner, repo, num: discussionNumber, cursor });
+                if (!result.repository?.discussion?.comments?.nodes) {
+                  break;
+                }
+                const nodes = result.repository.discussion.comments.nodes;
+                for (const comment of nodes) {
+                  if (comment.body && comment.body.includes(`<!-- workflow-id: ${workflowId} -->`)) {
+                    if (comment.body.includes(`<!-- comment-type: reaction -->`)) {
+                      continue;
+                    }
+                    comments.push({
+                      id: comment.id,
+                      body: comment.body,
+                    });
+                  }
+                }
+                if (!result.repository.discussion.comments.pageInfo.hasNextPage) {
+                  break;
+                }
+                cursor = result.repository.discussion.comments.pageInfo.endCursor;
+              }
+              return comments;
+            }
+            async function hideOlderComments(github, owner, repo, itemNumber, workflowId, isDiscussion, reason = "outdated", allowedReasons = null) {
+              if (!workflowId) {
+                core.info("No workflow ID available, skipping hide-older-comments");
+                return 0;
+              }
+              const normalizedReason = reason.toUpperCase();
+              if (allowedReasons && allowedReasons.length > 0) {
+                const normalizedAllowedReasons = allowedReasons.map(r => r.toUpperCase());
+                if (!normalizedAllowedReasons.includes(normalizedReason)) {
+                  core.warning(`Reason "${reason}" is not in allowed-reasons list [${allowedReasons.join(", ")}]. Skipping hide-older-comments.`);
+                  return 0;
+                }
+              }
+              core.info(`Searching for previous comments with workflow ID: ${workflowId}`);
+              let comments;
+              if (isDiscussion) {
+                comments = await findDiscussionCommentsWithTrackerId(github, owner, repo, itemNumber, workflowId);
+              } else {
+                comments = await findCommentsWithTrackerId(github, owner, repo, itemNumber, workflowId);
+              }
+              if (comments.length === 0) {
+                core.info("No previous comments found with matching workflow ID");
+                return 0;
+              }
+              core.info(`Found ${comments.length} previous comment(s) to hide with reason: ${normalizedReason}`);
+              let hiddenCount = 0;
+              for (const comment of comments) {
+                try {
+                  const nodeId = isDiscussion ? String(comment.id) :  comment.node_id;
+                  core.info(`Hiding comment: ${nodeId}`);
+                  await minimizeComment(github, nodeId, normalizedReason);
+                  hiddenCount++;
+                  core.info(`✓ Hidden comment: ${nodeId}`);
+                } catch (error) {
+                  core.warning(`Failed to hide comment: ${error instanceof Error ? error.message : String(error)}`);
+                }
+              }
+              core.info(`Successfully hidden ${hiddenCount} comment(s)`);
+              return hiddenCount;
+            }
+            async function commentOnDiscussion(github, owner, repo, discussionNumber, message, replyToId) {
+              const { repository } = await github.graphql(
+                `
+                query($owner: String!, $repo: String!, $num: Int!) {
+                  repository(owner: $owner, name: $repo) {
+                    discussion(number: $num) { 
+                      id 
+                      url
+                    }
+                  }
+                }`,
+                { owner, repo, num: discussionNumber }
+              );
+              if (!repository || !repository.discussion) {
+                throw new Error(`Discussion #${discussionNumber} not found in ${owner}/${repo}`);
+              }
+              const discussionId = repository.discussion.id;
+              const discussionUrl = repository.discussion.url;
+              let result;
+              if (replyToId) {
+                result = await github.graphql(
+                  `
+                  mutation($dId: ID!, $body: String!, $replyToId: ID!) {
+                    addDiscussionComment(input: { discussionId: $dId, body: $body, replyToId: $replyToId }) {
+                      comment { 
+                        id 
+                        body 
+                        createdAt 
+                        url
+                      }
+                    }
+                  }`,
+                  { dId: discussionId, body: message, replyToId }
+                );
+              } else {
+                result = await github.graphql(
+                  `
+                  mutation($dId: ID!, $body: String!) {
+                    addDiscussionComment(input: { discussionId: $dId, body: $body }) {
+                      comment { 
+                        id 
+                        body 
+                        createdAt 
+                        url
+                      }
+                    }
+                  }`,
+                  { dId: discussionId, body: message }
+                );
+              }
+              const comment = result.addDiscussionComment.comment;
+              return {
+                id: comment.id,
+                html_url: comment.url,
+                discussion_url: discussionUrl,
+              };
+            }
+            async function main() {
+              const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
+              const isDiscussionExplicit = process.env.GITHUB_AW_COMMENT_DISCUSSION === "true";
+              const hideOlderCommentsEnabled = process.env.GH_AW_HIDE_OLDER_COMMENTS === "true";
+              const temporaryIdMap = loadTemporaryIdMap();
+              if (temporaryIdMap.size > 0) {
+                core.info(`Loaded temporary ID map with ${temporaryIdMap.size} entries`);
+              }
+              const result = loadAgentOutput();
+              if (!result.success) {
+                return;
+              }
+              const commentItems = result.items.filter( item => item.type === "add_comment");
+              if (commentItems.length === 0) {
+                core.info("No add-comment items found in agent output");
+                return;
+              }
+              core.info(`Found ${commentItems.length} add-comment item(s)`);
+              function getTargetNumber(item) {
+                return item.item_number;
+              }
+              const commentTarget = process.env.GH_AW_COMMENT_TARGET || "triggering";
+              core.info(`Comment target configuration: ${commentTarget}`);
+              const isIssueContext = context.eventName === "issues" || context.eventName === "issue_comment";
+              const isPRContext =
+                context.eventName === "pull_request" ||
+                context.eventName === "pull_request_review" ||
+                context.eventName === "pull_request_review_comment";
+              const isDiscussionContext = context.eventName === "discussion" || context.eventName === "discussion_comment";
+              const isDiscussion = isDiscussionContext || isDiscussionExplicit;
+              const workflowId = process.env.GITHUB_WORKFLOW || "";
+              let allowedReasons = null;
+              if (process.env.GH_AW_ALLOWED_REASONS) {
+                try {
+                  allowedReasons = JSON.parse(process.env.GH_AW_ALLOWED_REASONS);
+                  core.info(`Allowed reasons for hiding: [${allowedReasons.join(", ")}]`);
+                } catch (error) {
+                  core.warning(`Failed to parse GH_AW_ALLOWED_REASONS: ${error instanceof Error ? error.message : String(error)}`);
+                }
+              }
+              if (hideOlderCommentsEnabled) {
+                core.info(`Hide-older-comments is enabled with workflow ID: ${workflowId || "(none)"}`);
+              }
+              if (isStaged) {
+                let summaryContent = "## 🎭 Staged Mode: Add Comments Preview\n\n";
+                summaryContent += "The following comments would be added if staged mode was disabled:\n\n";
+                const createdIssueUrl = process.env.GH_AW_CREATED_ISSUE_URL;
+                const createdIssueNumber = process.env.GH_AW_CREATED_ISSUE_NUMBER;
+                const createdDiscussionUrl = process.env.GH_AW_CREATED_DISCUSSION_URL;
+                const createdDiscussionNumber = process.env.GH_AW_CREATED_DISCUSSION_NUMBER;
+                const createdPullRequestUrl = process.env.GH_AW_CREATED_PULL_REQUEST_URL;
+                const createdPullRequestNumber = process.env.GH_AW_CREATED_PULL_REQUEST_NUMBER;
+                if (createdIssueUrl || createdDiscussionUrl || createdPullRequestUrl) {
+                  summaryContent += "#### Related Items\n\n";
+                  if (createdIssueUrl && createdIssueNumber) {
+                    summaryContent += `- Issue: [#${createdIssueNumber}](${createdIssueUrl})\n`;
+                  }
+                  if (createdDiscussionUrl && createdDiscussionNumber) {
+                    summaryContent += `- Discussion: [#${createdDiscussionNumber}](${createdDiscussionUrl})\n`;
+                  }
+                  if (createdPullRequestUrl && createdPullRequestNumber) {
+                    summaryContent += `- Pull Request: [#${createdPullRequestNumber}](${createdPullRequestUrl})\n`;
+                  }
+                  summaryContent += "\n";
+                }
+                for (let i = 0; i < commentItems.length; i++) {
+                  const item = commentItems[i];
+                  summaryContent += `### Comment ${i + 1}\n`;
+                  const targetNumber = getTargetNumber(item);
+                  if (targetNumber) {
+                    const repoUrl = getRepositoryUrl();
+                    if (isDiscussion) {
+                      const discussionUrl = `${repoUrl}/discussions/${targetNumber}`;
+                      summaryContent += `**Target Discussion:** [#${targetNumber}](${discussionUrl})\n\n`;
+                    } else {
+                      const issueUrl = `${repoUrl}/issues/${targetNumber}`;
+                      summaryContent += `**Target Issue:** [#${targetNumber}](${issueUrl})\n\n`;
+                    }
+                  } else {
+                    if (isDiscussion) {
+                      summaryContent += `**Target:** Current discussion\n\n`;
+                    } else {
+                      summaryContent += `**Target:** Current issue/PR\n\n`;
+                    }
+                  }
+                  summaryContent += `**Body:**\n${item.body || "No content provided"}\n\n`;
+                  summaryContent += "---\n\n";
+                }
+                await core.summary.addRaw(summaryContent).write();
+                core.info("📝 Comment creation preview written to step summary");
+                return;
+              }
+              if (commentTarget === "triggering" && !isIssueContext && !isPRContext && !isDiscussionContext) {
+                core.info('Target is "triggering" but not running in issue, pull request, or discussion context, skipping comment creation');
+                return;
+              }
+              const triggeringIssueNumber =
+                context.payload?.issue?.number && !context.payload?.issue?.pull_request ? context.payload.issue.number : undefined;
+              const triggeringPRNumber =
+                context.payload?.pull_request?.number || (context.payload?.issue?.pull_request ? context.payload.issue.number : undefined);
+              const triggeringDiscussionNumber = context.payload?.discussion?.number;
+              const createdComments = [];
+              for (let i = 0; i < commentItems.length; i++) {
+                const commentItem = commentItems[i];
+                core.info(`Processing add-comment item ${i + 1}/${commentItems.length}: bodyLength=${commentItem.body.length}`);
+                let itemNumber;
+                let commentEndpoint;
+                if (commentTarget === "*") {
+                  const targetNumber = getTargetNumber(commentItem);
+                  if (targetNumber) {
+                    itemNumber = parseInt(targetNumber, 10);
+                    if (isNaN(itemNumber) || itemNumber <= 0) {
+                      core.info(`Invalid target number specified: ${targetNumber}`);
+                      continue;
+                    }
+                    commentEndpoint = isDiscussion ? "discussions" : "issues";
+                  } else {
+                    core.info(`Target is "*" but no number specified in comment item`);
+                    continue;
+                  }
+                } else if (commentTarget && commentTarget !== "triggering") {
+                  itemNumber = parseInt(commentTarget, 10);
+                  if (isNaN(itemNumber) || itemNumber <= 0) {
+                    core.info(`Invalid target number in target configuration: ${commentTarget}`);
+                    continue;
+                  }
+                  commentEndpoint = isDiscussion ? "discussions" : "issues";
+                } else {
+                  if (isIssueContext) {
+                    itemNumber = context.payload.issue?.number || context.payload.pull_request?.number || context.payload.discussion?.number;
+                    if (context.payload.issue) {
+                      commentEndpoint = "issues";
+                    } else {
+                      core.info("Issue context detected but no issue found in payload");
+                      continue;
+                    }
+                  } else if (isPRContext) {
+                    itemNumber = context.payload.pull_request?.number || context.payload.issue?.number || context.payload.discussion?.number;
+                    if (context.payload.pull_request) {
+                      commentEndpoint = "issues"; 
+                    } else {
+                      core.info("Pull request context detected but no pull request found in payload");
+                      continue;
+                    }
+                  } else if (isDiscussionContext) {
+                    itemNumber = context.payload.discussion?.number || context.payload.issue?.number || context.payload.pull_request?.number;
+                    if (context.payload.discussion) {
+                      commentEndpoint = "discussions"; 
+                    } else {
+                      core.info("Discussion context detected but no discussion found in payload");
+                      continue;
+                    }
+                  }
+                }
+                if (!itemNumber) {
+                  core.info("Could not determine issue, pull request, or discussion number");
+                  continue;
+                }
+                let body = replaceTemporaryIdReferences(commentItem.body.trim(), temporaryIdMap);
+                const createdIssueUrl = process.env.GH_AW_CREATED_ISSUE_URL;
+                const createdIssueNumber = process.env.GH_AW_CREATED_ISSUE_NUMBER;
+                const createdDiscussionUrl = process.env.GH_AW_CREATED_DISCUSSION_URL;
+                const createdDiscussionNumber = process.env.GH_AW_CREATED_DISCUSSION_NUMBER;
+                const createdPullRequestUrl = process.env.GH_AW_CREATED_PULL_REQUEST_URL;
+                const createdPullRequestNumber = process.env.GH_AW_CREATED_PULL_REQUEST_NUMBER;
+                let hasReferences = false;
+                let referencesSection = "\n\n#### Related Items\n\n";
+                if (createdIssueUrl && createdIssueNumber) {
+                  referencesSection += `- Issue: [#${createdIssueNumber}](${createdIssueUrl})\n`;
+                  hasReferences = true;
+                }
+                if (createdDiscussionUrl && createdDiscussionNumber) {
+                  referencesSection += `- Discussion: [#${createdDiscussionNumber}](${createdDiscussionUrl})\n`;
+                  hasReferences = true;
+                }
+                if (createdPullRequestUrl && createdPullRequestNumber) {
+                  referencesSection += `- Pull Request: [#${createdPullRequestNumber}](${createdPullRequestUrl})\n`;
+                  hasReferences = true;
+                }
+                if (hasReferences) {
+                  body += referencesSection;
+                }
+                const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
+                const workflowSource = process.env.GH_AW_WORKFLOW_SOURCE || "";
+                const workflowSourceURL = process.env.GH_AW_WORKFLOW_SOURCE_URL || "";
+                const runId = context.runId;
+                const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
+                const runUrl = context.payload.repository
+                  ? `${context.payload.repository.html_url}/actions/runs/${runId}`
+                  : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
+                if (workflowId) {
+                  body += `\n\n<!-- workflow-id: ${workflowId} -->`;
+                }
+                const trackerIDComment = getTrackerID("markdown");
+                if (trackerIDComment) {
+                  body += trackerIDComment;
+                }
+                body += `\n\n<!-- comment-type: add-comment -->`;
+                body += generateFooterWithMessages(
+                  workflowName,
+                  runUrl,
+                  workflowSource,
+                  workflowSourceURL,
+                  triggeringIssueNumber,
+                  triggeringPRNumber,
+                  triggeringDiscussionNumber
+                );
+                try {
+                  if (hideOlderCommentsEnabled && workflowId) {
+                    core.info("Hide-older-comments is enabled, searching for previous comments to hide");
+                    await hideOlderComments(
+                      github,
+                      context.repo.owner,
+                      context.repo.repo,
+                      itemNumber,
+                      workflowId,
+                      commentEndpoint === "discussions",
+                      "outdated",
+                      allowedReasons
+                    );
+                  }
+                  let comment;
+                  if (commentEndpoint === "discussions") {
+                    core.info(`Creating comment on discussion #${itemNumber}`);
+                    core.info(`Comment content length: ${body.length}`);
+                    let replyToId;
+                    if (context.eventName === "discussion_comment" && context.payload?.comment?.node_id) {
+                      replyToId = context.payload.comment.node_id;
+                      core.info(`Creating threaded reply to comment ${replyToId}`);
+                    }
+                    comment = await commentOnDiscussion(github, context.repo.owner, context.repo.repo, itemNumber, body, replyToId);
+                    core.info("Created discussion comment #" + comment.id + ": " + comment.html_url);
+                    comment.discussion_url = comment.discussion_url;
+                  } else {
+                    core.info(`Creating comment on ${commentEndpoint} #${itemNumber}`);
+                    core.info(`Comment content length: ${body.length}`);
+                    const { data: restComment } = await github.rest.issues.createComment({
+                      owner: context.repo.owner,
+                      repo: context.repo.repo,
+                      issue_number: itemNumber,
+                      body: body,
+                    });
+                    comment = restComment;
+                    core.info("Created comment #" + comment.id + ": " + comment.html_url);
+                  }
+                  createdComments.push(comment);
+                  if (i === commentItems.length - 1) {
+                    core.setOutput("comment_id", comment.id);
+                    core.setOutput("comment_url", comment.html_url);
+                  }
+                } catch (error) {
+                  core.error(`✗ Failed to create comment: ${error instanceof Error ? error.message : String(error)}`);
+                  throw error;
+                }
+              }
+              if (createdComments.length > 0) {
+                let summaryContent = "\n\n## GitHub Comments\n";
+                for (const comment of createdComments) {
+                  summaryContent += `- Comment #${comment.id}: [View Comment](${comment.html_url})\n`;
+                }
+                await core.summary.addRaw(summaryContent).write();
+              }
+              core.info(`Successfully created ${createdComments.length} comment(s)`);
+              return createdComments;
+            }
+            await main();
+
   agent:
     needs: activation
     runs-on: ubuntu-latest
     permissions:
-      actions: read
       contents: read
       issues: read
       pull-requests: read
@@ -1178,42 +1690,6 @@ jobs:
             /tmp/gh-aw/python/*.py
             /tmp/gh-aw/python/data/*
           retention-days: 30
-      - name: Set up jq utilities directory
-        run: "mkdir -p /tmp/gh-aw\ncat > /tmp/gh-aw/jqschema.sh << 'EOF'\n#!/usr/bin/env bash\n# jqschema.sh\njq -c '\ndef walk(f):\n  . as $in |\n  if type == \"object\" then\n    reduce keys[] as $k ({}; . + {($k): ($in[$k] | walk(f))})\n  elif type == \"array\" then\n    if length == 0 then [] else [.[0] | walk(f)] end\n  else\n    type\n  end;\nwalk(.)\n'\nEOF\nchmod +x /tmp/gh-aw/jqschema.sh"
-      - name: Setup Python environment for trending
-        run: "# Create working directory structure\nmkdir -p /tmp/gh-aw/python\nmkdir -p /tmp/gh-aw/python/data\nmkdir -p /tmp/gh-aw/python/charts\nmkdir -p /tmp/gh-aw/python/artifacts\n\necho \"Python environment setup complete\"\necho \"Working directory: /tmp/gh-aw/python\"\necho \"Data directory: /tmp/gh-aw/python/data\"\necho \"Charts directory: /tmp/gh-aw/python/charts\"\necho \"Cache memory: /tmp/gh-aw/cache-memory/\"\n"
-      - name: Install Python scientific libraries
-        run: "pip install --user numpy pandas matplotlib seaborn scipy\n\n# Verify installations\npython3 -c \"import numpy; print(f'NumPy {numpy.__version__} installed')\"\npython3 -c \"import pandas; print(f'Pandas {pandas.__version__} installed')\"\npython3 -c \"import matplotlib; print(f'Matplotlib {matplotlib.__version__} installed')\"\npython3 -c \"import seaborn; print(f'Seaborn {seaborn.__version__} installed')\"\npython3 -c \"import scipy; print(f'SciPy {scipy.__version__} installed')\"\n\necho \"All scientific libraries installed successfully\"\n"
-      - if: always()
-        name: Upload generated charts
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
-        with:
-          if-no-files-found: warn
-          name: trending-charts
-          path: /tmp/gh-aw/python/charts/*.png
-          retention-days: 30
-      - if: always()
-        name: Upload source files and data
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
-        with:
-          if-no-files-found: warn
-          name: trending-source-and-data
-          path: |
-            /tmp/gh-aw/python/*.py
-            /tmp/gh-aw/python/data/*
-          retention-days: 30
-      - env:
-          ADDITIONAL_METRICS: release,pr
-          EXEMPT_TOPICS: keep,template
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          ORGANIZATION: ${{ env.ORGANIZATION }}
-        id: stale-repos
-        name: Run stale_repos tool
-        uses: github/stale-repos@v3
-      - env:
-          INACTIVE_REPOS: ${{ steps.stale-repos.outputs.inactiveRepos }}
-        name: Save stale repos output
-        run: "mkdir -p /tmp/stale-repos-data\necho \"$INACTIVE_REPOS\" > /tmp/stale-repos-data/inactive-repos.json\necho \"Stale repositories data saved\"\necho \"Total stale repositories: $(jq 'length' /tmp/stale-repos-data/inactive-repos.json)\""
 
       # Cache memory file share configuration from frontmatter processed below
       - name: Create cache-memory directory
@@ -1225,12 +1701,40 @@ jobs:
       - name: Restore cache memory file share data
         uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
-          key: trending-data-${{ github.workflow }}-${{ github.run_id }}
+          key: memory-${{ github.workflow }}-${{ github.run_id }}
           path: /tmp/gh-aw/cache-memory
           restore-keys: |
-            trending-data-${{ github.workflow }}-
-            trending-data-
-            trending-
+            memory-${{ github.workflow }}-
+            memory-
+      # Repo memory git-based storage configuration from frontmatter processed below
+      - name: Clone repo-memory branch (default)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BRANCH_NAME: memory/campaigns
+        run: |
+          set +e  # Don't fail if branch doesn't exist
+          git clone --depth 1 --single-branch --branch "memory/campaigns" "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git" "/tmp/gh-aw/repo-memory-default" 2>/dev/null
+          CLONE_EXIT_CODE=$?
+          set -e
+          
+          if [ $CLONE_EXIT_CODE -ne 0 ]; then
+            echo "Branch memory/campaigns does not exist, creating orphan branch"
+            mkdir -p "/tmp/gh-aw/repo-memory-default"
+            cd "/tmp/gh-aw/repo-memory-default"
+            git init
+            git checkout --orphan "$BRANCH_NAME"
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git"
+          else
+            echo "Successfully cloned memory/campaigns branch"
+            cd "/tmp/gh-aw/repo-memory-default"
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+          fi
+          
+          mkdir -p "/tmp/gh-aw/repo-memory-default/memory/default"
+          echo "Repo memory directory ready at /tmp/gh-aw/repo-memory-default/memory/default"
       - name: Configure Git credentials
         env:
           REPO_NAME: ${{ github.repository }}
@@ -1326,12 +1830,12 @@ jobs:
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
           cat > /tmp/gh-aw/safeoutputs/config.json << 'EOF'
-          {"create_issue":{"max":10},"missing_tool":{"max":0},"noop":{"max":1},"upload_asset":{"max":0}}
+          {"add_comment":{"max":3},"create_issue":{"max":1},"missing_tool":{"max":0},"noop":{"max":1},"upload_asset":{"max":0}}
           EOF
           cat > /tmp/gh-aw/safeoutputs/tools.json << 'EOF'
           [
             {
-              "description": "Create a new GitHub issue for tracking bugs, feature requests, or tasks. Use this for actionable work items that need assignment, labeling, and status tracking. For reports, announcements, or status updates that don't require task tracking, use create_discussion instead. CONSTRAINTS: Maximum 10 issue(s) can be created. Title will be prefixed with \"[Stale Repository] \". Labels [stale-repository automated-analysis] will be automatically added.",
+              "description": "Create a new GitHub issue for tracking bugs, feature requests, or tasks. Use this for actionable work items that need assignment, labeling, and status tracking. For reports, announcements, or status updates that don't require task tracking, use create_discussion instead. CONSTRAINTS: Maximum 1 issue(s) can be created. Labels [code-health campaign-tracker campaign:code-health-file-diet] will be automatically added.",
               "inputSchema": {
                 "additionalProperties": false,
                 "properties": {
@@ -1369,6 +1873,28 @@ jobs:
                 "type": "object"
               },
               "name": "create_issue"
+            },
+            {
+              "description": "Add a comment to an existing GitHub issue, pull request, or discussion. Use this to provide feedback, answer questions, or add information to an existing conversation. For creating new items, use create_issue, create_discussion, or create_pull_request instead. CONSTRAINTS: Maximum 3 comment(s) can be added.",
+              "inputSchema": {
+                "additionalProperties": false,
+                "properties": {
+                  "body": {
+                    "description": "Comment content in Markdown. Provide helpful, relevant information that adds value to the conversation.",
+                    "type": "string"
+                  },
+                  "item_number": {
+                    "description": "The issue, pull request, or discussion number to comment on. Must be a valid existing item in the repository.",
+                    "type": "number"
+                  }
+                },
+                "required": [
+                  "body",
+                  "item_number"
+                ],
+                "type": "object"
+              },
+              "name": "add_comment"
             },
             {
               "description": "Upload a file as a URL-addressable asset that can be referenced in issues, PRs, or comments. The file is stored on an orphaned git branch and returns a permanent URL. Use this for images, diagrams, or other files that need to be embedded in GitHub content. CONSTRAINTS: Maximum file size: 10240KB. Allowed file extensions: [.png .jpg .jpeg].",
@@ -1434,6 +1960,20 @@ jobs:
           EOF
           cat > /tmp/gh-aw/safeoutputs/validation.json << 'EOF'
           {
+            "add_comment": {
+              "defaultMax": 1,
+              "fields": {
+                "body": {
+                  "required": true,
+                  "type": "string",
+                  "sanitize": true,
+                  "maxLength": 65000
+                },
+                "item_number": {
+                  "issueOrPRNumber": true
+                }
+              }
+            },
             "create_issue": {
               "defaultMax": 1,
               "fields": {
@@ -2893,9 +3433,7 @@ jobs:
                   "-e",
                   "GITHUB_READ_ONLY=1",
                   "-e",
-                  "GITHUB_LOCKDOWN_MODE=1",
-                  "-e",
-                  "GITHUB_TOOLSETS=repos,issues,pull_requests",
+                  "GITHUB_TOOLSETS=repos,issues,search",
                   "ghcr.io/github/github-mcp-server:v0.24.1"
                 ],
                 "tools": ["*"],
@@ -2946,7 +3484,7 @@ jobs:
               model: process.env.GH_AW_MODEL_AGENT_COPILOT || "",
               version: "",
               agent_version: "0.0.368",
-              workflow_name: "Stale Repository Identifier",
+              workflow_name: "Code Health File Diet Monitor",
               experimental: false,
               supports_tools_allowlist: true,
               supports_http_transport: true,
@@ -2960,7 +3498,7 @@ jobs:
               event_name: context.eventName,
               staged: false,
               network_mode: "defaults",
-              allowed_domains: ["defaults","github","python"],
+              allowed_domains: ["defaults","python"],
               firewall_enabled: true,
               firewall_version: "",
               steps: {
@@ -3020,13 +3558,259 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
-          GH_AW_ENV_ORGANIZATION: ${{ env.ORGANIZATION }}
-          GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
-          GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
         run: |
           PROMPT_DIR="$(dirname "$GH_AW_PROMPT")"
           mkdir -p "$PROMPT_DIR"
           cat << 'PROMPT_EOF' > "$GH_AW_PROMPT"
+          ## Report Formatting
+          
+          Structure your report with an overview followed by detailed content:
+          
+          1. **Content Overview**: Start with 1-2 paragraphs that summarize the key findings, highlights, or main points of your report. This should give readers a quick understanding of what the report contains without needing to expand the details.
+          
+          2. **Detailed Content**: Place the rest of your report inside HTML `<details>` and `<summary>` tags to allow readers to expand and view the full information. **IMPORTANT**: Always wrap the summary text in `<b>` tags to make it bold.
+          
+          **Example format:**
+          
+          `````markdown
+          Brief overview paragraph 1 introducing the report and its main findings.
+          
+          Optional overview paragraph 2 with additional context or highlights.
+          
+          <details>
+          <summary><b>Full Report Details</b></summary>
+          
+          ## Detailed Analysis
+          
+          Full report content with all sections, tables, and detailed information goes here.
+          
+          ### Section 1
+          [Content]
+          
+          ### Section 2
+          [Content]
+          
+          </details>
+          `````
+          
+          ## Reporting Workflow Run Information
+          
+          When analyzing workflow run logs or reporting information from GitHub Actions runs:
+          
+          ### 1. Workflow Run ID Formatting
+          
+          **Always render workflow run IDs as clickable URLs** when mentioning them in your report. The workflow run data includes a `url` field that provides the full GitHub Actions run page URL.
+          
+          **Format:**
+          
+          `````markdown
+          [§12345](https://github.com/owner/repo/actions/runs/12345)
+          `````
+          
+          **Example:**
+          
+          `````markdown
+          Analysis based on [§456789](https://github.com/githubnext/gh-aw/actions/runs/456789)
+          `````
+          
+          ### 2. Document References for Workflow Runs
+          
+          When your analysis is based on information mined from one or more workflow runs, **include up to 3 workflow run URLs as document references** at the end of your report.
+          
+          **Format:**
+          
+          `````markdown
+          ---
+          
+          **References:**
+          - [§12345](https://github.com/owner/repo/actions/runs/12345)
+          - [§12346](https://github.com/owner/repo/actions/runs/12346)
+          - [§12347](https://github.com/owner/repo/actions/runs/12347)
+          `````
+          
+          **Guidelines:**
+          
+          - Include **maximum 3 references** to keep reports concise
+          - Choose the most relevant or representative runs (e.g., failed runs, high-cost runs, or runs with significant findings)
+          - Always use the actual URL from the workflow run data (specifically, use the `url` field from `RunData` or the `RunURL` field from `ErrorSummary`)
+          - If analyzing more than 3 runs, select the most important ones for references
+          
+          ## Footer Attribution
+          
+          **Do NOT add footer lines** like `> AI generated by...` to your comment. The system automatically appends attribution after your content to prevent duplicates.
+          
+          # Trends Visualization Guide
+          
+          You are an expert at creating compelling trend visualizations that reveal insights from data over time.
+          
+          ## Trending Chart Best Practices
+          
+          When generating trending charts, focus on:
+          
+          ### 1. **Time Series Excellence**
+          - Use line charts for continuous trends over time
+          - Add trend lines or moving averages to highlight patterns
+          - Include clear date/time labels on the x-axis
+          - Show confidence intervals or error bands when relevant
+          
+          ### 2. **Comparative Trends**
+          - Use multi-line charts to compare multiple trends
+          - Apply distinct colors for each series with a clear legend
+          - Consider using area charts for stacked trends
+          - Highlight key inflection points or anomalies
+          
+          ### 3. **Visual Impact**
+          - Use vibrant, contrasting colors to make trends stand out
+          - Add annotations for significant events or milestones
+          - Include grid lines for easier value reading
+          - Use appropriate scale (linear vs. logarithmic)
+          
+          ### 4. **Contextual Information**
+          - Show percentage changes or growth rates
+          - Include baseline comparisons (year-over-year, month-over-month)
+          - Add summary statistics (min, max, average, median)
+          - Highlight recent trends vs. historical patterns
+          
+          ## Example Trend Chart Types
+          
+          ### Temporal Trends
+          ```python
+          # Line chart with multiple trends
+          fig, ax = plt.subplots(figsize=(12, 7), dpi=300)
+          for column in data.columns:
+              ax.plot(data.index, data[column], marker='o', label=column, linewidth=2)
+          ax.set_title('Trends Over Time', fontsize=16, fontweight='bold')
+          ax.set_xlabel('Date', fontsize=12)
+          ax.set_ylabel('Value', fontsize=12)
+          ax.legend(loc='best')
+          ax.grid(True, alpha=0.3)
+          plt.xticks(rotation=45)
+          ```
+          
+          ### Growth Rates
+          ```python
+          # Bar chart showing period-over-period growth
+          fig, ax = plt.subplots(figsize=(10, 6), dpi=300)
+          growth_data.plot(kind='bar', ax=ax, color=sns.color_palette("husl"))
+          ax.set_title('Growth Rates by Period', fontsize=16, fontweight='bold')
+          ax.axhline(y=0, color='black', linestyle='-', linewidth=0.8)
+          ax.set_ylabel('Growth %', fontsize=12)
+          ```
+          
+          ### Moving Averages
+          ```python
+          # Trend with moving average overlay
+          fig, ax = plt.subplots(figsize=(12, 7), dpi=300)
+          ax.plot(dates, values, label='Actual', alpha=0.5, linewidth=1)
+          ax.plot(dates, moving_avg, label='7-day Moving Average', linewidth=2.5)
+          ax.fill_between(dates, values, moving_avg, alpha=0.2)
+          ```
+          
+          ## Data Preparation for Trends
+          
+          ### Time-Based Indexing
+          ```python
+          # Convert to datetime and set as index
+          data['date'] = pd.to_datetime(data['date'])
+          data.set_index('date', inplace=True)
+          data = data.sort_index()
+          ```
+          
+          ### Resampling and Aggregation
+          ```python
+          # Resample daily data to weekly
+          weekly_data = data.resample('W').mean()
+          
+          # Calculate rolling statistics
+          data['rolling_mean'] = data['value'].rolling(window=7).mean()
+          data['rolling_std'] = data['value'].rolling(window=7).std()
+          ```
+          
+          ### Growth Calculations
+          ```python
+          # Calculate percentage change
+          data['pct_change'] = data['value'].pct_change() * 100
+          
+          # Calculate year-over-year growth
+          data['yoy_growth'] = data['value'].pct_change(periods=365) * 100
+          ```
+          
+          ## Color Palettes for Trends
+          
+          Use these palettes for impactful trend visualizations:
+          
+          - **Sequential trends**: `sns.color_palette("viridis", n_colors=5)`
+          - **Diverging trends**: `sns.color_palette("RdYlGn", n_colors=7)`
+          - **Multiple series**: `sns.color_palette("husl", n_colors=8)`
+          - **Categorical**: `sns.color_palette("Set2", n_colors=6)`
+          
+          ## Annotation Best Practices
+          
+          ```python
+          # Annotate key points
+          max_idx = data['value'].idxmax()
+          max_val = data['value'].max()
+          ax.annotate(f'Peak: {max_val:.2f}',
+                      xy=(max_idx, max_val),
+                      xytext=(10, 20),
+                      textcoords='offset points',
+                      arrowprops=dict(arrowstyle='->', color='red'),
+                      fontsize=10,
+                      fontweight='bold')
+          ```
+          
+          ## Styling for Awesome Charts
+          
+          ```python
+          import matplotlib.pyplot as plt
+          import seaborn as sns
+          
+          # Set professional style
+          sns.set_style("whitegrid")
+          sns.set_context("notebook", font_scale=1.2)
+          
+          # Custom color palette
+          custom_colors = ["#FF6B6B", "#4ECDC4", "#45B7D1", "#FFA07A", "#98D8C8"]
+          sns.set_palette(custom_colors)
+          
+          # Figure with optimal dimensions
+          fig, ax = plt.subplots(figsize=(14, 8), dpi=300)
+          
+          # ... your plotting code ...
+          
+          # Tight layout for clean appearance
+          plt.tight_layout()
+          
+          # Save with high quality
+          plt.savefig('/tmp/gh-aw/python/charts/trend_chart.png',
+                      dpi=300,
+                      bbox_inches='tight',
+                      facecolor='white',
+                      edgecolor='none')
+          ```
+          
+          ## Tips for Trending Charts
+          
+          1. **Start with the story**: What trend are you trying to show?
+          2. **Choose the right timeframe**: Match granularity to the pattern
+          3. **Smooth noise**: Use moving averages for volatile data
+          4. **Show context**: Include historical baselines or benchmarks
+          5. **Highlight insights**: Use annotations to draw attention
+          6. **Test readability**: Ensure labels and legends are clear
+          7. **Optimize colors**: Use colorblind-friendly palettes
+          8. **Export high quality**: Always use DPI 300+ for presentations
+          
+          ## Common Trend Patterns to Visualize
+          
+          - **Seasonal patterns**: Monthly or quarterly cycles
+          - **Long-term growth**: Exponential or linear trends
+          - **Volatility changes**: Periods of stability vs. fluctuation
+          - **Correlations**: How multiple trends relate
+          - **Anomalies**: Outliers or unusual events
+          - **Forecasts**: Projected future trends with uncertainty
+          
+          Remember: The best trending charts tell a clear story, make patterns obvious, and inspire action based on the insights revealed.
+          
           # Python Data Visualization Guide
           
           Python scientific libraries have been installed and are ready for use. A temporary folder structure has been created at `/tmp/gh-aw/python/` for organizing scripts, data, and outputs.
@@ -3275,748 +4059,156 @@ jobs:
           data = pd.read_csv('/tmp/gh-aw/python/data/sample_data.csv')
           ```
           
-          ## jqschema - JSON Schema Discovery
+          {{#runtime-import? .github/shared-instructions.md}}
           
-          A utility script is available at `/tmp/gh-aw/jqschema.sh` to help you discover the structure of complex JSON responses.
+          # Code Health File Diet Monitor
           
-          ### Purpose
+          You are the monitor for the `code-health-file-diet` campaign. Your job
+          is to turn daily file-diet metrics into long-term trends and an
+          executive-friendly status signal.
           
-          Generate a compact structural schema (keys + types) from JSON input. This is particularly useful when:
-          - Analyzing tool outputs from GitHub search (search_code, search_issues, search_repositories)
-          - Exploring API responses with large payloads
-          - Understanding the structure of unfamiliar data without verbose output
-          - Planning queries before fetching full data
+          ## Objectives
           
-          ### Usage
+          1. Track the campaign over time using metrics snapshots written by the
+             `daily-file-diet` workflow.
+          2. Generate visual trend charts (PNG) for key metrics.
+          3. Post a concise summary comment (with embedded charts) to the campaign
+             epic issue, or create one if it does not exist.
           
-          ```bash
-          # Analyze a file
-          cat data.json | /tmp/gh-aw/jqschema.sh
+          ## Data Sources
           
-          # Analyze command output
-          echo '{"name": "test", "count": 42, "items": [{"id": 1}]}' | /tmp/gh-aw/jqschema.sh
-          
-          # Analyze GitHub search results
-          gh api search/repositories?q=language:go | /tmp/gh-aw/jqschema.sh
-          ```
-          
-          ### How It Works
-          
-          The script transforms JSON data by:
-          1. Replacing object values with their type names ("string", "number", "boolean", "null")
-          2. Reducing arrays to their first element's structure (or empty array if empty)
-          3. Recursively processing nested structures
-          4. Outputting compact (minified) JSON
-          
-          ### Example
-          
-          **Input:**
-          ```json
-          {
-            "total_count": 1000,
-            "items": [
-              {"login": "user1", "id": 123, "verified": true},
-              {"login": "user2", "id": 456, "verified": false}
-            ]
-          }
-          ```
-          
-          **Output:**
-          ```json
-          {"total_count":"number","items":[{"login":"string","id":"number","verified":"boolean"}]}
-          ```
-          
-          ### Best Practices
-          
-          **Use this script when:**
-          - You need to understand the structure of tool outputs before requesting full data
-          - GitHub search tools return large datasets (use `perPage: 1` and pipe through schema minifier first)
-          - Exploring unfamiliar APIs or data structures
-          - Planning data extraction strategies
-          
-          **Example workflow for GitHub search tools:**
-          ```bash
-          # Step 1: Get schema with minimal data (fetch just 1 result)
-          # This helps understand the structure before requesting large datasets
-          echo '{}' | gh api search/repositories -f q="language:go" -f per_page=1 | /tmp/gh-aw/jqschema.sh
-          
-          # Output shows the schema:
-          # {"incomplete_results":"boolean","items":[{...}],"total_count":"number"}
-          
-          # Step 2: Review schema to understand available fields
-          
-          # Step 3: Request full data with confidence about structure
-          # Now you know what fields are available and can query efficiently
-          ```
-          
-          **Using with GitHub MCP tools:**
-          When using tools like `search_code`, `search_issues`, or `search_repositories`, pipe the output through jqschema to discover available fields:
-          ```bash
-          # Save a minimal search result to a file
-          gh api search/code -f q="jq in:file language:bash" -f per_page=1 > /tmp/sample.json
-          
-          # Generate schema to understand structure
-          cat /tmp/sample.json | /tmp/gh-aw/jqschema.sh
-          
-          # Now you know which fields exist and can use them in your analysis
-          ```
-          
-          # Trending Charts - Quick Start Guide
-          
-          You have a complete Python environment with scientific libraries ready for generating trend charts with persistent data storage.
-          
-          ## Cache-Memory for Trending Data
-          
-          Persistent cache-memory is available at `/tmp/gh-aw/cache-memory/` that survives across workflow runs. Use it to store historical trending data.
-          
-          **Recommended Structure:**
-          ```
-          /tmp/gh-aw/cache-memory/
-          ├── trending/
-          │   ├── <metric-name>/
-          │   │   └── history.jsonl      # Time-series data (JSON Lines format)
-          │   └── index.json              # Index of all tracked metrics
-          ```
-          
-          ## Quick Start Pattern 1: Daily Metrics Tracking
-          
-          Track daily metrics and visualize trends over time:
-          
-          ```python
-          #!/usr/bin/env python3
-          """Daily metrics trending"""
-          import pandas as pd
-          import matplotlib.pyplot as plt
-          import seaborn as sns
-          import json
-          import os
-          from datetime import datetime
-          
-          # Configuration
-          CACHE_DIR = '/tmp/gh-aw/cache-memory/trending'
-          METRIC_NAME = 'daily_metrics'
-          HISTORY_FILE = f'{CACHE_DIR}/{METRIC_NAME}/history.jsonl'
-          CHARTS_DIR = '/tmp/gh-aw/python/charts'
-          
-          # Ensure directories exist
-          os.makedirs(f'{CACHE_DIR}/{METRIC_NAME}', exist_ok=True)
-          os.makedirs(CHARTS_DIR, exist_ok=True)
-          
-          # Collect today's data (customize this section)
-          today_data = {
-              "timestamp": datetime.now().isoformat(),
-              "metric_a": 42,
-              "metric_b": 85,
-              "metric_c": 23
-          }
-          
-          # Append to history
-          with open(HISTORY_FILE, 'a') as f:
-              f.write(json.dumps(today_data) + '\n')
-          
-          # Load all historical data
-          if os.path.exists(HISTORY_FILE):
-              df = pd.read_json(HISTORY_FILE, lines=True)
-              df['date'] = pd.to_datetime(df['timestamp']).dt.date
-              df = df.sort_values('timestamp')
-              daily_stats = df.groupby('date').sum()
-              
-              # Generate trend chart
-              sns.set_style("whitegrid")
-              sns.set_palette("husl")
-              
-              fig, ax = plt.subplots(figsize=(12, 7), dpi=300)
-              daily_stats.plot(ax=ax, marker='o', linewidth=2)
-              ax.set_title('Daily Metrics Trends', fontsize=16, fontweight='bold')
-              ax.set_xlabel('Date', fontsize=12)
-              ax.set_ylabel('Count', fontsize=12)
-              ax.legend(loc='best')
-              ax.grid(True, alpha=0.3)
-              plt.xticks(rotation=45)
-              plt.tight_layout()
-              
-              plt.savefig(f'{CHARTS_DIR}/daily_metrics_trend.png',
-                          dpi=300, bbox_inches='tight', facecolor='white')
-              
-              print(f"✅ Chart generated with {len(df)} data points")
-          else:
-              print("No historical data yet. Run again tomorrow to see trends.")
-          ```
-          
-          ## Quick Start Pattern 2: Moving Averages
-          
-          Smooth volatile data with moving averages:
-          
-          ```python
-          #!/usr/bin/env python3
-          """Moving average trending"""
-          import pandas as pd
-          import matplotlib.pyplot as plt
-          import seaborn as sns
-          import os
-          
-          # Load historical data
-          history_file = '/tmp/gh-aw/cache-memory/trending/metrics/history.jsonl'
-          if os.path.exists(history_file):
-              df = pd.read_json(history_file, lines=True)
-              df['date'] = pd.to_datetime(df['timestamp']).dt.date
-              df = df.sort_values('timestamp')
-              
-              # Calculate 7-day moving average
-              df['rolling_avg'] = df['value'].rolling(window=7, min_periods=1).mean()
-              
-              # Plot with trend line
-              sns.set_style("whitegrid")
-              fig, ax = plt.subplots(figsize=(12, 7), dpi=300)
-              ax.plot(df['date'], df['value'], label='Actual', alpha=0.5, marker='o')
-              ax.plot(df['date'], df['rolling_avg'], label='7-day Average', linewidth=2.5)
-              ax.fill_between(df['date'], df['value'], df['rolling_avg'], alpha=0.2)
-              ax.set_title('Trend with Moving Average', fontsize=16, fontweight='bold')
-              ax.set_xlabel('Date', fontsize=12)
-              ax.set_ylabel('Value', fontsize=12)
-              ax.legend(loc='best')
-              ax.grid(True, alpha=0.3)
-              plt.xticks(rotation=45)
-              plt.tight_layout()
-              plt.savefig('/tmp/gh-aw/python/charts/moving_average_trend.png',
-                          dpi=300, bbox_inches='tight', facecolor='white')
-              print("✅ Moving average chart generated")
-          ```
-          
-          ## Quick Start Pattern 3: Comparative Trends
-          
-          Compare multiple metrics over time:
-          
-          ```python
-          #!/usr/bin/env python3
-          """Comparative trending"""
-          import pandas as pd
-          import matplotlib.pyplot as plt
-          import seaborn as sns
-          import os
-          
-          history_file = '/tmp/gh-aw/cache-memory/trending/multi_metrics/history.jsonl'
-          if os.path.exists(history_file):
-              df = pd.read_json(history_file, lines=True)
-              df['timestamp'] = pd.to_datetime(df['timestamp'])
-              
-              # Plot multiple metrics
-              sns.set_style("whitegrid")
-              sns.set_palette("husl")
-              fig, ax = plt.subplots(figsize=(14, 8), dpi=300)
-              
-              for metric in df['metric'].unique():
-                  metric_data = df[df['metric'] == metric]
-                  ax.plot(metric_data['timestamp'], metric_data['value'], 
-                          marker='o', label=metric, linewidth=2)
-              
-              ax.set_title('Comparative Metrics Trends', fontsize=16, fontweight='bold')
-              ax.set_xlabel('Date', fontsize=12)
-              ax.set_ylabel('Value', fontsize=12)
-              ax.legend(loc='best', fontsize=12)
-              ax.grid(True, alpha=0.3)
-              plt.xticks(rotation=45)
-              plt.tight_layout()
-              plt.savefig('/tmp/gh-aw/python/charts/comparative_trends.png',
-                          dpi=300, bbox_inches='tight', facecolor='white')
-              print("✅ Comparative trends chart generated")
-          ```
-          
-          ## Best Practices
-          
-          ### 1. Use JSON Lines Format
-          
-          Store trending data as JSON Lines (`.jsonl`) for efficient append-only storage:
-          ```python
-          # Append new data point
-          with open(history_file, 'a') as f:
-              f.write(json.dumps(data_point) + '\n')
-          
-          # Load all data
-          df = pd.read_json(history_file, lines=True)
-          ```
-          
-          ### 2. Include Timestamps
-          
-          Always include ISO 8601 timestamps:
-          ```python
-          data_point = {
-              "timestamp": datetime.now().isoformat(),
-              "metric": "issue_count",
-              "value": 42
-          }
-          ```
-          
-          ### 3. Data Retention
-          
-          Implement retention policies to prevent unbounded growth:
-          ```python
-          from datetime import datetime, timedelta
-          
-          # Keep only last 90 days
-          cutoff_date = datetime.now() - timedelta(days=90)
-          df = df[df['timestamp'] >= cutoff_date]
-          
-          # Save pruned data
+          - **Campaign ID**: `code-health-file-diet`
+          - **Campaign Label**: `campaign:code-health-file-diet`
+          - **Metrics Snapshots**: JSON files in repo-memory matching
           PROMPT_EOF
-      - name: Substitute placeholders
-        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
-        env:
-          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-          GH_AW_ENV_ORGANIZATION: ${{ env.ORGANIZATION }}
-          GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
-          GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
-        with:
-          script: |
-            /**
-             * @fileoverview Safe template placeholder substitution for GitHub Actions workflows.
-             * Replaces __VAR__ placeholders in a file with environment variable values without
-             * allowing shell expansion, preventing template injection attacks.
-             *
-             * @param {object} params - The parameters object
-             * @param {string} params.file - Path to the file to process
-             * @param {object} params.substitutions - Map of placeholder names to values (without __ prefix/suffix)
-             */
-            
-            const fs = require("fs");
-            
-            const substitutePlaceholders = async ({ file, substitutions }) => {
-              // Validate inputs
-              if (!file) {
-                throw new Error("file parameter is required");
-              }
-              if (!substitutions || typeof substitutions !== "object") {
-                throw new Error("substitutions parameter must be an object");
-              }
-            
-              // Read the file content
-              let content;
-              try {
-                content = fs.readFileSync(file, "utf8");
-              } catch (error) {
-                throw new Error(`Failed to read file ${file}: ${error.message}`);
-              }
-            
-              // Perform substitutions
-              // Each placeholder is in the format __VARIABLE_NAME__
-              // We replace it with the corresponding value from the substitutions object
-              for (const [key, value] of Object.entries(substitutions)) {
-                const placeholder = `__${key}__`;
-                // Use a simple string replacement - no regex to avoid any potential issues
-                // with special characters in the value
-                content = content.split(placeholder).join(value);
-              }
-            
-              // Write the updated content back to the file
-              try {
-                fs.writeFileSync(file, content, "utf8");
-              } catch (error) {
-                throw new Error(`Failed to write file ${file}: ${error.message}`);
-              }
-            
-              return `Successfully substituted ${Object.keys(substitutions).length} placeholder(s) in ${file}`;
-            };
-            
-            
-            
-            // Call the substitution function
-            return await substitutePlaceholders({
-              file: process.env.GH_AW_PROMPT,
-              substitutions: {
-                GH_AW_ENV_ORGANIZATION: process.env.GH_AW_ENV_ORGANIZATION,
-                GH_AW_GITHUB_REPOSITORY: process.env.GH_AW_GITHUB_REPOSITORY,
-                GH_AW_GITHUB_RUN_ID: process.env.GH_AW_GITHUB_RUN_ID
-              }
-            });
       - name: Append prompt (part 2)
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-          GH_AW_ENV_ORGANIZATION: ${{ env.ORGANIZATION }}
-          GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
-          GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
         run: |
           cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
-          df.to_json(history_file, orient='records', lines=True)
-          ```
+            `memory/campaigns/code-health-file-diet-*/metrics/*.json`
           
-          ## Directory Structure
+          Each snapshot should follow the `CampaignMetricsSnapshot` schema plus
+          file-diet specific fields:
           
-          ```
-          /tmp/gh-aw/
-          ├── python/
-          │   ├── data/          # Current run data files
-          │   ├── charts/        # Generated charts (auto-uploaded as artifacts)
-          │   ├── artifacts/     # Additional output files
-          │   └── *.py           # Python scripts
-          └── cache-memory/
-              └── trending/      # Persistent historical data (survives runs)
-                  └── <metric>/
-                      └── history.jsonl
-          ```
+          - `date`
+          - `campaign_id`
+          - `tasks_total`
+          - `tasks_completed`
+          - `tasks_in_progress`
+          - `tasks_blocked`
+          - `velocity_per_day`
+          - `estimated_completion`
+          - `largest_file_path`
+          - `largest_file_loc`
+          - `files_over_threshold`
           
-          ## Chart Quality Guidelines
+          ## Monitoring Process
           
-          - **DPI**: Use 300 or higher for publication quality
-          - **Figure Size**: Standard is 12x7 inches for trend charts
-          - **Labels**: Always include clear axis labels and titles
-          - **Legend**: Add legends when plotting multiple series
-          - **Grid**: Enable grid lines for easier reading
-          - **Colors**: Use colorblind-friendly palettes (seaborn defaults)
+          ### 1. Load Metrics History
           
-          ## Tips for Success
+          1. Use `repo-memory` to list and read all snapshot JSON files matching
+             `memory/campaigns/code-health-file-diet-*/metrics/*.json`.
+          2. Parse them into a time-series table keyed by `date`, with columns at
+             least:
+             - `largest_file_loc`
+             - `files_over_threshold`
+             - `tasks_total`
+             - `tasks_completed`
+             - `velocity_per_day`
           
-          1. **Consistency**: Use same metric names across runs
-          2. **Validation**: Check data quality before appending
-          3. **Documentation**: Comment your data schemas
-          4. **Testing**: Validate charts before uploading
-          5. **Cleanup**: Implement retention policies for cache-memory
+          ### 2. Compute Long-Term Trends
           
-          ---
+          From the time-series table, compute and summarize:
           
-          Remember: The power of trending comes from consistent data collection over time. Use cache-memory to build a rich historical dataset that reveals insights and patterns!
+          - **Current largest file size** (lines) and change vs 30 days ago.
+          - **Number of files over threshold** and change vs 30 days ago.
+          - **Campaign progress**: `tasks_completed / tasks_total` (%), including
+            trend over the last few weeks.
+          - **Velocity**: approximate tasks completed per day and direction
+            (speeding up, steady, slowing down).
           
-          # Stale Repository Identifier 🔍
+          If there is not enough history for a full 30-day comparison, fall back
+          to whatever history is available and clearly state the window used.
           
-          You are an expert repository analyst that deeply investigates potentially stale repositories to determine if they are truly inactive and produces comprehensive activity reports.
+          ### 3. Generate Trend Charts (Screenshots)
           
-          ## Mission
+          Using the Python data visualization environment from `shared/trends.md`
+          and `shared/python-dataviz.md`:
           
-          Analyze repositories identified as potentially stale by the stale-repos tool and conduct deep research to:
-          1. Verify that repositories are actually inactive
-          2. Understand the repository's purpose and state
-          3. Analyze recent activity patterns across commits, issues, and pull requests
-          4. Assess whether the repository should remain active or be archived
-          5. Create detailed reports as GitHub issues with findings
+          1. Write the aggregated metrics table to
+             `/tmp/gh-aw/python/data/file-diet-metrics.json` or `.csv`.
+          2. Use Pandas + Matplotlib/Seaborn to generate at least two charts in
+             `/tmp/gh-aw/python/charts/`:
+             - **Chart A**: `largest_file_loc` over time (line chart) with clear
+               title, labels, and grid.
+             - **Chart B**: `tasks_total` vs `tasks_completed` over time
+               (multi-line chart) to show campaign completion curve.
+          3. Follow the high-quality chart settings from `shared/trends.md`:
+             DPI ≥300, professional styling, readable legends and axes.
+          4. Let the shared Python viz import upload these PNGs as artifacts, and
+             additionally use `upload-assets` (provided by `shared/python-dataviz.md`)
+             so you get direct URLs for embedding in markdown.
           
-          ## Context
+          ### 4. Find or Create Campaign Epic Issue
           
-          - **Organization**: __GH_AW_ENV_ORGANIZATION__
-          - **Inactive Threshold**: 365 days
-          - **Exempt Topics**: keep, template
-          - **Repository**: __GH_AW_GITHUB_REPOSITORY__
-          - **Run ID**: __GH_AW_GITHUB_RUN_ID__
+          1. Use the `github` tool to search for an open issue that:
+             - Belongs to this repository.
+             - Has labels `campaign-tracker` and `campaign:code-health-file-diet`.
+          2. If found, treat it as the **campaign epic**.
+          3. If not found, create one epic issue using `create-issue` with:
+             - **Title**: `Code Health File Diet Campaign Epic`
+             - **Labels**: `campaign-tracker`, `code-health`,
+               `campaign:code-health-file-diet`.
+             - **Body**: Brief description of the campaign’s goals, success
+               metrics, and a note that weekly monitor updates will appear as
+               comments.
           
-          ## Data Available
+          ### 5. Post Weekly Status Comment (with Charts)
           
-          The stale-repos tool has identified potentially inactive repositories. The output is saved at:
-          - **File**: `/tmp/stale-repos-data/inactive-repos.json`
+          Using `add-comment`, post a summarized weekly status update to the
+          campaign epic, with this structure and embedded chart screenshots:
           
-          This file contains an array of repository objects with information about each stale repository.
-          
-          ## Investigation Process
-          
-          ### Step 1: Load Stale Repositories Data
-          
-          Read the stale repositories data:
-          ```bash
-          cat /tmp/stale-repos-data/inactive-repos.json | jq .
-          ```
-          
-          Analyze the structure and count:
-          ```bash
-          echo "Total stale repositories: $(jq 'length' /tmp/stale-repos-data/inactive-repos.json)"
-          ```
-          
-          ### Step 2: Deep Research Each Repository
-          
-          For EACH **PUBLIC** repository in the list, conduct a thorough investigation:
-          
-          **CRITICAL**: Before analyzing any repository, verify it is public. Skip all private repositories.
-          
-          #### 2.1 Repository Overview
-          Use the GitHub MCP tools to gather:
-          - Repository name, description, and topics
-          - Primary language and size
-          - Creation date and last update date
-          - Default branch
-          - Visibility (public/private) - **ONLY ANALYZE PUBLIC REPOSITORIES**
-          - Archive status
-          
-          **IMPORTANT**: Skip any private repositories. This workflow only reviews public repositories.
-          
-          #### 2.2 Commit Activity Analysis
-          Analyze commit history:
-          - Last commit date and author
-          - Commit frequency over the last 2 years
-          - Number of unique contributors in the last year
-          - Trend analysis: Is activity declining or has it stopped abruptly?
-          
-          Use the GitHub MCP `list_commits` tool to get commit history:
-          ```
-          List commits for the repository to analyze recent activity
-          ```
-          
-          #### 2.3 Issue Activity Analysis
-          Examine issue activity:
-          - Total open and closed issues
-          - Recent issue activity (last 6 months)
-          - Average time to close issues
-          - Any open issues that need attention
-          
-          Use the GitHub MCP `search_issues` or `list_issues` tool:
-          ```
-          Search for recent issues in the repository
-          ```
-          
-          #### 2.4 Pull Request Activity
-          Review pull request patterns:
-          - Recent PRs (last 6 months)
-          - Merged vs. closed without merging
-          - Outstanding open PRs
-          - Review activity
-          
-          Use the GitHub MCP `list_pull_requests` or `search_pull_requests` tool:
-          ```
-          List pull requests to understand merge activity
-          ```
-          
-          #### 2.5 Release Activity
-          If the repository has releases:
-          - Last release date
-          - Release frequency
-          - Version progression
-          
-          Use the GitHub MCP `list_releases` tool:
-          ```
-          List releases to check deployment activity
-          ```
-          
-          #### 2.6 Repository Health Indicators
-          Assess repository health:
-          - **Active Development**: Recent commits, PRs, and issues
-          - **Community Engagement**: External contributions, issue discussions
-          - **Maintenance Status**: Response to issues/PRs, dependency updates
-          - **Documentation**: README quality, up-to-date docs
-          - **Dependencies**: Outdated dependencies, security alerts
-          
-          ### Step 3: Determine True Status
-          
-          Based on your research, classify each repository:
-          
-          1. **Truly Stale**: No meaningful activity, should be archived
-             - No commits in 365+ days
-             - No open issues or PRs requiring attention
-             - No ongoing projects or roadmap items
-             - No active community engagement
-          
-          2. **Low Activity but Active**: Slow-moving but not abandoned
-             - Occasional commits or maintenance
-             - Responsive to critical issues
-             - Stable mature project with low change rate
-          
-          3. **False Positive**: Appears stale but actually active
-             - Activity in other branches
-             - External development (forks, dependent projects)
-             - Strategic repository (documentation, templates)
-             - Recently migrated or reorganized
-          
-          4. **Requires Attention**: Active but needs maintenance
-             - Outstanding security issues
-             - Outdated dependencies
-             - Unanswered issues or PRs
-          
-          ### Edge Cases to Consider
-          
-          When analyzing repositories, be aware of these special cases:
-          
-          - **Private Repositories**: ALWAYS skip private repositories. This workflow only analyzes public repositories.
-          - **Already Archived**: If a repository is already archived, skip it (no issue needed)
-          - **Seasonal Projects**: Some repositories have cyclical activity patterns (e.g., annual conference sites, seasonal tools). Look for historical patterns.
-          - **Dependency Repositories**: Check if other projects depend on this repository. Use GitHub's "Used by" information if available.
-          - **Template/Example Repositories**: Repositories marked with "template" topic or containing example/demo code may intentionally have low activity.
-          - **Documentation Repositories**: Documentation-only repos often have legitimate periods of low activity between major updates.
-          - **Mono-repo Subprojects**: Activity might be happening in a parent repository or related repos.
-          - **Bot-Maintained Repositories**: Some repos are primarily maintained by automated systems and may appear to have "stale" human activity.
-          
-          ### Step 4: Create Detailed Issue Reports
-          
-          For each repository classified as **Truly Stale** or **Requires Attention**, create an issue with:
-          
-          **Issue Title Format**: `[Stale Repository] <repository-name> - <status>`
-          
-          **Issue Body Template**:
           ```markdown
-          ## Repository Analysis: [Repository Name]
+          ## 📊 Code Health File Diet Weekly Snapshot
           
-          **Repository URL**: [repository URL]
-          **Last Activity**: [date]
-          **Classification**: [Truly Stale / Requires Attention]
-          **Workflow Run ID**: __GH_AW_GITHUB_RUN_ID__
+          **As of**: [latest snapshot date]
           
-          ### 📊 Activity Summary
+          - **Largest file size**: [current LOC] (Δ vs 30 days: [delta])
+          - **Files over threshold**: [count] (Δ vs 30 days: [delta])
+          - **Tasks**: [tasks_completed]/[tasks_total] completed
+          - **Velocity**: ~[velocity_per_day] issues/day (trend: [speeding up |
+            steady | slowing down])
+          - **Estimated completion**: [estimated_completion or "N/A"]
           
-          #### Commits
-          - **Last Commit**: [date] by [author]
-          - **Commits (Last Year)**: [count]
-          - **Contributors (Last Year)**: [count]
-          - **Activity Trend**: [Declining / Stopped / Sporadic]
+          ### Trend Charts
           
-          #### Issues
-          - **Open Issues**: [count]
-          - **Closed Issues (Last 6mo)**: [count]
-          - **Recent Issue Activity**: [Yes/No - describe]
-          - **Issues Needing Attention**: [list or "None"]
+          ![Largest file size over time](FILE_DIET_LARGEST_FILE_TREND_URL)
           
-          #### Pull Requests
-          - **Open PRs**: [count]
-          - **Merged PRs (Last 6mo)**: [count]
-          - **Outstanding PRs**: [list or "None"]
+          ![Refactor tasks progress](FILE_DIET_TASKS_TREND_URL)
           
-          #### Releases
-          - **Last Release**: [date and version] or [No releases]
-          - **Release Frequency**: [describe pattern]
+          ### Notes
           
-          ### 🔍 Deep Analysis
-          
-          [Provide 2-3 paragraphs analyzing:
-          - What the repository was used for
-          - Why activity stopped or declined
-          - Current state and relevance
-          - Any dependencies or downstream impacts
-          - Community engagement patterns]
-          
-          ### 💡 Recommendation
-          
-          **Action**: [Archive / Maintain / Investigate Further / Transfer Ownership]
-          
-          **Reasoning**: [Explain why this recommendation makes sense based on the analysis]
-          
-          **Impact**: [Describe what happens if this recommendation is followed]
-          
-          ### ⚠️ Important Considerations
-          
-          [List any concerns, blockers, or things to consider before taking action:
-          - Outstanding issues or PRs
-          - Active forks or dependencies
-          - Documentation or historical value
-          - Team ownership or handoff needs]
-          
-          ### 📋 Next Steps
-          
-          - [ ] Review this analysis
-          - [ ] Contact repository owner/team
-          - [ ] [Specific action based on recommendation]
-          - [ ] Update repository topics/status
-          - [ ] [Additional steps as needed]
-          
-          ---
-          *This analysis was generated by the Stale Repository Identifier workflow. Please verify findings before taking any archival actions.*
+          - [Brief bullet list of notable changes, risks, or blockers]
+          - [Optional callouts for teams or services that need attention]
           ```
           
-          ### Step 5: Summary Report
+          Always keep the commentary concise, focused on trends, and suitable for
+          engineering managers and executives.
           
-          After analyzing all repositories, provide a summary to stdout (not as an issue):
+          ### 6. Robustness
           
-          ```
-          ## Stale Repository Analysis Summary
+          - If metrics history is missing or incomplete, clearly state that this
+            is an initial or partial snapshot.
+          - If charts cannot be generated for any reason, still post a textual
+            summary and include a short note about the visualization error.
+          - Never leak raw paths or internal details beyond what’s necessary to
+            understand trends.
           
-          **Total Repositories Analyzed**: [count]
-          
-          **Classification Breakdown**:
-          - Truly Stale: [count]
-          - Low Activity but Active: [count]
-          - False Positives: [count]
-          - Requires Attention: [count]
-          
-          **Issues Created**: [count]
-          
-          **Key Findings**:
-          [Brief summary of overall patterns and insights]
-          ```
-          
-          ## Important Guidelines
-          
-          1. **Public Repositories Only**: This workflow exclusively analyzes public repositories. Always verify repository visibility and skip private repositories.
-          2. **Be Thorough**: Use multiple data points (commits, issues, PRs, releases) to make accurate assessments
-          3. **Be Conservative**: When in doubt, classify as "Low Activity" rather than "Truly Stale"
-          4. **Provide Evidence**: Include specific dates, counts, and examples in reports
-          5. **Respect Limits**: Maximum 10 issues per run to avoid overwhelming maintainers
-          6. **Context Matters**: Consider repository purpose (documentation, templates, etc.)
-          7. **Focus on Value**: Prioritize repositories that are truly abandoned vs. intentionally stable
-          
-          ## Rate Limiting
-          
-          To avoid GitHub API rate limits:
-          - Batch API calls when possible
-          - Add small delays between repositories if needed
-          - If you hit rate limits, note which repositories couldn't be analyzed
-          
-          ## Output
-          
-          - Create GitHub issues for repositories needing attention (max 10)
-          - Print summary statistics to stdout
-          - Be clear and actionable in recommendations
+          Begin your monitoring run now: load metrics, compute trends, generate
+          charts, and post the weekly snapshot.
           
           PROMPT_EOF
-      - name: Substitute placeholders
-        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
-        env:
-          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-          GH_AW_ENV_ORGANIZATION: ${{ env.ORGANIZATION }}
-          GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
-          GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
-        with:
-          script: |
-            /**
-             * @fileoverview Safe template placeholder substitution for GitHub Actions workflows.
-             * Replaces __VAR__ placeholders in a file with environment variable values without
-             * allowing shell expansion, preventing template injection attacks.
-             *
-             * @param {object} params - The parameters object
-             * @param {string} params.file - Path to the file to process
-             * @param {object} params.substitutions - Map of placeholder names to values (without __ prefix/suffix)
-             */
-            
-            const fs = require("fs");
-            
-            const substitutePlaceholders = async ({ file, substitutions }) => {
-              // Validate inputs
-              if (!file) {
-                throw new Error("file parameter is required");
-              }
-              if (!substitutions || typeof substitutions !== "object") {
-                throw new Error("substitutions parameter must be an object");
-              }
-            
-              // Read the file content
-              let content;
-              try {
-                content = fs.readFileSync(file, "utf8");
-              } catch (error) {
-                throw new Error(`Failed to read file ${file}: ${error.message}`);
-              }
-            
-              // Perform substitutions
-              // Each placeholder is in the format __VARIABLE_NAME__
-              // We replace it with the corresponding value from the substitutions object
-              for (const [key, value] of Object.entries(substitutions)) {
-                const placeholder = `__${key}__`;
-                // Use a simple string replacement - no regex to avoid any potential issues
-                // with special characters in the value
-                content = content.split(placeholder).join(value);
-              }
-            
-              // Write the updated content back to the file
-              try {
-                fs.writeFileSync(file, content, "utf8");
-              } catch (error) {
-                throw new Error(`Failed to write file ${file}: ${error.message}`);
-              }
-            
-              return `Successfully substituted ${Object.keys(substitutions).length} placeholder(s) in ${file}`;
-            };
-            
-            
-            
-            // Call the substitution function
-            return await substitutePlaceholders({
-              file: process.env.GH_AW_PROMPT,
-              substitutions: {
-                GH_AW_ENV_ORGANIZATION: process.env.GH_AW_ENV_ORGANIZATION,
-                GH_AW_GITHUB_REPOSITORY: process.env.GH_AW_GITHUB_REPOSITORY,
-                GH_AW_GITHUB_RUN_ID: process.env.GH_AW_GITHUB_RUN_ID
-              }
-            });
       - name: Append XPIA security instructions to prompt
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
@@ -4050,21 +4242,6 @@ jobs:
           </temporary-files>
           
           PROMPT_EOF
-      - name: Append edit tool accessibility instructions to prompt
-        env:
-          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-        run: |
-          cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
-          <file-editing>
-          <description>File Editing Access Permissions</description>
-          <allowed-paths>
-            <path name="workspace">$GITHUB_WORKSPACE</path>
-            <path name="temporary">/tmp/gh-aw/</path>
-          </allowed-paths>
-          <restriction>Do NOT attempt to edit files outside these directories as you do not have the necessary permissions.</restriction>
-          </file-editing>
-          
-          PROMPT_EOF
       - name: Append cache memory instructions to prompt
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
@@ -4090,6 +4267,36 @@ jobs:
           
           Feel free to create, read, update, and organize files in this folder as needed for your tasks.
           PROMPT_EOF
+      - name: Append repo memory instructions to prompt
+        env:
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+        run: |
+          cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
+          
+          ---
+          
+          ## Repo Memory Available
+          
+          You have access to a persistent repo memory folder at `/tmp/gh-aw/repo-memory-default/memory/default/` where you can read and write files that are stored in a git branch.
+          
+          - **Read/Write Access**: You can freely read from and write to any files in this folder
+          - **Git Branch Storage**: Files are stored in the `memory/campaigns` branch of the current repository
+          - **Automatic Push**: Changes are automatically committed and pushed after the workflow completes
+          - **Merge Strategy**: In case of conflicts, your changes (current version) win
+          - **Persistence**: Files persist across workflow runs via git branch storage
+          
+          **Constraints:**
+          - **Allowed Files**: Only files matching patterns: code-health-file-diet-*/**
+          - **Max File Size**: 10240 bytes (0.01 MB) per file
+          - **Max File Count**: 100 files per commit
+          
+          Examples of what you can store:
+          - `/tmp/gh-aw/repo-memory-default/memory/default/notes.md` - general notes and observations
+          - `/tmp/gh-aw/repo-memory-default/memory/default/state.json` - structured state data
+          - `/tmp/gh-aw/repo-memory-default/memory/default/history/` - organized history files in subdirectories
+          
+          Feel free to create, read, update, and organize files in this folder as needed for your tasks.
+          PROMPT_EOF
       - name: Append safe outputs instructions to prompt
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
@@ -4103,7 +4310,7 @@ jobs:
           <instructions>
           To create or modify GitHub resources (issues, discussions, pull requests, etc.), you MUST call the appropriate safe output tool. Simply writing content will NOT work - the workflow requires actual tool calls.
           
-          **Available tools**: create_issue, missing_tool, noop, upload_assets
+          **Available tools**: add_comment, create_issue, missing_tool, noop, upload_assets
           
           **Critical**: Tool calls write structured data that downstream jobs process. Without tool calls, follow-up actions will be skipped.
           </instructions>
@@ -4234,9 +4441,6 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-          GH_AW_ENV_ORGANIZATION: ${{ env.ORGANIZATION }}
-          GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
-          GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
         with:
           script: |
             const fs = require("fs");
@@ -4423,11 +4627,11 @@ jobs:
       - name: Execute GitHub Copilot CLI
         id: agentic_execution
         # Copilot CLI tool arguments (sorted):
-        timeout-minutes: 45
+        timeout-minutes: 20
         run: |
           set -o pipefail
-          sudo -E awf --env-all --container-workdir "${GITHUB_WORKSPACE}" --mount /tmp:/tmp:rw --mount "${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:rw" --mount /usr/bin/date:/usr/bin/date:ro --mount /usr/bin/gh:/usr/bin/gh:ro --mount /usr/bin/yq:/usr/bin/yq:ro --allow-domains '*.githubusercontent.com,*.pythonhosted.org,anaconda.org,api.business.githubcopilot.com,api.enterprise.githubcopilot.com,api.github.com,api.individual.githubcopilot.com,api.snapcraft.io,archive.ubuntu.com,azure.archive.ubuntu.com,binstar.org,bootstrap.pypa.io,codeload.github.com,conda.anaconda.org,conda.binstar.org,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,files.pythonhosted.org,github-cloud.githubusercontent.com,github-cloud.s3.amazonaws.com,github.com,github.githubassets.com,host.docker.internal,json-schema.org,json.schemastore.org,keyserver.ubuntu.com,lfs.github.com,objects.githubusercontent.com,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,pip.pypa.io,ppa.launchpad.net,pypi.org,pypi.python.org,raw.githubusercontent.com,registry.npmjs.org,repo.anaconda.com,repo.continuum.io,s.symcb.com,s.symcd.com,security.ubuntu.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com' --log-level info --proxy-logs-dir /tmp/gh-aw/sandbox/firewall/logs \
-            -- npx -y @github/copilot@0.0.368 --add-dir /tmp/gh-aw/ --log-level all --log-dir /tmp/gh-aw/sandbox/agent/logs/ --add-dir "${GITHUB_WORKSPACE}" --disable-builtin-mcps --allow-all-tools --add-dir /tmp/gh-aw/cache-memory/ --allow-all-paths --prompt "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"${GH_AW_MODEL_AGENT_COPILOT:+ --model "$GH_AW_MODEL_AGENT_COPILOT"} \
+          sudo -E awf --env-all --container-workdir "${GITHUB_WORKSPACE}" --mount /tmp:/tmp:rw --mount "${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:rw" --mount /usr/bin/date:/usr/bin/date:ro --mount /usr/bin/gh:/usr/bin/gh:ro --mount /usr/bin/yq:/usr/bin/yq:ro --allow-domains api.business.githubcopilot.com,api.enterprise.githubcopilot.com,api.github.com,api.individual.githubcopilot.com,api.snapcraft.io,archive.ubuntu.com,azure.archive.ubuntu.com,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,github.com,host.docker.internal,json-schema.org,json.schemastore.org,keyserver.ubuntu.com,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,ppa.launchpad.net,raw.githubusercontent.com,registry.npmjs.org,s.symcb.com,s.symcd.com,security.ubuntu.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com --log-level info --proxy-logs-dir /tmp/gh-aw/sandbox/firewall/logs \
+            -- npx -y @github/copilot@0.0.368 --add-dir /tmp/gh-aw/ --log-level all --log-dir /tmp/gh-aw/sandbox/agent/logs/ --add-dir "${GITHUB_WORKSPACE}" --disable-builtin-mcps --allow-all-tools --add-dir /tmp/gh-aw/cache-memory/ --prompt "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"${GH_AW_MODEL_AGENT_COPILOT:+ --model "$GH_AW_MODEL_AGENT_COPILOT"} \
             2>&1 | tee /tmp/gh-aw/agent-stdio.log
         env:
           COPILOT_AGENT_RUNNER_TYPE: STANDALONE
@@ -4573,7 +4777,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
-          GH_AW_ALLOWED_DOMAINS: "*.githubusercontent.com,*.pythonhosted.org,anaconda.org,api.business.githubcopilot.com,api.enterprise.githubcopilot.com,api.github.com,api.individual.githubcopilot.com,api.snapcraft.io,archive.ubuntu.com,azure.archive.ubuntu.com,binstar.org,bootstrap.pypa.io,codeload.github.com,conda.anaconda.org,conda.binstar.org,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,files.pythonhosted.org,github-cloud.githubusercontent.com,github-cloud.s3.amazonaws.com,github.com,github.githubassets.com,host.docker.internal,json-schema.org,json.schemastore.org,keyserver.ubuntu.com,lfs.github.com,objects.githubusercontent.com,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,pip.pypa.io,ppa.launchpad.net,pypi.org,pypi.python.org,raw.githubusercontent.com,registry.npmjs.org,repo.anaconda.com,repo.continuum.io,s.symcb.com,s.symcd.com,security.ubuntu.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com"
+          GH_AW_ALLOWED_DOMAINS: "api.business.githubcopilot.com,api.enterprise.githubcopilot.com,api.github.com,api.individual.githubcopilot.com,api.snapcraft.io,archive.ubuntu.com,azure.archive.ubuntu.com,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,github.com,host.docker.internal,json-schema.org,json.schemastore.org,keyserver.ubuntu.com,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,ppa.launchpad.net,raw.githubusercontent.com,registry.npmjs.org,s.symcb.com,s.symcd.com,security.ubuntu.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com"
           GITHUB_SERVER_URL: ${{ github.server_url }}
           GITHUB_API_URL: ${{ github.api_url }}
         with:
@@ -7067,7 +7271,7 @@ jobs:
         continue-on-error: true
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
         with:
-          name: firewall-logs-stale-repository-identifier
+          name: firewall-logs-code-health-file-diet-monitor
           path: /tmp/gh-aw/sandbox/firewall/logs/
           if-no-files-found: ignore
       - name: Parse firewall logs for step summary
@@ -7376,6 +7580,15 @@ jobs:
           name: agent-stdio.log
           path: /tmp/gh-aw/agent-stdio.log
           if-no-files-found: warn
+      # Upload repo memory as artifacts for push job
+      - name: Upload repo-memory artifact (default)
+        if: always()
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
+        with:
+          name: repo-memory-default
+          path: /tmp/gh-aw/repo-memory-default
+          retention-days: 1
+          if-no-files-found: ignore
       - name: Upload cache-memory data as artifact
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
         if: always()
@@ -7628,12 +7841,14 @@ jobs:
   conclusion:
     needs:
       - activation
+      - add_comment
       - agent
       - create_issue
       - detection
+      - push_repo_memory
       - update_cache_memory
       - upload_assets
-    if: (always()) && (needs.agent.result != 'skipped')
+    if: ((always()) && (needs.agent.result != 'skipped')) && (!(needs.add_comment.outputs.comment_id))
     runs-on: ubuntu-slim
     permissions:
       contents: read
@@ -7673,7 +7888,7 @@ jobs:
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_NOOP_MAX: 1
-          GH_AW_WORKFLOW_NAME: "Stale Repository Identifier"
+          GH_AW_WORKFLOW_NAME: "Code Health File Diet Monitor"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -7765,7 +7980,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_WORKFLOW_NAME: "Stale Repository Identifier"
+          GH_AW_WORKFLOW_NAME: "Code Health File Diet Monitor"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -7878,12 +8093,12 @@ jobs:
           GH_AW_COMMENT_ID: ${{ needs.activation.outputs.comment_id }}
           GH_AW_COMMENT_REPO: ${{ needs.activation.outputs.comment_repo }}
           GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          GH_AW_WORKFLOW_NAME: "Stale Repository Identifier"
+          GH_AW_WORKFLOW_NAME: "Code Health File Diet Monitor"
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
           GH_AW_DETECTION_CONCLUSION: ${{ needs.detection.result }}
-          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🔍 *Analysis by [{workflow_name}]({run_url})*\",\"runStarted\":\"🔍 Stale Repository Identifier starting! [{workflow_name}]({run_url}) is analyzing repository activity...\",\"runSuccess\":\"✅ Analysis complete! [{workflow_name}]({run_url}) has finished analyzing stale repositories.\",\"runFailure\":\"⚠️ Analysis interrupted! [{workflow_name}]({run_url}) {status}.\"}"
-          GH_AW_SAFE_OUTPUT_JOBS: "{\"create_issue\":\"issue_url\"}"
+          GH_AW_SAFE_OUTPUT_JOBS: "{\"add_comment\":\"comment_url\",\"create_issue\":\"issue_url\"}"
           GH_AW_OUTPUT_CREATE_ISSUE_ISSUE_URL: ${{ needs.create_issue.outputs.issue_url }}
+          GH_AW_OUTPUT_ADD_COMMENT_COMMENT_URL: ${{ needs.add_comment.outputs.comment_url }}
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -8171,11 +8386,9 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_ISSUE_TITLE_PREFIX: "[Stale Repository] "
-          GH_AW_ISSUE_LABELS: "stale-repository,automated-analysis"
-          GH_AW_WORKFLOW_NAME: "Stale Repository Identifier"
+          GH_AW_ISSUE_LABELS: "code-health,campaign-tracker,campaign:code-health-file-diet"
+          GH_AW_WORKFLOW_NAME: "Code Health File Diet Monitor"
           GH_AW_ENGINE_ID: "copilot"
-          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🔍 *Analysis by [{workflow_name}]({run_url})*\",\"runStarted\":\"🔍 Stale Repository Identifier starting! [{workflow_name}]({run_url}) is analyzing repository activity...\",\"runSuccess\":\"✅ Analysis complete! [{workflow_name}]({run_url}) has finished analyzing stale repositories.\",\"runFailure\":\"⚠️ Analysis interrupted! [{workflow_name}]({run_url}) {status}.\"}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -8802,8 +9015,8 @@ jobs:
       - name: Setup threat detection
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
-          WORKFLOW_NAME: "Stale Repository Identifier"
-          WORKFLOW_DESCRIPTION: "Monthly workflow that identifies stale repositories in an organization and creates detailed activity reports"
+          WORKFLOW_NAME: "Code Health File Diet Monitor"
+          WORKFLOW_DESCRIPTION: "Weekly summary of file-diet campaign metrics and trend charts"
         with:
           script: |
             const fs = require('fs');
@@ -9014,6 +9227,200 @@ jobs:
           path: /tmp/gh-aw/threat-detection/detection.log
           if-no-files-found: ignore
 
+  push_repo_memory:
+    needs:
+      - agent
+      - detection
+    if: always() && needs.detection.outputs.success == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+        with:
+          persist-credentials: false
+          sparse-checkout: .
+      - name: Configure Git credentials
+        env:
+          REPO_NAME: ${{ github.repository }}
+          SERVER_URL: ${{ github.server_url }}
+        run: |
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "github-actions[bot]"
+          # Re-authenticate git with GitHub token
+          SERVER_URL_STRIPPED="${SERVER_URL#https://}"
+          git remote set-url origin "https://x-access-token:${{ github.token }}@${SERVER_URL_STRIPPED}/${REPO_NAME}.git"
+          echo "Git configured with standard GitHub Actions identity"
+      - name: Download repo-memory artifact (default)
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
+        continue-on-error: true
+        with:
+          name: repo-memory-default
+          path: /tmp/gh-aw/repo-memory-default
+      - name: Push repo-memory changes (default)
+        if: always()
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_RUN_ID: ${{ github.run_id }}
+          ARTIFACT_DIR: /tmp/gh-aw/repo-memory-default
+          MEMORY_ID: default
+          TARGET_REPO: ${{ github.repository }}
+          BRANCH_NAME: memory/campaigns
+          MAX_FILE_SIZE: 10240
+          MAX_FILE_COUNT: 100
+          FILE_GLOB_FILTER: "code-health-file-diet-*/**"
+        with:
+          script: |
+            const fs = require("fs");
+            const path = require("path");
+            const { execSync } = require("child_process");
+            async function main() {
+              const artifactDir = process.env.ARTIFACT_DIR;
+              const memoryId = process.env.MEMORY_ID;
+              const targetRepo = process.env.TARGET_REPO;
+              const branchName = process.env.BRANCH_NAME;
+              const maxFileSize = parseInt(process.env.MAX_FILE_SIZE || "10240", 10);
+              const maxFileCount = parseInt(process.env.MAX_FILE_COUNT || "100", 10);
+              const fileGlobFilter = process.env.FILE_GLOB_FILTER || "";
+              const ghToken = process.env.GH_TOKEN;
+              const githubRunId = process.env.GITHUB_RUN_ID || "unknown";
+              if (!artifactDir || !memoryId || !targetRepo || !branchName || !ghToken) {
+                core.setFailed("Missing required environment variables: ARTIFACT_DIR, MEMORY_ID, TARGET_REPO, BRANCH_NAME, GH_TOKEN");
+                return;
+              }
+              const sourceMemoryPath = path.join(artifactDir, "memory", memoryId);
+              if (!fs.existsSync(sourceMemoryPath)) {
+                core.info(`Memory directory not found in artifact: ${sourceMemoryPath}`);
+                return;
+              }
+              const workspaceDir = process.env.GITHUB_WORKSPACE || process.cwd();
+              core.info(`Working in repository: ${workspaceDir}`);
+              core.info(`Disabling sparse checkout...`);
+              try {
+                execSync("git sparse-checkout disable", { stdio: "pipe" });
+              } catch (error) {
+                core.info("Sparse checkout was not enabled or already disabled");
+              }
+              core.info(`Checking out branch: ${branchName}...`);
+              try {
+                const repoUrl = `https://x-access-token:${ghToken}@github.com/${targetRepo}.git`;
+                try {
+                  execSync(`git fetch "${repoUrl}" "${branchName}:${branchName}"`, { stdio: "pipe" });
+                  execSync(`git checkout "${branchName}"`, { stdio: "inherit" });
+                  core.info(`Checked out existing branch: ${branchName}`);
+                } catch (fetchError) {
+                  core.info(`Branch ${branchName} does not exist, creating orphan branch...`);
+                  execSync(`git checkout --orphan "${branchName}"`, { stdio: "inherit" });
+                  execSync("git rm -rf . || true", { stdio: "pipe" });
+                  core.info(`Created orphan branch: ${branchName}`);
+                }
+              } catch (error) {
+                core.setFailed(`Failed to checkout branch: ${error instanceof Error ? error.message : String(error)}`);
+                return;
+              }
+              const destMemoryPath = path.join(workspaceDir, "memory", memoryId);
+              fs.mkdirSync(destMemoryPath, { recursive: true });
+              core.info(`Destination directory: ${destMemoryPath}`);
+              let filesToCopy = [];
+              try {
+                const files = fs.readdirSync(sourceMemoryPath, { withFileTypes: true });
+                for (const file of files) {
+                  if (!file.isFile()) {
+                    continue; 
+                  }
+                  const fileName = file.name;
+                  const sourceFilePath = path.join(sourceMemoryPath, fileName);
+                  const stats = fs.statSync(sourceFilePath);
+                  if (fileGlobFilter) {
+                    const patterns = fileGlobFilter.split(/\s+/).map(pattern => {
+                      const regexPattern = pattern.replace(/\./g, "\\.").replace(/\*/g, "[^/]*");
+                      return new RegExp(`^${regexPattern}$`);
+                    });
+                    if (!patterns.some(pattern => pattern.test(fileName))) {
+                      core.error(`File does not match allowed patterns: ${fileName}`);
+                      core.error(`Allowed patterns: ${fileGlobFilter}`);
+                      core.setFailed("File pattern validation failed");
+                      return;
+                    }
+                  }
+                  if (stats.size > maxFileSize) {
+                    core.error(`File exceeds size limit: ${fileName} (${stats.size} bytes > ${maxFileSize} bytes)`);
+                    core.setFailed("File size validation failed");
+                    return;
+                  }
+                  filesToCopy.push({ name: fileName, source: sourceFilePath, size: stats.size });
+                }
+              } catch (error) {
+                core.setFailed(`Failed to read artifact directory: ${error instanceof Error ? error.message : String(error)}`);
+                return;
+              }
+              if (filesToCopy.length > maxFileCount) {
+                core.setFailed(`Too many files (${filesToCopy.length} > ${maxFileCount})`);
+                return;
+              }
+              if (filesToCopy.length === 0) {
+                core.info("No files to copy from artifact");
+                return;
+              }
+              core.info(`Copying ${filesToCopy.length} validated file(s)...`);
+              for (const file of filesToCopy) {
+                const destFilePath = path.join(destMemoryPath, file.name);
+                try {
+                  fs.copyFileSync(file.source, destFilePath);
+                  core.info(`Copied: ${file.name} (${file.size} bytes)`);
+                } catch (error) {
+                  core.setFailed(`Failed to copy file ${file.name}: ${error instanceof Error ? error.message : String(error)}`);
+                  return;
+                }
+              }
+              let hasChanges = false;
+              try {
+                const status = execSync("git status --porcelain", { encoding: "utf8" });
+                hasChanges = status.trim().length > 0;
+              } catch (error) {
+                core.setFailed(`Failed to check git status: ${error instanceof Error ? error.message : String(error)}`);
+                return;
+              }
+              if (!hasChanges) {
+                core.info("No changes detected after copying files");
+                return;
+              }
+              core.info("Changes detected, committing and pushing...");
+              try {
+                execSync("git add .", { stdio: "inherit" });
+              } catch (error) {
+                core.setFailed(`Failed to stage changes: ${error instanceof Error ? error.message : String(error)}`);
+                return;
+              }
+              try {
+                execSync(`git commit -m "Update repo memory from workflow run ${githubRunId}"`, { stdio: "inherit" });
+              } catch (error) {
+                core.setFailed(`Failed to commit changes: ${error instanceof Error ? error.message : String(error)}`);
+                return;
+              }
+              core.info(`Pulling latest changes from ${branchName}...`);
+              try {
+                const repoUrl = `https://x-access-token:${ghToken}@github.com/${targetRepo}.git`;
+                execSync(`git pull --no-rebase -X ours "${repoUrl}" "${branchName}"`, { stdio: "inherit" });
+              } catch (error) {
+                core.warning(`Pull failed (this may be expected): ${error instanceof Error ? error.message : String(error)}`);
+              }
+              core.info(`Pushing changes to ${branchName}...`);
+              try {
+                const repoUrl = `https://x-access-token:${ghToken}@github.com/${targetRepo}.git`;
+                execSync(`git push "${repoUrl}" HEAD:"${branchName}"`, { stdio: "inherit" });
+                core.info(`Successfully pushed changes to ${branchName} branch`);
+              } catch (error) {
+                core.setFailed(`Failed to push changes: ${error instanceof Error ? error.message : String(error)}`);
+                return;
+              }
+            }
+            main().catch(error => {
+              core.setFailed(`Unexpected error: ${error instanceof Error ? error.message : String(error)}`);
+            });
+
   update_cache_memory:
     needs:
       - agent
@@ -9031,7 +9438,7 @@ jobs:
       - name: Save cache-memory to cache (default)
         uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
-          key: trending-data-${{ github.workflow }}-${{ github.run_id }}
+          key: memory-${{ github.workflow }}-${{ github.run_id }}
           path: /tmp/gh-aw/cache-memory
 
   upload_assets:
@@ -9095,9 +9502,8 @@ jobs:
           GH_AW_ASSETS_BRANCH: "assets/${{ github.workflow }}"
           GH_AW_ASSETS_MAX_SIZE_KB: 10240
           GH_AW_ASSETS_ALLOWED_EXTS: ".png,.jpg,.jpeg"
-          GH_AW_WORKFLOW_NAME: "Stale Repository Identifier"
+          GH_AW_WORKFLOW_NAME: "Code Health File Diet Monitor"
           GH_AW_ENGINE_ID: "copilot"
-          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🔍 *Analysis by [{workflow_name}]({run_url})*\",\"runStarted\":\"🔍 Stale Repository Identifier starting! [{workflow_name}]({run_url}) is analyzing repository activity...\",\"runSuccess\":\"✅ Analysis complete! [{workflow_name}]({run_url}) has finished analyzing stale repositories.\",\"runFailure\":\"⚠️ Analysis interrupted! [{workflow_name}]({run_url}) {status}.\"}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
