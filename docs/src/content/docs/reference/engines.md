@@ -5,7 +5,7 @@ sidebar:
   order: 600
 ---
 
-GitHub Agentic Workflows support multiple AI engines (coding agents) to interpret and execute natural language instructions. Each engine has unique capabilities and configuration options.
+GitHub Agentic Workflows support multiple AI [engines](/gh-aw/reference/glossary/#engine) (coding agents) to interpret and execute natural language instructions. Each engine has unique capabilities and configuration options.
 
 :::note[Experimental Engines]
 Claude and Codex engines are available but marked as experimental. They are not documented here but can still be used by setting `engine: claude` or `engine: codex` in your workflow frontmatter. For production workflows, we recommend using the GitHub Copilot CLI engine.
