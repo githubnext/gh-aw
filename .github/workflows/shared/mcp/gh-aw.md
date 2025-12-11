@@ -17,12 +17,23 @@ steps:
     run: |
       # Check if gh-aw extension is already installed
       if gh extension list | grep -q "githubnext/gh-aw"; then
-        echo "gh-aw extension already installed, upgrading..."
-        gh extension upgrade gh-aw || true
+        echo "gh-aw extension already installed, skipping installation..."
       else
+        # Check if a different extension provides the 'aw' command
+        # gh extension list format: NAME  COMMAND  VERSION
+        EXISTING_EXTENSION=$(gh extension list | awk '$2 == "aw" {print $1}' | head -n1)
+        if [ -n "$EXISTING_EXTENSION" ]; then
+          echo "Found conflicting extension providing 'aw' command: $EXISTING_EXTENSION"
+          echo "Removing conflicting extension..."
+          gh extension remove "$EXISTING_EXTENSION" || true
+        fi
+        
+        # Install the extension
         echo "Installing gh-aw extension..."
         make install
       fi
+      
+      # Verify installation
       gh aw --version
     env:
       GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
