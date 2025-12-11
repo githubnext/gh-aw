@@ -42,26 +42,33 @@ import FeatureGrid from '../../components/FeatureGrid.astro';
   }
 `}</style>
 
-## What are Agentic Workflows?
+## What is GitHub Agentic Workflows?
 
-**Agentic workflows** are AI-powered automation that can understand context, make decisions, and take meaningful actions—all from natural language instructions you write in markdown.
+GitHub Agentic Workflows brings AI-powered decision-making to your automation. The term "agentic" means the AI acts as an intelligent agent that can analyze context, make decisions, and take appropriate actions—rather than just following fixed instructions.
 
-Unlike traditional automation with fixed if-then rules, agentic workflows use AI agents (like GitHub Copilot) to:
-- **Understand context**: Read your repository, issues, and pull requests to grasp the current situation
-- **Make decisions**: Choose appropriate actions based on the context, not just predefined conditions
-- **Adapt behavior**: Respond flexibly to different scenarios without requiring explicit programming for each case
+### How is this different from GitHub Actions?
 
-For example, instead of writing complex scripts to triage issues, you simply describe what you want: "Analyze this issue and ask for clarification if details are missing." The AI agent reads the issue, understands what information is needed, and generates an appropriate response.
+Traditional GitHub Actions execute predefined steps in sequence. You specify exactly what to do in every situation: "if label is bug, add comment X; if label is feature, add comment Y." This requires anticipating every scenario and writing explicit rules for each one.
 
-**From this** (natural language):
-```markdown
+Agentic workflows work differently. You describe the desired outcome in natural language, and the AI agent determines how to achieve it. The agent reads your repository context, understands the situation, and decides what actions to take. For example, instead of writing rules for every possible issue type, you simply write: "Analyze this issue and ask for clarification if details are missing." The AI understands what makes a good issue description and adapts its response to each unique situation.
+
+### Example: Automated Issue Triage
+
+**Traditional GitHub Actions approach:**
+```yaml
+if: contains(github.event.issue.body, 'steps to reproduce')
+  run: echo "Issue looks complete"
+else:
+  run: echo "Please add steps to reproduce"
+```
+This only checks for specific text and can't understand context or nuance.
+
+**Agentic workflow approach:**
+```aw
 When an issue is opened, analyze it and ask for 
 clarification if important details are missing.
 ```
-
-**To automated action**: The AI reads the issue, determines what's missing, and posts a helpful comment requesting specific information—adapting its response to each unique issue.
-
-This is "agentic" because the AI acts as an intelligent agent with agency to make context-aware decisions, rather than just executing predefined steps.
+The AI agent reads the entire issue, understands what information is needed for that specific type of problem, and generates a contextual response—adapting to each unique situation without explicit rules.
 
 <div style="max-width: 600px; margin: 3rem auto; text-align: center;">
 
