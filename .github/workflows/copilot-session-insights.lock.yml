@@ -1116,8 +1116,6 @@
 # **Discussion Template**:
 #
 # ```markdown
-# # 🤖 Copilot Agent Session Analysis — [DATE]
-#
 # ## Executive Summary
 #
 # - **Sessions Analyzed**: [NUMBER]
@@ -4547,8 +4545,6 @@ jobs:
           **Discussion Template**:
           
           ```markdown
-          # 🤖 Copilot Agent Session Analysis — [DATE]
-          
           ## Executive Summary
           
           - **Sessions Analyzed**: [NUMBER]
@@ -4584,6 +4580,8 @@ jobs:
           
           ## Failure Signals ⚠️
           
+          Common indicators of inefficiency or failure:
+          
           PROMPT_EOF
       - name: Append prompt (part 3)
         env:
@@ -4593,8 +4591,6 @@ jobs:
           GH_AW_GITHUB_WORKFLOW: ${{ github.workflow }}
         run: |
           cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
-          Common indicators of inefficiency or failure:
-          
           1. **[Issue Name]**: [Description]
              - Failure rate: [%]
              - Example: [Brief example]

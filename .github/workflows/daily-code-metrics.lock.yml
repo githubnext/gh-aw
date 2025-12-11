@@ -640,8 +640,6 @@
 # ### Report Template
 #
 # ```markdown
-# # 📊 Daily Code Metrics Report - [DATE]
-#
 # ## Executive Summary
 #
 # | Metric | Current | 7-Day Trend | 30-Day Trend |
@@ -3591,8 +3589,6 @@ jobs:
           ### Report Template
           
           ```markdown
-          # 📊 Daily Code Metrics Report - [DATE]
-          
           ## Executive Summary
           
           | Metric | Current | 7-Day Trend | 30-Day Trend |

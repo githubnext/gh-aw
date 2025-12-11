@@ -405,8 +405,6 @@
 #
 # **Discussion Template**:
 # ```markdown
-# # 🤖 Copilot PR Prompt Pattern Analysis - [DATE]
-#
 # ## Summary
 #
 # **Analysis Period**: Last 30 days  
@@ -2760,8 +2758,6 @@ jobs:
           
           **Discussion Template**:
           ```markdown
-          # 🤖 Copilot PR Prompt Pattern Analysis - [DATE]
-          
           ## Summary
           
           **Analysis Period**: Last 30 days  

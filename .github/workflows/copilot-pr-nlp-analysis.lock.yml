@@ -705,8 +705,6 @@
 #
 # **Content Template**:
 # ````markdown
-# # 🤖 Copilot PR Conversation NLP Analysis - [DATE]
-#
 # ## Executive Summary
 #
 # **Analysis Period**: Last 24 hours (merged PRs only)  
@@ -3592,8 +3590,6 @@ jobs:
           
           **Content Template**:
           ````markdown
-          # 🤖 Copilot PR Conversation NLP Analysis - [DATE]
-          
           ## Executive Summary
           
           **Analysis Period**: Last 24 hours (merged PRs only)  

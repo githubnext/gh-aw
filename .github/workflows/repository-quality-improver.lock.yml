@@ -422,8 +422,6 @@
 # ### Report Template
 #
 # ```markdown
-# # 🎯 Repository Quality Improvement Report - [FOCUS AREA]
-#
 # **Analysis Date**: [DATE]  
 # **Focus Area**: [SELECTED AREA]  
 # **Strategy Type**: [Custom/Standard/Reused]
@@ -2965,8 +2963,6 @@ jobs:
           ### Report Template
           
           ```markdown
-          # 🎯 Repository Quality Improvement Report - [FOCUS AREA]
-          
           **Analysis Date**: [DATE]  
           **Focus Area**: [SELECTED AREA]  
           **Strategy Type**: [Custom/Standard/Reused]
@@ -3135,6 +3131,8 @@ jobs:
           # Create or update history.json
           cat > /tmp/gh-aw/cache-memory/focus-areas/history.json << 'EOF'
           {
+            "runs": [...previous runs, {
+              "date": "$(date +%Y-%m-%d)",
           PROMPT_EOF
       - name: Substitute placeholders
         uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
@@ -3207,8 +3205,6 @@ jobs:
           GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
         run: |
           cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
-            "runs": [...previous runs, {
-              "date": "$(date +%Y-%m-%d)",
               "focus_area": "[selected area]",
               "custom": [true/false],
               "description": "[brief description of focus area]",

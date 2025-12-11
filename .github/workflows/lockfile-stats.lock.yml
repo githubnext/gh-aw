@@ -255,8 +255,6 @@
 # Create a comprehensive markdown report with the following structure:
 #
 # ```markdown
-# # 📊 Agentic Workflow Lock File Statistics - [DATE]
-#
 # ## Executive Summary
 #
 # - **Total Lock Files**: [NUMBER]
@@ -2674,8 +2672,6 @@ jobs:
           Create a comprehensive markdown report with the following structure:
           
           ```markdown
-          # 📊 Agentic Workflow Lock File Statistics - [DATE]
-          
           ## Executive Summary
           
           - **Total Lock Files**: [NUMBER]

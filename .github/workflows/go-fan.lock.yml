@@ -383,8 +383,6 @@
 #
 # **Body Structure**:
 # ```markdown
-# # 🐹 Go Fan Report: <Module Name>
-#
 # ## Module Overview
 # <Brief description of the module and its purpose>
 #
@@ -2784,8 +2782,6 @@ jobs:
           
           **Body Structure**:
           ```markdown
-          # 🐹 Go Fan Report: <Module Name>
-          
           ## Module Overview
           <Brief description of the module and its purpose>
           

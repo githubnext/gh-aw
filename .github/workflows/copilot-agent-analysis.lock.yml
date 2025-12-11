@@ -566,8 +566,6 @@
 #
 # **Concise Discussion Template**:
 # ```markdown
-# # 🤖 Copilot Agent PR Analysis - [DATE]
-#
 # ## Summary
 #
 # **Analysis Period**: Last 24 hours
@@ -3188,11 +3186,12 @@ jobs:
           
           **Concise Discussion Template**:
           ```markdown
-          # 🤖 Copilot Agent PR Analysis - [DATE]
-          
           ## Summary
           
           **Analysis Period**: Last 24 hours
+          **Total PRs**: [count] | **Merged**: [count] ([percentage]%) | **Avg Duration**: [time]
+          
+          ## Performance Metrics
           PROMPT_EOF
       - name: Substitute placeholders
         uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
@@ -3265,9 +3264,6 @@ jobs:
           GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
         run: |
           cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
-          **Total PRs**: [count] | **Merged**: [count] ([percentage]%) | **Avg Duration**: [time]
-          
-          ## Performance Metrics
           
           | Date | PRs | Merged | Success Rate | Avg Duration | Avg Comments |
           |------|-----|--------|--------------|--------------|--------------|

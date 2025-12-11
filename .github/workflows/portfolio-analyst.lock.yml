@@ -433,8 +433,6 @@
 # ### Issue Structure
 #
 # ```markdown
-# # Portfolio Analysis Report - [DATE]
-#
 # ## Executive Summary
 #
 # - **Total Workflows Analyzed**: [N]
@@ -2903,8 +2901,6 @@ jobs:
           ### Issue Structure
           
           ```markdown
-          # Portfolio Analysis Report - [DATE]
-          
           ## Executive Summary
           
           - **Total Workflows Analyzed**: [N]

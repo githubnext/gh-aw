@@ -381,8 +381,6 @@
 # Create a discussion with the following structure:
 #
 # ```markdown
-# # 🏥 Safe Output Health Report - [DATE]
-#
 # ## Executive Summary
 #
 # - **Period**: Last 24 hours
@@ -2923,8 +2921,6 @@ jobs:
           Create a discussion with the following structure:
           
           ```markdown
-          # 🏥 Safe Output Health Report - [DATE]
-          
           ## Executive Summary
           
           - **Period**: Last 24 hours
@@ -3101,6 +3097,7 @@ jobs:
           ```
           /tmp/gh-aw/cache-memory/safe-output-health/
           ├── index.json                  # Master index of all audits
+          ├── 2024-01-15.json            # Daily audit summaries
           PROMPT_EOF
       - name: Substitute placeholders
         uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
@@ -3173,7 +3170,6 @@ jobs:
           GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
         run: |
           cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
-          ├── 2024-01-15.json            # Daily audit summaries
           ├── error-patterns.json        # Error pattern database
           ├── recurring-failures.json    # Recurring failure tracking
           └── solutions.json             # Known solutions and fixes

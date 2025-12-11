@@ -338,8 +338,6 @@
 # **Discussion Structure**:
 #
 # ```markdown
-# # 🔤 Typist - Go Type Consistency Analysis
-#
 # *Analysis of repository: ${{ github.repository }}*
 #
 # ## Executive Summary
@@ -2900,8 +2898,6 @@ jobs:
           **Discussion Structure**:
           
           ```markdown
-          # 🔤 Typist - Go Type Consistency Analysis
-          
           *Analysis of repository: __GH_AW_GITHUB_REPOSITORY__*
           
           ## Executive Summary
@@ -3186,6 +3182,7 @@ jobs:
           3. ✅ Duplicated types are identified with similarity analysis
           4. ✅ Untyped usages are categorized and quantified
           5. ✅ Concrete refactoring recommendations are provided with examples
+          6. ✅ A formatted discussion is created with actionable findings
           PROMPT_EOF
       - name: Substitute placeholders
         uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
@@ -3261,7 +3258,6 @@ jobs:
           GH_AW_GITHUB_WORKSPACE: ${{ github.workspace }}
         run: |
           cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
-          6. ✅ A formatted discussion is created with actionable findings
           7. ✅ Recommendations are prioritized by impact and effort
           
           **Objective**: Improve type safety and code maintainability by identifying and recommending fixes for duplicated type definitions and untyped usages in the Go codebase.

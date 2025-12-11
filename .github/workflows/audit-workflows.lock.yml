@@ -696,8 +696,6 @@
 #
 # **Discussion Template**:
 # ```markdown
-# # 🔍 Agentic Workflow Audit Report - [DATE]
-#
 # ## Audit Summary
 #
 # - **Period**: Last 24 hours
@@ -3603,8 +3601,6 @@ jobs:
           
           **Discussion Template**:
           ```markdown
-          # 🔍 Agentic Workflow Audit Report - [DATE]
-          
           ## Audit Summary
           
           - **Period**: Last 24 hours

@@ -291,8 +291,6 @@
 # Create a concise report with the following structure:
 #
 # ```markdown
-# # 🤖 Daily Copilot PR Merged Report - [DATE]
-#
 # ## Summary
 #
 # **Analysis Period**: Last 24 hours (merged PRs only)  
@@ -372,8 +370,6 @@
 # **No Merged PRs**:
 # If no Copilot PRs were merged in the last 24 hours:
 # ```markdown
-# # 🤖 Daily Copilot PR Merged Report - [DATE]
-#
 # No Copilot agent pull requests were merged in the last 24 hours.
 #
 # ---
@@ -3788,8 +3784,6 @@ jobs:
           Create a concise report with the following structure:
           
           ```markdown
-          # 🤖 Daily Copilot PR Merged Report - [DATE]
-          
           ## Summary
           
           **Analysis Period**: Last 24 hours (merged PRs only)  
@@ -3869,8 +3863,6 @@ jobs:
           **No Merged PRs**:
           If no Copilot PRs were merged in the last 24 hours:
           ```markdown
-          # 🤖 Daily Copilot PR Merged Report - [DATE]
-          
           No Copilot agent pull requests were merged in the last 24 hours.
           
           ---

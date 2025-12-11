@@ -335,8 +335,6 @@
 # **Report Structure:**
 #
 # ```markdown
-# # PR Nitpick Review Summary - [DATE]
-#
 # Brief overview of the review findings and key patterns observed.
 #
 # <details>
@@ -3820,8 +3818,6 @@ jobs:
           **Report Structure:**
           
           ```markdown
-          # PR Nitpick Review Summary - [DATE]
-          
           Brief overview of the review findings and key patterns observed.
           
           <details>

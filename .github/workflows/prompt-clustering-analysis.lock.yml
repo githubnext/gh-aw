@@ -944,8 +944,6 @@
 # **Report Template**:
 #
 # ```markdown
-# # 🔬 Copilot Agent Prompt Clustering Analysis - [DATE]
-#
 # Daily NLP-based clustering analysis of copilot agent task prompts.
 #
 # ## Summary
@@ -4038,8 +4036,6 @@ jobs:
           **Report Template**:
           
           ```markdown
-          # 🔬 Copilot Agent Prompt Clustering Analysis - [DATE]
-          
           Daily NLP-based clustering analysis of copilot agent task prompts.
           
           ## Summary
