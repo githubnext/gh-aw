@@ -107,6 +107,62 @@ jobs:
           retention-days: 7
           if-no-files-found: ignore
 
+      - name: Test full install script (without dummy version)
+        shell: bash
+        run: |
+          chmod +x install-gh-aw.sh
+          
+          # Run the full installation script without version to get latest release
+          echo "Running full installation script to test complete flow..."
+          ./install-gh-aw.sh
+          
+          # Verify the installation worked
+          INSTALL_DIR="$HOME/.local/share/gh/extensions/gh-aw"
+          
+          # Determine expected binary name based on OS
+          if [[ "$RUNNER_OS" == "Windows" ]]; then
+            BINARY_NAME="gh-aw.exe"
+          else
+            BINARY_NAME="gh-aw"
+          fi
+          
+          BINARY_PATH="$INSTALL_DIR/$BINARY_NAME"
+          
+          # Check if binary exists
+          if [ ! -f "$BINARY_PATH" ]; then
+            echo "❌ Binary not found at $BINARY_PATH"
+            exit 1
+          fi
+          
+          echo "✅ Binary found at $BINARY_PATH"
+          
+          # Check if binary is executable
+          if [ ! -x "$BINARY_PATH" ]; then
+            echo "❌ Binary is not executable"
+            exit 1
+          fi
+          
+          echo "✅ Binary is executable"
+          
+          # Run version command to verify binary works
+          if "$BINARY_PATH" version; then
+            echo "✅ Binary version command works"
+          else
+            echo "❌ Binary version command failed"
+            exit 1
+          fi
+          
+          # Run help command to verify binary works
+          if "$BINARY_PATH" --help > /dev/null 2>&1; then
+            echo "✅ Binary help command works"
+          else
+            echo "❌ Binary help command failed"
+            exit 1
+          fi
+          
+          echo ""
+          echo "✅ Full installation test passed!"
+
   report-failure:
     name: Report Installation Failures
     runs-on: ubuntu-latest
