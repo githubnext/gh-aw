@@ -27,7 +27,7 @@ steps:
       cache: npm
       cache-dependency-path: pkg/workflow/js/package-lock.json
   - name: Set up Go
-    uses: actions/setup-go@v5
+    uses: actions/setup-go@v6
     with:
       go-version-file: go.mod
       cache: true
