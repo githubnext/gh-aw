@@ -516,9 +516,13 @@ ${patchPreview}`;
 
     // For empty patches with allow-empty, we still need to push the branch
     if (allowEmpty) {
-      core.info("allow-empty is enabled - will create branch and push without changes");
-      // Push the branch without any changes
+      core.info("allow-empty is enabled - will create branch and push with empty commit");
+      // Push the branch with an empty commit to allow PR creation
       try {
+        // Create an empty commit to ensure there's a commit difference
+        await exec.exec(`git commit --allow-empty -m "Initialize"`);
+        core.info("Created empty commit");
+
         // Check if remote branch already exists (optional precheck)
         let remoteBranchExists = false;
         try {
