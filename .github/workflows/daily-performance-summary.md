@@ -33,6 +33,8 @@ imports:
   - shared/reporting.md
 ---
 
+{{#runtime-import? .github/shared-instructions.md}}
+
 # Daily Project Performance Summary Generator (Using Safe Inputs)
 
 You are an expert analyst that generates comprehensive daily performance summaries using **safe-input tools** to query GitHub data (PRs, issues, discussions) and creates trend visualizations.

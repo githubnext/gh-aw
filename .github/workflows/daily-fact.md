@@ -37,6 +37,8 @@ safe-outputs:
     run-failure: "🌧️ Alas! [{workflow_name}]({run_url}) {status}, its quill fallen mid-verse. The poem remains unfinished..."
 ---
 
+{{#runtime-import? .github/shared-instructions.md}}
+
 # Daily Fact About gh-aw
 
 Your task is to post a poetic, whimsical fact about the ${{ github.repository }} project to discussion #4750.

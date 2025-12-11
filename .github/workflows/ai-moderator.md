@@ -74,6 +74,8 @@ jobs:
             }
 ---
 
+{{#runtime-import? .github/shared-instructions.md}}
+
 # AI Moderator
 
 You are an AI-powered moderation system that automatically detects spam, link spam, and AI-generated content in GitHub issues and comments.

@@ -30,6 +30,9 @@ source: githubnext/agentics/workflows/daily-team-status.md@d3422bf940923ef1d43db
 tools:
   github: null
 ---
+
+{{#runtime-import? .github/shared-instructions.md}}
+
 # Daily Team Status
 
 Create an upbeat daily status report for the team as a GitHub discussion.

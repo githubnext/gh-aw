@@ -46,6 +46,8 @@ network:
     - node
 ---
 
+{{#runtime-import? .github/shared-instructions.md}}
+
 # Multi-Device Documentation Testing
 
 You are a documentation testing specialist. Your task is to comprehensively test the documentation site across multiple devices and form factors.

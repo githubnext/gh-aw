@@ -7,6 +7,7 @@
 
 const fs = require("fs");
 const { isTruthy } = require("./is_truthy.cjs");
+const { processRuntimeImports } = require("./runtime_import.cjs");
 
 /**
  * Interpolates variables in the prompt content
@@ -70,10 +71,27 @@ async function main() {
       return;
     }
 
+    // Get the workspace directory for runtime imports
+    const workspaceDir = process.env.GITHUB_WORKSPACE;
+    if (!workspaceDir) {
+      core.setFailed("GITHUB_WORKSPACE environment variable is not set");
+      return;
+    }
+
     // Read the prompt file
     let content = fs.readFileSync(promptPath, "utf8");
 
-    // Step 1: Interpolate variables
+    // Step 1: Process runtime imports
+    const hasRuntimeImports = /{{#runtime-import\??[ \t]+[^\}]+}}/.test(content);
+    if (hasRuntimeImports) {
+      core.info("Processing runtime import macros");
+      content = processRuntimeImports(content, workspaceDir);
+      core.info("Runtime imports processed successfully");
+    } else {
+      core.info("No runtime import macros found, skipping runtime import processing");
+    }
+
+    // Step 2: Interpolate variables
     const variables = {};
     for (const [key, value] of Object.entries(process.env)) {
       if (key.startsWith("GH_AW_EXPR_")) {
@@ -90,7 +108,7 @@ async function main() {
       core.info("No expression variables found, skipping interpolation");
     }
 
-    // Step 2: Render template conditionals
+    // Step 3: Render template conditionals
     const hasConditionals = /{{#if\s+[^}]+}}/.test(content);
     if (hasConditionals) {
       core.info("Processing conditional template blocks");
