@@ -711,3 +711,87 @@ Test content.`
 		t.Error("Expected concurrency in generated YAML")
 	}
 }
+
+// TestCompilerGeneratesMetadata tests that the compiler generates metadata in lock files
+func TestCompilerGeneratesMetadata(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "metadata-test")
+
+	workflowContent := `---
+name: test-metadata-workflow
+engine: copilot
+on: workflow_dispatch
+---
+
+# Test Workflow
+
+This is a test workflow for metadata generation.`
+
+	testFile := filepath.Join(tmpDir, "test.md")
+	if err := os.WriteFile(testFile, []byte(workflowContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	compiler := NewCompiler(false, "", "v0.0.367-test")
+	if err := compiler.CompileWorkflow(testFile); err != nil {
+		t.Fatalf("CompileWorkflow() error: %v", err)
+	}
+
+	lockFile := filepath.Join(tmpDir, "test.lock.yml")
+	content, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+
+	yamlStr := string(content)
+
+	// Check that metadata block exists
+	if !strings.Contains(yamlStr, "# Metadata:") {
+		t.Error("Expected metadata block in generated lock file")
+	}
+
+	// Check that all required metadata fields are present
+	requiredFields := []string{
+		"#   source_hash: sha256:",
+		"#   compiled_at:",
+		"#   gh_aw_version: v0.0.367-test",
+		"#   dependencies_hash:",
+	}
+
+	for _, field := range requiredFields {
+		if !strings.Contains(yamlStr, field) {
+			t.Errorf("Expected metadata field %q in lock file", field)
+		}
+	}
+
+	// Verify that metadata can be extracted
+	metadata, err := ExtractLockFileMetadata(lockFile)
+	if err != nil {
+		t.Fatalf("Failed to extract metadata: %v", err)
+	}
+
+	if metadata == nil {
+		t.Fatal("Expected non-nil metadata")
+	}
+
+	if metadata.GhAwVersion != "v0.0.367-test" {
+		t.Errorf("Expected gh_aw_version='v0.0.367-test', got %s", metadata.GhAwVersion)
+	}
+
+	if !strings.HasPrefix(metadata.SourceHash, "sha256:") {
+		t.Errorf("Expected source_hash to start with 'sha256:', got %s", metadata.SourceHash)
+	}
+
+	if metadata.CompiledAt == "" {
+		t.Error("Expected compiled_at to be set")
+	}
+
+	// Verify that the hash matches the source file
+	sourceHash, err := ComputeSourceHash(testFile)
+	if err != nil {
+		t.Fatalf("Failed to compute source hash: %v", err)
+	}
+
+	if metadata.SourceHash != sourceHash {
+		t.Errorf("Expected source_hash=%s, got %s", sourceHash, metadata.SourceHash)
+	}
+}

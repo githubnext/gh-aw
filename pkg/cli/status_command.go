@@ -129,13 +129,22 @@ func StatusWorkflows(pattern string, verbose bool, jsonOutput bool, ref string, 
 			timeRemaining := "N/A"
 
 			if _, err := os.Stat(lockFile); err == nil {
-				// Check if up to date
-				mdStat, _ := os.Stat(file)
-				lockStat, _ := os.Stat(lockFile)
-				if mdStat.ModTime().After(lockStat.ModTime()) {
-					compiled = "No"
+				// Use hash-based staleness detection
+				staleStatus, err := workflow.CompareLockFileToSource(lockFile, file)
+				if err != nil {
+					statusLog.Printf("Failed to compare lock file to source: %v", err)
+					compiled = "Unknown"
 				} else {
-					compiled = "Yes"
+					switch staleStatus {
+					case workflow.StaleStatusUpToDate:
+						compiled = "Yes"
+					case workflow.StaleStatusHashMismatch, workflow.StaleStatusTimestamp:
+						compiled = "No"
+					case workflow.StaleStatusNeverCompiled:
+						compiled = "No"
+					default:
+						compiled = "Unknown"
+					}
 				}
 
 				// Extract stop-time from lock file
@@ -242,13 +251,22 @@ func StatusWorkflows(pattern string, verbose bool, jsonOutput bool, ref string, 
 		timeRemaining := "N/A"
 
 		if _, err := os.Stat(lockFile); err == nil {
-			// Check if up to date
-			mdStat, _ := os.Stat(file)
-			lockStat, _ := os.Stat(lockFile)
-			if mdStat.ModTime().After(lockStat.ModTime()) {
-				compiled = "No"
+			// Use hash-based staleness detection
+			staleStatus, err := workflow.CompareLockFileToSource(lockFile, file)
+			if err != nil {
+				statusLog.Printf("Failed to compare lock file to source: %v", err)
+				compiled = "Unknown"
 			} else {
-				compiled = "Yes"
+				switch staleStatus {
+				case workflow.StaleStatusUpToDate:
+					compiled = "Yes"
+				case workflow.StaleStatusHashMismatch, workflow.StaleStatusTimestamp:
+					compiled = "No"
+				case workflow.StaleStatusNeverCompiled:
+					compiled = "No"
+				default:
+					compiled = "Unknown"
+				}
 			}
 
 			// Extract stop-time from lock file

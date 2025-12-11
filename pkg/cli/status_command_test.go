@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/githubnext/gh-aw/pkg/console"
+	"github.com/githubnext/gh-aw/pkg/workflow"
 )
 
 func TestStatusWorkflows_JSONOutput(t *testing.T) {
@@ -512,4 +513,100 @@ func TestWorkflowStatus_ConsoleRenderingWithRunStatus(t *testing.T) {
 			t.Errorf("Expected output to contain value '%s', got:\n%s", value, output)
 		}
 	}
+}
+
+// TestHashBasedStalenessDetection tests that the status command uses hash-based staleness detection
+func TestHashBasedStalenessDetection(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create a test workflow file
+	workflowContent := `---
+name: test-workflow
+engine: copilot
+on: workflow_dispatch
+---
+
+Test workflow content`
+
+	sourceFile := filepath.Join(tmpDir, "test.md")
+	if err := os.WriteFile(sourceFile, []byte(workflowContent), 0644); err != nil {
+		t.Fatalf("Failed to write source file: %v", err)
+	}
+
+	// Compute the source hash
+	sourceHash, err := workflow.ComputeSourceHash(sourceFile)
+	if err != nil {
+		t.Fatalf("Failed to compute source hash: %v", err)
+	}
+
+	lockFile := filepath.Join(tmpDir, "test.lock.yml")
+
+	t.Run("detects stale when hash mismatches", func(t *testing.T) {
+		// Create a lock file with different hash
+		lockContent := `#
+# Metadata:
+#   source_hash: sha256:differenthash
+#   compiled_at: 2025-12-11T13:17:10Z
+#   gh_aw_version: v0.0.367
+#
+name: test-workflow`
+
+		if err := os.WriteFile(lockFile, []byte(lockContent), 0644); err != nil {
+			t.Fatalf("Failed to write lock file: %v", err)
+		}
+
+		status, err := workflow.CompareLockFileToSource(lockFile, sourceFile)
+		if err != nil {
+			t.Fatalf("CompareLockFileToSource failed: %v", err)
+		}
+
+		if status != workflow.StaleStatusHashMismatch {
+			t.Errorf("Expected status %s, got %s", workflow.StaleStatusHashMismatch, status)
+		}
+	})
+
+	t.Run("detects up-to-date when hash matches", func(t *testing.T) {
+		// Create a lock file with matching hash
+		lockContent := `#
+# Metadata:
+#   source_hash: ` + sourceHash + `
+#   compiled_at: 2025-12-11T13:17:10Z
+#   gh_aw_version: v0.0.367
+#
+name: test-workflow`
+
+		if err := os.WriteFile(lockFile, []byte(lockContent), 0644); err != nil {
+			t.Fatalf("Failed to write lock file: %v", err)
+		}
+
+		status, err := workflow.CompareLockFileToSource(lockFile, sourceFile)
+		if err != nil {
+			t.Fatalf("CompareLockFileToSource failed: %v", err)
+		}
+
+		if status != workflow.StaleStatusUpToDate {
+			t.Errorf("Expected status %s, got %s", workflow.StaleStatusUpToDate, status)
+		}
+	})
+
+	t.Run("falls back to timestamp when no metadata", func(t *testing.T) {
+		// Create a lock file without metadata
+		lockContent := `#
+# This file was automatically generated
+name: test-workflow`
+
+		if err := os.WriteFile(lockFile, []byte(lockContent), 0644); err != nil {
+			t.Fatalf("Failed to write lock file: %v", err)
+		}
+
+		status, err := workflow.CompareLockFileToSource(lockFile, sourceFile)
+		if err != nil {
+			t.Fatalf("CompareLockFileToSource failed: %v", err)
+		}
+
+		// Should be up-to-date since we just created the lock file
+		if status != workflow.StaleStatusUpToDate {
+			t.Errorf("Expected status %s, got %s (timestamp fallback)", workflow.StaleStatusUpToDate, status)
+		}
+	})
 }
