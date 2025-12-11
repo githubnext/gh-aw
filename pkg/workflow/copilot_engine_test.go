@@ -100,8 +100,8 @@ func TestCopilotEngineExecutionSteps(t *testing.T) {
 	steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
 
 	// GetExecutionSteps only returns the execution step, not Squid logs or cleanup
-	if len(steps) != 1 {
-		t.Fatalf("Expected 1 step (copilot execution), got %d", len(steps))
+	if len(steps) != 2 {
+		t.Fatalf("Expected 2 steps (copilot execution and session-state copy), got %d", len(steps))
 	}
 
 	// Check the execution step
@@ -171,8 +171,8 @@ func TestCopilotEngineExecutionStepsWithOutput(t *testing.T) {
 	steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
 
 	// GetExecutionSteps only returns the execution step
-	if len(steps) != 1 {
-		t.Fatalf("Expected 1 step (copilot execution), got %d", len(steps))
+	if len(steps) != 2 {
+		t.Fatalf("Expected 2 steps (copilot execution and session-state copy), got %d", len(steps))
 	}
 
 	// Check the execution step
@@ -468,8 +468,8 @@ func TestCopilotEngineExecutionStepsWithToolArguments(t *testing.T) {
 	steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
 
 	// GetExecutionSteps only returns the execution step
-	if len(steps) != 1 {
-		t.Fatalf("Expected 1 step (copilot execution), got %d", len(steps))
+	if len(steps) != 2 {
+		t.Fatalf("Expected 2 steps (copilot execution and session-state copy), got %d", len(steps))
 	}
 
 	// Check the execution step contains tool arguments
@@ -554,7 +554,7 @@ func TestCopilotEngineEditToolAddsAllowAllPaths(t *testing.T) {
 			steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
 
 			// GetExecutionSteps only returns the execution step
-			if len(steps) != 1 {
+			if len(steps) != 2 {
 				t.Fatalf("Expected 1 step, got %d", len(steps))
 			}
 
@@ -601,7 +601,7 @@ func TestCopilotEngineShellEscaping(t *testing.T) {
 	steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
 
 	// GetExecutionSteps only returns the execution step
-	if len(steps) != 1 {
+	if len(steps) != 2 {
 		t.Fatalf("Expected 1 step, got %d", len(steps))
 	}
 
@@ -648,7 +648,7 @@ func TestCopilotEngineInstructionPromptNotEscaped(t *testing.T) {
 	steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
 
 	// GetExecutionSteps only returns the execution step
-	if len(steps) != 1 {
+	if len(steps) != 2 {
 		t.Fatalf("Expected 1 step, got %d", len(steps))
 	}
 
@@ -870,7 +870,7 @@ func TestCopilotEngineGitHubToolsShellEscaping(t *testing.T) {
 	steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
 
 	// GetExecutionSteps only returns the execution step
-	if len(steps) != 1 {
+	if len(steps) != 2 {
 		t.Fatalf("Expected 1 step, got %d", len(steps))
 	}
 
@@ -1030,7 +1030,7 @@ func TestCopilotEngineExecutionStepsWithCacheMemory(t *testing.T) {
 	steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
 
 	// GetExecutionSteps only returns the execution step
-	if len(steps) != 1 {
+	if len(steps) != 2 {
 		t.Fatalf("Expected 1 step, got %d", len(steps))
 	}
 
@@ -1070,7 +1070,7 @@ func TestCopilotEngineExecutionStepsWithCustomAddDirArgs(t *testing.T) {
 	steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
 
 	// GetExecutionSteps only returns the execution step
-	if len(steps) != 1 {
+	if len(steps) != 2 {
 		t.Fatalf("Expected 1 step, got %d", len(steps))
 	}
 

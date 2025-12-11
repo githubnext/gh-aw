@@ -1082,13 +1082,6 @@ jobs:
             mv "$COPILOT_LOGS_DIR"/* /tmp/gh-aw/sandbox/agent/logs/ || true
             rmdir "$COPILOT_LOGS_DIR" || true
           fi
-
-          # Copy session-state file to agent output location
-          if [ -f /home/runner/.copilot/session-state ]; then
-            echo "Copying Copilot session-state file"
-            mkdir -p "$(dirname /tmp/gh-aw/sandbox/agent/session-state.json)"
-            cp /home/runner/.copilot/session-state /tmp/gh-aw/sandbox/agent/session-state.json || true
-          fi
         env:
           COPILOT_AGENT_RUNNER_TYPE: STANDALONE
           COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
@@ -1101,6 +1094,15 @@ jobs:
           GITHUB_STEP_SUMMARY: ${{ env.GITHUB_STEP_SUMMARY }}
           GITHUB_WORKSPACE: ${{ github.workspace }}
           XDG_CONFIG_HOME: /home/runner
+      - name: Copy Copilot session-state file
+        if: always()
+        continue-on-error: true
+        run: |
+          if [ -f /home/runner/.copilot/session-state ]; then
+            echo "Copying Copilot session-state file"
+            mkdir -p "$(dirname /tmp/gh-aw/sandbox/agent/session-state.json)"
+            cp /home/runner/.copilot/session-state /tmp/gh-aw/sandbox/agent/session-state.json || true
+          fi
       - name: Redact secrets in logs
         if: always()
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8

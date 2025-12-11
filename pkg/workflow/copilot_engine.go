@@ -347,14 +347,7 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 			// Build the command with custom SRT command
 			// The custom command should handle wrapping copilot with SRT
 			command = fmt.Sprintf(`set -o pipefail
-%s %s -- %s 2>&1 | tee %s
-
-# Copy session-state file to agent output location
-if [ -f %s ]; then
-  echo "Copying Copilot session-state file"
-  mkdir -p "$(dirname %s)"
-  cp %s %s || true
-fi`, agentConfig.Command, shellJoinArgs(srtArgs), copilotCommand, shellEscapeArg(logFile), shellEscapeArg(sessionStateSource), shellEscapeArg(sessionStateFile), shellEscapeArg(sessionStateSource), shellEscapeArg(sessionStateFile))
+%s %s -- %s 2>&1 | tee %s`, agentConfig.Command, shellJoinArgs(srtArgs), copilotCommand, shellEscapeArg(logFile))
 		} else {
 			// Create the Node.js wrapper script for SRT (standard installation)
 			srtWrapperScript := generateSRTWrapperScript(copilotCommand, srtConfigJSON, logFile, logsFolder)
@@ -444,26 +437,12 @@ fi`, agentConfig.Command, shellJoinArgs(srtArgs), copilotCommand, shellEscapeArg
 		command = fmt.Sprintf(`set -o pipefail
 %s %s \
   -- %s \
-  2>&1 | tee %s
-
-# Copy session-state file to agent output location
-if [ -f %s ]; then
-  echo "Copying Copilot session-state file"
-  mkdir -p "$(dirname %s)"
-  cp %s %s || true
-fi`, awfCommand, shellJoinArgs(awfArgs), copilotCommand, shellEscapeArg(logFile), shellEscapeArg(sessionStateSource), shellEscapeArg(sessionStateFile), shellEscapeArg(sessionStateSource), shellEscapeArg(sessionStateFile))
+  2>&1 | tee %s`, awfCommand, shellJoinArgs(awfArgs), copilotCommand, shellEscapeArg(logFile))
 	} else {
 		// Run copilot command without AWF wrapper
 		command = fmt.Sprintf(`set -o pipefail
 COPILOT_CLI_INSTRUCTION="$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"
-%s%s 2>&1 | tee %s
-
-# Copy session-state file to agent output location
-if [ -f %s ]; then
-  echo "Copying Copilot session-state file"
-  mkdir -p "$(dirname %s)"
-  cp %s %s || true
-fi`, mkdirCommands.String(), copilotCommand, logFile, shellEscapeArg(sessionStateSource), shellEscapeArg(sessionStateFile), shellEscapeArg(sessionStateSource), shellEscapeArg(sessionStateFile))
+%s%s 2>&1 | tee %s`, mkdirCommands.String(), copilotCommand, logFile)
 	}
 
 	// Use COPILOT_GITHUB_TOKEN
@@ -598,6 +577,10 @@ fi`, mkdirCommands.String(), copilotCommand, logFile, shellEscapeArg(sessionStat
 
 	steps = append(steps, GitHubActionStep(stepLines))
 
+	// Add separate step to copy session-state file
+	copySessionStateStep := e.generateCopySessionStateStep()
+	steps = append(steps, copySessionStateStep)
+
 	return steps
 }
 
@@ -606,6 +589,22 @@ fi`, mkdirCommands.String(), copilotCommand, logFile, shellEscapeArg(sessionStat
 func (e *CopilotEngine) GetFirewallLogsCollectionStep(workflowData *WorkflowData) []GitHubActionStep {
 	// Collection step removed - firewall logs are now at a known location
 	return []GitHubActionStep{}
+}
+
+// generateCopySessionStateStep creates a separate step to copy the Copilot session-state file
+func (e *CopilotEngine) generateCopySessionStateStep() GitHubActionStep {
+	stepLines := []string{
+		"      - name: Copy Copilot session-state file",
+		"        if: always()",
+		"        continue-on-error: true",
+		"        run: |",
+		fmt.Sprintf("          if [ -f %s ]; then", shellEscapeArg(sessionStateSource)),
+		"            echo \"Copying Copilot session-state file\"",
+		fmt.Sprintf("            mkdir -p \"$(dirname %s)\"", shellEscapeArg(sessionStateFile)),
+		fmt.Sprintf("            cp %s %s || true", shellEscapeArg(sessionStateSource), shellEscapeArg(sessionStateFile)),
+		"          fi",
+	}
+	return GitHubActionStep(stepLines)
 }
 
 // GetSquidLogsSteps returns the steps for uploading and parsing Squid logs (after secret redaction)
@@ -1341,14 +1340,7 @@ if [ -n "$COPILOT_LOGS_DIR" ] && [ -d "$COPILOT_LOGS_DIR" ]; then
   mkdir -p %s
   mv "$COPILOT_LOGS_DIR"/* %s || true
   rmdir "$COPILOT_LOGS_DIR" || true
-fi
-
-# Copy session-state file to agent output location
-if [ -f %s ]; then
-  echo "Copying Copilot session-state file"
-  mkdir -p "$(dirname %s)"
-  cp %s %s || true
-fi`, escapedConfigJSON, escapedCopilotCommand, shellEscapeArg(logFile), shellEscapeArg(logsFolder), shellEscapeArg(logsFolder), shellEscapeArg(logsFolder), shellEscapeArg(sessionStateSource), shellEscapeArg(sessionStateFile), shellEscapeArg(sessionStateSource), shellEscapeArg(sessionStateFile))
+fi`, escapedConfigJSON, escapedCopilotCommand, shellEscapeArg(logFile), shellEscapeArg(logsFolder), shellEscapeArg(logsFolder), shellEscapeArg(logsFolder))
 
 	return script
 }

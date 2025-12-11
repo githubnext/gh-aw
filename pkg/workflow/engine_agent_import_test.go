@@ -20,8 +20,8 @@ func TestCopilotEngineWithAgentFromImports(t *testing.T) {
 
 	steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
 
-	if len(steps) != 1 {
-		t.Fatalf("Expected 1 execution step, got %d", len(steps))
+	if len(steps) != 2 {
+		t.Fatalf("Expected 2 execution steps, got %d", len(steps))
 	}
 
 	stepContent := strings.Join([]string(steps[0]), "\n")
@@ -44,8 +44,8 @@ func TestCopilotEngineWithoutAgentFlag(t *testing.T) {
 
 	steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
 
-	if len(steps) != 1 {
-		t.Fatalf("Expected 1 execution step, got %d", len(steps))
+	if len(steps) != 2 {
+		t.Fatalf("Expected 2 execution steps, got %d", len(steps))
 	}
 
 	stepContent := strings.Join([]string(steps[0]), "\n")
