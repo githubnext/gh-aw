@@ -91,6 +91,9 @@ var safeOutputsToolsJSON string
 //go:embed js/interpolate_prompt.cjs
 var interpolatePromptScript string
 
+//go:embed js/runtime_import.cjs
+var runtimeImportScript string
+
 //go:embed js/checkout_pr_branch.cjs
 var checkoutPRBranchScript string
 
@@ -332,6 +335,7 @@ func GetJavaScriptSources() map[string]string {
 		"checkout_pr_branch.cjs":            checkoutPRBranchScript,
 		"create_agent_task.cjs":             createAgentTaskScript,
 		"interpolate_prompt.cjs":            interpolatePromptScript,
+		"runtime_import.cjs":                runtimeImportScript,
 		"missing_tool.cjs":                  missingToolScript,
 		"push_repo_memory.cjs":              pushRepoMemoryScript,
 		"redact_secrets.cjs":                redactSecretsScript,
