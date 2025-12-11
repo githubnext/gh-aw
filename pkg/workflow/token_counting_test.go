@@ -82,23 +82,17 @@ func TestTokenCountingConsistency(t *testing.T) {
 		t.Fatalf("Failed to parse log with JavaScript parser: %v", err)
 	}
 
-	// Check that JavaScript output shows the total
-	if !strings.Contains(jsResult, "Total: 2,300") {
-		t.Errorf("JavaScript parser: expected to show 'Total: 2,300' in output, but didn't find it.\nOutput:\n%s", jsResult)
+	// Check that JavaScript output shows the total in Copilot CLI style format
+	if !strings.Contains(jsResult, "2,300 total") {
+		t.Errorf("JavaScript parser: expected to show '2,300 total' in output, but didn't find it.\nOutput:\n%s", jsResult)
 	}
 
-	// Verify individual token counts are also shown
-	if !strings.Contains(jsResult, "Input: 1,500") {
-		t.Error("JavaScript parser: expected to show 'Input: 1,500' in output")
+	// Verify the compact format shows input/output like: "1,500 in / 500 out"
+	if !strings.Contains(jsResult, "1,500 in") {
+		t.Error("JavaScript parser: expected to show '1,500 in' in output")
 	}
-	if !strings.Contains(jsResult, "Output: 500") {
-		t.Error("JavaScript parser: expected to show 'Output: 500' in output")
-	}
-	if !strings.Contains(jsResult, "Cache Creation: 200") {
-		t.Error("JavaScript parser: expected to show 'Cache Creation: 200' in output")
-	}
-	if !strings.Contains(jsResult, "Cache Read: 100") {
-		t.Error("JavaScript parser: expected to show 'Cache Read: 100' in output")
+	if !strings.Contains(jsResult, "500 out") {
+		t.Error("JavaScript parser: expected to show '500 out' in output")
 	}
 }
 
@@ -171,8 +165,8 @@ func TestTokenCountingWithoutCacheTokens(t *testing.T) {
 		t.Fatalf("Failed to parse log with JavaScript parser: %v", err)
 	}
 
-	// Check that JavaScript output shows the total
-	if !strings.Contains(jsResult, "Total: 150") {
-		t.Errorf("JavaScript parser: expected to show 'Total: 150' in output, but didn't find it.\nOutput:\n%s", jsResult)
+	// Check that JavaScript output shows the total in Copilot CLI style format
+	if !strings.Contains(jsResult, "150 total") {
+		t.Errorf("JavaScript parser: expected to show '150 total' in output, but didn't find it.\nOutput:\n%s", jsResult)
 	}
 }

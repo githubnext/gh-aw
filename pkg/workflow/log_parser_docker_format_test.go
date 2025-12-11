@@ -74,15 +74,15 @@ func TestParseClaudeLogDockerPullFormatJS(t *testing.T) {
 		t.Fatalf("Failed to parse docker pull format Claude log: %v", err)
 	}
 
-	// Verify parsing worked correctly despite docker pull lines
-	if !strings.Contains(result, "🚀 Initialization") {
-		t.Error("Expected docker pull format Claude log output to contain Initialization section")
+	// Verify parsing worked correctly despite docker pull lines (Copilot CLI style format)
+	if !strings.Contains(result, "Conversation:") {
+		t.Error("Expected docker pull format Claude log output to contain Conversation section")
+	}
+	if !strings.Contains(result, "Statistics:") {
+		t.Error("Expected docker pull format Claude log output to contain Statistics section")
 	}
 	if !strings.Contains(result, "ls -la") {
 		t.Error("Expected docker pull format Claude log output to contain the bash command")
-	}
-	if !strings.Contains(result, "test-123") {
-		t.Error("Expected docker pull format Claude log output to contain session ID")
 	}
 
 	t.Logf("JavaScript parser correctly handled docker pull format")
