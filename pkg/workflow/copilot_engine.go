@@ -12,6 +12,8 @@ import (
 var copilotLog = logger.New("workflow:copilot_engine")
 
 const logsFolder = "/tmp/gh-aw/sandbox/agent/logs/"
+const sessionStateFile = "/tmp/gh-aw/sandbox/agent/session-state.txt"
+const sessionStateSource = "/home/runner/.copilot/session-state"
 
 // CopilotEngine represents the GitHub Copilot CLI agentic engine
 type CopilotEngine struct {
@@ -150,7 +152,7 @@ func (e *CopilotEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHu
 }
 
 func (e *CopilotEngine) GetDeclaredOutputFiles() []string {
-	return []string{logsFolder}
+	return []string{logsFolder, sessionStateFile}
 }
 
 // extractAddDirPaths extracts all directory paths from copilot args that follow --add-dir flags
@@ -345,7 +347,14 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 			// Build the command with custom SRT command
 			// The custom command should handle wrapping copilot with SRT
 			command = fmt.Sprintf(`set -o pipefail
-%s %s -- %s 2>&1 | tee %s`, agentConfig.Command, shellJoinArgs(srtArgs), copilotCommand, shellEscapeArg(logFile))
+%s %s -- %s 2>&1 | tee %s
+
+# Copy session-state file to agent output location
+if [ -f %s ]; then
+  echo "Copying Copilot session-state file"
+  mkdir -p "$(dirname %s)"
+  cp %s %s || true
+fi`, agentConfig.Command, shellJoinArgs(srtArgs), copilotCommand, shellEscapeArg(logFile), shellEscapeArg(sessionStateSource), shellEscapeArg(sessionStateFile), shellEscapeArg(sessionStateSource), shellEscapeArg(sessionStateFile))
 		} else {
 			// Create the Node.js wrapper script for SRT (standard installation)
 			srtWrapperScript := generateSRTWrapperScript(copilotCommand, srtConfigJSON, logFile, logsFolder)
@@ -435,12 +444,26 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 		command = fmt.Sprintf(`set -o pipefail
 %s %s \
   -- %s \
-  2>&1 | tee %s`, awfCommand, shellJoinArgs(awfArgs), copilotCommand, shellEscapeArg(logFile))
+  2>&1 | tee %s
+
+# Copy session-state file to agent output location
+if [ -f %s ]; then
+  echo "Copying Copilot session-state file"
+  mkdir -p "$(dirname %s)"
+  cp %s %s || true
+fi`, awfCommand, shellJoinArgs(awfArgs), copilotCommand, shellEscapeArg(logFile), shellEscapeArg(sessionStateSource), shellEscapeArg(sessionStateFile), shellEscapeArg(sessionStateSource), shellEscapeArg(sessionStateFile))
 	} else {
 		// Run copilot command without AWF wrapper
 		command = fmt.Sprintf(`set -o pipefail
 COPILOT_CLI_INSTRUCTION="$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"
-%s%s 2>&1 | tee %s`, mkdirCommands.String(), copilotCommand, logFile)
+%s%s 2>&1 | tee %s
+
+# Copy session-state file to agent output location
+if [ -f %s ]; then
+  echo "Copying Copilot session-state file"
+  mkdir -p "$(dirname %s)"
+  cp %s %s || true
+fi`, mkdirCommands.String(), copilotCommand, logFile, shellEscapeArg(sessionStateSource), shellEscapeArg(sessionStateFile), shellEscapeArg(sessionStateSource), shellEscapeArg(sessionStateFile))
 	}
 
 	// Use COPILOT_GITHUB_TOKEN
@@ -1318,7 +1341,14 @@ if [ -n "$COPILOT_LOGS_DIR" ] && [ -d "$COPILOT_LOGS_DIR" ]; then
   mkdir -p %s
   mv "$COPILOT_LOGS_DIR"/* %s || true
   rmdir "$COPILOT_LOGS_DIR" || true
-fi`, escapedConfigJSON, escapedCopilotCommand, shellEscapeArg(logFile), shellEscapeArg(logsFolder), shellEscapeArg(logsFolder), shellEscapeArg(logsFolder))
+fi
+
+# Copy session-state file to agent output location
+if [ -f %s ]; then
+  echo "Copying Copilot session-state file"
+  mkdir -p "$(dirname %s)"
+  cp %s %s || true
+fi`, escapedConfigJSON, escapedCopilotCommand, shellEscapeArg(logFile), shellEscapeArg(logsFolder), shellEscapeArg(logsFolder), shellEscapeArg(logsFolder), shellEscapeArg(sessionStateSource), shellEscapeArg(sessionStateFile), shellEscapeArg(sessionStateSource), shellEscapeArg(sessionStateFile))
 
 	return script
 }
