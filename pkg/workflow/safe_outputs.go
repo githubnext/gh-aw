@@ -1007,6 +1007,22 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 			}
 			safeOutputsConfig["close_issue"] = closeIssueConfig
 		}
+		if data.SafeOutputs.LockIssues != nil {
+			lockIssueConfig := map[string]any{}
+			// Always include max (use configured value or default)
+			maxValue := 1 // default
+			if data.SafeOutputs.LockIssues.Max > 0 {
+				maxValue = data.SafeOutputs.LockIssues.Max
+			}
+			lockIssueConfig["max"] = maxValue
+			if len(data.SafeOutputs.LockIssues.RequiredLabels) > 0 {
+				lockIssueConfig["required_labels"] = data.SafeOutputs.LockIssues.RequiredLabels
+			}
+			if data.SafeOutputs.LockIssues.RequiredTitlePrefix != "" {
+				lockIssueConfig["required_title_prefix"] = data.SafeOutputs.LockIssues.RequiredTitlePrefix
+			}
+			safeOutputsConfig["lock_issue"] = lockIssueConfig
+		}
 		if data.SafeOutputs.CreatePullRequests != nil {
 			prConfig := map[string]any{}
 			// Note: max is always 1 for pull requests, not configurable
