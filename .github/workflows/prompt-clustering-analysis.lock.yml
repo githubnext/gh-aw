@@ -1277,7 +1277,7 @@ jobs:
       - env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         name: Install binary as 'gh-aw'
-        run: make install
+        run: "# Check if gh-aw extension is already installed\nif gh extension list | grep -q \"githubnext/gh-aw\"; then\n  echo \"gh-aw extension already installed, upgrading...\"\n  gh extension upgrade gh-aw || true\nelse\n  echo \"Installing gh-aw extension...\"\n  make install\nfi\ngh aw --version\n"
       - env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         name: Start MCP server
