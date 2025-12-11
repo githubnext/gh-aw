@@ -42,6 +42,7 @@ safe-outputs:
     title-prefix: "[ci-coach] "
 timeout-minutes: 30
 imports:
+  - shared/jqschema.md
   - shared/reporting.md
 ---
 
