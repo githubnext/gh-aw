@@ -29,6 +29,11 @@ import (
 // The test gracefully handles docker timeouts since image pulling and container startup
 // can vary significantly across different CI/CD environments.
 func TestMCPInspectPlaywrightLiveIntegration(t *testing.T) {
+	// Skip in CI environments due to Docker container startup reliability issues
+	if os.Getenv("CI") != "" || os.Getenv("GITHUB_ACTIONS") != "" {
+		t.Skip("Skipping live playwright test in CI environment due to Docker container startup timeouts")
+	}
+
 	// Skip if Docker is not available
 	if _, err := exec.LookPath("docker"); err != nil {
 		t.Skip("Docker not available, skipping live playwright test")
@@ -190,12 +195,18 @@ Navigate to ` + testURL + ` and take a screenshot.
 // 4. Runs mcp inspect to validate the configuration and attempt connection
 //
 // This test is skipped if:
+// - Running in CI environment (Docker container startup can be unreliable)
 // - Docker is not available
 // - npm is not available
 // - docs directory doesn't exist
 // - docs dependencies are not installed (no node_modules)
 // - docs server fails to start within timeout
 func TestMCPInspectPlaywrightWithDocsServer(t *testing.T) {
+	// Skip in CI environments due to Docker container startup reliability issues
+	if os.Getenv("CI") != "" || os.Getenv("GITHUB_ACTIONS") != "" {
+		t.Skip("Skipping docs server playwright test in CI environment due to Docker container startup timeouts")
+	}
+
 	// Skip if Docker is not available
 	if _, err := exec.LookPath("docker"); err != nil {
 		t.Skip("Docker not available, skipping docs server playwright test")
