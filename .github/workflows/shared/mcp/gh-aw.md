@@ -17,8 +17,7 @@ steps:
     run: |
       # Check if gh-aw extension is already installed
       if gh extension list | grep -q "githubnext/gh-aw"; then
-        echo "gh-aw extension already installed, upgrading..."
-        gh extension upgrade gh-aw || true
+        echo "gh-aw extension already installed, skipping installation..."
       else
         # Check if a different extension provides the 'aw' command
         # gh extension list format: NAME  COMMAND  VERSION
