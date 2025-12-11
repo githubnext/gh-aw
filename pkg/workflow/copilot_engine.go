@@ -12,7 +12,7 @@ import (
 var copilotLog = logger.New("workflow:copilot_engine")
 
 const logsFolder = "/tmp/gh-aw/sandbox/agent/logs/"
-const sessionStateFile = "/tmp/gh-aw/sandbox/agent/session-state.txt"
+const sessionStateFile = "/tmp/gh-aw/sandbox/agent/session-state.json"
 const sessionStateSource = "/home/runner/.copilot/session-state"
 
 // CopilotEngine represents the GitHub Copilot CLI agentic engine

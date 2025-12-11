@@ -3169,8 +3169,8 @@ jobs:
           # Copy session-state file to agent output location
           if [ -f /home/runner/.copilot/session-state ]; then
             echo "Copying Copilot session-state file"
-            mkdir -p "$(dirname /tmp/gh-aw/sandbox/agent/session-state.txt)"
-            cp /home/runner/.copilot/session-state /tmp/gh-aw/sandbox/agent/session-state.txt || true
+            mkdir -p "$(dirname /tmp/gh-aw/sandbox/agent/session-state.json)"
+            cp /home/runner/.copilot/session-state /tmp/gh-aw/sandbox/agent/session-state.json || true
           fi
         env:
           COPILOT_AGENT_RUNNER_TYPE: STANDALONE
@@ -4290,7 +4290,7 @@ jobs:
           name: agent_outputs
           path: |
             /tmp/gh-aw/sandbox/agent/logs/
-            /tmp/gh-aw/sandbox/agent/session-state.txt
+            /tmp/gh-aw/sandbox/agent/session-state.json
             /tmp/gh-aw/redacted-urls.log
           if-no-files-found: ignore
       - name: Upload MCP logs
@@ -7443,8 +7443,8 @@ jobs:
           # Copy session-state file to agent output location
           if [ -f /home/runner/.copilot/session-state ]; then
             echo "Copying Copilot session-state file"
-            mkdir -p "$(dirname /tmp/gh-aw/sandbox/agent/session-state.txt)"
-            cp /home/runner/.copilot/session-state /tmp/gh-aw/sandbox/agent/session-state.txt || true
+            mkdir -p "$(dirname /tmp/gh-aw/sandbox/agent/session-state.json)"
+            cp /home/runner/.copilot/session-state /tmp/gh-aw/sandbox/agent/session-state.json || true
           fi
         env:
           COPILOT_AGENT_RUNNER_TYPE: STANDALONE
