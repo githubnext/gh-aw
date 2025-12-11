@@ -344,6 +344,10 @@ async function addCommentWithWorkflowLink(endpoint, runUrl, eventName) {
       commentBody += `\n\n<!-- tracker-id: ${trackerId} -->`;
     }
 
+    // Add comment type marker to identify this as a reaction comment
+    // This prevents it from being hidden by hide-older-comments
+    commentBody += `\n\n<!-- comment-type: reaction -->`;
+
     // Handle discussion events specially
     if (eventName === "discussion") {
       // Parse discussion number from special format: "discussion:NUMBER"

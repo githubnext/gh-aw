@@ -836,6 +836,7 @@ jobs:
                 if (trackerId) {
                   commentBody += `\n\n<!-- tracker-id: ${trackerId} -->`;
                 }
+                commentBody += `\n\n<!-- comment-type: reaction -->`;
                 if (eventName === "discussion") {
                   const discussionNumber = parseInt(endpoint.split(":")[1], 10);
                   const { repository } = await github.graphql(

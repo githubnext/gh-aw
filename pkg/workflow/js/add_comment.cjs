@@ -60,9 +60,13 @@ async function findCommentsWithTrackerId(github, owner, repo, issueNumber, workf
       break;
     }
 
-    // Filter comments that contain the workflow-id
+    // Filter comments that contain the workflow-id and are NOT reaction comments
     for (const comment of data) {
       if (comment.body && comment.body.includes(`<!-- workflow-id: ${workflowId} -->`)) {
+        // Skip reaction comments - they should not be hidden
+        if (comment.body.includes(`<!-- comment-type: reaction -->`)) {
+          continue;
+        }
         comments.push({
           id: comment.id,
           node_id: comment.node_id,
@@ -123,6 +127,10 @@ async function findDiscussionCommentsWithTrackerId(github, owner, repo, discussi
     const nodes = result.repository.discussion.comments.nodes;
     for (const comment of nodes) {
       if (comment.body && comment.body.includes(`<!-- workflow-id: ${workflowId} -->`)) {
+        // Skip reaction comments - they should not be hidden
+        if (comment.body.includes(`<!-- comment-type: reaction -->`)) {
+          continue;
+        }
         comments.push({
           id: comment.id,
           body: comment.body,
@@ -527,6 +535,9 @@ async function main() {
     if (workflowId) {
       body += `\n\n<!-- workflow-id: ${workflowId} -->`;
     }
+
+    // Add comment type marker to identify this as an add-comment
+    body += `\n\n<!-- comment-type: add-comment -->`;
 
     body += generateFooterWithMessages(
       workflowName,

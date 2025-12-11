@@ -617,6 +617,7 @@ jobs:
                 if (trackerId) {
                   commentBody += `\n\n<!-- tracker-id: ${trackerId} -->`;
                 }
+                commentBody += `\n\n<!-- comment-type: reaction -->`;
                 if (eventName === "discussion") {
                   const discussionNumber = parseInt(endpoint.split(":")[1], 10);
                   const { repository } = await github.graphql(
@@ -1043,6 +1044,9 @@ jobs:
                 }
                 for (const comment of data) {
                   if (comment.body && comment.body.includes(`<!-- workflow-id: ${workflowId} -->`)) {
+                    if (comment.body.includes(`<!-- comment-type: reaction -->`)) {
+                      continue;
+                    }
                     comments.push({
                       id: comment.id,
                       node_id: comment.node_id,
@@ -1086,6 +1090,9 @@ jobs:
                 const nodes = result.repository.discussion.comments.nodes;
                 for (const comment of nodes) {
                   if (comment.body && comment.body.includes(`<!-- workflow-id: ${workflowId} -->`)) {
+                    if (comment.body.includes(`<!-- comment-type: reaction -->`)) {
+                      continue;
+                    }
                     comments.push({
                       id: comment.id,
                       body: comment.body,
@@ -1389,6 +1396,7 @@ jobs:
                 if (workflowId) {
                   body += `\n\n<!-- workflow-id: ${workflowId} -->`;
                 }
+                body += `\n\n<!-- comment-type: add-comment -->`;
                 body += generateFooterWithMessages(
                   workflowName,
                   runUrl,
