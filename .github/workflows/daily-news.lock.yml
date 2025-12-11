@@ -866,6 +866,8 @@
 # data = pd.read_csv('/tmp/gh-aw/python/data/sample_data.csv')
 # ```
 #
+# {{#runtime-import? .github/shared-instructions.md}}
+#
 # # Daily News
 #
 # Write an upbeat, friendly, motivating summary of recent activity in the repo.
@@ -3652,6 +3654,8 @@ jobs:
           # Then load it back (demonstrating the pattern)
           data = pd.read_csv('/tmp/gh-aw/python/data/sample_data.csv')
           ```
+          
+          {{#runtime-import? .github/shared-instructions.md}}
           
           # Daily News
           

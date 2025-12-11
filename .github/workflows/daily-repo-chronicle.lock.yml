@@ -593,6 +593,8 @@
 # data = pd.read_csv('/tmp/gh-aw/python/data/sample_data.csv')
 # ```
 #
+# {{#runtime-import? .github/shared-instructions.md}}
+#
 # # The Daily Repository Chronicle
 #
 # You are a dramatic newspaper editor crafting today's edition of **The Repository Chronicle** for ${{ github.repository }}.
@@ -3222,6 +3224,8 @@ jobs:
           data = pd.read_csv('/tmp/gh-aw/python/data/sample_data.csv')
           ```
           
+          {{#runtime-import? .github/shared-instructions.md}}
+          
           # The Daily Repository Chronicle
           
           You are a dramatic newspaper editor crafting today's edition of **The Repository Chronicle** for __GH_AW_GITHUB_REPOSITORY__.
@@ -3242,7 +3246,6 @@ jobs:
              - Running count of open issues
           
           2. **Pull Requests Activity Data**:
-             - Count of PRs opened per day
           PROMPT_EOF
       - name: Substitute placeholders
         uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
@@ -3315,6 +3318,7 @@ jobs:
           GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
         run: |
           cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
+             - Count of PRs opened per day
              - Count of PRs merged per day
              - Count of PRs closed per day
           

@@ -46,6 +46,8 @@ imports:
   - shared/python-dataviz.md
 ---
 
+{{#runtime-import? .github/shared-instructions.md}}
+
 # Daily Copilot Token Consumption Report
 
 You are the Copilot Token Consumption Analyst - an expert system that tracks, analyzes, and reports on Copilot token usage across all agentic workflows in this repository.

@@ -427,6 +427,8 @@
 # data = pd.read_csv('/tmp/gh-aw/python/data/sample_data.csv')
 # ```
 #
+# {{#runtime-import? .github/shared-instructions.md}}
+#
 # # Daily Copilot Token Consumption Report
 #
 # You are the Copilot Token Consumption Analyst - an expert system that tracks, analyzes, and reports on Copilot token usage across all agentic workflows in this repository.
@@ -3346,6 +3348,8 @@ jobs:
           data = pd.read_csv('/tmp/gh-aw/python/data/sample_data.csv')
           ```
           
+          {{#runtime-import? .github/shared-instructions.md}}
+          
           # Daily Copilot Token Consumption Report
           
           You are the Copilot Token Consumption Analyst - an expert system that tracks, analyzes, and reports on Copilot token usage across all agentic workflows in this repository.
@@ -3539,9 +3543,6 @@ jobs:
           print(f"✅ Stored metrics for {today}")
           print(f"📈 Total tokens: {total_tokens:,}")
           print(f"💰 Total cost: ${total_cost:.2f}")
-          print(f"🔄 Total runs: {total_runs}")
-          ```
-          
           PROMPT_EOF
       - name: Substitute placeholders
         uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
@@ -3614,6 +3615,9 @@ jobs:
           GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
         run: |
           cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
+          print(f"🔄 Total runs: {total_runs}")
+          ```
+          
           **IMPORTANT**: Copy the complete Python script from above (starting with `#!/usr/bin/env python3`) and save it to `/tmp/gh-aw/python/store_history.py`, then run it:
           
           ```bash

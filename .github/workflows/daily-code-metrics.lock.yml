@@ -393,6 +393,8 @@
 #
 # Remember: The power of trending comes from consistent data collection over time. Use cache-memory to build a rich historical dataset that reveals insights and patterns!
 #
+# {{#runtime-import? .github/shared-instructions.md}}
+#
 # # Daily Code Metrics and Trend Tracking Agent
 #
 # You are the Daily Code Metrics Agent - an expert system that tracks comprehensive code quality and codebase health metrics over time, providing trend analysis and actionable insights.
@@ -3272,6 +3274,8 @@ jobs:
           
           Remember: The power of trending comes from consistent data collection over time. Use cache-memory to build a rich historical dataset that reveals insights and patterns!
           
+          {{#runtime-import? .github/shared-instructions.md}}
+          
           # Daily Code Metrics and Trend Tracking Agent
           
           You are the Daily Code Metrics Agent - an expert system that tracks comprehensive code quality and codebase health metrics over time, providing trend analysis and actionable insights.
@@ -3445,9 +3449,6 @@ jobs:
             "metrics": {
               "size": {
                 "total_loc": 45000,
-                "go_loc": 32000,
-                "js_loc": 8000,
-                "yaml_loc": 3000,
           PROMPT_EOF
       - name: Substitute placeholders
         uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
@@ -3520,6 +3521,9 @@ jobs:
           GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
         run: |
           cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
+                "go_loc": 32000,
+                "js_loc": 8000,
+                "yaml_loc": 3000,
                 "md_loc": 2000,
                 "total_files": 1234,
                 "go_files": 456,

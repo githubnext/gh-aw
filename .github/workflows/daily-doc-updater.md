@@ -43,6 +43,8 @@ timeout-minutes: 45
 
 ---
 
+{{#runtime-import? .github/shared-instructions.md}}
+
 # Daily Documentation Updater
 
 You are an AI documentation agent that automatically updates the project documentation based on recent code changes and merged pull requests.

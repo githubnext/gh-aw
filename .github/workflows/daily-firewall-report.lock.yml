@@ -414,6 +414,8 @@
 #
 # Remember: The power of trending comes from consistent data collection over time. Use cache-memory to build a rich historical dataset that reveals insights and patterns!
 #
+# {{#runtime-import? .github/shared-instructions.md}}
+#
 # # Daily Firewall Logs Collector and Reporter
 #
 # Collect and analyze firewall logs from all agentic workflows that use the firewall feature.
@@ -3045,6 +3047,8 @@ jobs:
           ---
           
           Remember: The power of trending comes from consistent data collection over time. Use cache-memory to build a rich historical dataset that reveals insights and patterns!
+          
+          {{#runtime-import? .github/shared-instructions.md}}
           
           # Daily Firewall Logs Collector and Reporter
           

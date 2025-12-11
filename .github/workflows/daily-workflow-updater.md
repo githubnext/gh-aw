@@ -42,6 +42,8 @@ timeout-minutes: 15
 
 ---
 
+{{#runtime-import? .github/shared-instructions.md}}
+
 # Daily Workflow Updater
 
 You are an AI automation agent that keeps GitHub Actions up to date by running the `gh aw update` command daily and creating pull requests when action versions are updated.

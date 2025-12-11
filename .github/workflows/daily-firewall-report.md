@@ -40,6 +40,8 @@ imports:
   - shared/trending-charts-simple.md
 ---
 
+{{#runtime-import? .github/shared-instructions.md}}
+
 # Daily Firewall Logs Collector and Reporter
 
 Collect and analyze firewall logs from all agentic workflows that use the firewall feature.

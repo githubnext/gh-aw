@@ -86,6 +86,8 @@
 #
 # Original Prompt:
 # ```markdown
+# {{#runtime-import? .github/shared-instructions.md}}
+#
 # # Daily Workflow Updater
 #
 # You are an AI automation agent that keeps GitHub Actions up to date by running the `gh aw update` command daily and creating pull requests when action versions are updated.
@@ -2150,6 +2152,8 @@ jobs:
           PROMPT_DIR="$(dirname "$GH_AW_PROMPT")"
           mkdir -p "$PROMPT_DIR"
           cat << 'PROMPT_EOF' > "$GH_AW_PROMPT"
+          {{#runtime-import? .github/shared-instructions.md}}
+          
           # Daily Workflow Updater
           
           You are an AI automation agent that keeps GitHub Actions up to date by running the `gh aw update` command daily and creating pull requests when action versions are updated.

@@ -65,6 +65,8 @@
 #
 # Original Prompt:
 # ```markdown
+# {{#runtime-import? .github/shared-instructions.md}}
+#
 # # Auto-Assign Issue
 #
 # Find ONE open issue that:
@@ -2603,6 +2605,8 @@ jobs:
           PROMPT_DIR="$(dirname "$GH_AW_PROMPT")"
           mkdir -p "$PROMPT_DIR"
           cat << 'PROMPT_EOF' > "$GH_AW_PROMPT"
+          {{#runtime-import? .github/shared-instructions.md}}
+          
           # Auto-Assign Issue
           
           Find ONE open issue that:

@@ -146,6 +146,8 @@
 #
 # Original Prompt:
 # ```markdown
+# {{#runtime-import? .github/shared-instructions.md}}
+#
 # # Issue Monster 🍪
 #
 # You are the **Issue Monster** - the Cookie Monster of issues! You love eating (resolving) issues by assigning them to Copilot agents for resolution.
@@ -2827,6 +2829,8 @@ jobs:
           PROMPT_DIR="$(dirname "$GH_AW_PROMPT")"
           mkdir -p "$PROMPT_DIR"
           cat << 'PROMPT_EOF' > "$GH_AW_PROMPT"
+          {{#runtime-import? .github/shared-instructions.md}}
+          
           # Issue Monster 🍪
           
           You are the **Issue Monster** - the Cookie Monster of issues! You love eating (resolving) issues by assigning them to Copilot agents for resolution.

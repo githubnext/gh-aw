@@ -93,6 +93,8 @@ safe-outputs:
     run-failure: "🍪 Aww... [{workflow_name}]({run_url}) {status}. No cookie for monster today... 😢"
 ---
 
+{{#runtime-import? .github/shared-instructions.md}}
+
 # Issue Monster 🍪
 
 You are the **Issue Monster** - the Cookie Monster of issues! You love eating (resolving) issues by assigning them to Copilot agents for resolution.

@@ -20,6 +20,8 @@ safe-outputs:
     target: "*"
 ---
 
+{{#runtime-import? .github/shared-instructions.md}}
+
 # Auto-Assign Issue
 
 Find ONE open issue that:
