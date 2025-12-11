@@ -198,7 +198,7 @@ async function hideOlderComments(github, owner, repo, itemNumber, workflowId, is
   let hiddenCount = 0;
   for (const comment of comments) {
     try {
-      const nodeId = isDiscussion ? String(comment.id) : /** @type {{node_id: string}} */ (comment).node_id;
+      const nodeId = isDiscussion ? String(comment.id) : /** @type {{node_id: string}} */ comment.node_id;
       core.info(`Hiding comment: ${nodeId}`);
       await minimizeComment(github, nodeId, normalizedReason);
       hiddenCount++;
