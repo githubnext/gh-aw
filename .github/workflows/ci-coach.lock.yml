@@ -65,11 +65,13 @@
 #     title-prefix: "[ci-coach] "
 # timeout-minutes: 30
 # imports:
+#   - shared/jqschema.md
 #   - shared/reporting.md
 # ```
 #
 # Resolved workflow manifest:
 #   Imports:
+#     - shared/jqschema.md
 #     - shared/reporting.md
 #
 # Job Dependency Graph:
@@ -97,6 +99,92 @@
 #
 # Original Prompt:
 # ```markdown
+# ## jqschema - JSON Schema Discovery
+#
+# A utility script is available at `/tmp/gh-aw/jqschema.sh` to help you discover the structure of complex JSON responses.
+#
+# ### Purpose
+#
+# Generate a compact structural schema (keys + types) from JSON input. This is particularly useful when:
+# - Analyzing tool outputs from GitHub search (search_code, search_issues, search_repositories)
+# - Exploring API responses with large payloads
+# - Understanding the structure of unfamiliar data without verbose output
+# - Planning queries before fetching full data
+#
+# ### Usage
+#
+# ```bash
+# # Analyze a file
+# cat data.json | /tmp/gh-aw/jqschema.sh
+#
+# # Analyze command output
+# echo '{"name": "test", "count": 42, "items": [{"id": 1}]}' | /tmp/gh-aw/jqschema.sh
+#
+# # Analyze GitHub search results
+# gh api search/repositories?q=language:go | /tmp/gh-aw/jqschema.sh
+# ```
+#
+# ### How It Works
+#
+# The script transforms JSON data by:
+# 1. Replacing object values with their type names ("string", "number", "boolean", "null")
+# 2. Reducing arrays to their first element's structure (or empty array if empty)
+# 3. Recursively processing nested structures
+# 4. Outputting compact (minified) JSON
+#
+# ### Example
+#
+# **Input:**
+# ```json
+# {
+#   "total_count": 1000,
+#   "items": [
+#     {"login": "user1", "id": 123, "verified": true},
+#     {"login": "user2", "id": 456, "verified": false}
+#   ]
+# }
+# ```
+#
+# **Output:**
+# ```json
+# {"total_count":"number","items":[{"login":"string","id":"number","verified":"boolean"}]}
+# ```
+#
+# ### Best Practices
+#
+# **Use this script when:**
+# - You need to understand the structure of tool outputs before requesting full data
+# - GitHub search tools return large datasets (use `perPage: 1` and pipe through schema minifier first)
+# - Exploring unfamiliar APIs or data structures
+# - Planning data extraction strategies
+#
+# **Example workflow for GitHub search tools:**
+# ```bash
+# # Step 1: Get schema with minimal data (fetch just 1 result)
+# # This helps understand the structure before requesting large datasets
+# echo '{}' | gh api search/repositories -f q="language:go" -f per_page=1 | /tmp/gh-aw/jqschema.sh
+#
+# # Output shows the schema:
+# # {"incomplete_results":"boolean","items":[{...}],"total_count":"number"}
+#
+# # Step 2: Review schema to understand available fields
+#
+# # Step 3: Request full data with confidence about structure
+# # Now you know what fields are available and can query efficiently
+# ```
+#
+# **Using with GitHub MCP tools:**
+# When using tools like `search_code`, `search_issues`, or `search_repositories`, pipe the output through jqschema to discover available fields:
+# ```bash
+# # Save a minimal search result to a file
+# gh api search/code -f q="jq in:file language:bash" -f per_page=1 > /tmp/sample.json
+#
+# # Generate schema to understand structure
+# cat /tmp/sample.json | /tmp/gh-aw/jqschema.sh
+#
+# # Now you know which fields exist and can use them in your analysis
+# ```
+#
 # ## Report Formatting
 #
 # Structure your report with an overview followed by detailed content:
@@ -786,6 +874,8 @@ jobs:
           mkdir -p /tmp/gh-aw/agent
           mkdir -p /tmp/gh-aw/sandbox/agent/logs
           echo "Created /tmp/gh-aw/agent directory for agentic workflow temporary files"
+      - name: Set up jq utilities directory
+        run: "mkdir -p /tmp/gh-aw\ncat > /tmp/gh-aw/jqschema.sh << 'EOF'\n#!/usr/bin/env bash\n# jqschema.sh\njq -c '\ndef walk(f):\n  . as $in |\n  if type == \"object\" then\n    reduce keys[] as $k ({}; . + {($k): ($in[$k] | walk(f))})\n  elif type == \"array\" then\n    if length == 0 then [] else [.[0] | walk(f)] end\n  else\n    type\n  end;\nwalk(.)\n'\nEOF\nchmod +x /tmp/gh-aw/jqschema.sh"
       - env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         name: Download CI workflow runs from last 7 days
@@ -2544,6 +2634,92 @@ jobs:
           PROMPT_DIR="$(dirname "$GH_AW_PROMPT")"
           mkdir -p "$PROMPT_DIR"
           cat << 'PROMPT_EOF' > "$GH_AW_PROMPT"
+          ## jqschema - JSON Schema Discovery
+          
+          A utility script is available at `/tmp/gh-aw/jqschema.sh` to help you discover the structure of complex JSON responses.
+          
+          ### Purpose
+          
+          Generate a compact structural schema (keys + types) from JSON input. This is particularly useful when:
+          - Analyzing tool outputs from GitHub search (search_code, search_issues, search_repositories)
+          - Exploring API responses with large payloads
+          - Understanding the structure of unfamiliar data without verbose output
+          - Planning queries before fetching full data
+          
+          ### Usage
+          
+          ```bash
+          # Analyze a file
+          cat data.json | /tmp/gh-aw/jqschema.sh
+          
+          # Analyze command output
+          echo '{"name": "test", "count": 42, "items": [{"id": 1}]}' | /tmp/gh-aw/jqschema.sh
+          
+          # Analyze GitHub search results
+          gh api search/repositories?q=language:go | /tmp/gh-aw/jqschema.sh
+          ```
+          
+          ### How It Works
+          
+          The script transforms JSON data by:
+          1. Replacing object values with their type names ("string", "number", "boolean", "null")
+          2. Reducing arrays to their first element's structure (or empty array if empty)
+          3. Recursively processing nested structures
+          4. Outputting compact (minified) JSON
+          
+          ### Example
+          
+          **Input:**
+          ```json
+          {
+            "total_count": 1000,
+            "items": [
+              {"login": "user1", "id": 123, "verified": true},
+              {"login": "user2", "id": 456, "verified": false}
+            ]
+          }
+          ```
+          
+          **Output:**
+          ```json
+          {"total_count":"number","items":[{"login":"string","id":"number","verified":"boolean"}]}
+          ```
+          
+          ### Best Practices
+          
+          **Use this script when:**
+          - You need to understand the structure of tool outputs before requesting full data
+          - GitHub search tools return large datasets (use `perPage: 1` and pipe through schema minifier first)
+          - Exploring unfamiliar APIs or data structures
+          - Planning data extraction strategies
+          
+          **Example workflow for GitHub search tools:**
+          ```bash
+          # Step 1: Get schema with minimal data (fetch just 1 result)
+          # This helps understand the structure before requesting large datasets
+          echo '{}' | gh api search/repositories -f q="language:go" -f per_page=1 | /tmp/gh-aw/jqschema.sh
+          
+          # Output shows the schema:
+          # {"incomplete_results":"boolean","items":[{...}],"total_count":"number"}
+          
+          # Step 2: Review schema to understand available fields
+          
+          # Step 3: Request full data with confidence about structure
+          # Now you know what fields are available and can query efficiently
+          ```
+          
+          **Using with GitHub MCP tools:**
+          When using tools like `search_code`, `search_issues`, or `search_repositories`, pipe the output through jqschema to discover available fields:
+          ```bash
+          # Save a minimal search result to a file
+          gh api search/code -f q="jq in:file language:bash" -f per_page=1 > /tmp/sample.json
+          
+          # Generate schema to understand structure
+          cat /tmp/sample.json | /tmp/gh-aw/jqschema.sh
+          
+          # Now you know which fields exist and can use them in your analysis
+          ```
+          
           ## Report Formatting
           
           Structure your report with an overview followed by detailed content:
@@ -2918,6 +3094,87 @@ jobs:
              EOF
              ```
           
+          PROMPT_EOF
+      - name: Substitute placeholders
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        env:
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+          GH_AW_GITHUB_EVENT_AFTER: ${{ github.event.after }}
+          GH_AW_GITHUB_EVENT_BEFORE: ${{ github.event.before }}
+          GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
+          GH_AW_GITHUB_RUN_NUMBER: ${{ github.run_number }}
+        with:
+          script: |
+            /**
+             * @fileoverview Safe template placeholder substitution for GitHub Actions workflows.
+             * Replaces __VAR__ placeholders in a file with environment variable values without
+             * allowing shell expansion, preventing template injection attacks.
+             *
+             * @param {object} params - The parameters object
+             * @param {string} params.file - Path to the file to process
+             * @param {object} params.substitutions - Map of placeholder names to values (without __ prefix/suffix)
+             */
+            
+            const fs = require("fs");
+            
+            const substitutePlaceholders = async ({ file, substitutions }) => {
+              // Validate inputs
+              if (!file) {
+                throw new Error("file parameter is required");
+              }
+              if (!substitutions || typeof substitutions !== "object") {
+                throw new Error("substitutions parameter must be an object");
+              }
+            
+              // Read the file content
+              let content;
+              try {
+                content = fs.readFileSync(file, "utf8");
+              } catch (error) {
+                throw new Error(`Failed to read file ${file}: ${error.message}`);
+              }
+            
+              // Perform substitutions
+              // Each placeholder is in the format __VARIABLE_NAME__
+              // We replace it with the corresponding value from the substitutions object
+              for (const [key, value] of Object.entries(substitutions)) {
+                const placeholder = `__${key}__`;
+                // Use a simple string replacement - no regex to avoid any potential issues
+                // with special characters in the value
+                content = content.split(placeholder).join(value);
+              }
+            
+              // Write the updated content back to the file
+              try {
+                fs.writeFileSync(file, content, "utf8");
+              } catch (error) {
+                throw new Error(`Failed to write file ${file}: ${error.message}`);
+              }
+            
+              return `Successfully substituted ${Object.keys(substitutions).length} placeholder(s) in ${file}`;
+            };
+            
+            
+            
+            // Call the substitution function
+            return await substitutePlaceholders({
+              file: process.env.GH_AW_PROMPT,
+              substitutions: {
+                GH_AW_GITHUB_EVENT_AFTER: process.env.GH_AW_GITHUB_EVENT_AFTER,
+                GH_AW_GITHUB_EVENT_BEFORE: process.env.GH_AW_GITHUB_EVENT_BEFORE,
+                GH_AW_GITHUB_REPOSITORY: process.env.GH_AW_GITHUB_REPOSITORY,
+                GH_AW_GITHUB_RUN_NUMBER: process.env.GH_AW_GITHUB_RUN_NUMBER
+              }
+            });
+      - name: Append prompt (part 2)
+        env:
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+          GH_AW_GITHUB_EVENT_AFTER: ${{ github.event.after }}
+          GH_AW_GITHUB_EVENT_BEFORE: ${{ github.event.before }}
+          GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
+          GH_AW_GITHUB_RUN_NUMBER: ${{ github.run_number }}
+        run: |
+          cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
           4. **Use create pull request** safe output with:
              - Clear title indicating optimization focus
              - Comprehensive description with impact analysis
@@ -3004,87 +3261,6 @@ jobs:
           - Critical path: lint (2 min) → integration (4 min) = 6 min total
           - Previous path: lint (2 min) → test (2.5 min) → integration (8 min) = 12.5 min
           
-          PROMPT_EOF
-      - name: Substitute placeholders
-        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
-        env:
-          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-          GH_AW_GITHUB_EVENT_AFTER: ${{ github.event.after }}
-          GH_AW_GITHUB_EVENT_BEFORE: ${{ github.event.before }}
-          GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
-          GH_AW_GITHUB_RUN_NUMBER: ${{ github.run_number }}
-        with:
-          script: |
-            /**
-             * @fileoverview Safe template placeholder substitution for GitHub Actions workflows.
-             * Replaces __VAR__ placeholders in a file with environment variable values without
-             * allowing shell expansion, preventing template injection attacks.
-             *
-             * @param {object} params - The parameters object
-             * @param {string} params.file - Path to the file to process
-             * @param {object} params.substitutions - Map of placeholder names to values (without __ prefix/suffix)
-             */
-            
-            const fs = require("fs");
-            
-            const substitutePlaceholders = async ({ file, substitutions }) => {
-              // Validate inputs
-              if (!file) {
-                throw new Error("file parameter is required");
-              }
-              if (!substitutions || typeof substitutions !== "object") {
-                throw new Error("substitutions parameter must be an object");
-              }
-            
-              // Read the file content
-              let content;
-              try {
-                content = fs.readFileSync(file, "utf8");
-              } catch (error) {
-                throw new Error(`Failed to read file ${file}: ${error.message}`);
-              }
-            
-              // Perform substitutions
-              // Each placeholder is in the format __VARIABLE_NAME__
-              // We replace it with the corresponding value from the substitutions object
-              for (const [key, value] of Object.entries(substitutions)) {
-                const placeholder = `__${key}__`;
-                // Use a simple string replacement - no regex to avoid any potential issues
-                // with special characters in the value
-                content = content.split(placeholder).join(value);
-              }
-            
-              // Write the updated content back to the file
-              try {
-                fs.writeFileSync(file, content, "utf8");
-              } catch (error) {
-                throw new Error(`Failed to write file ${file}: ${error.message}`);
-              }
-            
-              return `Successfully substituted ${Object.keys(substitutions).length} placeholder(s) in ${file}`;
-            };
-            
-            
-            
-            // Call the substitution function
-            return await substitutePlaceholders({
-              file: process.env.GH_AW_PROMPT,
-              substitutions: {
-                GH_AW_GITHUB_EVENT_AFTER: process.env.GH_AW_GITHUB_EVENT_AFTER,
-                GH_AW_GITHUB_EVENT_BEFORE: process.env.GH_AW_GITHUB_EVENT_BEFORE,
-                GH_AW_GITHUB_REPOSITORY: process.env.GH_AW_GITHUB_REPOSITORY,
-                GH_AW_GITHUB_RUN_NUMBER: process.env.GH_AW_GITHUB_RUN_NUMBER
-              }
-            });
-      - name: Append prompt (part 2)
-        env:
-          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-          GH_AW_GITHUB_EVENT_AFTER: ${{ github.event.after }}
-          GH_AW_GITHUB_EVENT_BEFORE: ${{ github.event.before }}
-          GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
-          GH_AW_GITHUB_RUN_NUMBER: ${{ github.run_number }}
-        run: |
-          cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
           **Rationale**: Current integration tests wait unnecessarily for unit tests to complete. Integration tests don't use unit test outputs, so they can run in parallel. Splitting unit tests by package and rebalancing integration matrix reduces the critical path by 52%.
           
           #### 2. [Next optimization...]
