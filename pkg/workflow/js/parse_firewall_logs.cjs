@@ -161,44 +161,43 @@ function isRequestAllowed(decision, status) {
 
 /**
  * Generates markdown summary from firewall log analysis
- * Focuses on blocked requests only for debugging purposes
+ * Uses details/summary structure with basic stats in summary and domain table in details
  * @param {object} analysis - Analysis results
  * @returns {string} Markdown formatted summary
  */
 function generateFirewallSummary(analysis) {
-  const { totalRequests, deniedRequests, deniedDomains, requestsByDomain } = analysis;
-
-  let summary = "### 🔥 Firewall Blocked Requests\n\n";
+  const { totalRequests, allowedRequests, deniedRequests, requestsByDomain } = analysis;
 
   // Filter out invalid domains (placeholder "-" values)
-  const validDeniedDomains = deniedDomains.filter(domain => domain !== "-");
+  const validDomains = Array.from(requestsByDomain.keys()).filter(domain => domain !== "-").sort();
+  const uniqueDomainCount = validDomains.length;
 
-  // Calculate denied requests from valid domains only
-  const validDeniedRequests = validDeniedDomains.reduce((sum, domain) => sum + (requestsByDomain.get(domain)?.denied || 0), 0);
+  // Calculate valid denied requests (excluding placeholder domains)
+  const validDeniedRequests = validDomains.reduce((sum, domain) => sum + (requestsByDomain.get(domain)?.denied || 0), 0);
+  const validAllowedRequests = validDomains.reduce((sum, domain) => sum + (requestsByDomain.get(domain)?.allowed || 0), 0);
 
-  // Show blocked requests if any exist
-  if (validDeniedRequests > 0) {
-    summary += `**${validDeniedRequests}** request${validDeniedRequests !== 1 ? "s" : ""} blocked across **${validDeniedDomains.length}** unique domain${validDeniedDomains.length !== 1 ? "s" : ""}`;
-    summary += ` (${totalRequests > 0 ? Math.round((validDeniedRequests / totalRequests) * 100) : 0}% of total traffic)\n\n`;
+  let summary = "### 🔥 Firewall Activity\n\n";
 
-    summary += "<details>\n";
-    summary += "<summary>🚫 Blocked Domains (click to expand)</summary>\n\n";
-    summary += "| Domain | Blocked Requests |\n";
-    summary += "|--------|------------------|\n";
+  // Wrap entire summary in details/summary tags
+  summary += "<details>\n";
+  summary += `<summary>📊 ${totalRequests} request${totalRequests !== 1 ? "s" : ""} | `;
+  summary += `${validAllowedRequests} allowed | `;
+  summary += `${validDeniedRequests} blocked | `;
+  summary += `${uniqueDomainCount} unique domain${uniqueDomainCount !== 1 ? "s" : ""}</summary>\n\n`;
 
-    for (const domain of validDeniedDomains) {
+  if (uniqueDomainCount > 0) {
+    summary += "| Domain | Allowed | Denied |\n";
+    summary += "|--------|---------|--------|\n";
+
+    for (const domain of validDomains) {
       const stats = requestsByDomain.get(domain);
-      summary += `| ${domain} | ${stats.denied} |\n`;
+      summary += `| ${domain} | ${stats.allowed} | ${stats.denied} |\n`;
     }
-    summary += "\n</details>\n\n";
   } else {
-    summary += "✅ **No blocked requests detected**\n\n";
-    if (totalRequests > 0) {
-      summary += `All ${totalRequests} request${totalRequests !== 1 ? "s" : ""} were allowed through the firewall.\n\n`;
-    } else {
-      summary += "No firewall activity detected.\n\n";
-    }
+    summary += "No firewall activity detected.\n";
   }
+
+  summary += "\n</details>\n\n";
 
   return summary;
 }
