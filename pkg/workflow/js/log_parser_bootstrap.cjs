@@ -1,7 +1,7 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-const { generatePlainTextSummary } = require("./log_parser_shared.cjs");
+const { generatePlainTextSummary, generateCopilotCliStyleSummary } = require("./log_parser_shared.cjs");
 
 /**
  * Bootstrap helper for log parser entry points.
@@ -88,7 +88,7 @@ function runLogParser(options) {
     }
 
     if (markdown) {
-      // Generate lightweight plain text summary for core.info instead of full markdown
+      // Generate lightweight plain text summary for core.info and Copilot CLI style for step summary
       if (logEntries && Array.isArray(logEntries) && logEntries.length > 0) {
         // Extract model from init entry if available
         const initEntry = logEntries.find(entry => entry.type === "system" && entry.subtype === "init");
@@ -99,13 +99,19 @@ function runLogParser(options) {
           parserName,
         });
         core.info(plainTextSummary);
+
+        // Generate Copilot CLI style markdown for step summary
+        const copilotCliStyleMarkdown = generateCopilotCliStyleSummary(logEntries, {
+          model,
+          parserName,
+        });
+        core.summary.addRaw(copilotCliStyleMarkdown).write();
       } else {
         // Fallback: just log success message for parsers without log entries
         core.info(`${parserName} log parsed successfully`);
+        // Write original markdown to step summary if available
+        core.summary.addRaw(markdown).write();
       }
-
-      // Write full markdown to step summary
-      core.summary.addRaw(markdown).write();
     } else {
       core.error(`Failed to parse ${parserName} log`);
     }

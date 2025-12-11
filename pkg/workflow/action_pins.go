@@ -140,32 +140,45 @@ func GetActionPinWithData(actionRepo, version string, data *WorkflowData) (strin
 // ApplyActionPinToStep applies SHA pinning to a step map if it contains a "uses" field
 // with a pinned action. Returns a modified copy of the step map with pinned references.
 // If the step doesn't use an action or the action is not pinned, returns the original map.
+//
+// Deprecated: Use ApplyActionPinToTypedStep for type-safe step manipulation
 func ApplyActionPinToStep(stepMap map[string]any, data *WorkflowData) map[string]any {
-	// Check if step has a "uses" field
-	uses, hasUses := stepMap["uses"]
-	if !hasUses {
+	// Convert to typed step, apply pin, convert back
+	step, err := MapToStep(stepMap)
+	if err != nil {
+		// If conversion fails, return original map
 		return stepMap
 	}
 
-	// Extract uses value as string
-	usesStr, ok := uses.(string)
-	if ok {
-		actionPinsLog.Printf("Applying action pin to step: uses=%s", usesStr)
-	}
-	if !ok {
+	pinnedStep := ApplyActionPinToTypedStep(step, data)
+	if pinnedStep == nil {
 		return stepMap
 	}
+
+	return pinnedStep.ToMap()
+}
+
+// ApplyActionPinToTypedStep applies SHA pinning to a WorkflowStep if it uses an action.
+// Returns a modified copy of the step with pinned references.
+// If the step doesn't use an action or the action is not pinned, returns the original step.
+func ApplyActionPinToTypedStep(step *WorkflowStep, data *WorkflowData) *WorkflowStep {
+	// Check if step uses an action
+	if step == nil || !step.IsUsesStep() {
+		return step
+	}
+
+	actionPinsLog.Printf("Applying action pin to step: uses=%s", step.Uses)
 
 	// Extract action repo and version from uses field
-	actionRepo := extractActionRepo(usesStr)
+	actionRepo := extractActionRepo(step.Uses)
 	if actionRepo == "" {
-		return stepMap
+		return step
 	}
 
-	version := extractActionVersion(usesStr)
+	version := extractActionVersion(step.Uses)
 	if version == "" {
 		// No version specified, can't pin
-		return stepMap
+		return step
 	}
 
 	// Try to get pinned SHA
@@ -173,25 +186,19 @@ func ApplyActionPinToStep(stepMap map[string]any, data *WorkflowData) map[string
 	if err != nil {
 		// In strict mode, this would have already been handled by GetActionPinWithData
 		// In normal mode, we just return the original step
-		return stepMap
+		return step
 	}
 
 	if pinnedRef == "" {
 		// No pin available for this action, return original step
-		return stepMap
+		return step
 	}
 
 	actionPinsLog.Printf("Pinning action: %s@%s -> %s", actionRepo, version, pinnedRef)
 
-	// Create a copy of the step map with the pinned reference
-	result := make(map[string]any)
-	for k, v := range stepMap {
-		if k == "uses" {
-			result[k] = pinnedRef
-		} else {
-			result[k] = v
-		}
-	}
+	// Create a copy of the step with the pinned reference
+	result := step.Clone()
+	result.Uses = pinnedRef
 
 	return result
 }

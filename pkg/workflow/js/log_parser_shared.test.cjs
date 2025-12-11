@@ -1671,4 +1671,183 @@ describe("log_parser_shared.cjs", () => {
       expect(result).toContain("Agent: Line 3");
     });
   });
+
+  describe("generateCopilotCliStyleSummary", () => {
+    it("should generate markdown-formatted Copilot CLI style summary", async () => {
+      const { generateCopilotCliStyleSummary } = await import("./log_parser_shared.cjs");
+
+      const logEntries = [
+        { type: "system", subtype: "init", model: "gpt-5" },
+        {
+          type: "assistant",
+          message: {
+            content: [{ type: "text", text: "I'll help you explore the repository structure first." }],
+          },
+        },
+        {
+          type: "assistant",
+          message: {
+            content: [{ type: "tool_use", id: "1", name: "Bash", input: { command: "ls -la" } }],
+          },
+        },
+        {
+          type: "user",
+          message: {
+            content: [{ type: "tool_result", tool_use_id: "1", is_error: false, content: "file1.txt\nfile2.txt\nfile3.txt" }],
+          },
+        },
+        { type: "result", num_turns: 3, duration_ms: 45000, usage: { input_tokens: 1500, output_tokens: 800 }, total_cost_usd: 0.0023 },
+      ];
+
+      const result = generateCopilotCliStyleSummary(logEntries, { parserName: "Agent" });
+
+      // Check that output is wrapped in code block
+      expect(result).toMatch(/^```\n/);
+      expect(result).toMatch(/\n```$/);
+
+      // Check for Conversation section
+      expect(result).toContain("Conversation:");
+
+      // Check for Agent message
+      expect(result).toContain("Agent: I'll help you explore the repository structure first.");
+
+      // Check for tool execution with success icon
+      expect(result).toContain("✓ $ ls -la");
+      expect(result).toContain("   └ 3 lines...");
+
+      // Check for Statistics section
+      expect(result).toContain("Statistics:");
+      expect(result).toContain("  Turns: 3");
+      expect(result).toContain("  Duration: 45s");
+      expect(result).toContain("  Tools: 1/1 succeeded");
+      expect(result).toContain("  Tokens: 2,300 total (1,500 in / 800 out)");
+      expect(result).toContain("  Cost: $0.0023");
+    });
+
+    it("should show error icon for failed tools", async () => {
+      const { generateCopilotCliStyleSummary } = await import("./log_parser_shared.cjs");
+
+      const logEntries = [
+        {
+          type: "assistant",
+          message: {
+            content: [{ type: "tool_use", id: "1", name: "mcp__github__search_issues", input: {} }],
+          },
+        },
+        {
+          type: "user",
+          message: {
+            content: [{ type: "tool_result", tool_use_id: "1", is_error: true, content: "Error: API rate limit exceeded" }],
+          },
+        },
+        { type: "result", num_turns: 1 },
+      ];
+
+      const result = generateCopilotCliStyleSummary(logEntries, { parserName: "Agent" });
+
+      expect(result).toContain("✗ github-search_issues");
+      expect(result).toContain("   └ Error: API rate limit exceeded");
+      expect(result).toContain("  Tools: 0/1 succeeded");
+    });
+
+    it("should truncate long agent messages", async () => {
+      const { generateCopilotCliStyleSummary } = await import("./log_parser_shared.cjs");
+
+      const longText = "a".repeat(600);
+      const logEntries = [
+        {
+          type: "assistant",
+          message: {
+            content: [{ type: "text", text: longText }],
+          },
+        },
+        { type: "result", num_turns: 1 },
+      ];
+
+      const result = generateCopilotCliStyleSummary(logEntries, { parserName: "Agent" });
+
+      expect(result).toContain("Agent: " + "a".repeat(500) + "...");
+    });
+
+    it("should skip internal file operation tools", async () => {
+      const { generateCopilotCliStyleSummary } = await import("./log_parser_shared.cjs");
+
+      const logEntries = [
+        {
+          type: "assistant",
+          message: {
+            content: [
+              { type: "tool_use", id: "1", name: "Read", input: { path: "/test.txt" } },
+              { type: "tool_use", id: "2", name: "Bash", input: { command: "echo test" } },
+              { type: "tool_use", id: "3", name: "Write", input: { path: "/output.txt" } },
+            ],
+          },
+        },
+        {
+          type: "user",
+          message: {
+            content: [
+              { type: "tool_result", tool_use_id: "1", is_error: false },
+              { type: "tool_result", tool_use_id: "2", is_error: false },
+              { type: "tool_result", tool_use_id: "3", is_error: false },
+            ],
+          },
+        },
+        { type: "result", num_turns: 1 },
+      ];
+
+      const result = generateCopilotCliStyleSummary(logEntries, { parserName: "Agent" });
+
+      // Should only show Bash command, not Read/Write
+      expect(result).toContain("✓ $ echo test");
+      expect(result).not.toContain("Read");
+      expect(result).not.toContain("Write");
+
+      // Tool count should only include external tools (Bash)
+      expect(result).toContain("  Tools: 1/1 succeeded");
+    });
+
+    it("should handle multiline agent responses", async () => {
+      const { generateCopilotCliStyleSummary } = await import("./log_parser_shared.cjs");
+
+      const logEntries = [
+        {
+          type: "assistant",
+          message: {
+            content: [{ type: "text", text: "Line 1\nLine 2\nLine 3" }],
+          },
+        },
+        { type: "result", num_turns: 1 },
+      ];
+
+      const result = generateCopilotCliStyleSummary(logEntries, { parserName: "Agent" });
+
+      expect(result).toContain("Agent: Line 1");
+      expect(result).toContain("Agent: Line 2");
+      expect(result).toContain("Agent: Line 3");
+    });
+
+    it("should truncate conversation when it exceeds max lines", async () => {
+      const { generateCopilotCliStyleSummary } = await import("./log_parser_shared.cjs");
+
+      // Create 60 tool uses (which will exceed MAX_CONVERSATION_LINES of 50)
+      const toolUses = [];
+      const toolResults = [];
+      for (let i = 0; i < 60; i++) {
+        toolUses.push({ type: "tool_use", id: `${i}`, name: "Bash", input: { command: `cmd${i}` } });
+        toolResults.push({ type: "tool_result", tool_use_id: `${i}`, is_error: false });
+      }
+
+      const logEntries = [
+        { type: "system", subtype: "init" },
+        { type: "assistant", message: { content: toolUses } },
+        { type: "user", message: { content: toolResults } },
+        { type: "result", num_turns: 1 },
+      ];
+
+      const result = generateCopilotCliStyleSummary(logEntries, { parserName: "Agent" });
+
+      expect(result).toContain("... (conversation truncated)");
+    });
+  });
 });
