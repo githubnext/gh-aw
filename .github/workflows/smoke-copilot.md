@@ -14,6 +14,7 @@ permissions:
   issues: read
 name: Smoke Copilot
 engine: copilot
+tracker-id: smoke-copilot
 network:
   allowed:
     - defaults
@@ -29,6 +30,7 @@ tools:
   github:
 safe-outputs:
     add-comment:
+      hide-older-comments: true
     create-issue:
     add-labels:
       allowed: [smoke-copilot]

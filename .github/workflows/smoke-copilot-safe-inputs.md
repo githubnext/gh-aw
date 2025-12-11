@@ -14,6 +14,7 @@ permissions:
   issues: read
 name: Smoke Copilot Safe Inputs
 engine: copilot
+tracker-id: smoke-copilot-safe-inputs
 network:
   allowed:
     - defaults
@@ -31,6 +32,7 @@ tools:
   serena: ["go"]
 safe-outputs:
     add-comment:
+      hide-older-comments: true
     create-issue:
     add-labels:
       allowed: [smoke-copilot]

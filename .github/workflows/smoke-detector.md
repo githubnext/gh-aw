@@ -34,9 +34,11 @@ permissions:
   issues: read
   pull-requests: read
   actions: read
+tracker-id: smoke-detector
 safe-outputs:
   add-comment:
     target: "*"
+    hide-older-comments: true
   create-issue:
     title-prefix: "[smoke-detector] "
     labels: [smoke-test, investigation]

@@ -14,6 +14,7 @@ permissions:
   pull-requests: read
 name: Smoke Codex
 engine: codex
+tracker-id: smoke-codex
 strict: false
 network:
   allowed:
@@ -32,6 +33,7 @@ tools:
   serena: ["go"]
 safe-outputs:
     add-comment:
+      hide-older-comments: true
     create-issue:
     add-labels:
       allowed: [smoke-codex]

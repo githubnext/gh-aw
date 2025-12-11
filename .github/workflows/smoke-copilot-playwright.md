@@ -17,6 +17,7 @@ engine:
   id: copilot
   env:
     DEBUG: "copilot:*"  # Enable copilot CLI debug logs
+tracker-id: smoke-copilot-playwright
 imports:
   - shared/gh.md
 network:
@@ -45,6 +46,7 @@ tools:
   serena: ["go"]
 safe-outputs:
     add-comment:
+      hide-older-comments: true
     create-issue:
     add-labels:
       allowed: [smoke-copilot]

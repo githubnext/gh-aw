@@ -892,7 +892,16 @@ jobs:
                 try {
                   if (hideOlderCommentsEnabled && trackerId) {
                     core.info("Hide-older-comments is enabled, searching for previous comments to hide");
-                    await hideOlderComments(github, context.repo.owner, context.repo.repo, itemNumber, trackerId, commentEndpoint === "discussions", "OUTDATED", allowedReasons);
+                    await hideOlderComments(
+                      github,
+                      context.repo.owner,
+                      context.repo.repo,
+                      itemNumber,
+                      trackerId,
+                      commentEndpoint === "discussions",
+                      "OUTDATED",
+                      allowedReasons
+                    );
                   }
                   let comment;
                   if (commentEndpoint === "discussions") {

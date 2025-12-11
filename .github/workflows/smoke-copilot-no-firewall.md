@@ -14,6 +14,7 @@ permissions:
   issues: read
 name: Smoke Copilot No Firewall
 engine: copilot
+tracker-id: smoke-copilot-no-firewall
 network:
   allowed:
     - defaults
@@ -35,6 +36,7 @@ tools:
   serena: ["go"]
 safe-outputs:
     add-comment:
+      hide-older-comments: true
     create-issue:
     add-labels:
       allowed: [smoke-copilot-no-firewall]

@@ -17,6 +17,7 @@ name: Smoke Claude
 engine:
   id: claude
   max-turns: 15
+tracker-id: smoke-claude
 strict: false
 imports:
   - shared/mcp-pagination.md
@@ -38,6 +39,7 @@ tools:
   serena: ["go"]
 safe-outputs:
     add-comment:
+      hide-older-comments: true
     create-issue:
     add-labels:
       allowed: [smoke-claude]

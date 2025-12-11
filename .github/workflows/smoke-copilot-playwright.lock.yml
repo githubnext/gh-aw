@@ -40,6 +40,7 @@
 #   id: copilot
 #   env:
 #     DEBUG: "copilot:*"  # Enable copilot CLI debug logs
+# tracker-id: smoke-copilot-playwright
 # imports:
 #   - shared/gh.md
 # network:
@@ -68,6 +69,7 @@
 #   serena: ["go"]
 # safe-outputs:
 #     add-comment:
+#       hide-older-comments: true
 #     create-issue:
 #     add-labels:
 #       allowed: [smoke-copilot]
@@ -793,10 +795,12 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
+          GH_AW_HIDE_OLDER_COMMENTS: "true"
           GH_AW_CREATED_ISSUE_URL: ${{ needs.create_issue.outputs.issue_url }}
           GH_AW_CREATED_ISSUE_NUMBER: ${{ needs.create_issue.outputs.issue_number }}
           GH_AW_TEMPORARY_ID_MAP: ${{ needs.create_issue.outputs.temporary_id_map }}
           GH_AW_WORKFLOW_NAME: "Smoke Copilot Playwright"
+          GH_AW_TRACKER_ID: "smoke-copilot-playwright"
           GH_AW_ENGINE_ID: "copilot"
           GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 📰 *BREAKING: Report filed by [{workflow_name}]({run_url})*\",\"runStarted\":\"📰 BREAKING: [{workflow_name}]({run_url}) is now investigating this {event_type}. Sources say the story is developing...\",\"runSuccess\":\"📰 VERDICT: [{workflow_name}]({run_url}) has concluded. All systems operational. This is a developing story. 🎤\",\"runFailure\":\"📰 DEVELOPING STORY: [{workflow_name}]({run_url}) reports {status}. Our correspondents are investigating the incident...\"}"
         with:
@@ -1056,7 +1060,7 @@ jobs:
               const obj = Object.fromEntries(tempIdMap);
               return JSON.stringify(obj);
             }
-            async function minimizeComment(github, nodeId) {
+            async function minimizeComment(github, nodeId, reason = "OUTDATED") {
               const query =  `
                 mutation ($nodeId: ID!, $classifier: ReportedContentClassifiers!) {
                   minimizeComment(input: { subjectId: $nodeId, classifier: $classifier }) {
@@ -1066,7 +1070,7 @@ jobs:
                   }
                 }
               `;
-              const result = await github.graphql(query, { nodeId, classifier: "OUTDATED" });
+              const result = await github.graphql(query, { nodeId, classifier: reason });
               return {
                 id: nodeId,
                 isMinimized: result.minimizeComment.minimizedComment.isMinimized,
@@ -1145,10 +1149,16 @@ jobs:
               }
               return comments;
             }
-            async function hideOlderComments(github, owner, repo, itemNumber, trackerId, isDiscussion) {
+            async function hideOlderComments(github, owner, repo, itemNumber, trackerId, isDiscussion, reason = "OUTDATED", allowedReasons = null) {
               if (!trackerId) {
                 core.info("No tracker-id available, skipping hide-older-comments");
                 return 0;
+              }
+              if (allowedReasons && allowedReasons.length > 0) {
+                if (!allowedReasons.includes(reason)) {
+                  core.warning(`Reason "${reason}" is not in allowed-reasons list [${allowedReasons.join(", ")}]. Skipping hide-older-comments.`);
+                  return 0;
+                }
               }
               core.info(`Searching for previous comments with tracker-id: ${trackerId}`);
               let comments;
@@ -1161,13 +1171,13 @@ jobs:
                 core.info("No previous comments found with matching tracker-id");
                 return 0;
               }
-              core.info(`Found ${comments.length} previous comment(s) to hide`);
+              core.info(`Found ${comments.length} previous comment(s) to hide with reason: ${reason}`);
               let hiddenCount = 0;
               for (const comment of comments) {
                 try {
                   const nodeId = isDiscussion ? comment.id : comment.node_id;
                   core.info(`Hiding comment: ${nodeId}`);
-                  await minimizeComment(github, nodeId);
+                  await minimizeComment(github, nodeId, reason);
                   hiddenCount++;
                   core.info(`✓ Hidden comment: ${nodeId}`);
                 } catch (error) {
@@ -1265,6 +1275,15 @@ jobs:
               const isDiscussionContext = context.eventName === "discussion" || context.eventName === "discussion_comment";
               const isDiscussion = isDiscussionContext || isDiscussionExplicit;
               const trackerId = getTrackerID();
+              let allowedReasons = null;
+              if (process.env.GH_AW_ALLOWED_REASONS) {
+                try {
+                  allowedReasons = JSON.parse(process.env.GH_AW_ALLOWED_REASONS);
+                  core.info(`Allowed reasons for hiding: [${allowedReasons.join(", ")}]`);
+                } catch (error) {
+                  core.warning(`Failed to parse GH_AW_ALLOWED_REASONS: ${error instanceof Error ? error.message : String(error)}`);
+                }
+              }
               if (hideOlderCommentsEnabled) {
                 core.info(`Hide-older-comments is enabled with tracker-id: ${trackerId || "(none)"}`);
               }
@@ -1428,7 +1447,16 @@ jobs:
                 try {
                   if (hideOlderCommentsEnabled && trackerId) {
                     core.info("Hide-older-comments is enabled, searching for previous comments to hide");
-                    await hideOlderComments(github, context.repo.owner, context.repo.repo, itemNumber, trackerId, commentEndpoint === "discussions");
+                    await hideOlderComments(
+                      github,
+                      context.repo.owner,
+                      context.repo.repo,
+                      itemNumber,
+                      trackerId,
+                      commentEndpoint === "discussions",
+                      "OUTDATED",
+                      allowedReasons
+                    );
                   }
                   let comment;
                   if (commentEndpoint === "discussions") {
@@ -1511,6 +1539,7 @@ jobs:
           GH_AW_LABELS_ALLOWED: "smoke-copilot"
           GH_AW_LABELS_MAX_COUNT: 3
           GH_AW_WORKFLOW_NAME: "Smoke Copilot Playwright"
+          GH_AW_TRACKER_ID: "smoke-copilot-playwright"
           GH_AW_ENGINE_ID: "copilot"
           GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 📰 *BREAKING: Report filed by [{workflow_name}]({run_url})*\",\"runStarted\":\"📰 BREAKING: [{workflow_name}]({run_url}) is now investigating this {event_type}. Sources say the story is developing...\",\"runSuccess\":\"📰 VERDICT: [{workflow_name}]({run_url}) has concluded. All systems operational. This is a developing story. 🎤\",\"runFailure\":\"📰 DEVELOPING STORY: [{workflow_name}]({run_url}) reports {status}. Our correspondents are investigating the incident...\"}"
         with:
@@ -8709,6 +8738,7 @@ jobs:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_NOOP_MAX: 1
           GH_AW_WORKFLOW_NAME: "Smoke Copilot Playwright"
+          GH_AW_TRACKER_ID: "smoke-copilot-playwright"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -8801,6 +8831,7 @@ jobs:
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_WORKFLOW_NAME: "Smoke Copilot Playwright"
+          GH_AW_TRACKER_ID: "smoke-copilot-playwright"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -8914,6 +8945,7 @@ jobs:
           GH_AW_COMMENT_REPO: ${{ needs.activation.outputs.comment_repo }}
           GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           GH_AW_WORKFLOW_NAME: "Smoke Copilot Playwright"
+          GH_AW_TRACKER_ID: "smoke-copilot-playwright"
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
           GH_AW_DETECTION_CONCLUSION: ${{ needs.detection.result }}
           GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 📰 *BREAKING: Report filed by [{workflow_name}]({run_url})*\",\"runStarted\":\"📰 BREAKING: [{workflow_name}]({run_url}) is now investigating this {event_type}. Sources say the story is developing...\",\"runSuccess\":\"📰 VERDICT: [{workflow_name}]({run_url}) has concluded. All systems operational. This is a developing story. 🎤\",\"runFailure\":\"📰 DEVELOPING STORY: [{workflow_name}]({run_url}) reports {status}. Our correspondents are investigating the incident...\"}"
@@ -9208,6 +9240,7 @@ jobs:
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_WORKFLOW_NAME: "Smoke Copilot Playwright"
+          GH_AW_TRACKER_ID: "smoke-copilot-playwright"
           GH_AW_ENGINE_ID: "copilot"
           GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 📰 *BREAKING: Report filed by [{workflow_name}]({run_url})*\",\"runStarted\":\"📰 BREAKING: [{workflow_name}]({run_url}) is now investigating this {event_type}. Sources say the story is developing...\",\"runSuccess\":\"📰 VERDICT: [{workflow_name}]({run_url}) has concluded. All systems operational. This is a developing story. 🎤\",\"runFailure\":\"📰 DEVELOPING STORY: [{workflow_name}]({run_url}) reports {status}. Our correspondents are investigating the incident...\"}"
         with:
