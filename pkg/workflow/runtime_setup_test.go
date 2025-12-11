@@ -400,7 +400,7 @@ func TestGenerateRuntimeSetupSteps(t *testing.T) {
 			expectSteps: 1,
 			checkContent: []string{
 				"Setup Go",
-				"actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5",
+				"actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c",
 				"go-version: '1.22'",
 			},
 		},
@@ -412,7 +412,7 @@ func TestGenerateRuntimeSetupSteps(t *testing.T) {
 			expectSteps: 1,
 			checkContent: []string{
 				"Setup Go",
-				"actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5",
+				"actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c",
 				"go-version: '1.25'",
 			},
 		},
@@ -424,7 +424,7 @@ func TestGenerateRuntimeSetupSteps(t *testing.T) {
 			expectSteps: 1,
 			checkContent: []string{
 				"Setup Go",
-				"actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5",
+				"actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c",
 				"go-version-file: custom/go.mod",
 				"cache: true",
 			},
@@ -555,7 +555,7 @@ func TestRuntimeFilteringWithExistingSetupActions(t *testing.T) {
 	}
 	workflowData := &WorkflowData{
 		CustomSteps: `steps:
-  - uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5
+  - uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c
     with:
       go-version-file: go.mod
   - run: go build

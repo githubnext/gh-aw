@@ -351,7 +351,7 @@ Test workflow that uses Go without go.mod file.
 	if !strings.Contains(lockStr, "Setup Go") {
 		t.Error("Expected 'Setup Go' step in lock file")
 	}
-	if !strings.Contains(lockStr, "actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5") {
+	if !strings.Contains(lockStr, "actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c") {
 		t.Error("Expected actions/setup-go action in lock file")
 	}
 	if !strings.Contains(lockStr, "go-version: '1.25'") {
@@ -414,7 +414,7 @@ Test workflow that uses Go with custom go.mod path via Serena.
 	if !strings.Contains(lockStr, "Setup Go") {
 		t.Error("Expected 'Setup Go' step in lock file")
 	}
-	if !strings.Contains(lockStr, "actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5") {
+	if !strings.Contains(lockStr, "actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c") {
 		t.Error("Expected actions/setup-go action in lock file")
 	}
 	if !strings.Contains(lockStr, "go-version-file: custom/go.mod") {
