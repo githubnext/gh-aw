@@ -9,14 +9,14 @@ import (
 // This provides compile-time type safety and clearer error messages compared to map[string]any
 type FrontmatterConfig struct {
 	// Core workflow fields
-	Name        string         `json:"name,omitempty"`
-	Description string         `json:"description,omitempty"`
-	Engine      string         `json:"engine,omitempty"`
-	Source      string         `json:"source,omitempty"`
-	TrackerID   string         `json:"tracker-id,omitempty"`
-	Version     string         `json:"version,omitempty"`
-	TimeoutMinutes int         `json:"timeout-minutes,omitempty"`
-	
+	Name           string `json:"name,omitempty"`
+	Description    string `json:"description,omitempty"`
+	Engine         string `json:"engine,omitempty"`
+	Source         string `json:"source,omitempty"`
+	TrackerID      string `json:"tracker-id,omitempty"`
+	Version        string `json:"version,omitempty"`
+	TimeoutMinutes int    `json:"timeout-minutes,omitempty"`
+
 	// Configuration sections
 	Tools       map[string]any `json:"tools,omitempty"`
 	MCPServers  map[string]any `json:"mcp-servers,omitempty"`
@@ -25,29 +25,29 @@ type FrontmatterConfig struct {
 	SafeOutputs map[string]any `json:"safe-outputs,omitempty"`
 	SafeJobs    map[string]any `json:"safe-jobs,omitempty"`
 	SafeInputs  map[string]any `json:"safe-inputs,omitempty"`
-	
+
 	// Event and trigger configuration
 	On          map[string]any `json:"on,omitempty"`
 	Permissions map[string]any `json:"permissions,omitempty"`
 	Concurrency map[string]any `json:"concurrency,omitempty"`
 	If          string         `json:"if,omitempty"`
-	
+
 	// Network and sandbox configuration
-	Network     map[string]any `json:"network,omitempty"`
-	Sandbox     map[string]any `json:"sandbox,omitempty"`
-	
+	Network map[string]any `json:"network,omitempty"`
+	Sandbox map[string]any `json:"sandbox,omitempty"`
+
 	// Feature flags and other settings
-	Features    map[string]any `json:"features,omitempty"`
-	Env         map[string]any `json:"env,omitempty"`
-	Secrets     map[string]any `json:"secrets,omitempty"`
-	
+	Features map[string]any `json:"features,omitempty"`
+	Env      map[string]any `json:"env,omitempty"`
+	Secrets  map[string]any `json:"secrets,omitempty"`
+
 	// Workflow execution settings
-	RunsOn      string         `json:"runs-on,omitempty"`
-	RunName     string         `json:"run-name,omitempty"`
-	
+	RunsOn  string `json:"runs-on,omitempty"`
+	RunName string `json:"run-name,omitempty"`
+
 	// Import and inclusion
-	Imports     any            `json:"imports,omitempty"` // Can be string or array
-	Include     any            `json:"include,omitempty"` // Can be string or array
+	Imports any `json:"imports,omitempty"` // Can be string or array
+	Include any `json:"include,omitempty"` // Can be string or array
 }
 
 // unmarshalFromMap converts a value from a map[string]any to a destination variable
@@ -65,28 +65,29 @@ type FrontmatterConfig struct {
 //   - The JSON cannot be unmarshaled into the destination type
 //
 // Example:
-//   var name string
-//   err := unmarshalFromMap(frontmatter, "name", &name)
 //
-//   var tools map[string]any
-//   err := unmarshalFromMap(frontmatter, "tools", &tools)
+//	var name string
+//	err := unmarshalFromMap(frontmatter, "name", &name)
+//
+//	var tools map[string]any
+//	err := unmarshalFromMap(frontmatter, "tools", &tools)
 func unmarshalFromMap(data map[string]any, key string, dest any) error {
 	value, exists := data[key]
 	if !exists {
 		return fmt.Errorf("key '%s' not found in frontmatter", key)
 	}
-	
+
 	// Use JSON as intermediate format for type conversion
 	// This handles nested maps, arrays, and complex structures cleanly
 	jsonBytes, err := json.Marshal(value)
 	if err != nil {
 		return fmt.Errorf("failed to marshal '%s' to JSON: %w", key, err)
 	}
-	
+
 	if err := json.Unmarshal(jsonBytes, dest); err != nil {
 		return fmt.Errorf("failed to unmarshal '%s' into destination type: %w", key, err)
 	}
-	
+
 	return nil
 }
 
@@ -95,18 +96,18 @@ func unmarshalFromMap(data map[string]any, key string, dest any) error {
 // a structured configuration with better error handling.
 func ParseFrontmatterConfig(frontmatter map[string]any) (*FrontmatterConfig, error) {
 	var config FrontmatterConfig
-	
+
 	// Use JSON marshaling for the entire frontmatter conversion
 	// This automatically handles all field mappings
 	jsonBytes, err := json.Marshal(frontmatter)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal frontmatter to JSON: %w", err)
 	}
-	
+
 	if err := json.Unmarshal(jsonBytes, &config); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal frontmatter into config: %w", err)
 	}
-	
+
 	return &config, nil
 }
 
@@ -121,19 +122,19 @@ func ExtractMapField(frontmatter map[string]any, key string) map[string]any {
 	if !exists || value == nil {
 		return make(map[string]any)
 	}
-	
+
 	var result map[string]any
 	err := unmarshalFromMap(frontmatter, key, &result)
 	if err != nil {
 		// For backward compatibility, return empty map instead of error
 		return make(map[string]any)
 	}
-	
+
 	// Handle case where unmarshal succeeded but result is still nil
 	if result == nil {
 		return make(map[string]any)
 	}
-	
+
 	return result
 }
 
