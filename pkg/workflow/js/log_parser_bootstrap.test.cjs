@@ -155,7 +155,7 @@ describe("log_parser_bootstrap.cjs", () => {
       expect(infoCall).toBeDefined();
       expect(infoCall[0]).toContain("Model: gpt-5");
       expect(infoCall[0]).toContain("Turns: 2");
-      
+
       // Should generate Copilot CLI style markdown for step summary
       const summaryCall = mockCore.summary.addRaw.mock.calls[0];
       expect(summaryCall).toBeDefined();
