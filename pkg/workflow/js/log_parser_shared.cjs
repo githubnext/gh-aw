@@ -962,7 +962,7 @@ function formatToolCallAsDetails(options) {
  *
  * The output includes:
  * - A compact header with model info
- * - Tool/command summary list (status icon + name only)
+ * - Agent conversation with response text and tool executions
  * - Basic execution statistics
  *
  * @param {Array} logEntries - Array of log entries with type, message, etc.
@@ -982,90 +982,7 @@ function generatePlainTextSummary(logEntries, options = {}) {
   }
   lines.push("");
 
-  // Add Available Tools section from init entry
-  const initEntry = logEntries.find(entry => entry.type === "system" && entry.subtype === "init");
-  if (initEntry && initEntry.tools && Array.isArray(initEntry.tools) && initEntry.tools.length > 0) {
-    lines.push("Available Tools:");
-    lines.push("");
-
-    // Categorize tools using the same logic as formatInitializationSummary
-    /** @type {{ [key: string]: string[] }} */
-    const categories = {
-      Builtin: [],
-      "Safe Outputs": [],
-      "Safe Inputs": [],
-      "Git/GitHub": [],
-      Playwright: [],
-      Serena: [],
-      MCP: [],
-      "Custom Agents": [],
-      Other: [],
-    };
-
-    // Builtin tools that come with gh-aw / Copilot
-    const builtinTools = [
-      "bash",
-      "write_bash",
-      "read_bash",
-      "stop_bash",
-      "list_bash",
-      "grep",
-      "glob",
-      "view",
-      "create",
-      "edit",
-      "store_memory",
-      "code_review",
-      "codeql_checker",
-      "report_progress",
-      "report_intent",
-      "gh-advisory-database",
-    ];
-
-    // Internal tools that are specific to Copilot CLI
-    const internalTools = ["fetch_copilot_cli_documentation"];
-
-    for (const tool of initEntry.tools) {
-      const toolLower = tool.toLowerCase();
-
-      if (builtinTools.includes(toolLower) || internalTools.includes(toolLower)) {
-        categories["Builtin"].push(tool);
-      } else if (tool.startsWith("safeoutputs-") || tool.startsWith("safe_outputs-")) {
-        // Extract the tool name without the prefix for cleaner display
-        const toolName = tool.replace(/^safeoutputs-|^safe_outputs-/, "");
-        categories["Safe Outputs"].push(toolName);
-      } else if (tool.startsWith("safeinputs-") || tool.startsWith("safe_inputs-")) {
-        // Extract the tool name without the prefix for cleaner display
-        const toolName = tool.replace(/^safeinputs-|^safe_inputs-/, "");
-        categories["Safe Inputs"].push(toolName);
-      } else if (tool.startsWith("mcp__github__")) {
-        categories["Git/GitHub"].push(formatMcpName(tool));
-      } else if (tool.startsWith("mcp__playwright__")) {
-        categories["Playwright"].push(formatMcpName(tool));
-      } else if (tool.startsWith("mcp__serena__")) {
-        categories["Serena"].push(formatMcpName(tool));
-      } else if (tool.startsWith("mcp__") || ["ListMcpResourcesTool", "ReadMcpResourceTool"].includes(tool)) {
-        categories["MCP"].push(tool.startsWith("mcp__") ? formatMcpName(tool) : tool);
-      } else if (isLikelyCustomAgent(tool)) {
-        // Custom agents typically have hyphenated names (kebab-case)
-        categories["Custom Agents"].push(tool);
-      } else {
-        categories["Other"].push(tool);
-      }
-    }
-
-    // Display categories with tools
-    for (const [category, tools] of Object.entries(categories)) {
-      if (tools.length > 0) {
-        const toolText = tools.length === 1 ? "tool" : "tools";
-        lines.push(`${category}: ${tools.length} ${toolText}`);
-        lines.push(tools.join(", "));
-      }
-    }
-    lines.push("");
-  }
-
-  // Collect tool usage summary
+  // Collect tool usage pairs for status lookup
   const toolUsePairs = new Map();
   for (const entry of logEntries) {
     if (entry.type === "user" && entry.message?.content) {
@@ -1077,61 +994,89 @@ function generatePlainTextSummary(logEntries, options = {}) {
     }
   }
 
-  // Count tools and gather summary
-  const toolCounts = { total: 0, success: 0, error: 0 };
-  const toolSummary = [];
+  // Generate conversation flow with agent responses and tool executions
+  lines.push("Conversation:");
+  lines.push("");
+
+  let conversationLineCount = 0;
+  const MAX_CONVERSATION_LINES = 50; // Limit conversation output
+  let conversationTruncated = false;
 
   for (const entry of logEntries) {
+    if (conversationLineCount >= MAX_CONVERSATION_LINES) {
+      conversationTruncated = true;
+      break;
+    }
+
     if (entry.type === "assistant" && entry.message?.content) {
       for (const content of entry.message.content) {
-        if (content.type === "tool_use") {
+        if (conversationLineCount >= MAX_CONVERSATION_LINES) {
+          conversationTruncated = true;
+          break;
+        }
+
+        if (content.type === "text" && content.text) {
+          // Display agent response text
+          const text = content.text.trim();
+          if (text && text.length > 0) {
+            // Truncate long responses to keep output manageable
+            const maxTextLength = 500;
+            let displayText = text;
+            if (displayText.length > maxTextLength) {
+              displayText = displayText.substring(0, maxTextLength) + "...";
+            }
+
+            // Split into lines and add Agent prefix
+            const textLines = displayText.split("\n");
+            for (const line of textLines) {
+              if (conversationLineCount >= MAX_CONVERSATION_LINES) {
+                conversationTruncated = true;
+                break;
+              }
+              lines.push(`Agent: ${line}`);
+              conversationLineCount++;
+            }
+            lines.push(""); // Add blank line after agent response
+            conversationLineCount++;
+          }
+        } else if (content.type === "tool_use") {
+          // Display tool execution
           const toolName = content.name;
           const input = content.input || {};
 
-          // Skip internal tools
+          // Skip internal tools (file operations)
           if (["Read", "Write", "Edit", "MultiEdit", "LS", "Grep", "Glob", "TodoWrite"].includes(toolName)) {
             continue;
           }
 
-          toolCounts.total++;
           const toolResult = toolUsePairs.get(content.id);
           const isError = toolResult?.is_error === true;
-
-          if (isError) {
-            toolCounts.error++;
-          } else {
-            toolCounts.success++;
-          }
-
           const statusIcon = isError ? "✗" : "✓";
 
-          // Format tool name compactly
+          // Format tool execution
           let displayName;
           if (toolName === "Bash") {
-            const cmd = formatBashCommand(input.command || "").slice(0, MAX_BASH_COMMAND_DISPLAY_LENGTH);
-            displayName = `bash: ${cmd}`;
+            const cmd = formatBashCommand(input.command || "");
+            const maxCmdLength = 100;
+            const displayCmd = cmd.length > maxCmdLength ? cmd.substring(0, maxCmdLength) + "..." : cmd;
+            displayName = `bash: ${displayCmd}`;
           } else if (toolName.startsWith("mcp__")) {
             displayName = formatMcpName(toolName);
           } else {
             displayName = toolName;
           }
 
-          // Limit to 20 tool summaries
-          if (toolSummary.length < 20) {
-            toolSummary.push(`  [${statusIcon}] ${displayName}`);
-          }
+          lines.push(`Tool: [${statusIcon}] ${displayName}`);
+          conversationLineCount++;
+          lines.push(""); // Add blank line after tool execution
+          conversationLineCount++;
         }
       }
     }
   }
 
-  // Tool summary section
-  if (toolSummary.length > 0) {
-    lines.push("Tools/Commands:");
-    lines.push(...toolSummary);
-    if (toolCounts.total > 20) {
-      lines.push(`  ... and ${toolCounts.total - 20} more`);
-    }
+  if (conversationTruncated) {
+    lines.push("... (conversation truncated)");
     lines.push("");
   }
 
@@ -1147,6 +1092,31 @@ function generatePlainTextSummary(logEntries, options = {}) {
       lines.push(`  Duration: ${duration}`);
     }
   }
+
+  // Count tools for statistics
+  let toolCounts = { total: 0, success: 0, error: 0 };
+  for (const entry of logEntries) {
+    if (entry.type === "assistant" && entry.message?.content) {
+      for (const content of entry.message.content) {
+        if (content.type === "tool_use") {
+          const toolName = content.name;
+          // Skip internal tools
+          if (["Read", "Write", "Edit", "MultiEdit", "LS", "Grep", "Glob", "TodoWrite"].includes(toolName)) {
+            continue;
+          }
+          toolCounts.total++;
+          const toolResult = toolUsePairs.get(content.id);
+          const isError = toolResult?.is_error === true;
+          if (isError) {
+            toolCounts.error++;
+          } else {
+            toolCounts.success++;
+          }
+        }
+      }
+    }
+  }
+
   if (toolCounts.total > 0) {
     lines.push(`  Tools: ${toolCounts.success}/${toolCounts.total} succeeded`);
   }

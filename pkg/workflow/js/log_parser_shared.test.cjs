@@ -1422,7 +1422,7 @@ describe("log_parser_shared.cjs", () => {
       expect(result).toContain("Duration: 1m");
     });
 
-    it("should include tool usage statistics", async () => {
+    it("should include tool usage in conversation", async () => {
       const { generatePlainTextSummary } = await import("./log_parser_shared.cjs");
 
       const logEntries = [
@@ -1450,19 +1450,19 @@ describe("log_parser_shared.cjs", () => {
 
       const result = generatePlainTextSummary(logEntries, { parserName: "Agent" });
 
-      expect(result).toContain("Tools/Commands:");
-      expect(result).toContain("[✓] bash: echo test");
-      expect(result).toContain("[✗] github::create_issue");
+      expect(result).toContain("Conversation:");
+      expect(result).toContain("Tool: [✓] bash: echo test");
+      expect(result).toContain("Tool: [✗] github::create_issue");
       expect(result).toContain("Tools: 1/2 succeeded");
     });
 
-    it("should limit tool summaries to 20 items", async () => {
+    it("should limit conversation output", async () => {
       const { generatePlainTextSummary } = await import("./log_parser_shared.cjs");
 
-      // Create 25 tool uses
+      // Create 60 tool uses (which will exceed MAX_CONVERSATION_LINES of 50)
       const toolUses = [];
       const toolResults = [];
-      for (let i = 0; i < 25; i++) {
+      for (let i = 0; i < 60; i++) {
         toolUses.push({ type: "tool_use", id: `${i}`, name: "Bash", input: { command: `cmd${i}` } });
         toolResults.push({ type: "tool_result", tool_use_id: `${i}`, is_error: false });
       }
@@ -1476,7 +1476,7 @@ describe("log_parser_shared.cjs", () => {
 
       const result = generatePlainTextSummary(logEntries, { parserName: "Agent" });
 
-      expect(result).toContain("... and 5 more");
+      expect(result).toContain("... (conversation truncated)");
     });
 
     it("should include token usage and cost", async () => {
@@ -1498,7 +1498,7 @@ describe("log_parser_shared.cjs", () => {
       expect(result).toContain("Cost: $0.0025");
     });
 
-    it("should skip internal tools in summary", async () => {
+    it("should skip internal tools in conversation", async () => {
       const { generatePlainTextSummary } = await import("./log_parser_shared.cjs");
 
       const logEntries = [
@@ -1529,12 +1529,12 @@ describe("log_parser_shared.cjs", () => {
       const result = generatePlainTextSummary(logEntries, { parserName: "Agent" });
 
       // Should only show Bash, not Read or Write
-      expect(result).toContain("bash: test");
+      expect(result).toContain("Tool: [✓] bash: test");
       expect(result).not.toContain("Read");
       expect(result).not.toContain("Write");
     });
 
-    it("should include Available Tools section from init entry", async () => {
+    it("should include conversation section", async () => {
       const { generatePlainTextSummary } = await import("./log_parser_shared.cjs");
 
       const logEntries = [
@@ -1561,20 +1561,11 @@ describe("log_parser_shared.cjs", () => {
 
       const result = generatePlainTextSummary(logEntries, { parserName: "Agent" });
 
-      expect(result).toContain("Available Tools:");
-      expect(result).toContain("Builtin: 4 tools");
-      expect(result).toContain("bash, view, create, edit");
-      expect(result).toContain("Git/GitHub: 2 tools");
-      expect(result).toContain("github::search_issues, github::create_issue");
-      expect(result).toContain("Playwright: 1 tool");
-      expect(result).toContain("playwright::navigate");
-      expect(result).toContain("Safe Outputs: 2 tools");
-      expect(result).toContain("create_issue, add_comment");
-      expect(result).toContain("Custom Agents: 2 tools");
-      expect(result).toContain("create-agentic-workflow, debug-agentic-workflow");
+      expect(result).toContain("Conversation:");
+      expect(result).toContain("Statistics:");
     });
 
-    it("should handle empty tools list gracefully", async () => {
+    it("should handle empty conversation gracefully", async () => {
       const { generatePlainTextSummary } = await import("./log_parser_shared.cjs");
 
       const logEntries = [
@@ -1584,8 +1575,9 @@ describe("log_parser_shared.cjs", () => {
 
       const result = generatePlainTextSummary(logEntries, { parserName: "Agent" });
 
-      // Should not contain Available Tools section if no tools
-      expect(result).not.toContain("Available Tools:");
+      // Should contain Conversation section but no content
+      expect(result).toContain("Conversation:");
+      expect(result).toContain("Statistics:");
     });
 
     it("should work without init entry", async () => {
@@ -1597,7 +1589,86 @@ describe("log_parser_shared.cjs", () => {
 
       // Should work without init entry
       expect(result).toContain("=== Agent Execution Summary ===");
-      expect(result).not.toContain("Available Tools:");
+      expect(result).toContain("Conversation:");
+    });
+
+    it("should include agent response text in conversation", async () => {
+      const { generatePlainTextSummary } = await import("./log_parser_shared.cjs");
+
+      const logEntries = [
+        { type: "system", subtype: "init", model: "test-model" },
+        {
+          type: "assistant",
+          message: {
+            content: [
+              { type: "text", text: "I'll help you with that task." },
+              { type: "tool_use", id: "1", name: "Bash", input: { command: "echo hello" } },
+            ],
+          },
+        },
+        {
+          type: "user",
+          message: {
+            content: [{ type: "tool_result", tool_use_id: "1", is_error: false, content: "hello" }],
+          },
+        },
+        {
+          type: "assistant",
+          message: {
+            content: [{ type: "text", text: "The command executed successfully!" }],
+          },
+        },
+        { type: "result", num_turns: 2 },
+      ];
+
+      const result = generatePlainTextSummary(logEntries, { parserName: "Agent" });
+
+      expect(result).toContain("Conversation:");
+      expect(result).toContain("Agent: I'll help you with that task.");
+      expect(result).toContain("Tool: [✓] bash: echo hello");
+      expect(result).toContain("Agent: The command executed successfully!");
+    });
+
+    it("should truncate long agent responses", async () => {
+      const { generatePlainTextSummary } = await import("./log_parser_shared.cjs");
+
+      const longText = "a".repeat(600); // Longer than MAX_TEXT_LENGTH of 500
+      const logEntries = [
+        { type: "system", subtype: "init" },
+        {
+          type: "assistant",
+          message: {
+            content: [{ type: "text", text: longText }],
+          },
+        },
+        { type: "result", num_turns: 1 },
+      ];
+
+      const result = generatePlainTextSummary(logEntries, { parserName: "Agent" });
+
+      expect(result).toContain("Agent: " + "a".repeat(500) + "...");
+      expect(result).not.toContain("a".repeat(600));
+    });
+
+    it("should handle multi-line agent responses", async () => {
+      const { generatePlainTextSummary } = await import("./log_parser_shared.cjs");
+
+      const logEntries = [
+        { type: "system", subtype: "init" },
+        {
+          type: "assistant",
+          message: {
+            content: [{ type: "text", text: "Line 1\nLine 2\nLine 3" }],
+          },
+        },
+        { type: "result", num_turns: 1 },
+      ];
+
+      const result = generatePlainTextSummary(logEntries, { parserName: "Agent" });
+
+      expect(result).toContain("Agent: Line 1");
+      expect(result).toContain("Agent: Line 2");
+      expect(result).toContain("Agent: Line 3");
     });
   });
 });
