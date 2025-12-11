@@ -41,6 +41,9 @@
 # safe-outputs:
 #   create-pull-request:
 #     allow-empty: true
+#   lock-issue:
+#     labels: [copilot-no-firewall]
+#     max: 5
 #   staged: true
 # steps:
 #   - name: Download issues data
@@ -62,15 +65,19 @@
 #   conclusion["conclusion"]
 #   create_pull_request["create_pull_request"]
 #   detection["detection"]
+#   lock_issue["lock_issue"]
 #   activation --> agent
 #   activation --> conclusion
 #   activation --> create_pull_request
 #   agent --> conclusion
 #   agent --> create_pull_request
 #   agent --> detection
+#   agent --> lock_issue
 #   create_pull_request --> conclusion
 #   detection --> conclusion
 #   detection --> create_pull_request
+#   detection --> lock_issue
+#   lock_issue --> conclusion
 # ```
 #
 # Original Prompt:
@@ -345,6 +352,40 @@ jobs:
           EOF
           cat > /tmp/gh-aw/safeoutputs/tools.json << 'EOF'
           [
+            {
+              "description": "Lock a GitHub issue to prevent further comments. Use this when discussions have become unproductive, off-topic, too heated, or when an issue is resolved and should not receive more comments. A comment explaining the reason for locking should be added.",
+              "inputSchema": {
+                "additionalProperties": false,
+                "properties": {
+                  "body": {
+                    "description": "Comment explaining why the issue is being locked.",
+                    "type": "string"
+                  },
+                  "issue_number": {
+                    "description": "Issue number to lock. If omitted, locks the issue that triggered this workflow (requires an issue event trigger).",
+                    "type": [
+                      "number",
+                      "string"
+                    ]
+                  },
+                  "lock_reason": {
+                    "description": "Optional reason for locking the issue. Must be one of: 'off-topic', 'too heated', 'resolved', or 'spam'.",
+                    "enum": [
+                      "off-topic",
+                      "too heated",
+                      "resolved",
+                      "spam"
+                    ],
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "body"
+                ],
+                "type": "object"
+              },
+              "name": "lock_issue"
+            },
             {
               "description": "Create a new GitHub pull request to propose code changes. Use this after making file edits to submit them for review and merging. The PR will be created from the current branch with your committed changes. For code review comments on an existing PR, use create_pull_request_review_comment instead. CONSTRAINTS: Maximum 1 pull request(s) can be created.",
               "inputSchema": {
@@ -6409,6 +6450,7 @@ jobs:
       - agent
       - create_pull_request
       - detection
+      - lock_issue
     if: (always()) && (needs.agent.result != 'skipped')
     runs-on: ubuntu-slim
     permissions:
@@ -7844,4 +7886,45 @@ jobs:
           name: threat-detection.log
           path: /tmp/gh-aw/threat-detection/detection.log
           if-no-files-found: ignore
+
+  lock_issue:
+    needs:
+      - agent
+      - detection
+    if: >
+      ((((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'lock_issue'))) &&
+      ((github.event.issue.number) || (github.event.comment.issue.number))) && (needs.detection.outputs.success == 'true')
+    runs-on: ubuntu-slim
+    permissions:
+      contents: read
+      issues: write
+    timeout-minutes: 10
+    outputs:
+      comment_url: ${{ steps.lock_issue.outputs.comment_url }}
+      issue_number: ${{ steps.lock_issue.outputs.issue_number }}
+      issue_url: ${{ steps.lock_issue.outputs.issue_url }}
+    steps:
+      - name: Download agent output artifact
+        continue-on-error: true
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
+        with:
+          name: agent_output.json
+          path: /tmp/gh-aw/safeoutputs/
+      - name: Setup agent output environment variable
+        run: |
+          mkdir -p /tmp/gh-aw/safeoutputs/
+          find "/tmp/gh-aw/safeoutputs/" -type f -print
+          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> "$GITHUB_ENV"
+      - name: Lock Issue
+        id: lock_issue
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        env:
+          GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
+          GH_AW_LOCK_ISSUE_REQUIRED_LABELS: "copilot-no-firewall"
+          GH_AW_WORKFLOW_NAME: "Dev"
+          GH_AW_ENGINE_ID: "copilot"
+          GH_AW_SAFE_OUTPUTS_STAGED: "true"
+        with:
+          github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+          script: |
 

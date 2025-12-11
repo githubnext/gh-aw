@@ -18,6 +18,9 @@ imports:
 safe-outputs:
   create-pull-request:
     allow-empty: true
+  lock-issue:
+    labels: [copilot-no-firewall]
+    max: 5
   staged: true
 steps:
   - name: Download issues data
