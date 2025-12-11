@@ -41,8 +41,8 @@ func TestLoadCampaignSpecs_Basic(t *testing.T) {
 			if spec.Name == "" {
 				t.Errorf("Expected Name for incident-response to be non-empty")
 			}
-			if !strings.Contains(spec.ConfigPath, "campaigns/incident-response.campaign") {
-				t.Errorf("Expected ConfigPath to point to incident-response spec, got %s", spec.ConfigPath)
+			if !strings.Contains(spec.ConfigPath, "campaigns/incident-response.campaign.md") {
+				t.Errorf("Expected ConfigPath to point to incident-response .campaign.md spec, got %s", spec.ConfigPath)
 			}
 			break
 		}

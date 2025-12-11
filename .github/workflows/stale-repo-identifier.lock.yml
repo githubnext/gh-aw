@@ -998,8 +998,6 @@
 #     https://github.com/actions/setup-node/commit/395ad3262231945c25e8478fd5baf05154b1d79f
 #   - actions/upload-artifact@v5 (330a01c490aca151604b8cf639adc76d48f6c5d4)
 #     https://github.com/actions/upload-artifact/commit/330a01c490aca151604b8cf639adc76d48f6c5d4
-#   - github/stale-repos@v3 (3477b6488008d9411aaf22a0924ec7c1f6a69980)
-#     https://github.com/github/stale-repos/commit/3477b6488008d9411aaf22a0924ec7c1f6a69980
 
 name: "Stale Repository Identifier"
 "on":

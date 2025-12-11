@@ -124,30 +124,49 @@ func loadCampaignSpecs(rootDir string) ([]CampaignSpec, error) {
 		}
 
 		name := entry.Name()
-		if !strings.HasSuffix(name, ".campaign.yaml") && !strings.HasSuffix(name, ".campaign.yml") {
+		if !strings.HasSuffix(name, ".campaign.md") {
 			continue
 		}
 
-		path := filepath.Join(campaignsDir, name)
-		campaignLog.Printf("Found campaign spec file: %s", path)
+		fullPath := filepath.Join(campaignsDir, name)
+		campaignLog.Printf("Found campaign spec file: %s", fullPath)
 
-		data, err := os.ReadFile(path)
+		data, err := os.ReadFile(fullPath)
 		if err != nil {
-			return nil, fmt.Errorf("failed to read campaign spec '%s': %w", path, err)
+			return nil, fmt.Errorf("failed to read campaign spec '%s': %w", fullPath, err)
 		}
+
+		content := string(data)
+		lines := strings.Split(content, "\n")
+		if len(lines) == 0 || strings.TrimSpace(lines[0]) != "---" {
+			return nil, fmt.Errorf("campaign spec '%s' must start with YAML frontmatter delimited by '---'", filepath.ToSlash(filepath.Join("campaigns", name)))
+		}
+
+		endIndex := -1
+		for i := 1; i < len(lines); i++ {
+			if strings.TrimSpace(lines[i]) == "---" {
+				endIndex = i
+				break
+			}
+		}
+
+		if endIndex == -1 {
+			return nil, fmt.Errorf("campaign spec '%s' is missing closing '---' for YAML frontmatter", filepath.ToSlash(filepath.Join("campaigns", name)))
+		}
+
+		frontmatterLines := lines[1:endIndex]
+		frontmatter := strings.Join(frontmatterLines, "\n")
 
 		var spec CampaignSpec
-		if err := yaml.Unmarshal(data, &spec); err != nil {
-			return nil, fmt.Errorf("failed to parse campaign spec '%s': %w", path, err)
+		if err := yaml.Unmarshal([]byte(frontmatter), &spec); err != nil {
+			return nil, fmt.Errorf("failed to parse campaign spec frontmatter '%s': %w", fullPath, err)
 		}
 
-		// Default ID from filename when missing
 		if strings.TrimSpace(spec.ID) == "" {
-			base := strings.TrimSuffix(strings.TrimSuffix(name, ".campaign.yaml"), ".campaign.yml")
+			base := strings.TrimSuffix(name, ".campaign.md")
 			spec.ID = base
 		}
 
-		// Name falls back to ID when not provided
 		if strings.TrimSpace(spec.Name) == "" {
 			spec.Name = spec.ID
 		}
@@ -649,7 +668,7 @@ func createCampaignSpecSkeleton(rootDir, id string, force bool) (string, error) 
 		return "", fmt.Errorf("failed to create campaigns directory: %w", err)
 	}
 
-	fileName := id + ".campaign.yaml"
+	fileName := id + ".campaign.md"
 	fullPath := filepath.Join(campaignsDir, fileName)
 	relPath := filepath.ToSlash(filepath.Join("campaigns", fileName))
 
@@ -680,7 +699,18 @@ func createCampaignSpecSkeleton(rootDir, id string, force bool) (string, error) 
 		return "", fmt.Errorf("failed to marshal campaign spec: %w", err)
 	}
 
-	if err := os.WriteFile(fullPath, data, 0o644); err != nil {
+	var buf bytes.Buffer
+	buf.WriteString("---\n")
+	buf.Write(data)
+	buf.WriteString("---\n\n")
+	if name != "" {
+		buf.WriteString("# " + name + "\n\n")
+	} else {
+		buf.WriteString("# " + id + "\n\n")
+	}
+	buf.WriteString("Describe this campaign's goals, guardrails, stakeholders, and playbook.\n")
+
+	if err := os.WriteFile(fullPath, buf.Bytes(), 0o644); err != nil {
 		return "", fmt.Errorf("failed to write campaign spec file '%s': %w", relPath, err)
 	}
 
@@ -692,12 +722,12 @@ func createCampaignSpecSkeleton(rootDir, id string, force bool) (string, error) 
 func NewCampaignCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "campaign [filter]",
-		Short: "Inspect first-class campaign definitions from campaigns/*.campaign.yaml",
+		Short: "Inspect first-class campaign definitions from campaigns/*.campaign.md",
 		Long: `List and inspect first-class campaign definitions declared in YAML files.
 
-Campaigns are defined using YAML files under the local repository:
+Campaigns are defined using Markdown files with YAML frontmatter under the local repository:
 
-  campaigns/*.campaign.yaml
+	campaigns/*.campaign.md
 
 Each file describes a campaign pattern (ID, name, owners, associated
 workflows, repo-memory paths, and risk level). This command provides a
@@ -753,11 +783,12 @@ Examples:
 	// Subcommand: campaign new
 	newCmd := &cobra.Command{
 		Use:   "new <id>",
-		Short: "Create a new campaign spec skeleton under campaigns/",
-		Long: `Create a new campaign spec skeleton file under campaigns/.
+		Short: "Create a new markdown campaign spec under campaigns/",
+		Long: `Create a new campaign spec markdown file under campaigns/.
 
-The file will be created as campaigns/<id>.campaign.yaml with a basic
-structure (id, name, version, state, tracker_label). You can then
+The file will be created as campaigns/<id>.campaign.md with YAML
+frontmatter (id, name, version, state, tracker_label) followed by a
+markdown body. You can then
 update owners, workflows, memory paths, metrics_glob, and governance
 fields to match your initiative.
 
