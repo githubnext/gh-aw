@@ -25,14 +25,15 @@ var campaignLog = logger.New("cli:campaigns")
 // CampaignSpec defines a first-class campaign configuration loaded from YAML.
 //
 // Files are discovered from the local repository under:
-//   campaigns/*.campaign.yaml or campaigns/*.campaign.yml
+//
+//	campaigns/*.campaign.yaml or campaigns/*.campaign.yml
 //
 // This provides a thin, declarative layer on top of existing agentic
 // workflows and repo-memory conventions.
 type CampaignSpec struct {
-	ID          string   `yaml:"id" json:"id" console:"header:ID"`
-	Name        string   `yaml:"name" json:"name" console:"header:Name"`
-	Description string   `yaml:"description,omitempty" json:"description,omitempty" console:"header:Description,omitempty"`
+	ID          string `yaml:"id" json:"id" console:"header:ID"`
+	Name        string `yaml:"name" json:"name" console:"header:Name"`
+	Description string `yaml:"description,omitempty" json:"description,omitempty" console:"header:Description,omitempty"`
 
 	// Version is an optional spec version string (for example: v1).
 	// When omitted, it defaults to v1 during validation.
@@ -250,9 +251,9 @@ type CampaignRuntimeStatus struct {
 
 	// Optional metrics from repo-memory (when MetricsGlob is set and a
 	// matching JSON snapshot is found on the memory/campaigns branch).
-	MetricsTasksTotal         int     `json:"metrics_tasks_total,omitempty" console:"header:Tasks Total,omitempty"`
-	MetricsTasksCompleted     int     `json:"metrics_tasks_completed,omitempty" console:"header:Tasks Completed,omitempty"`
-	MetricsVelocityPerDay     float64 `json:"metrics_velocity_per_day,omitempty" console:"header:Velocity/Day,omitempty"`
+	MetricsTasksTotal          int     `json:"metrics_tasks_total,omitempty" console:"header:Tasks Total,omitempty"`
+	MetricsTasksCompleted      int     `json:"metrics_tasks_completed,omitempty" console:"header:Tasks Completed,omitempty"`
+	MetricsVelocityPerDay      float64 `json:"metrics_velocity_per_day,omitempty" console:"header:Velocity/Day,omitempty"`
 	MetricsEstimatedCompletion string  `json:"metrics_estimated_completion,omitempty" console:"header:ETA,omitempty"`
 }
 
@@ -260,33 +261,35 @@ type CampaignRuntimeStatus struct {
 // metrics snapshots written into the memory/campaigns branch.
 //
 // This mirrors the example in the campaigns guide:
-//   {
-//     "date": "2025-01-16",
-//     "campaign_id": "security-q1-2025",
-//     "tasks_total": 200,
-//     "tasks_completed": 15,
-//     "tasks_in_progress": 30,
-//     "tasks_blocked": 5,
-//     "velocity_per_day": 7.5,
-//     "estimated_completion": "2025-02-12"
-//   }
+//
+//	{
+//	  "date": "2025-01-16",
+//	  "campaign_id": "security-q1-2025",
+//	  "tasks_total": 200,
+//	  "tasks_completed": 15,
+//	  "tasks_in_progress": 30,
+//	  "tasks_blocked": 5,
+//	  "velocity_per_day": 7.5,
+//	  "estimated_completion": "2025-02-12"
+//	}
 type CampaignMetricsSnapshot struct {
-	Date               string  `json:"date,omitempty"`
-	CampaignID         string  `json:"campaign_id,omitempty"`
-	TasksTotal         int     `json:"tasks_total,omitempty"`
-	TasksCompleted     int     `json:"tasks_completed,omitempty"`
-	TasksInProgress    int     `json:"tasks_in_progress,omitempty"`
-	TasksBlocked       int     `json:"tasks_blocked,omitempty"`
-	VelocityPerDay     float64 `json:"velocity_per_day,omitempty"`
+	Date                string  `json:"date,omitempty"`
+	CampaignID          string  `json:"campaign_id,omitempty"`
+	TasksTotal          int     `json:"tasks_total,omitempty"`
+	TasksCompleted      int     `json:"tasks_completed,omitempty"`
+	TasksInProgress     int     `json:"tasks_in_progress,omitempty"`
+	TasksBlocked        int     `json:"tasks_blocked,omitempty"`
+	VelocityPerDay      float64 `json:"velocity_per_day,omitempty"`
 	EstimatedCompletion string  `json:"estimated_completion,omitempty"`
 }
 
 // computeCompiledStateForCampaign inspects the compiled state of all
 // workflows referenced by a campaign. It returns:
-//   "Yes"   - all referenced workflows exist and are compiled & up-to-date
-//   "No"    - at least one workflow exists but is missing a lock file or is stale
-//   "Missing workflow" - at least one referenced workflow markdown file does not exist
-//   "N/A"   - campaign does not reference any workflows
+//
+//	"Yes"   - all referenced workflows exist and are compiled & up-to-date
+//	"No"    - at least one workflow exists but is missing a lock file or is stale
+//	"Missing workflow" - at least one referenced workflow markdown file does not exist
+//	"N/A"   - campaign does not reference any workflows
 func computeCompiledStateForCampaign(spec CampaignSpec) string {
 	if len(spec.Workflows) == 0 {
 		return "N/A"
@@ -531,18 +534,18 @@ func runCampaignRuntimeStatus(pattern string, jsonOutput bool) error {
 		}
 
 		statuses = append(statuses, CampaignRuntimeStatus{
-			ID:           spec.ID,
-			Name:         spec.Name,
-			TrackerLabel: spec.TrackerLabel,
-			Workflows:    spec.Workflows,
-			Compiled:     compiled,
-			IssuesOpen:   issuesOpen,
-			IssuesClosed: issuesClosed,
-			PRsOpen:      prsOpen,
-			PRsMerged:    prsMerged,
-			MetricsTasksTotal:         metricsTasksTotal,
-			MetricsTasksCompleted:     metricsTasksCompleted,
-			MetricsVelocityPerDay:     metricsVelocity,
+			ID:                         spec.ID,
+			Name:                       spec.Name,
+			TrackerLabel:               spec.TrackerLabel,
+			Workflows:                  spec.Workflows,
+			Compiled:                   compiled,
+			IssuesOpen:                 issuesOpen,
+			IssuesClosed:               issuesClosed,
+			PRsOpen:                    prsOpen,
+			PRsMerged:                  prsMerged,
+			MetricsTasksTotal:          metricsTasksTotal,
+			MetricsTasksCompleted:      metricsTasksCompleted,
+			MetricsVelocityPerDay:      metricsVelocity,
 			MetricsEstimatedCompletion: metricsETA,
 		})
 	}
