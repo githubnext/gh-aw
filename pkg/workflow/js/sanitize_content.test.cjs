@@ -195,6 +195,7 @@ describe("sanitize_content.cjs", () => {
         "blockquote",
         "br",
         "code",
+        "details",
         "em",
         "h1",
         "h2",
@@ -210,6 +211,7 @@ describe("sanitize_content.cjs", () => {
         "pre",
         "strong",
         "sub",
+        "summary",
         "sup",
         "table",
         "tbody",
@@ -281,14 +283,16 @@ describe("sanitize_content.cjs", () => {
       expect(result).toBe(input);
     });
 
-    it("should convert removed tags that are no longer allowed", () => {
-      // Tags that were previously allowed but are now removed: details, summary, u
+    it("should preserve details and summary tags", () => {
       const result1 = sanitizeContent("<details>content</details>");
-      expect(result1).toBe("(details)content(/details)");
+      expect(result1).toBe("<details>content</details>");
 
       const result2 = sanitizeContent("<summary>content</summary>");
-      expect(result2).toBe("(summary)content(/summary)");
+      expect(result2).toBe("<summary>content</summary>");
+    });
 
+    it("should convert removed tags that are no longer allowed", () => {
+      // Tag that was previously allowed but is now removed: u
       const result3 = sanitizeContent("<u>content</u>");
       expect(result3).toBe("(u)content(/u)");
     });

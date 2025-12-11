@@ -100,7 +100,7 @@ Your pull request should:
 
 **To create the pull request:**
 1. Commit all your changes to a new branch
-2. Use the `safeoutputs-create_pull_request` tool with:
+2. Use the `create_pull_request` tool with:
    - **Title**: Clear description of what was fixed
    - **Body**: Detailed description including:
      - Summary of CI failures discovered
