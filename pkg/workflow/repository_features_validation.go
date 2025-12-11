@@ -43,6 +43,7 @@ import (
 	"sync"
 
 	"github.com/cli/go-gh/v2"
+	"github.com/cli/go-gh/v2/pkg/api"
 	"github.com/cli/go-gh/v2/pkg/repository"
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/logger"
@@ -276,27 +277,32 @@ func checkRepositoryHasDiscussionsUncached(repo string) (bool, error) {
 	}
 	owner, name := parts[0], parts[1]
 
-	// Execute GraphQL query using gh CLI
-	type GraphQLResponse struct {
-		Data struct {
-			Repository struct {
-				HasDiscussionsEnabled bool `json:"hasDiscussionsEnabled"`
-			} `json:"repository"`
-		} `json:"data"`
+	// Create native GraphQL client
+	client, err := api.DefaultGraphQLClient()
+	if err != nil {
+		return false, fmt.Errorf("failed to create GraphQL client: %w", err)
 	}
 
-	stdOut, _, err := gh.Exec("api", "graphql", "-f", fmt.Sprintf("query=%s", query),
-		"-f", fmt.Sprintf("owner=%s", owner), "-f", fmt.Sprintf("name=%s", name))
+	// Define variables for the query
+	variables := map[string]interface{}{
+		"owner": owner,
+		"name":  name,
+	}
+
+	// Define response structure
+	var response struct {
+		Repository struct {
+			HasDiscussionsEnabled bool `json:"hasDiscussionsEnabled"`
+		} `json:"repository"`
+	}
+
+	// Execute GraphQL query using native client
+	err = client.Do(query, variables, &response)
 	if err != nil {
 		return false, fmt.Errorf("failed to query discussions status: %w", err)
 	}
 
-	var response GraphQLResponse
-	if err := json.Unmarshal(stdOut.Bytes(), &response); err != nil {
-		return false, fmt.Errorf("failed to parse GraphQL response: %w", err)
-	}
-
-	return response.Data.Repository.HasDiscussionsEnabled, nil
+	return response.Repository.HasDiscussionsEnabled, nil
 }
 
 // checkRepositoryHasIssues checks if a repository has issues enabled (with caching)
