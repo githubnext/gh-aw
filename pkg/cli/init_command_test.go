@@ -590,8 +590,8 @@ func TestInitCommandWithCodespacesNoArgs(t *testing.T) {
 	// Create a mock git remote to test owner extraction
 	err = exec.Command("git", "remote", "add", "origin", "https://github.com/testorg/testrepo.git").Run()
 	if err != nil {
-	// Test init with MCP flag
-	err = InitRepository(false, true, false, []string{}, false)
+		t.Skip("Git not available")
+	}
 
 	// Configure git
 	exec.Command("git", "config", "user.name", "Test User").Run()
