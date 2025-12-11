@@ -1,0 +1,125 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/githubnext/gh-aw/schemas/campaign_spec_schema.json",
+  "title": "Campaign Spec Schema",
+  "description": "Schema for GitHub Agentic Workflows campaign specifications",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Unique identifier for the campaign (lowercase letters, digits, and hyphens only)",
+      "pattern": "^[a-z0-9-]+$",
+      "minLength": 1
+    },
+    "name": {
+      "type": "string",
+      "description": "Human-readable name for the campaign",
+      "minLength": 1
+    },
+    "description": {
+      "type": "string",
+      "description": "Brief description of the campaign"
+    },
+    "version": {
+      "type": "string",
+      "description": "Spec version (e.g., v1)",
+      "pattern": "^v[0-9]+$",
+      "default": "v1"
+    },
+    "workflows": {
+      "type": "array",
+      "description": "List of workflow IDs (basenames without .md) implementing this campaign",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "minItems": 1
+    },
+    "memory-paths": {
+      "type": "array",
+      "description": "Paths where this campaign writes its repo-memory",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "metrics-glob": {
+      "type": "string",
+      "description": "Glob pattern to locate JSON metrics snapshots in memory/campaigns branch"
+    },
+    "owners": {
+      "type": "array",
+      "description": "Primary human owners for this campaign",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "executive-sponsors": {
+      "type": "array",
+      "description": "Executive stakeholders or sponsors",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "risk-level": {
+      "type": "string",
+      "description": "Risk level (e.g., low, medium, high)",
+      "enum": ["low", "medium", "high"]
+    },
+    "tracker-label": {
+      "type": "string",
+      "description": "Label used to associate issues/PRs with this campaign (e.g., campaign:incident-response)",
+      "pattern": "^[^:]+:.+$",
+      "minLength": 1
+    },
+    "state": {
+      "type": "string",
+      "description": "Lifecycle stage of the campaign",
+      "enum": ["planned", "active", "paused", "completed", "archived"]
+    },
+    "tags": {
+      "type": "array",
+      "description": "Free-form categorization tags",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "allowed-safe-outputs": {
+      "type": "array",
+      "description": "Safe-outputs operations this campaign is expected to use",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "approval-policy": {
+      "type": "object",
+      "description": "Approval expectations for this campaign",
+      "properties": {
+        "required-approvals": {
+          "type": "integer",
+          "description": "Number of required approvals",
+          "minimum": 0
+        },
+        "required-roles": {
+          "type": "array",
+          "description": "Required roles for approval",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "change-control": {
+          "type": "boolean",
+          "description": "Whether change control is required"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "required": ["id", "name"],
+  "additionalProperties": false
+}

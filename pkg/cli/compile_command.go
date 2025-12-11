@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/fsnotify/fsnotify"
+	"github.com/githubnext/gh-aw/pkg/campaign"
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/logger"
 	"github.com/githubnext/gh-aw/pkg/workflow"
@@ -387,6 +388,59 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 
 			// Update result with resolved file name
 			result.Workflow = filepath.Base(resolvedFile)
+
+			// Handle campaign spec files separately from regular workflows
+			if strings.HasSuffix(resolvedFile, ".campaign.md") {
+				// Validate the campaign spec file and referenced workflows instead of
+				// compiling it as a regular workflow YAML.
+				spec, problems, vErr := campaign.ValidateSpecFromFile(resolvedFile)
+				if vErr != nil {
+					errMsg := fmt.Sprintf("failed to validate campaign spec %s: %v", resolvedFile, vErr)
+					if !jsonOutput {
+						fmt.Fprintln(os.Stderr, console.FormatErrorMessage(errMsg))
+					}
+					errorMessages = append(errorMessages, vErr.Error())
+					errorCount++
+					stats.Errors++
+					stats.FailedWorkflows = append(stats.FailedWorkflows, filepath.Base(resolvedFile))
+
+					result.Valid = false
+					result.Errors = append(result.Errors, ValidationError{
+						Type:    "campaign_validation_error",
+						Message: vErr.Error(),
+					})
+					validationResults = append(validationResults, result)
+					continue
+				}
+
+				// Also ensure that workflows referenced by the campaign spec exist
+				workflowsDir := filepath.Dir(resolvedFile)
+				workflowProblems := campaign.ValidateWorkflowsExist(spec, workflowsDir)
+				problems = append(problems, workflowProblems...)
+
+				if len(problems) > 0 {
+					for _, p := range problems {
+						if !jsonOutput {
+							fmt.Fprintln(os.Stderr, console.FormatErrorMessage(p))
+						}
+						result.Valid = false
+						result.Errors = append(result.Errors, ValidationError{
+							Type:    "campaign_validation_error",
+							Message: p,
+						})
+					}
+					errorMessages = append(errorMessages, problems[0])
+					errorCount++
+					stats.Errors++
+					stats.FailedWorkflows = append(stats.FailedWorkflows, filepath.Base(resolvedFile))
+				} else if verbose && !jsonOutput {
+					fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Validated campaign spec %s", filepath.Base(resolvedFile))))
+				}
+
+				validationResults = append(validationResults, result)
+				continue
+			}
+
 			lockFile := strings.TrimSuffix(resolvedFile, ".md") + ".lock.yml"
 			if !noEmit {
 				result.CompiledFile = lockFile
@@ -496,6 +550,15 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 		// Note: Instructions are only written by the init command
 		// The compile command should not write instruction files
 
+		// Validate campaign specs if they exist
+		if err := validateCampaigns(workflowDir, verbose); err != nil {
+			if strict {
+				return workflowDataList, fmt.Errorf("campaign validation failed: %w", err)
+			}
+			// Non-strict mode: just report as warning
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Campaign validation: %v", err)))
+		}
+
 		// Output JSON if requested
 		if jsonOutput {
 			jsonBytes, err := json.MarshalIndent(validationResults, "", "  ")
@@ -589,7 +652,7 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 		}
 	}
 
-	// Compile each file
+	// Compile each file (including .campaign.md files)
 	var errorCount int
 	var successCount int
 	for _, file := range mdFiles {
@@ -601,6 +664,55 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 			Valid:    true,
 			Errors:   []ValidationError{},
 			Warnings: []ValidationError{},
+		}
+
+		// Handle campaign spec files separately from regular workflows
+		if strings.HasSuffix(file, ".campaign.md") {
+			// Validate the campaign spec file and referenced workflows instead of
+			// compiling it as a regular workflow YAML.
+			spec, problems, vErr := campaign.ValidateSpecFromFile(file)
+			if vErr != nil {
+				if !jsonOutput {
+					fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("failed to validate campaign spec %s: %v", file, vErr)))
+				}
+				errorCount++
+				stats.Errors++
+				stats.FailedWorkflows = append(stats.FailedWorkflows, filepath.Base(file))
+
+				result.Valid = false
+				result.Errors = append(result.Errors, ValidationError{
+					Type:    "campaign_validation_error",
+					Message: vErr.Error(),
+				})
+				validationResults = append(validationResults, result)
+				continue
+			}
+
+			workflowsDir := filepath.Dir(file)
+			workflowProblems := campaign.ValidateWorkflowsExist(spec, workflowsDir)
+			problems = append(problems, workflowProblems...)
+
+			if len(problems) > 0 {
+				for _, p := range problems {
+					if !jsonOutput {
+						fmt.Fprintln(os.Stderr, console.FormatErrorMessage(p))
+					}
+					result.Valid = false
+					result.Errors = append(result.Errors, ValidationError{
+						Type:    "campaign_validation_error",
+						Message: p,
+					})
+				}
+				// Treat campaign spec problems as compilation errors for this file
+				errorCount++
+				stats.Errors++
+				stats.FailedWorkflows = append(stats.FailedWorkflows, filepath.Base(file))
+			} else if verbose && !jsonOutput {
+				fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Validated campaign spec %s", filepath.Base(file))))
+			}
+
+			validationResults = append(validationResults, result)
+			continue
 		}
 
 		lockFile := strings.TrimSuffix(file, ".md") + ".lock.yml"
@@ -746,6 +858,15 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 
 	// Note: Instructions are only written by the init command
 	// The compile command should not write instruction files
+
+	// Validate campaign specs if they exist
+	if err := validateCampaigns(workflowDir, verbose); err != nil {
+		if strict {
+			return workflowDataList, fmt.Errorf("campaign validation failed: %w", err)
+		}
+		// Non-strict mode: just report as warning
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Campaign validation: %v", err)))
+	}
 
 	// Output JSON if requested
 	if jsonOutput {
@@ -1276,4 +1397,78 @@ func printCompilationSummary(stats *CompilationStats) {
 	} else {
 		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(summary))
 	}
+}
+
+// validateCampaigns validates campaign spec files and their referenced workflows.
+// Returns an error if any campaign specs are invalid or reference missing workflows.
+func validateCampaigns(workflowDir string, verbose bool) error {
+	// Get absolute path to workflows directory
+	absWorkflowDir := workflowDir
+	if !filepath.IsAbs(absWorkflowDir) {
+		gitRoot, err := findGitRoot()
+		if err != nil {
+			// If not in a git repo, use current directory
+			cwd, cwdErr := os.Getwd()
+			if cwdErr != nil {
+				return nil // Silently skip if we can't determine the directory
+			}
+			absWorkflowDir = filepath.Join(cwd, workflowDir)
+		} else {
+			absWorkflowDir = filepath.Join(gitRoot, workflowDir)
+		}
+	}
+
+	// Load campaign specs
+	gitRoot, err := findGitRoot()
+	if err != nil {
+		// Not in a git repo, can't validate campaigns
+		return nil
+	}
+
+	specs, err := campaign.LoadSpecs(gitRoot)
+	if err != nil {
+		return fmt.Errorf("failed to load campaign specs: %w", err)
+	}
+
+	if len(specs) == 0 {
+		// No campaign specs to validate
+		return nil
+	}
+
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Validating %d campaign spec(s)...", len(specs))))
+	}
+
+	var allProblems []string
+	hasErrors := false
+
+	for _, spec := range specs {
+		// Validate the spec itself
+		problems := campaign.ValidateSpec(&spec)
+
+		// Validate that referenced workflows exist
+		workflowProblems := campaign.ValidateWorkflowsExist(&spec, absWorkflowDir)
+		problems = append(problems, workflowProblems...)
+
+		if len(problems) > 0 {
+			hasErrors = true
+			for _, problem := range problems {
+				msg := fmt.Sprintf("Campaign '%s' (%s): %s", spec.ID, spec.ConfigPath, problem)
+				allProblems = append(allProblems, msg)
+				if verbose {
+					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(msg))
+				}
+			}
+		}
+	}
+
+	if hasErrors {
+		return fmt.Errorf("found %d problem(s) in campaign specs", len(allProblems))
+	}
+
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("All %d campaign spec(s) validated successfully", len(specs))))
+	}
+
+	return nil
 }
