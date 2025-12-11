@@ -1,4 +1,4 @@
-package cli
+package campaign
 
 import (
 	"encoding/json"
@@ -24,9 +24,9 @@ func TestLoadCampaignSpecs_Basic(t *testing.T) {
 		t.Fatalf("Failed to change to repository root: %v", err)
 	}
 
-	specs, err := loadCampaignSpecs(repoRoot)
+	specs, err := LoadSpecs(repoRoot)
 	if err != nil {
-		t.Fatalf("loadCampaignSpecs failed: %v", err)
+		t.Fatalf("LoadSpecs failed: %v", err)
 	}
 
 	if len(specs) == 0 {
@@ -67,9 +67,9 @@ func TestComputeCompiledStateForCampaign_UsesLockFiles(t *testing.T) {
 		t.Fatalf("Failed to change to repository root: %v", err)
 	}
 
-	specs, err := loadCampaignSpecs(repoRoot)
+	specs, err := LoadSpecs(repoRoot)
 	if err != nil {
-		t.Fatalf("loadCampaignSpecs failed: %v", err)
+		t.Fatalf("LoadSpecs failed: %v", err)
 	}
 
 	var incident CampaignSpec
@@ -85,7 +85,7 @@ func TestComputeCompiledStateForCampaign_UsesLockFiles(t *testing.T) {
 		t.Skip("incident-response campaign spec not found; skipping compiled-state test")
 	}
 
-	state := computeCompiledStateForCampaign(incident)
+	state := ComputeCompiledState(incident, ".github/workflows")
 	if state == "Missing workflow" {
 		t.Fatalf("Expected incident-response workflows to exist, got compiled state: %s", state)
 	}
@@ -108,9 +108,9 @@ func TestRunCampaignStatus_JSON(t *testing.T) {
 	// Capture stdout via a pipe; simpler is to call runCampaignStatus and
 	// re-marshal the result, so instead we directly call the loader and
 	// verify JSON marshaling there.
-	specs, err := loadCampaignSpecs(repoRoot)
+	specs, err := LoadSpecs(repoRoot)
 	if err != nil {
-		t.Fatalf("loadCampaignSpecs failed: %v", err)
+		t.Fatalf("LoadSpecs failed: %v", err)
 	}
 
 	data, err := json.Marshal(specs)
@@ -134,7 +134,7 @@ func TestValidateCampaignSpec_Basic(t *testing.T) {
 		TrackerLabel: "campaign:security-compliance",
 	}
 
-	problems := validateCampaignSpec(spec)
+	problems := ValidateSpec(spec)
 	if len(problems) != 0 {
 		t.Fatalf("Expected no validation problems for basic spec, got: %v", problems)
 	}
@@ -155,7 +155,7 @@ func TestValidateCampaignSpec_InvalidState(t *testing.T) {
 		State:        "launching", // invalid
 	}
 
-	problems := validateCampaignSpec(spec)
+	problems := ValidateSpec(spec)
 	if len(problems) == 0 {
 		t.Fatalf("Expected validation problems for invalid state, got none")
 	}
