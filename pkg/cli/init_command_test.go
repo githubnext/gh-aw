@@ -439,8 +439,8 @@ func TestInitRepositoryErrorHandling(t *testing.T) {
 		t.Fatalf("Failed to change to temp directory: %v", err)
 	}
 
-		// Test init without git repo
-		err = InitRepository(false, false, false, []string{}, false)
+	// Test init without git repo
+	err = InitRepository(false, false, false, []string{}, false)
 
 	// Should handle error gracefully or return error
 	// The actual behavior depends on implementation
