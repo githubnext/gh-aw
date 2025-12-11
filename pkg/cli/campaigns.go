@@ -22,11 +22,12 @@ import (
 
 var campaignLog = logger.New("cli:campaigns")
 
-// CampaignSpec defines a first-class campaign configuration loaded from YAML.
+// CampaignSpec defines a first-class campaign configuration loaded from
+// YAML frontmatter in Markdown files.
 //
 // Files are discovered from the local repository under:
 //
-//	campaigns/*.campaign.yaml or campaigns/*.campaign.yml
+//	campaigns/*.campaign.md
 //
 // This provides a thin, declarative layer on top of existing agentic
 // workflows and repo-memory conventions.
@@ -503,7 +504,7 @@ func runCampaignStatus(pattern string, jsonOutput bool) error {
 	}
 
 	if len(specs) == 0 {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("No campaign specs found. Add files under 'campaigns/*.campaign.yaml' to define campaigns."))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("No campaign specs found. Add files under 'campaigns/*.campaign.md' to define campaigns."))
 		return nil
 	}
 
@@ -529,7 +530,7 @@ func runCampaignRuntimeStatus(pattern string, jsonOutput bool) error {
 
 	specs = filterCampaignSpecs(specs, pattern)
 	if len(specs) == 0 {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("No campaign specs found. Add files under 'campaigns/*.campaign.yaml' to define campaigns."))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("No campaign specs found. Add files under 'campaigns/*.campaign.md' to define campaigns."))
 		return nil
 	}
 
@@ -606,7 +607,7 @@ func runCampaignValidate(pattern string, jsonOutput bool, strict bool) error {
 
 	specs = filterCampaignSpecs(specs, pattern)
 	if len(specs) == 0 {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("No campaign specs found. Add files under 'campaigns/*.campaign.yaml' to define campaigns."))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("No campaign specs found. Add files under 'campaigns/*.campaign.md' to define campaigns."))
 		return nil
 	}
 
@@ -822,7 +823,7 @@ Examples:
 	validateCmd := &cobra.Command{
 		Use:   "validate [filter]",
 		Short: "Validate campaign spec files for common issues",
-		Long: `Validate campaign spec files under campaigns/*.campaign.yaml.
+		Long: `Validate campaign spec files under campaigns/*.campaign.md.
 
 This command performs lightweight semantic validation of campaign
 definitions (IDs, tracker labels, workflows, lifecycle state, and
