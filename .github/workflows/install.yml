@@ -27,7 +27,6 @@ jobs:
           - ubuntu-latest
           - ubuntu-22.04
           - macos-latest
-          - macos-13  # Intel-based macOS
           - windows-latest
     steps:
       - name: Checkout code
