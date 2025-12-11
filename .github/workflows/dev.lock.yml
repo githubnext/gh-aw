@@ -44,7 +44,6 @@
 #   lock-issue:
 #     labels: [copilot-no-firewall]
 #     max: 5
-#   staged: true
 # steps:
 #   - name: Download issues data
 #     run: |
@@ -3258,7 +3257,7 @@ jobs:
               sha: context.sha,
               actor: context.actor,
               event_name: context.eventName,
-              staged: true,
+              staged: false,
               network_mode: "defaults",
               allowed_domains: ["api.github.com"],
               firewall_enabled: true,
@@ -3464,7 +3463,6 @@ jobs:
           GH_AW_MODEL_AGENT_COPILOT: ${{ vars.GH_AW_MODEL_AGENT_COPILOT || '' }}
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
-          GH_AW_SAFE_OUTPUTS_STAGED: true
           GITHUB_HEAD_REF: ${{ github.head_ref }}
           GITHUB_REF_NAME: ${{ github.ref_name }}
           GITHUB_STEP_SUMMARY: ${{ env.GITHUB_STEP_SUMMARY }}
@@ -7023,7 +7021,6 @@ jobs:
           GH_AW_MAX_PATCH_SIZE: 1024
           GH_AW_WORKFLOW_NAME: "Dev"
           GH_AW_ENGINE_ID: "copilot"
-          GH_AW_SAFE_OUTPUTS_STAGED: "true"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -7923,7 +7920,6 @@ jobs:
           GH_AW_LOCK_ISSUE_REQUIRED_LABELS: "copilot-no-firewall"
           GH_AW_WORKFLOW_NAME: "Dev"
           GH_AW_ENGINE_ID: "copilot"
-          GH_AW_SAFE_OUTPUTS_STAGED: "true"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |

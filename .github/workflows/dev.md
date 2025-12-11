@@ -21,7 +21,6 @@ safe-outputs:
   lock-issue:
     labels: [copilot-no-firewall]
     max: 5
-  staged: true
 steps:
   - name: Download issues data
     run: |
