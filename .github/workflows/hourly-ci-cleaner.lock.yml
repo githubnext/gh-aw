@@ -66,6 +66,20 @@
 #         echo "Run ID: ${RUN_ID}" >> "$GITHUB_STEP_SUMMARY"
 #         echo "CI_NEEDS_FIX=true" >> "$GITHUB_ENV"
 #       fi
+#   - name: Install Make
+#     run: |
+#       sudo apt-get update
+#       sudo apt-get install -y make
+#   - name: Setup Go
+#     uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c # v6
+#     with:
+#       go-version-file: go.mod
+#       cache: true
+#   - name: Install npm dependencies
+#     run: npm ci
+#     working-directory: ./pkg/workflow/js
+#   - name: Install dev dependencies
+#     run: make deps-dev
 # safe-outputs:
 #   create-pull-request:
 #     title-prefix: "[ca] "
@@ -442,6 +456,8 @@
 #     https://github.com/actions/download-artifact/commit/018cc2cf5baa6db3ef3c5f8a56943fffe632ef53
 #   - actions/github-script@v8 (ed597411d8f924073f98dfc5c65a23a2325f34cd)
 #     https://github.com/actions/github-script/commit/ed597411d8f924073f98dfc5c65a23a2325f34cd
+#   - actions/setup-go@v6 (4dc6199c7b1a012772edbd06daecab0f50c9053c)
+#     https://github.com/actions/setup-go/commit/4dc6199c7b1a012772edbd06daecab0f50c9053c
 #   - actions/setup-node@v6 (395ad3262231945c25e8478fd5baf05154b1d79f)
 #     https://github.com/actions/setup-node/commit/395ad3262231945c25e8478fd5baf05154b1d79f
 #   - actions/upload-artifact@v5 (330a01c490aca151604b8cf639adc76d48f6c5d4)
@@ -586,6 +602,11 @@ jobs:
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
         with:
           persist-credentials: false
+      - name: Setup Node.js
+        uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6
+        with:
+          node-version: '24'
+          package-manager-cache: false
       - name: Create gh-aw temp directory
         run: |
           mkdir -p /tmp/gh-aw/agent
@@ -596,6 +617,20 @@ jobs:
         id: ci_check
         name: Check last CI workflow run status on main branch
         run: "# Get the last CI workflow run on main branch, excluding pending and cancelled runs\nLAST_RUN=$(gh run list --workflow=ci.yml --branch=main --limit 50 --json conclusion,status,databaseId \\\n  | jq -r '[.[] | select(.status == \"completed\" and (.conclusion == \"success\" or .conclusion == \"failure\"))] | .[0]')\n\nCONCLUSION=$(echo \"$LAST_RUN\" | jq -r '.conclusion')\nRUN_ID=$(echo \"$LAST_RUN\" | jq -r '.databaseId')\n\necho \"Last CI run conclusion: ${CONCLUSION}\"\necho \"Run ID: ${RUN_ID}\"\n\n# Write to environment and step summary\necho \"CI_STATUS=${CONCLUSION}\" >> \"$GITHUB_ENV\"\necho \"CI_RUN_ID=${RUN_ID}\" >> \"$GITHUB_ENV\"\n\nif [ \"$CONCLUSION\" = \"success\" ]; then\n  echo \"✅ CI is passing on main branch - no action needed\" >> \"$GITHUB_STEP_SUMMARY\"\n  echo \"CI_NEEDS_FIX=false\" >> \"$GITHUB_ENV\"\n  exit 1\nelse\n  echo \"❌ CI is failing on main branch - agent will attempt to fix\" >> \"$GITHUB_STEP_SUMMARY\"\n  echo \"Run ID: ${RUN_ID}\" >> \"$GITHUB_STEP_SUMMARY\"\n  echo \"CI_NEEDS_FIX=true\" >> \"$GITHUB_ENV\"\nfi\n"
+      - name: Install Make
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y make
+      - name: Setup Go
+        uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c # v6
+        with:
+          cache: true
+          go-version-file: go.mod
+      - name: Install npm dependencies
+        run: npm ci
+        working-directory: ./pkg/workflow/js
+      - name: Install dev dependencies
+        run: make deps-dev
 
       - name: Configure Git credentials
         env:
