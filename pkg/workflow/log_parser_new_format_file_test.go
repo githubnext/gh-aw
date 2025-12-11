@@ -55,20 +55,17 @@ func TestParseClaudeLogNewFormatJSScriptFromFile(t *testing.T) {
 		t.Fatalf("Failed to parse new format Claude log: %v", err)
 	}
 
-	// Verify essential sections are present
-	if !strings.Contains(result, "🚀 Initialization") {
-		t.Error("Expected new format Claude log output to contain Initialization section")
+	// Verify essential sections are present (Copilot CLI style format)
+	if !strings.Contains(result, "Conversation:") {
+		t.Error("Expected new format Claude log output to contain Conversation section")
 	}
-	if !strings.Contains(result, "🤖 Commands and Tools") {
-		t.Error("Expected new format Claude log output to contain Commands and Tools section")
+	if !strings.Contains(result, "Statistics:") {
+		t.Error("Expected new format Claude log output to contain Statistics section")
 	}
-	if !strings.Contains(result, "Total Cost") {
+	if !strings.Contains(result, "Cost") {
 		t.Error("Expected new format Claude log output to contain cost information")
 	}
-	if !strings.Contains(result, "29d324d8-1a92-43c6-8740-babc2875a1d6") {
-		t.Error("Expected new format Claude log output to contain session ID")
-	}
-	if !strings.Contains(result, "safe_outputs::missing-tool") {
+	if !strings.Contains(result, "safe_outputs") || !strings.Contains(result, "missing-tool") {
 		t.Error("Expected new format Claude log output to contain MCP tool call")
 	}
 

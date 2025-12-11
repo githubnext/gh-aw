@@ -1178,6 +1178,223 @@ function generatePlainTextSummary(logEntries, options = {}) {
   return lines.join("\n");
 }
 
+/**
+ * Generates a markdown-formatted Copilot CLI style summary for step summaries.
+ * Similar to generatePlainTextSummary but outputs markdown with code blocks for proper rendering.
+ *
+ * The output includes:
+ * - A "Conversation:" section showing agent responses and tool executions
+ * - A "Statistics:" section with execution metrics
+ *
+ * @param {Array} logEntries - Array of log entries with type, message, etc.
+ * @param {Object} options - Configuration options
+ * @param {string} [options.model] - Model name to include in the header
+ * @param {string} [options.parserName] - Name of the parser (e.g., "Copilot", "Claude")
+ * @returns {string} Markdown-formatted summary for step summary rendering
+ */
+function generateCopilotCliStyleSummary(logEntries, options = {}) {
+  const { model, parserName = "Agent" } = options;
+  const lines = [];
+
+  // Collect tool usage pairs for status lookup
+  const toolUsePairs = new Map();
+  for (const entry of logEntries) {
+    if (entry.type === "user" && entry.message?.content) {
+      for (const content of entry.message.content) {
+        if (content.type === "tool_result" && content.tool_use_id) {
+          toolUsePairs.set(content.tool_use_id, content);
+        }
+      }
+    }
+  }
+
+  // Generate conversation flow with agent responses and tool executions
+  lines.push("```");
+  lines.push("Conversation:");
+  lines.push("");
+
+  let conversationLineCount = 0;
+  const MAX_CONVERSATION_LINES = 50; // Limit conversation output
+  let conversationTruncated = false;
+
+  for (const entry of logEntries) {
+    if (conversationLineCount >= MAX_CONVERSATION_LINES) {
+      conversationTruncated = true;
+      break;
+    }
+
+    if (entry.type === "assistant" && entry.message?.content) {
+      for (const content of entry.message.content) {
+        if (conversationLineCount >= MAX_CONVERSATION_LINES) {
+          conversationTruncated = true;
+          break;
+        }
+
+        if (content.type === "text" && content.text) {
+          // Display agent response text
+          const text = content.text.trim();
+          if (text && text.length > 0) {
+            // Truncate long responses to keep output manageable
+            const maxTextLength = 500;
+            let displayText = text;
+            if (displayText.length > maxTextLength) {
+              displayText = displayText.substring(0, maxTextLength) + "...";
+            }
+
+            // Split into lines and add Agent prefix
+            const textLines = displayText.split("\n");
+            for (const line of textLines) {
+              if (conversationLineCount >= MAX_CONVERSATION_LINES) {
+                conversationTruncated = true;
+                break;
+              }
+              lines.push(`Agent: ${line}`);
+              conversationLineCount++;
+            }
+            lines.push(""); // Add blank line after agent response
+            conversationLineCount++;
+          }
+        } else if (content.type === "tool_use") {
+          // Display tool execution
+          const toolName = content.name;
+          const input = content.input || {};
+
+          // Skip internal tools (file operations)
+          if (["Read", "Write", "Edit", "MultiEdit", "LS", "Grep", "Glob", "TodoWrite"].includes(toolName)) {
+            continue;
+          }
+
+          const toolResult = toolUsePairs.get(content.id);
+          const isError = toolResult?.is_error === true;
+          const statusIcon = isError ? "✗" : "✓";
+
+          // Format tool execution in Copilot CLI style
+          let displayName;
+          let resultPreview = "";
+
+          if (toolName === "Bash") {
+            const cmd = formatBashCommand(input.command || "");
+            displayName = `$ ${cmd}`;
+
+            // Show result preview if available
+            if (toolResult && toolResult.content) {
+              const resultText = typeof toolResult.content === "string" ? toolResult.content : String(toolResult.content);
+              const resultLines = resultText.split("\n").filter(l => l.trim());
+              if (resultLines.length > 0) {
+                const previewLine = resultLines[0].substring(0, 80);
+                if (resultLines.length > 1) {
+                  resultPreview = `   └ ${resultLines.length} lines...`;
+                } else if (previewLine) {
+                  resultPreview = `   └ ${previewLine}`;
+                }
+              }
+            }
+          } else if (toolName.startsWith("mcp__")) {
+            // Format MCP tool names like github-list_pull_requests
+            const formattedName = formatMcpName(toolName).replace("::", "-");
+            displayName = formattedName;
+
+            // Show result preview if available
+            if (toolResult && toolResult.content) {
+              const resultText = typeof toolResult.content === "string" ? toolResult.content : JSON.stringify(toolResult.content);
+              const truncated = resultText.length > 80 ? resultText.substring(0, 80) + "..." : resultText;
+              resultPreview = `   └ ${truncated}`;
+            }
+          } else {
+            displayName = toolName;
+
+            // Show result preview if available
+            if (toolResult && toolResult.content) {
+              const resultText = typeof toolResult.content === "string" ? toolResult.content : String(toolResult.content);
+              const truncated = resultText.length > 80 ? resultText.substring(0, 80) + "..." : resultText;
+              resultPreview = `   └ ${truncated}`;
+            }
+          }
+
+          lines.push(`${statusIcon} ${displayName}`);
+          conversationLineCount++;
+
+          if (resultPreview) {
+            lines.push(resultPreview);
+            conversationLineCount++;
+          }
+
+          lines.push(""); // Add blank line after tool execution
+          conversationLineCount++;
+        }
+      }
+    }
+  }
+
+  if (conversationTruncated) {
+    lines.push("... (conversation truncated)");
+    lines.push("");
+  }
+
+  // Statistics
+  const lastEntry = logEntries[logEntries.length - 1];
+  lines.push("Statistics:");
+  if (lastEntry?.num_turns) {
+    lines.push(`  Turns: ${lastEntry.num_turns}`);
+  }
+  if (lastEntry?.duration_ms) {
+    const duration = formatDuration(lastEntry.duration_ms);
+    if (duration) {
+      lines.push(`  Duration: ${duration}`);
+    }
+  }
+
+  // Count tools for statistics
+  let toolCounts = { total: 0, success: 0, error: 0 };
+  for (const entry of logEntries) {
+    if (entry.type === "assistant" && entry.message?.content) {
+      for (const content of entry.message.content) {
+        if (content.type === "tool_use") {
+          const toolName = content.name;
+          // Skip internal tools
+          if (["Read", "Write", "Edit", "MultiEdit", "LS", "Grep", "Glob", "TodoWrite"].includes(toolName)) {
+            continue;
+          }
+          toolCounts.total++;
+          const toolResult = toolUsePairs.get(content.id);
+          const isError = toolResult?.is_error === true;
+          if (isError) {
+            toolCounts.error++;
+          } else {
+            toolCounts.success++;
+          }
+        }
+      }
+    }
+  }
+
+  if (toolCounts.total > 0) {
+    lines.push(`  Tools: ${toolCounts.success}/${toolCounts.total} succeeded`);
+  }
+  if (lastEntry?.usage) {
+    const usage = lastEntry.usage;
+    if (usage.input_tokens || usage.output_tokens) {
+      // Calculate total tokens (matching Go parser logic)
+      const inputTokens = usage.input_tokens || 0;
+      const outputTokens = usage.output_tokens || 0;
+      const cacheCreationTokens = usage.cache_creation_input_tokens || 0;
+      const cacheReadTokens = usage.cache_read_input_tokens || 0;
+      const totalTokens = inputTokens + outputTokens + cacheCreationTokens + cacheReadTokens;
+
+      lines.push(
+        `  Tokens: ${totalTokens.toLocaleString()} total (${usage.input_tokens.toLocaleString()} in / ${usage.output_tokens.toLocaleString()} out)`
+      );
+    }
+  }
+  if (lastEntry?.total_cost_usd) {
+    lines.push(`  Cost: $${lastEntry.total_cost_usd.toFixed(4)}`);
+  }
+
+  lines.push("```");
+
+  return lines.join("\n");
+}
+
 // Export functions and constants
 module.exports = {
   // Constants
@@ -1200,4 +1417,5 @@ module.exports = {
   parseLogEntries,
   formatToolCallAsDetails,
   generatePlainTextSummary,
+  generateCopilotCliStyleSummary,
 };

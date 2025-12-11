@@ -117,17 +117,17 @@ func TestParseClaudeLogSmoke(t *testing.T) {
 		t.Fatalf("Failed to parse minimal Claude log: %v", err)
 	}
 
-	// Verify essential sections are present
-	if !strings.Contains(result, "🤖 Commands and Tools") {
-		t.Error("Expected Claude log output to contain Commands and Tools section")
+	// Verify essential sections are present (Copilot CLI style format)
+	if !strings.Contains(result, "Conversation:") {
+		t.Error("Expected Claude log output to contain Conversation section")
 	}
-	if !strings.Contains(result, "🤖 Reasoning") {
-		t.Error("Expected Claude log output to contain Reasoning section")
+	if !strings.Contains(result, "Statistics:") {
+		t.Error("Expected Claude log output to contain Statistics section")
 	}
 	if !strings.Contains(result, "echo 'Hello World'") {
 		t.Error("Expected Claude log output to contain the bash command")
 	}
-	if !strings.Contains(result, "Total Cost") {
+	if !strings.Contains(result, "Cost") {
 		t.Error("Expected Claude log output to contain cost information")
 	}
 
@@ -180,42 +180,17 @@ func TestParseClaudeLogInitialization(t *testing.T) {
 		t.Fatalf("Failed to parse initialization Claude log: %v", err)
 	}
 
-	// Verify initialization section is present
-	if !strings.Contains(result, "🚀 Initialization") {
-		t.Error("Expected Claude log output to contain Initialization section")
+	// Verify Copilot CLI style format sections are present
+	if !strings.Contains(result, "```") {
+		t.Error("Expected Claude log output to be wrapped in code block")
 	}
 
-	// Verify model information
-	if !strings.Contains(result, "claude-sonnet-4-20250514") {
-		t.Error("Expected Claude log output to contain model information")
+	if !strings.Contains(result, "Conversation:") {
+		t.Error("Expected Claude log output to contain Conversation section")
 	}
 
-	// Verify session ID
-	if !strings.Contains(result, "test-session-123") {
-		t.Error("Expected Claude log output to contain session ID")
-	}
-
-	// Verify MCP servers section
-	if !strings.Contains(result, "MCP Servers") {
-		t.Error("Expected Claude log output to contain MCP Servers section")
-	}
-
-	// Verify specific server statuses
-	if !strings.Contains(result, "✅ github (connected)") {
-		t.Error("Expected Claude log output to show github server as connected")
-	}
-	if !strings.Contains(result, "❌ safeoutputs (failed)") {
-		t.Error("Expected Claude log output to show safeoutputs server as failed")
-	}
-
-	// Verify tools section
-	if !strings.Contains(result, "Available Tools") {
-		t.Error("Expected Claude log output to contain Available Tools section")
-	}
-
-	// Verify slash commands section
-	if !strings.Contains(result, "Slash Commands") {
-		t.Error("Expected Claude log output to contain Slash Commands section")
+	if !strings.Contains(result, "Statistics:") {
+		t.Error("Expected Claude log output to contain Statistics section")
 	}
 }
 
@@ -243,24 +218,18 @@ func TestParseClaudeMixedFormatLog(t *testing.T) {
 		t.Fatalf("Failed to parse mixed format Claude log: %v", err)
 	}
 
-	// Verify essential sections are present
-	if !strings.Contains(result, "🚀 Initialization") {
-		t.Error("Expected mixed format Claude log output to contain Initialization section")
+	// Verify essential sections are present (Copilot CLI style format)
+	if !strings.Contains(result, "Conversation:") {
+		t.Error("Expected mixed format Claude log output to contain Conversation section")
 	}
-	if !strings.Contains(result, "🤖 Commands and Tools") {
-		t.Error("Expected mixed format Claude log output to contain Commands and Tools section")
-	}
-	if !strings.Contains(result, "🤖 Reasoning") {
-		t.Error("Expected mixed format Claude log output to contain Reasoning section")
+	if !strings.Contains(result, "Statistics:") {
+		t.Error("Expected mixed format Claude log output to contain Statistics section")
 	}
 	if !strings.Contains(result, "echo 'Hello World'") {
 		t.Error("Expected mixed format Claude log output to contain the bash command")
 	}
-	if !strings.Contains(result, "Total Cost") {
+	if !strings.Contains(result, "Cost") {
 		t.Error("Expected mixed format Claude log output to contain cost information")
-	}
-	if !strings.Contains(result, "test-123") {
-		t.Error("Expected mixed format Claude log output to contain session ID")
 	}
 
 	// Test backward compatibility with pure JSON array format
@@ -276,15 +245,15 @@ func TestParseClaudeMixedFormatLog(t *testing.T) {
 		t.Fatalf("Failed to parse JSON array Claude log: %v", err)
 	}
 
-	// Verify backward compatibility works
-	if !strings.Contains(result, "🚀 Initialization") {
-		t.Error("Expected JSON array Claude log output to contain Initialization section")
+	// Verify backward compatibility works (Copilot CLI style format)
+	if !strings.Contains(result, "Conversation:") {
+		t.Error("Expected JSON array Claude log output to contain Conversation section")
+	}
+	if !strings.Contains(result, "Statistics:") {
+		t.Error("Expected JSON array Claude log output to contain Statistics section")
 	}
 	if !strings.Contains(result, "ls -la") {
 		t.Error("Expected JSON array Claude log output to contain the bash command")
-	}
-	if !strings.Contains(result, "test-456") {
-		t.Error("Expected JSON array Claude log output to contain session ID")
 	}
 }
 
