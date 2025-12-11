@@ -66,6 +66,19 @@ interface CloseIssueItem extends BaseSafeOutputItem {
 }
 
 /**
+ * JSONL item for locking a GitHub issue
+ */
+interface LockIssueItem extends BaseSafeOutputItem {
+  type: "lock_issue";
+  /** Comment body to add when locking the issue */
+  body: string;
+  /** Optional reason for locking the issue */
+  lock_reason?: "off-topic" | "too heated" | "resolved" | "spam";
+  /** Optional issue number (uses triggering issue if not provided) */
+  issue_number?: number | string;
+}
+
+/**
  * JSONL item for closing a GitHub pull request without merging
  */
 interface ClosePullRequestItem extends BaseSafeOutputItem {
@@ -295,6 +308,7 @@ type SafeOutputItem =
   | CreateDiscussionItem
   | CloseDiscussionItem
   | CloseIssueItem
+  | LockIssueItem
   | ClosePullRequestItem
   | AddCommentItem
   | CreatePullRequestItem
@@ -329,6 +343,7 @@ export {
   CreateDiscussionItem,
   CloseDiscussionItem,
   CloseIssueItem,
+  LockIssueItem,
   ClosePullRequestItem,
   AddCommentItem,
   CreatePullRequestItem,

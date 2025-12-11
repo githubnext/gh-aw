@@ -380,6 +380,24 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName, markdownPat
 		safeOutputJobNames = append(safeOutputJobNames, closeIssueJob.Name)
 	}
 
+	// Build lock_issue job if safe-outputs.lock-issue is configured
+	if data.SafeOutputs.LockIssues != nil {
+		lockIssueJob, err := c.buildCreateOutputLockIssueJob(data, jobName)
+		if err != nil {
+			return fmt.Errorf("failed to build lock_issue job: %w", err)
+		}
+		// Safe-output jobs should depend on agent job (always) AND detection job (if enabled)
+		if threatDetectionEnabled {
+			lockIssueJob.Needs = append(lockIssueJob.Needs, constants.DetectionJobName)
+			// Add detection success check to the job condition
+			lockIssueJob.If = AddDetectionSuccessCheck(lockIssueJob.If)
+		}
+		if err := c.jobManager.AddJob(lockIssueJob); err != nil {
+			return fmt.Errorf("failed to add lock_issue job: %w", err)
+		}
+		safeOutputJobNames = append(safeOutputJobNames, lockIssueJob.Name)
+	}
+
 	// Build close_pull_request job if safe-outputs.close-pull-request is configured
 	if data.SafeOutputs.ClosePullRequests != nil {
 		closePullRequestJob, err := c.buildCreateOutputClosePullRequestJob(data, jobName)

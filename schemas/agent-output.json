@@ -39,6 +39,7 @@
         {"$ref": "#/$defs/CreateDiscussionOutput"},
         {"$ref": "#/$defs/CloseDiscussionOutput"},
         {"$ref": "#/$defs/CloseIssueOutput"},
+        {"$ref": "#/$defs/LockIssueOutput"},
         {"$ref": "#/$defs/ClosePullRequestOutput"},
         {"$ref": "#/$defs/MissingToolOutput"},
         {"$ref": "#/$defs/CreateCodeScanningAlertOutput"},
@@ -375,6 +376,35 @@
             {"type": "string"}
           ],
           "description": "Issue number to close (optional - uses triggering issue if not provided)"
+        }
+      },
+      "required": ["type", "body"],
+      "additionalProperties": false
+    },
+    "LockIssueOutput": {
+      "title": "Lock Issue Output",
+      "description": "Output for locking a GitHub issue to prevent further comments",
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "lock_issue"
+        },
+        "body": {
+          "type": "string",
+          "description": "Comment body to add when locking the issue",
+          "minLength": 1
+        },
+        "lock_reason": {
+          "type": "string",
+          "enum": ["off-topic", "too heated", "resolved", "spam"],
+          "description": "Reason for locking the issue (optional)"
+        },
+        "issue_number": {
+          "oneOf": [
+            {"type": "number"},
+            {"type": "string"}
+          ],
+          "description": "Issue number to lock (optional - uses triggering issue if not provided)"
         }
       },
       "required": ["type", "body"],

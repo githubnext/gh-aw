@@ -115,6 +115,30 @@
     }
   },
   {
+    "name": "lock_issue",
+    "description": "Lock a GitHub issue to prevent further comments. Use this when discussions have become unproductive, off-topic, too heated, or when an issue is resolved and should not receive more comments. A comment explaining the reason for locking should be added.",
+    "inputSchema": {
+      "type": "object",
+      "required": ["body"],
+      "properties": {
+        "body": {
+          "type": "string",
+          "description": "Comment explaining why the issue is being locked."
+        },
+        "lock_reason": {
+          "type": "string",
+          "enum": ["off-topic", "too heated", "resolved", "spam"],
+          "description": "Optional reason for locking the issue. Must be one of: 'off-topic', 'too heated', 'resolved', or 'spam'."
+        },
+        "issue_number": {
+          "type": ["number", "string"],
+          "description": "Issue number to lock. If omitted, locks the issue that triggered this workflow (requires an issue event trigger)."
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  {
     "name": "close_pull_request",
     "description": "Close a pull request WITHOUT merging, adding a closing comment. Use this for PRs that should be abandoned, superseded, or closed for other reasons. The closing comment should explain why the PR is being closed. This does NOT merge the changes.",
     "inputSchema": {

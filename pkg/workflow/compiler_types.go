@@ -251,6 +251,7 @@ type SafeOutputsConfig struct {
 	CreateDiscussions               *CreateDiscussionsConfig               `yaml:"create-discussions,omitempty"`
 	CloseDiscussions                *CloseDiscussionsConfig                `yaml:"close-discussions,omitempty"`
 	CloseIssues                     *CloseIssuesConfig                     `yaml:"close-issue,omitempty"`
+	LockIssues                      *LockIssuesConfig                      `yaml:"lock-issue,omitempty"`
 	ClosePullRequests               *ClosePullRequestsConfig               `yaml:"close-pull-request,omitempty"`
 	AddComments                     *AddCommentsConfig                     `yaml:"add-comments,omitempty"`
 	CreatePullRequests              *CreatePullRequestsConfig              `yaml:"create-pull-requests,omitempty"`
