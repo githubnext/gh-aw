@@ -120,8 +120,6 @@ For each CLI tool update:
      - `copilot help copilot`
      - `copilot help config` or `copilot config --help`
      - `copilot help environment` or `copilot environment --help`
-     - `copilot help explain` (if available)
-     - `copilot help suggest` (if available)
 4. Compare help output with previous version to identify:
    - New commands or subcommands
    - New command-line flags or options
