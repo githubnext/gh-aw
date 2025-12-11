@@ -94,7 +94,7 @@ Test safe-inputs HTTP server
 	// Verify health check (health endpoint doesn't require auth)
 	// Note: health check still uses localhost since it runs on the host
 	healthCheckItems := []string{
-		"curl -s -f http://localhost:$GH_AW_SAFE_INPUTS_PORT/health",
+		`curl -s -f "http://localhost:$GH_AW_SAFE_INPUTS_PORT/health"`,
 		"Safe Inputs MCP server is ready",
 		"ERROR: Safe Inputs MCP server failed to start",
 	}
@@ -326,10 +326,10 @@ Test readiness check
 	// Verify readiness check loop (health endpoint doesn't require auth)
 	readinessChecks := []string{
 		"for i in {1..10}; do",
-		"if curl -s -f http://localhost:$GH_AW_SAFE_INPUTS_PORT/health",
+		`if curl -s -f "http://localhost:$GH_AW_SAFE_INPUTS_PORT/health"`,
 		"Safe Inputs MCP server is ready",
 		"break",
-		"if [ $i -eq 10 ]; then",
+		`if [ "$i" -eq 10 ]; then`,
 		"ERROR: Safe Inputs MCP server failed to start after 10 seconds",
 		"cat /tmp/gh-aw/safe-inputs/logs/server.log",
 		"exit 1",

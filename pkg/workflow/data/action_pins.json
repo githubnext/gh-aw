@@ -83,7 +83,7 @@
     "anchore/sbom-action@v0": {
       "repo": "anchore/sbom-action",
       "version": "v0",
-      "sha": "fbfd9c6c189226748411491745178e0c2017392d"
+      "sha": "43a17d6e7add2b5535efe4dcae9952337c479a93"
     },
     "anchore/sbom-action@v0.20.10": {
       "repo": "anchore/sbom-action",
