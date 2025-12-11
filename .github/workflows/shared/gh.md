@@ -13,6 +13,7 @@ safe-inputs:
         required: true
     env:
       GH_AW_GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GH_DEBUG: "1"
     run: |
       echo "gh $INPUT_ARGS"
       echo "  token: ${GH_AW_GH_TOKEN:0:6}..."
