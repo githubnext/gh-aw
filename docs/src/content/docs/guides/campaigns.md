@@ -302,6 +302,33 @@ See the actual campaign workflows in `.github/workflows/*.md` for complete, runn
 - **human-ai-collaboration.md** - AI-assisted decision-making pattern
 - **intelligence.md** - Cross-campaign learning
 
+## Recommended Default Wiring for Campaigns
+
+For most enterprise campaigns, we recommend a consistent wiring pattern so
+ownership, tracking, and reporting feel the same every time:
+
+- **Tracker label**: A dedicated label like `campaign:<id>` declared in the
+  campaign spec (`tracker-label`) and applied to all issues/PRs for that
+  campaign.
+- **Epic issue**: A single tracker issue (often labeled `campaign-tracker` +
+  `campaign:<id>`) that serves as the human-readable command center.
+- **Project board**: A GitHub Projects board per campaign (for example,
+  `Code Health: File Diet`) used as the primary dashboard. Workers use the
+  `update-project` safe-output to attach refactor tasks, update status
+  fields, and keep the board in sync.
+- **Repo-memory metrics**: Daily JSON snapshots under
+  `memory/campaigns/<campaign-id>-*/metrics/*.json` following the
+  `CampaignMetricsSnapshot` shape, so `gh aw campaign status` and
+  intelligence workflows can compute velocity and ETAs.
+- **Monitor workflow**: A lightweight monitor (often weekly) that aggregates
+  metrics, generates trend charts (via `shared/trends.md`), and posts
+  executive-ready updates to the epic with embedded screenshots.
+
+This pattern turns each campaign into a first-class, auditable initiative:
+issues carry the label, the epic and project board provide day-to-day
+visibility, and repo-memory + charts power long-term reporting and
+cross-campaign intelligence.
+
 ### Visualizing Campaign Trends
 
 The `intelligence.md` workflow can turn your campaign metrics into **trend charts** using the shared Python visualization imports.
