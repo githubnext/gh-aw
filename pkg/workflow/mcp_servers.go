@@ -195,7 +195,21 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		}
 	}
 
-	if hasAgenticWorkflows {
+	// Check if shared/mcp/gh-aw.md is imported (which already installs gh-aw)
+	hasGhAwImport := false
+	for _, importPath := range workflowData.ImportedFiles {
+		if strings.Contains(importPath, "shared/mcp/gh-aw.md") {
+			hasGhAwImport = true
+			break
+		}
+	}
+
+	if hasAgenticWorkflows && hasGhAwImport {
+		mcpServersLog.Print("Skipping gh-aw extension installation step (provided by shared/mcp/gh-aw.md import)")
+	}
+
+	// Only install gh-aw if needed and not already provided by imports
+	if hasAgenticWorkflows && !hasGhAwImport {
 		// Use effective token with precedence: top-level github-token > default
 		effectiveToken := getEffectiveGitHubToken("", workflowData.GitHubToken)
 

@@ -874,19 +874,6 @@ jobs:
         run: |
           set -e
           docker pull ghcr.io/github/github-mcp-server:v0.24.1
-      - name: Install gh-aw extension
-        env:
-          GH_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
-        run: |
-          # Check if gh-aw extension is already installed
-          if gh extension list | grep -q "githubnext/gh-aw"; then
-            echo "gh-aw extension already installed, upgrading..."
-            gh extension upgrade gh-aw || true
-          else
-            echo "Installing gh-aw extension..."
-            gh extension install githubnext/gh-aw
-          fi
-          gh aw --version
       - name: Write Safe Outputs Config
         run: |
           mkdir -p /tmp/gh-aw/safeoutputs
