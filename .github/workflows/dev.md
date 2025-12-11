@@ -18,7 +18,6 @@ imports:
 safe-outputs:
   create-pull-request:
     allow-empty: true
-  staged: true
 steps:
   - name: Download issues data
     run: |
