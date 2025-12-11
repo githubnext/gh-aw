@@ -209,6 +209,7 @@ func TestEcosystemDomainExpansion(t *testing.T) {
 			"raw.githubusercontent.com",
 			"objects.githubusercontent.com",
 			"lfs.github.com",
+			"github.githubassets.com",
 		}
 
 		for _, expectedDomain := range expectedDomains {
