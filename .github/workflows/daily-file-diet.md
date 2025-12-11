@@ -13,22 +13,28 @@ permissions:
   pull-requests: read
 
 tracker-id: daily-file-diet
-engine: codex
+engine: copilot
 
 imports:
   - shared/reporting.md
   - shared/safe-output-app.md
+  - shared/trends.md
 
 safe-outputs:
   create-issue:
     title-prefix: "[file-diet] "
-    labels: [refactoring, code-health, automated-analysis]
+    labels: [refactoring, code-health, automated-analysis, "campaign:code-health-file-diet"]
     max: 1
+  update-project:
+    max: 10
 
 tools:
   serena: ["go"]
   github:
     toolsets: [default]
+  repo-memory:
+    branch-name: memory/campaigns
+    file-glob: "code-health-file-diet-*/**"
   edit:
   bash:
     - "find pkg -name '*.go' ! -name '*_test.go' -type f -exec wc -l {} \\; | sort -rn"
@@ -57,6 +63,12 @@ Analyze the Go codebase daily to identify the largest source file and determine 
 - **Repository**: ${{ github.repository }}
 - **Analysis Date**: $(date +%Y-%m-%d)
 - **Workspace**: ${{ github.workspace }}
+
+## Campaign Context
+
+- **Campaign ID**: `code-health-file-diet`
+- **Campaign Label**: `campaign:code-health-file-diet`
+- **Memory Path Prefix**: `memory/campaigns/code-health-file-diet-*/**`
 
 ## Analysis Process
 
@@ -224,6 +236,123 @@ Your output MUST either:
    ```
 
 2. **If largest file ≥ 1000 lines**: Create an issue with the detailed description above
+
+In both cases, update campaign metrics and trend charts as described below.
+
+## Campaign Metrics & Trend Charts
+
+To support enterprise reporting and visual trends for the
+`code-health-file-diet` campaign:
+
+1. **Write a campaign metrics snapshot** to repo-memory on each run using
+   the `repo-memory` tool. Follow the `CampaignMetricsSnapshot` schema
+   used by the campaign system:
+
+   - `date`: analysis date (YYYY-MM-DD)
+   - `campaign_id`: `"code-health-file-diet"`
+   - `tasks_total`: total number of refactor issues for this campaign
+     (open + closed) labeled `campaign:code-health-file-diet`
+   - `tasks_completed`: number of closed refactor issues labeled
+     `campaign:code-health-file-diet`
+   - `tasks_in_progress`: number of open refactor issues labeled
+     `campaign:code-health-file-diet`
+   - `tasks_blocked`: number of campaign issues marked as blocked (for
+     example, with a `status:blocked` label, if present)
+   - `velocity_per_day`: approximate completion velocity based on recent
+     history (you can estimate this from the last 7–14 days of
+     completions)
+   - `estimated_completion`: optional human-readable ETA string
+
+   Also include additional file-diet specific fields in the same JSON
+   document:
+
+   - `largest_file_path`: path of the largest file analyzed
+   - `largest_file_loc`: line count of the largest file
+   - `files_over_threshold`: count of files over the 1000-line threshold
+
+   Store this snapshot under the campaign metrics path so it matches the
+   campaign spec `metrics-glob`:
+
+   - `memory/campaigns/code-health-file-diet-${{ github.run_id }}/metrics/<DATE>.json`
+
+2. **Aggregate historical snapshots** from repo-memory when generating a
+   report:
+
+   - Read all existing JSON snapshots matching
+     `memory/campaigns/code-health-file-diet-*/metrics/*.json`.
+   - Build a time-series table keyed by `date` with columns like:
+     `largest_file_loc`, `files_over_threshold`, `tasks_total`,
+     `tasks_completed`, `velocity_per_day`.
+
+3. **Generate trend charts using Python data viz** (provided via the
+   `shared/trends.md` / `shared/python-dataviz.md` imports):
+
+   - Write the aggregated metrics table to
+     `/tmp/gh-aw/python/data/file-diet-metrics.json` or `.csv`.
+   - Use Pandas + Matplotlib/Seaborn to create at least two PNG charts
+     in `/tmp/gh-aw/python/charts/`:
+     - **Chart 1**: `largest_file_loc` over time (line chart) to show
+       how the maximum file size is trending.
+     - **Chart 2**: `tasks_total` vs `tasks_completed` over time to show
+       campaign progress.
+   - Follow the styling and quality guidelines from `shared/trends.md`
+     (DPI 300, clear labels, professional styling).
+
+4. **Upload charts as assets and use them as screenshots**:
+
+   - Use the `upload-assets` safe-output (from `shared/python-dataviz.md`)
+     to upload the generated PNGs and obtain URLs.
+   - When you create a refactor issue (for files ≥1000 lines), embed the
+     most relevant chart URLs in the issue body using Markdown image
+     syntax so humans see them as screenshots, for example under a
+     `## Trend` section:
+
+     ```markdown
+     ## Trend
+
+     ![Largest file size over time](FILE_DIET_LARGEST_FILE_TREND_URL)
+
+     ![Refactor tasks progress](FILE_DIET_TASKS_TREND_URL)
+     ```
+
+   - When no issue is created (all files healthy), you may still update
+     the metrics snapshot and generate charts so artifacts remain
+     up-to-date for campaign-level intelligence workflows.
+
+## Project Board Integration
+
+Enterprises expect every campaign to have a GitHub Projects board as
+its primary dashboard. Use the `update-project` safe output to keep the
+board in sync with refactor issues:
+
+1. **Choose the board**:
+
+   - Prefer an organization or repository project named
+     `Code Health: File Diet`.
+   - If it does not exist and permissions allow, the `update-project`
+     safe output can create it automatically; otherwise humans can
+     create the board and re-run the workflow.
+
+2. **Add each refactor issue to the board** when you create it:
+
+   - Call `update-project` with:
+     - `project`: the board name or URL (for example,
+       `"Code Health: File Diet"`).
+     - `content_number`: the GitHub issue number of the refactor task
+       you just created.
+     - `content_type`: `"issue"`.
+     - `campaign_id`: `"code-health-file-diet"` so the tooling can
+       apply consistent campaign metadata.
+   - Let the smart project updater handle adding the issue to the board
+     and avoiding duplicates.
+
+3. **Set fields or status columns** (if the board defines them):
+
+   - When supported by the project, use `fields` in the `update-project`
+     payload to set values like status (for example, `Todo`), priority,
+     or team ownership.
+   - Keep field usage simple and aligned with how your teams already
+     use project boards.
 
 ## Important Guidelines
 
