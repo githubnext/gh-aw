@@ -51,48 +51,45 @@ func (c *Compiler) buildCustomActionStep(data *WorkflowData, config GitHubScript
 	steps = append(steps, "        with:\n")
 
 	// Map github-token to token input for custom actions
-	if config.UseAgentToken {
-		c.addCustomActionAgentGitHubToken(&steps, data, config.Token)
-	} else if config.UseCopilotToken {
-		c.addCustomActionCopilotGitHubToken(&steps, data, config.Token)
-	} else {
-		c.addCustomActionGitHubToken(&steps, data, config.Token)
-	}
+	c.addCustomActionGitHubToken(&steps, data, config.Token, config.UseAgentToken, config.UseCopilotToken)
 
 	return steps
 }
 
-// Helper functions to add GitHub token as action input instead of github-script parameter
-func (c *Compiler) addCustomActionGitHubToken(steps *[]string, data *WorkflowData, customToken string) {
+// addCustomActionGitHubToken adds a GitHub token as action input.
+// The token precedence depends on the tokenType flags:
+// - UseAgentToken: customToken > GH_AW_AGENT_TOKEN
+// - UseCopilotToken: customToken > SafeOutputs.GitHubToken > COPILOT_TOKEN || GITHUB_TOKEN
+// - Default: customToken > SafeOutputs.GitHubToken > data.GitHubToken > GITHUB_TOKEN
+func (c *Compiler) addCustomActionGitHubToken(steps *[]string, data *WorkflowData, customToken string, useAgentToken, useCopilotToken bool) {
 	token := customToken
-	if token == "" && data.SafeOutputs != nil {
-		token = data.SafeOutputs.GitHubToken
-	}
-	if token == "" {
-		token = data.GitHubToken
-	}
-	if token == "" {
-		token = "${{ secrets.GITHUB_TOKEN }}"
-	}
-	*steps = append(*steps, fmt.Sprintf("          token: %s\n", token))
-}
 
-func (c *Compiler) addCustomActionCopilotGitHubToken(steps *[]string, data *WorkflowData, customToken string) {
-	token := customToken
-	if token == "" && data.SafeOutputs != nil {
-		token = data.SafeOutputs.GitHubToken
-	}
-	if token == "" {
-		token = "${{ secrets.COPILOT_TOKEN || secrets.GITHUB_TOKEN }}"
-	}
-	*steps = append(*steps, fmt.Sprintf("          token: %s\n", token))
-}
+	// Agent token mode: simple fallback to GH_AW_AGENT_TOKEN
+	if useAgentToken {
+		if token == "" {
+			token = "${{ env.GH_AW_AGENT_TOKEN }}"
+		}
+	} else {
+		// Standard and Copilot modes: check SafeOutputs.GitHubToken first
+		if token == "" && data.SafeOutputs != nil {
+			token = data.SafeOutputs.GitHubToken
+		}
 
-func (c *Compiler) addCustomActionAgentGitHubToken(steps *[]string, data *WorkflowData, customToken string) {
-	token := customToken
-	if token == "" {
-		token = "${{ env.GH_AW_AGENT_TOKEN }}"
+		// Final fallback depends on mode
+		if token == "" {
+			if useCopilotToken {
+				token = "${{ secrets.COPILOT_TOKEN || secrets.GITHUB_TOKEN }}"
+			} else {
+				// Standard mode: check data.GitHubToken, then default
+				if data.GitHubToken != "" {
+					token = data.GitHubToken
+				} else {
+					token = "${{ secrets.GITHUB_TOKEN }}"
+				}
+			}
+		}
 	}
+
 	*steps = append(*steps, fmt.Sprintf("          token: %s\n", token))
 }
 
