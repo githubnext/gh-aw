@@ -4,8 +4,11 @@ import (
 	"embed"
 	"encoding/json"
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 
+	"github.com/goccy/go-yaml"
 	"github.com/githubnext/gh-aw/pkg/parser"
 	"github.com/xeipuuv/gojsonschema"
 )
@@ -157,7 +160,13 @@ func ValidateSpecWithSchema(spec *CampaignSpec) []string {
 // ValidateSpecFromFile validates a campaign spec file by loading and validating it.
 // This is useful for validation commands that operate on files directly.
 func ValidateSpecFromFile(filePath string) (*CampaignSpec, []string, error) {
-	data, err := parser.ExtractFrontmatterFromContent(filePath)
+	// Read the campaign spec file content first, then extract frontmatter
+	content, err := os.ReadFile(filePath)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to read campaign spec file: %w", err)
+	}
+
+	data, err := parser.ExtractFrontmatterFromContent(string(content))
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to parse frontmatter: %w", err)
 	}
@@ -166,17 +175,49 @@ func ValidateSpecFromFile(filePath string) (*CampaignSpec, []string, error) {
 		return nil, nil, fmt.Errorf("no frontmatter found in campaign spec file")
 	}
 
-	// Convert frontmatter to CampaignSpec
-	specJSON, err := json.Marshal(data.Frontmatter)
+	// Convert frontmatter map into YAML, then unmarshal into CampaignSpec using
+	// YAML tags so kebab-case keys (e.g. tracker-label) map correctly.
+	yamlBytes, err := yaml.Marshal(data.Frontmatter)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to marshal frontmatter: %w", err)
+		return nil, nil, fmt.Errorf("failed to marshal frontmatter to YAML: %w", err)
 	}
 
 	var spec CampaignSpec
-	if err := json.Unmarshal(specJSON, &spec); err != nil {
-		return nil, nil, fmt.Errorf("failed to unmarshal spec: %w", err)
+	if err := yaml.Unmarshal(yamlBytes, &spec); err != nil {
+		return nil, nil, fmt.Errorf("failed to unmarshal spec from YAML: %w", err)
 	}
 
 	problems := ValidateSpec(&spec)
 	return &spec, problems, nil
+}
+
+// ValidateWorkflowsExist checks that all workflows referenced in a campaign spec
+// actually exist in the .github/workflows directory.
+// Returns a list of problems for workflows that don't exist.
+func ValidateWorkflowsExist(spec *CampaignSpec, workflowsDir string) []string {
+	var problems []string
+
+	for _, workflowID := range spec.Workflows {
+		// Check for both .md and .lock.yml versions
+		mdPath := filepath.Join(workflowsDir, workflowID+".md")
+		lockPath := filepath.Join(workflowsDir, workflowID+".lock.yml")
+
+		mdExists := false
+		lockExists := false
+
+		if _, err := os.Stat(mdPath); err == nil {
+			mdExists = true
+		}
+		if _, err := os.Stat(lockPath); err == nil {
+			lockExists = true
+		}
+
+		if !mdExists && !lockExists {
+			problems = append(problems, fmt.Sprintf("workflow '%s' not found (expected %s.md or %s.lock.yml)", workflowID, workflowID, workflowID))
+		} else if !mdExists {
+			problems = append(problems, fmt.Sprintf("workflow '%s' has lock file but missing source .md file", workflowID))
+		}
+	}
+
+	return problems
 }

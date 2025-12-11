@@ -15,19 +15,20 @@ import (
 var log = logger.New("campaign:loader")
 
 // LoadSpecs scans the repository for campaign spec files and returns
-// a slice of CampaignSpec. If the campaigns directory does not exist, it
+// a slice of CampaignSpec. Campaign specs are stored as .campaign.md files
+// in .github/workflows/. If the workflows directory does not exist, it
 // returns an empty slice and no error.
 func LoadSpecs(rootDir string) ([]CampaignSpec, error) {
 	log.Printf("Loading campaign specs from rootDir=%s", rootDir)
 
-	campaignsDir := filepath.Join(rootDir, "campaigns")
-	entries, err := os.ReadDir(campaignsDir)
+	workflowsDir := filepath.Join(rootDir, ".github", "workflows")
+	entries, err := os.ReadDir(workflowsDir)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
-			log.Print("No campaigns directory found; returning empty list")
+			log.Print("No .github/workflows directory found; returning empty list")
 			return []CampaignSpec{}, nil
 		}
-		return nil, fmt.Errorf("failed to read campaigns directory '%s': %w", campaignsDir, err)
+		return nil, fmt.Errorf("failed to read .github/workflows directory '%s': %w", workflowsDir, err)
 	}
 
 	var specs []CampaignSpec
@@ -42,7 +43,7 @@ func LoadSpecs(rootDir string) ([]CampaignSpec, error) {
 			continue
 		}
 
-		fullPath := filepath.Join(campaignsDir, name)
+		fullPath := filepath.Join(workflowsDir, name)
 		log.Printf("Found campaign spec file: %s", fullPath)
 
 		data, err := os.ReadFile(fullPath)
@@ -57,7 +58,7 @@ func LoadSpecs(rootDir string) ([]CampaignSpec, error) {
 		}
 
 		if len(result.Frontmatter) == 0 {
-			return nil, fmt.Errorf("campaign spec '%s' must start with YAML frontmatter delimited by '---'", filepath.ToSlash(filepath.Join("campaigns", name)))
+			return nil, fmt.Errorf("campaign spec '%s' must start with YAML frontmatter delimited by '---'", filepath.ToSlash(filepath.Join(".github", "workflows", name)))
 		}
 
 		// Marshal frontmatter map to YAML and unmarshal to CampaignSpec
@@ -80,7 +81,7 @@ func LoadSpecs(rootDir string) ([]CampaignSpec, error) {
 			spec.Name = spec.ID
 		}
 
-		spec.ConfigPath = filepath.ToSlash(filepath.Join("campaigns", name))
+		spec.ConfigPath = filepath.ToSlash(filepath.Join(".github", "workflows", name))
 		specs = append(specs, spec)
 	}
 
@@ -108,7 +109,7 @@ func FilterSpecs(specs []CampaignSpec, pattern string) []CampaignSpec {
 }
 
 // CreateSpecSkeleton creates a new campaign spec YAML file under
-// campaigns/ with a minimal skeleton definition. It returns the
+// .github/workflows/ with a minimal skeleton definition. It returns the
 // relative file path created.
 func CreateSpecSkeleton(rootDir, id string, force bool) (string, error) {
 	id = strings.TrimSpace(id)
@@ -124,14 +125,14 @@ func CreateSpecSkeleton(rootDir, id string, force bool) (string, error) {
 		return "", fmt.Errorf("campaign id must use only lowercase letters, digits, and hyphens (%s)", id)
 	}
 
-	campaignsDir := filepath.Join(rootDir, "campaigns")
-	if err := os.MkdirAll(campaignsDir, 0o755); err != nil {
-		return "", fmt.Errorf("failed to create campaigns directory: %w", err)
+	workflowsDir := filepath.Join(rootDir, ".github", "workflows")
+	if err := os.MkdirAll(workflowsDir, 0o755); err != nil {
+		return "", fmt.Errorf("failed to create .github/workflows directory: %w", err)
 	}
 
 	fileName := id + ".campaign.md"
-	fullPath := filepath.Join(campaignsDir, fileName)
-	relPath := filepath.ToSlash(filepath.Join("campaigns", fileName))
+	fullPath := filepath.Join(workflowsDir, fileName)
+	relPath := filepath.ToSlash(filepath.Join(".github", "workflows", fileName))
 
 	if _, err := os.Stat(fullPath); err == nil && !force {
 		return "", fmt.Errorf("campaign spec already exists at %s (use --force to overwrite)", relPath)

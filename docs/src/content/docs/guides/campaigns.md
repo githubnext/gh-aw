@@ -324,12 +324,12 @@ In addition to the Markdown workflows under `.github/workflows/`, you can now de
 
 ### Campaign Spec Files
 
-Define campaigns under a top-level `campaigns/` directory using files that end with
-`.campaign.md`. Each file describes a single campaign pattern, with a YAML frontmatter
+Campaign spec files are stored alongside regular workflows in `.github/workflows/` with
+a `.campaign.md` suffix. Each file describes a single campaign pattern, with a YAML frontmatter
 block that defines the spec:
 
 ```yaml
-# campaigns/incident-response.campaign.md
+# .github/workflows/incident-response.campaign.md
 id: incident-response
 version: "v1"
 name: "Incident Response Campaign"
@@ -393,7 +393,7 @@ single, declarative source of truth for how a campaign is defined.
 Use the `campaign` command to list and inspect configured campaigns:
 
 ```bash
-gh aw campaign                     # List all campaigns from campaigns/*.campaign.md
+gh aw campaign                     # List all campaigns from .github/workflows/*.campaign.md
 gh aw campaign security            # Filter by ID or name substring
 gh aw campaign --json              # JSON output for tooling or dashboards
 

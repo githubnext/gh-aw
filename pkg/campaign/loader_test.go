@@ -10,9 +10,9 @@ import (
 func TestLoadSpecs_EmptyDirectory(t *testing.T) {
 	// Create temporary directory
 	tmpDir := t.TempDir()
-	campaignsDir := filepath.Join(tmpDir, "campaigns")
+	campaignsDir := filepath.Join(tmpDir, ".github", "workflows")
 	if err := os.MkdirAll(campaignsDir, 0755); err != nil {
-		t.Fatalf("Failed to create campaigns directory: %v", err)
+		t.Fatalf("Failed to create .github/workflows directory: %v", err)
 	}
 
 	specs, err := LoadSpecs(tmpDir)
@@ -30,19 +30,19 @@ func TestLoadSpecs_NonExistentDirectory(t *testing.T) {
 
 	specs, err := LoadSpecs(tmpDir)
 	if err != nil {
-		t.Fatalf("LoadSpecs should not fail for non-existent campaigns directory: %v", err)
+		t.Fatalf("LoadSpecs should not fail for non-existent .github/workflows directory: %v", err)
 	}
 
 	if len(specs) != 0 {
-		t.Errorf("Expected 0 specs when campaigns directory doesn't exist, got %d", len(specs))
+		t.Errorf("Expected 0 specs when .github/workflows directory doesn't exist, got %d", len(specs))
 	}
 }
 
 func TestLoadSpecs_InvalidFrontmatter(t *testing.T) {
 	tmpDir := t.TempDir()
-	campaignsDir := filepath.Join(tmpDir, "campaigns")
+	campaignsDir := filepath.Join(tmpDir, ".github", "workflows")
 	if err := os.MkdirAll(campaignsDir, 0755); err != nil {
-		t.Fatalf("Failed to create campaigns directory: %v", err)
+		t.Fatalf("Failed to create .github/workflows directory: %v", err)
 	}
 
 	// Create file with invalid frontmatter
@@ -68,9 +68,9 @@ Test content`
 
 func TestLoadSpecs_MissingFrontmatter(t *testing.T) {
 	tmpDir := t.TempDir()
-	campaignsDir := filepath.Join(tmpDir, "campaigns")
+	campaignsDir := filepath.Join(tmpDir, ".github", "workflows")
 	if err := os.MkdirAll(campaignsDir, 0755); err != nil {
-		t.Fatalf("Failed to create campaigns directory: %v", err)
+		t.Fatalf("Failed to create .github/workflows directory: %v", err)
 	}
 
 	// Create file without frontmatter
@@ -94,9 +94,9 @@ This file has no frontmatter.`
 
 func TestLoadSpecs_IDDefaults(t *testing.T) {
 	tmpDir := t.TempDir()
-	campaignsDir := filepath.Join(tmpDir, "campaigns")
+	campaignsDir := filepath.Join(tmpDir, ".github", "workflows")
 	if err := os.MkdirAll(campaignsDir, 0755); err != nil {
-		t.Fatalf("Failed to create campaigns directory: %v", err)
+		t.Fatalf("Failed to create .github/workflows directory: %v", err)
 	}
 
 	// Create file without ID in frontmatter
@@ -126,9 +126,9 @@ Test content`
 
 func TestLoadSpecs_NameDefaults(t *testing.T) {
 	tmpDir := t.TempDir()
-	campaignsDir := filepath.Join(tmpDir, "campaigns")
+	campaignsDir := filepath.Join(tmpDir, ".github", "workflows")
 	if err := os.MkdirAll(campaignsDir, 0755); err != nil {
-		t.Fatalf("Failed to create campaigns directory: %v", err)
+		t.Fatalf("Failed to create .github/workflows directory: %v", err)
 	}
 
 	// Create file without name in frontmatter
@@ -158,9 +158,9 @@ Test content`
 
 func TestLoadSpecs_ConfigPath(t *testing.T) {
 	tmpDir := t.TempDir()
-	campaignsDir := filepath.Join(tmpDir, "campaigns")
+	campaignsDir := filepath.Join(tmpDir, ".github", "workflows")
 	if err := os.MkdirAll(campaignsDir, 0755); err != nil {
-		t.Fatalf("Failed to create campaigns directory: %v", err)
+		t.Fatalf("Failed to create .github/workflows directory: %v", err)
 	}
 
 	testFile := filepath.Join(campaignsDir, "test.campaign.md")
@@ -182,7 +182,7 @@ Test content`
 		t.Fatalf("Expected 1 spec, got %d", len(specs))
 	}
 
-	expectedPath := "campaigns/test.campaign.md"
+	expectedPath := ".github/workflows/test.campaign.md"
 	if specs[0].ConfigPath != expectedPath {
 		t.Errorf("Expected ConfigPath '%s', got '%s'", expectedPath, specs[0].ConfigPath)
 	}
@@ -190,9 +190,9 @@ Test content`
 
 func TestLoadSpecs_MultipleSpecs(t *testing.T) {
 	tmpDir := t.TempDir()
-	campaignsDir := filepath.Join(tmpDir, "campaigns")
+	campaignsDir := filepath.Join(tmpDir, ".github", "workflows")
 	if err := os.MkdirAll(campaignsDir, 0755); err != nil {
-		t.Fatalf("Failed to create campaigns directory: %v", err)
+		t.Fatalf("Failed to create .github/workflows directory: %v", err)
 	}
 
 	// Create multiple campaign files

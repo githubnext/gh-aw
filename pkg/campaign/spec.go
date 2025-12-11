@@ -5,7 +5,7 @@ package campaign
 //
 // Files are discovered from the local repository under:
 //
-//	campaigns/*.campaign.md
+//	.github/workflows/*.campaign.md
 //
 // This provides a thin, declarative layer on top of existing agentic
 // workflows and repo-memory conventions.

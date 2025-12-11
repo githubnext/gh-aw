@@ -21,7 +21,7 @@ func getWorkflowsDir() string {
 func NewCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "campaign [filter]",
-		Short: "Inspect first-class campaign definitions from campaigns/*.campaign.md",
+		Short: "Inspect first-class campaign definitions from .github/workflows/*.campaign.md",
 		Long: `List and inspect first-class campaign definitions declared in YAML files.
 
 Campaigns are defined using Markdown files with YAML frontmatter under the local repository:
@@ -82,10 +82,10 @@ Examples:
 	// Subcommand: campaign new
 	newCmd := &cobra.Command{
 		Use:   "new <id>",
-		Short: "Create a new markdown campaign spec under campaigns/",
-		Long: `Create a new campaign spec markdown file under campaigns/.
+		Short: "Create a new markdown campaign spec under .github/workflows/",
+		Long: `Create a new campaign spec markdown file under .github/workflows/.
 
-The file will be created as campaigns/<id>.campaign.md with YAML
+The file will be created as .github/workflows/<id>.campaign.md with YAML
 frontmatter (id, name, version, state, tracker-label) followed by a
 markdown body. You can then
 update owners, workflows, memory paths, metrics-glob, and governance
@@ -121,7 +121,7 @@ Examples:
 	validateCmd := &cobra.Command{
 		Use:   "validate [filter]",
 		Short: "Validate campaign spec files for common issues",
-		Long: `Validate campaign spec files under campaigns/*.campaign.md.
+		Long: `Validate campaign spec files under .github/workflows/*.campaign.md.
 
 This command performs lightweight semantic validation of campaign
 definitions (IDs, tracker labels, workflows, lifecycle state, and
@@ -179,7 +179,7 @@ func runStatus(pattern string, jsonOutput bool) error {
 	}
 
 	if len(specs) == 0 {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("No campaign specs found. Add files under 'campaigns/*.campaign.md' to define campaigns."))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("No campaign specs found. Add files under '.github/workflows/*.campaign.md' to define campaigns."))
 		return nil
 	}
 
@@ -205,7 +205,7 @@ func runRuntimeStatus(pattern string, jsonOutput bool) error {
 
 	specs = FilterSpecs(specs, pattern)
 	if len(specs) == 0 {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("No campaign specs found. Add files under 'campaigns/*.campaign.md' to define campaigns."))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("No campaign specs found. Add files under '.github/workflows/*.campaign.md' to define campaigns."))
 		return nil
 	}
 
@@ -246,7 +246,7 @@ func runValidate(pattern string, jsonOutput bool, strict bool) error {
 
 	specs = FilterSpecs(specs, pattern)
 	if len(specs) == 0 {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("No campaign specs found. Add files under 'campaigns/*.campaign.md' to define campaigns."))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("No campaign specs found. Add files under '.github/workflows/*.campaign.md' to define campaigns."))
 		return nil
 	}
 

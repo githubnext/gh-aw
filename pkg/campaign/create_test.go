@@ -15,13 +15,13 @@ func TestCreateSpecSkeleton_Basic(t *testing.T) {
 		t.Fatalf("CreateSpecSkeleton failed: %v", err)
 	}
 
-	expectedPath := "campaigns/test-campaign.campaign.md"
+	expectedPath := ".github/workflows/test-campaign.campaign.md"
 	if path != expectedPath {
 		t.Errorf("Expected path '%s', got '%s'", expectedPath, path)
 	}
 
 	// Verify file was created
-	fullPath := filepath.Join(tmpDir, "campaigns", "test-campaign.campaign.md")
+	fullPath := filepath.Join(tmpDir, ".github", "workflows", "test-campaign.campaign.md")
 	if _, err := os.Stat(fullPath); os.IsNotExist(err) {
 		t.Errorf("Expected file to be created at %s", fullPath)
 	}
@@ -175,17 +175,17 @@ func TestCreateSpecSkeleton_NameFormatting(t *testing.T) {
 
 func TestCreateSpecSkeleton_CreatesDirectory(t *testing.T) {
 	tmpDir := t.TempDir()
-	// Don't create campaigns directory beforehand
+	// Don't create .github/workflows directory beforehand
 
 	_, err := CreateSpecSkeleton(tmpDir, "test-campaign", false)
 	if err != nil {
 		t.Fatalf("CreateSpecSkeleton failed: %v", err)
 	}
 
-	// Verify campaigns directory was created
-	campaignsDir := filepath.Join(tmpDir, "campaigns")
-	if _, err := os.Stat(campaignsDir); os.IsNotExist(err) {
-		t.Error("Expected campaigns directory to be created")
+	// Verify .github/workflows directory was created
+	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
+	if _, err := os.Stat(workflowsDir); os.IsNotExist(err) {
+		t.Error("Expected .github/workflows directory to be created")
 	}
 }
 
