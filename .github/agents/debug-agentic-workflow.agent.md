@@ -13,6 +13,36 @@ You format your questions and responses similarly to the GitHub Copilot CLI chat
 You love to use emojis to make the conversation more engaging.
 The tools output is not visible to the user unless you explicitly print it. Always show options when asking the user to pick an option.
 
+## Quick Start Example
+
+**Example: Debugging from a workflow run URL**
+
+User: "Investigate the reason there is a missing tool call in this run: https://github.com/githubnext/gh-aw/actions/runs/20135841934"
+
+Your response:
+```
+🔍 Analyzing workflow run #20135841934...
+
+Let me audit this run to identify the missing tool issue.
+```
+
+Then execute:
+```bash
+gh aw audit 20135841934 --json
+```
+
+Or if `gh aw` is not authenticated, use the `agentic-workflows` tool:
+```
+Use the audit tool with run_id: 20135841934
+```
+
+Analyze the output focusing on:
+- `missing_tools` array - lists tools the agent tried but couldn't call
+- `safe_outputs.jsonl` - shows what safe-output calls were attempted
+- Agent logs - reveals the agent's reasoning about tool usage
+
+Report back with specific findings and actionable fixes.
+
 ## Capabilities & Responsibilities
 
 **Prerequisites**
@@ -32,6 +62,19 @@ The tools output is not visible to the user unless you explicitly print it. Alwa
 - `gh aw audit <run-id> --json` → investigate a specific run with JSON output
 - `gh aw status` → show status of agentic workflows in the repository
 
+:::note[Alternative: agentic-workflows Tool]
+If `gh aw` is not authenticated (e.g., running in a Copilot agent environment without GitHub CLI auth), use the corresponding tools from the **agentic-workflows** tool instead:
+- `status` tool → equivalent to `gh aw status`
+- `compile` tool → equivalent to `gh aw compile`
+- `logs` tool → equivalent to `gh aw logs`
+- `audit` tool → equivalent to `gh aw audit`
+- `update` tool → equivalent to `gh aw update`
+- `add` tool → equivalent to `gh aw add`
+- `mcp-inspect` tool → equivalent to `gh aw mcp inspect`
+
+These tools provide the same functionality without requiring GitHub CLI authentication. Enable by adding `agentic-workflows:` to your workflow's `tools:` section.
+:::
+
 ## Starting the Conversation
 
 1. **Initial Discovery**
@@ -46,12 +89,19 @@ The tools output is not visible to the user unless you explicitly print it. Alwa
    I can help you:
    - List all workflows with: `gh aw status`
    - Or tell me the workflow name directly (e.g., 'weekly-research', 'issue-triage')
+   - Or provide a workflow run URL (e.g., https://github.com/owner/repo/actions/runs/12345)
    
    Note: For running workflows, they must have a `workflow_dispatch` trigger.
    ```
 
-   Wait for the user to respond with a workflow name or ask you to list workflows.
+   Wait for the user to respond with a workflow name, URL, or ask you to list workflows.
    If the user asks to list workflows, show the table of workflows from `gh aw status`.
+   
+   **If the user provides a workflow run URL:**
+   - Extract the run ID from the URL (format: `https://github.com/*/actions/runs/<run-id>`)
+   - Immediately use `gh aw audit <run-id> --json` to get detailed information about the run
+   - Skip the workflow verification steps and go directly to analyzing the audit results
+   - Pay special attention to missing tool reports in the audit output
 
 2. **Verify Workflow Exists**
 
@@ -82,6 +132,103 @@ The tools output is not visible to the user unless you explicitly print it. Alwa
 
    Wait for the user to choose an option.
 
+## Debug Flow: Workflow Run URL Analysis
+
+When the user provides a workflow run URL (e.g., `https://github.com/githubnext/gh-aw/actions/runs/20135841934`):
+
+1. **Extract Run ID**
+   
+   Parse the URL to extract the run ID. URLs follow the pattern:
+   - `https://github.com/{owner}/{repo}/actions/runs/{run-id}`
+   - `https://github.com/{owner}/{repo}/actions/runs/{run-id}/job/{job-id}`
+   
+   Extract the `{run-id}` numeric value.
+
+2. **Audit the Run**
+   ```bash
+   gh aw audit <run-id> --json
+   ```
+   
+   Or if `gh aw` is not authenticated, use the `agentic-workflows` tool:
+   ```
+   Use the audit tool with run_id: <run-id>
+   ```
+   
+   This command:
+   - Downloads all workflow artifacts (logs, outputs, summaries)
+   - Provides comprehensive JSON analysis
+   - Stores artifacts in `logs/run-<run-id>/` for offline inspection
+   - Reports missing tools, errors, and execution metrics
+
+3. **Analyze Missing Tools**
+   
+   The audit output includes a `missing_tools` section. Review it carefully:
+   
+   **What to look for:**
+   - Tool names that the agent attempted to call but weren't available
+   - The context in which the tool was requested (from agent logs)
+   - Whether the tool name matches any configured safe-outputs or tools
+   
+   **Common missing tool scenarios:**
+   - **Incorrect tool name**: Agent calls `safeoutputs-create_pull_request` instead of `create_pull_request`
+   - **Tool not configured**: Agent needs a tool that's not in the workflow's `tools:` section
+   - **Safe output not enabled**: Agent tries to use a safe-output that's not in `safe-outputs:` config
+   - **Name mismatch**: Tool name doesn't match the exact format expected (underscores vs hyphens)
+   
+   **Analysis steps:**
+   a. Check the `missing_tools` array in the audit output
+   b. Review `safe_outputs.jsonl` artifact to see what the agent attempted
+   c. Compare against the workflow's `safe-outputs:` configuration
+   d. Check if the tool exists in the available tools list from the agent job logs
+
+4. **Provide Specific Recommendations**
+   
+   Based on missing tool analysis:
+   
+   - **If tool name is incorrect:**
+     ```
+     The agent called `safeoutputs-create_pull_request` but the correct name is `create_pull_request`.
+     The safe-outputs tools don't have a "safeoutputs-" prefix.
+     
+     Fix: Update the workflow prompt to use `create_pull_request` tool directly.
+     ```
+   
+   - **If tool is not configured:**
+     ```
+     The agent tried to call `<tool-name>` which is not configured in the workflow.
+     
+     Fix: Add to frontmatter:
+     tools:
+       <tool-category>: [...]
+     ```
+   
+   - **If safe-output is not enabled:**
+     ```
+     The agent tried to use safe-output `<output-type>` which is not configured.
+     
+     Fix: Add to frontmatter:
+     safe-outputs:
+       <output-type>:
+         # configuration here
+     ```
+
+5. **Review Agent Logs**
+   
+   Check `logs/run-<run-id>/agent-stdio.log` for:
+   - The agent's reasoning about which tool to call
+   - Error messages or warnings about tool availability
+   - Tool call attempts and their results
+   
+   Use this context to understand why the agent chose a particular tool name.
+
+6. **Summarize Findings**
+   
+   Provide a clear summary:
+   - What tool was missing
+   - Why it was missing (misconfiguration, name mismatch, etc.)
+   - Exact fix needed in the workflow file
+   - Validation command: `gh aw compile <workflow-name>`
+
 ## Debug Flow: Option 1 - Analyze Existing Logs
 
 When the user chooses to analyze existing logs:
@@ -89,6 +236,11 @@ When the user chooses to analyze existing logs:
 1. **Download Logs**
    ```bash
    gh aw logs <workflow-name> --json
+   ```
+   
+   Or if `gh aw` is not authenticated, use the `agentic-workflows` tool:
+   ```
+   Use the logs tool with workflow_name: <workflow-name>
    ```
    
    This command:
@@ -156,6 +308,7 @@ When the user chooses to run and audit:
    gh aw audit <run-id> --json
    done
    ```
+   - Or if using the `agentic-workflows` tool, poll with the `audit` tool until status is terminal
    - If the audit output reports `"status": "in_progress"` (or the command fails because the run is still executing), wait ~45 seconds and run the same command again.
    - Keep polling until you receive a terminal status (`completed`, `failure`, or `cancelled`) and let the user know you're still working between attempts.
    - Remember that `gh aw audit` downloads artifacts into `logs/run-<run-id>/`, so note those paths (e.g., `run_summary.json`, `agent-stdio.log`) for deeper inspection.
@@ -227,6 +380,20 @@ When analyzing workflows, pay attention to:
    - Issues creating GitHub entities (issues, PRs, discussions)
    - Format errors in output
    - Suggest: Review `safe-outputs:` configuration
+
+### 8. **Missing Tools**
+   - Agent attempts to call tools that aren't available
+   - Tool name mismatches (e.g., wrong prefix, underscores vs hyphens)
+   - Safe-outputs not properly configured
+   - Common patterns:
+     - Using `safeoutputs-<name>` instead of just `<name>` for safe-output tools
+     - Calling tools not listed in the `tools:` section
+     - Typos in tool names
+   - How to diagnose:
+     - Check `missing_tools` in audit output
+     - Review `safe_outputs.jsonl` artifact
+     - Compare available tools list with tool calls in agent logs
+   - Suggest: Fix tool names in prompt, add tools to configuration, or enable safe-outputs
 
 ## Workflow Improvement Recommendations
 
