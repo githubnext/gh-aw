@@ -39,7 +39,7 @@ async function minimizeComment(github, nodeId, reason = "outdated") {
  * @param {string} owner - Repository owner
  * @param {string} repo - Repository name
  * @param {number} issueNumber - Issue/PR number
- * @param {string} trackerId - Tracker ID to search for
+ * @param {string} workflowId - Workflow ID to search for
  * @returns {Promise<Array<{id: number, node_id: string, body: string}>>}
  */
 async function findCommentsWithTrackerId(github, owner, repo, issueNumber, workflowId) {
@@ -158,7 +158,7 @@ async function findDiscussionCommentsWithTrackerId(github, owner, repo, discussi
  * @param {string} workflowId - Workflow ID to match
  * @param {boolean} isDiscussion - Whether this is a discussion
  * @param {string} reason - Reason for hiding (default: outdated)
- * @param {string[]} allowedReasons - List of allowed reasons (default: all)
+ * @param {string[] | null} allowedReasons - List of allowed reasons (default: null for all)
  * @returns {Promise<number>} Number of comments hidden
  */
 async function hideOlderComments(github, owner, repo, itemNumber, workflowId, isDiscussion, reason = "outdated", allowedReasons = null) {
@@ -198,7 +198,7 @@ async function hideOlderComments(github, owner, repo, itemNumber, workflowId, is
   let hiddenCount = 0;
   for (const comment of comments) {
     try {
-      const nodeId = isDiscussion ? comment.id : comment.node_id;
+      const nodeId = isDiscussion ? String(comment.id) : /** @type {{node_id: string}} */(comment).node_id;
       core.info(`Hiding comment: ${nodeId}`);
       await minimizeComment(github, nodeId, normalizedReason);
       hiddenCount++;
