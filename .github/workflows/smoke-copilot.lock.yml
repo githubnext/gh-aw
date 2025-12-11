@@ -6871,11 +6871,7 @@ jobs:
 
               try {
 
-                const workflowName = process.env.GITHUB_WORKFLOW || "workflow";
-
-                const sanitizedName = sanitizeWorkflowName(workflowName);
-
-                const squidLogsDir = `/tmp/gh-aw/squid-logs-${sanitizedName}/`;
+                const squidLogsDir = `/tmp/gh-aw/sandbox/firewall/logs/`;
 
                 if (!fs.existsSync(squidLogsDir)) {
 
