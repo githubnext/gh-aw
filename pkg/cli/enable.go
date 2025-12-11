@@ -12,6 +12,7 @@ import (
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/constants"
 	"github.com/githubnext/gh-aw/pkg/logger"
+	"github.com/githubnext/gh-aw/pkg/workflow"
 )
 
 var enableLog = logger.New("cli:enable")
@@ -221,13 +222,13 @@ func toggleWorkflowsByNames(workflowNames []string, enable bool, repoOverride st
 				if repoOverride != "" {
 					args = append(args, "--repo", repoOverride)
 				}
-				cmd = exec.Command("gh", args...)
+				cmd = workflow.ExecGH(args...)
 			} else {
 				args := []string{"workflow", "enable", t.LockFileBase}
 				if repoOverride != "" {
 					args = append(args, "--repo", repoOverride)
 				}
-				cmd = exec.Command("gh", args...)
+				cmd = workflow.ExecGH(args...)
 			}
 		} else {
 			// First cancel any running workflows (by ID when available, else by lock file name)
@@ -240,7 +241,7 @@ func toggleWorkflowsByNames(workflowNames []string, enable bool, repoOverride st
 				if repoOverride != "" {
 					args = append(args, "--repo", repoOverride)
 				}
-				cmd = exec.Command("gh", args...)
+				cmd = workflow.ExecGH(args...)
 			} else {
 				if err := cancelWorkflowRunsByLockFile(t.LockFileBase); err != nil {
 					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to cancel runs for workflow %s: %v", t.Name, err)))
@@ -249,7 +250,7 @@ func toggleWorkflowsByNames(workflowNames []string, enable bool, repoOverride st
 				if repoOverride != "" {
 					args = append(args, "--repo", repoOverride)
 				}
-				cmd = exec.Command("gh", args...)
+				cmd = workflow.ExecGH(args...)
 			}
 		}
 
@@ -353,27 +354,27 @@ func DisableAllWorkflowsExcept(repoSlug string, exceptWorkflows []string, verbos
 
 	// Show what will be disabled
 	fmt.Fprintf(os.Stderr, "Disabling %d workflow(s) in cloned repository:\n", len(workflowsToDisable))
-	for _, workflow := range workflowsToDisable {
-		fmt.Fprintf(os.Stderr, "  %s\n", workflow)
+	for _, wf := range workflowsToDisable {
+		fmt.Fprintf(os.Stderr, "  %s\n", wf)
 	}
 
 	// Disable each workflow
 	var failures []string
-	for _, workflow := range workflowsToDisable {
-		args := []string{"workflow", "disable", workflow}
+	for _, wf := range workflowsToDisable {
+		args := []string{"workflow", "disable", wf}
 		if repoSlug != "" {
 			args = append(args, "--repo", repoSlug)
 		}
 
-		cmd := exec.Command("gh", args...)
+		cmd := workflow.ExecGH(args...)
 		if output, err := cmd.CombinedOutput(); err != nil {
 			if verbose {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to disable workflow %s: %v\n%s", workflow, err, string(output))))
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to disable workflow %s: %v\n%s", wf, err, string(output))))
 			}
-			failures = append(failures, workflow)
+			failures = append(failures, wf)
 		} else {
 			if verbose {
-				fmt.Fprintf(os.Stderr, "Disabled workflow: %s\n", workflow)
+				fmt.Fprintf(os.Stderr, "Disabled workflow: %s\n", wf)
 			}
 		}
 	}

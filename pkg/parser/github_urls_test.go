@@ -559,14 +559,12 @@ func TestParsePRURL(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name:    "Non-GitHub URL",
-			url:     "https://gitlab.com/owner/repo/pull/123",
-			wantErr: true,
-		},
-		{
-			name:    "Enterprise GitHub URL rejected",
-			url:     "https://github.example.com/owner/repo/pull/123",
-			wantErr: true,
+			name:      "Enterprise GitHub URL now accepted",
+			url:       "https://github.example.com/owner/repo/pull/123",
+			wantOwner: "owner",
+			wantRepo:  "repo",
+			wantPR:    123,
+			wantErr:   false,
 		},
 		{
 			name:    "Invalid GitHub URL path - missing pull",

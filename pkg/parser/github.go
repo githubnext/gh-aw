@@ -24,6 +24,7 @@ func GetGitHubToken() (string, error) {
 	// Fall back to gh auth token command
 	log.Print("Attempting to get token from gh auth token command")
 	cmd := exec.Command("gh", "auth", "token")
+	// Note: gh auth token should respect GH_HOST environment variable for enterprise
 	output, err := cmd.Output()
 	if err != nil {
 		log.Printf("Failed to get token from gh auth token: %v", err)

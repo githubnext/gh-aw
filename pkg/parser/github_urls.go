@@ -270,7 +270,7 @@ func ParseRunURL(input string) (runID int64, owner, repo, hostname string, err e
 }
 
 // ParsePRURL is a convenience function that parses a GitHub PR URL and extracts PR information.
-// Expected format: https://github.com/owner/repo/pull/123
+// Expected format: https://github.com/owner/repo/pull/123 or https://github.enterprise.com/owner/repo/pull/123
 func ParsePRURL(prURL string) (owner, repo string, prNumber int, err error) {
 	components, err := ParseGitHubURL(prURL)
 	if err != nil {
@@ -279,11 +279,6 @@ func ParsePRURL(prURL string) (owner, repo string, prNumber int, err error) {
 
 	if components.Type != URLTypePullRequest {
 		return "", "", 0, fmt.Errorf("URL is not a GitHub PR URL")
-	}
-
-	// Only accept github.com host for PR URLs
-	if components.Host != "github.com" {
-		return "", "", 0, fmt.Errorf("URL must be a GitHub URL")
 	}
 
 	// Validate that Number fits in int range (important for 32-bit systems)

@@ -610,7 +610,7 @@ func showTrialConfirmation(parsedSpecs []*WorkflowSpec, logicalRepoSlug, cloneRe
 
 	// Check if host repository already exists to update messaging
 	hostRepoExists := false
-	checkCmd := exec.Command("gh", "repo", "view", hostRepoSlug)
+	checkCmd := workflow.ExecGH("repo", "view", hostRepoSlug)
 	if err := checkCmd.Run(); err == nil {
 		hostRepoExists = true
 	}
@@ -762,7 +762,7 @@ func triggerWorkflowRun(repoSlug, workflowName string, triggerContext string, ve
 		}
 	}
 
-	cmd := exec.Command("gh", args...)
+	cmd := workflow.ExecGH(args...)
 	output, err := cmd.CombinedOutput()
 
 	if err != nil {

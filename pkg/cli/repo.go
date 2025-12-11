@@ -7,6 +7,7 @@ import (
 	"sync"
 
 	"github.com/githubnext/gh-aw/pkg/logger"
+	"github.com/githubnext/gh-aw/pkg/workflow"
 )
 
 var repoLog = logger.New("cli:repo")
@@ -33,7 +34,7 @@ func getCurrentRepoSlugUncached() (string, error) {
 
 	// Try gh CLI first (most reliable)
 	repoLog.Print("Attempting to get repository slug via gh CLI")
-	cmd := exec.Command("gh", "repo", "view", "--json", "owner,name", "--jq", ".owner.login + \"/\" + .name")
+	cmd := workflow.ExecGH("repo", "view", "--json", "owner,name", "--jq", ".owner.login + \"/\" + .name")
 	output, err := cmd.Output()
 	if err == nil {
 		repoSlug := strings.TrimSpace(string(output))
