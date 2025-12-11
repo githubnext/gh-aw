@@ -24,28 +24,28 @@ type CampaignSpec struct {
 
 	// MemoryPaths documents where this campaign writes its repo-memory
 	// (for example: memory/campaigns/incident-*/**).
-	MemoryPaths []string `yaml:"memory_paths,omitempty" json:"memory_paths,omitempty" console:"header:Memory Paths,omitempty"`
+	MemoryPaths []string `yaml:"memory-paths,omitempty" json:"memory_paths,omitempty" console:"header:Memory Paths,omitempty"`
 
 	// MetricsGlob is an optional glob (relative to the repository root)
 	// used to locate JSON metrics snapshots stored in the
 	// memory/campaigns branch. When set, `gh aw campaign status` will
 	// attempt to read the latest matching metrics file and surface a few
 	// key fields.
-	MetricsGlob string `yaml:"metrics_glob,omitempty" json:"metrics_glob,omitempty" console:"header:Metrics Glob,omitempty"`
+	MetricsGlob string `yaml:"metrics-glob,omitempty" json:"metrics_glob,omitempty" console:"header:Metrics Glob,omitempty"`
 
 	// Owners lists the primary human owners for this campaign.
 	Owners []string `yaml:"owners,omitempty" json:"owners,omitempty" console:"header:Owners,omitempty"`
 
 	// ExecutiveSponsors lists executive stakeholders or sponsors who are
 	// accountable for the outcome of this campaign.
-	ExecutiveSponsors []string `yaml:"executive_sponsors,omitempty" json:"executive_sponsors,omitempty" console:"header:Executive Sponsors,omitempty"`
+	ExecutiveSponsors []string `yaml:"executive-sponsors,omitempty" json:"executive_sponsors,omitempty" console:"header:Executive Sponsors,omitempty"`
 
 	// RiskLevel is an optional free-form field (e.g. low/medium/high).
-	RiskLevel string `yaml:"risk_level,omitempty" json:"risk_level,omitempty" console:"header:Risk Level,omitempty"`
+	RiskLevel string `yaml:"risk-level,omitempty" json:"risk_level,omitempty" console:"header:Risk Level,omitempty"`
 
 	// TrackerLabel describes the label used to associate issues/PRs with
 	// this campaign (for example: campaign:incident-response).
-	TrackerLabel string `yaml:"tracker_label,omitempty" json:"tracker_label,omitempty" console:"header:Tracker Label,omitempty"`
+	TrackerLabel string `yaml:"tracker-label,omitempty" json:"tracker_label,omitempty" console:"header:Tracker Label,omitempty"`
 
 	// State describes the lifecycle stage of the campaign definition.
 	// Valid values are: planned, active, paused, completed, archived.
@@ -59,11 +59,11 @@ type CampaignSpec struct {
 	// campaign is expected to use (for example: create-issue,
 	// create-pull-request). This is currently informational but can be
 	// enforced by validation in the future.
-	AllowedSafeOutputs []string `yaml:"allowed_safe_outputs,omitempty" json:"allowed_safe_outputs,omitempty" console:"header:Allowed Safe Outputs,omitempty"`
+	AllowedSafeOutputs []string `yaml:"allowed-safe-outputs,omitempty" json:"allowed_safe_outputs,omitempty" console:"header:Allowed Safe Outputs,omitempty"`
 
 	// ApprovalPolicy describes high-level approval expectations for this
 	// campaign (for example: number of approvals and required roles).
-	ApprovalPolicy *CampaignApprovalPolicy `yaml:"approval_policy,omitempty" json:"approval_policy,omitempty"`
+	ApprovalPolicy *CampaignApprovalPolicy `yaml:"approval-policy,omitempty" json:"approval-policy,omitempty"`
 
 	// ConfigPath is populated at load time with the relative path of
 	// the YAML file on disk, to help users locate definitions.
@@ -74,9 +74,9 @@ type CampaignSpec struct {
 // campaign. It is intentionally lightweight and advisory; enforcement
 // is left to workflows and organizational process.
 type CampaignApprovalPolicy struct {
-	RequiredApprovals int      `yaml:"required_approvals,omitempty" json:"required_approvals,omitempty"`
-	RequiredRoles     []string `yaml:"required_roles,omitempty" json:"required_roles,omitempty"`
-	ChangeControl     bool     `yaml:"change_control,omitempty" json:"change_control,omitempty"`
+	RequiredApprovals int      `yaml:"required-approvals,omitempty" json:"required-approvals,omitempty"`
+	RequiredRoles     []string `yaml:"required-roles,omitempty" json:"required-roles,omitempty"`
+	ChangeControl     bool     `yaml:"change-control,omitempty" json:"change-control,omitempty"`
 }
 
 // CampaignRuntimeStatus represents the live status of a campaign, including

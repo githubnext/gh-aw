@@ -35,7 +35,7 @@
       },
       "minItems": 1
     },
-    "memory_paths": {
+    "memory-paths": {
       "type": "array",
       "description": "Paths where this campaign writes its repo-memory",
       "items": {
@@ -43,7 +43,7 @@
         "minLength": 1
       }
     },
-    "metrics_glob": {
+    "metrics-glob": {
       "type": "string",
       "description": "Glob pattern to locate JSON metrics snapshots in memory/campaigns branch"
     },
@@ -55,7 +55,7 @@
         "minLength": 1
       }
     },
-    "executive_sponsors": {
+    "executive-sponsors": {
       "type": "array",
       "description": "Executive stakeholders or sponsors",
       "items": {
@@ -63,12 +63,12 @@
         "minLength": 1
       }
     },
-    "risk_level": {
+    "risk-level": {
       "type": "string",
       "description": "Risk level (e.g., low, medium, high)",
       "enum": ["low", "medium", "high"]
     },
-    "tracker_label": {
+    "tracker-label": {
       "type": "string",
       "description": "Label used to associate issues/PRs with this campaign (e.g., campaign:incident-response)",
       "pattern": "^[^:]+:.+$",
@@ -87,7 +87,7 @@
         "minLength": 1
       }
     },
-    "allowed_safe_outputs": {
+    "allowed-safe-outputs": {
       "type": "array",
       "description": "Safe-outputs operations this campaign is expected to use",
       "items": {
@@ -95,16 +95,16 @@
         "minLength": 1
       }
     },
-    "approval_policy": {
+    "approval-policy": {
       "type": "object",
       "description": "Approval expectations for this campaign",
       "properties": {
-        "required_approvals": {
+  		"required-approvals": {
           "type": "integer",
           "description": "Number of required approvals",
           "minimum": 0
         },
-        "required_roles": {
+        "required-roles": {
           "type": "array",
           "description": "Required roles for approval",
           "items": {
@@ -112,7 +112,7 @@
             "minLength": 1
           }
         },
-        "change_control": {
+        "change-control": {
           "type": "boolean",
           "description": "Whether change control is required"
         }

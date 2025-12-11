@@ -45,8 +45,8 @@ func TestCreateSpecSkeleton_Basic(t *testing.T) {
 	if !strings.Contains(contentStr, "state: planned") {
 		t.Error("Expected file to contain 'state: planned'")
 	}
-	if !strings.Contains(contentStr, "tracker_label: campaign:test-campaign") {
-		t.Error("Expected file to contain 'tracker_label: campaign:test-campaign'")
+	if !strings.Contains(contentStr, "tracker-label: campaign:test-campaign") {
+		t.Error("Expected file to contain 'tracker-label: campaign:test-campaign'")
 	}
 }
 

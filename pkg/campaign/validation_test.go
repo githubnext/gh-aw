@@ -132,7 +132,7 @@ func TestValidateSpec_MissingTrackerLabel(t *testing.T) {
 
 	found := false
 	for _, p := range problems {
-		if strings.Contains(p, "tracker_label should be set") {
+		if strings.Contains(p, "tracker-label should be set") {
 			found = true
 			break
 		}
@@ -157,7 +157,7 @@ func TestValidateSpec_InvalidTrackerLabelFormat(t *testing.T) {
 
 	found := false
 	for _, p := range problems {
-		if strings.Contains(p, "tracker_label should follow a namespaced pattern") {
+		if strings.Contains(p, "tracker-label should follow a namespaced pattern") {
 			found = true
 			break
 		}

@@ -86,9 +86,9 @@ Examples:
 		Long: `Create a new campaign spec markdown file under campaigns/.
 
 The file will be created as campaigns/<id>.campaign.md with YAML
-frontmatter (id, name, version, state, tracker_label) followed by a
+frontmatter (id, name, version, state, tracker-label) followed by a
 markdown body. You can then
-update owners, workflows, memory paths, metrics_glob, and governance
+update owners, workflows, memory paths, metrics-glob, and governance
 fields to match your initiative.
 
 Examples:

@@ -7,34 +7,34 @@ description: "Multi-team incident coordination with command center, SLA tracking
 workflows:
   - incident-response
 
-memory_paths:
+memory-paths:
   - "memory/campaigns/incident-*/**"
 
 owners:
   - "oncall-incident-commander"
   - "sre-team"
 
-executive_sponsors:
+executive-sponsors:
   - "vp-engineering"
 
-risk_level: "high"
+risk-level: "high"
 state: "planned"
 tags:
   - "incident"
   - "operations"
 
-tracker_label: "campaign:incident-response"
+tracker-label: "campaign:incident-response"
 
-allowed_safe_outputs:
+allowed-safe-outputs:
   - "create-issue"
   - "add-comment"
   - "create-pull-request"
 
-approval_policy:
-  required_approvals: 1
-  required_roles:
+approval-policy:
+  required-approvals: 1
+  required-roles:
     - "incident-commander"
-  change_control: false
+  change-control: false
 ---
 
 # Incident Response Campaign

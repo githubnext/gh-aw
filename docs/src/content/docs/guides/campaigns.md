@@ -338,34 +338,34 @@ description: "Multi-team incident coordination with command center, SLA tracking
 workflows:
   - incident-response
 
-memory_paths:
+memory-paths:
   - "memory/campaigns/incident-*/**"
 
 owners:
   - "oncall-incident-commander"
   - "sre-team"
 
-executive_sponsors:
+executive-sponsors:
   - "vp-engineering"
 
-risk_level: "high"
+risk-level: "high"
 state: "planned"
 tags:
   - "incident"
   - "operations"
 
-tracker_label: "campaign:incident-response"
+tracker-label: "campaign:incident-response"
 
-allowed_safe_outputs:
+allowed-safe-outputs:
   - "create-issue"
   - "add-comment"
   - "create-pull-request"
 
-approval_policy:
-  required_approvals: 1
-  required_roles:
+approval-policy:
+  required-approvals: 1
+  required-roles:
     - "incident-commander"
-  change_control: false
+  change-control: false
 ```
 
 **Fields**:
@@ -374,16 +374,16 @@ approval_policy:
 - `name`: Human-friendly name (falls back to `id`)
 - `description`: Short description of the campaign pattern
 - `workflows`: Workflow IDs (Markdown basenames) that implement this campaign
-- `memory_paths`: Where campaign data is stored in repo-memory
-- `metrics_glob`: Optional glob (relative to repo root) used to locate JSON metrics snapshots on the `memory/campaigns` branch
+- `memory-paths`: Where campaign data is stored in repo-memory
+- `metrics-glob`: Optional glob (relative to repo root) used to locate JSON metrics snapshots on the `memory/campaigns` branch
 - `owners`: Primary human owners for this campaign
-- `executive_sponsors`: Executive stakeholders accountable for the outcome
-- `risk_level`: Optional free-form risk level (e.g. low/medium/high)
+- `executive-sponsors`: Executive stakeholders accountable for the outcome
+- `risk-level`: Optional free-form risk level (e.g. low/medium/high)
 - `state`: Lifecycle state (`planned`, `active`, `paused`, `completed`, or `archived`)
 - `tags`: Optional labels for reporting (e.g. `security`, `modernization`)
-- `tracker_label`: Label used to associate issues/PRs with the campaign
-- `allowed_safe_outputs`: Documented safe-outputs operations this campaign is expected to use
-- `approval_policy`: High-level approval expectations (required approvals, roles, change control)
+- `tracker-label`: Label used to associate issues/PRs with the campaign
+- `allowed-safe-outputs`: Documented safe-outputs operations this campaign is expected to use
+- `approval-policy`: High-level approval expectations (required approvals, roles, change control)
 
 These specs do **not** replace workflows – they sit **on top** of them as a
 single, declarative source of truth for how a campaign is defined.

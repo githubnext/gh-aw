@@ -9,39 +9,39 @@ workflows:
   - human-ai-collaboration  # decision / approval pattern
   - intelligence            # reporting / trend analysis
 
-memory_paths:
+memory-paths:
   - "memory/campaigns/org-modernization-*/**"
 
 owners:
   - "platform-team"
   - "devx-team"
 
-executive_sponsors:
+executive-sponsors:
   - "vp-engineering"
   - "cto"
 
-risk_level: "medium"
+risk-level: "medium"
 state: "planned"
 tags:
   - "modernization"
   - "org-wide"
   - "rollout"
 
-tracker_label: "campaign:org-modernization"
+tracker-label: "campaign:org-modernization"
 
-metrics_glob: "memory/campaigns/org-modernization-*/metrics/*.json"
+metrics-glob: "memory/campaigns/org-modernization-*/metrics/*.json"
 
-allowed_safe_outputs:
+allowed-safe-outputs:
   - "create-issue"
   - "add-comment"
   - "create-pull-request"
 
-approval_policy:
-  required_approvals: 2
-  required_roles:
+approval-policy:
+  required-approvals: 2
+  required-roles:
     - "platform-lead"
     - "team-lead"
-  change_control: true
+  change-control: true
 ---
 
 # Org-wide Modernization Campaign

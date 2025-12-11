@@ -48,9 +48,9 @@ func ValidateSpec(spec *CampaignSpec) []string {
 	}
 
 	if strings.TrimSpace(spec.TrackerLabel) == "" {
-		problems = append(problems, "tracker_label should be set to link issues and PRs to this campaign")
+		problems = append(problems, "tracker-label should be set to link issues and PRs to this campaign")
 	} else if !strings.Contains(spec.TrackerLabel, ":") {
-		problems = append(problems, "tracker_label should follow a namespaced pattern (for example: campaign:security-q1-2025)")
+		problems = append(problems, "tracker-label should follow a namespaced pattern (for example: campaign:security-q1-2025)")
 	}
 
 	// Normalize and validate version/state when present.
@@ -80,24 +80,27 @@ func ValidateSpecWithSchema(spec *CampaignSpec) []string {
 		return []string{fmt.Sprintf("failed to load campaign spec schema: %v", err)}
 	}
 
-	// Convert spec to JSON for validation, excluding runtime fields
-	// Create a copy without ConfigPath (which is set at runtime, not in YAML)
+	// Convert spec to JSON for validation, excluding runtime fields.
+	// Create a copy without ConfigPath (which is set at runtime, not in YAML).
+	//
+	// JSON property names intentionally mirror the kebab-case YAML keys so the
+	// JSON Schema can validate both YAML and JSON representations consistently.
 	type CampaignSpecForValidation struct {
 		ID                 string                  `json:"id"`
 		Name               string                  `json:"name"`
 		Description        string                  `json:"description,omitempty"`
 		Version            string                  `json:"version,omitempty"`
 		Workflows          []string                `json:"workflows,omitempty"`
-		MemoryPaths        []string                `json:"memory_paths,omitempty"`
-		MetricsGlob        string                  `json:"metrics_glob,omitempty"`
+		MemoryPaths        []string                `json:"memory-paths,omitempty"`
+		MetricsGlob        string                  `json:"metrics-glob,omitempty"`
 		Owners             []string                `json:"owners,omitempty"`
-		ExecutiveSponsors  []string                `json:"executive_sponsors,omitempty"`
-		RiskLevel          string                  `json:"risk_level,omitempty"`
-		TrackerLabel       string                  `json:"tracker_label,omitempty"`
+		ExecutiveSponsors  []string                `json:"executive-sponsors,omitempty"`
+		RiskLevel          string                  `json:"risk-level,omitempty"`
+		TrackerLabel       string                  `json:"tracker-label,omitempty"`
 		State              string                  `json:"state,omitempty"`
 		Tags               []string                `json:"tags,omitempty"`
-		AllowedSafeOutputs []string                `json:"allowed_safe_outputs,omitempty"`
-		ApprovalPolicy     *CampaignApprovalPolicy `json:"approval_policy,omitempty"`
+		AllowedSafeOutputs []string                `json:"allowed-safe-outputs,omitempty"`
+		ApprovalPolicy     *CampaignApprovalPolicy `json:"approval-policy,omitempty"`
 	}
 
 	validationSpec := CampaignSpecForValidation{

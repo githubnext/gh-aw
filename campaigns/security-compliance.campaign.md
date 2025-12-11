@@ -7,42 +7,42 @@ description: "Security remediation with compliance audit trail and executive rep
 workflows:
   - security-compliance
 
-memory_paths:
+memory-paths:
   - "memory/campaigns/security-compliance-*/**"
 
 owners:
   - "security-team"
   - "platform-engineering"
 
-executive_sponsors:
+executive-sponsors:
   - "ciso"
   - "vp-engineering"
 
-risk_level: "high"
+risk-level: "high"
 state: "planned"
 tags:
   - "security"
   - "compliance"
   - "audit"
 
-tracker_label: "campaign:security-compliance"
+tracker-label: "campaign:security-compliance"
 
 # Metrics snapshots for this campaign are expected under the
 # memory/campaigns branch, following the structure described in the
 # campaigns guide (metrics/YYYY-MM-DD.json).
-metrics_glob: "memory/campaigns/security-compliance-*/metrics/*.json"
+metrics-glob: "memory/campaigns/security-compliance-*/metrics/*.json"
 
-allowed_safe_outputs:
+allowed-safe-outputs:
   - "create-issue"
   - "add-comment"
   - "create-pull-request"
 
-approval_policy:
-  required_approvals: 2
-  required_roles:
+approval-policy:
+  required-approvals: 2
+  required-roles:
     - "security-lead"
     - "engineering-lead"
-  change_control: true
+  change-control: true
 ---
 
 # Security Compliance Campaign
