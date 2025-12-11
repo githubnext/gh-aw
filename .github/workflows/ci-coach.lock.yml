@@ -46,16 +46,16 @@
 #       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 #     run: |
 #       # Download workflow runs for the ci workflow
-#       gh run list --workflow=ci.yml --limit 100 --json databaseId,status,conclusion,createdAt,updatedAt,displayTitle,headBranch,event,url,workflowDatabaseId,runNumber > /tmp/ci-runs.json
+#       gh run list --repo ${{ github.repository }} --workflow=ci.yml --limit 100 --json databaseId,status,conclusion,createdAt,updatedAt,displayTitle,headBranch,event,url,workflowDatabaseId,runNumber > /tmp/ci-runs.json
 #
 #       # Create directory for artifacts
 #       mkdir -p /tmp/ci-artifacts
 #
 #       # Download artifacts from recent runs (last 5 successful runs)
 #       echo "Downloading artifacts from recent CI runs..."
-#       gh run list --workflow=ci.yml --status success --limit 5 --json databaseId | jq -r '.[].databaseId' | while read run_id; do
+#       gh run list --repo ${{ github.repository }} --workflow=ci.yml --status success --limit 5 --json databaseId | jq -r '.[].databaseId' | while read run_id; do
 #         echo "Processing run $run_id"
-#         gh run download "$run_id" --dir "/tmp/ci-artifacts/$run_id" 2>/dev/null || echo "No artifacts for run $run_id"
+#         gh run download "$run_id" --repo ${{ github.repository }} --dir "/tmp/ci-artifacts/$run_id" 2>/dev/null || echo "No artifacts for run $run_id"
 #       done
 #
 #       echo "CI runs data saved to /tmp/ci-runs.json"
@@ -879,7 +879,7 @@ jobs:
       - env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         name: Download CI workflow runs from last 7 days
-        run: "# Download workflow runs for the ci workflow\ngh run list --workflow=ci.yml --limit 100 --json databaseId,status,conclusion,createdAt,updatedAt,displayTitle,headBranch,event,url,workflowDatabaseId,runNumber > /tmp/ci-runs.json\n\n# Create directory for artifacts\nmkdir -p /tmp/ci-artifacts\n\n# Download artifacts from recent runs (last 5 successful runs)\necho \"Downloading artifacts from recent CI runs...\"\ngh run list --workflow=ci.yml --status success --limit 5 --json databaseId | jq -r '.[].databaseId' | while read run_id; do\n  echo \"Processing run $run_id\"\n  gh run download \"$run_id\" --dir \"/tmp/ci-artifacts/$run_id\" 2>/dev/null || echo \"No artifacts for run $run_id\"\ndone\n\necho \"CI runs data saved to /tmp/ci-runs.json\"\necho \"Artifacts saved to /tmp/ci-artifacts/\"\n"
+        run: "# Download workflow runs for the ci workflow\ngh run list --repo ${{ github.repository }} --workflow=ci.yml --limit 100 --json databaseId,status,conclusion,createdAt,updatedAt,displayTitle,headBranch,event,url,workflowDatabaseId,runNumber > /tmp/ci-runs.json\n\n# Create directory for artifacts\nmkdir -p /tmp/ci-artifacts\n\n# Download artifacts from recent runs (last 5 successful runs)\necho \"Downloading artifacts from recent CI runs...\"\ngh run list --repo ${{ github.repository }} --workflow=ci.yml --status success --limit 5 --json databaseId | jq -r '.[].databaseId' | while read run_id; do\n  echo \"Processing run $run_id\"\n  gh run download \"$run_id\" --repo ${{ github.repository }} --dir \"/tmp/ci-artifacts/$run_id\" 2>/dev/null || echo \"No artifacts for run $run_id\"\ndone\n\necho \"CI runs data saved to /tmp/ci-runs.json\"\necho \"Artifacts saved to /tmp/ci-artifacts/\"\n"
 
       # Cache memory file share configuration from frontmatter processed below
       - name: Create cache-memory directory
@@ -3642,9 +3642,81 @@ jobs:
         with:
           script: |
             const fs = require("fs");
+            const path = require("path");
             function isTruthy(expr) {
               const v = expr.trim().toLowerCase();
               return !(v === "" || v === "false" || v === "0" || v === "null" || v === "undefined");
+            }
+            function hasFrontMatter(content) {
+              return content.trimStart().startsWith("---\n") || content.trimStart().startsWith("---\r\n");
+            }
+            function removeXMLComments(content) {
+              return content.replace(/<!--[\s\S]*?-->/g, "");
+            }
+            function hasGitHubActionsMacros(content) {
+              return /\$\{\{[\s\S]*?\}\}/.test(content);
+            }
+            function processRuntimeImport(filepath, optional, workspaceDir) {
+              const absolutePath = path.resolve(workspaceDir, filepath);
+              if (!fs.existsSync(absolutePath)) {
+                if (optional) {
+                  core.warning(`Optional runtime import file not found: ${filepath}`);
+                  return "";
+                }
+                throw new Error(`Runtime import file not found: ${filepath}`);
+              }
+              let content = fs.readFileSync(absolutePath, "utf8");
+              if (hasFrontMatter(content)) {
+                core.warning(`File ${filepath} contains front matter which will be ignored in runtime import`);
+                const lines = content.split("\n");
+                let inFrontMatter = false;
+                let frontMatterCount = 0;
+                const processedLines = [];
+                for (const line of lines) {
+                  if (line.trim() === "---" || line.trim() === "---\r") {
+                    frontMatterCount++;
+                    if (frontMatterCount === 1) {
+                      inFrontMatter = true;
+                      continue;
+                    } else if (frontMatterCount === 2) {
+                      inFrontMatter = false;
+                      continue;
+                    }
+                  }
+                  if (!inFrontMatter && frontMatterCount >= 2) {
+                    processedLines.push(line);
+                  }
+                }
+                content = processedLines.join("\n");
+              }
+              content = removeXMLComments(content);
+              if (hasGitHubActionsMacros(content)) {
+                throw new Error(`File ${filepath} contains GitHub Actions macros ($\{{ ... }}) which are not allowed in runtime imports`);
+              }
+              return content;
+            }
+            function processRuntimeImports(content, workspaceDir) {
+              const pattern = /\{\{#runtime-import(\?)?[ \t]+([^\}]+?)\}\}/g;
+              let processedContent = content;
+              let match;
+              const importedFiles = new Set();
+              pattern.lastIndex = 0;
+              while ((match = pattern.exec(content)) !== null) {
+                const optional = match[1] === "?";
+                const filepath = match[2].trim();
+                const fullMatch = match[0];
+                if (importedFiles.has(filepath)) {
+                  core.warning(`File ${filepath} is imported multiple times, which may indicate a circular reference`);
+                }
+                importedFiles.add(filepath);
+                try {
+                  const importedContent = processRuntimeImport(filepath, optional, workspaceDir);
+                  processedContent = processedContent.replace(fullMatch, importedContent);
+                } catch (error) {
+                  throw new Error(`Failed to process runtime import for ${filepath}: ${error.message}`);
+                }
+              }
+              return processedContent;
             }
             function interpolateVariables(content, variables) {
               let result = content;
@@ -3676,7 +3748,20 @@ jobs:
                   core.setFailed("GH_AW_PROMPT environment variable is not set");
                   return;
                 }
+                const workspaceDir = process.env.GITHUB_WORKSPACE;
+                if (!workspaceDir) {
+                  core.setFailed("GITHUB_WORKSPACE environment variable is not set");
+                  return;
+                }
                 let content = fs.readFileSync(promptPath, "utf8");
+                const hasRuntimeImports = /{{#runtime-import\??[ \t]+[^\}]+}}/.test(content);
+                if (hasRuntimeImports) {
+                  core.info("Processing runtime import macros");
+                  content = processRuntimeImports(content, workspaceDir);
+                  core.info("Runtime imports processed successfully");
+                } else {
+                  core.info("No runtime import macros found, skipping runtime import processing");
+                }
                 const variables = {};
                 for (const [key, value] of Object.entries(process.env)) {
                   if (key.startsWith("GH_AW_EXPR_")) {
@@ -4069,7 +4154,35 @@ jobs:
                 return s.replace(/<!--[\s\S]*?-->/g, "").replace(/<!--[\s\S]*?--!>/g, "");
               }
               function convertXmlTags(s) {
-                const allowedTags = ["details", "summary", "code", "em", "b", "p", "strong", "i", "u", "br", "ul", "ol", "li", "blockquote"];
+                const allowedTags = [
+                  "b",
+                  "blockquote",
+                  "br",
+                  "code",
+                  "em",
+                  "h1",
+                  "h2",
+                  "h3",
+                  "h4",
+                  "h5",
+                  "h6",
+                  "hr",
+                  "i",
+                  "li",
+                  "ol",
+                  "p",
+                  "pre",
+                  "strong",
+                  "sub",
+                  "sup",
+                  "table",
+                  "tbody",
+                  "td",
+                  "th",
+                  "thead",
+                  "tr",
+                  "ul",
+                ];
                 s = s.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, (match, content) => {
                   const convertedContent = content.replace(/<(\/?[A-Za-z][A-Za-z0-9]*(?:[^>]*?))>/g, "($1)");
                   return `(![CDATA[${convertedContent}]])`;
@@ -7447,6 +7560,25 @@ jobs:
                 }
               }
             }
+            function removeDuplicateTitleFromDescription(title, description) {
+              if (!title || typeof title !== "string") {
+                return description || "";
+              }
+              if (!description || typeof description !== "string") {
+                return "";
+              }
+              const trimmedTitle = title.trim();
+              const trimmedDescription = description.trim();
+              if (!trimmedTitle || !trimmedDescription) {
+                return trimmedDescription;
+              }
+              const escapedTitle = trimmedTitle.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+              const headerRegex = new RegExp(`^#{1,6}\\s+${escapedTitle}\\s*(?:\\r?\\n)*`, "i");
+              if (headerRegex.test(trimmedDescription)) {
+                return trimmedDescription.replace(headerRegex, "").trim();
+              }
+              return trimmedDescription;
+            }
             function generatePatchPreview(patchContent) {
               if (!patchContent || !patchContent.trim()) {
                 return "";
@@ -7638,7 +7770,9 @@ jobs:
                 return;
               }
               let title = pullRequestItem.title.trim();
-              let bodyLines = pullRequestItem.body.split("\n");
+              let processedBody = pullRequestItem.body;
+              processedBody = removeDuplicateTitleFromDescription(title, processedBody);
+              let bodyLines = processedBody.split("\n");
               let branchName = pullRequestItem.branch ? pullRequestItem.branch.trim() : null;
               if (!title) {
                 title = "Agent Output";
@@ -7805,8 +7939,10 @@ jobs:
               } else {
                 core.info("Skipping patch application (empty patch)");
                 if (allowEmpty) {
-                  core.info("allow-empty is enabled - will create branch and push without changes");
+                  core.info("allow-empty is enabled - will create branch and push with empty commit");
                   try {
+                    await exec.exec(`git commit --allow-empty -m "Initialize"`);
+                    core.info("Created empty commit");
                     let remoteBranchExists = false;
                     try {
                       const { stdout } = await exec.getExecOutput(`git ls-remote --heads origin ${branchName}`);

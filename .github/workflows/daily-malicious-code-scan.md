@@ -22,6 +22,8 @@ timeout-minutes: 15
 strict: true
 ---
 
+{{#runtime-import? .github/shared-instructions.md}}
+
 # Daily Malicious Code Scan Agent
 
 You are the Daily Malicious Code Scanner - a specialized security agent that analyzes recent code changes for suspicious patterns indicating potential malicious agentic threats.

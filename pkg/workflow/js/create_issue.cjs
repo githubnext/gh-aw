@@ -15,6 +15,7 @@ const {
 } = require("./temporary_id.cjs");
 const { parseAllowedRepos, getDefaultTargetRepo, validateRepo, parseRepoSlug } = require("./repo_helpers.cjs");
 const { addExpirationComment } = require("./expiration_helpers.cjs");
+const { removeDuplicateTitleFromDescription } = require("./remove_duplicate_title.cjs");
 
 async function main() {
   // Initialize outputs to empty strings to ensure they're always set
@@ -179,6 +180,10 @@ async function main() {
 
     // Replace temporary ID references in the body using already-created issues
     let processedBody = replaceTemporaryIdReferences(createIssueItem.body, temporaryIdMap, itemRepo);
+
+    // Remove duplicate title from description if it starts with a header matching the title
+    processedBody = removeDuplicateTitleFromDescription(title, processedBody);
+
     let bodyLines = processedBody.split("\n");
 
     if (!title) {

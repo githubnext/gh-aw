@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"encoding/json"
 	"fmt"
 
 	"github.com/githubnext/gh-aw/pkg/logger"
@@ -12,6 +13,7 @@ var hideCommentLog = logger.New("workflow:hide_comment")
 type HideCommentConfig struct {
 	BaseSafeOutputConfig   `yaml:",inline"`
 	SafeOutputTargetConfig `yaml:",inline"`
+	AllowedReasons         []string `yaml:"allowed-reasons,omitempty"` // List of allowed reasons for hiding comments (default: all reasons allowed)
 }
 
 // parseHideCommentConfig handles hide-comment configuration
@@ -29,6 +31,17 @@ func (c *Compiler) parseHideCommentConfig(outputMap map[string]any) *HideComment
 				return nil // Invalid configuration (e.g., wildcard target-repo), return nil to cause validation error
 			}
 			hideCommentConfig.SafeOutputTargetConfig = targetConfig
+
+			// Parse allowed-reasons
+			if allowedReasons, exists := configMap["allowed-reasons"]; exists {
+				if reasonsArray, ok := allowedReasons.([]any); ok {
+					for _, reason := range reasonsArray {
+						if reasonStr, ok := reason.(string); ok {
+							hideCommentConfig.AllowedReasons = append(hideCommentConfig.AllowedReasons, reasonStr)
+						}
+					}
+				}
+			}
 
 			// Parse common base fields with default max of 5
 			c.parseBaseSafeOutputConfig(configMap, &hideCommentConfig.BaseSafeOutputConfig, 5)
@@ -65,6 +78,14 @@ func (c *Compiler) buildHideCommentJob(data *WorkflowData, mainJobName string) (
 
 	// Pass the max limit
 	customEnvVars = append(customEnvVars, BuildMaxCountEnvVar("GH_AW_HIDE_COMMENT_MAX_COUNT", maxCount)...)
+
+	// Pass the allowed-reasons list configuration
+	if len(cfg.AllowedReasons) > 0 {
+		reasonsJSON, err := json.Marshal(cfg.AllowedReasons)
+		if err == nil {
+			customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_HIDE_COMMENT_ALLOWED_REASONS: %q\n", string(reasonsJSON)))
+		}
+	}
 
 	// Add standard environment variables (metadata + staged/target repo)
 	customEnvVars = append(customEnvVars, c.buildStandardSafeOutputEnvVars(data, cfg.TargetRepoSlug)...)

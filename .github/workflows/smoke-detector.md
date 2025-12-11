@@ -37,6 +37,7 @@ permissions:
 safe-outputs:
   add-comment:
     target: "*"
+    hide-older-comments: true
   create-issue:
     title-prefix: "[smoke-detector] "
     labels: [smoke-test, investigation]

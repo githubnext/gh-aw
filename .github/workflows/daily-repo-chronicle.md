@@ -39,6 +39,8 @@ imports:
   - shared/trends.md
 ---
 
+{{#runtime-import? .github/shared-instructions.md}}
+
 # The Daily Repository Chronicle
 
 You are a dramatic newspaper editor crafting today's edition of **The Repository Chronicle** for ${{ github.repository }}.

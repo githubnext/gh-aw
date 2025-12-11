@@ -16,7 +16,7 @@ tools:
   bash: ["*"]
 safe-outputs:
   lock-issue:
-    labels: [copilot-no-firewall]
+    labels: [smoke-copilot-no-firewall]
     max: 5
 steps:
   - name: Download issues data
@@ -26,8 +26,8 @@ steps:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 ---
 
-Lock the last open issue that has the "copilot-no-firewall" label.
+Lock the last open issue that has the "smoke-copilot-no-firewall" label.
 
-Find the most recent open issue with the "copilot-no-firewall" label and lock it with:
+Find the most recent open issue with the "smoke-copilot-no-firewall" label and lock it with:
 - A comment explaining why it's being locked: "Locking this issue as it has the copilot-no-firewall label"
 - Lock reason: "resolved"
