@@ -154,13 +154,60 @@ Posts comments on issues, PRs, or discussions. Defaults to triggering item; conf
 ```yaml wrap
 safe-outputs:
   add-comment:
-    max: 3                    # max comments (default: 1)
-    target: "*"               # "triggering" (default), "*", or number
-    discussion: true          # target discussions
-    target-repo: "owner/repo" # cross-repository
+    max: 3                       # max comments (default: 1)
+    target: "*"                  # "triggering" (default), "*", or number
+    discussion: true             # target discussions
+    target-repo: "owner/repo"    # cross-repository
+    hide-older-comments: true    # hide previous comments from same workflow
+    allowed-reasons: [outdated]  # restrict hiding reasons (optional)
 ```
 
 When combined with `create-issue`, `create-discussion`, or `create-pull-request`, comments automatically include a "Related Items" section.
+
+#### Hide Older Comments
+
+The `hide-older-comments` field automatically minimizes all previous comments from the same agentic workflow before creating a new comment. This is useful for workflows that provide status updates, where you want to keep the conversation clean by hiding outdated information.
+
+**Configuration:**
+```yaml wrap
+safe-outputs:
+  add-comment:
+    hide-older-comments: true
+    allowed-reasons: [OUTDATED, RESOLVED]  # optional: restrict reasons
+```
+
+**How it works:**
+- Comments from the same workflow are identified by the workflow ID (automatically from `GITHUB_WORKFLOW` environment variable)
+- All matching older comments are minimized/hidden with reason "outdated" (by default)
+- The new comment is then created normally
+- Works for both issue/PR comments and discussion comments
+
+**Allowed Reasons:**
+Use `allowed-reasons` to restrict which reasons can be used when hiding comments. Valid reasons are:
+- `spam` - Mark as spam
+- `abuse` - Mark as abusive
+- `off_topic` - Mark as off-topic
+- `outdated` - Mark as outdated (default)
+- `resolved` - Mark as resolved
+
+If `allowed-reasons` is not specified, all reasons are allowed. If specified, only the listed reasons can be used. If the default reason (outdated) is not in the allowed list, hiding will be skipped with a warning.
+
+**Requirements:**
+- Workflow ID is automatically obtained from the `GITHUB_WORKFLOW` environment variable
+- Only comments with matching workflow ID will be hidden
+- Requires write permissions (automatically granted to the safe-output job)
+
+**Example workflow:**
+```yaml wrap
+---
+safe-outputs:
+  add-comment:
+    hide-older-comments: true
+    allowed-reasons: [outdated, resolved]
+---
+
+Current status: {{ statusMessage }}
+```
 
 ### Hide Comment (`hide-comment:`)
 
@@ -176,14 +223,14 @@ safe-outputs:
 **Requirements:**
 - Agent must provide GraphQL node IDs (strings like `IC_kwDOABCD123456`) for comments
 - REST API numeric comment IDs cannot be used (no conversion available)
-- Agent can optionally specify a reason (SPAM, ABUSE, OFF_TOPIC, OUTDATED, RESOLVED)
+- Agent can optionally specify a reason (spam, abuse, off_topic, outdated, resolved)
 
 **Agent Output Format:**
 ```json
 {
   "type": "hide_comment",
   "comment_id": "IC_kwDOABCD123456",
-  "reason": "SPAM"
+  "reason": "spam"
 }
 ```
 

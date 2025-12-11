@@ -637,7 +637,35 @@ jobs:
                 return s.replace(/<!--[\s\S]*?-->/g, "").replace(/<!--[\s\S]*?--!>/g, "");
               }
               function convertXmlTags(s) {
-                const allowedTags = ["details", "summary", "code", "em", "b", "p", "strong", "i", "u", "br", "ul", "ol", "li", "blockquote"];
+                const allowedTags = [
+                  "b",
+                  "blockquote",
+                  "br",
+                  "code",
+                  "em",
+                  "h1",
+                  "h2",
+                  "h3",
+                  "h4",
+                  "h5",
+                  "h6",
+                  "hr",
+                  "i",
+                  "li",
+                  "ol",
+                  "p",
+                  "pre",
+                  "strong",
+                  "sub",
+                  "sup",
+                  "table",
+                  "tbody",
+                  "td",
+                  "th",
+                  "thead",
+                  "tr",
+                  "ul",
+                ];
                 s = s.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, (match, content) => {
                   const convertedContent = content.replace(/<(\/?[A-Za-z][A-Za-z0-9]*(?:[^>]*?))>/g, "($1)");
                   return `(![CDATA[${convertedContent}]])`;
@@ -1116,6 +1144,16 @@ jobs:
                   runUrl: runUrl,
                   eventType: eventTypeDescription,
                 });
+                const workflowId = process.env.GITHUB_WORKFLOW || "";
+                const trackerId = process.env.GH_AW_TRACKER_ID || "";
+                let commentBody = workflowLinkText;
+                if (workflowId) {
+                  commentBody += `\n\n<!-- workflow-id: ${workflowId} -->`;
+                }
+                if (trackerId) {
+                  commentBody += `\n\n<!-- tracker-id: ${trackerId} -->`;
+                }
+                commentBody += `\n\n<!-- comment-type: reaction -->`;
                 if (eventName === "discussion") {
                   const discussionNumber = parseInt(endpoint.split(":")[1], 10);
                   const { repository } = await github.graphql(
@@ -1140,7 +1178,7 @@ jobs:
                         }
                       }
                     }`,
-                    { dId: discussionId, body: workflowLinkText }
+                    { dId: discussionId, body: commentBody }
                   );
                   const comment = result.addDiscussionComment.comment;
                   core.info(`Successfully created discussion comment with workflow link`);
@@ -1176,7 +1214,7 @@ jobs:
                         }
                       }
                     }`,
-                    { dId: discussionId, body: workflowLinkText, replyToId: commentNodeId }
+                    { dId: discussionId, body: commentBody, replyToId: commentNodeId }
                   );
                   const comment = result.addDiscussionComment.comment;
                   core.info(`Successfully created discussion comment with workflow link`);
@@ -1189,7 +1227,7 @@ jobs:
                   return;
                 }
                 const createResponse = await github.request("POST " + endpoint, {
-                  body: workflowLinkText,
+                  body: commentBody,
                   headers: {
                     Accept: "application/vnd.github+json",
                   },
@@ -3502,9 +3540,81 @@ jobs:
         with:
           script: |
             const fs = require("fs");
+            const path = require("path");
             function isTruthy(expr) {
               const v = expr.trim().toLowerCase();
               return !(v === "" || v === "false" || v === "0" || v === "null" || v === "undefined");
+            }
+            function hasFrontMatter(content) {
+              return content.trimStart().startsWith("---\n") || content.trimStart().startsWith("---\r\n");
+            }
+            function removeXMLComments(content) {
+              return content.replace(/<!--[\s\S]*?-->/g, "");
+            }
+            function hasGitHubActionsMacros(content) {
+              return /\$\{\{[\s\S]*?\}\}/.test(content);
+            }
+            function processRuntimeImport(filepath, optional, workspaceDir) {
+              const absolutePath = path.resolve(workspaceDir, filepath);
+              if (!fs.existsSync(absolutePath)) {
+                if (optional) {
+                  core.warning(`Optional runtime import file not found: ${filepath}`);
+                  return "";
+                }
+                throw new Error(`Runtime import file not found: ${filepath}`);
+              }
+              let content = fs.readFileSync(absolutePath, "utf8");
+              if (hasFrontMatter(content)) {
+                core.warning(`File ${filepath} contains front matter which will be ignored in runtime import`);
+                const lines = content.split("\n");
+                let inFrontMatter = false;
+                let frontMatterCount = 0;
+                const processedLines = [];
+                for (const line of lines) {
+                  if (line.trim() === "---" || line.trim() === "---\r") {
+                    frontMatterCount++;
+                    if (frontMatterCount === 1) {
+                      inFrontMatter = true;
+                      continue;
+                    } else if (frontMatterCount === 2) {
+                      inFrontMatter = false;
+                      continue;
+                    }
+                  }
+                  if (!inFrontMatter && frontMatterCount >= 2) {
+                    processedLines.push(line);
+                  }
+                }
+                content = processedLines.join("\n");
+              }
+              content = removeXMLComments(content);
+              if (hasGitHubActionsMacros(content)) {
+                throw new Error(`File ${filepath} contains GitHub Actions macros ($\{{ ... }}) which are not allowed in runtime imports`);
+              }
+              return content;
+            }
+            function processRuntimeImports(content, workspaceDir) {
+              const pattern = /\{\{#runtime-import(\?)?[ \t]+([^\}]+?)\}\}/g;
+              let processedContent = content;
+              let match;
+              const importedFiles = new Set();
+              pattern.lastIndex = 0;
+              while ((match = pattern.exec(content)) !== null) {
+                const optional = match[1] === "?";
+                const filepath = match[2].trim();
+                const fullMatch = match[0];
+                if (importedFiles.has(filepath)) {
+                  core.warning(`File ${filepath} is imported multiple times, which may indicate a circular reference`);
+                }
+                importedFiles.add(filepath);
+                try {
+                  const importedContent = processRuntimeImport(filepath, optional, workspaceDir);
+                  processedContent = processedContent.replace(fullMatch, importedContent);
+                } catch (error) {
+                  throw new Error(`Failed to process runtime import for ${filepath}: ${error.message}`);
+                }
+              }
+              return processedContent;
             }
             function interpolateVariables(content, variables) {
               let result = content;
@@ -3536,7 +3646,20 @@ jobs:
                   core.setFailed("GH_AW_PROMPT environment variable is not set");
                   return;
                 }
+                const workspaceDir = process.env.GITHUB_WORKSPACE;
+                if (!workspaceDir) {
+                  core.setFailed("GITHUB_WORKSPACE environment variable is not set");
+                  return;
+                }
                 let content = fs.readFileSync(promptPath, "utf8");
+                const hasRuntimeImports = /{{#runtime-import\??[ \t]+[^\}]+}}/.test(content);
+                if (hasRuntimeImports) {
+                  core.info("Processing runtime import macros");
+                  content = processRuntimeImports(content, workspaceDir);
+                  core.info("Runtime imports processed successfully");
+                } else {
+                  core.info("No runtime import macros found, skipping runtime import processing");
+                }
                 const variables = {};
                 for (const [key, value] of Object.entries(process.env)) {
                   if (key.startsWith("GH_AW_EXPR_")) {
@@ -3925,7 +4048,35 @@ jobs:
                 return s.replace(/<!--[\s\S]*?-->/g, "").replace(/<!--[\s\S]*?--!>/g, "");
               }
               function convertXmlTags(s) {
-                const allowedTags = ["details", "summary", "code", "em", "b", "p", "strong", "i", "u", "br", "ul", "ol", "li", "blockquote"];
+                const allowedTags = [
+                  "b",
+                  "blockquote",
+                  "br",
+                  "code",
+                  "em",
+                  "h1",
+                  "h2",
+                  "h3",
+                  "h4",
+                  "h5",
+                  "h6",
+                  "hr",
+                  "i",
+                  "li",
+                  "ol",
+                  "p",
+                  "pre",
+                  "strong",
+                  "sub",
+                  "sup",
+                  "table",
+                  "tbody",
+                  "td",
+                  "th",
+                  "thead",
+                  "tr",
+                  "ul",
+                ];
                 s = s.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, (match, content) => {
                   const convertedContent = content.replace(/<(\/?[A-Za-z][A-Za-z0-9]*(?:[^>]*?))>/g, "($1)");
                   return `(![CDATA[${convertedContent}]])`;
@@ -7600,6 +7751,25 @@ jobs:
                 core.setFailed(error instanceof Error ? error : String(error));
               }
             }
+            function removeDuplicateTitleFromDescription(title, description) {
+              if (!title || typeof title !== "string") {
+                return description || "";
+              }
+              if (!description || typeof description !== "string") {
+                return "";
+              }
+              const trimmedTitle = title.trim();
+              const trimmedDescription = description.trim();
+              if (!trimmedTitle || !trimmedDescription) {
+                return trimmedDescription;
+              }
+              const escapedTitle = trimmedTitle.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+              const headerRegex = new RegExp(`^#{1,6}\\s+${escapedTitle}\\s*(?:\\r?\\n)*`, "i");
+              if (headerRegex.test(trimmedDescription)) {
+                return trimmedDescription.replace(headerRegex, "").trim();
+              }
+              return trimmedDescription;
+            }
             function resolveTargetNumber(params) {
               const { updateTarget, item, numberField, isValidContext, contextNumber, displayName } = params;
               if (updateTarget === "*") {
@@ -7640,10 +7810,12 @@ jobs:
                   logMessages.push(`Invalid status value: ${item.status}. Must be 'open' or 'closed'`);
                 }
               }
+              let titleForDedup = null;
               if (canUpdateTitle && item.title !== undefined) {
                 const trimmedTitle = typeof item.title === "string" ? item.title.trim() : "";
                 if (trimmedTitle.length > 0) {
                   updateData.title = trimmedTitle;
+                  titleForDedup = trimmedTitle;
                   hasUpdates = true;
                   logMessages.push(`Will update title to: ${trimmedTitle}`);
                 } else {
@@ -7652,9 +7824,13 @@ jobs:
               }
               if (canUpdateBody && item.body !== undefined) {
                 if (typeof item.body === "string") {
-                  updateData.body = item.body;
+                  let processedBody = item.body;
+                  if (titleForDedup) {
+                    processedBody = removeDuplicateTitleFromDescription(titleForDedup, processedBody);
+                  }
+                  updateData.body = processedBody;
                   hasUpdates = true;
-                  logMessages.push(`Will update body (length: ${item.body.length})`);
+                  logMessages.push(`Will update body (length: ${processedBody.length})`);
                 } else {
                   logMessages.push("Invalid body value: must be a string");
                 }

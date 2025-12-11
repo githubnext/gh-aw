@@ -973,6 +973,11 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 		}
 		steps = append(steps, fmt.Sprintf("          GH_AW_WORKFLOW_NAME: %q\n", data.Name))
 
+		// Add tracker-id if present
+		if data.TrackerID != "" {
+			steps = append(steps, fmt.Sprintf("          GH_AW_TRACKER_ID: %q\n", data.TrackerID))
+		}
+
 		// Pass custom messages config if present (for custom run-started messages)
 		if data.SafeOutputs != nil && data.SafeOutputs.Messages != nil {
 			messagesJSON, err := serializeMessagesConfig(data.SafeOutputs.Messages)

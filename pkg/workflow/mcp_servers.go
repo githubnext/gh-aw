@@ -195,7 +195,21 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		}
 	}
 
-	if hasAgenticWorkflows {
+	// Check if shared/mcp/gh-aw.md is imported (which already installs gh-aw)
+	hasGhAwImport := false
+	for _, importPath := range workflowData.ImportedFiles {
+		if strings.Contains(importPath, "shared/mcp/gh-aw.md") {
+			hasGhAwImport = true
+			break
+		}
+	}
+
+	if hasAgenticWorkflows && hasGhAwImport {
+		mcpServersLog.Print("Skipping gh-aw extension installation step (provided by shared/mcp/gh-aw.md import)")
+	}
+
+	// Only install gh-aw if needed and not already provided by imports
+	if hasAgenticWorkflows && !hasGhAwImport {
 		// Use effective token with precedence: top-level github-token > default
 		effectiveToken := getEffectiveGitHubToken("", workflowData.GitHubToken)
 
@@ -203,8 +217,14 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		yaml.WriteString("        env:\n")
 		yaml.WriteString(fmt.Sprintf("          GH_TOKEN: %s\n", effectiveToken))
 		yaml.WriteString("        run: |\n")
-		yaml.WriteString("          echo \"Installing gh-aw extension...\"\n")
-		yaml.WriteString("          gh extension install githubnext/gh-aw\n")
+		yaml.WriteString("          # Check if gh-aw extension is already installed\n")
+		yaml.WriteString("          if gh extension list | grep -q \"githubnext/gh-aw\"; then\n")
+		yaml.WriteString("            echo \"gh-aw extension already installed, upgrading...\"\n")
+		yaml.WriteString("            gh extension upgrade gh-aw || true\n")
+		yaml.WriteString("          else\n")
+		yaml.WriteString("            echo \"Installing gh-aw extension...\"\n")
+		yaml.WriteString("            gh extension install githubnext/gh-aw\n")
+		yaml.WriteString("          fi\n")
 		yaml.WriteString("          gh aw --version\n")
 	}
 

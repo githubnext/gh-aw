@@ -8,6 +8,7 @@ const crypto = require("crypto");
 const { updateActivationComment } = require("./update_activation_comment.cjs");
 const { getTrackerID } = require("./get_tracker_id.cjs");
 const { addExpirationComment } = require("./expiration_helpers.cjs");
+const { removeDuplicateTitleFromDescription } = require("./remove_duplicate_title.cjs");
 
 /**
  * Generate a patch preview with max 500 lines and 2000 chars for issue body
@@ -274,7 +275,12 @@ async function main() {
 
   // Extract title, body, and branch from the JSON item
   let title = pullRequestItem.title.trim();
-  let bodyLines = pullRequestItem.body.split("\n");
+  let processedBody = pullRequestItem.body;
+
+  // Remove duplicate title from description if it starts with a header matching the title
+  processedBody = removeDuplicateTitleFromDescription(title, processedBody);
+
+  let bodyLines = processedBody.split("\n");
   let branchName = pullRequestItem.branch ? pullRequestItem.branch.trim() : null;
 
   // If no title was found, use a default
@@ -510,9 +516,13 @@ ${patchPreview}`;
 
     // For empty patches with allow-empty, we still need to push the branch
     if (allowEmpty) {
-      core.info("allow-empty is enabled - will create branch and push without changes");
-      // Push the branch without any changes
+      core.info("allow-empty is enabled - will create branch and push with empty commit");
+      // Push the branch with an empty commit to allow PR creation
       try {
+        // Create an empty commit to ensure there's a commit difference
+        await exec.exec(`git commit --allow-empty -m "Initialize"`);
+        core.info("Created empty commit");
+
         // Check if remote branch already exists (optional precheck)
         let remoteBranchExists = false;
         try {

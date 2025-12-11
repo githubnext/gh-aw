@@ -41,7 +41,6 @@
 # safe-outputs:
 #   create-pull-request:
 #     allow-empty: true
-#   staged: true
 # steps:
 #   - name: Download issues data
 #     run: |
@@ -3217,7 +3216,7 @@ jobs:
               sha: context.sha,
               actor: context.actor,
               event_name: context.eventName,
-              staged: true,
+              staged: false,
               network_mode: "defaults",
               allowed_domains: ["api.github.com"],
               firewall_enabled: true,
@@ -3423,7 +3422,6 @@ jobs:
           GH_AW_MODEL_AGENT_COPILOT: ${{ vars.GH_AW_MODEL_AGENT_COPILOT || '' }}
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
-          GH_AW_SAFE_OUTPUTS_STAGED: true
           GITHUB_HEAD_REF: ${{ github.head_ref }}
           GITHUB_REF_NAME: ${{ github.ref_name }}
           GITHUB_STEP_SUMMARY: ${{ env.GITHUB_STEP_SUMMARY }}
@@ -3739,7 +3737,35 @@ jobs:
                 return s.replace(/<!--[\s\S]*?-->/g, "").replace(/<!--[\s\S]*?--!>/g, "");
               }
               function convertXmlTags(s) {
-                const allowedTags = ["details", "summary", "code", "em", "b", "p", "strong", "i", "u", "br", "ul", "ol", "li", "blockquote"];
+                const allowedTags = [
+                  "b",
+                  "blockquote",
+                  "br",
+                  "code",
+                  "em",
+                  "h1",
+                  "h2",
+                  "h3",
+                  "h4",
+                  "h5",
+                  "h6",
+                  "hr",
+                  "i",
+                  "li",
+                  "ol",
+                  "p",
+                  "pre",
+                  "strong",
+                  "sub",
+                  "sup",
+                  "table",
+                  "tbody",
+                  "td",
+                  "th",
+                  "thead",
+                  "tr",
+                  "ul",
+                ];
                 s = s.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, (match, content) => {
                   const convertedContent = content.replace(/<(\/?[A-Za-z][A-Za-z0-9]*(?:[^>]*?))>/g, "($1)");
                   return `(![CDATA[${convertedContent}]])`;
@@ -6981,7 +7007,6 @@ jobs:
           GH_AW_MAX_PATCH_SIZE: 1024
           GH_AW_WORKFLOW_NAME: "Dev"
           GH_AW_ENGINE_ID: "copilot"
-          GH_AW_SAFE_OUTPUTS_STAGED: "true"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -7112,6 +7137,25 @@ jobs:
                   core.info(`${entityType} will expire on ${expirationISO} (${expiresDays} days)`);
                 }
               }
+            }
+            function removeDuplicateTitleFromDescription(title, description) {
+              if (!title || typeof title !== "string") {
+                return description || "";
+              }
+              if (!description || typeof description !== "string") {
+                return "";
+              }
+              const trimmedTitle = title.trim();
+              const trimmedDescription = description.trim();
+              if (!trimmedTitle || !trimmedDescription) {
+                return trimmedDescription;
+              }
+              const escapedTitle = trimmedTitle.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+              const headerRegex = new RegExp(`^#{1,6}\\s+${escapedTitle}\\s*(?:\\r?\\n)*`, "i");
+              if (headerRegex.test(trimmedDescription)) {
+                return trimmedDescription.replace(headerRegex, "").trim();
+              }
+              return trimmedDescription;
             }
             function generatePatchPreview(patchContent) {
               if (!patchContent || !patchContent.trim()) {
@@ -7304,7 +7348,9 @@ jobs:
                 return;
               }
               let title = pullRequestItem.title.trim();
-              let bodyLines = pullRequestItem.body.split("\n");
+              let processedBody = pullRequestItem.body;
+              processedBody = removeDuplicateTitleFromDescription(title, processedBody);
+              let bodyLines = processedBody.split("\n");
               let branchName = pullRequestItem.branch ? pullRequestItem.branch.trim() : null;
               if (!title) {
                 title = "Agent Output";
@@ -7471,8 +7517,10 @@ jobs:
               } else {
                 core.info("Skipping patch application (empty patch)");
                 if (allowEmpty) {
-                  core.info("allow-empty is enabled - will create branch and push without changes");
+                  core.info("allow-empty is enabled - will create branch and push with empty commit");
                   try {
+                    await exec.exec(`git commit --allow-empty -m "Initialize"`);
+                    core.info("Created empty commit");
                     let remoteBranchExists = false;
                     try {
                       const { stdout } = await exec.getExecOutput(`git ls-remote --heads origin ${branchName}`);

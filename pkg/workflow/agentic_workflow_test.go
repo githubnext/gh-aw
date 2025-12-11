@@ -194,3 +194,65 @@ func TestAgenticWorkflowsInstallStepWithCustomToken(t *testing.T) {
 		t.Error("Should not use default token when custom token is specified")
 	}
 }
+
+func TestAgenticWorkflowsInstallStepSkippedWithImport(t *testing.T) {
+	// Create workflow data with agentic-workflows tool AND shared/mcp/gh-aw.md import
+	workflowData := &WorkflowData{
+		Tools: map[string]any{
+			"agentic-workflows": nil,
+		},
+		ImportedFiles: []string{"shared/mcp/gh-aw.md"},
+	}
+
+	// Create compiler
+	c := NewCompiler(false, "", "test")
+	c.SetSkipValidation(true)
+
+	// Generate MCP setup
+	var yaml strings.Builder
+	engine := NewCopilotEngine()
+
+	c.generateMCPSetup(&yaml, workflowData.Tools, engine, workflowData)
+	result := yaml.String()
+
+	// Verify the install step is NOT present when import exists
+	if strings.Contains(result, "Install gh-aw extension") {
+		t.Error("Expected 'Install gh-aw extension' step to be skipped when shared/mcp/gh-aw.md is imported, but it was present")
+	}
+
+	// Verify the install command is also not present
+	if strings.Contains(result, "gh extension install githubnext/gh-aw") {
+		t.Error("Expected 'gh extension install' command to be absent when shared/mcp/gh-aw.md is imported, but it was present")
+	}
+}
+
+func TestAgenticWorkflowsInstallStepPresentWithoutImport(t *testing.T) {
+	// Create workflow data with agentic-workflows tool but NO import
+	workflowData := &WorkflowData{
+		Tools: map[string]any{
+			"agentic-workflows": nil,
+		},
+		ImportedFiles: []string{}, // Empty imports
+	}
+
+	// Create compiler
+	c := NewCompiler(false, "", "test")
+	c.SetSkipValidation(true)
+
+	// Generate MCP setup
+	var yaml strings.Builder
+	engine := NewCopilotEngine()
+
+	c.generateMCPSetup(&yaml, workflowData.Tools, engine, workflowData)
+	result := yaml.String()
+
+	// Verify the install step IS present when no import exists
+	if !strings.Contains(result, "Install gh-aw extension") {
+		t.Error("Expected 'Install gh-aw extension' step to be present when shared/mcp/gh-aw.md is NOT imported, but it was missing")
+	}
+
+	// Verify the install command is present
+	if !strings.Contains(result, "gh extension install githubnext/gh-aw") {
+		t.Error("Expected 'gh extension install' command to be present when shared/mcp/gh-aw.md is NOT imported, but it was missing")
+	}
+}

@@ -19,7 +19,7 @@ This guide walks you through setup step-by-step, so you don't need everything up
 - **GitHub account** with access to a repository
   - *Why:* Agentic workflows run as GitHub Actions in your repositories
 - **GitHub CLI (gh)** installed and authenticated ([installation guide](https://cli.github.com))
-  - *Why:* The `gh aw` extension uses GitHub CLI to interact with your repositories
+  - *Why:* The CLI is required to compile workflows and deploy them to your repository
   - Verify installation: Run `gh --version` (requires v2.0.0 or higher)
   - Verify authentication: Run `gh auth status`
 - **Operating System:** Linux, macOS, or Windows with WSL
@@ -33,15 +33,18 @@ This guide walks you through setup step-by-step, so you don't need everything up
   - *Why:* You need permission to add workflows, enable Actions, and configure secrets
 - **GitHub Actions** enabled
   - *Why:* Agentic workflows compile to GitHub Actions YAML files that run on GitHub's infrastructure
-- **Discussions** enabled (required for the sample workflow in this guide)
-  - *Why:* The example workflow creates a daily status report as a discussion post
+- **Discussions** enabled (optional for custom workflows)
+  - *Why:* The example workflow in this guide creates a daily status report as a discussion post
+  - *Note:* You can disable this requirement by customizing the workflow to use different outputs
 
 :::
 
 :::caution[Will Need Later (you'll set this up in Step 3)]
 
-- **Personal Access Token (PAT)** with Copilot Requests permission
+- **Personal Access Token (PAT)** with Copilot Requests permission ([PAT documentation](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens))
   - *Why:* This token authenticates your workflows to use GitHub Copilot as the AI agent that executes your natural language instructions
+  - *Note:* "Copilot Requests" is a new permission type added in 2024 that allows workflows to communicate with GitHub Copilot's AI services
+  - *Important:* If you don't see this permission, ensure your GitHub account has Copilot access
   - The guide walks you through creating this token in Step 3
 
 :::
@@ -93,14 +96,8 @@ Think of it like writing code in a high-level language (Python, JavaScript) that
 
 ### Step 1 — Install the extension
 
-Install the [GitHub CLI](https://cli.github.com/), then install the GitHub Agentic Workflows extension:
-
-```bash wrap
-gh extension install githubnext/gh-aw
-```
-
-:::caution[Installation fails in Codespaces?]
-If you're working in a GitHub Codespace (especially outside the githubnext organization), the extension installation may fail due to authentication or permission issues. Use the standalone installer instead:
+:::caution[Working in GitHub Codespaces?]
+If you're working in a GitHub Codespace (especially outside the githubnext organization), the extension installation may fail due to restricted permissions that prevent global npm installs. Use the standalone installer instead:
 
 ```bash wrap
 curl -sL https://raw.githubusercontent.com/githubnext/gh-aw/main/install-gh-aw.sh | bash
@@ -108,6 +105,12 @@ curl -sL https://raw.githubusercontent.com/githubnext/gh-aw/main/install-gh-aw.s
 
 After installation, the binary is installed to `~/.local/share/gh/extensions/gh-aw/gh-aw` and can be used with `gh aw` commands just like the extension installation.
 :::
+
+Install the [GitHub CLI](https://cli.github.com/), then install the GitHub Agentic Workflows extension:
+
+```bash wrap
+gh extension install githubnext/gh-aw
+```
 
 ### Step 2 — Add a sample workflow
 
