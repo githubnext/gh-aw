@@ -60,6 +60,47 @@
 #
 #       echo "CI runs data saved to /tmp/ci-runs.json"
 #       echo "Artifacts saved to /tmp/ci-artifacts/"
+#
+#   - name: Set up Node.js
+#     uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6
+#     with:
+#       node-version: "24"
+#       cache: npm
+#       cache-dependency-path: pkg/workflow/js/package-lock.json
+#
+#   - name: Set up Go
+#     uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c # v6
+#     with:
+#       go-version-file: go.mod
+#       cache: true
+#
+#   - name: Install dev dependencies
+#     run: make deps-dev
+#
+#   - name: Run linter
+#     run: make lint
+#
+#   - name: Lint error messages
+#     run: make lint-errors
+#
+#   - name: Install npm dependencies
+#     run: npm ci
+#     working-directory: ./pkg/workflow/js
+#
+#   - name: Build code
+#     run: make build
+#
+#   - name: Rebuild lock files
+#     env:
+#       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+#     run: make recompile
+#
+#   - name: Run unit tests
+#     run: go test -v -count=1 -timeout=3m -tags '!integration' -run='^Test' ./...
+#
+#   - name: Run JavaScript tests
+#     run: npm test
+#     working-directory: ./pkg/workflow/js
 # safe-outputs:
 #   create-pull-request:
 #     title-prefix: "[ci-coach] "
@@ -268,7 +309,7 @@
 #
 # ## Mission
 #
-# Analyze the CI workflow daily to identify concrete optimization opportunities that can make the test suite more efficient while minimizing costs. Create a pull request with proposed changes when improvements are possible.
+# Analyze the CI workflow daily to identify concrete optimization opportunities that can make the test suite more efficient while minimizing costs. The workflow has already built the project, run linters, and run tests, so you can validate any proposed changes before creating a pull request.
 #
 # ## Current Context
 #
@@ -283,6 +324,17 @@
 # 2. **Artifacts**: `/tmp/ci-artifacts/` - Coverage reports and benchmark results from recent successful runs
 # 3. **CI Configuration**: `.github/workflows/ci.yml` - Current CI workflow configuration
 # 4. **Cache Memory**: `/tmp/cache-memory/` - Historical analysis data from previous runs
+#
+# ### Environment Setup
+# The workflow has already completed:
+# - ✅ **Linting**: Dev dependencies installed, linters run successfully
+# - ✅ **Building**: Code built with `make build`, lock files compiled with `make recompile`
+# - ✅ **Testing**: Unit tests and JavaScript tests run successfully
+#
+# This means you can:
+# - Make changes to code or configuration files
+# - Validate changes immediately by running `make lint`, `make build`, or `make test-unit`
+# - Ensure proposed optimizations don't break functionality before creating a PR
 #
 # ## Analysis Framework
 #
@@ -532,7 +584,7 @@
 # - Low risk
 # - Low to medium effort
 #
-# ### Phase 7: Create Pull Request (if improvements found) (5 minutes)
+# ### Phase 7: Implement and Validate Changes (if improvements found) (8 minutes)
 #
 # If you identify improvements worth implementing:
 #
@@ -541,13 +593,33 @@
 #    - Keep changes minimal and well-documented
 #    - Add comments explaining why changes improve efficiency
 #
-# 2. **Document changes** in the PR description:
+# 2. **Validate changes immediately**:
+#    ```bash
+#    # Validate YAML syntax and workflow logic
+#    make lint
+#
+#    # Rebuild to ensure code still builds correctly
+#    make build
+#
+#    # Run unit tests to ensure no functionality is broken
+#    make test-unit
+#
+#    # Recompile workflows if you made any changes to workflow files
+#    make recompile
+#    ```
+#
+#    **IMPORTANT**: Only proceed to creating a PR if all validations pass. If tests fail or build breaks, either:
+#    - Fix the issues and re-validate
+#    - Abandon the changes if they're too risky
+#
+# 3. **Document changes** in the PR description:
 #    - List each optimization with expected impact
 #    - Explain the rationale
 #    - Note any risks or trade-offs
 #    - Include before/after metrics if possible
+#    - Mention that changes have been validated (linted, built, tested)
 #
-# 3. **Save analysis** to cache memory for future reference:
+# 4. **Save analysis** to cache memory for future reference:
 #    ```bash
 #    mkdir -p /tmp/cache-memory/ci-coach
 #    cat > /tmp/cache-memory/ci-coach/last-analysis.json << EOF
@@ -559,10 +631,11 @@
 #    EOF
 #    ```
 #
-# 4. **Use create pull request** safe output with:
+# 5. **Use create pull request** safe output with:
 #    - Clear title indicating optimization focus
 #    - Comprehensive description with impact analysis
 #    - Reference to this workflow run for traceability
+#    - Note that all validations (lint, build, test) have passed
 #
 # ### Phase 8: No Changes Path
 #
@@ -654,6 +727,13 @@
 # - **Cost Reduction**: ~$Y per month (estimated)
 # - **Risk Level**: [Overall risk assessment]
 #
+# ### Validation Results
+# ✅ All validations passed:
+# - Linting: `make lint` - passed
+# - Build: `make build` - passed
+# - Unit tests: `make test-unit` - passed
+# - Lock file compilation: `make recompile` - passed
+#
 # ### Testing Plan
 # - [ ] Verify workflow syntax
 # - [ ] Test on feature branch
@@ -681,11 +761,13 @@
 # - **Reversible**: Changes should be easy to roll back if needed
 #
 # ### Safety Checks
-# - **Validate YAML syntax** before creating PR
+# - **Validate changes before PR**: Run `make lint`, `make build`, and `make test-unit` after making changes
+# - **Validate YAML syntax** - ensure workflow files are valid
 # - **Preserve job dependencies** that ensure correctness
 # - **Maintain test coverage** - never sacrifice quality for speed
 # - **Keep security** controls in place
 # - **Document trade-offs** clearly
+# - **Only create PR if validations pass** - don't propose broken changes
 #
 # ### Analysis Discipline
 # - **Use pre-downloaded data** - all data is already available
@@ -707,11 +789,12 @@
 # ✅ Examined available artifacts and metrics
 # ✅ Checked historical context from cache memory
 # ✅ Identified concrete optimization opportunities OR confirmed CI is well-optimized
-# ✅ Created PR with specific, low-risk improvements OR saved analysis noting no changes needed
+# ✅ If changes proposed: Validated them with `make lint`, `make build`, and `make test-unit`
+# ✅ Created PR with specific, low-risk, validated improvements OR saved analysis noting no changes needed
 # ✅ Documented expected impact with metrics
 # ✅ Completed analysis in under 30 minutes
 #
-# Begin your analysis now. Study the CI configuration, analyze the run data, and identify concrete opportunities to make the test suite more efficient while minimizing costs. Create a pull request if improvements are possible, or save your analysis noting that the CI is already well-optimized.
+# Begin your analysis now. Study the CI configuration, analyze the run data, and identify concrete opportunities to make the test suite more efficient while minimizing costs. If you propose changes to the CI workflow, validate them by running the build, lint, and test commands before creating a pull request. Only create a PR if all validations pass.
 # ```
 #
 # Pinned GitHub Actions:
@@ -725,6 +808,8 @@
 #     https://github.com/actions/download-artifact/commit/018cc2cf5baa6db3ef3c5f8a56943fffe632ef53
 #   - actions/github-script@v8 (ed597411d8f924073f98dfc5c65a23a2325f34cd)
 #     https://github.com/actions/github-script/commit/ed597411d8f924073f98dfc5c65a23a2325f34cd
+#   - actions/setup-go@v5 (d35c59abb061a4a6fb18e82ac0862c26744d6ab5)
+#     https://github.com/actions/setup-go/commit/d35c59abb061a4a6fb18e82ac0862c26744d6ab5
 #   - actions/setup-node@v6 (395ad3262231945c25e8478fd5baf05154b1d79f)
 #     https://github.com/actions/setup-node/commit/395ad3262231945c25e8478fd5baf05154b1d79f
 #   - actions/upload-artifact@v5 (330a01c490aca151604b8cf639adc76d48f6c5d4)
@@ -869,6 +954,17 @@ jobs:
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
         with:
           persist-credentials: false
+      - name: Setup Go
+        uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5
+        with:
+          go-version: '1.25'
+      - name: Setup Node.js
+        uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6
+        with:
+          node-version: '24'
+          cache: 'npm'
+          cache-dependency-path: 'pkg/workflow/js/package-lock.json'
+          package-manager-cache: false
       - name: Create gh-aw temp directory
         run: |
           mkdir -p /tmp/gh-aw/agent
@@ -880,6 +976,26 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         name: Download CI workflow runs from last 7 days
         run: "# Download workflow runs for the ci workflow\ngh run list --repo ${{ github.repository }} --workflow=ci.yml --limit 100 --json databaseId,status,conclusion,createdAt,updatedAt,displayTitle,headBranch,event,url,workflowDatabaseId,runNumber > /tmp/ci-runs.json\n\n# Create directory for artifacts\nmkdir -p /tmp/ci-artifacts\n\n# Download artifacts from recent runs (last 5 successful runs)\necho \"Downloading artifacts from recent CI runs...\"\ngh run list --repo ${{ github.repository }} --workflow=ci.yml --status success --limit 5 --json databaseId | jq -r '.[].databaseId' | while read run_id; do\n  echo \"Processing run $run_id\"\n  gh run download \"$run_id\" --repo ${{ github.repository }} --dir \"/tmp/ci-artifacts/$run_id\" 2>/dev/null || echo \"No artifacts for run $run_id\"\ndone\n\necho \"CI runs data saved to /tmp/ci-runs.json\"\necho \"Artifacts saved to /tmp/ci-artifacts/\"\n"
+      - name: Install dev dependencies
+        run: make deps-dev
+      - name: Run linter
+        run: make lint
+      - name: Lint error messages
+        run: make lint-errors
+      - name: Install npm dependencies
+        run: npm ci
+        working-directory: ./pkg/workflow/js
+      - name: Build code
+        run: make build
+      - env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        name: Rebuild lock files
+        run: make recompile
+      - name: Run unit tests
+        run: go test -v -count=1 -timeout=3m -tags '!integration' -run='^Test' ./...
+      - name: Run JavaScript tests
+        run: npm test
+        working-directory: ./pkg/workflow/js
 
       # Cache memory file share configuration from frontmatter processed below
       - name: Create cache-memory directory
@@ -2820,7 +2936,7 @@ jobs:
           
           ## Mission
           
-          Analyze the CI workflow daily to identify concrete optimization opportunities that can make the test suite more efficient while minimizing costs. Create a pull request with proposed changes when improvements are possible.
+          Analyze the CI workflow daily to identify concrete optimization opportunities that can make the test suite more efficient while minimizing costs. The workflow has already built the project, run linters, and run tests, so you can validate any proposed changes before creating a pull request.
           
           ## Current Context
           
@@ -2835,6 +2951,17 @@ jobs:
           2. **Artifacts**: `/tmp/ci-artifacts/` - Coverage reports and benchmark results from recent successful runs
           3. **CI Configuration**: `.github/workflows/ci.yml` - Current CI workflow configuration
           4. **Cache Memory**: `/tmp/cache-memory/` - Historical analysis data from previous runs
+          
+          ### Environment Setup
+          The workflow has already completed:
+          - ✅ **Linting**: Dev dependencies installed, linters run successfully
+          - ✅ **Building**: Code built with `make build`, lock files compiled with `make recompile`
+          - ✅ **Testing**: Unit tests and JavaScript tests run successfully
+          
+          This means you can:
+          - Make changes to code or configuration files
+          - Validate changes immediately by running `make lint`, `make build`, or `make test-unit`
+          - Ensure proposed optimizations don't break functionality before creating a PR
           
           ## Analysis Framework
           
@@ -3084,33 +3211,13 @@ jobs:
           - Low risk
           - Low to medium effort
           
-          ### Phase 7: Create Pull Request (if improvements found) (5 minutes)
+          ### Phase 7: Implement and Validate Changes (if improvements found) (8 minutes)
           
           If you identify improvements worth implementing:
           
           1. **Make focused changes** to `.github/workflows/ci.yml`:
              - Use the `edit` tool to make precise modifications
              - Keep changes minimal and well-documented
-             - Add comments explaining why changes improve efficiency
-          
-          2. **Document changes** in the PR description:
-             - List each optimization with expected impact
-             - Explain the rationale
-             - Note any risks or trade-offs
-             - Include before/after metrics if possible
-          
-          3. **Save analysis** to cache memory for future reference:
-             ```bash
-             mkdir -p /tmp/cache-memory/ci-coach
-             cat > /tmp/cache-memory/ci-coach/last-analysis.json << EOF
-             {
-               "date": "$(date -I)",
-               "optimizations_proposed": [...],
-               "metrics": {...}
-             }
-             EOF
-             ```
-          
           PROMPT_EOF
       - name: Substitute placeholders
         uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
@@ -3192,10 +3299,51 @@ jobs:
           GH_AW_GITHUB_RUN_NUMBER: ${{ github.run_number }}
         run: |
           cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
-          4. **Use create pull request** safe output with:
+             - Add comments explaining why changes improve efficiency
+          
+          2. **Validate changes immediately**:
+             ```bash
+             # Validate YAML syntax and workflow logic
+             make lint
+             
+             # Rebuild to ensure code still builds correctly
+             make build
+             
+             # Run unit tests to ensure no functionality is broken
+             make test-unit
+             
+             # Recompile workflows if you made any changes to workflow files
+             make recompile
+             ```
+             
+             **IMPORTANT**: Only proceed to creating a PR if all validations pass. If tests fail or build breaks, either:
+             - Fix the issues and re-validate
+             - Abandon the changes if they're too risky
+          
+          3. **Document changes** in the PR description:
+             - List each optimization with expected impact
+             - Explain the rationale
+             - Note any risks or trade-offs
+             - Include before/after metrics if possible
+             - Mention that changes have been validated (linted, built, tested)
+          
+          4. **Save analysis** to cache memory for future reference:
+             ```bash
+             mkdir -p /tmp/cache-memory/ci-coach
+             cat > /tmp/cache-memory/ci-coach/last-analysis.json << EOF
+             {
+               "date": "$(date -I)",
+               "optimizations_proposed": [...],
+               "metrics": {...}
+             }
+             EOF
+             ```
+          
+          5. **Use create pull request** safe output with:
              - Clear title indicating optimization focus
              - Comprehensive description with impact analysis
              - Reference to this workflow run for traceability
+             - Note that all validations (lint, build, test) have passed
           
           ### Phase 8: No Changes Path
           
@@ -3287,6 +3435,13 @@ jobs:
           - **Cost Reduction**: ~$Y per month (estimated)
           - **Risk Level**: [Overall risk assessment]
           
+          ### Validation Results
+          ✅ All validations passed:
+          - Linting: `make lint` - passed
+          - Build: `make build` - passed
+          - Unit tests: `make test-unit` - passed
+          - Lock file compilation: `make recompile` - passed
+          
           ### Testing Plan
           - [ ] Verify workflow syntax
           - [ ] Test on feature branch
@@ -3314,11 +3469,13 @@ jobs:
           - **Reversible**: Changes should be easy to roll back if needed
           
           ### Safety Checks
-          - **Validate YAML syntax** before creating PR
+          - **Validate changes before PR**: Run `make lint`, `make build`, and `make test-unit` after making changes
+          - **Validate YAML syntax** - ensure workflow files are valid
           - **Preserve job dependencies** that ensure correctness
           - **Maintain test coverage** - never sacrifice quality for speed
           - **Keep security** controls in place
           - **Document trade-offs** clearly
+          - **Only create PR if validations pass** - don't propose broken changes
           
           ### Analysis Discipline
           - **Use pre-downloaded data** - all data is already available
@@ -3340,11 +3497,12 @@ jobs:
           ✅ Examined available artifacts and metrics
           ✅ Checked historical context from cache memory
           ✅ Identified concrete optimization opportunities OR confirmed CI is well-optimized
-          ✅ Created PR with specific, low-risk improvements OR saved analysis noting no changes needed
+          ✅ If changes proposed: Validated them with `make lint`, `make build`, and `make test-unit`
+          ✅ Created PR with specific, low-risk, validated improvements OR saved analysis noting no changes needed
           ✅ Documented expected impact with metrics
           ✅ Completed analysis in under 30 minutes
           
-          Begin your analysis now. Study the CI configuration, analyze the run data, and identify concrete opportunities to make the test suite more efficient while minimizing costs. Create a pull request if improvements are possible, or save your analysis noting that the CI is already well-optimized.
+          Begin your analysis now. Study the CI configuration, analyze the run data, and identify concrete opportunities to make the test suite more efficient while minimizing costs. If you propose changes to the CI workflow, validate them by running the build, lint, and test commands before creating a pull request. Only create a PR if all validations pass.
           
           PROMPT_EOF
       - name: Substitute placeholders
