@@ -947,6 +947,8 @@ jobs:
           # Check help on key commands to detect flag changes
           copilot help config || true
           copilot help environment || true
+          # Check all top-level commands
+          copilot help || true
       - name: Downloading container images
         run: |
           set -e
@@ -8401,6 +8403,8 @@ jobs:
           # Check help on key commands to detect flag changes
           copilot help config || true
           copilot help environment || true
+          # Check all top-level commands
+          copilot help || true
       - name: Execute GitHub Copilot CLI
         id: agentic_execution
         # Copilot CLI tool arguments (sorted):

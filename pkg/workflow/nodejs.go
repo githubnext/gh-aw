@@ -90,6 +90,8 @@ func GenerateNpmInstallStepsWithVerification(packageName, version, stepName, cli
 	stepLines = append(stepLines, "          # Check help on key commands to detect flag changes")
 	stepLines = append(stepLines, fmt.Sprintf("          %s help config || true", cliName))
 	stepLines = append(stepLines, fmt.Sprintf("          %s help environment || true", cliName))
+	stepLines = append(stepLines, "          # Check all top-level commands")
+	stepLines = append(stepLines, fmt.Sprintf("          %s help || true", cliName))
 
 	steps = append(steps, GitHubActionStep(stepLines))
 
