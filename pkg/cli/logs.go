@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -972,7 +971,7 @@ func listWorkflowRunsWithPagination(workflowName string, limit int, startDate, e
 		spinner.Start()
 	}
 
-	cmd := exec.Command("gh", args...)
+	cmd := workflow.ExecGH(args...)
 	output, err := cmd.CombinedOutput()
 
 	if err != nil {

@@ -12,6 +12,7 @@ import (
 
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/logger"
+	"github.com/githubnext/gh-aw/pkg/workflow"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/spf13/cobra"
 )
@@ -96,8 +97,8 @@ func createMCPServer(cmdPath string) *mcp.Server {
 			// Use custom command path
 			return exec.CommandContext(ctx, cmdPath, args...)
 		}
-		// Use default gh aw command
-		return exec.CommandContext(ctx, "gh", append([]string{"aw"}, args...)...)
+		// Use default gh aw command with proper token handling
+		return workflow.ExecGHContext(ctx, append([]string{"aw"}, args...)...)
 	}
 
 	// Create MCP server

@@ -4,12 +4,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"os/exec"
 	"strings"
 	"time"
 
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/logger"
+	"github.com/githubnext/gh-aw/pkg/workflow"
 )
 
 var prAutomergeLog = logger.New("cli:pr_automerge")
@@ -34,7 +34,7 @@ func AutoMergePullRequestsCreatedAfter(repoSlug string, createdAfter time.Time, 
 	}
 
 	// List open PRs with creation time information
-	listCmd := exec.Command("gh", "pr", "list", "--repo", repoSlug, "--json", "number,title,isDraft,mergeable,createdAt,updatedAt")
+	listCmd := workflow.ExecGH("pr", "list", "--repo", repoSlug, "--json", "number,title,isDraft,mergeable,createdAt,updatedAt")
 	output, err := listCmd.Output()
 	if err != nil {
 		prAutomergeLog.Printf("Failed to list pull requests: %v", err)
@@ -83,7 +83,7 @@ func AutoMergePullRequestsCreatedAfter(repoSlug string, createdAfter time.Time, 
 		// Convert from draft to non-draft if necessary
 		if pr.IsDraft {
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Converting PR #%d from draft to ready for review", pr.Number)))
-			readyCmd := exec.Command("gh", "pr", "ready", fmt.Sprintf("%d", pr.Number), "--repo", repoSlug)
+			readyCmd := workflow.ExecGH("pr", "ready", fmt.Sprintf("%d", pr.Number), "--repo", repoSlug)
 			if output, err := readyCmd.CombinedOutput(); err != nil {
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to convert PR #%d from draft: %v (output: %s)", pr.Number, err, string(output))))
 				continue
@@ -98,7 +98,7 @@ func AutoMergePullRequestsCreatedAfter(repoSlug string, createdAfter time.Time, 
 
 		// Auto-merge the PR
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Auto-merging PR #%d", pr.Number)))
-		mergeCmd := exec.Command("gh", "pr", "merge", fmt.Sprintf("%d", pr.Number), "--repo", repoSlug, "--auto", "--squash")
+		mergeCmd := workflow.ExecGH("pr", "merge", fmt.Sprintf("%d", pr.Number), "--repo", repoSlug, "--auto", "--squash")
 		if output, err := mergeCmd.CombinedOutput(); err != nil {
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to auto-merge PR #%d: %v (output: %s)", pr.Number, err, string(output))))
 			continue
@@ -127,7 +127,7 @@ func WaitForWorkflowCompletion(repoSlug, runID string, timeoutMinutes int, verbo
 		Timeout:      timeout,
 		PollFunc: func() (PollResult, error) {
 			// Check workflow status
-			cmd := exec.Command("gh", "run", "view", runID, "--repo", repoSlug, "--json", "status,conclusion")
+			cmd := workflow.ExecGH("run", "view", runID, "--repo", repoSlug, "--json", "status,conclusion")
 			output, err := cmd.Output()
 
 			if err != nil {
