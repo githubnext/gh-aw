@@ -122,12 +122,12 @@ function buildUpdateData(params) {
   if (canUpdateBody && item.body !== undefined) {
     if (typeof item.body === "string") {
       let processedBody = item.body;
-      
+
       // If we're updating the title at the same time, remove duplicate title from body
       if (titleForDedup) {
         processedBody = removeDuplicateTitleFromDescription(titleForDedup, processedBody);
       }
-      
+
       updateData.body = processedBody;
       hasUpdates = true;
       logMessages.push(`Will update body (length: ${processedBody.length})`);
