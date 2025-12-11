@@ -269,8 +269,6 @@ Generate a comprehensive report for discussion output.
 Create a well-structured discussion report:
 
 ```markdown
-# 🔍 Schema Consistency Check - [DATE]
-
 ## Summary
 
 - **Inconsistencies Found**: [NUMBER]

@@ -275,8 +275,6 @@ Create a comprehensive markdown report with these sections:
 ### Report Template
 
 ```markdown
-# 📊 Daily Code Metrics Report - [DATE]
-
 ## Executive Summary
 
 | Metric | Current | 7-Day Trend | 30-Day Trend |

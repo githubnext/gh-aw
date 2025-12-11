@@ -239,8 +239,6 @@ Create a discussion with:
 
 **Discussion Template**:
 ```markdown
-# 🔍 Agentic Workflow Audit Report - [DATE]
-
 ## Audit Summary
 
 - **Period**: Last 24 hours

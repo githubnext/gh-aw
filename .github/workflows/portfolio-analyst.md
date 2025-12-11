@@ -221,8 +221,6 @@ Generate a concise, action-oriented GitHub issue under 2000 words.
 ### Issue Structure
 
 ```markdown
-# Portfolio Analysis Report - [DATE]
-
 ## Executive Summary
 
 - **Total Workflows Analyzed**: [N]

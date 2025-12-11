@@ -474,8 +474,6 @@ Daily Copilot Agent Session Analysis — [YYYY-MM-DD]
 **Discussion Template**:
 
 ```markdown
-# 🤖 Copilot Agent Session Analysis — [DATE]
-
 ## Executive Summary
 
 - **Sessions Analyzed**: [NUMBER]

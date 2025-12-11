@@ -342,8 +342,6 @@ Create a comprehensive markdown report with the following sections:
 Use the `create discussion` safe-output to publish the report:
 
 ```markdown
-# Organization Health Report - [Date]
-
 [Executive Summary]
 
 ## 📊 Volume Metrics

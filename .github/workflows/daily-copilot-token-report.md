@@ -486,8 +486,6 @@ Create a comprehensive discussion report with all findings.
 ### Report Structure
 
 ```markdown
-# 📊 Daily Copilot Token Consumption Report - [DATE]
-
 ## Executive Summary
 
 Over the last 30 days, Copilot-powered agentic workflows consumed **[TOTAL_TOKENS]** tokens at an estimated cost of **$[TOTAL_COST]**, across **[TOTAL_RUNS]** workflow runs covering **[NUM_WORKFLOWS]** unique workflows.

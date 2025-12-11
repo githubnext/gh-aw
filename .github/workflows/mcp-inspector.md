@@ -65,8 +65,6 @@ For each MCP configuration file:
 Generate:
 
 ```markdown
-# 🔍 MCP Inspector Report - [DATE]
-
 ## Summary
 - **Servers Inspected**: [NUMBER]  
 - **By Type**: HTTP: [N], Container: [N], Local: [N]

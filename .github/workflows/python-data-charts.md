@@ -97,8 +97,6 @@ Create a discussion with the following structure, including the uploaded chart i
 
 **Content**:
 ```markdown
-# 📊 Data Visualization & Trending Report
-
 Generated on: [current date]
 
 ## Summary

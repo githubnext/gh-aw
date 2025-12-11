@@ -127,8 +127,6 @@ Use the cache memory folder `/tmp/gh-aw/cache-memory/` to persist analysis scrip
 Create a comprehensive markdown report with the following structure:
 
 ```markdown
-# 📊 Agentic Workflow Lock File Statistics - [DATE]
-
 ## Executive Summary
 
 - **Total Lock Files**: [NUMBER]

@@ -187,8 +187,6 @@ Create a discussion with your findings using the safe-outputs create-discussion 
 
 **Discussion Template**:
 ```markdown
-# 🤖 Copilot PR Prompt Pattern Analysis - [DATE]
-
 ## Summary
 
 **Analysis Period**: Last 30 days  

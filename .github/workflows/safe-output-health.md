@@ -165,8 +165,6 @@ Based on error clustering and root cause analysis, provide:
 Create a discussion with the following structure:
 
 ```markdown
-# 🏥 Safe Output Health Report - [DATE]
-
 ## Executive Summary
 
 - **Period**: Last 24 hours

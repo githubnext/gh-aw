@@ -149,8 +149,6 @@ For token usage information, we need to find the workflow run associated with th
 Create a concise report with the following structure:
 
 ```markdown
-# 🤖 Daily Copilot PR Merged Report - [DATE]
-
 ## Summary
 
 **Analysis Period**: Last 24 hours (merged PRs only)  
@@ -230,8 +228,6 @@ Use the safe-outputs `create-discussion` functionality to publish the report:
 **No Merged PRs**:
 If no Copilot PRs were merged in the last 24 hours:
 ```markdown
-# 🤖 Daily Copilot PR Merged Report - [DATE]
-
 No Copilot agent pull requests were merged in the last 24 hours.
 
 ---

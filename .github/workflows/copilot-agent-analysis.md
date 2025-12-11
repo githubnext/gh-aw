@@ -348,8 +348,6 @@ Create a **concise** discussion with your findings using the safe-outputs create
 
 **Concise Discussion Template**:
 ```markdown
-# 🤖 Copilot Agent PR Analysis - [DATE]
-
 ## Summary
 
 **Analysis Period**: Last 24 hours

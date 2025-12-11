@@ -234,8 +234,6 @@ Post a comprehensive discussion with the following structure:
 
 **Content Template**:
 ````markdown
-# 🤖 Copilot PR Conversation NLP Analysis - [DATE]
-
 ## Executive Summary
 
 **Analysis Period**: Last 24 hours (merged PRs only)  

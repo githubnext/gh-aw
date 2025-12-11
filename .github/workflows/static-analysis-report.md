@@ -204,8 +204,6 @@ Create a discussion with:
 
 **Discussion Template**:
 ```markdown
-# 🔍 Static Analysis Report - [DATE]
-
 ## Analysis Summary
 
 - **Tools Used**: zizmor, poutine, actionlint

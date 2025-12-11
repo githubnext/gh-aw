@@ -196,8 +196,6 @@ Create a comprehensive markdown report using the imported `reporting.md` format:
 **Report Structure:**
 
 ```markdown
-# PR Nitpick Review Summary - [DATE]
-
 Brief overview of the review findings and key patterns observed.
 
 <details>

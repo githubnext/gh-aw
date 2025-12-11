@@ -486,8 +486,6 @@ Create a comprehensive discussion report with:
 **Report Template**:
 
 ```markdown
-# 🔬 Copilot Agent Prompt Clustering Analysis - [DATE]
-
 Daily NLP-based clustering analysis of copilot agent task prompts.
 
 ## Summary
