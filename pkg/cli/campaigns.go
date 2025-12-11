@@ -658,7 +658,14 @@ func createCampaignSpecSkeleton(rootDir, id string, force bool) (string, error) 
 	}
 
 	name := strings.ReplaceAll(id, "-", " ")
-	name = strings.Title(name)
+	if name != "" {
+		first := strings.ToUpper(name[:1])
+		if len(name) > 1 {
+			name = first + name[1:]
+		} else {
+			name = first
+		}
+	}
 
 	spec := CampaignSpec{
 		ID:           id,
