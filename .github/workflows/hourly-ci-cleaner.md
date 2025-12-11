@@ -27,21 +27,21 @@ steps:
       CONCLUSION=$(echo "$LAST_RUN" | jq -r '.conclusion')
       RUN_ID=$(echo "$LAST_RUN" | jq -r '.databaseId')
       
-      echo "Last CI run conclusion: $CONCLUSION"
-      echo "Run ID: $RUN_ID"
+      echo "Last CI run conclusion: ${CONCLUSION}"
+      echo "Run ID: ${RUN_ID}"
       
       # Write to environment and step summary
-      echo "CI_STATUS=$CONCLUSION" >> $GITHUB_ENV
-      echo "CI_RUN_ID=$RUN_ID" >> $GITHUB_ENV
+      echo "CI_STATUS=${CONCLUSION}" >> "$GITHUB_ENV"
+      echo "CI_RUN_ID=${RUN_ID}" >> "$GITHUB_ENV"
       
       if [ "$CONCLUSION" = "success" ]; then
-        echo "✅ CI is passing on main branch - no action needed" >> $GITHUB_STEP_SUMMARY
-        echo "CI_NEEDS_FIX=false" >> $GITHUB_ENV
+        echo "✅ CI is passing on main branch - no action needed" >> "$GITHUB_STEP_SUMMARY"
+        echo "CI_NEEDS_FIX=false" >> "$GITHUB_ENV"
         exit 1
       else
-        echo "❌ CI is failing on main branch - agent will attempt to fix" >> $GITHUB_STEP_SUMMARY
-        echo "Run ID: $RUN_ID" >> $GITHUB_STEP_SUMMARY
-        echo "CI_NEEDS_FIX=true" >> $GITHUB_ENV
+        echo "❌ CI is failing on main branch - agent will attempt to fix" >> "$GITHUB_STEP_SUMMARY"
+        echo "Run ID: ${RUN_ID}" >> "$GITHUB_STEP_SUMMARY"
+        echo "CI_NEEDS_FIX=true" >> "$GITHUB_ENV"
       fi
 safe-outputs:
   create-pull-request:
