@@ -216,19 +216,19 @@ else
     exit 1
 fi
 
-# Verify the warning mentions invalid token
-if grep -q "invalid token" "$PROJECT_ROOT/install-gh-aw.sh"; then
-    echo "  ✓ PASS: Warning message mentions invalid token"
+# Verify the warning mentions incompatible token
+if grep -q "incompatible" "$PROJECT_ROOT/install-gh-aw.sh"; then
+    echo "  ✓ PASS: Warning message mentions incompatible token"
 else
-    echo "  ✗ FAIL: Warning message does not mention invalid token"
+    echo "  ✗ FAIL: Warning message does not mention incompatible token"
     exit 1
 fi
 
-# Verify the function uses Authorization header
-if grep -q 'Authorization: token' "$PROJECT_ROOT/install-gh-aw.sh"; then
-    echo "  ✓ PASS: Function uses proper Authorization header"
+# Verify the function uses Authorization header with Bearer
+if grep -q 'Authorization: Bearer' "$PROJECT_ROOT/install-gh-aw.sh"; then
+    echo "  ✓ PASS: Function uses proper Authorization header with Bearer"
 else
-    echo "  ✗ FAIL: Function does not use Authorization header"
+    echo "  ✗ FAIL: Function does not use Authorization header with Bearer"
     exit 1
 fi
 

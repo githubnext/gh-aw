@@ -118,7 +118,7 @@ fetch_release_data() {
     # Try with authentication if GH_TOKEN is set
     if [ -n "$GH_TOKEN" ]; then
         use_auth=true
-        curl_args+=("-H" "Authorization: token $GH_TOKEN")
+        curl_args+=("-H" "Authorization: Bearer $GH_TOKEN")
     fi
     
     # Make the API call
@@ -129,7 +129,7 @@ fetch_release_data() {
     # If the call failed and we used authentication, try again without it
     if [ $exit_code -ne 0 ] && [ "$use_auth" = true ]; then
         print_warning "API call with GH_TOKEN failed. Retrying without authentication..."
-        print_warning "You may have an invalid token set in GH_TOKEN environment variable."
+        print_warning "Your GH_TOKEN may be incompatible (typically SSO) with this request."
         response=$(curl -s -f "$url" 2>/dev/null)
         exit_code=$?
     fi
