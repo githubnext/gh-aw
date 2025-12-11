@@ -7695,6 +7695,25 @@ jobs:
                 core.setFailed(error instanceof Error ? error : String(error));
               }
             }
+            function removeDuplicateTitleFromDescription(title, description) {
+              if (!title || typeof title !== "string") {
+                return description || "";
+              }
+              if (!description || typeof description !== "string") {
+                return "";
+              }
+              const trimmedTitle = title.trim();
+              const trimmedDescription = description.trim();
+              if (!trimmedTitle || !trimmedDescription) {
+                return trimmedDescription;
+              }
+              const escapedTitle = trimmedTitle.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+              const headerRegex = new RegExp(`^#{1,6}\\s+${escapedTitle}\\s*(?:\\r?\\n)*`, "i");
+              if (headerRegex.test(trimmedDescription)) {
+                return trimmedDescription.replace(headerRegex, "").trim();
+              }
+              return trimmedDescription;
+            }
             function resolveTargetNumber(params) {
               const { updateTarget, item, numberField, isValidContext, contextNumber, displayName } = params;
               if (updateTarget === "*") {
@@ -7735,10 +7754,12 @@ jobs:
                   logMessages.push(`Invalid status value: ${item.status}. Must be 'open' or 'closed'`);
                 }
               }
+              let titleForDedup = null;
               if (canUpdateTitle && item.title !== undefined) {
                 const trimmedTitle = typeof item.title === "string" ? item.title.trim() : "";
                 if (trimmedTitle.length > 0) {
                   updateData.title = trimmedTitle;
+                  titleForDedup = trimmedTitle;
                   hasUpdates = true;
                   logMessages.push(`Will update title to: ${trimmedTitle}`);
                 } else {
@@ -7747,9 +7768,13 @@ jobs:
               }
               if (canUpdateBody && item.body !== undefined) {
                 if (typeof item.body === "string") {
-                  updateData.body = item.body;
+                  let processedBody = item.body;
+                  if (titleForDedup) {
+                    processedBody = removeDuplicateTitleFromDescription(titleForDedup, processedBody);
+                  }
+                  updateData.body = processedBody;
                   hasUpdates = true;
-                  logMessages.push(`Will update body (length: ${item.body.length})`);
+                  logMessages.push(`Will update body (length: ${processedBody.length})`);
                 } else {
                   logMessages.push("Invalid body value: must be a string");
                 }

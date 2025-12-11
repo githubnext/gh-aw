@@ -8,6 +8,7 @@ const crypto = require("crypto");
 const { updateActivationComment } = require("./update_activation_comment.cjs");
 const { getTrackerID } = require("./get_tracker_id.cjs");
 const { addExpirationComment } = require("./expiration_helpers.cjs");
+const { removeDuplicateTitleFromDescription } = require("./remove_duplicate_title.cjs");
 
 /**
  * Generate a patch preview with max 500 lines and 2000 chars for issue body
@@ -274,7 +275,12 @@ async function main() {
 
   // Extract title, body, and branch from the JSON item
   let title = pullRequestItem.title.trim();
-  let bodyLines = pullRequestItem.body.split("\n");
+  let processedBody = pullRequestItem.body;
+
+  // Remove duplicate title from description if it starts with a header matching the title
+  processedBody = removeDuplicateTitleFromDescription(title, processedBody);
+
+  let bodyLines = processedBody.split("\n");
   let branchName = pullRequestItem.branch ? pullRequestItem.branch.trim() : null;
 
   // If no title was found, use a default

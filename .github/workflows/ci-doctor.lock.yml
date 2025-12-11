@@ -7454,6 +7454,25 @@ jobs:
                 }
               }
             }
+            function removeDuplicateTitleFromDescription(title, description) {
+              if (!title || typeof title !== "string") {
+                return description || "";
+              }
+              if (!description || typeof description !== "string") {
+                return "";
+              }
+              const trimmedTitle = title.trim();
+              const trimmedDescription = description.trim();
+              if (!trimmedTitle || !trimmedDescription) {
+                return trimmedDescription;
+              }
+              const escapedTitle = trimmedTitle.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+              const headerRegex = new RegExp(`^#{1,6}\\s+${escapedTitle}\\s*(?:\\r?\\n)*`, "i");
+              if (headerRegex.test(trimmedDescription)) {
+                return trimmedDescription.replace(headerRegex, "").trim();
+              }
+              return trimmedDescription;
+            }
             async function main() {
               core.setOutput("issue_number", "");
               core.setOutput("issue_url", "");
@@ -7586,6 +7605,7 @@ jobs:
                   .filter((label, index, arr) => arr.indexOf(label) === index);
                 let title = createIssueItem.title ? createIssueItem.title.trim() : "";
                 let processedBody = replaceTemporaryIdReferences(createIssueItem.body, temporaryIdMap, itemRepo);
+                processedBody = removeDuplicateTitleFromDescription(title, processedBody);
                 let bodyLines = processedBody.split("\n");
                 if (!title) {
                   title = createIssueItem.body || "Agent Output";

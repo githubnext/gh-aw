@@ -8635,6 +8635,25 @@ jobs:
                 }
               }
             }
+            function removeDuplicateTitleFromDescription(title, description) {
+              if (!title || typeof title !== "string") {
+                return description || "";
+              }
+              if (!description || typeof description !== "string") {
+                return "";
+              }
+              const trimmedTitle = title.trim();
+              const trimmedDescription = description.trim();
+              if (!trimmedTitle || !trimmedDescription) {
+                return trimmedDescription;
+              }
+              const escapedTitle = trimmedTitle.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+              const headerRegex = new RegExp(`^#{1,6}\\s+${escapedTitle}\\s*(?:\\r?\\n)*`, "i");
+              if (headerRegex.test(trimmedDescription)) {
+                return trimmedDescription.replace(headerRegex, "").trim();
+              }
+              return trimmedDescription;
+            }
             function generatePatchPreview(patchContent) {
               if (!patchContent || !patchContent.trim()) {
                 return "";
@@ -8826,7 +8845,9 @@ jobs:
                 return;
               }
               let title = pullRequestItem.title.trim();
-              let bodyLines = pullRequestItem.body.split("\n");
+              let processedBody = pullRequestItem.body;
+              processedBody = removeDuplicateTitleFromDescription(title, processedBody);
+              let bodyLines = processedBody.split("\n");
               let branchName = pullRequestItem.branch ? pullRequestItem.branch.trim() : null;
               if (!title) {
                 title = "Agent Output";

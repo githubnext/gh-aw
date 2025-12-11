@@ -6936,6 +6936,25 @@ jobs:
                 }
               }
             }
+            function removeDuplicateTitleFromDescription(title, description) {
+              if (!title || typeof title !== "string") {
+                return description || "";
+              }
+              if (!description || typeof description !== "string") {
+                return "";
+              }
+              const trimmedTitle = title.trim();
+              const trimmedDescription = description.trim();
+              if (!trimmedTitle || !trimmedDescription) {
+                return trimmedDescription;
+              }
+              const escapedTitle = trimmedTitle.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+              const headerRegex = new RegExp(`^#{1,6}\\s+${escapedTitle}\\s*(?:\\r?\\n)*`, "i");
+              if (headerRegex.test(trimmedDescription)) {
+                return trimmedDescription.replace(headerRegex, "").trim();
+              }
+              return trimmedDescription;
+            }
             async function fetchRepoDiscussionInfo(owner, repo) {
               const repositoryQuery = `
                 query($owner: String!, $repo: String!) {
@@ -7120,7 +7139,9 @@ jobs:
                 );
                 let title = createDiscussionItem.title ? replaceTemporaryIdReferences(createDiscussionItem.title.trim(), temporaryIdMap, itemRepo) : "";
                 const bodyText = createDiscussionItem.body || "";
-                let bodyLines = replaceTemporaryIdReferences(bodyText, temporaryIdMap, itemRepo).split("\n");
+                let processedBody = replaceTemporaryIdReferences(bodyText, temporaryIdMap, itemRepo);
+                processedBody = removeDuplicateTitleFromDescription(title, processedBody);
+                let bodyLines = processedBody.split("\n");
                 if (!title) {
                   title = replaceTemporaryIdReferences(bodyText, temporaryIdMap, itemRepo) || "Agent Output";
                 }
