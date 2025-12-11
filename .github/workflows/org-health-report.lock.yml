@@ -4212,13 +4212,32 @@ jobs:
           XDG_CONFIG_HOME: /home/runner
       - name: Copy Copilot session-state file
         if: always()
-        continue-on-error: true
         run: |
+          # Search for session-state file in multiple locations
           if [ -f /home/runner/.copilot/session-state ]; then
-            echo "Copying Copilot session-state file"
-            mkdir -p "$(dirname /tmp/gh-aw/sandbox/agent/session-state.json)"
-            cp /home/runner/.copilot/session-state /tmp/gh-aw/sandbox/agent/session-state.json || true
+            SESSION_STATE_PATH=/home/runner/.copilot/session-state
+            echo "Found session-state file at: $SESSION_STATE_PATH"
+          else
+            # Search in home directory
+            SESSION_STATE_PATH=$(find ~ -maxdepth 3 -name 'session-state' -type f 2>/dev/null | head -1)
+            if [ -z "$SESSION_STATE_PATH" ]; then
+              # Search in /tmp directory
+              SESSION_STATE_PATH=$(find /tmp -maxdepth 3 -name 'session-state' -type f 2>/dev/null | head -1)
+            fi
+            if [ -z "$SESSION_STATE_PATH" ]; then
+              echo "Error: session-state file not found in expected locations"
+              echo "Searched locations:"
+              echo "  - /home/runner/.copilot/session-state"
+              echo "  - ~ (home directory)"
+              echo "  - /tmp"
+              exit 1
+            else
+              echo "Found session-state file at: $SESSION_STATE_PATH"
+            fi
           fi
+          echo "Copying Copilot session-state file"
+          mkdir -p "$(dirname /tmp/gh-aw/sandbox/agent/session-state.json)"
+          cp "$SESSION_STATE_PATH" /tmp/gh-aw/sandbox/agent/session-state.json
       - name: Redact secrets in logs
         if: always()
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
@@ -8658,13 +8677,32 @@ jobs:
           XDG_CONFIG_HOME: /home/runner
       - name: Copy Copilot session-state file
         if: always()
-        continue-on-error: true
         run: |
+          # Search for session-state file in multiple locations
           if [ -f /home/runner/.copilot/session-state ]; then
-            echo "Copying Copilot session-state file"
-            mkdir -p "$(dirname /tmp/gh-aw/sandbox/agent/session-state.json)"
-            cp /home/runner/.copilot/session-state /tmp/gh-aw/sandbox/agent/session-state.json || true
+            SESSION_STATE_PATH=/home/runner/.copilot/session-state
+            echo "Found session-state file at: $SESSION_STATE_PATH"
+          else
+            # Search in home directory
+            SESSION_STATE_PATH=$(find ~ -maxdepth 3 -name 'session-state' -type f 2>/dev/null | head -1)
+            if [ -z "$SESSION_STATE_PATH" ]; then
+              # Search in /tmp directory
+              SESSION_STATE_PATH=$(find /tmp -maxdepth 3 -name 'session-state' -type f 2>/dev/null | head -1)
+            fi
+            if [ -z "$SESSION_STATE_PATH" ]; then
+              echo "Error: session-state file not found in expected locations"
+              echo "Searched locations:"
+              echo "  - /home/runner/.copilot/session-state"
+              echo "  - ~ (home directory)"
+              echo "  - /tmp"
+              exit 1
+            else
+              echo "Found session-state file at: $SESSION_STATE_PATH"
+            fi
           fi
+          echo "Copying Copilot session-state file"
+          mkdir -p "$(dirname /tmp/gh-aw/sandbox/agent/session-state.json)"
+          cp "$SESSION_STATE_PATH" /tmp/gh-aw/sandbox/agent/session-state.json
       - name: Parse threat detection results
         id: parse_results
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
