@@ -33,6 +33,9 @@ var sharedAgenticWorkflowAgentTemplate string
 //go:embed templates/debug-agentic-workflow.agent.md
 var debugAgenticWorkflowAgentTemplate string
 
+//go:embed templates/campaign-designer.agent.md
+var campaignDesignerAgentTemplate string
+
 // SetVersionInfo sets the version information for the CLI
 func SetVersionInfo(v string) {
 	version = v

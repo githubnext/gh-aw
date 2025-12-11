@@ -12,20 +12,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// campaignSummary provides a compact, human-friendly view of campaign specs
-// for the default `gh aw campaign` table output. Full details remain
-// available via `--json`.
-type campaignSummary struct {
-	ID           string `json:"id" console:"header:ID"`
-	Name         string `json:"name" console:"header:Name,maxlen:30"`
-	State        string `json:"state" console:"header:State"`
-	RiskLevel    string `json:"risk_level,omitempty" console:"header:Risk,omitempty"`
-	TrackerLabel string `json:"tracker_label,omitempty" console:"header:Tracker Label,omitempty,maxlen:24"`
-	Workflows    string `json:"workflows,omitempty" console:"header:Workflows,omitempty,maxlen:40"`
-	Owners       string `json:"owners,omitempty" console:"header:Owners,omitempty,maxlen:30"`
-	ConfigPath   string `json:"config_path" console:"header:Config Path,maxlen:60"`
-}
-
 // getWorkflowsDir returns the .github/workflows directory path.
 // This is a helper to avoid circular dependencies with cli package.
 func getWorkflowsDir() string {
@@ -223,21 +209,7 @@ func runStatus(pattern string, jsonOutput bool) error {
 
 	// Build a compact summary view for human-friendly table output.
 	// Full campaign definitions remain available via the --json flag.
-	var summaries []campaignSummary
-	for _, spec := range specs {
-		summary := campaignSummary{
-			ID:           spec.ID,
-			Name:         spec.Name,
-			State:        spec.State,
-			RiskLevel:    spec.RiskLevel,
-			TrackerLabel: spec.TrackerLabel,
-			Workflows:    strings.Join(spec.Workflows, ", "),
-			Owners:       strings.Join(spec.Owners, ", "),
-			ConfigPath:   spec.ConfigPath,
-		}
-		summaries = append(summaries, summary)
-	}
-
+	summaries := buildCampaignSummaries(specs)
 	output := console.RenderStruct(summaries)
 	fmt.Print(output)
 	return nil
