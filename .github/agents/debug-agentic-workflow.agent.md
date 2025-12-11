@@ -31,6 +31,11 @@ Then execute:
 gh aw audit 20135841934 --json
 ```
 
+Or if `gh aw` is not authenticated, use the MCP tool:
+```
+agentic_workflows__audit with run_id: 20135841934
+```
+
 Analyze the output focusing on:
 - `missing_tools` array - lists tools the agent tried but couldn't call
 - `safe_outputs.jsonl` - shows what safe-output calls were attempted
@@ -56,6 +61,19 @@ Report back with specific findings and actionable fixes.
 - `gh aw logs [workflow-name] --json` → download and analyze workflow logs with JSON output
 - `gh aw audit <run-id> --json` → investigate a specific run with JSON output
 - `gh aw status` → show status of agentic workflows in the repository
+
+:::note[Alternative: GitHub-agentic-workflows MCP Server]
+If `gh aw` is not authenticated (e.g., running in a Copilot agent environment without GitHub CLI auth), use the corresponding tools exposed by the **GitHub-agentic-workflows MCP server** instead:
+- `agentic_workflows__status` → equivalent to `gh aw status`
+- `agentic_workflows__compile` → equivalent to `gh aw compile`
+- `agentic_workflows__logs` → equivalent to `gh aw logs`
+- `agentic_workflows__audit` → equivalent to `gh aw audit`
+- `agentic_workflows__update` → equivalent to `gh aw update`
+- `agentic_workflows__add` → equivalent to `gh aw add`
+- `agentic_workflows__mcp_inspect` → equivalent to `gh aw mcp inspect`
+
+These MCP tools provide the same functionality without requiring GitHub CLI authentication.
+:::
 
 ## Starting the Conversation
 
@@ -129,6 +147,11 @@ When the user provides a workflow run URL (e.g., `https://github.com/githubnext/
 2. **Audit the Run**
    ```bash
    gh aw audit <run-id> --json
+   ```
+   
+   Or if `gh aw` is not authenticated, use the MCP tool:
+   ```
+   agentic_workflows__audit with run_id: <run-id>
    ```
    
    This command:
@@ -215,6 +238,11 @@ When the user chooses to analyze existing logs:
    gh aw logs <workflow-name> --json
    ```
    
+   Or if `gh aw` is not authenticated, use the MCP tool:
+   ```
+   agentic_workflows__logs with workflow_name: <workflow-name>
+   ```
+   
    This command:
    - Downloads workflow run artifacts and logs
    - Provides JSON output with metrics, errors, and summaries
@@ -280,6 +308,7 @@ When the user chooses to run and audit:
    gh aw audit <run-id> --json
    done
    ```
+   - Or if using MCP tools, poll with `agentic_workflows__audit` until status is terminal
    - If the audit output reports `"status": "in_progress"` (or the command fails because the run is still executing), wait ~45 seconds and run the same command again.
    - Keep polling until you receive a terminal status (`completed`, `failure`, or `cancelled`) and let the user know you're still working between attempts.
    - Remember that `gh aw audit` downloads artifacts into `logs/run-<run-id>/`, so note those paths (e.g., `run_summary.json`, `agent-stdio.log`) for deeper inspection.
