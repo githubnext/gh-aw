@@ -614,7 +614,7 @@ jobs:
           which awf
           awf --version
       - name: Install GitHub Copilot CLI
-        run: npm install -g @github/copilot@0.0.367
+        run: npm install -g @github/copilot@0.0.368
       - name: Downloading container images
         run: |
           set -e
@@ -2212,7 +2212,7 @@ jobs:
               engine_name: "GitHub Copilot CLI",
               model: process.env.GH_AW_MODEL_AGENT_COPILOT || "",
               version: "",
-              agent_version: "0.0.367",
+              agent_version: "0.0.368",
               workflow_name: "Security Compliance Campaign",
               experimental: false,
               supports_tools_allowlist: true,
@@ -2263,22 +2263,22 @@ jobs:
             }
             
             const summary = '<details>\n' +
-              '<summary>🤖 Agentic Workflow Run Overview</summary>\n\n' +
-              '### Engine Configuration\n' +
+              '<summary>Run details</summary>\n\n' +
+              '#### Engine Configuration\n' +
               '| Property | Value |\n' +
               '|----------|-------|\n' +
               `| Engine ID | ${awInfo.engine_id} |\n` +
               `| Engine Name | ${awInfo.engine_name} |\n` +
               `| Model | ${awInfo.model || '(default)'} |\n` +
               '\n' +
-              '### Network Configuration\n' +
+              '#### Network Configuration\n' +
               '| Property | Value |\n' +
               '|----------|-------|\n' +
               `| Mode | ${awInfo.network_mode || 'defaults'} |\n` +
               `| Firewall | ${awInfo.firewall_enabled ? '✅ Enabled' : '❌ Disabled'} |\n` +
               `| Firewall Version | ${awInfo.firewall_version || '(latest)'} |\n` +
               '\n' +
-              (networkDetails ? `#### Allowed Domains\n${networkDetails}\n` : '') +
+              (networkDetails ? `##### Allowed Domains\n${networkDetails}\n` : '') +
               '</details>';
             
             await core.summary.addRaw(summary).write();
@@ -3023,7 +3023,7 @@ jobs:
         run: |
           set -o pipefail
           sudo -E awf --env-all --container-workdir "${GITHUB_WORKSPACE}" --mount /tmp:/tmp:rw --mount "${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:rw" --mount /usr/bin/date:/usr/bin/date:ro --mount /usr/bin/gh:/usr/bin/gh:ro --mount /usr/bin/yq:/usr/bin/yq:ro --allow-domains api.business.githubcopilot.com,api.enterprise.githubcopilot.com,api.github.com,api.individual.githubcopilot.com,github.com,host.docker.internal,raw.githubusercontent.com,registry.npmjs.org --log-level info --proxy-logs-dir /tmp/gh-aw/sandbox/firewall/logs \
-            -- npx -y @github/copilot@0.0.367 --add-dir /tmp/gh-aw/ --log-level all --log-dir /tmp/gh-aw/sandbox/agent/logs/ --add-dir "${GITHUB_WORKSPACE}" --disable-builtin-mcps --allow-tool github --allow-tool safeoutputs --prompt "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"${GH_AW_MODEL_AGENT_COPILOT:+ --model "$GH_AW_MODEL_AGENT_COPILOT"} \
+            -- npx -y @github/copilot@0.0.368 --add-dir /tmp/gh-aw/ --log-level all --log-dir /tmp/gh-aw/sandbox/agent/logs/ --add-dir "${GITHUB_WORKSPACE}" --disable-builtin-mcps --allow-tool github --allow-tool safeoutputs --prompt "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"${GH_AW_MODEL_AGENT_COPILOT:+ --model "$GH_AW_MODEL_AGENT_COPILOT"} \
             2>&1 | tee /tmp/gh-aw/agent-stdio.log
         env:
           COPILOT_AGENT_RUNNER_TYPE: STANDALONE
@@ -5517,11 +5517,7 @@ jobs:
 
               try {
 
-                const workflowName = process.env.GITHUB_WORKFLOW || "workflow";
-
-                const sanitizedName = sanitizeWorkflowName(workflowName);
-
-                const squidLogsDir = `/tmp/gh-aw/squid-logs-${sanitizedName}/`;
+                const squidLogsDir = `/tmp/gh-aw/sandbox/firewall/logs/`;
 
                 if (!fs.existsSync(squidLogsDir)) {
 
@@ -5723,53 +5719,63 @@ jobs:
 
             function generateFirewallSummary(analysis) {
 
-              const { totalRequests, deniedRequests, deniedDomains, requestsByDomain } = analysis;
+              const { totalRequests, requestsByDomain } = analysis;
 
-              let summary = "### 🔥 Firewall Blocked Requests\n\n";
+              const validDomains = Array.from(requestsByDomain.keys())
 
-              const validDeniedDomains = deniedDomains.filter(domain => domain !== "-");
+                .filter(domain => domain !== "-")
 
-              const validDeniedRequests = validDeniedDomains.reduce((sum, domain) => sum + (requestsByDomain.get(domain)?.denied || 0), 0);
+                .sort();
 
-              if (validDeniedRequests > 0) {
+              const uniqueDomainCount = validDomains.length;
 
-                summary += `**${validDeniedRequests}** request${validDeniedRequests !== 1 ? "s" : ""} blocked across **${validDeniedDomains.length}** unique domain${validDeniedDomains.length !== 1 ? "s" : ""}`;
+              let validAllowedRequests = 0;
 
-                summary += ` (${totalRequests > 0 ? Math.round((validDeniedRequests / totalRequests) * 100) : 0}% of total traffic)\n\n`;
+              let validDeniedRequests = 0;
 
-                summary += "<details>\n";
+              for (const domain of validDomains) {
 
-                summary += "<summary>🚫 Blocked Domains (click to expand)</summary>\n\n";
+                const stats = requestsByDomain.get(domain);
 
-                summary += "| Domain | Blocked Requests |\n";
+                validAllowedRequests += stats.allowed;
 
-                summary += "|--------|------------------|\n";
+                validDeniedRequests += stats.denied;
 
-                for (const domain of validDeniedDomains) {
+              }
+
+              let summary = "### 🔥 Firewall Activity\n\n";
+
+              summary += "<details>\n";
+
+              summary += `<summary>📊 ${totalRequests} request${totalRequests !== 1 ? "s" : ""} | `;
+
+              summary += `${validAllowedRequests} allowed | `;
+
+              summary += `${validDeniedRequests} blocked | `;
+
+              summary += `${uniqueDomainCount} unique domain${uniqueDomainCount !== 1 ? "s" : ""}</summary>\n\n`;
+
+              if (uniqueDomainCount > 0) {
+
+                summary += "| Domain | Allowed | Denied |\n";
+
+                summary += "|--------|---------|--------|\n";
+
+                for (const domain of validDomains) {
 
                   const stats = requestsByDomain.get(domain);
 
-                  summary += `| ${domain} | ${stats.denied} |\n`;
+                  summary += `| ${domain} | ${stats.allowed} | ${stats.denied} |\n`;
 
                 }
-
-                summary += "\n</details>\n\n";
 
               } else {
 
-                summary += "✅ **No blocked requests detected**\n\n";
-
-                if (totalRequests > 0) {
-
-                  summary += `All ${totalRequests} request${totalRequests !== 1 ? "s" : ""} were allowed through the firewall.\n\n`;
-
-                } else {
-
-                  summary += "No firewall activity detected.\n\n";
-
-                }
+                summary += "No firewall activity detected.\n";
 
               }
+
+              summary += "\n</details>\n\n";
 
               return summary;
 
@@ -6255,7 +6261,7 @@ jobs:
               if (missingTools.length > 0) {
                 core.info("Missing tools summary:");
                 core.summary
-                  .addHeading("Missing Tools Report", 2)
+                  .addHeading("Missing Tools Report", 3)
                   .addRaw(`Found **${missingTools.length}** missing tool${missingTools.length > 1 ? "s" : ""} in this workflow execution.\n\n`);
                 missingTools.forEach((tool, index) => {
                   core.info(`${index + 1}. Tool: ${tool.tool}`);
@@ -6265,7 +6271,7 @@ jobs:
                   }
                   core.info(`   Reported at: ${tool.timestamp}`);
                   core.info("");
-                  core.summary.addRaw(`### ${index + 1}. \`${tool.tool}\`\n\n`).addRaw(`**Reason:** ${tool.reason}\n\n`);
+                  core.summary.addRaw(`#### ${index + 1}. \`${tool.tool}\`\n\n`).addRaw(`**Reason:** ${tool.reason}\n\n`);
                   if (tool.alternatives) {
                     core.summary.addRaw(`**Alternatives:** ${tool.alternatives}\n\n`);
                   }
@@ -6274,7 +6280,7 @@ jobs:
                 core.summary.write();
               } else {
                 core.info("No missing tools reported in this workflow execution.");
-                core.summary.addHeading("Missing Tools Report", 2).addRaw("✅ No missing tools reported in this workflow execution.").write();
+                core.summary.addHeading("Missing Tools Report", 3).addRaw("✅ No missing tools reported in this workflow execution.").write();
               }
             }
             main().catch(error => {
@@ -7343,7 +7349,7 @@ jobs:
           node-version: '24'
           package-manager-cache: false
       - name: Install GitHub Copilot CLI
-        run: npm install -g @github/copilot@0.0.367
+        run: npm install -g @github/copilot@0.0.368
       - name: Execute GitHub Copilot CLI
         id: agentic_execution
         # Copilot CLI tool arguments (sorted):
