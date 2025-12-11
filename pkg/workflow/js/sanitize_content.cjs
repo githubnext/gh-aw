@@ -360,8 +360,8 @@ function sanitizeContent(content, maxLengthOrOptions) {
    * @returns {string} The string with XML tags converted to parentheses
    */
   function convertXmlTags(s) {
-    // Allow safe HTML tags: details, summary, code, em, b, p, strong, i, u, br, ul, ol, li, blockquote
-    const allowedTags = ["details", "summary", "code", "em", "b", "p", "strong", "i", "u", "br", "ul", "ol", "li", "blockquote"];
+    // Allow safe HTML tags: b, blockquote, br, code, em, h1–h6, hr, i, li, ol, p, pre, strong, sub, sup, table, tbody, td, th, thead, tr, ul
+    const allowedTags = ["b", "blockquote", "br", "code", "em", "h1", "h2", "h3", "h4", "h5", "h6", "hr", "i", "li", "ol", "p", "pre", "strong", "sub", "sup", "table", "tbody", "td", "th", "thead", "tr", "ul"];
 
     // First, process CDATA sections specially - convert tags inside them and the CDATA markers
     s = s.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, (match, content) => {
