@@ -8259,7 +8259,7 @@ jobs:
 
             function generateFirewallSummary(analysis) {
 
-              const { totalRequests, allowedRequests, deniedRequests, requestsByDomain } = analysis;
+              const { totalRequests, requestsByDomain } = analysis;
 
               const validDomains = Array.from(requestsByDomain.keys())
 
@@ -8269,9 +8269,19 @@ jobs:
 
               const uniqueDomainCount = validDomains.length;
 
-              const validDeniedRequests = validDomains.reduce((sum, domain) => sum + (requestsByDomain.get(domain)?.denied || 0), 0);
+              let validAllowedRequests = 0;
 
-              const validAllowedRequests = validDomains.reduce((sum, domain) => sum + (requestsByDomain.get(domain)?.allowed || 0), 0);
+              let validDeniedRequests = 0;
+
+              for (const domain of validDomains) {
+
+                const stats = requestsByDomain.get(domain);
+
+                validAllowedRequests += stats.allowed;
+
+                validDeniedRequests += stats.denied;
+
+              }
 
               let summary = "### 🔥 Firewall Activity\n\n";
 
