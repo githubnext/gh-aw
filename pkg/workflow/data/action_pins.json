@@ -115,6 +115,11 @@
       "version": "v3",
       "sha": "6d10af73d5896080e7b530ea0822d927c05661f1"
     },
+    "github/stale-repos@v3": {
+      "repo": "github/stale-repos",
+      "version": "v3",
+      "sha": "3477b6488008d9411aaf22a0924ec7c1f6a69980"
+    },
     "haskell-actions/setup@v2": {
       "repo": "haskell-actions/setup",
       "version": "v2",

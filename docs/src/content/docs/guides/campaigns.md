@@ -197,72 +197,103 @@ on:
 # External security scanner triggers campaign
 ```
 
-## What Campaigns Solve That GitHub Actions Cannot
+## What Are Campaigns?
 
-**GitHub Actions** provides automation within a single repo. **Agentic Workflows** adds AI-powered analysis and execution. **Campaigns** add the organizational layer enterprises need.
+Campaigns are **coordination patterns** for enterprise initiatives that require:
 
-### Problems Only Campaigns Solve:
+- **Cross-repo orchestration**: Changes affecting 100+ repositories
+- **Human-AI collaboration**: AI analyzes at scale, humans make decisions, AI executes approved actions
+- **Governance & approval chains**: CISO approval, change control board, compliance audit trails
+- **Multi-team coordination**: Central command center tracking work across teams
+- **Business context**: Budget tracking, ROI measurement, executive reporting
+- **Learning over time**: Intelligence that improves with each campaign
 
-1. **Cross-Repo Coordination at Scale**
-   - Problem: "Update 200 repos with new security policy"
-   - GitHub Actions: Each repo runs independently, no orchestration
-   - Campaign: Central command + dependency-aware phased rollout + progress tracking
+Campaigns use the same primitives as regular workflows (tracker-id, repo-memory, safe-outputs) but organize them into patterns that enterprises need for accountability, governance, and coordination.
 
-2. **Governance + Accountability + Audit Trail**
-   - Problem: "Who approved this? Show me the compliance audit trail."
-   - GitHub Actions: Just run logs, no business context
-   - Campaign: Named owner + approval chain + persistent memory with business justification
+## When to Use Campaigns
 
-3. **Human-in-Loop at Enterprise Scale**
-   - Problem: "AI analyze 500 issues, humans decide which 50 to fix"
-   - GitHub Actions: Fully automated or fully manual
-   - Campaign: AI analyzes → humans review tiered recommendations → AI executes approved actions
+Use campaigns when you need:
 
-4. **ROI Tracking + Budget Constraints**
-   - Problem: "What's the ROI on our automation spend?"
-   - GitHub Actions: No cost or outcome tracking
-   - Campaign: Cost tracking + outcome measurement + executive reporting
+**Cross-Repository Coordination**
+- Rolling out changes across 50-200+ repositories
+- Dependency-aware phased execution
+- Centralized progress tracking
+- Example: "Update all repos to Node 20"
 
-5. **Incident Response Coordination**
-   - Problem: "Production down! Coordinate 5 teams, track 30 repos, SLA pressure, stakeholder updates"
-   - GitHub Actions: No cross-team coordination
-   - Campaign: Command center + status tracking + approval gates + post-mortem
+**Governance & Compliance**
+- Approval chains (security team → engineering → change control)
+- Audit trail with business justification
+- Compliance framework mapping (SOC2, GDPR, HIPAA)
+- Example: "Remediate 200 security vulnerabilities before audit"
 
-6. **Learning Across Initiatives**
-   - Problem: "We've run 20 security audits. Are we improving? What works?"
-   - GitHub Actions: Each run independent
-   - Campaign: Cross-campaign intelligence + pattern recognition + recommendations
+**Incident Response**
+- Multi-team coordination under SLA pressure
+- Risk-tiered decision gates (low/medium/high risk actions)
+- Stakeholder communication every 30 minutes
+- Post-mortem generation with timeline
+- Example: "Production API down affecting 5 services"
 
-## Available Campaign Examples
+**Human-in-Loop at Scale**
+- AI analyzes hundreds of items
+- Generates risk-tiered recommendations
+- Humans review and approve by risk tier
+- AI executes only approved actions
+- Example: "AI triages 500 issues, humans decide which 50 to fix"
 
-The repository includes five campaigns demonstrating problems that **cannot be solved** with GitHub Actions or basic workflows:
+**Organizational Learning**
+- Cross-initiative intelligence
+- Pattern recognition across campaigns
+- Predictive recommendations
+- Example: "Analyze 20 security audits to improve future campaigns"
+
+## Available Campaign Patterns
+
+The repository includes five campaign patterns demonstrating enterprise coordination needs:
 
 ### 1. **campaign-incident-response.md**
-**Solves**: Multi-team incident coordination under SLA pressure  
-**Key features**: Command center, risk-tiered approvals, stakeholder updates, post-mortem generation  
-**Why campaigns**: GitHub Actions can't coordinate teams, track SLAs, or manage approval gates
+Multi-team incident coordination under SLA pressure
+
+**Use case**: Production outage affecting multiple services and teams
+
+**Pattern**: Command center issue → AI analysis with hypotheses → Risk-tiered recommendations (low/medium/high) → Human approval gates → AI executes approved actions → Status updates every 30min → Post-mortem generation
+
+**Key features**: SLA tracking, approval chains by risk level, stakeholder communication, timeline for audit
 
 ### 2. **campaign-org-wide-rollout.md**
-**Solves**: Changes across 100+ repos with dependency awareness  
-**Key features**: Dependency graph, phased batches, approval between batches, rollback capability  
-**Why campaigns**: GitHub Actions can't orchestrate cross-repo or respect dependencies
+Cross-repository changes with dependency awareness
+
+**Use case**: Update 100+ repos (e.g., Node 18 → Node 20, add CODEOWNERS)
+
+**Pattern**: Discover repos → Build dependency graph → Phased batches (dependencies first) → Approval between batches → Automated rollback if failure threshold exceeded → Learning capture
+
+**Key features**: Dependency-aware sequencing, batch approval gates, rollback capability, per-repo tracking
 
 ### 3. **campaign-security-compliance.md**
-**Solves**: Compliance remediation with governance and audit trail  
-**Key features**: CISO approval, compliance mapping, executive reporting, audit documentation  
-**Why campaigns**: GitHub Actions has no governance model or compliance audit trail
+Security remediation with compliance audit trail
 
-### 4. **campaign-human-ai-collaboration.md** (PATTERN)
-**Solves**: AI analysis at scale with human decision-making  
-**Key features**: AI proposes 3 risk tiers, humans approve by tier, AI executes, humans validate  
-**Why campaigns**: Shows the core AI-human collaboration model
+**Use case**: Fix 200 vulnerabilities before SOC2/GDPR/HIPAA audit
 
-### 5. **campaign-intelligence.md** (PATTERN)
-**Solves**: Learning across campaigns to improve future initiatives  
-**Key features**: Cross-campaign analysis, trend detection, predictive recommendations  
-**Why campaigns**: GitHub Actions doesn't learn from history
+**Pattern**: Scan & baseline → Prioritize by severity and business impact → CISO approval → Remediation with CVE documentation → Weekly executive reporting → Compliance evidence package
 
-Each campaign solves a real organizational problem that GitHub Actions and basic workflows fundamentally cannot address.
+**Key features**: Compliance framework mapping, executive sponsor approval, audit documentation, cost tracking
+
+### 4. **campaign-human-ai-collaboration.md** (Core Pattern)
+AI-assisted decision-making at scale
+
+**Use case**: AI analyzes 500 items, humans decide actions
+
+**Pattern**: AI analyzes items → Generates risk-tiered recommendations (low 87 items, medium 45, high 12, critical 3) → Humans review and approve by tier (auto-approve low, team lead medium, architect high, defer critical) → AI executes approved → Humans validate → AI learns from outcomes
+
+**Key features**: Risk-based approval tiers, recommendation accuracy tracking, decision learning
+
+### 5. **campaign-intelligence.md** (Cross-Campaign Learning)
+Organizational intelligence from past campaigns
+
+**Use case**: Learn from 20+ campaigns to improve future ones
+
+**Pattern**: Query all campaign data → Analyze by type (incident, rollout, security) → Generate trends → Predict optimal timing → Create playbooks → Organizational maturity model
+
+**Key features**: Pattern recognition, predictive recommendations, compounding value (each campaign makes next one smarter)
 
 ## Campaign Examples
 
@@ -274,45 +305,160 @@ See the actual campaign workflows in `.github/workflows/campaign-*.md` for compl
 - **campaign-human-ai-collaboration.md** - AI-assisted decision-making pattern
 - **campaign-intelligence.md** - Cross-campaign learning
 
+### Visualizing Campaign Trends
+
+The `campaign-intelligence.md` workflow can turn your campaign metrics into **trend charts** using the shared Python visualization imports.
+
+- The workflow imports `shared/trends.md`, which brings in a Python data viz environment and best practices for trend charts.
+- As part of the analysis, it aggregates a flat metrics table across campaigns (date, campaign_id, type, velocity, success rate, ROI, cost per item) and writes it to `/tmp/gh-aw/python/data/campaign-metrics.csv`.
+- Python code (generated by the agent using the `shared/trends.md` examples) loads this file and saves charts under `/tmp/gh-aw/python/charts/*.png`.
+- The shared viz import automatically uploads these PNGs as workflow artifacts.
+
+**Where to surface the charts**:
+
+- Link to the artifacts from the **monthly intelligence issue** (created by `campaign-intelligence.md` via `safe-outputs.create-issue`).
+- Embed 1–2 key charts in each campaign's final report under `memory/campaigns/.../final-report.md`.
+- Optionally maintain a pinned "Campaign Intelligence" GitHub Discussion that links to monthly issues and includes the most important charts inline.
+
+## First-Class Campaign Definitions (Spec & CLI)
+
+In addition to the Markdown workflows under `.github/workflows/`, you can now declare
+**first-class campaign definitions** in YAML and inspect them via the CLI.
+
+### Campaign Spec Files
+
+Define campaigns under a top-level `campaigns/` directory using files that end with
+`.campaign.yaml` (or `.campaign.yml`). Each file describes a single campaign pattern:
+
+```yaml
+# campaigns/incident-response.campaign.yaml
+id: incident-response
+version: "v1"
+name: "Incident Response Campaign"
+description: "Multi-team incident coordination with command center, SLA tracking, and post-mortem."
+
+workflows:
+  - campaign-incident-response
+
+memory_paths:
+  - "memory/campaigns/incident-*/**"
+
+owners:
+  - "oncall-incident-commander"
+  - "sre-team"
+
+executive_sponsors:
+  - "vp-engineering"
+
+risk_level: "high"
+state: "planned"
+tags:
+  - "incident"
+  - "operations"
+
+tracker_label: "campaign:incident-response"
+
+allowed_safe_outputs:
+  - "create-issue"
+  - "add-comment"
+  - "create-pull-request"
+
+approval_policy:
+  required_approvals: 1
+  required_roles:
+    - "incident-commander"
+  change_control: false
+```
+
+**Fields**:
+- `id`: Stable identifier (defaults from filename when omitted)
+- `version`: Optional spec version string (defaults to `v1` when omitted)
+- `name`: Human-friendly name (falls back to `id`)
+- `description`: Short description of the campaign pattern
+- `workflows`: Workflow IDs (Markdown basenames) that implement this campaign
+- `memory_paths`: Where campaign data is stored in repo-memory
+- `metrics_glob`: Optional glob (relative to repo root) used to locate JSON metrics snapshots on the `memory/campaigns` branch
+- `owners`: Primary human owners for this campaign
+- `executive_sponsors`: Executive stakeholders accountable for the outcome
+- `risk_level`: Optional free-form risk level (e.g. low/medium/high)
+- `state`: Lifecycle state (`planned`, `active`, `paused`, `completed`, or `archived`)
+- `tags`: Optional labels for reporting (e.g. `security`, `modernization`)
+- `tracker_label`: Label used to associate issues/PRs with the campaign
+- `allowed_safe_outputs`: Documented safe-outputs operations this campaign is expected to use
+- `approval_policy`: High-level approval expectations (required approvals, roles, change control)
+
+These specs do **not** replace workflows – they sit **on top** of them as a
+single, declarative source of truth for how a campaign is defined.
+
+### Inspecting Campaigns with the CLI
+
+Use the `campaign` command to list and inspect configured campaigns:
+
+```bash
+gh aw campaign                     # List all campaigns from campaigns/*.campaign.yaml
+gh aw campaign security            # Filter by ID or name substring
+gh aw campaign --json              # JSON output for tooling or dashboards
+
+# Show live status (compiled workflows + issues/PRs)
+gh aw campaign status              # Status for all campaigns
+gh aw campaign status incident     # Filter by ID or name substring
+gh aw campaign status --json       # JSON status output
+
+# Create and validate campaign specs
+gh aw campaign new security-q1-2025         # Scaffold a new campaign spec
+gh aw campaign validate                     # Validate all campaign specs
+gh aw campaign validate --json              # JSON validation report
+gh aw campaign validate --no-strict         # Report problems without failing
+```
+
+This gives you a centralized, Git-backed catalog of campaigns in the
+repository, aligned with the executable workflows in `.github/workflows/` and
+the data they write into repo-memory.
+
 ### Example: Incident Response Campaign
 
 **Full workflow**: `.github/workflows/campaign-incident-response.md`
 
-**Scenario**: Production API down, affecting multiple services
+**Scenario**: Production API experiencing failures across multiple services
 
-**Campaign steps**:
+**How it works**:
 
-1. **Initialize Command Center** (repo-memory)
-   - Store incident metadata, SLA targets, affected services
+1. **Command Center** (repo-memory)
+   - Initialize incident metadata: severity, affected services, SLA target
    - Create timeline for audit trail
 
-2. **AI Analysis Phase**
-   - Search recent changes, errors, dependencies
+2. **AI Analysis**
+   - Search recent changes, errors, related issues
    - Generate hypotheses ranked by probability
    - Identify teams to involve
+   - Estimate blast radius
 
-3. **Human Decision Checkpoint**
-   - AI presents risk-tiered recommendations:
-     - **Low risk** (rollback deployment): Execute immediately
-     - **Medium risk** (apply hotfix PR): Needs team lead approval
-     - **High risk** (database rollback): Needs executive approval
+3. **Risk-Tiered Recommendations**
+   - **Low risk** (e.g., rollback deployment): "Safe to execute immediately"
+   - **Medium risk** (e.g., apply hotfix): "Needs team lead approval"
+   - **High risk** (e.g., database rollback): "Needs executive approval"
 
-4. **Execute Approved Actions**
-   - Create PRs for fixes
-   - Track execution status
-   - Update SLA countdown
+4. **Human Decision Point**
+   - Incident commander reviews recommendations
+   - Approves actions by risk tier
+   - Can defer high-risk actions for investigation
 
-5. **Status Updates Every 30min**
-   - Command center issue updated
-   - Stakeholder issue updated
-   - Timeline events logged
+5. **Execution**
+   - AI creates PRs for approved fixes
+   - Tracks status in command center
+   - Updates SLA countdown
 
-6. **Resolution & Post-Mortem**
+6. **Communication**
+   - Status updates every 30 minutes to command center
+   - Stakeholder updates with sanitized info
+   - Timeline continuously logged
+
+7. **Resolution**
    - Generate post-mortem template from timeline
-   - Document what worked/didn't
-   - Action items with ownership
+   - Document what worked/didn't work
+   - Create action items with ownership
 
-**Why this needs campaigns**: GitHub Actions can't coordinate teams, track SLAs, manage approval gates, or generate post-mortems with business context.
+**The pattern**: Centralized coordination + AI intelligence + human judgment + audit trail for high-pressure situations requiring multiple teams.
 
 ### Example 2: Security Campaign with Workers
 
