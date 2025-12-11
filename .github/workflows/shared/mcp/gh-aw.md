@@ -14,7 +14,7 @@ steps:
   - name: Install dependencies
     run: make deps-dev
   - name: Install binary as 'gh-aw'
-    run: make build
+    run: make install
   - name: Start MCP server
     run: |
       set -e
