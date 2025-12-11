@@ -41,8 +41,10 @@
 # safe-outputs:
 #   create-project:
 #     max: 1
+#     github-token: ${{ secrets.PROJECT_PAT || secrets.GITHUB_TOKEN }}
 #   update-project:
 #     max: 5
+#     github-token: ${{ secrets.PROJECT_PAT || secrets.GITHUB_TOKEN }}
 #   create-issue:
 #   staged: true
 # steps:
@@ -7535,7 +7537,7 @@ jobs:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_SAFE_OUTPUTS_STAGED: "true"
         with:
-          github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+          github-token: ${{ secrets.PROJECT_PAT || secrets.GITHUB_TOKEN }}
           script: |
             const fs = require("fs");
             const MAX_LOG_CONTENT_LENGTH = 10000;
@@ -8024,7 +8026,7 @@ jobs:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_SAFE_OUTPUTS_STAGED: "true"
         with:
-          github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+          github-token: ${{ secrets.PROJECT_PAT || secrets.GITHUB_TOKEN }}
           script: |
             const fs = require("fs");
             const MAX_LOG_CONTENT_LENGTH = 10000;

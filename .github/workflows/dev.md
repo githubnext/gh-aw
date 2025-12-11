@@ -18,8 +18,10 @@ imports:
 safe-outputs:
   create-project:
     max: 1
+    github-token: ${{ secrets.PROJECT_PAT || secrets.GITHUB_TOKEN }}
   update-project:
     max: 5
+    github-token: ${{ secrets.PROJECT_PAT || secrets.GITHUB_TOKEN }}
   create-issue:
   staged: true
 steps:
