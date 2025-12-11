@@ -2,7 +2,7 @@
 on: 
   workflow_dispatch:
 name: Dev
-description: Create an empty pull request for agent to push changes to
+description: Test create-project and update-project safe outputs
 timeout-minutes: 5
 strict: false
 engine: copilot
@@ -16,8 +16,12 @@ tools:
 imports:
   - shared/gh.md
 safe-outputs:
-  create-pull-request:
-    allow-empty: true
+  create-project:
+    max: 1
+  update-project:
+    max: 5
+  create-issue:
+  staged: true
 steps:
   - name: Download issues data
     run: |
@@ -26,8 +30,10 @@ steps:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 ---
 
-Create an empty pull request that prepares a branch for future changes.
-The pull request should have:
-- Title: "Feature: Prepare branch for agent updates"
-- Body: "This is an empty pull request created to prepare a feature branch that an agent can push changes to later."
-- Branch name: "feature/agent-updates"
+Create a new GitHub Projects v2 board and then add items to it.
+
+1. Use the `create-project` safe output to create a project board named "Dev Project Test" linked to this repository.
+2. Confirm the project exists (idempotent: re-using the same name should return the existing board).
+3. Use the `update-project` safe output to add at least one issue from this repository to the "Dev Project Test" project.
+4. Set simple fields on the project item such as Status (e.g., "Todo") and Priority (e.g., "Medium").
+5. If any step fails, explain what happened and how to fix it in a short summary.
