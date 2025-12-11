@@ -281,15 +281,15 @@ func detectFromMCPConfigs(tools *ToolsConfig, requirements map[string]*RuntimeRe
 	if tools == nil {
 		return
 	}
-	
+
 	allTools := tools.ToMap()
 	log.Printf("Scanning %d MCP configurations for runtime commands", len(allTools))
-	
+
 	// Special handling for Serena tool - detect language services
 	if tools.Serena != nil {
 		detectSerenaLanguages(tools.Serena, requirements)
 	}
-	
+
 	// Scan custom MCP tools for runtime commands
 	for _, tool := range tools.Custom {
 		// Handle structured MCP config with command field
@@ -314,7 +314,7 @@ func detectSerenaLanguages(serenaConfig *SerenaToolConfig, requirements map[stri
 	if serenaConfig == nil {
 		return
 	}
-	
+
 	runtimeSetupLog.Print("Detecting Serena language requirements")
 
 	// First, ensure UV is detected (Serena requires uvx)
@@ -325,7 +325,7 @@ func detectSerenaLanguages(serenaConfig *SerenaToolConfig, requirements map[stri
 
 	// Collect all languages from the configuration
 	var languages []string
-	
+
 	// Handle short syntax: ["go", "typescript"]
 	if len(serenaConfig.ShortSyntax) > 0 {
 		languages = serenaConfig.ShortSyntax
@@ -348,7 +348,7 @@ func detectSerenaLanguages(serenaConfig *SerenaToolConfig, requirements map[stri
 				// Check if there's a version or go-mod-file specified in language config
 				version := ""
 				goModFile := ""
-				
+
 				// Access structured config directly - no type assertions needed!
 				if serenaConfig.Languages != nil {
 					if goConfig := serenaConfig.Languages["go"]; goConfig != nil {
@@ -356,7 +356,7 @@ func detectSerenaLanguages(serenaConfig *SerenaToolConfig, requirements map[stri
 						goModFile = goConfig.GoModFile
 					}
 				}
-				
+
 				// Create requirement with go-mod-file if specified
 				req := &RuntimeRequirement{
 					Runtime:   goRuntime,
@@ -461,10 +461,10 @@ func GenerateSerenaLanguageServiceSteps(tools *ToolsConfig) []GitHubActionStep {
 	}
 
 	serenaConfig := tools.Serena
-	
+
 	// Collect all languages from the configuration
 	var languages []string
-	
+
 	// Handle short syntax: ["go", "typescript"]
 	if len(serenaConfig.ShortSyntax) > 0 {
 		languages = serenaConfig.ShortSyntax
