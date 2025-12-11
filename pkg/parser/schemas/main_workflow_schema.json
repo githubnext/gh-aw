@@ -3011,7 +3011,7 @@
     "safe-outputs": {
       "type": "object",
       "description": "Safe output processing configuration that automatically creates GitHub issues, comments, and pull requests from AI workflow output without requiring write permissions in the main job",
-      "$comment": "Required if workflow creates or modifies GitHub resources. Operations requiring safe-outputs: add-comment, add-labels, add-reviewer, assign-milestone, assign-to-agent, close-discussion, close-issue, close-pull-request, create-agent-task, create-code-scanning-alert, create-discussion, create-issue, create-pull-request, create-pull-request-review-comment, hide-comment, link-sub-issue, missing-tool, noop, push-to-pull-request-branch, threat-detection, update-issue, update-project, update-pull-request, update-release, upload-asset. See documentation for complete details.",
+      "$comment": "Required if workflow creates or modifies GitHub resources. Operations requiring safe-outputs: add-comment, add-labels, add-reviewer, assign-milestone, assign-to-agent, close-discussion, close-issue, close-pull-request, create-agent-task, create-code-scanning-alert, create-discussion, create-issue, create-project, create-pull-request, create-pull-request-review-comment, hide-comment, link-sub-issue, missing-tool, noop, push-to-pull-request-branch, threat-detection, update-issue, update-project, update-pull-request, update-release, upload-asset. See documentation for complete details.",
       "properties": {
         "allowed-domains": {
           "type": "array",
@@ -3153,11 +3153,45 @@
             }
           ]
         },
+        "create-project": {
+          "oneOf": [
+            {
+              "type": "object",
+              "description": "Configuration for creating GitHub Projects v2 boards. Creates a new project if it doesn't exist. Requires repository-projects: write permission. Safe output items produced by the agent use type=create_project and must include: project (board title). Organization accounts only - user accounts must create projects manually.",
+              "properties": {
+                "max": {
+                  "type": "integer",
+                  "description": "Maximum number of project creation operations to perform (default: 10).",
+                  "minimum": 1,
+                  "maximum": 100
+                },
+                "github-token": {
+                  "$ref": "#/$defs/github_token",
+                  "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
+                }
+              },
+              "additionalProperties": false,
+              "examples": [
+                {
+                  "max": 5
+                },
+                {
+                  "github-token": "${{ secrets.PROJECT_GITHUB_TOKEN }}",
+                  "max": 5
+                }
+              ]
+            },
+            {
+              "type": "null",
+              "description": "Enable project creation with default configuration (max=10)"
+            }
+          ]
+        },
         "update-project": {
           "oneOf": [
             {
               "type": "object",
-              "description": "Configuration for managing GitHub Projects v2 boards. Smart tool that auto-detects whether to create a project (if missing), add issue/PR items, or update custom fields on existing items. Requires repository-projects: write permission. Safe output items produced by the agent use type=update_project and may include: project (board name), content_type (issue|pull_request), content_number, and a fields object mapping project field names to values.",
+              "description": "Configuration for adding items to GitHub Projects v2 boards and updating custom fields. Project must already exist (use create-project to create). Requires repository-projects: write permission. Safe output items produced by the agent use type=update_project and may include: project (board name/number/URL), content_type (issue|pull_request), content_number, and a fields object mapping project field names to values.",
               "properties": {
                 "max": {
                   "type": "integer",

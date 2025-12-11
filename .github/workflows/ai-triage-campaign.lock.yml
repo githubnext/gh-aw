@@ -6897,58 +6897,17 @@ jobs:
                   }
                   return p.title === parsedProjectName;
                 });
-                if (existingProject) {
-                  try {
-                    await githubClient.graphql(
-                      `mutation($projectId: ID!, $repositoryId: ID!) {
-                        linkProjectV2ToRepository(input: {
-                          projectId: $projectId,
-                          repositoryId: $repositoryId
-                        }) {
-                          repository {
-                            id
-                          }
-                        }
-                      }`,
-                      { projectId: existingProject.id, repositoryId }
-                    );
-                  } catch (linkError) {
-                    if (!linkError.message || !linkError.message.includes("already linked")) {
-                      core.warning(`Could not link project: ${linkError.message}`);
-                    }
-                  }
+                if (!existingProject) {
+                  const projectDisplay = parsedProjectNumber ? `project #${parsedProjectNumber}` : `project "${parsedProjectName}"`;
+                  const createHint = ownerType === "User" 
+                    ? `Create it manually at https://github.com/users/${owner}/projects/new or use create-project safe-output.` 
+                    : `Use create-project safe-output to create it first.`;
+                  core.error(`Cannot find ${projectDisplay}. ${createHint}`);
+                  throw new Error(`Project not found: ${projectDisplay}`);
                 }
-                if (existingProject) {
-                  projectId = existingProject.id;
-                  projectNumber = existingProject.number;
-                } else {
-                  if (ownerType === "User") {
-                    const projectDisplay = parsedProjectNumber ? `project #${parsedProjectNumber}` : `project "${parsedProjectName}"`;
-                    core.error(`Cannot find ${projectDisplay}. Create it manually at https://github.com/users/${owner}/projects/new.`);
-                    throw new Error(`Cannot find ${projectDisplay} on user account.`);
-                  }
-                  const createResult = await githubClient.graphql(
-                    `mutation($ownerId: ID!, $title: String!) {
-                      createProjectV2(input: {
-                        ownerId: $ownerId,
-                        title: $title
-                      }) {
-                        projectV2 {
-                          id
-                          title
-                          url
-                          number
-                        }
-                      }
-                    }`,
-                    {
-                      ownerId: ownerId, 
-                      title: output.project,
-                    }
-                  );
-                  const newProject = createResult.createProjectV2.projectV2;
-                  projectId = newProject.id;
-                  projectNumber = newProject.number;
+                projectId = existingProject.id;
+                projectNumber = existingProject.number;
+                try {
                   await githubClient.graphql(
                     `mutation($projectId: ID!, $repositoryId: ID!) {
                       linkProjectV2ToRepository(input: {
@@ -6960,13 +6919,12 @@ jobs:
                         }
                       }
                     }`,
-                    { projectId, repositoryId }
+                    { projectId: existingProject.id, repositoryId }
                   );
-                  core.info(`✓ Created project: ${newProject.title}`);
-                  core.setOutput("project-id", projectId);
-                  core.setOutput("project-number", projectNumber);
-                  core.setOutput("project-url", newProject.url);
-                  core.setOutput("campaign-id", campaignId);
+                } catch (linkError) {
+                  if (!linkError.message || !linkError.message.includes("already linked")) {
+                    core.warning(`Could not link project: ${linkError.message}`);
+                  }
                 }
                 const hasContentNumber = output.content_number !== undefined && output.content_number !== null;
                 const hasIssue = output.issue !== undefined && output.issue !== null;

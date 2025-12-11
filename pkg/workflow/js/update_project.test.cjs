@@ -174,62 +174,31 @@ describe("generateCampaignId", () => {
 });
 
 describe("updateProject", () => {
-  it("creates a new project when none exist", async () => {
-    const output = { type: "update_project", project: "New Campaign" };
+  it("requires project to exist", async () => {
+    const output = { type: "update_project", project: "NonExistent Campaign" };
 
     queueResponses([
       repoResponse(),
       ownerProjectsResponse([]),
-      {
-        createProjectV2: {
-          projectV2: {
-            id: "project123",
-            title: "New Campaign",
-            url: "https://github.com/orgs/testowner/projects/1",
-            number: 1,
-          },
-        },
-      },
-      linkResponse,
     ]);
 
-    await updateProject(output);
-
-    expect(mockCore.info).toHaveBeenCalledWith("✓ Created project: New Campaign");
-    expect(getOutput("project-id")).toBe("project123");
-    expect(getOutput("project-number")).toBe(1);
-    expect(getOutput("project-url")).toBe("https://github.com/orgs/testowner/projects/1");
-    expect(getOutput("campaign-id")).toMatch(/^new-campaign-[a-z0-9]{8}$/);
-
-    expect(mockGithub.graphql).toHaveBeenCalledWith(
-      expect.stringContaining("createProjectV2"),
-      expect.objectContaining({ ownerId: "owner123", title: "New Campaign" })
-    );
+    await expect(updateProject(output)).rejects.toThrow(/Project not found/);
+    expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("Cannot find"));
   });
 
-  it("respects a custom campaign id", async () => {
+  it("finds an existing project by title and uses custom campaign id", async () => {
     const output = { type: "update_project", project: "Custom Campaign", campaign_id: "custom-id-2025" };
 
     queueResponses([
       repoResponse(),
-      ownerProjectsResponse([]),
-      {
-        createProjectV2: {
-          projectV2: {
-            id: "project456",
-            title: "Custom Campaign",
-            url: "https://github.com/orgs/testowner/projects/2",
-            number: 2,
-          },
-        },
-      },
+      ownerProjectsResponse([{ id: "existing-project-456", title: "Custom Campaign", number: 2 }]),
       linkResponse,
     ]);
 
     await updateProject(output);
 
-    expect(getOutput("campaign-id")).toBe("custom-id-2025");
-    expect(mockCore.info).toHaveBeenCalledWith("✓ Created project: Custom Campaign");
+    const createCall = mockGithub.graphql.mock.calls.find(([query]) => query.includes("createProjectV2"));
+    expect(createCall).toBeUndefined();
   });
 
   it("finds an existing project by title", async () => {
@@ -460,14 +429,12 @@ describe("updateProject", () => {
     expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Failed to add campaign label"));
   });
 
-  it("surfaces project creation failures", async () => {
-    const output = { type: "update_project", project: "Fail Project" };
+  it("throws error when project does not exist", async () => {
+    const output = { type: "update_project", project: "Nonexistent Project" };
 
     queueResponses([repoResponse(), ownerProjectsResponse([])]);
 
-    mockGithub.graphql.mockRejectedValueOnce(new Error("GraphQL error: Insufficient permissions"));
-
-    await expect(updateProject(output)).rejects.toThrow(/Insufficient permissions/);
-    expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("Failed to manage project"));
+    await expect(updateProject(output)).rejects.toThrow(/Project not found/);
+    expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("Cannot find"));
   });
 });
