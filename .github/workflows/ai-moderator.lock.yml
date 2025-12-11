@@ -7154,7 +7154,7 @@ jobs:
               }
               return { success: true, items: validatedOutput.items };
             }
-            async function hideComment(github, nodeId, reason = "SPAM") {
+            async function hideComment(github, nodeId, reason = "spam") {
               const query =  `
                 mutation ($nodeId: ID!, $classifier: ReportedContentClassifiers!) {
                   minimizeComment(input: { subjectId: $nodeId, classifier: $classifier }) {
@@ -7196,7 +7196,7 @@ jobs:
                 summaryContent += "The following comments would be hidden if staged mode was disabled:\n\n";
                 for (let i = 0; i < hideCommentItems.length; i++) {
                   const item = hideCommentItems[i];
-                  const reason = item.reason || "SPAM";
+                  const reason = item.reason || "spam";
                   summaryContent += `### Comment ${i + 1}\n`;
                   summaryContent += `**Node ID**: ${item.comment_id}\n`;
                   summaryContent += `**Action**: Would be hidden as ${reason}\n`;
@@ -7211,7 +7211,7 @@ jobs:
                   if (!commentId || typeof commentId !== "string") {
                     throw new Error("comment_id is required and must be a string (GraphQL node ID)");
                   }
-                  const reason = item.reason || "SPAM";
+                  const reason = item.reason || "spam";
                   const normalizedReason = reason.toUpperCase();
                   if (allowedReasons && allowedReasons.length > 0) {
                     const normalizedAllowedReasons = allowedReasons.map(r => r.toUpperCase());

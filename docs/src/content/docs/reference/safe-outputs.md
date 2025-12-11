@@ -159,7 +159,7 @@ safe-outputs:
     discussion: true             # target discussions
     target-repo: "owner/repo"    # cross-repository
     hide-older-comments: true    # hide previous comments from same workflow
-    allowed-reasons: [OUTDATED]  # restrict hiding reasons (optional)
+    allowed-reasons: [outdated]  # restrict hiding reasons (optional)
 ```
 
 When combined with `create-issue`, `create-discussion`, or `create-pull-request`, comments automatically include a "Related Items" section.
@@ -178,19 +178,19 @@ safe-outputs:
 
 **How it works:**
 - Comments from the same workflow are identified by matching `tracker-id` values
-- All matching older comments are minimized/hidden with reason "OUTDATED" (by default)
+- All matching older comments are minimized/hidden with reason "outdated" (by default)
 - The new comment is then created normally
 - Works for both issue/PR comments and discussion comments
 
 **Allowed Reasons:**
 Use `allowed-reasons` to restrict which reasons can be used when hiding comments. Valid reasons are:
-- `SPAM` - Mark as spam
-- `ABUSE` - Mark as abusive
-- `OFF_TOPIC` - Mark as off-topic
-- `OUTDATED` - Mark as outdated (default)
-- `RESOLVED` - Mark as resolved
+- `spam` - Mark as spam
+- `abuse` - Mark as abusive
+- `off_topic` - Mark as off-topic
+- `outdated` - Mark as outdated (default)
+- `resolved` - Mark as resolved
 
-If `allowed-reasons` is not specified, all reasons are allowed. If specified, only the listed reasons can be used. If the default reason (OUTDATED) is not in the allowed list, hiding will be skipped with a warning.
+If `allowed-reasons` is not specified, all reasons are allowed. If specified, only the listed reasons can be used. If the default reason (outdated) is not in the allowed list, hiding will be skipped with a warning.
 
 **Requirements:**
 - A `tracker-id` must be configured in the workflow frontmatter
@@ -204,7 +204,7 @@ tracker-id: status-reporter
 safe-outputs:
   add-comment:
     hide-older-comments: true
-    allowed-reasons: [OUTDATED, RESOLVED]
+    allowed-reasons: [outdated, resolved]
 ---
 
 Current status: {{ statusMessage }}
@@ -224,14 +224,14 @@ safe-outputs:
 **Requirements:**
 - Agent must provide GraphQL node IDs (strings like `IC_kwDOABCD123456`) for comments
 - REST API numeric comment IDs cannot be used (no conversion available)
-- Agent can optionally specify a reason (SPAM, ABUSE, OFF_TOPIC, OUTDATED, RESOLVED)
+- Agent can optionally specify a reason (spam, abuse, off_topic, outdated, resolved)
 
 **Agent Output Format:**
 ```json
 {
   "type": "hide_comment",
   "comment_id": "IC_kwDOABCD123456",
-  "reason": "SPAM"
+  "reason": "spam"
 }
 ```
 

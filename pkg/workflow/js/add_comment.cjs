@@ -11,10 +11,10 @@ const { replaceTemporaryIdReferences, loadTemporaryIdMap } = require("./temporar
  * Hide/minimize a comment using the GraphQL API
  * @param {any} github - GitHub GraphQL instance
  * @param {string} nodeId - Comment node ID
- * @param {string} reason - Reason for hiding (default: OUTDATED)
+ * @param {string} reason - Reason for hiding (default: outdated)
  * @returns {Promise<{id: string, isMinimized: boolean}>}
  */
-async function minimizeComment(github, nodeId, reason = "OUTDATED") {
+async function minimizeComment(github, nodeId, reason = "outdated") {
   const query = /* GraphQL */ `
     mutation ($nodeId: ID!, $classifier: ReportedContentClassifiers!) {
       minimizeComment(input: { subjectId: $nodeId, classifier: $classifier }) {
@@ -149,11 +149,11 @@ async function findDiscussionCommentsWithTrackerId(github, owner, repo, discussi
  * @param {number} itemNumber - Issue/PR/Discussion number
  * @param {string} trackerId - Tracker ID to match
  * @param {boolean} isDiscussion - Whether this is a discussion
- * @param {string} reason - Reason for hiding (default: OUTDATED)
+ * @param {string} reason - Reason for hiding (default: outdated)
  * @param {string[]} allowedReasons - List of allowed reasons (default: all)
  * @returns {Promise<number>} Number of comments hidden
  */
-async function hideOlderComments(github, owner, repo, itemNumber, trackerId, isDiscussion, reason = "OUTDATED", allowedReasons = null) {
+async function hideOlderComments(github, owner, repo, itemNumber, trackerId, isDiscussion, reason = "outdated", allowedReasons = null) {
   if (!trackerId) {
     core.info("No tracker-id available, skipping hide-older-comments");
     return 0;

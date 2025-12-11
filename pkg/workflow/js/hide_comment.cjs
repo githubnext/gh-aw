@@ -7,10 +7,10 @@ const { loadAgentOutput } = require("./load_agent_output.cjs");
  * Hide a comment using the GraphQL API.
  * @param {any} github - GitHub GraphQL instance
  * @param {string} nodeId - Comment node ID (e.g., 'IC_kwDOABCD123456')
- * @param {string} reason - Reason for hiding (default: SPAM)
+ * @param {string} reason - Reason for hiding (default: spam)
  * @returns {Promise<{id: string, isMinimized: boolean}>} Hidden comment details
  */
-async function hideComment(github, nodeId, reason = "SPAM") {
+async function hideComment(github, nodeId, reason = "spam") {
   const query = /* GraphQL */ `
     mutation ($nodeId: ID!, $classifier: ReportedContentClassifiers!) {
       minimizeComment(input: { subjectId: $nodeId, classifier: $classifier }) {
@@ -65,7 +65,7 @@ async function main() {
 
     for (let i = 0; i < hideCommentItems.length; i++) {
       const item = hideCommentItems[i];
-      const reason = item.reason || "SPAM";
+      const reason = item.reason || "spam";
       summaryContent += `### Comment ${i + 1}\n`;
       summaryContent += `**Node ID**: ${item.comment_id}\n`;
       summaryContent += `**Action**: Would be hidden as ${reason}\n`;
@@ -84,7 +84,7 @@ async function main() {
         throw new Error("comment_id is required and must be a string (GraphQL node ID)");
       }
 
-      const reason = item.reason || "SPAM";
+      const reason = item.reason || "spam";
 
       // Normalize reason to uppercase for GitHub API
       const normalizedReason = reason.toUpperCase();
