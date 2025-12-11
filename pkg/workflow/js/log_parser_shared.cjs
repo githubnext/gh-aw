@@ -1053,21 +1053,57 @@ function generatePlainTextSummary(logEntries, options = {}) {
           const isError = toolResult?.is_error === true;
           const statusIcon = isError ? "✗" : "✓";
 
-          // Format tool execution
+          // Format tool execution in Copilot CLI style
           let displayName;
+          let resultPreview = "";
+
           if (toolName === "Bash") {
             const cmd = formatBashCommand(input.command || "");
-            const maxCmdLength = 100;
-            const displayCmd = cmd.length > maxCmdLength ? cmd.substring(0, maxCmdLength) + "..." : cmd;
-            displayName = `bash: ${displayCmd}`;
+            displayName = `$ ${cmd}`;
+
+            // Show result preview if available
+            if (toolResult && toolResult.content) {
+              const resultText = typeof toolResult.content === "string" ? toolResult.content : String(toolResult.content);
+              const resultLines = resultText.split("\n").filter(l => l.trim());
+              if (resultLines.length > 0) {
+                const previewLine = resultLines[0].substring(0, 80);
+                if (resultLines.length > 1) {
+                  resultPreview = `   └ ${resultLines.length} lines...`;
+                } else if (previewLine) {
+                  resultPreview = `   └ ${previewLine}`;
+                }
+              }
+            }
           } else if (toolName.startsWith("mcp__")) {
-            displayName = formatMcpName(toolName);
+            // Format MCP tool names like github-list_pull_requests
+            const formattedName = formatMcpName(toolName).replace("::", "-");
+            displayName = formattedName;
+
+            // Show result preview if available
+            if (toolResult && toolResult.content) {
+              const resultText = typeof toolResult.content === "string" ? toolResult.content : JSON.stringify(toolResult.content);
+              const truncated = resultText.length > 80 ? resultText.substring(0, 80) + "..." : resultText;
+              resultPreview = `   └ ${truncated}`;
+            }
           } else {
             displayName = toolName;
+
+            // Show result preview if available
+            if (toolResult && toolResult.content) {
+              const resultText = typeof toolResult.content === "string" ? toolResult.content : String(toolResult.content);
+              const truncated = resultText.length > 80 ? resultText.substring(0, 80) + "..." : resultText;
+              resultPreview = `   └ ${truncated}`;
+            }
           }
 
-          lines.push(`Tool: [${statusIcon}] ${displayName}`);
+          lines.push(`${statusIcon} ${displayName}`);
           conversationLineCount++;
+
+          if (resultPreview) {
+            lines.push(resultPreview);
+            conversationLineCount++;
+          }
+
           lines.push(""); // Add blank line after tool execution
           conversationLineCount++;
         }

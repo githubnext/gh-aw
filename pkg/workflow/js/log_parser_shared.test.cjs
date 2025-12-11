@@ -1451,8 +1451,8 @@ describe("log_parser_shared.cjs", () => {
       const result = generatePlainTextSummary(logEntries, { parserName: "Agent" });
 
       expect(result).toContain("Conversation:");
-      expect(result).toContain("Tool: [✓] bash: echo test");
-      expect(result).toContain("Tool: [✗] github::create_issue");
+      expect(result).toContain("✓ $ echo test");
+      expect(result).toContain("✗ github-create_issue");
       expect(result).toContain("Tools: 1/2 succeeded");
     });
 
@@ -1529,7 +1529,7 @@ describe("log_parser_shared.cjs", () => {
       const result = generatePlainTextSummary(logEntries, { parserName: "Agent" });
 
       // Should only show Bash, not Read or Write
-      expect(result).toContain("Tool: [✓] bash: test");
+      expect(result).toContain("✓ $ test");
       expect(result).not.toContain("Read");
       expect(result).not.toContain("Write");
     });
@@ -1625,7 +1625,7 @@ describe("log_parser_shared.cjs", () => {
 
       expect(result).toContain("Conversation:");
       expect(result).toContain("Agent: I'll help you with that task.");
-      expect(result).toContain("Tool: [✓] bash: echo hello");
+      expect(result).toContain("✓ $ echo hello");
       expect(result).toContain("Agent: The command executed successfully!");
     });
 
