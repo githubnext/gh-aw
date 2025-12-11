@@ -208,7 +208,7 @@ func TestLoadSpecs_MultipleSpecs(t *testing.T) {
 	for _, c := range campaigns {
 		content := `---
 id: ` + c.id + `
-name: ` + strings.Title(c.id) + `
+name: ` + c.id + `
 ---
 Content`
 		testFile := filepath.Join(campaignsDir, c.filename)
