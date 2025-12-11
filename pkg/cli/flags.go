@@ -17,7 +17,7 @@ func addEngineFilterFlag(cmd *cobra.Command) {
 // addRepoFlag adds the --repo/-r flag to a command.
 // This flag allows specifying a target repository.
 func addRepoFlag(cmd *cobra.Command) {
-	cmd.Flags().StringP("repo", "r", "", "Target repository (owner/repo format). Defaults to current repository")
+	cmd.Flags().StringP("repo", "r", "", "Target repository ([HOST/]owner/repo format). Defaults to current repository")
 }
 
 // addOutputFlag adds the --output/-o flag to a command.

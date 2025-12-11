@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
@@ -466,7 +465,7 @@ func fetchLatestRunsByRef(ref string, verbose bool) (map[string]*WorkflowRun, er
 
 	// Fetch workflow runs for the ref (uses --branch flag which also works for tags)
 	args := []string{"run", "list", "--branch", ref, "--json", "databaseId,number,url,status,conclusion,workflowName,createdAt,headBranch", "--limit", "100"}
-	cmd := exec.Command("gh", args...)
+	cmd := workflow.ExecGH(args...)
 	output, err := cmd.Output()
 
 	if err != nil {

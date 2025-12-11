@@ -256,11 +256,11 @@ func resolveRefToSHA(owner, repo, ref string) (string, error) {
 
 	// Use gh CLI to get the commit SHA for the ref
 	// This works for branches, tags, and short SHAs
-	cmd := exec.Command("gh", "api", fmt.Sprintf("/repos/%s/%s/commits/%s", owner, repo, ref), "--jq", ".sha")
+	// Using go-gh to properly handle enterprise GitHub instances via GH_HOST
+	stdout, stderr, err := gh.Exec("api", fmt.Sprintf("/repos/%s/%s/commits/%s", owner, repo, ref), "--jq", ".sha")
 
-	output, err := cmd.CombinedOutput()
 	if err != nil {
-		outputStr := string(output)
+		outputStr := stderr.String()
 		if gitutil.IsAuthError(outputStr) {
 			remoteLog.Printf("GitHub API authentication failed, attempting git ls-remote fallback for %s/%s@%s", owner, repo, ref)
 			// Try fallback using git ls-remote for public repositories
@@ -274,7 +274,7 @@ func resolveRefToSHA(owner, repo, ref string) (string, error) {
 		return "", fmt.Errorf("failed to resolve ref %s to SHA for %s/%s: %s: %w", ref, owner, repo, strings.TrimSpace(outputStr), err)
 	}
 
-	sha := strings.TrimSpace(string(output))
+	sha := strings.TrimSpace(stdout.String())
 	if sha == "" {
 		return "", fmt.Errorf("empty SHA returned for ref %s in %s/%s", ref, owner, repo)
 	}
