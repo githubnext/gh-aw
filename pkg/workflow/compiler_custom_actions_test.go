@@ -126,6 +126,10 @@ Test workflow with safe-outputs.
 	}
 
 	// Register a test script with an action path
+	// Save original state first
+	origSource := DefaultScriptRegistry.GetSource("create_issue")
+	origActionPath := DefaultScriptRegistry.GetActionPath("create_issue")
+	
 	testScript := `
 const { core } = require('@actions/core');
 core.info('Creating issue');
@@ -136,6 +140,17 @@ core.info('Creating issue');
 		RuntimeModeGitHubScript,
 		"./actions/create-issue",
 	)
+	
+	// Restore after test
+	defer func() {
+		if origSource != "" {
+			if origActionPath != "" {
+				DefaultScriptRegistry.RegisterWithAction("create_issue", origSource, RuntimeModeGitHubScript, origActionPath)
+			} else {
+				DefaultScriptRegistry.RegisterWithMode("create_issue", origSource, RuntimeModeGitHubScript)
+			}
+		}
+	}()
 
 	// Compile with dev action mode
 	compiler := NewCompiler(false, "", "1.0.0")
@@ -204,9 +219,6 @@ core.info('Creating issue');
 	if !strings.Contains(createIssueJobSection, "token:") {
 		t.Error("Expected 'token:' input not found in create_issue job for custom action")
 	}
-
-	// Clean up: reset the registry to avoid affecting other tests
-	DefaultScriptRegistry.RegisterWithMode("create_issue", testScript, RuntimeModeGitHubScript)
 }
 
 // TestInlineActionModeCompilation tests workflow compilation with inline mode (default)
@@ -289,8 +301,23 @@ Test fallback to inline mode.
 	}
 
 	// Ensure create_issue is registered without an action path
+	// Save original state first
+	origSource := DefaultScriptRegistry.GetSource("create_issue")
+	origActionPath := DefaultScriptRegistry.GetActionPath("create_issue")
+	
 	testScript := `console.log('test');`
 	DefaultScriptRegistry.RegisterWithMode("create_issue", testScript, RuntimeModeGitHubScript)
+	
+	// Restore after test
+	defer func() {
+		if origSource != "" {
+			if origActionPath != "" {
+				DefaultScriptRegistry.RegisterWithAction("create_issue", origSource, RuntimeModeGitHubScript, origActionPath)
+			} else {
+				DefaultScriptRegistry.RegisterWithMode("create_issue", origSource, RuntimeModeGitHubScript)
+			}
+		}
+	}()
 
 	// Compile with dev action mode
 	compiler := NewCompiler(false, "", "1.0.0")
