@@ -1912,7 +1912,9 @@ jobs:
           echo "Created /tmp/gh-aw/agent directory for agentic workflow temporary files"
       - name: Install dependencies
         run: make deps-dev
-      - name: Install binary as 'gh-aw'
+      - env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        name: Install binary as 'gh-aw'
         run: make install
       - env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
