@@ -772,7 +772,7 @@ jobs:
       - env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         name: Install binary as 'gh-aw'
-        run: "# Check if any extension provides the 'aw' command and remove it\n# gh extension list format: NAME  COMMAND  VERSION\n# We need to find extensions where COMMAND column is 'aw'\nEXISTING_EXTENSION=$(gh extension list | awk '$2 == \"aw\" {print $1}' | head -n1)\nif [ -n \"$EXISTING_EXTENSION\" ]; then\n  echo \"Found existing extension providing 'aw' command: $EXISTING_EXTENSION\"\n  echo \"Removing existing extension...\"\n  gh extension remove \"$EXISTING_EXTENSION\" || true\nfi\n\n# Install the extension\necho \"Installing gh-aw extension...\"\nmake install\n\n# Verify installation\ngh aw --version\n"
+        run: "# Check if gh-aw extension is already installed\nif gh extension list | grep -q \"githubnext/gh-aw\"; then\n  echo \"gh-aw extension already installed, upgrading...\"\n  gh extension upgrade gh-aw || true\nelse\n  # Check if a different extension provides the 'aw' command\n  # gh extension list format: NAME  COMMAND  VERSION\n  EXISTING_EXTENSION=$(gh extension list | awk '$2 == \"aw\" {print $1}' | head -n1)\n  if [ -n \"$EXISTING_EXTENSION\" ]; then\n    echo \"Found conflicting extension providing 'aw' command: $EXISTING_EXTENSION\"\n    echo \"Removing conflicting extension...\"\n    gh extension remove \"$EXISTING_EXTENSION\" || true\n  fi\n  \n  # Install the extension\n  echo \"Installing gh-aw extension...\"\n  make install\nfi\n\n# Verify installation\ngh aw --version\n"
       - env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         name: Start MCP server
