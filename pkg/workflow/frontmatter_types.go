@@ -111,9 +111,10 @@ func ParseFrontmatterConfig(frontmatter map[string]any) (*FrontmatterConfig, err
 	return &config, nil
 }
 
-// ExtractMapField is a convenience wrapper around unmarshalFromMap for extracting
-// map[string]any fields from frontmatter. This maintains backward compatibility
-// with existing extraction patterns while providing better error messages.
+// ExtractMapField is a convenience wrapper for extracting map[string]any fields
+// from frontmatter. This maintains backward compatibility with existing extraction
+// patterns while preserving original types (avoiding JSON conversion which would
+// convert all numbers to float64).
 //
 // Returns an empty map if the key doesn't exist (for backward compatibility).
 func ExtractMapField(frontmatter map[string]any, key string) map[string]any {
@@ -123,19 +124,14 @@ func ExtractMapField(frontmatter map[string]any, key string) map[string]any {
 		return make(map[string]any)
 	}
 
-	var result map[string]any
-	err := unmarshalFromMap(frontmatter, key, &result)
-	if err != nil {
-		// For backward compatibility, return empty map instead of error
-		return make(map[string]any)
+	// Direct type assertion to preserve original types (especially integers)
+	// This avoids JSON marshaling which would convert integers to float64
+	if valueMap, ok := value.(map[string]any); ok {
+		return valueMap
 	}
 
-	// Handle case where unmarshal succeeded but result is still nil
-	if result == nil {
-		return make(map[string]any)
-	}
-
-	return result
+	// For backward compatibility, return empty map if not a map
+	return make(map[string]any)
 }
 
 // ExtractStringField is a convenience wrapper for extracting string fields.

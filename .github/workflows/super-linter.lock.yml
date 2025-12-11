@@ -7363,7 +7363,7 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
         with:
-          fetch-depth: 0.0
+          fetch-depth: 0
           persist-credentials: false
       - name: Super-linter
         id: super-linter
@@ -7393,7 +7393,7 @@ jobs:
         with:
           name: super-linter-log
           path: super-linter.log
-          retention-days: 7.0
+          retention-days: 7
 
   update_cache_memory:
     needs:
