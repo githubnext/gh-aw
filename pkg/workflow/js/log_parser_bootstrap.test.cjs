@@ -150,12 +150,21 @@ describe("log_parser_bootstrap.cjs", () => {
         parserName: "TestParser",
       });
 
-      // Should generate plain text summary instead of success message
+      // Should generate plain text summary for core.info
       const infoCall = mockCore.info.mock.calls.find(call => call[0].includes("=== TestParser Execution Summary ==="));
       expect(infoCall).toBeDefined();
       expect(infoCall[0]).toContain("Model: gpt-5");
       expect(infoCall[0]).toContain("Turns: 2");
-      expect(mockCore.summary.addRaw).toHaveBeenCalledWith("## Result\n");
+      
+      // Should generate Copilot CLI style markdown for step summary
+      const summaryCall = mockCore.summary.addRaw.mock.calls[0];
+      expect(summaryCall).toBeDefined();
+      expect(summaryCall[0]).toContain("```");
+      expect(summaryCall[0]).toContain("Conversation:");
+      expect(summaryCall[0]).toContain("Agent: Hello");
+      expect(summaryCall[0]).toContain("Statistics:");
+      expect(summaryCall[0]).toContain("  Turns: 2");
+      expect(summaryCall[0]).toContain("  Duration: 5s");
 
       fs.unlinkSync(logFile);
       fs.rmdirSync(tmpDir);
