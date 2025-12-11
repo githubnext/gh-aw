@@ -169,7 +169,9 @@ function generateFirewallSummary(analysis) {
   const { totalRequests, allowedRequests, deniedRequests, requestsByDomain } = analysis;
 
   // Filter out invalid domains (placeholder "-" values)
-  const validDomains = Array.from(requestsByDomain.keys()).filter(domain => domain !== "-").sort();
+  const validDomains = Array.from(requestsByDomain.keys())
+    .filter(domain => domain !== "-")
+    .sort();
   const uniqueDomainCount = validDomains.length;
 
   // Calculate valid denied requests (excluding placeholder domains)

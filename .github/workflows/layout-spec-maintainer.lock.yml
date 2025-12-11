@@ -5654,7 +5654,11 @@ jobs:
 
               const { totalRequests, allowedRequests, deniedRequests, requestsByDomain } = analysis;
 
-              const validDomains = Array.from(requestsByDomain.keys()).filter(domain => domain !== "-").sort();
+              const validDomains = Array.from(requestsByDomain.keys())
+
+                .filter(domain => domain !== "-")
+
+                .sort();
 
               const uniqueDomainCount = validDomains.length;
 
