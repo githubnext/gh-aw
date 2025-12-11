@@ -299,8 +299,8 @@ This workflow tests the workflow overview for Claude engine.
 			if !strings.Contains(lockContent, "<details>") {
 				t.Error("Expected HTML <details> tag for collapsible summary")
 			}
-			if !strings.Contains(lockContent, "<summary>🤖 Agentic Workflow Run Overview</summary>") {
-				t.Error("Expected HTML <summary> tag with workflow overview title")
+			if !strings.Contains(lockContent, "<summary>Run details</summary>") {
+				t.Error("Expected HTML <summary> tag with 'Run details' title")
 			}
 			if !strings.Contains(lockContent, "</details>") {
 				t.Error("Expected HTML </details> closing tag")
