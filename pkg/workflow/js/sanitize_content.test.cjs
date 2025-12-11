@@ -190,7 +190,35 @@ describe("sanitize_content.cjs", () => {
     });
 
     it("should preserve allowed safe tags", () => {
-      const allowedTags = ["b", "blockquote", "br", "code", "em", "h1", "h2", "h3", "h4", "h5", "h6", "hr", "i", "li", "ol", "p", "pre", "strong", "sub", "sup", "table", "tbody", "td", "th", "thead", "tr", "ul"];
+      const allowedTags = [
+        "b",
+        "blockquote",
+        "br",
+        "code",
+        "em",
+        "h1",
+        "h2",
+        "h3",
+        "h4",
+        "h5",
+        "h6",
+        "hr",
+        "i",
+        "li",
+        "ol",
+        "p",
+        "pre",
+        "strong",
+        "sub",
+        "sup",
+        "table",
+        "tbody",
+        "td",
+        "th",
+        "thead",
+        "tr",
+        "ul",
+      ];
       allowedTags.forEach(tag => {
         const result = sanitizeContent(`<${tag}>content</${tag}>`);
         expect(result).toBe(`<${tag}>content</${tag}>`);
