@@ -103,7 +103,7 @@ func RunWorkflowOnGitHub(workflowIdOrName string, enable bool, engineOverride st
 	var workflowID int64
 	if enable {
 		// Get current workflow status
-		workflow, err := getWorkflowStatus(workflowIdOrName, repoOverride, verbose)
+		wf, err := getWorkflowStatus(workflowIdOrName, repoOverride, verbose)
 		if err != nil {
 			if verbose {
 				fmt.Printf("Warning: Could not check workflow status: %v\n", err)
@@ -112,18 +112,18 @@ func RunWorkflowOnGitHub(workflowIdOrName string, enable bool, engineOverride st
 
 		// If we successfully got workflow status, check if it needs enabling
 		if err == nil {
-			workflowID = workflow.ID
-			if workflow.State == "disabled_manually" {
+			workflowID = wf.ID
+			if wf.State == "disabled_manually" {
 				wasDisabled = true
 				if verbose {
 					fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Workflow '%s' is disabled, enabling it temporarily...", workflowIdOrName)))
 				}
 				// Enable the workflow
-				enableArgs := []string{"workflow", "enable", strconv.FormatInt(workflow.ID, 10)}
+				enableArgs := []string{"workflow", "enable", strconv.FormatInt(wf.ID, 10)}
 				if repoOverride != "" {
 					enableArgs = append(enableArgs, "--repo", repoOverride)
 				}
-				cmd := exec.Command("gh", enableArgs...)
+				cmd := workflow.ExecGH(enableArgs...)
 				if err := cmd.Run(); err != nil {
 					return fmt.Errorf("failed to enable workflow '%s': %w", workflowIdOrName, err)
 				}
@@ -327,7 +327,7 @@ func RunWorkflowOnGitHub(workflowIdOrName string, enable bool, engineOverride st
 	workflowStartTime := time.Now()
 
 	// Execute gh workflow run command and capture output
-	cmd := exec.Command("gh", args...)
+	cmd := workflow.ExecGH(args...)
 
 	if verbose {
 		var cmdParts []string
@@ -617,9 +617,9 @@ func getLatestWorkflowRunWithRetry(lockFileName string, repo string, verbose boo
 		// Build command with optional repo parameter
 		var cmd *exec.Cmd
 		if repo != "" {
-			cmd = exec.Command("gh", "run", "list", "--repo", repo, "--workflow", lockFileName, "--limit", "1", "--json", "url,databaseId,status,conclusion,createdAt")
+			cmd = workflow.ExecGH("run", "list", "--repo", repo, "--workflow", lockFileName, "--limit", "1", "--json", "url,databaseId,status,conclusion,createdAt")
 		} else {
-			cmd = exec.Command("gh", "run", "list", "--workflow", lockFileName, "--limit", "1", "--json", "url,databaseId,status,conclusion,createdAt")
+			cmd = workflow.ExecGH("run", "list", "--workflow", lockFileName, "--limit", "1", "--json", "url,databaseId,status,conclusion,createdAt")
 		}
 
 		output, err := cmd.Output()
@@ -752,7 +752,7 @@ func validateRemoteWorkflow(workflowName string, repoOverride string, verbose bo
 	}
 
 	// Use gh CLI to list workflows in the target repository
-	cmd := exec.Command("gh", "workflow", "list", "--repo", repoOverride, "--json", "name,path,state")
+	cmd := workflow.ExecGH("workflow", "list", "--repo", repoOverride, "--json", "name,path,state")
 	output, err := cmd.Output()
 	if err != nil {
 		if exitError, ok := err.(*exec.ExitError); ok {
@@ -773,11 +773,11 @@ func validateRemoteWorkflow(workflowName string, repoOverride string, verbose bo
 	}
 
 	// Look for the workflow by checking if the lock file path exists
-	for _, workflow := range workflows {
-		if strings.HasSuffix(workflow.Path, lockFileName) {
+	for _, wf := range workflows {
+		if strings.HasSuffix(wf.Path, lockFileName) {
 			if verbose {
 				fmt.Printf("Found workflow '%s' in repository (path: %s, state: %s)\n",
-					workflow.Name, workflow.Path, workflow.State)
+					wf.Name, wf.Path, wf.State)
 			}
 			return nil
 		}

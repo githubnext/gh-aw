@@ -13,6 +13,7 @@ import (
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/logger"
 	"github.com/githubnext/gh-aw/pkg/parser"
+	"github.com/githubnext/gh-aw/pkg/workflow"
 )
 
 var mcpValidationLog = logger.New("cli:mcp_validation")
@@ -177,9 +178,9 @@ func validateMCPServerConfiguration(cmdPath string) error {
 		// Use custom command path
 		cmd = exec.CommandContext(ctx, cmdPath, "status")
 	} else {
-		mcpValidationLog.Print("Using default gh aw command")
-		// Use default gh aw command
-		cmd = exec.CommandContext(ctx, "gh", "aw", "status")
+		mcpValidationLog.Print("Using default gh aw command with proper token handling")
+		// Use default gh aw command with proper token handling
+		cmd = workflow.ExecGHContext(ctx, "aw", "status")
 	}
 	output, err := cmd.CombinedOutput()
 

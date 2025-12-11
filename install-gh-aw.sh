@@ -109,6 +109,39 @@ print_info "Detected OS: $OS -> $OS_NAME"
 print_info "Detected architecture: $ARCH -> $ARCH_NAME"
 print_info "Platform: $PLATFORM"
 
+# Function to fetch release data with fallback for invalid token
+fetch_release_data() {
+    local url=$1
+    local use_auth=false
+    local curl_args=("-s" "-f")
+    
+    # Try with authentication if GH_TOKEN is set
+    if [ -n "$GH_TOKEN" ]; then
+        use_auth=true
+        curl_args+=("-H" "Authorization: Bearer $GH_TOKEN")
+    fi
+    
+    # Make the API call
+    local response
+    response=$(curl "${curl_args[@]}" "$url" 2>/dev/null)
+    local exit_code=$?
+    
+    # If the call failed and we used authentication, try again without it
+    if [ $exit_code -ne 0 ] && [ "$use_auth" = true ]; then
+        print_warning "API call with GH_TOKEN failed. Retrying without authentication..."
+        print_warning "Your GH_TOKEN may be incompatible (typically SSO) with this request."
+        response=$(curl -s -f "$url" 2>/dev/null)
+        exit_code=$?
+    fi
+    
+    if [ $exit_code -ne 0 ]; then
+        return 1
+    fi
+    
+    echo "$response"
+    return 0
+}
+
 # Get version (use provided version or fetch latest)
 VERSION=${1:-""}
 REPO="githubnext/gh-aw"
@@ -116,20 +149,23 @@ REPO="githubnext/gh-aw"
 if [ -z "$VERSION" ]; then
     print_info "Fetching latest release information..."
     
+    if ! LATEST_RELEASE=$(fetch_release_data "https://api.github.com/repos/$REPO/releases/latest"); then
+        print_error "Failed to fetch latest release information"
+        exit 1
+    fi
+    
     if [ "$HAS_JQ" = true ]; then
         # Use jq for JSON parsing
-        LATEST_RELEASE=$(curl -s "https://api.github.com/repos/$REPO/releases/latest")
         VERSION=$(echo "$LATEST_RELEASE" | jq -r '.tag_name')
         RELEASE_NAME=$(echo "$LATEST_RELEASE" | jq -r '.name')
     else
         # Fallback to grep/sed
-        LATEST_RELEASE=$(curl -s "https://api.github.com/repos/$REPO/releases/latest")
         VERSION=$(echo "$LATEST_RELEASE" | grep '"tag_name"' | sed -E 's/.*"tag_name": *"([^"]+)".*/\1/')
         RELEASE_NAME=$(echo "$LATEST_RELEASE" | grep '"name"' | sed -E 's/.*"name": *"([^"]+)".*/\1/')
     fi
     
     if [ -z "$VERSION" ] || [ "$VERSION" = "null" ]; then
-        print_error "Failed to fetch latest release information"
+        print_error "Failed to parse latest release information"
         exit 1
     fi
     
