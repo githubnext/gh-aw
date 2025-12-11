@@ -9,10 +9,10 @@ import (
 	"testing"
 )
 
-// TestSafeOutputsMCPBundlerIntegration tests that the safe-outputs MCP server
-// bundler correctly merges destructured imports from child_process module
+// TestSafeOutputsMCPBundlerIntegration tests that the safe-outputs workflow
+// correctly includes child_process imports in the generated .cjs files
 func TestSafeOutputsMCPBundlerIntegration(t *testing.T) {
-	t.Run("create_pull_request with merged child_process imports in draft mode", func(t *testing.T) {
+	t.Run("create_pull_request with child_process imports in draft mode", func(t *testing.T) {
 		tmpDir, err := os.MkdirTemp("", "bundler-integration-test")
 		if err != nil {
 			t.Fatalf("Failed to create temp dir: %v", err)
@@ -51,32 +51,24 @@ Test workflow to verify child_process imports are merged correctly.
 		}
 		lockContent := string(lockBytes)
 
-		// Verify that the bundled safe-outputs MCP server contains merged child_process imports
-		// The bundler should merge:
-		// - const { execSync } = require("child_process"); (from get_current_branch.cjs)
-		// - const { execSync } = require("child_process"); (from generate_git_patch.cjs)
-		// - const { execFile } = require("child_process"); (from mcp_handler_shell.cjs)
-		// Into: const { execFile, execSync } = require("child_process");
-		//    or: const { execSync, execFile } = require("child_process");
+		// Verify that the safe-outputs workflow contains child_process imports
+		// Note: Safe-outputs writes separate .cjs files to disk, so each file has its own require statement
+		// This is the correct behavior for file-based MCP servers
 
 		if !strings.Contains(lockContent, `require("child_process")`) {
 			t.Fatal("Compiled workflow does not contain child_process require statement")
 		}
 
-		// Check for merged imports (order may vary)
-		hasExecFileAndExecSync := strings.Contains(lockContent, `const { execFile, execSync } = require("child_process")`) ||
-			strings.Contains(lockContent, `const { execSync, execFile } = require("child_process")`)
+		// Verify both execSync and execFile are imported (in separate files)
+		hasExecSync := strings.Contains(lockContent, `const { execSync } = require("child_process")`)
+		hasExecFile := strings.Contains(lockContent, `const { execFile } = require("child_process")`)
 
-		if !hasExecFileAndExecSync {
-			t.Error("Compiled workflow does not contain merged child_process imports (execFile and execSync)")
+		if !hasExecSync {
+			t.Error("Compiled workflow does not contain execSync import from child_process")
+		}
 
-			// Debug: Find what we actually got
-			lines := strings.Split(lockContent, "\n")
-			for _, line := range lines {
-				if strings.Contains(line, `require("child_process")`) {
-					t.Logf("Found child_process require: %s", strings.TrimSpace(line))
-				}
-			}
+		if !hasExecFile {
+			t.Error("Compiled workflow does not contain execFile import from child_process")
 		}
 
 		// Verify both execSync and execFile are used in the code
@@ -88,10 +80,11 @@ Test workflow to verify child_process imports are merged correctly.
 			t.Error("Compiled workflow does not use execFile function")
 		}
 
-		// Count how many times child_process is required - should be exactly once after merging
+		// Count how many times child_process is required
+		// Each separate .cjs file has its own require statement, which is expected
 		count := strings.Count(lockContent, `require("child_process")`)
-		if count != 1 {
-			t.Errorf("Expected exactly 1 child_process require statement after merging, got %d", count)
+		if count < 2 {
+			t.Errorf("Expected at least 2 child_process require statements (separate files), got %d", count)
 		}
 
 		// Verify staged mode is enabled (from the frontmatter)
@@ -99,7 +92,7 @@ Test workflow to verify child_process imports are merged correctly.
 			t.Error("Expected staged mode to be enabled in compiled workflow")
 		}
 
-		t.Logf("✓ Successfully verified merged child_process imports in safe-outputs MCP server")
+		t.Logf("✓ Successfully verified child_process imports in safe-outputs workflow")
 	})
 
 	t.Run("create_pull_request without staged mode", func(t *testing.T) {
@@ -140,12 +133,16 @@ Test workflow to verify child_process imports are merged correctly without draft
 		}
 		lockContent := string(lockBytes)
 
-		// Verify merged imports still work without staged mode
-		hasExecFileAndExecSync := strings.Contains(lockContent, `const { execFile, execSync } = require("child_process")`) ||
-			strings.Contains(lockContent, `const { execSync, execFile } = require("child_process")`)
+		// Verify that both execSync and execFile are imported (in separate files)
+		hasExecSync := strings.Contains(lockContent, `const { execSync } = require("child_process")`)
+		hasExecFile := strings.Contains(lockContent, `const { execFile } = require("child_process")`)
 
-		if !hasExecFileAndExecSync {
-			t.Error("Compiled workflow does not contain merged child_process imports (execFile and execSync)")
+		if !hasExecSync {
+			t.Error("Compiled workflow does not contain execSync import from child_process")
+		}
+
+		if !hasExecFile {
+			t.Error("Compiled workflow does not contain execFile import from child_process")
 		}
 
 		// Verify staged mode is NOT enabled
@@ -153,6 +150,6 @@ Test workflow to verify child_process imports are merged correctly without draft
 			t.Error("Expected staged mode to NOT be enabled in compiled workflow")
 		}
 
-		t.Logf("✓ Successfully verified merged child_process imports without staged mode")
+		t.Logf("✓ Successfully verified child_process imports without staged mode")
 	})
 }

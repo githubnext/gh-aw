@@ -58,13 +58,26 @@ func TestParseFirewallLogs(t *testing.T) {
 
 	// The content should contain markdown formatting
 	contentStr := string(content)
-	if !strings.Contains(contentStr, "# 🔥 Firewall Blocked Requests") {
+	if !strings.Contains(contentStr, "### 🔥 Firewall Activity") {
 		t.Errorf("firewall.md doesn't contain expected header")
 	}
 
-	// Should mention blocked domains
+	// Should have details/summary structure
+	if !strings.Contains(contentStr, "<details>") {
+		t.Errorf("firewall.md doesn't contain details tag")
+	}
+	if !strings.Contains(contentStr, "<summary>") {
+		t.Errorf("firewall.md doesn't contain summary tag")
+	}
+
+	// Should mention blocked domains in the table
 	if !strings.Contains(contentStr, "blocked.com") {
 		t.Errorf("firewall.md doesn't mention blocked.com")
+	}
+
+	// Should have the domain table headers
+	if !strings.Contains(contentStr, "| Domain | Allowed | Denied |") {
+		t.Errorf("firewall.md doesn't contain domain table")
 	}
 
 	t.Logf("Generated firewall.md:\n%s", contentStr)
