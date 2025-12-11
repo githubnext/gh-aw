@@ -5,6 +5,7 @@ const { loadAgentOutput } = require("./load_agent_output.cjs");
 const { generateFooterWithMessages } = require("./messages_footer.cjs");
 const { getRepositoryUrl } = require("./get_repository_url.cjs");
 const { replaceTemporaryIdReferences, loadTemporaryIdMap } = require("./temporary_id.cjs");
+const { getTrackerID } = require("./get_tracker_id.cjs");
 
 /**
  * Hide/minimize a comment using the GraphQL API
@@ -534,6 +535,12 @@ async function main() {
     // Add workflow ID comment marker if present
     if (workflowId) {
       body += `\n\n<!-- workflow-id: ${workflowId} -->`;
+    }
+
+    // Add tracker-id comment if present
+    const trackerIDComment = getTrackerID("markdown");
+    if (trackerIDComment) {
+      body += trackerIDComment;
     }
 
     // Add comment type marker to identify this as an add-comment
