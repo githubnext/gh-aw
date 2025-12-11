@@ -16,6 +16,7 @@ tools:
   bash: ["*"]
 safe-outputs:
   lock-issue:
+    target: "*"
     labels: [smoke-copilot-no-firewall]
     max: 5
 steps:

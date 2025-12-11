@@ -39,6 +39,7 @@
 #   bash: ["*"]
 # safe-outputs:
 #   lock-issue:
+#     target: "*"
 #     labels: [smoke-copilot-no-firewall]
 #     max: 5
 # steps:
@@ -6104,8 +6105,8 @@ jobs:
       - agent
       - detection
     if: >
-      ((((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'lock_issue'))) &&
-      ((github.event.issue.number) || (github.event.comment.issue.number))) && (needs.detection.outputs.success == 'true')
+      (((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'lock_issue'))) &&
+      (needs.detection.outputs.success == 'true')
     runs-on: ubuntu-slim
     permissions:
       contents: read
@@ -6132,6 +6133,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
+          GH_AW_LOCK_ISSUE_TARGET: "*"
           GH_AW_LOCK_ISSUE_REQUIRED_LABELS: "smoke-copilot-no-firewall"
           GH_AW_WORKFLOW_NAME: "Dev"
           GH_AW_ENGINE_ID: "copilot"
