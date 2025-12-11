@@ -101,10 +101,16 @@ Enable in workflow frontmatter:
 
 ```yaml wrap
 ---
+permissions:
+  actions: read  # Required for agentic-workflows tool
 tools:
   agentic-workflows:
 ---
 
 Check workflow status, download logs, and audit failures.
 ```
+
+:::caution[Required Permission]
+The `agentic-workflows` tool requires `actions: read` permission to access GitHub Actions workflow logs and run data.
+:::
 
