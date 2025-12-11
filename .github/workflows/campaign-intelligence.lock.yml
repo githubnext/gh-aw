@@ -99,14 +99,15 @@
 # **Query repo-memory** for all campaign data:
 # ```bash
 # memory/campaigns/
-# ├── issue-cleanup-*/
-# ├── ai-triage-*/
+# ├── incident-*/
+# ├── org-rollout-*/
+# ├── security-compliance-*/
 # ├── human-ai-collab-*/
 # └── [any other campaign types that have run]
 # ```
 #
 # **Extract from each campaign**:
-# - Type (issue-cleanup, ai-triage, human-ai-collab, etc.)
+# - Type (incident-response, org-rollout, security-compliance, human-ai-collab, etc.)
 # - Duration (start → complete)
 # - Scope (repos affected, items processed)
 # - Outcomes (success rate, items completed)
@@ -126,21 +127,32 @@
 #   "date_range": "2024-Q1 to 2025-Q4",
 #
 #   "by_type": {
-#     "issue_cleanup": {
+#     "incident_response": {
 #       "count": 8,
-#       "avg_duration_weeks": 2.1,
+#       "avg_duration_hours": 4.2,
 #       "avg_success_rate": "94%",
-#       "avg_roi": "8x",
-#       "avg_cost": "$1,200",
-#       "total_value_delivered": "$76K",
-#       "trend": "improving - duration decreasing, success rate increasing"
+#       "avg_time_to_resolution_minutes": 65,
+#       "avg_cost": "$2,800",
+#       "total_value_delivered": "$340K",
+#       "trend": "improving - AI analysis reducing MTTR by 40%"
 #     },
-#     "ai_triage": {
+#     "org_rollout": {
+#       "count": 12,
+#       "avg_duration_hours": 18.5,
+#       "avg_success_rate": "91%",
+#       "avg_repos_affected": 147,
+#       "avg_cost": "$6,500",
+#       "time_saved_vs_manual_hours": 120,
+#       "trend": "improving - dependency detection getting more accurate"
+#     },
+#     "security_compliance": {
 #       "count": 6,
-#       "avg_duration_weeks": 1.5,
-#       "avg_success_rate": "89%",
-#       "avg_roi": "6x",
-#       "trend": "stable - consistent performance"
+#       "avg_duration_weeks": 3.5,
+#       "avg_success_rate": "98%",
+#       "avg_vulnerabilities_fixed": 87,
+#       "avg_cost": "$8,200",
+#       "audit_pass_rate": "100%",
+#       "trend": "stable - maintaining high audit pass rate"
 #     },
 #     "human_ai_collab": {
 #       "count": 2,
@@ -2535,14 +2547,15 @@ jobs:
           **Query repo-memory** for all campaign data:
           ```bash
           memory/campaigns/
-          ├── issue-cleanup-*/
-          ├── ai-triage-*/
+          ├── incident-*/
+          ├── org-rollout-*/
+          ├── security-compliance-*/
           ├── human-ai-collab-*/
           └── [any other campaign types that have run]
           ```
           
           **Extract from each campaign**:
-          - Type (issue-cleanup, ai-triage, human-ai-collab, etc.)
+          - Type (incident-response, org-rollout, security-compliance, human-ai-collab, etc.)
           - Duration (start → complete)
           - Scope (repos affected, items processed)
           - Outcomes (success rate, items completed)
@@ -2562,21 +2575,32 @@ jobs:
             "date_range": "2024-Q1 to 2025-Q4",
             
             "by_type": {
-              "issue_cleanup": {
+              "incident_response": {
                 "count": 8,
-                "avg_duration_weeks": 2.1,
+                "avg_duration_hours": 4.2,
                 "avg_success_rate": "94%",
-                "avg_roi": "8x",
-                "avg_cost": "$1,200",
-                "total_value_delivered": "$76K",
-                "trend": "improving - duration decreasing, success rate increasing"
+                "avg_time_to_resolution_minutes": 65,
+                "avg_cost": "$2,800",
+                "total_value_delivered": "$340K",
+                "trend": "improving - AI analysis reducing MTTR by 40%"
               },
-              "ai_triage": {
+              "org_rollout": {
+                "count": 12,
+                "avg_duration_hours": 18.5,
+                "avg_success_rate": "91%",
+                "avg_repos_affected": 147,
+                "avg_cost": "$6,500",
+                "time_saved_vs_manual_hours": 120,
+                "trend": "improving - dependency detection getting more accurate"
+              },
+              "security_compliance": {
                 "count": 6,
-                "avg_duration_weeks": 1.5,
-                "avg_success_rate": "89%",
-                "avg_roi": "6x",
-                "trend": "stable - consistent performance"
+                "avg_duration_weeks": 3.5,
+                "avg_success_rate": "98%",
+                "avg_vulnerabilities_fixed": 87,
+                "avg_cost": "$8,200",
+                "audit_pass_rate": "100%",
+                "trend": "stable - maintaining high audit pass rate"
               },
               "human_ai_collab": {
                 "count": 2,
@@ -3002,18 +3026,6 @@ jobs:
           **Questions?** See full analysis: `memory/intelligence/campaign-analysis-__GH_AW_GITHUB_RUN_ID__.json`
           
           ---
-          **Intelligence System Status**: Running monthly, continuously learning
-          **Next Report**: [next month]
-          **Organization Status**: Expert-level campaign maturity 🏆
-          ```
-          
-          ## Output
-          
-          Intelligence analysis complete:
-          - **Campaigns Analyzed**: 23 over 2 years
-          - **Intelligence Report**: #[issue-number]
-          - **Full Analysis**: `memory/intelligence/campaign-analysis-__GH_AW_GITHUB_RUN_ID__.json`
-          - **Recommendations Generated**: 3 high-confidence + 2 optimizations
           PROMPT_EOF
       - name: Substitute placeholders
         uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
@@ -3086,6 +3098,18 @@ jobs:
           GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
         run: |
           cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
+          **Intelligence System Status**: Running monthly, continuously learning
+          **Next Report**: [next month]
+          **Organization Status**: Expert-level campaign maturity 🏆
+          ```
+          
+          ## Output
+          
+          Intelligence analysis complete:
+          - **Campaigns Analyzed**: 23 over 2 years
+          - **Intelligence Report**: #[issue-number]
+          - **Full Analysis**: `memory/intelligence/campaign-analysis-__GH_AW_GITHUB_RUN_ID__.json`
+          - **Recommendations Generated**: 3 high-confidence + 2 optimizations
           - **Organizational Status**: Expert level
           - **Next Analysis**: [next month]
           

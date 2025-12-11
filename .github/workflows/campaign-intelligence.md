@@ -52,14 +52,15 @@ tools:
 **Query repo-memory** for all campaign data:
 ```bash
 memory/campaigns/
-├── issue-cleanup-*/
-├── ai-triage-*/
+├── incident-*/
+├── org-rollout-*/
+├── security-compliance-*/
 ├── human-ai-collab-*/
 └── [any other campaign types that have run]
 ```
 
 **Extract from each campaign**:
-- Type (issue-cleanup, ai-triage, human-ai-collab, etc.)
+- Type (incident-response, org-rollout, security-compliance, human-ai-collab, etc.)
 - Duration (start → complete)
 - Scope (repos affected, items processed)
 - Outcomes (success rate, items completed)
@@ -79,21 +80,32 @@ memory/campaigns/
   "date_range": "2024-Q1 to 2025-Q4",
   
   "by_type": {
-    "issue_cleanup": {
+    "incident_response": {
       "count": 8,
-      "avg_duration_weeks": 2.1,
+      "avg_duration_hours": 4.2,
       "avg_success_rate": "94%",
-      "avg_roi": "8x",
-      "avg_cost": "$1,200",
-      "total_value_delivered": "$76K",
-      "trend": "improving - duration decreasing, success rate increasing"
+      "avg_time_to_resolution_minutes": 65,
+      "avg_cost": "$2,800",
+      "total_value_delivered": "$340K",
+      "trend": "improving - AI analysis reducing MTTR by 40%"
     },
-    "ai_triage": {
+    "org_rollout": {
+      "count": 12,
+      "avg_duration_hours": 18.5,
+      "avg_success_rate": "91%",
+      "avg_repos_affected": 147,
+      "avg_cost": "$6,500",
+      "time_saved_vs_manual_hours": 120,
+      "trend": "improving - dependency detection getting more accurate"
+    },
+    "security_compliance": {
       "count": 6,
-      "avg_duration_weeks": 1.5,
-      "avg_success_rate": "89%",
-      "avg_roi": "6x",
-      "trend": "stable - consistent performance"
+      "avg_duration_weeks": 3.5,
+      "avg_success_rate": "98%",
+      "avg_vulnerabilities_fixed": 87,
+      "avg_cost": "$8,200",
+      "audit_pass_rate": "100%",
+      "trend": "stable - maintaining high audit pass rate"
     },
     "human_ai_collab": {
       "count": 2,

@@ -18,49 +18,57 @@
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/aw/github-agentic-workflows.md
 #
-# Example showing campaign pattern - analyze, create tracked work, store results
+# Coordinate multi-team incident response with SLA tracking, stakeholder updates, and post-mortem
 #
 # Original Frontmatter:
 # ```yaml
-# name: Example Campaign - Issue Cleanup
-# description: Example showing campaign pattern - analyze, create tracked work, store results
-# timeout-minutes: 15
+# name: Campaign - Incident Response
+# description: Coordinate multi-team incident response with SLA tracking, stakeholder updates, and post-mortem
+# timeout-minutes: 60
 # strict: true
 #
 # on:
 #   workflow_dispatch:
 #     inputs:
-#       max_issues:
-#         description: 'Maximum issues to close'
+#       incident_severity:
+#         description: 'Incident severity'
+#         type: choice
+#         required: true
+#         options:
+#           - critical
+#           - high
+#           - medium
+#       incident_description:
+#         description: 'Brief incident description'
+#         required: true
+#       affected_services:
+#         description: 'Comma-separated list of affected services/repos'
+#         required: true
+#       stakeholder_issue:
+#         description: 'Issue number for stakeholder updates'
 #         required: false
-#         default: '20'
 #
 # permissions:
 #   contents: read
 #   issues: read
+#   pull-requests: read
 #
 # engine: copilot
 #
-# # Campaign pattern uses standard primitives:
-# # 1. tracker-id: Links all work (set via label in epic issue)
-# # 2. repo-memory: Stores baseline, results, learnings
-# # 3. safe-outputs: Coordinates actions
-#
 # tools:
 #   github:
-#     toolsets: [repos, issues]
+#     toolsets: [repos, issues, pull_requests, search]
 #   repo-memory:
 #     branch-name: memory/campaigns
-#     file-glob: "issue-cleanup-*/**"
+#     file-glob: "incident-*/**"
 #
 # safe-outputs:
 #   create-issue:
-#     max: 1
-#     labels: [campaign-tracker]
-#   close-issue:
-#     max: 30
-#   add-comment:
-#     max: 30
+#     labels: [campaign-tracker, incident]
+#   add-comment: {}
+#   add-labels: {}
+#   create-pull-request:
+#     labels: [campaign-fix, incident]
 # ```
 #
 # Job Dependency Graph:
@@ -68,183 +76,435 @@
 # graph LR
 #   activation["activation"]
 #   add_comment["add_comment"]
+#   add_labels["add_labels"]
 #   agent["agent"]
-#   close_issue["close_issue"]
 #   conclusion["conclusion"]
 #   create_issue["create_issue"]
+#   create_pull_request["create_pull_request"]
 #   detection["detection"]
 #   push_repo_memory["push_repo_memory"]
 #   activation --> agent
 #   activation --> conclusion
+#   activation --> create_pull_request
 #   add_comment --> conclusion
+#   add_labels --> conclusion
 #   agent --> add_comment
-#   agent --> close_issue
+#   agent --> add_labels
 #   agent --> conclusion
 #   agent --> create_issue
+#   agent --> create_pull_request
 #   agent --> detection
 #   agent --> push_repo_memory
-#   close_issue --> conclusion
 #   create_issue --> add_comment
 #   create_issue --> conclusion
+#   create_pull_request --> add_comment
+#   create_pull_request --> conclusion
 #   detection --> add_comment
-#   detection --> close_issue
+#   detection --> add_labels
 #   detection --> conclusion
 #   detection --> create_issue
+#   detection --> create_pull_request
 #   detection --> push_repo_memory
 #   push_repo_memory --> conclusion
 # ```
 #
 # Original Prompt:
 # ```markdown
-# # Issue Cleanup Campaign Example
+# # Campaign: Incident Response Coordination
 #
-# This demonstrates the **campaign pattern**: using tracker-id + repo-memory + coordination for stateful initiatives.
+# **Purpose**: Coordinate cross-team incident response that GitHub Actions/basic workflows cannot handle.
 #
-# **Campaign ID**: `issue-cleanup-${{ github.run_id }}`
+# **Campaign ID**: `incident-${{ github.run_id }}`
 #
-# ## Campaign Pattern Steps
+# **Severity**: `${{ github.event.inputs.incident_severity }}`
 #
-# ### 1. Store Baseline (repo-memory)
+# ## Why Campaigns Solve This (Not GitHub Actions)
 #
-# Create file `memory/campaigns/issue-cleanup-${{ github.run_id }}/baseline.json`:
+# **Problem**: Production incident affecting multiple repos/teams requires:
+# - Central command & control
+# - Multi-team coordination
+# - Real-time status tracking
+# - Stakeholder communication every 30min
+# - SLA pressure (time-to-mitigation)
+# - Post-mortem with business context
+# - Approval gates for emergency fixes
+#
+# **GitHub Actions fails**: No cross-team coordination, no SLA tracking, no stakeholder communication pattern
+#
+# **Basic agentic workflow fails**: Single execution, no orchestration, no persistent command center
+#
+# **Campaign solves**: Human-AI collaboration + persistent memory + coordination + governance
+#
+# ## Incident Response Steps
+#
+# ### 1. Initialize Command Center (repo-memory)
+#
+# Create file `memory/campaigns/incident-${{ github.run_id }}/command-center.json`:
 # ```json
 # {
-#   "campaign_id": "issue-cleanup-${{ github.run_id }}",
-#   "started": "[current date]",
-#   "stale_issues_found": [count],
-#   "goal": "Close stale issues with no activity >6 months"
+#   "campaign_id": "incident-${{ github.run_id }}",
+#   "incident_id": "INC-${{ github.run_id }}",
+#   "severity": "${{ github.event.inputs.incident_severity }}",
+#   "description": "${{ github.event.inputs.incident_description }}",
+#   "started": "[timestamp]",
+#   "affected_services": "${{ github.event.inputs.affected_services }}".split(","),
+#   "sla_target_minutes": {
+#     "critical": 30,
+#     "high": 120,
+#     "medium": 480
+#   }["${{ github.event.inputs.incident_severity }}"],
+#   "status": "investigating",
+#   "teams_involved": [],
+#   "timeline": []
 # }
 # ```
 #
-# ### 2. Create Tracking Issue
+# ### 2. Create Command Center Issue
 #
-# Use `create-issue` to create ONE epic issue with **tracker-id label**:
+# Use `create-issue`:
 #
-# **Title**: "Campaign: Issue Cleanup - ${{ github.run_id }}"
+# **Title**: `🚨 INCIDENT [${{ github.event.inputs.incident_severity }}]: ${{ github.event.inputs.incident_description }}`
 #
-# **Labels**: `campaign-tracker`, `tracker:issue-cleanup-${{ github.run_id }}`
+# **Labels**: `campaign-tracker`, `tracker:incident-${{ github.run_id }}`, `incident`, `severity:${{ github.event.inputs.incident_severity }}`
 #
 # **Body**:
 # ```markdown
-# # Issue Cleanup Campaign
+# # Incident Response: INC-${{ github.run_id }}
 #
-# **Campaign ID**: `issue-cleanup-${{ github.run_id }}`
-# **Tracker ID**: `issue-cleanup-${{ github.run_id }}`
-# **Started**: [current date]
+# **Campaign ID**: `incident-${{ github.run_id }}`
+# **Severity**: ${{ github.event.inputs.incident_severity }}
+# **Started**: [timestamp]
+# **SLA Target**: [minutes based on severity]
 #
-# ## Goal
-# Close up to ${{ github.event.inputs.max_issues }} stale issues (>6 months inactive)
+# ## Incident Details
 #
-# ## Baseline
-# - Stale issues found: [count]
-# - Target to close: ${{ github.event.inputs.max_issues }}
+# **Description**: ${{ github.event.inputs.incident_description }}
 #
-# ## Success Criteria
-# - Issues closed with clear explanation
-# - No false positives (keep-open labeled issues preserved)
+# **Affected Services**: ${{ github.event.inputs.affected_services }}
 #
-# ## Progress
-# This issue will be updated as work completes.
+# ## Response Status
 #
-# **Query campaign work**:
+# **Current Status**: 🔍 Investigating
+#
+# **Teams Involved**: [AI to identify from affected services]
+#
+# **Timeline**:
+# - [timestamp] - Incident detected and campaign initiated
+#
+# ## Coordination
+#
+# **Query all incident work**:
 # ```bash
-# gh issue list --search "tracker:issue-cleanup-${{ github.run_id }}"
+# gh issue list --search "tracker:incident-${{ github.run_id }}"
+# gh pr list --search "tracker:incident-${{ github.run_id }}"
 # ```
 #
-# **View campaign data**:
-# ```bash
-# gh repo view --json defaultBranchRef \
-#   --jq '.defaultBranchRef.target.tree.entries[] | 
-#   select(.name=="memory") | .oid' | \
-#   xargs -I {} gh api repos/{owner}/{repo}/git/trees/{} --jq '.tree'
+# **Command Center Data**: `memory/campaigns/incident-${{ github.run_id }}/`
+#
+# ## SLA Tracking
+#
+# **Target Resolution**: [SLA minutes] minutes from start
+# **Time Remaining**: [calculated]
+#
+# ---
+#
+# **Updates will be posted here every 30 minutes or on status changes**
 # ```
+#
+# ### 3. AI Analysis Phase
+#
+# **For each affected service/repo**:
+#
+# 1. **Search for related issues/PRs** (recent errors, deployment failures)
+# 2. **Identify recent changes** (PRs merged in last 48h)
+# 3. **Check dependencies** (related services that might be impacted)
+# 4. **Analyze error patterns** (common failure modes)
+#
+# **Generate hypothesis**:
+# - Likely root causes (ranked by probability)
+# - Affected blast radius (repos, users, services)
+# - Recommended immediate actions
+# - Teams that need to be involved
+#
+# ### 4. Human Decision Checkpoint
+#
+# **AI presents findings to command center issue**:
+#
+# ```markdown
+# ## 🤖 AI Analysis Complete
+#
+# ### Likely Root Causes (by probability)
+# 1. [Cause A] - 60% confidence
+#    - Evidence: [specific findings]
+#    - Impact: [scope]
+#    - Recommended action: [specific fix]
+#    - Risk: [rollback complexity]
+#
+# 2. [Cause B] - 25% confidence
+#    - Evidence: [specific findings]
+#    - Recommended action: [specific fix]
+#
+# ### Blast Radius
+# - Affected repos: [list]
+# - Affected users: [estimate]
+# - Downstream dependencies: [list]
+#
+# ### Recommended Actions (Risk-Tiered)
+#
+# **IMMEDIATE (Low Risk - AI can execute)**:
+# - [ ] Rollback deployment in repo X
+# - [ ] Increase timeout in service Y
+# - [ ] Scale up instances in service Z
+#
+# **REQUIRES APPROVAL (Medium Risk - needs team lead)**:
+# - [ ] Apply hotfix PR #123
+# - [ ] Disable feature flag "new-api"
+#
+# **REQUIRES EXECUTIVE APPROVAL (High Risk - data/security impact)**:
+# - [ ] Database migration rollback
+# - [ ] Traffic failover to backup region
+#
+# ### Teams to Involve
+# - @team-api - [reason]
+# - @team-database - [reason]
+# - @team-frontend - [reason]
+#
+# ---
+#
+# **🚦 Awaiting incident commander decision on recommended actions**
+#
+# Reply with:
+# - "execute-immediate" - Run all low-risk actions
+# - "approve-medium [action numbers]" - Approve specific medium-risk actions
+# - "escalate-high" - Escalate high-risk actions to executive
+# - "investigate-more [cause]" - Deep dive into specific cause
 # ```
 #
-# ### 3. Execute Work
+# ### 5. Execute Approved Actions
 #
-# Find and close stale issues:
+# **Based on human decisions**:
 #
-# **For each stale issue** (no activity >6 months, not labeled "keep-open"):
-# 1. Add comment explaining closure:
-#    ```
-#    This issue is being closed as part of cleanup campaign [issue-cleanup-${{ github.run_id }}].
+# **If "execute-immediate"**:
+# - Create PRs for rollbacks/hotfixes
+# - Apply labels: `incident-fix`, `tracker:incident-${{ github.run_id }}`
+# - Add comments linking back to command center
+# - Update command center with execution status
 #
-#    Reason: No activity in >6 months
+# **If "approve-medium [actions]"**:
+# - Create issues for each approved action
+# - Assign to relevant teams
+# - Track progress in command center
+# - Update SLA countdown
 #
-#    If this should remain open, please reopen and add the "keep-open" label.
+# **If "escalate-high"**:
+# - Create executive escalation issue
+# - Tag VP/CTO for approval
+# - Document business impact
+# - Pause until approval received
 #
-#    Campaign tracker: #[epic-issue-number]
-#    ```
+# ### 6. Status Updates (Every 30min)
 #
-# 2. Apply label: `closed-by-campaign`
-# 3. Close issue with reason: "not_planned"
+# Add comment to command center issue:
 #
-# **Max ${{ github.event.inputs.max_issues }} issues processed**
+# ```markdown
+# ## 🕐 Status Update: [HH:MM] ([X] minutes since start)
 #
-# ### 4. Store Results (repo-memory)
+# **SLA Status**: ⏰ [minutes remaining] / [target minutes]
 #
-# Create file `memory/campaigns/issue-cleanup-${{ github.run_id }}/results.json`:
+# **Current Status**: [investigating/mitigating/resolved]
+#
+# **Actions Completed** (last 30min):
+# - ✅ [Action A] - [outcome]
+# - ✅ [Action B] - [outcome]
+#
+# **Actions In Progress**:
+# - 🔄 [Action C] - [team] - ETA [time]
+# - 🔄 [Action D] - [team] - ETA [time]
+#
+# **Blockers**:
+# - 🚫 [Blocker A] - [reason] - [action needed]
+#
+# **Next Steps**:
+# - [Next action 1]
+# - [Next action 2]
+#
+# **Metrics**:
+# - Error rate: [current vs baseline]
+# - User impact: [affected users]
+# - Service health: [status]
+# ```
+#
+# {% if github.event.inputs.stakeholder_issue %}
+# Also post sanitized update to stakeholder issue #${{ github.event.inputs.stakeholder_issue }}.
+# {% endif %}
+#
+# ### 7. Store Timeline Events (repo-memory)
+#
+# Update `memory/campaigns/incident-${{ github.run_id }}/timeline.json` continuously:
 # ```json
 # {
-#   "campaign_id": "issue-cleanup-${{ github.run_id }}",
-#   "completed": "[current date]",
-#   "baseline_count": [count],
-#   "closed_count": [actual count],
-#   "duration_minutes": [time taken],
-#   "issues_closed": [list of issue numbers]
+#   "incident_id": "INC-${{ github.run_id }}",
+#   "timeline": [
+#     {
+#       "timestamp": "[time]",
+#       "event": "incident_detected",
+#       "details": "Description",
+#       "actor": "system"
+#     },
+#     {
+#       "timestamp": "[time]",
+#       "event": "ai_analysis_complete",
+#       "hypotheses": ["cause A", "cause B"],
+#       "confidence": {"cause A": 0.6, "cause B": 0.25},
+#       "actor": "ai"
+#     },
+#     {
+#       "timestamp": "[time]",
+#       "event": "human_decision",
+#       "decision": "execute-immediate",
+#       "actions_approved": ["rollback X", "scale Y"],
+#       "actor": "@incident-commander"
+#     },
+#     {
+#       "timestamp": "[time]",
+#       "event": "action_executed",
+#       "action": "rollback X",
+#       "outcome": "success",
+#       "actor": "ai"
+#     },
+#     {
+#       "timestamp": "[time]",
+#       "event": "incident_resolved",
+#       "resolution": "Rollback deployed, error rate back to baseline",
+#       "duration_minutes": 45,
+#       "actor": "@incident-commander"
+#     }
+#   ]
 # }
 # ```
 #
-# ### 5. Update Tracking Issue
+# ### 8. Incident Resolution
 #
-# Add final comment to epic issue:
+# When resolved, create final summary in command center:
 #
 # ```markdown
-# ## Campaign Complete ✅
+# ## ✅ Incident Resolved
 #
 # **Duration**: [X] minutes
-# **Results**:
-# - Stale issues found: [count]
-# - Issues closed: [count]
-# - Remaining stale: [count]
+# **SLA Status**: ✅ Within SLA / ⚠️ Exceeded by [X] minutes
 #
-# **Data stored**: `memory/campaigns/issue-cleanup-${{ github.run_id }}/`
+# **Root Cause**: [confirmed cause]
 #
-# This campaign demonstrates the pattern:
-# 1. ✅ tracker-id links all work
-# 2. ✅ repo-memory stores baseline + results
-# 3. ✅ Epic issue provides visibility
-# 4. ✅ Safe-outputs coordinate actions
+# **Resolution**: [what fixed it]
+#
+# **Impact**:
+# - Affected users: [count]
+# - Services impacted: [list]
+# - Duration: [minutes]
+# - Data loss: Yes/No
+#
+# **Teams Involved**:
+# - [Team A] - [contribution]
+# - [Team B] - [contribution]
+#
+# **PRs/Fixes Applied**:
+# - #123 - [description]
+# - #124 - [description]
+#
+# **Post-Mortem Required**: Yes
+#
+# See full timeline and analysis: `memory/campaigns/incident-${{ github.run_id }}/`
+#
+# ---
 #
 # Campaign closed.
 # ```
 #
-# Close the epic issue.
+# ### 9. Generate Post-Mortem Template
 #
-# ## Campaign Pattern Explained
+# Create `memory/campaigns/incident-${{ github.run_id }}/post-mortem-template.md`:
 #
-# **This example shows how campaigns work without special infrastructure:**
+# ```markdown
+# # Post-Mortem: INC-${{ github.run_id }}
 #
-# - **tracker-id**: `issue-cleanup-${{ github.run_id }}` links everything
-# - **repo-memory**: Stores baseline.json + results.json for history
-# - **Epic issue**: Human-visible tracking and reporting
-# - **Safe-outputs**: Coordinates issue creation, comments, closures
+# **Date**: [date]
+# **Severity**: ${{ github.event.inputs.incident_severity }}
+# **Duration**: [minutes]
+# **Impact**: [user impact summary]
 #
-# **For longer campaigns**, add:
-# - Separate worker workflows (trigger on labels)
-# - Scheduled monitor workflow (daily progress reports)
-# - Learnings file in repo-memory (what worked/didn't)
+# ## Timeline
 #
-# See [Campaign Guide](/gh-aw/guides/campaigns/) for multi-workflow patterns.
+# [AI-generated timeline from timeline.json with human-readable descriptions]
+#
+# ## Root Cause
+#
+# [Confirmed root cause with technical details]
+#
+# ## What Went Well
+#
+# - [AI-assisted analysis provided accurate hypothesis in X minutes]
+# - [Team Y responded quickly with fix]
+# - [Rollback procedure worked as designed]
+#
+# ## What Went Wrong
+#
+# - [Detection delay - [X] minutes before incident noticed]
+# - [Communication gap between teams]
+# - [Missing monitoring for [specific metric]]
+#
+# ## Action Items
+#
+# **Prevent Recurrence**:
+# - [ ] [Action 1] - Owner: [team] - Due: [date]
+# - [ ] [Action 2] - Owner: [team] - Due: [date]
+#
+# **Improve Response**:
+# - [ ] [Action 3] - Owner: [team] - Due: [date]
+# - [ ] [Action 4] - Owner: [team] - Due: [date]
+#
+# **Improve Detection**:
+# - [ ] [Action 5] - Owner: [team] - Due: [date]
+#
+# ## Lessons Learned
+#
+# [AI-generated insights from timeline analysis]
+#
+# ## Campaign Metrics
+#
+# - Time to detection: [minutes]
+# - Time to AI analysis: [minutes]
+# - Time to human decision: [minutes]
+# - Time to resolution: [minutes]
+# - Actions taken: [count]
+# - Teams coordinated: [count]
+# ```
+#
+# ## Why This Campaign Cannot Be Done Without Campaigns
+#
+# **Cross-team coordination**: Command center orchestrates multiple teams across repos
+# **SLA tracking**: Time pressure and deadline monitoring
+# **Human-in-loop**: AI analyzes, humans decide on risk-tiered actions
+# **Stakeholder communication**: Regular status updates with business context
+# **Audit trail**: Complete timeline with business justification for every decision
+# **Post-mortem**: Learning capture with action items and ownership
+# **Governance**: Approval gates for high-risk emergency actions
+#
+# **GitHub Actions**: Can't coordinate across teams, no SLA concept, no stakeholder communication
+# **Basic workflows**: Single execution, no orchestration, no persistent command center
 #
 # ## Output
 #
 # Provide summary:
-# - Campaign ID: `issue-cleanup-${{ github.run_id }}`
-# - Epic issue: #[number]
-# - Issues closed: [count]
-# - Memory location: `memory/campaigns/issue-cleanup-${{ github.run_id }}/`
-# - Query: `gh issue list --search "tracker:issue-cleanup-${{ github.run_id }}"`
+# - Campaign ID: `incident-${{ github.run_id }}`
+# - Incident ID: `INC-${{ github.run_id }}`
+# - Command center issue: #[number]
+# - Severity: ${{ github.event.inputs.incident_severity }}
+# - Status: [investigating/mitigating/resolved]
+# - Duration: [minutes] / SLA: [target minutes]
+# - Teams involved: [count]
+# - Actions taken: [count]
+# - Memory location: `memory/campaigns/incident-${{ github.run_id }}/`
+# - Post-mortem template: Ready for human review
 # ```
 #
 # Pinned GitHub Actions:
@@ -259,23 +519,37 @@
 #   - actions/upload-artifact@v5 (330a01c490aca151604b8cf639adc76d48f6c5d4)
 #     https://github.com/actions/upload-artifact/commit/330a01c490aca151604b8cf639adc76d48f6c5d4
 
-name: "Example Campaign - Issue Cleanup"
+name: "Campaign - Incident Response"
 "on":
   workflow_dispatch:
     inputs:
-      max_issues:
-        default: "20"
-        description: Maximum issues to close
+      affected_services:
+        description: Comma-separated list of affected services/repos
+        required: true
+      incident_description:
+        description: Brief incident description
+        required: true
+      incident_severity:
+        description: Incident severity
+        options:
+        - critical
+        - high
+        - medium
+        required: true
+        type: choice
+      stakeholder_issue:
+        description: Issue number for stakeholder updates
         required: false
 
 permissions:
   contents: read
   issues: read
+  pull-requests: read
 
 concurrency:
-  group: "gh-aw-${{ github.workflow }}-${{ github.event.issue.number }}"
+  group: "gh-aw-${{ github.workflow }}"
 
-run-name: "Example Campaign - Issue Cleanup"
+run-name: "Campaign - Incident Response"
 
 jobs:
   activation:
@@ -289,7 +563,7 @@ jobs:
       - name: Check workflow file timestamps
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
-          GH_AW_WORKFLOW_FILE: "example-campaign.lock.yml"
+          GH_AW_WORKFLOW_FILE: "campaign-incident-response.lock.yml"
         with:
           script: |
             async function main() {
@@ -378,6 +652,7 @@ jobs:
     needs:
       - agent
       - create_issue
+      - create_pull_request
       - detection
     if: >
       ((((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'add_comment'))) &&
@@ -420,7 +695,9 @@ jobs:
           GH_AW_CREATED_ISSUE_URL: ${{ needs.create_issue.outputs.issue_url }}
           GH_AW_CREATED_ISSUE_NUMBER: ${{ needs.create_issue.outputs.issue_number }}
           GH_AW_TEMPORARY_ID_MAP: ${{ needs.create_issue.outputs.temporary_id_map }}
-          GH_AW_WORKFLOW_NAME: "Example Campaign - Issue Cleanup"
+          GH_AW_CREATED_PULL_REQUEST_URL: ${{ needs.create_pull_request.outputs.pull_request_url }}
+          GH_AW_CREATED_PULL_REQUEST_NUMBER: ${{ needs.create_pull_request.outputs.pull_request_number }}
+          GH_AW_WORKFLOW_NAME: "Campaign - Incident Response"
           GH_AW_ENGINE_ID: "copilot"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
@@ -969,12 +1246,576 @@ jobs:
             }
             await main();
 
+  add_labels:
+    needs:
+      - agent
+      - detection
+    if: >
+      (((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'add_labels'))) &&
+      (needs.detection.outputs.success == 'true')
+    runs-on: ubuntu-slim
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: write
+    timeout-minutes: 10
+    outputs:
+      labels_added: ${{ steps.add_labels.outputs.labels_added }}
+    steps:
+      - name: Download agent output artifact
+        continue-on-error: true
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
+        with:
+          name: agent_output.json
+          path: /tmp/gh-aw/safeoutputs/
+      - name: Setup agent output environment variable
+        run: |
+          mkdir -p /tmp/gh-aw/safeoutputs/
+          find "/tmp/gh-aw/safeoutputs/" -type f -print
+          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> "$GITHUB_ENV"
+      - name: Add Labels
+        id: add_labels
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        env:
+          GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
+          GH_AW_LABELS_ALLOWED: ""
+          GH_AW_LABELS_MAX_COUNT: 3
+          GH_AW_WORKFLOW_NAME: "Campaign - Incident Response"
+          GH_AW_ENGINE_ID: "copilot"
+        with:
+          github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require("fs");
+            const MAX_LOG_CONTENT_LENGTH = 10000;
+            function truncateForLogging(content) {
+              if (content.length <= MAX_LOG_CONTENT_LENGTH) {
+                return content;
+              }
+              return content.substring(0, MAX_LOG_CONTENT_LENGTH) + `\n... (truncated, total length: ${content.length})`;
+            }
+            function loadAgentOutput() {
+              const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT;
+              if (!agentOutputFile) {
+                core.info("No GH_AW_AGENT_OUTPUT environment variable found");
+                return { success: false };
+              }
+              let outputContent;
+              try {
+                outputContent = fs.readFileSync(agentOutputFile, "utf8");
+              } catch (error) {
+                const errorMessage = `Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`;
+                core.error(errorMessage);
+                return { success: false, error: errorMessage };
+              }
+              if (outputContent.trim() === "") {
+                core.info("Agent output content is empty");
+                return { success: false };
+              }
+              core.info(`Agent output content length: ${outputContent.length}`);
+              let validatedOutput;
+              try {
+                validatedOutput = JSON.parse(outputContent);
+              } catch (error) {
+                const errorMessage = `Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`;
+                core.error(errorMessage);
+                core.info(`Failed to parse content:\n${truncateForLogging(outputContent)}`);
+                return { success: false, error: errorMessage };
+              }
+              if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
+                core.info("No valid items found in agent output");
+                core.info(`Parsed content: ${truncateForLogging(JSON.stringify(validatedOutput))}`);
+                return { success: false };
+              }
+              return { success: true, items: validatedOutput.items };
+            }
+            async function generateStagedPreview(options) {
+              const { title, description, items, renderItem } = options;
+              let summaryContent = `## 🎭 Staged Mode: ${title} Preview\n\n`;
+              summaryContent += `${description}\n\n`;
+              for (let i = 0; i < items.length; i++) {
+                const item = items[i];
+                summaryContent += renderItem(item, i);
+                summaryContent += "---\n\n";
+              }
+              try {
+                await core.summary.addRaw(summaryContent).write();
+                core.info(summaryContent);
+                core.info(`📝 ${title} preview written to step summary`);
+              } catch (error) {
+                core.setFailed(error instanceof Error ? error : String(error));
+              }
+            }
+            function parseAllowedItems(envValue) {
+              const trimmed = envValue?.trim();
+              if (!trimmed) {
+                return undefined;
+              }
+              return trimmed
+                .split(",")
+                .map(item => item.trim())
+                .filter(item => item);
+            }
+            function parseMaxCount(envValue, defaultValue = 3) {
+              if (!envValue) {
+                return { valid: true, value: defaultValue };
+              }
+              const parsed = parseInt(envValue, 10);
+              if (isNaN(parsed) || parsed < 1) {
+                return {
+                  valid: false,
+                  error: `Invalid max value: ${envValue}. Must be a positive integer`,
+                };
+              }
+              return { valid: true, value: parsed };
+            }
+            function resolveTarget(params) {
+              const { targetConfig, item, context, itemType, supportsPR = false } = params;
+              const isIssueContext = context.eventName === "issues" || context.eventName === "issue_comment";
+              const isPRContext =
+                context.eventName === "pull_request" ||
+                context.eventName === "pull_request_review" ||
+                context.eventName === "pull_request_review_comment";
+              const target = targetConfig || "triggering";
+              if (target === "triggering") {
+                if (supportsPR) {
+                  if (!isIssueContext && !isPRContext) {
+                    return {
+                      success: false,
+                      error: `Target is "triggering" but not running in issue or pull request context, skipping ${itemType}`,
+                      shouldFail: false, 
+                    };
+                  }
+                } else {
+                  if (!isPRContext) {
+                    return {
+                      success: false,
+                      error: `Target is "triggering" but not running in pull request context, skipping ${itemType}`,
+                      shouldFail: false, 
+                    };
+                  }
+                }
+              }
+              let itemNumber;
+              let contextType;
+              if (target === "*") {
+                const numberField = supportsPR ? item.item_number || item.issue_number || item.pull_request_number : item.pull_request_number;
+                if (numberField) {
+                  itemNumber = typeof numberField === "number" ? numberField : parseInt(String(numberField), 10);
+                  if (isNaN(itemNumber) || itemNumber <= 0) {
+                    return {
+                      success: false,
+                      error: `Invalid ${supportsPR ? "item_number/issue_number/pull_request_number" : "pull_request_number"} specified: ${numberField}`,
+                      shouldFail: true,
+                    };
+                  }
+                  contextType = supportsPR && (item.item_number || item.issue_number) ? "issue" : "pull request";
+                } else {
+                  return {
+                    success: false,
+                    error: `Target is "*" but no ${supportsPR ? "item_number/issue_number" : "pull_request_number"} specified in ${itemType} item`,
+                    shouldFail: true,
+                  };
+                }
+              } else if (target !== "triggering") {
+                itemNumber = parseInt(target, 10);
+                if (isNaN(itemNumber) || itemNumber <= 0) {
+                  return {
+                    success: false,
+                    error: `Invalid ${supportsPR ? "issue" : "pull request"} number in target configuration: ${target}`,
+                    shouldFail: true,
+                  };
+                }
+                contextType = supportsPR ? "issue" : "pull request";
+              } else {
+                if (isIssueContext) {
+                  if (context.payload.issue) {
+                    itemNumber = context.payload.issue.number;
+                    contextType = "issue";
+                  } else {
+                    return {
+                      success: false,
+                      error: "Issue context detected but no issue found in payload",
+                      shouldFail: true,
+                    };
+                  }
+                } else if (isPRContext) {
+                  if (context.payload.pull_request) {
+                    itemNumber = context.payload.pull_request.number;
+                    contextType = "pull request";
+                  } else {
+                    return {
+                      success: false,
+                      error: "Pull request context detected but no pull request found in payload",
+                      shouldFail: true,
+                    };
+                  }
+                }
+              }
+              if (!itemNumber) {
+                return {
+                  success: false,
+                  error: `Could not determine ${supportsPR ? "issue or pull request" : "pull request"} number`,
+                  shouldFail: true,
+                };
+              }
+              return {
+                success: true,
+                number: itemNumber,
+                contextType: contextType || (supportsPR ? "issue" : "pull request"),
+              };
+            }
+            function sanitizeLabelContent(content) {
+              if (!content || typeof content !== "string") {
+                return "";
+              }
+              let sanitized = content.trim();
+              sanitized = sanitized.replace(/\x1b\[[0-9;]*[mGKH]/g, "");
+              sanitized = sanitized.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "");
+              sanitized = sanitized.replace(
+                /(^|[^\w`])@([A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?(?:\/[A-Za-z0-9._-]+)?)/g,
+                (_m, p1, p2) => `${p1}\`@${p2}\``
+              );
+              sanitized = sanitized.replace(/[<>&'"]/g, "");
+              return sanitized.trim();
+            }
+            function loadSafeOutputsConfig() {
+              const configPath = "/tmp/gh-aw/safeoutputs/config.json";
+              try {
+                if (!fs.existsSync(configPath)) {
+                  core.warning(`Config file not found at ${configPath}, using defaults`);
+                  return {};
+                }
+                const configContent = fs.readFileSync(configPath, "utf8");
+                return JSON.parse(configContent);
+              } catch (error) {
+                core.warning(`Failed to load config: ${error instanceof Error ? error.message : String(error)}`);
+                return {};
+              }
+            }
+            function getSafeOutputConfig(outputType) {
+              const config = loadSafeOutputsConfig();
+              return config[outputType] || {};
+            }
+            function validateTitle(title, fieldName = "title") {
+              if (title === undefined || title === null) {
+                return { valid: false, error: `${fieldName} is required` };
+              }
+              if (typeof title !== "string") {
+                return { valid: false, error: `${fieldName} must be a string` };
+              }
+              const trimmed = title.trim();
+              if (trimmed.length === 0) {
+                return { valid: false, error: `${fieldName} cannot be empty` };
+              }
+              return { valid: true, value: trimmed };
+            }
+            function validateBody(body, fieldName = "body", required = false) {
+              if (body === undefined || body === null) {
+                if (required) {
+                  return { valid: false, error: `${fieldName} is required` };
+                }
+                return { valid: true, value: "" };
+              }
+              if (typeof body !== "string") {
+                return { valid: false, error: `${fieldName} must be a string` };
+              }
+              return { valid: true, value: body };
+            }
+            function validateLabels(labels, allowedLabels = undefined, maxCount = 3) {
+              if (!labels || !Array.isArray(labels)) {
+                return { valid: false, error: "labels must be an array" };
+              }
+              for (const label of labels) {
+                if (label && typeof label === "string" && label.startsWith("-")) {
+                  return { valid: false, error: `Label removal is not permitted. Found line starting with '-': ${label}` };
+                }
+              }
+              let validLabels = labels;
+              if (allowedLabels && allowedLabels.length > 0) {
+                validLabels = labels.filter(label => allowedLabels.includes(label));
+              }
+              const uniqueLabels = validLabels
+                .filter(label => label != null && label !== false && label !== 0)
+                .map(label => String(label).trim())
+                .filter(label => label)
+                .map(label => sanitizeLabelContent(label))
+                .filter(label => label)
+                .map(label => (label.length > 64 ? label.substring(0, 64) : label))
+                .filter((label, index, arr) => arr.indexOf(label) === index);
+              if (uniqueLabels.length > maxCount) {
+                core.info(`Too many labels (${uniqueLabels.length}), limiting to ${maxCount}`);
+                return { valid: true, value: uniqueLabels.slice(0, maxCount) };
+              }
+              if (uniqueLabels.length === 0) {
+                return { valid: false, error: "No valid labels found after sanitization" };
+              }
+              return { valid: true, value: uniqueLabels };
+            }
+            function validateMaxCount(envValue, configDefault, fallbackDefault = 1) {
+              const defaultValue = configDefault !== undefined ? configDefault : fallbackDefault;
+              if (!envValue) {
+                return { valid: true, value: defaultValue };
+              }
+              const parsed = parseInt(envValue, 10);
+              if (isNaN(parsed) || parsed < 1) {
+                return {
+                  valid: false,
+                  error: `Invalid max value: ${envValue}. Must be a positive integer`,
+                };
+              }
+              return { valid: true, value: parsed };
+            }
+            async function processSafeOutput(config, stagedPreviewOptions) {
+              const {
+                itemType,
+                configKey,
+                displayName,
+                itemTypeName,
+                supportsPR = false,
+                supportsIssue = false,
+                findMultiple = false,
+                envVars,
+              } = config;
+              const result = loadAgentOutput();
+              if (!result.success) {
+                return { success: false, reason: "Agent output not available" };
+              }
+              let items;
+              if (findMultiple) {
+                items = result.items.filter(item => item.type === itemType);
+                if (items.length === 0) {
+                  core.info(`No ${itemType} items found in agent output`);
+                  return { success: false, reason: `No ${itemType} items found` };
+                }
+                core.info(`Found ${items.length} ${itemType} item(s)`);
+              } else {
+                const item = result.items.find(item => item.type === itemType);
+                if (!item) {
+                  core.warning(`No ${itemType.replace(/_/g, "-")} item found in agent output`);
+                  return { success: false, reason: `No ${itemType} item found` };
+                }
+                items = [item];
+                const itemDetails = getItemDetails(item);
+                if (itemDetails) {
+                  core.info(`Found ${itemType.replace(/_/g, "-")} item with ${itemDetails}`);
+                }
+              }
+              if (process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true") {
+                await generateStagedPreview({
+                  title: stagedPreviewOptions.title,
+                  description: stagedPreviewOptions.description,
+                  items: items,
+                  renderItem: stagedPreviewOptions.renderItem,
+                });
+                return { success: false, reason: "Staged mode - preview generated" };
+              }
+              const safeOutputConfig = getSafeOutputConfig(configKey);
+              const allowedEnvValue = envVars.allowed ? process.env[envVars.allowed] : undefined;
+              const allowed = parseAllowedItems(allowedEnvValue) || safeOutputConfig.allowed;
+              if (allowed) {
+                core.info(`Allowed ${itemTypeName}s: ${JSON.stringify(allowed)}`);
+              } else {
+                core.info(`No ${itemTypeName} restrictions - any ${itemTypeName}s are allowed`);
+              }
+              const maxCountEnvValue = envVars.maxCount ? process.env[envVars.maxCount] : undefined;
+              const maxCountResult = validateMaxCount(maxCountEnvValue, safeOutputConfig.max);
+              if (!maxCountResult.valid) {
+                core.setFailed(maxCountResult.error);
+                return { success: false, reason: "Invalid max count configuration" };
+              }
+              const maxCount = maxCountResult.value;
+              core.info(`Max count: ${maxCount}`);
+              const target = envVars.target ? process.env[envVars.target] || "triggering" : "triggering";
+              core.info(`${displayName} target configuration: ${target}`);
+              if (findMultiple) {
+                return {
+                  success: true,
+                  items: items,
+                  config: {
+                    allowed,
+                    maxCount,
+                    target,
+                  },
+                };
+              }
+              const item = items[0];
+              const targetResult = resolveTarget({
+                targetConfig: target,
+                item: item,
+                context,
+                itemType: itemTypeName,
+                supportsPR: supportsPR || supportsIssue,
+              });
+              if (!targetResult.success) {
+                if (targetResult.shouldFail) {
+                  core.setFailed(targetResult.error);
+                } else {
+                  core.info(targetResult.error);
+                }
+                return { success: false, reason: targetResult.error };
+              }
+              return {
+                success: true,
+                item: item,
+                config: {
+                  allowed,
+                  maxCount,
+                  target,
+                },
+                targetResult: {
+                  number: targetResult.number,
+                  contextType: targetResult.contextType,
+                },
+              };
+            }
+            function getItemDetails(item) {
+              if (item.labels && Array.isArray(item.labels)) {
+                return `${item.labels.length} labels`;
+              }
+              if (item.reviewers && Array.isArray(item.reviewers)) {
+                return `${item.reviewers.length} reviewers`;
+              }
+              return null;
+            }
+            function sanitizeItems(items) {
+              return items
+                .filter(item => item != null && item !== false && item !== 0)
+                .map(item => String(item).trim())
+                .filter(item => item)
+                .filter((item, index, arr) => arr.indexOf(item) === index);
+            }
+            function filterByAllowed(items, allowed) {
+              if (!allowed || allowed.length === 0) {
+                return items;
+              }
+              return items.filter(item => allowed.includes(item));
+            }
+            function limitToMaxCount(items, maxCount) {
+              if (items.length > maxCount) {
+                core.info(`Too many items (${items.length}), limiting to ${maxCount}`);
+                return items.slice(0, maxCount);
+              }
+              return items;
+            }
+            function processItems(rawItems, allowed, maxCount) {
+              const filtered = filterByAllowed(rawItems, allowed);
+              const sanitized = sanitizeItems(filtered);
+              return limitToMaxCount(sanitized, maxCount);
+            }
+            async function main() {
+              const result = await processSafeOutput(
+                {
+                  itemType: "add_labels",
+                  configKey: "add_labels",
+                  displayName: "Labels",
+                  itemTypeName: "label addition",
+                  supportsPR: true,
+                  supportsIssue: true,
+                  envVars: {
+                    allowed: "GH_AW_LABELS_ALLOWED",
+                    maxCount: "GH_AW_LABELS_MAX_COUNT",
+                    target: "GH_AW_LABELS_TARGET",
+                  },
+                },
+                {
+                  title: "Add Labels",
+                  description: "The following labels would be added if staged mode was disabled:",
+                  renderItem: item => {
+                    let content = "";
+                    if (item.item_number) {
+                      content += `**Target Issue:** #${item.item_number}\n\n`;
+                    } else {
+                      content += `**Target:** Current issue/PR\n\n`;
+                    }
+                    if (item.labels && item.labels.length > 0) {
+                      content += `**Labels to add:** ${item.labels.join(", ")}\n\n`;
+                    }
+                    return content;
+                  },
+                }
+              );
+              if (!result.success) {
+                return;
+              }
+              const { item: labelsItem, config, targetResult } = result;
+              if (!config || !targetResult || targetResult.number === undefined) {
+                core.setFailed("Internal error: config, targetResult, or targetResult.number is undefined");
+                return;
+              }
+              const { allowed: allowedLabels, maxCount } = config;
+              const itemNumber = targetResult.number;
+              const { contextType } = targetResult;
+              const requestedLabels = labelsItem.labels || [];
+              core.info(`Requested labels: ${JSON.stringify(requestedLabels)}`);
+              const labelsResult = validateLabels(requestedLabels, allowedLabels, maxCount);
+              if (!labelsResult.valid) {
+                if (labelsResult.error && labelsResult.error.includes("No valid labels")) {
+                  core.info("No labels to add");
+                  core.setOutput("labels_added", "");
+                  await core.summary
+                    .addRaw(
+                      `
+            ## Label Addition
+            No labels were added (no valid labels found in agent output).
+            `
+                    )
+                    .write();
+                  return;
+                }
+                core.setFailed(labelsResult.error || "Invalid labels");
+                return;
+              }
+              const uniqueLabels = labelsResult.value || [];
+              if (uniqueLabels.length === 0) {
+                core.info("No labels to add");
+                core.setOutput("labels_added", "");
+                await core.summary
+                  .addRaw(
+                    `
+            ## Label Addition
+            No labels were added (no valid labels found in agent output).
+            `
+                  )
+                  .write();
+                return;
+              }
+              core.info(`Adding ${uniqueLabels.length} labels to ${contextType} #${itemNumber}: ${JSON.stringify(uniqueLabels)}`);
+              try {
+                await github.rest.issues.addLabels({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: itemNumber,
+                  labels: uniqueLabels,
+                });
+                core.info(`Successfully added ${uniqueLabels.length} labels to ${contextType} #${itemNumber}`);
+                core.setOutput("labels_added", uniqueLabels.join("\n"));
+                const labelsListMarkdown = uniqueLabels.map(label => `- \`${label}\``).join("\n");
+                await core.summary
+                  .addRaw(
+                    `
+            ## Label Addition
+            Successfully added ${uniqueLabels.length} label(s) to ${contextType} #${itemNumber}:
+            ${labelsListMarkdown}
+            `
+                  )
+                  .write();
+              } catch (error) {
+                const errorMessage = error instanceof Error ? error.message : String(error);
+                core.error(`Failed to add labels: ${errorMessage}`);
+                core.setFailed(`Failed to add labels: ${errorMessage}`);
+              }
+            }
+            await main();
+
   agent:
     needs: activation
     runs-on: ubuntu-latest
     permissions:
       contents: read
       issues: read
+      pull-requests: read
+    concurrency:
+      group: "gh-aw-copilot-${{ github.workflow }}"
     env:
       GH_AW_MCP_LOG_DIR: /tmp/gh-aw/mcp-logs/safeoutputs
       GH_AW_SAFE_OUTPUTS: /tmp/gh-aw/safeoutputs/outputs.jsonl
@@ -1119,12 +1960,12 @@ jobs:
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
           cat > /tmp/gh-aw/safeoutputs/config.json << 'EOF'
-          {"add_comment":{"max":30},"close_issue":{"max":30},"create_issue":{"max":1},"missing_tool":{"max":0},"noop":{"max":1}}
+          {"add_comment":{"max":1},"add_labels":{"max":3},"create_issue":{"max":1},"create_pull_request":{},"missing_tool":{"max":0},"noop":{"max":1}}
           EOF
           cat > /tmp/gh-aw/safeoutputs/tools.json << 'EOF'
           [
             {
-              "description": "Create a new GitHub issue for tracking bugs, feature requests, or tasks. Use this for actionable work items that need assignment, labeling, and status tracking. For reports, announcements, or status updates that don't require task tracking, use create_discussion instead. CONSTRAINTS: Maximum 1 issue(s) can be created. Labels [campaign-tracker] will be automatically added.",
+              "description": "Create a new GitHub issue for tracking bugs, feature requests, or tasks. Use this for actionable work items that need assignment, labeling, and status tracking. For reports, announcements, or status updates that don't require task tracking, use create_discussion instead. CONSTRAINTS: Maximum 1 issue(s) can be created. Labels [campaign-tracker incident] will be automatically added.",
               "inputSchema": {
                 "additionalProperties": false,
                 "properties": {
@@ -1164,31 +2005,7 @@ jobs:
               "name": "create_issue"
             },
             {
-              "description": "Close a GitHub issue with a closing comment. Use this when work is complete, the issue is no longer relevant, or it's a duplicate. The closing comment should explain the resolution or reason for closing. CONSTRAINTS: Maximum 30 issue(s) can be closed.",
-              "inputSchema": {
-                "additionalProperties": false,
-                "properties": {
-                  "body": {
-                    "description": "Closing comment explaining why the issue is being closed and summarizing any resolution, workaround, or conclusion.",
-                    "type": "string"
-                  },
-                  "issue_number": {
-                    "description": "Issue number to close. If omitted, closes the issue that triggered this workflow (requires an issue event trigger).",
-                    "type": [
-                      "number",
-                      "string"
-                    ]
-                  }
-                },
-                "required": [
-                  "body"
-                ],
-                "type": "object"
-              },
-              "name": "close_issue"
-            },
-            {
-              "description": "Add a comment to an existing GitHub issue, pull request, or discussion. Use this to provide feedback, answer questions, or add information to an existing conversation. For creating new items, use create_issue, create_discussion, or create_pull_request instead. CONSTRAINTS: Maximum 30 comment(s) can be added.",
+              "description": "Add a comment to an existing GitHub issue, pull request, or discussion. Use this to provide feedback, answer questions, or add information to an existing conversation. For creating new items, use create_issue, create_discussion, or create_pull_request instead. CONSTRAINTS: Maximum 1 comment(s) can be added.",
               "inputSchema": {
                 "additionalProperties": false,
                 "properties": {
@@ -1208,6 +2025,63 @@ jobs:
                 "type": "object"
               },
               "name": "add_comment"
+            },
+            {
+              "description": "Create a new GitHub pull request to propose code changes. Use this after making file edits to submit them for review and merging. The PR will be created from the current branch with your committed changes. For code review comments on an existing PR, use create_pull_request_review_comment instead. CONSTRAINTS: Maximum 1 pull request(s) can be created. Labels [campaign-fix incident] will be automatically added.",
+              "inputSchema": {
+                "additionalProperties": false,
+                "properties": {
+                  "body": {
+                    "description": "Detailed PR description in Markdown. Include what changes were made, why, testing notes, and any breaking changes. Do NOT repeat the title as a heading.",
+                    "type": "string"
+                  },
+                  "branch": {
+                    "description": "Source branch name containing the changes. If omitted, uses the current working branch.",
+                    "type": "string"
+                  },
+                  "labels": {
+                    "description": "Labels to categorize the PR (e.g., 'enhancement', 'bugfix'). Labels must exist in the repository.",
+                    "items": {
+                      "type": "string"
+                    },
+                    "type": "array"
+                  },
+                  "title": {
+                    "description": "Concise PR title describing the changes. Follow repository conventions (e.g., conventional commits). The title appears as the main heading.",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "title",
+                  "body"
+                ],
+                "type": "object"
+              },
+              "name": "create_pull_request"
+            },
+            {
+              "description": "Add labels to an existing GitHub issue or pull request for categorization and filtering. Labels must already exist in the repository. For creating new issues with labels, use create_issue with the labels property instead.",
+              "inputSchema": {
+                "additionalProperties": false,
+                "properties": {
+                  "item_number": {
+                    "description": "Issue or PR number to add labels to. If omitted, adds labels to the item that triggered this workflow.",
+                    "type": "number"
+                  },
+                  "labels": {
+                    "description": "Label names to add (e.g., ['bug', 'priority-high']). Labels must exist in the repository.",
+                    "items": {
+                      "type": "string"
+                    },
+                    "type": "array"
+                  }
+                },
+                "required": [
+                  "labels"
+                ],
+                "type": "object"
+              },
+              "name": "add_labels"
             },
             {
               "description": "Report that a tool or capability needed to complete the task is not available. Use this when you cannot accomplish what was requested because the required functionality is missing or access is restricted.",
@@ -1270,17 +2144,18 @@ jobs:
                 }
               }
             },
-            "close_issue": {
-              "defaultMax": 1,
+            "add_labels": {
+              "defaultMax": 5,
               "fields": {
-                "body": {
-                  "required": true,
-                  "type": "string",
-                  "sanitize": true,
-                  "maxLength": 65000
+                "item_number": {
+                  "issueOrPRNumber": true
                 },
-                "issue_number": {
-                  "optionalPositiveInteger": true
+                "labels": {
+                  "required": true,
+                  "type": "array",
+                  "itemType": "string",
+                  "itemSanitize": true,
+                  "itemMaxLength": 128
                 }
               }
             },
@@ -1308,6 +2183,35 @@ jobs:
                 },
                 "temporary_id": {
                   "type": "string"
+                },
+                "title": {
+                  "required": true,
+                  "type": "string",
+                  "sanitize": true,
+                  "maxLength": 128
+                }
+              }
+            },
+            "create_pull_request": {
+              "defaultMax": 1,
+              "fields": {
+                "body": {
+                  "required": true,
+                  "type": "string",
+                  "sanitize": true,
+                  "maxLength": 65000
+                },
+                "branch": {
+                  "required": true,
+                  "type": "string",
+                  "sanitize": true,
+                  "maxLength": 256
+                },
+                "labels": {
+                  "type": "array",
+                  "itemType": "string",
+                  "itemSanitize": true,
+                  "itemMaxLength": 128
                 },
                 "title": {
                   "required": true,
@@ -2714,7 +3618,7 @@ jobs:
                   "-e",
                   "GITHUB_READ_ONLY=1",
                   "-e",
-                  "GITHUB_TOOLSETS=repos,issues",
+                  "GITHUB_TOOLSETS=repos,issues,pull_requests,search",
                   "ghcr.io/github/github-mcp-server:v0.24.1"
                 ],
                 "tools": ["*"],
@@ -2765,7 +3669,7 @@ jobs:
               model: process.env.GH_AW_MODEL_AGENT_COPILOT || "",
               version: "",
               agent_version: "0.0.367",
-              workflow_name: "Example Campaign - Issue Cleanup",
+              workflow_name: "Campaign - Incident Response",
               experimental: false,
               supports_tools_allowlist: true,
               supports_http_transport: true,
@@ -2839,168 +3743,420 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
-          GH_AW_GITHUB_EVENT_INPUTS_MAX_ISSUES: ${{ github.event.inputs.max_issues }}
+          GH_AW_GITHUB_EVENT_INPUTS_AFFECTED_SERVICES: ${{ github.event.inputs.affected_services }}
+          GH_AW_GITHUB_EVENT_INPUTS_INCIDENT_DESCRIPTION: ${{ github.event.inputs.incident_description }}
+          GH_AW_GITHUB_EVENT_INPUTS_INCIDENT_SEVERITY: ${{ github.event.inputs.incident_severity }}
+          GH_AW_GITHUB_EVENT_INPUTS_STAKEHOLDER_ISSUE: ${{ github.event.inputs.stakeholder_issue }}
           GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
         run: |
           PROMPT_DIR="$(dirname "$GH_AW_PROMPT")"
           mkdir -p "$PROMPT_DIR"
           cat << 'PROMPT_EOF' > "$GH_AW_PROMPT"
-          # Issue Cleanup Campaign Example
+          # Campaign: Incident Response Coordination
           
-          This demonstrates the **campaign pattern**: using tracker-id + repo-memory + coordination for stateful initiatives.
+          **Purpose**: Coordinate cross-team incident response that GitHub Actions/basic workflows cannot handle.
           
-          **Campaign ID**: `issue-cleanup-__GH_AW_GITHUB_RUN_ID__`
+          **Campaign ID**: `incident-__GH_AW_GITHUB_RUN_ID__`
           
-          ## Campaign Pattern Steps
+          **Severity**: `__GH_AW_GITHUB_EVENT_INPUTS_INCIDENT_SEVERITY__`
           
-          ### 1. Store Baseline (repo-memory)
+          ## Why Campaigns Solve This (Not GitHub Actions)
           
-          Create file `memory/campaigns/issue-cleanup-__GH_AW_GITHUB_RUN_ID__/baseline.json`:
+          **Problem**: Production incident affecting multiple repos/teams requires:
+          - Central command & control
+          - Multi-team coordination
+          - Real-time status tracking
+          - Stakeholder communication every 30min
+          - SLA pressure (time-to-mitigation)
+          - Post-mortem with business context
+          - Approval gates for emergency fixes
+          
+          **GitHub Actions fails**: No cross-team coordination, no SLA tracking, no stakeholder communication pattern
+          
+          **Basic agentic workflow fails**: Single execution, no orchestration, no persistent command center
+          
+          **Campaign solves**: Human-AI collaboration + persistent memory + coordination + governance
+          
+          ## Incident Response Steps
+          
+          ### 1. Initialize Command Center (repo-memory)
+          
+          Create file `memory/campaigns/incident-__GH_AW_GITHUB_RUN_ID__/command-center.json`:
           ```json
           {
-            "campaign_id": "issue-cleanup-__GH_AW_GITHUB_RUN_ID__",
-            "started": "[current date]",
-            "stale_issues_found": [count],
-            "goal": "Close stale issues with no activity >6 months"
+            "campaign_id": "incident-__GH_AW_GITHUB_RUN_ID__",
+            "incident_id": "INC-__GH_AW_GITHUB_RUN_ID__",
+            "severity": "__GH_AW_GITHUB_EVENT_INPUTS_INCIDENT_SEVERITY__",
+            "description": "__GH_AW_GITHUB_EVENT_INPUTS_INCIDENT_DESCRIPTION__",
+            "started": "[timestamp]",
+            "affected_services": "__GH_AW_GITHUB_EVENT_INPUTS_AFFECTED_SERVICES__".split(","),
+            "sla_target_minutes": {
+              "critical": 30,
+              "high": 120,
+              "medium": 480
+            }["__GH_AW_GITHUB_EVENT_INPUTS_INCIDENT_SEVERITY__"],
+            "status": "investigating",
+            "teams_involved": [],
+            "timeline": []
           }
           ```
           
-          ### 2. Create Tracking Issue
+          ### 2. Create Command Center Issue
           
-          Use `create-issue` to create ONE epic issue with **tracker-id label**:
+          Use `create-issue`:
           
-          **Title**: "Campaign: Issue Cleanup - __GH_AW_GITHUB_RUN_ID__"
+          **Title**: `🚨 INCIDENT [__GH_AW_GITHUB_EVENT_INPUTS_INCIDENT_SEVERITY__]: __GH_AW_GITHUB_EVENT_INPUTS_INCIDENT_DESCRIPTION__`
           
-          **Labels**: `campaign-tracker`, `tracker:issue-cleanup-__GH_AW_GITHUB_RUN_ID__`
+          **Labels**: `campaign-tracker`, `tracker:incident-__GH_AW_GITHUB_RUN_ID__`, `incident`, `severity:__GH_AW_GITHUB_EVENT_INPUTS_INCIDENT_SEVERITY__`
           
           **Body**:
           ```markdown
-          # Issue Cleanup Campaign
+          # Incident Response: INC-__GH_AW_GITHUB_RUN_ID__
           
-          **Campaign ID**: `issue-cleanup-__GH_AW_GITHUB_RUN_ID__`
-          **Tracker ID**: `issue-cleanup-__GH_AW_GITHUB_RUN_ID__`
-          **Started**: [current date]
+          **Campaign ID**: `incident-__GH_AW_GITHUB_RUN_ID__`
+          **Severity**: __GH_AW_GITHUB_EVENT_INPUTS_INCIDENT_SEVERITY__
+          **Started**: [timestamp]
+          **SLA Target**: [minutes based on severity]
           
-          ## Goal
-          Close up to __GH_AW_GITHUB_EVENT_INPUTS_MAX_ISSUES__ stale issues (>6 months inactive)
+          ## Incident Details
           
-          ## Baseline
-          - Stale issues found: [count]
-          - Target to close: __GH_AW_GITHUB_EVENT_INPUTS_MAX_ISSUES__
+          **Description**: __GH_AW_GITHUB_EVENT_INPUTS_INCIDENT_DESCRIPTION__
           
-          ## Success Criteria
-          - Issues closed with clear explanation
-          - No false positives (keep-open labeled issues preserved)
+          **Affected Services**: __GH_AW_GITHUB_EVENT_INPUTS_AFFECTED_SERVICES__
           
-          ## Progress
-          This issue will be updated as work completes.
+          ## Response Status
           
-          **Query campaign work**:
+          **Current Status**: 🔍 Investigating
+          
+          **Teams Involved**: [AI to identify from affected services]
+          
+          **Timeline**:
+          - [timestamp] - Incident detected and campaign initiated
+          
+          ## Coordination
+          
+          **Query all incident work**:
           ```bash
-          gh issue list --search "tracker:issue-cleanup-__GH_AW_GITHUB_RUN_ID__"
+          gh issue list --search "tracker:incident-__GH_AW_GITHUB_RUN_ID__"
+          gh pr list --search "tracker:incident-__GH_AW_GITHUB_RUN_ID__"
           ```
           
-          **View campaign data**:
-          ```bash
-          gh repo view --json defaultBranchRef \
-            --jq '.defaultBranchRef.target.tree.entries[] | 
-            select(.name=="memory") | .oid' | \
-            xargs -I {} gh api repos/{owner}/{repo}/git/trees/{} --jq '.tree'
+          **Command Center Data**: `memory/campaigns/incident-__GH_AW_GITHUB_RUN_ID__/`
+          
+          ## SLA Tracking
+          
+          **Target Resolution**: [SLA minutes] minutes from start
+          **Time Remaining**: [calculated]
+          
+          ---
+          
+          **Updates will be posted here every 30 minutes or on status changes**
           ```
+          
+          ### 3. AI Analysis Phase
+          
+          **For each affected service/repo**:
+          
+          1. **Search for related issues/PRs** (recent errors, deployment failures)
+          2. **Identify recent changes** (PRs merged in last 48h)
+          3. **Check dependencies** (related services that might be impacted)
+          4. **Analyze error patterns** (common failure modes)
+          
+          **Generate hypothesis**:
+          - Likely root causes (ranked by probability)
+          - Affected blast radius (repos, users, services)
+          - Recommended immediate actions
+          - Teams that need to be involved
+          
+          ### 4. Human Decision Checkpoint
+          
+          **AI presents findings to command center issue**:
+          
+          ```markdown
+          ## 🤖 AI Analysis Complete
+          
+          ### Likely Root Causes (by probability)
+          1. [Cause A] - 60% confidence
+             - Evidence: [specific findings]
+             - Impact: [scope]
+             - Recommended action: [specific fix]
+             - Risk: [rollback complexity]
+             
+          2. [Cause B] - 25% confidence
+             - Evidence: [specific findings]
+             - Recommended action: [specific fix]
+          
+          ### Blast Radius
+          - Affected repos: [list]
+          - Affected users: [estimate]
+          - Downstream dependencies: [list]
+          
+          ### Recommended Actions (Risk-Tiered)
+          
+          **IMMEDIATE (Low Risk - AI can execute)**:
+          - [ ] Rollback deployment in repo X
+          - [ ] Increase timeout in service Y
+          - [ ] Scale up instances in service Z
+          
+          **REQUIRES APPROVAL (Medium Risk - needs team lead)**:
+          - [ ] Apply hotfix PR #123
+          - [ ] Disable feature flag "new-api"
+          
+          **REQUIRES EXECUTIVE APPROVAL (High Risk - data/security impact)**:
+          - [ ] Database migration rollback
+          - [ ] Traffic failover to backup region
+          
+          ### Teams to Involve
+          - @team-api - [reason]
+          - @team-database - [reason]
+          - @team-frontend - [reason]
+          
+          ---
+          
+          **🚦 Awaiting incident commander decision on recommended actions**
+          
+          Reply with:
+          - "execute-immediate" - Run all low-risk actions
+          - "approve-medium [action numbers]" - Approve specific medium-risk actions
+          - "escalate-high" - Escalate high-risk actions to executive
+          - "investigate-more [cause]" - Deep dive into specific cause
           ```
           
-          ### 3. Execute Work
+          ### 5. Execute Approved Actions
           
-          Find and close stale issues:
+          **Based on human decisions**:
           
-          **For each stale issue** (no activity >6 months, not labeled "keep-open"):
-          1. Add comment explaining closure:
-             ```
-             This issue is being closed as part of cleanup campaign [issue-cleanup-__GH_AW_GITHUB_RUN_ID__].
-             
-             Reason: No activity in >6 months
-             
-             If this should remain open, please reopen and add the "keep-open" label.
-             
-             Campaign tracker: #[epic-issue-number]
-             ```
+          **If "execute-immediate"**:
+          - Create PRs for rollbacks/hotfixes
+          - Apply labels: `incident-fix`, `tracker:incident-__GH_AW_GITHUB_RUN_ID__`
+          - Add comments linking back to command center
+          - Update command center with execution status
           
-          2. Apply label: `closed-by-campaign`
-          3. Close issue with reason: "not_planned"
+          **If "approve-medium [actions]"**:
+          - Create issues for each approved action
+          - Assign to relevant teams
+          - Track progress in command center
+          - Update SLA countdown
           
-          **Max __GH_AW_GITHUB_EVENT_INPUTS_MAX_ISSUES__ issues processed**
+          **If "escalate-high"**:
+          - Create executive escalation issue
+          - Tag VP/CTO for approval
+          - Document business impact
+          - Pause until approval received
           
-          ### 4. Store Results (repo-memory)
+          ### 6. Status Updates (Every 30min)
           
-          Create file `memory/campaigns/issue-cleanup-__GH_AW_GITHUB_RUN_ID__/results.json`:
+          Add comment to command center issue:
+          
+          ```markdown
+          ## 🕐 Status Update: [HH:MM] ([X] minutes since start)
+          
+          **SLA Status**: ⏰ [minutes remaining] / [target minutes]
+          
+          **Current Status**: [investigating/mitigating/resolved]
+          
+          **Actions Completed** (last 30min):
+          - ✅ [Action A] - [outcome]
+          - ✅ [Action B] - [outcome]
+          
+          **Actions In Progress**:
+          - 🔄 [Action C] - [team] - ETA [time]
+          - 🔄 [Action D] - [team] - ETA [time]
+          
+          **Blockers**:
+          - 🚫 [Blocker A] - [reason] - [action needed]
+          
+          **Next Steps**:
+          - [Next action 1]
+          - [Next action 2]
+          
+          **Metrics**:
+          - Error rate: [current vs baseline]
+          - User impact: [affected users]
+          - Service health: [status]
+          ```
+          
+          {% if github.event.inputs.stakeholder_issue %}
+          Also post sanitized update to stakeholder issue #__GH_AW_GITHUB_EVENT_INPUTS_STAKEHOLDER_ISSUE__.
+          {% endif %}
+          
+          ### 7. Store Timeline Events (repo-memory)
+          
+          Update `memory/campaigns/incident-__GH_AW_GITHUB_RUN_ID__/timeline.json` continuously:
           ```json
           {
-            "campaign_id": "issue-cleanup-__GH_AW_GITHUB_RUN_ID__",
-            "completed": "[current date]",
-            "baseline_count": [count],
-            "closed_count": [actual count],
-            "duration_minutes": [time taken],
-            "issues_closed": [list of issue numbers]
+            "incident_id": "INC-__GH_AW_GITHUB_RUN_ID__",
+            "timeline": [
+              {
+                "timestamp": "[time]",
+                "event": "incident_detected",
+                "details": "Description",
+                "actor": "system"
+              },
+              {
+                "timestamp": "[time]",
+                "event": "ai_analysis_complete",
+                "hypotheses": ["cause A", "cause B"],
+                "confidence": {"cause A": 0.6, "cause B": 0.25},
+                "actor": "ai"
+              },
+              {
+                "timestamp": "[time]",
+                "event": "human_decision",
+                "decision": "execute-immediate",
+                "actions_approved": ["rollback X", "scale Y"],
+                "actor": "@incident-commander"
+              },
+              {
+                "timestamp": "[time]",
+                "event": "action_executed",
+                "action": "rollback X",
+                "outcome": "success",
+                "actor": "ai"
+              },
+              {
+                "timestamp": "[time]",
+                "event": "incident_resolved",
+                "resolution": "Rollback deployed, error rate back to baseline",
+                "duration_minutes": 45,
+                "actor": "@incident-commander"
+              }
+            ]
           }
           ```
           
-          ### 5. Update Tracking Issue
+          ### 8. Incident Resolution
           
-          Add final comment to epic issue:
+          When resolved, create final summary in command center:
           
           ```markdown
-          ## Campaign Complete ✅
+          ## ✅ Incident Resolved
           
           **Duration**: [X] minutes
-          **Results**:
-          - Stale issues found: [count]
-          - Issues closed: [count]
-          - Remaining stale: [count]
+          **SLA Status**: ✅ Within SLA / ⚠️ Exceeded by [X] minutes
           
-          **Data stored**: `memory/campaigns/issue-cleanup-__GH_AW_GITHUB_RUN_ID__/`
+          **Root Cause**: [confirmed cause]
           
-          This campaign demonstrates the pattern:
-          1. ✅ tracker-id links all work
-          2. ✅ repo-memory stores baseline + results
-          3. ✅ Epic issue provides visibility
-          4. ✅ Safe-outputs coordinate actions
+          **Resolution**: [what fixed it]
+          
+          **Impact**:
+          - Affected users: [count]
+          - Services impacted: [list]
+          - Duration: [minutes]
+          - Data loss: Yes/No
+          
+          **Teams Involved**:
+          - [Team A] - [contribution]
+          - [Team B] - [contribution]
+          
+          **PRs/Fixes Applied**:
+          - #123 - [description]
+          - #124 - [description]
+          
+          **Post-Mortem Required**: Yes
+          
+          See full timeline and analysis: `memory/campaigns/incident-__GH_AW_GITHUB_RUN_ID__/`
+          
+          ---
           
           Campaign closed.
           ```
           
-          Close the epic issue.
+          ### 9. Generate Post-Mortem Template
           
-          ## Campaign Pattern Explained
+          Create `memory/campaigns/incident-__GH_AW_GITHUB_RUN_ID__/post-mortem-template.md`:
           
-          **This example shows how campaigns work without special infrastructure:**
+          ```markdown
+          # Post-Mortem: INC-__GH_AW_GITHUB_RUN_ID__
           
-          - **tracker-id**: `issue-cleanup-__GH_AW_GITHUB_RUN_ID__` links everything
-          - **repo-memory**: Stores baseline.json + results.json for history
-          - **Epic issue**: Human-visible tracking and reporting
-          - **Safe-outputs**: Coordinates issue creation, comments, closures
+          **Date**: [date]
+          **Severity**: __GH_AW_GITHUB_EVENT_INPUTS_INCIDENT_SEVERITY__
+          **Duration**: [minutes]
+          **Impact**: [user impact summary]
           
-          **For longer campaigns**, add:
-          - Separate worker workflows (trigger on labels)
-          - Scheduled monitor workflow (daily progress reports)
-          - Learnings file in repo-memory (what worked/didn't)
+          ## Timeline
           
-          See [Campaign Guide](/gh-aw/guides/campaigns/) for multi-workflow patterns.
+          [AI-generated timeline from timeline.json with human-readable descriptions]
+          
+          ## Root Cause
+          
+          [Confirmed root cause with technical details]
+          
+          ## What Went Well
+          
+          - [AI-assisted analysis provided accurate hypothesis in X minutes]
+          - [Team Y responded quickly with fix]
+          - [Rollback procedure worked as designed]
+          
+          ## What Went Wrong
+          
+          - [Detection delay - [X] minutes before incident noticed]
+          - [Communication gap between teams]
+          - [Missing monitoring for [specific metric]]
+          
+          ## Action Items
+          
+          **Prevent Recurrence**:
+          - [ ] [Action 1] - Owner: [team] - Due: [date]
+          - [ ] [Action 2] - Owner: [team] - Due: [date]
+          
+          **Improve Response**:
+          - [ ] [Action 3] - Owner: [team] - Due: [date]
+          - [ ] [Action 4] - Owner: [team] - Due: [date]
+          
+          **Improve Detection**:
+          - [ ] [Action 5] - Owner: [team] - Due: [date]
+          
+          ## Lessons Learned
+          
+          [AI-generated insights from timeline analysis]
+          
+          ## Campaign Metrics
+          
+          - Time to detection: [minutes]
+          - Time to AI analysis: [minutes]
+          - Time to human decision: [minutes]
+          - Time to resolution: [minutes]
+          - Actions taken: [count]
+          - Teams coordinated: [count]
+          ```
+          
+          ## Why This Campaign Cannot Be Done Without Campaigns
+          
+          **Cross-team coordination**: Command center orchestrates multiple teams across repos
+          **SLA tracking**: Time pressure and deadline monitoring
+          **Human-in-loop**: AI analyzes, humans decide on risk-tiered actions
+          **Stakeholder communication**: Regular status updates with business context
+          **Audit trail**: Complete timeline with business justification for every decision
+          **Post-mortem**: Learning capture with action items and ownership
+          **Governance**: Approval gates for high-risk emergency actions
+          
+          **GitHub Actions**: Can't coordinate across teams, no SLA concept, no stakeholder communication
+          **Basic workflows**: Single execution, no orchestration, no persistent command center
           
           ## Output
           
           Provide summary:
-          - Campaign ID: `issue-cleanup-__GH_AW_GITHUB_RUN_ID__`
-          - Epic issue: #[number]
-          - Issues closed: [count]
-          - Memory location: `memory/campaigns/issue-cleanup-__GH_AW_GITHUB_RUN_ID__/`
-          - Query: `gh issue list --search "tracker:issue-cleanup-__GH_AW_GITHUB_RUN_ID__"`
+          - Campaign ID: `incident-__GH_AW_GITHUB_RUN_ID__`
+          - Incident ID: `INC-__GH_AW_GITHUB_RUN_ID__`
+          - Command center issue: #[number]
+          - Severity: __GH_AW_GITHUB_EVENT_INPUTS_INCIDENT_SEVERITY__
+          - Status: [investigating/mitigating/resolved]
+          - Duration: [minutes] / SLA: [target minutes]
+          - Teams involved: [count]
+          - Actions taken: [count]
+          - Memory location: `memory/campaigns/incident-__GH_AW_GITHUB_RUN_ID__/`
+          - Post-mortem template: Ready for human review
           
           PROMPT_EOF
       - name: Substitute placeholders
         uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-          GH_AW_GITHUB_EVENT_INPUTS_MAX_ISSUES: ${{ github.event.inputs.max_issues }}
+          GH_AW_GITHUB_EVENT_INPUTS_AFFECTED_SERVICES: ${{ github.event.inputs.affected_services }}
+          GH_AW_GITHUB_EVENT_INPUTS_INCIDENT_DESCRIPTION: ${{ github.event.inputs.incident_description }}
+          GH_AW_GITHUB_EVENT_INPUTS_INCIDENT_SEVERITY: ${{ github.event.inputs.incident_severity }}
+          GH_AW_GITHUB_EVENT_INPUTS_STAKEHOLDER_ISSUE: ${{ github.event.inputs.stakeholder_issue }}
           GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
         with:
           script: |
@@ -3059,7 +4215,10 @@ jobs:
             return await substitutePlaceholders({
               file: process.env.GH_AW_PROMPT,
               substitutions: {
-                GH_AW_GITHUB_EVENT_INPUTS_MAX_ISSUES: process.env.GH_AW_GITHUB_EVENT_INPUTS_MAX_ISSUES,
+                GH_AW_GITHUB_EVENT_INPUTS_AFFECTED_SERVICES: process.env.GH_AW_GITHUB_EVENT_INPUTS_AFFECTED_SERVICES,
+                GH_AW_GITHUB_EVENT_INPUTS_INCIDENT_DESCRIPTION: process.env.GH_AW_GITHUB_EVENT_INPUTS_INCIDENT_DESCRIPTION,
+                GH_AW_GITHUB_EVENT_INPUTS_INCIDENT_SEVERITY: process.env.GH_AW_GITHUB_EVENT_INPUTS_INCIDENT_SEVERITY,
+                GH_AW_GITHUB_EVENT_INPUTS_STAKEHOLDER_ISSUE: process.env.GH_AW_GITHUB_EVENT_INPUTS_STAKEHOLDER_ISSUE,
                 GH_AW_GITHUB_RUN_ID: process.env.GH_AW_GITHUB_RUN_ID
               }
             });
@@ -3096,6 +4255,21 @@ jobs:
           </temporary-files>
           
           PROMPT_EOF
+      - name: Append edit tool accessibility instructions to prompt
+        env:
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+        run: |
+          cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
+          <file-editing>
+          <description>File Editing Access Permissions</description>
+          <allowed-paths>
+            <path name="workspace">$GITHUB_WORKSPACE</path>
+            <path name="temporary">/tmp/gh-aw/</path>
+          </allowed-paths>
+          <restriction>Do NOT attempt to edit files outside these directories as you do not have the necessary permissions.</restriction>
+          </file-editing>
+          
+          PROMPT_EOF
       - name: Append repo memory instructions to prompt
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
@@ -3115,7 +4289,7 @@ jobs:
           - **Persistence**: Files persist across workflow runs via git branch storage
           
           **Constraints:**
-          - **Allowed Files**: Only files matching patterns: issue-cleanup-*/**
+          - **Allowed Files**: Only files matching patterns: incident-*/**
           - **Max File Size**: 10240 bytes (0.01 MB) per file
           - **Max File Count**: 100 files per commit
           
@@ -3139,7 +4313,7 @@ jobs:
           <instructions>
           To create or modify GitHub resources (issues, discussions, pull requests, etc.), you MUST call the appropriate safe output tool. Simply writing content will NOT work - the workflow requires actual tool calls.
           
-          **Available tools**: add_comment, close_issue, create_issue, missing_tool, noop
+          **Available tools**: add_comment, add_labels, create_issue, create_pull_request, missing_tool, noop
           
           **Critical**: Tool calls write structured data that downstream jobs process. Without tool calls, follow-up actions will be skipped.
           </instructions>
@@ -3270,7 +4444,10 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-          GH_AW_GITHUB_EVENT_INPUTS_MAX_ISSUES: ${{ github.event.inputs.max_issues }}
+          GH_AW_GITHUB_EVENT_INPUTS_AFFECTED_SERVICES: ${{ github.event.inputs.affected_services }}
+          GH_AW_GITHUB_EVENT_INPUTS_INCIDENT_DESCRIPTION: ${{ github.event.inputs.incident_description }}
+          GH_AW_GITHUB_EVENT_INPUTS_INCIDENT_SEVERITY: ${{ github.event.inputs.incident_severity }}
+          GH_AW_GITHUB_EVENT_INPUTS_STAKEHOLDER_ISSUE: ${{ github.event.inputs.stakeholder_issue }}
           GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
         with:
           script: |
@@ -3375,11 +4552,32 @@ jobs:
         # Copilot CLI tool arguments (sorted):
         # --allow-tool github
         # --allow-tool safeoutputs
-        timeout-minutes: 15
+        # --allow-tool shell(cat)
+        # --allow-tool shell(date)
+        # --allow-tool shell(echo)
+        # --allow-tool shell(git add:*)
+        # --allow-tool shell(git branch:*)
+        # --allow-tool shell(git checkout:*)
+        # --allow-tool shell(git commit:*)
+        # --allow-tool shell(git merge:*)
+        # --allow-tool shell(git rm:*)
+        # --allow-tool shell(git status)
+        # --allow-tool shell(git switch:*)
+        # --allow-tool shell(grep)
+        # --allow-tool shell(head)
+        # --allow-tool shell(ls)
+        # --allow-tool shell(pwd)
+        # --allow-tool shell(sort)
+        # --allow-tool shell(tail)
+        # --allow-tool shell(uniq)
+        # --allow-tool shell(wc)
+        # --allow-tool shell(yq)
+        # --allow-tool write
+        timeout-minutes: 60
         run: |
           set -o pipefail
           sudo -E awf --env-all --container-workdir "${GITHUB_WORKSPACE}" --mount /tmp:/tmp:rw --mount "${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:rw" --mount /usr/bin/date:/usr/bin/date:ro --mount /usr/bin/gh:/usr/bin/gh:ro --mount /usr/bin/yq:/usr/bin/yq:ro --allow-domains api.business.githubcopilot.com,api.enterprise.githubcopilot.com,api.github.com,api.individual.githubcopilot.com,github.com,host.docker.internal,raw.githubusercontent.com,registry.npmjs.org --log-level info --proxy-logs-dir /tmp/gh-aw/sandbox/firewall/logs \
-            -- npx -y @github/copilot@0.0.367 --add-dir /tmp/gh-aw/ --log-level all --log-dir /tmp/gh-aw/sandbox/agent/logs/ --add-dir "${GITHUB_WORKSPACE}" --disable-builtin-mcps --allow-tool github --allow-tool safeoutputs --prompt "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"${GH_AW_MODEL_AGENT_COPILOT:+ --model "$GH_AW_MODEL_AGENT_COPILOT"} \
+            -- npx -y @github/copilot@0.0.367 --add-dir /tmp/gh-aw/ --log-level all --log-dir /tmp/gh-aw/sandbox/agent/logs/ --add-dir "${GITHUB_WORKSPACE}" --disable-builtin-mcps --allow-tool github --allow-tool safeoutputs --allow-tool 'shell(cat)' --allow-tool 'shell(date)' --allow-tool 'shell(echo)' --allow-tool 'shell(git add:*)' --allow-tool 'shell(git branch:*)' --allow-tool 'shell(git checkout:*)' --allow-tool 'shell(git commit:*)' --allow-tool 'shell(git merge:*)' --allow-tool 'shell(git rm:*)' --allow-tool 'shell(git status)' --allow-tool 'shell(git switch:*)' --allow-tool 'shell(grep)' --allow-tool 'shell(head)' --allow-tool 'shell(ls)' --allow-tool 'shell(pwd)' --allow-tool 'shell(sort)' --allow-tool 'shell(tail)' --allow-tool 'shell(uniq)' --allow-tool 'shell(wc)' --allow-tool 'shell(yq)' --allow-tool write --allow-all-paths --prompt "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"${GH_AW_MODEL_AGENT_COPILOT:+ --model "$GH_AW_MODEL_AGENT_COPILOT"} \
             2>&1 | tee /tmp/gh-aw/agent-stdio.log
         env:
           COPILOT_AGENT_RUNNER_TYPE: STANDALONE
@@ -5800,7 +6998,7 @@ jobs:
         continue-on-error: true
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
         with:
-          name: firewall-logs-example-campaign-issue-cleanup
+          name: firewall-logs-campaign-incident-response
           path: /tmp/gh-aw/sandbox/firewall/logs/
           if-no-files-found: ignore
       - name: Parse firewall logs for step summary
@@ -6347,91 +7545,22 @@ jobs:
             if (typeof module === "undefined" || require.main === module) {
               main();
             }
-
-  close_issue:
-    needs:
-      - agent
-      - detection
-    if: >
-      ((((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'close_issue'))) &&
-      ((github.event.issue.number) || (github.event.comment.issue.number))) && (needs.detection.outputs.success == 'true')
-    runs-on: ubuntu-slim
-    permissions:
-      contents: read
-      issues: write
-    timeout-minutes: 10
-    outputs:
-      comment_url: ${{ steps.close_issue.outputs.comment_url }}
-      issue_number: ${{ steps.close_issue.outputs.issue_number }}
-      issue_url: ${{ steps.close_issue.outputs.issue_url }}
-    steps:
-      - name: Download agent output artifact
-        continue-on-error: true
-        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
+      - name: Upload git patch
+        if: always()
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
         with:
-          name: agent_output.json
-          path: /tmp/gh-aw/safeoutputs/
-      - name: Setup agent output environment variable
-        run: |
-          mkdir -p /tmp/gh-aw/safeoutputs/
-          find "/tmp/gh-aw/safeoutputs/" -type f -print
-          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> "$GITHUB_ENV"
-      - name: Close Issue
-        id: close_issue
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
-        env:
-          GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_WORKFLOW_NAME: "Example Campaign - Issue Cleanup"
-          GH_AW_ENGINE_ID: "copilot"
-        with:
-          github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
-          script: |
-            const { processCloseEntityItems, ISSUE_CONFIG } = require("./close_entity_helpers.cjs");
-            async function getIssueDetails(github, owner, repo, issueNumber) {
-              const { data: issue } = await github.rest.issues.get({
-                owner,
-                repo,
-                issue_number: issueNumber,
-              });
-              if (!issue) {
-                throw new Error(`Issue #${issueNumber} not found in ${owner}/${repo}`);
-              }
-              return issue;
-            }
-            async function addIssueComment(github, owner, repo, issueNumber, message) {
-              const { data: comment } = await github.rest.issues.createComment({
-                owner,
-                repo,
-                issue_number: issueNumber,
-                body: message,
-              });
-              return comment;
-            }
-            async function closeIssue(github, owner, repo, issueNumber) {
-              const { data: issue } = await github.rest.issues.update({
-                owner,
-                repo,
-                issue_number: issueNumber,
-                state: "closed",
-              });
-              return issue;
-            }
-            async function main() {
-              return processCloseEntityItems(ISSUE_CONFIG, {
-                getDetails: getIssueDetails,
-                addComment: addIssueComment,
-                closeEntity: closeIssue,
-              });
-            }
-            await main();
+          name: aw.patch
+          path: /tmp/gh-aw/aw.patch
+          if-no-files-found: ignore
 
   conclusion:
     needs:
       - activation
       - add_comment
+      - add_labels
       - agent
-      - close_issue
       - create_issue
+      - create_pull_request
       - detection
       - push_repo_memory
     if: ((always()) && (needs.agent.result != 'skipped')) && (!(needs.add_comment.outputs.comment_id))
@@ -6474,7 +7603,7 @@ jobs:
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_NOOP_MAX: 1
-          GH_AW_WORKFLOW_NAME: "Example Campaign - Issue Cleanup"
+          GH_AW_WORKFLOW_NAME: "Campaign - Incident Response"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -6566,7 +7695,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_WORKFLOW_NAME: "Example Campaign - Issue Cleanup"
+          GH_AW_WORKFLOW_NAME: "Campaign - Incident Response"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -6679,12 +7808,12 @@ jobs:
           GH_AW_COMMENT_ID: ${{ needs.activation.outputs.comment_id }}
           GH_AW_COMMENT_REPO: ${{ needs.activation.outputs.comment_repo }}
           GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          GH_AW_WORKFLOW_NAME: "Example Campaign - Issue Cleanup"
+          GH_AW_WORKFLOW_NAME: "Campaign - Incident Response"
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
           GH_AW_DETECTION_CONCLUSION: ${{ needs.detection.result }}
-          GH_AW_SAFE_OUTPUT_JOBS: "{\"add_comment\":\"comment_url\",\"close_issue\":\"issue_url\",\"create_issue\":\"issue_url\"}"
+          GH_AW_SAFE_OUTPUT_JOBS: "{\"add_comment\":\"comment_url\",\"create_issue\":\"issue_url\",\"create_pull_request\":\"pull_request_url\"}"
           GH_AW_OUTPUT_CREATE_ISSUE_ISSUE_URL: ${{ needs.create_issue.outputs.issue_url }}
-          GH_AW_OUTPUT_CLOSE_ISSUE_ISSUE_URL: ${{ needs.close_issue.outputs.issue_url }}
+          GH_AW_OUTPUT_CREATE_PULL_REQUEST_PULL_REQUEST_URL: ${{ needs.create_pull_request.outputs.pull_request_url }}
           GH_AW_OUTPUT_ADD_COMMENT_COMMENT_URL: ${{ needs.add_comment.outputs.comment_url }}
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
@@ -6973,8 +8102,8 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_ISSUE_LABELS: "campaign-tracker"
-          GH_AW_WORKFLOW_NAME: "Example Campaign - Issue Cleanup"
+          GH_AW_ISSUE_LABELS: "campaign-tracker,incident"
+          GH_AW_WORKFLOW_NAME: "Campaign - Incident Response"
           GH_AW_ENGINE_ID: "copilot"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
@@ -7545,11 +8674,650 @@ jobs:
               await main();
             })();
 
+  create_pull_request:
+    needs:
+      - activation
+      - agent
+      - detection
+    if: >
+      (((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'create_pull_request'))) &&
+      (needs.detection.outputs.success == 'true')
+    runs-on: ubuntu-slim
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+    timeout-minutes: 10
+    outputs:
+      branch_name: ${{ steps.create_pull_request.outputs.branch_name }}
+      fallback_used: ${{ steps.create_pull_request.outputs.fallback_used }}
+      issue_number: ${{ steps.create_pull_request.outputs.issue_number }}
+      issue_url: ${{ steps.create_pull_request.outputs.issue_url }}
+      pull_request_number: ${{ steps.create_pull_request.outputs.pull_request_number }}
+      pull_request_url: ${{ steps.create_pull_request.outputs.pull_request_url }}
+    steps:
+      - name: Download patch artifact
+        continue-on-error: true
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
+        with:
+          name: aw.patch
+          path: /tmp/gh-aw/
+      - name: Checkout repository
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Configure Git credentials
+        env:
+          REPO_NAME: ${{ github.repository }}
+          SERVER_URL: ${{ github.server_url }}
+        run: |
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "github-actions[bot]"
+          # Re-authenticate git with GitHub token
+          SERVER_URL_STRIPPED="${SERVER_URL#https://}"
+          git remote set-url origin "https://x-access-token:${{ github.token }}@${SERVER_URL_STRIPPED}/${REPO_NAME}.git"
+          echo "Git configured with standard GitHub Actions identity"
+      - name: Download agent output artifact
+        continue-on-error: true
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
+        with:
+          name: agent_output.json
+          path: /tmp/gh-aw/safeoutputs/
+      - name: Setup agent output environment variable
+        run: |
+          mkdir -p /tmp/gh-aw/safeoutputs/
+          find "/tmp/gh-aw/safeoutputs/" -type f -print
+          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> "$GITHUB_ENV"
+      - name: Create Pull Request
+        id: create_pull_request
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        env:
+          GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
+          GH_AW_WORKFLOW_ID: "agent"
+          GH_AW_BASE_BRANCH: ${{ github.ref_name }}
+          GH_AW_PR_LABELS: "campaign-fix,incident"
+          GH_AW_PR_DRAFT: "true"
+          GH_AW_PR_IF_NO_CHANGES: "warn"
+          GH_AW_MAX_PATCH_SIZE: 1024
+          GH_AW_WORKFLOW_NAME: "Campaign - Incident Response"
+          GH_AW_ENGINE_ID: "copilot"
+        with:
+          github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require("fs");
+            const crypto = require("crypto");
+            async function updateActivationComment(github, context, core, itemUrl, itemNumber, itemType = "pull_request") {
+              const itemLabel = itemType === "issue" ? "issue" : "pull request";
+              const linkMessage =
+                itemType === "issue"
+                  ? `\n\n✅ Issue created: [#${itemNumber}](${itemUrl})`
+                  : `\n\n✅ Pull request created: [#${itemNumber}](${itemUrl})`;
+              await updateActivationCommentWithMessage(github, context, core, linkMessage, itemLabel);
+            }
+            async function updateActivationCommentWithCommit(github, context, core, commitSha, commitUrl) {
+              const shortSha = commitSha.substring(0, 7);
+              const message = `\n\n✅ Commit pushed: [\`${shortSha}\`](${commitUrl})`;
+              await updateActivationCommentWithMessage(github, context, core, message, "commit");
+            }
+            async function updateActivationCommentWithMessage(github, context, core, message, label = "") {
+              const commentId = process.env.GH_AW_COMMENT_ID;
+              const commentRepo = process.env.GH_AW_COMMENT_REPO;
+              if (!commentId) {
+                core.info("No activation comment to update (GH_AW_COMMENT_ID not set)");
+                return;
+              }
+              core.info(`Updating activation comment ${commentId}`);
+              let repoOwner = context.repo.owner;
+              let repoName = context.repo.repo;
+              if (commentRepo) {
+                const parts = commentRepo.split("/");
+                if (parts.length === 2) {
+                  repoOwner = parts[0];
+                  repoName = parts[1];
+                } else {
+                  core.warning(`Invalid comment repo format: ${commentRepo}, expected "owner/repo". Falling back to context.repo.`);
+                }
+              }
+              core.info(`Updating comment in ${repoOwner}/${repoName}`);
+              const isDiscussionComment = commentId.startsWith("DC_");
+              try {
+                if (isDiscussionComment) {
+                  const currentComment = await github.graphql(
+                    `
+                    query($commentId: ID!) {
+                      node(id: $commentId) {
+                        ... on DiscussionComment {
+                          body
+                        }
+                      }
+                    }`,
+                    { commentId: commentId }
+                  );
+                  if (!currentComment?.node?.body) {
+                    core.warning("Unable to fetch current comment body, comment may have been deleted or is inaccessible");
+                    return;
+                  }
+                  const currentBody = currentComment.node.body;
+                  const updatedBody = currentBody + message;
+                  const result = await github.graphql(
+                    `
+                    mutation($commentId: ID!, $body: String!) {
+                      updateDiscussionComment(input: { commentId: $commentId, body: $body }) {
+                        comment {
+                          id
+                          url
+                        }
+                      }
+                    }`,
+                    { commentId: commentId, body: updatedBody }
+                  );
+                  const comment = result.updateDiscussionComment.comment;
+                  const successMessage = label
+                    ? `Successfully updated discussion comment with ${label} link`
+                    : "Successfully updated discussion comment";
+                  core.info(successMessage);
+                  core.info(`Comment ID: ${comment.id}`);
+                  core.info(`Comment URL: ${comment.url}`);
+                } else {
+                  const currentComment = await github.request("GET /repos/{owner}/{repo}/issues/comments/{comment_id}", {
+                    owner: repoOwner,
+                    repo: repoName,
+                    comment_id: parseInt(commentId, 10),
+                    headers: {
+                      Accept: "application/vnd.github+json",
+                    },
+                  });
+                  if (!currentComment?.data?.body) {
+                    core.warning("Unable to fetch current comment body, comment may have been deleted");
+                    return;
+                  }
+                  const currentBody = currentComment.data.body;
+                  const updatedBody = currentBody + message;
+                  const response = await github.request("PATCH /repos/{owner}/{repo}/issues/comments/{comment_id}", {
+                    owner: repoOwner,
+                    repo: repoName,
+                    comment_id: parseInt(commentId, 10),
+                    body: updatedBody,
+                    headers: {
+                      Accept: "application/vnd.github+json",
+                    },
+                  });
+                  const successMessage = label ? `Successfully updated comment with ${label} link` : "Successfully updated comment";
+                  core.info(successMessage);
+                  core.info(`Comment ID: ${response.data.id}`);
+                  core.info(`Comment URL: ${response.data.html_url}`);
+                }
+              } catch (error) {
+                core.warning(`Failed to update activation comment: ${error instanceof Error ? error.message : String(error)}`);
+              }
+            }
+            function getTrackerID(format) {
+              const trackerID = process.env.GH_AW_TRACKER_ID || "";
+              if (trackerID) {
+                core.info(`Tracker ID: ${trackerID}`);
+                return format === "markdown" ? `\n\n<!-- tracker-id: ${trackerID} -->` : trackerID;
+              }
+              return "";
+            }
+            function addExpirationComment(bodyLines, envVarName, entityType) {
+              const expiresEnv = process.env[envVarName];
+              if (expiresEnv) {
+                const expiresDays = parseInt(expiresEnv, 10);
+                if (!isNaN(expiresDays) && expiresDays > 0) {
+                  const expirationDate = new Date();
+                  expirationDate.setDate(expirationDate.getDate() + expiresDays);
+                  const expirationISO = expirationDate.toISOString();
+                  bodyLines.push(`<!-- gh-aw-expires: ${expirationISO} -->`);
+                  core.info(`${entityType} will expire on ${expirationISO} (${expiresDays} days)`);
+                }
+              }
+            }
+            function generatePatchPreview(patchContent) {
+              if (!patchContent || !patchContent.trim()) {
+                return "";
+              }
+              const lines = patchContent.split("\n");
+              const maxLines = 500;
+              const maxChars = 2000;
+              let preview = lines.length <= maxLines ? patchContent : lines.slice(0, maxLines).join("\n");
+              const lineTruncated = lines.length > maxLines;
+              const charTruncated = preview.length > maxChars;
+              if (charTruncated) {
+                preview = preview.slice(0, maxChars);
+              }
+              const truncated = lineTruncated || charTruncated;
+              const summary = truncated
+                ? `Show patch preview (${Math.min(maxLines, lines.length)} of ${lines.length} lines)`
+                : `Show patch (${lines.length} lines)`;
+              return `\n\n<details><summary>${summary}</summary>\n\n\`\`\`diff\n${preview}${truncated ? "\n... (truncated)" : ""}\n\`\`\`\n\n</details>`;
+            }
+            async function main() {
+              core.setOutput("pull_request_number", "");
+              core.setOutput("pull_request_url", "");
+              core.setOutput("issue_number", "");
+              core.setOutput("issue_url", "");
+              core.setOutput("branch_name", "");
+              core.setOutput("fallback_used", "");
+              const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
+              const workflowId = process.env.GH_AW_WORKFLOW_ID;
+              if (!workflowId) {
+                throw new Error("GH_AW_WORKFLOW_ID environment variable is required");
+              }
+              const baseBranch = process.env.GH_AW_BASE_BRANCH;
+              if (!baseBranch) {
+                throw new Error("GH_AW_BASE_BRANCH environment variable is required");
+              }
+              const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT || "";
+              let outputContent = "";
+              if (agentOutputFile.trim() !== "") {
+                try {
+                  outputContent = fs.readFileSync(agentOutputFile, "utf8");
+                } catch (error) {
+                  core.setFailed(`Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`);
+                  return;
+                }
+              }
+              if (outputContent.trim() === "") {
+                core.info("Agent output content is empty");
+              }
+              const ifNoChanges = process.env.GH_AW_PR_IF_NO_CHANGES || "warn";
+              if (!fs.existsSync("/tmp/gh-aw/aw.patch")) {
+                const message = "No patch file found - cannot create pull request without changes";
+                if (isStaged) {
+                  let summaryContent = "## 🎭 Staged Mode: Create Pull Request Preview\n\n";
+                  summaryContent += "The following pull request would be created if staged mode was disabled:\n\n";
+                  summaryContent += `**Status:** ⚠️ No patch file found\n\n`;
+                  summaryContent += `**Message:** ${message}\n\n`;
+                  await core.summary.addRaw(summaryContent).write();
+                  core.info("📝 Pull request creation preview written to step summary (no patch file)");
+                  return;
+                }
+                switch (ifNoChanges) {
+                  case "error":
+                    throw new Error(message);
+                  case "ignore":
+                    return;
+                  case "warn":
+                  default:
+                    core.warning(message);
+                    return;
+                }
+              }
+              const patchContent = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
+              if (patchContent.includes("Failed to generate patch")) {
+                const message = "Patch file contains error message - cannot create pull request without changes";
+                if (isStaged) {
+                  let summaryContent = "## 🎭 Staged Mode: Create Pull Request Preview\n\n";
+                  summaryContent += "The following pull request would be created if staged mode was disabled:\n\n";
+                  summaryContent += `**Status:** ⚠️ Patch file contains error\n\n`;
+                  summaryContent += `**Message:** ${message}\n\n`;
+                  await core.summary.addRaw(summaryContent).write();
+                  core.info("📝 Pull request creation preview written to step summary (patch error)");
+                  return;
+                }
+                switch (ifNoChanges) {
+                  case "error":
+                    throw new Error(message);
+                  case "ignore":
+                    return;
+                  case "warn":
+                  default:
+                    core.warning(message);
+                    return;
+                }
+              }
+              const isEmpty = !patchContent || !patchContent.trim();
+              if (!isEmpty) {
+                const maxSizeKb = parseInt(process.env.GH_AW_MAX_PATCH_SIZE || "1024", 10);
+                const patchSizeBytes = Buffer.byteLength(patchContent, "utf8");
+                const patchSizeKb = Math.ceil(patchSizeBytes / 1024);
+                core.info(`Patch size: ${patchSizeKb} KB (maximum allowed: ${maxSizeKb} KB)`);
+                if (patchSizeKb > maxSizeKb) {
+                  const message = `Patch size (${patchSizeKb} KB) exceeds maximum allowed size (${maxSizeKb} KB)`;
+                  if (isStaged) {
+                    let summaryContent = "## 🎭 Staged Mode: Create Pull Request Preview\n\n";
+                    summaryContent += "The following pull request would be created if staged mode was disabled:\n\n";
+                    summaryContent += `**Status:** ❌ Patch size exceeded\n\n`;
+                    summaryContent += `**Message:** ${message}\n\n`;
+                    await core.summary.addRaw(summaryContent).write();
+                    core.info("📝 Pull request creation preview written to step summary (patch size error)");
+                    return;
+                  }
+                  throw new Error(message);
+                }
+                core.info("Patch size validation passed");
+              }
+              if (isEmpty && !isStaged) {
+                const message = "Patch file is empty - no changes to apply (noop operation)";
+                switch (ifNoChanges) {
+                  case "error":
+                    throw new Error("No changes to push - failing as configured by if-no-changes: error");
+                  case "ignore":
+                    return;
+                  case "warn":
+                  default:
+                    core.warning(message);
+                    return;
+                }
+              }
+              core.info(`Agent output content length: ${outputContent.length}`);
+              if (!isEmpty) {
+                core.info("Patch content validation passed");
+              } else {
+                core.info("Patch file is empty - processing noop operation");
+              }
+              let validatedOutput;
+              try {
+                validatedOutput = JSON.parse(outputContent);
+              } catch (error) {
+                core.setFailed(`Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`);
+                return;
+              }
+              if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
+                core.warning("No valid items found in agent output");
+                return;
+              }
+              const pullRequestItem = validatedOutput.items.find( item => item.type === "create_pull_request");
+              if (!pullRequestItem) {
+                core.warning("No create-pull-request item found in agent output");
+                return;
+              }
+              core.info(`Found create-pull-request item: title="${pullRequestItem.title}", bodyLength=${pullRequestItem.body.length}`);
+              if (isStaged) {
+                let summaryContent = "## 🎭 Staged Mode: Create Pull Request Preview\n\n";
+                summaryContent += "The following pull request would be created if staged mode was disabled:\n\n";
+                summaryContent += `**Title:** ${pullRequestItem.title || "No title provided"}\n\n`;
+                summaryContent += `**Branch:** ${pullRequestItem.branch || "auto-generated"}\n\n`;
+                summaryContent += `**Base:** ${baseBranch}\n\n`;
+                if (pullRequestItem.body) {
+                  summaryContent += `**Body:**\n${pullRequestItem.body}\n\n`;
+                }
+                if (fs.existsSync("/tmp/gh-aw/aw.patch")) {
+                  const patchStats = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
+                  if (patchStats.trim()) {
+                    summaryContent += `**Changes:** Patch file exists with ${patchStats.split("\n").length} lines\n\n`;
+                    summaryContent += `<details><summary>Show patch preview</summary>\n\n\`\`\`diff\n${patchStats.slice(0, 2000)}${patchStats.length > 2000 ? "\n... (truncated)" : ""}\n\`\`\`\n\n</details>\n\n`;
+                  } else {
+                    summaryContent += `**Changes:** No changes (empty patch)\n\n`;
+                  }
+                }
+                await core.summary.addRaw(summaryContent).write();
+                core.info("📝 Pull request creation preview written to step summary");
+                return;
+              }
+              let title = pullRequestItem.title.trim();
+              let bodyLines = pullRequestItem.body.split("\n");
+              let branchName = pullRequestItem.branch ? pullRequestItem.branch.trim() : null;
+              if (!title) {
+                title = "Agent Output";
+              }
+              const titlePrefix = process.env.GH_AW_PR_TITLE_PREFIX;
+              if (titlePrefix && !title.startsWith(titlePrefix)) {
+                title = titlePrefix + title;
+              }
+              const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
+              const runId = context.runId;
+              const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
+              const runUrl = context.payload.repository
+                ? `${context.payload.repository.html_url}/actions/runs/${runId}`
+                : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
+              const trackerIDComment = getTrackerID("markdown");
+              if (trackerIDComment) {
+                bodyLines.push(trackerIDComment);
+              }
+              addExpirationComment(bodyLines, "GH_AW_PR_EXPIRES", "Pull Request");
+              bodyLines.push(``, ``, `> AI generated by [${workflowName}](${runUrl})`, "");
+              const body = bodyLines.join("\n").trim();
+              const labelsEnv = process.env.GH_AW_PR_LABELS;
+              const labels = labelsEnv
+                ? labelsEnv
+                    .split(",")
+                    .map( label => label.trim())
+                    .filter( label => label)
+                : [];
+              const draftEnv = process.env.GH_AW_PR_DRAFT;
+              const draft = draftEnv ? draftEnv.toLowerCase() === "true" : true;
+              core.info(`Creating pull request with title: ${title}`);
+              core.info(`Labels: ${JSON.stringify(labels)}`);
+              core.info(`Draft: ${draft}`);
+              core.info(`Body length: ${body.length}`);
+              const randomHex = crypto.randomBytes(8).toString("hex");
+              if (!branchName) {
+                core.info("No branch name provided in JSONL, generating unique branch name");
+                branchName = `${workflowId}-${randomHex}`;
+              } else {
+                branchName = `${branchName}-${randomHex}`;
+                core.info(`Using branch name from JSONL with added salt: ${branchName}`);
+              }
+              core.info(`Generated branch name: ${branchName}`);
+              core.info(`Base branch: ${baseBranch}`);
+              core.info(`Fetching latest changes and checking out base branch: ${baseBranch}`);
+              await exec.exec("git fetch origin");
+              await exec.exec(`git checkout ${baseBranch}`);
+              core.info(`Branch should not exist locally, creating new branch from base: ${branchName}`);
+              await exec.exec(`git checkout -b ${branchName}`);
+              core.info(`Created new branch from base: ${branchName}`);
+              if (!isEmpty) {
+                core.info("Applying patch...");
+                const patchLines = patchContent.split("\n");
+                const previewLineCount = Math.min(500, patchLines.length);
+                core.info(`Patch preview (first ${previewLineCount} of ${patchLines.length} lines):`);
+                for (let i = 0; i < previewLineCount; i++) {
+                  core.info(patchLines[i]);
+                }
+                try {
+                  await exec.exec("git am /tmp/gh-aw/aw.patch");
+                  core.info("Patch applied successfully");
+                } catch (patchError) {
+                  core.error(`Failed to apply patch: ${patchError instanceof Error ? patchError.message : String(patchError)}`);
+                  try {
+                    core.info("Investigating patch failure...");
+                    const statusResult = await exec.getExecOutput("git", ["status"]);
+                    core.info("Git status output:");
+                    core.info(statusResult.stdout);
+                    const patchResult = await exec.getExecOutput("git", ["am", "--show-current-patch=diff"]);
+                    core.info("Failed patch content:");
+                    core.info(patchResult.stdout);
+                  } catch (investigateError) {
+                    core.warning(
+                      `Failed to investigate patch failure: ${investigateError instanceof Error ? investigateError.message : String(investigateError)}`
+                    );
+                  }
+                  core.setFailed("Failed to apply patch");
+                  return;
+                }
+                try {
+                  let remoteBranchExists = false;
+                  try {
+                    const { stdout } = await exec.getExecOutput(`git ls-remote --heads origin ${branchName}`);
+                    if (stdout.trim()) {
+                      remoteBranchExists = true;
+                    }
+                  } catch (checkError) {
+                    core.info(`Remote branch check failed (non-fatal): ${checkError instanceof Error ? checkError.message : String(checkError)}`);
+                  }
+                  if (remoteBranchExists) {
+                    core.warning(`Remote branch ${branchName} already exists - appending random suffix`);
+                    const extraHex = crypto.randomBytes(4).toString("hex");
+                    const oldBranch = branchName;
+                    branchName = `${branchName}-${extraHex}`;
+                    await exec.exec(`git branch -m ${oldBranch} ${branchName}`);
+                    core.info(`Renamed branch to ${branchName}`);
+                  }
+                  await exec.exec(`git push origin ${branchName}`);
+                  core.info("Changes pushed to branch");
+                } catch (pushError) {
+                  core.error(`Git push failed: ${pushError instanceof Error ? pushError.message : String(pushError)}`);
+                  core.warning("Git push operation failed - creating fallback issue instead of pull request");
+                  const runId = context.runId;
+                  const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
+                  const runUrl = context.payload.repository
+                    ? `${context.payload.repository.html_url}/actions/runs/${runId}`
+                    : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
+                  let patchPreview = "";
+                  if (fs.existsSync("/tmp/gh-aw/aw.patch")) {
+                    const patchContent = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
+                    patchPreview = generatePatchPreview(patchContent);
+                  }
+                  const fallbackBody = `${body}
+            ---
+            > [!NOTE]
+            > This was originally intended as a pull request, but the git push operation failed.
+            >
+            > **Workflow Run:** [View run details and download patch artifact](${runUrl})
+            >
+            > The patch file is available as an artifact (\`aw.patch\`) in the workflow run linked above.
+            To apply the patch locally:
+            \`\`\`sh
+            # Download the artifact from the workflow run ${runUrl}
+            # (Use GitHub MCP tools if gh CLI is not available)
+            gh run download ${runId} -n aw.patch
+            # Apply the patch
+            git am aw.patch
+            \`\`\`
+            ${patchPreview}`;
+                  try {
+                    const { data: issue } = await github.rest.issues.create({
+                      owner: context.repo.owner,
+                      repo: context.repo.repo,
+                      title: title,
+                      body: fallbackBody,
+                      labels: labels,
+                    });
+                    core.info(`Created fallback issue #${issue.number}: ${issue.html_url}`);
+                    await updateActivationComment(github, context, core, issue.html_url, issue.number, "issue");
+                    core.setOutput("issue_number", issue.number);
+                    core.setOutput("issue_url", issue.html_url);
+                    core.setOutput("branch_name", branchName);
+                    core.setOutput("fallback_used", "true");
+                    core.setOutput("push_failed", "true");
+                    await core.summary
+                      .addRaw(
+                        `
+            ## Push Failure Fallback
+            - **Push Error:** ${pushError instanceof Error ? pushError.message : String(pushError)}
+            - **Fallback Issue:** [#${issue.number}](${issue.html_url})
+            - **Patch Artifact:** Available in workflow run artifacts
+            - **Note:** Push failed, created issue as fallback
+            `
+                      )
+                      .write();
+                    return;
+                  } catch (issueError) {
+                    core.setFailed(
+                      `Failed to push and failed to create fallback issue. Push error: ${pushError instanceof Error ? pushError.message : String(pushError)}. Issue error: ${issueError instanceof Error ? issueError.message : String(issueError)}`
+                    );
+                    return;
+                  }
+                }
+              } else {
+                core.info("Skipping patch application (empty patch)");
+                const message = "No changes to apply - noop operation completed successfully";
+                switch (ifNoChanges) {
+                  case "error":
+                    throw new Error("No changes to apply - failing as configured by if-no-changes: error");
+                  case "ignore":
+                    return;
+                  case "warn":
+                  default:
+                    core.warning(message);
+                    return;
+                }
+              }
+              try {
+                const { data: pullRequest } = await github.rest.pulls.create({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  title: title,
+                  body: body,
+                  head: branchName,
+                  base: baseBranch,
+                  draft: draft,
+                });
+                core.info(`Created pull request #${pullRequest.number}: ${pullRequest.html_url}`);
+                if (labels.length > 0) {
+                  await github.rest.issues.addLabels({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    issue_number: pullRequest.number,
+                    labels: labels,
+                  });
+                  core.info(`Added labels to pull request: ${JSON.stringify(labels)}`);
+                }
+                core.setOutput("pull_request_number", pullRequest.number);
+                core.setOutput("pull_request_url", pullRequest.html_url);
+                core.setOutput("branch_name", branchName);
+                await updateActivationComment(github, context, core, pullRequest.html_url, pullRequest.number);
+                await core.summary
+                  .addRaw(
+                    `
+            ## Pull Request
+            - **Pull Request**: [#${pullRequest.number}](${pullRequest.html_url})
+            - **Branch**: \`${branchName}\`
+            - **Base Branch**: \`${baseBranch}\`
+            `
+                  )
+                  .write();
+              } catch (prError) {
+                core.warning(`Failed to create pull request: ${prError instanceof Error ? prError.message : String(prError)}`);
+                core.info("Falling back to creating an issue instead");
+                const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
+                const branchUrl = context.payload.repository
+                  ? `${context.payload.repository.html_url}/tree/${branchName}`
+                  : `${githubServer}/${context.repo.owner}/${context.repo.repo}/tree/${branchName}`;
+                let patchPreview = "";
+                if (fs.existsSync("/tmp/gh-aw/aw.patch")) {
+                  const patchContent = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
+                  patchPreview = generatePatchPreview(patchContent);
+                }
+                const fallbackBody = `${body}
+            ---
+            **Note:** This was originally intended as a pull request, but PR creation failed. The changes have been pushed to the branch [\`${branchName}\`](${branchUrl}).
+            **Original error:** ${prError instanceof Error ? prError.message : String(prError)}
+            You can manually create a pull request from the branch if needed.${patchPreview}`;
+                try {
+                  const { data: issue } = await github.rest.issues.create({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    title: title,
+                    body: fallbackBody,
+                    labels: labels,
+                  });
+                  core.info(`Created fallback issue #${issue.number}: ${issue.html_url}`);
+                  await updateActivationComment(github, context, core, issue.html_url, issue.number, "issue");
+                  core.setOutput("issue_number", issue.number);
+                  core.setOutput("issue_url", issue.html_url);
+                  core.setOutput("branch_name", branchName);
+                  core.setOutput("fallback_used", "true");
+                  await core.summary
+                    .addRaw(
+                      `
+            ## Fallback Issue Created
+            - **Issue**: [#${issue.number}](${issue.html_url})
+            - **Branch**: [\`${branchName}\`](${branchUrl})
+            - **Base Branch**: \`${baseBranch}\`
+            - **Note**: Pull request creation failed, created issue as fallback
+            `
+                    )
+                    .write();
+                } catch (issueError) {
+                  core.setFailed(
+                    `Failed to create both pull request and fallback issue. PR error: ${prError instanceof Error ? prError.message : String(prError)}. Issue error: ${issueError instanceof Error ? issueError.message : String(issueError)}`
+                  );
+                  return;
+                }
+              }
+            }
+            await main();
+
   detection:
     needs: agent
     if: needs.agent.outputs.output_types != '' || needs.agent.outputs.has_patch == 'true'
     runs-on: ubuntu-latest
     permissions: {}
+    concurrency:
+      group: "gh-aw-copilot-${{ github.workflow }}"
     timeout-minutes: 10
     outputs:
       success: ${{ steps.parse_results.outputs.success }}
@@ -7580,8 +9348,8 @@ jobs:
       - name: Setup threat detection
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
-          WORKFLOW_NAME: "Example Campaign - Issue Cleanup"
-          WORKFLOW_DESCRIPTION: "Example showing campaign pattern - analyze, create tracked work, store results"
+          WORKFLOW_NAME: "Campaign - Incident Response"
+          WORKFLOW_DESCRIPTION: "Coordinate multi-team incident response with SLA tracking, stakeholder updates, and post-mortem"
         with:
           script: |
             const fs = require('fs');
@@ -7835,7 +9603,7 @@ jobs:
           BRANCH_NAME: memory/campaigns
           MAX_FILE_SIZE: 10240
           MAX_FILE_COUNT: 100
-          FILE_GLOB_FILTER: "issue-cleanup-*/**"
+          FILE_GLOB_FILTER: "incident-*/**"
         with:
           script: |
             const fs = require("fs");

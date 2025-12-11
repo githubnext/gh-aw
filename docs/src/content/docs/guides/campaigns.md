@@ -197,75 +197,122 @@ on:
 # External security scanner triggers campaign
 ```
 
+## What Campaigns Solve That GitHub Actions Cannot
+
+**GitHub Actions** provides automation within a single repo. **Agentic Workflows** adds AI-powered analysis and execution. **Campaigns** add the organizational layer enterprises need.
+
+### Problems Only Campaigns Solve:
+
+1. **Cross-Repo Coordination at Scale**
+   - Problem: "Update 200 repos with new security policy"
+   - GitHub Actions: Each repo runs independently, no orchestration
+   - Campaign: Central command + dependency-aware phased rollout + progress tracking
+
+2. **Governance + Accountability + Audit Trail**
+   - Problem: "Who approved this? Show me the compliance audit trail."
+   - GitHub Actions: Just run logs, no business context
+   - Campaign: Named owner + approval chain + persistent memory with business justification
+
+3. **Human-in-Loop at Enterprise Scale**
+   - Problem: "AI analyze 500 issues, humans decide which 50 to fix"
+   - GitHub Actions: Fully automated or fully manual
+   - Campaign: AI analyzes → humans review tiered recommendations → AI executes approved actions
+
+4. **ROI Tracking + Budget Constraints**
+   - Problem: "What's the ROI on our automation spend?"
+   - GitHub Actions: No cost or outcome tracking
+   - Campaign: Cost tracking + outcome measurement + executive reporting
+
+5. **Incident Response Coordination**
+   - Problem: "Production down! Coordinate 5 teams, track 30 repos, SLA pressure, stakeholder updates"
+   - GitHub Actions: No cross-team coordination
+   - Campaign: Command center + status tracking + approval gates + post-mortem
+
+6. **Learning Across Initiatives**
+   - Problem: "We've run 20 security audits. Are we improving? What works?"
+   - GitHub Actions: Each run independent
+   - Campaign: Cross-campaign intelligence + pattern recognition + recommendations
+
+## Available Campaign Examples
+
+The repository includes five campaigns demonstrating problems that **cannot be solved** with GitHub Actions or basic workflows:
+
+### 1. **campaign-incident-response.md**
+**Solves**: Multi-team incident coordination under SLA pressure  
+**Key features**: Command center, risk-tiered approvals, stakeholder updates, post-mortem generation  
+**Why campaigns**: GitHub Actions can't coordinate teams, track SLAs, or manage approval gates
+
+### 2. **campaign-org-wide-rollout.md**
+**Solves**: Changes across 100+ repos with dependency awareness  
+**Key features**: Dependency graph, phased batches, approval between batches, rollback capability  
+**Why campaigns**: GitHub Actions can't orchestrate cross-repo or respect dependencies
+
+### 3. **campaign-security-compliance.md**
+**Solves**: Compliance remediation with governance and audit trail  
+**Key features**: CISO approval, compliance mapping, executive reporting, audit documentation  
+**Why campaigns**: GitHub Actions has no governance model or compliance audit trail
+
+### 4. **campaign-human-ai-collaboration.md** (PATTERN)
+**Solves**: AI analysis at scale with human decision-making  
+**Key features**: AI proposes 3 risk tiers, humans approve by tier, AI executes, humans validate  
+**Why campaigns**: Shows the core AI-human collaboration model
+
+### 5. **campaign-intelligence.md** (PATTERN)
+**Solves**: Learning across campaigns to improve future initiatives  
+**Key features**: Cross-campaign analysis, trend detection, predictive recommendations  
+**Why campaigns**: GitHub Actions doesn't learn from history
+
+Each campaign solves a real organizational problem that GitHub Actions and basic workflows fundamentally cannot address.
+
 ## Campaign Examples
 
-### Example 1: Simple Cleanup Campaign
+See the actual campaign workflows in `.github/workflows/campaign-*.md` for complete, runnable examples:
 
-Single workflow, completes in one run:
+- **campaign-incident-response.md** - Multi-team incident coordination
+- **campaign-org-wide-rollout.md** - Cross-repo changes with phased execution
+- **campaign-security-compliance.md** - Compliance with governance
+- **campaign-human-ai-collaboration.md** - AI-assisted decision-making pattern
+- **campaign-intelligence.md** - Cross-campaign learning
 
-```aw wrap
----
-name: Stale Issue Cleanup Campaign
-on: workflow_dispatch
+### Example: Incident Response Campaign
 
-permissions:
-  contents: read
-  issues: read
+**Full workflow**: `.github/workflows/campaign-incident-response.md`
 
-engine: copilot
-safe-outputs:
-  create-issue: { max: 1 }      # Epic
-  close-issue: { max: 50 }
-  add-comment: { max: 50 }
+**Scenario**: Production API down, affecting multiple services
 
-tools:
-  github:
-    toolsets: [repos, issues]
-  repo-memory:
-    branch: memory/campaigns
-    patterns:
-      - "campaigns/stale-cleanup-*/baseline.json"
-      - "campaigns/stale-cleanup-*/results.json"
----
+**Campaign steps**:
 
-# Stale Issue Cleanup Campaign
+1. **Initialize Command Center** (repo-memory)
+   - Store incident metadata, SLA targets, affected services
+   - Create timeline for audit trail
 
-Campaign ID: `stale-cleanup-${{ github.run_id }}`
+2. **AI Analysis Phase**
+   - Search recent changes, errors, dependencies
+   - Generate hypotheses ranked by probability
+   - Identify teams to involve
 
-## Tasks
+3. **Human Decision Checkpoint**
+   - AI presents risk-tiered recommendations:
+     - **Low risk** (rollback deployment): Execute immediately
+     - **Medium risk** (apply hotfix PR): Needs team lead approval
+     - **High risk** (database rollback): Needs executive approval
 
-1. **Store baseline**: Count open stale issues (>6 months inactive)
+4. **Execute Approved Actions**
+   - Create PRs for fixes
+   - Track execution status
+   - Update SLA countdown
 
-2. **Create epic issue**:
-   - Title: "Campaign: Stale Issue Cleanup - ${{ github.run_id }}"
-   - Labels: `campaign-tracker`, `epic`, `campaign:stale-cleanup-${{ github.run_id }}`
-   - Body: Goals, baseline count, success criteria
+5. **Status Updates Every 30min**
+   - Command center issue updated
+   - Stakeholder issue updated
+   - Timeline events logged
 
-3. **Close stale issues**:
-   - Find issues: no activity >6 months, not labeled "keep-open"
-   - For each issue:
-     - Add comment explaining closure
-     - Apply label `closed-by-campaign`
-     - Close with reason "not_planned"
-   - Max 50 issues
+6. **Resolution & Post-Mortem**
+   - Generate post-mortem template from timeline
+   - Document what worked/didn't
+   - Action items with ownership
 
-4. **Store results** in repo-memory:
-   ```json
-   {
-     "campaign_id": "stale-cleanup-XXX",
-     "baseline_count": 67,
-     "closed_count": 50,
-     "remaining": 17,
-     "duration_minutes": 8
-   }
-   ```
-
-5. **Update epic** with completion summary
-```
-
-**Tracking**: Epic issue + repo-memory results
-**Duration**: ~10 minutes
-**Best for**: Batch operations that fit in one run
+**Why this needs campaigns**: GitHub Actions can't coordinate teams, track SLAs, manage approval gates, or generate post-mortems with business context.
 
 ### Example 2: Security Campaign with Workers
 
