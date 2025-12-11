@@ -1206,4 +1206,64 @@ describe("add_comment.cjs", () => {
     delete process.env.GH_AW_HIDE_OLDER_COMMENTS;
     delete process.env.GH_AW_ALLOWED_REASONS;
   });
+
+  it("should support lowercase allowed-reasons", async () => {
+    setAgentOutput({
+      items: [
+        {
+          type: "add_comment",
+          body: "New comment with lowercase reasons",
+        },
+      ],
+    });
+    process.env.GH_AW_TRACKER_ID = "test-workflow-lowercase";
+    process.env.GH_AW_HIDE_OLDER_COMMENTS = "true";
+    // Use lowercase reasons
+    process.env.GH_AW_ALLOWED_REASONS = JSON.stringify(["outdated", "resolved"]);
+    global.context.eventName = "issues";
+    global.context.payload.issue = { number: 600 };
+
+    // Mock existing comments
+    mockGithub.rest.issues.listComments = vi.fn().mockResolvedValue({
+      data: [
+        {
+          id: 1,
+          node_id: "IC_oldcomment1",
+          body: "Old comment\n\n<!-- tracker-id: test-workflow-lowercase -->",
+        },
+      ],
+    });
+
+    // Mock the minimizeComment GraphQL mutation
+    mockGithub.graphql = vi.fn().mockResolvedValue({
+      minimizeComment: {
+        minimizedComment: {
+          isMinimized: true,
+        },
+      },
+    });
+
+    const mockNewComment = {
+      id: 4,
+      html_url: "https://github.com/testowner/testrepo/issues/600#issuecomment-4",
+    };
+    mockGithub.rest.issues.createComment.mockResolvedValue({ data: mockNewComment });
+
+    // Execute the script
+    await eval(`(async () => { ${createCommentScript} })()`);
+
+    // Verify that minimizeComment was called with OUTDATED (uppercase, normalized)
+    expect(mockGithub.graphql).toHaveBeenCalledWith(
+      expect.stringContaining("minimizeComment"),
+      expect.objectContaining({
+        nodeId: "IC_oldcomment1",
+        classifier: "OUTDATED",
+      })
+    );
+
+    // Clean up
+    delete process.env.GH_AW_TRACKER_ID;
+    delete process.env.GH_AW_HIDE_OLDER_COMMENTS;
+    delete process.env.GH_AW_ALLOWED_REASONS;
+  });
 });

@@ -3491,10 +3491,10 @@
                 },
                 "allowed-reasons": {
                   "type": "array",
-                  "description": "List of allowed reasons for hiding older comments when hide-older-comments is enabled. Default: all reasons allowed (SPAM, ABUSE, OFF_TOPIC, OUTDATED, RESOLVED).",
+                  "description": "List of allowed reasons for hiding older comments when hide-older-comments is enabled. Default: all reasons allowed (SPAM, ABUSE, OFF_TOPIC, OUTDATED, RESOLVED). Both uppercase and lowercase are supported.",
                   "items": {
                     "type": "string",
-                    "enum": ["SPAM", "ABUSE", "OFF_TOPIC", "OUTDATED", "RESOLVED"]
+                    "enum": ["SPAM", "spam", "ABUSE", "abuse", "OFF_TOPIC", "off_topic", "OUTDATED", "outdated", "RESOLVED", "resolved"]
                   }
                 }
               },
@@ -4074,10 +4074,10 @@
                 },
                 "allowed-reasons": {
                   "type": "array",
-                  "description": "List of allowed reasons for hiding comments. Default: all reasons allowed (SPAM, ABUSE, OFF_TOPIC, OUTDATED, RESOLVED).",
+                  "description": "List of allowed reasons for hiding comments. Default: all reasons allowed (SPAM, ABUSE, OFF_TOPIC, OUTDATED, RESOLVED). Both uppercase and lowercase are supported.",
                   "items": {
                     "type": "string",
-                    "enum": ["SPAM", "ABUSE", "OFF_TOPIC", "OUTDATED", "RESOLVED"]
+                    "enum": ["SPAM", "spam", "ABUSE", "abuse", "OFF_TOPIC", "off_topic", "OUTDATED", "outdated", "RESOLVED", "resolved"]
                   }
                 }
               },

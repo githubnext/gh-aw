@@ -159,9 +159,13 @@ async function hideOlderComments(github, owner, repo, itemNumber, trackerId, isD
     return 0;
   }
 
-  // Validate reason against allowed reasons if specified
+  // Normalize reason to uppercase for GitHub API
+  const normalizedReason = reason.toUpperCase();
+
+  // Validate reason against allowed reasons if specified (case-insensitive)
   if (allowedReasons && allowedReasons.length > 0) {
-    if (!allowedReasons.includes(reason)) {
+    const normalizedAllowedReasons = allowedReasons.map(r => r.toUpperCase());
+    if (!normalizedAllowedReasons.includes(normalizedReason)) {
       core.warning(`Reason "${reason}" is not in allowed-reasons list [${allowedReasons.join(", ")}]. Skipping hide-older-comments.`);
       return 0;
     }
@@ -181,14 +185,14 @@ async function hideOlderComments(github, owner, repo, itemNumber, trackerId, isD
     return 0;
   }
 
-  core.info(`Found ${comments.length} previous comment(s) to hide with reason: ${reason}`);
+  core.info(`Found ${comments.length} previous comment(s) to hide with reason: ${normalizedReason}`);
 
   let hiddenCount = 0;
   for (const comment of comments) {
     try {
       const nodeId = isDiscussion ? comment.id : comment.node_id;
       core.info(`Hiding comment: ${nodeId}`);
-      await minimizeComment(github, nodeId, reason);
+      await minimizeComment(github, nodeId, normalizedReason);
       hiddenCount++;
       core.info(`✓ Hidden comment: ${nodeId}`);
     } catch (error) {

@@ -86,17 +86,21 @@ async function main() {
 
       const reason = item.reason || "SPAM";
 
-      // Validate reason against allowed reasons if specified
+      // Normalize reason to uppercase for GitHub API
+      const normalizedReason = reason.toUpperCase();
+
+      // Validate reason against allowed reasons if specified (case-insensitive)
       if (allowedReasons && allowedReasons.length > 0) {
-        if (!allowedReasons.includes(reason)) {
+        const normalizedAllowedReasons = allowedReasons.map(r => r.toUpperCase());
+        if (!normalizedAllowedReasons.includes(normalizedReason)) {
           core.warning(`Reason "${reason}" is not in allowed-reasons list [${allowedReasons.join(", ")}]. Skipping comment ${commentId}.`);
           continue;
         }
       }
 
-      core.info(`Hiding comment: ${commentId} (reason: ${reason})`);
+      core.info(`Hiding comment: ${commentId} (reason: ${normalizedReason})`);
 
-      const hideResult = await hideComment(github, commentId, reason);
+      const hideResult = await hideComment(github, commentId, normalizedReason);
 
       if (hideResult.isMinimized) {
         core.info(`Successfully hidden comment: ${commentId}`);

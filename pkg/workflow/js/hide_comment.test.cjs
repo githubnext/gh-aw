@@ -367,4 +367,39 @@ describe("hide_comment", () => {
     );
     expect(mockCore.info).toHaveBeenCalledWith("Successfully hidden comment: IC_kwDOABCD123456");
   });
+
+  it("should support lowercase reasons and normalize to uppercase", async () => {
+    setAgentOutput({
+      items: [
+        {
+          type: "hide_comment",
+          comment_id: "IC_kwDOABCD123456",
+          reason: "spam", // lowercase
+        },
+      ],
+    });
+    process.env.GH_AW_HIDE_COMMENT_ALLOWED_REASONS = JSON.stringify(["spam", "abuse"]);
+
+    // Mock successful GraphQL response
+    mockGithub.graphql.mockResolvedValueOnce({
+      minimizeComment: {
+        minimizedComment: {
+          isMinimized: true,
+        },
+      },
+    });
+
+    // Execute the script
+    await eval(`(async () => { ${hideCommentScript} })()`);
+
+    // Verify that graphql was called with SPAM (uppercase, normalized)
+    expect(mockGithub.graphql).toHaveBeenCalledWith(
+      expect.stringContaining("minimizeComment"),
+      expect.objectContaining({
+        nodeId: "IC_kwDOABCD123456",
+        classifier: "SPAM",
+      })
+    );
+    expect(mockCore.info).toHaveBeenCalledWith("Successfully hidden comment: IC_kwDOABCD123456");
+  });
 });

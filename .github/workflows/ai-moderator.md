@@ -22,7 +22,7 @@ safe-outputs:
     allowed: [spam, ai-generated, link-spam, ai-qa]
   hide-comment:
     max: 5
-    allowed-reasons: [SPAM]
+    allowed-reasons: [spam]
   threat-detection: false
 jobs:
   check_external_user:
