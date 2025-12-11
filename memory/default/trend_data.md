@@ -1,6 +1,7 @@
-## Trend Data (as of 2025-12-10T15:12:35Z)
+## Trend Data (as of 2025-12-11T15:11:32Z)
 
-- Workflow telemetry blocked this cycle (gh CLI unauthenticated); last snapshot (2025-12-09) showed 3 successes/4 failures/3 in-progress over 10 runs, ~1.2h duration, ~5.06M tokens, 53 warnings, 144 errors — refresh once auth is available.
-- Issue stats (weekly slice): 206 total; 54 open, 152 closed; top labels `ai-generated` (101), `plan` (98), then automation/code-quality/automated-analysis; authors dominated by github-actions (181 of 206).
-- Issue creation cadence: post-spike taper — Dec 7 (31), Dec 8 (36), Dec 9 (15), Dec 10 (5 so far).
-- Discussion cadence stays dense: Dec 10 produced new static analysis, firewall, prompt-analysis, Issue Arborist, team-status, doc consolidation, and performance reports; Copilot PR merged report errored (6040) and Portfolio Analysis ran with limited scope (6038).
+- Workflow snapshot (last 20 runs, ~past hour): total duration 1.0h, 4.87M tokens, ~$1.03 cost, 20 runs with 3 failures (Hourly CI Cleaner, Issue Monster, Issue Triage Agent) and 3 cancellations; CLI Version Checker contributed most cost/tokens and 132 errors/36 warnings despite success.
+- Issue stats (weekly slice): 178 total; 52 open / 126 closed; labels still led by `plan` and `ai-generated` (84 each), then `code-quality` (29) and `automated-analysis` (26); authors dominated by github-actions (151 of 178).
+- Issue creation cadence last 8 days: Dec 4 (29), Dec 5 (7), Dec 6 (11), Dec 7 (31), Dec 8 (36), Dec 9 (15), Dec 10 (11), Dec 11 (6) — sustained taper after the Dec 8 spike.
+- Issue hygiene: 13 open issues are unlabeled; 38 open issues are older than 3 days and may be going stale.
+- Discussion cadence: daily static analysis/firewall/prompt-analysis/Issue Arborist/doc consolidation continue; new workflow lifecycle/staleness report (6133) added; Copilot PR merged stream still shows last published state as an error (6040) with today’s run pending.

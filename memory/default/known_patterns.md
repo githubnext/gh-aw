@@ -1,7 +1,7 @@
-## Known Patterns (2025-12-10)
+## Known Patterns (2025-12-11)
 
-- Automation cadence unchanged: daily static analysis, firewall, prompt-analysis, Issue Arborist, documentation consolidation, and team-status drops continue across Audits/Announcements/General with fresh Dec 10 entries.
-- Copilot PR merged reporting is brittle: a new error discussion ([6040](https://github.com/githubnext/gh-aw/discussions/6040)) landed minutes after the prior run ([5963](https://github.com/githubnext/gh-aw/discussions/5963)) updated, suggesting recurring instability in that workflow.
-- Portfolio and quality reports lean on reduced scope: Portfolio Analysis (6038) labeled “Limited Analysis” and performance/doc-quality reports remain highly templated, hinting at partial data coverage.
-- Issue stream still automation-heavy: github-actions authored 181/206 issues this week, and labels `ai-generated` (101) / `plan` (98) dominate, keeping manual signals buried.
-- Issue volume is tapering after the Dec 7–8 spike (31/36); Dec 9 produced 15, and Dec 10 is currently at 5, with open issues down to 54/206 in the weekly slice.
+- Workflow hygiene push: new “Repository Quality Improvement - Workflow Lifecycle Management & Staleness Detection” (6133) signals attention on pruning/refreshing recurring agents.
+- Copilot PR merged report remains shaky: 6040 is still the latest published state (error) and today’s run is in-progress, continuing the fragile streak from prior days.
+- Automation remains dominant but softening: github-actions authored 151/178 issues; top labels `plan`/`ai-generated` drop to 84 each (from 101/98) while open issues tick down to 52.
+- Schedule jobs show fresh flakiness: Hourly CI Cleaner, Issue Monster, and Issue Triage Agent all failed on Dec 11; multiple Tidy runs cancelled; Dev/Dev Hawk reruns cluster within minutes.
+- High-noise success: CLI Version Checker succeeded but emitted 132 errors/36 warnings in one run, keeping log noise elevated despite green status.

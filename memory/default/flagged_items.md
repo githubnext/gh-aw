@@ -1,7 +1,7 @@
-## Flagged Items for Monitoring (2025-12-10)
+## Flagged Items for Monitoring (2025-12-11)
 
-- Copilot PR Merged report failing again: discussion [6040](https://github.com/githubnext/gh-aw/discussions/6040) is an error state following yesterday’s report [5963](https://github.com/githubnext/gh-aw/discussions/5963) update — inspect workflow inputs or data fetches.
-- Portfolio Analysis limited run: discussion [6038](https://github.com/githubnext/gh-aw/discussions/6038) notes “Limited Analysis,” implying data gaps or upstream timeouts.
-- Automation label skew endures: `ai-generated` (101) and `plan` (98) still mask human-authored issues in the weekly set — consider filters/summaries that surface non-automation items.
-- Reduced issue volume (15 on Dec 9, 5 so far on Dec 10) may hide latent backlog rather than resolution; watch open count (54) to ensure closure pace holds.
-- Workflow log retrieval blocked by unauthenticated gh CLI — rerun `gh-aw logs` once auth is available to confirm whether earlier instability (Issue Monster/Super Linter) persists.
+- Copilot PR merged pipeline still unresolved: latest published run is erroring (discussion [6040](https://github.com/githubnext/gh-aw/discussions/6040)) and today’s run is currently in-progress — stability remains suspect.
+- Fresh schedule failures today: Hourly CI Cleaner ([20137659816](https://github.com/githubnext/gh-aw/actions/runs/20137659816)), Issue Monster ([20135923391](https://github.com/githubnext/gh-aw/actions/runs/20135923391)), and Issue Triage Agent ([20135811205](https://github.com/githubnext/gh-aw/actions/runs/20135811205)) all failed; Tidy saw cancellations.
+- High-noise success: CLI Version Checker ([20137529278](https://github.com/githubnext/gh-aw/actions/runs/20137529278)) succeeded but produced 132 errors/36 warnings — may mask real regressions.
+- Automation skew persists: `plan`/`ai-generated` still lead labels (84 each) and 13 open issues lack labels; 38 open issues are older than 3 days and may need triage/closure.
+- Issue volume taper (Dec 8 spike to 36 down to 6 today) could conceal stalled work; watch that open count (52) keeps falling.
