@@ -14,6 +14,7 @@
 
 const { loadAgentOutput } = require("./load_agent_output.cjs");
 const { generateStagedPreview } = require("./staged_preview.cjs");
+const { removeDuplicateTitleFromDescription } = require("./remove_duplicate_title.cjs");
 
 /**
  * @typedef {Object} UpdateRunnerConfig
@@ -104,10 +105,12 @@ function buildUpdateData(params) {
   }
 
   // Handle title update
+  let titleForDedup = null;
   if (canUpdateTitle && item.title !== undefined) {
     const trimmedTitle = typeof item.title === "string" ? item.title.trim() : "";
     if (trimmedTitle.length > 0) {
       updateData.title = trimmedTitle;
+      titleForDedup = trimmedTitle;
       hasUpdates = true;
       logMessages.push(`Will update title to: ${trimmedTitle}`);
     } else {
@@ -115,12 +118,19 @@ function buildUpdateData(params) {
     }
   }
 
-  // Handle body update (basic - without operation logic)
+  // Handle body update (with title deduplication)
   if (canUpdateBody && item.body !== undefined) {
     if (typeof item.body === "string") {
-      updateData.body = item.body;
+      let processedBody = item.body;
+      
+      // If we're updating the title at the same time, remove duplicate title from body
+      if (titleForDedup) {
+        processedBody = removeDuplicateTitleFromDescription(titleForDedup, processedBody);
+      }
+      
+      updateData.body = processedBody;
       hasUpdates = true;
-      logMessages.push(`Will update body (length: ${item.body.length})`);
+      logMessages.push(`Will update body (length: ${processedBody.length})`);
     } else {
       logMessages.push("Invalid body value: must be a string");
     }
