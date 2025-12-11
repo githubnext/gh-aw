@@ -47,7 +47,7 @@ After standalone installation, the binary is installed to `~/.local/share/gh/ext
 
 ### GitHub Enterprise Server Support
 
-`gh-aw` fully supports GitHub Enterprise Server deployments. Configure your enterprise instance using environment variables:
+GitHub Agentic Workflows fully supports GitHub Enterprise Server deployments. Configure your enterprise instance using environment variables:
 
 ```bash wrap
 # Set your enterprise hostname
@@ -58,7 +58,7 @@ export GITHUB_SERVER_URL="https://github.enterprise.com"
 # Authenticate with your enterprise instance
 gh auth login --hostname github.enterprise.com
 
-# Use gh-aw commands normally
+# Use gh aw commands normally
 gh aw status
 gh aw logs workflow-name
 ```
