@@ -50,10 +50,10 @@
       "version": "v4",
       "sha": "67a3573c9a986a3f9c594539f4ab511d57bb3ce9"
     },
-    "actions/setup-go@v5": {
+    "actions/setup-go@v6": {
       "repo": "actions/setup-go",
-      "version": "v5",
-      "sha": "d35c59abb061a4a6fb18e82ac0862c26744d6ab5"
+      "version": "v6",
+      "sha": "4dc6199c7b1a012772edbd06daecab0f50c9053c"
     },
     "actions/setup-java@v4": {
       "repo": "actions/setup-java",
