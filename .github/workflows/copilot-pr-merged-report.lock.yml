@@ -3406,7 +3406,8 @@ jobs:
                 },
                 "handler": "gh.sh",
                 "env": {
-                  "GH_AW_GH_TOKEN": "GH_AW_GH_TOKEN"
+                  "GH_AW_GH_TOKEN": "GH_AW_GH_TOKEN",
+                  "GH_DEBUG": "GH_DEBUG"
                 },
                 "timeout": 60
               }
@@ -3449,6 +3450,7 @@ jobs:
         env:
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
           GH_AW_GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_DEBUG: 1
         run: |
           mkdir -p /tmp/gh-aw/mcp-config
           mkdir -p /home/runner/.copilot
@@ -3461,7 +3463,8 @@ jobs:
                 "args": ["/tmp/gh-aw/safe-inputs/mcp-server.cjs"],
                 "tools": ["*"],
                 "env": {
-                  "GH_AW_GH_TOKEN": "\${GH_AW_GH_TOKEN}"
+                  "GH_AW_GH_TOKEN": "\${GH_AW_GH_TOKEN}",
+                  "GH_DEBUG": "\${GH_DEBUG}"
                 }
               },
               "safeoutputs": {
@@ -4243,6 +4246,7 @@ jobs:
           GH_AW_MODEL_AGENT_COPILOT: ${{ vars.GH_AW_MODEL_AGENT_COPILOT || '' }}
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
+          GH_DEBUG: 1
           GITHUB_HEAD_REF: ${{ github.head_ref }}
           GITHUB_REF_NAME: ${{ github.ref_name }}
           GITHUB_STEP_SUMMARY: ${{ env.GITHUB_STEP_SUMMARY }}
