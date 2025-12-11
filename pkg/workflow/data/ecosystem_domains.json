@@ -74,7 +74,8 @@
     "lfs.github.com",
     "github-cloud.githubusercontent.com",
     "github-cloud.s3.amazonaws.com",
-    "codeload.github.com"
+    "codeload.github.com",
+    "github.githubassets.com"
   ],
   "go": ["go.dev", "golang.org", "proxy.golang.org", "sum.golang.org", "pkg.go.dev", "goproxy.io"],
   "terraform": ["releases.hashicorp.com", "apt.releases.hashicorp.com", "yum.releases.hashicorp.com", "registry.terraform.io"],

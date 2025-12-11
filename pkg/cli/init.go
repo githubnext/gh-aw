@@ -12,7 +12,7 @@ import (
 var initLog = logger.New("cli:init")
 
 // InitRepository initializes the repository for agentic workflows
-func InitRepository(verbose bool, mcp bool, codespaceRepos []string, codespaceEnabled bool) error {
+func InitRepository(verbose bool, mcp bool, campaign bool, codespaceRepos []string, codespaceEnabled bool) error {
 	initLog.Print("Starting repository initialization for agentic workflows")
 
 	// Ensure we're in a git repository
@@ -87,6 +87,18 @@ func InitRepository(verbose bool, mcp bool, codespaceRepos []string, codespaceEn
 	}
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created debug agentic workflow agent"))
+	}
+
+	// Write campaign designer agent if requested
+	if campaign {
+		initLog.Print("Writing campaign designer agent")
+		if err := ensureCampaignDesignerAgent(verbose, false); err != nil {
+			initLog.Printf("Failed to write campaign designer agent: %v", err)
+			return fmt.Errorf("failed to write campaign designer agent: %w", err)
+		}
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created campaign designer agent"))
+		}
 	}
 
 	// Configure MCP if requested

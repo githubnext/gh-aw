@@ -2,8 +2,10 @@ package campaign
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/constants"
@@ -94,8 +96,28 @@ fields to match your initiative.
 Examples:
   ` + constants.CLIExtensionPrefix + ` campaign new security-q1-2025
   ` + constants.CLIExtensionPrefix + ` campaign new modernization-winter2025 --force`,
-		Args: cobra.ExactArgs(1),
+		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if len(args) == 0 {
+				// Build an error message with suggestions but without the leading
+				// error prefix icon; the main CLI handler will add that.
+				var b strings.Builder
+				b.WriteString("missing campaign id argument")
+				b.WriteString("\n\nSuggestions:\n")
+				suggestions := []string{
+					"Provide an ID: '" + constants.CLIExtensionPrefix + " campaign new security-q1-2025'",
+					"Use '" + constants.CLIExtensionPrefix + " campaign' to see existing campaigns",
+					"Run '" + constants.CLIExtensionPrefix + " help campaign new' for full usage",
+				}
+				for _, s := range suggestions {
+					b.WriteString("  • ")
+					b.WriteString(s)
+					b.WriteString("\n")
+				}
+
+				return errors.New(b.String())
+			}
+
 			id := args[0]
 			force, _ := cmd.Flags().GetBool("force")
 
@@ -109,7 +131,9 @@ Examples:
 				return err
 			}
 
-			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created campaign spec at "+path))
+			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(
+				"Created campaign spec at "+path+". Open this file and fill in owners, workflows, memory-paths, and other details.",
+			))
 			return nil
 		},
 	}
@@ -183,8 +207,10 @@ func runStatus(pattern string, jsonOutput bool) error {
 		return nil
 	}
 
-	// Render table to stdout for human-friendly output
-	output := console.RenderStruct(specs)
+	// Build a compact summary view for human-friendly table output.
+	// Full campaign definitions remain available via the --json flag.
+	summaries := buildCampaignSummaries(specs)
+	output := console.RenderStruct(summaries)
 	fmt.Print(output)
 	return nil
 }

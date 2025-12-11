@@ -413,6 +413,22 @@ This gives you a centralized, Git-backed catalog of campaigns in the
 repository, aligned with the executable workflows in `.github/workflows/` and
 the data they write into repo-memory.
 
+### Interactive Campaign Designer
+
+For a more guided, conversational experience, this repo also includes a
+reusable **custom agent**:
+
+- `.github/agents/campaign-designer.agent.md` ("Campaign Designer for gh-aw Campaigns")
+
+You can:
+
+- Use `gh aw campaign new <id>` to scaffold a minimal spec, then
+  open the **Campaign Designer** agent in GitHub Copilot Chat or your
+  preferred agent UI to refine fields like `owners`, `memory-paths`, and
+  `approval-policy`, or
+- Start directly with the agent and let it propose a complete
+  `.campaign.md` spec (and optional starter workflow) based on your answers.
+
 ### Example: Incident Response Campaign
 
 **Full workflow**: `.github/workflows/campaign-incident-response.md`

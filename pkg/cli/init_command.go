@@ -37,6 +37,9 @@ With --codespaces flag:
 - Pre-installs @github/copilot
 - Use without value (--codespaces) for current repo only, or with comma-separated repos (--codespaces repo1,repo2)
 
+With --campaign flag:
+- Creates .github/agents/campaign-designer.agent.md with the Campaign Designer agent for gh-aw campaigns
+
 After running this command, you can:
 - Use GitHub Copilot Chat: type /agent and select create-agentic-workflow to create workflows interactively
 - Use GitHub Copilot Chat: type /agent and select debug-agentic-workflow to debug existing workflows
@@ -52,6 +55,7 @@ Examples:
 		RunE: func(cmd *cobra.Command, args []string) error {
 			verbose, _ := cmd.Flags().GetBool("verbose")
 			mcp, _ := cmd.Flags().GetBool("mcp")
+			campaign, _ := cmd.Flags().GetBool("campaign")
 			codespaceReposStr, _ := cmd.Flags().GetString("codespaces")
 			codespaceEnabled := cmd.Flags().Changed("codespaces")
 
@@ -68,8 +72,8 @@ Examples:
 				}
 			}
 
-			initCommandLog.Printf("Executing init command: verbose=%v, mcp=%v, codespaces=%v, codespaceEnabled=%v", verbose, mcp, codespaceRepos, codespaceEnabled)
-			if err := InitRepository(verbose, mcp, codespaceRepos, codespaceEnabled); err != nil {
+			initCommandLog.Printf("Executing init command: verbose=%v, mcp=%v, campaign=%v, codespaces=%v, codespaceEnabled=%v", verbose, mcp, campaign, codespaceRepos, codespaceEnabled)
+			if err := InitRepository(verbose, mcp, campaign, codespaceRepos, codespaceEnabled); err != nil {
 				initCommandLog.Printf("Init command failed: %v", err)
 				return err
 			}
@@ -79,6 +83,7 @@ Examples:
 	}
 
 	cmd.Flags().Bool("mcp", false, "Configure GitHub Copilot Agent MCP server integration")
+	cmd.Flags().Bool("campaign", false, "Install the Campaign Designer agent for gh-aw campaigns in this repository")
 	cmd.Flags().String("codespaces", "", "Create devcontainer.json for GitHub Codespaces with agentic workflows support. Specify comma-separated repository names in the same organization (e.g., repo1,repo2), or use without value for current repo only")
 	// NoOptDefVal allows using --codespaces without a value (returns empty string when no value provided)
 	cmd.Flags().Lookup("codespaces").NoOptDefVal = " "
