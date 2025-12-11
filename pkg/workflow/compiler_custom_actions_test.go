@@ -129,7 +129,7 @@ Test workflow with safe-outputs.
 	// Save original state first
 	origSource := DefaultScriptRegistry.GetSource("create_issue")
 	origActionPath := DefaultScriptRegistry.GetActionPath("create_issue")
-	
+
 	testScript := `
 const { core } = require('@actions/core');
 core.info('Creating issue');
@@ -140,7 +140,7 @@ core.info('Creating issue');
 		RuntimeModeGitHubScript,
 		"./actions/create-issue",
 	)
-	
+
 	// Restore after test
 	defer func() {
 		if origSource != "" {
@@ -175,12 +175,12 @@ core.info('Creating issue');
 	if createIssueJobStart == -1 {
 		t.Fatal("create_issue job not found in lock file")
 	}
-	
+
 	// Find the next job (at same indentation level "  <job_name>:")
 	// Start searching after the job name line
 	searchStart := createIssueJobStart + len("  create_issue:")
 	var createIssueJobSection string
-	
+
 	// Search for next job at root jobs level
 	restOfFile := lockStr[searchStart:]
 	nextJobIdx := -1
@@ -193,7 +193,7 @@ core.info('Creating issue');
 			}
 		}
 	}
-	
+
 	if nextJobIdx == -1 {
 		createIssueJobSection = lockStr[createIssueJobStart:]
 	} else {
@@ -304,10 +304,10 @@ Test fallback to inline mode.
 	// Save original state first
 	origSource := DefaultScriptRegistry.GetSource("create_issue")
 	origActionPath := DefaultScriptRegistry.GetActionPath("create_issue")
-	
+
 	testScript := `console.log('test');`
 	DefaultScriptRegistry.RegisterWithMode("create_issue", testScript, RuntimeModeGitHubScript)
-	
+
 	// Restore after test
 	defer func() {
 		if origSource != "" {
