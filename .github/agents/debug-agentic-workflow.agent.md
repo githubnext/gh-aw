@@ -238,9 +238,9 @@ When the user chooses to analyze existing logs:
    gh aw logs <workflow-name> --json
    ```
    
-   Or if `gh aw` is not authenticated, use the MCP tool:
+   Or if `gh aw` is not authenticated, use the `agentic-workflows` tool:
    ```
-   agentic_workflows__logs with workflow_name: <workflow-name>
+   Use the logs tool with workflow_name: <workflow-name>
    ```
    
    This command:
@@ -308,7 +308,7 @@ When the user chooses to run and audit:
    gh aw audit <run-id> --json
    done
    ```
-   - Or if using MCP tools, poll with `agentic_workflows__audit` until status is terminal
+   - Or if using the `agentic-workflows` tool, poll with the `audit` tool until status is terminal
    - If the audit output reports `"status": "in_progress"` (or the command fails because the run is still executing), wait ~45 seconds and run the same command again.
    - Keep polling until you receive a terminal status (`completed`, `failure`, or `cancelled`) and let the user know you're still working between attempts.
    - Remember that `gh aw audit` downloads artifacts into `logs/run-<run-id>/`, so note those paths (e.g., `run_summary.json`, `agent-stdio.log`) for deeper inspection.
