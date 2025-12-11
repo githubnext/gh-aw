@@ -6547,42 +6547,10 @@ jobs:
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
-            const { processCloseEntityItems, ISSUE_CONFIG } = require("./close_entity_helpers.cjs");
-            async function getIssueDetails(github, owner, repo, issueNumber) {
-              const { data: issue } = await github.rest.issues.get({
-                owner,
-                repo,
-                issue_number: issueNumber,
-              });
-              if (!issue) {
-                throw new Error(`Issue #${issueNumber} not found in ${owner}/${repo}`);
-              }
-              return issue;
-            }
-            async function addIssueComment(github, owner, repo, issueNumber, message) {
-              const { data: comment } = await github.rest.issues.createComment({
-                owner,
-                repo,
-                issue_number: issueNumber,
-                body: message,
-              });
-              return comment;
-            }
-            async function closeIssue(github, owner, repo, issueNumber) {
-              const { data: issue } = await github.rest.issues.update({
-                owner,
-                repo,
-                issue_number: issueNumber,
-                state: "closed",
-              });
-              return issue;
-            }
+            const { processCloseEntityItems, createEntityCallbacks, ISSUE_CONFIG } = require("./close_entity_helpers.cjs");
             async function main() {
-              return processCloseEntityItems(ISSUE_CONFIG, {
-                getDetails: getIssueDetails,
-                addComment: addIssueComment,
-                closeEntity: closeIssue,
-              });
+              const callbacks = createEntityCallbacks(ISSUE_CONFIG);
+              return processCloseEntityItems(ISSUE_CONFIG, callbacks);
             }
             await main();
 
