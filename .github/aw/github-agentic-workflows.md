@@ -108,9 +108,6 @@ The YAML frontmatter supports these fields:
 - **`roles:`** - Repository access roles that can trigger workflow (array or "all")
   - Default: `[admin, maintainer, write]`
   - Available roles: `admin`, `maintainer`, `write`, `read`, `all`
-- **`bots:`** - GitHub App/bot accounts authorized to trigger workflow (array)
-  - Examples: `["dependabot[bot]", "github-actions[bot]"]`
-  - Allows automated systems to trigger workflows via `workflow_dispatch`
 - **`strict:`** - Enable enhanced validation for production workflows (boolean, defaults to `true`)
   - When omitted, workflows enforce strict mode security constraints
   - Set to `false` to explicitly disable strict mode for development/testing
@@ -655,10 +652,6 @@ on:
     branches: [main]
   schedule:
     - cron: "0 9 * * 1"  # Monday 9AM UTC
-    # Human-friendly format also supported:
-    # - cron: weekly on monday at 09:00
-    # - cron: daily at 02:00
-    # - cron: every 10 minutes
   workflow_dispatch:    # Manual trigger
 ```
 
