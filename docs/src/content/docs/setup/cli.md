@@ -45,7 +45,30 @@ curl -sL https://raw.githubusercontent.com/githubnext/gh-aw/main/install-gh-aw.s
 
 After standalone installation, the binary is installed to `~/.local/share/gh/extensions/gh-aw/gh-aw` and can be used with `gh aw` commands just like the extension installation.
 
-**GitHub Enterprise Server:** Set `GITHUB_SERVER_URL` or `GH_HOST` environment variables to use your GitHub instance.
+### GitHub Enterprise Server Support
+
+`gh-aw` fully supports GitHub Enterprise Server deployments. Configure your enterprise instance using environment variables:
+
+```bash wrap
+# Set your enterprise hostname
+export GH_HOST="github.enterprise.com"
+# Or use GitHub Actions standard variable
+export GITHUB_SERVER_URL="https://github.enterprise.com"
+
+# Authenticate with your enterprise instance
+gh auth login --hostname github.enterprise.com
+
+# Use gh-aw commands normally
+gh aw status
+gh aw logs workflow-name
+```
+
+When using the `--repo` flag, you can specify the enterprise host:
+
+```bash wrap
+gh aw logs workflow-name --repo github.enterprise.com/owner/repo
+gh aw run workflow-name --repo github.enterprise.com/owner/repo
+```
 
 ## Global Options
 
