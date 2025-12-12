@@ -35,6 +35,9 @@ async function main() {
       renderItem: item => {
         let content = `**Issue:** #${item.issue_number}\n`;
         content += `**Agent:** ${item.agent || "copilot"}\n`;
+        if (item.base_branch) {
+          content += `**Base Branch:** ${item.base_branch}\n`;
+        }
         content += "\n";
         return content;
       },
@@ -88,6 +91,7 @@ async function main() {
   for (const item of itemsToProcess) {
     const issueNumber = typeof item.issue_number === "number" ? item.issue_number : parseInt(String(item.issue_number), 10);
     const agentName = item.agent || defaultAgent;
+    const baseBranch = item.base_branch;
 
     if (isNaN(issueNumber) || issueNumber <= 0) {
       core.error(`Invalid issue_number: ${item.issue_number}`);
@@ -149,9 +153,29 @@ async function main() {
       }
 
       core.info(`Successfully assigned ${agentName} coding agent to issue #${issueNumber}`);
+
+      // If base_branch is specified, add a comment to communicate it to the agent
+      if (baseBranch) {
+        try {
+          core.info(`Adding comment with base branch specification: ${baseBranch}`);
+          const commentBody = `@${AGENT_LOGIN_NAMES[agentName]} Please use \`${baseBranch}\` as the base branch for the pull request.`;
+          await github.rest.issues.createComment({
+            owner: targetOwner,
+            repo: targetRepo,
+            issue_number: issueNumber,
+            body: commentBody,
+          });
+          core.info(`Added base branch comment to issue #${issueNumber}`);
+        } catch (commentError) {
+          // Log warning but don't fail the assignment
+          core.warning(`Failed to add base branch comment: ${commentError instanceof Error ? commentError.message : String(commentError)}`);
+        }
+      }
+
       results.push({
         issue_number: issueNumber,
         agent: agentName,
+        base_branch: baseBranch,
         success: true,
       });
     } catch (error) {
@@ -186,7 +210,11 @@ async function main() {
   if (successCount > 0) {
     summaryContent += `✅ Successfully assigned ${successCount} agent(s):\n\n`;
     for (const result of results.filter(r => r.success)) {
-      summaryContent += `- Issue #${result.issue_number} → Agent: ${result.agent}\n`;
+      summaryContent += `- Issue #${result.issue_number} → Agent: ${result.agent}`;
+      if (result.base_branch) {
+        summaryContent += ` (base branch: ${result.base_branch})`;
+      }
+      summaryContent += `\n`;
     }
     summaryContent += "\n";
   }

@@ -327,6 +327,10 @@
         "agent": {
           "type": "string",
           "description": "Agent identifier to assign. Defaults to 'copilot' (the Copilot coding agent) if not specified."
+        },
+        "base_branch": {
+          "type": "string",
+          "description": "Base branch for the pull request that the agent will create. If not specified, the repository's default branch is used."
         }
       },
       "additionalProperties": false
