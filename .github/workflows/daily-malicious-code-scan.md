@@ -78,7 +78,7 @@ Look for these red flags in the changed code:
 **Example patterns to detect:**
 ```bash
 # Search for suspicious network patterns
-grep -E "(curl|wget|fetch|http\.get|requests\.)" /tmp/changed_files.txt | while read file; do
+grep -E "(curl|wget|fetch|http\.get|requests\.)" /tmp/changed_files.txt | while read -r file; do
   if [ -f "$file" ]; then
     echo "Checking: $file"
     # Check for secrets + network combination
@@ -102,7 +102,7 @@ done
 ```bash
 # Check for unusual file additions
 git log --since="3 days ago" --diff-filter=A --name-only --pretty=format: | \
-  sort | uniq | while read file; do
+  sort | uniq | while read -r file; do
   if [ -f "$file" ]; then
     # Check if file is in an unusual location for its type
     case "$file" in
