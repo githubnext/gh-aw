@@ -108,6 +108,8 @@ jobs:
 
       - name: Test full install script (without dummy version)
         shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           chmod +x install-gh-aw.sh
           
