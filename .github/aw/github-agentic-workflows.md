@@ -79,6 +79,7 @@ The YAML frontmatter supports these fields:
   - Object: Complex trigger configuration
   - Special: `command:` for /mention triggers
   - **`forks:`** - Fork allowlist for `pull_request` triggers (array or string). By default, workflows block all forks and only allow same-repo PRs. Use `["*"]` to allow all forks, or specify patterns like `["org/*", "user/repo"]`
+  - **`lock-for-agent:`** - Lock issue when agent works on it (boolean, issues trigger only). Prevents concurrent modifications during workflow execution
   - **`stop-after:`** - Can be included in the `on:` object to set a deadline for workflow execution. Supports absolute timestamps ("YYYY-MM-DD HH:MM:SS") or relative time deltas (+25h, +3d, +1d12h). The minimum unit for relative deltas is hours (h). Uses precise date calculations that account for varying month lengths.
   - **`reaction:`** - Add emoji reactions to triggering items
   - **`manual-approval:`** - Require manual approval using environment protection rules
