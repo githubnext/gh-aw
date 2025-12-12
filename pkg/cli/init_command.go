@@ -25,6 +25,11 @@ This command:
 - Creates the debug agentic workflow agent at .github/agents/debug-agentic-workflow.agent.md
 - Removes old prompt files from .github/prompts/ if they exist
 
+With --tokens flag:
+- Validates which required and optional secrets are configured
+- Provides commands to set up missing secrets for the specified engine
+- Use with --engine flag to check engine-specific tokens (copilot, claude, codex)
+
 With --mcp flag:
 - Creates .github/workflows/copilot-setup-steps.yml with gh-aw installation steps
 - Creates .vscode/mcp.json with gh-aw MCP server configuration
@@ -50,12 +55,15 @@ Examples:
   ` + constants.CLIExtensionPrefix + ` init
   ` + constants.CLIExtensionPrefix + ` init -v
   ` + constants.CLIExtensionPrefix + ` init --mcp
+  ` + constants.CLIExtensionPrefix + ` init --tokens --engine copilot
   ` + constants.CLIExtensionPrefix + ` init --codespaces
   ` + constants.CLIExtensionPrefix + ` init --codespaces repo1,repo2`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			verbose, _ := cmd.Flags().GetBool("verbose")
 			mcp, _ := cmd.Flags().GetBool("mcp")
 			campaign, _ := cmd.Flags().GetBool("campaign")
+			tokens, _ := cmd.Flags().GetBool("tokens")
+			engine, _ := cmd.Flags().GetString("engine")
 			codespaceReposStr, _ := cmd.Flags().GetString("codespaces")
 			codespaceEnabled := cmd.Flags().Changed("codespaces")
 
@@ -72,8 +80,8 @@ Examples:
 				}
 			}
 
-			initCommandLog.Printf("Executing init command: verbose=%v, mcp=%v, campaign=%v, codespaces=%v, codespaceEnabled=%v", verbose, mcp, campaign, codespaceRepos, codespaceEnabled)
-			if err := InitRepository(verbose, mcp, campaign, codespaceRepos, codespaceEnabled); err != nil {
+			initCommandLog.Printf("Executing init command: verbose=%v, mcp=%v, campaign=%v, tokens=%v, engine=%v, codespaces=%v, codespaceEnabled=%v", verbose, mcp, campaign, tokens, engine, codespaceRepos, codespaceEnabled)
+			if err := InitRepository(verbose, mcp, campaign, tokens, engine, codespaceRepos, codespaceEnabled); err != nil {
 				initCommandLog.Printf("Init command failed: %v", err)
 				return err
 			}
@@ -84,6 +92,8 @@ Examples:
 
 	cmd.Flags().Bool("mcp", false, "Configure GitHub Copilot Agent MCP server integration")
 	cmd.Flags().Bool("campaign", false, "Install the Campaign Designer agent for gh-aw campaigns in this repository")
+	cmd.Flags().Bool("tokens", false, "Validate required secrets for agentic workflows")
+	cmd.Flags().String("engine", "", "AI engine to check tokens for (copilot, claude, codex) - requires --tokens flag")
 	cmd.Flags().String("codespaces", "", "Create devcontainer.json for GitHub Codespaces with agentic workflows support. Specify comma-separated repository names in the same organization (e.g., repo1,repo2), or use without value for current repo only")
 	// NoOptDefVal allows using --codespaces without a value (returns empty string when no value provided)
 	cmd.Flags().Lookup("codespaces").NoOptDefVal = " "

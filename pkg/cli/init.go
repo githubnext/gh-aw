@@ -12,7 +12,7 @@ import (
 var initLog = logger.New("cli:init")
 
 // InitRepository initializes the repository for agentic workflows
-func InitRepository(verbose bool, mcp bool, campaign bool, codespaceRepos []string, codespaceEnabled bool) error {
+func InitRepository(verbose bool, mcp bool, campaign bool, tokens bool, engine string, codespaceRepos []string, codespaceEnabled bool) error {
 	initLog.Print("Starting repository initialization for agentic workflows")
 
 	// Ensure we're in a git repository
@@ -138,6 +138,20 @@ func InitRepository(verbose bool, mcp bool, campaign bool, codespaceRepos []stri
 		}
 	}
 
+	// Validate tokens if requested
+	if tokens {
+		initLog.Print("Validating repository secrets for agentic workflows")
+		fmt.Fprintln(os.Stderr, "")
+
+		// Run token bootstrap validation
+		if err := runTokensBootstrap(engine, "", ""); err != nil {
+			initLog.Printf("Token validation failed: %v", err)
+			// Don't fail init if token validation has issues
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Token validation encountered an issue: %v", err)))
+		}
+		fmt.Fprintln(os.Stderr, "")
+	}
+
 	initLog.Print("Repository initialization completed successfully")
 
 	// Display success message with next steps
@@ -150,6 +164,10 @@ func InitRepository(verbose bool, mcp bool, campaign bool, codespaceRepos []stri
 	}
 	if len(codespaceRepos) > 0 {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("GitHub Codespaces devcontainer configured"))
+		fmt.Fprintln(os.Stderr, "")
+	}
+	if tokens {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("To configure missing secrets, use: gh aw secret set <secret-name> --owner <owner> --repo <repo>"))
 		fmt.Fprintln(os.Stderr, "")
 	}
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("To create a workflow, launch Copilot CLI: npx @github/copilot"))

@@ -54,7 +54,7 @@ func TestInitRepository(t *testing.T) {
 			}
 
 			// Call the function (no MCP or campaign)
-			err = InitRepository(false, false, false, []string{}, false)
+			err = InitRepository(false, false, false, false, "", []string{}, false)
 
 			// Check error expectation
 			if tt.wantError {
@@ -149,13 +149,13 @@ func TestInitRepository_Idempotent(t *testing.T) {
 	}
 
 	// Call the function first time
-	err = InitRepository(false, false, false, []string{}, false)
+	err = InitRepository(false, false, false, false, "", []string{}, false)
 	if err != nil {
 		t.Fatalf("InitRepository() returned error on first call: %v", err)
 	}
 
 	// Call the function second time
-	err = InitRepository(false, false, false, []string{}, false)
+	err = InitRepository(false, false, false, false, "", []string{}, false)
 	if err != nil {
 		t.Fatalf("InitRepository() returned error on second call: %v", err)
 	}
@@ -211,7 +211,7 @@ func TestInitRepository_Verbose(t *testing.T) {
 	}
 
 	// Call the function with verbose=true (should not error)
-	err = InitRepository(true, false, false, []string{}, false)
+	err = InitRepository(true, false, false, false, "", []string{}, false)
 	if err != nil {
 		t.Fatalf("InitRepository() returned error with verbose=true: %v", err)
 	}
@@ -245,7 +245,7 @@ func TestInitRepository_WithCampaignDesignerAgent(t *testing.T) {
 	}
 
 	// Call InitRepository with campaign flag enabled
-	if err := InitRepository(false, false, true, []string{}, false); err != nil {
+	if err := InitRepository(false, false, true, false, "", []string{}, false); err != nil {
 		t.Fatalf("InitRepository() with campaign flag returned error: %v", err)
 	}
 
