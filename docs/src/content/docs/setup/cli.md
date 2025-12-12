@@ -155,6 +155,8 @@ gh aw compile --strict --zizmor        # Strict mode with security scanning
 gh aw compile --validate --strict      # Validate schema and enforce strict mode
 ```
 
+**Campaign specs and orchestrators:** In repositories that define campaign spec files under `.github/workflows/*.campaign.md`, `gh aw compile` first validates those specs (including referenced `workflows`) and fails the compilation if any problems are found. When the environment variable `GH_AW_EXPERIMENTAL_CAMPAIGN_ORCHESTRATOR=1` is set, `compile` also synthesizes an orchestrator workflow for each valid spec (for example, `security-compliance.campaign.md` → `security-compliance-campaign.md`) and compiles it to a corresponding `.lock.yml` file.
+
 See [Strict Mode reference](/gh-aw/reference/frontmatter/#strict-mode-strict) for frontmatter configuration and [Security Guide](/gh-aw/guides/security/#strict-mode-validation) for best practices.
 
 ### Testing
