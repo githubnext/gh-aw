@@ -3818,6 +3818,17 @@
                   "description": "Optional maximum number of agent assignments (default: 1)",
                   "minimum": 1
                 },
+                "branch-prefix": {
+                  "type": "string",
+                  "description": "Required prefix for branch names when assigning to an agent (default: '<workflowid>/'). Enforces a 'prefix/' prefix in the branch name."
+                },
+                "allowed-agents": {
+                  "type": "array",
+                  "description": "Optional list of allowed agent identifiers. If specified, only agents from this list can be assigned.",
+                  "items": {
+                    "type": "string"
+                  }
+                },
                 "target-repo": {
                   "type": "string",
                   "description": "Target repository in format 'owner/repo' for cross-repository agent assignment. Takes precedence over trial target repo settings."

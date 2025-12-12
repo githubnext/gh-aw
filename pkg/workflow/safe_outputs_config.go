@@ -737,6 +737,12 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 			if data.SafeOutputs.AssignToAgent.DefaultAgent != "" {
 				assignToAgentConfig["default_agent"] = data.SafeOutputs.AssignToAgent.DefaultAgent
 			}
+			if data.SafeOutputs.AssignToAgent.BranchPrefix != "" {
+				assignToAgentConfig["branch_prefix"] = data.SafeOutputs.AssignToAgent.BranchPrefix
+			}
+			if len(data.SafeOutputs.AssignToAgent.AllowedAgents) > 0 {
+				assignToAgentConfig["allowed_agents"] = data.SafeOutputs.AssignToAgent.AllowedAgents
+			}
 			safeOutputsConfig["assign_to_agent"] = assignToAgentConfig
 		}
 		if data.SafeOutputs.AssignToUser != nil {

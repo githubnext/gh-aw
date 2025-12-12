@@ -1445,6 +1445,11 @@ jobs:
                   "sanitize": true,
                   "maxLength": 128
                 },
+                "branch": {
+                  "type": "string",
+                  "sanitize": true,
+                  "maxLength": 256
+                },
                 "issue_number": {
                   "required": true,
                   "positiveInteger": true
@@ -6819,6 +6824,7 @@ jobs:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_AGENT_DEFAULT: "copilot"
           GH_AW_AGENT_MAX_COUNT: 3
+          GH_AW_AGENT_BRANCH_PREFIX: "agent/"
           GH_AW_WORKFLOW_NAME: "Issue Monster"
           GH_AW_ENGINE_ID: "copilot"
           GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🍪 *Om nom nom by [{workflow_name}]({run_url})*\",\"runStarted\":\"🍪 ISSUE! ISSUE! [{workflow_name}]({run_url}) hungry for issues on this {event_type}! Om nom nom...\",\"runSuccess\":\"🍪 YUMMY! [{workflow_name}]({run_url}) ate the issues! That was DELICIOUS! Me want MORE! 😋\",\"runFailure\":\"🍪 Aww... [{workflow_name}]({run_url}) {status}. No cookie for monster today... 😢\"}"
@@ -7003,30 +7009,58 @@ jobs:
                 return null;
               }
             }
-            async function assignAgentToIssue(issueId, agentId, currentAssignees, agentName) {
+            async function assignAgentToIssue(issueId, agentId, currentAssignees, agentName, agentAssignment) {
               const actorIds = [agentId];
               for (const assigneeId of currentAssignees) {
                 if (assigneeId !== agentId) {
                   actorIds.push(assigneeId);
                 }
               }
-              const mutation = `
-                mutation($assignableId: ID!, $actorIds: [ID!]!) {
-                  replaceActorsForAssignable(input: {
-                    assignableId: $assignableId,
-                    actorIds: $actorIds
-                  }) {
-                    __typename
+              let mutation;
+              let variables;
+              if (agentAssignment) {
+                mutation = `
+                  mutation($assignableId: ID!, $actorIds: [ID!]!, $agentAssignment: AgentAssignmentInput) {
+                    replaceActorsForAssignable(input: {
+                      assignableId: $assignableId,
+                      actorIds: $actorIds,
+                      agentAssignment: $agentAssignment
+                    }) {
+                      __typename
+                    }
                   }
-                }
-              `;
-              try {
-                core.info("Using built-in github object for mutation");
-                core.debug(`GraphQL mutation with variables: assignableId=${issueId}, actorIds=${JSON.stringify(actorIds)}`);
-                const response = await github.graphql(mutation, {
+                `;
+                variables = {
                   assignableId: issueId,
                   actorIds: actorIds,
-                });
+                  agentAssignment: agentAssignment,
+                };
+              } else {
+                mutation = `
+                  mutation($assignableId: ID!, $actorIds: [ID!]!) {
+                    replaceActorsForAssignable(input: {
+                      assignableId: $assignableId,
+                      actorIds: $actorIds
+                    }) {
+                      __typename
+                    }
+                  }
+                `;
+                variables = {
+                  assignableId: issueId,
+                  actorIds: actorIds,
+                };
+              }
+              try {
+                core.info("Using built-in github object for mutation");
+                if (agentAssignment) {
+                  core.debug(
+                    `GraphQL mutation with variables: assignableId=${issueId}, actorIds=${JSON.stringify(actorIds)}, agentAssignment=${JSON.stringify(agentAssignment)}`
+                  );
+                } else {
+                  core.debug(`GraphQL mutation with variables: assignableId=${issueId}, actorIds=${JSON.stringify(actorIds)}`);
+                }
+                const response = await github.graphql(mutation, variables);
                 if (response && response.replaceActorsForAssignable && response.replaceActorsForAssignable.__typename) {
                   return true;
                 } else {
@@ -7233,6 +7267,41 @@ jobs:
                   core.warning(`Invalid target-repo format: ${targetRepoEnv}. Expected owner/repo. Using current repository.`);
                 }
               }
+              const branchPrefix = process.env.GH_AW_AGENT_BRANCH_PREFIX?.trim() || "";
+              if (branchPrefix) {
+                core.info(`Branch prefix configured: ${branchPrefix}`);
+              }
+              let allowedAgents = [];
+              const allowedAgentsEnv = process.env.GH_AW_AGENT_ALLOWED_AGENTS?.trim();
+              if (allowedAgentsEnv) {
+                try {
+                  allowedAgents = JSON.parse(allowedAgentsEnv);
+                  if (Array.isArray(allowedAgents) && allowedAgents.length > 0) {
+                    core.info(`Allowed agents: ${allowedAgents.join(", ")}`);
+                  }
+                } catch (error) {
+                  core.warning(`Failed to parse allowed-agents configuration: ${error.message}`);
+                }
+              }
+              let targetRepoId = null;
+              if (targetRepoEnv) {
+                try {
+                  const repoQuery = `
+                    query($owner: String!, $repo: String!) {
+                      repository(owner: $owner, name: $repo) {
+                        id
+                      }
+                    }
+                  `;
+                  const repoResponse = await github.graphql(repoQuery, { owner: targetOwner, repo: targetRepo });
+                  targetRepoId = repoResponse.repository?.id;
+                  if (targetRepoId) {
+                    core.info(`Target repository ID: ${targetRepoId}`);
+                  }
+                } catch (error) {
+                  core.warning(`Failed to get target repository ID: ${error.message}`);
+                }
+              }
               const agentCache = {};
               const results = [];
               for (const item of itemsToProcess) {
@@ -7249,6 +7318,28 @@ jobs:
                     agent: agentName,
                     success: false,
                     error: `Unsupported agent: ${agentName}`,
+                  });
+                  continue;
+                }
+                const branch = item.branch?.trim();
+                if (branch && branchPrefix && !branch.startsWith(branchPrefix)) {
+                  core.error(`Branch "${branch}" does not start with required prefix "${branchPrefix}"`);
+                  results.push({
+                    issue_number: issueNumber,
+                    agent: agentName,
+                    success: false,
+                    error: `Branch must start with prefix: ${branchPrefix}`,
+                  });
+                  continue;
+                }
+                const customAgent = item.agent?.trim();
+                if (customAgent && allowedAgents.length > 0 && !allowedAgents.includes(customAgent)) {
+                  core.error(`Agent "${customAgent}" is not in the allowed-agents list: ${allowedAgents.join(", ")}`);
+                  results.push({
+                    issue_number: issueNumber,
+                    agent: agentName,
+                    success: false,
+                    error: `Agent not allowed. Allowed agents: ${allowedAgents.join(", ")}`,
                   });
                   continue;
                 }
@@ -7279,7 +7370,23 @@ jobs:
                     continue;
                   }
                   core.info(`Assigning ${agentName} coding agent to issue #${issueNumber}...`);
-                  const success = await assignAgentToIssue(issueDetails.issueId, agentId, issueDetails.currentAssignees, agentName);
+                  let agentAssignment = null;
+                  if (branch || customAgent || targetRepoId) {
+                    agentAssignment = {};
+                    if (branch) {
+                      agentAssignment.baseRef = branch;
+                      core.info(`Using base branch: ${branch}`);
+                    }
+                    if (customAgent) {
+                      agentAssignment.customAgent = customAgent;
+                      core.info(`Using custom agent: ${customAgent}`);
+                    }
+                    if (targetRepoId) {
+                      agentAssignment.targetRepositoryId = targetRepoId;
+                      core.info(`Using target repository ID: ${targetRepoId}`);
+                    }
+                  }
+                  const success = await assignAgentToIssue(issueDetails.issueId, agentId, issueDetails.currentAssignees, agentName, agentAssignment);
                   if (!success) {
                     throw new Error(`Failed to assign ${agentName} via GraphQL`);
                   }

@@ -37,6 +37,8 @@ safe-outputs:
   assign-to-agent:
     max: 5
     name: copilot
+    branch-prefix: "test-workflow/"
+    allowed-agents: ["copilot"]
 strict: false
 ---
 
@@ -48,5 +50,11 @@ This workflow tests the `assign_to_agent` safe output feature, which allows AI a
 
 **For workflow_dispatch:**
 Assign the Copilot agent to issue #${{ github.event.inputs.issue_number }} using the `assign_to_agent` tool from the `safeoutputs` MCP server.
+
+The tool now supports:
+- `branch` parameter to specify which branch the agent should start from (must start with "test-workflow/" prefix in this workflow)
+- `agent` parameter to specify a custom agent (must be "copilot" in this workflow due to allowed-agents constraint)
+
+Example: Call assign_to_agent with issue_number, branch="test-workflow/feature-123", and agent="copilot"
 
 Do not use GitHub tools. The assign_to_agent tool will handle the actual assignment.

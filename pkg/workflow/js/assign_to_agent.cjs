@@ -77,6 +77,47 @@ async function main() {
     }
   }
 
+  // Get branch prefix configuration
+  const branchPrefix = process.env.GH_AW_AGENT_BRANCH_PREFIX?.trim() || "";
+  if (branchPrefix) {
+    core.info(`Branch prefix configured: ${branchPrefix}`);
+  }
+
+  // Get allowed agents configuration
+  let allowedAgents = [];
+  const allowedAgentsEnv = process.env.GH_AW_AGENT_ALLOWED_AGENTS?.trim();
+  if (allowedAgentsEnv) {
+    try {
+      allowedAgents = JSON.parse(allowedAgentsEnv);
+      if (Array.isArray(allowedAgents) && allowedAgents.length > 0) {
+        core.info(`Allowed agents: ${allowedAgents.join(", ")}`);
+      }
+    } catch (error) {
+      core.warning(`Failed to parse allowed-agents configuration: ${error.message}`);
+    }
+  }
+
+  // Get target repository ID for agentAssignment (if targeting different repo)
+  let targetRepoId = null;
+  if (targetRepoEnv) {
+    try {
+      const repoQuery = `
+        query($owner: String!, $repo: String!) {
+          repository(owner: $owner, name: $repo) {
+            id
+          }
+        }
+      `;
+      const repoResponse = await github.graphql(repoQuery, { owner: targetOwner, repo: targetRepo });
+      targetRepoId = repoResponse.repository?.id;
+      if (targetRepoId) {
+        core.info(`Target repository ID: ${targetRepoId}`);
+      }
+    } catch (error) {
+      core.warning(`Failed to get target repository ID: ${error.message}`);
+    }
+  }
+
   // The github-token is set at the step level, so the built-in github object is authenticated
   // with the correct token (GH_AW_AGENT_TOKEN by default)
 
@@ -102,6 +143,32 @@ async function main() {
         agent: agentName,
         success: false,
         error: `Unsupported agent: ${agentName}`,
+      });
+      continue;
+    }
+
+    // Validate branch if provided
+    const branch = item.branch?.trim();
+    if (branch && branchPrefix && !branch.startsWith(branchPrefix)) {
+      core.error(`Branch "${branch}" does not start with required prefix "${branchPrefix}"`);
+      results.push({
+        issue_number: issueNumber,
+        agent: agentName,
+        success: false,
+        error: `Branch must start with prefix: ${branchPrefix}`,
+      });
+      continue;
+    }
+
+    // Validate custom agent if provided against allowed-agents list
+    const customAgent = item.agent?.trim();
+    if (customAgent && allowedAgents.length > 0 && !allowedAgents.includes(customAgent)) {
+      core.error(`Agent "${customAgent}" is not in the allowed-agents list: ${allowedAgents.join(", ")}`);
+      results.push({
+        issue_number: issueNumber,
+        agent: agentName,
+        success: false,
+        error: `Agent not allowed. Allowed agents: ${allowedAgents.join(", ")}`,
       });
       continue;
     }
@@ -142,7 +209,26 @@ async function main() {
 
       // Assign agent using GraphQL mutation - uses built-in github object authenticated via github-token
       core.info(`Assigning ${agentName} coding agent to issue #${issueNumber}...`);
-      const success = await assignAgentToIssue(issueDetails.issueId, agentId, issueDetails.currentAssignees, agentName);
+
+      // Build agentAssignment object if branch or customAgent is provided
+      let agentAssignment = null;
+      if (branch || customAgent || targetRepoId) {
+        agentAssignment = {};
+        if (branch) {
+          agentAssignment.baseRef = branch;
+          core.info(`Using base branch: ${branch}`);
+        }
+        if (customAgent) {
+          agentAssignment.customAgent = customAgent;
+          core.info(`Using custom agent: ${customAgent}`);
+        }
+        if (targetRepoId) {
+          agentAssignment.targetRepositoryId = targetRepoId;
+          core.info(`Using target repository ID: ${targetRepoId}`);
+        }
+      }
+
+      const success = await assignAgentToIssue(issueDetails.issueId, agentId, issueDetails.currentAssignees, agentName, agentAssignment);
 
       if (!success) {
         throw new Error(`Failed to assign ${agentName} via GraphQL`);

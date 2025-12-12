@@ -182,9 +182,13 @@ async function getIssueDetails(owner, repo, issueNumber) {
  * @param {string} agentId - Agent ID
  * @param {string[]} currentAssignees - List of current assignee IDs
  * @param {string} agentName - Agent name for error messages
+ * @param {Object} [agentAssignment] - Optional agent assignment configuration
+ * @param {string} [agentAssignment.baseRef] - Base branch reference
+ * @param {string} [agentAssignment.customAgent] - Custom agent identifier
+ * @param {string} [agentAssignment.targetRepositoryId] - Target repository ID (optional, defaults to current repo)
  * @returns {Promise<boolean>} True if successful
  */
-async function assignAgentToIssue(issueId, agentId, currentAssignees, agentName) {
+async function assignAgentToIssue(issueId, agentId, currentAssignees, agentName, agentAssignment) {
   // Build actor IDs array - include agent and preserve other assignees
   const actorIds = [agentId];
   for (const assigneeId of currentAssignees) {
@@ -193,25 +197,56 @@ async function assignAgentToIssue(issueId, agentId, currentAssignees, agentName)
     }
   }
 
-  const mutation = `
-    mutation($assignableId: ID!, $actorIds: [ID!]!) {
-      replaceActorsForAssignable(input: {
-        assignableId: $assignableId,
-        actorIds: $actorIds
-      }) {
-        __typename
+  // Build mutation with optional agentAssignment
+  let mutation;
+  let variables;
+
+  if (agentAssignment) {
+    mutation = `
+      mutation($assignableId: ID!, $actorIds: [ID!]!, $agentAssignment: AgentAssignmentInput) {
+        replaceActorsForAssignable(input: {
+          assignableId: $assignableId,
+          actorIds: $actorIds,
+          agentAssignment: $agentAssignment
+        }) {
+          __typename
+        }
       }
-    }
-  `;
+    `;
+    variables = {
+      assignableId: issueId,
+      actorIds: actorIds,
+      agentAssignment: agentAssignment,
+    };
+  } else {
+    mutation = `
+      mutation($assignableId: ID!, $actorIds: [ID!]!) {
+        replaceActorsForAssignable(input: {
+          assignableId: $assignableId,
+          actorIds: $actorIds
+        }) {
+          __typename
+        }
+      }
+    `;
+    variables = {
+      assignableId: issueId,
+      actorIds: actorIds,
+    };
+  }
 
   try {
     core.info("Using built-in github object for mutation");
 
-    core.debug(`GraphQL mutation with variables: assignableId=${issueId}, actorIds=${JSON.stringify(actorIds)}`);
-    const response = await github.graphql(mutation, {
-      assignableId: issueId,
-      actorIds: actorIds,
-    });
+    if (agentAssignment) {
+      core.debug(
+        `GraphQL mutation with variables: assignableId=${issueId}, actorIds=${JSON.stringify(actorIds)}, agentAssignment=${JSON.stringify(agentAssignment)}`
+      );
+    } else {
+      core.debug(`GraphQL mutation with variables: assignableId=${issueId}, actorIds=${JSON.stringify(actorIds)}`);
+    }
+
+    const response = await github.graphql(mutation, variables);
 
     if (response && response.replaceActorsForAssignable && response.replaceActorsForAssignable.__typename) {
       return true;

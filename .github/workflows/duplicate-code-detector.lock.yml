@@ -6817,30 +6817,58 @@ jobs:
                 return null;
               }
             }
-            async function assignAgentToIssue(issueId, agentId, currentAssignees, agentName) {
+            async function assignAgentToIssue(issueId, agentId, currentAssignees, agentName, agentAssignment) {
               const actorIds = [agentId];
               for (const assigneeId of currentAssignees) {
                 if (assigneeId !== agentId) {
                   actorIds.push(assigneeId);
                 }
               }
-              const mutation = `
-                mutation($assignableId: ID!, $actorIds: [ID!]!) {
-                  replaceActorsForAssignable(input: {
-                    assignableId: $assignableId,
-                    actorIds: $actorIds
-                  }) {
-                    __typename
+              let mutation;
+              let variables;
+              if (agentAssignment) {
+                mutation = `
+                  mutation($assignableId: ID!, $actorIds: [ID!]!, $agentAssignment: AgentAssignmentInput) {
+                    replaceActorsForAssignable(input: {
+                      assignableId: $assignableId,
+                      actorIds: $actorIds,
+                      agentAssignment: $agentAssignment
+                    }) {
+                      __typename
+                    }
                   }
-                }
-              `;
-              try {
-                core.info("Using built-in github object for mutation");
-                core.debug(`GraphQL mutation with variables: assignableId=${issueId}, actorIds=${JSON.stringify(actorIds)}`);
-                const response = await github.graphql(mutation, {
+                `;
+                variables = {
                   assignableId: issueId,
                   actorIds: actorIds,
-                });
+                  agentAssignment: agentAssignment,
+                };
+              } else {
+                mutation = `
+                  mutation($assignableId: ID!, $actorIds: [ID!]!) {
+                    replaceActorsForAssignable(input: {
+                      assignableId: $assignableId,
+                      actorIds: $actorIds
+                    }) {
+                      __typename
+                    }
+                  }
+                `;
+                variables = {
+                  assignableId: issueId,
+                  actorIds: actorIds,
+                };
+              }
+              try {
+                core.info("Using built-in github object for mutation");
+                if (agentAssignment) {
+                  core.debug(
+                    `GraphQL mutation with variables: assignableId=${issueId}, actorIds=${JSON.stringify(actorIds)}, agentAssignment=${JSON.stringify(agentAssignment)}`
+                  );
+                } else {
+                  core.debug(`GraphQL mutation with variables: assignableId=${issueId}, actorIds=${JSON.stringify(actorIds)}`);
+                }
+                const response = await github.graphql(mutation, variables);
                 if (response && response.replaceActorsForAssignable && response.replaceActorsForAssignable.__typename) {
                   return true;
                 } else {
