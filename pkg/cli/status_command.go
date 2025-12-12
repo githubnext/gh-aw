@@ -335,7 +335,7 @@ func StatusWorkflows(pattern string, verbose bool, jsonOutput bool, ref string, 
 	if needsCompilation > 0 {
 		fmt.Fprintln(os.Stderr)
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("%d workflow%s need compilation", needsCompilation, pluralize(needsCompilation))))
-		fmt.Fprintf(os.Stderr, "  Run: %s\n", console.FormatCommandMessage("gh aw compile --all"))
+		fmt.Fprintf(os.Stderr, "  Run: %s\n", console.FormatCommandMessage("gh aw compile"))
 	} else if len(statuses) > 0 {
 		fmt.Fprintln(os.Stderr)
 		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("All workflows are up-to-date"))
