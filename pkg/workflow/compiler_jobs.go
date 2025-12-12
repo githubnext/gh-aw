@@ -1009,12 +1009,9 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 
 	// Add lock step if lock-for-agent is enabled
 	if data.LockForAgent {
-		// Build condition: only lock if this is an issue context AND not a pull request
-		// github.event.issue.number exists for both issues and PRs, so we need to exclude PRs
-		// by checking that github.event.pull_request does NOT exist
-		hasIssueNumber := BuildPropertyAccess("github.event.issue.number")
-		notPullRequest := &NotNode{Child: BuildPropertyAccess("github.event.pull_request")}
-		lockCondition := buildAnd(hasIssueNumber, notPullRequest)
+		// Build condition: only lock if event type is 'issues'
+		// lock-for-agent is configured under on.issues, so it should only lock for issue events
+		lockCondition := BuildEventTypeEquals("issues")
 
 		steps = append(steps, "      - name: Lock issue for agent workflow\n")
 		steps = append(steps, "        id: lock-issue\n")

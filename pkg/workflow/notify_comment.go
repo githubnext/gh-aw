@@ -172,10 +172,9 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 	// Add unlock step if lock-for-agent is enabled
 	if data.LockForAgent {
 		// Build condition: only unlock if issue was locked by activation job
-		// Must match lock condition: issue number exists AND not a pull request
+		// Must match lock condition: event type is 'issues'
 		// Use the issue_locked output from activation job to determine if unlock is needed
-		issueNumberCheck := BuildPropertyAccess("github.event.issue.number")
-		notPullRequest := &NotNode{Child: BuildPropertyAccess("github.event.pull_request")}
+		eventTypeCheck := BuildEventTypeEquals("issues")
 		lockedOutputCheck := BuildEquals(
 			BuildPropertyAccess(fmt.Sprintf("needs.%s.outputs.issue_locked", constants.ActivationJobName)),
 			BuildStringLiteral("true"),
@@ -183,7 +182,7 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 
 		unlockCondition := buildAnd(
 			BuildFunctionCall("always"), // Always run, even on failure
-			buildAnd(buildAnd(issueNumberCheck, notPullRequest), lockedOutputCheck),
+			buildAnd(eventTypeCheck, lockedOutputCheck),
 		)
 
 		steps = append(steps, "      - name: Unlock issue after agent workflow\n")
