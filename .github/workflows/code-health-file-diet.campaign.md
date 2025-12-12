@@ -1,7 +1,7 @@
 ---
 id: code-health-file-diet
 version: "v1"
-name: "Code Health: File Diet"
+name: "Campaign: File Diet"
 description: "Reduce oversized Go files across the codebase with tracked refactors."
 
 workflows:

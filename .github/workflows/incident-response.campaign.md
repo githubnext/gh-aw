@@ -1,7 +1,7 @@
 ---
 id: incident-response
 version: "v1"
-name: "Incident Response Campaign"
+name: "Campaign: Incident Response"
 description: "Multi-team incident coordination with command center, SLA tracking, and post-mortem."
 
 workflows:
