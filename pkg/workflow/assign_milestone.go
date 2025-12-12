@@ -43,39 +43,21 @@ func (c *Compiler) buildAssignMilestoneJob(data *WorkflowData, mainJobName strin
 
 	cfg := data.SafeOutputs.AssignMilestone
 
-	// Handle max count with default of 1
-	maxCount := 1
-	if cfg.Max > 0 {
-		maxCount = cfg.Max
-	}
-
-	// Build custom environment variables using shared helpers
+	// Build list job config
 	listJobConfig := ListJobConfig{
 		SafeOutputTargetConfig: cfg.SafeOutputTargetConfig,
 		Allowed:                cfg.Allowed,
 	}
-	customEnvVars := BuildListJobEnvVars("GH_AW_MILESTONE", listJobConfig, maxCount)
 
-	// Add standard environment variables (metadata + staged/target repo)
-	customEnvVars = append(customEnvVars, c.buildStandardSafeOutputEnvVars(data, cfg.TargetRepoSlug)...)
-
-	// Create outputs for the job
-	outputs := map[string]string{
-		"assigned_milestones": "${{ steps.assign_milestone.outputs.assigned_milestones }}",
-	}
-
-	// Use the shared builder function to create the job
-	return c.buildSafeOutputJob(data, SafeOutputJobConfig{
-		JobName:        "assign_milestone",
-		StepName:       "Assign Milestone",
-		StepID:         "assign_milestone",
-		MainJobName:    mainJobName,
-		CustomEnvVars:  customEnvVars,
-		Script:         getAssignMilestoneScript(),
-		Permissions:    NewPermissionsContentsReadIssuesWrite(),
-		Outputs:        outputs,
-		Token:          cfg.GitHubToken,
-		Condition:      BuildSafeOutputType("assign_milestone"),
-		TargetRepoSlug: cfg.TargetRepoSlug,
+	// Use shared builder for list-based safe-output jobs
+	return c.BuildListSafeOutputJob(data, mainJobName, listJobConfig, cfg.BaseSafeOutputConfig, ListJobBuilderConfig{
+		JobName:     "assign_milestone",
+		StepName:    "Assign Milestone",
+		StepID:      "assign_milestone",
+		EnvPrefix:   "GH_AW_MILESTONE",
+		OutputName:  "assigned_milestones",
+		Script:      getAssignMilestoneScript(),
+		Permissions: NewPermissionsContentsReadIssuesWrite(),
+		DefaultMax:  1,
 	})
 }

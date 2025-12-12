@@ -52,42 +52,21 @@ func (c *Compiler) buildAddLabelsJob(data *WorkflowData, mainJobName string) (*J
 
 	cfg := data.SafeOutputs.AddLabels
 
-	// Handle max count with default of 3
-	maxCount := 3
-	if cfg.Max > 0 {
-		maxCount = cfg.Max
-	}
-	addLabelsLog.Printf("Configuration: max_count=%d, allowed_count=%d, target=%s", maxCount, len(cfg.Allowed), cfg.Target)
-
-	// Build custom environment variables using shared helpers
+	// Build list job config
 	listJobConfig := ListJobConfig{
 		SafeOutputTargetConfig: cfg.SafeOutputTargetConfig,
 		Allowed:                cfg.Allowed,
 	}
-	customEnvVars := BuildListJobEnvVars("GH_AW_LABELS", listJobConfig, maxCount)
 
-	// Add standard environment variables (metadata + staged/target repo)
-	customEnvVars = append(customEnvVars, c.buildStandardSafeOutputEnvVars(data, cfg.TargetRepoSlug)...)
-
-	// Create outputs for the job
-	outputs := map[string]string{
-		"labels_added": "${{ steps.add_labels.outputs.labels_added }}",
-	}
-
-	var jobCondition = BuildSafeOutputType("add_labels")
-
-	// Use the shared builder function to create the job
-	return c.buildSafeOutputJob(data, SafeOutputJobConfig{
-		JobName:        "add_labels",
-		StepName:       "Add Labels",
-		StepID:         "add_labels",
-		MainJobName:    mainJobName,
-		CustomEnvVars:  customEnvVars,
-		Script:         getAddLabelsScript(),
-		Permissions:    NewPermissionsContentsReadIssuesWritePRWrite(),
-		Outputs:        outputs,
-		Condition:      jobCondition,
-		Token:          cfg.GitHubToken,
-		TargetRepoSlug: cfg.TargetRepoSlug,
+	// Use shared builder for list-based safe-output jobs
+	return c.BuildListSafeOutputJob(data, mainJobName, listJobConfig, cfg.BaseSafeOutputConfig, ListJobBuilderConfig{
+		JobName:     "add_labels",
+		StepName:    "Add Labels",
+		StepID:      "add_labels",
+		EnvPrefix:   "GH_AW_LABELS",
+		OutputName:  "labels_added",
+		Script:      getAddLabelsScript(),
+		Permissions: NewPermissionsContentsReadIssuesWritePRWrite(),
+		DefaultMax:  3,
 	})
 }
