@@ -572,7 +572,9 @@ on:
 
   # Time when workflow should stop running. Supports multiple formats: absolute
   # dates (YYYY-MM-DD HH:MM:SS, June 1 2025, 1st June 2025, 06/01/2025, etc.) or
-  # relative time deltas (+25h, +3d, +1d12h30m)
+  # relative time deltas (+25h, +3d, +1d12h30m). Maximum values for time deltas:
+  # 12mo, 52w, 365d, 8760h (365 days). Note: Minute unit 'm' is not allowed for
+  # stop-after; minimum unit is hours 'h'.
   # (optional)
   stop-after: "example-value"
 
@@ -2070,7 +2072,7 @@ safe-outputs:
   # Option 1: Configuration for creating GitHub pull request review comments from
   # agentic workflow output
   create-pull-request-review-comment:
-    # Maximum number of review comments to create (default: 1)
+    # Maximum number of review comments to create (default: 10)
     # (optional)
     max: 1
 
