@@ -265,6 +265,64 @@ describe("assign_agent_helpers.cjs", () => {
       );
     });
 
+    it("should successfully assign agent with agentAssignment (branch and customAgent)", async () => {
+      // Mock the global github.graphql
+      mockGithub.graphql.mockResolvedValueOnce({
+        replaceActorsForAssignable: {
+          __typename: "ReplaceActorsForAssignablePayload",
+        },
+      });
+
+      const agentAssignment = {
+        baseRef: "feature-branch",
+        customAgent: "my-custom-agent",
+      };
+
+      const result = await assignAgentToIssue("ISSUE_123", "AGENT_456", ["USER_1"], "copilot", agentAssignment);
+
+      expect(result).toBe(true);
+      expect(mockGithub.graphql).toHaveBeenCalledWith(
+        expect.stringContaining("agentAssignment: AgentAssignmentInput"),
+        expect.objectContaining({
+          assignableId: "ISSUE_123",
+          actorIds: ["AGENT_456", "USER_1"],
+          agentAssignment: {
+            baseRef: "feature-branch",
+            customAgent: "my-custom-agent",
+          },
+        })
+      );
+    });
+
+    it("should successfully assign agent with agentAssignment (targetRepositoryId)", async () => {
+      // Mock the global github.graphql
+      mockGithub.graphql.mockResolvedValueOnce({
+        replaceActorsForAssignable: {
+          __typename: "ReplaceActorsForAssignablePayload",
+        },
+      });
+
+      const agentAssignment = {
+        baseRef: "main",
+        targetRepositoryId: "REPO_789",
+      };
+
+      const result = await assignAgentToIssue("ISSUE_123", "AGENT_456", [], "copilot", agentAssignment);
+
+      expect(result).toBe(true);
+      expect(mockGithub.graphql).toHaveBeenCalledWith(
+        expect.stringContaining("agentAssignment: AgentAssignmentInput"),
+        expect.objectContaining({
+          assignableId: "ISSUE_123",
+          actorIds: ["AGENT_456"],
+          agentAssignment: {
+            baseRef: "main",
+            targetRepositoryId: "REPO_789",
+          },
+        })
+      );
+    });
+
     it("should preserve existing assignees when adding agent", async () => {
       mockGithub.graphql.mockResolvedValueOnce({
         replaceActorsForAssignable: {
