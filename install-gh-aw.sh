@@ -145,7 +145,7 @@ fetch_release_data() {
         fi
         
         # If this was the first attempt with auth and it failed, try without auth
-        if [ $attempt -eq 1 ] && [ "$use_auth" = true ]; then
+        if [ "$attempt" -eq 1 ] && [ "$use_auth" = true ]; then
             print_warning "API call with GH_TOKEN failed. Retrying without authentication..."
             print_warning "Your GH_TOKEN may be incompatible (typically SSO) with this request."
             use_auth=false
@@ -154,7 +154,7 @@ fetch_release_data() {
         fi
         
         # If we haven't exhausted retries, wait and try again
-        if [ $attempt -lt $max_retries ]; then
+        if [ "$attempt" -lt "$max_retries" ]; then
             print_warning "Fetch attempt $attempt failed (exit code: $exit_code). Retrying in ${retry_delay}s..."
             sleep $retry_delay
             retry_delay=$((retry_delay * 2))
@@ -231,7 +231,7 @@ for attempt in $(seq 1 $MAX_RETRIES); do
         print_success "Binary downloaded successfully"
         break
     else
-        if [ $attempt -eq $MAX_RETRIES ]; then
+        if [ "$attempt" -eq "$MAX_RETRIES" ]; then
             print_error "Failed to download binary from $DOWNLOAD_URL after $MAX_RETRIES attempts"
             print_info "Please check if the version and platform combination exists in the releases."
             exit 1
