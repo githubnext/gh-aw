@@ -306,15 +306,15 @@ func BuildListJobEnvVars(prefix string, config ListJobConfig, maxCount int) []st
 
 // ListJobBuilderConfig contains parameters for building list-based safe-output jobs
 type ListJobBuilderConfig struct {
-	JobName        string            // e.g., "add_labels", "assign_milestone"
-	StepName       string            // e.g., "Add Labels", "Assign Milestone"
-	StepID         string            // e.g., "add_labels", "assign_milestone"
-	EnvPrefix      string            // e.g., "GH_AW_LABELS", "GH_AW_MILESTONE"
-	OutputName     string            // e.g., "labels_added", "assigned_milestones"
-	Script         string            // JavaScript script for the operation
-	Permissions    *Permissions      // Job permissions
-	DefaultMax     int               // Default max count if not specified in config
-	ExtraCondition ConditionNode     // Additional condition to append (optional)
+	JobName        string        // e.g., "add_labels", "assign_milestone"
+	StepName       string        // e.g., "Add Labels", "Assign Milestone"
+	StepID         string        // e.g., "add_labels", "assign_milestone"
+	EnvPrefix      string        // e.g., "GH_AW_LABELS", "GH_AW_MILESTONE"
+	OutputName     string        // e.g., "labels_added", "assigned_milestones"
+	Script         string        // JavaScript script for the operation
+	Permissions    *Permissions  // Job permissions
+	DefaultMax     int           // Default max count if not specified in config
+	ExtraCondition ConditionNode // Additional condition to append (optional)
 }
 
 // BuildListSafeOutputJob builds a list-based safe-output job using shared logic.
@@ -359,28 +359,4 @@ func (c *Compiler) BuildListSafeOutputJob(data *WorkflowData, mainJobName string
 		Token:          baseSafeOutputConfig.GitHubToken,
 		TargetRepoSlug: listJobConfig.TargetRepoSlug,
 	})
-}
-
-// ======================================
-// List Job Config Parsers
-// ======================================
-
-// ParseListSafeOutputConfig is a generic parser for list-based safe-output configurations.
-// It handles parsing of common fields: target, target-repo, allowed list, github-token, and max.
-// Returns the parsed config components and any validation errors.
-func ParseListSafeOutputConfig(configMap map[string]any, allowedKey string, defaultMax int) (ListJobConfig, BaseSafeOutputConfig, bool) {
-	listJobConfig := ListJobConfig{}
-	baseSafeOutputConfig := BaseSafeOutputConfig{}
-
-	// Parse list job config (target, target-repo, allowed)
-	var isInvalid bool
-	listJobConfig, isInvalid = ParseListJobConfig(configMap, allowedKey)
-	if isInvalid {
-		return listJobConfig, baseSafeOutputConfig, true
-	}
-
-	// Parse common base fields (github-token, max) - use 0 to let caller handle default
-	// Note: We'll use the parseBaseSafeOutputConfig method which is on Compiler, so this
-	// helper returns the raw values and lets the caller call parseBaseSafeOutputConfig
-	return listJobConfig, baseSafeOutputConfig, false
 }
