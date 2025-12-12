@@ -281,6 +281,7 @@ jobs:
     outputs:
       comment_id: ""
       comment_repo: ""
+      issue_locked: ${{ steps.lock-issue.outputs.locked }}
       text: ${{ steps.compute-text.outputs.text }}
     steps:
       - name: Check workflow file timestamps
@@ -792,6 +793,7 @@ jobs:
                 });
                 if (issue.locked) {
                   core.info(`ℹ️ Issue #${issueNumber} is already locked, skipping lock operation`);
+                  core.setOutput("locked", "false");
                   return;
                 }
                 core.info(`Locking issue #${issueNumber} for agent workflow execution`);
@@ -801,10 +803,12 @@ jobs:
                   issue_number: issueNumber,
                 });
                 core.info(`✅ Successfully locked issue #${issueNumber}`);
+                core.setOutput("locked", "true");
               } catch (error) {
                 const errorMessage = error instanceof Error ? error.message : String(error);
                 core.error(`Failed to lock issue: ${errorMessage}`);
                 core.setFailed(`Failed to lock issue #${issueNumber}: ${errorMessage}`);
+                core.setOutput("locked", "false");
               }
             }
             await main();
@@ -7480,7 +7484,7 @@ jobs:
             });
       - name: Unlock issue after agent workflow
         id: unlock-issue
-        if: (always()) && (github.event.issue.number)
+        if: (always()) && ((github.event.issue.number) && (needs.activation.outputs.issue_locked == 'true'))
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
           script: |

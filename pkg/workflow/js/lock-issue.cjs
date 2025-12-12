@@ -30,6 +30,7 @@ async function main() {
 
     if (issue.locked) {
       core.info(`ℹ️ Issue #${issueNumber} is already locked, skipping lock operation`);
+      core.setOutput("locked", "false");
       return;
     }
 
@@ -43,10 +44,13 @@ async function main() {
     });
 
     core.info(`✅ Successfully locked issue #${issueNumber}`);
+    // Set output to indicate the issue was locked and needs to be unlocked
+    core.setOutput("locked", "true");
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     core.error(`Failed to lock issue: ${errorMessage}`);
     core.setFailed(`Failed to lock issue #${issueNumber}: ${errorMessage}`);
+    core.setOutput("locked", "false");
   }
 }
 

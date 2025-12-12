@@ -95,6 +95,7 @@ describe("lock-issue", () => {
     expect(mockCore.info).toHaveBeenCalledWith("Checking if issue #42 is already locked");
     expect(mockCore.info).toHaveBeenCalledWith("Locking issue #42 for agent workflow execution");
     expect(mockCore.info).toHaveBeenCalledWith("✅ Successfully locked issue #42");
+    expect(mockCore.setOutput).toHaveBeenCalledWith("locked", "true");
     expect(mockCore.setFailed).not.toHaveBeenCalled();
   });
 
@@ -121,6 +122,7 @@ describe("lock-issue", () => {
 
     expect(mockCore.info).toHaveBeenCalledWith("Checking if issue #42 is already locked");
     expect(mockCore.info).toHaveBeenCalledWith("ℹ️ Issue #42 is already locked, skipping lock operation");
+    expect(mockCore.setOutput).toHaveBeenCalledWith("locked", "false");
     expect(mockCore.setFailed).not.toHaveBeenCalled();
   });
 
@@ -155,6 +157,7 @@ describe("lock-issue", () => {
     expect(mockGithub.rest.issues.lock).toHaveBeenCalled();
     expect(mockCore.error).toHaveBeenCalledWith("Failed to lock issue: API rate limit exceeded");
     expect(mockCore.setFailed).toHaveBeenCalledWith("Failed to lock issue #42: API rate limit exceeded");
+    expect(mockCore.setOutput).toHaveBeenCalledWith("locked", "false");
   });
 
   it("should handle non-Error exceptions", async () => {
@@ -174,6 +177,7 @@ describe("lock-issue", () => {
 
     expect(mockCore.error).toHaveBeenCalledWith("Failed to lock issue: String error");
     expect(mockCore.setFailed).toHaveBeenCalledWith("Failed to lock issue #42: String error");
+    expect(mockCore.setOutput).toHaveBeenCalledWith("locked", "false");
   });
 
   it("should work with different issue numbers", async () => {

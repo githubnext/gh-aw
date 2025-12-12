@@ -1023,6 +1023,9 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 		formattedScript := FormatJavaScriptForYAML(lockIssueScript)
 		steps = append(steps, formattedScript...)
 
+		// Add output for tracking if issue was locked
+		outputs["issue_locked"] = "${{ steps.lock-issue.outputs.locked }}"
+
 		// Add lock message to reaction comment if reaction is enabled
 		if data.AIReaction != "" && data.AIReaction != "none" {
 			compilerJobsLog.Print("Adding lock notification to reaction message")
