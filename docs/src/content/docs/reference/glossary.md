@@ -195,6 +195,22 @@ The process of checking workflow files for errors, security issues, and best pra
 ### Cache Memory
 Persistent storage for workflows that preserves data between runs. Configured using `cache-memory:` in the tools section, it enables workflows to remember information and build on previous interactions.
 
+### Campaign
+A finite, enterprise-scale initiative with explicit ownership, approval gates, and executive visibility. Campaigns orchestrate business outcomes (security remediation, dependency updates, compliance enforcement) across multiple repositories with governance, accountability, and ROI tracking. Unlike regular workflows that execute operations, campaigns manage business initiatives with measurable outcomes, defined budgets, stakeholder reporting, and compliance audit trails.
+
+**Key characteristics:**
+- Finite duration (days to months) with clear start and end
+- Named owners and executive sponsors
+- Formal approval gates and change control
+- Budget tracking with ROI metrics
+- Stateful execution using repo-memory for audit trails
+- Cross-team and cross-repository coordination
+- Executive dashboards and KPI reporting
+
+**File naming:** Use `.campaign.md` extension (e.g., `security-compliance.campaign.md`)
+
+See the [Campaigns Guide](/gh-aw/guides/campaigns/) for implementation patterns and examples.
+
 ### Command Triggers
 Special triggers that respond to slash commands in issue and PR comments (e.g., `/review`, `/deploy`). Configured using the `command:` section with a command name.
 
