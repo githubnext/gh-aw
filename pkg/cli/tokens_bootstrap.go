@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/githubnext/gh-aw/pkg/console"
+	"github.com/spf13/cobra"
 )
 
 // tokenSpec describes a recommended token secret for gh-aw
