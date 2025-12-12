@@ -17,23 +17,23 @@ type tokenSpec struct {
 // recommendedTokenSpecs defines the core tokens we surface in tokens.md
 var recommendedTokenSpecs = []tokenSpec{
 	{
-		Name: "GH_AW_GITHUB_TOKEN",
-		When: "Cross-repo Project Ops / remote GitHub tools",
+		Name:        "GH_AW_GITHUB_TOKEN",
+		When:        "Cross-repo Project Ops / remote GitHub tools",
 		Description: "Fine-grained or classic PAT with contents/issues/pull-requests read+write on the repos gh-aw will touch.",
 	},
 	{
-		Name: "COPILOT_GITHUB_TOKEN",
-		When: "Copilot workflows (CLI, engine, agent tasks, etc.)",
+		Name:        "COPILOT_GITHUB_TOKEN",
+		When:        "Copilot workflows (CLI, engine, agent tasks, etc.)",
 		Description: "PAT with Copilot Requests permission and repo access where Copilot workflows run.",
 	},
 	{
-		Name: "GH_AW_AGENT_TOKEN",
-		When: "Assigning agents/bots to issues or pull requests",
+		Name:        "GH_AW_AGENT_TOKEN",
+		When:        "Assigning agents/bots to issues or pull requests",
 		Description: "PAT for agent assignment with issues and pull-requests write on the repos where agents act.",
 	},
 	{
-		Name: "GH_AW_GITHUB_MCP_SERVER_TOKEN",
-		When: "Isolating MCP server permissions (advanced, optional)",
+		Name:        "GH_AW_GITHUB_MCP_SERVER_TOKEN",
+		When:        "Isolating MCP server permissions (advanced, optional)",
 		Description: "Optional read-mostly token for the GitHub MCP server when you want different scopes than GH_AW_GITHUB_TOKEN.",
 	},
 }
