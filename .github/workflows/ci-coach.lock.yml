@@ -46,7 +46,7 @@
 #       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 #     run: |
 #       # Download workflow runs for the ci workflow
-#       gh run list --repo ${{ github.repository }} --workflow=ci.yml --limit 100 --json databaseId,status,conclusion,createdAt,updatedAt,displayTitle,headBranch,event,url,workflowDatabaseId,runNumber > /tmp/ci-runs.json
+#       gh run list --repo ${{ github.repository }} --workflow=ci.yml --limit 100 --json databaseId,status,conclusion,createdAt,updatedAt,displayTitle,headBranch,event,url,workflowDatabaseId,number > /tmp/ci-runs.json
 #
 #       # Create directory for artifacts
 #       mkdir -p /tmp/ci-artifacts
@@ -96,11 +96,10 @@
 #     run: make recompile
 #
 #   - name: Run unit tests
-#     run: go test -v -count=1 -timeout=3m -tags '!integration' -run='^Test' ./...
-#
-#   - name: Run JavaScript tests
-#     run: npm test
-#     working-directory: ./pkg/workflow/js
+#     continue-on-error: true
+#     run: |
+#       mkdir -p /tmp/gh-aw
+#       go test -v -json -count=1 -timeout=3m -tags '!integration' -run='^Test' ./... | tee /tmp/gh-aw/test-results.json
 # safe-outputs:
 #   create-pull-request:
 #     title-prefix: "[ci-coach] "
@@ -324,12 +323,24 @@
 # 2. **Artifacts**: `/tmp/ci-artifacts/` - Coverage reports and benchmark results from recent successful runs
 # 3. **CI Configuration**: `.github/workflows/ci.yml` - Current CI workflow configuration
 # 4. **Cache Memory**: `/tmp/cache-memory/` - Historical analysis data from previous runs
+# 5. **Test Results**: `/tmp/gh-aw/test-results.json` - JSON output from Go unit tests with performance and timing data
+#
+# ### Test Case Information
+# The Go test cases are located throughout the repository:
+# - **Command tests**: `./cmd/gh-aw/*_test.go` - CLI command and main entry point tests
+# - **Workflow tests**: `./pkg/workflow/*_test.go` - Workflow compilation, validation, and execution tests
+# - **CLI tests**: `./pkg/cli/*_test.go` - Command implementation tests
+# - **Parser tests**: `./pkg/parser/*_test.go` - Frontmatter and schema parsing tests
+# - **Campaign tests**: `./pkg/campaign/*_test.go` - Campaign specification tests
+# - **Other package tests**: Various `./pkg/*/test.go` files throughout the codebase
+#
+# The `/tmp/gh-aw/test-results.json` file contains detailed timing and performance data for each test case in JSON format, allowing you to identify slow tests, flaky tests, and optimization opportunities.
 #
 # ### Environment Setup
 # The workflow has already completed:
 # - ✅ **Linting**: Dev dependencies installed, linters run successfully
 # - ✅ **Building**: Code built with `make build`, lock files compiled with `make recompile`
-# - ✅ **Testing**: Unit tests and JavaScript tests run successfully
+# - ✅ **Testing**: Unit tests run (with performance data collected in JSON format)
 #
 # This means you can:
 # - Make changes to code or configuration files
@@ -959,10 +970,6 @@ jobs:
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
         with:
           persist-credentials: false
-      - name: Setup Go
-        uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c # v6
-        with:
-          go-version: '1.25'
       - name: Setup Node.js
         uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6
         with:
@@ -980,7 +987,12 @@ jobs:
       - env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         name: Download CI workflow runs from last 7 days
-        run: "# Download workflow runs for the ci workflow\ngh run list --repo ${{ github.repository }} --workflow=ci.yml --limit 100 --json databaseId,status,conclusion,createdAt,updatedAt,displayTitle,headBranch,event,url,workflowDatabaseId,runNumber > /tmp/ci-runs.json\n\n# Create directory for artifacts\nmkdir -p /tmp/ci-artifacts\n\n# Download artifacts from recent runs (last 5 successful runs)\necho \"Downloading artifacts from recent CI runs...\"\ngh run list --repo ${{ github.repository }} --workflow=ci.yml --status success --limit 5 --json databaseId | jq -r '.[].databaseId' | while read -r run_id; do\n  echo \"Processing run $run_id\"\n  gh run download \"$run_id\" --repo ${{ github.repository }} --dir \"/tmp/ci-artifacts/$run_id\" 2>/dev/null || echo \"No artifacts for run $run_id\"\ndone\n\necho \"CI runs data saved to /tmp/ci-runs.json\"\necho \"Artifacts saved to /tmp/ci-artifacts/\"\n"
+        run: "# Download workflow runs for the ci workflow\ngh run list --repo ${{ github.repository }} --workflow=ci.yml --limit 100 --json databaseId,status,conclusion,createdAt,updatedAt,displayTitle,headBranch,event,url,workflowDatabaseId,number > /tmp/ci-runs.json\n\n# Create directory for artifacts\nmkdir -p /tmp/ci-artifacts\n\n# Download artifacts from recent runs (last 5 successful runs)\necho \"Downloading artifacts from recent CI runs...\"\ngh run list --repo ${{ github.repository }} --workflow=ci.yml --status success --limit 5 --json databaseId | jq -r '.[].databaseId' | while read -r run_id; do\n  echo \"Processing run $run_id\"\n  gh run download \"$run_id\" --repo ${{ github.repository }} --dir \"/tmp/ci-artifacts/$run_id\" 2>/dev/null || echo \"No artifacts for run $run_id\"\ndone\n\necho \"CI runs data saved to /tmp/ci-runs.json\"\necho \"Artifacts saved to /tmp/ci-artifacts/\"\n"
+      - name: Set up Go
+        uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c
+        with:
+          cache: true
+          go-version-file: go.mod
       - name: Install dev dependencies
         run: make deps-dev
       - name: Run linter
@@ -996,11 +1008,11 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         name: Rebuild lock files
         run: make recompile
-      - name: Run unit tests
-        run: go test -v -count=1 -timeout=3m -tags '!integration' -run='^Test' ./...
-      - name: Run JavaScript tests
-        run: npm test
-        working-directory: ./pkg/workflow/js
+      - continue-on-error: true
+        name: Run unit tests
+        run: |-
+          mkdir -p /tmp/gh-aw
+          go test -v -json -count=1 -timeout=3m -tags '!integration' -run='^Test' ./... | tee /tmp/gh-aw/test-results.json
 
       # Cache memory file share configuration from frontmatter processed below
       - name: Create cache-memory directory
@@ -2956,12 +2968,24 @@ jobs:
           2. **Artifacts**: `/tmp/ci-artifacts/` - Coverage reports and benchmark results from recent successful runs
           3. **CI Configuration**: `.github/workflows/ci.yml` - Current CI workflow configuration
           4. **Cache Memory**: `/tmp/cache-memory/` - Historical analysis data from previous runs
+          5. **Test Results**: `/tmp/gh-aw/test-results.json` - JSON output from Go unit tests with performance and timing data
+          
+          ### Test Case Information
+          The Go test cases are located throughout the repository:
+          - **Command tests**: `./cmd/gh-aw/*_test.go` - CLI command and main entry point tests
+          - **Workflow tests**: `./pkg/workflow/*_test.go` - Workflow compilation, validation, and execution tests
+          - **CLI tests**: `./pkg/cli/*_test.go` - Command implementation tests
+          - **Parser tests**: `./pkg/parser/*_test.go` - Frontmatter and schema parsing tests
+          - **Campaign tests**: `./pkg/campaign/*_test.go` - Campaign specification tests
+          - **Other package tests**: Various `./pkg/*/test.go` files throughout the codebase
+          
+          The `/tmp/gh-aw/test-results.json` file contains detailed timing and performance data for each test case in JSON format, allowing you to identify slow tests, flaky tests, and optimization opportunities.
           
           ### Environment Setup
           The workflow has already completed:
           - ✅ **Linting**: Dev dependencies installed, linters run successfully
           - ✅ **Building**: Code built with `make build`, lock files compiled with `make recompile`
-          - ✅ **Testing**: Unit tests and JavaScript tests run successfully
+          - ✅ **Testing**: Unit tests run (with performance data collected in JSON format)
           
           This means you can:
           - Make changes to code or configuration files
@@ -3200,29 +3224,6 @@ jobs:
           
           #### 8. **Dependency Installation**
           - Are we installing dependencies multiple times unnecessarily?
-          - Could we use dependency caching more effectively?
-          - Example: Sharing `node_modules` between jobs
-          
-          ### Phase 6: Cost-Benefit Analysis (3 minutes)
-          
-          For each potential optimization:
-          - **Impact**: How much time/cost savings? (estimate in minutes and/or GitHub Actions minutes)
-          - **Risk**: What's the risk of breaking something?
-          - **Effort**: How hard is it to implement?
-          - **Priority**: High/Medium/Low
-          
-          **Prioritize optimizations with:**
-          - High impact (>10% time savings)
-          - Low risk
-          - Low to medium effort
-          
-          ### Phase 7: Implement and Validate Changes (if improvements found) (8 minutes)
-          
-          If you identify improvements worth implementing:
-          
-          1. **Make focused changes** to `.github/workflows/ci.yml`:
-             - Use the `edit` tool to make precise modifications
-             - Keep changes minimal and well-documented
           PROMPT_EOF
       - name: Substitute placeholders
         uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
@@ -3304,6 +3305,29 @@ jobs:
           GH_AW_GITHUB_RUN_NUMBER: ${{ github.run_number }}
         run: |
           cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
+          - Could we use dependency caching more effectively?
+          - Example: Sharing `node_modules` between jobs
+          
+          ### Phase 6: Cost-Benefit Analysis (3 minutes)
+          
+          For each potential optimization:
+          - **Impact**: How much time/cost savings? (estimate in minutes and/or GitHub Actions minutes)
+          - **Risk**: What's the risk of breaking something?
+          - **Effort**: How hard is it to implement?
+          - **Priority**: High/Medium/Low
+          
+          **Prioritize optimizations with:**
+          - High impact (>10% time savings)
+          - Low risk
+          - Low to medium effort
+          
+          ### Phase 7: Implement and Validate Changes (if improvements found) (8 minutes)
+          
+          If you identify improvements worth implementing:
+          
+          1. **Make focused changes** to `.github/workflows/ci.yml`:
+             - Use the `edit` tool to make precise modifications
+             - Keep changes minimal and well-documented
              - Add comments explaining why changes improve efficiency
           
           2. **Validate changes immediately**:
