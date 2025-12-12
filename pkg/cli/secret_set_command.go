@@ -74,9 +74,24 @@ Examples:
 		RunE: func(cmd *cobra.Command, args []string) error {
 			secretName := args[0]
 
-			// Validate required flags
-			if flagOwner == "" || flagRepo == "" {
-				return fmt.Errorf("--owner and --repo flags are required")
+			// Determine target repository: explicit --owner/--repo or current repo by default
+			var owner, repo string
+			if flagOwner != "" || flagRepo != "" {
+				// Both must be provided together when overriding the target repository
+				if flagOwner == "" || flagRepo == "" {
+					return fmt.Errorf("both --owner and --repo must be specified together when overriding the target repository")
+				}
+				owner, repo = flagOwner, flagRepo
+			} else {
+				repoSlug, err := GetCurrentRepoSlug()
+				if err != nil {
+					return fmt.Errorf("failed to detect current repository: %w", err)
+				}
+				var splitErr error
+				owner, repo, splitErr = SplitRepoSlug(repoSlug)
+				if splitErr != nil {
+					return fmt.Errorf("invalid current repository slug %q: %w", repoSlug, splitErr)
+				}
 			}
 
 			// Create GitHub REST client using go-gh
@@ -94,23 +109,20 @@ Examples:
 				return fmt.Errorf("cannot resolve secret value: %w", err)
 			}
 
-			if err := setRepoSecret(client, flagOwner, flagRepo, secretName, secretValue); err != nil {
+			if err := setRepoSecret(client, owner, repo, secretName, secretValue); err != nil {
 				return fmt.Errorf("failed to set secret: %w", err)
 			}
 
-			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Secret %s updated for %s/%s", secretName, flagOwner, flagRepo)))
+			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Secret %s updated for %s/%s", secretName, owner, repo)))
 			return nil
 		},
 	}
 
-	cmd.Flags().StringVar(&flagOwner, "owner", "", "GitHub repository owner or organization (required)")
-	cmd.Flags().StringVar(&flagRepo, "repo", "", "GitHub repository name (required)")
+	cmd.Flags().StringVar(&flagOwner, "owner", "", "GitHub repository owner or organization (defaults to current repository)")
+	cmd.Flags().StringVar(&flagRepo, "repo", "", "GitHub repository name (defaults to current repository)")
 	cmd.Flags().StringVar(&flagValue, "value", "", "Secret value (if empty, read from stdin)")
 	cmd.Flags().StringVar(&flagValueEnv, "value-from-env", "", "Environment variable to read secret value from")
 	cmd.Flags().StringVar(&flagAPIBase, "api-url", "", "GitHub API base URL (default: https://api.github.com or $GITHUB_API_URL)")
-
-	cmd.MarkFlagRequired("owner")
-	cmd.MarkFlagRequired("repo")
 
 	return cmd
 }
