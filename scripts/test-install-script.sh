@@ -345,7 +345,7 @@ else
 fi
 
 # Check for SKIP_CHECKSUM flag logic
-if grep -q "SKIP_CHECKSUM=false" "$PROJECT_ROOT/install-gh-aw.sh" && grep -q 'if \[ "\$SKIP_CHECKSUM" = false \]' "$PROJECT_ROOT/install-gh-aw.sh"; then
+if grep -q "SKIP_CHECKSUM=true" "$PROJECT_ROOT/install-gh-aw.sh" && grep -q 'if \[ "\$SKIP_CHECKSUM" = false \]' "$PROJECT_ROOT/install-gh-aw.sh"; then
     echo "  ✓ PASS: SKIP_CHECKSUM flag logic is implemented"
 else
     echo "  ✗ FAIL: SKIP_CHECKSUM flag logic not found"
