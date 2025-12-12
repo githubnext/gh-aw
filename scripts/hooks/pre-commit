@@ -1,0 +1,36 @@
+#!/bin/sh
+#
+# Pre-commit hook that runs 'make fmt' to format code before committing.
+# This ensures all committed code follows the project's formatting standards.
+#
+# To install this hook, run: make install-hooks
+# To bypass this hook temporarily, use: git commit --no-verify
+
+# Redirect output to stderr.
+exec 1>&2
+
+echo "Running make fmt..."
+
+# Run make fmt
+if ! make fmt; then
+    echo "Error: make fmt failed"
+    echo "Please fix the formatting issues and try again"
+    exit 1
+fi
+
+# Check if make fmt modified any files
+if ! git diff --quiet; then
+    echo ""
+    echo "Files were formatted by make fmt:"
+    git diff --name-only
+    echo ""
+    echo "Please review the changes and stage them:"
+    echo "  git add <files>"
+    echo "  git commit"
+    echo ""
+    echo "Or add them automatically and retry the commit."
+    exit 1
+fi
+
+echo "✓ Code formatting check passed"
+exit 0

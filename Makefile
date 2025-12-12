@@ -329,6 +329,17 @@ install: build
 	gh extension remove gh-aw || true
 	gh extension install .
 
+# Install git hooks
+.PHONY: install-hooks
+install-hooks:
+	@echo "Installing git hooks..."
+	@cp scripts/hooks/pre-commit .git/hooks/pre-commit
+	@chmod +x .git/hooks/pre-commit
+	@echo "✓ Git hooks installed successfully"
+	@echo "  - pre-commit: runs 'make fmt' before each commit"
+	@echo ""
+	@echo "To bypass the hook temporarily, use: git commit --no-verify"
+
 # Generate schema documentation
 .PHONY: generate-schema-docs
 generate-schema-docs:
@@ -463,6 +474,7 @@ help:
 	@echo "  validate-workflows - Validate compiled workflow lock files"
 	@echo "  validate         - Run all validations (fmt-check, lint, validate-workflows)"
 	@echo "  install          - Install binary locally"
+	@echo "  install-hooks    - Install git hooks (pre-commit: runs 'make fmt')"
 	@echo "  sync-templates   - Sync templates from .github to pkg/cli/templates (runs automatically during build)"
 	@echo "  sync-action-pins - Sync actions-lock.json from .github/aw to pkg/workflow/data (runs automatically during build)"
 	@echo "  recompile        - Recompile all workflow files (runs init, depends on build)"
