@@ -12,6 +12,8 @@ import (
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/logger"
 	"github.com/githubnext/gh-aw/pkg/parser"
+	"github.com/githubnext/gh-aw/pkg/styles"
+	"github.com/githubnext/gh-aw/pkg/tty"
 	"github.com/githubnext/gh-aw/pkg/workflow"
 )
 
@@ -239,7 +241,7 @@ func StatusWorkflows(pattern string, verbose bool, jsonOutput bool, ref string, 
 
 		// Determine staleness and action needed
 		staleInfo := checkWorkflowStaleness(file, lockFile)
-		compiled := staleInfo.compiled
+		compiled := colorCodeCompiled(staleInfo.compiled) // Apply color for console output
 		actionNeeded := staleInfo.actionNeeded
 
 		// Extract stop-time from lock file if it exists
@@ -385,6 +387,29 @@ func calculateTimeRemaining(stopTimeStr string) string {
 type stalenessInfo struct {
 	compiled     string // "Yes", "No", "N/A", or "Stale"
 	actionNeeded string // Command to run if action is needed
+}
+
+// colorCodeCompiled adds color formatting to the compiled status for console output
+func colorCodeCompiled(compiled string) string {
+	// Only apply colors if output is a TTY
+	if !tty.IsStdoutTerminal() {
+		return compiled
+	}
+
+	switch compiled {
+	case "Yes":
+		// Green for up-to-date
+		return styles.Success.Render(compiled)
+	case "Stale":
+		// Yellow for stale (needs recompilation)
+		return styles.Warning.Render(compiled)
+	case "No":
+		// Red for never compiled
+		return styles.Error.Render(compiled)
+	default:
+		// No color for N/A or other statuses
+		return compiled
+	}
 }
 
 // checkWorkflowStaleness determines if a workflow needs compilation and returns action needed

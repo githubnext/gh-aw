@@ -28,7 +28,7 @@ func TestStatusWorkflows_JSONOutput(t *testing.T) {
 
 	// Test JSON output without pattern
 	t.Run("JSON output without pattern", func(t *testing.T) {
-		err := StatusWorkflows("", false, true, "", "")
+		err := StatusWorkflows("", false, true, "", "", false)
 		if err != nil {
 			t.Errorf("StatusWorkflows with JSON flag failed: %v", err)
 		}
@@ -38,7 +38,7 @@ func TestStatusWorkflows_JSONOutput(t *testing.T) {
 
 	// Test JSON output with pattern
 	t.Run("JSON output with pattern", func(t *testing.T) {
-		err := StatusWorkflows("smoke", false, true, "", "")
+		err := StatusWorkflows("smoke", false, true, "", "", false)
 		if err != nil {
 			t.Errorf("StatusWorkflows with JSON flag and pattern failed: %v", err)
 		}
@@ -511,5 +511,59 @@ func TestWorkflowStatus_ConsoleRenderingWithRunStatus(t *testing.T) {
 		if !strings.Contains(output, value) {
 			t.Errorf("Expected output to contain value '%s', got:\n%s", value, output)
 		}
+	}
+}
+
+// TestWorkflowStatus_JSONMarshalingWithActionNeeded tests that action_needed is included in JSON output
+func TestWorkflowStatus_JSONMarshalingWithActionNeeded(t *testing.T) {
+	// Test that WorkflowStatus with action_needed can be marshaled to JSON
+	status := WorkflowStatus{
+		Workflow:     "test-workflow",
+		EngineID:     "copilot",
+		Compiled:     "No",
+		Status:       "active",
+		ActionNeeded: "gh aw compile test-workflow.md",
+	}
+
+	jsonBytes, err := json.Marshal(status)
+	if err != nil {
+		t.Fatalf("Failed to marshal WorkflowStatus: %v", err)
+	}
+
+	// Verify JSON contains action_needed field
+	var unmarshaled map[string]any
+	if err := json.Unmarshal(jsonBytes, &unmarshaled); err != nil {
+		t.Fatalf("Failed to unmarshal JSON: %v", err)
+	}
+
+	if unmarshaled["action_needed"] != "gh aw compile test-workflow.md" {
+		t.Errorf("Expected action_needed='gh aw compile test-workflow.md', got %v", unmarshaled["action_needed"])
+	}
+}
+
+// TestWorkflowStatus_JSONMarshalingWithoutActionNeeded tests that empty action_needed is omitted
+func TestWorkflowStatus_JSONMarshalingWithoutActionNeeded(t *testing.T) {
+	// Test that WorkflowStatus without action_needed omits the field
+	status := WorkflowStatus{
+		Workflow: "test-workflow",
+		EngineID: "copilot",
+		Compiled: "Yes",
+		Status:   "active",
+		// ActionNeeded is empty
+	}
+
+	jsonBytes, err := json.Marshal(status)
+	if err != nil {
+		t.Fatalf("Failed to marshal WorkflowStatus: %v", err)
+	}
+
+	// Verify JSON omits empty action_needed field (due to omitempty)
+	var unmarshaled map[string]any
+	if err := json.Unmarshal(jsonBytes, &unmarshaled); err != nil {
+		t.Fatalf("Failed to unmarshal JSON: %v", err)
+	}
+
+	if _, exists := unmarshaled["action_needed"]; exists {
+		t.Errorf("Expected action_needed to be omitted when empty, but it was present with value: %v", unmarshaled["action_needed"])
 	}
 }
