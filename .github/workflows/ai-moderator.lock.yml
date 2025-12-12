@@ -49,6 +49,7 @@
 #   threat-detection: false
 # jobs:
 #   check_external_user:
+#     needs: [pre_activation]
 #     runs-on: ubuntu-slim
 #     outputs:
 #       is_external: ${{ steps.check_actor.outputs.should_run }}
@@ -109,15 +110,15 @@
 #   hide_comment["hide_comment"]
 #   pre_activation["pre_activation"]
 #   activation --> agent
-#   activation --> check_external_user
 #   activation --> conclusion
 #   add_labels --> conclusion
 #   agent --> add_labels
 #   agent --> conclusion
 #   agent --> hide_comment
-#   check_external_user --> agent
+#   check_external_user --> activation
 #   hide_comment --> conclusion
 #   pre_activation --> activation
+#   pre_activation --> check_external_user
 # ```
 #
 # Original Prompt:
@@ -274,8 +275,10 @@ run-name: "AI Moderator"
 
 jobs:
   activation:
-    needs: pre_activation
-    if: needs.pre_activation.outputs.activated == 'true'
+    needs:
+      - check_external_user
+      - pre_activation
+    if: (needs.pre_activation.outputs.activated == 'true') && (needs.check_external_user.outputs.is_external == 'true')
     runs-on: ubuntu-slim
     permissions:
       contents: read
@@ -1374,10 +1377,7 @@ jobs:
             await main();
 
   agent:
-    needs:
-      - activation
-      - check_external_user
-    if: needs.check_external_user.outputs.is_external == 'true'
+    needs: activation
     runs-on: ubuntu-latest
     permissions: read-all
     env:
@@ -6929,7 +6929,7 @@ jobs:
             }
 
   check_external_user:
-    needs: activation
+    needs: pre_activation
     runs-on: ubuntu-slim
     outputs:
       is_external: ${{ steps.check_actor.outputs.should_run }}

@@ -28,6 +28,7 @@ safe-outputs:
   threat-detection: false
 jobs:
   check_external_user:
+    needs: [pre_activation]
     runs-on: ubuntu-slim
     outputs:
       is_external: ${{ steps.check_actor.outputs.should_run }}
