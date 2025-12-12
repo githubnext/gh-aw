@@ -331,7 +331,7 @@ Key directories used across the codebase:
 
 **Default Versions:**
 - `DefaultCopilotVersion = "0.0.367"` - GitHub Copilot CLI version
-- `DefaultClaudeCodeVersion = "2.0.62"` - Claude Code CLI version
+- `DefaultClaudeCodeVersion = "2.0.67"` - Claude Code CLI version
 - `DefaultCodexVersion = "0.66.0"` - OpenAI Codex CLI version
 - `DefaultGitHubMCPServerVersion = "v0.24.1"` - GitHub MCP server version
 - `DefaultFirewallVersion = "v0.6.0"` - Firewall (AWF) binary version
