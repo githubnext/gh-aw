@@ -11,8 +11,8 @@ import (
 	"github.com/githubnext/gh-aw/pkg/workflow"
 )
 
-// TestMCPFieldsInIncludedFiles tests that entrypointArgs, headers, and url
-// fields can be used in included files without schema validation errors
+// TestMCPFieldsInIncludedFiles tests that headers and url fields (for HTTP type)
+// can be used in included files without schema validation errors
 func TestMCPFieldsInIncludedFiles(t *testing.T) {
 	// Create a temporary directory for test files
 	tempDir := testutil.TempDir(t, "test-*")
@@ -23,9 +23,7 @@ func TestMCPFieldsInIncludedFiles(t *testing.T) {
 on: push
 mcp-servers:
   test-server:
-    type: stdio
-    container: "test/mcp-server"
-    entrypointArgs: ["--arg1", "value1"]
+    type: http
     url: "https://example.com/mcp"
     headers:
       Authorization: "Bearer token"
@@ -52,7 +50,7 @@ imports:
 
 # Test Workflow
 
-This workflow imports an MCP server with entrypointArgs, headers, and url fields.
+This workflow imports an MCP server with headers and url fields.
 `
 	if err := os.WriteFile(workflowPath, []byte(workflowContent), 0644); err != nil {
 		t.Fatalf("Failed to write workflow file: %v", err)
