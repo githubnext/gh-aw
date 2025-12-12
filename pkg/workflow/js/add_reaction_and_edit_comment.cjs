@@ -334,6 +334,12 @@ async function addCommentWithWorkflowLink(endpoint, runUrl, eventName) {
 
     let commentBody = workflowLinkText;
 
+    // Add lock notice if lock-for-agent is enabled for issues
+    const lockForAgent = process.env.GH_AW_LOCK_FOR_AGENT === "true";
+    if (lockForAgent && eventName === "issues") {
+      commentBody += "\n\n🔒 This issue has been locked while the workflow is running to prevent concurrent modifications.";
+    }
+
     // Add workflow-id marker if available
     if (workflowId) {
       commentBody += `\n\n<!-- workflow-id: ${workflowId} -->`;

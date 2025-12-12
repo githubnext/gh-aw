@@ -48,6 +48,18 @@ func (c *Compiler) parseOnSection(frontmatter map[string]any, workflowData *Work
 				workflowData.AIReaction = reactionStr
 			}
 
+			// Extract lock-for-agent from on.issues section
+			if issuesValue, hasIssues := onMap["issues"]; hasIssues {
+				if issuesMap, ok := issuesValue.(map[string]any); ok {
+					if lockForAgent, hasLockForAgent := issuesMap["lock-for-agent"]; hasLockForAgent {
+						if lockBool, ok := lockForAgent.(bool); ok {
+							workflowData.LockForAgent = lockBool
+							compilerSafeOutputsLog.Printf("lock-for-agent enabled: %v", lockBool)
+						}
+					}
+				}
+			}
+
 			if _, hasCommandKey := onMap["command"]; hasCommandKey {
 				hasCommand = true
 				// Set default command to filename if not specified in the command section
