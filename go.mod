@@ -14,13 +14,12 @@ require (
 	github.com/modelcontextprotocol/go-sdk v1.1.0
 	github.com/santhosh-tekuri/jsonschema/v6 v6.0.2
 	github.com/sourcegraph/conc v0.3.0
-	github.com/spf13/cobra v1.10.2
-	github.com/stretchr/testify v1.11.1
-	github.com/xeipuuv/gojsonschema v1.2.0
-	golang.org/x/crypto v0.36.0
-	golang.org/x/term v0.38.0
-	gopkg.in/yaml.v3 v3.0.1
-)
+		github.com/spf13/cobra v1.10.2
+		github.com/stretchr/testify v1.11.1
+		github.com/xeipuuv/gojsonschema v1.2.0
+		golang.org/x/term v0.38.0
+		gopkg.in/yaml.v3 v3.0.1
+	)
 
 require (
 	github.com/atotto/clipboard v0.1.4 // indirect

@@ -494,7 +494,6 @@ Use "` + constants.CLIExtensionPrefix + ` help all" to show help for all command
 	mcpGatewayCmd := cli.NewMCPGatewayCommand()
 	prCmd := cli.NewPRCommand()
 	campaignCmd := campaign.NewCommand()
-	tokensCmd := cli.NewTokensCommand()
 
 	// Assign commands to groups
 	// Setup Commands
@@ -503,7 +502,6 @@ Use "` + constants.CLIExtensionPrefix + ` help all" to show help for all command
 	addCmd.GroupID = "setup"
 	removeCmd.GroupID = "setup"
 	updateCmd.GroupID = "setup"
-	tokensCmd.GroupID = "setup"
 
 	// Development Commands
 	compileCmd.GroupID = "development"
@@ -548,7 +546,6 @@ Use "` + constants.CLIExtensionPrefix + ` help all" to show help for all command
 	rootCmd.AddCommand(prCmd)
 	rootCmd.AddCommand(versionCmd)
 	rootCmd.AddCommand(campaignCmd)
-	rootCmd.AddCommand(tokensCmd)
 }
 
 func main() {
