@@ -43,6 +43,20 @@ steps:
         echo "Run ID: ${RUN_ID}" >> "$GITHUB_STEP_SUMMARY"
         echo "CI_NEEDS_FIX=true" >> "$GITHUB_ENV"
       fi
+  - name: Install Make
+    run: |
+      sudo apt-get update
+      sudo apt-get install -y make
+  - name: Setup Go
+    uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c # v6
+    with:
+      go-version-file: go.mod
+      cache: true
+  - name: Install npm dependencies
+    run: npm ci
+    working-directory: ./pkg/workflow/js
+  - name: Install dev dependencies
+    run: make deps-dev
 safe-outputs:
   create-pull-request:
     title-prefix: "[ca] "

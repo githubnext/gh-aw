@@ -95,9 +95,10 @@ For each update, analyze intermediate versions:
 
 ### Tool Installation & Discovery
 **CACHE OPTIMIZATION**: 
-- Before installing, check cache-memory for previous help outputs
+- Before installing, check cache-memory for previous help outputs (main and subcommands)
 - Only install and run --help if version has changed
-- Store help outputs in cache-memory at `/tmp/gh-aw/cache-memory/[tool]-[version]-help.txt`
+- Store main help outputs in cache-memory at `/tmp/gh-aw/cache-memory/[tool]-[version]-help.txt`
+- Store subcommand help outputs at `/tmp/gh-aw/cache-memory/[tool]-[version]-[subcommand]-help.txt`
 
 For each CLI tool update:
 1. Install the new version globally (skip if already installed from cache check):
@@ -107,15 +108,25 @@ For each CLI tool update:
    - Playwright MCP: `npm install -g @playwright/mcp@<version>`
 2. Invoke help to discover commands and flags (compare with cached output if available):
    - Run `claude-code --help`
-   - Run `copilot --help`
+   - Run `copilot --help` or `copilot help copilot`
    - Run `codex --help`
    - Run `npx @playwright/mcp@<version> --help` (if available)
-3. Compare help output with previous version to identify:
+3. **Explore subcommand help** for each tool (especially Copilot CLI):
+   - Identify all available subcommands from main help output
+   - For each subcommand, run its help command (e.g., `copilot help config`, `copilot help environment`, `copilot config --help`)
+   - Store each subcommand help output in cache-memory at `/tmp/gh-aw/cache-memory/[tool]-[version]-[subcommand]-help.txt`
+   - **Priority subcommands for Copilot CLI**: `config`, `environment` (explicitly requested)
+   - Example commands:
+     - `copilot help copilot`
+     - `copilot help config` or `copilot config --help`
+     - `copilot help environment` or `copilot environment --help`
+4. Compare help output with previous version to identify:
    - New commands or subcommands
    - New command-line flags or options
    - Deprecated or removed features
    - Changed default behaviors
-4. Save new help output to cache-memory for future runs
+   - **NEW**: Changes in subcommand functionality or flags
+5. Save all help outputs (main and subcommands) to cache-memory for future runs
 
 ### Update Process
 1. Edit `./pkg/constants/constants.go` with new version(s)
@@ -131,6 +142,7 @@ Include for each updated CLI:
 - **Impact Assessment**: Risk level, affected features, migration notes
 - **Changelog Links**: Use plain URLs without backticks
 - **CLI Changes**: New commands, flags, or removed features discovered via help
+- **Subcommand Changes**: Changes in subcommand functionality or flags (especially `config` and `environment` for Copilot CLI)
 - **GitHub Release Notes**: Include highlights and PR summaries when available from GitHub releases
 
 **URL Formatting Rules**:
@@ -155,6 +167,7 @@ Template structure:
 - Bug Fixes: [list]
 - Security: [CVEs/patches or "None"]
 - CLI Discovery: [New commands/flags or "None detected"]
+- Subcommand Changes: [Changes in subcommands like config/environment or "None detected"]
 - Impact: Risk [Low/Medium/High], affects [features]
 - Migration: [Yes/No - details if yes]
 
@@ -163,6 +176,9 @@ Template structure:
 
 ## Merged PRs (from GitHub)
 [List significant merged PRs from release notes if available]
+
+## Subcommand Help Analysis
+[Document changes in subcommand help output, particularly for config and environment commands]
 
 ## Package Links
 - **NPM Package**: https://www.npmjs.com/package/package-name-here
@@ -185,9 +201,11 @@ Template structure:
   - Playwright Browser: Always fetch from https://github.com/microsoft/playwright/releases
   - Copilot CLI: Try to fetch, but may be inaccessible (private repo)
   - Playwright MCP: Check NPM metadata, uses Playwright versioning
-- Install and test CLI tools to discover new features via `--help`
-- Compare help output between old and new versions
-- **SAVE TO CACHE**: Store help outputs and version check results in cache-memory
+- **EXPLORE SUBCOMMANDS**: Install and test CLI tools to discover new features via `--help` and explore each subcommand
+  - For Copilot CLI, explicitly check: `config`, `environment` and any other available subcommands
+  - Use commands like `copilot help <subcommand>` or `<tool> <subcommand> --help`
+- Compare help output between old and new versions (both main help and subcommand help)
+- **SAVE TO CACHE**: Store help outputs (main and all subcommands) and version check results in cache-memory
 - Test with `make recompile` before creating PR
 - **DO NOT COMMIT** `*.lock.yml` or `pkg/workflow/js/*.js` files directly
 
