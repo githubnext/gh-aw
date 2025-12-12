@@ -675,3 +675,54 @@ func TestMCPServer_UpdateToolSchema(t *testing.T) {
 	t.Logf("Update tool description: %s", updateTool.Description)
 	t.Logf("Update tool schema: %+v", updateTool.InputSchema)
 }
+
+// TestMCPServer_CapabilitiesConfiguration tests that server capabilities are correctly configured
+func TestMCPServer_CapabilitiesConfiguration(t *testing.T) {
+	// Skip if the binary doesn't exist
+	binaryPath := "../../gh-aw"
+	if _, err := os.Stat(binaryPath); os.IsNotExist(err) {
+		t.Skip("Skipping test: gh-aw binary not found. Run 'make build' first.")
+	}
+
+	// Get the current directory for proper path resolution
+	originalDir, _ := os.Getwd()
+
+	// Create MCP client
+	client := mcp.NewClient(&mcp.Implementation{
+		Name:    "test-client",
+		Version: "1.0.0",
+	}, nil)
+
+	// Start the MCP server as a subprocess
+	serverCmd := exec.Command(filepath.Join(originalDir, binaryPath), "mcp-server")
+	transport := &mcp.CommandTransport{Command: serverCmd}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	session, err := client.Connect(ctx, transport, nil)
+	if err != nil {
+		t.Fatalf("Failed to connect to MCP server: %v", err)
+	}
+	defer session.Close()
+
+	// Get server capabilities from the initialize result
+	initResult := session.InitializeResult()
+	if initResult == nil {
+		t.Fatal("Expected non-nil InitializeResult")
+	}
+
+	serverCapabilities := initResult.Capabilities
+
+	// Verify Tools capability is present
+	if serverCapabilities.Tools == nil {
+		t.Fatal("Expected server to advertise Tools capability")
+	}
+
+	// Verify ListChanged is set to false
+	if serverCapabilities.Tools.ListChanged {
+		t.Error("Expected Tools.ListChanged to be false (tools are static)")
+	}
+
+	t.Logf("Server capabilities configured correctly: Tools.ListChanged = %v", serverCapabilities.Tools.ListChanged)
+}
