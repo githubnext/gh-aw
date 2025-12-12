@@ -84,7 +84,7 @@ func resolveToken() (string, error) {
 			return v, nil
 		}
 	}
-	return "", errors.New("no token found; set GITHUB_TOKEN or GH_TOKEN")
+	return "", errors.New("no GitHub token found; set the GITHUB_TOKEN or GH_TOKEN environment variable with a personal access token (see https://github.com/settings/tokens)")
 }
 
 func resolveSecretValue(fromEnv, fromFlag string) (string, error) {
