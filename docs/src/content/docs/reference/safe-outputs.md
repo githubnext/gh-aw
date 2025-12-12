@@ -38,7 +38,7 @@ This declares that the workflow should create at most one new issue.
 | [**Assign Milestone**](#assign-milestone-assign-milestone) | `assign-milestone:` | Assign issues to milestones | 1 | ✅ |
 | [**Create PR**](#pull-request-creation-create-pull-request) | `create-pull-request:` | Create pull requests with code changes | 1 | ✅ |
 | [**Close PR**](#close-pull-request-close-pull-request) | `close-pull-request:` | Close pull requests without merging | 10 | ✅ |
-| [**PR Review Comments**](#pr-review-comments-create-pull-request-review-comment) | `create-pull-request-review-comment:` | Create review comments on code lines | 1 | ✅ |
+| [**PR Review Comments**](#pr-review-comments-create-pull-request-review-comment) | `create-pull-request-review-comment:` | Create review comments on code lines | 10 | ✅ |
 | [**Create Discussion**](#discussion-creation-create-discussion) | `create-discussion:` | Create GitHub discussions | 1 | ✅ |
 | [**Close Discussion**](#close-discussion-close-discussion) | `close-discussion:` | Close discussions with comment and resolution | 1 | ✅ |
 | [**Create Agent Task**](#agent-task-creation-create-agent-task) | `create-agent-task:` | Create Copilot agent tasks | 1 | ✅ |
@@ -393,7 +393,7 @@ Creates review comments on specific code lines in PRs. Supports single-line and 
 ```yaml wrap
 safe-outputs:
   create-pull-request-review-comment:
-    max: 3                    # max comments (default: 1)
+    max: 3                    # max comments (default: 10)
     side: "RIGHT"             # "LEFT" or "RIGHT" (default: "RIGHT")
     target: "*"               # "triggering" (default), "*", or number
     target-repo: "owner/repo" # cross-repository
