@@ -22,9 +22,9 @@ For GitHub Agentic Workflows, you only need to create a few **optional** secrets
 Create these as **repository or organization secrets in *your* repo**, for example with the GitHub CLI:
 
 ```bash
-gh secret set GH_AW_GITHUB_TOKEN -a actions --body "YOUR_PAT"
-gh secret set COPILOT_GITHUB_TOKEN -a actions --body "YOUR_COPILOT_PAT"
-gh secret set GH_AW_AGENT_TOKEN -a actions --body "YOUR_AGENT_PAT"
+echo "YOUR_PAT" | gh secret set GH_AW_GITHUB_TOKEN -a actions
+echo "YOUR_COPILOT_PAT" | gh secret set COPILOT_GITHUB_TOKEN -a actions
+echo "YOUR_AGENT_PAT" | gh secret set GH_AW_AGENT_TOKEN -a actions
 ```
 
 After these are set, gh-aw will automatically pick the right token for each operation; you should not need per-workflow PATs in most cases.
