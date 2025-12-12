@@ -19,7 +19,7 @@ func TestBuildOrchestrator_BasicShape(t *testing.T) {
 	mdPath := ".github/workflows/security-compliance.campaign.md"
 	data, orchestratorPath := BuildOrchestrator(spec, mdPath)
 
-	if orchestratorPath != ".github/workflows/security-compliance-campaign.md" {
+	if orchestratorPath != ".github/workflows/security-compliance.campaign.g.md" {
 		t.Fatalf("unexpected orchestrator path: got %q", orchestratorPath)
 	}
 

@@ -13,9 +13,11 @@ import (
 // determines the emitted .lock.yml name.
 func BuildOrchestrator(spec *CampaignSpec, campaignFilePath string) (*workflow.WorkflowData, string) {
 	// Derive orchestrator markdown path alongside the campaign spec, using a
-	// distinct suffix to avoid colliding with existing workflows.
+	// distinct suffix to avoid colliding with existing workflows. We use
+	// a `.campaign.g.md` suffix to make it clear that the file is generated
+	// from the corresponding `.campaign.md` spec.
 	base := strings.TrimSuffix(campaignFilePath, ".campaign.md")
-	orchestratorPath := base + "-campaign.md"
+	orchestratorPath := base + ".campaign.g.md"
 
 	name := spec.Name
 	if strings.TrimSpace(name) == "" {

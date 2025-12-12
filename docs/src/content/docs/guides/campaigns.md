@@ -295,8 +295,8 @@ gh aw compile
 
 When specs are valid:
 
-- Each `<name>.campaign.md` generates an orchestrator markdown workflow named `<name>-campaign.md` next to the spec.
-- The orchestrator is compiled like any other workflow to `<name>-campaign.lock.yml`.
+- Each `<name>.campaign.md` generates an orchestrator markdown workflow named `<name>.campaign.g.md` next to the spec.
+- The orchestrator is compiled like any other workflow to `<name>.campaign.g.lock.yml`.
 - This makes campaigns first-class, compilable entry points while keeping specs declarative.
 - Orchestrators are only generated when the campaign spec has meaningful details (tracker labels, workflows, memory paths, or metrics glob).
 
