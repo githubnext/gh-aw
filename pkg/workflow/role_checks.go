@@ -28,6 +28,9 @@ func (c *Compiler) generateMembershipCheck(data *WorkflowData, steps []string) [
 	}
 
 	steps = append(steps, "        with:\n")
+	// Explicitly use the GitHub Actions token (GITHUB_TOKEN) for role membership checks
+	// This ensures we only use the action token and not any other custom secrets
+	steps = append(steps, "          github-token: ${{ secrets.GITHUB_TOKEN }}\n")
 	steps = append(steps, "          script: |\n")
 
 	// Generate the JavaScript code for the membership check (output-only version)
