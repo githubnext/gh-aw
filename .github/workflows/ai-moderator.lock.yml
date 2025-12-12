@@ -279,6 +279,7 @@ jobs:
     runs-on: ubuntu-slim
     permissions:
       contents: read
+      issues: write
     outputs:
       comment_id: ""
       comment_repo: ""
@@ -7701,6 +7702,7 @@ jobs:
           GH_AW_REQUIRED_ROLES: admin,maintainer,write
           GH_AW_ALLOWED_BOTS: agentic-workflows-dev[bot]
         with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             function parseRequiredPermissions() {
               const requiredPermissionsEnv = process.env.GH_AW_REQUIRED_ROLES;

@@ -1105,6 +1105,7 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 
 	// Set permissions - activation job always needs contents:read for GitHub API access
 	// Also add reaction permissions if reaction is configured and not "none"
+	// Also add issues:write permission if lock-for-agent is enabled (for locking issues)
 	permsMap := map[PermissionScope]PermissionLevel{
 		PermissionContents: PermissionRead, // Always needed for GitHub API access to check file commits
 	}
@@ -1113,6 +1114,11 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 		permsMap[PermissionDiscussions] = PermissionWrite
 		permsMap[PermissionIssues] = PermissionWrite
 		permsMap[PermissionPullRequests] = PermissionWrite
+	}
+
+	// Add issues:write permission if lock-for-agent is enabled (even without reaction)
+	if data.LockForAgent {
+		permsMap[PermissionIssues] = PermissionWrite
 	}
 
 	perms := NewPermissionsFromMap(permsMap)
