@@ -142,7 +142,7 @@ func InitRepository(verbose bool, mcp bool, campaign bool, tokens bool, engine s
 	if tokens {
 		initLog.Print("Validating repository secrets for agentic workflows")
 		fmt.Fprintln(os.Stderr, "")
-		
+
 		// Run token bootstrap validation
 		if err := runTokensBootstrap(engine, "", ""); err != nil {
 			initLog.Printf("Token validation failed: %v", err)

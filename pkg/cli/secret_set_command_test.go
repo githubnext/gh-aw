@@ -7,12 +7,12 @@ import (
 
 func TestResolveSecretValueForSet(t *testing.T) {
 	tests := []struct {
-		name       string
-		fromEnv    string
-		fromFlag   string
-		envValue   string
-		wantErr    bool
-		wantValue  string
+		name        string
+		fromEnv     string
+		fromFlag    string
+		envValue    string
+		wantErr     bool
+		wantValue   string
 		errContains string
 	}{
 		{
@@ -111,4 +111,3 @@ func TestEncryptWithPublicKeyInvalidKey(t *testing.T) {
 		})
 	}
 }
-
