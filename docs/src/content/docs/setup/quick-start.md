@@ -148,27 +148,47 @@ A [Personal Access Token](/gh-aw/reference/glossary/#personal-access-token-pat) 
    - The Copilot Requests permission only appears when public repositories are selected
    - You can also choose "All repositories" or "Only select repositories" if you prefer
 
-5. **Add the Copilot permission:**
-   - Scroll to **"Account permissions"** section (not Repository permissions)
-   - Find **"Copilot Requests"** and set it to **"Access: Read and write"**
-   - This permission allows your workflows to send requests to GitHub Copilot
+   ![GitHub PAT creation page showing basic settings](/gh-aw/screenshots/quick-start/pat-token-creation-page.svg)
 
-6. **Generate the token**: Click **"Generate token"** at the bottom of the page
+5. **⚠️ Important: Add the Copilot permission**
+   - Scroll down to the **"Account permissions"** section (⚠️ not Repository permissions)
+   - Find **"Copilot Requests"** in the list
+   - Set it to **"Access: Read and write"**
+   - This permission allows your workflows to communicate with GitHub Copilot and send natural language instructions for execution
 
-7. **Copy your token**: The token will be displayed once—copy it now! You won't be able to see it again.
+   ![Account permissions section highlighting Copilot Requests permission](/gh-aw/screenshots/quick-start/pat-copilot-requests-permission.svg)
 
-:::tip[Can't find Copilot Requests permission?]
-The "Copilot Requests" permission is only available if:
+6. **Generate the token**: 
+   - Scroll to the bottom of the page
+   - Click **"Generate token"**
 
+   ![Generate token button](/gh-aw/screenshots/quick-start/pat-generate-token.svg)
+
+7. **⚠️ Copy your token immediately**: 
+   - The token will be displayed only once
+   - Copy it now! You won't be able to see it again
+   - Keep it secure—treat it like a password
+
+:::caution[🔍 Troubleshooting: Can't find "Copilot Requests" permission?]
+
+If you don't see the "Copilot Requests" permission in the Account permissions list, verify the following requirements:
+
+**Required conditions:**
 - ✅ You have an active [GitHub Copilot subscription](https://github.com/settings/copilot)
-- ✅ You're creating a **fine-grained token** (not a classic token)
-- ✅ You selected your **personal user account** as Resource owner
-- ✅ You selected **"Public repositories"** or "All repositories" under Repository access
+- ✅ You're creating a **fine-grained personal access token** (not a classic token)
+- ✅ You selected your **personal user account** as Resource owner (not an organization)
+- ✅ You selected **"Public repositories"**, "All repositories", or specific repositories under Repository access
 
-If you still don't see this option:
-- Check if your Copilot subscription is active
-- Ensure you're on the correct token type (fine-grained, not classic)
-- Contact your GitHub administrator if Copilot is managed by your organization
+**Common issues:**
+- **Using classic token**: Make sure you're at `/settings/personal-access-tokens/new` (fine-grained), not `/settings/tokens/new` (classic)
+- **Organization as owner**: The Copilot Requests permission is only available for personal user accounts
+- **No Copilot access**: Verify your subscription at [github.com/settings/copilot](https://github.com/settings/copilot)
+- **Organization-managed Copilot**: Contact your GitHub organization administrator if your Copilot access is managed by your organization
+
+**Still having issues?**
+- Ensure your GitHub account has active Copilot access (not just through an organization)
+- Try refreshing the token creation page after verifying your Copilot subscription status
+- Check the [GitHub Copilot documentation](https://docs.github.com/en/copilot) for subscription details
 
 :::
 
@@ -176,19 +196,21 @@ If you still don't see this option:
 
 Now store this token as a secret in your repository so workflows can use it:
 
-1. Navigate to **your repository** on GitHub.com
-2. Click **Settings** in the repository navigation menu
-3. In the left sidebar, click **Secrets and variables** → **Actions**
-4. Click **New repository secret**
-5. Configure the secret:
-   - **Name**: `COPILOT_GITHUB_TOKEN` (must be exact)
+**Step-by-step instructions:**
+
+1. **Navigate to your repository** on GitHub.com
+2. **Open Settings**: Click **Settings** in the repository navigation menu (top right)
+3. **Find Secrets section**: In the left sidebar, click **Secrets and variables** → **Actions**
+4. **Create new secret**: Click the **"New repository secret"** button
+5. **Configure the secret**:
+   - **Name**: Enter `COPILOT_GITHUB_TOKEN` (⚠️ must be exactly this name)
    - **Secret**: Paste the personal access token you just copied
-6. Click **Add secret**
+6. **Save**: Click **"Add secret"** to save
 
 ✅ Your repository is now configured to run agentic workflows with GitHub Copilot!
 
-:::note[Security note]
-Repository secrets are encrypted and never exposed in workflow logs. Only workflows you add to the repository can access them.
+:::note[🔒 Security note]
+Repository secrets are encrypted and never exposed in workflow logs. Only workflows in this repository can access them. The token gives workflows permission to use Copilot on your behalf, but workflows still run with the repository's GitHub Actions permissions (which you control).
 :::
 
 For more information, see the [GitHub Copilot CLI documentation](https://github.com/github/copilot-cli?tab=readme-ov-file#authenticate-with-a-personal-access-token-pat).
