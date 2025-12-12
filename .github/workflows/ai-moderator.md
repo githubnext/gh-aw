@@ -1,4 +1,5 @@
 ---
+bots: ["agentic-workflows-dev[bot]"]
 timeout-minutes: 5
 on:
   issues:
