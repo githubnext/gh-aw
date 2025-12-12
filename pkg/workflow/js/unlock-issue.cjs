@@ -19,9 +19,22 @@ async function main() {
   const owner = context.repo.owner;
   const repo = context.repo.repo;
 
-  core.info(`Unlocking issue #${issueNumber} after agent workflow execution`);
-
   try {
+    // Check if issue is locked
+    core.info(`Checking if issue #${issueNumber} is locked`);
+    const { data: issue } = await github.rest.issues.get({
+      owner,
+      repo,
+      issue_number: issueNumber,
+    });
+
+    if (!issue.locked) {
+      core.info(`ℹ️ Issue #${issueNumber} is not locked, skipping unlock operation`);
+      return;
+    }
+
+    core.info(`Unlocking issue #${issueNumber} after agent workflow execution`);
+
     // Unlock the issue
     await github.rest.issues.unlock({
       owner,

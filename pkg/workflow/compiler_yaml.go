@@ -475,29 +475,21 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 }
 
 func (c *Compiler) generateUploadAgentLogs(yaml *strings.Builder, logFileFull string) {
-	// Record artifact upload for validation
-	c.stepOrderTracker.RecordArtifactUpload("Upload Agent Stdio", []string{logFileFull})
-
-	yaml.WriteString("      - name: Upload Agent Stdio\n")
-	yaml.WriteString("        if: always()\n")
-	yaml.WriteString(fmt.Sprintf("        uses: %s\n", GetActionPin("actions/upload-artifact")))
-	yaml.WriteString("        with:\n")
-	yaml.WriteString("          name: agent-stdio.log\n")
-	fmt.Fprintf(yaml, "          path: %s\n", logFileFull)
-	yaml.WriteString("          if-no-files-found: warn\n")
+	c.generateArtifactUpload(yaml, ArtifactUploadConfig{
+		StepName:       "Upload Agent Stdio",
+		ArtifactName:   "agent-stdio.log",
+		UploadPaths:    []string{logFileFull},
+		IfNoFilesFound: "warn",
+	})
 }
 
 func (c *Compiler) generateUploadAssets(yaml *strings.Builder) {
-	// Record artifact upload for validation
-	c.stepOrderTracker.RecordArtifactUpload("Upload safe outputs assets", []string{"/tmp/gh-aw/safeoutputs/assets/"})
-
-	yaml.WriteString("      - name: Upload safe outputs assets\n")
-	yaml.WriteString("        if: always()\n")
-	yaml.WriteString(fmt.Sprintf("        uses: %s\n", GetActionPin("actions/upload-artifact")))
-	yaml.WriteString("        with:\n")
-	yaml.WriteString("          name: safe-outputs-assets\n")
-	yaml.WriteString("          path: /tmp/gh-aw/safeoutputs/assets/\n")
-	yaml.WriteString("          if-no-files-found: ignore\n")
+	c.generateArtifactUpload(yaml, ArtifactUploadConfig{
+		StepName:       "Upload safe outputs assets",
+		ArtifactName:   "safe-outputs-assets",
+		UploadPaths:    []string{"/tmp/gh-aw/safeoutputs/assets/"},
+		IfNoFilesFound: "ignore",
+	})
 }
 
 func (c *Compiler) generateLogParsing(yaml *strings.Builder, engine CodingAgentEngine) {
@@ -616,29 +608,21 @@ func (c *Compiler) generateErrorValidation(yaml *strings.Builder, engine CodingA
 }
 
 func (c *Compiler) generateUploadAwInfo(yaml *strings.Builder) {
-	// Record artifact upload for validation
-	c.stepOrderTracker.RecordArtifactUpload("Upload agentic run info", []string{"/tmp/gh-aw/aw_info.json"})
-
-	yaml.WriteString("      - name: Upload agentic run info\n")
-	yaml.WriteString("        if: always()\n")
-	yaml.WriteString(fmt.Sprintf("        uses: %s\n", GetActionPin("actions/upload-artifact")))
-	yaml.WriteString("        with:\n")
-	yaml.WriteString("          name: aw_info.json\n")
-	yaml.WriteString("          path: /tmp/gh-aw/aw_info.json\n")
-	yaml.WriteString("          if-no-files-found: warn\n")
+	c.generateArtifactUpload(yaml, ArtifactUploadConfig{
+		StepName:       "Upload agentic run info",
+		ArtifactName:   "aw_info.json",
+		UploadPaths:    []string{"/tmp/gh-aw/aw_info.json"},
+		IfNoFilesFound: "warn",
+	})
 }
 
 func (c *Compiler) generateUploadPrompt(yaml *strings.Builder) {
-	// Record artifact upload for validation
-	c.stepOrderTracker.RecordArtifactUpload("Upload prompt", []string{"/tmp/gh-aw/aw-prompts/prompt.txt"})
-
-	yaml.WriteString("      - name: Upload prompt\n")
-	yaml.WriteString("        if: always()\n")
-	yaml.WriteString(fmt.Sprintf("        uses: %s\n", GetActionPin("actions/upload-artifact")))
-	yaml.WriteString("        with:\n")
-	yaml.WriteString("          name: prompt.txt\n")
-	yaml.WriteString("          path: /tmp/gh-aw/aw-prompts/prompt.txt\n")
-	yaml.WriteString("          if-no-files-found: warn\n")
+	c.generateArtifactUpload(yaml, ArtifactUploadConfig{
+		StepName:       "Upload prompt",
+		ArtifactName:   "prompt.txt",
+		UploadPaths:    []string{"/tmp/gh-aw/aw-prompts/prompt.txt"},
+		IfNoFilesFound: "warn",
+	})
 }
 
 func (c *Compiler) generateExtractAccessLogs(yaml *strings.Builder, tools map[string]any) {
@@ -650,29 +634,21 @@ func (c *Compiler) generateUploadAccessLogs(yaml *strings.Builder, tools map[str
 }
 
 func (c *Compiler) generateUploadMCPLogs(yaml *strings.Builder) {
-	// Record artifact upload for validation
-	c.stepOrderTracker.RecordArtifactUpload("Upload MCP logs", []string{"/tmp/gh-aw/mcp-logs/"})
-
-	yaml.WriteString("      - name: Upload MCP logs\n")
-	yaml.WriteString("        if: always()\n")
-	yaml.WriteString(fmt.Sprintf("        uses: %s\n", GetActionPin("actions/upload-artifact")))
-	yaml.WriteString("        with:\n")
-	yaml.WriteString("          name: mcp-logs\n")
-	yaml.WriteString("          path: /tmp/gh-aw/mcp-logs/\n")
-	yaml.WriteString("          if-no-files-found: ignore\n")
+	c.generateArtifactUpload(yaml, ArtifactUploadConfig{
+		StepName:       "Upload MCP logs",
+		ArtifactName:   "mcp-logs",
+		UploadPaths:    []string{"/tmp/gh-aw/mcp-logs/"},
+		IfNoFilesFound: "ignore",
+	})
 }
 
 func (c *Compiler) generateUploadSafeInputsLogs(yaml *strings.Builder) {
-	// Record artifact upload for validation
-	c.stepOrderTracker.RecordArtifactUpload("Upload SafeInputs logs", []string{"/tmp/gh-aw/safe-inputs/logs/"})
-
-	yaml.WriteString("      - name: Upload SafeInputs logs\n")
-	yaml.WriteString("        if: always()\n")
-	yaml.WriteString(fmt.Sprintf("        uses: %s\n", GetActionPin("actions/upload-artifact")))
-	yaml.WriteString("        with:\n")
-	yaml.WriteString("          name: safeinputs\n")
-	yaml.WriteString("          path: /tmp/gh-aw/safe-inputs/logs/\n")
-	yaml.WriteString("          if-no-files-found: ignore\n")
+	c.generateArtifactUpload(yaml, ArtifactUploadConfig{
+		StepName:       "Upload SafeInputs logs",
+		ArtifactName:   "safeinputs",
+		UploadPaths:    []string{"/tmp/gh-aw/safe-inputs/logs/"},
+		IfNoFilesFound: "ignore",
+	})
 }
 
 func splitContentIntoChunks(content string) []string {
