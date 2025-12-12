@@ -2,11 +2,29 @@
 
 # Script to download and install gh-aw binary for the current OS and architecture
 # Supports: Linux, macOS (Darwin), FreeBSD, Windows (Git Bash/MSYS/Cygwin)
-# Usage: ./install-gh-aw.sh [version]
+# Usage: ./install-gh-aw.sh [version] [--skip-checksum]
 # If no version is specified, it will fetch and use the latest release
 # Example: ./install-gh-aw.sh v1.0.0
+# Example: ./install-gh-aw.sh v1.0.0 --skip-checksum
 
 set -e  # Exit on any error
+
+# Parse arguments
+SKIP_CHECKSUM=false
+VERSION=""
+for arg in "$@"; do
+    case $arg in
+        --skip-checksum)
+            SKIP_CHECKSUM=true
+            shift
+            ;;
+        *)
+            if [ -z "$VERSION" ]; then
+                VERSION="$arg"
+            fi
+            ;;
+    esac
+done
 
 # Colors for output
 RED='\033[0;31m'
@@ -48,6 +66,23 @@ fi
 HAS_JQ=false
 if command -v jq &> /dev/null; then
     HAS_JQ=true
+fi
+
+# Check if sha256sum or shasum is available (for checksum verification)
+HAS_CHECKSUM_TOOL=false
+CHECKSUM_CMD=""
+if command -v sha256sum &> /dev/null; then
+    HAS_CHECKSUM_TOOL=true
+    CHECKSUM_CMD="sha256sum"
+elif command -v shasum &> /dev/null; then
+    HAS_CHECKSUM_TOOL=true
+    CHECKSUM_CMD="shasum -a 256"
+fi
+
+if [ "$SKIP_CHECKSUM" = false ] && [ "$HAS_CHECKSUM_TOOL" = false ]; then
+    print_warning "Neither sha256sum nor shasum is available. Checksum verification will be skipped."
+    print_warning "To suppress this warning, use --skip-checksum flag."
+    SKIP_CHECKSUM=true
 fi
 
 # Determine OS and architecture
@@ -167,7 +202,7 @@ fetch_release_data() {
 }
 
 # Get version (use provided version or fetch latest)
-VERSION=${1:-""}
+# VERSION is already set from argument parsing
 REPO="githubnext/gh-aw"
 
 if [ -z "$VERSION" ]; then
@@ -201,11 +236,13 @@ fi
 
 # Construct download URL and paths
 DOWNLOAD_URL="https://github.com/$REPO/releases/download/$VERSION/$PLATFORM"
+CHECKSUMS_URL="https://github.com/$REPO/releases/download/$VERSION/checksums.txt"
 if [ "$OS_NAME" = "windows" ]; then
     DOWNLOAD_URL="${DOWNLOAD_URL}.exe"
 fi
 INSTALL_DIR="$HOME/.local/share/gh/extensions/gh-aw"
 BINARY_PATH="$INSTALL_DIR/$BINARY_NAME"
+CHECKSUMS_PATH="$INSTALL_DIR/checksums.txt"
 
 print_info "Download URL: $DOWNLOAD_URL"
 print_info "Installation directory: $INSTALL_DIR"
@@ -242,6 +279,71 @@ for attempt in $(seq 1 $MAX_RETRIES); do
         fi
     fi
 done
+
+# Download and verify checksums if not skipped
+if [ "$SKIP_CHECKSUM" = false ]; then
+    print_info "Downloading checksums file..."
+    CHECKSUMS_DOWNLOADED=false
+    
+    for attempt in $(seq 1 $MAX_RETRIES); do
+        if curl -L -f -o "$CHECKSUMS_PATH" "$CHECKSUMS_URL" 2>/dev/null; then
+            CHECKSUMS_DOWNLOADED=true
+            print_success "Checksums file downloaded successfully"
+            break
+        else
+            if [ "$attempt" -eq "$MAX_RETRIES" ]; then
+                print_warning "Failed to download checksums file after $MAX_RETRIES attempts"
+                print_warning "Checksum verification will be skipped for this version."
+                print_info "This may occur for older releases that don't include checksums."
+                break
+            else
+                print_warning "Checksum download attempt $attempt failed. Retrying in 2s..."
+                sleep 2
+            fi
+        fi
+    done
+    
+    # Verify checksum if we downloaded it successfully
+    if [ "$CHECKSUMS_DOWNLOADED" = true ]; then
+        print_info "Verifying binary checksum..."
+        
+        # Determine the expected filename in the checksums file
+        EXPECTED_FILENAME="$PLATFORM"
+        if [ "$OS_NAME" = "windows" ]; then
+            EXPECTED_FILENAME="${PLATFORM}.exe"
+        fi
+        
+        # Extract the expected checksum from the checksums file
+        EXPECTED_CHECKSUM=$(grep "$EXPECTED_FILENAME" "$CHECKSUMS_PATH" | awk '{print $1}')
+        
+        if [ -z "$EXPECTED_CHECKSUM" ]; then
+            print_warning "Checksum for $EXPECTED_FILENAME not found in checksums file"
+            print_warning "Checksum verification will be skipped."
+        else
+            # Compute the actual checksum of the downloaded binary
+            ACTUAL_CHECKSUM=$($CHECKSUM_CMD "$BINARY_PATH" | awk '{print $1}')
+            
+            if [ "$ACTUAL_CHECKSUM" = "$EXPECTED_CHECKSUM" ]; then
+                print_success "Checksum verification passed!"
+                print_info "Expected: $EXPECTED_CHECKSUM"
+                print_info "Actual:   $ACTUAL_CHECKSUM"
+            else
+                print_error "Checksum verification failed!"
+                print_error "Expected: $EXPECTED_CHECKSUM"
+                print_error "Actual:   $ACTUAL_CHECKSUM"
+                print_error "The downloaded binary may be corrupted or tampered with."
+                print_info "To skip checksum verification, use: ./install-gh-aw.sh $VERSION --skip-checksum"
+                rm -f "$BINARY_PATH"
+                exit 1
+            fi
+        fi
+        
+        # Clean up checksums file
+        rm -f "$CHECKSUMS_PATH"
+    fi
+else
+    print_warning "Checksum verification skipped (--skip-checksum flag used)"
+fi
 
 # Make it executable
 print_info "Making binary executable..."

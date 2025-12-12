@@ -292,5 +292,65 @@ else
     exit 1
 fi
 
+# Test 10: Verify checksum validation functionality
+echo ""
+echo "Test 10: Verify checksum validation functionality"
+
+# Check for --skip-checksum flag
+if grep -q "\-\-skip-checksum" "$PROJECT_ROOT/install-gh-aw.sh"; then
+    echo "  ✓ PASS: --skip-checksum flag is documented"
+else
+    echo "  ✗ FAIL: --skip-checksum flag not found"
+    exit 1
+fi
+
+# Check for checksum tool detection
+if grep -q "sha256sum\|shasum" "$PROJECT_ROOT/install-gh-aw.sh"; then
+    echo "  ✓ PASS: Script checks for sha256sum or shasum"
+else
+    echo "  ✗ FAIL: Script doesn't check for checksum tools"
+    exit 1
+fi
+
+# Check for checksums URL construction
+if grep -q 'CHECKSUMS_URL=.*checksums.txt' "$PROJECT_ROOT/install-gh-aw.sh"; then
+    echo "  ✓ PASS: Checksums URL is constructed"
+else
+    echo "  ✗ FAIL: Checksums URL construction not found"
+    exit 1
+fi
+
+# Check for checksum verification logic
+if grep -q "Verifying binary checksum" "$PROJECT_ROOT/install-gh-aw.sh"; then
+    echo "  ✓ PASS: Checksum verification logic exists"
+else
+    echo "  ✗ FAIL: Checksum verification logic not found"
+    exit 1
+fi
+
+# Check for checksum failure handling
+if grep -q "Checksum verification failed" "$PROJECT_ROOT/install-gh-aw.sh"; then
+    echo "  ✓ PASS: Checksum failure is handled"
+else
+    echo "  ✗ FAIL: Checksum failure handling not found"
+    exit 1
+fi
+
+# Check for graceful handling when checksums file is not available
+if grep -q "Checksum verification will be skipped" "$PROJECT_ROOT/install-gh-aw.sh"; then
+    echo "  ✓ PASS: Script handles missing checksums gracefully"
+else
+    echo "  ✗ FAIL: Missing checksums handling not found"
+    exit 1
+fi
+
+# Check for SKIP_CHECKSUM flag logic
+if grep -q "SKIP_CHECKSUM=false" "$PROJECT_ROOT/install-gh-aw.sh" && grep -q 'if \[ "\$SKIP_CHECKSUM" = false \]' "$PROJECT_ROOT/install-gh-aw.sh"; then
+    echo "  ✓ PASS: SKIP_CHECKSUM flag logic is implemented"
+else
+    echo "  ✗ FAIL: SKIP_CHECKSUM flag logic not found"
+    exit 1
+fi
+
 echo ""
 echo "=== All tests passed ==="

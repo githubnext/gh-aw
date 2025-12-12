@@ -57,3 +57,21 @@ done
 
 echo "Build complete. Binaries:"
 ls -lh dist/
+
+# Generate checksums file
+echo ""
+echo "Generating checksums..."
+cd dist
+# Use sha256sum if available (Linux), otherwise use shasum (macOS)
+if command -v sha256sum &> /dev/null; then
+  sha256sum * > checksums.txt
+elif command -v shasum &> /dev/null; then
+  shasum -a 256 * > checksums.txt
+else
+  echo "error: neither sha256sum nor shasum is available" >&2
+  exit 1
+fi
+cd ..
+
+echo "Checksums generated:"
+cat dist/checksums.txt
