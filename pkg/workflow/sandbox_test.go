@@ -389,39 +389,3 @@ permissions:
 	_, err = os.Stat(lockFile)
 	require.NoError(t, err, "Lock file should be created")
 }
-
-func TestSandboxConfigWithMCPGateway(t *testing.T) {
-	content := `---
-on: workflow_dispatch
-engine: copilot
-sandbox:
-  agent: awf
-  mcp:
-    container: "ghcr.io/githubnext/mcp-gateway"
-    port: 9090
-    api-key: "${{ secrets.MCP_API_KEY }}"
-features:
-  mcp-gateway: true
-permissions:
-  contents: read
----
-
-# Test Workflow with MCP Gateway
-`
-
-	tmpDir := testutil.TempDir(t, "sandbox-mcp-gateway-test")
-
-	testFile := filepath.Join(tmpDir, "test-workflow.md")
-	err := os.WriteFile(testFile, []byte(content), 0644)
-	require.NoError(t, err)
-
-	compiler := NewCompiler(false, "", "test")
-	compiler.SetStrictMode(false)
-	err = compiler.CompileWorkflow(testFile)
-	require.NoError(t, err)
-
-	// Verify the lock file was created
-	lockFile := filepath.Join(tmpDir, "test-workflow.lock.yml")
-	_, err = os.Stat(lockFile)
-	require.NoError(t, err, "Lock file should be created")
-}

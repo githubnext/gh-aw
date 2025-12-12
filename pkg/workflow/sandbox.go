@@ -21,12 +21,11 @@ const (
 )
 
 // SandboxConfig represents the top-level sandbox configuration from front matter
-// New format: { agent: "awf"|"srt"|{type, config}, mcp: {...} }
+// New format: { agent: "awf"|"srt"|{type, config} }
 // Legacy format: "default"|"sandbox-runtime" or { type, config }
 type SandboxConfig struct {
 	// New fields
 	Agent *AgentSandboxConfig `yaml:"agent,omitempty"` // Agent sandbox configuration
-	MCP   *MCPGatewayConfig   `yaml:"mcp,omitempty"`   // MCP gateway configuration
 
 	// Legacy fields (for backward compatibility)
 	Type   SandboxType           `yaml:"type,omitempty"`   // Sandbox type: "default" or "sandbox-runtime"
