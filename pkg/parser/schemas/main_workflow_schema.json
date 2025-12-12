@@ -3626,7 +3626,7 @@
               "properties": {
                 "max": {
                   "type": "integer",
-                  "description": "Maximum number of review comments to create (default: 1)",
+                  "description": "Maximum number of review comments to create (default: 10)",
                   "minimum": 1,
                   "maximum": 100
                 },
