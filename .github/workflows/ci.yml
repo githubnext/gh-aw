@@ -63,7 +63,7 @@ jobs:
           retention-days: 14
 
   integration:
-    needs: [test]
+    needs: [lint]  # Run in parallel with test to reduce critical path
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -212,6 +212,8 @@ jobs:
         run: cd pkg/workflow/js && npm test
   bench:
     needs: [test]
+    # Only run benchmarks on main branch for performance tracking
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -341,6 +343,8 @@ jobs:
 
   fuzz:
     needs: [test]
+    # Only run fuzz tests on main branch (10s is insufficient for PRs)
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -375,7 +379,7 @@ jobs:
           go test -fuzz=FuzzExpressionParser -fuzztime=10s ./pkg/workflow/
 
   security:
-    needs: [test]
+    needs: [lint]  # Run in parallel with test to reduce critical path
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -408,7 +412,9 @@ jobs:
         run: make test-security
 
   security-scan:
-    needs: [test]
+    needs: [lint]  # Run in parallel with test to reduce critical path
+    # Only run security scans on main branch to reduce PR overhead
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -452,7 +458,7 @@ jobs:
         run: ./gh-aw compile poem-bot ${{ matrix.tool.flag }}
 
   logs-token-check:
-    needs: [test]
+    needs: [lint]  # Run in parallel with test to reduce critical path
     runs-on: ubuntu-latest
     permissions:
       contents: read
