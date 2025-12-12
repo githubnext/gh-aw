@@ -73,9 +73,11 @@ steps:
     run: make recompile
   
   - name: Run unit tests
-    run: go test -v -count=1 -timeout=3m -tags '!integration' -run='^Test' ./...
+    continue-on-error: true
+    run: go test -v -json -count=1 -timeout=3m -tags '!integration' -run='^Test' ./... | tee test_results.json
   
   - name: Run JavaScript tests
+    continue-on-error: true
     run: npm test
     working-directory: ./pkg/workflow/js
 safe-outputs:
