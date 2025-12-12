@@ -109,8 +109,12 @@ Examples:
 	cmd.Flags().StringVar(&flagValueEnv, "value-from-env", "", "Environment variable to read secret value from")
 	cmd.Flags().StringVar(&flagAPIBase, "api-url", "", "GitHub API base URL (default: https://api.github.com or $GITHUB_API_URL)")
 
-	cmd.MarkFlagRequired("owner")
-	cmd.MarkFlagRequired("repo")
+	if err := cmd.MarkFlagRequired("owner"); err != nil {
+		panic(fmt.Sprintf("failed to mark owner flag as required: %v", err))
+	}
+	if err := cmd.MarkFlagRequired("repo"); err != nil {
+		panic(fmt.Sprintf("failed to mark repo flag as required: %v", err))
+	}
 
 	return cmd
 }
