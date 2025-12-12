@@ -13027,6 +13027,7 @@ jobs:
         env:
           GH_AW_REQUIRED_ROLES: admin,maintainer
         with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             function parseRequiredPermissions() {
               const requiredPermissionsEnv = process.env.GH_AW_REQUIRED_ROLES;
