@@ -392,7 +392,7 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 			// Handle campaign spec files separately from regular workflows
 			if strings.HasSuffix(resolvedFile, ".campaign.md") {
 				// Validate the campaign spec file and referenced workflows instead of
-				// compiling it as a regular workflow YAML.
+				// compiling it directly as a regular workflow YAML.
 				spec, problems, vErr := campaign.ValidateSpecFromFile(resolvedFile)
 				if vErr != nil {
 					errMsg := fmt.Sprintf("failed to validate campaign spec %s: %v", resolvedFile, vErr)
@@ -433,7 +433,40 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 					errorCount++
 					stats.Errors++
 					stats.FailedWorkflows = append(stats.FailedWorkflows, filepath.Base(resolvedFile))
-				} else if verbose && !jsonOutput {
+					validationResults = append(validationResults, result)
+					continue
+				}
+
+				// Campaign spec is valid and referenced workflows exist.
+				// Optionally synthesize an orchestrator workflow for this campaign
+				// and compile it via the standard workflow pipeline.
+				if !noEmit {
+					orchestratorData, orchestratorPath := campaign.BuildOrchestrator(spec, resolvedFile)
+					lockFile := strings.TrimSuffix(orchestratorPath, ".md") + ".lock.yml"
+					result.CompiledFile = lockFile
+
+					if err := CompileWorkflowDataWithValidation(compiler, orchestratorData, orchestratorPath, verbose && !jsonOutput, zizmor && !noEmit, poutine && !noEmit, actionlint && !noEmit, strict, validate && !noEmit); err != nil {
+						if !jsonOutput {
+							fmt.Fprintln(os.Stderr, err.Error())
+						}
+						errorMessages = append(errorMessages, err.Error())
+						errorCount++
+						stats.Errors++
+						stats.FailedWorkflows = append(stats.FailedWorkflows, filepath.Base(orchestratorPath))
+
+						result.Valid = false
+						result.Errors = append(result.Errors, ValidationError{
+							Type:    "compilation_error",
+							Message: err.Error(),
+						})
+						validationResults = append(validationResults, result)
+						continue
+					}
+
+					compiledCount++
+				}
+
+				if verbose && !jsonOutput {
 					fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Validated campaign spec %s", filepath.Base(resolvedFile))))
 				}
 
@@ -669,7 +702,7 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 		// Handle campaign spec files separately from regular workflows
 		if strings.HasSuffix(file, ".campaign.md") {
 			// Validate the campaign spec file and referenced workflows instead of
-			// compiling it as a regular workflow YAML.
+			// compiling it directly as a regular workflow YAML.
 			spec, problems, vErr := campaign.ValidateSpecFromFile(file)
 			if vErr != nil {
 				if !jsonOutput {
@@ -707,7 +740,39 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 				errorCount++
 				stats.Errors++
 				stats.FailedWorkflows = append(stats.FailedWorkflows, filepath.Base(file))
-			} else if verbose && !jsonOutput {
+				validationResults = append(validationResults, result)
+				continue
+			}
+
+			// Campaign spec is valid and referenced workflows exist.
+			// Optionally synthesize an orchestrator workflow for this campaign
+			// and compile it via the standard workflow pipeline.
+			if !noEmit {
+				orchestratorData, orchestratorPath := campaign.BuildOrchestrator(spec, file)
+				lockFile := strings.TrimSuffix(orchestratorPath, ".md") + ".lock.yml"
+				result.CompiledFile = lockFile
+
+				if err := CompileWorkflowDataWithValidation(compiler, orchestratorData, orchestratorPath, verbose && !jsonOutput, zizmor && !noEmit, poutine && !noEmit, actionlint && !noEmit, strict, validate && !noEmit); err != nil {
+					if !jsonOutput {
+						fmt.Fprintln(os.Stderr, err.Error())
+					}
+					errorCount++
+					stats.Errors++
+					stats.FailedWorkflows = append(stats.FailedWorkflows, filepath.Base(orchestratorPath))
+
+					result.Valid = false
+					result.Errors = append(result.Errors, ValidationError{
+						Type:    "compilation_error",
+						Message: err.Error(),
+					})
+					validationResults = append(validationResults, result)
+					continue
+				}
+
+				successCount++
+			}
+
+			if verbose && !jsonOutput {
 				fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Validated campaign spec %s", filepath.Base(file))))
 			}
 
@@ -1123,6 +1188,18 @@ func compileSingleFile(compiler *workflow.Compiler, file string, stats *Compilat
 			compileLog.Printf("File %s was deleted, skipping compilation", file)
 			return false
 		}
+	}
+
+	// Skip campaign spec files here; they are validated via the campaign
+	// pipeline and are not compiled into GitHub Actions workflows in watch
+	// mode. Orchestrators for campaigns are generated only in non-watch
+	// compile paths to avoid surprising behavior while editing.
+	if strings.HasSuffix(file, ".campaign.md") {
+		compileLog.Printf("Skipping campaign spec file (not a workflow): %s", file)
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Skipping campaign spec (not a workflow): %s", filepath.Base(file))))
+		}
+		return true
 	}
 
 	stats.Total++
