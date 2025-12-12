@@ -287,17 +287,18 @@ Campaign spec files participate in the normal `compile` workflow:
 - Validation checks both the spec itself (IDs, tracker labels, lifecycle state, etc.) and that all referenced `workflows` exist in `.github/workflows/`.
 - If any campaign spec has problems, `compile` fails with a `campaign validation failed` error until issues are fixed.
 
-For experimentation, you can also enable an **orchestrator workflow** per campaign:
+**Orchestrator workflows** are automatically generated for each campaign spec:
 
 ```bash wrap
-GH_AW_EXPERIMENTAL_CAMPAIGN_ORCHESTRATOR=1 gh aw compile
+gh aw compile
 ```
 
-When this environment variable is set and specs are valid:
+When specs are valid:
 
 - Each `<name>.campaign.md` generates an orchestrator markdown workflow named `<name>-campaign.md` next to the spec.
 - The orchestrator is compiled like any other workflow to `<name>-campaign.lock.yml`.
 - This makes campaigns first-class, compilable entry points while keeping specs declarative.
+- Orchestrators are only generated when the campaign spec has meaningful details (tracker labels, workflows, memory paths, or metrics glob).
 
 ### Interactive Campaign Designer
 

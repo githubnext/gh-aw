@@ -438,34 +438,37 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 				}
 
 				// Campaign spec is valid and referenced workflows exist.
-				// Optionally synthesize an orchestrator workflow for this campaign
-				// and compile it via the standard workflow pipeline. This is gated
-				// behind an environment variable so campaign specs can be validated
-				// in CI without requiring experimental orchestrator support.
-				if !noEmit && os.Getenv("GH_AW_EXPERIMENTAL_CAMPAIGN_ORCHESTRATOR") == "1" {
+				// Synthesize an orchestrator workflow for this campaign
+				// and compile it via the standard workflow pipeline.
+				if !noEmit {
 					orchestratorData, orchestratorPath := campaign.BuildOrchestrator(spec, resolvedFile)
-					lockFile := strings.TrimSuffix(orchestratorPath, ".md") + ".lock.yml"
-					result.CompiledFile = lockFile
+					
+					// Only compile orchestrator if BuildOrchestrator returned valid data
+					// (it returns nil if the campaign has no meaningful prompt content)
+					if orchestratorData != nil {
+						lockFile := strings.TrimSuffix(orchestratorPath, ".md") + ".lock.yml"
+						result.CompiledFile = lockFile
 
-					if err := CompileWorkflowDataWithValidation(compiler, orchestratorData, orchestratorPath, verbose && !jsonOutput, zizmor && !noEmit, poutine && !noEmit, actionlint && !noEmit, strict, validate && !noEmit); err != nil {
-						if !jsonOutput {
-							fmt.Fprintln(os.Stderr, err.Error())
+						if err := CompileWorkflowDataWithValidation(compiler, orchestratorData, orchestratorPath, verbose && !jsonOutput, zizmor && !noEmit, poutine && !noEmit, actionlint && !noEmit, strict, validate && !noEmit); err != nil {
+							if !jsonOutput {
+								fmt.Fprintln(os.Stderr, err.Error())
+							}
+							errorMessages = append(errorMessages, err.Error())
+							errorCount++
+							stats.Errors++
+							stats.FailedWorkflows = append(stats.FailedWorkflows, filepath.Base(orchestratorPath))
+
+							result.Valid = false
+							result.Errors = append(result.Errors, ValidationError{
+								Type:    "compilation_error",
+								Message: err.Error(),
+							})
+							validationResults = append(validationResults, result)
+							continue
 						}
-						errorMessages = append(errorMessages, err.Error())
-						errorCount++
-						stats.Errors++
-						stats.FailedWorkflows = append(stats.FailedWorkflows, filepath.Base(orchestratorPath))
 
-						result.Valid = false
-						result.Errors = append(result.Errors, ValidationError{
-							Type:    "compilation_error",
-							Message: err.Error(),
-						})
-						validationResults = append(validationResults, result)
-						continue
+						compiledCount++
 					}
-
-					compiledCount++
 				}
 
 				if verbose && !jsonOutput {
@@ -747,33 +750,36 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 			}
 
 			// Campaign spec is valid and referenced workflows exist.
-			// Optionally synthesize an orchestrator workflow for this campaign
-			// and compile it via the standard workflow pipeline. This is gated
-			// behind an environment variable so campaign specs can be validated
-			// in CI without requiring experimental orchestrator support.
-			if !noEmit && os.Getenv("GH_AW_EXPERIMENTAL_CAMPAIGN_ORCHESTRATOR") == "1" {
+			// Synthesize an orchestrator workflow for this campaign
+			// and compile it via the standard workflow pipeline.
+			if !noEmit {
 				orchestratorData, orchestratorPath := campaign.BuildOrchestrator(spec, file)
-				lockFile := strings.TrimSuffix(orchestratorPath, ".md") + ".lock.yml"
-				result.CompiledFile = lockFile
+				
+				// Only compile orchestrator if BuildOrchestrator returned valid data
+				// (it returns nil if the campaign has no meaningful prompt content)
+				if orchestratorData != nil {
+					lockFile := strings.TrimSuffix(orchestratorPath, ".md") + ".lock.yml"
+					result.CompiledFile = lockFile
 
-				if err := CompileWorkflowDataWithValidation(compiler, orchestratorData, orchestratorPath, verbose && !jsonOutput, zizmor && !noEmit, poutine && !noEmit, actionlint && !noEmit, strict, validate && !noEmit); err != nil {
-					if !jsonOutput {
-						fmt.Fprintln(os.Stderr, err.Error())
+					if err := CompileWorkflowDataWithValidation(compiler, orchestratorData, orchestratorPath, verbose && !jsonOutput, zizmor && !noEmit, poutine && !noEmit, actionlint && !noEmit, strict, validate && !noEmit); err != nil {
+						if !jsonOutput {
+							fmt.Fprintln(os.Stderr, err.Error())
+						}
+						errorCount++
+						stats.Errors++
+						stats.FailedWorkflows = append(stats.FailedWorkflows, filepath.Base(orchestratorPath))
+
+						result.Valid = false
+						result.Errors = append(result.Errors, ValidationError{
+							Type:    "compilation_error",
+							Message: err.Error(),
+						})
+						validationResults = append(validationResults, result)
+						continue
 					}
-					errorCount++
-					stats.Errors++
-					stats.FailedWorkflows = append(stats.FailedWorkflows, filepath.Base(orchestratorPath))
 
-					result.Valid = false
-					result.Errors = append(result.Errors, ValidationError{
-						Type:    "compilation_error",
-						Message: err.Error(),
-					})
-					validationResults = append(validationResults, result)
-					continue
+					successCount++
 				}
-
-				successCount++
 			}
 
 			if verbose && !jsonOutput {
