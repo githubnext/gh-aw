@@ -32,15 +32,13 @@ Examples:
 			jsonFlag, _ := cmd.Flags().GetBool("json")
 			ref, _ := cmd.Flags().GetString("ref")
 			labelFilter, _ := cmd.Flags().GetString("label")
-			fixSuggestions, _ := cmd.Flags().GetBool("fix-suggestions")
-			return StatusWorkflows(pattern, verbose, jsonFlag, ref, labelFilter, fixSuggestions)
+			return StatusWorkflows(pattern, verbose, jsonFlag, ref, labelFilter)
 		},
 	}
 
 	addJSONFlag(cmd)
 	cmd.Flags().String("ref", "", "Filter runs by branch or tag name (e.g., main, v1.0.0)")
 	cmd.Flags().String("label", "", "Filter workflows by label")
-	cmd.Flags().Bool("fix-suggestions", false, "Generate executable shell script to fix stale workflows")
 
 	// Register completions for status command
 	cmd.ValidArgsFunction = CompleteWorkflowNames
