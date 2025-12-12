@@ -262,7 +262,7 @@ Cross-repo sync workflows require authentication via PAT or GitHub App.
 Create a PAT with `repo`, `contents: write`, and `pull-requests: write` permissions, then store it as a repository secret:
 
 ```bash
-gh secret set CROSS_REPO_PAT --body "ghp_your_token_here"
+gh aw secret set CROSS_REPO_PAT --value "ghp_your_token_here"
 ```
 
 ### GitHub App Configuration

@@ -123,7 +123,7 @@ tools:
     mode: remote  # Default is "local" (Docker)
 ```
 
-Setup: `gh secret set GH_AW_GITHUB_TOKEN -a actions --body "<your-pat>"`
+Setup: `gh aw secret set GH_AW_GITHUB_TOKEN --value "<your-pat>"`
 
 **Read-Only Mode**: Restrict to read-only operations (default behavior unless write operations configured):
 

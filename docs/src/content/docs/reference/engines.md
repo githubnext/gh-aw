@@ -56,7 +56,7 @@ To use the Copilot engine, you need a fine-grained Personal Access Token with th
 6. Add the token to your repository secrets as `COPILOT_GITHUB_TOKEN`:
 
 ```bash wrap
-gh secret set COPILOT_GITHUB_TOKEN -a actions --body "<your-github-pat>"
+gh aw secret set COPILOT_GITHUB_TOKEN --value "<your-github-pat>"
 ```
 
 :::caution[Legacy Tokens Removed]
@@ -68,7 +68,7 @@ The legacy secret name `GH_AW_GITHUB_TOKEN` is still supported for backward comp
 For GitHub Tools Remote Mode, also configure:
 
 ```bash wrap
-gh secret set GH_AW_GITHUB_TOKEN -a actions --body "<your-github-pat>"
+gh aw secret set GH_AW_GITHUB_TOKEN --value "<your-github-pat>"
 ```
 
 For more information about GitHub Copilot CLI authentication, see the [official documentation](https://github.com/github/copilot-cli?tab=readme-ov-file#authenticate-with-a-personal-access-token-pat).

@@ -54,7 +54,7 @@ Create a [fine-grained PAT](https://github.com/settings/personal-access-tokens/n
 For classic PATs, use the `repo` scope. Store the token as a secret:
 
 ```bash
-gh secret set MAIN_REPO_PAT -a actions --body "YOUR_PAT_HERE"
+gh aw secret set MAIN_REPO_PAT --value "YOUR_PAT_HERE"
 ```
 
 :::tip[Security Best Practice]
