@@ -381,7 +381,6 @@ name: "Layout Specification Maintainer"
 "on":
   schedule:
   - cron: "0 7 * * 1-5"
-    # Friendly format: daily at 09:00
   workflow_dispatch: null
 
 permissions: read-all
