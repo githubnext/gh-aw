@@ -174,6 +174,9 @@ var messagesCloseDiscussionScript string
 //go:embed js/close_older_discussions.cjs
 var closeOlderDiscussionsScript string
 
+//go:embed js/close_entity_helpers.cjs
+var closeEntityHelpersScript string
+
 //go:embed js/expiration_helpers.cjs
 var expirationHelpersScript string
 
@@ -294,6 +297,7 @@ func GetJavaScriptSources() map[string]string {
 		"messages_run_status.cjs":           messagesRunStatusScript,
 		"messages_close_discussion.cjs":     messagesCloseDiscussionScript,
 		"close_older_discussions.cjs":       closeOlderDiscussionsScript,
+		"close_entity_helpers.cjs":          closeEntityHelpersScript,
 		"expiration_helpers.cjs":            expirationHelpersScript,
 		"get_repository_url.cjs":            getRepositoryUrlScript,
 		"check_permissions_utils.cjs":       checkPermissionsUtilsScript,
