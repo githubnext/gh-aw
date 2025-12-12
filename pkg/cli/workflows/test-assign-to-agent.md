@@ -37,7 +37,6 @@ safe-outputs:
   assign-to-agent:
     max: 5
     name: copilot
-    branch-prefix: "test-workflow/"
     allowed-agents: ["copilot"]
 strict: false
 ---

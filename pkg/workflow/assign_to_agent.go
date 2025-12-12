@@ -14,7 +14,6 @@ type AssignToAgentConfig struct {
 	BaseSafeOutputConfig   `yaml:",inline"`
 	SafeOutputTargetConfig `yaml:",inline"`
 	DefaultAgent           string   `yaml:"name,omitempty"`           // Default agent to assign (e.g., "copilot")
-	BranchPrefix           string   `yaml:"branch-prefix,omitempty"`  // Optional branch prefix suggestion (default: "<workflowid>/")
 	AllowedAgents          []string `yaml:"allowed-agents,omitempty"` // List of allowed agent IDs (default: any)
 }
 
@@ -29,13 +28,6 @@ func (c *Compiler) parseAssignToAgentConfig(outputMap map[string]any) *AssignToA
 			if defaultAgent, exists := agentMap["name"]; exists {
 				if defaultAgentStr, ok := defaultAgent.(string); ok {
 					agentConfig.DefaultAgent = defaultAgentStr
-				}
-			}
-
-			// Parse branch-prefix (optional)
-			if branchPrefix, exists := agentMap["branch-prefix"]; exists {
-				if branchPrefixStr, ok := branchPrefix.(string); ok {
-					agentConfig.BranchPrefix = branchPrefixStr
 				}
 			}
 
@@ -100,12 +92,6 @@ func (c *Compiler) buildAssignToAgentJob(data *WorkflowData, mainJobName string)
 	customEnvVars = append(customEnvVars, BuildMaxCountEnvVar("GH_AW_AGENT_MAX_COUNT", maxCount)...)
 
 	// Pass the branch prefix (default to workflow ID + "/")
-	branchPrefix := cfg.BranchPrefix
-	if branchPrefix == "" {
-		branchPrefix = mainJobName + "/"
-	}
-	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_AGENT_BRANCH_PREFIX: %q\n", branchPrefix))
-
 	// Pass allowed agents list if configured
 	if len(cfg.AllowedAgents) > 0 {
 		allowedAgentsJSON, _ := json.Marshal(cfg.AllowedAgents)

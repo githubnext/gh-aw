@@ -3818,10 +3818,6 @@
                   "description": "Optional maximum number of agent assignments (default: 1)",
                   "minimum": 1
                 },
-                "branch-prefix": {
-                  "type": "string",
-                  "description": "Optional branch prefix suggestion for agent assignments (default: '<workflowid>/'). Does not enforce validation."
-                },
                 "allowed-agents": {
                   "type": "array",
                   "description": "Optional list of allowed agent identifiers. If specified, only agents from this list can be assigned.",

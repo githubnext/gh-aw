@@ -77,12 +77,6 @@ async function main() {
     }
   }
 
-  // Get branch prefix configuration
-  const branchPrefix = process.env.GH_AW_AGENT_BRANCH_PREFIX?.trim() || "";
-  if (branchPrefix) {
-    core.info(`Branch prefix configured: ${branchPrefix}`);
-  }
-
   // Get allowed agents configuration
   let allowedAgents = [];
   const allowedAgentsEnv = process.env.GH_AW_AGENT_ALLOWED_AGENTS?.trim();

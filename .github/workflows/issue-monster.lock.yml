@@ -1445,7 +1445,7 @@ jobs:
                   "sanitize": true,
                   "maxLength": 128
                 },
-                "branch": {
+                "base_branch": {
                   "type": "string",
                   "sanitize": true,
                   "maxLength": 256
@@ -7321,7 +7321,7 @@ jobs:
                   });
                   continue;
                 }
-                const branch = item.branch?.trim();
+                const baseBranch = item.base_branch?.trim();
                 const customAgent = item.agent?.trim();
                 if (customAgent && allowedAgents.length > 0 && !allowedAgents.includes(customAgent)) {
                   core.error(`Agent "${customAgent}" is not in the allowed-agents list: ${allowedAgents.join(", ")}`);
@@ -7361,11 +7361,11 @@ jobs:
                   }
                   core.info(`Assigning ${agentName} coding agent to issue #${issueNumber}...`);
                   let agentAssignment = null;
-                  if (branch || customAgent || targetRepoId) {
+                  if (baseBranch || customAgent || targetRepoId) {
                     agentAssignment = {};
-                    if (branch) {
-                      agentAssignment.baseRef = branch;
-                      core.info(`Using base branch: ${branch}`);
+                    if (baseBranch) {
+                      agentAssignment.baseRef = baseBranch;
+                      core.info(`Using base branch: ${baseBranch}`);
                     }
                     if (customAgent) {
                       agentAssignment.customAgent = customAgent;
