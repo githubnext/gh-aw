@@ -7322,16 +7322,6 @@ jobs:
                   continue;
                 }
                 const branch = item.branch?.trim();
-                if (branch && branchPrefix && !branch.startsWith(branchPrefix)) {
-                  core.error(`Branch "${branch}" does not start with required prefix "${branchPrefix}"`);
-                  results.push({
-                    issue_number: issueNumber,
-                    agent: agentName,
-                    success: false,
-                    error: `Branch must start with prefix: ${branchPrefix}`,
-                  });
-                  continue;
-                }
                 const customAgent = item.agent?.trim();
                 if (customAgent && allowedAgents.length > 0 && !allowedAgents.includes(customAgent)) {
                   core.error(`Agent "${customAgent}" is not in the allowed-agents list: ${allowedAgents.join(", ")}`);

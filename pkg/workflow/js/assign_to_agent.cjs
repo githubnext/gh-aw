@@ -147,8 +147,8 @@ async function main() {
       continue;
     }
 
-    // Get branch from item if provided
-    const branch = item.branch?.trim();
+    // Get base_branch from item if provided
+    const baseBranch = item.base_branch?.trim();
 
     // Validate custom agent if provided against allowed-agents list
     const customAgent = item.agent?.trim();
@@ -200,13 +200,13 @@ async function main() {
       // Assign agent using GraphQL mutation - uses built-in github object authenticated via github-token
       core.info(`Assigning ${agentName} coding agent to issue #${issueNumber}...`);
 
-      // Build agentAssignment object if branch or customAgent is provided
+      // Build agentAssignment object if baseBranch or customAgent is provided
       let agentAssignment = null;
-      if (branch || customAgent || targetRepoId) {
+      if (baseBranch || customAgent || targetRepoId) {
         agentAssignment = {};
-        if (branch) {
-          agentAssignment.baseRef = branch;
-          core.info(`Using base branch: ${branch}`);
+        if (baseBranch) {
+          agentAssignment.baseRef = baseBranch;
+          core.info(`Using base branch: ${baseBranch}`);
         }
         if (customAgent) {
           agentAssignment.customAgent = customAgent;
