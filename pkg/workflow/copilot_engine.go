@@ -75,18 +75,14 @@ func (e *CopilotEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHu
 	// For SRT, install locally so npx can find it without network access
 	installGlobally := !isSRTEnabled(workflowData)
 
-	// Generate npm install steps based on installation scope
+	// Generate install steps based on installation scope
 	var npmSteps []GitHubActionStep
 	if installGlobally {
-		npmSteps = BuildStandardNpmEngineInstallSteps(
-			config.NpmPackage,
-			copilotVersion,
-			config.InstallStepName,
-			config.CliName,
-			workflowData,
-		)
+		// Use the new installer script for global installation
+		copilotLog.Print("Using new installer script for Copilot installation")
+		npmSteps = GenerateCopilotInstallerSteps(copilotVersion, config.InstallStepName)
 	} else {
-		// For SRT: install locally without -g flag
+		// For SRT: install locally with npm without -g flag
 		copilotLog.Print("Using local Copilot installation for SRT compatibility")
 		npmSteps = GenerateNpmInstallStepsWithScope(
 			config.NpmPackage,
@@ -276,24 +272,19 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 	}
 
 	if sandboxEnabled {
-		// When sandbox is enabled, use version pinning with npx
-		copilotVersion := string(constants.DefaultCopilotVersion)
-		if workflowData.EngineConfig != nil && workflowData.EngineConfig.Version != "" {
-			copilotVersion = workflowData.EngineConfig.Version
-		}
-
 		// Build base command
 		var baseCommand string
 		// For SRT: use locally installed package without -y flag to avoid internet fetch
-		// For AWF: use -y flag for automatic download (backward compatibility)
+		// For AWF: use the installed binary directly
 		if isSRTEnabled(workflowData) {
 			// Use node explicitly to invoke copilot CLI to ensure env vars propagate correctly through sandbox
 			// The .bin/copilot shell wrapper doesn't properly pass environment variables through bubblewrap
 			// Environment variables are explicitly exported in the SRT wrapper to propagate through sandbox
 			baseCommand = fmt.Sprintf("node ./node_modules/.bin/copilot %s", shellJoinArgs(copilotArgs))
 		} else {
-			// AWF or other sandboxes - use -y for automatic download
-			baseCommand = fmt.Sprintf("npx -y @github/copilot@%s %s", copilotVersion, shellJoinArgs(copilotArgs))
+			// AWF - use the copilot binary installed by the installer script
+			// The binary is mounted into the AWF container from /usr/local/bin/copilot
+			baseCommand = fmt.Sprintf("/usr/local/bin/copilot %s", shellJoinArgs(copilotArgs))
 		}
 
 		// Add conditional model flag if needed
@@ -389,7 +380,10 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 		awfArgs = append(awfArgs, "--mount", "/usr/bin/date:/usr/bin/date:ro")
 		awfArgs = append(awfArgs, "--mount", "/usr/bin/gh:/usr/bin/gh:ro")
 		awfArgs = append(awfArgs, "--mount", "/usr/bin/yq:/usr/bin/yq:ro")
-		copilotLog.Print("Added gh CLI binary mount to AWF container")
+
+		// Mount copilot CLI binary from /usr/local/bin (where the installer script places it)
+		awfArgs = append(awfArgs, "--mount", "/usr/local/bin/copilot:/usr/local/bin/copilot:ro")
+		copilotLog.Print("Added gh CLI and copilot binary mounts to AWF container")
 
 		// Add custom mounts from agent config if specified
 		if agentConfig != nil && len(agentConfig.Mounts) > 0 {
@@ -1149,6 +1143,33 @@ func generateAWFInstallationStep(version string, agentConfig *AgentSandboxConfig
 	)
 
 	return GitHubActionStep(stepLines)
+}
+
+// GenerateCopilotInstallerSteps creates GitHub Actions steps for installing Copilot CLI using the new installer script
+// Parameters:
+//   - version: The Copilot CLI version to install (e.g., "0.0.369" or "v0.0.369")
+//   - stepName: The name to display for the install step (e.g., "Install GitHub Copilot CLI")
+//
+// Returns steps for installing Copilot CLI via the installer script
+func GenerateCopilotInstallerSteps(version, stepName string) []GitHubActionStep {
+	copilotLog.Printf("Generating Copilot installer steps: version=%s", version)
+
+	// The installer script is at https://gh.io/copilot-install which redirects to
+	// https://raw.githubusercontent.com/github/copilot-cli/main/install.sh
+	// It uses the VERSION environment variable to control which version to install
+
+	// Build the installation command
+	// The script automatically handles the v prefix, so we can pass it as-is
+	installCmd := fmt.Sprintf("export VERSION=%s && curl -fsSL https://gh.io/copilot-install | sudo bash", version)
+
+	stepLines := []string{
+		fmt.Sprintf("      - name: %s", stepName),
+		"        run: |",
+		fmt.Sprintf("          %s", installCmd),
+		"          copilot --version",
+	}
+
+	return []GitHubActionStep{GitHubActionStep(stepLines)}
 }
 
 // generateSRTSystemDepsStep creates a GitHub Actions step to install SRT system dependencies
