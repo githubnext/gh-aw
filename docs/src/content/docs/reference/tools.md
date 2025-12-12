@@ -26,19 +26,17 @@ tools:
 
 ## Bash Tool (`bash:`)
 
-Allows shell command execution in the GitHub Actions workspace.
+Enables shell command execution in the workspace. Defaults to safe commands (`echo`, `ls`, `pwd`, `cat`, `head`, `tail`, `grep`, `wc`, `sort`, `uniq`, `date`).
 
 ```yaml wrap
 tools:
   bash:                              # Default safe commands
-  bash: []                           # No commands allowed
+  bash: []                           # Disable all commands
   bash: ["echo", "ls", "git status"] # Specific commands only
   bash: [":*"]                       # All commands (use with caution)
 ```
 
-**Configuration:** `bash:` provides default safe commands (`echo`, `ls`, `pwd`, `cat`, `head`, `tail`, `grep`, `wc`, `sort`, `uniq`, `date`). Use `bash: []` to disable, `bash: ["cmd1", "cmd2"]` for specific commands, or `bash: [":*"]` for unrestricted access.
-
-**Wildcards:** Use `:*` for all commands, or `command:*` for specific command families (e.g., `git:*` allows all git operations).
+Use wildcards like `git:*` for command families or `:*` for unrestricted access.
 
 ## Web Tools
 
@@ -69,10 +67,10 @@ tools:
 ### GitHub Toolsets
 
 :::tip[Use Toolsets Instead of Allowed]
-**Always use `toolsets:` for GitHub tools.** Individual tool names may change between MCP server versions, but toolsets provide a stable API. Toolsets also ensure you get all related tools automatically, including new ones added in future versions. See [Migration from Allowed to Toolsets](/gh-aw/guides/mcps/#migration-from-allowed-to-toolsets) for guidance on updating existing configurations.
+Toolsets provide a stable API across MCP server versions and automatically include new related tools. See [Migration from Allowed to Toolsets](/gh-aw/guides/mcps/#migration-from-allowed-to-toolsets) for guidance.
 :::
 
-Enable specific GitHub API groups to improve tool selection and reduce context size:
+Enable specific API groups to improve tool selection and reduce context size:
 
 ```yaml wrap
 tools:
@@ -80,60 +78,39 @@ tools:
     toolsets: [repos, issues, pull_requests, actions]
 ```
 
-**Available Toolsets**: `context`, `repos`, `issues`, `pull_requests`, `users`, `actions`, `code_security`, `discussions`, `labels`, `notifications`, `orgs`, `projects`, `gists`, `search`, `dependabot`, `experiments`, `secret_protection`, `security_advisories`, `stargazers`
+**Available**: `context`, `repos`, `issues`, `pull_requests`, `users`, `actions`, `code_security`, `discussions`, `labels`, `notifications`, `orgs`, `projects`, `gists`, `search`, `dependabot`, `experiments`, `secret_protection`, `security_advisories`, `stargazers`
 
 **Default**: `context`, `repos`, `issues`, `pull_requests`, `users`
 
 :::note[GitHub Actions Compatibility]
-When you specify `toolsets: [default]` in your workflow markdown, the generated workflow expands this to `[context, repos, issues, pull_requests]` (excluding `users`). This is because GitHub Actions tokens (`GITHUB_TOKEN`) don't have permissions for user-related operations. If you need the full default set including `users`, specify the toolsets explicitly or use a Personal Access Token (PAT) with the appropriate permissions.
+`toolsets: [default]` expands to `[context, repos, issues, pull_requests]` (excluding `users`) since `GITHUB_TOKEN` lacks user permissions. Use a PAT for the full default set.
 :::
 
-**Common Combinations**:
-- Read-only: `[default]` or `[context, repos]`
-- Issue/PR management: `[default, discussions]`
-- CI/CD: `[default, actions]`
-- Security: `[default, code_security, secret_protection]`
-- Full access: `[all]`
+**Common combinations**: `[default]` (read-only), `[default, discussions]` (issue/PR), `[default, actions]` (CI/CD), `[default, code_security]` (security), `[all]` (full access)
 
 #### Toolset Contents
 
-Common toolsets include:
-- **context**: User/team info (`get_teams`, `get_team_members`)
-- **repos**: Repository operations (`get_repository`, `get_file_contents`, `search_code`, `list_commits`, releases)
-- **issues**: Issue management (`list_issues`, `create_issue`, `update_issue`, `search_issues`, comments, reactions)
-- **pull_requests**: PR operations (`list_pull_requests`, `get_pull_request`, `create_pull_request`, `search_pull_requests`)
-- **actions**: Workflows and runs (`list_workflows`, `list_workflow_runs`, `get_workflow_run`, artifacts)
-- **code_security**: Security scanning alerts
-- **discussions**: GitHub Discussions
-- **labels**: Label management
+Key toolsets: **context** (user/team info), **repos** (repository operations, code search, commits, releases), **issues** (issue management, comments, reactions), **pull_requests** (PR operations), **actions** (workflows, runs, artifacts), **code_security** (scanning alerts), **discussions**, **labels**.
 
-Toolsets work in both local (Docker) and remote (hosted) modes.
-
-#### Using Allowed Pattern
-
-The `allowed:` field is not recommended for GitHub tools because tool names may change between MCP server versions. For custom MCP servers, `allowed:` is still the standard approach. If you need to restrict tools within a toolset, you can combine `toolsets:` with `allowed:`, but using only `toolsets:` is recommended for most workflows.
+:::tip
+The `allowed:` field is not recommended for GitHub tools since tool names may change between versions. Use `toolsets:` for stability. For custom MCP servers, `allowed:` remains the standard approach.
+:::
 
 ### Modes and Restrictions
 
-**Remote Mode**: Use the hosted GitHub MCP server for faster startup without Docker. Requires setting `GH_AW_GITHUB_TOKEN` secret (standard `GITHUB_TOKEN` not supported):
+**Remote Mode**: Use hosted MCP server for faster startup (no Docker). Requires `GH_AW_GITHUB_TOKEN`:
 
 ```yaml wrap
 tools:
   github:
-    mode: remote  # Default is "local" (Docker)
+    mode: remote  # Default: "local" (Docker)
 ```
 
 Setup: `gh aw secret set GH_AW_GITHUB_TOKEN --value "<your-pat>"`
 
-**Read-Only Mode**: Restrict to read-only operations (default behavior unless write operations configured):
+**Read-Only**: Default behavior; restricts to read operations unless write operations configured.
 
-```yaml wrap
-tools:
-  github:
-    read-only: true
-```
-
-**Lockdown Mode**: Limit content from public repositories to items authored by users with push access. Private repositories and collaborator-owned content remain unaffected:
+**Lockdown**: Filter public repository content to items from users with push access. Private repos unaffected:
 
 ```yaml wrap
 tools:
@@ -141,35 +118,24 @@ tools:
     lockdown: true
 ```
 
-Lockdown mode filters issue comments, sub-issues, and PR content to prevent exposure of potentially untrusted content from public repositories. Useful for security-sensitive workflows processing public repository data.
-
 ## Playwright Tool (`playwright:`)
 
-Enables browser automation using containerized Playwright with domain-based access control:
+Enables containerized browser automation with domain-based access control:
 
 ```yaml wrap
 tools:
   playwright:
-    allowed_domains: ["defaults", "github", "*.custom.com"]  # Domain access
-    version: "1.56.1"  # Optional: pin version (defaults to 1.56.1)
+    allowed_domains: ["defaults", "github", "*.custom.com"]
+    version: "1.56.1"  # Optional: defaults to 1.56.1, use "latest" for newest
 ```
 
-**Version Pinning**: Defaults to version 1.56.1 for stability. Set `version: "latest"` to use the latest version or specify a different version number.
-
-**Domain Access**: Uses same ecosystem bundles as `network:` configuration (`defaults`, `github`, `node`, `python`, etc.). Default is `["localhost", "127.0.0.1"]` for security. Domains automatically include subdomains (e.g., `example.com` includes `api.example.com`).
+**Domain Access**: Uses `network:` ecosystem bundles (`defaults`, `github`, `node`, `python`, etc.). Defaults to `["localhost", "127.0.0.1"]`. Domains auto-include subdomains.
 
 ## Built-in MCP Tools
 
 ### Agentic Workflows (`agentic-workflows:`)
 
-Provides CLI tools for workflow introspection, log analysis, and debugging. Enables checking workflow status, downloading logs, and auditing workflow runs.
-
-```yaml wrap
-tools:
-  agentic-workflows:
-```
-
-**Required Permission**: This tool requires `actions: read` permission to access workflow logs and run data:
+Provides workflow introspection, log analysis, and debugging tools. Requires `actions: read` permission:
 
 ```yaml wrap
 permissions:
@@ -178,11 +144,11 @@ tools:
   agentic-workflows:
 ```
 
-The compiler validates this requirement and will reject workflows that use `agentic-workflows` without `actions: read` permission. See [MCP Server](/gh-aw/setup/mcp-server/#using-as-agentic-workflows-tool) for available operations.
+See [MCP Server](/gh-aw/setup/mcp-server/#using-as-agentic-workflows-tool) for available operations.
 
 ### Cache Memory (`cache-memory:`)
 
-Enables persistent memory storage across workflow runs for tracking trends and historical data.
+Persistent memory storage across workflow runs for trends and historical data.
 
 ```yaml wrap
 tools:
@@ -191,7 +157,7 @@ tools:
 
 ### Repo Memory (`repo-memory:`)
 
-Provides access to repository-specific memory storage for maintaining context across workflow executions.
+Repository-specific memory storage for maintaining context across executions.
 
 ```yaml wrap
 tools:
@@ -200,38 +166,19 @@ tools:
 
 ## Custom MCP Servers (`mcp-servers:`)
 
-Integrate custom Model Context Protocol servers for third-party services, APIs, or specialized tools:
+Integrate custom Model Context Protocol servers for third-party services:
 
 ```yaml wrap
 mcp-servers:
   slack:
-    command: "npx"  # or "node", "python"
+    command: "npx"
     args: ["-y", "@slack/mcp-server"]
     env:
       SLACK_BOT_TOKEN: "${{ secrets.SLACK_BOT_TOKEN }}"
     allowed: ["send_message", "get_channel_history"]
-
-  notion:
-    container: "mcp/notion"  # Docker alternative
-    env:
-      NOTION_API_TOKEN: "${{ secrets.NOTION_API_TOKEN }}"
-    allowed: ["search_pages", "get_page"]
-
-  datadog:
-    url: "https://mcp.datadoghq.com/api/unstable/mcp-server/mcp"  # HTTP alternative
-    headers:
-      DD_API_KEY: "${{ secrets.DD_API_KEY }}"
-    allowed: ["search_datadog_dashboards"]
 ```
 
-**Configuration Options**:
-- `command:` + `args:` - Process-based MCP server (Node.js, Python, etc.)
-- `container:` - Docker container image
-- `url:` + `headers:` - HTTP endpoint with authentication
-- `env:` - Environment variables for the MCP server
-- `allowed:` - Restrict to specific tool names
-
-MCP servers run in isolated environments with controlled network access. See [MCPs Guide](/gh-aw/guides/mcps/) for detailed setup instructions.
+**Options**: `command` + `args` (process-based), `container` (Docker image), `url` + `headers` (HTTP endpoint), `env` (environment variables), `allowed` (tool restrictions). See [MCPs Guide](/gh-aw/guides/mcps/) for setup.
 
 ## Related Documentation
 
