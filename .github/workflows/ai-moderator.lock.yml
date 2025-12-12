@@ -279,6 +279,7 @@ jobs:
     runs-on: ubuntu-slim
     permissions:
       contents: read
+      issues: write
     outputs:
       comment_id: ""
       comment_repo: ""
