@@ -56,3 +56,54 @@ func buildArtifactDownloadSteps(config ArtifactDownloadConfig) []string {
 	artifactsLog.Printf("Generated %d artifact download steps", len(steps))
 	return steps
 }
+
+// ArtifactUploadConfig holds configuration for building artifact upload steps
+type ArtifactUploadConfig struct {
+	StepName       string   // Human-readable step name (e.g., "Upload Agent Stdio")
+	ArtifactName   string   // Name of the artifact in GitHub Actions (e.g., "agent-stdio.log")
+	UploadPaths    []string // Paths to upload (e.g., "/tmp/gh-aw/agent-stdio.log")
+	IfNoFilesFound string   // What to do if files not found: "warn", "ignore", or "error" (default: "warn")
+}
+
+// generateArtifactUpload creates a YAML step to upload a GitHub Actions artifact
+// This is a generalized helper that eliminates duplication across different upload functions
+func (c *Compiler) generateArtifactUpload(yaml fmt.Stringer, config ArtifactUploadConfig) {
+	artifactsLog.Printf("Generating artifact upload: step=%s, artifact=%s, paths=%v",
+		config.StepName, config.ArtifactName, config.UploadPaths)
+
+	// Record artifact upload for validation
+	c.stepOrderTracker.RecordArtifactUpload(config.StepName, config.UploadPaths)
+
+	// Determine if-no-files-found value (default to "warn")
+	ifNoFilesFound := config.IfNoFilesFound
+	if ifNoFilesFound == "" {
+		ifNoFilesFound = "warn"
+	}
+
+	// Generate upload step YAML
+	builder, ok := yaml.(interface{ WriteString(string) (int, error) })
+	if !ok {
+		artifactsLog.Print("ERROR: yaml parameter does not support WriteString")
+		return
+	}
+
+	builder.WriteString(fmt.Sprintf("      - name: %s\n", config.StepName))
+	builder.WriteString("        if: always()\n")
+	builder.WriteString(fmt.Sprintf("        uses: %s\n", GetActionPin("actions/upload-artifact")))
+	builder.WriteString("        with:\n")
+	builder.WriteString(fmt.Sprintf("          name: %s\n", config.ArtifactName))
+
+	// For single path, write directly; for multiple paths, use YAML array syntax
+	if len(config.UploadPaths) == 1 {
+		builder.WriteString(fmt.Sprintf("          path: %s\n", config.UploadPaths[0]))
+	} else {
+		builder.WriteString("          path: |\n")
+		for _, path := range config.UploadPaths {
+			builder.WriteString(fmt.Sprintf("            %s\n", path))
+		}
+	}
+
+	builder.WriteString(fmt.Sprintf("          if-no-files-found: %s\n", ifNoFilesFound))
+
+	artifactsLog.Printf("Generated artifact upload step for %s", config.ArtifactName)
+}
