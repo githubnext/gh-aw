@@ -213,8 +213,8 @@ This is a test workflow.
 				if !strings.Contains(lockContent, "Execute GitHub Copilot CLI") {
 					t.Errorf("Expected lock file to contain 'Execute GitHub Copilot CLI' step but it didn't.\nContent:\n%s", lockContent)
 				}
-				if !strings.Contains(lockContent, "npm install -g @github/copilot") {
-					t.Errorf("Expected lock file to contain Copilot npm install command but it didn't.\nContent:\n%s", lockContent)
+				if !strings.Contains(lockContent, "curl -fsSL https://gh.io/copilot-install") {
+					t.Errorf("Expected lock file to contain Copilot installer command but it didn't.\nContent:\n%s", lockContent)
 				}
 				// Check that prompt printing step is present
 				if !strings.Contains(lockContent, "Print prompt") {
