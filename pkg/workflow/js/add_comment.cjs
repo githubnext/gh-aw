@@ -198,7 +198,9 @@ async function hideOlderComments(github, owner, repo, itemNumber, workflowId, is
   let hiddenCount = 0;
   for (const comment of comments) {
     try {
-      const nodeId = isDiscussion ? String(comment.id) : /** @type {{node_id: string}} */ comment.node_id;
+      // TypeScript can't narrow the union type here, but we know it's safe due to isDiscussion check
+      // @ts-expect-error - comment has node_id when not a discussion
+      const nodeId = isDiscussion ? String(comment.id) : comment.node_id;
       core.info(`Hiding comment: ${nodeId}`);
       await minimizeComment(github, nodeId, normalizedReason);
       hiddenCount++;

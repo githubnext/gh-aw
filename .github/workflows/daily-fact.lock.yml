@@ -698,7 +698,7 @@ jobs:
               let hiddenCount = 0;
               for (const comment of comments) {
                 try {
-                  const nodeId = isDiscussion ? String(comment.id) :  (comment).node_id;
+                  const nodeId = isDiscussion ? String(comment.id) : comment.node_id;
                   core.info(`Hiding comment: ${nodeId}`);
                   await minimizeComment(github, nodeId, normalizedReason);
                   hiddenCount++;
@@ -1145,7 +1145,7 @@ jobs:
           node-version: '24'
           package-manager-cache: false
       - name: Install Codex
-        run: npm install -g @openai/codex@0.69.0
+        run: npm install -g @openai/codex@0.71.0
       - name: Downloading container images
         run: |
           set -e
@@ -2686,7 +2686,7 @@ jobs:
               engine_name: "Codex",
               model: "gpt-5-mini",
               version: "",
-              agent_version: "0.69.0",
+              agent_version: "0.71.0",
               workflow_name: "Daily Fact About gh-aw",
               experimental: true,
               supports_tools_allowlist: true,
@@ -6628,7 +6628,7 @@ jobs:
           node-version: '24'
           package-manager-cache: false
       - name: Install Codex
-        run: npm install -g @openai/codex@0.69.0
+        run: npm install -g @openai/codex@0.71.0
       - name: Run Codex
         run: |
           set -o pipefail

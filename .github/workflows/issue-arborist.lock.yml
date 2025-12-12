@@ -565,7 +565,7 @@ jobs:
           node-version: '24'
           package-manager-cache: false
       - name: Install Codex
-        run: npm install -g @openai/codex@0.69.0
+        run: npm install -g @openai/codex@0.71.0
       - name: Downloading container images
         run: |
           set -e
@@ -2164,7 +2164,7 @@ jobs:
               engine_name: "Codex",
               model: process.env.GH_AW_MODEL_AGENT_CODEX || "",
               version: "",
-              agent_version: "0.69.0",
+              agent_version: "0.71.0",
               workflow_name: "Issue Arborist",
               experimental: true,
               supports_tools_allowlist: true,
@@ -6971,7 +6971,7 @@ jobs:
           node-version: '24'
           package-manager-cache: false
       - name: Install Codex
-        run: npm install -g @openai/codex@0.69.0
+        run: npm install -g @openai/codex@0.71.0
       - name: Run Codex
         run: |
           set -o pipefail
