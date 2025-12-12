@@ -232,6 +232,38 @@ else
     exit 1
 fi
 
+# Verify the function has retry logic with max_retries
+if grep -q 'local max_retries=3' "$PROJECT_ROOT/install-gh-aw.sh"; then
+    echo "  ✓ PASS: Function has max_retries=3 variable"
+else
+    echo "  ✗ FAIL: Function does not have max_retries variable"
+    exit 1
+fi
+
+# Verify the function has retry loop
+if grep -q 'for attempt in $(seq 1 $max_retries)' "$PROJECT_ROOT/install-gh-aw.sh"; then
+    echo "  ✓ PASS: Function has retry loop"
+else
+    echo "  ✗ FAIL: Function does not have retry loop"
+    exit 1
+fi
+
+# Verify the function logs fetch attempts
+if grep -q 'Fetching release data (attempt' "$PROJECT_ROOT/install-gh-aw.sh"; then
+    echo "  ✓ PASS: Function logs fetch attempts"
+else
+    echo "  ✗ FAIL: Function does not log fetch attempts"
+    exit 1
+fi
+
+# Verify the function has exponential backoff for retries
+if grep -q 'retry_delay=\$((retry_delay \* 2))' "$PROJECT_ROOT/install-gh-aw.sh"; then
+    echo "  ✓ PASS: Function has exponential backoff for retries"
+else
+    echo "  ✗ FAIL: Function does not have exponential backoff"
+    exit 1
+fi
+
 # Test 9: Verify retry logic for downloads
 echo ""
 echo "Test 9: Verify download retry logic"
