@@ -978,6 +978,11 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 			steps = append(steps, fmt.Sprintf("          GH_AW_TRACKER_ID: %q\n", data.TrackerID))
 		}
 
+		// Add lock-for-agent status if enabled
+		if data.LockForAgent {
+			steps = append(steps, "          GH_AW_LOCK_FOR_AGENT: \"true\"\n")
+		}
+
 		// Pass custom messages config if present (for custom run-started messages)
 		if data.SafeOutputs != nil && data.SafeOutputs.Messages != nil {
 			messagesJSON, err := serializeMessagesConfig(data.SafeOutputs.Messages)
@@ -1000,6 +1005,31 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 		outputs["comment_id"] = "${{ steps.react.outputs.comment-id }}"
 		outputs["comment_url"] = "${{ steps.react.outputs.comment-url }}"
 		outputs["comment_repo"] = "${{ steps.react.outputs.comment-repo }}"
+	}
+
+	// Add lock step if lock-for-agent is enabled
+	if data.LockForAgent {
+		// Build condition: only lock if this is an issue context
+		lockCondition := BuildPropertyAccess("github.event.issue.number")
+
+		steps = append(steps, "      - name: Lock issue for agent workflow\n")
+		steps = append(steps, "        id: lock-issue\n")
+		steps = append(steps, fmt.Sprintf("        if: %s\n", lockCondition.Render()))
+		steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))
+		steps = append(steps, "        with:\n")
+		steps = append(steps, "          script: |\n")
+
+		// Add the lock-issue script
+		formattedScript := FormatJavaScriptForYAML(lockIssueScript)
+		steps = append(steps, formattedScript...)
+
+		// Add output for tracking if issue was locked
+		outputs["issue_locked"] = "${{ steps.lock-issue.outputs.locked }}"
+
+		// Add lock message to reaction comment if reaction is enabled
+		if data.AIReaction != "" && data.AIReaction != "none" {
+			compilerJobsLog.Print("Adding lock notification to reaction message")
+		}
 	}
 
 	// Always declare comment_id and comment_repo outputs to avoid actionlint errors
