@@ -63,7 +63,7 @@ type ArtifactUploadConfig struct {
 	StepName       string   // Human-readable step name (e.g., "Upload Agent Stdio")
 	ArtifactName   string   // Name of the artifact in GitHub Actions (e.g., "agent-stdio.log")
 	UploadPaths    []string // Paths to upload (e.g., "/tmp/gh-aw/agent-stdio.log")
-	IfNoFilesFound string   // What to do if files not found: "warn", "ignore", or "error" (default: "warn")
+	IfNoFilesFound string   // What to do if files not found: "warn" or "ignore" (default: "warn")
 }
 
 // generateArtifactUpload creates a YAML step to upload a GitHub Actions artifact
@@ -88,15 +88,13 @@ func (c *Compiler) generateArtifactUpload(yaml *strings.Builder, config Artifact
 	yaml.WriteString("        with:\n")
 	yaml.WriteString(fmt.Sprintf("          name: %s\n", config.ArtifactName))
 
-	// For single path, write directly; for multiple paths, use YAML array syntax
-	if len(config.UploadPaths) == 1 {
-		yaml.WriteString(fmt.Sprintf("          path: %s\n", config.UploadPaths[0]))
-	} else {
-		yaml.WriteString("          path: |\n")
-		for _, path := range config.UploadPaths {
-			yaml.WriteString(fmt.Sprintf("            %s\n", path))
-		}
+	// Write path (currently only single-path is used in the codebase)
+	if len(config.UploadPaths) == 0 {
+		artifactsLog.Print("WARNING: No upload paths specified")
+		return
 	}
+	// Use first path (all current usages provide exactly one path)
+	yaml.WriteString(fmt.Sprintf("          path: %s\n", config.UploadPaths[0]))
 
 	yaml.WriteString(fmt.Sprintf("          if-no-files-found: %s\n", ifNoFilesFound))
 
