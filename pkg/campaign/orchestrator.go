@@ -29,8 +29,8 @@ func BuildOrchestrator(spec *CampaignSpec, campaignFilePath string) (*workflow.W
 		description = fmt.Sprintf("Orchestrator workflow for campaign '%s' (tracker: %s)", spec.ID, spec.TrackerLabel)
 	}
 
-	// Minimal on: section - workflow_dispatch trigger with no inputs.
-	onSection := "on:\n  workflow_dispatch:\n"
+	// Default triggers: daily schedule plus manual workflow_dispatch.
+	onSection := "on:\n  schedule:\n    - cron: \"0 18 * * *\"\n  workflow_dispatch:\n"
 
 	// Simple markdown body giving the agent context about the campaign.
 	markdownBuilder := &strings.Builder{}
@@ -66,6 +66,7 @@ func BuildOrchestrator(spec *CampaignSpec, campaignFilePath string) (*workflow.W
 		return nil, ""
 	}
 
+	markdownBuilder.WriteString("\nEach time this orchestrator runs on its daily schedule (or when manually dispatched), generate a concise status report for this campaign. Summarize current metrics, highlight blockers, and update any tracker issues using the campaign label.\n")
 	markdownBuilder.WriteString("\nUse these details to coordinate workers, update metrics, and track progress for this campaign.\n")
 
 	data := &workflow.WorkflowData{
@@ -73,6 +74,12 @@ func BuildOrchestrator(spec *CampaignSpec, campaignFilePath string) (*workflow.W
 		Description:     description,
 		MarkdownContent: markdownBuilder.String(),
 		On:              onSection,
+		// Use a standard Ubuntu runner for the main agent job so the
+		// compiled orchestrator always has a valid runs-on value.
+		RunsOn: "runs-on: ubuntu-latest",
+		// Default roles match the workflow compiler's defaults so that
+		// membership checks have a non-empty GH_AW_REQUIRED_ROLES value.
+		Roles: []string{"admin", "maintainer", "write"},
 	}
 
 	return data, orchestratorPath

@@ -35,6 +35,10 @@ func TestBuildOrchestrator_BasicShape(t *testing.T) {
 		t.Fatalf("expected On section with workflow_dispatch trigger, got %q", data.On)
 	}
 
+	if !strings.Contains(data.On, "schedule:") || !strings.Contains(data.On, "0 18 * * *") {
+		t.Fatalf("expected On section with daily schedule cron, got %q", data.On)
+	}
+
 	if !strings.Contains(data.MarkdownContent, "Security Q1 2025") {
 		t.Fatalf("expected markdown content to mention campaign name, got: %q", data.MarkdownContent)
 	}
