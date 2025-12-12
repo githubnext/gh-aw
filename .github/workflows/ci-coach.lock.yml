@@ -98,11 +98,6 @@
 #   - name: Run unit tests
 #     continue-on-error: true
 #     run: go test -v -json -count=1 -timeout=3m -tags '!integration' -run='^Test' ./... | tee test_results.json
-#
-#   - name: Run JavaScript tests
-#     continue-on-error: true
-#     run: npm test
-#     working-directory: ./pkg/workflow/js
 # safe-outputs:
 #   create-pull-request:
 #     title-prefix: "[ci-coach] "
@@ -326,12 +321,24 @@
 # 2. **Artifacts**: `/tmp/ci-artifacts/` - Coverage reports and benchmark results from recent successful runs
 # 3. **CI Configuration**: `.github/workflows/ci.yml` - Current CI workflow configuration
 # 4. **Cache Memory**: `/tmp/cache-memory/` - Historical analysis data from previous runs
+# 5. **Test Results**: `test_results.json` - JSON output from Go unit tests with performance and timing data
+#
+# ### Test Case Information
+# The Go test cases are located throughout the repository:
+# - **Command tests**: `./cmd/gh-aw/*_test.go` - CLI command and main entry point tests
+# - **Workflow tests**: `./pkg/workflow/*_test.go` - Workflow compilation, validation, and execution tests
+# - **CLI tests**: `./pkg/cli/*_test.go` - Command implementation tests
+# - **Parser tests**: `./pkg/parser/*_test.go` - Frontmatter and schema parsing tests
+# - **Campaign tests**: `./pkg/campaign/*_test.go` - Campaign specification tests
+# - **Other package tests**: Various `./pkg/*/test.go` files throughout the codebase
+#
+# The `test_results.json` file contains detailed timing and performance data for each test case in JSON format, allowing you to identify slow tests, flaky tests, and optimization opportunities.
 #
 # ### Environment Setup
 # The workflow has already completed:
 # - ✅ **Linting**: Dev dependencies installed, linters run successfully
 # - ✅ **Building**: Code built with `make build`, lock files compiled with `make recompile`
-# - ✅ **Testing**: Unit tests and JavaScript tests run successfully
+# - ✅ **Testing**: Unit tests run (with performance data collected in JSON format)
 #
 # This means you can:
 # - Make changes to code or configuration files
@@ -1001,10 +1008,6 @@ jobs:
       - continue-on-error: true
         name: Run unit tests
         run: go test -v -json -count=1 -timeout=3m -tags '!integration' -run='^Test' ./... | tee test_results.json
-      - continue-on-error: true
-        name: Run JavaScript tests
-        run: npm test
-        working-directory: ./pkg/workflow/js
 
       # Cache memory file share configuration from frontmatter processed below
       - name: Create cache-memory directory
@@ -2960,12 +2963,24 @@ jobs:
           2. **Artifacts**: `/tmp/ci-artifacts/` - Coverage reports and benchmark results from recent successful runs
           3. **CI Configuration**: `.github/workflows/ci.yml` - Current CI workflow configuration
           4. **Cache Memory**: `/tmp/cache-memory/` - Historical analysis data from previous runs
+          5. **Test Results**: `test_results.json` - JSON output from Go unit tests with performance and timing data
+          
+          ### Test Case Information
+          The Go test cases are located throughout the repository:
+          - **Command tests**: `./cmd/gh-aw/*_test.go` - CLI command and main entry point tests
+          - **Workflow tests**: `./pkg/workflow/*_test.go` - Workflow compilation, validation, and execution tests
+          - **CLI tests**: `./pkg/cli/*_test.go` - Command implementation tests
+          - **Parser tests**: `./pkg/parser/*_test.go` - Frontmatter and schema parsing tests
+          - **Campaign tests**: `./pkg/campaign/*_test.go` - Campaign specification tests
+          - **Other package tests**: Various `./pkg/*/test.go` files throughout the codebase
+          
+          The `test_results.json` file contains detailed timing and performance data for each test case in JSON format, allowing you to identify slow tests, flaky tests, and optimization opportunities.
           
           ### Environment Setup
           The workflow has already completed:
           - ✅ **Linting**: Dev dependencies installed, linters run successfully
           - ✅ **Building**: Code built with `make build`, lock files compiled with `make recompile`
-          - ✅ **Testing**: Unit tests and JavaScript tests run successfully
+          - ✅ **Testing**: Unit tests run (with performance data collected in JSON format)
           
           This means you can:
           - Make changes to code or configuration files
@@ -3204,29 +3219,6 @@ jobs:
           
           #### 8. **Dependency Installation**
           - Are we installing dependencies multiple times unnecessarily?
-          - Could we use dependency caching more effectively?
-          - Example: Sharing `node_modules` between jobs
-          
-          ### Phase 6: Cost-Benefit Analysis (3 minutes)
-          
-          For each potential optimization:
-          - **Impact**: How much time/cost savings? (estimate in minutes and/or GitHub Actions minutes)
-          - **Risk**: What's the risk of breaking something?
-          - **Effort**: How hard is it to implement?
-          - **Priority**: High/Medium/Low
-          
-          **Prioritize optimizations with:**
-          - High impact (>10% time savings)
-          - Low risk
-          - Low to medium effort
-          
-          ### Phase 7: Implement and Validate Changes (if improvements found) (8 minutes)
-          
-          If you identify improvements worth implementing:
-          
-          1. **Make focused changes** to `.github/workflows/ci.yml`:
-             - Use the `edit` tool to make precise modifications
-             - Keep changes minimal and well-documented
           PROMPT_EOF
       - name: Substitute placeholders
         uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
@@ -3308,6 +3300,29 @@ jobs:
           GH_AW_GITHUB_RUN_NUMBER: ${{ github.run_number }}
         run: |
           cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
+          - Could we use dependency caching more effectively?
+          - Example: Sharing `node_modules` between jobs
+          
+          ### Phase 6: Cost-Benefit Analysis (3 minutes)
+          
+          For each potential optimization:
+          - **Impact**: How much time/cost savings? (estimate in minutes and/or GitHub Actions minutes)
+          - **Risk**: What's the risk of breaking something?
+          - **Effort**: How hard is it to implement?
+          - **Priority**: High/Medium/Low
+          
+          **Prioritize optimizations with:**
+          - High impact (>10% time savings)
+          - Low risk
+          - Low to medium effort
+          
+          ### Phase 7: Implement and Validate Changes (if improvements found) (8 minutes)
+          
+          If you identify improvements worth implementing:
+          
+          1. **Make focused changes** to `.github/workflows/ci.yml`:
+             - Use the `edit` tool to make precise modifications
+             - Keep changes minimal and well-documented
              - Add comments explaining why changes improve efficiency
           
           2. **Validate changes immediately**:

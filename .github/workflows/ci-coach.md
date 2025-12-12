@@ -75,11 +75,6 @@ steps:
   - name: Run unit tests
     continue-on-error: true
     run: go test -v -json -count=1 -timeout=3m -tags '!integration' -run='^Test' ./... | tee test_results.json
-  
-  - name: Run JavaScript tests
-    continue-on-error: true
-    run: npm test
-    working-directory: ./pkg/workflow/js
 safe-outputs:
   create-pull-request:
     title-prefix: "[ci-coach] "
@@ -110,12 +105,24 @@ Analyze the CI workflow daily to identify concrete optimization opportunities th
 2. **Artifacts**: `/tmp/ci-artifacts/` - Coverage reports and benchmark results from recent successful runs
 3. **CI Configuration**: `.github/workflows/ci.yml` - Current CI workflow configuration
 4. **Cache Memory**: `/tmp/cache-memory/` - Historical analysis data from previous runs
+5. **Test Results**: `test_results.json` - JSON output from Go unit tests with performance and timing data
+
+### Test Case Information
+The Go test cases are located throughout the repository:
+- **Command tests**: `./cmd/gh-aw/*_test.go` - CLI command and main entry point tests
+- **Workflow tests**: `./pkg/workflow/*_test.go` - Workflow compilation, validation, and execution tests
+- **CLI tests**: `./pkg/cli/*_test.go` - Command implementation tests
+- **Parser tests**: `./pkg/parser/*_test.go` - Frontmatter and schema parsing tests
+- **Campaign tests**: `./pkg/campaign/*_test.go` - Campaign specification tests
+- **Other package tests**: Various `./pkg/*/test.go` files throughout the codebase
+
+The `test_results.json` file contains detailed timing and performance data for each test case in JSON format, allowing you to identify slow tests, flaky tests, and optimization opportunities.
 
 ### Environment Setup
 The workflow has already completed:
 - ✅ **Linting**: Dev dependencies installed, linters run successfully
 - ✅ **Building**: Code built with `make build`, lock files compiled with `make recompile`
-- ✅ **Testing**: Unit tests and JavaScript tests run successfully
+- ✅ **Testing**: Unit tests run (with performance data collected in JSON format)
 
 This means you can:
 - Make changes to code or configuration files
