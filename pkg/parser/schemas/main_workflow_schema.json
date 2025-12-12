@@ -381,6 +381,10 @@
                       }
                     }
                   ]
+                },
+                "lock-for-agent": {
+                  "type": "boolean",
+                  "description": "Whether to lock the issue for the agent when the workflow runs (prevents concurrent modifications)"
                 }
               }
             },
