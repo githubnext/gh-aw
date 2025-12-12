@@ -453,6 +453,32 @@ func TestValidateMainWorkflowFrontmatterWithSchema(t *testing.T) {
 			wantErr: false,
 		},
 		{
+			name: "valid frontmatter with issues trigger lock-for-agent field",
+			frontmatter: map[string]any{
+				"on": map[string]any{
+					"issues": map[string]any{
+						"types":          []string{"opened"},
+						"lock-for-agent": true,
+					},
+				},
+				"permissions": "read",
+			},
+			wantErr: false,
+		},
+		{
+			name: "valid frontmatter with issues trigger lock-for-agent false",
+			frontmatter: map[string]any{
+				"on": map[string]any{
+					"issues": map[string]any{
+						"types":          []string{"opened"},
+						"lock-for-agent": false,
+					},
+				},
+				"permissions": "read",
+			},
+			wantErr: false,
+		},
+		{
 			name: "valid frontmatter with updated pull_request trigger types",
 			frontmatter: map[string]any{
 				"on": map[string]any{
