@@ -39,6 +39,12 @@ source: "example-value"
 # (optional)
 tracker-id: "example-value"
 
+# Optional array of labels to categorize and organize workflows. Labels can be
+# used to filter workflows in status/list commands.
+# (optional)
+labels: []
+  # Array of strings
+
 # Optional array of workflow specifications to import (similar to @include
 # directives but defined in frontmatter). Format: owner/repo/path@ref (e.g.,
 # githubnext/agentics/workflows/shared/common.md@v1.0.0). Can be strings or
@@ -236,12 +242,27 @@ on:
     types: []
       # Array of strings
 
-  # Scheduled trigger events
+  # Scheduled trigger events using human-friendly format or standard cron
+  # expressions. Supports shorthand string notation (e.g., 'daily at 3pm') or array
+  # of schedule objects. Human-friendly formats are automatically converted to cron
+  # expressions with the original format preserved as comments in the generated
+  # workflow.
   # (optional)
+  # This field supports multiple formats (oneOf):
+
+  # Option 1: Shorthand schedule string using human-friendly format. Examples:
+  # 'daily at 02:00', 'daily at 3pm', 'daily at 6am', 'weekly on monday at 06:30',
+  # 'weekly on friday at 5pm', 'monthly on 15 at 09:00', 'monthly on 15 at 9am',
+  # 'every 10 minutes', 'every 2h', 'every 1d', 'daily at 02:00 utc+9', 'daily at
+  # 3pm utc+9'. Supports 12-hour format (1am-12am, 1pm-12pm), 24-hour format
+  # (HH:MM), midnight, noon. Minimum interval is 5 minutes. Converted to standard
+  # cron expression automatically.
+  schedule: "example-value"
+
+  # Option 2: Array of schedule objects with cron expressions (standard or
+  # human-friendly format)
   schedule: []
-    # Array items:
-      # Cron expression for schedule
-      cron: "example-value"
+    # Array items: object
 
   # Manual workflow dispatch trigger
   # (optional)
@@ -1312,7 +1333,6 @@ tools:
   # GitHub Agentic Workflows MCP server for workflow introspection and analysis.
   # Provides tools for checking status, compiling workflows, downloading logs, and
   # auditing runs.
-  # IMPORTANT: Requires 'actions: read' permission to access workflow logs and run data.
   # (optional)
   # This field supports multiple formats (oneOf):
 
@@ -1941,6 +1961,18 @@ safe-outputs:
     # (optional)
     discussion: true
 
+    # When true, minimizes/hides all previous comments from the same agentic workflow
+    # (identified by tracker-id) before creating the new comment. Default: false.
+    # (optional)
+    hide-older-comments: true
+
+    # List of allowed reasons for hiding older comments when hide-older-comments is
+    # enabled. Default: all reasons allowed (spam, abuse, off_topic, outdated,
+    # resolved).
+    # (optional)
+    allowed-reasons: []
+      # Array of strings
+
   # Option 2: Enable issue comment creation with default configuration
   add-comment: null
 
@@ -1994,6 +2026,13 @@ safe-outputs:
     # 'error' (fail the action), or 'ignore' (silent success)
     # (optional)
     if-no-changes: "warn"
+
+    # When true, allows creating a pull request without any initial changes or git
+    # patch. This is useful for preparing a feature branch that an agent can push
+    # changes to later. The branch will be created from the base branch without
+    # applying any patch. Defaults to false.
+    # (optional)
+    allow-empty: true
 
     # Target repository in format 'owner/repo' for cross-repository pull request
     # creation. Takes precedence over trial target repo settings.
@@ -2079,14 +2118,16 @@ safe-outputs:
   # (optional)
   # This field supports multiple formats (oneOf):
 
-  # Option 1: Null configuration allows any labels
+  # Option 1: Null configuration allows any labels. Labels will be created if they
+  # don't already exist in the repository.
   add-labels: null
 
   # Option 2: Configuration for adding labels to issues/PRs from agentic workflow
-  # output
+  # output. Labels will be created if they don't already exist in the repository.
   add-labels:
-    # Optional list of allowed labels that can be added. If omitted, any labels are
-    # allowed (including creating new ones).
+    # Optional list of allowed labels that can be added. Labels will be created if
+    # they don't already exist in the repository. If omitted, any labels are allowed
+    # (including creating new ones).
     # (optional)
     allowed: []
       # Array of strings
@@ -2398,6 +2439,35 @@ safe-outputs:
   # (optional)
   # This field supports multiple formats (oneOf):
 
+  # Option 1: Enable comment hiding with default configuration
+  hide-comment: null
+
+  # Option 2: Configuration for hiding comments on GitHub issues, pull requests, or
+  # discussions from agentic workflow output
+  hide-comment:
+    # Maximum number of comments to hide (default: 5)
+    # (optional)
+    max: 1
+
+    # Target repository in format 'owner/repo' for cross-repository comment hiding.
+    # Takes precedence over trial target repo settings.
+    # (optional)
+    target-repo: "example-value"
+
+    # GitHub token to use for this specific output type. Overrides global github-token
+    # if specified.
+    # (optional)
+    github-token: "${{ secrets.GITHUB_TOKEN }}"
+
+    # List of allowed reasons for hiding comments. Default: all reasons allowed (spam,
+    # abuse, off_topic, outdated, resolved).
+    # (optional)
+    allowed-reasons: []
+      # Array of strings
+
+  # (optional)
+  # This field supports multiple formats (oneOf):
+
   # Option 1: Configuration for reporting missing tools from agentic workflow output
   missing-tool:
     # Maximum number of missing tool reports (default: unlimited)
@@ -2659,6 +2729,14 @@ roles: []
   # Array items: Repository permission level: 'admin' (full access),
   # 'maintainer'/'maintain' (repository management), 'write' (push access), 'triage'
   # (issue management)
+
+# Allow list of bot identifiers that can trigger the workflow even if they don't
+# meet the required role permissions. When the actor is in this list, the bot must
+# be active (installed) on the repository to trigger the workflow.
+# (optional)
+bots: []
+  # Array of Bot identifier/name (e.g., 'dependabot[bot]', 'renovate[bot]',
+  # 'github-actions[bot]')
 
 # GitHub Actions workflow step
 # (optional)

@@ -271,7 +271,7 @@ WORKFLOW_YMLS="$(echo "$STAGED_FILES" | grep -E '^\.github/workflows/.*\.yml$' |
 
 if [ -n "$WORKFLOW_YMLS" ]; then
   echo "⚠️ WARNING: Workflow .yml files are staged, removing them"
-  echo "$WORKFLOW_YMLS" | while read file; do
+  echo "$WORKFLOW_YMLS" | while read -r file; do
     git reset HEAD "$file"
     echo "Unstaged: $file"
   done
