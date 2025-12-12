@@ -329,7 +329,7 @@ func StatusWorkflows(pattern string, verbose bool, jsonOutput bool, ref string, 
 
 	if needsCompilation > 0 {
 		fmt.Fprintln(os.Stderr)
-		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("%d workflow%s need compilation", needsCompilation, pluralize(needsCompilation))))
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Workflows needing compilation: %d", needsCompilation)))
 		fmt.Fprintf(os.Stderr, "  Run: %s\n", console.FormatCommandMessage("gh aw compile"))
 	} else if len(statuses) > 0 {
 		fmt.Fprintln(os.Stderr)
@@ -599,12 +599,4 @@ func fetchLatestRunsByRef(ref string, verbose bool) (map[string]*WorkflowRun, er
 
 	statusLog.Printf("Fetched latest runs for %d workflows on ref %s", len(latestRuns), ref)
 	return latestRuns, nil
-}
-
-// pluralize returns "s" if count != 1, otherwise empty string
-func pluralize(count int) string {
-	if count == 1 {
-		return ""
-	}
-	return "s"
 }
