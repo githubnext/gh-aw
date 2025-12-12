@@ -299,3 +299,88 @@ func BuildListJobEnvVars(prefix string, config ListJobConfig, maxCount int) []st
 
 	return envVars
 }
+
+// ======================================
+// List Job Builder Helpers
+// ======================================
+
+// ListJobBuilderConfig contains parameters for building list-based safe-output jobs
+type ListJobBuilderConfig struct {
+	JobName        string            // e.g., "add_labels", "assign_milestone"
+	StepName       string            // e.g., "Add Labels", "Assign Milestone"
+	StepID         string            // e.g., "add_labels", "assign_milestone"
+	EnvPrefix      string            // e.g., "GH_AW_LABELS", "GH_AW_MILESTONE"
+	OutputName     string            // e.g., "labels_added", "assigned_milestones"
+	Script         string            // JavaScript script for the operation
+	Permissions    *Permissions      // Job permissions
+	DefaultMax     int               // Default max count if not specified in config
+	ExtraCondition ConditionNode     // Additional condition to append (optional)
+}
+
+// BuildListSafeOutputJob builds a list-based safe-output job using shared logic.
+// This consolidates the common builder pattern used by add-labels, assign-milestone, and assign-to-user.
+func (c *Compiler) BuildListSafeOutputJob(data *WorkflowData, mainJobName string, listJobConfig ListJobConfig, baseSafeOutputConfig BaseSafeOutputConfig, builderConfig ListJobBuilderConfig) (*Job, error) {
+	// Handle max count with default
+	maxCount := builderConfig.DefaultMax
+	if baseSafeOutputConfig.Max > 0 {
+		maxCount = baseSafeOutputConfig.Max
+	}
+
+	// Build custom environment variables using shared helpers
+	customEnvVars := BuildListJobEnvVars(builderConfig.EnvPrefix, listJobConfig, maxCount)
+
+	// Add standard environment variables (metadata + staged/target repo)
+	customEnvVars = append(customEnvVars, c.buildStandardSafeOutputEnvVars(data, listJobConfig.TargetRepoSlug)...)
+
+	// Create outputs for the job
+	outputs := map[string]string{
+		builderConfig.OutputName: fmt.Sprintf("${{ steps.%s.outputs.%s }}", builderConfig.StepID, builderConfig.OutputName),
+	}
+
+	// Build base job condition
+	jobCondition := BuildSafeOutputType(builderConfig.JobName)
+
+	// Add extra condition if provided
+	if builderConfig.ExtraCondition != nil {
+		jobCondition = buildAnd(jobCondition, builderConfig.ExtraCondition)
+	}
+
+	// Use the shared builder function to create the job
+	return c.buildSafeOutputJob(data, SafeOutputJobConfig{
+		JobName:        builderConfig.JobName,
+		StepName:       builderConfig.StepName,
+		StepID:         builderConfig.StepID,
+		MainJobName:    mainJobName,
+		CustomEnvVars:  customEnvVars,
+		Script:         builderConfig.Script,
+		Permissions:    builderConfig.Permissions,
+		Outputs:        outputs,
+		Condition:      jobCondition,
+		Token:          baseSafeOutputConfig.GitHubToken,
+		TargetRepoSlug: listJobConfig.TargetRepoSlug,
+	})
+}
+
+// ======================================
+// List Job Config Parsers
+// ======================================
+
+// ParseListSafeOutputConfig is a generic parser for list-based safe-output configurations.
+// It handles parsing of common fields: target, target-repo, allowed list, github-token, and max.
+// Returns the parsed config components and any validation errors.
+func ParseListSafeOutputConfig(configMap map[string]any, allowedKey string, defaultMax int) (ListJobConfig, BaseSafeOutputConfig, bool) {
+	listJobConfig := ListJobConfig{}
+	baseSafeOutputConfig := BaseSafeOutputConfig{}
+
+	// Parse list job config (target, target-repo, allowed)
+	var isInvalid bool
+	listJobConfig, isInvalid = ParseListJobConfig(configMap, allowedKey)
+	if isInvalid {
+		return listJobConfig, baseSafeOutputConfig, true
+	}
+
+	// Parse common base fields (github-token, max) - use 0 to let caller handle default
+	// Note: We'll use the parseBaseSafeOutputConfig method which is on Compiler, so this
+	// helper returns the raw values and lets the caller call parseBaseSafeOutputConfig
+	return listJobConfig, baseSafeOutputConfig, false
+}

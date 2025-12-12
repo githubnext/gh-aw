@@ -25,48 +25,29 @@ func (c *Compiler) buildAssignToUserJob(data *WorkflowData, mainJobName string) 
 
 	cfg := data.SafeOutputs.AssignToUser
 
-	// Handle max count with default of 1
-	maxCount := 1
-	if cfg.Max > 0 {
-		maxCount = cfg.Max
-	}
-	assignToUserLog.Printf("Configuration: max_count=%d, allowed_count=%d, target=%s", maxCount, len(cfg.Allowed), cfg.Target)
-
-	// Build custom environment variables using shared helpers
+	// Build list job config
 	listJobConfig := ListJobConfig{
 		SafeOutputTargetConfig: cfg.SafeOutputTargetConfig,
 		Allowed:                cfg.Allowed,
 	}
-	customEnvVars := BuildListJobEnvVars("GH_AW_ASSIGNEES", listJobConfig, maxCount)
 
-	// Add standard environment variables (metadata + staged/target repo)
-	customEnvVars = append(customEnvVars, c.buildStandardSafeOutputEnvVars(data, cfg.TargetRepoSlug)...)
-
-	// Create outputs for the job
-	outputs := map[string]string{
-		"assigned_users": "${{ steps.assign_to_user.outputs.assigned_users }}",
-	}
-
-	var jobCondition = BuildSafeOutputType("assign_to_user")
+	// Build extra condition: only run if in issue context when target is not specified
+	var extraCondition ConditionNode
 	if cfg.Target == "" {
-		// Only run if in issue context when target is not specified
-		issueCondition := BuildPropertyAccess("github.event.issue.number")
-		jobCondition = buildAnd(jobCondition, issueCondition)
+		extraCondition = BuildPropertyAccess("github.event.issue.number")
 	}
 
-	// Use the shared builder function to create the job
-	return c.buildSafeOutputJob(data, SafeOutputJobConfig{
+	// Use shared builder for list-based safe-output jobs
+	return c.BuildListSafeOutputJob(data, mainJobName, listJobConfig, cfg.BaseSafeOutputConfig, ListJobBuilderConfig{
 		JobName:        "assign_to_user",
 		StepName:       "Assign to User",
 		StepID:         "assign_to_user",
-		MainJobName:    mainJobName,
-		CustomEnvVars:  customEnvVars,
+		EnvPrefix:      "GH_AW_ASSIGNEES",
+		OutputName:     "assigned_users",
 		Script:         getAssignToUserScript(),
 		Permissions:    NewPermissionsContentsReadIssuesWrite(),
-		Outputs:        outputs,
-		Condition:      jobCondition,
-		Token:          cfg.GitHubToken,
-		TargetRepoSlug: cfg.TargetRepoSlug,
+		DefaultMax:     1,
+		ExtraCondition: extraCondition,
 	})
 }
 
