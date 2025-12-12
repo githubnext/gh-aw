@@ -10,11 +10,10 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"net/http"
-	"net/url"
 	"os"
 	"strings"
 
+	"github.com/cli/go-gh/v2/pkg/api"
 	"golang.org/x/crypto/nacl/box"
 )
 
@@ -45,10 +44,14 @@ func main() {
 		os.Exit(1)
 	}
 
-	apiBase := resolveAPIBase(*flagAPIBase)
-	token, err := resolveToken()
+	// Create GitHub REST client using go-gh
+	opts := api.ClientOptions{}
+	if *flagAPIBase != "" {
+		opts.Host = strings.TrimPrefix(strings.TrimPrefix(*flagAPIBase, "https://"), "http://")
+	}
+	client, err := api.NewRESTClient(opts)
 	if err != nil {
-		log.Fatalf("cannot resolve GitHub token: %v", err)
+		log.Fatalf("cannot create GitHub client: %v", err)
 	}
 
 	secretValue, err := resolveSecretValue(*flagValueEnv, *flagValue)
@@ -56,35 +59,11 @@ func main() {
 		log.Fatalf("cannot resolve secret value: %v", err)
 	}
 
-	if err := setRepoSecret(apiBase, token, *flagOwner, *flagRepo, *flagSecretName, secretValue); err != nil {
+	if err := setRepoSecret(client, *flagOwner, *flagRepo, *flagSecretName, secretValue); err != nil {
 		log.Fatalf("failed to set secret: %v", err)
 	}
 
 	fmt.Printf("Secret %s updated for %s/%s\n", *flagSecretName, *flagOwner, *flagRepo)
-}
-
-func resolveAPIBase(flagValue string) string {
-	candidates := []string{
-		strings.TrimSpace(flagValue),
-		strings.TrimSpace(os.Getenv("GITHUB_API_URL")),
-	}
-
-	for _, c := range candidates {
-		if c != "" {
-			return strings.TrimRight(c, "/")
-		}
-	}
-
-	return "https://api.github.com"
-}
-
-func resolveToken() (string, error) {
-	for _, name := range []string{"GITHUB_TOKEN", "GH_TOKEN"} {
-		if v := strings.TrimSpace(os.Getenv(name)); v != "" {
-			return v, nil
-		}
-	}
-	return "", errors.New("no GitHub token found; set the GITHUB_TOKEN or GH_TOKEN environment variable with a personal access token (see https://github.com/settings/tokens)")
 }
 
 func resolveSecretValue(fromEnv, fromFlag string) (string, error) {
@@ -130,8 +109,8 @@ func resolveSecretValue(fromEnv, fromFlag string) (string, error) {
 	return value, nil
 }
 
-func setRepoSecret(apiBase, token, owner, repo, name, value string) error {
-	pubKey, err := getRepoPublicKey(apiBase, token, owner, repo)
+func setRepoSecret(client *api.RESTClient, owner, repo, name, value string) error {
+	pubKey, err := getRepoPublicKey(client, owner, repo)
 	if err != nil {
 		return fmt.Errorf("get repo public key: %w", err)
 	}
@@ -141,32 +120,14 @@ func setRepoSecret(apiBase, token, owner, repo, name, value string) error {
 		return fmt.Errorf("encrypt secret: %w", err)
 	}
 
-	return putRepoSecret(apiBase, token, owner, repo, name, pubKey.ID, encrypted)
+	return putRepoSecret(client, owner, repo, name, pubKey.ID, encrypted)
 }
 
-func getRepoPublicKey(apiBase, token, owner, repo string) (*repoPublicKey, error) {
-	endpoint := fmt.Sprintf("%s/repos/%s/%s/actions/secrets/public-key", apiBase, owner, repo)
-
-	req, err := http.NewRequest(http.MethodGet, endpoint, nil)
-	if err != nil {
-		return nil, err
-	}
-	addGitHubHeaders(req, token)
-
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("GitHub API %s: %s", resp.Status, string(body))
-	}
-
+func getRepoPublicKey(client *api.RESTClient, owner, repo string) (*repoPublicKey, error) {
 	var key repoPublicKey
-	if err := json.NewDecoder(resp.Body).Decode(&key); err != nil {
-		return nil, err
+	path := fmt.Sprintf("repos/%s/%s/actions/secrets/public-key", owner, repo)
+	if err := client.Get(path, &key); err != nil {
+		return nil, fmt.Errorf("get public key: %w", err)
 	}
 	if key.ID == "" || key.Key == "" {
 		return nil, errors.New("public key response missing key_id or key")
@@ -194,43 +155,17 @@ func encryptWithPublicKey(publicKeyB64, plaintext string) (string, error) {
 	return base64.StdEncoding.EncodeToString(ciphertext), nil
 }
 
-func putRepoSecret(apiBase, token, owner, repo, name, keyID, encryptedValue string) error {
-	endpoint := fmt.Sprintf("%s/repos/%s/%s/actions/secrets/%s",
-		apiBase, owner, repo, url.PathEscape(name))
-
-	body, err := json.Marshal(secretPayload{
+func putRepoSecret(client *api.RESTClient, owner, repo, name, keyID, encryptedValue string) error {
+	path := fmt.Sprintf("repos/%s/%s/actions/secrets/%s", owner, repo, name)
+	payload := secretPayload{
 		EncryptedValue: encryptedValue,
 		KeyID:          keyID,
-	})
+	}
+
+	body, err := json.Marshal(payload)
 	if err != nil {
 		return err
 	}
 
-	req, err := http.NewRequest(http.MethodPut, endpoint, strings.NewReader(string(body)))
-	if err != nil {
-		return err
-	}
-	addGitHubHeaders(req, token)
-	req.Header.Set("Content-Type", "application/json")
-
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusNoContent && resp.StatusCode != http.StatusCreated {
-		b, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("GitHub API %s: %s", resp.Status, string(b))
-	}
-
-	return nil
-}
-
-func addGitHubHeaders(req *http.Request, token string) {
-	req.Header.Set("Accept", "application/vnd.github+json")
-	req.Header.Set("Authorization", "Bearer "+token)
-	if req.Header.Get("X-GitHub-Api-Version") == "" {
-		req.Header.Set("X-GitHub-Api-Version", "2022-11-28")
-	}
+	return client.Put(path, strings.NewReader(string(body)), nil)
 }
