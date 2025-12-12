@@ -439,8 +439,10 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 
 				// Campaign spec is valid and referenced workflows exist.
 				// Optionally synthesize an orchestrator workflow for this campaign
-				// and compile it via the standard workflow pipeline.
-				if !noEmit {
+				// and compile it via the standard workflow pipeline. This is gated
+				// behind an environment variable so campaign specs can be validated
+				// in CI without requiring experimental orchestrator support.
+				if !noEmit && os.Getenv("GH_AW_EXPERIMENTAL_CAMPAIGN_ORCHESTRATOR") == "1" {
 					orchestratorData, orchestratorPath := campaign.BuildOrchestrator(spec, resolvedFile)
 					lockFile := strings.TrimSuffix(orchestratorPath, ".md") + ".lock.yml"
 					result.CompiledFile = lockFile
@@ -746,8 +748,10 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 
 			// Campaign spec is valid and referenced workflows exist.
 			// Optionally synthesize an orchestrator workflow for this campaign
-			// and compile it via the standard workflow pipeline.
-			if !noEmit {
+			// and compile it via the standard workflow pipeline. This is gated
+			// behind an environment variable so campaign specs can be validated
+			// in CI without requiring experimental orchestrator support.
+			if !noEmit && os.Getenv("GH_AW_EXPERIMENTAL_CAMPAIGN_ORCHESTRATOR") == "1" {
 				orchestratorData, orchestratorPath := campaign.BuildOrchestrator(spec, file)
 				lockFile := strings.TrimSuffix(orchestratorPath, ".md") + ".lock.yml"
 				result.CompiledFile = lockFile
