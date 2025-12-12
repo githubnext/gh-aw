@@ -1,0 +1,37 @@
+<svg width="800" height="400" xmlns="http://www.w3.org/2000/svg">
+  <rect width="800" height="400" fill="#f6f8fa"/>
+  <rect x="50" y="50" width="700" height="300" fill="white" stroke="#d0d7de" stroke-width="1"/>
+  
+  <!-- Button at bottom -->
+  <rect x="80" y="280" width="150" height="40" fill="#1f883d" rx="6"/>
+  <text x="155" y="305" font-family="Arial, sans-serif" font-size="14" fill="white" text-anchor="middle" font-weight="bold">Generate token</text>
+  
+  <!-- Arrow pointing to button -->
+  <path d="M 155 250 L 155 270" stroke="#d4a72c" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text x="155" y="240" font-family="Arial, sans-serif" font-size="13" fill="#d4a72c" text-anchor="middle" font-weight="bold">Click here ↓</text>
+  
+  <!-- Instructions -->
+  <text x="400" y="100" font-family="Arial, sans-serif" font-size="14" fill="#24292f" text-anchor="middle">
+    After configuring all settings and permissions:
+  </text>
+  <text x="400" y="130" font-family="Arial, sans-serif" font-size="14" fill="#24292f" text-anchor="middle">
+    1. Scroll to the bottom of the page
+  </text>
+  <text x="400" y="160" font-family="Arial, sans-serif" font-size="14" fill="#24292f" text-anchor="middle">
+    2. Click "Generate token"
+  </text>
+  <text x="400" y="190" font-family="Arial, sans-serif" font-size="14" fill="#24292f" text-anchor="middle">
+    3. Copy the token immediately (you won't see it again!)
+  </text>
+  
+  <!-- Placeholder text -->
+  <text x="400" y="360" font-family="Arial, sans-serif" font-size="11" fill="#6e7781" text-anchor="middle" font-style="italic">
+    [Screenshot placeholder: Generate token button at bottom of PAT creation page]
+  </text>
+  
+  <defs>
+    <marker id="arrowhead" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+      <polygon points="0 0, 10 3, 0 6" fill="#d4a72c"/>
+    </marker>
+  </defs>
+</svg>

@@ -1,0 +1,34 @@
+<svg width="800" height="600" xmlns="http://www.w3.org/2000/svg">
+  <rect width="800" height="600" fill="#f6f8fa"/>
+  <rect x="50" y="50" width="700" height="500" fill="white" stroke="#d0d7de" stroke-width="1"/>
+  
+  <!-- Header -->
+  <rect x="50" y="50" width="700" height="60" fill="#24292f"/>
+  <text x="400" y="85" font-family="Arial, sans-serif" font-size="18" fill="white" text-anchor="middle">New personal access token (fine-grained)</text>
+  
+  <!-- Content area with form elements -->
+  <text x="80" y="140" font-family="Arial, sans-serif" font-size="14" fill="#24292f" font-weight="bold">Token name</text>
+  <rect x="80" y="150" width="640" height="35" fill="white" stroke="#d0d7de" stroke-width="1"/>
+  <text x="90" y="172" font-family="Arial, sans-serif" font-size="13" fill="#6e7781">Agentic Workflows Copilot</text>
+  
+  <text x="80" y="210" font-family="Arial, sans-serif" font-size="14" fill="#24292f" font-weight="bold">Expiration</text>
+  <rect x="80" y="220" width="200" height="35" fill="white" stroke="#d0d7de" stroke-width="1"/>
+  <text x="90" y="242" font-family="Arial, sans-serif" font-size="13" fill="#6e7781">90 days</text>
+  
+  <text x="80" y="280" font-family="Arial, sans-serif" font-size="14" fill="#24292f" font-weight="bold">Description</text>
+  <rect x="80" y="290" width="640" height="35" fill="white" stroke="#d0d7de" stroke-width="1"/>
+  <text x="90" y="312" font-family="Arial, sans-serif" font-size="13" fill="#6e7781">For agentic workflows to use Copilot</text>
+  
+  <text x="80" y="350" font-family="Arial, sans-serif" font-size="14" fill="#24292f" font-weight="bold">Resource owner</text>
+  <rect x="80" y="360" width="300" height="35" fill="white" stroke="#d0d7de" stroke-width="1"/>
+  <text x="90" y="382" font-family="Arial, sans-serif" font-size="13" fill="#6e7781">Your username</text>
+  
+  <text x="80" y="420" font-family="Arial, sans-serif" font-size="14" fill="#24292f" font-weight="bold">Repository access</text>
+  <rect x="80" y="430" width="300" height="35" fill="white" stroke="#d0d7de" stroke-width="1"/>
+  <text x="90" y="452" font-family="Arial, sans-serif" font-size="13" fill="#6e7781">Public repositories</text>
+  
+  <!-- Placeholder text -->
+  <text x="400" y="520" font-family="Arial, sans-serif" font-size="12" fill="#6e7781" text-anchor="middle" font-style="italic">
+    [Screenshot placeholder: GitHub PAT creation page - basic settings]
+  </text>
+</svg>

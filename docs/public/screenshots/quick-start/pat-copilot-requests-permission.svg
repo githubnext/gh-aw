@@ -1,0 +1,49 @@
+<svg width="800" height="600" xmlns="http://www.w3.org/2000/svg">
+  <rect width="800" height="600" fill="#f6f8fa"/>
+  <rect x="50" y="50" width="700" height="500" fill="white" stroke="#d0d7de" stroke-width="1"/>
+  
+  <!-- Header -->
+  <text x="80" y="80" font-family="Arial, sans-serif" font-size="16" fill="#24292f" font-weight="bold">Account permissions</text>
+  
+  <!-- Permission list -->
+  <text x="80" y="120" font-family="Arial, sans-serif" font-size="13" fill="#24292f">Administration</text>
+  <rect x="600" y="105" width="120" height="25" fill="white" stroke="#d0d7de" stroke-width="1" rx="3"/>
+  <text x="660" y="122" font-family="Arial, sans-serif" font-size="12" fill="#6e7781" text-anchor="middle">No access</text>
+  
+  <text x="80" y="160" font-family="Arial, sans-serif" font-size="13" fill="#24292f">Blocking users</text>
+  <rect x="600" y="145" width="120" height="25" fill="white" stroke="#d0d7de" stroke-width="1" rx="3"/>
+  <text x="660" y="162" font-family="Arial, sans-serif" font-size="12" fill="#6e7781" text-anchor="middle">No access</text>
+  
+  <!-- Highlighted: Copilot Requests -->
+  <rect x="65" y="185" width="670" height="45" fill="#fff8c5" stroke="#d4a72c" stroke-width="2" rx="4"/>
+  <circle cx="90" cy="207" r="8" fill="#0969da"/>
+  <text x="110" y="210" font-family="Arial, sans-serif" font-size="13" fill="#24292f" font-weight="bold">Copilot Requests</text>
+  <rect x="600" y="195" width="120" height="25" fill="#0969da" rx="3"/>
+  <text x="660" y="212" font-family="Arial, sans-serif" font-size="12" fill="white" text-anchor="middle" font-weight="bold">Read and write</text>
+  
+  <!-- Arrow annotation -->
+  <path d="M 550 210 L 580 210" stroke="#d4a72c" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text x="450" y="215" font-family="Arial, sans-serif" font-size="12" fill="#d4a72c" font-weight="bold">← Select this permission</text>
+  
+  <text x="80" y="260" font-family="Arial, sans-serif" font-size="13" fill="#24292f">Email addresses</text>
+  <rect x="600" y="245" width="120" height="25" fill="white" stroke="#d0d7de" stroke-width="1" rx="3"/>
+  <text x="660" y="262" font-family="Arial, sans-serif" font-size="12" fill="#6e7781" text-anchor="middle">No access</text>
+  
+  <text x="80" y="300" font-family="Arial, sans-serif" font-size="13" fill="#24292f">Followers</text>
+  <rect x="600" y="285" width="120" height="25" fill="white" stroke="#d0d7de" stroke-width="1" rx="3"/>
+  <text x="660" y="302" font-family="Arial, sans-serif" font-size="12" fill="#6e7781" text-anchor="middle">No access</text>
+  
+  <!-- Placeholder text -->
+  <text x="400" y="380" font-family="Arial, sans-serif" font-size="12" fill="#6e7781" text-anchor="middle" font-style="italic">
+    [Screenshot placeholder: Account permissions section showing Copilot Requests]
+  </text>
+  <text x="400" y="400" font-family="Arial, sans-serif" font-size="11" fill="#6e7781" text-anchor="middle" font-style="italic">
+    Note: This permission is in the "Account permissions" section, not "Repository permissions"
+  </text>
+  
+  <defs>
+    <marker id="arrowhead" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+      <polygon points="0 0, 10 3, 0 6" fill="#d4a72c"/>
+    </marker>
+  </defs>
+</svg>
