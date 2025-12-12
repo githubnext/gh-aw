@@ -131,7 +131,7 @@ fetch_release_data() {
             curl_args+=("-H" "Authorization: Bearer $GH_TOKEN")
         fi
         
-        print_info "Fetching release data (attempt $attempt/$max_retries)..."
+        print_info "Fetching release data (attempt $attempt/$max_retries)..." >&2
         
         # Make the API call
         local response
@@ -146,8 +146,8 @@ fetch_release_data() {
         
         # If this was the first attempt with auth and it failed, try without auth
         if [ "$attempt" -eq 1 ] && [ "$use_auth" = true ]; then
-            print_warning "API call with GH_TOKEN failed. Retrying without authentication..."
-            print_warning "Your GH_TOKEN may be incompatible (typically SSO) with this request."
+            print_warning "API call with GH_TOKEN failed. Retrying without authentication..." >&2
+            print_warning "Your GH_TOKEN may be incompatible (typically SSO) with this request." >&2
             use_auth=false
             # Don't count this as a retry attempt, just switch auth mode
             continue
@@ -155,11 +155,11 @@ fetch_release_data() {
         
         # If we haven't exhausted retries, wait and try again
         if [ "$attempt" -lt "$max_retries" ]; then
-            print_warning "Fetch attempt $attempt failed (exit code: $exit_code). Retrying in ${retry_delay}s..."
+            print_warning "Fetch attempt $attempt failed (exit code: $exit_code). Retrying in ${retry_delay}s..." >&2
             sleep $retry_delay
             retry_delay=$((retry_delay * 2))
         else
-            print_error "Failed to fetch release data after $max_retries attempts"
+            print_error "Failed to fetch release data after $max_retries attempts" >&2
         fi
     done
     
