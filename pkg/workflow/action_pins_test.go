@@ -345,9 +345,9 @@ func TestApplyActionPinToStep(t *testing.T) {
 func TestGetActionPinsSorting(t *testing.T) {
 	pins := getActionPins()
 
-	// Verify we got all the pins (should be 27 after adding github-script v8)
-	if len(pins) != 27 {
-		t.Errorf("getActionPins() returned %d pins, expected 27", len(pins))
+	// Verify we got all the pins (should be 28 after adding super-linter v8.2.1)
+	if len(pins) != 28 {
+		t.Errorf("getActionPins() returned %d pins, expected 28", len(pins))
 	}
 
 	// Verify they are sorted by version (descending) then by repository name (ascending)

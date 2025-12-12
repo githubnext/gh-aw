@@ -1,7 +1,7 @@
 ---
 id: security-compliance
 version: "v1"
-name: "Security Compliance Campaign"
+name: "Campaign: Security Compliance"
 description: "Security remediation with compliance audit trail and executive reporting."
 
 workflows:

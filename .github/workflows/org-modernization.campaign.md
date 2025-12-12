@@ -1,7 +1,7 @@
 ---
 id: org-modernization
 version: "v1"
-name: "Org-wide Modernization Campaign"
+name: "Campaign: Org-wide Modernization"
 description: "Cross-repo modernization with human-in-loop approvals and intelligence reporting."
 
 workflows:
