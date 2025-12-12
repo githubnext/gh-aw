@@ -88,12 +88,13 @@ func (c *Compiler) generateArtifactUpload(yaml *strings.Builder, config Artifact
 	yaml.WriteString("        with:\n")
 	yaml.WriteString(fmt.Sprintf("          name: %s\n", config.ArtifactName))
 
-	// Write path (currently only single-path is used in the codebase)
+	// Write path (only single-path is supported)
 	if len(config.UploadPaths) == 0 {
-		artifactsLog.Print("WARNING: No upload paths specified")
-		return
+		panic(fmt.Sprintf("generateArtifactUpload: no upload paths specified for artifact %s", config.ArtifactName))
 	}
-	// Use first path (all current usages provide exactly one path)
+	if len(config.UploadPaths) > 1 {
+		panic(fmt.Sprintf("generateArtifactUpload: multiple paths not supported (got %d paths for artifact %s)", len(config.UploadPaths), config.ArtifactName))
+	}
 	yaml.WriteString(fmt.Sprintf("          path: %s\n", config.UploadPaths[0]))
 
 	yaml.WriteString(fmt.Sprintf("          if-no-files-found: %s\n", ifNoFilesFound))
