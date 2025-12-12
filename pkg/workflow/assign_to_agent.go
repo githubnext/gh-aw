@@ -14,7 +14,7 @@ type AssignToAgentConfig struct {
 	BaseSafeOutputConfig   `yaml:",inline"`
 	SafeOutputTargetConfig `yaml:",inline"`
 	DefaultAgent           string   `yaml:"name,omitempty"`           // Default agent to assign (e.g., "copilot")
-	BranchPrefix           string   `yaml:"branch-prefix,omitempty"`  // Required prefix for branch names (default: "<workflowid>/")
+	BranchPrefix           string   `yaml:"branch-prefix,omitempty"`  // Optional branch prefix suggestion (default: "<workflowid>/")
 	AllowedAgents          []string `yaml:"allowed-agents,omitempty"` // List of allowed agent IDs (default: any)
 }
 

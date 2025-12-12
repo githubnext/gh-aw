@@ -3820,7 +3820,7 @@
                 },
                 "branch-prefix": {
                   "type": "string",
-                  "description": "Required prefix for branch names when assigning to an agent (default: '<workflowid>/'). Enforces a 'prefix/' prefix in the branch name."
+                  "description": "Optional branch prefix suggestion for agent assignments (default: '<workflowid>/'). Does not enforce validation."
                 },
                 "allowed-agents": {
                   "type": "array",

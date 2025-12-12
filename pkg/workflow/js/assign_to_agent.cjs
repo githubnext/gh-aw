@@ -147,18 +147,8 @@ async function main() {
       continue;
     }
 
-    // Validate branch if provided
+    // Get branch from item if provided
     const branch = item.branch?.trim();
-    if (branch && branchPrefix && !branch.startsWith(branchPrefix)) {
-      core.error(`Branch "${branch}" does not start with required prefix "${branchPrefix}"`);
-      results.push({
-        issue_number: issueNumber,
-        agent: agentName,
-        success: false,
-        error: `Branch must start with prefix: ${branchPrefix}`,
-      });
-      continue;
-    }
 
     // Validate custom agent if provided against allowed-agents list
     const customAgent = item.agent?.trim();
