@@ -101,11 +101,17 @@ func createMCPServer(cmdPath string) *mcp.Server {
 		return workflow.ExecGHContext(ctx, append([]string{"aw"}, args...)...)
 	}
 
-	// Create MCP server
+	// Create MCP server with capabilities
 	server := mcp.NewServer(&mcp.Implementation{
 		Name:    "gh-aw",
 		Version: GetVersion(),
-	}, nil)
+	}, &mcp.ServerOptions{
+		Capabilities: &mcp.ServerCapabilities{
+			Tools: &mcp.ToolCapabilities{
+				ListChanged: false, // Tools are static, no notifications needed
+			},
+		},
+	})
 
 	// Add status tool
 	type statusArgs struct {
