@@ -719,8 +719,8 @@ echo "language=Shell" >> "$GITHUB_OUTPUT"`
 		}
 	}()
 
-	// Wait for the gateway to start
-	time.Sleep(5 * time.Second)
+	// Wait for the gateway to start - needs time to set up safe-inputs server
+	time.Sleep(6 * time.Second)
 
 	// Verify the gateway started
 	stderrOutput := stderr.String()
@@ -880,8 +880,8 @@ print(json.dumps(result))`
 		}
 	}()
 
-	// Wait for the gateway to start
-	time.Sleep(5 * time.Second)
+	// Wait for the gateway to start - needs time to set up safe-inputs server
+	time.Sleep(6 * time.Second)
 
 	// Verify the gateway started
 	stderrOutput := stderr.String()
