@@ -19,9 +19,22 @@ async function main() {
   const owner = context.repo.owner;
   const repo = context.repo.repo;
 
-  core.info(`Locking issue #${issueNumber} for agent workflow execution`);
-
   try {
+    // Check if issue is already locked
+    core.info(`Checking if issue #${issueNumber} is already locked`);
+    const { data: issue } = await github.rest.issues.get({
+      owner,
+      repo,
+      issue_number: issueNumber,
+    });
+
+    if (issue.locked) {
+      core.info(`ℹ️ Issue #${issueNumber} is already locked, skipping lock operation`);
+      return;
+    }
+
+    core.info(`Locking issue #${issueNumber} for agent workflow execution`);
+
     // Lock the issue without providing a lock_reason parameter
     await github.rest.issues.lock({
       owner,

@@ -15,6 +15,7 @@ const mockCore = {
 const mockGithub = {
   rest: {
     issues: {
+      get: vi.fn(),
       unlock: vi.fn(),
     },
   },
@@ -63,6 +64,14 @@ describe("unlock-issue", () => {
   });
 
   it("should unlock issue successfully", async () => {
+    // Mock issue get to return locked issue
+    mockGithub.rest.issues.get.mockResolvedValue({
+      data: {
+        number: 42,
+        locked: true,
+      },
+    });
+
     // Mock successful unlock
     mockGithub.rest.issues.unlock.mockResolvedValue({
       status: 204,
@@ -71,14 +80,47 @@ describe("unlock-issue", () => {
     // Execute the script
     await eval(`(async () => { ${unlockIssueScript} })()`);
 
+    expect(mockGithub.rest.issues.get).toHaveBeenCalledWith({
+      owner: "testowner",
+      repo: "testrepo",
+      issue_number: 42,
+    });
+
     expect(mockGithub.rest.issues.unlock).toHaveBeenCalledWith({
       owner: "testowner",
       repo: "testrepo",
       issue_number: 42,
     });
 
+    expect(mockCore.info).toHaveBeenCalledWith("Checking if issue #42 is locked");
     expect(mockCore.info).toHaveBeenCalledWith("Unlocking issue #42 after agent workflow execution");
     expect(mockCore.info).toHaveBeenCalledWith("✅ Successfully unlocked issue #42");
+    expect(mockCore.setFailed).not.toHaveBeenCalled();
+  });
+
+  it("should skip unlocking if issue is not locked", async () => {
+    // Mock issue get to return unlocked issue
+    mockGithub.rest.issues.get.mockResolvedValue({
+      data: {
+        number: 42,
+        locked: false,
+      },
+    });
+
+    // Execute the script
+    await eval(`(async () => { ${unlockIssueScript} })()`);
+
+    expect(mockGithub.rest.issues.get).toHaveBeenCalledWith({
+      owner: "testowner",
+      repo: "testrepo",
+      issue_number: 42,
+    });
+
+    // Should not call unlock since issue is not locked
+    expect(mockGithub.rest.issues.unlock).not.toHaveBeenCalled();
+
+    expect(mockCore.info).toHaveBeenCalledWith("Checking if issue #42 is locked");
+    expect(mockCore.info).toHaveBeenCalledWith("ℹ️ Issue #42 is not locked, skipping unlock operation");
     expect(mockCore.setFailed).not.toHaveBeenCalled();
   });
 
@@ -95,6 +137,14 @@ describe("unlock-issue", () => {
   });
 
   it("should handle API errors gracefully", async () => {
+    // Mock issue get to return locked issue
+    mockGithub.rest.issues.get.mockResolvedValue({
+      data: {
+        number: 42,
+        locked: true,
+      },
+    });
+
     // Mock API error
     const apiError = new Error("Issue was not locked");
     mockGithub.rest.issues.unlock.mockRejectedValue(apiError);
@@ -108,6 +158,14 @@ describe("unlock-issue", () => {
   });
 
   it("should handle non-Error exceptions", async () => {
+    // Mock issue get to return locked issue
+    mockGithub.rest.issues.get.mockResolvedValue({
+      data: {
+        number: 42,
+        locked: true,
+      },
+    });
+
     // Mock non-Error exception
     mockGithub.rest.issues.unlock.mockRejectedValue("String error");
 
@@ -123,6 +181,14 @@ describe("unlock-issue", () => {
     global.context.issue = { number: 200 };
     global.context.payload.issue = { number: 200 };
 
+    // Mock issue get to return locked issue
+    mockGithub.rest.issues.get.mockResolvedValue({
+      data: {
+        number: 200,
+        locked: true,
+      },
+    });
+
     mockGithub.rest.issues.unlock.mockResolvedValue({
       status: 204,
     });
@@ -136,11 +202,20 @@ describe("unlock-issue", () => {
       issue_number: 200,
     });
 
+    expect(mockCore.info).toHaveBeenCalledWith("Checking if issue #200 is locked");
     expect(mockCore.info).toHaveBeenCalledWith("Unlocking issue #200 after agent workflow execution");
     expect(mockCore.info).toHaveBeenCalledWith("✅ Successfully unlocked issue #200");
   });
 
   it("should handle permission errors", async () => {
+    // Mock issue get to return locked issue
+    mockGithub.rest.issues.get.mockResolvedValue({
+      data: {
+        number: 42,
+        locked: true,
+      },
+    });
+
     // Mock permission error
     const permissionError = new Error("Resource not accessible by integration");
     mockGithub.rest.issues.unlock.mockRejectedValue(permissionError);
@@ -153,17 +228,21 @@ describe("unlock-issue", () => {
     expect(mockCore.setFailed).toHaveBeenCalledWith("Failed to unlock issue #42: Resource not accessible by integration");
   });
 
-  it("should work even when issue is already unlocked", async () => {
-    // Some APIs return success even if already unlocked
-    mockGithub.rest.issues.unlock.mockResolvedValue({
-      status: 204,
+  it("should skip if issue is already unlocked (redundant test for completeness)", async () => {
+    // Mock issue get to return unlocked issue
+    mockGithub.rest.issues.get.mockResolvedValue({
+      data: {
+        number: 42,
+        locked: false,
+      },
     });
 
     // Execute the script
     await eval(`(async () => { ${unlockIssueScript} })()`);
 
-    expect(mockGithub.rest.issues.unlock).toHaveBeenCalled();
-    expect(mockCore.info).toHaveBeenCalledWith("✅ Successfully unlocked issue #42");
+    // Should skip unlock since issue is not locked
+    expect(mockGithub.rest.issues.unlock).not.toHaveBeenCalled();
+    expect(mockCore.info).toHaveBeenCalledWith("ℹ️ Issue #42 is not locked, skipping unlock operation");
     expect(mockCore.setFailed).not.toHaveBeenCalled();
   });
 });

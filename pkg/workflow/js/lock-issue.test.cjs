@@ -15,6 +15,7 @@ const mockCore = {
 const mockGithub = {
   rest: {
     issues: {
+      get: vi.fn(),
       lock: vi.fn(),
     },
   },
@@ -63,6 +64,14 @@ describe("lock-issue", () => {
   });
 
   it("should lock issue successfully", async () => {
+    // Mock issue get to return unlocked issue
+    mockGithub.rest.issues.get.mockResolvedValue({
+      data: {
+        number: 42,
+        locked: false,
+      },
+    });
+
     // Mock successful lock
     mockGithub.rest.issues.lock.mockResolvedValue({
       status: 204,
@@ -71,14 +80,47 @@ describe("lock-issue", () => {
     // Execute the script
     await eval(`(async () => { ${lockIssueScript} })()`);
 
+    expect(mockGithub.rest.issues.get).toHaveBeenCalledWith({
+      owner: "testowner",
+      repo: "testrepo",
+      issue_number: 42,
+    });
+
     expect(mockGithub.rest.issues.lock).toHaveBeenCalledWith({
       owner: "testowner",
       repo: "testrepo",
       issue_number: 42,
     });
 
+    expect(mockCore.info).toHaveBeenCalledWith("Checking if issue #42 is already locked");
     expect(mockCore.info).toHaveBeenCalledWith("Locking issue #42 for agent workflow execution");
     expect(mockCore.info).toHaveBeenCalledWith("✅ Successfully locked issue #42");
+    expect(mockCore.setFailed).not.toHaveBeenCalled();
+  });
+
+  it("should skip locking if issue is already locked", async () => {
+    // Mock issue get to return locked issue
+    mockGithub.rest.issues.get.mockResolvedValue({
+      data: {
+        number: 42,
+        locked: true,
+      },
+    });
+
+    // Execute the script
+    await eval(`(async () => { ${lockIssueScript} })()`);
+
+    expect(mockGithub.rest.issues.get).toHaveBeenCalledWith({
+      owner: "testowner",
+      repo: "testrepo",
+      issue_number: 42,
+    });
+
+    // Should not call lock since issue is already locked
+    expect(mockGithub.rest.issues.lock).not.toHaveBeenCalled();
+
+    expect(mockCore.info).toHaveBeenCalledWith("Checking if issue #42 is already locked");
+    expect(mockCore.info).toHaveBeenCalledWith("ℹ️ Issue #42 is already locked, skipping lock operation");
     expect(mockCore.setFailed).not.toHaveBeenCalled();
   });
 
@@ -95,6 +137,14 @@ describe("lock-issue", () => {
   });
 
   it("should handle API errors gracefully", async () => {
+    // Mock issue get to return unlocked issue
+    mockGithub.rest.issues.get.mockResolvedValue({
+      data: {
+        number: 42,
+        locked: false,
+      },
+    });
+
     // Mock API error
     const apiError = new Error("API rate limit exceeded");
     mockGithub.rest.issues.lock.mockRejectedValue(apiError);
@@ -108,6 +158,14 @@ describe("lock-issue", () => {
   });
 
   it("should handle non-Error exceptions", async () => {
+    // Mock issue get to return unlocked issue
+    mockGithub.rest.issues.get.mockResolvedValue({
+      data: {
+        number: 42,
+        locked: false,
+      },
+    });
+
     // Mock non-Error exception
     mockGithub.rest.issues.lock.mockRejectedValue("String error");
 
@@ -123,6 +181,14 @@ describe("lock-issue", () => {
     global.context.issue = { number: 100 };
     global.context.payload.issue = { number: 100 };
 
+    // Mock issue get to return unlocked issue
+    mockGithub.rest.issues.get.mockResolvedValue({
+      data: {
+        number: 100,
+        locked: false,
+      },
+    });
+
     mockGithub.rest.issues.lock.mockResolvedValue({
       status: 204,
     });
@@ -136,11 +202,20 @@ describe("lock-issue", () => {
       issue_number: 100,
     });
 
+    expect(mockCore.info).toHaveBeenCalledWith("Checking if issue #100 is already locked");
     expect(mockCore.info).toHaveBeenCalledWith("Locking issue #100 for agent workflow execution");
     expect(mockCore.info).toHaveBeenCalledWith("✅ Successfully locked issue #100");
   });
 
   it("should not provide a lock reason", async () => {
+    // Mock issue get to return unlocked issue
+    mockGithub.rest.issues.get.mockResolvedValue({
+      data: {
+        number: 42,
+        locked: false,
+      },
+    });
+
     mockGithub.rest.issues.lock.mockResolvedValue({
       status: 204,
     });
