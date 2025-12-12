@@ -1,7 +1,7 @@
-## Known Patterns (2025-12-11)
+## Known Patterns (2025-12-12)
 
-- Workflow hygiene push: new “Repository Quality Improvement - Workflow Lifecycle Management & Staleness Detection” (6133) signals attention on pruning/refreshing recurring agents.
-- Copilot PR merged report remains shaky: 6040 is still the latest published state (error) and today’s run is in-progress, continuing the fragile streak from prior days.
-- Automation remains dominant but softening: github-actions authored 151/178 issues; top labels `plan`/`ai-generated` drop to 84 each (from 101/98) while open issues tick down to 52.
-- Schedule jobs show fresh flakiness: Hourly CI Cleaner, Issue Monster, and Issue Triage Agent all failed on Dec 11; multiple Tidy runs cancelled; Dev/Dev Hawk reruns cluster within minutes.
-- High-noise success: CLI Version Checker succeeded but emitted 132 errors/36 warnings in one run, keeping log noise elevated despite green status.
+- Cost/efficiency focus rising: new discussion 6264 (“Workflow Cost Optimization & Resource Awareness”) pairs with lockfile stats 6208, signaling a shift from pure hygiene to spend control and artifact footprint.
+- Schema correctness remains under scrutiny: fresh schema consistency audit 6199 (implicit validation constraints) follows 6084; prompt-analysis/copilot streams continue daily.
+- Copilot PR merged pipeline instability continues: 6144 just published; prior run 6040 was error and today’s execution is still in-flight.
+- Schedule agents recovering unevenly: Hourly CI Cleaner succeeded with heavy token burn (4.9M) and warnings; Issue Monster shows a healthy pass; Issue Triage Agent recorded a fresh failure (20169226915).
+- Label skew persists: `plan`/`ai-generated` remain top (97 each) and github-actions continues to author the vast majority of issues; automation-driven backlog still shapes the queue.
