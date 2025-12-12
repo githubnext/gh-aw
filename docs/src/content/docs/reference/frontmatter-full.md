@@ -216,6 +216,11 @@ on:
     names: []
       # Array items: Label name
 
+    # Whether to lock the issue for the agent when the workflow runs (prevents
+    # concurrent modifications)
+    # (optional)
+    lock-for-agent: true
+
   # Issue comment event trigger
   # (optional)
   issue_comment:
