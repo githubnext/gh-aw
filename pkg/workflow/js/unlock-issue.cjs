@@ -10,7 +10,7 @@
 async function main() {
   // Log actor and event information for debugging
   core.info(`Unlock-issue debug: actor=${context.actor}, eventName=${context.eventName}`);
-  
+
   // Get issue number from context
   const issueNumber = context.issue.number;
 
@@ -21,7 +21,7 @@ async function main() {
 
   const owner = context.repo.owner;
   const repo = context.repo.repo;
-  
+
   core.info(`Unlock-issue debug: owner=${owner}, repo=${repo}, issueNumber=${issueNumber}`);
 
   try {

@@ -774,11 +774,12 @@ jobs:
             await main();
       - name: Lock issue for agent workflow
         id: lock-issue
-        if: github.event.issue.number
+        if: (github.event.issue.number) && (!(github.event.pull_request))
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
           script: |
             async function main() {
+              core.info(`Lock-issue debug: actor=${context.actor}, eventName=${context.eventName}`);
               const issueNumber = context.issue.number;
               if (!issueNumber) {
                 core.setFailed("Issue number not found in context");
@@ -786,6 +787,7 @@ jobs:
               }
               const owner = context.repo.owner;
               const repo = context.repo.repo;
+              core.info(`Lock-issue debug: owner=${owner}, repo=${repo}, issueNumber=${issueNumber}`);
               try {
                 core.info(`Checking if issue #${issueNumber} is already locked`);
                 const { data: issue } = await github.rest.issues.get({
@@ -7486,11 +7488,12 @@ jobs:
             });
       - name: Unlock issue after agent workflow
         id: unlock-issue
-        if: (always()) && ((github.event.issue.number) && (needs.activation.outputs.issue_locked == 'true'))
+        if: (always()) && (((github.event.issue.number) && (!(github.event.pull_request))) && (needs.activation.outputs.issue_locked == 'true'))
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
           script: |
             async function main() {
+              core.info(`Unlock-issue debug: actor=${context.actor}, eventName=${context.eventName}`);
               const issueNumber = context.issue.number;
               if (!issueNumber) {
                 core.setFailed("Issue number not found in context");
@@ -7498,6 +7501,7 @@ jobs:
               }
               const owner = context.repo.owner;
               const repo = context.repo.repo;
+              core.info(`Unlock-issue debug: owner=${owner}, repo=${repo}, issueNumber=${issueNumber}`);
               try {
                 core.info(`Checking if issue #${issueNumber} is locked`);
                 const { data: issue } = await github.rest.issues.get({
