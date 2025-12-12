@@ -7,6 +7,50 @@ sidebar:
 
 GitHub Agentic Workflows authenticate using multiple tokens depending on the operation. This reference explains which token to use, when it's required, and how precedence works across different operations.
 
+## Quick start: tokens you actually configure
+
+GitHub Actions always provides `GITHUB_TOKEN` for you automatically.
+For GitHub Agentic Workflows, you only need to create a few **optional** secrets in your own repo:
+
+| When you need this…                                  | Secret to create                       | Notes |
+|------------------------------------------------------|----------------------------------------|-------|
+| Cross-repo Project Ops / remote GitHub tools         | `GH_AW_GITHUB_TOKEN`                   | PAT or app token with cross-repo access. |
+| Copilot workflows (CLI, engine, agent tasks, etc.)   | `COPILOT_GITHUB_TOKEN`                 | Needs Copilot Requests permission and repo access. |
+| Assigning agents/bots to issues or pull requests     | `GH_AW_AGENT_TOKEN`                    | Used by `assign-to-agent` and Copilot assignee/reviewer flows. |
+| Isolating MCP server permissions (advanced optional) | `GH_AW_GITHUB_MCP_SERVER_TOKEN`        | Only if you want MCP to use a different token than other jobs. |
+
+Create these as **repository or organization secrets in *your* repo**, for example with the GitHub CLI:
+
+```bash
+echo "YOUR_PAT" | gh secret set GH_AW_GITHUB_TOKEN -a actions
+echo "YOUR_COPILOT_PAT" | gh secret set COPILOT_GITHUB_TOKEN -a actions
+echo "YOUR_AGENT_PAT" | gh secret set GH_AW_AGENT_TOKEN -a actions
+```
+
+After these are set, gh-aw will automatically pick the right token for each operation; you should not need per-workflow PATs in most cases.
+
+### Security and scopes (least privilege)
+
+- Use `permissions:` at the workflow or job level so `GITHUB_TOKEN` only has what that workflow needs (for example, read contents and write PRs, but nothing else):
+
+```yaml
+permissions:
+  contents: read
+  pull-requests: write
+```
+
+- When creating each PAT/App token above, grant access **only** to the repos and scopes required for its scenario (cross-repo Project Ops, Copilot, agents, or MCP) and nothing more.
+- Only expose powerful secrets to the jobs that need them by scoping them to `env:` at the job or step level, not globally:
+
+```yaml
+jobs:
+  project-ops:
+    env:
+      GH_AW_GITHUB_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN }}
+```
+
+- For very sensitive tokens, prefer GitHub Environments or organization-level secrets with required reviewers so only trusted workflows can use them.
+
 ## Token Overview
 
 | Token | Type | Purpose | User Configurable |

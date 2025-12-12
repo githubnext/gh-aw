@@ -17,6 +17,7 @@ require (
 	github.com/spf13/cobra v1.10.2
 	github.com/stretchr/testify v1.11.1
 	github.com/xeipuuv/gojsonschema v1.2.0
+	golang.org/x/crypto v0.36.0
 	golang.org/x/term v0.38.0
 	gopkg.in/yaml.v3 v3.0.1
 )
@@ -33,6 +34,7 @@ require (
 	github.com/charmbracelet/x/exp/strings v0.0.0-20251106172358-54469c29c2bc // indirect
 	github.com/charmbracelet/x/term v0.2.2 // indirect
 	github.com/cli/safeexec v1.0.1 // indirect
+	github.com/cli/shurcooL-graphql v0.0.4 // indirect
 	github.com/clipperhouse/displaywidth v0.5.0 // indirect
 	github.com/clipperhouse/stringish v0.1.1 // indirect
 	github.com/clipperhouse/uax29/v2 v2.3.0 // indirect

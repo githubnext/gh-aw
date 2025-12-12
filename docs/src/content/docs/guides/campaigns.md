@@ -272,12 +272,33 @@ gh aw campaign status --json       # JSON status output
 gh aw campaign new security-q1-2025         # Scaffold a new campaign spec
 gh aw campaign validate                     # Validate all campaign specs
 gh aw campaign validate --json              # JSON validation report
-gh aw campaign validate --no-strict         # Report problems without failing
+gh aw campaign validate --strict=false      # Report problems without failing
 ```
 
 This gives you a centralized, Git-backed catalog of campaigns in the
 repository, aligned with the executable workflows in `.github/workflows/` and
 the data they write into repo-memory.
+
+### Compile Integration and Orchestrators
+
+Campaign spec files participate in the normal `compile` workflow:
+
+- `gh aw compile` automatically validates all `.github/workflows/*.campaign.md` specs before compiling workflows.
+- Validation checks both the spec itself (IDs, tracker labels, lifecycle state, etc.) and that all referenced `workflows` exist in `.github/workflows/`.
+- If any campaign spec has problems, `compile` fails with a `campaign validation failed` error until issues are fixed.
+
+**Orchestrator workflows** are automatically generated for each campaign spec:
+
+```bash wrap
+gh aw compile
+```
+
+When specs are valid:
+
+- Each `<name>.campaign.md` generates an orchestrator markdown workflow named `<name>.campaign.g.md` next to the spec.
+- The orchestrator is compiled like any other workflow to `<name>.campaign.g.lock.yml`.
+- This makes campaigns first-class, compilable entry points while keeping specs declarative.
+- Orchestrators are only generated when the campaign spec has meaningful details (tracker labels, workflows, memory paths, or metrics glob).
 
 ### Interactive Campaign Designer
 

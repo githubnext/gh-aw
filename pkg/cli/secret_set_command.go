@@ -1,0 +1,232 @@
+package cli
+
+import (
+	"bufio"
+	"crypto/rand"
+	"encoding/base64"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"io"
+	"os"
+	"strings"
+
+	"github.com/cli/go-gh/v2/pkg/api"
+	"github.com/githubnext/gh-aw/pkg/console"
+	"github.com/spf13/cobra"
+	"golang.org/x/crypto/nacl/box"
+)
+
+type repoPublicKey struct {
+	ID  string `json:"key_id"`
+	Key string `json:"key"`
+}
+
+type secretPayload struct {
+	EncryptedValue string `json:"encrypted_value"`
+	KeyID          string `json:"key_id"`
+}
+
+// NewSecretCommand creates the secret command group
+func NewSecretCommand() *cobra.Command {
+	secretCmd := &cobra.Command{
+		Use:   "secret",
+		Short: "Manage repository secrets",
+		Long:  `Manage GitHub Actions secrets for repositories`,
+	}
+
+	// Add subcommands
+	secretCmd.AddCommand(newSecretSetCommand())
+
+	return secretCmd
+}
+
+func newSecretSetCommand() *cobra.Command {
+	var (
+		flagOwner    string
+		flagRepo     string
+		flagValue    string
+		flagValueEnv string
+		flagAPIBase  string
+	)
+
+	cmd := &cobra.Command{
+		Use:   "set <secret-name>",
+		Short: "Create or update a repository secret",
+		Long: `Create or update a GitHub Actions secret for a repository.
+
+The secret value can be provided in three ways:
+  1. Via the --value flag
+  2. Via the --value-from-env flag (reads from environment variable)
+  3. From stdin (if neither flag is provided)
+
+Examples:
+  # From stdin
+  gh aw secret set MY_SECRET --owner myorg --repo myrepo
+
+  # From flag
+  gh aw secret set MY_SECRET --value "secret123" --owner myorg --repo myrepo
+
+  # From environment variable
+  export MY_TOKEN="secret123"
+  gh aw secret set MY_SECRET --value-from-env MY_TOKEN --owner myorg --repo myrepo`,
+		Args: cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			secretName := args[0]
+
+			// Determine target repository: explicit --owner/--repo or current repo by default
+			var owner, repo string
+			if flagOwner != "" || flagRepo != "" {
+				// Both must be provided together when overriding the target repository
+				if flagOwner == "" || flagRepo == "" {
+					return fmt.Errorf("both --owner and --repo must be specified together when overriding the target repository")
+				}
+				owner, repo = flagOwner, flagRepo
+			} else {
+				repoSlug, err := GetCurrentRepoSlug()
+				if err != nil {
+					return fmt.Errorf("failed to detect current repository: %w", err)
+				}
+				var splitErr error
+				owner, repo, splitErr = SplitRepoSlug(repoSlug)
+				if splitErr != nil {
+					return fmt.Errorf("invalid current repository slug %q: %w", repoSlug, splitErr)
+				}
+			}
+
+			// Create GitHub REST client using go-gh
+			opts := api.ClientOptions{}
+			if flagAPIBase != "" {
+				opts.Host = strings.TrimPrefix(strings.TrimPrefix(flagAPIBase, "https://"), "http://")
+			}
+			client, err := api.NewRESTClient(opts)
+			if err != nil {
+				return fmt.Errorf("cannot create GitHub client: %w", err)
+			}
+
+			secretValue, err := resolveSecretValueForSet(flagValueEnv, flagValue)
+			if err != nil {
+				return fmt.Errorf("cannot resolve secret value: %w", err)
+			}
+
+			if err := setRepoSecret(client, owner, repo, secretName, secretValue); err != nil {
+				return fmt.Errorf("failed to set secret: %w", err)
+			}
+
+			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Secret %s updated for %s/%s", secretName, owner, repo)))
+			return nil
+		},
+	}
+
+	cmd.Flags().StringVar(&flagOwner, "owner", "", "GitHub repository owner or organization (defaults to current repository)")
+	cmd.Flags().StringVar(&flagRepo, "repo", "", "GitHub repository name (defaults to current repository)")
+	cmd.Flags().StringVar(&flagValue, "value", "", "Secret value (if empty, read from stdin)")
+	cmd.Flags().StringVar(&flagValueEnv, "value-from-env", "", "Environment variable to read secret value from")
+	cmd.Flags().StringVar(&flagAPIBase, "api-url", "", "GitHub API base URL (default: https://api.github.com or $GITHUB_API_URL)")
+
+	return cmd
+}
+
+func resolveSecretValueForSet(fromEnv, fromFlag string) (string, error) {
+	if fromEnv != "" {
+		v := os.Getenv(fromEnv)
+		if v == "" {
+			return "", fmt.Errorf("environment variable %s is not set or empty", fromEnv)
+		}
+		return v, nil
+	}
+
+	if fromFlag != "" {
+		return fromFlag, nil
+	}
+
+	info, err := os.Stdin.Stat()
+	if err != nil {
+		return "", err
+	}
+
+	if info.Mode()&os.ModeCharDevice != 0 {
+		fmt.Fprintln(os.Stderr, "Enter secret value, then press Ctrl+D:")
+	}
+
+	reader := bufio.NewReader(os.Stdin)
+	var b strings.Builder
+
+	for {
+		line, err := reader.ReadString('\n')
+		b.WriteString(line)
+		if err != nil {
+			if errors.Is(err, io.EOF) {
+				break
+			}
+			return "", err
+		}
+	}
+
+	value := strings.TrimRight(b.String(), "\r\n")
+	if value == "" {
+		return "", errors.New("secret value is empty")
+	}
+	return value, nil
+}
+
+func setRepoSecret(client *api.RESTClient, owner, repo, name, value string) error {
+	pubKey, err := getRepoPublicKey(client, owner, repo)
+	if err != nil {
+		return fmt.Errorf("get repo public key: %w", err)
+	}
+
+	encrypted, err := encryptWithPublicKey(pubKey.Key, value)
+	if err != nil {
+		return fmt.Errorf("encrypt secret: %w", err)
+	}
+
+	return putRepoSecret(client, owner, repo, name, pubKey.ID, encrypted)
+}
+
+func getRepoPublicKey(client *api.RESTClient, owner, repo string) (*repoPublicKey, error) {
+	var key repoPublicKey
+	path := fmt.Sprintf("repos/%s/%s/actions/secrets/public-key", owner, repo)
+	if err := client.Get(path, &key); err != nil {
+		return nil, fmt.Errorf("get public key: %w", err)
+	}
+	if key.ID == "" || key.Key == "" {
+		return nil, errors.New("public key response missing key_id or key")
+	}
+	return &key, nil
+}
+
+func encryptWithPublicKey(publicKeyB64, plaintext string) (string, error) {
+	raw, err := base64.StdEncoding.DecodeString(publicKeyB64)
+	if err != nil {
+		return "", fmt.Errorf("decode public key: %w", err)
+	}
+	if len(raw) != 32 {
+		return "", fmt.Errorf("unexpected public key length: %d", len(raw))
+	}
+
+	var pk [32]byte
+	copy(pk[:], raw)
+
+	ciphertext, err := box.SealAnonymous(nil, []byte(plaintext), &pk, rand.Reader)
+	if err != nil {
+		return "", fmt.Errorf("nacl encryption failed: %w", err)
+	}
+
+	return base64.StdEncoding.EncodeToString(ciphertext), nil
+}
+
+func putRepoSecret(client *api.RESTClient, owner, repo, name, keyID, encryptedValue string) error {
+	path := fmt.Sprintf("repos/%s/%s/actions/secrets/%s", owner, repo, name)
+	payload := secretPayload{
+		EncryptedValue: encryptedValue,
+		KeyID:          keyID,
+	}
+
+	body, err := json.Marshal(payload)
+	if err != nil {
+		return err
+	}
+
+	return client.Put(path, strings.NewReader(string(body)), nil)
+}

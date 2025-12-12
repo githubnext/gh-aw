@@ -81,7 +81,7 @@ curl -sL https://raw.githubusercontent.com/githubnext/gh-aw/main/install-gh-aw.s
 Run:
 
 ```bash
-gh aw init --mcp
+gh aw init --mcp --tokens --engine copilot
 ```
 
 **What this does:**
@@ -90,6 +90,7 @@ gh aw init --mcp
 - ✅ Creates `.github/aw/github-agentic-workflows.md` with comprehensive gh-aw documentation
 - ✅ Creates `.github/agents/*.agent.md` files with specialized AI assistants for workflow creation and debugging
 - ✅ Updates copilot setup steps to install the gh aw extension and setup the Agentic Workflows MCP server
+- ✅ Validates which secrets are configured and shows commands to set up missing ones
 - ✅ Prepares your repository structure for agentic workflows
 
 **Expected output:**
@@ -99,13 +100,26 @@ gh aw init --mcp
 ✓ Created .github/aw/github-agentic-workflows.md
 ✓ Created .github/agents/create-agentic-workflow.agent.md
 ✓ Created .github/agents/debug-agentic-workflow.agent.md
+
+ℹ Checking recommended gh-aw token secrets in <your-repo>...
+ℹ Checking tokens for engine: copilot
+✗ Required gh-aw token secrets are missing:
+
+ℹ Secret: COPILOT_GITHUB_TOKEN
+ℹ When needed: Copilot workflows (CLI, engine, agent tasks, etc.)
+ℹ Recommended scopes: PAT with Copilot Requests permission and repo access
+⚡ gh aw secret set COPILOT_GITHUB_TOKEN --owner <owner> --repo <repo>
+
+✓ Repository initialized for agentic workflows!
 ```
 
-**✨ Checkpoint:** Verify that `.github/aw/` and `.github/agents/` directories were created with the files listed above.
+**✨ Checkpoint:** Verify that `.github/aw/` and `.github/agents/` directories were created with the files listed above. If you see missing secrets listed, continue to Step 3 to configure them.
 
-## Step 3: Configure AI Engine (GitHub Copilot)
+## Step 3: Configure Missing Secrets
 
-Agentic workflows use AI agents to execute your instructions. The default engine is **GitHub Copilot CLI**.
+If the `gh aw init` command showed missing secrets, you'll need to add them to your repository.
+
+### For GitHub Copilot Engine (COPILOT_GITHUB_TOKEN)
 
 ### Prerequisites
 
@@ -141,7 +155,14 @@ Agentic workflows use AI agents to execute your instructions. The default engine
 
 **⚠️ Security Warning:** Never paste your token in this chat or commit it to your repository.
 
-Add the token to your repository using the GitHub.com user interface:
+Use the new `gh aw secret set` command to add the token securely:
+
+```bash
+# You'll be prompted to enter the token value via stdin
+gh aw secret set COPILOT_GITHUB_TOKEN --owner <your-org> --repo <your-repo>
+```
+
+Or add it via the GitHub.com interface:
 
 1. Navigate to your repository on GitHub.com
 2. Click **Settings** (in the repository menu)
@@ -153,7 +174,13 @@ Add the token to your repository using the GitHub.com user interface:
 
 **Expected result:** You should see `COPILOT_GITHUB_TOKEN` listed in your repository secrets.
 
-**✨ Checkpoint:** Verify the secret was added by checking the Actions secrets page in your repository settings.
+**✨ Checkpoint:** Verify the secret was added by running:
+
+```bash
+gh aw tokens bootstrap --engine copilot
+```
+
+This should now show that all required secrets are present.
 
 **📚 Reference:** [GitHub Copilot CLI documentation](https://docs.github.com/en/copilot/concepts/agents/about-copilot-cli)
 
