@@ -112,6 +112,9 @@ var sanitizeWorkflowNameScript string
 //go:embed js/load_agent_output.cjs
 var loadAgentOutputScript string
 
+//go:embed js/lock-issue.cjs
+var lockIssueScript string
+
 //go:embed js/staged_preview.cjs
 var stagedPreviewScript string
 
@@ -278,6 +281,7 @@ func GetJavaScriptSources() map[string]string {
 		"sanitize_label_content.cjs":        sanitizeLabelContentScript,
 		"sanitize_workflow_name.cjs":        sanitizeWorkflowNameScript,
 		"load_agent_output.cjs":             loadAgentOutputScript,
+		"lock-issue.cjs":                    lockIssueScript,
 		"staged_preview.cjs":                stagedPreviewScript,
 		"assign_agent_helpers.cjs":          assignAgentHelpersScript,
 		"safe_output_helpers.cjs":           safeOutputHelpersScript,
