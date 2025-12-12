@@ -109,6 +109,9 @@
 #     max: 3
 #   add-comment:
 #     max: 3
+#   create-pull-request:
+#     allow-empty: true
+#     draft: true
 #   messages:
 #     footer: "> 🍪 *Om nom nom by [{workflow_name}]({run_url})*"
 #     run-started: "🍪 ISSUE! ISSUE! [{workflow_name}]({run_url}) hungry for issues on this {event_type}! Om nom nom..."
@@ -124,20 +127,26 @@
 #   agent["agent"]
 #   assign_to_agent["assign_to_agent"]
 #   conclusion["conclusion"]
+#   create_pull_request["create_pull_request"]
 #   detection["detection"]
 #   pre_activation["pre_activation"]
 #   search_issues["search_issues"]
 #   activation --> agent
 #   activation --> conclusion
+#   activation --> create_pull_request
 #   add_comment --> conclusion
 #   agent --> add_comment
 #   agent --> assign_to_agent
 #   agent --> conclusion
+#   agent --> create_pull_request
 #   agent --> detection
 #   assign_to_agent --> conclusion
+#   create_pull_request --> add_comment
+#   create_pull_request --> conclusion
 #   detection --> add_comment
 #   detection --> assign_to_agent
 #   detection --> conclusion
+#   detection --> create_pull_request
 #   pre_activation --> activation
 #   pre_activation --> search_issues
 #   search_issues --> activation
@@ -186,24 +195,28 @@
 # 2. **If the issue has a parent issue**:
 #    - Fetch the parent issue to understand the full context
 #    - List all sibling sub-issues (other sub-issues of the same parent)
-#    - **Check for existing sibling PRs**: If any sibling sub-issue already has an open PR from Copilot, **skip this issue** and move to the next candidate
+#    - **Check for existing feature PR**: Search for an open pull request with description containing "Pull request for #[parent_issue_number]"
+#    - If found, this is the shared feature PR for all siblings - **remember this PR exists for later steps**
 #    - Process sub-issues in order of their creation date (oldest first)
 #
-# 3. **Only one sub-issue sibling PR at a time**: If a sibling sub-issue already has an open draft PR from Copilot, skip all other siblings until that PR is merged or closed
+# 3. **One shared PR for all sibling sub-issues**: All sub-issues of the same parent share a single feature PR:
+#    - The FIRST sub-issue processed creates an empty PR to host all feature work
+#    - Subsequent sibling sub-issues reuse the same PR
+#    - This allows orderly, sequential processing while building up features in one place
 #
 # **Example**: If parent issue #100 has sub-issues #101, #102, #103:
-# - If #101 has an open PR, skip #102 and #103
-# - Only after #101's PR is merged/closed, process #102
-# - This ensures orderly, sequential processing of related tasks
+# - Process #101: Create empty PR with "Pull request for #100" in description, assign agent
+# - Process #102: Find existing PR for #100, assign agent to #102 (will work in same PR branch)
+# - Process #103: Find existing PR for #100, assign agent to #103 (will work in same PR branch)
+# - All work accumulates in the single feature PR
 #
 # ### 2. Filter Out Issues Already Assigned to Copilot
 #
 # For each issue found, check if it's already assigned to Copilot:
 # - Look for issues that have Copilot as an assignee
 # - Check if there's already an open pull request linked to it
-# - **For "task" or "plan" labeled sub-issues**: Also check if any sibling sub-issue (same parent) has an open PR from Copilot
 #
-# **Skip any issue** that is already assigned to Copilot or has an open PR associated with it.
+# **Skip any issue** that is already assigned to Copilot or has an open PR linked to the specific issue.
 #
 # ### 3. Select Up to Three Issues to Work On
 #
@@ -244,10 +257,41 @@
 # - Identify the files that need to be modified
 # - Verify it doesn't overlap with the other selected issues
 #
-# ### 5. Assign Issues to Copilot Agent
+# ### 5. Create Feature PR and Assign Issues to Copilot Agent
 #
-# For each selected issue, use the `assign_to_agent` tool from the `safeoutputs` MCP server to assign the Copilot agent:
+# For each selected issue, follow this process:
 #
+# #### 5a. For sub-issues (with parent issue)
+#
+# **Check if this is the FIRST sibling sub-issue being processed** (no existing feature PR found in step 1a):
+#
+# If YES (first sub-issue):
+# 1. **Create an empty feature PR** using the `create_pull_request` tool:
+#    ```
+#    safeoutputs/create_pull_request(
+#      title="Feature: [Parent issue title]",
+#      body="Pull request for #[parent_issue_number]\n\nThis PR implements all sub-issues of #[parent_issue_number].\n\nRelated to #[issue_number]",
+#      branch="feature/issue-[parent_issue_number]"
+#    )
+#    ```
+#    The marker text "Pull request for #[parent_issue_number]" is CRITICAL - it allows finding this PR for subsequent sub-issues.
+#
+# 2. **Assign the Copilot agent to the sub-issue**:
+#    ```
+#    safeoutputs/assign_to_agent(issue_number=<issue_number>, agent="copilot")
+#    ```
+#
+# If NO (subsequent sub-issue with existing feature PR):
+# 1. **Skip PR creation** - the feature PR already exists from step 1a
+# 2. **Assign the Copilot agent to the sub-issue**:
+#    ```
+#    safeoutputs/assign_to_agent(issue_number=<issue_number>, agent="copilot")
+#    ```
+# 3. The Copilot agent will automatically find the existing PR for the parent and work in that branch
+#
+# #### 5b. For standalone issues (no parent)
+#
+# **Simply assign the Copilot agent**:
 # ```
 # safeoutputs/assign_to_agent(issue_number=<issue_number>, agent="copilot")
 # ```
@@ -257,8 +301,9 @@
 # The Copilot agent will:
 # 1. Analyze the issue and related context
 # 2. Generate the necessary code changes
-# 3. Create a pull request with the fix
-# 4. Follow the repository's AGENTS.md guidelines
+# 3. For standalone issues: Create a new pull request with the fix
+# 4. For sub-issues: Work in the existing feature PR branch or create a new one
+# 5. Follow the repository's AGENTS.md guidelines
 #
 # ### 6. Add Comment to Each Assigned Issue
 #
@@ -280,21 +325,24 @@
 # - ✅ **Topic separation is critical**: Never assign issues that might have overlapping changes or related work
 # - ✅ **Be transparent**: Comment on each issue being assigned
 # - ✅ **Check assignments**: Skip issues already assigned to Copilot
-# - ✅ **Sibling awareness**: For "task" or "plan" sub-issues, skip if any sibling already has an open Copilot PR
+# - ✅ **Shared feature PRs**: For sub-issues of the same parent, create one feature PR for all siblings to share
 # - ✅ **Process in order**: For sub-issues of the same parent, process oldest first
+# - ✅ **PR marker is critical**: Always include "Pull request for #[parent_issue_number]" in feature PR descriptions
 # - ❌ **Don't force batching**: If only 1-2 clearly separate issues exist, assign only those
 #
 # ## Success Criteria
 #
 # A successful run means:
 # 1. You reviewed the pre-searched issue list of all open issues in the repository
-# 2. For "task" or "plan" issues: You checked for parent issues and sibling sub-issue PRs
+# 2. For "task" or "plan" issues: You checked for parent issues and searched for existing feature PRs
 # 3. You filtered out issues that are already assigned or have PRs
-# 4. You selected up to three appropriate issues that are completely separate in topic (respecting sibling PR constraints for sub-issues)
+# 4. You selected up to three appropriate issues that are completely separate in topic
 # 5. You read and understood each issue
 # 6. You verified that the selected issues don't have overlapping concerns or file changes
-# 7. You assigned each issue to the Copilot agent using `assign_to_agent`
-# 8. You commented on each issue being assigned
+# 7. For FIRST sub-issue of a parent: You created a feature PR with the marker text
+# 8. For subsequent sub-issues: You verified the feature PR exists
+# 9. You assigned each issue to the Copilot agent using `assign_to_agent`
+# 10. You commented on each issue being assigned
 #
 # ## Error Handling
 #
@@ -442,6 +490,7 @@ jobs:
   add_comment:
     needs:
       - agent
+      - create_pull_request
       - detection
     if: >
       ((((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'add_comment'))) &&
@@ -481,6 +530,8 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
+          GH_AW_CREATED_PULL_REQUEST_URL: ${{ needs.create_pull_request.outputs.pull_request_url }}
+          GH_AW_CREATED_PULL_REQUEST_NUMBER: ${{ needs.create_pull_request.outputs.pull_request_number }}
           GH_AW_WORKFLOW_NAME: "Issue Monster"
           GH_AW_ENGINE_ID: "copilot"
           GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🍪 *Om nom nom by [{workflow_name}]({run_url})*\",\"runStarted\":\"🍪 ISSUE! ISSUE! [{workflow_name}]({run_url}) hungry for issues on this {event_type}! Om nom nom...\",\"runSuccess\":\"🍪 YUMMY! [{workflow_name}]({run_url}) ate the issues! That was DELICIOUS! Me want MORE! 😋\",\"runFailure\":\"🍪 Aww... [{workflow_name}]({run_url}) {status}. No cookie for monster today... 😢\"}"
@@ -1326,7 +1377,7 @@ jobs:
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
           cat > /tmp/gh-aw/safeoutputs/config.json << 'EOF'
-          {"add_comment":{"max":3},"assign_to_agent":{"max":3},"missing_tool":{"max":0},"noop":{"max":1}}
+          {"add_comment":{"max":3},"assign_to_agent":{"max":3},"create_pull_request":{"allow_empty":true},"missing_tool":{"max":0},"noop":{"max":1}}
           EOF
           cat > /tmp/gh-aw/safeoutputs/tools.json << 'EOF'
           [
@@ -1351,6 +1402,39 @@ jobs:
                 "type": "object"
               },
               "name": "add_comment"
+            },
+            {
+              "description": "Create a new GitHub pull request to propose code changes. Use this after making file edits to submit them for review and merging. The PR will be created from the current branch with your committed changes. For code review comments on an existing PR, use create_pull_request_review_comment instead. CONSTRAINTS: Maximum 1 pull request(s) can be created. PRs will be created as drafts.",
+              "inputSchema": {
+                "additionalProperties": false,
+                "properties": {
+                  "body": {
+                    "description": "Detailed PR description in Markdown. Include what changes were made, why, testing notes, and any breaking changes. Do NOT repeat the title as a heading.",
+                    "type": "string"
+                  },
+                  "branch": {
+                    "description": "Source branch name containing the changes. If omitted, uses the current working branch.",
+                    "type": "string"
+                  },
+                  "labels": {
+                    "description": "Labels to categorize the PR (e.g., 'enhancement', 'bugfix'). Labels must exist in the repository.",
+                    "items": {
+                      "type": "string"
+                    },
+                    "type": "array"
+                  },
+                  "title": {
+                    "description": "Concise PR title describing the changes. Follow repository conventions (e.g., conventional commits). The title appears as the main heading.",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "title",
+                  "body"
+                ],
+                "type": "object"
+              },
+              "name": "create_pull_request"
             },
             {
               "description": "Assign the GitHub Copilot coding agent to work on an issue. The agent will analyze the issue and attempt to implement a solution, creating a pull request when complete. Use this to delegate coding tasks to Copilot. CONSTRAINTS: Maximum 3 issue(s) can be assigned to agent.",
@@ -1445,9 +1529,43 @@ jobs:
                   "sanitize": true,
                   "maxLength": 128
                 },
+                "branch": {
+                  "type": "string",
+                  "sanitize": true,
+                  "maxLength": 256
+                },
                 "issue_number": {
                   "required": true,
                   "positiveInteger": true
+                }
+              }
+            },
+            "create_pull_request": {
+              "defaultMax": 1,
+              "fields": {
+                "body": {
+                  "required": true,
+                  "type": "string",
+                  "sanitize": true,
+                  "maxLength": 65000
+                },
+                "branch": {
+                  "required": true,
+                  "type": "string",
+                  "sanitize": true,
+                  "maxLength": 256
+                },
+                "labels": {
+                  "type": "array",
+                  "itemType": "string",
+                  "itemSanitize": true,
+                  "itemMaxLength": 128
+                },
+                "title": {
+                  "required": true,
+                  "type": "string",
+                  "sanitize": true,
+                  "maxLength": 128
                 }
               }
             },
@@ -3038,24 +3156,28 @@ jobs:
           2. **If the issue has a parent issue**:
              - Fetch the parent issue to understand the full context
              - List all sibling sub-issues (other sub-issues of the same parent)
-             - **Check for existing sibling PRs**: If any sibling sub-issue already has an open PR from Copilot, **skip this issue** and move to the next candidate
+             - **Check for existing feature PR**: Search for an open pull request with description containing "Pull request for #[parent_issue_number]"
+             - If found, this is the shared feature PR for all siblings - **remember this PR exists for later steps**
              - Process sub-issues in order of their creation date (oldest first)
           
-          3. **Only one sub-issue sibling PR at a time**: If a sibling sub-issue already has an open draft PR from Copilot, skip all other siblings until that PR is merged or closed
+          3. **One shared PR for all sibling sub-issues**: All sub-issues of the same parent share a single feature PR:
+             - The FIRST sub-issue processed creates an empty PR to host all feature work
+             - Subsequent sibling sub-issues reuse the same PR
+             - This allows orderly, sequential processing while building up features in one place
           
           **Example**: If parent issue #100 has sub-issues #101, #102, #103:
-          - If #101 has an open PR, skip #102 and #103
-          - Only after #101's PR is merged/closed, process #102
-          - This ensures orderly, sequential processing of related tasks
+          - Process #101: Create empty PR with "Pull request for #100" in description, assign agent
+          - Process #102: Find existing PR for #100, assign agent to #102 (will work in same PR branch)
+          - Process #103: Find existing PR for #100, assign agent to #103 (will work in same PR branch)
+          - All work accumulates in the single feature PR
           
           ### 2. Filter Out Issues Already Assigned to Copilot
           
           For each issue found, check if it's already assigned to Copilot:
           - Look for issues that have Copilot as an assignee
           - Check if there's already an open pull request linked to it
-          - **For "task" or "plan" labeled sub-issues**: Also check if any sibling sub-issue (same parent) has an open PR from Copilot
           
-          **Skip any issue** that is already assigned to Copilot or has an open PR associated with it.
+          **Skip any issue** that is already assigned to Copilot or has an open PR linked to the specific issue.
           
           ### 3. Select Up to Three Issues to Work On
           
@@ -3096,10 +3218,41 @@ jobs:
           - Identify the files that need to be modified
           - Verify it doesn't overlap with the other selected issues
           
-          ### 5. Assign Issues to Copilot Agent
+          ### 5. Create Feature PR and Assign Issues to Copilot Agent
           
-          For each selected issue, use the `assign_to_agent` tool from the `safeoutputs` MCP server to assign the Copilot agent:
+          For each selected issue, follow this process:
           
+          #### 5a. For sub-issues (with parent issue)
+          
+          **Check if this is the FIRST sibling sub-issue being processed** (no existing feature PR found in step 1a):
+          
+          If YES (first sub-issue):
+          1. **Create an empty feature PR** using the `create_pull_request` tool:
+             ```
+             safeoutputs/create_pull_request(
+               title="Feature: [Parent issue title]",
+               body="Pull request for #[parent_issue_number]\n\nThis PR implements all sub-issues of #[parent_issue_number].\n\nRelated to #[issue_number]",
+               branch="feature/issue-[parent_issue_number]"
+             )
+             ```
+             The marker text "Pull request for #[parent_issue_number]" is CRITICAL - it allows finding this PR for subsequent sub-issues.
+          
+          2. **Assign the Copilot agent to the sub-issue**:
+             ```
+             safeoutputs/assign_to_agent(issue_number=<issue_number>, agent="copilot")
+             ```
+          
+          If NO (subsequent sub-issue with existing feature PR):
+          1. **Skip PR creation** - the feature PR already exists from step 1a
+          2. **Assign the Copilot agent to the sub-issue**:
+             ```
+             safeoutputs/assign_to_agent(issue_number=<issue_number>, agent="copilot")
+             ```
+          3. The Copilot agent will automatically find the existing PR for the parent and work in that branch
+          
+          #### 5b. For standalone issues (no parent)
+          
+          **Simply assign the Copilot agent**:
           ```
           safeoutputs/assign_to_agent(issue_number=<issue_number>, agent="copilot")
           ```
@@ -3109,8 +3262,9 @@ jobs:
           The Copilot agent will:
           1. Analyze the issue and related context
           2. Generate the necessary code changes
-          3. Create a pull request with the fix
-          4. Follow the repository's AGENTS.md guidelines
+          3. For standalone issues: Create a new pull request with the fix
+          4. For sub-issues: Work in the existing feature PR branch or create a new one
+          5. Follow the repository's AGENTS.md guidelines
           
           ### 6. Add Comment to Each Assigned Issue
           
@@ -3132,21 +3286,24 @@ jobs:
           - ✅ **Topic separation is critical**: Never assign issues that might have overlapping changes or related work
           - ✅ **Be transparent**: Comment on each issue being assigned
           - ✅ **Check assignments**: Skip issues already assigned to Copilot
-          - ✅ **Sibling awareness**: For "task" or "plan" sub-issues, skip if any sibling already has an open Copilot PR
+          - ✅ **Shared feature PRs**: For sub-issues of the same parent, create one feature PR for all siblings to share
           - ✅ **Process in order**: For sub-issues of the same parent, process oldest first
+          - ✅ **PR marker is critical**: Always include "Pull request for #[parent_issue_number]" in feature PR descriptions
           - ❌ **Don't force batching**: If only 1-2 clearly separate issues exist, assign only those
           
           ## Success Criteria
           
           A successful run means:
           1. You reviewed the pre-searched issue list of all open issues in the repository
-          2. For "task" or "plan" issues: You checked for parent issues and sibling sub-issue PRs
+          2. For "task" or "plan" issues: You checked for parent issues and searched for existing feature PRs
           3. You filtered out issues that are already assigned or have PRs
-          4. You selected up to three appropriate issues that are completely separate in topic (respecting sibling PR constraints for sub-issues)
+          4. You selected up to three appropriate issues that are completely separate in topic
           5. You read and understood each issue
           6. You verified that the selected issues don't have overlapping concerns or file changes
-          7. You assigned each issue to the Copilot agent using `assign_to_agent`
-          8. You commented on each issue being assigned
+          7. For FIRST sub-issue of a parent: You created a feature PR with the marker text
+          8. For subsequent sub-issues: You verified the feature PR exists
+          9. You assigned each issue to the Copilot agent using `assign_to_agent`
+          10. You commented on each issue being assigned
           
           ## Error Handling
           
@@ -3262,6 +3419,21 @@ jobs:
           </temporary-files>
           
           PROMPT_EOF
+      - name: Append edit tool accessibility instructions to prompt
+        env:
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+        run: |
+          cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
+          <file-editing>
+          <description>File Editing Access Permissions</description>
+          <allowed-paths>
+            <path name="workspace">$GITHUB_WORKSPACE</path>
+            <path name="temporary">/tmp/gh-aw/</path>
+          </allowed-paths>
+          <restriction>Do NOT attempt to edit files outside these directories as you do not have the necessary permissions.</restriction>
+          </file-editing>
+          
+          PROMPT_EOF
       - name: Append safe outputs instructions to prompt
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
@@ -3275,7 +3447,7 @@ jobs:
           <instructions>
           To create or modify GitHub resources (issues, discussions, pull requests, etc.), you MUST call the appropriate safe output tool. Simply writing content will NOT work - the workflow requires actual tool calls.
           
-          **Available tools**: add_comment, assign_to_agent, missing_tool, noop
+          **Available tools**: add_comment, assign_to_agent, create_pull_request, missing_tool, noop
           
           **Critical**: Tool calls write structured data that downstream jobs process. Without tool calls, follow-up actions will be skipped.
           </instructions>
@@ -3598,11 +3770,32 @@ jobs:
         # Copilot CLI tool arguments (sorted):
         # --allow-tool github
         # --allow-tool safeoutputs
+        # --allow-tool shell(cat)
+        # --allow-tool shell(date)
+        # --allow-tool shell(echo)
+        # --allow-tool shell(git add:*)
+        # --allow-tool shell(git branch:*)
+        # --allow-tool shell(git checkout:*)
+        # --allow-tool shell(git commit:*)
+        # --allow-tool shell(git merge:*)
+        # --allow-tool shell(git rm:*)
+        # --allow-tool shell(git status)
+        # --allow-tool shell(git switch:*)
+        # --allow-tool shell(grep)
+        # --allow-tool shell(head)
+        # --allow-tool shell(ls)
+        # --allow-tool shell(pwd)
+        # --allow-tool shell(sort)
+        # --allow-tool shell(tail)
+        # --allow-tool shell(uniq)
+        # --allow-tool shell(wc)
+        # --allow-tool shell(yq)
+        # --allow-tool write
         timeout-minutes: 30
         run: |
           set -o pipefail
           sudo -E awf --env-all --container-workdir "${GITHUB_WORKSPACE}" --mount /tmp:/tmp:rw --mount "${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:rw" --mount /usr/bin/date:/usr/bin/date:ro --mount /usr/bin/gh:/usr/bin/gh:ro --mount /usr/bin/yq:/usr/bin/yq:ro --allow-domains api.business.githubcopilot.com,api.enterprise.githubcopilot.com,api.github.com,api.individual.githubcopilot.com,github.com,host.docker.internal,raw.githubusercontent.com,registry.npmjs.org --log-level info --proxy-logs-dir /tmp/gh-aw/sandbox/firewall/logs \
-            -- npx -y @github/copilot@0.0.369 --add-dir /tmp/gh-aw/ --log-level all --log-dir /tmp/gh-aw/sandbox/agent/logs/ --add-dir "${GITHUB_WORKSPACE}" --disable-builtin-mcps --allow-tool github --allow-tool safeoutputs --prompt "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"${GH_AW_MODEL_AGENT_COPILOT:+ --model "$GH_AW_MODEL_AGENT_COPILOT"} \
+            -- npx -y @github/copilot@0.0.369 --add-dir /tmp/gh-aw/ --log-level all --log-dir /tmp/gh-aw/sandbox/agent/logs/ --add-dir "${GITHUB_WORKSPACE}" --disable-builtin-mcps --allow-tool github --allow-tool safeoutputs --allow-tool 'shell(cat)' --allow-tool 'shell(date)' --allow-tool 'shell(echo)' --allow-tool 'shell(git add:*)' --allow-tool 'shell(git branch:*)' --allow-tool 'shell(git checkout:*)' --allow-tool 'shell(git commit:*)' --allow-tool 'shell(git merge:*)' --allow-tool 'shell(git rm:*)' --allow-tool 'shell(git status)' --allow-tool 'shell(git switch:*)' --allow-tool 'shell(grep)' --allow-tool 'shell(head)' --allow-tool 'shell(ls)' --allow-tool 'shell(pwd)' --allow-tool 'shell(sort)' --allow-tool 'shell(tail)' --allow-tool 'shell(uniq)' --allow-tool 'shell(wc)' --allow-tool 'shell(yq)' --allow-tool write --allow-all-paths --prompt "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"${GH_AW_MODEL_AGENT_COPILOT:+ --model "$GH_AW_MODEL_AGENT_COPILOT"} \
             2>&1 | tee /tmp/gh-aw/agent-stdio.log
         env:
           COPILOT_AGENT_RUNNER_TYPE: STANDALONE
@@ -6783,6 +6976,13 @@ jobs:
             if (typeof module === "undefined" || require.main === module) {
               main();
             }
+      - name: Upload git patch
+        if: always()
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
+        with:
+          name: aw.patch
+          path: /tmp/gh-aw/aw.patch
+          if-no-files-found: ignore
 
   assign_to_agent:
     needs:
@@ -7352,6 +7552,7 @@ jobs:
       - add_comment
       - agent
       - assign_to_agent
+      - create_pull_request
       - detection
     if: ((always()) && (needs.agent.result != 'skipped')) && (!(needs.add_comment.outputs.comment_id))
     runs-on: ubuntu-slim
@@ -7602,7 +7803,8 @@ jobs:
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
           GH_AW_DETECTION_CONCLUSION: ${{ needs.detection.result }}
           GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🍪 *Om nom nom by [{workflow_name}]({run_url})*\",\"runStarted\":\"🍪 ISSUE! ISSUE! [{workflow_name}]({run_url}) hungry for issues on this {event_type}! Om nom nom...\",\"runSuccess\":\"🍪 YUMMY! [{workflow_name}]({run_url}) ate the issues! That was DELICIOUS! Me want MORE! 😋\",\"runFailure\":\"🍪 Aww... [{workflow_name}]({run_url}) {status}. No cookie for monster today... 😢\"}"
-          GH_AW_SAFE_OUTPUT_JOBS: "{\"add_comment\":\"comment_url\"}"
+          GH_AW_SAFE_OUTPUT_JOBS: "{\"add_comment\":\"comment_url\",\"create_pull_request\":\"pull_request_url\"}"
+          GH_AW_OUTPUT_CREATE_PULL_REQUEST_PULL_REQUEST_URL: ${{ needs.create_pull_request.outputs.pull_request_url }}
           GH_AW_OUTPUT_ADD_COMMENT_COMMENT_URL: ${{ needs.add_comment.outputs.comment_url }}
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
@@ -7857,6 +8059,712 @@ jobs:
             main().catch(error => {
               core.setFailed(error instanceof Error ? error.message : String(error));
             });
+
+  create_pull_request:
+    needs:
+      - activation
+      - agent
+      - detection
+    if: >
+      (((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'create_pull_request'))) &&
+      (needs.detection.outputs.success == 'true')
+    runs-on: ubuntu-slim
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+    timeout-minutes: 10
+    outputs:
+      branch_name: ${{ steps.create_pull_request.outputs.branch_name }}
+      fallback_used: ${{ steps.create_pull_request.outputs.fallback_used }}
+      issue_number: ${{ steps.create_pull_request.outputs.issue_number }}
+      issue_url: ${{ steps.create_pull_request.outputs.issue_url }}
+      pull_request_number: ${{ steps.create_pull_request.outputs.pull_request_number }}
+      pull_request_url: ${{ steps.create_pull_request.outputs.pull_request_url }}
+    steps:
+      - name: Download patch artifact
+        continue-on-error: true
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
+        with:
+          name: aw.patch
+          path: /tmp/gh-aw/
+      - name: Checkout repository
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Configure Git credentials
+        env:
+          REPO_NAME: ${{ github.repository }}
+          SERVER_URL: ${{ github.server_url }}
+        run: |
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "github-actions[bot]"
+          # Re-authenticate git with GitHub token
+          SERVER_URL_STRIPPED="${SERVER_URL#https://}"
+          git remote set-url origin "https://x-access-token:${{ github.token }}@${SERVER_URL_STRIPPED}/${REPO_NAME}.git"
+          echo "Git configured with standard GitHub Actions identity"
+      - name: Download agent output artifact
+        continue-on-error: true
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
+        with:
+          name: agent_output.json
+          path: /tmp/gh-aw/safeoutputs/
+      - name: Setup agent output environment variable
+        run: |
+          mkdir -p /tmp/gh-aw/safeoutputs/
+          find "/tmp/gh-aw/safeoutputs/" -type f -print
+          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> "$GITHUB_ENV"
+      - name: Create Pull Request
+        id: create_pull_request
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        env:
+          GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
+          GH_AW_WORKFLOW_ID: "agent"
+          GH_AW_BASE_BRANCH: ${{ github.ref_name }}
+          GH_AW_PR_DRAFT: "true"
+          GH_AW_PR_IF_NO_CHANGES: "warn"
+          GH_AW_PR_ALLOW_EMPTY: "true"
+          GH_AW_MAX_PATCH_SIZE: 1024
+          GH_AW_WORKFLOW_NAME: "Issue Monster"
+          GH_AW_ENGINE_ID: "copilot"
+          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🍪 *Om nom nom by [{workflow_name}]({run_url})*\",\"runStarted\":\"🍪 ISSUE! ISSUE! [{workflow_name}]({run_url}) hungry for issues on this {event_type}! Om nom nom...\",\"runSuccess\":\"🍪 YUMMY! [{workflow_name}]({run_url}) ate the issues! That was DELICIOUS! Me want MORE! 😋\",\"runFailure\":\"🍪 Aww... [{workflow_name}]({run_url}) {status}. No cookie for monster today... 😢\"}"
+        with:
+          github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require("fs");
+            const crypto = require("crypto");
+            async function updateActivationComment(github, context, core, itemUrl, itemNumber, itemType = "pull_request") {
+              const itemLabel = itemType === "issue" ? "issue" : "pull request";
+              const linkMessage =
+                itemType === "issue"
+                  ? `\n\n✅ Issue created: [#${itemNumber}](${itemUrl})`
+                  : `\n\n✅ Pull request created: [#${itemNumber}](${itemUrl})`;
+              await updateActivationCommentWithMessage(github, context, core, linkMessage, itemLabel);
+            }
+            async function updateActivationCommentWithCommit(github, context, core, commitSha, commitUrl) {
+              const shortSha = commitSha.substring(0, 7);
+              const message = `\n\n✅ Commit pushed: [\`${shortSha}\`](${commitUrl})`;
+              await updateActivationCommentWithMessage(github, context, core, message, "commit");
+            }
+            async function updateActivationCommentWithMessage(github, context, core, message, label = "") {
+              const commentId = process.env.GH_AW_COMMENT_ID;
+              const commentRepo = process.env.GH_AW_COMMENT_REPO;
+              if (!commentId) {
+                core.info("No activation comment to update (GH_AW_COMMENT_ID not set)");
+                return;
+              }
+              core.info(`Updating activation comment ${commentId}`);
+              let repoOwner = context.repo.owner;
+              let repoName = context.repo.repo;
+              if (commentRepo) {
+                const parts = commentRepo.split("/");
+                if (parts.length === 2) {
+                  repoOwner = parts[0];
+                  repoName = parts[1];
+                } else {
+                  core.warning(`Invalid comment repo format: ${commentRepo}, expected "owner/repo". Falling back to context.repo.`);
+                }
+              }
+              core.info(`Updating comment in ${repoOwner}/${repoName}`);
+              const isDiscussionComment = commentId.startsWith("DC_");
+              try {
+                if (isDiscussionComment) {
+                  const currentComment = await github.graphql(
+                    `
+                    query($commentId: ID!) {
+                      node(id: $commentId) {
+                        ... on DiscussionComment {
+                          body
+                        }
+                      }
+                    }`,
+                    { commentId: commentId }
+                  );
+                  if (!currentComment?.node?.body) {
+                    core.warning("Unable to fetch current comment body, comment may have been deleted or is inaccessible");
+                    return;
+                  }
+                  const currentBody = currentComment.node.body;
+                  const updatedBody = currentBody + message;
+                  const result = await github.graphql(
+                    `
+                    mutation($commentId: ID!, $body: String!) {
+                      updateDiscussionComment(input: { commentId: $commentId, body: $body }) {
+                        comment {
+                          id
+                          url
+                        }
+                      }
+                    }`,
+                    { commentId: commentId, body: updatedBody }
+                  );
+                  const comment = result.updateDiscussionComment.comment;
+                  const successMessage = label
+                    ? `Successfully updated discussion comment with ${label} link`
+                    : "Successfully updated discussion comment";
+                  core.info(successMessage);
+                  core.info(`Comment ID: ${comment.id}`);
+                  core.info(`Comment URL: ${comment.url}`);
+                } else {
+                  const currentComment = await github.request("GET /repos/{owner}/{repo}/issues/comments/{comment_id}", {
+                    owner: repoOwner,
+                    repo: repoName,
+                    comment_id: parseInt(commentId, 10),
+                    headers: {
+                      Accept: "application/vnd.github+json",
+                    },
+                  });
+                  if (!currentComment?.data?.body) {
+                    core.warning("Unable to fetch current comment body, comment may have been deleted");
+                    return;
+                  }
+                  const currentBody = currentComment.data.body;
+                  const updatedBody = currentBody + message;
+                  const response = await github.request("PATCH /repos/{owner}/{repo}/issues/comments/{comment_id}", {
+                    owner: repoOwner,
+                    repo: repoName,
+                    comment_id: parseInt(commentId, 10),
+                    body: updatedBody,
+                    headers: {
+                      Accept: "application/vnd.github+json",
+                    },
+                  });
+                  const successMessage = label ? `Successfully updated comment with ${label} link` : "Successfully updated comment";
+                  core.info(successMessage);
+                  core.info(`Comment ID: ${response.data.id}`);
+                  core.info(`Comment URL: ${response.data.html_url}`);
+                }
+              } catch (error) {
+                core.warning(`Failed to update activation comment: ${error instanceof Error ? error.message : String(error)}`);
+              }
+            }
+            function getTrackerID(format) {
+              const trackerID = process.env.GH_AW_TRACKER_ID || "";
+              if (trackerID) {
+                core.info(`Tracker ID: ${trackerID}`);
+                return format === "markdown" ? `\n\n<!-- tracker-id: ${trackerID} -->` : trackerID;
+              }
+              return "";
+            }
+            function addExpirationComment(bodyLines, envVarName, entityType) {
+              const expiresEnv = process.env[envVarName];
+              if (expiresEnv) {
+                const expiresDays = parseInt(expiresEnv, 10);
+                if (!isNaN(expiresDays) && expiresDays > 0) {
+                  const expirationDate = new Date();
+                  expirationDate.setDate(expirationDate.getDate() + expiresDays);
+                  const expirationISO = expirationDate.toISOString();
+                  bodyLines.push(`<!-- gh-aw-expires: ${expirationISO} -->`);
+                  core.info(`${entityType} will expire on ${expirationISO} (${expiresDays} days)`);
+                }
+              }
+            }
+            function removeDuplicateTitleFromDescription(title, description) {
+              if (!title || typeof title !== "string") {
+                return description || "";
+              }
+              if (!description || typeof description !== "string") {
+                return "";
+              }
+              const trimmedTitle = title.trim();
+              const trimmedDescription = description.trim();
+              if (!trimmedTitle || !trimmedDescription) {
+                return trimmedDescription;
+              }
+              const escapedTitle = trimmedTitle.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+              const headerRegex = new RegExp(`^#{1,6}\\s+${escapedTitle}\\s*(?:\\r?\\n)*`, "i");
+              if (headerRegex.test(trimmedDescription)) {
+                return trimmedDescription.replace(headerRegex, "").trim();
+              }
+              return trimmedDescription;
+            }
+            function generatePatchPreview(patchContent) {
+              if (!patchContent || !patchContent.trim()) {
+                return "";
+              }
+              const lines = patchContent.split("\n");
+              const maxLines = 500;
+              const maxChars = 2000;
+              let preview = lines.length <= maxLines ? patchContent : lines.slice(0, maxLines).join("\n");
+              const lineTruncated = lines.length > maxLines;
+              const charTruncated = preview.length > maxChars;
+              if (charTruncated) {
+                preview = preview.slice(0, maxChars);
+              }
+              const truncated = lineTruncated || charTruncated;
+              const summary = truncated
+                ? `Show patch preview (${Math.min(maxLines, lines.length)} of ${lines.length} lines)`
+                : `Show patch (${lines.length} lines)`;
+              return `\n\n<details><summary>${summary}</summary>\n\n\`\`\`diff\n${preview}${truncated ? "\n... (truncated)" : ""}\n\`\`\`\n\n</details>`;
+            }
+            async function main() {
+              core.setOutput("pull_request_number", "");
+              core.setOutput("pull_request_url", "");
+              core.setOutput("issue_number", "");
+              core.setOutput("issue_url", "");
+              core.setOutput("branch_name", "");
+              core.setOutput("fallback_used", "");
+              const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
+              const workflowId = process.env.GH_AW_WORKFLOW_ID;
+              if (!workflowId) {
+                throw new Error("GH_AW_WORKFLOW_ID environment variable is required");
+              }
+              const baseBranch = process.env.GH_AW_BASE_BRANCH;
+              if (!baseBranch) {
+                throw new Error("GH_AW_BASE_BRANCH environment variable is required");
+              }
+              const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT || "";
+              let outputContent = "";
+              if (agentOutputFile.trim() !== "") {
+                try {
+                  outputContent = fs.readFileSync(agentOutputFile, "utf8");
+                } catch (error) {
+                  core.setFailed(`Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`);
+                  return;
+                }
+              }
+              if (outputContent.trim() === "") {
+                core.info("Agent output content is empty");
+              }
+              const ifNoChanges = process.env.GH_AW_PR_IF_NO_CHANGES || "warn";
+              const allowEmpty = (process.env.GH_AW_PR_ALLOW_EMPTY || "false").toLowerCase() === "true";
+              if (!fs.existsSync("/tmp/gh-aw/aw.patch")) {
+                if (allowEmpty) {
+                  core.info("No patch file found, but allow-empty is enabled - will create empty PR");
+                } else {
+                  const message = "No patch file found - cannot create pull request without changes";
+                  if (isStaged) {
+                    let summaryContent = "## 🎭 Staged Mode: Create Pull Request Preview\n\n";
+                    summaryContent += "The following pull request would be created if staged mode was disabled:\n\n";
+                    summaryContent += `**Status:** ⚠️ No patch file found\n\n`;
+                    summaryContent += `**Message:** ${message}\n\n`;
+                    await core.summary.addRaw(summaryContent).write();
+                    core.info("📝 Pull request creation preview written to step summary (no patch file)");
+                    return;
+                  }
+                  switch (ifNoChanges) {
+                    case "error":
+                      throw new Error(message);
+                    case "ignore":
+                      return;
+                    case "warn":
+                    default:
+                      core.warning(message);
+                      return;
+                  }
+                }
+              }
+              let patchContent = "";
+              let isEmpty = true;
+              if (fs.existsSync("/tmp/gh-aw/aw.patch")) {
+                patchContent = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
+                isEmpty = !patchContent || !patchContent.trim();
+              }
+              if (patchContent.includes("Failed to generate patch")) {
+                if (allowEmpty) {
+                  core.info("Patch file contains error, but allow-empty is enabled - will create empty PR");
+                  patchContent = "";
+                  isEmpty = true;
+                } else {
+                  const message = "Patch file contains error message - cannot create pull request without changes";
+                  if (isStaged) {
+                    let summaryContent = "## 🎭 Staged Mode: Create Pull Request Preview\n\n";
+                    summaryContent += "The following pull request would be created if staged mode was disabled:\n\n";
+                    summaryContent += `**Status:** ⚠️ Patch file contains error\n\n`;
+                    summaryContent += `**Message:** ${message}\n\n`;
+                    await core.summary.addRaw(summaryContent).write();
+                    core.info("📝 Pull request creation preview written to step summary (patch error)");
+                    return;
+                  }
+                  switch (ifNoChanges) {
+                    case "error":
+                      throw new Error(message);
+                    case "ignore":
+                      return;
+                    case "warn":
+                    default:
+                      core.warning(message);
+                      return;
+                  }
+                }
+              }
+              if (!isEmpty) {
+                const maxSizeKb = parseInt(process.env.GH_AW_MAX_PATCH_SIZE || "1024", 10);
+                const patchSizeBytes = Buffer.byteLength(patchContent, "utf8");
+                const patchSizeKb = Math.ceil(patchSizeBytes / 1024);
+                core.info(`Patch size: ${patchSizeKb} KB (maximum allowed: ${maxSizeKb} KB)`);
+                if (patchSizeKb > maxSizeKb) {
+                  const message = `Patch size (${patchSizeKb} KB) exceeds maximum allowed size (${maxSizeKb} KB)`;
+                  if (isStaged) {
+                    let summaryContent = "## 🎭 Staged Mode: Create Pull Request Preview\n\n";
+                    summaryContent += "The following pull request would be created if staged mode was disabled:\n\n";
+                    summaryContent += `**Status:** ❌ Patch size exceeded\n\n`;
+                    summaryContent += `**Message:** ${message}\n\n`;
+                    await core.summary.addRaw(summaryContent).write();
+                    core.info("📝 Pull request creation preview written to step summary (patch size error)");
+                    return;
+                  }
+                  throw new Error(message);
+                }
+                core.info("Patch size validation passed");
+              }
+              if (isEmpty && !isStaged && !allowEmpty) {
+                const message = "Patch file is empty - no changes to apply (noop operation)";
+                switch (ifNoChanges) {
+                  case "error":
+                    throw new Error("No changes to push - failing as configured by if-no-changes: error");
+                  case "ignore":
+                    return;
+                  case "warn":
+                  default:
+                    core.warning(message);
+                    return;
+                }
+              }
+              core.info(`Agent output content length: ${outputContent.length}`);
+              if (!isEmpty) {
+                core.info("Patch content validation passed");
+              } else if (allowEmpty) {
+                core.info("Patch file is empty - processing empty PR creation (allow-empty is enabled)");
+              } else {
+                core.info("Patch file is empty - processing noop operation");
+              }
+              let validatedOutput;
+              try {
+                validatedOutput = JSON.parse(outputContent);
+              } catch (error) {
+                core.setFailed(`Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`);
+                return;
+              }
+              if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
+                core.warning("No valid items found in agent output");
+                return;
+              }
+              const pullRequestItem = validatedOutput.items.find( item => item.type === "create_pull_request");
+              if (!pullRequestItem) {
+                core.warning("No create-pull-request item found in agent output");
+                return;
+              }
+              core.info(`Found create-pull-request item: title="${pullRequestItem.title}", bodyLength=${pullRequestItem.body.length}`);
+              if (isStaged) {
+                let summaryContent = "## 🎭 Staged Mode: Create Pull Request Preview\n\n";
+                summaryContent += "The following pull request would be created if staged mode was disabled:\n\n";
+                summaryContent += `**Title:** ${pullRequestItem.title || "No title provided"}\n\n`;
+                summaryContent += `**Branch:** ${pullRequestItem.branch || "auto-generated"}\n\n`;
+                summaryContent += `**Base:** ${baseBranch}\n\n`;
+                if (pullRequestItem.body) {
+                  summaryContent += `**Body:**\n${pullRequestItem.body}\n\n`;
+                }
+                if (fs.existsSync("/tmp/gh-aw/aw.patch")) {
+                  const patchStats = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
+                  if (patchStats.trim()) {
+                    summaryContent += `**Changes:** Patch file exists with ${patchStats.split("\n").length} lines\n\n`;
+                    summaryContent += `<details><summary>Show patch preview</summary>\n\n\`\`\`diff\n${patchStats.slice(0, 2000)}${patchStats.length > 2000 ? "\n... (truncated)" : ""}\n\`\`\`\n\n</details>\n\n`;
+                  } else {
+                    summaryContent += `**Changes:** No changes (empty patch)\n\n`;
+                  }
+                }
+                await core.summary.addRaw(summaryContent).write();
+                core.info("📝 Pull request creation preview written to step summary");
+                return;
+              }
+              let title = pullRequestItem.title.trim();
+              let processedBody = pullRequestItem.body;
+              processedBody = removeDuplicateTitleFromDescription(title, processedBody);
+              let bodyLines = processedBody.split("\n");
+              let branchName = pullRequestItem.branch ? pullRequestItem.branch.trim() : null;
+              if (!title) {
+                title = "Agent Output";
+              }
+              const titlePrefix = process.env.GH_AW_PR_TITLE_PREFIX;
+              if (titlePrefix && !title.startsWith(titlePrefix)) {
+                title = titlePrefix + title;
+              }
+              const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
+              const runId = context.runId;
+              const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
+              const runUrl = context.payload.repository
+                ? `${context.payload.repository.html_url}/actions/runs/${runId}`
+                : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
+              const trackerIDComment = getTrackerID("markdown");
+              if (trackerIDComment) {
+                bodyLines.push(trackerIDComment);
+              }
+              addExpirationComment(bodyLines, "GH_AW_PR_EXPIRES", "Pull Request");
+              bodyLines.push(``, ``, `> AI generated by [${workflowName}](${runUrl})`, "");
+              const body = bodyLines.join("\n").trim();
+              const labelsEnv = process.env.GH_AW_PR_LABELS;
+              const labels = labelsEnv
+                ? labelsEnv
+                    .split(",")
+                    .map( label => label.trim())
+                    .filter( label => label)
+                : [];
+              const draftEnv = process.env.GH_AW_PR_DRAFT;
+              const draft = draftEnv ? draftEnv.toLowerCase() === "true" : true;
+              core.info(`Creating pull request with title: ${title}`);
+              core.info(`Labels: ${JSON.stringify(labels)}`);
+              core.info(`Draft: ${draft}`);
+              core.info(`Body length: ${body.length}`);
+              const randomHex = crypto.randomBytes(8).toString("hex");
+              if (!branchName) {
+                core.info("No branch name provided in JSONL, generating unique branch name");
+                branchName = `${workflowId}-${randomHex}`;
+              } else {
+                branchName = `${branchName}-${randomHex}`;
+                core.info(`Using branch name from JSONL with added salt: ${branchName}`);
+              }
+              core.info(`Generated branch name: ${branchName}`);
+              core.info(`Base branch: ${baseBranch}`);
+              core.info(`Fetching latest changes and checking out base branch: ${baseBranch}`);
+              await exec.exec("git fetch origin");
+              await exec.exec(`git checkout ${baseBranch}`);
+              core.info(`Branch should not exist locally, creating new branch from base: ${branchName}`);
+              await exec.exec(`git checkout -b ${branchName}`);
+              core.info(`Created new branch from base: ${branchName}`);
+              if (!isEmpty) {
+                core.info("Applying patch...");
+                const patchLines = patchContent.split("\n");
+                const previewLineCount = Math.min(500, patchLines.length);
+                core.info(`Patch preview (first ${previewLineCount} of ${patchLines.length} lines):`);
+                for (let i = 0; i < previewLineCount; i++) {
+                  core.info(patchLines[i]);
+                }
+                try {
+                  await exec.exec("git am /tmp/gh-aw/aw.patch");
+                  core.info("Patch applied successfully");
+                } catch (patchError) {
+                  core.error(`Failed to apply patch: ${patchError instanceof Error ? patchError.message : String(patchError)}`);
+                  try {
+                    core.info("Investigating patch failure...");
+                    const statusResult = await exec.getExecOutput("git", ["status"]);
+                    core.info("Git status output:");
+                    core.info(statusResult.stdout);
+                    const patchResult = await exec.getExecOutput("git", ["am", "--show-current-patch=diff"]);
+                    core.info("Failed patch content:");
+                    core.info(patchResult.stdout);
+                  } catch (investigateError) {
+                    core.warning(
+                      `Failed to investigate patch failure: ${investigateError instanceof Error ? investigateError.message : String(investigateError)}`
+                    );
+                  }
+                  core.setFailed("Failed to apply patch");
+                  return;
+                }
+                try {
+                  let remoteBranchExists = false;
+                  try {
+                    const { stdout } = await exec.getExecOutput(`git ls-remote --heads origin ${branchName}`);
+                    if (stdout.trim()) {
+                      remoteBranchExists = true;
+                    }
+                  } catch (checkError) {
+                    core.info(`Remote branch check failed (non-fatal): ${checkError instanceof Error ? checkError.message : String(checkError)}`);
+                  }
+                  if (remoteBranchExists) {
+                    core.warning(`Remote branch ${branchName} already exists - appending random suffix`);
+                    const extraHex = crypto.randomBytes(4).toString("hex");
+                    const oldBranch = branchName;
+                    branchName = `${branchName}-${extraHex}`;
+                    await exec.exec(`git branch -m ${oldBranch} ${branchName}`);
+                    core.info(`Renamed branch to ${branchName}`);
+                  }
+                  await exec.exec(`git push origin ${branchName}`);
+                  core.info("Changes pushed to branch");
+                } catch (pushError) {
+                  core.error(`Git push failed: ${pushError instanceof Error ? pushError.message : String(pushError)}`);
+                  core.warning("Git push operation failed - creating fallback issue instead of pull request");
+                  const runId = context.runId;
+                  const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
+                  const runUrl = context.payload.repository
+                    ? `${context.payload.repository.html_url}/actions/runs/${runId}`
+                    : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
+                  let patchPreview = "";
+                  if (fs.existsSync("/tmp/gh-aw/aw.patch")) {
+                    const patchContent = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
+                    patchPreview = generatePatchPreview(patchContent);
+                  }
+                  const fallbackBody = `${body}
+            ---
+            > [!NOTE]
+            > This was originally intended as a pull request, but the git push operation failed.
+            >
+            > **Workflow Run:** [View run details and download patch artifact](${runUrl})
+            >
+            > The patch file is available as an artifact (\`aw.patch\`) in the workflow run linked above.
+            To apply the patch locally:
+            \`\`\`sh
+            # Download the artifact from the workflow run ${runUrl}
+            # (Use GitHub MCP tools if gh CLI is not available)
+            gh run download ${runId} -n aw.patch
+            # Apply the patch
+            git am aw.patch
+            \`\`\`
+            ${patchPreview}`;
+                  try {
+                    const { data: issue } = await github.rest.issues.create({
+                      owner: context.repo.owner,
+                      repo: context.repo.repo,
+                      title: title,
+                      body: fallbackBody,
+                      labels: labels,
+                    });
+                    core.info(`Created fallback issue #${issue.number}: ${issue.html_url}`);
+                    await updateActivationComment(github, context, core, issue.html_url, issue.number, "issue");
+                    core.setOutput("issue_number", issue.number);
+                    core.setOutput("issue_url", issue.html_url);
+                    core.setOutput("branch_name", branchName);
+                    core.setOutput("fallback_used", "true");
+                    core.setOutput("push_failed", "true");
+                    await core.summary
+                      .addRaw(
+                        `
+            ## Push Failure Fallback
+            - **Push Error:** ${pushError instanceof Error ? pushError.message : String(pushError)}
+            - **Fallback Issue:** [#${issue.number}](${issue.html_url})
+            - **Patch Artifact:** Available in workflow run artifacts
+            - **Note:** Push failed, created issue as fallback
+            `
+                      )
+                      .write();
+                    return;
+                  } catch (issueError) {
+                    core.setFailed(
+                      `Failed to push and failed to create fallback issue. Push error: ${pushError instanceof Error ? pushError.message : String(pushError)}. Issue error: ${issueError instanceof Error ? issueError.message : String(issueError)}`
+                    );
+                    return;
+                  }
+                }
+              } else {
+                core.info("Skipping patch application (empty patch)");
+                if (allowEmpty) {
+                  core.info("allow-empty is enabled - will create branch and push with empty commit");
+                  try {
+                    await exec.exec(`git commit --allow-empty -m "Initialize"`);
+                    core.info("Created empty commit");
+                    let remoteBranchExists = false;
+                    try {
+                      const { stdout } = await exec.getExecOutput(`git ls-remote --heads origin ${branchName}`);
+                      if (stdout.trim()) {
+                        remoteBranchExists = true;
+                      }
+                    } catch (checkError) {
+                      core.info(`Remote branch check failed (non-fatal): ${checkError instanceof Error ? checkError.message : String(checkError)}`);
+                    }
+                    if (remoteBranchExists) {
+                      core.warning(`Remote branch ${branchName} already exists - appending random suffix`);
+                      const extraHex = crypto.randomBytes(4).toString("hex");
+                      const oldBranch = branchName;
+                      branchName = `${branchName}-${extraHex}`;
+                      await exec.exec(`git branch -m ${oldBranch} ${branchName}`);
+                      core.info(`Renamed branch to ${branchName}`);
+                    }
+                    await exec.exec(`git push origin ${branchName}`);
+                    core.info("Empty branch pushed successfully");
+                  } catch (pushError) {
+                    core.setFailed(`Failed to push empty branch: ${pushError instanceof Error ? pushError.message : String(pushError)}`);
+                    return;
+                  }
+                } else {
+                  const message = "No changes to apply - noop operation completed successfully";
+                  switch (ifNoChanges) {
+                    case "error":
+                      throw new Error("No changes to apply - failing as configured by if-no-changes: error");
+                    case "ignore":
+                      return;
+                    case "warn":
+                    default:
+                      core.warning(message);
+                      return;
+                  }
+                }
+              }
+              try {
+                const { data: pullRequest } = await github.rest.pulls.create({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  title: title,
+                  body: body,
+                  head: branchName,
+                  base: baseBranch,
+                  draft: draft,
+                });
+                core.info(`Created pull request #${pullRequest.number}: ${pullRequest.html_url}`);
+                if (labels.length > 0) {
+                  await github.rest.issues.addLabels({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    issue_number: pullRequest.number,
+                    labels: labels,
+                  });
+                  core.info(`Added labels to pull request: ${JSON.stringify(labels)}`);
+                }
+                core.setOutput("pull_request_number", pullRequest.number);
+                core.setOutput("pull_request_url", pullRequest.html_url);
+                core.setOutput("branch_name", branchName);
+                await updateActivationComment(github, context, core, pullRequest.html_url, pullRequest.number);
+                await core.summary
+                  .addRaw(
+                    `
+            ## Pull Request
+            - **Pull Request**: [#${pullRequest.number}](${pullRequest.html_url})
+            - **Branch**: \`${branchName}\`
+            - **Base Branch**: \`${baseBranch}\`
+            `
+                  )
+                  .write();
+              } catch (prError) {
+                core.warning(`Failed to create pull request: ${prError instanceof Error ? prError.message : String(prError)}`);
+                core.info("Falling back to creating an issue instead");
+                const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
+                const branchUrl = context.payload.repository
+                  ? `${context.payload.repository.html_url}/tree/${branchName}`
+                  : `${githubServer}/${context.repo.owner}/${context.repo.repo}/tree/${branchName}`;
+                let patchPreview = "";
+                if (fs.existsSync("/tmp/gh-aw/aw.patch")) {
+                  const patchContent = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
+                  patchPreview = generatePatchPreview(patchContent);
+                }
+                const fallbackBody = `${body}
+            ---
+            **Note:** This was originally intended as a pull request, but PR creation failed. The changes have been pushed to the branch [\`${branchName}\`](${branchUrl}).
+            **Original error:** ${prError instanceof Error ? prError.message : String(prError)}
+            You can manually create a pull request from the branch if needed.${patchPreview}`;
+                try {
+                  const { data: issue } = await github.rest.issues.create({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    title: title,
+                    body: fallbackBody,
+                    labels: labels,
+                  });
+                  core.info(`Created fallback issue #${issue.number}: ${issue.html_url}`);
+                  await updateActivationComment(github, context, core, issue.html_url, issue.number, "issue");
+                  core.setOutput("issue_number", issue.number);
+                  core.setOutput("issue_url", issue.html_url);
+                  core.setOutput("branch_name", branchName);
+                  core.setOutput("fallback_used", "true");
+                  await core.summary
+                    .addRaw(
+                      `
+            ## Fallback Issue Created
+            - **Issue**: [#${issue.number}](${issue.html_url})
+            - **Branch**: [\`${branchName}\`](${branchUrl})
+            - **Base Branch**: \`${baseBranch}\`
+            - **Note**: Pull request creation failed, created issue as fallback
+            `
+                    )
+                    .write();
+                } catch (issueError) {
+                  core.setFailed(
+                    `Failed to create both pull request and fallback issue. PR error: ${prError instanceof Error ? prError.message : String(prError)}. Issue error: ${issueError instanceof Error ? issueError.message : String(issueError)}`
+                  );
+                  return;
+                }
+              }
+            }
+            await main();
 
   detection:
     needs: agent

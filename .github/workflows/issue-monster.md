@@ -86,6 +86,9 @@ safe-outputs:
     max: 3
   add-comment:
     max: 3
+  create-pull-request:
+    allow-empty: true
+    draft: true
   messages:
     footer: "> 🍪 *Om nom nom by [{workflow_name}]({run_url})*"
     run-started: "🍪 ISSUE! ISSUE! [{workflow_name}]({run_url}) hungry for issues on this {event_type}! Om nom nom..."
@@ -133,24 +136,28 @@ For issues with the "task" or "plan" label, check if they are sub-issues linked 
 2. **If the issue has a parent issue**:
    - Fetch the parent issue to understand the full context
    - List all sibling sub-issues (other sub-issues of the same parent)
-   - **Check for existing sibling PRs**: If any sibling sub-issue already has an open PR from Copilot, **skip this issue** and move to the next candidate
+   - **Check for existing feature PR**: Search for an open pull request with description containing "Pull request for #[parent_issue_number]"
+   - If found, this is the shared feature PR for all siblings - **remember this PR exists for later steps**
    - Process sub-issues in order of their creation date (oldest first)
 
-3. **Only one sub-issue sibling PR at a time**: If a sibling sub-issue already has an open draft PR from Copilot, skip all other siblings until that PR is merged or closed
+3. **One shared PR for all sibling sub-issues**: All sub-issues of the same parent share a single feature PR:
+   - The FIRST sub-issue processed creates an empty PR to host all feature work
+   - Subsequent sibling sub-issues reuse the same PR
+   - This allows orderly, sequential processing while building up features in one place
 
 **Example**: If parent issue #100 has sub-issues #101, #102, #103:
-- If #101 has an open PR, skip #102 and #103
-- Only after #101's PR is merged/closed, process #102
-- This ensures orderly, sequential processing of related tasks
+- Process #101: Create empty PR with "Pull request for #100" in description, assign agent
+- Process #102: Find existing PR for #100, assign agent to #102 (will work in same PR branch)
+- Process #103: Find existing PR for #100, assign agent to #103 (will work in same PR branch)
+- All work accumulates in the single feature PR
 
 ### 2. Filter Out Issues Already Assigned to Copilot
 
 For each issue found, check if it's already assigned to Copilot:
 - Look for issues that have Copilot as an assignee
 - Check if there's already an open pull request linked to it
-- **For "task" or "plan" labeled sub-issues**: Also check if any sibling sub-issue (same parent) has an open PR from Copilot
 
-**Skip any issue** that is already assigned to Copilot or has an open PR associated with it.
+**Skip any issue** that is already assigned to Copilot or has an open PR linked to the specific issue.
 
 ### 3. Select Up to Three Issues to Work On
 
@@ -191,10 +198,41 @@ For each selected issue:
 - Identify the files that need to be modified
 - Verify it doesn't overlap with the other selected issues
 
-### 5. Assign Issues to Copilot Agent
+### 5. Create Feature PR and Assign Issues to Copilot Agent
 
-For each selected issue, use the `assign_to_agent` tool from the `safeoutputs` MCP server to assign the Copilot agent:
+For each selected issue, follow this process:
 
+#### 5a. For sub-issues (with parent issue)
+
+**Check if this is the FIRST sibling sub-issue being processed** (no existing feature PR found in step 1a):
+
+If YES (first sub-issue):
+1. **Create an empty feature PR** using the `create_pull_request` tool:
+   ```
+   safeoutputs/create_pull_request(
+     title="Feature: [Parent issue title]",
+     body="Pull request for #[parent_issue_number]\n\nThis PR implements all sub-issues of #[parent_issue_number].\n\nRelated to #[issue_number]",
+     branch="feature/issue-[parent_issue_number]"
+   )
+   ```
+   The marker text "Pull request for #[parent_issue_number]" is CRITICAL - it allows finding this PR for subsequent sub-issues.
+
+2. **Assign the Copilot agent to the sub-issue**:
+   ```
+   safeoutputs/assign_to_agent(issue_number=<issue_number>, agent="copilot")
+   ```
+
+If NO (subsequent sub-issue with existing feature PR):
+1. **Skip PR creation** - the feature PR already exists from step 1a
+2. **Assign the Copilot agent to the sub-issue**:
+   ```
+   safeoutputs/assign_to_agent(issue_number=<issue_number>, agent="copilot")
+   ```
+3. The Copilot agent will automatically find the existing PR for the parent and work in that branch
+
+#### 5b. For standalone issues (no parent)
+
+**Simply assign the Copilot agent**:
 ```
 safeoutputs/assign_to_agent(issue_number=<issue_number>, agent="copilot")
 ```
@@ -204,8 +242,9 @@ Do not use GitHub tools for this assignment. The `assign_to_agent` tool will han
 The Copilot agent will:
 1. Analyze the issue and related context
 2. Generate the necessary code changes
-3. Create a pull request with the fix
-4. Follow the repository's AGENTS.md guidelines
+3. For standalone issues: Create a new pull request with the fix
+4. For sub-issues: Work in the existing feature PR branch or create a new one
+5. Follow the repository's AGENTS.md guidelines
 
 ### 6. Add Comment to Each Assigned Issue
 
@@ -227,21 +266,24 @@ Om nom nom! 🍪
 - ✅ **Topic separation is critical**: Never assign issues that might have overlapping changes or related work
 - ✅ **Be transparent**: Comment on each issue being assigned
 - ✅ **Check assignments**: Skip issues already assigned to Copilot
-- ✅ **Sibling awareness**: For "task" or "plan" sub-issues, skip if any sibling already has an open Copilot PR
+- ✅ **Shared feature PRs**: For sub-issues of the same parent, create one feature PR for all siblings to share
 - ✅ **Process in order**: For sub-issues of the same parent, process oldest first
+- ✅ **PR marker is critical**: Always include "Pull request for #[parent_issue_number]" in feature PR descriptions
 - ❌ **Don't force batching**: If only 1-2 clearly separate issues exist, assign only those
 
 ## Success Criteria
 
 A successful run means:
 1. You reviewed the pre-searched issue list of all open issues in the repository
-2. For "task" or "plan" issues: You checked for parent issues and sibling sub-issue PRs
+2. For "task" or "plan" issues: You checked for parent issues and searched for existing feature PRs
 3. You filtered out issues that are already assigned or have PRs
-4. You selected up to three appropriate issues that are completely separate in topic (respecting sibling PR constraints for sub-issues)
+4. You selected up to three appropriate issues that are completely separate in topic
 5. You read and understood each issue
 6. You verified that the selected issues don't have overlapping concerns or file changes
-7. You assigned each issue to the Copilot agent using `assign_to_agent`
-8. You commented on each issue being assigned
+7. For FIRST sub-issue of a parent: You created a feature PR with the marker text
+8. For subsequent sub-issues: You verified the feature PR exists
+9. You assigned each issue to the Copilot agent using `assign_to_agent`
+10. You commented on each issue being assigned
 
 ## Error Handling
 

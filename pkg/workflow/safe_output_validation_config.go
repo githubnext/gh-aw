@@ -98,6 +98,7 @@ var ValidationConfig = map[string]TypeValidationConfig{
 		Fields: map[string]FieldValidation{
 			"issue_number": {Required: true, PositiveInteger: true},
 			"agent":        {Type: "string", Sanitize: true, MaxLength: 128},
+			"branch":       {Type: "string", Sanitize: true, MaxLength: 256}, // Optional: branch name to use for agent work
 		},
 	},
 	"assign_to_user": {
