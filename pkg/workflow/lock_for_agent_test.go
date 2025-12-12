@@ -144,6 +144,18 @@ Test workflow with lock-for-agent but no reaction.
 	if strings.Contains(yamlContent, "GH_AW_LOCK_FOR_AGENT: \"true\"") {
 		t.Error("Generated YAML should not set GH_AW_LOCK_FOR_AGENT env var without reaction step")
 	}
+
+	// Verify activation job has issues: write permission for locking
+	activationJobSection := extractJobSection(yamlContent, "activation")
+	if !strings.Contains(activationJobSection, "issues: write") {
+		t.Error("Activation job should have issues: write permission when lock-for-agent is enabled")
+	}
+
+	// Verify conclusion job has issues: write permission for unlocking
+	conclusionJobSection := extractJobSection(yamlContent, "conclusion")
+	if !strings.Contains(conclusionJobSection, "issues: write") {
+		t.Error("Conclusion job should have issues: write permission when lock-for-agent is enabled")
+	}
 }
 
 func TestLockForAgentDisabled(t *testing.T) {
@@ -203,6 +215,71 @@ Test workflow without lock-for-agent.
 	// but the environment variable itself should not be set
 	if strings.Contains(yamlContent, "GH_AW_LOCK_FOR_AGENT: \"true\"") {
 		t.Error("Generated YAML should not set GH_AW_LOCK_FOR_AGENT env var when lock-for-agent is disabled")
+	}
+
+	// Verify activation job has issues: write permission due to reaction (not lock-for-agent)
+	activationJobSection := extractJobSection(yamlContent, "activation")
+	if !strings.Contains(activationJobSection, "issues: write") {
+		t.Error("Activation job should have issues: write permission when reaction is enabled")
+	}
+}
+
+func TestLockForAgentDisabledWithoutReaction(t *testing.T) {
+	// Create temporary directory for test files
+	tmpDir := testutil.TempDir(t, "lock-disabled-no-reaction-test")
+
+	// Create a test markdown file without lock-for-agent and without reaction
+	testContent := `---
+on:
+  issues:
+    types: [opened]
+engine: copilot
+safe-outputs:
+  add-comment: {}
+---
+
+# Test Without Lock For Agent and Without Reaction
+
+Test workflow without lock-for-agent and without reaction.
+`
+
+	testFile := filepath.Join(tmpDir, "test-no-lock-no-reaction.md")
+	if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	compiler := NewCompiler(false, "", "test")
+
+	// Parse the workflow
+	workflowData, err := compiler.ParseWorkflowFile(testFile)
+	if err != nil {
+		t.Fatalf("Failed to parse workflow: %v", err)
+	}
+
+	// Verify lock-for-agent field is false by default
+	if workflowData.LockForAgent {
+		t.Error("Expected LockForAgent to be false by default")
+	}
+
+	// Generate YAML and verify it does not contain lock/unlock steps
+	yamlContent, err := compiler.generateYAML(workflowData, testFile)
+	if err != nil {
+		t.Fatalf("Failed to generate YAML: %v", err)
+	}
+
+	// Lock and unlock steps should not be present
+	if strings.Contains(yamlContent, "Lock issue for agent workflow") {
+		t.Error("Generated YAML should not contain lock step when lock-for-agent is disabled")
+	}
+
+	if strings.Contains(yamlContent, "Unlock issue after agent workflow") {
+		t.Error("Generated YAML should not contain unlock step when lock-for-agent is disabled")
+	}
+
+	// Verify activation job does NOT have issues: write permission (no reaction and no lock-for-agent)
+	activationJobSection := extractJobSection(yamlContent, "activation")
+	if strings.Contains(activationJobSection, "issues: write") {
+		t.Error("Activation job should NOT have issues: write permission when lock-for-agent is disabled and no reaction is configured")
 	}
 }
 
