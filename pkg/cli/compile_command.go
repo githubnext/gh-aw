@@ -442,7 +442,7 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 				// and compile it via the standard workflow pipeline.
 				if !noEmit {
 					orchestratorData, orchestratorPath := campaign.BuildOrchestrator(spec, resolvedFile)
-					
+
 					// Only compile orchestrator if BuildOrchestrator returned valid data
 					// (it returns nil if the campaign has no meaningful prompt content)
 					if orchestratorData != nil {
@@ -754,7 +754,7 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 			// and compile it via the standard workflow pipeline.
 			if !noEmit {
 				orchestratorData, orchestratorPath := campaign.BuildOrchestrator(spec, file)
-				
+
 				// Only compile orchestrator if BuildOrchestrator returned valid data
 				// (it returns nil if the campaign has no meaningful prompt content)
 				if orchestratorData != nil {
