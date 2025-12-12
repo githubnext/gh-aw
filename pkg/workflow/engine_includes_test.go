@@ -248,9 +248,9 @@ This should use the default engine.
 	}
 	lockStr := string(lockContent)
 
-	// Should contain references to copilot CLI (default engine)
-	if !strings.Contains(lockStr, "npm install -g @github/copilot") {
-		t.Error("Expected lock file to contain copilot CLI reference")
+	// Should contain references to copilot CLI (default engine) using new installer
+	if !strings.Contains(lockStr, "curl -fsSL https://gh.io/copilot-install") {
+		t.Error("Expected lock file to contain copilot CLI installer reference")
 	}
 }
 
