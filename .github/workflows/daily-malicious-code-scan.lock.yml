@@ -363,8 +363,8 @@
 #     https://github.com/actions/setup-node/commit/395ad3262231945c25e8478fd5baf05154b1d79f
 #   - actions/upload-artifact@v5 (330a01c490aca151604b8cf639adc76d48f6c5d4)
 #     https://github.com/actions/upload-artifact/commit/330a01c490aca151604b8cf639adc76d48f6c5d4
-#   - github/codeql-action/upload-sarif@v3 (6d10af73d5896080e7b530ea0822d927c05661f1)
-#     https://github.com/github/codeql-action/commit/6d10af73d5896080e7b530ea0822d927c05661f1
+#   - github/codeql-action/upload-sarif@v3 (323fb8c0ad5be63b7a6ebf1f32c35882fcfea2cf)
+#     https://github.com/github/codeql-action/commit/323fb8c0ad5be63b7a6ebf1f32c35882fcfea2cf
 
 name: "Daily Malicious Code Scan Agent"
 "on":
@@ -6998,7 +6998,7 @@ jobs:
           path: ${{ steps.create_code_scanning_alert.outputs.sarif_file }}
       - name: Upload SARIF to GitHub Security
         if: steps.create_code_scanning_alert.outputs.sarif_file
-        uses: github/codeql-action/upload-sarif@6d10af73d5896080e7b530ea0822d927c05661f1 # v3
+        uses: github/codeql-action/upload-sarif@323fb8c0ad5be63b7a6ebf1f32c35882fcfea2cf # v3
         with:
           sarif_file: ${{ steps.create_code_scanning_alert.outputs.sarif_file }}
 
