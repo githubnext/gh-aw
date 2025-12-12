@@ -28,9 +28,10 @@ type WorkflowStatus struct {
 	On            any      `json:"on,omitempty" console:"-"`
 	RunStatus     string   `json:"run_status,omitempty" console:"header:Run Status,omitempty"`
 	RunConclusion string   `json:"run_conclusion,omitempty" console:"header:Run Conclusion,omitempty"`
+	ActionNeeded  string   `json:"action_needed,omitempty" console:"header:Action Needed,omitempty"`
 }
 
-func StatusWorkflows(pattern string, verbose bool, jsonOutput bool, ref string, labelFilter string) error {
+func StatusWorkflows(pattern string, verbose bool, jsonOutput bool, ref string, labelFilter string, fixSuggestions bool) error {
 	statusLog.Printf("Checking workflow status: pattern=%s, jsonOutput=%v, ref=%s, labelFilter=%s", pattern, jsonOutput, ref, labelFilter)
 	if verbose && !jsonOutput {
 		fmt.Printf("Checking status of workflow files\n")
@@ -125,20 +126,15 @@ func StatusWorkflows(pattern string, verbose bool, jsonOutput bool, ref string, 
 
 			// Check if compiled (.lock.yml file is in .github/workflows)
 			lockFile := strings.TrimSuffix(file, ".md") + ".lock.yml"
-			compiled := "N/A"
 			timeRemaining := "N/A"
 
-			if _, err := os.Stat(lockFile); err == nil {
-				// Check if up to date
-				mdStat, _ := os.Stat(file)
-				lockStat, _ := os.Stat(lockFile)
-				if mdStat.ModTime().After(lockStat.ModTime()) {
-					compiled = "No"
-				} else {
-					compiled = "Yes"
-				}
+			// Determine staleness and action needed
+			staleInfo := checkWorkflowStaleness(file, lockFile)
+			compiled := staleInfo.compiled
+			actionNeeded := staleInfo.actionNeeded
 
-				// Extract stop-time from lock file
+			// Extract stop-time from lock file if it exists
+			if _, err := os.Stat(lockFile); err == nil {
 				if stopTime := workflow.ExtractStopTimeFromLockFile(lockFile); stopTime != "" {
 					timeRemaining = calculateTimeRemaining(stopTime)
 				}
@@ -209,6 +205,7 @@ func StatusWorkflows(pattern string, verbose bool, jsonOutput bool, ref string, 
 				On:            onField,
 				RunStatus:     runStatus,
 				RunConclusion: runConclusion,
+				ActionNeeded:  actionNeeded,
 			})
 		}
 
@@ -238,20 +235,15 @@ func StatusWorkflows(pattern string, verbose bool, jsonOutput bool, ref string, 
 
 		// Check if compiled (.lock.yml file is in .github/workflows)
 		lockFile := strings.TrimSuffix(file, ".md") + ".lock.yml"
-		compiled := "N/A"
 		timeRemaining := "N/A"
 
-		if _, err := os.Stat(lockFile); err == nil {
-			// Check if up to date
-			mdStat, _ := os.Stat(file)
-			lockStat, _ := os.Stat(lockFile)
-			if mdStat.ModTime().After(lockStat.ModTime()) {
-				compiled = "No"
-			} else {
-				compiled = "Yes"
-			}
+		// Determine staleness and action needed
+		staleInfo := checkWorkflowStaleness(file, lockFile)
+		compiled := staleInfo.compiled
+		actionNeeded := staleInfo.actionNeeded
 
-			// Extract stop-time from lock file
+		// Extract stop-time from lock file if it exists
+		if _, err := os.Stat(lockFile); err == nil {
 			if stopTime := workflow.ExtractStopTimeFromLockFile(lockFile); stopTime != "" {
 				timeRemaining = calculateTimeRemaining(stopTime)
 			}
@@ -318,11 +310,34 @@ func StatusWorkflows(pattern string, verbose bool, jsonOutput bool, ref string, 
 			Labels:        labels,
 			RunStatus:     runStatus,
 			RunConclusion: runConclusion,
+			ActionNeeded:  actionNeeded,
 		})
+	}
+
+	// Handle --fix-suggestions flag
+	if fixSuggestions {
+		return generateFixScript(statuses)
 	}
 
 	// Render the table using struct-based rendering
 	fmt.Print(console.RenderStruct(statuses))
+
+	// Add summary footer showing compilation status
+	needsCompilation := 0
+	for _, s := range statuses {
+		if s.ActionNeeded != "" {
+			needsCompilation++
+		}
+	}
+
+	if needsCompilation > 0 {
+		fmt.Fprintln(os.Stderr)
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("%d workflow%s need compilation", needsCompilation, pluralize(needsCompilation))))
+		fmt.Fprintf(os.Stderr, "  Run: %s\n", console.FormatCommandMessage("gh aw compile --all"))
+	} else if len(statuses) > 0 {
+		fmt.Fprintln(os.Stderr)
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("All workflows are up-to-date"))
+	}
 
 	return nil
 }
@@ -363,6 +378,51 @@ func calculateTimeRemaining(stopTimeStr string) string {
 		return fmt.Sprintf("%dm", minutes)
 	} else {
 		return "< 1m"
+	}
+}
+
+// stalenessInfo holds information about workflow staleness
+type stalenessInfo struct {
+	compiled     string // "Yes", "No", "N/A", or "Stale"
+	actionNeeded string // Command to run if action is needed
+}
+
+// checkWorkflowStaleness determines if a workflow needs compilation and returns action needed
+func checkWorkflowStaleness(mdFile, lockFile string) stalenessInfo {
+	// Check if lock file exists
+	if _, err := os.Stat(lockFile); os.IsNotExist(err) {
+		// Never compiled
+		baseName := filepath.Base(mdFile)
+		return stalenessInfo{
+			compiled:     "No",
+			actionNeeded: fmt.Sprintf("gh aw compile %s", baseName),
+		}
+	}
+
+	// Lock file exists - check if up to date using timestamp comparison
+	mdStat, err := os.Stat(mdFile)
+	if err != nil {
+		return stalenessInfo{compiled: "N/A", actionNeeded: ""}
+	}
+
+	lockStat, err := os.Stat(lockFile)
+	if err != nil {
+		return stalenessInfo{compiled: "N/A", actionNeeded: ""}
+	}
+
+	if mdStat.ModTime().After(lockStat.ModTime()) {
+		// Stale - source modified after lock file
+		baseName := filepath.Base(mdFile)
+		return stalenessInfo{
+			compiled:     "Stale",
+			actionNeeded: fmt.Sprintf("gh aw compile %s", baseName),
+		}
+	}
+
+	// Up to date
+	return stalenessInfo{
+		compiled:     "Yes",
+		actionNeeded: "",
 	}
 }
 
@@ -519,4 +579,48 @@ func fetchLatestRunsByRef(ref string, verbose bool) (map[string]*WorkflowRun, er
 
 	statusLog.Printf("Fetched latest runs for %d workflows on ref %s", len(latestRuns), ref)
 	return latestRuns, nil
+}
+
+// generateFixScript generates an executable shell script to fix stale workflows
+func generateFixScript(statuses []WorkflowStatus) error {
+	var staleWorkflows []string
+	for _, s := range statuses {
+		if s.ActionNeeded != "" {
+			staleWorkflows = append(staleWorkflows, s.Workflow+".md")
+		}
+	}
+
+	if len(staleWorkflows) == 0 {
+		fmt.Println("#!/bin/bash")
+		fmt.Println("# Generated by gh aw status --fix-suggestions")
+		fmt.Println("# All workflows are up-to-date - no action needed")
+		return nil
+	}
+
+	fmt.Println("#!/bin/bash")
+	fmt.Println("# Generated by gh aw status --fix-suggestions")
+	fmt.Println("# This script compiles all stale workflows")
+	fmt.Println()
+	fmt.Printf("# Found %d workflow%s needing compilation\n", len(staleWorkflows), pluralize(len(staleWorkflows)))
+	fmt.Println()
+
+	for _, workflow := range staleWorkflows {
+		fmt.Printf("gh aw compile %s\n", workflow)
+	}
+
+	fmt.Println()
+	fmt.Println("# Stage compiled lock files")
+	fmt.Println("git add .github/workflows/*.lock.yml")
+	fmt.Println()
+	fmt.Println("echo \"Done! Review changes with: git diff --cached\"")
+
+	return nil
+}
+
+// pluralize returns "s" if count != 1, otherwise empty string
+func pluralize(count int) string {
+	if count == 1 {
+		return ""
+	}
+	return "s"
 }
