@@ -7,10 +7,7 @@ import (
 
 	"github.com/githubnext/gh-aw/pkg/campaign"
 	"github.com/githubnext/gh-aw/pkg/console"
-	"github.com/githubnext/gh-aw/pkg/logger"
 )
-
-var compileCampaignLog = logger.New("cli:compile_campaign")
 
 // validateCampaigns validates campaign spec files and their referenced workflows.
 // Returns an error if any campaign specs are invalid or reference missing workflows.

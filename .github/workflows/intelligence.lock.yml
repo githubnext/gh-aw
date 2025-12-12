@@ -1100,6 +1100,7 @@ name: "Campaign Intelligence System"
 "on":
   schedule:
   - cron: "0 9 1 * *"
+    # Friendly format: daily at 12:00
   workflow_dispatch:
     inputs:
       analysis_type:

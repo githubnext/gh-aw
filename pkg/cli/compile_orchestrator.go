@@ -1,17 +1,17 @@
 package cli
 
 import (
-"encoding/json"
-"errors"
-"fmt"
-"os"
-"path/filepath"
-"strings"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
 
-"github.com/githubnext/gh-aw/pkg/campaign"
-"github.com/githubnext/gh-aw/pkg/console"
-"github.com/githubnext/gh-aw/pkg/logger"
-"github.com/githubnext/gh-aw/pkg/workflow"
+	"github.com/githubnext/gh-aw/pkg/campaign"
+	"github.com/githubnext/gh-aw/pkg/console"
+	"github.com/githubnext/gh-aw/pkg/logger"
+	"github.com/githubnext/gh-aw/pkg/workflow"
 )
 
 var compileOrchestratorLog = logger.New("cli:compile_orchestrator")
