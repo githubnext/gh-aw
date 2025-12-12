@@ -1302,6 +1302,10 @@ jobs:
                 const workflowId = process.env.GITHUB_WORKFLOW || "";
                 const trackerId = process.env.GH_AW_TRACKER_ID || "";
                 let commentBody = workflowLinkText;
+                const lockForAgent = process.env.GH_AW_LOCK_FOR_AGENT === "true";
+                if (lockForAgent && eventName === "issues") {
+                  commentBody += "\n\n🔒 This issue has been locked while the workflow is running to prevent concurrent modifications.";
+                }
                 if (workflowId) {
                   commentBody += `\n\n<!-- workflow-id: ${workflowId} -->`;
                 }
@@ -8266,6 +8270,7 @@ jobs:
         env:
           GH_AW_REQUIRED_ROLES: admin,maintainer,write
         with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             function parseRequiredPermissions() {
               const requiredPermissionsEnv = process.env.GH_AW_REQUIRED_ROLES;

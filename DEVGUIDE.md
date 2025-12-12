@@ -78,6 +78,54 @@ make test-script
 1. **Unit tests**: Add to `pkg/*/package_test.go`
 2. **Follow existing patterns**: Look at current tests for structure
 
+### CI Test Artifacts
+
+The CI workflow generates JSON test result artifacts with timing information that can be downloaded and analyzed:
+
+#### Available Artifacts
+
+- **test-result-unit.json**: Unit test results with timing data
+- **test-result-integration-*.json**: Integration test results for each test group
+
+#### JSON Format
+
+Each test result file contains newline-delimited JSON (ndjson) with test events:
+
+```json
+{"Time":"2025-12-12T13:17:30Z","Action":"pass","Package":"github.com/githubnext/gh-aw/pkg/logger","Elapsed":0.022}
+```
+
+Key fields:
+- `Time`: ISO 8601 timestamp
+- `Action`: Test event (`start`, `run`, `pass`, `fail`, `output`)
+- `Package`: Go package being tested
+- `Test`: Test name (if applicable)
+- `Elapsed`: Test duration in seconds
+- `Output`: Test output (for `output` actions)
+
+#### Analyzing Test Timing
+
+To extract timing information from artifacts:
+
+```bash
+# Download artifacts from a workflow run
+gh run download <run-id>
+
+# Extract slowest tests
+cat test-result-unit.json | jq -r 'select(.Action == "pass" and .Test != null) | "\(.Elapsed)s \(.Test)"' | sort -rn | head -20
+
+# Get package-level timing
+cat test-result-unit.json | jq -r 'select(.Action == "pass" and .Test == null) | "\(.Elapsed)s \(.Package)"' | sort -rn
+```
+
+#### Mining Test Data
+
+The JSON format enables various analyses:
+- Identify slow tests across multiple runs
+- Track test performance trends over time
+- Detect flaky tests by comparing results
+- Generate test execution reports
+
 ## Debugging and Troubleshooting
 
 ### Common Development Issues

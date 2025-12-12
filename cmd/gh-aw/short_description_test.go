@@ -36,7 +36,6 @@ func TestShortDescriptionConsistency(t *testing.T) {
 		cli.NewAuditCommand(),
 		mcpCmd,
 		cli.NewMCPServerCommand(),
-		cli.NewMCPGatewayCommand(),
 		prCmd,
 	}
 

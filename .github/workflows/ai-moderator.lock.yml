@@ -20,10 +20,12 @@
 #
 # Original Frontmatter:
 # ```yaml
+# bots: ["agentic-workflows-dev[bot]"]
 # timeout-minutes: 5
 # on:
 #   issues:
 #     types: [opened]
+#     lock-for-agent: true
 #   issue_comment:
 #     types: [created]
 #   pull_request_review_comment:
@@ -249,6 +251,7 @@ name: "AI Moderator"
     types:
     - created
   issues:
+    lock-for-agent: true
     types:
     - opened
   pull_request_review_comment:
@@ -276,9 +279,11 @@ jobs:
     runs-on: ubuntu-slim
     permissions:
       contents: read
+      issues: write
     outputs:
       comment_id: ""
       comment_repo: ""
+      issue_locked: ${{ steps.lock-issue.outputs.locked }}
       text: ${{ steps.compute-text.outputs.text }}
     steps:
       - name: Check workflow file timestamps
@@ -764,6 +769,48 @@ jobs:
               const logPath = writeRedactedDomainsLog();
               if (logPath) {
                 core.info(`Redacted URL domains written to: ${logPath}`);
+              }
+            }
+            await main();
+      - name: Lock issue for agent workflow
+        id: lock-issue
+        if: github.event.issue.number
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        with:
+          script: |
+            async function main() {
+              const issueNumber = context.issue.number;
+              if (!issueNumber) {
+                core.setFailed("Issue number not found in context");
+                return;
+              }
+              const owner = context.repo.owner;
+              const repo = context.repo.repo;
+              try {
+                core.info(`Checking if issue #${issueNumber} is already locked`);
+                const { data: issue } = await github.rest.issues.get({
+                  owner,
+                  repo,
+                  issue_number: issueNumber,
+                });
+                if (issue.locked) {
+                  core.info(`ℹ️ Issue #${issueNumber} is already locked, skipping lock operation`);
+                  core.setOutput("locked", "false");
+                  return;
+                }
+                core.info(`Locking issue #${issueNumber} for agent workflow execution`);
+                await github.rest.issues.lock({
+                  owner,
+                  repo,
+                  issue_number: issueNumber,
+                });
+                core.info(`✅ Successfully locked issue #${issueNumber}`);
+                core.setOutput("locked", "true");
+              } catch (error) {
+                const errorMessage = error instanceof Error ? error.message : String(error);
+                core.error(`Failed to lock issue: ${errorMessage}`);
+                core.setFailed(`Failed to lock issue #${issueNumber}: ${errorMessage}`);
+                core.setOutput("locked", "false");
               }
             }
             await main();
@@ -7437,6 +7484,45 @@ jobs:
             main().catch(error => {
               core.setFailed(error instanceof Error ? error.message : String(error));
             });
+      - name: Unlock issue after agent workflow
+        id: unlock-issue
+        if: (always()) && ((github.event.issue.number) && (needs.activation.outputs.issue_locked == 'true'))
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        with:
+          script: |
+            async function main() {
+              const issueNumber = context.issue.number;
+              if (!issueNumber) {
+                core.setFailed("Issue number not found in context");
+                return;
+              }
+              const owner = context.repo.owner;
+              const repo = context.repo.repo;
+              try {
+                core.info(`Checking if issue #${issueNumber} is locked`);
+                const { data: issue } = await github.rest.issues.get({
+                  owner,
+                  repo,
+                  issue_number: issueNumber,
+                });
+                if (!issue.locked) {
+                  core.info(`ℹ️ Issue #${issueNumber} is not locked, skipping unlock operation`);
+                  return;
+                }
+                core.info(`Unlocking issue #${issueNumber} after agent workflow execution`);
+                await github.rest.issues.unlock({
+                  owner,
+                  repo,
+                  issue_number: issueNumber,
+                });
+                core.info(`✅ Successfully unlocked issue #${issueNumber}`);
+              } catch (error) {
+                const errorMessage = error instanceof Error ? error.message : String(error);
+                core.error(`Failed to unlock issue: ${errorMessage}`);
+                core.setFailed(`Failed to unlock issue #${issueNumber}: ${errorMessage}`);
+              }
+            }
+            await main();
 
   hide_comment:
     needs: agent
@@ -7614,7 +7700,9 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_REQUIRED_ROLES: admin,maintainer,write
+          GH_AW_ALLOWED_BOTS: agentic-workflows-dev[bot]
         with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             function parseRequiredPermissions() {
               const requiredPermissionsEnv = process.env.GH_AW_REQUIRED_ROLES;
