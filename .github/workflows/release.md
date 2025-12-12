@@ -51,6 +51,19 @@ jobs:
           go_version_file: go.mod
           build_script_override: scripts/build-release.sh
 
+      - name: Upload checksums file
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          RELEASE_TAG="${GITHUB_REF#refs/tags/}"
+          if [ -f "dist/checksums.txt" ]; then
+            echo "Uploading checksums file to release: $RELEASE_TAG"
+            gh release upload "$RELEASE_TAG" dist/checksums.txt --clobber
+            echo "✓ Checksums file uploaded to release"
+          else
+            echo "Warning: checksums.txt not found in dist/"
+          fi
+
       - name: Get release ID
         id: get_release
         env:
