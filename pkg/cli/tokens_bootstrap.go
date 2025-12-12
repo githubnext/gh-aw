@@ -1,10 +1,14 @@
 package cli
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
+	"os/exec"
+	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/console"
+	"github.com/githubnext/gh-aw/pkg/workflow"
 	"github.com/spf13/cobra"
 )
 
@@ -116,6 +120,8 @@ var recommendedTokenSpecs = []tokenSpec{
 // NewTokensBootstrapSubcommand creates the `tokens bootstrap` subcommand
 func NewTokensBootstrapSubcommand() *cobra.Command {
 	var engineFlag string
+	var ownerFlag string
+	var repoFlag string
 
 	cmd := &cobra.Command{
 		Use:   "bootstrap",
@@ -131,19 +137,31 @@ available) and prints the exact secrets to add and suggested scopes.
 For full details, including precedence rules, see the GitHub Tokens
 reference in the documentation.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runTokensBootstrap(engineFlag)
+			return runTokensBootstrap(engineFlag, ownerFlag, repoFlag)
 		},
 	}
 
 	cmd.Flags().StringVarP(&engineFlag, "engine", "e", "", "Check tokens for specific engine (copilot, claude, codex)")
+	cmd.Flags().StringVar(&ownerFlag, "owner", "", "Repository owner (defaults to current repository)")
+	cmd.Flags().StringVar(&repoFlag, "repo", "", "Repository name (defaults to current repository)")
 
 	return cmd
 }
 
-func runTokensBootstrap(engine string) error {
-	repoSlug, err := GetCurrentRepoSlug()
-	if err != nil {
-		return fmt.Errorf("failed to detect current repository: %w", err)
+func runTokensBootstrap(engine, owner, repo string) error {
+	var repoSlug string
+	var err error
+
+	// Determine target repository
+	if owner != "" && repo != "" {
+		repoSlug = fmt.Sprintf("%s/%s", owner, repo)
+	} else if owner != "" || repo != "" {
+		return fmt.Errorf("both --owner and --repo must be specified together")
+	} else {
+		repoSlug, err = GetCurrentRepoSlug()
+		if err != nil {
+			return fmt.Errorf("failed to detect current repository: %w", err)
+		}
 	}
 
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Checking recommended gh-aw token secrets in %s...", repoSlug)))
@@ -160,7 +178,7 @@ func runTokensBootstrap(engine string) error {
 	missing := make([]tokenSpec, 0, len(tokensToCheck))
 
 	for _, spec := range tokensToCheck {
-		exists, err := checkSecretExists(spec.Name)
+		exists, err := checkSecretExistsInRepo(spec.Name, repoSlug)
 		if err != nil {
 			// If we hit a 403 or other error, surface a friendly message and abort
 			return fmt.Errorf("unable to inspect repository secrets (gh secret list failed for %s): %w", spec.Name, err)
@@ -185,6 +203,11 @@ func runTokensBootstrap(engine string) error {
 		}
 	}
 
+	// Extract owner and repo from slug for command examples
+	parts := splitRepoSlug(repoSlug)
+	cmdOwner := parts[0]
+	cmdRepo := parts[1]
+
 	if len(requiredMissing) > 0 {
 		fmt.Fprintln(os.Stderr, console.FormatErrorMessage("Required gh-aw token secrets are missing:"))
 		for _, spec := range requiredMissing {
@@ -192,7 +215,7 @@ func runTokensBootstrap(engine string) error {
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Secret: %s", spec.Name)))
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("When needed: %s", spec.When)))
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Recommended scopes: %s", spec.Description)))
-			fmt.Fprintln(os.Stderr, console.FormatCommandMessage(fmt.Sprintf("gh aw secret set %s --owner <owner> --repo <repo>", spec.Name)))
+			fmt.Fprintln(os.Stderr, console.FormatCommandMessage(fmt.Sprintf("gh aw secret set %s --owner %s --repo %s", spec.Name, cmdOwner, cmdRepo)))
 		}
 	}
 
@@ -204,7 +227,7 @@ func runTokensBootstrap(engine string) error {
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Secret: %s (optional)", spec.Name)))
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("When needed: %s", spec.When)))
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Recommended scopes: %s", spec.Description)))
-			fmt.Fprintln(os.Stderr, console.FormatCommandMessage(fmt.Sprintf("gh aw secret set %s --owner <owner> --repo <repo>", spec.Name)))
+			fmt.Fprintln(os.Stderr, console.FormatCommandMessage(fmt.Sprintf("gh aw secret set %s --owner %s --repo %s", spec.Name, cmdOwner, cmdRepo)))
 		}
 	}
 
@@ -212,4 +235,49 @@ func runTokensBootstrap(engine string) error {
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("For detailed token behavior and precedence, see the GitHub Tokens reference in the documentation."))
 
 	return nil
+}
+
+// checkSecretExistsInRepo checks if a secret exists in a specific repository
+func checkSecretExistsInRepo(secretName, repoSlug string) (bool, error) {
+	secretsLog.Printf("Checking if secret exists in %s: %s", repoSlug, secretName)
+
+	// Use gh CLI to list repository secrets
+	cmd := workflow.ExecGH("secret", "list", "--repo", repoSlug, "--json", "name")
+	output, err := cmd.Output()
+	if err != nil {
+		// Check if it's a 403 error by examining the error
+		if exitError, ok := err.(*exec.ExitError); ok {
+			if strings.Contains(string(exitError.Stderr), "403") {
+				return false, fmt.Errorf("403 access denied")
+			}
+		}
+		return false, fmt.Errorf("failed to list secrets: %w", err)
+	}
+
+	// Parse the JSON output
+	var secrets []struct {
+		Name string `json:"name"`
+	}
+
+	if err := json.Unmarshal(output, &secrets); err != nil {
+		return false, fmt.Errorf("failed to parse secrets list: %w", err)
+	}
+
+	// Check if our secret exists
+	for _, secret := range secrets {
+		if secret.Name == secretName {
+			return true, nil
+		}
+	}
+
+	return false, nil
+}
+
+// splitRepoSlug splits "owner/repo" into [owner, repo]
+func splitRepoSlug(slug string) [2]string {
+	parts := strings.SplitN(slug, "/", 2)
+	if len(parts) == 2 {
+		return [2]string{parts[0], parts[1]}
+	}
+	return [2]string{slug, ""}
 }
