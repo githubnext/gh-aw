@@ -272,7 +272,7 @@ tools:
     toolsets: [default]
 safe-outputs:
   add-labels:
-    allowed: [spam, ai-generated, link-spam, inspected]
+    allowed: [spam, ai-generated, link-spam, ai-qa, inspected]
   hide-comment:
     max: 5
   threat-detection: false
