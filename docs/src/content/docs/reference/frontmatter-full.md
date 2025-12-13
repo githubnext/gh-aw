@@ -1177,6 +1177,14 @@ engine:
   args: []
     # Array of strings
 
+  # Optional array specifying which MCP transport types this engine supports. Valid
+  # values: 'http' for HTTP-based MCP connections, 'stdio' for standard input/output
+  # MCP connections. When specified, validates that MCP servers use compatible
+  # transport types.
+  # (optional)
+  transports: []
+    # Array of strings
+
 # MCP server definitions
 # (optional)
 mcp-servers:
