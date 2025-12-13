@@ -205,13 +205,15 @@ Automatically generates concurrency policies for the agent job. See [Concurrency
 
 ## Environment Variables (`env:`)
 
-Standard GitHub Actions `env:` syntax:
+Standard GitHub Actions `env:` syntax for workflow-level environment variables:
 
 ```yaml wrap
 env:
   CUSTOM_VAR: "value"
   SECRET_VAR: ${{ secrets.MY_SECRET }}
 ```
+
+Environment variables can be defined at multiple scopes (workflow, job, step, engine, safe-outputs, etc.) with clear precedence rules. See [Environment Variables](/gh-aw/reference/environment-variables/) for complete documentation on all 13 env scopes and precedence order.
 
 ## Environment Protection (`environment:`)
 
