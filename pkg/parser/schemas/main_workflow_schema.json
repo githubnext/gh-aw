@@ -1520,7 +1520,7 @@
       ]
     },
     "env": {
-      "$comment": "See environment variable precedence documentation: https://githubnext.com/gh-aw/reference/environment-variables/",
+      "$comment": "See environment variable precedence documentation: https://githubnext.github.io/gh-aw/reference/environment-variables/",
       "description": "Environment variables for the workflow",
       "oneOf": [
         {
