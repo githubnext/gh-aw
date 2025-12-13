@@ -2,6 +2,7 @@ package cli
 
 import (
 	"testing"
+	"time"
 
 	"github.com/githubnext/gh-aw/pkg/logger"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -108,7 +109,7 @@ func TestStreamableHTTPOptions(t *testing.T) {
 	// Verify that we can create StreamableHTTPOptions with SessionTimeout
 	// This is a compile-time check for MCP SDK v1.1.0+ compatibility
 	options := &mcp.StreamableHTTPOptions{
-		SessionTimeout: 30 * 60 * 1000000000, // 30 minutes in nanoseconds (time.Duration)
+		SessionTimeout: 30 * time.Minute,
 	}
 
 	if options == nil {
