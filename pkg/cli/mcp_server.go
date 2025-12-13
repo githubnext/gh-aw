@@ -757,10 +757,13 @@ func loggingHandler(handler http.Handler) http.Handler {
 func runHTTPServer(server *mcp.Server, port int) error {
 	mcpLog.Printf("Creating HTTP server on port %d", port)
 
-	// Create the streamable HTTP handler.
+	// Create the streamable HTTP handler with session timeout.
+	// Sessions that are inactive for 30 minutes will be automatically cleaned up.
 	handler := mcp.NewStreamableHTTPHandler(func(req *http.Request) *mcp.Server {
 		return server
-	}, nil)
+	}, &mcp.StreamableHTTPOptions{
+		SessionTimeout: 30 * time.Minute,
+	})
 
 	handlerWithLogging := loggingHandler(handler)
 
