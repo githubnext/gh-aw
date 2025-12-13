@@ -401,6 +401,10 @@
                     "type": "string",
                     "enum": ["created", "edited", "deleted"]
                   }
+                },
+                "lock-for-agent": {
+                  "type": "boolean",
+                  "description": "Whether to lock the parent issue for the agent when the workflow runs (prevents concurrent modifications)"
                 }
               }
             },
