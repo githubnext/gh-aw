@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/constants"
@@ -13,6 +14,18 @@ import (
 )
 
 var fixLog = logger.New("cli:fix_command")
+
+// FixConfig contains configuration for the fix command
+type FixConfig struct {
+	WorkflowIDs []string
+	Write       bool
+	Verbose     bool
+}
+
+// RunFix runs the fix command with the given configuration
+func RunFix(config FixConfig) error {
+	return runFixCommand(config.WorkflowIDs, config.Write, config.Verbose)
+}
 
 // NewFixCommand creates the fix command
 func NewFixCommand() *cobra.Command {
@@ -118,11 +131,12 @@ func runFixCommand(workflowIDs []string, write bool, verbose bool) error {
 	// Process each file
 	var totalFixed int
 	var totalFiles int
+	var workflowsNeedingFixes []workflowFixInfo
 
 	for _, file := range files {
 		fixLog.Printf("Processing file: %s", file)
 
-		fixed, err := processWorkflowFile(file, codemods, write, verbose)
+		fixed, appliedFixes, err := processWorkflowFileWithInfo(file, codemods, write, verbose)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s\n", console.FormatErrorMessage(fmt.Sprintf("Error processing %s: %v", filepath.Base(file), err)))
 			continue
@@ -131,6 +145,12 @@ func runFixCommand(workflowIDs []string, write bool, verbose bool) error {
 		totalFiles++
 		if fixed {
 			totalFixed++
+			if !write {
+				workflowsNeedingFixes = append(workflowsNeedingFixes, workflowFixInfo{
+					File:  filepath.Base(file),
+					Fixes: appliedFixes,
+				})
+			}
 		}
 	}
 
@@ -145,7 +165,18 @@ func runFixCommand(workflowIDs []string, write bool, verbose bool) error {
 	} else {
 		if totalFixed > 0 {
 			fmt.Fprintf(os.Stderr, "%s\n", console.FormatInfoMessage(fmt.Sprintf("Would fix %d of %d workflow files", totalFixed, totalFiles)))
-			fmt.Fprintf(os.Stderr, "%s\n", console.FormatInfoMessage("Run with --write to apply changes"))
+			fmt.Fprintln(os.Stderr, "")
+			
+			// Output as agent prompt
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("To fix these issues, run:"))
+			fmt.Fprintln(os.Stderr, "")
+			fmt.Fprintln(os.Stderr, "  gh aw fix --write")
+			fmt.Fprintln(os.Stderr, "")
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Or fix them individually:"))
+			fmt.Fprintln(os.Stderr, "")
+			for _, wf := range workflowsNeedingFixes {
+				fmt.Fprintf(os.Stderr, "  gh aw fix %s --write\n", strings.TrimSuffix(wf.File, ".md"))
+			}
 		} else {
 			fmt.Fprintf(os.Stderr, "%s\n", console.FormatInfoMessage("✓ No fixes needed"))
 		}
@@ -154,14 +185,26 @@ func runFixCommand(workflowIDs []string, write bool, verbose bool) error {
 	return nil
 }
 
+// workflowFixInfo tracks workflow files that need fixes
+type workflowFixInfo struct {
+	File  string
+	Fixes []string
+}
+
 // processWorkflowFile processes a single workflow file with all codemods
 func processWorkflowFile(filePath string, codemods []Codemod, write bool, verbose bool) (bool, error) {
+	fixed, _, err := processWorkflowFileWithInfo(filePath, codemods, write, verbose)
+	return fixed, err
+}
+
+// processWorkflowFileWithInfo processes a single workflow file and returns detailed fix information
+func processWorkflowFileWithInfo(filePath string, codemods []Codemod, write bool, verbose bool) (bool, []string, error) {
 	fixLog.Printf("Processing workflow file: %s", filePath)
 
 	// Read the file
 	content, err := os.ReadFile(filePath)
 	if err != nil {
-		return false, fmt.Errorf("failed to read file: %w", err)
+		return false, nil, fmt.Errorf("failed to read file: %w", err)
 	}
 
 	originalContent := string(content)
@@ -185,7 +228,7 @@ func processWorkflowFile(filePath string, codemods []Codemod, write bool, verbos
 		newContent, applied, err := codemod.Apply(currentContent, currentResult.Frontmatter)
 		if err != nil {
 			fixLog.Printf("Codemod %s failed: %v", codemod.ID, err)
-			return false, fmt.Errorf("codemod %s failed: %w", codemod.ID, err)
+			return false, nil, fmt.Errorf("codemod %s failed: %w", codemod.ID, err)
 		}
 
 		if applied {
@@ -201,7 +244,7 @@ func processWorkflowFile(filePath string, codemods []Codemod, write bool, verbos
 		if verbose {
 			fmt.Fprintf(os.Stderr, "%s\n", console.FormatInfoMessage(fmt.Sprintf("  %s - no fixes needed", filepath.Base(filePath))))
 		}
-		return false, nil
+		return false, nil, nil
 	}
 
 	// Report changes
@@ -209,7 +252,7 @@ func processWorkflowFile(filePath string, codemods []Codemod, write bool, verbos
 	if write {
 		// Write the file
 		if err := os.WriteFile(filePath, []byte(currentContent), 0644); err != nil {
-			return false, fmt.Errorf("failed to write file: %w", err)
+			return false, nil, fmt.Errorf("failed to write file: %w", err)
 		}
 
 		fmt.Fprintf(os.Stderr, "%s\n", console.FormatSuccessMessage(fmt.Sprintf("✓ %s", fileName)))
@@ -223,5 +266,5 @@ func processWorkflowFile(filePath string, codemods []Codemod, write bool, verbos
 		}
 	}
 
-	return true, nil
+	return true, appliedCodemods, nil
 }

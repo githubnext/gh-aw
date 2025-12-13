@@ -42,6 +42,7 @@ func GetAllCodemods() []Codemod {
 	return []Codemod{
 		getTimeoutMinutesCodemod(),
 		getNetworkFirewallCodemod(),
+		getCommandToSlashCommandCodemod(),
 	}
 }
 
@@ -240,6 +241,103 @@ func getNetworkFirewallCodemod() Codemod {
 
 			newContent := strings.Join(lines, "\n")
 			codemodsLog.Print("Applied network.firewall migration")
+			return newContent, true, nil
+		},
+	}
+}
+
+// getCommandToSlashCommandCodemod creates a codemod for migrating on.command to on.slash_command
+func getCommandToSlashCommandCodemod() Codemod {
+	return Codemod{
+		ID:          "command-to-slash-command-migration",
+		Name:        "Migrate on.command to on.slash_command",
+		Description: "Replaces deprecated 'on.command' field with 'on.slash_command'",
+		Apply: func(content string, frontmatter map[string]any) (string, bool, error) {
+			// Check if on.command exists
+			onValue, hasOn := frontmatter["on"]
+			if !hasOn {
+				return content, false, nil
+			}
+
+			onMap, ok := onValue.(map[string]any)
+			if !ok {
+				return content, false, nil
+			}
+
+			// Check if command field exists in on
+			_, hasCommand := onMap["command"]
+			if !hasCommand {
+				return content, false, nil
+			}
+
+			// Parse frontmatter to get raw lines
+			result, err := parser.ExtractFrontmatterFromContent(content)
+			if err != nil {
+				return content, false, fmt.Errorf("failed to parse frontmatter: %w", err)
+			}
+
+			// Find and replace the command line within the on: block
+			var modified bool
+			var inOnBlock bool
+			var onIndent string
+
+			frontmatterLines := make([]string, len(result.FrontmatterLines))
+
+			for i, line := range result.FrontmatterLines {
+				trimmedLine := strings.TrimSpace(line)
+
+				// Track if we're in the on block
+				if strings.HasPrefix(trimmedLine, "on:") {
+					inOnBlock = true
+					onIndent = line[:len(line)-len(strings.TrimLeft(line, " \t"))]
+					frontmatterLines[i] = line
+					continue
+				}
+
+				// Check if we've left the on block (new top-level key with same or less indentation)
+				if inOnBlock && len(trimmedLine) > 0 && !strings.HasPrefix(trimmedLine, "#") {
+					currentIndent := line[:len(line)-len(strings.TrimLeft(line, " \t"))]
+					if len(currentIndent) <= len(onIndent) && strings.Contains(line, ":") {
+						inOnBlock = false
+					}
+				}
+
+				// Replace command with slash_command if in on block
+				if inOnBlock && strings.HasPrefix(trimmedLine, "command:") {
+					// Preserve indentation
+					leadingSpace := line[:len(line)-len(strings.TrimLeft(line, " \t"))]
+
+					// Extract the value and any trailing comment
+					parts := strings.SplitN(line, ":", 2)
+					if len(parts) >= 2 {
+						valueAndComment := parts[1]
+						frontmatterLines[i] = fmt.Sprintf("%sslash_command:%s", leadingSpace, valueAndComment)
+						modified = true
+						codemodsLog.Printf("Replaced on.command with on.slash_command on line %d", i+1)
+					} else {
+						frontmatterLines[i] = line
+					}
+				} else {
+					frontmatterLines[i] = line
+				}
+			}
+
+			if !modified {
+				return content, false, nil
+			}
+
+			// Reconstruct the content
+			var lines []string
+			lines = append(lines, "---")
+			lines = append(lines, frontmatterLines...)
+			lines = append(lines, "---")
+			if result.Markdown != "" {
+				lines = append(lines, "")
+				lines = append(lines, result.Markdown)
+			}
+
+			newContent := strings.Join(lines, "\n")
+			codemodsLog.Print("Applied on.command to on.slash_command migration")
 			return newContent, true, nil
 		},
 	}

@@ -190,6 +190,7 @@ Note: Output can be filtered using the jq parameter.`,
 		Zizmor     bool     `json:"zizmor,omitempty" jsonschema:"Run zizmor security scanner on generated .lock.yml files"`
 		Poutine    bool     `json:"poutine,omitempty" jsonschema:"Run poutine security scanner on generated .lock.yml files"`
 		Actionlint bool     `json:"actionlint,omitempty" jsonschema:"Run actionlint linter on generated .lock.yml files"`
+		Fix        bool     `json:"fix,omitempty" jsonschema:"Apply automatic codemod fixes to workflows before compiling"`
 		JqFilter   string   `json:"jq,omitempty" jsonschema:"Optional jq filter to apply to JSON output"`
 	}
 	mcp.AddTool(server, &mcp.Tool{
@@ -246,6 +247,11 @@ Note: Output can be filtered using the jq parameter.`,
 		// Build command arguments
 		// Always validate workflows during compilation and use JSON output for MCP
 		cmdArgs := []string{"compile", "--validate", "--json"}
+
+		// Add fix flag if requested
+		if args.Fix {
+			cmdArgs = append(cmdArgs, "--fix")
+		}
 
 		// Add strict flag if requested
 		if args.Strict {

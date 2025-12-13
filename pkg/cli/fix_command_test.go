@@ -269,6 +269,7 @@ func TestGetAllCodemods(t *testing.T) {
 	expectedIDs := []string{
 		"timeout-minutes-migration",
 		"network-firewall-migration",
+		"command-to-slash-command-migration",
 	}
 
 	foundIDs := make(map[string]bool)
@@ -294,5 +295,74 @@ func TestGetAllCodemods(t *testing.T) {
 		if !foundIDs[expectedID] {
 			t.Errorf("Expected codemod with ID %s not found", expectedID)
 		}
+	}
+}
+
+func TestFixCommand_CommandToSlashCommandMigration(t *testing.T) {
+	// Create a temporary directory for test files
+	tmpDir := t.TempDir()
+	workflowFile := filepath.Join(tmpDir, "test-workflow.md")
+
+	// Create a workflow with deprecated on.command field
+	content := `---
+on:
+  command: my-bot
+
+permissions:
+  contents: read
+---
+
+# Test Workflow
+
+This is a test workflow with slash command.
+`
+
+	if err := os.WriteFile(workflowFile, []byte(content), 0644); err != nil {
+		t.Fatalf("Failed to create test file: %v", err)
+	}
+
+	// Get the command migration codemod
+	commandCodemod := getCodemodByID("command-to-slash-command-migration")
+	if commandCodemod == nil {
+		t.Fatal("command-to-slash-command-migration codemod not found")
+	}
+
+	// Process the file
+	fixed, err := processWorkflowFile(workflowFile, []Codemod{*commandCodemod}, true, false)
+	if err != nil {
+		t.Fatalf("Failed to process workflow file: %v", err)
+	}
+
+	if !fixed {
+		t.Error("Expected file to be fixed, but no changes were made")
+	}
+
+	// Read the updated content
+	updatedContent, err := os.ReadFile(workflowFile)
+	if err != nil {
+		t.Fatalf("Failed to read updated file: %v", err)
+	}
+
+	updatedStr := string(updatedContent)
+
+	// Debug: print the content to see what we got
+	t.Logf("Updated content:\n%s", updatedStr)
+
+	// Verify the change - check for the presence of slash_command
+	if !strings.Contains(updatedStr, "slash_command:") {
+		t.Errorf("Expected slash_command field, got:\n%s", updatedStr)
+	}
+
+	// Check that standalone "command" field was replaced (not part of slash_command)
+	lines := strings.Split(updatedStr, "\n")
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, "command:") && !strings.Contains(line, "slash_command") {
+			t.Errorf("Found unreplaced 'command:' field: %s", line)
+		}
+	}
+
+	if !strings.Contains(updatedStr, "slash_command: my-bot") {
+		t.Errorf("Expected on.slash_command: my-bot in updated content, got:\n%s", updatedStr)
 	}
 }
