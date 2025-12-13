@@ -69,21 +69,15 @@ func (h *SlogHandler) Handle(_ context.Context, r slog.Record) error {
 
 // WithAttrs returns a new Handler whose attributes consist of
 // both the receiver's attributes and the arguments.
-// Note: For simplicity, this implementation does not maintain persistent attributes
-// and returns the same handler. This is acceptable for our use case where we're
-// primarily interested in the message content rather than structured attributes.
+// This implementation does not persist attributes.
 func (h *SlogHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
-	// For simplicity, we return the same handler since we don't maintain persistent attributes
 	return h
 }
 
 // WithGroup returns a new Handler with the given group appended to
 // the receiver's existing groups.
-// Note: For simplicity, this implementation does not maintain group context
-// and returns the same handler. This is acceptable for our use case where we're
-// primarily interested in the message content rather than hierarchical grouping.
+// This implementation does not persist groups.
 func (h *SlogHandler) WithGroup(name string) slog.Handler {
-	// For simplicity, we return the same handler since we don't maintain groups
 	return h
 }
 
