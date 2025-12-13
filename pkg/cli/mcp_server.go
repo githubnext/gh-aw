@@ -17,7 +17,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var mcpLog = logger.New("cli:mcp_server")
+var mcpLog = logger.New("mcp:server")
 
 // NewMCPServerCommand creates the mcp-server command
 func NewMCPServerCommand() *cobra.Command {
@@ -101,7 +101,7 @@ func createMCPServer(cmdPath string) *mcp.Server {
 		return workflow.ExecGHContext(ctx, append([]string{"aw"}, args...)...)
 	}
 
-	// Create MCP server with capabilities
+	// Create MCP server with capabilities and logging
 	server := mcp.NewServer(&mcp.Implementation{
 		Name:    "gh-aw",
 		Version: GetVersion(),
@@ -111,6 +111,7 @@ func createMCPServer(cmdPath string) *mcp.Server {
 				ListChanged: false, // Tools are static, no notifications needed
 			},
 		},
+		Logger: logger.NewSlogLoggerWithHandler(mcpLog),
 	})
 
 	// Add status tool
@@ -132,6 +133,17 @@ Returns a JSON array where each element has the following structure:
 
 Note: Output can be filtered using the jq parameter.`,
 	}, func(ctx context.Context, req *mcp.CallToolRequest, args statusArgs) (*mcp.CallToolResult, any, error) {
+		// Check for cancellation before starting
+		select {
+		case <-ctx.Done():
+			return &mcp.CallToolResult{
+				Content: []mcp.Content{
+					&mcp.TextContent{Text: fmt.Sprintf("Error: %v", ctx.Err())},
+				},
+			}, nil, nil
+		default:
+		}
+
 		// Build command arguments - always use JSON for MCP
 		cmdArgs := []string{"status", "--json"}
 		if args.Pattern != "" {
@@ -197,6 +209,17 @@ Returns JSON array with validation results for each workflow:
 
 Note: Output can be filtered using the jq parameter.`,
 	}, func(ctx context.Context, req *mcp.CallToolRequest, args compileArgs) (*mcp.CallToolResult, any, error) {
+		// Check for cancellation before starting
+		select {
+		case <-ctx.Done():
+			return &mcp.CallToolResult{
+				Content: []mcp.Content{
+					&mcp.TextContent{Text: fmt.Sprintf("Error: %v", ctx.Err())},
+				},
+			}, nil, nil
+		default:
+		}
+
 		// Check if any static analysis tools are requested that require Docker images
 		if args.Zizmor || args.Poutine || args.Actionlint {
 			// Check if Docker images are available; if not, start downloading and return retry message
@@ -206,6 +229,17 @@ Note: Output can be filtered using the jq parameter.`,
 						&mcp.TextContent{Text: err.Error()},
 					},
 				}, nil, nil
+			}
+
+			// Check for cancellation after Docker image preparation
+			select {
+			case <-ctx.Done():
+				return &mcp.CallToolResult{
+					Content: []mcp.Content{
+						&mcp.TextContent{Text: fmt.Sprintf("Error: %v", ctx.Err())},
+					},
+				}, nil, nil
+			default:
 			}
 		}
 
@@ -298,6 +332,17 @@ to filter the output to a manageable size, or adjust the 'max_tokens' parameter.
   - .runs[:5] (get first 5 runs)
   - .runs | map(select(.conclusion == "failure")) (get only failed runs)`,
 	}, func(ctx context.Context, req *mcp.CallToolRequest, args logsArgs) (*mcp.CallToolResult, any, error) {
+		// Check for cancellation before starting
+		select {
+		case <-ctx.Done():
+			return &mcp.CallToolResult{
+				Content: []mcp.Content{
+					&mcp.TextContent{Text: fmt.Sprintf("Error: %v", ctx.Err())},
+				},
+			}, nil, nil
+		default:
+		}
+
 		// Validate firewall parameters
 		if args.Firewall && args.NoFirewall {
 			return &mcp.CallToolResult{
@@ -410,6 +455,17 @@ Returns JSON with the following structure:
 
 Note: Output can be filtered using the jq parameter.`,
 	}, func(ctx context.Context, req *mcp.CallToolRequest, args auditArgs) (*mcp.CallToolResult, any, error) {
+		// Check for cancellation before starting
+		select {
+		case <-ctx.Done():
+			return &mcp.CallToolResult{
+				Content: []mcp.Content{
+					&mcp.TextContent{Text: fmt.Sprintf("Error: %v", ctx.Err())},
+				},
+			}, nil, nil
+		default:
+		}
+
 		// Build command arguments
 		// Force output directory to /tmp/gh-aw/aw-mcp/logs for MCP server (same as logs)
 		// Use --json flag to output structured JSON for MCP consumption
@@ -477,6 +533,17 @@ Returns formatted text output showing:
 - Secret availability status (if GitHub token is available)
 - Detailed tool information when tool parameter is specified`,
 	}, func(ctx context.Context, req *mcp.CallToolRequest, args mcpInspectArgs) (*mcp.CallToolResult, any, error) {
+		// Check for cancellation before starting
+		select {
+		case <-ctx.Done():
+			return &mcp.CallToolResult{
+				Content: []mcp.Content{
+					&mcp.TextContent{Text: fmt.Sprintf("Error: %v", ctx.Err())},
+				},
+			}, nil, nil
+		default:
+		}
+
 		// Build command arguments
 		cmdArgs := []string{"mcp", "inspect"}
 
@@ -525,6 +592,17 @@ Returns formatted text output showing:
 		Name:        "add",
 		Description: "Add workflows from remote repositories to .github/workflows",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, args addArgs) (*mcp.CallToolResult, any, error) {
+		// Check for cancellation before starting
+		select {
+		case <-ctx.Done():
+			return &mcp.CallToolResult{
+				Content: []mcp.Content{
+					&mcp.TextContent{Text: fmt.Sprintf("Error: %v", ctx.Err())},
+				},
+			}, nil, nil
+		default:
+		}
+
 		// Validate required arguments
 		if len(args.Workflows) == 0 {
 			return &mcp.CallToolResult{
@@ -593,6 +671,17 @@ Returns formatted text output showing:
 - Updated workflows with their new versions
 - Compilation status for each updated workflow`,
 	}, func(ctx context.Context, req *mcp.CallToolRequest, args updateArgs) (*mcp.CallToolResult, any, error) {
+		// Check for cancellation before starting
+		select {
+		case <-ctx.Done():
+			return &mcp.CallToolResult{
+				Content: []mcp.Content{
+					&mcp.TextContent{Text: fmt.Sprintf("Error: %v", ctx.Err())},
+				},
+			}, nil, nil
+		default:
+		}
+
 		// Build command arguments
 		cmdArgs := []string{"update"}
 

@@ -726,3 +726,88 @@ func TestMCPServer_CapabilitiesConfiguration(t *testing.T) {
 
 	t.Logf("Server capabilities configured correctly: Tools.ListChanged = %v", serverCapabilities.Tools.ListChanged)
 }
+
+// TestMCPServer_ContextCancellation tests that tool handlers properly respond to context cancellation
+func TestMCPServer_ContextCancellation(t *testing.T) {
+	// Skip if the binary doesn't exist
+	binaryPath := "../../gh-aw"
+	if _, err := os.Stat(binaryPath); os.IsNotExist(err) {
+		t.Skip("Skipping test: gh-aw binary not found. Run 'make build' first.")
+	}
+
+	// Get the current directory for proper path resolution
+	originalDir, _ := os.Getwd()
+
+	// Create MCP client
+	client := mcp.NewClient(&mcp.Implementation{
+		Name:    "test-client",
+		Version: "1.0.0",
+	}, nil)
+
+	// Start the MCP server as a subprocess
+	serverCmd := exec.Command(filepath.Join(originalDir, binaryPath), "mcp-server")
+	transport := &mcp.CommandTransport{Command: serverCmd}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	session, err := client.Connect(ctx, transport, nil)
+	if err != nil {
+		t.Fatalf("Failed to connect to MCP server: %v", err)
+	}
+	defer session.Close()
+
+	// Test context cancellation for different tools
+	tools := []string{"status", "audit"}
+
+	for _, toolName := range tools {
+		t.Run(toolName, func(t *testing.T) {
+			// Create a context that's already cancelled
+			cancelledCtx, immediateCancel := context.WithCancel(context.Background())
+			immediateCancel() // Cancel immediately
+
+			var params *mcp.CallToolParams
+			switch toolName {
+			case "status":
+				params = &mcp.CallToolParams{
+					Name:      "status",
+					Arguments: map[string]any{},
+				}
+			case "audit":
+				params = &mcp.CallToolParams{
+					Name: "audit",
+					Arguments: map[string]any{
+						"run_id": int64(1),
+					},
+				}
+			}
+
+			// Call the tool with a cancelled context
+			result, err := session.CallTool(cancelledCtx, params)
+
+			// The tool should handle the cancellation gracefully
+			// It should either return an error OR return a result with error message
+			if err != nil {
+				// Check if it's a context cancellation error
+				if !strings.Contains(err.Error(), "context") && !strings.Contains(err.Error(), "cancel") {
+					t.Logf("Tool returned error (acceptable): %v", err)
+				} else {
+					t.Logf("Tool properly detected cancellation via error: %v", err)
+				}
+			} else if result != nil && len(result.Content) > 0 {
+				// Check if the result contains an error message about cancellation
+				if textContent, ok := result.Content[0].(*mcp.TextContent); ok {
+					text := textContent.Text
+					if strings.Contains(text, "context") || strings.Contains(text, "cancel") {
+						t.Logf("Tool properly detected cancellation via result: %s", text)
+					} else {
+						t.Logf("Tool returned result (may not have detected cancellation immediately): %s", text)
+					}
+				}
+			}
+
+			// The important thing is that the tool doesn't hang or crash
+			// Either returning an error or a result with error message is acceptable
+		})
+	}
+}

@@ -143,7 +143,10 @@ on:
   # created, updated, or closed
   # (optional)
   pull_request:
-    # List of pull request event types to trigger on
+    # Pull request event types to trigger on. Note: 'converted_to_draft' and
+    # 'ready_for_review' represent state transitions (events) rather than states.
+    # While technically valid to listen for both, consider if you need to handle both
+    # transitions or just one.
     # (optional)
     types: []
       # Array of strings
