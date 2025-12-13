@@ -60,7 +60,7 @@ func getTimeoutMinutesCodemod() Codemod {
 				if strings.HasPrefix(trimmedLine, "timeout_minutes:") {
 					// Preserve indentation
 					leadingSpace := line[:len(line)-len(strings.TrimLeft(line, " \t"))]
-					
+
 					// Extract the value and any trailing comment
 					parts := strings.SplitN(line, ":", 2)
 					if len(parts) >= 2 {
@@ -133,12 +133,12 @@ func getNetworkFirewallCodemod() Codemod {
 			var inNetworkBlock bool
 			var networkIndent string
 			var firewallLineIndex = -1
-			
+
 			frontmatterLines := make([]string, 0, len(result.FrontmatterLines))
-			
+
 			for i, line := range result.FrontmatterLines {
 				trimmedLine := strings.TrimSpace(line)
-				
+
 				// Track if we're in the network block
 				if strings.HasPrefix(trimmedLine, "network:") {
 					inNetworkBlock = true
@@ -146,7 +146,7 @@ func getNetworkFirewallCodemod() Codemod {
 					frontmatterLines = append(frontmatterLines, line)
 					continue
 				}
-				
+
 				// Check if we've left the network block (new top-level key with same or less indentation)
 				if inNetworkBlock && len(trimmedLine) > 0 && !strings.HasPrefix(trimmedLine, "#") {
 					currentIndent := line[:len(line)-len(strings.TrimLeft(line, " \t"))]
@@ -154,7 +154,7 @@ func getNetworkFirewallCodemod() Codemod {
 						inNetworkBlock = false
 					}
 				}
-				
+
 				// Remove firewall line if in network block
 				if inNetworkBlock && strings.HasPrefix(trimmedLine, "firewall:") {
 					firewallIndent = line[:len(line)-len(strings.TrimLeft(line, " \t"))]
@@ -163,7 +163,7 @@ func getNetworkFirewallCodemod() Codemod {
 					codemodsLog.Printf("Removed network.firewall on line %d", i+1)
 					continue
 				}
-				
+
 				frontmatterLines = append(frontmatterLines, line)
 			}
 
@@ -182,7 +182,7 @@ func getNetworkFirewallCodemod() Codemod {
 						"sandbox:",
 						"  agent: false  # Firewall disabled (migrated from network.firewall)",
 					}
-					
+
 					// Find where to insert (after network block)
 					insertIndex := -1
 					inNet := false
@@ -196,7 +196,7 @@ func getNetworkFirewallCodemod() Codemod {
 							break
 						}
 					}
-					
+
 					if insertIndex >= 0 {
 						// Insert after network block
 						newLines := make([]string, 0, len(frontmatterLines)+len(sandboxLines))
@@ -208,7 +208,7 @@ func getNetworkFirewallCodemod() Codemod {
 						// Append at the end
 						frontmatterLines = append(frontmatterLines, sandboxLines...)
 					}
-					
+
 					codemodsLog.Print("Added sandbox.agent: false")
 				} else {
 					// Just append at the end

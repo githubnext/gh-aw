@@ -121,7 +121,7 @@ func runFixCommand(workflowIDs []string, write bool, verbose bool) error {
 
 	for _, file := range files {
 		fixLog.Printf("Processing file: %s", file)
-		
+
 		fixed, err := processWorkflowFile(file, codemods, write, verbose)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s\n", console.FormatErrorMessage(fmt.Sprintf("Error processing %s: %v", filepath.Base(file), err)))
