@@ -66,8 +66,9 @@ on: "example-value"
 
 # Option 2: Complex trigger configuration with event-specific filters and options
 on:
-  # Special command trigger for /command workflows (e.g., '/my-bot' in issue
-  # comments). Creates conditions to match slash commands automatically.
+  # Command event trigger configuration (at `on.command`). Enables slash command
+  # triggers like '/my-bot' in issue comments, PRs, and discussions. Creates
+  # conditions to match slash commands automatically.
   # (optional)
   # This field supports multiple formats (oneOf):
 
@@ -931,8 +932,9 @@ sandbox:
     # (optional)
     type: "awf"
 
-    # Custom command to replace the default AWF or SRT installation. For AWF: 'docker
-    # run my-custom-awf-image'. For SRT: 'docker run my-custom-srt-wrapper'
+    # Custom command to replace the default agent sandbox installation (at
+    # `sandbox.agent.command`). For AWF: 'docker run my-custom-awf-image'. For SRT:
+    # 'docker run my-custom-srt-wrapper'
     # (optional)
     command: "example-value"
 
@@ -1564,7 +1566,8 @@ tools:
   repo-memory: []
     # Array items: object
 
-# Command name for the workflow
+# Top-level command identifier for workflow naming (at `.command`). Used to
+# override the default workflow name derived from the filename.
 # (optional)
 command: "example-value"
 
