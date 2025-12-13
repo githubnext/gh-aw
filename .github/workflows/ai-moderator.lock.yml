@@ -39,10 +39,14 @@
 # engine:
 #   id: copilot
 #   model: gpt-5-mini
+# tools:
+#   github:
+#     mode: remote
+#     toolsets: [default]
 # if: (github.event_name == 'workflow_dispatch') || (needs.check_external_user.outputs.is_external == 'true')
 # safe-outputs:
 #   add-labels:
-#     allowed: [spam, ai-generated, link-spam, ai-qa]
+#     allowed: [spam, ai-generated, link-spam, ai-qa, inspected]
 #   hide-comment:
 #     max: 5
 #     allowed-reasons: [spam]
@@ -134,6 +138,13 @@
 #
 # **Content to analyze**:
 #
+# When running via `workflow_dispatch` with an `issue_url` input:
+# 1. Parse the issue URL to extract the owner, repo, and issue number
+# 2. Use the GitHub MCP server tools (available via `github` toolset) to fetch the full issue content
+# 3. Specifically, use the appropriate GitHub API tool to get the issue details including title and body
+#
+# For other trigger types (issues, issue_comment, pull_request_review_comment):
+#
 # <unsafe_user_input>
 # ${{ needs.activation.outputs.text }}
 # </unsafe_user_input>
@@ -209,13 +220,13 @@
 #    - If link spam is detected, use the `add-labels` safe output to add the `link-spam` label to the issue
 #    - If AI-generated content is detected, use the `add-labels` safe output to add the `ai-generated` label to the issue
 #    - Multiple labels can be added if multiple types are detected
-#    - **If no warnings or issues are found** and the content appears legitimate and on-topic, use the `add-labels` safe output to add the `ai-qa` label to indicate the issue has been reviewed and approved
+#    - **If no warnings or issues are found** and the content appears legitimate and on-topic, use the `add-labels` safe output to add the `inspected` label to indicate the issue has been reviewed and no threats were found
 #
 # 2. **For Comments** (when comment ID is present):
 #    - If any type of spam or AI-generated content is detected:
 #      - Use the `minimize_comment` safe output to minimize the comment
 #      - Also add appropriate labels to the parent issue/PR as described above
-#    - If the comment appears legitimate and on-topic, add the `ai-qa` label to the parent issue/PR
+#    - If the comment appears legitimate and on-topic, add the `inspected` label to the parent issue/PR
 #
 # ## Important Guidelines
 #
@@ -840,7 +851,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_LABELS_ALLOWED: "spam,ai-generated,link-spam,ai-qa"
+          GH_AW_LABELS_ALLOWED: "spam,ai-generated,link-spam,ai-qa,inspected"
           GH_AW_LABELS_MAX_COUNT: 3
           GH_AW_WORKFLOW_NAME: "AI Moderator"
           GH_AW_ENGINE_ID: "copilot"
@@ -1477,21 +1488,17 @@ jobs:
           sudo mv awf /usr/local/bin/
           which awf
           awf --version
-      - name: Downloading container images
-        run: |
-          set -e
-          docker pull ghcr.io/github/github-mcp-server:v0.24.1
       - name: Write Safe Outputs Config
         run: |
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
           cat > /tmp/gh-aw/safeoutputs/config.json << 'EOF'
-          {"add_labels":{"allowed":["spam","ai-generated","link-spam","ai-qa"],"max":3},"missing_tool":{"max":0},"noop":{"max":1}}
+          {"add_labels":{"allowed":["spam","ai-generated","link-spam","ai-qa","inspected"],"max":3},"missing_tool":{"max":0},"noop":{"max":1}}
           EOF
           cat > /tmp/gh-aw/safeoutputs/tools.json << 'EOF'
           [
             {
-              "description": "Add labels to an existing GitHub issue or pull request for categorization and filtering. Labels must already exist in the repository. For creating new issues with labels, use create_issue with the labels property instead. CONSTRAINTS: Only these labels are allowed: [spam ai-generated link-spam ai-qa].",
+              "description": "Add labels to an existing GitHub issue or pull request for categorization and filtering. Labels must already exist in the repository. For creating new issues with labels, use create_issue with the labels property instead. CONSTRAINTS: Only these labels are allowed: [spam ai-generated link-spam ai-qa inspected].",
               "inputSchema": {
                 "additionalProperties": false,
                 "properties": {
@@ -3007,20 +3014,13 @@ jobs:
           {
             "mcpServers": {
               "github": {
-                "type": "local",
-                "command": "docker",
-                "args": [
-                  "run",
-                  "-i",
-                  "--rm",
-                  "-e",
-                  "GITHUB_PERSONAL_ACCESS_TOKEN",
-                  "-e",
-                  "GITHUB_READ_ONLY=1",
-                  "-e",
-                  "GITHUB_TOOLSETS=context,repos,issues,pull_requests",
-                  "ghcr.io/github/github-mcp-server:v0.24.1"
-                ],
+                "type": "http",
+                "url": "https://api.githubcopilot.com/mcp/",
+                "headers": {
+                  "Authorization": "Bearer \${GITHUB_PERSONAL_ACCESS_TOKEN}",
+                  "X-MCP-Readonly": "true",
+                  "X-MCP-Toolsets": "context,repos,issues,pull_requests"
+                },
                 "tools": ["*"],
                 "env": {
                   "GITHUB_PERSONAL_ACCESS_TOKEN": "\${GITHUB_MCP_SERVER_TOKEN}"
@@ -3172,6 +3172,13 @@ jobs:
           
           **Content to analyze**:
           
+          When running via `workflow_dispatch` with an `issue_url` input:
+          1. Parse the issue URL to extract the owner, repo, and issue number
+          2. Use the GitHub MCP server tools (available via `github` toolset) to fetch the full issue content
+          3. Specifically, use the appropriate GitHub API tool to get the issue details including title and body
+          
+          For other trigger types (issues, issue_comment, pull_request_review_comment):
+          
           <unsafe_user_input>
           __GH_AW_NEEDS_ACTIVATION_OUTPUTS_TEXT__
           </unsafe_user_input>
@@ -3247,13 +3254,13 @@ jobs:
              - If link spam is detected, use the `add-labels` safe output to add the `link-spam` label to the issue
              - If AI-generated content is detected, use the `add-labels` safe output to add the `ai-generated` label to the issue
              - Multiple labels can be added if multiple types are detected
-             - **If no warnings or issues are found** and the content appears legitimate and on-topic, use the `add-labels` safe output to add the `ai-qa` label to indicate the issue has been reviewed and approved
+             - **If no warnings or issues are found** and the content appears legitimate and on-topic, use the `add-labels` safe output to add the `inspected` label to indicate the issue has been reviewed and no threats were found
           
           2. **For Comments** (when comment ID is present):
              - If any type of spam or AI-generated content is detected:
                - Use the `minimize_comment` safe output to minimize the comment
                - Also add appropriate labels to the parent issue/PR as described above
-             - If the comment appears legitimate and on-topic, add the `ai-qa` label to the parent issue/PR
+             - If the comment appears legitimate and on-topic, add the `inspected` label to the parent issue/PR
           
           ## Important Guidelines
           
