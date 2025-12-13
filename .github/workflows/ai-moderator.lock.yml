@@ -39,7 +39,7 @@
 # engine:
 #   id: copilot
 #   model: gpt-5-mini
-# if: needs.check_external_user.outputs.is_external == 'true'
+# if: (github.event_name == 'workflow_dispatch') || (needs.check_external_user.outputs.is_external == 'true')
 # safe-outputs:
 #   add-labels:
 #     allowed: [spam, ai-generated, link-spam, ai-qa]
@@ -54,20 +54,13 @@
 #     outputs:
 #       is_external: ${{ steps.check_actor.outputs.should_run }}
 #     steps:
-#       - name: Skip if actor is team member
+#       - name: Check if actor is external user
 #         id: check_actor
 #         uses: actions/github-script@v8
 #         with:
 #           script: |
 #             const actor = context.actor;
 #             const { owner, repo } = context.repo;
-#
-#             // For workflow_dispatch, always run (manually triggered by user)
-#             if (context.eventName === 'workflow_dispatch') {
-#               core.info(`✅ Running workflow - manually triggered via workflow_dispatch`);
-#               core.setOutput('should_run', 'true');
-#               return;
-#             }
 #
 #             try {
 #               core.info(`Checking permissions for user: ${actor}`);
@@ -276,7 +269,8 @@ jobs:
     needs:
       - check_external_user
       - pre_activation
-    if: (needs.pre_activation.outputs.activated == 'true') && (needs.check_external_user.outputs.is_external == 'true')
+    if: >
+      (needs.pre_activation.outputs.activated == 'true') && ((github.event_name == 'workflow_dispatch') || (needs.check_external_user.outputs.is_external == 'true'))
     runs-on: ubuntu-slim
     permissions:
       contents: read
@@ -6931,20 +6925,13 @@ jobs:
     outputs:
       is_external: ${{ steps.check_actor.outputs.should_run }}
     steps:
-      - name: Skip if actor is team member
+      - name: Check if actor is external user
         id: check_actor
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
           script: |-
             const actor = context.actor;
             const { owner, repo } = context.repo;
-
-            // For workflow_dispatch, always run (manually triggered by user)
-            if (context.eventName === 'workflow_dispatch') {
-              core.info(`✅ Running workflow - manually triggered via workflow_dispatch`);
-              core.setOutput('should_run', 'true');
-              return;
-            }
 
             try {
               core.info(`Checking permissions for user: ${actor}`);
