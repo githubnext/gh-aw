@@ -11,6 +11,8 @@ permissions:
   pull-requests: read
 tracker-id: portfolio-analyst-weekly
 engine: copilot
+network:
+  allowed: [python]
 tools:
   github:
     toolsets: [default]
