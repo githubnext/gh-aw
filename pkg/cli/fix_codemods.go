@@ -142,7 +142,6 @@ func getNetworkFirewallCodemod() Codemod {
 
 			// Find and remove the firewall line, add sandbox.agent if needed
 			var modified bool
-			var firewallIndent string
 			var inNetworkBlock bool
 			var networkIndent string
 			var firewallLineIndex = -1
@@ -170,7 +169,6 @@ func getNetworkFirewallCodemod() Codemod {
 
 				// Remove firewall line if in network block
 				if inNetworkBlock && strings.HasPrefix(trimmedLine, "firewall:") {
-					firewallIndent = line[:len(line)-len(strings.TrimLeft(line, " \t"))]
 					firewallLineIndex = i
 					modified = true
 					codemodsLog.Printf("Removed network.firewall on line %d", i+1)
@@ -191,7 +189,7 @@ func getNetworkFirewallCodemod() Codemod {
 				sandboxLines := getSandboxAgentFalseLines()
 				
 				// Try to place it after network block if we found firewall
-				if firewallLineIndex >= 0 && len(firewallIndent) > 0 {
+				if firewallLineIndex >= 0 {
 					// Find where to insert (after network block)
 					insertIndex := -1
 					inNet := false
@@ -199,10 +197,14 @@ func getNetworkFirewallCodemod() Codemod {
 						trimmed := strings.TrimSpace(line)
 						if strings.HasPrefix(trimmed, "network:") {
 							inNet = true
-						} else if inNet && len(trimmed) > 0 && !strings.HasPrefix(line, " ") && !strings.HasPrefix(trimmed, "#") {
-							// Found next top-level key
-							insertIndex = i
-							break
+						} else if inNet && len(trimmed) > 0 {
+							// Check if this is a top-level key (no leading whitespace)
+							currentIndent := line[:len(line)-len(strings.TrimLeft(line, " \t"))]
+							if len(currentIndent) == 0 && !strings.HasPrefix(trimmed, "#") {
+								// Found next top-level key
+								insertIndex = i
+								break
+							}
 						}
 					}
 

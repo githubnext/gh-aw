@@ -7,6 +7,17 @@ import (
 	"testing"
 )
 
+// getCodemodByID is a helper function to find a codemod by ID
+func getCodemodByID(id string) *Codemod {
+	codemods := GetAllCodemods()
+	for _, cm := range codemods {
+		if cm.ID == id {
+			return &cm
+		}
+	}
+	return nil
+}
+
 func TestFixCommand_TimeoutMinutesMigration(t *testing.T) {
 	// Create a temporary directory for test files
 	tmpDir := t.TempDir()
@@ -32,16 +43,8 @@ This is a test workflow.
 		t.Fatalf("Failed to create test file: %v", err)
 	}
 
-	// Run the codemod
-	codemods := GetAllCodemods()
-	var timeoutCodemod *Codemod
-	for _, cm := range codemods {
-		if cm.ID == "timeout-minutes-migration" {
-			timeoutCodemod = &cm
-			break
-		}
-	}
-
+	// Get the timeout migration codemod
+	timeoutCodemod := getCodemodByID("timeout-minutes-migration")
 	if timeoutCodemod == nil {
 		t.Fatal("timeout-minutes-migration codemod not found")
 	}
@@ -151,16 +154,8 @@ This is a test workflow.
 		t.Fatalf("Failed to create test file: %v", err)
 	}
 
-	// Run the codemod
-	codemods := GetAllCodemods()
-	var firewallCodemod *Codemod
-	for _, cm := range codemods {
-		if cm.ID == "network-firewall-migration" {
-			firewallCodemod = &cm
-			break
-		}
-	}
-
+	// Get the firewall migration codemod
+	firewallCodemod := getCodemodByID("network-firewall-migration")
 	if firewallCodemod == nil {
 		t.Fatal("network-firewall-migration codemod not found")
 	}
@@ -223,16 +218,8 @@ This is a test workflow.
 		t.Fatalf("Failed to create test file: %v", err)
 	}
 
-	// Run the timeout migration codemod
-	codemods := GetAllCodemods()
-	var timeoutCodemod *Codemod
-	for _, cm := range codemods {
-		if cm.ID == "timeout-minutes-migration" {
-			timeoutCodemod = &cm
-			break
-		}
-	}
-
+	// Get the timeout migration codemod
+	timeoutCodemod := getCodemodByID("timeout-minutes-migration")
 	if timeoutCodemod == nil {
 		t.Fatal("timeout-minutes-migration codemod not found")
 	}
