@@ -101,7 +101,7 @@ func createMCPServer(cmdPath string) *mcp.Server {
 		return workflow.ExecGHContext(ctx, append([]string{"aw"}, args...)...)
 	}
 
-	// Create MCP server with capabilities
+	// Create MCP server with capabilities and logging
 	server := mcp.NewServer(&mcp.Implementation{
 		Name:    "gh-aw",
 		Version: GetVersion(),
@@ -111,6 +111,7 @@ func createMCPServer(cmdPath string) *mcp.Server {
 				ListChanged: false, // Tools are static, no notifications needed
 			},
 		},
+		Logger: logger.NewSlogLoggerWithHandler(mcpLog),
 	})
 
 	// Add status tool
