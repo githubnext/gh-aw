@@ -50,11 +50,13 @@
 #     title-prefix: "[portfolio] "
 #     category: "Audits"
 #     close-older-discussions: true
+#   upload-assets:
 # timeout-minutes: 20
 # imports:
 #   - shared/mcp/gh-aw.md
 #   - shared/reporting.md
 #   - shared/jqschema.md
+#   - shared/trending-charts-simple.md
 # ```
 #
 # Resolved workflow manifest:
@@ -62,6 +64,7 @@
 #     - shared/mcp/gh-aw.md
 #     - shared/reporting.md
 #     - shared/jqschema.md
+#     - shared/trending-charts-simple.md
 #
 # Job Dependency Graph:
 # ```mermaid
@@ -71,14 +74,22 @@
 #   conclusion["conclusion"]
 #   create_discussion["create_discussion"]
 #   detection["detection"]
+#   update_cache_memory["update_cache_memory"]
+#   upload_assets["upload_assets"]
 #   activation --> agent
 #   activation --> conclusion
 #   agent --> conclusion
 #   agent --> create_discussion
 #   agent --> detection
+#   agent --> update_cache_memory
+#   agent --> upload_assets
 #   create_discussion --> conclusion
 #   detection --> conclusion
 #   detection --> create_discussion
+#   detection --> update_cache_memory
+#   detection --> upload_assets
+#   update_cache_memory --> conclusion
+#   upload_assets --> conclusion
 # ```
 #
 # Original Prompt:
@@ -246,6 +257,242 @@
 # # Now you know which fields exist and can use them in your analysis
 # ```
 #
+# # Trending Charts - Quick Start Guide
+#
+# You have a complete Python environment with scientific libraries ready for generating trend charts with persistent data storage.
+#
+# ## Cache-Memory for Trending Data
+#
+# Persistent cache-memory is available at `/tmp/gh-aw/cache-memory/` that survives across workflow runs. Use it to store historical trending data.
+#
+# **Recommended Structure:**
+# ```
+# /tmp/gh-aw/cache-memory/
+# ├── trending/
+# │   ├── <metric-name>/
+# │   │   └── history.jsonl      # Time-series data (JSON Lines format)
+# │   └── index.json              # Index of all tracked metrics
+# ```
+#
+# ## Quick Start Pattern 1: Daily Metrics Tracking
+#
+# Track daily metrics and visualize trends over time:
+#
+# ```python
+# #!/usr/bin/env python3
+# """Daily metrics trending"""
+# import pandas as pd
+# import matplotlib.pyplot as plt
+# import seaborn as sns
+# import json
+# import os
+# from datetime import datetime
+#
+# # Configuration
+# CACHE_DIR = '/tmp/gh-aw/cache-memory/trending'
+# METRIC_NAME = 'daily_metrics'
+# HISTORY_FILE = f'{CACHE_DIR}/{METRIC_NAME}/history.jsonl'
+# CHARTS_DIR = '/tmp/gh-aw/python/charts'
+#
+# # Ensure directories exist
+# os.makedirs(f'{CACHE_DIR}/{METRIC_NAME}', exist_ok=True)
+# os.makedirs(CHARTS_DIR, exist_ok=True)
+#
+# # Collect today's data (customize this section)
+# today_data = {
+#     "timestamp": datetime.now().isoformat(),
+#     "metric_a": 42,
+#     "metric_b": 85,
+#     "metric_c": 23
+# }
+#
+# # Append to history
+# with open(HISTORY_FILE, 'a') as f:
+#     f.write(json.dumps(today_data) + '\n')
+#
+# # Load all historical data
+# if os.path.exists(HISTORY_FILE):
+#     df = pd.read_json(HISTORY_FILE, lines=True)
+#     df['date'] = pd.to_datetime(df['timestamp']).dt.date
+#     df = df.sort_values('timestamp')
+#     daily_stats = df.groupby('date').sum()
+#
+#     # Generate trend chart
+#     sns.set_style("whitegrid")
+#     sns.set_palette("husl")
+#
+#     fig, ax = plt.subplots(figsize=(12, 7), dpi=300)
+#     daily_stats.plot(ax=ax, marker='o', linewidth=2)
+#     ax.set_title('Daily Metrics Trends', fontsize=16, fontweight='bold')
+#     ax.set_xlabel('Date', fontsize=12)
+#     ax.set_ylabel('Count', fontsize=12)
+#     ax.legend(loc='best')
+#     ax.grid(True, alpha=0.3)
+#     plt.xticks(rotation=45)
+#     plt.tight_layout()
+#
+#     plt.savefig(f'{CHARTS_DIR}/daily_metrics_trend.png',
+#                 dpi=300, bbox_inches='tight', facecolor='white')
+#
+#     print(f"✅ Chart generated with {len(df)} data points")
+# else:
+#     print("No historical data yet. Run again tomorrow to see trends.")
+# ```
+#
+# ## Quick Start Pattern 2: Moving Averages
+#
+# Smooth volatile data with moving averages:
+#
+# ```python
+# #!/usr/bin/env python3
+# """Moving average trending"""
+# import pandas as pd
+# import matplotlib.pyplot as plt
+# import seaborn as sns
+# import os
+#
+# # Load historical data
+# history_file = '/tmp/gh-aw/cache-memory/trending/metrics/history.jsonl'
+# if os.path.exists(history_file):
+#     df = pd.read_json(history_file, lines=True)
+#     df['date'] = pd.to_datetime(df['timestamp']).dt.date
+#     df = df.sort_values('timestamp')
+#
+#     # Calculate 7-day moving average
+#     df['rolling_avg'] = df['value'].rolling(window=7, min_periods=1).mean()
+#
+#     # Plot with trend line
+#     sns.set_style("whitegrid")
+#     fig, ax = plt.subplots(figsize=(12, 7), dpi=300)
+#     ax.plot(df['date'], df['value'], label='Actual', alpha=0.5, marker='o')
+#     ax.plot(df['date'], df['rolling_avg'], label='7-day Average', linewidth=2.5)
+#     ax.fill_between(df['date'], df['value'], df['rolling_avg'], alpha=0.2)
+#     ax.set_title('Trend with Moving Average', fontsize=16, fontweight='bold')
+#     ax.set_xlabel('Date', fontsize=12)
+#     ax.set_ylabel('Value', fontsize=12)
+#     ax.legend(loc='best')
+#     ax.grid(True, alpha=0.3)
+#     plt.xticks(rotation=45)
+#     plt.tight_layout()
+#     plt.savefig('/tmp/gh-aw/python/charts/moving_average_trend.png',
+#                 dpi=300, bbox_inches='tight', facecolor='white')
+#     print("✅ Moving average chart generated")
+# ```
+#
+# ## Quick Start Pattern 3: Comparative Trends
+#
+# Compare multiple metrics over time:
+#
+# ```python
+# #!/usr/bin/env python3
+# """Comparative trending"""
+# import pandas as pd
+# import matplotlib.pyplot as plt
+# import seaborn as sns
+# import os
+#
+# history_file = '/tmp/gh-aw/cache-memory/trending/multi_metrics/history.jsonl'
+# if os.path.exists(history_file):
+#     df = pd.read_json(history_file, lines=True)
+#     df['timestamp'] = pd.to_datetime(df['timestamp'])
+#
+#     # Plot multiple metrics
+#     sns.set_style("whitegrid")
+#     sns.set_palette("husl")
+#     fig, ax = plt.subplots(figsize=(14, 8), dpi=300)
+#
+#     for metric in df['metric'].unique():
+#         metric_data = df[df['metric'] == metric]
+#         ax.plot(metric_data['timestamp'], metric_data['value'], 
+#                 marker='o', label=metric, linewidth=2)
+#
+#     ax.set_title('Comparative Metrics Trends', fontsize=16, fontweight='bold')
+#     ax.set_xlabel('Date', fontsize=12)
+#     ax.set_ylabel('Value', fontsize=12)
+#     ax.legend(loc='best', fontsize=12)
+#     ax.grid(True, alpha=0.3)
+#     plt.xticks(rotation=45)
+#     plt.tight_layout()
+#     plt.savefig('/tmp/gh-aw/python/charts/comparative_trends.png',
+#                 dpi=300, bbox_inches='tight', facecolor='white')
+#     print("✅ Comparative trends chart generated")
+# ```
+#
+# ## Best Practices
+#
+# ### 1. Use JSON Lines Format
+#
+# Store trending data as JSON Lines (`.jsonl`) for efficient append-only storage:
+# ```python
+# # Append new data point
+# with open(history_file, 'a') as f:
+#     f.write(json.dumps(data_point) + '\n')
+#
+# # Load all data
+# df = pd.read_json(history_file, lines=True)
+# ```
+#
+# ### 2. Include Timestamps
+#
+# Always include ISO 8601 timestamps:
+# ```python
+# data_point = {
+#     "timestamp": datetime.now().isoformat(),
+#     "metric": "issue_count",
+#     "value": 42
+# }
+# ```
+#
+# ### 3. Data Retention
+#
+# Implement retention policies to prevent unbounded growth:
+# ```python
+# from datetime import datetime, timedelta
+#
+# # Keep only last 90 days
+# cutoff_date = datetime.now() - timedelta(days=90)
+# df = df[df['timestamp'] >= cutoff_date]
+#
+# # Save pruned data
+# df.to_json(history_file, orient='records', lines=True)
+# ```
+#
+# ## Directory Structure
+#
+# ```
+# /tmp/gh-aw/
+# ├── python/
+# │   ├── data/          # Current run data files
+# │   ├── charts/        # Generated charts (auto-uploaded as artifacts)
+# │   ├── artifacts/     # Additional output files
+# │   └── *.py           # Python scripts
+# └── cache-memory/
+#     └── trending/      # Persistent historical data (survives runs)
+#         └── <metric>/
+#             └── history.jsonl
+# ```
+#
+# ## Chart Quality Guidelines
+#
+# - **DPI**: Use 300 or higher for publication quality
+# - **Figure Size**: Standard is 12x7 inches for trend charts
+# - **Labels**: Always include clear axis labels and titles
+# - **Legend**: Add legends when plotting multiple series
+# - **Grid**: Enable grid lines for easier reading
+# - **Colors**: Use colorblind-friendly palettes (seaborn defaults)
+#
+# ## Tips for Success
+#
+# 1. **Consistency**: Use same metric names across runs
+# 2. **Validation**: Check data quality before appending
+# 3. **Documentation**: Comment your data schemas
+# 4. **Testing**: Validate charts before uploading
+# 5. **Cleanup**: Implement retention policies for cache-memory
+#
+# ---
+#
+# Remember: The power of trending comes from consistent data collection over time. Use cache-memory to build a rich historical dataset that reveals insights and patterns!
+#
 # # Automated Portfolio Analyst
 #
 # You are an expert workflow portfolio analyst focused on identifying cost reduction opportunities while improving reliability.
@@ -271,6 +518,61 @@
 # - **Analysis Date**: Use `date +%Y-%m-%d` command to get current date
 # - **Target**: Identify all cost reduction opportunities (aim for 20%+ when data permits)
 # - **Time Budget**: 60 seconds
+#
+# ## Visualization Requirements
+#
+# **Generate visual charts to create a dashboard-style report**. The report should be concise, scannable, and use charts instead of long text descriptions.
+#
+# ### Required Charts
+#
+# Create these charts using Python with matplotlib/seaborn and save to `/tmp/gh-aw/python/charts/`:
+#
+# 1. **Cost Trends Chart** (`cost_trends.png`)
+#    - Line chart showing daily workflow costs over the last 30 days
+#    - Highlight the overall trend (increasing/decreasing)
+#    - Include 7-day moving average
+#
+# 2. **Top Spenders Chart** (`top_spenders.png`)
+#    - Horizontal bar chart of top 10 workflows by total cost
+#    - Show actual dollar amounts
+#    - Color code by health status (green=healthy, yellow=warning, red=critical)
+#
+# 3. **Failure Rates Chart** (`failure_rates.png`)
+#    - Bar chart showing workflows with >30% failure rate
+#    - Display failure percentage and wasted cost
+#    - Sort by wasted cost (highest first)
+#
+# 4. **Success Rate Overview** (`success_overview.png`)
+#    - Pie or donut chart showing overall success/failure/cancelled distribution
+#    - Include percentages and counts
+#
+# ### Chart Requirements
+#
+# - **High quality**: 300 DPI, 12x7 inch figures
+# - **Clear labels**: Title, axis labels, legends
+# - **Professional styling**: Use seaborn whitegrid style
+# - **Consistent colors**: Use a professional color palette
+# - **Upload all charts** using the `upload asset` tool to get URLs
+# - **Embed in report**: Include charts in the discussion using markdown image syntax
+#
+# ### Data Preparation
+#
+# Extract data from `/tmp/portfolio-logs/summary.json` and prepare it as CSV files in `/tmp/gh-aw/python/data/` before generating charts. Example:
+#
+# ```python
+# import pandas as pd
+# import json
+#
+# # Load summary data
+# with open('/tmp/portfolio-logs/summary.json', 'r') as f:
+#     data = json.load(f)
+#
+# # Prepare daily cost data
+# runs_df = pd.DataFrame(data['runs'])
+# runs_df['date'] = pd.to_datetime(runs_df['created_at']).dt.date
+# daily_costs = runs_df.groupby('date')['estimated_cost'].sum()
+# daily_costs.to_csv('/tmp/gh-aw/python/data/daily_costs.csv')
+# ```
 #
 # ## Analysis Framework
 #
@@ -457,139 +759,143 @@
 #
 # ## Output Requirements
 #
-# Generate a concise, action-oriented GitHub issue under 2000 words.
+# Generate a **concise, visual dashboard-style report** under 1500 words with embedded charts.
 #
-# ### Issue Structure
+# ### Report Structure
+#
+# **CRITICAL**: The report must be visual and scannable. Generate all required charts FIRST, upload them as assets, then create the discussion with embedded charts.
 #
 # ```markdown
-# # Portfolio Analysis Report - [DATE]
+# # 📊 Portfolio Dashboard - [DATE]
 #
-# ## Data Availability
+# ## Quick Overview
 #
-# ⚠️ **Important**: Document the data coverage here:
-# - **Time Period**: [Actual period covered, e.g., "Last 24 hours" or "Last 30 days"]
-# - **Total Workflow Runs Analyzed**: [N] runs
-# - **Data Quality**: [e.g., "Limited - single day only" or "Good - full month"]
-# - **Confidence Level**: [e.g., "Low due to limited data" or "High with 30+ days"]
+# [2-3 sentences summarizing key findings, total costs, and potential savings]
 #
-# **Note**: When data is limited (< 30 days or < 10 total runs), recommendations are based on available data only and may not represent typical patterns. Trends may change with more historical data.
+# ## Visual Summary
 #
-# ## Executive Summary
+# ### Cost Trends (Last 30 Days)
 #
-# - **Total Workflows Analyzed**: [N]
-# - **Current Monthly Cost**: $[X] (from actual downloaded log data, [period])
-# - **Potential Savings**: $[Y] ([Z]%)
-# - **High-Impact Issues**: [N]
-# - **Data Source**: Real workflow execution data from downloaded logs, not estimates
+# ![Cost Trends](URL_FROM_UPLOAD_ASSET_FOR_cost_trends.png)
 #
-# ## Cost Reduction Strategies
+# **Key Insights**:
+# - Daily average: $[X]
+# - Trend: [Increasing/Decreasing/Stable] ([Y]% change)
+# - Monthly total: $[Z]
 #
-# ### 1. Remove Unused Workflows ($[X]/month)
+# ### Top Cost Drivers
 #
-# [Only list workflows with no runs in 60+ days]
+# ![Top Spenders](URL_FROM_UPLOAD_ASSET_FOR_top_spenders.png)
 #
-# - **`workflow-name.md`** - Last run: [date], Cost: $[X]/month
-#   - Line 2-5: Remove schedule trigger
-#   - Action: Delete workflow or convert to manual-only
-#   ```yaml
-#   # Current (lines 2-5):
-#   on:
-#     schedule:
-#       - cron: "0 9 * * *"
+# Top 3 workflows account for [X]% of total cost:
+# 1. `workflow-1.md` - $[X]/month ([status])
+# 2. `workflow-2.md` - $[Y]/month ([status])
+# 3. `workflow-3.md` - $[Z]/month ([status])
 #
-#   # Change to:
-#   on:
-#     workflow_dispatch:  # Manual only
-#   ```
+# ### Failure Analysis
 #
-# **Subtotal Savings: $[X]/month**
+# ![Failure Rates](URL_FROM_UPLOAD_ASSET_FOR_failure_rates.png)
 #
-# ### 2. Reduce Schedule Frequency ($[Y]/month)
+# **Wasted Spend**: $[X]/month on failed runs
+# - [N] workflows with >30% failure rate
+# - [M] workflows with 100% failure rate (should be disabled)
 #
-# [Only list over-scheduled workflows based on actual run data from downloaded logs]
+# ### Overall Health
 #
-# - **`daily-report.md`** - Runs: [actual count from last 30 days], Avg cost/run: $[actual from downloaded logs], Total: $[Y]/month
-#   - Line 4: Change from daily to weekly
-#   - Rationale: Actual execution data shows workflow runs [X] times in last 30 days
-#   ```yaml
-#   # Current (line 4):
-#   cron: "0 9 * * *"  # Daily
+# ![Success Overview](URL_FROM_UPLOAD_ASSET_FOR_success_overview.png)
 #
-#   # Change to (line 4):
-#   cron: "0 9 * * 1"  # Weekly on Monday
-#   ```
-#   - **Current**: [actual runs] runs × $[actual cost per run] = $[Y]/month
-#   - **After**: 4 runs × $[actual cost per run] = $[lower amount]/month
-#   - **Savings**: $[Z]/month ([percentage]% reduction)
+# - ✅ Success: [X]% ([N] runs)
+# - ❌ Failure: [Y]% ([M] runs)  
+# - ⏸️ Cancelled: [Z]% ([P] runs)
 #
-# **Subtotal Savings: $[Y]/month**
+# ## 💰 Cost Reduction Opportunities
 #
-# ### 3. Consolidate Duplicate Workflows ($[Z]/month)
+# **Total Potential Savings: $[X]/month ([Y]% reduction)**
 #
-# [Only list clear duplicates]
+# <details>
+# <summary><b>Strategy 1: Fix High-Failure Workflows - $[X]/month</b></summary>
 #
-# - **Duplicate Set: Issue Triage**
-#   - `issue-triage-1.md` (Cost: $X/month)
-#   - `issue-triage-2.md` (Cost: $Y/month)
-#   - **Action**: Merge into single workflow
-#   - **Implementation**:
-#     1. Copy triggers from both workflows to `issue-triage-1.md` (lines 2-10)
-#     2. Combine prompts in body (preserve all logic)
-#     3. Delete `issue-triage-2.md`
-#   - **Savings**: $[Y]/month
+# List workflows with >30% failure rate, showing:
+# - Workflow name and file
+# - Failure rate percentage
+# - Wasted cost per month
+# - Recommended fix (1-2 lines)
 #
-# **Subtotal Savings: $[Z]/month**
+# </details>
 #
-# ### 4. Fix High-Failure Workflows ($[W]/month)
+# <details>
+# <summary><b>Strategy 2: Reduce Over-Scheduling - $[Y]/month</b></summary>
 #
-# [Only list workflows with >30% failure rate based on actual conclusion data from downloaded logs]
+# List over-scheduled workflows with:
+# - Current frequency (runs/month)
+# - Recommended frequency
+# - Savings calculation
 #
-# - **`data-processor.md`** - Failure rate: [actual %] ([X] failures out of [Y] runs), Wasted: $[W]/month
-#   - **Wasted Cost**: Sum of `estimated_cost` for all failed runs = $[W]/month (actual spend on failures)
-#   - Root cause: [analyze error_count and logs]
-#   - Fix (line 7): Add required permission
-#   ```yaml
-#   # Add to permissions section (line 7):
-#   permissions:
-#     contents: read
-#     issues: write  # <- Add this
-#   ```
-#   - **Savings**: $[W]/month (actual wasted spend on failures, recoverable after fix)
+# </details>
 #
-# **Subtotal Savings: $[W]/month**
+# <details>
+# <summary><b>Strategy 3: Disable Failed Workflows - $[Z]/month</b></summary>
 #
-# ## Total Potential Savings
+# List workflows with 100% failure rate or no successful runs.
 #
-# **All costs are from actual workflow execution data (last 30 days), not estimates:**
+# </details>
 #
-# - **Strategy 1 (Remove)**: $[X]/month (sum of actual monthly spend on unused workflows)
-# - **Strategy 2 (Reduce)**: $[Y]/month (calculated from actual cost per run × reduced frequency)
-# - **Strategy 3 (Consolidate)**: $[Z]/month (sum of actual monthly spend on duplicate workflows)
-# - **Strategy 4 (Fix)**: $[W]/month (sum of actual spend on failed runs)
-# - **Total**: $[TOTAL]/month ([PERCENT]% reduction)
-# - **Current Monthly Spend**: $[CURRENT]/month (from downloaded logs actual data)
+# <details>
+# <summary><b>Strategy 4: Remove Unused Workflows - $[W]/month</b></summary>
 #
-# ## Implementation Checklist
+# List workflows with no runs in 60+ days.
 #
-# Each fix takes <1 hour:
+# </details>
 #
-# - [ ] Remove unused workflows (Strategy 1) - Est: 15 min
-# - [ ] Reduce schedule frequency (Strategy 2) - Est: 10 min
-# - [ ] Consolidate duplicates (Strategy 3) - Est: 30 min
-# - [ ] Fix high-failure workflows (Strategy 4) - Est: 20 min
+# ## 🎯 Priority Actions
 #
-# ## Healthy Workflows (Skipped)
+# 1. **CRITICAL** - [Highest impact action with specific workflow and cost]
+# 2. **HIGH** - [Second highest impact action]
+# 3. **MEDIUM** - [Third priority action]
 #
-# [Brief list of workflows that are healthy and were skipped]
+# ## 📈 Data Quality
 #
-# - `workflow-1.md` - ✅ 98% success, $3/month, active
-# - `workflow-2.md` - ✅ 100% success, $5/month, active
-# - [... list up to 10, then summarize rest]
+# - **Period Analyzed**: [Actual dates covered]
+# - **Total Runs**: [N] workflow runs
+# - **Workflows**: [M] total, [X] executed, [Y] not run
+# - **Confidence**: [High/Medium/Low] based on [reasoning]
 #
 # ---
 #
-# *Analysis completed in [X] seconds | Focus: Top 20% issues representing 80% of costs*
+# **Methodology**: Analysis based on actual workflow execution data from `gh aw logs` for the last 30 days. Costs calculated from real token usage, not estimates.
 # ```
+#
+# ### Key Requirements
+#
+# 1. **Generate Charts First**
+#    - Create all 4 required charts using Python
+#    - Save to `/tmp/gh-aw/python/charts/`
+#    - Upload each using `upload asset` tool
+#    - Get URLs for embedding
+#
+# 2. **Visual Focus**
+#    - Charts tell the story, not long text
+#    - Use bullet points and short paragraphs
+#    - Expand details in collapsible sections
+#    - Keep overview section scannable
+#
+# 3. **Dashboard Layout**
+#    - Visual Summary section with all charts upfront
+#    - Brief insights under each chart (2-4 bullet points)
+#    - Detailed recommendations in collapsible details sections
+#    - Priority actions as numbered list
+#
+# 4. **Conciseness**
+#    - Target: 1000-1500 words total
+#    - Each strategy section: <200 words
+#    - Use tables for comparing workflows
+#    - Focus on actionable items only
+#
+# 5. **Consistency**
+#    - Same chart types every week
+#    - Same section structure
+#    - Same visual styling (colors, fonts)
+#    - Easy to compare week-over-week
 #
 # ## Critical Guidelines
 #
@@ -638,10 +944,64 @@
 # - **Show calculations** - Display how you calculated savings from actual data
 #
 # ### Quality Standards
-# - **<2000 words** - Be concise, focus on actionable items
+# - **<1500 words** - Be very concise, let charts tell the story
+# - **Visual first** - Generate all 4 charts before writing report
+# - **Dashboard style** - Scannable, consistent format week-over-week
 # - **<1 hour per fix** - Only recommend simple changes
 # - **Copy-paste ready** - Every fix should be implementable via copy-paste
 # - **Verify math** - Ensure savings calculations are accurate
+#
+# ### Visualization Workflow
+#
+# **CRITICAL ORDER OF OPERATIONS**:
+#
+# 1. **Data Preparation** (5 seconds)
+#    - Extract data from summary.json
+#    - Create CSV files in `/tmp/gh-aw/python/data/`
+#
+# 2. **Generate Charts** (15 seconds)
+#    - Create all 4 required charts using Python
+#    - Save to `/tmp/gh-aw/python/charts/`
+#    - Verify files exist before uploading
+#
+# 3. **Upload Assets** (10 seconds)
+#    - Upload each chart using `upload asset` tool
+#    - Save the returned URLs
+#
+# 4. **Create Report** (20 seconds)
+#    - Use the dashboard template
+#    - Embed charts using markdown image syntax
+#    - Keep text concise, let visuals speak
+#    - Use collapsible details sections for lengthy content
+#
+# **Example Python Script Structure**:
+# ```python
+# #!/usr/bin/env python3
+# import pandas as pd
+# import matplotlib.pyplot as plt
+# import seaborn as sns
+# import json
+#
+# # Load data
+# with open('/tmp/portfolio-logs/summary.json', 'r') as f:
+#     data = json.load(f)
+#
+# # Prepare dataframes
+# runs_df = pd.DataFrame(data['runs'])
+# runs_df['date'] = pd.to_datetime(runs_df['created_at']).dt.date
+#
+# # Set style once
+# sns.set_style("whitegrid")
+# sns.set_palette("husl")
+#
+# # Generate all 4 charts
+# # 1. Cost trends
+# # 2. Top spenders
+# # 3. Failure rates
+# # 4. Success overview
+#
+# print("✅ All charts generated")
+# ```
 #
 # ### Triage Rules
 # - **60-70% should be skipped** - Most workflows should be healthy (when sufficient data available)
@@ -653,11 +1013,15 @@
 # ## Success Criteria
 #
 # ✅ Analysis completes in <60 seconds
+# ✅ **All 4 required charts generated** (cost trends, top spenders, failure rates, success overview)
+# ✅ **Charts uploaded as assets** and embedded in report
 # ✅ Uses **real data from the pre-downloaded summary.json file**, not estimates
 # ✅ **Always generates a report**, even with limited data
+# ✅ **Dashboard-style format** - visual, scannable, consistent structure
 # ✅ Identifies cost savings opportunities based on available data (aim for ≥20% when data permits)
 # ✅ Clearly documents data limitations and confidence level
-# ✅ Issue is <2000 words
+# ✅ Report is <1500 words with majority of insights conveyed through charts
+# ✅ Detailed recommendations in collapsible `<details>` sections
 # ✅ Every recommendation includes exact line numbers
 # ✅ Every recommendation includes before/after snippets
 # ✅ Every fix takes <1 hour to implement
@@ -665,10 +1029,14 @@
 # ✅ Healthy workflows are briefly mentioned but not analyzed
 # ✅ All dollar amounts are from actual workflow execution data
 #
-# Begin your analysis now. Read from the pre-downloaded JSON file at `/tmp/portfolio-logs/summary.json` to get real execution data for all workflows. This file contains everything you need: summary metrics and individual run data. DO NOT attempt to call `gh aw logs` or any `gh` commands - they will not work. Move fast, focus on high-impact issues, and deliver actionable recommendations based on actual costs.
+# Begin your analysis now. **FIRST**: Generate all 4 required charts from `/tmp/portfolio-logs/summary.json` and upload them as assets. **THEN**: Create the dashboard-style discussion with embedded chart URLs. Read from the pre-downloaded JSON file at `/tmp/portfolio-logs/summary.json` to get real execution data for all workflows. This file contains everything you need: summary metrics and individual run data. DO NOT attempt to call `gh aw logs` or any `gh` commands - they will not work. Move fast, focus on high-impact issues, deliver actionable recommendations based on actual costs, and make the report visual and scannable.
 # ```
 #
 # Pinned GitHub Actions:
+#   - actions/cache/restore@v4 (0057852bfaa89a56745cba8c7296529d2fc39830)
+#     https://github.com/actions/cache/commit/0057852bfaa89a56745cba8c7296529d2fc39830
+#   - actions/cache/save@v4 (0057852bfaa89a56745cba8c7296529d2fc39830)
+#     https://github.com/actions/cache/commit/0057852bfaa89a56745cba8c7296529d2fc39830
 #   - actions/checkout@v5 (93cb6efe18208431cddfb8368fd83d5badbf9bfd)
 #     https://github.com/actions/checkout/commit/93cb6efe18208431cddfb8368fd83d5badbf9bfd
 #   - actions/download-artifact@v6 (018cc2cf5baa6db3ef3c5f8a56943fffe632ef53)
@@ -806,6 +1174,9 @@ jobs:
     concurrency:
       group: "gh-aw-copilot-${{ github.workflow }}"
     env:
+      GH_AW_ASSETS_ALLOWED_EXTS: ".png,.jpg,.jpeg"
+      GH_AW_ASSETS_BRANCH: "assets/${{ github.workflow }}"
+      GH_AW_ASSETS_MAX_SIZE_KB: 10240
       GH_AW_MCP_LOG_DIR: /tmp/gh-aw/mcp-logs/safeoutputs
       GH_AW_SAFE_OUTPUTS: /tmp/gh-aw/safeoutputs/outputs.jsonl
       GH_AW_SAFE_OUTPUTS_CONFIG_PATH: /tmp/gh-aw/safeoutputs/config.json
@@ -842,6 +1213,28 @@ jobs:
         run: "set -e\n./gh-aw mcp-server --cmd ./gh-aw --port 8765 &\nMCP_PID=$!\n\n# Wait a moment for server to start\nsleep 2\n\n# Check if server is still running\nif ! kill -0 $MCP_PID 2>/dev/null; then\n  echo \"MCP server failed to start\"\n  exit 1\nfi\n\necho \"MCP server started successfully with PID $MCP_PID\"\n"
       - name: Set up jq utilities directory
         run: "mkdir -p /tmp/gh-aw\ncat > /tmp/gh-aw/jqschema.sh << 'EOF'\n#!/usr/bin/env bash\n# jqschema.sh\njq -c '\ndef walk(f):\n  . as $in |\n  if type == \"object\" then\n    reduce keys[] as $k ({}; . + {($k): ($in[$k] | walk(f))})\n  elif type == \"array\" then\n    if length == 0 then [] else [.[0] | walk(f)] end\n  else\n    type\n  end;\nwalk(.)\n'\nEOF\nchmod +x /tmp/gh-aw/jqschema.sh"
+      - name: Setup Python environment for trending
+        run: "# Create working directory structure\nmkdir -p /tmp/gh-aw/python\nmkdir -p /tmp/gh-aw/python/data\nmkdir -p /tmp/gh-aw/python/charts\nmkdir -p /tmp/gh-aw/python/artifacts\n\necho \"Python environment setup complete\"\necho \"Working directory: /tmp/gh-aw/python\"\necho \"Data directory: /tmp/gh-aw/python/data\"\necho \"Charts directory: /tmp/gh-aw/python/charts\"\necho \"Cache memory: /tmp/gh-aw/cache-memory/\"\n"
+      - name: Install Python scientific libraries
+        run: "pip install --user numpy pandas matplotlib seaborn scipy\n\n# Verify installations\npython3 -c \"import numpy; print(f'NumPy {numpy.__version__} installed')\"\npython3 -c \"import pandas; print(f'Pandas {pandas.__version__} installed')\"\npython3 -c \"import matplotlib; print(f'Matplotlib {matplotlib.__version__} installed')\"\npython3 -c \"import seaborn; print(f'Seaborn {seaborn.__version__} installed')\"\npython3 -c \"import scipy; print(f'SciPy {scipy.__version__} installed')\"\n\necho \"All scientific libraries installed successfully\"\n"
+      - if: always()
+        name: Upload generated charts
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
+        with:
+          if-no-files-found: warn
+          name: trending-charts
+          path: /tmp/gh-aw/python/charts/*.png
+          retention-days: 30
+      - if: always()
+        name: Upload source files and data
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
+        with:
+          if-no-files-found: warn
+          name: trending-source-and-data
+          path: |
+            /tmp/gh-aw/python/*.py
+            /tmp/gh-aw/python/data/*
+          retention-days: 30
       - env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         name: Download logs from last 30 days
@@ -849,6 +1242,22 @@ jobs:
           mkdir -p /tmp/portfolio-logs
           gh aw logs --start-date -30d -c 5000 -o /tmp/portfolio-logs --json > /tmp/portfolio-logs/summary.json
 
+      # Cache memory file share configuration from frontmatter processed below
+      - name: Create cache-memory directory
+        run: |
+          mkdir -p /tmp/gh-aw/cache-memory
+          echo "Cache memory directory created at /tmp/gh-aw/cache-memory"
+          echo "This folder provides persistent file storage across workflow runs"
+          echo "LLMs and agentic tools can freely read and write files in this directory"
+      - name: Restore cache memory file share data
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          key: trending-data-${{ github.workflow }}-${{ github.run_id }}
+          path: /tmp/gh-aw/cache-memory
+          restore-keys: |
+            trending-data-${{ github.workflow }}-
+            trending-data-
+            trending-
       - name: Configure Git credentials
         env:
           REPO_NAME: ${{ github.repository }}
@@ -941,7 +1350,7 @@ jobs:
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
           cat > /tmp/gh-aw/safeoutputs/config.json << 'EOF'
-          {"create_discussion":{"max":1},"missing_tool":{"max":0},"noop":{"max":1}}
+          {"create_discussion":{"max":1},"missing_tool":{"max":0},"noop":{"max":1},"upload_asset":{"max":0}}
           EOF
           cat > /tmp/gh-aw/safeoutputs/tools.json << 'EOF'
           [
@@ -970,6 +1379,23 @@ jobs:
                 "type": "object"
               },
               "name": "create_discussion"
+            },
+            {
+              "description": "Upload a file as a URL-addressable asset that can be referenced in issues, PRs, or comments. The file is stored on an orphaned git branch and returns a permanent URL. Use this for images, diagrams, or other files that need to be embedded in GitHub content. CONSTRAINTS: Maximum file size: 10240KB. Allowed file extensions: [.png .jpg .jpeg].",
+              "inputSchema": {
+                "additionalProperties": false,
+                "properties": {
+                  "path": {
+                    "description": "Absolute file path to upload (e.g., '/tmp/chart.png'). Must be under the workspace or /tmp directory. By default, only image files (.png, .jpg, .jpeg) are allowed; other file types require workflow configuration.",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "path"
+                ],
+                "type": "object"
+              },
+              "name": "upload_asset"
             },
             {
               "description": "Report that a tool or capability needed to complete the task is not available. Use this when you cannot accomplish what was requested because the required functionality is missing or access is restricted.",
@@ -1074,6 +1500,15 @@ jobs:
                   "type": "string",
                   "sanitize": true,
                   "maxLength": 65000
+                }
+              }
+            },
+            "upload_asset": {
+              "defaultMax": 10,
+              "fields": {
+                "path": {
+                  "required": true,
+                  "type": "string"
                 }
               }
             }
@@ -2440,6 +2875,9 @@ jobs:
         env:
           GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
+          GH_AW_ASSETS_BRANCH: ${{ env.GH_AW_ASSETS_BRANCH }}
+          GH_AW_ASSETS_MAX_SIZE_KB: ${{ env.GH_AW_ASSETS_MAX_SIZE_KB }}
+          GH_AW_ASSETS_ALLOWED_EXTS: ${{ env.GH_AW_ASSETS_ALLOWED_EXTS }}
         run: |
           mkdir -p /tmp/gh-aw/mcp-config
           mkdir -p /home/runner/.copilot
@@ -2760,6 +3198,242 @@ jobs:
           # Now you know which fields exist and can use them in your analysis
           ```
           
+          # Trending Charts - Quick Start Guide
+          
+          You have a complete Python environment with scientific libraries ready for generating trend charts with persistent data storage.
+          
+          ## Cache-Memory for Trending Data
+          
+          Persistent cache-memory is available at `/tmp/gh-aw/cache-memory/` that survives across workflow runs. Use it to store historical trending data.
+          
+          **Recommended Structure:**
+          ```
+          /tmp/gh-aw/cache-memory/
+          ├── trending/
+          │   ├── <metric-name>/
+          │   │   └── history.jsonl      # Time-series data (JSON Lines format)
+          │   └── index.json              # Index of all tracked metrics
+          ```
+          
+          ## Quick Start Pattern 1: Daily Metrics Tracking
+          
+          Track daily metrics and visualize trends over time:
+          
+          ```python
+          #!/usr/bin/env python3
+          """Daily metrics trending"""
+          import pandas as pd
+          import matplotlib.pyplot as plt
+          import seaborn as sns
+          import json
+          import os
+          from datetime import datetime
+          
+          # Configuration
+          CACHE_DIR = '/tmp/gh-aw/cache-memory/trending'
+          METRIC_NAME = 'daily_metrics'
+          HISTORY_FILE = f'{CACHE_DIR}/{METRIC_NAME}/history.jsonl'
+          CHARTS_DIR = '/tmp/gh-aw/python/charts'
+          
+          # Ensure directories exist
+          os.makedirs(f'{CACHE_DIR}/{METRIC_NAME}', exist_ok=True)
+          os.makedirs(CHARTS_DIR, exist_ok=True)
+          
+          # Collect today's data (customize this section)
+          today_data = {
+              "timestamp": datetime.now().isoformat(),
+              "metric_a": 42,
+              "metric_b": 85,
+              "metric_c": 23
+          }
+          
+          # Append to history
+          with open(HISTORY_FILE, 'a') as f:
+              f.write(json.dumps(today_data) + '\n')
+          
+          # Load all historical data
+          if os.path.exists(HISTORY_FILE):
+              df = pd.read_json(HISTORY_FILE, lines=True)
+              df['date'] = pd.to_datetime(df['timestamp']).dt.date
+              df = df.sort_values('timestamp')
+              daily_stats = df.groupby('date').sum()
+              
+              # Generate trend chart
+              sns.set_style("whitegrid")
+              sns.set_palette("husl")
+              
+              fig, ax = plt.subplots(figsize=(12, 7), dpi=300)
+              daily_stats.plot(ax=ax, marker='o', linewidth=2)
+              ax.set_title('Daily Metrics Trends', fontsize=16, fontweight='bold')
+              ax.set_xlabel('Date', fontsize=12)
+              ax.set_ylabel('Count', fontsize=12)
+              ax.legend(loc='best')
+              ax.grid(True, alpha=0.3)
+              plt.xticks(rotation=45)
+              plt.tight_layout()
+              
+              plt.savefig(f'{CHARTS_DIR}/daily_metrics_trend.png',
+                          dpi=300, bbox_inches='tight', facecolor='white')
+              
+              print(f"✅ Chart generated with {len(df)} data points")
+          else:
+              print("No historical data yet. Run again tomorrow to see trends.")
+          ```
+          
+          ## Quick Start Pattern 2: Moving Averages
+          
+          Smooth volatile data with moving averages:
+          
+          ```python
+          #!/usr/bin/env python3
+          """Moving average trending"""
+          import pandas as pd
+          import matplotlib.pyplot as plt
+          import seaborn as sns
+          import os
+          
+          # Load historical data
+          history_file = '/tmp/gh-aw/cache-memory/trending/metrics/history.jsonl'
+          if os.path.exists(history_file):
+              df = pd.read_json(history_file, lines=True)
+              df['date'] = pd.to_datetime(df['timestamp']).dt.date
+              df = df.sort_values('timestamp')
+              
+              # Calculate 7-day moving average
+              df['rolling_avg'] = df['value'].rolling(window=7, min_periods=1).mean()
+              
+              # Plot with trend line
+              sns.set_style("whitegrid")
+              fig, ax = plt.subplots(figsize=(12, 7), dpi=300)
+              ax.plot(df['date'], df['value'], label='Actual', alpha=0.5, marker='o')
+              ax.plot(df['date'], df['rolling_avg'], label='7-day Average', linewidth=2.5)
+              ax.fill_between(df['date'], df['value'], df['rolling_avg'], alpha=0.2)
+              ax.set_title('Trend with Moving Average', fontsize=16, fontweight='bold')
+              ax.set_xlabel('Date', fontsize=12)
+              ax.set_ylabel('Value', fontsize=12)
+              ax.legend(loc='best')
+              ax.grid(True, alpha=0.3)
+              plt.xticks(rotation=45)
+              plt.tight_layout()
+              plt.savefig('/tmp/gh-aw/python/charts/moving_average_trend.png',
+                          dpi=300, bbox_inches='tight', facecolor='white')
+              print("✅ Moving average chart generated")
+          ```
+          
+          ## Quick Start Pattern 3: Comparative Trends
+          
+          Compare multiple metrics over time:
+          
+          ```python
+          #!/usr/bin/env python3
+          """Comparative trending"""
+          import pandas as pd
+          import matplotlib.pyplot as plt
+          import seaborn as sns
+          import os
+          
+          history_file = '/tmp/gh-aw/cache-memory/trending/multi_metrics/history.jsonl'
+          if os.path.exists(history_file):
+              df = pd.read_json(history_file, lines=True)
+              df['timestamp'] = pd.to_datetime(df['timestamp'])
+              
+              # Plot multiple metrics
+              sns.set_style("whitegrid")
+              sns.set_palette("husl")
+              fig, ax = plt.subplots(figsize=(14, 8), dpi=300)
+              
+              for metric in df['metric'].unique():
+                  metric_data = df[df['metric'] == metric]
+                  ax.plot(metric_data['timestamp'], metric_data['value'], 
+                          marker='o', label=metric, linewidth=2)
+              
+              ax.set_title('Comparative Metrics Trends', fontsize=16, fontweight='bold')
+              ax.set_xlabel('Date', fontsize=12)
+              ax.set_ylabel('Value', fontsize=12)
+              ax.legend(loc='best', fontsize=12)
+              ax.grid(True, alpha=0.3)
+              plt.xticks(rotation=45)
+              plt.tight_layout()
+              plt.savefig('/tmp/gh-aw/python/charts/comparative_trends.png',
+                          dpi=300, bbox_inches='tight', facecolor='white')
+              print("✅ Comparative trends chart generated")
+          ```
+          
+          ## Best Practices
+          
+          ### 1. Use JSON Lines Format
+          
+          Store trending data as JSON Lines (`.jsonl`) for efficient append-only storage:
+          ```python
+          # Append new data point
+          with open(history_file, 'a') as f:
+              f.write(json.dumps(data_point) + '\n')
+          
+          # Load all data
+          df = pd.read_json(history_file, lines=True)
+          ```
+          
+          ### 2. Include Timestamps
+          
+          Always include ISO 8601 timestamps:
+          ```python
+          data_point = {
+              "timestamp": datetime.now().isoformat(),
+              "metric": "issue_count",
+              "value": 42
+          }
+          ```
+          
+          ### 3. Data Retention
+          
+          Implement retention policies to prevent unbounded growth:
+          ```python
+          from datetime import datetime, timedelta
+          
+          # Keep only last 90 days
+          cutoff_date = datetime.now() - timedelta(days=90)
+          df = df[df['timestamp'] >= cutoff_date]
+          
+          # Save pruned data
+          df.to_json(history_file, orient='records', lines=True)
+          ```
+          
+          ## Directory Structure
+          
+          ```
+          /tmp/gh-aw/
+          ├── python/
+          │   ├── data/          # Current run data files
+          │   ├── charts/        # Generated charts (auto-uploaded as artifacts)
+          │   ├── artifacts/     # Additional output files
+          │   └── *.py           # Python scripts
+          └── cache-memory/
+              └── trending/      # Persistent historical data (survives runs)
+                  └── <metric>/
+                      └── history.jsonl
+          ```
+          
+          ## Chart Quality Guidelines
+          
+          - **DPI**: Use 300 or higher for publication quality
+          - **Figure Size**: Standard is 12x7 inches for trend charts
+          - **Labels**: Always include clear axis labels and titles
+          - **Legend**: Add legends when plotting multiple series
+          - **Grid**: Enable grid lines for easier reading
+          - **Colors**: Use colorblind-friendly palettes (seaborn defaults)
+          
+          ## Tips for Success
+          
+          1. **Consistency**: Use same metric names across runs
+          2. **Validation**: Check data quality before appending
+          3. **Documentation**: Comment your data schemas
+          4. **Testing**: Validate charts before uploading
+          5. **Cleanup**: Implement retention policies for cache-memory
+          
+          ---
+          
+          Remember: The power of trending comes from consistent data collection over time. Use cache-memory to build a rich historical dataset that reveals insights and patterns!
+          
           # Automated Portfolio Analyst
           
           You are an expert workflow portfolio analyst focused on identifying cost reduction opportunities while improving reliability.
@@ -2786,8 +3460,135 @@ jobs:
           - **Target**: Identify all cost reduction opportunities (aim for 20%+ when data permits)
           - **Time Budget**: 60 seconds
           
+          ## Visualization Requirements
+          
+          **Generate visual charts to create a dashboard-style report**. The report should be concise, scannable, and use charts instead of long text descriptions.
+          
+          ### Required Charts
+          
+          Create these charts using Python with matplotlib/seaborn and save to `/tmp/gh-aw/python/charts/`:
+          
+          1. **Cost Trends Chart** (`cost_trends.png`)
+             - Line chart showing daily workflow costs over the last 30 days
+             - Highlight the overall trend (increasing/decreasing)
+             - Include 7-day moving average
+          
+          2. **Top Spenders Chart** (`top_spenders.png`)
+             - Horizontal bar chart of top 10 workflows by total cost
+             - Show actual dollar amounts
+             - Color code by health status (green=healthy, yellow=warning, red=critical)
+          
+          3. **Failure Rates Chart** (`failure_rates.png`)
+             - Bar chart showing workflows with >30% failure rate
+             - Display failure percentage and wasted cost
+             - Sort by wasted cost (highest first)
+          
+          4. **Success Rate Overview** (`success_overview.png`)
+             - Pie or donut chart showing overall success/failure/cancelled distribution
+             - Include percentages and counts
+          
+          ### Chart Requirements
+          
+          - **High quality**: 300 DPI, 12x7 inch figures
+          - **Clear labels**: Title, axis labels, legends
+          - **Professional styling**: Use seaborn whitegrid style
+          - **Consistent colors**: Use a professional color palette
+          - **Upload all charts** using the `upload asset` tool to get URLs
+          - **Embed in report**: Include charts in the discussion using markdown image syntax
+          
+          ### Data Preparation
+          
+          Extract data from `/tmp/portfolio-logs/summary.json` and prepare it as CSV files in `/tmp/gh-aw/python/data/` before generating charts. Example:
+          
+          ```python
+          import pandas as pd
+          import json
+          
+          # Load summary data
+          with open('/tmp/portfolio-logs/summary.json', 'r') as f:
+              data = json.load(f)
+          
+          # Prepare daily cost data
+          runs_df = pd.DataFrame(data['runs'])
+          runs_df['date'] = pd.to_datetime(runs_df['created_at']).dt.date
+          daily_costs = runs_df.groupby('date')['estimated_cost'].sum()
+          daily_costs.to_csv('/tmp/gh-aw/python/data/daily_costs.csv')
+          ```
+          
           ## Analysis Framework
           
+          PROMPT_EOF
+      - name: Substitute placeholders
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        env:
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+          GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
+        with:
+          script: |
+            /**
+             * @fileoverview Safe template placeholder substitution for GitHub Actions workflows.
+             * Replaces __VAR__ placeholders in a file with environment variable values without
+             * allowing shell expansion, preventing template injection attacks.
+             *
+             * @param {object} params - The parameters object
+             * @param {string} params.file - Path to the file to process
+             * @param {object} params.substitutions - Map of placeholder names to values (without __ prefix/suffix)
+             */
+            
+            const fs = require("fs");
+            
+            const substitutePlaceholders = async ({ file, substitutions }) => {
+              // Validate inputs
+              if (!file) {
+                throw new Error("file parameter is required");
+              }
+              if (!substitutions || typeof substitutions !== "object") {
+                throw new Error("substitutions parameter must be an object");
+              }
+            
+              // Read the file content
+              let content;
+              try {
+                content = fs.readFileSync(file, "utf8");
+              } catch (error) {
+                throw new Error(`Failed to read file ${file}: ${error.message}`);
+              }
+            
+              // Perform substitutions
+              // Each placeholder is in the format __VARIABLE_NAME__
+              // We replace it with the corresponding value from the substitutions object
+              for (const [key, value] of Object.entries(substitutions)) {
+                const placeholder = `__${key}__`;
+                // Use a simple string replacement - no regex to avoid any potential issues
+                // with special characters in the value
+                content = content.split(placeholder).join(value);
+              }
+            
+              // Write the updated content back to the file
+              try {
+                fs.writeFileSync(file, content, "utf8");
+              } catch (error) {
+                throw new Error(`Failed to write file ${file}: ${error.message}`);
+              }
+            
+              return `Successfully substituted ${Object.keys(substitutions).length} placeholder(s) in ${file}`;
+            };
+            
+            
+            
+            // Call the substitution function
+            return await substitutePlaceholders({
+              file: process.env.GH_AW_PROMPT,
+              substitutions: {
+                GH_AW_GITHUB_REPOSITORY: process.env.GH_AW_GITHUB_REPOSITORY
+              }
+            });
+      - name: Append prompt (part 2)
+        env:
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+          GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
+        run: |
+          cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
           ### Phase 0: Important Setup Notes
           
           **DO NOT CALL `gh aw logs` OR ANY `gh` COMMANDS** - These commands will not work in your environment and will fail.
@@ -2971,211 +3772,143 @@ jobs:
           
           ## Output Requirements
           
-          Generate a concise, action-oriented GitHub issue under 2000 words.
+          Generate a **concise, visual dashboard-style report** under 1500 words with embedded charts.
           
-          ### Issue Structure
+          ### Report Structure
+          
+          **CRITICAL**: The report must be visual and scannable. Generate all required charts FIRST, upload them as assets, then create the discussion with embedded charts.
           
           ```markdown
-          # Portfolio Analysis Report - [DATE]
+          # 📊 Portfolio Dashboard - [DATE]
           
-          ## Data Availability
+          ## Quick Overview
           
-          ⚠️ **Important**: Document the data coverage here:
-          - **Time Period**: [Actual period covered, e.g., "Last 24 hours" or "Last 30 days"]
-          - **Total Workflow Runs Analyzed**: [N] runs
-          - **Data Quality**: [e.g., "Limited - single day only" or "Good - full month"]
-          - **Confidence Level**: [e.g., "Low due to limited data" or "High with 30+ days"]
+          [2-3 sentences summarizing key findings, total costs, and potential savings]
           
-          **Note**: When data is limited (< 30 days or < 10 total runs), recommendations are based on available data only and may not represent typical patterns. Trends may change with more historical data.
+          ## Visual Summary
           
-          ## Executive Summary
+          ### Cost Trends (Last 30 Days)
           
-          - **Total Workflows Analyzed**: [N]
-          - **Current Monthly Cost**: $[X] (from actual downloaded log data, [period])
-          - **Potential Savings**: $[Y] ([Z]%)
-          - **High-Impact Issues**: [N]
-          - **Data Source**: Real workflow execution data from downloaded logs, not estimates
+          ![Cost Trends](URL_FROM_UPLOAD_ASSET_FOR_cost_trends.png)
           
-          ## Cost Reduction Strategies
+          **Key Insights**:
+          - Daily average: $[X]
+          - Trend: [Increasing/Decreasing/Stable] ([Y]% change)
+          - Monthly total: $[Z]
           
-          ### 1. Remove Unused Workflows ($[X]/month)
+          ### Top Cost Drivers
           
-          [Only list workflows with no runs in 60+ days]
+          ![Top Spenders](URL_FROM_UPLOAD_ASSET_FOR_top_spenders.png)
           
-          - **`workflow-name.md`** - Last run: [date], Cost: $[X]/month
-            - Line 2-5: Remove schedule trigger
-            - Action: Delete workflow or convert to manual-only
-            ```yaml
-            # Current (lines 2-5):
-            on:
-              schedule:
-                - cron: "0 9 * * *"
-            
-            # Change to:
-            on:
-              workflow_dispatch:  # Manual only
-            ```
+          Top 3 workflows account for [X]% of total cost:
+          1. `workflow-1.md` - $[X]/month ([status])
+          2. `workflow-2.md` - $[Y]/month ([status])
+          3. `workflow-3.md` - $[Z]/month ([status])
           
-          **Subtotal Savings: $[X]/month**
+          ### Failure Analysis
           
-          ### 2. Reduce Schedule Frequency ($[Y]/month)
+          ![Failure Rates](URL_FROM_UPLOAD_ASSET_FOR_failure_rates.png)
           
-          [Only list over-scheduled workflows based on actual run data from downloaded logs]
+          **Wasted Spend**: $[X]/month on failed runs
+          - [N] workflows with >30% failure rate
+          - [M] workflows with 100% failure rate (should be disabled)
           
-          - **`daily-report.md`** - Runs: [actual count from last 30 days], Avg cost/run: $[actual from downloaded logs], Total: $[Y]/month
-            - Line 4: Change from daily to weekly
-            - Rationale: Actual execution data shows workflow runs [X] times in last 30 days
-            ```yaml
-            # Current (line 4):
-            cron: "0 9 * * *"  # Daily
-            
-            # Change to (line 4):
-            cron: "0 9 * * 1"  # Weekly on Monday
-            ```
-            - **Current**: [actual runs] runs × $[actual cost per run] = $[Y]/month
-            - **After**: 4 runs × $[actual cost per run] = $[lower amount]/month
-            - **Savings**: $[Z]/month ([percentage]% reduction)
+          ### Overall Health
           
-          **Subtotal Savings: $[Y]/month**
+          ![Success Overview](URL_FROM_UPLOAD_ASSET_FOR_success_overview.png)
           
-          ### 3. Consolidate Duplicate Workflows ($[Z]/month)
+          - ✅ Success: [X]% ([N] runs)
+          - ❌ Failure: [Y]% ([M] runs)  
+          - ⏸️ Cancelled: [Z]% ([P] runs)
           
-          [Only list clear duplicates]
+          ## 💰 Cost Reduction Opportunities
           
-          - **Duplicate Set: Issue Triage**
-            - `issue-triage-1.md` (Cost: $X/month)
-            - `issue-triage-2.md` (Cost: $Y/month)
-            - **Action**: Merge into single workflow
-            - **Implementation**:
-              1. Copy triggers from both workflows to `issue-triage-1.md` (lines 2-10)
-              2. Combine prompts in body (preserve all logic)
-          PROMPT_EOF
-      - name: Substitute placeholders
-        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
-        env:
-          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-          GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
-        with:
-          script: |
-            /**
-             * @fileoverview Safe template placeholder substitution for GitHub Actions workflows.
-             * Replaces __VAR__ placeholders in a file with environment variable values without
-             * allowing shell expansion, preventing template injection attacks.
-             *
-             * @param {object} params - The parameters object
-             * @param {string} params.file - Path to the file to process
-             * @param {object} params.substitutions - Map of placeholder names to values (without __ prefix/suffix)
-             */
-            
-            const fs = require("fs");
-            
-            const substitutePlaceholders = async ({ file, substitutions }) => {
-              // Validate inputs
-              if (!file) {
-                throw new Error("file parameter is required");
-              }
-              if (!substitutions || typeof substitutions !== "object") {
-                throw new Error("substitutions parameter must be an object");
-              }
-            
-              // Read the file content
-              let content;
-              try {
-                content = fs.readFileSync(file, "utf8");
-              } catch (error) {
-                throw new Error(`Failed to read file ${file}: ${error.message}`);
-              }
-            
-              // Perform substitutions
-              // Each placeholder is in the format __VARIABLE_NAME__
-              // We replace it with the corresponding value from the substitutions object
-              for (const [key, value] of Object.entries(substitutions)) {
-                const placeholder = `__${key}__`;
-                // Use a simple string replacement - no regex to avoid any potential issues
-                // with special characters in the value
-                content = content.split(placeholder).join(value);
-              }
-            
-              // Write the updated content back to the file
-              try {
-                fs.writeFileSync(file, content, "utf8");
-              } catch (error) {
-                throw new Error(`Failed to write file ${file}: ${error.message}`);
-              }
-            
-              return `Successfully substituted ${Object.keys(substitutions).length} placeholder(s) in ${file}`;
-            };
-            
-            
-            
-            // Call the substitution function
-            return await substitutePlaceholders({
-              file: process.env.GH_AW_PROMPT,
-              substitutions: {
-                GH_AW_GITHUB_REPOSITORY: process.env.GH_AW_GITHUB_REPOSITORY
-              }
-            });
-      - name: Append prompt (part 2)
-        env:
-          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-          GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
-        run: |
-          cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
-              3. Delete `issue-triage-2.md`
-            - **Savings**: $[Y]/month
+          **Total Potential Savings: $[X]/month ([Y]% reduction)**
           
-          **Subtotal Savings: $[Z]/month**
+          <details>
+          <summary><b>Strategy 1: Fix High-Failure Workflows - $[X]/month</b></summary>
           
-          ### 4. Fix High-Failure Workflows ($[W]/month)
+          List workflows with >30% failure rate, showing:
+          - Workflow name and file
+          - Failure rate percentage
+          - Wasted cost per month
+          - Recommended fix (1-2 lines)
           
-          [Only list workflows with >30% failure rate based on actual conclusion data from downloaded logs]
+          </details>
           
-          - **`data-processor.md`** - Failure rate: [actual %] ([X] failures out of [Y] runs), Wasted: $[W]/month
-            - **Wasted Cost**: Sum of `estimated_cost` for all failed runs = $[W]/month (actual spend on failures)
-            - Root cause: [analyze error_count and logs]
-            - Fix (line 7): Add required permission
-            ```yaml
-            # Add to permissions section (line 7):
-            permissions:
-              contents: read
-              issues: write  # <- Add this
-            ```
-            - **Savings**: $[W]/month (actual wasted spend on failures, recoverable after fix)
+          <details>
+          <summary><b>Strategy 2: Reduce Over-Scheduling - $[Y]/month</b></summary>
           
-          **Subtotal Savings: $[W]/month**
+          List over-scheduled workflows with:
+          - Current frequency (runs/month)
+          - Recommended frequency
+          - Savings calculation
           
-          ## Total Potential Savings
+          </details>
           
-          **All costs are from actual workflow execution data (last 30 days), not estimates:**
+          <details>
+          <summary><b>Strategy 3: Disable Failed Workflows - $[Z]/month</b></summary>
           
-          - **Strategy 1 (Remove)**: $[X]/month (sum of actual monthly spend on unused workflows)
-          - **Strategy 2 (Reduce)**: $[Y]/month (calculated from actual cost per run × reduced frequency)
-          - **Strategy 3 (Consolidate)**: $[Z]/month (sum of actual monthly spend on duplicate workflows)
-          - **Strategy 4 (Fix)**: $[W]/month (sum of actual spend on failed runs)
-          - **Total**: $[TOTAL]/month ([PERCENT]% reduction)
-          - **Current Monthly Spend**: $[CURRENT]/month (from downloaded logs actual data)
+          List workflows with 100% failure rate or no successful runs.
           
-          ## Implementation Checklist
+          </details>
           
-          Each fix takes <1 hour:
+          <details>
+          <summary><b>Strategy 4: Remove Unused Workflows - $[W]/month</b></summary>
           
-          - [ ] Remove unused workflows (Strategy 1) - Est: 15 min
-          - [ ] Reduce schedule frequency (Strategy 2) - Est: 10 min
-          - [ ] Consolidate duplicates (Strategy 3) - Est: 30 min
-          - [ ] Fix high-failure workflows (Strategy 4) - Est: 20 min
+          List workflows with no runs in 60+ days.
           
-          ## Healthy Workflows (Skipped)
+          </details>
           
-          [Brief list of workflows that are healthy and were skipped]
+          ## 🎯 Priority Actions
           
-          - `workflow-1.md` - ✅ 98% success, $3/month, active
-          - `workflow-2.md` - ✅ 100% success, $5/month, active
-          - [... list up to 10, then summarize rest]
+          1. **CRITICAL** - [Highest impact action with specific workflow and cost]
+          2. **HIGH** - [Second highest impact action]
+          3. **MEDIUM** - [Third priority action]
+          
+          ## 📈 Data Quality
+          
+          - **Period Analyzed**: [Actual dates covered]
+          - **Total Runs**: [N] workflow runs
+          - **Workflows**: [M] total, [X] executed, [Y] not run
+          - **Confidence**: [High/Medium/Low] based on [reasoning]
           
           ---
           
-          *Analysis completed in [X] seconds | Focus: Top 20% issues representing 80% of costs*
+          **Methodology**: Analysis based on actual workflow execution data from `gh aw logs` for the last 30 days. Costs calculated from real token usage, not estimates.
           ```
+          
+          ### Key Requirements
+          
+          1. **Generate Charts First**
+             - Create all 4 required charts using Python
+             - Save to `/tmp/gh-aw/python/charts/`
+             - Upload each using `upload asset` tool
+             - Get URLs for embedding
+          
+          2. **Visual Focus**
+             - Charts tell the story, not long text
+             - Use bullet points and short paragraphs
+             - Expand details in collapsible sections
+             - Keep overview section scannable
+          
+          3. **Dashboard Layout**
+             - Visual Summary section with all charts upfront
+             - Brief insights under each chart (2-4 bullet points)
+             - Detailed recommendations in collapsible details sections
+             - Priority actions as numbered list
+          
+          4. **Conciseness**
+             - Target: 1000-1500 words total
+             - Each strategy section: <200 words
+             - Use tables for comparing workflows
+             - Focus on actionable items only
+          
+          5. **Consistency**
+             - Same chart types every week
+             - Same section structure
+             - Same visual styling (colors, fonts)
+             - Easy to compare week-over-week
           
           ## Critical Guidelines
           
@@ -3224,10 +3957,64 @@ jobs:
           - **Show calculations** - Display how you calculated savings from actual data
           
           ### Quality Standards
-          - **<2000 words** - Be concise, focus on actionable items
+          - **<1500 words** - Be very concise, let charts tell the story
+          - **Visual first** - Generate all 4 charts before writing report
+          - **Dashboard style** - Scannable, consistent format week-over-week
           - **<1 hour per fix** - Only recommend simple changes
           - **Copy-paste ready** - Every fix should be implementable via copy-paste
           - **Verify math** - Ensure savings calculations are accurate
+          
+          ### Visualization Workflow
+          
+          **CRITICAL ORDER OF OPERATIONS**:
+          
+          1. **Data Preparation** (5 seconds)
+             - Extract data from summary.json
+             - Create CSV files in `/tmp/gh-aw/python/data/`
+          
+          2. **Generate Charts** (15 seconds)
+             - Create all 4 required charts using Python
+             - Save to `/tmp/gh-aw/python/charts/`
+             - Verify files exist before uploading
+          
+          3. **Upload Assets** (10 seconds)
+             - Upload each chart using `upload asset` tool
+             - Save the returned URLs
+          
+          4. **Create Report** (20 seconds)
+             - Use the dashboard template
+             - Embed charts using markdown image syntax
+             - Keep text concise, let visuals speak
+             - Use collapsible details sections for lengthy content
+          
+          **Example Python Script Structure**:
+          ```python
+          #!/usr/bin/env python3
+          import pandas as pd
+          import matplotlib.pyplot as plt
+          import seaborn as sns
+          import json
+          
+          # Load data
+          with open('/tmp/portfolio-logs/summary.json', 'r') as f:
+              data = json.load(f)
+          
+          # Prepare dataframes
+          runs_df = pd.DataFrame(data['runs'])
+          runs_df['date'] = pd.to_datetime(runs_df['created_at']).dt.date
+          
+          # Set style once
+          sns.set_style("whitegrid")
+          sns.set_palette("husl")
+          
+          # Generate all 4 charts
+          # 1. Cost trends
+          # 2. Top spenders
+          # 3. Failure rates
+          # 4. Success overview
+          
+          print("✅ All charts generated")
+          ```
           
           ### Triage Rules
           - **60-70% should be skipped** - Most workflows should be healthy (when sufficient data available)
@@ -3239,19 +4026,30 @@ jobs:
           ## Success Criteria
           
           ✅ Analysis completes in <60 seconds
+          ✅ **All 4 required charts generated** (cost trends, top spenders, failure rates, success overview)
+          ✅ **Charts uploaded as assets** and embedded in report
           ✅ Uses **real data from the pre-downloaded summary.json file**, not estimates
           ✅ **Always generates a report**, even with limited data
+          ✅ **Dashboard-style format** - visual, scannable, consistent structure
           ✅ Identifies cost savings opportunities based on available data (aim for ≥20% when data permits)
           ✅ Clearly documents data limitations and confidence level
-          ✅ Issue is <2000 words
+          ✅ Report is <1500 words with majority of insights conveyed through charts
+          ✅ Detailed recommendations in collapsible `<details>` sections
           ✅ Every recommendation includes exact line numbers
           ✅ Every recommendation includes before/after snippets
           ✅ Every fix takes <1 hour to implement
           ✅ Math adds up correctly (all costs from actual data in summary.json)
+          PROMPT_EOF
+      - name: Append prompt (part 3)
+        env:
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+          GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
+        run: |
+          cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
           ✅ Healthy workflows are briefly mentioned but not analyzed
           ✅ All dollar amounts are from actual workflow execution data
           
-          Begin your analysis now. Read from the pre-downloaded JSON file at `/tmp/portfolio-logs/summary.json` to get real execution data for all workflows. This file contains everything you need: summary metrics and individual run data. DO NOT attempt to call `gh aw logs` or any `gh` commands - they will not work. Move fast, focus on high-impact issues, and deliver actionable recommendations based on actual costs.
+          Begin your analysis now. **FIRST**: Generate all 4 required charts from `/tmp/portfolio-logs/summary.json` and upload them as assets. **THEN**: Create the dashboard-style discussion with embedded chart URLs. Read from the pre-downloaded JSON file at `/tmp/portfolio-logs/summary.json` to get real execution data for all workflows. This file contains everything you need: summary metrics and individual run data. DO NOT attempt to call `gh aw logs` or any `gh` commands - they will not work. Move fast, focus on high-impact issues, deliver actionable recommendations based on actual costs, and make the report visual and scannable.
           
           PROMPT_EOF
       - name: Substitute placeholders
@@ -3352,6 +4150,31 @@ jobs:
           </temporary-files>
           
           PROMPT_EOF
+      - name: Append cache memory instructions to prompt
+        env:
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+        run: |
+          cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
+          
+          ---
+          
+          ## Cache Folder Available
+          
+          You have access to a persistent cache folder at `/tmp/gh-aw/cache-memory/` where you can read and write files to create memories and store information.
+          
+          - **Read/Write Access**: You can freely read from and write to any files in this folder
+          - **Persistence**: Files in this folder persist across workflow runs via GitHub Actions cache
+          - **Last Write Wins**: If multiple processes write to the same file, the last write will be preserved
+          - **File Share**: Use this as a simple file share - organize files as you see fit
+          
+          Examples of what you can store:
+          - `/tmp/gh-aw/cache-memory/notes.txt` - general notes and observations
+          - `/tmp/gh-aw/cache-memory/preferences.json` - user preferences and settings
+          - `/tmp/gh-aw/cache-memory/history.log` - activity history and logs
+          - `/tmp/gh-aw/cache-memory/state/` - organized state files in subdirectories
+          
+          Feel free to create, read, update, and organize files in this folder as needed for your tasks.
+          PROMPT_EOF
       - name: Append safe outputs instructions to prompt
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
@@ -3365,7 +4188,7 @@ jobs:
           <instructions>
           To create or modify GitHub resources (issues, discussions, pull requests, etc.), you MUST call the appropriate safe output tool. Simply writing content will NOT work - the workflow requires actual tool calls.
           
-          **Available tools**: create_discussion, missing_tool, noop
+          **Available tools**: create_discussion, missing_tool, noop, upload_assets
           
           **Critical**: Tool calls write structured data that downstream jobs process. Without tool calls, follow-up actions will be skipped.
           </instructions>
@@ -3687,11 +4510,14 @@ jobs:
         run: |
           set -o pipefail
           sudo -E awf --env-all --container-workdir "${GITHUB_WORKSPACE}" --mount /tmp:/tmp:rw --mount "${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:rw" --mount /usr/bin/date:/usr/bin/date:ro --mount /usr/bin/gh:/usr/bin/gh:ro --mount /usr/bin/yq:/usr/bin/yq:ro --mount /usr/local/bin/copilot:/usr/local/bin/copilot:ro --allow-domains api.business.githubcopilot.com,api.enterprise.githubcopilot.com,api.github.com,api.individual.githubcopilot.com,github.com,host.docker.internal,raw.githubusercontent.com,registry.npmjs.org --log-level info --proxy-logs-dir /tmp/gh-aw/sandbox/firewall/logs \
-            -- /usr/local/bin/copilot --add-dir /tmp/gh-aw/ --log-level all --log-dir /tmp/gh-aw/sandbox/agent/logs/ --add-dir "${GITHUB_WORKSPACE}" --disable-builtin-mcps --allow-all-tools --prompt "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"${GH_AW_MODEL_AGENT_COPILOT:+ --model "$GH_AW_MODEL_AGENT_COPILOT"} \
+            -- /usr/local/bin/copilot --add-dir /tmp/gh-aw/ --log-level all --log-dir /tmp/gh-aw/sandbox/agent/logs/ --add-dir "${GITHUB_WORKSPACE}" --disable-builtin-mcps --allow-all-tools --add-dir /tmp/gh-aw/cache-memory/ --prompt "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"${GH_AW_MODEL_AGENT_COPILOT:+ --model "$GH_AW_MODEL_AGENT_COPILOT"} \
             2>&1 | tee /tmp/gh-aw/agent-stdio.log
         env:
           COPILOT_AGENT_RUNNER_TYPE: STANDALONE
           COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
+          GH_AW_ASSETS_ALLOWED_EXTS: ".png,.jpg,.jpeg"
+          GH_AW_ASSETS_BRANCH: "assets/${{ github.workflow }}"
+          GH_AW_ASSETS_MAX_SIZE_KB: 10240
           GH_AW_MCP_CONFIG: /home/runner/.copilot/mcp-config.json
           GH_AW_MODEL_AGENT_COPILOT: ${{ vars.GH_AW_MODEL_AGENT_COPILOT || '' }}
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
@@ -6633,6 +7459,19 @@ jobs:
           name: agent-stdio.log
           path: /tmp/gh-aw/agent-stdio.log
           if-no-files-found: warn
+      - name: Upload cache-memory data as artifact
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
+        if: always()
+        with:
+          name: cache-memory
+          path: /tmp/gh-aw/cache-memory
+      - name: Upload safe outputs assets
+        if: always()
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
+        with:
+          name: safe-outputs-assets
+          path: /tmp/gh-aw/safeoutputs/assets/
+          if-no-files-found: ignore
       - name: Validate agent logs for errors
         if: always()
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
@@ -6875,6 +7714,8 @@ jobs:
       - agent
       - create_discussion
       - detection
+      - update_cache_memory
+      - upload_assets
     if: (always()) && (needs.agent.result != 'skipped')
     runs-on: ubuntu-slim
     permissions:
@@ -8348,4 +9189,258 @@ jobs:
           name: threat-detection.log
           path: /tmp/gh-aw/threat-detection/detection.log
           if-no-files-found: ignore
+
+  update_cache_memory:
+    needs:
+      - agent
+      - detection
+    if: always() && needs.detection.outputs.success == 'true'
+    runs-on: ubuntu-latest
+    permissions: {}
+    steps:
+      - name: Download cache-memory artifact (default)
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
+        continue-on-error: true
+        with:
+          name: cache-memory
+          path: /tmp/gh-aw/cache-memory
+      - name: Save cache-memory to cache (default)
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          key: trending-data-${{ github.workflow }}-${{ github.run_id }}
+          path: /tmp/gh-aw/cache-memory
+
+  upload_assets:
+    needs:
+      - agent
+      - detection
+    if: >
+      (((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'upload_asset'))) &&
+      (needs.detection.outputs.success == 'true')
+    runs-on: ubuntu-slim
+    permissions:
+      contents: write
+    timeout-minutes: 10
+    outputs:
+      branch_name: ${{ steps.upload_assets.outputs.branch_name }}
+      published_count: ${{ steps.upload_assets.outputs.published_count }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Configure Git credentials
+        env:
+          REPO_NAME: ${{ github.repository }}
+          SERVER_URL: ${{ github.server_url }}
+        run: |
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "github-actions[bot]"
+          # Re-authenticate git with GitHub token
+          SERVER_URL_STRIPPED="${SERVER_URL#https://}"
+          git remote set-url origin "https://x-access-token:${{ github.token }}@${SERVER_URL_STRIPPED}/${REPO_NAME}.git"
+          echo "Git configured with standard GitHub Actions identity"
+      - name: Download assets
+        continue-on-error: true
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
+        with:
+          name: safe-outputs-assets
+          path: /tmp/gh-aw/safeoutputs/assets/
+      - name: List downloaded asset files
+        continue-on-error: true
+        run: |
+          echo "Downloaded asset files:"
+          ls -la /tmp/gh-aw/safeoutputs/assets/
+      - name: Download agent output artifact
+        continue-on-error: true
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
+        with:
+          name: agent_output.json
+          path: /tmp/gh-aw/safeoutputs/
+      - name: Setup agent output environment variable
+        run: |
+          mkdir -p /tmp/gh-aw/safeoutputs/
+          find "/tmp/gh-aw/safeoutputs/" -type f -print
+          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> "$GITHUB_ENV"
+      - name: Upload Assets to Orphaned Branch
+        id: upload_assets
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        env:
+          GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
+          GH_AW_ASSETS_BRANCH: "assets/${{ github.workflow }}"
+          GH_AW_ASSETS_MAX_SIZE_KB: 10240
+          GH_AW_ASSETS_ALLOWED_EXTS: ".png,.jpg,.jpeg"
+          GH_AW_WORKFLOW_NAME: "Automated Portfolio Analyst"
+          GH_AW_TRACKER_ID: "portfolio-analyst-weekly"
+          GH_AW_ENGINE_ID: "copilot"
+        with:
+          github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require("fs");
+            const path = require("path");
+            const crypto = require("crypto");
+            const MAX_LOG_CONTENT_LENGTH = 10000;
+            function truncateForLogging(content) {
+              if (content.length <= MAX_LOG_CONTENT_LENGTH) {
+                return content;
+              }
+              return content.substring(0, MAX_LOG_CONTENT_LENGTH) + `\n... (truncated, total length: ${content.length})`;
+            }
+            function loadAgentOutput() {
+              const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT;
+              if (!agentOutputFile) {
+                core.info("No GH_AW_AGENT_OUTPUT environment variable found");
+                return { success: false };
+              }
+              let outputContent;
+              try {
+                outputContent = fs.readFileSync(agentOutputFile, "utf8");
+              } catch (error) {
+                const errorMessage = `Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`;
+                core.error(errorMessage);
+                return { success: false, error: errorMessage };
+              }
+              if (outputContent.trim() === "") {
+                core.info("Agent output content is empty");
+                return { success: false };
+              }
+              core.info(`Agent output content length: ${outputContent.length}`);
+              let validatedOutput;
+              try {
+                validatedOutput = JSON.parse(outputContent);
+              } catch (error) {
+                const errorMessage = `Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`;
+                core.error(errorMessage);
+                core.info(`Failed to parse content:\n${truncateForLogging(outputContent)}`);
+                return { success: false, error: errorMessage };
+              }
+              if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
+                core.info("No valid items found in agent output");
+                core.info(`Parsed content: ${truncateForLogging(JSON.stringify(validatedOutput))}`);
+                return { success: false };
+              }
+              return { success: true, items: validatedOutput.items };
+            }
+            function normalizeBranchName(branchName) {
+              if (!branchName || typeof branchName !== "string" || branchName.trim() === "") {
+                return branchName;
+              }
+              let normalized = branchName.replace(/[^a-zA-Z0-9\-_/.]+/g, "-");
+              normalized = normalized.replace(/-+/g, "-");
+              normalized = normalized.replace(/^-+|-+$/g, "");
+              if (normalized.length > 128) {
+                normalized = normalized.substring(0, 128);
+              }
+              normalized = normalized.replace(/-+$/, "");
+              normalized = normalized.toLowerCase();
+              return normalized;
+            }
+            async function main() {
+              const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
+              const branchName = process.env.GH_AW_ASSETS_BRANCH;
+              if (!branchName || typeof branchName !== "string") {
+                core.setFailed("GH_AW_ASSETS_BRANCH environment variable is required but not set");
+                return;
+              }
+              const normalizedBranchName = normalizeBranchName(branchName);
+              core.info(`Using assets branch: ${normalizedBranchName}`);
+              const result = loadAgentOutput();
+              if (!result.success) {
+                core.setOutput("upload_count", "0");
+                core.setOutput("branch_name", normalizedBranchName);
+                return;
+              }
+              const uploadItems = result.items.filter( item => item.type === "upload_assets");
+              const uploadAssetItems = result.items.filter( item => item.type === "upload_asset");
+              const allUploadItems = [...uploadItems, ...uploadAssetItems];
+              if (allUploadItems.length === 0) {
+                core.info("No upload-asset items found in agent output");
+                core.setOutput("upload_count", "0");
+                core.setOutput("branch_name", normalizedBranchName);
+                return;
+              }
+              core.info(`Found ${allUploadItems.length} upload-asset item(s)`);
+              let uploadCount = 0;
+              let hasChanges = false;
+              try {
+                try {
+                  await exec.exec(`git rev-parse --verify origin/${normalizedBranchName}`);
+                  await exec.exec(`git checkout -B ${normalizedBranchName} origin/${normalizedBranchName}`);
+                  core.info(`Checked out existing branch from origin: ${normalizedBranchName}`);
+                } catch (originError) {
+                  if (!normalizedBranchName.startsWith("assets/")) {
+                    core.setFailed(
+                      `Branch '${normalizedBranchName}' does not start with the required 'assets/' prefix. ` +
+                        `Orphaned branches can only be automatically created under the 'assets/' prefix. ` +
+                        `Please create the branch manually first, or use a branch name starting with 'assets/'.`
+                    );
+                    return;
+                  }
+                  core.info(`Creating new orphaned branch: ${normalizedBranchName}`);
+                  await exec.exec(`git checkout --orphan ${normalizedBranchName}`);
+                  await exec.exec(`git rm -rf .`);
+                  await exec.exec(`git clean -fdx`);
+                }
+                for (const asset of uploadAssetItems) {
+                  try {
+                    const { fileName, sha, size, targetFileName } = asset;
+                    if (!fileName || !sha || !targetFileName) {
+                      core.error(`Invalid asset entry missing required fields: ${JSON.stringify(asset)}`);
+                      continue;
+                    }
+                    const assetSourcePath = path.join("/tmp/gh-aw/safeoutputs/assets", fileName);
+                    if (!fs.existsSync(assetSourcePath)) {
+                      core.warning(`Asset file not found: ${assetSourcePath}`);
+                      continue;
+                    }
+                    const fileContent = fs.readFileSync(assetSourcePath);
+                    const computedSha = crypto.createHash("sha256").update(fileContent).digest("hex");
+                    if (computedSha !== sha) {
+                      core.warning(`SHA mismatch for ${fileName}: expected ${sha}, got ${computedSha}`);
+                      continue;
+                    }
+                    if (fs.existsSync(targetFileName)) {
+                      core.info(`Asset ${targetFileName} already exists, skipping`);
+                      continue;
+                    }
+                    fs.copyFileSync(assetSourcePath, targetFileName);
+                    await exec.exec(`git add "${targetFileName}"`);
+                    uploadCount++;
+                    hasChanges = true;
+                    core.info(`Added asset: ${targetFileName} (${size} bytes)`);
+                  } catch (error) {
+                    core.warning(`Failed to process asset ${asset.fileName}: ${error instanceof Error ? error.message : String(error)}`);
+                  }
+                }
+                if (hasChanges) {
+                  const commitMessage = `[skip-ci] Add ${uploadCount} asset(s)`;
+                  await exec.exec(`git`, [`commit`, `-m`, commitMessage]);
+                  if (isStaged) {
+                    core.summary.addRaw("## Staged Asset Publication");
+                  } else {
+                    await exec.exec(`git push origin ${normalizedBranchName}`);
+                    core.summary
+                      .addRaw("## Assets")
+                      .addRaw(`Successfully uploaded **${uploadCount}** assets to branch \`${normalizedBranchName}\``)
+                      .addRaw("");
+                    core.info(`Successfully uploaded ${uploadCount} assets to branch ${normalizedBranchName}`);
+                  }
+                  for (const asset of uploadAssetItems) {
+                    if (asset.fileName && asset.sha && asset.size && asset.url) {
+                      core.summary.addRaw(`- [\`${asset.fileName}\`](${asset.url}) → \`${asset.targetFileName}\` (${asset.size} bytes)`);
+                    }
+                  }
+                  core.summary.write();
+                } else {
+                  core.info("No new assets to upload");
+                }
+              } catch (error) {
+                core.setFailed(`Failed to upload assets: ${error instanceof Error ? error.message : String(error)}`);
+                return;
+              }
+              core.setOutput("upload_count", uploadCount.toString());
+              core.setOutput("branch_name", normalizedBranchName);
+            }
+            await main();
 
