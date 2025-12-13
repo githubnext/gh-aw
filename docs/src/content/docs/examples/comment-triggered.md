@@ -22,14 +22,14 @@ Comment-triggered workflows respond to slash commands typed in GitHub conversati
 
 ```yaml
 on:
-  command:
+  slash_command:
     name: review           # Responds to /review
     events: [pull_request_comment]
 ```
 
 ```yaml
 on:
-  command:
+  slash_command:
     name: analyze
     events: [issue_comment, pull_request_comment]
 ```
