@@ -110,8 +110,74 @@
           "type": "object",
           "description": "Complex trigger configuration with event-specific filters and options",
           "properties": {
+            "slash_command": {
+              "description": "Special slash command trigger for /command workflows (e.g., '/my-bot' in issue comments). Creates conditions to match slash commands automatically.",
+              "oneOf": [
+                {
+                  "type": "null",
+                  "description": "Null command configuration - defaults to using the workflow filename (without .md extension) as the command name"
+                },
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "pattern": "^[^/]",
+                  "description": "Command name as a string (shorthand format, e.g., 'customname' for '/customname' triggers). Command names must not start with '/' as the slash is automatically added when matching commands."
+                },
+                {
+                  "type": "object",
+                  "description": "Command configuration object with custom command name",
+                  "properties": {
+                    "name": {
+                      "type": "string",
+                      "minLength": 1,
+                      "pattern": "^[^/]",
+                      "description": "Custom command name for slash commands (e.g., 'helper-bot' for '/helper-bot' triggers). Command names must not start with '/' as the slash is automatically added when matching commands. Defaults to workflow filename without .md extension if not specified."
+                    },
+                    "events": {
+                      "description": "Events where the command should be active. Default is all comment-related events ('*'). Use GitHub Actions event names.",
+                      "oneOf": [
+                        {
+                          "type": "string",
+                          "description": "Single event name or '*' for all events. Use GitHub Actions event names: 'issues', 'issue_comment', 'pull_request_comment', 'pull_request', 'pull_request_review_comment', 'discussion', 'discussion_comment'.",
+                          "enum": [
+                            "*",
+                            "issues",
+                            "issue_comment",
+                            "pull_request_comment",
+                            "pull_request",
+                            "pull_request_review_comment",
+                            "discussion",
+                            "discussion_comment"
+                          ]
+                        },
+                        {
+                          "type": "array",
+                          "minItems": 1,
+                          "description": "Array of event names where the command should be active (requires at least one). Use GitHub Actions event names.",
+                          "items": {
+                            "type": "string",
+                            "description": "GitHub Actions event name.",
+                            "enum": [
+                              "*",
+                              "issues",
+                              "issue_comment",
+                              "pull_request_comment",
+                              "pull_request",
+                              "pull_request_review_comment",
+                              "discussion",
+                              "discussion_comment"
+                            ]
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              ]
+            },
             "command": {
-              "description": "Special command trigger for /command workflows (e.g., '/my-bot' in issue comments). Creates conditions to match slash commands automatically.",
+              "description": "DEPRECATED: Use 'slash_command' instead. Special command trigger for /command workflows (e.g., '/my-bot' in issue comments). Creates conditions to match slash commands automatically.",
               "oneOf": [
                 {
                   "type": "null",
@@ -4857,14 +4923,28 @@
         "properties": {
           "on": {
             "type": "object",
-            "properties": {
-              "command": {
-                "not": {
-                  "type": "null"
-                }
+            "anyOf": [
+              {
+                "properties": {
+                  "slash_command": {
+                    "not": {
+                      "type": "null"
+                    }
+                  }
+                },
+                "required": ["slash_command"]
+              },
+              {
+                "properties": {
+                  "command": {
+                    "not": {
+                      "type": "null"
+                    }
+                  }
+                },
+                "required": ["command"]
               }
-            },
-            "required": ["command"]
+            ]
           }
         }
       },

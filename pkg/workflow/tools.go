@@ -27,9 +27,11 @@ func (c *Compiler) applyDefaults(data *WorkflowData, markdownPath string) {
 			result, err := parser.ExtractFrontmatterFromContent(string(content))
 			if err == nil {
 				if onValue, exists := result.Frontmatter["on"]; exists {
-					// Check for new format: on.command
+					// Check for slash_command or command (deprecated)
 					if onMap, ok := onValue.(map[string]any); ok {
-						if _, hasCommand := onMap["command"]; hasCommand {
+						if _, hasSlashCommand := onMap["slash_command"]; hasSlashCommand {
+							isCommandTrigger = true
+						} else if _, hasCommand := onMap["command"]; hasCommand {
 							isCommandTrigger = true
 						}
 					}
