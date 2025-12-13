@@ -20,8 +20,9 @@ network:
     - defaults
     - python
     - node
-  firewall: true
 
+sandbox:
+  agent: false  # Firewall disabled (migrated from network.firewall)
 safe-outputs:
   create-discussion:
     title-prefix: "[nlp-analysis] "

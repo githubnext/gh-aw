@@ -11,7 +11,8 @@ network:
   allowed:
     - defaults
     - node
-  firewall: true
+sandbox:
+  agent: false  # Firewall disabled (migrated from network.firewall)
 tools:
   edit:
   bash:

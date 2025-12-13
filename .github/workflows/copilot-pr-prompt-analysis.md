@@ -19,8 +19,9 @@ network:
   allowed:
     - defaults
     - node
-  firewall: true
 
+sandbox:
+  agent: false  # Firewall disabled (migrated from network.firewall)
 safe-outputs:
   create-discussion:
     title-prefix: "[prompt-analysis] "
