@@ -285,11 +285,12 @@ permissions:
 
 ### Labels
 
-The workflow uses four labels:
+The workflow uses these labels:
 - `spam` - Generic spam content
 - `link-spam` - Suspicious or promotional links
 - `ai-generated` - AI-generated content
-- `inspected` - Content reviewed and no threats found by AI moderator
+- `inspected` - Content reviewed and no threats found by AI moderator (preferred)
+- `ai-qa` - Legacy label for content reviewed and approved (deprecated, use `inspected` instead)
 
 ### Safe Outputs
 
