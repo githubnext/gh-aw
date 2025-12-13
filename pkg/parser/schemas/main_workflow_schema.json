@@ -1707,7 +1707,7 @@
       }
     },
     "network": {
-      "description": "Network access control for AI engines using ecosystem identifiers and domain allowlists. Controls web fetch and search capabilities.",
+      "description": "Engine network permissions (does not apply to MCP tool network isolation). Controls AI engine network access using ecosystem identifiers and domain allowlists for web fetch and search capabilities.",
       "examples": [
         "defaults",
         {
@@ -5120,7 +5120,7 @@
             }
           },
           "additionalProperties": false,
-          "description": "Network configuration for container-based MCP servers"
+          "description": "MCP tool container network isolation allowlist (separate from engine network permissions). Controls egress from containerized MCP servers with domain allowlist."
         },
         "allowed": {
           "type": "array",

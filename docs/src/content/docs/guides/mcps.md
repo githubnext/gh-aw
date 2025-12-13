@@ -211,6 +211,13 @@ Use `["*"]` to allow all tools from a custom MCP server.
 
 Restrict outbound access for containerized stdio MCP servers using `network.allowed` (see [Docker Container example](#2-docker-container-mcp-servers)). Enforcement uses a [Squid proxy](https://www.squid-cache.org/) with `HTTP_PROXY`/`HTTPS_PROXY` and iptables rules. Only applies to containerized stdio servers.
 
+> **Important**: The `network` field in MCP tool configurations controls **MCP container network isolation**, which is separate from the top-level `network` field that controls [engine network permissions](/gh-aw/reference/network/). The two configurations are independent:
+>
+> - **Top-level `network`**: Controls AI engine access to domains (does not apply to MCP tools)
+> - **MCP tool `network`**: Controls egress from containerized MCP servers (does not apply to engine)
+>
+> Configure both independently based on your security requirements.
+
 ## Available Shared MCP Configurations
 
 Pre-configured MCP servers in `.github/workflows/shared/mcp/` can be imported into workflows:

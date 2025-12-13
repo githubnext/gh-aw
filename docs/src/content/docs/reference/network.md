@@ -9,6 +9,8 @@ Control network access for AI engines using the top-level `network` field to spe
 
 > **Note**: Network permissions are currently supported by the Claude engine and the Copilot engine (when using the [firewall feature](/gh-aw/reference/engines/#network-permissions)).
 
+> **Important**: This page describes **engine network permissions**. For containerized MCP server network isolation, see [MCP Tool Network Egress Permissions](/gh-aw/guides/mcps/#network-egress-permissions). The two `network` configurations are separate and independent.
+
 If no `network:` permission is specified, it defaults to `network: defaults` which allows access to basic infrastructure domains (certificates, JSON schema, Ubuntu, common package mirrors, Microsoft sources).
 
 ## Configuration
