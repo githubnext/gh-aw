@@ -55,6 +55,11 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		return nil, err
 	}
 
+	// Validate event filter mutual exclusivity (branches/branches-ignore, paths/paths-ignore)
+	if err := ValidateEventFilters(result.Frontmatter); err != nil {
+		return nil, err
+	}
+
 	log.Printf("Frontmatter: %d chars, Markdown: %d chars", len(result.Frontmatter), len(result.Markdown))
 
 	markdownDir := filepath.Dir(markdownPath)

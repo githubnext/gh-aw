@@ -11,6 +11,8 @@ permissions:
   pull-requests: read
 tracker-id: portfolio-analyst-weekly
 engine: copilot
+network:
+  allowed: [python]
 tools:
   github:
     toolsets: [default]
@@ -27,11 +29,13 @@ safe-outputs:
     title-prefix: "[portfolio] "
     category: "Audits"
     close-older-discussions: true
+  upload-assets:
 timeout-minutes: 20
 imports:
   - shared/mcp/gh-aw.md
   - shared/reporting.md
   - shared/jqschema.md
+  - shared/trending-charts-simple.md
 ---
 
 # Automated Portfolio Analyst
@@ -59,6 +63,61 @@ Analyze all agentic workflows in this repository weekly to identify opportunitie
 - **Analysis Date**: Use `date +%Y-%m-%d` command to get current date
 - **Target**: Identify all cost reduction opportunities (aim for 20%+ when data permits)
 - **Time Budget**: 60 seconds
+
+## Visualization Requirements
+
+**Generate visual charts to create a dashboard-style report**. The report should be concise, scannable, and use charts instead of long text descriptions.
+
+### Required Charts
+
+Create these charts using Python with matplotlib/seaborn and save to `/tmp/gh-aw/python/charts/`:
+
+1. **Cost Trends Chart** (`cost_trends.png`)
+   - Line chart showing daily workflow costs over the last 30 days
+   - Highlight the overall trend (increasing/decreasing)
+   - Include 7-day moving average
+
+2. **Top Spenders Chart** (`top_spenders.png`)
+   - Horizontal bar chart of top 10 workflows by total cost
+   - Show actual dollar amounts
+   - Color code by health status (green=healthy, yellow=warning, red=critical)
+
+3. **Failure Rates Chart** (`failure_rates.png`)
+   - Bar chart showing workflows with >30% failure rate
+   - Display failure percentage and wasted cost
+   - Sort by wasted cost (highest first)
+
+4. **Success Rate Overview** (`success_overview.png`)
+   - Pie or donut chart showing overall success/failure/cancelled distribution
+   - Include percentages and counts
+
+### Chart Requirements
+
+- **High quality**: 300 DPI, 12x7 inch figures
+- **Clear labels**: Title, axis labels, legends
+- **Professional styling**: Use seaborn whitegrid style
+- **Consistent colors**: Use a professional color palette
+- **Upload all charts** using the `upload asset` tool to get URLs
+- **Embed in report**: Include charts in the discussion using markdown image syntax
+
+### Data Preparation
+
+Extract data from `/tmp/portfolio-logs/summary.json` and prepare it as CSV files in `/tmp/gh-aw/python/data/` before generating charts. Example:
+
+```python
+import pandas as pd
+import json
+
+# Load summary data
+with open('/tmp/portfolio-logs/summary.json', 'r') as f:
+    data = json.load(f)
+
+# Prepare daily cost data
+runs_df = pd.DataFrame(data['runs'])
+runs_df['date'] = pd.to_datetime(runs_df['created_at']).dt.date
+daily_costs = runs_df.groupby('date')['estimated_cost'].sum()
+daily_costs.to_csv('/tmp/gh-aw/python/data/daily_costs.csv')
+```
 
 ## Analysis Framework
 
@@ -245,139 +304,143 @@ For each workflow with >30% failure rate:
 
 ## Output Requirements
 
-Generate a concise, action-oriented GitHub issue under 2000 words.
+Generate a **concise, visual dashboard-style report** under 1500 words with embedded charts.
 
-### Issue Structure
+### Report Structure
+
+**CRITICAL**: The report must be visual and scannable. Generate all required charts FIRST, upload them as assets, then create the discussion with embedded charts.
 
 ```markdown
-# Portfolio Analysis Report - [DATE]
+# 📊 Portfolio Dashboard - [DATE]
 
-## Data Availability
+## Quick Overview
 
-⚠️ **Important**: Document the data coverage here:
-- **Time Period**: [Actual period covered, e.g., "Last 24 hours" or "Last 30 days"]
-- **Total Workflow Runs Analyzed**: [N] runs
-- **Data Quality**: [e.g., "Limited - single day only" or "Good - full month"]
-- **Confidence Level**: [e.g., "Low due to limited data" or "High with 30+ days"]
+[2-3 sentences summarizing key findings, total costs, and potential savings]
 
-**Note**: When data is limited (< 30 days or < 10 total runs), recommendations are based on available data only and may not represent typical patterns. Trends may change with more historical data.
+## Visual Summary
 
-## Executive Summary
+### Cost Trends (Last 30 Days)
 
-- **Total Workflows Analyzed**: [N]
-- **Current Monthly Cost**: $[X] (from actual downloaded log data, [period])
-- **Potential Savings**: $[Y] ([Z]%)
-- **High-Impact Issues**: [N]
-- **Data Source**: Real workflow execution data from downloaded logs, not estimates
+![Cost Trends](URL_FROM_UPLOAD_ASSET_FOR_cost_trends.png)
 
-## Cost Reduction Strategies
+**Key Insights**:
+- Daily average: $[X]
+- Trend: [Increasing/Decreasing/Stable] ([Y]% change)
+- Monthly total: $[Z]
 
-### 1. Remove Unused Workflows ($[X]/month)
+### Top Cost Drivers
 
-[Only list workflows with no runs in 60+ days]
+![Top Spenders](URL_FROM_UPLOAD_ASSET_FOR_top_spenders.png)
 
-- **`workflow-name.md`** - Last run: [date], Cost: $[X]/month
-  - Line 2-5: Remove schedule trigger
-  - Action: Delete workflow or convert to manual-only
-  ```yaml
-  # Current (lines 2-5):
-  on:
-    schedule:
-      - cron: "0 9 * * *"
-  
-  # Change to:
-  on:
-    workflow_dispatch:  # Manual only
-  ```
+Top 3 workflows account for [X]% of total cost:
+1. `workflow-1.md` - $[X]/month ([status])
+2. `workflow-2.md` - $[Y]/month ([status])
+3. `workflow-3.md` - $[Z]/month ([status])
 
-**Subtotal Savings: $[X]/month**
+### Failure Analysis
 
-### 2. Reduce Schedule Frequency ($[Y]/month)
+![Failure Rates](URL_FROM_UPLOAD_ASSET_FOR_failure_rates.png)
 
-[Only list over-scheduled workflows based on actual run data from downloaded logs]
+**Wasted Spend**: $[X]/month on failed runs
+- [N] workflows with >30% failure rate
+- [M] workflows with 100% failure rate (should be disabled)
 
-- **`daily-report.md`** - Runs: [actual count from last 30 days], Avg cost/run: $[actual from downloaded logs], Total: $[Y]/month
-  - Line 4: Change from daily to weekly
-  - Rationale: Actual execution data shows workflow runs [X] times in last 30 days
-  ```yaml
-  # Current (line 4):
-  cron: "0 9 * * *"  # Daily
-  
-  # Change to (line 4):
-  cron: "0 9 * * 1"  # Weekly on Monday
-  ```
-  - **Current**: [actual runs] runs × $[actual cost per run] = $[Y]/month
-  - **After**: 4 runs × $[actual cost per run] = $[lower amount]/month
-  - **Savings**: $[Z]/month ([percentage]% reduction)
+### Overall Health
 
-**Subtotal Savings: $[Y]/month**
+![Success Overview](URL_FROM_UPLOAD_ASSET_FOR_success_overview.png)
 
-### 3. Consolidate Duplicate Workflows ($[Z]/month)
+- ✅ Success: [X]% ([N] runs)
+- ❌ Failure: [Y]% ([M] runs)  
+- ⏸️ Cancelled: [Z]% ([P] runs)
 
-[Only list clear duplicates]
+## 💰 Cost Reduction Opportunities
 
-- **Duplicate Set: Issue Triage**
-  - `issue-triage-1.md` (Cost: $X/month)
-  - `issue-triage-2.md` (Cost: $Y/month)
-  - **Action**: Merge into single workflow
-  - **Implementation**:
-    1. Copy triggers from both workflows to `issue-triage-1.md` (lines 2-10)
-    2. Combine prompts in body (preserve all logic)
-    3. Delete `issue-triage-2.md`
-  - **Savings**: $[Y]/month
+**Total Potential Savings: $[X]/month ([Y]% reduction)**
 
-**Subtotal Savings: $[Z]/month**
+<details>
+<summary><b>Strategy 1: Fix High-Failure Workflows - $[X]/month</b></summary>
 
-### 4. Fix High-Failure Workflows ($[W]/month)
+List workflows with >30% failure rate, showing:
+- Workflow name and file
+- Failure rate percentage
+- Wasted cost per month
+- Recommended fix (1-2 lines)
 
-[Only list workflows with >30% failure rate based on actual conclusion data from downloaded logs]
+</details>
 
-- **`data-processor.md`** - Failure rate: [actual %] ([X] failures out of [Y] runs), Wasted: $[W]/month
-  - **Wasted Cost**: Sum of `estimated_cost` for all failed runs = $[W]/month (actual spend on failures)
-  - Root cause: [analyze error_count and logs]
-  - Fix (line 7): Add required permission
-  ```yaml
-  # Add to permissions section (line 7):
-  permissions:
-    contents: read
-    issues: write  # <- Add this
-  ```
-  - **Savings**: $[W]/month (actual wasted spend on failures, recoverable after fix)
+<details>
+<summary><b>Strategy 2: Reduce Over-Scheduling - $[Y]/month</b></summary>
 
-**Subtotal Savings: $[W]/month**
+List over-scheduled workflows with:
+- Current frequency (runs/month)
+- Recommended frequency
+- Savings calculation
 
-## Total Potential Savings
+</details>
 
-**All costs are from actual workflow execution data (last 30 days), not estimates:**
+<details>
+<summary><b>Strategy 3: Disable Failed Workflows - $[Z]/month</b></summary>
 
-- **Strategy 1 (Remove)**: $[X]/month (sum of actual monthly spend on unused workflows)
-- **Strategy 2 (Reduce)**: $[Y]/month (calculated from actual cost per run × reduced frequency)
-- **Strategy 3 (Consolidate)**: $[Z]/month (sum of actual monthly spend on duplicate workflows)
-- **Strategy 4 (Fix)**: $[W]/month (sum of actual spend on failed runs)
-- **Total**: $[TOTAL]/month ([PERCENT]% reduction)
-- **Current Monthly Spend**: $[CURRENT]/month (from downloaded logs actual data)
+List workflows with 100% failure rate or no successful runs.
 
-## Implementation Checklist
+</details>
 
-Each fix takes <1 hour:
+<details>
+<summary><b>Strategy 4: Remove Unused Workflows - $[W]/month</b></summary>
 
-- [ ] Remove unused workflows (Strategy 1) - Est: 15 min
-- [ ] Reduce schedule frequency (Strategy 2) - Est: 10 min
-- [ ] Consolidate duplicates (Strategy 3) - Est: 30 min
-- [ ] Fix high-failure workflows (Strategy 4) - Est: 20 min
+List workflows with no runs in 60+ days.
 
-## Healthy Workflows (Skipped)
+</details>
 
-[Brief list of workflows that are healthy and were skipped]
+## 🎯 Priority Actions
 
-- `workflow-1.md` - ✅ 98% success, $3/month, active
-- `workflow-2.md` - ✅ 100% success, $5/month, active
-- [... list up to 10, then summarize rest]
+1. **CRITICAL** - [Highest impact action with specific workflow and cost]
+2. **HIGH** - [Second highest impact action]
+3. **MEDIUM** - [Third priority action]
+
+## 📈 Data Quality
+
+- **Period Analyzed**: [Actual dates covered]
+- **Total Runs**: [N] workflow runs
+- **Workflows**: [M] total, [X] executed, [Y] not run
+- **Confidence**: [High/Medium/Low] based on [reasoning]
 
 ---
 
-*Analysis completed in [X] seconds | Focus: Top 20% issues representing 80% of costs*
+**Methodology**: Analysis based on actual workflow execution data from `gh aw logs` for the last 30 days. Costs calculated from real token usage, not estimates.
 ```
+
+### Key Requirements
+
+1. **Generate Charts First**
+   - Create all 4 required charts using Python
+   - Save to `/tmp/gh-aw/python/charts/`
+   - Upload each using `upload asset` tool
+   - Get URLs for embedding
+
+2. **Visual Focus**
+   - Charts tell the story, not long text
+   - Use bullet points and short paragraphs
+   - Expand details in collapsible sections
+   - Keep overview section scannable
+
+3. **Dashboard Layout**
+   - Visual Summary section with all charts upfront
+   - Brief insights under each chart (2-4 bullet points)
+   - Detailed recommendations in collapsible details sections
+   - Priority actions as numbered list
+
+4. **Conciseness**
+   - Target: 1000-1500 words total
+   - Each strategy section: <200 words
+   - Use tables for comparing workflows
+   - Focus on actionable items only
+
+5. **Consistency**
+   - Same chart types every week
+   - Same section structure
+   - Same visual styling (colors, fonts)
+   - Easy to compare week-over-week
 
 ## Critical Guidelines
 
@@ -426,10 +489,64 @@ Example minimal data report format:
 - **Show calculations** - Display how you calculated savings from actual data
 
 ### Quality Standards
-- **<2000 words** - Be concise, focus on actionable items
+- **<1500 words** - Be very concise, let charts tell the story
+- **Visual first** - Generate all 4 charts before writing report
+- **Dashboard style** - Scannable, consistent format week-over-week
 - **<1 hour per fix** - Only recommend simple changes
 - **Copy-paste ready** - Every fix should be implementable via copy-paste
 - **Verify math** - Ensure savings calculations are accurate
+
+### Visualization Workflow
+
+**CRITICAL ORDER OF OPERATIONS**:
+
+1. **Data Preparation** (5 seconds)
+   - Extract data from summary.json
+   - Create CSV files in `/tmp/gh-aw/python/data/`
+
+2. **Generate Charts** (15 seconds)
+   - Create all 4 required charts using Python
+   - Save to `/tmp/gh-aw/python/charts/`
+   - Verify files exist before uploading
+
+3. **Upload Assets** (10 seconds)
+   - Upload each chart using `upload asset` tool
+   - Save the returned URLs
+
+4. **Create Report** (20 seconds)
+   - Use the dashboard template
+   - Embed charts using markdown image syntax
+   - Keep text concise, let visuals speak
+   - Use collapsible details sections for lengthy content
+
+**Example Python Script Structure**:
+```python
+#!/usr/bin/env python3
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+import json
+
+# Load data
+with open('/tmp/portfolio-logs/summary.json', 'r') as f:
+    data = json.load(f)
+
+# Prepare dataframes
+runs_df = pd.DataFrame(data['runs'])
+runs_df['date'] = pd.to_datetime(runs_df['created_at']).dt.date
+
+# Set style once
+sns.set_style("whitegrid")
+sns.set_palette("husl")
+
+# Generate all 4 charts
+# 1. Cost trends
+# 2. Top spenders
+# 3. Failure rates
+# 4. Success overview
+
+print("✅ All charts generated")
+```
 
 ### Triage Rules
 - **60-70% should be skipped** - Most workflows should be healthy (when sufficient data available)
@@ -441,11 +558,15 @@ Example minimal data report format:
 ## Success Criteria
 
 ✅ Analysis completes in <60 seconds
+✅ **All 4 required charts generated** (cost trends, top spenders, failure rates, success overview)
+✅ **Charts uploaded as assets** and embedded in report
 ✅ Uses **real data from the pre-downloaded summary.json file**, not estimates
 ✅ **Always generates a report**, even with limited data
+✅ **Dashboard-style format** - visual, scannable, consistent structure
 ✅ Identifies cost savings opportunities based on available data (aim for ≥20% when data permits)
 ✅ Clearly documents data limitations and confidence level
-✅ Issue is <2000 words
+✅ Report is <1500 words with majority of insights conveyed through charts
+✅ Detailed recommendations in collapsible `<details>` sections
 ✅ Every recommendation includes exact line numbers
 ✅ Every recommendation includes before/after snippets
 ✅ Every fix takes <1 hour to implement
@@ -453,4 +574,4 @@ Example minimal data report format:
 ✅ Healthy workflows are briefly mentioned but not analyzed
 ✅ All dollar amounts are from actual workflow execution data
 
-Begin your analysis now. Read from the pre-downloaded JSON file at `/tmp/portfolio-logs/summary.json` to get real execution data for all workflows. This file contains everything you need: summary metrics and individual run data. DO NOT attempt to call `gh aw logs` or any `gh` commands - they will not work. Move fast, focus on high-impact issues, and deliver actionable recommendations based on actual costs.
+Begin your analysis now. **FIRST**: Generate all 4 required charts from `/tmp/portfolio-logs/summary.json` and upload them as assets. **THEN**: Create the dashboard-style discussion with embedded chart URLs. Read from the pre-downloaded JSON file at `/tmp/portfolio-logs/summary.json` to get real execution data for all workflows. This file contains everything you need: summary metrics and individual run data. DO NOT attempt to call `gh aw logs` or any `gh` commands - they will not work. Move fast, focus on high-impact issues, deliver actionable recommendations based on actual costs, and make the report visual and scannable.
