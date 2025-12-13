@@ -20,7 +20,8 @@ engine:
   model: gpt-5-mini
 tools:
   github:
-    mode: remote
+    mode: local
+    read-only: true
     toolsets: [default]
 if: (github.event_name == 'workflow_dispatch') || (needs.check_external_user.outputs.is_external == 'true')
 safe-outputs:
@@ -99,10 +100,11 @@ When running via `workflow_dispatch` with an `issue_url` input:
 3. Specifically, use the appropriate GitHub API tool to get the issue details including title and body
 
 For other trigger types (issues, issue_comment, pull_request_review_comment):
-
-<unsafe_user_input>
-${{ needs.activation.outputs.text }}
-</unsafe_user_input>
+1. Extract the relevant identifiers from the context:
+   - For issues: Use issue number from ${{ github.event.issue.number }}
+   - For comments: Use issue/PR number and comment ID from the event payload
+2. Use the GitHub MCP server tools to fetch the original, unsanitized content directly from GitHub API
+3. Do NOT use the pre-sanitized text from the activation job - fetch fresh content to analyze the original user input
 
 ## Custom Moderation Rules (Optional)
 
@@ -178,7 +180,7 @@ Based on your analysis:
    - **If no warnings or issues are found** and the content appears legitimate and on-topic, use the `add-labels` safe output to add the `inspected` label to indicate the issue has been reviewed and no threats were found
 
 2. **For Comments** (when comment ID is present):
-   - If any type of spam or AI-generated content is detected:
+   - If any type of spam, link spam, or AI-generated spam is detected:
      - Use the `minimize_comment` safe output to minimize the comment
      - Also add appropriate labels to the parent issue/PR as described above
    - If the comment appears legitimate and on-topic, add the `inspected` label to the parent issue/PR
@@ -268,7 +270,8 @@ engine:
   model: gpt-5-mini
 tools:
   github:
-    mode: remote
+    mode: local
+    read-only: true
     toolsets: [default]
 safe-outputs:
   add-labels:
