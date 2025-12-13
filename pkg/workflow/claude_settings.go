@@ -4,7 +4,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+
+	"github.com/githubnext/gh-aw/pkg/logger"
 )
+
+var claudeSettingsLog = logger.New("workflow:claude_settings")
 
 // ClaudeSettingsGenerator generates Claude Code settings configurations
 type ClaudeSettingsGenerator struct{}
@@ -33,6 +37,7 @@ type HookEntry struct {
 
 // GenerateSettingsJSON generates Claude Code settings JSON for network permissions
 func (g *ClaudeSettingsGenerator) GenerateSettingsJSON() string {
+	claudeSettingsLog.Print("Generating Claude Code settings JSON for network permissions")
 	settings := ClaudeSettings{
 		Hooks: &HookConfiguration{
 			PreToolUse: []PreToolUseHook{
@@ -50,11 +55,13 @@ func (g *ClaudeSettingsGenerator) GenerateSettingsJSON() string {
 	}
 
 	settingsJSON, _ := json.MarshalIndent(settings, "", "  ")
+	claudeSettingsLog.Printf("Generated settings JSON with %d bytes", len(settingsJSON))
 	return string(settingsJSON)
 }
 
 // GenerateSettingsWorkflowStep generates a GitHub Actions workflow step that creates the settings file
 func (g *ClaudeSettingsGenerator) GenerateSettingsWorkflowStep() GitHubActionStep {
+	claudeSettingsLog.Print("Generating settings workflow step")
 	settingsJSON := g.GenerateSettingsJSON()
 
 	runContent := fmt.Sprintf(`mkdir -p /tmp/gh-aw/.claude
@@ -72,5 +79,6 @@ EOF`, settingsJSON)
 		lines = append(lines, fmt.Sprintf("          %s", line))
 	}
 
+	claudeSettingsLog.Printf("Generated workflow step with %d lines", len(lines))
 	return GitHubActionStep(lines)
 }
