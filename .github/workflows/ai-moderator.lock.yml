@@ -47,7 +47,7 @@
 # if: (github.event_name == 'workflow_dispatch') || (needs.check_external_user.outputs.is_external == 'true')
 # safe-outputs:
 #   add-labels:
-#     allowed: [spam, ai-generated, link-spam, ai-qa, inspected]
+#     allowed: [spam, ai-generated, link-spam, ai-inspected]
 #   hide-comment:
 #     max: 5
 #     allowed-reasons: [spam]
@@ -222,13 +222,13 @@
 #    - If link spam is detected, use the `add-labels` safe output to add the `link-spam` label to the issue
 #    - If AI-generated content is detected, use the `add-labels` safe output to add the `ai-generated` label to the issue
 #    - Multiple labels can be added if multiple types are detected
-#    - **If no warnings or issues are found** and the content appears legitimate and on-topic, use the `add-labels` safe output to add the `inspected` label to indicate the issue has been reviewed and no threats were found
+#    - **If no warnings or issues are found** and the content appears legitimate and on-topic, use the `add-labels` safe output to add the `ai-inspected` label to indicate the issue has been reviewed and no threats were found
 #
 # 2. **For Comments** (when comment ID is present):
 #    - If any type of spam, link spam, or AI-generated spam is detected:
 #      - Use the `minimize_comment` safe output to minimize the comment
 #      - Also add appropriate labels to the parent issue/PR as described above
-#    - If the comment appears legitimate and on-topic, add the `inspected` label to the parent issue/PR
+#    - If the comment appears legitimate and on-topic, add the `ai-inspected` label to the parent issue/PR
 #
 # ## Important Guidelines
 #
@@ -453,7 +453,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_LABELS_ALLOWED: "spam,ai-generated,link-spam,ai-qa,inspected"
+          GH_AW_LABELS_ALLOWED: "spam,ai-generated,link-spam,ai-inspected"
           GH_AW_LABELS_MAX_COUNT: 3
           GH_AW_WORKFLOW_NAME: "AI Moderator"
           GH_AW_ENGINE_ID: "copilot"
@@ -1099,12 +1099,12 @@ jobs:
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
           cat > /tmp/gh-aw/safeoutputs/config.json << 'EOF'
-          {"add_labels":{"allowed":["spam","ai-generated","link-spam","ai-qa","inspected"],"max":3},"missing_tool":{"max":0},"noop":{"max":1}}
+          {"add_labels":{"allowed":["spam","ai-generated","link-spam","ai-inspected"],"max":3},"missing_tool":{"max":0},"noop":{"max":1}}
           EOF
           cat > /tmp/gh-aw/safeoutputs/tools.json << 'EOF'
           [
             {
-              "description": "Add labels to an existing GitHub issue or pull request for categorization and filtering. Labels must already exist in the repository. For creating new issues with labels, use create_issue with the labels property instead. CONSTRAINTS: Only these labels are allowed: [spam ai-generated link-spam ai-qa inspected].",
+              "description": "Add labels to an existing GitHub issue or pull request for categorization and filtering. Labels must already exist in the repository. For creating new issues with labels, use create_issue with the labels property instead. CONSTRAINTS: Only these labels are allowed: [spam ai-generated link-spam ai-inspected].",
               "inputSchema": {
                 "additionalProperties": false,
                 "properties": {
@@ -2867,13 +2867,13 @@ jobs:
              - If link spam is detected, use the `add-labels` safe output to add the `link-spam` label to the issue
              - If AI-generated content is detected, use the `add-labels` safe output to add the `ai-generated` label to the issue
              - Multiple labels can be added if multiple types are detected
-             - **If no warnings or issues are found** and the content appears legitimate and on-topic, use the `add-labels` safe output to add the `inspected` label to indicate the issue has been reviewed and no threats were found
+             - **If no warnings or issues are found** and the content appears legitimate and on-topic, use the `add-labels` safe output to add the `ai-inspected` label to indicate the issue has been reviewed and no threats were found
           
           2. **For Comments** (when comment ID is present):
              - If any type of spam, link spam, or AI-generated spam is detected:
                - Use the `minimize_comment` safe output to minimize the comment
                - Also add appropriate labels to the parent issue/PR as described above
-             - If the comment appears legitimate and on-topic, add the `inspected` label to the parent issue/PR
+             - If the comment appears legitimate and on-topic, add the `ai-inspected` label to the parent issue/PR
           
           ## Important Guidelines
           

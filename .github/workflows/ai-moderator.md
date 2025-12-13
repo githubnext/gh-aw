@@ -26,7 +26,7 @@ tools:
 if: (github.event_name == 'workflow_dispatch') || (needs.check_external_user.outputs.is_external == 'true')
 safe-outputs:
   add-labels:
-    allowed: [spam, ai-generated, link-spam, ai-qa, inspected]
+    allowed: [spam, ai-generated, link-spam, ai-inspected]
   hide-comment:
     max: 5
     allowed-reasons: [spam]
@@ -177,13 +177,13 @@ Based on your analysis:
    - If link spam is detected, use the `add-labels` safe output to add the `link-spam` label to the issue
    - If AI-generated content is detected, use the `add-labels` safe output to add the `ai-generated` label to the issue
    - Multiple labels can be added if multiple types are detected
-   - **If no warnings or issues are found** and the content appears legitimate and on-topic, use the `add-labels` safe output to add the `inspected` label to indicate the issue has been reviewed and no threats were found
+   - **If no warnings or issues are found** and the content appears legitimate and on-topic, use the `add-labels` safe output to add the `ai-inspected` label to indicate the issue has been reviewed and no threats were found
 
 2. **For Comments** (when comment ID is present):
    - If any type of spam, link spam, or AI-generated spam is detected:
      - Use the `minimize_comment` safe output to minimize the comment
      - Also add appropriate labels to the parent issue/PR as described above
-   - If the comment appears legitimate and on-topic, add the `inspected` label to the parent issue/PR
+   - If the comment appears legitimate and on-topic, add the `ai-inspected` label to the parent issue/PR
 
 ## Important Guidelines
 
@@ -275,7 +275,7 @@ tools:
     toolsets: [default]
 safe-outputs:
   add-labels:
-    allowed: [spam, ai-generated, link-spam, ai-qa, inspected]
+    allowed: [spam, ai-generated, link-spam, ai-inspected]
   hide-comment:
     max: 5
   threat-detection: false
@@ -292,13 +292,12 @@ The workflow uses these labels:
 - `spam` - Generic spam content
 - `link-spam` - Suspicious or promotional links
 - `ai-generated` - AI-generated content
-- `inspected` - Content reviewed and no threats found by AI moderator (preferred)
-- `ai-qa` - Legacy label for content reviewed and approved (deprecated, use `inspected` instead)
+- `ai-inspected` - Content reviewed and no threats found by AI moderator
 
 ### Safe Outputs
 
 The workflow uses two built-in safe outputs:
-- **add-labels**: Adds labels to issues and PRs (spam, link-spam, ai-generated, inspected)
+- **add-labels**: Adds labels to issues and PRs (spam, link-spam, ai-generated, ai-inspected)
 - **hide-comment**: Hides spam comments using GitHub's built-in functionality
 
 The hide-comment safe output requires the GraphQL node ID of the comment, which the AI agent fetches from the GitHub API.
