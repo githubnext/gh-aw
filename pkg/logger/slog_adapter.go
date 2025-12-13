@@ -109,12 +109,6 @@ func NewSlogLoggerWithHandler(logger *Logger) *slog.Logger {
 	return slog.New(handler)
 }
 
-// Example usage:
-// mcpLog := logger.New("mcp:server")
-// slogLogger := logger.NewSlogLoggerWithHandler(mcpLog)
-// // or
-// slogLogger := logger.NewSlogLogger("mcp:server")
-
 // Discard returns a slog.Logger that discards all output
 func Discard() *slog.Logger {
 	return slog.New(slog.NewTextHandler(io.Discard, nil))
