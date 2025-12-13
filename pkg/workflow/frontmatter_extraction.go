@@ -568,7 +568,7 @@ func (c *Compiler) extractCommandConfig(frontmatter map[string]any) (commandName
 			var commandValue any
 			var hasCommand bool
 			var isDeprecated bool
-			
+
 			// Check for slash_command first (preferred)
 			if slashCommandValue, hasSlashCommand := onMap["slash_command"]; hasSlashCommand {
 				commandValue = slashCommandValue
@@ -580,14 +580,14 @@ func (c *Compiler) extractCommandConfig(frontmatter map[string]any) (commandName
 				hasCommand = true
 				isDeprecated = true
 			}
-			
+
 			if hasCommand {
 				// Show deprecation warning if using old field name
 				if isDeprecated {
 					fmt.Fprintln(os.Stderr, console.FormatWarningMessage("The 'command:' trigger field is deprecated. Please use 'slash_command:' instead."))
 					c.IncrementWarningCount()
 				}
-				
+
 				// Check if command is a string (shorthand format)
 				if commandStr, ok := commandValue.(string); ok {
 					return commandStr, nil // nil means default (all events)
