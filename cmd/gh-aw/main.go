@@ -495,6 +495,7 @@ Use "` + constants.CLIExtensionPrefix + ` help all" to show help for all command
 	campaignCmd := campaign.NewCommand()
 	tokensCmd := cli.NewTokensCommand()
 	secretCmd := cli.NewSecretCommand()
+	fixCmd := cli.NewFixCommand()
 
 	// Assign commands to groups
 	// Setup Commands
@@ -511,6 +512,7 @@ Use "` + constants.CLIExtensionPrefix + ` help all" to show help for all command
 	mcpCmd.GroupID = "development"
 	statusCmd.GroupID = "development"
 	mcpServerCmd.GroupID = "development"
+	fixCmd.GroupID = "development"
 
 	// Execution Commands
 	runCmd.GroupID = "execution"
@@ -549,6 +551,7 @@ Use "` + constants.CLIExtensionPrefix + ` help all" to show help for all command
 	rootCmd.AddCommand(campaignCmd)
 	rootCmd.AddCommand(tokensCmd)
 	rootCmd.AddCommand(secretCmd)
+	rootCmd.AddCommand(fixCmd)
 }
 
 func main() {
