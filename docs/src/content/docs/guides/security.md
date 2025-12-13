@@ -310,6 +310,8 @@ Analyzes `.lock.yml` for excessive permissions, insecure practices, supply chain
 
 These variables are set by GitHub Actions runtime and cannot be influenced by user input (PR titles, issue comments, etc.), making them safe for template expansion. The compiler generates these steps using trusted context variables only.
 
+The implementation is in `pkg/workflow/yaml_generation.go` in the `generateGitConfigurationStepsWithToken` function.
+
 ### Network Isolation
 
 Network isolation operates at two layers:

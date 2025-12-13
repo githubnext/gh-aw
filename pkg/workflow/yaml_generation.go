@@ -17,6 +17,9 @@ func (c *Compiler) generateGitConfigurationSteps() []string {
 //
 // These variables cannot be influenced by user input (PR titles, issue comments, etc.)
 // and are safe to use in template expansion contexts.
+//
+// See docs/src/content/docs/guides/security.md for more information about known false
+// positives in security scanning tools.
 func (c *Compiler) generateGitConfigurationStepsWithToken(token string) []string {
 	return []string{
 		"      - name: Configure Git credentials\n",
