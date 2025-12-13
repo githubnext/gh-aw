@@ -168,6 +168,64 @@ function serializeTemporaryIdMap(tempIdMap) {
   return JSON.stringify(obj);
 }
 
+/**
+ * Load items with temporary ID support and optional staged mode handling.
+ * This is a common bootstrap pattern for safe-output scripts.
+ *
+ * @param {Object} options - Configuration options
+ * @param {string} options.itemType - The type of items to filter from agent output (e.g., "add_comment", "create_discussion")
+ * @param {Object} [options.staged] - Optional staged mode configuration
+ * @param {string} options.staged.title - Title for the staged preview (e.g., "Add Comments")
+ * @param {string} options.staged.description - Description for the staged preview
+ * @param {(item: any, index: number, temporaryIdMap: Map<string, RepoIssuePair>) => string} options.staged.renderItem - Function to render each item
+ * @returns {Promise<{items: Array<any>, temporaryIdMap: Map<string, RepoIssuePair>}|null>} Items and map, or null if staged mode handled
+ */
+async function loadItemsWithTemporaryIds(options) {
+  const { itemType, staged } = options;
+
+  // Load the temporary ID map from create_issue job
+  const temporaryIdMap = loadTemporaryIdMap();
+  if (temporaryIdMap.size > 0) {
+    if (typeof core !== "undefined") {
+      core.info(`Loaded temporary ID map with ${temporaryIdMap.size} entries`);
+    }
+  }
+
+  // Load agent output - must be imported separately by caller
+  const { loadAgentOutput } = require("./load_agent_output.cjs");
+  const result = loadAgentOutput();
+  if (!result.success) {
+    return null;
+  }
+
+  // Filter items by type
+  const items = result.items.filter(/** @param {any} item */ item => item.type === itemType);
+  if (items.length === 0) {
+    if (typeof core !== "undefined") {
+      core.info(`No ${itemType} items found in agent output`);
+    }
+    return null;
+  }
+
+  if (typeof core !== "undefined") {
+    core.info(`Found ${items.length} ${itemType} item(s)`);
+  }
+
+  // Handle staged mode if configured
+  if (staged && process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true") {
+    const { generateStagedPreview } = require("./staged_preview.cjs");
+    await generateStagedPreview({
+      title: staged.title,
+      description: staged.description,
+      items: items,
+      renderItem: (item, index) => staged.renderItem(item, index, temporaryIdMap),
+    });
+    return null; // Signal that staged mode was handled
+  }
+
+  return { items, temporaryIdMap };
+}
+
 module.exports = {
   TEMPORARY_ID_PATTERN,
   generateTemporaryId,
@@ -178,4 +236,5 @@ module.exports = {
   loadTemporaryIdMap,
   resolveIssueNumber,
   serializeTemporaryIdMap,
+  loadItemsWithTemporaryIds,
 };

@@ -279,4 +279,152 @@ describe("temporary_id.cjs", () => {
       });
     });
   });
+
+  describe("loadItemsWithTemporaryIds", () => {
+    let originalCore;
+
+    beforeEach(() => {
+      vi.clearAllMocks();
+      vi.resetModules(); // Clear module cache
+      delete process.env.GH_AW_TEMPORARY_ID_MAP;
+      delete process.env.GH_AW_SAFE_OUTPUTS_STAGED;
+      delete process.env.GH_AW_AGENT_OUTPUT;
+      
+      // Store original core
+      originalCore = global.core;
+      
+      // Mock core.info for tests
+      global.core = {
+        warning: vi.fn(),
+        info: vi.fn(),
+        error: vi.fn(),
+      };
+    });
+
+    afterEach(() => {
+      // Restore original core
+      global.core = originalCore;
+    });
+
+    it("should load items and temporary ID map successfully", async () => {
+      // Set up temporary ID map
+      process.env.GH_AW_TEMPORARY_ID_MAP = JSON.stringify({
+        aw_abc123def456: { repo: "owner/repo", number: 100 },
+      });
+
+      // Create a mock agent output file
+      const mockOutputPath = "/tmp/test-agent-output.json";
+      const mockOutput = {
+        items: [
+          { type: "add_comment", body: "Test comment 1" },
+          { type: "create_issue", title: "Test issue" },
+          { type: "add_comment", body: "Test comment 2" },
+        ],
+      };
+      const fs = await import("fs");
+      fs.writeFileSync(mockOutputPath, JSON.stringify(mockOutput));
+      process.env.GH_AW_AGENT_OUTPUT = mockOutputPath;
+
+      const { loadItemsWithTemporaryIds } = await import("./temporary_id.cjs");
+      const result = await loadItemsWithTemporaryIds({ itemType: "add_comment" });
+
+      expect(result).not.toBe(null);
+      expect(result.items).toHaveLength(2);
+      expect(result.items[0].type).toBe("add_comment");
+      expect(result.items[1].type).toBe("add_comment");
+      expect(result.temporaryIdMap.size).toBe(1);
+      expect(result.temporaryIdMap.get("aw_abc123def456")).toEqual({ repo: "owner/repo", number: 100 });
+
+      // Cleanup
+      fs.unlinkSync(mockOutputPath);
+    });
+
+    it("should return null when no agent output file specified", async () => {
+      // Don't set GH_AW_AGENT_OUTPUT
+
+      const { loadItemsWithTemporaryIds } = await import("./temporary_id.cjs");
+      const result = await loadItemsWithTemporaryIds({ itemType: "add_comment" });
+
+      expect(result).toBe(null);
+    });
+
+    it("should return null when no items of specified type found", async () => {
+      // Create a mock agent output file with different type
+      const mockOutputPath = "/tmp/test-agent-output.json";
+      const mockOutput = {
+        items: [{ type: "create_issue", title: "Test issue" }],
+      };
+      const fs = await import("fs");
+      fs.writeFileSync(mockOutputPath, JSON.stringify(mockOutput));
+      process.env.GH_AW_AGENT_OUTPUT = mockOutputPath;
+
+      const { loadItemsWithTemporaryIds } = await import("./temporary_id.cjs");
+      const result = await loadItemsWithTemporaryIds({ itemType: "add_comment" });
+
+      expect(result).toBe(null);
+
+      // Cleanup
+      fs.unlinkSync(mockOutputPath);
+    });
+
+    it("should handle staged mode and return null", async () => {
+      process.env.GH_AW_SAFE_OUTPUTS_STAGED = "true";
+
+      // Create a mock agent output file
+      const mockOutputPath = "/tmp/test-agent-output.json";
+      const mockOutput = {
+        items: [{ type: "add_comment", body: "Test comment" }],
+      };
+      const fs = await import("fs");
+      fs.writeFileSync(mockOutputPath, JSON.stringify(mockOutput));
+      process.env.GH_AW_AGENT_OUTPUT = mockOutputPath;
+
+      const mockSummary = {
+        addRaw: vi.fn().mockReturnThis(),
+        write: vi.fn().mockResolvedValue(undefined),
+      };
+      global.core = {
+        warning: vi.fn(),
+        info: vi.fn(),
+        error: vi.fn(),
+        summary: mockSummary,
+      };
+
+      const { loadItemsWithTemporaryIds } = await import("./temporary_id.cjs");
+      const result = await loadItemsWithTemporaryIds({
+        itemType: "add_comment",
+        staged: {
+          title: "Add Comments",
+          description: "Test description",
+          renderItem: item => `**Body:** ${item.body}\n`,
+        },
+      });
+
+      expect(result).toBe(null);
+
+      // Cleanup
+      fs.unlinkSync(mockOutputPath);
+    });
+
+    it("should work without staged mode configuration", async () => {
+      // Create a mock agent output file
+      const mockOutputPath = "/tmp/test-agent-output.json";
+      const mockOutput = {
+        items: [{ type: "create_discussion", title: "Test discussion" }],
+      };
+      const fs = await import("fs");
+      fs.writeFileSync(mockOutputPath, JSON.stringify(mockOutput));
+      process.env.GH_AW_AGENT_OUTPUT = mockOutputPath;
+
+      const { loadItemsWithTemporaryIds } = await import("./temporary_id.cjs");
+      const result = await loadItemsWithTemporaryIds({ itemType: "create_discussion" });
+
+      expect(result).not.toBe(null);
+      expect(result.items).toHaveLength(1);
+      expect(result.items[0].title).toBe("Test discussion");
+
+      // Cleanup
+      fs.unlinkSync(mockOutputPath);
+    });
+  });
 });
