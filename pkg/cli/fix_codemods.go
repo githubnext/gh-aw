@@ -25,10 +25,11 @@ func getSandboxAgentFalseLines() []string {
 
 // Codemod represents a single code transformation that can be applied to workflow files
 type Codemod struct {
-	ID          string // Unique identifier for the codemod
-	Name        string // Human-readable name
-	Description string // Description of what the codemod does
-	Apply       func(content string, frontmatter map[string]any) (string, bool, error)
+	ID            string // Unique identifier for the codemod
+	Name          string // Human-readable name
+	Description   string // Description of what the codemod does
+	IntroducedIn  string // Version where this codemod was introduced
+	Apply         func(content string, frontmatter map[string]any) (string, bool, error)
 }
 
 // CodemodResult represents the result of applying a codemod
@@ -49,9 +50,10 @@ func GetAllCodemods() []Codemod {
 // getTimeoutMinutesCodemod creates a codemod for migrating timeout_minutes to timeout-minutes
 func getTimeoutMinutesCodemod() Codemod {
 	return Codemod{
-		ID:          "timeout-minutes-migration",
-		Name:        "Migrate timeout_minutes to timeout-minutes",
-		Description: "Replaces deprecated 'timeout_minutes' field with 'timeout-minutes'",
+		ID:           "timeout-minutes-migration",
+		Name:         "Migrate timeout_minutes to timeout-minutes",
+		Description:  "Replaces deprecated 'timeout_minutes' field with 'timeout-minutes'",
+		IntroducedIn: "0.1.0",
 		Apply: func(content string, frontmatter map[string]any) (string, bool, error) {
 			// Check if the deprecated field exists
 			value, exists := frontmatter["timeout_minutes"]
@@ -111,12 +113,13 @@ func getTimeoutMinutesCodemod() Codemod {
 	}
 }
 
-// getNetworkFirewallCodemod creates a codemod for migrating network.firewall to sandbox.agent: false
+// getNetworkFirewallCodemod creates a codemod for migrating network.firewall to sandbox.agent
 func getNetworkFirewallCodemod() Codemod {
 	return Codemod{
-		ID:          "network-firewall-migration",
-		Name:        "Migrate network.firewall to sandbox.agent",
-		Description: "Replaces deprecated 'network.firewall' field with 'sandbox.agent: false'",
+		ID:           "network-firewall-migration",
+		Name:         "Migrate network.firewall to sandbox.agent",
+		Description:  "Replaces deprecated 'network.firewall' field with 'sandbox.agent' (false for disabled firewall, awf for enabled)",
+		IntroducedIn: "0.1.0",
 		Apply: func(content string, frontmatter map[string]any) (string, bool, error) {
 			// Check if network.firewall exists
 			networkValue, hasNetwork := frontmatter["network"]
@@ -130,9 +133,19 @@ func getNetworkFirewallCodemod() Codemod {
 			}
 
 			// Check if firewall field exists in network
-			_, hasFirewall := networkMap["firewall"]
+			firewallValue, hasFirewall := networkMap["firewall"]
 			if !hasFirewall {
 				return content, false, nil
+			}
+
+			// Determine the sandbox.agent value based on firewall value
+			// firewall: true -> sandbox.agent: awf
+			// firewall: false or null -> sandbox.agent: false
+			var sandboxAgentValue string
+			if firewallValue == true {
+				sandboxAgentValue = "awf"
+			} else {
+				sandboxAgentValue = "false"
 			}
 
 			// Parse frontmatter to get raw lines
@@ -172,7 +185,7 @@ func getNetworkFirewallCodemod() Codemod {
 				if inNetworkBlock && strings.HasPrefix(trimmedLine, "firewall:") {
 					firewallLineIndex = i
 					modified = true
-					codemodsLog.Printf("Removed network.firewall on line %d", i+1)
+					codemodsLog.Printf("Removed network.firewall on line %d (value was: %v)", i+1, firewallValue)
 					continue
 				}
 
@@ -183,11 +196,19 @@ func getNetworkFirewallCodemod() Codemod {
 				return content, false, nil
 			}
 
-			// Add sandbox.agent: false if not already present
+			// Add sandbox.agent if not already present
 			_, hasSandbox := frontmatter["sandbox"]
 			if !hasSandbox {
-				// Add sandbox.agent: false at the top level
-				sandboxLines := getSandboxAgentFalseLines()
+				// Create the appropriate sandbox lines based on firewall value
+				var sandboxLines []string
+				if sandboxAgentValue == "awf" {
+					sandboxLines = []string{
+						"sandbox:",
+						"  agent: awf  # Firewall enabled (migrated from network.firewall)",
+					}
+				} else {
+					sandboxLines = getSandboxAgentFalseLines()
+				}
 				
 				// Try to place it after network block if we found firewall
 				if firewallLineIndex >= 0 {
@@ -221,11 +242,11 @@ func getNetworkFirewallCodemod() Codemod {
 						frontmatterLines = append(frontmatterLines, sandboxLines...)
 					}
 
-					codemodsLog.Print("Added sandbox.agent: false")
+					codemodsLog.Printf("Added sandbox.agent: %s", sandboxAgentValue)
 				} else {
 					// Just append at the end
 					frontmatterLines = append(frontmatterLines, sandboxLines...)
-					codemodsLog.Print("Added sandbox.agent: false at end")
+					codemodsLog.Printf("Added sandbox.agent: %s at end", sandboxAgentValue)
 				}
 			}
 
@@ -240,7 +261,7 @@ func getNetworkFirewallCodemod() Codemod {
 			}
 
 			newContent := strings.Join(lines, "\n")
-			codemodsLog.Print("Applied network.firewall migration")
+			codemodsLog.Printf("Applied network.firewall migration (firewall: %v -> sandbox.agent: %s)", firewallValue, sandboxAgentValue)
 			return newContent, true, nil
 		},
 	}
@@ -249,9 +270,10 @@ func getNetworkFirewallCodemod() Codemod {
 // getCommandToSlashCommandCodemod creates a codemod for migrating on.command to on.slash_command
 func getCommandToSlashCommandCodemod() Codemod {
 	return Codemod{
-		ID:          "command-to-slash-command-migration",
-		Name:        "Migrate on.command to on.slash_command",
-		Description: "Replaces deprecated 'on.command' field with 'on.slash_command'",
+		ID:           "command-to-slash-command-migration",
+		Name:         "Migrate on.command to on.slash_command",
+		Description:  "Replaces deprecated 'on.command' field with 'on.slash_command'",
+		IntroducedIn: "0.2.0",
 		Apply: func(content string, frontmatter map[string]any) (string, bool, error) {
 			// Check if on.command exists
 			onValue, hasOn := frontmatter["on"]

@@ -87,6 +87,9 @@ func listAvailableCodemods() error {
 	for _, codemod := range codemods {
 		fmt.Fprintf(os.Stderr, "  %s\n", console.FormatInfoMessage(codemod.Name))
 		fmt.Fprintf(os.Stderr, "    ID: %s\n", codemod.ID)
+		if codemod.IntroducedIn != "" {
+			fmt.Fprintf(os.Stderr, "    Introduced in: %s\n", codemod.IntroducedIn)
+		}
 		fmt.Fprintf(os.Stderr, "    %s\n", codemod.Description)
 		fmt.Fprintln(os.Stderr, "")
 	}

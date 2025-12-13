@@ -22,7 +22,7 @@ network:
     - node
 
 sandbox:
-  agent: false  # Firewall disabled (migrated from network.firewall)
+  agent: awf  # Firewall enabled (migrated from network.firewall)
 safe-outputs:
   create-discussion:
     title-prefix: "[nlp-analysis] "
