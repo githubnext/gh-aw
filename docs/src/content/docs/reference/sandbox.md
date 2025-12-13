@@ -182,6 +182,10 @@ network:
 
 #### SRT Configuration Options
 
+:::note[Field Path]
+These options are configured under `sandbox.agent.config`, which is distinct from `engine.config` (engine-specific) and the legacy `sandbox.config` field.
+:::
+
 | Field | Type | Description |
 |-------|------|-------------|
 | `filesystem.allowWrite` | `string[]` | Paths allowed for write access |
@@ -281,6 +285,35 @@ sandbox:
 ```
 
 The `id` field replaces the legacy `type` field in the object format. When both are present, `id` takes precedence.
+
+### Legacy sandbox.config Field
+
+The legacy `sandbox.config` field (at the top level of the sandbox object) is deprecated in favor of `sandbox.agent.config`:
+
+```yaml wrap
+# Legacy format (deprecated) - sandbox.config
+sandbox:
+  config:
+    filesystem:
+      allowWrite: [".", "/tmp"]
+
+# Recommended format - sandbox.agent.config
+sandbox:
+  agent:
+    id: srt
+    config:
+      filesystem:
+        allowWrite: [".", "/tmp"]
+```
+
+:::note[Config Field Hierarchy]
+There are three distinct `config` fields in the schema:
+- **`engine.config`** - Engine-specific configuration (e.g., Codex TOML settings)
+- **`sandbox.agent.config`** - Agent sandbox configuration (SRT filesystem permissions)
+- **`sandbox.config`** - Legacy general sandbox configuration (use `sandbox.agent.config` instead)
+
+Each serves a different purpose and should not be confused with one another.
+:::
 
 ## Feature Flags
 

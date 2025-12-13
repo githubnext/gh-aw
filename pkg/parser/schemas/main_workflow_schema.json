@@ -1936,7 +1936,7 @@
                     },
                     "config": {
                       "type": "object",
-                      "description": "Custom Sandbox Runtime configuration (only applies when type is 'srt'). Note: Network configuration is controlled by the top-level 'network' field, not here.",
+                      "description": "Agent sandbox configuration (sandbox.agent.config). Custom Sandbox Runtime configuration for filesystem permissions (only applies when id/type is 'srt'). Note: Network configuration is controlled by the top-level 'network' field, not here. Distinct from engine.config and sandbox.config fields.",
                       "properties": {
                         "filesystem": {
                           "type": "object",
@@ -1989,7 +1989,7 @@
             },
             "config": {
               "type": "object",
-              "description": "Legacy custom Sandbox Runtime configuration (use agent.config instead). Note: Network configuration is controlled by the top-level 'network' field, not here.",
+              "description": "Legacy general sandbox configuration (sandbox.config). Deprecated: Use sandbox.agent.config instead for agent-specific configuration. Note: Network configuration is controlled by the top-level 'network' field, not here. Distinct from engine.config and sandbox.agent.config fields.",
               "properties": {
                 "filesystem": {
                   "type": "object",
@@ -5115,7 +5115,7 @@
             },
             "config": {
               "type": "string",
-              "description": "Additional TOML configuration text that will be appended to the generated config.toml in the action (codex engine only)"
+              "description": "Engine-specific configuration (engine.config). Additional TOML configuration text that will be appended to the generated config.toml in the action (codex engine only). Not to be confused with sandbox configuration fields."
             },
             "args": {
               "type": "array",

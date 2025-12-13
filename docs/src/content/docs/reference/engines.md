@@ -246,6 +246,33 @@ engine:
       description: "Custom error format with timestamp"
 ```
 
+## Engine Configuration (engine.config)
+
+:::note[Field Path]
+This section documents the `engine.config` field, which is distinct from sandbox configuration fields like `sandbox.agent.config` and `sandbox.config`.
+:::
+
+The `engine.config` field provides engine-specific configuration options. Currently, this field is only supported by the Codex engine (experimental) for TOML configuration.
+
+### Codex Engine Configuration
+
+For the Codex engine, `engine.config` accepts additional TOML configuration text that will be appended to the generated `config.toml` file:
+
+```yaml wrap
+engine:
+  id: codex
+  config: |
+    [custom]
+    setting1 = "value1"
+    setting2 = 42
+```
+
+The TOML content in `engine.config` is appended to the generated configuration file, allowing you to override or extend default settings for the Codex engine.
+
+:::caution[Experimental Feature]
+The `engine.config` field is specific to experimental engines and may change in future versions. The GitHub Copilot CLI engine does not currently use this field.
+:::
+
 ## Migration Between Engines
 
 Switch engines by changing the `engine` field in your frontmatter:
