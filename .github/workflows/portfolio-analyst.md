@@ -19,7 +19,8 @@ steps:
   - name: Download logs from last 30 days
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    run: gh aw logs --start-date -30d -o /tmp/portfolio-logs --json
+    run: |
+      gh aw logs --start-date -30d -o /tmp/portfolio-logs --json > /tmp/portfolio-logs/summary.json
 safe-outputs:
   create-discussion:
     title-prefix: "[portfolio] "
@@ -35,6 +36,15 @@ imports:
 # Automated Portfolio Analyst
 
 You are an expert workflow portfolio analyst focused on identifying cost reduction opportunities while improving reliability.
+
+## ⚠️ Critical: Pre-Downloaded Data Location
+
+**All workflow execution data has been pre-downloaded for you in the previous workflow step.**
+
+- **JSON Summary**: `/tmp/portfolio-logs/summary.json` - Contains all metrics and run data you need
+- **Run Logs**: `/tmp/portfolio-logs/run-{database-id}/` - Individual run logs (if needed for detailed analysis)
+
+**DO NOT call `gh aw logs` or any GitHub CLI commands** - they will not work in your environment. All data you need is in the summary.json file.
 
 ## Mission
 
@@ -55,44 +65,55 @@ Analyze all agentic workflows in this repository weekly to identify opportunitie
 
 **DO NOT CALL `gh aw logs` OR ANY `gh` COMMANDS** - These commands will not work in your environment and will fail.
 
-The workflow logs have already been downloaded for you and are available at:
-- **Directory**: `/tmp/portfolio-logs/`
-- **JSON Summary**: `/tmp/portfolio-logs/summary.json` (contains aggregated metrics for all workflows)
-- **Individual Run Logs**: `/tmp/portfolio-logs/{workflow-name}/{run-id}/` (detailed logs per workflow run)
+The workflow logs have already been downloaded for you in the previous step. The data is available at:
+- **JSON Summary File**: `/tmp/portfolio-logs/summary.json` (contains all metrics and run data)
+- **Individual Run Logs Directory**: `/tmp/portfolio-logs/run-{database-id}/` (detailed logs for each workflow run)
 
-All the data you need has been pre-downloaded. Read from these files instead.
+All the data you need has been pre-downloaded. Read from these files instead of calling `gh` commands.
 
 ### Phase 1: Data Collection (10 seconds)
 
 Collect execution data from the pre-downloaded logs:
 
 ```bash
-# Get list of all agentic workflows
-find .github/workflows/ -name '*.md' -type f
-
-# Read the pre-downloaded JSON summary
+# Read the pre-downloaded JSON summary (this file contains ALL the data you need)
 cat /tmp/portfolio-logs/summary.json | jq '.'
 
-# For each workflow, read the JSON data from the downloaded files
-# The logs directory contains subdirectories for each workflow with their run data
-ls -la /tmp/portfolio-logs/
+# The summary.json file contains:
+# - .summary: Aggregate metrics (total runs, tokens, cost, errors, warnings)
+# - .runs: Array of all workflow runs with detailed metrics per run
+# - .logs_location: Base directory where run logs are stored
+
+# Get total number of runs analyzed
+cat /tmp/portfolio-logs/summary.json | jq '.summary.total_runs'
+
+# Get all runs with their metrics
+cat /tmp/portfolio-logs/summary.json | jq '.runs[]'
+
+# Get list of all agentic workflows in the repository
+find .github/workflows/ -name '*.md' -type f
+
+# Individual run logs are stored in subdirectories (if you need detailed logs)
+ls -la /tmp/portfolio-logs/run-*/
 ```
 
-**Key Metrics to Extract (from downloaded JSON files):**
+**Key Metrics to Extract (from summary.json .runs array):**
+- `database_id` - Unique run identifier
+- `workflow_name` - Name of the workflow
 - `estimated_cost` - **Real cost per run calculated from actual token usage** (field name says "estimated" but contains calculated cost from actual usage)
 - `token_usage` - Actual token consumption
-- `duration` - Actual runtime
+- `duration` - Actual runtime (formatted as string like "5m30s")
 - `conclusion` - Success/failure status (success, failure, cancelled)
-- `created_at` - When the run was executed
+- `created_at` - When the run was executed (ISO 8601 timestamp)
 - `error_count` - Number of errors in the run
 - `warning_count` - Number of warnings in the run
 
 **Calculate from real data:**
-- Total runs in last 30 days
-- Success/failure counts from `conclusion` field
-- Last run date from `created_at` field
-- Monthly cost: sum of `estimated_cost` for all runs
-- Average cost per run: total cost / total runs
+- Total runs in last 30 days: Use `.summary.total_runs` or count `.runs` array
+- Success/failure counts: Count runs where `.conclusion` == "success" or "failure"
+- Last run date: Find latest `.created_at` timestamp
+- Monthly cost: Use `.summary.total_cost` (sum of all runs' estimated_cost)
+- Average cost per run: `.summary.total_cost / .summary.total_runs`
 
 **Triage Early:**
 - Skip workflows with 100% success rate, normal frequency, and last run < 7 days
@@ -173,8 +194,8 @@ Calculate specific dollar amounts using **ACTUAL cost data from downloaded files
 
 #### Strategy 1: Remove Unused Workflows
 ```bash
-# Read cost data from downloaded JSON files
-cat /tmp/portfolio-logs/{workflow-name}/summary.json | jq '.summary.total_cost'
+# Read cost data from the JSON summary for specific workflows
+cat /tmp/portfolio-logs/summary.json | jq '.runs[] | select(.workflow_name == "workflow-name") | .estimated_cost' | jq -s 'add'
 
 For each workflow with no runs in 60+ days:
 - Current monthly cost: Sum of estimated_cost from last 30 days
@@ -184,11 +205,11 @@ For each workflow with no runs in 60+ days:
 
 #### Strategy 2: Reduce Schedule Frequency
 ```bash
-# Get actual runs and cost from downloaded files
-cat /tmp/portfolio-logs/{workflow-name}/summary.json | jq '{runs: .summary.total_runs, cost: .summary.total_cost}'
+# Get actual runs and cost from the JSON summary
+cat /tmp/portfolio-logs/summary.json | jq '[.runs[] | select(.workflow_name == "workflow-name")] | {runs: length, cost: map(.estimated_cost) | add}'
 
 For each over-scheduled workflow:
-- Current frequency: Count runs in last 30 days from downloaded logs
+- Current frequency: Count runs in last 30 days from summary.json
 - Average cost per run: total_cost / total_runs (from actual data)
 - Recommended: Weekly (4 runs/month)
 - Savings: (current_runs - 4) × avg_cost_per_run = $Y/month
@@ -196,23 +217,23 @@ For each over-scheduled workflow:
 
 #### Strategy 3: Consolidate Duplicates
 ```bash
-# Get cost for each duplicate workflow from downloaded files
-cat /tmp/portfolio-logs/workflow-1/summary.json | jq '.summary.total_cost'
-cat /tmp/portfolio-logs/workflow-2/summary.json | jq '.summary.total_cost'
+# Get cost for each duplicate workflow from the JSON summary
+cat /tmp/portfolio-logs/summary.json | jq '[.runs[] | select(.workflow_name == "workflow-1")] | map(.estimated_cost) | add'
+cat /tmp/portfolio-logs/summary.json | jq '[.runs[] | select(.workflow_name == "workflow-2")] | map(.estimated_cost) | add'
 
 For each duplicate set:
 - Number of duplicates: N
-- Cost per workflow: $X (from downloaded files actual data)
+- Cost per workflow: $X (from summary.json actual data)
 - Savings: (N-1) × $X/month
 ```
 
 #### Strategy 4: Fix High-Failure Workflows
 ```bash
-# Get failure rate and cost from downloaded files
-cat /tmp/portfolio-logs/{workflow-name}/runs.json | jq '[.[] | select(.conclusion == "failure") | .estimated_cost] | add'
+# Get failure rate and cost from the JSON summary
+cat /tmp/portfolio-logs/summary.json | jq '[.runs[] | select(.workflow_name == "workflow-name" and .conclusion == "failure")] | map(.estimated_cost) | add'
 
 For each workflow with >30% failure rate:
-- Total runs: Count from downloaded logs
+- Total runs: Count from summary.json
 - Failed runs: Count where conclusion == "failure"
 - Failure rate: (failed_runs / total_runs) × 100
 - Wasted spending: Sum of estimated_cost for failed runs
@@ -384,16 +405,16 @@ Example minimal data report format:
 
 ### Use Real Data, Not Guesswork
 - **DO NOT call `gh aw logs` or any `gh` commands** - they will not work in your environment
-- **Read from pre-downloaded files in `/tmp/portfolio-logs/`** - all workflow logs have been downloaded for you
-- **Use calculated costs** - the `estimated_cost` field contains costs calculated from actual token usage
-- **Parse JSON with jq** - extract precise metrics from downloaded log files
-- **Sum actual costs** - add up `estimated_cost` for all runs in last 30 days from the files
-- **Calculate from actuals** - failure rates, run frequency, cost per run all from real workflow execution data in the downloaded files
+- **Read from the pre-downloaded JSON file `/tmp/portfolio-logs/summary.json`** - all workflow data is in this single file
+- **Use calculated costs** - the `estimated_cost` field in each run contains costs calculated from actual token usage
+- **Parse JSON with jq** - extract precise metrics from the summary.json file
+- **Sum actual costs** - add up `estimated_cost` for all runs in the `.runs` array
+- **Calculate from actuals** - failure rates, run frequency, cost per run all from real workflow execution data in summary.json
 
 ### Speed Optimization
 - **Skip healthy workflows** - Don't waste time analyzing what works
 - **Focus on high-impact only** - Workflows >$10/month or >30% failure (from actual data)
-- **Read from downloaded files** - All logs are already available in `/tmp/portfolio-logs/`
+- **Read from summary.json** - All data is in a single pre-downloaded JSON file at `/tmp/portfolio-logs/summary.json`
 - **Use templates** - Pre-format output structure
 
 ### Precision Requirements
@@ -419,7 +440,7 @@ Example minimal data report format:
 ## Success Criteria
 
 ✅ Analysis completes in <60 seconds
-✅ Uses **real data from downloaded log files**, not estimates
+✅ Uses **real data from the pre-downloaded summary.json file**, not estimates
 ✅ **Always generates a report**, even with limited data
 ✅ Identifies cost savings opportunities based on available data (aim for ≥20% when data permits)
 ✅ Clearly documents data limitations and confidence level
@@ -427,8 +448,8 @@ Example minimal data report format:
 ✅ Every recommendation includes exact line numbers
 ✅ Every recommendation includes before/after snippets
 ✅ Every fix takes <1 hour to implement
-✅ Math adds up correctly (all costs from actual downloaded log data)
+✅ Math adds up correctly (all costs from actual data in summary.json)
 ✅ Healthy workflows are briefly mentioned but not analyzed
 ✅ All dollar amounts are from actual workflow execution data
 
-Begin your analysis now. Read from the pre-downloaded log files in `/tmp/portfolio-logs/` to get real execution data for each workflow. DO NOT attempt to call `gh aw logs` or any `gh` commands - they will not work. Move fast, focus on high-impact issues, and deliver actionable recommendations based on actual costs.
+Begin your analysis now. Read from the pre-downloaded JSON file at `/tmp/portfolio-logs/summary.json` to get real execution data for all workflows. This file contains everything you need: summary metrics and individual run data. DO NOT attempt to call `gh aw logs` or any `gh` commands - they will not work. Move fast, focus on high-impact issues, and deliver actionable recommendations based on actual costs.
