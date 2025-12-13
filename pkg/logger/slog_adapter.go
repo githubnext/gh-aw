@@ -2,8 +2,9 @@ package logger
 
 import (
 	"context"
+	"fmt"
+	"io"
 	"log/slog"
-	"os"
 )
 
 // SlogHandler implements slog.Handler by wrapping a gh-aw Logger
@@ -33,14 +34,19 @@ func (h *SlogHandler) Handle(_ context.Context, r slog.Record) error {
 	// Format the message with attributes
 	msg := r.Message
 	if r.NumAttrs() > 0 {
-		attrs := make([]any, 0, r.NumAttrs())
+		attrs := make([]any, 0, r.NumAttrs()*2)
 		r.Attrs(func(a slog.Attr) bool {
 			attrs = append(attrs, a.Key, a.Value)
 			return true
 		})
 		// Format attributes as key=value pairs
 		for i := 0; i < len(attrs); i += 2 {
-			msg += " " + attrs[i].(string) + "=" + formatSlogValue(attrs[i+1])
+			// Safely handle non-string keys (should not happen in practice)
+			key, ok := attrs[i].(string)
+			if !ok {
+				key = fmt.Sprint(attrs[i])
+			}
+			msg += " " + key + "=" + formatSlogValue(attrs[i+1])
 		}
 	}
 
@@ -63,6 +69,9 @@ func (h *SlogHandler) Handle(_ context.Context, r slog.Record) error {
 
 // WithAttrs returns a new Handler whose attributes consist of
 // both the receiver's attributes and the arguments.
+// Note: For simplicity, this implementation does not maintain persistent attributes
+// and returns the same handler. This is acceptable for our use case where we're
+// primarily interested in the message content rather than structured attributes.
 func (h *SlogHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
 	// For simplicity, we return the same handler since we don't maintain persistent attributes
 	return h
@@ -70,6 +79,9 @@ func (h *SlogHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
 
 // WithGroup returns a new Handler with the given group appended to
 // the receiver's existing groups.
+// Note: For simplicity, this implementation does not maintain group context
+// and returns the same handler. This is acceptable for our use case where we're
+// primarily interested in the message content rather than hierarchical grouping.
 func (h *SlogHandler) WithGroup(name string) slog.Handler {
 	// For simplicity, we return the same handler since we don't maintain groups
 	return h
@@ -105,5 +117,5 @@ func NewSlogLoggerWithHandler(logger *Logger) *slog.Logger {
 
 // Discard returns a slog.Logger that discards all output
 func Discard() *slog.Logger {
-	return slog.New(slog.NewTextHandler(os.NewFile(0, os.DevNull), nil))
+	return slog.New(slog.NewTextHandler(io.Discard, nil))
 }
