@@ -25,11 +25,11 @@ func getSandboxAgentFalseLines() []string {
 
 // Codemod represents a single code transformation that can be applied to workflow files
 type Codemod struct {
-	ID            string // Unique identifier for the codemod
-	Name          string // Human-readable name
-	Description   string // Description of what the codemod does
-	IntroducedIn  string // Version where this codemod was introduced
-	Apply         func(content string, frontmatter map[string]any) (string, bool, error)
+	ID           string // Unique identifier for the codemod
+	Name         string // Human-readable name
+	Description  string // Description of what the codemod does
+	IntroducedIn string // Version where this codemod was introduced
+	Apply        func(content string, frontmatter map[string]any) (string, bool, error)
 }
 
 // CodemodResult represents the result of applying a codemod
@@ -209,7 +209,7 @@ func getNetworkFirewallCodemod() Codemod {
 				} else {
 					sandboxLines = getSandboxAgentFalseLines()
 				}
-				
+
 				// Try to place it after network block if we found firewall
 				if firewallLineIndex >= 0 {
 					// Find where to insert (after network block)

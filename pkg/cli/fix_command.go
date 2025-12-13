@@ -169,7 +169,7 @@ func runFixCommand(workflowIDs []string, write bool, verbose bool) error {
 		if totalFixed > 0 {
 			fmt.Fprintf(os.Stderr, "%s\n", console.FormatInfoMessage(fmt.Sprintf("Would fix %d of %d workflow files", totalFixed, totalFiles)))
 			fmt.Fprintln(os.Stderr, "")
-			
+
 			// Output as agent prompt
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("To fix these issues, run:"))
 			fmt.Fprintln(os.Stderr, "")
