@@ -16,14 +16,25 @@ var maintenanceLog = logger.New("workflow:maintenance_workflow")
 func GenerateMaintenanceWorkflow(workflowDataList []*WorkflowData, workflowDir string, verbose bool) error {
 	maintenanceLog.Print("Checking if maintenance workflow is needed")
 
-	// Check if any workflow uses expires field
+	// Check if any workflow uses expires field for discussions or issues
 	hasExpires := false
 	for _, workflowData := range workflowDataList {
-		if workflowData.SafeOutputs != nil && workflowData.SafeOutputs.CreateDiscussions != nil {
-			if workflowData.SafeOutputs.CreateDiscussions.Expires > 0 {
-				hasExpires = true
-				maintenanceLog.Printf("Workflow %s has expires field set to %d days", workflowData.Name, workflowData.SafeOutputs.CreateDiscussions.Expires)
-				break
+		if workflowData.SafeOutputs != nil {
+			// Check for expired discussions
+			if workflowData.SafeOutputs.CreateDiscussions != nil {
+				if workflowData.SafeOutputs.CreateDiscussions.Expires > 0 {
+					hasExpires = true
+					maintenanceLog.Printf("Workflow %s has expires field set to %d days for discussions", workflowData.Name, workflowData.SafeOutputs.CreateDiscussions.Expires)
+					break
+				}
+			}
+			// Check for expired issues
+			if workflowData.SafeOutputs.CreateIssues != nil {
+				if workflowData.SafeOutputs.CreateIssues.Expires > 0 {
+					hasExpires = true
+					maintenanceLog.Printf("Workflow %s has expires field set to %d days for issues", workflowData.Name, workflowData.SafeOutputs.CreateIssues.Expires)
+					break
+				}
 			}
 		}
 	}
