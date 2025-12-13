@@ -7,7 +7,9 @@ timeout-minutes: 5
 strict: false
 engine: copilot
 
-permissions: read-all
+permissions:
+  contents: read
+  pull-requests: read
 
 tools:
   github: false
