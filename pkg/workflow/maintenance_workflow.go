@@ -87,14 +87,13 @@ on:
     - cron: "0 0 * * *"  # Daily at midnight UTC
   workflow_dispatch:
 
-permissions:
-  contents: read
-  discussions: write
-  issues: write
+permissions: {}
 
 jobs:
   close-expired-discussions:
     runs-on: ubuntu-latest
+    permissions:
+      discussions: write
     steps:
       - name: Close expired discussions
         uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
@@ -110,6 +109,8 @@ jobs:
 	yaml.WriteString(`
   close-expired-issues:
     runs-on: ubuntu-latest
+    permissions:
+      issues: write
     steps:
       - name: Close expired issues
         uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
@@ -125,6 +126,8 @@ jobs:
 	yaml.WriteString(`
   compile-workflows:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - name: Checkout repository
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -158,6 +161,8 @@ jobs:
   zizmor-scan:
     runs-on: ubuntu-latest
     needs: compile-workflows
+    permissions:
+      contents: read
     steps:
       - name: Checkout repository
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
