@@ -30,7 +30,9 @@
 # strict: false
 # engine: copilot
 #
-# permissions: read-all
+# permissions:
+#   contents: read
+#   pull-requests: read
 #
 # tools:
 #   github: false
@@ -112,7 +114,9 @@ name: "Dev"
 "on":
   workflow_dispatch: null
 
-permissions: read-all
+permissions:
+  contents: read
+  pull-requests: read
 
 concurrency:
   group: "gh-aw-${{ github.workflow }}"
@@ -219,7 +223,9 @@ jobs:
   agent:
     needs: activation
     runs-on: ubuntu-latest
-    permissions: read-all
+    permissions:
+      contents: read
+      pull-requests: read
     concurrency:
       group: "gh-aw-copilot-${{ github.workflow }}"
     env:
