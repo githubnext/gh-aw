@@ -39,10 +39,15 @@
 # engine:
 #   id: copilot
 #   model: gpt-5-mini
+# tools:
+#   github:
+#     mode: local
+#     read-only: true
+#     toolsets: [default]
 # if: (github.event_name == 'workflow_dispatch') || (needs.check_external_user.outputs.is_external == 'true')
 # safe-outputs:
 #   add-labels:
-#     allowed: [spam, ai-generated, link-spam, ai-qa]
+#     allowed: [spam, ai-generated, link-spam, ai-inspected]
 #   hide-comment:
 #     max: 5
 #     allowed-reasons: [spam]
@@ -134,9 +139,17 @@
 #
 # **Content to analyze**:
 #
-# <unsafe_user_input>
-# ${{ needs.activation.outputs.text }}
-# </unsafe_user_input>
+# When running via `workflow_dispatch` with an `issue_url` input:
+# 1. Parse the issue URL to extract the owner, repo, and issue number
+# 2. Use the GitHub MCP server tools (available via `github` toolset) to fetch the full issue content
+# 3. Specifically, use the appropriate GitHub API tool to get the issue details including title and body
+#
+# For other trigger types (issues, issue_comment, pull_request_review_comment):
+# 1. Extract the relevant identifiers from the context:
+#    - For issues: Use issue number from ${{ github.event.issue.number }}
+#    - For comments: Use issue/PR number and comment ID from the event payload
+# 2. Use the GitHub MCP server tools to fetch the original, unsanitized content directly from GitHub API
+# 3. Do NOT use the pre-sanitized text from the activation job - fetch fresh content to analyze the original user input
 #
 # ## Custom Moderation Rules (Optional)
 #
@@ -209,13 +222,13 @@
 #    - If link spam is detected, use the `add-labels` safe output to add the `link-spam` label to the issue
 #    - If AI-generated content is detected, use the `add-labels` safe output to add the `ai-generated` label to the issue
 #    - Multiple labels can be added if multiple types are detected
-#    - **If no warnings or issues are found** and the content appears legitimate and on-topic, use the `add-labels` safe output to add the `ai-qa` label to indicate the issue has been reviewed and approved
+#    - **If no warnings or issues are found** and the content appears legitimate and on-topic, use the `add-labels` safe output to add the `ai-inspected` label to indicate the issue has been reviewed and no threats were found
 #
 # 2. **For Comments** (when comment ID is present):
-#    - If any type of spam or AI-generated content is detected:
+#    - If any type of spam, link spam, or AI-generated spam is detected:
 #      - Use the `minimize_comment` safe output to minimize the comment
 #      - Also add appropriate labels to the parent issue/PR as described above
-#    - If the comment appears legitimate and on-topic, add the `ai-qa` label to the parent issue/PR
+#    - If the comment appears legitimate and on-topic, add the `ai-inspected` label to the parent issue/PR
 #
 # ## Important Guidelines
 #
@@ -279,7 +292,6 @@ jobs:
       comment_id: ""
       comment_repo: ""
       issue_locked: ${{ steps.lock-issue.outputs.locked }}
-      text: ${{ steps.compute-text.outputs.text }}
     steps:
       - name: Check workflow file timestamps
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
@@ -368,405 +380,6 @@ jobs:
             main().catch(error => {
               core.setFailed(error instanceof Error ? error.message : String(error));
             });
-      - name: Compute current body text
-        id: compute-text
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
-        with:
-          script: |
-            const redactedDomains = [];
-            function getRedactedDomains() {
-              return [...redactedDomains];
-            }
-            function clearRedactedDomains() {
-              redactedDomains.length = 0;
-            }
-            function writeRedactedDomainsLog(filePath) {
-              if (redactedDomains.length === 0) {
-                return null;
-              }
-              const fs = require("fs");
-              const path = require("path");
-              const targetPath = filePath || "/tmp/gh-aw/redacted-urls.log";
-              const dir = path.dirname(targetPath);
-              if (!fs.existsSync(dir)) {
-                fs.mkdirSync(dir, { recursive: true });
-              }
-              fs.writeFileSync(targetPath, redactedDomains.join("\n") + "\n");
-              return targetPath;
-            }
-            function extractDomainsFromUrl(url) {
-              if (!url || typeof url !== "string") {
-                return [];
-              }
-              try {
-                const urlObj = new URL(url);
-                const hostname = urlObj.hostname.toLowerCase();
-                const domains = [hostname];
-                if (hostname === "github.com") {
-                  domains.push("api.github.com");
-                  domains.push("raw.githubusercontent.com");
-                  domains.push("*.githubusercontent.com");
-                }
-                else if (!hostname.startsWith("api.")) {
-                  domains.push("api." + hostname);
-                  domains.push("raw." + hostname);
-                }
-                return domains;
-              } catch (e) {
-                return [];
-              }
-            }
-            function sanitizeContent(content, maxLengthOrOptions) {
-              let maxLength;
-              let allowedAliasesLowercase = [];
-              if (typeof maxLengthOrOptions === "number") {
-                maxLength = maxLengthOrOptions;
-              } else if (maxLengthOrOptions && typeof maxLengthOrOptions === "object") {
-                maxLength = maxLengthOrOptions.maxLength;
-                allowedAliasesLowercase = (maxLengthOrOptions.allowedAliases || []).map(alias => alias.toLowerCase());
-              }
-              if (!content || typeof content !== "string") {
-                return "";
-              }
-              const allowedDomainsEnv = process.env.GH_AW_ALLOWED_DOMAINS;
-              const defaultAllowedDomains = ["github.com", "github.io", "githubusercontent.com", "githubassets.com", "github.dev", "codespaces.new"];
-              let allowedDomains = allowedDomainsEnv
-                ? allowedDomainsEnv
-                    .split(",")
-                    .map(d => d.trim())
-                    .filter(d => d)
-                : defaultAllowedDomains;
-              const githubServerUrl = process.env.GITHUB_SERVER_URL;
-              const githubApiUrl = process.env.GITHUB_API_URL;
-              if (githubServerUrl) {
-                const serverDomains = extractDomainsFromUrl(githubServerUrl);
-                allowedDomains = allowedDomains.concat(serverDomains);
-              }
-              if (githubApiUrl) {
-                const apiDomains = extractDomainsFromUrl(githubApiUrl);
-                allowedDomains = allowedDomains.concat(apiDomains);
-              }
-              allowedDomains = [...new Set(allowedDomains)];
-              let sanitized = content;
-              sanitized = neutralizeCommands(sanitized);
-              sanitized = neutralizeMentions(sanitized);
-              sanitized = removeXmlComments(sanitized);
-              sanitized = convertXmlTags(sanitized);
-              sanitized = sanitized.replace(/\x1b\[[0-9;]*[mGKH]/g, "");
-              sanitized = sanitized.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "");
-              sanitized = sanitizeUrlProtocols(sanitized);
-              sanitized = sanitizeUrlDomains(sanitized);
-              const lines = sanitized.split("\n");
-              const maxLines = 65000;
-              maxLength = maxLength || 524288;
-              if (lines.length > maxLines) {
-                const truncationMsg = "\n[Content truncated due to line count]";
-                const truncatedLines = lines.slice(0, maxLines).join("\n") + truncationMsg;
-                if (truncatedLines.length > maxLength) {
-                  sanitized = truncatedLines.substring(0, maxLength - truncationMsg.length) + truncationMsg;
-                } else {
-                  sanitized = truncatedLines;
-                }
-              } else if (sanitized.length > maxLength) {
-                sanitized = sanitized.substring(0, maxLength) + "\n[Content truncated due to length]";
-              }
-              sanitized = neutralizeBotTriggers(sanitized);
-              return sanitized.trim();
-              function sanitizeUrlDomains(s) {
-                s = s.replace(/\bhttps:\/\/([^\s\])}'"<>&\x00-\x1f,;]+)/gi, (match, rest) => {
-                  const hostname = rest.split(/[\/:\?#]/)[0].toLowerCase();
-                  const isAllowed = allowedDomains.some(allowedDomain => {
-                    const normalizedAllowed = allowedDomain.toLowerCase();
-                    return hostname === normalizedAllowed || hostname.endsWith("." + normalizedAllowed);
-                  });
-                  if (isAllowed) {
-                    return match; 
-                  }
-                  const domain = hostname;
-                  const truncated = domain.length > 12 ? domain.substring(0, 12) + "..." : domain;
-                  core.info(`Redacted URL: ${truncated}`);
-                  core.debug(`Redacted URL (full): ${match}`);
-                  redactedDomains.push(domain);
-                  const urlParts = match.split(/([?&#])/);
-                  let result = "(redacted)"; 
-                  for (let i = 1; i < urlParts.length; i++) {
-                    if (urlParts[i].match(/^[?&#]$/)) {
-                      result += urlParts[i]; 
-                    } else {
-                      result += sanitizeUrlDomains(urlParts[i]);
-                    }
-                  }
-                  return result;
-                });
-                return s;
-              }
-              function sanitizeUrlProtocols(s) {
-                return s.replace(/(?<![-\/\w])([A-Za-z][A-Za-z0-9+.-]*):(?:\/\/|(?=[^\s:]))[^\s\])}'"<>&\x00-\x1f]+/g, (match, protocol) => {
-                  if (protocol.toLowerCase() === "https") {
-                    return match;
-                  }
-                  if (match.includes("::")) {
-                    return match;
-                  }
-                  if (match.includes("://")) {
-                    const domainMatch = match.match(/^[^:]+:\/\/([^\/\s?#]+)/);
-                    const domain = domainMatch ? domainMatch[1] : match;
-                    const truncated = domain.length > 12 ? domain.substring(0, 12) + "..." : domain;
-                    core.info(`Redacted URL: ${truncated}`);
-                    core.debug(`Redacted URL (full): ${match}`);
-                    redactedDomains.push(domain);
-                    return "(redacted)";
-                  }
-                  const dangerousProtocols = ["javascript", "data", "vbscript", "file", "about", "mailto", "tel", "ssh", "ftp"];
-                  if (dangerousProtocols.includes(protocol.toLowerCase())) {
-                    const truncated = match.length > 12 ? match.substring(0, 12) + "..." : match;
-                    core.info(`Redacted URL: ${truncated}`);
-                    core.debug(`Redacted URL (full): ${match}`);
-                    redactedDomains.push(protocol + ":");
-                    return "(redacted)";
-                  }
-                  return match;
-                });
-              }
-              function neutralizeCommands(s) {
-                const commandName = process.env.GH_AW_COMMAND;
-                if (!commandName) {
-                  return s;
-                }
-                const escapedCommand = commandName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-                return s.replace(new RegExp(`^(\\s*)/(${escapedCommand})\\b`, "i"), "$1`/$2`");
-              }
-              function neutralizeMentions(s) {
-                return s.replace(/(^|[^\w`])@([A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?(?:\/[A-Za-z0-9._-]+)?)/g, (_m, p1, p2) => {
-                  const isAllowed = allowedAliasesLowercase.includes(p2.toLowerCase());
-                  if (isAllowed) {
-                    return `${p1}@${p2}`; 
-                  }
-                  return `${p1}\`@${p2}\``; 
-                });
-              }
-              function removeXmlComments(s) {
-                return s.replace(/<!--[\s\S]*?-->/g, "").replace(/<!--[\s\S]*?--!>/g, "");
-              }
-              function convertXmlTags(s) {
-                const allowedTags = [
-                  "b",
-                  "blockquote",
-                  "br",
-                  "code",
-                  "details",
-                  "em",
-                  "h1",
-                  "h2",
-                  "h3",
-                  "h4",
-                  "h5",
-                  "h6",
-                  "hr",
-                  "i",
-                  "li",
-                  "ol",
-                  "p",
-                  "pre",
-                  "strong",
-                  "sub",
-                  "summary",
-                  "sup",
-                  "table",
-                  "tbody",
-                  "td",
-                  "th",
-                  "thead",
-                  "tr",
-                  "ul",
-                ];
-                s = s.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, (match, content) => {
-                  const convertedContent = content.replace(/<(\/?[A-Za-z][A-Za-z0-9]*(?:[^>]*?))>/g, "($1)");
-                  return `(![CDATA[${convertedContent}]])`;
-                });
-                return s.replace(/<(\/?[A-Za-z!][^>]*?)>/g, (match, tagContent) => {
-                  const tagNameMatch = tagContent.match(/^\/?\s*([A-Za-z][A-Za-z0-9]*)/);
-                  if (tagNameMatch) {
-                    const tagName = tagNameMatch[1].toLowerCase();
-                    if (allowedTags.includes(tagName)) {
-                      return match; 
-                    }
-                  }
-                  return `(${tagContent})`; 
-                });
-              }
-              function neutralizeBotTriggers(s) {
-                return s.replace(/\b(fixes?|closes?|resolves?|fix|close|resolve)\s+#(\w+)/gi, (match, action, ref) => `\`${action} #${ref}\``);
-              }
-            }
-            async function main() {
-              let text = "";
-              let allowedAliases = [];
-              const actor = context.actor;
-              const { owner, repo } = context.repo;
-              const repoPermission = await github.rest.repos.getCollaboratorPermissionLevel({
-                owner: owner,
-                repo: repo,
-                username: actor,
-              });
-              const permission = repoPermission.data.permission;
-              core.info(`Repository permission level: ${permission}`);
-              if (permission !== "admin" && permission !== "maintain") {
-                core.setOutput("text", "");
-                return;
-              }
-              switch (context.eventName) {
-                case "issues":
-                  if (context.payload.issue) {
-                    const title = context.payload.issue.title || "";
-                    const body = context.payload.issue.body || "";
-                    text = `${title}\n\n${body}`;
-                    if (context.payload.issue.user?.login) {
-                      allowedAliases.push(context.payload.issue.user.login);
-                    }
-                  }
-                  break;
-                case "pull_request":
-                  if (context.payload.pull_request) {
-                    const title = context.payload.pull_request.title || "";
-                    const body = context.payload.pull_request.body || "";
-                    text = `${title}\n\n${body}`;
-                    if (context.payload.pull_request.user?.login) {
-                      allowedAliases.push(context.payload.pull_request.user.login);
-                    }
-                  }
-                  break;
-                case "pull_request_target":
-                  if (context.payload.pull_request) {
-                    const title = context.payload.pull_request.title || "";
-                    const body = context.payload.pull_request.body || "";
-                    text = `${title}\n\n${body}`;
-                    if (context.payload.pull_request.user?.login) {
-                      allowedAliases.push(context.payload.pull_request.user.login);
-                    }
-                  }
-                  break;
-                case "issue_comment":
-                  if (context.payload.comment) {
-                    text = context.payload.comment.body || "";
-                    if (context.payload.comment.user?.login) {
-                      allowedAliases.push(context.payload.comment.user.login);
-                    }
-                    if (context.payload.issue?.user?.login) {
-                      allowedAliases.push(context.payload.issue.user.login);
-                    }
-                  }
-                  break;
-                case "pull_request_review_comment":
-                  if (context.payload.comment) {
-                    text = context.payload.comment.body || "";
-                    if (context.payload.comment.user?.login) {
-                      allowedAliases.push(context.payload.comment.user.login);
-                    }
-                    if (context.payload.pull_request?.user?.login) {
-                      allowedAliases.push(context.payload.pull_request.user.login);
-                    }
-                  }
-                  break;
-                case "pull_request_review":
-                  if (context.payload.review) {
-                    text = context.payload.review.body || "";
-                    if (context.payload.review.user?.login) {
-                      allowedAliases.push(context.payload.review.user.login);
-                    }
-                    if (context.payload.pull_request?.user?.login) {
-                      allowedAliases.push(context.payload.pull_request.user.login);
-                    }
-                  }
-                  break;
-                case "discussion":
-                  if (context.payload.discussion) {
-                    const title = context.payload.discussion.title || "";
-                    const body = context.payload.discussion.body || "";
-                    text = `${title}\n\n${body}`;
-                    if (context.payload.discussion.user?.login) {
-                      allowedAliases.push(context.payload.discussion.user.login);
-                    }
-                  }
-                  break;
-                case "discussion_comment":
-                  if (context.payload.comment) {
-                    text = context.payload.comment.body || "";
-                    if (context.payload.comment.user?.login) {
-                      allowedAliases.push(context.payload.comment.user.login);
-                    }
-                    if (context.payload.discussion?.user?.login) {
-                      allowedAliases.push(context.payload.discussion.user.login);
-                    }
-                  }
-                  break;
-                case "release":
-                  if (context.payload.release) {
-                    const name = context.payload.release.name || context.payload.release.tag_name || "";
-                    const body = context.payload.release.body || "";
-                    text = `${name}\n\n${body}`;
-                    if (context.payload.release.author?.login) {
-                      allowedAliases.push(context.payload.release.author.login);
-                    }
-                  }
-                  break;
-                case "workflow_dispatch":
-                  allowedAliases.push(actor);
-                  if (context.payload.inputs) {
-                    const releaseUrl = context.payload.inputs.release_url;
-                    const releaseId = context.payload.inputs.release_id;
-                    if (releaseUrl) {
-                      const urlMatch = releaseUrl.match(/github\.com\/([^\/]+)\/([^\/]+)\/releases\/tag\/([^\/]+)/);
-                      if (urlMatch) {
-                        const [, urlOwner, urlRepo, tag] = urlMatch;
-                        try {
-                          const { data: release } = await github.rest.repos.getReleaseByTag({
-                            owner: urlOwner,
-                            repo: urlRepo,
-                            tag: tag,
-                          });
-                          const name = release.name || release.tag_name || "";
-                          const body = release.body || "";
-                          text = `${name}\n\n${body}`;
-                          if (release.author?.login) {
-                            allowedAliases.push(release.author.login);
-                          }
-                        } catch (error) {
-                          core.warning(`Failed to fetch release from URL: ${error instanceof Error ? error.message : String(error)}`);
-                        }
-                      }
-                    } else if (releaseId) {
-                      try {
-                        const { data: release } = await github.rest.repos.getRelease({
-                          owner: owner,
-                          repo: repo,
-                          release_id: parseInt(releaseId, 10),
-                        });
-                        const name = release.name || release.tag_name || "";
-                        const body = release.body || "";
-                        text = `${name}\n\n${body}`;
-                        if (release.author?.login) {
-                          allowedAliases.push(release.author.login);
-                        }
-                      } catch (error) {
-                        core.warning(`Failed to fetch release by ID: ${error instanceof Error ? error.message : String(error)}`);
-                      }
-                    }
-                  }
-                  break;
-                default:
-                  text = "";
-                  break;
-              }
-              const sanitizedText = sanitizeContent(text, { allowedAliases });
-              core.info(`text: ${sanitizedText}`);
-              core.setOutput("text", sanitizedText);
-              const logPath = writeRedactedDomainsLog();
-              if (logPath) {
-                core.info(`Redacted URL domains written to: ${logPath}`);
-              }
-            }
-            await main();
       - name: Lock issue for agent workflow
         id: lock-issue
         if: github.event_name == 'issues'
@@ -840,7 +453,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_LABELS_ALLOWED: "spam,ai-generated,link-spam,ai-qa"
+          GH_AW_LABELS_ALLOWED: "spam,ai-generated,link-spam,ai-inspected"
           GH_AW_LABELS_MAX_COUNT: 3
           GH_AW_WORKFLOW_NAME: "AI Moderator"
           GH_AW_ENGINE_ID: "copilot"
@@ -1486,12 +1099,12 @@ jobs:
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
           cat > /tmp/gh-aw/safeoutputs/config.json << 'EOF'
-          {"add_labels":{"allowed":["spam","ai-generated","link-spam","ai-qa"],"max":3},"missing_tool":{"max":0},"noop":{"max":1}}
+          {"add_labels":{"allowed":["spam","ai-generated","link-spam","ai-inspected"],"max":3},"missing_tool":{"max":0},"noop":{"max":1}}
           EOF
           cat > /tmp/gh-aw/safeoutputs/tools.json << 'EOF'
           [
             {
-              "description": "Add labels to an existing GitHub issue or pull request for categorization and filtering. Labels must already exist in the repository. For creating new issues with labels, use create_issue with the labels property instead. CONSTRAINTS: Only these labels are allowed: [spam ai-generated link-spam ai-qa].",
+              "description": "Add labels to an existing GitHub issue or pull request for categorization and filtering. Labels must already exist in the repository. For creating new issues with labels, use create_issue with the labels property instead. CONSTRAINTS: Only these labels are allowed: [spam ai-generated link-spam ai-inspected].",
               "inputSchema": {
                 "additionalProperties": false,
                 "properties": {
@@ -3149,7 +2762,6 @@ jobs:
           GH_AW_GITHUB_EVENT_ISSUE_NUMBER: ${{ github.event.issue.number }}
           GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER: ${{ github.event.pull_request.number }}
           GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
-          GH_AW_NEEDS_ACTIVATION_OUTPUTS_TEXT: ${{ needs.activation.outputs.text }}
         run: |
           PROMPT_DIR="$(dirname "$GH_AW_PROMPT")"
           mkdir -p "$PROMPT_DIR"
@@ -3172,9 +2784,17 @@ jobs:
           
           **Content to analyze**:
           
-          <unsafe_user_input>
-          __GH_AW_NEEDS_ACTIVATION_OUTPUTS_TEXT__
-          </unsafe_user_input>
+          When running via `workflow_dispatch` with an `issue_url` input:
+          1. Parse the issue URL to extract the owner, repo, and issue number
+          2. Use the GitHub MCP server tools (available via `github` toolset) to fetch the full issue content
+          3. Specifically, use the appropriate GitHub API tool to get the issue details including title and body
+          
+          For other trigger types (issues, issue_comment, pull_request_review_comment):
+          1. Extract the relevant identifiers from the context:
+             - For issues: Use issue number from __GH_AW_GITHUB_EVENT_ISSUE_NUMBER__
+             - For comments: Use issue/PR number and comment ID from the event payload
+          2. Use the GitHub MCP server tools to fetch the original, unsanitized content directly from GitHub API
+          3. Do NOT use the pre-sanitized text from the activation job - fetch fresh content to analyze the original user input
           
           ## Custom Moderation Rules (Optional)
           
@@ -3247,13 +2867,13 @@ jobs:
              - If link spam is detected, use the `add-labels` safe output to add the `link-spam` label to the issue
              - If AI-generated content is detected, use the `add-labels` safe output to add the `ai-generated` label to the issue
              - Multiple labels can be added if multiple types are detected
-             - **If no warnings or issues are found** and the content appears legitimate and on-topic, use the `add-labels` safe output to add the `ai-qa` label to indicate the issue has been reviewed and approved
+             - **If no warnings or issues are found** and the content appears legitimate and on-topic, use the `add-labels` safe output to add the `ai-inspected` label to indicate the issue has been reviewed and no threats were found
           
           2. **For Comments** (when comment ID is present):
-             - If any type of spam or AI-generated content is detected:
+             - If any type of spam, link spam, or AI-generated spam is detected:
                - Use the `minimize_comment` safe output to minimize the comment
                - Also add appropriate labels to the parent issue/PR as described above
-             - If the comment appears legitimate and on-topic, add the `ai-qa` label to the parent issue/PR
+             - If the comment appears legitimate and on-topic, add the `ai-inspected` label to the parent issue/PR
           
           ## Important Guidelines
           
@@ -3277,7 +2897,6 @@ jobs:
           GH_AW_GITHUB_EVENT_ISSUE_NUMBER: ${{ github.event.issue.number }}
           GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER: ${{ github.event.pull_request.number }}
           GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
-          GH_AW_NEEDS_ACTIVATION_OUTPUTS_TEXT: ${{ needs.activation.outputs.text }}
         with:
           script: |
             /**
@@ -3340,8 +2959,7 @@ jobs:
                 GH_AW_GITHUB_EVENT_INPUTS_ISSUE_URL: process.env.GH_AW_GITHUB_EVENT_INPUTS_ISSUE_URL,
                 GH_AW_GITHUB_EVENT_ISSUE_NUMBER: process.env.GH_AW_GITHUB_EVENT_ISSUE_NUMBER,
                 GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER: process.env.GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER,
-                GH_AW_GITHUB_REPOSITORY: process.env.GH_AW_GITHUB_REPOSITORY,
-                GH_AW_NEEDS_ACTIVATION_OUTPUTS_TEXT: process.env.GH_AW_NEEDS_ACTIVATION_OUTPUTS_TEXT
+                GH_AW_GITHUB_REPOSITORY: process.env.GH_AW_GITHUB_REPOSITORY
               }
             });
       - name: Append XPIA security instructions to prompt
@@ -3545,7 +3163,6 @@ jobs:
           GH_AW_GITHUB_EVENT_ISSUE_NUMBER: ${{ github.event.issue.number }}
           GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER: ${{ github.event.pull_request.number }}
           GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
-          GH_AW_NEEDS_ACTIVATION_OUTPUTS_TEXT: ${{ needs.activation.outputs.text }}
         with:
           script: |
             const fs = require("fs");
