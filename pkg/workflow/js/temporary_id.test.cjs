@@ -289,10 +289,10 @@ describe("temporary_id.cjs", () => {
       delete process.env.GH_AW_TEMPORARY_ID_MAP;
       delete process.env.GH_AW_SAFE_OUTPUTS_STAGED;
       delete process.env.GH_AW_AGENT_OUTPUT;
-      
+
       // Store original core
       originalCore = global.core;
-      
+
       // Mock core.info for tests
       global.core = {
         warning: vi.fn(),

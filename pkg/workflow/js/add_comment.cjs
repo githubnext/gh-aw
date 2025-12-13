@@ -1,10 +1,9 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-const { loadAgentOutput } = require("./load_agent_output.cjs");
 const { generateFooterWithMessages } = require("./messages_footer.cjs");
 const { getRepositoryUrl } = require("./get_repository_url.cjs");
-const { replaceTemporaryIdReferences, loadTemporaryIdMap } = require("./temporary_id.cjs");
+const { replaceTemporaryIdReferences, loadItemsWithTemporaryIds } = require("./temporary_id.cjs");
 const { getTrackerID } = require("./get_tracker_id.cjs");
 
 /**
@@ -298,31 +297,6 @@ async function main() {
   const isDiscussionExplicit = process.env.GITHUB_AW_COMMENT_DISCUSSION === "true";
   const hideOlderCommentsEnabled = process.env.GH_AW_HIDE_OLDER_COMMENTS === "true";
 
-  // Load the temporary ID map from create_issue job
-  const temporaryIdMap = loadTemporaryIdMap();
-  if (temporaryIdMap.size > 0) {
-    core.info(`Loaded temporary ID map with ${temporaryIdMap.size} entries`);
-  }
-
-  const result = loadAgentOutput();
-  if (!result.success) {
-    return;
-  }
-
-  // Find all add-comment items
-  const commentItems = result.items.filter(/** @param {any} item */ item => item.type === "add_comment");
-  if (commentItems.length === 0) {
-    core.info("No add-comment items found in agent output");
-    return;
-  }
-
-  core.info(`Found ${commentItems.length} add-comment item(s)`);
-
-  // Helper function to get the target number (issue, discussion, or pull request)
-  function getTargetNumber(item) {
-    return item.item_number;
-  }
-
   // Get the target configuration from environment variable
   const commentTarget = process.env.GH_AW_COMMENT_TARGET || "triggering";
   core.info(`Comment target configuration: ${commentTarget}`);
@@ -335,6 +309,73 @@ async function main() {
     context.eventName === "pull_request_review_comment";
   const isDiscussionContext = context.eventName === "discussion" || context.eventName === "discussion_comment";
   const isDiscussion = isDiscussionContext || isDiscussionExplicit;
+
+  // Helper function to get the target number (issue, discussion, or pull request)
+  function getTargetNumber(item) {
+    return item.item_number;
+  }
+
+  // Load items with temporary ID support and handle staged mode
+  const loaded = await loadItemsWithTemporaryIds({
+    itemType: "add_comment",
+    staged: {
+      title: "Add Comments",
+      description: "The following comments would be added if staged mode was disabled:",
+      renderItem: (item, index) => {
+        // Show created items references if available (only in first item)
+        let content = "";
+        if (index === 0) {
+          const createdIssueUrl = process.env.GH_AW_CREATED_ISSUE_URL;
+          const createdIssueNumber = process.env.GH_AW_CREATED_ISSUE_NUMBER;
+          const createdDiscussionUrl = process.env.GH_AW_CREATED_DISCUSSION_URL;
+          const createdDiscussionNumber = process.env.GH_AW_CREATED_DISCUSSION_NUMBER;
+          const createdPullRequestUrl = process.env.GH_AW_CREATED_PULL_REQUEST_URL;
+          const createdPullRequestNumber = process.env.GH_AW_CREATED_PULL_REQUEST_NUMBER;
+
+          if (createdIssueUrl || createdDiscussionUrl || createdPullRequestUrl) {
+            content += "#### Related Items\n\n";
+            if (createdIssueUrl && createdIssueNumber) {
+              content += `- Issue: [#${createdIssueNumber}](${createdIssueUrl})\n`;
+            }
+            if (createdDiscussionUrl && createdDiscussionNumber) {
+              content += `- Discussion: [#${createdDiscussionNumber}](${createdDiscussionUrl})\n`;
+            }
+            if (createdPullRequestUrl && createdPullRequestNumber) {
+              content += `- Pull Request: [#${createdPullRequestNumber}](${createdPullRequestUrl})\n`;
+            }
+            content += "\n";
+          }
+        }
+
+        content += `### Comment ${index + 1}\n`;
+        const targetNumber = getTargetNumber(item);
+        if (targetNumber) {
+          const repoUrl = getRepositoryUrl();
+          if (isDiscussion) {
+            const discussionUrl = `${repoUrl}/discussions/${targetNumber}`;
+            content += `**Target Discussion:** [#${targetNumber}](${discussionUrl})\n\n`;
+          } else {
+            const issueUrl = `${repoUrl}/issues/${targetNumber}`;
+            content += `**Target Issue:** [#${targetNumber}](${issueUrl})\n\n`;
+          }
+        } else {
+          if (isDiscussion) {
+            content += `**Target:** Current discussion\n\n`;
+          } else {
+            content += `**Target:** Current issue/PR\n\n`;
+          }
+        }
+        content += `**Body:**\n${item.body || "No content provided"}\n\n`;
+        return content;
+      },
+    },
+  });
+
+  if (!loaded) {
+    return; // Either staged mode handled or no items found
+  }
+
+  const { items: commentItems, temporaryIdMap } = loaded;
 
   // Get workflow ID for hiding older comments
   // Use GITHUB_WORKFLOW environment variable which is automatically set by GitHub Actions
@@ -353,63 +394,6 @@ async function main() {
 
   if (hideOlderCommentsEnabled) {
     core.info(`Hide-older-comments is enabled with workflow ID: ${workflowId || "(none)"}`);
-  }
-
-  // If in staged mode, emit step summary instead of creating comments
-  if (isStaged) {
-    let summaryContent = "## 🎭 Staged Mode: Add Comments Preview\n\n";
-    summaryContent += "The following comments would be added if staged mode was disabled:\n\n";
-
-    // Show created items references if available
-    const createdIssueUrl = process.env.GH_AW_CREATED_ISSUE_URL;
-    const createdIssueNumber = process.env.GH_AW_CREATED_ISSUE_NUMBER;
-    const createdDiscussionUrl = process.env.GH_AW_CREATED_DISCUSSION_URL;
-    const createdDiscussionNumber = process.env.GH_AW_CREATED_DISCUSSION_NUMBER;
-    const createdPullRequestUrl = process.env.GH_AW_CREATED_PULL_REQUEST_URL;
-    const createdPullRequestNumber = process.env.GH_AW_CREATED_PULL_REQUEST_NUMBER;
-
-    if (createdIssueUrl || createdDiscussionUrl || createdPullRequestUrl) {
-      summaryContent += "#### Related Items\n\n";
-      if (createdIssueUrl && createdIssueNumber) {
-        summaryContent += `- Issue: [#${createdIssueNumber}](${createdIssueUrl})\n`;
-      }
-      if (createdDiscussionUrl && createdDiscussionNumber) {
-        summaryContent += `- Discussion: [#${createdDiscussionNumber}](${createdDiscussionUrl})\n`;
-      }
-      if (createdPullRequestUrl && createdPullRequestNumber) {
-        summaryContent += `- Pull Request: [#${createdPullRequestNumber}](${createdPullRequestUrl})\n`;
-      }
-      summaryContent += "\n";
-    }
-
-    for (let i = 0; i < commentItems.length; i++) {
-      const item = commentItems[i];
-      summaryContent += `### Comment ${i + 1}\n`;
-      const targetNumber = getTargetNumber(item);
-      if (targetNumber) {
-        const repoUrl = getRepositoryUrl();
-        if (isDiscussion) {
-          const discussionUrl = `${repoUrl}/discussions/${targetNumber}`;
-          summaryContent += `**Target Discussion:** [#${targetNumber}](${discussionUrl})\n\n`;
-        } else {
-          const issueUrl = `${repoUrl}/issues/${targetNumber}`;
-          summaryContent += `**Target Issue:** [#${targetNumber}](${issueUrl})\n\n`;
-        }
-      } else {
-        if (isDiscussion) {
-          summaryContent += `**Target:** Current discussion\n\n`;
-        } else {
-          summaryContent += `**Target:** Current issue/PR\n\n`;
-        }
-      }
-      summaryContent += `**Body:**\n${item.body || "No content provided"}\n\n`;
-      summaryContent += "---\n\n";
-    }
-
-    // Write to step summary
-    await core.summary.addRaw(summaryContent).write();
-    core.info("📝 Comment creation preview written to step summary");
-    return;
   }
 
   // Validate context based on target configuration
