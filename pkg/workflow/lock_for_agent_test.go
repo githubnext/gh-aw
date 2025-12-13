@@ -425,4 +425,3 @@ Test workflow with lock-for-agent enabled for issue_comment events.
 		t.Error("Conclusion job should have issues: write permission when lock-for-agent is enabled")
 	}
 }
-
