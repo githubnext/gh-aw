@@ -300,6 +300,16 @@ gh aw compile --strict --zizmor     # Block on findings
 
 Analyzes `.lock.yml` for excessive permissions, insecure practices, supply chain vulnerabilities, and misconfigurations. Reports include severity, location, and context in IDE-parseable format. Requires Docker. Best practices: run during development, use `--strict --zizmor` in CI/CD, address High/Critical findings.
 
+#### Known False Positives
+
+**Git Configuration Template Injection Warning**: zizmor may flag template expansions in "Configure Git credentials" steps (Informational severity) as potential template injection risks. These warnings are false positives when the step uses only GitHub Actions context variables:
+
+- `${{ github.repository }}` - System-provided repository name
+- `${{ github.server_url }}` - System-provided server URL  
+- `${{ github.token }}` or `${{ steps.app-token.outputs.token }}` - GitHub-generated tokens
+
+These variables are set by GitHub Actions runtime and cannot be influenced by user input (PR titles, issue comments, etc.), making them safe for template expansion. The compiler generates these steps using trusted context variables only.
+
 ### Network Isolation
 
 Network isolation operates at two layers:

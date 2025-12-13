@@ -7,7 +7,16 @@ func (c *Compiler) generateGitConfigurationSteps() []string {
 	return c.generateGitConfigurationStepsWithToken("${{ github.token }}")
 }
 
-// generateGitConfigurationStepsWithToken generates git credential setup with a custom token
+// generateGitConfigurationStepsWithToken generates git credential setup with a custom token.
+//
+// Security Note: This function uses GitHub Actions context variables that are system-provided
+// and trusted. Template injection is not a risk here because:
+//   - github.repository: Set by GitHub Actions runtime, not user-controllable
+//   - github.server_url: Set by GitHub Actions runtime, not user-controllable
+//   - token parameter: Either github.token or app-token output, both GitHub-generated
+//
+// These variables cannot be influenced by user input (PR titles, issue comments, etc.)
+// and are safe to use in template expansion contexts.
 func (c *Compiler) generateGitConfigurationStepsWithToken(token string) []string {
 	return []string{
 		"      - name: Configure Git credentials\n",
