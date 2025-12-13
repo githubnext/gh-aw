@@ -4921,11 +4921,11 @@
           }
         },
         {
-          "id": "codex",
+          "id": "custom",
           "transports": ["stdio"]
         },
         {
-          "id": "custom",
+          "id": "copilot",
           "transports": ["http", "stdio"]
         }
       ],
