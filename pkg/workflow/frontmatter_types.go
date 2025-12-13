@@ -3,7 +3,11 @@ package workflow
 import (
 	"encoding/json"
 	"fmt"
+
+	"github.com/githubnext/gh-aw/pkg/logger"
 )
+
+var frontmatterTypesLog = logger.New("workflow:frontmatter_types")
 
 // FrontmatterConfig represents the structured configuration from workflow frontmatter
 // This provides compile-time type safety and clearer error messages compared to map[string]any
@@ -95,19 +99,23 @@ func unmarshalFromMap(data map[string]any, key string, dest any) error {
 // This provides a single entry point for converting untyped frontmatter into
 // a structured configuration with better error handling.
 func ParseFrontmatterConfig(frontmatter map[string]any) (*FrontmatterConfig, error) {
+	frontmatterTypesLog.Printf("Parsing frontmatter config with %d fields", len(frontmatter))
 	var config FrontmatterConfig
 
 	// Use JSON marshaling for the entire frontmatter conversion
 	// This automatically handles all field mappings
 	jsonBytes, err := json.Marshal(frontmatter)
 	if err != nil {
+		frontmatterTypesLog.Printf("Failed to marshal frontmatter: %v", err)
 		return nil, fmt.Errorf("failed to marshal frontmatter to JSON: %w", err)
 	}
 
 	if err := json.Unmarshal(jsonBytes, &config); err != nil {
+		frontmatterTypesLog.Printf("Failed to unmarshal frontmatter: %v", err)
 		return nil, fmt.Errorf("failed to unmarshal frontmatter into config: %w", err)
 	}
 
+	frontmatterTypesLog.Printf("Successfully parsed frontmatter config: name=%s, engine=%s", config.Name, config.Engine)
 	return &config, nil
 }
 
@@ -121,16 +129,19 @@ func ExtractMapField(frontmatter map[string]any, key string) map[string]any {
 	// Check if key exists and value is not nil
 	value, exists := frontmatter[key]
 	if !exists || value == nil {
+		frontmatterTypesLog.Printf("Field '%s' not found in frontmatter, returning empty map", key)
 		return make(map[string]any)
 	}
 
 	// Direct type assertion to preserve original types (especially integers)
 	// This avoids JSON marshaling which would convert integers to float64
 	if valueMap, ok := value.(map[string]any); ok {
+		frontmatterTypesLog.Printf("Extracted map field '%s' with %d entries", key, len(valueMap))
 		return valueMap
 	}
 
 	// For backward compatibility, return empty map if not a map
+	frontmatterTypesLog.Printf("Field '%s' is not a map type, returning empty map", key)
 	return make(map[string]any)
 }
 

@@ -3,7 +3,11 @@ package workflow
 import (
 	"fmt"
 	"strings"
+
+	"github.com/githubnext/gh-aw/pkg/logger"
 )
+
+var safeOutputBuilderLog = logger.New("workflow:safe_output_builder")
 
 // SafeOutputTargetConfig contains common target-related fields for safe output configurations.
 // Embed this in safe output config structs that support targeting specific items.
@@ -33,18 +37,21 @@ type SafeOutputDiscussionFilterConfig struct {
 // Returns the parsed SafeOutputTargetConfig and a boolean indicating if there was a validation error.
 // If target-repo is "*" (wildcard), it returns an error (second return value is true).
 func ParseTargetConfig(configMap map[string]any) (SafeOutputTargetConfig, bool) {
+	safeOutputBuilderLog.Print("Parsing target config from map")
 	config := SafeOutputTargetConfig{}
 
 	// Parse target
 	if target, exists := configMap["target"]; exists {
 		if targetStr, ok := target.(string); ok {
 			config.Target = targetStr
+			safeOutputBuilderLog.Printf("Target set to: %s", targetStr)
 		}
 	}
 
 	// Parse target-repo using shared helper with validation
 	targetRepoSlug, isInvalid := parseTargetRepoWithValidation(configMap)
 	if isInvalid {
+		safeOutputBuilderLog.Print("Target repo validation failed")
 		return config, true // Return true to indicate validation error
 	}
 	config.TargetRepoSlug = targetRepoSlug
@@ -54,10 +61,14 @@ func ParseTargetConfig(configMap map[string]any) (SafeOutputTargetConfig, bool) 
 
 // ParseFilterConfig parses required-labels and required-title-prefix fields from a config map.
 func ParseFilterConfig(configMap map[string]any) SafeOutputFilterConfig {
+	safeOutputBuilderLog.Print("Parsing filter config from map")
 	config := SafeOutputFilterConfig{}
 
 	// Parse required-labels
 	config.RequiredLabels = parseRequiredLabelsFromConfig(configMap)
+	if len(config.RequiredLabels) > 0 {
+		safeOutputBuilderLog.Printf("Parsed %d required labels", len(config.RequiredLabels))
+	}
 
 	// Parse required-title-prefix
 	config.RequiredTitlePrefix = parseRequiredTitlePrefixFromConfig(configMap)
@@ -320,11 +331,14 @@ type ListJobBuilderConfig struct {
 // BuildListSafeOutputJob builds a list-based safe-output job using shared logic.
 // This consolidates the common builder pattern used by add-labels, assign-milestone, and assign-to-user.
 func (c *Compiler) BuildListSafeOutputJob(data *WorkflowData, mainJobName string, listJobConfig ListJobConfig, baseSafeOutputConfig BaseSafeOutputConfig, builderConfig ListJobBuilderConfig) (*Job, error) {
+	safeOutputBuilderLog.Printf("Building list safe-output job: %s", builderConfig.JobName)
+
 	// Handle max count with default
 	maxCount := builderConfig.DefaultMax
 	if baseSafeOutputConfig.Max > 0 {
 		maxCount = baseSafeOutputConfig.Max
 	}
+	safeOutputBuilderLog.Printf("Max count set to: %d", maxCount)
 
 	// Build custom environment variables using shared helpers
 	customEnvVars := BuildListJobEnvVars(builderConfig.EnvPrefix, listJobConfig, maxCount)

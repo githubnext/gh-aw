@@ -2,7 +2,11 @@ package workflow
 
 import (
 	"encoding/json"
+
+	"github.com/githubnext/gh-aw/pkg/logger"
 )
+
+var safeOutputValidationLog = logger.New("workflow:safe_output_validation_config")
 
 // FieldValidation defines validation rules for a single field
 type FieldValidation struct {
@@ -231,13 +235,16 @@ var ValidationConfig = map[string]TypeValidationConfig{
 // If enabledTypes is empty or nil, returns all validation configs
 // If enabledTypes is provided, returns only configs for the specified types
 func GetValidationConfigJSON(enabledTypes []string) (string, error) {
+	safeOutputValidationLog.Printf("Getting validation config JSON for %d types", len(enabledTypes))
 	var configToMarshal map[string]TypeValidationConfig
 
 	if len(enabledTypes) == 0 {
 		// Return all configs (backwards compatible)
+		safeOutputValidationLog.Print("Returning all validation configs")
 		configToMarshal = ValidationConfig
 	} else {
 		// Filter to only enabled types
+		safeOutputValidationLog.Printf("Filtering validation configs to enabled types: %v", enabledTypes)
 		configToMarshal = make(map[string]TypeValidationConfig)
 		for _, typeName := range enabledTypes {
 			if config, ok := ValidationConfig[typeName]; ok {
@@ -249,8 +256,10 @@ func GetValidationConfigJSON(enabledTypes []string) (string, error) {
 	// Use MarshalIndent for pretty-printed JSON to avoid merge issues
 	data, err := json.MarshalIndent(configToMarshal, "", "  ")
 	if err != nil {
+		safeOutputValidationLog.Printf("Failed to marshal validation config: %v", err)
 		return "", err
 	}
+	safeOutputValidationLog.Printf("Generated validation config JSON with %d bytes", len(data))
 	return string(data), nil
 }
 
