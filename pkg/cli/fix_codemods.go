@@ -10,6 +10,19 @@ import (
 
 var codemodsLog = logger.New("cli:codemods")
 
+const (
+	// Migration comment for network.firewall to sandbox.agent
+	sandboxAgentComment = "# Firewall disabled (migrated from network.firewall)"
+)
+
+// getSandboxAgentFalseLines returns the standard lines for adding sandbox.agent: false
+func getSandboxAgentFalseLines() []string {
+	return []string{
+		"sandbox:",
+		"  agent: false  " + sandboxAgentComment,
+	}
+}
+
 // Codemod represents a single code transformation that can be applied to workflow files
 type Codemod struct {
 	ID          string // Unique identifier for the codemod
@@ -175,14 +188,10 @@ func getNetworkFirewallCodemod() Codemod {
 			_, hasSandbox := frontmatter["sandbox"]
 			if !hasSandbox {
 				// Add sandbox.agent: false at the top level
+				sandboxLines := getSandboxAgentFalseLines()
+				
 				// Try to place it after network block if we found firewall
 				if firewallLineIndex >= 0 && len(firewallIndent) > 0 {
-					// Use network-level indentation (typically no indentation for top-level)
-					sandboxLines := []string{
-						"sandbox:",
-						"  agent: false  # Firewall disabled (migrated from network.firewall)",
-					}
-
 					// Find where to insert (after network block)
 					insertIndex := -1
 					inNet := false
@@ -212,8 +221,7 @@ func getNetworkFirewallCodemod() Codemod {
 					codemodsLog.Print("Added sandbox.agent: false")
 				} else {
 					// Just append at the end
-					frontmatterLines = append(frontmatterLines, "sandbox:")
-					frontmatterLines = append(frontmatterLines, "  agent: false  # Firewall disabled (migrated from network.firewall)")
+					frontmatterLines = append(frontmatterLines, sandboxLines...)
 					codemodsLog.Print("Added sandbox.agent: false at end")
 				}
 			}
