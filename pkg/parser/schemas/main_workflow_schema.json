@@ -4919,6 +4919,14 @@
             "group": "gh-aw-claude",
             "cancel-in-progress": false
           }
+        },
+        {
+          "id": "codex",
+          "transports": ["stdio"]
+        },
+        {
+          "id": "custom",
+          "transports": ["http", "stdio"]
         }
       ],
       "oneOf": [
@@ -5037,6 +5045,21 @@
                 "type": "string"
               },
               "description": "Optional array of command-line arguments to pass to the AI engine CLI. These arguments are injected after all other args but before the prompt."
+            },
+            "transports": {
+              "type": "array",
+              "description": "Optional array specifying which MCP transport types this engine supports. Valid values are 'http' (HTTP-based MCP connections) and 'stdio' (standard input/output MCP connections). When specified, validates that MCP servers use compatible transport types. Default behavior when not specified: copilot and claude engines support both http and stdio transports, codex engine supports only stdio transport.",
+              "items": {
+                "type": "string",
+                "enum": ["http", "stdio"]
+              },
+              "uniqueItems": true,
+              "minItems": 1,
+              "examples": [
+                ["http", "stdio"],
+                ["stdio"],
+                ["http"]
+              ]
             }
           },
           "required": ["id"],
