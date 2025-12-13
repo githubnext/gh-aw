@@ -104,14 +104,17 @@ The YAML frontmatter supports these fields:
 
 - **`description:`** - Human-readable workflow description (string)
 - **`source:`** - Workflow origin tracking in format `owner/repo/path@ref` (string)
+- **`labels:`** - Workflow categorization tags for filtering with `gh aw status --label` (array)
+  - Example: `["automation", "ci", "diagnostics"]`
 - **`github-token:`** - Default GitHub token for workflow (must use `${{ secrets.* }}` syntax)
 - **`roles:`** - Repository access roles that can trigger workflow (array or "all")
   - Default: `[admin, maintainer, write]`
   - Available roles: `admin`, `maintainer`, `write`, `read`, `all`
 - **`strict:`** - Enable enhanced validation for production workflows (boolean, defaults to `true`)
-  - When omitted, workflows enforce strict mode security constraints
-  - Set to `false` to explicitly disable strict mode for development/testing
+  - **Default: `true`** - Strict mode is enabled by default and enforces security constraints
+  - Set to `false` to explicitly disable strict mode for development/testing only
   - Strict mode enforces: no write permissions, explicit network config, pinned actions to SHAs, no wildcard domains
+  - CLI flag `--strict` overrides frontmatter setting
 - **`features:`** - Feature flags for experimental features (object)
 - **`imports:`** - Array of workflow specifications to import (array)
   - Format: `owner/repo/path@ref` or local paths like `shared/common.md`
@@ -243,21 +246,37 @@ The YAML frontmatter supports these fields:
         log-level: debug                  # Optional: debug, info (default), warn, error
         args: ["--custom-arg", "value"]   # Optional: additional AWF arguments
     ```
+    **Note**: To disable the firewall, use `sandbox.agent: false` instead of deprecated `network.firewall: false`
+
+- **`sandbox:`** - Agent runtime security and MCP gateway configuration (object)
+  - **`agent:`** - Agent sandbox type (string: `awf`, `srt`, or `false`)
+    - `awf` - Agent Workflow Firewall for network-level security
+    - `srt` - Sandbox Runtime for filesystem and process isolation
+    - `false` - Disable sandbox (use `sandbox.agent: false` instead of deprecated `network.firewall: false`)
+  - **`mcp:`** - MCP Gateway for routing MCP server calls through unified HTTP gateway (experimental)
+  - Example:
+    ```yaml
+    sandbox:
+      agent: awf                          # Agent sandbox type
+      mcp:
+        container: "ghcr.io/org/gateway"
+        port: 8080
+    ```
   
 - **`tools:`** - Tool configuration for coding agent
   - `github:` - GitHub API tools
-    - `allowed:` - Array of allowed GitHub API functions
+    - **`toolsets:`** - Enable specific GitHub toolset groups (array) - **RECOMMENDED**
+      - **Default toolsets** (when unspecified): `context`, `repos`, `issues`, `pull_requests`, `users`
+      - **All toolsets**: `context`, `repos`, `issues`, `pull_requests`, `actions`, `code_security`, `dependabot`, `discussions`, `experiments`, `gists`, `labels`, `notifications`, `orgs`, `projects`, `secret_protection`, `security_advisories`, `stargazers`, `users`, `search`
+      - Use `[default]` for recommended toolsets, `[all]` to enable everything
+      - Examples: `toolsets: [default]`, `toolsets: [default, discussions]`, `toolsets: [repos, issues]`
+      - **Prefer `toolsets:` over `allowed:`** - Tool names may change between MCP versions; toolsets provide stable API
+    - `allowed:` - Array of allowed GitHub API functions (not recommended, use `toolsets:` instead)
     - `mode:` - "local" (Docker, default) or "remote" (hosted)
     - `version:` - MCP server version (local mode only)
     - `args:` - Additional command-line arguments (local mode only)
     - `read-only:` - Restrict to read-only operations (boolean)
     - `github-token:` - Custom GitHub token
-    - `toolsets:` - Enable specific GitHub toolset groups (array only)
-      - **Default toolsets** (when unspecified): `context`, `repos`, `issues`, `pull_requests`, `users`
-      - **All toolsets**: `context`, `repos`, `issues`, `pull_requests`, `actions`, `code_security`, `dependabot`, `discussions`, `experiments`, `gists`, `labels`, `notifications`, `orgs`, `projects`, `secret_protection`, `security_advisories`, `stargazers`, `users`, `search`
-      - Use `[default]` for recommended toolsets, `[all]` to enable everything
-      - Examples: `toolsets: [default]`, `toolsets: [default, discussions]`, `toolsets: [repos, issues]`
-      - **Recommended**: Prefer `toolsets:` over `allowed:` for better organization and reduced configuration verbosity
   - `agentic-workflows:` - GitHub Agentic Workflows MCP server for workflow introspection
     - Provides tools for:
       - `status` - Show status of workflow files in the repository
@@ -283,6 +302,7 @@ The YAML frontmatter supports these fields:
         assignees: [user1, copilot]     # Optional: assignees (use 'copilot' for bot)
         max: 5                          # Optional: maximum number of issues (default: 1)
         target-repo: "owner/repo"       # Optional: cross-repository
+        expires: 7d                     # Optional: auto-close after duration (formats: 7, 7d, 2w, 1m, 1y)
     ```
     When using `safe-outputs.create-issue`, the main job does **not** need `issues: write` permission since issue creation is handled by a separate job with appropriate permissions.
 
@@ -310,6 +330,7 @@ The YAML frontmatter supports these fields:
         category: "General"             # Optional: discussion category name, slug, or ID (defaults to first category if not specified)
         max: 3                          # Optional: maximum number of discussions (default: 1)
         target-repo: "owner/repo"       # Optional: cross-repository
+        expires: 14d                    # Optional: auto-close after duration (formats: 14, 14d, 2w, 1m, 1y)
     ```
     The `category` field is optional and can be specified by name (e.g., "General"), slug (e.g., "general"), or ID (e.g., "DIC_kwDOGFsHUM4BsUn3"). If not specified, discussions will be created in the first available category. Category resolution tries ID first, then name, then slug.
 
@@ -334,6 +355,8 @@ The YAML frontmatter supports these fields:
         target: "*"                     # Optional: target for comments (default: "triggering")
         discussion: true                # Optional: target discussions
         target-repo: "owner/repo"       # Optional: cross-repository
+        hide-older-comments: true       # Optional: hide previous comments from this workflow
+        allowed-reasons: [outdated, resolved]  # Optional: reasons for hiding (outdated, resolved, duplicate, spam, off-topic, abuse)
     ```
     When using `safe-outputs.add-comment`, the main job does **not** need `issues: write` or `pull-requests: write` permissions since comment creation is handled by a separate job with appropriate permissions.
   - `create-pull-request:` - Safe pull request creation with git patches
@@ -482,6 +505,23 @@ The YAML frontmatter supports these fields:
         target-repo: "owner/repo"       # Optional: cross-repository
     ```
     Requires PAT with elevated permissions as `GH_AW_AGENT_TOKEN`.
+  - `assign-to-user:` - Assign users to issues or pull requests
+    ```yaml
+    safe-outputs:
+      assign-to-user:
+        allowed: [user1, user2]         # Optional: restrict to specific users
+        max: 3                          # Optional: maximum assignments (default: 3)
+        target: "*"                     # Optional: "triggering" (default), "*", or number
+        target-repo: "owner/repo"       # Optional: cross-repository
+    ```
+  - `hide-comment:` - Hide comments on issues or pull requests
+    ```yaml
+    safe-outputs:
+      hide-comment:
+        max: 5                          # Optional: maximum comments to hide (default: 1)
+        target: "*"                     # Optional: "triggering" (default), "*", or number
+    ```
+    Requires GraphQL node IDs for comments. Not supported for cross-repository operations.
   - `noop:` - Log completion message for transparency (auto-enabled)
     ```yaml
     safe-outputs:
@@ -504,6 +544,31 @@ The YAML frontmatter supports these fields:
       github-token: ${{ secrets.CUSTOM_PAT }}  # Use custom PAT instead of GITHUB_TOKEN
     ```
     Useful when you need additional permissions or want to perform actions across repositories.
+
+  - `app:` - GitHub App installation token configuration (more secure than PATs)
+    ```yaml
+    safe-outputs:
+      app:
+        app-id: ${{ vars.APP_ID }}
+        private-key: ${{ secrets.APP_PRIVATE_KEY }}
+        owner: "org-name"                  # Optional: organization or user
+        repositories: ["repo1", "repo2"]   # Optional: specific repositories
+      create-issue:
+      add-comment:
+    ```
+    GitHub App tokens provide fine-grained, time-limited access instead of personal access tokens.
+
+  - `messages:` - Custom notification messages for safe output operations
+    ```yaml
+    safe-outputs:
+      messages:
+        footer: "> Generated by [{workflow_name}]({run_url})"
+        run-started: "Processing {event_type}..."
+        run-success: "Completed successfully"
+        run-failure: "Failed with {status}"
+      create-issue:
+    ```
+    Available placeholders: `{workflow_name}`, `{run_url}`, `{event_type}`, `{status}`
   
 - **`command:`** - Command trigger configuration for /mention workflows
 - **`cache:`** - Cache configuration for workflow dependencies (object or array)
@@ -1395,6 +1460,17 @@ Agentic workflows compile to GitHub Actions YAML:
 - **`gh aw compile --zizmor`** - Run zizmor security scanner on compiled workflows
 - **`gh aw compile --poutine`** - Run poutine security scanner on compiled workflows
 - **`gh aw compile --strict --actionlint --zizmor --poutine`** - Strict mode with all security scanners (fails on findings)
+- **`gh aw compile --validate`** - Schema validation and container checks without emitting `.lock.yml`
+- **`gh aw compile --json`** - Machine-readable validation output
+- **`gh aw compile --watch`** - Auto-recompile workflows on file changes
+- **`gh aw compile --dependabot`** - Generate dependency manifests for Dependabot
+
+### Additional CLI Commands
+
+- **`gh aw mcp add <server-name>`** - Add MCP servers from registry to workflow configuration
+- **`gh aw audit <run-id>`** - Detailed workflow run analysis (accepts run IDs or URLs)
+- **`gh aw pr transfer <source-repo> <target-repo> <pr-number>`** - Transfer pull requests between repositories
+- **`gh aw update --merge`** - Update workflows with 3-way merge conflict resolution
 
 ## Best Practices
 
