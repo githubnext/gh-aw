@@ -32,7 +32,7 @@
 #
 # permissions:
 #   contents: read
-#   issues: write
+#   issues: read
 #   pull-requests: read
 #
 # engine: copilot
@@ -495,7 +495,7 @@ name: "Spec-Kit Command Dispatcher"
 
 permissions:
   contents: read
-  issues: write
+  issues: read
   pull-requests: read
 
 concurrency:
@@ -2191,7 +2191,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      issues: write
+      issues: read
       pull-requests: read
     env:
       GH_AW_MCP_LOG_DIR: /tmp/gh-aw/mcp-logs/safeoutputs
