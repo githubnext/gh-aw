@@ -64,6 +64,9 @@ var closeDiscussionScriptSource string
 //go:embed js/close_expired_discussions.cjs
 var closeExpiredDiscussionsScriptSource string
 
+//go:embed js/close_expired_issues.cjs
+var closeExpiredIssuesScriptSource string
+
 //go:embed js/close_issue.cjs
 var closeIssueScriptSource string
 
@@ -154,6 +157,7 @@ func init() {
 	DefaultScriptRegistry.Register("create_discussion", createDiscussionScriptSource)
 	DefaultScriptRegistry.Register("close_discussion", closeDiscussionScriptSource)
 	DefaultScriptRegistry.Register("close_expired_discussions", closeExpiredDiscussionsScriptSource)
+	DefaultScriptRegistry.Register("close_expired_issues", closeExpiredIssuesScriptSource)
 	DefaultScriptRegistry.Register("close_issue", closeIssueScriptSource)
 	DefaultScriptRegistry.Register("close_pull_request", closePullRequestScriptSource)
 	DefaultScriptRegistry.Register("update_issue", updateIssueScriptSource)
@@ -262,6 +266,11 @@ func getCloseDiscussionScript() string {
 // getCloseExpiredDiscussionsScript returns the bundled close_expired_discussions script
 func getCloseExpiredDiscussionsScript() string {
 	return DefaultScriptRegistry.GetWithMode("close_expired_discussions", RuntimeModeGitHubScript)
+}
+
+// getCloseExpiredIssuesScript returns the bundled close_expired_issues script
+func getCloseExpiredIssuesScript() string {
+	return DefaultScriptRegistry.GetWithMode("close_expired_issues", RuntimeModeGitHubScript)
 }
 
 // getCloseIssueScript returns the bundled close_issue script

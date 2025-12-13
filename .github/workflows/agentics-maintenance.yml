@@ -289,8 +289,8 @@ jobs:
                 owner: owner,
                 repo: repo,
                 issue_number: issueNumber,
-                state: 'closed',
-                state_reason: 'not_planned',
+                state: "closed",
+                state_reason: "not_planned",
               });
               return result.data;
             }

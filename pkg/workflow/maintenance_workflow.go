@@ -33,7 +33,7 @@ func GenerateMaintenanceWorkflow(workflowDataList []*WorkflowData, workflowDir s
 		return nil
 	}
 
-	maintenanceLog.Print("Generating maintenance workflow for expired discussions")
+	maintenanceLog.Print("Generating maintenance workflow for expired discussions and issues")
 
 	// Create the maintenance workflow content using strings.Builder
 	var yaml strings.Builder
@@ -48,6 +48,7 @@ on:
 permissions:
   contents: read
   discussions: write
+  issues: write
 
 jobs:
   close-expired-discussions:
@@ -59,9 +60,80 @@ jobs:
           script: |
 `)
 
-	// Add the JavaScript script with proper indentation
-	script := getMaintenanceScript()
-	WriteJavaScriptToYAML(&yaml, script)
+	// Add the close expired discussions script
+	discussionsScript := getCloseExpiredDiscussionsScript()
+	WriteJavaScriptToYAML(&yaml, discussionsScript)
+
+	// Add close-expired-issues job
+	yaml.WriteString(`
+  close-expired-issues:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Close expired issues
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        with:
+          script: |
+`)
+
+	// Add the close expired issues script
+	issuesScript := getCloseExpiredIssuesScript()
+	WriteJavaScriptToYAML(&yaml, issuesScript)
+
+	// Add compile-workflows job
+	yaml.WriteString(`
+  compile-workflows:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Setup Go
+        uses: actions/setup-go@41dfa10bad2bb2ae585af6ee5bb4d7d973ad74ed # v5.1.0
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Build gh-aw
+        run: make build
+
+      - name: Compile workflows
+        run: |
+          ./gh-aw compile --validate --verbose
+          echo "✓ All workflows compiled successfully"
+
+      - name: Check for out-of-sync workflows
+        run: |
+          if git diff --exit-code .github/workflows/*.lock.yml; then
+            echo "✓ All workflow lock files are up to date"
+          else
+            echo "::error::Some workflow lock files are out of sync. Run 'make recompile' locally."
+            echo "::group::Diff of out-of-sync files"
+            git diff .github/workflows/*.lock.yml
+            echo "::endgroup::"
+            exit 1
+          fi
+
+  zizmor-scan:
+    runs-on: ubuntu-latest
+    needs: compile-workflows
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Setup Go
+        uses: actions/setup-go@41dfa10bad2bb2ae585af6ee5bb4d7d973ad74ed # v5.1.0
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Build gh-aw
+        run: make build
+
+      - name: Run zizmor security scanner
+        run: |
+          ./gh-aw compile --zizmor --verbose
+          echo "✓ Zizmor security scan completed"
+`)
 
 	content := yaml.String()
 
@@ -75,9 +147,4 @@ jobs:
 
 	maintenanceLog.Print("Maintenance workflow generated successfully")
 	return nil
-}
-
-// getMaintenanceScript returns the embedded JavaScript for the maintenance workflow
-func getMaintenanceScript() string {
-	return getCloseExpiredDiscussionsScript()
 }
