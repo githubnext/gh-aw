@@ -1,7 +1,7 @@
 ---
 description: Performs critical code review with a focus on edge cases, potential bugs, and code quality issues
 on:
-  command:
+  slash_command:
     name: grumpy
     events: [pull_request_comment, pull_request_review_comment]
 permissions:

@@ -1,6 +1,6 @@
 ---
 on:
-  command:
+  slash_command:
     name: test-noop
   reaction: eyes
 permissions:

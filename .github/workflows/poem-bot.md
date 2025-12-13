@@ -3,7 +3,7 @@ description: Generates creative poems on specified themes when invoked with /poe
 # Custom triggers: command with events filter, workflow_dispatch
 on:
   # Command trigger - responds to /poem-bot mentions
-  command:
+  slash_command:
     name: poem-bot
     events: [issues]
   
