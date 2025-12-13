@@ -8,7 +8,6 @@ on:
 permissions:
   contents: read
   discussions: write
-  issues: write
 
 jobs:
   close-expired-discussions:
