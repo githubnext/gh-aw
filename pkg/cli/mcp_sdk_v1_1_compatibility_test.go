@@ -106,8 +106,8 @@ func TestMCPSDKv1_1_ServerOptions(t *testing.T) {
 
 // TestStreamableHTTPOptions tests that StreamableHTTPOptions is available
 func TestStreamableHTTPOptions(t *testing.T) {
-	// Verify that we can create StreamableHTTPOptions with SessionTimeout
-	// This is a compile-time check for MCP SDK v1.1.0+ compatibility
+	// This test verifies MCP SDK v1.1.0+ compatibility by confirming
+	// the StreamableHTTPOptions API compiles and executes correctly
 	options := &mcp.StreamableHTTPOptions{
 		SessionTimeout: 30 * time.Minute,
 	}
