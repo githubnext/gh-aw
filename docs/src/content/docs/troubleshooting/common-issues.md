@@ -48,6 +48,32 @@ If `.lock.yml` isn't created, fix compilation errors first (`gh aw compile 2>&1 
 
 Remove old `.lock.yml` files after deleting `.md` files with `gh aw compile --purge`.
 
+## External Tooling Integration
+
+### Schema Validation Fails with YAML 1.1 Parsers
+
+If external validation tooling reports errors like "Key 'on' not found" or "Additional property 'true' is not allowed", the tool is using a YAML 1.1 parser that treats `on:` as a boolean keyword instead of a string key.
+
+**Problem:** YAML 1.1 parsers interpret `on`, `off`, `yes`, and `no` as boolean values. The `on` field required by GitHub Agentic Workflows becomes `true` instead of the string `"on"`, breaking JSON schema validation.
+
+**Solution:** Use a YAML 1.2 compliant parser in your external tooling:
+
+- **Python:** Replace PyYAML with `ruamel.yaml`
+- **JavaScript/TypeScript:** Use the `yaml` npm package (YAML 1.2 compliant)
+- **Go:** Use `github.com/goccy/go-yaml` (same parser as gh-aw)
+
+For detailed examples and alternative solutions, see the [YAML Compatibility](/gh-aw/reference/yaml-compatibility/) reference.
+
+### IDE Shows False Validation Errors
+
+If your IDE or editor shows schema validation errors for valid workflows, it may be using a YAML 1.1 parser for validation. 
+
+**Quick fix:** Configure your IDE to use a YAML 1.2 parser, or disable schema validation for `.md` files with YAML frontmatter.
+
+**Verification:** Run `gh aw compile my-workflow.md` to confirm the workflow is valid. The official gh-aw compiler uses YAML 1.2 and will correctly validate your workflow.
+
+For more information, see [YAML Compatibility](/gh-aw/reference/yaml-compatibility/).
+
 ## Import and Include Issues
 
 ### Import File Not Found
