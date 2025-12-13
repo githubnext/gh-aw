@@ -2,6 +2,8 @@
 /// <reference types="@actions/github-script" />
 
 const crypto = require("crypto");
+const { loadAgentOutput } = require("./load_agent_output.cjs");
+const { generateStagedPreview } = require("./staged_preview.cjs");
 
 /**
  * Regex pattern for matching temporary ID references in text
@@ -191,8 +193,7 @@ async function loadItemsWithTemporaryIds(options) {
     }
   }
 
-  // Load agent output - must be imported separately by caller
-  const { loadAgentOutput } = require("./load_agent_output.cjs");
+  // Load agent output
   const result = loadAgentOutput();
   if (!result.success) {
     return null;
@@ -213,7 +214,6 @@ async function loadItemsWithTemporaryIds(options) {
 
   // Handle staged mode if configured
   if (staged && process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true") {
-    const { generateStagedPreview } = require("./staged_preview.cjs");
     await generateStagedPreview({
       title: staged.title,
       description: staged.description,
