@@ -232,6 +232,11 @@ on:
     types: []
       # Array of strings
 
+    # Whether to lock the parent issue for the agent when the workflow runs (prevents
+    # concurrent modifications)
+    # (optional)
+    lock-for-agent: true
+
   # Discussion event trigger that runs the workflow when repository discussions are
   # created, updated, or managed
   # (optional)

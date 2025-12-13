@@ -172,9 +172,12 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 	// Add unlock step if lock-for-agent is enabled
 	if data.LockForAgent {
 		// Build condition: only unlock if issue was locked by activation job
-		// Must match lock condition: event type is 'issues'
+		// Must match lock condition: event type is 'issues' or 'issue_comment'
 		// Use the issue_locked output from activation job to determine if unlock is needed
-		eventTypeCheck := BuildEventTypeEquals("issues")
+		eventTypeCheck := buildOr(
+			BuildEventTypeEquals("issues"),
+			BuildEventTypeEquals("issue_comment"),
+		)
 		lockedOutputCheck := BuildEquals(
 			BuildPropertyAccess(fmt.Sprintf("needs.%s.outputs.issue_locked", constants.ActivationJobName)),
 			BuildStringLiteral("true"),

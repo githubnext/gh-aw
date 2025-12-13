@@ -54,7 +54,19 @@ func (c *Compiler) parseOnSection(frontmatter map[string]any, workflowData *Work
 					if lockForAgent, hasLockForAgent := issuesMap["lock-for-agent"]; hasLockForAgent {
 						if lockBool, ok := lockForAgent.(bool); ok {
 							workflowData.LockForAgent = lockBool
-							compilerSafeOutputsLog.Printf("lock-for-agent enabled: %v", lockBool)
+							compilerSafeOutputsLog.Printf("lock-for-agent enabled for issues: %v", lockBool)
+						}
+					}
+				}
+			}
+
+			// Extract lock-for-agent from on.issue_comment section
+			if issueCommentValue, hasIssueComment := onMap["issue_comment"]; hasIssueComment {
+				if issueCommentMap, ok := issueCommentValue.(map[string]any); ok {
+					if lockForAgent, hasLockForAgent := issueCommentMap["lock-for-agent"]; hasLockForAgent {
+						if lockBool, ok := lockForAgent.(bool); ok {
+							workflowData.LockForAgent = lockBool
+							compilerSafeOutputsLog.Printf("lock-for-agent enabled for issue_comment: %v", lockBool)
 						}
 					}
 				}

@@ -382,7 +382,7 @@ jobs:
             });
       - name: Lock issue for agent workflow
         id: lock-issue
-        if: github.event_name == 'issues'
+        if: (github.event_name == 'issues') || (github.event_name == 'issue_comment')
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
           script: |
@@ -7087,7 +7087,7 @@ jobs:
             });
       - name: Unlock issue after agent workflow
         id: unlock-issue
-        if: (always()) && ((github.event_name == 'issues') && (needs.activation.outputs.issue_locked == 'true'))
+        if: (always()) && (((github.event_name == 'issues') || (github.event_name == 'issue_comment')) && (needs.activation.outputs.issue_locked == 'true'))
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
           script: |
