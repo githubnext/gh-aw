@@ -41,7 +41,7 @@ func (h *SlogHandler) Handle(_ context.Context, r slog.Record) error {
 		})
 		// Format attributes as key=value pairs
 		for i := 0; i < len(attrs); i += 2 {
-			// Safely handle non-string keys (should not happen in practice)
+			// Safely handle non-string keys (defensive programming - slog always provides string keys)
 			key, ok := attrs[i].(string)
 			if !ok {
 				key = fmt.Sprint(attrs[i])
