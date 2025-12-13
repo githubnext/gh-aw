@@ -2,7 +2,7 @@
 name: Mergefest
 description: Automatically merges the main branch into pull request branches when invoked with /mergefest command
 on:
-  command:
+  slash_command:
     name: mergefest
     events: [pull_request_comment]
 permissions:

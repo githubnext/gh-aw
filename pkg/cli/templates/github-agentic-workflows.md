@@ -77,7 +77,7 @@ The YAML frontmatter supports these fields:
 - **`on:`** - Workflow triggers (required)
   - String: `"push"`, `"issues"`, etc.
   - Object: Complex trigger configuration
-  - Special: `command:` for /mention triggers
+  - Special: `slash_command:` for /mention triggers (deprecated: `command:`)
   - **`forks:`** - Fork allowlist for `pull_request` triggers (array or string). By default, workflows block all forks and only allow same-repo PRs. Use `["*"]` to allow all forks, or specify patterns like `["org/*", "user/repo"]`
   - **`stop-after:`** - Can be included in the `on:` object to set a deadline for workflow execution. Supports absolute timestamps ("YYYY-MM-DD HH:MM:SS") or relative time deltas (+25h, +3d, +1d12h). The minimum unit for relative deltas is hours (h). Uses precise date calculations that account for varying month lengths.
   - **`reaction:`** - Add emoji reactions to triggering items
@@ -570,7 +570,7 @@ The YAML frontmatter supports these fields:
     ```
     Available placeholders: `{workflow_name}`, `{run_url}`, `{event_type}`, `{status}`
   
-- **`command:`** - Command trigger configuration for /mention workflows
+- **`slash_command:`** - Slash command trigger configuration for /mention workflows (deprecated: `command:`)
 - **`cache:`** - Cache configuration for workflow dependencies (object or array)
 - **`cache-memory:`** - Memory MCP server with persistent cache storage (boolean or object)
 
@@ -746,7 +746,7 @@ on:
 ### Command Triggers (/mentions)
 ```yaml
 on:
-  command:
+  slash_command:
     name: my-bot  # Responds to /my-bot in issues/comments
 ```
 
@@ -756,7 +756,7 @@ You can restrict where commands are active using the `events:` field:
 
 ```yaml
 on:
-  command:
+  slash_command:
     name: my-bot
     events: [issues, issue_comment]  # Only in issue bodies and issue comments
 ```
@@ -1223,7 +1223,7 @@ Research latest developments in ${{ github.repository }}:
 ```markdown
 ---
 on:
-  command:
+  slash_command:
     name: helper-bot
 permissions:
   contents: read

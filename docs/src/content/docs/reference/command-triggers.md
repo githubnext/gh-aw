@@ -1,15 +1,15 @@
 ---
 title: Command Triggers
-description: Learn about command triggers and context text functionality for agentic workflows, including special @mention triggers for interactive automation.
+description: Learn about slash command triggers and context text functionality for agentic workflows, including special @mention triggers for interactive automation.
 sidebar:
   order: 500
 ---
 
-GitHub Agentic Workflows add the convenience `command:` trigger to create workflows that respond to `/my-bots` in issues and comments.
+GitHub Agentic Workflows add the convenience `slash_command:` trigger to create workflows that respond to `/my-bots` in issues and comments.
 
 ```yaml wrap
 on:
-  command:
+  slash_command:
     name: my-bot  # Optional: defaults to filename without .md extension
 ```
 
@@ -17,8 +17,12 @@ You can also use the shorthand string format:
 
 ```yaml wrap
 on:
-  command: "my-bot"  # Shorthand: string directly specifies command name
+  slash_command: "my-bot"  # Shorthand: string directly specifies command name
 ```
+
+:::note[Deprecated Syntax]
+The `command:` trigger field is deprecated. Use `slash_command:` instead. The old syntax still works but will show a deprecation warning.
+:::
 
 This automatically creates issue/PR triggers (`opened`, `edited`, `reopened`), comment triggers (`created`, `edited`), and conditional execution matching `/command-name` mentions.
 
@@ -26,18 +30,18 @@ This automatically creates issue/PR triggers (`opened`, `edited`, `reopened`), c
 The command must be the **first word** of the comment or body text to trigger the workflow. This prevents accidental triggers when the command is mentioned elsewhere in the content.
 :::
 
-You can combine `command:` with other events like `workflow_dispatch` or `schedule`:
+You can combine `slash_command:` with other events like `workflow_dispatch` or `schedule`:
 
 ```yaml wrap
 on:
-  command:
+  slash_command:
     name: my-bot
   workflow_dispatch:
   schedule:
     - cron: "0 9 * * 1"
 ```
 
-**Note**: You cannot combine `command` with `issues`, `issue_comment`, or `pull_request` as they would conflict.
+**Note**: You cannot combine `slash_command` with `issues`, `issue_comment`, or `pull_request` as they would conflict.
 
 ## Filtering Command Events
 
@@ -45,7 +49,7 @@ By default, command triggers respond to `/command-name` mentions in all comment-
 
 ```yaml wrap
 on:
-  command:
+  slash_command:
     name: my-bot
     events: [issues, issue_comment]  # Only in issue bodies and issue comments
 ```
@@ -59,7 +63,7 @@ Using object format:
 ```aw wrap
 ---
 on:
-  command:
+  slash_command:
     name: summarize-issue
 permissions:
   issues: write
@@ -102,7 +106,7 @@ Command workflows automatically add the "eyes" (👀) emoji reaction to triggeri
 
 ```yaml wrap
 on:
-  command:
+  slash_command:
     name: my-bot
   reaction: "rocket"  # Override default "eyes"
 ```

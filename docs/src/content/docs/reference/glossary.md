@@ -126,7 +126,7 @@ The AI system that powers the agentic workflow. GitHub Agentic Workflows support
 - **GitHub Copilot** (default): Uses GitHub's coding assistant
 
 ### Triggers
-Events that cause a workflow to run. Defined in the `on:` section of frontmatter. Includes issue events (`issues:`), pull request events (`pull_request:`), scheduled runs (`schedule:`), manual runs (`workflow_dispatch:`), and comment commands (`command:`).
+Events that cause a workflow to run. Defined in the `on:` section of frontmatter. Includes issue events (`issues:`), pull request events (`pull_request:`), scheduled runs (`schedule:`), manual runs (`workflow_dispatch:`), and comment commands (`slash_command:`).
 
 ### Cron Schedule
 A time-based trigger format using standard cron syntax with five fields: minute, hour, day of month, month, and day of week.
@@ -212,7 +212,7 @@ A finite, enterprise-scale initiative with explicit ownership, approval gates, a
 See the [Campaigns Guide](/gh-aw/guides/campaigns/) for implementation patterns and examples.
 
 ### Command Triggers
-Special triggers that respond to slash commands in issue and PR comments (e.g., `/review`, `/deploy`). Configured using the `command:` section with a command name.
+Special triggers that respond to slash commands in issue and PR comments (e.g., `/review`, `/deploy`). Configured using the `slash_command:` section with a command name.
 
 ### Concurrency Control
 Settings that limit how many instances of a workflow can run simultaneously. Configured using the `concurrency:` field to prevent resource conflicts or rate limiting.

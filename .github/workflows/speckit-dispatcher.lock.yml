@@ -25,7 +25,7 @@
 # name: Spec-Kit Command Dispatcher
 # description: Dispatches user requests to appropriate spec-kit commands for spec-driven development
 # on:
-#   command:
+#   slash_command:
 #     name: speckit
 #     events: [issues, issue_comment, pull_request, pull_request_comment, discussion, discussion_comment]
 #   reaction: eyes

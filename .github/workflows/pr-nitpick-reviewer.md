@@ -1,7 +1,7 @@
 ---
 description: Provides detailed nitpicky code review focusing on style, best practices, and minor improvements
 on:
-  command: "nit"
+  slash_command: "nit"
 permissions:
   contents: read
   pull-requests: read
