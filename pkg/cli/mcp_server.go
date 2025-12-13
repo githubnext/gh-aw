@@ -17,7 +17,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var mcpLog = logger.New("cli:mcp_server")
+var mcpLog = logger.New("mcp:server")
 
 // NewMCPServerCommand creates the mcp-server command
 func NewMCPServerCommand() *cobra.Command {
