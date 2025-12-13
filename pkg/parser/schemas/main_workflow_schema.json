@@ -5048,14 +5048,14 @@
             },
             "transports": {
               "type": "array",
-              "description": "Optional array specifying which MCP transport types this engine supports. Valid values are 'http' (HTTP-based MCP connections) and 'stdio' (standard input/output MCP connections). When specified, validates that MCP servers use compatible transport types. Default behavior when not specified: copilot and claude engines support both http and stdio transports, codex engine supports only stdio transport.",
+              "description": "Optional array specifying which MCP transport types this engine supports. Valid values: 'http' for HTTP-based MCP connections, 'stdio' for standard input/output MCP connections. When specified, validates that MCP servers use compatible transport types.",
               "items": {
                 "type": "string",
                 "enum": ["http", "stdio"]
               },
               "uniqueItems": true,
               "minItems": 1,
-              "examples": [["http", "stdio"], ["stdio"], ["http"]]
+              "examples": [["http"], ["stdio"], ["http", "stdio"]]
             }
           },
           "required": ["id"],
