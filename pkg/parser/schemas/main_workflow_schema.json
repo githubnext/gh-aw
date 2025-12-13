@@ -111,7 +111,7 @@
           "description": "Complex trigger configuration with event-specific filters and options",
           "properties": {
             "command": {
-              "description": "Special command trigger for /command workflows (e.g., '/my-bot' in issue comments). Creates conditions to match slash commands automatically.",
+              "description": "Command event trigger configuration (at `on.command`). Enables slash command triggers like '/my-bot' in issue comments, PRs, and discussions. Creates conditions to match slash commands automatically.",
               "oneOf": [
                 {
                   "type": "null",
@@ -1837,7 +1837,7 @@
                     },
                     "command": {
                       "type": "string",
-                      "description": "Custom command to replace the default AWF or SRT installation. For AWF: 'docker run my-custom-awf-image'. For SRT: 'docker run my-custom-srt-wrapper'"
+                      "description": "Custom command to replace the default agent sandbox installation (at `sandbox.agent.command`). For AWF: 'docker run my-custom-awf-image'. For SRT: 'docker run my-custom-srt-wrapper'"
                     },
                     "args": {
                       "type": "array",
@@ -2883,7 +2883,7 @@
     },
     "command": {
       "type": "string",
-      "description": "Command name for the workflow"
+      "description": "Top-level command identifier for workflow naming (at `.command`). Used to override the default workflow name derived from the filename."
     },
     "cache": {
       "description": "Cache configuration for workflow (uses actions/cache syntax)",
@@ -5061,7 +5061,7 @@
         "command": {
           "type": "string",
           "minLength": 1,
-          "description": "Command for stdio MCP connections"
+          "description": "Executable command for stdio MCP server connections (at `mcp-servers.(id).command`). Example: 'npx' or '/usr/local/bin/custom-mcp-server'"
         },
         "container": {
           "type": "string",

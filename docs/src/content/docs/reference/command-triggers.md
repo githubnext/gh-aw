@@ -5,11 +5,11 @@ sidebar:
   order: 500
 ---
 
-GitHub Agentic Workflows add the convenience `command:` trigger to create workflows that respond to `/my-bots` in issues and comments.
+GitHub Agentic Workflows add the convenience `command:` trigger (at `on.command`) to create workflows that respond to `/my-bots` in issues and comments. This command field is specifically for defining slash command triggers and is distinct from other `command` fields in the schema like MCP server executables (`mcp-servers.(id).command`) or sandbox commands (`sandbox.agent.command`).
 
 ```yaml wrap
 on:
-  command:
+  command:                  # at on.command
     name: my-bot  # Optional: defaults to filename without .md extension
 ```
 
@@ -17,7 +17,7 @@ You can also use the shorthand string format:
 
 ```yaml wrap
 on:
-  command: "my-bot"  # Shorthand: string directly specifies command name
+  command: "my-bot"         # at on.command (string shorthand)
 ```
 
 This automatically creates issue/PR triggers (`opened`, `edited`, `reopened`), comment triggers (`created`, `edited`), and conditional execution matching `/command-name` mentions.

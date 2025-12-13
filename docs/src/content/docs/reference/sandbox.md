@@ -104,13 +104,13 @@ network:
 
 #### Custom AWF Configuration
 
-Use custom commands, arguments, and environment variables to replace the standard AWF installation with a custom setup:
+Use custom commands, arguments, and environment variables to replace the standard AWF installation with a custom setup. The `command` field (at `sandbox.agent.command`) specifies a custom command to replace the default agent sandbox installation. This is distinct from other `command` fields like slash command triggers (`on.command`) or MCP server executables (`mcp-servers.(id).command`).
 
 ```yaml wrap
 sandbox:
   agent:
     id: awf
-    command: "docker run --rm my-custom-awf-image"
+    command: "docker run --rm my-custom-awf-image"  # at sandbox.agent.command
     args:
       - "--custom-logging"
       - "--debug-mode"
@@ -196,7 +196,7 @@ Network configuration for SRT is controlled by the top-level `network` field, no
 
 #### Custom SRT Configuration
 
-Similar to AWF, SRT supports custom commands, arguments, and environment variables:
+Similar to AWF, SRT supports custom commands, arguments, and environment variables. The `command` field (at `sandbox.agent.command`) allows you to specify a custom SRT wrapper or alternative implementation:
 
 ```yaml wrap
 features:
@@ -205,7 +205,7 @@ features:
 sandbox:
   agent:
     id: srt
-    command: "custom-srt-wrapper"
+    command: "custom-srt-wrapper"         # at sandbox.agent.command
     args:
       - "--custom-arg"
       - "--debug"

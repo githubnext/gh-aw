@@ -171,12 +171,14 @@ Integrate custom Model Context Protocol servers for third-party services:
 ```yaml wrap
 mcp-servers:
   slack:
-    command: "npx"
+    command: "npx"                              # at mcp-servers.slack.command
     args: ["-y", "@slack/mcp-server"]
     env:
       SLACK_BOT_TOKEN: "${{ secrets.SLACK_BOT_TOKEN }}"
     allowed: ["send_message", "get_channel_history"]
 ```
+
+The `command` field (at `mcp-servers.(id).command`) specifies the executable command for stdio-based MCP server connections. This is distinct from other `command` fields in the schema like slash command triggers (`on.command`) or sandbox commands (`sandbox.agent.command`).
 
 **Options**: `command` + `args` (process-based), `container` (Docker image), `url` + `headers` (HTTP endpoint), `env` (environment variables), `allowed` (tool restrictions). See [MCPs Guide](/gh-aw/guides/mcps/) for setup.
 

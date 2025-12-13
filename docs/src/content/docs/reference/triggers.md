@@ -217,25 +217,25 @@ See the [Security Guide](/gh-aw/guides/security/#workflow_run-trigger-security) 
 
 ### Command Triggers (`command:`)
 
-The `command:` trigger creates workflows that respond to `/command-name` mentions in issues, pull requests, and comments. See [Command Triggers](/gh-aw/reference/command-triggers/) for complete documentation.
+The `command:` trigger (at `on.command`) creates workflows that respond to `/command-name` mentions in issues, pull requests, and comments. This command field is specifically for defining slash command triggers and is distinct from other `command` fields like MCP server executables (`mcp-servers.(id).command`) or sandbox commands (`sandbox.agent.command`). See [Command Triggers](/gh-aw/reference/command-triggers/) for complete documentation.
 
 **Basic Configuration:**
 ```yaml wrap
 on:
-  command:
+  command:                  # at on.command
     name: my-bot
 ```
 
 **Shorthand Format:**
 ```yaml wrap
 on:
-  command: "my-bot"
+  command: "my-bot"         # at on.command (string shorthand)
 ```
 
 **With Event Filtering:**
 ```yaml wrap
 on:
-  command:
+  command:                  # at on.command
     name: summarize
     events: [issues, issue_comment]  # Only in issue bodies and comments
 ```
