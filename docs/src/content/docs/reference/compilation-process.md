@@ -183,7 +183,7 @@ Pre-activation enforces security and operational policies before expensive AI ex
 - **Role checks** (`roles:`): Verify actor has required permissions (admin, maintainer, write)
 - **Stop-after** (`on.stop-after:`): Honor time-limited workflows (e.g., `+30d`, `2024-12-31`)
 - **Skip-if-match** (`skip-if-match:`): Prevent duplicates by searching for existing items matching criteria
-- **Command position** (`on.command:`): Ensure command appears in first 3 lines to avoid accidental triggers
+- **Command position** (`on.slash_command:`): Ensure command appears in first 3 lines to avoid accidental triggers
 
 Pre-activation runs checks sequentially. Any failure sets `activated=false`, preventing AI execution and saving costs.
 

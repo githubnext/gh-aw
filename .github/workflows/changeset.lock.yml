@@ -1157,7 +1157,7 @@ jobs:
                 const trackerId = process.env.GH_AW_TRACKER_ID || "";
                 let commentBody = workflowLinkText;
                 const lockForAgent = process.env.GH_AW_LOCK_FOR_AGENT === "true";
-                if (lockForAgent && eventName === "issues") {
+                if (lockForAgent && (eventName === "issues" || eventName === "issue_comment")) {
                   commentBody += "\n\n🔒 This issue has been locked while the workflow is running to prevent concurrent modifications.";
                 }
                 if (workflowId) {
@@ -1371,7 +1371,7 @@ jobs:
           node-version: '24'
           package-manager-cache: false
       - name: Install Codex
-        run: npm install -g @openai/codex@0.71.0
+        run: npm install -g @openai/codex@0.72.0
       - name: Downloading container images
         run: |
           set -e
@@ -2985,7 +2985,7 @@ jobs:
               engine_name: "Codex",
               model: "gpt-5-mini",
               version: "",
-              agent_version: "0.71.0",
+              agent_version: "0.72.0",
               workflow_name: "Changeset Generator",
               experimental: true,
               supports_tools_allowlist: true,

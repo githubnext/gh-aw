@@ -26,7 +26,7 @@
 # # Custom triggers: command with events filter, workflow_dispatch
 # on:
 #   # Command trigger - responds to /poem-bot mentions
-#   command:
+#   slash_command:
 #     name: poem-bot
 #     events: [issues]
 #
@@ -1130,7 +1130,7 @@ jobs:
                 const trackerId = process.env.GH_AW_TRACKER_ID || "";
                 let commentBody = workflowLinkText;
                 const lockForAgent = process.env.GH_AW_LOCK_FOR_AGENT === "true";
-                if (lockForAgent && eventName === "issues") {
+                if (lockForAgent && (eventName === "issues" || eventName === "issue_comment")) {
                   commentBody += "\n\n🔒 This issue has been locked while the workflow is running to prevent concurrent modifications.";
                 }
                 if (workflowId) {

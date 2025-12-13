@@ -66,8 +66,47 @@ on: "example-value"
 
 # Option 2: Complex trigger configuration with event-specific filters and options
 on:
-  # Special command trigger for /command workflows (e.g., '/my-bot' in issue
+  # Special slash command trigger for /command workflows (e.g., '/my-bot' in issue
   # comments). Creates conditions to match slash commands automatically.
+  # (optional)
+  # This field supports multiple formats (oneOf):
+
+  # Option 1: Null command configuration - defaults to using the workflow filename
+  # (without .md extension) as the command name
+  slash_command: null
+
+  # Option 2: Command name as a string (shorthand format, e.g., 'customname' for
+  # '/customname' triggers). Command names must not start with '/' as the slash is
+  # automatically added when matching commands.
+  slash_command: "example-value"
+
+  # Option 3: Command configuration object with custom command name
+  slash_command:
+    # Custom command name for slash commands (e.g., 'helper-bot' for '/helper-bot'
+    # triggers). Command names must not start with '/' as the slash is automatically
+    # added when matching commands. Defaults to workflow filename without .md
+    # extension if not specified.
+    # (optional)
+    name: "My Workflow"
+
+    # Events where the command should be active. Default is all comment-related events
+    # ('*'). Use GitHub Actions event names.
+    # (optional)
+    # This field supports multiple formats (oneOf):
+
+    # Option 1: Single event name or '*' for all events. Use GitHub Actions event
+    # names: 'issues', 'issue_comment', 'pull_request_comment', 'pull_request',
+    # 'pull_request_review_comment', 'discussion', 'discussion_comment'.
+    events: "*"
+
+    # Option 2: Array of event names where the command should be active (requires at
+    # least one). Use GitHub Actions event names.
+    events: []
+      # Array items: GitHub Actions event name.
+
+  # DEPRECATED: Use 'slash_command' instead. Special command trigger for /command
+  # workflows (e.g., '/my-bot' in issue comments). Creates conditions to match slash
+  # commands automatically.
   # (optional)
   # This field supports multiple formats (oneOf):
 
@@ -231,6 +270,11 @@ on:
     # (optional)
     types: []
       # Array of strings
+
+    # Whether to lock the parent issue for the agent when the workflow runs (prevents
+    # concurrent modifications)
+    # (optional)
+    lock-for-agent: true
 
   # Discussion event trigger that runs the workflow when repository discussions are
   # created, updated, or managed

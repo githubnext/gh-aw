@@ -24,7 +24,7 @@
 # ```yaml
 # description: Performs web searches using Brave search engine when invoked with /brave command in issues or PRs
 # on:
-#   command:
+#   slash_command:
 #     name: brave
 #     events: [issue_comment]
 # permissions:
@@ -1011,7 +1011,7 @@ jobs:
                 const trackerId = process.env.GH_AW_TRACKER_ID || "";
                 let commentBody = workflowLinkText;
                 const lockForAgent = process.env.GH_AW_LOCK_FOR_AGENT === "true";
-                if (lockForAgent && eventName === "issues") {
+                if (lockForAgent && (eventName === "issues" || eventName === "issue_comment")) {
                   commentBody += "\n\n🔒 This issue has been locked while the workflow is running to prevent concurrent modifications.";
                 }
                 if (workflowId) {

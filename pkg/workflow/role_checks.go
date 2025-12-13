@@ -191,6 +191,9 @@ func (c *Compiler) hasSafeEventsOnly(data *WorkflowData, frontmatter map[string]
 			// If there are events and none are unsafe, then it's safe
 			eventCount := len(onMap)
 			// Subtract non-event entries
+			if _, hasSlashCommand := onMap["slash_command"]; hasSlashCommand {
+				eventCount--
+			}
 			if _, hasCommand := onMap["command"]; hasCommand {
 				eventCount--
 			}

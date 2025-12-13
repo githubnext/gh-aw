@@ -7,7 +7,7 @@ on:
     - cron: "0 22 * * *"  # Daily at 10 PM UTC
   
   # Command trigger for /unbloat in PR comments
-  command:
+  slash_command:
     name: unbloat
     events: [pull_request_comment]
   

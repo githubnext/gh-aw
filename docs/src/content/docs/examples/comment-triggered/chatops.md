@@ -17,7 +17,7 @@ ChatOps brings automation into GitHub conversations through command triggers tha
 ```aw wrap
 ---
 on:
-  command:
+  slash_command:
     name: review
     events: [pull_request_comment]  # Only respond to /review in PR comments
 permissions:
@@ -47,7 +47,7 @@ Command triggers respond to all comment contexts by default. Use the `events:` f
 ```aw wrap
 ---
 on:
-  command:
+  slash_command:
     name: triage
     events: [issues, issue_comment]  # Only in issue bodies and issue comments
 ---

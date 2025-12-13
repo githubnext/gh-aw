@@ -25,7 +25,7 @@
 # name: Spec-Kit Command Dispatcher
 # description: Dispatches user requests to appropriate spec-kit commands for spec-driven development
 # on:
-#   command:
+#   slash_command:
 #     name: speckit
 #     events: [issues, issue_comment, pull_request, pull_request_comment, discussion, discussion_comment]
 #   reaction: eyes
@@ -1317,7 +1317,7 @@ jobs:
                 const trackerId = process.env.GH_AW_TRACKER_ID || "";
                 let commentBody = workflowLinkText;
                 const lockForAgent = process.env.GH_AW_LOCK_FOR_AGENT === "true";
-                if (lockForAgent && eventName === "issues") {
+                if (lockForAgent && (eventName === "issues" || eventName === "issue_comment")) {
                   commentBody += "\n\n🔒 This issue has been locked while the workflow is running to prevent concurrent modifications.";
                 }
                 if (workflowId) {

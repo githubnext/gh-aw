@@ -1,6 +1,6 @@
 ---
 on:
-  command:
+  slash_command:
     name: cloclo
   issues:
     types: [labeled]

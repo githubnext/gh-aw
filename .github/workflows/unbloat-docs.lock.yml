@@ -30,7 +30,7 @@
 #     - cron: "0 22 * * *"  # Daily at 10 PM UTC
 #
 #   # Command trigger for /unbloat in PR comments
-#   command:
+#   slash_command:
 #     name: unbloat
 #     events: [pull_request_comment]
 #
@@ -928,7 +928,7 @@ jobs:
                 const trackerId = process.env.GH_AW_TRACKER_ID || "";
                 let commentBody = workflowLinkText;
                 const lockForAgent = process.env.GH_AW_LOCK_FOR_AGENT === "true";
-                if (lockForAgent && eventName === "issues") {
+                if (lockForAgent && (eventName === "issues" || eventName === "issue_comment")) {
                   commentBody += "\n\n🔒 This issue has been locked while the workflow is running to prevent concurrent modifications.";
                 }
                 if (workflowId) {
@@ -1937,7 +1937,7 @@ jobs:
           node-version: '24'
           package-manager-cache: false
       - name: Install Claude Code CLI
-        run: npm install -g @anthropic-ai/claude-code@2.0.67
+        run: npm install -g @anthropic-ai/claude-code@2.0.69
       - name: Generate Claude Settings
         run: |
           mkdir -p /tmp/gh-aw/.claude
@@ -3703,7 +3703,7 @@ jobs:
               engine_name: "Claude Code",
               model: process.env.GH_AW_MODEL_AGENT_CLAUDE || "",
               version: "",
-              agent_version: "2.0.67",
+              agent_version: "2.0.69",
               workflow_name: "Documentation Unbloat",
               experimental: true,
               supports_tools_allowlist: true,
@@ -8595,7 +8595,7 @@ jobs:
           node-version: '24'
           package-manager-cache: false
       - name: Install Claude Code CLI
-        run: npm install -g @anthropic-ai/claude-code@2.0.67
+        run: npm install -g @anthropic-ai/claude-code@2.0.69
       - name: Execute Claude Code CLI
         id: agentic_execution
         # Allowed tools (sorted):

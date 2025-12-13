@@ -18,7 +18,7 @@ var compilerSafeOutputsLog = logger.New("workflow:compiler_safe_outputs")
 // reactions, and stop-after configurations while detecting conflicts with other event types.
 func (c *Compiler) parseOnSection(frontmatter map[string]any, workflowData *WorkflowData, markdownPath string) error {
 	compilerSafeOutputsLog.Printf("Parsing on section: workflow=%s, markdownPath=%s", workflowData.Name, markdownPath)
-	// Check if "command" is used as a trigger in the "on" section
+	// Check if "slash_command" or "command" (deprecated) is used as a trigger in the "on" section
 	// Also extract "reaction" from the "on" section
 	var hasCommand bool
 	var hasReaction bool
@@ -26,7 +26,7 @@ func (c *Compiler) parseOnSection(frontmatter map[string]any, workflowData *Work
 	var otherEvents map[string]any
 
 	if onValue, exists := frontmatter["on"]; exists {
-		// Check for new format: on.command and on.reaction
+		// Check for new format: on.slash_command/on.command and on.reaction
 		if onMap, ok := onValue.(map[string]any); ok {
 			// Check for stop-after in the on section
 			if _, hasStopAfterKey := onMap["stop-after"]; hasStopAfterKey {
@@ -54,13 +54,47 @@ func (c *Compiler) parseOnSection(frontmatter map[string]any, workflowData *Work
 					if lockForAgent, hasLockForAgent := issuesMap["lock-for-agent"]; hasLockForAgent {
 						if lockBool, ok := lockForAgent.(bool); ok {
 							workflowData.LockForAgent = lockBool
-							compilerSafeOutputsLog.Printf("lock-for-agent enabled: %v", lockBool)
+							compilerSafeOutputsLog.Printf("lock-for-agent enabled for issues: %v", lockBool)
 						}
 					}
 				}
 			}
 
-			if _, hasCommandKey := onMap["command"]; hasCommandKey {
+			// Extract lock-for-agent from on.issue_comment section
+			if issueCommentValue, hasIssueComment := onMap["issue_comment"]; hasIssueComment {
+				if issueCommentMap, ok := issueCommentValue.(map[string]any); ok {
+					if lockForAgent, hasLockForAgent := issueCommentMap["lock-for-agent"]; hasLockForAgent {
+						if lockBool, ok := lockForAgent.(bool); ok {
+							workflowData.LockForAgent = lockBool
+							compilerSafeOutputsLog.Printf("lock-for-agent enabled for issue_comment: %v", lockBool)
+						}
+					}
+				}
+			}
+
+			// Check for slash_command (preferred) or command (deprecated)
+			if _, hasSlashCommandKey := onMap["slash_command"]; hasSlashCommandKey {
+				hasCommand = true
+				// Set default command to filename if not specified in the command section
+				if workflowData.Command == "" {
+					baseName := strings.TrimSuffix(filepath.Base(markdownPath), ".md")
+					workflowData.Command = baseName
+				}
+				// Check for conflicting events (but allow issues/pull_request with labeled/unlabeled types)
+				conflictingEvents := []string{"issues", "issue_comment", "pull_request", "pull_request_review_comment"}
+				for _, eventName := range conflictingEvents {
+					if eventValue, hasConflict := onMap[eventName]; hasConflict {
+						// Special case: allow issues/pull_request if they only have labeled/unlabeled types
+						if (eventName == "issues" || eventName == "pull_request") && parser.IsLabelOnlyEvent(eventValue) {
+							continue // Allow this - it doesn't conflict with command triggers
+						}
+						return fmt.Errorf("cannot use 'slash_command' with '%s' in the same workflow", eventName)
+					}
+				}
+
+				// Clear the On field so applyDefaults will handle command trigger generation
+				workflowData.On = ""
+			} else if _, hasCommandKey := onMap["command"]; hasCommandKey {
 				hasCommand = true
 				// Set default command to filename if not specified in the command section
 				if workflowData.Command == "" {
@@ -82,8 +116,8 @@ func (c *Compiler) parseOnSection(frontmatter map[string]any, workflowData *Work
 				// Clear the On field so applyDefaults will handle command trigger generation
 				workflowData.On = ""
 			}
-			// Extract other (non-conflicting) events excluding command, reaction, and stop-after
-			otherEvents = filterMapKeys(onMap, "command", "reaction", "stop-after")
+			// Extract other (non-conflicting) events excluding slash_command, command, reaction, and stop-after
+			otherEvents = filterMapKeys(onMap, "slash_command", "command", "reaction", "stop-after")
 		}
 	}
 

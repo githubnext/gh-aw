@@ -215,27 +215,27 @@ Workflows with `workflow_run` triggers include automatic security protections:
 
 See the [Security Guide](/gh-aw/guides/security/#workflow_run-trigger-security) for detailed security behavior and implementation.
 
-### Command Triggers (`command:`)
+### Command Triggers (`slash_command:`)
 
-The `command:` trigger creates workflows that respond to `/command-name` mentions in issues, pull requests, and comments. See [Command Triggers](/gh-aw/reference/command-triggers/) for complete documentation.
+The `slash_command:` trigger creates workflows that respond to `/command-name` mentions in issues, pull requests, and comments. See [Command Triggers](/gh-aw/reference/command-triggers/) for complete documentation.
 
 **Basic Configuration:**
 ```yaml wrap
 on:
-  command:
+  slash_command:
     name: my-bot
 ```
 
 **Shorthand Format:**
 ```yaml wrap
 on:
-  command: "my-bot"
+  slash_command: "my-bot"
 ```
 
 **With Event Filtering:**
 ```yaml wrap
 on:
-  command:
+  slash_command:
     name: summarize
     events: [issues, issue_comment]  # Only in issue bodies and comments
 ```
@@ -244,7 +244,7 @@ on:
 ```aw wrap
 ---
 on:
-  command:
+  slash_command:
     name: code-review
     events: [pull_request, pull_request_comment]
 permissions:
@@ -271,6 +271,10 @@ lines of code where improvements can be made.
 ```
 
 The command must appear as the **first word** in the comment or body text. Command workflows automatically add the "eyes" (👀) reaction and edit comments with workflow run links.
+
+:::note[Deprecated Syntax]
+The `command:` trigger field is deprecated. Use `slash_command:` instead.
+:::
 
 ### Label Filtering (`names:`)
 

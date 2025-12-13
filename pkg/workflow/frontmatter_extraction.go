@@ -2,8 +2,10 @@ package workflow
 
 import (
 	"fmt"
+	"os"
 	"strings"
 
+	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/logger"
 	"github.com/githubnext/gh-aw/pkg/parser"
 	"github.com/goccy/go-yaml"
@@ -559,10 +561,33 @@ func (c *Compiler) extractExpressionFromIfString(ifString string) string {
 
 // extractCommandConfig extracts command configuration from frontmatter including name and events
 func (c *Compiler) extractCommandConfig(frontmatter map[string]any) (commandName string, commandEvents []string) {
-	// Check new format: on.command or on.command.name
+	// Check new format: on.slash_command or on.slash_command.name (preferred)
+	// Also check legacy format: on.command or on.command.name (deprecated)
 	if onValue, exists := frontmatter["on"]; exists {
 		if onMap, ok := onValue.(map[string]any); ok {
-			if commandValue, hasCommand := onMap["command"]; hasCommand {
+			var commandValue any
+			var hasCommand bool
+			var isDeprecated bool
+
+			// Check for slash_command first (preferred)
+			if slashCommandValue, hasSlashCommand := onMap["slash_command"]; hasSlashCommand {
+				commandValue = slashCommandValue
+				hasCommand = true
+				isDeprecated = false
+			} else if legacyCommandValue, hasLegacyCommand := onMap["command"]; hasLegacyCommand {
+				// Fall back to command (deprecated)
+				commandValue = legacyCommandValue
+				hasCommand = true
+				isDeprecated = true
+			}
+
+			if hasCommand {
+				// Show deprecation warning if using old field name
+				if isDeprecated {
+					fmt.Fprintln(os.Stderr, console.FormatWarningMessage("The 'command:' trigger field is deprecated. Please use 'slash_command:' instead."))
+					c.IncrementWarningCount()
+				}
+
 				// Check if command is a string (shorthand format)
 				if commandStr, ok := commandValue.(string); ok {
 					return commandStr, nil // nil means default (all events)

@@ -24,7 +24,7 @@
 # ```yaml
 # description: Generates new agentic workflow markdown files based on user requests when invoked with /craft command
 # on:
-#   command:
+#   slash_command:
 #     name: craft
 #     events: [issues]
 # permissions:
@@ -225,7 +225,7 @@
 # **Command Bot:**
 # ```yaml
 # on:
-#   command:
+#   slash_command:
 #     name: my-bot
 #     events: [issue_comment]
 # permissions:
@@ -1169,7 +1169,7 @@ jobs:
                 const trackerId = process.env.GH_AW_TRACKER_ID || "";
                 let commentBody = workflowLinkText;
                 const lockForAgent = process.env.GH_AW_LOCK_FOR_AGENT === "true";
-                if (lockForAgent && eventName === "issues") {
+                if (lockForAgent && (eventName === "issues" || eventName === "issue_comment")) {
                   commentBody += "\n\n🔒 This issue has been locked while the workflow is running to prevent concurrent modifications.";
                 }
                 if (workflowId) {
@@ -3982,7 +3982,7 @@ jobs:
           **Command Bot:**
           ```yaml
           on:
-            command:
+            slash_command:
               name: my-bot
               events: [issue_comment]
           permissions:

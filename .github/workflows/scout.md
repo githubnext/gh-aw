@@ -2,7 +2,7 @@
 name: Scout
 description: Performs deep research investigations using web search to gather and synthesize comprehensive information on any topic
 on:
-  command:
+  slash_command:
     name: scout
   workflow_dispatch:
     inputs:

@@ -59,7 +59,7 @@ Test workflow with lock-for-agent enabled.
 		"Lock issue for agent workflow",
 		"Unlock issue after agent workflow",
 		"GH_AW_LOCK_FOR_AGENT: \"true\"",
-		"lockForAgent && eventName === \"issues\"",
+		"lockForAgent && (eventName === \"issues\" || eventName === \"issue_comment\")",
 		"This issue has been locked while the workflow is running",
 	}
 
@@ -325,5 +325,103 @@ Test that lock-for-agent on issues doesn't break PR workflows.
 	// Lock steps should not be present for PR event (no lock-for-agent in on.pull_request)
 	if strings.Contains(yamlContent, "Lock issue for agent workflow") {
 		t.Error("Generated YAML should not contain lock step for pull_request event")
+	}
+}
+
+func TestLockForAgentWithIssueComment(t *testing.T) {
+	// Create temporary directory for test files
+	tmpDir := testutil.TempDir(t, "lock-for-agent-issue-comment-test")
+
+	// Create a test markdown file with lock-for-agent enabled on issue_comment
+	testContent := `---
+on:
+  issue_comment:
+    types: [created]
+    lock-for-agent: true
+  reaction: eyes
+engine: copilot
+safe-outputs:
+  add-comment: {}
+---
+
+# Lock For Agent with Issue Comment Test
+
+Test workflow with lock-for-agent enabled for issue_comment events.
+`
+
+	testFile := filepath.Join(tmpDir, "test-lock-for-agent-issue-comment.md")
+	if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	compiler := NewCompiler(false, "", "test")
+
+	// Parse the workflow
+	workflowData, err := compiler.ParseWorkflowFile(testFile)
+	if err != nil {
+		t.Fatalf("Failed to parse workflow: %v", err)
+	}
+
+	// Verify lock-for-agent field is parsed correctly
+	if !workflowData.LockForAgent {
+		t.Error("Expected LockForAgent to be true")
+	}
+
+	// Generate YAML and verify it contains lock/unlock steps
+	yamlContent, err := compiler.generateYAML(workflowData, testFile)
+	if err != nil {
+		t.Fatalf("Failed to generate YAML: %v", err)
+	}
+
+	// Check for lock-specific content in generated YAML
+	expectedStrings := []string{
+		"Lock issue for agent workflow",
+		"Unlock issue after agent workflow",
+		"GH_AW_LOCK_FOR_AGENT: \"true\"",
+		"lockForAgent && (eventName === \"issues\" || eventName === \"issue_comment\")",
+		"This issue has been locked while the workflow is running",
+	}
+
+	for _, expected := range expectedStrings {
+		if !strings.Contains(yamlContent, expected) {
+			t.Errorf("Generated YAML does not contain expected string: %s", expected)
+		}
+	}
+
+	// Verify lock step is in activation job
+	activationJobSection := extractJobSection(yamlContent, "activation")
+	if !strings.Contains(activationJobSection, "Lock issue for agent workflow") {
+		t.Error("Activation job should contain the lock step")
+	}
+
+	// Verify lock condition includes issue_comment
+	if !strings.Contains(activationJobSection, "github.event_name == 'issue_comment'") {
+		t.Error("Lock step condition should check for issue_comment event")
+	}
+
+	// Verify unlock step is in conclusion job
+	conclusionJobSection := extractJobSection(yamlContent, "conclusion")
+	if !strings.Contains(conclusionJobSection, "Unlock issue after agent workflow") {
+		t.Error("Conclusion job should contain the unlock step")
+	}
+
+	// Verify unlock condition includes issue_comment
+	if !strings.Contains(conclusionJobSection, "github.event_name == 'issue_comment'") {
+		t.Error("Unlock step condition should check for issue_comment event")
+	}
+
+	// Verify unlock step has always() condition
+	if !strings.Contains(conclusionJobSection, "if: (always())") {
+		t.Error("Unlock step should have always() condition")
+	}
+
+	// Verify activation job has issues: write permission
+	if !strings.Contains(activationJobSection, "issues: write") {
+		t.Error("Activation job should have issues: write permission when lock-for-agent is enabled")
+	}
+
+	// Verify conclusion job has issues: write permission
+	if !strings.Contains(conclusionJobSection, "issues: write") {
+		t.Error("Conclusion job should have issues: write permission when lock-for-agent is enabled")
 	}
 }

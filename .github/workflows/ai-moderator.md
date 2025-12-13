@@ -18,10 +18,15 @@ on:
 engine:
   id: copilot
   model: gpt-5-mini
+tools:
+  github:
+    mode: local
+    read-only: true
+    toolsets: [default]
 if: (github.event_name == 'workflow_dispatch') || (needs.check_external_user.outputs.is_external == 'true')
 safe-outputs:
   add-labels:
-    allowed: [spam, ai-generated, link-spam, ai-qa]
+    allowed: [spam, ai-generated, link-spam, ai-inspected]
   hide-comment:
     max: 5
     allowed-reasons: [spam]
@@ -89,9 +94,17 @@ Analyze the following content in repository ${{ github.repository }}:
 
 **Content to analyze**:
 
-<unsafe_user_input>
-${{ needs.activation.outputs.text }}
-</unsafe_user_input>
+When running via `workflow_dispatch` with an `issue_url` input:
+1. Parse the issue URL to extract the owner, repo, and issue number
+2. Use the GitHub MCP server tools (available via `github` toolset) to fetch the full issue content
+3. Specifically, use the appropriate GitHub API tool to get the issue details including title and body
+
+For other trigger types (issues, issue_comment, pull_request_review_comment):
+1. Extract the relevant identifiers from the context:
+   - For issues: Use issue number from ${{ github.event.issue.number }}
+   - For comments: Use issue/PR number and comment ID from the event payload
+2. Use the GitHub MCP server tools to fetch the original, unsanitized content directly from GitHub API
+3. Do NOT use the pre-sanitized text from the activation job - fetch fresh content to analyze the original user input
 
 ## Custom Moderation Rules (Optional)
 
@@ -164,13 +177,13 @@ Based on your analysis:
    - If link spam is detected, use the `add-labels` safe output to add the `link-spam` label to the issue
    - If AI-generated content is detected, use the `add-labels` safe output to add the `ai-generated` label to the issue
    - Multiple labels can be added if multiple types are detected
-   - **If no warnings or issues are found** and the content appears legitimate and on-topic, use the `add-labels` safe output to add the `ai-qa` label to indicate the issue has been reviewed and approved
+   - **If no warnings or issues are found** and the content appears legitimate and on-topic, use the `add-labels` safe output to add the `ai-inspected` label to indicate the issue has been reviewed and no threats were found
 
 2. **For Comments** (when comment ID is present):
-   - If any type of spam or AI-generated content is detected:
+   - If any type of spam, link spam, or AI-generated spam is detected:
      - Use the `minimize_comment` safe output to minimize the comment
      - Also add appropriate labels to the parent issue/PR as described above
-   - If the comment appears legitimate and on-topic, add the `ai-qa` label to the parent issue/PR
+   - If the comment appears legitimate and on-topic, add the `ai-inspected` label to the parent issue/PR
 
 ## Important Guidelines
 
@@ -246,12 +259,23 @@ on:
     types: [created]
   pull_request_review_comment:
     types: [created]
+  workflow_dispatch:
+    inputs:
+      issue_url:
+        description: 'Issue or discussion URL to moderate (e.g., https://github.com/owner/repo/issues/123)'
+        required: true
+        type: string
 engine:
   id: copilot
   model: gpt-5-mini
+tools:
+  github:
+    mode: local
+    read-only: true
+    toolsets: [default]
 safe-outputs:
   add-labels:
-    allowed: [spam, ai-generated, link-spam, ai-qa]
+    allowed: [spam, ai-generated, link-spam, ai-inspected]
   hide-comment:
     max: 5
   threat-detection: false
@@ -264,16 +288,16 @@ permissions:
 
 ### Labels
 
-The workflow uses four labels:
+The workflow uses these labels:
 - `spam` - Generic spam content
 - `link-spam` - Suspicious or promotional links
 - `ai-generated` - AI-generated content
-- `ai-qa` - Content reviewed and approved by AI moderator
+- `ai-inspected` - Content reviewed and no threats found by AI moderator
 
 ### Safe Outputs
 
 The workflow uses two built-in safe outputs:
-- **add-labels**: Adds labels to issues and PRs (spam, link-spam, ai-generated, ai-qa)
+- **add-labels**: Adds labels to issues and PRs (spam, link-spam, ai-generated, ai-inspected)
 - **hide-comment**: Hides spam comments using GitHub's built-in functionality
 
 The hide-comment safe output requires the GraphQL node ID of the comment, which the AI agent fetches from the GitHub API.

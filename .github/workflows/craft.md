@@ -1,7 +1,7 @@
 ---
 description: Generates new agentic workflow markdown files based on user requests when invoked with /craft command
 on:
-  command:
+  slash_command:
     name: craft
     events: [issues]
 permissions:
@@ -175,7 +175,7 @@ safe-outputs:
 **Command Bot:**
 ```yaml
 on:
-  command:
+  slash_command:
     name: my-bot
     events: [issue_comment]
 permissions:

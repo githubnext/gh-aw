@@ -218,6 +218,8 @@ engine:
     CUSTOM_API_ENDPOINT: https://api.example.com
 ```
 
+Environment variables can also be defined at workflow, job, step, and other scopes. See [Environment Variables](/gh-aw/reference/environment-variables/) for complete documentation on precedence and all 13 env scopes.
+
 ## Engine Command-Line Arguments
 
 All engines support custom command-line arguments through the `args` field, injected before the prompt:
