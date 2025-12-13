@@ -235,7 +235,8 @@
               "properties": {
                 "types": {
                   "type": "array",
-                  "description": "List of pull request event types to trigger on",
+                  "description": "Pull request event types to trigger on. Note: 'converted_to_draft' and 'ready_for_review' represent state transitions (events) rather than states. While technically valid to listen for both, consider if you need to handle both transitions or just one.",
+                  "$comment": "converted_to_draft and ready_for_review are logically opposite state transitions. Using both may indicate unclear intent.",
                   "items": {
                     "type": "string",
                     "enum": [
