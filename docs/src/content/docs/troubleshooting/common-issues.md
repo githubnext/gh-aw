@@ -72,8 +72,6 @@ If your IDE or editor shows schema validation errors for valid workflows, it may
 
 **Verification:** Run `gh aw compile my-workflow.md` to confirm the workflow is valid. The official gh-aw compiler uses YAML 1.2 and will correctly validate your workflow.
 
-For more information, see [YAML Compatibility](/gh-aw/reference/yaml-compatibility/).
-
 ## Import and Include Issues
 
 ### Import File Not Found

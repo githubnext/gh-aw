@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$comment": "This schema is designed for YAML 1.2 parsers. The 'on' field is a reserved boolean keyword in YAML 1.1 (interpreted as true), which breaks external validation tooling. gh-aw uses goccy/go-yaml (YAML 1.2 compliant) which correctly handles 'on:' as a string key. External tools using YAML 1.1 parsers (e.g., PyYAML) will fail to validate workflows correctly.",
+  "$comment": "YAML 1.2 parser required: The 'on' field is a reserved boolean in YAML 1.1. External tools using YAML 1.1 parsers (e.g., PyYAML) will fail validation. See documentation for details.",
   "type": "object",
   "required": ["on"],
   "properties": {

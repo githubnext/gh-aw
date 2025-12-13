@@ -164,19 +164,21 @@ Transform the YAML before validation:
 import re
 import yaml
 
-# Read the frontmatter
+# Read the markdown file
 with open('workflow.md', 'r') as f:
     content = f.read()
 
-# Extract frontmatter
+# Extract frontmatter using regex (more robust than split)
 match = re.match(r'^---\n(.*?)\n---', content, re.DOTALL)
 if match:
     frontmatter = match.group(1)
-    # Replace 'on:' with quoted version
-    frontmatter = re.sub(r'\bon:', '"on":', frontmatter)
+    # Replace unquoted 'on:' at the start of lines
+    frontmatter = re.sub(r'^(\s*)on:', r'\1"on":', frontmatter, flags=re.MULTILINE)
     # Now parse with PyYAML
     data = yaml.safe_load(frontmatter)
 ```
+
+**⚠️ Warning:** This approach is fragile and may not handle all edge cases correctly. Use YAML 1.2 parsers for reliable validation.
 
 ## Validating Workflows
 
@@ -206,18 +208,26 @@ Example in Python:
 from ruamel.yaml import YAML
 import jsonschema
 import json
+import re
 
 # Load schema
 with open('workflow.schema.json', 'r') as f:
     schema = json.load(f)
 
-# Extract and parse frontmatter
-yaml = YAML()
+# Read markdown file
 with open('workflow.md', 'r') as f:
     content = f.read()
-    # Extract frontmatter between --- markers
-    frontmatter = content.split('---')[1]
-    data = yaml.load(frontmatter)
+
+# Extract frontmatter using regex
+match = re.match(r'^---\n(.*?)\n---', content, re.DOTALL)
+if not match:
+    raise ValueError("No frontmatter found in workflow file")
+
+frontmatter_text = match.group(1)
+
+# Parse with YAML 1.2
+yaml = YAML()
+data = yaml.load(frontmatter_text)
 
 # Validate
 jsonschema.validate(instance=data, schema=schema)
