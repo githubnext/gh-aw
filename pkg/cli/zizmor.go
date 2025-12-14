@@ -151,7 +151,8 @@ func runZizmorOnFile(lockFile string, verbose bool, strict bool) error {
 
 // hasHighOrCriticalFindings checks if the JSON output contains High or Critical severity findings
 func hasHighOrCriticalFindings(stdout string) (bool, error) {
-	if stdout == "" || !strings.HasPrefix(strings.TrimSpace(stdout), "[") {
+	stdout = strings.TrimSpace(stdout)
+	if stdout == "" {
 		return false, nil
 	}
 

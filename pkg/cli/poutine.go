@@ -178,12 +178,8 @@ func runPoutineOnFile(lockFile string, verbose bool, strict bool) error {
 
 // hasErrorLevelFindings checks if the JSON output contains error-level findings for the target file
 func hasErrorLevelFindings(stdout, targetFile string) (bool, error) {
+	stdout = strings.TrimSpace(stdout)
 	if stdout == "" {
-		return false, nil
-	}
-
-	trimmed := strings.TrimSpace(stdout)
-	if !strings.HasPrefix(trimmed, "{") {
 		return false, nil
 	}
 

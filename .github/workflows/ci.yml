@@ -474,11 +474,14 @@ jobs:
         id: changed-workflows
         run: |
           if [ "${{ github.event_name }}" = "pull_request" ]; then
+            # Fetch the base branch to ensure we have the base SHA
+            git fetch origin ${{ github.event.pull_request.base.ref }}
+            
             # Get changed .md files in .github/workflows/
-            CHANGED_FILES=$(git diff --name-only --diff-filter=ACMRT ${{ github.event.pull_request.base.sha }} ${{ github.sha }} | grep '\.github/workflows/.*\.md$' || true)
+            CHANGED_FILES=$(git diff --name-only --diff-filter=ACMRT origin/${{ github.event.pull_request.base.ref }} ${{ github.sha }} | grep '\.github/workflows/.*\.md$' || true)
             if [ -n "$CHANGED_FILES" ]; then
-              # Extract workflow names (without .md extension)
-              WORKFLOWS=$(echo "$CHANGED_FILES" | xargs -n1 basename | sed 's/\.md$//' | tr '\n' ' ')
+              # Extract workflow names (without .md extension) - handle empty lines with xargs -r
+              WORKFLOWS=$(echo "$CHANGED_FILES" | xargs -r -n1 basename | sed 's/\.md$//' | tr '\n' ' ')
               echo "workflows=$WORKFLOWS" >> $GITHUB_OUTPUT
               echo "count=$(echo $WORKFLOWS | wc -w)" >> $GITHUB_OUTPUT
             else
