@@ -8,14 +8,22 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	"github.com/githubnext/gh-aw/pkg/parser"
 	"github.com/goccy/go-yaml"
-	"github.com/xeipuuv/gojsonschema"
+	"github.com/santhosh-tekuri/jsonschema/v6"
 )
 
 //go:embed schemas/campaign_spec_schema.json
 var campaignSpecSchemaFS embed.FS
+
+// Cached compiled schema to avoid recompiling on every validation
+var (
+	compiledSchemaOnce sync.Once
+	compiledSchema     *jsonschema.Schema
+	schemaCompileError error
+)
 
 // ValidateSpec performs lightweight semantic validation of a
 // single CampaignSpec and returns a slice of human-readable problems.
@@ -86,13 +94,51 @@ func ValidateSpec(spec *CampaignSpec) []string {
 	return problems
 }
 
+// getCompiledSchema returns the compiled campaign spec schema, compiling it once and caching
+func getCompiledSchema() (*jsonschema.Schema, error) {
+	compiledSchemaOnce.Do(func() {
+		// Read embedded schema
+		schemaData, err := campaignSpecSchemaFS.ReadFile("schemas/campaign_spec_schema.json")
+		if err != nil {
+			schemaCompileError = fmt.Errorf("failed to load campaign spec schema: %w", err)
+			return
+		}
+
+		// Parse schema as JSON
+		var schemaDoc any
+		if err := json.Unmarshal(schemaData, &schemaDoc); err != nil {
+			schemaCompileError = fmt.Errorf("failed to parse campaign spec schema: %w", err)
+			return
+		}
+
+		// Create compiler and add schema resource
+		compiler := jsonschema.NewCompiler()
+		schemaURL := "campaign-spec.json"
+		if err := compiler.AddResource(schemaURL, schemaDoc); err != nil {
+			schemaCompileError = fmt.Errorf("failed to add schema resource: %w", err)
+			return
+		}
+
+		// Compile schema once
+		schema, err := compiler.Compile(schemaURL)
+		if err != nil {
+			schemaCompileError = fmt.Errorf("failed to compile schema: %w", err)
+			return
+		}
+
+		compiledSchema = schema
+	})
+
+	return compiledSchema, schemaCompileError
+}
+
 // ValidateSpecWithSchema validates a CampaignSpec against the JSON schema.
 // Returns a list of validation error messages, or an empty list if valid.
 func ValidateSpecWithSchema(spec *CampaignSpec) []string {
-	// Read embedded schema
-	schemaData, err := campaignSpecSchemaFS.ReadFile("schemas/campaign_spec_schema.json")
+	// Get the cached compiled schema
+	schema, err := getCompiledSchema()
 	if err != nil {
-		return []string{fmt.Sprintf("failed to load campaign spec schema: %v", err)}
+		return []string{err.Error()}
 	}
 
 	// Convert spec to JSON for validation, excluding runtime fields.
@@ -138,36 +184,61 @@ func ValidateSpecWithSchema(spec *CampaignSpec) []string {
 		ApprovalPolicy:     spec.ApprovalPolicy,
 	}
 
+	// Marshal spec to JSON then unmarshal to any for validation
+	// This is necessary because the jsonschema library validates against the JSON representation
 	specJSON, err := json.Marshal(validationSpec)
 	if err != nil {
 		return []string{fmt.Sprintf("failed to marshal spec to JSON: %v", err)}
 	}
 
-	// Create schema and document loaders
-	schemaLoader := gojsonschema.NewBytesLoader(schemaData)
-	documentLoader := gojsonschema.NewBytesLoader(specJSON)
-
-	// Validate
-	result, err := gojsonschema.Validate(schemaLoader, documentLoader)
-	if err != nil {
-		return []string{fmt.Sprintf("schema validation error: %v", err)}
+	var specData any
+	if err := json.Unmarshal(specJSON, &specData); err != nil {
+		return []string{fmt.Sprintf("failed to unmarshal spec data: %v", err)}
 	}
 
-	if result.Valid() {
-		return nil
+	// Validate the spec against the schema
+	if err := schema.Validate(specData); err != nil {
+		return formatValidationErrors(err)
 	}
 
-	// Collect validation errors
+	return nil
+}
+
+// formatValidationErrors converts jsonschema validation errors to a list of human-readable messages
+func formatValidationErrors(err error) []string {
 	var problems []string
-	for _, err := range result.Errors() {
-		// Format error message similar to how workflow validation does it
-		field := err.Field()
-		if field == "(root)" {
-			field = "root"
-		}
-		problems = append(problems, fmt.Sprintf("%s: %s", field, err.Description()))
+
+	ve, ok := err.(*jsonschema.ValidationError)
+	if !ok {
+		// Not a validation error, return as-is
+		return []string{err.Error()}
 	}
 
+	// Process the main error and all causes
+	var collectErrors func(*jsonschema.ValidationError)
+	collectErrors = func(e *jsonschema.ValidationError) {
+		// Skip collecting if there are causes - we'll collect those instead
+		// to avoid duplicate/redundant messages
+		if len(e.Causes) > 0 {
+			for _, cause := range e.Causes {
+				collectErrors(cause)
+			}
+			return
+		}
+
+		// Format the error message with field path
+		field := "root"
+		if len(e.InstanceLocation) > 0 {
+			field = strings.Join(e.InstanceLocation, ".")
+		}
+
+		// Use the error's Error() method to get the message
+		msg := e.Error()
+
+		problems = append(problems, fmt.Sprintf("%s: %s", field, msg))
+	}
+
+	collectErrors(ve)
 	return problems
 }
 
