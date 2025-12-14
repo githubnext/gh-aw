@@ -185,10 +185,11 @@ func hasErrorTypeFindings(stdout string) (bool, error) {
 
 	// Check if any findings are actual errors (not warnings)
 	for _, err := range errors {
-		// Most actionlint findings are errors unless the Kind field is exactly "warning"
-		// Use exact string comparison to avoid false matches
+		// Actionlint typically includes a Kind field to classify findings
+		// We only fail the build on actual errors, not on warnings
+		// If Kind is empty, we conservatively don't fail (could be a tool limitation)
 		kind := strings.ToLower(strings.TrimSpace(err.Kind))
-		if kind != "warning" && kind != "" {
+		if kind != "" && kind != "warning" {
 			return true, nil
 		}
 	}
