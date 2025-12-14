@@ -4749,7 +4749,7 @@ jobs:
               lines.push("Conversation:");
               lines.push("");
               let conversationLineCount = 0;
-              const MAX_CONVERSATION_LINES = 50; 
+              const MAX_CONVERSATION_LINES = 5000; 
               let conversationTruncated = false;
               for (const entry of logEntries) {
                 if (conversationLineCount >= MAX_CONVERSATION_LINES) {
@@ -4910,7 +4910,7 @@ jobs:
               lines.push("Conversation:");
               lines.push("");
               let conversationLineCount = 0;
-              const MAX_CONVERSATION_LINES = 50; 
+              const MAX_CONVERSATION_LINES = 5000; 
               let conversationTruncated = false;
               for (const entry of logEntries) {
                 if (conversationLineCount >= MAX_CONVERSATION_LINES) {
