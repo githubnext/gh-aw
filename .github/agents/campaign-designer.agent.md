@@ -31,6 +31,7 @@ Based on the conversation, propose concrete values for the core campaign fields:
 - `id` — stable identifier in kebab-case using only lowercase letters, digits, and hyphens (for example: `security-q1-2025`).
 - `name` — human-friendly title.
 - `description` — short explanation of what the campaign does.
+- `project-url` — GitHub Project URL used as the primary campaign dashboard.
 - `workflows` — one or more workflow IDs (basenames under `.github/workflows/` without `.md`).
 - `memory-paths` — under `memory/campaigns/<campaign-id>-*/**` when the campaign uses repo-memory.
 - `owners` — primary human owners.
@@ -54,7 +55,7 @@ Once the spec fields are approved, guide the user to create or update the spec f
    - The approved YAML frontmatter.
    - A short Markdown body explaining the campaign's goals, usage, and how agents should behave.
 
-Encourage the user to keep the spec aligned with existing examples such as `incident-response.campaign.md` and `security-compliance.campaign.md` in this repo.
+Encourage the user to keep the spec aligned with the existing example `go-file-size-reduction.campaign.md` in this repo.
 
 ## Step 4: (Optional) Propose a Starter Workflow
 

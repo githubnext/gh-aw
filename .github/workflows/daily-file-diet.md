@@ -1,6 +1,6 @@
 ---
 name: Daily File Diet
-description: Analyzes the largest Go source file daily and creates an issue to refactor it into smaller files if needed
+description: Analyzes the largest Go source file daily and creates an issue to refactor it into smaller files if it exceeds the Go File Size Reduction campaign threshold
 on:
   workflow_dispatch:
   schedule:
@@ -23,7 +23,7 @@ imports:
 safe-outputs:
   create-issue:
     title-prefix: "[file-diet] "
-    labels: [refactoring, code-health, automated-analysis, "campaign:code-health-file-diet"]
+    labels: [refactoring, code-health, automated-analysis, "campaign:go-file-size-reduction"]
     max: 1
   update-project:
     max: 10
@@ -34,7 +34,7 @@ tools:
     toolsets: [default]
   repo-memory:
     branch-name: memory/campaigns
-    file-glob: "code-health-file-diet-*/**"
+    file-glob: "go-file-size-reduction-*/**"
   edit:
   bash:
     - "find pkg -name '*.go' ! -name '*_test.go' -type f -exec wc -l {} \\; | sort -rn"
@@ -66,9 +66,9 @@ Analyze the Go codebase daily to identify the largest source file and determine 
 
 ## Campaign Context
 
-- **Campaign ID**: `code-health-file-diet`
-- **Campaign Label**: `campaign:code-health-file-diet`
-- **Memory Path Prefix**: `memory/campaigns/code-health-file-diet-*/**`
+- **Campaign ID**: `go-file-size-reduction`
+- **Campaign Label**: `campaign:go-file-size-reduction`
+- **Memory Path Prefix**: `memory/campaigns/go-file-size-reduction-*/**`
 
 ## Analysis Process
 
@@ -86,11 +86,11 @@ Extract:
 
 ### 2. Apply Size Threshold
 
-**Healthy file size threshold: 1000 lines**
+**Healthy file size threshold: 800 lines**
 
-If the largest file is **under 1000 lines**, do NOT create an issue. Instead, output a simple message indicating all files are within healthy limits.
+If the largest file is **under 800 lines**, do NOT create an issue. Instead, output a simple message indicating all files are within healthy limits.
 
-If the largest file is **1000+ lines**, proceed to step 3.
+If the largest file is **800+ lines**, proceed to step 3.
 
 ### 3. Analyze File Structure Using Serena
 
@@ -229,33 +229,33 @@ Add comprehensive tests for each new file:
 
 Your output MUST either:
 
-1. **If largest file < 1000 lines**: Output a simple status message
+1. **If largest file < 800 lines**: Output a simple status message
    ```
    ✅ All files are healthy! Largest file: [FILE_PATH] ([LINE_COUNT] lines)
    No refactoring needed today.
    ```
 
-2. **If largest file ≥ 1000 lines**: Create an issue with the detailed description above
+2. **If largest file ≥ 800 lines**: Create an issue with the detailed description above
 
 In both cases, update campaign metrics and trend charts as described below.
 
 ## Campaign Metrics & Trend Charts
 
 To support enterprise reporting and visual trends for the
-`code-health-file-diet` campaign:
+`go-file-size-reduction` campaign:
 
 1. **Write a campaign metrics snapshot** to repo-memory on each run using
    the `repo-memory` tool. Follow the `CampaignMetricsSnapshot` schema
    used by the campaign system:
 
    - `date`: analysis date (YYYY-MM-DD)
-   - `campaign_id`: `"code-health-file-diet"`
+   - `campaign_id`: `"go-file-size-reduction"`
    - `tasks_total`: total number of refactor issues for this campaign
-     (open + closed) labeled `campaign:code-health-file-diet`
+     (open + closed) labeled `campaign:go-file-size-reduction`
    - `tasks_completed`: number of closed refactor issues labeled
-     `campaign:code-health-file-diet`
+     `campaign:go-file-size-reduction`
    - `tasks_in_progress`: number of open refactor issues labeled
-     `campaign:code-health-file-diet`
+     `campaign:go-file-size-reduction`
    - `tasks_blocked`: number of campaign issues marked as blocked (for
      example, with a `status:blocked` label, if present)
    - `velocity_per_day`: approximate completion velocity based on recent
@@ -268,18 +268,18 @@ To support enterprise reporting and visual trends for the
 
    - `largest_file_path`: path of the largest file analyzed
    - `largest_file_loc`: line count of the largest file
-   - `files_over_threshold`: count of files over the 1000-line threshold
+  - `files_over_threshold`: count of files over the 800-line threshold
 
    Store this snapshot under the campaign metrics path so it matches the
    campaign spec `metrics-glob`:
 
-   - `memory/campaigns/code-health-file-diet-${{ github.run_id }}/metrics/<DATE>.json`
+  - `memory/campaigns/go-file-size-reduction-${{ github.run_id }}/metrics/<DATE>.json`
 
 2. **Aggregate historical snapshots** from repo-memory when generating a
    report:
 
    - Read all existing JSON snapshots matching
-     `memory/campaigns/code-health-file-diet-*/metrics/*.json`.
+     `memory/campaigns/go-file-size-reduction-*/metrics/*.json`.
    - Build a time-series table keyed by `date` with columns like:
      `largest_file_loc`, `files_over_threshold`, `tasks_total`,
      `tasks_completed`, `velocity_per_day`.
@@ -328,20 +328,21 @@ board in sync with refactor issues:
 1. **Choose the board**:
 
    - Prefer an organization or repository project named
-     `Code Health: File Diet`.
-   - If it does not exist and permissions allow, the `update-project`
-     safe output can create it automatically; otherwise humans can
-     create the board and re-run the workflow.
+     `Code Health: Go File Size Reduction`.
+   - If it does not exist, humans should create the board once and
+     re-run the workflow. (Optional: with an elevated token and an
+     explicit opt-in like `create_if_missing: true`, the `update-project`
+     safe output can create it.)
 
 2. **Add each refactor issue to the board** when you create it:
 
    - Call `update-project` with:
      - `project`: the board name or URL (for example,
-       `"Code Health: File Diet"`).
+       `"Code Health: Go File Size Reduction"`).
      - `content_number`: the GitHub issue number of the refactor task
        you just created.
      - `content_type`: `"issue"`.
-     - `campaign_id`: `"code-health-file-diet"` so the tooling can
+     - `campaign_id`: `"go-file-size-reduction"` so the tooling can
        apply consistent campaign metadata.
    - Let the smart project updater handle adding the issue to the board
      and avoiding duplicates.

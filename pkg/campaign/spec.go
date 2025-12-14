@@ -14,6 +14,10 @@ type CampaignSpec struct {
 	Name        string `yaml:"name" json:"name" console:"header:Name,maxlen:30"`
 	Description string `yaml:"description,omitempty" json:"description,omitempty" console:"header:Description,omitempty,maxlen:60"`
 
+	// ProjectURL points to the GitHub Project used as the primary campaign
+	// dashboard.
+	ProjectURL string `yaml:"project-url,omitempty" json:"project_url,omitempty" console:"header:Project URL,omitempty,maxlen:40"`
+
 	// Version is an optional spec version string (for example: v1).
 	// When omitted, it defaults to v1 during validation.
 	Version string `yaml:"version,omitempty" json:"version,omitempty" console:"header:Version,omitempty"`

@@ -20,9 +20,9 @@ func TestFilterSpecs_EmptyPattern(t *testing.T) {
 
 func TestFilterSpecs_MatchByID(t *testing.T) {
 	specs := []CampaignSpec{
-		{ID: "security-compliance", Name: "Security Compliance"},
-		{ID: "incident-response", Name: "Incident Response"},
-		{ID: "org-modernization", Name: "Org Modernization"},
+		{ID: "security-alpha", Name: "Security Alpha"},
+		{ID: "incident-beta", Name: "Incident Beta"},
+		{ID: "modernization-gamma", Name: "Modernization Gamma"},
 	}
 
 	filtered := FilterSpecs(specs, "security")
@@ -31,8 +31,8 @@ func TestFilterSpecs_MatchByID(t *testing.T) {
 		t.Fatalf("Expected 1 spec matching 'security', got %d", len(filtered))
 	}
 
-	if filtered[0].ID != "security-compliance" {
-		t.Errorf("Expected to find 'security-compliance', got '%s'", filtered[0].ID)
+	if filtered[0].ID != "security-alpha" {
+		t.Errorf("Expected to find 'security-alpha', got '%s'", filtered[0].ID)
 	}
 }
 
@@ -56,8 +56,8 @@ func TestFilterSpecs_MatchByName(t *testing.T) {
 
 func TestFilterSpecs_CaseInsensitive(t *testing.T) {
 	specs := []CampaignSpec{
-		{ID: "security-compliance", Name: "Security Compliance"},
-		{ID: "incident-response", Name: "Incident Response"},
+		{ID: "security-alpha", Name: "Security Alpha"},
+		{ID: "incident-beta", Name: "Incident Beta"},
 	}
 
 	tests := []struct {
@@ -83,7 +83,7 @@ func TestFilterSpecs_MultipleMatches(t *testing.T) {
 	specs := []CampaignSpec{
 		{ID: "security-q1", Name: "Security Q1"},
 		{ID: "security-q2", Name: "Security Q2"},
-		{ID: "incident-response", Name: "Incident Response"},
+		{ID: "incident-beta", Name: "Incident Beta"},
 	}
 
 	filtered := FilterSpecs(specs, "security")
@@ -109,8 +109,8 @@ func TestFilterSpecs_MultipleMatches(t *testing.T) {
 
 func TestFilterSpecs_NoMatches(t *testing.T) {
 	specs := []CampaignSpec{
-		{ID: "security-compliance", Name: "Security Compliance"},
-		{ID: "incident-response", Name: "Incident Response"},
+		{ID: "security-alpha", Name: "Security Alpha"},
+		{ID: "incident-beta", Name: "Incident Beta"},
 	}
 
 	filtered := FilterSpecs(specs, "nonexistent")
@@ -122,9 +122,9 @@ func TestFilterSpecs_NoMatches(t *testing.T) {
 
 func TestFilterSpecs_PartialMatch(t *testing.T) {
 	specs := []CampaignSpec{
-		{ID: "security-compliance", Name: "Security Compliance"},
-		{ID: "incident-response", Name: "Incident Response"},
-		{ID: "org-modernization", Name: "Org Modernization"},
+		{ID: "compliance-alpha", Name: "Compliance Alpha"},
+		{ID: "incident-beta", Name: "Incident Beta"},
+		{ID: "modernization-gamma", Name: "Modernization Gamma"},
 	}
 
 	filtered := FilterSpecs(specs, "comp")
@@ -133,7 +133,7 @@ func TestFilterSpecs_PartialMatch(t *testing.T) {
 		t.Fatalf("Expected 1 spec matching 'comp', got %d", len(filtered))
 	}
 
-	if filtered[0].ID != "security-compliance" {
-		t.Errorf("Expected to find 'security-compliance', got '%s'", filtered[0].ID)
+	if filtered[0].ID != "compliance-alpha" {
+		t.Errorf("Expected to find 'compliance-alpha', got '%s'", filtered[0].ID)
 	}
 }

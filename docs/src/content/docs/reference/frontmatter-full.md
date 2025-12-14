@@ -1775,11 +1775,14 @@ safe-outputs:
   # This field supports multiple formats (oneOf):
 
   # Option 1: Configuration for managing GitHub Projects v2 boards. Smart tool that
-  # auto-detects whether to create a project (if missing), add issue/PR items, or
-  # update custom fields on existing items. Requires repository-projects: write
+  # can add issue/PR items and update custom fields on existing items. By default
+  # it is update-only: if the project does not exist, the job fails with
+  # instructions to create it manually. To allow workflows to create missing
+  # projects, explicitly opt in via agent output create_if_missing=true (and/or
+  # provide a github-token override). Requires repository-projects: write
   # permission. Safe output items produced by the agent use type=update_project and
   # may include: project (board name), content_type (issue|pull_request),
-  # content_number, and a fields object mapping project field names to values.
+  # content_number, fields, campaign_id, and create_if_missing.
   update-project:
     # Maximum number of project operations to perform (default: 10). Each operation
     # may add a project item, or update its fields.

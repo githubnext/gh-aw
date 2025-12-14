@@ -181,7 +181,7 @@ gh aw compile --validate --strict      # Validate schema and enforce strict mode
 
 #### Campaign specs and orchestrators
 
-In repositories that define campaign spec files under `.github/workflows/*.campaign.md`, `gh aw compile` first validates those specs (including referenced `workflows`) and fails the compilation if any problems are found. By default, `compile` also synthesizes an orchestrator workflow for each valid spec that has meaningful details (e.g., `security-compliance.campaign.md` → `security-compliance.campaign.g.md`) and compiles it to a corresponding `.lock.yml` file. Orchestrators are only generated when the campaign spec includes tracker labels, workflows, memory paths, or a metrics glob.
+In repositories that define campaign spec files under `.github/workflows/*.campaign.md`, `gh aw compile` first validates those specs (including referenced `workflows`) and fails the compilation if any problems are found. By default, `compile` also synthesizes an orchestrator workflow for each valid spec that has meaningful details (e.g., `go-file-size-reduction.campaign.md` → `go-file-size-reduction.campaign.g.md`) and compiles it to a corresponding `.lock.yml` file. Orchestrators are only generated when the campaign spec includes tracker labels, workflows, memory paths, or a metrics glob.
 
 See [Strict Mode reference](/gh-aw/reference/frontmatter/#strict-mode-strict) for frontmatter configuration and [Security Guide](/gh-aw/guides/security/#strict-mode-validation) for best practices.
 
@@ -198,7 +198,7 @@ gh aw campaign status                  # Live status for all campaigns
 gh aw campaign status incident         # Filter by ID or name substring
 gh aw campaign status --json           # JSON status output
 
-gh aw campaign new security-q1-2025    # Scaffold a new campaign spec
+gh aw campaign new my-campaign-id      # Scaffold a new campaign spec
 gh aw campaign validate                # Validate campaign specs (fails on problems)
 gh aw campaign validate --strict=false # Report problems without failing
 ```

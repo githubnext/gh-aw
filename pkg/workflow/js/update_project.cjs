@@ -10,6 +10,8 @@ const { loadAgentOutput } = require("./load_agent_output.cjs");
  * @property {number|string} [pull_request] - PR number (legacy, use content_number instead)
  * @property {Object} [fields] - Custom field values to set/update (creates fields if missing)
  * @property {string} [campaign_id] - Campaign tracking ID (auto-generated if not provided)
+ * @property {boolean} [create_if_missing] - Opt-in: allow creating the project board if it does not exist.
+ *   Default behavior is update-only; if the project does not exist, this job will fail with instructions.
  */
 
 /**
@@ -85,6 +87,13 @@ async function updateProject(output) {
       rest: octokit.rest,
     };
   }
+
+  const createIfMissing =
+    output.create_if_missing === true ||
+    output.create_project_if_missing === true ||
+    output.createProjectIfMissing === true;
+  const hasCustomToken = !!process.env.PROJECT_GITHUB_TOKEN;
+  const allowCreateProject = createIfMissing || hasCustomToken;
 
   try {
     // Step 1: Get repository and owner IDs
@@ -180,6 +189,19 @@ async function updateProject(output) {
         const projectDisplay = parsedProjectNumber ? `project #${parsedProjectNumber}` : `project "${parsedProjectName}"`;
         core.error(`Cannot find ${projectDisplay}. Create it manually at https://github.com/users/${owner}/projects/new.`);
         throw new Error(`Cannot find ${projectDisplay} on user account.`);
+      }
+
+      if (!allowCreateProject) {
+        const projectDisplay = parsedProjectNumber
+          ? `project #${parsedProjectNumber}`
+          : parsedProjectName
+            ? `project "${parsedProjectName}"`
+            : `project "${output.project}"`;
+        core.error(
+          `Cannot find ${projectDisplay}. Create it manually at https://github.com/orgs/${owner}/projects/new and re-run, ` +
+            `or opt in to creation by setting create_if_missing=true in the update_project output (recommended only when you intentionally want workflows to create boards).`
+        );
+        throw new Error(`Cannot find ${projectDisplay} on organization account.`);
       }
 
       // Create new project (organization only)

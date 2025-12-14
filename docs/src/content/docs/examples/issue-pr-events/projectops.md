@@ -5,7 +5,9 @@ sidebar:
   badge: { text: 'Event-triggered', variant: 'success' }
 ---
 
-ProjectOps brings intelligent automation to GitHub Projects, enabling AI agents to automatically create project boards, add items, update status fields, and track campaigns. GitHub Agentic Workflows makes ProjectOps natural through the [`update-project`](/gh-aw/reference/safe-outputs/#project-board-updates-update-project) safe output that handles all [Projects v2 API](https://docs.github.com/en/issues/planning-and-tracking-with-projects/automating-your-project/using-the-api-to-manage-projects) complexity while maintaining security with minimal permissions.
+ProjectOps brings intelligent automation to GitHub Projects, enabling AI agents to add items, update status fields, and track campaigns. GitHub Agentic Workflows makes ProjectOps natural through the [`update-project`](/gh-aw/reference/safe-outputs/#project-board-updates-update-project) safe output that handles all [Projects v2 API](https://docs.github.com/en/issues/planning-and-tracking-with-projects/automating-your-project/using-the-api-to-manage-projects) complexity while maintaining security with minimal permissions.
+
+By default, `update-project` is update-only: create the Project board once in the GitHub UI, then let workflows keep it in sync. If you intentionally want workflows to create missing boards, opt in via the agent output field `create_if_missing: true` and ensure your token has sufficient org Project permissions.
 
 ## When to Use ProjectOps
 
