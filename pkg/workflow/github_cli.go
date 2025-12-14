@@ -33,9 +33,9 @@ func ExecGH(args ...string) *exec.Cmd {
 		cmd := exec.Command("gh", args...)
 
 		// Set up environment to ensure token is available
-		// Check if GH_TOKEN is already set to avoid duplicate environment variables
-		ghToken := os.Getenv("GH_TOKEN")
-		if ghToken == "" {
+		// If token source is not GH_TOKEN, we need to set it explicitly
+		// This ensures the token is available even if it came from GITHUB_TOKEN or config
+		if tokenSource != "GH_TOKEN" {
 			githubCLILog.Printf("Setting GH_TOKEN for gh CLI from %s", tokenSource)
 			cmd.Env = append(os.Environ(), "GH_TOKEN="+token)
 		}
@@ -67,9 +67,9 @@ func ExecGHContext(ctx context.Context, args ...string) *exec.Cmd {
 		cmd := exec.CommandContext(ctx, "gh", args...)
 
 		// Set up environment to ensure token is available
-		// Check if GH_TOKEN is already set to avoid duplicate environment variables
-		ghToken := os.Getenv("GH_TOKEN")
-		if ghToken == "" {
+		// If token source is not GH_TOKEN, we need to set it explicitly
+		// This ensures the token is available even if it came from GITHUB_TOKEN or config
+		if tokenSource != "GH_TOKEN" {
 			githubCLILog.Printf("Setting GH_TOKEN for gh CLI from %s", tokenSource)
 			cmd.Env = append(os.Environ(), "GH_TOKEN="+token)
 		}
