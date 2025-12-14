@@ -334,19 +334,50 @@ func validateDockerImage(image string, verbose bool) error {
 
 ### Pattern 3: Schema Validation
 
-**Used in**: `validation.go`, `mcp-config.go`
+**Used in**: `schema_validation.go`, `campaign/validation.go`, `parser/schema.go`
 
-**Purpose**: Validate configuration against a defined schema
+**Purpose**: Validate configuration against a defined JSON schema
+
+**Library**: All schema validation uses `github.com/santhosh-tekuri/jsonschema/v6`
+
+**Caching Pattern**: Schemas are compiled once using `sync.Once` and cached for performance
 
 **Example**:
 ```go
-func (c *Compiler) validateGitHubActionsSchema(yamlContent string) error {
-    // Load JSON Schema
-    schema := loadGitHubActionsSchema()
-    
-    // Parse YAML as JSON
-    var data interface{}
+// Cached compiled schema to avoid recompiling on every validation
+var (
+    compiledSchemaOnce sync.Once
+    compiledSchema     *jsonschema.Schema
+    schemaCompileError error
+)
+
+// getCompiledSchema returns the cached schema, compiling it once
+func getCompiledSchema() (*jsonschema.Schema, error) {
+    compiledSchemaOnce.Do(func() {
+        // Parse the embedded schema
+        var schemaDoc any
+        json.Unmarshal(schemaData, &schemaDoc)
+        
+        // Create compiler and add the schema as a resource
+        compiler := jsonschema.NewCompiler()
+        compiler.AddResource(schemaURL, schemaDoc)
+        
+        // Compile the schema once
+        compiledSchema, schemaCompileError = compiler.Compile(schemaURL)
+    })
+    return compiledSchema, schemaCompileError
+}
+
+func (c *Compiler) validateSchema(yamlContent string) error {
+    // Parse YAML directly into any type
+    var data any
     if err := yaml.Unmarshal([]byte(yamlContent), &data); err != nil {
+        return err
+    }
+    
+    // Get cached compiled schema
+    schema, err := getCompiledSchema()
+    if err != nil {
         return err
     }
     
@@ -363,6 +394,11 @@ func (c *Compiler) validateGitHubActionsSchema(yamlContent string) error {
 - YAML/JSON structure validation
 - Type checking
 - Required field validation
+
+**Files using this pattern**:
+- `pkg/workflow/schema_validation.go` - GitHub Actions workflow schema
+- `pkg/campaign/validation.go` - Campaign spec schema
+- `pkg/parser/schema.go` - Frontmatter schema
 
 ### Pattern 4: Progressive Validation
 

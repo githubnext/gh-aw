@@ -284,7 +284,46 @@ The compiler is organized by responsibility:
 
 This separation allows working on different aspects without conflicts.
 
-#### 4. Expression Building
+#### 4. JSON Schema Validation
+
+All JSON Schema validation in the codebase uses a consistent approach:
+
+- **Library**: `github.com/santhosh-tekuri/jsonschema/v6` for all validation
+- **Caching pattern**: `sync.Once` to compile schemas once and cache them
+- **Embedded schemas**: Schemas are embedded in the binary using `//go:embed`
+- **Consistent validation**: Same validation approach across workflow and campaign specs
+
+**Key Files**:
+- `pkg/workflow/schema_validation.go` - GitHub Actions workflow schema validation
+- `pkg/campaign/validation.go` - Campaign spec schema validation
+- `pkg/parser/schema.go` - Frontmatter schema validation
+
+**Schema Caching Pattern**:
+```go
+var (
+    compiledSchemaOnce sync.Once
+    compiledSchema     *jsonschema.Schema
+    schemaCompileError error
+)
+
+func getCompiledSchema() (*jsonschema.Schema, error) {
+    compiledSchemaOnce.Do(func() {
+        // Load embedded schema
+        var schemaDoc any
+        json.Unmarshal(schemaData, &schemaDoc)
+        
+        // Compile schema once
+        compiler := jsonschema.NewCompiler()
+        compiler.AddResource(schemaURL, schemaDoc)
+        compiledSchema, schemaCompileError = compiler.Compile(schemaURL)
+    })
+    return compiledSchema, schemaCompileError
+}
+```
+
+**Important**: Schema changes require rebuilding the binary with `make build` since schemas are embedded using `//go:embed` directives.
+
+#### 5. Expression Building
 
 The expression system (`expressions.go`) demonstrates cohesive design:
 

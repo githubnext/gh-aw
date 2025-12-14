@@ -261,6 +261,32 @@ When modifying JSON schemas in `pkg/parser/schemas/`:
 - Test changes by compiling a workflow: `./gh-aw compile test-workflow.md`
 - Schema changes typically require corresponding Go struct updates
 
+### JSON Schema Validation
+All JSON Schema validation uses a consistent approach:
+- **Library**: Use `github.com/santhosh-tekuri/jsonschema/v6` for all validation
+- **Caching**: Use `sync.Once` pattern to compile schemas once and cache them
+- **Files**: `pkg/workflow/schema_validation.go`, `pkg/campaign/validation.go`, `pkg/parser/schema.go`
+- **Pattern**: Follow the singleton caching pattern for efficient schema compilation
+
+**Example caching pattern:**
+```go
+var (
+    compiledSchemaOnce sync.Once
+    compiledSchema     *jsonschema.Schema
+    schemaCompileError error
+)
+
+func getCompiledSchema() (*jsonschema.Schema, error) {
+    compiledSchemaOnce.Do(func() {
+        // Compile schema once
+        compiler := jsonschema.NewCompiler()
+        compiler.AddResource(schemaURL, schemaDoc)
+        compiledSchema, schemaCompileError = compiler.Compile(schemaURL)
+    })
+    return compiledSchema, schemaCompileError
+}
+```
+
 ### Build Times (Don't Cancel)
 - `make agent-finish`: ~10-15s
 - `make deps`: ~1.5min  
