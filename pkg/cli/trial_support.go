@@ -28,6 +28,7 @@ func NewTrialSecretTracker(repoSlug string) *TrialSecretTracker {
 
 // determineAndAddEngineSecret determines the required engine secret and adds it to the repository
 func determineAndAddEngineSecret(engineConfig *workflow.EngineConfig, hostRepoSlug string, tracker *TrialSecretTracker, engineOverride string, verbose bool) error {
+	trialLog.Printf("Determining engine secret for repo: %s", hostRepoSlug)
 	var engineType string
 
 	if verbose {
@@ -37,6 +38,7 @@ func determineAndAddEngineSecret(engineConfig *workflow.EngineConfig, hostRepoSl
 	// Use engine override if provided
 	if engineOverride != "" {
 		engineType = engineOverride
+		trialLog.Printf("Using engine override: %s", engineType)
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Using engine override: %s", engineType)))
 	} else {
 		// Check if engine is specified in the EngineConfig
@@ -51,6 +53,7 @@ func determineAndAddEngineSecret(engineConfig *workflow.EngineConfig, hostRepoSl
 	// Default to copilot if no engine specified
 	if engineType == "" {
 		engineType = "copilot"
+		trialLog.Print("No engine specified, defaulting to copilot")
 	}
 
 	// Set the appropriate secret based on engine type
@@ -176,6 +179,7 @@ func addEngineSecret(secretName, hostRepoSlug string, tracker *TrialSecretTracke
 // addGitHubTokenSecret adds the GitHub token as a repository secret
 func addGitHubTokenSecret(repoSlug string, tracker *TrialSecretTracker, verbose bool) error {
 	secretName := "GH_AW_GITHUB_TOKEN"
+	trialLog.Printf("Adding GitHub token secret to repo: %s", repoSlug)
 
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Adding GitHub token as repository secret"))
@@ -188,6 +192,7 @@ func addGitHubTokenSecret(repoSlug string, tracker *TrialSecretTracker, verbose 
 
 	// Skip if secret already exists
 	if secretExists {
+		trialLog.Printf("Secret %s already exists, skipping", secretName)
 		if verbose {
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Secret %s already exists, skipping", secretName)))
 		}

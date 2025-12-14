@@ -7,7 +7,10 @@ import (
 	"time"
 
 	"github.com/githubnext/gh-aw/pkg/console"
+	"github.com/githubnext/gh-aw/pkg/logger"
 )
+
+var stopAfterLog = logger.New("workflow:stop_after")
 
 // extractStopAfterFromOn extracts the stop-after value from the on: section
 func (c *Compiler) extractStopAfterFromOn(frontmatter map[string]any) (string, error) {
@@ -37,6 +40,7 @@ func (c *Compiler) extractStopAfterFromOn(frontmatter map[string]any) (string, e
 
 // processStopAfterConfiguration extracts and processes stop-after configuration from frontmatter
 func (c *Compiler) processStopAfterConfiguration(frontmatter map[string]any, workflowData *WorkflowData, markdownPath string) error {
+	stopAfterLog.Printf("Processing stop-after configuration for workflow: %s", markdownPath)
 	// Extract stop-after from the on: section
 	stopAfter, err := c.extractStopAfterFromOn(frontmatter)
 	if err != nil {
@@ -46,18 +50,21 @@ func (c *Compiler) processStopAfterConfiguration(frontmatter map[string]any, wor
 
 	// Resolve relative stop-after to absolute time if needed
 	if workflowData.StopTime != "" {
+		stopAfterLog.Printf("Stop-after value specified: %s", workflowData.StopTime)
 		// Check if there's already a lock file with a stop time (recompilation case)
 		lockFile := strings.TrimSuffix(markdownPath, ".md") + ".lock.yml"
 		existingStopTime := ExtractStopTimeFromLockFile(lockFile)
 
 		// If refresh flag is set, always regenerate the stop time
 		if c.refreshStopTime {
+			stopAfterLog.Print("Refresh flag set, regenerating stop time")
 			resolvedStopTime, err := resolveStopTime(workflowData.StopTime, time.Now().UTC())
 			if err != nil {
 				return fmt.Errorf("invalid stop-after format: %w", err)
 			}
 			originalStopTime := stopAfter
 			workflowData.StopTime = resolvedStopTime
+			stopAfterLog.Printf("Resolved stop time from %s to %s", originalStopTime, resolvedStopTime)
 
 			if c.verbose && isRelativeStopTime(originalStopTime) {
 				fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Refreshed relative stop-after to: %s", resolvedStopTime)))
@@ -66,12 +73,14 @@ func (c *Compiler) processStopAfterConfiguration(frontmatter map[string]any, wor
 			}
 		} else if existingStopTime != "" {
 			// Preserve existing stop time during recompilation (default behavior)
+			stopAfterLog.Printf("Preserving existing stop time from lock file: %s", existingStopTime)
 			workflowData.StopTime = existingStopTime
 			if c.verbose {
 				fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Preserving existing stop time from lock file: %s", existingStopTime)))
 			}
 		} else {
 			// First compilation or no existing stop time, generate new one
+			stopAfterLog.Print("First compilation, generating new stop time")
 			resolvedStopTime, err := resolveStopTime(workflowData.StopTime, time.Now().UTC())
 			if err != nil {
 				return fmt.Errorf("invalid stop-after format: %w", err)
