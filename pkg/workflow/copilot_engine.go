@@ -1145,37 +1145,40 @@ func generateAWFInstallationStep(version string, agentConfig *AgentSandboxConfig
 	return GitHubActionStep(stepLines)
 }
 
-// GenerateCopilotInstallerSteps creates GitHub Actions steps for installing Copilot CLI using the new installer script
+// GenerateCopilotInstallerSteps creates GitHub Actions steps for installing Copilot CLI using a secure installation action
 // Parameters:
 //   - version: The Copilot CLI version to install (e.g., "0.0.369" or "v0.0.369")
 //   - stepName: The name to display for the install step (e.g., "Install GitHub Copilot CLI")
 //
-// # Returns steps for installing Copilot CLI via the installer script
+// # Returns steps for installing Copilot CLI via the secure installation action
 //
 // Version Handling:
-// The installer script (https://gh.io/copilot-install) reads the VERSION environment variable.
-// If VERSION is set, the script automatically adds a 'v' prefix if not already present,
-// then downloads from: https://github.com/github/copilot-cli/releases/download/v{VERSION}/copilot-{platform}-{arch}.tar.gz
+// The action accepts versions with or without the 'v' prefix and normalizes them internally.
+// Downloads directly from: https://github.com/github/copilot-cli/releases/download/v{VERSION}/copilot-{platform}-{arch}.tar.gz
 // Examples:
 //   - VERSION=0.0.369 → downloads v0.0.369
 //   - VERSION=v0.0.369 → downloads v0.0.369
 //   - VERSION=1.2.3 → downloads v1.2.3
+//
+// Security Improvements:
+// - Uses a local GitHub Action instead of curl | sudo bash
+// - Downloads directly from GitHub releases (no remote script execution)
+// - Supports optional SHA256 checksum verification
+// - Version pinning for reproducible builds
 func GenerateCopilotInstallerSteps(version, stepName string) []GitHubActionStep {
 	copilotLog.Printf("Generating Copilot installer steps: version=%s", version)
 
-	// The installer script is at https://gh.io/copilot-install which redirects to
-	// https://raw.githubusercontent.com/github/copilot-cli/main/install.sh
-	// It uses the VERSION environment variable to control which version to install.
-	// The script handles adding the 'v' prefix automatically if not present.
-
-	// Build the installation command
-	installCmd := fmt.Sprintf("export VERSION=%s && curl -fsSL https://gh.io/copilot-install | sudo bash", version)
-
+	// Use the local action from actions/install-copilot-cli
+	// This action provides secure installation with:
+	// - Direct downloads from GitHub releases
+	// - Optional checksum verification
+	// - Version pinning
+	// - No remote script execution
 	stepLines := []string{
 		fmt.Sprintf("      - name: %s", stepName),
-		"        run: |",
-		fmt.Sprintf("          %s", installCmd),
-		"          copilot --version",
+		"        uses: ./actions/install-copilot-cli",
+		"        with:",
+		fmt.Sprintf("          version: '%s'", version),
 	}
 
 	return []GitHubActionStep{GitHubActionStep(stepLines)}

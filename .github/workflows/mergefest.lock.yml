@@ -1037,9 +1037,9 @@ jobs:
         env:
           COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
       - name: Install GitHub Copilot CLI
-        run: |
-          export VERSION=0.0.369 && curl -fsSL https://gh.io/copilot-install | sudo bash
-          copilot --version
+        uses: ./actions/install-copilot-cli
+        with:
+          version: '0.0.369'
       - name: Install awf binary
         run: |
           echo "Installing awf from release: v0.6.0"
@@ -7373,9 +7373,9 @@ jobs:
         env:
           COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
       - name: Install GitHub Copilot CLI
-        run: |
-          export VERSION=0.0.369 && curl -fsSL https://gh.io/copilot-install | sudo bash
-          copilot --version
+        uses: ./actions/install-copilot-cli
+        with:
+          version: '0.0.369'
       - name: Execute GitHub Copilot CLI
         id: agentic_execution
         # Copilot CLI tool arguments (sorted):

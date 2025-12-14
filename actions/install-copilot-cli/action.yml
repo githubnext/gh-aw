@@ -1,0 +1,128 @@
+name: 'Install GitHub Copilot CLI'
+description: 'Securely install GitHub Copilot CLI with checksum verification'
+author: 'GitHub Next'
+
+inputs:
+  version:
+    description: 'GitHub Copilot CLI version to install (e.g., "0.0.369" or "v0.0.369")'
+    required: true
+    default: '0.0.369'
+  
+  checksum:
+    description: 'SHA256 checksum for verification (optional but recommended). Leave empty to skip verification.'
+    required: false
+    default: ''
+
+outputs:
+  installed-version:
+    description: 'The version of Copilot CLI that was installed'
+    value: ${{ steps.install.outputs.version }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Install GitHub Copilot CLI
+      id: install
+      shell: bash
+      run: |
+        set -euo pipefail
+        
+        # Normalize version (add 'v' prefix if not present)
+        VERSION="${{ inputs.version }}"
+        if [[ ! "$VERSION" =~ ^v ]]; then
+          VERSION="v$VERSION"
+        fi
+        
+        echo "Installing GitHub Copilot CLI version: $VERSION"
+        
+        # Detect platform and architecture
+        OS=$(uname -s | tr '[:upper:]' '[:lower:]')
+        ARCH=$(uname -m)
+        
+        # Map architecture names to GitHub release format
+        case "$ARCH" in
+          x86_64)
+            ARCH="x64"
+            ;;
+          aarch64|arm64)
+            ARCH="arm64"
+            ;;
+          *)
+            echo "Unsupported architecture: $ARCH"
+            exit 1
+            ;;
+        esac
+        
+        # Map OS names to GitHub release format
+        case "$OS" in
+          linux)
+            PLATFORM="linux"
+            ;;
+          darwin)
+            PLATFORM="darwin"
+            ;;
+          *)
+            echo "Unsupported OS: $OS"
+            exit 1
+            ;;
+        esac
+        
+        # Construct download URL
+        FILENAME="copilot-${PLATFORM}-${ARCH}.tar.gz"
+        DOWNLOAD_URL="https://github.com/github/copilot-cli/releases/download/${VERSION}/${FILENAME}"
+        
+        echo "Download URL: $DOWNLOAD_URL"
+        
+        # Create temporary directory
+        TEMP_DIR=$(mktemp -d)
+        trap "rm -rf $TEMP_DIR" EXIT
+        
+        # Download the release
+        echo "Downloading Copilot CLI..."
+        if ! curl -fsSL -o "$TEMP_DIR/$FILENAME" "$DOWNLOAD_URL"; then
+          echo "Failed to download Copilot CLI from $DOWNLOAD_URL"
+          exit 1
+        fi
+        
+        # Verify checksum if provided
+        CHECKSUM="${{ inputs.checksum }}"
+        if [ -n "$CHECKSUM" ]; then
+          echo "Verifying checksum..."
+          echo "$CHECKSUM  $TEMP_DIR/$FILENAME" | sha256sum -c - || {
+            echo "Checksum verification failed!"
+            echo "Expected: $CHECKSUM"
+            echo "Got: $(sha256sum "$TEMP_DIR/$FILENAME" | cut -d' ' -f1)"
+            exit 1
+          }
+          echo "Checksum verified successfully"
+        else
+          echo "Warning: Checksum verification skipped (no checksum provided)"
+          # Calculate and display the checksum for reference
+          ACTUAL_CHECKSUM=$(sha256sum "$TEMP_DIR/$FILENAME" | cut -d' ' -f1)
+          echo "File checksum: $ACTUAL_CHECKSUM"
+          echo "To enable verification, add this checksum to your workflow configuration"
+        fi
+        
+        # Extract the tarball
+        echo "Extracting Copilot CLI..."
+        tar -xzf "$TEMP_DIR/$FILENAME" -C "$TEMP_DIR"
+        
+        # Install to /usr/local/bin
+        echo "Installing to /usr/local/bin..."
+        sudo install -m 755 "$TEMP_DIR/copilot" /usr/local/bin/copilot
+        
+        # Verify installation
+        echo "Verifying installation..."
+        if ! command -v copilot &> /dev/null; then
+          echo "Failed to install Copilot CLI"
+          exit 1
+        fi
+        
+        # Output installed version
+        INSTALLED_VERSION=$(copilot --version 2>&1 || echo "unknown")
+        echo "Successfully installed Copilot CLI: $INSTALLED_VERSION"
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+branding:
+  icon: 'shield'
+  color: 'green'
