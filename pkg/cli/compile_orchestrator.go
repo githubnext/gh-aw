@@ -12,6 +12,7 @@ import (
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/logger"
 	"github.com/githubnext/gh-aw/pkg/workflow"
+	"gopkg.in/yaml.v3"
 )
 
 var compileOrchestratorLog = logger.New("cli:compile_orchestrator")
@@ -34,6 +35,33 @@ func renderGeneratedCampaignOrchestratorMarkdown(data *workflow.WorkflowData, so
 
 	// Make the orchestrator runnable by default.
 	b.WriteString("engine: copilot\n")
+
+	// Render safe-outputs if configured by the campaign orchestrator generator.
+	// This enables campaign orchestrators to update their Projects dashboard and
+	// post tracker comments without requiring manual edits to generated files.
+	if data.SafeOutputs != nil {
+		// NOTE: We must emit the public frontmatter keys (e.g. "add-comment") rather
+		// than the internal struct YAML tags (e.g. "add-comments").
+		outputs := map[string]any{}
+		if data.SafeOutputs.AddComments != nil {
+			outputs["add-comment"] = map[string]any{
+				"max": data.SafeOutputs.AddComments.Max,
+			}
+		}
+		if data.SafeOutputs.UpdateProjects != nil {
+			outputs["update-project"] = map[string]any{
+				"max": data.SafeOutputs.UpdateProjects.Max,
+			}
+		}
+		if len(outputs) > 0 {
+			payload := map[string]any{"safe-outputs": outputs}
+			if out, err := yaml.Marshal(payload); err == nil {
+				b.WriteString(string(out))
+			} else {
+				compileOrchestratorLog.Printf("Failed to render safe-outputs for generated campaign orchestrator: %v", err)
+			}
+		}
+	}
 
 	// Intentionally omit permissions from generated campaign orchestrator frontmatter.
 	// Workflow/job permissions are handled during compilation.

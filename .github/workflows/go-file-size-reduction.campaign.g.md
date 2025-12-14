@@ -6,6 +6,11 @@ on:
     - cron: "0 18 * * *"
   workflow_dispatch:
 engine: copilot
+safe-outputs:
+    add-comment:
+        max: 10
+    update-project:
+        max: 10
 runs-on: ubuntu-latest
 roles:
   - "admin"
@@ -24,7 +29,10 @@ This workflow orchestrates the 'Go File Size Reduction Campaign' campaign.
 - Associated workflows: daily-file-diet
 - Memory paths: memory/campaigns/go-file-size-reduction-*/**
 - Metrics glob: `memory/campaigns/go-file-size-reduction-*/metrics/*.json`
+- Project dashboard: https://github.com/orgs/githubnext/projects/60
 
 Each time this orchestrator runs on its daily schedule (or when manually dispatched), generate a concise status report for this campaign. Summarize current metrics, highlight blockers, and update any tracker issues using the campaign label.
+
+Keep the campaign Project dashboard in sync using the `update-project` safe output. Use the campaign's `project-url` (shown above) as the project identifier when updating/adding items and fields.
 
 Use these details to coordinate workers, update metrics, and track progress for this campaign.
