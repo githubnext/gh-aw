@@ -60,7 +60,11 @@
 # ```markdown
 # # Issue Triage Agent
 #
-# List open issues in ${{ github.repository }} that have no labels. For each unlabeled issue, analyze the title and body, then add one of the allowed labels: `bug`, `feature`, `enhancement`, `documentation`, `question`, `help-wanted`, or `good-first-issue`. Skip issues that already have any of these labels.
+# List open issues in ${{ github.repository }} that have no labels. For each unlabeled issue, analyze the title and body, then add one of the allowed labels: `bug`, `feature`, `enhancement`, `documentation`, `question`, `help-wanted`, or `good-first-issue`. 
+#
+# Skip issues that:
+# - Already have any of these labels
+# - Have been assigned to any user (especially non-bot users)
 # ```
 #
 # Pinned GitHub Actions:
@@ -2456,7 +2460,11 @@ jobs:
           cat << 'PROMPT_EOF' > "$GH_AW_PROMPT"
           # Issue Triage Agent
           
-          List open issues in __GH_AW_GITHUB_REPOSITORY__ that have no labels. For each unlabeled issue, analyze the title and body, then add one of the allowed labels: `bug`, `feature`, `enhancement`, `documentation`, `question`, `help-wanted`, or `good-first-issue`. Skip issues that already have any of these labels.
+          List open issues in __GH_AW_GITHUB_REPOSITORY__ that have no labels. For each unlabeled issue, analyze the title and body, then add one of the allowed labels: `bug`, `feature`, `enhancement`, `documentation`, `question`, `help-wanted`, or `good-first-issue`. 
+          
+          Skip issues that:
+          - Already have any of these labels
+          - Have been assigned to any user (especially non-bot users)
           
           PROMPT_EOF
       - name: Substitute placeholders
