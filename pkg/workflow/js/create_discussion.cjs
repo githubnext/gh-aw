@@ -1,10 +1,9 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-const { loadAgentOutput } = require("./load_agent_output.cjs");
 const { getTrackerID } = require("./get_tracker_id.cjs");
 const { closeOlderDiscussions } = require("./close_older_discussions.cjs");
-const { replaceTemporaryIdReferences, loadTemporaryIdMap } = require("./temporary_id.cjs");
+const { replaceTemporaryIdReferences, loadItemsWithTemporaryIds } = require("./temporary_id.cjs");
 const { parseAllowedRepos, getDefaultTargetRepo, validateRepo, parseRepoSlug } = require("./repo_helpers.cjs");
 const { addExpirationComment } = require("./expiration_helpers.cjs");
 const { removeDuplicateTitleFromDescription } = require("./remove_duplicate_title.cjs");
@@ -91,24 +90,6 @@ async function main() {
   core.setOutput("discussion_number", "");
   core.setOutput("discussion_url", "");
 
-  // Load the temporary ID map from create_issue job
-  const temporaryIdMap = loadTemporaryIdMap();
-  if (temporaryIdMap.size > 0) {
-    core.info(`Loaded temporary ID map with ${temporaryIdMap.size} entries`);
-  }
-
-  const result = loadAgentOutput();
-  if (!result.success) {
-    return;
-  }
-
-  const createDiscussionItems = result.items.filter(item => item.type === "create_discussion");
-  if (createDiscussionItems.length === 0) {
-    core.warning("No create-discussion items found in agent output");
-    return;
-  }
-  core.info(`Found ${createDiscussionItems.length} create-discussion item(s)`);
-
   // Parse allowed repos and default target
   const allowedRepos = parseAllowedRepos();
   const defaultTargetRepo = getDefaultTargetRepo();
@@ -117,28 +98,34 @@ async function main() {
     core.info(`Allowed repos: ${Array.from(allowedRepos).join(", ")}`);
   }
 
-  if (process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true") {
-    let summaryContent = "## 🎭 Staged Mode: Create Discussions Preview\n\n";
-    summaryContent += "The following discussions would be created if staged mode was disabled:\n\n";
-    for (let i = 0; i < createDiscussionItems.length; i++) {
-      const item = createDiscussionItems[i];
-      summaryContent += `### Discussion ${i + 1}\n`;
-      summaryContent += `**Title:** ${item.title || "No title provided"}\n\n`;
-      if (item.repo) {
-        summaryContent += `**Repository:** ${item.repo}\n\n`;
-      }
-      if (item.body) {
-        summaryContent += `**Body:**\n${item.body}\n\n`;
-      }
-      if (item.category) {
-        summaryContent += `**Category:** ${item.category}\n\n`;
-      }
-      summaryContent += "---\n\n";
-    }
-    await core.summary.addRaw(summaryContent).write();
-    core.info("📝 Discussion creation preview written to step summary");
-    return;
+  // Load items with temporary ID support and handle staged mode
+  const loaded = await loadItemsWithTemporaryIds({
+    itemType: "create_discussion",
+    staged: {
+      title: "Create Discussions",
+      description: "The following discussions would be created if staged mode was disabled:",
+      renderItem: (item, index) => {
+        let content = `### Discussion ${index + 1}\n`;
+        content += `**Title:** ${item.title || "No title provided"}\n\n`;
+        if (item.repo) {
+          content += `**Repository:** ${item.repo}\n\n`;
+        }
+        if (item.body) {
+          content += `**Body:**\n${item.body}\n\n`;
+        }
+        if (item.category) {
+          content += `**Category:** ${item.category}\n\n`;
+        }
+        return content;
+      },
+    },
+  });
+
+  if (!loaded) {
+    return; // Either staged mode handled or no items found
   }
+
+  const { items: createDiscussionItems, temporaryIdMap } = loaded;
 
   // Cache for repository info to avoid redundant API calls
   /** @type {Map<string, {repositoryId: string, discussionCategories: Array<{id: string, name: string, slug: string, description: string}>}>} */

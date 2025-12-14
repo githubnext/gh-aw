@@ -144,7 +144,7 @@ describe("create_discussion.cjs", () => {
     // Execute the script
     await eval(`(async () => { ${createDiscussionScript} })()`);
 
-    expect(mockCore.warning).toHaveBeenCalledWith("No create-discussion items found in agent output");
+    expect(mockCore.info).toHaveBeenCalledWith("No create_discussion items found in agent output");
   });
 
   it("should create discussions successfully with basic configuration", async () => {

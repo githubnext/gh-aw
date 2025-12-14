@@ -1,37 +1,16 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-const { loadAgentOutput } = require("./load_agent_output.cjs");
-const { generateStagedPreview } = require("./staged_preview.cjs");
-const { loadTemporaryIdMap, resolveIssueNumber } = require("./temporary_id.cjs");
+const { loadItemsWithTemporaryIds, resolveIssueNumber } = require("./temporary_id.cjs");
 
 async function main() {
-  const result = loadAgentOutput();
-  if (!result.success) {
-    return;
-  }
-
-  const linkItems = result.items.filter(item => item.type === "link_sub_issue");
-  if (linkItems.length === 0) {
-    core.info("No link_sub_issue items found in agent output");
-    return;
-  }
-
-  core.info(`Found ${linkItems.length} link_sub_issue item(s)`);
-
-  // Load the temporary ID map from create_issue job
-  const temporaryIdMap = loadTemporaryIdMap();
-  if (temporaryIdMap.size > 0) {
-    core.info(`Loaded temporary ID map with ${temporaryIdMap.size} entries`);
-  }
-
-  // Check if we're in staged mode
-  if (process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true") {
-    await generateStagedPreview({
+  // Load items with temporary ID support and handle staged mode
+  const loaded = await loadItemsWithTemporaryIds({
+    itemType: "link_sub_issue",
+    staged: {
       title: "Link Sub-Issue",
       description: "The following sub-issue links would be created if staged mode was disabled:",
-      items: linkItems,
-      renderItem: item => {
+      renderItem: (item, _index, temporaryIdMap) => {
         // Resolve temporary IDs for display
         const parentResolved = resolveIssueNumber(item.parent_issue_number, temporaryIdMap);
         const subResolved = resolveIssueNumber(item.sub_issue_number, temporaryIdMap);
@@ -54,9 +33,14 @@ async function main() {
         content += `**Sub-Issue:** ${subDisplay}\n\n`;
         return content;
       },
-    });
-    return;
+    },
+  });
+
+  if (!loaded) {
+    return; // Either staged mode handled or no items found
   }
+
+  const { items: linkItems, temporaryIdMap } = loaded;
 
   // Get filter configurations
   const parentRequiredLabelsEnv = process.env.GH_AW_LINK_SUB_ISSUE_PARENT_REQUIRED_LABELS?.trim();
