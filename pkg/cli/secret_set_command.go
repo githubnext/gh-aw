@@ -207,7 +207,7 @@ func encryptWithPublicKey(publicKeyB64, plaintext string) (string, error) {
 		return "", fmt.Errorf("unexpected public key length: %d, expected %d", len(raw), publicKeySize)
 	}
 
-	var pk [32]byte
+	var pk [publicKeySize]byte
 	copy(pk[:], raw)
 
 	ciphertext, err := box.SealAnonymous(nil, []byte(plaintext), &pk, rand.Reader)
