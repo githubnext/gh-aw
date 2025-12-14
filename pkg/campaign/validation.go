@@ -209,22 +209,83 @@ func ValidateSpecWithSchema(spec *CampaignSpec) []string {
 
 	// Validate the spec data against the schema
 	if err := schema.Validate(specData); err != nil {
-		// Handle validation errors
-		ve, ok := err.(*jsonschema.ValidationError)
-		if !ok {
-			return []string{fmt.Sprintf("schema validation error: %v", err)}
-		}
-
-		// Collect validation errors
-		var problems []string
-		problems = append(problems, formatValidationError(ve)...)
-		return problems
+		// Enhance error message with field-specific examples
+		enhancedErr := enhanceCampaignValidationError(err)
+		return []string{enhancedErr.Error()}
 	}
 
 	return nil
 }
 
-// formatValidationError recursively formats validation errors from jsonschema
+// enhanceCampaignValidationError adds inline examples to campaign validation errors
+func enhanceCampaignValidationError(err error) error {
+	ve, ok := err.(*jsonschema.ValidationError)
+	if !ok {
+		return err
+	}
+
+	// Extract field path from InstanceLocation
+	fieldPath := ""
+	if len(ve.InstanceLocation) > 0 {
+		fieldPath = strings.Join(ve.InstanceLocation, ".")
+	}
+
+	// Get field-specific example for campaign specs
+	example := getCampaignFieldExample(fieldPath, err)
+	if example == "" {
+		return err // No example available, return original error
+	}
+
+	// Return enhanced error with example
+	return fmt.Errorf("%v. %s", err, example)
+}
+
+// getCampaignFieldExample returns an example for the given campaign spec field
+func getCampaignFieldExample(fieldPath string, err error) string {
+	// Map of campaign spec fields to their examples
+	fieldExamples := map[string]string{
+		"id":                  "Example: id: security-compliance",
+		"name":                "Example: name: \"Security Compliance Campaign\"",
+		"description":         "Example: description: \"Campaign to ensure security compliance across repositories\"",
+		"version":             "Example: version: v1",
+		"workflows":           "Example: workflows: [security-audit, compliance-check]",
+		"memory-paths":        "Example: memory-paths: [.github/memory/security]",
+		"metrics-glob":        "Example: metrics-glob: \"metrics/security-*.json\"",
+		"owners":              "Example: owners: [security-team, compliance-team]",
+		"executive-sponsors":  "Example: executive-sponsors: [cto, ciso]",
+		"risk-level":          "Example: risk-level: high",
+		"tracker-label":       "Example: tracker-label: \"campaign:security-q1-2025\"",
+		"state":               "Valid states: planned, active, paused, completed, archived. Example: state: active",
+		"tags":                "Example: tags: [security, compliance, q1-2025]",
+		"allowed-safe-outputs": "Example: allowed-safe-outputs: [create-issue, create-pull-request]",
+		"approval-policy":     "Example: approval-policy:\\n  required: true\\n  approvers: [security-team]",
+	}
+
+	// Check if we have a specific example for this field
+	if example, ok := fieldExamples[fieldPath]; ok {
+		return example
+	}
+
+	// Generic examples based on error type
+	errorMsg := err.Error()
+	if strings.Contains(errorMsg, "string") {
+		return fmt.Sprintf("Example: %s: \"value\"", fieldPath)
+	}
+	if strings.Contains(errorMsg, "boolean") {
+		return fmt.Sprintf("Example: %s: true", fieldPath)
+	}
+	if strings.Contains(errorMsg, "object") {
+		return fmt.Sprintf("Example: %s:\\n  key: value", fieldPath)
+	}
+	if strings.Contains(errorMsg, "array") {
+		return fmt.Sprintf("Example: %s: [item1, item2]", fieldPath)
+	}
+
+	return "" // No example available
+}
+
+// formatValidationError recursively formats validation errors from jsonschema (legacy)
+// This function is kept for backwards compatibility but enhanceCampaignValidationError is preferred
 func formatValidationError(ve *jsonschema.ValidationError) []string {
 	var problems []string
 

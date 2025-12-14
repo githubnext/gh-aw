@@ -308,13 +308,19 @@ var (
 
 func getCompiledSchema() (*jsonschema.Schema, error) {
     compiledSchemaOnce.Do(func() {
-        // Load embedded schema
+        // Load and parse embedded schema
         var schemaDoc any
-        json.Unmarshal(schemaData, &schemaDoc)
+        if err := json.Unmarshal(schemaData, &schemaDoc); err != nil {
+            schemaCompileError = fmt.Errorf("failed to parse schema: %w", err)
+            return
+        }
         
         // Compile schema once
         compiler := jsonschema.NewCompiler()
-        compiler.AddResource(schemaURL, schemaDoc)
+        if err := compiler.AddResource(schemaURL, schemaDoc); err != nil {
+            schemaCompileError = fmt.Errorf("failed to add resource: %w", err)
+            return
+        }
         compiledSchema, schemaCompileError = compiler.Compile(schemaURL)
     })
     return compiledSchema, schemaCompileError
