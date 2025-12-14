@@ -233,10 +233,10 @@ func formatValidationError(ve *jsonschema.ValidationError) []string {
 	if len(ve.InstanceLocation) > 0 {
 		field = strings.Join(ve.InstanceLocation, ".")
 	}
-	
+
 	// Use the Error() method to get the formatted error message
 	message := ve.Error()
-	
+
 	problems = append(problems, fmt.Sprintf("%s: %s", field, message))
 
 	// Process any nested causes
