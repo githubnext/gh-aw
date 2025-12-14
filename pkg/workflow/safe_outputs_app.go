@@ -215,13 +215,16 @@ func convertPermissionsToAppTokenFields(permissions *Permissions) map[string]str
 	if level, ok := permissions.Get(PermissionStatuses); ok {
 		fields["permission-statuses"] = string(level)
 	}
+	if level, ok := permissions.Get(PermissionOrganizationProj); ok {
+		fields["permission-organization-projects"] = string(level)
+	}
 
 	// Note: The following GitHub Actions permissions do NOT have GitHub App equivalents:
 	// - discussions (no GitHub App permission for this)
 	// - models (no GitHub App permission for this)
 	// - id-token (not applicable to GitHub Apps)
 	// - attestations (no GitHub App permission for this)
-	// - repository-projects (use permission-repository-projects instead, but rarely needed)
+	// - repository-projects (classic repository projects, use organization-projects for Projects v2)
 
 	return fields
 }

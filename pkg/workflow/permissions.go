@@ -382,6 +382,8 @@ func convertStringToPermissionScope(key string) PermissionScope {
 		return PermissionPullRequests
 	case "repository-projects":
 		return PermissionRepositoryProj
+	case "organization-projects":
+		return PermissionOrganizationProj
 	case "security-events":
 		return PermissionSecurityEvents
 	case "statuses":
@@ -427,21 +429,22 @@ const (
 type PermissionScope string
 
 const (
-	PermissionActions        PermissionScope = "actions"
-	PermissionAttestations   PermissionScope = "attestations"
-	PermissionChecks         PermissionScope = "checks"
-	PermissionContents       PermissionScope = "contents"
-	PermissionDeployments    PermissionScope = "deployments"
-	PermissionDiscussions    PermissionScope = "discussions"
-	PermissionIdToken        PermissionScope = "id-token"
-	PermissionIssues         PermissionScope = "issues"
-	PermissionModels         PermissionScope = "models"
-	PermissionPackages       PermissionScope = "packages"
-	PermissionPages          PermissionScope = "pages"
-	PermissionPullRequests   PermissionScope = "pull-requests"
-	PermissionRepositoryProj PermissionScope = "repository-projects"
-	PermissionSecurityEvents PermissionScope = "security-events"
-	PermissionStatuses       PermissionScope = "statuses"
+	PermissionActions             PermissionScope = "actions"
+	PermissionAttestations        PermissionScope = "attestations"
+	PermissionChecks              PermissionScope = "checks"
+	PermissionContents            PermissionScope = "contents"
+	PermissionDeployments         PermissionScope = "deployments"
+	PermissionDiscussions         PermissionScope = "discussions"
+	PermissionIdToken             PermissionScope = "id-token"
+	PermissionIssues              PermissionScope = "issues"
+	PermissionModels              PermissionScope = "models"
+	PermissionPackages            PermissionScope = "packages"
+	PermissionPages               PermissionScope = "pages"
+	PermissionPullRequests        PermissionScope = "pull-requests"
+	PermissionRepositoryProj      PermissionScope = "repository-projects"
+	PermissionOrganizationProj    PermissionScope = "organization-projects"
+	PermissionSecurityEvents      PermissionScope = "security-events"
+	PermissionStatuses            PermissionScope = "statuses"
 )
 
 // GetAllPermissionScopes returns all available permission scopes
@@ -460,6 +463,7 @@ func GetAllPermissionScopes() []PermissionScope {
 		PermissionPages,
 		PermissionPullRequests,
 		PermissionRepositoryProj,
+		PermissionOrganizationProj,
 		PermissionSecurityEvents,
 		PermissionStatuses,
 	}
@@ -906,11 +910,11 @@ func NewPermissionsContentsReadSecurityEventsWriteActionsRead() *Permissions {
 	})
 }
 
-// NewPermissionsContentsReadProjectsWrite creates permissions with contents: read and repository-projects: write
+// NewPermissionsContentsReadProjectsWrite creates permissions with contents: read and organization-projects: write
 func NewPermissionsContentsReadProjectsWrite() *Permissions {
 	return NewPermissionsFromMap(map[PermissionScope]PermissionLevel{
-		PermissionContents:       PermissionRead,
-		PermissionRepositoryProj: PermissionWrite,
+		PermissionContents:         PermissionRead,
+		PermissionOrganizationProj: PermissionWrite,
 	})
 }
 
