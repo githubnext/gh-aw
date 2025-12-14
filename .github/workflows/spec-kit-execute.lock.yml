@@ -30,11 +30,14 @@
 #   schedule:
 #     - cron: '0 */6 * * *'  # Every 6 hours
 #   workflow_dispatch:
+#   push:
+#     paths:
+#       - '.specify/specs/**'
 #
 # permissions:
 #   contents: read
-#   issues: read
-#   pull-requests: read
+#   issues: write
+#   pull-requests: write
 #
 # tracker-id: spec-kit-execute
 # engine: copilot
@@ -46,6 +49,16 @@
 #     labels: [spec-kit, automation]
 #     reviewers: copilot
 #     draft: false
+#   create-issue:
+#     title-prefix: "[spec-kit failure] "
+#     labels: [spec-kit, failure, needs-triage]
+#     assignees: copilot
+#     max: 1
+#   messages:
+#     footer: "> 🤖 *Automated by [{workflow_name}]({run_url})*"
+#     run-started: "🚀 Spec-Kit Execute starting! [{workflow_name}]({run_url}) is scanning for pending specifications..."
+#     run-success: "✅ Spec-Kit Execute completed successfully! [{workflow_name}]({run_url}) has processed all pending work. Check the PR for details! 📋"
+#     run-failure: "❌ Spec-Kit Execute {status}! [{workflow_name}]({run_url}) encountered issues. Check the logs for details..."
 #
 # tools:
 #   cache-memory: true
@@ -80,23 +93,29 @@
 #   activation["activation"]
 #   agent["agent"]
 #   conclusion["conclusion"]
+#   create_issue["create_issue"]
 #   create_pull_request["create_pull_request"]
 #   detection["detection"]
+#   pre_activation["pre_activation"]
 #   push_repo_memory["push_repo_memory"]
 #   update_cache_memory["update_cache_memory"]
 #   activation --> agent
 #   activation --> conclusion
 #   activation --> create_pull_request
 #   agent --> conclusion
+#   agent --> create_issue
 #   agent --> create_pull_request
 #   agent --> detection
 #   agent --> push_repo_memory
 #   agent --> update_cache_memory
+#   create_issue --> conclusion
 #   create_pull_request --> conclusion
 #   detection --> conclusion
+#   detection --> create_issue
 #   detection --> create_pull_request
 #   detection --> push_repo_memory
 #   detection --> update_cache_memory
+#   pre_activation --> activation
 #   push_repo_memory --> conclusion
 #   update_cache_memory --> conclusion
 # ```
@@ -328,7 +347,109 @@
 #
 # This provides clear progress tracking and ensures the next workflow run knows where to continue.
 #
-# ### Step 8: Create Pull Request
+# ### Step 8: Create Execution Report
+#
+# Before creating a pull request, create a comprehensive execution report to track metrics and outcomes:
+#
+# 1. **Calculate Execution Metrics**:
+#    - Total features scanned
+#    - Total tasks attempted
+#    - Tasks completed successfully
+#    - Tasks failed (if any)
+#    - Execution time (start to finish)
+#    - Files created/modified
+#    - Test results (pass/fail counts)
+#
+# 2. **Prepare Execution Summary**:
+#
+# ```markdown
+# ## Spec-Kit Execution Report
+#
+# **Run Date**: YYYY-MM-DD HH:MM UTC
+# **Workflow Run**: #{run_id}
+# **Feature**: [FEATURE-NUMBER]-[FEATURE-NAME]
+#
+# ### Execution Metrics
+#
+# - ⏱️ **Duration**: X minutes
+# - 📋 **Tasks Attempted**: X
+# - ✅ **Tasks Completed**: X
+# - ❌ **Tasks Failed**: X (if any)
+# - 📁 **Files Changed**: X created, X modified
+# - 🧪 **Test Results**: X passed, X failed
+#
+# ### Feature Progress
+#
+# **Before Execution**:
+# - Total Tasks: X
+# - Completed: X
+# - Pending: X
+# - Progress: X%
+#
+# **After Execution**:
+# - Total Tasks: X
+# - Completed: X
+# - Pending: X
+# - Progress: X%
+# - **Net Progress**: +X%
+#
+# ### Status
+#
+# - ✅ All validation checks passed
+# - ✅ All tests passing
+# - ✅ Code formatted and linted
+# - ✅ Build successful
+#
+# ### Next Steps
+#
+# [List remaining tasks or note if feature is complete]
+# ```
+#
+# 3. **Report Failures (if any)**:
+#    - If ANY task failed during execution
+#    - If validation checks failed (fmt, lint, build, test)
+#    - If implementation was blocked by external factors
+#
+#    Use the create-issue safe-output to report failures:
+#
+# ```markdown
+# ## Spec-Kit Execution Failure
+#
+# **Feature**: [FEATURE-NUMBER]-[FEATURE-NAME]
+# **Workflow Run**: #{run_id}
+# **Failure Type**: [Build/Test/Implementation/Validation]
+#
+# ### What Happened
+#
+# [Clear description of what went wrong]
+#
+# ### Error Details
+#
+# ```
+# [Error messages, stack traces, or test failures]
+# ```
+#
+# ### Impact
+#
+# - Tasks blocked: [list affected tasks]
+# - Feature progress: Stalled at X%
+# - Dependencies affected: [list if any]
+#
+# ### Recommended Actions
+#
+# 1. [Action item 1]
+# 2. [Action item 2]
+# 3. [Action item 3]
+#
+# ### Context
+#
+# - Spec: `.specify/specs/[FEATURE-NUMBER]-[FEATURE-NAME]/spec.md`
+# - Plan: `.specify/specs/[FEATURE-NUMBER]-[FEATURE-NAME]/plan.md`
+# - Tasks: `.specify/specs/[FEATURE-NUMBER]-[FEATURE-NAME]/tasks.md`
+# - Logs: [workflow run URL]
+# ```
+#
+# ### Step 9: Create Pull Request
 #
 # Once implementation reaches a significant milestone (completed phase, user story, or all tasks):
 #
@@ -340,12 +461,37 @@
 #
 # 2. **Use safe-outputs to create the PR** - The workflow will automatically create a pull request with your changes
 #
+# ```
+#
+# 4. **Include Execution Report in PR**:
+#    - Add the execution report at the top of the PR description
+#    - Include all metrics and status information
+#    - Make it easy to review the workflow's accomplishments
+#
 # 3. **PR Description Format**:
 #
 # ```markdown
 # ## Spec-Kit Implementation: [FEATURE-NUMBER]-[FEATURE-NAME]
 #
 # This PR implements tasks from feature `.specify/specs/[FEATURE-NUMBER]-[FEATURE-NAME]` following the spec-driven development methodology and project constitution.
+#
+# ### Execution Report
+#
+# **Run Date**: YYYY-MM-DD HH:MM UTC
+# **Workflow Run**: [Link to run]
+# **Duration**: X minutes
+#
+# #### Metrics
+# - 📋 **Tasks Attempted**: X
+# - ✅ **Tasks Completed**: X
+# - ❌ **Tasks Failed**: 0
+# - 📁 **Files Changed**: X created, X modified
+# - 🧪 **Test Results**: All passing
+#
+# #### Feature Progress
+# - **Before**: X% complete (X/Y tasks)
+# - **After**: X% complete (X/Y tasks)
+# - **Net Progress**: +X%
 #
 # ### Completed Tasks
 #
@@ -402,17 +548,35 @@
 # - [ ] Phase 5: Polish and documentation
 # ```
 #
-# ### Step 9: Handle Edge Cases
+# ### Step 10: Handle Edge Cases
 #
 # **No Pending Work**: If no features have pending tasks or incomplete specs:
 # - Exit gracefully with a message: "No pending spec-kit work found. All features are complete or lack required specification files."
 # - Do not create a PR
 #
 # **Build/Test Failures**: If validation fails:
-# - Include the error details in the PR description
-# - Mark the PR as draft
+# - Create a failure report using the create-issue safe-output
+# - Include comprehensive error details in the issue
+# - Include the error details in the PR description if a PR was created
+# - Mark the PR as draft if created
 # - Clearly indicate which tests failed and include relevant error messages
+# - Tag the issue with appropriate labels (failure, needs-triage)
+# - Assign to copilot for review
 # - The human reviewer can decide how to proceed
+#
+# **Execution Monitoring**: Track key metrics throughout execution:
+# - Start time and end time for duration calculation
+# - Count of tasks attempted vs completed
+# - Files created and modified
+# - Test pass/fail counts at each validation step
+# - Build success/failure status
+# - Lint warnings and errors
+#
+# **Success Rate Tracking**: For reporting purposes:
+# - Calculate success rate: (completed_tasks / attempted_tasks) * 100%
+# - Track progress delta: (current_progress - starting_progress)
+# - Monitor execution efficiency: tasks_per_minute
+# - Report on blocking issues encountered
 #
 # **Complex Decisions**: If a task requires human judgment or architectural decisions:
 # - Document the decision point in the PR description
@@ -424,6 +588,89 @@
 # - Skip that feature
 # - Note it in the workflow output
 # - Look for the next valid feature to implement
+#
+# ## Monitoring and Reporting
+#
+# ### Execution Tracking
+#
+# Throughout the implementation, maintain awareness of key metrics:
+#
+# 1. **Time Tracking**:
+#    - Record start time at the beginning
+#    - Track time spent in each phase
+#    - Calculate total execution duration
+#    - Report duration in the final summary
+#
+# 2. **Progress Tracking**:
+#    - Count total tasks before starting
+#    - Track completed vs pending tasks
+#    - Calculate completion percentage before and after
+#    - Report net progress made
+#
+# 3. **Quality Metrics**:
+#    - Track test pass/fail counts
+#    - Monitor lint warnings/errors
+#    - Record build success/failure
+#    - Track files created vs modified
+#
+# 4. **Error Tracking**:
+#    - Log all errors encountered
+#    - Track failed tasks with reasons
+#    - Document blocking issues
+#    - Report recovery actions taken
+#
+# ### Status Reporting
+#
+# The workflow uses safe-outputs messages to report status:
+#
+# - **run-started**: Announces when the workflow begins scanning
+# - **run-success**: Reports successful completion with summary
+# - **run-failure**: Alerts when execution fails with status
+#
+# These messages appear in:
+# - Workflow run logs
+# - GitHub Actions UI
+# - Repository activity feed
+#
+# ### Failure Reporting
+#
+# When failures occur, create detailed reports using create-issue safe-output:
+#
+# **What to Report**:
+# - Exact error messages and stack traces
+# - Context: which feature, which task, which phase
+# - Impact: what's blocked, dependencies affected
+# - Logs: link to workflow run for full context
+# - Recommended actions for human intervention
+#
+# **When to Create Issues**:
+# - Build failures that block progress
+# - Test failures that can't be quickly fixed
+# - External dependencies unavailable
+# - Ambiguous specifications requiring clarification
+# - Security vulnerabilities detected
+# - Any situation requiring human decision-making
+#
+# **Issue Format**: Use the template provided in Step 8 for consistency
+#
+# ### Success Metrics
+#
+# Track and report these metrics in every PR:
+#
+# 1. **Completion Rate**: Tasks completed / Tasks attempted
+# 2. **Progress Delta**: Change in overall feature completion %
+# 3. **Test Coverage**: New tests added, existing tests passing
+# 4. **Build Health**: Successful build with no errors
+# 5. **Code Quality**: Lint passing, formatting correct
+# 6. **Execution Efficiency**: Tasks completed per hour
+#
+# ### Continuous Improvement
+#
+# After each run, the metrics help identify:
+# - Which types of tasks take longest
+# - Common failure patterns
+# - Areas needing better specifications
+# - Opportunities for automation improvements
 #
 # ## Guidelines
 #
@@ -475,6 +722,31 @@
 # 8. ✅ No security vulnerabilities introduced
 # 9. ✅ Minimal, surgical changes made
 # 10. ✅ Clear documentation of changes and rationale
+# 11. ✅ Execution report with metrics included
+# 12. ✅ Failures reported via issues when applicable
+# 13. ✅ Status messages sent throughout execution
+# 14. ✅ Progress tracking and success rate calculated
+#
+# ## Scheduled Execution Notes
+#
+# This workflow runs automatically:
+#
+# - **Schedule**: Every 6 hours (cron: `'0 */6 * * *'`)
+# - **Manual Trigger**: Available via workflow_dispatch
+# - **Auto-Trigger**: On push to `.specify/specs/**` paths
+#
+# **Expected Behavior**:
+# - Workflow runs even if no specs are found (reports "no pending work")
+# - One feature implemented per run for focused PRs
+# - Failed runs create issues for human review
+# - Success/failure status reported via messages
+# - Metrics tracked for continuous improvement
+#
+# **Monitoring**:
+# - Check workflow run logs for execution details
+# - Review created PRs for implementation progress
+# - Watch for failure issues requiring attention
+# - Track success rate over time
 #
 # Now begin by scanning for pending specifications and implementing the highest priority feature!
 # ```
@@ -495,6 +767,9 @@
 
 name: "Spec-Kit Execute"
 "on":
+  push:
+    paths:
+    - .specify/specs/**
   schedule:
   - cron: "0 */6 * * *"
   workflow_dispatch: null
@@ -502,12 +777,14 @@ name: "Spec-Kit Execute"
 permissions: {}
 
 concurrency:
-  group: "gh-aw-${{ github.workflow }}"
+  group: "gh-aw-${{ github.workflow }}-${{ github.ref }}"
 
 run-name: "Spec-Kit Execute"
 
 jobs:
   activation:
+    needs: pre_activation
+    if: needs.pre_activation.outputs.activated == 'true'
     runs-on: ubuntu-slim
     permissions:
       contents: read
@@ -608,10 +885,8 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      issues: read
-      pull-requests: read
-    concurrency:
-      group: "gh-aw-copilot-${{ github.workflow }}"
+      issues: write
+      pull-requests: write
     env:
       GH_AW_MCP_LOG_DIR: /tmp/gh-aw/mcp-logs/safeoutputs
       GH_AW_SAFE_OUTPUTS: /tmp/gh-aw/safeoutputs/outputs.jsonl
@@ -764,10 +1039,50 @@ jobs:
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
           cat > /tmp/gh-aw/safeoutputs/config.json << 'EOF'
-          {"create_pull_request":{},"missing_tool":{"max":0},"noop":{"max":1}}
+          {"create_issue":{"max":1},"create_pull_request":{},"missing_tool":{"max":0},"noop":{"max":1}}
           EOF
           cat > /tmp/gh-aw/safeoutputs/tools.json << 'EOF'
           [
+            {
+              "description": "Create a new GitHub issue for tracking bugs, feature requests, or tasks. Use this for actionable work items that need assignment, labeling, and status tracking. For reports, announcements, or status updates that don't require task tracking, use create_discussion instead. CONSTRAINTS: Maximum 1 issue(s) can be created. Title will be prefixed with \"[spec-kit failure] \". Labels [spec-kit failure needs-triage] will be automatically added. Assignees [copilot] will be automatically assigned.",
+              "inputSchema": {
+                "additionalProperties": false,
+                "properties": {
+                  "body": {
+                    "description": "Detailed issue description in Markdown. Do NOT repeat the title as a heading since it already appears as the issue's h1. Include context, reproduction steps, or acceptance criteria as appropriate.",
+                    "type": "string"
+                  },
+                  "labels": {
+                    "description": "Labels to categorize the issue (e.g., 'bug', 'enhancement'). Labels must exist in the repository.",
+                    "items": {
+                      "type": "string"
+                    },
+                    "type": "array"
+                  },
+                  "parent": {
+                    "description": "Parent issue number for creating sub-issues. Can be a real issue number (e.g., 42) or a temporary_id (e.g., 'aw_abc123def456') from a previously created issue in the same workflow run.",
+                    "type": [
+                      "number",
+                      "string"
+                    ]
+                  },
+                  "temporary_id": {
+                    "description": "Unique temporary identifier for referencing this issue before it's created. Format: 'aw_' followed by 12 hex characters (e.g., 'aw_abc123def456'). Use '#aw_ID' in body text to reference other issues by their temporary_id; these are replaced with actual issue numbers after creation.",
+                    "type": "string"
+                  },
+                  "title": {
+                    "description": "Concise issue title summarizing the bug, feature, or task. The title appears as the main heading, so keep it brief and descriptive.",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "title",
+                  "body"
+                ],
+                "type": "object"
+              },
+              "name": "create_issue"
+            },
             {
               "description": "Create a new GitHub pull request to propose code changes. Use this after making file edits to submit them for review and merging. The PR will be created from the current branch with your committed changes. For code review comments on an existing PR, use create_pull_request_review_comment instead. CONSTRAINTS: Maximum 1 pull request(s) can be created. Title will be prefixed with \"[spec-kit] \". Labels [spec-kit automation] will be automatically added. Reviewers [copilot] will be assigned.",
               "inputSchema": {
@@ -848,6 +1163,39 @@ jobs:
           EOF
           cat > /tmp/gh-aw/safeoutputs/validation.json << 'EOF'
           {
+            "create_issue": {
+              "defaultMax": 1,
+              "fields": {
+                "body": {
+                  "required": true,
+                  "type": "string",
+                  "sanitize": true,
+                  "maxLength": 65000
+                },
+                "labels": {
+                  "type": "array",
+                  "itemType": "string",
+                  "itemSanitize": true,
+                  "itemMaxLength": 128
+                },
+                "parent": {
+                  "issueOrPRNumber": true
+                },
+                "repo": {
+                  "type": "string",
+                  "maxLength": 256
+                },
+                "temporary_id": {
+                  "type": "string"
+                },
+                "title": {
+                  "required": true,
+                  "type": "string",
+                  "sanitize": true,
+                  "maxLength": 128
+                }
+              }
+            },
             "create_pull_request": {
               "defaultMax": 1,
               "fields": {
@@ -2638,7 +2986,109 @@ jobs:
           
           This provides clear progress tracking and ensures the next workflow run knows where to continue.
           
-          ### Step 8: Create Pull Request
+          ### Step 8: Create Execution Report
+          
+          Before creating a pull request, create a comprehensive execution report to track metrics and outcomes:
+          
+          1. **Calculate Execution Metrics**:
+             - Total features scanned
+             - Total tasks attempted
+             - Tasks completed successfully
+             - Tasks failed (if any)
+             - Execution time (start to finish)
+             - Files created/modified
+             - Test results (pass/fail counts)
+          
+          2. **Prepare Execution Summary**:
+          
+          ```markdown
+          ## Spec-Kit Execution Report
+          
+          **Run Date**: YYYY-MM-DD HH:MM UTC
+          **Workflow Run**: #{run_id}
+          **Feature**: [FEATURE-NUMBER]-[FEATURE-NAME]
+          
+          ### Execution Metrics
+          
+          - ⏱️ **Duration**: X minutes
+          - 📋 **Tasks Attempted**: X
+          - ✅ **Tasks Completed**: X
+          - ❌ **Tasks Failed**: X (if any)
+          - 📁 **Files Changed**: X created, X modified
+          - 🧪 **Test Results**: X passed, X failed
+          
+          ### Feature Progress
+          
+          **Before Execution**:
+          - Total Tasks: X
+          - Completed: X
+          - Pending: X
+          - Progress: X%
+          
+          **After Execution**:
+          - Total Tasks: X
+          - Completed: X
+          - Pending: X
+          - Progress: X%
+          - **Net Progress**: +X%
+          
+          ### Status
+          
+          - ✅ All validation checks passed
+          - ✅ All tests passing
+          - ✅ Code formatted and linted
+          - ✅ Build successful
+          
+          ### Next Steps
+          
+          [List remaining tasks or note if feature is complete]
+          ```
+          
+          3. **Report Failures (if any)**:
+             - If ANY task failed during execution
+             - If validation checks failed (fmt, lint, build, test)
+             - If implementation was blocked by external factors
+          
+             Use the create-issue safe-output to report failures:
+          
+          ```markdown
+          ## Spec-Kit Execution Failure
+          
+          **Feature**: [FEATURE-NUMBER]-[FEATURE-NAME]
+          **Workflow Run**: #{run_id}
+          **Failure Type**: [Build/Test/Implementation/Validation]
+          
+          ### What Happened
+          
+          [Clear description of what went wrong]
+          
+          ### Error Details
+          
+          ```
+          [Error messages, stack traces, or test failures]
+          ```
+          
+          ### Impact
+          
+          - Tasks blocked: [list affected tasks]
+          - Feature progress: Stalled at X%
+          - Dependencies affected: [list if any]
+          
+          ### Recommended Actions
+          
+          1. [Action item 1]
+          2. [Action item 2]
+          3. [Action item 3]
+          
+          ### Context
+          
+          - Spec: `.specify/specs/[FEATURE-NUMBER]-[FEATURE-NAME]/spec.md`
+          - Plan: `.specify/specs/[FEATURE-NUMBER]-[FEATURE-NAME]/plan.md`
+          - Tasks: `.specify/specs/[FEATURE-NUMBER]-[FEATURE-NAME]/tasks.md`
+          - Logs: [workflow run URL]
+          ```
+          
+          ### Step 9: Create Pull Request
           
           Once implementation reaches a significant milestone (completed phase, user story, or all tasks):
           
@@ -2650,12 +3100,37 @@ jobs:
           
           2. **Use safe-outputs to create the PR** - The workflow will automatically create a pull request with your changes
           
+          ```
+          
+          4. **Include Execution Report in PR**:
+             - Add the execution report at the top of the PR description
+             - Include all metrics and status information
+             - Make it easy to review the workflow's accomplishments
+          
           3. **PR Description Format**:
           
           ```markdown
           ## Spec-Kit Implementation: [FEATURE-NUMBER]-[FEATURE-NAME]
           
           This PR implements tasks from feature `.specify/specs/[FEATURE-NUMBER]-[FEATURE-NAME]` following the spec-driven development methodology and project constitution.
+          
+          ### Execution Report
+          
+          **Run Date**: YYYY-MM-DD HH:MM UTC
+          **Workflow Run**: [Link to run]
+          **Duration**: X minutes
+          
+          #### Metrics
+          - 📋 **Tasks Attempted**: X
+          - ✅ **Tasks Completed**: X
+          - ❌ **Tasks Failed**: 0
+          - 📁 **Files Changed**: X created, X modified
+          - 🧪 **Test Results**: All passing
+          
+          #### Feature Progress
+          - **Before**: X% complete (X/Y tasks)
+          - **After**: X% complete (X/Y tasks)
+          - **Net Progress**: +X%
           
           ### Completed Tasks
           
@@ -2712,17 +3187,35 @@ jobs:
           - [ ] Phase 5: Polish and documentation
           ```
           
-          ### Step 9: Handle Edge Cases
+          ### Step 10: Handle Edge Cases
           
           **No Pending Work**: If no features have pending tasks or incomplete specs:
           - Exit gracefully with a message: "No pending spec-kit work found. All features are complete or lack required specification files."
           - Do not create a PR
           
           **Build/Test Failures**: If validation fails:
-          - Include the error details in the PR description
-          - Mark the PR as draft
+          - Create a failure report using the create-issue safe-output
+          - Include comprehensive error details in the issue
+          - Include the error details in the PR description if a PR was created
+          - Mark the PR as draft if created
           - Clearly indicate which tests failed and include relevant error messages
+          - Tag the issue with appropriate labels (failure, needs-triage)
+          - Assign to copilot for review
           - The human reviewer can decide how to proceed
+          
+          **Execution Monitoring**: Track key metrics throughout execution:
+          - Start time and end time for duration calculation
+          - Count of tasks attempted vs completed
+          - Files created and modified
+          - Test pass/fail counts at each validation step
+          - Build success/failure status
+          - Lint warnings and errors
+          
+          **Success Rate Tracking**: For reporting purposes:
+          - Calculate success rate: (completed_tasks / attempted_tasks) * 100%
+          - Track progress delta: (current_progress - starting_progress)
+          - Monitor execution efficiency: tasks_per_minute
+          - Report on blocking issues encountered
           
           **Complex Decisions**: If a task requires human judgment or architectural decisions:
           - Document the decision point in the PR description
@@ -2734,6 +3227,95 @@ jobs:
           - Skip that feature
           - Note it in the workflow output
           - Look for the next valid feature to implement
+          
+          ## Monitoring and Reporting
+          
+          ### Execution Tracking
+          
+          Throughout the implementation, maintain awareness of key metrics:
+          
+          1. **Time Tracking**:
+             - Record start time at the beginning
+             - Track time spent in each phase
+             - Calculate total execution duration
+             - Report duration in the final summary
+          
+          2. **Progress Tracking**:
+             - Count total tasks before starting
+             - Track completed vs pending tasks
+             - Calculate completion percentage before and after
+             - Report net progress made
+          
+          3. **Quality Metrics**:
+             - Track test pass/fail counts
+             - Monitor lint warnings/errors
+             - Record build success/failure
+             - Track files created vs modified
+          
+          4. **Error Tracking**:
+             - Log all errors encountered
+             - Track failed tasks with reasons
+             - Document blocking issues
+             - Report recovery actions taken
+          
+          ### Status Reporting
+          
+          The workflow uses safe-outputs messages to report status:
+          
+          - **run-started**: Announces when the workflow begins scanning
+          - **run-success**: Reports successful completion with summary
+          - **run-failure**: Alerts when execution fails with status
+          
+          These messages appear in:
+          - Workflow run logs
+          - GitHub Actions UI
+          - Repository activity feed
+          
+          ### Failure Reporting
+          
+          When failures occur, create detailed reports using create-issue safe-output:
+          
+          **What to Report**:
+          - Exact error messages and stack traces
+          - Context: which feature, which task, which phase
+          PROMPT_EOF
+      - name: Append prompt (part 2)
+        env:
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+        run: |
+          cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
+          - Impact: what's blocked, dependencies affected
+          - Logs: link to workflow run for full context
+          - Recommended actions for human intervention
+          
+          **When to Create Issues**:
+          - Build failures that block progress
+          - Test failures that can't be quickly fixed
+          - External dependencies unavailable
+          - Ambiguous specifications requiring clarification
+          - Security vulnerabilities detected
+          - Any situation requiring human decision-making
+          
+          **Issue Format**: Use the template provided in Step 8 for consistency
+          
+          ### Success Metrics
+          
+          Track and report these metrics in every PR:
+          
+          1. **Completion Rate**: Tasks completed / Tasks attempted
+          2. **Progress Delta**: Change in overall feature completion %
+          3. **Test Coverage**: New tests added, existing tests passing
+          4. **Build Health**: Successful build with no errors
+          5. **Code Quality**: Lint passing, formatting correct
+          6. **Execution Efficiency**: Tasks completed per hour
+          
+          ### Continuous Improvement
+          
+          After each run, the metrics help identify:
+          - Which types of tasks take longest
+          - Common failure patterns
+          - Areas needing better specifications
+          - Opportunities for automation improvements
           
           ## Guidelines
           
@@ -2785,6 +3367,31 @@ jobs:
           8. ✅ No security vulnerabilities introduced
           9. ✅ Minimal, surgical changes made
           10. ✅ Clear documentation of changes and rationale
+          11. ✅ Execution report with metrics included
+          12. ✅ Failures reported via issues when applicable
+          13. ✅ Status messages sent throughout execution
+          14. ✅ Progress tracking and success rate calculated
+          
+          ## Scheduled Execution Notes
+          
+          This workflow runs automatically:
+          
+          - **Schedule**: Every 6 hours (cron: `'0 */6 * * *'`)
+          - **Manual Trigger**: Available via workflow_dispatch
+          - **Auto-Trigger**: On push to `.specify/specs/**` paths
+          
+          **Expected Behavior**:
+          - Workflow runs even if no specs are found (reports "no pending work")
+          - One feature implemented per run for focused PRs
+          - Failed runs create issues for human review
+          - Success/failure status reported via messages
+          - Metrics tracked for continuous improvement
+          
+          **Monitoring**:
+          - Check workflow run logs for execution details
+          - Review created PRs for implementation progress
+          - Watch for failure issues requiring attention
+          - Track success rate over time
           
           Now begin by scanning for pending specifications and implementing the highest priority feature!
           
@@ -2904,7 +3511,7 @@ jobs:
           <instructions>
           To create or modify GitHub resources (issues, discussions, pull requests, etc.), you MUST call the appropriate safe output tool. Simply writing content will NOT work - the workflow requires actual tool calls.
           
-          **Available tools**: create_pull_request, missing_tool, noop
+          **Available tools**: create_issue, create_pull_request, missing_tool, noop
           
           **Critical**: Tool calls write structured data that downstream jobs process. Without tool calls, follow-up actions will be skipped.
           </instructions>
@@ -6469,6 +7076,7 @@ jobs:
     needs:
       - activation
       - agent
+      - create_issue
       - create_pull_request
       - detection
       - push_repo_memory
@@ -6724,7 +7332,9 @@ jobs:
           GH_AW_TRACKER_ID: "spec-kit-execute"
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
           GH_AW_DETECTION_CONCLUSION: ${{ needs.detection.result }}
-          GH_AW_SAFE_OUTPUT_JOBS: "{\"create_pull_request\":\"pull_request_url\"}"
+          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🤖 *Automated by [{workflow_name}]({run_url})*\",\"runStarted\":\"🚀 Spec-Kit Execute starting! [{workflow_name}]({run_url}) is scanning for pending specifications...\",\"runSuccess\":\"✅ Spec-Kit Execute completed successfully! [{workflow_name}]({run_url}) has processed all pending work. Check the PR for details! 📋\",\"runFailure\":\"❌ Spec-Kit Execute {status}! [{workflow_name}]({run_url}) encountered issues. Check the logs for details...\"}"
+          GH_AW_SAFE_OUTPUT_JOBS: "{\"create_issue\":\"issue_url\",\"create_pull_request\":\"pull_request_url\"}"
+          GH_AW_OUTPUT_CREATE_ISSUE_ISSUE_URL: ${{ needs.create_issue.outputs.issue_url }}
           GH_AW_OUTPUT_CREATE_PULL_REQUEST_PULL_REQUEST_URL: ${{ needs.create_pull_request.outputs.pull_request_url }}
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
@@ -6980,6 +7590,1052 @@ jobs:
               core.setFailed(error instanceof Error ? error.message : String(error));
             });
 
+  create_issue:
+    needs:
+      - agent
+      - detection
+    if: >
+      (((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'create_issue'))) &&
+      (needs.detection.outputs.success == 'true')
+    runs-on: ubuntu-slim
+    permissions:
+      contents: read
+      issues: write
+    timeout-minutes: 10
+    outputs:
+      issue_number: ${{ steps.create_issue.outputs.issue_number }}
+      issue_url: ${{ steps.create_issue.outputs.issue_url }}
+      issues_to_assign_copilot: ${{ steps.create_issue.outputs.issues_to_assign_copilot }}
+      temporary_id_map: ${{ steps.create_issue.outputs.temporary_id_map }}
+    steps:
+      - name: Download agent output artifact
+        continue-on-error: true
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
+        with:
+          name: agent_output.json
+          path: /tmp/gh-aw/safeoutputs/
+      - name: Setup agent output environment variable
+        run: |
+          mkdir -p /tmp/gh-aw/safeoutputs/
+          find "/tmp/gh-aw/safeoutputs/" -type f -print
+          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> "$GITHUB_ENV"
+      - name: Create Output Issue
+        id: create_issue
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        env:
+          GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
+          GH_AW_ISSUE_TITLE_PREFIX: "[spec-kit failure] "
+          GH_AW_ISSUE_LABELS: "spec-kit,failure,needs-triage"
+          GH_AW_WORKFLOW_NAME: "Spec-Kit Execute"
+          GH_AW_TRACKER_ID: "spec-kit-execute"
+          GH_AW_ENGINE_ID: "copilot"
+          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🤖 *Automated by [{workflow_name}]({run_url})*\",\"runStarted\":\"🚀 Spec-Kit Execute starting! [{workflow_name}]({run_url}) is scanning for pending specifications...\",\"runSuccess\":\"✅ Spec-Kit Execute completed successfully! [{workflow_name}]({run_url}) has processed all pending work. Check the PR for details! 📋\",\"runFailure\":\"❌ Spec-Kit Execute {status}! [{workflow_name}]({run_url}) encountered issues. Check the logs for details...\"}"
+          GH_AW_ASSIGN_COPILOT: "true"
+        with:
+          github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+          script: |
+            function sanitizeLabelContent(content) {
+              if (!content || typeof content !== "string") {
+                return "";
+              }
+              let sanitized = content.trim();
+              sanitized = sanitized.replace(/\x1b\[[0-9;]*[mGKH]/g, "");
+              sanitized = sanitized.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "");
+              sanitized = sanitized.replace(
+                /(^|[^\w`])@([A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?(?:\/[A-Za-z0-9._-]+)?)/g,
+                (_m, p1, p2) => `${p1}\`@${p2}\``
+              );
+              sanitized = sanitized.replace(/[<>&'"]/g, "");
+              return sanitized.trim();
+            }
+            const fs = require("fs");
+            const crypto = require("crypto");
+            const MAX_LOG_CONTENT_LENGTH = 10000;
+            function truncateForLogging(content) {
+              if (content.length <= MAX_LOG_CONTENT_LENGTH) {
+                return content;
+              }
+              return content.substring(0, MAX_LOG_CONTENT_LENGTH) + `\n... (truncated, total length: ${content.length})`;
+            }
+            function loadAgentOutput() {
+              const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT;
+              if (!agentOutputFile) {
+                core.info("No GH_AW_AGENT_OUTPUT environment variable found");
+                return { success: false };
+              }
+              let outputContent;
+              try {
+                outputContent = fs.readFileSync(agentOutputFile, "utf8");
+              } catch (error) {
+                const errorMessage = `Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`;
+                core.error(errorMessage);
+                return { success: false, error: errorMessage };
+              }
+              if (outputContent.trim() === "") {
+                core.info("Agent output content is empty");
+                return { success: false };
+              }
+              core.info(`Agent output content length: ${outputContent.length}`);
+              let validatedOutput;
+              try {
+                validatedOutput = JSON.parse(outputContent);
+              } catch (error) {
+                const errorMessage = `Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`;
+                core.error(errorMessage);
+                core.info(`Failed to parse content:\n${truncateForLogging(outputContent)}`);
+                return { success: false, error: errorMessage };
+              }
+              if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
+                core.info("No valid items found in agent output");
+                core.info(`Parsed content: ${truncateForLogging(JSON.stringify(validatedOutput))}`);
+                return { success: false };
+              }
+              return { success: true, items: validatedOutput.items };
+            }
+            async function generateStagedPreview(options) {
+              const { title, description, items, renderItem } = options;
+              let summaryContent = `## 🎭 Staged Mode: ${title} Preview\n\n`;
+              summaryContent += `${description}\n\n`;
+              for (let i = 0; i < items.length; i++) {
+                const item = items[i];
+                summaryContent += renderItem(item, i);
+                summaryContent += "---\n\n";
+              }
+              try {
+                await core.summary.addRaw(summaryContent).write();
+                core.info(summaryContent);
+                core.info(`📝 ${title} preview written to step summary`);
+              } catch (error) {
+                core.setFailed(error instanceof Error ? error : String(error));
+              }
+            }
+            function generateXMLMarker(workflowName, runUrl) {
+              const engineId = process.env.GH_AW_ENGINE_ID || "";
+              const engineVersion = process.env.GH_AW_ENGINE_VERSION || "";
+              const engineModel = process.env.GH_AW_ENGINE_MODEL || "";
+              const trackerId = process.env.GH_AW_TRACKER_ID || "";
+              const parts = [];
+              parts.push(`agentic-workflow: ${workflowName}`);
+              if (trackerId) {
+                parts.push(`tracker-id: ${trackerId}`);
+              }
+              if (engineId) {
+                parts.push(`engine: ${engineId}`);
+              }
+              if (engineVersion) {
+                parts.push(`version: ${engineVersion}`);
+              }
+              if (engineModel) {
+                parts.push(`model: ${engineModel}`);
+              }
+              parts.push(`run: ${runUrl}`);
+              return `<!-- ${parts.join(", ")} -->`;
+            }
+            function generateFooter(
+              workflowName,
+              runUrl,
+              workflowSource,
+              workflowSourceURL,
+              triggeringIssueNumber,
+              triggeringPRNumber,
+              triggeringDiscussionNumber
+            ) {
+              let footer = `\n\n> AI generated by [${workflowName}](${runUrl})`;
+              if (triggeringIssueNumber) {
+                footer += ` for #${triggeringIssueNumber}`;
+              } else if (triggeringPRNumber) {
+                footer += ` for #${triggeringPRNumber}`;
+              } else if (triggeringDiscussionNumber) {
+                footer += ` for discussion #${triggeringDiscussionNumber}`;
+              }
+              if (workflowSource && workflowSourceURL) {
+                footer += `\n>\n> To add this workflow in your repository, run \`gh aw add ${workflowSource}\`. See [usage guide](https://githubnext.github.io/gh-aw/tools/cli/).`;
+              }
+              footer += "\n\n" + generateXMLMarker(workflowName, runUrl);
+              footer += "\n";
+              return footer;
+            }
+            function getTrackerID(format) {
+              const trackerID = process.env.GH_AW_TRACKER_ID || "";
+              if (trackerID) {
+                core.info(`Tracker ID: ${trackerID}`);
+                return format === "markdown" ? `\n\n<!-- tracker-id: ${trackerID} -->` : trackerID;
+              }
+              return "";
+            }
+            const TEMPORARY_ID_PATTERN = /#(aw_[0-9a-f]{12})/gi;
+            function generateTemporaryId() {
+              return "aw_" + crypto.randomBytes(6).toString("hex");
+            }
+            function isTemporaryId(value) {
+              if (typeof value === "string") {
+                return /^aw_[0-9a-f]{12}$/i.test(value);
+              }
+              return false;
+            }
+            function normalizeTemporaryId(tempId) {
+              return String(tempId).toLowerCase();
+            }
+            function replaceTemporaryIdReferences(text, tempIdMap, currentRepo) {
+              return text.replace(TEMPORARY_ID_PATTERN, (match, tempId) => {
+                const resolved = tempIdMap.get(normalizeTemporaryId(tempId));
+                if (resolved !== undefined) {
+                  if (currentRepo && resolved.repo === currentRepo) {
+                    return `#${resolved.number}`;
+                  }
+                  return `${resolved.repo}#${resolved.number}`;
+                }
+                return match;
+              });
+            }
+            function replaceTemporaryIdReferencesLegacy(text, tempIdMap) {
+              return text.replace(TEMPORARY_ID_PATTERN, (match, tempId) => {
+                const issueNumber = tempIdMap.get(normalizeTemporaryId(tempId));
+                if (issueNumber !== undefined) {
+                  return `#${issueNumber}`;
+                }
+                return match;
+              });
+            }
+            function loadTemporaryIdMap() {
+              const mapJson = process.env.GH_AW_TEMPORARY_ID_MAP;
+              if (!mapJson || mapJson === "{}") {
+                return new Map();
+              }
+              try {
+                const mapObject = JSON.parse(mapJson);
+                const result = new Map();
+                for (const [key, value] of Object.entries(mapObject)) {
+                  const normalizedKey = normalizeTemporaryId(key);
+                  if (typeof value === "number") {
+                    const contextRepo = `${context.repo.owner}/${context.repo.repo}`;
+                    result.set(normalizedKey, { repo: contextRepo, number: value });
+                  } else if (typeof value === "object" && value !== null && "repo" in value && "number" in value) {
+                    result.set(normalizedKey, { repo: String(value.repo), number: Number(value.number) });
+                  }
+                }
+                return result;
+              } catch (error) {
+                if (typeof core !== "undefined") {
+                  core.warning(`Failed to parse temporary ID map: ${error instanceof Error ? error.message : String(error)}`);
+                }
+                return new Map();
+              }
+            }
+            function resolveIssueNumber(value, temporaryIdMap) {
+              if (value === undefined || value === null) {
+                return { resolved: null, wasTemporaryId: false, errorMessage: "Issue number is missing" };
+              }
+              const valueStr = String(value);
+              if (isTemporaryId(valueStr)) {
+                const resolvedPair = temporaryIdMap.get(normalizeTemporaryId(valueStr));
+                if (resolvedPair !== undefined) {
+                  return { resolved: resolvedPair, wasTemporaryId: true, errorMessage: null };
+                }
+                return {
+                  resolved: null,
+                  wasTemporaryId: true,
+                  errorMessage: `Temporary ID '${valueStr}' not found in map. Ensure the issue was created before linking.`,
+                };
+              }
+              const issueNumber = typeof value === "number" ? value : parseInt(valueStr, 10);
+              if (isNaN(issueNumber) || issueNumber <= 0) {
+                return { resolved: null, wasTemporaryId: false, errorMessage: `Invalid issue number: ${value}` };
+              }
+              const contextRepo = typeof context !== "undefined" ? `${context.repo.owner}/${context.repo.repo}` : "";
+              return { resolved: { repo: contextRepo, number: issueNumber }, wasTemporaryId: false, errorMessage: null };
+            }
+            function serializeTemporaryIdMap(tempIdMap) {
+              const obj = Object.fromEntries(tempIdMap);
+              return JSON.stringify(obj);
+            }
+            function parseAllowedRepos() {
+              const allowedReposEnv = process.env.GH_AW_ALLOWED_REPOS;
+              const set = new Set();
+              if (allowedReposEnv) {
+                allowedReposEnv
+                  .split(",")
+                  .map(repo => repo.trim())
+                  .filter(repo => repo)
+                  .forEach(repo => set.add(repo));
+              }
+              return set;
+            }
+            function getDefaultTargetRepo() {
+              const targetRepoSlug = process.env.GH_AW_TARGET_REPO_SLUG;
+              if (targetRepoSlug) {
+                return targetRepoSlug;
+              }
+              return `${context.repo.owner}/${context.repo.repo}`;
+            }
+            function validateRepo(repo, defaultRepo, allowedRepos) {
+              if (repo === defaultRepo) {
+                return { valid: true, error: null };
+              }
+              if (allowedRepos.has(repo)) {
+                return { valid: true, error: null };
+              }
+              return {
+                valid: false,
+                error: `Repository '${repo}' is not in the allowed-repos list. Allowed: ${defaultRepo}${allowedRepos.size > 0 ? ", " + Array.from(allowedRepos).join(", ") : ""}`,
+              };
+            }
+            function parseRepoSlug(repoSlug) {
+              const parts = repoSlug.split("/");
+              if (parts.length !== 2 || !parts[0] || !parts[1]) {
+                return null;
+              }
+              return { owner: parts[0], repo: parts[1] };
+            }
+            function addExpirationComment(bodyLines, envVarName, entityType) {
+              const expiresEnv = process.env[envVarName];
+              if (expiresEnv) {
+                const expiresDays = parseInt(expiresEnv, 10);
+                if (!isNaN(expiresDays) && expiresDays > 0) {
+                  const expirationDate = new Date();
+                  expirationDate.setDate(expirationDate.getDate() + expiresDays);
+                  const expirationISO = expirationDate.toISOString();
+                  bodyLines.push(`<!-- gh-aw-expires: ${expirationISO} -->`);
+                  core.info(`${entityType} will expire on ${expirationISO} (${expiresDays} days)`);
+                }
+              }
+            }
+            function removeDuplicateTitleFromDescription(title, description) {
+              if (!title || typeof title !== "string") {
+                return description || "";
+              }
+              if (!description || typeof description !== "string") {
+                return "";
+              }
+              const trimmedTitle = title.trim();
+              const trimmedDescription = description.trim();
+              if (!trimmedTitle || !trimmedDescription) {
+                return trimmedDescription;
+              }
+              const escapedTitle = trimmedTitle.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+              const headerRegex = new RegExp(`^#{1,6}\\s+${escapedTitle}\\s*(?:\\r?\\n)*`, "i");
+              if (headerRegex.test(trimmedDescription)) {
+                return trimmedDescription.replace(headerRegex, "").trim();
+              }
+              return trimmedDescription;
+            }
+            async function main() {
+              core.setOutput("issue_number", "");
+              core.setOutput("issue_url", "");
+              core.setOutput("temporary_id_map", "{}");
+              core.setOutput("issues_to_assign_copilot", "");
+              const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
+              const result = loadAgentOutput();
+              if (!result.success) {
+                return;
+              }
+              const createIssueItems = result.items.filter(item => item.type === "create_issue");
+              if (createIssueItems.length === 0) {
+                core.info("No create-issue items found in agent output");
+                return;
+              }
+              core.info(`Found ${createIssueItems.length} create-issue item(s)`);
+              const allowedRepos = parseAllowedRepos();
+              const defaultTargetRepo = getDefaultTargetRepo();
+              core.info(`Default target repo: ${defaultTargetRepo}`);
+              if (allowedRepos.size > 0) {
+                core.info(`Allowed repos: ${Array.from(allowedRepos).join(", ")}`);
+              }
+              if (isStaged) {
+                await generateStagedPreview({
+                  title: "Create Issues",
+                  description: "The following issues would be created if staged mode was disabled:",
+                  items: createIssueItems,
+                  renderItem: (item, index) => {
+                    let content = `### Issue ${index + 1}\n`;
+                    content += `**Title:** ${item.title || "No title provided"}\n\n`;
+                    if (item.temporary_id) {
+                      content += `**Temporary ID:** ${item.temporary_id}\n\n`;
+                    }
+                    if (item.repo) {
+                      content += `**Repository:** ${item.repo}\n\n`;
+                    }
+                    if (item.body) {
+                      content += `**Body:**\n${item.body}\n\n`;
+                    }
+                    if (item.labels && item.labels.length > 0) {
+                      content += `**Labels:** ${item.labels.join(", ")}\n\n`;
+                    }
+                    if (item.parent) {
+                      content += `**Parent:** ${item.parent}\n\n`;
+                    }
+                    return content;
+                  },
+                });
+                return;
+              }
+              const parentIssueNumber = context.payload?.issue?.number;
+              const temporaryIdMap = new Map();
+              const triggeringIssueNumber =
+                context.payload?.issue?.number && !context.payload?.issue?.pull_request ? context.payload.issue.number : undefined;
+              const triggeringPRNumber =
+                context.payload?.pull_request?.number || (context.payload?.issue?.pull_request ? context.payload.issue.number : undefined);
+              const triggeringDiscussionNumber = context.payload?.discussion?.number;
+              const labelsEnv = process.env.GH_AW_ISSUE_LABELS;
+              let envLabels = labelsEnv
+                ? labelsEnv
+                    .split(",")
+                    .map(label => label.trim())
+                    .filter(label => label)
+                : [];
+              const createdIssues = [];
+              for (let i = 0; i < createIssueItems.length; i++) {
+                const createIssueItem = createIssueItems[i];
+                const itemRepo = createIssueItem.repo ? String(createIssueItem.repo).trim() : defaultTargetRepo;
+                const repoValidation = validateRepo(itemRepo, defaultTargetRepo, allowedRepos);
+                if (!repoValidation.valid) {
+                  core.warning(`Skipping issue: ${repoValidation.error}`);
+                  continue;
+                }
+                const repoParts = parseRepoSlug(itemRepo);
+                if (!repoParts) {
+                  core.warning(`Skipping issue: Invalid repository format '${itemRepo}'. Expected 'owner/repo'.`);
+                  continue;
+                }
+                const temporaryId = createIssueItem.temporary_id || generateTemporaryId();
+                core.info(
+                  `Processing create-issue item ${i + 1}/${createIssueItems.length}: title=${createIssueItem.title}, bodyLength=${createIssueItem.body.length}, temporaryId=${temporaryId}, repo=${itemRepo}`
+                );
+                core.info(`Debug: createIssueItem.parent = ${JSON.stringify(createIssueItem.parent)}`);
+                core.info(`Debug: parentIssueNumber from context = ${JSON.stringify(parentIssueNumber)}`);
+                let effectiveParentIssueNumber;
+                let effectiveParentRepo = itemRepo; 
+                if (createIssueItem.parent !== undefined) {
+                  if (isTemporaryId(createIssueItem.parent)) {
+                    const resolvedParent = temporaryIdMap.get(normalizeTemporaryId(createIssueItem.parent));
+                    if (resolvedParent !== undefined) {
+                      effectiveParentIssueNumber = resolvedParent.number;
+                      effectiveParentRepo = resolvedParent.repo;
+                      core.info(`Resolved parent temporary ID '${createIssueItem.parent}' to ${effectiveParentRepo}#${effectiveParentIssueNumber}`);
+                    } else {
+                      core.warning(
+                        `Parent temporary ID '${createIssueItem.parent}' not found in map. Ensure parent issue is created before sub-issues.`
+                      );
+                      effectiveParentIssueNumber = undefined;
+                    }
+                  } else {
+                    effectiveParentIssueNumber = parseInt(String(createIssueItem.parent), 10);
+                    if (isNaN(effectiveParentIssueNumber)) {
+                      core.warning(`Invalid parent value: ${createIssueItem.parent}`);
+                      effectiveParentIssueNumber = undefined;
+                    }
+                  }
+                } else {
+                  const contextRepo = `${context.repo.owner}/${context.repo.repo}`;
+                  if (itemRepo === contextRepo) {
+                    effectiveParentIssueNumber = parentIssueNumber;
+                  }
+                }
+                core.info(
+                  `Debug: effectiveParentIssueNumber = ${JSON.stringify(effectiveParentIssueNumber)}, effectiveParentRepo = ${effectiveParentRepo}`
+                );
+                if (effectiveParentIssueNumber && createIssueItem.parent !== undefined) {
+                  core.info(`Using explicit parent issue number from item: ${effectiveParentRepo}#${effectiveParentIssueNumber}`);
+                }
+                let labels = [...envLabels];
+                if (createIssueItem.labels && Array.isArray(createIssueItem.labels)) {
+                  labels = [...labels, ...createIssueItem.labels];
+                }
+                labels = labels
+                  .filter(label => !!label)
+                  .map(label => String(label).trim())
+                  .filter(label => label)
+                  .map(label => sanitizeLabelContent(label))
+                  .filter(label => label)
+                  .map(label => (label.length > 64 ? label.substring(0, 64) : label))
+                  .filter((label, index, arr) => arr.indexOf(label) === index);
+                let title = createIssueItem.title ? createIssueItem.title.trim() : "";
+                let processedBody = replaceTemporaryIdReferences(createIssueItem.body, temporaryIdMap, itemRepo);
+                processedBody = removeDuplicateTitleFromDescription(title, processedBody);
+                let bodyLines = processedBody.split("\n");
+                if (!title) {
+                  title = createIssueItem.body || "Agent Output";
+                }
+                const titlePrefix = process.env.GH_AW_ISSUE_TITLE_PREFIX;
+                if (titlePrefix && !title.startsWith(titlePrefix)) {
+                  title = titlePrefix + title;
+                }
+                if (effectiveParentIssueNumber) {
+                  core.info("Detected issue context, parent issue " + effectiveParentRepo + "#" + effectiveParentIssueNumber);
+                  if (effectiveParentRepo === itemRepo) {
+                    bodyLines.push(`Related to #${effectiveParentIssueNumber}`);
+                  } else {
+                    bodyLines.push(`Related to ${effectiveParentRepo}#${effectiveParentIssueNumber}`);
+                  }
+                }
+                const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
+                const workflowSource = process.env.GH_AW_WORKFLOW_SOURCE || "";
+                const workflowSourceURL = process.env.GH_AW_WORKFLOW_SOURCE_URL || "";
+                const runId = context.runId;
+                const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
+                const runUrl = context.payload.repository
+                  ? `${context.payload.repository.html_url}/actions/runs/${runId}`
+                  : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
+                const trackerIDComment = getTrackerID("markdown");
+                if (trackerIDComment) {
+                  bodyLines.push(trackerIDComment);
+                }
+                addExpirationComment(bodyLines, "GH_AW_ISSUE_EXPIRES", "Issue");
+                bodyLines.push(
+                  ``,
+                  ``,
+                  generateFooter(
+                    workflowName,
+                    runUrl,
+                    workflowSource,
+                    workflowSourceURL,
+                    triggeringIssueNumber,
+                    triggeringPRNumber,
+                    triggeringDiscussionNumber
+                  ).trimEnd(),
+                  ""
+                );
+                const body = bodyLines.join("\n").trim();
+                core.info(`Creating issue in ${itemRepo} with title: ${title}`);
+                core.info(`Labels: ${labels}`);
+                core.info(`Body length: ${body.length}`);
+                try {
+                  const { data: issue } = await github.rest.issues.create({
+                    owner: repoParts.owner,
+                    repo: repoParts.repo,
+                    title: title,
+                    body: body,
+                    labels: labels,
+                  });
+                  core.info(`Created issue ${itemRepo}#${issue.number}: ${issue.html_url}`);
+                  createdIssues.push({ ...issue, _repo: itemRepo });
+                  temporaryIdMap.set(normalizeTemporaryId(temporaryId), { repo: itemRepo, number: issue.number });
+                  core.info(`Stored temporary ID mapping: ${temporaryId} -> ${itemRepo}#${issue.number}`);
+                  core.info(`Debug: About to check if sub-issue linking is needed. effectiveParentIssueNumber = ${effectiveParentIssueNumber}`);
+                  if (effectiveParentIssueNumber && effectiveParentRepo === itemRepo) {
+                    core.info(`Attempting to link issue #${issue.number} as sub-issue of #${effectiveParentIssueNumber}`);
+                    try {
+                      core.info(`Fetching node ID for parent issue #${effectiveParentIssueNumber}...`);
+                      const getIssueNodeIdQuery = `
+                        query($owner: String!, $repo: String!, $issueNumber: Int!) {
+                          repository(owner: $owner, name: $repo) {
+                            issue(number: $issueNumber) {
+                              id
+                            }
+                          }
+                        }
+                      `;
+                      const parentResult = await github.graphql(getIssueNodeIdQuery, {
+                        owner: repoParts.owner,
+                        repo: repoParts.repo,
+                        issueNumber: effectiveParentIssueNumber,
+                      });
+                      const parentNodeId = parentResult.repository.issue.id;
+                      core.info(`Parent issue node ID: ${parentNodeId}`);
+                      core.info(`Fetching node ID for child issue #${issue.number}...`);
+                      const childResult = await github.graphql(getIssueNodeIdQuery, {
+                        owner: repoParts.owner,
+                        repo: repoParts.repo,
+                        issueNumber: issue.number,
+                      });
+                      const childNodeId = childResult.repository.issue.id;
+                      core.info(`Child issue node ID: ${childNodeId}`);
+                      core.info(`Executing addSubIssue mutation...`);
+                      const addSubIssueMutation = `
+                        mutation($issueId: ID!, $subIssueId: ID!) {
+                          addSubIssue(input: {
+                            issueId: $issueId,
+                            subIssueId: $subIssueId
+                          }) {
+                            subIssue {
+                              id
+                              number
+                            }
+                          }
+                        }
+                      `;
+                      await github.graphql(addSubIssueMutation, {
+                        issueId: parentNodeId,
+                        subIssueId: childNodeId,
+                      });
+                      core.info("✓ Successfully linked issue #" + issue.number + " as sub-issue of #" + effectiveParentIssueNumber);
+                    } catch (error) {
+                      core.info(`Warning: Could not link sub-issue to parent: ${error instanceof Error ? error.message : String(error)}`);
+                      core.info(`Error details: ${error instanceof Error ? error.stack : String(error)}`);
+                      try {
+                        core.info(`Attempting fallback: adding comment to parent issue #${effectiveParentIssueNumber}...`);
+                        await github.rest.issues.createComment({
+                          owner: repoParts.owner,
+                          repo: repoParts.repo,
+                          issue_number: effectiveParentIssueNumber,
+                          body: `Created related issue: #${issue.number}`,
+                        });
+                        core.info("✓ Added comment to parent issue #" + effectiveParentIssueNumber + " (sub-issue linking not available)");
+                      } catch (commentError) {
+                        core.info(
+                          `Warning: Could not add comment to parent issue: ${commentError instanceof Error ? commentError.message : String(commentError)}`
+                        );
+                      }
+                    }
+                  } else if (effectiveParentIssueNumber && effectiveParentRepo !== itemRepo) {
+                    core.info(`Skipping sub-issue linking: parent is in different repository (${effectiveParentRepo})`);
+                  } else {
+                    core.info(`Debug: No parent issue number set, skipping sub-issue linking`);
+                  }
+                  if (i === createIssueItems.length - 1) {
+                    core.setOutput("issue_number", issue.number);
+                    core.setOutput("issue_url", issue.html_url);
+                  }
+                } catch (error) {
+                  const errorMessage = error instanceof Error ? error.message : String(error);
+                  if (errorMessage.includes("Issues has been disabled in this repository")) {
+                    core.info(`⚠ Cannot create issue "${title}" in ${itemRepo}: Issues are disabled for this repository`);
+                    core.info("Consider enabling issues in repository settings if you want to create issues automatically");
+                    continue;
+                  }
+                  core.error(`✗ Failed to create issue "${title}" in ${itemRepo}: ${errorMessage}`);
+                  throw error;
+                }
+              }
+              if (createdIssues.length > 0) {
+                let summaryContent = "\n\n## GitHub Issues\n";
+                for (const issue of createdIssues) {
+                  const repoLabel = issue._repo !== defaultTargetRepo ? ` (${issue._repo})` : "";
+                  summaryContent += `- Issue #${issue.number}${repoLabel}: [${issue.title}](${issue.html_url})\n`;
+                }
+                await core.summary.addRaw(summaryContent).write();
+              }
+              const tempIdMapOutput = serializeTemporaryIdMap(temporaryIdMap);
+              core.setOutput("temporary_id_map", tempIdMapOutput);
+              core.info(`Temporary ID map: ${tempIdMapOutput}`);
+              const assignCopilot = process.env.GH_AW_ASSIGN_COPILOT === "true";
+              if (assignCopilot && createdIssues.length > 0) {
+                const issuesToAssign = createdIssues.map(issue => `${issue._repo}:${issue.number}`).join(",");
+                core.setOutput("issues_to_assign_copilot", issuesToAssign);
+                core.info(`Issues to assign copilot: ${issuesToAssign}`);
+              }
+              core.info(`Successfully created ${createdIssues.length} issue(s)`);
+            }
+            (async () => {
+              await main();
+            })();
+      - name: Assign copilot to created issues
+        if: steps.create_issue.outputs.issues_to_assign_copilot != ''
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        with:
+          github-token: ${{ secrets.GH_AW_AGENT_TOKEN }}
+          script: |
+            const AGENT_LOGIN_NAMES = {
+              copilot: "copilot-swe-agent",
+            };
+            function getAgentName(assignee) {
+              const normalized = assignee.startsWith("@") ? assignee.slice(1) : assignee;
+              if (AGENT_LOGIN_NAMES[normalized]) {
+                return normalized;
+              }
+              return null;
+            }
+            async function getAvailableAgentLogins(owner, repo) {
+              const query = `
+                query($owner: String!, $repo: String!) {
+                  repository(owner: $owner, name: $repo) {
+                    suggestedActors(first: 100, capabilities: CAN_BE_ASSIGNED) {
+                      nodes { ... on Bot { login __typename } }
+                    }
+                  }
+                }
+              `;
+              try {
+                const response = await github.graphql(query, { owner, repo });
+                const actors = response.repository?.suggestedActors?.nodes || [];
+                const knownValues = Object.values(AGENT_LOGIN_NAMES);
+                const available = [];
+                for (const actor of actors) {
+                  if (actor && actor.login && knownValues.includes(actor.login)) {
+                    available.push(actor.login);
+                  }
+                }
+                return available.sort();
+              } catch (e) {
+                const msg = e instanceof Error ? e.message : String(e);
+                core.debug(`Failed to list available agent logins: ${msg}`);
+                return [];
+              }
+            }
+            async function findAgent(owner, repo, agentName) {
+              const query = `
+                query($owner: String!, $repo: String!) {
+                  repository(owner: $owner, name: $repo) {
+                    suggestedActors(first: 100, capabilities: CAN_BE_ASSIGNED) {
+                      nodes {
+                        ... on Bot {
+                          id
+                          login
+                          __typename
+                        }
+                      }
+                    }
+                  }
+                }
+              `;
+              try {
+                const response = await github.graphql(query, { owner, repo });
+                const actors = response.repository.suggestedActors.nodes;
+                const loginName = AGENT_LOGIN_NAMES[agentName];
+                if (!loginName) {
+                  core.error(`Unknown agent: ${agentName}. Supported agents: ${Object.keys(AGENT_LOGIN_NAMES).join(", ")}`);
+                  return null;
+                }
+                for (const actor of actors) {
+                  if (actor.login === loginName) {
+                    return actor.id;
+                  }
+                }
+                const available = actors.filter(a => a && a.login && Object.values(AGENT_LOGIN_NAMES).includes(a.login)).map(a => a.login);
+                core.warning(`${agentName} coding agent (${loginName}) is not available as an assignee for this repository`);
+                if (available.length > 0) {
+                  core.info(`Available assignable coding agents: ${available.join(", ")}`);
+                } else {
+                  core.info("No coding agents are currently assignable in this repository.");
+                }
+                if (agentName === "copilot") {
+                  core.info(
+                    "Please visit https://docs.github.com/en/copilot/using-github-copilot/using-copilot-coding-agent-to-work-on-tasks/about-assigning-tasks-to-copilot"
+                  );
+                }
+                return null;
+              } catch (error) {
+                const errorMessage = error instanceof Error ? error.message : String(error);
+                core.error(`Failed to find ${agentName} agent: ${errorMessage}`);
+                return null;
+              }
+            }
+            async function getIssueDetails(owner, repo, issueNumber) {
+              const query = `
+                query($owner: String!, $repo: String!, $issueNumber: Int!) {
+                  repository(owner: $owner, name: $repo) {
+                    issue(number: $issueNumber) {
+                      id
+                      assignees(first: 100) {
+                        nodes {
+                          id
+                        }
+                      }
+                    }
+                  }
+                }
+              `;
+              try {
+                const response = await github.graphql(query, { owner, repo, issueNumber });
+                const issue = response.repository.issue;
+                if (!issue || !issue.id) {
+                  core.error("Could not get issue data");
+                  return null;
+                }
+                const currentAssignees = issue.assignees.nodes.map(assignee => assignee.id);
+                return {
+                  issueId: issue.id,
+                  currentAssignees: currentAssignees,
+                };
+              } catch (error) {
+                const errorMessage = error instanceof Error ? error.message : String(error);
+                core.error(`Failed to get issue details: ${errorMessage}`);
+                return null;
+              }
+            }
+            async function assignAgentToIssue(issueId, agentId, currentAssignees, agentName) {
+              const actorIds = [agentId];
+              for (const assigneeId of currentAssignees) {
+                if (assigneeId !== agentId) {
+                  actorIds.push(assigneeId);
+                }
+              }
+              const mutation = `
+                mutation($assignableId: ID!, $actorIds: [ID!]!) {
+                  replaceActorsForAssignable(input: {
+                    assignableId: $assignableId,
+                    actorIds: $actorIds
+                  }) {
+                    __typename
+                  }
+                }
+              `;
+              try {
+                core.info("Using built-in github object for mutation");
+                core.debug(`GraphQL mutation with variables: assignableId=${issueId}, actorIds=${JSON.stringify(actorIds)}`);
+                const response = await github.graphql(mutation, {
+                  assignableId: issueId,
+                  actorIds: actorIds,
+                });
+                if (response && response.replaceActorsForAssignable && response.replaceActorsForAssignable.__typename) {
+                  return true;
+                } else {
+                  core.error("Unexpected response from GitHub API");
+                  return false;
+                }
+              } catch (error) {
+                const errorMessage = error instanceof Error ? error.message : String(error);
+                try {
+                  core.debug(`Raw GraphQL error message: ${errorMessage}`);
+                  if (error && typeof error === "object") {
+                    const details = {};
+                    if (error.errors) details.errors = error.errors;
+                    if (error.response) details.response = error.response;
+                    if (error.data) details.data = error.data;
+                    if (Array.isArray(error.errors)) {
+                      details.compactMessages = error.errors.map(e => e.message).filter(Boolean);
+                    }
+                    const serialized = JSON.stringify(details, (_k, v) => v, 2);
+                    if (serialized && serialized !== "{}") {
+                      core.debug(`Raw GraphQL error details: ${serialized}`);
+                      core.error("Raw GraphQL error details (for troubleshooting):");
+                      for (const line of serialized.split(/\n/)) {
+                        if (line.trim()) core.error(line);
+                      }
+                    }
+                  }
+                } catch (loggingErr) {
+                  core.debug(`Failed to serialize GraphQL error details: ${loggingErr instanceof Error ? loggingErr.message : String(loggingErr)}`);
+                }
+                if (
+                  errorMessage.includes("Resource not accessible by personal access token") ||
+                  errorMessage.includes("Resource not accessible by integration") ||
+                  errorMessage.includes("Insufficient permissions to assign")
+                ) {
+                  core.info("Primary mutation replaceActorsForAssignable forbidden. Attempting fallback addAssigneesToAssignable...");
+                  try {
+                    const fallbackMutation = `
+                      mutation($assignableId: ID!, $assigneeIds: [ID!]!) {
+                        addAssigneesToAssignable(input: {
+                          assignableId: $assignableId,
+                          assigneeIds: $assigneeIds
+                        }) {
+                          clientMutationId
+                        }
+                      }
+                    `;
+                    core.info("Using built-in github object for fallback mutation");
+                    core.debug(`Fallback GraphQL mutation with variables: assignableId=${issueId}, assigneeIds=[${agentId}]`);
+                    const fallbackResp = await github.graphql(fallbackMutation, {
+                      assignableId: issueId,
+                      assigneeIds: [agentId],
+                    });
+                    if (fallbackResp && fallbackResp.addAssigneesToAssignable) {
+                      core.info(`Fallback succeeded: agent '${agentName}' added via addAssigneesToAssignable.`);
+                      return true;
+                    } else {
+                      core.warning("Fallback mutation returned unexpected response; proceeding with permission guidance.");
+                    }
+                  } catch (fallbackError) {
+                    const fbMsg = fallbackError instanceof Error ? fallbackError.message : String(fallbackError);
+                    core.error(`Fallback addAssigneesToAssignable failed: ${fbMsg}`);
+                  }
+                  logPermissionError(agentName);
+                } else {
+                  core.error(`Failed to assign ${agentName}: ${errorMessage}`);
+                }
+                return false;
+              }
+            }
+            function logPermissionError(agentName) {
+              core.error(`Failed to assign ${agentName}: Insufficient permissions`);
+              core.error("");
+              core.error("Assigning Copilot agents requires:");
+              core.error("  1. All four workflow permissions:");
+              core.error("     - actions: write");
+              core.error("     - contents: write");
+              core.error("     - issues: write");
+              core.error("     - pull-requests: write");
+              core.error("");
+              core.error("  2. A classic PAT with 'repo' scope OR fine-grained PAT with explicit Write permissions above:");
+              core.error("     (Fine-grained PATs must grant repository access + write for Issues, Pull requests, Contents, Actions)");
+              core.error("");
+              core.error("  3. Repository settings:");
+              core.error("     - Actions must have write permissions");
+              core.error("     - Go to: Settings > Actions > General > Workflow permissions");
+              core.error("     - Select: 'Read and write permissions'");
+              core.error("");
+              core.error("  4. Organization/Enterprise settings:");
+              core.error("     - Check if your org restricts bot assignments");
+              core.error("     - Verify Copilot is enabled for your repository");
+              core.error("");
+              core.info("For more information, see: https://docs.github.com/en/copilot/how-tos/use-copilot-agents/coding-agent/create-a-pr");
+            }
+            function generatePermissionErrorSummary() {
+              let content = "\n### ⚠️ Permission Requirements\n\n";
+              content += "Assigning Copilot agents requires **ALL** of these permissions:\n\n";
+              content += "```yaml\n";
+              content += "permissions:\n";
+              content += "  actions: write\n";
+              content += "  contents: write\n";
+              content += "  issues: write\n";
+              content += "  pull-requests: write\n";
+              content += "```\n\n";
+              content += "**Token capability note:**\n";
+              content += "- Current token (PAT or GITHUB_TOKEN) lacks assignee mutation capability for this repository.\n";
+              content += "- Both `replaceActorsForAssignable` and fallback `addAssigneesToAssignable` returned FORBIDDEN/Resource not accessible.\n";
+              content += "- This typically means bot/user assignment requires an elevated OAuth or GitHub App installation token.\n\n";
+              content += "**Recommended remediation paths:**\n";
+              content += "1. Create & install a GitHub App with: Issues/Pull requests/Contents/Actions (write) → use installation token in job.\n";
+              content += "2. Manual assignment: add the agent through the UI until broader token support is available.\n";
+              content += "3. Open a support ticket referencing failing mutation `replaceActorsForAssignable` and repository slug.\n\n";
+              content +=
+                "**Why this failed:** Fine-grained and classic PATs can update issue title (verified) but not modify assignees in this environment.\n\n";
+              content += "📖 Reference: https://docs.github.com/en/copilot/how-tos/use-copilot-agents/coding-agent/create-a-pr (general agent docs)\n";
+              return content;
+            }
+            async function assignAgentToIssueByName(owner, repo, issueNumber, agentName) {
+              if (!AGENT_LOGIN_NAMES[agentName]) {
+                const error = `Agent "${agentName}" is not supported. Supported agents: ${Object.keys(AGENT_LOGIN_NAMES).join(", ")}`;
+                core.warning(error);
+                return { success: false, error };
+              }
+              try {
+                core.info(`Looking for ${agentName} coding agent...`);
+                const agentId = await findAgent(owner, repo, agentName);
+                if (!agentId) {
+                  const error = `${agentName} coding agent is not available for this repository`;
+                  const available = await getAvailableAgentLogins(owner, repo);
+                  const enrichedError = available.length > 0 ? `${error} (available agents: ${available.join(", ")})` : error;
+                  return { success: false, error: enrichedError };
+                }
+                core.info(`Found ${agentName} coding agent (ID: ${agentId})`);
+                core.info("Getting issue details...");
+                const issueDetails = await getIssueDetails(owner, repo, issueNumber);
+                if (!issueDetails) {
+                  return { success: false, error: "Failed to get issue details" };
+                }
+                core.info(`Issue ID: ${issueDetails.issueId}`);
+                if (issueDetails.currentAssignees.includes(agentId)) {
+                  core.info(`${agentName} is already assigned to issue #${issueNumber}`);
+                  return { success: true };
+                }
+                core.info(`Assigning ${agentName} coding agent to issue #${issueNumber}...`);
+                const success = await assignAgentToIssue(issueDetails.issueId, agentId, issueDetails.currentAssignees, agentName);
+                if (!success) {
+                  return { success: false, error: `Failed to assign ${agentName} via GraphQL` };
+                }
+                core.info(`Successfully assigned ${agentName} coding agent to issue #${issueNumber}`);
+                return { success: true };
+              } catch (error) {
+                const errorMessage = error instanceof Error ? error.message : String(error);
+                return { success: false, error: errorMessage };
+              }
+            }
+            async function main() {
+              const issuesToAssignStr = "${{ steps.create_issue.outputs.issues_to_assign_copilot }}";
+              if (!issuesToAssignStr || issuesToAssignStr.trim() === "") {
+                core.info("No issues to assign copilot to");
+                return;
+              }
+              core.info(`Issues to assign copilot: ${issuesToAssignStr}`);
+              const issueEntries = issuesToAssignStr.split(",").filter(entry => entry.trim() !== "");
+              if (issueEntries.length === 0) {
+                core.info("No valid issue entries found");
+                return;
+              }
+              core.info(`Processing ${issueEntries.length} issue(s) for copilot assignment`);
+              const agentName = "copilot";
+              const results = [];
+              let agentId = null;
+              for (const entry of issueEntries) {
+                const parts = entry.split(":");
+                if (parts.length !== 2) {
+                  core.warning(`Invalid issue entry format: ${entry}. Expected 'owner/repo:number'`);
+                  continue;
+                }
+                const repoSlug = parts[0];
+                const issueNumber = parseInt(parts[1], 10);
+                if (isNaN(issueNumber) || issueNumber <= 0) {
+                  core.warning(`Invalid issue number in entry: ${entry}`);
+                  continue;
+                }
+                const repoParts = repoSlug.split("/");
+                if (repoParts.length !== 2) {
+                  core.warning(`Invalid repo format: ${repoSlug}. Expected 'owner/repo'`);
+                  continue;
+                }
+                const owner = repoParts[0];
+                const repo = repoParts[1];
+                try {
+                  if (!agentId) {
+                    core.info(`Looking for ${agentName} coding agent...`);
+                    agentId = await findAgent(owner, repo, agentName);
+                    if (!agentId) {
+                      throw new Error(`${agentName} coding agent is not available for this repository`);
+                    }
+                    core.info(`Found ${agentName} coding agent (ID: ${agentId})`);
+                  }
+                  core.info(`Getting details for issue #${issueNumber} in ${repoSlug}...`);
+                  const issueDetails = await getIssueDetails(owner, repo, issueNumber);
+                  if (!issueDetails) {
+                    throw new Error("Failed to get issue details");
+                  }
+                  core.info(`Issue ID: ${issueDetails.issueId}`);
+                  if (issueDetails.currentAssignees.includes(agentId)) {
+                    core.info(`${agentName} is already assigned to issue #${issueNumber}`);
+                    results.push({
+                      repo: repoSlug,
+                      issue_number: issueNumber,
+                      success: true,
+                      already_assigned: true,
+                    });
+                    continue;
+                  }
+                  core.info(`Assigning ${agentName} coding agent to issue #${issueNumber}...`);
+                  const success = await assignAgentToIssue(issueDetails.issueId, agentId, issueDetails.currentAssignees, agentName);
+                  if (!success) {
+                    throw new Error(`Failed to assign ${agentName} via GraphQL`);
+                  }
+                  core.info(`Successfully assigned ${agentName} coding agent to issue #${issueNumber}`);
+                  results.push({
+                    repo: repoSlug,
+                    issue_number: issueNumber,
+                    success: true,
+                  });
+                } catch (error) {
+                  const errorMessage = error instanceof Error ? error.message : String(error);
+                  core.error(`Failed to assign ${agentName} to issue #${issueNumber} in ${repoSlug}: ${errorMessage}`);
+                  results.push({
+                    repo: repoSlug,
+                    issue_number: issueNumber,
+                    success: false,
+                    error: errorMessage,
+                  });
+                }
+              }
+              const successCount = results.filter(r => r.success).length;
+              const failureCount = results.filter(r => !r.success).length;
+              let summaryContent = "## Copilot Assignment for Created Issues\n\n";
+              if (successCount > 0) {
+                summaryContent += `✅ Successfully assigned copilot to ${successCount} issue(s):\n\n`;
+                for (const result of results.filter(r => r.success)) {
+                  const note = result.already_assigned ? " (already assigned)" : "";
+                  summaryContent += `- ${result.repo}#${result.issue_number}${note}\n`;
+                }
+                summaryContent += "\n";
+              }
+              if (failureCount > 0) {
+                summaryContent += `❌ Failed to assign copilot to ${failureCount} issue(s):\n\n`;
+                for (const result of results.filter(r => !r.success)) {
+                  summaryContent += `- ${result.repo}#${result.issue_number}: ${result.error}\n`;
+                }
+                const hasPermissionError = results.some(
+                  r => !r.success && r.error && (r.error.includes("Resource not accessible") || r.error.includes("Insufficient permissions"))
+                );
+                if (hasPermissionError) {
+                  summaryContent += generatePermissionErrorSummary();
+                }
+              }
+              await core.summary.addRaw(summaryContent).write();
+              if (failureCount > 0) {
+                core.setFailed(`Failed to assign copilot to ${failureCount} issue(s)`);
+              }
+            }
+            (async () => {
+              await main();
+            })();
+
   create_pull_request:
     needs:
       - activation
@@ -7051,6 +8707,7 @@ jobs:
           GH_AW_WORKFLOW_NAME: "Spec-Kit Execute"
           GH_AW_TRACKER_ID: "spec-kit-execute"
           GH_AW_ENGINE_ID: "copilot"
+          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🤖 *Automated by [{workflow_name}]({run_url})*\",\"runStarted\":\"🚀 Spec-Kit Execute starting! [{workflow_name}]({run_url}) is scanning for pending specifications...\",\"runSuccess\":\"✅ Spec-Kit Execute completed successfully! [{workflow_name}]({run_url}) has processed all pending work. Check the PR for details! 📋\",\"runFailure\":\"❌ Spec-Kit Execute {status}! [{workflow_name}]({run_url}) encountered issues. Check the logs for details...\"}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -7744,8 +9401,6 @@ jobs:
     if: needs.agent.outputs.output_types != '' || needs.agent.outputs.has_patch == 'true'
     runs-on: ubuntu-latest
     permissions: {}
-    concurrency:
-      group: "gh-aw-copilot-${{ github.workflow }}"
     timeout-minutes: 10
     outputs:
       success: ${{ steps.parse_results.outputs.success }}
@@ -7984,6 +9639,158 @@ jobs:
           name: threat-detection.log
           path: /tmp/gh-aw/threat-detection/detection.log
           if-no-files-found: ignore
+
+  pre_activation:
+    runs-on: ubuntu-slim
+    outputs:
+      activated: ${{ steps.check_membership.outputs.is_team_member == 'true' }}
+    steps:
+      - name: Check team membership for workflow
+        id: check_membership
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        env:
+          GH_AW_REQUIRED_ROLES: admin,maintainer,write
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            function parseRequiredPermissions() {
+              const requiredPermissionsEnv = process.env.GH_AW_REQUIRED_ROLES;
+              return requiredPermissionsEnv ? requiredPermissionsEnv.split(",").filter(p => p.trim() !== "") : [];
+            }
+            function parseAllowedBots() {
+              const allowedBotsEnv = process.env.GH_AW_ALLOWED_BOTS;
+              return allowedBotsEnv ? allowedBotsEnv.split(",").filter(b => b.trim() !== "") : [];
+            }
+            async function checkBotStatus(actor, owner, repo) {
+              try {
+                const isBot = actor.endsWith("[bot]");
+                if (!isBot) {
+                  return { isBot: false, isActive: false };
+                }
+                core.info(`Checking if bot '${actor}' is active on ${owner}/${repo}`);
+                try {
+                  const botPermission = await github.rest.repos.getCollaboratorPermissionLevel({
+                    owner: owner,
+                    repo: repo,
+                    username: actor,
+                  });
+                  core.info(`Bot '${actor}' is active with permission level: ${botPermission.data.permission}`);
+                  return { isBot: true, isActive: true };
+                } catch (botError) {
+                  if (typeof botError === "object" && botError !== null && "status" in botError && botError.status === 404) {
+                    core.warning(`Bot '${actor}' is not active/installed on ${owner}/${repo}`);
+                    return { isBot: true, isActive: false };
+                  }
+                  const errorMessage = botError instanceof Error ? botError.message : String(botError);
+                  core.warning(`Failed to check bot status: ${errorMessage}`);
+                  return { isBot: true, isActive: false, error: errorMessage };
+                }
+              } catch (error) {
+                const errorMessage = error instanceof Error ? error.message : String(error);
+                core.warning(`Error checking bot status: ${errorMessage}`);
+                return { isBot: false, isActive: false, error: errorMessage };
+              }
+            }
+            async function checkRepositoryPermission(actor, owner, repo, requiredPermissions) {
+              try {
+                core.info(`Checking if user '${actor}' has required permissions for ${owner}/${repo}`);
+                core.info(`Required permissions: ${requiredPermissions.join(", ")}`);
+                const repoPermission = await github.rest.repos.getCollaboratorPermissionLevel({
+                  owner: owner,
+                  repo: repo,
+                  username: actor,
+                });
+                const permission = repoPermission.data.permission;
+                core.info(`Repository permission level: ${permission}`);
+                for (const requiredPerm of requiredPermissions) {
+                  if (permission === requiredPerm || (requiredPerm === "maintainer" && permission === "maintain")) {
+                    core.info(`✅ User has ${permission} access to repository`);
+                    return { authorized: true, permission: permission };
+                  }
+                }
+                core.warning(`User permission '${permission}' does not meet requirements: ${requiredPermissions.join(", ")}`);
+                return { authorized: false, permission: permission };
+              } catch (repoError) {
+                const errorMessage = repoError instanceof Error ? repoError.message : String(repoError);
+                core.warning(`Repository permission check failed: ${errorMessage}`);
+                return { authorized: false, error: errorMessage };
+              }
+            }
+            async function main() {
+              const { eventName } = context;
+              const actor = context.actor;
+              const { owner, repo } = context.repo;
+              const requiredPermissions = parseRequiredPermissions();
+              const allowedBots = parseAllowedBots();
+              if (eventName === "workflow_dispatch") {
+                const hasWriteRole = requiredPermissions.includes("write");
+                if (hasWriteRole) {
+                  core.info(`✅ Event ${eventName} does not require validation (write role allowed)`);
+                  core.setOutput("is_team_member", "true");
+                  core.setOutput("result", "safe_event");
+                  return;
+                }
+                core.info(`Event ${eventName} requires validation (write role not allowed)`);
+              }
+              const safeEvents = ["schedule"];
+              if (safeEvents.includes(eventName)) {
+                core.info(`✅ Event ${eventName} does not require validation`);
+                core.setOutput("is_team_member", "true");
+                core.setOutput("result", "safe_event");
+                return;
+              }
+              if (!requiredPermissions || requiredPermissions.length === 0) {
+                core.warning("❌ Configuration error: Required permissions not specified. Contact repository administrator.");
+                core.setOutput("is_team_member", "false");
+                core.setOutput("result", "config_error");
+                core.setOutput("error_message", "Configuration error: Required permissions not specified");
+                return;
+              }
+              const result = await checkRepositoryPermission(actor, owner, repo, requiredPermissions);
+              if (result.error) {
+                core.setOutput("is_team_member", "false");
+                core.setOutput("result", "api_error");
+                core.setOutput("error_message", `Repository permission check failed: ${result.error}`);
+                return;
+              }
+              if (result.authorized) {
+                core.setOutput("is_team_member", "true");
+                core.setOutput("result", "authorized");
+                core.setOutput("user_permission", result.permission);
+              } else {
+                if (allowedBots && allowedBots.length > 0) {
+                  core.info(`Checking if actor '${actor}' is in allowed bots list: ${allowedBots.join(", ")}`);
+                  if (allowedBots.includes(actor)) {
+                    core.info(`Actor '${actor}' is in the allowed bots list`);
+                    const botStatus = await checkBotStatus(actor, owner, repo);
+                    if (botStatus.isBot && botStatus.isActive) {
+                      core.info(`✅ Bot '${actor}' is active on the repository and authorized`);
+                      core.setOutput("is_team_member", "true");
+                      core.setOutput("result", "authorized_bot");
+                      core.setOutput("user_permission", "bot");
+                      return;
+                    } else if (botStatus.isBot && !botStatus.isActive) {
+                      core.warning(`Bot '${actor}' is in the allowed list but not active/installed on ${owner}/${repo}`);
+                      core.setOutput("is_team_member", "false");
+                      core.setOutput("result", "bot_not_active");
+                      core.setOutput("user_permission", result.permission);
+                      core.setOutput("error_message", `Access denied: Bot '${actor}' is not active/installed on this repository`);
+                      return;
+                    } else {
+                      core.info(`Actor '${actor}' is in allowed bots list but bot status check failed`);
+                    }
+                  }
+                }
+                core.setOutput("is_team_member", "false");
+                core.setOutput("result", "insufficient_permissions");
+                core.setOutput("user_permission", result.permission);
+                core.setOutput(
+                  "error_message",
+                  `Access denied: User '${actor}' is not authorized. Required permissions: ${requiredPermissions.join(", ")}`
+                );
+              }
+            }
+            await main();
 
   push_repo_memory:
     needs:

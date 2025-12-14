@@ -5,11 +5,14 @@ on:
   schedule:
     - cron: '0 */6 * * *'  # Every 6 hours
   workflow_dispatch:
+  push:
+    paths:
+      - '.specify/specs/**'
 
 permissions:
   contents: read
-  issues: read
-  pull-requests: read
+  issues: write
+  pull-requests: write
 
 tracker-id: spec-kit-execute
 engine: copilot
@@ -21,6 +24,16 @@ safe-outputs:
     labels: [spec-kit, automation]
     reviewers: copilot
     draft: false
+  create-issue:
+    title-prefix: "[spec-kit failure] "
+    labels: [spec-kit, failure, needs-triage]
+    assignees: copilot
+    max: 1
+  messages:
+    footer: "> 🤖 *Automated by [{workflow_name}]({run_url})*"
+    run-started: "🚀 Spec-Kit Execute starting! [{workflow_name}]({run_url}) is scanning for pending specifications..."
+    run-success: "✅ Spec-Kit Execute completed successfully! [{workflow_name}]({run_url}) has processed all pending work. Check the PR for details! 📋"
+    run-failure: "❌ Spec-Kit Execute {status}! [{workflow_name}]({run_url}) encountered issues. Check the logs for details..."
 
 tools:
   cache-memory: true
@@ -274,7 +287,109 @@ As you complete each task, update the `tasks.md` file:
 
 This provides clear progress tracking and ensures the next workflow run knows where to continue.
 
-### Step 8: Create Pull Request
+### Step 8: Create Execution Report
+
+Before creating a pull request, create a comprehensive execution report to track metrics and outcomes:
+
+1. **Calculate Execution Metrics**:
+   - Total features scanned
+   - Total tasks attempted
+   - Tasks completed successfully
+   - Tasks failed (if any)
+   - Execution time (start to finish)
+   - Files created/modified
+   - Test results (pass/fail counts)
+
+2. **Prepare Execution Summary**:
+
+```markdown
+## Spec-Kit Execution Report
+
+**Run Date**: YYYY-MM-DD HH:MM UTC
+**Workflow Run**: #{run_id}
+**Feature**: [FEATURE-NUMBER]-[FEATURE-NAME]
+
+### Execution Metrics
+
+- ⏱️ **Duration**: X minutes
+- 📋 **Tasks Attempted**: X
+- ✅ **Tasks Completed**: X
+- ❌ **Tasks Failed**: X (if any)
+- 📁 **Files Changed**: X created, X modified
+- 🧪 **Test Results**: X passed, X failed
+
+### Feature Progress
+
+**Before Execution**:
+- Total Tasks: X
+- Completed: X
+- Pending: X
+- Progress: X%
+
+**After Execution**:
+- Total Tasks: X
+- Completed: X
+- Pending: X
+- Progress: X%
+- **Net Progress**: +X%
+
+### Status
+
+- ✅ All validation checks passed
+- ✅ All tests passing
+- ✅ Code formatted and linted
+- ✅ Build successful
+
+### Next Steps
+
+[List remaining tasks or note if feature is complete]
+```
+
+3. **Report Failures (if any)**:
+   - If ANY task failed during execution
+   - If validation checks failed (fmt, lint, build, test)
+   - If implementation was blocked by external factors
+
+   Use the create-issue safe-output to report failures:
+
+```markdown
+## Spec-Kit Execution Failure
+
+**Feature**: [FEATURE-NUMBER]-[FEATURE-NAME]
+**Workflow Run**: #{run_id}
+**Failure Type**: [Build/Test/Implementation/Validation]
+
+### What Happened
+
+[Clear description of what went wrong]
+
+### Error Details
+
+```
+[Error messages, stack traces, or test failures]
+```
+
+### Impact
+
+- Tasks blocked: [list affected tasks]
+- Feature progress: Stalled at X%
+- Dependencies affected: [list if any]
+
+### Recommended Actions
+
+1. [Action item 1]
+2. [Action item 2]
+3. [Action item 3]
+
+### Context
+
+- Spec: `.specify/specs/[FEATURE-NUMBER]-[FEATURE-NAME]/spec.md`
+- Plan: `.specify/specs/[FEATURE-NUMBER]-[FEATURE-NAME]/plan.md`
+- Tasks: `.specify/specs/[FEATURE-NUMBER]-[FEATURE-NAME]/tasks.md`
+- Logs: [workflow run URL]
+```
+
+### Step 9: Create Pull Request
 
 Once implementation reaches a significant milestone (completed phase, user story, or all tasks):
 
@@ -286,12 +401,37 @@ Once implementation reaches a significant milestone (completed phase, user story
 
 2. **Use safe-outputs to create the PR** - The workflow will automatically create a pull request with your changes
 
+```
+
+4. **Include Execution Report in PR**:
+   - Add the execution report at the top of the PR description
+   - Include all metrics and status information
+   - Make it easy to review the workflow's accomplishments
+
 3. **PR Description Format**:
 
 ```markdown
 ## Spec-Kit Implementation: [FEATURE-NUMBER]-[FEATURE-NAME]
 
 This PR implements tasks from feature `.specify/specs/[FEATURE-NUMBER]-[FEATURE-NAME]` following the spec-driven development methodology and project constitution.
+
+### Execution Report
+
+**Run Date**: YYYY-MM-DD HH:MM UTC
+**Workflow Run**: [Link to run]
+**Duration**: X minutes
+
+#### Metrics
+- 📋 **Tasks Attempted**: X
+- ✅ **Tasks Completed**: X
+- ❌ **Tasks Failed**: 0
+- 📁 **Files Changed**: X created, X modified
+- 🧪 **Test Results**: All passing
+
+#### Feature Progress
+- **Before**: X% complete (X/Y tasks)
+- **After**: X% complete (X/Y tasks)
+- **Net Progress**: +X%
 
 ### Completed Tasks
 
@@ -348,17 +488,35 @@ pkg/feature/handler.go:         88.7% coverage
 - [ ] Phase 5: Polish and documentation
 ```
 
-### Step 9: Handle Edge Cases
+### Step 10: Handle Edge Cases
 
 **No Pending Work**: If no features have pending tasks or incomplete specs:
 - Exit gracefully with a message: "No pending spec-kit work found. All features are complete or lack required specification files."
 - Do not create a PR
 
 **Build/Test Failures**: If validation fails:
-- Include the error details in the PR description
-- Mark the PR as draft
+- Create a failure report using the create-issue safe-output
+- Include comprehensive error details in the issue
+- Include the error details in the PR description if a PR was created
+- Mark the PR as draft if created
 - Clearly indicate which tests failed and include relevant error messages
+- Tag the issue with appropriate labels (failure, needs-triage)
+- Assign to copilot for review
 - The human reviewer can decide how to proceed
+
+**Execution Monitoring**: Track key metrics throughout execution:
+- Start time and end time for duration calculation
+- Count of tasks attempted vs completed
+- Files created and modified
+- Test pass/fail counts at each validation step
+- Build success/failure status
+- Lint warnings and errors
+
+**Success Rate Tracking**: For reporting purposes:
+- Calculate success rate: (completed_tasks / attempted_tasks) * 100%
+- Track progress delta: (current_progress - starting_progress)
+- Monitor execution efficiency: tasks_per_minute
+- Report on blocking issues encountered
 
 **Complex Decisions**: If a task requires human judgment or architectural decisions:
 - Document the decision point in the PR description
@@ -370,6 +528,89 @@ pkg/feature/handler.go:         88.7% coverage
 - Skip that feature
 - Note it in the workflow output
 - Look for the next valid feature to implement
+
+## Monitoring and Reporting
+
+### Execution Tracking
+
+Throughout the implementation, maintain awareness of key metrics:
+
+1. **Time Tracking**:
+   - Record start time at the beginning
+   - Track time spent in each phase
+   - Calculate total execution duration
+   - Report duration in the final summary
+
+2. **Progress Tracking**:
+   - Count total tasks before starting
+   - Track completed vs pending tasks
+   - Calculate completion percentage before and after
+   - Report net progress made
+
+3. **Quality Metrics**:
+   - Track test pass/fail counts
+   - Monitor lint warnings/errors
+   - Record build success/failure
+   - Track files created vs modified
+
+4. **Error Tracking**:
+   - Log all errors encountered
+   - Track failed tasks with reasons
+   - Document blocking issues
+   - Report recovery actions taken
+
+### Status Reporting
+
+The workflow uses safe-outputs messages to report status:
+
+- **run-started**: Announces when the workflow begins scanning
+- **run-success**: Reports successful completion with summary
+- **run-failure**: Alerts when execution fails with status
+
+These messages appear in:
+- Workflow run logs
+- GitHub Actions UI
+- Repository activity feed
+
+### Failure Reporting
+
+When failures occur, create detailed reports using create-issue safe-output:
+
+**What to Report**:
+- Exact error messages and stack traces
+- Context: which feature, which task, which phase
+- Impact: what's blocked, dependencies affected
+- Logs: link to workflow run for full context
+- Recommended actions for human intervention
+
+**When to Create Issues**:
+- Build failures that block progress
+- Test failures that can't be quickly fixed
+- External dependencies unavailable
+- Ambiguous specifications requiring clarification
+- Security vulnerabilities detected
+- Any situation requiring human decision-making
+
+**Issue Format**: Use the template provided in Step 8 for consistency
+
+### Success Metrics
+
+Track and report these metrics in every PR:
+
+1. **Completion Rate**: Tasks completed / Tasks attempted
+2. **Progress Delta**: Change in overall feature completion %
+3. **Test Coverage**: New tests added, existing tests passing
+4. **Build Health**: Successful build with no errors
+5. **Code Quality**: Lint passing, formatting correct
+6. **Execution Efficiency**: Tasks completed per hour
+
+### Continuous Improvement
+
+After each run, the metrics help identify:
+- Which types of tasks take longest
+- Common failure patterns
+- Areas needing better specifications
+- Opportunities for automation improvements
 
 ## Guidelines
 
@@ -421,5 +662,30 @@ A successful implementation run includes:
 8. ✅ No security vulnerabilities introduced
 9. ✅ Minimal, surgical changes made
 10. ✅ Clear documentation of changes and rationale
+11. ✅ Execution report with metrics included
+12. ✅ Failures reported via issues when applicable
+13. ✅ Status messages sent throughout execution
+14. ✅ Progress tracking and success rate calculated
+
+## Scheduled Execution Notes
+
+This workflow runs automatically:
+
+- **Schedule**: Every 6 hours (cron: `'0 */6 * * *'`)
+- **Manual Trigger**: Available via workflow_dispatch
+- **Auto-Trigger**: On push to `.specify/specs/**` paths
+
+**Expected Behavior**:
+- Workflow runs even if no specs are found (reports "no pending work")
+- One feature implemented per run for focused PRs
+- Failed runs create issues for human review
+- Success/failure status reported via messages
+- Metrics tracked for continuous improvement
+
+**Monitoring**:
+- Check workflow run logs for execution details
+- Review created PRs for implementation progress
+- Watch for failure issues requiring attention
+- Track success rate over time
 
 Now begin by scanning for pending specifications and implementing the highest priority feature!
