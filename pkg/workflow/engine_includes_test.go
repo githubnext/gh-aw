@@ -248,9 +248,9 @@ This should use the default engine.
 	}
 	lockStr := string(lockContent)
 
-	// Should contain references to copilot CLI (default engine) using new installer
-	if !strings.Contains(lockStr, "curl -fsSL https://gh.io/copilot-install") {
-		t.Error("Expected lock file to contain copilot CLI installer reference")
+	// Should contain references to copilot CLI (default engine) using secure installation action
+	if !strings.Contains(lockStr, "uses: ./actions/install-copilot-cli") {
+		t.Error("Expected lock file to contain secure copilot CLI installation action reference")
 	}
 }
 
