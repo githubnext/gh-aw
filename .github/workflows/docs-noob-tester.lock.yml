@@ -38,9 +38,6 @@
 # timeout-minutes: 30
 # tools:
 #   playwright:
-#     allowed_domains:
-#       - "localhost"
-#       - "127.0.0.1"
 #   edit:
 #   bash:
 #     - "*"
@@ -2048,7 +2045,7 @@ jobs:
               "playwright": {
                 "type": "local",
                 "command": "docker",
-                "args": ["run", "-i", "--rm", "--init", "mcr.microsoft.com/playwright/mcp", "--output-dir", "/tmp/gh-aw/mcp-logs/playwright", "--allowed-hosts", "localhost:*;127.0.0.1:*;localhost;127.0.0.1"],
+                "args": ["run", "-i", "--rm", "--init", "mcr.microsoft.com/playwright/mcp", "--output-dir", "/tmp/gh-aw/mcp-logs/playwright", "--allowed-hosts", "localhost;localhost:*;127.0.0.1;127.0.0.1:*"],
                 "tools": ["*"]
               },
               "safeoutputs": {

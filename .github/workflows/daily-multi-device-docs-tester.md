@@ -23,9 +23,6 @@ timeout-minutes: 30
 tools:
   playwright:
     version: "v1.56.1"
-    allowed_domains:
-      - "localhost"
-      - "127.0.0.1"
   bash:
     - "npm install*"
     - "npm run build*"
