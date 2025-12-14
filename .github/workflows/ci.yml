@@ -332,7 +332,9 @@ jobs:
 
       # Run golangci-lint
       - name: Run golangci-lint
-        run: golangci-lint run --timeout=5m
+        run: |
+          export PATH="$PATH:$(go env GOPATH)/bin"
+          golangci-lint run --timeout=5m
 
       # Error message linting (requires Go only)
       - name: Lint error messages
