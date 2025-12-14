@@ -167,12 +167,9 @@ func isPathScannedBySecretRedaction(path string) bool {
 	if !strings.HasPrefix(path, "/tmp/gh-aw/") {
 		// Check if it's an environment variable that might resolve to /tmp/gh-aw/
 		// For now, we'll allow ${{ env.* }} patterns through as we can't resolve them at compile time
-		if strings.Contains(path, "${{ env.") {
-			// Assume environment variables that might contain /tmp/gh-aw paths are safe
-			// This is a conservative assumption - in practice these are controlled by the compiler
-			return true
-		}
-		return false
+		// Assume environment variables that might contain /tmp/gh-aw paths are safe
+		// This is a conservative assumption - in practice these are controlled by the compiler
+		return strings.Contains(path, "${{ env.")
 	}
 
 	// Path must have one of the scanned extensions: .txt, .json, .log
@@ -185,10 +182,5 @@ func isPathScannedBySecretRedaction(path string) bool {
 	}
 
 	// If path is a directory (ends with /), we assume it contains scannable files
-	if strings.HasSuffix(path, "/") {
-		return true
-	}
-
-	// Path doesn't have a scannable extension
-	return false
+	return strings.HasSuffix(path, "/")
 }
