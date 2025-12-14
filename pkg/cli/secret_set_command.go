@@ -28,8 +28,8 @@ type secretPayload struct {
 }
 
 const (
-	publicKeySize   = 32           // NaCl box public key size
-	maxSecretSize   = 64 * 1024    // 64KB recommended maximum
+	publicKeySize = 32        // NaCl box public key size
+	maxSecretSize = 64 * 1024 // 64KB recommended maximum
 )
 
 // NewSecretCommand creates the secret command group
@@ -69,8 +69,8 @@ The secret value can be provided in three ways:
   2. Via the --value-from-env flag (reads from environment variable)
   3. From stdin (if neither flag is provided)
 
-Note: Secrets should be reasonably sized (recommended maximum: 64KB). Very
-large secrets may be rejected by GitHub's API or cause performance issues.
+Note: Secrets should be reasonably sized (recommended maximum: 64KB). Secrets
+larger than 64KB will be rejected.
 
 Examples:
   # From stdin
@@ -220,7 +220,7 @@ func getRepoPublicKey(client *api.RESTClient, owner, repo string) (*repoPublicKe
 // Returns base64-encoded ciphertext or error.
 func encryptWithPublicKey(publicKeyB64, plaintext string) (string, error) {
 	if len(plaintext) > maxSecretSize {
-		return "", fmt.Errorf("secret value too large (%d bytes), maximum recommended size is %d bytes", 
+		return "", fmt.Errorf("secret value too large (%d bytes), maximum recommended size is %d bytes",
 			len(plaintext), maxSecretSize)
 	}
 

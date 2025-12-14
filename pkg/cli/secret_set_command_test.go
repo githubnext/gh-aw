@@ -130,18 +130,18 @@ func TestEncryptWithPublicKeyEmptyPlaintext(t *testing.T) {
 
 func TestEncryptWithPublicKeyOversizedSecret(t *testing.T) {
 	validKey := "YWJjZGVmZ2hpamtsbW5vcHFyc3R1dnd4eXpBQkNERUY="
-	// Create a secret larger than 64KB
-	largeSecret := strings.Repeat("a", 65*1024)
-	
+	// Create a secret larger than maxSecretSize
+	largeSecret := strings.Repeat("a", maxSecretSize+1)
+
 	_, err := encryptWithPublicKey(validKey, largeSecret)
 	if err == nil {
 		t.Fatal("encryptWithPublicKey() expected error for oversized secret, got nil")
 	}
-	
+
 	if !strings.Contains(err.Error(), "secret value too large") {
 		t.Errorf("expected error containing 'secret value too large', got: %v", err)
 	}
-	
+
 	if !strings.Contains(err.Error(), "65536 bytes") {
 		t.Errorf("expected error to mention the 64KB size limit (65536 bytes), got: %v", err)
 	}
