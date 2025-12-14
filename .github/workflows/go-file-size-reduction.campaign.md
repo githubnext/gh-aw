@@ -1,10 +1,10 @@
 ---
 id: go-file-size-reduction
 version: "v1"
-name: "Campaign: Go File Size Reduction"
+name: "Go File Size Reduction Campaign"
 description: "Reduce oversized non-test Go files under pkg/ to ≤800 LOC via tracked refactors, with daily metrics snapshots and a GitHub Projects dashboard."
 
-project-url: "https://github.com/orgs/githubnext/projects/1"
+project-url: "https://github.com/orgs/githubnext/projects/60"
 
 workflows:
   - daily-file-diet
