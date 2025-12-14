@@ -43,6 +43,7 @@ import (
 	"sync"
 
 	"github.com/cli/go-gh/v2"
+	"github.com/cli/go-gh/v2/pkg/api"
 	"github.com/cli/go-gh/v2/pkg/repository"
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/logger"
@@ -316,14 +317,17 @@ func checkRepositoryHasIssuesUncached(repo string) (bool, error) {
 		HasIssues bool `json:"has_issues"`
 	}
 
-	stdOut, _, err := gh.Exec("api", fmt.Sprintf("repos/%s", repo))
+	// Create REST client
+	client, err := api.DefaultRESTClient()
 	if err != nil {
-		return false, fmt.Errorf("failed to query repository: %w", err)
+		return false, fmt.Errorf("failed to create REST client: %w", err)
 	}
 
+	// Fetch repository data using REST client
 	var response RepositoryResponse
-	if err := json.Unmarshal(stdOut.Bytes(), &response); err != nil {
-		return false, fmt.Errorf("failed to parse repository response: %w", err)
+	err = client.Get(fmt.Sprintf("repos/%s", repo), &response)
+	if err != nil {
+		return false, fmt.Errorf("failed to query repository: %w", err)
 	}
 
 	return response.HasIssues, nil
