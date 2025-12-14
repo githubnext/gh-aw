@@ -47,4 +47,17 @@ func TestBuildOrchestrator_BasicShape(t *testing.T) {
 	if !strings.Contains(data.MarkdownContent, spec.TrackerLabel) {
 		t.Fatalf("expected markdown content to mention tracker label %q, got: %q", spec.TrackerLabel, data.MarkdownContent)
 	}
+
+	// Verify that proper permissions are set for campaign orchestrators
+	if !strings.Contains(data.Permissions, "issues: write") {
+		t.Fatalf("expected permissions to include 'issues: write', got: %q", data.Permissions)
+	}
+
+	if !strings.Contains(data.Permissions, "organization-projects: write") {
+		t.Fatalf("expected permissions to include 'organization-projects: write', got: %q", data.Permissions)
+	}
+
+	if !strings.Contains(data.Permissions, "contents: read") {
+		t.Fatalf("expected permissions to include 'contents: read', got: %q", data.Permissions)
+	}
 }
