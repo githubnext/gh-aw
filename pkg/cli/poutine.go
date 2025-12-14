@@ -144,7 +144,7 @@ func runPoutineOnFile(lockFile string, verbose bool, strict bool) error {
 			// Exit code 1 typically indicates findings in the repository
 			if exitCode == 1 {
 				// Check if there are any error-level findings for the target file
-				hasErrorLevel, checkErr := hasErrorLevelFindings(stdout, relPath)
+				hasErrorLevel, checkErr := hasErrorLevelFindings(stdout.String(), relPath)
 				if checkErr != nil {
 					poutineLog.Printf("Failed to check finding levels: %v", checkErr)
 					// If we can't determine levels, fail in strict mode only
@@ -153,12 +153,12 @@ func runPoutineOnFile(lockFile string, verbose bool, strict bool) error {
 					}
 					return nil
 				}
-				
+
 				// Always fail on error-level findings
 				if hasErrorLevel {
 					return fmt.Errorf("poutine found error-level security issues in %s - these findings must be resolved before merge", filepath.Base(lockFile))
 				}
-				
+
 				// In strict mode, any findings in the scan are treated as errors
 				if strict && totalWarnings > 0 {
 					return fmt.Errorf("strict mode: poutine found %d security warnings/errors in %s - workflows must have no poutine findings in strict mode", totalWarnings, filepath.Base(lockFile))
@@ -181,17 +181,17 @@ func hasErrorLevelFindings(stdout, targetFile string) (bool, error) {
 	if stdout == "" {
 		return false, nil
 	}
-	
+
 	trimmed := strings.TrimSpace(stdout)
 	if !strings.HasPrefix(trimmed, "{") {
 		return false, nil
 	}
-	
+
 	var output poutineOutput
 	if err := json.Unmarshal([]byte(stdout), &output); err != nil {
 		return false, fmt.Errorf("failed to parse poutine JSON output: %w", err)
 	}
-	
+
 	// Check if any findings for the target file have error level
 	for _, finding := range output.Findings {
 		if finding.Meta.Path == targetFile {
@@ -201,7 +201,7 @@ func hasErrorLevelFindings(stdout, targetFile string) (bool, error) {
 			}
 		}
 	}
-	
+
 	return false, nil
 }
 
