@@ -27,7 +27,10 @@ type secretPayload struct {
 	KeyID          string `json:"key_id"`
 }
 
-const publicKeySize = 32 // NaCl box public key size
+const (
+	publicKeySize   = 32           // NaCl box public key size
+	maxSecretSize   = 64 * 1024    // 64KB recommended maximum
+)
 
 // NewSecretCommand creates the secret command group
 func NewSecretCommand() *cobra.Command {
@@ -57,10 +60,17 @@ func newSecretSetCommand() *cobra.Command {
 		Short: "Create or update a repository secret",
 		Long: `Create or update a GitHub Actions secret for a repository.
 
+The secret value is encrypted using NaCl sealed box encryption before being
+sent to GitHub's API. This ensures the secret is encrypted locally and can
+only be decrypted by GitHub.
+
 The secret value can be provided in three ways:
   1. Via the --value flag
   2. Via the --value-from-env flag (reads from environment variable)
   3. From stdin (if neither flag is provided)
+
+Note: Secrets should be reasonably sized (recommended maximum: 64KB). Very
+large secrets may be rejected by GitHub's API or cause performance issues.
 
 Examples:
   # From stdin
@@ -209,6 +219,11 @@ func getRepoPublicKey(client *api.RESTClient, owner, repo string) (*repoPublicKe
 //
 // Returns base64-encoded ciphertext or error.
 func encryptWithPublicKey(publicKeyB64, plaintext string) (string, error) {
+	if len(plaintext) > maxSecretSize {
+		return "", fmt.Errorf("secret value too large (%d bytes), maximum recommended size is %d bytes", 
+			len(plaintext), maxSecretSize)
+	}
+
 	raw, err := base64.StdEncoding.DecodeString(publicKeyB64)
 	if err != nil {
 		return "", fmt.Errorf("decode public key: %w", err)
