@@ -1160,11 +1160,12 @@ func generateAWFInstallationStep(version string, agentConfig *AgentSandboxConfig
 //   - VERSION=v0.0.369 → downloads v0.0.369
 //   - VERSION=1.2.3 → downloads v1.2.3
 //
-// Security Improvements:
-// - Uses a local GitHub Action instead of curl | sudo bash
+// Security Improvements (replaces deprecated curl | sudo bash pattern):
+// - Uses a local GitHub Action instead of executing remote scripts
 // - Downloads directly from GitHub releases (no remote script execution)
 // - Supports optional SHA256 checksum verification
 // - Version pinning for reproducible builds
+// - All installation steps are transparent and auditable
 func GenerateCopilotInstallerSteps(version, stepName string) []GitHubActionStep {
 	copilotLog.Printf("Generating Copilot installer steps: version=%s", version)
 

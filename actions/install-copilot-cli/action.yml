@@ -99,20 +99,30 @@ runs:
           echo "::warning::Checksum verification skipped. For enhanced security, provide a checksum."
           echo "Warning: Checksum verification skipped (no checksum provided)"
           echo "This may expose you to supply chain attacks. Consider adding checksum verification."
+          echo ""
+          echo "⚠️  SECURITY NOTE: The checksum displayed below is calculated from the downloaded file"
+          echo "    and should NOT be trusted if the download was compromised. To obtain trusted"
+          echo "    checksums, download the release file from a trusted source and calculate the"
+          echo "    checksum manually, or check the official Copilot CLI release page:"
+          echo "    https://github.com/github/copilot-cli/releases/tag/$VERSION"
+          echo ""
           # Calculate and display the checksum for reference
           ACTUAL_CHECKSUM=$(sha256sum "$TEMP_DIR/$FILENAME" | cut -d' ' -f1)
-          echo "File checksum: $ACTUAL_CHECKSUM"
+          echo "File checksum (for reference only): $ACTUAL_CHECKSUM"
           echo "To enable verification, add this checksum to your workflow configuration:"
           echo "  with:"
           echo "    version: '${{ inputs.version }}'"
-          echo "    checksum: '$ACTUAL_CHECKSUM'"
+          echo "    checksum: 'YOUR_VERIFIED_CHECKSUM_HERE'"
         fi
         
         # Extract the tarball
         echo "Extracting Copilot CLI..."
         tar -xzf "$TEMP_DIR/$FILENAME" -C "$TEMP_DIR"
         
-        # Install to /usr/local/bin
+        # Install to /usr/local/bin (requires sudo for system-wide availability)
+        # Note: Sudo is required because /usr/local/bin is a system directory.
+        # Alternative: For user-space installation, consider installing to ~/.local/bin
+        # and adding it to PATH, though this may not be suitable for all CI environments.
         echo "Installing to /usr/local/bin..."
         sudo install -m 755 "$TEMP_DIR/copilot" /usr/local/bin/copilot
         
