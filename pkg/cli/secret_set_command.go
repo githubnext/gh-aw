@@ -69,7 +69,7 @@ The secret value can be provided in three ways:
   2. Via the --value-from-env flag (reads from environment variable)
   3. From stdin (if neither flag is provided)
 
-Note: Secrets should be reasonably sized (recommended maximum: 64KB). Secrets
+Note: Secrets should be reasonably sized (maximum: 64KB). Secrets
 larger than 64KB will be rejected.
 
 Examples:
