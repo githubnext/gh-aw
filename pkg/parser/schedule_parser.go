@@ -5,7 +5,11 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+
+	"github.com/githubnext/gh-aw/pkg/logger"
 )
+
+var scheduleLog = logger.New("parser:schedule_parser")
 
 // ScheduleParser parses human-friendly schedule expressions into cron expressions
 type ScheduleParser struct {
@@ -17,6 +21,7 @@ type ScheduleParser struct {
 // ParseSchedule converts a human-friendly schedule expression into a cron expression
 // Returns the cron expression and the original friendly format for comments
 func ParseSchedule(input string) (cron string, original string, err error) {
+	scheduleLog.Printf("Parsing schedule expression: %s", input)
 	input = strings.TrimSpace(input)
 	if input == "" {
 		return "", "", fmt.Errorf("schedule expression cannot be empty")
@@ -24,6 +29,7 @@ func ParseSchedule(input string) (cron string, original string, err error) {
 
 	// If it's already a cron expression (5 fields separated by spaces), return as-is
 	if isCronExpression(input) {
+		scheduleLog.Printf("Input is already a valid cron expression: %s", input)
 		return input, "", nil
 	}
 
@@ -33,15 +39,18 @@ func ParseSchedule(input string) (cron string, original string, err error) {
 
 	// Tokenize the input
 	if err := parser.tokenize(); err != nil {
+		scheduleLog.Printf("Tokenization failed: %s", err)
 		return "", "", err
 	}
 
 	// Parse the tokens
 	cronExpr, err := parser.parse()
 	if err != nil {
+		scheduleLog.Printf("Parsing failed: %s", err)
 		return "", "", err
 	}
 
+	scheduleLog.Printf("Successfully parsed schedule to cron: %s", cronExpr)
 	return cronExpr, input, nil
 }
 

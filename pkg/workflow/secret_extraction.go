@@ -3,7 +3,11 @@ package workflow
 import (
 	"regexp"
 	"strings"
+
+	"github.com/githubnext/gh-aw/pkg/logger"
 )
+
+var secretLog = logger.New("workflow:secret_extraction")
 
 // Pre-compiled regex for secret extraction (performance optimization)
 // Matches: ${{ secrets.SECRET_NAME }} or ${{ secrets.SECRET_NAME || 'default' }}
@@ -72,11 +76,15 @@ func ExtractSecretsFromValue(value string) map[string]string {
 		// Store the variable name and full expression
 		if varName != "" {
 			secrets[varName] = fullExpr
+			secretLog.Printf("Extracted secret: %s", varName)
 		}
 
 		start = endIdx
 	}
 
+	if len(secrets) > 0 {
+		secretLog.Printf("Extracted %d secrets from value", len(secrets))
+	}
 	return secrets
 }
 
@@ -87,6 +95,7 @@ func ExtractSecretsFromValue(value string) map[string]string {
 //	Input: {"DD_API_KEY": "${{ secrets.DD_API_KEY }}", "DD_SITE": "${{ secrets.DD_SITE || 'default' }}"}
 //	Output: {"DD_API_KEY": "${{ secrets.DD_API_KEY }}", "DD_SITE": "${{ secrets.DD_SITE || 'default' }}"}
 func ExtractSecretsFromMap(values map[string]string) map[string]string {
+	secretLog.Printf("Extracting secrets from map with %d entries", len(values))
 	allSecrets := make(map[string]string)
 
 	for _, value := range values {
@@ -96,6 +105,7 @@ func ExtractSecretsFromMap(values map[string]string) map[string]string {
 		}
 	}
 
+	secretLog.Printf("Extracted total of %d unique secrets from map", len(allSecrets))
 	return allSecrets
 }
 
