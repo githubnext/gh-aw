@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	"github.com/githubnext/gh-aw/pkg/parser"
 	"github.com/goccy/go-yaml"
@@ -15,6 +16,30 @@ import (
 
 //go:embed schemas/campaign_spec_schema.json
 var campaignSpecSchemaFS embed.FS
+
+// Cached compiled schema to avoid reloading on every validation
+var (
+	campaignSchemaOnce sync.Once
+	campaignSchema     gojsonschema.JSONLoader
+	schemaLoadError    error
+)
+
+// getCampaignSchema returns the cached campaign schema loader, loading it once
+func getCampaignSchema() (gojsonschema.JSONLoader, error) {
+	campaignSchemaOnce.Do(func() {
+		// Load schema from embed.FS
+		schemaData, err := campaignSpecSchemaFS.ReadFile("schemas/campaign_spec_schema.json")
+		if err != nil {
+			schemaLoadError = fmt.Errorf("failed to load campaign spec schema: %w", err)
+			return
+		}
+
+		// Create schema loader once
+		campaignSchema = gojsonschema.NewBytesLoader(schemaData)
+	})
+
+	return campaignSchema, schemaLoadError
+}
 
 // ValidateSpec performs lightweight semantic validation of a
 // single CampaignSpec and returns a slice of human-readable problems.
@@ -77,10 +102,10 @@ func ValidateSpec(spec *CampaignSpec) []string {
 // ValidateSpecWithSchema validates a CampaignSpec against the JSON schema.
 // Returns a list of validation error messages, or an empty list if valid.
 func ValidateSpecWithSchema(spec *CampaignSpec) []string {
-	// Read embedded schema
-	schemaData, err := campaignSpecSchemaFS.ReadFile("schemas/campaign_spec_schema.json")
+	// Get cached schema loader
+	schemaLoader, err := getCampaignSchema()
 	if err != nil {
-		return []string{fmt.Sprintf("failed to load campaign spec schema: %v", err)}
+		return []string{err.Error()}
 	}
 
 	// Convert spec to JSON for validation, excluding runtime fields.
@@ -129,8 +154,7 @@ func ValidateSpecWithSchema(spec *CampaignSpec) []string {
 		return []string{fmt.Sprintf("failed to marshal spec to JSON: %v", err)}
 	}
 
-	// Create schema and document loaders
-	schemaLoader := gojsonschema.NewBytesLoader(schemaData)
+	// Create document loader
 	documentLoader := gojsonschema.NewBytesLoader(specJSON)
 
 	// Validate

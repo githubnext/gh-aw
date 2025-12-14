@@ -295,3 +295,52 @@ func TestValidateSpec_CompleteSpec(t *testing.T) {
 		t.Errorf("Expected no validation problems for complete spec, got: %v", problems)
 	}
 }
+
+// TestSchemaCaching verifies that the schema is loaded and cached properly
+func TestSchemaCaching(t *testing.T) {
+	// Reset the schema cache for testing
+	// Note: In production, the cache is initialized once per process lifetime
+	// This test verifies that multiple calls work correctly with the cache
+
+	spec1 := &CampaignSpec{
+		ID:           "test-campaign-1",
+		Name:         "Test Campaign 1",
+		Workflows:    []string{"workflow1"},
+		TrackerLabel: "campaign:test1",
+	}
+
+	spec2 := &CampaignSpec{
+		ID:           "test-campaign-2",
+		Name:         "Test Campaign 2",
+		Workflows:    []string{"workflow2"},
+		TrackerLabel: "campaign:test2",
+	}
+
+	// First validation - should initialize the cache
+	problems1 := ValidateSpec(spec1)
+	if len(problems1) != 0 {
+		t.Errorf("Expected no validation problems for spec1, got: %v", problems1)
+	}
+
+	// Second validation - should use cached schema
+	problems2 := ValidateSpec(spec2)
+	if len(problems2) != 0 {
+		t.Errorf("Expected no validation problems for spec2, got: %v", problems2)
+	}
+
+	// Verify that getCampaignSchema returns the same cached schema
+	schema1, err1 := getCampaignSchema()
+	if err1 != nil {
+		t.Fatalf("Expected no error from getCampaignSchema, got: %v", err1)
+	}
+
+	schema2, err2 := getCampaignSchema()
+	if err2 != nil {
+		t.Fatalf("Expected no error from getCampaignSchema second call, got: %v", err2)
+	}
+
+	// Both calls should return the same cached loader (pointer comparison)
+	if schema1 != schema2 {
+		t.Error("Expected getCampaignSchema to return cached schema on subsequent calls")
+	}
+}
