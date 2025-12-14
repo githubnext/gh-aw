@@ -14,17 +14,11 @@ import (
 var githubCLILog = logger.New("workflow:github_cli")
 
 // Token source constants from auth.TokenForHost()
+// Possible values: "GH_TOKEN", "GITHUB_TOKEN", "oauth_token", "gh", "default"
 const (
 	// tokenSourceGHToken indicates the token came from GH_TOKEN environment variable
+	// When this is the source, we don't need to set GH_TOKEN in cmd.Env since it's already available
 	tokenSourceGHToken = "GH_TOKEN"
-	// tokenSourceGitHubToken indicates the token came from GITHUB_TOKEN environment variable
-	tokenSourceGitHubToken = "GITHUB_TOKEN"
-	// tokenSourceOAuthToken indicates the token came from gh config file
-	tokenSourceOAuthToken = "oauth_token"
-	// tokenSourceGH indicates the token came from system keyring via 'gh auth token'
-	tokenSourceGH = "gh"
-	// tokenSourceDefault indicates no token was found
-	tokenSourceDefault = "default"
 )
 
 // ExecGH wraps gh CLI calls and ensures proper token configuration.
