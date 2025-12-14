@@ -29,6 +29,7 @@ package campaign
 import (
 	"embed"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -219,8 +220,8 @@ func ValidateSpecWithSchema(spec *CampaignSpec) []string {
 
 // enhanceCampaignValidationError adds inline examples to campaign validation errors
 func enhanceCampaignValidationError(err error) error {
-	ve, ok := err.(*jsonschema.ValidationError)
-	if !ok {
+	var ve *jsonschema.ValidationError
+	if !errors.As(err, &ve) {
 		return err
 	}
 
@@ -231,7 +232,7 @@ func enhanceCampaignValidationError(err error) error {
 	}
 
 	// Get field-specific example for campaign specs
-	example := getCampaignFieldExample(fieldPath, err)
+	example := getCampaignFieldExample(fieldPath, ve)
 	if example == "" {
 		return err // No example available, return original error
 	}
@@ -241,7 +242,7 @@ func enhanceCampaignValidationError(err error) error {
 }
 
 // getCampaignFieldExample returns an example for the given campaign spec field
-func getCampaignFieldExample(fieldPath string, err error) string {
+func getCampaignFieldExample(fieldPath string, ve *jsonschema.ValidationError) string {
 	// Map of campaign spec fields to their examples
 	fieldExamples := map[string]string{
 		"id":                  "Example: id: security-compliance",
@@ -266,8 +267,9 @@ func getCampaignFieldExample(fieldPath string, err error) string {
 		return example
 	}
 
-	// Generic examples based on error type
-	errorMsg := err.Error()
+	// Generic examples based on error message content
+	// This matches the pattern used in workflow validation
+	errorMsg := ve.Error()
 	if strings.Contains(errorMsg, "string") {
 		return fmt.Sprintf("Example: %s: \"value\"", fieldPath)
 	}
@@ -282,30 +284,6 @@ func getCampaignFieldExample(fieldPath string, err error) string {
 	}
 
 	return "" // No example available
-}
-
-// formatValidationError recursively formats validation errors from jsonschema (legacy)
-// This function is kept for backwards compatibility but enhanceCampaignValidationError is preferred
-func formatValidationError(ve *jsonschema.ValidationError) []string {
-	var problems []string
-
-	// Format the main error
-	field := "root"
-	if len(ve.InstanceLocation) > 0 {
-		field = strings.Join(ve.InstanceLocation, ".")
-	}
-
-	// Use the Error() method to get the formatted error message
-	message := ve.Error()
-
-	problems = append(problems, fmt.Sprintf("%s: %s", field, message))
-
-	// Process any nested causes
-	for _, cause := range ve.Causes {
-		problems = append(problems, formatValidationError(cause)...)
-	}
-
-	return problems
 }
 
 // ValidateSpecFromFile validates a campaign spec file by loading and validating it.
