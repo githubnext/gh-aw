@@ -194,14 +194,34 @@ func getNetworkFirewallCodemod() Codemod {
 				}
 
 				// Skip nested properties under firewall (lines with greater indentation)
-				if inFirewallBlock && len(trimmedLine) > 0 {
+				if inFirewallBlock {
+					// Empty lines within the firewall block should be removed
+					if len(trimmedLine) == 0 {
+						// Skip empty lines - don't add them, stay in firewall block
+						continue
+					}
+
+					// Comments need to check indentation
+					if strings.HasPrefix(trimmedLine, "#") {
+						currentIndent := line[:len(line)-len(strings.TrimLeft(line, " \t"))]
+						if len(currentIndent) > len(firewallIndent) {
+							// Comment is nested under firewall, remove it
+							codemodsLog.Printf("Removed nested firewall comment on line %d: %s", i+1, trimmedLine)
+							continue
+						}
+						// Comment is at same or less indentation, exit firewall block and keep it
+						inFirewallBlock = false
+						frontmatterLines = append(frontmatterLines, line)
+						continue
+					}
+
 					currentIndent := line[:len(line)-len(strings.TrimLeft(line, " \t"))]
 					// If this line has more indentation than firewall, it's a nested property
 					if len(currentIndent) > len(firewallIndent) {
 						codemodsLog.Printf("Removed nested firewall property on line %d: %s", i+1, trimmedLine)
 						continue
 					}
-					// We've exited the firewall block
+					// We've exited the firewall block (found a line at same or less indentation)
 					inFirewallBlock = false
 				}
 

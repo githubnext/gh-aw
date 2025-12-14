@@ -276,6 +276,95 @@ This is a test workflow.
 	}
 }
 
+func TestFixCommand_NetworkFirewallMigrationWithCommentsAndEmptyLines(t *testing.T) {
+	// Create a temporary directory for test files
+	tmpDir := t.TempDir()
+	workflowFile := filepath.Join(tmpDir, "test-workflow.md")
+
+	// Create a workflow with firewall containing comments and empty lines
+	content := `---
+on:
+  workflow_dispatch:
+
+network:
+  allowed:
+    - defaults
+    - github
+  firewall:
+    # Firewall configuration
+
+    log-level: debug
+    # Version setting
+    version: v1.0.0
+
+permissions:
+  contents: read
+---
+
+# Test Workflow
+
+This workflow tests comment and empty line handling.
+`
+
+	if err := os.WriteFile(workflowFile, []byte(content), 0644); err != nil {
+		t.Fatalf("Failed to create test file: %v", err)
+	}
+
+	// Get the firewall migration codemod
+	firewallCodemod := getCodemodByID("network-firewall-migration")
+	if firewallCodemod == nil {
+		t.Fatal("network-firewall-migration codemod not found")
+	}
+
+	// Process the file
+	fixed, err := processWorkflowFile(workflowFile, []Codemod{*firewallCodemod}, true, false)
+	if err != nil {
+		t.Fatalf("Failed to process workflow file: %v", err)
+	}
+
+	if !fixed {
+		t.Error("Expected file to be fixed, but no changes were made")
+	}
+
+	// Read the updated content
+	updatedContent, err := os.ReadFile(workflowFile)
+	if err != nil {
+		t.Fatalf("Failed to read updated file: %v", err)
+	}
+
+	updatedStr := string(updatedContent)
+
+	// Verify the change - firewall and all nested content (including comments) should be removed
+	if strings.Contains(updatedStr, "firewall:") {
+		t.Error("Expected firewall field to be removed, but it still exists")
+	}
+
+	if strings.Contains(updatedStr, "log-level:") {
+		t.Error("Expected log-level field to be removed, but it still exists")
+	}
+
+	if strings.Contains(updatedStr, "version: v1.0.0") {
+		t.Error("Expected version field to be removed, but it still exists")
+	}
+
+	// Comments within the firewall block should also be removed
+	if strings.Contains(updatedStr, "# Firewall configuration") {
+		t.Error("Expected comment within firewall block to be removed, but it still exists")
+	}
+
+	if strings.Contains(updatedStr, "# Version setting") {
+		t.Error("Expected comment within firewall block to be removed, but it still exists")
+	}
+
+	if !strings.Contains(updatedStr, "sandbox:") {
+		t.Errorf("Expected sandbox field to be added, got:\n%s", updatedStr)
+	}
+
+	if !strings.Contains(updatedStr, "agent: false") {
+		t.Errorf("Expected agent: false in updated content, got:\n%s", updatedStr)
+	}
+}
+
 func TestFixCommand_PreservesFormatting(t *testing.T) {
 	// Create a temporary directory for test files
 	tmpDir := t.TempDir()
