@@ -24,7 +24,7 @@
 #
 # Original Frontmatter:
 # ```yaml
-# name: "Campaign: Go File Size Reduction"
+# name: "Go File Size Reduction Campaign"
 # description: "Reduce oversized non-test Go files under pkg/ to ≤800 LOC via tracked refactors, with daily metrics snapshots and a GitHub Projects dashboard."
 # on:
 #   schedule:
@@ -52,7 +52,7 @@
 # ```markdown
 # # Campaign Orchestrator
 #
-# This workflow orchestrates the 'Campaign: Go File Size Reduction' campaign.
+# This workflow orchestrates the 'Go File Size Reduction Campaign' campaign.
 #
 # - Tracker label: `campaign:go-file-size-reduction`
 # - Associated workflows: daily-file-diet
@@ -72,7 +72,7 @@
 #   - actions/upload-artifact@v5 (330a01c490aca151604b8cf639adc76d48f6c5d4)
 #     https://github.com/actions/upload-artifact/commit/330a01c490aca151604b8cf639adc76d48f6c5d4
 
-name: "Campaign: Go File Size Reduction"
+name: "Go File Size Reduction Campaign"
 "on":
   schedule:
   - cron: "0 18 * * *"
@@ -84,7 +84,7 @@ permissions:
 concurrency:
   group: "gh-aw-${{ github.workflow }}"
 
-run-name: "Campaign: Go File Size Reduction"
+run-name: "Go File Size Reduction Campaign"
 
 jobs:
   activation:
@@ -341,7 +341,7 @@ jobs:
               model: process.env.GH_AW_MODEL_AGENT_COPILOT || "",
               version: "",
               agent_version: "0.0.369",
-              workflow_name: "Campaign: Go File Size Reduction",
+              workflow_name: "Go File Size Reduction Campaign",
               experimental: false,
               supports_tools_allowlist: true,
               supports_http_transport: true,
@@ -423,7 +423,7 @@ jobs:
           
           # Campaign Orchestrator
           
-          This workflow orchestrates the 'Campaign: Go File Size Reduction' campaign.
+          This workflow orchestrates the 'Go File Size Reduction Campaign' campaign.
           
           - Tracker label: `campaign:go-file-size-reduction`
           - Associated workflows: daily-file-diet
@@ -2437,7 +2437,7 @@ jobs:
         continue-on-error: true
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
         with:
-          name: firewall-logs-campaign-go-file-size-reduction
+          name: firewall-logs-go-file-size-reduction-campaign
           path: /tmp/gh-aw/sandbox/firewall/logs/
           if-no-files-found: ignore
       - name: Parse firewall logs for step summary

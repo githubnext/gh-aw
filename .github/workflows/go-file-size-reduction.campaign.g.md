@@ -1,5 +1,5 @@
 ---
-name: "Campaign: Go File Size Reduction"
+name: "Go File Size Reduction Campaign"
 description: "Reduce oversized non-test Go files under pkg/ to ≤800 LOC via tracked refactors, with daily metrics snapshots and a GitHub Projects dashboard."
 on:
   schedule:
@@ -20,7 +20,7 @@ roles:
 
 # Campaign Orchestrator
 
-This workflow orchestrates the 'Campaign: Go File Size Reduction' campaign.
+This workflow orchestrates the 'Go File Size Reduction Campaign' campaign.
 
 - Tracker label: `campaign:go-file-size-reduction`
 - Associated workflows: daily-file-diet
