@@ -13,7 +13,7 @@ on:
   workflow_dispatch:
 jobs:
   test:
-    needs: [lint]
+    needs: [lint-go, lint-js]
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -63,7 +63,7 @@ jobs:
           retention-days: 14
 
   integration:
-    needs: [lint]  # Run in parallel with test to reduce critical path
+    needs: [lint-go, lint-js]  # Run in parallel with test to reduce critical path
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -161,7 +161,7 @@ jobs:
           retention-days: 14
 
   build:
-    needs: [lint]
+    needs: [lint-go, lint-js]
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -209,7 +209,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   js:
-    needs: [lint]
+    needs: [lint-go, lint-js]
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -281,12 +281,12 @@ jobs:
           if-no-files-found: ignore
           retention-days: 14
 
-  lint:
+  lint-go:
     runs-on: ubuntu-latest
     permissions:
       contents: read
     concurrency:
-      group: ci-${{ github.ref }}-lint
+      group: ci-${{ github.ref }}-lint-go
       cancel-in-progress: true
     steps:
       - name: Checkout code
@@ -323,6 +323,21 @@ jobs:
           version: v1.62
           args: --timeout=5m
 
+      # Error message linting (requires Go only)
+      - name: Lint error messages
+        run: make lint-errors
+
+  lint-js:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    concurrency:
+      group: ci-${{ github.ref }}-lint-js
+      cancel-in-progress: true
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+
       - name: Set up Node.js
         id: setup-node
         uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6
@@ -349,12 +364,8 @@ jobs:
       - name: Check JSON formatting
         run: make fmt-check-json
 
-      # Error message linting (requires Go only)
-      - name: Lint error messages
-        run: make lint-errors
-
   actions-build:
-    needs: [lint]
+    needs: [lint-go, lint-js]
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -427,7 +438,7 @@ jobs:
           go test -fuzz=FuzzExpressionParser -fuzztime=10s ./pkg/workflow/
 
   security:
-    needs: [lint]  # Run in parallel with test to reduce critical path
+    needs: [lint-go, lint-js]  # Run in parallel with test to reduce critical path
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -460,7 +471,7 @@ jobs:
         run: make test-security
 
   security-scan:
-    needs: [lint]  # Run in parallel with test to reduce critical path
+    needs: [lint-go, lint-js]  # Run in parallel with test to reduce critical path
     # Only run security scans on main branch to reduce PR overhead
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
@@ -506,7 +517,7 @@ jobs:
         run: ./gh-aw compile poem-bot ${{ matrix.tool.flag }}
 
   logs-token-check:
-    needs: [lint]  # Run in parallel with test to reduce critical path
+    needs: [lint-go, lint-js]  # Run in parallel with test to reduce critical path
     runs-on: ubuntu-latest
     permissions:
       contents: read
