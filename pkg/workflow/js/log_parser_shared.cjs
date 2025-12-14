@@ -999,7 +999,7 @@ function generatePlainTextSummary(logEntries, options = {}) {
   lines.push("");
 
   let conversationLineCount = 0;
-  const MAX_CONVERSATION_LINES = 50; // Limit conversation output
+  const MAX_CONVERSATION_LINES = 5000; // Limit conversation output
   let conversationTruncated = false;
 
   for (const entry of logEntries) {
@@ -1214,7 +1214,7 @@ function generateCopilotCliStyleSummary(logEntries, options = {}) {
   lines.push("");
 
   let conversationLineCount = 0;
-  const MAX_CONVERSATION_LINES = 50; // Limit conversation output
+  const MAX_CONVERSATION_LINES = 5000; // Limit conversation output
   let conversationTruncated = false;
 
   for (const entry of logEntries) {
