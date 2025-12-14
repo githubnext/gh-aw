@@ -108,8 +108,16 @@ The simplest, least-permissions way to run a campaign is:
   - Use `gh aw campaign new <id>` or author `.github/workflows/<id>.campaign.md` manually.
 
 2. **Create the org Project board once (manual)**
-  - Create an org Project v2 in the GitHub UI.
+  - Create an org Project v2 in the GitHub UI and copy its URL into `project-url`.
   - This avoids requiring a PAT or GitHub App setup just to provision boards.
+  - Minimum clicks (one-time setup):
+    - In GitHub: your org 0 **Projects** 0 **New project**.
+    - Give it a name (for example: `Code Health: <Campaign Name>`).
+    - Choose any starting layout (Table/Board). You can change views later.
+    - Copy the Project URL and set it as `project-url` in the campaign spec.
+  - Optional but recommended for “kanban lanes”:
+    - Create a **Board** view and set **Group by** to a single-select field (commonly `Status`).
+    - Note: workflows can create/update fields and single-select options, but they do not currently create or configure Project views.
 
 3. **Have workflows keep the board in sync using `GITHUB_TOKEN`**
   - Enable the `update-project` safe output in the launcher/monitor workflows.

@@ -59,5 +59,10 @@ maintainability measurable.
   `daily-file-diet` workflow keeps this board in sync via the
   `update-project` safe-output.
 
+One-time setup (manual): create the Project in the GitHub UI and set its URL in
+`project-url`. Views (board/table, grouping, filters) are configured in the UI;
+workflows can update items and fields, but they do not currently create or
+configure Project views.
+
 Use this spec as the enterprise-facing description of the campaign for
 owners, sponsors, and reporting.

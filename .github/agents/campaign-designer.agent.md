@@ -45,6 +45,12 @@ Based on the conversation, propose concrete values for the core campaign fields:
 
 Show the proposed YAML frontmatter snippet to the user and refine it until they approve. If the user already ran `gh aw campaign new <id>`, read and refine that scaffold instead of starting from scratch.
 
+When collecting `project-url`, be explicit about the one-time manual setup:
+- The lowest-friction default is **update-only**: the human creates the Project once in the GitHub UI, then workflows keep it in sync.
+- The user should copy/paste the Project URL into `project-url`.
+- Workflows can create/update Project fields and single-select options, but they do not currently create or configure Project views (board/table/filters/grouping).
+- If the user wants “kanban lanes”, instruct them to create a Board view and group by a single-select field (commonly `Status`).
+
 ## Step 3: Create or Update the .campaign.md File
 
 Once the spec fields are approved, guide the user to create or update the spec file:
