@@ -210,9 +210,22 @@ Examples:
 		poutine, _ := cmd.Flags().GetBool("poutine")
 		actionlint, _ := cmd.Flags().GetBool("actionlint")
 		jsonOutput, _ := cmd.Flags().GetBool("json")
+		fix, _ := cmd.Flags().GetBool("fix")
 		verbose, _ := cmd.Flags().GetBool("verbose")
 		if err := validateEngine(engineOverride); err != nil {
 			return err
+		}
+
+		// If --fix is specified, run fix --write first
+		if fix {
+			fixConfig := cli.FixConfig{
+				WorkflowIDs: args,
+				Write:       true,
+				Verbose:     verbose,
+			}
+			if err := cli.RunFix(fixConfig); err != nil {
+				return err
+			}
 		}
 
 		// Handle --workflows-dir deprecation (mutual exclusion is enforced by Cobra)
@@ -448,6 +461,7 @@ Use "` + constants.CLIExtensionPrefix + ` help all" to show help for all command
 	compileCmd.Flags().Bool("zizmor", false, "Run zizmor security scanner on generated .lock.yml files")
 	compileCmd.Flags().Bool("poutine", false, "Run poutine security scanner on generated .lock.yml files")
 	compileCmd.Flags().Bool("actionlint", false, "Run actionlint linter on generated .lock.yml files")
+	compileCmd.Flags().Bool("fix", false, "Apply automatic codemod fixes to workflows before compiling")
 	compileCmd.Flags().Bool("json", false, "Output results in JSON format")
 	compileCmd.MarkFlagsMutuallyExclusive("dir", "workflows-dir")
 
@@ -495,6 +509,7 @@ Use "` + constants.CLIExtensionPrefix + ` help all" to show help for all command
 	campaignCmd := campaign.NewCommand()
 	tokensCmd := cli.NewTokensCommand()
 	secretCmd := cli.NewSecretCommand()
+	fixCmd := cli.NewFixCommand()
 
 	// Assign commands to groups
 	// Setup Commands
@@ -511,6 +526,7 @@ Use "` + constants.CLIExtensionPrefix + ` help all" to show help for all command
 	mcpCmd.GroupID = "development"
 	statusCmd.GroupID = "development"
 	mcpServerCmd.GroupID = "development"
+	fixCmd.GroupID = "development"
 
 	// Execution Commands
 	runCmd.GroupID = "execution"
@@ -549,6 +565,7 @@ Use "` + constants.CLIExtensionPrefix + ` help all" to show help for all command
 	rootCmd.AddCommand(campaignCmd)
 	rootCmd.AddCommand(tokensCmd)
 	rootCmd.AddCommand(secretCmd)
+	rootCmd.AddCommand(fixCmd)
 }
 
 func main() {

@@ -20,7 +20,8 @@ network:
     - node
     - github
     - playwright
-  firewall: false
+sandbox:
+  agent: false  # Firewall disabled (migrated from network.firewall)
 imports:
   - shared/gh.md
 tools:

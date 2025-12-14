@@ -19,7 +19,8 @@ network:
   allowed:
     - defaults
     - node
-  firewall: true
+sandbox:
+  agent: awf  # Firewall enabled (migrated from network.firewall)
 tools:
   bash:
     - "*"

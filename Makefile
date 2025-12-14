@@ -368,6 +368,11 @@ recompile: sync-templates build
 	./$(BINARY_NAME) compile --validate --verbose --purge
 #	./$(BINARY_NAME) compile --workflows-dir pkg/cli/workflows --validate --verbose --purge
 
+# Apply automatic fixes to workflow files
+.PHONY: fix
+fix: build
+	./$(BINARY_NAME) fix --write
+
 # Generate Dependabot manifests for npm dependencies
 .PHONY: dependabot
 dependabot: build
@@ -420,7 +425,7 @@ sbom:
 
 # Agent should run this task before finishing its turns
 .PHONY: agent-finish
-agent-finish: deps-dev fmt lint build test-all recompile dependabot generate-schema-docs generate-labs security-scan
+agent-finish: deps-dev fmt lint build test-all fix recompile dependabot generate-schema-docs generate-labs security-scan
 	@echo "Agent finished tasks successfully."
 
 # Help target
@@ -465,12 +470,13 @@ help:
 	@echo "  install          - Install binary locally"
 	@echo "  sync-templates   - Sync templates from .github to pkg/cli/templates (runs automatically during build)"
 	@echo "  sync-action-pins - Sync actions-lock.json from .github/aw to pkg/workflow/data (runs automatically during build)"
+	@echo "  fix              - Apply automatic codemod-style fixes to workflow files (depends on build)"
 	@echo "  recompile        - Recompile all workflow files (runs init, depends on build)"
 	@echo "  dependabot       - Generate Dependabot manifests for npm dependencies in workflows"
 	@echo "  generate-schema-docs - Generate frontmatter full reference documentation from JSON schema"
 	@echo "  generate-labs              - Generate labs documentation page"
 
-	@echo "  agent-finish     - Complete validation sequence (build, test, recompile, fmt, lint, security-scan)"
+	@echo "  agent-finish     - Complete validation sequence (build, test, fix, recompile, fmt, lint, security-scan)"
 	@echo "  version   - Preview next version from changesets"
 	@echo "  release   - Create release using changesets (depends on test)"
 	@echo "  sbom             - Generate SBOM in SPDX and CycloneDX formats (requires syft)"

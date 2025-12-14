@@ -19,8 +19,9 @@ network:
   allowed:
     - defaults
     - node
-  firewall: true
 
+sandbox:
+  agent: awf  # Firewall enabled (migrated from network.firewall)
 imports:
   - shared/mcp/tavily.md
   - shared/reporting.md

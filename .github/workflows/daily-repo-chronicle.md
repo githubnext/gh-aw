@@ -19,7 +19,8 @@ network:
     - defaults
     - python
     - node
-  firewall: true
+sandbox:
+  agent: awf  # Firewall enabled (migrated from network.firewall)
 tools:
   edit:
   bash:

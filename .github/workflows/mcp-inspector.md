@@ -11,7 +11,6 @@ permissions:
   actions: read
 engine: copilot
 network:
-  firewall: true
   allowed:
     - defaults
     - containers
@@ -19,6 +18,8 @@ network:
     - "cdn.jsdelivr.net"        # npm package CDN
     - "fonts.googleapis.com"    # Google Fonts API
     - "fonts.gstatic.com"       # Google Fonts static content
+sandbox:
+  agent: awf  # Firewall enabled (migrated from network.firewall)
 safe-outputs:
   create-discussion:
     category: "audits"
