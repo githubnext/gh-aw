@@ -139,11 +139,27 @@ func runActionlintOnFile(lockFile string, verbose bool, strict bool) error {
 			actionlintLog.Printf("Actionlint exited with code %d, found %d errors", exitCode, totalErrors)
 			// Exit code 1 indicates errors were found
 			if exitCode == 1 {
-				// In strict mode, errors are treated as compilation failures
+				// Check if there are any actual error-type findings (not just warnings)
+				hasErrors, checkErr := hasErrorTypeFindings(stdout)
+				if checkErr != nil {
+					actionlintLog.Printf("Failed to check finding types: %v", checkErr)
+					// If we can't determine types, fail in strict mode only
+					if strict {
+						return fmt.Errorf("strict mode: actionlint found %d errors in %s - workflows must have no actionlint errors in strict mode", totalErrors, filepath.Base(lockFile))
+					}
+					return nil
+				}
+				
+				// Always fail on error-type findings (not warnings)
+				if hasErrors {
+					return fmt.Errorf("actionlint found error-level issues in %s - these findings must be resolved before merge", filepath.Base(lockFile))
+				}
+				
+				// In strict mode, all errors are treated as compilation failures
 				if strict {
 					return fmt.Errorf("strict mode: actionlint found %d errors in %s - workflows must have no actionlint errors in strict mode", totalErrors, filepath.Base(lockFile))
 				}
-				// In non-strict mode, errors are logged but not treated as failures
+				// In non-strict mode, warnings are logged but not treated as failures
 				return nil
 			}
 			// Other exit codes are actual errors
@@ -154,6 +170,28 @@ func runActionlintOnFile(lockFile string, verbose bool, strict bool) error {
 	}
 
 	return nil
+}
+
+// hasErrorTypeFindings checks if the JSON output contains error-type findings (not warnings)
+func hasErrorTypeFindings(stdout string) (bool, error) {
+	if stdout == "" || strings.TrimSpace(stdout) == "" {
+		return false, nil
+	}
+	
+	var errors []actionlintError
+	if err := json.Unmarshal([]byte(stdout), &errors); err != nil {
+		return false, fmt.Errorf("failed to parse actionlint JSON output: %w", err)
+	}
+	
+	// Check if any findings are actual errors (not warnings)
+	for _, err := range errors {
+		// Most actionlint findings are errors unless explicitly marked as warnings
+		if !strings.Contains(strings.ToLower(err.Kind), "warning") {
+			return true, nil
+		}
+	}
+	
+	return false, nil
 }
 
 // parseAndDisplayActionlintOutput parses actionlint JSON output and displays it in the desired format

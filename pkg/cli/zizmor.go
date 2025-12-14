@@ -116,11 +116,27 @@ func runZizmorOnFile(lockFile string, verbose bool, strict bool) error {
 			zizmorLog.Printf("Zizmor exited with code %d (warnings=%d)", exitCode, totalWarnings)
 			// Exit codes 10-14 indicate findings
 			if exitCode >= 10 && exitCode <= 14 {
-				// In strict mode, findings are treated as errors
+				// Check if there are any High/Critical findings that should block merge
+				hasHighOrCritical, checkErr := hasHighOrCriticalFindings(stdout.String())
+				if checkErr != nil {
+					zizmorLog.Printf("Failed to check finding severities: %v", checkErr)
+					// If we can't determine severity, fail in strict mode only
+					if strict {
+						return fmt.Errorf("strict mode: zizmor found %d security warnings/errors in %s - workflows must have no zizmor findings in strict mode", totalWarnings, filepath.Base(lockFile))
+					}
+					return nil
+				}
+				
+				// Always fail on High/Critical findings
+				if hasHighOrCritical {
+					return fmt.Errorf("zizmor found High or Critical security issues in %s - these findings must be resolved before merge", filepath.Base(lockFile))
+				}
+				
+				// In strict mode, any findings are treated as errors
 				if strict {
 					return fmt.Errorf("strict mode: zizmor found %d security warnings/errors in %s - workflows must have no zizmor findings in strict mode", totalWarnings, filepath.Base(lockFile))
 				}
-				// In non-strict mode, findings are logged but not treated as errors
+				// In non-strict mode, non-critical findings are logged but not treated as errors
 				return nil
 			}
 			// Other exit codes are actual errors
@@ -131,6 +147,27 @@ func runZizmorOnFile(lockFile string, verbose bool, strict bool) error {
 	}
 
 	return nil
+}
+
+// hasHighOrCriticalFindings checks if the JSON output contains High or Critical severity findings
+func hasHighOrCriticalFindings(stdout string) (bool, error) {
+	if stdout == "" || !strings.HasPrefix(strings.TrimSpace(stdout), "[") {
+		return false, nil
+	}
+	
+	var findings []zizmorFinding
+	if err := json.Unmarshal([]byte(stdout), &findings); err != nil {
+		return false, fmt.Errorf("failed to parse zizmor JSON output: %w", err)
+	}
+	
+	for _, finding := range findings {
+		severity := finding.Determinations.Severity
+		if severity == "High" || severity == "Critical" {
+			return true, nil
+		}
+	}
+	
+	return false, nil
 }
 
 // parseAndDisplayZizmorOutput parses zizmor JSON output and displays it in the desired format

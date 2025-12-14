@@ -1,5 +1,8 @@
 # GitHub Agentic Workflows
 
+[![CI](https://github.com/githubnext/gh-aw/actions/workflows/ci.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/ci.yml)
+[![Security Scan](https://github.com/githubnext/gh-aw/actions/workflows/security-scan.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/security-scan.yml)
+
 Write agentic workflows in natural language markdown, and run them safely in GitHub Actions. From [GitHub Next](https://githubnext.com/) and [Microsoft Research](https://www.microsoft.com/en-us/research/group/research-software-engineering-rise/).
 
 > [!WARNING]

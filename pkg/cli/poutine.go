@@ -142,14 +142,28 @@ func runPoutineOnFile(lockFile string, verbose bool, strict bool) error {
 			exitCode := exitErr.ExitCode()
 			poutineLog.Printf("Poutine exited with code %d (warnings=%d)", exitCode, totalWarnings)
 			// Exit code 1 typically indicates findings in the repository
-			// In non-strict mode, we allow this even if we don't have findings
-			// specific to the current file (poutine scans the whole directory)
 			if exitCode == 1 {
+				// Check if there are any error-level findings for the target file
+				hasErrorLevel, checkErr := hasErrorLevelFindings(stdout, relPath)
+				if checkErr != nil {
+					poutineLog.Printf("Failed to check finding levels: %v", checkErr)
+					// If we can't determine levels, fail in strict mode only
+					if strict && totalWarnings > 0 {
+						return fmt.Errorf("strict mode: poutine found %d security warnings/errors in %s - workflows must have no poutine findings in strict mode", totalWarnings, filepath.Base(lockFile))
+					}
+					return nil
+				}
+				
+				// Always fail on error-level findings
+				if hasErrorLevel {
+					return fmt.Errorf("poutine found error-level security issues in %s - these findings must be resolved before merge", filepath.Base(lockFile))
+				}
+				
 				// In strict mode, any findings in the scan are treated as errors
 				if strict && totalWarnings > 0 {
 					return fmt.Errorf("strict mode: poutine found %d security warnings/errors in %s - workflows must have no poutine findings in strict mode", totalWarnings, filepath.Base(lockFile))
 				}
-				// In non-strict mode, findings are logged but not treated as errors
+				// In non-strict mode, non-error findings are logged but not treated as errors
 				return nil
 			}
 			// Other exit codes are actual errors
@@ -160,6 +174,35 @@ func runPoutineOnFile(lockFile string, verbose bool, strict bool) error {
 	}
 
 	return nil
+}
+
+// hasErrorLevelFindings checks if the JSON output contains error-level findings for the target file
+func hasErrorLevelFindings(stdout, targetFile string) (bool, error) {
+	if stdout == "" {
+		return false, nil
+	}
+	
+	trimmed := strings.TrimSpace(stdout)
+	if !strings.HasPrefix(trimmed, "{") {
+		return false, nil
+	}
+	
+	var output poutineOutput
+	if err := json.Unmarshal([]byte(stdout), &output); err != nil {
+		return false, fmt.Errorf("failed to parse poutine JSON output: %w", err)
+	}
+	
+	// Check if any findings for the target file have error level
+	for _, finding := range output.Findings {
+		if finding.Meta.Path == targetFile {
+			ruleInfo := output.Rules[finding.RuleID]
+			if ruleInfo.Level == "error" {
+				return true, nil
+			}
+		}
+	}
+	
+	return false, nil
 }
 
 // parseAndDisplayPoutineOutput parses poutine JSON output and displays it in the desired format

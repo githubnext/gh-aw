@@ -227,6 +227,46 @@ For detailed guidelines and decision tree, see [specs/breaking-cli-rules.md](spe
 - Ensure all tests pass (`make test`)
 - Test manually with real workflows when possible
 
+#### Security Scanning Requirements
+
+When modifying workflow files (`*.md` in `.github/workflows/`), your changes will be automatically scanned for security issues using:
+
+- **zizmor** - GitHub Actions-specific security scanner
+- **actionlint** - Workflow linting and best practices
+- **poutine** - Supply chain security scanner
+
+**How it works:**
+
+1. Security scans run automatically on all PRs that modify workflow files
+2. Scans check for common security issues like:
+   - Template injection vulnerabilities
+   - Insecure action usage
+   - Supply chain risks
+   - Best practice violations
+3. High or Critical findings will fail the CI check and block merge
+
+**Testing locally:**
+
+```bash
+# Build gh-aw
+make build
+
+# Run security scans on a specific workflow
+./gh-aw compile workflow-name --zizmor
+./gh-aw compile workflow-name --actionlint
+./gh-aw compile workflow-name --poutine
+
+# Run all security scans
+./gh-aw compile workflow-name --zizmor --actionlint --poutine
+```
+
+**Fixing security issues:**
+
+- Review the scan output to understand the issue
+- Follow the recommended remediation steps
+- Re-run the scan to verify the fix
+- Some findings may be false positives - document these in PR comments
+
 ## 🔄 Pull Request Process
 
 1. **Before submitting:**

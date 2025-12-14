@@ -431,8 +431,6 @@ jobs:
 
   security-scan:
     needs: [lint]  # Run in parallel with test to reduce critical path
-    # Only run security scans on main branch to reduce PR overhead
-    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -472,8 +470,44 @@ jobs:
       - name: Build gh-aw
         run: make build
 
-      - name: Run ${{ matrix.tool.name }} security scan on poem workflow
-        run: ./gh-aw compile poem-bot ${{ matrix.tool.flag }}
+      - name: Get changed workflow files
+        id: changed-workflows
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            # Get changed .md files in .github/workflows/
+            CHANGED_FILES=$(git diff --name-only --diff-filter=ACMRT ${{ github.event.pull_request.base.sha }} ${{ github.sha }} | grep '\.github/workflows/.*\.md$' || true)
+            if [ -n "$CHANGED_FILES" ]; then
+              # Extract workflow names (without .md extension)
+              WORKFLOWS=$(echo "$CHANGED_FILES" | xargs -n1 basename | sed 's/\.md$//' | tr '\n' ' ')
+              echo "workflows=$WORKFLOWS" >> $GITHUB_OUTPUT
+              echo "count=$(echo $WORKFLOWS | wc -w)" >> $GITHUB_OUTPUT
+            else
+              echo "workflows=" >> $GITHUB_OUTPUT
+              echo "count=0" >> $GITHUB_OUTPUT
+            fi
+          else
+            # On main branch or other events, scan all workflows
+            echo "workflows=" >> $GITHUB_OUTPUT
+            echo "count=0" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Run ${{ matrix.tool.name }} security scan
+        if: steps.changed-workflows.outputs.count == '0'
+        run: |
+          # Scan all workflows when running on main or when no specific workflows changed
+          echo "🔍 Running ${{ matrix.tool.name }} security scan on all workflows..."
+          ./gh-aw compile ${{ matrix.tool.flag }}
+
+      - name: Run ${{ matrix.tool.name }} security scan on changed workflows
+        if: steps.changed-workflows.outputs.count != '0'
+        run: |
+          # Scan only changed workflows
+          echo "🔍 Running ${{ matrix.tool.name }} security scan on changed workflows..."
+          WORKFLOWS="${{ steps.changed-workflows.outputs.workflows }}"
+          for workflow in $WORKFLOWS; do
+            echo "Scanning workflow: $workflow"
+            ./gh-aw compile "$workflow" ${{ matrix.tool.flag }}
+          done
 
   logs-token-check:
     needs: [lint]  # Run in parallel with test to reduce critical path
