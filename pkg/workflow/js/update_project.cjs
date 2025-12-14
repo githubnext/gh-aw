@@ -89,9 +89,7 @@ async function updateProject(output) {
   }
 
   const createIfMissing =
-    output.create_if_missing === true ||
-    output.create_project_if_missing === true ||
-    output.createProjectIfMissing === true;
+    output.create_if_missing === true || output.create_project_if_missing === true || output.createProjectIfMissing === true;
   const hasCustomToken = !!process.env.PROJECT_GITHUB_TOKEN;
   const allowCreateProject = createIfMissing || hasCustomToken;
 
