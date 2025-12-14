@@ -9486,9 +9486,19 @@ jobs:
     runs-on: ubuntu-slim
     permissions:
       contents: read
-      repository-projects: write
     timeout-minutes: 10
     steps:
+      - name: Generate GitHub App token
+        id: app-token
+        uses: actions/create-github-app-token@29824e69f54612133e76f7eaac726eef6c875baf # v2
+        with:
+          app-id: ${{ vars.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: ${{ github.event.repository.name }}
+          github-api-url: ${{ github.api_url }}
+          permission-contents: read
+          permission-organization-projects: write
       - name: Download agent output artifact
         continue-on-error: true
         uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
@@ -10090,6 +10100,19 @@ jobs:
             if (typeof module === "undefined" || require.main === module) {
               main();
             }
+      - name: Invalidate GitHub App token
+        if: always() && steps.app-token.outputs.token != ''
+        env:
+          TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          echo "Revoking GitHub App installation token..."
+          # GitHub CLI will auth with the token being revoked.
+          gh api \
+            --method DELETE \
+            -H "Authorization: token $TOKEN" \
+            /installation/token || echo "Token revoke may already be expired."
+          
+          echo "Token invalidation step complete."
 
   upload_assets:
     needs:

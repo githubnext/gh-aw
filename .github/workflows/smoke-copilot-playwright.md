@@ -29,8 +29,6 @@ network:
     - www.google.com             # Chrome services
     - accounts.google.com        # Chrome account checks
     - android.clients.google.com # Chrome internal
-  firewall:
-    log-level: debug  # Enable debug-level firewall logs
 sandbox:
   agent: false  # Firewall disabled (migrated from network.firewall)
 tools:

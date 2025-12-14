@@ -10,8 +10,6 @@ func (c *Compiler) buildUpdateProjectJob(data *WorkflowData, mainJobName string)
 		return nil, fmt.Errorf("safe-outputs.update-project configuration is required")
 	}
 
-	var steps []string
-
 	// Build custom environment variables specific to update-project
 	var customEnvVars []string
 
@@ -30,28 +28,24 @@ func (c *Compiler) buildUpdateProjectJob(data *WorkflowData, mainJobName string)
 		token = data.SafeOutputs.UpdateProjects.GitHubToken
 	}
 
-	// Build the GitHub Script step using the common helper and append to existing steps
-	scriptSteps := c.buildGitHubScriptStep(data, GitHubScriptStepConfig{
+	jobCondition := BuildSafeOutputType("update_project")
+	permissions := NewPermissionsContentsReadProjectsWrite()
+
+	// Use buildSafeOutputJob helper to get common scaffolding including app token minting
+	job, err := c.buildSafeOutputJob(data, SafeOutputJobConfig{
+		JobName:       "update_project",
 		StepName:      "Update Project",
 		StepID:        "update_project",
 		MainJobName:   mainJobName,
 		CustomEnvVars: customEnvVars,
 		Script:        getUpdateProjectScript(),
+		ScriptName:    "update_project",
+		Permissions:   permissions,
+		Outputs:       nil,
+		Condition:     jobCondition,
+		Needs:         []string{mainJobName},
 		Token:         token,
 	})
-	steps = append(steps, scriptSteps...)
 
-	jobCondition := BuildSafeOutputType("update_project")
-
-	job := &Job{
-		Name:           "update_project",
-		If:             jobCondition.Render(),
-		RunsOn:         c.formatSafeOutputsRunsOn(data.SafeOutputs),
-		Permissions:    NewPermissionsContentsReadProjectsWrite().RenderToYAML(),
-		TimeoutMinutes: 10,
-		Steps:          steps,
-		Needs:          []string{mainJobName},
-	}
-
-	return job, nil
+	return job, err
 }
