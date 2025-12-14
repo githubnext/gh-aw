@@ -49,15 +49,14 @@ func TestBuildOrchestrator_BasicShape(t *testing.T) {
 	}
 
 	// Verify that proper permissions are set for campaign orchestrators
-	if !strings.Contains(data.Permissions, "issues: write") {
-		t.Fatalf("expected permissions to include 'issues: write', got: %q", data.Permissions)
-	}
-
-	if !strings.Contains(data.Permissions, "organization-projects: write") {
-		t.Fatalf("expected permissions to include 'organization-projects: write', got: %q", data.Permissions)
+	if !strings.Contains(data.Permissions, "issues: read") {
+		t.Fatalf("expected permissions to include 'issues: read', got: %q", data.Permissions)
 	}
 
 	if !strings.Contains(data.Permissions, "contents: read") {
 		t.Fatalf("expected permissions to include 'contents: read', got: %q", data.Permissions)
 	}
+
+	// Note: Issue/project write operations are handled via safe-outputs which mint
+	// app tokens with appropriate permissions, not direct workflow permissions.
 }

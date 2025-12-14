@@ -8,8 +8,7 @@ on:
 engine: copilot
 permissions:
   contents: read
-  issues: write
-  organization-projects: write
+  issues: read
 runs-on: ubuntu-latest
 roles:
   - "admin"

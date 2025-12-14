@@ -63,8 +63,7 @@ on:
 
 permissions:
   contents: read
-  issues: write
-  organization-projects: write
+  issues: read
 
 
 
@@ -173,8 +172,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      issues: write
-      organization-projects: write
+      issues: read
 
     outputs:
       model: ${{ steps.generate_aw_info.outputs.model }}

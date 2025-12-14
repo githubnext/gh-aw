@@ -68,8 +68,7 @@ func TestGenerateAndCompileCampaignOrchestrator(t *testing.T) {
 
 	requiredPermissions := []string{
 		"contents: read",
-		"issues: write",
-		"organization-projects: write",
+		"issues: read",
 	}
 
 	for _, perm := range requiredPermissions {
@@ -77,4 +76,7 @@ func TestGenerateAndCompileCampaignOrchestrator(t *testing.T) {
 			t.Errorf("expected lock file to contain permission %q", perm)
 		}
 	}
+
+	// Note: Issue/project write operations are handled via safe-outputs which mint
+	// app tokens with appropriate permissions, not direct workflow permissions.
 }
