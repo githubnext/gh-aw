@@ -341,10 +341,7 @@ name: "Spec Kit Executor"
   - cron: "0 8 * * *"
   workflow_dispatch: null
 
-permissions:
-  contents: read
-  issues: read
-  pull-requests: read
+permissions: {}
 
 concurrency:
   group: "gh-aw-${{ github.workflow }}"

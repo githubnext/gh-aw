@@ -104,10 +104,7 @@ name: "Auto-Assign Issue"
     # Friendly format: daily at 2:30
   workflow_dispatch: null
 
-permissions:
-  contents: read
-  issues: read
-  pull-requests: read
+permissions: {}
 
 concurrency:
   group: "gh-aw-${{ github.workflow }}"

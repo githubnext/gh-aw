@@ -625,10 +625,7 @@ name: "Semantic Function Refactoring"
     # Friendly format: daily at 08:00
   workflow_dispatch: null
 
-permissions:
-  contents: read
-  issues: read
-  pull-requests: read
+permissions: {}
 
 concurrency:
   group: "gh-aw-${{ github.workflow }}"

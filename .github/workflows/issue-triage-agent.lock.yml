@@ -81,8 +81,7 @@ name: "Issue Triage Agent"
   - cron: "0 14 * * 1-5"
   workflow_dispatch: null
 
-permissions:
-  issues: read
+permissions: {}
 
 concurrency:
   group: "gh-aw-${{ github.workflow }}"

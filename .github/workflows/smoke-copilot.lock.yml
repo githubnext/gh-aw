@@ -151,10 +151,7 @@ name: "Smoke Copilot"
   - cron: "0 0,7,13,19 * * *"
   workflow_dispatch: null
 
-permissions:
-  contents: read
-  issues: read
-  pull-requests: read
+permissions: {}
 
 concurrency:
   group: "gh-aw-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}"

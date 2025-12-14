@@ -613,11 +613,7 @@ name: "Safe Output Health Monitor"
     # Friendly format: daily at midnight
   workflow_dispatch: null
 
-permissions:
-  actions: read
-  contents: read
-  issues: read
-  pull-requests: read
+permissions: {}
 
 concurrency:
   group: "gh-aw-${{ github.workflow }}"

@@ -383,7 +383,7 @@ name: "Layout Specification Maintainer"
   - cron: "0 7 * * 1-5"
   workflow_dispatch: null
 
-permissions: read-all
+permissions: {}
 
 concurrency:
   group: "gh-aw-${{ github.workflow }}"

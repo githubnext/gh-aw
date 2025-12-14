@@ -130,11 +130,6 @@ func (c *Compiler) applyDefaults(data *WorkflowData, markdownPath string) {
 		data.On = c.injectWorkflowDispatchForIssue(data.On)
 	}
 
-	if data.Permissions == "" {
-		// Default behavior: use read-all permissions
-		data.Permissions = NewPermissionsReadAll().RenderToYAML()
-	}
-
 	// Generate concurrency configuration using the dedicated concurrency module
 	data.Concurrency = GenerateConcurrencyConfig(data, isCommandTrigger)
 
@@ -153,6 +148,47 @@ func (c *Compiler) applyDefaults(data *WorkflowData, markdownPath string) {
 	data.Tools = c.applyDefaultTools(data.Tools, data.SafeOutputs)
 	// Update ParsedTools to reflect changes made by applyDefaultTools
 	data.ParsedTools = NewTools(data.Tools)
+
+	if data.Permissions == "" {
+		// Default behavior: keep existing workflows stable with read-all.
+		// Campaign orchestrators intentionally omit permissions from the generated
+		// .campaign.g.md frontmatter, so we compute explicit, minimal read permissions
+		// for the agent job at compile time.
+		if strings.HasSuffix(markdownPath, ".campaign.g.md") {
+			perms := NewPermissions()
+			// Campaign orchestrators always need to read repository contents and tracker issues.
+			perms.Set(PermissionContents, PermissionRead)
+			perms.Set(PermissionIssues, PermissionRead)
+
+			// If GitHub MCP toolsets are configured (including defaults), add any additional
+			// required permissions to avoid validation warnings.
+			var githubTool any
+			if data.Tools != nil {
+				githubTool = data.Tools["github"]
+			}
+			if githubTool != nil {
+				toolsetsStr := getGitHubToolsets(githubTool)
+				readOnly := getGitHubReadOnly(githubTool)
+				required := collectRequiredPermissions(ParseGitHubToolsets(toolsetsStr), readOnly)
+				for scope, level := range required {
+					perms.Set(scope, level)
+				}
+			}
+
+			yaml := perms.RenderToYAML()
+			// RenderToYAML uses job-friendly indentation (6 spaces). WorkflowData.Permissions
+			// is stored in workflow-level indentation (2 spaces) and later re-indented for jobs.
+			lines := strings.Split(yaml, "\n")
+			for i := 1; i < len(lines); i++ {
+				if strings.HasPrefix(lines[i], "      ") {
+					lines[i] = "  " + lines[i][6:]
+				}
+			}
+			data.Permissions = strings.Join(lines, "\n")
+		} else {
+			data.Permissions = NewPermissionsReadAll().RenderToYAML()
+		}
+	}
 }
 
 // extractMapFromFrontmatter is a generic helper to extract a map[string]any from frontmatter

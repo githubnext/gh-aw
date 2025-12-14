@@ -150,12 +150,8 @@ func (c *Compiler) generateYAML(data *WorkflowData, markdownPath string) (string
 	// Note: GitHub Actions doesn't support workflow-level if conditions
 	// The workflow_run safety check is added to individual jobs instead
 
-	// Add permissions if present
-	if data.Permissions != "" {
-		yaml.WriteString(data.Permissions + "\n\n")
-	} else {
-		yaml.WriteString("permissions: {}\n\n")
-	}
+	// Always keep workflow-level permissions empty; specialize permissions per-job instead.
+	yaml.WriteString("permissions: {}\n\n")
 
 	yaml.WriteString(data.Concurrency + "\n\n")
 	yaml.WriteString(data.RunName + "\n\n")

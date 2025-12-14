@@ -69,20 +69,11 @@ func BuildOrchestrator(spec *CampaignSpec, campaignFilePath string) (*workflow.W
 	markdownBuilder.WriteString("\nEach time this orchestrator runs on its daily schedule (or when manually dispatched), generate a concise status report for this campaign. Summarize current metrics, highlight blockers, and update any tracker issues using the campaign label.\n")
 	markdownBuilder.WriteString("\nUse these details to coordinate workers, update metrics, and track progress for this campaign.\n")
 
-	// Campaign orchestrators need permissions to read issues for tracker labels
-	// and repository contents. Issue/project updates are handled via safe-outputs
-	// which use GitHub App tokens with appropriate permissions.
-	permissionsSection := `permissions:
-  contents: read
-  issues: read
-`
-
 	data := &workflow.WorkflowData{
 		Name:            name,
 		Description:     description,
 		MarkdownContent: markdownBuilder.String(),
 		On:              onSection,
-		Permissions:     permissionsSection,
 		// Use a standard Ubuntu runner for the main agent job so the
 		// compiled orchestrator always has a valid runs-on value.
 		RunsOn: "runs-on: ubuntu-latest",

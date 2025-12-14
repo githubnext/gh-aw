@@ -74,10 +74,7 @@ name: "Example: Properly Provisioned Permissions"
 "on":
   workflow_dispatch: null
 
-permissions:
-  contents: write
-  issues: write
-  pull-requests: write
+permissions: {}
 
 concurrency:
   group: "gh-aw-${{ github.workflow }}"

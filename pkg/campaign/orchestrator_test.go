@@ -48,15 +48,9 @@ func TestBuildOrchestrator_BasicShape(t *testing.T) {
 		t.Fatalf("expected markdown content to mention tracker label %q, got: %q", spec.TrackerLabel, data.MarkdownContent)
 	}
 
-	// Verify that proper permissions are set for campaign orchestrators
-	if !strings.Contains(data.Permissions, "issues: read") {
-		t.Fatalf("expected permissions to include 'issues: read', got: %q", data.Permissions)
+	// Campaign orchestrators intentionally omit permissions from the generated markdown.
+	// Job permissions are computed during compilation.
+	if strings.TrimSpace(data.Permissions) != "" {
+		t.Fatalf("expected no permissions in generated orchestrator data, got: %q", data.Permissions)
 	}
-
-	if !strings.Contains(data.Permissions, "contents: read") {
-		t.Fatalf("expected permissions to include 'contents: read', got: %q", data.Permissions)
-	}
-
-	// Note: Issue/project write operations are handled via safe-outputs which mint
-	// app tokens with appropriate permissions, not direct workflow permissions.
 }

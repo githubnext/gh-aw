@@ -368,9 +368,7 @@ name: "Issue Arborist"
     # Friendly format: daily at 09:00
   workflow_dispatch: null
 
-permissions:
-  contents: read
-  issues: read
+permissions: {}
 
 concurrency:
   group: "gh-aw-${{ github.workflow }}"

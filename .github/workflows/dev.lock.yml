@@ -116,9 +116,7 @@ name: "Dev"
 "on":
   workflow_dispatch: null
 
-permissions:
-  contents: read
-  pull-requests: read
+permissions: {}
 
 concurrency:
   group: "gh-aw-${{ github.workflow }}"
