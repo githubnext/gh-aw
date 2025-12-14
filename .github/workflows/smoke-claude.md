@@ -40,6 +40,7 @@ safe-outputs:
     add-comment:
       hide-older-comments: true
     create-issue:
+      expires: 1d
     add-labels:
       allowed: [smoke-claude]
     messages:

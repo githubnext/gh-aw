@@ -60,6 +60,7 @@
 #     add-comment:
 #       hide-older-comments: true
 #     create-issue:
+#       expires: 1d
 #     add-labels:
 #       allowed: [smoke-copilot]
 #     messages:
@@ -8983,6 +8984,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
+          GH_AW_ISSUE_EXPIRES: "1"
           GH_AW_WORKFLOW_NAME: "Smoke Copilot Safe Inputs"
           GH_AW_ENGINE_ID: "copilot"
           GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"📰🔥📋 [{run_url}]({run_url})\",\"runStarted\":\"📰🚀🔍👀📡🕵️ [{run_url}]({run_url})\",\"runSuccess\":\"📰✅🎉🏁✨🎤 [{run_url}]({run_url})\",\"runFailure\":\"📰⚠️🔥❌🚨🔧 [{run_url}]({run_url})\"}"
