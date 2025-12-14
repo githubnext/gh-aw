@@ -192,7 +192,7 @@ func formatValidationErrors(err error) []string {
 
 		// Use the error's Error() method to get the message
 		msg := e.Error()
-		
+
 		problems = append(problems, fmt.Sprintf("%s: %s", field, msg))
 	}
 
