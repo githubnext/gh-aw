@@ -134,6 +134,8 @@ func (r *MCPConfigRendererUnified) renderPlaywrightTOML(yaml *strings.Builder, p
 	if len(args.AllowedDomains) > 0 {
 		yaml.WriteString(",\n")
 		yaml.WriteString("            \"--allowed-hosts\",\n")
+		yaml.WriteString("            \"" + strings.Join(args.AllowedDomains, ";") + "\",\n")
+		yaml.WriteString("            \"--allowed-origins\",\n")
 		yaml.WriteString("            \"" + strings.Join(args.AllowedDomains, ";") + "\"")
 	}
 

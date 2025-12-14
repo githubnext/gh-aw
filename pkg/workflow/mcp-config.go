@@ -55,6 +55,7 @@ func renderPlaywrightMCPConfigWithOptions(yaml *strings.Builder, playwrightTool 
 		yaml.WriteString("                \"args\": [\"run\", \"-i\", \"--rm\", \"--init\", \"" + playwrightImage + "\", \"--output-dir\", \"/tmp/gh-aw/mcp-logs/playwright\"")
 		if len(allowedDomains) > 0 {
 			yaml.WriteString(", \"--allowed-hosts\", \"" + strings.Join(allowedDomains, ";") + "\"")
+			yaml.WriteString(", \"--allowed-origins\", \"" + strings.Join(allowedDomains, ";") + "\"")
 		}
 		// Append custom args if present
 		writeArgsToYAMLInline(yaml, customArgs)
@@ -72,6 +73,8 @@ func renderPlaywrightMCPConfigWithOptions(yaml *strings.Builder, playwrightTool 
 		if len(allowedDomains) > 0 {
 			yaml.WriteString(",\n")
 			yaml.WriteString("                  \"--allowed-hosts\",\n")
+			yaml.WriteString("                  \"" + strings.Join(allowedDomains, ";") + "\",\n")
+			yaml.WriteString("                  \"--allowed-origins\",\n")
 			yaml.WriteString("                  \"" + strings.Join(allowedDomains, ";") + "\"")
 		}
 		// Append custom args if present
@@ -278,6 +281,8 @@ func renderPlaywrightMCPConfigTOML(yaml *strings.Builder, playwrightTool any) {
 	if len(args.AllowedDomains) > 0 {
 		yaml.WriteString(",\n")
 		yaml.WriteString("            \"--allowed-hosts\",\n")
+		yaml.WriteString("            \"" + strings.Join(args.AllowedDomains, ";") + "\",\n")
+		yaml.WriteString("            \"--allowed-origins\",\n")
 		yaml.WriteString("            \"" + strings.Join(args.AllowedDomains, ";") + "\"")
 	}
 
