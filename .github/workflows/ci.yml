@@ -330,11 +330,11 @@ jobs:
       - name: Install golangci-lint
         run: go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.62.2
 
-      # Run golangci-lint
+      # Run golangci-lint via Makefile for consistency
       - name: Run golangci-lint
         run: |
           export PATH="$PATH:$(go env GOPATH)/bin"
-          golangci-lint run --timeout=5m
+          make golint
 
       # Error message linting (requires Go only)
       - name: Lint error messages
