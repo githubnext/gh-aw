@@ -13,7 +13,7 @@ on:
   workflow_dispatch:
 jobs:
   test:
-    needs: [lint]
+    needs: [lint-go, lint-js]
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -63,7 +63,8 @@ jobs:
           retention-days: 14
 
   integration:
-    needs: [lint]  # Integration tests run independently (have their own checkout/setup)
+    needs: [lint-go, lint-js]  # Integration tests run independently (have their own checkout/setup)
+
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -170,7 +171,7 @@ jobs:
           retention-days: 14
 
   build:
-    needs: [lint]
+    needs: [lint-go, lint-js]
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -218,7 +219,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   js:
-    needs: [lint]
+    needs: [lint-go, lint-js]
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -290,12 +291,61 @@ jobs:
           if-no-files-found: ignore
           retention-days: 14
 
-  lint:
+  lint-go:
     runs-on: ubuntu-latest
     permissions:
       contents: read
     concurrency:
-      group: ci-${{ github.ref }}-lint
+      group: ci-${{ github.ref }}-lint-go
+      cancel-in-progress: true
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+
+      - name: Set up Go
+        id: setup-go
+        uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c # v6
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Report Go cache status
+        run: |
+          if [ "${{ steps.setup-go.outputs.cache-hit }}" == "true" ]; then
+            echo "✅ Go cache hit" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ Go cache miss" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      # Go formatting check (fast, no deps needed)
+      - name: Check Go formatting
+        run: |
+          if [ -n "$(go fmt ./...)" ]; then
+            echo "❌ Code is not formatted. Run 'make fmt' to fix." >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+          echo "✅ Go formatting check passed" >> $GITHUB_STEP_SUMMARY
+
+      # Install golangci-lint (cached by setup-go action)
+      - name: Install golangci-lint
+        run: go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.62.2
+
+      # Run golangci-lint via Makefile for consistency
+      - name: Run golangci-lint
+        run: |
+          export PATH="$PATH:$(go env GOPATH)/bin"
+          make golint
+
+      # Error message linting (requires Go only)
+      - name: Lint error messages
+        run: make lint-errors
+
+  lint-js:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    concurrency:
+      group: ci-${{ github.ref }}-lint-js
       cancel-in-progress: true
     steps:
       - name: Checkout code
@@ -317,32 +367,18 @@ jobs:
             echo "⚠️ Node cache miss" >> $GITHUB_STEP_SUMMARY
           fi
 
-      - name: Set up Go
-        id: setup-go
-        uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c # v6
-        with:
-          go-version-file: go.mod
-          cache: true
+      - name: Install npm dependencies
+        run: cd pkg/workflow/js && npm ci
 
-      - name: Report Go cache status
-        run: |
-          if [ "${{ steps.setup-go.outputs.cache-hit }}" == "true" ]; then
-            echo "✅ Go cache hit" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "⚠️ Go cache miss" >> $GITHUB_STEP_SUMMARY
-          fi
+      # JavaScript and JSON formatting checks
+      - name: Lint JavaScript files
+        run: make lint-cjs
 
-      - name: Install dev dependencies
-        run: make deps-dev
-
-      - name: Run linter
-        run: make lint
-
-      - name: Lint error messages
-        run: make lint-errors
+      - name: Check JSON formatting
+        run: make fmt-check-json
 
   actions-build:
-    needs: [lint]
+    needs: [lint-go, lint-js]
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -415,7 +451,7 @@ jobs:
           go test -fuzz=FuzzExpressionParser -fuzztime=10s ./pkg/workflow/
 
   security:
-    needs: [lint]  # Run in parallel with test to reduce critical path
+    needs: [lint-go, lint-js]  # Run in parallel with test to reduce critical path
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -448,7 +484,7 @@ jobs:
         run: make test-security
 
   security-scan:
-    needs: [lint]  # Run in parallel with test to reduce critical path
+    needs: [lint-go, lint-js]  # Run in parallel with test to reduce critical path
     # Only run security scans on main branch to reduce PR overhead
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
@@ -494,7 +530,7 @@ jobs:
         run: ./gh-aw compile poem-bot ${{ matrix.tool.flag }}
 
   logs-token-check:
-    needs: [lint]  # Run in parallel with test to reduce critical path
+    needs: [lint-go, lint-js]  # Run in parallel with test to reduce critical path
     runs-on: ubuntu-latest
     permissions:
       contents: read
