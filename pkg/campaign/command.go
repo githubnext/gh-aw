@@ -9,8 +9,11 @@ import (
 
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/constants"
+	"github.com/githubnext/gh-aw/pkg/logger"
 	"github.com/spf13/cobra"
 )
+
+var campaignLog = logger.New("campaign:command")
 
 // getWorkflowsDir returns the .github/workflows directory path.
 // This is a helper to avoid circular dependencies with cli package.
@@ -181,6 +184,7 @@ Examples:
 // It loads campaign specs from the local repository and renders them either
 // as a console table or JSON.
 func runStatus(pattern string, jsonOutput bool) error {
+	campaignLog.Printf("Running campaign status with pattern: %s, jsonOutput: %v", pattern, jsonOutput)
 	cwd, err := os.Getwd()
 	if err != nil {
 		return fmt.Errorf("failed to get current working directory: %w", err)
@@ -188,10 +192,13 @@ func runStatus(pattern string, jsonOutput bool) error {
 
 	specs, err := LoadSpecs(cwd)
 	if err != nil {
+		campaignLog.Printf("Failed to load campaign specs: %s", err)
 		return err
 	}
+	campaignLog.Printf("Loaded %d campaign specs", len(specs))
 
 	specs = FilterSpecs(specs, pattern)
+	campaignLog.Printf("Filtered to %d campaign specs", len(specs))
 
 	if jsonOutput {
 		jsonBytes, err := json.MarshalIndent(specs, "", "  ")
@@ -203,6 +210,7 @@ func runStatus(pattern string, jsonOutput bool) error {
 	}
 
 	if len(specs) == 0 {
+		campaignLog.Print("No campaign specs found matching criteria")
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("No campaign specs found. Add files under '.github/workflows/*.campaign.md' to define campaigns."))
 		return nil
 	}
