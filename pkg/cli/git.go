@@ -56,6 +56,8 @@ func ensureGitAttributes() error {
 
 	gitAttributesPath := filepath.Join(gitRoot, ".gitattributes")
 	lockYmlEntry := ".github/workflows/*.lock.yml linguist-generated=true merge=ours"
+	campaignGeneratedMdEntry := ".github/workflows/*.campaign.g.md linguist-generated=true merge=ours"
+	requiredEntries := []string{lockYmlEntry, campaignGeneratedMdEntry}
 
 	// Read existing .gitattributes file if it exists
 	var lines []string
@@ -66,30 +68,44 @@ func ensureGitAttributes() error {
 		gitLog.Print("No existing .gitattributes file found")
 	}
 
-	// Check if the entry already exists or needs updating
-	found := false
-	for i, line := range lines {
-		trimmedLine := strings.TrimSpace(line)
-		if trimmedLine == lockYmlEntry {
-			gitLog.Print(".gitattributes entry already exists with correct format")
-			return nil // Entry already exists with correct format
+	modified := false
+	for _, required := range requiredEntries {
+		found := false
+		for i, line := range lines {
+			trimmedLine := strings.TrimSpace(line)
+			if trimmedLine == required {
+				found = true
+				break
+			}
+			// Check for old format entries that need updating
+			if strings.HasPrefix(trimmedLine, ".github/workflows/*.lock.yml") && required == lockYmlEntry {
+				gitLog.Print("Updating old .gitattributes entry format")
+				lines[i] = lockYmlEntry
+				found = true
+				modified = true
+				break
+			}
+			if strings.HasPrefix(trimmedLine, ".github/workflows/*.campaign.g.md") && required == campaignGeneratedMdEntry {
+				lines[i] = campaignGeneratedMdEntry
+				found = true
+				modified = true
+				break
+			}
 		}
-		// Check for old format entry that needs updating
-		if strings.HasPrefix(trimmedLine, ".github/workflows/*.lock.yml") {
-			gitLog.Print("Updating old .gitattributes entry format")
-			lines[i] = lockYmlEntry
-			found = true
-			break
+
+		if !found {
+			gitLog.Printf("Adding new .gitattributes entry: %s", required)
+			if len(lines) > 0 && lines[len(lines)-1] != "" {
+				lines = append(lines, "")
+			}
+			lines = append(lines, required)
+			modified = true
 		}
 	}
 
-	// Add the entry if not found
-	if !found {
-		gitLog.Print("Adding new .gitattributes entry")
-		if len(lines) > 0 && lines[len(lines)-1] != "" {
-			lines = append(lines, "") // Add empty line before our entry if file doesn't end with newline
-		}
-		lines = append(lines, lockYmlEntry)
+	if !modified {
+		gitLog.Print(".gitattributes already contains required entries")
+		return nil
 	}
 
 	// Write back to file
