@@ -292,6 +292,37 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
 
+      - name: Set up Go
+        id: setup-go
+        uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c # v6
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Report Go cache status
+        run: |
+          if [ "${{ steps.setup-go.outputs.cache-hit }}" == "true" ]; then
+            echo "✅ Go cache hit" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ Go cache miss" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      # Go formatting check (fast, no deps needed)
+      - name: Check Go formatting
+        run: |
+          if [ -n "$(go fmt ./...)" ]; then
+            echo "❌ Code is not formatted. Run 'make fmt' to fix." >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+          echo "✅ Go formatting check passed" >> $GITHUB_STEP_SUMMARY
+
+      # golangci-lint with built-in caching (replaces make deps-dev + golint)
+      - name: Run golangci-lint
+        uses: golangci/golangci-lint-action@aaa42aa0628b4ae2578232a66b541047968fac86 # v6.1.0
+        with:
+          version: latest
+          args: --timeout=5m
+
       - name: Set up Node.js
         id: setup-node
         uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6
@@ -308,27 +339,17 @@ jobs:
             echo "⚠️ Node cache miss" >> $GITHUB_STEP_SUMMARY
           fi
 
-      - name: Set up Go
-        id: setup-go
-        uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c # v6
-        with:
-          go-version-file: go.mod
-          cache: true
+      - name: Install npm dependencies
+        run: cd pkg/workflow/js && npm ci
 
-      - name: Report Go cache status
-        run: |
-          if [ "${{ steps.setup-go.outputs.cache-hit }}" == "true" ]; then
-            echo "✅ Go cache hit" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "⚠️ Go cache miss" >> $GITHUB_STEP_SUMMARY
-          fi
+      # JavaScript and JSON formatting checks
+      - name: Lint JavaScript files
+        run: make lint-cjs
 
-      - name: Install dev dependencies
-        run: make deps-dev
+      - name: Check JSON formatting
+        run: make fmt-check-json
 
-      - name: Run linter
-        run: make lint
-
+      # Error message linting (requires Go only)
       - name: Lint error messages
         run: make lint-errors
 
