@@ -110,10 +110,10 @@ jobs:
           - name: "Workflow Dependabot & Security"
             packages: "./pkg/workflow"
             pattern: "Dependabot|Security|PII"
-          - name: "CMD Tests"
+          - name: "CMD Tests"  # All cmd/gh-aw integration tests
             packages: "./cmd/gh-aw"
             pattern: ""
-          - name: "Workflow Misc"
+          - name: "Workflow Misc"  # Remaining workflow tests not matched by other patterns
             packages: "./pkg/workflow"
             pattern: ""
     concurrency:
