@@ -154,11 +154,13 @@ func getNetworkFirewallCodemod() Codemod {
 				return content, false, fmt.Errorf("failed to parse frontmatter: %w", err)
 			}
 
-			// Find and remove the firewall line, add sandbox.agent if needed
+			// Find and remove the firewall line (and all nested properties), add sandbox.agent if needed
 			var modified bool
 			var inNetworkBlock bool
 			var networkIndent string
 			var firewallLineIndex = -1
+			var inFirewallBlock bool
+			var firewallIndent string
 
 			frontmatterLines := make([]string, 0, len(result.FrontmatterLines))
 
@@ -185,8 +187,41 @@ func getNetworkFirewallCodemod() Codemod {
 				if inNetworkBlock && strings.HasPrefix(trimmedLine, "firewall:") {
 					firewallLineIndex = i
 					modified = true
+					inFirewallBlock = true
+					firewallIndent = line[:len(line)-len(strings.TrimLeft(line, " \t"))]
 					codemodsLog.Printf("Removed network.firewall on line %d (value was: %v)", i+1, firewallValue)
 					continue
+				}
+
+				// Skip nested properties under firewall (lines with greater indentation)
+				if inFirewallBlock {
+					// Empty lines within the firewall block should be removed
+					if len(trimmedLine) == 0 {
+						continue
+					}
+
+					currentIndent := line[:len(line)-len(strings.TrimLeft(line, " \t"))]
+
+					// Comments need to check indentation
+					if strings.HasPrefix(trimmedLine, "#") {
+						if len(currentIndent) > len(firewallIndent) {
+							// Comment is nested under firewall, remove it
+							codemodsLog.Printf("Removed nested firewall comment on line %d: %s", i+1, trimmedLine)
+							continue
+						}
+						// Comment is at same or less indentation, exit firewall block and keep it
+						inFirewallBlock = false
+						frontmatterLines = append(frontmatterLines, line)
+						continue
+					}
+
+					// If this line has more indentation than firewall, it's a nested property
+					if len(currentIndent) > len(firewallIndent) {
+						codemodsLog.Printf("Removed nested firewall property on line %d: %s", i+1, trimmedLine)
+						continue
+					}
+					// We've exited the firewall block (found a line at same or less indentation)
+					inFirewallBlock = false
 				}
 
 				frontmatterLines = append(frontmatterLines, line)
