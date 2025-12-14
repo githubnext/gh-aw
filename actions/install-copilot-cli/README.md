@@ -62,6 +62,26 @@ This action improves security over the previous `curl | sudo bash` pattern by:
 3. **Version Pinning**: Explicitly pins to specific versions for reproducible builds
 4. **Transparent Installation**: All installation steps are visible in the action definition
 
+### Note on Sudo Usage
+
+The action still requires `sudo` privileges to install to `/usr/local/bin` (a system directory). This is necessary for the binary to be available system-wide. However, this is significantly more secure than the previous pattern because:
+
+- The downloaded binary is from a trusted source (official GitHub releases)
+- Checksums can be verified before installation
+- No remote script is executed with elevated privileges
+- All installation steps are explicit and auditable
+
+Future improvements could include:
+- Optional user-space installation (e.g., `~/.local/bin`)
+- Support for containerized installations that don't require sudo
+
+### Checksum Verification
+
+While checksum verification is optional, it is **strongly recommended** for production use. When checksums are not provided, the action will:
+- Display a warning in the workflow logs
+- Show the calculated checksum for easy addition to your workflow
+- Highlight the security implications of skipping verification
+
 ## Migration Guide
 
 ### Before (Old Pattern)

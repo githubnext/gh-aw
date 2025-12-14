@@ -96,11 +96,16 @@ runs:
           }
           echo "Checksum verified successfully"
         else
+          echo "::warning::Checksum verification skipped. For enhanced security, provide a checksum."
           echo "Warning: Checksum verification skipped (no checksum provided)"
+          echo "This may expose you to supply chain attacks. Consider adding checksum verification."
           # Calculate and display the checksum for reference
           ACTUAL_CHECKSUM=$(sha256sum "$TEMP_DIR/$FILENAME" | cut -d' ' -f1)
           echo "File checksum: $ACTUAL_CHECKSUM"
-          echo "To enable verification, add this checksum to your workflow configuration"
+          echo "To enable verification, add this checksum to your workflow configuration:"
+          echo "  with:"
+          echo "    version: '${{ inputs.version }}'"
+          echo "    checksum: '$ACTUAL_CHECKSUM'"
         fi
         
         # Extract the tarball
