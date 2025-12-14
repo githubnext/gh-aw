@@ -42,7 +42,7 @@ approval-policy:
   change-control: false
 ---
 
-# Code Health: Go File Size Reduction Campaign
+# Go File Size Reduction Campaign
 
 This campaign reduces oversized Go files over time and makes
 maintainability measurable.
@@ -54,8 +54,8 @@ maintainability measurable.
 - **Metrics**: Daily snapshots of largest-file size and count of
   over-threshold files stored under
   `memory/campaigns/go-file-size-reduction-*/metrics/`
-- **Project Board**: GitHub Projects board named `Code Health: Go File
-  Size Reduction` used as the primary campaign dashboard. The
+- **Project Board**: GitHub Projects board named `Go File
+  Size Reduction Campaign` used as the primary campaign dashboard. The
   `daily-file-diet` workflow keeps this board in sync via the
   `update-project` safe-output.
 
