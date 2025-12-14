@@ -9486,7 +9486,6 @@ jobs:
     runs-on: ubuntu-slim
     permissions:
       contents: read
-      organization-projects: write
     timeout-minutes: 10
     steps:
       - name: Generate GitHub App token

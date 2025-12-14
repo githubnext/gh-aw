@@ -797,6 +797,12 @@ func (p *Permissions) RenderToYAML() string {
 	for _, scopeStr := range scopes {
 		scope := PermissionScope(scopeStr)
 		level := allPerms[scope]
+		
+		// Skip organization-projects - it's only valid for GitHub App tokens, not workflow permissions
+		if scope == PermissionOrganizationProj {
+			continue
+		}
+		
 		// Add 2 spaces for proper indentation under permissions:
 		// When rendered in a job, the job renderer adds 4 spaces to the first line only,
 		// so we need to pre-indent continuation lines with 4 additional spaces
@@ -911,6 +917,7 @@ func NewPermissionsContentsReadSecurityEventsWriteActionsRead() *Permissions {
 }
 
 // NewPermissionsContentsReadProjectsWrite creates permissions with contents: read and organization-projects: write
+// Note: organization-projects is only valid for GitHub App tokens, not workflow permissions
 func NewPermissionsContentsReadProjectsWrite() *Permissions {
 	return NewPermissionsFromMap(map[PermissionScope]PermissionLevel{
 		PermissionContents:         PermissionRead,
