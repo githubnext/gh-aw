@@ -44,7 +44,7 @@ jobs:
 
       - name: Run unit tests with coverage
         run: |
-          go test -v -parallel=4 -timeout=3m -tags '!integration' -run='^Test' -coverprofile=coverage.out -json ./... > test-result-unit.json
+          go test -v -parallel=8 -timeout=3m -tags '!integration' -run='^Test' -coverprofile=coverage.out -json ./... > test-result-unit.json
           go tool cover -html=coverage.out -o coverage.html
 
       # Coverage reports for recent builds only - 7 days is sufficient for debugging recent changes
@@ -63,7 +63,7 @@ jobs:
           retention-days: 14
 
   integration:
-    needs: [lint]  # Run in parallel with test to reduce critical path
+    needs: [lint]  # Integration tests run independently (have their own checkout/setup)
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -113,6 +113,15 @@ jobs:
           - name: "CMD Tests"  # All cmd/gh-aw integration tests
             packages: "./cmd/gh-aw"
             pattern: ""
+          - name: "Workflow Permissions"
+            packages: "./pkg/workflow"
+            pattern: "TestPermissions|TestPackageExtractor|TestCollectPackagesFromWorkflow"
+          - name: "Workflow Expression & Safety"
+            packages: "./pkg/workflow"
+            pattern: "TestExpression|TestValidateExpressionSafety|TestCheckNetworkSupport|TestValidateStrictMCPNetwork"
+          - name: "Workflow Job Management"
+            packages: "./pkg/workflow"
+            pattern: "TestJobManager|TestWorkflowStep|TestScriptRegistry"
           - name: "Workflow Misc"  # Remaining workflow tests not matched by other patterns
             packages: "./pkg/workflow"
             pattern: ""
@@ -148,9 +157,9 @@ jobs:
           SAFE_NAME=$(echo "${{ matrix.test-group.name }}" | sed 's/[^a-zA-Z0-9]/-/g' | sed 's/--*/-/g')
           
           if [ -z "${{ matrix.test-group.pattern }}" ]; then
-            go test -v -parallel=4 -timeout=5m -tags 'integration' -json ${{ matrix.test-group.packages }} > "test-result-integration-${SAFE_NAME}.json"
+            go test -v -parallel=8 -timeout=5m -tags 'integration' -json ${{ matrix.test-group.packages }} > "test-result-integration-${SAFE_NAME}.json"
           else
-            go test -v -parallel=4 -timeout=5m -tags 'integration' -run '${{ matrix.test-group.pattern }}' -json ${{ matrix.test-group.packages }} > "test-result-integration-${SAFE_NAME}.json"
+            go test -v -parallel=8 -timeout=5m -tags 'integration' -run '${{ matrix.test-group.pattern }}' -json ${{ matrix.test-group.packages }} > "test-result-integration-${SAFE_NAME}.json"
           fi
 
       - name: Upload integration test results

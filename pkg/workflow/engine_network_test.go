@@ -133,7 +133,8 @@ func TestGetAllowedDomains(t *testing.T) {
 			Allowed: []string{"example.com", "*.trusted.com", "api.service.org"},
 		}
 		domains := GetAllowedDomains(permissions)
-		expectedDomains := []string{"example.com", "*.trusted.com", "api.service.org"}
+		// Domains should be sorted alphabetically
+		expectedDomains := []string{"*.trusted.com", "api.service.org", "example.com"}
 		if len(domains) != len(expectedDomains) {
 			t.Fatalf("Expected %d domains, got %d", len(expectedDomains), len(domains))
 		}
