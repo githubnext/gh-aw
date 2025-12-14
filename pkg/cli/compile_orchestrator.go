@@ -35,12 +35,8 @@ func renderGeneratedCampaignOrchestratorMarkdown(data *workflow.WorkflowData, so
 	// Make the orchestrator runnable by default.
 	b.WriteString("engine: copilot\n")
 
-	if strings.TrimSpace(data.Permissions) == "" {
-		b.WriteString("permissions:\n  contents: read\n")
-	} else {
-		b.WriteString(strings.TrimSuffix(data.Permissions, "\n"))
-		b.WriteString("\n")
-	}
+	// Intentionally omit permissions from generated campaign orchestrator frontmatter.
+	// Workflow/job permissions are handled during compilation.
 	if strings.TrimSpace(data.RunsOn) != "" {
 		b.WriteString(strings.TrimSuffix(data.RunsOn, "\n"))
 		b.WriteString("\n")
@@ -97,6 +93,16 @@ func generateAndCompileCampaignOrchestrator(
 		}
 	}
 
+	// Prefer compiling from the generated markdown so defaults and validation behavior
+	// match normal workflows (including computed permissions).
+	if !noEmit {
+		if err := CompileWorkflowWithValidation(compiler, orchestratorPath, verbose, runZizmorPerFile, runPoutinePerFile, runActionlintPerFile, strict, validateActionSHAs); err != nil {
+			return orchestratorPath, err
+		}
+		return orchestratorPath, nil
+	}
+
+	// No-emit mode: compile from the in-memory WorkflowData.
 	if err := CompileWorkflowDataWithValidation(compiler, data, orchestratorPath, verbose, runZizmorPerFile, runPoutinePerFile, runActionlintPerFile, strict, validateActionSHAs); err != nil {
 		return orchestratorPath, err
 	}

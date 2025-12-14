@@ -732,11 +732,7 @@ name: "Daily Firewall Logs Collector and Reporter"
     # Friendly format: daily at 10:00
   workflow_dispatch: null
 
-permissions:
-  actions: read
-  contents: read
-  issues: read
-  pull-requests: read
+permissions: {}
 
 concurrency:
   group: "gh-aw-${{ github.workflow }}"

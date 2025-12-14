@@ -1069,11 +1069,7 @@ name: "Python Data Visualization Generator"
 "on":
   workflow_dispatch: null
 
-permissions:
-  actions: read
-  contents: read
-  issues: read
-  pull-requests: read
+permissions: {}
 
 concurrency:
   group: "gh-aw-${{ github.workflow }}"

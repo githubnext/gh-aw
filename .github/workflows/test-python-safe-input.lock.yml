@@ -162,10 +162,7 @@ name: "Python Safe-Input Test Workflow"
 "on":
   workflow_dispatch: null
 
-permissions:
-  contents: read
-  issues: read
-  pull-requests: read
+permissions: {}
 
 concurrency:
   group: "gh-aw-${{ github.workflow }}"

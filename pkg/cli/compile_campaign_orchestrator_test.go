@@ -58,4 +58,25 @@ func TestGenerateAndCompileCampaignOrchestrator(t *testing.T) {
 	if _, statErr := os.Stat(lockPath); statErr != nil {
 		t.Fatalf("expected orchestrator lock file to exist, stat error: %v", statErr)
 	}
+
+	// Verify that the generated orchestrator has the required permissions
+	lockContent, readErr := os.ReadFile(lockPath)
+	if readErr != nil {
+		t.Fatalf("failed to read lock file: %v", readErr)
+	}
+	lockStr := string(lockContent)
+
+	requiredPermissions := []string{
+		"contents: read",
+		"issues: read",
+	}
+
+	for _, perm := range requiredPermissions {
+		if !strings.Contains(lockStr, perm) {
+			t.Errorf("expected lock file to contain permission %q", perm)
+		}
+	}
+
+	// Note: Issue/project write operations are handled via safe-outputs which mint
+	// app tokens with appropriate permissions, not direct workflow permissions.
 }

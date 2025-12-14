@@ -283,11 +283,7 @@ name: "CI Failure Doctor"
     - Daily Perf Improver
     - Daily Test Coverage Improver
 
-permissions:
-  actions: read
-  contents: read
-  issues: read
-  pull-requests: read
+permissions: {}
 
 concurrency:
   group: "gh-aw-${{ github.workflow }}"

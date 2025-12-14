@@ -548,11 +548,7 @@ name: "Copilot PR Prompt Pattern Analysis"
     # Friendly format: daily at 9:00
   workflow_dispatch: null
 
-permissions:
-  actions: read
-  contents: read
-  issues: read
-  pull-requests: read
+permissions: {}
 
 concurrency:
   group: "gh-aw-${{ github.workflow }}"

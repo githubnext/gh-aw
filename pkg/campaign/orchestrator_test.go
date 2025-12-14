@@ -47,4 +47,10 @@ func TestBuildOrchestrator_BasicShape(t *testing.T) {
 	if !strings.Contains(data.MarkdownContent, spec.TrackerLabel) {
 		t.Fatalf("expected markdown content to mention tracker label %q, got: %q", spec.TrackerLabel, data.MarkdownContent)
 	}
+
+	// Campaign orchestrators intentionally omit permissions from the generated markdown.
+	// Job permissions are computed during compilation.
+	if strings.TrimSpace(data.Permissions) != "" {
+		t.Fatalf("expected no permissions in generated orchestrator data, got: %q", data.Permissions)
+	}
 }

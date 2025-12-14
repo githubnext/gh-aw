@@ -649,14 +649,7 @@ name: "GitHub MCP Remote Server Tools Report Generator"
     # Friendly format: weekly on sunday at 12:00
   workflow_dispatch: null
 
-permissions:
-  actions: read
-  contents: read
-  discussions: read
-  issues: read
-  pull-requests: read
-  repository-projects: read
-  security-events: read
+permissions: {}
 
 concurrency:
   group: "gh-aw-${{ github.workflow }}"

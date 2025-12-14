@@ -1082,12 +1082,7 @@ name: "Daily News"
   - cron: "0 9 * * 1-5"
   workflow_dispatch: null
 
-permissions:
-  actions: read
-  contents: read
-  discussions: read
-  issues: read
-  pull-requests: read
+permissions: {}
 
 concurrency:
   group: "gh-aw-${{ github.workflow }}"

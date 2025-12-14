@@ -220,10 +220,7 @@ name: "Tidy"
     - "**/*.ts"
   workflow_dispatch: null
 
-permissions:
-  contents: read
-  issues: read
-  pull-requests: read
+permissions: {}
 
 concurrency:
   cancel-in-progress: true

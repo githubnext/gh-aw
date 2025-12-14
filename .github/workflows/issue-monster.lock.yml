@@ -328,10 +328,7 @@ name: "Issue Monster"
     # query: is:pr is:open is:draft author:app/copilot-swe-agent
   workflow_dispatch: null
 
-permissions:
-  contents: read
-  issues: read
-  pull-requests: read
+permissions: {}
 
 concurrency:
   group: "gh-aw-${{ github.workflow }}"

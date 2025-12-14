@@ -471,11 +471,7 @@ name: "Hourly CI Cleaner"
   - cron: "0 * * * *"
   workflow_dispatch: null
 
-permissions:
-  actions: read
-  contents: read
-  issues: read
-  pull-requests: read
+permissions: {}
 
 concurrency:
   group: "gh-aw-${{ github.workflow }}"

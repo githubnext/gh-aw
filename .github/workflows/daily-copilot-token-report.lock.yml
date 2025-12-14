@@ -1069,11 +1069,7 @@ name: "Daily Copilot Token Consumption Report"
   - cron: "0 11 * * 1-5"
   workflow_dispatch: null
 
-permissions:
-  actions: read
-  contents: read
-  issues: read
-  pull-requests: read
+permissions: {}
 
 concurrency:
   group: "gh-aw-${{ github.workflow }}"
