@@ -235,6 +235,59 @@ Results are uploaded to the GitHub Security tab in SARIF format.
 3. **Check formatting**: Run `make fmt` before committing
 4. **Validate thoroughly**: Use `go run test_validation.go` before pull requests
 
+## Secure Template Substitution
+
+When working with GitHub Actions workflows and user-controlled data, **never use envsubst on untrusted data**. Always use safe in-place substitution instead to prevent template injection vulnerabilities.
+
+### The Secure Pattern
+
+**✅ Secure Pattern:**
+```yaml
+env:
+  USER_DATA: ${{ github.event.issue.body }}
+run: |
+  # Write template with placeholder
+  cat << 'PROMPT_EOF' > "$OUTPUT_FILE"
+  Content with __USER_DATA__ placeholder
+  PROMPT_EOF
+  
+  # Safe substitution with sed (no shell expansion)
+  sed -i "s|__USER_DATA__|${USER_DATA//|/\\|}|g" "$OUTPUT_FILE"
+```
+
+**❌ Unsafe Pattern:**
+```yaml
+run: |
+  # NEVER DO THIS - allows code injection
+  export USER_DATA="${{ github.event.issue.body }}"
+  envsubst < template.txt > output.txt
+```
+
+### Why This Matters
+
+The secure pattern prevents code injection by:
+1. **Using placeholders** like `__USER_DATA__` for clarity and searchability
+2. **Treating all input as literal strings** via sed substitution
+3. **Avoiding shell expansion** by escaping special characters
+4. **Preventing envsubst evaluation** which can execute arbitrary commands
+
+### Security Checklist for Workflows
+
+When creating or reviewing workflows, ensure:
+
+- [ ] No `envsubst` usage on untrusted data
+- [ ] All user input (issue bodies, PR titles, comments, etc.) treated as literal strings
+- [ ] Templates use placeholder tokens (e.g., `__VAR__`)
+- [ ] Sed substitution includes proper escaping for pipe characters
+- [ ] Untrusted data passed through environment variables, not template expressions
+- [ ] Static analysis passes (`make security-scan`, `./gh-aw compile --zizmor`)
+
+### Additional Resources
+
+- See `examples/secure-templating.md` for a complete reference workflow
+- See `specs/template-injection-prevention.md` for detailed vulnerability analysis
+- See `SECURITY.md` for general security best practices
+
 ## Release Process
 
 ## Architectural Patterns

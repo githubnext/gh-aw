@@ -30,6 +30,91 @@ This information will help us triage your report more quickly.
 
 See [GitHub's Safe Harbor Policy](https://docs.github.com/en/github/site-policy/github-bug-bounty-program-legal-safe-harbor#1-safe-harbor-terms)
 
+## Security Best Practices
+
+### Template Injection Prevention
+
+When creating GitHub Actions workflows with gh-aw, follow these guidelines to prevent template injection vulnerabilities:
+
+#### Key Rules
+
+- **Never use `envsubst` on data from GitHub expressions** - This allows code execution through shell command expansion
+- **Use sed-based substitution with proper escaping** - Treats user input as literal strings
+- **Always treat user input as untrusted data** - Issue bodies, PR titles, comments, discussion content, etc.
+- **Use placeholders like `__VAR__` for clarity** - Makes template substitution explicit and searchable
+- **Pass untrusted data through environment variables** - Not directly in template expressions
+
+#### Secure Substitution Pattern
+
+```yaml
+env:
+  USER_DATA: ${{ github.event.issue.body }}
+run: |
+  # Write template with placeholder
+  cat << 'PROMPT_EOF' > "$OUTPUT_FILE"
+  Content with __USER_DATA__ placeholder
+  PROMPT_EOF
+  
+  # Safe substitution with sed (no shell expansion)
+  sed -i "s|__USER_DATA__|${USER_DATA//|/\\|}|g" "$OUTPUT_FILE"
+```
+
+#### Unsafe Patterns to Avoid
+
+❌ **Never use template expressions directly in shell commands:**
+```yaml
+run: |
+  echo "User input: ${{ github.event.issue.body }}"  # UNSAFE
+```
+
+❌ **Never use envsubst on untrusted data:**
+```yaml
+run: |
+  export USER_DATA="${{ github.event.issue.body }}"
+  envsubst < template.txt > output.txt  # UNSAFE
+```
+
+#### Safe Context Variables
+
+These GitHub context variables are always safe to use directly:
+- `${{ github.actor }}`
+- `${{ github.repository }}`
+- `${{ github.run_id }}`
+- `${{ github.run_number }}`
+- `${{ github.sha }}`
+
+#### Untrusted Context Variables
+
+These must always be passed through environment variables:
+- `${{ github.event.issue.title }}` / `${{ github.event.issue.body }}`
+- `${{ github.event.comment.body }}`
+- `${{ github.event.pull_request.title }}` / `${{ github.event.pull_request.body }}`
+- `${{ github.event.discussion.title }}` / `${{ github.event.discussion.body }}`
+- `${{ github.event.head_commit.message }}`
+- `${{ github.head_ref }}` (can be controlled by PR authors)
+- `${{ github.ref_name }}` (branch/tag names)
+- `${{ steps.*.outputs.* }}` (step outputs may contain user data)
+
+#### Validation Tools
+
+Use these tools to detect template injection vulnerabilities:
+
+```bash
+# Compile workflow with security scanning
+./gh-aw compile workflow-name --zizmor --actionlint --poutine
+
+# Run security scans
+make security-scan
+```
+
+#### Additional Resources
+
+- See `examples/secure-templating.md` for a complete reference workflow
+- See `specs/template-injection-prevention.md` for detailed vulnerability analysis
+- See `DEVGUIDE.md` for secure template substitution guidelines
+- [GitHub Actions Security Hardening](https://docs.github.com/en/actions/security-guides/security-hardening-for-github-actions)
+- [Understanding Script Injection Risk](https://docs.github.com/en/actions/security-guides/security-hardening-for-github-actions#understanding-the-risk-of-script-injections)
+
 ## Software Bill of Materials (SBOM)
 
 We generate Software Bill of Materials (SBOM) for this project to provide complete visibility into the dependency tree, enabling compliance reporting, vulnerability tracking, and supply chain risk assessment.
