@@ -126,6 +126,29 @@ Creates a markdown workflow file in `.github/workflows/` with template frontmatt
 
 ### Building
 
+#### `fix`
+
+Automatically fix deprecated workflow fields using codemods. Applies migrations for field renames and API changes to keep workflows up-to-date with the latest schema.
+
+```bash wrap
+gh aw fix                              # Check all workflows (dry-run)
+gh aw fix --write                      # Fix all workflows
+gh aw fix my-workflow                  # Check specific workflow (dry-run)
+gh aw fix my-workflow --write          # Fix specific workflow
+gh aw fix --list-codemods              # List available codemods with versions
+```
+
+**Options:** `--write` (apply changes to files, defaults to dry-run), `--list-codemods` (show available fixes with version information)
+
+**Available Codemods:**
+- `timeout_minutes` → `timeout-minutes` (field rename, v0.1.0)
+- `network.firewall` → `sandbox.agent` (migration with value mapping, v0.1.0)
+- `on.command` → `on.slash_command` (trigger rename, v0.2.0)
+
+The command runs in dry-run mode by default, showing what would be changed without modifying files. Use `--write` to apply the fixes. All changes preserve formatting, comments, and indentation.
+
+**Integration:** The `fix` command is automatically run before compilation when using `gh aw compile --fix`, and is integrated into the build process via `make fix`.
+
 #### `compile`
 
 Compile Markdown workflows to GitHub Actions YAML. Remote imports are automatically cached in `.github/aw/imports/` for offline compilation.
@@ -136,13 +159,14 @@ gh aw compile my-workflow                  # Compile specific workflow
 gh aw compile --watch                      # Auto-recompile on changes
 gh aw compile --validate --strict          # Schema + strict mode validation
 gh aw compile --validate --json            # Validation with JSON output
+gh aw compile --fix                        # Run fix command before compilation
 gh aw compile --zizmor                     # Security scan (warnings)
 gh aw compile --strict --zizmor            # Security scan (fails on findings)
 gh aw compile --dependabot                 # Generate dependency manifests
 gh aw compile --purge                      # Remove orphaned .lock.yml files
 ```
 
-**Options:** `--validate` (schema validation and container checks), `--strict` (strict mode validation for all workflows), `--zizmor` (security scanning with [zizmor](https://github.com/woodruffw/zizmor)), `--dependabot` (generate npm/pip/Go manifests and update dependabot.yml), `--json` (machine-readable JSON output), `--watch` (auto-recompile on changes), `--purge` (remove orphaned `.lock.yml` files)
+**Options:** `--validate` (schema validation and container checks), `--strict` (strict mode validation for all workflows), `--fix` (run `gh aw fix --write` before compiling), `--zizmor` (security scanning with [zizmor](https://github.com/woodruffw/zizmor)), `--dependabot` (generate npm/pip/Go manifests and update dependabot.yml), `--json` (machine-readable JSON output), `--watch` (auto-recompile on changes), `--purge` (remove orphaned `.lock.yml` files)
 
 **Strict Mode (`--strict`):**
 
