@@ -1459,10 +1459,11 @@ describe("log_parser_shared.cjs", () => {
     it("should limit conversation output", async () => {
       const { generatePlainTextSummary } = await import("./log_parser_shared.cjs");
 
-      // Create 1700 tool uses (which will exceed MAX_CONVERSATION_LINES of 5000)
+      // Create 2600 tool uses (which will exceed MAX_CONVERSATION_LINES of 5000)
+      // Each tool use creates 2 lines (tool + blank), so 2600 * 2 = 5200 lines
       const toolUses = [];
       const toolResults = [];
-      for (let i = 0; i < 1700; i++) {
+      for (let i = 0; i < 2600; i++) {
         toolUses.push({ type: "tool_use", id: `${i}`, name: "Bash", input: { command: `cmd${i}` } });
         toolResults.push({ type: "tool_result", tool_use_id: `${i}`, is_error: false });
       }
@@ -1830,10 +1831,11 @@ describe("log_parser_shared.cjs", () => {
     it("should truncate conversation when it exceeds max lines", async () => {
       const { generateCopilotCliStyleSummary } = await import("./log_parser_shared.cjs");
 
-      // Create 1700 tool uses (which will exceed MAX_CONVERSATION_LINES of 5000)
+      // Create 2600 tool uses (which will exceed MAX_CONVERSATION_LINES of 5000)
+      // Each tool use creates 2 lines (tool + blank), so 2600 * 2 = 5200 lines
       const toolUses = [];
       const toolResults = [];
-      for (let i = 0; i < 1700; i++) {
+      for (let i = 0; i < 2600; i++) {
         toolUses.push({ type: "tool_use", id: `${i}`, name: "Bash", input: { command: `cmd${i}` } });
         toolResults.push({ type: "tool_result", tool_use_id: `${i}`, is_error: false });
       }
