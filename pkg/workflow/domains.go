@@ -41,14 +41,16 @@ func init() {
 }
 
 // getEcosystemDomains returns the domains for a given ecosystem category
+// The returned list is sorted and contains unique entries
 func getEcosystemDomains(category string) []string {
 	domains, exists := ecosystemDomains[category]
 	if !exists {
 		return []string{}
 	}
-	// Return a copy to avoid external modification
+	// Return a sorted copy to avoid external modification
 	result := make([]string, len(domains))
 	copy(result, domains)
+	SortStrings(result)
 	return result
 }
 
@@ -56,6 +58,7 @@ func getEcosystemDomains(category string) []string {
 // Returns default allow-list if no network permissions configured or in "defaults" mode
 // Returns empty slice if network permissions configured but no domains allowed (deny all)
 // Returns domain list if network permissions configured with allowed domains
+// The returned list is sorted and deduplicated
 // Supports ecosystem identifiers:
 //   - "defaults": basic infrastructure (certs, JSON schema, Ubuntu, common package mirrors, Microsoft sources)
 //   - "containers": container registries (Docker, GitHub Container Registry, etc.)
@@ -95,19 +98,29 @@ func GetAllowedDomains(network *NetworkPermissions) []string {
 	domainsLog.Printf("Processing %d allowed domains/ecosystems", len(network.Allowed))
 
 	// Process the allowed list, expanding ecosystem identifiers if present
-	var expandedDomains []string
+	// Use a map to deduplicate domains
+	domainMap := make(map[string]bool)
 	for _, domain := range network.Allowed {
 		// Try to get domains for this ecosystem category
 		ecosystemDomains := getEcosystemDomains(domain)
 		if len(ecosystemDomains) > 0 {
 			// This was an ecosystem identifier, expand it
 			domainsLog.Printf("Expanded ecosystem '%s' to %d domains", domain, len(ecosystemDomains))
-			expandedDomains = append(expandedDomains, ecosystemDomains...)
+			for _, d := range ecosystemDomains {
+				domainMap[d] = true
+			}
 		} else {
 			// Add the domain as-is (regular domain name)
-			expandedDomains = append(expandedDomains, domain)
+			domainMap[domain] = true
 		}
 	}
+
+	// Convert map to sorted slice
+	expandedDomains := make([]string, 0, len(domainMap))
+	for domain := range domainMap {
+		expandedDomains = append(expandedDomains, domain)
+	}
+	SortStrings(expandedDomains)
 
 	return expandedDomains
 }
