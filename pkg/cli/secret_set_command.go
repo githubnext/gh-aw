@@ -27,6 +27,8 @@ type secretPayload struct {
 	KeyID          string `json:"key_id"`
 }
 
+const publicKeySize = 32 // NaCl box public key size
+
 // NewSecretCommand creates the secret command group
 func NewSecretCommand() *cobra.Command {
 	secretCmd := &cobra.Command{
@@ -201,11 +203,11 @@ func encryptWithPublicKey(publicKeyB64, plaintext string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("decode public key: %w", err)
 	}
-	if len(raw) != 32 {
-		return "", fmt.Errorf("unexpected public key length: %d", len(raw))
+	if len(raw) != publicKeySize {
+		return "", fmt.Errorf("unexpected public key length: %d, expected %d", len(raw), publicKeySize)
 	}
 
-	var pk [32]byte
+	var pk [publicKeySize]byte
 	copy(pk[:], raw)
 
 	ciphertext, err := box.SealAnonymous(nil, []byte(plaintext), &pk, rand.Reader)
