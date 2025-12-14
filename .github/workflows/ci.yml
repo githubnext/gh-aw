@@ -316,12 +316,13 @@ jobs:
           fi
           echo "✅ Go formatting check passed" >> $GITHUB_STEP_SUMMARY
 
-      # golangci-lint with built-in caching (replaces make deps-dev + golint)
+      # Install golangci-lint (cached by setup-go action)
+      - name: Install golangci-lint
+        run: go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.62.2
+
+      # Run golangci-lint
       - name: Run golangci-lint
-        uses: golangci/golangci-lint-action@aaa42aa0628b4ae2578232a66b541047968fac86 # v6.1.0
-        with:
-          version: v1.62
-          args: --timeout=5m
+        run: golangci-lint run --timeout=5m
 
       # Error message linting (requires Go only)
       - name: Lint error messages
