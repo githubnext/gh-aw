@@ -7,36 +7,37 @@ import (
 	"os/exec"
 
 	"github.com/cli/go-gh/v2"
+	"github.com/cli/go-gh/v2/pkg/auth"
 	"github.com/githubnext/gh-aw/pkg/logger"
 )
 
 var githubCLILog = logger.New("workflow:github_cli")
 
 // ExecGH wraps gh CLI calls and ensures proper token configuration.
-// It uses go-gh/v2 to execute gh commands when GH_TOKEN or GITHUB_TOKEN is available,
-// otherwise falls back to direct exec.Command for backward compatibility.
+// It uses go-gh/v2 to execute gh commands with proper authentication using pkg/auth.
 //
 // Usage:
 //
 //	cmd := ExecGH("api", "/user")
 //	output, err := cmd.Output()
 func ExecGH(args ...string) *exec.Cmd {
-	// Check if GH_TOKEN or GITHUB_TOKEN is available
-	ghToken := os.Getenv("GH_TOKEN")
-	githubToken := os.Getenv("GITHUB_TOKEN")
+	// Use pkg/auth to get token for github.com
+	token, tokenSource := auth.TokenForHost("github.com")
 
-	// If we have a token, use go-gh/v2 which handles authentication properly
-	if ghToken != "" || githubToken != "" {
-		githubCLILog.Printf("Using gh CLI via go-gh/v2 for command: gh %v", args)
+	// If we have a token, ensure it's available to gh CLI
+	if token != "" {
+		githubCLILog.Printf("Using gh CLI with token from %s for command: gh %v", tokenSource, args)
 
 		// Create a command that will execute via go-gh
 		// We return an exec.Cmd for backward compatibility with existing code
 		cmd := exec.Command("gh", args...)
 
 		// Set up environment to ensure token is available
-		if ghToken == "" && githubToken != "" {
-			githubCLILog.Printf("GH_TOKEN not set, using GITHUB_TOKEN for gh CLI")
-			cmd.Env = append(os.Environ(), "GH_TOKEN="+githubToken)
+		// Check if GH_TOKEN is already set to avoid duplicate environment variables
+		ghToken := os.Getenv("GH_TOKEN")
+		if ghToken == "" {
+			githubCLILog.Printf("Setting GH_TOKEN for gh CLI from %s", tokenSource)
+			cmd.Env = append(os.Environ(), "GH_TOKEN="+token)
 		}
 
 		return cmd
@@ -55,21 +56,22 @@ func ExecGH(args ...string) *exec.Cmd {
 //	cmd := ExecGHContext(ctx, "api", "/user")
 //	output, err := cmd.Output()
 func ExecGHContext(ctx context.Context, args ...string) *exec.Cmd {
-	// Check if GH_TOKEN or GITHUB_TOKEN is available
-	ghToken := os.Getenv("GH_TOKEN")
-	githubToken := os.Getenv("GITHUB_TOKEN")
+	// Use pkg/auth to get token for github.com
+	token, tokenSource := auth.TokenForHost("github.com")
 
-	// If we have a token, use go-gh/v2 which handles authentication properly
-	if ghToken != "" || githubToken != "" {
-		githubCLILog.Printf("Using gh CLI via go-gh/v2 for command with context: gh %v", args)
+	// If we have a token, ensure it's available to gh CLI
+	if token != "" {
+		githubCLILog.Printf("Using gh CLI with token from %s for command with context: gh %v", tokenSource, args)
 
 		// Create a command that will execute via go-gh with context
 		cmd := exec.CommandContext(ctx, "gh", args...)
 
 		// Set up environment to ensure token is available
-		if ghToken == "" && githubToken != "" {
-			githubCLILog.Printf("GH_TOKEN not set, using GITHUB_TOKEN for gh CLI")
-			cmd.Env = append(os.Environ(), "GH_TOKEN="+githubToken)
+		// Check if GH_TOKEN is already set to avoid duplicate environment variables
+		ghToken := os.Getenv("GH_TOKEN")
+		if ghToken == "" {
+			githubCLILog.Printf("Setting GH_TOKEN for gh CLI from %s", tokenSource)
+			cmd.Env = append(os.Environ(), "GH_TOKEN="+token)
 		}
 
 		return cmd
