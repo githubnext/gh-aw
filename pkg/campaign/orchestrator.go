@@ -95,7 +95,7 @@ func BuildOrchestrator(spec *CampaignSpec, campaignFilePath string) (*workflow.W
 		RunsOn: "runs-on: ubuntu-latest",
 		// Default roles match the workflow compiler's defaults so that
 		// membership checks have a non-empty GH_AW_REQUIRED_ROLES value.
-		Roles: []string{"admin", "maintainer", "write"},
+		Roles:       []string{"admin", "maintainer", "write"},
 		SafeOutputs: safeOutputs,
 	}
 
