@@ -282,7 +282,7 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 				result.Valid = false
 				result.Errors = append(result.Errors, ValidationError{
 					Type:    "resolution_error",
-					Message: err.Error(),
+					Message: sanitizeErrorMessage(err.Error()),
 				})
 				validationResults = append(validationResults, result)
 				continue
@@ -310,7 +310,7 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 					result.Valid = false
 					result.Errors = append(result.Errors, ValidationError{
 						Type:    "campaign_validation_error",
-						Message: vErr.Error(),
+						Message: sanitizeErrorMessage(vErr.Error()),
 					})
 					validationResults = append(validationResults, result)
 					continue
@@ -392,7 +392,7 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 				result.Valid = false
 				result.Errors = append(result.Errors, ValidationError{
 					Type:    "parse_error",
-					Message: err.Error(),
+					Message: sanitizeErrorMessage(err.Error()),
 				})
 				validationResults = append(validationResults, result)
 				continue
@@ -414,7 +414,7 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 				result.Valid = false
 				result.Errors = append(result.Errors, ValidationError{
 					Type:    "compilation_error",
-					Message: err.Error(),
+					Message: sanitizeErrorMessage(err.Error()),
 				})
 				validationResults = append(validationResults, result)
 				continue
@@ -611,7 +611,7 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 				result.Valid = false
 				result.Errors = append(result.Errors, ValidationError{
 					Type:    "campaign_validation_error",
-					Message: vErr.Error(),
+					Message: sanitizeErrorMessage(vErr.Error()),
 				})
 				validationResults = append(validationResults, result)
 				continue
@@ -660,7 +660,7 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 					stats.Errors++
 					stats.FailedWorkflows = append(stats.FailedWorkflows, filepath.Base(file))
 					result.Valid = false
-					result.Errors = append(result.Errors, ValidationError{Type: "campaign_orchestrator_error", Message: genErr.Error()})
+					result.Errors = append(result.Errors, ValidationError{Type: "campaign_orchestrator_error", Message: sanitizeErrorMessage(genErr.Error())})
 				}
 			}
 
@@ -687,7 +687,7 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 			result.Valid = false
 			result.Errors = append(result.Errors, ValidationError{
 				Type:    "parse_error",
-				Message: err.Error(),
+				Message: sanitizeErrorMessage(err.Error()),
 			})
 			validationResults = append(validationResults, result)
 			continue
@@ -707,7 +707,7 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 			result.Valid = false
 			result.Errors = append(result.Errors, ValidationError{
 				Type:    "compilation_error",
-				Message: err.Error(),
+				Message: sanitizeErrorMessage(err.Error()),
 			})
 			validationResults = append(validationResults, result)
 			continue

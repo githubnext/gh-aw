@@ -1,5 +1,10 @@
 package cli
 
+import (
+	"regexp"
+	"strings"
+)
+
 // CompileConfig holds configuration options for compiling workflows
 type CompileConfig struct {
 	MarkdownFiles        []string // Files to compile (empty for all files)
@@ -46,4 +51,34 @@ type ValidationResult struct {
 	Errors       []ValidationError `json:"errors"`
 	Warnings     []ValidationError `json:"warnings"`
 	CompiledFile string            `json:"compiled_file,omitempty"`
+}
+
+// sensitivePatterns contains patterns that might indicate sensitive information in error messages
+var sensitivePatterns = []*regexp.Regexp{
+	// Match potential secret/password/token patterns
+	regexp.MustCompile(`(?i)(secret|password|token|key|credential|api[_-]?key)s?\s*[:=]\s*['"]?[^\s'"]+['"]?`),
+	// Match GitHub token patterns
+	regexp.MustCompile(`gh[ps]_[a-zA-Z0-9]{36,}`),
+	// Match potential API keys
+	regexp.MustCompile(`['\"][a-zA-Z0-9_\-]{32,}['\"]`),
+}
+
+// sanitizeErrorMessage removes potentially sensitive information from error messages
+// before they are logged or returned in JSON output.
+func sanitizeErrorMessage(msg string) string {
+	sanitized := msg
+	for _, pattern := range sensitivePatterns {
+		// Replace sensitive patterns with a redacted placeholder
+		sanitized = pattern.ReplaceAllStringFunc(sanitized, func(match string) string {
+			// Try to preserve the structure of the message while redacting the value
+			if strings.Contains(match, ":") || strings.Contains(match, "=") {
+				parts := regexp.MustCompile(`[:=]`).Split(match, 2)
+				if len(parts) == 2 {
+					return parts[0] + ": [REDACTED]"
+				}
+			}
+			return "[REDACTED]"
+		})
+	}
+	return sanitized
 }
