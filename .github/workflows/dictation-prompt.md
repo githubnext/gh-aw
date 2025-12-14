@@ -40,7 +40,7 @@ Extract technical vocabulary from documentation files and create a concise dicta
 
 ## Your Mission
 
-Create a concise dictation instruction file at `.github/instructions/dictation.instructions.md` that:
+Create a concise dictation instruction file at `skills/dictation/SKILL.md` that:
 1. Contains a glossary of approximately 100 project-specific terms extracted from documentation
 2. Provides instructions for fixing speech-to-text errors (ambiguous terms, spacing, hyphenation)
 3. Does NOT include planning guidelines or examples (keep it short and focused on error correction)
@@ -66,11 +66,12 @@ Scan documentation files in `docs/src/content/docs/` to extract approximately 10
 
 ### 2. Create the Dictation Instructions File
 
-Create `.github/instructions/dictation.instructions.md` with:
-- Title: Fix text-to-speech errors in dictated text
+Create `skills/dictation/SKILL.md` with:
+- Frontmatter with name and description fields
+- Title: Dictation Instructions
 - Technical Context: Brief description of gh-aw
-- Fix Speech-to-Text Errors: Common misrecognitions → correct terms
 - Project Glossary: ~100 terms, alphabetically sorted, one per line
+- Fix Speech-to-Text Errors: Common misrecognitions → correct terms
 - Guidelines: General instructions as follows
 
 ```markdown
@@ -83,8 +84,8 @@ You do not have enough background information to plan or provide code examples.
 ### 3. Create Pull Request
 
 Use the create-pull-request tool to submit your changes with:
-- Title: "[docs] Update dictation prompt instructions"
-- Description explaining the changes made
+- Title: "[docs] Update dictation skill instructions"
+- Description explaining the changes made to skills/dictation/SKILL.md
 
 ## Guidelines
 
@@ -98,7 +99,8 @@ Use the create-pull-request tool to submit your changes with:
 
 ## Success Criteria
 
-- ✅ File `.github/instructions/dictation.instructions.md` exists
+- ✅ File `skills/dictation/SKILL.md` exists
+- ✅ Contains proper SKILL.md frontmatter (name, description)
 - ✅ Contains ~100 project-specific terms (95-105 acceptable)
 - ✅ Terms extracted from documentation only
 - ✅ Focuses on fixing speech-to-text errors
