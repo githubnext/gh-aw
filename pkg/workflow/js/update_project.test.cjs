@@ -175,7 +175,7 @@ describe("generateCampaignId", () => {
 
 describe("updateProject", () => {
   it("creates a new project when none exist", async () => {
-    const output = { type: "update_project", project: "New Campaign" };
+    const output = { type: "update_project", project: "New Campaign", create_if_missing: true };
 
     queueResponses([
       repoResponse(),
@@ -208,7 +208,7 @@ describe("updateProject", () => {
   });
 
   it("respects a custom campaign id", async () => {
-    const output = { type: "update_project", project: "Custom Campaign", campaign_id: "custom-id-2025" };
+    const output = { type: "update_project", project: "Custom Campaign", campaign_id: "custom-id-2025", create_if_missing: true };
 
     queueResponses([
       repoResponse(),
@@ -461,7 +461,7 @@ describe("updateProject", () => {
   });
 
   it("surfaces project creation failures", async () => {
-    const output = { type: "update_project", project: "Fail Project" };
+    const output = { type: "update_project", project: "Fail Project", create_if_missing: true };
 
     queueResponses([repoResponse(), ownerProjectsResponse([])]);
 
