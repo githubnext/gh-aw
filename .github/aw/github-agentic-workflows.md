@@ -51,9 +51,6 @@ gh aw compile my-workflow
 
 **Additional Compilation Options:**
 ```bash
-# Fix deprecated fields before compilation
-gh aw compile --fix
-
 # Compile with strict security checks
 gh aw compile --strict
 
@@ -1389,11 +1386,6 @@ Agentic workflows compile to GitHub Actions YAML:
 
 ### Compilation Commands
 
-- **`gh aw fix`** - Check deprecated fields in workflows (dry-run mode)
-- **`gh aw fix --write`** - Fix deprecated fields in all workflows
-- **`gh aw fix <workflow-id>`** - Check specific workflow for deprecated fields
-- **`gh aw fix <workflow-id> --write`** - Fix deprecated fields in specific workflow
-- **`gh aw compile --fix`** - Fix deprecated fields before compilation
 - **`gh aw compile --strict`** - Compile all workflow files in `.github/workflows/` with strict security checks
 - **`gh aw compile <workflow-id>`** - Compile a specific workflow by ID (filename without extension)
   - Example: `gh aw compile issue-triage` compiles `issue-triage.md`
@@ -1410,7 +1402,7 @@ Agentic workflows compile to GitHub Actions YAML:
 
 1. **Use descriptive workflow names** that clearly indicate purpose
 2. **Set appropriate timeouts** to prevent runaway costs
-3. **Include security notices** for workflows processing user content
+3. **Include security notices** for workflows processing user content  
 4. **Use the `imports:` field** in frontmatter for common patterns and security boilerplate
 5. **ALWAYS run `gh aw compile` after every change** to generate the GitHub Actions workflow (or `gh aw compile <workflow-id>` for specific workflows)
 6. **Review generated `.lock.yml`** files before deploying
@@ -1421,7 +1413,6 @@ Agentic workflows compile to GitHub Actions YAML:
 11. **Use `--engine` filter** in logs command to analyze specific AI engine performance
 12. **Prefer sanitized context text** - Use `${{ needs.activation.outputs.text }}` instead of raw `github.event` fields for security
 13. **Run security scanners** - Use `--actionlint`, `--zizmor`, and `--poutine` flags to scan compiled workflows for security issues, code quality, and supply chain risks
-14. **Fix deprecated fields** - Use `gh aw fix --write` to automatically update deprecated workflow fields before compilation
 
 ## Validation
 
