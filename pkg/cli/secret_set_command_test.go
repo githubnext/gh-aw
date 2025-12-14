@@ -111,3 +111,19 @@ func TestEncryptWithPublicKeyInvalidKey(t *testing.T) {
 		})
 	}
 }
+
+func TestEncryptWithPublicKeyEmptyPlaintext(t *testing.T) {
+	validKey := "YWJjZGVmZ2hpamtsbW5vcHFyc3R1dnd4eXpBQkNERUY="
+	encrypted, err := encryptWithPublicKey(validKey, "")
+	if err != nil {
+		t.Fatalf("encryptWithPublicKey() error = %v, expected no error", err)
+	}
+	if encrypted == "" {
+		t.Error("expected non-empty ciphertext even for empty plaintext")
+	}
+	// NaCl sealed box adds 48 bytes overhead (16 auth + 32 ephemeral pubkey)
+	// So even empty plaintext should produce base64 of at least 64 characters
+	if len(encrypted) < 64 {
+		t.Errorf("encrypted length = %d, expected at least 64 (base64 of 48-byte overhead)", len(encrypted))
+	}
+}
