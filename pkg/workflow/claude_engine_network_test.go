@@ -213,13 +213,14 @@ func TestNetworkPermissionsIntegration(t *testing.T) {
 			t.Error("Settings parameter should be present")
 		}
 
-		// Test the GetAllowedDomains function
+		// Test the GetAllowedDomains function - domains should be sorted
 		domains := GetAllowedDomains(networkPermissions)
 		if len(domains) != 3 {
 			t.Fatalf("Expected 3 allowed domains, got %d", len(domains))
 		}
 
-		expectedDomainsList := []string{"api.github.com", "*.example.com", "trusted.org"}
+		// Domains should be sorted alphabetically
+		expectedDomainsList := []string{"*.example.com", "api.github.com", "trusted.org"}
 		for i, expected := range expectedDomainsList {
 			if domains[i] != expected {
 				t.Errorf("Expected domain %d to be '%s', got '%s'", i, expected, domains[i])

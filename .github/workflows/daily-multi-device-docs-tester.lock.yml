@@ -470,7 +470,7 @@ jobs:
           
           # Domain allow-list (populated during generation)
           # JSON string is safely parsed using json.loads() to eliminate quoting vulnerabilities
-          ALLOWED_DOMAINS = json.loads('''["npmjs.org","npmjs.com","www.npmjs.com","www.npmjs.org","registry.npmjs.com","registry.npmjs.org","skimdb.npmjs.com","npm.pkg.github.com","api.npms.io","nodejs.org","yarnpkg.com","registry.yarnpkg.com","repo.yarnpkg.com","deb.nodesource.com","get.pnpm.io","bun.sh","deno.land","registry.bower.io"]''')
+          ALLOWED_DOMAINS = json.loads('''["api.npms.io","bun.sh","deb.nodesource.com","deno.land","get.pnpm.io","nodejs.org","npm.pkg.github.com","npmjs.com","npmjs.org","registry.bower.io","registry.npmjs.com","registry.npmjs.org","registry.yarnpkg.com","repo.yarnpkg.com","skimdb.npmjs.com","www.npmjs.com","www.npmjs.org","yarnpkg.com"]''')
           
           def extract_domain(url_or_query):
               """Extract domain from URL or search query."""
@@ -3064,7 +3064,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
-          GH_AW_ALLOWED_DOMAINS: "npmjs.org,npmjs.com,www.npmjs.com,www.npmjs.org,registry.npmjs.com,registry.npmjs.org,skimdb.npmjs.com,npm.pkg.github.com,api.npms.io,nodejs.org,yarnpkg.com,registry.yarnpkg.com,repo.yarnpkg.com,deb.nodesource.com,get.pnpm.io,bun.sh,deno.land,registry.bower.io"
+          GH_AW_ALLOWED_DOMAINS: "api.npms.io,bun.sh,deb.nodesource.com,deno.land,get.pnpm.io,nodejs.org,npm.pkg.github.com,npmjs.com,npmjs.org,registry.bower.io,registry.npmjs.com,registry.npmjs.org,registry.yarnpkg.com,repo.yarnpkg.com,skimdb.npmjs.com,www.npmjs.com,www.npmjs.org,yarnpkg.com"
           GITHUB_SERVER_URL: ${{ github.server_url }}
           GITHUB_API_URL: ${{ github.api_url }}
         with:

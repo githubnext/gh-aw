@@ -285,7 +285,7 @@ func TestNetworkPermissionsUtilities(t *testing.T) {
 			t.Errorf("Expected 0 domains for empty allowed list, got %d", len(domains))
 		}
 
-		// Test with multiple domains
+		// Test with multiple domains - should be sorted alphabetically
 		perms := &NetworkPermissions{
 			Allowed: []string{"domain1.com", "*.domain2.com", "domain3.org"},
 		}
@@ -294,7 +294,8 @@ func TestNetworkPermissionsUtilities(t *testing.T) {
 			t.Errorf("Expected 3 domains, got %d", len(domains))
 		}
 
-		expected := []string{"domain1.com", "*.domain2.com", "domain3.org"}
+		// Domains should be sorted
+		expected := []string{"*.domain2.com", "domain1.com", "domain3.org"}
 		for i, expectedDomain := range expected {
 			if domains[i] != expectedDomain {
 				t.Errorf("Expected domain %d to be '%s', got '%s'", i, expectedDomain, domains[i])
