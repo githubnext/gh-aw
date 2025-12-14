@@ -7,19 +7,20 @@ import (
 
 func TestBuildOrchestrator_BasicShape(t *testing.T) {
 	spec := &CampaignSpec{
-		ID:           "security-q1-2025",
-		Name:         "Security Q1 2025",
-		Description:  "Security compliance campaign",
-		Workflows:    []string{"security-compliance"},
-		MemoryPaths:  []string{"memory/campaigns/security-q1-2025/**"},
-		MetricsGlob:  "memory/campaigns/security-q1-2025/*.json",
-		TrackerLabel: "campaign:security-q1-2025",
+		ID:           "go-file-size-reduction",
+		Name:         "Campaign: Go File Size Reduction",
+		Description:  "Reduce oversized non-test Go files under pkg/ to ≤800 LOC via tracked refactors.",
+		ProjectURL:   "https://github.com/orgs/githubnext/projects/1",
+		Workflows:    []string{"daily-file-diet"},
+		MemoryPaths:  []string{"memory/campaigns/go-file-size-reduction-*/**"},
+		MetricsGlob:  "memory/campaigns/go-file-size-reduction-*/metrics/*.json",
+		TrackerLabel: "campaign:go-file-size-reduction",
 	}
 
-	mdPath := ".github/workflows/security-compliance.campaign.md"
+	mdPath := ".github/workflows/go-file-size-reduction.campaign.md"
 	data, orchestratorPath := BuildOrchestrator(spec, mdPath)
 
-	if orchestratorPath != ".github/workflows/security-compliance.campaign.g.md" {
+	if orchestratorPath != ".github/workflows/go-file-size-reduction.campaign.g.md" {
 		t.Fatalf("unexpected orchestrator path: got %q", orchestratorPath)
 	}
 
@@ -39,7 +40,7 @@ func TestBuildOrchestrator_BasicShape(t *testing.T) {
 		t.Fatalf("expected On section with daily schedule cron, got %q", data.On)
 	}
 
-	if !strings.Contains(data.MarkdownContent, "Security Q1 2025") {
+	if !strings.Contains(data.MarkdownContent, "Go File Size Reduction") {
 		t.Fatalf("expected markdown content to mention campaign name, got: %q", data.MarkdownContent)
 	}
 

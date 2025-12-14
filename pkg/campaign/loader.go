@@ -151,6 +151,7 @@ func CreateSpecSkeleton(rootDir, id string, force bool) (string, error) {
 	spec := CampaignSpec{
 		ID:           id,
 		Name:         name,
+		ProjectURL:   "https://github.com/orgs/ORG/projects/1",
 		Version:      "v1",
 		State:        "planned",
 		TrackerLabel: "campaign:" + id,

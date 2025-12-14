@@ -20,12 +20,12 @@
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/aw/github-agentic-workflows.md
 #
 #
-# Analyzes the largest Go source file daily and creates an issue to refactor it into smaller files if needed
+# Analyzes the largest Go source file daily and creates an issue to refactor it into smaller files if it exceeds the Go File Size Reduction campaign threshold
 #
 # Original Frontmatter:
 # ```yaml
 # name: Daily File Diet
-# description: Analyzes the largest Go source file daily and creates an issue to refactor it into smaller files if needed
+# description: Analyzes the largest Go source file daily and creates an issue to refactor it into smaller files if it exceeds the Go File Size Reduction campaign threshold
 # on:
 #   workflow_dispatch:
 #   schedule:
@@ -48,7 +48,7 @@
 # safe-outputs:
 #   create-issue:
 #     title-prefix: "[file-diet] "
-#     labels: [refactoring, code-health, automated-analysis, "campaign:code-health-file-diet"]
+#     labels: [refactoring, code-health, automated-analysis, "campaign:go-file-size-reduction"]
 #     max: 1
 #   update-project:
 #     max: 10
@@ -59,7 +59,7 @@
 #     toolsets: [default]
 #   repo-memory:
 #     branch-name: memory/campaigns
-#     file-glob: "code-health-file-diet-*/**"
+#     file-glob: "go-file-size-reduction-*/**"
 #   edit:
 #   bash:
 #     - "find pkg -name '*.go' ! -name '*_test.go' -type f -exec wc -l {} \\; | sort -rn"
@@ -635,9 +635,9 @@
 #
 # ## Campaign Context
 #
-# - **Campaign ID**: `code-health-file-diet`
-# - **Campaign Label**: `campaign:code-health-file-diet`
-# - **Memory Path Prefix**: `memory/campaigns/code-health-file-diet-*/**`
+# - **Campaign ID**: `go-file-size-reduction`
+# - **Campaign Label**: `campaign:go-file-size-reduction`
+# - **Memory Path Prefix**: `memory/campaigns/go-file-size-reduction-*/**`
 #
 # ## Analysis Process
 #
@@ -655,11 +655,11 @@
 #
 # ### 2. Apply Size Threshold
 #
-# **Healthy file size threshold: 1000 lines**
+# **Healthy file size threshold: 800 lines**
 #
-# If the largest file is **under 1000 lines**, do NOT create an issue. Instead, output a simple message indicating all files are within healthy limits.
+# If the largest file is **under 800 lines**, do NOT create an issue. Instead, output a simple message indicating all files are within healthy limits.
 #
-# If the largest file is **1000+ lines**, proceed to step 3.
+# If the largest file is **800+ lines**, proceed to step 3.
 #
 # ### 3. Analyze File Structure Using Serena
 #
@@ -798,33 +798,33 @@
 #
 # Your output MUST either:
 #
-# 1. **If largest file < 1000 lines**: Output a simple status message
+# 1. **If largest file < 800 lines**: Output a simple status message
 #    ```
 #    ✅ All files are healthy! Largest file: [FILE_PATH] ([LINE_COUNT] lines)
 #    No refactoring needed today.
 #    ```
 #
-# 2. **If largest file ≥ 1000 lines**: Create an issue with the detailed description above
+# 2. **If largest file ≥ 800 lines**: Create an issue with the detailed description above
 #
 # In both cases, update campaign metrics and trend charts as described below.
 #
 # ## Campaign Metrics & Trend Charts
 #
 # To support enterprise reporting and visual trends for the
-# `code-health-file-diet` campaign:
+# `go-file-size-reduction` campaign:
 #
 # 1. **Write a campaign metrics snapshot** to repo-memory on each run using
 #    the `repo-memory` tool. Follow the `CampaignMetricsSnapshot` schema
 #    used by the campaign system:
 #
 #    - `date`: analysis date (YYYY-MM-DD)
-#    - `campaign_id`: `"code-health-file-diet"`
+#    - `campaign_id`: `"go-file-size-reduction"`
 #    - `tasks_total`: total number of refactor issues for this campaign
-#      (open + closed) labeled `campaign:code-health-file-diet`
+#      (open + closed) labeled `campaign:go-file-size-reduction`
 #    - `tasks_completed`: number of closed refactor issues labeled
-#      `campaign:code-health-file-diet`
+#      `campaign:go-file-size-reduction`
 #    - `tasks_in_progress`: number of open refactor issues labeled
-#      `campaign:code-health-file-diet`
+#      `campaign:go-file-size-reduction`
 #    - `tasks_blocked`: number of campaign issues marked as blocked (for
 #      example, with a `status:blocked` label, if present)
 #    - `velocity_per_day`: approximate completion velocity based on recent
@@ -837,18 +837,18 @@
 #
 #    - `largest_file_path`: path of the largest file analyzed
 #    - `largest_file_loc`: line count of the largest file
-#    - `files_over_threshold`: count of files over the 1000-line threshold
+#   - `files_over_threshold`: count of files over the 800-line threshold
 #
 #    Store this snapshot under the campaign metrics path so it matches the
 #    campaign spec `metrics-glob`:
 #
-#    - `memory/campaigns/code-health-file-diet-${{ github.run_id }}/metrics/<DATE>.json`
+#   - `memory/campaigns/go-file-size-reduction-${{ github.run_id }}/metrics/<DATE>.json`
 #
 # 2. **Aggregate historical snapshots** from repo-memory when generating a
 #    report:
 #
 #    - Read all existing JSON snapshots matching
-#      `memory/campaigns/code-health-file-diet-*/metrics/*.json`.
+#      `memory/campaigns/go-file-size-reduction-*/metrics/*.json`.
 #    - Build a time-series table keyed by `date` with columns like:
 #      `largest_file_loc`, `files_over_threshold`, `tasks_total`,
 #      `tasks_completed`, `velocity_per_day`.
@@ -897,20 +897,21 @@
 # 1. **Choose the board**:
 #
 #    - Prefer an organization or repository project named
-#      `Code Health: File Diet`.
-#    - If it does not exist and permissions allow, the `update-project`
-#      safe output can create it automatically; otherwise humans can
-#      create the board and re-run the workflow.
+#      `Code Health: Go File Size Reduction`.
+#    - If it does not exist, humans should create the board once and
+#      re-run the workflow. (Optional: with an elevated token and an
+#      explicit opt-in like `create_if_missing: true`, the `update-project`
+#      safe output can create it.)
 #
 # 2. **Add each refactor issue to the board** when you create it:
 #
 #    - Call `update-project` with:
 #      - `project`: the board name or URL (for example,
-#        `"Code Health: File Diet"`).
+#        `"Code Health: Go File Size Reduction"`).
 #      - `content_number`: the GitHub issue number of the refactor task
 #        you just created.
 #      - `content_type`: `"issue"`.
-#      - `campaign_id`: `"code-health-file-diet"` so the tooling can
+#      - `campaign_id`: `"go-file-size-reduction"` so the tooling can
 #        apply consistent campaign metadata.
 #    - Let the smart project updater handle adding the issue to the board
 #      and avoiding duplicates.
@@ -1294,7 +1295,7 @@ jobs:
           cat > /tmp/gh-aw/safeoutputs/tools.json << 'EOF'
           [
             {
-              "description": "Create a new GitHub issue for tracking bugs, feature requests, or tasks. Use this for actionable work items that need assignment, labeling, and status tracking. For reports, announcements, or status updates that don't require task tracking, use create_discussion instead. CONSTRAINTS: Maximum 1 issue(s) can be created. Title will be prefixed with \"[file-diet] \". Labels [refactoring code-health automated-analysis campaign:code-health-file-diet] will be automatically added.",
+              "description": "Create a new GitHub issue for tracking bugs, feature requests, or tasks. Use this for actionable work items that need assignment, labeling, and status tracking. For reports, announcements, or status updates that don't require task tracking, use create_discussion instead. CONSTRAINTS: Maximum 1 issue(s) can be created. Title will be prefixed with \"[file-diet] \". Labels [refactoring code-health automated-analysis campaign:go-file-size-reduction] will be automatically added.",
               "inputSchema": {
                 "additionalProperties": false,
                 "properties": {
@@ -3589,9 +3590,9 @@ jobs:
           GH_AW_GITHUB_WORKSPACE: ${{ github.workspace }}
         run: |
           cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
-          - **Campaign ID**: `code-health-file-diet`
-          - **Campaign Label**: `campaign:code-health-file-diet`
-          - **Memory Path Prefix**: `memory/campaigns/code-health-file-diet-*/**`
+          - **Campaign ID**: `go-file-size-reduction`
+          - **Campaign Label**: `campaign:go-file-size-reduction`
+          - **Memory Path Prefix**: `memory/campaigns/go-file-size-reduction-*/**`
           
           ## Analysis Process
           
@@ -3609,11 +3610,11 @@ jobs:
           
           ### 2. Apply Size Threshold
           
-          **Healthy file size threshold: 1000 lines**
+          **Healthy file size threshold: 800 lines**
           
-          If the largest file is **under 1000 lines**, do NOT create an issue. Instead, output a simple message indicating all files are within healthy limits.
+          If the largest file is **under 800 lines**, do NOT create an issue. Instead, output a simple message indicating all files are within healthy limits.
           
-          If the largest file is **1000+ lines**, proceed to step 3.
+          If the largest file is **800+ lines**, proceed to step 3.
           
           ### 3. Analyze File Structure Using Serena
           
@@ -3752,33 +3753,33 @@ jobs:
           
           Your output MUST either:
           
-          1. **If largest file < 1000 lines**: Output a simple status message
+          1. **If largest file < 800 lines**: Output a simple status message
              ```
              ✅ All files are healthy! Largest file: [FILE_PATH] ([LINE_COUNT] lines)
              No refactoring needed today.
              ```
           
-          2. **If largest file ≥ 1000 lines**: Create an issue with the detailed description above
+          2. **If largest file ≥ 800 lines**: Create an issue with the detailed description above
           
           In both cases, update campaign metrics and trend charts as described below.
           
           ## Campaign Metrics & Trend Charts
           
           To support enterprise reporting and visual trends for the
-          `code-health-file-diet` campaign:
+          `go-file-size-reduction` campaign:
           
           1. **Write a campaign metrics snapshot** to repo-memory on each run using
              the `repo-memory` tool. Follow the `CampaignMetricsSnapshot` schema
              used by the campaign system:
           
              - `date`: analysis date (YYYY-MM-DD)
-             - `campaign_id`: `"code-health-file-diet"`
+             - `campaign_id`: `"go-file-size-reduction"`
              - `tasks_total`: total number of refactor issues for this campaign
-               (open + closed) labeled `campaign:code-health-file-diet`
+               (open + closed) labeled `campaign:go-file-size-reduction`
              - `tasks_completed`: number of closed refactor issues labeled
-               `campaign:code-health-file-diet`
+               `campaign:go-file-size-reduction`
              - `tasks_in_progress`: number of open refactor issues labeled
-               `campaign:code-health-file-diet`
+               `campaign:go-file-size-reduction`
              - `tasks_blocked`: number of campaign issues marked as blocked (for
                example, with a `status:blocked` label, if present)
              - `velocity_per_day`: approximate completion velocity based on recent
@@ -3791,18 +3792,18 @@ jobs:
           
              - `largest_file_path`: path of the largest file analyzed
              - `largest_file_loc`: line count of the largest file
-             - `files_over_threshold`: count of files over the 1000-line threshold
+            - `files_over_threshold`: count of files over the 800-line threshold
           
              Store this snapshot under the campaign metrics path so it matches the
              campaign spec `metrics-glob`:
           
-             - `memory/campaigns/code-health-file-diet-__GH_AW_GITHUB_RUN_ID__/metrics/<DATE>.json`
+            - `memory/campaigns/go-file-size-reduction-__GH_AW_GITHUB_RUN_ID__/metrics/<DATE>.json`
           
           2. **Aggregate historical snapshots** from repo-memory when generating a
              report:
           
              - Read all existing JSON snapshots matching
-               `memory/campaigns/code-health-file-diet-*/metrics/*.json`.
+               `memory/campaigns/go-file-size-reduction-*/metrics/*.json`.
              - Build a time-series table keyed by `date` with columns like:
                `largest_file_loc`, `files_over_threshold`, `tasks_total`,
                `tasks_completed`, `velocity_per_day`.
@@ -3851,20 +3852,21 @@ jobs:
           1. **Choose the board**:
           
              - Prefer an organization or repository project named
-               `Code Health: File Diet`.
-             - If it does not exist and permissions allow, the `update-project`
-               safe output can create it automatically; otherwise humans can
-               create the board and re-run the workflow.
+               `Code Health: Go File Size Reduction`.
+             - If it does not exist, humans should create the board once and
+               re-run the workflow. (Optional: with an elevated token and an
+               explicit opt-in like `create_if_missing: true`, the `update-project`
+               safe output can create it.)
           
           2. **Add each refactor issue to the board** when you create it:
           
              - Call `update-project` with:
                - `project`: the board name or URL (for example,
-                 `"Code Health: File Diet"`).
+                 `"Code Health: Go File Size Reduction"`).
                - `content_number`: the GitHub issue number of the refactor task
                  you just created.
                - `content_type`: `"issue"`.
-               - `campaign_id`: `"code-health-file-diet"` so the tooling can
+               - `campaign_id`: `"go-file-size-reduction"` so the tooling can
                  apply consistent campaign metadata.
              - Let the smart project updater handle adding the issue to the board
                and avoiding duplicates.
@@ -4063,7 +4065,7 @@ jobs:
           - **Persistence**: Files persist across workflow runs via git branch storage
           
           **Constraints:**
-          - **Allowed Files**: Only files matching patterns: code-health-file-diet-*/**
+          - **Allowed Files**: Only files matching patterns: go-file-size-reduction-*/**
           - **Max File Size**: 10240 bytes (0.01 MB) per file
           - **Max File Count**: 100 files per commit
           
@@ -8205,7 +8207,7 @@ jobs:
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_ISSUE_TITLE_PREFIX: "[file-diet] "
-          GH_AW_ISSUE_LABELS: "refactoring,code-health,automated-analysis,campaign:code-health-file-diet"
+          GH_AW_ISSUE_LABELS: "refactoring,code-health,automated-analysis,campaign:go-file-size-reduction"
           GH_AW_WORKFLOW_NAME: "Daily File Diet"
           GH_AW_TRACKER_ID: "daily-file-diet"
           GH_AW_ENGINE_ID: "copilot"
@@ -8849,7 +8851,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           WORKFLOW_NAME: "Daily File Diet"
-          WORKFLOW_DESCRIPTION: "Analyzes the largest Go source file daily and creates an issue to refactor it into smaller files if needed"
+          WORKFLOW_DESCRIPTION: "Analyzes the largest Go source file daily and creates an issue to refactor it into smaller files if it exceeds the Go File Size Reduction campaign threshold"
         with:
           script: |
             const fs = require('fs');
@@ -9305,7 +9307,7 @@ jobs:
           BRANCH_NAME: memory/campaigns
           MAX_FILE_SIZE: 10240
           MAX_FILE_COUNT: 100
-          FILE_GLOB_FILTER: "code-health-file-diet-*/**"
+          FILE_GLOB_FILTER: "go-file-size-reduction-*/**"
         with:
           script: |
             const fs = require("fs");
@@ -9593,6 +9595,10 @@ jobs:
                   rest: octokit.rest,
                 };
               }
+              const createIfMissing =
+                output.create_if_missing === true || output.create_project_if_missing === true || output.createProjectIfMissing === true;
+              const hasCustomToken = !!process.env.PROJECT_GITHUB_TOKEN;
+              const allowCreateProject = createIfMissing || hasCustomToken;
               try {
                 const repoResult = await githubClient.graphql(
                   `query($owner: String!, $repo: String!) {
@@ -9674,6 +9680,18 @@ jobs:
                     const projectDisplay = parsedProjectNumber ? `project #${parsedProjectNumber}` : `project "${parsedProjectName}"`;
                     core.error(`Cannot find ${projectDisplay}. Create it manually at https://github.com/users/${owner}/projects/new.`);
                     throw new Error(`Cannot find ${projectDisplay} on user account.`);
+                  }
+                  if (!allowCreateProject) {
+                    const projectDisplay = parsedProjectNumber
+                      ? `project #${parsedProjectNumber}`
+                      : parsedProjectName
+                        ? `project "${parsedProjectName}"`
+                        : `project "${output.project}"`;
+                    core.error(
+                      `Cannot find ${projectDisplay}. Create it manually at https://github.com/orgs/${owner}/projects/new and re-run, ` +
+                        `or opt in to creation by setting create_if_missing=true in the update_project output (recommended only when you intentionally want workflows to create boards).`
+                    );
+                    throw new Error(`Cannot find ${projectDisplay} on organization account.`);
                   }
                   const createResult = await githubClient.graphql(
                     `mutation($ownerId: ID!, $title: String!) {

@@ -4,6 +4,7 @@ import (
 	"embed"
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -50,6 +51,17 @@ func ValidateSpec(spec *CampaignSpec) []string {
 		problems = append(problems, "workflows should list at least one workflow implementing this campaign")
 	}
 
+	if strings.TrimSpace(spec.ProjectURL) == "" {
+		problems = append(problems, "project-url is required (GitHub Project URL used as the campaign dashboard)")
+	} else {
+		parsed, err := url.Parse(strings.TrimSpace(spec.ProjectURL))
+		if err != nil || parsed.Scheme == "" || parsed.Host == "" {
+			problems = append(problems, "project-url must be a valid absolute URL (for example: https://github.com/orgs/<org>/projects/<number>)")
+		} else if !strings.Contains(parsed.Path, "/projects/") {
+			problems = append(problems, "project-url must point to a GitHub Project (URL path should include '/projects/')")
+		}
+	}
+
 	if strings.TrimSpace(spec.TrackerLabel) == "" {
 		problems = append(problems, "tracker-label should be set to link issues and PRs to this campaign")
 	} else if !strings.Contains(spec.TrackerLabel, ":") {
@@ -92,6 +104,7 @@ func ValidateSpecWithSchema(spec *CampaignSpec) []string {
 		ID                 string                  `json:"id"`
 		Name               string                  `json:"name"`
 		Description        string                  `json:"description,omitempty"`
+		ProjectURL         string                  `json:"project-url,omitempty"`
 		Version            string                  `json:"version,omitempty"`
 		Workflows          []string                `json:"workflows,omitempty"`
 		MemoryPaths        []string                `json:"memory-paths,omitempty"`
@@ -110,6 +123,7 @@ func ValidateSpecWithSchema(spec *CampaignSpec) []string {
 		ID:                 spec.ID,
 		Name:               spec.Name,
 		Description:        spec.Description,
+		ProjectURL:         spec.ProjectURL,
 		Version:            spec.Version,
 		Workflows:          spec.Workflows,
 		MemoryPaths:        spec.MemoryPaths,

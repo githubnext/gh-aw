@@ -500,6 +500,10 @@
           "type": "object",
           "description": "Custom project field values to set/update. Creates fields if missing.",
           "additionalProperties": true
+        },
+        "create_if_missing": {
+          "type": "boolean",
+          "description": "Opt-in: allow creating the project board if it does not exist. Default behavior is update-only."
         }
       },
       "required": ["type", "project"],

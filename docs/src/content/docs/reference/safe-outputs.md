@@ -335,6 +335,8 @@ Agent output includes `parent_issue_number` and `sub_issue_number`. Validation e
 
 Manages GitHub Projects boards. Generated job runs with `projects: write` permissions, links the board to the repository, and maintains campaign metadata.
 
+By default, `update-project` is **update-only**: if the project board does not exist, the job fails with instructions to create the board manually. This is the lowest-friction setup because it typically avoids requiring a PAT or GitHub App.
+
 ```yaml wrap
 safe-outputs:
   update-project:
@@ -343,6 +345,8 @@ safe-outputs:
 ```
 
 Agent output must include a `project` identifier (name, number, or URL) and can supply `content_number`, `content_type`, `fields`, and `campaign_id`. The job adds the issue or PR to the board, updates custom fields, applies `campaign:<id>` labels, and exposes `project-id`, `project-number`, `project-url`, `campaign-id`, and `item-id` outputs. Cross-repository targeting not supported.
+
+To opt in to creating missing project boards, include `create_if_missing: true` in the `update_project` output (and ensure your token has sufficient org Project permissions; in many setups this means using `safe-outputs.update-project.github-token`).
 
 ### Pull Request Creation (`create-pull-request:`)
 

@@ -31,7 +31,7 @@ Use a campaign when any of these are true:
 
 What campaigns add:
 
-- A campaign spec file declares the initiative (tracker label, referenced workflows, and optional memory/metrics locations).
+- A campaign spec file declares the initiative (Project dashboard URL, tracker label, referenced workflows, and optional memory/metrics locations).
 - `gh aw compile` validates the spec and can generate an orchestrator workflow (`.campaign.g.md`).
 - The CLI gives consistent inventory and status (`gh aw campaign`, `gh aw campaign status`).
 
@@ -60,6 +60,8 @@ version: "v1"
 name: "Framework Upgrade"
 description: "Move services to Framework vNext"
 
+project-url: "https://github.com/orgs/ORG/projects/1"
+
 workflows:
   - framework-upgrade
 
@@ -71,6 +73,7 @@ owners:
 
 Common fields you’ll reach for as the initiative grows:
 
+- `project-url`: the GitHub Project URL used as the primary campaign dashboard
 - `tracker-label`: the label that ties issues/PRs back to the campaign
 - `memory-paths` / `metrics-glob`: where baselines and metrics snapshots live on your repo-memory branch
 - `approval-policy`: the expectations for human approval (required approvals/roles)
@@ -83,7 +86,7 @@ To keep campaigns consistent and easy to read, most teams use a predictable set 
 
 - **Tracker label** (for example, `campaign:<id>`) applied to every issue/PR in the campaign.
 - **Epic issue** (often also labeled `campaign-tracker`) as the human-readable command center.
-- **GitHub Project** as the dashboard (optional but common for cross-team work).
+- **GitHub Project** as the dashboard (primary campaign dashboard).
 - **Repo-memory metrics** (daily JSON snapshots) to compute velocity/ETAs and enable trend reporting.
 - **Monitor/orchestrator** to aggregate and post periodic updates.
 
@@ -93,8 +96,36 @@ If you want to try this end-to-end quickly, start with the minimal steps below.
 
 1. Create a campaign spec: `.github/workflows/<id>.campaign.md`.
 2. Reference one or more workflows in `workflows:`.
-3. Add a `tracker-label` so issues/PRs can be queried consistently.
-4. Run `gh aw compile` to validate campaign specs and compile workflows.
+3. Set `project-url` to the org Project v2 URL you use as the campaign dashboard.
+4. Add a `tracker-label` so issues/PRs can be queried consistently.
+5. Run `gh aw compile` to validate campaign specs and compile workflows.
+
+## Lowest-friction walkthrough (recommended)
+
+The simplest, least-permissions way to run a campaign is:
+
+1. **Create the campaign spec (in a PR)**
+  - Use `gh aw campaign new <id>` or author `.github/workflows/<id>.campaign.md` manually.
+
+2. **Create the org Project board once (manual)**
+  - Create an org Project v2 in the GitHub UI and copy its URL into `project-url`.
+  - This avoids requiring a PAT or GitHub App setup just to provision boards.
+  - Minimum clicks (one-time setup):
+    - In GitHub: your org 0 **Projects** 0 **New project**.
+    - Give it a name (for example: `Code Health: <Campaign Name>`).
+    - Choose any starting layout (Table/Board). You can change views later.
+    - Copy the Project URL and set it as `project-url` in the campaign spec.
+  - Optional but recommended for “kanban lanes”:
+    - Create a **Board** view and set **Group by** to a single-select field (commonly `Status`).
+    - Note: workflows can create/update fields and single-select options, but they do not currently create or configure Project views.
+
+3. **Have workflows keep the board in sync using `GITHUB_TOKEN`**
+  - Enable the `update-project` safe output in the launcher/monitor workflows.
+  - Default behavior is **update-only**: if the board does not exist, the project job fails with instructions.
+
+4. **Opt in to auto-creating the board only when you intend to**
+  - If you want workflows to create missing boards, explicitly set `create_if_missing: true` in the `update_project` output.
+  - For many orgs, you may also need a token override (`safe-outputs.update-project.github-token`) with sufficient org Project permissions.
 
 When the spec has meaningful details (tracker label, workflows, memory paths, or a metrics glob), `gh aw compile` will also generate an orchestrator workflow named `.github/workflows/<id>.campaign.g.md` and compile it to a corresponding `.lock.yml`.
 

@@ -31,6 +31,7 @@ Based on the conversation, propose concrete values for the core campaign fields:
 - `id` — stable identifier in kebab-case using only lowercase letters, digits, and hyphens (for example: `security-q1-2025`).
 - `name` — human-friendly title.
 - `description` — short explanation of what the campaign does.
+- `project-url` — GitHub Project URL used as the primary campaign dashboard.
 - `workflows` — one or more workflow IDs (basenames under `.github/workflows/` without `.md`).
 - `memory-paths` — under `memory/campaigns/<campaign-id>-*/**` when the campaign uses repo-memory.
 - `owners` — primary human owners.
@@ -44,6 +45,12 @@ Based on the conversation, propose concrete values for the core campaign fields:
 
 Show the proposed YAML frontmatter snippet to the user and refine it until they approve. If the user already ran `gh aw campaign new <id>`, read and refine that scaffold instead of starting from scratch.
 
+When collecting `project-url`, be explicit about the one-time manual setup:
+- The lowest-friction default is **update-only**: the human creates the Project once in the GitHub UI, then workflows keep it in sync.
+- The user should copy/paste the Project URL into `project-url`.
+- Workflows can create/update Project fields and single-select options, but they do not currently create or configure Project views (board/table/filters/grouping).
+- If the user wants “kanban lanes”, instruct them to create a Board view and group by a single-select field (commonly `Status`).
+
 ## Step 3: Create or Update the .campaign.md File
 
 Once the spec fields are approved, guide the user to create or update the spec file:
@@ -54,7 +61,7 @@ Once the spec fields are approved, guide the user to create or update the spec f
    - The approved YAML frontmatter.
    - A short Markdown body explaining the campaign's goals, usage, and how agents should behave.
 
-Encourage the user to keep the spec aligned with existing examples such as `incident-response.campaign.md` and `security-compliance.campaign.md` in this repo.
+Encourage the user to keep the spec aligned with the existing example `go-file-size-reduction.campaign.md` in this repo.
 
 ## Step 4: (Optional) Propose a Starter Workflow
 

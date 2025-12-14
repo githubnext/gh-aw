@@ -207,7 +207,7 @@ A finite, enterprise-scale initiative with explicit ownership, approval gates, a
 - Cross-team and cross-repository coordination
 - Executive dashboards and KPI reporting
 
-**File naming:** Use `.campaign.md` extension (e.g., `security-compliance.campaign.md`)
+**File naming:** Use `.campaign.md` extension (e.g., `<campaign-id>.campaign.md`)
 
 See the [Campaigns Guide](/gh-aw/guides/campaigns/) for implementation patterns and examples.
 

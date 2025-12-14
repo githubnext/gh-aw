@@ -1,11 +1,15 @@
 ---
 title: ProjectOps
-description: Automate GitHub Projects board management - organize work, track campaigns, and maintain project state with AI-powered workflows
+description: Automate GitHub Projects board management with AI-powered workflows (triage, routing, and field updates)
 sidebar:
   badge: { text: 'Event-triggered', variant: 'success' }
 ---
 
-ProjectOps brings intelligent automation to GitHub Projects, enabling AI agents to automatically create project boards, add items, update status fields, and track campaigns. GitHub Agentic Workflows makes ProjectOps natural through the [`update-project`](/gh-aw/reference/safe-outputs/#project-board-updates-update-project) safe output that handles all [Projects v2 API](https://docs.github.com/en/issues/planning-and-tracking-with-projects/automating-your-project/using-the-api-to-manage-projects) complexity while maintaining security with minimal permissions.
+ProjectOps brings intelligent automation to GitHub Projects, enabling AI agents to add items, update status fields, and track campaigns. GitHub Agentic Workflows makes ProjectOps natural through the [`update-project`](/gh-aw/reference/safe-outputs/#project-board-updates-update-project) safe output that handles all [Projects v2 API](https://docs.github.com/en/issues/planning-and-tracking-with-projects/automating-your-project/using-the-api-to-manage-projects) complexity while maintaining security with minimal permissions.
+
+If you’re running a structured, multi-day initiative with a spec file, approvals, and a single dashboard, use [Campaigns](/gh-aw/guides/campaigns/) (which commonly uses ProjectOps under the hood for Project tracking).
+
+By default, `update-project` is update-only: create the Project once in the GitHub UI, then let workflows keep it in sync. If you intentionally want workflows to create missing Projects, opt in via the agent output field `create_if_missing: true` and ensure your token has sufficient org Project permissions.
 
 ## When to Use ProjectOps
 
@@ -57,11 +61,11 @@ ProjectOps workflows use the `update-project` safe output to ensure secure proje
 safe-outputs:
   update-project:
     max: 10                              # Optional: max project operations (default: 10)
-    github-token: ${{ secrets.PROJECTS_PAT }}  # Optional: PAT for cross-repo projects
+    github-token: ${{ secrets.PROJECT_GITHUB_TOKEN }}  # Optional: token override when org policy requires it
 ```
 
 The `update-project` tool provides intelligent project management:
-- **Auto-creates boards**: Creates project if it doesn't exist
+- **Optional create**: Can create the Project only when explicitly opted in (for example, `create_if_missing: true`)
 - **Auto-adds items**: Checks if issue already on board before adding (prevents duplicates)
 - **Updates fields**: Sets status, priority, custom fields
 - **Applies campaign labels**: Adds `campaign:<id>` label for tracking

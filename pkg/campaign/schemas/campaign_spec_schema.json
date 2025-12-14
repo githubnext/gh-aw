@@ -20,6 +20,13 @@
       "type": "string",
       "description": "Brief description of the campaign"
     },
+    "project-url": {
+      "type": "string",
+      "description": "URL of the GitHub Project used as the primary campaign dashboard",
+      "format": "uri",
+      "pattern": "/projects/",
+      "minLength": 1
+    },
     "version": {
       "type": "string",
       "description": "Spec version (e.g., v1)",
@@ -120,6 +127,6 @@
       "additionalProperties": false
     }
   },
-  "required": ["id", "name"],
+  "required": ["id", "name", "project-url"],
   "additionalProperties": false
 }

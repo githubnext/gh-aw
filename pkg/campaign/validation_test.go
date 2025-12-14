@@ -9,6 +9,7 @@ func TestValidateSpec_ValidSpec(t *testing.T) {
 	spec := &CampaignSpec{
 		ID:           "test-campaign",
 		Name:         "Test Campaign",
+		ProjectURL:   "https://github.com/orgs/org/projects/1",
 		Version:      "v1",
 		State:        "active",
 		Workflows:    []string{"workflow1", "workflow2"},
@@ -24,6 +25,7 @@ func TestValidateSpec_ValidSpec(t *testing.T) {
 func TestValidateSpec_MissingID(t *testing.T) {
 	spec := &CampaignSpec{
 		Name:         "Test Campaign",
+		ProjectURL:   "https://github.com/orgs/org/projects/1",
 		Workflows:    []string{"workflow1"},
 		TrackerLabel: "campaign:test",
 	}
@@ -49,6 +51,7 @@ func TestValidateSpec_InvalidIDCharacters(t *testing.T) {
 	spec := &CampaignSpec{
 		ID:           "Test_Campaign",
 		Name:         "Test Campaign",
+		ProjectURL:   "https://github.com/orgs/org/projects/1",
 		Workflows:    []string{"workflow1"},
 		TrackerLabel: "campaign:test",
 	}
@@ -73,6 +76,7 @@ func TestValidateSpec_InvalidIDCharacters(t *testing.T) {
 func TestValidateSpec_MissingName(t *testing.T) {
 	spec := &CampaignSpec{
 		ID:           "test-campaign",
+		ProjectURL:   "https://github.com/orgs/org/projects/1",
 		Workflows:    []string{"workflow1"},
 		TrackerLabel: "campaign:test",
 	}
@@ -98,6 +102,7 @@ func TestValidateSpec_MissingWorkflows(t *testing.T) {
 	spec := &CampaignSpec{
 		ID:           "test-campaign",
 		Name:         "Test Campaign",
+		ProjectURL:   "https://github.com/orgs/org/projects/1",
 		TrackerLabel: "campaign:test",
 	}
 
@@ -120,9 +125,10 @@ func TestValidateSpec_MissingWorkflows(t *testing.T) {
 
 func TestValidateSpec_MissingTrackerLabel(t *testing.T) {
 	spec := &CampaignSpec{
-		ID:        "test-campaign",
-		Name:      "Test Campaign",
-		Workflows: []string{"workflow1"},
+		ID:         "test-campaign",
+		Name:       "Test Campaign",
+		ProjectURL: "https://github.com/orgs/org/projects/1",
+		Workflows:  []string{"workflow1"},
 	}
 
 	problems := ValidateSpec(spec)
@@ -146,6 +152,7 @@ func TestValidateSpec_InvalidTrackerLabelFormat(t *testing.T) {
 	spec := &CampaignSpec{
 		ID:           "test-campaign",
 		Name:         "Test Campaign",
+		ProjectURL:   "https://github.com/orgs/org/projects/1",
 		Workflows:    []string{"workflow1"},
 		TrackerLabel: "no-colon-here",
 	}
@@ -171,6 +178,7 @@ func TestValidateSpec_InvalidState(t *testing.T) {
 	spec := &CampaignSpec{
 		ID:           "test-campaign",
 		Name:         "Test Campaign",
+		ProjectURL:   "https://github.com/orgs/org/projects/1",
 		Workflows:    []string{"workflow1"},
 		TrackerLabel: "campaign:test",
 		State:        "invalid-state",
@@ -200,6 +208,7 @@ func TestValidateSpec_ValidStates(t *testing.T) {
 		spec := &CampaignSpec{
 			ID:           "test-campaign",
 			Name:         "Test Campaign",
+			ProjectURL:   "https://github.com/orgs/org/projects/1",
 			Workflows:    []string{"workflow1"},
 			TrackerLabel: "campaign:test",
 			State:        state,
@@ -216,6 +225,7 @@ func TestValidateSpec_VersionDefault(t *testing.T) {
 	spec := &CampaignSpec{
 		ID:           "test-campaign",
 		Name:         "Test Campaign",
+		ProjectURL:   "https://github.com/orgs/org/projects/1",
 		Workflows:    []string{"workflow1"},
 		TrackerLabel: "campaign:test",
 	}
@@ -234,6 +244,7 @@ func TestValidateSpec_RiskLevel(t *testing.T) {
 		spec := &CampaignSpec{
 			ID:           "test-campaign",
 			Name:         "Test Campaign",
+			ProjectURL:   "https://github.com/orgs/org/projects/1",
 			Workflows:    []string{"workflow1"},
 			TrackerLabel: "campaign:test",
 			RiskLevel:    riskLevel,
@@ -252,6 +263,7 @@ func TestValidateSpec_WithApprovalPolicy(t *testing.T) {
 	spec := &CampaignSpec{
 		ID:           "test-campaign",
 		Name:         "Test Campaign",
+		ProjectURL:   "https://github.com/orgs/org/projects/1",
 		Workflows:    []string{"workflow1"},
 		TrackerLabel: "campaign:test",
 		ApprovalPolicy: &CampaignApprovalPolicy{
@@ -272,6 +284,7 @@ func TestValidateSpec_CompleteSpec(t *testing.T) {
 		ID:                 "complete-campaign",
 		Name:               "Complete Campaign",
 		Description:        "A complete campaign spec for testing",
+		ProjectURL:         "https://github.com/orgs/org/projects/1",
 		Version:            "v1",
 		Workflows:          []string{"workflow1", "workflow2"},
 		MemoryPaths:        []string{"memory/campaigns/complete/**"},
