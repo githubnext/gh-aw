@@ -198,6 +198,16 @@ func getRepoPublicKey(client *api.RESTClient, owner, repo string) (*repoPublicKe
 	return &key, nil
 }
 
+// encryptWithPublicKey encrypts plaintext using NaCl's sealed box construction
+// (Curve25519 + XSalsa20 + Poly1305) as required by GitHub's Actions Secrets API.
+// The encrypted output can only be decrypted by the holder of the private key
+// corresponding to the provided public key.
+//
+// Parameters:
+//   - publicKeyB64: Base64-encoded 32-byte NaCl public key
+//   - plaintext: Secret value to encrypt
+//
+// Returns base64-encoded ciphertext or error.
 func encryptWithPublicKey(publicKeyB64, plaintext string) (string, error) {
 	raw, err := base64.StdEncoding.DecodeString(publicKeyB64)
 	if err != nil {
