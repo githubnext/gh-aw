@@ -60,6 +60,10 @@ func BuildOrchestrator(spec *CampaignSpec, campaignFilePath string) (*workflow.W
 		markdownBuilder.WriteString(fmt.Sprintf("- Metrics glob: `%s`\n", spec.MetricsGlob))
 		hasDetails = true
 	}
+	if strings.TrimSpace(spec.ProjectURL) != "" {
+		markdownBuilder.WriteString(fmt.Sprintf("- Project dashboard: %s\n", strings.TrimSpace(spec.ProjectURL)))
+		hasDetails = true
+	}
 
 	// Return nil if the campaign spec has no meaningful details for the prompt
 	if !hasDetails {
@@ -67,7 +71,19 @@ func BuildOrchestrator(spec *CampaignSpec, campaignFilePath string) (*workflow.W
 	}
 
 	markdownBuilder.WriteString("\nEach time this orchestrator runs on its daily schedule (or when manually dispatched), generate a concise status report for this campaign. Summarize current metrics, highlight blockers, and update any tracker issues using the campaign label.\n")
+	if strings.TrimSpace(spec.ProjectURL) != "" {
+		markdownBuilder.WriteString("\nKeep the campaign Project dashboard in sync using the `update-project` safe output. Use the campaign's `project-url` (shown above) as the project identifier when updating/adding items and fields.\n")
+	}
 	markdownBuilder.WriteString("\nUse these details to coordinate workers, update metrics, and track progress for this campaign.\n")
+
+	// Enable safe outputs needed for campaign coordination.
+	// Note: Campaign orchestrators intentionally omit explicit `permissions:` from
+	// the generated markdown; safe-output jobs have their own scoped permissions.
+	safeOutputs := &workflow.SafeOutputsConfig{}
+	// Always allow commenting on tracker issues (or other issues/PRs if needed).
+	safeOutputs.AddComments = &workflow.AddCommentsConfig{BaseSafeOutputConfig: workflow.BaseSafeOutputConfig{Max: 10}}
+	// Allow updating the campaign's GitHub Project dashboard.
+	safeOutputs.UpdateProjects = &workflow.UpdateProjectConfig{BaseSafeOutputConfig: workflow.BaseSafeOutputConfig{Max: 10}}
 
 	data := &workflow.WorkflowData{
 		Name:            name,
@@ -79,7 +95,8 @@ func BuildOrchestrator(spec *CampaignSpec, campaignFilePath string) (*workflow.W
 		RunsOn: "runs-on: ubuntu-latest",
 		// Default roles match the workflow compiler's defaults so that
 		// membership checks have a non-empty GH_AW_REQUIRED_ROLES value.
-		Roles: []string{"admin", "maintainer", "write"},
+		Roles:       []string{"admin", "maintainer", "write"},
+		SafeOutputs: safeOutputs,
 	}
 
 	return data, orchestratorPath
