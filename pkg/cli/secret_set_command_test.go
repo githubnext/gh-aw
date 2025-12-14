@@ -1,8 +1,12 @@
 package cli
 
 import (
+	"crypto/rand"
+	"encoding/base64"
 	"strings"
 	"testing"
+
+	"golang.org/x/crypto/nacl/box"
 )
 
 func TestResolveSecretValueForSet(t *testing.T) {
@@ -125,5 +129,65 @@ func TestEncryptWithPublicKeyEmptyPlaintext(t *testing.T) {
 	// So even empty plaintext should produce base64 of at least 64 characters
 	if len(encrypted) < 64 {
 		t.Errorf("encrypted length = %d, expected at least 64 (base64 of 48-byte overhead)", len(encrypted))
+	}
+}
+
+func TestEncryptWithPublicKeyRoundTrip(t *testing.T) {
+	// Generate a real NaCl keypair for round-trip testing
+	publicKey, privateKey, err := box.GenerateKey(rand.Reader)
+	if err != nil {
+		t.Fatalf("failed to generate keypair: %v", err)
+	}
+
+	// Encode the public key to base64 as the API expects
+	publicKeyB64 := base64.StdEncoding.EncodeToString(publicKey[:])
+
+	tests := []struct {
+		name      string
+		plaintext string
+	}{
+		{
+			name:      "simple secret",
+			plaintext: "my-secret-value",
+		},
+		{
+			name:      "empty secret",
+			plaintext: "",
+		},
+		{
+			name:      "multiline secret",
+			plaintext: "line1\nline2\nline3",
+		},
+		{
+			name:      "special characters",
+			plaintext: "!@#$%^&*()_+-=[]{}|;':\",./<>?",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Encrypt the plaintext
+			encryptedB64, err := encryptWithPublicKey(publicKeyB64, tt.plaintext)
+			if err != nil {
+				t.Fatalf("encryptWithPublicKey() error = %v", err)
+			}
+
+			// Decode the encrypted value from base64
+			encrypted, err := base64.StdEncoding.DecodeString(encryptedB64)
+			if err != nil {
+				t.Fatalf("failed to decode encrypted value: %v", err)
+			}
+
+			// Decrypt using the private key
+			decrypted, ok := box.OpenAnonymous(nil, encrypted, publicKey, privateKey)
+			if !ok {
+				t.Fatal("box.OpenAnonymous() failed to decrypt")
+			}
+
+			// Verify the decrypted value matches the original plaintext
+			if string(decrypted) != tt.plaintext {
+				t.Errorf("round-trip failed: got %q, want %q", string(decrypted), tt.plaintext)
+			}
+		})
 	}
 }

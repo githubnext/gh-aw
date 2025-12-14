@@ -62,6 +62,10 @@ The secret value can be provided in three ways:
   2. Via the --value-from-env flag (reads from environment variable)
   3. From stdin (if neither flag is provided)
 
+Secret Size Limits:
+  GitHub Actions secrets have a maximum size of 64 KB (65,536 bytes).
+  Secrets larger than this limit will be rejected by the GitHub API.
+
 Examples:
   # From stdin
   gh aw secret set MY_SECRET --owner myorg --repo myrepo
