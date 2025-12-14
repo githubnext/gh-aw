@@ -13,6 +13,20 @@ import (
 
 var githubCLILog = logger.New("workflow:github_cli")
 
+// Token source constants from auth.TokenForHost()
+const (
+	// tokenSourceGHToken indicates the token came from GH_TOKEN environment variable
+	tokenSourceGHToken = "GH_TOKEN"
+	// tokenSourceGitHubToken indicates the token came from GITHUB_TOKEN environment variable
+	tokenSourceGitHubToken = "GITHUB_TOKEN"
+	// tokenSourceOAuthToken indicates the token came from gh config file
+	tokenSourceOAuthToken = "oauth_token"
+	// tokenSourceGH indicates the token came from system keyring via 'gh auth token'
+	tokenSourceGH = "gh"
+	// tokenSourceDefault indicates no token was found
+	tokenSourceDefault = "default"
+)
+
 // ExecGH wraps gh CLI calls and ensures proper token configuration.
 // It uses go-gh/v2 to execute gh commands with proper authentication using pkg/auth.
 //
@@ -35,7 +49,7 @@ func ExecGH(args ...string) *exec.Cmd {
 		// Set up environment to ensure token is available
 		// If token source is not GH_TOKEN, we need to set it explicitly
 		// This ensures the token is available even if it came from GITHUB_TOKEN or config
-		if tokenSource != "GH_TOKEN" {
+		if tokenSource != tokenSourceGHToken {
 			githubCLILog.Printf("Setting GH_TOKEN for gh CLI from %s", tokenSource)
 			cmd.Env = append(os.Environ(), "GH_TOKEN="+token)
 		}
@@ -69,7 +83,7 @@ func ExecGHContext(ctx context.Context, args ...string) *exec.Cmd {
 		// Set up environment to ensure token is available
 		// If token source is not GH_TOKEN, we need to set it explicitly
 		// This ensures the token is available even if it came from GITHUB_TOKEN or config
-		if tokenSource != "GH_TOKEN" {
+		if tokenSource != tokenSourceGHToken {
 			githubCLILog.Printf("Setting GH_TOKEN for gh CLI from %s", tokenSource)
 			cmd.Env = append(os.Environ(), "GH_TOKEN="+token)
 		}
