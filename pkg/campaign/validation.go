@@ -17,11 +17,13 @@ import (
 //go:embed schemas/campaign_spec_schema.json
 var campaignSpecSchemaFS embed.FS
 
-// Cached compiled schema to avoid reloading on every validation
+// Cached compiled schema to avoid reloading on every validation.
+// These variables implement a singleton pattern using sync.Once to ensure
+// the schema is loaded and compiled exactly once per process lifetime.
 var (
-	campaignSchemaOnce sync.Once
-	campaignSchema     gojsonschema.JSONLoader
-	schemaLoadError    error
+	campaignSchemaOnce sync.Once              // Ensures one-time initialization
+	campaignSchema     gojsonschema.JSONLoader // Cached schema loader
+	schemaLoadError    error                   // Cached error from schema loading
 )
 
 // getCampaignSchema returns the cached campaign schema loader, loading it once
@@ -38,7 +40,10 @@ func getCampaignSchema() (gojsonschema.JSONLoader, error) {
 		campaignSchema = gojsonschema.NewBytesLoader(schemaData)
 	})
 
-	return campaignSchema, schemaLoadError
+	if schemaLoadError != nil {
+		return nil, schemaLoadError
+	}
+	return campaignSchema, nil
 }
 
 // ValidateSpec performs lightweight semantic validation of a
