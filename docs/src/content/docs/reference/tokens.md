@@ -23,18 +23,18 @@ Create these as **repository secrets in *your* repo**. The easiest way is to use
 
 ```bash
 # Current repository
-gh aw secret set GH_AW_GITHUB_TOKEN --value "YOUR_PAT"
-gh aw secret set COPILOT_GITHUB_TOKEN --value "YOUR_COPILOT_PAT"
-gh aw secret set GH_AW_AGENT_TOKEN --value "YOUR_AGENT_PAT"
+gh aw secrets set GH_AW_GITHUB_TOKEN --value "YOUR_PAT"
+gh aw secrets set COPILOT_GITHUB_TOKEN --value "YOUR_COPILOT_PAT"
+gh aw secrets set GH_AW_AGENT_TOKEN --value "YOUR_AGENT_PAT"
 ```
 
 After these are set, gh-aw will automatically pick the right token for each operation; you should not need per-workflow PATs in most cases.
 
 ### CLI helpers for tokens and secrets
 
-- `gh aw tokens bootstrap` – checks which recommended token secrets (like `GH_AW_GITHUB_TOKEN`, `COPILOT_GITHUB_TOKEN`) exist in a repository and prints suggested scopes plus copy‑pasteable `gh aw secret set` commands.
+- `gh aw secrets bootstrap` – checks which recommended token secrets (like `GH_AW_GITHUB_TOKEN`, `COPILOT_GITHUB_TOKEN`) exist in a repository and prints suggested scopes plus copy‑pasteable `gh aw secrets set` commands.
 - `gh aw init --tokens --engine <engine>` – runs token checks as part of repository initialization for a specific engine (`copilot`, `claude`, `codex`).
-- `gh aw secret set <NAME>` – creates or updates a repository secret. Values can come from `--value`, `--value-from-env`, or stdin (for example, `echo "PAT" | gh aw secret set NAME`).
+- `gh aw secrets set <NAME>` – creates or updates a repository secret. Values can come from `--value`, `--value-from-env`, or stdin (for example, `echo "PAT" | gh aw secrets set NAME`).
 
 ### Security and scopes (least privilege)
 
@@ -116,7 +116,7 @@ A fine-grained or classic Personal Access Token providing enhanced capabilities 
 2. Add to repository secrets:
 
 ```bash wrap
-gh aw secret set GH_AW_GITHUB_TOKEN --value "YOUR_PAT"
+gh aw secrets set GH_AW_GITHUB_TOKEN --value "YOUR_PAT"
 ```
 
 **Token precedence** (highest to lowest):
@@ -153,7 +153,7 @@ A specialized token for the GitHub MCP server that takes precedence over the sta
 **Setup**:
 
 ```bash wrap
-gh aw secret set GH_AW_GITHUB_MCP_SERVER_TOKEN --value "YOUR_PAT"
+gh aw secrets set GH_AW_GITHUB_MCP_SERVER_TOKEN --value "YOUR_PAT"
 ```
 
 **Token precedence** for GitHub MCP server (highest to lowest):
@@ -203,7 +203,7 @@ The recommended token for all Copilot-related operations including the Copilot e
 2. Add to repository secrets:
 
 ```bash wrap
-gh aw secret set COPILOT_GITHUB_TOKEN --value "YOUR_COPILOT_PAT"
+gh aw secrets set COPILOT_GITHUB_TOKEN --value "YOUR_COPILOT_PAT"
 ```
 
 **Copilot token precedence** (highest to lowest):
@@ -246,7 +246,7 @@ Specialized token for `assign-to-agent:` safe outputs that assign GitHub Copilot
 2. Add to repository secrets:
 
 ```bash wrap
-gh aw secret set GH_AW_AGENT_TOKEN --value "YOUR_AGENT_PAT"
+gh aw secrets set GH_AW_AGENT_TOKEN --value "YOUR_AGENT_PAT"
 ```
 
 **Token precedence** (highest to lowest):
@@ -604,13 +604,13 @@ safe-outputs:
 1. **For cross-repository operations**: Configure `GH_AW_GITHUB_TOKEN` with access to the target repository:
 
   ```bash wrap
-  gh aw secret set GH_AW_GITHUB_TOKEN --value "YOUR_PAT"
+  gh aw secrets set GH_AW_GITHUB_TOKEN --value "YOUR_PAT"
   ```
 
 2. **For bot operations**: Use `COPILOT_GITHUB_TOKEN` with "Copilot Requests" permission:
 
   ```bash wrap
-  gh aw secret set COPILOT_GITHUB_TOKEN --value "YOUR_COPILOT_PAT"
+  gh aw secrets set COPILOT_GITHUB_TOKEN --value "YOUR_COPILOT_PAT"
   ```
 
 3. **Check token permissions**: Verify your PAT has the required scopes:
@@ -641,7 +641,7 @@ safe-outputs:
 3. Set or update the secret:
 
   ```bash wrap
-  gh aw secret set COPILOT_GITHUB_TOKEN --value "YOUR_PAT"
+  gh aw secrets set COPILOT_GITHUB_TOKEN --value "YOUR_PAT"
   ```
 
 ### Remote GitHub Tools Failures
@@ -655,7 +655,7 @@ safe-outputs:
 **Option 1**: Add token (recommended for remote mode):
 
 ```bash wrap
-gh aw secret set GH_AW_GITHUB_TOKEN --value "YOUR_PAT"
+gh aw secrets set GH_AW_GITHUB_TOKEN --value "YOUR_PAT"
 ```
 
 **Option 2**: Switch to local mode (uses Docker):
@@ -683,7 +683,7 @@ tools:
 2. Add to secrets:
 
   ```bash wrap
-  gh aw secret set GH_AW_AGENT_TOKEN --value "YOUR_AGENT_PAT"
+  gh aw secrets set GH_AW_AGENT_TOKEN --value "YOUR_AGENT_PAT"
   ```
 
 ### Token Not Being Used
@@ -727,14 +727,14 @@ tools:
 **Good practice**: Use one general-purpose PAT for multiple workflows with similar permissions:
 
 ```bash wrap
-gh aw secret set GH_AW_GITHUB_TOKEN --value "YOUR_PAT"
+gh aw secrets set GH_AW_GITHUB_TOKEN --value "YOUR_PAT"
 ```
 
 **Better practice**: Use different tokens for different permission levels:
 
 ```bash wrap
-gh aw secret set READ_ONLY_TOKEN --value "YOUR_READ_PAT"
-gh aw secret set READ_WRITE_TOKEN --value "YOUR_WRITE_PAT"
+gh aw secrets set READ_ONLY_TOKEN --value "YOUR_READ_PAT"
+gh aw secrets set READ_WRITE_TOKEN --value "YOUR_WRITE_PAT"
 ```
 
 **Best practice**: Use GitHub Apps with automatic permission management.
@@ -752,7 +752,7 @@ gh aw secret set READ_WRITE_TOKEN --value "YOUR_WRITE_PAT"
 3. Update secret:
 
   ```bash wrap
-  gh aw secret set GH_AW_GITHUB_TOKEN --value "YOUR_NEW_PAT"
+  gh aw secrets set GH_AW_GITHUB_TOKEN --value "YOUR_NEW_PAT"
   ```
 
 4. Consider shorter expiration periods with regular rotation schedule
@@ -775,16 +775,16 @@ gh aw secret set READ_WRITE_TOKEN --value "YOUR_WRITE_PAT"
 
 ```bash wrap
 # Enhanced GitHub token (most common, current repository)
-gh aw secret set GH_AW_GITHUB_TOKEN --value "YOUR_PAT"
+gh aw secrets set GH_AW_GITHUB_TOKEN --value "YOUR_PAT"
 
 # Copilot operations
-gh aw secret set COPILOT_GITHUB_TOKEN --value "YOUR_COPILOT_PAT"
+gh aw secrets set COPILOT_GITHUB_TOKEN --value "YOUR_COPILOT_PAT"
 
 # Agent assignments
-gh aw secret set GH_AW_AGENT_TOKEN --value "YOUR_AGENT_PAT"
+gh aw secrets set GH_AW_AGENT_TOKEN --value "YOUR_AGENT_PAT"
 
 # Custom MCP server token (optional)
-gh aw secret set GH_AW_GITHUB_MCP_SERVER_TOKEN --value "YOUR_PAT"
+gh aw secrets set GH_AW_GITHUB_MCP_SERVER_TOKEN --value "YOUR_PAT"
 
 # List configured secrets (GitHub CLI)
 gh secret list -a actions
@@ -843,7 +843,7 @@ The `COPILOT_CLI_TOKEN` and `GH_AW_COPILOT_TOKEN` secrets are **no longer suppor
 
 ```bash wrap
 # Add new secret
-gh aw secret set COPILOT_GITHUB_TOKEN --value "<your-github-pat>"
+gh aw secrets set COPILOT_GITHUB_TOKEN --value "<your-github-pat>"
 ```
 
 :::
@@ -856,7 +856,7 @@ gh secret remove GH_AW_COPILOT_TOKEN -a actions
 gh secret remove COPILOT_CLI_TOKEN -a actions
 
 # Add new secret
-gh aw secret set COPILOT_GITHUB_TOKEN --value "YOUR_PAT"
+gh aw secrets set COPILOT_GITHUB_TOKEN --value "YOUR_PAT"
 ```
 
 ## Related Documentation

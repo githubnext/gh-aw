@@ -287,7 +287,7 @@ Cross-repo issue tracking requires appropriate authentication:
 
 ```bash
 # Create PAT with issues and repository read permissions
-gh aw secret set CROSS_REPO_PAT --value "ghp_your_token_here"
+gh aw secrets set CROSS_REPO_PAT --value "ghp_your_token_here"
 ```
 
 **Required Permissions:**

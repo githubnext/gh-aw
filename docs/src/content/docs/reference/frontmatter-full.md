@@ -1780,8 +1780,8 @@ safe-outputs:
   # to create it manually. To allow workflows to create missing projects, explicitly
   # opt in via the agent output field create_if_missing=true (and/or provide a
   # github-token override). Requires repository-projects: write permission. Safe
-  # output items produced by the agent use type=update_project and must include:
-  # project (full GitHub project URL), content_type (issue|pull_request), content_number, fields,
+  # output items produced by the agent use type=update_project and may include:
+  # project (board name), content_type (issue|pull_request), content_number, fields,
   # campaign_id, and create_if_missing.
   update-project:
     # Maximum number of project operations to perform (default: 10). Each operation

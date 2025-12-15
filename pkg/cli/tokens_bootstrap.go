@@ -117,8 +117,8 @@ var recommendedTokenSpecs = []tokenSpec{
 	},
 }
 
-// NewTokensBootstrapSubcommand creates the `tokens bootstrap` subcommand
-func NewTokensBootstrapSubcommand() *cobra.Command {
+// newSecretsBootstrapSubcommand creates the `secrets bootstrap` subcommand
+func newSecretsBootstrapSubcommand() *cobra.Command {
 	var engineFlag string
 	var ownerFlag string
 	var repoFlag string
@@ -215,7 +215,7 @@ func runTokensBootstrap(engine, owner, repo string) error {
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Secret: %s", spec.Name)))
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("When needed: %s", spec.When)))
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Recommended scopes: %s", spec.Description)))
-			fmt.Fprintln(os.Stderr, console.FormatCommandMessage(fmt.Sprintf("gh aw secret set %s --owner %s --repo %s", spec.Name, cmdOwner, cmdRepo)))
+			fmt.Fprintln(os.Stderr, console.FormatCommandMessage(fmt.Sprintf("gh aw secrets set %s --owner %s --repo %s", spec.Name, cmdOwner, cmdRepo)))
 		}
 	}
 
@@ -227,7 +227,7 @@ func runTokensBootstrap(engine, owner, repo string) error {
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Secret: %s (optional)", spec.Name)))
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("When needed: %s", spec.When)))
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Recommended scopes: %s", spec.Description)))
-			fmt.Fprintln(os.Stderr, console.FormatCommandMessage(fmt.Sprintf("gh aw secret set %s --owner %s --repo %s", spec.Name, cmdOwner, cmdRepo)))
+			fmt.Fprintln(os.Stderr, console.FormatCommandMessage(fmt.Sprintf("gh aw secrets set %s --owner %s --repo %s", spec.Name, cmdOwner, cmdRepo)))
 		}
 	}
 

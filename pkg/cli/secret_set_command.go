@@ -29,21 +29,7 @@ type secretPayload struct {
 
 const publicKeySize = 32 // NaCl box public key size
 
-// NewSecretCommand creates the secret command group
-func NewSecretCommand() *cobra.Command {
-	secretCmd := &cobra.Command{
-		Use:   "secret",
-		Short: "Manage repository secrets",
-		Long:  `Manage GitHub Actions secrets for repositories`,
-	}
-
-	// Add subcommands
-	secretCmd.AddCommand(newSecretSetCommand())
-
-	return secretCmd
-}
-
-func newSecretSetCommand() *cobra.Command {
+func newSecretsSetSubcommand() *cobra.Command {
 	var (
 		flagOwner    string
 		flagRepo     string
@@ -64,14 +50,14 @@ The secret value can be provided in three ways:
 
 Examples:
   # From stdin
-  gh aw secret set MY_SECRET --owner myorg --repo myrepo
+  gh aw secrets set MY_SECRET --owner myorg --repo myrepo
 
   # From flag
-  gh aw secret set MY_SECRET --value "secret123" --owner myorg --repo myrepo
+  gh aw secrets set MY_SECRET --value "secret123" --owner myorg --repo myrepo
 
   # From environment variable
   export MY_TOKEN="secret123"
-  gh aw secret set MY_SECRET --value-from-env MY_TOKEN --owner myorg --repo myrepo`,
+  gh aw secrets set MY_SECRET --value-from-env MY_TOKEN --owner myorg --repo myrepo`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			secretName := args[0]
