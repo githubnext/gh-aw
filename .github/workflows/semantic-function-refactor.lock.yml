@@ -4055,32 +4055,35 @@ jobs:
                 });
               }
               function sanitizeUrlProtocols(s) {
-                return s.replace(/\b((?:http|ftp|file|ssh|git):\/\/([\w.-]+)(?:[^\s]*)|(?:data|javascript|vbscript|about|mailto|tel):[^\s]+)/gi, (match, _fullMatch, domain) => {
-                  if (domain) {
-                    const domainLower = domain.toLowerCase();
-                    const truncated = domainLower.length > 12 ? domainLower.substring(0, 12) + "..." : domainLower;
-                    if (typeof core !== "undefined" && core.info) {
-                      core.info(`Redacted URL: ${truncated}`);
-                    }
-                    if (typeof core !== "undefined" && core.debug) {
-                      core.debug(`Redacted URL (full): ${match}`);
-                    }
-                    addRedactedDomain(domainLower);
-                  } else {
-                    const protocolMatch = match.match(/^([^:]+):/);
-                    if (protocolMatch) {
-                      const protocol = protocolMatch[1] + ":";
+                return s.replace(
+                  /\b((?:http|ftp|file|ssh|git):\/\/([\w.-]+)(?:[^\s]*)|(?:data|javascript|vbscript|about|mailto|tel):[^\s]+)/gi,
+                  (match, _fullMatch, domain) => {
+                    if (domain) {
+                      const domainLower = domain.toLowerCase();
+                      const truncated = domainLower.length > 12 ? domainLower.substring(0, 12) + "..." : domainLower;
                       if (typeof core !== "undefined" && core.info) {
-                        core.info(`Redacted URL: ${protocol}`);
+                        core.info(`Redacted URL: ${truncated}`);
                       }
                       if (typeof core !== "undefined" && core.debug) {
                         core.debug(`Redacted URL (full): ${match}`);
                       }
-                      addRedactedDomain(protocol);
+                      addRedactedDomain(domainLower);
+                    } else {
+                      const protocolMatch = match.match(/^([^:]+):/);
+                      if (protocolMatch) {
+                        const protocol = protocolMatch[1] + ":";
+                        if (typeof core !== "undefined" && core.info) {
+                          core.info(`Redacted URL: ${protocol}`);
+                        }
+                        if (typeof core !== "undefined" && core.debug) {
+                          core.debug(`Redacted URL (full): ${match}`);
+                        }
+                        addRedactedDomain(protocol);
+                      }
                     }
+                    return "(redacted)";
                   }
-                  return "(redacted)";
-                });
+                );
               }
               function neutralizeCommands(s) {
                 const commandName = process.env.GH_AW_COMMAND;
@@ -4244,32 +4247,35 @@ jobs:
                 return result;
               }
               function sanitizeUrlProtocols(s) {
-                return s.replace(/\b((?:http|ftp|file|ssh|git):\/\/([\w.-]+)(?:[^\s]*)|(?:data|javascript|vbscript|about|mailto|tel):[^\s]+)/gi, (match, _fullMatch, domain) => {
-                  if (domain) {
-                    const domainLower = domain.toLowerCase();
-                    const truncated = domainLower.length > 12 ? domainLower.substring(0, 12) + "..." : domainLower;
-                    if (typeof core !== "undefined" && core.info) {
-                      core.info(`Redacted URL: ${truncated}`);
-                    }
-                    if (typeof core !== "undefined" && core.debug) {
-                      core.debug(`Redacted URL (full): ${match}`);
-                    }
-                    addRedactedDomain(domainLower);
-                  } else {
-                    const protocolMatch = match.match(/^([^:]+):/);
-                    if (protocolMatch) {
-                      const protocol = protocolMatch[1] + ":";
+                return s.replace(
+                  /\b((?:http|ftp|file|ssh|git):\/\/([\w.-]+)(?:[^\s]*)|(?:data|javascript|vbscript|about|mailto|tel):[^\s]+)/gi,
+                  (match, _fullMatch, domain) => {
+                    if (domain) {
+                      const domainLower = domain.toLowerCase();
+                      const truncated = domainLower.length > 12 ? domainLower.substring(0, 12) + "..." : domainLower;
                       if (typeof core !== "undefined" && core.info) {
-                        core.info(`Redacted URL: ${protocol}`);
+                        core.info(`Redacted URL: ${truncated}`);
                       }
                       if (typeof core !== "undefined" && core.debug) {
                         core.debug(`Redacted URL (full): ${match}`);
                       }
-                      addRedactedDomain(protocol);
+                      addRedactedDomain(domainLower);
+                    } else {
+                      const protocolMatch = match.match(/^([^:]+):/);
+                      if (protocolMatch) {
+                        const protocol = protocolMatch[1] + ":";
+                        if (typeof core !== "undefined" && core.info) {
+                          core.info(`Redacted URL: ${protocol}`);
+                        }
+                        if (typeof core !== "undefined" && core.debug) {
+                          core.debug(`Redacted URL (full): ${match}`);
+                        }
+                        addRedactedDomain(protocol);
+                      }
                     }
+                    return "(redacted)";
                   }
-                  return "(redacted)";
-                });
+                );
               }
               function neutralizeCommands(s) {
                 const commandName = process.env.GH_AW_COMMAND;
@@ -4978,9 +4984,7 @@ jobs:
                 }
                 return allowedMentions;
               } catch (error) {
-                core.warning(
-                  `Failed to resolve mentions for output collector: ${error instanceof Error ? error.message : String(error)}`
-                );
+                core.warning(`Failed to resolve mentions for output collector: ${error instanceof Error ? error.message : String(error)}`);
                 return [];
               }
             }

@@ -9,9 +9,9 @@ const { sanitizeContentCore, writeRedactedDomainsLog } = require("./sanitize_con
 /**
  * Sanitizes incoming text content without selective mention filtering
  * All @mentions are escaped to prevent unintended notifications
- * 
+ *
  * Uses the core sanitization functions directly to minimize bundle size.
- * 
+ *
  * @param {string} content - The content to sanitize
  * @param {number} [maxLength] - Maximum length of content (default: 524288)
  * @returns {string} The sanitized content with all mentions escaped

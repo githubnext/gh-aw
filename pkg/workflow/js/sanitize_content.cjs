@@ -180,34 +180,37 @@ function sanitizeContent(content, maxLengthOrOptions) {
    * @returns {string} Sanitized string
    */
   function sanitizeUrlProtocols(s) {
-    return s.replace(/\b((?:http|ftp|file|ssh|git):\/\/([\w.-]+)(?:[^\s]*)|(?:data|javascript|vbscript|about|mailto|tel):[^\s]+)/gi, (match, _fullMatch, domain) => {
-      // Extract domain for http/ftp/file/ssh/git protocols
-      if (domain) {
-        const domainLower = domain.toLowerCase();
-        const truncated = domainLower.length > 12 ? domainLower.substring(0, 12) + "..." : domainLower;
-        if (typeof core !== "undefined" && core.info) {
-          core.info(`Redacted URL: ${truncated}`);
-        }
-        if (typeof core !== "undefined" && core.debug) {
-          core.debug(`Redacted URL (full): ${match}`);
-        }
-        addRedactedDomain(domainLower);
-      } else {
-        // For other protocols (data:, javascript:, etc.), track the protocol itself
-        const protocolMatch = match.match(/^([^:]+):/);
-        if (protocolMatch) {
-          const protocol = protocolMatch[1] + ":";
+    return s.replace(
+      /\b((?:http|ftp|file|ssh|git):\/\/([\w.-]+)(?:[^\s]*)|(?:data|javascript|vbscript|about|mailto|tel):[^\s]+)/gi,
+      (match, _fullMatch, domain) => {
+        // Extract domain for http/ftp/file/ssh/git protocols
+        if (domain) {
+          const domainLower = domain.toLowerCase();
+          const truncated = domainLower.length > 12 ? domainLower.substring(0, 12) + "..." : domainLower;
           if (typeof core !== "undefined" && core.info) {
-            core.info(`Redacted URL: ${protocol}`);
+            core.info(`Redacted URL: ${truncated}`);
           }
           if (typeof core !== "undefined" && core.debug) {
             core.debug(`Redacted URL (full): ${match}`);
           }
-          addRedactedDomain(protocol);
+          addRedactedDomain(domainLower);
+        } else {
+          // For other protocols (data:, javascript:, etc.), track the protocol itself
+          const protocolMatch = match.match(/^([^:]+):/);
+          if (protocolMatch) {
+            const protocol = protocolMatch[1] + ":";
+            if (typeof core !== "undefined" && core.info) {
+              core.info(`Redacted URL: ${protocol}`);
+            }
+            if (typeof core !== "undefined" && core.debug) {
+              core.debug(`Redacted URL (full): ${match}`);
+            }
+            addRedactedDomain(protocol);
+          }
         }
+        return "(redacted)";
       }
-      return "(redacted)";
-    });
+    );
   }
 
   /**

@@ -147,9 +147,7 @@ async function resolveAllowedMentionsFromPayload(context, github, core) {
 
     return allowedMentions;
   } catch (error) {
-    core.warning(
-      `Failed to resolve mentions for output collector: ${error instanceof Error ? error.message : String(error)}`
-    );
+    core.warning(`Failed to resolve mentions for output collector: ${error instanceof Error ? error.message : String(error)}`);
     // Return empty array on error
     return [];
   }
