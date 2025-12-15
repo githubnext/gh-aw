@@ -95,57 +95,19 @@ func ParseDiscussionFilterConfig(configMap map[string]any) SafeOutputDiscussionF
 // parseRequiredLabelsFromConfig extracts and validates required-labels from a config map.
 // Returns a slice of label strings, or nil if not present or invalid.
 func parseRequiredLabelsFromConfig(configMap map[string]any) []string {
-	if requiredLabels, exists := configMap["required-labels"]; exists {
-		if labelsArray, ok := requiredLabels.([]any); ok {
-			var labels []string
-			for _, label := range labelsArray {
-				if labelStr, ok := label.(string); ok {
-					labels = append(labels, labelStr)
-				}
-			}
-			return labels
-		}
-	}
-	return nil
+	return parseStringArrayFromConfig(configMap, "required-labels", safeOutputBuilderLog)
 }
 
 // parseRequiredTitlePrefixFromConfig extracts required-title-prefix from a config map.
 // Returns the prefix string, or empty string if not present or invalid.
 func parseRequiredTitlePrefixFromConfig(configMap map[string]any) string {
-	if requiredTitlePrefix, exists := configMap["required-title-prefix"]; exists {
-		if prefixStr, ok := requiredTitlePrefix.(string); ok {
-			return prefixStr
-		}
-	}
-	return ""
-}
-
-// ParseStringFromConfig extracts a string value from a config map by key.
-// Returns the string value, or empty string if not present or not a string.
-func ParseStringFromConfig(configMap map[string]any, key string) string {
-	if value, exists := configMap[key]; exists {
-		if strVal, ok := value.(string); ok {
-			return strVal
-		}
-	}
-	return ""
+	return extractStringFromMap(configMap, "required-title-prefix", safeOutputBuilderLog)
 }
 
 // ParseStringArrayFromConfig extracts a string array from a config map by key.
 // Returns the slice of strings, or nil if not present or not an array.
 func ParseStringArrayFromConfig(configMap map[string]any, key string) []string {
-	if value, exists := configMap[key]; exists {
-		if arrayVal, ok := value.([]any); ok {
-			var result []string
-			for _, item := range arrayVal {
-				if strVal, ok := item.(string); ok {
-					result = append(result, strVal)
-				}
-			}
-			return result
-		}
-	}
-	return nil
+	return parseStringArrayFromConfig(configMap, key, safeOutputBuilderLog)
 }
 
 // ======================================
