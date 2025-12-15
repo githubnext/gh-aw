@@ -208,7 +208,7 @@ describe("updateProject", () => {
 
     queueResponses([repoResponse(), viewerResponse(), orgProjectNullResponse()]);
 
-    await expect(updateProject(output)).rejects.toThrow(/Project not found or not accessible/);
+    await expect(updateProject(output)).rejects.toThrow(/not found or not accessible/);
   });
 
   it("respects a custom campaign id", async () => {

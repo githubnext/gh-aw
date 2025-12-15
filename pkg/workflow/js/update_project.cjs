@@ -108,17 +108,19 @@ function parseProjectUrl(projectUrl) {
 
 /**
  * List Projects v2 accessible to the token for an org or user.
- * This is used as a diagnostic fallback when direct lookup by number returns null.
+ * Used as a fallback when direct lookup by number returns null or errors.
  * @param {{ scope: "orgs"|"users", ownerLogin: string }} projectInfo
- * @returns {Promise<{ nodes: Array<{number: number, title: string, closed: boolean}>, totalCount?: number }>}
+ * @returns {Promise<{ nodes: Array<{id: string, number: number, title: string, closed: boolean, url: string}>, totalCount?: number }>}
  */
 async function listAccessibleProjectsV2(projectInfo) {
   const baseQuery = `projectsV2(first: 100) {
     totalCount
     nodes {
+      id
       number
       title
       closed
+      url
     }
   }`;
 
@@ -132,7 +134,8 @@ async function listAccessibleProjectsV2(projectInfo) {
       { login: projectInfo.ownerLogin }
     );
     const conn = result && result.organization && result.organization.projectsV2;
-    return { nodes: (conn && conn.nodes) || [], totalCount: conn && conn.totalCount };
+    const nodes = conn && Array.isArray(conn.nodes) ? conn.nodes.filter(Boolean) : [];
+    return { nodes, totalCount: conn && conn.totalCount };
   }
 
   const result = await github.graphql(
@@ -144,12 +147,13 @@ async function listAccessibleProjectsV2(projectInfo) {
     { login: projectInfo.ownerLogin }
   );
   const conn = result && result.user && result.user.projectsV2;
-  return { nodes: (conn && conn.nodes) || [], totalCount: conn && conn.totalCount };
+  const nodes = conn && Array.isArray(conn.nodes) ? conn.nodes.filter(Boolean) : [];
+  return { nodes, totalCount: conn && conn.totalCount };
 }
 
 /**
  * Summarize projects for error messages.
- * @param {Array<{number: number, title: string, closed: boolean}>} projects
+ * @param {Array<{id?: string, number: number, title: string, closed: boolean, url?: string}>} projects
  * @param {number} [limit]
  * @returns {string}
  */
@@ -157,10 +161,82 @@ function summarizeProjectsV2(projects, limit = 20) {
   if (!Array.isArray(projects) || projects.length === 0) {
     return "(none)";
   }
-  return projects
+
+  const normalized = projects
+    .filter(p => p && typeof p.number === "number" && typeof p.title === "string")
     .slice(0, limit)
-    .map(p => `#${p.number} ${p.closed ? "(closed) " : ""}${p.title}`)
-    .join("; ");
+    .map(p => `#${p.number} ${p.closed ? "(closed) " : ""}${p.title}`);
+
+  return normalized.length > 0 ? normalized.join("; ") : "(none)";
+}
+
+/**
+ * Resolve a Projects v2 project by URL-parsed {scope, ownerLogin, number}.
+ * Hybrid strategy:
+ *  - Try projectV2(number) first (fast)
+ *  - Fall back to listing projectsV2(first:100) and searching (more resilient, better diagnostics)
+ * @param {{ scope: "orgs"|"users", ownerLogin: string }} projectInfo
+ * @param {number} projectNumberInt
+ * @returns {Promise<{id: string, number: number, title?: string, url?: string}>}
+ */
+async function resolveProjectV2(projectInfo, projectNumberInt) {
+  // Fast path: direct lookup by number
+  try {
+    if (projectInfo.scope === "orgs") {
+      const direct = await github.graphql(
+        `query($login: String!, $number: Int!) {
+          organization(login: $login) {
+            projectV2(number: $number) {
+              id
+              number
+              title
+              url
+            }
+          }
+        }`,
+        { login: projectInfo.ownerLogin, number: projectNumberInt }
+      );
+      const project = direct && direct.organization && direct.organization.projectV2;
+      if (project) {
+        return project;
+      }
+    } else {
+      const direct = await github.graphql(
+        `query($login: String!, $number: Int!) {
+          user(login: $login) {
+            projectV2(number: $number) {
+              id
+              number
+              title
+              url
+            }
+          }
+        }`,
+        { login: projectInfo.ownerLogin, number: projectNumberInt }
+      );
+      const project = direct && direct.user && direct.user.projectV2;
+      if (project) {
+        return project;
+      }
+    }
+  } catch (error) {
+    core.warning(`Direct projectV2(number) query failed; falling back to projectsV2 list search: ${error.message}`);
+  }
+
+  // Fallback: list accessible projects and find by number
+  const list = await listAccessibleProjectsV2(projectInfo);
+  const nodes = Array.isArray(list.nodes) ? list.nodes : [];
+  const found = nodes.find(p => p && typeof p.number === "number" && p.number === projectNumberInt);
+  if (found) {
+    return found;
+  }
+
+  const summary = summarizeProjectsV2(nodes);
+  const total = typeof list.totalCount === "number" ? ` (totalCount=${list.totalCount})` : "";
+  const who = projectInfo.scope === "orgs" ? `org ${projectInfo.ownerLogin}` : `user ${projectInfo.ownerLogin}`;
+  throw new Error(
+    `Project #${projectNumberInt} not found or not accessible for ${who}.${total} Accessible Projects v2: ${summary}`
+  );
 }
 
 /**
@@ -255,93 +331,10 @@ async function updateProject(output) {
         throw new Error(`Invalid project number parsed from URL: ${projectNumberFromUrl}`);
       }
 
-      /** @type {any} */
-      let projectResult;
-
-      if (projectInfo.scope === "orgs") {
-        projectResult = await github.graphql(
-          `query($login: String!, $number: Int!) {
-            organization(login: $login) {
-              projectV2(number: $number) {
-                id
-                number
-                title
-                url
-                owner {
-                  __typename
-                  ... on Organization { login }
-                  ... on User { login }
-                }
-              }
-            }
-          }`,
-          { login: projectInfo.ownerLogin, number: projectNumberInt }
-        );
-        const project = projectResult && projectResult.organization && projectResult.organization.projectV2;
-        if (!project) {
-          // Diagnostic fallback: list accessible Projects v2 to distinguish "classic project" vs permissions.
-          let projectListNote = "";
-          try {
-            const list = await listAccessibleProjectsV2(projectInfo);
-            const summary = summarizeProjectsV2(list.nodes);
-            const total = typeof list.totalCount === "number" ? ` (totalCount=${list.totalCount})` : "";
-            const hasRequested = Array.isArray(list.nodes) && list.nodes.some(p => p && String(p.number) === String(projectNumberInt));
-            projectListNote = `\nAccessible Projects v2 for org ${projectInfo.ownerLogin}${total}: ${summary}`;
-            if (!hasRequested) {
-              projectListNote += `\nProject #${projectNumberFromUrl} is not present in the accessible list; either it is a classic project (v1), the number is wrong, or the token cannot access it.`;
-            }
-          } catch (listErr) {
-            projectListNote = `\n(Also failed to list accessible Projects v2 for diagnostics: ${listErr.message})`;
-          }
-          throw new Error(
-            `Project not found or not accessible: ${output.project} (organization=${projectInfo.ownerLogin}, number=${projectNumberFromUrl})${projectListNote}`
-          );
-        }
-        projectId = project.id;
-        resolvedProjectNumber = String(project.number);
-        core.info(`✓ Resolved project #${resolvedProjectNumber} (${projectInfo.ownerLogin}) (ID: ${projectId})`);
-      } else {
-        projectResult = await github.graphql(
-          `query($login: String!, $number: Int!) {
-            user(login: $login) {
-              projectV2(number: $number) {
-                id
-                number
-                title
-                url
-                owner {
-                  __typename
-                  ... on Organization { login }
-                  ... on User { login }
-                }
-              }
-            }
-          }`,
-          { login: projectInfo.ownerLogin, number: projectNumberInt }
-        );
-        const project = projectResult && projectResult.user && projectResult.user.projectV2;
-        if (!project) {
-          let projectListNote = "";
-          try {
-            const list = await listAccessibleProjectsV2(projectInfo);
-            const summary = summarizeProjectsV2(list.nodes);
-            const total = typeof list.totalCount === "number" ? ` (totalCount=${list.totalCount})` : "";
-            const hasRequested = Array.isArray(list.nodes) && list.nodes.some(p => p && String(p.number) === String(projectNumberInt));
-            projectListNote = `\nAccessible Projects v2 for user ${projectInfo.ownerLogin}${total}: ${summary}`;
-            if (!hasRequested) {
-              projectListNote += `\nProject #${projectNumberFromUrl} is not present in the accessible list; either it is a classic project (v1), the number is wrong, or the token cannot access it.`;
-            }
-          } catch (listErr) {
-            projectListNote = `\n(Also failed to list accessible Projects v2 for diagnostics: ${listErr.message})`;
-          }
-          throw new Error(
-            `Project not found or not accessible: ${output.project} (user=${projectInfo.ownerLogin}, number=${projectNumberFromUrl})${projectListNote}`
-          );
-        }
-        projectId = project.id;
-        resolvedProjectNumber = String(project.number);
-        core.info(`✓ Resolved project #${resolvedProjectNumber} (${projectInfo.ownerLogin}) (ID: ${projectId})`);
-      }
+      const project = await resolveProjectV2(projectInfo, projectNumberInt);
+      projectId = project.id;
+      resolvedProjectNumber = String(project.number);
+      core.info(`✓ Resolved project #${resolvedProjectNumber} (${projectInfo.ownerLogin}) (ID: ${projectId})`);
     } catch (error) {
       logGraphQLError(error, "Resolving project from URL");
       throw error;
