@@ -226,7 +226,7 @@ describe("compute_text.cjs", () => {
           {
             login: "team-member-1",
             type: "User",
-            permissions: { push: true, admin: false, maintain: false },
+            permissions: { push: false, admin: false, maintain: true },
           },
           {
             login: "team-member-2",

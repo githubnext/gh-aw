@@ -40,7 +40,7 @@ function isPayloadUserBot(user) {
 }
 
 /**
- * Get repository team members (collaborators with push access or higher)
+ * Get repository team members (maintainers only)
  * @param {string} owner - Repository owner
  * @param {string} repo - Repository name
  * @param {any} github - GitHub API instance
@@ -56,9 +56,9 @@ async function getTeamMembers(owner, repo, github) {
 
     const teamMembers = [];
     for (const collaborator of collaborators.data) {
-      // Only include collaborators with push access or higher (write, maintain, admin)
+      // Only include maintainers (maintain or admin access)
       const permission = collaborator.permissions;
-      if (permission && (permission.push || permission.maintain || permission.admin)) {
+      if (permission && (permission.maintain || permission.admin)) {
         // Exclude bots
         if (collaborator.type !== "Bot") {
           teamMembers.push(collaborator.login);
