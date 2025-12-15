@@ -13,6 +13,14 @@ import (
 
 var mcpLog = logger.New("parser:mcp")
 
+// isGitHubActionsExpression checks if a string is a GitHub Actions expression
+// Returns true for expressions like "${{ secrets.KEY }}", "${{ vars.VALUE }}", etc.
+// Returns false for literal string values
+func isGitHubActionsExpression(value string) bool {
+	// Must start with ${{ and end with }}
+	return strings.HasPrefix(value, "${{") && strings.HasSuffix(value, "}}")
+}
+
 // ValidMCPTypes defines all supported MCP server types.
 // "local" is an alias for "stdio" and gets normalized during parsing.
 var ValidMCPTypes = []string{"stdio", "http", "local"}
@@ -699,6 +707,21 @@ func ParseMCPConfig(toolName string, mcpSection any, toolConfig map[string]any) 
 			if headersMap, ok := headers.(map[string]any); ok {
 				for key, value := range headersMap {
 					if valueStr, ok := value.(string); ok {
+						// Validate that header values are GitHub Actions expressions, not literal values
+						if !isGitHubActionsExpression(valueStr) {
+							return config, fmt.Errorf(
+								"HTTP MCP header '%s' must use a GitHub Actions expression (e.g., ${{ secrets.%s }}). "+
+									"Literal values like %q are not allowed to prevent hardcoded secrets in workflows. "+
+									"Example:\n"+
+									"mcp-servers:\n"+
+									"  %s:\n"+
+									"    type: http\n"+
+									"    url: \"https://api.example.com/mcp\"\n"+
+									"    headers:\n"+
+									"      %s: \"${{ secrets.%s }}\"",
+								key, key, valueStr, toolName, key, key,
+							)
+						}
 						config.Headers[key] = valueStr
 					}
 				}

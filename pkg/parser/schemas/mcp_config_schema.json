@@ -54,11 +54,13 @@
       "type": "object",
       "patternProperties": {
         "^[A-Za-z0-9_-]+$": {
-          "type": "string"
+          "type": "string",
+          "pattern": "^\\$\\{\\{.*\\}\\}$",
+          "description": "Header value must be a GitHub Actions expression (e.g., ${{ secrets.API_KEY }}). Literal values are not allowed to prevent hardcoded secrets in workflows."
         }
       },
       "additionalProperties": false,
-      "description": "HTTP headers for HTTP MCP connections"
+      "description": "HTTP headers for HTTP MCP connections. All header values must use GitHub Actions expressions (e.g., ${{ secrets.API_KEY }} or ${{ vars.CONFIG }}) to prevent hardcoded secrets."
     },
     "network": {
       "type": "object",
