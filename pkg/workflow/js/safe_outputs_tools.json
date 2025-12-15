@@ -550,5 +550,42 @@
       },
       "additionalProperties": false
     }
+  },
+  {
+    "name": "update_project",
+    "description": "Add or update items in GitHub Projects v2 boards. Can add issues/PRs to a project and update custom field values. Requires the project URL, content type (issue or pull_request), and content number. Use campaign_id to group related items.",
+    "inputSchema": {
+      "type": "object",
+      "required": ["project", "content_type", "content_number"],
+      "properties": {
+        "project": {
+          "type": "string",
+          "pattern": "^https://github\\.com/(orgs|users)/[^/]+/projects/\\d+$",
+          "description": "Full GitHub project URL (e.g., 'https://github.com/orgs/myorg/projects/42' or 'https://github.com/users/username/projects/5'). Project names or numbers alone are NOT accepted."
+        },
+        "content_type": {
+          "type": "string",
+          "enum": ["issue", "pull_request"],
+          "description": "Type of content to add to the project. Must be either 'issue' or 'pull_request'."
+        },
+        "content_number": {
+          "type": "number",
+          "description": "Issue or pull request number to add to the project (e.g., 123 for issue #123)."
+        },
+        "fields": {
+          "type": "object",
+          "description": "Custom field values to set on the project item (e.g., {'Status': 'In Progress', 'Priority': 'High'}). Field names must match custom fields defined in the project."
+        },
+        "campaign_id": {
+          "type": "string",
+          "description": "Campaign identifier to group related project items. Used to track items created by the same campaign or workflow run."
+        },
+        "create_if_missing": {
+          "type": "boolean",
+          "description": "Whether to create the project if it doesn't exist. Defaults to false. Requires projects:write permission when true."
+        }
+      },
+      "additionalProperties": false
+    }
   }
 ]

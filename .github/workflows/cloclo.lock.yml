@@ -689,6 +689,7 @@ jobs:
                   if (isAllowed) {
                     return `${p1}@${p2}`; 
                   }
+                  core.info(`Escaped mention: @${p2} (not in allowed list)`);
                   return `${p1}\`@${p2}\``; 
                 });
               }
@@ -1048,6 +1049,9 @@ jobs:
                   break;
               }
               const mentionResult = await resolveMentionsLazily(text, knownAuthors, owner, repo, github, core);
+              if (knownAuthors.length > 0) {
+                core.info(`Known authors (from payload): ${knownAuthors.join(", ")}`);
+              }
               if (mentionResult.allowedMentions.length > 0) {
                 core.info(`Allowed mentions (will not be escaped): ${mentionResult.allowedMentions.join(", ")}`);
               } else {
@@ -5437,6 +5441,7 @@ jobs:
                   if (isAllowed) {
                     return `${p1}@${p2}`; 
                   }
+                  core.info(`Escaped mention: @${p2} (not in allowed list)`);
                   return `${p1}\`@${p2}\``; 
                 });
               }

@@ -3635,6 +3635,7 @@ jobs:
                   if (isAllowed) {
                     return `${p1}@${p2}`; 
                   }
+                  core.info(`Escaped mention: @${p2} (not in allowed list)`);
                   return `${p1}\`@${p2}\``; 
                 });
               }

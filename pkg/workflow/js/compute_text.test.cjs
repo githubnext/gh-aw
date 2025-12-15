@@ -774,6 +774,65 @@ describe("compute_text.cjs", () => {
       expect(allowedMentionsLog).toContain("issueAuthor");
     });
 
+    it("should log known authors from payload", async () => {
+      mockContext.eventName = "issues";
+      mockContext.payload = {
+        issue: {
+          title: "Test issue",
+          body: "Body with @issueAuthor and @assignee1",
+          user: { login: "issueAuthor" },
+          assignees: [
+            { login: "assignee1", type: "User" },
+            { login: "assignee2", type: "User" },
+          ],
+        },
+      };
+
+      await testMain();
+
+      // Check that known authors were logged
+      const infoCalls = mockCore.info.mock.calls.map(call => call[0]);
+      const knownAuthorsLog = infoCalls.find(msg => msg.includes("Known authors (from payload)"));
+      expect(knownAuthorsLog).toBeDefined();
+      expect(knownAuthorsLog).toContain("issueAuthor");
+      expect(knownAuthorsLog).toContain("assignee1");
+      expect(knownAuthorsLog).toContain("assignee2");
+    });
+
+    it("should log escaped mentions", async () => {
+      mockContext.eventName = "issues";
+      mockContext.payload = {
+        issue: {
+          title: "Test @unknown-user",
+          body: "Body mentioning @team-member-1",
+          user: { login: "issueAuthor" },
+        },
+      };
+
+      // First call: actor permission check (should be admin to allow processing)
+      // Second call: unknown-user permission check (should be none to escape mention)
+      mockGithub.rest.repos.getCollaboratorPermissionLevel
+        .mockResolvedValueOnce({
+          data: { permission: "admin" },
+        })
+        .mockResolvedValueOnce({
+          data: { permission: "none" },
+        });
+
+      // Mock that unknown-user exists but is not a collaborator
+      mockGithub.rest.users.getByUsername.mockResolvedValueOnce({
+        data: { login: "unknown-user", type: "User" },
+      });
+
+      await testMain();
+
+      // Check that escaped mention was logged
+      const infoCalls = mockCore.info.mock.calls.map(call => call[0]);
+      const escapedMentionLog = infoCalls.find(msg => msg.includes("Escaped mention"));
+      expect(escapedMentionLog).toBeDefined();
+      expect(escapedMentionLog).toContain("@unknown-user");
+    });
+
     it("should handle team member fetch failure gracefully", async () => {
       mockGithub.rest.repos.listCollaborators.mockRejectedValue(new Error("API error"));
 

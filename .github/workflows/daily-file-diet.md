@@ -129,7 +129,7 @@ Calculate:
 
 ### 5. Generate Issue Description
 
-If refactoring is needed (file ≥ 1000 lines), create an issue with this structure:
+If refactoring is needed (file ≥ 800 lines), create an issue with this structure:
 
 ```markdown
 # Refactor Large Go File: [FILE_PATH]
@@ -302,7 +302,7 @@ To support enterprise reporting and visual trends for the
 
    - Use the `upload-assets` safe-output (from `shared/python-dataviz.md`)
      to upload the generated PNGs and obtain URLs.
-   - When you create a refactor issue (for files ≥1000 lines), embed the
+   - When you create a refactor issue (for files ≥800 lines), embed the
      most relevant chart URLs in the issue body using Markdown image
      syntax so humans see them as screenshots, for example under a
      `## Trend` section:

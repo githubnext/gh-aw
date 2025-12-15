@@ -439,6 +439,10 @@ The YAML frontmatter supports these fields:
         max: 20                         # Optional: max project operations (default: 10)
         github-token: ${{ secrets.PROJECTS_PAT }}  # Optional: token with projects:write
     ```
+    Agent output MUST include the `project` field as a **full GitHub project URL** (e.g., `https://github.com/orgs/myorg/projects/42` or `https://github.com/users/username/projects/5`). Project names or numbers alone are NOT accepted. Can also include `content_number`, `content_type` ("issue" or "pull_request"), `fields` (custom field values), and `campaign_id`:
+    ```json
+    {"type": "update_project", "project": "https://github.com/orgs/myorg/projects/42", "content_type": "issue", "content_number": 123, "fields": {"Status": "In Progress"}}
+    ```
     Not supported for cross-repository operations.
   - `push-to-pull-request-branch:` - Push changes to PR branch
     ```yaml
