@@ -6448,43 +6448,35 @@ jobs:
               }
               return { success: true, items: validatedOutput.items };
             }
-            function parseProjectInput(projectInput) {
-              if (!projectInput || typeof projectInput !== "string") {
+            function parseProjectInput(projectUrl) {
+              if (!projectUrl || typeof projectUrl !== "string") {
                 throw new Error(
-                  `Invalid project input: expected string, got ${typeof projectInput}. The "project" field is required and must be a full GitHub project URL.`
+                  `Invalid project input: expected string, got ${typeof projectUrl}. The "project" field is required and must be a full GitHub project URL.`
                 );
               }
-              const urlMatch = projectInput.match(/github\.com\/(?:users|orgs)\/[^/]+\/projects\/(\d+)/);
+              const urlMatch = projectUrl.match(/github\.com\/(?:users|orgs)\/[^/]+\/projects\/(\d+)/);
               if (!urlMatch) {
                 throw new Error(
-                  `Invalid project URL: "${projectInput}". The "project" field must be a full GitHub project URL (e.g., https://github.com/orgs/myorg/projects/123).`
+                  `Invalid project URL: "${projectUrl}". The "project" field must be a full GitHub project URL (e.g., https://github.com/orgs/myorg/projects/123).`
                 );
               }
               return urlMatch[1];
             }
-            function generateCampaignId(projectName) {
-              const slug = projectName
-                .toLowerCase()
-                .replace(/[^a-z0-9]+/g, "-")
-                .replace(/^-+|-+$/g, "")
-                .substring(0, 30);
-              const timestamp = Date.now().toStringURL
-             * @param {string} projectUrl - The project URL
-             * @param {string} projectNumber - The project number
-             * @returns {string} Campaign ID in format: project-{number}-{timestamp}
-             */
             function generateCampaignId(projectUrl, projectNumber) {
               const urlMatch = projectUrl.match(/github\.com\/(users|orgs)\/([^/]+)\/projects/);
               const orgName = urlMatch ? urlMatch[2] : "project";
               const slug = `${orgName}-project-${projectNumber}`
                 .toLowerCase()
-                .replace(/[^a-z0-9]+/g, "-
+                .replace(/[^a-z0-9]+/g, "-")
+                .replace(/^-+|-+$/g, "")
+                .substring(0, 30);
+              const timestamp = Date.now().toString(36).substring(0, 8);
+              return `${slug}-${timestamp}`;
+            }
             async function updateProject(output) {
+              const { owner, repo } = context.repo;
               const projectNumber = parseProjectInput(output.project);
-              const campaignId = output.campaign_id || generateCampaignId(output.project, projectNumber
-              const { projectNumber: parsedProjectNumber, projectName: parsedProjectName } = parseProjectInput(output.project, isCampaign);
-              const displayName = parsedProjectName || parsedProjectNumber || output.project;
-              const campaignId = output.campaign_id || generateCampaignId(displayName);
+              const campaignId = output.campaign_id || generateCampaignId(output.project, projectNumber);
               let githubClient = github;
               if (process.env.PROJECT_GITHUB_TOKEN) {
                 const { Octokit } = require("@octokit/rest");
@@ -6574,19 +6566,15 @@ jobs:
                   projectNumber = existingProject.number;
                 } else {
                   if (ownerType === "User") {
-                    const projectDisplay = parsedlay}. Create it manually at https:
-                    throw new Error(`Cannot find ${projectDisplay} on user account.`);
+                    core.error(`Cannot find project #${projectNumber}. Create it manually at https://github.com/users/${owner}/projects/new.`);
+                    throw new Error(`Cannot find project #${projectNumber} on user account.`);
                   }
                   if (!allowCreateProject) {
-                    core.error(`Cannot find project #${projectNumber}. Create it manually at https://github.com/users/${owner}/projects/new.`);
-                    throw new Error(`Cannot find project #${projectNumber
-                        ? `project "${parsedProjectName}"`
-                        : `project "${output.project}"`;
                     core.error(
-                      `Cannot find ${projectDisplay}. Create it manually at https://github.com/orgs/${owner}/projects/new and re-run, ` +
+                      `Cannot find project #${projectNumber}. Create it manually at https://github.com/orgs/${owner}/projects/new and re-run, ` +
                         `or opt in to creation by setting create_if_missing=true in the update_project output (recommended only when you intentionally want workflows to create boards).`
                     );
-                    throw new Error(`Cannot find ${projectDisplay} on organization account.`);
+                    throw new Error(`Cannot find project #${projectNumber} on organization account.`);
                   }
                   const createResult = await githubClient.graphql(
                     `mutation($ownerId: ID!, $title: String!) {

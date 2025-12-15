@@ -3,35 +3,35 @@ const { loadAgentOutput } = require("./load_agent_output.cjs");
 /**
  * @typedef {Object} UpdateProjectOutput
  * @property {"update_project"} type
- * @property {string} project - GitHub project URL (for campaigns) or project title, number, or URL (for general use)
+ * @property {string} project - Full GitHub project URL (required)
  * @property {string} [content_type] - Type of content: "issue" or "pull_request"
  * @property {number|string} [content_number] - Issue or PR number (preferred)
  * @property {number|string} [issue] - Issue number (legacy, use content_number instead)
  * @property {number|string} [pull_request] - PR number (legacy, use content_number instead)
  * @property {Object} [fields] - Custom field values to set/update (creates fields if missing)
- * @property {string} [campaign_id] - Campaign tracking ID (auto-generated if not provided). When present, project must be a URL.
+ * @property {string} [campaign_id] - Campaign tracking ID (auto-generated if not provided)
  * @property {boolean} [create_if_missing] - Opt-in: allow creating the project board if it does not exist.
  *   Default behavior is update-only; if the project does not exist, this job will fail with instructions.
  */
 
 /**
- * Parse project input to extract project number from URL
- * @param {string} projectInput - Project URL (required)
+ * Parse project URL to extract project number
+ * @param {string} projectUrl - Full GitHub project URL (required)
  * @returns {string} Extracted project number
  */
-function parseProjectInput(projectInput) {
+function parseProjectInput(projectUrl) {
   // Validate input
-  if (!projectInput || typeof projectInput !== "string") {
+  if (!projectUrl || typeof projectUrl !== "string") {
     throw new Error(
-      `Invalid project input: expected string, got ${typeof projectInput}. The "project" field is required and must be a full GitHub project URL.`
+      `Invalid project input: expected string, got ${typeof projectUrl}. The "project" field is required and must be a full GitHub project URL.`
     );
   }
 
   // Parse GitHub project URL
-  const urlMatch = projectInput.match(/github\.com\/(?:users|orgs)\/[^/]+\/projects\/(\d+)/);
+  const urlMatch = projectUrl.match(/github\.com\/(?:users|orgs)\/[^/]+\/projects\/(\d+)/);
   if (!urlMatch) {
     throw new Error(
-      `Invalid project URL: "${projectInput}". The "project" field must be a full GitHub project URL (e.g., https://github.com/orgs/myorg/projects/123).`
+      `Invalid project URL: "${projectUrl}". The "project" field must be a full GitHub project URL (e.g., https://github.com/orgs/myorg/projects/123).`
     );
   }
 
@@ -39,39 +39,40 @@ function parseProjectInput(projectInput) {
 }
 
 /**
- * Generate a campaign ID from project name
- * @param {string} projectName - The project/campaign name
- * @returns {string} Campaign ID in format: slug-timestamp (e.g., "perf-q1-2025-a3f2b4c8")
+ * Generate a campaign ID from project URL
+ * @param {string} projectUrl - The GitHub project URL
+ * @param {string} projectNumber - The project number
+ * @returns {string} Campaign ID in format: org-project-{number}-{timestamp}
  */
-function generateCampaignId(projectName) {
-  // Create slug from project name
-  const slug = projectName
+function generateCampaignId(projectUrl, projectNumber) {
+  // Extract org/user name from URL for the slug
+  const urlMatch = projectUrl.match(/github\.com\/(users|orgs)\/([^/]+)\/projects/);
+  const orgName = urlMatch ? urlMatch[2] : "project";
+
+  const slug = `${orgName}-project-${projectNumber}`
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "")
     .substring(0, 30);
 
   // Add short timestamp hash for uniqueness
-  const timestamp = Date.now().toStringURL
- * @param {string} projectUrl - The project URL
- * @param {string} projectNumber - The project number
- * @returns {string} Campaign ID in format: project-{number}-{timestamp}
+  const timestamp = Date.now().toString(36).substring(0, 8);
+
+  return `${slug}-${timestamp}`;
+}
+
+/**
+ * Smart project board management - handles create/add/update automatically
+ * @param {UpdateProjectOutput} output - The update output
+ * @returns {Promise<void>}
  */
-function generateCampaignId(projectUrl, projectNumber) {
-  // Extract org/user name from URL for the slug
-  const urlMatch = projectUrl.match(/github\.com\/(users|orgs)\/([^/]+)\/projects/);
-  const orgName = urlMatch ? urlMatch[2] : "project";
-  
-  const slug = `${orgName}-project-${projectNumber}`
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-
 async function updateProject(output) {
+  // In actions/github-script, 'github' and 'context' are already available
+  const { owner, repo } = context.repo;
+
   // Parse project URL to get project number
   const projectNumber = parseProjectInput(output.project);
-  const campaignId = output.campaign_id || generateCampaignId(output.project, projectNumber
-  const { projectNumber: parsedProjectNumber, projectName: parsedProjectName } = parseProjectInput(output.project, isCampaign);
-  const displayName = parsedProjectName || parsedProjectNumber || output.project;
-  const campaignId = output.campaign_id || generateCampaignId(displayName);
+  const campaignId = output.campaign_id || generateCampaignId(output.project, projectNumber);
 
   let githubClient = github;
   if (process.env.PROJECT_GITHUB_TOKEN) {
@@ -177,20 +178,16 @@ async function updateProject(output) {
     } else {
       // Check if owner is a User before attempting to create
       if (ownerType === "User") {
-        const projectDisplay = parsedlay}. Create it manually at https://github.com/users/${owner}/projects/new.`);
-        throw new Error(`Cannot find ${projectDisplay} on user account.`);
+        core.error(`Cannot find project #${projectNumber}. Create it manually at https://github.com/users/${owner}/projects/new.`);
+        throw new Error(`Cannot find project #${projectNumber} on user account.`);
       }
 
       if (!allowCreateProject) {
-        core.error(`Cannot find project #${projectNumber}. Create it manually at https://github.com/users/${owner}/projects/new.`);
-        throw new Error(`Cannot find project #${projectNumber
-            ? `project "${parsedProjectName}"`
-            : `project "${output.project}"`;
         core.error(
-          `Cannot find ${projectDisplay}. Create it manually at https://github.com/orgs/${owner}/projects/new and re-run, ` +
+          `Cannot find project #${projectNumber}. Create it manually at https://github.com/orgs/${owner}/projects/new and re-run, ` +
             `or opt in to creation by setting create_if_missing=true in the update_project output (recommended only when you intentionally want workflows to create boards).`
         );
-        throw new Error(`Cannot find ${projectDisplay} on organization account.`);
+        throw new Error(`Cannot find project #${projectNumber} on organization account.`);
       }
 
       // Create new project (organization only)
