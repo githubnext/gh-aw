@@ -153,8 +153,8 @@ async function updateProject(output) {
     let resolvedProjectNumber = projectNumberFromUrl;
     try {
       const resourceResult = await github.graphql(
-        `query($url: URI!) {
-          resource(url: $url) {
+        `query($resourceUrl: URI!) {
+          resource(url: $resourceUrl) {
             __typename
             ... on ProjectV2 {
               id
@@ -169,7 +169,7 @@ async function updateProject(output) {
             }
           }
         }`,
-        { url: output.project }
+        { resourceUrl: output.project }
       );
 
       const resource = resourceResult && resourceResult.resource;
@@ -363,7 +363,7 @@ async function updateProject(output) {
 
         // Add campaign label to issue/PR
         try {
-          await githubClient.rest.issues.addLabels({
+          await github.rest.issues.addLabels({
             owner,
             repo,
             issue_number: contentNumber,

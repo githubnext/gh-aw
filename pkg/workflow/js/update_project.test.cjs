@@ -95,8 +95,25 @@ const repoResponse = (ownerType = "Organization") => ({
   },
 });
 
-const ownerProjectsResponse = (nodes, ownerType = "Organization") =>
-  ownerType === "User" ? { user: { projectsV2: { nodes } } } : { organization: { projectsV2: { nodes } } };
+const resourceProjectV2Response = (url, number = 60, id = "project123", ownerLogin = "testowner") => ({
+  resource: {
+    __typename: "ProjectV2",
+    id,
+    number,
+    title: "Test Project",
+    url,
+    owner: { __typename: "Organization", login: ownerLogin },
+  },
+});
+
+const resourceNullResponse = () => ({ resource: null });
+
+const resourceNonV2Response = (url, typename = "Project") => ({
+  resource: {
+    __typename: typename,
+    url,
+  },
+});
 
 const linkResponse = { linkProjectV2ToRepository: { repository: { id: "repo123" } } };
 
@@ -145,147 +162,84 @@ function getOutput(name) {
 
 describe("parseProjectInput", () => {
   it("extracts the project number from a GitHub URL", () => {
-    expect(parseProjectInput("https://github.com/orgs/acme/projects/42")).toEqual({
-      projectNumber: "42",
-      projectName: null,
-    });
+    expect(parseProjectInput("https://github.com/orgs/acme/projects/42")).toBe("42");
   });
 
-  it("treats a numeric string as a project number", () => {
-    expect(parseProjectInput("17")).toEqual({ projectNumber: "17", projectName: null });
+  it("rejects a numeric string", () => {
+    expect(() => parseProjectInput("17")).toThrow(/full GitHub project URL/);
   });
 
-  it("returns the project name when no number is present", () => {
-    expect(parseProjectInput("Engineering Roadmap")).toEqual({ projectNumber: null, projectName: "Engineering Roadmap" });
+  it("rejects a project name", () => {
+    expect(() => parseProjectInput("Engineering Roadmap")).toThrow(/full GitHub project URL/);
   });
 
   it("throws when the project input is missing", () => {
     expect(() => parseProjectInput(undefined)).toThrow(/Invalid project input/);
   });
 
-  it("accepts URL for campaign usage", () => {
-    expect(parseProjectInput("https://github.com/orgs/acme/projects/42", true)).toEqual({
-      projectNumber: "42",
-      projectName: null,
-    });
-  });
-
-  it("rejects project name for campaign usage", () => {
-    expect(() => parseProjectInput("Engineering Roadmap", true)).toThrow(/Invalid project URL for campaign/);
-    expect(() => parseProjectInput("Engineering Roadmap", true)).toThrow(/must be full GitHub project URLs/);
-  });
-
-  it("rejects project number for campaign usage", () => {
-    expect(() => parseProjectInput("42", true)).toThrow(/Invalid project URL for campaign/);
-    expect(() => parseProjectInput("42", true)).toThrow(/must be full GitHub project URLs/);
-  });
 });
 
 describe("generateCampaignId", () => {
   it("builds a slug with a timestamp suffix", () => {
     const nowSpy = vi.spyOn(Date, "now").mockReturnValue(1734470400000);
-    const id = generateCampaignId("Bug Bash Q1 2025");
-    expect(id).toBe("bug-bash-q1-2025-m4syw5xc");
+    const id = generateCampaignId("https://github.com/orgs/acme/projects/42", "42");
+    expect(id).toBe("acme-project-42-m4syw5xc");
     nowSpy.mockRestore();
   });
 });
 
 describe("updateProject", () => {
-  it("creates a new project when none exist", async () => {
-    const output = { type: "update_project", project: "New Campaign", create_if_missing: true };
+  it("fails when the project URL cannot be resolved", async () => {
+    const projectUrl = "https://github.com/orgs/testowner/projects/60";
+    const output = { type: "update_project", project: projectUrl };
 
-    queueResponses([
-      repoResponse(),
-      ownerProjectsResponse([]),
-      {
-        createProjectV2: {
-          projectV2: {
-            id: "project123",
-            title: "New Campaign",
-            url: "https://github.com/orgs/testowner/projects/1",
-            number: 1,
-          },
-        },
-      },
-      linkResponse,
-    ]);
+    queueResponses([repoResponse(), resourceNullResponse()]);
 
-    await updateProject(output);
+    await expect(updateProject(output)).rejects.toThrow(/could not be resolved/);
+  });
 
-    expect(mockCore.info).toHaveBeenCalledWith("✓ Created project: New Campaign");
-    expect(getOutput("project-id")).toBe("project123");
-    expect(getOutput("project-number")).toBe(1);
-    expect(getOutput("project-url")).toBe("https://github.com/orgs/testowner/projects/1");
-    expect(getOutput("campaign-id")).toMatch(/^new-campaign-[a-z0-9]{8}$/);
+  it("fails when the project URL resolves to a non-Projects-v2 type", async () => {
+    const projectUrl = "https://github.com/orgs/testowner/projects/60";
+    const output = { type: "update_project", project: projectUrl };
 
-    expect(mockGithub.graphql).toHaveBeenCalledWith(
-      expect.stringContaining("createProjectV2"),
-      expect.objectContaining({ ownerId: "owner123", title: "New Campaign" })
-    );
+    queueResponses([repoResponse(), resourceNonV2Response(projectUrl, "Project")]);
+
+    await expect(updateProject(output)).rejects.toThrow(/Projects v2/);
   });
 
   it("respects a custom campaign id", async () => {
+    const projectUrl = "https://github.com/orgs/testowner/projects/60";
     const output = {
       type: "update_project",
-      project: "https://github.com/orgs/testowner/projects/42",
+      project: projectUrl,
       campaign_id: "custom-id-2025",
-      create_if_missing: true,
+      content_type: "issue",
+      content_number: 42,
     };
 
     queueResponses([
       repoResponse(),
-      ownerProjectsResponse([]),
-      {
-        createProjectV2: {
-          projectV2: {
-            id: "project456",
-            title: "Custom Campaign",
-            url: "https://github.com/orgs/testowner/projects/42",
-            number: 42,
-          },
-        },
-      },
+      resourceProjectV2Response(projectUrl, 60, "project456"),
       linkResponse,
+      issueResponse("issue-id-42"),
+      emptyItemsResponse(),
+      { addProjectV2ItemById: { item: { id: "item-custom" } } },
     ]);
 
     await updateProject(output);
 
-    expect(getOutput("campaign-id")).toBe("custom-id-2025");
-    expect(mockCore.info).toHaveBeenCalledWith("✓ Created project: Custom Campaign");
-  });
-
-  it("finds an existing project by title", async () => {
-    const output = { type: "update_project", project: "Existing Campaign" };
-
-    queueResponses([
-      repoResponse(),
-      ownerProjectsResponse([{ id: "existing-project-123", title: "Existing Campaign", number: 5 }]),
-      linkResponse,
-    ]);
-
-    await updateProject(output);
-
-    const createCall = mockGithub.graphql.mock.calls.find(([query]) => query.includes("createProjectV2"));
-    expect(createCall).toBeUndefined();
-  });
-
-  it("finds an existing project by number", async () => {
-    const output = { type: "update_project", project: "7" };
-
-    queueResponses([repoResponse(), ownerProjectsResponse([{ id: "project-by-number", title: "Bug Tracking", number: 7 }]), linkResponse]);
-
-    await updateProject(output);
-
-    const createCall = mockGithub.graphql.mock.calls.find(([query]) => query.includes("createProjectV2"));
-    expect(createCall).toBeUndefined();
+    const labelCall = mockGithub.rest.issues.addLabels.mock.calls[0][0];
+    expect(labelCall.labels).toEqual(["campaign:custom-id-2025"]);
+    expect(getOutput("item-id")).toBe("item-custom");
   });
 
   it("adds an issue to a project board", async () => {
-    const output = { type: "update_project", project: "Bug Tracking", content_type: "issue", content_number: 42 };
+    const projectUrl = "https://github.com/orgs/testowner/projects/60";
+    const output = { type: "update_project", project: projectUrl, content_type: "issue", content_number: 42 };
 
     queueResponses([
       repoResponse(),
-      ownerProjectsResponse([{ id: "project123", title: "Bug Tracking", number: 1 }]),
+      resourceProjectV2Response(projectUrl, 60, "project123"),
       linkResponse,
       issueResponse("issue-id-42"),
       emptyItemsResponse(),
@@ -302,16 +256,17 @@ describe("updateProject", () => {
         issue_number: 42,
       })
     );
-    expect(labelCall.labels).toEqual([expect.stringMatching(/^campaign:bug-tracking-[a-z0-9]{8}$/)]);
+    expect(labelCall.labels).toEqual([expect.stringMatching(/^campaign:testowner-project-60-[a-z0-9]{8}$/)]);
     expect(getOutput("item-id")).toBe("item123");
   });
 
   it("skips adding an issue that already exists on the board", async () => {
-    const output = { type: "update_project", project: "Bug Tracking", content_type: "issue", content_number: 99 };
+    const projectUrl = "https://github.com/orgs/testowner/projects/60";
+    const output = { type: "update_project", project: projectUrl, content_type: "issue", content_number: 99 };
 
     queueResponses([
       repoResponse(),
-      ownerProjectsResponse([{ id: "project123", title: "Bug Tracking", number: 1 }]),
+      resourceProjectV2Response(projectUrl, 60, "project123"),
       linkResponse,
       issueResponse("issue-id-99"),
       existingItemResponse("issue-id-99", "item-existing"),
@@ -325,11 +280,12 @@ describe("updateProject", () => {
   });
 
   it("adds a pull request to the project board", async () => {
-    const output = { type: "update_project", project: "PR Review Board", content_type: "pull_request", content_number: 17 };
+    const projectUrl = "https://github.com/orgs/testowner/projects/60";
+    const output = { type: "update_project", project: projectUrl, content_type: "pull_request", content_number: 17 };
 
     queueResponses([
       repoResponse(),
-      ownerProjectsResponse([{ id: "project-pr", title: "PR Review Board", number: 9 }]),
+      resourceProjectV2Response(projectUrl, 60, "project-pr"),
       linkResponse,
       pullRequestResponse("pr-id-17"),
       emptyItemsResponse(),
@@ -346,15 +302,16 @@ describe("updateProject", () => {
         issue_number: 17,
       })
     );
-    expect(labelCall.labels).toEqual([expect.stringMatching(/^campaign:pr-review-board-[a-z0-9]{8}$/)]);
+    expect(labelCall.labels).toEqual([expect.stringMatching(/^campaign:testowner-project-60-[a-z0-9]{8}$/)]);
   });
 
   it("falls back to legacy issue field when content_number missing", async () => {
-    const output = { type: "update_project", project: "Legacy Board", issue: "101" };
+    const projectUrl = "https://github.com/orgs/testowner/projects/60";
+    const output = { type: "update_project", project: projectUrl, issue: "101" };
 
     queueResponses([
       repoResponse(),
-      ownerProjectsResponse([{ id: "legacy-project", title: "Legacy Board", number: 6 }]),
+      resourceProjectV2Response(projectUrl, 60, "legacy-project"),
       linkResponse,
       issueResponse("issue-id-101"),
       emptyItemsResponse(),
@@ -371,17 +328,19 @@ describe("updateProject", () => {
   });
 
   it("rejects invalid content numbers", async () => {
-    const output = { type: "update_project", project: "Invalid Board", content_number: "ABC" };
+    const projectUrl = "https://github.com/orgs/testowner/projects/60";
+    const output = { type: "update_project", project: projectUrl, content_number: "ABC" };
 
-    queueResponses([repoResponse(), ownerProjectsResponse([{ id: "invalid-project", title: "Invalid Board", number: 7 }]), linkResponse]);
+    queueResponses([repoResponse(), resourceProjectV2Response(projectUrl, 60, "invalid-project"), linkResponse]);
 
     await expect(updateProject(output)).rejects.toThrow(/Invalid content number/);
   });
 
   it("updates an existing text field", async () => {
+    const projectUrl = "https://github.com/orgs/testowner/projects/60";
     const output = {
       type: "update_project",
-      project: "Field Test",
+      project: projectUrl,
       content_type: "issue",
       content_number: 10,
       fields: { Status: "In Progress" },
@@ -389,7 +348,7 @@ describe("updateProject", () => {
 
     queueResponses([
       repoResponse(),
-      ownerProjectsResponse([{ id: "project-field", title: "Field Test", number: 12 }]),
+      resourceProjectV2Response(projectUrl, 60, "project-field"),
       linkResponse,
       issueResponse("issue-id-10"),
       existingItemResponse("issue-id-10", "item-field"),
@@ -405,9 +364,10 @@ describe("updateProject", () => {
   });
 
   it("updates a single select field when the option exists", async () => {
+    const projectUrl = "https://github.com/orgs/testowner/projects/60";
     const output = {
       type: "update_project",
-      project: "Priority Board",
+      project: projectUrl,
       content_type: "issue",
       content_number: 15,
       fields: { Priority: "High" },
@@ -415,7 +375,7 @@ describe("updateProject", () => {
 
     queueResponses([
       repoResponse(),
-      ownerProjectsResponse([{ id: "project-priority", title: "Priority Board", number: 3 }]),
+      resourceProjectV2Response(projectUrl, 60, "project-priority"),
       linkResponse,
       issueResponse("issue-id-15"),
       existingItemResponse("issue-id-15", "item-priority"),
@@ -439,9 +399,10 @@ describe("updateProject", () => {
   });
 
   it("warns when a field cannot be created", async () => {
+    const projectUrl = "https://github.com/orgs/testowner/projects/60";
     const output = {
       type: "update_project",
-      project: "Test Project",
+      project: projectUrl,
       content_type: "issue",
       content_number: 20,
       fields: { NonExistentField: "Some Value" },
@@ -449,7 +410,7 @@ describe("updateProject", () => {
 
     queueResponses([
       repoResponse(),
-      ownerProjectsResponse([{ id: "project-test", title: "Test Project", number: 4 }]),
+      resourceProjectV2Response(projectUrl, 60, "project-test"),
       linkResponse,
       issueResponse("issue-id-20"),
       existingItemResponse("issue-id-20", "item-test"),
@@ -464,11 +425,12 @@ describe("updateProject", () => {
   });
 
   it("warns when adding the campaign label fails", async () => {
-    const output = { type: "update_project", project: "Label Test", content_type: "issue", content_number: 50 };
+    const projectUrl = "https://github.com/orgs/testowner/projects/60";
+    const output = { type: "update_project", project: projectUrl, content_type: "issue", content_number: 50 };
 
     queueResponses([
       repoResponse(),
-      ownerProjectsResponse([{ id: "project-label", title: "Label Test", number: 11 }]),
+      resourceProjectV2Response(projectUrl, 60, "project-label"),
       linkResponse,
       issueResponse("issue-id-50"),
       emptyItemsResponse(),
@@ -482,38 +444,20 @@ describe("updateProject", () => {
     expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Failed to add campaign label"));
   });
 
-  it("surfaces project creation failures", async () => {
-    const output = { type: "update_project", project: "Fail Project", create_if_missing: true };
-
-    queueResponses([repoResponse(), ownerProjectsResponse([])]);
-
-    mockGithub.graphql.mockRejectedValueOnce(new Error("GraphQL error: Insufficient permissions"));
-
-    await expect(updateProject(output)).rejects.toThrow(/Insufficient permissions/);
-    expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("Failed to manage project"));
-  });
-
-  it("rejects non-URL project identifier when campaign_id is present", async () => {
+  it("rejects non-URL project identifier", async () => {
     const output = { type: "update_project", project: "My Campaign", campaign_id: "my-campaign-123" };
-
-    await expect(updateProject(output)).rejects.toThrow(/Invalid project URL for campaign/);
-    await expect(updateProject(output)).rejects.toThrow(/must be full GitHub project URLs/);
+    await expect(updateProject(output)).rejects.toThrow(/full GitHub project URL/);
   });
 
   it("accepts URL project identifier when campaign_id is present", async () => {
+    const projectUrl = "https://github.com/orgs/testowner/projects/60";
     const output = {
       type: "update_project",
-      project: "https://github.com/orgs/testowner/projects/60",
+      project: projectUrl,
       campaign_id: "my-campaign-123",
     };
 
-    queueResponses([
-      repoResponse(),
-      ownerProjectsResponse([
-        { id: "project123", number: 60, title: "Test Project", url: "https://github.com/orgs/testowner/projects/60" },
-      ]),
-      linkResponse,
-    ]);
+    queueResponses([repoResponse(), resourceProjectV2Response(projectUrl, 60, "project123"), linkResponse]);
 
     await updateProject(output);
 
