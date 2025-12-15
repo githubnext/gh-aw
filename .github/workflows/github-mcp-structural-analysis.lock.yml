@@ -4668,7 +4668,7 @@ jobs:
               }
               return { isValid: true, normalizedValue: parsed, isTemporary: false };
             }
-            function validateField(value, fieldName, validation, itemType, lineNum) {
+            function validateField(value, fieldName, validation, itemType, lineNum, options) {
               if (validation.positiveInteger) {
                 return validatePositiveInteger(value, `${itemType} '${fieldName}'`, lineNum);
               }
@@ -4732,12 +4732,18 @@ jobs:
                   const matchIndex = normalizedEnum.indexOf(normalizedValue);
                   let normalizedResult = validation.enum[matchIndex];
                   if (validation.sanitize && validation.maxLength) {
-                    normalizedResult = sanitizeContent(normalizedResult, validation.maxLength);
+                    normalizedResult = sanitizeContent(normalizedResult, {
+                      maxLength: validation.maxLength,
+                      allowedAliases: options?.allowedAliases || [],
+                    });
                   }
                   return { isValid: true, normalizedValue: normalizedResult };
                 }
                 if (validation.sanitize) {
-                  const sanitized = sanitizeContent(value, validation.maxLength || MAX_BODY_LENGTH);
+                  const sanitized = sanitizeContent(value, {
+                    maxLength: validation.maxLength || MAX_BODY_LENGTH,
+                    allowedAliases: options?.allowedAliases || [],
+                  });
                   return { isValid: true, normalizedValue: sanitized };
                 }
                 return { isValid: true, normalizedValue: value };
@@ -4765,7 +4771,12 @@ jobs:
                   }
                   if (validation.itemSanitize) {
                     const sanitizedItems = value.map(item =>
-                      typeof item === "string" ? sanitizeContent(item, validation.itemMaxLength || 128) : item
+                      typeof item === "string"
+                        ? sanitizeContent(item, {
+                            maxLength: validation.itemMaxLength || 128,
+                            allowedAliases: options?.allowedAliases || [],
+                          })
+                        : item
                     );
                     return { isValid: true, normalizedValue: sanitizedItems };
                   }
@@ -4829,7 +4840,7 @@ jobs:
               }
               return null;
             }
-            function validateItem(item, itemType, lineNum) {
+            function validateItem(item, itemType, lineNum, options) {
               const validationConfig = loadValidationConfig();
               const typeConfig = validationConfig[itemType];
               if (!typeConfig) {
@@ -4845,7 +4856,7 @@ jobs:
               }
               for (const [fieldName, validation] of Object.entries(typeConfig.fields)) {
                 const fieldValue = item[fieldName];
-                const result = validateField(fieldValue, fieldName, validation, itemType, lineNum);
+                const result = validateField(fieldValue, fieldName, validation, itemType, lineNum, options);
                 if (!result.isValid) {
                   errors.push(result.error);
                 } else if (result.normalizedValue !== undefined) {
@@ -4869,6 +4880,217 @@ jobs:
               const validationConfig = loadValidationConfig();
               return Object.keys(validationConfig);
             }
+            function extractMentions(text) {
+              if (!text || typeof text !== "string") {
+                return [];
+              }
+              const mentionRegex = /(^|[^\w`])@([A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?(?:\/[A-Za-z0-9._-]+)?)/g;
+              const mentions = [];
+              const seen = new Set();
+              let match;
+              while ((match = mentionRegex.exec(text)) !== null) {
+                const username = match[2];
+                const lowercaseUsername = username.toLowerCase();
+                if (!seen.has(lowercaseUsername)) {
+                  seen.add(lowercaseUsername);
+                  mentions.push(username);
+                }
+              }
+              return mentions;
+            }
+            function isPayloadUserBot(user) {
+              return !!(user && user.type === "Bot");
+            }
+            async function getRecentCollaborators(owner, repo, github, core) {
+              try {
+                const collaborators = await github.rest.repos.listCollaborators({
+                  owner: owner,
+                  repo: repo,
+                  affiliation: "direct",
+                  per_page: 30,
+                });
+                const allowedMap = new Map();
+                for (const collaborator of collaborators.data) {
+                  const lowercaseLogin = collaborator.login.toLowerCase();
+                  const isAllowed = collaborator.type !== "Bot";
+                  allowedMap.set(lowercaseLogin, isAllowed);
+                }
+                return allowedMap;
+              } catch (error) {
+                core.warning(`Failed to fetch recent collaborators: ${error instanceof Error ? error.message : String(error)}`);
+                return new Map();
+              }
+            }
+            async function checkUserPermission(username, owner, repo, github, core) {
+              try {
+                const { data: user } = await github.rest.users.getByUsername({
+                  username: username,
+                });
+                if (user.type === "Bot") {
+                  return false;
+                }
+                const { data: permissionData } = await github.rest.repos.getCollaboratorPermissionLevel({
+                  owner: owner,
+                  repo: repo,
+                  username: username,
+                });
+                return permissionData.permission !== "none";
+              } catch (error) {
+                return false;
+              }
+            }
+            async function resolveMentionsLazily(text, knownAuthors, owner, repo, github, core) {
+              const mentions = extractMentions(text);
+              const totalMentions = mentions.length;
+              core.info(`Found ${totalMentions} unique mentions in text`);
+              const limitExceeded = totalMentions > 50;
+              const mentionsToProcess = limitExceeded ? mentions.slice(0, 50) : mentions;
+              if (limitExceeded) {
+                core.warning(`Mention limit exceeded: ${totalMentions} mentions found, processing only first 50`);
+              }
+              const knownAuthorsLowercase = new Set(knownAuthors.filter(a => a).map(a => a.toLowerCase()));
+              const collaboratorCache = await getRecentCollaborators(owner, repo, github, core);
+              core.info(`Cached ${collaboratorCache.size} recent collaborators for optimistic resolution`);
+              const allowedMentions = [];
+              let resolvedCount = 0;
+              for (const mention of mentionsToProcess) {
+                const lowerMention = mention.toLowerCase();
+                if (knownAuthorsLowercase.has(lowerMention)) {
+                  allowedMentions.push(mention);
+                  continue;
+                }
+                if (collaboratorCache.has(lowerMention)) {
+                  if (collaboratorCache.get(lowerMention)) {
+                    allowedMentions.push(mention);
+                  }
+                  continue;
+                }
+                resolvedCount++;
+                const isAllowed = await checkUserPermission(mention, owner, repo, github, core);
+                if (isAllowed) {
+                  allowedMentions.push(mention);
+                }
+              }
+              core.info(`Resolved ${resolvedCount} mentions via individual API calls`);
+              core.info(`Total allowed mentions: ${allowedMentions.length}`);
+              return {
+                allowedMentions,
+                totalMentions,
+                resolvedCount,
+                limitExceeded,
+              };
+            }
+              let allowedMentions = [];
+              try {
+                const { owner, repo } = context.repo;
+                const knownAuthors = [];
+                switch (context.eventName) {
+                  case "issues":
+                    if (context.payload.issue?.user?.login && !isPayloadUserBot(context.payload.issue.user)) {
+                      knownAuthors.push(context.payload.issue.user.login);
+                    }
+                    if (context.payload.issue?.assignees && Array.isArray(context.payload.issue.assignees)) {
+                      for (const assignee of context.payload.issue.assignees) {
+                        if (assignee?.login && !isPayloadUserBot(assignee)) {
+                          knownAuthors.push(assignee.login);
+                        }
+                      }
+                    }
+                    break;
+                  case "pull_request":
+                  case "pull_request_target":
+                    if (context.payload.pull_request?.user?.login && !isPayloadUserBot(context.payload.pull_request.user)) {
+                      knownAuthors.push(context.payload.pull_request.user.login);
+                    }
+                    if (context.payload.pull_request?.assignees && Array.isArray(context.payload.pull_request.assignees)) {
+                      for (const assignee of context.payload.pull_request.assignees) {
+                        if (assignee?.login && !isPayloadUserBot(assignee)) {
+                          knownAuthors.push(assignee.login);
+                        }
+                      }
+                    }
+                    break;
+                  case "issue_comment":
+                    if (context.payload.comment?.user?.login && !isPayloadUserBot(context.payload.comment.user)) {
+                      knownAuthors.push(context.payload.comment.user.login);
+                    }
+                    if (context.payload.issue?.user?.login && !isPayloadUserBot(context.payload.issue.user)) {
+                      knownAuthors.push(context.payload.issue.user.login);
+                    }
+                    if (context.payload.issue?.assignees && Array.isArray(context.payload.issue.assignees)) {
+                      for (const assignee of context.payload.issue.assignees) {
+                        if (assignee?.login && !isPayloadUserBot(assignee)) {
+                          knownAuthors.push(assignee.login);
+                        }
+                      }
+                    }
+                    break;
+                  case "pull_request_review_comment":
+                    if (context.payload.comment?.user?.login && !isPayloadUserBot(context.payload.comment.user)) {
+                      knownAuthors.push(context.payload.comment.user.login);
+                    }
+                    if (context.payload.pull_request?.user?.login && !isPayloadUserBot(context.payload.pull_request.user)) {
+                      knownAuthors.push(context.payload.pull_request.user.login);
+                    }
+                    if (context.payload.pull_request?.assignees && Array.isArray(context.payload.pull_request.assignees)) {
+                      for (const assignee of context.payload.pull_request.assignees) {
+                        if (assignee?.login && !isPayloadUserBot(assignee)) {
+                          knownAuthors.push(assignee.login);
+                        }
+                      }
+                    }
+                    break;
+                  case "pull_request_review":
+                    if (context.payload.review?.user?.login && !isPayloadUserBot(context.payload.review.user)) {
+                      knownAuthors.push(context.payload.review.user.login);
+                    }
+                    if (context.payload.pull_request?.user?.login && !isPayloadUserBot(context.payload.pull_request.user)) {
+                      knownAuthors.push(context.payload.pull_request.user.login);
+                    }
+                    if (context.payload.pull_request?.assignees && Array.isArray(context.payload.pull_request.assignees)) {
+                      for (const assignee of context.payload.pull_request.assignees) {
+                        if (assignee?.login && !isPayloadUserBot(assignee)) {
+                          knownAuthors.push(assignee.login);
+                        }
+                      }
+                    }
+                    break;
+                  case "discussion":
+                    if (context.payload.discussion?.user?.login && !isPayloadUserBot(context.payload.discussion.user)) {
+                      knownAuthors.push(context.payload.discussion.user.login);
+                    }
+                    break;
+                  case "discussion_comment":
+                    if (context.payload.comment?.user?.login && !isPayloadUserBot(context.payload.comment.user)) {
+                      knownAuthors.push(context.payload.comment.user.login);
+                    }
+                    if (context.payload.discussion?.user?.login && !isPayloadUserBot(context.payload.discussion.user)) {
+                      knownAuthors.push(context.payload.discussion.user.login);
+                    }
+                    break;
+                  case "release":
+                    if (context.payload.release?.author?.login && !isPayloadUserBot(context.payload.release.author)) {
+                      knownAuthors.push(context.payload.release.author.login);
+                    }
+                    break;
+                  case "workflow_dispatch":
+                    knownAuthors.push(context.actor);
+                    break;
+                  default:
+                    break;
+                }
+                const mentionResult = await resolveMentionsLazily("", knownAuthors, owner, repo, github, core);
+                allowedMentions = mentionResult.allowedMentions;
+                if (allowedMentions.length > 0) {
+                  core.info(`[OUTPUT COLLECTOR] Allowed mentions: ${allowedMentions.join(", ")}`);
+                } else {
+                  core.info("[OUTPUT COLLECTOR] No allowed mentions - all mentions will be escaped");
+                }
+              } catch (error) {
+                core.warning(
+                  `Failed to resolve mentions for output collector: ${error instanceof Error ? error.message : String(error)}`
+                );
+              }
               const validationConfigPath = process.env.GH_AW_VALIDATION_CONFIG_PATH || "/tmp/gh-aw/safeoutputs/validation.json";
               try {
                 if (fs.existsSync(validationConfigPath)) {
@@ -4940,7 +5162,7 @@ jobs:
                         error: `Line ${lineNum}: ${fieldName} must be a string`,
                       };
                     }
-                    normalizedValue = sanitizeContent(value);
+                    normalizedValue = sanitizeContent(value, { allowedAliases: allowedMentions });
                     break;
                   case "boolean":
                     if (typeof value !== "boolean") {
@@ -4971,11 +5193,11 @@ jobs:
                         error: `Line ${lineNum}: ${fieldName} must be one of: ${inputSchema.options.join(", ")}`,
                       };
                     }
-                    normalizedValue = sanitizeContent(value);
+                    normalizedValue = sanitizeContent(value, { allowedAliases: allowedMentions });
                     break;
                   default:
                     if (typeof value === "string") {
-                      normalizedValue = sanitizeContent(value);
+                      normalizedValue = sanitizeContent(value, { allowedAliases: allowedMentions });
                     }
                     break;
                 }
@@ -5105,7 +5327,7 @@ jobs:
                   }
                   core.info(`Line ${i + 1}: type '${itemType}'`);
                   if (hasValidationConfig(itemType)) {
-                    const validationResult = validateItem(item, itemType, i + 1);
+                    const validationResult = validateItem(item, itemType, i + 1, { allowedAliases: allowedMentions });
                     if (!validationResult.isValid) {
                       if (validationResult.error) {
                         errors.push(validationResult.error);
