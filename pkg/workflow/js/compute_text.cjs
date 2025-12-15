@@ -6,7 +6,7 @@
  * @param {string} content - The content to sanitize
  * @returns {string} The sanitized content
  */
-const { sanitizeIncomingText, writeRedactedDomainsLog } = require("./sanitize_incoming_text.cjs");
+const { sanitizeContent, writeRedactedDomainsLog } = require("./sanitize_content.cjs");
 const { isPayloadUserBot } = require("./resolve_mentions.cjs");
 
 async function main() {
@@ -270,7 +270,7 @@ async function main() {
   // Sanitize the text before output using slimmed-down sanitizer
   // Note: Mention filtering is NOT applied here - all mentions are escaped
   // Mention filtering will be applied by the agent output collector
-  const sanitizedText = sanitizeIncomingText(text);
+  const sanitizedText = sanitizeContent(text);
 
   // Display sanitized text in logs
   core.info(`text: ${sanitizedText}`);

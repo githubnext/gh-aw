@@ -91,11 +91,11 @@ describe("compute_text.cjs", () => {
     const scriptPath = path.join(process.cwd(), "compute_text.cjs");
     computeTextScript = fs.readFileSync(scriptPath, "utf8");
 
-    // Extract sanitizeIncomingText function for unit testing
+    // Extract sanitizeContent function for unit testing
     // We need to eval the script to get access to the function
     const scriptWithExport = computeTextScript.replace(
       "await main();",
-      "global.testSanitizeContent = sanitizeIncomingText; global.testMain = main;"
+      "global.testSanitizeContent = sanitizeContent; global.testMain = main;"
     );
     eval(scriptWithExport);
     sanitizeContentFunction = global.testSanitizeContent;
