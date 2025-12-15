@@ -56,12 +56,12 @@ func TestDownloadFileFromGitHubInvalidRepo(t *testing.T) {
 
 	// Verify we get an appropriate error message
 	errStr := err.Error()
-	
+
 	// Skip if authentication is not available
 	if strings.Contains(errStr, "authentication token not found") {
 		t.Skip("Skipping test due to missing authentication token")
 	}
-	
+
 	if !strings.Contains(errStr, "failed to fetch file content") {
 		t.Errorf("Error should mention fetch failure, got: %s", errStr)
 	}
@@ -81,12 +81,12 @@ func TestDownloadFileFromGitHubInvalidPath(t *testing.T) {
 
 	// Verify we get an appropriate error message
 	errStr := err.Error()
-	
+
 	// Skip if authentication is not available
 	if strings.Contains(errStr, "authentication token not found") {
 		t.Skip("Skipping test due to missing authentication token")
 	}
-	
+
 	if !strings.Contains(errStr, "failed to fetch file content") {
 		t.Errorf("Error should mention fetch failure, got: %s", errStr)
 	}
