@@ -1,0 +1,87 @@
+package workflow
+
+import (
+	"strings"
+
+	"github.com/githubnext/gh-aw/pkg/logger"
+)
+
+var checkpointPromptLog = logger.New("workflow:checkpoint_prompt")
+
+// GenerateCheckpointRecordingPromptStep generates instructions for the agent to record checkpoints
+func (c *Compiler) generateCheckpointRecordingPromptStep(yaml *strings.Builder, data *WorkflowData) {
+	if !ShouldEnableTraceCapture(data) {
+		return
+	}
+
+	checkpointPromptLog.Print("Adding checkpoint recording instructions to prompt")
+
+	yaml.WriteString("      - name: Append checkpoint recording instructions to prompt\n")
+	yaml.WriteString("        env:\n")
+	yaml.WriteString("          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt\n")
+	yaml.WriteString("        run: |\n")
+	yaml.WriteString("          cat >> \"$GH_AW_PROMPT\" << 'CHECKPOINT_EOF'\n")
+	yaml.WriteString("          \n")
+	yaml.WriteString("          ## Checkpoint Recording Instructions\n")
+	yaml.WriteString("          \n")
+	yaml.WriteString("          **IMPORTANT**: As you work, record checkpoints to create a replayable execution trace.\n")
+	yaml.WriteString("          \n")
+	yaml.WriteString("          ### When to Record Checkpoints\n")
+	yaml.WriteString("          \n")
+	yaml.WriteString("          Record a checkpoint after each significant step:\n")
+	yaml.WriteString("          - After gathering information (tool calls, file reads, searches)\n")
+	yaml.WriteString("          - After making file changes (edits, patches)\n")
+	yaml.WriteString("          - After running validations (tests, lints, builds)\n")
+	yaml.WriteString("          - Before and after safe-output operations (PRs, comments, issues)\n")
+	yaml.WriteString("          - At decision points (choosing between alternatives)\n")
+	yaml.WriteString("          \n")
+	yaml.WriteString("          ### How to Record a Checkpoint\n")
+	yaml.WriteString("          \n")
+	yaml.WriteString("          Use this bash command to record checkpoints:\n")
+	yaml.WriteString("          \n")
+	yaml.WriteString("          ```bash\n")
+	yaml.WriteString("          bash /tmp/gh-aw/record_checkpoint.sh <type> <description>\n")
+	yaml.WriteString("          ```\n")
+	yaml.WriteString("          \n")
+	yaml.WriteString("          **Checkpoint Types:**\n")
+	yaml.WriteString("          - `tool_call` - Used a tool to gather information\n")
+	yaml.WriteString("          - `patch` - Made file changes\n")
+	yaml.WriteString("          - `eval` - Ran tests or validation\n")
+	yaml.WriteString("          - `decision` - Made a key decision\n")
+	yaml.WriteString("          - `safe_output` - Created PR/issue/comment\n")
+	yaml.WriteString("          \n")
+	yaml.WriteString("          **Examples:**\n")
+	yaml.WriteString("          ```bash\n")
+	yaml.WriteString("          # After searching for files\n")
+	yaml.WriteString("          bash /tmp/gh-aw/record_checkpoint.sh tool_call \"Searched for test files\"\n")
+	yaml.WriteString("          \n")
+	yaml.WriteString("          # After editing a file\n")
+	yaml.WriteString("          bash /tmp/gh-aw/record_checkpoint.sh patch \"Updated error handling in main.go\"\n")
+	yaml.WriteString("          \n")
+	yaml.WriteString("          # After running tests\n")
+	yaml.WriteString("          bash /tmp/gh-aw/record_checkpoint.sh eval \"Ran unit tests (3 passed)\"\n")
+	yaml.WriteString("          \n")
+	yaml.WriteString("          # At a decision point\n")
+	yaml.WriteString("          bash /tmp/gh-aw/record_checkpoint.sh decision \"Chose to refactor rather than patch\"\n")
+	yaml.WriteString("          \n")
+	yaml.WriteString("          # Before creating a PR\n")
+	yaml.WriteString("          bash /tmp/gh-aw/record_checkpoint.sh safe_output \"Creating PR with fixes\"\n")
+	yaml.WriteString("          ```\n")
+	yaml.WriteString("          \n")
+	yaml.WriteString("          ### Checkpoint Descriptions\n")
+	yaml.WriteString("          \n")
+	yaml.WriteString("          Keep descriptions concise but informative:\n")
+	yaml.WriteString("          - What was done (action verb)\n")
+	yaml.WriteString("          - Key outcome or result\n")
+	yaml.WriteString("          - Important context (counts, file names, etc.)\n")
+	yaml.WriteString("          \n")
+	yaml.WriteString("          **Good:** \"Analyzed 5 test files, found 2 failures\"\n")
+	yaml.WriteString("          **Bad:** \"Did some analysis\"\n")
+	yaml.WriteString("          \n")
+	yaml.WriteString("          These checkpoints enable:\n")
+	yaml.WriteString("          - Debugging failed runs (see exactly where things went wrong)\n")
+	yaml.WriteString("          - Replay from any checkpoint (restart with cached responses)\n")
+	yaml.WriteString("          - Timeline view (Job Summary shows clickable checkpoint table)\n")
+	yaml.WriteString("          \n")
+	yaml.WriteString("          CHECKPOINT_EOF\n")
+}

@@ -294,6 +294,33 @@ jobs:
           # Initialize empty checkpoints.jsonl
           : > trace/checkpoints.jsonl
           
+          # Initialize checkpoint counter
+          echo "0" > trace/.checkpoint_counter
+          
+          # Copy checkpoint recording script to temp location
+          cat > /tmp/gh-aw/record_checkpoint.sh <<'EOF_SCRIPT'
+          #!/usr/bin/env bash
+          set -euo pipefail
+          TRACE_DIR="${TRACE_DIR:-trace}"
+          CHECKPOINT_TYPE="${1:-tool_call}"
+          CHECKPOINT_DESC="${2:-Agent action}"
+          CHECKPOINT_COUNTER_FILE="$TRACE_DIR/.checkpoint_counter"
+          if [[ -f "$CHECKPOINT_COUNTER_FILE" ]]; then
+              COUNTER=$(cat "$CHECKPOINT_COUNTER_FILE")
+          else
+              COUNTER=0
+          fi
+          COUNTER=$((COUNTER + 1))
+          echo "$COUNTER" > "$CHECKPOINT_COUNTER_FILE"
+          CHECKPOINT_ID=$(printf "c%%03d" "$COUNTER")
+          REPO_SHA="$(git rev-parse HEAD 2>/dev/null || echo 'unknown')"
+          cat >> "$TRACE_DIR/checkpoints.jsonl" <<EOF
+          {"id":"$CHECKPOINT_ID","ts":"$(date -u +%%Y-%%m-%%dT%%H:%%M:%%SZ)","kind":"$CHECKPOINT_TYPE","name":"$CHECKPOINT_DESC","repo_sha":"$REPO_SHA"}
+          EOF
+          echo "✅ Checkpoint $CHECKPOINT_ID: $CHECKPOINT_TYPE - $CHECKPOINT_DESC"
+          EOF_SCRIPT
+          chmod +x /tmp/gh-aw/record_checkpoint.sh
+          
           echo "✅ Trace capture initialized"
       - name: Replay Setup
         if: ${{ inputs.replay_run_id != '' }}
@@ -3446,6 +3473,74 @@ jobs:
           </security-guidelines>
           
           PROMPT_EOF
+      - name: Append checkpoint recording instructions to prompt
+        env:
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+        run: |
+          cat >> "$GH_AW_PROMPT" << 'CHECKPOINT_EOF'
+          
+          ## Checkpoint Recording Instructions
+          
+          **IMPORTANT**: As you work, record checkpoints to create a replayable execution trace.
+          
+          ### When to Record Checkpoints
+          
+          Record a checkpoint after each significant step:
+          - After gathering information (tool calls, file reads, searches)
+          - After making file changes (edits, patches)
+          - After running validations (tests, lints, builds)
+          - Before and after safe-output operations (PRs, comments, issues)
+          - At decision points (choosing between alternatives)
+          
+          ### How to Record a Checkpoint
+          
+          Use this bash command to record checkpoints:
+          
+          ```bash
+          bash /tmp/gh-aw/record_checkpoint.sh <type> <description>
+          ```
+          
+          **Checkpoint Types:**
+          - `tool_call` - Used a tool to gather information
+          - `patch` - Made file changes
+          - `eval` - Ran tests or validation
+          - `decision` - Made a key decision
+          - `safe_output` - Created PR/issue/comment
+          
+          **Examples:**
+          ```bash
+          # After searching for files
+          bash /tmp/gh-aw/record_checkpoint.sh tool_call "Searched for test files"
+          
+          # After editing a file
+          bash /tmp/gh-aw/record_checkpoint.sh patch "Updated error handling in main.go"
+          
+          # After running tests
+          bash /tmp/gh-aw/record_checkpoint.sh eval "Ran unit tests (3 passed)"
+          
+          # At a decision point
+          bash /tmp/gh-aw/record_checkpoint.sh decision "Chose to refactor rather than patch"
+          
+          # Before creating a PR
+          bash /tmp/gh-aw/record_checkpoint.sh safe_output "Creating PR with fixes"
+          ```
+          
+          ### Checkpoint Descriptions
+          
+          Keep descriptions concise but informative:
+          - What was done (action verb)
+          - Key outcome or result
+          - Important context (counts, file names, etc.)
+          
+          **Good:** "Analyzed 5 test files, found 2 failures"
+          **Bad:** "Did some analysis"
+          
+          These checkpoints enable:
+          - Debugging failed runs (see exactly where things went wrong)
+          - Replay from any checkpoint (restart with cached responses)
+          - Timeline view (Job Summary shows clickable checkpoint table)
+          
+          CHECKPOINT_EOF
       - name: Append temporary folder instructions to prompt
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt

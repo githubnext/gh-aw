@@ -780,6 +780,9 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 	// Add XPIA security prompt as separate step if enabled (before other prompts)
 	c.generateXPIAPromptStep(yaml, data)
 
+	// Add checkpoint recording instructions if trace capture is enabled
+	c.generateCheckpointRecordingPromptStep(yaml, data)
+
 	// Add temporary folder usage instructions
 	c.generateTempFolderPromptStep(yaml)
 
