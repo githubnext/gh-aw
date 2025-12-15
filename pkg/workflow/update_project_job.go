@@ -28,10 +28,10 @@ func (c *Compiler) buildUpdateProjectJob(data *WorkflowData, mainJobName string)
 		token = data.SafeOutputs.UpdateProjects.GitHubToken
 	}
 
-	// Add GH_AW_PROJECT_TOKEN environment variable if a custom token is configured
-	// This allows the JavaScript to use a custom PAT with project scope
+	// Add GH_AW_PROJECT_GITHUB_TOKEN flag to indicate if a custom token is configured
+	// This allows the JavaScript to determine if project creation should be allowed
 	if token != "" {
-		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_PROJECT_TOKEN: %s\n", token))
+		customEnvVars = append(customEnvVars, "          GH_AW_PROJECT_GITHUB_TOKEN: \"true\"\n")
 	}
 
 	jobCondition := BuildSafeOutputType("update_project")

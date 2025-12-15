@@ -61,7 +61,7 @@ ProjectOps workflows use the `update-project` safe output to ensure secure proje
 safe-outputs:
   update-project:
     max: 10                              # Optional: max project operations (default: 10)
-    github-token: ${{ secrets.GH_AW_PROJECT_TOKEN }}  # Optional: token override when org policy requires it
+    github-token: ${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}  # Optional: token override when org policy requires it
 ```
 
 The `update-project` tool provides intelligent project management:

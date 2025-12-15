@@ -86,22 +86,12 @@ async function updateProject(output) {
   const displayName = parsedProjectName || parsedProjectNumber || output.project;
   const campaignId = output.campaign_id || generateCampaignId(displayName);
 
-  let githubClient = github;
-  if (process.env.GH_AW_PROJECT_TOKEN) {
-    const { Octokit } = require("@octokit/rest");
-    const octokit = new Octokit({
-      auth: process.env.GH_AW_PROJECT_TOKEN,
-      baseUrl: process.env.GITHUB_API_URL || "https://api.github.com",
-    });
-    githubClient = {
-      graphql: octokit.graphql.bind(octokit),
-      rest: octokit.rest,
-    };
-  }
+  // Use the github client directly - the token is configured at the step level via github-token parameter
+  const githubClient = github;
 
   const createIfMissing =
     output.create_if_missing === true || output.create_project_if_missing === true || output.createProjectIfMissing === true;
-  const hasCustomToken = !!process.env.GH_AW_PROJECT_TOKEN;
+  const hasCustomToken = process.env.GH_AW_PROJECT_GITHUB_TOKEN === "true";
   const allowCreateProject = createIfMissing || hasCustomToken;
 
   try {
@@ -619,14 +609,14 @@ async function updateProject(output) {
   } catch (error) {
     // Provide helpful error messages for common permission issues
     if (error.message && error.message.includes("does not have permission to create projects")) {
-      const usingCustomToken = !!process.env.GH_AW_PROJECT_TOKEN;
+      const usingCustomToken = process.env.GH_AW_PROJECT_GITHUB_TOKEN === "true";
       core.error(
         `Failed to manage project: ${error.message}\n\n` +
           `Troubleshooting:\n` +
           `  • Create the project manually at https://github.com/orgs/${owner}/projects/new.\n` +
-          `  • Or supply a PAT with project scope via GH_AW_PROJECT_TOKEN.\n` +
+          `  • Or supply a PAT with project scope via github-token in safe-outputs configuration.\n` +
           `  • Ensure the workflow grants projects: write.\n\n` +
-          `${usingCustomToken ? "GH_AW_PROJECT_TOKEN is set but lacks access." : "Using default GITHUB_TOKEN without project create rights."}`
+          `${usingCustomToken ? "Custom github-token is set but lacks access." : "Using default GITHUB_TOKEN without project create rights."}`
       );
     } else {
       core.error(`Failed to manage project: ${error.message}`);
