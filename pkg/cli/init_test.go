@@ -249,16 +249,16 @@ func TestInitRepository_WithCampaignDesignerAgent(t *testing.T) {
 		t.Fatalf("InitRepository() with campaign flag returned error: %v", err)
 	}
 
-	agentPath := filepath.Join(tempDir, ".github", "agents", "campaign-designer.agent.md")
+	agentPath := filepath.Join(tempDir, ".github", "agents", "agentic-campaign-designer.agent.md")
 	content, err := os.ReadFile(agentPath)
 	if err != nil {
-		t.Fatalf("Expected campaign designer agent to be created at %s, got error: %v", agentPath, err)
+		t.Fatalf("Expected agentic campaign designer agent to be created at %s, got error: %v", agentPath, err)
 	}
 
 	// Ensure the written file matches the embedded template (ignoring leading/trailing whitespace)
 	got := strings.TrimSpace(string(content))
-	want := strings.TrimSpace(campaignDesignerAgentTemplate)
+	want := strings.TrimSpace(agenticCampaignDesignerAgentTemplate)
 	if got != want {
-		t.Errorf("campaign-designer.agent.md content did not match embedded template")
+		t.Errorf("agentic-campaign-designer.agent.md content did not match embedded template")
 	}
 }
