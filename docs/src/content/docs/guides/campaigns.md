@@ -3,9 +3,9 @@ title: "Campaigns"
 description: "Run structured, visible automation initiatives with GitHub Agentic Workflows and GitHub Projects."
 ---
 
-A campaign is a **finite initiative** with explicit ownership, review gates, and clear tracking. It helps you run large automation efforts—migrations, upgrades, and rollouts—in a way that is structured and visible.
+A campaign is a finite **initiative** with explicit ownership, review gates, and clear tracking. It helps you run large automation efforts—migrations, upgrades, and rollouts—in a way that is structured and visible.
 
-Agentic workflows still do the hands-on work. Campaigns sit above them and add the “initiative layer”: a shared definition of scope, consistent tracking, and standard progress reporting.
+Agentic workflows still do the hands-on work. Campaigns sit above them and add the *initiative layer*: a shared definition of scope, consistent tracking, and standard progress reporting.
 
 If you are deciding whether you need a campaign, start here.
 
@@ -20,7 +20,7 @@ Example: “Upgrade a dependency across 50 repositories over two weeks, with an 
 | The result of each run (success/failure, logs, artifacts) | A regular workflow |
 | The overall outcome across many runs, repos, and days/weeks | A campaign |
 
-Why “just a label” stops being enough at scale: it does not define scope, it is easy to apply inconsistently, and it does not give you a standard status view.
+Why just-a-label stops being enough at scale: it does not define scope, it is easy to apply inconsistently, and it does not give you a standard status view.
 
 Use a campaign when any of these are true:
 
