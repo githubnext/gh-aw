@@ -2,11 +2,13 @@ package workflow
 
 import (
 	"fmt"
+	"path/filepath"
 	"sort"
 	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/constants"
 	"github.com/githubnext/gh-aw/pkg/logger"
+	"github.com/githubnext/gh-aw/pkg/parser"
 )
 
 var claudeLog = logger.New("workflow:claude_engine")
@@ -46,6 +48,13 @@ func (e *ClaudeEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHub
 		InstallStepName: "Install Claude Code CLI",
 	}, workflowData)
 
+	// Add SKILL files setup if any SKILL.md files were detected in imports
+	if len(workflowData.SkillFiles) > 0 {
+		claudeLog.Printf("Found %d SKILL files to configure for Claude engine", len(workflowData.SkillFiles))
+		skillsStep := e.generateSkillsSetupStep(workflowData.SkillFiles)
+		steps = append(steps, skillsStep)
+	}
+
 	// Check if network permissions are configured (only for Claude engine)
 	if workflowData.EngineConfig != nil && ShouldEnforceNetworkPermissions(workflowData.NetworkPermissions) {
 		// Generate network hook generator and settings generator
@@ -69,6 +78,43 @@ func (e *ClaudeEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHub
 // GetDeclaredOutputFiles returns the output files that Claude may produce
 func (e *ClaudeEngine) GetDeclaredOutputFiles() []string {
 	return []string{}
+}
+
+// generateSkillsSetupStep creates a step to copy SKILL.md files to Claude's skills directory
+func (e *ClaudeEngine) generateSkillsSetupStep(skillFiles []parser.SkillFile) GitHubActionStep {
+	claudeLog.Printf("Generating skills setup step for %d skill files", len(skillFiles))
+
+	var stepLines []string
+	stepLines = append(stepLines, "      - name: Setup Native SKILLS for Claude Code")
+	stepLines = append(stepLines, "        id: setup_claude_skills")
+	stepLines = append(stepLines, "        shell: bash")
+	stepLines = append(stepLines, "        working-directory: ${{ github.workspace }}")
+	stepLines = append(stepLines, "        run: |")
+	stepLines = append(stepLines, "          # Setup native SKILLS support for Claude Code")
+	stepLines = append(stepLines, "          mkdir -p ~/.claude/skills")
+	stepLines = append(stepLines, "")
+
+	for _, skill := range skillFiles {
+		claudeLog.Printf("Adding skill to setup: %s (path=%s)", skill.Name, skill.Path)
+		// Determine the skill directory name (use skill name from frontmatter or derive from path)
+		skillDirName := skill.Name
+		if skillDirName == "" {
+			// Fallback: use the directory name containing the SKILL.md file
+			skillDirName = filepath.Base(filepath.Dir(skill.Path))
+		}
+
+		stepLines = append(stepLines, fmt.Sprintf("          # Copy skill: %s", skillDirName))
+		// Copy the entire skill directory (parent of SKILL.md file) to Claude's skills directory
+		skillSourceDir := filepath.Dir(skill.Path)
+		stepLines = append(stepLines, fmt.Sprintf("          mkdir -p ~/.claude/skills/%s", skillDirName))
+		stepLines = append(stepLines, fmt.Sprintf("          cp -r %s/* ~/.claude/skills/%s/", skillSourceDir, skillDirName))
+		stepLines = append(stepLines, "")
+	}
+
+	stepLines = append(stepLines, fmt.Sprintf("          echo \"Configured %d native SKILLS for Claude Code\"", len(skillFiles)))
+	stepLines = append(stepLines, "          ls -la ~/.claude/skills/ || true")
+
+	return GitHubActionStep(stepLines)
 }
 
 // GetExecutionSteps returns the GitHub Actions steps for executing Claude

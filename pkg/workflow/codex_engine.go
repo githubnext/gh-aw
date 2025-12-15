@@ -2,6 +2,7 @@ package workflow
 
 import (
 	"fmt"
+	"path/filepath"
 	"regexp"
 	"sort"
 	"strconv"
@@ -10,6 +11,7 @@ import (
 
 	"github.com/githubnext/gh-aw/pkg/constants"
 	"github.com/githubnext/gh-aw/pkg/logger"
+	"github.com/githubnext/gh-aw/pkg/parser"
 )
 
 var codexEngineLog = logger.New("workflow:codex_engine")
@@ -49,7 +51,7 @@ func (e *CodexEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHubA
 	codexEngineLog.Printf("Generating installation steps for Codex engine: workflow=%s", workflowData.Name)
 
 	// Use base installation steps (secret validation + npm install)
-	return GetBaseInstallationSteps(EngineInstallConfig{
+	steps := GetBaseInstallationSteps(EngineInstallConfig{
 		Secrets:    []string{"CODEX_API_KEY", "OPENAI_API_KEY"},
 		DocsURL:    "https://githubnext.github.io/gh-aw/reference/engines/#openai-codex",
 		NpmPackage: "@openai/codex",
@@ -57,6 +59,15 @@ func (e *CodexEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHubA
 		Name:       "Codex",
 		CliName:    "codex",
 	}, workflowData)
+
+	// Add SKILL files setup if any SKILL.md files were detected in imports
+	if len(workflowData.SkillFiles) > 0 {
+		codexEngineLog.Printf("Found %d SKILL files to configure for Codex engine", len(workflowData.SkillFiles))
+		skillsStep := e.generateSkillsSetupStep(workflowData.SkillFiles)
+		steps = append(steps, skillsStep)
+	}
+
+	return steps
 }
 
 // GetDeclaredOutputFiles returns the output files that Codex may produce
@@ -67,6 +78,43 @@ func (e *CodexEngine) GetDeclaredOutputFiles() []string {
 	return []string{
 		"/tmp/gh-aw/mcp-config/logs/",
 	}
+}
+
+// generateSkillsSetupStep creates a step to copy SKILL.md files to Codex's skills directory
+func (e *CodexEngine) generateSkillsSetupStep(skillFiles []parser.SkillFile) GitHubActionStep {
+	codexEngineLog.Printf("Generating skills setup step for %d skill files", len(skillFiles))
+
+	var stepLines []string
+	stepLines = append(stepLines, "      - name: Setup Native SKILLS for Codex")
+	stepLines = append(stepLines, "        id: setup_codex_skills")
+	stepLines = append(stepLines, "        shell: bash")
+	stepLines = append(stepLines, "        working-directory: ${{ github.workspace }}")
+	stepLines = append(stepLines, "        run: |")
+	stepLines = append(stepLines, "          # Setup native SKILLS support for Codex")
+	stepLines = append(stepLines, "          mkdir -p ~/.codex/skills")
+	stepLines = append(stepLines, "")
+
+	for _, skill := range skillFiles {
+		codexEngineLog.Printf("Adding skill to setup: %s (path=%s)", skill.Name, skill.Path)
+		// Determine the skill directory name (use skill name from frontmatter or derive from path)
+		skillDirName := skill.Name
+		if skillDirName == "" {
+			// Fallback: use the directory name containing the SKILL.md file
+			skillDirName = filepath.Base(filepath.Dir(skill.Path))
+		}
+
+		stepLines = append(stepLines, fmt.Sprintf("          # Copy skill: %s", skillDirName))
+		// Copy the entire skill directory (parent of SKILL.md file) to Codex's skills directory
+		skillSourceDir := filepath.Dir(skill.Path)
+		stepLines = append(stepLines, fmt.Sprintf("          mkdir -p ~/.codex/skills/%s", skillDirName))
+		stepLines = append(stepLines, fmt.Sprintf("          cp -r %s/* ~/.codex/skills/%s/", skillSourceDir, skillDirName))
+		stepLines = append(stepLines, "")
+	}
+
+	stepLines = append(stepLines, fmt.Sprintf("          echo \"Configured %d native SKILLS for Codex\"", len(skillFiles)))
+	stepLines = append(stepLines, "          ls -la ~/.codex/skills/ || true")
+
+	return GitHubActionStep(stepLines)
 }
 
 // GetExecutionSteps returns the GitHub Actions steps for executing Codex
