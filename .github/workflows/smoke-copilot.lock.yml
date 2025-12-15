@@ -122,6 +122,7 @@
 # - PR titles only (no descriptions)
 # - ✅ or ❌ for each test result
 # - Overall status: PASS or FAIL
+# - Mention the pull request author and any assignees
 #
 # If all tests pass, add the label `smoke-copilot` to the pull request.
 # ```
@@ -3888,6 +3889,7 @@ jobs:
           - PR titles only (no descriptions)
           - ✅ or ❌ for each test result
           - Overall status: PASS or FAIL
+          - Mention the pull request author and any assignees
           
           If all tests pass, add the label `smoke-copilot` to the pull request.
           

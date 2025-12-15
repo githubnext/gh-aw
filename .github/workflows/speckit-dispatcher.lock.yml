@@ -969,6 +969,13 @@ jobs:
                     if (context.payload.issue.user?.login && !isPayloadUserBot(context.payload.issue.user)) {
                       knownAuthors.push(context.payload.issue.user.login);
                     }
+                    if (context.payload.issue.assignees && Array.isArray(context.payload.issue.assignees)) {
+                      for (const assignee of context.payload.issue.assignees) {
+                        if (assignee?.login && !isPayloadUserBot(assignee)) {
+                          knownAuthors.push(assignee.login);
+                        }
+                      }
+                    }
                   }
                   break;
                 case "pull_request":
@@ -979,6 +986,13 @@ jobs:
                     if (context.payload.pull_request.user?.login && !isPayloadUserBot(context.payload.pull_request.user)) {
                       knownAuthors.push(context.payload.pull_request.user.login);
                     }
+                    if (context.payload.pull_request.assignees && Array.isArray(context.payload.pull_request.assignees)) {
+                      for (const assignee of context.payload.pull_request.assignees) {
+                        if (assignee?.login && !isPayloadUserBot(assignee)) {
+                          knownAuthors.push(assignee.login);
+                        }
+                      }
+                    }
                   }
                   break;
                 case "pull_request_target":
@@ -988,6 +1002,13 @@ jobs:
                     text = `${title}\n\n${body}`;
                     if (context.payload.pull_request.user?.login && !isPayloadUserBot(context.payload.pull_request.user)) {
                       knownAuthors.push(context.payload.pull_request.user.login);
+                    }
+                    if (context.payload.pull_request.assignees && Array.isArray(context.payload.pull_request.assignees)) {
+                      for (const assignee of context.payload.pull_request.assignees) {
+                        if (assignee?.login && !isPayloadUserBot(assignee)) {
+                          knownAuthors.push(assignee.login);
+                        }
+                      }
                     }
                   }
                   break;
@@ -1000,6 +1021,13 @@ jobs:
                     if (context.payload.issue?.user?.login && !isPayloadUserBot(context.payload.issue.user)) {
                       knownAuthors.push(context.payload.issue.user.login);
                     }
+                    if (context.payload.issue?.assignees && Array.isArray(context.payload.issue.assignees)) {
+                      for (const assignee of context.payload.issue.assignees) {
+                        if (assignee?.login && !isPayloadUserBot(assignee)) {
+                          knownAuthors.push(assignee.login);
+                        }
+                      }
+                    }
                   }
                   break;
                 case "pull_request_review_comment":
@@ -1011,6 +1039,13 @@ jobs:
                     if (context.payload.pull_request?.user?.login && !isPayloadUserBot(context.payload.pull_request.user)) {
                       knownAuthors.push(context.payload.pull_request.user.login);
                     }
+                    if (context.payload.pull_request?.assignees && Array.isArray(context.payload.pull_request.assignees)) {
+                      for (const assignee of context.payload.pull_request.assignees) {
+                        if (assignee?.login && !isPayloadUserBot(assignee)) {
+                          knownAuthors.push(assignee.login);
+                        }
+                      }
+                    }
                   }
                   break;
                 case "pull_request_review":
@@ -1021,6 +1056,13 @@ jobs:
                     }
                     if (context.payload.pull_request?.user?.login && !isPayloadUserBot(context.payload.pull_request.user)) {
                       knownAuthors.push(context.payload.pull_request.user.login);
+                    }
+                    if (context.payload.pull_request?.assignees && Array.isArray(context.payload.pull_request.assignees)) {
+                      for (const assignee of context.payload.pull_request.assignees) {
+                        if (assignee?.login && !isPayloadUserBot(assignee)) {
+                          knownAuthors.push(assignee.login);
+                        }
+                      }
                     }
                   }
                   break;

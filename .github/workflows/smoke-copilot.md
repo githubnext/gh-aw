@@ -62,6 +62,6 @@ Add a **very brief** comment (max 5-10 lines) to the current pull request with:
 - PR titles only (no descriptions)
 - ✅ or ❌ for each test result
 - Overall status: PASS or FAIL
-- Mention @${{ github.event.pull_request.user.login }} (PR author) and any assignees
+- Mention the pull request author and any assignees
 
 If all tests pass, add the label `smoke-copilot` to the pull request.
