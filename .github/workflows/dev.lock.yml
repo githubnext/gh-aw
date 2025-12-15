@@ -6448,6 +6448,25 @@ jobs:
               }
               return { success: true, items: validatedOutput.items };
             }
+            function logGraphQLError(error, operation) {
+              core.error(`GraphQL Error during: ${operation}`);
+              core.error(`Message: ${error.message}`);
+              if (error.errors) {
+                core.error(`Errors array (${error.errors.length} error(s)):`);
+                error.errors.forEach((err, idx) => {
+                  core.error(`  [${idx + 1}] ${err.message}`);
+                  if (err.type) core.error(`      Type: ${err.type}`);
+                  if (err.path) core.error(`      Path: ${JSON.stringify(err.path)}`);
+                  if (err.locations) core.error(`      Locations: ${JSON.stringify(err.locations)}`);
+                });
+              }
+              if (error.request) {
+                core.error(`Request: ${JSON.stringify(error.request, null, 2)}`);
+              }
+              if (error.data) {
+                core.error(`Response data: ${JSON.stringify(error.data, null, 2)}`);
+              }
+            }
             function parseProjectInput(projectUrl) {
               if (!projectUrl || typeof projectUrl !== "string") {
                 throw new Error(
@@ -6477,24 +6496,32 @@ jobs:
               const { owner, repo } = context.repo;
               const projectNumber = parseProjectInput(output.project);
               const campaignId = output.campaign_id || generateCampaignId(output.project, projectNumber);
-              const githubClient = github;
               try {
                 core.info(`Looking up project #${projectNumber} from URL: ${output.project}`);
-                const repoResult = await githubClient.graphql(
-                  `query($owner: String!, $repo: String!) {
-                    repository(owner: $owner, name: $repo) {
-                      id
-                      owner {
+                core.info("[1/5] Fetching repository information...");
+                let repoResult;
+                try {
+                  repoResult = await github.graphql(
+                    `query($owner: String!, $repo: String!) {
+                      repository(owner: $owner, name: $repo) {
                         id
-                        __typename
+                        owner {
+                          id
+                          __typename
+                        }
                       }
-                    }
-                  }`,
-                  { owner, repo }
-                );
+                    }`,
+                    { owner, repo }
+                  );
+                } catch (error) {
+                  logGraphQLError(error, "Fetching repository information");
+                  throw error;
+                }
                 const repositoryId = repoResult.repository.id;
                 const ownerId = repoResult.repository.owner.id;
                 const ownerType = repoResult.repository.owner.__typename;
+                core.info(`✓ Repository: ${owner}/${repo} (${ownerType})`);
+                core.info(`[2/5] Searching for project #${projectNumber} on ${ownerType.toLowerCase()} account...`);
                 let projectId;
                 const ownerQuery =
                   ownerType === "User"
@@ -6518,7 +6545,10 @@ jobs:
                           }
                         }
                       }`;
-                const ownerProjectsResult = await githubClient.graphql(ownerQuery, { login: owner });
+                const ownerProjectsResult = await github.graphql(ownerQuery, { login: owner }).catch(error => {
+                  logGraphQLError(error, "Searching for projects on owner account");
+                  throw error;
+                });
                 const ownerProjects =
                   ownerType === "User" ? ownerProjectsResult.user.projectsV2.nodes : ownerProjectsResult.organization.projectsV2.nodes;
                 const existingProject = ownerProjects.find(p => p.number.toString() === projectNumber);
@@ -6532,8 +6562,9 @@ jobs:
                 }
                 projectId = existingProject.id;
                 core.info(`✓ Found project #${projectNumber} (ID: ${projectId})`);
+                core.info("[3/5] Linking project to repository...");
                 try {
-                  await githubClient.graphql(
+                  await github.graphql(
                     `mutation($projectId: ID!, $repositoryId: ID!) {
                       linkProjectV2ToRepository(input: {
                         projectId: $projectId,
@@ -6548,9 +6579,12 @@ jobs:
                   );
                 } catch (linkError) {
                   if (!linkError.message || !linkError.message.includes("already linked")) {
+                    logGraphQLError(linkError, "Linking project to repository");
                     core.warning(`Could not link project: ${linkError.message}`);
                   }
                 }
+                core.info("✓ Project linked to repository");
+                core.info("[4/5] Processing content (issue/PR) if specified...");
                 const hasContentNumber = output.content_number !== undefined && output.content_number !== null;
                 const hasIssue = output.issue !== undefined && output.issue !== null;
                 const hasPullRequest = output.pull_request !== undefined && output.pull_request !== null;
@@ -6612,7 +6646,7 @@ jobs:
                           }
                         }
                       }`;
-                  const contentResult = await githubClient.graphql(contentQuery, {
+                  const contentResult = await github.graphql(contentQuery, {
                     owner,
                     repo,
                     number: contentNumber,
@@ -6622,7 +6656,7 @@ jobs:
                     let hasNextPage = true;
                     let endCursor = null;
                     while (hasNextPage) {
-                      const result = await githubClient.graphql(
+                      const result = await github.graphql(
                         `query($projectId: ID!, $after: String) {
                           node(id: $projectId) {
                             ... on ProjectV2 {
@@ -6664,7 +6698,7 @@ jobs:
                     itemId = existingItem.id;
                     core.info("✓ Item already on board");
                   } else {
-                    const addResult = await githubClient.graphql(
+                    const addResult = await github.graphql(
                       `mutation($projectId: ID!, $contentId: ID!) {
                         addProjectV2ItemById(input: {
                           projectId: $projectId,
@@ -6690,7 +6724,7 @@ jobs:
                     }
                   }
                   if (output.fields && Object.keys(output.fields).length > 0) {
-                    const fieldsResult = await githubClient.graphql(
+                    const fieldsResult = await github.graphql(
                       `query($projectId: ID!) {
                         node(id: $projectId) {
                           ... on ProjectV2 {
@@ -6727,7 +6761,7 @@ jobs:
                           fieldName.toLowerCase() === "classification" || (typeof fieldValue === "string" && fieldValue.includes("|"));
                         if (isTextField) {
                           try {
-                            const createFieldResult = await githubClient.graphql(
+                            const createFieldResult = await github.graphql(
                               `mutation($projectId: ID!, $name: String!, $dataType: ProjectV2CustomFieldType!) {
                                 createProjectV2Field(input: {
                                   projectId: $projectId,
@@ -6760,7 +6794,7 @@ jobs:
                           }
                         } else {
                           try {
-                            const createFieldResult = await githubClient.graphql(
+                            const createFieldResult = await github.graphql(
                               `mutation($projectId: ID!, $name: String!, $dataType: ProjectV2CustomFieldType!, $options: [ProjectV2SingleSelectFieldOptionInput!]!) {
                                 createProjectV2Field(input: {
                                   projectId: $projectId,
@@ -6804,7 +6838,7 @@ jobs:
                               ...field.options.map(o => ({ name: o.name, description: "" })),
                               { name: String(fieldValue), description: "" },
                             ];
-                            const createOptionResult = await githubClient.graphql(
+                            const createOptionResult = await github.graphql(
                               `mutation($fieldId: ID!, $fieldName: String!, $options: [ProjectV2SingleSelectFieldOptionInput!]!) {
                                 updateProjectV2Field(input: {
                                   fieldId: $fieldId,
@@ -6845,7 +6879,7 @@ jobs:
                       } else {
                         valueToSet = { text: String(fieldValue) };
                       }
-                      await githubClient.graphql(
+                      await github.graphql(
                         `mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $value: ProjectV2FieldValue!) {
                           updateProjectV2ItemFieldValue(input: {
                             projectId: $projectId,
@@ -6900,7 +6934,8 @@ jobs:
                 try {
                   await updateProject(output);
                 } catch (error) {
-                  core.error(`Failed to process item ${i + 1}: ${error.message}`);
+                  core.error(`Failed to process item ${i + 1}`);
+                  logGraphQLError(error, `Processing update_project item ${i + 1}`);
                 }
               }
             }
