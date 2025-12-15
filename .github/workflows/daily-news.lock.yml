@@ -1080,6 +1080,7 @@ name: "Daily News"
 "on":
   schedule:
   - cron: "0 9 * * 1-5"
+    # Friendly format: daily at 2:30
   workflow_dispatch: null
 
 permissions: {}
