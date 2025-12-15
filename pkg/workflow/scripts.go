@@ -137,6 +137,14 @@ var mcpHTTPTransportScriptSource string
 //go:embed js/substitute_placeholders.cjs
 var substitutePlaceholdersScriptSource string
 
+// Helper modules for bundling
+//
+//go:embed js/resolve_mentions_from_payload.cjs
+var resolveMentionsFromPayloadScriptSource string
+
+//go:embed js/sanitize_incoming_text.cjs
+var sanitizeIncomingTextScriptSource string
+
 // init registers all scripts with the DefaultScriptRegistry.
 // Scripts are bundled lazily on first access via the getter functions.
 func init() {
@@ -186,6 +194,10 @@ func init() {
 
 	// Template substitution scripts
 	DefaultScriptRegistry.Register("substitute_placeholders", substitutePlaceholdersScriptSource)
+
+	// Helper modules (for inlining via bundler)
+	DefaultScriptRegistry.Register("resolve_mentions_from_payload", resolveMentionsFromPayloadScriptSource)
+	DefaultScriptRegistry.Register("sanitize_incoming_text", sanitizeIncomingTextScriptSource)
 
 	scriptsLog.Print("Completed script registration")
 }
