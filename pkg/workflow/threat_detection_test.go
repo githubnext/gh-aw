@@ -718,7 +718,7 @@ func TestDownloadArtifactStepIncludesPrompt(t *testing.T) {
 	compiler := NewCompiler(false, "", "test")
 
 	// Test that the download artifact step includes prompt.txt download
-	steps := compiler.buildDownloadArtifactStep()
+	steps := compiler.buildDownloadArtifactStep("agent")
 
 	if len(steps) == 0 {
 		t.Fatal("Expected non-empty steps for download artifact")
@@ -748,6 +748,56 @@ func TestDownloadArtifactStepIncludesPrompt(t *testing.T) {
 	}
 	if !strings.Contains(stepsString, "Download patch artifact") {
 		t.Error("Expected download steps to include patch artifact")
+	}
+}
+
+func TestDownloadPatchArtifactHasConditional(t *testing.T) {
+	compiler := NewCompiler(false, "", "test")
+
+	// Test that the patch download step has a conditional to only run when has_patch is true
+	steps := compiler.buildDownloadArtifactStep("agent")
+
+	if len(steps) == 0 {
+		t.Fatal("Expected non-empty steps for download artifact")
+	}
+
+	// Join all steps into a single string for easier verification
+	stepsString := strings.Join(steps, "")
+
+	// Verify the patch download step has the conditional
+	if !strings.Contains(stepsString, "Download patch artifact") {
+		t.Error("Expected download steps to include patch artifact")
+	}
+
+	// Verify the conditional is present
+	if !strings.Contains(stepsString, "if: needs.agent.outputs.has_patch == 'true'") {
+		t.Error("Expected patch download step to have conditional checking needs.agent.outputs.has_patch == 'true'")
+	}
+
+	// More specific test: look for the pattern "Download patch artifact" followed by "if:" within the same step
+	expectedPattern := "Download patch artifact"
+	patchStepIndex := strings.Index(stepsString, expectedPattern)
+	if patchStepIndex == -1 {
+		t.Fatal("Could not find patch download step")
+	}
+
+	// Get the substring from the patch step onwards
+	afterPatchStep := stepsString[patchStepIndex:]
+
+	// Find the next step (starts with "- name:")
+	nextStepIndex := strings.Index(afterPatchStep[len(expectedPattern):], "- name:")
+	var patchStepContent string
+	if nextStepIndex == -1 {
+		// This is the last step
+		patchStepContent = afterPatchStep
+	} else {
+		// Get content up to the next step
+		patchStepContent = afterPatchStep[:len(expectedPattern)+nextStepIndex]
+	}
+
+	// Verify the patch step content includes the conditional
+	if !strings.Contains(patchStepContent, "if: needs.agent.outputs.has_patch == 'true'") {
+		t.Errorf("Expected patch download step to contain conditional, but got:\n%s", patchStepContent)
 	}
 }
 

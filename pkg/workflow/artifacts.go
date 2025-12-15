@@ -16,6 +16,7 @@ type ArtifactDownloadConfig struct {
 	SetupEnvStep bool   // Whether to add environment variable setup step
 	EnvVarName   string // Environment variable name to set (e.g., "GH_AW_AGENT_OUTPUT")
 	StepName     string // Optional custom step name (defaults to "Download {artifact} artifact")
+	IfCondition  string // Optional conditional expression for the step (e.g., "needs.agent.outputs.has_patch == 'true'")
 }
 
 // buildArtifactDownloadSteps creates steps to download a GitHub Actions artifact
@@ -35,6 +36,11 @@ func buildArtifactDownloadSteps(config ArtifactDownloadConfig) []string {
 
 	// Add step to download artifact
 	steps = append(steps, fmt.Sprintf("      - name: %s\n", stepName))
+	// Add conditional if specified
+	if config.IfCondition != "" {
+		steps = append(steps, fmt.Sprintf("        if: %s\n", config.IfCondition))
+		artifactsLog.Printf("Added conditional: %s", config.IfCondition)
+	}
 	steps = append(steps, "        continue-on-error: true\n")
 	steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/download-artifact")))
 	steps = append(steps, "        with:\n")
