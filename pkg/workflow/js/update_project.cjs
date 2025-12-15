@@ -15,8 +15,8 @@ function logGraphQLError(error, operation) {
   if (hasInsufficientScopes) {
     core.error(
       "This looks like a token permission problem for Projects v2. " +
-        "The GraphQL fields used by update_project require a token with Projects access (e.g., classic PAT scope read:project/write:project). " +
-        "Fix: set safe-outputs.update-project.github-token to a secret PAT with Projects permissions."
+        "The GraphQL fields used by update_project require a token with Projects access (classic PAT: scope 'project'; fine-grained PAT: Organization permission 'Projects' and access to the org). " +
+        "Fix: set safe-outputs.update-project.github-token to a secret PAT that can access the target org project."
     );
   } else if (hasNotFound && /projectV2\b/.test(error.message)) {
     core.error(
@@ -169,6 +169,23 @@ async function updateProject(output) {
     const repositoryId = repoResult.repository.id;
     const ownerType = repoResult.repository.owner.__typename;
     core.info(`✓ Repository: ${owner}/${repo} (${ownerType})`);
+
+    // Helpful diagnostic: log which account this token belongs to.
+    // This is safe to log (no secrets) and helps debug permission mismatches between local runs and Actions.
+    try {
+      const viewerResult = await github.graphql(
+        `query {
+          viewer {
+            login
+          }
+        }`
+      );
+      if (viewerResult && viewerResult.viewer && viewerResult.viewer.login) {
+        core.info(`✓ Authenticated as: ${viewerResult.viewer.login}`);
+      }
+    } catch (viewerError) {
+      core.warning(`Could not resolve token identity (viewer.login): ${viewerError.message}`);
+    }
 
     // Step 2: Resolve project using org/user + number parsed from URL
     // Note: GitHub GraphQL `resource(url:)` does not support Projects v2 URLs.

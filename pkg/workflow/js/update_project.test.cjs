@@ -95,6 +95,12 @@ const repoResponse = (ownerType = "Organization") => ({
   },
 });
 
+const viewerResponse = (login = "test-bot") => ({
+  viewer: {
+    login,
+  },
+});
+
 const orgProjectV2Response = (url, number = 60, id = "project123", orgLogin = "testowner") => ({
   organization: {
     projectV2: {
@@ -200,7 +206,7 @@ describe("updateProject", () => {
     const projectUrl = "https://github.com/orgs/testowner/projects/60";
     const output = { type: "update_project", project: projectUrl };
 
-    queueResponses([repoResponse(), orgProjectNullResponse()]);
+    queueResponses([repoResponse(), viewerResponse(), orgProjectNullResponse()]);
 
     await expect(updateProject(output)).rejects.toThrow(/Project not found or not accessible/);
   });
@@ -217,6 +223,7 @@ describe("updateProject", () => {
 
     queueResponses([
       repoResponse(),
+      viewerResponse(),
       orgProjectV2Response(projectUrl, 60, "project456"),
       linkResponse,
       issueResponse("issue-id-42"),
@@ -237,6 +244,7 @@ describe("updateProject", () => {
 
     queueResponses([
       repoResponse(),
+      viewerResponse(),
       orgProjectV2Response(projectUrl, 60, "project123"),
       linkResponse,
       issueResponse("issue-id-42"),
@@ -264,6 +272,7 @@ describe("updateProject", () => {
 
     queueResponses([
       repoResponse(),
+      viewerResponse(),
       orgProjectV2Response(projectUrl, 60, "project123"),
       linkResponse,
       issueResponse("issue-id-99"),
@@ -283,6 +292,7 @@ describe("updateProject", () => {
 
     queueResponses([
       repoResponse(),
+      viewerResponse(),
       orgProjectV2Response(projectUrl, 60, "project-pr"),
       linkResponse,
       pullRequestResponse("pr-id-17"),
@@ -309,6 +319,7 @@ describe("updateProject", () => {
 
     queueResponses([
       repoResponse(),
+      viewerResponse(),
       orgProjectV2Response(projectUrl, 60, "legacy-project"),
       linkResponse,
       issueResponse("issue-id-101"),
@@ -329,7 +340,7 @@ describe("updateProject", () => {
     const projectUrl = "https://github.com/orgs/testowner/projects/60";
     const output = { type: "update_project", project: projectUrl, content_number: "ABC" };
 
-    queueResponses([repoResponse(), orgProjectV2Response(projectUrl, 60, "invalid-project"), linkResponse]);
+    queueResponses([repoResponse(), viewerResponse(), orgProjectV2Response(projectUrl, 60, "invalid-project"), linkResponse]);
 
     await expect(updateProject(output)).rejects.toThrow(/Invalid content number/);
   });
@@ -346,6 +357,7 @@ describe("updateProject", () => {
 
     queueResponses([
       repoResponse(),
+      viewerResponse(),
       orgProjectV2Response(projectUrl, 60, "project-field"),
       linkResponse,
       issueResponse("issue-id-10"),
@@ -373,6 +385,7 @@ describe("updateProject", () => {
 
     queueResponses([
       repoResponse(),
+      viewerResponse(),
       orgProjectV2Response(projectUrl, 60, "project-priority"),
       linkResponse,
       issueResponse("issue-id-15"),
@@ -408,6 +421,7 @@ describe("updateProject", () => {
 
     queueResponses([
       repoResponse(),
+      viewerResponse(),
       orgProjectV2Response(projectUrl, 60, "project-test"),
       linkResponse,
       issueResponse("issue-id-20"),
@@ -428,6 +442,7 @@ describe("updateProject", () => {
 
     queueResponses([
       repoResponse(),
+      viewerResponse(),
       orgProjectV2Response(projectUrl, 60, "project-label"),
       linkResponse,
       issueResponse("issue-id-50"),
@@ -455,7 +470,7 @@ describe("updateProject", () => {
       campaign_id: "my-campaign-123",
     };
 
-    queueResponses([repoResponse(), orgProjectV2Response(projectUrl, 60, "project123"), linkResponse]);
+    queueResponses([repoResponse(), viewerResponse(), orgProjectV2Response(projectUrl, 60, "project123"), linkResponse]);
 
     await updateProject(output);
 
