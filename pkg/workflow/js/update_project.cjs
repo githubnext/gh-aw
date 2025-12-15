@@ -85,6 +85,28 @@ function parseProjectInput(projectUrl) {
 }
 
 /**
+ * Parse GitHub project URL into owner scope, owner login, and project number.
+ * @param {string} projectUrl - Full GitHub project URL (required)
+ * @returns {{ scope: "orgs"|"users", ownerLogin: string, projectNumber: string }}
+ */
+function parseProjectUrl(projectUrl) {
+  if (!projectUrl || typeof projectUrl !== "string") {
+    throw new Error(
+      `Invalid project input: expected string, got ${typeof projectUrl}. The "project" field is required and must be a full GitHub project URL.`
+    );
+  }
+
+  const match = projectUrl.match(/github\.com\/(users|orgs)\/([^/]+)\/projects\/(\d+)/);
+  if (!match) {
+    throw new Error(
+      `Invalid project URL: "${projectUrl}". The "project" field must be a full GitHub project URL (e.g., https://github.com/orgs/myorg/projects/123).`
+    );
+  }
+
+  return { scope: match[1], ownerLogin: match[2], projectNumber: match[3] };
+}
+
+/**
  * Generate a campaign ID from project URL
  * @param {string} projectUrl - The GitHub project URL
  * @param {string} projectNumber - The project number
@@ -117,7 +139,8 @@ async function updateProject(output) {
   const { owner, repo } = context.repo;
 
   // Parse project URL to get project number
-  const projectNumberFromUrl = parseProjectInput(output.project);
+  const projectInfo = parseProjectUrl(output.project);
+  const projectNumberFromUrl = projectInfo.projectNumber;
   const campaignId = output.campaign_id || generateCampaignId(output.project, projectNumberFromUrl);
 
   try {
@@ -147,48 +170,77 @@ async function updateProject(output) {
     const ownerType = repoResult.repository.owner.__typename;
     core.info(`✓ Repository: ${owner}/${repo} (${ownerType})`);
 
-    // Step 2: Resolve project from exact URL
-    core.info(`[2/5] Resolving project from URL...`);
+    // Step 2: Resolve project using org/user + number parsed from URL
+    // Note: GitHub GraphQL `resource(url:)` does not support Projects v2 URLs.
+    core.info(`[2/5] Resolving project from URL (scope=${projectInfo.scope}, login=${projectInfo.ownerLogin}, number=${projectNumberFromUrl})...`);
     let projectId;
     let resolvedProjectNumber = projectNumberFromUrl;
     try {
-      const resourceResult = await github.graphql(
-        `query($resourceUrl: URI!) {
-          resource(url: $resourceUrl) {
-            __typename
-            ... on ProjectV2 {
-              id
-              number
-              title
-              url
-              owner {
-                __typename
-                ... on Organization { login }
-                ... on User { login }
+      const projectNumberInt = parseInt(projectNumberFromUrl, 10);
+      if (!Number.isFinite(projectNumberInt)) {
+        throw new Error(`Invalid project number parsed from URL: ${projectNumberFromUrl}`);
+      }
+
+      /** @type {any} */
+      let projectResult;
+
+      if (projectInfo.scope === "orgs") {
+        projectResult = await github.graphql(
+          `query($login: String!, $number: Int!) {
+            organization(login: $login) {
+              projectV2(number: $number) {
+                id
+                number
+                title
+                url
+                owner {
+                  __typename
+                  ... on Organization { login }
+                  ... on User { login }
+                }
               }
             }
-          }
-        }`,
-        { resourceUrl: output.project }
-      );
-
-      const resource = resourceResult && resourceResult.resource;
-      if (!resource) {
-        core.error(`Cannot resolve project URL: ${output.project}`);
-        throw new Error("Project URL could not be resolved (not found or not accessible to the token).");
-      }
-
-      if (resource.__typename !== "ProjectV2") {
-        core.error(`Project URL did not resolve to a Projects v2 board. Resolved type: ${resource.__typename}`);
-        throw new Error(
-          `Project URL must point to a GitHub Projects v2 board, but resolved to: ${resource.__typename}.`
+          }`,
+          { login: projectInfo.ownerLogin, number: projectNumberInt }
         );
+        const project = projectResult && projectResult.organization && projectResult.organization.projectV2;
+        if (!project) {
+          throw new Error(
+            `Project not found or not accessible: ${output.project} (organization=${projectInfo.ownerLogin}, number=${projectNumberFromUrl})`
+          );
+        }
+        projectId = project.id;
+        resolvedProjectNumber = String(project.number);
+        core.info(`✓ Resolved project #${resolvedProjectNumber} (${projectInfo.ownerLogin}) (ID: ${projectId})`);
+      } else {
+        projectResult = await github.graphql(
+          `query($login: String!, $number: Int!) {
+            user(login: $login) {
+              projectV2(number: $number) {
+                id
+                number
+                title
+                url
+                owner {
+                  __typename
+                  ... on Organization { login }
+                  ... on User { login }
+                }
+              }
+            }
+          }`,
+          { login: projectInfo.ownerLogin, number: projectNumberInt }
+        );
+        const project = projectResult && projectResult.user && projectResult.user.projectV2;
+        if (!project) {
+          throw new Error(
+            `Project not found or not accessible: ${output.project} (user=${projectInfo.ownerLogin}, number=${projectNumberFromUrl})`
+          );
+        }
+        projectId = project.id;
+        resolvedProjectNumber = String(project.number);
+        core.info(`✓ Resolved project #${resolvedProjectNumber} (${projectInfo.ownerLogin}) (ID: ${projectId})`);
       }
-
-      projectId = resource.id;
-      resolvedProjectNumber = String(resource.number);
-      const ownerLogin = resource.owner && resource.owner.login ? resource.owner.login : "(unknown)";
-      core.info(`✓ Resolved project #${resolvedProjectNumber} (${ownerLogin}) (ID: ${projectId})`);
     } catch (error) {
       logGraphQLError(error, "Resolving project from URL");
       throw error;

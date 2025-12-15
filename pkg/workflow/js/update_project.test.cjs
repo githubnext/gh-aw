@@ -95,25 +95,32 @@ const repoResponse = (ownerType = "Organization") => ({
   },
 });
 
-const resourceProjectV2Response = (url, number = 60, id = "project123", ownerLogin = "testowner") => ({
-  resource: {
-    __typename: "ProjectV2",
-    id,
-    number,
-    title: "Test Project",
-    url,
-    owner: { __typename: "Organization", login: ownerLogin },
+const orgProjectV2Response = (url, number = 60, id = "project123", orgLogin = "testowner") => ({
+  organization: {
+    projectV2: {
+      id,
+      number,
+      title: "Test Project",
+      url,
+      owner: { __typename: "Organization", login: orgLogin },
+    },
   },
 });
 
-const resourceNullResponse = () => ({ resource: null });
-
-const resourceNonV2Response = (url, typename = "Project") => ({
-  resource: {
-    __typename: typename,
-    url,
+const userProjectV2Response = (url, number = 60, id = "project123", userLogin = "testowner") => ({
+  user: {
+    projectV2: {
+      id,
+      number,
+      title: "Test Project",
+      url,
+      owner: { __typename: "User", login: userLogin },
+    },
   },
 });
+
+const orgProjectNullResponse = () => ({ organization: { projectV2: null } });
+const userProjectNullResponse = () => ({ user: { projectV2: null } });
 
 const linkResponse = { linkProjectV2ToRepository: { repository: { id: "repo123" } } };
 
@@ -193,18 +200,9 @@ describe("updateProject", () => {
     const projectUrl = "https://github.com/orgs/testowner/projects/60";
     const output = { type: "update_project", project: projectUrl };
 
-    queueResponses([repoResponse(), resourceNullResponse()]);
+    queueResponses([repoResponse(), orgProjectNullResponse()]);
 
-    await expect(updateProject(output)).rejects.toThrow(/could not be resolved/);
-  });
-
-  it("fails when the project URL resolves to a non-Projects-v2 type", async () => {
-    const projectUrl = "https://github.com/orgs/testowner/projects/60";
-    const output = { type: "update_project", project: projectUrl };
-
-    queueResponses([repoResponse(), resourceNonV2Response(projectUrl, "Project")]);
-
-    await expect(updateProject(output)).rejects.toThrow(/Projects v2/);
+    await expect(updateProject(output)).rejects.toThrow(/Project not found or not accessible/);
   });
 
   it("respects a custom campaign id", async () => {
@@ -219,7 +217,7 @@ describe("updateProject", () => {
 
     queueResponses([
       repoResponse(),
-      resourceProjectV2Response(projectUrl, 60, "project456"),
+      orgProjectV2Response(projectUrl, 60, "project456"),
       linkResponse,
       issueResponse("issue-id-42"),
       emptyItemsResponse(),
@@ -239,7 +237,7 @@ describe("updateProject", () => {
 
     queueResponses([
       repoResponse(),
-      resourceProjectV2Response(projectUrl, 60, "project123"),
+      orgProjectV2Response(projectUrl, 60, "project123"),
       linkResponse,
       issueResponse("issue-id-42"),
       emptyItemsResponse(),
@@ -266,7 +264,7 @@ describe("updateProject", () => {
 
     queueResponses([
       repoResponse(),
-      resourceProjectV2Response(projectUrl, 60, "project123"),
+      orgProjectV2Response(projectUrl, 60, "project123"),
       linkResponse,
       issueResponse("issue-id-99"),
       existingItemResponse("issue-id-99", "item-existing"),
@@ -285,7 +283,7 @@ describe("updateProject", () => {
 
     queueResponses([
       repoResponse(),
-      resourceProjectV2Response(projectUrl, 60, "project-pr"),
+      orgProjectV2Response(projectUrl, 60, "project-pr"),
       linkResponse,
       pullRequestResponse("pr-id-17"),
       emptyItemsResponse(),
@@ -311,7 +309,7 @@ describe("updateProject", () => {
 
     queueResponses([
       repoResponse(),
-      resourceProjectV2Response(projectUrl, 60, "legacy-project"),
+      orgProjectV2Response(projectUrl, 60, "legacy-project"),
       linkResponse,
       issueResponse("issue-id-101"),
       emptyItemsResponse(),
@@ -331,7 +329,7 @@ describe("updateProject", () => {
     const projectUrl = "https://github.com/orgs/testowner/projects/60";
     const output = { type: "update_project", project: projectUrl, content_number: "ABC" };
 
-    queueResponses([repoResponse(), resourceProjectV2Response(projectUrl, 60, "invalid-project"), linkResponse]);
+    queueResponses([repoResponse(), orgProjectV2Response(projectUrl, 60, "invalid-project"), linkResponse]);
 
     await expect(updateProject(output)).rejects.toThrow(/Invalid content number/);
   });
@@ -348,7 +346,7 @@ describe("updateProject", () => {
 
     queueResponses([
       repoResponse(),
-      resourceProjectV2Response(projectUrl, 60, "project-field"),
+      orgProjectV2Response(projectUrl, 60, "project-field"),
       linkResponse,
       issueResponse("issue-id-10"),
       existingItemResponse("issue-id-10", "item-field"),
@@ -375,7 +373,7 @@ describe("updateProject", () => {
 
     queueResponses([
       repoResponse(),
-      resourceProjectV2Response(projectUrl, 60, "project-priority"),
+      orgProjectV2Response(projectUrl, 60, "project-priority"),
       linkResponse,
       issueResponse("issue-id-15"),
       existingItemResponse("issue-id-15", "item-priority"),
@@ -410,7 +408,7 @@ describe("updateProject", () => {
 
     queueResponses([
       repoResponse(),
-      resourceProjectV2Response(projectUrl, 60, "project-test"),
+      orgProjectV2Response(projectUrl, 60, "project-test"),
       linkResponse,
       issueResponse("issue-id-20"),
       existingItemResponse("issue-id-20", "item-test"),
@@ -430,7 +428,7 @@ describe("updateProject", () => {
 
     queueResponses([
       repoResponse(),
-      resourceProjectV2Response(projectUrl, 60, "project-label"),
+      orgProjectV2Response(projectUrl, 60, "project-label"),
       linkResponse,
       issueResponse("issue-id-50"),
       emptyItemsResponse(),
@@ -457,7 +455,7 @@ describe("updateProject", () => {
       campaign_id: "my-campaign-123",
     };
 
-    queueResponses([repoResponse(), resourceProjectV2Response(projectUrl, 60, "project123"), linkResponse]);
+    queueResponses([repoResponse(), orgProjectV2Response(projectUrl, 60, "project123"), linkResponse]);
 
     await updateProject(output);
 
