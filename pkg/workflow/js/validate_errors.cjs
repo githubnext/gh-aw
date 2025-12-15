@@ -131,6 +131,13 @@ function shouldSkipLine(line) {
     return true;
   }
 
+  // Skip Copilot CLI DEBUG messages
+  // Format: "2025-12-15T08:35:23.457Z [DEBUG] ..."
+  // These are diagnostic messages that may contain error patterns but are not actual errors
+  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z\s+\[DEBUG\]/.test(line)) {
+    return true;
+  }
+
   return false;
 }
 

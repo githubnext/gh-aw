@@ -1,4 +1,3 @@
-```chatagent
 ---
 description: Assist humans in designing and scaffolding gh-aw campaign specs (.campaign.md) and optional starter workflows.
 ---

@@ -8021,6 +8021,9 @@ jobs:
               if (new RegExp(GITHUB_ACTIONS_TIMESTAMP.source + "env:").test(line)) {
                 return true;
               }
+              if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z\s+\[DEBUG\]/.test(line)) {
+                return true;
+              }
               return false;
             }
             function validateErrors(logContent, patterns) {
