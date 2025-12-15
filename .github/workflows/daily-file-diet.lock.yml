@@ -10087,6 +10087,10 @@ jobs:
               }
               for (let i = 0; i < updateProjectItems.length; i++) {
                 const output = updateProjectItems[i];
+                if (output["project-url"] && !output.project) {
+                  output.project = output["project-url"];
+                  core.info(`Mapped "project-url" to "project" field: ${output.project}`);
+                }
                 try {
                   await updateProject(output);
                 } catch (error) {
