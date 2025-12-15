@@ -590,6 +590,21 @@ describe("shouldSkipLine", () => {
     const line = "The GH_AW_ERROR_PATTERNS variable was set correctly";
     expect(shouldSkipLine(line)).toBe(false);
   });
+
+  test("should skip Copilot CLI DEBUG messages", () => {
+    const line = "2025-12-15T08:35:23.457Z [DEBUG] Unable to parse tool invocation as JSON. Treating it as a string for filtering: SyntaxError: Unexpected token 'l'";
+    expect(shouldSkipLine(line)).toBe(true);
+  });
+
+  test("should not skip Copilot CLI ERROR messages", () => {
+    const line = "2025-12-15T08:35:23.457Z [ERROR] Tool execution failed";
+    expect(shouldSkipLine(line)).toBe(false);
+  });
+
+  test("should not skip Copilot CLI WARNING messages", () => {
+    const line = "2025-12-15T08:35:23.457Z [WARNING] This is a warning";
+    expect(shouldSkipLine(line)).toBe(false);
+  });
 });
 
 describe("validateErrors with environment variable filtering", () => {
