@@ -31,6 +31,7 @@ func TestRenderPlaywrightMCPConfigShared(t *testing.T) {
 				`"--output-dir"`,
 				`"/tmp/gh-aw/mcp-logs/playwright"`,
 				`"--allowed-hosts"`,
+				`"--allowed-origins"`,
 				`example.com;test.com`, // Domains are joined with semicolons
 			},
 			wantEnding: "},\n",
