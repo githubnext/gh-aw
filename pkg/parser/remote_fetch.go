@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"encoding/base64"
 	"fmt"
 	"os"
 	"os/exec"
@@ -8,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/cli/go-gh/v2"
+	"github.com/cli/go-gh/v2/pkg/api"
 	"github.com/githubnext/gh-aw/pkg/gitutil"
 	"github.com/githubnext/gh-aw/pkg/logger"
 )
@@ -373,13 +375,25 @@ func downloadFileViaGitClone(owner, repo, path, ref string) ([]byte, error) {
 }
 
 func downloadFileFromGitHub(owner, repo, path, ref string) ([]byte, error) {
-	// Use go-gh/v2 to download the file
-	stdout, stderr, err := gh.Exec("api", fmt.Sprintf("/repos/%s/%s/contents/%s?ref=%s", owner, repo, path, ref), "--jq", ".content")
+	// Create REST client
+	client, err := api.DefaultRESTClient()
+	if err != nil {
+		return nil, fmt.Errorf("failed to create REST client: %w", err)
+	}
 
+	// Define response struct for GitHub file content API
+	var fileContent struct {
+		Content  string `json:"content"`
+		Encoding string `json:"encoding"`
+		Name     string `json:"name"`
+	}
+
+	// Fetch file content from GitHub API
+	err = client.Get(fmt.Sprintf("repos/%s/%s/contents/%s?ref=%s", owner, repo, path, ref), &fileContent)
 	if err != nil {
 		// Check if this is an authentication error
-		stderrStr := stderr.String()
-		if gitutil.IsAuthError(stderrStr) {
+		errStr := err.Error()
+		if gitutil.IsAuthError(errStr) {
 			remoteLog.Printf("GitHub API authentication failed, attempting git fallback for %s/%s/%s@%s", owner, repo, path, ref)
 			// Try fallback using git commands for public repositories
 			content, gitErr := downloadFileViaGit(owner, repo, path, ref)
@@ -389,18 +403,16 @@ func downloadFileFromGitHub(owner, repo, path, ref string) ([]byte, error) {
 			}
 			return content, nil
 		}
-		return nil, fmt.Errorf("failed to fetch file content from %s/%s/%s@%s: %s: %w", owner, repo, path, ref, strings.TrimSpace(stderrStr), err)
+		return nil, fmt.Errorf("failed to fetch file content from %s/%s/%s@%s: %w", owner, repo, path, ref, err)
 	}
 
-	// The content is base64 encoded, decode it
-	contentBase64 := strings.TrimSpace(stdout.String())
-	if contentBase64 == "" {
+	// Verify we have content
+	if fileContent.Content == "" {
 		return nil, fmt.Errorf("empty content returned from GitHub API for %s/%s/%s@%s", owner, repo, path, ref)
 	}
 
-	decodeCmd := exec.Command("base64", "-d")
-	decodeCmd.Stdin = strings.NewReader(contentBase64)
-	content, err := decodeCmd.Output()
+	// Decode base64 content using native Go base64 package
+	content, err := base64.StdEncoding.DecodeString(fileContent.Content)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode base64 content: %w", err)
 	}
