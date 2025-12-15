@@ -132,9 +132,10 @@ async function resolveAllowedMentionsFromPayload(context, github, core) {
         break;
     }
 
-    // Resolve mentions to determine allowed list
-    // We don't need the full text, just need to get the collaborators list
-    const mentionResult = await resolveMentionsLazily("", knownAuthors, owner, repo, github, core);
+    // Build allowed mentions list from known authors and collaborators
+    // We pass the known authors as fake mentions in text so they get processed
+    const fakeText = knownAuthors.map(author => `@${author}`).join(" ");
+    const mentionResult = await resolveMentionsLazily(fakeText, knownAuthors, owner, repo, github, core);
     const allowedMentions = mentionResult.allowedMentions;
 
     // Log allowed mentions for debugging

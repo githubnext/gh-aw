@@ -4544,7 +4544,8 @@ jobs:
                   default:
                     break;
                 }
-                const mentionResult = await resolveMentionsLazily("", knownAuthors, owner, repo, github, core);
+                const fakeText = knownAuthors.map(author => `@${author}`).join(" ");
+                const mentionResult = await resolveMentionsLazily(fakeText, knownAuthors, owner, repo, github, core);
                 const allowedMentions = mentionResult.allowedMentions;
                 if (allowedMentions.length > 0) {
                   core.info(`[OUTPUT COLLECTOR] Allowed mentions: ${allowedMentions.join(", ")}`);
