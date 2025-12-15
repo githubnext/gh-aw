@@ -1811,11 +1811,11 @@ jobs:
       - name: Install dependencies
         run: make deps-dev
       - env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
         name: Install binary as 'gh-aw'
         run: "# Check if gh-aw extension is already installed\nif gh extension list | grep -q \"githubnext/gh-aw\"; then\n  echo \"gh-aw extension already installed, skipping installation...\"\nelse\n  # Check if a different extension provides the 'aw' command\n  # gh extension list format: NAME  COMMAND  VERSION\n  EXISTING_EXTENSION=$(gh extension list | awk '$2 == \"aw\" {print $1}' | head -n1)\n  if [ -n \"$EXISTING_EXTENSION\" ]; then\n    echo \"Found conflicting extension providing 'aw' command: $EXISTING_EXTENSION\"\n    echo \"Removing conflicting extension...\"\n    gh extension remove \"$EXISTING_EXTENSION\" || true\n  fi\n  \n  # Install the extension\n  echo \"Installing gh-aw extension...\"\n  make install\nfi\n\n# Verify installation\ngh aw --version\n"
       - env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
         name: Start MCP server
         run: "set -e\n./gh-aw mcp-server --cmd ./gh-aw --port 8765 &\nMCP_PID=$!\n\n# Wait a moment for server to start\nsleep 2\n\n# Check if server is still running\nif ! kill -0 $MCP_PID 2>/dev/null; then\n  echo \"MCP server failed to start\"\n  exit 1\nfi\n\necho \"MCP server started successfully with PID $MCP_PID\"\n"
 

@@ -36,7 +36,7 @@ steps:
       # Verify installation
       gh aw --version
     env:
-      GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
+      GH_TOKEN: "${{ github.token }}"
   - name: Start MCP server
     run: |
       set -e
@@ -54,5 +54,5 @@ steps:
       
       echo "MCP server started successfully with PID $MCP_PID"
     env:
-      GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
+      GH_TOKEN: "${{ github.token }}"
 ---
