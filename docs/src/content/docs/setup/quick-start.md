@@ -213,6 +213,24 @@ Once complete, a new discussion post will be created in your repository with a d
 
 Let's look at what you just added. The daily team status workflow automatically creates a status report every weekday and posts it as a discussion in your repository, and looks like this:
 
+:::tip[YAML Basics for Beginners]
+The configuration section uses **YAML syntax** (a human-friendly data format for configuration):
+- `key: value` — Sets a configuration option
+- `- item` — Creates a list item (note the dash and space)
+- **Indentation matters** — Use 2 spaces for nested items (not tabs)
+- Colons (`:`) separate keys from values
+- Lists can be nested under keys
+
+**Example:**
+```yaml
+tools:          # Key with nested items below
+  github:       # Nested key (indented 2 spaces)
+    - repos     # List item (dash + 2 spaces)
+```
+
+Learn more: [YAML Tutorial](https://learnxinyminutes.com/docs/yaml/)
+:::
+
 ```aw wrap
 ---
 on:
@@ -248,11 +266,11 @@ This workflow triggers every weekday at 9 AM via cron schedule, has [permissions
 
 **Understanding the structure:**
 
-- **[Frontmatter](/gh-aw/reference/glossary/#frontmatter)** (between `---` markers): The configuration section with [YAML](/gh-aw/reference/glossary/#yaml) settings that control when the workflow runs (`on:`), what permissions it has (`permissions:`), what tools it can use (`tools:`), and what outputs it can create (`safe-outputs:`).
+- **[Frontmatter](/gh-aw/reference/glossary/#frontmatter)** (between `---` markers): A section at the top of the markdown file that contains configuration in [YAML](/gh-aw/reference/glossary/#yaml) format. It's commonly used in static site generators and documentation tools. In agentic workflows, frontmatter controls when the workflow runs (`on:`), what permissions it has (`permissions:`), what tools it can use (`tools:`), and what outputs it can create (`safe-outputs:`).
 
 - **Markdown body** (below frontmatter): Natural language instructions that tell the AI [agent](/gh-aw/reference/glossary/#agent) what tasks to perform. Written in plain English, not code.
 
-- **[Safe outputs](/gh-aw/reference/glossary/#safe-outputs)**: Pre-approved actions (like creating discussions, issues, or comments) that the AI can request without needing write permissions during execution. The workflow processes these requests in separate, permission-controlled jobs for security.
+- **[Safe outputs](/gh-aw/reference/glossary/#safe-outputs)**: Pre-approved actions (like creating discussions, issues, or comments) that the AI can request without needing write permissions during execution. This security feature prevents the AI from making unexpected changes—the workflow processes these requests in separate, permission-controlled jobs where humans can review what happened.
 
 ## Customize Your Workflow
 
