@@ -1,5 +1,10 @@
 package cli
 
+import (
+	"regexp"
+	"strings"
+)
+
 // CompileConfig holds configuration options for compiling workflows
 type CompileConfig struct {
 	MarkdownFiles        []string // Files to compile (empty for all files)
@@ -46,4 +51,35 @@ type ValidationResult struct {
 	Errors       []ValidationError `json:"errors"`
 	Warnings     []ValidationError `json:"warnings"`
 	CompiledFile string            `json:"compiled_file,omitempty"`
+}
+
+// sanitizeErrorMessage redacts sensitive information from error messages before logging.
+// This prevents secrets, tokens, and other sensitive data from being exposed in logs.
+func sanitizeErrorMessage(message string) string {
+	// Common patterns for sensitive data - ordered by specificity (most specific first)
+	patterns := []struct {
+		regex       *regexp.Regexp
+		replacement string
+	}{
+		// GitHub tokens (ghp_, gho_, ghs_, ghu_, ghr_)
+		{regexp.MustCompile(`gh[pousr]_[a-zA-Z0-9]{36,}`), "[REDACTED_GITHUB_TOKEN]"},
+		// AWS keys
+		{regexp.MustCompile(`AKIA[0-9A-Z]{16}`), "[REDACTED_AWS_KEY]"},
+		// Private keys
+		{regexp.MustCompile(`-----BEGIN [A-Z ]+ PRIVATE KEY-----[\s\S]*?-----END [A-Z ]+ PRIVATE KEY-----`), "[REDACTED_PRIVATE_KEY]"},
+		// Password/secret/key patterns in error messages with values
+		{regexp.MustCompile(`(?i)(password|passwd|pwd|token|secret|key|apikey|api_key)[\s:=]+["']?([^\s"',}]+)["']?`), "$1=[REDACTED]"},
+	}
+
+	sanitized := message
+	for _, pattern := range patterns {
+		sanitized = pattern.regex.ReplaceAllString(sanitized, pattern.replacement)
+	}
+
+	// Additional cleanup: truncate very long error messages that might contain dumps
+	if len(sanitized) > 1000 {
+		sanitized = sanitized[:1000] + "... [truncated for security]"
+	}
+
+	return strings.TrimSpace(sanitized)
 }
