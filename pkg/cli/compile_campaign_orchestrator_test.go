@@ -79,4 +79,35 @@ func TestGenerateAndCompileCampaignOrchestrator(t *testing.T) {
 
 	// Note: Issue/project write operations are handled via safe-outputs which mint
 	// app tokens with appropriate permissions, not direct workflow permissions.
+
+	// Read the generated markdown file to verify the Source comment contains a relative path
+	mdContent, readErr := os.ReadFile(orchestratorPath)
+	if readErr != nil {
+		t.Fatalf("failed to read generated markdown file: %v", readErr)
+	}
+	mdStr := string(mdContent)
+
+	// Verify that the Source comment exists and contains a relative path (not absolute)
+	if !strings.Contains(mdStr, "<!-- Source:") {
+		t.Errorf("expected generated markdown to contain Source comment")
+	}
+
+	// Extract the source path from the comment
+	if strings.Contains(mdStr, "<!-- Source:") {
+		// Find the source path in the comment
+		startIdx := strings.Index(mdStr, "<!-- Source:")
+		endIdx := strings.Index(mdStr[startIdx:], "-->")
+		if endIdx > 0 {
+			sourceComment := mdStr[startIdx : startIdx+endIdx]
+			// Verify it's not an absolute path (no leading / or drive letter)
+			if strings.Contains(sourceComment, "<!-- Source: /") ||
+				(len(sourceComment) > 15 && sourceComment[13] == ':' && sourceComment[14] == '\\') {
+				t.Errorf("Source comment contains absolute path: %q", sourceComment)
+			}
+			// Verify it contains the campaign filename
+			if !strings.Contains(sourceComment, "test-campaign.campaign.md") {
+				t.Errorf("Source comment doesn't contain expected filename: %q", sourceComment)
+			}
+		}
+	}
 }
