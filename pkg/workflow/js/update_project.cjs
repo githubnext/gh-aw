@@ -110,10 +110,8 @@ async function updateProject(output) {
     const ownerId = repoResult.repository.owner.id;
     const ownerType = repoResult.repository.owner.__typename;
 
-    // Step 2: Find existing project or create it
+    // Step 2: Find existing project
     let projectId;
-    let projectNumber;
-    let existingProject = null;
 
     // Search for projects at the owner level (user/org)
     const ownerQuery =
@@ -123,7 +121,6 @@ async function updateProject(output) {
               projectsV2(first: 100) {
                 nodes {
                   id
-                  title
                   number
                 }
               }
@@ -134,7 +131,6 @@ async function updateProject(output) {
               projectsV2(first: 100) {
                 nodes {
                   id
-                  title
                   number
                 }
               }
@@ -147,75 +143,22 @@ async function updateProject(output) {
       ownerType === "User" ? ownerProjectsResult.user.projectsV2.nodes : ownerProjectsResult.organization.projectsV2.nodes;
 
     // Search by project number extracted from URL
-    existingProject = ownerProjects.find(p => p.number.toString() === projectNumber);
+    const existingProject = ownerProjects.find(p => p.number.toString() === projectNumber);
 
-    // If found at owner level, ensure it's linked to the repository
-    if (existingProject) {
-      try {
-        await githubClient.graphql(
-          `mutation($projectId: ID!, $repositoryId: ID!) {
-            linkProjectV2ToRepository(input: {
-              projectId: $projectId,
-              repositoryId: $repositoryId
-            }) {
-              repository {
-                id
-              }
-            }
-          }`,
-          { projectId: existingProject.id, repositoryId }
-        );
-      } catch (linkError) {
-        if (!linkError.message || !linkError.message.includes("already linked")) {
-          core.warning(`Could not link project: ${linkError.message}`);
-        }
-      }
+    if (!existingProject) {
+      const ownerTypeDisplay = ownerType === "User" ? "user" : "organization";
+      const createUrl = ownerType === "User" 
+        ? `https://github.com/users/${owner}/projects/new`
+        : `https://github.com/orgs/${owner}/projects/new`;
+      
+      core.error(`Cannot find project #${projectNumber} on ${ownerTypeDisplay} account. Create it manually at ${createUrl}`);
+      throw new Error(`Project #${projectNumber} not found on ${ownerTypeDisplay} "${owner}".`);
     }
 
-    if (existingProject) {
-      projectId = existingProject.id;
-      projectNumber = existingProject.number;
-    } else {
-      // Check if owner is a User before attempting to create
-      if (ownerType === "User") {
-        core.error(`Cannot find project #${projectNumber}. Create it manually at https://github.com/users/${owner}/projects/new.`);
-        throw new Error(`Cannot find project #${projectNumber} on user account.`);
-      }
+    projectId = existingProject.id;
 
-      if (!allowCreateProject) {
-        core.error(
-          `Cannot find project #${projectNumber}. Create it manually at https://github.com/orgs/${owner}/projects/new and re-run, ` +
-            `or opt in to creation by setting create_if_missing=true in the update_project output (recommended only when you intentionally want workflows to create boards).`
-        );
-        throw new Error(`Cannot find project #${projectNumber} on organization account.`);
-      }
-
-      // Create new project (organization only)
-      const createResult = await githubClient.graphql(
-        `mutation($ownerId: ID!, $title: String!) {
-          createProjectV2(input: {
-            ownerId: $ownerId,
-            title: $title
-          }) {
-            projectV2 {
-              id
-              title
-              url
-              number
-            }
-          }
-        }`,
-        {
-          ownerId: ownerId, // Use owner ID (org/user), not repository ID
-          title: output.project,
-        }
-      );
-
-      const newProject = createResult.createProjectV2.projectV2;
-      projectId = newProject.id;
-      projectNumber = newProject.number;
-
-      // Link project to repository
+    // Ensure project is linked to the repository
+    try {
       await githubClient.graphql(
         `mutation($projectId: ID!, $repositoryId: ID!) {
           linkProjectV2ToRepository(input: {
@@ -229,12 +172,10 @@ async function updateProject(output) {
         }`,
         { projectId, repositoryId }
       );
-
-      core.info(`✓ Created project: ${newProject.title}`);
-      core.setOutput("project-id", projectId);
-      core.setOutput("project-number", projectNumber);
-      core.setOutput("project-url", newProject.url);
-      core.setOutput("campaign-id", campaignId);
+    } catch (linkError) {
+      if (!linkError.message || !linkError.message.includes("already linked")) {
+        core.warning(`Could not link project: ${linkError.message}`);
+      }
     }
 
     // Step 3: If issue or PR specified, add/update it on the board

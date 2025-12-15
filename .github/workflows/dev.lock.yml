@@ -6510,8 +6510,6 @@ jobs:
                 const ownerId = repoResult.repository.owner.id;
                 const ownerType = repoResult.repository.owner.__typename;
                 let projectId;
-                let projectNumber;
-                let existingProject = null;
                 const ownerQuery =
                   ownerType === "User"
                     ? `query($login: String!) {
@@ -6519,7 +6517,6 @@ jobs:
                           projectsV2(first: 100) {
                             nodes {
                               id
-                              title
                               number
                             }
                           }
@@ -6530,7 +6527,6 @@ jobs:
                           projectsV2(first: 100) {
                             nodes {
                               id
-                              title
                               number
                             }
                           }
@@ -6539,65 +6535,17 @@ jobs:
                 const ownerProjectsResult = await githubClient.graphql(ownerQuery, { login: owner });
                 const ownerProjects =
                   ownerType === "User" ? ownerProjectsResult.user.projectsV2.nodes : ownerProjectsResult.organization.projectsV2.nodes;
-                existingProject = ownerProjects.find(p => p.number.toString() === projectNumber);
-                if (existingProject) {
-                  try {
-                    await githubClient.graphql(
-                      `mutation($projectId: ID!, $repositoryId: ID!) {
-                        linkProjectV2ToRepository(input: {
-                          projectId: $projectId,
-                          repositoryId: $repositoryId
-                        }) {
-                          repository {
-                            id
-                          }
-                        }
-                      }`,
-                      { projectId: existingProject.id, repositoryId }
-                    );
-                  } catch (linkError) {
-                    if (!linkError.message || !linkError.message.includes("already linked")) {
-                      core.warning(`Could not link project: ${linkError.message}`);
-                    }
-                  }
+                const existingProject = ownerProjects.find(p => p.number.toString() === projectNumber);
+                if (!existingProject) {
+                  const ownerTypeDisplay = ownerType === "User" ? "user" : "organization";
+                  const createUrl = ownerType === "User" 
+                    ? `https://github.com/users/${owner}/projects/new`
+                    : `https://github.com/orgs/${owner}/projects/new`;
+                  core.error(`Cannot find project #${projectNumber} on ${ownerTypeDisplay} account. Create it manually at ${createUrl}`);
+                  throw new Error(`Project #${projectNumber} not found on ${ownerTypeDisplay} "${owner}".`);
                 }
-                if (existingProject) {
-                  projectId = existingProject.id;
-                  projectNumber = existingProject.number;
-                } else {
-                  if (ownerType === "User") {
-                    core.error(`Cannot find project #${projectNumber}. Create it manually at https://github.com/users/${owner}/projects/new.`);
-                    throw new Error(`Cannot find project #${projectNumber} on user account.`);
-                  }
-                  if (!allowCreateProject) {
-                    core.error(
-                      `Cannot find project #${projectNumber}. Create it manually at https://github.com/orgs/${owner}/projects/new and re-run, ` +
-                        `or opt in to creation by setting create_if_missing=true in the update_project output (recommended only when you intentionally want workflows to create boards).`
-                    );
-                    throw new Error(`Cannot find project #${projectNumber} on organization account.`);
-                  }
-                  const createResult = await githubClient.graphql(
-                    `mutation($ownerId: ID!, $title: String!) {
-                      createProjectV2(input: {
-                        ownerId: $ownerId,
-                        title: $title
-                      }) {
-                        projectV2 {
-                          id
-                          title
-                          url
-                          number
-                        }
-                      }
-                    }`,
-                    {
-                      ownerId: ownerId, 
-                      title: output.project,
-                    }
-                  );
-                  const newProject = createResult.createProjectV2.projectV2;
-                  projectId = newProject.id;
-                  projectNumber = newProject.number;
+                projectId = existingProject.id;
+                try {
                   await githubClient.graphql(
                     `mutation($projectId: ID!, $repositoryId: ID!) {
                       linkProjectV2ToRepository(input: {
@@ -6611,11 +6559,10 @@ jobs:
                     }`,
                     { projectId, repositoryId }
                   );
-                  core.info(`✓ Created project: ${newProject.title}`);
-                  core.setOutput("project-id", projectId);
-                  core.setOutput("project-number", projectNumber);
-                  core.setOutput("project-url", newProject.url);
-                  core.setOutput("campaign-id", campaignId);
+                } catch (linkError) {
+                  if (!linkError.message || !linkError.message.includes("already linked")) {
+                    core.warning(`Could not link project: ${linkError.message}`);
+                  }
                 }
                 const hasContentNumber = output.content_number !== undefined && output.content_number !== null;
                 const hasIssue = output.issue !== undefined && output.issue !== null;
