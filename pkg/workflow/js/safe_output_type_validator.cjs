@@ -239,9 +239,11 @@ function validateIssueNumberOrTemporaryId(value, fieldName, lineNum) {
  * @param {FieldValidation} validation - The validation configuration
  * @param {string} itemType - The item type for error messages
  * @param {number} lineNum - Line number for error messages
+ * @param {Object} [options] - Optional sanitization options
+ * @param {string[]} [options.allowedAliases] - List of allowed @mentions
  * @returns {{isValid: boolean, normalizedValue?: any, error?: string}}
  */
-function validateField(value, fieldName, validation, itemType, lineNum) {
+function validateField(value, fieldName, validation, itemType, lineNum, options) {
   // For positiveInteger fields, delegate required check to validatePositiveInteger
   if (validation.positiveInteger) {
     return validatePositiveInteger(value, `${itemType} '${fieldName}'`, lineNum);
@@ -327,14 +329,20 @@ function validateField(value, fieldName, validation, itemType, lineNum) {
       let normalizedResult = validation.enum[matchIndex];
       // Apply sanitization if configured
       if (validation.sanitize && validation.maxLength) {
-        normalizedResult = sanitizeContent(normalizedResult, validation.maxLength);
+        normalizedResult = sanitizeContent(normalizedResult, {
+          maxLength: validation.maxLength,
+          allowedAliases: options?.allowedAliases || [],
+        });
       }
       return { isValid: true, normalizedValue: normalizedResult };
     }
 
     // Handle sanitization
     if (validation.sanitize) {
-      const sanitized = sanitizeContent(value, validation.maxLength || MAX_BODY_LENGTH);
+      const sanitized = sanitizeContent(value, {
+        maxLength: validation.maxLength || MAX_BODY_LENGTH,
+        allowedAliases: options?.allowedAliases || [],
+      });
       return { isValid: true, normalizedValue: sanitized };
     }
 
@@ -369,7 +377,12 @@ function validateField(value, fieldName, validation, itemType, lineNum) {
       // Sanitize items if configured
       if (validation.itemSanitize) {
         const sanitizedItems = value.map(item =>
-          typeof item === "string" ? sanitizeContent(item, validation.itemMaxLength || 128) : item
+          typeof item === "string"
+            ? sanitizeContent(item, {
+                maxLength: validation.itemMaxLength || 128,
+                allowedAliases: options?.allowedAliases || [],
+              })
+            : item
         );
         return { isValid: true, normalizedValue: sanitizedItems };
       }
@@ -459,9 +472,11 @@ function executeCustomValidation(item, customValidation, lineNum, itemType) {
  * @param {Object} item - The item to validate
  * @param {string} itemType - The item type (e.g., "create_issue")
  * @param {number} lineNum - Line number for error messages
+ * @param {Object} [options] - Optional sanitization options
+ * @param {string[]} [options.allowedAliases] - List of allowed @mentions
  * @returns {{isValid: boolean, normalizedItem?: Object, error?: string}}
  */
-function validateItem(item, itemType, lineNum) {
+function validateItem(item, itemType, lineNum, options) {
   const validationConfig = loadValidationConfig();
   const typeConfig = validationConfig[itemType];
 
@@ -484,7 +499,7 @@ function validateItem(item, itemType, lineNum) {
   // Validate each configured field
   for (const [fieldName, validation] of Object.entries(typeConfig.fields)) {
     const fieldValue = item[fieldName];
-    const result = validateField(fieldValue, fieldName, validation, itemType, lineNum);
+    const result = validateField(fieldValue, fieldName, validation, itemType, lineNum, options);
 
     if (!result.isValid) {
       errors.push(result.error);

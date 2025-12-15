@@ -7,7 +7,7 @@
  * @returns {string} The sanitized content
  */
 const { sanitizeContent, writeRedactedDomainsLog } = require("./sanitize_content.cjs");
-const { isPayloadUserBot, resolveMentionsLazily } = require("./resolve_mentions.cjs");
+const { isPayloadUserBot } = require("./resolve_mentions.cjs");
 
 async function main() {
   let text = "";
@@ -267,23 +267,9 @@ async function main() {
       break;
   }
 
-  // Resolve mentions lazily using the new helper
-  const mentionResult = await resolveMentionsLazily(text, knownAuthors, owner, repo, github, core);
-
-  // Log known authors for debugging
-  if (knownAuthors.length > 0) {
-    core.info(`Known authors (from payload): ${knownAuthors.join(", ")}`);
-  }
-
-  // Log allowed mentions for documentation
-  if (mentionResult.allowedMentions.length > 0) {
-    core.info(`Allowed mentions (will not be escaped): ${mentionResult.allowedMentions.join(", ")}`);
-  } else {
-    core.info("No allowed mentions configured - all mentions will be escaped");
-  }
-
-  // Sanitize the text before output, passing the known authors
-  const sanitizedText = sanitizeContent(text, { allowedAliases: mentionResult.allowedMentions });
+  // Sanitize the text before output
+  // Note: Mention filtering is NOT applied here - it will be applied by the agent output collector
+  const sanitizedText = sanitizeContent(text);
 
   // Display sanitized text in logs
   core.info(`text: ${sanitizedText}`);

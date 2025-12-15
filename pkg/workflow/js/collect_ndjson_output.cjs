@@ -12,6 +12,140 @@ async function main() {
     MAX_BODY_LENGTH: maxBodyLength,
     resetValidationConfigCache,
   } = require("./safe_output_type_validator.cjs");
+  const { resolveMentionsLazily, isPayloadUserBot } = require("./resolve_mentions.cjs");
+
+  // Resolve allowed mentions for the output collector
+  // This determines which @mentions are allowed in the agent output
+  let allowedMentions = [];
+  try {
+    const { owner, repo } = context.repo;
+    const knownAuthors = [];
+
+    // Extract known authors from the event payload
+    switch (context.eventName) {
+      case "issues":
+        if (context.payload.issue?.user?.login && !isPayloadUserBot(context.payload.issue.user)) {
+          knownAuthors.push(context.payload.issue.user.login);
+        }
+        if (context.payload.issue?.assignees && Array.isArray(context.payload.issue.assignees)) {
+          for (const assignee of context.payload.issue.assignees) {
+            if (assignee?.login && !isPayloadUserBot(assignee)) {
+              knownAuthors.push(assignee.login);
+            }
+          }
+        }
+        break;
+
+      case "pull_request":
+      case "pull_request_target":
+        if (context.payload.pull_request?.user?.login && !isPayloadUserBot(context.payload.pull_request.user)) {
+          knownAuthors.push(context.payload.pull_request.user.login);
+        }
+        if (context.payload.pull_request?.assignees && Array.isArray(context.payload.pull_request.assignees)) {
+          for (const assignee of context.payload.pull_request.assignees) {
+            if (assignee?.login && !isPayloadUserBot(assignee)) {
+              knownAuthors.push(assignee.login);
+            }
+          }
+        }
+        break;
+
+      case "issue_comment":
+        if (context.payload.comment?.user?.login && !isPayloadUserBot(context.payload.comment.user)) {
+          knownAuthors.push(context.payload.comment.user.login);
+        }
+        if (context.payload.issue?.user?.login && !isPayloadUserBot(context.payload.issue.user)) {
+          knownAuthors.push(context.payload.issue.user.login);
+        }
+        if (context.payload.issue?.assignees && Array.isArray(context.payload.issue.assignees)) {
+          for (const assignee of context.payload.issue.assignees) {
+            if (assignee?.login && !isPayloadUserBot(assignee)) {
+              knownAuthors.push(assignee.login);
+            }
+          }
+        }
+        break;
+
+      case "pull_request_review_comment":
+        if (context.payload.comment?.user?.login && !isPayloadUserBot(context.payload.comment.user)) {
+          knownAuthors.push(context.payload.comment.user.login);
+        }
+        if (context.payload.pull_request?.user?.login && !isPayloadUserBot(context.payload.pull_request.user)) {
+          knownAuthors.push(context.payload.pull_request.user.login);
+        }
+        if (context.payload.pull_request?.assignees && Array.isArray(context.payload.pull_request.assignees)) {
+          for (const assignee of context.payload.pull_request.assignees) {
+            if (assignee?.login && !isPayloadUserBot(assignee)) {
+              knownAuthors.push(assignee.login);
+            }
+          }
+        }
+        break;
+
+      case "pull_request_review":
+        if (context.payload.review?.user?.login && !isPayloadUserBot(context.payload.review.user)) {
+          knownAuthors.push(context.payload.review.user.login);
+        }
+        if (context.payload.pull_request?.user?.login && !isPayloadUserBot(context.payload.pull_request.user)) {
+          knownAuthors.push(context.payload.pull_request.user.login);
+        }
+        if (context.payload.pull_request?.assignees && Array.isArray(context.payload.pull_request.assignees)) {
+          for (const assignee of context.payload.pull_request.assignees) {
+            if (assignee?.login && !isPayloadUserBot(assignee)) {
+              knownAuthors.push(assignee.login);
+            }
+          }
+        }
+        break;
+
+      case "discussion":
+        if (context.payload.discussion?.user?.login && !isPayloadUserBot(context.payload.discussion.user)) {
+          knownAuthors.push(context.payload.discussion.user.login);
+        }
+        break;
+
+      case "discussion_comment":
+        if (context.payload.comment?.user?.login && !isPayloadUserBot(context.payload.comment.user)) {
+          knownAuthors.push(context.payload.comment.user.login);
+        }
+        if (context.payload.discussion?.user?.login && !isPayloadUserBot(context.payload.discussion.user)) {
+          knownAuthors.push(context.payload.discussion.user.login);
+        }
+        break;
+
+      case "release":
+        if (context.payload.release?.author?.login && !isPayloadUserBot(context.payload.release.author)) {
+          knownAuthors.push(context.payload.release.author.login);
+        }
+        break;
+
+      case "workflow_dispatch":
+        // Add the actor who triggered the workflow
+        knownAuthors.push(context.actor);
+        break;
+
+      default:
+        // No known authors for other event types
+        break;
+    }
+
+    // Resolve mentions to determine allowed list
+    // We don't need the full text, just need to get the collaborators list
+    const mentionResult = await resolveMentionsLazily("", knownAuthors, owner, repo, github, core);
+    allowedMentions = mentionResult.allowedMentions;
+
+    // Log allowed mentions for debugging
+    if (allowedMentions.length > 0) {
+      core.info(`[OUTPUT COLLECTOR] Allowed mentions: ${allowedMentions.join(", ")}`);
+    } else {
+      core.info("[OUTPUT COLLECTOR] No allowed mentions - all mentions will be escaped");
+    }
+  } catch (error) {
+    core.warning(
+      `Failed to resolve mentions for output collector: ${error instanceof Error ? error.message : String(error)}`
+    );
+    // Continue with empty allowed mentions
+  }
 
   // Load validation config from file and set it in environment for the validator to read
   const validationConfigPath = process.env.GH_AW_VALIDATION_CONFIG_PATH || "/tmp/gh-aw/safeoutputs/validation.json";
@@ -87,7 +221,7 @@ async function main() {
             error: `Line ${lineNum}: ${fieldName} must be a string`,
           };
         }
-        normalizedValue = sanitizeContent(value);
+        normalizedValue = sanitizeContent(value, { allowedAliases: allowedMentions });
         break;
       case "boolean":
         if (typeof value !== "boolean") {
@@ -118,11 +252,11 @@ async function main() {
             error: `Line ${lineNum}: ${fieldName} must be one of: ${inputSchema.options.join(", ")}`,
           };
         }
-        normalizedValue = sanitizeContent(value);
+        normalizedValue = sanitizeContent(value, { allowedAliases: allowedMentions });
         break;
       default:
         if (typeof value === "string") {
-          normalizedValue = sanitizeContent(value);
+          normalizedValue = sanitizeContent(value, { allowedAliases: allowedMentions });
         }
         break;
     }
@@ -263,7 +397,7 @@ async function main() {
 
       // Use the validation engine to validate the item
       if (hasValidationConfig(itemType)) {
-        const validationResult = validateItem(item, itemType, i + 1);
+        const validationResult = validateItem(item, itemType, i + 1, { allowedAliases: allowedMentions });
         if (!validationResult.isValid) {
           if (validationResult.error) {
             errors.push(validationResult.error);

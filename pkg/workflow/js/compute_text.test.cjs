@@ -422,7 +422,7 @@ describe("compute_text.cjs", () => {
       expect(mockCore.setOutput).toHaveBeenCalledWith("text", "");
     });
 
-    it("should allow issue author mention without neutralization", async () => {
+    it("should neutralize all mentions including issue author", async () => {
       mockContext.eventName = "issues";
       mockContext.payload = {
         issue: {
@@ -435,14 +435,12 @@ describe("compute_text.cjs", () => {
       await testMain();
 
       const outputCall = mockCore.setOutput.mock.calls[0];
-      // @issueAuthor should not be neutralized (allowed alias)
-      expect(outputCall[1]).toContain("@issueAuthor");
-      expect(outputCall[1]).not.toContain("`@issueAuthor`");
-      // @other should be neutralized
+      // All mentions should be neutralized (mention filtering is done by output collector, not compute_text)
+      expect(outputCall[1]).toContain("`@issueAuthor`");
       expect(outputCall[1]).toContain("`@other`");
     });
 
-    it("should allow PR author mention without neutralization", async () => {
+    it("should neutralize all mentions including PR author", async () => {
       mockContext.eventName = "pull_request";
       mockContext.payload = {
         pull_request: {
@@ -455,11 +453,11 @@ describe("compute_text.cjs", () => {
       await testMain();
 
       const outputCall = mockCore.setOutput.mock.calls[0];
-      expect(outputCall[1]).toContain("@prAuthor");
-      expect(outputCall[1]).not.toContain("`@prAuthor`");
+      // All mentions should be neutralized
+      expect(outputCall[1]).toContain("`@prAuthor`");
     });
 
-    it("should allow comment author mention without neutralization", async () => {
+    it("should neutralize all mentions including comment author", async () => {
       mockContext.eventName = "issue_comment";
       mockContext.payload = {
         comment: {
@@ -471,11 +469,11 @@ describe("compute_text.cjs", () => {
       await testMain();
 
       const outputCall = mockCore.setOutput.mock.calls[0];
-      expect(outputCall[1]).toContain("@commentAuthor");
-      expect(outputCall[1]).not.toContain("`@commentAuthor`");
+      // All mentions should be neutralized
+      expect(outputCall[1]).toContain("`@commentAuthor`");
     });
 
-    it("should allow discussion author mention without neutralization", async () => {
+    it("should neutralize all mentions including discussion author", async () => {
       mockContext.eventName = "discussion";
       mockContext.payload = {
         discussion: {
@@ -488,11 +486,11 @@ describe("compute_text.cjs", () => {
       await testMain();
 
       const outputCall = mockCore.setOutput.mock.calls[0];
-      expect(outputCall[1]).toContain("@discussionAuthor");
-      expect(outputCall[1]).not.toContain("`@discussionAuthor`");
+      // All mentions should be neutralized
+      expect(outputCall[1]).toContain("`@discussionAuthor`");
     });
 
-    it("should allow release author mention without neutralization", async () => {
+    it("should neutralize all mentions including release author", async () => {
       mockContext.eventName = "release";
       mockContext.payload = {
         release: {
@@ -505,11 +503,11 @@ describe("compute_text.cjs", () => {
       await testMain();
 
       const outputCall = mockCore.setOutput.mock.calls[0];
-      expect(outputCall[1]).toContain("@releaseAuthor");
-      expect(outputCall[1]).not.toContain("`@releaseAuthor`");
+      // All mentions should be neutralized
+      expect(outputCall[1]).toContain("`@releaseAuthor`");
     });
 
-    it("should handle case-insensitive author matching", async () => {
+    it("should neutralize all mentions regardless of case", async () => {
       mockContext.eventName = "issues";
       mockContext.payload = {
         issue: {
@@ -522,14 +520,12 @@ describe("compute_text.cjs", () => {
       await testMain();
 
       const outputCall = mockCore.setOutput.mock.calls[0];
-      // Both @AUTHOR and @author should be allowed
-      expect(outputCall[1]).toContain("@AUTHOR");
-      expect(outputCall[1]).not.toContain("`@AUTHOR`");
-      expect(outputCall[1]).toContain("@author");
-      expect(outputCall[1]).not.toContain("`@author`");
+      // All mentions should be neutralized regardless of case
+      expect(outputCall[1]).toContain("`@AUTHOR`");
+      expect(outputCall[1]).toContain("`@author`");
     });
 
-    it("should allow both comment author and parent issue author for issue_comment", async () => {
+    it("should neutralize all mentions including comment and issue authors", async () => {
       mockContext.eventName = "issue_comment";
       mockContext.payload = {
         comment: {
@@ -544,16 +540,13 @@ describe("compute_text.cjs", () => {
       await testMain();
 
       const outputCall = mockCore.setOutput.mock.calls[0];
-      // Both comment author and issue author should not be neutralized
-      expect(outputCall[1]).toContain("@commentAuthor");
-      expect(outputCall[1]).not.toContain("`@commentAuthor`");
-      expect(outputCall[1]).toContain("@issueAuthor");
-      expect(outputCall[1]).not.toContain("`@issueAuthor`");
-      // @other should be neutralized
+      // All mentions should be neutralized
+      expect(outputCall[1]).toContain("`@commentAuthor`");
+      expect(outputCall[1]).toContain("`@issueAuthor`");
       expect(outputCall[1]).toContain("`@other`");
     });
 
-    it("should allow both comment author and parent PR author for pull_request_review_comment", async () => {
+    it("should neutralize all mentions including review comment and PR authors", async () => {
       mockContext.eventName = "pull_request_review_comment";
       mockContext.payload = {
         comment: {
@@ -568,16 +561,13 @@ describe("compute_text.cjs", () => {
       await testMain();
 
       const outputCall = mockCore.setOutput.mock.calls[0];
-      // Both comment author and PR author should not be neutralized
-      expect(outputCall[1]).toContain("@reviewCommentAuthor");
-      expect(outputCall[1]).not.toContain("`@reviewCommentAuthor`");
-      expect(outputCall[1]).toContain("@prAuthor");
-      expect(outputCall[1]).not.toContain("`@prAuthor`");
-      // @other should be neutralized
+      // All mentions should be neutralized
+      expect(outputCall[1]).toContain("`@reviewCommentAuthor`");
+      expect(outputCall[1]).toContain("`@prAuthor`");
       expect(outputCall[1]).toContain("`@other`");
     });
 
-    it("should allow both review author and parent PR author for pull_request_review", async () => {
+    it("should neutralize all mentions including review and PR authors", async () => {
       mockContext.eventName = "pull_request_review";
       mockContext.payload = {
         review: {
@@ -592,16 +582,13 @@ describe("compute_text.cjs", () => {
       await testMain();
 
       const outputCall = mockCore.setOutput.mock.calls[0];
-      // Both review author and PR author should not be neutralized
-      expect(outputCall[1]).toContain("@reviewAuthor");
-      expect(outputCall[1]).not.toContain("`@reviewAuthor`");
-      expect(outputCall[1]).toContain("@prAuthor");
-      expect(outputCall[1]).not.toContain("`@prAuthor`");
-      // @other should be neutralized
+      // All mentions should be neutralized
+      expect(outputCall[1]).toContain("`@reviewAuthor`");
+      expect(outputCall[1]).toContain("`@prAuthor`");
       expect(outputCall[1]).toContain("`@other`");
     });
 
-    it("should allow both comment author and parent discussion author for discussion_comment", async () => {
+    it("should neutralize all mentions including comment and discussion authors", async () => {
       mockContext.eventName = "discussion_comment";
       mockContext.payload = {
         comment: {
@@ -616,16 +603,13 @@ describe("compute_text.cjs", () => {
       await testMain();
 
       const outputCall = mockCore.setOutput.mock.calls[0];
-      // Both comment author and discussion author should not be neutralized
-      expect(outputCall[1]).toContain("@commentAuthor");
-      expect(outputCall[1]).not.toContain("`@commentAuthor`");
-      expect(outputCall[1]).toContain("@discussionAuthor");
-      expect(outputCall[1]).not.toContain("`@discussionAuthor`");
-      // @other should be neutralized
+      // All mentions should be neutralized
+      expect(outputCall[1]).toContain("`@commentAuthor`");
+      expect(outputCall[1]).toContain("`@discussionAuthor`");
       expect(outputCall[1]).toContain("`@other`");
     });
 
-    it("should allow workflow_dispatch actor mention without neutralization", async () => {
+    it("should neutralize all mentions including workflow_dispatch actor", async () => {
       // Set up actor and event
       mockContext.actor = "dispatchActor";
       mockContext.eventName = "workflow_dispatch";
@@ -647,13 +631,9 @@ describe("compute_text.cjs", () => {
       await testMain();
 
       const outputCall = mockCore.setOutput.mock.calls[0];
-      // @dispatchActor should not be neutralized (workflow_dispatch actor)
-      expect(outputCall[1]).toContain("@dispatchActor");
-      expect(outputCall[1]).not.toContain("`@dispatchActor`");
-      // @releaseAuthor should also not be neutralized
-      expect(outputCall[1]).toContain("@releaseAuthor");
-      expect(outputCall[1]).not.toContain("`@releaseAuthor`");
-      // @other should be neutralized
+      // All mentions should be neutralized
+      expect(outputCall[1]).toContain("`@dispatchActor`");
+      expect(outputCall[1]).toContain("`@releaseAuthor`");
       expect(outputCall[1]).toContain("`@other`");
     });
 
@@ -670,7 +650,7 @@ describe("compute_text.cjs", () => {
       expect(mockCore.setOutput).toHaveBeenCalledWith("text", "");
     });
 
-    it("should allow workflow_dispatch actor with release_url", async () => {
+    it("should neutralize all mentions in workflow_dispatch with release_url", async () => {
       mockContext.actor = "dispatchActor";
       mockContext.eventName = "workflow_dispatch";
       mockContext.payload = {
@@ -691,12 +671,11 @@ describe("compute_text.cjs", () => {
       await testMain();
 
       const outputCall = mockCore.setOutput.mock.calls[0];
-      // @dispatchActor should not be neutralized
-      expect(outputCall[1]).toContain("@dispatchActor");
-      expect(outputCall[1]).not.toContain("`@dispatchActor`");
+      // All mentions should be neutralized
+      expect(outputCall[1]).toContain("`@dispatchActor`");
     });
 
-    it("should filter out bot authors from allowed mentions", async () => {
+    it("should neutralize bot authors like any other mention", async () => {
       mockContext.eventName = "issues";
       mockContext.payload = {
         issue: {
@@ -709,13 +688,11 @@ describe("compute_text.cjs", () => {
       await testMain();
 
       const outputCall = mockCore.setOutput.mock.calls[0];
-      // @botUser should be neutralized (bot author)
+      // All mentions should be neutralized
       expect(outputCall[1]).toContain("`@botUser`");
-      // Should not have @botUser without backticks (look for pattern without backtick before)
-      expect(outputCall[1]).not.toMatch(/[^`]@botUser/);
     });
 
-    it("should allow team member mentions", async () => {
+    it("should neutralize all mentions including team members", async () => {
       mockContext.eventName = "issues";
       mockContext.payload = {
         issue: {
@@ -728,14 +705,12 @@ describe("compute_text.cjs", () => {
       await testMain();
 
       const outputCall = mockCore.setOutput.mock.calls[0];
-      // Team members should not be neutralized
-      expect(outputCall[1]).toContain("@team-member-1");
-      expect(outputCall[1]).not.toContain("`@team-member-1`");
-      expect(outputCall[1]).toContain("@team-member-2");
-      expect(outputCall[1]).not.toContain("`@team-member-2`");
+      // All mentions should be neutralized
+      expect(outputCall[1]).toContain("`@team-member-1`");
+      expect(outputCall[1]).toContain("`@team-member-2`");
     });
 
-    it("should not allow bot team members in mentions", async () => {
+    it("should neutralize bot team members like any other mention", async () => {
       mockContext.eventName = "issues";
       mockContext.payload = {
         issue: {
@@ -748,11 +723,11 @@ describe("compute_text.cjs", () => {
       await testMain();
 
       const outputCall = mockCore.setOutput.mock.calls[0];
-      // @dependabot should be neutralized (bot)
+      // All mentions should be neutralized
       expect(outputCall[1]).toContain("`@dependabot`");
     });
 
-    it("should log allowed mentions", async () => {
+    it("should not log allowed mentions (mentions not resolved in compute_text)", async () => {
       mockContext.eventName = "issues";
       mockContext.payload = {
         issue: {
@@ -764,17 +739,13 @@ describe("compute_text.cjs", () => {
 
       await testMain();
 
-      // Check that allowed mentions were logged
+      // Check that allowed mentions were NOT logged (mention resolution moved to output collector)
       const infoCalls = mockCore.info.mock.calls.map(call => call[0]);
       const allowedMentionsLog = infoCalls.find(msg => msg.includes("Allowed mentions"));
-      expect(allowedMentionsLog).toBeDefined();
-      // Should include team members and issue author that were actually mentioned in text
-      expect(allowedMentionsLog).toContain("team-member-1");
-      expect(allowedMentionsLog).toContain("team-member-2");
-      expect(allowedMentionsLog).toContain("issueAuthor");
+      expect(allowedMentionsLog).toBeUndefined();
     });
 
-    it("should log known authors from payload", async () => {
+    it("should not log known authors from payload (not tracked in compute_text)", async () => {
       mockContext.eventName = "issues";
       mockContext.payload = {
         issue: {
@@ -790,13 +761,10 @@ describe("compute_text.cjs", () => {
 
       await testMain();
 
-      // Check that known authors were logged
+      // Check that known authors were NOT logged (mention resolution moved to output collector)
       const infoCalls = mockCore.info.mock.calls.map(call => call[0]);
       const knownAuthorsLog = infoCalls.find(msg => msg.includes("Known authors (from payload)"));
-      expect(knownAuthorsLog).toBeDefined();
-      expect(knownAuthorsLog).toContain("issueAuthor");
-      expect(knownAuthorsLog).toContain("assignee1");
-      expect(knownAuthorsLog).toContain("assignee2");
+      expect(knownAuthorsLog).toBeUndefined();
     });
 
     it("should log escaped mentions", async () => {
@@ -809,33 +777,19 @@ describe("compute_text.cjs", () => {
         },
       };
 
-      // First call: actor permission check (should be admin to allow processing)
-      // Second call: unknown-user permission check (should be none to escape mention)
-      mockGithub.rest.repos.getCollaboratorPermissionLevel
-        .mockResolvedValueOnce({
-          data: { permission: "admin" },
-        })
-        .mockResolvedValueOnce({
-          data: { permission: "none" },
-        });
-
-      // Mock that unknown-user exists but is not a collaborator
-      mockGithub.rest.users.getByUsername.mockResolvedValueOnce({
-        data: { login: "unknown-user", type: "User" },
-      });
-
       await testMain();
 
-      // Check that escaped mention was logged
+      // Check that escaped mentions were logged
       const infoCalls = mockCore.info.mock.calls.map(call => call[0]);
-      const escapedMentionLog = infoCalls.find(msg => msg.includes("Escaped mention"));
-      expect(escapedMentionLog).toBeDefined();
-      expect(escapedMentionLog).toContain("@unknown-user");
+      const escapedMentionLogs = infoCalls.filter(msg => msg.includes("Escaped mention"));
+      // Should have logged both mentions as escaped
+      expect(escapedMentionLogs.length).toBeGreaterThanOrEqual(2);
+      const allEscapedMentions = escapedMentionLogs.join(" ");
+      expect(allEscapedMentions).toContain("@unknown-user");
+      expect(allEscapedMentions).toContain("@team-member-1");
     });
 
-    it("should handle team member fetch failure gracefully", async () => {
-      mockGithub.rest.repos.listCollaborators.mockRejectedValue(new Error("API error"));
-
+    it("should not handle team member fetch (moved to output collector)", async () => {
       mockContext.eventName = "issues";
       mockContext.payload = {
         issue: {
@@ -847,10 +801,8 @@ describe("compute_text.cjs", () => {
 
       await testMain();
 
-      // Should still work and log a warning
-      const warningCalls = mockCore.warning.mock.calls.map(call => call[0]);
-      const collaboratorWarning = warningCalls.find(msg => msg.includes("Failed to fetch recent collaborators"));
-      expect(collaboratorWarning).toBeDefined();
+      // listCollaborators should NOT be called (mention resolution moved to output collector)
+      expect(mockGithub.rest.repos.listCollaborators).not.toHaveBeenCalled();
 
       // Should still set output with issue text
       expect(mockCore.setOutput).toHaveBeenCalledWith("text", expect.any(String));
