@@ -970,32 +970,32 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 	// Add mentions configuration
 	if data.SafeOutputs.Mentions != nil {
 		mentionsConfig := make(map[string]any)
-		
+
 		// Handle enabled flag (simple boolean mode)
 		if data.SafeOutputs.Mentions.Enabled != nil {
 			mentionsConfig["enabled"] = *data.SafeOutputs.Mentions.Enabled
 		}
-		
+
 		// Handle allow-team-members
 		if data.SafeOutputs.Mentions.AllowTeamMembers != nil {
 			mentionsConfig["allowTeamMembers"] = *data.SafeOutputs.Mentions.AllowTeamMembers
 		}
-		
+
 		// Handle allow-context
 		if data.SafeOutputs.Mentions.AllowContext != nil {
 			mentionsConfig["allowContext"] = *data.SafeOutputs.Mentions.AllowContext
 		}
-		
+
 		// Handle allowed list
 		if len(data.SafeOutputs.Mentions.Allowed) > 0 {
 			mentionsConfig["allowed"] = data.SafeOutputs.Mentions.Allowed
 		}
-		
+
 		// Handle max
 		if data.SafeOutputs.Mentions.Max != nil {
 			mentionsConfig["max"] = *data.SafeOutputs.Mentions.Max
 		}
-		
+
 		// Only add mentions config if it has any fields
 		if len(mentionsConfig) > 0 {
 			safeOutputsConfig["mentions"] = mentionsConfig

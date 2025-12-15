@@ -31,7 +31,7 @@ async function resolveAllowedMentionsFromPayload(context, github, core, mentions
   // If mentions is explicitly set to true, we still need to resolve from payload
   // but we'll be more permissive. In strict mode, this should error before reaching here.
   const allowAllMentions = mentionsConfig && mentionsConfig.enabled === true;
-  
+
   // Get configuration options (with defaults)
   const allowTeamMembers = mentionsConfig?.allowTeamMembers !== false; // default: true
   const allowContext = mentionsConfig?.allowContext !== false; // default: true
@@ -45,111 +45,111 @@ async function resolveAllowedMentionsFromPayload(context, github, core, mentions
     // Extract known authors from the event payload (if allow-context is enabled)
     if (allowContext) {
       switch (context.eventName) {
-      case "issues":
-        if (context.payload.issue?.user?.login && !isPayloadUserBot(context.payload.issue.user)) {
-          knownAuthors.push(context.payload.issue.user.login);
-        }
-        if (context.payload.issue?.assignees && Array.isArray(context.payload.issue.assignees)) {
-          for (const assignee of context.payload.issue.assignees) {
-            if (assignee?.login && !isPayloadUserBot(assignee)) {
-              knownAuthors.push(assignee.login);
+        case "issues":
+          if (context.payload.issue?.user?.login && !isPayloadUserBot(context.payload.issue.user)) {
+            knownAuthors.push(context.payload.issue.user.login);
+          }
+          if (context.payload.issue?.assignees && Array.isArray(context.payload.issue.assignees)) {
+            for (const assignee of context.payload.issue.assignees) {
+              if (assignee?.login && !isPayloadUserBot(assignee)) {
+                knownAuthors.push(assignee.login);
+              }
             }
           }
-        }
-        break;
+          break;
 
-      case "pull_request":
-      case "pull_request_target":
-        if (context.payload.pull_request?.user?.login && !isPayloadUserBot(context.payload.pull_request.user)) {
-          knownAuthors.push(context.payload.pull_request.user.login);
-        }
-        if (context.payload.pull_request?.assignees && Array.isArray(context.payload.pull_request.assignees)) {
-          for (const assignee of context.payload.pull_request.assignees) {
-            if (assignee?.login && !isPayloadUserBot(assignee)) {
-              knownAuthors.push(assignee.login);
+        case "pull_request":
+        case "pull_request_target":
+          if (context.payload.pull_request?.user?.login && !isPayloadUserBot(context.payload.pull_request.user)) {
+            knownAuthors.push(context.payload.pull_request.user.login);
+          }
+          if (context.payload.pull_request?.assignees && Array.isArray(context.payload.pull_request.assignees)) {
+            for (const assignee of context.payload.pull_request.assignees) {
+              if (assignee?.login && !isPayloadUserBot(assignee)) {
+                knownAuthors.push(assignee.login);
+              }
             }
           }
-        }
-        break;
+          break;
 
-      case "issue_comment":
-        if (context.payload.comment?.user?.login && !isPayloadUserBot(context.payload.comment.user)) {
-          knownAuthors.push(context.payload.comment.user.login);
-        }
-        if (context.payload.issue?.user?.login && !isPayloadUserBot(context.payload.issue.user)) {
-          knownAuthors.push(context.payload.issue.user.login);
-        }
-        if (context.payload.issue?.assignees && Array.isArray(context.payload.issue.assignees)) {
-          for (const assignee of context.payload.issue.assignees) {
-            if (assignee?.login && !isPayloadUserBot(assignee)) {
-              knownAuthors.push(assignee.login);
+        case "issue_comment":
+          if (context.payload.comment?.user?.login && !isPayloadUserBot(context.payload.comment.user)) {
+            knownAuthors.push(context.payload.comment.user.login);
+          }
+          if (context.payload.issue?.user?.login && !isPayloadUserBot(context.payload.issue.user)) {
+            knownAuthors.push(context.payload.issue.user.login);
+          }
+          if (context.payload.issue?.assignees && Array.isArray(context.payload.issue.assignees)) {
+            for (const assignee of context.payload.issue.assignees) {
+              if (assignee?.login && !isPayloadUserBot(assignee)) {
+                knownAuthors.push(assignee.login);
+              }
             }
           }
-        }
-        break;
+          break;
 
-      case "pull_request_review_comment":
-        if (context.payload.comment?.user?.login && !isPayloadUserBot(context.payload.comment.user)) {
-          knownAuthors.push(context.payload.comment.user.login);
-        }
-        if (context.payload.pull_request?.user?.login && !isPayloadUserBot(context.payload.pull_request.user)) {
-          knownAuthors.push(context.payload.pull_request.user.login);
-        }
-        if (context.payload.pull_request?.assignees && Array.isArray(context.payload.pull_request.assignees)) {
-          for (const assignee of context.payload.pull_request.assignees) {
-            if (assignee?.login && !isPayloadUserBot(assignee)) {
-              knownAuthors.push(assignee.login);
+        case "pull_request_review_comment":
+          if (context.payload.comment?.user?.login && !isPayloadUserBot(context.payload.comment.user)) {
+            knownAuthors.push(context.payload.comment.user.login);
+          }
+          if (context.payload.pull_request?.user?.login && !isPayloadUserBot(context.payload.pull_request.user)) {
+            knownAuthors.push(context.payload.pull_request.user.login);
+          }
+          if (context.payload.pull_request?.assignees && Array.isArray(context.payload.pull_request.assignees)) {
+            for (const assignee of context.payload.pull_request.assignees) {
+              if (assignee?.login && !isPayloadUserBot(assignee)) {
+                knownAuthors.push(assignee.login);
+              }
             }
           }
-        }
-        break;
+          break;
 
-      case "pull_request_review":
-        if (context.payload.review?.user?.login && !isPayloadUserBot(context.payload.review.user)) {
-          knownAuthors.push(context.payload.review.user.login);
-        }
-        if (context.payload.pull_request?.user?.login && !isPayloadUserBot(context.payload.pull_request.user)) {
-          knownAuthors.push(context.payload.pull_request.user.login);
-        }
-        if (context.payload.pull_request?.assignees && Array.isArray(context.payload.pull_request.assignees)) {
-          for (const assignee of context.payload.pull_request.assignees) {
-            if (assignee?.login && !isPayloadUserBot(assignee)) {
-              knownAuthors.push(assignee.login);
+        case "pull_request_review":
+          if (context.payload.review?.user?.login && !isPayloadUserBot(context.payload.review.user)) {
+            knownAuthors.push(context.payload.review.user.login);
+          }
+          if (context.payload.pull_request?.user?.login && !isPayloadUserBot(context.payload.pull_request.user)) {
+            knownAuthors.push(context.payload.pull_request.user.login);
+          }
+          if (context.payload.pull_request?.assignees && Array.isArray(context.payload.pull_request.assignees)) {
+            for (const assignee of context.payload.pull_request.assignees) {
+              if (assignee?.login && !isPayloadUserBot(assignee)) {
+                knownAuthors.push(assignee.login);
+              }
             }
           }
-        }
-        break;
+          break;
 
-      case "discussion":
-        if (context.payload.discussion?.user?.login && !isPayloadUserBot(context.payload.discussion.user)) {
-          knownAuthors.push(context.payload.discussion.user.login);
-        }
-        break;
+        case "discussion":
+          if (context.payload.discussion?.user?.login && !isPayloadUserBot(context.payload.discussion.user)) {
+            knownAuthors.push(context.payload.discussion.user.login);
+          }
+          break;
 
-      case "discussion_comment":
-        if (context.payload.comment?.user?.login && !isPayloadUserBot(context.payload.comment.user)) {
-          knownAuthors.push(context.payload.comment.user.login);
-        }
-        if (context.payload.discussion?.user?.login && !isPayloadUserBot(context.payload.discussion.user)) {
-          knownAuthors.push(context.payload.discussion.user.login);
-        }
-        break;
+        case "discussion_comment":
+          if (context.payload.comment?.user?.login && !isPayloadUserBot(context.payload.comment.user)) {
+            knownAuthors.push(context.payload.comment.user.login);
+          }
+          if (context.payload.discussion?.user?.login && !isPayloadUserBot(context.payload.discussion.user)) {
+            knownAuthors.push(context.payload.discussion.user.login);
+          }
+          break;
 
-      case "release":
-        if (context.payload.release?.author?.login && !isPayloadUserBot(context.payload.release.author)) {
-          knownAuthors.push(context.payload.release.author.login);
-        }
-        break;
+        case "release":
+          if (context.payload.release?.author?.login && !isPayloadUserBot(context.payload.release.author)) {
+            knownAuthors.push(context.payload.release.author.login);
+          }
+          break;
 
-      case "workflow_dispatch":
-        // Add the actor who triggered the workflow
-        knownAuthors.push(context.actor);
-        break;
+        case "workflow_dispatch":
+          // Add the actor who triggered the workflow
+          knownAuthors.push(context.actor);
+          break;
 
-      default:
-        // No known authors for other event types
-        break;
-    }
+        default:
+          // No known authors for other event types
+          break;
+      }
     }
 
     // Add allowed list to known authors (these are always allowed regardless of configuration)
