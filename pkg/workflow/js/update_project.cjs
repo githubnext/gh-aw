@@ -15,40 +15,27 @@ const { loadAgentOutput } = require("./load_agent_output.cjs");
  */
 
 /**
- * Parse project input to extract project number from URL or return project name
- * @param {string} projectInput - Project URL, number, or name
- * @param {boolean} isCampaign - Whether this is for a campaign (URL required)
- * @returns {{projectNumber: string|null, projectName: string}} Extracted project number (if URL) and name
+ * Parse project input to extract project number from URL
+ * @param {string} projectInput - Project URL (required)
+ * @returns {string} Extracted project number
  */
-function parseProjectInput(projectInput, isCampaign = false) {
+function parseProjectInput(projectInput) {
   // Validate input
   if (!projectInput || typeof projectInput !== "string") {
     throw new Error(
-      `Invalid project input: expected string, got ${typeof projectInput}. The "project" field is required and must be a GitHub project URL${isCampaign ? "" : ", number, or name"}.`
+      `Invalid project input: expected string, got ${typeof projectInput}. The "project" field is required and must be a full GitHub project URL.`
     );
   }
 
-  // Try to parse as GitHub project URL
+  // Parse GitHub project URL
   const urlMatch = projectInput.match(/github\.com\/(?:users|orgs)\/[^/]+\/projects\/(\d+)/);
-  if (urlMatch) {
-    return {
-      projectNumber: urlMatch[1],
-      projectName: null,
-    };
-  }
-
-  // For campaigns, only URLs are accepted
-  if (isCampaign) {
+  if (!urlMatch) {
     throw new Error(
-      `Invalid project URL for campaign: "${projectInput}". Campaign project identifiers must be full GitHub project URLs (e.g., https://github.com/orgs/myorg/projects/123).`
+      `Invalid project URL: "${projectInput}". The "project" field must be a full GitHub project URL (e.g., https://github.com/orgs/myorg/projects/123).`
     );
   }
 
-  // Otherwise treat as project name or number
-  return {
-    projectNumber: /^\d+$/.test(projectInput) ? projectInput : null,
-    projectName: /^\d+$/.test(projectInput) ? null : projectInput,
-  };
+  return urlMatch[1];
 }
 
 /**
@@ -65,23 +52,23 @@ function generateCampaignId(projectName) {
     .substring(0, 30);
 
   // Add short timestamp hash for uniqueness
-  const timestamp = Date.now().toString(36).substring(0, 8);
-
-  return `${slug}-${timestamp}`;
-}
-
-/**
- * Smart project board management - handles create/add/update automatically
- * @param {UpdateProjectOutput} output - The update output
- * @returns {Promise<void>}
+  const timestamp = Date.now().toStringURL
+ * @param {string} projectUrl - The project URL
+ * @param {string} projectNumber - The project number
+ * @returns {string} Campaign ID in format: project-{number}-{timestamp}
  */
+function generateCampaignId(projectUrl, projectNumber) {
+  // Extract org/user name from URL for the slug
+  const urlMatch = projectUrl.match(/github\.com\/(users|orgs)\/([^/]+)\/projects/);
+  const orgName = urlMatch ? urlMatch[2] : "project";
+  
+  const slug = `${orgName}-project-${projectNumber}`
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-
 async function updateProject(output) {
-  // In actions/github-script, 'github' and 'context' are already available
-  const { owner, repo } = context.repo;
-
-  // Detect if this is a campaign usage (has campaign_id or will generate one)
-  const isCampaign = !!output.campaign_id;
-
+  // Parse project URL to get project number
+  const projectNumber = parseProjectInput(output.project);
+  const campaignId = output.campaign_id || generateCampaignId(output.project, projectNumber
   const { projectNumber: parsedProjectNumber, projectName: parsedProjectName } = parseProjectInput(output.project, isCampaign);
   const displayName = parsedProjectName || parsedProjectNumber || output.project;
   const campaignId = output.campaign_id || generateCampaignId(displayName);
@@ -158,13 +145,8 @@ async function updateProject(output) {
     const ownerProjects =
       ownerType === "User" ? ownerProjectsResult.user.projectsV2.nodes : ownerProjectsResult.organization.projectsV2.nodes;
 
-    // Search by project number if extracted from URL, otherwise by name
-    existingProject = ownerProjects.find(p => {
-      if (parsedProjectNumber) {
-        return p.number.toString() === parsedProjectNumber;
-      }
-      return p.title === parsedProjectName;
-    });
+    // Search by project number extracted from URL
+    existingProject = ownerProjects.find(p => p.number.toString() === projectNumber);
 
     // If found at owner level, ensure it's linked to the repository
     if (existingProject) {
@@ -195,15 +177,13 @@ async function updateProject(output) {
     } else {
       // Check if owner is a User before attempting to create
       if (ownerType === "User") {
-        const projectDisplay = parsedProjectNumber ? `project #${parsedProjectNumber}` : `project "${parsedProjectName}"`;
-        core.error(`Cannot find ${projectDisplay}. Create it manually at https://github.com/users/${owner}/projects/new.`);
+        const projectDisplay = parsedlay}. Create it manually at https://github.com/users/${owner}/projects/new.`);
         throw new Error(`Cannot find ${projectDisplay} on user account.`);
       }
 
       if (!allowCreateProject) {
-        const projectDisplay = parsedProjectNumber
-          ? `project #${parsedProjectNumber}`
-          : parsedProjectName
+        core.error(`Cannot find project #${projectNumber}. Create it manually at https://github.com/users/${owner}/projects/new.`);
+        throw new Error(`Cannot find project #${projectNumber
             ? `project "${parsedProjectName}"`
             : `project "${output.project}"`;
         core.error(

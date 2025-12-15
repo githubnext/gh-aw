@@ -460,7 +460,9 @@ jobs:
                   "required": true,
                   "type": "string",
                   "sanitize": true,
-                  "maxLength": 512
+                  "maxLength": 512,
+                  "pattern": "^https://github\\.com/(orgs|users)/[^/]+/projects/\\d+",
+                  "patternError": "must be a full GitHub project URL (e.g., https://github.com/orgs/myorg/projects/42)"
                 },
                 "pull_request": {
                   "optionalPositiveInteger": true
@@ -6402,28 +6404,19 @@ jobs:
               }
               return { success: true, items: validatedOutput.items };
             }
-            function parseProjectInput(projectInput, isCampaign = false) {
+            function parseProjectInput(projectInput) {
               if (!projectInput || typeof projectInput !== "string") {
                 throw new Error(
-                  `Invalid project input: expected string, got ${typeof projectInput}. The "project" field is required and must be a GitHub project URL${isCampaign ? "" : ", number, or name"}.`
+                  `Invalid project input: expected string, got ${typeof projectInput}. The "project" field is required and must be a full GitHub project URL.`
                 );
               }
               const urlMatch = projectInput.match(/github\.com\/(?:users|orgs)\/[^/]+\/projects\/(\d+)/);
-              if (urlMatch) {
-                return {
-                  projectNumber: urlMatch[1],
-                  projectName: null,
-                };
-              }
-              if (isCampaign) {
+              if (!urlMatch) {
                 throw new Error(
-                  `Invalid project URL for campaign: "${projectInput}". Campaign project identifiers must be full GitHub project URLs (e.g., https://github.com/orgs/myorg/projects/123).`
+                  `Invalid project URL: "${projectInput}". The "project" field must be a full GitHub project URL (e.g., https://github.com/orgs/myorg/projects/123).`
                 );
               }
-              return {
-                projectNumber: /^\d+$/.test(projectInput) ? projectInput : null,
-                projectName: /^\d+$/.test(projectInput) ? null : projectInput,
-              };
+              return urlMatch[1];
             }
             function generateCampaignId(projectName) {
               const slug = projectName
@@ -6431,12 +6424,20 @@ jobs:
                 .replace(/[^a-z0-9]+/g, "-")
                 .replace(/^-+|-+$/g, "")
                 .substring(0, 30);
-              const timestamp = Date.now().toString(36).substring(0, 8);
-              return `${slug}-${timestamp}`;
-            }
+              const timestamp = Date.now().toStringURL
+             * @param {string} projectUrl - The project URL
+             * @param {string} projectNumber - The project number
+             * @returns {string} Campaign ID in format: project-{number}-{timestamp}
+             */
+            function generateCampaignId(projectUrl, projectNumber) {
+              const urlMatch = projectUrl.match(/github\.com\/(users|orgs)\/([^/]+)\/projects/);
+              const orgName = urlMatch ? urlMatch[2] : "project";
+              const slug = `${orgName}-project-${projectNumber}`
+                .toLowerCase()
+                .replace(/[^a-z0-9]+/g, "-
             async function updateProject(output) {
-              const { owner, repo } = context.repo;
-              const isCampaign = !!output.campaign_id;
+              const projectNumber = parseProjectInput(output.project);
+              const campaignId = output.campaign_id || generateCampaignId(output.project, projectNumber
               const { projectNumber: parsedProjectNumber, projectName: parsedProjectName } = parseProjectInput(output.project, isCampaign);
               const displayName = parsedProjectName || parsedProjectNumber || output.project;
               const campaignId = output.campaign_id || generateCampaignId(displayName);
@@ -6502,12 +6503,7 @@ jobs:
                 const ownerProjectsResult = await githubClient.graphql(ownerQuery, { login: owner });
                 const ownerProjects =
                   ownerType === "User" ? ownerProjectsResult.user.projectsV2.nodes : ownerProjectsResult.organization.projectsV2.nodes;
-                existingProject = ownerProjects.find(p => {
-                  if (parsedProjectNumber) {
-                    return p.number.toString() === parsedProjectNumber;
-                  }
-                  return p.title === parsedProjectName;
-                });
+                existingProject = ownerProjects.find(p => p.number.toString() === projectNumber);
                 if (existingProject) {
                   try {
                     await githubClient.graphql(
@@ -6534,14 +6530,12 @@ jobs:
                   projectNumber = existingProject.number;
                 } else {
                   if (ownerType === "User") {
-                    const projectDisplay = parsedProjectNumber ? `project #${parsedProjectNumber}` : `project "${parsedProjectName}"`;
-                    core.error(`Cannot find ${projectDisplay}. Create it manually at https://github.com/users/${owner}/projects/new.`);
+                    const projectDisplay = parsedlay}. Create it manually at https:
                     throw new Error(`Cannot find ${projectDisplay} on user account.`);
                   }
                   if (!allowCreateProject) {
-                    const projectDisplay = parsedProjectNumber
-                      ? `project #${parsedProjectNumber}`
-                      : parsedProjectName
+                    core.error(`Cannot find project #${projectNumber}. Create it manually at https://github.com/users/${owner}/projects/new.`);
+                    throw new Error(`Cannot find project #${projectNumber
                         ? `project "${parsedProjectName}"`
                         : `project "${output.project}"`;
                     core.error(
