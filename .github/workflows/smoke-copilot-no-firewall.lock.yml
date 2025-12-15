@@ -10792,20 +10792,26 @@ jobs:
               const appendSection = `\n\n---\n\n${newContent}${aiFooter}`;
               return currentBody + appendSection;
             }
+            function isIssueContext(eventName, _payload) {
+              return eventName === "issues" || eventName === "issue_comment";
+            }
+            function getIssueNumber(payload) {
+              return payload?.issue?.number;
+            }
             function isPRContext(eventName, payload) {
               const isPR =
                 eventName === "pull_request" ||
                 eventName === "pull_request_review" ||
                 eventName === "pull_request_review_comment" ||
                 eventName === "pull_request_target";
-              const isIssueCommentOnPR = eventName === "issue_comment" && payload.issue && payload.issue.pull_request;
-              return isPR || isIssueCommentOnPR;
+              const isIssueCommentOnPR = eventName === "issue_comment" && payload?.issue && payload?.issue?.pull_request;
+              return isPR || !!isIssueCommentOnPR;
             }
             function getPRNumber(payload) {
-              if (payload.pull_request) {
+              if (payload?.pull_request) {
                 return payload.pull_request.number;
               }
-              if (payload.issue && payload.issue.pull_request) {
+              if (payload?.issue && payload?.issue?.pull_request) {
                 return payload.issue.number;
               }
               return undefined;

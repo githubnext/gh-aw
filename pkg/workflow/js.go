@@ -322,6 +322,7 @@ func GetJavaScriptSources() map[string]string {
 		"generate_git_patch.cjs":            generateGitPatchJSScript,
 		"update_runner.cjs":                 updateRunnerScript,
 		"update_pr_description_helpers.cjs": updatePRDescriptionHelpersScript,
+		"update_context_helpers.cjs":        updateContextHelpersScriptSource,
 		"read_buffer.cjs":                   readBufferScript,
 		"mcp_server_core.cjs":               mcpServerCoreScript,
 		"mcp_http_transport.cjs":            mcpHTTPTransportScriptSource,
