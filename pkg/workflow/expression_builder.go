@@ -10,8 +10,34 @@ import (
 
 var expressionBuilderLog = logger.New("workflow:expression_builder")
 
-// buildConditionTree creates a condition tree from existing if condition and new draft condition
-func buildConditionTree(existingCondition string, draftCondition string) ConditionNode {
+// Expression Builder Functions
+//
+// This file provides a functional builder pattern for constructing GitHub Actions
+// expression trees. Rather than using a stateful fluent builder, we use composable
+// functions that return immutable ConditionNode interfaces.
+//
+// Design Principles:
+// - Composable: Functions can be nested and combined naturally
+// - Type-safe: Compile-time guarantees through the ConditionNode interface
+// - Immutable: No shared mutable state, thread-safe by design
+// - Testable: Pure functions are easy to unit test
+// - Clear: Each function has a single, well-defined responsibility
+//
+// Example Usage:
+//
+//	condition := BuildAnd(
+//	    BuildEventTypeEquals("pull_request"),
+//	    BuildLabelContains("deploy"),
+//	)
+//	expression := condition.Render()
+//
+// All Build* functions return ConditionNode instances that can be:
+// - Combined with BuildAnd() and BuildOr()
+// - Rendered to GitHub Actions expression syntax with .Render()
+// - Nested to create complex logical expressions
+
+// BuildConditionTree creates a condition tree from existing if condition and new draft condition
+func BuildConditionTree(existingCondition string, draftCondition string) ConditionNode {
 	expressionBuilderLog.Printf("Building condition tree: existing=%q, draft=%q", existingCondition, draftCondition)
 	draftNode := &ExpressionNode{Expression: draftCondition}
 
@@ -25,16 +51,18 @@ func buildConditionTree(existingCondition string, draftCondition string) Conditi
 	return &AndNode{Left: existingNode, Right: draftNode}
 }
 
-func buildOr(left ConditionNode, right ConditionNode) ConditionNode {
+// BuildOr creates an OR node combining two conditions
+func BuildOr(left ConditionNode, right ConditionNode) ConditionNode {
 	return &OrNode{Left: left, Right: right}
 }
 
-func buildAnd(left ConditionNode, right ConditionNode) ConditionNode {
+// BuildAnd creates an AND node combining two conditions
+func BuildAnd(left ConditionNode, right ConditionNode) ConditionNode {
 	return &AndNode{Left: left, Right: right}
 }
 
-// buildReactionCondition creates a condition tree for the add_reaction job
-func buildReactionCondition() ConditionNode {
+// BuildReactionCondition creates a condition tree for the add_reaction job
+func BuildReactionCondition() ConditionNode {
 	expressionBuilderLog.Print("Building reaction condition for multiple event types")
 	// Build a list of event types that should trigger reactions using the new expression nodes
 	var terms []ConditionNode
@@ -258,7 +286,7 @@ func BuildDisjunction(multiline bool, terms ...ConditionNode) *DisjunctionNode {
 // - pull_request_review
 func BuildPRCommentCondition() ConditionNode {
 	// issue_comment event on a PR
-	issueCommentOnPR := buildAnd(
+	issueCommentOnPR := BuildAnd(
 		BuildEventTypeEquals("issue_comment"),
 		BuildComparison(
 			BuildPropertyAccess("github.event.issue.pull_request"),

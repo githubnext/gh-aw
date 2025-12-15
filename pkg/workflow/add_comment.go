@@ -90,14 +90,14 @@ func (c *Compiler) buildCreateOutputAddCommentJob(data *WorkflowData, mainJobNam
 	// Build job condition with event check if target is not specified
 	jobCondition := BuildSafeOutputType("add_comment")
 	if data.SafeOutputs.AddComments != nil && data.SafeOutputs.AddComments.Target == "" {
-		eventCondition := buildOr(
-			buildOr(
+		eventCondition := BuildOr(
+			BuildOr(
 				BuildPropertyAccess("github.event.issue.number"),
 				BuildPropertyAccess("github.event.pull_request.number"),
 			),
 			BuildPropertyAccess("github.event.discussion.number"),
 		)
-		jobCondition = buildAnd(jobCondition, eventCondition)
+		jobCondition = BuildAnd(jobCondition, eventCondition)
 	}
 
 	// Build the needs list - always depend on mainJobName, and conditionally on the other jobs

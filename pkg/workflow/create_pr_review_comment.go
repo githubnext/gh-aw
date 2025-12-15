@@ -56,11 +56,11 @@ func (c *Compiler) buildCreateOutputPullRequestReviewCommentJob(data *WorkflowDa
 			Left:  &ExpressionNode{Expression: "github.event.issue.number"},
 			Right: &ExpressionNode{Expression: "github.event.issue.pull_request"},
 		}
-		eventCondition := buildOr(
+		eventCondition := BuildOr(
 			issueWithPR,
 			BuildPropertyAccess("github.event.pull_request"),
 		)
-		jobCondition = buildAnd(jobCondition, eventCondition)
+		jobCondition = BuildAnd(jobCondition, eventCondition)
 	}
 
 	// Use the shared builder function to create the job

@@ -132,7 +132,7 @@ func TestBuildConditionTree(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := buildConditionTree(tt.existingCondition, tt.draftCondition)
+			result := BuildConditionTree(tt.existingCondition, tt.draftCondition)
 			if rendered := result.Render(); rendered != tt.expectedPattern {
 				t.Errorf("Expected '%s', got '%s'", tt.expectedPattern, rendered)
 			}
@@ -141,7 +141,7 @@ func TestBuildConditionTree(t *testing.T) {
 }
 
 func TestBuildReactionCondition(t *testing.T) {
-	result := buildReactionCondition()
+	result := BuildReactionCondition()
 	rendered := result.Render()
 
 	// The result should be a flat OR chain without deep nesting

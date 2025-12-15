@@ -887,7 +887,7 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 		// Multiple conditions - combine with AND
 		activatedNode = conditions[0]
 		for i := 1; i < len(conditions); i++ {
-			activatedNode = buildAnd(activatedNode, conditions[i])
+			activatedNode = BuildAnd(activatedNode, conditions[i])
 		}
 	}
 
@@ -957,7 +957,7 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 
 	// Add reaction step if ai-reaction is configured and not "none"
 	if data.AIReaction != "" && data.AIReaction != "none" {
-		reactionCondition := buildReactionCondition()
+		reactionCondition := BuildReactionCondition()
 
 		steps = append(steps, fmt.Sprintf("      - name: Add %s reaction to the triggering item\n", data.AIReaction))
 		steps = append(steps, "        id: react\n")
@@ -1012,7 +1012,7 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 		// Build condition: only lock if event type is 'issues' or 'issue_comment'
 		// lock-for-agent can be configured under on.issues or on.issue_comment
 		// For issue_comment events, context.issue.number automatically resolves to the parent issue
-		lockCondition := buildOr(
+		lockCondition := BuildOr(
 			BuildEventTypeEquals("issues"),
 			BuildEventTypeEquals("issue_comment"),
 		)
@@ -1078,13 +1078,13 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 			// Include the custom job output condition in the activation job
 			unwrappedIf := stripExpressionWrapper(data.If)
 			ifExpr := &ExpressionNode{Expression: unwrappedIf}
-			combinedExpr := buildAnd(activatedExpr, ifExpr)
+			combinedExpr := BuildAnd(activatedExpr, ifExpr)
 			activationCondition = combinedExpr.Render()
 		} else if data.If != "" && !c.referencesCustomJobOutputs(data.If, data.Jobs) {
 			// Include user's if condition that doesn't reference custom jobs
 			unwrappedIf := stripExpressionWrapper(data.If)
 			ifExpr := &ExpressionNode{Expression: unwrappedIf}
-			combinedExpr := buildAnd(activatedExpr, ifExpr)
+			combinedExpr := BuildAnd(activatedExpr, ifExpr)
 			activationCondition = combinedExpr.Render()
 		} else {
 			activationCondition = activatedExpr.Render()
