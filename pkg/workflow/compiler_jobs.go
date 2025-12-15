@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/constants"
@@ -13,6 +14,9 @@ import (
 )
 
 var compilerJobsLog = logger.New("workflow:compiler_jobs")
+
+// secretExpressionPattern matches GitHub Actions secret expressions like ${{ secrets.MY_TOKEN }}
+var secretExpressionPattern = regexp.MustCompile(`^\$\{\{\s*secrets\.[a-zA-Z0-9_-]+(\s*\|\|[^}]*)?\s*\}\}$`)
 
 // This file contains job building functions extracted from compiler.go
 // These functions are responsible for constructing the various jobs that make up
@@ -1393,6 +1397,10 @@ func (c *Compiler) buildCustomJobs(data *WorkflowData, activationJobCreated bool
 							job.Secrets = make(map[string]string)
 							for key, val := range secretsMap {
 								if valStr, ok := val.(string); ok {
+									// Validate that secret values are GitHub Actions expressions
+									if !secretExpressionPattern.MatchString(valStr) {
+										return fmt.Errorf("job '%s': secret '%s' must be a GitHub Actions expression like ${{ secrets.MY_SECRET }}, got: %s", jobName, key, valStr)
+									}
 									job.Secrets[key] = valStr
 								}
 							}

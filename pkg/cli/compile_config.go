@@ -59,8 +59,10 @@ var sensitivePatterns = []*regexp.Regexp{
 	regexp.MustCompile(`(?i)(secret|password|token|key|credential|api[_-]?key)s?\s*[:=]\s*['"]?[^\s'"]+['"]?`),
 	// Match GitHub token patterns
 	regexp.MustCompile(`gh[ps]_[a-zA-Z0-9]{36,}`),
-	// Match potential API keys
-	regexp.MustCompile(`['\"][a-zA-Z0-9_\-]{32,}['\"]`),
+	// Match GitHub Actions secret expressions
+	regexp.MustCompile(`\$\{\{\s*secrets\.[a-zA-Z0-9_-]+\}\}`),
+	// Match quoted strings of 40+ chars preceded by secret-like keywords
+	regexp.MustCompile(`(?i)(secret|password|token|key|credential|api[_-]?key)s?\s*[:=]\s*['"][-a-zA-Z0-9_]{40,}['\"]`),
 }
 
 // sanitizeErrorMessage removes potentially sensitive information from error messages
@@ -72,9 +74,9 @@ func sanitizeErrorMessage(msg string) string {
 		sanitized = pattern.ReplaceAllStringFunc(sanitized, func(match string) string {
 			// Try to preserve the structure of the message while redacting the value
 			if strings.Contains(match, ":") || strings.Contains(match, "=") {
-				parts := regexp.MustCompile(`[:=]`).Split(match, 2)
-				if len(parts) == 2 {
-					return parts[0] + ": [REDACTED]"
+				idx := strings.IndexAny(match, ":=")
+				if idx != -1 && idx+1 < len(match) {
+					return match[:idx+1] + " [REDACTED]"
 				}
 			}
 			return "[REDACTED]"
