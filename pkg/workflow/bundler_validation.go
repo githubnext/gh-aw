@@ -314,6 +314,66 @@ func validateNoGitHubScriptGlobals(scriptName string, content string, mode Runti
 	return nil
 }
 
+// validateNoNonBuiltinRequires checks that GitHub Script mode scripts only require Node.js builtin modules
+// or relative file paths. This prevents runtime errors from missing npm packages like @octokit/rest or @actions/core.
+// Returns an error if non-builtin module requires are found, otherwise returns nil
+func validateNoNonBuiltinRequires(scriptName string, content string, mode RuntimeMode) error {
+	// Only validate GitHub Script mode
+	if mode != RuntimeModeGitHubScript {
+		return nil
+	}
+
+	bundlerValidationLog.Printf("Validating no non-builtin requires in GitHub Script: %s (%d bytes)", scriptName, len(content))
+
+	// Regular expression to match require statements
+	// Matches: require("module") or require('module')
+	requireRegex := regexp.MustCompile(`require\s*\(\s*['"]([^'"]+)['"]\s*\)`)
+
+	lines := strings.Split(content, "\n")
+	var foundRequires []string
+
+	for lineNum, line := range lines {
+		trimmed := strings.TrimSpace(line)
+
+		// Skip comment lines
+		if strings.HasPrefix(trimmed, "//") || strings.HasPrefix(trimmed, "/*") || strings.HasPrefix(trimmed, "*") {
+			continue
+		}
+
+		// Find all require statements in the line
+		matches := requireRegex.FindAllStringSubmatch(line, -1)
+		for _, match := range matches {
+			if len(match) < 2 {
+				continue
+			}
+
+			moduleName := match[1]
+
+			// Skip relative paths (local requires) - these are OK
+			if strings.HasPrefix(moduleName, "./") || strings.HasPrefix(moduleName, "../") {
+				continue
+			}
+
+			// Skip Node.js builtin modules - these are OK
+			if isNodejsBuiltinModule(moduleName) {
+				continue
+			}
+
+			// This is a non-builtin module require - it's not allowed
+			foundRequires = append(foundRequires, fmt.Sprintf("line %d: require('%s')", lineNum+1, moduleName))
+		}
+	}
+
+	if len(foundRequires) > 0 {
+		bundlerValidationLog.Printf("Validation failed: found %d non-builtin require(s) in %s", len(foundRequires), scriptName)
+		return fmt.Errorf("GitHub Script mode script '%s' contains %d non-builtin module require(s):\n  %s\n\nGitHub Script mode only supports Node.js builtin modules (fs, path, crypto, etc.) and relative file paths (./file.cjs).\nPackages like @octokit/rest, @actions/core, or other npm packages are not available in GitHub Script mode.\nUse the Octokit instance provided by the github-script action instead of requiring @octokit/rest.",
+			scriptName, len(foundRequires), strings.Join(foundRequires, "\n  "))
+	}
+
+	bundlerValidationLog.Printf("Validation successful: no non-builtin requires found in %s", scriptName)
+	return nil
+}
+
 // validateNoRuntimeMixing checks that all files being bundled are compatible with the target runtime mode
 // This prevents mixing nodejs-only scripts (that use child_process) with github-script scripts
 // Returns an error if incompatible runtime modes are detected

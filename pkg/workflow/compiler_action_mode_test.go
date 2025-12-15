@@ -211,7 +211,7 @@ Test workflow with release mode.
 	origActionPath := DefaultScriptRegistry.GetActionPath("create_issue")
 
 	// Register test script with action path
-	testScript := `const { core } = require('@actions/core'); core.info('test');`
+	testScript := `const fs = require('fs'); core.info('test');`
 	DefaultScriptRegistry.RegisterWithAction(
 		"create_issue",
 		testScript,
@@ -298,7 +298,7 @@ Test
 	origScript := DefaultScriptRegistry.Get("create_issue")
 	origActionPath := DefaultScriptRegistry.GetActionPath("create_issue")
 
-	testScript := `const { core } = require('@actions/core'); core.info('test');`
+	testScript := `const fs = require('fs'); core.info('test');`
 	DefaultScriptRegistry.RegisterWithAction("create_issue", testScript, RuntimeModeGitHubScript, "./actions/create-issue")
 
 	defer func() {

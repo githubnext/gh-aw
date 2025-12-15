@@ -131,7 +131,7 @@ Test workflow with safe-outputs.
 	origActionPath := DefaultScriptRegistry.GetActionPath("create_issue")
 
 	testScript := `
-const { core } = require('@actions/core');
+const fs = require('fs');
 core.info('Creating issue');
 `
 	DefaultScriptRegistry.RegisterWithAction(

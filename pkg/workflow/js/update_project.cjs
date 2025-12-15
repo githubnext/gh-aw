@@ -88,14 +88,12 @@ async function updateProject(output) {
 
   let githubClient = github;
   if (process.env.PROJECT_GITHUB_TOKEN) {
-    const { Octokit } = require("@octokit/rest");
-    const octokit = new Octokit({
-      auth: process.env.PROJECT_GITHUB_TOKEN,
-      baseUrl: process.env.GITHUB_API_URL || "https://api.github.com",
-    });
+    // Use github.getOctokit to create a new client with custom token
+    // This is available in github-script action v7+ and doesn't require @octokit/rest
+    const customOctokit = github.getOctokit(process.env.PROJECT_GITHUB_TOKEN);
     githubClient = {
-      graphql: octokit.graphql.bind(octokit),
-      rest: octokit.rest,
+      graphql: customOctokit.graphql.bind(customOctokit),
+      rest: customOctokit.rest,
     };
   }
 

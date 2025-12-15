@@ -144,6 +144,11 @@ func (r *ScriptRegistry) RegisterWithMode(name string, source string, mode Runti
 		panic(fmt.Sprintf("Script registration validation failed: %v", err))
 	}
 
+	if err := validateNoNonBuiltinRequires(name, source, mode); err != nil {
+		// This is a programming error that should be caught during development
+		panic(fmt.Sprintf("Script registration validation failed: %v", err))
+	}
+
 	r.scripts[name] = &scriptEntry{
 		source:     source,
 		mode:       mode,
@@ -179,6 +184,10 @@ func (r *ScriptRegistry) RegisterWithAction(name string, source string, mode Run
 	}
 
 	if err := validateNoGitHubScriptGlobals(name, source, mode); err != nil {
+		panic(fmt.Sprintf("Script registration validation failed: %v", err))
+	}
+
+	if err := validateNoNonBuiltinRequires(name, source, mode); err != nil {
 		panic(fmt.Sprintf("Script registration validation failed: %v", err))
 	}
 
