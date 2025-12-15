@@ -482,7 +482,9 @@ describe("updateProject", () => {
 
     queueResponses([
       repoResponse(),
-      ownerProjectsResponse([{ id: "project123", number: 60, title: "Test Project", url: "https://github.com/orgs/testowner/projects/60" }]),
+      ownerProjectsResponse([
+        { id: "project123", number: 60, title: "Test Project", url: "https://github.com/orgs/testowner/projects/60" },
+      ]),
       linkResponse,
       issueResponse("issue-id-42"),
       emptyItemsResponse(),

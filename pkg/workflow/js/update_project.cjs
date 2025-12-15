@@ -638,14 +638,14 @@ async function main() {
   // Process all update_project items
   for (let i = 0; i < updateProjectItems.length; i++) {
     const output = updateProjectItems[i];
-    
+
     // Normalize project-url field to project field for campaign compatibility
     // Campaign specs use "project-url" but update-project expects "project"
     if (output["project-url"] && !output.project) {
       output.project = output["project-url"];
       core.info(`Mapped "project-url" to "project" field: ${output.project}`);
     }
-    
+
     try {
       await updateProject(output);
     } catch (error) {
