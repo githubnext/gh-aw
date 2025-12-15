@@ -340,6 +340,8 @@ function sanitizeContent(content, maxLengthOrOptions) {
       if (isAllowed) {
         return `${p1}@${p2}`; // Keep the original mention
       }
+      // Log when a mention is escaped to help debug issues
+      core.info(`Escaped mention: @${p2} (not in allowed list)`);
       return `${p1}\`@${p2}\``; // Neutralize the mention
     });
   }
