@@ -305,15 +305,20 @@ func TestCustomEngineRenderPlaywrightMCPConfigWithDomainConfiguration(t *testing
 		t.Errorf("Expected official Playwright MCP Docker image in output")
 	}
 
-	// Check that it contains --allowed-hosts flag when domains are configured
+	// Check that it contains --allowed-hosts and --allowed-origins flags when domains are configured
 	if !strings.Contains(output, "--allowed-hosts") {
 		t.Errorf("Expected --allowed-hosts flag in docker args")
+	}
+	if !strings.Contains(output, "--allowed-origins") {
+		t.Errorf("Expected --allowed-origins flag in docker args")
 	}
 
 	// Check that it contains the specified domains AND localhost domains with port variations
 	// Domains should be sorted alphabetically: *.github.com, example.com
-	if !strings.Contains(output, "localhost;localhost:*;127.0.0.1;127.0.0.1:*;*.github.com;example.com") {
-		t.Errorf("Expected configured domains with localhost and port variations in --allowed-hosts value (sorted)")
+	// Both flags should have the same domain list
+	expectedDomains := "localhost;localhost:*;127.0.0.1;127.0.0.1:*;*.github.com;example.com"
+	if !strings.Contains(output, expectedDomains) {
+		t.Errorf("Expected configured domains with localhost and port variations in --allowed-hosts and --allowed-origins values (sorted)")
 	}
 
 	// Check that it does NOT contain the old format environment variables
@@ -357,14 +362,19 @@ func TestCustomEngineRenderPlaywrightMCPConfigDefaultDomains(t *testing.T) {
 		t.Errorf("Expected official Playwright MCP Docker image in output")
 	}
 
-	// Check that it contains --allowed-hosts flag for default domains
+	// Check that it contains --allowed-hosts and --allowed-origins flags for default domains
 	if !strings.Contains(output, "--allowed-hosts") {
 		t.Errorf("Expected --allowed-hosts flag in docker args")
 	}
+	if !strings.Contains(output, "--allowed-origins") {
+		t.Errorf("Expected --allowed-origins flag in docker args")
+	}
 
 	// Check that it contains default domains with port variations (localhost, localhost:*, 127.0.0.1, 127.0.0.1:*)
-	if !strings.Contains(output, "localhost;localhost:*;127.0.0.1;127.0.0.1:*") {
-		t.Errorf("Expected default domains with port variations in --allowed-hosts value")
+	// Both flags should have the same domain list
+	expectedDomains := "localhost;localhost:*;127.0.0.1;127.0.0.1:*"
+	if !strings.Contains(output, expectedDomains) {
+		t.Errorf("Expected default domains with port variations in --allowed-hosts and --allowed-origins values")
 	}
 
 	// Check that it does NOT contain the old format environment variables

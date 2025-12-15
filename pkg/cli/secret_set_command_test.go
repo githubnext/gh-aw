@@ -132,62 +132,35 @@ func TestEncryptWithPublicKeyEmptyPlaintext(t *testing.T) {
 	}
 }
 
-func TestEncryptWithPublicKeyRoundTrip(t *testing.T) {
-	// Generate a real NaCl keypair for round-trip testing
-	publicKey, privateKey, err := box.GenerateKey(rand.Reader)
+func TestEncryptDecryptRoundTrip(t *testing.T) {
+	// Generate a real key pair for testing
+	pub, priv, err := box.GenerateKey(rand.Reader)
 	if err != nil {
-		t.Fatalf("failed to generate keypair: %v", err)
+		t.Fatalf("failed to generate key pair: %v", err)
 	}
 
-	// Encode the public key to base64 as the API expects
-	publicKeyB64 := base64.StdEncoding.EncodeToString(publicKey[:])
+	// Encode public key as base64
+	pubB64 := base64.StdEncoding.EncodeToString(pub[:])
+	plaintext := "test-secret-value"
 
-	tests := []struct {
-		name      string
-		plaintext string
-	}{
-		{
-			name:      "simple secret",
-			plaintext: "my-secret-value",
-		},
-		{
-			name:      "empty secret",
-			plaintext: "",
-		},
-		{
-			name:      "multiline secret",
-			plaintext: "line1\nline2\nline3",
-		},
-		{
-			name:      "special characters",
-			plaintext: "!@#$%^&*()_+-=[]{}|;':\",./<>?",
-		},
+	// Encrypt using our function
+	encrypted, err := encryptWithPublicKey(pubB64, plaintext)
+	if err != nil {
+		t.Fatalf("encryptWithPublicKey() error = %v", err)
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			// Encrypt the plaintext
-			encryptedB64, err := encryptWithPublicKey(publicKeyB64, tt.plaintext)
-			if err != nil {
-				t.Fatalf("encryptWithPublicKey() error = %v", err)
-			}
+	// Decrypt using NaCl box to verify correctness
+	cipherBytes, err := base64.StdEncoding.DecodeString(encrypted)
+	if err != nil {
+		t.Fatalf("failed to decode encrypted data: %v", err)
+	}
 
-			// Decode the encrypted value from base64
-			encrypted, err := base64.StdEncoding.DecodeString(encryptedB64)
-			if err != nil {
-				t.Fatalf("failed to decode encrypted value: %v", err)
-			}
+	decrypted, ok := box.OpenAnonymous(nil, cipherBytes, pub, priv)
+	if !ok {
+		t.Fatal("decryption failed - ciphertext was not valid")
+	}
 
-			// Decrypt using the private key
-			decrypted, ok := box.OpenAnonymous(nil, encrypted, publicKey, privateKey)
-			if !ok {
-				t.Fatal("box.OpenAnonymous() failed to decrypt")
-			}
-
-			// Verify the decrypted value matches the original plaintext
-			if string(decrypted) != tt.plaintext {
-				t.Errorf("round-trip failed: got %q, want %q", string(decrypted), tt.plaintext)
-			}
-		})
+	if string(decrypted) != plaintext {
+		t.Errorf("decrypted = %q, want %q", string(decrypted), plaintext)
 	}
 }

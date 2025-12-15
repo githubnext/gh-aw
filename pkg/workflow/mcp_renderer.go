@@ -132,9 +132,12 @@ func (r *MCPConfigRendererUnified) renderPlaywrightTOML(yaml *strings.Builder, p
 	yaml.WriteString("            \"--output-dir\",\n")
 	yaml.WriteString("            \"/tmp/gh-aw/mcp-logs/playwright\"")
 	if len(args.AllowedDomains) > 0 {
+		domainsStr := strings.Join(args.AllowedDomains, ";")
 		yaml.WriteString(",\n")
 		yaml.WriteString("            \"--allowed-hosts\",\n")
-		yaml.WriteString("            \"" + strings.Join(args.AllowedDomains, ";") + "\"")
+		yaml.WriteString("            \"" + domainsStr + "\",\n")
+		yaml.WriteString("            \"--allowed-origins\",\n")
+		yaml.WriteString("            \"" + domainsStr + "\"")
 	}
 
 	// Append custom args if present

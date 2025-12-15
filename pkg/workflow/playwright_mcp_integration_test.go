@@ -11,7 +11,7 @@ import (
 )
 
 // TestPlaywrightMCPIntegration tests that compiled workflows generate correct Docker Playwright commands
-// This test verifies that the official Playwright MCP Docker image is used with --allowed-hosts flag
+// This test verifies that the official Playwright MCP Docker image is used with both --allowed-hosts and --allowed-origins flags
 func TestPlaywrightMCPIntegration(t *testing.T) {
 	// Create a temporary directory for test files
 	tmpDir, err := os.MkdirTemp("", "gh-aw-playwright-integration-*")
@@ -23,8 +23,7 @@ func TestPlaywrightMCPIntegration(t *testing.T) {
 	tests := []struct {
 		name                 string
 		workflowContent      string
-		expectedFlag         string
-		unexpectedFlag       string
+		expectedFlags        []string
 		expectedDomains      []string
 		shouldContainPackage bool
 	}{
@@ -44,8 +43,7 @@ tools:
 
 Test playwright with custom domains.
 `,
-			expectedFlag:         "--allowed-hosts",
-			unexpectedFlag:       "--allowed-origins",
+			expectedFlags:        []string{"--allowed-hosts", "--allowed-origins"},
 			expectedDomains:      []string{"example.com", "test.com", "localhost", "127.0.0.1"},
 			shouldContainPackage: true,
 		},
@@ -62,8 +60,7 @@ tools:
 
 Test playwright with default domains only.
 `,
-			expectedFlag:         "--allowed-hosts",
-			unexpectedFlag:       "--allowed-origins",
+			expectedFlags:        []string{"--allowed-hosts", "--allowed-origins"},
 			expectedDomains:      []string{"localhost", "127.0.0.1"},
 			shouldContainPackage: true,
 		},
@@ -82,8 +79,7 @@ tools:
 
 Test playwright with copilot engine.
 `,
-			expectedFlag:         "--allowed-hosts",
-			unexpectedFlag:       "--allowed-origins",
+			expectedFlags:        []string{"--allowed-hosts", "--allowed-origins"},
 			expectedDomains:      []string{"github.com", "localhost", "127.0.0.1"},
 			shouldContainPackage: true,
 		},
@@ -120,14 +116,11 @@ Test playwright with copilot engine.
 				}
 			}
 
-			// Verify the correct flag is used
-			if !strings.Contains(lockStr, tt.expectedFlag) {
-				t.Errorf("Expected lock file to contain flag %s\nActual content:\n%s", tt.expectedFlag, lockStr)
-			}
-
-			// Verify the old flag is NOT used
-			if strings.Contains(lockStr, tt.unexpectedFlag) {
-				t.Errorf("Did not expect lock file to contain deprecated flag %s\nActual content:\n%s", tt.unexpectedFlag, lockStr)
+			// Verify all expected flags are used
+			for _, flag := range tt.expectedFlags {
+				if !strings.Contains(lockStr, flag) {
+					t.Errorf("Expected lock file to contain flag %s\nActual content:\n%s", flag, lockStr)
+				}
 			}
 
 			// Verify expected domains are present
@@ -157,17 +150,16 @@ func TestPlaywrightNPXCommandWorks(t *testing.T) {
 
 	outputStr := string(output)
 
-	// Verify that --allowed-hosts is in the help output (this is the flag we use for server host restrictions)
+	// Verify that --allowed-hosts and --allowed-origins are in the help output
 	if !strings.Contains(outputStr, "--allowed-hosts") {
 		t.Errorf("Expected npx playwright help to mention --allowed-hosts flag\nActual output:\n%s", outputStr)
 	}
-
-	// Note: --allowed-origins was added in v0.0.48 as a separate feature for browser request filtering
-	// It's different from --allowed-hosts which controls which hosts the MCP server serves from
-	// Both flags can now coexist, so we no longer check for its absence
-
-	// Verify that the help output contains the expected option description
-	if !strings.Contains(outputStr, "allowed-hosts") {
-		t.Errorf("Expected help output to contain 'allowed-hosts' option description\nActual output:\n%s", outputStr)
+	if !strings.Contains(outputStr, "--allowed-origins") {
+		t.Errorf("Expected npx playwright help to mention --allowed-origins flag\nActual output:\n%s", outputStr)
 	}
+
+	// Note: --allowed-origins was added in v0.0.48 for browser request filtering
+	// --allowed-hosts controls which hosts the MCP server serves from (CORS)
+	// --allowed-origins controls which origins the Playwright browser can navigate to
+	// Both flags are now used together for complete network control
 }
