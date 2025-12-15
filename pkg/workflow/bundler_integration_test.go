@@ -201,25 +201,47 @@ func TestBundlerConcurrency(t *testing.T) {
 
 // TestBundledScriptsContainHelperFunctions tests that bundled scripts contain expected helper functions
 func TestBundledScriptsContainHelperFunctions(t *testing.T) {
-	helperFunctions := []string{
-		"function sanitizeUrlDomains",
-		"function sanitizeUrlProtocols",
-		"function neutralizeMentions",
-		"function removeXmlComments",
-		"function neutralizeBotTriggers",
+	// Different scripts have different helper functions based on what they use
+	scriptsWithHelpers := map[string]struct {
+		getScript       func() string
+		helperFunctions []string
+	}{
+		"collectJSONLOutput": {
+			getScript: getCollectJSONLOutputScript,
+			helperFunctions: []string{
+				"function sanitizeUrlDomains",
+				"function sanitizeUrlProtocols",
+				"function neutralizeMentions",
+				"function removeXmlComments",
+				"function neutralizeBotTriggers",
+			},
+		},
+		"sanitizeOutput": {
+			getScript: getSanitizeOutputScript,
+			helperFunctions: []string{
+				"function sanitizeUrlDomains",
+				"function sanitizeUrlProtocols",
+				"function neutralizeMentions",
+				"function removeXmlComments",
+				"function neutralizeBotTriggers",
+			},
+		},
+		"computeText": {
+			getScript: getComputeTextScript,
+			// compute_text uses sanitizeIncomingText, not sanitizeContent, so it doesn't have neutralizeMentions
+			helperFunctions: []string{
+				"function sanitizeUrlDomains",
+				"function sanitizeUrlProtocols",
+				"function removeXmlComments",
+			},
+		},
 	}
 
-	scripts := map[string]func() string{
-		"collectJSONLOutput": getCollectJSONLOutputScript,
-		"computeText":        getComputeTextScript,
-		"sanitizeOutput":     getSanitizeOutputScript,
-	}
-
-	for scriptName, getScript := range scripts {
+	for scriptName, config := range scriptsWithHelpers {
 		t.Run(scriptName, func(t *testing.T) {
-			script := getScript()
+			script := config.getScript()
 
-			for _, helperFunc := range helperFunctions {
+			for _, helperFunc := range config.helperFunctions {
 				if !strings.Contains(script, helperFunc) {
 					t.Errorf("bundled script %s does not contain %s", scriptName, helperFunc)
 				}
@@ -290,13 +312,14 @@ func TestBundledScriptsHaveCorrectStructure(t *testing.T) {
 // TestSourceFilesAreSmaller tests that source files are smaller than bundled versions
 func TestSourceFilesAreSmaller(t *testing.T) {
 	tests := []struct {
-		name    string
-		source  string
-		bundled func() string
+		name            string
+		source          string
+		bundled         func() string
+		requiresContent bool // whether it requires sanitize_content.cjs
 	}{
-		{"collectJSONLOutput", collectJSONLOutputScriptSource, getCollectJSONLOutputScript},
-		{"computeText", computeTextScriptSource, getComputeTextScript},
-		{"sanitizeOutput", sanitizeOutputScriptSource, getSanitizeOutputScript},
+		{"collectJSONLOutput", collectJSONLOutputScriptSource, getCollectJSONLOutputScript, true},
+		{"computeText", computeTextScriptSource, getComputeTextScript, false}, // uses sanitize_incoming_text.cjs
+		{"sanitizeOutput", sanitizeOutputScriptSource, getSanitizeOutputScript, true},
 	}
 
 	for _, tt := range tests {
@@ -304,20 +327,26 @@ func TestSourceFilesAreSmaller(t *testing.T) {
 			sourceSize := len(tt.source)
 			bundledSize := len(tt.bundled())
 
-			// Bundled should be larger because it includes the inlined sanitizeContent
+			// Bundled should be larger because it includes inlined dependencies
 			if bundledSize <= sourceSize {
 				t.Errorf("%s: bundled size (%d) should be larger than source size (%d)",
 					tt.name, bundledSize, sourceSize)
 			}
 
-			// Source should not contain sanitizeContent function
+			// Source should not contain full sanitize functions
 			if strings.Contains(tt.source, "function sanitizeContent(content, maxLength)") {
 				t.Errorf("%s: source should not contain full sanitizeContent function", tt.name)
 			}
 
-			// Source should contain require
-			if !strings.Contains(tt.source, `require("./sanitize_content.cjs")`) {
-				t.Errorf("%s: source should contain require statement", tt.name)
+			// Source should contain require for its sanitizer
+			if tt.requiresContent {
+				if !strings.Contains(tt.source, `require("./sanitize_content.cjs")`) {
+					t.Errorf("%s: source should contain require statement for sanitize_content.cjs", tt.name)
+				}
+			} else {
+				if !strings.Contains(tt.source, `require("./sanitize_incoming_text.cjs")`) {
+					t.Errorf("%s: source should contain require statement for sanitize_incoming_text.cjs", tt.name)
+				}
 			}
 		})
 	}
