@@ -33,6 +33,7 @@ metrics-glob: "memory/campaigns/go-file-size-reduction-*/metrics/*.json"
 allowed-safe-outputs:
   - "create-issue"
   - "add-comment"
+  - "upload-assets"
   - "update-project"
 
 approval-policy:

@@ -1,64 +1,324 @@
 const { loadAgentOutput } = require("./load_agent_output.cjs");
 
 /**
+ * Log detailed GraphQL error information
+ * @param {Error} error - The error object from GraphQL
+ * @param {string} operation - Description of the operation that failed
+ */
+function logGraphQLError(error, operation) {
+  core.error(`GraphQL Error during: ${operation}`);
+  core.error(`Message: ${error.message}`);
+
+  const errorList = Array.isArray(error.errors) ? error.errors : [];
+  const hasInsufficientScopes = errorList.some(e => e && e.type === "INSUFFICIENT_SCOPES");
+  const hasNotFound = errorList.some(e => e && e.type === "NOT_FOUND");
+  if (hasInsufficientScopes) {
+    core.error(
+      "This looks like a token permission problem for Projects v2. " +
+        "The GraphQL fields used by update_project require a token with Projects access (classic PAT: scope 'project'; fine-grained PAT: Organization permission 'Projects' and access to the org). " +
+        "Fix: set safe-outputs.update-project.github-token to a secret PAT that can access the target org project."
+    );
+  } else if (hasNotFound && /projectV2\b/.test(error.message)) {
+    core.error(
+      "GitHub returned NOT_FOUND for ProjectV2. This can mean either: " +
+        "(1) the project number is wrong for Projects v2, " +
+        "(2) the project is a classic Projects board (not Projects v2), or " +
+        "(3) the token does not have access to that org/user project."
+    );
+  }
+
+  if (error.errors) {
+    core.error(`Errors array (${error.errors.length} error(s)):`);
+    error.errors.forEach((err, idx) => {
+      core.error(`  [${idx + 1}] ${err.message}`);
+      if (err.type) core.error(`      Type: ${err.type}`);
+      if (err.path) core.error(`      Path: ${JSON.stringify(err.path)}`);
+      if (err.locations) core.error(`      Locations: ${JSON.stringify(err.locations)}`);
+    });
+  }
+
+  if (error.request) {
+    core.error(`Request: ${JSON.stringify(error.request, null, 2)}`);
+  }
+
+  if (error.data) {
+    core.error(`Response data: ${JSON.stringify(error.data, null, 2)}`);
+  }
+}
+
+/**
  * @typedef {Object} UpdateProjectOutput
  * @property {"update_project"} type
- * @property {string} project - GitHub project URL (for campaigns) or project title, number, or URL (for general use)
+ * @property {string} project - Full GitHub project URL (required)
  * @property {string} [content_type] - Type of content: "issue" or "pull_request"
  * @property {number|string} [content_number] - Issue or PR number (preferred)
  * @property {number|string} [issue] - Issue number (legacy, use content_number instead)
  * @property {number|string} [pull_request] - PR number (legacy, use content_number instead)
  * @property {Object} [fields] - Custom field values to set/update (creates fields if missing)
- * @property {string} [campaign_id] - Campaign tracking ID (auto-generated if not provided). When present, project must be a URL.
+ * @property {string} [campaign_id] - Campaign tracking ID (auto-generated if not provided)
  * @property {boolean} [create_if_missing] - Opt-in: allow creating the project board if it does not exist.
  *   Default behavior is update-only; if the project does not exist, this job will fail with instructions.
  */
 
 /**
- * Parse project input to extract project number from URL or return project name
- * @param {string} projectInput - Project URL, number, or name
- * @param {boolean} isCampaign - Whether this is for a campaign (URL required)
- * @returns {{projectNumber: string|null, projectName: string}} Extracted project number (if URL) and name
+ * Parse project URL to extract project number
+ * @param {string} projectUrl - Full GitHub project URL (required)
+ * @returns {string} Extracted project number
  */
-function parseProjectInput(projectInput, isCampaign = false) {
+function parseProjectInput(projectUrl) {
   // Validate input
-  if (!projectInput || typeof projectInput !== "string") {
+  if (!projectUrl || typeof projectUrl !== "string") {
     throw new Error(
-      `Invalid project input: expected string, got ${typeof projectInput}. The "project" field is required and must be a GitHub project URL${isCampaign ? "" : ", number, or name"}.`
+      `Invalid project input: expected string, got ${typeof projectUrl}. The "project" field is required and must be a full GitHub project URL.`
     );
   }
 
-  // Try to parse as GitHub project URL
-  const urlMatch = projectInput.match(/github\.com\/(?:users|orgs)\/[^/]+\/projects\/(\d+)/);
-  if (urlMatch) {
+  // Parse GitHub project URL
+  const urlMatch = projectUrl.match(/github\.com\/(?:users|orgs)\/[^/]+\/projects\/(\d+)/);
+  if (!urlMatch) {
+    throw new Error(
+      `Invalid project URL: "${projectUrl}". The "project" field must be a full GitHub project URL (e.g., https://github.com/orgs/myorg/projects/123).`
+    );
+  }
+
+  return urlMatch[1];
+}
+
+/**
+ * Parse GitHub project URL into owner scope, owner login, and project number.
+ * @param {string} projectUrl - Full GitHub project URL (required)
+ * @returns {{ scope: "orgs"|"users", ownerLogin: string, projectNumber: string }}
+ */
+function parseProjectUrl(projectUrl) {
+  if (!projectUrl || typeof projectUrl !== "string") {
+    throw new Error(
+      `Invalid project input: expected string, got ${typeof projectUrl}. The "project" field is required and must be a full GitHub project URL.`
+    );
+  }
+
+  const match = projectUrl.match(/github\.com\/(users|orgs)\/([^/]+)\/projects\/(\d+)/);
+  if (!match) {
+    throw new Error(
+      `Invalid project URL: "${projectUrl}". The "project" field must be a full GitHub project URL (e.g., https://github.com/orgs/myorg/projects/123).`
+    );
+  }
+
+  return { scope: match[1], ownerLogin: match[2], projectNumber: match[3] };
+}
+
+/**
+ * List Projects v2 accessible to the token for an org or user.
+ * Used as a fallback when direct lookup by number returns null or errors.
+ * @param {{ scope: "orgs"|"users", ownerLogin: string }} projectInfo
+ * @returns {Promise<{ nodes: Array<{id: string, number: number, title: string, closed: boolean, url: string}>, totalCount?: number }>}
+ */
+async function listAccessibleProjectsV2(projectInfo) {
+  const baseQuery = `projectsV2(first: 100) {
+    totalCount
+    nodes {
+      id
+      number
+      title
+      closed
+      url
+    }
+    edges {
+      node {
+        id
+        number
+        title
+        closed
+        url
+      }
+    }
+  }`;
+
+  if (projectInfo.scope === "orgs") {
+    const result = await github.graphql(
+      `query($login: String!) {
+        organization(login: $login) {
+          ${baseQuery}
+        }
+      }`,
+      { login: projectInfo.ownerLogin }
+    );
+    const conn = result && result.organization && result.organization.projectsV2;
+    const rawNodes = conn && Array.isArray(conn.nodes) ? conn.nodes : [];
+    const rawEdges = conn && Array.isArray(conn.edges) ? conn.edges : [];
+
+    const nodeNodes = rawNodes.filter(Boolean);
+    const edgeNodes = rawEdges.map(e => e && e.node).filter(Boolean);
+
+    /** @type {Map<string, any>} */
+    const unique = new Map();
+    for (const n of [...nodeNodes, ...edgeNodes]) {
+      if (n && typeof n.id === "string") {
+        unique.set(n.id, n);
+      }
+    }
+
     return {
-      projectNumber: urlMatch[1],
-      projectName: null,
+      nodes: Array.from(unique.values()),
+      totalCount: conn && conn.totalCount,
+      diagnostics: {
+        rawNodesCount: rawNodes.length,
+        nullNodesCount: rawNodes.length - nodeNodes.length,
+        rawEdgesCount: rawEdges.length,
+        nullEdgeNodesCount: rawEdges.filter(e => !e || !e.node).length,
+      },
     };
   }
 
-  // For campaigns, only URLs are accepted
-  if (isCampaign) {
-    throw new Error(
-      `Invalid project URL for campaign: "${projectInput}". Campaign project identifiers must be full GitHub project URLs (e.g., https://github.com/orgs/myorg/projects/123).`
-    );
+  const result = await github.graphql(
+    `query($login: String!) {
+      user(login: $login) {
+        ${baseQuery}
+      }
+    }`,
+    { login: projectInfo.ownerLogin }
+  );
+  const conn = result && result.user && result.user.projectsV2;
+  const rawNodes = conn && Array.isArray(conn.nodes) ? conn.nodes : [];
+  const rawEdges = conn && Array.isArray(conn.edges) ? conn.edges : [];
+
+  const nodeNodes = rawNodes.filter(Boolean);
+  const edgeNodes = rawEdges.map(e => e && e.node).filter(Boolean);
+
+  /** @type {Map<string, any>} */
+  const unique = new Map();
+  for (const n of [...nodeNodes, ...edgeNodes]) {
+    if (n && typeof n.id === "string") {
+      unique.set(n.id, n);
+    }
   }
 
-  // Otherwise treat as project name or number
   return {
-    projectNumber: /^\d+$/.test(projectInput) ? projectInput : null,
-    projectName: /^\d+$/.test(projectInput) ? null : projectInput,
+    nodes: Array.from(unique.values()),
+    totalCount: conn && conn.totalCount,
+    diagnostics: {
+      rawNodesCount: rawNodes.length,
+      nullNodesCount: rawNodes.length - nodeNodes.length,
+      rawEdgesCount: rawEdges.length,
+      nullEdgeNodesCount: rawEdges.filter(e => !e || !e.node).length,
+    },
   };
 }
 
 /**
- * Generate a campaign ID from project name
- * @param {string} projectName - The project/campaign name
- * @returns {string} Campaign ID in format: slug-timestamp (e.g., "perf-q1-2025-a3f2b4c8")
+ * Summarize projects for error messages.
+ * @param {Array<{id?: string, number: number, title: string, closed: boolean, url?: string}>} projects
+ * @param {number} [limit]
+ * @returns {string}
  */
-function generateCampaignId(projectName) {
-  // Create slug from project name
-  const slug = projectName
+function summarizeProjectsV2(projects, limit = 20) {
+  if (!Array.isArray(projects) || projects.length === 0) {
+    return "(none)";
+  }
+
+  const normalized = projects
+    .filter(p => p && typeof p.number === "number" && typeof p.title === "string")
+    .slice(0, limit)
+    .map(p => `#${p.number} ${p.closed ? "(closed) " : ""}${p.title}`);
+
+  return normalized.length > 0 ? normalized.join("; ") : "(none)";
+}
+
+/**
+ * Summarize a projectsV2 listing call when it returned no readable projects.
+ * @param {{ totalCount?: number, diagnostics?: {rawNodesCount: number, nullNodesCount: number, rawEdgesCount: number, nullEdgeNodesCount: number} }} list
+ * @returns {string}
+ */
+function summarizeEmptyProjectsV2List(list) {
+  const total = typeof list.totalCount === "number" ? list.totalCount : undefined;
+  const d = list && list.diagnostics;
+  const diag = d ? ` nodes=${d.rawNodesCount} (null=${d.nullNodesCount}), edges=${d.rawEdgesCount} (nullNode=${d.nullEdgeNodesCount})` : "";
+
+  if (typeof total === "number" && total > 0) {
+    return `(none; totalCount=${total} but returned 0 readable project nodes${diag}. This often indicates the token can see the org/user but lacks Projects v2 access, or the org enforces SSO and the token is not authorized.)`;
+  }
+
+  return `(none${diag})`;
+}
+
+/**
+ * Resolve a Projects v2 project by URL-parsed {scope, ownerLogin, number}.
+ * Hybrid strategy:
+ *  - Try projectV2(number) first (fast)
+ *  - Fall back to listing projectsV2(first:100) and searching (more resilient, better diagnostics)
+ * @param {{ scope: "orgs"|"users", ownerLogin: string }} projectInfo
+ * @param {number} projectNumberInt
+ * @returns {Promise<{id: string, number: number, title?: string, url?: string}>}
+ */
+async function resolveProjectV2(projectInfo, projectNumberInt) {
+  // Fast path: direct lookup by number
+  try {
+    if (projectInfo.scope === "orgs") {
+      const direct = await github.graphql(
+        `query($login: String!, $number: Int!) {
+          organization(login: $login) {
+            projectV2(number: $number) {
+              id
+              number
+              title
+              url
+            }
+          }
+        }`,
+        { login: projectInfo.ownerLogin, number: projectNumberInt }
+      );
+      const project = direct && direct.organization && direct.organization.projectV2;
+      if (project) {
+        return project;
+      }
+    } else {
+      const direct = await github.graphql(
+        `query($login: String!, $number: Int!) {
+          user(login: $login) {
+            projectV2(number: $number) {
+              id
+              number
+              title
+              url
+            }
+          }
+        }`,
+        { login: projectInfo.ownerLogin, number: projectNumberInt }
+      );
+      const project = direct && direct.user && direct.user.projectV2;
+      if (project) {
+        return project;
+      }
+    }
+  } catch (error) {
+    core.warning(`Direct projectV2(number) query failed; falling back to projectsV2 list search: ${error.message}`);
+  }
+
+  // Fallback: list accessible projects and find by number
+  const list = await listAccessibleProjectsV2(projectInfo);
+  const nodes = Array.isArray(list.nodes) ? list.nodes : [];
+  const found = nodes.find(p => p && typeof p.number === "number" && p.number === projectNumberInt);
+  if (found) {
+    return found;
+  }
+
+  const summary = nodes.length > 0 ? summarizeProjectsV2(nodes) : summarizeEmptyProjectsV2List(list);
+  const total = typeof list.totalCount === "number" ? ` (totalCount=${list.totalCount})` : "";
+  const who = projectInfo.scope === "orgs" ? `org ${projectInfo.ownerLogin}` : `user ${projectInfo.ownerLogin}`;
+  throw new Error(`Project #${projectNumberInt} not found or not accessible for ${who}.${total} Accessible Projects v2: ${summary}`);
+}
+
+/**
+ * Generate a campaign ID from project URL
+ * @param {string} projectUrl - The GitHub project URL
+ * @param {string} projectNumber - The project number
+ * @returns {string} Campaign ID in format: org-project-{number}-{timestamp}
+ */
+function generateCampaignId(projectUrl, projectNumber) {
+  // Extract org/user name from URL for the slug
+  const urlMatch = projectUrl.match(/github\.com\/(users|orgs)\/([^/]+)\/projects/);
+  const orgName = urlMatch ? urlMatch[2] : "project";
+
+  const slug = `${orgName}-project-${projectNumber}`
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "")
@@ -79,167 +339,81 @@ async function updateProject(output) {
   // In actions/github-script, 'github' and 'context' are already available
   const { owner, repo } = context.repo;
 
-  // Detect if this is a campaign usage (has campaign_id or will generate one)
-  const isCampaign = !!output.campaign_id;
-
-  const { projectNumber: parsedProjectNumber, projectName: parsedProjectName } = parseProjectInput(output.project, isCampaign);
-  const displayName = parsedProjectName || parsedProjectNumber || output.project;
-  const campaignId = output.campaign_id || generateCampaignId(displayName);
-
-  let githubClient = github;
-  if (process.env.PROJECT_GITHUB_TOKEN) {
-    const { Octokit } = require("@octokit/rest");
-    const octokit = new Octokit({
-      auth: process.env.PROJECT_GITHUB_TOKEN,
-      baseUrl: process.env.GITHUB_API_URL || "https://api.github.com",
-    });
-    githubClient = {
-      graphql: octokit.graphql.bind(octokit),
-      rest: octokit.rest,
-    };
-  }
-
-  const createIfMissing =
-    output.create_if_missing === true || output.create_project_if_missing === true || output.createProjectIfMissing === true;
-  const hasCustomToken = !!process.env.PROJECT_GITHUB_TOKEN;
-  const allowCreateProject = createIfMissing || hasCustomToken;
+  // Parse project URL to get project number
+  const projectInfo = parseProjectUrl(output.project);
+  const projectNumberFromUrl = projectInfo.projectNumber;
+  const campaignId = output.campaign_id || generateCampaignId(output.project, projectNumberFromUrl);
 
   try {
+    core.info(`Looking up project #${projectNumberFromUrl} from URL: ${output.project}`);
+
     // Step 1: Get repository and owner IDs
-    const repoResult = await githubClient.graphql(
-      `query($owner: String!, $repo: String!) {
-        repository(owner: $owner, name: $repo) {
-          id
-          owner {
+    core.info("[1/5] Fetching repository information...");
+    let repoResult;
+    try {
+      repoResult = await github.graphql(
+        `query($owner: String!, $repo: String!) {
+          repository(owner: $owner, name: $repo) {
             id
-            __typename
-          }
-        }
-      }`,
-      { owner, repo }
-    );
-    const repositoryId = repoResult.repository.id;
-    const ownerId = repoResult.repository.owner.id;
-    const ownerType = repoResult.repository.owner.__typename;
-
-    // Step 2: Find existing project or create it
-    let projectId;
-    let projectNumber;
-    let existingProject = null;
-
-    // Search for projects at the owner level (user/org)
-    const ownerQuery =
-      ownerType === "User"
-        ? `query($login: String!) {
-            user(login: $login) {
-              projectsV2(first: 100) {
-                nodes {
-                  id
-                  title
-                  number
-                }
-              }
-            }
-          }`
-        : `query($login: String!) {
-            organization(login: $login) {
-              projectsV2(first: 100) {
-                nodes {
-                  id
-                  title
-                  number
-                }
-              }
-            }
-          }`;
-
-    const ownerProjectsResult = await githubClient.graphql(ownerQuery, { login: owner });
-
-    const ownerProjects =
-      ownerType === "User" ? ownerProjectsResult.user.projectsV2.nodes : ownerProjectsResult.organization.projectsV2.nodes;
-
-    // Search by project number if extracted from URL, otherwise by name
-    existingProject = ownerProjects.find(p => {
-      if (parsedProjectNumber) {
-        return p.number.toString() === parsedProjectNumber;
-      }
-      return p.title === parsedProjectName;
-    });
-
-    // If found at owner level, ensure it's linked to the repository
-    if (existingProject) {
-      try {
-        await githubClient.graphql(
-          `mutation($projectId: ID!, $repositoryId: ID!) {
-            linkProjectV2ToRepository(input: {
-              projectId: $projectId,
-              repositoryId: $repositoryId
-            }) {
-              repository {
-                id
-              }
-            }
-          }`,
-          { projectId: existingProject.id, repositoryId }
-        );
-      } catch (linkError) {
-        if (!linkError.message || !linkError.message.includes("already linked")) {
-          core.warning(`Could not link project: ${linkError.message}`);
-        }
-      }
-    }
-
-    if (existingProject) {
-      projectId = existingProject.id;
-      projectNumber = existingProject.number;
-    } else {
-      // Check if owner is a User before attempting to create
-      if (ownerType === "User") {
-        const projectDisplay = parsedProjectNumber ? `project #${parsedProjectNumber}` : `project "${parsedProjectName}"`;
-        core.error(`Cannot find ${projectDisplay}. Create it manually at https://github.com/users/${owner}/projects/new.`);
-        throw new Error(`Cannot find ${projectDisplay} on user account.`);
-      }
-
-      if (!allowCreateProject) {
-        const projectDisplay = parsedProjectNumber
-          ? `project #${parsedProjectNumber}`
-          : parsedProjectName
-            ? `project "${parsedProjectName}"`
-            : `project "${output.project}"`;
-        core.error(
-          `Cannot find ${projectDisplay}. Create it manually at https://github.com/orgs/${owner}/projects/new and re-run, ` +
-            `or opt in to creation by setting create_if_missing=true in the update_project output (recommended only when you intentionally want workflows to create boards).`
-        );
-        throw new Error(`Cannot find ${projectDisplay} on organization account.`);
-      }
-
-      // Create new project (organization only)
-      const createResult = await githubClient.graphql(
-        `mutation($ownerId: ID!, $title: String!) {
-          createProjectV2(input: {
-            ownerId: $ownerId,
-            title: $title
-          }) {
-            projectV2 {
+            owner {
               id
-              title
-              url
-              number
+              __typename
             }
           }
         }`,
-        {
-          ownerId: ownerId, // Use owner ID (org/user), not repository ID
-          title: output.project,
-        }
+        { owner, repo }
       );
+    } catch (error) {
+      logGraphQLError(error, "Fetching repository information");
+      throw error;
+    }
+    const repositoryId = repoResult.repository.id;
+    const ownerType = repoResult.repository.owner.__typename;
+    core.info(`✓ Repository: ${owner}/${repo} (${ownerType})`);
 
-      const newProject = createResult.createProjectV2.projectV2;
-      projectId = newProject.id;
-      projectNumber = newProject.number;
+    // Helpful diagnostic: log which account this token belongs to.
+    // This is safe to log (no secrets) and helps debug permission mismatches between local runs and Actions.
+    try {
+      const viewerResult = await github.graphql(
+        `query {
+          viewer {
+            login
+          }
+        }`
+      );
+      if (viewerResult && viewerResult.viewer && viewerResult.viewer.login) {
+        core.info(`✓ Authenticated as: ${viewerResult.viewer.login}`);
+      }
+    } catch (viewerError) {
+      core.warning(`Could not resolve token identity (viewer.login): ${viewerError.message}`);
+    }
 
-      // Link project to repository
-      await githubClient.graphql(
+    // Step 2: Resolve project using org/user + number parsed from URL
+    // Note: GitHub GraphQL `resource(url:)` does not support Projects v2 URLs.
+    core.info(
+      `[2/5] Resolving project from URL (scope=${projectInfo.scope}, login=${projectInfo.ownerLogin}, number=${projectNumberFromUrl})...`
+    );
+    let projectId;
+    let resolvedProjectNumber = projectNumberFromUrl;
+    try {
+      const projectNumberInt = parseInt(projectNumberFromUrl, 10);
+      if (!Number.isFinite(projectNumberInt)) {
+        throw new Error(`Invalid project number parsed from URL: ${projectNumberFromUrl}`);
+      }
+
+      const project = await resolveProjectV2(projectInfo, projectNumberInt);
+      projectId = project.id;
+      resolvedProjectNumber = String(project.number);
+      core.info(`✓ Resolved project #${resolvedProjectNumber} (${projectInfo.ownerLogin}) (ID: ${projectId})`);
+    } catch (error) {
+      logGraphQLError(error, "Resolving project from URL");
+      throw error;
+    }
+
+    // Ensure project is linked to the repository
+    core.info("[3/5] Linking project to repository...");
+    try {
+      await github.graphql(
         `mutation($projectId: ID!, $repositoryId: ID!) {
           linkProjectV2ToRepository(input: {
             projectId: $projectId,
@@ -252,15 +426,16 @@ async function updateProject(output) {
         }`,
         { projectId, repositoryId }
       );
-
-      core.info(`✓ Created project: ${newProject.title}`);
-      core.setOutput("project-id", projectId);
-      core.setOutput("project-number", projectNumber);
-      core.setOutput("project-url", newProject.url);
-      core.setOutput("campaign-id", campaignId);
+    } catch (linkError) {
+      if (!linkError.message || !linkError.message.includes("already linked")) {
+        logGraphQLError(linkError, "Linking project to repository");
+        core.warning(`Could not link project: ${linkError.message}`);
+      }
     }
+    core.info("✓ Project linked to repository");
 
     // Step 3: If issue or PR specified, add/update it on the board
+    core.info("[4/5] Processing content (issue/PR) if specified...");
     // Support both old format (issue/pull_request) and new format (content_type/content_number)
     // Validate mutually exclusive content_number/issue/pull_request fields
     const hasContentNumber = output.content_number !== undefined && output.content_number !== null;
@@ -329,7 +504,7 @@ async function updateProject(output) {
             }
           }`;
 
-      const contentResult = await githubClient.graphql(contentQuery, {
+      const contentResult = await github.graphql(contentQuery, {
         owner,
         repo,
         number: contentNumber,
@@ -342,7 +517,7 @@ async function updateProject(output) {
         let hasNextPage = true;
         let endCursor = null;
         while (hasNextPage) {
-          const result = await githubClient.graphql(
+          const result = await github.graphql(
             `query($projectId: ID!, $after: String) {
               node(id: $projectId) {
                 ... on ProjectV2 {
@@ -387,7 +562,7 @@ async function updateProject(output) {
         core.info("✓ Item already on board");
       } else {
         // Add item to board
-        const addResult = await githubClient.graphql(
+        const addResult = await github.graphql(
           `mutation($projectId: ID!, $contentId: ID!) {
             addProjectV2ItemById(input: {
               projectId: $projectId,
@@ -404,7 +579,7 @@ async function updateProject(output) {
 
         // Add campaign label to issue/PR
         try {
-          await githubClient.rest.issues.addLabels({
+          await github.rest.issues.addLabels({
             owner,
             repo,
             issue_number: contentNumber,
@@ -418,7 +593,7 @@ async function updateProject(output) {
       // Step 4: Update custom fields if provided
       if (output.fields && Object.keys(output.fields).length > 0) {
         // Get project fields
-        const fieldsResult = await githubClient.graphql(
+        const fieldsResult = await github.graphql(
           `query($projectId: ID!) {
             node(id: $projectId) {
               ... on ProjectV2 {
@@ -463,7 +638,7 @@ async function updateProject(output) {
             if (isTextField) {
               // Create text field
               try {
-                const createFieldResult = await githubClient.graphql(
+                const createFieldResult = await github.graphql(
                   `mutation($projectId: ID!, $name: String!, $dataType: ProjectV2CustomFieldType!) {
                     createProjectV2Field(input: {
                       projectId: $projectId,
@@ -497,7 +672,7 @@ async function updateProject(output) {
             } else {
               // Create single select field with the provided value as an option
               try {
-                const createFieldResult = await githubClient.graphql(
+                const createFieldResult = await github.graphql(
                   `mutation($projectId: ID!, $name: String!, $dataType: ProjectV2CustomFieldType!, $options: [ProjectV2SingleSelectFieldOptionInput!]!) {
                     createProjectV2Field(input: {
                       projectId: $projectId,
@@ -547,7 +722,7 @@ async function updateProject(output) {
                   { name: String(fieldValue), description: "" },
                 ];
 
-                const createOptionResult = await githubClient.graphql(
+                const createOptionResult = await github.graphql(
                   `mutation($fieldId: ID!, $fieldName: String!, $options: [ProjectV2SingleSelectFieldOptionInput!]!) {
                     updateProjectV2Field(input: {
                       fieldId: $fieldId,
@@ -591,7 +766,7 @@ async function updateProject(output) {
             valueToSet = { text: String(fieldValue) };
           }
 
-          await githubClient.graphql(
+          await github.graphql(
             `mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $value: ProjectV2FieldValue!) {
               updateProjectV2ItemFieldValue(input: {
                 projectId: $projectId,
@@ -619,14 +794,14 @@ async function updateProject(output) {
   } catch (error) {
     // Provide helpful error messages for common permission issues
     if (error.message && error.message.includes("does not have permission to create projects")) {
-      const usingCustomToken = !!process.env.PROJECT_GITHUB_TOKEN;
+      const usingCustomToken = !!process.env.GH_AW_PROJECT_GITHUB_TOKEN;
       core.error(
         `Failed to manage project: ${error.message}\n\n` +
           `Troubleshooting:\n` +
           `  • Create the project manually at https://github.com/orgs/${owner}/projects/new.\n` +
-          `  • Or supply a PAT with project scope via PROJECT_GITHUB_TOKEN.\n` +
+          `  • Or supply a PAT with project scope via GH_AW_PROJECT_GITHUB_TOKEN.\n` +
           `  • Ensure the workflow grants projects: write.\n\n` +
-          `${usingCustomToken ? "PROJECT_GITHUB_TOKEN is set but lacks access." : "Using default GITHUB_TOKEN without project create rights."}`
+          `${usingCustomToken ? "GH_AW_PROJECT_GITHUB_TOKEN is set but lacks access." : "Using default GITHUB_TOKEN without project create rights."}`
       );
     } else {
       core.error(`Failed to manage project: ${error.message}`);
@@ -652,7 +827,8 @@ async function main() {
     try {
       await updateProject(output);
     } catch (error) {
-      core.error(`Failed to process item ${i + 1}: ${error.message}`);
+      core.error(`Failed to process item ${i + 1}`);
+      logGraphQLError(error, `Processing update_project item ${i + 1}`);
       // Continue processing remaining items even if one fails
     }
   }
