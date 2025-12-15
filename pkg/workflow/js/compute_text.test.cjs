@@ -74,7 +74,7 @@ global.context = mockContext;
 
 describe("compute_text.cjs", () => {
   let computeTextScript;
-  let sanitizeContentFunction;
+  let sanitizeIncomingTextFunction;
 
   beforeEach(() => {
     // Reset all mocks
@@ -91,46 +91,46 @@ describe("compute_text.cjs", () => {
     const scriptPath = path.join(process.cwd(), "compute_text.cjs");
     computeTextScript = fs.readFileSync(scriptPath, "utf8");
 
-    // Extract sanitizeContent function for unit testing
+    // Extract sanitizeIncomingText function for unit testing
     // We need to eval the script to get access to the function
     const scriptWithExport = computeTextScript.replace(
       "await main();",
-      "global.testSanitizeContent = sanitizeContent; global.testMain = main;"
+      "global.testSanitizeIncomingText = sanitizeIncomingText; global.testMain = main;"
     );
     eval(scriptWithExport);
-    sanitizeContentFunction = global.testSanitizeContent;
+    sanitizeIncomingTextFunction = global.testSanitizeIncomingText;
   });
 
-  describe("sanitizeContent function", () => {
+  describe("sanitizeIncomingText function", () => {
     it("should handle null and undefined inputs", () => {
-      expect(sanitizeContentFunction(null)).toBe("");
-      expect(sanitizeContentFunction(undefined)).toBe("");
-      expect(sanitizeContentFunction("")).toBe("");
+      expect(sanitizeIncomingTextFunction(null)).toBe("");
+      expect(sanitizeIncomingTextFunction(undefined)).toBe("");
+      expect(sanitizeIncomingTextFunction("")).toBe("");
     });
 
     it("should neutralize @mentions by wrapping in backticks", () => {
       const input = "Hello @user and @org/team";
-      const result = sanitizeContentFunction(input);
+      const result = sanitizeIncomingTextFunction(input);
       expect(result).toContain("`@user`");
       expect(result).toContain("`@org/team`");
     });
 
     it("should neutralize bot trigger phrases", () => {
       const input = "This fixes #123 and closes #456";
-      const result = sanitizeContentFunction(input);
+      const result = sanitizeIncomingTextFunction(input);
       expect(result).toContain("`fixes #123`");
       expect(result).toContain("`closes #456`");
     });
 
     it("should remove control characters", () => {
       const input = "Hello\x00\x01\x08world\x7F";
-      const result = sanitizeContentFunction(input);
+      const result = sanitizeIncomingTextFunction(input);
       expect(result).toBe("Helloworld");
     });
 
     it("should convert XML tags to parentheses format", () => {
       const input = 'Test <tag>content</tag> & "quotes"';
-      const result = sanitizeContentFunction(input);
+      const result = sanitizeIncomingTextFunction(input);
       expect(result).toContain("(tag)content(/tag)");
       expect(result).toContain("&");
       expect(result).toContain('"quotes"');
@@ -138,7 +138,7 @@ describe("compute_text.cjs", () => {
 
     it("should handle self-closing XML tags without whitespace", () => {
       const input = 'Self-closing: <br/> <img src="test.jpg"/> <meta charset="utf-8"/>';
-      const result = sanitizeContentFunction(input);
+      const result = sanitizeIncomingTextFunction(input);
       expect(result).toContain("<br/>"); // br is allowed
       expect(result).toContain('(img src="test.jpg"/)');
       expect(result).toContain('(meta charset="utf-8"/)');
@@ -146,7 +146,7 @@ describe("compute_text.cjs", () => {
 
     it("should handle self-closing XML tags with whitespace", () => {
       const input = 'With spaces: <br /> <img src="test.jpg" /> <meta charset="utf-8" />';
-      const result = sanitizeContentFunction(input);
+      const result = sanitizeIncomingTextFunction(input);
       expect(result).toContain("<br />"); // br is allowed
       expect(result).toContain('(img src="test.jpg" /)');
       expect(result).toContain('(meta charset="utf-8" /)');
@@ -154,48 +154,48 @@ describe("compute_text.cjs", () => {
 
     it("should handle XML tags with various whitespace patterns", () => {
       const input = 'Various: <div\tclass="test">content</div> <span\n  id="test">text</span>';
-      const result = sanitizeContentFunction(input);
+      const result = sanitizeIncomingTextFunction(input);
       expect(result).toContain('(div\tclass="test")content(/div)');
       expect(result).toContain('(span\n  id="test")text(/span)');
     });
 
     it("should redact non-https protocols", () => {
       const input = "Visit http://example.com or ftp://files.com";
-      const result = sanitizeContentFunction(input);
+      const result = sanitizeIncomingTextFunction(input);
       expect(result).toContain("(redacted)");
       expect(result).not.toContain("http://example.com");
     });
 
     it("should allow github.com domains", () => {
       const input = "Visit https://github.com/user/repo";
-      const result = sanitizeContentFunction(input);
+      const result = sanitizeIncomingTextFunction(input);
       expect(result).toContain("https://github.com/user/repo");
     });
 
     it("should redact unknown domains", () => {
       const input = "Visit https://evil.com/malware";
-      const result = sanitizeContentFunction(input);
+      const result = sanitizeIncomingTextFunction(input);
       expect(result).toContain("(redacted)");
       expect(result).not.toContain("evil.com");
     });
 
     it("should truncate long content", () => {
       const longContent = "a".repeat(600000); // Exceed 524288 limit
-      const result = sanitizeContentFunction(longContent);
+      const result = sanitizeIncomingTextFunction(longContent);
       expect(result.length).toBeLessThan(600000);
       expect(result).toContain("[Content truncated due to length]");
     });
 
     it("should truncate too many lines", () => {
       const manyLines = Array(70000).fill("line").join("\n"); // Exceed 65000 limit
-      const result = sanitizeContentFunction(manyLines);
+      const result = sanitizeIncomingTextFunction(manyLines);
       expect(result.split("\n").length).toBeLessThan(70000);
       expect(result).toContain("[Content truncated due to line count]");
     });
 
     it("should remove ANSI escape sequences", () => {
       const input = "Hello \u001b[31mred\u001b[0m world";
-      const result = sanitizeContentFunction(input);
+      const result = sanitizeIncomingTextFunction(input);
       // ANSI sequences should be removed, allowing for possible differences in regex matching
       expect(result).toMatch(/Hello.*red.*world/);
       expect(result).not.toMatch(/\u001b\[/);
@@ -204,7 +204,7 @@ describe("compute_text.cjs", () => {
     it("should respect custom allowed domains", () => {
       process.env.GH_AW_ALLOWED_DOMAINS = "example.com,trusted.org";
       const input = "Visit https://example.com and https://trusted.org and https://evil.com";
-      const result = sanitizeContentFunction(input);
+      const result = sanitizeIncomingTextFunction(input);
       expect(result).toContain("https://example.com");
       expect(result).toContain("https://trusted.org");
       expect(result).toContain("(redacted)"); // for evil.com
