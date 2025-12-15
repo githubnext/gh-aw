@@ -24,14 +24,17 @@ func (c *Compiler) buildCreateOutputUpdatePullRequestJob(data *WorkflowData, mai
 
 	cfg := data.SafeOutputs.UpdatePullRequests
 
-	builder := UpdateEntityJobBuilder{
-		EntityType:      UpdateEntityPullRequest,
-		ConfigKey:       "update-pull-request",
-		JobName:         "update_pull_request",
-		StepName:        "Update Pull Request",
-		ScriptGetter:    getUpdatePullRequestScript,
-		PermissionsFunc: NewPermissionsContentsReadPRWrite,
-		BuildCustomEnvVars: func(config *UpdateEntityConfig) []string {
+	return c.buildStandardUpdateEntityJob(
+		data,
+		mainJobName,
+		&cfg.UpdateEntityConfig,
+		UpdateEntityPullRequest,
+		"update-pull-request",
+		"update_pull_request",
+		"Update Pull Request",
+		getUpdatePullRequestScript,
+		NewPermissionsContentsReadPRWrite,
+		func(config *UpdateEntityConfig) []string {
 			// Default to true for both title and body unless explicitly set to false
 			canUpdateTitle := cfg.Title == nil || *cfg.Title
 			canUpdateBody := cfg.Body == nil || *cfg.Body
@@ -40,18 +43,17 @@ func (c *Compiler) buildCreateOutputUpdatePullRequestJob(data *WorkflowData, mai
 				fmt.Sprintf("          GH_AW_UPDATE_BODY: %t\n", canUpdateBody),
 			}
 		},
-		BuildOutputs: func() map[string]string {
+		func() map[string]string {
 			return map[string]string{
 				"pull_request_number": "${{ steps.update_pull_request.outputs.pull_request_number }}",
 				"pull_request_url":    "${{ steps.update_pull_request.outputs.pull_request_url }}",
 			}
 		},
-		BuildEventCondition: func(target string) ConditionNode {
+		func(target string) ConditionNode {
 			return BuildPropertyAccess("github.event.pull_request.number")
 		},
-	}
-
-	return c.buildUpdateEntityJobWithConfig(data, mainJobName, &cfg.UpdateEntityConfig, builder, updatePullRequestLog)
+		updatePullRequestLog,
+	)
 }
 
 // parseUpdatePullRequestsConfig handles update-pull-request configuration

@@ -24,32 +24,34 @@ func (c *Compiler) buildCreateOutputUpdateIssueJob(data *WorkflowData, mainJobNa
 
 	cfg := data.SafeOutputs.UpdateIssues
 
-	builder := UpdateEntityJobBuilder{
-		EntityType:      UpdateEntityIssue,
-		ConfigKey:       "update-issue",
-		JobName:         "update_issue",
-		StepName:        "Update Issue",
-		ScriptGetter:    getUpdateIssueScript,
-		PermissionsFunc: NewPermissionsContentsReadIssuesWrite,
-		BuildCustomEnvVars: func(config *UpdateEntityConfig) []string {
+	return c.buildStandardUpdateEntityJob(
+		data,
+		mainJobName,
+		&cfg.UpdateEntityConfig,
+		UpdateEntityIssue,
+		"update-issue",
+		"update_issue",
+		"Update Issue",
+		getUpdateIssueScript,
+		NewPermissionsContentsReadIssuesWrite,
+		func(config *UpdateEntityConfig) []string {
 			return []string{
 				fmt.Sprintf("          GH_AW_UPDATE_STATUS: %t\n", cfg.Status != nil),
 				fmt.Sprintf("          GH_AW_UPDATE_TITLE: %t\n", cfg.Title != nil),
 				fmt.Sprintf("          GH_AW_UPDATE_BODY: %t\n", cfg.Body != nil),
 			}
 		},
-		BuildOutputs: func() map[string]string {
+		func() map[string]string {
 			return map[string]string{
 				"issue_number": "${{ steps.update_issue.outputs.issue_number }}",
 				"issue_url":    "${{ steps.update_issue.outputs.issue_url }}",
 			}
 		},
-		BuildEventCondition: func(target string) ConditionNode {
+		func(target string) ConditionNode {
 			return BuildPropertyAccess("github.event.issue.number")
 		},
-	}
-
-	return c.buildUpdateEntityJobWithConfig(data, mainJobName, &cfg.UpdateEntityConfig, builder, updateIssueLog)
+		updateIssueLog,
+	)
 }
 
 // parseUpdateIssuesConfig handles update-issue configuration
