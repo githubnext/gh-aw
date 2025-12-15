@@ -27,6 +27,7 @@ func NewCustomEngine() *CustomEngine {
 			supportsMaxTurns:       true,  // Custom engine supports max-turns for consistency
 			supportsWebFetch:       false, // Custom engine does not have built-in web-fetch support
 			supportsWebSearch:      false, // Custom engine does not have built-in web-search support
+			supportsSkills:         false, // Custom engine does not have native support for Agent Skills
 		},
 	}
 }

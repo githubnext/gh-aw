@@ -133,6 +133,14 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		return nil, err // Error is already formatted with source location
 	}
 
+	// Handle SKILL files if detected
+	if len(importsResult.SkillFiles) > 0 {
+		err := c.handleSkillFiles(importsResult.SkillFiles, engineSetting)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	// Merge network permissions from imports with top-level network permissions
 	if importsResult.MergedNetwork != "" {
 		networkPermissions, err = c.MergeNetworkPermissions(networkPermissions, importsResult.MergedNetwork)

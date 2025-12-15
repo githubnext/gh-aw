@@ -48,6 +48,11 @@ type CodingAgentEngine interface {
 	// When true, the engine can enforce network restrictions defined in the workflow
 	SupportsFirewall() bool
 
+	// SupportsSkills returns true if this engine has native support for Anthropic Agent Skills
+	// When true, SKILL files imported via imports: will be configured natively for the engine
+	// When false, SKILL files will be processed as regular imports with a warning
+	SupportsSkills() bool
+
 	// GetDeclaredOutputFiles returns a list of output files that this engine may produce
 	// These files will be automatically uploaded as artifacts if they exist
 	GetDeclaredOutputFiles() []string
@@ -110,6 +115,7 @@ type BaseEngine struct {
 	supportsWebFetch       bool
 	supportsWebSearch      bool
 	supportsFirewall       bool
+	supportsSkills         bool
 }
 
 func (e *BaseEngine) GetID() string {
@@ -150,6 +156,10 @@ func (e *BaseEngine) SupportsWebSearch() bool {
 
 func (e *BaseEngine) SupportsFirewall() bool {
 	return e.supportsFirewall
+}
+
+func (e *BaseEngine) SupportsSkills() bool {
+	return e.supportsSkills
 }
 
 // GetDeclaredOutputFiles returns an empty list by default (engines can override)

@@ -41,6 +41,7 @@ func NewCodexEngine() *CodexEngine {
 			supportsMaxTurns:       false, // Codex does not support max-turns feature
 			supportsWebFetch:       false, // Codex does not have built-in web-fetch support
 			supportsWebSearch:      true,  // Codex has built-in web-search support
+			supportsSkills:         true,  // Codex has native support for Agent Skills
 		},
 	}
 }

@@ -399,6 +399,48 @@ func (c *Compiler) CompileWorkflowData(workflowData *WorkflowData, markdownPath 
 	return nil
 }
 
+// handleSkillFiles processes detected SKILL files and prints warnings for engines that don't support them natively
+func (c *Compiler) handleSkillFiles(skillFiles []string, engineID string) error {
+	if len(skillFiles) == 0 {
+		return nil
+	}
+
+	// Get the engine to check if it supports skills
+	registry := GetGlobalEngineRegistry()
+	engine, err := registry.GetEngine(engineID)
+	if err != nil {
+		// If engine lookup fails, print a generic warning
+		warningMsg := fmt.Sprintf("Detected %d SKILL file(s) but unable to verify engine support: %v", len(skillFiles), err)
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(warningMsg))
+		return nil
+	}
+
+	// Check if engine supports skills natively
+	if !engine.SupportsSkills() {
+		// Print warning about skills not being supported
+		var fileList strings.Builder
+		for i, file := range skillFiles {
+			if i > 0 {
+				fileList.WriteString(", ")
+			}
+			fileList.WriteString(file)
+		}
+		
+		warningMsg := fmt.Sprintf("⚠️  SKILL files detected but %s engine does not support Agent Skills natively.\n"+
+			"    Files: %s\n"+
+			"    These files will be imported as regular markdown files.\n"+
+			"    For native SKILL support, use 'claude' or 'codex' engine.",
+			engine.GetDisplayName(), fileList.String())
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(warningMsg))
+	} else {
+		// Log that skills are supported for this engine
+		log.Printf("Detected %d SKILL file(s) - engine %s has native support", len(skillFiles), engine.GetID())
+	}
+
+	return nil
+}
+
+
 // ParseWorkflowFile parses a markdown workflow file and extracts all necessary data
 
 // extractTopLevelYAMLSection extracts a top-level YAML section from the frontmatter map

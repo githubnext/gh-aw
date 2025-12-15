@@ -85,6 +85,7 @@ type ImportsResult struct {
 	ImportedFiles       []string       // List of imported file paths (for manifest)
 	AgentFile           string         // Path to custom agent file (if imported)
 	ImportInputs        map[string]any // Aggregated input values from all imports (key = input name, value = input value)
+	SkillFiles          []string       // List of SKILL.md files detected in imports
 }
 
 // ImportInputDefinition defines an input parameter for a shared workflow import.
@@ -97,6 +98,36 @@ type ImportInputDefinition struct {
 	Default     any      `yaml:"default,omitempty" json:"default,omitempty"` // Can be string, number, or boolean
 	Type        string   `yaml:"type,omitempty" json:"type,omitempty"`       // "string", "choice", "boolean", "number"
 	Options     []string `yaml:"options,omitempty" json:"options,omitempty"` // Options for choice type
+}
+
+// isSkillFile checks if a file path and its content represent a valid SKILL file.
+// A SKILL file must:
+// 1. Have "SKILL.md" in its filename (case-insensitive)
+// 2. Contain YAML frontmatter with both 'name' and 'description' fields
+func isSkillFile(filePath string, content string) bool {
+	// Check if filename contains SKILL.md (case-insensitive)
+	lowerPath := strings.ToLower(filePath)
+	if !strings.Contains(lowerPath, "skill.md") {
+		return false
+	}
+
+	// Extract frontmatter and check for required fields
+	result, err := ExtractFrontmatterFromContent(content)
+	if err != nil || result.Frontmatter == nil {
+		return false
+	}
+
+	// Check for required 'name' field
+	if _, hasName := result.Frontmatter["name"]; !hasName {
+		return false
+	}
+
+	// Check for required 'description' field
+	if _, hasDesc := result.Frontmatter["description"]; !hasDesc {
+		return false
+	}
+
+	return true
 }
 
 // ImportSpec represents a single import specification (either a string path or an object with path and inputs)
@@ -212,6 +243,7 @@ func processImportsFromFrontmatterWithManifestAndSource(frontmatter map[string]a
 	var safeOutputs []string
 	var safeInputs []string
 	var agentFile string                 // Track custom agent file
+	var skillFiles []string              // Track SKILL files
 	importInputs := make(map[string]any) // Aggregated input values from all imports
 
 	// Seed the queue with initial imports
@@ -319,8 +351,17 @@ func processImportsFromFrontmatterWithManifestAndSource(frontmatter map[string]a
 			return nil, fmt.Errorf("failed to read imported file '%s': %w", item.fullPath, err)
 		}
 
+		contentStr := string(content)
+
+		// Check if this is a SKILL file
+		if isSkillFile(item.fullPath, contentStr) {
+			// Track SKILL file
+			skillFiles = append(skillFiles, item.importPath)
+			log.Printf("Detected SKILL file: %s", item.importPath)
+		}
+
 		// Extract frontmatter from imported file to discover nested imports
-		result, err := ExtractFrontmatterFromContent(string(content))
+		result, err := ExtractFrontmatterFromContent(contentStr)
 		if err != nil {
 			// If frontmatter extraction fails, continue with other processing
 			log.Printf("Failed to extract frontmatter from %s: %v", item.fullPath, err)
@@ -494,6 +535,7 @@ func processImportsFromFrontmatterWithManifestAndSource(frontmatter map[string]a
 		ImportedFiles:       processedOrder,
 		AgentFile:           agentFile,
 		ImportInputs:        importInputs,
+		SkillFiles:          skillFiles,
 	}, nil
 }
 

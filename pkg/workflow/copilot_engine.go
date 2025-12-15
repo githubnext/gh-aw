@@ -31,6 +31,7 @@ func NewCopilotEngine() *CopilotEngine {
 			supportsWebFetch:       false, // Copilot CLI does not have built-in web-fetch support
 			supportsWebSearch:      false, // Copilot CLI does not have built-in web-search support
 			supportsFirewall:       true,  // Copilot supports network firewalling via AWF
+			supportsSkills:         false, // Copilot CLI does not have native support for Agent Skills
 		},
 	}
 }

@@ -28,6 +28,7 @@ func NewClaudeEngine() *ClaudeEngine {
 			supportsMaxTurns:       true, // Claude supports max-turns feature
 			supportsWebFetch:       true, // Claude has built-in WebFetch support
 			supportsWebSearch:      true, // Claude has built-in WebSearch support
+			supportsSkills:         true, // Claude has native support for Agent Skills
 		},
 	}
 }
