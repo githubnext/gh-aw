@@ -122,6 +122,15 @@ async function listAccessibleProjectsV2(projectInfo) {
       closed
       url
     }
+    edges {
+      node {
+        id
+        number
+        title
+        closed
+        url
+      }
+    }
   }`;
 
   if (projectInfo.scope === "orgs") {
@@ -134,8 +143,30 @@ async function listAccessibleProjectsV2(projectInfo) {
       { login: projectInfo.ownerLogin }
     );
     const conn = result && result.organization && result.organization.projectsV2;
-    const nodes = conn && Array.isArray(conn.nodes) ? conn.nodes.filter(Boolean) : [];
-    return { nodes, totalCount: conn && conn.totalCount };
+    const rawNodes = conn && Array.isArray(conn.nodes) ? conn.nodes : [];
+    const rawEdges = conn && Array.isArray(conn.edges) ? conn.edges : [];
+
+    const nodeNodes = rawNodes.filter(Boolean);
+    const edgeNodes = rawEdges.map(e => e && e.node).filter(Boolean);
+
+    /** @type {Map<string, any>} */
+    const unique = new Map();
+    for (const n of [...nodeNodes, ...edgeNodes]) {
+      if (n && typeof n.id === "string") {
+        unique.set(n.id, n);
+      }
+    }
+
+    return {
+      nodes: Array.from(unique.values()),
+      totalCount: conn && conn.totalCount,
+      diagnostics: {
+        rawNodesCount: rawNodes.length,
+        nullNodesCount: rawNodes.length - nodeNodes.length,
+        rawEdgesCount: rawEdges.length,
+        nullEdgeNodesCount: rawEdges.filter(e => !e || !e.node).length,
+      },
+    };
   }
 
   const result = await github.graphql(
@@ -147,8 +178,30 @@ async function listAccessibleProjectsV2(projectInfo) {
     { login: projectInfo.ownerLogin }
   );
   const conn = result && result.user && result.user.projectsV2;
-  const nodes = conn && Array.isArray(conn.nodes) ? conn.nodes.filter(Boolean) : [];
-  return { nodes, totalCount: conn && conn.totalCount };
+  const rawNodes = conn && Array.isArray(conn.nodes) ? conn.nodes : [];
+  const rawEdges = conn && Array.isArray(conn.edges) ? conn.edges : [];
+
+  const nodeNodes = rawNodes.filter(Boolean);
+  const edgeNodes = rawEdges.map(e => e && e.node).filter(Boolean);
+
+  /** @type {Map<string, any>} */
+  const unique = new Map();
+  for (const n of [...nodeNodes, ...edgeNodes]) {
+    if (n && typeof n.id === "string") {
+      unique.set(n.id, n);
+    }
+  }
+
+  return {
+    nodes: Array.from(unique.values()),
+    totalCount: conn && conn.totalCount,
+    diagnostics: {
+      rawNodesCount: rawNodes.length,
+      nullNodesCount: rawNodes.length - nodeNodes.length,
+      rawEdgesCount: rawEdges.length,
+      nullEdgeNodesCount: rawEdges.filter(e => !e || !e.node).length,
+    },
+  };
 }
 
 /**
@@ -168,6 +221,25 @@ function summarizeProjectsV2(projects, limit = 20) {
     .map(p => `#${p.number} ${p.closed ? "(closed) " : ""}${p.title}`);
 
   return normalized.length > 0 ? normalized.join("; ") : "(none)";
+}
+
+/**
+ * Summarize a projectsV2 listing call when it returned no readable projects.
+ * @param {{ totalCount?: number, diagnostics?: {rawNodesCount: number, nullNodesCount: number, rawEdgesCount: number, nullEdgeNodesCount: number} }} list
+ * @returns {string}
+ */
+function summarizeEmptyProjectsV2List(list) {
+  const total = typeof list.totalCount === "number" ? list.totalCount : undefined;
+  const d = list && list.diagnostics;
+  const diag = d
+    ? ` nodes=${d.rawNodesCount} (null=${d.nullNodesCount}), edges=${d.rawEdgesCount} (nullNode=${d.nullEdgeNodesCount})`
+    : "";
+
+  if (typeof total === "number" && total > 0) {
+    return `(none; totalCount=${total} but returned 0 readable project nodes${diag}. This often indicates the token can see the org/user but lacks Projects v2 access, or the org enforces SSO and the token is not authorized.)`;
+  }
+
+  return `(none${diag})`;
 }
 
 /**
@@ -231,7 +303,7 @@ async function resolveProjectV2(projectInfo, projectNumberInt) {
     return found;
   }
 
-  const summary = summarizeProjectsV2(nodes);
+  const summary = nodes.length > 0 ? summarizeProjectsV2(nodes) : summarizeEmptyProjectsV2List(list);
   const total = typeof list.totalCount === "number" ? ` (totalCount=${list.totalCount})` : "";
   const who = projectInfo.scope === "orgs" ? `org ${projectInfo.ownerLogin}` : `user ${projectInfo.ownerLogin}`;
   throw new Error(
