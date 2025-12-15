@@ -69,55 +69,6 @@ func ToRelativePath(path string) string {
 	return relPath
 }
 
-// ToGitRootRelativePath converts a path to be relative to the git root directory
-// This provides stable paths regardless of the current working directory
-func ToGitRootRelativePath(path string) string {
-	consoleLog.Printf("Normalizing path to git root: %s", path)
-
-	// If it's not an absolute path, try to make it absolute first
-	absPath := path
-	if !filepath.IsAbs(path) {
-		wd, err := os.Getwd()
-		if err != nil {
-			consoleLog.Printf("Failed to get working directory: %v", err)
-			return path
-		}
-		absPath = filepath.Join(wd, path)
-		consoleLog.Printf("Converted to absolute path: %s", absPath)
-	}
-
-	// Clean the absolute path
-	absPath = filepath.Clean(absPath)
-
-	// Find the git root by looking for .github directory
-	// Walk up the directory tree to find it
-	currentDir := filepath.Dir(absPath)
-	for {
-		githubDir := filepath.Join(currentDir, ".github")
-		if info, err := os.Stat(githubDir); err == nil && info.IsDir() {
-			consoleLog.Printf("Found .github directory at: %s", currentDir)
-			// Found the git root, now make path relative to it
-			relPath, err := filepath.Rel(currentDir, absPath)
-			if err != nil {
-				consoleLog.Printf("Failed to make path relative to git root: %v", err)
-				return path
-			}
-			consoleLog.Printf("Normalized path: %s", relPath)
-			return relPath
-		}
-
-		// Move up one directory
-		parentDir := filepath.Dir(currentDir)
-		if parentDir == currentDir {
-			// Reached the root of the filesystem without finding .github
-			// Fall back to current working directory relative path
-			consoleLog.Printf("Could not find .github directory, falling back to current working directory")
-			return ToRelativePath(path)
-		}
-		currentDir = parentDir
-	}
-}
-
 // FormatError formats a CompilerError with Rust-like rendering
 func FormatError(err CompilerError) string {
 	consoleLog.Printf("Formatting error: type=%s, file=%s, line=%d", err.Type, err.Position.File, err.Position.Line)

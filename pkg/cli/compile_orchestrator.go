@@ -83,7 +83,7 @@ func renderGeneratedCampaignOrchestratorMarkdown(data *workflow.WorkflowData, so
 	if strings.TrimSpace(sourceCampaignPath) != "" {
 		// Normalize path to be relative to git root (where .github folder exists)
 		// This ensures stable paths regardless of current working directory
-		relativePath := console.ToGitRootRelativePath(sourceCampaignPath)
+		relativePath := ToGitRootRelativePath(sourceCampaignPath)
 		b.WriteString(fmt.Sprintf("<!-- Source: %s -->\n", relativePath))
 	}
 	b.WriteString("\n")
