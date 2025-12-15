@@ -984,6 +984,9 @@ func generateFilteredToolsJSON(data *WorkflowData) (string, error) {
 	if data.SafeOutputs.HideComment != nil {
 		enabledTools["hide_comment"] = true
 	}
+	if data.SafeOutputs.UpdateProjects != nil {
+		enabledTools["update_project"] = true
+	}
 
 	// Filter tools to only include enabled ones and enhance descriptions
 	var filteredTools []map[string]any

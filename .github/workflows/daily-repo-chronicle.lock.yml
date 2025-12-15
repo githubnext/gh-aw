@@ -2470,53 +2470,14 @@ jobs:
                 }
                 if (!tools.find(t => t.name === normalizedKey)) {
                   const jobConfig = config[configKey];
-                  let inputSchema = {
-                    type: "object",
-                    properties: {},
-                    additionalProperties: true,
-                  };
-                  try {
-                    const validationConfigEnv = process.env.GH_AW_VALIDATION_CONFIG;
-                    if (validationConfigEnv) {
-                      const validationConfig = JSON.parse(validationConfigEnv);
-                      const typeConfig = validationConfig[normalizedKey];
-                      if (typeConfig && typeConfig.fields) {
-                        const properties = {};
-                        const required = [];
-                        for (const [fieldName, fieldValidation] of Object.entries(typeConfig.fields)) {
-                          const property = { type: fieldValidation.type || "string" };
-                          if (fieldValidation.enum) {
-                            property.enum = fieldValidation.enum;
-                          }
-                          if (fieldValidation.pattern) {
-                            property.pattern = fieldValidation.pattern;
-                          }
-                          if (fieldValidation.maxLength) {
-                            property.maxLength = fieldValidation.maxLength;
-                          }
-                          if (fieldValidation.type === "array" && fieldValidation.itemType) {
-                            property.items = { type: fieldValidation.itemType };
-                          }
-                          properties[fieldName] = property;
-                          if (fieldValidation.required) {
-                            required.push(fieldName);
-                          }
-                        }
-                        inputSchema = {
-                          type: "object",
-                          properties,
-                          required: required.length > 0 ? required : undefined,
-                          additionalProperties: false,
-                        };
-                      }
-                    }
-                  } catch (error) {
-                    server.debug(`Failed to load validation config for ${normalizedKey}: ${error.message}`);
-                  }
                   const dynamicTool = {
                     name: normalizedKey,
                     description: jobConfig && jobConfig.description ? jobConfig.description : `Custom safe-job: ${configKey}`,
-                    inputSchema,
+                    inputSchema: {
+                      type: "object",
+                      properties: {},
+                      additionalProperties: true, 
+                    },
                     handler: args => {
                       const entry = {
                         type: normalizedKey,
