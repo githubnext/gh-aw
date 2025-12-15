@@ -50,6 +50,7 @@
 # safe-outputs:
 #   add-labels:
 #     allowed: [spam, ai-generated, link-spam, ai-inspected]
+#     target: "*"
 #   hide-comment:
 #     max: 5
 #     allowed-reasons: [spam]
@@ -459,6 +460,7 @@ jobs:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_LABELS_ALLOWED: "spam,ai-generated,link-spam,ai-inspected"
           GH_AW_LABELS_MAX_COUNT: 3
+          GH_AW_LABELS_TARGET: "*"
           GH_AW_WORKFLOW_NAME: "AI Moderator"
           GH_AW_ENGINE_ID: "copilot"
           GH_AW_ENGINE_MODEL: "gpt-5-mini"
@@ -1108,7 +1110,7 @@ jobs:
           cat > /tmp/gh-aw/safeoutputs/tools.json << 'EOF'
           [
             {
-              "description": "Add labels to an existing GitHub issue or pull request for categorization and filtering. Labels must already exist in the repository. For creating new issues with labels, use create_issue with the labels property instead. CONSTRAINTS: Only these labels are allowed: [spam ai-generated link-spam ai-inspected].",
+              "description": "Add labels to an existing GitHub issue or pull request for categorization and filtering. Labels must already exist in the repository. For creating new issues with labels, use create_issue with the labels property instead. CONSTRAINTS: Only these labels are allowed: [spam ai-generated link-spam ai-inspected]. Target: *.",
               "inputSchema": {
                 "additionalProperties": false,
                 "properties": {
