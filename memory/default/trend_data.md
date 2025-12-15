@@ -1,7 +1,6 @@
-## Trend Data (as of 2025-12-12T15:13:46Z)
+## Trend Data (as of 2025-12-15T15:15:23Z)
 
-- Workflow snapshot (last 10 runs, past ~day): 34.1m total duration, 6.52M tokens, ~$0.80; CLI Version Checker drove most spend/noise (941k tokens, 124 errors/30 warnings) even on success. Hourly CI Cleaner succeeded but consumed 4.9M tokens with 17 errors/22 warnings; Issue Triage Agent registered a new failure (20169226915).
-- Issue stats (weekly slice): 189 total; 51 open / 138 closed. Labels still led by `plan`/`ai-generated` (97 each), then `enhancement`/`code-quality` (27 each) and `automated-analysis` (25). Automation authorship remains dominant.
-- Issue creation cadence last 8 days: Dec 5 (7), Dec 6 (11), Dec 7 (31), Dec 8 (36), Dec 9 (15), Dec 10 (11), Dec 11 (19), Dec 12 (22) — rebound after mid-week dip.
-- Issue hygiene: unlabeled/open count not rechecked today; prior risk still stands pending refresh.
-- Discussion cadence: new cost-optimization theme (6264) and lockfile stats (6208) join the standing daily audits (firewall, prompt analysis, code metrics, documentation).
+- Workflow snapshot (last 10 runs): 33.9m duration, 668,977 tokens, ~$0.39; failure-heavy mix with 5/7 completed runs failing (Hourly CI Cleaner x2, Issue Triage Agent, Weekly Issue Summary, Super Linter). Successes still noisy: CLI Version Checker produced 107 errors/22 warnings despite success; Repository Tree Map Generator added 5 errors/15 warnings.
+- Issue stats (weekly slice): 197 total; 38 open / 159 closed. Label skew intensified — `plan`/`ai-generated` at 111 each; next labels far lower (`enhancement` 36, `documentation` 35). Automation authorship dominates (173/197 from github-actions).
+- Issue hygiene: 26 unlabeled issues (8 open); 16 open issues older than 5 days. Creation spikes: Dec 8 (36) and Dec 15 (24) lead the week; Dec 12 (26) and Dec 11 (19) follow.
+- Discussion cadence: fresh observability/quality pushes (6533), tree map snapshot (6535), schema constraint gap analysis (6460), lockfile stats refresh (6463), and daily audit streams (firewall/code metrics/prompt analysis) continue uninterrupted.

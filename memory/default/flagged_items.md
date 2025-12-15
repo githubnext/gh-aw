@@ -1,7 +1,6 @@
-## Flagged Items for Monitoring (2025-12-12)
+## Flagged Items for Monitoring (2025-12-15)
 
-- Copilot PR merged stream still fragile: discussion [6040](https://github.com/githubnext/gh-aw/discussions/6040) remains the last erroring state; 6144 just published and today’s run is in-flight — stability unresolved.
-- Schedule agents noisy/expensive: Hourly CI Cleaner success consumed 4.9M tokens with 17 errors/22 warnings ([§20169264541](https://github.com/githubnext/gh-aw/actions/runs/20169264541)); Issue Triage Agent recorded a fresh failure ([§20169226915](https://github.com/githubnext/gh-aw/actions/runs/20169226915)); Issue Monster recovered in the latest pass.
-- CLI Version Checker still high-noise: recent run ([§20170786087](https://github.com/githubnext/gh-aw/actions/runs/20170786087)) succeeded but emitted 124 errors/30 warnings and drove most spend.
-- Backlog composition unchanged: `plan`/`ai-generated` labels dominate (97 each) and automation authorship continues to skew metrics; unlabeled/stale open issues need a refreshed tally.
-- New cost-optimization initiative (discussion 6264) suggests imminent policy/tuning changes — monitor for config shifts impacting agent runs.
+- Maintenance stream instability: Hourly CI Cleaner failed twice today ([§20235087585](https://github.com/githubnext/gh-aw/actions/runs/20235087585), [§20237054035](https://github.com/githubnext/gh-aw/actions/runs/20237054035)); Issue Triage Agent failed ([§20235064656](https://github.com/githubnext/gh-aw/actions/runs/20235064656)); Weekly Issue Summary failed ([§20237144730](https://github.com/githubnext/gh-aw/actions/runs/20237144730)); Super Linter failed ([§20235175957](https://github.com/githubnext/gh-aw/actions/runs/20235175957)).
+- Persistent noisy success: CLI Version Checker continues to succeed with heavy error/warning output ([§20236888851](https://github.com/githubnext/gh-aw/actions/runs/20236888851)); noise masking real regressions remains a risk.
+- Backlog health: 26 unlabeled issues (8 open) and 16 open issues older than 5 days — hygiene gap widening alongside automation-heavy authorship.
+- Schema/validation watch: Schema constraint gap analysis (6460) and MCP structural analysis (6513) indicate ongoing enforcement work; monitor for follow-up actions or regressions in compiled workflows.
