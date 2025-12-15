@@ -12,41 +12,40 @@ sidebar:
 
 ## Prerequisites
 
-This guide walks you through setup step-by-step, so you don't need everything upfront. Here's what you need at each stage and **why**:
+Before installing, ensure you have:
 
-:::note[Must Have (before you start)]
-
-- **GitHub account** with access to a repository
+- ✅ **[GitHub CLI](https://cli.github.com/)** installed and authenticated
+  - *Why:* Required to compile workflows and deploy them to your repository
+  - *How to verify:* Run `gh --version` (requires v2.0.0 or higher) and `gh auth login` to authenticate
+- ✅ **GitHub account** with access to a repository (personal or organization)
   - *Why:* Agentic workflows run as GitHub Actions in your repositories
-- **GitHub CLI (gh)** installed and authenticated ([installation guide](https://cli.github.com))
-  - *Why:* The CLI is required to compile workflows and deploy them to your repository
-  - Verify installation: Run `gh --version` (requires v2.0.0 or higher)
-  - Verify authentication: Run `gh auth status`
-- **Operating System:** Linux, macOS, or Windows with WSL
+- ✅ **Admin or write access** to your target repository
+  - *Why:* You need permission to add workflows, enable Actions, and configure secrets
+- ✅ **GitHub Actions** enabled in your repository
+  - *Why:* Agentic workflows compile to GitHub Actions YAML files that run on GitHub's infrastructure
+- ✅ **Git** installed on your machine
+  - *Why:* Used to manage repository files and push workflow changes
+- ✅ **Operating System:** Linux, macOS, or Windows with WSL
   - *Why:* The CLI tools and workflow compilation require a Unix-like environment
 
+:::tip[Optional: Enable Discussions]
+The example workflow in this guide creates a daily status report as a **GitHub Discussion** post. To use this example as-is, enable Discussions in your repository settings. Otherwise, you can customize the workflow to use different outputs (like issues or comments).
 :::
 
-:::tip[Must Configure (in your repository)]
+**Verify your setup:**
 
-- **Admin or write access** to your target repository
-  - *Why:* You need permission to add workflows, enable Actions, and configure secrets
-- **GitHub Actions** enabled
-  - *Why:* Agentic workflows compile to GitHub Actions YAML files that run on GitHub's infrastructure
-- **Discussions** enabled (optional for custom workflows)
-  - *Why:* The example workflow in this guide creates a daily status report as a discussion post
-  - *Note:* You can disable this requirement by customizing the workflow to use different outputs
+```bash
+gh --version      # Should show version 2.0.0 or higher
+gh auth status    # Should show "Logged in to github.com"
+git --version     # Should show git version 2.x or higher
+```
 
-:::
-
-:::caution[Will Need Later (you'll set this up in Step 3)]
-
-- **Personal Access Token (PAT)** with Copilot Requests permission ([PAT documentation](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens))
-  - *Why:* This token authenticates your workflows to use GitHub Copilot as the AI agent that executes your natural language instructions
-  - *Note:* "Copilot Requests" is a new permission type added in 2024 that allows workflows to communicate with GitHub Copilot's AI services
-  - *Important:* If you don't see this permission, ensure your GitHub account has Copilot access
-  - The guide walks you through creating this token in Step 3
-
+:::caution[You'll need later (Step 3)]
+**Personal Access Token (PAT)** with Copilot Requests permission ([create token](https://github.com/settings/personal-access-tokens/new))
+- *Why:* This token authenticates your workflows to use [GitHub Copilot](https://github.com/features/copilot) as the AI agent that executes your natural language instructions
+- *Note:* "Copilot Requests" is a new permission type that allows workflows to communicate with GitHub Copilot's AI services
+- *Important:* Requires an active GitHub Copilot subscription
+- The guide walks you through creating this token in Step 3
 :::
 
 ### Agentic Setup
