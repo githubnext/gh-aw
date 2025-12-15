@@ -114,6 +114,9 @@ jobs:
           - name: "CMD Tests"  # All cmd/gh-aw integration tests
             packages: "./cmd/gh-aw"
             pattern: ""
+          - name: "Parser Remote Fetch & Cache"
+            packages: "./pkg/parser"
+            pattern: "TestDownloadFileFromGitHub|TestResolveIncludePath|TestDownloadIncludeFromWorkflowSpec|TestImportCache"
           - name: "Workflow Permissions"
             packages: "./pkg/workflow"
             pattern: "TestPermissions|TestPackageExtractor|TestCollectPackagesFromWorkflow"
