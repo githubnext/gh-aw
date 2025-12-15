@@ -2,6 +2,132 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.33.0 - 2025-12-15
+
+### Features
+
+#### Remove legacy support for the `GH_AW_COPILOT_TOKEN` secret name.
+
+This change removes the legacy fallback to `GH_AW_COPILOT_TOKEN`. The effective token lookup chain is now:
+
+- `COPILOT_GITHUB_TOKEN` (recommended)
+- `GH_AW_GITHUB_TOKEN` (legacy)
+
+If you were relying on `GH_AW_COPILOT_TOKEN`, update your repository secrets and workflows to use `COPILOT_GITHUB_TOKEN` or `GH_AW_GITHUB_TOKEN`.
+
+## Migration
+
+Run the following to remove the old secret and add the new one:
+
+```bash
+gh secret remove GH_AW_COPILOT_TOKEN -a actions
+gh secret set COPILOT_GITHUB_TOKEN -a actions --body "YOUR_PAT"
+```
+
+This follows the precedent set when `COPILOT_CLI_TOKEN` was removed in v0.26+. All workflow lock files have been regenerated to reflect this new token chain.
+
+
+### Bug Fixes
+
+#### Add structured types for frontmatter configuration parsing and fix integer rendering in YAML outputs.
+
+This change introduces typed frontmatter parsing (`FrontmatterConfig`) to reduce runtime type
+assertions and improve error messages. It also fixes integer marshaling so integer fields
+(for example `retention-days` and `fetch-depth`) are preserved as integers in compiled YAML.
+
+#### Add `GH_DEBUG=1` to the shared `gh` safe-input tool configuration so
+
+that `gh` commands executed via the `safeinputs-gh` tool run with
+verbose debugging enabled.
+
+This is an internal/tooling change that affects workflow execution
+verbosity only.
+
+#### Add `hide-older-comments` boolean and `allowed-reasons` array fields to `add-comment` and `hide-comment` safe outputs; includes parsing, JavaScript hiding logic, tests, and documentation updates.
+
+This change adds support for hiding older comments from the same workflow (identified by workflow-id) and allows restricting which hide reasons are permitted via the `allowed-reasons` field. Backwards compatible: if `allowed-reasons` is omitted, all reasons are allowed.
+
+#### Introduce a typed `WorkflowStep` struct and helper methods for safer,
+
+type-checked manipulation of GitHub Actions steps. Replace ad-hoc
+`map[string]any` handling in step-related code with the new type where
+possible, add conversion helpers, and add tests. Also fix
+`ContinueOnError` to accept both boolean and string values.
+
+Fixes githubnext/gh-aw#6053
+
+#### Bump Claude Code CLI from 2.0.65 to 2.0.67.
+
+Updated the `DefaultClaudeCodeVersion` constant, test fixtures, documentation reference, and regenerated workflow lock files to install `@anthropic-ai/claude-code@2.0.67`.
+
+#### Bump Claude Code to `2.0.69` and Codex to `0.72.0`.
+
+This updates the pinned CLI tool versions used by the project and reflects
+the workflow recompilation performed in the associated pull request.
+
+#### Display agent response text in action logs as a conversation-style summary.
+
+This change updates the action log rendering so agent replies are shown
+inline with tool calls, making logs read like a chat conversation. Agent
+responses are prefixed with "Agent:", tool calls use ✓/✗, shell commands
+are shown as `$ command`, and long outputs are truncated to keep logs
+concise.
+
+This is an internal, non-breaking improvement to log formatting.
+
+#### Fix firewall logs not printing due to incorrect directory path. The firewall
+
+log parser was reading from a sanitized workflow-specific directory but the
+logs are written to a fixed sandbox path. This change documents the bugfix
+that updates the parser to read from `/tmp/gh-aw/sandbox/firewall/logs/` and
+removes the unnecessary workflow name sanitization.
+
+#### Fix shellcheck violations in `pkg/workflow/sh/start_safe_inputs_server.sh` that caused
+
+issues in compiled workflow lock files. Changes include quoting variables, using compound
+redirection, and replacing `ps | grep` with `pgrep`. Recompiled workflows were updated
+to propagate the fixes to lock files.
+
+#### Adds `hide-older-comments` boolean and `allowed-reasons` array fields to
+
+`add-comment` and `hide-comment` safe outputs; includes parsing, JavaScript
+hiding logic, tests, and documentation updates.
+
+This is a patch-level change: non-breaking additions, tests and docs only.
+
+#### Adds `hide-older-comments` boolean and `allowed-reasons` array fields to the
+
+`add-comment` and `hide-comment` safe outputs; includes parsing, JavaScript
+hiding logic, tests, and documentation updates.
+
+#### Add a JavaScript helper that removes duplicate titles from safe output descriptions and register it in the bundler.
+
+The helper `removeDuplicateTitleFromDescription` is used by create/update scripts for issues, discussions, and pull requests to avoid repeating the title in the description body.
+
+#### Rename the `command` trigger to `slash_command` with a deprecation path.
+
+The `slash_command` frontmatter field was added (same validation as the old `command`), and the `command` field remains supported but is marked as deprecated and emits a compile-time warning. Schema, compiler, docs, and workflows were updated to prefer `slash_command` while keeping backward compatibility.
+
+#### Update default CLI versions to latest patch releases:
+
+- Copilot: `0.0.368` → `0.0.369`
+- Codex: `0.69.0` → `0.71.0`
+- Playwright MCP: `0.0.51` → `0.0.52`
+
+Bumped version constants and recompiled workflow lock files.
+
+Fixes githubnext/gh-aw#6187
+
+#### Replace the npm-based GitHub Copilot CLI installation with the
+
+official installer script and add support for mounting the installed
+binary into AWF runs.
+
+This removes the Node.js npm dependency for AWF mode and documents
+the new `--mount /usr/local/bin/copilot:/usr/local/bin/copilot:ro`
+usage for workflows that run Copilot inside AWF.
+
+
 ## v0.32.2 - 2025-12-10
 
 ### Bug Fixes
