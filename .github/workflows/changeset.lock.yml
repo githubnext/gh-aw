@@ -713,7 +713,7 @@ jobs:
                 const teamMembers = [];
                 for (const collaborator of collaborators.data) {
                   const permission = collaborator.permissions;
-                  if (permission && (permission.push || permission.maintain || permission.admin)) {
+                  if (permission && (permission.maintain || permission.admin)) {
                     if (collaborator.type !== "Bot") {
                       teamMembers.push(collaborator.login);
                     }

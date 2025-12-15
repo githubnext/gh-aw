@@ -756,8 +756,8 @@ describe("compute_text.cjs", () => {
       mockContext.eventName = "issues";
       mockContext.payload = {
         issue: {
-          title: "Test",
-          body: "Body",
+          title: "Test @team-member-1 and @issueAuthor",
+          body: "Body mentioning @team-member-2",
           user: { login: "issueAuthor" },
         },
       };
@@ -768,7 +768,7 @@ describe("compute_text.cjs", () => {
       const infoCalls = mockCore.info.mock.calls.map(call => call[0]);
       const allowedMentionsLog = infoCalls.find(msg => msg.includes("Allowed mentions"));
       expect(allowedMentionsLog).toBeDefined();
-      // Should include team members and issue author
+      // Should include team members and issue author that were actually mentioned in text
       expect(allowedMentionsLog).toContain("team-member-1");
       expect(allowedMentionsLog).toContain("team-member-2");
       expect(allowedMentionsLog).toContain("issueAuthor");
@@ -780,7 +780,7 @@ describe("compute_text.cjs", () => {
       mockContext.eventName = "issues";
       mockContext.payload = {
         issue: {
-          title: "Test",
+          title: "Test @issueAuthor",
           body: "Body",
           user: { login: "issueAuthor" },
         },
@@ -790,8 +790,8 @@ describe("compute_text.cjs", () => {
 
       // Should still work and log a warning
       const warningCalls = mockCore.warning.mock.calls.map(call => call[0]);
-      const teamMemberWarning = warningCalls.find(msg => msg.includes("Failed to fetch team members"));
-      expect(teamMemberWarning).toBeDefined();
+      const collaboratorWarning = warningCalls.find(msg => msg.includes("Failed to fetch recent collaborators"));
+      expect(collaboratorWarning).toBeDefined();
 
       // Should still set output with issue text
       expect(mockCore.setOutput).toHaveBeenCalledWith("text", expect.any(String));
