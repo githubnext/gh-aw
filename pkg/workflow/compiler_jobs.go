@@ -1393,6 +1393,10 @@ func (c *Compiler) buildCustomJobs(data *WorkflowData, activationJobCreated bool
 							job.Secrets = make(map[string]string)
 							for key, val := range secretsMap {
 								if valStr, ok := val.(string); ok {
+									// Validate that the secret value is a proper GitHub Actions expression
+									if err := validateSecretsExpression(key, valStr); err != nil {
+										return err
+									}
 									job.Secrets[key] = valStr
 								}
 							}
