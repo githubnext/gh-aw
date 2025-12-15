@@ -65,95 +65,49 @@
 #
 # Original Prompt:
 # ```markdown
-# # Test Go File Size Reduction Campaign
+# # Test update-project Safe Output
 #
-# Test the `update-project` safe output with the actual go-file-size-reduction campaign configuration.
+# **CRITICAL**: The `update-project` safe output requires SPECIFIC FIELDS. You MUST provide them.
 #
-# ## Campaign Configuration
+# ## What NOT to do
 #
-# - **Campaign ID**: `go-file-size-reduction`
-# - **Campaign Name**: Go File Size Reduction Campaign
-# - **Project URL**: https://github.com/orgs/githubnext/projects/60
-# - **Tracker Label**: `campaign:go-file-size-reduction`
-# - **Memory Paths**: `memory/campaigns/go-file-size-reduction-*/**`
-# - **Workflows**: daily-file-diet
-#
-# ## Test Tasks
-#
-# Execute the following tests:
-#
-# ### Test 1: Verify Project Exists
-#
-# Call `update-project` with just the project URL and campaign ID to verify the project exists and is accessible:
-#
-# ```
-# {
-#   "type": "update_project",
-#   "project": "https://github.com/orgs/githubnext/projects/60",
-#   "campaign_id": "go-file-size-reduction"
-# }
+# ❌ **WRONG** - This will FAIL validation:
+# ```json
+# {"type": "update_project"}
 # ```
 #
-# ### Test 2: Add Issue to Campaign Project
+# ## What TO do
 #
-# Find the first open issue in the repository and add it to the campaign project:
-#
-# ```
+# ✅ **CORRECT** - Provide ALL required fields:
+# ```json
 # {
 #   "type": "update_project",
 #   "project": "https://github.com/orgs/githubnext/projects/60",
 #   "campaign_id": "go-file-size-reduction",
 #   "content_type": "issue",
-#   "content_number": <issue_number>
+#   "content_number": 999
 # }
 # ```
 #
-# ### Test 3: Update Custom Fields
+# ## Your Task
 #
-# Update the issue on the project with custom campaign fields:
+# 1. **List open issues** in this repository using the GitHub tool
+# 2. **Find the first open issue number** (e.g., 123, 456, etc.)
+# 3. **Output the COMPLETE JSON** shown above, replacing `999` with the actual issue number
 #
-# ```
-# {
-#   "type": "update_project",
-#   "project": "https://github.com/orgs/githubnext/projects/60",
-#   "campaign_id": "go-file-size-reduction",
-#   "content_type": "issue",
-#   "content_number": <issue_number>,
-#   "fields": {
-#     "Status": "In Progress",
-#     "Priority": "High"
-#   }
-# }
-# ```
+# ## Required Fields
 #
-# ### Test 4: Verify Campaign Label
-#
-# Use the GitHub API to verify the issue has the campaign label `campaign:go-file-size-reduction`.
-#
-# ### Test 5: Orchestrator Pattern
-#
-# Test the pattern used by the campaign orchestrator (just project URL and campaign ID with no issue):
-#
-# ```
-# {
-#   "type": "update_project",
-#   "project": "https://github.com/orgs/githubnext/projects/60",
-#   "campaign_id": "go-file-size-reduction"
-# }
-# ```
-#
-# ## Expected Results
-#
-# - All tests should pass without errors
-# - The issue should appear on the campaign project board
-# - The issue should have the `campaign:go-file-size-reduction` label
-# - Custom fields should be set (if they exist in the project)
+# - `type`: MUST be "update_project"
+# - `project`: MUST be "https://github.com/orgs/githubnext/projects/60" (exact URL)
+# - `campaign_id`: MUST be "go-file-size-reduction"  
+# - `content_type`: MUST be "issue"
+# - `content_number`: MUST be an actual issue number from this repo
 #
 # ## Notes
 #
-# - If custom fields don't exist, they need to be created in the GitHub UI first
-# - The project must already exist at the specified URL
-# - Requires `projects: write` permission
+# - The `project` field is REQUIRED and MUST be the full GitHub project URL
+# - If you output just `{"type":"update_project"}`, validation will fail
+# - Get a real issue number from the GitHub API first
 # ```
 #
 # Pinned GitHub Actions:
@@ -475,6 +429,41 @@ jobs:
                   "type": "string",
                   "sanitize": true,
                   "maxLength": 65000
+                }
+              }
+            },
+            "update_project": {
+              "defaultMax": 10,
+              "fields": {
+                "campaign_id": {
+                  "type": "string",
+                  "sanitize": true,
+                  "maxLength": 128
+                },
+                "content_number": {
+                  "optionalPositiveInteger": true
+                },
+                "content_type": {
+                  "type": "string",
+                  "enum": [
+                    "issue",
+                    "pull_request"
+                  ]
+                },
+                "fields": {
+                  "type": "object"
+                },
+                "issue": {
+                  "optionalPositiveInteger": true
+                },
+                "project": {
+                  "required": true,
+                  "type": "string",
+                  "sanitize": true,
+                  "maxLength": 512
+                },
+                "pull_request": {
+                  "optionalPositiveInteger": true
                 }
               }
             }
@@ -1988,95 +1977,49 @@ jobs:
           PROMPT_DIR="$(dirname "$GH_AW_PROMPT")"
           mkdir -p "$PROMPT_DIR"
           cat << 'PROMPT_EOF' > "$GH_AW_PROMPT"
-          # Test Go File Size Reduction Campaign
+          # Test update-project Safe Output
           
-          Test the `update-project` safe output with the actual go-file-size-reduction campaign configuration.
+          **CRITICAL**: The `update-project` safe output requires SPECIFIC FIELDS. You MUST provide them.
           
-          ## Campaign Configuration
+          ## What NOT to do
           
-          - **Campaign ID**: `go-file-size-reduction`
-          - **Campaign Name**: Go File Size Reduction Campaign
-          - **Project URL**: https://github.com/orgs/githubnext/projects/60
-          - **Tracker Label**: `campaign:go-file-size-reduction`
-          - **Memory Paths**: `memory/campaigns/go-file-size-reduction-*/**`
-          - **Workflows**: daily-file-diet
-          
-          ## Test Tasks
-          
-          Execute the following tests:
-          
-          ### Test 1: Verify Project Exists
-          
-          Call `update-project` with just the project URL and campaign ID to verify the project exists and is accessible:
-          
-          ```
-          {
-            "type": "update_project",
-            "project": "https://github.com/orgs/githubnext/projects/60",
-            "campaign_id": "go-file-size-reduction"
-          }
+          ❌ **WRONG** - This will FAIL validation:
+          ```json
+          {"type": "update_project"}
           ```
           
-          ### Test 2: Add Issue to Campaign Project
+          ## What TO do
           
-          Find the first open issue in the repository and add it to the campaign project:
-          
-          ```
+          ✅ **CORRECT** - Provide ALL required fields:
+          ```json
           {
             "type": "update_project",
             "project": "https://github.com/orgs/githubnext/projects/60",
             "campaign_id": "go-file-size-reduction",
             "content_type": "issue",
-            "content_number": <issue_number>
+            "content_number": 999
           }
           ```
           
-          ### Test 3: Update Custom Fields
+          ## Your Task
           
-          Update the issue on the project with custom campaign fields:
+          1. **List open issues** in this repository using the GitHub tool
+          2. **Find the first open issue number** (e.g., 123, 456, etc.)
+          3. **Output the COMPLETE JSON** shown above, replacing `999` with the actual issue number
           
-          ```
-          {
-            "type": "update_project",
-            "project": "https://github.com/orgs/githubnext/projects/60",
-            "campaign_id": "go-file-size-reduction",
-            "content_type": "issue",
-            "content_number": <issue_number>,
-            "fields": {
-              "Status": "In Progress",
-              "Priority": "High"
-            }
-          }
-          ```
+          ## Required Fields
           
-          ### Test 4: Verify Campaign Label
-          
-          Use the GitHub API to verify the issue has the campaign label `campaign:go-file-size-reduction`.
-          
-          ### Test 5: Orchestrator Pattern
-          
-          Test the pattern used by the campaign orchestrator (just project URL and campaign ID with no issue):
-          
-          ```
-          {
-            "type": "update_project",
-            "project": "https://github.com/orgs/githubnext/projects/60",
-            "campaign_id": "go-file-size-reduction"
-          }
-          ```
-          
-          ## Expected Results
-          
-          - All tests should pass without errors
-          - The issue should appear on the campaign project board
-          - The issue should have the `campaign:go-file-size-reduction` label
-          - Custom fields should be set (if they exist in the project)
+          - `type`: MUST be "update_project"
+          - `project`: MUST be "https://github.com/orgs/githubnext/projects/60" (exact URL)
+          - `campaign_id`: MUST be "go-file-size-reduction"  
+          - `content_type`: MUST be "issue"
+          - `content_number`: MUST be an actual issue number from this repo
           
           ## Notes
           
-          - If custom fields don't exist, they need to be created in the GitHub UI first
-          - The project must already exist at the specified URL
-          - Requires `projects: write` permission
+          - The `project` field is REQUIRED and MUST be the full GitHub project URL
+          - If you output just `{"type":"update_project"}`, validation will fail
+          - Get a real issue number from the GitHub API first
           
           PROMPT_EOF
       - name: Append XPIA security instructions to prompt

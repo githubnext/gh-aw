@@ -229,6 +229,18 @@ var ValidationConfig = map[string]TypeValidationConfig{
 			"sub_issue_number":    {Required: true, IssueNumberOrTemporaryID: true},
 		},
 	},
+	"update_project": {
+		DefaultMax: 10,
+		Fields: map[string]FieldValidation{
+			"project":        {Required: true, Type: "string", Sanitize: true, MaxLength: 512},
+			"campaign_id":    {Type: "string", Sanitize: true, MaxLength: 128},
+			"content_type":   {Type: "string", Enum: []string{"issue", "pull_request"}},
+			"content_number": {OptionalPositiveInteger: true},
+			"issue":          {OptionalPositiveInteger: true}, // Legacy
+			"pull_request":   {OptionalPositiveInteger: true}, // Legacy
+			"fields":         {Type: "object"},
+		},
+	},
 }
 
 // GetValidationConfigJSON returns the validation configuration as indented JSON
