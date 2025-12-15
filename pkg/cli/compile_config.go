@@ -60,9 +60,9 @@ var sensitivePatterns = []*regexp.Regexp{
 	// Match GitHub token patterns
 	regexp.MustCompile(`gh[ps]_[a-zA-Z0-9]{36,}`),
 	// Match GitHub Actions secret expressions
-	regexp.MustCompile(`\$\{\{\s*secrets\.[^}]+\}\}`),
+	regexp.MustCompile(`\$\{\{\s*secrets\.[a-zA-Z0-9_-]+\}\}`),
 	// Match quoted strings of 40+ chars preceded by secret-like keywords
-	regexp.MustCompile(`(?i)(secret|password|token|key|credential|api[_-]?key)s?\s*[:=]\s*['\"][a-zA-Z0-9_\-]{40,}['\"]`),
+	regexp.MustCompile(`(?i)(secret|password|token|key|credential|api[_-]?key)s?\s*[:=]\s*['"][-a-zA-Z0-9_]{40,}['\"]`),
 }
 
 // sanitizeErrorMessage removes potentially sensitive information from error messages
