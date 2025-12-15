@@ -429,6 +429,11 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 				}
 			}
 
+			// Handle mentions configuration
+			if mentions, exists := outputMap["mentions"]; exists {
+				config.Mentions = parseMentionsConfig(mentions)
+			}
+
 			// Handle jobs (safe-jobs moved under safe-outputs)
 			if jobs, exists := outputMap["jobs"]; exists {
 				if jobsMap, ok := jobs.(map[string]any); ok {
@@ -543,6 +548,82 @@ func parseMessagesConfig(messagesMap map[string]any) *SafeOutputMessagesConfig {
 	if runFailure, exists := messagesMap["run-failure"]; exists {
 		if runFailureStr, ok := runFailure.(string); ok {
 			config.RunFailure = runFailureStr
+		}
+	}
+
+	return config
+}
+
+// parseMentionsConfig parses the mentions configuration from safe-outputs frontmatter
+// Mentions can be:
+// - false: always escapes mentions
+// - true: always allows mentions (error in strict mode)
+// - object: detailed configuration with allow-team-members, allow-context, allowed, max
+func parseMentionsConfig(mentions any) *MentionsConfig {
+	config := &MentionsConfig{}
+
+	// Handle boolean value
+	if boolVal, ok := mentions.(bool); ok {
+		config.Enabled = &boolVal
+		return config
+	}
+
+	// Handle object configuration
+	if mentionsMap, ok := mentions.(map[string]any); ok {
+		// Parse allow-team-members
+		if allowTeamMembers, exists := mentionsMap["allow-team-members"]; exists {
+			if val, ok := allowTeamMembers.(bool); ok {
+				config.AllowTeamMembers = &val
+			}
+		}
+
+		// Parse allow-context
+		if allowContext, exists := mentionsMap["allow-context"]; exists {
+			if val, ok := allowContext.(bool); ok {
+				config.AllowContext = &val
+			}
+		}
+
+		// Parse allowed list
+		if allowed, exists := mentionsMap["allowed"]; exists {
+			if allowedArray, ok := allowed.([]any); ok {
+				var allowedStrings []string
+				for _, item := range allowedArray {
+					if str, ok := item.(string); ok {
+						allowedStrings = append(allowedStrings, str)
+					}
+				}
+				config.Allowed = allowedStrings
+			}
+		}
+
+		// Parse max
+		if maxVal, exists := mentionsMap["max"]; exists {
+			switch v := maxVal.(type) {
+			case int:
+				if v >= 1 {
+					config.Max = &v
+				}
+			case int64:
+				intVal := int(v)
+				if intVal >= 1 {
+					config.Max = &intVal
+				}
+			case uint64:
+				intVal := int(v)
+				if intVal >= 1 {
+					config.Max = &intVal
+				}
+			case float64:
+				intVal := int(v)
+				// Warn if truncation occurs
+				if v != float64(intVal) {
+					safeOutputsConfigLog.Printf("mentions.max: float value %.2f truncated to integer %d", v, intVal)
+				}
+				if intVal >= 1 {
+					config.Max = &intVal
+				}
+			}
 		}
 	}
 
@@ -883,6 +964,41 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 			}
 
 			safeOutputsConfig[jobName] = safeJobConfig
+		}
+	}
+
+	// Add mentions configuration
+	if data.SafeOutputs.Mentions != nil {
+		mentionsConfig := make(map[string]any)
+		
+		// Handle enabled flag (simple boolean mode)
+		if data.SafeOutputs.Mentions.Enabled != nil {
+			mentionsConfig["enabled"] = *data.SafeOutputs.Mentions.Enabled
+		}
+		
+		// Handle allow-team-members
+		if data.SafeOutputs.Mentions.AllowTeamMembers != nil {
+			mentionsConfig["allowTeamMembers"] = *data.SafeOutputs.Mentions.AllowTeamMembers
+		}
+		
+		// Handle allow-context
+		if data.SafeOutputs.Mentions.AllowContext != nil {
+			mentionsConfig["allowContext"] = *data.SafeOutputs.Mentions.AllowContext
+		}
+		
+		// Handle allowed list
+		if len(data.SafeOutputs.Mentions.Allowed) > 0 {
+			mentionsConfig["allowed"] = data.SafeOutputs.Mentions.Allowed
+		}
+		
+		// Handle max
+		if data.SafeOutputs.Mentions.Max != nil {
+			mentionsConfig["max"] = *data.SafeOutputs.Mentions.Max
+		}
+		
+		// Only add mentions config if it has any fields
+		if len(mentionsConfig) > 0 {
+			safeOutputsConfig["mentions"] = mentionsConfig
 		}
 	}
 

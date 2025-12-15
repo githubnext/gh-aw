@@ -14,16 +14,14 @@ async function main() {
   } = require("./safe_output_type_validator.cjs");
   const { resolveAllowedMentionsFromPayload } = require("./resolve_mentions_from_payload.cjs");
 
-  // Resolve allowed mentions for the output collector
-  // This determines which @mentions are allowed in the agent output
-  const allowedMentions = await resolveAllowedMentionsFromPayload(context, github, core);
-
   // Load validation config from file and set it in environment for the validator to read
   const validationConfigPath = process.env.GH_AW_VALIDATION_CONFIG_PATH || "/tmp/gh-aw/safeoutputs/validation.json";
+  let validationConfig = null;
   try {
     if (fs.existsSync(validationConfigPath)) {
       const validationConfigContent = fs.readFileSync(validationConfigPath, "utf8");
       process.env.GH_AW_VALIDATION_CONFIG = validationConfigContent;
+      validationConfig = JSON.parse(validationConfigContent);
       resetValidationConfigCache(); // Reset cache so it reloads from new env var
       core.info(`Loaded validation config from ${validationConfigPath}`);
     }
@@ -32,6 +30,13 @@ async function main() {
       `Failed to read validation config from ${validationConfigPath}: ${error instanceof Error ? error.message : String(error)}`
     );
   }
+
+  // Extract mentions configuration from validation config
+  const mentionsConfig = validationConfig?.mentions || null;
+
+  // Resolve allowed mentions for the output collector
+  // This determines which @mentions are allowed in the agent output
+  const allowedMentions = await resolveAllowedMentionsFromPayload(context, github, core, mentionsConfig);
 
   function repairJson(jsonStr) {
     let repaired = jsonStr.trim();

@@ -4593,6 +4593,46 @@
           },
           "additionalProperties": false
         },
+        "mentions": {
+          "description": "Configuration for @mention filtering in safe outputs. Controls whether and how @mentions in AI-generated content are allowed or escaped.",
+          "oneOf": [
+            {
+              "type": "boolean",
+              "description": "Simple boolean mode: false = always escape mentions, true = always allow mentions (error in strict mode)"
+            },
+            {
+              "type": "object",
+              "description": "Advanced configuration for @mention filtering with fine-grained control",
+              "properties": {
+                "allow-team-members": {
+                  "type": "boolean",
+                  "description": "Allow mentions of repository team members (collaborators with any permission level, excluding bots). Default: true",
+                  "default": true
+                },
+                "allow-context": {
+                  "type": "boolean",
+                  "description": "Allow mentions inferred from event context (issue/PR authors, assignees, commenters). Default: true",
+                  "default": true
+                },
+                "allowed": {
+                  "type": "array",
+                  "description": "List of user/bot names always allowed to be mentioned. Bots are not allowed by default unless listed here.",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "max": {
+                  "type": "integer",
+                  "description": "Maximum number of mentions allowed per message. Default: 50",
+                  "minimum": 1,
+                  "default": 50
+                }
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
         "runs-on": {
           "type": "string",
           "description": "Runner specification for all safe-outputs jobs (activation, create-issue, add-comment, etc.). Single runner label (e.g., 'ubuntu-slim', 'ubuntu-latest', 'windows-latest', 'self-hosted'). Defaults to 'ubuntu-slim'. See https://github.blog/changelog/2025-10-28-1-vcpu-linux-runner-now-available-in-github-actions-in-public-preview/"
