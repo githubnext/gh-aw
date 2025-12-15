@@ -592,7 +592,8 @@ describe("shouldSkipLine", () => {
   });
 
   test("should skip Copilot CLI DEBUG messages", () => {
-    const line = "2025-12-15T08:35:23.457Z [DEBUG] Unable to parse tool invocation as JSON. Treating it as a string for filtering: SyntaxError: Unexpected token 'l'";
+    const line =
+      "2025-12-15T08:35:23.457Z [DEBUG] Unable to parse tool invocation as JSON. Treating it as a string for filtering: SyntaxError: Unexpected token 'l'";
     expect(shouldSkipLine(line)).toBe(true);
   });
 
