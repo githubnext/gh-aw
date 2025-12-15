@@ -270,6 +270,11 @@ async function main() {
   // Resolve mentions lazily using the new helper
   const mentionResult = await resolveMentionsLazily(text, knownAuthors, owner, repo, github, core);
 
+  // Log known authors for debugging
+  if (knownAuthors.length > 0) {
+    core.info(`Known authors (from payload): ${knownAuthors.join(", ")}`);
+  }
+
   // Log allowed mentions for documentation
   if (mentionResult.allowedMentions.length > 0) {
     core.info(`Allowed mentions (will not be escaped): ${mentionResult.allowedMentions.join(", ")}`);
