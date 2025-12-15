@@ -12,6 +12,11 @@ async function main() {
     MAX_BODY_LENGTH: maxBodyLength,
     resetValidationConfigCache,
   } = require("./safe_output_type_validator.cjs");
+  const { resolveAllowedMentionsFromPayload } = require("./resolve_mentions_from_payload.cjs");
+
+  // Resolve allowed mentions for the output collector
+  // This determines which @mentions are allowed in the agent output
+  const allowedMentions = await resolveAllowedMentionsFromPayload(context, github, core);
 
   // Load validation config from file and set it in environment for the validator to read
   const validationConfigPath = process.env.GH_AW_VALIDATION_CONFIG_PATH || "/tmp/gh-aw/safeoutputs/validation.json";
@@ -87,7 +92,7 @@ async function main() {
             error: `Line ${lineNum}: ${fieldName} must be a string`,
           };
         }
-        normalizedValue = sanitizeContent(value);
+        normalizedValue = sanitizeContent(value, { allowedAliases: allowedMentions });
         break;
       case "boolean":
         if (typeof value !== "boolean") {
@@ -118,11 +123,11 @@ async function main() {
             error: `Line ${lineNum}: ${fieldName} must be one of: ${inputSchema.options.join(", ")}`,
           };
         }
-        normalizedValue = sanitizeContent(value);
+        normalizedValue = sanitizeContent(value, { allowedAliases: allowedMentions });
         break;
       default:
         if (typeof value === "string") {
-          normalizedValue = sanitizeContent(value);
+          normalizedValue = sanitizeContent(value, { allowedAliases: allowedMentions });
         }
         break;
     }
@@ -263,7 +268,7 @@ async function main() {
 
       // Use the validation engine to validate the item
       if (hasValidationConfig(itemType)) {
-        const validationResult = validateItem(item, itemType, i + 1);
+        const validationResult = validateItem(item, itemType, i + 1, { allowedAliases: allowedMentions });
         if (!validationResult.isValid) {
           if (validationResult.error) {
             errors.push(validationResult.error);

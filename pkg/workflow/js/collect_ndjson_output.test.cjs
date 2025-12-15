@@ -66,6 +66,28 @@ describe("collect_ndjson_output.cjs", () => {
     };
     global.core = mockCore;
 
+    // Mock context and github for the helper function
+    global.context = {
+      eventName: "issues",
+      actor: "test-actor",
+      repo: {
+        owner: "test-owner",
+        repo: "test-repo",
+      },
+      payload: {},
+    };
+
+    global.github = {
+      rest: {
+        repos: {
+          listCollaborators: vi.fn().mockResolvedValue({ data: [] }),
+        },
+        users: {
+          getByUsername: vi.fn(),
+        },
+      },
+    };
+
     // Read the script file
     const scriptPath = path.join(__dirname, "collect_ndjson_output.cjs");
     collectScript = fs.readFileSync(scriptPath, "utf8");
