@@ -158,7 +158,6 @@ func extractSkillInfo(filePath string, importPath string) (*SkillFile, error) {
 	return skill, nil
 }
 
-
 // ProcessImportsFromFrontmatter processes imports field from frontmatter
 // Returns merged tools and engines from imported files
 func ProcessImportsFromFrontmatter(frontmatter map[string]any, baseDir string) (mergedTools string, mergedEngines []string, err error) {
