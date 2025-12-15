@@ -1484,9 +1484,9 @@
           },
           "secrets": {
             "type": "object",
-            "description": "Secrets to pass to the reusable workflow",
+            "description": "Secrets to pass to the reusable workflow. Values must be GitHub Actions expressions referencing secrets (e.g., ${{ secrets.MY_SECRET }} or ${{ secrets.SECRET1 || secrets.SECRET2 }}).",
             "additionalProperties": {
-              "type": "string"
+              "$ref": "#/$defs/github_token"
             }
           }
         }
