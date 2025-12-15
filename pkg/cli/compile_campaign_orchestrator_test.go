@@ -111,3 +111,126 @@ func TestGenerateAndCompileCampaignOrchestrator(t *testing.T) {
 		}
 	}
 }
+
+// TestCampaignSourceCommentStability verifies that the source path in the generated
+// campaign orchestrator is stable regardless of the current working directory
+func TestCampaignSourceCommentStability(t *testing.T) {
+	// Create a temporary git repository structure with .github directory
+	tmpDir := t.TempDir()
+	githubDir := filepath.Join(tmpDir, ".github", "workflows")
+	if err := os.MkdirAll(githubDir, 0755); err != nil {
+		t.Fatalf("failed to create .github/workflows directory: %v", err)
+	}
+
+	// Create a campaign spec in the .github/workflows directory
+	campaignSpecPath := filepath.Join(githubDir, "test-campaign.campaign.md")
+
+	spec := &campaign.CampaignSpec{
+		ID:           "test-campaign",
+		Name:         "Test Campaign",
+		Description:  "A test campaign for path stability",
+		Workflows:    []string{"example-workflow"},
+		TrackerLabel: "campaign:test-campaign",
+		MemoryPaths:  []string{"memory/campaigns/test-campaign-*/**"},
+	}
+
+	compiler := workflow.NewCompiler(false, "", GetVersion())
+	compiler.SetSkipValidation(true)
+	compiler.SetNoEmit(false)
+	compiler.SetStrictMode(false)
+
+	// Save original working directory
+	originalWd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("failed to get current working directory: %v", err)
+	}
+	defer func() {
+		// Restore original working directory
+		if err := os.Chdir(originalWd); err != nil {
+			t.Logf("warning: failed to restore working directory: %v", err)
+		}
+	}()
+
+	// Test 1: Generate from the tmp directory root
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatalf("failed to change to tmp directory: %v", err)
+	}
+
+	orchestratorPath1, err := generateAndCompileCampaignOrchestrator(
+		compiler,
+		spec,
+		campaignSpecPath,
+		false, false, false, false, false, false, false,
+	)
+	if err != nil {
+		t.Fatalf("first generation error: %v", err)
+	}
+
+	mdContent1, err := os.ReadFile(orchestratorPath1)
+	if err != nil {
+		t.Fatalf("failed to read first generated file: %v", err)
+	}
+	sourcePath1 := extractSourcePath(t, string(mdContent1))
+
+	// Test 2: Generate from a subdirectory
+	pkgDir := filepath.Join(tmpDir, "pkg", "cli")
+	if err := os.MkdirAll(pkgDir, 0755); err != nil {
+		t.Fatalf("failed to create pkg/cli directory: %v", err)
+	}
+	if err := os.Chdir(pkgDir); err != nil {
+		t.Fatalf("failed to change to pkg/cli directory: %v", err)
+	}
+
+	// Remove the previously generated file to regenerate it
+	if err := os.Remove(orchestratorPath1); err != nil {
+		t.Fatalf("failed to remove first generated file: %v", err)
+	}
+
+	orchestratorPath2, err := generateAndCompileCampaignOrchestrator(
+		compiler,
+		spec,
+		campaignSpecPath,
+		false, false, false, false, false, false, false,
+	)
+	if err != nil {
+		t.Fatalf("second generation error: %v", err)
+	}
+
+	mdContent2, err := os.ReadFile(orchestratorPath2)
+	if err != nil {
+		t.Fatalf("failed to read second generated file: %v", err)
+	}
+	sourcePath2 := extractSourcePath(t, string(mdContent2))
+
+	// Verify both paths are identical and stable
+	if sourcePath1 != sourcePath2 {
+		t.Errorf("source paths differ based on working directory:\n  from root: %q\n  from subdir: %q", sourcePath1, sourcePath2)
+	}
+
+	// Verify the path is normalized to .github/workflows/...
+	expectedPath := ".github/workflows/test-campaign.campaign.md"
+	if sourcePath1 != expectedPath {
+		t.Errorf("expected stable path %q, got %q", expectedPath, sourcePath1)
+	}
+}
+
+// extractSourcePath extracts the source path from a markdown file's source comment
+func extractSourcePath(t *testing.T, content string) string {
+	t.Helper()
+
+	startMarker := "<!-- Source: "
+	endMarker := " -->"
+
+	startIdx := strings.Index(content, startMarker)
+	if startIdx == -1 {
+		t.Fatalf("source comment not found in content")
+	}
+
+	startIdx += len(startMarker)
+	endIdx := strings.Index(content[startIdx:], endMarker)
+	if endIdx == -1 {
+		t.Fatalf("source comment end marker not found")
+	}
+
+	return strings.TrimSpace(content[startIdx : startIdx+endIdx])
+}
