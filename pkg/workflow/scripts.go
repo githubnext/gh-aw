@@ -82,6 +82,9 @@ var updatePullRequestScriptSource string
 //go:embed js/update_pr_description_helpers.cjs
 var updatePRDescriptionHelpersScriptSource string
 
+//go:embed js/update_context_helpers.cjs
+var updateContextHelpersScriptSource string
+
 //go:embed js/update_release.cjs
 var updateReleaseScriptSource string
 
