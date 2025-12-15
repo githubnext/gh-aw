@@ -175,9 +175,9 @@ func ensureDebugAgenticWorkflowAgent(verbose bool, skipInstructions bool) error 
 	return ensureAgentFromTemplate("debug-agentic-workflow.agent.md", debugAgenticWorkflowAgentTemplate, verbose, skipInstructions)
 }
 
-// ensureCampaignDesignerAgent ensures that .github/agents/campaign-designer.agent.md contains the campaign designer agent
-func ensureCampaignDesignerAgent(verbose bool, skipInstructions bool) error {
-	return ensureAgentFromTemplate("campaign-designer.agent.md", campaignDesignerAgentTemplate, verbose, skipInstructions)
+// ensureAgenticCampaignDesignerAgent ensures that .github/agents/agentic-campaign-designer.agent.md contains the agentic campaign designer agent
+func ensureAgenticCampaignDesignerAgent(verbose bool, skipInstructions bool) error {
+	return ensureAgentFromTemplate("agentic-campaign-designer.agent.md", agenticCampaignDesignerAgentTemplate, verbose, skipInstructions)
 }
 
 // deleteSetupAgenticWorkflowsAgent deletes the setup-agentic-workflows.agent.md file if it exists

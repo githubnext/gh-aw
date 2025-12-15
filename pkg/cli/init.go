@@ -89,15 +89,15 @@ func InitRepository(verbose bool, mcp bool, campaign bool, tokens bool, engine s
 		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created debug agentic workflow agent"))
 	}
 
-	// Write campaign designer agent if requested
+	// Write agentic campaign designer agent if requested
 	if campaign {
-		initLog.Print("Writing campaign designer agent")
-		if err := ensureCampaignDesignerAgent(verbose, false); err != nil {
-			initLog.Printf("Failed to write campaign designer agent: %v", err)
-			return fmt.Errorf("failed to write campaign designer agent: %w", err)
+		initLog.Print("Writing agentic campaign designer agent")
+		if err := ensureAgenticCampaignDesignerAgent(verbose, false); err != nil {
+			initLog.Printf("Failed to write agentic campaign designer agent: %v", err)
+			return fmt.Errorf("failed to write agentic campaign designer agent: %w", err)
 		}
 		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created campaign designer agent"))
+			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created agentic campaign designer agent"))
 		}
 	}
 

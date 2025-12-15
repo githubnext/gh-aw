@@ -43,7 +43,7 @@ With --codespaces flag:
 - Use without value (--codespaces) for current repo only, or with comma-separated repos (--codespaces repo1,repo2)
 
 With --campaign flag:
-- Creates .github/agents/campaign-designer.agent.md with the Campaign Designer agent for gh-aw campaigns
+- Creates .github/agents/agentic-campaign-designer.agent.md with the Agentic Campaign Designer agent for gh-aw campaigns
 
 After running this command, you can:
 - Use GitHub Copilot Chat: type /agent and select create-agentic-workflow to create workflows interactively
