@@ -10,6 +10,32 @@ import (
 
 var expressionBuilderLog = logger.New("workflow:expression_builder")
 
+// Expression Builder Functions
+//
+// This file provides a functional builder pattern for constructing GitHub Actions
+// expression trees. Rather than using a stateful fluent builder, we use composable
+// functions that return immutable ConditionNode interfaces.
+//
+// Design Principles:
+// - Composable: Functions can be nested and combined naturally
+// - Type-safe: Compile-time guarantees through the ConditionNode interface
+// - Immutable: No shared mutable state, thread-safe by design
+// - Testable: Pure functions are easy to unit test
+// - Clear: Each function has a single, well-defined responsibility
+//
+// Example Usage:
+//
+//	condition := BuildAnd(
+//	    BuildEventTypeEquals("pull_request"),
+//	    BuildLabelContains("deploy"),
+//	)
+//	expression := condition.Render()
+//
+// All Build* functions return ConditionNode instances that can be:
+// - Combined with BuildAnd() and BuildOr()
+// - Rendered to GitHub Actions expression syntax with .Render()
+// - Nested to create complex logical expressions
+
 // BuildConditionTree creates a condition tree from existing if condition and new draft condition
 func BuildConditionTree(existingCondition string, draftCondition string) ConditionNode {
 	expressionBuilderLog.Printf("Building condition tree: existing=%q, draft=%q", existingCondition, draftCondition)
