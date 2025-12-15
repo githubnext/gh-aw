@@ -403,274 +403,11 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
           script: |
-            const redactedDomains = [];
-            function getRedactedDomains() {
-              return [...redactedDomains];
-            }
-            function clearRedactedDomains() {
-              redactedDomains.length = 0;
-            }
-            function writeRedactedDomainsLog(filePath) {
-              if (redactedDomains.length === 0) {
-                return null;
-              }
-              const fs = require("fs");
-              const path = require("path");
-              const targetPath = filePath || "/tmp/gh-aw/redacted-urls.log";
-              const dir = path.dirname(targetPath);
-              if (!fs.existsSync(dir)) {
-                fs.mkdirSync(dir, { recursive: true });
-              }
-              fs.writeFileSync(targetPath, redactedDomains.join("\n") + "\n");
-              return targetPath;
-            }
-            function extractDomainsFromUrl(url) {
-              if (!url || typeof url !== "string") {
-                return [];
-              }
-              try {
-                const urlObj = new URL(url);
-                const hostname = urlObj.hostname.toLowerCase();
-                const domains = [hostname];
-                if (hostname === "github.com") {
-                  domains.push("api.github.com");
-                  domains.push("raw.githubusercontent.com");
-                  domains.push("*.githubusercontent.com");
-                }
-                else if (!hostname.startsWith("api.")) {
-                  domains.push("api." + hostname);
-                  domains.push("raw." + hostname);
-                }
-                return domains;
-              } catch (e) {
-                return [];
-              }
-            }
-            function sanitizeContent(content, maxLengthOrOptions) {
-              let maxLength;
-              let allowedAliasesLowercase = [];
-              if (typeof maxLengthOrOptions === "number") {
-                maxLength = maxLengthOrOptions;
-              } else if (maxLengthOrOptions && typeof maxLengthOrOptions === "object") {
-                maxLength = maxLengthOrOptions.maxLength;
-                allowedAliasesLowercase = (maxLengthOrOptions.allowedAliases || []).map(alias => alias.toLowerCase());
-              }
-              if (!content || typeof content !== "string") {
-                return "";
-              }
-              const allowedDomainsEnv = process.env.GH_AW_ALLOWED_DOMAINS;
-              const defaultAllowedDomains = ["github.com", "github.io", "githubusercontent.com", "githubassets.com", "github.dev", "codespaces.new"];
-              let allowedDomains = allowedDomainsEnv
-                ? allowedDomainsEnv
-                    .split(",")
-                    .map(d => d.trim())
-                    .filter(d => d)
-                : defaultAllowedDomains;
-              const githubServerUrl = process.env.GITHUB_SERVER_URL;
-              const githubApiUrl = process.env.GITHUB_API_URL;
-              if (githubServerUrl) {
-                const serverDomains = extractDomainsFromUrl(githubServerUrl);
-                allowedDomains = allowedDomains.concat(serverDomains);
-              }
-              if (githubApiUrl) {
-                const apiDomains = extractDomainsFromUrl(githubApiUrl);
-                allowedDomains = allowedDomains.concat(apiDomains);
-              }
-              allowedDomains = [...new Set(allowedDomains)];
-              let sanitized = content;
-              sanitized = neutralizeCommands(sanitized);
-              sanitized = neutralizeMentions(sanitized);
-              sanitized = removeXmlComments(sanitized);
-              sanitized = convertXmlTags(sanitized);
-              sanitized = sanitized.replace(/\x1b\[[0-9;]*[mGKH]/g, "");
-              sanitized = sanitized.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "");
-              sanitized = sanitizeUrlProtocols(sanitized);
-              sanitized = sanitizeUrlDomains(sanitized);
-              const lines = sanitized.split("\n");
-              const maxLines = 65000;
-              maxLength = maxLength || 524288;
-              if (lines.length > maxLines) {
-                const truncationMsg = "\n[Content truncated due to line count]";
-                const truncatedLines = lines.slice(0, maxLines).join("\n") + truncationMsg;
-                if (truncatedLines.length > maxLength) {
-                  sanitized = truncatedLines.substring(0, maxLength - truncationMsg.length) + truncationMsg;
-                } else {
-                  sanitized = truncatedLines;
-                }
-              } else if (sanitized.length > maxLength) {
-                sanitized = sanitized.substring(0, maxLength) + "\n[Content truncated due to length]";
-              }
-              sanitized = neutralizeBotTriggers(sanitized);
-              return sanitized.trim();
-              function sanitizeUrlDomains(s) {
-                s = s.replace(/\bhttps:\/\/([^\s\])}'"<>&\x00-\x1f,;]+)/gi, (match, rest) => {
-                  const hostname = rest.split(/[\/:\?#]/)[0].toLowerCase();
-                  const isAllowed = allowedDomains.some(allowedDomain => {
-                    const normalizedAllowed = allowedDomain.toLowerCase();
-                    return hostname === normalizedAllowed || hostname.endsWith("." + normalizedAllowed);
-                  });
-                  if (isAllowed) {
-                    return match; 
-                  }
-                  const domain = hostname;
-                  const truncated = domain.length > 12 ? domain.substring(0, 12) + "..." : domain;
-                  core.info(`Redacted URL: ${truncated}`);
-                  core.debug(`Redacted URL (full): ${match}`);
-                  redactedDomains.push(domain);
-                  const urlParts = match.split(/([?&#])/);
-                  let result = "(redacted)"; 
-                  for (let i = 1; i < urlParts.length; i++) {
-                    if (urlParts[i].match(/^[?&#]$/)) {
-                      result += urlParts[i]; 
-                    } else {
-                      result += sanitizeUrlDomains(urlParts[i]);
-                    }
-                  }
-                  return result;
-                });
-                return s;
-              }
-              function sanitizeUrlProtocols(s) {
-                return s.replace(/(?<![-\/\w])([A-Za-z][A-Za-z0-9+.-]*):(?:\/\/|(?=[^\s:]))[^\s\])}'"<>&\x00-\x1f]+/g, (match, protocol) => {
-                  if (protocol.toLowerCase() === "https") {
-                    return match;
-                  }
-                  if (match.includes("::")) {
-                    return match;
-                  }
-                  if (match.includes("://")) {
-                    const domainMatch = match.match(/^[^:]+:\/\/([^\/\s?#]+)/);
-                    const domain = domainMatch ? domainMatch[1] : match;
-                    const truncated = domain.length > 12 ? domain.substring(0, 12) + "..." : domain;
-                    core.info(`Redacted URL: ${truncated}`);
-                    core.debug(`Redacted URL (full): ${match}`);
-                    redactedDomains.push(domain);
-                    return "(redacted)";
-                  }
-                  const dangerousProtocols = ["javascript", "data", "vbscript", "file", "about", "mailto", "tel", "ssh", "ftp"];
-                  if (dangerousProtocols.includes(protocol.toLowerCase())) {
-                    const truncated = match.length > 12 ? match.substring(0, 12) + "..." : match;
-                    core.info(`Redacted URL: ${truncated}`);
-                    core.debug(`Redacted URL (full): ${match}`);
-                    redactedDomains.push(protocol + ":");
-                    return "(redacted)";
-                  }
-                  return match;
-                });
-              }
-              function neutralizeCommands(s) {
-                const commandName = process.env.GH_AW_COMMAND;
-                if (!commandName) {
-                  return s;
-                }
-                const escapedCommand = commandName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-                return s.replace(new RegExp(`^(\\s*)/(${escapedCommand})\\b`, "i"), "$1`/$2`");
-              }
-              function neutralizeMentions(s) {
-                return s.replace(/(^|[^\w`])@([A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?(?:\/[A-Za-z0-9._-]+)?)/g, (_m, p1, p2) => {
-                  const isAllowed = allowedAliasesLowercase.includes(p2.toLowerCase());
-                  if (isAllowed) {
-                    return `${p1}@${p2}`; 
-                  }
-                  return `${p1}\`@${p2}\``; 
-                });
-              }
-              function removeXmlComments(s) {
-                return s.replace(/<!--[\s\S]*?-->/g, "").replace(/<!--[\s\S]*?--!>/g, "");
-              }
-              function convertXmlTags(s) {
-                const allowedTags = [
-                  "b",
-                  "blockquote",
-                  "br",
-                  "code",
-                  "details",
-                  "em",
-                  "h1",
-                  "h2",
-                  "h3",
-                  "h4",
-                  "h5",
-                  "h6",
-                  "hr",
-                  "i",
-                  "li",
-                  "ol",
-                  "p",
-                  "pre",
-                  "strong",
-                  "sub",
-                  "summary",
-                  "sup",
-                  "table",
-                  "tbody",
-                  "td",
-                  "th",
-                  "thead",
-                  "tr",
-                  "ul",
-                ];
-                s = s.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, (match, content) => {
-                  const convertedContent = content.replace(/<(\/?[A-Za-z][A-Za-z0-9]*(?:[^>]*?))>/g, "($1)");
-                  return `(![CDATA[${convertedContent}]])`;
-                });
-                return s.replace(/<(\/?[A-Za-z!][^>]*?)>/g, (match, tagContent) => {
-                  const tagNameMatch = tagContent.match(/^\/?\s*([A-Za-z][A-Za-z0-9]*)/);
-                  if (tagNameMatch) {
-                    const tagName = tagNameMatch[1].toLowerCase();
-                    if (allowedTags.includes(tagName)) {
-                      return match; 
-                    }
-                  }
-                  return `(${tagContent})`; 
-                });
-              }
-              function neutralizeBotTriggers(s) {
-                return s.replace(/\b(fixes?|closes?|resolves?|fix|close|resolve)\s+#(\w+)/gi, (match, action, ref) => `\`${action} #${ref}\``);
-              }
-            }
-            async function isBot(username, github) {
-              try {
-                const { data: user } = await github.rest.users.getByUsername({
-                  username: username,
-                });
-                return user.type === "Bot";
-              } catch (error) {
-                core.warning(`Failed to check if user ${username} is a bot: ${error instanceof Error ? error.message : String(error)}`);
-                return false;
-              }
-            }
-            function isPayloadUserBot(user) {
-              if (user && user.type === "Bot") {
-                return true;
-              }
-              return false;
-            }
-            async function getTeamMembers(owner, repo, github) {
-              try {
-                const collaborators = await github.rest.repos.listCollaborators({
-                  owner: owner,
-                  repo: repo,
-                  affiliation: "direct",
-                });
-                const teamMembers = [];
-                for (const collaborator of collaborators.data) {
-                  const permission = collaborator.permissions;
-                  if (permission && (permission.maintain || permission.admin)) {
-                    if (collaborator.type !== "Bot") {
-                      teamMembers.push(collaborator.login);
-                    }
-                  }
-                }
-                return teamMembers;
-              } catch (error) {
-                core.warning(`Failed to fetch team members: ${error instanceof Error ? error.message : String(error)}`);
-                return [];
-              }
-            }
+            const { sanitizeContent, writeRedactedDomainsLog } = require("./sanitize_content.cjs");
+            const { isPayloadUserBot, resolveMentionsLazily } = require("./resolve_mentions.cjs");
             async function main() {
               let text = "";
-              let allowedAliases = [];
+              let knownAuthors = [];
               const actor = context.actor;
               const { owner, repo } = context.repo;
               const repoPermission = await github.rest.repos.getCollaboratorPermissionLevel({
@@ -684,9 +421,6 @@ jobs:
                 core.setOutput("text", "");
                 return;
               }
-              const teamMembers = await getTeamMembers(owner, repo, github);
-              core.info(`Found ${teamMembers.length} team members in repository`);
-              allowedAliases.push(...teamMembers);
               switch (context.eventName) {
                 case "issues":
                   if (context.payload.issue) {
@@ -694,7 +428,7 @@ jobs:
                     const body = context.payload.issue.body || "";
                     text = `${title}\n\n${body}`;
                     if (context.payload.issue.user?.login && !isPayloadUserBot(context.payload.issue.user)) {
-                      allowedAliases.push(context.payload.issue.user.login);
+                      knownAuthors.push(context.payload.issue.user.login);
                     }
                   }
                   break;
@@ -704,7 +438,7 @@ jobs:
                     const body = context.payload.pull_request.body || "";
                     text = `${title}\n\n${body}`;
                     if (context.payload.pull_request.user?.login && !isPayloadUserBot(context.payload.pull_request.user)) {
-                      allowedAliases.push(context.payload.pull_request.user.login);
+                      knownAuthors.push(context.payload.pull_request.user.login);
                     }
                   }
                   break;
@@ -714,7 +448,7 @@ jobs:
                     const body = context.payload.pull_request.body || "";
                     text = `${title}\n\n${body}`;
                     if (context.payload.pull_request.user?.login && !isPayloadUserBot(context.payload.pull_request.user)) {
-                      allowedAliases.push(context.payload.pull_request.user.login);
+                      knownAuthors.push(context.payload.pull_request.user.login);
                     }
                   }
                   break;
@@ -722,10 +456,10 @@ jobs:
                   if (context.payload.comment) {
                     text = context.payload.comment.body || "";
                     if (context.payload.comment.user?.login && !isPayloadUserBot(context.payload.comment.user)) {
-                      allowedAliases.push(context.payload.comment.user.login);
+                      knownAuthors.push(context.payload.comment.user.login);
                     }
                     if (context.payload.issue?.user?.login && !isPayloadUserBot(context.payload.issue.user)) {
-                      allowedAliases.push(context.payload.issue.user.login);
+                      knownAuthors.push(context.payload.issue.user.login);
                     }
                   }
                   break;
@@ -733,10 +467,10 @@ jobs:
                   if (context.payload.comment) {
                     text = context.payload.comment.body || "";
                     if (context.payload.comment.user?.login && !isPayloadUserBot(context.payload.comment.user)) {
-                      allowedAliases.push(context.payload.comment.user.login);
+                      knownAuthors.push(context.payload.comment.user.login);
                     }
                     if (context.payload.pull_request?.user?.login && !isPayloadUserBot(context.payload.pull_request.user)) {
-                      allowedAliases.push(context.payload.pull_request.user.login);
+                      knownAuthors.push(context.payload.pull_request.user.login);
                     }
                   }
                   break;
@@ -744,10 +478,10 @@ jobs:
                   if (context.payload.review) {
                     text = context.payload.review.body || "";
                     if (context.payload.review.user?.login && !isPayloadUserBot(context.payload.review.user)) {
-                      allowedAliases.push(context.payload.review.user.login);
+                      knownAuthors.push(context.payload.review.user.login);
                     }
                     if (context.payload.pull_request?.user?.login && !isPayloadUserBot(context.payload.pull_request.user)) {
-                      allowedAliases.push(context.payload.pull_request.user.login);
+                      knownAuthors.push(context.payload.pull_request.user.login);
                     }
                   }
                   break;
@@ -757,7 +491,7 @@ jobs:
                     const body = context.payload.discussion.body || "";
                     text = `${title}\n\n${body}`;
                     if (context.payload.discussion.user?.login && !isPayloadUserBot(context.payload.discussion.user)) {
-                      allowedAliases.push(context.payload.discussion.user.login);
+                      knownAuthors.push(context.payload.discussion.user.login);
                     }
                   }
                   break;
@@ -765,10 +499,10 @@ jobs:
                   if (context.payload.comment) {
                     text = context.payload.comment.body || "";
                     if (context.payload.comment.user?.login && !isPayloadUserBot(context.payload.comment.user)) {
-                      allowedAliases.push(context.payload.comment.user.login);
+                      knownAuthors.push(context.payload.comment.user.login);
                     }
                     if (context.payload.discussion?.user?.login && !isPayloadUserBot(context.payload.discussion.user)) {
-                      allowedAliases.push(context.payload.discussion.user.login);
+                      knownAuthors.push(context.payload.discussion.user.login);
                     }
                   }
                   break;
@@ -778,12 +512,12 @@ jobs:
                     const body = context.payload.release.body || "";
                     text = `${name}\n\n${body}`;
                     if (context.payload.release.author?.login && !isPayloadUserBot(context.payload.release.author)) {
-                      allowedAliases.push(context.payload.release.author.login);
+                      knownAuthors.push(context.payload.release.author.login);
                     }
                   }
                   break;
                 case "workflow_dispatch":
-                  allowedAliases.push(actor);
+                  knownAuthors.push(actor);
                   if (context.payload.inputs) {
                     const releaseUrl = context.payload.inputs.release_url;
                     const releaseId = context.payload.inputs.release_id;
@@ -801,7 +535,7 @@ jobs:
                           const body = release.body || "";
                           text = `${name}\n\n${body}`;
                           if (release.author?.login && release.author.type !== "Bot") {
-                            allowedAliases.push(release.author.login);
+                            knownAuthors.push(release.author.login);
                           }
                         } catch (error) {
                           core.warning(`Failed to fetch release from URL: ${error instanceof Error ? error.message : String(error)}`);
@@ -818,7 +552,7 @@ jobs:
                         const body = release.body || "";
                         text = `${name}\n\n${body}`;
                         if (release.author?.login && release.author.type !== "Bot") {
-                          allowedAliases.push(release.author.login);
+                          knownAuthors.push(release.author.login);
                         }
                       } catch (error) {
                         core.warning(`Failed to fetch release by ID: ${error instanceof Error ? error.message : String(error)}`);
@@ -830,16 +564,13 @@ jobs:
                   text = "";
                   break;
               }
-              const uniqueAliases = [...new Set(allowedAliases.map(a => a.toLowerCase()))];
-              const finalAllowedAliases = allowedAliases.filter(
-                (alias, index) => uniqueAliases.indexOf(alias.toLowerCase()) === allowedAliases.map(a => a.toLowerCase()).indexOf(alias.toLowerCase())
-              );
-              if (finalAllowedAliases.length > 0) {
-                core.info(`Allowed mentions (will not be escaped): ${finalAllowedAliases.join(", ")}`);
+              const mentionResult = await resolveMentionsLazily(text, knownAuthors, owner, repo, github, core);
+              if (mentionResult.allowedMentions.length > 0) {
+                core.info(`Allowed mentions (will not be escaped): ${mentionResult.allowedMentions.join(", ")}`);
               } else {
                 core.info("No allowed mentions configured - all mentions will be escaped");
               }
-              const sanitizedText = sanitizeContent(text, { allowedAliases: finalAllowedAliases });
+              const sanitizedText = sanitizeContent(text, { allowedAliases: mentionResult.allowedMentions });
               core.info(`text: ${sanitizedText}`);
               core.setOutput("text", sanitizedText);
               const logPath = writeRedactedDomainsLog();

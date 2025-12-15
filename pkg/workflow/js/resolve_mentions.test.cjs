@@ -113,7 +113,7 @@ describe("resolve_mentions.cjs", () => {
       expect(result.size).toBe(3);
       expect(result.get("maintainer1")).toBe(true);
       expect(result.get("admin1")).toBe(true);
-      expect(result.get("contributor1")).toBe(false); // Only push access
+      expect(result.get("contributor1")).toBe(true); // Any permission level allowed
     });
 
     it("should exclude bots", async () => {
@@ -184,7 +184,7 @@ describe("resolve_mentions.cjs", () => {
       expect(result).toBe(true);
     });
 
-    it("should return false for regular contributor", async () => {
+    it("should return true for regular contributor", async () => {
       mockGithub.rest.users.getByUsername.mockResolvedValue({
         data: { login: "user", type: "User" },
       });
@@ -194,7 +194,7 @@ describe("resolve_mentions.cjs", () => {
 
       const result = await checkUserPermission("user", "owner", "repo", mockGithub, mockCore);
 
-      expect(result).toBe(false);
+      expect(result).toBe(true); // Any permission level allowed
     });
 
     it("should return false for bots", async () => {

@@ -46,12 +46,12 @@ function isPayloadUserBot(user) {
 }
 
 /**
- * Get recent collaborators (maintainers only) - optimistic resolution
+ * Get recent collaborators (any permission level) - optimistic resolution
  * @param {string} owner - Repository owner
  * @param {string} repo - Repository name
  * @param {any} github - GitHub API instance
  * @param {any} core - GitHub Actions core module
- * @returns {Promise<Map<string, boolean>>} Map of username (lowercase) to whether they're allowed (maintainer, not bot)
+ * @returns {Promise<Map<string, boolean>>} Map of username (lowercase) to whether they're allowed (any collaborator, not bot)
  */
 async function getRecentCollaborators(owner, repo, github, core) {
   try {
@@ -66,9 +66,8 @@ async function getRecentCollaborators(owner, repo, github, core) {
     const allowedMap = new Map();
     for (const collaborator of collaborators.data) {
       const lowercaseLogin = collaborator.login.toLowerCase();
-      // Only maintainers (maintain or admin) and non-bots are allowed
-      const isAllowed =
-        collaborator.type !== "Bot" && collaborator.permissions && (collaborator.permissions.maintain || collaborator.permissions.admin);
+      // Allow any collaborator (regardless of permission level) except bots
+      const isAllowed = collaborator.type !== "Bot";
       allowedMap.set(lowercaseLogin, isAllowed);
     }
 
@@ -86,7 +85,7 @@ async function getRecentCollaborators(owner, repo, github, core) {
  * @param {string} repo - Repository name
  * @param {any} github - GitHub API instance
  * @param {any} core - GitHub Actions core module
- * @returns {Promise<boolean>} True if user is allowed (maintainer, not bot)
+ * @returns {Promise<boolean>} True if user is allowed (any collaborator, not bot)
  */
 async function checkUserPermission(username, owner, repo, github, core) {
   try {
@@ -99,15 +98,15 @@ async function checkUserPermission(username, owner, repo, github, core) {
       return false;
     }
 
-    // Check repository permission
+    // Check if user is a collaborator (any permission level)
     const { data: permissionData } = await github.rest.repos.getCollaboratorPermissionLevel({
       owner: owner,
       repo: repo,
       username: username,
     });
 
-    const permission = permissionData.permission;
-    return permission === "maintain" || permission === "admin";
+    // Allow any permission level (read, triage, write, maintain, admin)
+    return permissionData.permission !== "none";
   } catch (error) {
     // User doesn't exist, not a collaborator, or API error - deny
     return false;
