@@ -124,26 +124,44 @@ gh aw new my-custom-workflow
 
 Creates a markdown workflow file in `.github/workflows/` with template frontmatter and automatically opens it for editing.
 
-#### `secret`
+#### `secrets`
 
-Manage GitHub Actions secrets for repositories. Secrets are encrypted environment variables used in workflows.
+Manage GitHub Actions secrets and tokens for GitHub Agentic Workflows. Use this command to set secrets for workflows and check which recommended token secrets are configured for your repository.
 
 **Subcommands:**
 
-##### `secret set`
+##### `secrets set`
 
 Create or update a repository secret. The secret value can be provided via flag, environment variable, or stdin.
 
 ```bash wrap
-gh aw secret set MY_SECRET                                    # From stdin (prompts)
-gh aw secret set MY_SECRET --value "secret123"                # From flag
-gh aw secret set MY_SECRET --value-from-env MY_TOKEN          # From environment variable
-gh aw secret set MY_SECRET --owner myorg --repo myrepo        # For specific repository
+gh aw secrets set MY_SECRET                                    # From stdin (prompts)
+gh aw secrets set MY_SECRET --value "secret123"                # From flag
+gh aw secrets set MY_SECRET --value-from-env MY_TOKEN          # From environment variable
+gh aw secrets set MY_SECRET --owner myorg --repo myrepo        # For specific repository
 ```
 
 **Options:** `--owner` (repository owner), `--repo` (repository name), `--value` (secret value), `--value-from-env` (environment variable to read from), `--api-url` (GitHub API base URL)
 
 When `--owner` and `--repo` are not specified, the command operates on the current repository. Both flags must be provided together when targeting a specific repository.
+
+##### `secrets bootstrap`
+
+Check and suggest setup for gh-aw GitHub token secrets. This command is read-only and inspects repository secrets to identify missing tokens, then prints least-privilege setup instructions.
+
+```bash wrap
+gh aw secrets bootstrap                    # Check tokens for current repository
+gh aw secrets bootstrap --engine copilot   # Check Copilot-specific tokens
+gh aw secrets bootstrap --engine claude    # Check Claude-specific tokens
+gh aw secrets bootstrap --engine codex     # Check Codex-specific tokens
+gh aw secrets bootstrap --owner org --repo project # Check specific repository
+```
+
+**Options:** `--engine` (AI engine to check tokens for: copilot, claude, codex), `--owner` (repository owner, defaults to current), `--repo` (repository name, defaults to current)
+
+The command checks for recommended secrets like `GH_AW_GITHUB_TOKEN`, `COPILOT_GITHUB_TOKEN`, `ANTHROPIC_API_KEY`, and `OPENAI_API_KEY` based on the specified engine. It provides setup instructions with suggested scopes for any missing tokens.
+
+See [GitHub Tokens reference](/gh-aw/reference/tokens/) for detailed information about token precedence and security best practices.
 
 ### Building
 
@@ -444,30 +462,6 @@ gh aw version
 ```
 
 Displays the current version of gh-aw and product information. Equivalent to using the `--version` flag.
-
-#### `tokens`
-
-Inspect and bootstrap GitHub tokens for gh-aw.
-
-**Subcommands:**
-
-##### `tokens bootstrap`
-
-Check and suggest setup for gh-aw GitHub token secrets. This command is read-only and inspects repository secrets to identify missing tokens, then prints least-privilege setup instructions.
-
-```bash wrap
-gh aw tokens bootstrap                    # Check tokens for current repository
-gh aw tokens bootstrap --engine copilot   # Check Copilot-specific tokens
-gh aw tokens bootstrap --engine claude    # Check Claude-specific tokens
-gh aw tokens bootstrap --engine codex     # Check Codex-specific tokens
-gh aw tokens bootstrap --owner org --repo project # Check specific repository
-```
-
-**Options:** `--engine` (AI engine to check tokens for: copilot, claude, codex), `--owner` (repository owner, defaults to current), `--repo` (repository name, defaults to current)
-
-The command checks for recommended secrets like `GH_AW_GITHUB_TOKEN`, `COPILOT_GITHUB_TOKEN`, `ANTHROPIC_API_KEY`, and `OPENAI_API_KEY` based on the specified engine. It provides setup instructions with suggested scopes for any missing tokens.
-
-See [GitHub Tokens reference](/gh-aw/reference/tokens/) for detailed information about token precedence and security best practices.
 
 ## Shell Completions
 

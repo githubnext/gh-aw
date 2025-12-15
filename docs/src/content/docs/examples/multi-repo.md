@@ -26,7 +26,7 @@ All multi-repo workflows require proper authentication:
 gh auth token
 
 # Store as repository or organization secret
-gh aw secret set CROSS_REPO_PAT --value "ghp_your_token_here"
+gh aw secrets set CROSS_REPO_PAT --value "ghp_your_token_here"
 ```
 
 The PAT needs permissions **only on target repositories** (not the source repository where the workflow runs): `repo` for private repos, `contents: write` for commits, `issues: write` for issues, and `pull-requests: write` for PRs.
