@@ -130,48 +130,45 @@ async function updateProject(output) {
     const ownerType = repoResult.repository.owner.__typename;
     core.info(`✓ Repository: ${owner}/${repo} (${ownerType})`);
 
-    // Step 2: Find existing project by querying repository's linked projects
-    core.info(`[2/5] Searching for project #${projectNumber} linked to repository...`);
+    // Step 2: Get the specific project by owner and number
+    core.info(`[2/5] Fetching project #${projectNumber} from ${ownerType.toLowerCase()}...`);
     let projectId;
 
-    // Query projects linked to this repository
-    const repoProjectsQuery = `query($owner: String!, $repo: String!) {
-      repository(owner: $owner, name: $repo) {
-        projectsV2(first: 100) {
-          nodes {
-            id
-            number
-          }
-        }
-      }
-    }`;
+    // Query the specific project by number directly
+    const projectQuery =
+      ownerType === "User"
+        ? `query($login: String!, $number: Int!) {
+            user(login: $login) {
+              projectV2(number: $number) {
+                id
+                number
+              }
+            }
+          }`
+        : `query($login: String!, $number: Int!) {
+            organization(login: $login) {
+              projectV2(number: $number) {
+                id
+                number
+              }
+            }
+          }`;
 
-    const repoProjectsResult = await github.graphql(repoProjectsQuery, { owner, repo }).catch(error => {
-      logGraphQLError(error, "Searching for projects linked to repository");
+    const projectResult = await github.graphql(projectQuery, { login: owner, number: parseInt(projectNumber, 10) }).catch(error => {
+      logGraphQLError(error, `Fetching project #${projectNumber}`);
       throw error;
     });
 
-    const repoProjects = repoProjectsResult.repository.projectsV2.nodes;
+    const project = ownerType === "User" ? projectResult.user.projectV2 : projectResult.organization.projectV2;
 
-    // Search by project number extracted from URL
-    const existingProject = repoProjects.find(p => p.number.toString() === projectNumber);
-
-    if (!existingProject) {
+    if (!project) {
       const ownerTypeDisplay = ownerType === "User" ? "user" : "organization";
-      const createUrl = ownerType === "User" 
-        ? `https://github.com/users/${owner}/projects/new`
-        : `https://github.com/orgs/${owner}/projects/new`;
-      
-      core.error(`Cannot find project #${projectNumber} linked to repository ${owner}/${repo}.`);
-      core.error(`Make sure:`);
-      core.error(`  1. Project exists: ${output.project}`);
-      core.error(`  2. Project is linked to repository ${owner}/${repo}`);
-      core.error(`  3. If not linked, add it at: https://github.com/${owner}/${repo}/projects`);
-      core.error(`\nTo create a new project: ${createUrl}`);
-      throw new Error(`Project #${projectNumber} not found or not linked to repository "${owner}/${repo}".`);
+      core.error(`Cannot find project #${projectNumber} on ${ownerTypeDisplay} "${owner}".`);
+      core.error(`Project URL: ${output.project}`);
+      throw new Error(`Project #${projectNumber} not found.`);
     }
 
-    projectId = existingProject.id;
+    projectId = project.id;
     core.info(`✓ Found project #${projectNumber} (ID: ${projectId})`);
 
     // Ensure project is linked to the repository
