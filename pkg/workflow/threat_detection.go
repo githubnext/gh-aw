@@ -150,7 +150,7 @@ func (c *Compiler) buildThreatDetectionSteps(data *WorkflowData, mainJobName str
 	var steps []string
 
 	// Step 1: Download agent artifacts
-	steps = append(steps, c.buildDownloadArtifactStep()...)
+	steps = append(steps, c.buildDownloadArtifactStep(mainJobName)...)
 
 	// Step 2: Echo agent outputs for debugging
 	steps = append(steps, c.buildEchoAgentOutputsStep(mainJobName)...)
@@ -173,7 +173,7 @@ func (c *Compiler) buildThreatDetectionSteps(data *WorkflowData, mainJobName str
 }
 
 // buildDownloadArtifactStep creates the artifact download step
-func (c *Compiler) buildDownloadArtifactStep() []string {
+func (c *Compiler) buildDownloadArtifactStep(mainJobName string) []string {
 	var steps []string
 
 	// Download prompt artifact
@@ -192,12 +192,13 @@ func (c *Compiler) buildDownloadArtifactStep() []string {
 		StepName:     "Download agent output artifact",
 	})...)
 
-	// Download patch artifact
+	// Download patch artifact - only when patch exists
 	steps = append(steps, buildArtifactDownloadSteps(ArtifactDownloadConfig{
 		ArtifactName: "aw.patch",
 		DownloadPath: "/tmp/gh-aw/threat-detection/",
 		SetupEnvStep: false,
 		StepName:     "Download patch artifact",
+		IfCondition:  fmt.Sprintf("needs.%s.outputs.has_patch == 'true'", mainJobName),
 	})...)
 
 	return steps
