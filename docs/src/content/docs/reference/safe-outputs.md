@@ -7,10 +7,21 @@ sidebar:
 
 The [`safe-outputs:`](/gh-aw/reference/glossary/#safe-outputs) element of your workflow's frontmatter declares that your agentic workflow should conclude with optional automated actions based on the agentic workflow's output. This enables your workflow to write content that is then automatically processed to create GitHub issues, comments, pull requests, or add labels—all without giving the agentic portion of the workflow any write permissions.
 
+## Why Safe Outputs?
+
+**Safe outputs are a security feature.** Your AI agent runs with minimal permissions (read-only access by default). When the agent wants to make changes to your repository—like creating an issue, adding a comment, or opening a pull request—it cannot do so directly. Instead, it "requests" that action by writing structured output to a file.
+
+A separate, permission-controlled job then reviews and executes these requests. This architecture provides:
+
+- **Principle of least privilege**: The AI never has write permissions during execution
+- **Defense against prompt injection**: Malicious inputs cannot trick the AI into making unauthorized changes
+- **Auditability**: All requested actions are logged and can be reviewed before execution
+- **Controlled blast radius**: Each safe output type has strict limits (e.g., maximum number of issues to create)
+
 **How It Works:**
-1. The agentic part of your workflow runs with minimal read-only permissions. It is given additional prompting to write its output to the special known files
+1. The agentic part of your workflow runs with minimal read-only permissions. It is given additional prompting to write its output to special known files
 2. The compiler automatically generates additional jobs that read this output and perform the requested actions
-3. Only these generated jobs receive the necessary write permissions
+3. Only these generated jobs receive the necessary write permissions—scoped precisely to what each safe output type requires
 
 For example:
 
@@ -19,7 +30,7 @@ safe-outputs:
   create-issue:
 ```
 
-This declares that the workflow should create at most one new issue.
+This declares that the workflow should create at most one new issue. The AI agent can request issue creation, but a separate job with `issues: write` permission actually creates it.
 
 ## Available Safe Output Types
 

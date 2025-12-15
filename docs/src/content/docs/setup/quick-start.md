@@ -193,6 +193,38 @@ Repository secrets are encrypted and never exposed in workflow logs. Only workfl
 
 For more information, see the [GitHub Copilot CLI documentation](https://github.com/github/copilot-cli?tab=readme-ov-file#authenticate-with-a-personal-access-token-pat).
 
+#### Verify your setup
+
+Before running workflows, verify everything is configured correctly:
+
+```bash wrap
+gh aw status
+```
+
+**Expected output:**
+```
+Workflow                 Engine    State     Enabled  Schedule
+──────────────────────────────────────────────────────────────
+daily-team-status        copilot   ✓         Yes      0 9 * * 1-5
+```
+
+This confirms:
+- ✓ The workflow is compiled and ready
+- ✓ It's enabled for execution
+- ✓ The schedule is configured correctly
+
+:::tip[Troubleshooting]
+**If the workflow isn't listed:**
+- Run `gh aw compile` to compile the workflow
+- Check that `.github/workflows/daily-team-status.md` exists
+
+**If you see errors when running the workflow:**
+- Verify `COPILOT_GITHUB_TOKEN` secret is set correctly in repository settings
+- Check that your token has "Copilot Requests" permission
+- Ensure your token hasn't expired
+- Run `gh aw secrets bootstrap --engine copilot` to check token configuration
+:::
+
 ### Step 4 — Trigger a workflow run
 
 Trigger the workflow immediately in GitHub Actions:

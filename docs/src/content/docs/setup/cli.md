@@ -25,7 +25,56 @@ Start here! These commands cover the essential workflow lifecycle from setup to 
 
 **Complete command reference below** ↓
 
+## Common Workflows for Beginners
 
+Learn how to use CLI commands together for common development tasks:
+
+### After creating a new workflow
+
+```bash wrap
+gh aw compile my-workflow      # Check for syntax errors
+gh aw run my-workflow           # Test it manually (if workflow_dispatch enabled)
+gh aw logs my-workflow          # See what happened
+```
+
+**What each command does:**
+- **`compile`**: Validates your markdown and generates the `.lock.yml` file—catches errors before running
+- **`run`**: Triggers the workflow immediately in GitHub Actions (requires `workflow_dispatch` trigger)
+- **`logs`**: Downloads and analyzes execution logs to see what the AI did
+
+### When something goes wrong
+
+```bash wrap
+gh aw status                    # Check configuration and workflow state
+gh aw logs my-workflow          # Review recent execution logs
+gh aw audit (run-id)            # Analyze specific run in detail
+```
+
+**Finding the run-id:**
+1. Go to your repository on GitHub.com
+2. Click the **Actions** tab
+3. Click on a workflow run from the list
+4. The run-id is the number in the URL: `github.com/owner/repo/actions/runs/12345678` → run-id is `12345678`
+
+**What each command reveals:**
+- **`status`**: Shows if workflows are enabled, compiled, and their schedules
+- **`logs`**: Reveals AI decisions, tool usage, network activity, and errors
+- **`audit`**: Provides deep analysis of a specific run including execution metrics, failed tools, and artifacts
+
+### Fixing common issues
+
+```bash wrap
+# Token or secret issues
+gh aw secrets bootstrap --engine copilot   # Check token configuration
+
+# Workflow not found or disabled
+gh aw status                               # List all workflows
+gh aw enable my-workflow                   # Enable if disabled
+
+# Syntax errors in workflow markdown
+gh aw compile my-workflow --validate       # Detailed validation output
+gh aw fix my-workflow --write              # Auto-fix deprecated fields
+```
 
 ## Installation
 
