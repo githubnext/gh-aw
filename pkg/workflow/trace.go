@@ -25,12 +25,10 @@ type TraceManifest struct {
 type CheckpointKind string
 
 const (
-	CheckpointToolCall    CheckpointKind = "tool_call"
-	CheckpointPatch       CheckpointKind = "patch"
-	CheckpointEval        CheckpointKind = "eval"
-	CheckpointSafeOutput  CheckpointKind = "safe_output"
-	CheckpointDecision    CheckpointKind = "decision"
-	CheckpointRiskGate    CheckpointKind = "risk_gate"
+	CheckpointToolCall   CheckpointKind = "tool_call"
+	CheckpointPatch      CheckpointKind = "patch"
+	CheckpointEval       CheckpointKind = "eval"
+	CheckpointSafeOutput CheckpointKind = "safe_output"
 )
 
 // Checkpoint represents a single replayable step in agent execution

@@ -312,11 +312,11 @@ jobs:
           fi
           COUNTER=$((COUNTER + 1))
           echo "$COUNTER" > "$CHECKPOINT_COUNTER_FILE"
-          CHECKPOINT_ID=$(printf "c%%03d" "$COUNTER")
+          CHECKPOINT_ID=$(printf "c%03d" "$COUNTER")
           REPO_SHA="$(git rev-parse HEAD 2>/dev/null || echo 'unknown')"
-          cat >> "$TRACE_DIR/checkpoints.jsonl" <<EOF
-          {"id":"$CHECKPOINT_ID","ts":"$(date -u +%%Y-%%m-%%dT%%H:%%M:%%SZ)","kind":"$CHECKPOINT_TYPE","name":"$CHECKPOINT_DESC","repo_sha":"$REPO_SHA"}
-          EOF
+          cat >> "$TRACE_DIR/checkpoints.jsonl" <<'CHECKPOINT_EOF'
+          {"id":"$CHECKPOINT_ID","ts":"$(date -u +%Y-%m-%dT%H:%M:%SZ)","kind":"$CHECKPOINT_TYPE","name":"$CHECKPOINT_DESC","repo_sha":"$REPO_SHA"}
+          CHECKPOINT_EOF
           echo "✅ Checkpoint $CHECKPOINT_ID: $CHECKPOINT_TYPE - $CHECKPOINT_DESC"
           EOF_SCRIPT
           chmod +x /tmp/gh-aw/record_checkpoint.sh
@@ -3486,50 +3486,49 @@ jobs:
           ### When to Record Checkpoints
           
           Record a checkpoint after each significant step:
-          - After gathering information (tool calls, file reads, searches)
-          - After making file changes (edits, patches)
-          - After running validations (tests, lints, builds)
-          - Before and after safe-output operations (PRs, comments, issues)
-          - At decision points (choosing between alternatives)
+          - After gathering information (tool calls, searches, file reads)
+          - After making code changes (edits, patches, refactors)
+          - After running validations (tests, lints, builds, checks)
+          - Before safe-output operations (creating PRs, issues, comments)
           
           ### How to Record a Checkpoint
           
-          Use this bash command to record checkpoints:
+          Use this bash command:
           
           ```bash
           bash /tmp/gh-aw/record_checkpoint.sh <type> <description>
           ```
           
           **Checkpoint Types:**
-          - `tool_call` - Used a tool to gather information
-          - `patch` - Made file changes
-          - `eval` - Ran tests or validation
-          - `decision` - Made a key decision
-          - `safe_output` - Created PR/issue/comment
+          - `tool_call` - Gathered information via tool/search/read
+          - `patch` - Modified files
+          - `eval` - Ran validation/tests
+          - `safe_output` - Creating PR/issue/comment
           
           **Examples:**
           ```bash
-          # After searching for files
-          bash /tmp/gh-aw/record_checkpoint.sh tool_call "Searched for test files"
+          # After searching/reading
+          bash /tmp/gh-aw/record_checkpoint.sh tool_call "Found 12 test files in pkg/"
           
-          # After editing a file
-          bash /tmp/gh-aw/record_checkpoint.sh patch "Updated error handling in main.go"
+          # After editing files
+          bash /tmp/gh-aw/record_checkpoint.sh patch "Fixed error handling in 3 files"
           
-          # After running tests
-          bash /tmp/gh-aw/record_checkpoint.sh eval "Ran unit tests (3 passed)"
+          # After running validation
+          bash /tmp/gh-aw/record_checkpoint.sh eval "Tests passed: 45/45"
           
-          # At a decision point
-          bash /tmp/gh-aw/record_checkpoint.sh decision "Chose to refactor rather than patch"
-          
-          # Before creating a PR
-          bash /tmp/gh-aw/record_checkpoint.sh safe_output "Creating PR with fixes"
+          # Before creating output
+          bash /tmp/gh-aw/record_checkpoint.sh safe_output "Creating PR with bug fixes"
           ```
           
-          ### Checkpoint Descriptions
+          ### Good Descriptions
           
-          Keep descriptions concise but informative:
-          - What was done (action verb)
-          - Key outcome or result
+          Include concrete details:
+          - What was done (action verb + object)
+          - Counts/numbers when relevant
+          - Key files/paths when relevant
+          
+          **Good:** "Analyzed 5 test files, found 2 failures"
+          **Bad:** "Did some analysis"
           - Important context (counts, file names, etc.)
           
           **Good:** "Analyzed 5 test files, found 2 failures"
