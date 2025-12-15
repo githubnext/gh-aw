@@ -283,6 +283,7 @@ type SafeOutputsConfig struct {
 	MaximumPatchSize                int                                    `yaml:"max-patch-size,omitempty"` // Maximum allowed patch size in KB (defaults to 1024)
 	RunsOn                          string                                 `yaml:"runs-on,omitempty"`        // Runner configuration for safe-outputs jobs
 	Messages                        *SafeOutputMessagesConfig              `yaml:"messages,omitempty"`       // Custom message templates for footer and notifications
+	Mentions                        *MentionsConfig                        `yaml:"mentions,omitempty"`       // Configuration for @mention filtering in safe outputs
 }
 
 // SafeOutputMessagesConfig holds custom message templates for safe-output footer and notification messages
@@ -295,6 +296,27 @@ type SafeOutputMessagesConfig struct {
 	RunSuccess        string `yaml:"run-success,omitempty" json:"runSuccess,omitempty"`               // Custom workflow success message template
 	RunFailure        string `yaml:"run-failure,omitempty" json:"runFailure,omitempty"`               // Custom workflow failure message template
 	DetectionFailure  string `yaml:"detection-failure,omitempty" json:"detectionFailure,omitempty"`   // Custom detection job failure message template
+}
+
+// MentionsConfig holds configuration for @mention filtering in safe outputs
+type MentionsConfig struct {
+	// Enabled can be:
+	//   true: mentions always allowed (error in strict mode)
+	//   false: mentions always escaped
+	//   nil: use default behavior with team members and context
+	Enabled *bool `yaml:"enabled,omitempty" json:"enabled,omitempty"`
+
+	// AllowTeamMembers determines if team members can be mentioned (default: true)
+	AllowTeamMembers *bool `yaml:"allow-team-members,omitempty" json:"allowTeamMembers,omitempty"`
+
+	// AllowContext determines if mentions from event context are allowed (default: true)
+	AllowContext *bool `yaml:"allow-context,omitempty" json:"allowContext,omitempty"`
+
+	// Allowed is a list of user/bot names always allowed (bots not allowed by default)
+	Allowed []string `yaml:"allowed,omitempty" json:"allowed,omitempty"`
+
+	// Max is the maximum number of mentions per message (default: 50)
+	Max *int `yaml:"max,omitempty" json:"max,omitempty"`
 }
 
 // SecretMaskingConfig holds configuration for secret redaction behavior
