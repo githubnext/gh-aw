@@ -155,3 +155,42 @@ func (c *Compiler) buildUpdateEntityJobWithConfig(
 	// Use the existing buildUpdateEntityJob to create the job
 	return c.buildUpdateEntityJob(data, mainJobName, config, params, logger)
 }
+
+// buildStandardUpdateEntityJob provides a streamlined API for building update entity jobs
+// by encapsulating the common builder initialization pattern shared across issue/PR/release builders.
+// This reduces duplication and ensures consistent handling of nil checks, logging, and builder wiring.
+func (c *Compiler) buildStandardUpdateEntityJob(
+	data *WorkflowData,
+	mainJobName string,
+	config *UpdateEntityConfig,
+	entityType UpdateEntityType,
+	configKey string,
+	jobName string,
+	stepName string,
+	scriptGetter func() string,
+	permissionsFunc func() *Permissions,
+	buildCustomEnvVars func(*UpdateEntityConfig) []string,
+	buildOutputs func() map[string]string,
+	buildEventCondition func(string) ConditionNode,
+	logger *logger.Logger,
+) (*Job, error) {
+	if config == nil {
+		return nil, fmt.Errorf("safe-outputs.%s configuration is required", configKey)
+	}
+
+	// Construct the builder with entity-specific parameters
+	builder := UpdateEntityJobBuilder{
+		EntityType:          entityType,
+		ConfigKey:           configKey,
+		JobName:             jobName,
+		StepName:            stepName,
+		ScriptGetter:        scriptGetter,
+		PermissionsFunc:     permissionsFunc,
+		BuildCustomEnvVars:  buildCustomEnvVars,
+		BuildOutputs:        buildOutputs,
+		BuildEventCondition: buildEventCondition,
+	}
+
+	// Delegate to existing helper
+	return c.buildUpdateEntityJobWithConfig(data, mainJobName, config, builder, logger)
+}
