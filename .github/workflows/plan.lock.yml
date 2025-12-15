@@ -616,6 +616,45 @@ jobs:
                 return s.replace(/\b(fixes?|closes?|resolves?|fix|close|resolve)\s+#(\w+)/gi, (match, action, ref) => `\`${action} #${ref}\``);
               }
             }
+            async function isBot(username, github) {
+              try {
+                const { data: user } = await github.rest.users.getByUsername({
+                  username: username,
+                });
+                return user.type === "Bot";
+              } catch (error) {
+                core.warning(`Failed to check if user ${username} is a bot: ${error instanceof Error ? error.message : String(error)}`);
+                return false;
+              }
+            }
+            function isPayloadUserBot(user) {
+              if (user && user.type === "Bot") {
+                return true;
+              }
+              return false;
+            }
+            async function getTeamMembers(owner, repo, github) {
+              try {
+                const collaborators = await github.rest.repos.listCollaborators({
+                  owner: owner,
+                  repo: repo,
+                  affiliation: "direct",
+                });
+                const teamMembers = [];
+                for (const collaborator of collaborators.data) {
+                  const permission = collaborator.permissions;
+                  if (permission && (permission.push || permission.maintain || permission.admin)) {
+                    if (collaborator.type !== "Bot") {
+                      teamMembers.push(collaborator.login);
+                    }
+                  }
+                }
+                return teamMembers;
+              } catch (error) {
+                core.warning(`Failed to fetch team members: ${error instanceof Error ? error.message : String(error)}`);
+                return [];
+              }
+            }
             async function main() {
               let text = "";
               let allowedAliases = [];
@@ -632,13 +671,16 @@ jobs:
                 core.setOutput("text", "");
                 return;
               }
+              const teamMembers = await getTeamMembers(owner, repo, github);
+              core.info(`Found ${teamMembers.length} team members in repository`);
+              allowedAliases.push(...teamMembers);
               switch (context.eventName) {
                 case "issues":
                   if (context.payload.issue) {
                     const title = context.payload.issue.title || "";
                     const body = context.payload.issue.body || "";
                     text = `${title}\n\n${body}`;
-                    if (context.payload.issue.user?.login) {
+                    if (context.payload.issue.user?.login && !isPayloadUserBot(context.payload.issue.user)) {
                       allowedAliases.push(context.payload.issue.user.login);
                     }
                   }
@@ -648,7 +690,7 @@ jobs:
                     const title = context.payload.pull_request.title || "";
                     const body = context.payload.pull_request.body || "";
                     text = `${title}\n\n${body}`;
-                    if (context.payload.pull_request.user?.login) {
+                    if (context.payload.pull_request.user?.login && !isPayloadUserBot(context.payload.pull_request.user)) {
                       allowedAliases.push(context.payload.pull_request.user.login);
                     }
                   }
@@ -658,7 +700,7 @@ jobs:
                     const title = context.payload.pull_request.title || "";
                     const body = context.payload.pull_request.body || "";
                     text = `${title}\n\n${body}`;
-                    if (context.payload.pull_request.user?.login) {
+                    if (context.payload.pull_request.user?.login && !isPayloadUserBot(context.payload.pull_request.user)) {
                       allowedAliases.push(context.payload.pull_request.user.login);
                     }
                   }
@@ -666,10 +708,10 @@ jobs:
                 case "issue_comment":
                   if (context.payload.comment) {
                     text = context.payload.comment.body || "";
-                    if (context.payload.comment.user?.login) {
+                    if (context.payload.comment.user?.login && !isPayloadUserBot(context.payload.comment.user)) {
                       allowedAliases.push(context.payload.comment.user.login);
                     }
-                    if (context.payload.issue?.user?.login) {
+                    if (context.payload.issue?.user?.login && !isPayloadUserBot(context.payload.issue.user)) {
                       allowedAliases.push(context.payload.issue.user.login);
                     }
                   }
@@ -677,10 +719,10 @@ jobs:
                 case "pull_request_review_comment":
                   if (context.payload.comment) {
                     text = context.payload.comment.body || "";
-                    if (context.payload.comment.user?.login) {
+                    if (context.payload.comment.user?.login && !isPayloadUserBot(context.payload.comment.user)) {
                       allowedAliases.push(context.payload.comment.user.login);
                     }
-                    if (context.payload.pull_request?.user?.login) {
+                    if (context.payload.pull_request?.user?.login && !isPayloadUserBot(context.payload.pull_request.user)) {
                       allowedAliases.push(context.payload.pull_request.user.login);
                     }
                   }
@@ -688,10 +730,10 @@ jobs:
                 case "pull_request_review":
                   if (context.payload.review) {
                     text = context.payload.review.body || "";
-                    if (context.payload.review.user?.login) {
+                    if (context.payload.review.user?.login && !isPayloadUserBot(context.payload.review.user)) {
                       allowedAliases.push(context.payload.review.user.login);
                     }
-                    if (context.payload.pull_request?.user?.login) {
+                    if (context.payload.pull_request?.user?.login && !isPayloadUserBot(context.payload.pull_request.user)) {
                       allowedAliases.push(context.payload.pull_request.user.login);
                     }
                   }
@@ -701,7 +743,7 @@ jobs:
                     const title = context.payload.discussion.title || "";
                     const body = context.payload.discussion.body || "";
                     text = `${title}\n\n${body}`;
-                    if (context.payload.discussion.user?.login) {
+                    if (context.payload.discussion.user?.login && !isPayloadUserBot(context.payload.discussion.user)) {
                       allowedAliases.push(context.payload.discussion.user.login);
                     }
                   }
@@ -709,10 +751,10 @@ jobs:
                 case "discussion_comment":
                   if (context.payload.comment) {
                     text = context.payload.comment.body || "";
-                    if (context.payload.comment.user?.login) {
+                    if (context.payload.comment.user?.login && !isPayloadUserBot(context.payload.comment.user)) {
                       allowedAliases.push(context.payload.comment.user.login);
                     }
-                    if (context.payload.discussion?.user?.login) {
+                    if (context.payload.discussion?.user?.login && !isPayloadUserBot(context.payload.discussion.user)) {
                       allowedAliases.push(context.payload.discussion.user.login);
                     }
                   }
@@ -722,7 +764,7 @@ jobs:
                     const name = context.payload.release.name || context.payload.release.tag_name || "";
                     const body = context.payload.release.body || "";
                     text = `${name}\n\n${body}`;
-                    if (context.payload.release.author?.login) {
+                    if (context.payload.release.author?.login && !isPayloadUserBot(context.payload.release.author)) {
                       allowedAliases.push(context.payload.release.author.login);
                     }
                   }
@@ -745,7 +787,7 @@ jobs:
                           const name = release.name || release.tag_name || "";
                           const body = release.body || "";
                           text = `${name}\n\n${body}`;
-                          if (release.author?.login) {
+                          if (release.author?.login && release.author.type !== "Bot") {
                             allowedAliases.push(release.author.login);
                           }
                         } catch (error) {
@@ -762,7 +804,7 @@ jobs:
                         const name = release.name || release.tag_name || "";
                         const body = release.body || "";
                         text = `${name}\n\n${body}`;
-                        if (release.author?.login) {
+                        if (release.author?.login && release.author.type !== "Bot") {
                           allowedAliases.push(release.author.login);
                         }
                       } catch (error) {
@@ -775,7 +817,16 @@ jobs:
                   text = "";
                   break;
               }
-              const sanitizedText = sanitizeContent(text, { allowedAliases });
+              const uniqueAliases = [...new Set(allowedAliases.map(a => a.toLowerCase()))];
+              const finalAllowedAliases = allowedAliases.filter(
+                (alias, index) => uniqueAliases.indexOf(alias.toLowerCase()) === allowedAliases.map(a => a.toLowerCase()).indexOf(alias.toLowerCase())
+              );
+              if (finalAllowedAliases.length > 0) {
+                core.info(`Allowed mentions (will not be escaped): ${finalAllowedAliases.join(", ")}`);
+              } else {
+                core.info("No allowed mentions configured - all mentions will be escaped");
+              }
+              const sanitizedText = sanitizeContent(text, { allowedAliases: finalAllowedAliases });
               core.info(`text: ${sanitizedText}`);
               core.setOutput("text", sanitizedText);
               const logPath = writeRedactedDomainsLog();
