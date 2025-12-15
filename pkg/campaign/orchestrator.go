@@ -61,7 +61,7 @@ func BuildOrchestrator(spec *CampaignSpec, campaignFilePath string) (*workflow.W
 		hasDetails = true
 	}
 	if strings.TrimSpace(spec.ProjectURL) != "" {
-		markdownBuilder.WriteString(fmt.Sprintf("- Project dashboard: %s\n", strings.TrimSpace(spec.ProjectURL)))
+		markdownBuilder.WriteString(fmt.Sprintf("- Project URL: %s\n", strings.TrimSpace(spec.ProjectURL)))
 		hasDetails = true
 	}
 
@@ -72,7 +72,7 @@ func BuildOrchestrator(spec *CampaignSpec, campaignFilePath string) (*workflow.W
 
 	markdownBuilder.WriteString("\nEach time this orchestrator runs on its daily schedule (or when manually dispatched), generate a concise status report for this campaign. Summarize current metrics, highlight blockers, and update any tracker issues using the campaign label.\n")
 	if strings.TrimSpace(spec.ProjectURL) != "" {
-		markdownBuilder.WriteString("\nKeep the campaign Project dashboard in sync using the `update-project` safe output. Use the campaign's `project-url` (shown above) as the project identifier when updating/adding items and fields.\n")
+		markdownBuilder.WriteString(fmt.Sprintf("\nKeep the campaign Project dashboard in sync using the `update-project` safe output. When calling update-project, set the `project` field to this URL: %s\n", strings.TrimSpace(spec.ProjectURL)))
 	}
 	markdownBuilder.WriteString("\nUse these details to coordinate workers, update metrics, and track progress for this campaign.\n")
 

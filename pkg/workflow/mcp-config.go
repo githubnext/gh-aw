@@ -54,7 +54,9 @@ func renderPlaywrightMCPConfigWithOptions(yaml *strings.Builder, playwrightTool 
 		// Inline format for Copilot
 		yaml.WriteString("                \"args\": [\"run\", \"-i\", \"--rm\", \"--init\", \"" + playwrightImage + "\", \"--output-dir\", \"/tmp/gh-aw/mcp-logs/playwright\"")
 		if len(allowedDomains) > 0 {
-			yaml.WriteString(", \"--allowed-hosts\", \"" + strings.Join(allowedDomains, ";") + "\"")
+			domainsStr := strings.Join(allowedDomains, ";")
+			yaml.WriteString(", \"--allowed-hosts\", \"" + domainsStr + "\"")
+			yaml.WriteString(", \"--allowed-origins\", \"" + domainsStr + "\"")
 		}
 		// Append custom args if present
 		writeArgsToYAMLInline(yaml, customArgs)
@@ -70,9 +72,12 @@ func renderPlaywrightMCPConfigWithOptions(yaml *strings.Builder, playwrightTool 
 		yaml.WriteString("                  \"--output-dir\",\n")
 		yaml.WriteString("                  \"/tmp/gh-aw/mcp-logs/playwright\"")
 		if len(allowedDomains) > 0 {
+			domainsStr := strings.Join(allowedDomains, ";")
 			yaml.WriteString(",\n")
 			yaml.WriteString("                  \"--allowed-hosts\",\n")
-			yaml.WriteString("                  \"" + strings.Join(allowedDomains, ";") + "\"")
+			yaml.WriteString("                  \"" + domainsStr + "\",\n")
+			yaml.WriteString("                  \"--allowed-origins\",\n")
+			yaml.WriteString("                  \"" + domainsStr + "\"")
 		}
 		// Append custom args if present
 		writeArgsToYAML(yaml, customArgs, "                  ")
@@ -276,9 +281,12 @@ func renderPlaywrightMCPConfigTOML(yaml *strings.Builder, playwrightTool any) {
 	yaml.WriteString("            \"--output-dir\",\n")
 	yaml.WriteString("            \"/tmp/gh-aw/mcp-logs/playwright\"")
 	if len(args.AllowedDomains) > 0 {
+		domainsStr := strings.Join(args.AllowedDomains, ";")
 		yaml.WriteString(",\n")
 		yaml.WriteString("            \"--allowed-hosts\",\n")
-		yaml.WriteString("            \"" + strings.Join(args.AllowedDomains, ";") + "\"")
+		yaml.WriteString("            \"" + domainsStr + "\",\n")
+		yaml.WriteString("            \"--allowed-origins\",\n")
+		yaml.WriteString("            \"" + domainsStr + "\"")
 	}
 
 	// Append custom args if present

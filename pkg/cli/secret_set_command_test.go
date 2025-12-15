@@ -1,8 +1,12 @@
 package cli
 
 import (
+	"crypto/rand"
+	"encoding/base64"
 	"strings"
 	"testing"
+
+	"golang.org/x/crypto/nacl/box"
 )
 
 func TestResolveSecretValueForSet(t *testing.T) {
@@ -144,5 +148,38 @@ func TestEncryptWithPublicKeyOversizedSecret(t *testing.T) {
 
 	if !strings.Contains(err.Error(), "65536 bytes") {
 		t.Errorf("expected error to mention the 64KB size limit (65536 bytes), got: %v", err)
+	}
+}
+
+func TestEncryptDecryptRoundTrip(t *testing.T) {
+	// Generate a real key pair for testing
+	pub, priv, err := box.GenerateKey(rand.Reader)
+	if err != nil {
+		t.Fatalf("failed to generate key pair: %v", err)
+	}
+
+	// Encode public key as base64
+	pubB64 := base64.StdEncoding.EncodeToString(pub[:])
+	plaintext := "test-secret-value"
+
+	// Encrypt using our function
+	encrypted, err := encryptWithPublicKey(pubB64, plaintext)
+	if err != nil {
+		t.Fatalf("encryptWithPublicKey() error = %v", err)
+	}
+
+	// Decrypt using NaCl box to verify correctness
+	cipherBytes, err := base64.StdEncoding.DecodeString(encrypted)
+	if err != nil {
+		t.Fatalf("failed to decode encrypted data: %v", err)
+	}
+
+	decrypted, ok := box.OpenAnonymous(nil, cipherBytes, pub, priv)
+	if !ok {
+		t.Fatal("decryption failed - ciphertext was not valid")
+	}
+
+	if string(decrypted) != plaintext {
+		t.Errorf("decrypted = %q, want %q", string(decrypted), plaintext)
 	}
 }
