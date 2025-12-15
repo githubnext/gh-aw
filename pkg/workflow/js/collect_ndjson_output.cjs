@@ -87,7 +87,8 @@ async function main() {
             error: `Line ${lineNum}: ${fieldName} must be a string`,
           };
         }
-        normalizedValue = sanitizeContent(value);
+        // Skip mention filtering in agent output collector - mentions will be filtered in safe output jobs
+        normalizedValue = sanitizeContent(value, { skipMentionFiltering: true });
         break;
       case "boolean":
         if (typeof value !== "boolean") {
@@ -118,11 +119,13 @@ async function main() {
             error: `Line ${lineNum}: ${fieldName} must be one of: ${inputSchema.options.join(", ")}`,
           };
         }
-        normalizedValue = sanitizeContent(value);
+        // Skip mention filtering in agent output collector - mentions will be filtered in safe output jobs
+        normalizedValue = sanitizeContent(value, { skipMentionFiltering: true });
         break;
       default:
         if (typeof value === "string") {
-          normalizedValue = sanitizeContent(value);
+          // Skip mention filtering in agent output collector - mentions will be filtered in safe output jobs
+          normalizedValue = sanitizeContent(value, { skipMentionFiltering: true });
         }
         break;
     }

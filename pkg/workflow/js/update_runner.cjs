@@ -15,6 +15,7 @@
 const { loadAgentOutput } = require("./load_agent_output.cjs");
 const { generateStagedPreview } = require("./staged_preview.cjs");
 const { removeDuplicateTitleFromDescription } = require("./remove_duplicate_title.cjs");
+const { resolveMentionsLazily, sanitizeForGitHubAPI, isPayloadUserBot } = require("./resolve_mentions.cjs");
 
 /**
  * @typedef {Object} UpdateRunnerConfig
@@ -262,6 +263,40 @@ async function runUpdateWorkflow(config) {
     if (!hasUpdates) {
       core.info("No valid updates to apply for this item");
       continue;
+    }
+
+    // Resolve mentions and sanitize body/title before passing to GitHub API
+    if (updateData.body || updateData.title) {
+      // Collect known authors from context for mention resolution
+      /** @type {string[]} */
+      let knownAuthors = [];
+      
+      // Add authors from triggering event context
+      if (context.payload?.issue?.user?.login && !isPayloadUserBot(context.payload.issue.user)) {
+        knownAuthors.push(context.payload.issue.user.login);
+      }
+      if (context.payload?.pull_request?.user?.login && !isPayloadUserBot(context.payload.pull_request.user)) {
+        knownAuthors.push(context.payload.pull_request.user.login);
+      }
+      if (context.payload?.discussion?.user?.login && !isPayloadUserBot(context.payload.discussion.user)) {
+        knownAuthors.push(context.payload.discussion.user.login);
+      }
+
+      // Combine body and title for mention resolution
+      const textToResolve = [updateData.title || "", updateData.body || ""].join(" ");
+      
+      // Resolve mentions
+      core.info(`Resolving mentions for ${displayName} update`);
+      const mentionResult = await resolveMentionsLazily(textToResolve, knownAuthors, context.repo.owner, context.repo.repo, github, core);
+      core.info(`Found ${mentionResult.totalMentions} mentions, ${mentionResult.allowedMentions.length} allowed`);
+
+      // Sanitize body and title for GitHub API with allowed mentions
+      if (updateData.body) {
+        updateData.body = sanitizeForGitHubAPI(updateData.body, mentionResult.allowedMentions);
+      }
+      if (updateData.title) {
+        updateData.title = sanitizeForGitHubAPI(updateData.title, mentionResult.allowedMentions);
+      }
     }
 
     try {

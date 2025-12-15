@@ -96,6 +96,7 @@ function extractDomainsFromUrl(url) {
  * @typedef {Object} SanitizeOptions
  * @property {number} [maxLength] - Maximum length of content (default: 524288)
  * @property {string[]} [allowedAliases] - List of aliases (@mentions) that should not be neutralized
+ * @property {boolean} [skipMentionFiltering] - If true, skips mention filtering entirely (preserves all @mentions)
  */
 
 /**
@@ -110,11 +111,14 @@ function sanitizeContent(content, maxLengthOrOptions) {
   let maxLength;
   /** @type {string[]} */
   let allowedAliasesLowercase = [];
+  /** @type {boolean} */
+  let skipMentionFiltering = false;
 
   if (typeof maxLengthOrOptions === "number") {
     maxLength = maxLengthOrOptions;
   } else if (maxLengthOrOptions && typeof maxLengthOrOptions === "object") {
     maxLength = maxLengthOrOptions.maxLength;
+    skipMentionFiltering = maxLengthOrOptions.skipMentionFiltering || false;
     // Pre-process allowed aliases to lowercase for efficient comparison
     allowedAliasesLowercase = (maxLengthOrOptions.allowedAliases || []).map(alias => alias.toLowerCase());
   }
@@ -156,8 +160,10 @@ function sanitizeContent(content, maxLengthOrOptions) {
   // Neutralize commands at the start of text (e.g., /bot-name)
   sanitized = neutralizeCommands(sanitized);
 
-  // Neutralize @mentions to prevent unintended notifications
-  sanitized = neutralizeMentions(sanitized);
+  // Neutralize @mentions to prevent unintended notifications (unless skipMentionFiltering is true)
+  if (!skipMentionFiltering) {
+    sanitized = neutralizeMentions(sanitized);
+  }
 
   // Remove XML comments first
   sanitized = removeXmlComments(sanitized);

@@ -180,6 +180,24 @@ describe("sanitize_content.cjs", () => {
       const escapedMentionCalls = mockCore.info.mock.calls.filter(call => call[0].includes("Escaped mention"));
       expect(escapedMentionCalls).toHaveLength(0);
     });
+
+    it("should skip mention filtering when skipMentionFiltering is true", () => {
+      const result = sanitizeContent("Hello @user1 and @user2", { skipMentionFiltering: true });
+      expect(result).toBe("Hello @user1 and @user2");
+      // Should not call core.info with any "Escaped mention" messages
+      const escapedMentionCalls = mockCore.info.mock.calls.filter(call => call[0].includes("Escaped mention"));
+      expect(escapedMentionCalls).toHaveLength(0);
+    });
+
+    it("should preserve all mentions when skipMentionFiltering is true even without allowedAliases", () => {
+      const result = sanitizeContent("Hello @alice, @bob, and @charlie", { skipMentionFiltering: true });
+      expect(result).toBe("Hello @alice, @bob, and @charlie");
+    });
+
+    it("should still escape mentions when skipMentionFiltering is false or not provided", () => {
+      const result = sanitizeContent("Hello @user");
+      expect(result).toBe("Hello `@user`");
+    });
   });
 
   describe("XML comments removal", () => {

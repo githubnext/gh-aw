@@ -327,14 +327,16 @@ function validateField(value, fieldName, validation, itemType, lineNum) {
       let normalizedResult = validation.enum[matchIndex];
       // Apply sanitization if configured
       if (validation.sanitize && validation.maxLength) {
-        normalizedResult = sanitizeContent(normalizedResult, validation.maxLength);
+        // Skip mention filtering in validator - mentions will be filtered in safe output jobs
+        normalizedResult = sanitizeContent(normalizedResult, { maxLength: validation.maxLength, skipMentionFiltering: true });
       }
       return { isValid: true, normalizedValue: normalizedResult };
     }
 
     // Handle sanitization
     if (validation.sanitize) {
-      const sanitized = sanitizeContent(value, validation.maxLength || MAX_BODY_LENGTH);
+      // Skip mention filtering in validator - mentions will be filtered in safe output jobs
+      const sanitized = sanitizeContent(value, { maxLength: validation.maxLength || MAX_BODY_LENGTH, skipMentionFiltering: true });
       return { isValid: true, normalizedValue: sanitized };
     }
 
@@ -368,8 +370,9 @@ function validateField(value, fieldName, validation, itemType, lineNum) {
 
       // Sanitize items if configured
       if (validation.itemSanitize) {
+        // Skip mention filtering in validator - mentions will be filtered in safe output jobs
         const sanitizedItems = value.map(item =>
-          typeof item === "string" ? sanitizeContent(item, validation.itemMaxLength || 128) : item
+          typeof item === "string" ? sanitizeContent(item, { maxLength: validation.itemMaxLength || 128, skipMentionFiltering: true }) : item
         );
         return { isValid: true, normalizedValue: sanitizedItems };
       }

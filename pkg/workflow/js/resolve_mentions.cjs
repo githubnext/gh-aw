@@ -185,10 +185,24 @@ async function resolveMentionsLazily(text, knownAuthors, owner, repo, github, co
   };
 }
 
+/**
+ * Sanitize content for GitHub API calls with mention filtering
+ * This is used in safe output jobs to filter mentions before passing content to GitHub APIs
+ * @param {string} content - The content to sanitize
+ * @param {string[]} allowedMentions - List of mentions that should not be filtered
+ * @param {number} [maxLength] - Maximum length of content
+ * @returns {string} Sanitized content with unauthorized mentions escaped
+ */
+function sanitizeForGitHubAPI(content, allowedMentions, maxLength) {
+  const { sanitizeContent } = require("./sanitize_content.cjs");
+  return sanitizeContent(content, { allowedAliases: allowedMentions, maxLength });
+}
+
 module.exports = {
   extractMentions,
   isPayloadUserBot,
   getRecentCollaborators,
   checkUserPermission,
   resolveMentionsLazily,
+  sanitizeForGitHubAPI,
 };

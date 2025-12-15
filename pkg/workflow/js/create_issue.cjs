@@ -16,6 +16,7 @@ const {
 const { parseAllowedRepos, getDefaultTargetRepo, validateRepo, parseRepoSlug } = require("./repo_helpers.cjs");
 const { addExpirationComment } = require("./expiration_helpers.cjs");
 const { removeDuplicateTitleFromDescription } = require("./remove_duplicate_title.cjs");
+const { resolveMentionsLazily, sanitizeForGitHubAPI, isPayloadUserBot } = require("./resolve_mentions.cjs");
 
 async function main() {
   // Initialize outputs to empty strings to ensure they're always set
@@ -238,12 +239,37 @@ async function main() {
     core.info(`Creating issue in ${itemRepo} with title: ${title}`);
     core.info(`Labels: ${labels}`);
     core.info(`Body length: ${body.length}`);
+    
+    // Collect known authors from context for mention resolution
+    /** @type {string[]} */
+    let knownAuthors = [];
+    
+    // Add authors from triggering event context
+    if (context.payload?.issue?.user?.login && !isPayloadUserBot(context.payload.issue.user)) {
+      knownAuthors.push(context.payload.issue.user.login);
+    }
+    if (context.payload?.pull_request?.user?.login && !isPayloadUserBot(context.payload.pull_request.user)) {
+      knownAuthors.push(context.payload.pull_request.user.login);
+    }
+    if (context.payload?.discussion?.user?.login && !isPayloadUserBot(context.payload.discussion.user)) {
+      knownAuthors.push(context.payload.discussion.user.login);
+    }
+
+    // Resolve mentions in the issue body
+    core.info(`Resolving mentions for issue body (length: ${body.length})`);
+    const mentionResult = await resolveMentionsLazily(body, knownAuthors, repoParts.owner, repoParts.repo, github, core);
+    core.info(`Found ${mentionResult.totalMentions} mentions, ${mentionResult.allowedMentions.length} allowed`);
+
+    // Sanitize body and title for GitHub API with allowed mentions
+    const sanitizedBody = sanitizeForGitHubAPI(body, mentionResult.allowedMentions);
+    const sanitizedTitle = sanitizeForGitHubAPI(title, mentionResult.allowedMentions);
+    
     try {
       const { data: issue } = await github.rest.issues.create({
         owner: repoParts.owner,
         repo: repoParts.repo,
-        title: title,
-        body: body,
+        title: sanitizedTitle,
+        body: sanitizedBody,
         labels: labels,
       });
       core.info(`Created issue ${itemRepo}#${issue.number}: ${issue.html_url}`);

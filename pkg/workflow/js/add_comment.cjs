@@ -6,6 +6,7 @@ const { generateFooterWithMessages } = require("./messages_footer.cjs");
 const { getRepositoryUrl } = require("./get_repository_url.cjs");
 const { replaceTemporaryIdReferences, loadTemporaryIdMap } = require("./temporary_id.cjs");
 const { getTrackerID } = require("./get_tracker_id.cjs");
+const { resolveMentionsLazily, sanitizeForGitHubAPI, isPayloadUserBot } = require("./resolve_mentions.cjs");
 
 /**
  * Hide/minimize a comment using the GraphQL API
@@ -557,6 +558,32 @@ async function main() {
       triggeringPRNumber,
       triggeringDiscussionNumber
     );
+
+    // Collect known authors from context for mention resolution
+    /** @type {string[]} */
+    let knownAuthors = [];
+    
+    // Add authors from triggering event context
+    if (context.payload?.issue?.user?.login && !isPayloadUserBot(context.payload.issue.user)) {
+      knownAuthors.push(context.payload.issue.user.login);
+    }
+    if (context.payload?.pull_request?.user?.login && !isPayloadUserBot(context.payload.pull_request.user)) {
+      knownAuthors.push(context.payload.pull_request.user.login);
+    }
+    if (context.payload?.discussion?.user?.login && !isPayloadUserBot(context.payload.discussion.user)) {
+      knownAuthors.push(context.payload.discussion.user.login);
+    }
+    if (context.payload?.comment?.user?.login && !isPayloadUserBot(context.payload.comment.user)) {
+      knownAuthors.push(context.payload.comment.user.login);
+    }
+
+    // Resolve mentions in the comment body
+    core.info(`Resolving mentions for comment body (length: ${body.length})`);
+    const mentionResult = await resolveMentionsLazily(body, knownAuthors, context.repo.owner, context.repo.repo, github, core);
+    core.info(`Found ${mentionResult.totalMentions} mentions, ${mentionResult.allowedMentions.length} allowed`);
+
+    // Sanitize body for GitHub API with allowed mentions
+    body = sanitizeForGitHubAPI(body, mentionResult.allowedMentions);
 
     try {
       // Hide older comments from the same workflow if enabled

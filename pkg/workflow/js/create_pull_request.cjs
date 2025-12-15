@@ -9,6 +9,7 @@ const { updateActivationComment } = require("./update_activation_comment.cjs");
 const { getTrackerID } = require("./get_tracker_id.cjs");
 const { addExpirationComment } = require("./expiration_helpers.cjs");
 const { removeDuplicateTitleFromDescription } = require("./remove_duplicate_title.cjs");
+const { resolveMentionsLazily, sanitizeForGitHubAPI, isPayloadUserBot } = require("./resolve_mentions.cjs");
 
 /**
  * Generate a patch preview with max 500 lines and 2000 chars for issue body
@@ -568,13 +569,37 @@ ${patchPreview}`;
     }
   }
 
+  // Collect known authors from context for mention resolution
+  /** @type {string[]} */
+  let knownAuthors = [];
+  
+  // Add authors from triggering event context
+  if (context.payload?.issue?.user?.login && !isPayloadUserBot(context.payload.issue.user)) {
+    knownAuthors.push(context.payload.issue.user.login);
+  }
+  if (context.payload?.pull_request?.user?.login && !isPayloadUserBot(context.payload.pull_request.user)) {
+    knownAuthors.push(context.payload.pull_request.user.login);
+  }
+  if (context.payload?.discussion?.user?.login && !isPayloadUserBot(context.payload.discussion.user)) {
+    knownAuthors.push(context.payload.discussion.user.login);
+  }
+
+  // Resolve mentions in the PR body
+  core.info(`Resolving mentions for PR body (length: ${body.length})`);
+  const mentionResult = await resolveMentionsLazily(body, knownAuthors, context.repo.owner, context.repo.repo, github, core);
+  core.info(`Found ${mentionResult.totalMentions} mentions, ${mentionResult.allowedMentions.length} allowed`);
+
+  // Sanitize body and title for GitHub API with allowed mentions
+  const sanitizedBody = sanitizeForGitHubAPI(body, mentionResult.allowedMentions);
+  const sanitizedTitle = sanitizeForGitHubAPI(title, mentionResult.allowedMentions);
+
   // Try to create the pull request, with fallback to issue creation
   try {
     const { data: pullRequest } = await github.rest.pulls.create({
       owner: context.repo.owner,
       repo: context.repo.repo,
-      title: title,
-      body: body,
+      title: sanitizedTitle,
+      body: sanitizedBody,
       head: branchName,
       base: baseBranch,
       draft: draft,

@@ -2105,7 +2105,7 @@ Line 3"}
       );
     });
 
-    it("should handle @mentions neutralization", async () => {
+    it("should NOT filter @mentions in agent output collector - they will be filtered in safe output jobs", async () => {
       const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
       const ndjsonContent = `{"type": "create_issue", "title": "@mention Test", "body": "Hey @username and @org/team, check this out! But preserve email@domain.com"}`;
 
@@ -2121,7 +2121,8 @@ Line 3"}
       const outputCall = mockCore.setOutput.mock.calls.find(call => call[0] === "output");
       const parsedOutput = JSON.parse(outputCall[1]);
 
-      expect(parsedOutput.items[0].body).toBe("Hey `@username` and `@org/team`, check this out! But preserve email@domain.com");
+      // Mentions should NOT be escaped in the collector - they will be filtered in safe output jobs
+      expect(parsedOutput.items[0].body).toBe("Hey @username and @org/team, check this out! But preserve email@domain.com");
     });
 
     it("should neutralize bot trigger phrases", async () => {
@@ -2619,7 +2620,8 @@ Line 3"}
 
       const parsedOutput = JSON.parse(outputCall[1]);
       expect(parsedOutput.items).toHaveLength(1);
-      expect(parsedOutput.items[0].message).toContain("`@mention`");
+      // Mentions should NOT be escaped in the collector - they will be filtered in safe output jobs
+      expect(parsedOutput.items[0].message).toContain("@mention");
       expect(parsedOutput.items[0].message).toContain("`fixes #123`");
     });
 
