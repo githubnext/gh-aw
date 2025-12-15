@@ -79,7 +79,7 @@
 #
 # Each time this orchestrator runs on its daily schedule (or when manually dispatched), generate a concise status report for this campaign. Summarize current metrics, highlight blockers, and update any tracker issues using the campaign label.
 #
-# Keep the campaign Project dashboard in sync using the `update-project` safe output. When calling update-project, set the `project` field to this URL: https://github.com/orgs/githubnext/projects/60
+# Keep the campaign Project dashboard in sync using the `update-project` safe output. When calling update-project, use the `project` field with this exact URL: https://github.com/orgs/githubnext/projects/60
 #
 # Use these details to coordinate workers, update metrics, and track progress for this campaign.
 # ```
@@ -2730,7 +2730,7 @@ jobs:
           
           Each time this orchestrator runs on its daily schedule (or when manually dispatched), generate a concise status report for this campaign. Summarize current metrics, highlight blockers, and update any tracker issues using the campaign label.
           
-          Keep the campaign Project dashboard in sync using the `update-project` safe output. When calling update-project, set the `project` field to this URL: https://github.com/orgs/githubnext/projects/60
+          Keep the campaign Project dashboard in sync using the `update-project` safe output. When calling update-project, use the `project` field with this exact URL: https://github.com/orgs/githubnext/projects/60
           
           Use these details to coordinate workers, update metrics, and track progress for this campaign.
           
@@ -7115,10 +7115,10 @@ jobs:
               }
               return { success: true, items: validatedOutput.items };
             }
-            function parseProjectInput(projectInput) {
+            function parseProjectInput(projectInput, isCampaign = false) {
               if (!projectInput || typeof projectInput !== "string") {
                 throw new Error(
-                  `Invalid project input: expected string, got ${typeof projectInput}. The "project" field is required and must be a GitHub project URL, number, or name.`
+                  `Invalid project input: expected string, got ${typeof projectInput}. The "project" field is required and must be a GitHub project URL${isCampaign ? "" : ", number, or name"}.`
                 );
               }
               const urlMatch = projectInput.match(/github\.com\/(?:users|orgs)\/[^/]+\/projects\/(\d+)/);
@@ -7127,6 +7127,11 @@ jobs:
                   projectNumber: urlMatch[1],
                   projectName: null,
                 };
+              }
+              if (isCampaign) {
+                throw new Error(
+                  `Invalid project URL for campaign: "${projectInput}". Campaign project identifiers must be full GitHub project URLs (e.g., https://github.com/orgs/myorg/projects/123).`
+                );
               }
               return {
                 projectNumber: /^\d+$/.test(projectInput) ? projectInput : null,
@@ -7144,7 +7149,8 @@ jobs:
             }
             async function updateProject(output) {
               const { owner, repo } = context.repo;
-              const { projectNumber: parsedProjectNumber, projectName: parsedProjectName } = parseProjectInput(output.project);
+              const isCampaign = !!output.campaign_id;
+              const { projectNumber: parsedProjectNumber, projectName: parsedProjectName } = parseProjectInput(output.project, isCampaign);
               const displayName = parsedProjectName || parsedProjectNumber || output.project;
               const campaignId = output.campaign_id || generateCampaignId(displayName);
               let githubClient = github;

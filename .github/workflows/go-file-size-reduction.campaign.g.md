@@ -33,6 +33,6 @@ This workflow orchestrates the 'Go File Size Reduction Campaign' campaign.
 
 Each time this orchestrator runs on its daily schedule (or when manually dispatched), generate a concise status report for this campaign. Summarize current metrics, highlight blockers, and update any tracker issues using the campaign label.
 
-Keep the campaign Project dashboard in sync using the `update-project` safe output. When calling update-project, set the `project` field to this URL: https://github.com/orgs/githubnext/projects/60
+Keep the campaign Project dashboard in sync using the `update-project` safe output. When calling update-project, use the `project` field with this exact URL: https://github.com/orgs/githubnext/projects/60
 
 Use these details to coordinate workers, update metrics, and track progress for this campaign.

@@ -162,6 +162,23 @@ describe("parseProjectInput", () => {
   it("throws when the project input is missing", () => {
     expect(() => parseProjectInput(undefined)).toThrow(/Invalid project input/);
   });
+
+  it("accepts URL for campaign usage", () => {
+    expect(parseProjectInput("https://github.com/orgs/acme/projects/42", true)).toEqual({
+      projectNumber: "42",
+      projectName: null,
+    });
+  });
+
+  it("rejects project name for campaign usage", () => {
+    expect(() => parseProjectInput("Engineering Roadmap", true)).toThrow(/Invalid project URL for campaign/);
+    expect(() => parseProjectInput("Engineering Roadmap", true)).toThrow(/must be full GitHub project URLs/);
+  });
+
+  it("rejects project number for campaign usage", () => {
+    expect(() => parseProjectInput("42", true)).toThrow(/Invalid project URL for campaign/);
+    expect(() => parseProjectInput("42", true)).toThrow(/must be full GitHub project URLs/);
+  });
 });
 
 describe("generateCampaignId", () => {
@@ -208,7 +225,12 @@ describe("updateProject", () => {
   });
 
   it("respects a custom campaign id", async () => {
-    const output = { type: "update_project", project: "Custom Campaign", campaign_id: "custom-id-2025", create_if_missing: true };
+    const output = {
+      type: "update_project",
+      project: "https://github.com/orgs/testowner/projects/42",
+      campaign_id: "custom-id-2025",
+      create_if_missing: true,
+    };
 
     queueResponses([
       repoResponse(),
@@ -218,8 +240,8 @@ describe("updateProject", () => {
           projectV2: {
             id: "project456",
             title: "Custom Campaign",
-            url: "https://github.com/orgs/testowner/projects/2",
-            number: 2,
+            url: "https://github.com/orgs/testowner/projects/42",
+            number: 42,
           },
         },
       },
@@ -469,5 +491,32 @@ describe("updateProject", () => {
 
     await expect(updateProject(output)).rejects.toThrow(/Insufficient permissions/);
     expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("Failed to manage project"));
+  });
+
+  it("rejects non-URL project identifier when campaign_id is present", async () => {
+    const output = { type: "update_project", project: "My Campaign", campaign_id: "my-campaign-123" };
+
+    await expect(updateProject(output)).rejects.toThrow(/Invalid project URL for campaign/);
+    await expect(updateProject(output)).rejects.toThrow(/must be full GitHub project URLs/);
+  });
+
+  it("accepts URL project identifier when campaign_id is present", async () => {
+    const output = {
+      type: "update_project",
+      project: "https://github.com/orgs/testowner/projects/60",
+      campaign_id: "my-campaign-123",
+    };
+
+    queueResponses([
+      repoResponse(),
+      ownerProjectsResponse([
+        { id: "project123", number: 60, title: "Test Project", url: "https://github.com/orgs/testowner/projects/60" },
+      ]),
+      linkResponse,
+    ]);
+
+    await updateProject(output);
+
+    expect(mockCore.error).not.toHaveBeenCalled();
   });
 });
