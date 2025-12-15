@@ -446,6 +446,8 @@ gh aw tokens bootstrap --owner org --repo project # Check specific repository
 
 The command checks for recommended secrets like `GH_AW_GITHUB_TOKEN`, `COPILOT_GITHUB_TOKEN`, `ANTHROPIC_API_KEY`, and `OPENAI_API_KEY` based on the specified engine. It provides setup instructions with suggested scopes for any missing tokens.
 
+See [GitHub Tokens reference](/gh-aw/reference/tokens/) for detailed information about token precedence and security best practices.
+
 ## Shell Completions
 
 gh-aw provides shell completion for bash, zsh, fish, and PowerShell. Completions enable tab completion for workflow names, engine names, and directory paths.
