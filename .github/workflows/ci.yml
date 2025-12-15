@@ -87,6 +87,9 @@ jobs:
           - name: "CLI Logs & Firewall"
             packages: "./pkg/cli"
             pattern: "TestLogs|TestFirewall|TestNoStopTime|TestLocalWorkflow"
+          - name: "CLI Completion & Safe Inputs"
+            packages: "./pkg/cli"
+            pattern: ""  # Catch-all for tests not matched by other CLI patterns
           - name: "Workflow Compiler"
             packages: "./pkg/workflow"
             pattern: "TestCompile|TestWorkflow|TestGenerate|TestParse"
@@ -117,6 +120,9 @@ jobs:
           - name: "Parser Remote Fetch & Cache"
             packages: "./pkg/parser"
             pattern: "TestDownloadFileFromGitHub|TestResolveIncludePath|TestDownloadIncludeFromWorkflowSpec|TestImportCache"
+          - name: "Parser Location & Validation"
+            packages: "./pkg/parser"
+            pattern: ""  # Catch-all for tests not matched by other Parser patterns
           - name: "Workflow Permissions"
             packages: "./pkg/workflow"
             pattern: "TestPermissions|TestPackageExtractor|TestCollectPackagesFromWorkflow"
