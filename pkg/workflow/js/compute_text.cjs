@@ -44,6 +44,14 @@ async function main() {
         if (context.payload.issue.user?.login && !isPayloadUserBot(context.payload.issue.user)) {
           knownAuthors.push(context.payload.issue.user.login);
         }
+        // Add issue assignees to known authors (if not bots)
+        if (context.payload.issue.assignees && Array.isArray(context.payload.issue.assignees)) {
+          for (const assignee of context.payload.issue.assignees) {
+            if (assignee?.login && !isPayloadUserBot(assignee)) {
+              knownAuthors.push(assignee.login);
+            }
+          }
+        }
       }
       break;
 
@@ -57,6 +65,14 @@ async function main() {
         if (context.payload.pull_request.user?.login && !isPayloadUserBot(context.payload.pull_request.user)) {
           knownAuthors.push(context.payload.pull_request.user.login);
         }
+        // Add PR assignees to known authors (if not bots)
+        if (context.payload.pull_request.assignees && Array.isArray(context.payload.pull_request.assignees)) {
+          for (const assignee of context.payload.pull_request.assignees) {
+            if (assignee?.login && !isPayloadUserBot(assignee)) {
+              knownAuthors.push(assignee.login);
+            }
+          }
+        }
       }
       break;
 
@@ -69,6 +85,14 @@ async function main() {
         // Add PR author to known authors (if not a bot)
         if (context.payload.pull_request.user?.login && !isPayloadUserBot(context.payload.pull_request.user)) {
           knownAuthors.push(context.payload.pull_request.user.login);
+        }
+        // Add PR assignees to known authors (if not bots)
+        if (context.payload.pull_request.assignees && Array.isArray(context.payload.pull_request.assignees)) {
+          for (const assignee of context.payload.pull_request.assignees) {
+            if (assignee?.login && !isPayloadUserBot(assignee)) {
+              knownAuthors.push(assignee.login);
+            }
+          }
         }
       }
       break;
@@ -85,6 +109,14 @@ async function main() {
         if (context.payload.issue?.user?.login && !isPayloadUserBot(context.payload.issue.user)) {
           knownAuthors.push(context.payload.issue.user.login);
         }
+        // Add issue assignees to known authors (if not bots)
+        if (context.payload.issue?.assignees && Array.isArray(context.payload.issue.assignees)) {
+          for (const assignee of context.payload.issue.assignees) {
+            if (assignee?.login && !isPayloadUserBot(assignee)) {
+              knownAuthors.push(assignee.login);
+            }
+          }
+        }
       }
       break;
 
@@ -100,6 +132,14 @@ async function main() {
         if (context.payload.pull_request?.user?.login && !isPayloadUserBot(context.payload.pull_request.user)) {
           knownAuthors.push(context.payload.pull_request.user.login);
         }
+        // Add PR assignees to known authors (if not bots)
+        if (context.payload.pull_request?.assignees && Array.isArray(context.payload.pull_request.assignees)) {
+          for (const assignee of context.payload.pull_request.assignees) {
+            if (assignee?.login && !isPayloadUserBot(assignee)) {
+              knownAuthors.push(assignee.login);
+            }
+          }
+        }
       }
       break;
 
@@ -114,6 +154,14 @@ async function main() {
         // Also add the parent PR author to known authors (if not a bot)
         if (context.payload.pull_request?.user?.login && !isPayloadUserBot(context.payload.pull_request.user)) {
           knownAuthors.push(context.payload.pull_request.user.login);
+        }
+        // Add PR assignees to known authors (if not bots)
+        if (context.payload.pull_request?.assignees && Array.isArray(context.payload.pull_request.assignees)) {
+          for (const assignee of context.payload.pull_request.assignees) {
+            if (assignee?.login && !isPayloadUserBot(assignee)) {
+              knownAuthors.push(assignee.login);
+            }
+          }
         }
       }
       break;
