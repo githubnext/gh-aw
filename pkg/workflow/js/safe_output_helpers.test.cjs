@@ -324,6 +324,155 @@ describe("safe_output_helpers", () => {
       });
     });
 
+    describe("workflow_dispatch with well-known inputs", () => {
+      it("should resolve issue_number from workflow_dispatch inputs", () => {
+        const result = helpers.resolveTarget({
+          targetConfig: "triggering",
+          item: {},
+          context: {
+            eventName: "workflow_dispatch",
+            payload: {
+              inputs: { issue_number: "123" },
+            },
+          },
+          itemType: "test",
+          supportsPR: true,
+        });
+        expect(result.success).toBe(true);
+        expect(result.number).toBe(123);
+        expect(result.contextType).toBe("issue");
+      });
+
+      it("should resolve pull_request_number from workflow_dispatch inputs", () => {
+        const result = helpers.resolveTarget({
+          targetConfig: "triggering",
+          item: {},
+          context: {
+            eventName: "workflow_dispatch",
+            payload: {
+              inputs: { pull_request_number: "456" },
+            },
+          },
+          itemType: "test",
+          supportsPR: true,
+        });
+        expect(result.success).toBe(true);
+        expect(result.number).toBe(456);
+        expect(result.contextType).toBe("pull request");
+      });
+
+      it("should resolve discussion_number from workflow_dispatch inputs", () => {
+        const result = helpers.resolveTarget({
+          targetConfig: "triggering",
+          item: {},
+          context: {
+            eventName: "workflow_dispatch",
+            payload: {
+              inputs: { discussion_number: "789" },
+            },
+          },
+          itemType: "test",
+          supportsPR: true,
+        });
+        expect(result.success).toBe(true);
+        expect(result.number).toBe(789);
+        expect(result.contextType).toBe("discussion");
+      });
+
+      it("should resolve pull_request_number for PR-only mode", () => {
+        const result = helpers.resolveTarget({
+          targetConfig: "triggering",
+          item: {},
+          context: {
+            eventName: "workflow_dispatch",
+            payload: {
+              inputs: { pull_request_number: "321" },
+            },
+          },
+          itemType: "reviewer addition",
+          supportsPR: false,
+        });
+        expect(result.success).toBe(true);
+        expect(result.number).toBe(321);
+        expect(result.contextType).toBe("pull request");
+      });
+
+      it("should fail when workflow_dispatch has invalid issue_number", () => {
+        const result = helpers.resolveTarget({
+          targetConfig: "triggering",
+          item: {},
+          context: {
+            eventName: "workflow_dispatch",
+            payload: {
+              inputs: { issue_number: "invalid" },
+            },
+          },
+          itemType: "test",
+          supportsPR: true,
+        });
+        expect(result.success).toBe(false);
+        expect(result.error).toContain("Invalid issue_number input");
+        expect(result.shouldFail).toBe(true);
+      });
+
+      it("should fail when workflow_dispatch has no well-known inputs", () => {
+        const result = helpers.resolveTarget({
+          targetConfig: "triggering",
+          item: {},
+          context: {
+            eventName: "workflow_dispatch",
+            payload: {
+              inputs: { some_other_input: "value" },
+            },
+          },
+          itemType: "test",
+          supportsPR: true,
+        });
+        expect(result.success).toBe(false);
+        expect(result.error).toContain('Target is "triggering"');
+        expect(result.shouldFail).toBe(false);
+      });
+
+      it("should prefer issue_number over pull_request_number when both present", () => {
+        const result = helpers.resolveTarget({
+          targetConfig: "triggering",
+          item: {},
+          context: {
+            eventName: "workflow_dispatch",
+            payload: {
+              inputs: {
+                issue_number: "111",
+                pull_request_number: "222",
+              },
+            },
+          },
+          itemType: "test",
+          supportsPR: true,
+        });
+        expect(result.success).toBe(true);
+        expect(result.number).toBe(111);
+        expect(result.contextType).toBe("issue");
+      });
+
+      it("should ignore discussion_number in PR-only mode", () => {
+        const result = helpers.resolveTarget({
+          targetConfig: "triggering",
+          item: {},
+          context: {
+            eventName: "workflow_dispatch",
+            payload: {
+              inputs: { discussion_number: "789" },
+            },
+          },
+          itemType: "reviewer addition",
+          supportsPR: false,
+        });
+        expect(result.success).toBe(false);
+        expect(result.error).toContain('Target is "triggering"');
+        expect(result.shouldFail).toBe(false);
+      });
+    });
+
     describe("string number conversion", () => {
       it("should handle string item_number", () => {
         const result = helpers.resolveTarget({

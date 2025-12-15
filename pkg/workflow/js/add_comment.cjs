@@ -335,6 +335,12 @@ async function main() {
     context.eventName === "pull_request_review_comment";
   const isDiscussionContext = context.eventName === "discussion" || context.eventName === "discussion_comment";
   const isDiscussion = isDiscussionContext || isDiscussionExplicit;
+  const isWorkflowDispatch = context.eventName === "workflow_dispatch";
+
+  // Check for well-known workflow_dispatch inputs
+  const hasIssueNumberInput = isWorkflowDispatch && context.payload?.inputs?.issue_number;
+  const hasPRNumberInput = isWorkflowDispatch && context.payload?.inputs?.pull_request_number;
+  const hasDiscussionNumberInput = isWorkflowDispatch && context.payload?.inputs?.discussion_number;
 
   // Get workflow ID for hiding older comments
   // Use GITHUB_WORKFLOW environment variable which is automatically set by GitHub Actions
@@ -413,7 +419,15 @@ async function main() {
   }
 
   // Validate context based on target configuration
-  if (commentTarget === "triggering" && !isIssueContext && !isPRContext && !isDiscussionContext) {
+  if (
+    commentTarget === "triggering" &&
+    !isIssueContext &&
+    !isPRContext &&
+    !isDiscussionContext &&
+    !hasIssueNumberInput &&
+    !hasPRNumberInput &&
+    !hasDiscussionNumberInput
+  ) {
     core.info('Target is "triggering" but not running in issue, pull request, or discussion context, skipping comment creation');
     return;
   }
@@ -459,7 +473,7 @@ async function main() {
       }
       commentEndpoint = isDiscussion ? "discussions" : "issues";
     } else {
-      // Default behavior: use triggering issue/PR/discussion
+      // Default behavior: use triggering issue/PR/discussion or workflow_dispatch inputs
       if (isIssueContext) {
         itemNumber = context.payload.issue?.number || context.payload.pull_request?.number || context.payload.discussion?.number;
         if (context.payload.issue) {
@@ -483,6 +497,30 @@ async function main() {
         } else {
           core.info("Discussion context detected but no discussion found in payload");
           continue;
+        }
+      } else if (isWorkflowDispatch && context.payload?.inputs) {
+        // Check for well-known workflow_dispatch inputs
+        if (hasIssueNumberInput) {
+          itemNumber = parseInt(context.payload.inputs.issue_number, 10);
+          if (isNaN(itemNumber) || itemNumber <= 0) {
+            core.info(`Invalid issue_number input: ${context.payload.inputs.issue_number}`);
+            continue;
+          }
+          commentEndpoint = "issues";
+        } else if (hasPRNumberInput) {
+          itemNumber = parseInt(context.payload.inputs.pull_request_number, 10);
+          if (isNaN(itemNumber) || itemNumber <= 0) {
+            core.info(`Invalid pull_request_number input: ${context.payload.inputs.pull_request_number}`);
+            continue;
+          }
+          commentEndpoint = "issues"; // PR comments use the issues API endpoint
+        } else if (hasDiscussionNumberInput) {
+          itemNumber = parseInt(context.payload.inputs.discussion_number, 10);
+          if (isNaN(itemNumber) || itemNumber <= 0) {
+            core.info(`Invalid discussion_number input: ${context.payload.inputs.discussion_number}`);
+            continue;
+          }
+          commentEndpoint = "discussions";
         }
       }
     }

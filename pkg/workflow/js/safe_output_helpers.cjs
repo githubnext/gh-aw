@@ -63,14 +63,21 @@ function resolveTarget(params) {
     context.eventName === "pull_request" ||
     context.eventName === "pull_request_review" ||
     context.eventName === "pull_request_review_comment";
+  const isWorkflowDispatch = context.eventName === "workflow_dispatch";
 
   // Default target is "triggering"
   const target = targetConfig || "triggering";
 
+  // Check if workflow_dispatch has well-known inputs
+  const hasIssueNumberInput = isWorkflowDispatch && context.payload?.inputs?.issue_number;
+  const hasPRNumberInput = isWorkflowDispatch && context.payload?.inputs?.pull_request_number;
+  const hasDiscussionNumberInput = isWorkflowDispatch && context.payload?.inputs?.discussion_number;
+
   // Validate context for triggering mode
   if (target === "triggering") {
     if (supportsPR) {
-      if (!isIssueContext && !isPRContext) {
+      // Support issue/PR/discussion context OR workflow_dispatch with appropriate inputs
+      if (!isIssueContext && !isPRContext && !hasIssueNumberInput && !hasPRNumberInput && !hasDiscussionNumberInput) {
         return {
           success: false,
           error: `Target is "triggering" but not running in issue or pull request context, skipping ${itemType}`,
@@ -78,7 +85,8 @@ function resolveTarget(params) {
         };
       }
     } else {
-      if (!isPRContext) {
+      // PR-only mode: support PR context OR workflow_dispatch with PR input
+      if (!isPRContext && !hasPRNumberInput) {
         return {
           success: false,
           error: `Target is "triggering" but not running in pull request context, skipping ${itemType}`,
@@ -125,7 +133,7 @@ function resolveTarget(params) {
     }
     contextType = supportsPR ? "issue" : "pull request";
   } else {
-    // Use triggering context
+    // Use triggering context (from event payload or workflow_dispatch inputs)
     if (isIssueContext) {
       if (context.payload.issue) {
         itemNumber = context.payload.issue.number;
@@ -148,13 +156,47 @@ function resolveTarget(params) {
           shouldFail: true,
         };
       }
+    } else if (isWorkflowDispatch) {
+      // Check for well-known input names in workflow_dispatch
+      if (hasIssueNumberInput) {
+        itemNumber = parseInt(context.payload.inputs.issue_number, 10);
+        if (isNaN(itemNumber) || itemNumber <= 0) {
+          return {
+            success: false,
+            error: `Invalid issue_number input: ${context.payload.inputs.issue_number}`,
+            shouldFail: true,
+          };
+        }
+        contextType = "issue";
+      } else if (hasPRNumberInput) {
+        itemNumber = parseInt(context.payload.inputs.pull_request_number, 10);
+        if (isNaN(itemNumber) || itemNumber <= 0) {
+          return {
+            success: false,
+            error: `Invalid pull_request_number input: ${context.payload.inputs.pull_request_number}`,
+            shouldFail: true,
+          };
+        }
+        contextType = "pull request";
+      } else if (hasDiscussionNumberInput && supportsPR) {
+        // Discussion numbers only supported in modes that support PR (general modes)
+        itemNumber = parseInt(context.payload.inputs.discussion_number, 10);
+        if (isNaN(itemNumber) || itemNumber <= 0) {
+          return {
+            success: false,
+            error: `Invalid discussion_number input: ${context.payload.inputs.discussion_number}`,
+            shouldFail: true,
+          };
+        }
+        contextType = "discussion";
+      }
     }
   }
 
   if (!itemNumber) {
     return {
       success: false,
-      error: `Could not determine ${supportsPR ? "issue or pull request" : "pull request"} number`,
+      error: `Could not determine ${supportsPR ? "issue or pull request" : "pull request"} number from event context or workflow_dispatch inputs`,
       shouldFail: true,
     };
   }

@@ -42,10 +42,11 @@ const { removeDuplicateTitleFromDescription } = require("./remove_duplicate_titl
  * @param {boolean} params.isValidContext - Whether current context is valid
  * @param {number|undefined} params.contextNumber - Number from triggering context
  * @param {string} params.displayName - Display name for error messages
+ * @param {any} params.context - GitHub Actions context (for workflow_dispatch checks)
  * @returns {{success: true, number: number} | {success: false, error: string}}
  */
 function resolveTargetNumber(params) {
-  const { updateTarget, item, numberField, isValidContext, contextNumber, displayName } = params;
+  const { updateTarget, item, numberField, isValidContext, contextNumber, displayName, context } = params;
 
   if (updateTarget === "*") {
     // For target "*", we need an explicit number from the update item
@@ -67,10 +68,32 @@ function resolveTargetNumber(params) {
     }
     return { success: true, number: parsed };
   } else {
-    // Default behavior: use triggering context
+    // Default behavior: use triggering context or workflow_dispatch inputs
     if (isValidContext && contextNumber) {
       return { success: true, number: contextNumber };
     }
+
+    // Check for workflow_dispatch with well-known inputs
+    if (context && context.eventName === "workflow_dispatch" && context.payload?.inputs) {
+      const inputFieldMap = {
+        issue: "issue_number",
+        "pull request": "pull_request_number",
+        discussion: "discussion_number",
+      };
+
+      const inputField = inputFieldMap[displayName];
+      if (inputField && context.payload.inputs[inputField]) {
+        const inputNumber = parseInt(context.payload.inputs[inputField], 10);
+        if (isNaN(inputNumber) || inputNumber <= 0) {
+          return {
+            success: false,
+            error: `Invalid ${inputField} input in workflow_dispatch: ${context.payload.inputs[inputField]}`,
+          };
+        }
+        return { success: true, number: inputNumber };
+      }
+    }
+
     return { success: false, error: `Could not determine ${displayName} number` };
   }
 }
@@ -206,8 +229,17 @@ async function runUpdateWorkflow(config) {
   const contextIsValid = isValidContext(context.eventName, context.payload);
   const contextNumber = getContextNumber(context.payload);
 
+  // Check for workflow_dispatch with well-known inputs
+  const isWorkflowDispatch = context.eventName === "workflow_dispatch";
+  const inputFieldMap = {
+    issue: "issue_number",
+    "pull request": "pull_request_number",
+  };
+  const inputField = inputFieldMap[displayName];
+  const hasWorkflowDispatchInput = isWorkflowDispatch && context.payload?.inputs?.[inputField];
+
   // Validate context based on target configuration
-  if (updateTarget === "triggering" && !contextIsValid) {
+  if (updateTarget === "triggering" && !contextIsValid && !hasWorkflowDispatchInput) {
     core.info(`Target is "triggering" but not running in ${displayName} context, skipping ${displayName} update`);
     return;
   }
@@ -227,6 +259,7 @@ async function runUpdateWorkflow(config) {
       isValidContext: contextIsValid,
       contextNumber,
       displayName,
+      context, // Pass context for workflow_dispatch support
     });
 
     if (!targetResult.success) {

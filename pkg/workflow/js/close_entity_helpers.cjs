@@ -209,6 +209,28 @@ function resolveEntityNumber(config, target, item, isEntityContext) {
     return { success: true, number };
   }
 
+  // Check for workflow_dispatch with well-known inputs
+  if (context.eventName === "workflow_dispatch" && context.payload?.inputs) {
+    // Check for well-known input names based on entity type
+    const inputFieldMap = {
+      issue: "issue_number",
+      "pull request": "pull_request_number",
+      discussion: "discussion_number",
+    };
+
+    const inputField = inputFieldMap[config.displayName];
+    if (inputField && context.payload.inputs[inputField]) {
+      const inputNumber = parseInt(context.payload.inputs[inputField], 10);
+      if (isNaN(inputNumber) || inputNumber <= 0) {
+        return {
+          success: false,
+          message: `Invalid ${inputField} input in workflow_dispatch: ${context.payload.inputs[inputField]}`,
+        };
+      }
+      return { success: true, number: inputNumber };
+    }
+  }
+
   return {
     success: false,
     message: `Not in ${config.displayName} context and no explicit target specified`,
@@ -255,6 +277,7 @@ async function processCloseEntityItems(config, callbacks) {
 
   // Check if we're in the correct entity context
   const isEntityContext = config.contextEvents.some(event => context.eventName === event);
+  const isWorkflowDispatch = context.eventName === "workflow_dispatch";
 
   // If in staged mode, emit step summary instead of closing entities
   if (isStaged) {
@@ -262,8 +285,17 @@ async function processCloseEntityItems(config, callbacks) {
     return;
   }
 
+  // Check for well-known workflow_dispatch inputs
+  const inputFieldMap = {
+    issue: "issue_number",
+    "pull request": "pull_request_number",
+    discussion: "discussion_number",
+  };
+  const inputField = inputFieldMap[config.displayName];
+  const hasWorkflowDispatchInput = isWorkflowDispatch && context.payload?.inputs?.[inputField];
+
   // Validate context based on target configuration
-  if (target === "triggering" && !isEntityContext) {
+  if (target === "triggering" && !isEntityContext && !hasWorkflowDispatchInput) {
     core.info(`Target is "triggering" but not running in ${config.displayName} context, skipping ${config.displayName} close`);
     return;
   }

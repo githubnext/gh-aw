@@ -134,6 +134,8 @@ async function main() {
 
   // Check if we're in a discussion context
   const isDiscussionContext = context.eventName === "discussion" || context.eventName === "discussion_comment";
+  const isWorkflowDispatch = context.eventName === "workflow_dispatch";
+  const hasDiscussionNumberInput = isWorkflowDispatch && context.payload?.inputs?.discussion_number;
 
   // If in staged mode, emit step summary instead of closing discussions
   if (isStaged) {
@@ -179,7 +181,7 @@ async function main() {
   }
 
   // Validate context based on target configuration
-  if (target === "triggering" && !isDiscussionContext) {
+  if (target === "triggering" && !isDiscussionContext && !hasDiscussionNumberInput) {
     core.info('Target is "triggering" but not running in discussion context, skipping discussion close');
     return;
   }
@@ -223,6 +225,13 @@ async function main() {
         discussionNumber = context.payload.discussion?.number;
         if (!discussionNumber) {
           core.info("Discussion context detected but no discussion found in payload");
+          continue;
+        }
+      } else if (hasDiscussionNumberInput) {
+        // Use workflow_dispatch input
+        discussionNumber = parseInt(context.payload.inputs.discussion_number, 10);
+        if (isNaN(discussionNumber) || discussionNumber <= 0) {
+          core.info(`Invalid discussion_number input: ${context.payload.inputs.discussion_number}`);
           continue;
         }
       } else {
