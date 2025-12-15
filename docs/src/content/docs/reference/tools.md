@@ -106,7 +106,7 @@ tools:
     mode: remote  # Default: "local" (Docker)
 ```
 
-Setup: `gh aw secret set GH_AW_GITHUB_TOKEN --value "<your-pat>"`
+Setup: `gh aw secrets set GH_AW_GITHUB_TOKEN --value "<your-pat>"`
 
 **Read-Only**: Default behavior; restricts to read operations unless write operations configured.
 

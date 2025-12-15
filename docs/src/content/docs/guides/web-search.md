@@ -34,7 +34,7 @@ Use the tavily search tool to find recent information.
 **Setup:**
 1. Sign up at [tavily.com](https://tavily.com/)
 2. Get your API key from the dashboard
-3. Add as repository secret: `gh aw secret set TAVILY_API_KEY --value "<your-api-key>"`
+3. Add as repository secret: `gh aw secrets set TAVILY_API_KEY --value "<your-api-key>"`
 
 **Terms of Service:** [Tavily Terms](https://tavily.com/terms)
 
