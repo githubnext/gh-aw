@@ -7,7 +7,10 @@ import (
 	"sort"
 
 	"github.com/githubnext/gh-aw/pkg/console"
+	"github.com/githubnext/gh-aw/pkg/logger"
 )
+
+var logAggregationLog = logger.New("cli:log_aggregation")
 
 // LogAnalysis is an interface that both DomainAnalysis and FirewallAnalysis implement
 type LogAnalysis interface {
@@ -35,20 +38,25 @@ func aggregateLogFiles[T LogAnalysis](
 	parser LogParser[T],
 	newAnalysis func() T,
 ) (T, error) {
+	logAggregationLog.Printf("Aggregating log files: dir=%s, pattern=%s", logsDir, globPattern)
 	var zero T
 
 	// Find log files matching the pattern
 	files, err := filepath.Glob(filepath.Join(logsDir, globPattern))
 	if err != nil {
+		logAggregationLog.Printf("Failed to find log files with pattern '%s': %v", globPattern, err)
 		return zero, fmt.Errorf("failed to find log files: %w", err)
 	}
 
 	if len(files) == 0 {
+		logAggregationLog.Printf("No log files found matching pattern '%s' in %s", globPattern, logsDir)
 		if verbose {
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("No log files found in %s", logsDir)))
 		}
 		return zero, nil
 	}
+
+	logAggregationLog.Printf("Found %d log files to aggregate", len(files))
 
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Analyzing %d log files from %s", len(files), logsDir)))
@@ -103,6 +111,9 @@ func aggregateLogFiles[T LogAnalysis](
 	// Set the sorted domain lists
 	aggregated.SetAllowedDomains(allowedDomains)
 	aggregated.SetDeniedDomains(deniedDomains)
+
+	logAggregationLog.Printf("Aggregation complete: processed %d files, found %d allowed and %d denied domains",
+		len(files), len(allowedDomains), len(deniedDomains))
 
 	return aggregated, nil
 }
