@@ -7,16 +7,22 @@ import (
 
 	"github.com/githubnext/gh-aw/pkg/campaign"
 	"github.com/githubnext/gh-aw/pkg/console"
+	"github.com/githubnext/gh-aw/pkg/logger"
 )
+
+var compileCampaignLog = logger.New("cli:compile_campaign")
 
 // validateCampaigns validates campaign spec files and their referenced workflows.
 // Returns an error if any campaign specs are invalid or reference missing workflows.
 func validateCampaigns(workflowDir string, verbose bool) error {
+	compileCampaignLog.Printf("Validating campaigns with workflow directory: %s", workflowDir)
+
 	// Get absolute path to workflows directory
 	absWorkflowDir := workflowDir
 	if !filepath.IsAbs(absWorkflowDir) {
 		gitRoot, err := findGitRoot()
 		if err != nil {
+			compileCampaignLog.Print("Not in a git repository, using current directory")
 			// If not in a git repo, use current directory
 			cwd, cwdErr := os.Getwd()
 			if cwdErr != nil {
@@ -27,23 +33,29 @@ func validateCampaigns(workflowDir string, verbose bool) error {
 			absWorkflowDir = filepath.Join(gitRoot, workflowDir)
 		}
 	}
+	compileCampaignLog.Printf("Using absolute workflow directory: %s", absWorkflowDir)
 
 	// Load campaign specs
 	gitRoot, err := findGitRoot()
 	if err != nil {
+		compileCampaignLog.Print("Cannot validate campaigns: not in a git repository")
 		// Not in a git repo, can't validate campaigns
 		return nil
 	}
 
 	specs, err := campaign.LoadSpecs(gitRoot)
 	if err != nil {
+		compileCampaignLog.Printf("Failed to load campaign specs: %v", err)
 		return fmt.Errorf("failed to load campaign specs: %w", err)
 	}
 
 	if len(specs) == 0 {
+		compileCampaignLog.Print("No campaign specs found to validate")
 		// No campaign specs to validate
 		return nil
 	}
+
+	compileCampaignLog.Printf("Loaded %d campaign specs for validation", len(specs))
 
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Validating %d campaign spec(s)...", len(specs))))
@@ -73,9 +85,11 @@ func validateCampaigns(workflowDir string, verbose bool) error {
 	}
 
 	if hasErrors {
+		compileCampaignLog.Printf("Campaign validation completed with %d problems", len(allProblems))
 		return fmt.Errorf("found %d problem(s) in campaign specs", len(allProblems))
 	}
 
+	compileCampaignLog.Printf("All %d campaign specs validated successfully", len(specs))
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("All %d campaign spec(s) validated successfully", len(specs))))
 	}

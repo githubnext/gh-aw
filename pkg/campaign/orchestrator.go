@@ -4,20 +4,26 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/githubnext/gh-aw/pkg/logger"
 	"github.com/githubnext/gh-aw/pkg/workflow"
 )
+
+var orchestratorLog = logger.New("campaign:orchestrator")
 
 // BuildOrchestrator constructs a minimal agentic workflow representation for a
 // given CampaignSpec. The resulting WorkflowData is compiled via the standard
 // CompileWorkflowDataWithValidation pipeline, and the orchestratorPath
 // determines the emitted .lock.yml name.
 func BuildOrchestrator(spec *CampaignSpec, campaignFilePath string) (*workflow.WorkflowData, string) {
+	orchestratorLog.Printf("Building orchestrator for campaign: id=%s, file=%s", spec.ID, campaignFilePath)
+
 	// Derive orchestrator markdown path alongside the campaign spec, using a
 	// distinct suffix to avoid colliding with existing workflows. We use
 	// a `.campaign.g.md` suffix to make it clear that the file is generated
 	// from the corresponding `.campaign.md` spec.
 	base := strings.TrimSuffix(campaignFilePath, ".campaign.md")
 	orchestratorPath := base + ".campaign.g.md"
+	orchestratorLog.Printf("Generated orchestrator path: %s", orchestratorPath)
 
 	name := spec.Name
 	if strings.TrimSpace(name) == "" {
@@ -67,8 +73,12 @@ func BuildOrchestrator(spec *CampaignSpec, campaignFilePath string) (*workflow.W
 
 	// Return nil if the campaign spec has no meaningful details for the prompt
 	if !hasDetails {
+		orchestratorLog.Printf("Campaign '%s' has no meaningful details, skipping orchestrator build", spec.ID)
 		return nil, ""
 	}
+
+	orchestratorLog.Printf("Campaign '%s' orchestrator includes: tracker_label=%s, workflows=%d, memory_paths=%d",
+		spec.ID, spec.TrackerLabel, len(spec.Workflows), len(spec.MemoryPaths))
 
 	markdownBuilder.WriteString("\nEach time this orchestrator runs on its daily schedule (or when manually dispatched), generate a concise status report for this campaign. Summarize current metrics, highlight blockers, and update any tracker issues using the campaign label.\n")
 	if strings.TrimSpace(spec.ProjectURL) != "" {
@@ -84,6 +94,8 @@ func BuildOrchestrator(spec *CampaignSpec, campaignFilePath string) (*workflow.W
 	safeOutputs.AddComments = &workflow.AddCommentsConfig{BaseSafeOutputConfig: workflow.BaseSafeOutputConfig{Max: 10}}
 	// Allow updating the campaign's GitHub Project dashboard.
 	safeOutputs.UpdateProjects = &workflow.UpdateProjectConfig{BaseSafeOutputConfig: workflow.BaseSafeOutputConfig{Max: 10}}
+
+	orchestratorLog.Printf("Campaign orchestrator '%s' built successfully with safe outputs enabled", spec.ID)
 
 	data := &workflow.WorkflowData{
 		Name:            name,

@@ -10,10 +10,13 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/githubnext/gh-aw/pkg/logger"
 	"github.com/githubnext/gh-aw/pkg/parser"
 	"github.com/goccy/go-yaml"
 	"github.com/santhosh-tekuri/jsonschema/v6"
 )
+
+var validationLog = logger.New("campaign:validation")
 
 //go:embed schemas/campaign_spec_schema.json
 var campaignSpecSchemaFS embed.FS
@@ -30,11 +33,15 @@ var (
 //
 // It uses JSON schema validation first, then adds additional semantic checks.
 func ValidateSpec(spec *CampaignSpec) []string {
+	validationLog.Printf("Validating campaign spec: id=%s", spec.ID)
 	var problems []string
 
 	// First, validate against JSON schema
 	schemaProblems := ValidateSpecWithSchema(spec)
 	problems = append(problems, schemaProblems...)
+	if len(schemaProblems) > 0 {
+		validationLog.Printf("Schema validation found %d problems for campaign '%s'", len(schemaProblems), spec.ID)
+	}
 
 	// Additional semantic validation beyond schema
 	trimmedID := strings.TrimSpace(spec.ID)
@@ -89,6 +96,12 @@ func ValidateSpec(spec *CampaignSpec) []string {
 		default:
 			problems = append(problems, "state must be one of: planned, active, paused, completed, archived")
 		}
+	}
+
+	if len(problems) == 0 {
+		validationLog.Printf("Campaign spec '%s' validation passed with no problems", spec.ID)
+	} else {
+		validationLog.Printf("Campaign spec '%s' validation completed with %d problems", spec.ID, len(problems))
 	}
 
 	return problems
@@ -245,9 +258,12 @@ func formatValidationErrors(err error) []string {
 // ValidateSpecFromFile validates a campaign spec file by loading and validating it.
 // This is useful for validation commands that operate on files directly.
 func ValidateSpecFromFile(filePath string) (*CampaignSpec, []string, error) {
+	validationLog.Printf("Validating campaign spec from file: %s", filePath)
+
 	// Read the campaign spec file content first, then extract frontmatter
 	content, err := os.ReadFile(filePath)
 	if err != nil {
+		validationLog.Printf("Failed to read campaign spec file: %s", err)
 		return nil, nil, fmt.Errorf("failed to read campaign spec file: %w", err)
 	}
 
@@ -280,6 +296,8 @@ func ValidateSpecFromFile(filePath string) (*CampaignSpec, []string, error) {
 // actually exist in the .github/workflows directory.
 // Returns a list of problems for workflows that don't exist.
 func ValidateWorkflowsExist(spec *CampaignSpec, workflowsDir string) []string {
+	validationLog.Printf("Validating workflow existence for campaign '%s': checking %d workflows in %s",
+		spec.ID, len(spec.Workflows), workflowsDir)
 	var problems []string
 
 	for _, workflowID := range spec.Workflows {
