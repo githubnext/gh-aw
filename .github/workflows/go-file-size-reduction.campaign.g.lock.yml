@@ -7358,9 +7358,7 @@ jobs:
             function summarizeEmptyProjectsV2List(list) {
               const total = typeof list.totalCount === "number" ? list.totalCount : undefined;
               const d = list && list.diagnostics;
-              const diag = d
-                ? ` nodes=${d.rawNodesCount} (null=${d.nullNodesCount}), edges=${d.rawEdgesCount} (nullNode=${d.nullEdgeNodesCount})`
-                : "";
+              const diag = d ? ` nodes=${d.rawNodesCount} (null=${d.nullNodesCount}), edges=${d.rawEdgesCount} (nullNode=${d.nullEdgeNodesCount})` : "";
               if (typeof total === "number" && total > 0) {
                 return `(none; totalCount=${total} but returned 0 readable project nodes${diag}. This often indicates the token can see the org/user but lacks Projects v2 access, or the org enforces SSO and the token is not authorized.)`;
               }
@@ -7417,9 +7415,7 @@ jobs:
               const summary = nodes.length > 0 ? summarizeProjectsV2(nodes) : summarizeEmptyProjectsV2List(list);
               const total = typeof list.totalCount === "number" ? ` (totalCount=${list.totalCount})` : "";
               const who = projectInfo.scope === "orgs" ? `org ${projectInfo.ownerLogin}` : `user ${projectInfo.ownerLogin}`;
-              throw new Error(
-                `Project #${projectNumberInt} not found or not accessible for ${who}.${total} Accessible Projects v2: ${summary}`
-              );
+              throw new Error(`Project #${projectNumberInt} not found or not accessible for ${who}.${total} Accessible Projects v2: ${summary}`);
             }
             function generateCampaignId(projectUrl, projectNumber) {
               const urlMatch = projectUrl.match(/github\.com\/(users|orgs)\/([^/]+)\/projects/);
@@ -7475,7 +7471,9 @@ jobs:
                 } catch (viewerError) {
                   core.warning(`Could not resolve token identity (viewer.login): ${viewerError.message}`);
                 }
-                core.info(`[2/5] Resolving project from URL (scope=${projectInfo.scope}, login=${projectInfo.ownerLogin}, number=${projectNumberFromUrl})...`);
+                core.info(
+                  `[2/5] Resolving project from URL (scope=${projectInfo.scope}, login=${projectInfo.ownerLogin}, number=${projectNumberFromUrl})...`
+                );
                 let projectId;
                 let resolvedProjectNumber = projectNumberFromUrl;
                 try {

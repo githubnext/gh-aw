@@ -8,7 +8,7 @@ const { loadAgentOutput } = require("./load_agent_output.cjs");
 function logGraphQLError(error, operation) {
   core.error(`GraphQL Error during: ${operation}`);
   core.error(`Message: ${error.message}`);
-  
+
   const errorList = Array.isArray(error.errors) ? error.errors : [];
   const hasInsufficientScopes = errorList.some(e => e && e.type === "INSUFFICIENT_SCOPES");
   const hasNotFound = errorList.some(e => e && e.type === "NOT_FOUND");
@@ -26,7 +26,7 @@ function logGraphQLError(error, operation) {
         "(3) the token does not have access to that org/user project."
     );
   }
-  
+
   if (error.errors) {
     core.error(`Errors array (${error.errors.length} error(s)):`);
     error.errors.forEach((err, idx) => {
@@ -36,11 +36,11 @@ function logGraphQLError(error, operation) {
       if (err.locations) core.error(`      Locations: ${JSON.stringify(err.locations)}`);
     });
   }
-  
+
   if (error.request) {
     core.error(`Request: ${JSON.stringify(error.request, null, 2)}`);
   }
-  
+
   if (error.data) {
     core.error(`Response data: ${JSON.stringify(error.data, null, 2)}`);
   }
@@ -231,9 +231,7 @@ function summarizeProjectsV2(projects, limit = 20) {
 function summarizeEmptyProjectsV2List(list) {
   const total = typeof list.totalCount === "number" ? list.totalCount : undefined;
   const d = list && list.diagnostics;
-  const diag = d
-    ? ` nodes=${d.rawNodesCount} (null=${d.nullNodesCount}), edges=${d.rawEdgesCount} (nullNode=${d.nullEdgeNodesCount})`
-    : "";
+  const diag = d ? ` nodes=${d.rawNodesCount} (null=${d.nullNodesCount}), edges=${d.rawEdgesCount} (nullNode=${d.nullEdgeNodesCount})` : "";
 
   if (typeof total === "number" && total > 0) {
     return `(none; totalCount=${total} but returned 0 readable project nodes${diag}. This often indicates the token can see the org/user but lacks Projects v2 access, or the org enforces SSO and the token is not authorized.)`;
@@ -306,9 +304,7 @@ async function resolveProjectV2(projectInfo, projectNumberInt) {
   const summary = nodes.length > 0 ? summarizeProjectsV2(nodes) : summarizeEmptyProjectsV2List(list);
   const total = typeof list.totalCount === "number" ? ` (totalCount=${list.totalCount})` : "";
   const who = projectInfo.scope === "orgs" ? `org ${projectInfo.ownerLogin}` : `user ${projectInfo.ownerLogin}`;
-  throw new Error(
-    `Project #${projectNumberInt} not found or not accessible for ${who}.${total} Accessible Projects v2: ${summary}`
-  );
+  throw new Error(`Project #${projectNumberInt} not found or not accessible for ${who}.${total} Accessible Projects v2: ${summary}`);
 }
 
 /**
@@ -350,7 +346,7 @@ async function updateProject(output) {
 
   try {
     core.info(`Looking up project #${projectNumberFromUrl} from URL: ${output.project}`);
-    
+
     // Step 1: Get repository and owner IDs
     core.info("[1/5] Fetching repository information...");
     let repoResult;
@@ -394,7 +390,9 @@ async function updateProject(output) {
 
     // Step 2: Resolve project using org/user + number parsed from URL
     // Note: GitHub GraphQL `resource(url:)` does not support Projects v2 URLs.
-    core.info(`[2/5] Resolving project from URL (scope=${projectInfo.scope}, login=${projectInfo.ownerLogin}, number=${projectNumberFromUrl})...`);
+    core.info(
+      `[2/5] Resolving project from URL (scope=${projectInfo.scope}, login=${projectInfo.ownerLogin}, number=${projectNumberFromUrl})...`
+    );
     let projectId;
     let resolvedProjectNumber = projectNumberFromUrl;
     try {

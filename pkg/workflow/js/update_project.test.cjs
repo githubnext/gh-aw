@@ -189,7 +189,6 @@ describe("parseProjectInput", () => {
   it("throws when the project input is missing", () => {
     expect(() => parseProjectInput(undefined)).toThrow(/Invalid project input/);
   });
-
 });
 
 describe("generateCampaignId", () => {
