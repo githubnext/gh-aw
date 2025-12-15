@@ -49,6 +49,8 @@ The command will:
   3. Report what was changed in each file
   4. Write updated files back to disk (with --write flag)
 
+` + WorkflowIDExplanation + `
+
 Examples:
   ` + constants.CLIExtensionPrefix + ` fix                     # Check all workflows (dry-run)
   ` + constants.CLIExtensionPrefix + ` fix --write             # Fix all workflows
