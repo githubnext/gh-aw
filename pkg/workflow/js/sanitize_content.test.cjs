@@ -159,6 +159,29 @@ describe("sanitize_content.cjs", () => {
       const result = sanitizeContent("Hello @user", 524288);
       expect(result).toBe("Hello `@user`");
     });
+
+    it("should log escaped mentions for debugging", () => {
+      const result = sanitizeContent("Hello @user1 and @user2", { allowedAliases: ["user1"] });
+      expect(result).toBe("Hello @user1 and `@user2`");
+      expect(mockCore.info).toHaveBeenCalledWith("Escaped mention: @user2 (not in allowed list)");
+    });
+
+    it("should log multiple escaped mentions", () => {
+      const result = sanitizeContent("@user1 @user2 @user3", { allowedAliases: ["user1"] });
+      expect(result).toBe("@user1 `@user2` `@user3`");
+      expect(mockCore.info).toHaveBeenCalledWith("Escaped mention: @user2 (not in allowed list)");
+      expect(mockCore.info).toHaveBeenCalledWith("Escaped mention: @user3 (not in allowed list)");
+    });
+
+    it("should not log when all mentions are allowed", () => {
+      const result = sanitizeContent("Hello @user1 and @user2", { allowedAliases: ["user1", "user2"] });
+      expect(result).toBe("Hello @user1 and @user2");
+      // Should not call core.info with any "Escaped mention" messages
+      const escapedMentionCalls = mockCore.info.mock.calls.filter(call =>
+        call[0].includes("Escaped mention")
+      );
+      expect(escapedMentionCalls).toHaveLength(0);
+    });
   });
 
   describe("XML comments removal", () => {
