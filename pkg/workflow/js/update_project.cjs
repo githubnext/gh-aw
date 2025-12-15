@@ -117,11 +117,11 @@ async function updateProject(output) {
   const { owner, repo } = context.repo;
 
   // Parse project URL to get project number
-  const projectNumber = parseProjectInput(output.project);
-  const campaignId = output.campaign_id || generateCampaignId(output.project, projectNumber);
+  const projectNumberFromUrl = parseProjectInput(output.project);
+  const campaignId = output.campaign_id || generateCampaignId(output.project, projectNumberFromUrl);
 
   try {
-    core.info(`Looking up project #${projectNumber} from URL: ${output.project}`);
+    core.info(`Looking up project #${projectNumberFromUrl} from URL: ${output.project}`);
     
     // Step 1: Get repository and owner IDs
     core.info("[1/5] Fetching repository information...");
@@ -144,50 +144,55 @@ async function updateProject(output) {
       throw error;
     }
     const repositoryId = repoResult.repository.id;
-    const ownerId = repoResult.repository.owner.id;
     const ownerType = repoResult.repository.owner.__typename;
     core.info(`✓ Repository: ${owner}/${repo} (${ownerType})`);
 
-    // Step 2: Get the specific project by owner and number
-    core.info(`[2/5] Fetching project #${projectNumber} from ${ownerType.toLowerCase()}...`);
+    // Step 2: Resolve project from exact URL
+    core.info(`[2/5] Resolving project from URL...`);
     let projectId;
-
-    // Query the specific project by number directly
-    const projectQuery =
-      ownerType === "User"
-        ? `query($login: String!, $number: Int!) {
-            user(login: $login) {
-              projectV2(number: $number) {
-                id
-                number
+    let resolvedProjectNumber = projectNumberFromUrl;
+    try {
+      const resourceResult = await github.graphql(
+        `query($url: URI!) {
+          resource(url: $url) {
+            __typename
+            ... on ProjectV2 {
+              id
+              number
+              title
+              url
+              owner {
+                __typename
+                ... on Organization { login }
+                ... on User { login }
               }
             }
-          }`
-        : `query($login: String!, $number: Int!) {
-            organization(login: $login) {
-              projectV2(number: $number) {
-                id
-                number
-              }
-            }
-          }`;
+          }
+        }`,
+        { url: output.project }
+      );
 
-    const projectResult = await github.graphql(projectQuery, { login: owner, number: parseInt(projectNumber, 10) }).catch(error => {
-      logGraphQLError(error, `Fetching project #${projectNumber}`);
+      const resource = resourceResult && resourceResult.resource;
+      if (!resource) {
+        core.error(`Cannot resolve project URL: ${output.project}`);
+        throw new Error("Project URL could not be resolved (not found or not accessible to the token).");
+      }
+
+      if (resource.__typename !== "ProjectV2") {
+        core.error(`Project URL did not resolve to a Projects v2 board. Resolved type: ${resource.__typename}`);
+        throw new Error(
+          `Project URL must point to a GitHub Projects v2 board, but resolved to: ${resource.__typename}.`
+        );
+      }
+
+      projectId = resource.id;
+      resolvedProjectNumber = String(resource.number);
+      const ownerLogin = resource.owner && resource.owner.login ? resource.owner.login : "(unknown)";
+      core.info(`✓ Resolved project #${resolvedProjectNumber} (${ownerLogin}) (ID: ${projectId})`);
+    } catch (error) {
+      logGraphQLError(error, "Resolving project from URL");
       throw error;
-    });
-
-    const project = ownerType === "User" ? projectResult.user.projectV2 : projectResult.organization.projectV2;
-
-    if (!project) {
-      const ownerTypeDisplay = ownerType === "User" ? "user" : "organization";
-      core.error(`Cannot find project #${projectNumber} on ${ownerTypeDisplay} "${owner}".`);
-      core.error(`Project URL: ${output.project}`);
-      throw new Error(`Project #${projectNumber} not found.`);
     }
-
-    projectId = project.id;
-    core.info(`✓ Found project #${projectNumber} (ID: ${projectId})`);
 
     // Ensure project is linked to the repository
     core.info("[3/5] Linking project to repository...");
