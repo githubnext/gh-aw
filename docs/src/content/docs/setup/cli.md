@@ -124,6 +124,27 @@ gh aw new my-custom-workflow
 
 Creates a markdown workflow file in `.github/workflows/` with template frontmatter and automatically opens it for editing.
 
+#### `secret`
+
+Manage GitHub Actions secrets for repositories. Secrets are encrypted environment variables used in workflows.
+
+**Subcommands:**
+
+##### `secret set`
+
+Create or update a repository secret. The secret value can be provided via flag, environment variable, or stdin.
+
+```bash wrap
+gh aw secret set MY_SECRET                                    # From stdin (prompts)
+gh aw secret set MY_SECRET --value "secret123"                # From flag
+gh aw secret set MY_SECRET --value-from-env MY_TOKEN          # From environment variable
+gh aw secret set MY_SECRET --owner myorg --repo myrepo        # For specific repository
+```
+
+**Options:** `--owner` (repository owner), `--repo` (repository name), `--value` (secret value), `--value-from-env` (environment variable to read from), `--api-url` (GitHub API base URL)
+
+When `--owner` and `--repo` are not specified, the command operates on the current repository. Both flags must be provided together when targeting a specific repository.
+
 ### Building
 
 #### `fix`
