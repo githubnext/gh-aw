@@ -424,7 +424,27 @@ gh aw version
 
 Displays the current version of gh-aw and product information. Equivalent to using the `--version` flag.
 
+#### `tokens`
 
+Inspect and bootstrap GitHub tokens for gh-aw.
+
+**Subcommands:**
+
+##### `tokens bootstrap`
+
+Check and suggest setup for gh-aw GitHub token secrets. This command is read-only and inspects repository secrets to identify missing tokens, then prints least-privilege setup instructions.
+
+```bash wrap
+gh aw tokens bootstrap                    # Check tokens for current repository
+gh aw tokens bootstrap --engine copilot   # Check Copilot-specific tokens
+gh aw tokens bootstrap --engine claude    # Check Claude-specific tokens
+gh aw tokens bootstrap --engine codex     # Check Codex-specific tokens
+gh aw tokens bootstrap --owner org --repo project # Check specific repository
+```
+
+**Options:** `--engine` (AI engine to check tokens for: copilot, claude, codex), `--owner` (repository owner, defaults to current), `--repo` (repository name, defaults to current)
+
+The command checks for recommended secrets like `GH_AW_GITHUB_TOKEN`, `COPILOT_GITHUB_TOKEN`, `ANTHROPIC_API_KEY`, and `OPENAI_API_KEY` based on the specified engine. It provides setup instructions with suggested scopes for any missing tokens.
 
 ## Shell Completions
 
