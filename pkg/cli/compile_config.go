@@ -1,5 +1,55 @@
 package cli
 
+import (
+	"regexp"
+)
+
+// Regex patterns for detecting and redacting sensitive information in error messages
+var (
+	// Match GitHub secrets syntax: ${{ secrets.NAME }}
+	secretsPattern = regexp.MustCompile(`\$\{\{\s*secrets\.[a-zA-Z_][a-zA-Z0-9_]*\s*\}\}`)
+
+	// Match potential secret values: long alphanumeric strings that might be tokens/keys
+	tokenPattern = regexp.MustCompile(`\b[a-zA-Z0-9_-]{20,}\b`)
+
+	// Match credential-like key-value pairs in YAML/JSON
+	credentialPattern = regexp.MustCompile(`(?i)(password|token|api[_-]?key|secret|credential|auth)["\s]*[:=]["\s]*[^\s"',}]+`)
+
+	// Match GitHub token patterns
+	githubTokenPattern = regexp.MustCompile(`\b(ghp|gho|ghu|ghs|ghr)_[a-zA-Z0-9]{36,}\b`)
+)
+
+// sanitizeErrorMessage removes or redacts sensitive information from error messages
+// before they are added to ValidationError structures that will be logged or output as JSON.
+func sanitizeErrorMessage(message string) string {
+	if message == "" {
+		return message
+	}
+
+	// Redact GitHub secrets syntax
+	message = secretsPattern.ReplaceAllString(message, "${{ secrets.[REDACTED] }}")
+
+	// Redact GitHub tokens
+	message = githubTokenPattern.ReplaceAllString(message, "[REDACTED_TOKEN]")
+
+	// Redact credential key-value pairs
+	message = credentialPattern.ReplaceAllStringFunc(message, func(match string) string {
+		// Keep the key name but redact the value
+		parts := regexp.MustCompile(`[:=]`).Split(match, 2)
+		if len(parts) == 2 {
+			return parts[0] + ": [REDACTED]"
+		}
+		return "[REDACTED]"
+	})
+
+	// For very long strings that might contain secret dumps, truncate them
+	if len(message) > 1000 {
+		message = message[:1000] + "... [truncated]"
+	}
+
+	return message
+}
+
 // CompileConfig holds configuration options for compiling workflows
 type CompileConfig struct {
 	MarkdownFiles        []string // Files to compile (empty for all files)
