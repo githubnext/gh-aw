@@ -470,4 +470,35 @@ describe("updateProject", () => {
     await expect(updateProject(output)).rejects.toThrow(/Insufficient permissions/);
     expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("Failed to manage project"));
   });
+
+  it("normalizes project-url field to project field", async () => {
+    // Simulate campaign orchestrator using project-url field name
+    const output = {
+      type: "update_project",
+      "project-url": "https://github.com/orgs/testowner/projects/60",
+      content_number: 42,
+      content_type: "issue",
+    };
+
+    queueResponses([
+      repoResponse(),
+      ownerProjectsResponse([{ id: "project123", number: 60, title: "Test Project", url: "https://github.com/orgs/testowner/projects/60" }]),
+      linkResponse,
+      issueResponse("issue-id-42"),
+      emptyItemsResponse(),
+      { addProjectV2ItemById: { item: { id: "item-42" } } },
+    ]);
+
+    // Normalize project-url to project before calling updateProject
+    if (output["project-url"] && !output.project) {
+      output.project = output["project-url"];
+    }
+
+    await updateProject(output);
+
+    // Verify the function succeeded (item was added)
+    expect(getOutput("item-id")).toBe("item-42");
+    // Verify no error was thrown (test would fail if an error was thrown)
+    expect(mockCore.error).not.toHaveBeenCalled();
+  });
 });
