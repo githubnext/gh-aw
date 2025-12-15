@@ -137,5 +137,5 @@ Or create it manually in `.github/workflows/daily-team-status.md`.
 
 ## Related Examples
 
-- [Daily Activity Report](/gh-aw/examples/scheduled/dailyops/#daily-activity-report) - Simpler version with issue creation
+- [DailyOps](/gh-aw/examples/scheduled/dailyops/) - Continuous improvement through small daily changes
 - [Research Planning](/gh-aw/examples/scheduled/research-planning/) - Weekly planning workflows
