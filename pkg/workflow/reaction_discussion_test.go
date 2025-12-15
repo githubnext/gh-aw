@@ -8,7 +8,7 @@ import (
 // TestReactionConditionIncludesDiscussions verifies that the reaction condition
 // includes both discussion and discussion_comment events
 func TestReactionConditionIncludesDiscussions(t *testing.T) {
-	result := buildReactionCondition()
+	result := BuildReactionCondition()
 	rendered := result.Render()
 
 	// Verify discussion events are included
