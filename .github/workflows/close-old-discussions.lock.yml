@@ -6236,6 +6236,8 @@ jobs:
                 `Configuration: requiredLabels=${requiredLabels.join(",")}, requiredTitlePrefix=${requiredTitlePrefix}, requiredCategory=${requiredCategory}, target=${target}`
               );
               const isDiscussionContext = context.eventName === "discussion" || context.eventName === "discussion_comment";
+              const isWorkflowDispatch = context.eventName === "workflow_dispatch";
+              const hasDiscussionNumberInput = isWorkflowDispatch && context.payload?.inputs?.discussion_number;
               if (isStaged) {
                 let summaryContent = "## 🎭 Staged Mode: Close Discussions Preview\n\n";
                 summaryContent += "The following discussions would be closed if staged mode was disabled:\n\n";
@@ -6269,7 +6271,7 @@ jobs:
                 core.info("📝 Discussion close preview written to step summary");
                 return;
               }
-              if (target === "triggering" && !isDiscussionContext) {
+              if (target === "triggering" && !isDiscussionContext && !hasDiscussionNumberInput) {
                 core.info('Target is "triggering" but not running in discussion context, skipping discussion close');
                 return;
               }
@@ -6302,6 +6304,12 @@ jobs:
                     discussionNumber = context.payload.discussion?.number;
                     if (!discussionNumber) {
                       core.info("Discussion context detected but no discussion found in payload");
+                      continue;
+                    }
+                  } else if (hasDiscussionNumberInput) {
+                    discussionNumber = parseInt(context.payload.inputs.discussion_number, 10);
+                    if (isNaN(discussionNumber) || discussionNumber <= 0) {
+                      core.info(`Invalid discussion_number input: ${context.payload.inputs.discussion_number}`);
                       continue;
                     }
                   } else {

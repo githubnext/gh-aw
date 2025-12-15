@@ -7186,6 +7186,24 @@ jobs:
                 }
                 return { success: true, number };
               }
+              if (context.eventName === "workflow_dispatch" && context.payload?.inputs) {
+                const inputFieldMap = {
+                  issue: "issue_number",
+                  "pull request": "pull_request_number",
+                  discussion: "discussion_number",
+                };
+                const inputField = inputFieldMap[config.displayName];
+                if (inputField && context.payload.inputs[inputField]) {
+                  const inputNumber = parseInt(context.payload.inputs[inputField], 10);
+                  if (isNaN(inputNumber) || inputNumber <= 0) {
+                    return {
+                      success: false,
+                      message: `Invalid ${inputField} input in workflow_dispatch: ${context.payload.inputs[inputField]}`,
+                    };
+                  }
+                  return { success: true, number: inputNumber };
+                }
+              }
               return {
                 success: false,
                 message: `Not in ${config.displayName} context and no explicit target specified`,
@@ -7209,11 +7227,19 @@ jobs:
               const { requiredLabels, requiredTitlePrefix, target } = parseEntityConfig(config.envVarPrefix);
               core.info(`Configuration: requiredLabels=${requiredLabels.join(",")}, requiredTitlePrefix=${requiredTitlePrefix}, target=${target}`);
               const isEntityContext = config.contextEvents.some(event => context.eventName === event);
+              const isWorkflowDispatch = context.eventName === "workflow_dispatch";
               if (isStaged) {
                 await generateCloseEntityStagedPreview(config, items, requiredLabels, requiredTitlePrefix);
                 return;
               }
-              if (target === "triggering" && !isEntityContext) {
+              const inputFieldMap = {
+                issue: "issue_number",
+                "pull request": "pull_request_number",
+                discussion: "discussion_number",
+              };
+              const inputField = inputFieldMap[config.displayName];
+              const hasWorkflowDispatchInput = isWorkflowDispatch && context.payload?.inputs?.[inputField];
+              if (target === "triggering" && !isEntityContext && !hasWorkflowDispatchInput) {
                 core.info(`Target is "triggering" but not running in ${config.displayName} context, skipping ${config.displayName} close`);
                 return;
               }
