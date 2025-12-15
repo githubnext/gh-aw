@@ -27,6 +27,7 @@ if: (github.event_name == 'workflow_dispatch') || ((needs.check_external_user.re
 safe-outputs:
   add-labels:
     allowed: [spam, ai-generated, link-spam, ai-inspected]
+    target: "*"
   hide-comment:
     max: 5
     allowed-reasons: [spam]
