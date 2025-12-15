@@ -235,8 +235,136 @@ Look for concrete improvements in these categories:
 
 Analyze the current test suite structure and suggest optimizations for execution time:
 
-**A. Test Splitting Analysis**
-- Review the current test matrix configuration (integration tests split into 6 groups)
+**A. Test Coverage Analysis** ⚠️ **CRITICAL**
+
+Before analyzing test performance, ensure ALL tests are actually being executed:
+
+**Step 1: Get complete list of all tests**
+```bash
+# List all test functions in the repository
+cd /home/runner/work/gh-aw/gh-aw
+go test -list='^Test' ./... 2>&1 | grep -E '^Test' > /tmp/all-tests.txt
+
+# Count total tests
+TOTAL_TESTS=$(wc -l < /tmp/all-tests.txt)
+echo "Total tests found: $TOTAL_TESTS"
+```
+
+**Step 2: Analyze unit test coverage**
+```bash
+# Unit tests run all non-integration tests
+# Verify the test job's command captures all non-integration tests
+# Current: go test -v -parallel=8 -timeout=3m -tags '!integration' -run='^Test' ./...
+
+# Get list of integration tests (tests with integration build tag)
+grep -r "//go:build integration" --include="*_test.go" . | cut -d: -f1 | sort -u > /tmp/integration-test-files.txt
+
+# Estimate number of integration tests
+# (This is approximate - we'll validate coverage in next step)
+echo "Files with integration tests:"
+wc -l < /tmp/integration-test-files.txt
+```
+
+**Step 3: Analyze integration test matrix coverage**
+```bash
+# The integration job has a matrix with specific patterns
+# Each matrix entry targets specific packages and test patterns
+# Example: pattern: "TestCompile|TestPoutine" in ./pkg/cli
+
+# CRITICAL CHECK: Are there tests that don't match ANY pattern?
+
+# Extract all integration test patterns from ci.yml
+cat .github/workflows/ci.yml | grep -A 2 'pattern:' | grep 'pattern:' > /tmp/matrix-patterns.txt
+
+# For each matrix group with empty pattern, those run ALL remaining tests in that package
+# Groups with pattern="" are catch-all groups for their package
+
+# Check for catch-all groups
+cat .github/workflows/ci.yml | grep -B 2 'pattern: ""' | grep 'name:' > /tmp/catchall-groups.txt
+
+echo "Matrix groups with catch-all patterns (pattern: ''):"
+cat /tmp/catchall-groups.txt
+```
+
+**Step 4: Identify coverage gaps**
+```bash
+# Check if each package in the repository is covered by at least one matrix group
+# List all packages with integration tests
+find . -path ./vendor -prune -o -name "*_test.go" -print | grep -E "integration" | sed 's|/[^/]*$||' | sort -u > /tmp/integration-packages.txt
+
+# List packages covered in matrix
+cat .github/workflows/ci.yml | grep 'packages:' | awk '{print $2}' | tr -d '"' | sort -u > /tmp/covered-packages.txt
+
+# Compare and find gaps
+echo "Packages with integration tests:"
+cat /tmp/integration-packages.txt
+
+echo "Packages covered in CI matrix:"
+cat /tmp/covered-packages.txt
+
+# Check for packages not covered
+comm -23 /tmp/integration-packages.txt /tmp/covered-packages.txt > /tmp/uncovered-packages.txt
+
+if [ -s /tmp/uncovered-packages.txt ]; then
+  echo "⚠️ WARNING: Packages with tests but NOT in CI matrix:"
+  cat /tmp/uncovered-packages.txt
+  echo "These tests are NOT being executed!"
+fi
+```
+
+**Step 5: Validate catch-all coverage**
+```bash
+# For packages that have BOTH specific patterns AND a catch-all group, verify the catch-all exists
+# For packages with ONLY specific patterns, check if all tests are covered
+
+# Example for ./pkg/cli:
+# - Has many matrix entries with specific patterns
+# - Should have a catch-all entry (pattern: "") to ensure all remaining tests run
+
+# Check each package
+for pkg in ./pkg/cli ./pkg/workflow ./pkg/parser ./cmd/gh-aw; do
+  echo "Checking package: $pkg"
+  
+  # Count matrix entries for this package
+  SPECIFIC_PATTERNS=$(cat .github/workflows/ci.yml | grep -A 1 "packages: \"$pkg\"" | grep 'pattern:' | grep -v 'pattern: ""' | wc -l)
+  HAS_CATCHALL=$(cat .github/workflows/ci.yml | grep -A 1 "packages: \"$pkg\"" | grep 'pattern: ""' | wc -l)
+  
+  echo "  - Specific pattern groups: $SPECIFIC_PATTERNS"
+  echo "  - Has catch-all group: $HAS_CATCHALL"
+  
+  if [ "$SPECIFIC_PATTERNS" -gt 0 ] && [ "$HAS_CATCHALL" -eq 0 ]; then
+    echo "  ⚠️ WARNING: $pkg has specific patterns but NO catch-all group!"
+    echo "  Tests not matching any specific pattern will NOT run!"
+  fi
+done
+```
+
+**Required Action if Gaps Found:**
+
+If any tests are not covered by the CI matrix, you MUST propose adding:
+1. **Catch-all matrix groups** for packages with specific patterns but no catch-all
+   - Example: Add a "CLI Other" group with `pattern: ""` for ./pkg/cli
+   - Example: Add a "Workflow Misc" group with `pattern: ""` for ./pkg/workflow
+
+2. **New matrix entries** for packages not in the matrix at all
+   - Add matrix entry with package path and empty pattern
+
+Example fix for missing catch-all:
+```yaml
+- name: "CLI Other"  # Catch-all for tests not matched by specific patterns
+  packages: "./pkg/cli"
+  pattern: ""  # Empty pattern runs all remaining tests
+```
+
+**Expected Outcome:**
+- ✅ All tests in repository are covered by at least one CI job
+- ✅ Each package with integration tests has either:
+  - A single matrix entry (with or without pattern), OR
+  - Multiple specific pattern entries PLUS a catch-all entry (pattern: "")
+- ❌ No tests should be "orphaned" (not executed by any job)
+
+**B. Test Splitting Analysis**
+- Review the current test matrix configuration (integration tests split into groups)
 - Analyze if test groups are balanced in terms of execution time
 - Check if any test group consistently takes much longer than others
 - Suggest rebalancing test groups to minimize the longest-running group
@@ -258,13 +386,13 @@ cat /tmp/ci-runs.json | jq '.[] | select(.conclusion=="success") | .jobs[] | sel
   - Split large test groups (like "Workflow" with no pattern filter) into more specific groups
   - Example: Split "CLI Logs & Firewall" if TestLogs and TestFirewall are both slow
 
-**B. Test Parallelization Within Jobs**
+**C. Test Parallelization Within Jobs**
 - Check if tests are running sequentially when they could run in parallel
 - Suggest using `go test -parallel=N` to increase parallelism
 - Analyze if `-count=1` (disables test caching) is necessary for all tests
 - Example: Unit tests could run with `-parallel=4` to utilize multiple cores
 
-**C. Test Selection Optimization**
+**D. Test Selection Optimization**
 - Suggest path-based test filtering to skip irrelevant tests
 - Recommend running only affected tests for non-main branch pushes
 - Example configuration:
@@ -281,20 +409,20 @@ cat /tmp/ci-runs.json | jq '.[] | select(.conclusion=="success") | .jobs[] | sel
     run: go test ./...
   ```
 
-**D. Test Timeout Optimization**
+**E. Test Timeout Optimization**
 - Review current timeout settings (currently 3 minutes for tests)
 - Check if timeouts are too conservative or too tight based on actual run times
 - Suggest adjusting per-job timeouts based on historical data
 - Example: If unit tests consistently complete in 1.5 minutes, timeout could be 2 minutes instead of 3
 
-**E. Test Dependencies Analysis**
+**F. Test Dependencies Analysis**
 - Examine test job dependencies (test → integration → bench/fuzz/security)
 - Suggest removing unnecessary dependencies to enable more parallelism
 - Example: Could `integration`, `bench`, `fuzz`, and `security` all depend on `lint` instead of `test`?
   - This allows integration tests to run while unit tests are still running
   - Only makes sense if they don't need unit test artifacts
 
-**F. Selective Test Execution**
+**G. Selective Test Execution**
 - Suggest running expensive tests (benchmarks, fuzz tests) only on main branch or on-demand
 - Recommend running security scans only on main or for security-related file changes
 - Example:
@@ -302,18 +430,18 @@ cat /tmp/ci-runs.json | jq '.[] | select(.conclusion=="success") | .jobs[] | sel
   if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
   ```
 
-**G. Test Caching Improvements**
+**H. Test Caching Improvements**
 - Check if test results could be cached (with appropriate cache keys)
 - Suggest caching test binaries to speed up reruns
 - Example: Cache compiled test binaries keyed by go.sum + source files
 
-**H. Matrix Strategy Optimization**
-- Analyze if all 6 integration test matrix jobs are necessary
+**I. Matrix Strategy Optimization**
+- Analyze if all integration test matrix jobs are necessary
 - Check if some matrix jobs could be combined or run conditionally
 - Suggest reducing matrix size for PR builds vs. main branch builds
 - Example: Run full matrix on main, reduced matrix on PRs
 
-**I. Test Infrastructure**
+**J. Test Infrastructure**
 - Check if tests could benefit from faster runners (e.g., ubuntu-latest-4-core)
 - Analyze if test containers could be used to improve isolation and speed
 - Suggest pre-warming test environments with cached dependencies
