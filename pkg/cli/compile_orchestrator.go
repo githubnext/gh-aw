@@ -364,7 +364,8 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 						stats.Errors++
 						stats.FailedWorkflows = append(stats.FailedWorkflows, filepath.Base(resolvedFile))
 						result.Valid = false
-						result.Errors = append(result.Errors, ValidationError{Type: "campaign_orchestrator_error", Message: errMsg})
+						// Sanitize error message to prevent logging of sensitive information (CWE-312, CWE-315, CWE-359)
+						result.Errors = append(result.Errors, ValidationError{Type: "campaign_orchestrator_error", Message: sanitizeErrorMessage(errMsg)})
 					}
 				}
 
@@ -662,7 +663,8 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 					stats.Errors++
 					stats.FailedWorkflows = append(stats.FailedWorkflows, filepath.Base(file))
 					result.Valid = false
-					result.Errors = append(result.Errors, ValidationError{Type: "campaign_orchestrator_error", Message: genErr.Error()})
+					// Sanitize error message to prevent logging of sensitive information (CWE-312, CWE-315, CWE-359)
+					result.Errors = append(result.Errors, ValidationError{Type: "campaign_orchestrator_error", Message: sanitizeErrorMessage(genErr.Error())})
 				}
 			}
 

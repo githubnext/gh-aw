@@ -1,5 +1,7 @@
 package cli
 
+import "regexp"
+
 // CompileConfig holds configuration options for compiling workflows
 type CompileConfig struct {
 	MarkdownFiles        []string // Files to compile (empty for all files)
@@ -46,4 +48,41 @@ type ValidationResult struct {
 	Errors       []ValidationError `json:"errors"`
 	Warnings     []ValidationError `json:"warnings"`
 	CompiledFile string            `json:"compiled_file,omitempty"`
+}
+
+// sanitizeErrorMessage removes sensitive information from error messages before logging
+// to prevent exposure of secrets, tokens, and other sensitive data (CWE-312, CWE-315, CWE-359).
+//
+// This function uses regex patterns to detect and redact:
+// - Secret references (secrets.*, secret:, password:, token:, api_key:, credential:)
+// - GitHub token patterns (ghp_*, ghs_*, etc.)
+// - Potential API keys (long alphanumeric strings in quotes)
+//
+// The function preserves the structure of error messages for debugging while removing values.
+func sanitizeErrorMessage(message string) string {
+	// Import regexp at the top of the file if not already present
+	// Pattern 1: Match secret references and redact their values
+	// Examples: "secret: abc123" -> "secret: [REDACTED]"
+	//           "password: xyz789" -> "password: [REDACTED]"
+	patterns := []struct {
+		regex       string
+		replacement string
+	}{
+		// Match patterns like "secret: value", "password: value", etc.
+		{`(?i)(secret|password|token|api_key|credential|key)(\s*[:=]\s*)([^\s,}\]]+)`, `$1$2[REDACTED]`},
+		// Match GitHub token patterns (ghp_, ghs_, gho_, ghu_, ghr_)
+		{`gh[psouhrt]_[A-Za-z0-9_]+`, `[REDACTED_TOKEN]`},
+		// Match quoted strings that look like API keys (long alphanumeric strings)
+		{`["']([A-Za-z0-9_\-]{32,})["']`, `"[REDACTED]"`},
+		// Match ${{ secrets.* }} patterns
+		{`\$\{\{\s*secrets\.[^\}]+\}\}`, `${{ secrets.[REDACTED] }}`},
+	}
+
+	result := message
+	for _, p := range patterns {
+		re := regexp.MustCompile(p.regex)
+		result = re.ReplaceAllString(result, p.replacement)
+	}
+
+	return result
 }
