@@ -77,6 +77,7 @@ func TestRenderPlaywrightMCPConfigWithOptions(t *testing.T) {
 			inlineArgs:           true,
 			expectedContent: []string{
 				`"--allowed-hosts"`,
+				`"--allowed-origins"`,
 				`"localhost;localhost:*;127.0.0.1;127.0.0.1:*"`, // Default localhost is always added
 			},
 			unexpectedContent: []string{},
@@ -296,6 +297,7 @@ func TestRenderPlaywrightMCPConfigTOML(t *testing.T) {
 			},
 			expectedContent: []string{
 				`"--allowed-hosts"`,
+				`"--allowed-origins"`,
 				`"localhost;localhost:*;127.0.0.1;127.0.0.1:*"`, // Default localhost is added
 			},
 		},

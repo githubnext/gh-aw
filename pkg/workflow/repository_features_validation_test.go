@@ -178,3 +178,74 @@ func TestCheckRepositoryInvalidFormat(t *testing.T) {
 		t.Logf("Got error for invalid format (expected): %v", err)
 	}
 }
+
+func TestCheckRepositoryHasIssuesUncached(t *testing.T) {
+	// Test the REST client code path directly
+	// This test exercises the api.DefaultRESTClient() and client.Get() path
+	repo := "githubnext/gh-aw"
+
+	hasIssues, err := checkRepositoryHasIssuesUncached(repo)
+	if err != nil {
+		t.Logf("checkRepositoryHasIssuesUncached failed (may be auth issue): %v", err)
+		// Don't fail - this could be due to auth or network issues
+		return
+	}
+
+	t.Logf("Repository %s has issues enabled: %v", repo, hasIssues)
+
+	// Issues should definitely be enabled for githubnext/gh-aw
+	if !hasIssues {
+		t.Error("Expected githubnext/gh-aw to have issues enabled")
+	}
+}
+
+func TestCheckRepositoryHasIssuesUncachedWithInvalidRepo(t *testing.T) {
+	// Test REST client error handling with non-existent repository
+	repo := "githubnext/this-repo-definitely-does-not-exist-12345"
+
+	_, err := checkRepositoryHasIssuesUncached(repo)
+	if err == nil {
+		t.Error("expected error for non-existent repository")
+	}
+
+	// The error should mention either "failed to query repository" or "failed to create REST client"
+	// (depending on whether authentication is available)
+	if err != nil {
+		errMsg := err.Error()
+		if !strings.Contains(errMsg, "failed to query repository") && !strings.Contains(errMsg, "failed to create REST client") {
+			t.Errorf("expected error to contain 'failed to query repository' or 'failed to create REST client', got: %v", err)
+		}
+	}
+}
+
+func TestCheckRepositoryHasIssuesWithCaching(t *testing.T) {
+	// Test that caching works correctly with the REST client
+	// Clear cache first to ensure clean state
+	ClearRepositoryFeaturesCache()
+
+	repo := "githubnext/gh-aw"
+
+	// First call - should fetch from API
+	hasIssues1, err1 := checkRepositoryHasIssues(repo, false)
+	if err1 != nil {
+		t.Logf("First call failed (may be auth issue): %v", err1)
+		// Don't fail - this could be due to auth or network issues
+		return
+	}
+
+	// Second call - should return cached result
+	hasIssues2, err2 := checkRepositoryHasIssues(repo, false)
+	if err2 != nil {
+		t.Fatalf("Second call failed unexpectedly: %v", err2)
+	}
+
+	// Both calls should return the same result
+	if hasIssues1 != hasIssues2 {
+		t.Errorf("cached result differs from first result: first=%v, second=%v", hasIssues1, hasIssues2)
+	}
+
+	// Issues should definitely be enabled for githubnext/gh-aw
+	if !hasIssues1 {
+		t.Error("Expected githubnext/gh-aw to have issues enabled")
+	}
+}
