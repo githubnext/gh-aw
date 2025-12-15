@@ -177,9 +177,7 @@ describe("sanitize_content.cjs", () => {
       const result = sanitizeContent("Hello @user1 and @user2", { allowedAliases: ["user1", "user2"] });
       expect(result).toBe("Hello @user1 and @user2");
       // Should not call core.info with any "Escaped mention" messages
-      const escapedMentionCalls = mockCore.info.mock.calls.filter(call =>
-        call[0].includes("Escaped mention")
-      );
+      const escapedMentionCalls = mockCore.info.mock.calls.filter(call => call[0].includes("Escaped mention"));
       expect(escapedMentionCalls).toHaveLength(0);
     });
   });
