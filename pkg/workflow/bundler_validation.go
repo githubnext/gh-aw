@@ -366,7 +366,7 @@ func validateNoNonBuiltinRequires(scriptName string, content string, mode Runtim
 
 	if len(foundRequires) > 0 {
 		bundlerValidationLog.Printf("Validation failed: found %d non-builtin require(s) in %s", len(foundRequires), scriptName)
-		return fmt.Errorf("GitHub Script mode script '%s' contains %d non-builtin module require(s):\n  %s\n\nGitHub Script mode only supports Node.js builtin modules (fs, path, crypto, etc.) and relative file paths (./file.cjs).\nPackages like @octokit/rest, @actions/core, or other npm packages are not available in GitHub Script mode.\nUse the Octokit instance provided by the github-script action instead of requiring @octokit/rest.",
+		return fmt.Errorf("github Script mode script '%s' contains %d non-builtin module require(s):\n  %s\n\nonly Node.js builtin modules (fs, path, crypto, etc.) and relative file paths (./file.cjs) are supported; packages like @octokit/rest, @actions/core, or other npm packages are not available; use the Octokit instance provided by the github-script action instead of requiring @octokit/rest",
 			scriptName, len(foundRequires), strings.Join(foundRequires, "\n  "))
 	}
 
