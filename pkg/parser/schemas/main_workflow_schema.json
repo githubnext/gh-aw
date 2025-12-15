@@ -3253,7 +3253,7 @@
                   "max": 15
                 },
                 {
-                  "github-token": "${{ secrets.PROJECT_GITHUB_TOKEN }}",
+                  "github-token": "${{ secrets.GH_AW_PROJECT_TOKEN }}",
                   "max": 15
                 }
               ]
