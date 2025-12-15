@@ -7,7 +7,6 @@ import (
 
 	"github.com/githubnext/gh-aw/pkg/constants"
 	"github.com/githubnext/gh-aw/pkg/logger"
-	"github.com/githubnext/gh-aw/pkg/parser"
 )
 
 var copilotLog = logger.New("workflow:copilot_engine")
@@ -46,14 +45,6 @@ func (e *CopilotEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHu
 	copilotLog.Printf("Generating installation steps for Copilot engine: workflow=%s", workflowData.Name)
 
 	var steps []GitHubActionStep
-
-	// Warn if SKILL files were detected but engine doesn't support native SKILLS
-	if len(workflowData.SkillFiles) > 0 {
-		copilotLog.Printf("Warning: Found %d SKILL files, but Copilot engine does not support native SKILLS. Files will be imported as regular markdown.", len(workflowData.SkillFiles))
-		// Add a warning step that will be visible in the workflow logs
-		warningStep := e.generateSkillsWarningStep(workflowData.SkillFiles)
-		steps = append(steps, warningStep)
-	}
 
 	// Define engine configuration for shared validation
 	config := EngineInstallConfig{
@@ -152,31 +143,6 @@ func (e *CopilotEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHu
 	}
 
 	return steps
-}
-
-// generateSkillsWarningStep creates a warning step about SKILLS not being natively supported
-func (e *CopilotEngine) generateSkillsWarningStep(skillFiles []parser.SkillFile) GitHubActionStep {
-	var stepLines []string
-	stepLines = append(stepLines, "      - name: ⚠️  SKILLS Warning")
-	stepLines = append(stepLines, "        id: skills_warning")
-	stepLines = append(stepLines, "        shell: bash")
-	stepLines = append(stepLines, "        run: |")
-	stepLines = append(stepLines, "          # Warning: SKILL files detected but not natively supported by Copilot")
-	stepLines = append(stepLines, fmt.Sprintf("          echo \"⚠️  Warning: Detected %d SKILL.md files in imports\"", len(skillFiles)))
-	stepLines = append(stepLines, "          echo \"    Copilot engine does not support native SKILLS.\"")
-	stepLines = append(stepLines, "          echo \"    Files will be imported as regular markdown content.\"")
-	stepLines = append(stepLines, "          echo \"    For native SKILLS support, use 'engine: claude' or 'engine: codex'\"")
-	stepLines = append(stepLines, "          echo \"\"")
-	stepLines = append(stepLines, "          echo \"Detected SKILLS:\"")
-	for _, skill := range skillFiles {
-		if skill.Description != "" {
-			stepLines = append(stepLines, fmt.Sprintf("          echo \"  - %s: %s\"", skill.Name, skill.Description))
-		} else {
-			stepLines = append(stepLines, fmt.Sprintf("          echo \"  - %s\"", skill.Name))
-		}
-	}
-
-	return GitHubActionStep(stepLines)
 }
 
 func (e *CopilotEngine) GetDeclaredOutputFiles() []string {

@@ -720,6 +720,32 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	// Apply label filter if specified
 	c.applyLabelFilter(workflowData, result.Frontmatter)
 
+	// Warn if SKILL files were detected but the engine doesn't support native SKILLS
+	if len(workflowData.SkillFiles) > 0 {
+		// Claude and Codex support native SKILLS
+		supportsNativeSkills := engineSetting == "claude" || engineSetting == "codex"
+		
+		if !supportsNativeSkills {
+			// Build warning message with list of detected SKILLS
+			var skillNames []string
+			for _, skill := range workflowData.SkillFiles {
+				if skill.Description != "" {
+					skillNames = append(skillNames, fmt.Sprintf("%s (%s)", skill.Name, skill.Description))
+				} else {
+					skillNames = append(skillNames, skill.Name)
+				}
+			}
+			
+			warningMsg := fmt.Sprintf("Detected %d SKILL.md file(s) in imports but engine '%s' does not support native SKILLS. Files will be imported as regular markdown content. For native SKILLS support, use 'engine: claude' or 'engine: codex'. Detected SKILLS: %s",
+				len(workflowData.SkillFiles),
+				engineSetting,
+				strings.Join(skillNames, ", "))
+			
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(warningMsg))
+			c.IncrementWarningCount()
+		}
+	}
+
 	return workflowData, nil
 }
 
