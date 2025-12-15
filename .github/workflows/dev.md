@@ -9,12 +9,11 @@ engine: copilot
 
 permissions:
   contents: read
-  issues: write
 
 safe-outputs:
   update-project:
     max: 10
-    github-token: ${{ secrets.GH_AW_PROJECT_TOKEN }}
+    github-token: ${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}
 
 tools:
   github:
