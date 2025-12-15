@@ -534,3 +534,91 @@ Test content`
 		t.Error("Expected 'result' output")
 	}
 }
+
+// TestSecuritySecretValidation tests that secret values must be GitHub Actions expressions
+// This is a security test to prevent plain text secrets from being used
+func TestSecuritySecretValidation(t *testing.T) {
+	tests := []struct {
+		name        string
+		secretValue string
+		shouldError bool
+		errorMsg    string
+	}{
+		{
+			name:        "valid secret expression",
+			secretValue: "${{ secrets.MY_TOKEN }}",
+			shouldError: false,
+		},
+		{
+			name:        "valid secret with default",
+			secretValue: "${{ secrets.DD_SITE || 'datadoghq.com' }}",
+			shouldError: false,
+		},
+		{
+			name:        "valid secret with spaces",
+			secretValue: "${{  secrets.API_KEY  }}",
+			shouldError: false,
+		},
+		{
+			name:        "plain text secret - should fail",
+			secretValue: "my-plain-text-secret",
+			shouldError: true,
+			errorMsg:    "must be a GitHub Actions expression",
+		},
+		{
+			name:        "wrong context - should fail",
+			secretValue: "${{ github.token }}",
+			shouldError: true,
+			errorMsg:    "must be a GitHub Actions expression",
+		},
+		{
+			name:        "vars instead of secrets - should fail",
+			secretValue: "${{ vars.MY_VAR }}",
+			shouldError: true,
+			errorMsg:    "must be a GitHub Actions expression",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tmpDir := testutil.TempDir(t, "secret-validation-test")
+
+			frontmatter := `---
+on: push
+permissions:
+  contents: read
+engine: copilot
+strict: false
+jobs:
+  test-job:
+    uses: owner/repo/.github/workflows/reusable.yml@main
+    secrets:
+      token: ` + tt.secretValue + `
+---
+
+# Test Workflow
+
+Test content`
+
+			testFile := filepath.Join(tmpDir, "test.md")
+			if err := os.WriteFile(testFile, []byte(frontmatter), 0644); err != nil {
+				t.Fatal(err)
+			}
+
+			compiler := NewCompiler(false, "", "test")
+			err := compiler.CompileWorkflow(testFile)
+
+			if tt.shouldError {
+				if err == nil {
+					t.Errorf("Expected error for secret value %q, but got none", tt.secretValue)
+				} else if !strings.Contains(err.Error(), tt.errorMsg) {
+					t.Errorf("Expected error message to contain %q, got: %v", tt.errorMsg, err)
+				}
+			} else {
+				if err != nil {
+					t.Errorf("Expected no error for secret value %q, but got: %v", tt.secretValue, err)
+				}
+			}
+		})
+	}
+}

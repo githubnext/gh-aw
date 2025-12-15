@@ -95,7 +95,7 @@ jobs:
             pattern: "TestMCP|TestTool|TestSkill|TestPlaywright|TestFirewall"
           - name: "Workflow Validation"
             packages: "./pkg/workflow"
-            pattern: "TestValidat|TestLock|TestError|TestWarning"
+            pattern: "TestValidat|TestLock|TestError|TestWarning|TestSecurity"
           - name: "Workflow Safe Outputs"
             packages: "./pkg/workflow"
             pattern: "SafeOutputs|CreatePullRequest|OutputLabel|HasSafeOutputs"
