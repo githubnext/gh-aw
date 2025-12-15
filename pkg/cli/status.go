@@ -9,7 +9,7 @@ import (
 func NewStatusCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "status [pattern]",
-		Short: "Show status of agentic workflows",
+		Short: "Show status of all agentic workflows in the repository",
 		Long: `Show status of all agentic workflows in the repository.
 
 Displays a table with workflow name, AI engine, compilation status, enabled/disabled state,
