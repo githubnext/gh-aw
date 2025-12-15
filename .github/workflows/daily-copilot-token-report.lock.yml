@@ -1067,6 +1067,7 @@ name: "Daily Copilot Token Consumption Report"
 "on":
   schedule:
   - cron: "0 11 * * 1-5"
+    # Friendly format: daily at 18:00
   workflow_dispatch: null
 
 permissions: {}
