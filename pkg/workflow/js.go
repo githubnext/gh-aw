@@ -103,6 +103,9 @@ var redactSecretsScript string
 //go:embed js/sanitize_content.cjs
 var sanitizeContentScript string
 
+//go:embed js/resolve_mentions.cjs
+var resolveMentionsScript string
+
 //go:embed js/sanitize_label_content.cjs
 var sanitizeLabelContentScript string
 
@@ -281,6 +284,7 @@ var safeOutputsBootstrapScript string
 func GetJavaScriptSources() map[string]string {
 	return map[string]string{
 		"sanitize_content.cjs":              sanitizeContentScript,
+		"resolve_mentions.cjs":              resolveMentionsScript,
 		"sanitize_label_content.cjs":        sanitizeLabelContentScript,
 		"sanitize_workflow_name.cjs":        sanitizeWorkflowNameScript,
 		"load_agent_output.cjs":             loadAgentOutputScript,

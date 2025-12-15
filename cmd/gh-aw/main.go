@@ -168,9 +168,11 @@ Examples:
 var compileCmd = &cobra.Command{
 	Use:   "compile [workflow-id]...",
 	Short: "Compile agentic workflow Markdown to GitHub Actions YAML",
-	Long: `Compile one or more workflow IDs or Markdown files to YAML workflows.
+	Long: `Compile one or more agentic workflows to YAML workflows.
 
 If no workflows are specified, all Markdown files in .github/workflows will be compiled.
+
+` + cli.WorkflowIDExplanation + `
 
 The --dependabot flag generates dependency manifests when dependencies are detected:
   - For npm: Creates package.json and package-lock.json (requires npm in PATH)

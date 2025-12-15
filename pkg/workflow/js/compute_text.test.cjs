@@ -49,6 +49,10 @@ const mockGithub = {
   rest: {
     repos: {
       getCollaboratorPermissionLevel: vi.fn(),
+      listCollaborators: vi.fn(),
+    },
+    users: {
+      getByUsername: vi.fn(),
     },
   },
 };
@@ -214,6 +218,27 @@ describe("compute_text.cjs", () => {
       // Set up default successful permission check
       mockGithub.rest.repos.getCollaboratorPermissionLevel.mockResolvedValue({
         data: { permission: "admin" },
+      });
+
+      // Set up default collaborators list (team members)
+      mockGithub.rest.repos.listCollaborators.mockResolvedValue({
+        data: [
+          {
+            login: "team-member-1",
+            type: "User",
+            permissions: { push: false, admin: false, maintain: true },
+          },
+          {
+            login: "team-member-2",
+            type: "User",
+            permissions: { push: false, admin: true, maintain: false },
+          },
+          {
+            login: "dependabot",
+            type: "Bot",
+            permissions: { push: true, admin: false, maintain: false },
+          },
+        ],
       });
 
       // Get the main function from global scope
@@ -669,6 +694,166 @@ describe("compute_text.cjs", () => {
       // @dispatchActor should not be neutralized
       expect(outputCall[1]).toContain("@dispatchActor");
       expect(outputCall[1]).not.toContain("`@dispatchActor`");
+    });
+
+    it("should filter out bot authors from allowed mentions", async () => {
+      mockContext.eventName = "issues";
+      mockContext.payload = {
+        issue: {
+          title: "Test @botUser",
+          body: "Body mentioning @botUser",
+          user: { login: "botUser", type: "Bot" },
+        },
+      };
+
+      await testMain();
+
+      const outputCall = mockCore.setOutput.mock.calls[0];
+      // @botUser should be neutralized (bot author)
+      expect(outputCall[1]).toContain("`@botUser`");
+      // Should not have @botUser without backticks (look for pattern without backtick before)
+      expect(outputCall[1]).not.toMatch(/[^`]@botUser/);
+    });
+
+    it("should allow team member mentions", async () => {
+      mockContext.eventName = "issues";
+      mockContext.payload = {
+        issue: {
+          title: "Test @team-member-1 and @team-member-2",
+          body: "Body mentioning @team-member-1 and @team-member-2",
+          user: { login: "issueAuthor" },
+        },
+      };
+
+      await testMain();
+
+      const outputCall = mockCore.setOutput.mock.calls[0];
+      // Team members should not be neutralized
+      expect(outputCall[1]).toContain("@team-member-1");
+      expect(outputCall[1]).not.toContain("`@team-member-1`");
+      expect(outputCall[1]).toContain("@team-member-2");
+      expect(outputCall[1]).not.toContain("`@team-member-2`");
+    });
+
+    it("should not allow bot team members in mentions", async () => {
+      mockContext.eventName = "issues";
+      mockContext.payload = {
+        issue: {
+          title: "Test @dependabot",
+          body: "Body mentioning @dependabot",
+          user: { login: "issueAuthor" },
+        },
+      };
+
+      await testMain();
+
+      const outputCall = mockCore.setOutput.mock.calls[0];
+      // @dependabot should be neutralized (bot)
+      expect(outputCall[1]).toContain("`@dependabot`");
+    });
+
+    it("should log allowed mentions", async () => {
+      mockContext.eventName = "issues";
+      mockContext.payload = {
+        issue: {
+          title: "Test @team-member-1 and @issueAuthor",
+          body: "Body mentioning @team-member-2",
+          user: { login: "issueAuthor" },
+        },
+      };
+
+      await testMain();
+
+      // Check that allowed mentions were logged
+      const infoCalls = mockCore.info.mock.calls.map(call => call[0]);
+      const allowedMentionsLog = infoCalls.find(msg => msg.includes("Allowed mentions"));
+      expect(allowedMentionsLog).toBeDefined();
+      // Should include team members and issue author that were actually mentioned in text
+      expect(allowedMentionsLog).toContain("team-member-1");
+      expect(allowedMentionsLog).toContain("team-member-2");
+      expect(allowedMentionsLog).toContain("issueAuthor");
+    });
+
+    it("should log known authors from payload", async () => {
+      mockContext.eventName = "issues";
+      mockContext.payload = {
+        issue: {
+          title: "Test issue",
+          body: "Body with @issueAuthor and @assignee1",
+          user: { login: "issueAuthor" },
+          assignees: [
+            { login: "assignee1", type: "User" },
+            { login: "assignee2", type: "User" },
+          ],
+        },
+      };
+
+      await testMain();
+
+      // Check that known authors were logged
+      const infoCalls = mockCore.info.mock.calls.map(call => call[0]);
+      const knownAuthorsLog = infoCalls.find(msg => msg.includes("Known authors (from payload)"));
+      expect(knownAuthorsLog).toBeDefined();
+      expect(knownAuthorsLog).toContain("issueAuthor");
+      expect(knownAuthorsLog).toContain("assignee1");
+      expect(knownAuthorsLog).toContain("assignee2");
+    });
+
+    it("should log escaped mentions", async () => {
+      mockContext.eventName = "issues";
+      mockContext.payload = {
+        issue: {
+          title: "Test @unknown-user",
+          body: "Body mentioning @team-member-1",
+          user: { login: "issueAuthor" },
+        },
+      };
+
+      // First call: actor permission check (should be admin to allow processing)
+      // Second call: unknown-user permission check (should be none to escape mention)
+      mockGithub.rest.repos.getCollaboratorPermissionLevel
+        .mockResolvedValueOnce({
+          data: { permission: "admin" },
+        })
+        .mockResolvedValueOnce({
+          data: { permission: "none" },
+        });
+
+      // Mock that unknown-user exists but is not a collaborator
+      mockGithub.rest.users.getByUsername.mockResolvedValueOnce({
+        data: { login: "unknown-user", type: "User" },
+      });
+
+      await testMain();
+
+      // Check that escaped mention was logged
+      const infoCalls = mockCore.info.mock.calls.map(call => call[0]);
+      const escapedMentionLog = infoCalls.find(msg => msg.includes("Escaped mention"));
+      expect(escapedMentionLog).toBeDefined();
+      expect(escapedMentionLog).toContain("@unknown-user");
+    });
+
+    it("should handle team member fetch failure gracefully", async () => {
+      mockGithub.rest.repos.listCollaborators.mockRejectedValue(new Error("API error"));
+
+      mockContext.eventName = "issues";
+      mockContext.payload = {
+        issue: {
+          title: "Test @issueAuthor",
+          body: "Body",
+          user: { login: "issueAuthor" },
+        },
+      };
+
+      await testMain();
+
+      // Should still work and log a warning
+      const warningCalls = mockCore.warning.mock.calls.map(call => call[0]);
+      const collaboratorWarning = warningCalls.find(msg => msg.includes("Failed to fetch recent collaborators"));
+      expect(collaboratorWarning).toBeDefined();
+
+      // Should still set output with issue text
+      expect(mockCore.setOutput).toHaveBeenCalledWith("text", expect.any(String));
     });
   });
 });

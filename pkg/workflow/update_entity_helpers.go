@@ -136,7 +136,7 @@ func (c *Compiler) buildUpdateEntityJobWithConfig(
 	// Add optional event condition if target is empty and event condition builder is provided
 	if builder.BuildEventCondition != nil && config.Target == "" {
 		eventCondition := builder.BuildEventCondition(config.Target)
-		jobCondition = buildAnd(jobCondition, eventCondition)
+		jobCondition = BuildAnd(jobCondition, eventCondition)
 	}
 
 	// Create UpdateEntityJobParams with all the configuration

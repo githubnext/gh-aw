@@ -62,5 +62,6 @@ Add a **very brief** comment (max 5-10 lines) to the current pull request with:
 - PR titles only (no descriptions)
 - ✅ or ❌ for each test result
 - Overall status: PASS or FAIL
+- Mention the pull request author and any assignees
 
 If all tests pass, add the label `smoke-copilot` to the pull request.

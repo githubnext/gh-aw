@@ -174,7 +174,7 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 		// Build condition: only unlock if issue was locked by activation job
 		// Must match lock condition: event type is 'issues' or 'issue_comment'
 		// Use the issue_locked output from activation job to determine if unlock is needed
-		eventTypeCheck := buildOr(
+		eventTypeCheck := BuildOr(
 			BuildEventTypeEquals("issues"),
 			BuildEventTypeEquals("issue_comment"),
 		)
@@ -183,9 +183,9 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 			BuildStringLiteral("true"),
 		)
 
-		unlockCondition := buildAnd(
+		unlockCondition := BuildAnd(
 			BuildFunctionCall("always"), // Always run, even on failure
-			buildAnd(eventTypeCheck, lockedOutputCheck),
+			BuildAnd(eventTypeCheck, lockedOutputCheck),
 		)
 
 		steps = append(steps, "      - name: Unlock issue after agent workflow\n")
@@ -241,13 +241,13 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 		noAddCommentOutput := &NotNode{
 			Child: BuildPropertyAccess("needs.add_comment.outputs.comment_id"),
 		}
-		condition = buildAnd(
-			buildAnd(alwaysFunc, agentNotSkipped),
+		condition = BuildAnd(
+			BuildAnd(alwaysFunc, agentNotSkipped),
 			noAddCommentOutput,
 		)
 	} else {
 		// If add_comment job doesn't exist, just check the basic conditions
-		condition = buildAnd(alwaysFunc, agentNotSkipped)
+		condition = BuildAnd(alwaysFunc, agentNotSkipped)
 	}
 
 	// Build dependencies - this job depends on all safe output jobs to ensure it runs last

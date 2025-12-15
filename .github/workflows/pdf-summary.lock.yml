@@ -572,6 +572,7 @@ jobs:
                   if (isAllowed) {
                     return `${p1}@${p2}`; 
                   }
+                  core.info(`Escaped mention: @${p2} (not in allowed list)`);
                   return `${p1}\`@${p2}\``; 
                 });
               }
@@ -629,9 +630,109 @@ jobs:
                 return s.replace(/\b(fixes?|closes?|resolves?|fix|close|resolve)\s+#(\w+)/gi, (match, action, ref) => `\`${action} #${ref}\``);
               }
             }
+            function extractMentions(text) {
+              if (!text || typeof text !== "string") {
+                return [];
+              }
+              const mentionRegex = /(^|[^\w`])@([A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?(?:\/[A-Za-z0-9._-]+)?)/g;
+              const mentions = [];
+              const seen = new Set();
+              let match;
+              while ((match = mentionRegex.exec(text)) !== null) {
+                const username = match[2];
+                const lowercaseUsername = username.toLowerCase();
+                if (!seen.has(lowercaseUsername)) {
+                  seen.add(lowercaseUsername);
+                  mentions.push(username);
+                }
+              }
+              return mentions;
+            }
+            function isPayloadUserBot(user) {
+              return !!(user && user.type === "Bot");
+            }
+            async function getRecentCollaborators(owner, repo, github, core) {
+              try {
+                const collaborators = await github.rest.repos.listCollaborators({
+                  owner: owner,
+                  repo: repo,
+                  affiliation: "direct",
+                  per_page: 30,
+                });
+                const allowedMap = new Map();
+                for (const collaborator of collaborators.data) {
+                  const lowercaseLogin = collaborator.login.toLowerCase();
+                  const isAllowed = collaborator.type !== "Bot";
+                  allowedMap.set(lowercaseLogin, isAllowed);
+                }
+                return allowedMap;
+              } catch (error) {
+                core.warning(`Failed to fetch recent collaborators: ${error instanceof Error ? error.message : String(error)}`);
+                return new Map();
+              }
+            }
+            async function checkUserPermission(username, owner, repo, github, core) {
+              try {
+                const { data: user } = await github.rest.users.getByUsername({
+                  username: username,
+                });
+                if (user.type === "Bot") {
+                  return false;
+                }
+                const { data: permissionData } = await github.rest.repos.getCollaboratorPermissionLevel({
+                  owner: owner,
+                  repo: repo,
+                  username: username,
+                });
+                return permissionData.permission !== "none";
+              } catch (error) {
+                return false;
+              }
+            }
+            async function resolveMentionsLazily(text, knownAuthors, owner, repo, github, core) {
+              const mentions = extractMentions(text);
+              const totalMentions = mentions.length;
+              core.info(`Found ${totalMentions} unique mentions in text`);
+              const limitExceeded = totalMentions > 50;
+              const mentionsToProcess = limitExceeded ? mentions.slice(0, 50) : mentions;
+              if (limitExceeded) {
+                core.warning(`Mention limit exceeded: ${totalMentions} mentions found, processing only first 50`);
+              }
+              const knownAuthorsLowercase = new Set(knownAuthors.filter(a => a).map(a => a.toLowerCase()));
+              const collaboratorCache = await getRecentCollaborators(owner, repo, github, core);
+              core.info(`Cached ${collaboratorCache.size} recent collaborators for optimistic resolution`);
+              const allowedMentions = [];
+              let resolvedCount = 0;
+              for (const mention of mentionsToProcess) {
+                const lowerMention = mention.toLowerCase();
+                if (knownAuthorsLowercase.has(lowerMention)) {
+                  allowedMentions.push(mention);
+                  continue;
+                }
+                if (collaboratorCache.has(lowerMention)) {
+                  if (collaboratorCache.get(lowerMention)) {
+                    allowedMentions.push(mention);
+                  }
+                  continue;
+                }
+                resolvedCount++;
+                const isAllowed = await checkUserPermission(mention, owner, repo, github, core);
+                if (isAllowed) {
+                  allowedMentions.push(mention);
+                }
+              }
+              core.info(`Resolved ${resolvedCount} mentions via individual API calls`);
+              core.info(`Total allowed mentions: ${allowedMentions.length}`);
+              return {
+                allowedMentions,
+                totalMentions,
+                resolvedCount,
+                limitExceeded,
+              };
+            }
             async function main() {
               let text = "";
-              let allowedAliases = [];
+              let knownAuthors = [];
               const actor = context.actor;
               const { owner, repo } = context.repo;
               const repoPermission = await github.rest.repos.getCollaboratorPermissionLevel({
@@ -651,8 +752,15 @@ jobs:
                     const title = context.payload.issue.title || "";
                     const body = context.payload.issue.body || "";
                     text = `${title}\n\n${body}`;
-                    if (context.payload.issue.user?.login) {
-                      allowedAliases.push(context.payload.issue.user.login);
+                    if (context.payload.issue.user?.login && !isPayloadUserBot(context.payload.issue.user)) {
+                      knownAuthors.push(context.payload.issue.user.login);
+                    }
+                    if (context.payload.issue.assignees && Array.isArray(context.payload.issue.assignees)) {
+                      for (const assignee of context.payload.issue.assignees) {
+                        if (assignee?.login && !isPayloadUserBot(assignee)) {
+                          knownAuthors.push(assignee.login);
+                        }
+                      }
                     }
                   }
                   break;
@@ -661,8 +769,15 @@ jobs:
                     const title = context.payload.pull_request.title || "";
                     const body = context.payload.pull_request.body || "";
                     text = `${title}\n\n${body}`;
-                    if (context.payload.pull_request.user?.login) {
-                      allowedAliases.push(context.payload.pull_request.user.login);
+                    if (context.payload.pull_request.user?.login && !isPayloadUserBot(context.payload.pull_request.user)) {
+                      knownAuthors.push(context.payload.pull_request.user.login);
+                    }
+                    if (context.payload.pull_request.assignees && Array.isArray(context.payload.pull_request.assignees)) {
+                      for (const assignee of context.payload.pull_request.assignees) {
+                        if (assignee?.login && !isPayloadUserBot(assignee)) {
+                          knownAuthors.push(assignee.login);
+                        }
+                      }
                     }
                   }
                   break;
@@ -671,41 +786,69 @@ jobs:
                     const title = context.payload.pull_request.title || "";
                     const body = context.payload.pull_request.body || "";
                     text = `${title}\n\n${body}`;
-                    if (context.payload.pull_request.user?.login) {
-                      allowedAliases.push(context.payload.pull_request.user.login);
+                    if (context.payload.pull_request.user?.login && !isPayloadUserBot(context.payload.pull_request.user)) {
+                      knownAuthors.push(context.payload.pull_request.user.login);
+                    }
+                    if (context.payload.pull_request.assignees && Array.isArray(context.payload.pull_request.assignees)) {
+                      for (const assignee of context.payload.pull_request.assignees) {
+                        if (assignee?.login && !isPayloadUserBot(assignee)) {
+                          knownAuthors.push(assignee.login);
+                        }
+                      }
                     }
                   }
                   break;
                 case "issue_comment":
                   if (context.payload.comment) {
                     text = context.payload.comment.body || "";
-                    if (context.payload.comment.user?.login) {
-                      allowedAliases.push(context.payload.comment.user.login);
+                    if (context.payload.comment.user?.login && !isPayloadUserBot(context.payload.comment.user)) {
+                      knownAuthors.push(context.payload.comment.user.login);
                     }
-                    if (context.payload.issue?.user?.login) {
-                      allowedAliases.push(context.payload.issue.user.login);
+                    if (context.payload.issue?.user?.login && !isPayloadUserBot(context.payload.issue.user)) {
+                      knownAuthors.push(context.payload.issue.user.login);
+                    }
+                    if (context.payload.issue?.assignees && Array.isArray(context.payload.issue.assignees)) {
+                      for (const assignee of context.payload.issue.assignees) {
+                        if (assignee?.login && !isPayloadUserBot(assignee)) {
+                          knownAuthors.push(assignee.login);
+                        }
+                      }
                     }
                   }
                   break;
                 case "pull_request_review_comment":
                   if (context.payload.comment) {
                     text = context.payload.comment.body || "";
-                    if (context.payload.comment.user?.login) {
-                      allowedAliases.push(context.payload.comment.user.login);
+                    if (context.payload.comment.user?.login && !isPayloadUserBot(context.payload.comment.user)) {
+                      knownAuthors.push(context.payload.comment.user.login);
                     }
-                    if (context.payload.pull_request?.user?.login) {
-                      allowedAliases.push(context.payload.pull_request.user.login);
+                    if (context.payload.pull_request?.user?.login && !isPayloadUserBot(context.payload.pull_request.user)) {
+                      knownAuthors.push(context.payload.pull_request.user.login);
+                    }
+                    if (context.payload.pull_request?.assignees && Array.isArray(context.payload.pull_request.assignees)) {
+                      for (const assignee of context.payload.pull_request.assignees) {
+                        if (assignee?.login && !isPayloadUserBot(assignee)) {
+                          knownAuthors.push(assignee.login);
+                        }
+                      }
                     }
                   }
                   break;
                 case "pull_request_review":
                   if (context.payload.review) {
                     text = context.payload.review.body || "";
-                    if (context.payload.review.user?.login) {
-                      allowedAliases.push(context.payload.review.user.login);
+                    if (context.payload.review.user?.login && !isPayloadUserBot(context.payload.review.user)) {
+                      knownAuthors.push(context.payload.review.user.login);
                     }
-                    if (context.payload.pull_request?.user?.login) {
-                      allowedAliases.push(context.payload.pull_request.user.login);
+                    if (context.payload.pull_request?.user?.login && !isPayloadUserBot(context.payload.pull_request.user)) {
+                      knownAuthors.push(context.payload.pull_request.user.login);
+                    }
+                    if (context.payload.pull_request?.assignees && Array.isArray(context.payload.pull_request.assignees)) {
+                      for (const assignee of context.payload.pull_request.assignees) {
+                        if (assignee?.login && !isPayloadUserBot(assignee)) {
+                          knownAuthors.push(assignee.login);
+                        }
+                      }
                     }
                   }
                   break;
@@ -714,19 +857,19 @@ jobs:
                     const title = context.payload.discussion.title || "";
                     const body = context.payload.discussion.body || "";
                     text = `${title}\n\n${body}`;
-                    if (context.payload.discussion.user?.login) {
-                      allowedAliases.push(context.payload.discussion.user.login);
+                    if (context.payload.discussion.user?.login && !isPayloadUserBot(context.payload.discussion.user)) {
+                      knownAuthors.push(context.payload.discussion.user.login);
                     }
                   }
                   break;
                 case "discussion_comment":
                   if (context.payload.comment) {
                     text = context.payload.comment.body || "";
-                    if (context.payload.comment.user?.login) {
-                      allowedAliases.push(context.payload.comment.user.login);
+                    if (context.payload.comment.user?.login && !isPayloadUserBot(context.payload.comment.user)) {
+                      knownAuthors.push(context.payload.comment.user.login);
                     }
-                    if (context.payload.discussion?.user?.login) {
-                      allowedAliases.push(context.payload.discussion.user.login);
+                    if (context.payload.discussion?.user?.login && !isPayloadUserBot(context.payload.discussion.user)) {
+                      knownAuthors.push(context.payload.discussion.user.login);
                     }
                   }
                   break;
@@ -735,13 +878,13 @@ jobs:
                     const name = context.payload.release.name || context.payload.release.tag_name || "";
                     const body = context.payload.release.body || "";
                     text = `${name}\n\n${body}`;
-                    if (context.payload.release.author?.login) {
-                      allowedAliases.push(context.payload.release.author.login);
+                    if (context.payload.release.author?.login && !isPayloadUserBot(context.payload.release.author)) {
+                      knownAuthors.push(context.payload.release.author.login);
                     }
                   }
                   break;
                 case "workflow_dispatch":
-                  allowedAliases.push(actor);
+                  knownAuthors.push(actor);
                   if (context.payload.inputs) {
                     const releaseUrl = context.payload.inputs.release_url;
                     const releaseId = context.payload.inputs.release_id;
@@ -758,8 +901,8 @@ jobs:
                           const name = release.name || release.tag_name || "";
                           const body = release.body || "";
                           text = `${name}\n\n${body}`;
-                          if (release.author?.login) {
-                            allowedAliases.push(release.author.login);
+                          if (release.author?.login && release.author.type !== "Bot") {
+                            knownAuthors.push(release.author.login);
                           }
                         } catch (error) {
                           core.warning(`Failed to fetch release from URL: ${error instanceof Error ? error.message : String(error)}`);
@@ -775,8 +918,8 @@ jobs:
                         const name = release.name || release.tag_name || "";
                         const body = release.body || "";
                         text = `${name}\n\n${body}`;
-                        if (release.author?.login) {
-                          allowedAliases.push(release.author.login);
+                        if (release.author?.login && release.author.type !== "Bot") {
+                          knownAuthors.push(release.author.login);
                         }
                       } catch (error) {
                         core.warning(`Failed to fetch release by ID: ${error instanceof Error ? error.message : String(error)}`);
@@ -788,7 +931,16 @@ jobs:
                   text = "";
                   break;
               }
-              const sanitizedText = sanitizeContent(text, { allowedAliases });
+              const mentionResult = await resolveMentionsLazily(text, knownAuthors, owner, repo, github, core);
+              if (knownAuthors.length > 0) {
+                core.info(`Known authors (from payload): ${knownAuthors.join(", ")}`);
+              }
+              if (mentionResult.allowedMentions.length > 0) {
+                core.info(`Allowed mentions (will not be escaped): ${mentionResult.allowedMentions.join(", ")}`);
+              } else {
+                core.info("No allowed mentions configured - all mentions will be escaped");
+              }
+              const sanitizedText = sanitizeContent(text, { allowedAliases: mentionResult.allowedMentions });
               core.info(`text: ${sanitizedText}`);
               core.setOutput("text", sanitizedText);
               const logPath = writeRedactedDomainsLog();
@@ -4710,6 +4862,7 @@ jobs:
                   if (isAllowed) {
                     return `${p1}@${p2}`; 
                   }
+                  core.info(`Escaped mention: @${p2} (not in allowed list)`);
                   return `${p1}\`@${p2}\``; 
                 });
               }

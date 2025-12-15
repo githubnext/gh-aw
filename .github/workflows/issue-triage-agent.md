@@ -13,6 +13,7 @@ tools:
 safe-outputs:
   add-labels:
     allowed: [bug, feature, enhancement, documentation, question, help-wanted, good-first-issue]
+  add-comment: {}
 ---
 
 # Issue Triage Agent
@@ -22,3 +23,5 @@ List open issues in ${{ github.repository }} that have no labels. For each unlab
 Skip issues that:
 - Already have any of these labels
 - Have been assigned to any user (especially non-bot users)
+
+After adding the label to an issue, mention the issue author in a comment explaining why the label was added.
