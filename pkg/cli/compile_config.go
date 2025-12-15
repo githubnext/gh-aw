@@ -1,5 +1,10 @@
 package cli
 
+import (
+	"regexp"
+	"strings"
+)
+
 // CompileConfig holds configuration options for compiling workflows
 type CompileConfig struct {
 	MarkdownFiles        []string // Files to compile (empty for all files)
@@ -46,4 +51,60 @@ type ValidationResult struct {
 	Errors       []ValidationError `json:"errors"`
 	Warnings     []ValidationError `json:"warnings"`
 	CompiledFile string            `json:"compiled_file,omitempty"`
+}
+
+// sanitizeErrorMessage removes sensitive information from error messages before logging
+// This prevents accidental exposure of secrets, tokens, and other sensitive data in logs
+func sanitizeErrorMessage(message string) string {
+	if message == "" {
+		return message
+	}
+
+	// Pattern to match secret value assignments in YAML format
+	// Matches patterns like: "SECRET_NAME: ${{ secrets.VALUE }}" or "key: sensitive_value"
+	secretPatterns := []*regexp.Regexp{
+		// Match GitHub secrets syntax: ${{ secrets.NAME }}
+		regexp.MustCompile(`\$\{\{\s*secrets\.[^}]+\}\}`),
+		// Match potential secret values after "secrets:" in YAML
+		regexp.MustCompile(`(?mi)(secrets:\s*\n\s+\w+:\s*)[^\n]+`),
+		// Match potential password/token fields
+		regexp.MustCompile(`(?mi)(password|token|api_key|secret|credential):\s*[^\s\n]+`),
+	}
+
+	sanitized := message
+	for _, pattern := range secretPatterns {
+		sanitized = pattern.ReplaceAllString(sanitized, "[REDACTED]")
+	}
+
+	// Additional sanitization: if the message contains "secrets:" followed by data structures,
+	// replace the entire secrets block
+	if strings.Contains(strings.ToLower(sanitized), "secrets:") {
+		lines := strings.Split(sanitized, "\n")
+		var result []string
+		inSecretsBlock := false
+
+		for _, line := range lines {
+			trimmed := strings.TrimSpace(line)
+			if strings.HasPrefix(trimmed, "secrets:") {
+				result = append(result, strings.Split(line, "secrets:")[0]+"secrets: [REDACTED]")
+				inSecretsBlock = true
+				continue
+			}
+
+			// If we're in a secrets block and the line is indented, skip it
+			if inSecretsBlock {
+				// Check if this line is still part of the secrets block (indented)
+				if len(line) > 0 && (line[0] == ' ' || line[0] == '\t') {
+					continue
+				} else {
+					inSecretsBlock = false
+				}
+			}
+
+			result = append(result, line)
+		}
+		sanitized = strings.Join(result, "\n")
+	}
+
+	return sanitized
 }
