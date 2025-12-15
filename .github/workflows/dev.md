@@ -14,6 +14,7 @@ permissions:
 safe-outputs:
   update-project:
     max: 10
+    github-token: ${{ secrets.GH_AW_PROJECT_TOKEN }}
 
 tools:
   github:

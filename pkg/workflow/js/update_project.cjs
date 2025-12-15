@@ -9,6 +9,24 @@ function logGraphQLError(error, operation) {
   core.error(`GraphQL Error during: ${operation}`);
   core.error(`Message: ${error.message}`);
   
+  const errorList = Array.isArray(error.errors) ? error.errors : [];
+  const hasInsufficientScopes = errorList.some(e => e && e.type === "INSUFFICIENT_SCOPES");
+  const hasNotFound = errorList.some(e => e && e.type === "NOT_FOUND");
+  if (hasInsufficientScopes) {
+    core.error(
+      "This looks like a token permission problem for Projects v2. " +
+        "The GraphQL fields used by update_project require a token with Projects access (e.g., classic PAT scope read:project/write:project). " +
+        "Fix: set safe-outputs.update-project.github-token to a secret PAT with Projects permissions."
+    );
+  } else if (hasNotFound && /projectV2\b/.test(error.message)) {
+    core.error(
+      "GitHub returned NOT_FOUND for ProjectV2. This can mean either: " +
+        "(1) the project number is wrong for Projects v2, " +
+        "(2) the project is a classic Projects board (not Projects v2), or " +
+        "(3) the token does not have access to that org/user project."
+    );
+  }
+  
   if (error.errors) {
     core.error(`Errors array (${error.errors.length} error(s)):`);
     error.errors.forEach((err, idx) => {
