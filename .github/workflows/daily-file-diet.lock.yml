@@ -9558,10 +9558,10 @@ jobs:
               }
               return { success: true, items: validatedOutput.items };
             }
-            function parseProjectInput(projectInput) {
+            function parseProjectInput(projectInput, isCampaign = false) {
               if (!projectInput || typeof projectInput !== "string") {
                 throw new Error(
-                  `Invalid project input: expected string, got ${typeof projectInput}. The "project" field is required and must be a GitHub project URL, number, or name.`
+                  `Invalid project input: expected string, got ${typeof projectInput}. The "project" field is required and must be a GitHub project URL${isCampaign ? "" : ", number, or name"}.`
                 );
               }
               const urlMatch = projectInput.match(/github\.com\/(?:users|orgs)\/[^/]+\/projects\/(\d+)/);
@@ -9570,6 +9570,11 @@ jobs:
                   projectNumber: urlMatch[1],
                   projectName: null,
                 };
+              }
+              if (isCampaign) {
+                throw new Error(
+                  `Invalid project URL for campaign: "${projectInput}". Campaign project identifiers must be full GitHub project URLs (e.g., https://github.com/orgs/myorg/projects/123).`
+                );
               }
               return {
                 projectNumber: /^\d+$/.test(projectInput) ? projectInput : null,
@@ -9587,7 +9592,8 @@ jobs:
             }
             async function updateProject(output) {
               const { owner, repo } = context.repo;
-              const { projectNumber: parsedProjectNumber, projectName: parsedProjectName } = parseProjectInput(output.project);
+              const isCampaign = !!output.campaign_id;
+              const { projectNumber: parsedProjectNumber, projectName: parsedProjectName } = parseProjectInput(output.project, isCampaign);
               const displayName = parsedProjectName || parsedProjectNumber || output.project;
               const campaignId = output.campaign_id || generateCampaignId(displayName);
               let githubClient = github;
@@ -10087,10 +10093,6 @@ jobs:
               }
               for (let i = 0; i < updateProjectItems.length; i++) {
                 const output = updateProjectItems[i];
-                if (output["project-url"] && !output.project) {
-                  output.project = output["project-url"];
-                  core.info(`Mapped "project-url" to "project" field: ${output.project}`);
-                }
                 try {
                   await updateProject(output);
                 } catch (error) {

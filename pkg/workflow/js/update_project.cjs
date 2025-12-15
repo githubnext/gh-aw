@@ -3,13 +3,13 @@ const { loadAgentOutput } = require("./load_agent_output.cjs");
 /**
  * @typedef {Object} UpdateProjectOutput
  * @property {"update_project"} type
- * @property {string} project - Project title, number, or GitHub project URL
+ * @property {string} project - GitHub project URL (for campaigns) or project title, number, or URL (for general use)
  * @property {string} [content_type] - Type of content: "issue" or "pull_request"
  * @property {number|string} [content_number] - Issue or PR number (preferred)
  * @property {number|string} [issue] - Issue number (legacy, use content_number instead)
  * @property {number|string} [pull_request] - PR number (legacy, use content_number instead)
  * @property {Object} [fields] - Custom field values to set/update (creates fields if missing)
- * @property {string} [campaign_id] - Campaign tracking ID (auto-generated if not provided)
+ * @property {string} [campaign_id] - Campaign tracking ID (auto-generated if not provided). When present, project must be a URL.
  * @property {boolean} [create_if_missing] - Opt-in: allow creating the project board if it does not exist.
  *   Default behavior is update-only; if the project does not exist, this job will fail with instructions.
  */
@@ -17,13 +17,14 @@ const { loadAgentOutput } = require("./load_agent_output.cjs");
 /**
  * Parse project input to extract project number from URL or return project name
  * @param {string} projectInput - Project URL, number, or name
+ * @param {boolean} isCampaign - Whether this is for a campaign (URL required)
  * @returns {{projectNumber: string|null, projectName: string}} Extracted project number (if URL) and name
  */
-function parseProjectInput(projectInput) {
+function parseProjectInput(projectInput, isCampaign = false) {
   // Validate input
   if (!projectInput || typeof projectInput !== "string") {
     throw new Error(
-      `Invalid project input: expected string, got ${typeof projectInput}. The "project" field is required and must be a GitHub project URL, number, or name.`
+      `Invalid project input: expected string, got ${typeof projectInput}. The "project" field is required and must be a GitHub project URL${isCampaign ? "" : ", number, or name"}.`
     );
   }
 
@@ -34,6 +35,13 @@ function parseProjectInput(projectInput) {
       projectNumber: urlMatch[1],
       projectName: null,
     };
+  }
+
+  // For campaigns, only URLs are accepted
+  if (isCampaign) {
+    throw new Error(
+      `Invalid project URL for campaign: "${projectInput}". Campaign project identifiers must be full GitHub project URLs (e.g., https://github.com/orgs/myorg/projects/123).`
+    );
   }
 
   // Otherwise treat as project name or number
@@ -71,7 +79,10 @@ async function updateProject(output) {
   // In actions/github-script, 'github' and 'context' are already available
   const { owner, repo } = context.repo;
 
-  const { projectNumber: parsedProjectNumber, projectName: parsedProjectName } = parseProjectInput(output.project);
+  // Detect if this is a campaign usage (has campaign_id or will generate one)
+  const isCampaign = !!output.campaign_id;
+
+  const { projectNumber: parsedProjectNumber, projectName: parsedProjectName } = parseProjectInput(output.project, isCampaign);
   const displayName = parsedProjectName || parsedProjectNumber || output.project;
   const campaignId = output.campaign_id || generateCampaignId(displayName);
 
@@ -638,14 +649,6 @@ async function main() {
   // Process all update_project items
   for (let i = 0; i < updateProjectItems.length; i++) {
     const output = updateProjectItems[i];
-
-    // Normalize project-url field to project field for campaign compatibility
-    // Campaign specs use "project-url" but update-project expects "project"
-    if (output["project-url"] && !output.project) {
-      output.project = output["project-url"];
-      core.info(`Mapped "project-url" to "project" field: ${output.project}`);
-    }
-
     try {
       await updateProject(output);
     } catch (error) {
