@@ -10,8 +10,8 @@ import (
 
 var expressionBuilderLog = logger.New("workflow:expression_builder")
 
-// buildConditionTree creates a condition tree from existing if condition and new draft condition
-func buildConditionTree(existingCondition string, draftCondition string) ConditionNode {
+// BuildConditionTree creates a condition tree from existing if condition and new draft condition
+func BuildConditionTree(existingCondition string, draftCondition string) ConditionNode {
 	expressionBuilderLog.Printf("Building condition tree: existing=%q, draft=%q", existingCondition, draftCondition)
 	draftNode := &ExpressionNode{Expression: draftCondition}
 
@@ -25,16 +25,18 @@ func buildConditionTree(existingCondition string, draftCondition string) Conditi
 	return &AndNode{Left: existingNode, Right: draftNode}
 }
 
-func buildOr(left ConditionNode, right ConditionNode) ConditionNode {
+// BuildOr creates an OR node combining two conditions
+func BuildOr(left ConditionNode, right ConditionNode) ConditionNode {
 	return &OrNode{Left: left, Right: right}
 }
 
-func buildAnd(left ConditionNode, right ConditionNode) ConditionNode {
+// BuildAnd creates an AND node combining two conditions
+func BuildAnd(left ConditionNode, right ConditionNode) ConditionNode {
 	return &AndNode{Left: left, Right: right}
 }
 
-// buildReactionCondition creates a condition tree for the add_reaction job
-func buildReactionCondition() ConditionNode {
+// BuildReactionCondition creates a condition tree for the add_reaction job
+func BuildReactionCondition() ConditionNode {
 	expressionBuilderLog.Print("Building reaction condition for multiple event types")
 	// Build a list of event types that should trigger reactions using the new expression nodes
 	var terms []ConditionNode
@@ -258,7 +260,7 @@ func BuildDisjunction(multiline bool, terms ...ConditionNode) *DisjunctionNode {
 // - pull_request_review
 func BuildPRCommentCondition() ConditionNode {
 	// issue_comment event on a PR
-	issueCommentOnPR := buildAnd(
+	issueCommentOnPR := BuildAnd(
 		BuildEventTypeEquals("issue_comment"),
 		BuildComparison(
 			BuildPropertyAccess("github.event.issue.pull_request"),

@@ -356,7 +356,7 @@ func (c *Compiler) BuildListSafeOutputJob(data *WorkflowData, mainJobName string
 
 	// Add extra condition if provided
 	if builderConfig.ExtraCondition != nil {
-		jobCondition = buildAnd(jobCondition, builderConfig.ExtraCondition)
+		jobCondition = BuildAnd(jobCondition, builderConfig.ExtraCondition)
 	}
 
 	// Use the shared builder function to create the job

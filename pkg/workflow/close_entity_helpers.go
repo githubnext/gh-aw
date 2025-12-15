@@ -124,11 +124,11 @@ func (c *Compiler) buildCloseEntityJob(data *WorkflowData, mainJobName string, c
 	jobCondition := BuildSafeOutputType(params.JobName)
 	if config.Target == "" || config.Target == "triggering" {
 		// Only require event context for "triggering" target
-		eventCondition := buildOr(
+		eventCondition := BuildOr(
 			BuildPropertyAccess(params.EventNumberPath1),
 			BuildPropertyAccess(params.EventNumberPath2),
 		)
-		jobCondition = buildAnd(jobCondition, eventCondition)
+		jobCondition = BuildAnd(jobCondition, eventCondition)
 	}
 
 	// Use the shared builder function to create the job

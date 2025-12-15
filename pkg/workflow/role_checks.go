@@ -275,10 +275,10 @@ func (c *Compiler) buildWorkflowRunRepoSafetyCondition() string {
 	}
 
 	// Combine repository ID check AND not-from-fork check
-	repoSafetyCheck := buildAnd(repoIDCheck, notFromForkCheck)
+	repoSafetyCheck := BuildAnd(repoIDCheck, notFromForkCheck)
 
 	// Combine with OR: allow if NOT workflow_run OR (repository matches AND not fork)
-	combinedCheck := buildOr(eventNotWorkflowRun, repoSafetyCheck)
+	combinedCheck := BuildOr(eventNotWorkflowRun, repoSafetyCheck)
 
 	// Wrap in ${{ }} for GitHub Actions
 	return fmt.Sprintf("${{ %s }}", combinedCheck.Render())
@@ -305,6 +305,6 @@ func (c *Compiler) combineJobIfConditions(existingCondition, workflowRunRepoSafe
 	existingNode := &ExpressionNode{Expression: unwrappedExisting}
 	safetyNode := &ExpressionNode{Expression: unwrappedSafety}
 
-	combinedExpr := buildAnd(existingNode, safetyNode)
+	combinedExpr := BuildAnd(existingNode, safetyNode)
 	return combinedExpr.Render()
 }

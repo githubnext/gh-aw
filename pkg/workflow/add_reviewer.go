@@ -51,7 +51,7 @@ func (c *Compiler) buildAddReviewerJob(data *WorkflowData, mainJobName string) (
 	if cfg.Target == "" {
 		// Only run if in PR context when target is not specified
 		prCondition := BuildPropertyAccess("github.event.pull_request.number")
-		jobCondition = buildAnd(jobCondition, prCondition)
+		jobCondition = BuildAnd(jobCondition, prCondition)
 	}
 
 	// Use the shared builder function to create the job
