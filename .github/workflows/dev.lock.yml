@@ -6511,6 +6511,47 @@ jobs:
               }
               return { scope: match[1], ownerLogin: match[2], projectNumber: match[3] };
             }
+            async function listAccessibleProjectsV2(projectInfo) {
+              const baseQuery = `projectsV2(first: 100) {
+                totalCount
+                nodes {
+                  number
+                  title
+                  closed
+                }
+              }`;
+              if (projectInfo.scope === "orgs") {
+                const result = await github.graphql(
+                  `query($login: String!) {
+                    organization(login: $login) {
+                      ${baseQuery}
+                    }
+                  }`,
+                  { login: projectInfo.ownerLogin }
+                );
+                const conn = result && result.organization && result.organization.projectsV2;
+                return { nodes: (conn && conn.nodes) || [], totalCount: conn && conn.totalCount };
+              }
+              const result = await github.graphql(
+                `query($login: String!) {
+                  user(login: $login) {
+                    ${baseQuery}
+                  }
+                }`,
+                { login: projectInfo.ownerLogin }
+              );
+              const conn = result && result.user && result.user.projectsV2;
+              return { nodes: (conn && conn.nodes) || [], totalCount: conn && conn.totalCount };
+            }
+            function summarizeProjectsV2(projects, limit = 20) {
+              if (!Array.isArray(projects) || projects.length === 0) {
+                return "(none)";
+              }
+              return projects
+                .slice(0, limit)
+                .map(p => `#${p.number} ${p.closed ? "(closed) " : ""}${p.title}`)
+                .join("; ");
+            }
             function generateCampaignId(projectUrl, projectNumber) {
               const urlMatch = projectUrl.match(/github\.com\/(users|orgs)\/([^/]+)\/projects/);
               const orgName = urlMatch ? urlMatch[2] : "project";
@@ -6595,8 +6636,21 @@ jobs:
                     );
                     const project = projectResult && projectResult.organization && projectResult.organization.projectV2;
                     if (!project) {
+                      let projectListNote = "";
+                      try {
+                        const list = await listAccessibleProjectsV2(projectInfo);
+                        const summary = summarizeProjectsV2(list.nodes);
+                        const total = typeof list.totalCount === "number" ? ` (totalCount=${list.totalCount})` : "";
+                        const hasRequested = Array.isArray(list.nodes) && list.nodes.some(p => p && String(p.number) === String(projectNumberInt));
+                        projectListNote = `\nAccessible Projects v2 for org ${projectInfo.ownerLogin}${total}: ${summary}`;
+                        if (!hasRequested) {
+                          projectListNote += `\nProject #${projectNumberFromUrl} is not present in the accessible list; either it is a classic project (v1), the number is wrong, or the token cannot access it.`;
+                        }
+                      } catch (listErr) {
+                        projectListNote = `\n(Also failed to list accessible Projects v2 for diagnostics: ${listErr.message})`;
+                      }
                       throw new Error(
-                        `Project not found or not accessible: ${output.project} (organization=${projectInfo.ownerLogin}, number=${projectNumberFromUrl})`
+                        `Project not found or not accessible: ${output.project} (organization=${projectInfo.ownerLogin}, number=${projectNumberFromUrl})${projectListNote}`
                       );
                     }
                     projectId = project.id;
@@ -6623,8 +6677,21 @@ jobs:
                     );
                     const project = projectResult && projectResult.user && projectResult.user.projectV2;
                     if (!project) {
+                      let projectListNote = "";
+                      try {
+                        const list = await listAccessibleProjectsV2(projectInfo);
+                        const summary = summarizeProjectsV2(list.nodes);
+                        const total = typeof list.totalCount === "number" ? ` (totalCount=${list.totalCount})` : "";
+                        const hasRequested = Array.isArray(list.nodes) && list.nodes.some(p => p && String(p.number) === String(projectNumberInt));
+                        projectListNote = `\nAccessible Projects v2 for user ${projectInfo.ownerLogin}${total}: ${summary}`;
+                        if (!hasRequested) {
+                          projectListNote += `\nProject #${projectNumberFromUrl} is not present in the accessible list; either it is a classic project (v1), the number is wrong, or the token cannot access it.`;
+                        }
+                      } catch (listErr) {
+                        projectListNote = `\n(Also failed to list accessible Projects v2 for diagnostics: ${listErr.message})`;
+                      }
                       throw new Error(
-                        `Project not found or not accessible: ${output.project} (user=${projectInfo.ownerLogin}, number=${projectNumberFromUrl})`
+                        `Project not found or not accessible: ${output.project} (user=${projectInfo.ownerLogin}, number=${projectNumberFromUrl})${projectListNote}`
                       );
                     }
                     projectId = project.id;
