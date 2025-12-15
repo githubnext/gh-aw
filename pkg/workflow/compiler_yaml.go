@@ -284,6 +284,13 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	yaml.WriteString("        run: |\n")
 	WriteShellScriptToYAML(yaml, createGhAwTmpDirScript, "          ")
 
+	// Add trace capture setup if enabled
+	if ShouldEnableTraceCapture(data) {
+		compilerYamlLog.Print("Adding trace capture setup")
+		GenerateTraceSetupStep(yaml)
+		GenerateReplaySetupStep(yaml)
+	}
+
 	// Add custom steps if present
 	if data.CustomSteps != "" {
 		if customStepsContainCheckout && len(runtimeSetupSteps) > 0 {
@@ -440,6 +447,13 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 
 	// Add error validation for AI execution logs
 	c.generateErrorValidation(yaml, engine, data)
+
+	// Add trace capture output steps if enabled
+	if ShouldEnableTraceCapture(data) {
+		compilerYamlLog.Print("Adding trace capture output steps")
+		GenerateTraceJobSummaryStep(yaml)
+		GenerateTraceArtifactUploadStep(yaml)
+	}
 
 	// NOTE: Git patch generation has been moved to the safe-outputs MCP server
 	// The patch is now generated when create_pull_request or push_to_pull_request_branch

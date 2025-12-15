@@ -707,6 +707,17 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		return nil, err
 	}
 
+	// Inject replay inputs into the on: section if trace capture is enabled
+	if ShouldEnableTraceCapture(workflowData) && workflowData.On != "" {
+		modifiedOn, err := InjectReplayInputsIntoOn(workflowData.On)
+		if err != nil {
+			detectionLog.Printf("Warning: failed to inject replay inputs: %v", err)
+		} else {
+			workflowData.On = modifiedOn
+			detectionLog.Print("Injected replay workflow_dispatch inputs for trace capture")
+		}
+	}
+
 	// Apply defaults
 	c.applyDefaults(workflowData, markdownPath)
 

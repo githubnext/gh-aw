@@ -1,8 +1,8 @@
 ---
 on: 
   workflow_dispatch:
-name: Dev
-description: Create an empty pull request for agent to push changes to
+name: Dev - Trace Capture Test
+description: Test trace capture and replay functionality
 timeout-minutes: 5
 strict: false
 engine: copilot
@@ -12,7 +12,6 @@ permissions:
   pull-requests: read
 
 tools:
-  github: false
   edit:
   bash: ["*"]
 imports:
@@ -20,16 +19,26 @@ imports:
 safe-outputs:
   create-pull-request:
     allow-empty: true
-steps:
-  - name: Download issues data
-    run: |
-      gh pr list --limit 1 --json number,title,body,author,createdAt,mergedAt,state,url
-    env:
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 ---
 
-Create an empty pull request that prepares a branch for future changes.
-The pull request should have:
-- Title: "Feature: Prepare branch for agent updates"
-- Body: "This is an empty pull request created to prepare a feature branch that an agent can push changes to later."
-- Branch name: "feature/agent-updates"
+# Trace Capture Test Workflow
+
+This workflow tests the universal checkpoint capture and replay system.
+
+## Test Steps
+
+1. List recent workflow runs (tool call checkpoint)
+2. Check repository status (tool call checkpoint)
+3. Analyze a file (edit/read checkpoint)
+4. Create a test PR (safe-output checkpoint)
+
+## Instructions
+
+Execute the following steps to generate checkpoints:
+
+1. Run `gh run list --limit 3` to list recent runs
+2. Run `git status` to check repo state
+3. Read and analyze the AGENTS.md file structure
+4. Create a PR with title "Test: Trace capture validation" on branch "test/trace-capture"
+
+After completion, check the Job Summary for the checkpoint timeline with replay commands.
