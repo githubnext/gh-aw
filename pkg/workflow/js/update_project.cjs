@@ -74,25 +74,12 @@ async function updateProject(output) {
   const projectNumber = parseProjectInput(output.project);
   const campaignId = output.campaign_id || generateCampaignId(output.project, projectNumber);
 
-  let githubClient = github;
-  if (process.env.PROJECT_GITHUB_TOKEN) {
-    const { Octokit } = require("@octokit/rest");
-    const octokit = new Octokit({
-      auth: process.env.PROJECT_GITHUB_TOKEN,
-      baseUrl: process.env.GITHUB_API_URL || "https://api.github.com",
-    });
-    githubClient = {
-      graphql: octokit.graphql.bind(octokit),
-      rest: octokit.rest,
-    };
-  }
-
-  const createIfMissing =
-    output.create_if_missing === true || output.create_project_if_missing === true || output.createProjectIfMissing === true;
-  const hasCustomToken = !!process.env.PROJECT_GITHUB_TOKEN;
-  const allowCreateProject = createIfMissing || hasCustomToken;
+  // Use custom token if provided, otherwise use default GITHUB_TOKEN
+  const githubClient = github;
 
   try {
+    core.info(`Looking up project #${projectNumber} from URL: ${output.project}`);
+    
     // Step 1: Get repository and owner IDs
     const repoResult = await githubClient.graphql(
       `query($owner: String!, $repo: String!) {
@@ -156,6 +143,7 @@ async function updateProject(output) {
     }
 
     projectId = existingProject.id;
+    core.info(`✓ Found project #${projectNumber} (ID: ${projectId})`);
 
     // Ensure project is linked to the repository
     try {
