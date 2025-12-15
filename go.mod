@@ -70,3 +70,6 @@ replace github.com/Masterminds/semver/v3 => github.com/Masterminds/semver/v3 v3.
 
 // Update cast to v1.10.0 for bug fixes and type conversion improvements
 replace github.com/spf13/cast => github.com/spf13/cast v1.10.0
+
+// Use stable v1.1.0 release instead of pseudo-version
+replace github.com/charmbracelet/lipgloss => github.com/charmbracelet/lipgloss v1.1.0
