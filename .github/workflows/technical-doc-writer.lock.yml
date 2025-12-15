@@ -1535,6 +1535,18 @@ jobs:
             main().catch(error => {
               core.setFailed(error instanceof Error ? error.message : String(error));
             });
+      - name: ⚠️  SKILLS Warning
+        id: skills_warning
+        shell: bash
+        run: |
+          # Warning: SKILL files detected but not natively supported by Copilot
+          echo "⚠️  Warning: Detected 1 SKILL.md files in imports"
+          echo "    Copilot engine does not support native SKILLS."
+          echo "    Files will be imported as regular markdown content."
+          echo "    For native SKILLS support, use 'engine: claude' or 'engine: codex'"
+          echo ""
+          echo "Detected SKILLS:"
+          echo "  - documentation: Documentation Brief description for SEO and navigation"
       - name: Validate COPILOT_GITHUB_TOKEN secret
         run: |
           if [ -z "$COPILOT_GITHUB_TOKEN" ]; then
