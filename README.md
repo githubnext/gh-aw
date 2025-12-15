@@ -28,7 +28,7 @@ GitHub Agentic Workflows transforms natural language markdown files into GitHub 
 ---
 on:
   schedule:
-    - cron: "0 9 * * 1-5"  # 9 AM UTC, weekdays only
+    - cron: daily at 9:00
   workflow_dispatch:
 
 permissions: read-all
@@ -36,8 +36,6 @@ permissions: read-all
 safe-outputs:
   create-issue:
     title-prefix: "[Daily Report] "
-    labels: [report, automated]
-    expires: 7d
 ---
 
 # Daily Activity Report

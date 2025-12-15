@@ -24,7 +24,7 @@
 # ```yaml
 # on:
 #   schedule:
-#     - cron: "0 9 * * 1-5"  # 9 AM UTC, weekdays only
+#     - cron: daily at 9:00
 #   workflow_dispatch:
 #
 # permissions: read-all
@@ -32,8 +32,6 @@
 # safe-outputs:
 #   create-issue:
 #     title-prefix: "[Daily Report] "
-#     labels: [report, automated]
-#     expires: 7d
 # ```
 #
 # Job Dependency Graph:
@@ -83,7 +81,8 @@
 name: "Daily Activity Report"
 "on":
   schedule:
-  - cron: "0 9 * * 1-5"
+  - cron: "0 9 * * *"
+    # Friendly format: daily at 9:00
   workflow_dispatch: null
 
 permissions: {}
@@ -313,7 +312,7 @@ jobs:
           cat > /tmp/gh-aw/safeoutputs/tools.json << 'EOF'
           [
             {
-              "description": "Create a new GitHub issue for tracking bugs, feature requests, or tasks. Use this for actionable work items that need assignment, labeling, and status tracking. For reports, announcements, or status updates that don't require task tracking, use create_discussion instead. CONSTRAINTS: Maximum 1 issue(s) can be created. Title will be prefixed with \"[Daily Report] \". Labels [report automated] will be automatically added.",
+              "description": "Create a new GitHub issue for tracking bugs, feature requests, or tasks. Use this for actionable work items that need assignment, labeling, and status tracking. For reports, announcements, or status updates that don't require task tracking, use create_discussion instead. CONSTRAINTS: Maximum 1 issue(s) can be created. Title will be prefixed with \"[Daily Report] \".",
               "inputSchema": {
                 "additionalProperties": false,
                 "properties": {
@@ -6084,8 +6083,6 @@ jobs:
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_ISSUE_TITLE_PREFIX: "[Daily Report] "
-          GH_AW_ISSUE_LABELS: "report,automated"
-          GH_AW_ISSUE_EXPIRES: "7"
           GH_AW_WORKFLOW_NAME: "Daily Activity Report"
           GH_AW_ENGINE_ID: "copilot"
         with:
