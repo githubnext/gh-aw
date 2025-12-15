@@ -108,6 +108,10 @@ The YAML frontmatter supports these fields:
 - **`roles:`** - Repository access roles that can trigger workflow (array or "all")
   - Default: `[admin, maintainer, write]`
   - Available roles: `admin`, `maintainer`, `write`, `read`, `all`
+- **`bots:`** - GitHub Apps/bots authorized to trigger workflow (array)
+  - Format: `["dependabot[bot]", "renovate[bot]", "github-actions[bot]"]`
+  - Bots must be installed on the repository
+  - Use with `roles:` to combine user and bot authorization
 - **`strict:`** - Enable enhanced validation for production workflows (boolean, defaults to `true`)
   - When omitted, workflows enforce strict mode security constraints
   - Set to `false` to explicitly disable strict mode for development/testing
@@ -334,8 +338,12 @@ The YAML frontmatter supports these fields:
         target: "*"                     # Optional: target for comments (default: "triggering")
         discussion: true                # Optional: target discussions
         target-repo: "owner/repo"       # Optional: cross-repository
+        hide-older-comments: true       # Optional: minimize previous comments from same workflow
+        allowed-reasons: [outdated]     # Optional: restrict hiding reasons
     ```
     When using `safe-outputs.add-comment`, the main job does **not** need `issues: write` or `pull-requests: write` permissions since comment creation is handled by a separate job with appropriate permissions.
+
+    **Hide Older Comments:** Set `hide-older-comments: true` to automatically minimize previous comments from the same workflow before creating a new comment. Useful for status updates to keep conversations clean. Use `allowed-reasons` to restrict which hiding reasons are permitted (e.g., `[OUTDATED, RESOLVED]`).
   - `create-pull-request:` - Safe pull request creation with git patches
     ```yaml
     safe-outputs:
@@ -651,8 +659,28 @@ on:
   push:
     branches: [main]
   schedule:
-    - cron: "0 9 * * 1"  # Monday 9AM UTC
-  workflow_dispatch:    # Manual trigger
+    - cron: "0 9 * * 1"       # Monday 9AM UTC (standard cron)
+    - cron: daily at 02:00    # Human-friendly format
+  workflow_dispatch:          # Manual trigger
+```
+
+#### Scheduled Triggers
+
+Use human-friendly format (recommended) or standard cron syntax:
+
+**Human-Friendly Format:**
+```yaml
+schedule: daily at 02:00
+schedule: weekly on monday at 09:00
+schedule: monthly on 15 at 12:00
+schedule: every 10 minutes
+schedule: daily at 14:00 utc-5  # 2 PM EST → 7 PM UTC
+```
+
+**Standard Cron:**
+```yaml
+schedule:
+  - cron: "0 9 * * 1"  # Monday 9AM UTC
 ```
 
 #### Fork Security for Pull Requests
