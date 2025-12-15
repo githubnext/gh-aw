@@ -8,28 +8,41 @@ import (
 
 var configHelpersLog = logger.New("workflow:config_helpers")
 
-// parseLabelsFromConfig extracts and validates labels from a config map
-// Returns a slice of label strings, or nil if labels is not present or invalid
-func parseLabelsFromConfig(configMap map[string]any) []string {
-	if labels, exists := configMap["labels"]; exists {
-		configHelpersLog.Print("Parsing labels from config")
-		if labelsArray, ok := labels.([]any); ok {
-			var labelStrings []string
-			for _, label := range labelsArray {
-				if labelStr, ok := label.(string); ok {
-					labelStrings = append(labelStrings, labelStr)
+// parseStringArrayFromConfig is a generic helper that extracts and validates a string array from a map
+// Returns a slice of strings, or nil if not present or invalid
+// If log is provided, it will log the extracted values for debugging
+func parseStringArrayFromConfig(m map[string]any, key string, log *logger.Logger) []string {
+	if value, exists := m[key]; exists {
+		if log != nil {
+			log.Printf("Parsing %s from config", key)
+		}
+		if arrayValue, ok := value.([]any); ok {
+			var strings []string
+			for _, item := range arrayValue {
+				if strVal, ok := item.(string); ok {
+					strings = append(strings, strVal)
 				}
 			}
 			// Return the slice even if empty (to distinguish from not provided)
-			if labelStrings == nil {
-				configHelpersLog.Print("No valid label strings found, returning empty array")
+			if strings == nil {
+				if log != nil {
+					log.Printf("No valid %s strings found, returning empty array", key)
+				}
 				return []string{}
 			}
-			configHelpersLog.Printf("Parsed %d labels from config", len(labelStrings))
-			return labelStrings
+			if log != nil {
+				log.Printf("Parsed %d %s from config", len(strings), key)
+			}
+			return strings
 		}
 	}
 	return nil
+}
+
+// parseLabelsFromConfig extracts and validates labels from a config map
+// Returns a slice of label strings, or nil if labels is not present or invalid
+func parseLabelsFromConfig(configMap map[string]any) []string {
+	return parseStringArrayFromConfig(configMap, "labels", configHelpersLog)
 }
 
 // extractStringFromMap is a generic helper that extracts and validates a string value from a map
@@ -112,49 +125,13 @@ func parseParticipantsFromConfig(configMap map[string]any, participantKey string
 // parseAllowedReposFromConfig extracts and validates allowed-repos from a config map.
 // Returns a slice of repository slugs (owner/repo format), or nil if not present or invalid.
 func parseAllowedReposFromConfig(configMap map[string]any) []string {
-	if allowedRepos, exists := configMap["allowed-repos"]; exists {
-		configHelpersLog.Print("Parsing allowed-repos from config")
-		if reposArray, ok := allowedRepos.([]any); ok {
-			var repoStrings []string
-			for _, repo := range reposArray {
-				if repoStr, ok := repo.(string); ok {
-					repoStrings = append(repoStrings, repoStr)
-				}
-			}
-			// Return the slice even if empty (to distinguish from not provided)
-			if repoStrings == nil {
-				configHelpersLog.Print("No valid allowed-repos strings found, returning empty array")
-				return []string{}
-			}
-			configHelpersLog.Printf("Parsed %d allowed-repos from config", len(repoStrings))
-			return repoStrings
-		}
-	}
-	return nil
+	return parseStringArrayFromConfig(configMap, "allowed-repos", configHelpersLog)
 }
 
 // parseAllowedLabelsFromConfig extracts and validates allowed-labels from a config map.
 // Returns a slice of label strings, or nil if not present or invalid.
 func parseAllowedLabelsFromConfig(configMap map[string]any) []string {
-	if allowedLabels, exists := configMap["allowed-labels"]; exists {
-		configHelpersLog.Print("Parsing allowed-labels from config")
-		if labelsArray, ok := allowedLabels.([]any); ok {
-			var labelStrings []string
-			for _, label := range labelsArray {
-				if labelStr, ok := label.(string); ok {
-					labelStrings = append(labelStrings, labelStr)
-				}
-			}
-			// Return the slice even if empty (to distinguish from not provided)
-			if labelStrings == nil {
-				configHelpersLog.Print("No valid allowed-labels strings found, returning empty array")
-				return []string{}
-			}
-			configHelpersLog.Printf("Parsed %d allowed-labels from config", len(labelStrings))
-			return labelStrings
-		}
-	}
-	return nil
+	return parseStringArrayFromConfig(configMap, "allowed-labels", configHelpersLog)
 }
 
 // parseExpiresFromConfig parses expires value from config map
