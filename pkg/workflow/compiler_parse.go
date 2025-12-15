@@ -422,6 +422,7 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		ImportedFiles:       importsResult.ImportedFiles,
 		IncludedFiles:       allIncludedFiles,
 		ImportInputs:        importsResult.ImportInputs,
+		SkillFiles:          importsResult.SkillFiles,
 		Tools:               tools,
 		ParsedTools:         NewTools(tools),
 		Runtimes:            runtimes,

@@ -85,6 +85,7 @@ type ImportsResult struct {
 	ImportedFiles       []string       // List of imported file paths (for manifest)
 	AgentFile           string         // Path to custom agent file (if imported)
 	ImportInputs        map[string]any // Aggregated input values from all imports (key = input name, value = input value)
+	SkillFiles          []SkillFile    // List of SKILL.md files detected during import
 }
 
 // ImportInputDefinition defines an input parameter for a shared workflow import.
@@ -99,11 +100,64 @@ type ImportInputDefinition struct {
 	Options     []string `yaml:"options,omitempty" json:"options,omitempty"` // Options for choice type
 }
 
+// SkillFile represents a SKILL.md file detected during import processing
+type SkillFile struct {
+	Path        string // Full path to the SKILL.md file
+	Name        string // Skill name from frontmatter
+	Description string // Skill description from frontmatter
+	ImportPath  string // Original import path (for error reporting)
+}
+
 // ImportSpec represents a single import specification (either a string path or an object with path and inputs)
 type ImportSpec struct {
 	Path   string         // Import path (required)
 	Inputs map[string]any // Optional input values to pass to the imported workflow (values are string, number, or boolean)
 }
+
+// isSkillFile checks if a file path represents a SKILL.md file
+func isSkillFile(filePath string) bool {
+	return strings.HasSuffix(strings.ToLower(filePath), "skill.md")
+}
+
+// extractSkillInfo extracts skill metadata from a SKILL.md file
+func extractSkillInfo(filePath string, importPath string) (*SkillFile, error) {
+	content, err := os.ReadFile(filePath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read SKILL.md file '%s': %w", filePath, err)
+	}
+
+	// Extract frontmatter to get skill name and description
+	result, err := ExtractFrontmatterFromContent(string(content))
+	if err != nil {
+		return nil, fmt.Errorf("failed to extract frontmatter from SKILL.md file '%s': %w", filePath, err)
+	}
+
+	skill := &SkillFile{
+		Path:       filePath,
+		ImportPath: importPath,
+	}
+
+	// Extract name from frontmatter
+	if result.Frontmatter != nil {
+		if name, ok := result.Frontmatter["name"].(string); ok {
+			skill.Name = name
+		}
+		if desc, ok := result.Frontmatter["description"].(string); ok {
+			skill.Description = desc
+		}
+	}
+
+	// If name is not found in frontmatter, use filename without extension
+	if skill.Name == "" {
+		// Get the directory name (skill folder name) as fallback
+		dir := filepath.Dir(filePath)
+		skill.Name = filepath.Base(dir)
+	}
+
+	log.Printf("Detected SKILL.md file: path=%s, name=%s, description=%s", filePath, skill.Name, skill.Description)
+	return skill, nil
+}
+
 
 // ProcessImportsFromFrontmatter processes imports field from frontmatter
 // Returns merged tools and engines from imported files
@@ -212,6 +266,7 @@ func processImportsFromFrontmatterWithManifestAndSource(frontmatter map[string]a
 	var safeOutputs []string
 	var safeInputs []string
 	var agentFile string                 // Track custom agent file
+	var skillFiles []SkillFile           // Track SKILL.md files
 	importInputs := make(map[string]any) // Aggregated input values from all imports
 
 	// Seed the queue with initial imports
@@ -311,6 +366,19 @@ func processImportsFromFrontmatterWithManifestAndSource(frontmatter map[string]a
 
 			// Agent files don't have nested imports, skip to next item
 			continue
+		}
+
+		// Check if this is a SKILL.md file
+		if isSkillFile(item.fullPath) {
+			log.Printf("Detected SKILL.md file in imports: %s", item.fullPath)
+			skillInfo, err := extractSkillInfo(item.fullPath, item.importPath)
+			if err != nil {
+				// Log warning but continue processing
+				log.Printf("Warning: failed to extract skill info from %s: %v", item.fullPath, err)
+			} else {
+				skillFiles = append(skillFiles, *skillInfo)
+			}
+			// Continue processing SKILL.md file normally (for non-native engines)
 		}
 
 		// Read the imported file to extract nested imports
@@ -494,6 +562,7 @@ func processImportsFromFrontmatterWithManifestAndSource(frontmatter map[string]a
 		ImportedFiles:       processedOrder,
 		AgentFile:           agentFile,
 		ImportInputs:        importInputs,
+		SkillFiles:          skillFiles,
 	}, nil
 }
 

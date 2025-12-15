@@ -189,6 +189,7 @@ type WorkflowData struct {
 	ImportedFiles       []string       // list of files imported via imports field (rendered as comment in lock file)
 	IncludedFiles       []string       // list of files included via @include directives (rendered as comment in lock file)
 	ImportInputs        map[string]any // input values from imports with inputs (for github.aw.inputs.* substitution)
+	SkillFiles          []parser.SkillFile // SKILL.md files detected during import processing
 	On                  string
 	Permissions         string
 	Network             string // top-level network permissions configuration
