@@ -644,12 +644,16 @@ jobs:
             exit 1
           fi
           
-          # Log success to stdout (not step summary)
+          # Log success in collapsible section
+          echo "<details>"
+          echo "<summary>Agent Environment Validation</summary>"
+          echo ""
           if [ -n "$CODEX_API_KEY" ]; then
-            echo "CODEX_API_KEY secret is configured"
+            echo "✅ CODEX_API_KEY: Configured"
           else
-            echo "OPENAI_API_KEY secret is configured (using as fallback for CODEX_API_KEY)"
+            echo "✅ OPENAI_API_KEY: Configured (using as fallback for CODEX_API_KEY)"
           fi
+          echo "</details>"
         env:
           CODEX_API_KEY: ${{ secrets.CODEX_API_KEY }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
@@ -7074,12 +7078,16 @@ jobs:
             exit 1
           fi
           
-          # Log success to stdout (not step summary)
+          # Log success in collapsible section
+          echo "<details>"
+          echo "<summary>Agent Environment Validation</summary>"
+          echo ""
           if [ -n "$CODEX_API_KEY" ]; then
-            echo "CODEX_API_KEY secret is configured"
+            echo "✅ CODEX_API_KEY: Configured"
           else
-            echo "OPENAI_API_KEY secret is configured (using as fallback for CODEX_API_KEY)"
+            echo "✅ OPENAI_API_KEY: Configured (using as fallback for CODEX_API_KEY)"
           fi
+          echo "</details>"
         env:
           CODEX_API_KEY: ${{ secrets.CODEX_API_KEY }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
