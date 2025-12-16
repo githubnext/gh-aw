@@ -102,11 +102,14 @@ safe-outputs:
 ```
 
 ### Upload Assets
-A safe output capability that allows workflows to upload files and artifacts without requiring write permissions. Configured in the `safe-outputs.upload-assets` section. The AI generates structured output describing files to upload, which are processed by a separate, permission-controlled job.
+A safe output capability that allows workflows to upload generated files (screenshots, charts, reports) to an orphaned git branch for persistent storage. Configured in the `safe-outputs.upload-assets` section. The AI calls the `upload_asset` tool to register files for upload, which are then committed to a dedicated assets branch by a separate, permission-controlled job. Assets are accessible via predictable GitHub raw URLs. Commonly used for visual testing artifacts, data visualizations, and generated documentation.
 
 ```yaml
 safe-outputs:
   upload-assets:
+    branch: "assets/my-workflow"     # branch name (default: "assets/${{ github.workflow }}")
+    max-size: 10240                  # max file size in KB (default: 10MB)
+    allowed-exts: [.png, .jpg, .svg] # allowed extensions
 ```
 
 ### Minimize Comment

@@ -57,6 +57,7 @@ This declares that the workflow should create at most one new issue. The AI agen
 | [**Assign to User**](#assign-to-user-assign-to-user) | `assign-to-user:` | Assign users to issues | 1 | ✅ |
 | [**Push to PR Branch**](#push-to-pr-branch-push-to-pull-request-branch) | `push-to-pull-request-branch:` | Push changes to PR branch | 1 | ❌ |
 | [**Update Release**](#release-updates-update-release) | `update-release:` | Update GitHub release descriptions | 1 | ✅ |
+| [**Upload Assets**](#asset-uploads-upload-assets) | `upload-assets:` | Upload files to orphaned git branch | 10 | ❌ |
 | [**Code Scanning Alerts**](#code-scanning-alerts-create-code-scanning-alert) | `create-code-scanning-alert:` | Generate SARIF security advisories | unlimited | ❌ |
 | [**No-Op**](#no-op-logging-noop) | `noop:` | Log completion message for transparency (auto-enabled) | 1 | ❌ |
 | [**Missing Tool**](#missing-tool-reporting-missing-tool) | `missing-tool:` | Report missing tools (auto-enabled) | unlimited | ❌ |
@@ -452,6 +453,159 @@ safe-outputs:
 ```
 
 Agent output format: `{"type": "update_release", "tag": "v1.0.0", "operation": "replace", "body": "..."}`. The `tag` field is optional for release events (inferred from context). Workflow needs read access; only the generated job receives write permissions.
+
+### Asset Uploads (`upload-assets:`)
+
+Uploads generated files (screenshots, charts, reports, diagrams) to an orphaned git branch for persistent, version-controlled storage. Assets are uploaded without requiring elevated permissions during agent execution—a separate job with `contents: write` handles the actual commit and push.
+
+**How it works:**
+1. Agent generates files during workflow execution (screenshots, data visualizations, etc.)
+2. Agent calls the `upload_asset` tool to register each file for upload
+3. Files are uploaded to GitHub Actions artifacts
+4. After agent completes, a separate job downloads the artifacts and commits them to the specified branch
+5. Assets are accessible via predictable GitHub URLs
+
+```yaml wrap
+safe-outputs:
+  upload-assets:
+    branch: "assets/my-workflow"     # branch name (default: "assets/${{ github.workflow }}")
+    max-size: 5120                   # max file size in KB (default: 10240 = 10MB)
+    allowed-exts: [.png, .jpg, .svg] # allowed extensions (default: [.png, .jpg, .jpeg])
+    max: 20                          # max assets (default: 10)
+```
+
+**Branch Name Requirements:**
+
+When creating a new branch, it must start with the `assets/` prefix for security. This restriction prevents accidental overwrites of important branches. If the branch already exists, any name is allowed.
+
+- ✅ `assets/screenshots` - Valid for new branches
+- ✅ `assets/my-workflow` - Valid for new branches  
+- ✅ `assets/daily-reports` - Valid for new branches
+- ✅ `existing-custom-branch` - Valid only if branch already exists
+- ❌ `custom/branch-name` - Invalid for new branches (missing `assets/` prefix)
+
+To use a custom branch name without the `assets/` prefix, create the branch manually first:
+
+```bash
+git checkout --orphan my-custom-branch
+git rm -rf .
+git commit --allow-empty -m "Initialize assets branch"
+git push origin my-custom-branch
+```
+
+**Agent Output Format:**
+
+The agent calls the `upload_asset` tool with the file path. The tool validates the file, uploads it as an artifact, and records it for later processing:
+
+```json
+{
+  "type": "upload_asset",
+  "path": "/tmp/screenshot.png"
+}
+```
+
+The `upload_asset` tool automatically:
+- Calculates the SHA-256 hash for integrity verification
+- Records the file size and validates against `max-size` limit
+- Validates the file extension against `allowed-exts` list
+- Generates the target filename and future URL
+- Uploads the file to GitHub Actions artifacts
+
+**Accessing Uploaded Assets:**
+
+Assets are stored in an orphaned branch with no commit history. Each asset gets a predictable URL:
+
+```
+https://raw.githubusercontent.com/{owner}/{repo}/{branch}/{filename}
+```
+
+For example, if your workflow uploads `screenshot.png` to branch `assets/docs-tester` in repository `octocat/hello-world`:
+
+```
+https://raw.githubusercontent.com/octocat/hello-world/assets/docs-tester/screenshot.png
+```
+
+These URLs can be used in:
+- Issue comments and descriptions
+- Pull request bodies
+- Discussion posts
+- Documentation and README files
+- Any markdown content
+
+**Security Features:**
+
+- **File Path Validation**: Only files within the workspace or `/tmp` directory can be uploaded
+- **Extension Allowlist**: Only specified file extensions are permitted (defaults to image formats)
+- **Size Limits**: Maximum file size prevents excessive storage usage
+- **SHA Verification**: Files are verified using SHA-256 hashes before and after upload
+- **Branch Isolation**: Uses orphaned branches (no commit history) to isolate assets from code
+- **Minimal Permissions**: Agent runs with read-only access; only the upload job has write permissions
+
+**Common Use Cases:**
+
+1. **Visual Testing**: Upload browser screenshots showing UI issues or test results
+2. **Data Visualization**: Store generated charts, graphs, and data plots
+3. **Documentation**: Generate and store architecture diagrams or API documentation
+4. **Reports**: Save PDF or HTML reports for analysis results
+5. **Test Artifacts**: Preserve test output, logs, or debug information
+
+**Example Workflows:**
+
+Multi-device screenshot testing:
+```yaml wrap
+---
+name: Visual Testing
+on: schedule
+tools:
+  playwright:
+safe-outputs:
+  upload-assets:
+    branch: "assets/screenshots"
+    allowed-exts: [.png]
+    max: 50
+  create-issue:
+---
+
+Test the documentation site on mobile, tablet, and desktop. Take screenshots
+of any layout issues and upload them. Create an issue with the screenshots
+embedded using their raw.githubusercontent.com URLs.
+```
+
+Data visualization workflow:
+```yaml wrap
+---
+name: Weekly Analytics
+on: schedule
+tools:
+  bash:
+safe-outputs:
+  upload-assets:
+    branch: "assets/charts" 
+    allowed-exts: [.png, .svg]
+    max-size: 2048
+  add-comment:
+---
+
+Generate charts showing repository metrics (PRs, issues, commits) for the
+past week. Save charts to /tmp and upload them. Add a comment to issue #123
+with the charts embedded.
+```
+
+**Job Outputs:**
+
+The upload assets job provides outputs that can be used by subsequent jobs:
+
+- `published_count`: Number of assets successfully uploaded
+- `branch_name`: The branch name where assets were uploaded (normalized)
+
+**Permissions Required:** `contents: write` (automatically granted to the upload job only)
+
+**Limitations:**
+
+- Cross-repository uploads not supported (assets must be in the same repository)
+- Maximum file size is 50MB (configurable up to 50240 KB)
+- Maximum 100 assets per workflow run (configurable)
+- Branch names are normalized to valid git branch names (lowercase, special chars replaced with dashes)
 
 ### No-Op Logging (`noop:`)
 
