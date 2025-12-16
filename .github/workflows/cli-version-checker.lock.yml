@@ -26,8 +26,7 @@
 # ```yaml
 # description: Monitors and updates agentic CLI tools (Claude Code, GitHub Copilot CLI, OpenAI Codex, GitHub MCP Server, Playwright MCP, Playwright Browser) for new versions
 # on:
-#   schedule:
-#     - cron: daily
+#   schedule: daily
 #   workflow_dispatch:
 # permissions:
 #   contents: read
@@ -426,7 +425,7 @@
 name: "CLI Version Checker"
 "on":
   schedule:
-  - cron: "45 10 * * *"
+  - cron: "47 17 * * *"
     # Friendly format: daily (scattered)
   workflow_dispatch: null
 
