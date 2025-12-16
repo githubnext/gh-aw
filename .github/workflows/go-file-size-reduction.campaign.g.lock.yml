@@ -8129,6 +8129,7 @@ jobs:
                                   options {
                                     id
                                     name
+                                    color
                                   }
                                 }
                               }
@@ -8224,8 +8225,8 @@ jobs:
                         if (!option) {
                           try {
                             const allOptions = [
-                              ...field.options.map(o => ({ name: o.name, description: "" })),
-                              { name: String(fieldValue), description: "" },
+                              ...field.options.map(o => ({ name: o.name, description: "", color: o.color || "GRAY" })),
+                              { name: String(fieldValue), description: "", color: "GRAY" },
                             ];
                             const createOptionResult = await github.graphql(
                               `mutation($fieldId: ID!, $fieldName: String!, $options: [ProjectV2SingleSelectFieldOptionInput!]!) {
