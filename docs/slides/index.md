@@ -1,0 +1,406 @@
+---
+marp: true
+---
+
+# GitHub Agentic Workflows
+## Write AI Automation in Natural Language
+### Research Preview
+
+
+https://github.com/githubnext/gh-aw
+
+
+
+---
+
+# Continuous Integration to Continuous AI
+
+- **Accessibility review** — Automated WCAG compliance checks
+
+- **Documentation** — Auto-generate API docs and README files
+
+- **Code review** — AI-powered PR analysis and suggestions
+
+- **Test improvement** — Identify missing test coverage
+
+- **Bundle analysis** — Monitor package size and dependencies
+
+- **Issue triage** — Automated labeling and prioritization
+
+> https://githubnext.com/projects/continuous-ai/
+
+<!--
+https://github.com/githubnext/gh-aw/issues/1920
+-->
+
+---
+
+# Evolution: LLMs to SWE Agents
+## From code completion to autonomous workflows
+
+**2021: GitHub Copilot** — AI-powered code completion
+
+**2022: ChatGPT** — Conversational AI assistant
+
+**2023: LLMs & Web UI Generators** — Prompt to Web App
+
+**2024: Agent CLIs** — Claude Code: File edit, bash
+
+**2025: MCP, SKILLS.md** - Unified tooling
+
+---
+
+# CI/CD with GitHub Actions
+
+YAML workflows as configuration stored in `.github/workflows/` that trigger on events like push, pull requests, issues.
+
+```yaml
+on:
+  issues:
+    types: [opened]
+permissions:
+  issues: write # danger zone
+jobs:
+  agent:
+    steps:
+      - run: copilot "Summarize issue and respond in a comment."
+```
+
+---
+
+# The "Lethal Trifecta" for AI Agents
+
+AI agents become risky when they combine **three capabilities** at once:
+
+- **Private data access**
+
+- **Untrusted content**
+
+- **External communication**
+
+> https://simonw.substack.com/p/the-lethal-trifecta-for-ai-agents
+
+---
+
+# Combine Github Actions and SWE Agents **SAFELY**.
+
+---
+
+# Loved by Developers
+
+```yaml
+---
+on:
+  issues:
+    types: [opened]
+permissions:
+  contents: read # read-only by default
+safe-outputs:
+  add-comment: # guardrails for write operations
+---
+Summarize issue and respond in a comment.
+```
+
+> Natural language → compiled to GitHub Actions YAML
+
+---
+
+# Trusted by Enterprises
+## Safe by default
+
+- **Containers**: Isolated GitHub Actions Jobs
+
+- **Firewalls**: Network Control
+
+- **Minimal Permissions**: Read-only by default
+
+- **MCP Proxy**: Secure tool access
+
+- **Threat Detection**: Agentic detection of threats
+
+- **Safe Outputs**: Deterministic, guardrailed outputs
+
+- **Plan / Check / Act**: Human in the loop
+
+---
+
+# Compiled Action Yaml
+
+```yaml
+jobs:
+  activation:
+    run: check authorization & sanitize inputs
+
+  agent: needs[activation] # isolated container
+    permissions: contents: read # read-only!
+    run: copilot "Analyze package.json for breaking changes..."
+
+  detection: needs[agent] # new container
+    run: detect malicious outputs
+    permissions: none
+
+  add-comment: needs[detection] # isolated container
+    run: gh issue comment add ...
+    permissions: issues: write
+```
+
+> Markdown workflows compiled to GitHub Actions YAML for auditability
+
+---
+
+# Safe Outputs
+
+```yaml
+---
+on: 
+  pull_request:
+    types: [opened]
+permissions: 
+  contents: read
+safe-outputs:
+  create-issue:
+---
+Check for breaking changes in package.json and create an issue.
+```
+
+**Security:** AI agents cannot directly write to GitHub. Safe-outputs validate AI responses and execute actions in isolated containers.
+
+---
+
+# Network Permissions
+
+```yaml
+---
+on:
+  pull_request:
+network:
+  allowed:
+    - defaults  # Basic infrastructure
+    - node      # NPM ecosystem
+tools:
+  web-fetch:
+---
+Fetch latest TypeScript docs report findings in a comment.
+```
+
+> Control external access for security
+
+---
+
+# Getting Started (Agentically)
+
+```sh
+# Install GitHub Agentic Workflows extension
+gh extension install githubnext/gh-aw
+gh aw init
+
+# Install Copilot CLI (optional)
+npm install -g @github/copilot
+copilot
+
+> load https://raw.githubusercontent.com/githubnext/gh-aw/main/.github/prompts/create-agentic-workflow.prompt.md
+```
+
+> Built with AI agents in mind from day 0
+
+> Quick Start: https://githubnext.github.io/gh-aw/setup/quick-start/
+
+---
+
+# Safe Outputs → Copilot Handoff
+
+```yaml
+---
+on:
+  issues:
+    types: [opened]
+safe-outputs:
+  create-issue:
+    assignees: ["copilot"]
+---
+Analyze issue and break down into implementation tasks
+```
+
+> Triage agent → Creates tasks → @copilot implements → Review
+
+---
+
+# AI Engines
+## Multiple AI providers supported
+
+* **Claude Code** (default, recommended)
+* **Codex** (experimental)
+* **Copilot CLI** (experimental)
+* **Custom Engine** (bring your own AI)
+
+```yaml
+engine: claude  # sensible defaults
+```
+
+> Claude Code offers the best reliability and performance
+
+---
+
+# MCP Servers Configuration
+
+```yaml
+mcp-servers:
+  bundle-analyzer:
+    command: "node"
+    args: ["path/to/mcp-server.js"]
+    allowed: "*"
+```
+
+**MCP:** Extend AI with [Model Context Protocol](https://modelcontextprotocol.io/)
+
+**Managed endpoint:** https://api.githubcopilot.com/mcp/ with OAuth authentication
+
+---
+
+# Containerized, Firewalled MCPs
+
+```yaml
+mcp-servers:
+  web-scraper:
+    container: mcp/fetch
+    network:
+      allowed: ["npmjs.com", "*.jsdelivr.com"]
+    allowed: ["fetch"]
+```
+
+**Defense in depth:** Container + network + permissions
+
+---
+
+# Monitoring & Optimization
+
+Track workflow performance and AI agent behavior.
+
+```sh
+# View recent runs
+gh aw logs
+
+# Filter by date range
+gh aw logs --start-date -1w accessibility-review
+
+# Compile workflows
+gh aw compile
+```
+
+> Lock files (`.lock.yml`) ensure reproducibility and auditability
+
+---
+
+# Cache & Persistent Memory
+## Speed up workflows and maintain context
+
+```yaml
+---
+on:
+  pull_request:
+    types: [opened]
+cache-memory: true  # AI remembers across runs
+---
+Review this PR with context from previous reviews:
+- Check for repeated issues
+- Track improvement trends
+- Reference past discussions
+```
+
+**Benefits:** Faster builds + contextual AI analysis
+
+---
+
+# Playwright + Upload Assets
+## Browser automation for web app testing
+
+```yaml
+---
+on:
+  pull_request:
+    types: [ready_for_review]
+tools:
+  playwright:      # Headless browser automation
+safe-outputs:
+  create-issue:
+  upload-assets:   # Attach screenshots to artifacts
+---
+Test the web application:
+1. Navigate to the deployed preview URL
+2. Take screenshots of key pages
+3. Check for visual regressions
+4. Validate responsive design (mobile, tablet, desktop)
+5. Create issue with findings and screenshots
+```
+
+**Use cases:** Visual regression, accessibility audits, E2E validation for SPAs
+
+---
+
+# Sanitized Context & Security
+## Protect against prompt injection
+
+```yaml
+---
+on:
+  issues:
+    types: [opened]
+permissions:
+  contents: read
+  actions: read
+safe-outputs:
+  add-comment:
+---
+# RECOMMENDED: Use sanitized context
+Analyze this issue content (safely sanitized):
+"${{ needs.activation.outputs.text }}"
+
+Metadata:
+- Issue #${{ github.event.issue.number }}
+- Repository: ${{ github.repository }}
+- Author: ${{ github.actor }}
+```
+
+**Auto-sanitization:** @mentions neutralized, bot triggers blocked, malicious URIs filtered
+
+---
+
+# Creating Agentic Workflows with AI
+## Use Copilot CLI to generate workflows
+
+Install GitHub Copilot CLI:
+```sh
+npm install -g @github/copilot
+```
+
+Generate a workflow interactively:
+```sh
+copilot
+```
+
+Then load the workflow creation prompt:
+```
+load https://raw.githubusercontent.com/githubnext/gh-aw/main/.github/prompts/create-agentic-workflow.prompt.md
+
+Create an agentic workflow that reviews PRs for:
+- Breaking changes in package.json
+- Missing TypeScript types
+- Security vulnerabilities
+```
+
+**Meta-automation:** Use AI to create AI workflows!
+
+> Docs: https://githubnext.github.io/gh-aw/
+
+---
+
+| Workflow | Title | Role |
+|----------|-------|------|
+| [accessibility-review](.github/workflows/accessibility-review.md) | Accessibility Review for Slides | Reviews presentation slides for WCAG compliance, text overflow, and quality issues using Playwright screenshots |
+| [daily-activity-report](.github/workflows/daily-activity-report.md) | Daily Repository Activity Report Generator | Generates comprehensive daily activity reports with metrics on commits, issues, PRs, and workflow runs |
+| [daily-log-scanner](.github/workflows/daily-log-scanner.md) | Daily Agentic Workflow Log Scanner | Analyzes workflow logs to identify missing tools, execution failures, and configuration errors |
+| [issue-triage](.github/workflows/issue-triage.md) | Issue Triage | Automatically summarizes new issues in 3 emojis and responds with a comment |
+| [package-security-check](.github/workflows/package-security-check.md) | Package Security Deep Research | Conducts comprehensive security analysis of package-lock.json changes with deep research on maintainers and vulnerabilities |
+| [pseudo](.github/workflows/pseudo.md) | Pseudo Language Converter | Transforms issue content into pseudo-code style algorithmic language for fun technical representation |
+| [slidify](.github/workflows/slidify.md) | Slidify - Generate Slide from Issue | Converts issue content into Marp slides and adds them to the README.md presentation |
+| [update-workflow-docs](.github/workflows/update-workflow-docs.md) | Agentic Workflow Documentation Updater | Automatically updates README.md with a summary table of all agentic workflows in the repository | 

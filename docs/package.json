@@ -5,8 +5,9 @@
   "scripts": {
     "dev": "astro dev",
     "start": "astro dev",
-    "prebuild": "npm run generate-labs",
+    "prebuild": "npm run generate-labs && npm run build:slides",
     "build": "astro build",
+    "build:slides": "marp slides/index.md --html --allow-local-files -o public/slides/index.html",
     "preview": "astro preview",
     "astro": "astro",
     "validate-links": "astro build",
@@ -27,6 +28,7 @@
     "starlight-llms-txt": "^0.6.0"
   },
   "devDependencies": {
+    "@marp-team/marp-cli": "^4.2.3",
     "@playwright/test": "^1.56.1",
     "@types/primer__octicons": "^19.11.1",
     "starlight-github-alerts": "^0.1.0"
