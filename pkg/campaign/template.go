@@ -1,0 +1,90 @@
+package campaign
+
+import (
+	"bytes"
+	_ "embed"
+	"strings"
+	"text/template"
+
+	"github.com/githubnext/gh-aw/pkg/logger"
+)
+
+var templateLog = logger.New("campaign:template")
+
+//go:embed prompts/orchestrator_instructions.md
+var orchestratorInstructionsTemplate string
+
+//go:embed prompts/project_update_instructions.md
+var projectUpdateInstructionsTemplate string
+
+//go:embed prompts/closing_instructions.md
+var closingInstructionsTemplate string
+
+// CampaignPromptData holds data for rendering campaign orchestrator prompts
+type CampaignPromptData struct {
+	// ReportBlockers controls whether to include blocker reporting
+	ReportBlockers bool
+	// CompletionGuidance controls whether to include completion instructions
+	CompletionGuidance bool
+	// ProjectURL is the GitHub Project URL
+	ProjectURL string
+}
+
+// renderTemplate renders a template string with the given data
+func renderTemplate(tmplStr string, data CampaignPromptData) (string, error) {
+	// Create custom template functions for Handlebars-style conditionals
+	funcMap := template.FuncMap{
+		"if": func(condition bool) bool {
+			return condition
+		},
+	}
+
+	// Parse template with custom delimiters to match Handlebars style
+	tmpl, err := template.New("prompt").
+		Delims("{{", "}}").
+		Funcs(funcMap).
+		Parse(tmplStr)
+	if err != nil {
+		templateLog.Printf("Failed to parse template: %v", err)
+		return "", err
+	}
+
+	var buf bytes.Buffer
+	if err := tmpl.Execute(&buf, data); err != nil {
+		templateLog.Printf("Failed to execute template: %v", err)
+		return "", err
+	}
+
+	return buf.String(), nil
+}
+
+// RenderOrchestratorInstructions renders the orchestrator instructions with the given data
+func RenderOrchestratorInstructions(data CampaignPromptData) string {
+	result, err := renderTemplate(orchestratorInstructionsTemplate, data)
+	if err != nil {
+		templateLog.Printf("Failed to render orchestrator instructions: %v", err)
+		// Fallback to a simple version if template rendering fails
+		return "Each time this orchestrator runs, generate a concise status report for this campaign."
+	}
+	return strings.TrimSpace(result)
+}
+
+// RenderProjectUpdateInstructions renders the project update instructions with the given data
+func RenderProjectUpdateInstructions(data CampaignPromptData) string {
+	result, err := renderTemplate(projectUpdateInstructionsTemplate, data)
+	if err != nil {
+		templateLog.Printf("Failed to render project update instructions: %v", err)
+		return ""
+	}
+	return strings.TrimSpace(result)
+}
+
+// RenderClosingInstructions renders the closing instructions
+func RenderClosingInstructions() string {
+	result, err := renderTemplate(closingInstructionsTemplate, CampaignPromptData{})
+	if err != nil {
+		templateLog.Printf("Failed to render closing instructions: %v", err)
+		return "Use these details to coordinate workers and track progress."
+	}
+	return strings.TrimSpace(result)
+}
