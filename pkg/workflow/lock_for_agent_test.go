@@ -486,7 +486,7 @@ Test workflow with lock-for-agent enabled but also workflow_dispatch trigger.
 
 	// Verify activation job
 	activationJobSection := extractJobSection(yamlContent, "activation")
-	
+
 	// Verify lock step is in activation job
 	if !strings.Contains(activationJobSection, "Lock issue for agent workflow") {
 		t.Error("Activation job should contain the lock step")
@@ -499,7 +499,7 @@ Test workflow with lock-for-agent enabled but also workflow_dispatch trigger.
 	if !strings.Contains(activationJobSection, "github.event_name == 'issue_comment'") {
 		t.Error("Lock step condition should check for issue_comment event")
 	}
-	
+
 	// The lock condition should NOT be a simple always() or include workflow_dispatch
 	// It should be: if: (github.event_name == 'issues') || (github.event_name == 'issue_comment')
 	lockStepLines := strings.Split(activationJobSection, "\n")
@@ -516,7 +516,7 @@ Test workflow with lock-for-agent enabled but also workflow_dispatch trigger.
 			break
 		}
 	}
-	
+
 	if lockConditionLine == "" {
 		t.Error("Could not find lock step condition in activation job")
 	} else {
@@ -532,7 +532,7 @@ Test workflow with lock-for-agent enabled but also workflow_dispatch trigger.
 
 	// Verify conclusion job
 	conclusionJobSection := extractJobSection(yamlContent, "conclusion")
-	
+
 	// Verify unlock step is in conclusion job
 	if !strings.Contains(conclusionJobSection, "Unlock issue after agent workflow") {
 		t.Error("Conclusion job should contain the unlock step")
@@ -553,7 +553,7 @@ Test workflow with lock-for-agent enabled but also workflow_dispatch trigger.
 			break
 		}
 	}
-	
+
 	if unlockConditionLine == "" {
 		t.Error("Could not find unlock step condition in conclusion job")
 	} else {
