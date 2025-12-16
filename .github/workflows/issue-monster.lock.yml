@@ -69,7 +69,36 @@
 #             const { owner, repo } = context.repo;
 #
 #             try {
-#               const query = `is:issue is:open repo:${owner}/${repo}`;
+#               // Labels that indicate an issue should NOT be auto-assigned
+#               const excludeLabels = [
+#                 'wontfix',
+#                 'duplicate',
+#                 'invalid',
+#                 'question',
+#                 'discussion',
+#                 'needs-discussion',
+#                 'blocked',
+#                 'on-hold',
+#                 'waiting-for-feedback',
+#                 'needs-more-info'
+#               ];
+#
+#               // Labels that indicate an issue is a GOOD candidate for auto-assignment
+#               const priorityLabels = [
+#                 'good first issue',
+#                 'good-first-issue',
+#                 'bug',
+#                 'enhancement',
+#                 'feature',
+#                 'documentation',
+#                 'tech-debt',
+#                 'refactoring',
+#                 'performance',
+#                 'security'
+#               ];
+#
+#               // Search for open issues without excluded labels
+#               const query = `is:issue is:open repo:${owner}/${repo} -label:"${excludeLabels.join('" -label:"')}"`;
 #               core.info(`Searching: ${query}`);
 #               const response = await github.rest.search.issuesAndPullRequests({
 #                 q: query,
@@ -77,23 +106,103 @@
 #                 sort: 'created',
 #                 order: 'desc'
 #               });
-#               core.info(`Found ${response.data.total_count} issues`);
+#               core.info(`Found ${response.data.total_count} total issues matching basic criteria`);
 #
-#               const allIssues = response.data.items;
-#               const issueList = allIssues.map(i => `#${i.number}: ${i.title}`).join('\n');
-#               const issueNumbers = allIssues.map(i => i.number).join(',');
+#               // Fetch full details for each issue to get labels and assignees
+#               const issuesWithDetails = await Promise.all(
+#                 response.data.items.map(async (issue) => {
+#                   const fullIssue = await github.rest.issues.get({
+#                     owner,
+#                     repo,
+#                     issue_number: issue.number
+#                   });
+#                   return fullIssue.data;
+#                 })
+#               );
 #
-#               core.info(`Total issues found: ${allIssues.length}`);
-#               if (allIssues.length > 0) {
-#                 core.info(`Issues:\n${issueList}`);
+#               // Filter and score issues
+#               const scoredIssues = issuesWithDetails
+#                 .filter(issue => {
+#                   // Exclude issues that already have assignees
+#                   if (issue.assignees && issue.assignees.length > 0) {
+#                     core.info(`Skipping #${issue.number}: already has assignees`);
+#                     return false;
+#                   }
+#
+#                   // Exclude issues with excluded labels (double check)
+#                   const issueLabels = issue.labels.map(l => l.name.toLowerCase());
+#                   if (issueLabels.some(label => excludeLabels.map(l => l.toLowerCase()).includes(label))) {
+#                     core.info(`Skipping #${issue.number}: has excluded label`);
+#                     return false;
+#                   }
+#
+#                   return true;
+#                 })
+#                 .map(issue => {
+#                   const issueLabels = issue.labels.map(l => l.name.toLowerCase());
+#                   let score = 0;
+#
+#                   // Score based on priority labels (higher score = higher priority)
+#                   if (issueLabels.includes('good first issue') || issueLabels.includes('good-first-issue')) {
+#                     score += 50;
+#                   }
+#                   if (issueLabels.includes('bug')) {
+#                     score += 40;
+#                   }
+#                   if (issueLabels.includes('security')) {
+#                     score += 45;
+#                   }
+#                   if (issueLabels.includes('documentation')) {
+#                     score += 35;
+#                   }
+#                   if (issueLabels.includes('enhancement') || issueLabels.includes('feature')) {
+#                     score += 30;
+#                   }
+#                   if (issueLabels.includes('performance')) {
+#                     score += 25;
+#                   }
+#                   if (issueLabels.includes('tech-debt') || issueLabels.includes('refactoring')) {
+#                     score += 20;
+#                   }
+#
+#                   // Bonus for issues with clear labels (any priority label)
+#                   if (issueLabels.some(label => priorityLabels.map(l => l.toLowerCase()).includes(label))) {
+#                     score += 10;
+#                   }
+#
+#                   // Age bonus: older issues get slight priority (days old / 10)
+#                   const ageInDays = Math.floor((Date.now() - new Date(issue.created_at)) / (1000 * 60 * 60 * 24));
+#                   score += Math.min(ageInDays / 10, 20); // Cap age bonus at 20 points
+#
+#                   return {
+#                     number: issue.number,
+#                     title: issue.title,
+#                     labels: issue.labels.map(l => l.name),
+#                     created_at: issue.created_at,
+#                     score
+#                   };
+#                 })
+#                 .sort((a, b) => b.score - a.score); // Sort by score descending
+#
+#               // Format output
+#               const issueList = scoredIssues.map(i => {
+#                 const labelStr = i.labels.length > 0 ? ` [${i.labels.join(', ')}]` : '';
+#                 return `#${i.number}: ${i.title}${labelStr} (score: ${i.score.toFixed(1)})`;
+#               }).join('\n');
+#
+#               const issueNumbers = scoredIssues.map(i => i.number).join(',');
+#
+#               core.info(`Total candidate issues after filtering: ${scoredIssues.length}`);
+#               if (scoredIssues.length > 0) {
+#                 core.info(`Top candidates:\n${issueList.split('\n').slice(0, 10).join('\n')}`);
 #               }
 #
-#               core.setOutput('issue_count', allIssues.length);
+#               core.setOutput('issue_count', scoredIssues.length);
 #               core.setOutput('issue_numbers', issueNumbers);
 #               core.setOutput('issue_list', issueList);
 #
-#               if (allIssues.length === 0) {
-#                 core.info('🍽️ No issues available - the plate is empty!');
+#               if (scoredIssues.length === 0) {
+#                 core.info('🍽️ No suitable candidate issues - the plate is empty!');
 #                 core.setOutput('has_issues', 'false');
 #               } else {
 #                 core.setOutput('has_issues', 'true');
@@ -165,19 +274,37 @@
 #
 # ## Step-by-Step Process
 #
-# ### 1. Review Pre-Searched Issue List
+# ### 1. Review Pre-Searched and Prioritized Issue List
 #
-# The issue search has already been performed in a previous job. All open issues in the repository are available:
+# The issue search has already been performed in a previous job with smart filtering and prioritization:
+#
+# **Filtering Applied:**
+# - ✅ Only open issues
+# - ✅ Excluded issues with labels: wontfix, duplicate, invalid, question, discussion, needs-discussion, blocked, on-hold, waiting-for-feedback, needs-more-info
+# - ✅ Excluded issues that already have assignees
+# - ✅ Prioritized issues with labels: good-first-issue, bug, security, documentation, enhancement, feature, performance, tech-debt, refactoring
+#
+# **Scoring System:**
+# Issues are scored and sorted by priority:
+# - Good first issue: +50 points
+# - Security: +45 points
+# - Bug: +40 points
+# - Documentation: +35 points
+# - Enhancement/Feature: +30 points
+# - Performance: +25 points
+# - Tech-debt/Refactoring: +20 points
+# - Has any priority label: +10 points
+# - Age bonus: +0-20 points (older issues get slight priority)
 #
 # **Issue Count**: ${{ needs.search_issues.outputs.issue_count }}
 # **Issue Numbers**: ${{ needs.search_issues.outputs.issue_numbers }}
 #
-# **Available Issues:**
+# **Available Issues (sorted by priority score):**
 # ```
 # ${{ needs.search_issues.outputs.issue_list }}
 # ```
 #
-# Work with this pre-fetched list of issues. Do not perform additional searches - the issue numbers are already identified above.
+# Work with this pre-fetched, filtered, and prioritized list of issues. Do not perform additional searches - the issue numbers are already identified above, sorted from highest to lowest priority.
 #
 # ### 1a. Handle Parent-Child Issue Relationships (for "task" or "plan" labeled issues)
 #
@@ -209,18 +336,18 @@
 #
 # ### 3. Select Up to Three Issues to Work On
 #
-# From the remaining issues (without Copilot assignments or open PRs):
+# From the prioritized and filtered list (issues WITHOUT Copilot assignments or open PRs):
 # - **Select up to three appropriate issues** to assign
+# - **Use the priority scoring**: Issues are already sorted by score, so prefer higher-scored issues
 # - **Topic Separation Required**: Issues MUST be completely separate in topic to avoid conflicts:
 #   - Different areas of the codebase (e.g., one CLI issue, one workflow issue, one docs issue)
 #   - Different features or components
 #   - No overlapping file changes expected
 #   - Different problem domains
-# - **Priority**: Prefer issues that are:
-#   - Quick wins (small, well-defined fixes)
-#   - Have clear acceptance criteria
+# - **Priority Guidelines**:
+#   - Start from the top of the sorted list (highest scores)
+#   - Skip issues that would conflict with already-selected issues
 #   - For "task" sub-issues: Process in order (oldest first among siblings)
-#   - For standalone issues: Most recently created
 #   - Clearly independent from each other
 #
 # **Topic Separation Examples:**
@@ -289,14 +416,16 @@
 # ## Success Criteria
 #
 # A successful run means:
-# 1. You reviewed the pre-searched issue list of all open issues in the repository
-# 2. For "task" or "plan" issues: You checked for parent issues and sibling sub-issue PRs
-# 3. You filtered out issues that are already assigned or have PRs
-# 4. You selected up to three appropriate issues that are completely separate in topic (respecting sibling PR constraints for sub-issues)
-# 5. You read and understood each issue
-# 6. You verified that the selected issues don't have overlapping concerns or file changes
-# 7. You assigned each issue to the Copilot agent using `assign_to_agent`
-# 8. You commented on each issue being assigned
+# 1. You reviewed the pre-searched, filtered, and prioritized issue list
+# 2. The search already excluded issues with problematic labels (wontfix, question, discussion, etc.)
+# 3. The search already excluded issues that already have assignees
+# 4. Issues are sorted by priority score (good-first-issue, bug, security, etc. get higher scores)
+# 5. For "task" or "plan" issues: You checked for parent issues and sibling sub-issue PRs
+# 6. You selected up to three appropriate issues from the top of the priority list that are completely separate in topic (respecting sibling PR constraints for sub-issues)
+# 7. You read and understood each issue
+# 8. You verified that the selected issues don't have overlapping concerns or file changes
+# 9. You assigned each issue to the Copilot agent using `assign_to_agent`
+# 10. You commented on each issue being assigned
 #
 # ## Error Handling
 #
@@ -3013,19 +3142,37 @@ jobs:
           
           ## Step-by-Step Process
           
-          ### 1. Review Pre-Searched Issue List
+          ### 1. Review Pre-Searched and Prioritized Issue List
           
-          The issue search has already been performed in a previous job. All open issues in the repository are available:
+          The issue search has already been performed in a previous job with smart filtering and prioritization:
+          
+          **Filtering Applied:**
+          - ✅ Only open issues
+          - ✅ Excluded issues with labels: wontfix, duplicate, invalid, question, discussion, needs-discussion, blocked, on-hold, waiting-for-feedback, needs-more-info
+          - ✅ Excluded issues that already have assignees
+          - ✅ Prioritized issues with labels: good-first-issue, bug, security, documentation, enhancement, feature, performance, tech-debt, refactoring
+          
+          **Scoring System:**
+          Issues are scored and sorted by priority:
+          - Good first issue: +50 points
+          - Security: +45 points
+          - Bug: +40 points
+          - Documentation: +35 points
+          - Enhancement/Feature: +30 points
+          - Performance: +25 points
+          - Tech-debt/Refactoring: +20 points
+          - Has any priority label: +10 points
+          - Age bonus: +0-20 points (older issues get slight priority)
           
           **Issue Count**: __GH_AW_NEEDS_SEARCH_ISSUES_OUTPUTS_ISSUE_COUNT__
           **Issue Numbers**: __GH_AW_NEEDS_SEARCH_ISSUES_OUTPUTS_ISSUE_NUMBERS__
           
-          **Available Issues:**
+          **Available Issues (sorted by priority score):**
           ```
           __GH_AW_NEEDS_SEARCH_ISSUES_OUTPUTS_ISSUE_LIST__
           ```
           
-          Work with this pre-fetched list of issues. Do not perform additional searches - the issue numbers are already identified above.
+          Work with this pre-fetched, filtered, and prioritized list of issues. Do not perform additional searches - the issue numbers are already identified above, sorted from highest to lowest priority.
           
           ### 1a. Handle Parent-Child Issue Relationships (for "task" or "plan" labeled issues)
           
@@ -3057,18 +3204,18 @@ jobs:
           
           ### 3. Select Up to Three Issues to Work On
           
-          From the remaining issues (without Copilot assignments or open PRs):
+          From the prioritized and filtered list (issues WITHOUT Copilot assignments or open PRs):
           - **Select up to three appropriate issues** to assign
+          - **Use the priority scoring**: Issues are already sorted by score, so prefer higher-scored issues
           - **Topic Separation Required**: Issues MUST be completely separate in topic to avoid conflicts:
             - Different areas of the codebase (e.g., one CLI issue, one workflow issue, one docs issue)
             - Different features or components
             - No overlapping file changes expected
             - Different problem domains
-          - **Priority**: Prefer issues that are:
-            - Quick wins (small, well-defined fixes)
-            - Have clear acceptance criteria
+          - **Priority Guidelines**:
+            - Start from the top of the sorted list (highest scores)
+            - Skip issues that would conflict with already-selected issues
             - For "task" sub-issues: Process in order (oldest first among siblings)
-            - For standalone issues: Most recently created
             - Clearly independent from each other
           
           **Topic Separation Examples:**
@@ -3137,14 +3284,16 @@ jobs:
           ## Success Criteria
           
           A successful run means:
-          1. You reviewed the pre-searched issue list of all open issues in the repository
-          2. For "task" or "plan" issues: You checked for parent issues and sibling sub-issue PRs
-          3. You filtered out issues that are already assigned or have PRs
-          4. You selected up to three appropriate issues that are completely separate in topic (respecting sibling PR constraints for sub-issues)
-          5. You read and understood each issue
-          6. You verified that the selected issues don't have overlapping concerns or file changes
-          7. You assigned each issue to the Copilot agent using `assign_to_agent`
-          8. You commented on each issue being assigned
+          1. You reviewed the pre-searched, filtered, and prioritized issue list
+          2. The search already excluded issues with problematic labels (wontfix, question, discussion, etc.)
+          3. The search already excluded issues that already have assignees
+          4. Issues are sorted by priority score (good-first-issue, bug, security, etc. get higher scores)
+          5. For "task" or "plan" issues: You checked for parent issues and sibling sub-issue PRs
+          6. You selected up to three appropriate issues from the top of the priority list that are completely separate in topic (respecting sibling PR constraints for sub-issues)
+          7. You read and understood each issue
+          8. You verified that the selected issues don't have overlapping concerns or file changes
+          9. You assigned each issue to the Copilot agent using `assign_to_agent`
+          10. You commented on each issue being assigned
           
           ## Error Handling
           
@@ -8789,7 +8938,36 @@ jobs:
             const { owner, repo } = context.repo;
 
             try {
-              const query = `is:issue is:open repo:${owner}/${repo}`;
+              // Labels that indicate an issue should NOT be auto-assigned
+              const excludeLabels = [
+                'wontfix',
+                'duplicate',
+                'invalid',
+                'question',
+                'discussion',
+                'needs-discussion',
+                'blocked',
+                'on-hold',
+                'waiting-for-feedback',
+                'needs-more-info'
+              ];
+
+              // Labels that indicate an issue is a GOOD candidate for auto-assignment
+              const priorityLabels = [
+                'good first issue',
+                'good-first-issue',
+                'bug',
+                'enhancement',
+                'feature',
+                'documentation',
+                'tech-debt',
+                'refactoring',
+                'performance',
+                'security'
+              ];
+
+              // Search for open issues without excluded labels
+              const query = `is:issue is:open repo:${owner}/${repo} -label:"${excludeLabels.join('" -label:"')}"`;
               core.info(`Searching: ${query}`);
               const response = await github.rest.search.issuesAndPullRequests({
                 q: query,
@@ -8797,23 +8975,103 @@ jobs:
                 sort: 'created',
                 order: 'desc'
               });
-              core.info(`Found ${response.data.total_count} issues`);
+              core.info(`Found ${response.data.total_count} total issues matching basic criteria`);
 
-              const allIssues = response.data.items;
-              const issueList = allIssues.map(i => `#${i.number}: ${i.title}`).join('\n');
-              const issueNumbers = allIssues.map(i => i.number).join(',');
+              // Fetch full details for each issue to get labels and assignees
+              const issuesWithDetails = await Promise.all(
+                response.data.items.map(async (issue) => {
+                  const fullIssue = await github.rest.issues.get({
+                    owner,
+                    repo,
+                    issue_number: issue.number
+                  });
+                  return fullIssue.data;
+                })
+              );
 
-              core.info(`Total issues found: ${allIssues.length}`);
-              if (allIssues.length > 0) {
-                core.info(`Issues:\n${issueList}`);
+              // Filter and score issues
+              const scoredIssues = issuesWithDetails
+                .filter(issue => {
+                  // Exclude issues that already have assignees
+                  if (issue.assignees && issue.assignees.length > 0) {
+                    core.info(`Skipping #${issue.number}: already has assignees`);
+                    return false;
+                  }
+
+                  // Exclude issues with excluded labels (double check)
+                  const issueLabels = issue.labels.map(l => l.name.toLowerCase());
+                  if (issueLabels.some(label => excludeLabels.map(l => l.toLowerCase()).includes(label))) {
+                    core.info(`Skipping #${issue.number}: has excluded label`);
+                    return false;
+                  }
+
+                  return true;
+                })
+                .map(issue => {
+                  const issueLabels = issue.labels.map(l => l.name.toLowerCase());
+                  let score = 0;
+
+                  // Score based on priority labels (higher score = higher priority)
+                  if (issueLabels.includes('good first issue') || issueLabels.includes('good-first-issue')) {
+                    score += 50;
+                  }
+                  if (issueLabels.includes('bug')) {
+                    score += 40;
+                  }
+                  if (issueLabels.includes('security')) {
+                    score += 45;
+                  }
+                  if (issueLabels.includes('documentation')) {
+                    score += 35;
+                  }
+                  if (issueLabels.includes('enhancement') || issueLabels.includes('feature')) {
+                    score += 30;
+                  }
+                  if (issueLabels.includes('performance')) {
+                    score += 25;
+                  }
+                  if (issueLabels.includes('tech-debt') || issueLabels.includes('refactoring')) {
+                    score += 20;
+                  }
+
+                  // Bonus for issues with clear labels (any priority label)
+                  if (issueLabels.some(label => priorityLabels.map(l => l.toLowerCase()).includes(label))) {
+                    score += 10;
+                  }
+
+                  // Age bonus: older issues get slight priority (days old / 10)
+                  const ageInDays = Math.floor((Date.now() - new Date(issue.created_at)) / (1000 * 60 * 60 * 24));
+                  score += Math.min(ageInDays / 10, 20); // Cap age bonus at 20 points
+
+                  return {
+                    number: issue.number,
+                    title: issue.title,
+                    labels: issue.labels.map(l => l.name),
+                    created_at: issue.created_at,
+                    score
+                  };
+                })
+                .sort((a, b) => b.score - a.score); // Sort by score descending
+
+              // Format output
+              const issueList = scoredIssues.map(i => {
+                const labelStr = i.labels.length > 0 ? ` [${i.labels.join(', ')}]` : '';
+                return `#${i.number}: ${i.title}${labelStr} (score: ${i.score.toFixed(1)})`;
+              }).join('\n');
+
+              const issueNumbers = scoredIssues.map(i => i.number).join(',');
+
+              core.info(`Total candidate issues after filtering: ${scoredIssues.length}`);
+              if (scoredIssues.length > 0) {
+                core.info(`Top candidates:\n${issueList.split('\n').slice(0, 10).join('\n')}`);
               }
 
-              core.setOutput('issue_count', allIssues.length);
+              core.setOutput('issue_count', scoredIssues.length);
               core.setOutput('issue_numbers', issueNumbers);
               core.setOutput('issue_list', issueList);
 
-              if (allIssues.length === 0) {
-                core.info('🍽️ No issues available - the plate is empty!');
+              if (scoredIssues.length === 0) {
+                core.info('🍽️ No suitable candidate issues - the plate is empty!');
                 core.setOutput('has_issues', 'false');
               } else {
                 core.setOutput('has_issues', 'true');
