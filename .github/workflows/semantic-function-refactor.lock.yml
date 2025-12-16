@@ -620,8 +620,8 @@
 name: "Semantic Function Refactoring"
 "on":
   schedule:
-  - cron: "32 17 * * *"
-    # Friendly format: daily (scattered)
+  - cron: FUZZY:DAILY * * *
+    # Friendly format: daily
   workflow_dispatch: null
 
 permissions: {}

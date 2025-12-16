@@ -523,8 +523,8 @@
 name: "Static Analysis Report"
 "on":
   schedule:
-  - cron: "30 22 * * *"
-    # Friendly format: daily (scattered)
+  - cron: FUZZY:DAILY * * *
+    # Friendly format: daily
   workflow_dispatch: null
 
 permissions: {}

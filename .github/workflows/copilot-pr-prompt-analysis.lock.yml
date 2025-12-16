@@ -544,8 +544,8 @@
 name: "Copilot PR Prompt Pattern Analysis"
 "on":
   schedule:
-  - cron: "1 20 * * *"
-    # Friendly format: daily (scattered)
+  - cron: FUZZY:DAILY * * *
+    # Friendly format: daily
   workflow_dispatch: null
 
 permissions: {}

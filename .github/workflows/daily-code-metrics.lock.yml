@@ -949,8 +949,8 @@
 name: "Daily Code Metrics and Trend Tracking Agent"
 "on":
   schedule:
-  - cron: "57 17 * * *"
-    # Friendly format: daily (scattered)
+  - cron: FUZZY:DAILY * * *
+    # Friendly format: daily
   workflow_dispatch: null
 
 permissions: {}

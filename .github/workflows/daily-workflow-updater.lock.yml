@@ -261,8 +261,8 @@
 name: "Daily Workflow Updater"
 "on":
   schedule:
-  - cron: "25 15 * * *"
-    # Friendly format: daily (scattered)
+  - cron: FUZZY:DAILY * * *
+    # Friendly format: daily
   workflow_dispatch: null
 
 permissions: {}

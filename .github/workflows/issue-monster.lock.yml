@@ -449,8 +449,8 @@
 name: "Issue Monster"
 "on":
   schedule:
-  - cron: "0 */1 * * *"
-    # Friendly format: every 1h (scattered)
+  - cron: FUZZY:HOURLY/1 * * *
+    # Friendly format: every 1h
   # skip-if-match: # Skip-if-match processed as search check in pre-activation job
     # max: 5
     # query: is:pr is:open is:draft author:app/copilot-swe-agent
