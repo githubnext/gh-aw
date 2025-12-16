@@ -609,6 +609,7 @@ async function updateProject(output) {
                       options {
                         id
                         name
+                        color
                       }
                     }
                   }
@@ -718,8 +719,8 @@ async function updateProject(output) {
               try {
                 // Build options array with existing options plus the new one
                 const allOptions = [
-                  ...field.options.map(o => ({ name: o.name, description: "" })),
-                  { name: String(fieldValue), description: "" },
+                  ...field.options.map(o => ({ name: o.name, description: "", color: o.color || "GRAY" })),
+                  { name: String(fieldValue), description: "", color: "GRAY" },
                 ];
 
                 const createOptionResult = await github.graphql(

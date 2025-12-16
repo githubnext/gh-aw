@@ -408,6 +408,73 @@ describe("updateProject", () => {
     expect(updateCall).toBeDefined();
   });
 
+  it("creates a new option in single select field with colors for existing options", async () => {
+    const projectUrl = "https://github.com/orgs/testowner/projects/60";
+    const output = {
+      type: "update_project",
+      project: projectUrl,
+      content_type: "issue",
+      content_number: 16,
+      fields: { Status: "Closed - Not Planned" },
+    };
+
+    queueResponses([
+      repoResponse(),
+      viewerResponse(),
+      orgProjectV2Response(projectUrl, 60, "project-status"),
+      linkResponse,
+      issueResponse("issue-id-16"),
+      existingItemResponse("issue-id-16", "item-status"),
+      fieldsResponse([
+        {
+          id: "field-status",
+          name: "Status",
+          options: [
+            { id: "opt-todo", name: "Todo", color: "GRAY" },
+            { id: "opt-in-progress", name: "In Progress", color: "YELLOW" },
+            { id: "opt-done", name: "Done", color: "GREEN" },
+            { id: "opt-closed", name: "Closed", color: "PURPLE" },
+          ],
+        },
+      ]),
+      // Response for updateProjectV2Field mutation
+      {
+        updateProjectV2Field: {
+          projectV2Field: {
+            id: "field-status",
+            options: [
+              { id: "opt-todo", name: "Todo" },
+              { id: "opt-in-progress", name: "In Progress" },
+              { id: "opt-done", name: "Done" },
+              { id: "opt-closed", name: "Closed" },
+              { id: "opt-closed-not-planned", name: "Closed - Not Planned" },
+            ],
+          },
+        },
+      },
+      updateFieldValueResponse(),
+    ]);
+
+    await updateProject(output);
+
+    // Find the updateProjectV2Field mutation call
+    const updateFieldCall = mockGithub.graphql.mock.calls.find(([query]) => query.includes("updateProjectV2Field"));
+    expect(updateFieldCall).toBeDefined();
+
+    // Verify that the mutation includes color for all options
+    const options = updateFieldCall[1].options;
+    expect(options).toHaveLength(5); // 4 existing + 1 new
+
+    // Check that all existing options have their colors preserved
+    expect(options[0]).toEqual({ name: "Todo", description: "", color: "GRAY" });
+    expect(options[1]).toEqual({ name: "In Progress", description: "", color: "YELLOW" });
+    expect(options[2]).toEqual({ name: "Done", description: "", color: "GREEN" });
+    expect(options[3]).toEqual({ name: "Closed", description: "", color: "PURPLE" });
+
+    // Check that the new option has a default color
+    expect(options[4]).toEqual({ name: "Closed - Not Planned", description: "", color: "GRAY" });
+  });
+
   it("warns when a field cannot be created", async () => {
     const projectUrl = "https://github.com/orgs/testowner/projects/60";
     const output = {
