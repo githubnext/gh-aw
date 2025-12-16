@@ -26,8 +26,7 @@
 # ```yaml
 # description: Daily audit of all agentic workflow runs from the last 24 hours to identify issues, missing tools, errors, and improvement opportunities
 # on:
-#   schedule:
-#     - cron: daily
+#   schedule: daily
 #   workflow_dispatch:
 # permissions:
 #   contents: read
@@ -854,7 +853,7 @@
 name: "Agentic Workflow Audit Agent"
 "on":
   schedule:
-  - cron: "30 2 * * *"
+  - cron: "32 17 * * *"
     # Friendly format: daily (scattered)
   workflow_dispatch: null
 

@@ -37,6 +37,7 @@ type Compiler struct {
 	importCache          *parser.ImportCache // Shared cache for imported workflow files
 	workflowIdentifier   string              // Identifier for the current workflow being compiled (for schedule scattering)
 	scheduleWarnings     []string            // Accumulated schedule warnings for this compiler instance
+	repositorySlug       string              // Repository slug (owner/repo) used as seed for scattering
 }
 
 // NewCompiler creates a new workflow compiler with optional configuration
@@ -141,6 +142,16 @@ func (c *Compiler) SetWorkflowIdentifier(identifier string) {
 // GetWorkflowIdentifier returns the current workflow identifier
 func (c *Compiler) GetWorkflowIdentifier() string {
 	return c.workflowIdentifier
+}
+
+// SetRepositorySlug sets the repository slug for schedule scattering
+func (c *Compiler) SetRepositorySlug(slug string) {
+	c.repositorySlug = slug
+}
+
+// GetRepositorySlug returns the repository slug
+func (c *Compiler) GetRepositorySlug() string {
+	return c.repositorySlug
 }
 
 // GetScheduleWarnings returns all accumulated schedule warnings for this compiler instance

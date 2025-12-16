@@ -26,8 +26,7 @@
 # ```yaml
 # description: Tracks and visualizes daily code metrics and trends to monitor repository health and development patterns
 # on:
-#   schedule:
-#     - cron: daily
+#   schedule: daily
 #   workflow_dispatch:
 # permissions:
 #   contents: read
@@ -950,7 +949,7 @@
 name: "Daily Code Metrics and Trend Tracking Agent"
 "on":
   schedule:
-  - cron: "55 23 * * *"
+  - cron: "57 17 * * *"
     # Friendly format: daily (scattered)
   workflow_dispatch: null
 

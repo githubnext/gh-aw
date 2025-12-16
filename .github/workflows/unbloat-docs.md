@@ -3,8 +3,7 @@ name: Documentation Unbloat
 description: Reviews and simplifies documentation by reducing verbosity while maintaining clarity and completeness
 on:
   # Daily (scattered execution time)
-  schedule:
-    - cron: daily
+  schedule: daily
   
   # Command trigger for /unbloat in PR comments
   slash_command:

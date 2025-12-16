@@ -2,8 +2,7 @@
 name: Security Fix PR
 description: Identifies and automatically fixes code security issues by creating pull requests with remediation
 on:
-  schedule:
-    - cron: every 4h
+  schedule: every 4h
   workflow_dispatch:
     inputs:
       security_url:

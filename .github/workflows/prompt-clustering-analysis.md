@@ -2,8 +2,7 @@
 name: Copilot Agent Prompt Clustering Analysis
 description: Analyzes and clusters GitHub Copilot agent prompts to identify patterns and usage trends
 on:
-  schedule:
-    - cron: daily
+  schedule: daily
   workflow_dispatch:
 
 permissions:

@@ -397,6 +397,14 @@ func (p *ScheduleParser) parseBase() (string, error) {
 			minute, hour = parseTime(timeStr)
 		}
 
+	case "hourly":
+		// hourly -> FUZZY:HOURLY/1 (fuzzy hourly schedule, equivalent to "every 1h")
+		if len(p.tokens) == 1 {
+			return "FUZZY:HOURLY/1 * * *", nil
+		}
+		// hourly doesn't support time specifications
+		return "", fmt.Errorf("hourly schedule does not support 'at time' clause, use 'hourly' without additional parameters")
+
 	case "weekly":
 		// weekly on <weekday> -> 0 0 * * DOW
 		// weekly on <weekday> at HH:MM -> MM HH * * DOW

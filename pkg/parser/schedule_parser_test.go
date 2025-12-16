@@ -76,6 +76,14 @@ func TestParseSchedule(t *testing.T) {
 			expectedOrig: "daily at 6am",
 		},
 
+		// Hourly schedules
+		{
+			name:         "hourly",
+			input:        "hourly",
+			expectedCron: "FUZZY:HOURLY/1 * * *",
+			expectedOrig: "hourly",
+		},
+
 		// Weekly schedules
 		{
 			name:         "weekly on monday",
@@ -424,12 +432,6 @@ func TestParseSchedule(t *testing.T) {
 			input:          "monthly on 0",
 			shouldError:    true,
 			errorSubstring: "invalid day of month",
-		},
-		{
-			name:           "unsupported schedule type",
-			input:          "hourly",
-			shouldError:    true,
-			errorSubstring: "unsupported schedule type",
 		},
 		{
 			name:           "negative interval",

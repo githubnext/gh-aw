@@ -3,8 +3,7 @@ name: Semantic Function Refactoring
 description: Analyzes Go codebase daily to identify opportunities for semantic function extraction and refactoring
 on:
   workflow_dispatch:
-  schedule:
-    - cron: daily
+  schedule: daily
 
 permissions:
   contents: read

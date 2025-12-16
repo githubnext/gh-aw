@@ -59,7 +59,12 @@ func (c *Compiler) preprocessScheduleFields(frontmatter map[string]any) error {
 
 		// Scatter fuzzy schedules if workflow identifier is set
 		if parser.IsFuzzyCron(parsedCron) && c.workflowIdentifier != "" {
-			scatteredCron, err := parser.ScatterSchedule(parsedCron, c.workflowIdentifier)
+			// Combine repo slug and workflow identifier for scattering seed
+			seed := c.workflowIdentifier
+			if c.repositorySlug != "" {
+				seed = c.repositorySlug + "/" + c.workflowIdentifier
+			}
+			scatteredCron, err := parser.ScatterSchedule(parsedCron, seed)
 			if err != nil {
 				schedulePreprocessingLog.Printf("Warning: failed to scatter fuzzy schedule: %v", err)
 				// Keep the original fuzzy schedule as fallback
@@ -140,7 +145,12 @@ func (c *Compiler) preprocessScheduleFields(frontmatter map[string]any) error {
 
 		// Scatter fuzzy schedules if workflow identifier is set
 		if parser.IsFuzzyCron(parsedCron) && c.workflowIdentifier != "" {
-			scatteredCron, err := parser.ScatterSchedule(parsedCron, c.workflowIdentifier)
+			// Combine repo slug and workflow identifier for scattering seed
+			seed := c.workflowIdentifier
+			if c.repositorySlug != "" {
+				seed = c.repositorySlug + "/" + c.workflowIdentifier
+			}
+			scatteredCron, err := parser.ScatterSchedule(parsedCron, seed)
 			if err != nil {
 				schedulePreprocessingLog.Printf("Warning: failed to scatter fuzzy schedule: %v", err)
 				// Keep the original fuzzy schedule as fallback
