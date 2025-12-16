@@ -144,6 +144,67 @@ Examples:
 	newCmd.Flags().Bool("force", false, "Overwrite existing spec file if it already exists")
 	cmd.AddCommand(newCmd)
 
+	// Subcommand: campaign create-from-issue
+	createFromIssueCmd := &cobra.Command{
+		Use:   "create-from-issue",
+		Short: "Create a campaign spec from a GitHub issue form body",
+		Long: `Create a campaign spec from a GitHub issue form body (read from stdin).
+
+This command parses a GitHub issue form body and generates a campaign
+spec file at .github/workflows/<id>.campaign.md with all the metadata
+populated from the issue form fields.
+
+The issue body should be passed via stdin:
+  cat issue-body.txt | ` + constants.CLIExtensionPrefix + ` campaign create-from-issue
+
+Or from a GitHub Action:
+  echo "${{ github.event.issue.body }}" | ./gh-aw campaign create-from-issue
+
+Examples:
+  cat issue-body.txt | ` + constants.CLIExtensionPrefix + ` campaign create-from-issue
+  ` + constants.CLIExtensionPrefix + ` campaign create-from-issue --force < issue-body.txt`,
+		Args: cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			force, _ := cmd.Flags().GetBool("force")
+
+			// Read issue body from stdin
+			issueBody, err := ReadIssueBodyFromStdin()
+			if err != nil {
+				return err
+			}
+
+			// Parse the issue form
+			data, err := ParseIssueForm(issueBody)
+			if err != nil {
+				return fmt.Errorf("failed to parse issue form: %w", err)
+			}
+
+			campaignLog.Printf("Parsed campaign: id=%s, name=%s", data.CampaignID, data.CampaignName)
+
+			cwd, err := os.Getwd()
+			if err != nil {
+				return fmt.Errorf("failed to get current working directory: %w", err)
+			}
+
+			// Create the spec file
+			path, err := CreateSpecFromIssue(cwd, data, force)
+			if err != nil {
+				return err
+			}
+
+			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(
+				"Created campaign spec at "+path,
+			))
+
+			// Output the path for scripting purposes
+			fmt.Println(path)
+			return nil
+		},
+	}
+
+	createFromIssueCmd.Flags().Bool("force", false, "Overwrite existing spec file if it already exists")
+	cmd.AddCommand(createFromIssueCmd)
+
 	// Subcommand: campaign validate
 	validateCmd := &cobra.Command{
 		Use:   "validate [filter]",
