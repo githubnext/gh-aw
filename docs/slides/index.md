@@ -44,7 +44,7 @@ https://github.com/githubnext/gh-aw/issues/1920
 
 **2023: LLMs & Web UI Generators** — Prompt to Web App
 
-**2024: Agent CLIs** — Claude Code: File edit, bash
+**2024: Agent CLIs** — Copilot CLI, Claude: File edit, bash
 
 **2025: MCP, SKILLS.md** - Unified tooling
 
@@ -228,16 +228,16 @@ Analyze issue and break down into implementation tasks
 # AI Engines
 ## Multiple AI providers supported
 
-* **Claude Code** (default, recommended)
+* **GitHub Copilot CLI** (default, recommended)
+* **Claude** (experimental)
 * **Codex** (experimental)
-* **Copilot CLI** (experimental)
 * **Custom Engine** (bring your own AI)
 
 ```yaml
-engine: claude  # sensible defaults
+engine: copilot  # default, recommended
 ```
 
-> Claude Code offers the best reliability and performance
+> GitHub Copilot offers the best integration and support
 
 ---
 
@@ -311,7 +311,7 @@ Review this PR with context from previous reviews:
 
 ---
 
-# Playwright + Upload Assets
+# Playwright Integration
 ## Browser automation for web app testing
 
 ```yaml
@@ -322,8 +322,7 @@ on:
 tools:
   playwright:      # Headless browser automation
 safe-outputs:
-  create-issue:
-  upload-assets:   # Attach screenshots to artifacts
+  create-issue:    # Create issues with findings
 ---
 Test the web application:
 1. Navigate to the deployed preview URL
