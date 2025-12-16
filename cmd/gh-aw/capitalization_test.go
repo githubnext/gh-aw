@@ -81,7 +81,7 @@ func TestTechnicalTermsCapitalization(t *testing.T) {
 	// Check all commands and their subcommands
 	for _, cmd := range commandsToCheck {
 		checkCommandForTechnicalTerms(t, cmd, technicalTerms)
-		
+
 		// Also check subcommands
 		for _, subCmd := range cmd.Commands() {
 			checkCommandForTechnicalTerms(t, subCmd, technicalTerms)
@@ -93,16 +93,16 @@ func TestTechnicalTermsCapitalization(t *testing.T) {
 func checkCommandForTechnicalTerms(t *testing.T, cmd *cobra.Command, technicalTerms []string) {
 	for _, term := range technicalTerms {
 		lowerTerm := strings.ToLower(term)
-		
+
 		// Check Short description
 		if strings.Contains(cmd.Short, lowerTerm) && !strings.Contains(cmd.Short, term) {
-			t.Errorf("Command '%s' Short should capitalize technical term '%s', but found lowercase '%s'. Short: %s", 
+			t.Errorf("Command '%s' Short should capitalize technical term '%s', but found lowercase '%s'. Short: %s",
 				cmd.Name(), term, lowerTerm, cmd.Short)
 		}
-		
+
 		// Check Long description
 		if strings.Contains(cmd.Long, lowerTerm) && !strings.Contains(cmd.Long, term) {
-			t.Errorf("Command '%s' Long should capitalize technical term '%s', but found lowercase '%s'", 
+			t.Errorf("Command '%s' Long should capitalize technical term '%s', but found lowercase '%s'",
 				cmd.Name(), term, lowerTerm)
 		}
 	}
