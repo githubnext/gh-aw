@@ -9,10 +9,14 @@ on:
     types: [created]
   pull_request_review_comment:
     types: [created]
+  discussion:
+    types: [created]
+  discussion_comment:
+    types: [created]
   workflow_dispatch:
     inputs:
       issue_url:
-        description: 'Issue or discussion URL to moderate (e.g., https://github.com/owner/repo/issues/123)'
+        description: 'Issue or discussion URL to moderate (e.g., https://github.com/owner/repo/issues/123 or https://github.com/owner/repo/discussions/456)'
         required: true
         type: string
 engine:
@@ -90,6 +94,7 @@ Analyze the following content in repository ${{ github.repository }}:
 
 **Issue Number** (if applicable): #${{ github.event.issue.number }}
 **Pull Request Number** (if applicable): #${{ github.event.pull_request.number }}
+**Discussion Number** (if applicable): #${{ github.event.discussion.number }}
 **Comment ID** (if applicable): ${{ github.event.comment.id }}
 **Author**: ${{ github.actor }}
 **Manual URL** (if provided via workflow_dispatch): ${{ github.event.inputs.issue_url }}
@@ -97,14 +102,16 @@ Analyze the following content in repository ${{ github.repository }}:
 **Content to analyze**:
 
 When running via `workflow_dispatch` with an `issue_url` input:
-1. Parse the issue URL to extract the owner, repo, and issue number
-2. Use the GitHub MCP server tools (available via `github` toolset) to fetch the full issue content
-3. Specifically, use the appropriate GitHub API tool to get the issue details including title and body
+1. Parse the URL to extract the owner, repo, and issue/discussion number
+2. Determine if it's an issue or discussion based on the URL pattern (/issues/ vs /discussions/)
+3. Use the GitHub MCP server tools (available via `github` toolset) to fetch the full content
+4. Specifically, use the appropriate GitHub API tool to get the details including title and body
 
-For other trigger types (issues, issue_comment, pull_request_review_comment):
+For other trigger types (issues, issue_comment, pull_request_review_comment, discussion, discussion_comment):
 1. Extract the relevant identifiers from the context:
    - For issues: Use issue number from ${{ github.event.issue.number }}
-   - For comments: Use issue/PR number and comment ID from the event payload
+   - For discussions: Use discussion number from ${{ github.event.discussion.number }}
+   - For comments: Use issue/PR/discussion number and comment ID from the event payload
 2. Use the GitHub MCP server tools to fetch the original, unsanitized content directly from GitHub API
 3. Do NOT use the pre-sanitized text from the activation job - fetch fresh content to analyze the original user input
 
@@ -182,11 +189,19 @@ Based on your analysis:
    - **If no warnings or issues are found** and the content appears legitimate and on-topic, use the `add-labels` safe output to add the `ai-inspected` label to indicate the issue has been reviewed and no threats were found
    - **If workflow_dispatch** was used, ensure the labels are applied to the correct issue/PR as specified in the input URL when calling `add-labels`
 
-2. **For Comments** (when comment ID is present):
+2. **For Discussions** (when discussion number is present):
+   - Apply the same labeling approach as for issues:
+     - Add `spam` label for generic spam
+     - Add `link-spam` label for link spam
+     - Add `ai-generated` label for AI-generated content
+     - Add `ai-inspected` label if no issues found
+   - Multiple labels can be added if multiple types are detected
+
+3. **For Comments** (when comment ID is present on issues, PRs, or discussions):
    - If any type of spam, link spam, or AI-generated spam is detected:
-     - Use the `minimize_comment` safe output to minimize the comment
-     - Also add appropriate labels to the parent issue/PR as described above
-   - If the comment appears legitimate and on-topic, add the `ai-inspected` label to the parent issue/PR
+     - Use the `hide_comment` safe output to hide the comment with reason "SPAM"
+     - Also add appropriate labels to the parent issue/PR/discussion as described above
+   - If the comment appears legitimate and on-topic, add the `ai-inspected` label to the parent issue/PR/discussion
 
 ## Important Guidelines
 
@@ -208,9 +223,9 @@ An AI-powered GitHub Agentic Workflow that automatically detects spam in issues 
 - **Link Spam Detection**: Identifies suspicious URLs and shortened links
 - **AI-Generated Content Detection**: Recognizes artificially generated content patterns
 - **Automated Actions**: 
-  - Adds labels (`spam`, `link-spam`, `ai-generated`) to flagged issues
-  - Minimizes detected spam comments
-- **Multiple Trigger Support**: Works on new issues, issue comments, and PR review comments
+  - Adds labels (`spam`, `link-spam`, `ai-generated`) to flagged issues and discussions
+  - Hides detected spam comments
+- **Multiple Trigger Support**: Works on new issues, issue comments, PR review comments, discussions, and discussion comments
 
 ## How It Works
 
@@ -218,13 +233,15 @@ This workflow uses GitHub Copilot's AI capabilities to analyze content posted to
 - A new issue being opened
 - A new comment on an issue
 - A new review comment on a pull request
+- A new discussion being created
+- A new comment on a discussion
 
 The AI agent:
 1. Fetches the content to analyze
 2. Runs three detection analyses (general spam, link spam, AI-generated)
 3. Takes appropriate action based on findings:
-   - For issues: Adds relevant labels
-   - For comments: Minimizes the comment and adds labels to the parent issue/PR
+   - For issues and discussions: Adds relevant labels
+   - For comments: Hides the comment and adds labels to the parent issue/PR/discussion
 
 ## Detection Criteria
 
@@ -262,10 +279,14 @@ on:
     types: [created]
   pull_request_review_comment:
     types: [created]
+  discussion:
+    types: [created]
+  discussion_comment:
+    types: [created]
   workflow_dispatch:
     inputs:
       issue_url:
-        description: 'Issue or discussion URL to moderate (e.g., https://github.com/owner/repo/issues/123)'
+        description: 'Issue or discussion URL to moderate (e.g., https://github.com/owner/repo/issues/123 or https://github.com/owner/repo/discussions/456)'
         required: true
         type: string
 engine:
@@ -287,6 +308,7 @@ permissions:
   contents: read
   issues: read
   pull-requests: read
+  discussions: read
 ```
 
 ### Labels
@@ -300,7 +322,7 @@ The workflow uses these labels:
 ### Safe Outputs
 
 The workflow uses two built-in safe outputs:
-- **add-labels**: Adds labels to issues and PRs (spam, link-spam, ai-generated, ai-inspected)
+- **add-labels**: Adds labels to issues, PRs, and discussions (spam, link-spam, ai-generated, ai-inspected)
 - **hide-comment**: Hides spam comments using GitHub's built-in functionality
 
 The hide-comment safe output requires the GraphQL node ID of the comment, which the AI agent fetches from the GitHub API.
@@ -355,12 +377,12 @@ To customize the detection behavior:
 
 ## Example Workflow Run
 
-1. A user opens a new issue with spam content
+1. A user opens a new issue or discussion with spam content
 2. The workflow is triggered automatically
-3. The AI agent fetches the issue content
+3. The AI agent fetches the content
 4. Analyzes the content for spam, link spam, and AI-generated patterns
 5. Detects spam indicators with high confidence
-6. Adds the `spam` label to the issue
+6. Adds the `spam` label to the issue or discussion
 7. Logs the detection reasoning for transparency
 
 ## Limitations
