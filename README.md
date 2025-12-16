@@ -48,6 +48,26 @@ The AI agent reads your repository context, analyzes issues, generates visualiza
 
 **Security Benefits:** Workflows use read-only permissions by default, with write operations only allowed through sanitized `safe-outputs`. Access can be gated to team members only, ensuring AI agents operate within controlled boundaries.
 
+## Spec-Driven Development
+
+GitHub Agentic Workflows supports spec-driven development through [spec-kit](https://github.com/github/spec-kit) integration. Define features in natural language specifications, create implementation plans, and execute them systematically.
+
+The spec-kit workflow follows a structured process:
+
+1. **Constitution** - Project principles guide all decisions
+2. **Specification** - Define requirements and user stories
+3. **Plan** - Create technical implementation approach
+4. **Tasks** - Break down work into ordered tasks
+5. **Implementation** - Execute tasks following TDD principles
+
+An automated executor workflow scans for pending specifications and implements them daily, creating pull requests for review.
+
+**Get Started:**
+- Quick start guide: [.specify/QUICKSTART.md](.specify/QUICKSTART.md)
+- Complete documentation: [.specify/README.md](.specify/README.md)
+- Comprehensive guide: [Spec-Kit Integration](https://githubnext.github.io/gh-aw/guides/spec-kit-integration/)
+- Example specification: [.specify/specs/example-feature/](.specify/specs/example-feature/)
+
 ## Documentation
 
 For complete documentation, examples, and guides, see the [Documentation](https://githubnext.github.io/gh-aw/).

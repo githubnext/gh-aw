@@ -279,6 +279,113 @@ See [documentation skill](skills/documentation/SKILL.md) for details.
 
 This project is still in an experimental phase. When you are requested to make a change, do not add fallback or legacy support unless explicitly instructed.
 
+## Spec-Kit Integration
+
+The repository uses [spec-kit](https://github.com/github/spec-kit) for spec-driven development. Specifications are stored in the `.specify/` directory and follow a structured workflow from requirements to implementation.
+
+### Directory Structure
+
+```
+.specify/
+├── memory/
+│   └── constitution.md    # Project governing principles (ALWAYS review)
+├── specs/
+│   └── NNN-feature-name/  # Feature specifications
+│       ├── spec.md        # Requirements and user stories
+│       ├── plan.md        # Technical implementation plan
+│       └── tasks.md       # Task breakdown
+├── commands/              # Spec-kit command definitions
+└── scripts/bash/          # Workflow automation scripts
+```
+
+### Constitution
+
+**CRITICAL**: Always review `.specify/memory/constitution.md` before creating specifications or making changes. The constitution defines non-negotiable principles:
+
+- Go-first architecture
+- Minimal changes philosophy
+- Test-driven development (non-negotiable)
+- Console output standards
+- Workflow compilation requirements
+- Build and test discipline
+- Security and quality standards
+
+All development must align with these constitutional principles.
+
+### Spec-Kit Commands
+
+When working with AI agents that support spec-kit commands:
+
+**`/speckit.constitution`** - View or update project constitution
+
+**`/speckit.specify`** - Create feature specification
+```
+/speckit.specify Build a feature that [description]. Focus on what and why, not tech stack.
+```
+
+**`/speckit.plan`** - Create implementation plan
+```
+/speckit.plan Use Go in pkg/. Follow existing patterns. TDD with table-driven tests.
+```
+
+**`/speckit.tasks`** - Generate task breakdown
+```
+/speckit.tasks
+```
+
+**`/speckit.implement`** - Execute tasks
+```
+/speckit.implement
+```
+
+**`/speckit.clarify`** - Clarify underspecified areas
+
+**`/speckit.analyze`** - Check cross-artifact consistency
+
+**`/speckit.checklist`** - Generate quality checklists
+
+### Working with Specifications
+
+When implementing features from specifications:
+
+1. **Load the constitution**: Read `.specify/memory/constitution.md` first
+2. **Read the spec**: Understand requirements from `spec.md`
+3. **Follow the plan**: Implement according to `plan.md`
+4. **Execute tasks in order**: Complete tasks from `tasks.md` phase-by-phase
+5. **Follow TDD**: Write tests before implementation (non-negotiable)
+6. **Validate incrementally**: Run validation after each phase
+7. **Mark completed tasks**: Update `tasks.md` with completed checkboxes
+
+### Automated Executor
+
+The `spec-kit-executor` workflow (`.github/workflows/spec-kit-executor.md`) runs daily at 8am UTC:
+- Scans for feature specifications with pending tasks
+- Prioritizes in-progress features
+- Executes tasks phase-by-phase following TDD
+- Validates after each phase
+- Creates pull requests with completed work
+
+### Guidelines for AI Agents
+
+When working with spec-kit:
+
+- **Review constitution first**: Never skip `.specify/memory/constitution.md`
+- **Align with principles**: All plans and implementations must follow constitutional principles
+- **TDD is non-negotiable**: Always write tests before implementation
+- **Use console formatting**: All output must use `pkg/console`
+- **Validate frequently**: Run `make fmt`, `make lint`, `make test-unit` after each phase
+- **Small, focused tasks**: Break work into 15-30 minute tasks
+- **Document as you go**: Update relevant documentation with changes
+- **Mark progress**: Check off completed tasks in `tasks.md`
+
+### Resources
+
+- **Quick Start**: [.specify/QUICKSTART.md](.specify/QUICKSTART.md)
+- **Complete Guide**: [.specify/README.md](.specify/README.md)
+- **Documentation**: [Spec-Kit Integration Guide](docs/src/content/docs/guides/spec-kit-integration.md)
+- **Example**: [.specify/specs/example-feature/](.specify/specs/example-feature/)
+- **Spec-Kit Repository**: https://github.com/github/spec-kit
+
 ## Key Features
 
 ### MCP Server Management
