@@ -299,6 +299,86 @@ func TestEnsureDevcontainerConfigWithOwnerValidation(t *testing.T) {
 	}
 }
 
+func TestEnsureDevcontainerConfigUpdatesOldVersion(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "test-*")
+
+	originalDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Failed to get current directory: %v", err)
+	}
+	defer func() {
+		_ = os.Chdir(originalDir)
+	}()
+
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatalf("Failed to change to temp directory: %v", err)
+	}
+
+	// Initialize git repo
+	if err := exec.Command("git", "init").Run(); err != nil {
+		t.Skip("Git not available")
+	}
+
+	// Configure git
+	exec.Command("git", "config", "user.name", "Test User").Run()
+	exec.Command("git", "config", "user.email", "test@example.com").Run()
+
+	// Create .devcontainer/gh-aw directory
+	devcontainerDir := filepath.Join(".devcontainer", "gh-aw")
+	if err := os.MkdirAll(devcontainerDir, 0755); err != nil {
+		t.Fatalf("Failed to create directory: %v", err)
+	}
+
+	// Create a devcontainer.json with old copilot-cli version
+	oldConfig := DevcontainerConfig{
+		Name:  "Agentic Workflows Development",
+		Image: "mcr.microsoft.com/devcontainers/universal:latest",
+		Features: DevcontainerFeatures{
+			"ghcr.io/devcontainers/features/github-cli:1":  map[string]any{},
+			"ghcr.io/devcontainers/features/copilot-cli:1": map[string]any{}, // Old version
+		},
+		PostCreateCommand: "curl -fsSL https://raw.githubusercontent.com/githubnext/gh-aw/refs/heads/main/install-gh-aw.sh | bash",
+	}
+
+	devcontainerPath := filepath.Join(devcontainerDir, "devcontainer.json")
+	data, err := json.MarshalIndent(oldConfig, "", "  ")
+	if err != nil {
+		t.Fatalf("Failed to marshal old config: %v", err)
+	}
+	data = append(data, '\n')
+
+	if err := os.WriteFile(devcontainerPath, data, 0644); err != nil {
+		t.Fatalf("Failed to write old config: %v", err)
+	}
+
+	// Run ensureDevcontainerConfig - should update the version
+	err = ensureDevcontainerConfig(false, []string{})
+	if err != nil {
+		t.Fatalf("ensureDevcontainerConfig() failed: %v", err)
+	}
+
+	// Read and verify the updated config
+	updatedData, err := os.ReadFile(devcontainerPath)
+	if err != nil {
+		t.Fatalf("Failed to read updated config: %v", err)
+	}
+
+	var updatedConfig DevcontainerConfig
+	if err := json.Unmarshal(updatedData, &updatedConfig); err != nil {
+		t.Fatalf("Failed to parse updated config: %v", err)
+	}
+
+	// Verify copilot-cli was updated to :latest
+	if _, exists := updatedConfig.Features["ghcr.io/devcontainers/features/copilot-cli:latest"]; !exists {
+		t.Error("Expected copilot-cli feature to be updated to :latest")
+	}
+
+	// Verify old version is gone
+	if _, exists := updatedConfig.Features["ghcr.io/devcontainers/features/copilot-cli:1"]; exists {
+		t.Error("Expected old copilot-cli:1 version to be removed")
+	}
+}
+
 func TestGetCurrentRepoName(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "test-*")
 
