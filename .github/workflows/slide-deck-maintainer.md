@@ -10,8 +10,11 @@ on:
         description: 'Focus area (feature-deep-dive or global-sweep)'
         required: false
         default: 'global-sweep'
+  skip-if-match: 'is:pr is:open in:title "[slides]"'
 permissions:
   contents: read
+  pull-requests: read
+  issues: read
 tracker-id: slide-deck-maintainer
 engine: copilot
 timeout-minutes: 45
@@ -38,6 +41,7 @@ tools:
 safe-outputs:
   create-pull-request:
     title-prefix: "[slides] "
+    expires: 20h
 network:
   allowed:
     - node
