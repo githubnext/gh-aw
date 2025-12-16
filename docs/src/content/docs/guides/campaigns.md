@@ -147,7 +147,7 @@ gh aw campaign validate
 For non-failing validation (useful in CI while you iterate):
 
 ```bash
-gh aw campaign validate --strict=false
+gh aw campaign validate --no-strict
 ```
 
 ## Start a Campaign with GitHub Issue Forms
