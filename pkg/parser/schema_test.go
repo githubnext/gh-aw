@@ -1113,6 +1113,83 @@ func TestValidateMainWorkflowFrontmatterWithSchema(t *testing.T) {
 			wantErr:     true,
 			errContains: "maxProperties",
 		},
+		{
+			name: "valid metadata with various key-value pairs",
+			frontmatter: map[string]any{
+				"on": "workflow_dispatch",
+				"metadata": map[string]any{
+					"author":      "John Doe",
+					"version":     "1.0.0",
+					"category":    "automation",
+					"description": "A workflow that automates something",
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "valid metadata with max length key (64 chars)",
+			frontmatter: map[string]any{
+				"on": "workflow_dispatch",
+				"metadata": map[string]any{
+					"a123456789b123456789c123456789d123456789e123456789f123456789abcd": "value",
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "valid metadata with max length value (1024 chars)",
+			frontmatter: map[string]any{
+				"on": "workflow_dispatch",
+				"metadata": map[string]any{
+					"long-value": strings.Repeat("a", 1024),
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "invalid metadata with key too long (65 chars)",
+			frontmatter: map[string]any{
+				"on": "workflow_dispatch",
+				"metadata": map[string]any{
+					"a123456789b123456789c123456789d123456789e123456789f123456789abcde": "value",
+				},
+			},
+			wantErr:     true,
+			errContains: "additional properties",
+		},
+		{
+			name: "invalid metadata with value too long (1025 chars)",
+			frontmatter: map[string]any{
+				"on": "workflow_dispatch",
+				"metadata": map[string]any{
+					"test": strings.Repeat("a", 1025),
+				},
+			},
+			wantErr:     true,
+			errContains: "maxLength",
+		},
+		{
+			name: "invalid metadata with non-string value",
+			frontmatter: map[string]any{
+				"on": "workflow_dispatch",
+				"metadata": map[string]any{
+					"count": 123,
+				},
+			},
+			wantErr:     true,
+			errContains: "want string",
+		},
+		{
+			name: "invalid metadata with empty key",
+			frontmatter: map[string]any{
+				"on": "workflow_dispatch",
+				"metadata": map[string]any{
+					"": "value",
+				},
+			},
+			wantErr:     true,
+			errContains: "additional properties",
+		},
 	}
 
 	for _, tt := range tests {
