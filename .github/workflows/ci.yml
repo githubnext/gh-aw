@@ -457,10 +457,18 @@ jobs:
       - name: Run fuzz tests
         run: |
           go test -fuzz=FuzzParseFrontmatter -fuzztime=10s ./pkg/parser/
+          go test -fuzz=FuzzScheduleParser -fuzztime=10s ./pkg/parser/
           go test -fuzz=FuzzExpressionParser -fuzztime=10s ./pkg/workflow/
+          go test -fuzz=FuzzMentionsFiltering -fuzztime=10s ./pkg/workflow/
           go test -fuzz=FuzzSanitizeOutput -fuzztime=10s ./pkg/workflow/
           go test -fuzz=FuzzSanitizeIncomingText -fuzztime=10s ./pkg/workflow/
           go test -fuzz=FuzzSanitizeLabelContent -fuzztime=10s ./pkg/workflow/
+          go test -fuzz=FuzzWrapExpressionsInTemplateConditionals -fuzztime=10s ./pkg/workflow/
+          go test -fuzz=FuzzYAMLParsing -fuzztime=10s ./pkg/workflow/
+          go test -fuzz=FuzzTemplateRendering -fuzztime=10s ./pkg/workflow/
+          go test -fuzz=FuzzInputValidation -fuzztime=10s ./pkg/workflow/
+          go test -fuzz=FuzzNetworkPermissions -fuzztime=10s ./pkg/workflow/
+          go test -fuzz=FuzzSafeJobConfig -fuzztime=10s ./pkg/workflow/
 
   security:
     needs: [lint-go, lint-js]  # Run in parallel with test to reduce critical path

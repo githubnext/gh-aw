@@ -27,10 +27,17 @@ go test -run FuzzExpressionParser ./pkg/workflow/
 ```
 
 **Available Fuzz Tests:**
+- **FuzzParseFrontmatter** (`pkg/parser/frontmatter_fuzz_test.go`): Tests YAML frontmatter parsing for edge cases and malformed input
+- **FuzzScheduleParser** (`pkg/parser/schedule_parser_fuzz_test.go`): Tests cron schedule parsing for edge cases
 - **FuzzExpressionParser** (`pkg/workflow/expression_parser_fuzz_test.go`): Tests GitHub expression validation against injection attacks
   - 59 seed cases covering allowed expressions, malicious injections, and edge cases
   - Validates security controls against secret injection, script tags, command injection
   - Ensures parser handles malformed input without panic
+- **FuzzMentionsFiltering** (`pkg/workflow/mentions_fuzz_test.go`): Tests mention sanitization with 80+ seed corpus entries
+- **FuzzSanitizeOutput** (`pkg/workflow/sanitize_output_fuzz_test.go`): Tests output sanitization against injection attacks
+- **FuzzSanitizeIncomingText** (`pkg/workflow/sanitize_incoming_text_fuzz_test.go`): Tests incoming text sanitization
+- **FuzzSanitizeLabelContent** (`pkg/workflow/sanitize_label_fuzz_test.go`): Tests label content sanitization
+- **FuzzWrapExpressionsInTemplateConditionals** (`pkg/workflow/template_fuzz_test.go`): Tests template expression wrapping
 - **FuzzYAMLParsing** (`pkg/workflow/security_fuzz_test.go`): Tests YAML parsing for DoS and malformed input handling
 - **FuzzTemplateRendering** (`pkg/workflow/security_fuzz_test.go`): Tests template rendering for injection attacks
 - **FuzzInputValidation** (`pkg/workflow/security_fuzz_test.go`): Tests input validation functions for edge cases
