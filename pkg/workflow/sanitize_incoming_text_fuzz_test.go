@@ -111,7 +111,10 @@ func FuzzSanitizeIncomingText(f *testing.F) {
 		// Basic sanity checks on the result
 		if result != nil {
 			// Result should not be excessively longer than input
-			expectedMaxLen := len(text) + len(text)/2
+			// Account for mention wrapping: each @ can be wrapped in backticks (e.g., @ -> `@`)
+			// For very short strings, this can more than double the length
+			// Use a more generous formula: base + 50% + fixed overhead for wrapping
+			expectedMaxLen := len(text) + len(text)/2 + 50 // Additional overhead for wrapping
 			if maxLength > 0 && maxLength < expectedMaxLen {
 				expectedMaxLen = maxLength + 100 // Allow for truncation message
 			}
