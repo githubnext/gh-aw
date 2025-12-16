@@ -76,9 +76,11 @@ Summarize this issue and respond in a comment.
 Built-in tools:
 - `bash` - Shell command execution
 - `edit` - File editing capabilities
-- `web-fetch` - HTTP requests
-- `web-search` - Web search
+- `web-fetch` / `web-search` - Web access
+- `github` - GitHub API operations
 - `playwright` - Browser automation
+- `agentic-workflows` - Workflow introspection
+- `cache-memory` / `repo-memory` - Persistent storage
 
 ---
 
@@ -108,12 +110,19 @@ Multiple engine options:
 
 # Safe Outputs
 
-Controlled write operations:
-- `create-issue` - Create GitHub issues
-- `add-comment` - Add comments
-- `create-pull-request` - Create PRs
-- `update-issue` - Update issue metadata
-- `upload-assets` - Upload artifacts
+Controlled write operations by category:
+
+**Issues & PRs:**
+- `create-issue`, `update-issue`, `close-issue`
+- `create-pull-request`, `update-pull-request`
+- `add-comment`, `create-pull-request-review-comment`
+
+**Discussions & Organization:**
+- `create-discussion`, `close-discussion`
+- `add-labels`, `assign-milestone`, `add-reviewer`
+- `assign-to-user`, `assign-to-agent`
+
+**Other:** `update-project`, `update-release`, `create-code-scanning-alert`
 
 ---
 
