@@ -316,9 +316,23 @@ func ValidateWorkflowsExist(spec *CampaignSpec, workflowsDir string) []string {
 		}
 
 		if !mdExists && !lockExists {
-			problems = append(problems, fmt.Sprintf("workflow '%s' not found (expected %s.md or %s.lock.yml)", workflowID, workflowID, workflowID))
+			// Provide detailed troubleshooting guidance
+			problem := fmt.Sprintf("workflow '%s' not found (expected %s.md or %s.lock.yml in %s)\n"+
+				"Troubleshooting:\n"+
+				"  - Check config paths: Ensure the workflow filename '%s' in your campaign spec exactly matches the file on disk\n"+
+				"  - Check file existence: Verify %s.md exists in %s\n"+
+				"  - Relative vs. absolute paths: The workflow directory is resolved from the git repository root\n"+
+				"  - Rebuild/redeploy: If using containers or build systems, confirm the workflow files are included in artifacts",
+				workflowID, workflowID, workflowID, workflowsDir,
+				workflowID, workflowID, workflowsDir)
+			problems = append(problems, problem)
 		} else if !mdExists {
-			problems = append(problems, fmt.Sprintf("workflow '%s' has lock file but missing source .md file", workflowID))
+			problem := fmt.Sprintf("workflow '%s' has lock file but missing source .md file\n"+
+				"Troubleshooting:\n"+
+				"  - Check file existence: Verify %s.md exists in %s\n"+
+				"  - The .lock.yml file is generated from the .md source - the source file should not be deleted",
+				workflowID, workflowID, workflowsDir)
+			problems = append(problems, problem)
 		}
 	}
 
