@@ -156,7 +156,7 @@ func ensureDevcontainerConfig(verbose bool, additionalRepos []string) error {
 		},
 		Features: DevcontainerFeatures{
 			"ghcr.io/devcontainers/features/github-cli:1":  map[string]any{},
-			"ghcr.io/devcontainers/features/copilot-cli:1": map[string]any{},
+			"ghcr.io/devcontainers/features/copilot-cli:latest": map[string]any{},
 		},
 		PostCreateCommand: "curl -fsSL https://raw.githubusercontent.com/githubnext/gh-aw/refs/heads/main/install-gh-aw.sh | bash",
 	}

@@ -106,7 +106,7 @@ func TestEnsureDevcontainerConfig(t *testing.T) {
 	}
 
 	// Verify Copilot CLI feature
-	if _, exists := config.Features["ghcr.io/devcontainers/features/copilot-cli:1"]; !exists {
+	if _, exists := config.Features["ghcr.io/devcontainers/features/copilot-cli:latest"]; !exists {
 		t.Error("Expected Copilot CLI feature to be included")
 	}
 
