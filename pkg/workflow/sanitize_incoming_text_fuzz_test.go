@@ -116,7 +116,8 @@ func FuzzSanitizeIncomingText(f *testing.F) {
 			// which adds 2 characters per mention (the backticks). Additionally, truncation
 			// messages and other transformations may add some overhead.
 			// Formula: base length + 50% for general expansion + 2x for worst-case backtick wrapping
-			expectedMaxLen := len(text) + len(text)/2 + len(text)*2
+			// Simplified: len(text) * 3.5 = len(text) * 7 / 2
+			expectedMaxLen := len(text) * 7 / 2
 			if maxLength > 0 && maxLength < expectedMaxLen {
 				expectedMaxLen = maxLength + 100 // Allow for truncation message
 			}
