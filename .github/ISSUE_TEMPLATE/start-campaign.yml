@@ -1,0 +1,157 @@
+name: 🚀 Start a Campaign
+description: Create a new campaign to run a structured automation initiative with tracking and governance
+title: "[Campaign] "
+labels: ["campaign", "campaign-tracker"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## Start a Campaign
+
+        Use this form to create a new campaign for running structured automation initiatives with GitHub Agentic Workflows. Submitting this form will:
+
+        1. Create a primary campaign issue (epic) for tracking
+        2. Create a lifecycle gate for governance
+        3. Trigger an agent to validate the project board
+        4. Generate a versioned campaign spec file (`.github/workflows/<id>.campaign.md`)
+        5. Link the campaign to your project board
+
+        **Note:** This captures your intent, not YAML. The agent will scaffold the technical files for you.
+
+  - type: input
+    id: campaign_name
+    attributes:
+      label: Campaign Name
+      description: Human-readable name for your campaign (e.g., "Framework Upgrade Q1 2025")
+      placeholder: Framework Upgrade Q1 2025
+    validations:
+      required: true
+
+  - type: input
+    id: campaign_id
+    attributes:
+      label: Campaign Identifier
+      description: Unique identifier for the campaign (lowercase letters, digits, and hyphens only, e.g., "framework-upgrade-q1-2025")
+      placeholder: framework-upgrade-q1-2025
+    validations:
+      required: true
+
+  - type: input
+    id: campaign_version
+    attributes:
+      label: Campaign Version
+      description: Version for this campaign spec (e.g., "v1")
+      placeholder: v1
+      value: v1
+    validations:
+      required: true
+
+  - type: input
+    id: project_url
+    attributes:
+      label: Project Board URL
+      description: URL of the GitHub Project (created by you) that will serve as the campaign dashboard
+      placeholder: https://github.com/orgs/your-org/projects/123
+    validations:
+      required: true
+
+  - type: dropdown
+    id: campaign_type
+    attributes:
+      label: Campaign Type / Playbook
+      description: What type of campaign is this? (Optional)
+      options:
+        - Migration
+        - Upgrade / Modernization
+        - Security Remediation
+        - Rollout / Deployment
+        - Code Health / Refactoring
+        - Incident Response
+        - Custom
+      default: 0
+
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope
+      description: |
+        Define the scope of this campaign. What repositories, components, or areas will be affected?
+
+        Examples:
+        - "All services in the `platform` org using framework v1.x"
+        - "Top 20 largest Go files in `pkg/` directory"
+        - "All repositories with critical security vulnerabilities"
+      placeholder: |
+        Describe the scope of work for this campaign...
+    validations:
+      required: false
+
+  - type: textarea
+    id: constraints
+    attributes:
+      label: Constraints
+      description: |
+        Any constraints or requirements for this campaign?
+
+        Examples:
+        - "Must complete before end of quarter"
+        - "Requires approval from security team"
+        - "Limited to repositories with CI passing"
+        - "Cannot impact production deployments"
+      placeholder: |
+        List any constraints or requirements...
+    validations:
+      required: false
+
+  - type: textarea
+    id: prior_learnings
+    attributes:
+      label: Notes from Prior Learnings
+      description: |
+        Have you run similar campaigns before? What did you learn?
+
+        Examples:
+        - "Previous migration took 2 weeks with 3 blockers"
+        - "Need to coordinate with team X for approvals"
+        - "Watch out for edge cases in legacy codebases"
+      placeholder: |
+        Share any relevant learnings from past experiences...
+    validations:
+      required: false
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Campaign Description
+      description: Brief description of what this campaign will accomplish
+      placeholder: |
+        Describe the goal and expected outcome of this campaign...
+    validations:
+      required: false
+
+  - type: textarea
+    id: additional_context
+    attributes:
+      label: Additional Context
+      description: Any other information that would be helpful for setting up this campaign
+      placeholder: |
+        Add any other relevant details...
+    validations:
+      required: false
+
+  - type: markdown
+    attributes:
+      value: |
+        ---
+
+        ### What happens next?
+
+        After you submit this form:
+
+        1. **This issue becomes your campaign's central hub** - All updates and status will be posted here
+        2. **An agent will validate your project board** - Ensures the URL is accessible and properly configured
+        3. **A campaign spec will be generated** - Creates `.github/workflows/<id>.campaign.md` with your inputs
+        4. **The spec will be linked to this issue** - So you can track the technical implementation
+        5. **Your project board will be configured** - The agent will set up tracking labels and fields
+
+        You'll manage the campaign from this issue. The generated workflow files are implementation details and should not be edited directly.
