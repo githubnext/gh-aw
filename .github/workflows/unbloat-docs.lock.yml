@@ -27,9 +27,9 @@
 # name: Documentation Unbloat
 # description: Reviews and simplifies documentation by reducing verbosity while maintaining clarity and completeness
 # on:
-#   # Daily at 2am PST (10am UTC)
+#   # Daily (scattered execution time)
 #   schedule:
-#     - cron: "0 22 * * *"  # Daily at 10 PM UTC
+#     - cron: daily
 #
 #   # Command trigger for /unbloat in PR comments
 #   slash_command:
@@ -507,7 +507,7 @@ name: "Documentation Unbloat"
     - created
     - edited
   schedule:
-  - cron: "0 22 * * *"
+  - cron: "1 6 * * *"
   workflow_dispatch: null
 
 permissions: {}

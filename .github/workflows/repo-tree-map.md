@@ -1,8 +1,7 @@
 ---
 description: Generates ASCII tree map visualization of repository file structure weekly
 on:
-  schedule:
-    - cron: weekly on monday at 15:00
+  schedule: weekly on monday at 15:00
   workflow_dispatch:
 
 permissions:

@@ -30,7 +30,7 @@
 # on:
 #   workflow_dispatch:
 #   schedule:
-#     - cron: daily at 9:00
+#     - cron: daily
 #   pull_request:
 #     types: [labeled]
 #     names: ['firewall-escape-test']
@@ -284,8 +284,8 @@ name: "Firewall Escape"
     types:
     - labeled
   schedule:
-  - cron: "0 9 * * *"
-    # Friendly format: daily at 9:00
+  - cron: "58 20 * * *"
+    # Friendly format: daily (scattered)
   workflow_dispatch: null
 
 permissions: {}

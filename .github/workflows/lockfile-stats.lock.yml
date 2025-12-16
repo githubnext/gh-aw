@@ -27,7 +27,7 @@
 # description: Analyzes package lockfiles to track dependency statistics, vulnerabilities, and update patterns
 # on:
 #   schedule:
-#     - cron: daily at 03:00
+#     - cron: daily
 #   workflow_dispatch:
 # permissions:
 #   contents: read
@@ -506,8 +506,8 @@
 name: "Lockfile Statistics Analysis Agent"
 "on":
   schedule:
-  - cron: "0 3 * * *"
-    # Friendly format: daily at 03:00
+  - cron: "9 20 * * *"
+    # Friendly format: daily (scattered)
   workflow_dispatch: null
 
 permissions: {}

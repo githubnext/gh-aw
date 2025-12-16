@@ -27,7 +27,7 @@
 # description: Daily security scan that reviews code changes from the last 3 days for suspicious patterns indicating malicious agentic threats
 # on:
 #   schedule:
-#     - cron: daily at 9:00
+#     - cron: daily
 #   workflow_dispatch:
 # permissions:
 #   contents: read
@@ -369,8 +369,8 @@
 name: "Daily Malicious Code Scan Agent"
 "on":
   schedule:
-  - cron: "0 9 * * *"
-    # Friendly format: daily at 9:00
+  - cron: "38 16 * * *"
+    # Friendly format: daily (scattered)
   workflow_dispatch: null
 
 permissions: {}

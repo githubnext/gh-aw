@@ -27,7 +27,7 @@
 # description: Daily report analyzing repository issues with clustering, metrics, and trend charts
 # on:
 #   schedule:
-#     - cron: daily at 6:00
+#     - cron: daily
 #   workflow_dispatch:
 # permissions:
 #   contents: read
@@ -1108,8 +1108,8 @@
 name: "Daily Issues Report Generator"
 "on":
   schedule:
-  - cron: "0 6 * * *"
-    # Friendly format: daily at 6:00
+  - cron: "41 1 * * *"
+    # Friendly format: daily (scattered)
   workflow_dispatch: null
 
 permissions: {}

@@ -2,8 +2,7 @@
 name: Instructions Janitor
 description: Reviews and cleans up instruction files to ensure clarity, consistency, and adherence to best practices
 on:
-  schedule:
-    - cron: daily at 09:00
+  schedule: daily
   workflow_dispatch:
 
 permissions:

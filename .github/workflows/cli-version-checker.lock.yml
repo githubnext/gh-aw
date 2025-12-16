@@ -27,7 +27,7 @@
 # description: Monitors and updates agentic CLI tools (Claude Code, GitHub Copilot CLI, OpenAI Codex, GitHub MCP Server, Playwright MCP, Playwright Browser) for new versions
 # on:
 #   schedule:
-#     - cron: daily at 15:00
+#     - cron: daily
 #   workflow_dispatch:
 # permissions:
 #   contents: read
@@ -426,8 +426,8 @@
 name: "CLI Version Checker"
 "on":
   schedule:
-  - cron: "0 15 * * *"
-    # Friendly format: daily at 15:00
+  - cron: "45 10 * * *"
+    # Friendly format: daily (scattered)
   workflow_dispatch: null
 
 permissions: {}

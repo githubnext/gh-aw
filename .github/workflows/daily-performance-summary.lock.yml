@@ -27,7 +27,7 @@
 # description: Daily project performance summary (90-day window) with trend charts using safe-inputs
 # on:
 #   schedule:
-#     - cron: daily at 8:00
+#     - cron: daily
 #   workflow_dispatch:
 # permissions:
 #   contents: read
@@ -876,8 +876,8 @@
 name: "Daily Project Performance Summary Generator (Using Safe Inputs)"
 "on":
   schedule:
-  - cron: "0 8 * * *"
-    # Friendly format: daily at 8:00
+  - cron: "27 14 * * *"
+    # Friendly format: daily (scattered)
   workflow_dispatch: null
 
 permissions: {}

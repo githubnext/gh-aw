@@ -26,7 +26,7 @@
 # strict: true
 # on:
 #   schedule:
-#     - cron: daily at 2:30
+#     - cron: daily
 #   workflow_dispatch:
 # permissions:
 #   issues: read
@@ -100,8 +100,8 @@
 name: "Auto-Assign Issue"
 "on":
   schedule:
-  - cron: "30 2 * * *"
-    # Friendly format: daily at 2:30
+  - cron: "7 21 * * *"
+    # Friendly format: daily (scattered)
   workflow_dispatch: null
 
 permissions: {}

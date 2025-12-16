@@ -54,6 +54,124 @@ func ParseSchedule(input string) (cron string, original string, err error) {
 	return cronExpr, input, nil
 }
 
+// IsDailyCron checks if a cron expression represents a daily schedule at a fixed time
+// (e.g., "0 0 * * *", "30 14 * * *", etc.)
+func IsDailyCron(cron string) bool {
+	fields := strings.Fields(cron)
+	if len(fields) != 5 {
+		return false
+	}
+	// Daily pattern: minute hour * * *
+	// The minute and hour must be specific values (numbers), not wildcards
+	// The day-of-month (3rd field) and month (4th field) must be "*"
+	// The day-of-week (5th field) must be "*"
+
+	// Check if minute and hour are numeric (not wildcards)
+	minute := fields[0]
+	hour := fields[1]
+
+	// Minute and hour should be digits only (no *, /, -, ,)
+	for _, ch := range minute {
+		if ch < '0' || ch > '9' {
+			return false
+		}
+	}
+	for _, ch := range hour {
+		if ch < '0' || ch > '9' {
+			return false
+		}
+	}
+
+	return fields[2] == "*" && fields[3] == "*" && fields[4] == "*"
+}
+
+// IsHourlyCron checks if a cron expression represents an hourly interval with a fixed minute
+// (e.g., "0 */1 * * *", "30 */2 * * *", etc.)
+func IsHourlyCron(cron string) bool {
+	fields := strings.Fields(cron)
+	if len(fields) != 5 {
+		return false
+	}
+	// Hourly pattern: minute */N * * * or minute *N * * *
+	// The minute must be a specific value (number), not a wildcard
+	// The hour must be an interval pattern (*/N)
+	
+	minute := fields[0]
+	hour := fields[1]
+	
+	// Minute should be digits only (no *, /, -, ,)
+	for _, ch := range minute {
+		if ch < '0' || ch > '9' {
+			return false
+		}
+	}
+	
+	// Hour should be an interval pattern like */N
+	if !strings.HasPrefix(hour, "*/") {
+		return false
+	}
+	
+	// Check remaining fields are wildcards
+	return fields[2] == "*" && fields[3] == "*" && fields[4] == "*"
+}
+
+// IsFuzzyCron checks if a cron expression is a fuzzy schedule placeholder
+func IsFuzzyCron(cron string) bool {
+	return strings.HasPrefix(cron, "FUZZY:")
+}
+
+// ScatterSchedule takes a fuzzy cron expression and a workflow identifier
+// and returns a deterministic scattered time for that workflow
+func ScatterSchedule(fuzzyCron, workflowIdentifier string) (string, error) {
+	if !IsFuzzyCron(fuzzyCron) {
+		return "", fmt.Errorf("not a fuzzy schedule: %s", fuzzyCron)
+	}
+
+	// For FUZZY:DAILY * * *, we scatter across 24 hours
+	if strings.HasPrefix(fuzzyCron, "FUZZY:DAILY") {
+		// Use a simple hash of the workflow identifier to get a deterministic hour
+		hash := 0
+		for _, ch := range workflowIdentifier {
+			hash = (hash*31 + int(ch)) % 1440 // Total minutes in a day
+		}
+
+		hour := hash / 60
+		minute := hash % 60
+
+		// Return scattered daily cron: minute hour * * *
+		return fmt.Sprintf("%d %d * * *", minute, hour), nil
+	}
+
+	// For FUZZY:HOURLY/N * * *, we scatter the minute offset within the hour
+	if strings.HasPrefix(fuzzyCron, "FUZZY:HOURLY/") {
+		// Extract the interval from FUZZY:HOURLY/N
+		parts := strings.Split(fuzzyCron, " ")
+		if len(parts) < 1 {
+			return "", fmt.Errorf("invalid fuzzy hourly pattern: %s", fuzzyCron)
+		}
+		
+		hourlyPart := parts[0]
+		intervalStr := strings.TrimPrefix(hourlyPart, "FUZZY:HOURLY/")
+		interval, err := strconv.Atoi(intervalStr)
+		if err != nil {
+			return "", fmt.Errorf("invalid interval in fuzzy hourly pattern: %s", fuzzyCron)
+		}
+		
+		// Use a hash to get a deterministic minute offset (0-59)
+		hash := 0
+		for _, ch := range workflowIdentifier {
+			hash = (hash*31 + int(ch)) % 60
+		}
+		
+		minute := hash
+		
+		// Return scattered hourly cron: minute */N * * *
+		return fmt.Sprintf("%d */%d * * *", minute, interval), nil
+	}
+
+	return "", fmt.Errorf("unsupported fuzzy schedule type: %s", fuzzyCron)
+}
+
 // isCronExpression checks if the input looks like a cron expression
 func isCronExpression(input string) bool {
 	// A cron expression has exactly 5 fields
@@ -153,11 +271,11 @@ func (p *ScheduleParser) parseInterval() (string, error) {
 
 			switch unit {
 			case "m":
-				// every Nm -> */N * * * *
+				// every Nm -> */N * * * * (minute intervals don't need scattering)
 				return fmt.Sprintf("*/%d * * * *", interval), nil
 			case "h":
-				// every Nh -> 0 */N * * *
-				return fmt.Sprintf("0 */%d * * *", interval), nil
+				// every Nh -> FUZZY:HOURLY/N (fuzzy hourly interval with scattering)
+				return fmt.Sprintf("FUZZY:HOURLY/%d * * *", interval), nil
 			case "d":
 				// every Nd -> daily at midnight, repeated N times
 				// For single day, use daily. For multiple days, use interval in hours
@@ -237,11 +355,11 @@ func (p *ScheduleParser) parseInterval() (string, error) {
 
 	switch unit {
 	case "minutes":
-		// every N minutes -> */N * * * *
+		// every N minutes -> */N * * * * (minute intervals don't need scattering)
 		return fmt.Sprintf("*/%d * * * *", interval), nil
 	case "hours":
-		// every N hours -> 0 */N * * *
-		return fmt.Sprintf("0 */%d * * *", interval), nil
+		// every N hours -> FUZZY:HOURLY/N (fuzzy hourly interval with scattering)
+		return fmt.Sprintf("FUZZY:HOURLY/%d * * *", interval), nil
 	default:
 		return "", fmt.Errorf("unsupported interval unit '%s', use 'minutes' or 'hours'", unit)
 	}
@@ -265,8 +383,12 @@ func (p *ScheduleParser) parseBase() (string, error) {
 
 	switch baseType {
 	case "daily":
-		// daily -> 0 0 * * *
+		// daily -> FUZZY:DAILY (fuzzy schedule, time will be scattered)
 		// daily at HH:MM -> MM HH * * *
+		if len(p.tokens) == 1 {
+			// Just "daily" with no time - this is a fuzzy schedule
+			return "FUZZY:DAILY * * *", nil
+		}
 		if len(p.tokens) > 1 {
 			timeStr, err := p.extractTime(1)
 			if err != nil {
@@ -274,6 +396,14 @@ func (p *ScheduleParser) parseBase() (string, error) {
 			}
 			minute, hour = parseTime(timeStr)
 		}
+
+	case "hourly":
+		// hourly -> FUZZY:HOURLY/1 (fuzzy hourly schedule, equivalent to "every 1h")
+		if len(p.tokens) == 1 {
+			return "FUZZY:HOURLY/1 * * *", nil
+		}
+		// hourly doesn't support time specifications
+		return "", fmt.Errorf("hourly schedule does not support 'at time' clause, use 'hourly' without additional parameters")
 
 	case "weekly":
 		// weekly on <weekday> -> 0 0 * * DOW

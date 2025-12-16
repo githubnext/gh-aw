@@ -1,8 +1,7 @@
 ---
 description: Daily analysis of recent commits and merged PRs for breaking CLI changes
 on:
-  schedule:
-    - cron: "0 14 * * 1-5"
+  schedule: "0 14 * * 1-5"
   workflow_dispatch:
   skip-if-match: 'is:issue is:open in:title "[breaking-change]"'
 permissions:

@@ -187,8 +187,7 @@ safe-outputs:
 **Scheduled Analysis:**
 ```yaml
 on:
-  schedule:
-    - cron: weekly on monday at 09:00
+  schedule: weekly on monday at 09:00
 permissions:
   contents: read
 safe-outputs:
