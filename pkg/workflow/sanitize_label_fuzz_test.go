@@ -63,14 +63,14 @@ func FuzzSanitizeLabelContent(f *testing.F) {
 	f.Add("@user & @other")
 
 	// Edge cases
-	f.Add("")                       // Empty
-	f.Add("   ")                    // Whitespace
-	f.Add("Normal text")            // No special chars
-	f.Add("@")                      // Just @
-	f.Add("<>")                     // Empty tag
-	f.Add("'\"")                    // Quotes
-	f.Add("\x1b[0m")                // Just ANSI
-	f.Add("\x00\x01\x02")           // Just control chars
+	f.Add("")             // Empty
+	f.Add("   ")          // Whitespace
+	f.Add("Normal text")  // No special chars
+	f.Add("@")            // Just @
+	f.Add("<>")           // Empty tag
+	f.Add("'\"")          // Quotes
+	f.Add("\x1b[0m")      // Just ANSI
+	f.Add("\x00\x01\x02") // Just control chars
 
 	// Unicode and emoji
 	f.Add("Unicode: 你好 мир")

@@ -78,12 +78,12 @@ func FuzzSanitizeIncomingText(f *testing.F) {
 	f.Add("@user says: javascript:alert(1)", 0)
 
 	// Edge cases
-	f.Add("", 0)             // Empty
-	f.Add("   ", 0)          // Whitespace
-	f.Add("Normal text", 0)  // No special chars
-	f.Add("@", 0)            // Just @
-	f.Add("<>", 0)           // Empty tag
-	f.Add("https://", 0)     // Incomplete URL
+	f.Add("", 0)            // Empty
+	f.Add("   ", 0)         // Whitespace
+	f.Add("Normal text", 0) // No special chars
+	f.Add("@", 0)           // Just @
+	f.Add("<>", 0)          // Empty tag
+	f.Add("https://", 0)    // Incomplete URL
 
 	// Unicode
 	f.Add("Unicode: 你好 мир 🎉", 0)

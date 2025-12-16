@@ -104,14 +104,14 @@ func FuzzSanitizeOutput(f *testing.F) {
 	f.Add("\x1b[31m@user\x1b[0m http://bad.com", "", 0)
 
 	// Edge cases
-	f.Add("", "", 0)            // Empty input
-	f.Add("   ", "", 0)          // Whitespace only
+	f.Add("", "", 0)    // Empty input
+	f.Add("   ", "", 0) // Whitespace only
 	f.Add("No special chars", "", 0)
-	f.Add("@", "", 0)            // Just @ symbol
-	f.Add("@@", "", 0)           // Double @ symbol
-	f.Add("https://", "", 0)     // Incomplete URL
-	f.Add("<>", "", 0)           // Empty tags
-	f.Add("</", "", 0)           // Malformed tag
+	f.Add("@", "", 0)        // Just @ symbol
+	f.Add("@@", "", 0)       // Double @ symbol
+	f.Add("https://", "", 0) // Incomplete URL
+	f.Add("<>", "", 0)       // Empty tags
+	f.Add("</", "", 0)       // Malformed tag
 
 	// Unicode and special characters
 	f.Add("Unicode: 你好 мир 🎉", "", 0)
