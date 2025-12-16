@@ -34,7 +34,7 @@ jobs:
           ISSUE_BODY: ${{ github.event.issue.body }}
         run: |
           # Pass issue body to CLI via stdin
-          SPEC_PATH=$(echo "$ISSUE_BODY" | ./gh-aw campaign create-from-issue)
+          SPEC_PATH=$(echo "$ISSUE_BODY" | ./gh-aw campaign new --from-issue)
 
           # Extract campaign ID from the spec path
           CAMPAIGN_ID=$(basename "$SPEC_PATH" .campaign.md)

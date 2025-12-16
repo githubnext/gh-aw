@@ -11,9 +11,9 @@ The workflow is triggered when:
 ## What it does
 
 1. **Creates campaign spec using CLI**: 
-   - Passes the issue body to `gh aw campaign create-from-issue` command
+   - Passes the issue body to `gh aw campaign new --from-issue` command
    - The CLI parses the issue form and generates `.github/workflows/<id>.campaign.md`
-   - All parsing, validation, and file generation is handled by the CLI
+   - All parsing, validation, and file generation is handled by the existing `campaign new` command
 
 2. **Compiles the spec**: 
    - Runs `gh aw compile --validate --verbose` to:
@@ -29,7 +29,7 @@ The workflow is triggered when:
 
 ## CLI Command
 
-The workflow uses the `gh aw campaign create-from-issue` command, which:
+The workflow uses the `gh aw campaign new --from-issue` command, which:
 - Reads the issue body from stdin
 - Extracts all campaign form fields (name, ID, project URL, etc.)
 - Validates required fields and formats
@@ -38,7 +38,12 @@ The workflow uses the `gh aw campaign create-from-issue` command, which:
 
 You can use this command manually:
 ```bash
-gh aw campaign create-from-issue < issue-body.txt
+gh aw campaign new --from-issue < issue-body.txt
+```
+
+Or use the traditional mode without issue form:
+```bash
+gh aw campaign new my-campaign-id
 ```
 
 ## Usage
