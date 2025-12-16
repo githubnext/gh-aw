@@ -31,7 +31,7 @@ func ComputeCompiledState(spec CampaignSpec, workflowsDir string) string {
 
 	for _, wf := range spec.Workflows {
 		mdPath := filepath.Join(workflowsDir, wf+".md")
-		lockPath := mdPath + ".lock.yml"
+		lockPath := filepath.Join(workflowsDir, wf+".lock.yml")
 
 		mdInfo, err := os.Stat(mdPath)
 		if err != nil {
