@@ -288,7 +288,7 @@ gh aw campaign status --json           # JSON status output
 
 gh aw campaign new my-campaign-id      # Scaffold a new campaign spec
 gh aw campaign validate                # Validate campaign specs (fails on problems)
-gh aw campaign validate --strict=false # Report problems without failing
+gh aw campaign validate --no-strict    # Report problems without failing
 ```
 
 ### Testing
