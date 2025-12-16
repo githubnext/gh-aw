@@ -2755,6 +2755,38 @@ safe-outputs:
     # (optional)
     detection-failure: "example-value"
 
+  # Configuration for @mention filtering in safe outputs. Controls whether and how
+  # @mentions in AI-generated content are allowed or escaped.
+  # (optional)
+  # This field supports multiple formats (oneOf):
+
+  # Option 1: Simple boolean mode: false = always escape mentions, true = always
+  # allow mentions (error in strict mode)
+  mentions: true
+
+  # Option 2: Advanced configuration for @mention filtering with fine-grained
+  # control
+  mentions:
+    # Allow mentions of repository team members (collaborators with any permission
+    # level, excluding bots). Default: true
+    # (optional)
+    allow-team-members: true
+
+    # Allow mentions inferred from event context (issue/PR authors, assignees,
+    # commenters). Default: true
+    # (optional)
+    allow-context: true
+
+    # List of user/bot names always allowed to be mentioned. Bots are not allowed by
+    # default unless listed here.
+    # (optional)
+    allowed: []
+      # Array of strings
+
+    # Maximum number of mentions allowed per message. Default: 50
+    # (optional)
+    max: 1
+
   # Runner specification for all safe-outputs jobs (activation, create-issue,
   # add-comment, etc.). Single runner label (e.g., 'ubuntu-slim', 'ubuntu-latest',
   # 'windows-latest', 'self-hosted'). Defaults to 'ubuntu-slim'. See
