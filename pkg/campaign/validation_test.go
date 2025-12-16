@@ -348,7 +348,7 @@ func TestValidateWorkflowsExist_WorkflowNotFound(t *testing.T) {
 	}
 
 	problem := problems[0]
-	
+
 	// Check that the error message contains key troubleshooting information
 	if !strings.Contains(problem, "workflow 'nonexistent-workflow' not found") {
 		t.Errorf("Error message should mention the workflow name, got: %s", problem)
@@ -389,7 +389,7 @@ func TestValidateWorkflowsExist_LockFileWithoutSource(t *testing.T) {
 	}
 
 	problem := problems[0]
-	
+
 	// Check that the error message contains appropriate troubleshooting for missing source
 	if !strings.Contains(problem, "has lock file but missing source .md file") {
 		t.Errorf("Error message should mention missing source file, got: %s", problem)
@@ -424,7 +424,7 @@ func TestValidateWorkflowsExist_MultipleProblems(t *testing.T) {
 	}
 
 	problems := ValidateWorkflowsExist(spec, tmpDir)
-	
+
 	// Should have 2 problems: one for missing source, one for completely missing
 	if len(problems) != 2 {
 		t.Fatalf("Expected 2 validation problems, got %d: %v", len(problems), problems)
