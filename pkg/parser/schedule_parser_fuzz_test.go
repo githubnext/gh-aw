@@ -26,6 +26,27 @@ func FuzzScheduleParser(f *testing.F) {
 	f.Add("daily at noon")
 	f.Add("daily at 09:30")
 
+	// Daily around schedules (fuzzy with target time)
+	f.Add("daily around 14:00")
+	f.Add("daily around 02:00")
+	f.Add("daily around midnight")
+	f.Add("daily around noon")
+	f.Add("daily around 09:30")
+	f.Add("daily around 23:30")
+	f.Add("daily around 3pm")
+	f.Add("daily around 9am")
+	f.Add("daily around 12am")
+	f.Add("daily around 12pm")
+	f.Add("daily around 11pm")
+	f.Add("daily around 6am")
+	f.Add("daily around 14:00 utc+9")
+	f.Add("daily around 3pm utc-5")
+	f.Add("daily around 9am utc+05:30")
+	f.Add("daily around midnight utc-8")
+	f.Add("daily around noon utc+2")
+	f.Add("daily around 2pm utc+1")
+	f.Add("daily around 11pm utc-3")
+
 	// Weekly schedules
 	f.Add("weekly on monday")
 	f.Add("weekly on monday at 06:30")
@@ -149,6 +170,20 @@ func FuzzScheduleParser(f *testing.F) {
 	f.Add("daily at abc")
 	f.Add("daily at 12")
 
+	// Invalid around schedules
+	f.Add("daily around")
+	f.Add("daily around 25:00")
+	f.Add("daily around 12:60")
+	f.Add("daily around abc")
+	f.Add("daily around 13pm")
+	f.Add("daily around 0am")
+	f.Add("daily around 25am")
+	f.Add("daily around utc+9")
+	f.Add("weekly around monday")
+	f.Add("monthly around 15")
+	f.Add("every 10 minutes around 12:00")
+	f.Add("hourly around 12:00")
+
 	// Invalid UTC offsets
 	f.Add("daily at 12:00 utc+25")
 	f.Add("daily at 12:00 utc-15")
@@ -267,10 +302,24 @@ func FuzzScheduleParser(f *testing.F) {
 		if err == nil && cron != "" {
 			// Allow fuzzy schedules (FUZZY:*) which have 4 fields
 			if strings.HasPrefix(cron, "FUZZY:") {
-				// Fuzzy schedules have the format "FUZZY:TYPE * * *" (4 fields after splitting)
+				// Fuzzy schedules have the format:
+				// - "FUZZY:DAILY * * *" (4 fields)
+				// - "FUZZY:HOURLY/N * * *" (4 fields)
+				// - "FUZZY:DAILY_AROUND:HH:MM * * *" (4 fields but with colon-separated time in first field)
 				fields := strings.Fields(cron)
 				if len(fields) != 4 {
 					t.Errorf("ParseSchedule returned invalid fuzzy cron format with %d fields (expected 4): %q for input: %q", len(fields), cron, input)
+				}
+
+				// For FUZZY:DAILY_AROUND, validate the time format
+				if strings.HasPrefix(cron, "FUZZY:DAILY_AROUND:") {
+					// Extract the time part from FUZZY:DAILY_AROUND:HH:MM
+					firstField := fields[0]
+					timePart := strings.TrimPrefix(firstField, "FUZZY:DAILY_AROUND:")
+					timeParts := strings.Split(timePart, ":")
+					if len(timeParts) != 2 {
+						t.Errorf("ParseSchedule returned invalid FUZZY:DAILY_AROUND format (expected HH:MM): %q for input: %q", cron, input)
+					}
 				}
 			} else {
 				// Regular cron should have 5 fields separated by spaces
