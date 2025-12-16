@@ -199,8 +199,10 @@ function sanitizeContent(content, maxLengthOrOptions) {
           const protocolMatch = match.match(/^([^:]+):/);
           if (protocolMatch) {
             const protocol = protocolMatch[1] + ":";
+            // Truncate the matched URL for logging (keep first 12 chars + "...")
+            const truncated = match.length > 12 ? match.substring(0, 12) + "..." : match;
             if (typeof core !== "undefined" && core.info) {
-              core.info(`Redacted URL: ${protocol}`);
+              core.info(`Redacted URL: ${truncated}`);
             }
             if (typeof core !== "undefined" && core.debug) {
               core.debug(`Redacted URL (full): ${match}`);

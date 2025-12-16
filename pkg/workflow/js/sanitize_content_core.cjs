@@ -205,8 +205,9 @@ function sanitizeContentCore(content, maxLength) {
     // 1. Match https:// URIs with explicit protocol
     // 2. Capture the hostname/domain
     // 3. Allow optional port (:8080)
-    // 4. Allow optional path and query string
-    const httpsUrlRegex = /https:\/\/([\w.-]+(?::\d+)?)(\/[^\s]*)?/gi;
+    // 4. Allow optional path and query string (but not trailing commas/periods)
+    // 5. Stop before another https:// URL in query params (using negative lookahead)
+    const httpsUrlRegex = /https:\/\/([\w.-]+(?::\d+)?)(\/(?:(?!https:\/\/)[^\s,])*)?/gi;
 
     return s.replace(httpsUrlRegex, (match, hostnameWithPort, pathPart) => {
       // Extract just the hostname (remove port if present)
@@ -277,8 +278,10 @@ function sanitizeContentCore(content, maxLength) {
           const protocolMatch = match.match(/^([^:]+):/);
           if (protocolMatch) {
             const protocol = protocolMatch[1] + ":";
+            // Truncate the matched URL for logging (keep first 12 chars + "...")
+            const truncated = match.length > 12 ? match.substring(0, 12) + "..." : match;
             if (typeof core !== "undefined" && core.info) {
-              core.info(`Redacted URL: ${protocol}`);
+              core.info(`Redacted URL: ${truncated}`);
             }
             if (typeof core !== "undefined" && core.debug) {
               core.debug(`Redacted URL (full): ${match}`);
