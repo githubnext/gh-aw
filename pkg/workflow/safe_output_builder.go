@@ -95,19 +95,13 @@ func ParseDiscussionFilterConfig(configMap map[string]any) SafeOutputDiscussionF
 // parseRequiredLabelsFromConfig extracts and validates required-labels from a config map.
 // Returns a slice of label strings, or nil if not present or invalid.
 func parseRequiredLabelsFromConfig(configMap map[string]any) []string {
-	return parseStringArrayFromConfig(configMap, "required-labels", safeOutputBuilderLog)
+	return ParseStringArrayFromConfig(configMap, "required-labels", safeOutputBuilderLog)
 }
 
 // parseRequiredTitlePrefixFromConfig extracts required-title-prefix from a config map.
 // Returns the prefix string, or empty string if not present or invalid.
 func parseRequiredTitlePrefixFromConfig(configMap map[string]any) string {
 	return extractStringFromMap(configMap, "required-title-prefix", safeOutputBuilderLog)
-}
-
-// ParseStringArrayFromConfig extracts a string array from a config map by key.
-// Returns the slice of strings, or nil if not present or not an array.
-func ParseStringArrayFromConfig(configMap map[string]any, key string) []string {
-	return parseStringArrayFromConfig(configMap, key, safeOutputBuilderLog)
 }
 
 // ======================================

@@ -38,13 +38,13 @@ func (c *Compiler) parseLinkSubIssueConfig(outputMap map[string]any) *LinkSubIss
 			c.parseBaseSafeOutputConfig(configMap, &linkSubIssueConfig.BaseSafeOutputConfig, 5)
 
 			// Parse parent-required-labels
-			linkSubIssueConfig.ParentRequiredLabels = ParseStringArrayFromConfig(configMap, "parent-required-labels")
+			linkSubIssueConfig.ParentRequiredLabels = ParseStringArrayFromConfig(configMap, "parent-required-labels", linkSubIssueLog)
 
 			// Parse parent-title-prefix
 			linkSubIssueConfig.ParentTitlePrefix = extractStringFromMap(configMap, "parent-title-prefix", linkSubIssueLog)
 
 			// Parse sub-required-labels
-			linkSubIssueConfig.SubRequiredLabels = ParseStringArrayFromConfig(configMap, "sub-required-labels")
+			linkSubIssueConfig.SubRequiredLabels = ParseStringArrayFromConfig(configMap, "sub-required-labels", linkSubIssueLog)
 
 			// Parse sub-title-prefix
 			linkSubIssueConfig.SubTitlePrefix = extractStringFromMap(configMap, "sub-title-prefix", linkSubIssueLog)

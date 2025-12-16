@@ -777,34 +777,6 @@ func TestBuildSourceStringWithCommitSHA(t *testing.T) {
 	}
 }
 
-func TestIsValidGitHubIdentifier(t *testing.T) {
-	tests := []struct {
-		name       string
-		identifier string
-		want       bool
-	}{
-		{"valid alphanumeric", "myrepo123", true},
-		{"valid with hyphen", "my-repo", true},
-		{"valid with underscore", "my_repo", true},
-		{"valid mixed", "My-Repo_123", true},
-		{"invalid - starts with hyphen", "-myrepo", false},
-		{"invalid - ends with hyphen", "myrepo-", false},
-		{"invalid - empty string", "", false},
-		{"invalid - special chars", "my@repo", false},
-		{"invalid - space", "my repo", false},
-		{"invalid - dot", "my.repo", false},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := isValidGitHubIdentifier(tt.identifier)
-			if got != tt.want {
-				t.Errorf("isValidGitHubIdentifier(%q) = %v, want %v", tt.identifier, got, tt.want)
-			}
-		})
-	}
-}
-
 func TestIsCommitSHA(t *testing.T) {
 	tests := []struct {
 		name    string

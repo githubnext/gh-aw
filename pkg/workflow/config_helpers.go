@@ -8,10 +8,10 @@ import (
 
 var configHelpersLog = logger.New("workflow:config_helpers")
 
-// parseStringArrayFromConfig is a generic helper that extracts and validates a string array from a map
+// ParseStringArrayFromConfig is a generic helper that extracts and validates a string array from a map
 // Returns a slice of strings, or nil if not present or invalid
 // If log is provided, it will log the extracted values for debugging
-func parseStringArrayFromConfig(m map[string]any, key string, log *logger.Logger) []string {
+func ParseStringArrayFromConfig(m map[string]any, key string, log *logger.Logger) []string {
 	if value, exists := m[key]; exists {
 		if log != nil {
 			log.Printf("Parsing %s from config", key)
@@ -42,7 +42,7 @@ func parseStringArrayFromConfig(m map[string]any, key string, log *logger.Logger
 // parseLabelsFromConfig extracts and validates labels from a config map
 // Returns a slice of label strings, or nil if labels is not present or invalid
 func parseLabelsFromConfig(configMap map[string]any) []string {
-	return parseStringArrayFromConfig(configMap, "labels", configHelpersLog)
+	return ParseStringArrayFromConfig(configMap, "labels", configHelpersLog)
 }
 
 // extractStringFromMap is a generic helper that extracts and validates a string value from a map
@@ -125,13 +125,13 @@ func parseParticipantsFromConfig(configMap map[string]any, participantKey string
 // parseAllowedReposFromConfig extracts and validates allowed-repos from a config map.
 // Returns a slice of repository slugs (owner/repo format), or nil if not present or invalid.
 func parseAllowedReposFromConfig(configMap map[string]any) []string {
-	return parseStringArrayFromConfig(configMap, "allowed-repos", configHelpersLog)
+	return ParseStringArrayFromConfig(configMap, "allowed-repos", configHelpersLog)
 }
 
 // parseAllowedLabelsFromConfig extracts and validates allowed-labels from a config map.
 // Returns a slice of label strings, or nil if not present or invalid.
 func parseAllowedLabelsFromConfig(configMap map[string]any) []string {
-	return parseStringArrayFromConfig(configMap, "allowed-labels", configHelpersLog)
+	return ParseStringArrayFromConfig(configMap, "allowed-labels", configHelpersLog)
 }
 
 // parseExpiresFromConfig parses expires value from config map
