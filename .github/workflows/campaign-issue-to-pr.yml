@@ -36,12 +36,16 @@ jobs:
       - run: ./gh-aw compile --validate --verbose
 
       - uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        env:
+          CAMPAIGN_ID: ${{ steps.spec.outputs.campaign-id }}
+          CAMPAIGN_NAME: ${{ steps.spec.outputs.campaign-name }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
         with:
           script: |
             const { execSync } = require('child_process');
-            const id = '${{ steps.spec.outputs.campaign-id }}';
-            const name = '${{ steps.spec.outputs.campaign-name }}';
-            const issue = context.payload.issue.number;
+            const id = process.env.CAMPAIGN_ID;
+            const name = process.env.CAMPAIGN_NAME;
+            const issue = process.env.ISSUE_NUMBER;
             
             execSync('git config user.name "github-actions[bot]"');
             execSync('git config user.email "github-actions[bot]@users.noreply.github.com"');
