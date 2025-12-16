@@ -80,7 +80,7 @@ func BuildOrchestrator(spec *CampaignSpec, campaignFilePath string) (*workflow.W
 	orchestratorLog.Printf("Campaign '%s' orchestrator includes: tracker_label=%s, workflows=%d, memory_paths=%d",
 		spec.ID, spec.TrackerLabel, len(spec.Workflows), len(spec.MemoryPaths))
 
-	markdownBuilder.WriteString("\nEach time this orchestrator runs on its daily schedule (or when manually dispatched), generate a concise status report for this campaign. Summarize current metrics, highlight blockers, and update any tracker issues using the campaign label.\n")
+	markdownBuilder.WriteString("\nEach time this orchestrator runs on its daily schedule (or when manually dispatched), generate a concise status report for this campaign. Summarize current metrics and update any tracker issues using the campaign label.\n\nIf all issues with the campaign label are closed, the campaign is complete. This is a normal terminal state indicating successful completion, not a blocker or error. When the campaign is complete, mark the project as finished and take no further action. Do not report closed issues as blockers.\n")
 	if strings.TrimSpace(spec.ProjectURL) != "" {
 		markdownBuilder.WriteString(fmt.Sprintf("\nKeep the campaign Project dashboard in sync using the `update-project` safe output. When calling update-project, use the `project` field with this exact URL: %s\n", strings.TrimSpace(spec.ProjectURL)))
 	}
