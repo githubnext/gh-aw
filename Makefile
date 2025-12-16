@@ -339,6 +339,13 @@ generate-schema-docs:
 generate-labs:
 	node scripts/generate-labs.js
 
+# Build slides with Marp
+.PHONY: build-slides
+build-slides:
+	@echo "Building slides with Marp..."
+	@cd docs && npx @marp-team/marp-cli ../slides/index.md --html --allow-local-files -o public/slides/gh-aw.html
+	@echo "✓ Slides built to docs/public/slides/gh-aw.html"
+
 # Sync templates from .github to pkg/cli/templates
 .PHONY: sync-templates
 sync-templates:
@@ -475,6 +482,7 @@ help:
 	@echo "  dependabot       - Generate Dependabot manifests for npm dependencies in workflows"
 	@echo "  generate-schema-docs - Generate frontmatter full reference documentation from JSON schema"
 	@echo "  generate-labs              - Generate labs documentation page"
+	@echo "  build-slides     - Build slides with Marp to docs/public/slides/gh-aw.html"
 
 	@echo "  agent-finish     - Complete validation sequence (build, test, fix, recompile, fmt, lint, security-scan)"
 	@echo "  version   - Preview next version from changesets"
