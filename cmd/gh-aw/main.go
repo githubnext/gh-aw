@@ -67,7 +67,7 @@ When called with a workflow name, creates a template file with comprehensive exa
 - All trigger types (on: events)
 - Permissions configuration
 - AI processor settings
-- Tools configuration (github, claude, mcps)
+- Tools configuration (github, claude, MCPs)
 - All frontmatter options with explanations
 
 ` + cli.WorkflowIDExplanation + `
