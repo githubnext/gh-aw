@@ -29,6 +29,10 @@ import (
 //
 //	go test -v -fuzz=FuzzSanitizeIncomingText -fuzztime=30s ./pkg/workflow
 func FuzzSanitizeIncomingText(f *testing.F) {
+	// Fixed overhead to account for text expansion during sanitization (e.g., mention wrapping).
+	// For very short strings, wrapping @mentions in backticks can more than double the length.
+	// Example: "@" (1 char) becomes "`@`" (3 chars).
+	const sanitizationOverhead = 50
 	// Seed corpus with mention patterns (all should be escaped)
 	f.Add("Hello @user", 0)
 	f.Add("Hello @user1 and @user2", 0)
@@ -114,7 +118,7 @@ func FuzzSanitizeIncomingText(f *testing.F) {
 			// Account for mention wrapping: each @ can be wrapped in backticks (e.g., @ -> `@`)
 			// For very short strings, this can more than double the length
 			// Use a more generous formula: base + 50% + fixed overhead for wrapping
-			expectedMaxLen := len(text) + len(text)/2 + 50 // Additional overhead for wrapping
+			expectedMaxLen := len(text) + len(text)/2 + sanitizationOverhead
 			if maxLength > 0 && maxLength < expectedMaxLen {
 				expectedMaxLen = maxLength + 100 // Allow for truncation message
 			}
