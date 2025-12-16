@@ -153,7 +153,7 @@ func parseGitHubURL(spec string) (*WorkflowSpec, error) {
 	}
 
 	// Validate owner and repo
-	if !isValidGitHubIdentifier(owner) || !isValidGitHubIdentifier(repo) {
+	if !parser.IsValidGitHubIdentifier(owner) || !parser.IsValidGitHubIdentifier(repo) {
 		return nil, fmt.Errorf("invalid GitHub URL: '%s/%s' does not look like a valid GitHub repository", owner, repo)
 	}
 
@@ -229,7 +229,7 @@ func parseWorkflowSpec(spec string) (*WorkflowSpec, error) {
 	}
 
 	// Basic validation that owner and repo look like GitHub identifiers
-	if !isValidGitHubIdentifier(owner) || !isValidGitHubIdentifier(repo) {
+	if !parser.IsValidGitHubIdentifier(owner) || !parser.IsValidGitHubIdentifier(repo) {
 		return nil, fmt.Errorf("invalid workflow specification: '%s/%s' does not look like a valid GitHub repository", owner, repo)
 	}
 
@@ -357,31 +357,6 @@ func buildSourceStringWithCommitSHA(workflow *WorkflowSpec, commitSHA string) st
 	}
 
 	return source
-}
-
-// isValidGitHubIdentifier checks if a string looks like a valid GitHub username or repository name
-// GitHub allows alphanumeric characters, hyphens, and underscores, but cannot start or end with hyphen
-func isValidGitHubIdentifier(identifier string) bool {
-	if len(identifier) == 0 {
-		return false
-	}
-
-	// Cannot start or end with hyphen
-	if identifier[0] == '-' || identifier[len(identifier)-1] == '-' {
-		return false
-	}
-
-	// Must contain only alphanumeric chars, hyphens, and underscores
-	for _, char := range identifier {
-		if !((char >= 'a' && char <= 'z') ||
-			(char >= 'A' && char <= 'Z') ||
-			(char >= '0' && char <= '9') ||
-			char == '-' || char == '_') {
-			return false
-		}
-	}
-
-	return true
 }
 
 // isCommitSHA checks if a version string looks like a commit SHA (40-character hex string)
