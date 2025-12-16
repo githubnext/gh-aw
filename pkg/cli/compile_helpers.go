@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/githubnext/gh-aw/pkg/campaign"
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/logger"
 	"github.com/githubnext/gh-aw/pkg/workflow"
@@ -27,6 +28,65 @@ func compileSingleFile(compiler *workflow.Compiler, file string, stats *Compilat
 
 	stats.Total++
 
+	// Handle campaign spec files separately from regular workflows
+	if strings.HasSuffix(file, ".campaign.md") {
+		compileHelpersLog.Printf("Processing campaign spec file: %s", file)
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatProgressMessage(fmt.Sprintf("Validating campaign spec: %s", file)))
+		}
+
+		// Validate the campaign spec file and referenced workflows
+		spec, problems, vErr := campaign.ValidateSpecFromFile(file)
+		if vErr != nil {
+			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("failed to validate campaign spec %s: %v", file, vErr)))
+			stats.Errors++
+			stats.FailedWorkflows = append(stats.FailedWorkflows, filepath.Base(file))
+			return true
+		}
+
+		// Also ensure that workflows referenced by the campaign spec exist
+		workflowsDir := filepath.Dir(file)
+		workflowProblems := campaign.ValidateWorkflowsExist(spec, workflowsDir)
+		problems = append(problems, workflowProblems...)
+
+		if len(problems) > 0 {
+			for _, p := range problems {
+				fmt.Fprintln(os.Stderr, console.FormatErrorMessage(p))
+			}
+			stats.Errors++
+			stats.FailedWorkflows = append(stats.FailedWorkflows, filepath.Base(file))
+			return true
+		}
+
+		// Generate and compile the campaign orchestrator workflow
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Validated campaign spec %s", filepath.Base(file))))
+		}
+
+		_, genErr := generateAndCompileCampaignOrchestrator(
+			compiler,
+			spec,
+			file,
+			verbose,
+			false, // noEmit
+			false, // zizmor
+			false, // poutine
+			false, // actionlint
+			false, // strict
+			false, // validateActionSHAs
+		)
+		if genErr != nil {
+			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("failed to compile campaign orchestrator for %s: %v", filepath.Base(file), genErr)))
+			stats.Errors++
+			stats.FailedWorkflows = append(stats.FailedWorkflows, filepath.Base(file))
+		} else {
+			compileHelpersLog.Printf("Successfully compiled campaign orchestrator for: %s", file)
+		}
+
+		return true
+	}
+
+	// Regular workflow file - compile normally
 	compileHelpersLog.Printf("Compiling: %s", file)
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatProgressMessage(fmt.Sprintf("Compiling: %s", file)))
@@ -256,7 +316,39 @@ func compileModifiedFilesWithDependencies(compiler *workflow.Compiler, depGraph 
 
 // handleFileDeleted handles the deletion of a markdown file by removing its corresponding lock file
 func handleFileDeleted(mdFile string, verbose bool) {
-	// Generate the corresponding lock file path
+	// For campaign spec files, remove both the generated orchestrator and its lock file
+	if strings.HasSuffix(mdFile, ".campaign.md") {
+		// Remove the generated .campaign.g.md file
+		orchestratorFile := strings.TrimSuffix(mdFile, ".campaign.md") + ".campaign.g.md"
+		if _, err := os.Stat(orchestratorFile); err == nil {
+			if err := os.Remove(orchestratorFile); err != nil {
+				if verbose {
+					fmt.Printf("⚠️  Failed to remove orchestrator file %s: %v\n", orchestratorFile, err)
+				}
+			} else {
+				if verbose {
+					fmt.Printf("🗑️  Removed generated orchestrator: %s\n", orchestratorFile)
+				}
+			}
+		}
+
+		// Remove the orchestrator's lock file
+		orchestratorLockFile := strings.TrimSuffix(mdFile, ".campaign.md") + ".campaign.g.lock.yml"
+		if _, err := os.Stat(orchestratorLockFile); err == nil {
+			if err := os.Remove(orchestratorLockFile); err != nil {
+				if verbose {
+					fmt.Printf("⚠️  Failed to remove orchestrator lock file %s: %v\n", orchestratorLockFile, err)
+				}
+			} else {
+				if verbose {
+					fmt.Printf("🗑️  Removed orchestrator lock file: %s\n", orchestratorLockFile)
+				}
+			}
+		}
+		return
+	}
+
+	// Regular workflow file - generate the corresponding lock file path
 	lockFile := strings.TrimSuffix(mdFile, ".md") + ".lock.yml"
 
 	// Check if the lock file exists and remove it

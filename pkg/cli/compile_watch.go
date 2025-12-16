@@ -132,17 +132,15 @@ func watchAndCompileWorkflows(markdownFile string, compiler *workflow.Compiler, 
 		compiler.ResetWarningCount()
 
 		// Track compilation statistics for single file
-		stats := &CompilationStats{Total: 1}
+		stats := &CompilationStats{}
 
 		fmt.Fprintln(os.Stderr, "Watching for file changes")
 		if verbose {
 			fmt.Fprintln(os.Stderr, console.FormatProgressMessage(fmt.Sprintf("Initial compilation of %s...", markdownFile)))
 		}
-		if err := CompileWorkflowWithValidation(compiler, markdownFile, verbose, false, false, false, false, false); err != nil {
-			// Always show initial compilation errors on new line without wrapping
-			fmt.Fprintln(os.Stderr, err.Error())
-			stats.Errors++
-		}
+
+		// Use compileSingleFile to handle both regular workflows and campaign files
+		compileSingleFile(compiler, markdownFile, stats, verbose, false)
 
 		// Get warning count from compiler
 		stats.Warnings = compiler.GetWarningCount()
