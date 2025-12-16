@@ -2,6 +2,60 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.33.1 - 2025-12-16
+
+### Bug Fixes
+
+#### Add a `mentions` configuration to `safe-outputs` to control how `@mentions`
+
+are filtered in AI-generated content. The option supports both boolean and
+object forms for fine-grained control (e.g., `allow-team-members`,
+`allow-context`, an explicit `allowed` list, and a `max` per-message limit).
+
+This change is non-breaking and preserves existing behavior when the setting
+is unspecified.
+
+#### Refactor: Extracted shared context validation helpers into
+
+`update_context_helpers.cjs` and updated `update_issue.cjs` and
+`update_pull_request.cjs` to import and use the shared helpers. This reduces
+duplication and improves maintainability. Fixes githubnext/gh-aw#6563
+
+#### Prevent false-positive download annotations by gating the patch download step
+
+behind `needs.agent.outputs.has_patch == 'true'`. When a run uses only
+safe-outputs and no code patch is produced, the artifact `aw.patch` will not
+exist; the conditional avoids attempting to download it and thus removes
+erroneous GitHub Actions error annotations.
+
+Files changed:
+- `pkg/workflow/artifacts.go` - added conditional support for artifact steps
+- `pkg/workflow/threat_detection.go` - download step now has an `if` check
+- `pkg/workflow/threat_detection_test.go` - added test for conditional step
+
+Fixes: false-positive `Unable to download artifact(s): Artifact not found`
+issues when no patch is present.
+
+#### Add lazy mention resolution with collaborator filtering, assignee support, and a 50-mention limit.
+
+This change introduces a dedicated `resolve_mentions` module that lazily
+resolves @-mentions, caches recent collaborators for optimistic resolution,
+filters out bots, and adds assignees to known aliases. It also updates
+workflows to include author/assignee mentions where appropriate.
+
+#### Move mention filtering from incoming text processing to the agent output collector.
+
+This is an internal refactor and bugfix: sanitizers were modularized, mention
+resolution was moved into the output collector, and a bug that prevented known
+authors from being preserved in mentions was fixed. Tests were updated.
+
+#### Remove mention neutralization/sanitization code from `compute_text.cjs`.
+
+Switched from `sanitizeContent` to `sanitizeIncomingText`, removed the
+dead `knownAuthors` collection and the `isPayloadUserBot` import. Tests
+were updated to match the simplified sanitization behavior.
+
+
 ## v0.33.0 - 2025-12-15
 
 ### Features
