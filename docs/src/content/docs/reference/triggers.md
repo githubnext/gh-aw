@@ -98,10 +98,18 @@ on:
     - cron: daily  # Each workflow gets a different scattered time
 ```
 
+For workflows that need to run around a specific time (with some flexibility), use the `around` constraint:
+
+```yaml wrap
+on:
+  schedule: daily around 14:00  # Scatters within ±2 hours (12:00-16:00)
+```
+
 The compiler deterministically assigns each workflow a unique time throughout the day based on the workflow file path. This ensures:
 - **Load distribution**: Workflows run at different times, reducing server load spikes
 - **Consistency**: The same workflow always gets the same execution time across recompiles
 - **Simplicity**: No need to manually coordinate schedules across multiple workflows
+- **Flexibility with constraints**: Use `around` to hint preferred times while still distributing load
 
 **Human-Friendly Format:**
 
@@ -123,6 +131,11 @@ Using explicit times like `0 0 * * *` or `daily at midnight` causes all workflow
 
 **Supported Formats:**
 - **Daily (Fuzzy)**: `daily` → Scattered time like `43 5 * * *` (compiler determines)
+- **Daily (Fuzzy Around)**: `daily around HH:MM` → Scattered time within ±2 hours of target
+  - `daily around 14:00` → `20 15 * * *` (scattered between 12:00-16:00)
+  - `daily around 9am` → `38 7 * * *` (scattered between 07:00-11:00)
+  - `daily around midnight` → `27 1 * * *` (scattered between 22:00-02:00)
+  - `daily around noon` → Scattered time between 10:00-14:00
 - **Daily (Fixed)**: `daily at HH:MM` or `daily at midnight/noon` or `daily at Npm/Nam`
   - `daily at 02:00` → `0 2 * * *` (⚠️ Warning: fixed time)
   - `daily at midnight` → `0 0 * * *` (⚠️ Warning: fixed time)
