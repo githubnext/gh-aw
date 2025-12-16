@@ -145,7 +145,7 @@ func generateAndCompileCampaignOrchestrator(
 func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 	// Clear any previous schedule warnings
 	workflow.ClearScheduleWarnings()
-	
+
 	markdownFiles := config.MarkdownFiles
 	verbose := config.Verbose
 	engineOverride := config.EngineOverride

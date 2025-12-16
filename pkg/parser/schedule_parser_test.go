@@ -650,10 +650,10 @@ func TestIsDailyCron(t *testing.T) {
 		{"0 0 * * *", true},
 		{"30 14 * * *", true},
 		{"0 9 * * *", true},
-		{"*/15 * * * *", false},  // interval
-		{"0 0 1 * *", false},     // monthly
-		{"0 0 * * 1", false},     // weekly
-		{"0 14 * * 1-5", false},  // weekdays only
+		{"*/15 * * * *", false}, // interval
+		{"0 0 1 * *", false},    // monthly
+		{"0 0 * * 1", false},    // weekly
+		{"0 14 * * 1-5", false}, // weekdays only
 		{"invalid", false},
 		{"", false},
 	}
@@ -744,7 +744,7 @@ func TestScatterSchedule(t *testing.T) {
 func TestScatterScheduleDeterministic(t *testing.T) {
 	// Test that scattering is deterministic - same input produces same output
 	workflows := []string{"workflow-a", "workflow-b", "workflow-c", "workflow-a"}
-	
+
 	results := make([]string, len(workflows))
 	for i, wf := range workflows {
 		result, err := ScatterSchedule("FUZZY:DAILY * * *", wf)
@@ -753,12 +753,12 @@ func TestScatterScheduleDeterministic(t *testing.T) {
 		}
 		results[i] = result
 	}
-	
+
 	// workflow-a should produce the same result both times
 	if results[0] != results[3] {
 		t.Errorf("ScatterSchedule not deterministic: workflow-a produced %s and %s", results[0], results[3])
 	}
-	
+
 	// Different workflows should produce different results (with high probability)
 	if results[0] == results[1] && results[1] == results[2] {
 		t.Errorf("ScatterSchedule produced identical results for all workflows: %s", results[0])

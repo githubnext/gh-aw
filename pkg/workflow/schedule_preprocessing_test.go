@@ -297,7 +297,7 @@ func TestFuzzyScheduleScattering(t *testing.T) {
 func TestFuzzyScheduleScatteringDeterministic(t *testing.T) {
 	// Test that scattering is deterministic - same workflow ID produces same result
 	workflows := []string{"workflow-a.md", "workflow-b.md", "workflow-c.md", "workflow-a.md"}
-	
+
 	results := make([]string, len(workflows))
 	for i, wf := range workflows {
 		frontmatter := map[string]any{
@@ -309,26 +309,26 @@ func TestFuzzyScheduleScatteringDeterministic(t *testing.T) {
 				},
 			},
 		}
-		
+
 		compiler := NewCompiler(false, "", "test")
 		compiler.SetWorkflowIdentifier(wf)
-		
+
 		err := compiler.preprocessScheduleFields(frontmatter)
 		if err != nil {
 			t.Fatalf("unexpected error for workflow %s: %v", wf, err)
 		}
-		
+
 		onMap := frontmatter["on"].(map[string]any)
 		scheduleArray := onMap["schedule"].([]any)
 		firstSchedule := scheduleArray[0].(map[string]any)
 		results[i] = firstSchedule["cron"].(string)
 	}
-	
+
 	// workflow-a.md should produce the same result both times
 	if results[0] != results[3] {
 		t.Errorf("Scattering not deterministic: workflow-a.md produced %s and %s", results[0], results[3])
 	}
-	
+
 	// Different workflows should produce different results (with high probability)
 	if results[0] == results[1] && results[1] == results[2] {
 		t.Errorf("Scattering produced identical results for all workflows: %s", results[0])

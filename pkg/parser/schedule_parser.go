@@ -65,11 +65,11 @@ func IsDailyCron(cron string) bool {
 	// The minute and hour must be specific values (numbers), not wildcards
 	// The day-of-month (3rd field) and month (4th field) must be "*"
 	// The day-of-week (5th field) must be "*"
-	
+
 	// Check if minute and hour are numeric (not wildcards)
 	minute := fields[0]
 	hour := fields[1]
-	
+
 	// Minute and hour should be digits only (no *, /, -, ,)
 	for _, ch := range minute {
 		if ch < '0' || ch > '9' {
@@ -81,7 +81,7 @@ func IsDailyCron(cron string) bool {
 			return false
 		}
 	}
-	
+
 	return fields[2] == "*" && fields[3] == "*" && fields[4] == "*"
 }
 
@@ -104,10 +104,10 @@ func ScatterSchedule(fuzzyCron, workflowIdentifier string) (string, error) {
 		for _, ch := range workflowIdentifier {
 			hash = (hash*31 + int(ch)) % 1440 // Total minutes in a day
 		}
-		
+
 		hour := hash / 60
 		minute := hash % 60
-		
+
 		// Return scattered daily cron: minute hour * * *
 		return fmt.Sprintf("%d %d * * *", minute, hour), nil
 	}

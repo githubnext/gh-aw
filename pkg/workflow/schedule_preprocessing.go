@@ -226,17 +226,17 @@ func (c *Compiler) addDailyCronWarning(cronExpr string) {
 		minute := fields[0]
 		hour := fields[1]
 		schedulePreprocessingLog.Printf("Warning: detected daily cron with fixed time: %s", cronExpr)
-		
+
 		// Construct the warning message
 		warningMsg := fmt.Sprintf(
 			"Schedule uses fixed daily time (%s:%s UTC). Consider using fuzzy schedule 'daily' instead to distribute workflow execution times and reduce load spikes.",
 			hour, minute,
 		)
-		
+
 		// This warning is added to the warning count but not printed here
 		// It will be collected and displayed by the compilation process
 		c.IncrementWarningCount()
-		
+
 		// Store the warning for later display
 		c.addScheduleWarning(warningMsg)
 	}
@@ -278,11 +278,11 @@ func ScatterFuzzySchedules(workflowDataList []*WorkflowData, workflowPaths []str
 func scatterWorkflowSchedules(workflowData *WorkflowData, workflowPath string) {
 	// Parse the "on" field to find schedule entries
 	// The schedule data is stored in the raw frontmatter/YAML
-	
+
 	// For now, we need to process the raw On field which contains YAML
 	// This is a bit tricky since we're working with the compiled data
 	// The fuzzy schedules are already in the frontmatter, but we need to replace them
-	
+
 	// TODO: This requires accessing the raw frontmatter map which isn't exposed in WorkflowData
 	// We'll need to handle this during the preprocessing phase instead
 	schedulePreprocessingLog.Printf("Scattering schedules for workflow: %s", workflowPath)
