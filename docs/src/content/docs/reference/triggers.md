@@ -118,7 +118,7 @@ on:
 ```
 
 :::caution[Fixed Times Create Load Spikes]
-Using explicit times like `0 0 * * *` or `daily at midnight` causes all workflows to run simultaneously, creating server load spikes. The compiler will warn you about this. Use fuzzy schedules (`daily`) instead.
+Using explicit times like `0 0 * * *` or `daily at midnight` causes all workflows to run simultaneously, creating server load spikes. Similarly, hourly intervals with fixed minute offsets like `0 */2 * * *` synchronize all workflows to run at the same minute of each hour. The compiler will warn you about these patterns. Use fuzzy schedules (`daily` or `every Nh`) instead.
 :::
 
 **Supported Formats:**
@@ -137,8 +137,10 @@ Using explicit times like `0 0 * * *` or `daily at midnight` causes all workflow
   - `monthly on 1` → `0 0 1 * *`
   - `monthly on 15 at 9am` → `0 9 15 * *`
 - **Intervals**: `every N minutes/hours` or `every Nm/Nh/Nd/Nw/Nmo` (minimum 5 minutes)
-  - `every 10 minutes` → `*/10 * * * *`
-  - `every 2h` → `0 */2 * * *`
+  - `every 10 minutes` → `*/10 * * * *` (minute intervals don't scatter)
+  - **Hourly (Fuzzy)**: `every 2h` → Scattered minute like `53 */2 * * *` (compiler determines)
+  - **Hourly (Fuzzy)**: `every 1h` → Scattered minute like `28 */1 * * *` (compiler determines)
+  - **Hourly (Fixed)**: `0 */2 * * *` → (⚠️ Warning: fixed minute offset)
   - `every 1d` → `0 0 * * *`
   - `every 1w` → `0 0 * * 0`
   - `every 1mo` → `0 0 1 * *`

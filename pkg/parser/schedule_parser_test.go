@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"strings"
 	"testing"
 )
 
@@ -251,25 +252,25 @@ func TestParseSchedule(t *testing.T) {
 		{
 			name:         "every 1 hour",
 			input:        "every 1 hour",
-			expectedCron: "0 */1 * * *",
+			expectedCron: "FUZZY:HOURLY/1 * * *",
 			expectedOrig: "every 1 hour",
 		},
 		{
 			name:         "every 2 hours",
 			input:        "every 2 hours",
-			expectedCron: "0 */2 * * *",
+			expectedCron: "FUZZY:HOURLY/2 * * *",
 			expectedOrig: "every 2 hours",
 		},
 		{
 			name:         "every 6 hours",
 			input:        "every 6 hours",
-			expectedCron: "0 */6 * * *",
+			expectedCron: "FUZZY:HOURLY/6 * * *",
 			expectedOrig: "every 6 hours",
 		},
 		{
 			name:         "every 12 hours",
 			input:        "every 12 hours",
-			expectedCron: "0 */12 * * *",
+			expectedCron: "FUZZY:HOURLY/12 * * *",
 			expectedOrig: "every 12 hours",
 		},
 
@@ -283,19 +284,19 @@ func TestParseSchedule(t *testing.T) {
 		{
 			name:         "every 1h",
 			input:        "every 1h",
-			expectedCron: "0 */1 * * *",
+			expectedCron: "FUZZY:HOURLY/1 * * *",
 			expectedOrig: "every 1h",
 		},
 		{
 			name:         "every 2h",
 			input:        "every 2h",
-			expectedCron: "0 */2 * * *",
+			expectedCron: "FUZZY:HOURLY/2 * * *",
 			expectedOrig: "every 2h",
 		},
 		{
 			name:         "every 6h",
 			input:        "every 6h",
-			expectedCron: "0 */6 * * *",
+			expectedCron: "FUZZY:HOURLY/6 * * *",
 			expectedOrig: "every 6h",
 		},
 		{
@@ -762,5 +763,108 @@ func TestScatterScheduleDeterministic(t *testing.T) {
 	// Different workflows should produce different results (with high probability)
 	if results[0] == results[1] && results[1] == results[2] {
 		t.Errorf("ScatterSchedule produced identical results for all workflows: %s", results[0])
+	}
+}
+
+func TestIsHourlyCron(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected bool
+	}{
+		{"0 */1 * * *", true},
+		{"30 */2 * * *", true},
+		{"15 */6 * * *", true},
+		{"0 0 * * *", false},     // daily, not hourly interval
+		{"*/30 * * * *", false},  // minute interval, not hourly
+		{"0 * * * *", false},     // every hour but not interval pattern
+		{"invalid", false},
+		{"", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			result := IsHourlyCron(tt.input)
+			if result != tt.expected {
+				t.Errorf("IsHourlyCron(%q) = %v, want %v", tt.input, result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestScatterScheduleHourly(t *testing.T) {
+	tests := []struct {
+		name               string
+		fuzzyCron          string
+		workflowIdentifier string
+		expectError        bool
+	}{
+		{
+			name:               "valid fuzzy hourly 1h",
+			fuzzyCron:          "FUZZY:HOURLY/1 * * *",
+			workflowIdentifier: "workflow1",
+			expectError:        false,
+		},
+		{
+			name:               "valid fuzzy hourly 6h",
+			fuzzyCron:          "FUZZY:HOURLY/6 * * *",
+			workflowIdentifier: "workflow2",
+			expectError:        false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, err := ScatterSchedule(tt.fuzzyCron, tt.workflowIdentifier)
+			if tt.expectError {
+				if err == nil {
+					t.Errorf("expected error, got nil")
+				}
+				return
+			}
+			if err != nil {
+				t.Errorf("unexpected error: %v", err)
+				return
+			}
+			// Check that result is a valid cron expression
+			if !isCronExpression(result) {
+				t.Errorf("ScatterSchedule returned invalid cron: %s", result)
+			}
+			// Check that result has an hourly interval pattern
+			fields := strings.Fields(result)
+			if len(fields) != 5 {
+				t.Errorf("expected 5 fields in cron, got %d: %s", len(fields), result)
+			}
+			if !strings.HasPrefix(fields[1], "*/") {
+				t.Errorf("expected hourly interval pattern in hour field, got: %s", result)
+			}
+		})
+	}
+}
+
+func TestScatterScheduleHourlyDeterministic(t *testing.T) {
+	// Test that scattering is deterministic - same input produces same output
+	workflows := []string{"workflow-a", "workflow-b", "workflow-c", "workflow-a"}
+	
+	results := make([]string, len(workflows))
+	for i, wf := range workflows {
+		result, err := ScatterSchedule("FUZZY:HOURLY/2 * * *", wf)
+		if err != nil {
+			t.Fatalf("unexpected error for workflow %s: %v", wf, err)
+		}
+		results[i] = result
+	}
+	
+	// workflow-a should produce the same result both times
+	if results[0] != results[3] {
+		t.Errorf("ScatterSchedule not deterministic: workflow-a produced %s and %s", results[0], results[3])
+	}
+	
+	// Different workflows should produce different minute offsets (with high probability)
+	minute0 := strings.Fields(results[0])[0]
+	minute1 := strings.Fields(results[1])[0]
+	minute2 := strings.Fields(results[2])[0]
+	
+	if minute0 == minute1 && minute1 == minute2 {
+		t.Errorf("ScatterSchedule produced identical minute offsets for all workflows: %s", minute0)
 	}
 }

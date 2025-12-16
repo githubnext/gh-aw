@@ -52,6 +52,11 @@ func (c *Compiler) preprocessScheduleFields(frontmatter map[string]any) error {
 			c.addDailyCronWarning(parsedCron)
 		}
 
+		// Warn if using hourly interval with fixed minute
+		if parser.IsHourlyCron(parsedCron) && !parser.IsFuzzyCron(parsedCron) {
+			c.addHourlyCronWarning(parsedCron)
+		}
+
 		// Scatter fuzzy schedules if workflow identifier is set
 		if parser.IsFuzzyCron(parsedCron) && c.workflowIdentifier != "" {
 			scatteredCron, err := parser.ScatterSchedule(parsedCron, c.workflowIdentifier)
@@ -126,6 +131,11 @@ func (c *Compiler) preprocessScheduleFields(frontmatter map[string]any) error {
 		// Warn if using explicit daily cron pattern
 		if parser.IsDailyCron(parsedCron) && !parser.IsFuzzyCron(parsedCron) {
 			c.addDailyCronWarning(parsedCron)
+		}
+
+		// Warn if using hourly interval with fixed minute
+		if parser.IsHourlyCron(parsedCron) && !parser.IsFuzzyCron(parsedCron) {
+			c.addHourlyCronWarning(parsedCron)
 		}
 
 		// Scatter fuzzy schedules if workflow identifier is set
@@ -235,6 +245,32 @@ func (c *Compiler) addDailyCronWarning(cronExpr string) {
 
 		// This warning is added to the warning count
 		// It will be collected and displayed by the compilation process
+		c.IncrementWarningCount()
+
+		// Store the warning for later display
+		c.addScheduleWarning(warningMsg)
+	}
+}
+
+// addHourlyCronWarning emits a warning when an hourly interval with fixed minute is detected
+func (c *Compiler) addHourlyCronWarning(cronExpr string) {
+	// Extract minute and interval from the cron expression
+	fields := strings.Fields(cronExpr)
+	if len(fields) >= 2 {
+		minute := fields[0]
+		hourField := fields[1]
+		schedulePreprocessingLog.Printf("Warning: detected hourly cron with fixed minute: %s", cronExpr)
+
+		// Extract the interval from */N pattern
+		interval := strings.TrimPrefix(hourField, "*/")
+
+		// Construct the warning message
+		warningMsg := fmt.Sprintf(
+			"Schedule uses hourly interval with fixed minute offset (%s). Consider using fuzzy schedule 'every %sh' instead to distribute workflow execution times and reduce load spikes.",
+			minute, interval,
+		)
+
+		// This warning is added to the warning count
 		c.IncrementWarningCount()
 
 		// Store the warning for later display

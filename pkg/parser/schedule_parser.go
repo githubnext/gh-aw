@@ -85,6 +85,36 @@ func IsDailyCron(cron string) bool {
 	return fields[2] == "*" && fields[3] == "*" && fields[4] == "*"
 }
 
+// IsHourlyCron checks if a cron expression represents an hourly interval with a fixed minute
+// (e.g., "0 */1 * * *", "30 */2 * * *", etc.)
+func IsHourlyCron(cron string) bool {
+	fields := strings.Fields(cron)
+	if len(fields) != 5 {
+		return false
+	}
+	// Hourly pattern: minute */N * * * or minute *N * * *
+	// The minute must be a specific value (number), not a wildcard
+	// The hour must be an interval pattern (*/N)
+	
+	minute := fields[0]
+	hour := fields[1]
+	
+	// Minute should be digits only (no *, /, -, ,)
+	for _, ch := range minute {
+		if ch < '0' || ch > '9' {
+			return false
+		}
+	}
+	
+	// Hour should be an interval pattern like */N
+	if !strings.HasPrefix(hour, "*/") {
+		return false
+	}
+	
+	// Check remaining fields are wildcards
+	return fields[2] == "*" && fields[3] == "*" && fields[4] == "*"
+}
+
 // IsFuzzyCron checks if a cron expression is a fuzzy schedule placeholder
 func IsFuzzyCron(cron string) bool {
 	return strings.HasPrefix(cron, "FUZZY:")
@@ -110,6 +140,33 @@ func ScatterSchedule(fuzzyCron, workflowIdentifier string) (string, error) {
 
 		// Return scattered daily cron: minute hour * * *
 		return fmt.Sprintf("%d %d * * *", minute, hour), nil
+	}
+
+	// For FUZZY:HOURLY/N * * *, we scatter the minute offset within the hour
+	if strings.HasPrefix(fuzzyCron, "FUZZY:HOURLY/") {
+		// Extract the interval from FUZZY:HOURLY/N
+		parts := strings.Split(fuzzyCron, " ")
+		if len(parts) < 1 {
+			return "", fmt.Errorf("invalid fuzzy hourly pattern: %s", fuzzyCron)
+		}
+		
+		hourlyPart := parts[0]
+		intervalStr := strings.TrimPrefix(hourlyPart, "FUZZY:HOURLY/")
+		interval, err := strconv.Atoi(intervalStr)
+		if err != nil {
+			return "", fmt.Errorf("invalid interval in fuzzy hourly pattern: %s", fuzzyCron)
+		}
+		
+		// Use a hash to get a deterministic minute offset (0-59)
+		hash := 0
+		for _, ch := range workflowIdentifier {
+			hash = (hash*31 + int(ch)) % 60
+		}
+		
+		minute := hash
+		
+		// Return scattered hourly cron: minute */N * * *
+		return fmt.Sprintf("%d */%d * * *", minute, interval), nil
 	}
 
 	return "", fmt.Errorf("unsupported fuzzy schedule type: %s", fuzzyCron)
@@ -214,11 +271,11 @@ func (p *ScheduleParser) parseInterval() (string, error) {
 
 			switch unit {
 			case "m":
-				// every Nm -> */N * * * *
+				// every Nm -> */N * * * * (minute intervals don't need scattering)
 				return fmt.Sprintf("*/%d * * * *", interval), nil
 			case "h":
-				// every Nh -> 0 */N * * *
-				return fmt.Sprintf("0 */%d * * *", interval), nil
+				// every Nh -> FUZZY:HOURLY/N (fuzzy hourly interval with scattering)
+				return fmt.Sprintf("FUZZY:HOURLY/%d * * *", interval), nil
 			case "d":
 				// every Nd -> daily at midnight, repeated N times
 				// For single day, use daily. For multiple days, use interval in hours
@@ -298,11 +355,11 @@ func (p *ScheduleParser) parseInterval() (string, error) {
 
 	switch unit {
 	case "minutes":
-		// every N minutes -> */N * * * *
+		// every N minutes -> */N * * * * (minute intervals don't need scattering)
 		return fmt.Sprintf("*/%d * * * *", interval), nil
 	case "hours":
-		// every N hours -> 0 */N * * *
-		return fmt.Sprintf("0 */%d * * *", interval), nil
+		// every N hours -> FUZZY:HOURLY/N (fuzzy hourly interval with scattering)
+		return fmt.Sprintf("FUZZY:HOURLY/%d * * *", interval), nil
 	default:
 		return "", fmt.Errorf("unsupported interval unit '%s', use 'minutes' or 'hours'", unit)
 	}

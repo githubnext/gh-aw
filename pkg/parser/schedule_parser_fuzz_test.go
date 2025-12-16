@@ -265,16 +265,25 @@ func FuzzScheduleParser(f *testing.F) {
 
 		// 4. Validate cron expression format if successful
 		if err == nil && cron != "" {
-			// Cron should have 5 fields separated by spaces
-			fields := strings.Fields(cron)
-			if len(fields) != 5 {
-				t.Errorf("ParseSchedule returned invalid cron format with %d fields (expected 5): %q for input: %q", len(fields), cron, input)
-			}
+			// Allow fuzzy schedules (FUZZY:*) which have 4 fields
+			if strings.HasPrefix(cron, "FUZZY:") {
+				// Fuzzy schedules have the format "FUZZY:TYPE * * *" (4 fields after splitting)
+				fields := strings.Fields(cron)
+				if len(fields) != 4 {
+					t.Errorf("ParseSchedule returned invalid fuzzy cron format with %d fields (expected 4): %q for input: %q", len(fields), cron, input)
+				}
+			} else {
+				// Regular cron should have 5 fields separated by spaces
+				fields := strings.Fields(cron)
+				if len(fields) != 5 {
+					t.Errorf("ParseSchedule returned invalid cron format with %d fields (expected 5): %q for input: %q", len(fields), cron, input)
+				}
 
-			// Each field should not be empty
-			for i, field := range fields {
-				if field == "" {
-					t.Errorf("ParseSchedule returned cron with empty field %d: %q for input: %q", i, cron, input)
+				// Each field should not be empty
+				for i, field := range fields {
+					if field == "" {
+						t.Errorf("ParseSchedule returned cron with empty field %d: %q for input: %q", i, cron, input)
+					}
 				}
 			}
 		}
