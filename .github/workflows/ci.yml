@@ -93,6 +93,7 @@ jobs:
           - name: "CLI Completion & Safe Inputs"
             packages: "./pkg/cli"
             pattern: ""  # Catch-all for tests not matched by other CLI patterns
+            skip_pattern: "^TestCompile[^W]|TestPoutine|TestMCPInspectPlaywright|TestMCPGateway|TestMCPAdd|TestMCPInspectGitHub|TestMCPServer|TestMCPConfig|TestLogs|TestFirewall|TestNoStopTime|TestLocalWorkflow|TestProgressFlagSignature"
           - name: "Workflow Compiler"
             packages: "./pkg/workflow"
             pattern: "TestCompile|TestWorkflow|TestGenerate|TestParse"
@@ -120,12 +121,14 @@ jobs:
           - name: "CMD Tests"  # All cmd/gh-aw integration tests
             packages: "./cmd/gh-aw"
             pattern: ""
+            skip_pattern: ""  # No other groups cover cmd tests
           - name: "Parser Remote Fetch & Cache"
             packages: "./pkg/parser"
             pattern: "TestDownloadFileFromGitHub|TestResolveIncludePath|TestDownloadIncludeFromWorkflowSpec|TestImportCache"
           - name: "Parser Location & Validation"
             packages: "./pkg/parser"
             pattern: ""  # Catch-all for tests not matched by other Parser patterns
+            skip_pattern: "TestDownloadFileFromGitHub|TestResolveIncludePath|TestDownloadIncludeFromWorkflowSpec|TestImportCache"
           - name: "Workflow Permissions"
             packages: "./pkg/workflow"
             pattern: "TestPermissions|TestPackageExtractor|TestCollectPackagesFromWorkflow"
@@ -141,6 +144,7 @@ jobs:
           - name: "Workflow Misc Part 2"  # Remaining workflow tests
             packages: "./pkg/workflow"
             pattern: ""
+            skip_pattern: "TestCompile|TestWorkflow|TestGenerate|TestParse|TestMCP|TestTool|TestSkill|TestPlaywright|TestFirewall|TestValidat|TestLock|TestError|TestWarning|SafeOutputs|CreatePullRequest|OutputLabel|HasSafeOutputs|GitHub|Git|PushToPullRequest|BuildFromAllowed|Render|Bundle|Script|WritePromptText|Cache|Action|Container|Dependabot|Security|PII|TestPermissions|TestPackageExtractor|TestCollectPackagesFromWorkflow|TestExpression|TestValidateExpressionSafety|TestCheckNetworkSupport|TestValidateStrictMCPNetwork|TestJobManager|TestWorkflowStep|TestScriptRegistry|TestAgent|TestCopilot|TestCustom|TestEngine|TestModel|TestNetwork|TestOpenAI|TestProvider"
     concurrency:
       group: ci-${{ github.ref }}-integration-${{ matrix.test-group.name }}
       cancel-in-progress: true
@@ -173,7 +177,12 @@ jobs:
           SAFE_NAME=$(echo "${{ matrix.test-group.name }}" | sed 's/[^a-zA-Z0-9]/-/g' | sed 's/--*/-/g')
           
           if [ -z "${{ matrix.test-group.pattern }}" ]; then
-            go test -v -parallel=8 -timeout=5m -tags 'integration' -json ${{ matrix.test-group.packages }} > "test-result-integration-${SAFE_NAME}.json"
+            # Catch-all group: run with -skip to exclude tests matched by other groups
+            if [ -n "${{ matrix.test-group.skip_pattern || '' }}" ]; then
+              go test -v -parallel=8 -timeout=5m -tags 'integration' -skip '${{ matrix.test-group.skip_pattern }}' -json ${{ matrix.test-group.packages }} > "test-result-integration-${SAFE_NAME}.json"
+            else
+              go test -v -parallel=8 -timeout=5m -tags 'integration' -json ${{ matrix.test-group.packages }} > "test-result-integration-${SAFE_NAME}.json"
+            fi
           else
             go test -v -parallel=8 -timeout=5m -tags 'integration' -run '${{ matrix.test-group.pattern }}' -json ${{ matrix.test-group.packages }} > "test-result-integration-${SAFE_NAME}.json"
           fi
