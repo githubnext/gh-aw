@@ -1010,6 +1010,9 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 	// Add lock step if lock-for-agent is enabled
 	if data.LockForAgent {
 		// Build condition: only lock if event type is 'issues' or 'issue_comment'
+		// This explicitly EXCLUDES workflow_dispatch events, as they don't have an issue
+		// context to lock. When workflow_dispatch is used with issue_url input, the agent
+		// will fetch the issue but should not attempt to lock it.
 		// lock-for-agent can be configured under on.issues or on.issue_comment
 		// For issue_comment events, context.issue.number automatically resolves to the parent issue
 		lockCondition := BuildOr(

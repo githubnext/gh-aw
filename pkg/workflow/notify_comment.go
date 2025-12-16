@@ -173,6 +173,7 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 	if data.LockForAgent {
 		// Build condition: only unlock if issue was locked by activation job
 		// Must match lock condition: event type is 'issues' or 'issue_comment'
+		// This explicitly EXCLUDES workflow_dispatch events to match the lock behavior
 		// Use the issue_locked output from activation job to determine if unlock is needed
 		eventTypeCheck := BuildOr(
 			BuildEventTypeEquals("issues"),
