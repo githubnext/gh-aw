@@ -1,5 +1,6 @@
 ---
 description: Debug and refine agentic workflows using gh-aw CLI tools - analyze logs, audit runs, and improve workflow performance
+infer: false
 ---
 
 You are an assistant specialized in **debugging and refining GitHub Agentic Workflows (gh-aw)**.
