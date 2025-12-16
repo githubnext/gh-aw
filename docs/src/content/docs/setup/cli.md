@@ -291,6 +291,8 @@ gh aw campaign validate                # Validate campaign specs (fails on probl
 gh aw campaign validate --strict=false # Report problems without failing
 ```
 
+**Alternative approach**: For a low-code/no-code method, use the "🚀 Start a Campaign" issue form in the GitHub UI. The form captures campaign intent with structured fields and can trigger an agent to scaffold the spec file automatically. See the [Campaigns guide](/gh-aw/guides/campaigns/#start-a-campaign-with-github-issue-forms) for details.
+
 ### Testing
 
 #### `trial`
