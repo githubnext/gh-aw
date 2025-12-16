@@ -27,8 +27,7 @@
 # name: Documentation Noob Tester
 # description: Tests documentation as a new user would, identifying confusing or broken steps in getting started guides
 # on:
-#   schedule:
-#     - cron: daily
+#   schedule: daily
 #   workflow_dispatch:
 # permissions:
 #   contents: read
@@ -252,7 +251,7 @@
 name: "Documentation Noob Tester"
 "on":
   schedule:
-  - cron: "52 2 * * *"
+  - cron: "54 12 * * *"
     # Friendly format: daily (scattered)
   workflow_dispatch: null
 

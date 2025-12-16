@@ -28,8 +28,7 @@
 # description: Analyzes Go codebase daily to identify opportunities for semantic function extraction and refactoring
 # on:
 #   workflow_dispatch:
-#   schedule:
-#     - cron: daily
+#   schedule: daily
 #
 # permissions:
 #   contents: read
@@ -621,7 +620,7 @@
 name: "Semantic Function Refactoring"
 "on":
   schedule:
-  - cron: "30 15 * * *"
+  - cron: "32 17 * * *"
     # Friendly format: daily (scattered)
   workflow_dispatch: null
 

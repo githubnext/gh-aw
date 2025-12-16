@@ -26,8 +26,7 @@
 # ```yaml
 # description: Daily report analyzing repository issues with clustering, metrics, and trend charts
 # on:
-#   schedule:
-#     - cron: daily
+#   schedule: daily
 #   workflow_dispatch:
 # permissions:
 #   contents: read
@@ -1108,7 +1107,7 @@
 name: "Daily Issues Report Generator"
 "on":
   schedule:
-  - cron: "41 1 * * *"
+  - cron: "43 8 * * *"
     # Friendly format: daily (scattered)
   workflow_dispatch: null
 

@@ -27,8 +27,7 @@
 # name: Instructions Janitor
 # description: Reviews and cleans up instruction files to ensure clarity, consistency, and adherence to best practices
 # on:
-#   schedule:
-#     - cron: daily
+#   schedule: daily
 #   workflow_dispatch:
 #
 # permissions:
@@ -270,7 +269,7 @@
 name: "Instructions Janitor"
 "on":
   schedule:
-  - cron: "41 21 * * *"
+  - cron: "43 23 * * *"
     # Friendly format: daily (scattered)
   workflow_dispatch: null
 

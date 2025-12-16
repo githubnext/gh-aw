@@ -26,17 +26,17 @@ func getRepositorySlug() string {
 	if err != nil {
 		return ""
 	}
-	
+
 	url := strings.TrimSpace(string(output))
-	
+
 	// Parse GitHub URL patterns:
 	// - https://github.com/owner/repo.git
 	// - git@github.com:owner/repo.git
 	// - https://github.com/owner/repo
-	
+
 	// Remove .git suffix
 	url = strings.TrimSuffix(url, ".git")
-	
+
 	// Extract owner/repo from URL
 	if strings.HasPrefix(url, "https://github.com/") {
 		slug := strings.TrimPrefix(url, "https://github.com/")
@@ -45,7 +45,7 @@ func getRepositorySlug() string {
 		slug := strings.TrimPrefix(url, "git@github.com:")
 		return slug
 	}
-	
+
 	return ""
 }
 

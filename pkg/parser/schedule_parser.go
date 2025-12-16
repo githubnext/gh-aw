@@ -95,22 +95,22 @@ func IsHourlyCron(cron string) bool {
 	// Hourly pattern: minute */N * * * or minute *N * * *
 	// The minute must be a specific value (number), not a wildcard
 	// The hour must be an interval pattern (*/N)
-	
+
 	minute := fields[0]
 	hour := fields[1]
-	
+
 	// Minute should be digits only (no *, /, -, ,)
 	for _, ch := range minute {
 		if ch < '0' || ch > '9' {
 			return false
 		}
 	}
-	
+
 	// Hour should be an interval pattern like */N
 	if !strings.HasPrefix(hour, "*/") {
 		return false
 	}
-	
+
 	// Check remaining fields are wildcards
 	return fields[2] == "*" && fields[3] == "*" && fields[4] == "*"
 }
@@ -149,22 +149,22 @@ func ScatterSchedule(fuzzyCron, workflowIdentifier string) (string, error) {
 		if len(parts) < 1 {
 			return "", fmt.Errorf("invalid fuzzy hourly pattern: %s", fuzzyCron)
 		}
-		
+
 		hourlyPart := parts[0]
 		intervalStr := strings.TrimPrefix(hourlyPart, "FUZZY:HOURLY/")
 		interval, err := strconv.Atoi(intervalStr)
 		if err != nil {
 			return "", fmt.Errorf("invalid interval in fuzzy hourly pattern: %s", fuzzyCron)
 		}
-		
+
 		// Use a hash to get a deterministic minute offset (0-59)
 		hash := 0
 		for _, ch := range workflowIdentifier {
 			hash = (hash*31 + int(ch)) % 60
 		}
-		
+
 		minute := hash
-		
+
 		// Return scattered hourly cron: minute */N * * *
 		return fmt.Sprintf("%d */%d * * *", minute, interval), nil
 	}
