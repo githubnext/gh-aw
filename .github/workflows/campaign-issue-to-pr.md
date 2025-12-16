@@ -38,7 +38,7 @@ The workflow uses the `gh aw campaign create-from-issue` command, which:
 
 You can use this command manually:
 ```bash
-cat issue-body.txt | gh aw campaign create-from-issue
+gh aw campaign create-from-issue < issue-body.txt
 ```
 
 ## Usage

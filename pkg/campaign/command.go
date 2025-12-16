@@ -155,13 +155,13 @@ spec file at .github/workflows/<id>.campaign.md with all the metadata
 populated from the issue form fields.
 
 The issue body should be passed via stdin:
-  cat issue-body.txt | ` + constants.CLIExtensionPrefix + ` campaign create-from-issue
+  ` + constants.CLIExtensionPrefix + ` campaign create-from-issue < issue-body.txt
 
 Or from a GitHub Action:
-  echo "${{ github.event.issue.body }}" | ./gh-aw campaign create-from-issue
+  echo "$ISSUE_BODY" | ./gh-aw campaign create-from-issue
 
 Examples:
-  cat issue-body.txt | ` + constants.CLIExtensionPrefix + ` campaign create-from-issue
+  ` + constants.CLIExtensionPrefix + ` campaign create-from-issue < issue-body.txt
   ` + constants.CLIExtensionPrefix + ` campaign create-from-issue --force < issue-body.txt`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {

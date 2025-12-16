@@ -30,13 +30,17 @@ func ParseIssueForm(issueBody string) (*IssueFormData, error) {
 	data := &IssueFormData{}
 
 	// Extract form fields using regex
+	// Match: ### Label\n\nContent (until next ### section or end of string)
 	extractField := func(body, label string) string {
-		// Match: ### Label\n\nContent (until next ### or end)
-		pattern := fmt.Sprintf(`### %s\s*\n\s*([^#]+)`, regexp.QuoteMeta(label))
-		re := regexp.MustCompile(pattern)
-		match := re.FindStringSubmatch(body)
-		if len(match) > 1 {
-			return strings.TrimSpace(match[1])
+		// Split on ### to find sections, then look for our label
+		sections := regexp.MustCompile(`(?m)^###\s+`).Split(body, -1)
+		for _, section := range sections {
+			// Check if this section starts with our label
+			if strings.HasPrefix(strings.TrimSpace(section), label) {
+				// Remove the label and return the rest
+				content := strings.TrimPrefix(strings.TrimSpace(section), label)
+				return strings.TrimSpace(content)
+			}
 		}
 		return ""
 	}
@@ -57,13 +61,13 @@ func ParseIssueForm(issueBody string) (*IssueFormData, error) {
 		return nil, fmt.Errorf("campaign identifier is required")
 	}
 
-	if data.ProjectURL == "" {
-		return nil, fmt.Errorf("project board URL is required")
-	}
-
-	// Validate ID format
+	// Validate ID format first (security: prevent path traversal)
 	if !regexp.MustCompile(`^[a-z0-9-]+$`).MatchString(data.CampaignID) {
 		return nil, fmt.Errorf("campaign identifier must use only lowercase letters, digits, and hyphens")
+	}
+
+	if data.ProjectURL == "" {
+		return nil, fmt.Errorf("project board URL is required")
 	}
 
 	// Set defaults
