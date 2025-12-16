@@ -1,5 +1,6 @@
 ---
 description: Adding a New Safe Output Type to GitHub Agentic Workflows
+infer: false
 ---
 
 # Add New Safe Output Type

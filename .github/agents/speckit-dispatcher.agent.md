@@ -1,5 +1,6 @@
 ---
 description: Dispatches work to spec-kit commands based on user requests for spec-driven development workflow
+infer: false
 ---
 
 # Spec-Kit Command Dispatcher
