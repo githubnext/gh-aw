@@ -7,10 +7,10 @@ import (
 
 func TestRenderOrchestratorInstructions(t *testing.T) {
 	tests := []struct {
-		name               string
-		data               CampaignPromptData
-		shouldContain      []string
-		shouldNotContain   []string
+		name             string
+		data             CampaignPromptData
+		shouldContain    []string
+		shouldNotContain []string
 	}{
 		{
 			name: "completion guidance enabled, blockers disabled",
