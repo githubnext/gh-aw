@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/githubnext/gh-aw/pkg/campaign"
 	"github.com/githubnext/gh-aw/pkg/cli"
 	"github.com/spf13/cobra"
 )
@@ -70,17 +71,39 @@ func TestTechnicalTermsCapitalization(t *testing.T) {
 	// Technical terms that should remain capitalized
 	technicalTerms := []string{"Markdown", "YAML", "MCP"}
 
-	// Check compile command which mentions these terms
-	for _, term := range technicalTerms {
-		if !strings.Contains(compileCmd.Short, term) {
-			// Term not mentioned - skip
-			continue
+	// Commands to check for technical term capitalization
+	commandsToCheck := []*cobra.Command{
+		compileCmd,
+		newCmd,
+		campaign.NewCommand(),
+	}
+
+	// Check all commands and their subcommands
+	for _, cmd := range commandsToCheck {
+		checkCommandForTechnicalTerms(t, cmd, technicalTerms)
+
+		// Also check subcommands
+		for _, subCmd := range cmd.Commands() {
+			checkCommandForTechnicalTerms(t, subCmd, technicalTerms)
 		}
-		// If mentioned, it should be capitalized (this test just documents the expectation)
-		// The actual check is that it's not all lowercase
+	}
+}
+
+// checkCommandForTechnicalTerms verifies technical terms are properly capitalized in a command
+func checkCommandForTechnicalTerms(t *testing.T, cmd *cobra.Command, technicalTerms []string) {
+	for _, term := range technicalTerms {
 		lowerTerm := strings.ToLower(term)
-		if strings.Contains(compileCmd.Short, lowerTerm) && !strings.Contains(compileCmd.Short, term) {
-			t.Errorf("Compile command should capitalize technical term '%s', but found lowercase '%s'", term, lowerTerm)
+
+		// Check Short description
+		if strings.Contains(cmd.Short, lowerTerm) && !strings.Contains(cmd.Short, term) {
+			t.Errorf("Command '%s' Short should capitalize technical term '%s', but found lowercase '%s'. Short: %s",
+				cmd.Name(), term, lowerTerm, cmd.Short)
+		}
+
+		// Check Long description
+		if strings.Contains(cmd.Long, lowerTerm) && !strings.Contains(cmd.Long, term) {
+			t.Errorf("Command '%s' Long should capitalize technical term '%s', but found lowercase '%s'",
+				cmd.Name(), term, lowerTerm)
 		}
 	}
 }
