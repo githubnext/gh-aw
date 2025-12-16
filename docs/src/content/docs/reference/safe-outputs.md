@@ -468,7 +468,7 @@ Uploads generated files (screenshots, charts, reports, diagrams) to an orphaned 
 ```yaml wrap
 safe-outputs:
   upload-assets:
-    branch: "assets/my-workflow"     # branch name (default: "assets/${{ github.workflow }}")
+    branch: "assets/my-workflow"     # branch name (default: `"assets/${{ github.workflow }}"`)
     max-size: 5120                   # max file size in KB (default: 10240 = 10MB)
     allowed-exts: [.png, .jpg, .svg] # allowed extensions (default: [.png, .jpg, .jpeg])
     max: 20                          # max assets (default: 10)
@@ -513,7 +513,7 @@ The `upload_asset` tool automatically:
 
 **Accessing Uploaded Assets:**
 
-Assets are stored in an orphaned branch with no commit history. Each asset gets a predictable URL:
+Assets are stored in an orphaned branch with no commit history. Each asset gets a predictable URL (replace `{owner}`, `{repo}`, `{branch}`, and `{filename}` with actual values):
 
 ```
 https://raw.githubusercontent.com/{owner}/{repo}/{branch}/{filename}
@@ -603,7 +603,7 @@ The upload assets job provides outputs that can be used by subsequent jobs:
 **Limitations:**
 
 - Cross-repository uploads not supported (assets must be in the same repository)
-- Maximum file size is 50MB (configurable up to 50240 KB)
+- Maximum file size is 50MB (configurable up to 51200 KB)
 - Maximum 100 assets per workflow run (configurable)
 - Branch names are normalized to valid git branch names (lowercase, special chars replaced with dashes)
 
