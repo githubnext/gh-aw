@@ -28,6 +28,12 @@ func (c *Compiler) buildUpdateProjectJob(data *WorkflowData, mainJobName string)
 		token = data.SafeOutputs.UpdateProjects.GitHubToken
 	}
 
+	// Expose the token as an environment variable for diagnostic messages in update_project.cjs
+	// The JavaScript code checks process.env.GH_AW_PROJECT_GITHUB_TOKEN to provide helpful error messages
+	if token != "" {
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_PROJECT_GITHUB_TOKEN: %s\n", token))
+	}
+
 	jobCondition := BuildSafeOutputType("update_project")
 	permissions := NewPermissionsContentsReadProjectsWrite()
 
