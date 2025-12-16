@@ -4054,7 +4054,7 @@ jobs:
               sanitized = neutralizeBotTriggers(sanitized);
               return sanitized.trim();
               function sanitizeUrlDomains(s, allowed) {
-                const httpsUrlRegex = /https:\/\/([\w.-]+(?::\d+)?)(\/[^\s]*)?/gi;
+                const httpsUrlRegex = /https:\/\/([\w.-]+(?::\d+)?)(\/(?:(?!https:\/\/)[^\s,])*)?/gi;
                 return s.replace(httpsUrlRegex, (match, hostnameWithPort, pathPart) => {
                   const hostname = hostnameWithPort.split(":")[0].toLowerCase();
                   pathPart = pathPart || "";
@@ -4102,8 +4102,9 @@ jobs:
                       const protocolMatch = match.match(/^([^:]+):/);
                       if (protocolMatch) {
                         const protocol = protocolMatch[1] + ":";
+                        const truncated = match.length > 12 ? match.substring(0, 12) + "..." : match;
                         if (typeof core !== "undefined" && core.info) {
-                          core.info(`Redacted URL: ${protocol}`);
+                          core.info(`Redacted URL: ${truncated}`);
                         }
                         if (typeof core !== "undefined" && core.debug) {
                           core.debug(`Redacted URL (full): ${match}`);
@@ -4294,8 +4295,9 @@ jobs:
                       const protocolMatch = match.match(/^([^:]+):/);
                       if (protocolMatch) {
                         const protocol = protocolMatch[1] + ":";
+                        const truncated = match.length > 12 ? match.substring(0, 12) + "..." : match;
                         if (typeof core !== "undefined" && core.info) {
-                          core.info(`Redacted URL: ${protocol}`);
+                          core.info(`Redacted URL: ${truncated}`);
                         }
                         if (typeof core !== "undefined" && core.debug) {
                           core.debug(`Redacted URL (full): ${match}`);
