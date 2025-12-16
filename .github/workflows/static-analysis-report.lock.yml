@@ -26,8 +26,7 @@
 # ```yaml
 # description: Scans agentic workflows daily for security vulnerabilities using zizmor, poutine, and actionlint
 # on:
-#   schedule:
-#     - cron: daily
+#   schedule: daily
 #   workflow_dispatch:
 # permissions:
 #   contents: read
@@ -524,7 +523,7 @@
 name: "Static Analysis Report"
 "on":
   schedule:
-  - cron: "28 12 * * *"
+  - cron: "30 22 * * *"
     # Friendly format: daily (scattered)
   workflow_dispatch: null
 

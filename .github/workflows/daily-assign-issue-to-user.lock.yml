@@ -25,8 +25,7 @@
 # timeout-minutes: 10
 # strict: true
 # on:
-#   schedule:
-#     - cron: daily
+#   schedule: daily
 #   workflow_dispatch:
 # permissions:
 #   issues: read
@@ -100,7 +99,7 @@
 name: "Auto-Assign Issue"
 "on":
   schedule:
-  - cron: "7 21 * * *"
+  - cron: "9 23 * * *"
     # Friendly format: daily (scattered)
   workflow_dispatch: null
 

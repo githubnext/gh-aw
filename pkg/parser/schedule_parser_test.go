@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -74,6 +75,74 @@ func TestParseSchedule(t *testing.T) {
 			input:        "daily at 6am",
 			expectedCron: "0 6 * * *",
 			expectedOrig: "daily at 6am",
+		},
+
+		// Daily around schedules (fuzzy with target time)
+		{
+			name:         "daily around 02:00",
+			input:        "daily around 02:00",
+			expectedCron: "FUZZY:DAILY_AROUND:2:0 * * *",
+			expectedOrig: "daily around 02:00",
+		},
+		{
+			name:         "daily around midnight",
+			input:        "daily around midnight",
+			expectedCron: "FUZZY:DAILY_AROUND:0:0 * * *",
+			expectedOrig: "daily around midnight",
+		},
+		{
+			name:         "daily around noon",
+			input:        "daily around noon",
+			expectedCron: "FUZZY:DAILY_AROUND:12:0 * * *",
+			expectedOrig: "daily around noon",
+		},
+		{
+			name:         "daily around 3pm",
+			input:        "daily around 3pm",
+			expectedCron: "FUZZY:DAILY_AROUND:15:0 * * *",
+			expectedOrig: "daily around 3pm",
+		},
+		{
+			name:         "daily around 14:30",
+			input:        "daily around 14:30",
+			expectedCron: "FUZZY:DAILY_AROUND:14:30 * * *",
+			expectedOrig: "daily around 14:30",
+		},
+		{
+			name:         "daily around 9am",
+			input:        "daily around 9am",
+			expectedCron: "FUZZY:DAILY_AROUND:9:0 * * *",
+			expectedOrig: "daily around 9am",
+		},
+		{
+			name:         "daily around 14:00 utc+9",
+			input:        "daily around 14:00 utc+9",
+			expectedCron: "FUZZY:DAILY_AROUND:5:0 * * *",
+			expectedOrig: "daily around 14:00 utc+9",
+		},
+		{
+			name:         "daily around 3pm utc-5",
+			input:        "daily around 3pm utc-5",
+			expectedCron: "FUZZY:DAILY_AROUND:20:0 * * *",
+			expectedOrig: "daily around 3pm utc-5",
+		},
+		{
+			name:         "daily around 9am utc+05:30",
+			input:        "daily around 9am utc+05:30",
+			expectedCron: "FUZZY:DAILY_AROUND:3:30 * * *",
+			expectedOrig: "daily around 9am utc+05:30",
+		},
+		{
+			name:         "daily around midnight utc-8",
+			input:        "daily around midnight utc-8",
+			expectedCron: "FUZZY:DAILY_AROUND:8:0 * * *",
+			expectedOrig: "daily around midnight utc-8",
+		},
+		{
+			name:         "daily around noon utc+2",
+			input:        "daily around noon utc+2",
+			expectedCron: "FUZZY:DAILY_AROUND:10:0 * * *",
+			expectedOrig: "daily around noon utc+2",
 		},
 
 		// Hourly schedules
@@ -776,9 +845,9 @@ func TestIsHourlyCron(t *testing.T) {
 		{"0 */1 * * *", true},
 		{"30 */2 * * *", true},
 		{"15 */6 * * *", true},
-		{"0 0 * * *", false},     // daily, not hourly interval
-		{"*/30 * * * *", false},  // minute interval, not hourly
-		{"0 * * * *", false},     // every hour but not interval pattern
+		{"0 0 * * *", false},    // daily, not hourly interval
+		{"*/30 * * * *", false}, // minute interval, not hourly
+		{"0 * * * *", false},    // every hour but not interval pattern
 		{"invalid", false},
 		{"", false},
 	}
@@ -846,7 +915,7 @@ func TestScatterScheduleHourly(t *testing.T) {
 func TestScatterScheduleHourlyDeterministic(t *testing.T) {
 	// Test that scattering is deterministic - same input produces same output
 	workflows := []string{"workflow-a", "workflow-b", "workflow-c", "workflow-a"}
-	
+
 	results := make([]string, len(workflows))
 	for i, wf := range workflows {
 		result, err := ScatterSchedule("FUZZY:HOURLY/2 * * *", wf)
@@ -855,18 +924,135 @@ func TestScatterScheduleHourlyDeterministic(t *testing.T) {
 		}
 		results[i] = result
 	}
-	
+
 	// workflow-a should produce the same result both times
 	if results[0] != results[3] {
 		t.Errorf("ScatterSchedule not deterministic: workflow-a produced %s and %s", results[0], results[3])
 	}
-	
+
 	// Different workflows should produce different minute offsets (with high probability)
 	minute0 := strings.Fields(results[0])[0]
 	minute1 := strings.Fields(results[1])[0]
 	minute2 := strings.Fields(results[2])[0]
-	
+
 	if minute0 == minute1 && minute1 == minute2 {
 		t.Errorf("ScatterSchedule produced identical minute offsets for all workflows: %s", minute0)
+	}
+}
+
+func TestScatterScheduleDailyAround(t *testing.T) {
+	tests := []struct {
+		name               string
+		fuzzyCron          string
+		workflowIdentifier string
+		targetHour         int
+		targetMinute       int
+		expectError        bool
+	}{
+		{
+			name:               "valid fuzzy daily around 9am",
+			fuzzyCron:          "FUZZY:DAILY_AROUND:9:0 * * *",
+			workflowIdentifier: "workflow1",
+			targetHour:         9,
+			targetMinute:       0,
+			expectError:        false,
+		},
+		{
+			name:               "valid fuzzy daily around 14:30",
+			fuzzyCron:          "FUZZY:DAILY_AROUND:14:30 * * *",
+			workflowIdentifier: "workflow2",
+			targetHour:         14,
+			targetMinute:       30,
+			expectError:        false,
+		},
+		{
+			name:               "valid fuzzy daily around midnight",
+			fuzzyCron:          "FUZZY:DAILY_AROUND:0:0 * * *",
+			workflowIdentifier: "workflow3",
+			targetHour:         0,
+			targetMinute:       0,
+			expectError:        false,
+		},
+		{
+			name:               "valid fuzzy daily around 23:30",
+			fuzzyCron:          "FUZZY:DAILY_AROUND:23:30 * * *",
+			workflowIdentifier: "workflow4",
+			targetHour:         23,
+			targetMinute:       30,
+			expectError:        false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, err := ScatterSchedule(tt.fuzzyCron, tt.workflowIdentifier)
+			if tt.expectError {
+				if err == nil {
+					t.Errorf("expected error, got nil")
+				}
+				return
+			}
+			if err != nil {
+				t.Errorf("unexpected error: %v", err)
+				return
+			}
+			// Check that result is a valid cron expression
+			if !isCronExpression(result) {
+				t.Errorf("ScatterSchedule returned invalid cron: %s", result)
+			}
+			// Check that result is daily pattern
+			if !IsDailyCron(result) {
+				t.Errorf("ScatterSchedule returned non-daily cron: %s", result)
+			}
+
+			// Parse the returned cron to check it's within the window
+			fields := strings.Fields(result)
+			minute, _ := strconv.Atoi(fields[0])
+			hour, _ := strconv.Atoi(fields[1])
+
+			// Calculate time in minutes
+			resultMinutes := hour*60 + minute
+			targetMinutes := tt.targetHour*60 + tt.targetMinute
+
+			// Calculate the difference, accounting for wrap-around
+			diff := resultMinutes - targetMinutes
+			if diff < 0 {
+				diff = -diff
+			}
+			// Handle day wrap-around (e.g., target at 23:30, result at 01:00)
+			if diff > 12*60 { // More than half a day
+				diff = 24*60 - diff
+			}
+
+			// Check that the scattered time is within ±1 hour (60 minutes) of target
+			if diff > 60 {
+				t.Errorf("Scattered time %d:%02d is not within ±1 hour of target %d:%02d (diff: %d minutes)",
+					hour, minute, tt.targetHour, tt.targetMinute, diff)
+			}
+		})
+	}
+}
+
+func TestScatterScheduleDailyAroundDeterministic(t *testing.T) {
+	// Test that scattering is deterministic - same input produces same output
+	workflows := []string{"workflow-a", "workflow-b", "workflow-c", "workflow-a"}
+
+	results := make([]string, len(workflows))
+	for i, wf := range workflows {
+		result, err := ScatterSchedule("FUZZY:DAILY_AROUND:14:0 * * *", wf)
+		if err != nil {
+			t.Fatalf("unexpected error for workflow %s: %v", wf, err)
+		}
+		results[i] = result
+	}
+
+	// workflow-a should produce the same result both times
+	if results[0] != results[3] {
+		t.Errorf("ScatterSchedule not deterministic: workflow-a produced %s and %s", results[0], results[3])
+	}
+
+	// Different workflows should produce different results (with high probability)
+	if results[0] == results[1] && results[1] == results[2] {
+		t.Errorf("ScatterSchedule produced identical results for all workflows: %s", results[0])
 	}
 }

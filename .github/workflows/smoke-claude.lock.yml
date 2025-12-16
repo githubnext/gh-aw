@@ -26,8 +26,7 @@
 # ```yaml
 # description: Smoke test workflow that validates Claude engine functionality by reviewing recent PRs every 6 hours
 # on: 
-#   schedule:
-#     - cron: every 6h
+#   schedule: every 6h
 #   workflow_dispatch:
 #   pull_request:
 #     types: [labeled]
@@ -279,7 +278,7 @@ name: "Smoke Claude"
     types:
     - labeled
   schedule:
-  - cron: "14 */6 * * *"
+  - cron: "16 */6 * * *"
   workflow_dispatch: null
 
 permissions: {}
