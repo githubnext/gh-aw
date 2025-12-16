@@ -102,7 +102,7 @@ For workflows that need to run around a specific time (with some flexibility), u
 
 ```yaml wrap
 on:
-  schedule: daily around 14:00  # Scatters within ±2 hours (12:00-16:00)
+  schedule: daily around 14:00  # Scatters within ±1 hour (13:00-15:00)
 ```
 
 The compiler deterministically assigns each workflow a unique time throughout the day based on the workflow file path. This ensures:
@@ -131,11 +131,11 @@ Using explicit times like `0 0 * * *` or `daily at midnight` causes all workflow
 
 **Supported Formats:**
 - **Daily (Fuzzy)**: `daily` → Scattered time like `43 5 * * *` (compiler determines)
-- **Daily (Fuzzy Around)**: `daily around HH:MM` → Scattered time within ±2 hours of target
-  - `daily around 14:00` → `20 15 * * *` (scattered between 12:00-16:00)
-  - `daily around 9am` → `38 7 * * *` (scattered between 07:00-11:00)
-  - `daily around midnight` → `27 1 * * *` (scattered between 22:00-02:00)
-  - `daily around noon` → Scattered time between 10:00-14:00
+- **Daily (Fuzzy Around)**: `daily around HH:MM` → Scattered time within ±1 hour of target
+  - `daily around 14:00` → `20 14 * * *` (scattered between 13:00-15:00)
+  - `daily around 9am` → `38 8 * * *` (scattered between 08:00-10:00)
+  - `daily around midnight` → `27 0 * * *` (scattered between 23:00-01:00)
+  - `daily around noon` → Scattered time between 11:00-13:00
   - **With UTC offsets**: `daily around 3pm utc-5` → `33 19 * * *` (3 PM EST → scattered around 8 PM UTC)
   - **With time zones**: `daily around 14:00 utc+9` → `47 5 * * *` (2 PM JST → scattered around 5 AM UTC)
   - Supports all time formats: `HH:MM`, `midnight`, `noon`, `Npm`, `Nam` with optional UTC offsets

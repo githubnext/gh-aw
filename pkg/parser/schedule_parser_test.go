@@ -1024,9 +1024,9 @@ func TestScatterScheduleDailyAround(t *testing.T) {
 				diff = 24*60 - diff
 			}
 
-			// Check that the scattered time is within ±2 hours (120 minutes) of target
-			if diff > 120 {
-				t.Errorf("Scattered time %d:%02d is not within ±2 hours of target %d:%02d (diff: %d minutes)",
+			// Check that the scattered time is within ±1 hour (60 minutes) of target
+			if diff > 60 {
+				t.Errorf("Scattered time %d:%02d is not within ±1 hour of target %d:%02d (diff: %d minutes)",
 					hour, minute, tt.targetHour, tt.targetMinute, diff)
 			}
 		})

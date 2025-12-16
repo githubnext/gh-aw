@@ -155,8 +155,8 @@ func ScatterSchedule(fuzzyCron, workflowIdentifier string) (string, error) {
 		// Calculate target time in minutes since midnight
 		targetMinutes := targetHour*60 + targetMinute
 
-		// Define the scattering window: ±2 hours (240 minutes total range)
-		windowSize := 240 // Total window is 4 hours (±2 hours)
+		// Define the scattering window: ±1 hour (120 minutes total range)
+		windowSize := 120 // Total window is 2 hours (±1 hour)
 
 		// Use a simple hash to get a deterministic offset within the window
 		hash := 0
@@ -164,7 +164,7 @@ func ScatterSchedule(fuzzyCron, workflowIdentifier string) (string, error) {
 			hash = (hash*31 + int(ch)) % windowSize
 		}
 
-		// Calculate offset from target time: range is [-120, +119] minutes
+		// Calculate offset from target time: range is [-60, +59] minutes
 		offset := hash - (windowSize / 2)
 
 		// Apply offset to target time
