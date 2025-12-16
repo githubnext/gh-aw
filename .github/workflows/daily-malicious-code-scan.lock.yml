@@ -26,8 +26,7 @@
 # ```yaml
 # description: Daily security scan that reviews code changes from the last 3 days for suspicious patterns indicating malicious agentic threats
 # on:
-#   schedule:
-#     - cron: daily
+#   schedule: daily
 #   workflow_dispatch:
 # permissions:
 #   contents: read
@@ -369,7 +368,7 @@
 name: "Daily Malicious Code Scan Agent"
 "on":
   schedule:
-  - cron: "38 16 * * *"
+  - cron: "40 23 * * *"
     # Friendly format: daily (scattered)
   workflow_dispatch: null
 
