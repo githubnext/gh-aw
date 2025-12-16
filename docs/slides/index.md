@@ -308,8 +308,8 @@ Review this PR with context from previous reviews:
 
 ---
 
-# Playwright + Upload Assets
-## Browser automation for web app testing
+# Playwright Browser Automation
+## Web app testing and accessibility
 
 ```yaml
 ---
@@ -319,8 +319,7 @@ on:
 tools:
   playwright:      # Headless browser automation
 safe-outputs:
-  create-issue:
-  upload-assets:   # Attach screenshots to artifacts
+  create-issue:    # Report findings
 ---
 Test the web application:
 1. Navigate to the deployed preview URL
