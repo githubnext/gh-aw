@@ -173,3 +173,54 @@ func TestValidateCampaignSpec_InvalidState(t *testing.T) {
 		t.Errorf("Expected state validation problem, got: %v", problems)
 	}
 }
+
+// TestComputeCompiledState_LockFilePath verifies that lock file paths are
+// correctly constructed (workflow.lock.yml, not workflow.md.lock.yml).
+func TestComputeCompiledState_LockFilePath(t *testing.T) {
+	// Create a temporary directory for test workflows
+	tmpDir := t.TempDir()
+
+	// Create a workflow .md file and its .lock.yml companion
+	workflowID := "test-workflow"
+	mdPath := filepath.Join(tmpDir, workflowID+".md")
+	lockPath := filepath.Join(tmpDir, workflowID+".lock.yml")
+
+	if err := os.WriteFile(mdPath, []byte("test content"), 0o644); err != nil {
+		t.Fatalf("Failed to create test workflow: %v", err)
+	}
+	if err := os.WriteFile(lockPath, []byte("test lock"), 0o644); err != nil {
+		t.Fatalf("Failed to create test lock file: %v", err)
+	}
+
+	spec := CampaignSpec{
+		ID:        "test-campaign",
+		Workflows: []string{workflowID},
+	}
+
+	// This should find the lock file and return "Yes"
+	state := ComputeCompiledState(spec, tmpDir)
+	if state != "Yes" {
+		t.Errorf("Expected compiled state 'Yes' when both .md and .lock.yml exist, got %q", state)
+	}
+
+	// Now test with only the .md file (remove lock file)
+	if err := os.Remove(lockPath); err != nil {
+		t.Fatalf("Failed to remove lock file: %v", err)
+	}
+
+	state = ComputeCompiledState(spec, tmpDir)
+	if state != "No" {
+		t.Errorf("Expected compiled state 'No' when .lock.yml is missing, got %q", state)
+	}
+
+	// Test that we don't look for the wrong path (workflow.md.lock.yml)
+	wrongLockPath := mdPath + ".lock.yml" // This would be workflow.md.lock.yml
+	if err := os.WriteFile(wrongLockPath, []byte("wrong lock"), 0o644); err != nil {
+		t.Fatalf("Failed to create wrong lock file: %v", err)
+	}
+
+	state = ComputeCompiledState(spec, tmpDir)
+	if state != "No" {
+		t.Errorf("Expected compiled state 'No' because correct lock file doesn't exist (only wrong path exists), got %q", state)
+	}
+}
