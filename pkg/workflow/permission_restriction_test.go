@@ -111,7 +111,7 @@ Test workflow content.`,
 			expectedPermissions:   []string{"admin", "maintainer", "write"},
 		},
 		{
-			name: "workflow with workflow_dispatch without write role should include permission check",
+			name: "workflow with workflow_dispatch without write role should NOT include permission check (safe event)",
 			frontmatter: `---
 on:
   workflow_dispatch:
@@ -124,7 +124,7 @@ tools:
 # Manual Workflow Restricted
 Test workflow content.`,
 			filename:              "manual-workflow-restricted.md",
-			expectPermissionCheck: true,
+			expectPermissionCheck: false,
 			expectedPermissions:   []string{"admin", "maintainer"},
 		},
 		{

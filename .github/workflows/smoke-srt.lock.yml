@@ -6717,14 +6717,10 @@ jobs:
               const requiredPermissions = parseRequiredPermissions();
               const allowedBots = parseAllowedBots();
               if (eventName === "workflow_dispatch") {
-                const hasWriteRole = requiredPermissions.includes("write");
-                if (hasWriteRole) {
-                  core.info(`✅ Event ${eventName} does not require validation (write role allowed)`);
-                  core.setOutput("is_team_member", "true");
-                  core.setOutput("result", "safe_event");
-                  return;
-                }
-                core.info(`Event ${eventName} requires validation (write role not allowed)`);
+                core.info(`✅ Event ${eventName} does not require validation (manually triggered workflow)`);
+                core.setOutput("is_team_member", "true");
+                core.setOutput("result", "safe_event");
+                return;
               }
               const safeEvents = ["schedule"];
               if (safeEvents.includes(eventName)) {

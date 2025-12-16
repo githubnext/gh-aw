@@ -96,29 +96,34 @@ describe("check_membership.cjs", () => {
       expect(mockCore.setOutput).toHaveBeenCalledWith("result", "safe_event");
     });
 
-    it("should skip check for workflow_dispatch when write role is allowed", async () => {
+    it("should skip check for workflow_dispatch events (always safe)", async () => {
+      mockContext.eventName = "workflow_dispatch";
+      process.env.GH_AW_REQUIRED_ROLES = "admin,maintainer";
+
+      await runScript();
+
+      expect(mockCore.info).toHaveBeenCalledWith(
+        "✅ Event workflow_dispatch does not require validation (manually triggered workflow)"
+      );
+      expect(mockCore.setOutput).toHaveBeenCalledWith("is_team_member", "true");
+      expect(mockCore.setOutput).toHaveBeenCalledWith("result", "safe_event");
+      // Should not call API to check permissions
+      expect(mockGithub.rest.repos.getCollaboratorPermissionLevel).not.toHaveBeenCalled();
+    });
+
+    it("should skip check for workflow_dispatch regardless of roles", async () => {
       mockContext.eventName = "workflow_dispatch";
       process.env.GH_AW_REQUIRED_ROLES = "write,read";
 
       await runScript();
 
-      expect(mockCore.info).toHaveBeenCalledWith("✅ Event workflow_dispatch does not require validation (write role allowed)");
+      expect(mockCore.info).toHaveBeenCalledWith(
+        "✅ Event workflow_dispatch does not require validation (manually triggered workflow)"
+      );
       expect(mockCore.setOutput).toHaveBeenCalledWith("is_team_member", "true");
       expect(mockCore.setOutput).toHaveBeenCalledWith("result", "safe_event");
-    });
-
-    it("should validate workflow_dispatch when write role is not allowed", async () => {
-      mockContext.eventName = "workflow_dispatch";
-      process.env.GH_AW_REQUIRED_ROLES = "admin,maintainer";
-
-      mockGithub.rest.repos.getCollaboratorPermissionLevel.mockResolvedValue({
-        data: { permission: "admin" },
-      });
-
-      await runScript();
-
-      expect(mockCore.info).toHaveBeenCalledWith("Event workflow_dispatch requires validation (write role not allowed)");
-      expect(mockGithub.rest.repos.getCollaboratorPermissionLevel).toHaveBeenCalled();
+      // Should not call API to check permissions
+      expect(mockGithub.rest.repos.getCollaboratorPermissionLevel).not.toHaveBeenCalled();
     });
   });
 
