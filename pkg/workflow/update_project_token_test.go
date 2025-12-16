@@ -82,47 +82,20 @@ func TestUpdateProjectGitHubTokenEnvVar(t *testing.T) {
 				t.Fatalf("Failed to build update_project job: %v", err)
 			}
 
-			// Check steps for environment variable and github-token parameter
-			foundEnv := false
-			foundWith := false
-			expectedEnvVarKeyVal := strings.SplitN(tt.expectedEnvVarValue, ": ", 2)
-			expectedEnvVarKey := expectedEnvVarKeyVal[0]
-			expectedEnvVarVal := ""
-			if len(expectedEnvVarKeyVal) > 1 {
-				expectedEnvVarVal = expectedEnvVarKeyVal[1]
-			}
-			expectedWithVal := strings.TrimPrefix(tt.expectedEnvVarValue, "GH_AW_PROJECT_GITHUB_TOKEN: ")
+			// Convert job to YAML to check for environment variables
+			yamlStr := strings.Join(job.Steps, "")
 
-			for _, step := range job.Steps {
-				// Try to assert step is a map[string]interface{}
-				stepMap, ok := step.(map[string]interface{})
-				if !ok {
-					continue
-				}
-
-				// Check for env
-				if env, ok := stepMap["env"].(map[string]interface{}); ok {
-					if val, ok := env[expectedEnvVarKey]; ok && val == expectedEnvVarVal {
-						foundEnv = true
-					}
-				}
-
-				// Check for github-token in with
-				if with, ok := stepMap["with"].(map[string]interface{}); ok {
-					if val, ok := with["github-token"]; ok && val == expectedWithVal {
-						foundWith = true
-					}
-				}
+			// Check that the environment variable is present with the expected value
+			if !strings.Contains(yamlStr, tt.expectedEnvVarValue) {
+				t.Errorf("Expected environment variable %q to be set in update_project job, but it was not found.\nGenerated YAML:\n%s",
+					tt.expectedEnvVarValue, yamlStr)
 			}
 
-			if !foundEnv {
-				t.Errorf("Expected environment variable %q to be set in update_project job, but it was not found.\nJob steps: %+v",
-					tt.expectedEnvVarValue, job.Steps)
-			}
-
-			if !foundWith {
-				t.Errorf("Expected github-token parameter to be set to %q, but it was not found.\nJob steps: %+v",
-					expectedWithVal, job.Steps)
+			// Also verify the token is passed to github-token parameter
+			expectedWith := "github-token: " + strings.TrimPrefix(tt.expectedEnvVarValue, "GH_AW_PROJECT_GITHUB_TOKEN: ")
+			if !strings.Contains(yamlStr, expectedWith) {
+				t.Errorf("Expected github-token parameter to be set to %q, but it was not found.\nGenerated YAML:\n%s",
+					expectedWith, yamlStr)
 			}
 		})
 	}
