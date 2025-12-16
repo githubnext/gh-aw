@@ -460,17 +460,17 @@ describe("updateProject", () => {
     // Find the updateProjectV2Field mutation call
     const updateFieldCall = mockGithub.graphql.mock.calls.find(([query]) => query.includes("updateProjectV2Field"));
     expect(updateFieldCall).toBeDefined();
-    
+
     // Verify that the mutation includes color for all options
     const options = updateFieldCall[1].options;
     expect(options).toHaveLength(5); // 4 existing + 1 new
-    
+
     // Check that all existing options have their colors preserved
     expect(options[0]).toEqual({ name: "Todo", description: "", color: "GRAY" });
     expect(options[1]).toEqual({ name: "In Progress", description: "", color: "YELLOW" });
     expect(options[2]).toEqual({ name: "Done", description: "", color: "GREEN" });
     expect(options[3]).toEqual({ name: "Closed", description: "", color: "PURPLE" });
-    
+
     // Check that the new option has a default color
     expect(options[4]).toEqual({ name: "Closed - Not Planned", description: "", color: "GRAY" });
   });
