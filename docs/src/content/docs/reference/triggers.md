@@ -136,6 +136,9 @@ Using explicit times like `0 0 * * *` or `daily at midnight` causes all workflow
   - `daily around 9am` → `38 7 * * *` (scattered between 07:00-11:00)
   - `daily around midnight` → `27 1 * * *` (scattered between 22:00-02:00)
   - `daily around noon` → Scattered time between 10:00-14:00
+  - **With UTC offsets**: `daily around 3pm utc-5` → `33 19 * * *` (3 PM EST → scattered around 8 PM UTC)
+  - **With time zones**: `daily around 14:00 utc+9` → `47 5 * * *` (2 PM JST → scattered around 5 AM UTC)
+  - Supports all time formats: `HH:MM`, `midnight`, `noon`, `Npm`, `Nam` with optional UTC offsets
 - **Daily (Fixed)**: `daily at HH:MM` or `daily at midnight/noon` or `daily at Npm/Nam`
   - `daily at 02:00` → `0 2 * * *` (⚠️ Warning: fixed time)
   - `daily at midnight` → `0 0 * * *` (⚠️ Warning: fixed time)

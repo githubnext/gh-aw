@@ -114,6 +114,36 @@ func TestParseSchedule(t *testing.T) {
 			expectedCron: "FUZZY:DAILY_AROUND:9:0 * * *",
 			expectedOrig: "daily around 9am",
 		},
+		{
+			name:         "daily around 14:00 utc+9",
+			input:        "daily around 14:00 utc+9",
+			expectedCron: "FUZZY:DAILY_AROUND:5:0 * * *",
+			expectedOrig: "daily around 14:00 utc+9",
+		},
+		{
+			name:         "daily around 3pm utc-5",
+			input:        "daily around 3pm utc-5",
+			expectedCron: "FUZZY:DAILY_AROUND:20:0 * * *",
+			expectedOrig: "daily around 3pm utc-5",
+		},
+		{
+			name:         "daily around 9am utc+05:30",
+			input:        "daily around 9am utc+05:30",
+			expectedCron: "FUZZY:DAILY_AROUND:3:30 * * *",
+			expectedOrig: "daily around 9am utc+05:30",
+		},
+		{
+			name:         "daily around midnight utc-8",
+			input:        "daily around midnight utc-8",
+			expectedCron: "FUZZY:DAILY_AROUND:8:0 * * *",
+			expectedOrig: "daily around midnight utc-8",
+		},
+		{
+			name:         "daily around noon utc+2",
+			input:        "daily around noon utc+2",
+			expectedCron: "FUZZY:DAILY_AROUND:10:0 * * *",
+			expectedOrig: "daily around noon utc+2",
+		},
 
 		// Hourly schedules
 		{
