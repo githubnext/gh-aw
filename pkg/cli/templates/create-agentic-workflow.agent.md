@@ -88,9 +88,12 @@ Analyze the user's response and map it to agentic workflows. Ask clarifying ques
    - 💡 If you detect the task requires **browser automation**, suggest the **`playwright`** tool.
 
 **Scheduling Best Practices:**
-   - 📅 When creating a **daily scheduled workflow**, pick a random hour.
-   - 🚫 **Avoid weekend scheduling**: For daily workflows, use `cron: "0 <hour> * * 1-5"` to run only on weekdays (Monday-Friday) instead of `* * *` which includes weekends.
-   - Example daily schedule avoiding weekends: `cron: "0 14 * * 1-5"` (2 PM UTC, weekdays only)
+   - 📅 When creating a **daily scheduled workflow**, use **fuzzy scheduling** by simply specifying `daily` without a time. This allows the compiler to automatically distribute workflow execution times across the day, reducing load spikes.
+   - ✨ **Recommended**: `cron: daily` (fuzzy schedule - time will be scattered deterministically)
+   - ⚠️ **Avoid fixed times**: Don't use explicit times like `cron: "0 0 * * *"` or `daily at midnight` as this concentrates all workflows at the same time, creating load spikes.
+   - 🚫 **Avoid weekend scheduling**: For daily workflows that should only run on weekdays, use `cron: "0 <hour> * * 1-5"` pattern after discussing with the user if weekend execution is needed.
+   - Example fuzzy daily schedule: `cron: daily` (compiler will scatter to something like `43 5 * * *`)
+   - Example daily schedule avoiding weekends: `cron: "0 14 * * 1-5"` (2 PM UTC, weekdays only - use this only if user specifically wants to avoid weekends)
 
 DO NOT ask all these questions at once; instead, engage in a back-and-forth conversation to gather the necessary details.
 
