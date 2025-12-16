@@ -95,22 +95,22 @@ func IsHourlyCron(cron string) bool {
 	// Hourly pattern: minute */N * * * or minute *N * * *
 	// The minute must be a specific value (number), not a wildcard
 	// The hour must be an interval pattern (*/N)
-	
+
 	minute := fields[0]
 	hour := fields[1]
-	
+
 	// Minute should be digits only (no *, /, -, ,)
 	for _, ch := range minute {
 		if ch < '0' || ch > '9' {
 			return false
 		}
 	}
-	
+
 	// Hour should be an interval pattern like */N
 	if !strings.HasPrefix(hour, "*/") {
 		return false
 	}
-	
+
 	// Check remaining fields are wildcards
 	return fields[2] == "*" && fields[3] == "*" && fields[4] == "*"
 }
@@ -134,42 +134,42 @@ func ScatterSchedule(fuzzyCron, workflowIdentifier string) (string, error) {
 		if len(parts) < 1 {
 			return "", fmt.Errorf("invalid fuzzy daily around pattern: %s", fuzzyCron)
 		}
-		
+
 		// Parse the target time from FUZZY:DAILY_AROUND:HH:MM
 		timePart := strings.TrimPrefix(parts[0], "FUZZY:DAILY_AROUND:")
 		timeParts := strings.Split(timePart, ":")
 		if len(timeParts) != 2 {
 			return "", fmt.Errorf("invalid time format in fuzzy daily around pattern: %s", fuzzyCron)
 		}
-		
+
 		targetHour, err := strconv.Atoi(timeParts[0])
 		if err != nil || targetHour < 0 || targetHour > 23 {
 			return "", fmt.Errorf("invalid target hour in fuzzy daily around pattern: %s", fuzzyCron)
 		}
-		
+
 		targetMinute, err := strconv.Atoi(timeParts[1])
 		if err != nil || targetMinute < 0 || targetMinute > 59 {
 			return "", fmt.Errorf("invalid target minute in fuzzy daily around pattern: %s", fuzzyCron)
 		}
-		
+
 		// Calculate target time in minutes since midnight
 		targetMinutes := targetHour*60 + targetMinute
-		
+
 		// Define the scattering window: ±2 hours (240 minutes total range)
 		windowSize := 240 // Total window is 4 hours (±2 hours)
-		
+
 		// Use a simple hash to get a deterministic offset within the window
 		hash := 0
 		for _, ch := range workflowIdentifier {
 			hash = (hash*31 + int(ch)) % windowSize
 		}
-		
+
 		// Calculate offset from target time: range is [-120, +119] minutes
 		offset := hash - (windowSize / 2)
-		
+
 		// Apply offset to target time
 		scatteredMinutes := targetMinutes + offset
-		
+
 		// Handle wrap-around (keep within 0-1439 minutes, which is 0:00-23:59)
 		for scatteredMinutes < 0 {
 			scatteredMinutes += 24 * 60
@@ -177,10 +177,10 @@ func ScatterSchedule(fuzzyCron, workflowIdentifier string) (string, error) {
 		for scatteredMinutes >= 24*60 {
 			scatteredMinutes -= 24 * 60
 		}
-		
+
 		hour := scatteredMinutes / 60
 		minute := scatteredMinutes % 60
-		
+
 		// Return scattered daily cron: minute hour * * *
 		return fmt.Sprintf("%d %d * * *", minute, hour), nil
 	}
@@ -207,22 +207,22 @@ func ScatterSchedule(fuzzyCron, workflowIdentifier string) (string, error) {
 		if len(parts) < 1 {
 			return "", fmt.Errorf("invalid fuzzy hourly pattern: %s", fuzzyCron)
 		}
-		
+
 		hourlyPart := parts[0]
 		intervalStr := strings.TrimPrefix(hourlyPart, "FUZZY:HOURLY/")
 		interval, err := strconv.Atoi(intervalStr)
 		if err != nil {
 			return "", fmt.Errorf("invalid interval in fuzzy hourly pattern: %s", fuzzyCron)
 		}
-		
+
 		// Use a hash to get a deterministic minute offset (0-59)
 		hash := 0
 		for _, ch := range workflowIdentifier {
 			hash = (hash*31 + int(ch)) % 60
 		}
-		
+
 		minute := hash
-		
+
 		// Return scattered hourly cron: minute */N * * *
 		return fmt.Sprintf("%d */%d * * *", minute, interval), nil
 	}
