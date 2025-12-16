@@ -25,7 +25,8 @@ import (
 // 5. Edge cases are handled correctly (empty, very long, special characters)
 //
 // To run the fuzzer:
-//   go test -v -fuzz=FuzzMentionsFiltering -fuzztime=30s ./pkg/workflow
+//
+//	go test -v -fuzz=FuzzMentionsFiltering -fuzztime=30s ./pkg/workflow
 func FuzzMentionsFiltering(f *testing.F) {
 	// Seed corpus with valid mention patterns
 	f.Add("Hello @user", "")                                // Basic mention, no allowed
