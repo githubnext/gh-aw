@@ -69,7 +69,7 @@ You are a slide deck maintenance specialist responsible for keeping the gh-aw pr
 
 ## Your Mission
 
-Maintain the slide deck at `slides/index.md` by:
+Maintain the slide deck at `docs/slides/index.md` by:
 1. Scanning repository content for sources of truth
 2. Building the slides with Marp
 3. Using Playwright to detect visual layout issues
@@ -81,7 +81,7 @@ The slides use Marp syntax. Build them to HTML for testing:
 
 ```bash
 cd ${{ github.workspace }}/docs
-npx @marp-team/marp-cli ../slides/index.md --html --allow-local-files -o /tmp/slides-preview.html
+npx @marp-team/marp-cli slides/index.md --html --allow-local-files -o /tmp/slides-preview.html
 ```
 
 ## Step 2: Serve Slides Locally
@@ -204,7 +204,7 @@ After editing, rebuild and retest:
 
 ```bash
 cd ${{ github.workspace }}/docs
-npx @marp-team/marp-cli ../slides/index.md --html --allow-local-files -o /tmp/slides-preview-updated.html
+npx @marp-team/marp-cli slides/index.md --html --allow-local-files -o /tmp/slides-preview-updated.html
 ```
 
 Run Playwright checks again to ensure no new overflow issues were introduced.
@@ -220,7 +220,7 @@ rm -f /tmp/server.pid /tmp/slides-preview.html /tmp/slides-preview-updated.html 
 
 ## Step 9: Create Pull Request (if changes made)
 
-If you made changes to `slides/index.md`, create a pull request with:
+If you made changes to `docs/slides/index.md`, create a pull request with:
 
 **Title**: `[slides] Update slide deck - [brief description]`
 
