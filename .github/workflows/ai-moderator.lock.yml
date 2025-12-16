@@ -46,7 +46,7 @@
 #     mode: local
 #     read-only: true
 #     toolsets: [default]
-# if: (github.event_name == 'workflow_dispatch') || ((needs.check_external_user.result != 'skipped') && (needs.check_external_user.outputs.is_external == 'true'))
+# if: (github.event_name == 'workflow_dispatch') || ((needs.check_external_user.result != 'skipped') && (needs.check_external_user.outputs.should_run))
 # safe-outputs:
 #   add-labels:
 #     allowed: [spam, ai-generated, link-spam, ai-inspected]
@@ -58,14 +58,14 @@
 # jobs:
 #   check_external_user:
 #     needs: [pre_activation]
-#     if: github.event_name != 'workflow_dispatch'
 #     runs-on: ubuntu-slim
 #     outputs:
-#       is_external: ${{ steps.check_actor.outputs.should_run }}
+#       should_run: ${{ steps.check_actor.outputs.should_run || github.event_name == 'workflow_dispatch' }}
 #     steps:
 #       - name: Check if actor is external user
 #         id: check_actor
 #         uses: actions/github-script@v8
+#         if: ${{ github.event_name == 'workflow_dispatch' }}
 #         with:
 #           script: |
 #             const actor = context.actor;
@@ -288,7 +288,7 @@ jobs:
       - pre_activation
     if: >
       (needs.pre_activation.outputs.activated == 'true') && ((github.event_name == 'workflow_dispatch') || ((needs.check_external_user.result != 'skipped') &&
-      (needs.check_external_user.outputs.is_external == 'true')))
+      (needs.check_external_user.outputs.should_run)))
     runs-on: ubuntu-slim
     permissions:
       contents: read
@@ -6998,13 +6998,13 @@ jobs:
 
   check_external_user:
     needs: pre_activation
-    if: github.event_name != 'workflow_dispatch'
     runs-on: ubuntu-slim
     outputs:
-      is_external: ${{ steps.check_actor.outputs.should_run }}
+      should_run: ${{ steps.check_actor.outputs.should_run || github.event_name == 'workflow_dispatch' }}
     steps:
       - name: Check if actor is external user
         id: check_actor
+        if: ${{ github.event_name == 'workflow_dispatch' }}
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
           script: |-

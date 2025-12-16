@@ -23,7 +23,7 @@ tools:
     mode: local
     read-only: true
     toolsets: [default]
-if: (github.event_name == 'workflow_dispatch') || ((needs.check_external_user.result != 'skipped') && (needs.check_external_user.outputs.is_external == 'true'))
+if: (github.event_name == 'workflow_dispatch') || ((needs.check_external_user.result != 'skipped') && (needs.check_external_user.outputs.should_run))
 safe-outputs:
   add-labels:
     allowed: [spam, ai-generated, link-spam, ai-inspected]
@@ -35,14 +35,14 @@ safe-outputs:
 jobs:
   check_external_user:
     needs: [pre_activation]
-    if: github.event_name != 'workflow_dispatch'
     runs-on: ubuntu-slim
     outputs:
-      is_external: ${{ steps.check_actor.outputs.should_run }}
+      should_run: ${{ steps.check_actor.outputs.should_run || github.event_name == 'workflow_dispatch' }}
     steps:
       - name: Check if actor is external user
         id: check_actor
         uses: actions/github-script@v8
+        if: ${{ github.event_name == 'workflow_dispatch' }}
         with:
           script: |
             const actor = context.actor;
