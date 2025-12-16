@@ -1,0 +1,269 @@
+name: Campaign Issue to PR
+
+"on":
+  issues:
+    types: [opened]
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+jobs:
+  process-campaign-issue:
+    if: contains(github.event.issue.labels.*.name, 'campaign')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+        with:
+          fetch-depth: 0
+
+      - name: Setup Go
+        uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c # v6
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Build gh-aw
+        run: make build
+
+      - name: Parse Issue Form and Create Campaign Spec
+        id: create-spec
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        with:
+          script: |
+            const fs = require('fs');
+            const { execSync } = require('child_process');
+
+            // Parse issue form content
+            const issueBody = context.payload.issue.body || '';
+
+            // Extract form fields
+            function extractField(body, label) {
+              const regex = new RegExp(
+                `### ${label}\\s*\\n\\s*([^#]+)`,
+                'i'
+              );
+              const match = body.match(regex);
+              return match ? match[1].trim() : '';
+            }
+
+            const campaignName = extractField(issueBody, 'Campaign Name');
+            const campaignId = extractField(issueBody, 'Campaign Identifier');
+            const campaignVersion = extractField(issueBody, 'Campaign Version');
+            const projectUrl = extractField(issueBody, 'Project Board URL');
+            const campaignType = extractField(issueBody, 'Campaign Type / Playbook');
+            const scope = extractField(issueBody, 'Scope');
+            const constraints = extractField(issueBody, 'Constraints');
+            const priorLearnings = extractField(issueBody, 'Notes from Prior Learnings');
+            const description = extractField(issueBody, 'Campaign Description');
+            const additionalContext = extractField(issueBody, 'Additional Context');
+
+            core.info(`Parsed campaign: ${campaignId}`);
+            core.info(`Campaign title: ${campaignName}`);
+            core.info(`Project URL: ${projectUrl}`);
+
+            // Validate required fields
+            if (!campaignId) {
+              core.setFailed('Campaign Identifier is required');
+              return;
+            }
+
+            if (!projectUrl) {
+              core.setFailed('Project Board URL is required');
+              return;
+            }
+
+            // Validate ID format
+            if (!/^[a-z0-9-]+$/.test(campaignId)) {
+              core.setFailed('Campaign Identifier must use only lowercase letters, digits, and hyphens');
+              return;
+            }
+
+            // Validate project URL using GraphQL
+            const projectUrlMatch = projectUrl.match(/github\.com\/orgs\/([^\/]+)\/projects\/(\d+)/);
+            if (!projectUrlMatch) {
+              core.setFailed('Project Board URL must be a valid GitHub Project URL');
+              return;
+            }
+
+            const [, orgName, projectNumber] = projectUrlMatch;
+
+            try {
+              const query = `
+                query($org: String!, $number: Int!) {
+                  organization(login: $org) {
+                    projectV2(number: $number) {
+                      id
+                      title
+                      url
+                    }
+                  }
+                }
+              `;
+
+              const result = await github.graphql(query, {
+                org: orgName,
+                number: parseInt(projectNumber, 10)
+              });
+
+              if (!result.organization?.projectV2) {
+                core.setFailed(`Project not found or not accessible: ${projectUrl}`);
+                return;
+              }
+
+              core.info(`✓ Validated project: ${result.organization.projectV2.title}`);
+            } catch (error) {
+              core.setFailed(`Failed to validate project: ${error.message}`);
+              return;
+            }
+
+            // Build campaign spec content
+            const ver = campaignVersion || 'v1';
+            const lines = [
+              '---',
+              `id: ${campaignId}`,
+              `version: "${ver}"`,
+              `name: "${campaignName}"`,
+              `description: "${description}"`,
+              '',
+              `project-url: "${projectUrl}"`,
+              '',
+              'workflows: []',
+              '',
+              'memory-paths:',
+              `  - "memory/campaigns/${campaignId}-*/**"`,
+              '',
+              'owners: []',
+              '',
+              'executive-sponsors: []',
+              '',
+              'risk-level: "medium"',
+              'state: "active"',
+              'tags: []',
+              '',
+              `tracker-label: "campaign:${campaignId}"`,
+              '',
+              `metrics-glob: "memory/campaigns/${campaignId}-*/metrics/*.json"`,
+              '',
+              'allowed-safe-outputs:',
+              '  - "create-issue"',
+              '  - "add-comment"',
+              '  - "upload-assets"',
+              '  - "update-project"',
+              '',
+              'approval-policy:',
+              '  required-approvals: 1',
+              '  required-roles: []',
+              '  change-control: false',
+              '---',
+              '',
+              `# ${campaignName}`,
+              '',
+              description,
+              '',
+              '## Campaign Type',
+              '',
+              campaignType || 'Not specified',
+              '',
+              '## Scope',
+              '',
+              scope || 'Not specified',
+              '',
+              '## Constraints',
+              '',
+              constraints || 'Not specified',
+              '',
+              '## Prior Learnings',
+              '',
+              priorLearnings || 'Not specified',
+              '',
+              '## Additional Context',
+              '',
+              additionalContext || 'Not specified'
+            ];
+            const specContent = lines.join('\n') + '\n';
+
+            // Write the campaign spec file
+            const specPath = `.github/workflows/${campaignId}.campaign.md`;
+            fs.writeFileSync(specPath, specContent);
+            core.info(`✓ Created campaign spec: ${specPath}`);
+
+            // Set outputs
+            core.setOutput('campaign-id', campaignId);
+            core.setOutput('campaign-name', campaignName);
+            core.setOutput('spec-path', specPath);
+
+      - name: Compile Campaign Spec
+        run: |
+          ./gh-aw compile --validate --verbose
+          echo "✓ Campaign spec compiled successfully"
+
+      - name: Create Pull Request
+        id: create-pr
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        with:
+          script: |
+            const campaignId = '${{ steps.create-spec.outputs.campaign-id }}';
+            const campaignName = '${{ steps.create-spec.outputs.campaign-name }}';
+            const issueNumber = context.payload.issue.number;
+
+            // Configure git
+            const { execSync } = require('child_process');
+            execSync('git config user.name "github-actions[bot]"');
+            execSync('git config user.email "github-actions[bot]@users.noreply.github.com"');
+
+            // Create branch
+            const branchName = `campaign/${campaignId}`;
+            execSync(`git checkout -b ${branchName}`);
+
+            // Add and commit changes
+            execSync('git add .github/workflows/');
+            execSync(`git commit -m "Add campaign spec for ${campaignName} (#${issueNumber})"`);
+
+            // Push branch
+            execSync(`git push origin ${branchName}`);
+
+            // Create PR
+            const { data: pr } = await github.rest.pulls.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `Campaign: ${campaignName}`,
+              head: branchName,
+              base: 'main',
+              body: `## Campaign Spec PR
+
+            This PR was automatically generated from issue #${issueNumber}.
+
+            ### Campaign Details
+
+            - **ID:** \`${campaignId}\`
+            - **Name:** ${campaignName}
+            - **Status:** active
+
+            ### Files Added
+
+            - \`.github/workflows/${campaignId}.campaign.md\` - Campaign spec
+            - \`.github/workflows/${campaignId}.campaign.g.lock.yml\` - Orchestrator
+
+            ### Next Steps
+
+            1. Review the generated campaign spec
+            2. Update \`workflows\`, \`owners\`, and other fields as needed
+            3. Merge this PR to activate the campaign
+
+            Closes #${issueNumber}`
+            });
+
+            core.info(`✓ Created PR #${pr.number}: ${pr.html_url}`);
+
+            // Add comment to issue
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issueNumber,
+              body: `🚀 Campaign spec PR created: #${pr.number}
+
+            The campaign spec has been generated and validated. Review the PR to ensure all details are correct, then merge to activate the campaign.`
+            });
