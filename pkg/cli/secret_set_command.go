@@ -13,9 +13,12 @@ import (
 
 	"github.com/cli/go-gh/v2/pkg/api"
 	"github.com/githubnext/gh-aw/pkg/console"
+	"github.com/githubnext/gh-aw/pkg/logger"
 	"github.com/spf13/cobra"
 	"golang.org/x/crypto/nacl/box"
 )
+
+var secretSetLog = logger.New("cli:secret_set_command")
 
 type repoPublicKey struct {
 	ID  string `json:"key_id"`
@@ -61,6 +64,7 @@ Examples:
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			secretName := args[0]
+			secretSetLog.Printf("Setting repository secret: name=%s", secretName)
 
 			// Determine target repository: explicit --owner/--repo or current repo by default
 			var owner, repo string
@@ -70,9 +74,11 @@ Examples:
 					return fmt.Errorf("both --owner and --repo must be specified together when overriding the target repository")
 				}
 				owner, repo = flagOwner, flagRepo
+				secretSetLog.Printf("Using explicit repository: %s/%s", owner, repo)
 			} else {
 				repoSlug, err := GetCurrentRepoSlug()
 				if err != nil {
+					secretSetLog.Printf("Failed to detect current repository: %v", err)
 					return fmt.Errorf("failed to detect current repository: %w", err)
 				}
 				var splitErr error
@@ -80,6 +86,7 @@ Examples:
 				if splitErr != nil {
 					return fmt.Errorf("invalid current repository slug %q: %w", repoSlug, splitErr)
 				}
+				secretSetLog.Printf("Using current repository: %s/%s", owner, repo)
 			}
 
 			// Create GitHub REST client using go-gh
@@ -94,13 +101,17 @@ Examples:
 
 			secretValue, err := resolveSecretValueForSet(flagValueEnv, flagValue)
 			if err != nil {
+				secretSetLog.Printf("Failed to resolve secret value: %v", err)
 				return fmt.Errorf("cannot resolve secret value: %w", err)
 			}
 
+			secretSetLog.Print("Encrypting and uploading secret to GitHub")
 			if err := setRepoSecret(client, owner, repo, secretName, secretValue); err != nil {
+				secretSetLog.Printf("Failed to set secret: %v", err)
 				return fmt.Errorf("failed to set secret: %w", err)
 			}
 
+			secretSetLog.Printf("Successfully set secret %s for %s/%s", secretName, owner, repo)
 			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Secret %s updated for %s/%s", secretName, owner, repo)))
 			return nil
 		},
