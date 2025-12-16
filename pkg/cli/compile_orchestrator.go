@@ -143,9 +143,6 @@ func generateAndCompileCampaignOrchestrator(
 
 // CompileWorkflows compiles workflows based on the provided configuration
 func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
-	// Clear any previous schedule warnings
-	workflow.ClearScheduleWarnings()
-
 	markdownFiles := config.MarkdownFiles
 	verbose := config.Verbose
 	engineOverride := config.EngineOverride
@@ -436,8 +433,8 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 		// Get warning count from compiler
 		stats.Warnings = compiler.GetWarningCount()
 
-		// Display any schedule warnings
-		scheduleWarnings := workflow.GetScheduleWarnings()
+		// Display any schedule warnings from this compiler instance
+		scheduleWarnings := compiler.GetScheduleWarnings()
 		if len(scheduleWarnings) > 0 && !jsonOutput {
 			for _, warning := range scheduleWarnings {
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(warning))
@@ -739,8 +736,8 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 	// Get warning count from compiler
 	stats.Warnings = compiler.GetWarningCount()
 
-	// Display any schedule warnings
-	scheduleWarnings := workflow.GetScheduleWarnings()
+	// Display any schedule warnings from this compiler instance
+	scheduleWarnings := compiler.GetScheduleWarnings()
 	if len(scheduleWarnings) > 0 && !jsonOutput {
 		for _, warning := range scheduleWarnings {
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(warning))
