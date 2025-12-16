@@ -7,6 +7,25 @@
       "description": "Optional description for the included file or custom agent configuration. Used for documentation and clarity.",
       "examples": ["Agent instructions", "Shared tool configuration", "Common workflow steps"]
     },
+    "metadata": {
+      "type": "object",
+      "description": "Optional metadata field for storing custom key-value pairs compatible with the custom agent spec. Key names are limited to 64 characters, and values are limited to 1024 characters.",
+      "patternProperties": {
+        "^.{1,64}$": {
+          "type": "string",
+          "maxLength": 1024,
+          "description": "Metadata value (maximum 1024 characters)"
+        }
+      },
+      "additionalProperties": false,
+      "examples": [
+        {
+          "author": "Jane Smith",
+          "version": "2.0.0",
+          "category": "tools"
+        }
+      ]
+    },
     "inputs": {
       "type": "object",
       "description": "Input parameters for the shared workflow. Uses the same schema as workflow_dispatch inputs. Values can be referenced in the workflow using ${{ github.aw.inputs.<key> }} expressions.",
