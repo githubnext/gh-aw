@@ -1,7 +1,7 @@
 # GitHub Actions Workflow Layout Specification
 
 > Auto-generated specification documenting patterns used in compiled `.lock.yml` files.
-> Last updated: 2025-12-15
+> Last updated: 2025-12-16
 
 ## Overview
 
@@ -134,12 +134,12 @@ Standard job names across workflows:
 
 ## Common Step Names
 
-Most frequently used step names across workflows (top 30):
+Most frequently used step names across workflows (top 40):
 
 | Count | Step Name | Description |
 |-------|-----------|-------------|
-| 410 | Download agent output artifact | Downloads agent_output.json from agent job |
-| 299 | Setup agent output environment variable | Sets GH_AW_AGENT_OUTPUT env var |
+| 411 | Download agent output artifact | Downloads agent_output.json from agent job |
+| 300 | Setup agent output environment variable | Sets GH_AW_AGENT_OUTPUT env var |
 | 222 | Substitute placeholders | Replaces template placeholders in safe-output configs |
 | 175 | Configure Git credentials | Sets up Git authentication for commits |
 | 175 | Checkout repository | Checks out repository code |
@@ -159,8 +159,8 @@ Most frequently used step names across workflows (top 30):
 | 114 | Create prompt | Generates agent prompt |
 | 114 | Create gh-aw temp directory | Creates /tmp/gh-aw/ directory |
 | 114 | Check workflow file timestamps | Validates workflow file freshness |
-| 114 | Append temporary folder instructions | Adds /tmp/gh-aw/agent/ instructions |
-| 114 | Append XPIA security instructions | Adds security warnings to prompt |
+| 114 | Append temporary folder instructions to prompt | Adds /tmp/gh-aw/agent/ instructions |
+| 114 | Append XPIA security instructions to prompt | Adds security warnings to prompt |
 | 113 | Validate agent logs for errors | Checks for agent execution errors |
 | 113 | Parse agent logs for step summary | Extracts summary from logs |
 | 113 | Interpolate variables and render templates | Processes template variables |
@@ -168,6 +168,16 @@ Most frequently used step names across workflows (top 30):
 | 111 | Append GitHub context to prompt | Adds GitHub metadata to prompt |
 | 110 | Write Safe Outputs JavaScript Files | Writes safe-output .cjs files |
 | 110 | Write Safe Outputs Config | Writes safe-outputs configuration |
+| 110 | Upload sanitized agent output | Uploads redacted agent output |
+| 110 | Upload Safe Outputs | Uploads safe_output.jsonl artifact |
+| 110 | Update reaction comment with completion status | Updates comment with status emoji |
+| 110 | Record Missing Tool | Records missing tool messages |
+| 110 | Process No-Op Messages | Processes no-op safe outputs |
+| 110 | Ingest agent output | Parses and validates agent output |
+| 110 | Debug job inputs | Outputs job input for debugging |
+| 110 | Append safe outputs instructions to prompt | Adds safe-outputs guidance to prompt |
+| 108 | Upload threat detection log | Uploads threat detection results |
+| 108 | Setup threat detection | Configures threat detection system |
 
 ## File Paths
 
@@ -302,6 +312,7 @@ const ActivatedOutput = "activated"
 
 ```go
 const DefaultCopilotVersion = "0.0.369"
+const DefaultCopilotDetectionModel = "gpt-5-mini"
 const DefaultClaudeCodeVersion = "2.0.69"
 const DefaultCodexVersion = "0.72.0"
 const DefaultGitHubMCPServerVersion = "v0.24.1"
@@ -324,6 +335,30 @@ const DefaultElixirVersion = "1.17"
 const DefaultGoVersion = "1.25"
 const DefaultHaskellVersion = "9.10"
 const DefaultDenoVersion = "2.x"
+```
+
+### Timeout Constants
+
+```go
+const DefaultAgenticWorkflowTimeout = 20 * time.Minute
+const DefaultToolTimeout = 60 * time.Second
+const DefaultMCPStartupTimeout = 120 * time.Second
+const DefaultAgenticWorkflowTimeoutMinutes = 20
+const DefaultToolTimeoutSeconds = 60
+const DefaultMCPStartupTimeoutSeconds = 120
+```
+
+### Expression Formatting Constants
+
+```go
+const MaxExpressionLineLength = 120
+const ExpressionBreakThreshold = 100
+```
+
+### Runner Image Constants
+
+```go
+const DefaultActivationJobRunnerImage = "ubuntu-slim"
 ```
 
 ### Directory Helper
@@ -447,10 +482,11 @@ While no custom container images were found in the scanned workflows, the follow
 - **GitHub Actions cataloged**: 19 unique actions
 - **Artifact types documented**: 60+ unique artifacts
 - **Job patterns found**: 41 standard job names
-- **Common step patterns**: 30+ frequently used steps
+- **Common step patterns**: 40 most frequently used steps
 - **File paths listed**: 50+ distinct paths
-- **Constants defined**: 25+ core constants
+- **Constants defined**: 35+ core constants
 - **Working directories**: 2 standard paths
+- **Environment variables**: 5+ core variables
 
 ---
 
