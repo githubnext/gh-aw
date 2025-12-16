@@ -149,9 +149,10 @@ body:
         After you submit this form:
 
         1. **This issue becomes your campaign's central hub** - All updates and status will be posted here
-        2. **An agent will validate your project board** - Ensures the URL is accessible and properly configured
+        2. **An automated workflow validates your project board** - Ensures the URL is accessible via GraphQL
         3. **A campaign spec will be generated** - Creates `.github/workflows/<id>.campaign.md` with your inputs
-        4. **The spec will be linked to this issue** - So you can track the technical implementation
-        5. **Your project board will be configured** - The agent will set up tracking labels and fields
+        4. **The workflow compiles the spec** - Runs `gh aw compile` to generate the orchestrator workflow
+        5. **A PR is created automatically** - Contains both the campaign spec and generated orchestrator files
+        6. **The issue is linked to the PR** - Review and merge the PR to activate the campaign
 
         You'll manage the campaign from this issue. The generated workflow files are implementation details and should not be edited directly.
