@@ -4,7 +4,7 @@ description: Analyzes Go codebase daily to identify opportunities for semantic f
 on:
   workflow_dispatch:
   schedule:
-    - cron: daily at 08:00
+    - cron: daily
 
 permissions:
   contents: read

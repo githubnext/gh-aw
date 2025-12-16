@@ -27,7 +27,7 @@
 # description: Monitors and analyzes the health of safe output operations across all agentic workflows
 # on:
 #   schedule:
-#     - cron: daily at midnight
+#     - cron: daily
 #   workflow_dispatch:
 # permissions:
 #    contents: read
@@ -609,8 +609,8 @@
 name: "Safe Output Health Monitor"
 "on":
   schedule:
-  - cron: "0 0 * * *"
-    # Friendly format: daily at midnight
+  - cron: "58 20 * * *"
+    # Friendly format: daily (scattered)
   workflow_dispatch: null
 
 permissions: {}

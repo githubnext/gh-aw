@@ -28,8 +28,8 @@
 # description: Automatically executes pending spec-kit tasks on a schedule
 # on:
 #   schedule:
-#     # Every day at 8am UTC
-#     - cron: "0 8 * * *"
+#     # Daily (scattered execution time)
+#     - cron: daily
 #   workflow_dispatch:
 #
 # permissions:
@@ -338,7 +338,8 @@
 name: "Spec Kit Executor"
 "on":
   schedule:
-  - cron: "0 8 * * *"
+  - cron: "48 21 * * *"
+    # Friendly format: daily (scattered)
   workflow_dispatch: null
 
 permissions: {}

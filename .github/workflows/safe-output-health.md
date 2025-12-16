@@ -2,7 +2,7 @@
 description: Monitors and analyzes the health of safe output operations across all agentic workflows
 on:
   schedule:
-    - cron: daily at midnight
+    - cron: daily
   workflow_dispatch:
 permissions:
    contents: read

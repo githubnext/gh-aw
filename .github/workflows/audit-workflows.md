@@ -2,7 +2,7 @@
 description: Daily audit of all agentic workflow runs from the last 24 hours to identify issues, missing tools, errors, and improvement opportunities
 on:
   schedule:
-    - cron: daily at midnight
+    - cron: daily
   workflow_dispatch:
 permissions:
   contents: read

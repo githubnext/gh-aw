@@ -3,7 +3,7 @@ name: Multi-Device Docs Tester
 description: Tests documentation site functionality and responsive design across multiple device form factors
 on:
   schedule:
-    - cron: daily at 09:00
+    - cron: daily
   workflow_dispatch:
     inputs:
       devices:

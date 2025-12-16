@@ -2,7 +2,7 @@
 description: Analyzes package lockfiles to track dependency statistics, vulnerabilities, and update patterns
 on:
   schedule:
-    - cron: daily at 03:00
+    - cron: daily
   workflow_dispatch:
 permissions:
   contents: read

@@ -28,7 +28,7 @@
 # description: Tests documentation site functionality and responsive design across multiple device form factors
 # on:
 #   schedule:
-#     - cron: daily at 09:00
+#     - cron: daily
 #   workflow_dispatch:
 #     inputs:
 #       devices:
@@ -204,8 +204,8 @@
 name: "Multi-Device Docs Tester"
 "on":
   schedule:
-  - cron: "0 9 * * *"
-    # Friendly format: daily at 09:00
+  - cron: "12 7 * * *"
+    # Friendly format: daily (scattered)
   workflow_dispatch:
     inputs:
       devices:

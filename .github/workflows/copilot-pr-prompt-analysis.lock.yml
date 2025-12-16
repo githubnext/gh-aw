@@ -29,7 +29,7 @@
 # on:
 #   schedule:
 #     # Every day at 9am UTC
-#     - cron: daily at 9:00
+#     - cron: daily
 #   workflow_dispatch:
 #
 # permissions:
@@ -544,8 +544,8 @@
 name: "Copilot PR Prompt Pattern Analysis"
 "on":
   schedule:
-  - cron: "0 9 * * *"
-    # Friendly format: daily at 9:00
+  - cron: "59 17 * * *"
+    # Friendly format: daily (scattered)
   workflow_dispatch: null
 
 permissions: {}

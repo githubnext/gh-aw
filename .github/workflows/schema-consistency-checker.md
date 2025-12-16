@@ -2,7 +2,7 @@
 description: Detects inconsistencies between JSON schema, implementation code, and documentation
 on:
   schedule:
-    - cron: daily at 02:00
+    - cron: daily
   workflow_dispatch:
 permissions:
   contents: read

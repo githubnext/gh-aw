@@ -3,7 +3,7 @@ name: Go Logger Enhancement
 description: Analyzes and enhances Go logging practices across the codebase for improved debugging and observability
 on:
   schedule:
-    - cron: daily at 12:00
+    - cron: daily
   workflow_dispatch:
 
 permissions:

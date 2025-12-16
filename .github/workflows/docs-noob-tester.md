@@ -3,7 +3,7 @@ name: Documentation Noob Tester
 description: Tests documentation as a new user would, identifying confusing or broken steps in getting started guides
 on:
   schedule:
-    - cron: daily at 10:00
+    - cron: daily
   workflow_dispatch:
 permissions:
   contents: read
