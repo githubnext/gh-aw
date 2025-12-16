@@ -143,6 +143,9 @@ func generateAndCompileCampaignOrchestrator(
 
 // CompileWorkflows compiles workflows based on the provided configuration
 func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
+	// Clear any previous schedule warnings
+	workflow.ClearScheduleWarnings()
+	
 	markdownFiles := config.MarkdownFiles
 	verbose := config.Verbose
 	engineOverride := config.EngineOverride
@@ -432,6 +435,14 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 
 		// Get warning count from compiler
 		stats.Warnings = compiler.GetWarningCount()
+
+		// Display any schedule warnings
+		scheduleWarnings := workflow.GetScheduleWarnings()
+		if len(scheduleWarnings) > 0 && !jsonOutput {
+			for _, warning := range scheduleWarnings {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(warning))
+			}
+		}
 
 		if verbose {
 			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Successfully compiled %d workflow file(s)", compiledCount)))
@@ -727,6 +738,14 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 
 	// Get warning count from compiler
 	stats.Warnings = compiler.GetWarningCount()
+
+	// Display any schedule warnings
+	scheduleWarnings := workflow.GetScheduleWarnings()
+	if len(scheduleWarnings) > 0 && !jsonOutput {
+		for _, warning := range scheduleWarnings {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(warning))
+		}
+	}
 
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Successfully compiled %d out of %d workflow files", successCount, len(mdFiles))))
