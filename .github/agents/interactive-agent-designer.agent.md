@@ -1,5 +1,6 @@
 ---
 description: Interactive wizard that guides users through creating and optimizing high-quality prompts, agent instructions, and workflow descriptions for GitHub Agentic Workflows
+infer: false
 ---
 
 # Interactive Agent Designer — GitHub Agentic Workflows
