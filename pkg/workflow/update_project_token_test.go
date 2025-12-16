@@ -6,12 +6,11 @@ import (
 )
 
 // TestUpdateProjectGitHubTokenEnvVar verifies that GH_AW_PROJECT_GITHUB_TOKEN
-// is exposed as an environment variable when a custom token is configured
+// is exposed as an environment variable for all update_project jobs
 func TestUpdateProjectGitHubTokenEnvVar(t *testing.T) {
 	tests := []struct {
 		name                string
 		frontmatter         map[string]any
-		expectedEnvVar      bool
 		expectedEnvVarValue string
 	}{
 		{
@@ -24,30 +23,41 @@ func TestUpdateProjectGitHubTokenEnvVar(t *testing.T) {
 					},
 				},
 			},
-			expectedEnvVar:      true,
 			expectedEnvVarValue: "GH_AW_PROJECT_GITHUB_TOKEN: ${{ secrets.PROJECTS_PAT }}",
 		},
 		{
-			name: "update-project without custom github-token",
+			name: "update-project without custom github-token (uses default fallback)",
 			frontmatter: map[string]any{
 				"name": "Test Workflow",
 				"safe-outputs": map[string]any{
 					"update-project": nil,
 				},
 			},
-			expectedEnvVar: false,
+			expectedEnvVarValue: "GH_AW_PROJECT_GITHUB_TOKEN: ${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}",
 		},
 		{
-			name: "update-project with empty github-token",
+			name: "update-project with top-level github-token",
 			frontmatter: map[string]any{
-				"name": "Test Workflow",
+				"name":         "Test Workflow",
+				"github-token": "${{ secrets.CUSTOM_TOKEN }}",
+				"safe-outputs": map[string]any{
+					"update-project": nil,
+				},
+			},
+			expectedEnvVarValue: "GH_AW_PROJECT_GITHUB_TOKEN: ${{ secrets.CUSTOM_TOKEN }}",
+		},
+		{
+			name: "update-project with per-config token overrides top-level",
+			frontmatter: map[string]any{
+				"name":         "Test Workflow",
+				"github-token": "${{ secrets.GLOBAL_TOKEN }}",
 				"safe-outputs": map[string]any{
 					"update-project": map[string]any{
-						"github-token": "",
+						"github-token": "${{ secrets.PROJECT_SPECIFIC_TOKEN }}",
 					},
 				},
 			},
-			expectedEnvVar: false,
+			expectedEnvVarValue: "GH_AW_PROJECT_GITHUB_TOKEN: ${{ secrets.PROJECT_SPECIFIC_TOKEN }}",
 		},
 	}
 
@@ -61,6 +71,11 @@ func TestUpdateProjectGitHubTokenEnvVar(t *testing.T) {
 				SafeOutputs: compiler.extractSafeOutputsConfig(tt.frontmatter),
 			}
 
+			// Set top-level github-token if present in frontmatter
+			if githubToken, ok := tt.frontmatter["github-token"].(string); ok {
+				workflowData.GitHubToken = githubToken
+			}
+
 			// Build the update_project job
 			job, err := compiler.buildUpdateProjectJob(workflowData, "main")
 			if err != nil {
@@ -70,30 +85,17 @@ func TestUpdateProjectGitHubTokenEnvVar(t *testing.T) {
 			// Convert job to YAML to check for environment variables
 			yamlStr := strings.Join(job.Steps, "")
 
-			if tt.expectedEnvVar {
-				// Check that the environment variable is present
-				if !strings.Contains(yamlStr, tt.expectedEnvVarValue) {
-					t.Errorf("Expected environment variable %q to be set in update_project job, but it was not found.\nGenerated YAML:\n%s",
-						tt.expectedEnvVarValue, yamlStr)
-				}
-			} else {
-				// Check that the environment variable is NOT present
-				if strings.Contains(yamlStr, "GH_AW_PROJECT_GITHUB_TOKEN:") {
-					t.Errorf("Expected GH_AW_PROJECT_GITHUB_TOKEN environment variable to NOT be set, but it was found.\nGenerated YAML:\n%s",
-						yamlStr)
-				}
+			// Check that the environment variable is present with the expected value
+			if !strings.Contains(yamlStr, tt.expectedEnvVarValue) {
+				t.Errorf("Expected environment variable %q to be set in update_project job, but it was not found.\nGenerated YAML:\n%s",
+					tt.expectedEnvVarValue, yamlStr)
 			}
 
 			// Also verify the token is passed to github-token parameter
-			if workflowData.SafeOutputs != nil && workflowData.SafeOutputs.UpdateProjects != nil {
-				token := workflowData.SafeOutputs.UpdateProjects.GitHubToken
-				if token != "" {
-					expectedWith := "github-token: " + token
-					if !strings.Contains(yamlStr, expectedWith) {
-						t.Errorf("Expected github-token parameter to be set to %q, but it was not found.\nGenerated YAML:\n%s",
-							token, yamlStr)
-					}
-				}
+			expectedWith := "github-token: " + strings.TrimPrefix(tt.expectedEnvVarValue, "GH_AW_PROJECT_GITHUB_TOKEN: ")
+			if !strings.Contains(yamlStr, expectedWith) {
+				t.Errorf("Expected github-token parameter to be set to %q, but it was not found.\nGenerated YAML:\n%s",
+					expectedWith, yamlStr)
 			}
 		})
 	}

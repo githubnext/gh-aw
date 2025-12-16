@@ -58,3 +58,24 @@ func getEffectiveAgentGitHubToken(customToken string) string {
 	tokenLog.Print("Using default agent GitHub token (GH_AW_AGENT_TOKEN)")
 	return "${{ secrets.GH_AW_AGENT_TOKEN }}"
 }
+
+// getEffectiveProjectGitHubToken returns the GitHub token to use for GitHub Projects v2 operations,
+// with precedence:
+// 1. Custom token passed as parameter (e.g., from safe-outputs.update-project.github-token)
+// 2. Top-level github-token from frontmatter
+// 3. secrets.GH_AW_PROJECT_GITHUB_TOKEN (default token for Projects v2 operations)
+// 4. Default fallback: secrets.GITHUB_TOKEN
+// Note: GitHub Projects v2 requires additional permissions that GITHUB_TOKEN may not have.
+// It's recommended to configure GH_AW_PROJECT_GITHUB_TOKEN with appropriate permissions.
+func getEffectiveProjectGitHubToken(customToken, toplevelToken string) string {
+	if customToken != "" {
+		tokenLog.Print("Using custom project GitHub token")
+		return customToken
+	}
+	if toplevelToken != "" {
+		tokenLog.Print("Using top-level GitHub token for project operations")
+		return toplevelToken
+	}
+	tokenLog.Print("Using default project GitHub token fallback (GH_AW_PROJECT_GITHUB_TOKEN)")
+	return "${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}"
+}

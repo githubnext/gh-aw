@@ -28,11 +28,13 @@ func (c *Compiler) buildUpdateProjectJob(data *WorkflowData, mainJobName string)
 		token = data.SafeOutputs.UpdateProjects.GitHubToken
 	}
 
-	// Expose the token as an environment variable for diagnostic messages in update_project.cjs
+	// Get the effective token using the Projects-specific precedence chain
+	// This includes fallback to GH_AW_PROJECT_GITHUB_TOKEN if no custom token is configured
+	effectiveToken := getEffectiveProjectGitHubToken(token, data.GitHubToken)
+
+	// Always expose the effective token as GH_AW_PROJECT_GITHUB_TOKEN environment variable
 	// The JavaScript code checks process.env.GH_AW_PROJECT_GITHUB_TOKEN to provide helpful error messages
-	if token != "" {
-		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_PROJECT_GITHUB_TOKEN: %s\n", token))
-	}
+	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_PROJECT_GITHUB_TOKEN: %s\n", effectiveToken))
 
 	jobCondition := BuildSafeOutputType("update_project")
 	permissions := NewPermissionsContentsReadProjectsWrite()
@@ -50,7 +52,7 @@ func (c *Compiler) buildUpdateProjectJob(data *WorkflowData, mainJobName string)
 		Outputs:       nil,
 		Condition:     jobCondition,
 		Needs:         []string{mainJobName},
-		Token:         token,
+		Token:         effectiveToken,
 	})
 
 	return job, err
