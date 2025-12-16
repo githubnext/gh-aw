@@ -1950,7 +1950,7 @@ jobs:
         run: |
           set -e
           docker pull docker.io/mcp/brave-search
-          docker pull ghcr.io/github/github-mcp-server:v0.24.1
+          docker pull ghcr.io/github/github-mcp-server:v0.25.0
       - name: Write Safe Outputs Config
         run: |
           mkdir -p /tmp/gh-aw/safeoutputs
@@ -3476,7 +3476,7 @@ jobs:
                   "GITHUB_READ_ONLY=1",
                   "-e",
                   "GITHUB_TOOLSETS=context,repos,issues,pull_requests",
-                  "ghcr.io/github/github-mcp-server:v0.24.1"
+                  "ghcr.io/github/github-mcp-server:v0.25.0"
                 ],
                 "tools": ["*"],
                 "env": {
