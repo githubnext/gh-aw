@@ -167,6 +167,15 @@ gh aw status --label automation
 ### GitHub Actions
 GitHub's built-in automation platform that runs workflows in response to repository events. Agentic workflows compile to GitHub Actions YAML format, leveraging the existing infrastructure for execution, permissions, and secrets management.
 
+### GitHub Projects (Projects v2)
+GitHub's project management and tracking system that organizes issues and pull requests using customizable boards, tables, and roadmaps. Projects v2 provides flexible custom fields (text, number, date, single-select, iteration), automation, and GraphQL API access. Agentic workflows can manage project boards using the `update-project` safe output to add items, update fields, and maintain campaign tracking. Requires organization-level Projects permissions for API access.
+
+```yaml
+safe-outputs:
+  update-project:
+    github-token: ${{ secrets.PROJECTS_PAT }}
+```
+
 ### GitHub Actions Secret
 A secure, encrypted variable stored in repository or organization settings. Holds sensitive values like API keys or tokens. Access in workflows using `${{ secrets.SECRET_NAME }}` syntax.
 
