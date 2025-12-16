@@ -875,8 +875,8 @@
 name: "Daily Project Performance Summary Generator (Using Safe Inputs)"
 "on":
   schedule:
-  - cron: FUZZY:DAILY * * *
-    # Friendly format: daily
+  - cron: "29 21 * * *"
+    # Friendly format: daily (scattered)
   workflow_dispatch: null
 
 permissions: {}

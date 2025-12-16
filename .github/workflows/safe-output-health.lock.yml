@@ -608,8 +608,8 @@
 name: "Safe Output Health Monitor"
 "on":
   schedule:
-  - cron: FUZZY:DAILY * * *
-    # Friendly format: daily
+  - cron: "0 15 * * *"
+    # Friendly format: daily (scattered)
   workflow_dispatch: null
 
 permissions: {}

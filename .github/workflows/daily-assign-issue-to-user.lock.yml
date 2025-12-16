@@ -99,8 +99,8 @@
 name: "Auto-Assign Issue"
 "on":
   schedule:
-  - cron: FUZZY:DAILY * * *
-    # Friendly format: daily
+  - cron: "9 23 * * *"
+    # Friendly format: daily (scattered)
   workflow_dispatch: null
 
 permissions: {}

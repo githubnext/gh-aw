@@ -425,8 +425,8 @@
 name: "CLI Version Checker"
 "on":
   schedule:
-  - cron: FUZZY:DAILY * * *
-    # Friendly format: daily
+  - cron: "47 17 * * *"
+    # Friendly format: daily (scattered)
   workflow_dispatch: null
 
 permissions: {}

@@ -276,8 +276,8 @@
 name: "Daily Documentation Updater"
 "on":
   schedule:
-  - cron: FUZZY:DAILY * * *
-    # Friendly format: daily
+  - cron: "14 4 * * *"
+    # Friendly format: daily (scattered)
   workflow_dispatch: null
 
 permissions: {}

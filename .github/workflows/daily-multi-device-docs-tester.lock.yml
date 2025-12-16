@@ -203,8 +203,8 @@
 name: "Multi-Device Docs Tester"
 "on":
   schedule:
-  - cron: FUZZY:DAILY * * *
-    # Friendly format: daily
+  - cron: "14 1 * * *"
+    # Friendly format: daily (scattered)
   workflow_dispatch:
     inputs:
       devices:
