@@ -74,7 +74,7 @@ jobs:
         test-group:
           - name: "CLI Compile & Poutine"
             packages: "./pkg/cli"
-            pattern: "TestCompile|TestPoutine"
+            pattern: "^TestCompile[^W]|TestPoutine"  # Exclude TestCompileWorkflows to avoid duplicates
           - name: "CLI MCP Playwright"
             packages: "./pkg/cli"
             pattern: "TestMCPInspectPlaywright"
@@ -87,6 +87,9 @@ jobs:
           - name: "CLI Logs & Firewall"
             packages: "./pkg/cli"
             pattern: "TestLogs|TestFirewall|TestNoStopTime|TestLocalWorkflow"
+          - name: "CLI Progress Flag"  # Isolate slow 30s test
+            packages: "./pkg/cli"
+            pattern: "TestProgressFlagSignature"
           - name: "CLI Completion & Safe Inputs"
             packages: "./pkg/cli"
             pattern: ""  # Catch-all for tests not matched by other CLI patterns
@@ -132,7 +135,10 @@ jobs:
           - name: "Workflow Job Management"
             packages: "./pkg/workflow"
             pattern: "TestJobManager|TestWorkflowStep|TestScriptRegistry"
-          - name: "Workflow Misc"  # Remaining workflow tests not matched by other patterns
+          - name: "Workflow Misc Part 1"  # Split large catch-all into two balanced groups
+            packages: "./pkg/workflow"
+            pattern: "TestAgent|TestCopilot|TestCustom|TestEngine|TestModel|TestNetwork|TestOpenAI|TestProvider"
+          - name: "Workflow Misc Part 2"  # Remaining workflow tests
             packages: "./pkg/workflow"
             pattern: ""
     concurrency:
