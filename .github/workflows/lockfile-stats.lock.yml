@@ -26,8 +26,7 @@
 # ```yaml
 # description: Analyzes package lockfiles to track dependency statistics, vulnerabilities, and update patterns
 # on:
-#   schedule:
-#     - cron: daily
+#   schedule: daily
 #   workflow_dispatch:
 # permissions:
 #   contents: read
@@ -506,7 +505,7 @@
 name: "Lockfile Statistics Analysis Agent"
 "on":
   schedule:
-  - cron: "9 20 * * *"
+  - cron: "11 22 * * *"
     # Friendly format: daily (scattered)
   workflow_dispatch: null
 

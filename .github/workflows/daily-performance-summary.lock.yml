@@ -26,8 +26,7 @@
 # ```yaml
 # description: Daily project performance summary (90-day window) with trend charts using safe-inputs
 # on:
-#   schedule:
-#     - cron: daily
+#   schedule: daily
 #   workflow_dispatch:
 # permissions:
 #   contents: read
@@ -876,7 +875,7 @@
 name: "Daily Project Performance Summary Generator (Using Safe Inputs)"
 "on":
   schedule:
-  - cron: "27 14 * * *"
+  - cron: "29 21 * * *"
     # Friendly format: daily (scattered)
   workflow_dispatch: null
 

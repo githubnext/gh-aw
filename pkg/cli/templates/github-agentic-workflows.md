@@ -508,6 +508,20 @@ The YAML frontmatter supports these fields:
       github-token: ${{ secrets.CUSTOM_PAT }}  # Use custom PAT instead of GITHUB_TOKEN
     ```
     Useful when you need additional permissions or want to perform actions across repositories.
+
+  - `mentions:` - @mention filtering configuration for AI-generated content
+    ```yaml
+    safe-outputs:
+      mentions: false                      # Disable all mentions
+      # OR
+      mentions:
+        enabled: false                     # Disable all mentions
+        allow-team-members: true           # Allow team member mentions (default: true)
+        allow-context: true                # Allow mentions from event context (default: true)
+        allowed: [copilot, dependabot]     # Always allow specific users/bots
+        max: 50                            # Max mentions per message (default: 50)
+    ```
+    Controls @mention behavior in safe-output content. Default allows team members and context mentions. Set to `false` to escape all mentions.
   
 - **`command:`** - Command trigger configuration for /mention workflows
 - **`cache:`** - Cache configuration for workflow dependencies (object or array)
