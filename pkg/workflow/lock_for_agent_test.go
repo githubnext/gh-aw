@@ -425,3 +425,141 @@ Test workflow with lock-for-agent enabled for issue_comment events.
 		t.Error("Conclusion job should have issues: write permission when lock-for-agent is enabled")
 	}
 }
+
+func TestLockForAgentWithWorkflowDispatch(t *testing.T) {
+	// Create temporary directory for test files
+	tmpDir := testutil.TempDir(t, "lock-for-agent-workflow-dispatch-test")
+
+	// Create a test markdown file with lock-for-agent enabled on issues but also workflow_dispatch
+	testContent := `---
+on:
+  issues:
+    types: [opened]
+    lock-for-agent: true
+  issue_comment:
+    types: [created]
+  workflow_dispatch:
+    inputs:
+      issue_url:
+        description: 'Issue URL'
+        required: true
+        type: string
+  reaction: eyes
+engine: copilot
+safe-outputs:
+  add-comment: {}
+---
+
+# Lock For Agent with Workflow Dispatch Test
+
+Test workflow with lock-for-agent enabled but also workflow_dispatch trigger.
+`
+
+	testFile := filepath.Join(tmpDir, "test-lock-for-agent-workflow-dispatch.md")
+	if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	compiler := NewCompiler(false, "", "test")
+
+	// Parse the workflow
+	workflowData, err := compiler.ParseWorkflowFile(testFile)
+	if err != nil {
+		t.Fatalf("Failed to parse workflow: %v", err)
+	}
+
+	// Verify lock-for-agent field is parsed correctly
+	if !workflowData.LockForAgent {
+		t.Error("Expected LockForAgent to be true")
+	}
+
+	// Generate YAML and verify it contains lock/unlock steps with correct conditions
+	yamlContent, err := compiler.generateYAML(workflowData, testFile)
+	if err != nil {
+		t.Fatalf("Failed to generate YAML: %v", err)
+	}
+
+	// Check for lock step in generated YAML
+	if !strings.Contains(yamlContent, "Lock issue for agent workflow") {
+		t.Error("Generated YAML should contain lock step")
+	}
+
+	// Verify activation job
+	activationJobSection := extractJobSection(yamlContent, "activation")
+	
+	// Verify lock step is in activation job
+	if !strings.Contains(activationJobSection, "Lock issue for agent workflow") {
+		t.Error("Activation job should contain the lock step")
+	}
+
+	// Verify lock condition ONLY includes issues and issue_comment, NOT workflow_dispatch
+	if !strings.Contains(activationJobSection, "github.event_name == 'issues'") {
+		t.Error("Lock step condition should check for issues event")
+	}
+	if !strings.Contains(activationJobSection, "github.event_name == 'issue_comment'") {
+		t.Error("Lock step condition should check for issue_comment event")
+	}
+	
+	// The lock condition should NOT be a simple always() or include workflow_dispatch
+	// It should be: if: (github.event_name == 'issues') || (github.event_name == 'issue_comment')
+	lockStepLines := strings.Split(activationJobSection, "\n")
+	var lockConditionLine string
+	for i, line := range lockStepLines {
+		if strings.Contains(line, "Lock issue for agent workflow") {
+			// Look for the 'if' condition on the next few lines
+			for j := i + 1; j < len(lockStepLines) && j < i+5; j++ {
+				if strings.Contains(lockStepLines[j], "if:") {
+					lockConditionLine = lockStepLines[j]
+					break
+				}
+			}
+			break
+		}
+	}
+	
+	if lockConditionLine == "" {
+		t.Error("Could not find lock step condition in activation job")
+	} else {
+		// The condition should NOT contain workflow_dispatch
+		if strings.Contains(lockConditionLine, "workflow_dispatch") {
+			t.Error("Lock step condition should NOT reference workflow_dispatch event")
+		}
+		// Ensure it's specifically checking for the two allowed event types
+		if !strings.Contains(lockConditionLine, "issues") || !strings.Contains(lockConditionLine, "issue_comment") {
+			t.Errorf("Lock step condition should check for both issues and issue_comment events. Got: %s", lockConditionLine)
+		}
+	}
+
+	// Verify conclusion job
+	conclusionJobSection := extractJobSection(yamlContent, "conclusion")
+	
+	// Verify unlock step is in conclusion job
+	if !strings.Contains(conclusionJobSection, "Unlock issue after agent workflow") {
+		t.Error("Conclusion job should contain the unlock step")
+	}
+
+	// Verify unlock condition also excludes workflow_dispatch
+	unlockStepLines := strings.Split(conclusionJobSection, "\n")
+	var unlockConditionLine string
+	for i, line := range unlockStepLines {
+		if strings.Contains(line, "Unlock issue after agent workflow") {
+			// Look for the 'if' condition on the next few lines
+			for j := i + 1; j < len(unlockStepLines) && j < i+5; j++ {
+				if strings.Contains(unlockStepLines[j], "if:") {
+					unlockConditionLine = unlockStepLines[j]
+					break
+				}
+			}
+			break
+		}
+	}
+	
+	if unlockConditionLine == "" {
+		t.Error("Could not find unlock step condition in conclusion job")
+	} else {
+		// The condition should NOT contain workflow_dispatch
+		if strings.Contains(unlockConditionLine, "workflow_dispatch") {
+			t.Error("Unlock step condition should NOT reference workflow_dispatch event")
+		}
+	}
+}
