@@ -77,7 +77,9 @@
 # - Metrics glob: `memory/campaigns/go-file-size-reduction-*/metrics/*.json`
 # - Project URL: https://github.com/orgs/githubnext/projects/60
 #
-# Each time this orchestrator runs on its daily schedule (or when manually dispatched), generate a concise status report for this campaign. Summarize current metrics, highlight blockers, and update any tracker issues using the campaign label.
+# Each time this orchestrator runs on its daily schedule (or when manually dispatched), generate a concise status report for this campaign. Summarize current metrics and update any tracker issues using the campaign label.
+#
+# If all issues with the campaign label are closed, the campaign is complete. This is a normal terminal state indicating successful completion, not a blocker or error. When the campaign is complete, mark the project as finished and take no further action. Do not report closed issues as blockers.
 #
 # Keep the campaign Project dashboard in sync using the `update-project` safe output. When calling update-project, use the `project` field with this exact URL: https://github.com/orgs/githubnext/projects/60
 #
@@ -2813,7 +2815,9 @@ jobs:
           - Metrics glob: `memory/campaigns/go-file-size-reduction-*/metrics/*.json`
           - Project URL: https://github.com/orgs/githubnext/projects/60
           
-          Each time this orchestrator runs on its daily schedule (or when manually dispatched), generate a concise status report for this campaign. Summarize current metrics, highlight blockers, and update any tracker issues using the campaign label.
+          Each time this orchestrator runs on its daily schedule (or when manually dispatched), generate a concise status report for this campaign. Summarize current metrics and update any tracker issues using the campaign label.
+          
+          If all issues with the campaign label are closed, the campaign is complete. This is a normal terminal state indicating successful completion, not a blocker or error. When the campaign is complete, mark the project as finished and take no further action. Do not report closed issues as blockers.
           
           Keep the campaign Project dashboard in sync using the `update-project` safe output. When calling update-project, use the `project` field with this exact URL: https://github.com/orgs/githubnext/projects/60
           

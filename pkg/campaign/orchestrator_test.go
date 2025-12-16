@@ -54,3 +54,40 @@ func TestBuildOrchestrator_BasicShape(t *testing.T) {
 		t.Fatalf("expected no permissions in generated orchestrator data, got: %q", data.Permissions)
 	}
 }
+
+func TestBuildOrchestrator_CompletionInstructions(t *testing.T) {
+	spec := &CampaignSpec{
+		ID:           "test-campaign",
+		Name:         "Test Campaign",
+		Description:  "A test campaign",
+		ProjectURL:   "https://github.com/orgs/test/projects/1",
+		Workflows:    []string{"test-workflow"},
+		TrackerLabel: "campaign:test",
+	}
+
+	mdPath := ".github/workflows/test-campaign.campaign.md"
+	data, _ := BuildOrchestrator(spec, mdPath)
+
+	if data == nil {
+		t.Fatalf("expected non-nil WorkflowData")
+	}
+
+	// Verify that the prompt includes completion instructions
+	if !strings.Contains(data.MarkdownContent, "campaign is complete") {
+		t.Errorf("expected markdown to mention campaign completion, got: %q", data.MarkdownContent)
+	}
+
+	if !strings.Contains(data.MarkdownContent, "normal terminal state") {
+		t.Errorf("expected markdown to mention normal terminal state, got: %q", data.MarkdownContent)
+	}
+
+	// Verify that the prompt explicitly states not to report closed issues as blockers
+	if !strings.Contains(data.MarkdownContent, "Do not report closed issues as blockers") {
+		t.Errorf("expected markdown to explicitly state not to report closed issues as blockers, got: %q", data.MarkdownContent)
+	}
+
+	// Verify that "highlight blockers" is not in the prompt
+	if strings.Contains(data.MarkdownContent, "highlight blockers") {
+		t.Errorf("expected markdown to NOT contain 'highlight blockers', but it does: %q", data.MarkdownContent)
+	}
+}

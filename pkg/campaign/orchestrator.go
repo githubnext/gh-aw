@@ -80,11 +80,25 @@ func BuildOrchestrator(spec *CampaignSpec, campaignFilePath string) (*workflow.W
 	orchestratorLog.Printf("Campaign '%s' orchestrator includes: tracker_label=%s, workflows=%d, memory_paths=%d",
 		spec.ID, spec.TrackerLabel, len(spec.Workflows), len(spec.MemoryPaths))
 
-	markdownBuilder.WriteString("\nEach time this orchestrator runs on its daily schedule (or when manually dispatched), generate a concise status report for this campaign. Summarize current metrics, highlight blockers, and update any tracker issues using the campaign label.\n")
-	if strings.TrimSpace(spec.ProjectURL) != "" {
-		markdownBuilder.WriteString(fmt.Sprintf("\nKeep the campaign Project dashboard in sync using the `update-project` safe output. When calling update-project, use the `project` field with this exact URL: %s\n", strings.TrimSpace(spec.ProjectURL)))
+	// Render orchestrator instructions using templates
+	// By default, we enable completion guidance and disable blocker reporting for closed issues
+	// This treats closed issues as a sign of completion, not as blockers
+	promptData := CampaignPromptData{
+		ReportBlockers:     false, // Don't report closed issues as blockers
+		CompletionGuidance: true,  // Include completion guidance
+		ProjectURL:         strings.TrimSpace(spec.ProjectURL),
 	}
-	markdownBuilder.WriteString("\nUse these details to coordinate workers, update metrics, and track progress for this campaign.\n")
+
+	orchestratorInstructions := RenderOrchestratorInstructions(promptData)
+	markdownBuilder.WriteString("\n" + orchestratorInstructions + "\n")
+
+	projectInstructions := RenderProjectUpdateInstructions(promptData)
+	if projectInstructions != "" {
+		markdownBuilder.WriteString("\n" + projectInstructions + "\n")
+	}
+
+	closingInstructions := RenderClosingInstructions()
+	markdownBuilder.WriteString("\n" + closingInstructions + "\n")
 
 	// Enable safe outputs needed for campaign coordination.
 	// Note: Campaign orchestrators intentionally omit explicit `permissions:` from
