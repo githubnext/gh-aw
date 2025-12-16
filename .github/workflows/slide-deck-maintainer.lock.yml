@@ -119,7 +119,7 @@
 #
 # ## Your Mission
 #
-# Maintain the slide deck at `slides/index.md` by:
+# Maintain the slide deck at `docs/slides/index.md` by:
 # 1. Scanning repository content for sources of truth
 # 2. Building the slides with Marp
 # 3. Using Playwright to detect visual layout issues
@@ -131,7 +131,7 @@
 #
 # ```bash
 # cd ${{ github.workspace }}/docs
-# npx @marp-team/marp-cli ../slides/index.md --html --allow-local-files -o /tmp/slides-preview.html
+# npx @marp-team/marp-cli slides/index.md --html --allow-local-files -o /tmp/slides-preview.html
 # ```
 #
 # ## Step 2: Serve Slides Locally
@@ -254,7 +254,7 @@
 #
 # ```bash
 # cd ${{ github.workspace }}/docs
-# npx @marp-team/marp-cli ../slides/index.md --html --allow-local-files -o /tmp/slides-preview-updated.html
+# npx @marp-team/marp-cli slides/index.md --html --allow-local-files -o /tmp/slides-preview-updated.html
 # ```
 #
 # Run Playwright checks again to ensure no new overflow issues were introduced.
@@ -270,7 +270,7 @@
 #
 # ## Step 9: Create Pull Request (if changes made)
 #
-# If you made changes to `slides/index.md`, create a pull request with:
+# If you made changes to `docs/slides/index.md`, create a pull request with:
 #
 # **Title**: `[slides] Update slide deck - [brief description]`
 #
@@ -2272,7 +2272,7 @@ jobs:
           
           ## Your Mission
           
-          Maintain the slide deck at `slides/index.md` by:
+          Maintain the slide deck at `docs/slides/index.md` by:
           1. Scanning repository content for sources of truth
           2. Building the slides with Marp
           3. Using Playwright to detect visual layout issues
@@ -2284,7 +2284,7 @@ jobs:
           
           ```bash
           cd __GH_AW_GITHUB_WORKSPACE__/docs
-          npx @marp-team/marp-cli ../slides/index.md --html --allow-local-files -o /tmp/slides-preview.html
+          npx @marp-team/marp-cli slides/index.md --html --allow-local-files -o /tmp/slides-preview.html
           ```
           
           ## Step 2: Serve Slides Locally
@@ -2407,7 +2407,7 @@ jobs:
           
           ```bash
           cd __GH_AW_GITHUB_WORKSPACE__/docs
-          npx @marp-team/marp-cli ../slides/index.md --html --allow-local-files -o /tmp/slides-preview-updated.html
+          npx @marp-team/marp-cli slides/index.md --html --allow-local-files -o /tmp/slides-preview-updated.html
           ```
           
           Run Playwright checks again to ensure no new overflow issues were introduced.
@@ -2423,7 +2423,7 @@ jobs:
           
           ## Step 9: Create Pull Request (if changes made)
           
-          If you made changes to `slides/index.md`, create a pull request with:
+          If you made changes to `docs/slides/index.md`, create a pull request with:
           
           **Title**: `[slides] Update slide deck - [brief description]`
           
