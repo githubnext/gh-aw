@@ -1,6 +1,6 @@
-## Trend Data (as of 2025-12-15T15:15:23Z)
+## Trend Data (as of 2025-12-16T15:14:15Z)
 
-- Workflow snapshot (last 10 runs): 33.9m duration, 668,977 tokens, ~$0.39; failure-heavy mix with 5/7 completed runs failing (Hourly CI Cleaner x2, Issue Triage Agent, Weekly Issue Summary, Super Linter). Successes still noisy: CLI Version Checker produced 107 errors/22 warnings despite success; Repository Tree Map Generator added 5 errors/15 warnings.
-- Issue stats (weekly slice): 197 total; 38 open / 159 closed. Label skew intensified — `plan`/`ai-generated` at 111 each; next labels far lower (`enhancement` 36, `documentation` 35). Automation authorship dominates (173/197 from github-actions).
-- Issue hygiene: 26 unlabeled issues (8 open); 16 open issues older than 5 days. Creation spikes: Dec 8 (36) and Dec 15 (24) lead the week; Dec 12 (26) and Dec 11 (19) follow.
-- Discussion cadence: fresh observability/quality pushes (6533), tree map snapshot (6535), schema constraint gap analysis (6460), lockfile stats refresh (6463), and daily audit streams (firewall/code metrics/prompt analysis) continue uninterrupted.
+- Workflow snapshot (last 10 runs): 24.9m total duration, 1,147,520 tokens, ~$0.57; mixed outcomes with AI Moderator failing repeatedly (3 runs) while Hourly CI Cleaner recovered to a warning-heavy success (11 errors/16 warnings). Issue Monster succeeded cleanly; CLI Version Checker succeeded but emitted 116 errors/25 warnings.
+- Issue stats (weekly slice): 191 total; 16 open / 175 closed. Label skew still high — `plan`/`ai-generated` at 105 each, well above `enhancement` (36) and `documentation` (31). Automation authorship remains dominant.
+- Issue hygiene: 26 unlabeled issues (9 open); open count dropped from 38 to 16, showing backlog burn-down even as unlabeled items persist.
+- Discussion cadence: new briefs on actionable error messages (6633), Typist/type consistency (6620), documentation noob testing (6616), schema consistency (6586), safe-output health (6582), and MCP structural analysis (6621) keep quality/validation themes front and center.

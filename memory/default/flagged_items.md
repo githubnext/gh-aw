@@ -1,6 +1,6 @@
-## Flagged Items for Monitoring (2025-12-15)
+## Flagged Items for Monitoring (2025-12-16)
 
-- Maintenance stream instability: Hourly CI Cleaner failed twice today ([§20235087585](https://github.com/githubnext/gh-aw/actions/runs/20235087585), [§20237054035](https://github.com/githubnext/gh-aw/actions/runs/20237054035)); Issue Triage Agent failed ([§20235064656](https://github.com/githubnext/gh-aw/actions/runs/20235064656)); Weekly Issue Summary failed ([§20237144730](https://github.com/githubnext/gh-aw/actions/runs/20237144730)); Super Linter failed ([§20235175957](https://github.com/githubnext/gh-aw/actions/runs/20235175957)).
-- Persistent noisy success: CLI Version Checker continues to succeed with heavy error/warning output ([§20236888851](https://github.com/githubnext/gh-aw/actions/runs/20236888851)); noise masking real regressions remains a risk.
-- Backlog health: 26 unlabeled issues (8 open) and 16 open issues older than 5 days — hygiene gap widening alongside automation-heavy authorship.
-- Schema/validation watch: Schema constraint gap analysis (6460) and MCP structural analysis (6513) indicate ongoing enforcement work; monitor for follow-up actions or regressions in compiled workflows.
+- Moderation instability: AI Moderator failed in three recent runs ([§20272748002](https://github.com/githubnext/gh-aw/actions/runs/20272748002), [§20271807889](https://github.com/githubnext/gh-aw/actions/runs/20271807889), [§20271315549](https://github.com/githubnext/gh-aw/actions/runs/20271315549)).
+- Noisy success risk: CLI Version Checker succeeded but logged 116 errors/25 warnings ([§20272475885](https://github.com/githubnext/gh-aw/actions/runs/20272475885)); potential signal hiding remains.
+- Maintenance follow-up: Hourly CI Cleaner recovered with warnings ([§20272632487](https://github.com/githubnext/gh-aw/actions/runs/20272632487)); watch for regression after earlier failures.
+- Backlog hygiene: 26 unlabeled issues (9 open) persist despite overall open count dropping to 16; keep unlabeled clean-up in focus.
