@@ -281,7 +281,13 @@ func GenerateSecretValidationStep(secretName, engineName, docsURL string) GitHub
 		fmt.Sprintf("            echo \"Documentation: %s\"", docsURL),
 		"            exit 1",
 		"          fi",
-		fmt.Sprintf("          echo \"%s secret is configured\"", secretName),
+		"          ",
+		"          # Log success in collapsible section",
+		"          echo \"<details>\"",
+		"          echo \"<summary>Agent Environment Validation</summary>\"",
+		"          echo \"\"",
+		fmt.Sprintf("          echo \"✅ %s: Configured\"", secretName),
+		"          echo \"</details>\"",
 		"        env:",
 		fmt.Sprintf("          %s: ${{ secrets.%s }}", secretName, secretName),
 	}
@@ -334,27 +340,31 @@ func GenerateMultiSecretValidationStep(secretNames []string, engineName, docsURL
 		"            exit 1",
 		"          fi",
 		"          ",
-		"          # Log success to stdout (not step summary)",
+		"          # Log success in collapsible section",
+		"          echo \"<details>\"",
+		"          echo \"<summary>Agent Environment Validation</summary>\"",
+		"          echo \"\"",
 	}
 
-	// Add conditional messages for each secret (only to stdout, not step summary)
+	// Add conditional messages for each secret in collapsible section
 	for i, secretName := range secretNames {
 		if i == 0 {
 			stepLines = append(stepLines, fmt.Sprintf("          if [ -n \"$%s\" ]; then", secretName))
-			stepLines = append(stepLines, fmt.Sprintf("            echo \"%s secret is configured\"", secretName))
+			stepLines = append(stepLines, fmt.Sprintf("            echo \"✅ %s: Configured\"", secretName))
 		} else if i == len(secretNames)-1 {
 			stepLines = append(stepLines, "          else")
 			if len(secretNames) == 2 {
-				stepLines = append(stepLines, fmt.Sprintf("            echo \"%s secret is configured (using as fallback for %s)\"", secretName, secretNames[0]))
+				stepLines = append(stepLines, fmt.Sprintf("            echo \"✅ %s: Configured (using as fallback for %s)\"", secretName, secretNames[0]))
 			} else {
-				stepLines = append(stepLines, fmt.Sprintf("            echo \"%s secret is configured\"", secretName))
+				stepLines = append(stepLines, fmt.Sprintf("            echo \"✅ %s: Configured\"", secretName))
 			}
 		} else {
 			stepLines = append(stepLines, fmt.Sprintf("          elif [ -n \"$%s\" ]; then", secretName))
-			stepLines = append(stepLines, fmt.Sprintf("            echo \"%s secret is configured\"", secretName))
+			stepLines = append(stepLines, fmt.Sprintf("            echo \"✅ %s: Configured\"", secretName))
 		}
 	}
 	stepLines = append(stepLines, "          fi")
+	stepLines = append(stepLines, "          echo \"</details>\"")
 
 	// Add env section with all secrets
 	stepLines = append(stepLines, "        env:")

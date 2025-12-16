@@ -2294,10 +2294,14 @@ jobs:
             exit 1
           fi
           
-          # Log success to stdout (not step summary)
+          # Log success in collapsible section
+          echo "<details>"
+          echo "<summary>Agent Environment Validation</summary>"
+          echo ""
           if [ -n "$COPILOT_GITHUB_TOKEN" ]; then
-            echo "COPILOT_GITHUB_TOKEN secret is configured"
+            echo "✅ COPILOT_GITHUB_TOKEN: Configured"
           fi
+          echo "</details>"
         env:
           COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
       - name: Install GitHub Copilot CLI
@@ -10017,10 +10021,14 @@ jobs:
             exit 1
           fi
           
-          # Log success to stdout (not step summary)
+          # Log success in collapsible section
+          echo "<details>"
+          echo "<summary>Agent Environment Validation</summary>"
+          echo ""
           if [ -n "$COPILOT_GITHUB_TOKEN" ]; then
-            echo "COPILOT_GITHUB_TOKEN secret is configured"
+            echo "✅ COPILOT_GITHUB_TOKEN: Configured"
           fi
+          echo "</details>"
         env:
           COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
       - name: Install GitHub Copilot CLI
