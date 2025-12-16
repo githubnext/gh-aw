@@ -180,6 +180,7 @@ Based on your analysis:
    - If AI-generated content is detected, use the `add-labels` safe output to add the `ai-generated` label to the issue
    - Multiple labels can be added if multiple types are detected
    - **If no warnings or issues are found** and the content appears legitimate and on-topic, use the `add-labels` safe output to add the `ai-inspected` label to indicate the issue has been reviewed and no threats were found
+   - **If workflow_dispatch** was used, ensure the labels are applied to the correct issue/PR as specified in the input URL when calling `add-labels`
 
 2. **For Comments** (when comment ID is present):
    - If any type of spam, link spam, or AI-generated spam is detected:
