@@ -443,6 +443,7 @@ The YAML frontmatter supports these fields:
     ```json
     {"type": "update_project", "project": "https://github.com/orgs/myorg/projects/42", "content_type": "issue", "content_number": 123, "fields": {"Status": "In Progress"}}
     ```
+    **Token Fallback**: If `github-token` is not specified, automatically falls back to `GH_AW_PROJECT_GITHUB_TOKEN` secret if available, then to `GITHUB_TOKEN`.
     Not supported for cross-repository operations.
   - `push-to-pull-request-branch:` - Push changes to PR branch
     ```yaml
@@ -508,7 +509,19 @@ The YAML frontmatter supports these fields:
       github-token: ${{ secrets.CUSTOM_PAT }}  # Use custom PAT instead of GITHUB_TOKEN
     ```
     Useful when you need additional permissions or want to perform actions across repositories.
-  
+  - `mentions:` - Control @mention filtering in AI-generated content
+    ```yaml
+    safe-outputs:
+      mentions: true                      # Boolean: allow all mentions
+      # Or object form for fine-grained control:
+      mentions:
+        allow-team-members: true          # Allow team member mentions
+        allow-context: true               # Allow mentions from event context (author, assignees)
+        allowed: [user1, user2]           # Explicit allow-list
+        max: 50                           # Maximum mentions per message (default: 50)
+    ```
+    Controls how @mentions are filtered in safe-output content. Boolean form enables all mentions. Object form provides fine-grained control with allow-list, team member filtering, context-based mentions, and per-message limits. Default behavior (when unspecified) preserves existing mention filtering.
+
 - **`command:`** - Command trigger configuration for /mention workflows
 - **`cache:`** - Cache configuration for workflow dependencies (object or array)
 - **`cache-memory:`** - Memory MCP server with persistent cache storage (boolean or object)
