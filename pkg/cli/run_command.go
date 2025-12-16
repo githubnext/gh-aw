@@ -76,6 +76,11 @@ func RunWorkflowOnGitHub(workflowIdOrName string, enable bool, engineOverride st
 		}
 		runLog.Printf("Workflow is runnable: %s", workflowFile)
 
+		// Validate workflow inputs
+		if err := validateWorkflowInputs(workflowFile, inputs); err != nil {
+			return fmt.Errorf("%w", err)
+		}
+
 		// Check if the workflow file has local modifications
 		if status, err := checkWorkflowFileStatus(workflowFile); err == nil && status != nil {
 			var warnings []string
@@ -553,6 +558,154 @@ func IsRunnable(markdownPath string) (bool, error) {
 	hasWorkflowDispatch := strings.Contains(onStrLower, "workflow_dispatch")
 
 	return hasSchedule || hasWorkflowDispatch, nil
+}
+
+// getWorkflowInputs extracts workflow_dispatch inputs from the workflow markdown file
+func getWorkflowInputs(markdownPath string) (map[string]*workflow.InputDefinition, error) {
+	// Read the file
+	contentBytes, err := os.ReadFile(markdownPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read file: %w", err)
+	}
+	content := string(contentBytes)
+
+	// Extract frontmatter
+	result, err := parser.ExtractFrontmatterFromContent(content)
+	if err != nil {
+		return nil, fmt.Errorf("failed to extract frontmatter: %w", err)
+	}
+
+	// Check if 'on' section is present
+	onSection, exists := result.Frontmatter["on"]
+	if !exists {
+		return nil, nil
+	}
+
+	// Convert to map if possible
+	onMap, ok := onSection.(map[string]any)
+	if !ok {
+		return nil, nil
+	}
+
+	// Get workflow_dispatch section
+	workflowDispatch, exists := onMap["workflow_dispatch"]
+	if !exists {
+		return nil, nil
+	}
+
+	// Convert to map
+	workflowDispatchMap, ok := workflowDispatch.(map[string]any)
+	if !ok {
+		// workflow_dispatch might be null/empty
+		return nil, nil
+	}
+
+	// Get inputs section
+	inputsSection, exists := workflowDispatchMap["inputs"]
+	if !exists {
+		return nil, nil
+	}
+
+	// Convert to map
+	inputsMap, ok := inputsSection.(map[string]any)
+	if !ok {
+		return nil, nil
+	}
+
+	// Parse input definitions
+	return workflow.ParseInputDefinitions(inputsMap), nil
+}
+
+// validateWorkflowInputs validates that required inputs are provided and checks for typos
+func validateWorkflowInputs(markdownPath string, providedInputs []string) error {
+	// Extract workflow inputs
+	workflowInputs, err := getWorkflowInputs(markdownPath)
+	if err != nil {
+		// Don't fail validation if we can't extract inputs
+		runLog.Printf("Failed to extract workflow inputs: %v", err)
+		return nil
+	}
+
+	// If no inputs are defined, no validation needed
+	if len(workflowInputs) == 0 {
+		return nil
+	}
+
+	// Parse provided inputs into a map
+	providedInputsMap := make(map[string]string)
+	for _, input := range providedInputs {
+		parts := strings.SplitN(input, "=", 2)
+		if len(parts) == 2 {
+			providedInputsMap[parts[0]] = parts[1]
+		}
+	}
+
+	// Check for required inputs that are missing
+	var missingInputs []string
+	for inputName, inputDef := range workflowInputs {
+		if inputDef.Required {
+			if _, exists := providedInputsMap[inputName]; !exists {
+				missingInputs = append(missingInputs, inputName)
+			}
+		}
+	}
+
+	// Check for typos in provided input names
+	var typos []string
+	var suggestions []string
+	validInputNames := make([]string, 0, len(workflowInputs))
+	for inputName := range workflowInputs {
+		validInputNames = append(validInputNames, inputName)
+	}
+
+	for providedName := range providedInputsMap {
+		// Check if this is a valid input name
+		if _, exists := workflowInputs[providedName]; !exists {
+			// Find closest matches
+			matches := parser.FindClosestMatches(providedName, validInputNames, 3)
+			if len(matches) > 0 {
+				typos = append(typos, providedName)
+				suggestions = append(suggestions, fmt.Sprintf("'%s' -> did you mean '%s'?", providedName, strings.Join(matches, "', '")))
+			} else {
+				typos = append(typos, providedName)
+				suggestions = append(suggestions, fmt.Sprintf("'%s' is not a valid input name", providedName))
+			}
+		}
+	}
+
+	// Build error message if there are validation errors
+	if len(missingInputs) > 0 || len(typos) > 0 {
+		var errorParts []string
+
+		if len(missingInputs) > 0 {
+			errorParts = append(errorParts, fmt.Sprintf("Missing required input(s): %s", strings.Join(missingInputs, ", ")))
+		}
+
+		if len(typos) > 0 {
+			errorParts = append(errorParts, fmt.Sprintf("Invalid input name(s):\n  %s", strings.Join(suggestions, "\n  ")))
+		}
+
+		// Add helpful information about valid inputs
+		if len(workflowInputs) > 0 {
+			var inputDescriptions []string
+			for name, def := range workflowInputs {
+				required := ""
+				if def.Required {
+					required = " (required)"
+				}
+				desc := ""
+				if def.Description != "" {
+					desc = fmt.Sprintf(": %s", def.Description)
+				}
+				inputDescriptions = append(inputDescriptions, fmt.Sprintf("  %s%s%s", name, required, desc))
+			}
+			errorParts = append(errorParts, fmt.Sprintf("\nValid inputs:\n%s", strings.Join(inputDescriptions, "\n")))
+		}
+
+		return fmt.Errorf("%s", strings.Join(errorParts, "\n\n"))
+	}
+
+	return nil
 }
 
 // WorkflowRunInfo contains information about a workflow run
