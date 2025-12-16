@@ -4,7 +4,10 @@ import (
 	"fmt"
 
 	"github.com/goccy/go-yaml"
+	"github.com/githubnext/gh-aw/pkg/logger"
 )
+
+var stepTypesLog = logger.New("workflow:step_types")
 
 // WorkflowStep represents a single step in a GitHub Actions workflow job
 // This struct provides type safety and compile-time validation for step configurations
@@ -77,6 +80,7 @@ func (s *WorkflowStep) ToMap() map[string]any {
 // MapToStep converts a map[string]any to a WorkflowStep
 // This is the inverse of ToMap and is used when parsing step configurations
 func MapToStep(stepMap map[string]any) (*WorkflowStep, error) {
+	stepTypesLog.Printf("Converting map to workflow step: map_keys=%d", len(stepMap))
 	if stepMap == nil {
 		return nil, fmt.Errorf("step map is nil")
 	}
@@ -124,6 +128,13 @@ func MapToStep(stepMap map[string]any) (*WorkflowStep, error) {
 		step.TimeoutMinutes = timeoutMinutes
 	}
 
+	stepType := "unknown"
+	if step.Uses != "" {
+		stepType = "uses"
+	} else if step.Run != "" {
+		stepType = "run"
+	}
+	stepTypesLog.Printf("Successfully converted step: type=%s, name=%s", stepType, step.Name)
 	return step, nil
 }
 
@@ -160,10 +171,13 @@ func (s *WorkflowStep) Clone() *WorkflowStep {
 
 // ToYAML converts the WorkflowStep to YAML string
 func (s *WorkflowStep) ToYAML() (string, error) {
+	stepTypesLog.Printf("Converting step to YAML: name=%s", s.Name)
 	stepMap := s.ToMap()
 	yamlBytes, err := yaml.Marshal(stepMap)
 	if err != nil {
+		stepTypesLog.Printf("Failed to marshal step to YAML: %v", err)
 		return "", fmt.Errorf("failed to marshal step to YAML: %w", err)
 	}
+	stepTypesLog.Printf("Successfully converted step to YAML: size=%d bytes", len(yamlBytes))
 	return string(yamlBytes), nil
 }

@@ -4,7 +4,11 @@ import (
 	_ "embed"
 	"fmt"
 	"strings"
+
+	"github.com/githubnext/gh-aw/pkg/logger"
 )
+
+var shLog = logger.New("workflow:sh")
 
 //go:embed prompts/pr_context_prompt.md
 var prContextPromptText string
@@ -60,8 +64,10 @@ func WriteShellScriptToYAML(yaml *strings.Builder, script string, indent string)
 //
 // For prompt text with variable placeholders that need substitution, use WritePromptTextToYAMLWithPlaceholders instead.
 func WritePromptTextToYAML(yaml *strings.Builder, text string, indent string) {
+	shLog.Printf("Writing prompt text to YAML: text_size=%d bytes, chunks=%d", len(text), len(strings.Split(text, "\n")))
 	textLines := strings.Split(text, "\n")
 	chunks := chunkLines(textLines, indent, MaxPromptChunkSize, MaxPromptChunks)
+	shLog.Printf("Created %d chunks for prompt text", len(chunks))
 
 	// Write each chunk as a separate heredoc
 	// For static prompt text without variables, use direct cat to file
@@ -98,6 +104,7 @@ func WritePromptTextToYAMLWithPlaceholders(yaml *strings.Builder, text string, i
 // chunkLines splits lines into chunks where each chunk's total size (including indent) is less than maxSize.
 // Returns at most maxChunks chunks. If content exceeds the limit, it truncates at the last chunk.
 func chunkLines(lines []string, indent string, maxSize int, maxChunks int) [][]string {
+	shLog.Printf("Chunking lines: total_lines=%d, max_size=%d, max_chunks=%d", len(lines), maxSize, maxChunks)
 	if len(lines) == 0 {
 		return [][]string{{}}
 	}
@@ -121,6 +128,7 @@ func chunkLines(lines []string, indent string, maxSize int, maxChunks int) [][]s
 			}
 
 			// Start a new chunk
+			shLog.Printf("Starting new chunk: previous_chunk_size=%d, chunks_so_far=%d", currentSize, len(chunks))
 			chunks = append(chunks, currentChunk)
 			currentChunk = []string{line}
 			currentSize = lineSize
@@ -140,5 +148,6 @@ func chunkLines(lines []string, indent string, maxSize int, maxChunks int) [][]s
 		return [][]string{{}}
 	}
 
+	shLog.Printf("Chunking complete: created %d chunks", len(chunks))
 	return chunks
 }

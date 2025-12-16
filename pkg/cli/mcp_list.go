@@ -7,11 +7,15 @@ import (
 	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/console"
+	"github.com/githubnext/gh-aw/pkg/logger"
 	"github.com/spf13/cobra"
 )
 
+var mcpListLog = logger.New("cli:mcp_list")
+
 // ListWorkflowMCP lists MCP servers defined in a workflow
 func ListWorkflowMCP(workflowFile string, verbose bool) error {
+	mcpListLog.Printf("Listing MCP servers: workflow=%s, verbose=%t", workflowFile, verbose)
 	// Determine the workflow directory and file
 	workflowsDir := ".github/workflows"
 	var workflowPath string
@@ -21,19 +25,24 @@ func ListWorkflowMCP(workflowFile string, verbose bool) error {
 		var err error
 		workflowPath, err = ResolveWorkflowPath(workflowFile)
 		if err != nil {
+			mcpListLog.Printf("Failed to resolve workflow path: %v", err)
 			return err
 		}
+		mcpListLog.Printf("Resolved workflow path: %s", workflowPath)
 	} else {
 		// No specific workflow file provided, list all workflows with MCP servers
+		mcpListLog.Print("No workflow file specified, listing all workflows with MCP servers")
 		return listWorkflowsWithMCPServers(workflowsDir, verbose)
 	}
 
 	// Parse the specific workflow file and extract MCP configurations
 	_, mcpConfigs, err := loadWorkflowMCPConfigs(workflowPath, "")
 	if err != nil {
+		mcpListLog.Printf("Failed to load MCP configs from workflow: %v", err)
 		return err
 	}
 
+	mcpListLog.Printf("Found %d MCP servers in workflow", len(mcpConfigs))
 	if len(mcpConfigs) == 0 {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("No MCP servers found in workflow"))
 		return nil
