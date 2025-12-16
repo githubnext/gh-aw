@@ -380,6 +380,8 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 
 			// Parse workflow file to get data
 			compileOrchestratorLog.Printf("Parsing workflow file: %s", resolvedFile)
+			// Set workflow identifier for schedule scattering (use the file path as unique identifier)
+			compiler.SetWorkflowIdentifier(resolvedFile)
 			workflowData, err := compiler.ParseWorkflowFile(resolvedFile)
 			if err != nil {
 				errMsg := fmt.Sprintf("failed to parse workflow file %s: %v", resolvedFile, err)
@@ -677,6 +679,8 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 		}
 
 		// Parse workflow file to get data
+		// Set workflow identifier for schedule scattering (use the file path as unique identifier)
+		compiler.SetWorkflowIdentifier(file)
 		workflowData, err := compiler.ParseWorkflowFile(file)
 		if err != nil {
 			if !jsonOutput {

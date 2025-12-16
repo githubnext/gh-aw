@@ -217,3 +217,120 @@ func TestScheduleFriendlyComments(t *testing.T) {
 		t.Errorf("expected cron expression to remain, got:\n%s", result)
 	}
 }
+
+func TestFuzzyScheduleScattering(t *testing.T) {
+	tests := []struct {
+		name               string
+		frontmatter        map[string]any
+		workflowIdentifier string
+		checkScattered     bool // If true, verify the result is scattered (not fuzzy)
+	}{
+		{
+			name: "fuzzy daily schedule with identifier",
+			frontmatter: map[string]any{
+				"on": map[string]any{
+					"schedule": []any{
+						map[string]any{
+							"cron": "daily",
+						},
+					},
+				},
+			},
+			workflowIdentifier: "workflow-a.md",
+			checkScattered:     true,
+		},
+		{
+			name: "fuzzy daily schedule without identifier",
+			frontmatter: map[string]any{
+				"on": map[string]any{
+					"schedule": []any{
+						map[string]any{
+							"cron": "daily",
+						},
+					},
+				},
+			},
+			workflowIdentifier: "", // No identifier, should keep fuzzy placeholder
+			checkScattered:     false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			compiler := NewCompiler(false, "", "test")
+			if tt.workflowIdentifier != "" {
+				compiler.SetWorkflowIdentifier(tt.workflowIdentifier)
+			}
+
+			err := compiler.preprocessScheduleFields(tt.frontmatter)
+			if err != nil {
+				t.Errorf("unexpected error: %v", err)
+				return
+			}
+
+			// Check that the cron expression was updated
+			onMap := tt.frontmatter["on"].(map[string]any)
+			scheduleArray := onMap["schedule"].([]any)
+			firstSchedule := scheduleArray[0].(map[string]any)
+			actualCron := firstSchedule["cron"].(string)
+
+			if tt.checkScattered {
+				// Should be scattered (not fuzzy)
+				if strings.HasPrefix(actualCron, "FUZZY:") {
+					t.Errorf("expected scattered schedule, got fuzzy: %s", actualCron)
+				}
+				// Should be a valid daily cron
+				fields := strings.Fields(actualCron)
+				if len(fields) != 5 {
+					t.Errorf("expected 5 fields in cron, got %d: %s", len(fields), actualCron)
+				}
+			} else {
+				// Should remain fuzzy
+				if !strings.HasPrefix(actualCron, "FUZZY:") {
+					t.Errorf("expected fuzzy schedule, got: %s", actualCron)
+				}
+			}
+		})
+	}
+}
+
+func TestFuzzyScheduleScatteringDeterministic(t *testing.T) {
+	// Test that scattering is deterministic - same workflow ID produces same result
+	workflows := []string{"workflow-a.md", "workflow-b.md", "workflow-c.md", "workflow-a.md"}
+	
+	results := make([]string, len(workflows))
+	for i, wf := range workflows {
+		frontmatter := map[string]any{
+			"on": map[string]any{
+				"schedule": []any{
+					map[string]any{
+						"cron": "daily",
+					},
+				},
+			},
+		}
+		
+		compiler := NewCompiler(false, "", "test")
+		compiler.SetWorkflowIdentifier(wf)
+		
+		err := compiler.preprocessScheduleFields(frontmatter)
+		if err != nil {
+			t.Fatalf("unexpected error for workflow %s: %v", wf, err)
+		}
+		
+		onMap := frontmatter["on"].(map[string]any)
+		scheduleArray := onMap["schedule"].([]any)
+		firstSchedule := scheduleArray[0].(map[string]any)
+		results[i] = firstSchedule["cron"].(string)
+	}
+	
+	// workflow-a.md should produce the same result both times
+	if results[0] != results[3] {
+		t.Errorf("Scattering not deterministic: workflow-a.md produced %s and %s", results[0], results[3])
+	}
+	
+	// Different workflows should produce different results (with high probability)
+	if results[0] == results[1] && results[1] == results[2] {
+		t.Errorf("Scattering produced identical results for all workflows: %s", results[0])
+	}
+}

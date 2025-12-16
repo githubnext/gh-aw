@@ -17,7 +17,7 @@ func TestParseSchedule(t *testing.T) {
 		{
 			name:         "daily default time",
 			input:        "daily",
-			expectedCron: "0 0 * * *",
+			expectedCron: "FUZZY:DAILY * * *",
 			expectedOrig: "daily",
 		},
 		{
@@ -339,7 +339,7 @@ func TestParseSchedule(t *testing.T) {
 		{
 			name:         "DAILY uppercase",
 			input:        "DAILY",
-			expectedCron: "0 0 * * *",
+			expectedCron: "FUZZY:DAILY * * *",
 			expectedOrig: "DAILY",
 		},
 		{
@@ -640,4 +640,127 @@ func toLower(s string) string {
 		b[i] = c
 	}
 	return string(b)
+}
+
+func TestIsDailyCron(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected bool
+	}{
+		{"0 0 * * *", true},
+		{"30 14 * * *", true},
+		{"0 9 * * *", true},
+		{"*/15 * * * *", false},  // interval
+		{"0 0 1 * *", false},     // monthly
+		{"0 0 * * 1", false},     // weekly
+		{"0 14 * * 1-5", false},  // weekdays only
+		{"invalid", false},
+		{"", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			result := IsDailyCron(tt.input)
+			if result != tt.expected {
+				t.Errorf("IsDailyCron(%q) = %v, want %v", tt.input, result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestIsFuzzyCron(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected bool
+	}{
+		{"FUZZY:DAILY * * *", true},
+		{"0 0 * * *", false},
+		{"daily", false},
+		{"", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			result := IsFuzzyCron(tt.input)
+			if result != tt.expected {
+				t.Errorf("IsFuzzyCron(%q) = %v, want %v", tt.input, result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestScatterSchedule(t *testing.T) {
+	tests := []struct {
+		name               string
+		fuzzyCron          string
+		workflowIdentifier string
+		expectError        bool
+	}{
+		{
+			name:               "valid fuzzy daily",
+			fuzzyCron:          "FUZZY:DAILY * * *",
+			workflowIdentifier: "workflow1",
+			expectError:        false,
+		},
+		{
+			name:               "not a fuzzy cron",
+			fuzzyCron:          "0 0 * * *",
+			workflowIdentifier: "workflow1",
+			expectError:        true,
+		},
+		{
+			name:               "invalid fuzzy pattern",
+			fuzzyCron:          "FUZZY:INVALID",
+			workflowIdentifier: "workflow1",
+			expectError:        true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, err := ScatterSchedule(tt.fuzzyCron, tt.workflowIdentifier)
+			if tt.expectError {
+				if err == nil {
+					t.Errorf("expected error, got nil")
+				}
+				return
+			}
+			if err != nil {
+				t.Errorf("unexpected error: %v", err)
+				return
+			}
+			// Check that result is a valid cron expression
+			if !isCronExpression(result) {
+				t.Errorf("ScatterSchedule returned invalid cron: %s", result)
+			}
+			// Check that result is daily pattern
+			if !IsDailyCron(result) {
+				t.Errorf("ScatterSchedule returned non-daily cron: %s", result)
+			}
+		})
+	}
+}
+
+func TestScatterScheduleDeterministic(t *testing.T) {
+	// Test that scattering is deterministic - same input produces same output
+	workflows := []string{"workflow-a", "workflow-b", "workflow-c", "workflow-a"}
+	
+	results := make([]string, len(workflows))
+	for i, wf := range workflows {
+		result, err := ScatterSchedule("FUZZY:DAILY * * *", wf)
+		if err != nil {
+			t.Fatalf("unexpected error for workflow %s: %v", wf, err)
+		}
+		results[i] = result
+	}
+	
+	// workflow-a should produce the same result both times
+	if results[0] != results[3] {
+		t.Errorf("ScatterSchedule not deterministic: workflow-a produced %s and %s", results[0], results[3])
+	}
+	
+	// Different workflows should produce different results (with high probability)
+	if results[0] == results[1] && results[1] == results[2] {
+		t.Errorf("ScatterSchedule produced identical results for all workflows: %s", results[0])
+	}
 }

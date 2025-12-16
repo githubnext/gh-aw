@@ -35,6 +35,7 @@ type Compiler struct {
 	actionCache          *ActionCache        // Shared cache for action pin resolutions across all workflows
 	actionResolver       *ActionResolver     // Shared resolver for action pins across all workflows
 	importCache          *parser.ImportCache // Shared cache for imported workflow files
+	workflowIdentifier   string              // Identifier for the current workflow being compiled (for schedule scattering)
 }
 
 // NewCompiler creates a new workflow compiler with optional configuration
@@ -128,6 +129,17 @@ func (c *Compiler) GetWarningCount() int {
 // ResetWarningCount resets the warning counter to zero
 func (c *Compiler) ResetWarningCount() {
 	c.warningCount = 0
+}
+
+// SetWorkflowIdentifier sets the identifier for the current workflow being compiled
+// This is used for deterministic schedule scattering
+func (c *Compiler) SetWorkflowIdentifier(identifier string) {
+	c.workflowIdentifier = identifier
+}
+
+// GetWorkflowIdentifier returns the current workflow identifier
+func (c *Compiler) GetWorkflowIdentifier() string {
+	return c.workflowIdentifier
 }
 
 // getSharedActionResolver returns the shared action resolver, initializing it on first use
