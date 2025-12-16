@@ -616,305 +616,11 @@ jobs:
                 return s.replace(/\b(fixes?|closes?|resolves?|fix|close|resolve)\s+#(\w+)/gi, (match, action, ref) => `\`${action} #${ref}\``);
               }
             }
-            function sanitizeContent(content, maxLengthOrOptions) {
-              let maxLength;
-              let allowedAliasesLowercase = [];
-              if (typeof maxLengthOrOptions === "number") {
-                maxLength = maxLengthOrOptions;
-              } else if (maxLengthOrOptions && typeof maxLengthOrOptions === "object") {
-                maxLength = maxLengthOrOptions.maxLength;
-                allowedAliasesLowercase = (maxLengthOrOptions.allowedAliases || []).map(alias => alias.toLowerCase());
-              }
-              if (allowedAliasesLowercase.length === 0) {
-                return sanitizeContentCore(content, maxLength);
-              }
-              if (!content || typeof content !== "string") {
-                return "";
-              }
-              const allowedDomainsEnv = process.env.GH_AW_ALLOWED_DOMAINS;
-              const defaultAllowedDomains = ["github.com", "github.io", "githubusercontent.com", "githubassets.com", "github.dev", "codespaces.new"];
-              let allowedDomains = allowedDomainsEnv
-                ? allowedDomainsEnv
-                    .split(",")
-                    .map(d => d.trim())
-                    .filter(d => d)
-                : defaultAllowedDomains;
-              const githubServerUrl = process.env.GITHUB_SERVER_URL;
-              const githubApiUrl = process.env.GITHUB_API_URL;
-              if (githubServerUrl) {
-                const serverDomains = extractDomainsFromUrl(githubServerUrl);
-                allowedDomains = allowedDomains.concat(serverDomains);
-              }
-              if (githubApiUrl) {
-                const apiDomains = extractDomainsFromUrl(githubApiUrl);
-                allowedDomains = allowedDomains.concat(apiDomains);
-              }
-              allowedDomains = [...new Set(allowedDomains)];
-              let sanitized = content;
-              sanitized = neutralizeCommands(sanitized);
-              sanitized = neutralizeMentions(sanitized, allowedAliasesLowercase);
-              sanitized = removeXmlComments(sanitized);
-              sanitized = convertXmlTags(sanitized);
-              sanitized = sanitized.replace(/\x1b\[[0-9;]*[mGKH]/g, "");
-              sanitized = sanitized.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "");
-              sanitized = sanitizeUrlProtocols(sanitized);
-              sanitized = sanitizeUrlDomains(sanitized, allowedDomains);
-              const lines = sanitized.split("\n");
-              const maxLines = 65000;
-              maxLength = maxLength || 524288;
-              if (lines.length > maxLines) {
-                const truncationMsg = "\n[Content truncated due to line count]";
-                const truncatedLines = lines.slice(0, maxLines).join("\n") + truncationMsg;
-                if (truncatedLines.length > maxLength) {
-                  sanitized = truncatedLines.substring(0, maxLength - truncationMsg.length) + truncationMsg;
-                } else {
-                  sanitized = truncatedLines;
-                }
-              } else if (sanitized.length > maxLength) {
-                sanitized = sanitized.substring(0, maxLength) + "\n[Content truncated due to length]";
-              }
-              sanitized = neutralizeBotTriggers(sanitized);
-              return sanitized.trim();
-              function sanitizeUrlDomains(s, allowed) {
-                const httpsUrlRegex = /https:\/\/([\w.-]+(?::\d+)?)(\/[^\s]*)?/gi;
-                const result = s.replace(httpsUrlRegex, (match, hostnameWithPort, pathPart) => {
-                  const hostname = hostnameWithPort.split(":")[0].toLowerCase();
-                  pathPart = pathPart || "";
-                  const isAllowed = allowed.some(allowedDomain => {
-                    const normalizedAllowed = allowedDomain.toLowerCase();
-                    if (hostname === normalizedAllowed) {
-                      return true;
-                    }
-                    if (normalizedAllowed.startsWith("*.")) {
-                      const baseDomain = normalizedAllowed.substring(2);
-                      return hostname.endsWith("." + baseDomain) || hostname === baseDomain;
-                    }
-                    return hostname.endsWith("." + normalizedAllowed);
-                  });
-                  if (isAllowed) {
-                    return match;
-                  } else {
-                    const truncated = hostname.length > 12 ? hostname.substring(0, 12) + "..." : hostname;
-                    if (typeof core !== "undefined" && core.info) {
-                      core.info(`Redacted URL: ${truncated}`);
-                    }
-                    if (typeof core !== "undefined" && core.debug) {
-                      core.debug(`Redacted URL (full): ${match}`);
-                    }
-                    addRedactedDomain(hostname);
-                    return "(redacted)";
-                  }
-                });
-                return result;
-              }
-              function sanitizeUrlProtocols(s) {
-                return s.replace(
-                  /\b((?:http|ftp|file|ssh|git):\/\/([\w.-]+)(?:[^\s]*)|(?:data|javascript|vbscript|about|mailto|tel):[^\s]+)/gi,
-                  (match, _fullMatch, domain) => {
-                    if (domain) {
-                      const domainLower = domain.toLowerCase();
-                      const truncated = domainLower.length > 12 ? domainLower.substring(0, 12) + "..." : domainLower;
-                      if (typeof core !== "undefined" && core.info) {
-                        core.info(`Redacted URL: ${truncated}`);
-                      }
-                      if (typeof core !== "undefined" && core.debug) {
-                        core.debug(`Redacted URL (full): ${match}`);
-                      }
-                      addRedactedDomain(domainLower);
-                    } else {
-                      const protocolMatch = match.match(/^([^:]+):/);
-                      if (protocolMatch) {
-                        const protocol = protocolMatch[1] + ":";
-                        if (typeof core !== "undefined" && core.info) {
-                          core.info(`Redacted URL: ${protocol}`);
-                        }
-                        if (typeof core !== "undefined" && core.debug) {
-                          core.debug(`Redacted URL (full): ${match}`);
-                        }
-                        addRedactedDomain(protocol);
-                      }
-                    }
-                    return "(redacted)";
-                  }
-                );
-              }
-              function neutralizeCommands(s) {
-                const commandName = process.env.GH_AW_COMMAND;
-                if (!commandName) {
-                  return s;
-                }
-                const escapedCommand = commandName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-                return s.replace(new RegExp(`^(\\s*)/(${escapedCommand})\\b`, "i"), "$1`/$2`");
-              }
-              function neutralizeMentions(s, allowedLowercase) {
-                return s.replace(/(^|[^\w`])@([A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?(?:\/[A-Za-z0-9._-]+)?)/g, (_m, p1, p2) => {
-                  const isAllowed = allowedLowercase.includes(p2.toLowerCase());
-                  if (isAllowed) {
-                    return `${p1}@${p2}`; 
-                  }
-                  if (typeof core !== "undefined" && core.info) {
-                    core.info(`Escaped mention: @${p2} (not in allowed list)`);
-                  }
-                  return `${p1}\`@${p2}\``; 
-                });
-              }
-              function removeXmlComments(s) {
-                return s.replace(/<!--[\s\S]*?-->/g, "").replace(/<!--[\s\S]*?--!>/g, "");
-              }
-              function convertXmlTags(s) {
-                const allowedTags = [
-                  "b",
-                  "blockquote",
-                  "br",
-                  "code",
-                  "details",
-                  "em",
-                  "h1",
-                  "h2",
-                  "h3",
-                  "h4",
-                  "h5",
-                  "h6",
-                  "hr",
-                  "i",
-                  "li",
-                  "ol",
-                  "p",
-                  "pre",
-                  "strong",
-                  "sub",
-                  "summary",
-                  "sup",
-                  "table",
-                  "tbody",
-                  "td",
-                  "th",
-                  "thead",
-                  "tr",
-                  "ul",
-                ];
-                s = s.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, (match, content) => {
-                  const convertedContent = content.replace(/<(\/?[A-Za-z][A-Za-z0-9]*(?:[^>]*?))>/g, "($1)");
-                  return `(![CDATA[${convertedContent}]])`;
-                });
-                return s.replace(/<(\/?[A-Za-z!][^>]*?)>/g, (match, tagContent) => {
-                  const tagNameMatch = tagContent.match(/^\/?\s*([A-Za-z][A-Za-z0-9]*)/);
-                  if (tagNameMatch) {
-                    const tagName = tagNameMatch[1].toLowerCase();
-                    if (allowedTags.includes(tagName)) {
-                      return match;
-                    }
-                  }
-                  return `(${tagContent})`;
-                });
-              }
-              function neutralizeBotTriggers(s) {
-                return s.replace(/\b(fixes?|closes?|resolves?|fix|close|resolve)\s+#(\w+)/gi, (match, action, ref) => `\`${action} #${ref}\``);
-              }
-            }
-            function extractMentions(text) {
-              if (!text || typeof text !== "string") {
-                return [];
-              }
-              const mentionRegex = /(^|[^\w`])@([A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?(?:\/[A-Za-z0-9._-]+)?)/g;
-              const mentions = [];
-              const seen = new Set();
-              let match;
-              while ((match = mentionRegex.exec(text)) !== null) {
-                const username = match[2];
-                const lowercaseUsername = username.toLowerCase();
-                if (!seen.has(lowercaseUsername)) {
-                  seen.add(lowercaseUsername);
-                  mentions.push(username);
-                }
-              }
-              return mentions;
-            }
-            function isPayloadUserBot(user) {
-              return !!(user && user.type === "Bot");
-            }
-            async function getRecentCollaborators(owner, repo, github, core) {
-              try {
-                const collaborators = await github.rest.repos.listCollaborators({
-                  owner: owner,
-                  repo: repo,
-                  affiliation: "direct",
-                  per_page: 30,
-                });
-                const allowedMap = new Map();
-                for (const collaborator of collaborators.data) {
-                  const lowercaseLogin = collaborator.login.toLowerCase();
-                  const isAllowed = collaborator.type !== "Bot";
-                  allowedMap.set(lowercaseLogin, isAllowed);
-                }
-                return allowedMap;
-              } catch (error) {
-                core.warning(`Failed to fetch recent collaborators: ${error instanceof Error ? error.message : String(error)}`);
-                return new Map();
-              }
-            }
-            async function checkUserPermission(username, owner, repo, github, core) {
-              try {
-                const { data: user } = await github.rest.users.getByUsername({
-                  username: username,
-                });
-                if (user.type === "Bot") {
-                  return false;
-                }
-                const { data: permissionData } = await github.rest.repos.getCollaboratorPermissionLevel({
-                  owner: owner,
-                  repo: repo,
-                  username: username,
-                });
-                return permissionData.permission !== "none";
-              } catch (error) {
-                return false;
-              }
-            }
-            async function resolveMentionsLazily(text, knownAuthors, owner, repo, github, core) {
-              const mentions = extractMentions(text);
-              const totalMentions = mentions.length;
-              core.info(`Found ${totalMentions} unique mentions in text`);
-              const limitExceeded = totalMentions > 50;
-              const mentionsToProcess = limitExceeded ? mentions.slice(0, 50) : mentions;
-              if (limitExceeded) {
-                core.warning(`Mention limit exceeded: ${totalMentions} mentions found, processing only first 50`);
-              }
-              const knownAuthorsLowercase = new Set(knownAuthors.filter(a => a).map(a => a.toLowerCase()));
-              const collaboratorCache = await getRecentCollaborators(owner, repo, github, core);
-              core.info(`Cached ${collaboratorCache.size} recent collaborators for optimistic resolution`);
-              const allowedMentions = [];
-              let resolvedCount = 0;
-              for (const mention of mentionsToProcess) {
-                const lowerMention = mention.toLowerCase();
-                if (knownAuthorsLowercase.has(lowerMention)) {
-                  allowedMentions.push(mention);
-                  continue;
-                }
-                if (collaboratorCache.has(lowerMention)) {
-                  if (collaboratorCache.get(lowerMention)) {
-                    allowedMentions.push(mention);
-                  }
-                  continue;
-                }
-                resolvedCount++;
-                const isAllowed = await checkUserPermission(mention, owner, repo, github, core);
-                if (isAllowed) {
-                  allowedMentions.push(mention);
-                }
-              }
-              core.info(`Resolved ${resolvedCount} mentions via individual API calls`);
-              core.info(`Total allowed mentions: ${allowedMentions.length}`);
-              return {
-                allowedMentions,
-                totalMentions,
-                resolvedCount,
-                limitExceeded,
-              };
+            function sanitizeIncomingText(content, maxLength) {
+              return sanitizeContentCore(content, maxLength);
             }
             async function main() {
               let text = "";
-              let knownAuthors = [];
               const actor = context.actor;
               const { owner, repo } = context.repo;
               const repoPermission = await github.rest.repos.getCollaboratorPermissionLevel({
@@ -934,16 +640,6 @@ jobs:
                     const title = context.payload.issue.title || "";
                     const body = context.payload.issue.body || "";
                     text = `${title}\n\n${body}`;
-                    if (context.payload.issue.user?.login && !isPayloadUserBot(context.payload.issue.user)) {
-                      knownAuthors.push(context.payload.issue.user.login);
-                    }
-                    if (context.payload.issue.assignees && Array.isArray(context.payload.issue.assignees)) {
-                      for (const assignee of context.payload.issue.assignees) {
-                        if (assignee?.login && !isPayloadUserBot(assignee)) {
-                          knownAuthors.push(assignee.login);
-                        }
-                      }
-                    }
                   }
                   break;
                 case "pull_request":
@@ -951,16 +647,6 @@ jobs:
                     const title = context.payload.pull_request.title || "";
                     const body = context.payload.pull_request.body || "";
                     text = `${title}\n\n${body}`;
-                    if (context.payload.pull_request.user?.login && !isPayloadUserBot(context.payload.pull_request.user)) {
-                      knownAuthors.push(context.payload.pull_request.user.login);
-                    }
-                    if (context.payload.pull_request.assignees && Array.isArray(context.payload.pull_request.assignees)) {
-                      for (const assignee of context.payload.pull_request.assignees) {
-                        if (assignee?.login && !isPayloadUserBot(assignee)) {
-                          knownAuthors.push(assignee.login);
-                        }
-                      }
-                    }
                   }
                   break;
                 case "pull_request_target":
@@ -968,70 +654,21 @@ jobs:
                     const title = context.payload.pull_request.title || "";
                     const body = context.payload.pull_request.body || "";
                     text = `${title}\n\n${body}`;
-                    if (context.payload.pull_request.user?.login && !isPayloadUserBot(context.payload.pull_request.user)) {
-                      knownAuthors.push(context.payload.pull_request.user.login);
-                    }
-                    if (context.payload.pull_request.assignees && Array.isArray(context.payload.pull_request.assignees)) {
-                      for (const assignee of context.payload.pull_request.assignees) {
-                        if (assignee?.login && !isPayloadUserBot(assignee)) {
-                          knownAuthors.push(assignee.login);
-                        }
-                      }
-                    }
                   }
                   break;
                 case "issue_comment":
                   if (context.payload.comment) {
                     text = context.payload.comment.body || "";
-                    if (context.payload.comment.user?.login && !isPayloadUserBot(context.payload.comment.user)) {
-                      knownAuthors.push(context.payload.comment.user.login);
-                    }
-                    if (context.payload.issue?.user?.login && !isPayloadUserBot(context.payload.issue.user)) {
-                      knownAuthors.push(context.payload.issue.user.login);
-                    }
-                    if (context.payload.issue?.assignees && Array.isArray(context.payload.issue.assignees)) {
-                      for (const assignee of context.payload.issue.assignees) {
-                        if (assignee?.login && !isPayloadUserBot(assignee)) {
-                          knownAuthors.push(assignee.login);
-                        }
-                      }
-                    }
                   }
                   break;
                 case "pull_request_review_comment":
                   if (context.payload.comment) {
                     text = context.payload.comment.body || "";
-                    if (context.payload.comment.user?.login && !isPayloadUserBot(context.payload.comment.user)) {
-                      knownAuthors.push(context.payload.comment.user.login);
-                    }
-                    if (context.payload.pull_request?.user?.login && !isPayloadUserBot(context.payload.pull_request.user)) {
-                      knownAuthors.push(context.payload.pull_request.user.login);
-                    }
-                    if (context.payload.pull_request?.assignees && Array.isArray(context.payload.pull_request.assignees)) {
-                      for (const assignee of context.payload.pull_request.assignees) {
-                        if (assignee?.login && !isPayloadUserBot(assignee)) {
-                          knownAuthors.push(assignee.login);
-                        }
-                      }
-                    }
                   }
                   break;
                 case "pull_request_review":
                   if (context.payload.review) {
                     text = context.payload.review.body || "";
-                    if (context.payload.review.user?.login && !isPayloadUserBot(context.payload.review.user)) {
-                      knownAuthors.push(context.payload.review.user.login);
-                    }
-                    if (context.payload.pull_request?.user?.login && !isPayloadUserBot(context.payload.pull_request.user)) {
-                      knownAuthors.push(context.payload.pull_request.user.login);
-                    }
-                    if (context.payload.pull_request?.assignees && Array.isArray(context.payload.pull_request.assignees)) {
-                      for (const assignee of context.payload.pull_request.assignees) {
-                        if (assignee?.login && !isPayloadUserBot(assignee)) {
-                          knownAuthors.push(assignee.login);
-                        }
-                      }
-                    }
                   }
                   break;
                 case "discussion":
@@ -1039,20 +676,11 @@ jobs:
                     const title = context.payload.discussion.title || "";
                     const body = context.payload.discussion.body || "";
                     text = `${title}\n\n${body}`;
-                    if (context.payload.discussion.user?.login && !isPayloadUserBot(context.payload.discussion.user)) {
-                      knownAuthors.push(context.payload.discussion.user.login);
-                    }
                   }
                   break;
                 case "discussion_comment":
                   if (context.payload.comment) {
                     text = context.payload.comment.body || "";
-                    if (context.payload.comment.user?.login && !isPayloadUserBot(context.payload.comment.user)) {
-                      knownAuthors.push(context.payload.comment.user.login);
-                    }
-                    if (context.payload.discussion?.user?.login && !isPayloadUserBot(context.payload.discussion.user)) {
-                      knownAuthors.push(context.payload.discussion.user.login);
-                    }
                   }
                   break;
                 case "release":
@@ -1060,13 +688,9 @@ jobs:
                     const name = context.payload.release.name || context.payload.release.tag_name || "";
                     const body = context.payload.release.body || "";
                     text = `${name}\n\n${body}`;
-                    if (context.payload.release.author?.login && !isPayloadUserBot(context.payload.release.author)) {
-                      knownAuthors.push(context.payload.release.author.login);
-                    }
                   }
                   break;
                 case "workflow_dispatch":
-                  knownAuthors.push(actor);
                   if (context.payload.inputs) {
                     const releaseUrl = context.payload.inputs.release_url;
                     const releaseId = context.payload.inputs.release_id;
@@ -1083,9 +707,6 @@ jobs:
                           const name = release.name || release.tag_name || "";
                           const body = release.body || "";
                           text = `${name}\n\n${body}`;
-                          if (release.author?.login && release.author.type !== "Bot") {
-                            knownAuthors.push(release.author.login);
-                          }
                         } catch (error) {
                           core.warning(`Failed to fetch release from URL: ${error instanceof Error ? error.message : String(error)}`);
                         }
@@ -1100,9 +721,6 @@ jobs:
                         const name = release.name || release.tag_name || "";
                         const body = release.body || "";
                         text = `${name}\n\n${body}`;
-                        if (release.author?.login && release.author.type !== "Bot") {
-                          knownAuthors.push(release.author.login);
-                        }
                       } catch (error) {
                         core.warning(`Failed to fetch release by ID: ${error instanceof Error ? error.message : String(error)}`);
                       }
@@ -1113,7 +731,7 @@ jobs:
                   text = "";
                   break;
               }
-              const sanitizedText = sanitizeContent(text);
+              const sanitizedText = sanitizeIncomingText(text);
               core.info(`text: ${sanitizedText}`);
               core.setOutput("text", sanitizedText);
               const logPath = writeRedactedDomainsLog();

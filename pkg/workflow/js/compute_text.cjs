@@ -6,13 +6,10 @@
  * @param {string} content - The content to sanitize
  * @returns {string} The sanitized content
  */
-const { sanitizeContent, writeRedactedDomainsLog } = require("./sanitize_content.cjs");
-const { isPayloadUserBot } = require("./resolve_mentions.cjs");
+const { sanitizeIncomingText, writeRedactedDomainsLog } = require("./sanitize_incoming_text.cjs");
 
 async function main() {
   let text = "";
-  /** @type {string[]} */
-  let knownAuthors = [];
 
   const actor = context.actor;
   const { owner, repo } = context.repo;
@@ -40,18 +37,6 @@ async function main() {
         const title = context.payload.issue.title || "";
         const body = context.payload.issue.body || "";
         text = `${title}\n\n${body}`;
-        // Add issue author to known authors (if not a bot)
-        if (context.payload.issue.user?.login && !isPayloadUserBot(context.payload.issue.user)) {
-          knownAuthors.push(context.payload.issue.user.login);
-        }
-        // Add issue assignees to known authors (if not bots)
-        if (context.payload.issue.assignees && Array.isArray(context.payload.issue.assignees)) {
-          for (const assignee of context.payload.issue.assignees) {
-            if (assignee?.login && !isPayloadUserBot(assignee)) {
-              knownAuthors.push(assignee.login);
-            }
-          }
-        }
       }
       break;
 
@@ -61,18 +46,6 @@ async function main() {
         const title = context.payload.pull_request.title || "";
         const body = context.payload.pull_request.body || "";
         text = `${title}\n\n${body}`;
-        // Add PR author to known authors (if not a bot)
-        if (context.payload.pull_request.user?.login && !isPayloadUserBot(context.payload.pull_request.user)) {
-          knownAuthors.push(context.payload.pull_request.user.login);
-        }
-        // Add PR assignees to known authors (if not bots)
-        if (context.payload.pull_request.assignees && Array.isArray(context.payload.pull_request.assignees)) {
-          for (const assignee of context.payload.pull_request.assignees) {
-            if (assignee?.login && !isPayloadUserBot(assignee)) {
-              knownAuthors.push(assignee.login);
-            }
-          }
-        }
       }
       break;
 
@@ -82,18 +55,6 @@ async function main() {
         const title = context.payload.pull_request.title || "";
         const body = context.payload.pull_request.body || "";
         text = `${title}\n\n${body}`;
-        // Add PR author to known authors (if not a bot)
-        if (context.payload.pull_request.user?.login && !isPayloadUserBot(context.payload.pull_request.user)) {
-          knownAuthors.push(context.payload.pull_request.user.login);
-        }
-        // Add PR assignees to known authors (if not bots)
-        if (context.payload.pull_request.assignees && Array.isArray(context.payload.pull_request.assignees)) {
-          for (const assignee of context.payload.pull_request.assignees) {
-            if (assignee?.login && !isPayloadUserBot(assignee)) {
-              knownAuthors.push(assignee.login);
-            }
-          }
-        }
       }
       break;
 
@@ -101,22 +62,6 @@ async function main() {
       // For issue comments: comment body
       if (context.payload.comment) {
         text = context.payload.comment.body || "";
-        // Add comment author to known authors (if not a bot)
-        if (context.payload.comment.user?.login && !isPayloadUserBot(context.payload.comment.user)) {
-          knownAuthors.push(context.payload.comment.user.login);
-        }
-        // Also add the parent issue author to known authors (if not a bot)
-        if (context.payload.issue?.user?.login && !isPayloadUserBot(context.payload.issue.user)) {
-          knownAuthors.push(context.payload.issue.user.login);
-        }
-        // Add issue assignees to known authors (if not bots)
-        if (context.payload.issue?.assignees && Array.isArray(context.payload.issue.assignees)) {
-          for (const assignee of context.payload.issue.assignees) {
-            if (assignee?.login && !isPayloadUserBot(assignee)) {
-              knownAuthors.push(assignee.login);
-            }
-          }
-        }
       }
       break;
 
@@ -124,22 +69,6 @@ async function main() {
       // For PR review comments: comment body
       if (context.payload.comment) {
         text = context.payload.comment.body || "";
-        // Add comment author to known authors (if not a bot)
-        if (context.payload.comment.user?.login && !isPayloadUserBot(context.payload.comment.user)) {
-          knownAuthors.push(context.payload.comment.user.login);
-        }
-        // Also add the parent PR author to known authors (if not a bot)
-        if (context.payload.pull_request?.user?.login && !isPayloadUserBot(context.payload.pull_request.user)) {
-          knownAuthors.push(context.payload.pull_request.user.login);
-        }
-        // Add PR assignees to known authors (if not bots)
-        if (context.payload.pull_request?.assignees && Array.isArray(context.payload.pull_request.assignees)) {
-          for (const assignee of context.payload.pull_request.assignees) {
-            if (assignee?.login && !isPayloadUserBot(assignee)) {
-              knownAuthors.push(assignee.login);
-            }
-          }
-        }
       }
       break;
 
@@ -147,22 +76,6 @@ async function main() {
       // For PR reviews: review body
       if (context.payload.review) {
         text = context.payload.review.body || "";
-        // Add review author to known authors (if not a bot)
-        if (context.payload.review.user?.login && !isPayloadUserBot(context.payload.review.user)) {
-          knownAuthors.push(context.payload.review.user.login);
-        }
-        // Also add the parent PR author to known authors (if not a bot)
-        if (context.payload.pull_request?.user?.login && !isPayloadUserBot(context.payload.pull_request.user)) {
-          knownAuthors.push(context.payload.pull_request.user.login);
-        }
-        // Add PR assignees to known authors (if not bots)
-        if (context.payload.pull_request?.assignees && Array.isArray(context.payload.pull_request.assignees)) {
-          for (const assignee of context.payload.pull_request.assignees) {
-            if (assignee?.login && !isPayloadUserBot(assignee)) {
-              knownAuthors.push(assignee.login);
-            }
-          }
-        }
       }
       break;
 
@@ -172,10 +85,6 @@ async function main() {
         const title = context.payload.discussion.title || "";
         const body = context.payload.discussion.body || "";
         text = `${title}\n\n${body}`;
-        // Add discussion author to known authors (if not a bot)
-        if (context.payload.discussion.user?.login && !isPayloadUserBot(context.payload.discussion.user)) {
-          knownAuthors.push(context.payload.discussion.user.login);
-        }
       }
       break;
 
@@ -183,14 +92,6 @@ async function main() {
       // For discussion comments: comment body
       if (context.payload.comment) {
         text = context.payload.comment.body || "";
-        // Add comment author to known authors (if not a bot)
-        if (context.payload.comment.user?.login && !isPayloadUserBot(context.payload.comment.user)) {
-          knownAuthors.push(context.payload.comment.user.login);
-        }
-        // Also add the parent discussion author to known authors (if not a bot)
-        if (context.payload.discussion?.user?.login && !isPayloadUserBot(context.payload.discussion.user)) {
-          knownAuthors.push(context.payload.discussion.user.login);
-        }
       }
       break;
 
@@ -200,18 +101,10 @@ async function main() {
         const name = context.payload.release.name || context.payload.release.tag_name || "";
         const body = context.payload.release.body || "";
         text = `${name}\n\n${body}`;
-        // Add release author to known authors (if not a bot)
-        if (context.payload.release.author?.login && !isPayloadUserBot(context.payload.release.author)) {
-          knownAuthors.push(context.payload.release.author.login);
-        }
       }
       break;
 
     case "workflow_dispatch":
-      // Add the actor who triggered the workflow_dispatch to known authors
-      // Note: actor may be a bot in workflow_dispatch, but we'll allow it since they explicitly triggered
-      knownAuthors.push(actor);
-
       // For workflow dispatch: check for release_url or release_id in inputs
       if (context.payload.inputs) {
         const releaseUrl = context.payload.inputs.release_url;
@@ -231,10 +124,6 @@ async function main() {
               const name = release.name || release.tag_name || "";
               const body = release.body || "";
               text = `${name}\n\n${body}`;
-              // Add release author to known authors (if not a bot)
-              if (release.author?.login && release.author.type !== "Bot") {
-                knownAuthors.push(release.author.login);
-              }
             } catch (error) {
               core.warning(`Failed to fetch release from URL: ${error instanceof Error ? error.message : String(error)}`);
             }
@@ -250,10 +139,6 @@ async function main() {
             const name = release.name || release.tag_name || "";
             const body = release.body || "";
             text = `${name}\n\n${body}`;
-            // Add release author to known authors (if not a bot)
-            if (release.author?.login && release.author.type !== "Bot") {
-              knownAuthors.push(release.author.login);
-            }
           } catch (error) {
             core.warning(`Failed to fetch release by ID: ${error instanceof Error ? error.message : String(error)}`);
           }
@@ -267,10 +152,10 @@ async function main() {
       break;
   }
 
-  // Sanitize the text before output using slimmed-down sanitizer
-  // Note: Mention filtering is NOT applied here - all mentions are escaped
+  // Sanitize the text before output
+  // All mentions are escaped (wrapped in backticks) to prevent unintended notifications
   // Mention filtering will be applied by the agent output collector
-  const sanitizedText = sanitizeContent(text);
+  const sanitizedText = sanitizeIncomingText(text);
 
   // Display sanitized text in logs
   core.info(`text: ${sanitizedText}`);
