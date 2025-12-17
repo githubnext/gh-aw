@@ -90,10 +90,19 @@ jobs:
           - name: "CLI Progress Flag"  # Isolate slow 30s test
             packages: "./pkg/cli"
             pattern: "TestProgressFlagSignature"
-          - name: "CLI Completion & Safe Inputs"
+          - name: "CLI HTTP MCP Connect"  # Isolate slow HTTP MCP connection tests
+            packages: "./pkg/cli"
+            pattern: "TestConnectHTTPMCPServer"
+          - name: "CLI Compile Workflows"  # Isolate slow workflow compilation test
+            packages: "./pkg/cli"
+            pattern: "TestCompileWorkflows_EmptyMarkdown"
+          - name: "CLI Security Tools"  # Group security tool compilation tests
+            packages: "./pkg/cli"
+            pattern: "TestCompileWithZizmor|TestCompileWithPoutine|TestCompileWithPoutineAndZizmor"
+          - name: "CLI Completion & Other"  # Remaining catch-all (reduced from original)
             packages: "./pkg/cli"
             pattern: ""  # Catch-all for tests not matched by other CLI patterns
-            skip_pattern: "^TestCompile[^W]|TestPoutine|TestMCPInspectPlaywright|TestMCPGateway|TestMCPAdd|TestMCPInspectGitHub|TestMCPServer|TestMCPConfig|TestLogs|TestFirewall|TestNoStopTime|TestLocalWorkflow|TestProgressFlagSignature"
+            skip_pattern: "^TestCompile[^W]|TestPoutine|TestMCPInspectPlaywright|TestMCPGateway|TestMCPAdd|TestMCPInspectGitHub|TestMCPServer|TestMCPConfig|TestLogs|TestFirewall|TestNoStopTime|TestLocalWorkflow|TestProgressFlagSignature|TestConnectHTTPMCPServer|TestCompileWorkflows_EmptyMarkdown|TestCompileWithZizmor|TestCompileWithPoutine|TestCompileWithPoutineAndZizmor"
           - name: "Workflow Compiler"
             packages: "./pkg/workflow"
             pattern: "TestCompile|TestWorkflow|TestGenerate|TestParse"
