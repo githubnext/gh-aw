@@ -21,6 +21,8 @@ This material documents some notes on the security of using partially-automated 
 
 Review workflow contents before installation, treating prompt templates and rule files as code. Assess compiled `.lock.yml` files to understand actual permissions and operations.
 
+**For new workflows**, use the [Secure Workflow Template](https://github.com/githubnext/gh-aw/blob/main/examples/secure-workflow-template.md) as a starting point. This template includes all recommended security practices with inline documentation.
+
 GitHub Actions' built-in protections apply to agentic workflows: read-only defaults for fork PRs, restricted secret access, and explicit permissions (unspecified permissions default to `none`). See [GitHub Actions security](https://docs.github.com/en/actions/reference/security/secure-use).
 
 By default, workflows restrict execution to users with `admin`, `maintainer`, or `write` permissions. Use `roles: all` carefully in public repositories.
