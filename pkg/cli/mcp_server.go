@@ -767,7 +767,7 @@ func runHTTPServer(server *mcp.Server, port int) error {
 	handler := mcp.NewStreamableHTTPHandler(func(req *http.Request) *mcp.Server {
 		return server
 	}, &mcp.StreamableHTTPOptions{
-		SessionTimeout: 30 * time.Minute, // Close idle sessions after 30 minutes
+		SessionTimeout: 2 * time.Hour, // Close idle sessions after 2 hours
 		Logger:         logger.NewSlogLoggerWithHandler(mcpLog),
 	})
 
