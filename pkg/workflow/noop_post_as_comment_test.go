@@ -292,3 +292,101 @@ Test that noop configuration supports short path format for discussions.
 		t.Error("Conclusion job should contain the short discussion path")
 	}
 }
+
+func TestNoopWithPostAsCommentNumberOnly(t *testing.T) {
+	// Create temporary directory for test files
+	tmpDir := testutil.TempDir(t, "noop-post-number-only-test")
+
+	// Create a test markdown file with noop using just a number
+	testContent := `---
+on:
+  issues:
+    types: [opened]
+permissions:
+  contents: read
+engine: copilot
+safe-outputs:
+  noop:
+    max: 1
+    post-as-comment: "42"
+---
+
+# Test Noop with Number Only
+
+Test that noop configuration supports number-only format.
+`
+
+	testFile := filepath.Join(tmpDir, "test-noop-number.md")
+	if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	compiler := NewCompiler(false, "", "test")
+
+	// Compile the workflow
+	if err := compiler.CompileWorkflow(testFile); err != nil {
+		t.Fatalf("Failed to compile workflow: %v", err)
+	}
+
+	// Read the compiled workflow
+	lockFile := filepath.Join(tmpDir, "test-noop-number.lock.yml")
+	compiledBytes, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatalf("Failed to read compiled workflow: %v", err)
+	}
+	compiled := string(compiledBytes)
+
+	// Verify that the number is present
+	if !strings.Contains(compiled, `GH_AW_NOOP_POST_AS_COMMENT: "42"`) {
+		t.Error("Conclusion job should contain the number in the environment variable")
+	}
+}
+
+func TestNoopWithPostAsCommentHashNumber(t *testing.T) {
+	// Create temporary directory for test files
+	tmpDir := testutil.TempDir(t, "noop-post-hash-number-test")
+
+	// Create a test markdown file with noop using #number format
+	testContent := `---
+on:
+  issues:
+    types: [opened]
+permissions:
+  contents: read
+engine: copilot
+safe-outputs:
+  noop:
+    max: 1
+    post-as-comment: "#123"
+---
+
+# Test Noop with Hash Number
+
+Test that noop configuration supports #number format.
+`
+
+	testFile := filepath.Join(tmpDir, "test-noop-hash.md")
+	if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	compiler := NewCompiler(false, "", "test")
+
+	// Compile the workflow
+	if err := compiler.CompileWorkflow(testFile); err != nil {
+		t.Fatalf("Failed to compile workflow: %v", err)
+	}
+
+	// Read the compiled workflow
+	lockFile := filepath.Join(tmpDir, "test-noop-hash.lock.yml")
+	compiledBytes, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatalf("Failed to read compiled workflow: %v", err)
+	}
+	compiled := string(compiledBytes)
+
+	// Verify that the hash number is present
+	if !strings.Contains(compiled, `GH_AW_NOOP_POST_AS_COMMENT: "#123"`) {
+		t.Error("Conclusion job should contain the hash number in the environment variable")
+	}
+}

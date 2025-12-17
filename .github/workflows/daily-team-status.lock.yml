@@ -6299,8 +6299,8 @@ jobs:
               }
               return { success: true, items: validatedOutput.items };
             }
-            function parseGitHubUrl(url) {
-              const issueMatch = url.match(/github\.com\/([^/]+)\/([^/]+)\/issues\/(\d+)/);
+            function parseGitHubUrl(input, defaultType = "issue") {
+              const issueMatch = input.match(/github\.com\/([^/]+)\/([^/]+)\/issues\/(\d+)/);
               if (issueMatch) {
                 return {
                   owner: issueMatch[1],
@@ -6309,7 +6309,7 @@ jobs:
                   type: "issue",
                 };
               }
-              const discussionMatch = url.match(/github\.com\/([^/]+)\/([^/]+)\/discussions\/(\d+)/);
+              const discussionMatch = input.match(/github\.com\/([^/]+)\/([^/]+)\/discussions\/(\d+)/);
               if (discussionMatch) {
                 return {
                   owner: discussionMatch[1],
@@ -6318,7 +6318,7 @@ jobs:
                   type: "discussion",
                 };
               }
-              const shortIssueMatch = url.match(/^([^/]+)\/([^/]+)\/issues\/(\d+)$/);
+              const shortIssueMatch = input.match(/^([^/]+)\/([^/]+)\/issues\/(\d+)$/);
               if (shortIssueMatch) {
                 return {
                   owner: shortIssueMatch[1],
@@ -6327,13 +6327,22 @@ jobs:
                   type: "issue",
                 };
               }
-              const shortDiscussionMatch = url.match(/^([^/]+)\/([^/]+)\/discussions\/(\d+)$/);
+              const shortDiscussionMatch = input.match(/^([^/]+)\/([^/]+)\/discussions\/(\d+)$/);
               if (shortDiscussionMatch) {
                 return {
                   owner: shortDiscussionMatch[1],
                   repo: shortDiscussionMatch[2],
                   number: parseInt(shortDiscussionMatch[3], 10),
                   type: "discussion",
+                };
+              }
+              const numberMatch = input.match(/^#?(\d+)$/);
+              if (numberMatch) {
+                return {
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  number: parseInt(numberMatch[1], 10),
+                  type: defaultType,
                 };
               }
               return null;
@@ -6416,7 +6425,9 @@ jobs:
               }
               if (postAsCommentUrl) {
                 core.info(`Post-as-comment URL configured: ${postAsCommentUrl}`);
-                const parsedUrl = parseGitHubUrl(postAsCommentUrl);
+                const isDiscussionContext = context.eventName === "discussion" || context.eventName === "discussion_comment";
+                const defaultType = isDiscussionContext ? "discussion" : "issue";
+                const parsedUrl = parseGitHubUrl(postAsCommentUrl, defaultType);
                 if (!parsedUrl) {
                   core.warning(`Invalid GitHub URL format: ${postAsCommentUrl}. Expected issue or discussion URL.`);
                   core.warning("Falling back to logging only.");
