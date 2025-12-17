@@ -292,10 +292,11 @@ func validateWithSchema(frontmatter map[string]any, schemaJSON, context string) 
 		frontmatterToValidate = make(map[string]any)
 	} else {
 		// Filter out x-* custom fields before validation
-		// GitHub Actions supports x-* custom fields which are not defined in the schema
+		// GitHub Actions supports x-* custom fields (case-insensitive) which are not defined in the schema
 		frontmatterToValidate = make(map[string]any)
 		for key, value := range frontmatter {
-			if !strings.HasPrefix(key, "x-") {
+			// Use case-insensitive comparison for x- prefix check
+			if !strings.HasPrefix(strings.ToLower(key), "x-") {
 				frontmatterToValidate[key] = value
 			}
 		}

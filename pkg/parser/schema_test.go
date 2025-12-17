@@ -829,6 +829,18 @@ func TestValidateMainWorkflowFrontmatterWithSchema(t *testing.T) {
 			wantErr: false,
 		},
 		{
+			name: "valid frontmatter with uppercase X-* custom fields",
+			frontmatter: map[string]any{
+				"on":           "push",
+				"engine":       "copilot",
+				"X-CustomField": "value",
+				"X-METADATA": map[string]any{
+					"team": "platform",
+				},
+			},
+			wantErr: false,
+		},
+		{
 			name: "invalid: non-x prefix unknown field should still fail",
 			frontmatter: map[string]any{
 				"on":            "push",
