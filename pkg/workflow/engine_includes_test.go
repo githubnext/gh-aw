@@ -248,16 +248,15 @@ This should use the default engine.
 	}
 	lockStr := string(lockContent)
 
-	// Should contain references to copilot CLI (default engine) with checksum verification
-	if !strings.Contains(lockStr, "COPILOT_VERSION=\"v") ||
-		!strings.Contains(lockStr, "sha256sum") ||
-		!strings.Contains(lockStr, "Checksum verification") {
-		t.Error("Expected lock file to contain copilot CLI installation with checksum verification")
+	// Should contain references to copilot CLI (default engine) using official install.sh script
+	if !strings.Contains(lockStr, "https://raw.githubusercontent.com/github/copilot-cli/main/install.sh") ||
+		!strings.Contains(lockStr, "export VERSION=") {
+		t.Error("Expected lock file to contain copilot CLI installation using official install.sh script")
 	}
 
-	// Should NOT contain old installer script pattern
-	if strings.Contains(lockStr, "gh.io/copilot-install") {
-		t.Error("Lock file should not contain old installer script pattern (gh.io/copilot-install)")
+	// Should NOT pipe directly to bash (security improvement)
+	if strings.Contains(lockStr, "gh.io/copilot-install | sudo bash") {
+		t.Error("Lock file should not pipe installer directly to bash")
 	}
 }
 

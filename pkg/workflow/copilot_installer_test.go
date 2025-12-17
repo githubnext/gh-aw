@@ -18,19 +18,16 @@ func TestGenerateCopilotInstallerSteps(t *testing.T) {
 			name:            "version without v prefix",
 			version:         "0.0.369",
 			stepName:        "Install GitHub Copilot CLI",
-			expectedVersion: "v0.0.369",
+			expectedVersion: "0.0.369",
 			shouldContain: []string{
-				"COPILOT_VERSION=\"v0.0.369\"",
-				"COPILOT_REPO=\"github/copilot-cli\"",
-				"releases/download",
-				"checksums.txt",
-				"sha256sum",
-				"Checksum verification",
+				"export VERSION=0.0.369",
+				"https://raw.githubusercontent.com/github/copilot-cli/main/install.sh",
+				"sudo bash /tmp/copilot-install.sh",
 				"copilot --version",
 				"name: Install GitHub Copilot CLI",
 			},
 			shouldNotContain: []string{
-				"gh.io/copilot-install", // Should not use installer script
+				"gh.io/copilot-install | sudo bash", // Should not pipe directly to bash
 			},
 		},
 		{
@@ -39,34 +36,29 @@ func TestGenerateCopilotInstallerSteps(t *testing.T) {
 			stepName:        "Install GitHub Copilot CLI",
 			expectedVersion: "v0.0.370",
 			shouldContain: []string{
-				"COPILOT_VERSION=\"v0.0.370\"",
-				"COPILOT_REPO=\"github/copilot-cli\"",
-				"releases/download",
-				"checksums.txt",
-				"sha256sum",
-				"Checksum verification",
+				"export VERSION=v0.0.370",
+				"https://raw.githubusercontent.com/github/copilot-cli/main/install.sh",
+				"sudo bash /tmp/copilot-install.sh",
 				"copilot --version",
 			},
 			shouldNotContain: []string{
-				"gh.io/copilot-install",
+				"gh.io/copilot-install | sudo bash",
 			},
 		},
 		{
 			name:            "custom version",
 			version:         "1.2.3",
 			stepName:        "Custom Install Step",
-			expectedVersion: "v1.2.3",
+			expectedVersion: "1.2.3",
 			shouldContain: []string{
-				"COPILOT_VERSION=\"v1.2.3\"",
-				"COPILOT_REPO=\"github/copilot-cli\"",
-				"releases/download",
-				"checksums.txt",
-				"sha256sum",
+				"export VERSION=1.2.3",
+				"https://raw.githubusercontent.com/github/copilot-cli/main/install.sh",
+				"sudo bash /tmp/copilot-install.sh",
 				"copilot --version",
 				"name: Custom Install Step",
 			},
 			shouldNotContain: []string{
-				"gh.io/copilot-install",
+				"gh.io/copilot-install | sudo bash",
 			},
 		},
 	}
@@ -96,9 +88,9 @@ func TestGenerateCopilotInstallerSteps(t *testing.T) {
 				}
 			}
 
-			// Verify the VERSION is correctly set (with v prefix)
-			if !strings.Contains(stepContent, "COPILOT_VERSION=\""+tt.expectedVersion+"\"") {
-				t.Errorf("Expected COPILOT_VERSION to be set to '%s', but step content was:\n%s", tt.expectedVersion, stepContent)
+			// Verify the VERSION is correctly set
+			if !strings.Contains(stepContent, "export VERSION="+tt.expectedVersion) {
+				t.Errorf("Expected VERSION to be set to '%s', but step content was:\n%s", tt.expectedVersion, stepContent)
 			}
 		})
 	}
@@ -124,24 +116,24 @@ func TestCopilotInstallerVersionPassthrough(t *testing.T) {
 	var installStep string
 	for _, step := range steps {
 		stepContent := strings.Join(step, "\n")
-		if strings.Contains(stepContent, "COPILOT_VERSION=") {
+		if strings.Contains(stepContent, "export VERSION=") {
 			installStep = stepContent
 			break
 		}
 	}
 
 	if installStep == "" {
-		t.Fatal("Could not find install step with COPILOT_VERSION")
+		t.Fatal("Could not find install step with export VERSION")
 	}
 
-	// Should contain the default version from constants (with v prefix added)
-	if !strings.Contains(installStep, "COPILOT_VERSION=\"v0.0.369\"") {
-		t.Errorf("Expected default version v0.0.369 in install step, got:\n%s", installStep)
+	// Should contain the default version from constants
+	if !strings.Contains(installStep, "export VERSION=0.0.369") {
+		t.Errorf("Expected default version 0.0.369 in install step, got:\n%s", installStep)
 	}
 
-	// Should contain checksum verification
-	if !strings.Contains(installStep, "sha256sum") {
-		t.Errorf("Expected checksum verification in install step, got:\n%s", installStep)
+	// Should use the official install.sh script
+	if !strings.Contains(installStep, "https://raw.githubusercontent.com/github/copilot-cli/main/install.sh") {
+		t.Errorf("Expected official install.sh script in install step, got:\n%s", installStep)
 	}
 }
 
@@ -163,23 +155,23 @@ func TestCopilotInstallerCustomVersion(t *testing.T) {
 	var installStep string
 	for _, step := range steps {
 		stepContent := strings.Join(step, "\n")
-		if strings.Contains(stepContent, "COPILOT_VERSION=") {
+		if strings.Contains(stepContent, "export VERSION=") {
 			installStep = stepContent
 			break
 		}
 	}
 
 	if installStep == "" {
-		t.Fatal("Could not find install step with COPILOT_VERSION")
+		t.Fatal("Could not find install step with export VERSION")
 	}
 
-	// Should contain the custom version (with v prefix added)
-	if !strings.Contains(installStep, "COPILOT_VERSION=\"v"+customVersion+"\"") {
-		t.Errorf("Expected custom version v%s in install step, got:\n%s", customVersion, installStep)
+	// Should contain the custom version
+	if !strings.Contains(installStep, "export VERSION="+customVersion) {
+		t.Errorf("Expected custom version %s in install step, got:\n%s", customVersion, installStep)
 	}
 
-	// Should contain checksum verification
-	if !strings.Contains(installStep, "checksums.txt") {
-		t.Errorf("Expected checksums.txt download in install step, got:\n%s", installStep)
+	// Should download to file before executing
+	if !strings.Contains(installStep, "sudo bash /tmp/copilot-install.sh") {
+		t.Errorf("Expected script to be downloaded to file before execution, got:\n%s", installStep)
 	}
 }

@@ -2225,58 +2225,15 @@ jobs:
           COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
       - name: Install GitHub Copilot CLI
         run: |
-          COPILOT_VERSION="v0.0.369"
-          COPILOT_REPO="github/copilot-cli"
-          COPILOT_PLATFORM="linux-x64"
-          COPILOT_ARCHIVE="copilot-$${COPILOT_PLATFORM}.tar.gz"
-          COPILOT_URL="https://github.com/$${COPILOT_REPO}/releases/download/$${COPILOT_VERSION}/$${COPILOT_ARCHIVE}"
-          CHECKSUMS_URL="https://github.com/$${COPILOT_REPO}/releases/download/$${COPILOT_VERSION}/checksums.txt"
+          # Download official Copilot CLI installer script
+          curl -fsSL https://raw.githubusercontent.com/github/copilot-cli/main/install.sh -o /tmp/copilot-install.sh
           
-          echo "Downloading Copilot CLI $${COPILOT_VERSION} for $${COPILOT_PLATFORM}..."
-          
-          # Download binary
-          curl -fsSL -o "/tmp/$${COPILOT_ARCHIVE}" "$${COPILOT_URL}"
-          
-          # Download checksums file
-          echo "Downloading checksums file..."
-          curl -fsSL -o "/tmp/copilot-checksums.txt" "$${CHECKSUMS_URL}" || {
-            echo "Warning: Checksums file not available for version $${COPILOT_VERSION}"
-            echo "Proceeding without checksum verification (fallback for older releases)"
-            SKIP_CHECKSUM=true
-          }
-          
-          # Verify checksum if checksums file was downloaded
-          if [ "$${SKIP_CHECKSUM}" != "true" ]; then
-            echo "Verifying SHA256 checksum..."
-            EXPECTED_CHECKSUM=$(grep "$${COPILOT_ARCHIVE}" /tmp/copilot-checksums.txt | awk '{print $1}')
-            
-            if [ -z "$${EXPECTED_CHECKSUM}" ]; then
-              echo "Warning: Checksum for $${COPILOT_ARCHIVE} not found in checksums file"
-              echo "Proceeding without checksum verification"
-            else
-              ACTUAL_CHECKSUM=$(sha256sum "/tmp/$${COPILOT_ARCHIVE}" | awk '{print $1}')
-              
-              if [ "$${ACTUAL_CHECKSUM}" = "$${EXPECTED_CHECKSUM}" ]; then
-                echo "✓ Checksum verification passed!"
-                echo "  Expected: $${EXPECTED_CHECKSUM}"
-                echo "  Actual:   $${ACTUAL_CHECKSUM}"
-              else
-                echo "✗ ERROR: Checksum verification failed!"
-                echo "  Expected: $${EXPECTED_CHECKSUM}"
-                echo "  Actual:   $${ACTUAL_CHECKSUM}"
-                echo "  The downloaded binary may be corrupted or tampered with."
-                exit 1
-              fi
-            fi
-          fi
-          
-          # Extract and install
-          echo "Installing Copilot CLI..."
-          sudo tar -xzf "/tmp/$${COPILOT_ARCHIVE}" -C /usr/local/bin/
-          sudo chmod +x /usr/local/bin/copilot
+          # Execute the installer with the specified version
+          export VERSION=0.0.369
+          sudo bash /tmp/copilot-install.sh
           
           # Cleanup
-          rm -f "/tmp/$${COPILOT_ARCHIVE}" "/tmp/copilot-checksums.txt"
+          rm -f /tmp/copilot-install.sh
           
           # Verify installation
           copilot --version
@@ -10551,58 +10508,15 @@ jobs:
           COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
       - name: Install GitHub Copilot CLI
         run: |
-          COPILOT_VERSION="v0.0.369"
-          COPILOT_REPO="github/copilot-cli"
-          COPILOT_PLATFORM="linux-x64"
-          COPILOT_ARCHIVE="copilot-$${COPILOT_PLATFORM}.tar.gz"
-          COPILOT_URL="https://github.com/$${COPILOT_REPO}/releases/download/$${COPILOT_VERSION}/$${COPILOT_ARCHIVE}"
-          CHECKSUMS_URL="https://github.com/$${COPILOT_REPO}/releases/download/$${COPILOT_VERSION}/checksums.txt"
+          # Download official Copilot CLI installer script
+          curl -fsSL https://raw.githubusercontent.com/github/copilot-cli/main/install.sh -o /tmp/copilot-install.sh
           
-          echo "Downloading Copilot CLI $${COPILOT_VERSION} for $${COPILOT_PLATFORM}..."
-          
-          # Download binary
-          curl -fsSL -o "/tmp/$${COPILOT_ARCHIVE}" "$${COPILOT_URL}"
-          
-          # Download checksums file
-          echo "Downloading checksums file..."
-          curl -fsSL -o "/tmp/copilot-checksums.txt" "$${CHECKSUMS_URL}" || {
-            echo "Warning: Checksums file not available for version $${COPILOT_VERSION}"
-            echo "Proceeding without checksum verification (fallback for older releases)"
-            SKIP_CHECKSUM=true
-          }
-          
-          # Verify checksum if checksums file was downloaded
-          if [ "$${SKIP_CHECKSUM}" != "true" ]; then
-            echo "Verifying SHA256 checksum..."
-            EXPECTED_CHECKSUM=$(grep "$${COPILOT_ARCHIVE}" /tmp/copilot-checksums.txt | awk '{print $1}')
-            
-            if [ -z "$${EXPECTED_CHECKSUM}" ]; then
-              echo "Warning: Checksum for $${COPILOT_ARCHIVE} not found in checksums file"
-              echo "Proceeding without checksum verification"
-            else
-              ACTUAL_CHECKSUM=$(sha256sum "/tmp/$${COPILOT_ARCHIVE}" | awk '{print $1}')
-              
-              if [ "$${ACTUAL_CHECKSUM}" = "$${EXPECTED_CHECKSUM}" ]; then
-                echo "✓ Checksum verification passed!"
-                echo "  Expected: $${EXPECTED_CHECKSUM}"
-                echo "  Actual:   $${ACTUAL_CHECKSUM}"
-              else
-                echo "✗ ERROR: Checksum verification failed!"
-                echo "  Expected: $${EXPECTED_CHECKSUM}"
-                echo "  Actual:   $${ACTUAL_CHECKSUM}"
-                echo "  The downloaded binary may be corrupted or tampered with."
-                exit 1
-              fi
-            fi
-          fi
-          
-          # Extract and install
-          echo "Installing Copilot CLI..."
-          sudo tar -xzf "/tmp/$${COPILOT_ARCHIVE}" -C /usr/local/bin/
-          sudo chmod +x /usr/local/bin/copilot
+          # Execute the installer with the specified version
+          export VERSION=0.0.369
+          sudo bash /tmp/copilot-install.sh
           
           # Cleanup
-          rm -f "/tmp/$${COPILOT_ARCHIVE}" "/tmp/copilot-checksums.txt"
+          rm -f /tmp/copilot-install.sh
           
           # Verify installation
           copilot --version

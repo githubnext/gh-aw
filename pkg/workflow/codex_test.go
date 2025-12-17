@@ -213,15 +213,14 @@ This is a test workflow.
 				if !strings.Contains(lockContent, "Execute GitHub Copilot CLI") {
 					t.Errorf("Expected lock file to contain 'Execute GitHub Copilot CLI' step but it didn't.\nContent:\n%s", lockContent)
 				}
-				// Check for new checksum verification pattern
-				if !strings.Contains(lockContent, "COPILOT_VERSION=\"v") ||
-					!strings.Contains(lockContent, "sha256sum") ||
-					!strings.Contains(lockContent, "Checksum verification") {
-					t.Errorf("Expected lock file to contain Copilot installer with checksum verification but it didn't.\nContent:\n%s", lockContent)
+				// Check for official install.sh script usage
+				if !strings.Contains(lockContent, "https://raw.githubusercontent.com/github/copilot-cli/main/install.sh") ||
+					!strings.Contains(lockContent, "export VERSION=") {
+					t.Errorf("Expected lock file to contain Copilot installer using official install.sh script but it didn't.\nContent:\n%s", lockContent)
 				}
-				// Ensure old installer pattern is not present
-				if strings.Contains(lockContent, "gh.io/copilot-install") {
-					t.Errorf("Lock file should not contain old installer script pattern (gh.io/copilot-install).\nContent:\n%s", lockContent)
+				// Ensure script is downloaded to file before execution (not piped)
+				if strings.Contains(lockContent, "gh.io/copilot-install | sudo bash") {
+					t.Errorf("Lock file should not pipe installer directly to bash.\nContent:\n%s", lockContent)
 				}
 				// Check that prompt printing step is present
 				if !strings.Contains(lockContent, "Print prompt") {
