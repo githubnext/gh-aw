@@ -605,6 +605,12 @@ func TestCopyMarkdownFiles_ErrorScenarios(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			// Skip permission tests when running as root (e.g., in Docker containers)
+			// Root can write to read-only directories, bypassing Unix permission checks
+			if tt.name == "permission denied on target directory" && os.Geteuid() == 0 {
+				t.Skip("Skipping permission test when running as root")
+			}
+
 			sourceDir, targetDir, cleanup := tt.setup()
 			defer cleanup()
 
