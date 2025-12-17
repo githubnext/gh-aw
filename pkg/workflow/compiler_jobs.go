@@ -285,6 +285,12 @@ func (c *Compiler) extractJobsFromFrontmatter(frontmatter map[string]any) map[st
 func (c *Compiler) buildCustomJobs(data *WorkflowData, activationJobCreated bool) error {
 	compilerJobsLog.Printf("Building %d custom jobs", len(data.Jobs))
 	for jobName, jobConfig := range data.Jobs {
+		// Skip jobs.pre-activation (or pre_activation) as it's handled specially in buildPreActivationJob
+		if jobName == constants.PreActivationJobName || jobName == "pre-activation" {
+			compilerJobsLog.Printf("Skipping jobs.%s (handled in buildPreActivationJob)", jobName)
+			continue
+		}
+
 		if configMap, ok := jobConfig.(map[string]any); ok {
 			job := &Job{
 				Name: jobName,
