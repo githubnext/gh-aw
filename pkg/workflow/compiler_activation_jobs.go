@@ -187,84 +187,87 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 
 // extractPreActivationCustomFields extracts custom steps and outputs from jobs.pre-activation field in frontmatter.
 // It validates that only steps and outputs fields are present, and errors on any other fields.
+// If both jobs.pre-activation and jobs.pre_activation are defined, imports from both.
 // Returns (customSteps, customOutputs, error).
 func (c *Compiler) extractPreActivationCustomFields(jobs map[string]any) ([]string, map[string]string, error) {
 	if jobs == nil {
 		return nil, nil, nil
 	}
 
-	// Check if jobs.pre-activation or jobs.pre_activation exists
-	// (YAML allows hyphens which get parsed as "pre-activation")
-	var preActivationJob any
-	var exists bool
-	preActivationJob, exists = jobs["pre-activation"]
-	if !exists {
-		preActivationJob, exists = jobs[constants.PreActivationJobName]
-	}
-	if !exists {
-		return nil, nil, nil
-	}
-
-	// jobs.pre-activation must be a map
-	configMap, ok := preActivationJob.(map[string]any)
-	if !ok {
-		return nil, nil, fmt.Errorf("jobs.pre-activation must be an object, got %T", preActivationJob)
-	}
-
-	// Validate that only steps and outputs fields are present
-	allowedFields := map[string]bool{
-		"steps":   true,
-		"outputs": true,
-	}
-
-	for field := range configMap {
-		if !allowedFields[field] {
-			return nil, nil, fmt.Errorf("jobs.pre-activation: unsupported field '%s' - only 'steps' and 'outputs' are allowed", field)
-		}
-	}
-
 	var customSteps []string
 	var customOutputs map[string]string
 
-	// Extract steps
-	if stepsValue, hasSteps := configMap["steps"]; hasSteps {
-		stepsList, ok := stepsValue.([]any)
+	// Check both jobs.pre-activation and jobs.pre_activation (users might define both by mistake)
+	// Import from both if both are defined
+	jobVariants := []string{"pre-activation", constants.PreActivationJobName}
+	
+	for _, jobName := range jobVariants {
+		preActivationJob, exists := jobs[jobName]
+		if !exists {
+			continue
+		}
+
+		// jobs.pre-activation must be a map
+		configMap, ok := preActivationJob.(map[string]any)
 		if !ok {
-			return nil, nil, fmt.Errorf("jobs.pre-activation.steps must be an array, got %T", stepsValue)
+			return nil, nil, fmt.Errorf("jobs.%s must be an object, got %T", jobName, preActivationJob)
 		}
 
-		for i, step := range stepsList {
-			stepMap, ok := step.(map[string]any)
+		// Validate that only steps and outputs fields are present
+		allowedFields := map[string]bool{
+			"steps":   true,
+			"outputs": true,
+		}
+
+		for field := range configMap {
+			if !allowedFields[field] {
+				return nil, nil, fmt.Errorf("jobs.%s: unsupported field '%s' - only 'steps' and 'outputs' are allowed", jobName, field)
+			}
+		}
+
+		// Extract steps
+		if stepsValue, hasSteps := configMap["steps"]; hasSteps {
+			stepsList, ok := stepsValue.([]any)
 			if !ok {
-				return nil, nil, fmt.Errorf("jobs.pre-activation.steps[%d] must be an object, got %T", i, step)
+				return nil, nil, fmt.Errorf("jobs.%s.steps must be an array, got %T", jobName, stepsValue)
 			}
 
-			// Convert step to YAML
-			stepYAML, err := c.convertStepToYAML(stepMap)
-			if err != nil {
-				return nil, nil, fmt.Errorf("failed to convert jobs.pre-activation.steps[%d] to YAML: %w", i, err)
+			for i, step := range stepsList {
+				stepMap, ok := step.(map[string]any)
+				if !ok {
+					return nil, nil, fmt.Errorf("jobs.%s.steps[%d] must be an object, got %T", jobName, i, step)
+				}
+
+				// Convert step to YAML
+				stepYAML, err := c.convertStepToYAML(stepMap)
+				if err != nil {
+					return nil, nil, fmt.Errorf("failed to convert jobs.%s.steps[%d] to YAML: %w", jobName, i, err)
+				}
+				customSteps = append(customSteps, stepYAML)
 			}
-			customSteps = append(customSteps, stepYAML)
-		}
-		compilerActivationJobsLog.Printf("Extracted %d custom steps from jobs.pre-activation", len(customSteps))
-	}
-
-	// Extract outputs
-	if outputsValue, hasOutputs := configMap["outputs"]; hasOutputs {
-		outputsMap, ok := outputsValue.(map[string]any)
-		if !ok {
-			return nil, nil, fmt.Errorf("jobs.pre-activation.outputs must be an object, got %T", outputsValue)
+			compilerActivationJobsLog.Printf("Extracted %d custom steps from jobs.%s", len(stepsList), jobName)
 		}
 
-		customOutputs = make(map[string]string)
-		for key, val := range outputsMap {
-			valStr, ok := val.(string)
+		// Extract outputs
+		if outputsValue, hasOutputs := configMap["outputs"]; hasOutputs {
+			outputsMap, ok := outputsValue.(map[string]any)
 			if !ok {
-				return nil, nil, fmt.Errorf("jobs.pre-activation.outputs.%s must be a string, got %T", key, val)
+				return nil, nil, fmt.Errorf("jobs.%s.outputs must be an object, got %T", jobName, outputsValue)
 			}
-			customOutputs[key] = valStr
+
+			if customOutputs == nil {
+				customOutputs = make(map[string]string)
+			}
+			for key, val := range outputsMap {
+				valStr, ok := val.(string)
+				if !ok {
+					return nil, nil, fmt.Errorf("jobs.%s.outputs.%s must be a string, got %T", jobName, key, val)
+				}
+				// If the same output key is defined in both variants, the second one wins (pre_activation)
+				customOutputs[key] = valStr
+			}
+			compilerActivationJobsLog.Printf("Extracted %d custom outputs from jobs.%s", len(outputsMap), jobName)
 		}
-		compilerActivationJobsLog.Printf("Extracted %d custom outputs from jobs.pre-activation", len(customOutputs))
 	}
 
 	return customSteps, customOutputs, nil

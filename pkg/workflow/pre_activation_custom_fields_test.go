@@ -245,6 +245,73 @@ Test that pre-activation is not added as a custom job
 			t.Error("Expected custom_job to be present")
 		}
 	})
+
+	t.Run("import_from_both_variants", func(t *testing.T) {
+		workflowContent := `---
+on:
+  workflow_dispatch:
+  stop-after: "+48h"
+engine: claude
+roles: [admin, maintainer]
+jobs:
+  pre-activation:
+    steps:
+      - name: Hyphenated check
+        id: hyphen_check
+        run: echo "hyphen_ok=true" >> $GITHUB_OUTPUT
+    outputs:
+      hyphen_status: "${{ steps.hyphen_check.outputs.hyphen_ok }}"
+  pre_activation:
+    steps:
+      - name: Underscore check
+        id: underscore_check
+        run: echo "underscore_ok=true" >> $GITHUB_OUTPUT
+    outputs:
+      underscore_status: "${{ steps.underscore_check.outputs.underscore_ok }}"
+---
+
+Test that both pre-activation and pre_activation are imported
+`
+
+		workflowFile := filepath.Join(tmpDir, "test-both-variants.md")
+		if err := os.WriteFile(workflowFile, []byte(workflowContent), 0644); err != nil {
+			t.Fatal(err)
+		}
+
+		err := compiler.CompileWorkflow(workflowFile)
+		if err != nil {
+			t.Fatalf("CompileWorkflow() returned error: %v", err)
+		}
+
+		lockFile := strings.TrimSuffix(workflowFile, ".md") + ".lock.yml"
+		lockContent, err := os.ReadFile(lockFile)
+		if err != nil {
+			t.Fatalf("Failed to read lock file: %v", err)
+		}
+
+		lockContentStr := string(lockContent)
+
+		// Verify both custom steps are present
+		if !strings.Contains(lockContentStr, "Hyphenated check") {
+			t.Error("Expected 'Hyphenated check' step to be present")
+		}
+		if !strings.Contains(lockContentStr, "Underscore check") {
+			t.Error("Expected 'Underscore check' step to be present")
+		}
+
+		// Verify both custom outputs are present
+		if !strings.Contains(lockContentStr, "hyphen_status:") {
+			t.Error("Expected 'hyphen_status' output to be present")
+		}
+		if !strings.Contains(lockContentStr, "underscore_status:") {
+			t.Error("Expected 'underscore_status' output to be present")
+		}
+
+		// Verify the activated output is still present
+		if !strings.Contains(lockContentStr, "activated:") {
+			t.Error("Expected standard 'activated' output to still be present")
+		}
+	})
 }
 
 // TestExtractPreActivationCustomFields tests the extractPreActivationCustomFields method directly
@@ -333,6 +400,54 @@ func TestExtractPreActivationCustomFields(t *testing.T) {
 			},
 			expectError:   true,
 			errorContains: "must be a string",
+		},
+		{
+			name: "import_from_both_variants",
+			jobs: map[string]any{
+				"pre-activation": map[string]any{
+					"steps": []any{
+						map[string]any{
+							"name": "Hyphenated step",
+							"run":  "echo hyphen",
+						},
+					},
+					"outputs": map[string]any{
+						"hyphen_output": "${{ steps.hyphen.outputs.value }}",
+					},
+				},
+				constants.PreActivationJobName: map[string]any{
+					"steps": []any{
+						map[string]any{
+							"name": "Underscore step",
+							"run":  "echo underscore",
+						},
+					},
+					"outputs": map[string]any{
+						"underscore_output": "${{ steps.underscore.outputs.value }}",
+					},
+				},
+			},
+			expectSteps:   2, // Both steps should be imported
+			expectOutputs: 2, // Both outputs should be imported
+			expectError:   false,
+		},
+		{
+			name: "duplicate_output_key_in_both_variants",
+			jobs: map[string]any{
+				"pre-activation": map[string]any{
+					"outputs": map[string]any{
+						"same_key": "from hyphen variant",
+					},
+				},
+				constants.PreActivationJobName: map[string]any{
+					"outputs": map[string]any{
+						"same_key": "from underscore variant",
+					},
+				},
+			},
+			expectSteps:   0,
+			expectOutputs: 1, // Only one output (last one wins)
+			expectError:   false,
 		},
 	}
 
