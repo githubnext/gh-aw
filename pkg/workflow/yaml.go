@@ -116,9 +116,9 @@ var yamlLog = logger.New("workflow:yaml")
 //
 // Example:
 //
-//	input := `"on":\n  push:\n    branches:\n      - main`
+//	input := "\"on\":\n  push:\n    branches:\n      - main"
 //	result := UnquoteYAMLKey(input, "on")
-//	// result: `on:\n  push:\n    branches:\n      - main`
+//	// result: "on:\n  push:\n    branches:\n      - main"
 func UnquoteYAMLKey(yamlStr string, key string) string {
 	yamlLog.Printf("Unquoting YAML key: %s", key)
 
