@@ -150,7 +150,7 @@ func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
 	// Build pre-activation job if needed (combines membership checks, stop-time validation, skip-if-match check, and command position check)
 	var preActivationJobCreated bool
 	hasCommandTrigger := data.Command != ""
-	
+
 	// Extract jobs.pre-activation configuration from frontmatter if present
 	var preActivationConfig map[string]any
 	if data.Jobs != nil {
@@ -160,7 +160,7 @@ func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
 			}
 		}
 	}
-	
+
 	// Check if we need to create pre-activation job (either built-in checks or custom config)
 	hasPreActivationConfig := preActivationConfig != nil
 	if needsPermissionCheck || hasStopTime || hasSkipIfMatch || hasCommandTrigger || hasPreActivationConfig {
@@ -783,13 +783,11 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 	compilerJobsLog.Printf("Building pre-activation job: needsPermissionCheck=%v, hasStopTime=%v, hasCustomConfig=%v", needsPermissionCheck, data.StopTime != "", customConfig != nil)
 	var steps []string
 	var permissions string
-	
+
 	// Validate customConfig if present - only steps and outputs are allowed
-	if customConfig != nil {
-		for key := range customConfig {
-			if key != "steps" && key != "outputs" {
-				return nil, fmt.Errorf("jobs.pre-activation only supports 'steps' and 'outputs' fields, got unsupported field: '%s'", key)
-			}
+	for key := range customConfig {
+		if key != "steps" && key != "outputs" {
+			return nil, fmt.Errorf("jobs.pre-activation only supports 'steps' and 'outputs' fields, got unsupported field: '%s'", key)
 		}
 	}
 
@@ -851,7 +849,7 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 		formattedScript := FormatJavaScriptForYAML(checkCommandPositionScript)
 		steps = append(steps, formattedScript...)
 	}
-	
+
 	// Import custom steps from jobs.pre-activation if present
 	if customConfig != nil {
 		if customSteps, hasSteps := customConfig["steps"]; hasSteps {
@@ -861,7 +859,7 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 					if stepMap, ok := step.(map[string]any); ok {
 						// Apply action pinning before converting to YAML
 						stepMap = ApplyActionPinToStep(stepMap, data)
-						
+
 						stepYAML, err := c.convertStepToYAML(stepMap)
 						if err != nil {
 							return nil, fmt.Errorf("failed to convert custom step to YAML for pre-activation job: %w", err)
@@ -921,7 +919,7 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 	// Note: If only custom config is provided without built-in checks, we don't create an "activated" output
 	// The custom outputs will be used directly
 	var outputs map[string]string
-	
+
 	if len(conditions) > 0 {
 		var activatedNode ConditionNode
 		if len(conditions) == 1 {
@@ -945,7 +943,7 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 		// No built-in conditions, only custom config
 		outputs = make(map[string]string)
 	}
-	
+
 	// Import custom outputs from jobs.pre-activation if present
 	if customConfig != nil {
 		if customOutputs, hasOutputs := customConfig["outputs"]; hasOutputs {
@@ -1368,7 +1366,7 @@ func (c *Compiler) buildCustomJobs(data *WorkflowData, activationJobCreated bool
 			compilerJobsLog.Printf("Skipping job '%s' - handled separately by buildPreActivationJob", jobName)
 			continue
 		}
-		
+
 		if configMap, ok := jobConfig.(map[string]any); ok {
 			job := &Job{
 				Name: jobName,

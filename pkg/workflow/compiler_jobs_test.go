@@ -706,12 +706,12 @@ func TestBuildPreActivationJobWithOnlyCustomConfig(t *testing.T) {
 	if job.Outputs == nil {
 		t.Fatal("Expected job to have outputs")
 	}
-	
+
 	// Should NOT have the activated output since there are no built-in checks
 	if _, ok := job.Outputs["activated"]; ok {
 		t.Error("Did not expect 'activated' output when no built-in checks are present")
 	}
-	
+
 	// Should have custom output
 	if _, ok := job.Outputs["check_result"]; !ok {
 		t.Error("Expected 'check_result' output")
