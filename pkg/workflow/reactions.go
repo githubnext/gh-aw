@@ -1,6 +1,12 @@
 package workflow
 
-import "fmt"
+import (
+	"fmt"
+
+	"github.com/githubnext/gh-aw/pkg/logger"
+)
+
+var reactionsLog = logger.New("workflow:reactions")
 
 // validReactions defines the set of valid reaction values
 var validReactions = map[string]bool{
@@ -33,19 +39,33 @@ func getValidReactions() []string {
 // YAML parsers may return +1 and -1 as integers, so this function handles
 // both string and numeric types.
 func parseReactionValue(value any) (string, error) {
+	reactionsLog.Printf("Parsing reaction value: type=%T, value=%v", value, value)
+
 	switch v := value.(type) {
 	case string:
+		reactionsLog.Printf("Parsed string reaction: %s", v)
 		return v, nil
 	case int:
-		return intToReactionString(int64(v))
+		result, err := intToReactionString(int64(v))
+		if err != nil {
+			reactionsLog.Printf("Failed to parse int reaction: %v", err)
+		}
+		return result, err
 	case int64:
-		return intToReactionString(v)
+		result, err := intToReactionString(v)
+		if err != nil {
+			reactionsLog.Printf("Failed to parse int64 reaction: %v", err)
+		}
+		return result, err
 	case uint64:
 		if v == 1 {
+			reactionsLog.Print("Parsed uint64 reaction: +1")
 			return "+1", nil
 		}
+		reactionsLog.Printf("Invalid uint64 reaction value: %d", v)
 		return "", fmt.Errorf("invalid reaction value '%d': must be one of %v", v, getValidReactions())
 	default:
+		reactionsLog.Printf("Invalid reaction type: %T", value)
 		return "", fmt.Errorf("invalid reaction type: expected string, got %T", value)
 	}
 }
