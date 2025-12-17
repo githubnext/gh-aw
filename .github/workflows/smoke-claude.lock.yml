@@ -7896,6 +7896,24 @@ jobs:
                   type: "discussion",
                 };
               }
+              const shortIssueMatch = url.match(/^([^/]+)\/([^/]+)\/issues\/(\d+)$/);
+              if (shortIssueMatch) {
+                return {
+                  owner: shortIssueMatch[1],
+                  repo: shortIssueMatch[2],
+                  number: parseInt(shortIssueMatch[3], 10),
+                  type: "issue",
+                };
+              }
+              const shortDiscussionMatch = url.match(/^([^/]+)\/([^/]+)\/discussions\/(\d+)$/);
+              if (shortDiscussionMatch) {
+                return {
+                  owner: shortDiscussionMatch[1],
+                  repo: shortDiscussionMatch[2],
+                  number: parseInt(shortDiscussionMatch[3], 10),
+                  type: "discussion",
+                };
+              }
               return null;
             }
             async function commentOnIssue(github, owner, repo, issueNumber, message) {

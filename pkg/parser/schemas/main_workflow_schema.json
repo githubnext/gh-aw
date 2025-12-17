@@ -4232,7 +4232,7 @@
                 },
                 "post-as-comment": {
                   "type": "string",
-                  "description": "Optional URL to an issue or discussion where the noop message should be posted as a comment. If not provided, message is only logged."
+                  "description": "Optional URL or short path to an issue or discussion where the noop message should be posted as a comment. Supports both full URLs (https://github.com/owner/repo/issues/123) and short paths (owner/repo/issues/123). If not provided, message is only logged."
                 }
               },
               "additionalProperties": false

@@ -189,3 +189,106 @@ Test that noop configuration supports discussion URLs.
 		t.Error("Conclusion job should contain the discussion URL")
 	}
 }
+
+func TestNoopWithPostAsCommentShortPath(t *testing.T) {
+	// Create temporary directory for test files
+	tmpDir := testutil.TempDir(t, "noop-post-short-path-test")
+
+	// Create a test markdown file with noop using short path format
+	testContent := `---
+on:
+  issues:
+    types: [opened]
+permissions:
+  contents: read
+engine: copilot
+safe-outputs:
+  noop:
+    max: 1
+    post-as-comment: "owner/repo/issues/789"
+---
+
+# Test Noop with Short Path
+
+Test that noop configuration supports short path format.
+`
+
+	testFile := filepath.Join(tmpDir, "test-noop-short.md")
+	if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	compiler := NewCompiler(false, "", "test")
+
+	// Compile the workflow
+	if err := compiler.CompileWorkflow(testFile); err != nil {
+		t.Fatalf("Failed to compile workflow: %v", err)
+	}
+
+	// Read the compiled workflow
+	lockFile := filepath.Join(tmpDir, "test-noop-short.lock.yml")
+	compiledBytes, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatalf("Failed to read compiled workflow: %v", err)
+	}
+	compiled := string(compiledBytes)
+
+	// Verify that the short path is present
+	if !strings.Contains(compiled, "owner/repo/issues/789") {
+		t.Error("Conclusion job should contain the short path")
+	}
+
+	// Verify the environment variable is set
+	if !strings.Contains(compiled, "GH_AW_NOOP_POST_AS_COMMENT:") {
+		t.Error("Conclusion job should set GH_AW_NOOP_POST_AS_COMMENT environment variable")
+	}
+}
+
+func TestNoopWithPostAsCommentShortPathDiscussion(t *testing.T) {
+	// Create temporary directory for test files
+	tmpDir := testutil.TempDir(t, "noop-post-short-discussion-test")
+
+	// Create a test markdown file with noop using short path for discussion
+	testContent := `---
+on:
+  issues:
+    types: [opened]
+permissions:
+  contents: read
+engine: copilot
+safe-outputs:
+  noop:
+    max: 1
+    post-as-comment: "owner/repo/discussions/999"
+---
+
+# Test Noop with Short Discussion Path
+
+Test that noop configuration supports short path format for discussions.
+`
+
+	testFile := filepath.Join(tmpDir, "test-noop-short-discussion.md")
+	if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	compiler := NewCompiler(false, "", "test")
+
+	// Compile the workflow
+	if err := compiler.CompileWorkflow(testFile); err != nil {
+		t.Fatalf("Failed to compile workflow: %v", err)
+	}
+
+	// Read the compiled workflow
+	lockFile := filepath.Join(tmpDir, "test-noop-short-discussion.lock.yml")
+	compiledBytes, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatalf("Failed to read compiled workflow: %v", err)
+	}
+	compiled := string(compiledBytes)
+
+	// Verify that the short discussion path is present
+	if !strings.Contains(compiled, "owner/repo/discussions/999") {
+		t.Error("Conclusion job should contain the short discussion path")
+	}
+}

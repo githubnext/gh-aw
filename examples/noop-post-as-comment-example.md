@@ -22,11 +22,13 @@ the noop message will be posted as a comment to the specified issue or discussio
 
 ## Configuration
 
-The `post-as-comment` field accepts a GitHub URL to:
-- An issue: `https://github.com/owner/repo/issues/123`
-- A discussion: `https://github.com/owner/repo/discussions/456`
+The `post-as-comment` field accepts a GitHub URL or short path to:
+- An issue (full URL): `https://github.com/owner/repo/issues/123`
+- An issue (short path): `owner/repo/issues/123`
+- A discussion (full URL): `https://github.com/owner/repo/discussions/456`
+- A discussion (short path): `owner/repo/discussions/456`
 
-If the URL is invalid or not provided, the noop tool falls back to its default behavior of just logging the message.
+If the URL/path is invalid or not provided, the noop tool falls back to its default behavior of just logging the message.
 
 ## Task
 

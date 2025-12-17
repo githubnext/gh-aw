@@ -4,13 +4,13 @@
 const { loadAgentOutput } = require("./load_agent_output.cjs");
 
 /**
- * Parse a GitHub URL to extract owner, repo, and number
- * Supports issue and discussion URLs
- * @param {string} url - GitHub URL
+ * Parse a GitHub URL or short path to extract owner, repo, and number
+ * Supports issue and discussion URLs in both full and short formats
+ * @param {string} url - GitHub URL (https://github.com/owner/repo/issues/123) or short path (owner/repo/issues/123)
  * @returns {{owner: string, repo: string, number: number, type: 'issue'|'discussion'}|null}
  */
 function parseGitHubUrl(url) {
-  // Match issue URL: https://github.com/owner/repo/issues/123
+  // Match full issue URL: https://github.com/owner/repo/issues/123
   const issueMatch = url.match(/github\.com\/([^/]+)\/([^/]+)\/issues\/(\d+)/);
   if (issueMatch) {
     return {
@@ -21,13 +21,35 @@ function parseGitHubUrl(url) {
     };
   }
 
-  // Match discussion URL: https://github.com/owner/repo/discussions/123
+  // Match full discussion URL: https://github.com/owner/repo/discussions/123
   const discussionMatch = url.match(/github\.com\/([^/]+)\/([^/]+)\/discussions\/(\d+)/);
   if (discussionMatch) {
     return {
       owner: discussionMatch[1],
       repo: discussionMatch[2],
       number: parseInt(discussionMatch[3], 10),
+      type: "discussion",
+    };
+  }
+
+  // Match short issue path: owner/repo/issues/123
+  const shortIssueMatch = url.match(/^([^/]+)\/([^/]+)\/issues\/(\d+)$/);
+  if (shortIssueMatch) {
+    return {
+      owner: shortIssueMatch[1],
+      repo: shortIssueMatch[2],
+      number: parseInt(shortIssueMatch[3], 10),
+      type: "issue",
+    };
+  }
+
+  // Match short discussion path: owner/repo/discussions/123
+  const shortDiscussionMatch = url.match(/^([^/]+)\/([^/]+)\/discussions\/(\d+)$/);
+  if (shortDiscussionMatch) {
+    return {
+      owner: shortDiscussionMatch[1],
+      repo: shortDiscussionMatch[2],
+      number: parseInt(shortDiscussionMatch[3], 10),
       type: "discussion",
     };
   }
