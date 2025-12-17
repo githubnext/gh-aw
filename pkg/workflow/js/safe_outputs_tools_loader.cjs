@@ -49,6 +49,8 @@ function attachHandlers(tools, handlers) {
       tool.handler = handlers.pushToPullRequestBranchHandler;
     } else if (tool.name === "upload_asset") {
       tool.handler = handlers.uploadAssetHandler;
+    } else if (tool.name === "dispatch_workflow") {
+      tool.handler = handlers.dispatchWorkflowHandler;
     }
   });
   return tools;

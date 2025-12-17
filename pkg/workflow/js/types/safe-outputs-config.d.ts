@@ -190,6 +190,13 @@ interface ThreatDetectionConfig extends SafeOutputConfig {
   steps?: any[];
 }
 
+/**
+ * Configuration for workflow dispatch
+ */
+interface DispatchWorkflowConfig extends SafeOutputConfig {
+  "allowed-workflows": string[];
+}
+
 // === Safe Job Configuration Interfaces ===
 
 /**
@@ -242,7 +249,8 @@ type SpecificSafeOutputConfig =
   | NoOpConfig
   | MissingToolConfig
   | LinkSubIssueConfig
-  | ThreatDetectionConfig;
+  | ThreatDetectionConfig
+  | DispatchWorkflowConfig;
 
 type SafeOutputConfigs = Record<string, SafeOutputConfig | SpecificSafeOutputConfig>;
 
@@ -272,6 +280,7 @@ export {
   MissingToolConfig,
   LinkSubIssueConfig,
   ThreatDetectionConfig,
+  DispatchWorkflowConfig,
   SpecificSafeOutputConfig,
   // Safe job configuration types
   SafeJobInput,

@@ -48,7 +48,8 @@
         {"$ref": "#/$defs/AssignToAgentOutput"},
         {"$ref": "#/$defs/NoOpOutput"},
         {"$ref": "#/$defs/LinkSubIssueOutput"},
-        {"$ref": "#/$defs/HideCommentOutput"}
+        {"$ref": "#/$defs/HideCommentOutput"},
+        {"$ref": "#/$defs/DispatchWorkflowOutput"}
       ]
     },
     "CreateIssueOutput": {
@@ -648,6 +649,32 @@
         }
       },
       "required": ["type", "comment_id"],
+      "additionalProperties": false
+    },
+    "DispatchWorkflowOutput": {
+      "title": "Dispatch Workflow Output",
+      "description": "Output for dispatching a workflow with inputs",
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "dispatch_workflow"
+        },
+        "workflow_id": {
+          "type": "string",
+          "description": "Workflow ID (file name like 'workflow.yml') from the allowed-workflows list",
+          "minLength": 1
+        },
+        "inputs": {
+          "type": "object",
+          "description": "Optional inputs to pass to the workflow dispatch",
+          "additionalProperties": true
+        },
+        "ref": {
+          "type": "string",
+          "description": "Optional git reference (branch, tag, or SHA) for the workflow. Defaults to the repository's default branch if not provided"
+        }
+      },
+      "required": ["type", "workflow_id"],
       "additionalProperties": false
     }
   }

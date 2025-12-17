@@ -288,6 +288,19 @@ interface HideCommentItem extends BaseSafeOutputItem {
 }
 
 /**
+ * JSONL item for dispatching a workflow
+ */
+interface DispatchWorkflowItem extends BaseSafeOutputItem {
+  type: "dispatch_workflow";
+  /** Workflow ID (file name like 'workflow.yml') from the allowed-workflows list */
+  workflow_id: string;
+  /** Optional inputs to pass to the workflow dispatch */
+  inputs?: Record<string, any>;
+  /** Optional git reference (branch, tag, or SHA) for the workflow */
+  ref?: string;
+}
+
+/**
  * Union type of all possible safe output items
  */
 type SafeOutputItem =
@@ -312,7 +325,8 @@ type SafeOutputItem =
   | UpdateReleaseItem
   | NoOpItem
   | LinkSubIssueItem
-  | HideCommentItem;
+  | HideCommentItem
+  | DispatchWorkflowItem;
 
 /**
  * Sanitized safe output items
@@ -347,6 +361,7 @@ export {
   NoOpItem,
   LinkSubIssueItem,
   HideCommentItem,
+  DispatchWorkflowItem,
   SafeOutputItem,
   SafeOutputItems,
 };

@@ -587,5 +587,29 @@
       },
       "additionalProperties": false
     }
+  },
+  {
+    "name": "dispatch_workflow",
+    "description": "Dispatch a workflow with inputs. This tool allows triggering workflow runs programmatically. The available workflows and their input specifications are dynamically configured based on the 'allowed-workflows' list in the workflow configuration.",
+    "inputSchema": {
+      "type": "object",
+      "required": ["workflow_id"],
+      "properties": {
+        "workflow_id": {
+          "type": "string",
+          "description": "Workflow ID (file name like 'workflow.yml') from the allowed-workflows list. Must be one of the configured allowed workflows."
+        },
+        "inputs": {
+          "type": "object",
+          "description": "Optional inputs to pass to the workflow dispatch. The available inputs depend on the specific workflow being dispatched.",
+          "additionalProperties": true
+        },
+        "ref": {
+          "type": "string",
+          "description": "Optional git reference (branch, tag, or SHA) for the workflow. Defaults to the repository's default branch if not provided."
+        }
+      },
+      "additionalProperties": false
+    }
   }
 ]

@@ -300,6 +300,7 @@ type SafeOutputsConfig struct {
 	UpdateProjects                  *UpdateProjectConfig                   `yaml:"update-project,omitempty"`    // Smart project board management (create/add/update)
 	LinkSubIssue                    *LinkSubIssueConfig                    `yaml:"link-sub-issue,omitempty"`    // Link issues as sub-issues
 	HideComment                     *HideCommentConfig                     `yaml:"hide-comment,omitempty"`      // Hide comments
+	DispatchWorkflow                *DispatchWorkflowConfig                `yaml:"dispatch-workflow,omitempty"` // Dispatch workflows with inputs
 	MissingTool                     *MissingToolConfig                     `yaml:"missing-tool,omitempty"`      // Optional for reporting missing functionality
 	NoOp                            *NoOpConfig                            `yaml:"noop,omitempty"`              // No-op output for logging only (always available as fallback)
 	ThreatDetection                 *ThreatDetectionConfig                 `yaml:"threat-detection,omitempty"`  // Threat detection configuration

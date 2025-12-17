@@ -52,6 +52,7 @@ func HasSafeOutputsEnabled(safeOutputs *SafeOutputsConfig) bool {
 		safeOutputs.NoOp != nil ||
 		safeOutputs.LinkSubIssue != nil ||
 		safeOutputs.HideComment != nil ||
+		safeOutputs.DispatchWorkflow != nil ||
 		len(safeOutputs.Jobs) > 0
 
 	if safeOutputsConfigLog.Enabled() {
@@ -139,6 +140,9 @@ func GetEnabledSafeOutputToolNames(safeOutputs *SafeOutputsConfig) []string {
 	}
 	if safeOutputs.HideComment != nil {
 		tools = append(tools, "hide_comment")
+	}
+	if safeOutputs.DispatchWorkflow != nil {
+		tools = append(tools, "dispatch_workflow")
 	}
 	if safeOutputs.MissingTool != nil {
 		tools = append(tools, "missing_tool")
@@ -325,6 +329,12 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 			hideCommentConfig := c.parseHideCommentConfig(outputMap)
 			if hideCommentConfig != nil {
 				config.HideComment = hideCommentConfig
+			}
+
+			// Handle dispatch-workflow
+			dispatchWorkflowConfig := c.parseDispatchWorkflowConfig(outputMap)
+			if dispatchWorkflowConfig != nil {
+				config.DispatchWorkflow = dispatchWorkflowConfig
 			}
 
 			// Handle missing-tool (parse configuration if present, or enable by default)
@@ -926,6 +936,19 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 			noopConfig["max"] = maxValue
 			safeOutputsConfig["noop"] = noopConfig
 		}
+		if data.SafeOutputs.DispatchWorkflow != nil {
+			dispatchConfig := map[string]any{}
+			// Always include max (use configured value or default)
+			maxValue := 1 // default
+			if data.SafeOutputs.DispatchWorkflow.Max > 0 {
+				maxValue = data.SafeOutputs.DispatchWorkflow.Max
+			}
+			dispatchConfig["max"] = maxValue
+			if len(data.SafeOutputs.DispatchWorkflow.AllowedWorkflows) > 0 {
+				dispatchConfig["allowed_workflows"] = data.SafeOutputs.DispatchWorkflow.AllowedWorkflows
+			}
+			safeOutputsConfig["dispatch_workflow"] = dispatchConfig
+		}
 	}
 
 	// Add safe-jobs configuration from SafeOutputs.Jobs
@@ -1102,6 +1125,9 @@ func generateFilteredToolsJSON(data *WorkflowData) (string, error) {
 	}
 	if data.SafeOutputs.UpdateProjects != nil {
 		enabledTools["update_project"] = true
+	}
+	if data.SafeOutputs.DispatchWorkflow != nil {
+		enabledTools["dispatch_workflow"] = true
 	}
 
 	// Filter tools to only include enabled ones and enhance descriptions

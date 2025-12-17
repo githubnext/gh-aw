@@ -860,6 +860,15 @@ func NewPermissionsActionsWriteContentsWriteIssuesWritePRWrite() *Permissions {
 	})
 }
 
+// NewPermissionsContentsReadActionsWrite creates permissions with contents: read and actions: write
+// This is required for dispatching workflows
+func NewPermissionsContentsReadActionsWrite() *Permissions {
+	return NewPermissionsFromMap(map[PermissionScope]PermissionLevel{
+		PermissionContents: PermissionRead,
+		PermissionActions:  PermissionWrite,
+	})
+}
+
 // NewPermissionsContentsWrite creates permissions with contents: write
 func NewPermissionsContentsWrite() *Permissions {
 	return NewPermissionsFromMap(map[PermissionScope]PermissionLevel{
