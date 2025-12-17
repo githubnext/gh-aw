@@ -30,6 +30,7 @@ func (c *Compiler) buildUpdateProjectJob(data *WorkflowData, mainJobName string)
 
 	// Get the effective token using the Projects-specific precedence chain
 	// This includes fallback to GH_AW_PROJECT_GITHUB_TOKEN if no custom token is configured
+	// Note: Projects v2 requires a PAT or GitHub App - the default GITHUB_TOKEN cannot work
 	effectiveToken := getEffectiveProjectGitHubToken(token, data.GitHubToken)
 
 	// Always expose the effective token as GH_AW_PROJECT_GITHUB_TOKEN environment variable

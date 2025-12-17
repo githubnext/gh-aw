@@ -17,6 +17,7 @@ For GitHub Agentic Workflows, you only need to create a few **optional** secrets
 | Cross-repo Project Ops / remote GitHub tools         | `GH_AW_GITHUB_TOKEN`                   | PAT or app token with cross-repo access. |
 | Copilot workflows (CLI, engine, agent tasks, etc.)   | `COPILOT_GITHUB_TOKEN`                 | Needs Copilot Requests permission and repo access. |
 | Assigning agents/bots to issues or pull requests     | `GH_AW_AGENT_TOKEN`                    | Used by `assign-to-agent` and Copilot assignee/reviewer flows. |
+| Any GitHub Projects v2 operations                    | `GH_AW_PROJECT_GITHUB_TOKEN`           | **Required** for `update-project`. Default `GITHUB_TOKEN` cannot access Projects v2 API. |
 | Isolating MCP server permissions (advanced optional) | `GH_AW_GITHUB_MCP_SERVER_TOKEN`        | Only if you want MCP to use a different token than other jobs. |
 
 Create these as **repository secrets in *your* repo**. The easiest way is to use the GitHub Agentic Workflows CLI:
@@ -26,6 +27,7 @@ Create these as **repository secrets in *your* repo**. The easiest way is to use
 gh aw secrets set GH_AW_GITHUB_TOKEN --value "YOUR_PAT"
 gh aw secrets set COPILOT_GITHUB_TOKEN --value "YOUR_COPILOT_PAT"
 gh aw secrets set GH_AW_AGENT_TOKEN --value "YOUR_AGENT_PAT"
+gh aw secrets set GH_AW_PROJECT_GITHUB_TOKEN --value "YOUR_PROJECT_PAT"
 ```
 
 After these are set, gh-aw will automatically pick the right token for each operation; you should not need per-workflow PATs in most cases.
@@ -64,6 +66,7 @@ jobs:
 |-------|------|---------|-------------------|
 | `GITHUB_TOKEN` | Auto-provided | Default Actions token for current repository | No (auto-provided) |
 | `GH_AW_GITHUB_TOKEN` | PAT | Enhanced token for cross-repo and remote GitHub tools | **Yes** (required for cross-repo) |
+| `GH_AW_PROJECT_GITHUB_TOKEN` | PAT | Required token for GitHub Projects v2 operations | **Yes** (required for Projects v2) |
 | `GH_AW_GITHUB_MCP_SERVER_TOKEN` | PAT | Custom token specifically for GitHub MCP server | **Yes** (optional override) |
 | `COPILOT_GITHUB_TOKEN` | PAT | Copilot authentication (recommended) | **Yes** (required for Copilot) |
 | `GH_AW_AGENT_TOKEN` | PAT | Agent assignment operations | **Yes** (required for agent ops) |
@@ -178,6 +181,69 @@ This token is passed to the GitHub MCP server as:
 
 :::note
 In most cases, you don't need to set this token separately. Use `GH_AW_GITHUB_TOKEN` instead, which works for both general operations and GitHub MCP server.
+:::
+
+## `GH_AW_PROJECT_GITHUB_TOKEN` (GitHub Projects v2)
+
+**Type**: Personal Access Token (required for Projects v2 operations)
+
+A specialized token for GitHub Projects v2 operations used by the [`update-project`](/gh-aw/reference/safe-outputs/#project-board-updates-update-project) safe output. **Required** because the default `GITHUB_TOKEN` cannot access the GitHub Projects v2 GraphQL API.
+
+**When to use**:
+
+- **Always required** for any Projects v2 operations (creating, updating, or reading project boards)
+- The default `GITHUB_TOKEN` cannot create or manage ProjectV2 objects via GraphQL
+- You want to isolate Projects permissions from other workflow operations
+
+**Setup**:
+
+1. Create a **classic PAT** with `project` and `repo` scopes, **OR** a [fine-grained PAT](https://github.com/settings/personal-access-tokens/new) with:
+   - Repository access: Select specific repos or "All repositories"
+   - Organization permissions:
+     - Projects: Read+Write (for creating and managing org Projects)
+   - **OR** use a GitHub App with Projects: Read+Write permission
+
+2. Add to repository secrets:
+
+```bash wrap
+gh aw secrets set GH_AW_PROJECT_GITHUB_TOKEN --value "YOUR_PROJECT_PAT"
+```
+
+**Token precedence** for `update-project` safe output (highest to lowest):
+
+1. Per-output `github-token:` (`safe-outputs.update-project.github-token`)
+2. Top-level `github-token:` (frontmatter)
+3. `${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}`
+4. `${{ secrets.GITHUB_TOKEN }}` (lowest)
+
+The compiler automatically sets the `GH_AW_PROJECT_GITHUB_TOKEN` environment variable in the update-project job using this precedence. This environment variable is used by the JavaScript implementation to provide helpful error messages when project operations fail.
+
+**Example configuration**:
+
+```yaml wrap
+---
+# Option 1: Use GH_AW_PROJECT_GITHUB_TOKEN secret (recommended for org Projects)
+# Just create the secret - no workflow config needed
+---
+
+# Option 2: Explicitly configure at safe-output level
+safe-outputs:
+  update-project:
+    github-token: ${{ secrets.CUSTOM_PROJECT_TOKEN }}
+```
+
+:::note[Default behavior]
+By default, `update-project` is **update-only**: it will not create projects. If a project doesn't exist, the job fails with instructions to create it manually.
+
+**Important**: The default `GITHUB_TOKEN` **cannot** be used for Projects v2 operations. You **must** configure `GH_AW_PROJECT_GITHUB_TOKEN` or provide a custom token via `safe-outputs.update-project.github-token`. GitHub Projects v2 requires GraphQL API access with a PAT (classic with `project` + `repo` scopes, or fine-grained with Projects permissions) or a GitHub App.
+
+To opt-in to creating projects, the agent must include `create_if_missing: true` in its output, and the token must have sufficient permissions to create projects in the organization.
+:::
+
+:::tip[When to use vs GH_AW_GITHUB_TOKEN]
+- Use `GH_AW_PROJECT_GITHUB_TOKEN` when you need **Projects-specific permissions** separate from other operations
+- Use `GH_AW_GITHUB_TOKEN` as the top-level token if it already has Projects permissions and you don't need isolation
+- The precedence chain allows the top-level token to be used if `GH_AW_PROJECT_GITHUB_TOKEN` isn't set
 :::
 
 ## `COPILOT_GITHUB_TOKEN` (Copilot Authentication)
@@ -415,6 +481,7 @@ Use this guide to choose the right token for your workflow:
 | Copilot engine workflows | `COPILOT_GITHUB_TOKEN` | None |
 | Remote GitHub MCP mode | `GH_AW_GITHUB_TOKEN` | GitHub App |
 | Agent assignments | `GH_AW_AGENT_TOKEN` | `GH_AW_GITHUB_TOKEN` with elevated permissions |
+| GitHub Projects v2 operations | `GH_AW_PROJECT_GITHUB_TOKEN` | `GH_AW_GITHUB_TOKEN` with Projects permissions |
 | Production workflows | GitHub App | `GH_AW_GITHUB_TOKEN` with fine-grained PAT |
 | Custom MCP server permissions | `GH_AW_GITHUB_MCP_SERVER_TOKEN` | Use `GH_AW_GITHUB_TOKEN` |
 
@@ -783,6 +850,9 @@ gh aw secrets set COPILOT_GITHUB_TOKEN --value "YOUR_COPILOT_PAT"
 # Agent assignments
 gh aw secrets set GH_AW_AGENT_TOKEN --value "YOUR_AGENT_PAT"
 
+# GitHub Projects v2 operations (optional)
+gh aw secrets set GH_AW_PROJECT_GITHUB_TOKEN --value "YOUR_PROJECT_PAT"
+
 # Custom MCP server token (optional)
 gh aw secrets set GH_AW_GITHUB_MCP_SERVER_TOKEN --value "YOUR_PAT"
 
@@ -811,6 +881,13 @@ gh secret list -a actions
 The `COPILOT_CLI_TOKEN` and `GH_AW_COPILOT_TOKEN` secret names are **no longer supported** as of v0.26+. Use `COPILOT_GITHUB_TOKEN` instead.
 :::
 
+**For update-project safe output** (GitHub Projects v2):
+
+1. Per-output `github-token:` (`safe-outputs.update-project.github-token`) (highest)
+2. Workflow-level `github-token:`
+3. `secrets.GH_AW_PROJECT_GITHUB_TOKEN`
+4. `secrets.GITHUB_TOKEN` (lowest)
+
 **For GitHub MCP server**:
 
 1. Tool-level `github-token` (highest)
@@ -828,6 +905,7 @@ The `COPILOT_CLI_TOKEN` and `GH_AW_COPILOT_TOKEN` secret names are **no longer s
 | Cross-repository PRs | Pull requests: Read+Write, Contents: Read+Write |
 | Copilot operations | Copilot Requests (special permission) |
 | Agent assignments | Actions: Write, Contents: Write, Issues: Write, Pull requests: Write |
+| GitHub Projects v2 | Projects: Read+Write (org-level for org Projects) |
 | Remote GitHub MCP | Contents: Read (minimum), adjust based on toolsets |
 
 ### Migration from Legacy Tokens

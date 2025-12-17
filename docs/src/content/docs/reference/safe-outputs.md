@@ -347,18 +347,20 @@ Agent output includes `parent_issue_number` and `sub_issue_number`. Validation e
 
 Manages GitHub Projects boards. Generated job runs with `projects: write` permissions, links the board to the repository, and maintains campaign metadata.
 
-By default, `update-project` is **update-only**: if the project board does not exist, the job fails with instructions to create the board manually. This is the lowest-friction setup because it typically avoids requiring a PAT or GitHub App.
+**Important**: GitHub Projects v2 requires a PAT or GitHub App token. The default `GITHUB_TOKEN` cannot access the Projects v2 GraphQL API. You must configure [`GH_AW_PROJECT_GITHUB_TOKEN`](/gh-aw/reference/tokens/#gh_aw_project_github_token-github-projects-v2) or provide a custom token via `safe-outputs.update-project.github-token`.
+
+By default, `update-project` is **update-only**: if the project board does not exist, the job fails with instructions to create the board manually.
 
 ```yaml wrap
 safe-outputs:
   update-project:
     max: 20                         # max project operations (default: 10)
-    github-token: ${{ secrets.PROJECTS_PAT }} # token override with projects:write
+    github-token: ${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }} # required: PAT with Projects access
 ```
 
 Agent output **must include a full GitHub project URL** in the `project` field (e.g., `https://github.com/orgs/myorg/projects/42` or `https://github.com/users/username/projects/5`). Project names or numbers alone are not accepted. Can also supply `content_number`, `content_type`, `fields`, and `campaign_id`. The job adds the issue or PR to the board, updates custom fields, applies `campaign:<id>` labels, and exposes `project-id`, `project-number`, `project-url`, `campaign-id`, and `item-id` outputs. Cross-repository targeting not supported.
 
-To opt in to creating missing project boards, include `create_if_missing: true` in the `update_project` output (and ensure your token has sufficient org Project permissions; in many setups this means using `safe-outputs.update-project.github-token`).
+To opt in to creating missing project boards, include `create_if_missing: true` in the `update_project` output. Your token must have sufficient permissions to create projects in the organization (classic PAT with `project` + `repo` scopes, or fine-grained PAT with Projects: Read+Write, or GitHub App with Projects permissions).
 
 ### Pull Request Creation (`create-pull-request:`)
 
