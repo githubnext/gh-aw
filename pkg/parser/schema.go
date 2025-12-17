@@ -291,7 +291,14 @@ func validateWithSchema(frontmatter map[string]any, schemaJSON, context string) 
 	if frontmatter == nil {
 		frontmatterToValidate = make(map[string]any)
 	} else {
-		frontmatterToValidate = frontmatter
+		// Filter out x-* custom fields before validation
+		// GitHub Actions supports x-* custom fields which are not defined in the schema
+		frontmatterToValidate = make(map[string]any)
+		for key, value := range frontmatter {
+			if !strings.HasPrefix(key, "x-") {
+				frontmatterToValidate[key] = value
+			}
+		}
 	}
 
 	frontmatterJSON, err := json.Marshal(frontmatterToValidate)

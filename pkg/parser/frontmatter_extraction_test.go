@@ -53,6 +53,31 @@ This is a test workflow with empty frontmatter.`,
 			content: "---\ntitle: Test\nno closing delimiter",
 			wantErr: true,
 		},
+		{
+			name: "frontmatter with x-* custom fields",
+			content: `---
+on: push
+engine: copilot
+x-internal-note: This is a custom field
+x-metadata:
+  team: platform
+  priority: high
+---
+
+# Test Workflow
+
+This workflow has custom x-* fields.`,
+			wantYAML: map[string]any{
+				"on":              "push",
+				"engine":          "copilot",
+				"x-internal-note": "This is a custom field",
+				"x-metadata": map[string]any{
+					"team":     "platform",
+					"priority": "high",
+				},
+			},
+			wantMarkdown: "# Test Workflow\n\nThis workflow has custom x-* fields.",
+		},
 	}
 
 	for _, tt := range tests {
@@ -79,8 +104,24 @@ This is a test workflow with empty frontmatter.`,
 			for key, expectedValue := range tt.wantYAML {
 				if actualValue, exists := result.Frontmatter[key]; !exists {
 					t.Errorf("ExtractFrontmatterFromContent() missing key %v", key)
-				} else if actualValue != expectedValue {
-					t.Errorf("ExtractFrontmatterFromContent() frontmatter[%v] = %v, want %v", key, actualValue, expectedValue)
+				} else {
+					// For maps, check recursively
+					if expectedMap, isMap := expectedValue.(map[string]any); isMap {
+						actualMap, ok := actualValue.(map[string]any)
+						if !ok {
+							t.Errorf("ExtractFrontmatterFromContent() frontmatter[%v] is not a map, got %T", key, actualValue)
+							continue
+						}
+						for nestedKey, nestedExpected := range expectedMap {
+							if nestedActual, exists := actualMap[nestedKey]; !exists {
+								t.Errorf("ExtractFrontmatterFromContent() frontmatter[%v][%v] missing", key, nestedKey)
+							} else if nestedActual != nestedExpected {
+								t.Errorf("ExtractFrontmatterFromContent() frontmatter[%v][%v] = %v, want %v", key, nestedKey, nestedActual, nestedExpected)
+							}
+						}
+					} else if actualValue != expectedValue {
+						t.Errorf("ExtractFrontmatterFromContent() frontmatter[%v] = %v, want %v", key, actualValue, expectedValue)
+					}
 				}
 			}
 

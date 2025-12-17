@@ -803,6 +803,41 @@ func TestValidateMainWorkflowFrontmatterWithSchema(t *testing.T) {
 			errContains: "additional properties 'invalid' not allowed",
 		},
 		{
+			name: "valid frontmatter with x-* custom fields",
+			frontmatter: map[string]any{
+				"on":     "push",
+				"engine": "copilot",
+				"x-internal-note": "This is a custom annotation",
+				"x-metadata": map[string]any{
+					"team":     "platform",
+					"priority": "high",
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "valid frontmatter with multiple x-* custom fields",
+			frontmatter: map[string]any{
+				"on":              "push",
+				"engine":          "claude",
+				"x-custom-field1": "value1",
+				"x-custom-field2": "value2",
+				"x-metadata": map[string]any{
+					"version": "1.0",
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "invalid: non-x prefix unknown field should still fail",
+			frontmatter: map[string]any{
+				"on":            "push",
+				"unknown-field": "value",
+			},
+			wantErr:     true,
+			errContains: "additional properties 'unknown-field' not allowed",
+		},
+		{
 			name: "missing required on field",
 			frontmatter: map[string]any{
 				"engine": "claude",

@@ -96,8 +96,12 @@ func (c *Compiler) validateGitHubActionsSchema(yamlContent string) error {
 
 	// Parse YAML directly into any type for schema validation
 	// The jsonschema library accepts any type directly, no JSON conversion needed
+	// Allow x-* custom fields that GitHub Actions supports
 	var workflowData any
-	if err := yaml.Unmarshal([]byte(yamlContent), &workflowData); err != nil {
+	if err := yaml.UnmarshalWithOptions([]byte(yamlContent), &workflowData,
+		yaml.DisallowUnknownField(),
+		yaml.AllowFieldPrefixes("x-"),
+	); err != nil {
 		return fmt.Errorf("failed to parse YAML for schema validation: %w", err)
 	}
 

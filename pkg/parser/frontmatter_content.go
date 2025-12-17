@@ -55,9 +55,12 @@ func ExtractFrontmatterFromContent(content string) (*FrontmatterResult, error) {
 	frontmatterLines := lines[1:endIndex]
 	frontmatterYAML := strings.Join(frontmatterLines, "\n")
 
-	// Parse YAML
+	// Parse YAML with strict validation that allows x-* custom fields
 	var frontmatter map[string]any
-	if err := yaml.Unmarshal([]byte(frontmatterYAML), &frontmatter); err != nil {
+	if err := yaml.UnmarshalWithOptions([]byte(frontmatterYAML), &frontmatter,
+		yaml.DisallowUnknownField(),
+		yaml.AllowFieldPrefixes("x-"),
+	); err != nil {
 		return nil, fmt.Errorf("failed to parse frontmatter: %w", err)
 	}
 
