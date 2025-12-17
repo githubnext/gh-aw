@@ -77,7 +77,7 @@ The YAML frontmatter supports these fields:
 - **`on:`** - Workflow triggers (required)
   - String: `"push"`, `"issues"`, etc.
   - Object: Complex trigger configuration
-  - Special: `slash_command:` for /mention triggers (or deprecated `command:`)
+  - Special: `command:` for /mention triggers
   - **`forks:`** - Fork allowlist for `pull_request` triggers (array or string). By default, workflows block all forks and only allow same-repo PRs. Use `["*"]` to allow all forks, or specify patterns like `["org/*", "user/repo"]`
   - **`stop-after:`** - Can be included in the `on:` object to set a deadline for workflow execution. Supports absolute timestamps ("YYYY-MM-DD HH:MM:SS") or relative time deltas (+25h, +3d, +1d12h). The minimum unit for relative deltas is hours (h). Uses precise date calculations that account for varying month lengths.
   - **`reaction:`** - Add emoji reactions to triggering items
@@ -108,10 +108,6 @@ The YAML frontmatter supports these fields:
 - **`roles:`** - Repository access roles that can trigger workflow (array or "all")
   - Default: `[admin, maintainer, write]`
   - Available roles: `admin`, `maintainer`, `write`, `read`, `all`
-- **`bots:`** - Allow list of bot identifiers that can trigger workflow (array)
-  - Bots in this list can trigger workflows even without required role permissions
-  - Bot must be installed/active on repository to trigger workflow
-  - Examples: `["dependabot[bot]", "renovate[bot]", "github-actions[bot]"]`
 - **`strict:`** - Enable enhanced validation for production workflows (boolean, defaults to `true`)
   - When omitted, workflows enforce strict mode security constraints
   - Set to `false` to explicitly disable strict mode for development/testing
@@ -337,13 +333,9 @@ The YAML frontmatter supports these fields:
         max: 3                          # Optional: maximum number of comments (default: 1)
         target: "*"                     # Optional: target for comments (default: "triggering")
         discussion: true                # Optional: target discussions
-        hide-older-comments: true       # Optional: hide previous comments from this workflow (default: false)
-        allowed-reasons: [outdated, resolved]  # Optional: allowed hide reasons (default: all)
         target-repo: "owner/repo"       # Optional: cross-repository
     ```
     When using `safe-outputs.add-comment`, the main job does **not** need `issues: write` or `pull-requests: write` permissions since comment creation is handled by a separate job with appropriate permissions.
-
-    The `hide-older-comments` field minimizes previous comments from the same workflow (identified by tracker-id) before adding the new comment. The `allowed-reasons` field restricts which hide reasons are permitted: `spam`, `abuse`, `off_topic`, `outdated`, `resolved`.
   - `create-pull-request:` - Safe pull request creation with git patches
     ```yaml
     safe-outputs:
@@ -516,23 +508,8 @@ The YAML frontmatter supports these fields:
       github-token: ${{ secrets.CUSTOM_PAT }}  # Use custom PAT instead of GITHUB_TOKEN
     ```
     Useful when you need additional permissions or want to perform actions across repositories.
-  - `mentions:` - Control @mention filtering in AI-generated content (boolean or object)
-    ```yaml
-    safe-outputs:
-      mentions: false                   # Escape all mentions (default)
-
-      # Advanced configuration
-      mentions:
-        allow-team-members: true        # Allow team member mentions (default: true)
-        allow-context: true             # Allow author/assignee mentions (default: true)
-        allowed: [username, botname]    # Explicit allow list
-        max: 50                         # Max mentions per message (default: 50)
-    ```
-    Controls whether @mentions in AI-generated content are allowed or escaped. By default, mentions are escaped for security. Use `allow-team-members` to permit repository collaborators, `allow-context` for event-related users (authors, assignees), or `allowed` for explicit usernames. Setting `mentions: true` is an error in strict mode.
   
-- **`slash_command:`** - Slash command trigger configuration for /mention workflows
-  - Also accepts deprecated `command:` field (emits compilation warning)
-  - Use `slash_command:` for new workflows
+- **`command:`** - Command trigger configuration for /mention workflows
 - **`cache:`** - Cache configuration for workflow dependencies (object or array)
 - **`cache-memory:`** - Memory MCP server with persistent cache storage (boolean or object)
 
@@ -708,19 +685,17 @@ on:
 ### Command Triggers (/mentions)
 ```yaml
 on:
-  slash_command:
+  command:
     name: my-bot  # Responds to /my-bot in issues/comments
 ```
 
 This automatically creates conditions to match `/my-bot` mentions in issue bodies and comments.
 
-**Note**: The `command:` field is deprecated. Use `slash_command:` for new workflows. Existing workflows using `command:` will continue to work but emit a compilation warning.
-
 You can restrict where commands are active using the `events:` field:
 
 ```yaml
 on:
-  slash_command:
+  command:
     name: my-bot
     events: [issues, issue_comment]  # Only in issue bodies and issue comments
 ```
@@ -1187,7 +1162,7 @@ Research latest developments in ${{ github.repository }}:
 ```markdown
 ---
 on:
-  slash_command:
+  command:
     name: helper-bot
 permissions:
   contents: read

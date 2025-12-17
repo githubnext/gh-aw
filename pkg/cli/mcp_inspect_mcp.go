@@ -19,6 +19,13 @@ import (
 
 var mcpInspectServerLog = logger.New("cli:mcp_inspect_server")
 
+// MCP timeout constants
+const (
+	MCPConnectTimeout    = 10 * time.Second // Timeout for establishing MCP server connections
+	MCPOperationTimeout  = 5 * time.Second  // Timeout for MCP operations (ListTools, ListResources)
+	MCPServerHTTPTimeout = 30 * time.Minute // Timeout for HTTP server session
+)
+
 // headerRoundTripper is a custom http.RoundTripper that adds custom headers to all requests
 type headerRoundTripper struct {
 	base    http.RoundTripper
@@ -151,7 +158,7 @@ func connectStdioMCPServer(ctx context.Context, config parser.MCPServerConfig, v
 	transport := &mcp.CommandTransport{Command: cmd}
 
 	// Create a timeout context for connection
-	connectCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	connectCtx, cancel := context.WithTimeout(ctx, MCPConnectTimeout)
 	defer cancel()
 
 	session, err := client.Connect(connectCtx, transport, nil)
@@ -174,7 +181,7 @@ func connectStdioMCPServer(ctx context.Context, config parser.MCPServerConfig, v
 	}
 
 	// List tools
-	listToolsCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	listToolsCtx, cancel := context.WithTimeout(ctx, MCPOperationTimeout)
 	defer cancel()
 
 	toolsResult, err := session.ListTools(listToolsCtx, &mcp.ListToolsParams{})
@@ -187,7 +194,7 @@ func connectStdioMCPServer(ctx context.Context, config parser.MCPServerConfig, v
 	}
 
 	// List resources
-	listResourcesCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	listResourcesCtx, cancel := context.WithTimeout(ctx, MCPOperationTimeout)
 	defer cancel()
 
 	resourcesResult, err := session.ListResources(listResourcesCtx, &mcp.ListResourcesParams{})
@@ -259,7 +266,7 @@ func connectHTTPMCPServer(ctx context.Context, config parser.MCPServerConfig, ve
 	}
 
 	// Create a timeout context for connection
-	connectCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	connectCtx, cancel := context.WithTimeout(ctx, MCPConnectTimeout)
 	defer cancel()
 
 	session, err := client.Connect(connectCtx, transport, nil)
@@ -282,7 +289,7 @@ func connectHTTPMCPServer(ctx context.Context, config parser.MCPServerConfig, ve
 	}
 
 	// List tools
-	listToolsCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	listToolsCtx, cancel := context.WithTimeout(ctx, MCPOperationTimeout)
 	defer cancel()
 
 	toolsResult, err := session.ListTools(listToolsCtx, &mcp.ListToolsParams{})
@@ -295,7 +302,7 @@ func connectHTTPMCPServer(ctx context.Context, config parser.MCPServerConfig, ve
 	}
 
 	// List resources
-	listResourcesCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	listResourcesCtx, cancel := context.WithTimeout(ctx, MCPOperationTimeout)
 	defer cancel()
 
 	resourcesResult, err := session.ListResources(listResourcesCtx, &mcp.ListResourcesParams{})
