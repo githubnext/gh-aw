@@ -384,10 +384,11 @@ gh aw logs workflow-name                   # Download logs for specific workflow
 gh aw logs -c 10 --start-date -1w         # Filter by count and date
 gh aw logs --ref main                      # Filter logs by branch or tag
 gh aw logs --ref v1.0.0 --parse --json    # Generate markdown + JSON output for specific tag
+gh aw logs --campaign                      # Filter to only campaign orchestrator workflows
 gh aw logs workflow-name --repo owner/repo # Download logs from specific repository
 ```
 
-**Options:** `-c, --count N` (limit number of runs), `-e, --engine` (filter by AI engine like `-e copilot`), `--start-date` (filter runs from date like `--start-date -1w`), `--end-date` (filter runs until date like `--end-date -1d`), `--ref` (filter by branch or tag like `--ref main` or `--ref v1.0.0`), `--parse` (generate `log.md` and `firewall.md`), `--json` (output structured metrics), `--repo owner/repo` (download logs from specific repository)
+**Options:** `-c, --count N` (limit number of runs), `-e, --engine` (filter by AI engine like `-e copilot`), `--campaign` (filter to only campaign orchestrator workflows), `--start-date` (filter runs from date like `--start-date -1w`), `--end-date` (filter runs until date like `--end-date -1d`), `--ref` (filter by branch or tag like `--ref main` or `--ref v1.0.0`), `--parse` (generate `log.md` and `firewall.md`), `--json` (output structured metrics), `--repo owner/repo` (download logs from specific repository)
 
 #### `audit`
 
