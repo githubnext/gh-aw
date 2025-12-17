@@ -17,7 +17,7 @@ For GitHub Agentic Workflows, you only need to create a few **optional** secrets
 | Cross-repo Project Ops / remote GitHub tools         | `GH_AW_GITHUB_TOKEN`                   | PAT or app token with cross-repo access. |
 | Copilot workflows (CLI, engine, agent tasks, etc.)   | `COPILOT_GITHUB_TOKEN`                 | Needs Copilot Requests permission and repo access. |
 | Assigning agents/bots to issues or pull requests     | `GH_AW_AGENT_TOKEN`                    | Used by `assign-to-agent` and Copilot assignee/reviewer flows. |
-| Org-level GitHub Projects with create permissions    | `GH_AW_PROJECT_GITHUB_TOKEN`           | For `update-project` when org Projects require elevated permissions. |
+| Any GitHub Projects v2 operations                    | `GH_AW_PROJECT_GITHUB_TOKEN`           | **Required** for `update-project`. Default `GITHUB_TOKEN` cannot access Projects v2 API. |
 | Isolating MCP server permissions (advanced optional) | `GH_AW_GITHUB_MCP_SERVER_TOKEN`        | Only if you want MCP to use a different token than other jobs. |
 
 Create these as **repository secrets in *your* repo**. The easiest way is to use the GitHub Agentic Workflows CLI:
@@ -66,7 +66,7 @@ jobs:
 |-------|------|---------|-------------------|
 | `GITHUB_TOKEN` | Auto-provided | Default Actions token for current repository | No (auto-provided) |
 | `GH_AW_GITHUB_TOKEN` | PAT | Enhanced token for cross-repo and remote GitHub tools | **Yes** (required for cross-repo) |
-| `GH_AW_PROJECT_GITHUB_TOKEN` | PAT | Custom token for GitHub Projects v2 operations | **Yes** (optional) |
+| `GH_AW_PROJECT_GITHUB_TOKEN` | PAT | Required token for GitHub Projects v2 operations | **Yes** (required for Projects v2) |
 | `GH_AW_GITHUB_MCP_SERVER_TOKEN` | PAT | Custom token specifically for GitHub MCP server | **Yes** (optional override) |
 | `COPILOT_GITHUB_TOKEN` | PAT | Copilot authentication (recommended) | **Yes** (required for Copilot) |
 | `GH_AW_AGENT_TOKEN` | PAT | Agent assignment operations | **Yes** (required for agent ops) |
@@ -185,23 +185,23 @@ In most cases, you don't need to set this token separately. Use `GH_AW_GITHUB_TO
 
 ## `GH_AW_PROJECT_GITHUB_TOKEN` (GitHub Projects v2)
 
-**Type**: Personal Access Token (optional)
+**Type**: Personal Access Token (required for Projects v2 operations)
 
-A specialized token for GitHub Projects v2 operations used by the [`update-project`](/gh-aw/reference/safe-outputs/#project-board-updates-update-project) safe output. Use this when your organization's GitHub Projects require elevated permissions beyond what `GITHUB_TOKEN` provides, especially for creating projects or managing organization-level project boards.
+A specialized token for GitHub Projects v2 operations used by the [`update-project`](/gh-aw/reference/safe-outputs/#project-board-updates-update-project) safe output. **Required** because the default `GITHUB_TOKEN` cannot access the GitHub Projects v2 GraphQL API.
 
 **When to use**:
 
-- Organization-level Projects require elevated permissions
-- You want to opt-in to creating missing project boards (via `create_if_missing: true`)
-- The default `GITHUB_TOKEN` lacks sufficient Projects permissions
+- **Always required** for any Projects v2 operations (creating, updating, or reading project boards)
+- The default `GITHUB_TOKEN` cannot create or manage ProjectV2 objects via GraphQL
 - You want to isolate Projects permissions from other workflow operations
 
 **Setup**:
 
-1. Create a [fine-grained PAT](https://github.com/settings/personal-access-tokens/new) with:
+1. Create a **classic PAT** with `project` and `repo` scopes, **OR** a [fine-grained PAT](https://github.com/settings/personal-access-tokens/new) with:
    - Repository access: Select specific repos or "All repositories"
    - Organization permissions:
      - Projects: Read+Write (for creating and managing org Projects)
+   - **OR** use a GitHub App with Projects: Read+Write permission
 
 2. Add to repository secrets:
 
@@ -233,9 +233,11 @@ safe-outputs:
 ```
 
 :::note[Default behavior]
-By default, `update-project` is **update-only**: it will not create projects. If a project doesn't exist, the job fails with instructions to create it manually. This is the lowest-friction setup because it typically works with the default `GITHUB_TOKEN`.
+By default, `update-project` is **update-only**: it will not create projects. If a project doesn't exist, the job fails with instructions to create it manually.
 
-To opt-in to creating projects, the agent must include `create_if_missing: true` in its output, and you should configure a token with sufficient permissions via `GH_AW_PROJECT_GITHUB_TOKEN` or `safe-outputs.update-project.github-token`.
+**Important**: The default `GITHUB_TOKEN` **cannot** be used for Projects v2 operations. You **must** configure `GH_AW_PROJECT_GITHUB_TOKEN` or provide a custom token via `safe-outputs.update-project.github-token`. GitHub Projects v2 requires GraphQL API access with a PAT (classic with `project` + `repo` scopes, or fine-grained with Projects permissions) or a GitHub App.
+
+To opt-in to creating projects, the agent must include `create_if_missing: true` in its output, and the token must have sufficient permissions to create projects in the organization.
 :::
 
 :::tip[When to use vs GH_AW_GITHUB_TOKEN]

@@ -11,6 +11,8 @@ If you’re running a structured, multi-day initiative with a spec file, approva
 
 By default, `update-project` is update-only: create the Project once in the GitHub UI, then let workflows keep it in sync. If you intentionally want workflows to create missing Projects, opt in via the agent output field `create_if_missing: true` and ensure your token has sufficient org Project permissions.
 
+**Important**: GitHub Projects v2 requires a PAT or GitHub App token - the default `GITHUB_TOKEN` cannot access Projects v2. Configure [`GH_AW_PROJECT_GITHUB_TOKEN`](/gh-aw/reference/tokens/#gh_aw_project_github_token-github-projects-v2) before using `update-project`.
+
 ## When to Use ProjectOps
 
 ProjectOps complements [GitHub's built-in Projects automation](https://docs.github.com/en/issues/planning-and-tracking-with-projects/automating-your-project/using-the-built-in-automations) with AI-powered intelligence:
@@ -61,7 +63,7 @@ ProjectOps workflows use the `update-project` safe output to ensure secure proje
 safe-outputs:
   update-project:
     max: 10                              # Optional: max project operations (default: 10)
-    github-token: ${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}  # Optional: token override when org policy requires it
+    github-token: ${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}  # Required: PAT with Projects access (default GITHUB_TOKEN won't work)
 ```
 
 The `update-project` tool provides intelligent project management:
