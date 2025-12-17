@@ -87,12 +87,12 @@ Examples:
 	// Subcommand: campaign new
 	newCmd := &cobra.Command{
 		Use:   "new <id>",
-		Short: "Create a new markdown campaign spec under .github/workflows/",
-		Long: `Create a new campaign spec markdown file under .github/workflows/.
+		Short: "Create a new Markdown campaign spec under .github/workflows/",
+		Long: `Create a new campaign spec Markdown file under .github/workflows/.
 
 The file will be created as .github/workflows/<id>.campaign.md with YAML
 frontmatter (id, name, version, state, tracker-label) followed by a
-markdown body. You can then
+Markdown body. You can then
 update owners, workflows, memory paths, metrics-glob, and governance
 fields to match your initiative.
 
