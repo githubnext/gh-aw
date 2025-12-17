@@ -1,6 +1,6 @@
-## Trend Data (as of 2025-12-16T15:14:15Z)
+## Trend Data (as of 2025-12-17T15:13:15Z)
 
-- Workflow snapshot (last 10 runs): 24.9m total duration, 1,147,520 tokens, ~$0.57; mixed outcomes with AI Moderator failing repeatedly (3 runs) while Hourly CI Cleaner recovered to a warning-heavy success (11 errors/16 warnings). Issue Monster succeeded cleanly; CLI Version Checker succeeded but emitted 116 errors/25 warnings.
-- Issue stats (weekly slice): 191 total; 16 open / 175 closed. Label skew still high — `plan`/`ai-generated` at 105 each, well above `enhancement` (36) and `documentation` (31). Automation authorship remains dominant.
-- Issue hygiene: 26 unlabeled issues (9 open); open count dropped from 38 to 16, showing backlog burn-down even as unlabeled items persist.
-- Discussion cadence: new briefs on actionable error messages (6633), Typist/type consistency (6620), documentation noob testing (6616), schema consistency (6586), safe-output health (6582), and MCP structural analysis (6621) keep quality/validation themes front and center.
+- Workflow snapshot (last 10 runs): 12.8m total duration, 440,268 tokens; one failure, nine non-failed, with successes still logging 5 errors/15 warnings in multiple runs (e.g., §20307028195, §20306579260). Noise is lower than prior 1.1M-token window but persists.
+- Issue stats (weekly slice): 201 total; 13 open / 188 closed. Label skew persists — `plan`/`ai-generated` at 113 each, ahead of `enhancement` (40) and `documentation` (32).
+- Issue hygiene: 26 unlabeled issues (8 open); slow improvement from 9 open unlabeled yesterday.
+- Discussion cadence: surge of Dec 17 reports across docs (6735, 6734, 6707), Typist/type consistency (6723), MCP structural follow-up (6724), Issue Arborist (6714, 6689), and daily status/issues streams—quality and structural themes remain strong.

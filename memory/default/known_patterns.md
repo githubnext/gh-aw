@@ -1,7 +1,6 @@
-## Known Patterns (2025-12-16)
+## Known Patterns (2025-12-17)
 
-- Reliability picture is mixed: Hourly CI Cleaner rebounded to a warning-heavy success, but AI Moderator failed in three consecutive runs — moderation remains unstable.
-- Noisy “successful” checks continue: CLI Version Checker again succeeded while outputting 116 errors and 25 warnings (run §20272475885), keeping log-noise a recurring theme.
-- Error-message and quality clarity push: new quality brief on actionable errors (6633) plus Typist/type-consistency (6620) and Documentation Noob Test (6616) show sustained focus on user-facing clarity.
-- Schema/observability audits stay active: fresh MCP structural (6621), schema consistency (6586), and safe-output health (6582) reports extend the validation/health trend from prior days.
-- Automation-heavy backlog slowly shrinking: weekly issues down to 191 with only 16 open; `plan`/`ai-generated` labels still dominate (105 each) and unlabeled issues persist at 26 (9 open), so hygiene remains a watch item.
+- Documentation quality push accelerated: multiple fresh doc-centric reports (6735 quality improvements, 6734 and 6707 noob tests) landing the same day as new Typist/type-consistency (6723) indicate sustained investment in docs clarity and type hygiene.
+- Structural audits remain daily: new MCP structural pass (6724) and continued Issue Arborist runs (6714 security hardening cluster, 6689 linking) show recurring infrastructure/consistency reviews.
+- Workflow noise persists but reduced: latest completed runs show recurring warning/error chatter even on successes (e.g., §20307028195, §20306579260), though only one failure surfaced in the last 10 runs.
+- Backlog keeps shrinking: weekly slice now 201 issues with 13 open (down from 16); `plan`/`ai-generated` labels still dominate at 113 each and unlabeled issues remain at 26 (8 open), keeping hygiene a steady concern.
