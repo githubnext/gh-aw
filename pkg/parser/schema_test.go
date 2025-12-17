@@ -805,8 +805,8 @@ func TestValidateMainWorkflowFrontmatterWithSchema(t *testing.T) {
 		{
 			name: "valid frontmatter with x-* custom fields",
 			frontmatter: map[string]any{
-				"on":     "push",
-				"engine": "copilot",
+				"on":              "push",
+				"engine":          "copilot",
 				"x-internal-note": "This is a custom annotation",
 				"x-metadata": map[string]any{
 					"team":     "platform",
