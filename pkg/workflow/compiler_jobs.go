@@ -150,9 +150,22 @@ func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
 	// Build pre-activation job if needed (combines membership checks, stop-time validation, skip-if-match check, and command position check)
 	var preActivationJobCreated bool
 	hasCommandTrigger := data.Command != ""
-	if needsPermissionCheck || hasStopTime || hasSkipIfMatch || hasCommandTrigger {
+	
+	// Extract jobs.pre-activation configuration from frontmatter if present
+	var preActivationConfig map[string]any
+	if data.Jobs != nil {
+		if config, exists := data.Jobs[constants.PreActivationJobName]; exists {
+			if configMap, ok := config.(map[string]any); ok {
+				preActivationConfig = configMap
+			}
+		}
+	}
+	
+	// Check if we need to create pre-activation job (either built-in checks or custom config)
+	hasPreActivationConfig := preActivationConfig != nil
+	if needsPermissionCheck || hasStopTime || hasSkipIfMatch || hasCommandTrigger || hasPreActivationConfig {
 		compilerJobsLog.Print("Building pre-activation job")
-		preActivationJob, err := c.buildPreActivationJob(data, needsPermissionCheck)
+		preActivationJob, err := c.buildPreActivationJob(data, needsPermissionCheck, preActivationConfig)
 		if err != nil {
 			return fmt.Errorf("failed to build %s job: %w", constants.PreActivationJobName, err)
 		}
@@ -765,10 +778,20 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName, markdownPat
 
 // buildPreActivationJob creates a unified pre-activation job that combines membership checks and stop-time validation
 // This job exposes a single "activated" output that indicates whether the workflow should proceed
-func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionCheck bool) (*Job, error) {
-	compilerJobsLog.Printf("Building pre-activation job: needsPermissionCheck=%v, hasStopTime=%v", needsPermissionCheck, data.StopTime != "")
+// The customConfig parameter allows importing steps and outputs from jobs.pre-activation frontmatter
+func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionCheck bool, customConfig map[string]any) (*Job, error) {
+	compilerJobsLog.Printf("Building pre-activation job: needsPermissionCheck=%v, hasStopTime=%v, hasCustomConfig=%v", needsPermissionCheck, data.StopTime != "", customConfig != nil)
 	var steps []string
 	var permissions string
+	
+	// Validate customConfig if present - only steps and outputs are allowed
+	if customConfig != nil {
+		for key := range customConfig {
+			if key != "steps" && key != "outputs" {
+				return nil, fmt.Errorf("jobs.pre-activation only supports 'steps' and 'outputs' fields, got unsupported field: '%s'", key)
+			}
+		}
+	}
 
 	// Add team member check if permission checks are needed
 	if needsPermissionCheck {
@@ -828,10 +851,29 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 		formattedScript := FormatJavaScriptForYAML(checkCommandPositionScript)
 		steps = append(steps, formattedScript...)
 	}
+	
+	// Import custom steps from jobs.pre-activation if present
+	if customConfig != nil {
+		if customSteps, hasSteps := customConfig["steps"]; hasSteps {
+			if stepsList, ok := customSteps.([]any); ok {
+				compilerJobsLog.Printf("Importing %d custom steps into pre-activation job", len(stepsList))
+				for _, step := range stepsList {
+					if stepMap, ok := step.(map[string]any); ok {
+						// Apply action pinning before converting to YAML
+						stepMap = ApplyActionPinToStep(stepMap, data)
+						
+						stepYAML, err := c.convertStepToYAML(stepMap)
+						if err != nil {
+							return nil, fmt.Errorf("failed to convert custom step to YAML for pre-activation job: %w", err)
+						}
+						steps = append(steps, stepYAML)
+					}
+				}
+			}
+		}
+	}
 
 	// Generate the activated output expression using expression builders
-	var activatedNode ConditionNode
-
 	// Build condition nodes for each check
 	var conditions []ConditionNode
 
@@ -876,26 +918,48 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 	}
 
 	// Build the final expression
-	if len(conditions) == 0 {
-		// This should never happen - it means pre-activation job was created without any checks
-		// If we reach this point, it's a developer error in the compiler logic
-		return nil, fmt.Errorf("developer error: pre-activation job created without permission check or stop-time configuration")
-	} else if len(conditions) == 1 {
-		// Single condition
-		activatedNode = conditions[0]
-	} else {
-		// Multiple conditions - combine with AND
-		activatedNode = conditions[0]
-		for i := 1; i < len(conditions); i++ {
-			activatedNode = BuildAnd(activatedNode, conditions[i])
+	// Note: If only custom config is provided without built-in checks, we don't create an "activated" output
+	// The custom outputs will be used directly
+	var outputs map[string]string
+	
+	if len(conditions) > 0 {
+		var activatedNode ConditionNode
+		if len(conditions) == 1 {
+			// Single condition
+			activatedNode = conditions[0]
+		} else {
+			// Multiple conditions - combine with AND
+			activatedNode = conditions[0]
+			for i := 1; i < len(conditions); i++ {
+				activatedNode = BuildAnd(activatedNode, conditions[i])
+			}
 		}
+
+		// Render the expression with ${{ }} wrapper
+		activatedExpression := fmt.Sprintf("${{ %s }}", activatedNode.Render())
+
+		outputs = map[string]string{
+			"activated": activatedExpression,
+		}
+	} else {
+		// No built-in conditions, only custom config
+		outputs = make(map[string]string)
 	}
-
-	// Render the expression with ${{ }} wrapper
-	activatedExpression := fmt.Sprintf("${{ %s }}", activatedNode.Render())
-
-	outputs := map[string]string{
-		"activated": activatedExpression,
+	
+	// Import custom outputs from jobs.pre-activation if present
+	if customConfig != nil {
+		if customOutputs, hasOutputs := customConfig["outputs"]; hasOutputs {
+			if outputsMap, ok := customOutputs.(map[string]any); ok {
+				compilerJobsLog.Printf("Importing %d custom outputs into pre-activation job", len(outputsMap))
+				for key, val := range outputsMap {
+					if valStr, ok := val.(string); ok {
+						outputs[key] = valStr
+					} else {
+						compilerJobsLog.Printf("Warning: output '%s' in jobs.pre-activation has non-string value (type: %T), ignoring", key, val)
+					}
+				}
+			}
+		}
 	}
 
 	// Pre-activation job uses the user's original if condition (data.If)
@@ -1299,6 +1363,12 @@ func (c *Compiler) extractJobsFromFrontmatter(frontmatter map[string]any) map[st
 func (c *Compiler) buildCustomJobs(data *WorkflowData, activationJobCreated bool) error {
 	compilerJobsLog.Printf("Building %d custom jobs", len(data.Jobs))
 	for jobName, jobConfig := range data.Jobs {
+		// Skip pre-activation job as it's handled separately
+		if jobName == constants.PreActivationJobName {
+			compilerJobsLog.Printf("Skipping job '%s' - handled separately by buildPreActivationJob", jobName)
+			continue
+		}
+		
 		if configMap, ok := jobConfig.(map[string]any); ok {
 			job := &Job{
 				Name: jobName,

@@ -80,7 +80,7 @@ func TestBuildPreActivationJobWithPermissionCheck(t *testing.T) {
 		},
 	}
 
-	job, err := compiler.buildPreActivationJob(workflowData, true)
+	job, err := compiler.buildPreActivationJob(workflowData, true, nil)
 	if err != nil {
 		t.Fatalf("buildPreActivationJob() returned error: %v", err)
 	}
@@ -115,7 +115,7 @@ func TestBuildPreActivationJobWithStopTime(t *testing.T) {
 		SafeOutputs: &SafeOutputsConfig{},
 	}
 
-	job, err := compiler.buildPreActivationJob(workflowData, false)
+	job, err := compiler.buildPreActivationJob(workflowData, false, nil)
 	if err != nil {
 		t.Fatalf("buildPreActivationJob() returned error: %v", err)
 	}
@@ -532,5 +532,188 @@ Test content`
 	// Check that result output is defined
 	if !strings.Contains(yamlStr, "result:") {
 		t.Error("Expected 'result' output")
+	}
+}
+
+// TestBuildPreActivationJobWithCustomConfig tests importing steps and outputs from jobs.pre-activation
+func TestBuildPreActivationJobWithCustomConfig(t *testing.T) {
+	compiler := NewCompiler(false, "", "test")
+
+	// Test with custom steps and outputs
+	customConfig := map[string]any{
+		"steps": []any{
+			map[string]any{
+				"name": "Custom Step",
+				"run":  "echo 'Hello from custom step'",
+				"id":   "custom_step",
+			},
+		},
+		"outputs": map[string]any{
+			"custom_output": "${{ steps.custom_step.outputs.value }}",
+		},
+	}
+
+	workflowData := &WorkflowData{
+		Name:        "Test Workflow",
+		SafeOutputs: &SafeOutputsConfig{},
+	}
+
+	job, err := compiler.buildPreActivationJob(workflowData, false, customConfig)
+	if err != nil {
+		t.Fatalf("buildPreActivationJob() returned error: %v", err)
+	}
+
+	// Check that custom steps were added
+	stepsContent := strings.Join(job.Steps, "")
+	if !strings.Contains(stepsContent, "Custom Step") {
+		t.Error("Expected 'Custom Step' to be present in steps")
+	}
+	if !strings.Contains(stepsContent, "echo 'Hello from custom step'") {
+		t.Error("Expected custom step command to be present")
+	}
+
+	// Check that custom outputs were added
+	if job.Outputs == nil {
+		t.Fatal("Expected job to have outputs")
+	}
+	if customOutput, ok := job.Outputs["custom_output"]; !ok {
+		t.Error("Expected 'custom_output' in outputs")
+	} else if !strings.Contains(customOutput, "steps.custom_step.outputs.value") {
+		t.Errorf("Expected custom output expression, got: %s", customOutput)
+	}
+}
+
+// TestBuildPreActivationJobWithCustomConfigAndBuiltInChecks tests combining custom config with built-in checks
+func TestBuildPreActivationJobWithCustomConfigAndBuiltInChecks(t *testing.T) {
+	compiler := NewCompiler(false, "", "test")
+
+	// Custom config with steps and outputs
+	customConfig := map[string]any{
+		"steps": []any{
+			map[string]any{
+				"name": "Custom Validation",
+				"run":  "echo 'Validating'",
+				"id":   "custom_validation",
+			},
+		},
+		"outputs": map[string]any{
+			"validation_result": "${{ steps.custom_validation.outputs.result }}",
+		},
+	}
+
+	workflowData := &WorkflowData{
+		Name:     "Test Workflow",
+		StopTime: "2024-12-31T23:59:59Z",
+		SafeOutputs: &SafeOutputsConfig{
+			CreateIssues: &CreateIssuesConfig{},
+		},
+	}
+
+	job, err := compiler.buildPreActivationJob(workflowData, true, customConfig)
+	if err != nil {
+		t.Fatalf("buildPreActivationJob() returned error: %v", err)
+	}
+
+	// Check that built-in steps are present
+	stepsContent := strings.Join(job.Steps, "")
+	if !strings.Contains(stepsContent, "Check stop-time limit") {
+		t.Error("Expected built-in 'Check stop-time limit' step")
+	}
+
+	// Check that custom steps were added
+	if !strings.Contains(stepsContent, "Custom Validation") {
+		t.Error("Expected custom 'Custom Validation' step")
+	}
+
+	// Check that both built-in and custom outputs are present
+	if job.Outputs == nil {
+		t.Fatal("Expected job to have outputs")
+	}
+	if _, ok := job.Outputs["activated"]; !ok {
+		t.Error("Expected built-in 'activated' output")
+	}
+	if _, ok := job.Outputs["validation_result"]; !ok {
+		t.Error("Expected custom 'validation_result' output")
+	}
+}
+
+// TestBuildPreActivationJobWithInvalidConfig tests error handling for unsupported fields
+func TestBuildPreActivationJobWithInvalidConfig(t *testing.T) {
+	compiler := NewCompiler(false, "", "test")
+
+	// Custom config with unsupported field
+	customConfig := map[string]any{
+		"steps": []any{
+			map[string]any{
+				"name": "Test Step",
+				"run":  "echo 'test'",
+			},
+		},
+		"needs": []string{"some-job"}, // This should cause an error
+	}
+
+	workflowData := &WorkflowData{
+		Name:        "Test Workflow",
+		SafeOutputs: &SafeOutputsConfig{},
+	}
+
+	_, err := compiler.buildPreActivationJob(workflowData, false, customConfig)
+	if err == nil {
+		t.Fatal("Expected error for unsupported field 'needs'")
+	}
+	if !strings.Contains(err.Error(), "only supports 'steps' and 'outputs' fields") {
+		t.Errorf("Expected error message about unsupported fields, got: %v", err)
+	}
+	if !strings.Contains(err.Error(), "needs") {
+		t.Errorf("Expected error message to mention 'needs', got: %v", err)
+	}
+}
+
+// TestBuildPreActivationJobWithOnlyCustomConfig tests pre-activation with only custom config (no built-in checks)
+func TestBuildPreActivationJobWithOnlyCustomConfig(t *testing.T) {
+	compiler := NewCompiler(false, "", "test")
+
+	// Only custom config, no built-in checks
+	customConfig := map[string]any{
+		"steps": []any{
+			map[string]any{
+				"name": "Custom Check",
+				"run":  "echo 'Checking'",
+				"id":   "check",
+			},
+		},
+		"outputs": map[string]any{
+			"check_result": "${{ steps.check.outputs.result }}",
+		},
+	}
+
+	workflowData := &WorkflowData{
+		Name:        "Test Workflow",
+		SafeOutputs: &SafeOutputsConfig{},
+	}
+
+	job, err := compiler.buildPreActivationJob(workflowData, false, customConfig)
+	if err != nil {
+		t.Fatalf("buildPreActivationJob() returned error: %v", err)
+	}
+
+	// Check that custom steps and outputs are present
+	stepsContent := strings.Join(job.Steps, "")
+	if !strings.Contains(stepsContent, "Custom Check") {
+		t.Error("Expected 'Custom Check' step")
+	}
+
+	if job.Outputs == nil {
+		t.Fatal("Expected job to have outputs")
+	}
+	
+	// Should NOT have the activated output since there are no built-in checks
+	if _, ok := job.Outputs["activated"]; ok {
+		t.Error("Did not expect 'activated' output when no built-in checks are present")
+	}
+	
+	// Should have custom output
+	if _, ok := job.Outputs["check_result"]; !ok {
+		t.Error("Expected 'check_result' output")
 	}
 }
