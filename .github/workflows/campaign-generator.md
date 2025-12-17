@@ -21,7 +21,6 @@ safe-outputs:
     body:
     target: "${{ github.event.issue.number }}"
   assign-to-agent:
-    name: "campaign-designer"
 timeout-minutes: 15
 ---
 
@@ -63,9 +62,9 @@ Your job is to:
    - Use clear markdown formatting with headers and sections
    - Include all campaign details in a structured format
 
-4. **Assign to the campaign designer agent** using the `assign-to-agent` safe output to hand off the implementation:
-   - Assign to the "campaign-designer" agent
-   - This agent will create the actual campaign files and pull request
+4. **Assign to the Copilot agent** using the `assign-to-agent` safe output to hand off the implementation:
+   - Assign to the Copilot agent to create the actual campaign files and pull request
+   - The agent will follow the campaign-designer instructions from `.github/agents/campaign-designer.agent.md`
 
 ## Campaign Spec Format for Issue Update
 
@@ -122,7 +121,7 @@ approval-policy:
 
 ---
 
-**Next Steps**: The campaign-designer agent will now create the campaign files and pull request for review.
+**Next Steps**: The Copilot agent (using campaign-designer instructions) will now create the campaign files and pull request for review.
 ```
 
 ## Important Guidelines
@@ -150,6 +149,6 @@ approval-policy:
 1. Read the issue body to extract project URL and campaign goal
 2. Generate comprehensive campaign details as an expert
 3. Use **update-issue** safe output to append the campaign specification to the issue body
-4. Use **assign-to-agent** safe output to assign the "campaign-designer" agent who will implement the campaign files
+4. Use **assign-to-agent** safe output to assign the Copilot agent who will implement the campaign files (the agent will follow campaign-designer instructions)
 
 Begin by reading the issue and generating the campaign spec!
