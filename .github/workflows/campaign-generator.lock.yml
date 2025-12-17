@@ -46,7 +46,6 @@
 #     body:
 #     target: "${{ github.event.issue.number }}"
 #   assign-to-agent:
-#     name: "campaign-designer"
 # timeout-minutes: 15
 # ```
 #
@@ -114,9 +113,9 @@
 #    - Use clear markdown formatting with headers and sections
 #    - Include all campaign details in a structured format
 #
-# 4. **Assign to the campaign designer agent** using the `assign-to-agent` safe output to hand off the implementation:
-#    - Assign to the "campaign-designer" agent
-#    - This agent will create the actual campaign files and pull request
+# 4. **Assign to the Copilot agent** using the `assign-to-agent` safe output to hand off the implementation:
+#    - Assign to the Copilot agent to create the actual campaign files and pull request
+#    - The agent will follow the campaign-designer instructions from `.github/agents/campaign-designer.agent.md`
 #
 # ## Campaign Spec Format for Issue Update
 #
@@ -173,7 +172,7 @@
 #
 # ---
 #
-# **Next Steps**: The campaign-designer agent will now create the campaign files and pull request for review.
+# **Next Steps**: The Copilot agent (using campaign-designer instructions) will now create the campaign files and pull request for review.
 # ```
 #
 # ## Important Guidelines
@@ -201,7 +200,7 @@
 # 1. Read the issue body to extract project URL and campaign goal
 # 2. Generate comprehensive campaign details as an expert
 # 3. Use **update-issue** safe output to append the campaign specification to the issue body
-# 4. Use **assign-to-agent** safe output to assign the "campaign-designer" agent who will implement the campaign files
+# 4. Use **assign-to-agent** safe output to assign the Copilot agent who will implement the campaign files (the agent will follow campaign-designer instructions)
 #
 # Begin by reading the issue and generating the campaign spec!
 # ```
@@ -508,7 +507,7 @@ jobs:
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
           cat > /tmp/gh-aw/safeoutputs/config.json << 'EOF'
-          {"assign_to_agent":{"default_agent":"campaign-designer"},"missing_tool":{"max":0},"noop":{"max":1},"update_issue":{"max":1}}
+          {"assign_to_agent":{},"missing_tool":{"max":0},"noop":{"max":1},"update_issue":{"max":1}}
           EOF
           cat > /tmp/gh-aw/safeoutputs/tools.json << 'EOF'
           [
@@ -2238,9 +2237,9 @@ jobs:
              - Use clear markdown formatting with headers and sections
              - Include all campaign details in a structured format
           
-          4. **Assign to the campaign designer agent** using the `assign-to-agent` safe output to hand off the implementation:
-             - Assign to the "campaign-designer" agent
-             - This agent will create the actual campaign files and pull request
+          4. **Assign to the Copilot agent** using the `assign-to-agent` safe output to hand off the implementation:
+             - Assign to the Copilot agent to create the actual campaign files and pull request
+             - The agent will follow the campaign-designer instructions from `.github/agents/campaign-designer.agent.md`
           
           ## Campaign Spec Format for Issue Update
           
@@ -2297,7 +2296,7 @@ jobs:
           
           ---
           
-          **Next Steps**: The campaign-designer agent will now create the campaign files and pull request for review.
+          **Next Steps**: The Copilot agent (using campaign-designer instructions) will now create the campaign files and pull request for review.
           ```
           
           ## Important Guidelines
@@ -2325,7 +2324,7 @@ jobs:
           1. Read the issue body to extract project URL and campaign goal
           2. Generate comprehensive campaign details as an expert
           3. Use **update-issue** safe output to append the campaign specification to the issue body
-          4. Use **assign-to-agent** safe output to assign the "campaign-designer" agent who will implement the campaign files
+          4. Use **assign-to-agent** safe output to assign the Copilot agent who will implement the campaign files (the agent will follow campaign-designer instructions)
           
           Begin by reading the issue and generating the campaign spec!
           
@@ -6434,7 +6433,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_AGENT_DEFAULT: "campaign-designer"
+          GH_AW_AGENT_DEFAULT: "copilot"
           GH_AW_AGENT_MAX_COUNT: 1
           GH_AW_WORKFLOW_NAME: "Campaign Generator"
           GH_AW_ENGINE_ID: "copilot"
