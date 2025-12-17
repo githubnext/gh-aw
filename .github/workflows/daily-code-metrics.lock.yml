@@ -949,7 +949,7 @@
 name: "Daily Code Metrics and Trend Tracking Agent"
 "on":
   schedule:
-  - cron: "16 4 * * *"
+  - cron: "57 17 * * *"
     # Friendly format: daily (scattered)
   workflow_dispatch: null
 
