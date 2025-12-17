@@ -33,6 +33,9 @@ jobs:
           SPEC_PATH=$(./gh-aw campaign new --from-issue /tmp/issue-body.txt)
           echo "campaign-id=$(basename "$SPEC_PATH" .campaign.md)" >> "$GITHUB_OUTPUT"
           echo "campaign-name=$(grep "^name:" "$SPEC_PATH" | sed 's/name: //')" >> "$GITHUB_OUTPUT"
+          
+          # Save issue body to submitted_issue.md for runtime-import reference
+          echo "$ISSUE_BODY" > .github/workflows/submitted_issue.md
 
       - run: ./gh-aw compile --validate --verbose
 
@@ -43,29 +46,10 @@ jobs:
           ISSUE_NUMBER: ${{ github.event.issue.number }}
         with:
           script: |
-            const fs = require('fs');
             const { execSync } = require('child_process');
             const id = process.env.CAMPAIGN_ID;
             const name = process.env.CAMPAIGN_NAME;
             const issue = process.env.ISSUE_NUMBER;
-            
-            // Process runtime-import macros in campaign spec
-            const specPath = `.github/workflows/${id}.campaign.md`;
-            let content = fs.readFileSync(specPath, 'utf8');
-            const pattern = /\{\{#runtime-import(\?)?[ \t]+([^\}]+?)\}\}/g;
-            let match;
-            while ((match = pattern.exec(content)) !== null) {
-              const optional = match[1] === '?';
-              const importPath = match[2].trim();
-              try {
-                const imported = fs.readFileSync(importPath, 'utf8');
-                content = content.replace(match[0], imported);
-              } catch (err) {
-                if (!optional) throw err;
-                content = content.replace(match[0], '');
-              }
-            }
-            fs.writeFileSync(specPath, content);
             
             execSync('git config user.name "github-actions[bot]"');
             execSync('git config user.email "github-actions[bot]@users.noreply.github.com"');

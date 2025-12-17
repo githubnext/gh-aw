@@ -159,8 +159,12 @@ func CreateSpecFromIssue(rootDir string, data *IssueFormData, force bool) (strin
 
 	if data.AdditionalContext != "" {
 		buf.WriteString("## Additional Context\n\n")
-		buf.WriteString(fmt.Sprintf("%s\n", data.AdditionalContext))
+		buf.WriteString(fmt.Sprintf("%s\n\n", data.AdditionalContext))
 	}
+
+	// Add runtime-import macro to reference the submitted issue
+	buf.WriteString("## Submitted Issue\n\n")
+	buf.WriteString("{{#runtime-import submitted_issue.md}}\n")
 
 	// Write the file
 	if err := os.WriteFile(fullPath, []byte(buf.String()), 0o644); err != nil {
