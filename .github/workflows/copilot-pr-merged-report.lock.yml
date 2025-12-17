@@ -635,10 +635,9 @@ jobs:
           COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
       - name: Install GitHub Copilot CLI
         run: |
-# Download Copilot CLI binary with SHA256 checksum verification
           COPILOT_VERSION="v0.0.369"
           COPILOT_REPO="github/copilot-cli"
-          COPILOT_PLATFORM="linux-x64"  # GitHub Actions runners are Linux x64
+          COPILOT_PLATFORM="linux-x64"
           COPILOT_ARCHIVE="copilot-$${COPILOT_PLATFORM}.tar.gz"
           COPILOT_URL="https://github.com/$${COPILOT_REPO}/releases/download/$${COPILOT_VERSION}/$${COPILOT_ARCHIVE}"
           CHECKSUMS_URL="https://github.com/$${COPILOT_REPO}/releases/download/$${COPILOT_VERSION}/checksums.txt"
@@ -9336,10 +9335,9 @@ jobs:
           COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
       - name: Install GitHub Copilot CLI
         run: |
-# Download Copilot CLI binary with SHA256 checksum verification
           COPILOT_VERSION="v0.0.369"
           COPILOT_REPO="github/copilot-cli"
-          COPILOT_PLATFORM="linux-x64"  # GitHub Actions runners are Linux x64
+          COPILOT_PLATFORM="linux-x64"
           COPILOT_ARCHIVE="copilot-$${COPILOT_PLATFORM}.tar.gz"
           COPILOT_URL="https://github.com/$${COPILOT_REPO}/releases/download/$${COPILOT_VERSION}/$${COPILOT_ARCHIVE}"
           CHECKSUMS_URL="https://github.com/$${COPILOT_REPO}/releases/download/$${COPILOT_VERSION}/checksums.txt"

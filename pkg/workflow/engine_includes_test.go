@@ -248,9 +248,16 @@ This should use the default engine.
 	}
 	lockStr := string(lockContent)
 
-	// Should contain references to copilot CLI (default engine) using new installer
-	if !strings.Contains(lockStr, "curl -fsSL https://gh.io/copilot-install") {
-		t.Error("Expected lock file to contain copilot CLI installer reference")
+	// Should contain references to copilot CLI (default engine) with checksum verification
+	if !strings.Contains(lockStr, "COPILOT_VERSION=\"v") ||
+		!strings.Contains(lockStr, "sha256sum") ||
+		!strings.Contains(lockStr, "Checksum verification") {
+		t.Error("Expected lock file to contain copilot CLI installation with checksum verification")
+	}
+
+	// Should NOT contain old installer script pattern
+	if strings.Contains(lockStr, "gh.io/copilot-install") {
+		t.Error("Lock file should not contain old installer script pattern (gh.io/copilot-install)")
 	}
 }
 

@@ -7,11 +7,11 @@ import (
 
 func TestGenerateCopilotInstallerSteps(t *testing.T) {
 	tests := []struct {
-		name            string
-		version         string
-		stepName        string
-		expectedVersion string
-		shouldContain   []string
+		name             string
+		version          string
+		stepName         string
+		expectedVersion  string
+		shouldContain    []string
 		shouldNotContain []string
 	}{
 		{
@@ -30,7 +30,7 @@ func TestGenerateCopilotInstallerSteps(t *testing.T) {
 				"name: Install GitHub Copilot CLI",
 			},
 			shouldNotContain: []string{
-				"gh.io/copilot-install",  // Should not use installer script
+				"gh.io/copilot-install", // Should not use installer script
 			},
 		},
 		{
@@ -138,7 +138,7 @@ func TestCopilotInstallerVersionPassthrough(t *testing.T) {
 	if !strings.Contains(installStep, "COPILOT_VERSION=\"v0.0.369\"") {
 		t.Errorf("Expected default version v0.0.369 in install step, got:\n%s", installStep)
 	}
-	
+
 	// Should contain checksum verification
 	if !strings.Contains(installStep, "sha256sum") {
 		t.Errorf("Expected checksum verification in install step, got:\n%s", installStep)
@@ -177,7 +177,7 @@ func TestCopilotInstallerCustomVersion(t *testing.T) {
 	if !strings.Contains(installStep, "COPILOT_VERSION=\"v"+customVersion+"\"") {
 		t.Errorf("Expected custom version v%s in install step, got:\n%s", customVersion, installStep)
 	}
-	
+
 	// Should contain checksum verification
 	if !strings.Contains(installStep, "checksums.txt") {
 		t.Errorf("Expected checksums.txt download in install step, got:\n%s", installStep)
