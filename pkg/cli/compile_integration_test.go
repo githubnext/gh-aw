@@ -454,6 +454,11 @@ This workflow tests fuzzy daily schedule compilation.
 	lines := strings.Split(lockContentStr, "\n")
 	foundCron := false
 	for _, line := range lines {
+		trimmedLine := strings.TrimSpace(line)
+		// Skip comment lines
+		if strings.HasPrefix(trimmedLine, "#") {
+			continue
+		}
 		if strings.Contains(line, "cron:") {
 			foundCron = true
 			// Extract the cron value
@@ -581,4 +586,115 @@ This workflow tests deterministic fuzzy daily schedule compilation.
 	} else {
 		t.Logf("Fuzzy daily schedule compilation is deterministic (results are identical)")
 	}
+}
+
+// TestCompileWithFuzzyDailyScheduleArrayFormat tests compilation of workflows with fuzzy "daily" schedule in array format
+func TestCompileWithFuzzyDailyScheduleArrayFormat(t *testing.T) {
+	setup := setupIntegrationTest(t)
+	defer setup.cleanup()
+
+	// Create a test markdown workflow file with fuzzy daily schedule in array format
+	testWorkflow := `---
+name: Fuzzy Daily Schedule Array Format Test
+on:
+  schedule:
+    - cron: daily
+  workflow_dispatch:
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+engine: copilot
+---
+
+# Fuzzy Daily Schedule Array Format Test
+
+This workflow tests fuzzy daily schedule compilation using array format with cron field.
+`
+
+	testWorkflowPath := filepath.Join(setup.workflowsDir, "daily-array-test.md")
+	if err := os.WriteFile(testWorkflowPath, []byte(testWorkflow), 0644); err != nil {
+		t.Fatalf("Failed to write test workflow file: %v", err)
+	}
+
+	// Run the compile command
+	cmd := exec.Command(setup.binaryPath, "compile", testWorkflowPath)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("CLI compile command failed: %v\nOutput: %s", err, string(output))
+	}
+
+	// Check that the compiled .lock.yml file was created
+	lockFilePath := filepath.Join(setup.workflowsDir, "daily-array-test.lock.yml")
+	if _, err := os.Stat(lockFilePath); os.IsNotExist(err) {
+		t.Fatalf("Expected lock file %s was not created", lockFilePath)
+	}
+
+	// Read and verify the generated lock file contains expected content
+	lockContent, err := os.ReadFile(lockFilePath)
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+
+	lockContentStr := string(lockContent)
+
+	// Verify that the schedule was processed (should contain "schedule:" section)
+	if !strings.Contains(lockContentStr, "schedule:") {
+		t.Errorf("Lock file should contain schedule section")
+	}
+
+	// Verify that the cron expression is valid (5 fields)
+	// The fuzzy schedule should have been scattered to a concrete cron expression
+	lines := strings.Split(lockContentStr, "\n")
+	foundCron := false
+	for _, line := range lines {
+		trimmedLine := strings.TrimSpace(line)
+		// Skip comment lines
+		if strings.HasPrefix(trimmedLine, "#") {
+			continue
+		}
+		if strings.Contains(line, "cron:") {
+			foundCron = true
+			// Extract the cron value
+			cronLine := strings.TrimSpace(line)
+			// Should look like: - cron: "0 14 * * *"
+			if !strings.Contains(cronLine, "cron:") {
+				continue
+			}
+
+			// Verify it's not still in fuzzy format
+			if strings.Contains(cronLine, "FUZZY:") {
+				t.Errorf("Lock file should not contain FUZZY: schedule, but got: %s", cronLine)
+			}
+
+			// Extract and validate cron expression format
+			cronParts := strings.Split(cronLine, "\"")
+			if len(cronParts) >= 2 {
+				cronExpr := cronParts[1]
+				fields := strings.Fields(cronExpr)
+				if len(fields) != 5 {
+					t.Errorf("Cron expression should have 5 fields, got %d: %s", len(fields), cronExpr)
+				}
+
+				// Verify it's a daily pattern (minute hour * * *)
+				if fields[2] != "*" || fields[3] != "*" || fields[4] != "*" {
+					t.Errorf("Expected daily pattern (minute hour * * *), got: %s", cronExpr)
+				}
+
+				t.Logf("Successfully compiled fuzzy daily schedule (array format) to: %s", cronExpr)
+			}
+			break
+		}
+	}
+
+	if !foundCron {
+		t.Errorf("Could not find cron expression in lock file")
+	}
+
+	// Verify workflow name is present
+	if !strings.Contains(lockContentStr, "name: \"Fuzzy Daily Schedule Array Format Test\"") {
+		t.Errorf("Lock file should contain the workflow name")
+	}
+
+	t.Logf("Integration test passed - successfully compiled fuzzy daily schedule (array format) to %s", lockFilePath)
 }
