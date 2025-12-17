@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"os"
 	"os/exec"
 	"strings"
@@ -17,6 +18,26 @@ import (
 )
 
 var mcpInspectServerLog = logger.New("cli:mcp_inspect_server")
+
+// headerRoundTripper is a custom http.RoundTripper that adds custom headers to all requests
+type headerRoundTripper struct {
+	base    http.RoundTripper
+	headers map[string]string
+}
+
+// RoundTrip implements http.RoundTripper interface
+func (h *headerRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
+	// Clone the request to avoid modifying the original
+	reqCopy := req.Clone(req.Context())
+
+	// Add custom headers
+	for key, value := range h.headers {
+		reqCopy.Header.Set(key, value)
+	}
+
+	// Use the base transport to perform the request
+	return h.base.RoundTrip(reqCopy)
+}
 
 // inspectMCPServer connects to an MCP server and queries its capabilities
 func inspectMCPServer(config parser.MCPServerConfig, toolFilter string, verbose bool, useActionsSecrets bool) error {
@@ -217,6 +238,22 @@ func connectHTTPMCPServer(ctx context.Context, config parser.MCPServerConfig, ve
 	// Create streamable client transport for HTTP
 	transport := &mcp.StreamableClientTransport{
 		Endpoint: config.URL,
+	}
+
+	// Add custom headers if provided
+	if len(config.Headers) > 0 {
+		// Create a custom HTTP client with header injection
+		baseTransport := http.DefaultTransport
+		if baseTransport == nil {
+			baseTransport = &http.Transport{}
+		}
+
+		transport.HTTPClient = &http.Client{
+			Transport: &headerRoundTripper{
+				base:    baseTransport,
+				headers: config.Headers,
+			},
+		}
 	}
 
 	// Create a timeout context for connection
