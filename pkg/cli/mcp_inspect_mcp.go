@@ -258,11 +258,11 @@ func connectHTTPMCPServer(ctx context.Context, config parser.MCPServerConfig, ve
 		}
 	}
 
-	// Create a timeout context for connection
-	connectCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	// Create a timeout context for connection with retry
+	connectCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 
-	session, err := client.Connect(connectCtx, transport, nil)
+	session, err := connectWithRetry(connectCtx, client, transport, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to HTTP MCP server: %w", err)
 	}
