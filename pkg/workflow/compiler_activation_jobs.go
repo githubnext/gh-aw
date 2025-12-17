@@ -1,0 +1,538 @@
+package workflow
+
+import (
+	"fmt"
+	"strings"
+
+	"github.com/githubnext/gh-aw/pkg/constants"
+	"github.com/githubnext/gh-aw/pkg/logger"
+)
+
+var compilerActivationJobsLog = logger.New("workflow:compiler_activation_jobs")
+
+// buildPreActivationJob creates a unified pre-activation job that combines membership checks and stop-time validation.
+// This job exposes a single "activated" output that indicates whether the workflow should proceed.
+func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionCheck bool) (*Job, error) {
+	compilerActivationJobsLog.Printf("Building pre-activation job: needsPermissionCheck=%v, hasStopTime=%v", needsPermissionCheck, data.StopTime != "")
+	var steps []string
+	var permissions string
+
+	// Add team member check if permission checks are needed
+	if needsPermissionCheck {
+		steps = c.generateMembershipCheck(data, steps)
+	}
+
+	// Add stop-time check if configured
+	if data.StopTime != "" {
+		// Extract workflow name for the stop-time check
+		workflowName := data.Name
+
+		steps = append(steps, "      - name: Check stop-time limit\n")
+		steps = append(steps, fmt.Sprintf("        id: %s\n", constants.CheckStopTimeStepID))
+		steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))
+		steps = append(steps, "        env:\n")
+		steps = append(steps, fmt.Sprintf("          GH_AW_STOP_TIME: %s\n", data.StopTime))
+		steps = append(steps, fmt.Sprintf("          GH_AW_WORKFLOW_NAME: %q\n", workflowName))
+		steps = append(steps, "        with:\n")
+		steps = append(steps, "          script: |\n")
+
+		// Add the JavaScript script with proper indentation
+		formattedScript := FormatJavaScriptForYAML(checkStopTimeScript)
+		steps = append(steps, formattedScript...)
+	}
+
+	// Add skip-if-match check if configured
+	if data.SkipIfMatch != nil {
+		// Extract workflow name for the skip-if-match check
+		workflowName := data.Name
+
+		steps = append(steps, "      - name: Check skip-if-match query\n")
+		steps = append(steps, fmt.Sprintf("        id: %s\n", constants.CheckSkipIfMatchStepID))
+		steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))
+		steps = append(steps, "        env:\n")
+		steps = append(steps, fmt.Sprintf("          GH_AW_SKIP_QUERY: %q\n", data.SkipIfMatch.Query))
+		steps = append(steps, fmt.Sprintf("          GH_AW_WORKFLOW_NAME: %q\n", workflowName))
+		steps = append(steps, fmt.Sprintf("          GH_AW_SKIP_MAX_MATCHES: \"%d\"\n", data.SkipIfMatch.Max))
+		steps = append(steps, "        with:\n")
+		steps = append(steps, "          script: |\n")
+
+		// Add the JavaScript script with proper indentation
+		formattedScript := FormatJavaScriptForYAML(checkSkipIfMatchScript)
+		steps = append(steps, formattedScript...)
+	}
+
+	// Add command position check if this is a command workflow
+	if data.Command != "" {
+		steps = append(steps, "      - name: Check command position\n")
+		steps = append(steps, fmt.Sprintf("        id: %s\n", constants.CheckCommandPositionStepID))
+		steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))
+		steps = append(steps, "        env:\n")
+		steps = append(steps, fmt.Sprintf("          GH_AW_COMMAND: %s\n", data.Command))
+		steps = append(steps, "        with:\n")
+		steps = append(steps, "          script: |\n")
+
+		// Add the JavaScript script with proper indentation
+		formattedScript := FormatJavaScriptForYAML(checkCommandPositionScript)
+		steps = append(steps, formattedScript...)
+	}
+
+	// Generate the activated output expression using expression builders
+	var activatedNode ConditionNode
+
+	// Build condition nodes for each check
+	var conditions []ConditionNode
+
+	if needsPermissionCheck {
+		// Add membership check condition
+		membershipCheck := BuildComparison(
+			BuildPropertyAccess(fmt.Sprintf("steps.%s.outputs.%s", constants.CheckMembershipStepID, constants.IsTeamMemberOutput)),
+			"==",
+			BuildStringLiteral("true"),
+		)
+		conditions = append(conditions, membershipCheck)
+	}
+
+	if data.StopTime != "" {
+		// Add stop-time check condition
+		stopTimeCheck := BuildComparison(
+			BuildPropertyAccess(fmt.Sprintf("steps.%s.outputs.%s", constants.CheckStopTimeStepID, constants.StopTimeOkOutput)),
+			"==",
+			BuildStringLiteral("true"),
+		)
+		conditions = append(conditions, stopTimeCheck)
+	}
+
+	if data.SkipIfMatch != nil {
+		// Add skip-if-match check condition
+		skipCheckOk := BuildComparison(
+			BuildPropertyAccess(fmt.Sprintf("steps.%s.outputs.%s", constants.CheckSkipIfMatchStepID, constants.SkipCheckOkOutput)),
+			"==",
+			BuildStringLiteral("true"),
+		)
+		conditions = append(conditions, skipCheckOk)
+	}
+
+	if data.Command != "" {
+		// Add command position check condition
+		commandPositionCheck := BuildComparison(
+			BuildPropertyAccess(fmt.Sprintf("steps.%s.outputs.%s", constants.CheckCommandPositionStepID, constants.CommandPositionOkOutput)),
+			"==",
+			BuildStringLiteral("true"),
+		)
+		conditions = append(conditions, commandPositionCheck)
+	}
+
+	// Build the final expression
+	if len(conditions) == 0 {
+		// This should never happen - it means pre-activation job was created without any checks
+		// If we reach this point, it's a developer error in the compiler logic
+		return nil, fmt.Errorf("developer error: pre-activation job created without permission check or stop-time configuration")
+	} else if len(conditions) == 1 {
+		// Single condition
+		activatedNode = conditions[0]
+	} else {
+		// Multiple conditions - combine with AND
+		activatedNode = conditions[0]
+		for i := 1; i < len(conditions); i++ {
+			activatedNode = BuildAnd(activatedNode, conditions[i])
+		}
+	}
+
+	// Render the expression with ${{ }} wrapper
+	activatedExpression := fmt.Sprintf("${{ %s }}", activatedNode.Render())
+
+	outputs := map[string]string{
+		"activated": activatedExpression,
+	}
+
+	// Pre-activation job uses the user's original if condition (data.If)
+	// The workflow_run safety check is NOT applied here - it's only on the activation job
+	// Don't include conditions that reference custom job outputs (those belong on the agent job)
+	var jobIfCondition string
+	if !c.referencesCustomJobOutputs(data.If, data.Jobs) {
+		jobIfCondition = data.If
+	}
+
+	job := &Job{
+		Name:        constants.PreActivationJobName,
+		If:          jobIfCondition,
+		RunsOn:      c.formatSafeOutputsRunsOn(data.SafeOutputs),
+		Permissions: permissions,
+		Steps:       steps,
+		Outputs:     outputs,
+	}
+
+	return job, nil
+}
+
+// buildActivationJob creates the activation job that handles timestamp checking, reactions, and locking.
+// This job depends on the pre-activation job if it exists, and runs before the main agent job.
+func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreated bool, workflowRunRepoSafety string, lockFilename string) (*Job, error) {
+	outputs := map[string]string{}
+	var steps []string
+
+	// Team member check is now handled by the separate check_membership job
+	// No inline role checks needed in the task job anymore
+
+	// Add timestamp check for lock file vs source file using GitHub API
+	// No checkout step needed - uses GitHub API to check commit times
+	steps = append(steps, "      - name: Check workflow file timestamps\n")
+	steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))
+	steps = append(steps, "        env:\n")
+	steps = append(steps, fmt.Sprintf("          GH_AW_WORKFLOW_FILE: \"%s\"\n", lockFilename))
+	steps = append(steps, "        with:\n")
+	steps = append(steps, "          script: |\n")
+
+	// Add the JavaScript script with proper indentation (using API-based version)
+	formattedScript := FormatJavaScriptForYAML(checkWorkflowTimestampAPIScript)
+	steps = append(steps, formattedScript...)
+
+	// Use inlined compute-text script only if needed (no shared action)
+	if data.NeedsTextOutput {
+		steps = append(steps, "      - name: Compute current body text\n")
+		steps = append(steps, "        id: compute-text\n")
+		steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))
+		steps = append(steps, "        with:\n")
+		steps = append(steps, "          script: |\n")
+
+		// Inline the JavaScript directly instead of using shared action
+		steps = append(steps, FormatJavaScriptForYAML(getComputeTextScript())...)
+
+		// Set up outputs
+		outputs["text"] = "${{ steps.compute-text.outputs.text }}"
+	}
+
+	// Add reaction step if ai-reaction is configured and not "none"
+	if data.AIReaction != "" && data.AIReaction != "none" {
+		reactionCondition := BuildReactionCondition()
+
+		steps = append(steps, fmt.Sprintf("      - name: Add %s reaction to the triggering item\n", data.AIReaction))
+		steps = append(steps, "        id: react\n")
+		steps = append(steps, fmt.Sprintf("        if: %s\n", reactionCondition.Render()))
+		steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))
+
+		// Add environment variables
+		steps = append(steps, "        env:\n")
+		// Quote the reaction value to prevent YAML interpreting +1/-1 as integers
+		steps = append(steps, fmt.Sprintf("          GH_AW_REACTION: %q\n", data.AIReaction))
+		if data.Command != "" {
+			steps = append(steps, fmt.Sprintf("          GH_AW_COMMAND: %s\n", data.Command))
+		}
+		steps = append(steps, fmt.Sprintf("          GH_AW_WORKFLOW_NAME: %q\n", data.Name))
+
+		// Add tracker-id if present
+		if data.TrackerID != "" {
+			steps = append(steps, fmt.Sprintf("          GH_AW_TRACKER_ID: %q\n", data.TrackerID))
+		}
+
+		// Add lock-for-agent status if enabled
+		if data.LockForAgent {
+			steps = append(steps, "          GH_AW_LOCK_FOR_AGENT: \"true\"\n")
+		}
+
+		// Pass custom messages config if present (for custom run-started messages)
+		if data.SafeOutputs != nil && data.SafeOutputs.Messages != nil {
+			messagesJSON, err := serializeMessagesConfig(data.SafeOutputs.Messages)
+			if err != nil {
+				compilerActivationJobsLog.Printf("Warning: failed to serialize messages config for activation job: %v", err)
+			} else if messagesJSON != "" {
+				steps = append(steps, fmt.Sprintf("          GH_AW_SAFE_OUTPUT_MESSAGES: %q\n", messagesJSON))
+			}
+		}
+
+		steps = append(steps, "        with:\n")
+		steps = append(steps, "          script: |\n")
+
+		// Add each line of the script with proper indentation (bundled version with messages.cjs)
+		formattedScript := FormatJavaScriptForYAML(getAddReactionAndEditCommentScript())
+		steps = append(steps, formattedScript...)
+
+		// Add reaction outputs
+		outputs["reaction_id"] = "${{ steps.react.outputs.reaction-id }}"
+		outputs["comment_id"] = "${{ steps.react.outputs.comment-id }}"
+		outputs["comment_url"] = "${{ steps.react.outputs.comment-url }}"
+		outputs["comment_repo"] = "${{ steps.react.outputs.comment-repo }}"
+	}
+
+	// Add lock step if lock-for-agent is enabled
+	if data.LockForAgent {
+		// Build condition: only lock if event type is 'issues' or 'issue_comment'
+		// lock-for-agent can be configured under on.issues or on.issue_comment
+		// For issue_comment events, context.issue.number automatically resolves to the parent issue
+		lockCondition := BuildOr(
+			BuildEventTypeEquals("issues"),
+			BuildEventTypeEquals("issue_comment"),
+		)
+
+		steps = append(steps, "      - name: Lock issue for agent workflow\n")
+		steps = append(steps, "        id: lock-issue\n")
+		steps = append(steps, fmt.Sprintf("        if: %s\n", lockCondition.Render()))
+		steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))
+		steps = append(steps, "        with:\n")
+		steps = append(steps, "          script: |\n")
+
+		// Add the lock-issue script
+		formattedScript := FormatJavaScriptForYAML(lockIssueScript)
+		steps = append(steps, formattedScript...)
+
+		// Add output for tracking if issue was locked
+		outputs["issue_locked"] = "${{ steps.lock-issue.outputs.locked }}"
+
+		// Add lock message to reaction comment if reaction is enabled
+		if data.AIReaction != "" && data.AIReaction != "none" {
+			compilerActivationJobsLog.Print("Adding lock notification to reaction message")
+		}
+	}
+
+	// Always declare comment_id and comment_repo outputs to avoid actionlint errors
+	// These will be empty if no reaction is configured, and the scripts handle empty values gracefully
+	// Use plain empty strings (quoted) to avoid triggering security scanners like zizmor
+	if _, exists := outputs["comment_id"]; !exists {
+		outputs["comment_id"] = `""`
+	}
+	if _, exists := outputs["comment_repo"]; !exists {
+		outputs["comment_repo"] = `""`
+	}
+
+	// If no steps have been added, add a dummy step to make the job valid
+	// This can happen when the activation job is created only for an if condition
+	if len(steps) == 0 {
+		steps = append(steps, "      - run: echo \"Activation success\"\n")
+	}
+
+	// Build the conditional expression that validates activation status and other conditions
+	var activationNeeds []string
+	var activationCondition string
+
+	// Find custom jobs that depend on pre_activation - these run before activation
+	customJobsBeforeActivation := c.getCustomJobsDependingOnPreActivation(data.Jobs)
+
+	if preActivationJobCreated {
+		// Activation job depends on pre-activation job and checks the "activated" output
+		activationNeeds = []string{constants.PreActivationJobName}
+
+		// Also depend on custom jobs that run after pre_activation but before activation
+		activationNeeds = append(activationNeeds, customJobsBeforeActivation...)
+
+		activatedExpr := BuildEquals(
+			BuildPropertyAccess(fmt.Sprintf("needs.%s.outputs.%s", constants.PreActivationJobName, constants.ActivatedOutput)),
+			BuildStringLiteral("true"),
+		)
+
+		// If there are custom jobs before activation and the if condition references them,
+		// include that condition in the activation job's if clause
+		if data.If != "" && c.referencesCustomJobOutputs(data.If, data.Jobs) && len(customJobsBeforeActivation) > 0 {
+			// Include the custom job output condition in the activation job
+			unwrappedIf := stripExpressionWrapper(data.If)
+			ifExpr := &ExpressionNode{Expression: unwrappedIf}
+			combinedExpr := BuildAnd(activatedExpr, ifExpr)
+			activationCondition = combinedExpr.Render()
+		} else if data.If != "" && !c.referencesCustomJobOutputs(data.If, data.Jobs) {
+			// Include user's if condition that doesn't reference custom jobs
+			unwrappedIf := stripExpressionWrapper(data.If)
+			ifExpr := &ExpressionNode{Expression: unwrappedIf}
+			combinedExpr := BuildAnd(activatedExpr, ifExpr)
+			activationCondition = combinedExpr.Render()
+		} else {
+			activationCondition = activatedExpr.Render()
+		}
+	} else {
+		// No pre-activation check needed
+		// Add custom jobs that would run before activation as dependencies
+		activationNeeds = append(activationNeeds, customJobsBeforeActivation...)
+
+		if data.If != "" && c.referencesCustomJobOutputs(data.If, data.Jobs) && len(customJobsBeforeActivation) > 0 {
+			// Include the custom job output condition
+			activationCondition = data.If
+		} else if !c.referencesCustomJobOutputs(data.If, data.Jobs) {
+			activationCondition = data.If
+		}
+	}
+
+	// Apply workflow_run repository safety check exclusively to activation job
+	// This check is combined with any existing activation condition
+	if workflowRunRepoSafety != "" {
+		activationCondition = c.combineJobIfConditions(activationCondition, workflowRunRepoSafety)
+	}
+
+	// Set permissions - activation job always needs contents:read for GitHub API access
+	// Also add reaction permissions if reaction is configured and not "none"
+	// Also add issues:write permission if lock-for-agent is enabled (for locking issues)
+	permsMap := map[PermissionScope]PermissionLevel{
+		PermissionContents: PermissionRead, // Always needed for GitHub API access to check file commits
+	}
+
+	if data.AIReaction != "" && data.AIReaction != "none" {
+		permsMap[PermissionDiscussions] = PermissionWrite
+		permsMap[PermissionIssues] = PermissionWrite
+		permsMap[PermissionPullRequests] = PermissionWrite
+	}
+
+	// Add issues:write permission if lock-for-agent is enabled (even without reaction)
+	if data.LockForAgent {
+		permsMap[PermissionIssues] = PermissionWrite
+	}
+
+	perms := NewPermissionsFromMap(permsMap)
+	permissions := perms.RenderToYAML()
+
+	// Set environment if manual-approval is configured
+	var environment string
+	if data.ManualApproval != "" {
+		environment = fmt.Sprintf("environment: %s", data.ManualApproval)
+	}
+
+	job := &Job{
+		Name:                       constants.ActivationJobName,
+		If:                         activationCondition,
+		HasWorkflowRunSafetyChecks: workflowRunRepoSafety != "", // Mark job as having workflow_run safety checks
+		RunsOn:                     c.formatSafeOutputsRunsOn(data.SafeOutputs),
+		Permissions:                permissions,
+		Environment:                environment,
+		Steps:                      steps,
+		Outputs:                    outputs,
+		Needs:                      activationNeeds, // Depend on pre-activation job if it exists
+	}
+
+	return job, nil
+}
+
+// buildMainJob creates the main agent job that runs the AI agent with the configured engine and tools.
+// This job depends on the activation job if it exists, and handles the main workflow logic.
+func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (*Job, error) {
+	log.Printf("Building main job for workflow: %s", data.Name)
+	var steps []string
+
+	// Find custom jobs that depend on pre_activation - these are handled by the activation job
+	customJobsBeforeActivation := c.getCustomJobsDependingOnPreActivation(data.Jobs)
+
+	var jobCondition = data.If
+	if activationJobCreated {
+		// If the if condition references custom jobs that run before activation,
+		// the activation job handles the condition, so clear it here
+		if c.referencesCustomJobOutputs(data.If, data.Jobs) && len(customJobsBeforeActivation) > 0 {
+			jobCondition = "" // Activation job handles this condition
+		} else if !c.referencesCustomJobOutputs(data.If, data.Jobs) {
+			jobCondition = "" // Main job depends on activation job, so no need for inline condition
+		}
+		// Note: If data.If references custom jobs that DON'T depend on pre_activation,
+		// we keep the condition on the agent job
+	}
+
+	// Note: workflow_run repository safety check is applied exclusively to activation job
+
+	// Permission checks are now handled by the separate check_membership job
+	// No role checks needed in the main job
+
+	// Build step content using the generateMainJobSteps helper method
+	// but capture it into a string instead of writing directly
+	var stepBuilder strings.Builder
+	c.generateMainJobSteps(&stepBuilder, data)
+
+	// Split the steps content into individual step entries
+	stepsContent := stepBuilder.String()
+	if stepsContent != "" {
+		steps = append(steps, stepsContent)
+	}
+
+	var depends []string
+	if activationJobCreated {
+		depends = []string{constants.ActivationJobName} // Depend on the activation job only if it exists
+	}
+
+	// Add custom jobs as dependencies only if they don't depend on pre_activation or agent
+	// Custom jobs that depend on pre_activation are now dependencies of activation,
+	// so the agent job gets them transitively through activation
+	// Custom jobs that depend on agent should run AFTER the agent job, not before it
+	if data.Jobs != nil {
+		for jobName := range data.Jobs {
+			// Only add as direct dependency if it doesn't depend on pre_activation or agent
+			// (jobs that depend on pre_activation are handled through activation)
+			// (jobs that depend on agent are post-execution jobs like failure handlers)
+			if configMap, ok := data.Jobs[jobName].(map[string]any); ok {
+				if !jobDependsOnPreActivation(configMap) && !jobDependsOnAgent(configMap) {
+					depends = append(depends, jobName)
+				}
+			}
+		}
+	}
+
+	// IMPORTANT: Even though jobs that depend on pre_activation are transitively accessible
+	// through the activation job, if the workflow content directly references their outputs
+	// (e.g., ${{ needs.search_issues.outputs.* }}), we MUST add them as direct dependencies.
+	// This is required for GitHub Actions expression evaluation and actionlint validation.
+	referencedJobs := c.getReferencedCustomJobs(data.MarkdownContent, data.Jobs)
+	for _, jobName := range referencedJobs {
+		// Check if this job is already in depends
+		alreadyDepends := false
+		for _, dep := range depends {
+			if dep == jobName {
+				alreadyDepends = true
+				break
+			}
+		}
+		// Add it if not already present
+		if !alreadyDepends {
+			depends = append(depends, jobName)
+			compilerActivationJobsLog.Printf("Added direct dependency on custom job '%s' because it's referenced in workflow content", jobName)
+		}
+	}
+
+	// Build outputs for all engines (GH_AW_SAFE_OUTPUTS functionality)
+	// Build job outputs
+	// Always include model output for reuse in other jobs
+	outputs := map[string]string{
+		"model": "${{ steps.generate_aw_info.outputs.model }}",
+	}
+
+	// Add safe-output specific outputs if the workflow uses the safe-outputs feature
+	if data.SafeOutputs != nil {
+		outputs["output"] = "${{ steps.collect_output.outputs.output }}"
+		outputs["output_types"] = "${{ steps.collect_output.outputs.output_types }}"
+		outputs["has_patch"] = "${{ steps.collect_output.outputs.has_patch }}"
+	}
+
+	// Build job-level environment variables for safe outputs
+	var env map[string]string
+	if data.SafeOutputs != nil {
+		env = make(map[string]string)
+
+		// Set GH_AW_SAFE_OUTPUTS to fixed path
+		env["GH_AW_SAFE_OUTPUTS"] = "/tmp/gh-aw/safeoutputs/outputs.jsonl"
+
+		// Set GH_AW_MCP_LOG_DIR for safe outputs MCP server logging
+		// Store in mcp-logs directory so it's included in mcp-logs artifact
+		env["GH_AW_MCP_LOG_DIR"] = "/tmp/gh-aw/mcp-logs/safeoutputs"
+
+		// Set config and tools paths (files are written to these paths)
+		env["GH_AW_SAFE_OUTPUTS_CONFIG_PATH"] = "/tmp/gh-aw/safeoutputs/config.json"
+		env["GH_AW_SAFE_OUTPUTS_TOOLS_PATH"] = "/tmp/gh-aw/safeoutputs/tools.json"
+
+		// Add asset-related environment variables if upload-assets is configured
+		if data.SafeOutputs.UploadAssets != nil {
+			env["GH_AW_ASSETS_BRANCH"] = fmt.Sprintf("%q", data.SafeOutputs.UploadAssets.BranchName)
+			env["GH_AW_ASSETS_MAX_SIZE_KB"] = fmt.Sprintf("%d", data.SafeOutputs.UploadAssets.MaxSizeKB)
+			env["GH_AW_ASSETS_ALLOWED_EXTS"] = fmt.Sprintf("%q", strings.Join(data.SafeOutputs.UploadAssets.AllowedExts, ","))
+		}
+	}
+
+	// Generate agent concurrency configuration
+	agentConcurrency := GenerateJobConcurrencyConfig(data)
+
+	job := &Job{
+		Name:        constants.AgentJobName,
+		If:          jobCondition,
+		RunsOn:      c.indentYAMLLines(data.RunsOn, "    "),
+		Environment: c.indentYAMLLines(data.Environment, "    "),
+		Container:   c.indentYAMLLines(data.Container, "    "),
+		Services:    c.indentYAMLLines(data.Services, "    "),
+		Permissions: c.indentYAMLLines(data.Permissions, "    "),
+		Concurrency: c.indentYAMLLines(agentConcurrency, "    "),
+		Env:         env,
+		Steps:       steps,
+		Needs:       depends,
+		Outputs:     outputs,
+	}
+
+	return job, nil
+}
