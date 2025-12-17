@@ -36,6 +36,12 @@ func (c *Compiler) referencesCustomJobOutputs(condition string, customJobs map[s
 		return false
 	}
 	for jobName := range customJobs {
+		// Skip well-known jobs as they're handled separately
+		if jobName == constants.PreActivationJobName || jobName == constants.ActivationJobName || 
+		   jobName == constants.AgentJobName || jobName == constants.DetectionJobName || jobName == "conclusion" {
+			continue
+		}
+		
 		// Check for patterns like "needs.ast_grep.outputs" or "needs.ast_grep.result"
 		if strings.Contains(condition, fmt.Sprintf("needs.%s.", jobName)) {
 			return true
@@ -85,6 +91,12 @@ func jobDependsOnAgent(jobConfig map[string]any) bool {
 func (c *Compiler) getCustomJobsDependingOnPreActivation(customJobs map[string]any) []string {
 	var jobNames []string
 	for jobName, jobConfig := range customJobs {
+		// Skip well-known jobs as they're handled separately
+		if jobName == constants.PreActivationJobName || jobName == constants.ActivationJobName || 
+		   jobName == constants.AgentJobName || jobName == constants.DetectionJobName || jobName == "conclusion" {
+			continue
+		}
+		
 		if configMap, ok := jobConfig.(map[string]any); ok {
 			if jobDependsOnPreActivation(configMap) {
 				jobNames = append(jobNames, jobName)
@@ -102,6 +114,12 @@ func (c *Compiler) getReferencedCustomJobs(content string, customJobs map[string
 	}
 	var referencedJobs []string
 	for jobName := range customJobs {
+		// Skip well-known jobs as they're handled separately
+		if jobName == constants.PreActivationJobName || jobName == constants.ActivationJobName || 
+		   jobName == constants.AgentJobName || jobName == constants.DetectionJobName || jobName == "conclusion" {
+			continue
+		}
+		
 		// Check for patterns like "needs.job_name." which covers:
 		// - needs.job_name.outputs.X
 		// - ${{ needs.job_name.outputs.X }}
@@ -151,14 +169,38 @@ func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
 	var preActivationJobCreated bool
 	hasCommandTrigger := data.Command != ""
 
-	// Extract jobs.pre-activation configuration from frontmatter if present
-	var preActivationConfig map[string]any
+	// Extract custom job configurations from frontmatter for well-known jobs
+	var preActivationConfig, activationConfig, agentConfig map[string]any
+	// TODO: Add detection and conclusion config support
+	// var detectionConfig, conclusionConfig map[string]any
 	if data.Jobs != nil {
+		// Extract and validate custom config for each well-known job
 		if config, exists := data.Jobs[constants.PreActivationJobName]; exists {
 			if configMap, ok := config.(map[string]any); ok {
 				preActivationConfig = configMap
 			}
 		}
+		if config, exists := data.Jobs[constants.ActivationJobName]; exists {
+			if configMap, ok := config.(map[string]any); ok {
+				activationConfig = configMap
+			}
+		}
+		if config, exists := data.Jobs[constants.AgentJobName]; exists {
+			if configMap, ok := config.(map[string]any); ok {
+				agentConfig = configMap
+			}
+		}
+		// TODO: Enable when detection and conclusion jobs are updated
+		// if config, exists := data.Jobs[constants.DetectionJobName]; exists {
+		// 	if configMap, ok := config.(map[string]any); ok {
+		// 		detectionConfig = configMap
+		// 	}
+		// }
+		// if config, exists := data.Jobs["conclusion"]; exists {
+		// 	if configMap, ok := config.(map[string]any); ok {
+		// 		conclusionConfig = configMap
+		// 	}
+		// }
 	}
 
 	// Check if we need to create pre-activation job (either built-in checks or custom config)
@@ -182,7 +224,7 @@ func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
 
 	if c.isActivationJobNeeded() {
 		compilerJobsLog.Print("Building activation job")
-		activationJob, err := c.buildActivationJob(data, preActivationJobCreated, workflowRunRepoSafety, lockFilename)
+		activationJob, err := c.buildActivationJob(data, preActivationJobCreated, workflowRunRepoSafety, lockFilename, activationConfig)
 		if err != nil {
 			return fmt.Errorf("failed to build activation job: %w", err)
 		}
@@ -195,7 +237,7 @@ func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
 
 	// Build main workflow job
 	compilerJobsLog.Print("Building main job")
-	mainJob, err := c.buildMainJob(data, activationJobCreated)
+	mainJob, err := c.buildMainJob(data, activationJobCreated, agentConfig)
 	if err != nil {
 		return fmt.Errorf("failed to build main job: %w", err)
 	}
@@ -776,18 +818,82 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName, markdownPat
 	return nil
 }
 
+// importCustomStepsAndOutputs imports custom steps and outputs from job config into the job
+// Returns updated steps slice, outputs map, and permissions string
+func (c *Compiler) importCustomStepsAndOutputs(customConfig map[string]any, steps []string, outputs map[string]string, permissions string, data *WorkflowData, jobName string) ([]string, map[string]string, string, error) {
+	if customConfig == nil {
+		return steps, outputs, permissions, nil
+	}
+	
+	// Import custom steps
+	if customSteps, hasSteps := customConfig["steps"]; hasSteps {
+		if stepsList, ok := customSteps.([]any); ok {
+			compilerJobsLog.Printf("Importing %d custom steps into %s job", len(stepsList), jobName)
+			for _, step := range stepsList {
+				if stepMap, ok := step.(map[string]any); ok {
+					// Apply action pinning before converting to YAML
+					stepMap = ApplyActionPinToStep(stepMap, data)
+					
+					stepYAML, err := c.convertStepToYAML(stepMap)
+					if err != nil {
+						return nil, nil, "", fmt.Errorf("failed to convert custom step to YAML for %s job: %w", jobName, err)
+					}
+					steps = append(steps, stepYAML)
+				}
+			}
+		}
+	}
+	
+	// Import custom outputs
+	if customOutputs, hasOutputs := customConfig["outputs"]; hasOutputs {
+		if outputsMap, ok := customOutputs.(map[string]any); ok {
+			compilerJobsLog.Printf("Importing %d custom outputs into %s job", len(outputsMap), jobName)
+			for key, val := range outputsMap {
+				if valStr, ok := val.(string); ok {
+					outputs[key] = valStr
+				} else {
+					compilerJobsLog.Printf("Warning: output '%s' in jobs.%s has non-string value (type: %T), ignoring", key, jobName, val)
+				}
+			}
+		}
+	}
+	
+	// Import custom permissions
+	if customPerms, hasPerms := customConfig["permissions"]; hasPerms {
+		if permsMap, ok := customPerms.(map[string]any); ok {
+			// Use gopkg.in/yaml.v3 to marshal permissions
+			yamlBytes, err := yaml.Marshal(permsMap)
+			if err != nil {
+				return nil, nil, "", fmt.Errorf("failed to convert permissions to YAML for %s job: %w", jobName, err)
+			}
+			// Indent the YAML properly for job-level permissions
+			permsYAML := string(yamlBytes)
+			lines := strings.Split(strings.TrimSpace(permsYAML), "\n")
+			var formattedPerms strings.Builder
+			formattedPerms.WriteString("permissions:\n")
+			for _, line := range lines {
+				formattedPerms.WriteString("      " + line + "\n")
+			}
+			permissions = formattedPerms.String()
+			compilerJobsLog.Printf("Imported custom permissions for %s job", jobName)
+		}
+	}
+	
+	return steps, outputs, permissions, nil
+}
+
 // buildPreActivationJob creates a unified pre-activation job that combines membership checks and stop-time validation
 // This job exposes a single "activated" output that indicates whether the workflow should proceed
-// The customConfig parameter allows importing steps and outputs from jobs.pre-activation frontmatter
+// The customConfig parameter allows importing steps, outputs, and permissions from jobs.pre_activation frontmatter
 func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionCheck bool, customConfig map[string]any) (*Job, error) {
 	compilerJobsLog.Printf("Building pre-activation job: needsPermissionCheck=%v, hasStopTime=%v, hasCustomConfig=%v", needsPermissionCheck, data.StopTime != "", customConfig != nil)
 	var steps []string
 	var permissions string
 
-	// Validate customConfig if present - only steps and outputs are allowed
+	// Validate customConfig if present - only steps, outputs, and permissions are allowed
 	for key := range customConfig {
-		if key != "steps" && key != "outputs" {
-			return nil, fmt.Errorf("jobs.pre-activation only supports 'steps' and 'outputs' fields, got unsupported field: '%s'", key)
+		if key != "steps" && key != "outputs" && key != "permissions" {
+			return nil, fmt.Errorf("jobs.pre-activation only supports 'steps', 'outputs', and 'permissions' fields, got unsupported field: '%s'", key)
 		}
 	}
 
@@ -850,33 +956,10 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 		steps = append(steps, formattedScript...)
 	}
 
-	// Import custom steps from jobs.pre-activation if present
-	if customConfig != nil {
-		if customSteps, hasSteps := customConfig["steps"]; hasSteps {
-			if stepsList, ok := customSteps.([]any); ok {
-				compilerJobsLog.Printf("Importing %d custom steps into pre-activation job", len(stepsList))
-				for _, step := range stepsList {
-					if stepMap, ok := step.(map[string]any); ok {
-						// Apply action pinning before converting to YAML
-						stepMap = ApplyActionPinToStep(stepMap, data)
-
-						stepYAML, err := c.convertStepToYAML(stepMap)
-						if err != nil {
-							return nil, fmt.Errorf("failed to convert custom step to YAML for pre-activation job: %w", err)
-						}
-						steps = append(steps, stepYAML)
-					}
-				}
-			}
-		}
-	}
-
-	// Generate the activated output expression using expression builders
 	// Build condition nodes for each check
 	var conditions []ConditionNode
 
 	if needsPermissionCheck {
-		// Add membership check condition
 		membershipCheck := BuildComparison(
 			BuildPropertyAccess(fmt.Sprintf("steps.%s.outputs.%s", constants.CheckMembershipStepID, constants.IsTeamMemberOutput)),
 			"==",
@@ -886,7 +969,6 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 	}
 
 	if data.StopTime != "" {
-		// Add stop-time check condition
 		stopTimeCheck := BuildComparison(
 			BuildPropertyAccess(fmt.Sprintf("steps.%s.outputs.%s", constants.CheckStopTimeStepID, constants.StopTimeOkOutput)),
 			"==",
@@ -896,7 +978,6 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 	}
 
 	if data.SkipIfMatch != nil {
-		// Add skip-if-match check condition
 		skipCheckOk := BuildComparison(
 			BuildPropertyAccess(fmt.Sprintf("steps.%s.outputs.%s", constants.CheckSkipIfMatchStepID, constants.SkipCheckOkOutput)),
 			"==",
@@ -906,7 +987,6 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 	}
 
 	if data.Command != "" {
-		// Add command position check condition
 		commandPositionCheck := BuildComparison(
 			BuildPropertyAccess(fmt.Sprintf("steps.%s.outputs.%s", constants.CheckCommandPositionStepID, constants.CommandPositionOkOutput)),
 			"==",
@@ -915,49 +995,31 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 		conditions = append(conditions, commandPositionCheck)
 	}
 
-	// Build the final expression
-	// Note: If only custom config is provided without built-in checks, we don't create an "activated" output
-	// The custom outputs will be used directly
+	// Build the activated output (if any built-in conditions exist)
 	var outputs map[string]string
-
 	if len(conditions) > 0 {
 		var activatedNode ConditionNode
 		if len(conditions) == 1 {
-			// Single condition
 			activatedNode = conditions[0]
 		} else {
-			// Multiple conditions - combine with AND
 			activatedNode = conditions[0]
 			for i := 1; i < len(conditions); i++ {
 				activatedNode = BuildAnd(activatedNode, conditions[i])
 			}
 		}
-
-		// Render the expression with ${{ }} wrapper
 		activatedExpression := fmt.Sprintf("${{ %s }}", activatedNode.Render())
-
 		outputs = map[string]string{
 			"activated": activatedExpression,
 		}
 	} else {
-		// No built-in conditions, only custom config
 		outputs = make(map[string]string)
 	}
 
-	// Import custom outputs from jobs.pre-activation if present
-	if customConfig != nil {
-		if customOutputs, hasOutputs := customConfig["outputs"]; hasOutputs {
-			if outputsMap, ok := customOutputs.(map[string]any); ok {
-				compilerJobsLog.Printf("Importing %d custom outputs into pre-activation job", len(outputsMap))
-				for key, val := range outputsMap {
-					if valStr, ok := val.(string); ok {
-						outputs[key] = valStr
-					} else {
-						compilerJobsLog.Printf("Warning: output '%s' in jobs.pre-activation has non-string value (type: %T), ignoring", key, val)
-					}
-				}
-			}
-		}
+	// Import custom steps, outputs, and permissions
+	var err error
+	steps, outputs, permissions, err = c.importCustomStepsAndOutputs(customConfig, steps, outputs, permissions, data, constants.PreActivationJobName)
+	if err != nil {
+		return nil, err
 	}
 
 	// Pre-activation job uses the user's original if condition (data.If)
@@ -982,9 +1044,18 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 
 // buildActivationJob creates the preamble activation job that acts as a barrier for runtime conditions
 // The workflow_run repository safety check is applied exclusively to this job
-func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreated bool, workflowRunRepoSafety string, lockFilename string) (*Job, error) {
+// The customConfig parameter allows importing steps, outputs, and permissions from jobs.activation frontmatter
+func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreated bool, workflowRunRepoSafety string, lockFilename string, customConfig map[string]any) (*Job, error) {
+	// Validate customConfig if present - only steps, outputs, and permissions are allowed
+	for key := range customConfig {
+		if key != "steps" && key != "outputs" && key != "permissions" {
+			return nil, fmt.Errorf("jobs.activation only supports 'steps', 'outputs', and 'permissions' fields, got unsupported field: '%s'", key)
+		}
+	}
+	
 	outputs := map[string]string{}
 	var steps []string
+	var permissions string
 
 	// Team member check is now handled by the separate check_membership job
 	// No inline role checks needed in the task job anymore
@@ -1189,7 +1260,14 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 	}
 
 	perms := NewPermissionsFromMap(permsMap)
-	permissions := perms.RenderToYAML()
+	permissions = perms.RenderToYAML()
+
+	// Import custom steps, outputs, and permissions from jobs.activation
+	var err error
+	steps, outputs, permissions, err = c.importCustomStepsAndOutputs(customConfig, steps, outputs, permissions, data, constants.ActivationJobName)
+	if err != nil {
+		return nil, err
+	}
 
 	// Set environment if manual-approval is configured
 	var environment string
@@ -1213,8 +1291,17 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 }
 
 // buildMainJob creates the main workflow job
-func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (*Job, error) {
+// The customConfig parameter allows importing steps, outputs, and permissions from jobs.agent frontmatter
+func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool, customConfig map[string]any) (*Job, error) {
 	log.Printf("Building main job for workflow: %s", data.Name)
+	
+	// Validate customConfig if present - only steps, outputs, and permissions are allowed
+	for key := range customConfig {
+		if key != "steps" && key != "outputs" && key != "permissions" {
+			return nil, fmt.Errorf("jobs.agent only supports 'steps', 'outputs', and 'permissions' fields, got unsupported field: '%s'", key)
+		}
+	}
+	
 	var steps []string
 
 	// Find custom jobs that depend on pre_activation - these are handled by the activation job
@@ -1260,6 +1347,12 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 	// Custom jobs that depend on agent should run AFTER the agent job, not before it
 	if data.Jobs != nil {
 		for jobName := range data.Jobs {
+			// Skip well-known jobs as they're handled separately and shouldn't be added as dependencies
+			if jobName == constants.PreActivationJobName || jobName == constants.ActivationJobName || 
+			   jobName == constants.AgentJobName || jobName == constants.DetectionJobName || jobName == "conclusion" {
+				continue
+			}
+			
 			// Only add as direct dependency if it doesn't depend on pre_activation or agent
 			// (jobs that depend on pre_activation are handled through activation)
 			// (jobs that depend on agent are post-execution jobs like failure handlers)
@@ -1333,6 +1426,15 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 	// Generate agent concurrency configuration
 	agentConcurrency := GenerateJobConcurrencyConfig(data)
 
+	// Import custom steps, outputs, and permissions from jobs.agent
+	// Note: permissions is already set from data.Permissions, will be overridden if custom permissions exist
+	permissions := c.indentYAMLLines(data.Permissions, "    ")
+	var err error
+	steps, outputs, permissions, err = c.importCustomStepsAndOutputs(customConfig, steps, outputs, permissions, data, constants.AgentJobName)
+	if err != nil {
+		return nil, err
+	}
+
 	job := &Job{
 		Name:        constants.AgentJobName,
 		If:          jobCondition,
@@ -1340,7 +1442,7 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 		Environment: c.indentYAMLLines(data.Environment, "    "),
 		Container:   c.indentYAMLLines(data.Container, "    "),
 		Services:    c.indentYAMLLines(data.Services, "    "),
-		Permissions: c.indentYAMLLines(data.Permissions, "    "),
+		Permissions: permissions,
 		Concurrency: c.indentYAMLLines(agentConcurrency, "    "),
 		Env:         env,
 		Steps:       steps,
@@ -1361,9 +1463,11 @@ func (c *Compiler) extractJobsFromFrontmatter(frontmatter map[string]any) map[st
 func (c *Compiler) buildCustomJobs(data *WorkflowData, activationJobCreated bool) error {
 	compilerJobsLog.Printf("Building %d custom jobs", len(data.Jobs))
 	for jobName, jobConfig := range data.Jobs {
-		// Skip pre-activation job as it's handled separately
-		if jobName == constants.PreActivationJobName {
-			compilerJobsLog.Printf("Skipping job '%s' - handled separately by buildPreActivationJob", jobName)
+		// Skip well-known jobs as they're handled separately
+		if jobName == constants.PreActivationJobName || jobName == constants.ActivationJobName || 
+		   jobName == constants.AgentJobName {
+			// TODO: Add detection and conclusion when ready: || jobName == constants.DetectionJobName || jobName == "conclusion"
+			compilerJobsLog.Printf("Skipping job '%s' - handled separately by dedicated build function", jobName)
 			continue
 		}
 

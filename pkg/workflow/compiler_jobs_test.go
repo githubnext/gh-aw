@@ -136,7 +136,7 @@ func TestBuildActivationJob(t *testing.T) {
 		SafeOutputs: &SafeOutputsConfig{},
 	}
 
-	job, err := compiler.buildActivationJob(workflowData, false, "", "test.lock.yml")
+	job, err := compiler.buildActivationJob(workflowData, false, "", "test.lock.yml", nil)
 	if err != nil {
 		t.Fatalf("buildActivationJob() returned error: %v", err)
 	}
@@ -162,7 +162,7 @@ func TestBuildActivationJobWithReaction(t *testing.T) {
 		SafeOutputs: &SafeOutputsConfig{},
 	}
 
-	job, err := compiler.buildActivationJob(workflowData, false, "", "test.lock.yml")
+	job, err := compiler.buildActivationJob(workflowData, false, "", "test.lock.yml", nil)
 	if err != nil {
 		t.Fatalf("buildActivationJob() returned error: %v", err)
 	}
@@ -195,7 +195,7 @@ func TestBuildMainJobWithActivation(t *testing.T) {
 		Permissions: "permissions:\n  contents: read",
 	}
 
-	job, err := compiler.buildMainJob(workflowData, true)
+	job, err := compiler.buildMainJob(workflowData, true, nil)
 	if err != nil {
 		t.Fatalf("buildMainJob() returned error: %v", err)
 	}
@@ -661,7 +661,7 @@ func TestBuildPreActivationJobWithInvalidConfig(t *testing.T) {
 	if err == nil {
 		t.Fatal("Expected error for unsupported field 'needs'")
 	}
-	if !strings.Contains(err.Error(), "only supports 'steps' and 'outputs' fields") {
+	if !strings.Contains(err.Error(), "only supports 'steps', 'outputs', and 'permissions' fields") {
 		t.Errorf("Expected error message about unsupported fields, got: %v", err)
 	}
 	if !strings.Contains(err.Error(), "needs") {
@@ -715,5 +715,39 @@ func TestBuildPreActivationJobWithOnlyCustomConfig(t *testing.T) {
 	// Should have custom output
 	if _, ok := job.Outputs["check_result"]; !ok {
 		t.Error("Expected 'check_result' output")
+	}
+}
+
+// TestBuildPreActivationJobWithCustomPermissions tests importing permissions
+func TestBuildPreActivationJobWithCustomPermissions(t *testing.T) {
+	compiler := NewCompiler(false, "", "test")
+
+	// Custom config with permissions
+	customConfig := map[string]any{
+		"permissions": map[string]any{
+			"contents": "read",
+			"issues":   "write",
+		},
+	}
+
+	workflowData := &WorkflowData{
+		Name:        "Test Workflow",
+		SafeOutputs: &SafeOutputsConfig{},
+	}
+
+	job, err := compiler.buildPreActivationJob(workflowData, false, customConfig)
+	if err != nil {
+		t.Fatalf("buildPreActivationJob() returned error: %v", err)
+	}
+
+	// Check that permissions were imported
+	if job.Permissions == "" {
+		t.Error("Expected permissions to be set")
+	}
+	if !strings.Contains(job.Permissions, "contents: read") {
+		t.Error("Expected 'contents: read' in permissions")
+	}
+	if !strings.Contains(job.Permissions, "issues: write") {
+		t.Error("Expected 'issues: write' in permissions")
 	}
 }
