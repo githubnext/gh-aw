@@ -8322,9 +8322,10 @@ jobs:
                     `Failed to manage project: ${error.message}\n\n` +
                       `Troubleshooting:\n` +
                       `  • Create the project manually at https://github.com/orgs/${owner}/projects/new.\n` +
-                      `  • Or supply a PAT with project scope via GH_AW_PROJECT_GITHUB_TOKEN.\n` +
+                      `  • Or supply a PAT (classic with project + repo scopes, or fine-grained with Projects: Read+Write) via GH_AW_PROJECT_GITHUB_TOKEN.\n` +
+                      `  • Or use a GitHub App with Projects: Read+Write permission.\n` +
                       `  • Ensure the workflow grants projects: write.\n\n` +
-                      `${usingCustomToken ? "GH_AW_PROJECT_GITHUB_TOKEN is set but lacks access." : "Using default GITHUB_TOKEN without project create rights."}`
+                      `${usingCustomToken ? "GH_AW_PROJECT_GITHUB_TOKEN is set but lacks access." : "Using default GITHUB_TOKEN - this cannot access Projects v2 API. You must configure GH_AW_PROJECT_GITHUB_TOKEN."}`
                   );
                 } else {
                   core.error(`Failed to manage project: ${error.message}`);
