@@ -34,7 +34,7 @@ jobs:
           echo "campaign-id=$(basename "$SPEC_PATH" .campaign.md)" >> "$GITHUB_OUTPUT"
           echo "campaign-name=$(grep "^name:" "$SPEC_PATH" | sed 's/name: //')" >> "$GITHUB_OUTPUT"
 
-      - run: ./gh-aw compile --install --validate --verbose
+      - run: ./gh-aw compile --validate --verbose
 
       - uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
         env:
