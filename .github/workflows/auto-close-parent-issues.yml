@@ -1,0 +1,268 @@
+name: Auto-Close Parent Issues
+
+# Trigger when any issue is closed
+on:
+  issues:
+    types: [closed]
+
+permissions:
+  issues: write
+
+jobs:
+  close-parent-issues:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Auto-close parent issues when all sub-issues are closed
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const closedIssueNumber = context.payload.issue.number;
+            
+            core.info('=================================================');
+            core.info('Auto-Close Parent Issues Workflow');
+            core.info('=================================================');
+            core.info(`Triggered by: Issue #${closedIssueNumber} was closed`);
+            core.info(`Repository: ${owner}/${repo}`);
+            core.info(`Event: ${context.eventName}`);
+            core.info('');
+            
+            /**
+             * Get the full issue details including parent relationships using GraphQL
+             */
+            async function getIssueWithRelationships(issueNumber) {
+              core.info(`📊 Fetching issue #${issueNumber} with relationship data...`);
+              
+              const query = `
+                query($owner: String!, $repo: String!, $issueNumber: Int!) {
+                  repository(owner: $owner, name: $repo) {
+                    issue(number: $issueNumber) {
+                      id
+                      number
+                      title
+                      state
+                      stateReason
+                      trackedInIssues(first: 10) {
+                        nodes {
+                          id
+                          number
+                          title
+                          state
+                          stateReason
+                        }
+                      }
+                      trackedIssues(first: 100) {
+                        nodes {
+                          id
+                          number
+                          title
+                          state
+                          stateReason
+                        }
+                      }
+                    }
+                  }
+                }
+              `;
+              
+              try {
+                const result = await github.graphql(query, {
+                  owner,
+                  repo,
+                  issueNumber
+                });
+                
+                const issue = result.repository.issue;
+                core.info(`✓ Fetched issue #${issue.number}: "${issue.title}"`);
+                core.info(`  State: ${issue.state} (${issue.stateReason || 'N/A'})`);
+                core.info(`  Parent issues: ${issue.trackedInIssues.nodes.length}`);
+                core.info(`  Sub-issues: ${issue.trackedIssues.nodes.length}`);
+                
+                return issue;
+              } catch (error) {
+                core.error(`❌ Failed to fetch issue #${issueNumber}: ${error.message}`);
+                throw error;
+              }
+            }
+            
+            /**
+             * Check if all sub-issues of a parent are closed
+             */
+            function areAllSubIssuesClosed(parentIssue) {
+              const subIssues = parentIssue.trackedIssues.nodes;
+              
+              core.info(`🔍 Checking sub-issues of #${parentIssue.number} "${parentIssue.title}"...`);
+              core.info(`  Total sub-issues: ${subIssues.length}`);
+              
+              if (subIssues.length === 0) {
+                core.info(`  ⚠️  Issue #${parentIssue.number} has no sub-issues`);
+                return false;
+              }
+              
+              const openSubIssues = [];
+              const closedSubIssues = [];
+              
+              for (const subIssue of subIssues) {
+                if (subIssue.state === 'OPEN') {
+                  openSubIssues.push(subIssue);
+                  core.info(`    - #${subIssue.number}: "${subIssue.title}" [OPEN]`);
+                } else {
+                  closedSubIssues.push(subIssue);
+                  core.info(`    - #${subIssue.number}: "${subIssue.title}" [CLOSED]`);
+                }
+              }
+              
+              core.info(`  Summary: ${closedSubIssues.length} closed, ${openSubIssues.length} open`);
+              
+              return openSubIssues.length === 0;
+            }
+            
+            /**
+             * Close a parent issue
+             */
+            async function closeIssue(issueNumber, reason) {
+              core.info(`🔒 Closing issue #${issueNumber}...`);
+              core.info(`  Reason: ${reason}`);
+              
+              try {
+                await github.rest.issues.update({
+                  owner,
+                  repo,
+                  issue_number: issueNumber,
+                  state: 'closed',
+                  state_reason: 'completed'
+                });
+                
+                core.info(`✓ Successfully closed issue #${issueNumber}`);
+                
+                // Add a comment explaining why it was closed
+                const comment = `🎉 **Automatically closed**\n\nAll sub-issues have been completed. This parent issue is now being closed automatically.\n\n${reason}`;
+                
+                await github.rest.issues.createComment({
+                  owner,
+                  repo,
+                  issue_number: issueNumber,
+                  body: comment
+                });
+                
+                core.info(`✓ Added closure comment to issue #${issueNumber}`);
+                
+                return true;
+              } catch (error) {
+                core.error(`❌ Failed to close issue #${issueNumber}: ${error.message}`);
+                return false;
+              }
+            }
+            
+            /**
+             * Process a parent issue and recursively check its parents
+             */
+            async function processParentIssue(parentIssue, depth = 0) {
+              const indent = '  '.repeat(depth);
+              core.info('');
+              core.info(`${indent}${'='.repeat(50)}`);
+              core.info(`${indent}Processing Parent Issue (Depth: ${depth})`);
+              core.info(`${indent}${'='.repeat(50)}`);
+              core.info(`${indent}Issue: #${parentIssue.number} "${parentIssue.title}"`);
+              core.info(`${indent}Current State: ${parentIssue.state}`);
+              
+              // If already closed, skip
+              if (parentIssue.state === 'CLOSED') {
+                core.info(`${indent}⏭️  Issue #${parentIssue.number} is already closed, skipping`);
+                return;
+              }
+              
+              // Check if all sub-issues are closed
+              if (areAllSubIssuesClosed(parentIssue)) {
+                core.info(`${indent}✅ All sub-issues of #${parentIssue.number} are closed!`);
+                
+                // Close the parent issue
+                const reason = `Triggered by cascade from issue #${closedIssueNumber} at depth ${depth}`;
+                const closed = await closeIssue(parentIssue.number, reason);
+                
+                if (closed) {
+                  // Now check if this issue has parents and process them recursively
+                  core.info(`${indent}🔼 Looking for parent issues of #${parentIssue.number}...`);
+                  
+                  // Fetch fresh data to get the parent relationships
+                  const updatedIssue = await getIssueWithRelationships(parentIssue.number);
+                  const grandParents = updatedIssue.trackedInIssues.nodes;
+                  
+                  if (grandParents.length > 0) {
+                    core.info(`${indent}📋 Found ${grandParents.length} parent issue(s) to check`);
+                    
+                    for (const grandParent of grandParents) {
+                      core.info(`${indent}🔼 Walking up to parent #${grandParent.number}`);
+                      
+                      // Fetch full details for the grandparent
+                      const grandParentFull = await getIssueWithRelationships(grandParent.number);
+                      
+                      // Recursively process the grandparent
+                      await processParentIssue(grandParentFull, depth + 1);
+                    }
+                  } else {
+                    core.info(`${indent}🏁 No parent issues found. Reached top of the tree.`);
+                  }
+                }
+              } else {
+                core.info(`${indent}⏸️  Not all sub-issues of #${parentIssue.number} are closed yet`);
+                core.info(`${indent}   This issue will remain open until all sub-issues are completed`);
+              }
+            }
+            
+            /**
+             * Main execution
+             */
+            async function main() {
+              try {
+                core.info('🚀 Starting parent issue closure check...');
+                core.info('');
+                
+                // Get the closed issue with its relationships
+                const closedIssue = await getIssueWithRelationships(closedIssueNumber);
+                
+                // Get parent issues (issues that track this one)
+                const parentIssues = closedIssue.trackedInIssues.nodes;
+                
+                if (parentIssues.length === 0) {
+                  core.info('ℹ️  This issue has no parent issues');
+                  core.info('✓ Nothing to do');
+                  return;
+                }
+                
+                core.info('');
+                core.info(`🔍 Found ${parentIssues.length} parent issue(s) to check:`);
+                parentIssues.forEach(parent => {
+                  core.info(`  - #${parent.number}: "${parent.title}" [${parent.state}]`);
+                });
+                core.info('');
+                
+                // Process each parent issue
+                for (const parentIssue of parentIssues) {
+                  // Fetch full details for the parent including its sub-issues
+                  const parentFull = await getIssueWithRelationships(parentIssue.number);
+                  
+                  // Process this parent (and recursively its parents)
+                  await processParentIssue(parentFull, 0);
+                }
+                
+                core.info('');
+                core.info('=================================================');
+                core.info('✅ Workflow completed successfully');
+                core.info('=================================================');
+                
+              } catch (error) {
+                core.error('');
+                core.error('=================================================');
+                core.error('❌ Workflow failed with error');
+                core.error('=================================================');
+                core.error(`Error: ${error.message}`);
+                if (error.stack) {
+                  core.error(`Stack trace: ${error.stack}`);
+                }
+                throw error;
+              }
+            }
+            
+            // Run the main function
+            await main();
