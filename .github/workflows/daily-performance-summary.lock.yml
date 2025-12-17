@@ -4329,7 +4329,7 @@ jobs:
         with:
           script: |
             function generateSafeInputsConfig({ core, crypto }) {
-              const apiKeyBuffer = crypto.randomBytes(32);
+              const apiKeyBuffer = crypto.randomBytes(33);
               const apiKey = apiKeyBuffer.toString("base64").replace(/[/+=]/g, "");
               const port = 3000;
               core.setOutput("safe_inputs_api_key", apiKey);
