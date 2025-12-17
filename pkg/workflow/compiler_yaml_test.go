@@ -40,7 +40,7 @@ strict: false
 # Test Workflow
 
 Invalid YAML with unclosed bracket.`,
-			expectedErrorLine:   10, // Error detected at 'engine: claude' line
+			expectedErrorLine:   9, // Error detected at 'engine: claude' line in YAML (line 9 after opening ---)
 			expectedErrorColumn: 1,
 			expectedMessagePart: "',' or ']' must be specified",
 			description:         "unclosed bracket in array should be detected",
@@ -62,8 +62,8 @@ strict: false
 # Test Workflow
 
 Invalid YAML with bad mapping.`,
-			expectedErrorLine:   7,
-			expectedErrorColumn: 10, // Updated to match new YAML library error reporting
+			expectedErrorLine:   6, // Line 6 in YAML content (after opening ---)
+			expectedErrorColumn: 10,
 			expectedMessagePart: "mapping value is not allowed in this context",
 			description:         "invalid mapping context should be detected",
 		},
@@ -81,9 +81,9 @@ strict: false
 # Test Workflow
 
 Invalid YAML with bad indentation.`,
-			expectedErrorLine:   4, // Updated to match new YAML library error reporting
+			expectedErrorLine:   3, // Line 3 in YAML content
 			expectedErrorColumn: 11,
-			expectedMessagePart: "mapping value is not allowed in this context", // Updated error message
+			expectedMessagePart: "mapping value is not allowed in this context",
 			description:         "bad indentation should be detected",
 		},
 		{
@@ -104,8 +104,8 @@ strict: false
 # Test Workflow
 
 Invalid YAML with unclosed quote.`,
-			expectedErrorLine:   9,
-			expectedErrorColumn: 15, // Updated to match new YAML library error reporting
+			expectedErrorLine:   8, // Line 8 in YAML content
+			expectedErrorColumn: 15,
 			expectedMessagePart: "could not find end character of double-quoted text",
 			description:         "unclosed quote should be detected",
 		},
@@ -126,7 +126,7 @@ strict: false
 # Test Workflow
 
 Invalid YAML with duplicate keys.`,
-			expectedErrorLine:   7,
+			expectedErrorLine:   6, // Line 6 in YAML content (second permissions:)
 			expectedErrorColumn: 1,
 			expectedMessagePart: "mapping key \"permissions\" already defined",
 			description:         "duplicate keys should be detected",
@@ -165,7 +165,7 @@ strict: false
 # Test Workflow
 
 Invalid YAML with missing colon.`,
-			expectedErrorLine:   3,
+			expectedErrorLine:   2, // Line 2 in YAML content (permissions without colon)
 			expectedErrorColumn: 1,
 			expectedMessagePart: "unexpected key name",
 			description:         "missing colon in mapping should be detected",
@@ -184,15 +184,15 @@ strict: false
 # Test Workflow
 
 Invalid YAML with missing comma in array.`,
-			expectedErrorLine:   5,
-			expectedErrorColumn: 29, // Updated to match new YAML library error reporting
+			expectedErrorLine:   4, // Line 4 in YAML content (the allowed line)
+			expectedErrorColumn: 29,
 			expectedMessagePart: "',' or ']' must be specified",
 			description:         "missing comma in array should be detected",
 		},
 		{
 			name:                "mixed_tabs_and_spaces",
 			content:             "---\non: push\npermissions:\n  contents: read\n\tissues: write\nengine: claude\n---\n\n# Test Workflow\n\nInvalid YAML with mixed tabs and spaces.",
-			expectedErrorLine:   5,
+			expectedErrorLine:   4, // Line 4 in YAML content (the line with tab)
 			expectedErrorColumn: 1,
 			expectedMessagePart: "found character '\t' that cannot start any token",
 			description:         "mixed tabs and spaces should be detected",
@@ -213,8 +213,8 @@ strict: false
 # Test Workflow
 
 Invalid YAML with invalid number format.`,
-			expectedErrorLine:   3,                          // The timeout-minutes field is on line 3
-			expectedErrorColumn: 17,                         // After "timeout-minutes: "
+			expectedErrorLine:   3, // The timeout-minutes field is on line 3
+			expectedErrorColumn: 17,
 			expectedMessagePart: "got number, want integer", // Schema validation catches this
 			description:         "invalid number format should trigger schema validation error",
 		},
@@ -238,8 +238,8 @@ strict: false
 # Test Workflow
 
 Invalid YAML with malformed nested structure.`,
-			expectedErrorLine:   7,
-			expectedErrorColumn: 11, // Updated to match new YAML library error reporting
+			expectedErrorLine:   6, // Line 6 in YAML content (claude: [)
+			expectedErrorColumn: 11,
 			expectedMessagePart: "sequence end token ']' not found",
 			description:         "invalid nested structure should be detected",
 		},
@@ -255,7 +255,7 @@ strict: false
 # Test Workflow
 
 Invalid YAML with unclosed flow mapping.`,
-			expectedErrorLine:   4,
+			expectedErrorLine:   3, // Line 3 in YAML content (engine: claude - where error is detected)
 			expectedErrorColumn: 1,
 			expectedMessagePart: "',' or '}' must be specified",
 			description:         "unclosed flow mapping should be detected",
@@ -272,7 +272,7 @@ strict: false
 # Test Workflow
 
 YAML error that demonstrates column position handling.`,
-			expectedErrorLine:   3, // The message field is on line 3 of the frontmatter (line 4 of file)
+			expectedErrorLine:   3, // The message field is on line 3
 			expectedErrorColumn: 1, // Schema validation error
 			expectedMessagePart: "Unknown property: message",
 			description:         "yaml error should be extracted with column information when available",
@@ -299,29 +299,154 @@ YAML error that demonstrates column position handling.`,
 
 			errorStr := err.Error()
 
-			// Verify error contains file:line:column: format
-			// The error should contain the filename (relative or absolute) with :line:column:
-			expectedPattern := fmt.Sprintf("%s.md:%d:%d:", tt.name, tt.expectedErrorLine, tt.expectedErrorColumn)
-			if !strings.Contains(errorStr, expectedPattern) {
-				t.Errorf("%s: error should contain '%s', got: %s", tt.description, expectedPattern, errorStr)
+			// Determine if this is a YAML parsing error or schema validation error
+			isYAMLParsingError := strings.Contains(errorStr, "failed to parse frontmatter:")
+			isSchemaValidationError := strings.Contains(errorStr, "error:") && !isYAMLParsingError
+
+			if isYAMLParsingError {
+				// For YAML parsing errors, check for yaml.FormatError() style [line:column] format
+				expectedPattern := fmt.Sprintf("[%d:%d]", tt.expectedErrorLine, tt.expectedErrorColumn)
+				if !strings.Contains(errorStr, expectedPattern) {
+					t.Errorf("%s: error should contain yaml.FormatError [line:col] format '%s', got: %s", tt.description, expectedPattern, errorStr)
+				}
+
+				// Verify yaml.FormatError() output contains context lines with '|' markers
+				// and visual pointer '>' to indicate error location
+				if !strings.Contains(errorStr, "|") {
+					t.Errorf("%s: error should contain context lines with '|' markers from yaml.FormatError(), got: %s", tt.description, errorStr)
+				}
+				if !strings.Contains(errorStr, ">") {
+					t.Errorf("%s: error should contain visual pointer '>' from yaml.FormatError(), got: %s", tt.description, errorStr)
+				}
+			} else if isSchemaValidationError {
+				// For schema validation errors, check for filename:line:column: format
+				expectedPattern := fmt.Sprintf(".md:%d:%d:", tt.expectedErrorLine, tt.expectedErrorColumn)
+				if !strings.Contains(errorStr, expectedPattern) {
+					t.Errorf("%s: error should contain console.FormatError 'filename:line:column:' format '%s', got: %s", tt.description, expectedPattern, errorStr)
+				}
 			}
 
-			// Verify error contains "error:" type indicator
-			if !strings.Contains(errorStr, "error:") {
-				t.Errorf("%s: error should contain 'error:' type indicator, got: %s", tt.description, errorStr)
+			// Verify error contains "error:" type indicator or "failed to parse frontmatter:"
+			if !strings.Contains(errorStr, "error:") && !strings.Contains(errorStr, "failed to parse frontmatter:") {
+				t.Errorf("%s: error should contain error indicator, got: %s", tt.description, errorStr)
 			}
 
 			// Verify error contains the expected YAML error message part
 			if !strings.Contains(errorStr, tt.expectedMessagePart) {
 				t.Errorf("%s: error should contain '%s', got: %s", tt.description, tt.expectedMessagePart, errorStr)
 			}
+		})
+	}
+}
 
-			// For YAML parsing errors, verify error contains context lines
-			if strings.Contains(errorStr, "frontmatter parsing failed") {
-				// Verify error contains context lines (should show surrounding code)
-				if !strings.Contains(errorStr, "|") {
-					t.Errorf("%s: error should contain context lines with '|' markers, got: %s", tt.description, errorStr)
+// TestYAMLFormatErrorOutput tests that yaml.FormatError() is used for YAML parsing errors
+func TestYAMLFormatErrorOutput(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "yaml-format-error-test")
+
+	tests := []struct {
+		name            string
+		content         string
+		expectedLineCol string
+		expectedInError []string
+		expectPointer   bool
+		description     string
+	}{
+		{
+			name: "simple_syntax_error",
+			content: `---
+on: push
+invalid: yaml: syntax
+engine: copilot
+---
+
+# Test
+
+Test content.`,
+			expectedLineCol: "[2:10]",
+			expectedInError: []string{"mapping value is not allowed"},
+			expectPointer:   true,
+			description:     "simple syntax error shows formatted output",
+		},
+		{
+			name: "duplicate_key_error",
+			content: `---
+on: push
+tools:
+  github:
+    mode: remote
+tools:
+  playwright: {}
+engine: copilot
+---
+
+# Test
+
+Test content.`,
+			expectedLineCol: "[5:1]",
+			expectedInError: []string{"mapping key \"tools\" already defined"},
+			expectPointer:   true,
+			description:     "duplicate key error shows formatted output with both locations",
+		},
+		{
+			name: "missing_value_colon",
+			content: `---
+on: push
+permissions
+  contents: read
+engine: copilot
+---
+
+# Test
+
+Test content.`,
+			expectedLineCol: "[2:1]",
+			expectedInError: []string{"unexpected key name", "permissions"},
+			expectPointer:   true,
+			description:     "missing colon shows formatted output",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			testFile := filepath.Join(tmpDir, fmt.Sprintf("%s.md", tt.name))
+			if err := os.WriteFile(testFile, []byte(tt.content), 0644); err != nil {
+				t.Fatal(err)
+			}
+
+			compiler := NewCompiler(false, "", "test")
+			err := compiler.CompileWorkflow(testFile)
+			if err == nil {
+				t.Errorf("%s: expected compilation to fail", tt.description)
+				return
+			}
+
+			errorStr := err.Error()
+
+			// Check for [line:col] format from yaml.FormatError()
+			if !strings.Contains(errorStr, tt.expectedLineCol) {
+				t.Errorf("%s: error should contain line:col format '%s', got: %s", tt.description, tt.expectedLineCol, errorStr)
+			}
+
+			// Check that expected strings are in the error
+			for _, expected := range tt.expectedInError {
+				if !strings.Contains(errorStr, expected) {
+					t.Errorf("%s: error should contain '%s', got: %s", tt.description, expected, errorStr)
 				}
+			}
+
+			// Check for line number markers (|) from yaml.FormatError()
+			if !strings.Contains(errorStr, "|") {
+				t.Errorf("%s: error should contain line number markers '|' from yaml.FormatError(), got: %s", tt.description, errorStr)
+			}
+
+			// Check for visual pointer (>)
+			if tt.expectPointer && !strings.Contains(errorStr, ">") {
+				t.Errorf("%s: error should contain visual pointer '>' from yaml.FormatError(), got: %s", tt.description, errorStr)
+			}
+
+			// Check that it's a YAML parsing error (not schema validation)
+			if !strings.Contains(errorStr, "failed to parse frontmatter:") {
+				t.Errorf("%s: error should be a frontmatter parsing error, got: %s", tt.description, errorStr)
 			}
 		})
 	}
