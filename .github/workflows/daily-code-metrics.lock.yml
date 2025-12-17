@@ -1209,7 +1209,7 @@ jobs:
           node-version: '24'
           package-manager-cache: false
       - name: Install Claude Code CLI
-        run: npm install -g @anthropic-ai/claude-code@2.0.70
+        run: npm install -g @anthropic-ai/claude-code@2.0.71
       - name: Generate Claude Settings
         run: |
           mkdir -p /tmp/gh-aw/.claude
@@ -2883,7 +2883,7 @@ jobs:
               engine_name: "Claude Code",
               model: process.env.GH_AW_MODEL_AGENT_CLAUDE || "",
               version: "",
-              agent_version: "2.0.70",
+              agent_version: "2.0.71",
               workflow_name: "Daily Code Metrics and Trend Tracking Agent",
               experimental: true,
               supports_tools_allowlist: true,
@@ -8744,7 +8744,7 @@ jobs:
           node-version: '24'
           package-manager-cache: false
       - name: Install Claude Code CLI
-        run: npm install -g @anthropic-ai/claude-code@2.0.70
+        run: npm install -g @anthropic-ai/claude-code@2.0.71
       - name: Execute Claude Code CLI
         id: agentic_execution
         # Allowed tools (sorted):
