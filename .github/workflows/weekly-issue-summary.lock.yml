@@ -933,7 +933,16 @@ jobs:
           COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
       - name: Install GitHub Copilot CLI
         run: |
-          export VERSION=0.0.369 && curl -fsSL https://gh.io/copilot-install | sudo bash
+          # Download official Copilot CLI installer script
+          curl -fsSL https://raw.githubusercontent.com/github/copilot-cli/main/install.sh -o /tmp/copilot-install.sh
+          
+          # Execute the installer with the specified version
+          export VERSION=0.0.369 && sudo bash /tmp/copilot-install.sh
+          
+          # Cleanup
+          rm -f /tmp/copilot-install.sh
+          
+          # Verify installation
           copilot --version
       - name: Install awf binary
         run: |
@@ -8848,7 +8857,16 @@ jobs:
           COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
       - name: Install GitHub Copilot CLI
         run: |
-          export VERSION=0.0.369 && curl -fsSL https://gh.io/copilot-install | sudo bash
+          # Download official Copilot CLI installer script
+          curl -fsSL https://raw.githubusercontent.com/github/copilot-cli/main/install.sh -o /tmp/copilot-install.sh
+          
+          # Execute the installer with the specified version
+          export VERSION=0.0.369 && sudo bash /tmp/copilot-install.sh
+          
+          # Cleanup
+          rm -f /tmp/copilot-install.sh
+          
+          # Verify installation
           copilot --version
       - name: Execute GitHub Copilot CLI
         id: agentic_execution
