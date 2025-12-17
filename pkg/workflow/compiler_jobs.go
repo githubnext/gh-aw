@@ -1356,8 +1356,9 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool, c
 			// Only add as direct dependency if it doesn't depend on pre_activation or agent
 			// (jobs that depend on pre_activation are handled through activation)
 			// (jobs that depend on agent are post-execution jobs like failure handlers)
+			// Also don't add the agent job itself as a dependency (prevent self-dependency)
 			if configMap, ok := data.Jobs[jobName].(map[string]any); ok {
-				if !jobDependsOnPreActivation(configMap) && !jobDependsOnAgent(configMap) {
+				if !jobDependsOnPreActivation(configMap) && !jobDependsOnAgent(configMap) && jobName != constants.AgentJobName {
 					depends = append(depends, jobName)
 				}
 			}
@@ -1378,8 +1379,8 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool, c
 				break
 			}
 		}
-		// Add it if not already present
-		if !alreadyDepends {
+		// Add it if not already present and not the agent job itself (prevent self-dependency)
+		if !alreadyDepends && jobName != constants.AgentJobName {
 			depends = append(depends, jobName)
 			compilerJobsLog.Printf("Added direct dependency on custom job '%s' because it's referenced in workflow content", jobName)
 		}
