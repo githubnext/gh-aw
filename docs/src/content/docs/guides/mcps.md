@@ -133,6 +133,22 @@ mcp-servers:
       - ask_question
 ```
 
+#### HTTP Authentication
+
+Configure authentication headers for HTTP MCP servers using the `headers` field:
+
+```yaml wrap
+mcp-servers:
+  authenticated-api:
+    url: "https://api.example.com/mcp"
+    headers:
+      Authorization: "Bearer ${{ secrets.API_TOKEN }}"
+      X-Custom-Header: "value"
+    allowed: ["*"]
+```
+
+Headers are injected into all HTTP requests made to the MCP server, enabling bearer token authentication, API keys, and other custom authentication schemes.
+
 ### 4. Registry-based MCP Servers
 
 Reference MCP servers from the GitHub MCP registry (the `registry` field provides metadata for tooling):
@@ -204,8 +220,6 @@ mcp-servers:
 ```
 
 Use `["*"]` to allow all tools from a custom MCP server.
-
-**HTTP Headers**: Configure authentication in URL parameters (e.g., `?apiKey=${{ secrets.API_KEY }}`).
 
 ## Network Egress Permissions
 
