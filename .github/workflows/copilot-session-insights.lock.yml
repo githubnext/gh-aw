@@ -1409,7 +1409,7 @@
 name: "Copilot Session Insights"
 "on":
   schedule:
-  - cron: "13 13 * * *"
+  - cron: "32 23 * * *"
     # Friendly format: daily (scattered)
   workflow_dispatch: null
 

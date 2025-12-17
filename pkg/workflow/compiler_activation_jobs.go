@@ -200,7 +200,7 @@ func (c *Compiler) extractPreActivationCustomFields(jobs map[string]any) ([]stri
 	// Check both jobs.pre-activation and jobs.pre_activation (users might define both by mistake)
 	// Import from both if both are defined
 	jobVariants := []string{"pre-activation", constants.PreActivationJobName}
-	
+
 	for _, jobName := range jobVariants {
 		preActivationJob, exists := jobs[jobName]
 		if !exists {

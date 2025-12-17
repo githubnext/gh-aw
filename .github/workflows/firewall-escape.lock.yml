@@ -283,7 +283,7 @@ name: "Firewall Escape"
     types:
     - labeled
   schedule:
-  - cron: "0 12 * * *"
+  - cron: "49 11 * * *"
     # Friendly format: daily (scattered)
   workflow_dispatch: null
 

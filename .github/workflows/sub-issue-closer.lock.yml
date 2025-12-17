@@ -206,7 +206,7 @@
 name: "Sub-Issue Closer"
 "on":
   schedule:
-  - cron: "37 21 * * *"
+  - cron: "56 15 * * *"
     # Friendly format: daily (scattered)
   workflow_dispatch: null
 
