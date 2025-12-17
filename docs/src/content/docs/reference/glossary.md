@@ -176,7 +176,7 @@ GitHub's project management and tracking system that organizes issues and pull r
 ```yaml
 safe-outputs:
   update-project:
-    github-token: ${{ secrets.PROJECTS_PAT }}
+    github-token: ${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}
 ```
 
 ### GitHub Actions Secret

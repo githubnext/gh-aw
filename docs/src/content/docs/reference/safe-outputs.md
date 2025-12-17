@@ -353,7 +353,7 @@ By default, `update-project` is **update-only**: if the project board does not e
 safe-outputs:
   update-project:
     max: 20                         # max project operations (default: 10)
-    github-token: ${{ secrets.PROJECTS_PAT }} # token override with projects:write
+    github-token: ${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }} # token override with projects:write
 ```
 
 Agent output **must include a full GitHub project URL** in the `project` field (e.g., `https://github.com/orgs/myorg/projects/42` or `https://github.com/users/username/projects/5`). Project names or numbers alone are not accepted. Can also supply `content_number`, `content_type`, `fields`, and `campaign_id`. The job adds the issue or PR to the board, updates custom fields, applies `campaign:<id>` labels, and exposes `project-id`, `project-number`, `project-url`, `campaign-id`, and `item-id` outputs. Cross-repository targeting not supported.
