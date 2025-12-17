@@ -853,7 +853,7 @@
 name: "Agentic Workflow Audit Agent"
 "on":
   schedule:
-  - cron: "32 17 * * *"
+  - cron: "13 2 * * *"
     # Friendly format: daily (scattered)
   workflow_dispatch: null
 

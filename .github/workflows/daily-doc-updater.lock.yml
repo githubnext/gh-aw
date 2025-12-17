@@ -276,7 +276,7 @@
 name: "Daily Documentation Updater"
 "on":
   schedule:
-  - cron: "14 4 * * *"
+  - cron: "47 4 * * *"
     # Friendly format: daily (scattered)
   workflow_dispatch: null
 

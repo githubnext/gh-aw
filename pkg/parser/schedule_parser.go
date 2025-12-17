@@ -2,6 +2,7 @@ package parser
 
 import (
 	"fmt"
+	"hash/fnv"
 	"regexp"
 	"strconv"
 	"strings"
@@ -164,6 +165,14 @@ func IsFuzzyCron(cron string) bool {
 	return strings.HasPrefix(cron, "FUZZY:")
 }
 
+// stableHash returns a deterministic hash value in the range [0, modulo)
+// using FNV-1a hash algorithm, which is stable across platforms and Go versions.
+func stableHash(s string, modulo int) int {
+	h := fnv.New32a()
+	h.Write([]byte(s))
+	return int(h.Sum32() % uint32(modulo))
+}
+
 // ScatterSchedule takes a fuzzy cron expression and a workflow identifier
 // and returns a deterministic scattered time for that workflow
 func ScatterSchedule(fuzzyCron, workflowIdentifier string) (string, error) {
@@ -202,11 +211,8 @@ func ScatterSchedule(fuzzyCron, workflowIdentifier string) (string, error) {
 		// Define the scattering window: ±1 hour (120 minutes total range)
 		windowSize := 120 // Total window is 2 hours (±1 hour)
 
-		// Use a simple hash to get a deterministic offset within the window
-		hash := 0
-		for _, ch := range workflowIdentifier {
-			hash = (hash*31 + int(ch)) % windowSize
-		}
+		// Use a stable hash to get a deterministic offset within the window
+		hash := stableHash(workflowIdentifier, windowSize)
 
 		// Calculate offset from target time: range is [-60, +59] minutes
 		offset := hash - (windowSize / 2)
@@ -231,11 +237,8 @@ func ScatterSchedule(fuzzyCron, workflowIdentifier string) (string, error) {
 
 	// For FUZZY:DAILY * * *, we scatter across 24 hours
 	if strings.HasPrefix(fuzzyCron, "FUZZY:DAILY") {
-		// Use a simple hash of the workflow identifier to get a deterministic hour
-		hash := 0
-		for _, ch := range workflowIdentifier {
-			hash = (hash*31 + int(ch)) % 1440 // Total minutes in a day
-		}
+		// Use a stable hash of the workflow identifier to get a deterministic time
+		hash := stableHash(workflowIdentifier, 1440) // Total minutes in a day
 
 		hour := hash / 60
 		minute := hash % 60
@@ -259,13 +262,8 @@ func ScatterSchedule(fuzzyCron, workflowIdentifier string) (string, error) {
 			return "", fmt.Errorf("invalid interval in fuzzy hourly pattern: %s", fuzzyCron)
 		}
 
-		// Use a hash to get a deterministic minute offset (0-59)
-		hash := 0
-		for _, ch := range workflowIdentifier {
-			hash = (hash*31 + int(ch)) % 60
-		}
-
-		minute := hash
+		// Use a stable hash to get a deterministic minute offset (0-59)
+		minute := stableHash(workflowIdentifier, 60)
 
 		// Return scattered hourly cron: minute */N * * *
 		return fmt.Sprintf("%d */%d * * *", minute, interval), nil
@@ -303,11 +301,8 @@ func ScatterSchedule(fuzzyCron, workflowIdentifier string) (string, error) {
 		// Define the scattering window: ±1 hour (120 minutes total range)
 		windowSize := 120 // Total window is 2 hours (±1 hour)
 
-		// Use a simple hash to get a deterministic offset within the window
-		hash := 0
-		for _, ch := range workflowIdentifier {
-			hash = (hash*31 + int(ch)) % windowSize
-		}
+		// Use a stable hash to get a deterministic offset within the window
+		hash := stableHash(workflowIdentifier, windowSize)
 
 		// Calculate offset from target time: range is [-60, +59] minutes
 		offset := hash - (windowSize / 2)
@@ -341,11 +336,8 @@ func ScatterSchedule(fuzzyCron, workflowIdentifier string) (string, error) {
 		weekdayPart := strings.TrimPrefix(parts[0], "FUZZY:WEEKLY:")
 		weekday := weekdayPart
 
-		// Use a simple hash of the workflow identifier to get a deterministic time
-		hash := 0
-		for _, ch := range workflowIdentifier {
-			hash = (hash*31 + int(ch)) % 1440 // Total minutes in a day
-		}
+		// Use a stable hash of the workflow identifier to get a deterministic time
+		hash := stableHash(workflowIdentifier, 1440) // Total minutes in a day
 
 		hour := hash / 60
 		minute := hash % 60
@@ -356,12 +348,9 @@ func ScatterSchedule(fuzzyCron, workflowIdentifier string) (string, error) {
 
 	// For FUZZY:WEEKLY * * *, we scatter across all weekdays and times
 	if strings.HasPrefix(fuzzyCron, "FUZZY:WEEKLY") {
-		// Use a simple hash of the workflow identifier to get a deterministic weekday and time
+		// Use a stable hash of the workflow identifier to get a deterministic weekday and time
 		// Total possibilities: 7 days * 1440 minutes = 10080 minutes in a week
-		hash := 0
-		for _, ch := range workflowIdentifier {
-			hash = (hash*31 + int(ch)) % 10080
-		}
+		hash := stableHash(workflowIdentifier, 10080)
 
 		// Extract weekday (0-6) and time within that day
 		weekday := hash / 1440      // Which day of the week (0-6)
