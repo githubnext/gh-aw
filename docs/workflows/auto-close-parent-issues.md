@@ -56,6 +56,8 @@ The workflow uses GitHub's GraphQL API to query issue relationships:
 - `trackedInIssues`: Issues that track this issue (parents)
 - `trackedIssues`: Issues tracked by this issue (sub-issues)
 
+**Note**: The workflow uses the `GraphQL-Features: tracked_issues_graphql_access` header to access the tracked issues feature in the GitHub GraphQL API.
+
 ## Example Scenario
 
 ```

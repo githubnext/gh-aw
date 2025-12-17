@@ -59,13 +59,19 @@ jobs:
               `;
               
               try {
-                const result = await github.graphql(parentQuery, {
-                  owner,
-                  repo,
-                  issueNumber
+                const result = await github.request('POST /graphql', {
+                  headers: {
+                    'GraphQL-Features': 'tracked_issues_graphql_access'
+                  },
+                  query: parentQuery,
+                  variables: {
+                    owner,
+                    repo,
+                    issueNumber
+                  }
                 });
                 
-                const issue = result.repository.issue;
+                const issue = result.data.data.repository.issue;
                 
                 // Now fetch all sub-issues with pagination
                 core.info(`📄 Fetching sub-issues with pagination...`);
@@ -123,12 +129,18 @@ jobs:
                 pageCount++;
                 core.info(`  Fetching page ${pageCount} of sub-issues...`);
                 
-                const result = await github.graphql(query, {
-                  issueId,
-                  cursor
+                const result = await github.request('POST /graphql', {
+                  headers: {
+                    'GraphQL-Features': 'tracked_issues_graphql_access'
+                  },
+                  query: query,
+                  variables: {
+                    issueId,
+                    cursor
+                  }
                 });
                 
-                const trackedIssues = result.node.trackedIssues;
+                const trackedIssues = result.data.data.node.trackedIssues;
                 allSubIssues.push(...trackedIssues.nodes);
                 
                 hasNextPage = trackedIssues.pageInfo.hasNextPage;
