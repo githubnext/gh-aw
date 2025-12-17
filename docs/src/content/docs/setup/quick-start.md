@@ -14,19 +14,11 @@ sidebar:
 
 Before installing, ensure you have:
 
-- ✅ **[GitHub CLI](https://cli.github.com/)** installed and authenticated
-  - *Why:* Required to compile workflows and deploy them to your repository
-  - *How to verify:* Run `gh --version` (requires v2.0.0 or higher) and `gh auth login` to authenticate
-- ✅ **GitHub account** with access to a repository (personal or organization)
-  - *Why:* Agentic workflows run as GitHub Actions in your repositories
-- ✅ **Admin or write access** to your target repository
-  - *Why:* You need permission to add workflows, enable Actions, and configure secrets
+- ✅ **[GitHub CLI](https://cli.github.com/)** v2.0.0+ installed and authenticated (`gh auth login`)
+- ✅ **GitHub account** with admin or write access to a repository
 - ✅ **GitHub Actions** enabled in your repository
-  - *Why:* Agentic workflows compile to GitHub Actions YAML files that run on GitHub's infrastructure
 - ✅ **Git** installed on your machine
-  - *Why:* Used to manage repository files and push workflow changes
 - ✅ **Operating System:** Linux, macOS, or Windows with WSL
-  - *Why:* The CLI tools and workflow compilation require a Unix-like environment
 
 :::tip[Optional: Enable Discussions]
 The example workflow in this guide creates a daily status report as a **GitHub Discussion** post. To use this example as-is, enable Discussions in your repository settings. Otherwise, you can customize the workflow to use different outputs (like issues or comments).
@@ -50,26 +42,11 @@ git --version     # Should show git version 2.x or higher
 
 ### Agentic Setup
 
-If you want to use the help of Copilot to configure GitHub Agentic Workflows,
-launch this command:
+If you want to use Copilot to configure GitHub Agentic Workflows, run:
 
 ```bash wrap
 npx --yes @github/copilot -i "activate https://raw.githubusercontent.com/githubnext/gh-aw/refs/heads/main/install.md"
 ```
-
-## Understanding Compilation
-
-:::tip[What is "compilation" in agentic workflows?]
-
-You'll write workflows in simple **Markdown files** (`.md`). GitHub Agentic Workflows **compiles** them into **GitHub Actions YAML files** ([`.lock.yml`](/gh-aw/reference/glossary/#workflow-lock-file-lockyml)) that GitHub can execute. Think of it like Markdown → HTML: you write in an easy format, and it gets converted to what GitHub needs.
-
-**Why compile?** It translates your natural language instructions into precise GitHub Actions configuration with security hardening applied.
-
-**No compiler installation needed** — the `gh aw compile` command handles everything automatically.
-
-👉 Learn more in the [Compilation Process](/gh-aw/reference/compilation-process/) documentation.
-
-:::
 
 ## How Agentic Workflows Work
 
@@ -129,68 +106,33 @@ To allow your workflows to use Copilot, you'll create a token and add it as a re
 
 #### Create a Personal Access Token (PAT)
 
-A [Personal Access Token](/gh-aw/reference/glossary/#personal-access-token-pat) is like a password that gives your workflows permission to use GitHub Copilot on your behalf.
+Create a [Personal Access Token](/gh-aw/reference/glossary/#personal-access-token-pat) to authenticate your workflows with GitHub Copilot:
 
-**Step-by-step instructions:**
-
-1. **Open the token creation page**: Visit <https://github.com/settings/personal-access-tokens/new>
-
-2. **Configure basic settings:**
-   - **Token name**: Enter a descriptive name like "Agentic Workflows Copilot"
-   - **Expiration**: Choose an expiration date (90 days recommended for testing)
-   - **Description**: Add a note like "For agentic workflows to use Copilot"
-
-3. **Select Resource owner**: Choose your **personal user account** (not an organization)
-   - This is required for the Copilot Requests permission to be available
-
-4. **Select Repository access**: Choose **"Public repositories"** 
-   - The Copilot Requests permission only appears when public repositories are selected
-   - You can also choose "All repositories" or "Only select repositories" if you prefer
-
-5. **Add the Copilot permission:**
-   - Scroll to **"Account permissions"** section (not Repository permissions)
-   - Find **"Copilot Requests"** and set it to **"Access: Read and write"**
-   - This permission allows your workflows to send requests to GitHub Copilot
-
-6. **Generate the token**: Click **"Generate token"** at the bottom of the page
-
-7. **Copy your token**: The token will be displayed once—copy it now! You won't be able to see it again.
+1. Visit <https://github.com/settings/personal-access-tokens/new>
+2. Configure the token:
+   - **Token name**: "Agentic Workflows Copilot"
+   - **Expiration**: 90 days (recommended for testing)
+   - **Resource owner**: Your personal account (required for Copilot Requests permission)
+   - **Repository access**: "Public repositories" (required for Copilot Requests permission to appear)
+3. Add permissions:
+   - In **"Account permissions"** (not Repository permissions), find **"Copilot Requests"**
+   - Set to **"Access: Read and write"**
+4. Click **"Generate token"** and copy it immediately (you won't see it again)
 
 :::tip[Can't find Copilot Requests permission?]
-The "Copilot Requests" permission is only available if:
-
-- ✅ You have an active [GitHub Copilot subscription](https://github.com/settings/copilot)
-- ✅ You're creating a **fine-grained token** (not a classic token)
-- ✅ You selected your **personal user account** as Resource owner
-- ✅ You selected **"Public repositories"** or "All repositories" under Repository access
-
-If you still don't see this option:
-- Check if your Copilot subscription is active
-- Ensure you're on the correct token type (fine-grained, not classic)
-- Contact your GitHub administrator if Copilot is managed by your organization
-
+Requires an active [GitHub Copilot subscription](https://github.com/settings/copilot), a fine-grained token (not classic), personal account as Resource owner, and "Public repositories" or "All repositories" selected. Contact your GitHub administrator if Copilot is managed by your organization.
 :::
 
 #### Add the token to your repository
 
-Now store this token as a secret in your repository so workflows can use it:
+Store the token as a repository secret:
 
-1. Navigate to **your repository** on GitHub.com
-2. Click **Settings** in the repository navigation menu
-3. In the left sidebar, click **Secrets and variables** → **Actions**
-4. Click **New repository secret**
-5. Configure the secret:
-   - **Name**: `COPILOT_GITHUB_TOKEN` (must be exact)
-   - **Secret**: Paste the personal access token you just copied
-6. Click **Add secret**
+1. Go to **your repository** → **Settings** → **Secrets and variables** → **Actions**
+2. Click **New repository secret**
+3. Set **Name** to `COPILOT_GITHUB_TOKEN` and paste the token in **Secret**
+4. Click **Add secret**
 
-✅ Your repository is now configured to run agentic workflows with GitHub Copilot!
-
-:::note[Security note]
-Repository secrets are encrypted and never exposed in workflow logs. Only workflows you add to the repository can access them.
-:::
-
-For more information, see the [GitHub Copilot CLI documentation](https://github.com/github/copilot-cli?tab=readme-ov-file#authenticate-with-a-personal-access-token-pat).
+Repository secrets are encrypted and only accessible to workflows in your repository. See [GitHub Copilot CLI documentation](https://github.com/github/copilot-cli?tab=readme-ov-file#authenticate-with-a-personal-access-token-pat) for more details.
 
 #### Verify your setup
 
@@ -207,21 +149,10 @@ Workflow                 Engine    State     Enabled  Schedule
 daily-team-status        copilot   ✓         Yes      0 9 * * 1-5
 ```
 
-This confirms:
-- ✓ The workflow is compiled and ready
-- ✓ It's enabled for execution
-- ✓ The schedule is configured correctly
+This confirms the workflow is compiled, enabled, and scheduled correctly.
 
 :::tip[Troubleshooting]
-**If the workflow isn't listed:**
-- Run `gh aw compile` to compile the workflow
-- Check that `.github/workflows/daily-team-status.md` exists
-
-**If you see errors when running the workflow:**
-- Verify `COPILOT_GITHUB_TOKEN` secret is set correctly in repository settings
-- Check that your token has "Copilot Requests" permission
-- Ensure your token hasn't expired
-- Run `gh aw secrets bootstrap --engine copilot` to check token configuration
+If the workflow isn't listed, run `gh aw compile` and verify `.github/workflows/daily-team-status.md` exists. If errors occur when running, verify the `COPILOT_GITHUB_TOKEN` secret is set with "Copilot Requests" permission and hasn't expired. Run `gh aw secrets bootstrap --engine copilot` to check configuration.
 :::
 
 ### Step 4 — Trigger a workflow run
@@ -242,7 +173,7 @@ Once complete, a new discussion post will be created in your repository with a d
 
 ## Understanding Your First Workflow
 
-Let's look at what you just added. The daily team status workflow automatically creates a status report every weekday and posts it as a discussion in your repository, and looks like this:
+The daily team status workflow creates a status report every weekday and posts it as a discussion:
 
 ```aw wrap
 ---
@@ -275,32 +206,19 @@ Create an upbeat daily status report for the team as a GitHub discussion.
 2. Create a new GitHub discussion with your findings and insights
 ```
 
-This workflow triggers every weekday at 9 AM via cron schedule, has [permissions](/gh-aw/reference/glossary/#permissions) to read repository content and create GitHub discussions, and runs AI instructions in natural language to generate status reports.
+**Structure:**
 
-**Understanding the structure:**
-
-- **[Frontmatter](/gh-aw/reference/glossary/#frontmatter)** (between `---` markers): The configuration section with [YAML](/gh-aw/reference/glossary/#yaml) settings that control when the workflow runs (`on:`), what permissions it has (`permissions:`), what tools it can use (`tools:`), and what outputs it can create (`safe-outputs:`).
-
-- **Markdown body** (below frontmatter): Natural language instructions that tell the AI [agent](/gh-aw/reference/glossary/#agent) what tasks to perform. Written in plain English, not code.
-
-- **[Safe outputs](/gh-aw/reference/glossary/#safe-outputs)**: Pre-approved actions (like creating discussions, issues, or comments) that the AI can request without needing write permissions during execution. The workflow processes these requests in separate, permission-controlled jobs for security.
+- **[Frontmatter](/gh-aw/reference/glossary/#frontmatter)** (between `---` markers): [YAML](/gh-aw/reference/glossary/#yaml) configuration for triggers (`on:`), [permissions](/gh-aw/reference/glossary/#permissions), tools, and [safe outputs](/gh-aw/reference/glossary/#safe-outputs)
+- **Markdown body**: Natural language instructions for the AI [agent](/gh-aw/reference/glossary/#agent)
+- **[Safe outputs](/gh-aw/reference/glossary/#safe-outputs)**: Pre-approved actions the AI can request (processed in separate, permission-controlled jobs)
 
 ## Customize Your Workflow
 
-Customize your workflow by editing the `.md` file and recompiling with `gh aw compile`.
-You can leverage the help of an agent to customize your workflow without having to learn about the YAML syntax. Run the following command to start an interactive session with GitHub Copilot CLI.
+Edit the `.md` file and recompile with `gh aw compile`. For AI-assisted customization using GitHub Copilot CLI:
 
 ```bash wrap
-# install copilot cli
 npm install -g @github/copilot-cli
-# install the prompt files
 gh aw init
-```
-
-Then, run the following to create and edit your workflow:
-
-```bash wrap
-# start an interactive session to customize the workflow
 copilot
 > /agent
 > select create-agentic-workflow
