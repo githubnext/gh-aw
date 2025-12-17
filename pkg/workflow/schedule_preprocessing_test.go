@@ -223,7 +223,9 @@ func TestFuzzyScheduleScattering(t *testing.T) {
 		name               string
 		frontmatter        map[string]any
 		workflowIdentifier string
-		checkScattered     bool // If true, verify the result is scattered (not fuzzy)
+		checkScattered     bool  // If true, verify the result is scattered (not fuzzy)
+		expectError        bool  // If true, expect an error (fuzzy without identifier)
+		errorSubstring     string
 	}{
 		{
 			name: "fuzzy daily schedule with identifier",
@@ -238,6 +240,7 @@ func TestFuzzyScheduleScattering(t *testing.T) {
 			},
 			workflowIdentifier: "workflow-a.md",
 			checkScattered:     true,
+			expectError:        false,
 		},
 		{
 			name: "fuzzy daily schedule without identifier",
@@ -250,8 +253,10 @@ func TestFuzzyScheduleScattering(t *testing.T) {
 					},
 				},
 			},
-			workflowIdentifier: "", // No identifier, should keep fuzzy placeholder
+			workflowIdentifier: "", // No identifier, should error
 			checkScattered:     false,
+			expectError:        true,
+			errorSubstring:     "fuzzy cron expression",
 		},
 	}
 
@@ -263,6 +268,18 @@ func TestFuzzyScheduleScattering(t *testing.T) {
 			}
 
 			err := compiler.preprocessScheduleFields(tt.frontmatter)
+			
+			if tt.expectError {
+				if err == nil {
+					t.Errorf("expected error containing '%s', got nil", tt.errorSubstring)
+					return
+				}
+				if !strings.Contains(err.Error(), tt.errorSubstring) {
+					t.Errorf("expected error containing '%s', got '%s'", tt.errorSubstring, err.Error())
+				}
+				return
+			}
+			
 			if err != nil {
 				t.Errorf("unexpected error: %v", err)
 				return
@@ -283,11 +300,6 @@ func TestFuzzyScheduleScattering(t *testing.T) {
 				fields := strings.Fields(actualCron)
 				if len(fields) != 5 {
 					t.Errorf("expected 5 fields in cron, got %d: %s", len(fields), actualCron)
-				}
-			} else {
-				// Should remain fuzzy
-				if !strings.HasPrefix(actualCron, "FUZZY:") {
-					t.Errorf("expected fuzzy schedule, got: %s", actualCron)
 				}
 			}
 		})
