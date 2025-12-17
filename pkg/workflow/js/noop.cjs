@@ -2,6 +2,7 @@
 /// <reference types="@actions/github-script" />
 
 const { loadAgentOutput } = require("./load_agent_output.cjs");
+const { generateFooterWithMessages } = require("./messages_footer.cjs");
 
 /**
  * Parse a GitHub URL, short path, or number to extract owner, repo, and number
@@ -205,18 +206,45 @@ async function main() {
     } else {
       core.info(`Parsed URL: ${parsedUrl.type} #${parsedUrl.number} in ${parsedUrl.owner}/${parsedUrl.repo}`);
 
+      // Get workflow metadata for footer
+      const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
+      const workflowSource = process.env.GH_AW_WORKFLOW_SOURCE || "";
+      const workflowSourceURL = process.env.GH_AW_WORKFLOW_SOURCE_URL || "";
+
+      // Get run URL
+      const runUrl = context.payload.repository
+        ? `${context.payload.repository.html_url}/actions/runs/${context.runId}`
+        : `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+
+      // Get triggering numbers from context
+      const triggeringIssueNumber = context.payload?.issue?.number;
+      const triggeringPRNumber = context.payload?.pull_request?.number;
+      const triggeringDiscussionNumber = context.payload?.discussion?.number;
+
       // Post each noop message as a comment
       for (let i = 0; i < noopItems.length; i++) {
         const item = noopItems[i];
         try {
+          // Build the comment body with the noop message and footer
+          let commentBody = item.message;
+          commentBody += generateFooterWithMessages(
+            workflowName,
+            runUrl,
+            workflowSource,
+            workflowSourceURL,
+            triggeringIssueNumber,
+            triggeringPRNumber,
+            triggeringDiscussionNumber
+          );
+
           let commentResult;
           if (parsedUrl.type === "issue") {
             core.info(`Posting message ${i + 1} as comment on issue #${parsedUrl.number}...`);
-            commentResult = await commentOnIssue(github, parsedUrl.owner, parsedUrl.repo, parsedUrl.number, item.message);
+            commentResult = await commentOnIssue(github, parsedUrl.owner, parsedUrl.repo, parsedUrl.number, commentBody);
           } else {
             // discussion
             core.info(`Posting message ${i + 1} as comment on discussion #${parsedUrl.number}...`);
-            commentResult = await commentOnDiscussion(github, parsedUrl.owner, parsedUrl.repo, parsedUrl.number, item.message);
+            commentResult = await commentOnDiscussion(github, parsedUrl.owner, parsedUrl.repo, parsedUrl.number, commentBody);
           }
           core.info(`✓ Comment posted: ${commentResult.html_url}`);
         } catch (error) {

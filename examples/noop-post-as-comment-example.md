@@ -34,6 +34,22 @@ When only a number is provided, it uses the current repository. The type (issue 
 
 If the URL/path/number is invalid or not provided, the noop tool falls back to its default behavior of just logging the message.
 
+## Messages Template
+
+When posting as a comment, noop includes a footer with workflow metadata (similar to other safe outputs). You can customize this footer using the `messages` configuration:
+
+```yaml
+safe-outputs:
+  messages:
+    footer: "> ✨ Created by [{workflow_name}]({run_url})"
+    footer-install: "> Install with `gh aw add {workflow_source}`"
+  noop:
+    max: 1
+    post-as-comment: "123"
+```
+
+Available placeholders: `{workflow_name}`, `{run_url}`, `{workflow_source}`, `{workflow_source_url}`, `{triggering_number}`.
+
 ## Task
 
 Analyze the issue and determine if any action is needed. If no action is required, output a noop message 

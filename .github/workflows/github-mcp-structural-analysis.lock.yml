@@ -7101,6 +7101,110 @@ jobs:
               }
               return { success: true, items: validatedOutput.items };
             }
+            function getMessages() {
+              const messagesEnv = process.env.GH_AW_SAFE_OUTPUT_MESSAGES;
+              if (!messagesEnv) {
+                return null;
+              }
+              try {
+                return JSON.parse(messagesEnv);
+              } catch (error) {
+                core.warning(`Failed to parse GH_AW_SAFE_OUTPUT_MESSAGES: ${error instanceof Error ? error.message : String(error)}`);
+                return null;
+              }
+            }
+            function renderTemplate(template, context) {
+              return template.replace(/\{(\w+)\}/g, (match, key) => {
+                const value = context[key];
+                return value !== undefined && value !== null ? String(value) : match;
+              });
+            }
+            function toSnakeCase(obj) {
+              const result = {};
+              for (const [key, value] of Object.entries(obj)) {
+                const snakeKey = key.replace(/([A-Z])/g, "_$1").toLowerCase();
+                result[snakeKey] = value;
+                result[key] = value;
+              }
+              return result;
+            }
+            function getFooterMessage(ctx) {
+              const messages = getMessages();
+              const templateContext = toSnakeCase(ctx);
+              const defaultFooter = "> Ahoy! This treasure was crafted by [🏴‍☠️ {workflow_name}]({run_url})";
+              let footer = messages?.footer ? renderTemplate(messages.footer, templateContext) : renderTemplate(defaultFooter, templateContext);
+              if (ctx.triggeringNumber) {
+                footer += ` fer issue #{triggering_number} 🗺️`.replace("{triggering_number}", String(ctx.triggeringNumber));
+              }
+              return footer;
+            }
+            function getFooterInstallMessage(ctx) {
+              if (!ctx.workflowSource || !ctx.workflowSourceUrl) {
+                return "";
+              }
+              const messages = getMessages();
+              const templateContext = toSnakeCase(ctx);
+              const defaultInstall =
+                "> Arr! To plunder this workflow fer yer own ship, run `gh aw add {workflow_source}`. Chart yer course at [🦜 {workflow_source_url}]({workflow_source_url})!";
+              return messages?.footerInstall
+                ? renderTemplate(messages.footerInstall, templateContext)
+                : renderTemplate(defaultInstall, templateContext);
+            }
+            function generateXMLMarker(workflowName, runUrl) {
+              const engineId = process.env.GH_AW_ENGINE_ID || "";
+              const engineVersion = process.env.GH_AW_ENGINE_VERSION || "";
+              const engineModel = process.env.GH_AW_ENGINE_MODEL || "";
+              const trackerId = process.env.GH_AW_TRACKER_ID || "";
+              const parts = [];
+              parts.push(`agentic-workflow: ${workflowName}`);
+              if (trackerId) {
+                parts.push(`tracker-id: ${trackerId}`);
+              }
+              if (engineId) {
+                parts.push(`engine: ${engineId}`);
+              }
+              if (engineVersion) {
+                parts.push(`version: ${engineVersion}`);
+              }
+              if (engineModel) {
+                parts.push(`model: ${engineModel}`);
+              }
+              parts.push(`run: ${runUrl}`);
+              return `<!-- ${parts.join(", ")} -->`;
+            }
+            function generateFooterWithMessages(
+              workflowName,
+              runUrl,
+              workflowSource,
+              workflowSourceURL,
+              triggeringIssueNumber,
+              triggeringPRNumber,
+              triggeringDiscussionNumber
+            ) {
+              let triggeringNumber;
+              if (triggeringIssueNumber) {
+                triggeringNumber = triggeringIssueNumber;
+              } else if (triggeringPRNumber) {
+                triggeringNumber = triggeringPRNumber;
+              } else if (triggeringDiscussionNumber) {
+                triggeringNumber = `discussion #${triggeringDiscussionNumber}`;
+              }
+              const ctx = {
+                workflowName,
+                runUrl,
+                workflowSource,
+                workflowSourceUrl: workflowSourceURL,
+                triggeringNumber,
+              };
+              let footer = "\n\n" + getFooterMessage(ctx);
+              const installMessage = getFooterInstallMessage(ctx);
+              if (installMessage) {
+                footer += "\n>\n" + installMessage;
+              }
+              footer += "\n\n" + generateXMLMarker(workflowName, runUrl);
+              footer += "\n";
+              return footer;
+            }
             function parseGitHubUrl(input, defaultType = "issue") {
               const issueMatch = input.match(/github\.com\/([^/]+)\/([^/]+)\/issues\/(\d+)/);
               if (issueMatch) {
@@ -7235,16 +7339,35 @@ jobs:
                   core.warning("Falling back to logging only.");
                 } else {
                   core.info(`Parsed URL: ${parsedUrl.type} #${parsedUrl.number} in ${parsedUrl.owner}/${parsedUrl.repo}`);
+                  const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
+                  const workflowSource = process.env.GH_AW_WORKFLOW_SOURCE || "";
+                  const workflowSourceURL = process.env.GH_AW_WORKFLOW_SOURCE_URL || "";
+                  const runUrl = context.payload.repository
+                    ? `${context.payload.repository.html_url}/actions/runs/${context.runId}`
+                    : `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+                  const triggeringIssueNumber = context.payload?.issue?.number;
+                  const triggeringPRNumber = context.payload?.pull_request?.number;
+                  const triggeringDiscussionNumber = context.payload?.discussion?.number;
                   for (let i = 0; i < noopItems.length; i++) {
                     const item = noopItems[i];
                     try {
+                      let commentBody = item.message;
+                      commentBody += generateFooterWithMessages(
+                        workflowName,
+                        runUrl,
+                        workflowSource,
+                        workflowSourceURL,
+                        triggeringIssueNumber,
+                        triggeringPRNumber,
+                        triggeringDiscussionNumber
+                      );
                       let commentResult;
                       if (parsedUrl.type === "issue") {
                         core.info(`Posting message ${i + 1} as comment on issue #${parsedUrl.number}...`);
-                        commentResult = await commentOnIssue(github, parsedUrl.owner, parsedUrl.repo, parsedUrl.number, item.message);
+                        commentResult = await commentOnIssue(github, parsedUrl.owner, parsedUrl.repo, parsedUrl.number, commentBody);
                       } else {
                         core.info(`Posting message ${i + 1} as comment on discussion #${parsedUrl.number}...`);
-                        commentResult = await commentOnDiscussion(github, parsedUrl.owner, parsedUrl.repo, parsedUrl.number, item.message);
+                        commentResult = await commentOnDiscussion(github, parsedUrl.owner, parsedUrl.repo, parsedUrl.number, commentBody);
                       }
                       core.info(`✓ Comment posted: ${commentResult.html_url}`);
                     } catch (error) {
