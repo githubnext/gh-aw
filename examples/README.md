@@ -1,6 +1,23 @@
-# MCP Gateway Examples
+# Examples
 
-This directory contains example configuration files for the `mcp-gateway` command.
+This directory contains example configurations and templates for GitHub Agentic Workflows.
+
+## Secure Workflow Template
+
+**[`secure-workflow-template.md`](secure-workflow-template.md)** - A comprehensive template demonstrating security best practices for creating new workflows. Use this as a starting point for any new workflow to ensure security is built-in from the start.
+
+Key security features:
+- Explicit permissions with principle of least privilege
+- Strict mode enforcement
+- Safe outputs for write operations
+- Threat detection
+- Network isolation
+- Tool hardening with explicit allow-lists
+- Sanitized context usage
+
+## MCP Gateway Examples
+
+This directory also contains example configuration files for the `mcp-gateway` command.
 
 ## What is MCP Gateway?
 

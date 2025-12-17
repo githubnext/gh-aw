@@ -227,6 +227,19 @@ For detailed guidelines and decision tree, see [specs/breaking-cli-rules.md](spe
 - Ensure all tests pass (`make test`)
 - Test manually with real workflows when possible
 
+### Creating New Workflows
+
+When creating new workflows, use the [secure workflow template](examples/secure-workflow-template.md) as a starting point to ensure security best practices are implemented from the start:
+
+- **Explicit permissions**: Always declare minimum required permissions
+- **Strict mode**: Enable for production workflows
+- **Safe outputs**: Use for all write operations
+- **Threat detection**: Enable for workflows handling external input
+- **Network isolation**: Explicitly allow only necessary domains
+- **Tool hardening**: Use explicit allow-lists, never wildcards
+
+See the [Security Best Practices Guide](docs/src/content/docs/guides/security.md) for detailed guidance.
+
 ## 🔄 Pull Request Process
 
 1. **Before submitting:**
