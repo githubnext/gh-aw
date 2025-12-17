@@ -147,9 +147,8 @@ function sanitizeContentCore(content, maxLength) {
   // This must happen before mention neutralization to avoid creating bare mentions
   // when control characters are removed between @ and username
   sanitized = sanitized.replace(/\x1b\[[0-9;]*[mGKH]/g, "");
-  // Remove control characters except newlines (\n) and tabs (\t)
-  // This includes carriage returns (\r) which should be normalized
-  sanitized = sanitized.replace(/[\x00-\x08\x0B-\x1F\x7F]/g, "");
+  // Remove control characters except newlines (\n), tabs (\t), and carriage returns (\r)
+  sanitized = sanitized.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "");
 
   // Neutralize commands at the start of text (e.g., /bot-name)
   sanitized = neutralizeCommands(sanitized);

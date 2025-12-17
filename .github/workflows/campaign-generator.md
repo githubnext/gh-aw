@@ -2,11 +2,12 @@
 description: AI-powered campaign generator that creates comprehensive campaign specs from minimal user input
 on:
   issues:
-    types: [opened]
+    types: [opened, labeled]
     lock-for-agent: true
 permissions:
   contents: read
   issues: read
+  pull-requests: read
 engine: copilot
 tools:
   github:
