@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 )
@@ -345,4 +346,192 @@ func TestFuzzyScheduleScatteringDeterministic(t *testing.T) {
 	if results[0] == results[1] && results[1] == results[2] {
 		t.Errorf("Scattering produced identical results for all workflows: %s", results[0])
 	}
+}
+
+func TestSchedulePreprocessingWithFuzzyDaily(t *testing.T) {
+	// Test various fuzzy daily schedule formats
+	tests := []struct {
+		name          string
+		frontmatter   map[string]any
+		checkScatter  bool
+		expectError   bool
+		errorContains string
+	}{
+		{
+			name: "fuzzy daily - shorthand string",
+			frontmatter: map[string]any{
+				"on": map[string]any{
+					"schedule": "daily",
+				},
+			},
+			checkScatter: true,
+		},
+		{
+			name: "fuzzy daily - array format",
+			frontmatter: map[string]any{
+				"on": map[string]any{
+					"schedule": []any{
+						map[string]any{
+							"cron": "daily",
+						},
+					},
+				},
+			},
+			checkScatter: true,
+		},
+		{
+			name: "fuzzy daily at specific time",
+			frontmatter: map[string]any{
+				"on": map[string]any{
+					"schedule": "daily at 14:30",
+				},
+			},
+			checkScatter: false, // This has a specific time, so not scattered
+		},
+		{
+			name: "fuzzy daily around specific time",
+			frontmatter: map[string]any{
+				"on": map[string]any{
+					"schedule": "daily around 14:30",
+				},
+			},
+			checkScatter: true, // This uses "around", so it should be scattered
+		},
+		{
+			name: "fuzzy daily with multiple schedules",
+			frontmatter: map[string]any{
+				"on": map[string]any{
+					"schedule": []any{
+						map[string]any{
+							"cron": "daily",
+						},
+						map[string]any{
+							"cron": "weekly on monday",
+						},
+					},
+				},
+			},
+			checkScatter: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			compiler := NewCompiler(false, "", "test")
+			compiler.SetWorkflowIdentifier("test-workflow.md")
+
+			err := compiler.preprocessScheduleFields(tt.frontmatter)
+
+			if tt.expectError {
+				if err == nil {
+					t.Errorf("expected error containing '%s', got nil", tt.errorContains)
+					return
+				}
+				if !strings.Contains(err.Error(), tt.errorContains) {
+					t.Errorf("expected error containing '%s', got '%s'", tt.errorContains, err.Error())
+				}
+				return
+			}
+
+			if err != nil {
+				t.Errorf("unexpected error: %v", err)
+				return
+			}
+
+			// Extract the cron expression
+			onMap := tt.frontmatter["on"].(map[string]any)
+
+			var actualCron string
+			switch schedule := onMap["schedule"].(type) {
+			case []any:
+				firstSchedule := schedule[0].(map[string]any)
+				actualCron = firstSchedule["cron"].(string)
+			case map[string]any:
+				actualCron = schedule["cron"].(string)
+			default:
+				t.Fatalf("unexpected schedule type: %T", schedule)
+			}
+
+			// Verify it's not in fuzzy format anymore (should be scattered)
+			if strings.HasPrefix(actualCron, "FUZZY:") {
+				t.Errorf("schedule should have been scattered, still in fuzzy format: %s", actualCron)
+			}
+
+			// Verify it's a valid cron expression
+			fields := strings.Fields(actualCron)
+			if len(fields) != 5 {
+				t.Errorf("expected 5 fields in cron expression, got %d: %s", len(fields), actualCron)
+			}
+
+			if tt.checkScatter {
+				// For scattered daily schedules, verify it's a daily pattern
+				if fields[2] != "*" || fields[3] != "*" || fields[4] != "*" {
+					t.Errorf("expected daily pattern (minute hour * * *), got: %s", actualCron)
+				}
+				t.Logf("Successfully scattered fuzzy daily schedule to: %s", actualCron)
+			}
+		})
+	}
+}
+
+func TestSchedulePreprocessingDailyVariations(t *testing.T) {
+	// Test that "daily" produces a valid scattered schedule
+	compiler := NewCompiler(false, "", "test")
+	compiler.SetWorkflowIdentifier("daily-variation-test.md")
+
+	frontmatter := map[string]any{
+		"on": map[string]any{
+			"schedule": "daily",
+		},
+	}
+
+	err := compiler.preprocessScheduleFields(frontmatter)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// Extract and verify the scattered schedule
+	onMap := frontmatter["on"].(map[string]any)
+
+	// The schedule will be converted to array format during preprocessing
+	var cronExpr string
+	switch schedule := onMap["schedule"].(type) {
+	case []any:
+		firstSchedule := schedule[0].(map[string]any)
+		cronExpr = firstSchedule["cron"].(string)
+	case map[string]any:
+		cronExpr = schedule["cron"].(string)
+	default:
+		t.Fatalf("unexpected schedule type: %T", schedule)
+	}
+
+	// Verify it's a valid daily cron expression
+	fields := strings.Fields(cronExpr)
+	if len(fields) != 5 {
+		t.Fatalf("expected 5 fields in cron expression, got %d: %s", len(fields), cronExpr)
+	}
+
+	// Parse hour and minute to ensure they're valid
+	var minute, hour int
+	if _, err := fmt.Sscanf(fields[0], "%d", &minute); err != nil {
+		t.Errorf("invalid minute field: %s", fields[0])
+	}
+	if _, err := fmt.Sscanf(fields[1], "%d", &hour); err != nil {
+		t.Errorf("invalid hour field: %s", fields[1])
+	}
+
+	// Verify ranges
+	if minute < 0 || minute > 59 {
+		t.Errorf("minute should be 0-59, got: %d", minute)
+	}
+	if hour < 0 || hour > 23 {
+		t.Errorf("hour should be 0-23, got: %d", hour)
+	}
+
+	// Verify daily pattern
+	if fields[2] != "*" || fields[3] != "*" || fields[4] != "*" {
+		t.Errorf("expected daily pattern (minute hour * * *), got: %s", cronExpr)
+	}
+
+	t.Logf("Successfully compiled 'daily' to valid cron: %s", cronExpr)
 }
