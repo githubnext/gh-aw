@@ -64,6 +64,24 @@ labels: ["automation", "ci", "diagnostics"]
 
 Labels help organize workflows by purpose, team, or functionality. They appear in status command table output as `[automation ci diagnostics]` and as a JSON array in `--json` mode. Filter workflows by label using `gh aw status --label automation`.
 
+### Metadata (`metadata:`)
+
+Optional key-value pairs for storing custom metadata compatible with the [GitHub Copilot custom agent spec](https://docs.github.com/en/copilot/reference/custom-agents-configuration).
+
+```yaml wrap
+metadata:
+  author: John Doe
+  version: 1.0.0
+  category: automation
+```
+
+**Constraints:**
+- Keys: 1-64 characters
+- Values: Maximum 1024 characters
+- Only string values are supported
+
+Metadata provides a flexible way to add descriptive information to workflows without affecting execution.
+
 ### GitHub Token (`github-token:`)
 
 Configures the default GitHub token for engine authentication, checkout steps, and safe-output operations.
