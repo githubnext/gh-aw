@@ -358,7 +358,7 @@ safe-outputs:
 
 Agent output **must include a full GitHub project URL** in the `project` field (e.g., `https://github.com/orgs/myorg/projects/42` or `https://github.com/users/username/projects/5`). Project names or numbers alone are not accepted. Can also supply `content_number`, `content_type`, `fields`, and `campaign_id`. The job adds the issue or PR to the board, updates custom fields, applies `campaign:<id>` labels, and exposes `project-id`, `project-number`, `project-url`, `campaign-id`, and `item-id` outputs. Cross-repository targeting not supported.
 
-To opt in to creating missing project boards, include `create_if_missing: true` in the `update_project` output (and ensure your token has sufficient org Project permissions; in many setups this means using `safe-outputs.update-project.github-token`).
+To opt in to creating missing project boards, include `create_if_missing: true` in the `update_project` output (and ensure your token has sufficient org Project permissions; in many setups this means using `safe-outputs.update-project.github-token` or the [`GH_AW_PROJECT_GITHUB_TOKEN`](/gh-aw/reference/tokens/#gh_aw_project_github_token-github-projects-v2) secret).
 
 ### Pull Request Creation (`create-pull-request:`)
 
