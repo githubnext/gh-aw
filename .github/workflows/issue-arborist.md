@@ -32,13 +32,13 @@ steps:
       # Create output directory
       mkdir -p /tmp/gh-aw/issues-data
       
-      echo "⬇ Downloading the last 100 issues (excluding sub-issues)..."
+      echo "⬇ Downloading the last 100 open issues (excluding sub-issues)..."
       
-      # Fetch the last 100 issues that don't have a parent issue
+      # Fetch the last 100 open issues that don't have a parent issue
       # Using search filter to exclude issues that are already sub-issues
       gh issue list --repo ${{ github.repository }} \
         --search "no:parent-issue" \
-        --state all \
+        --state open \
         --json number,title,author,createdAt,state,url,body,labels,updatedAt,closedAt,milestone,assignees \
         --limit 100 \
         > /tmp/gh-aw/issues-data/issues.json
@@ -71,12 +71,12 @@ You are the Issue Arborist - an intelligent agent that cultivates the issue gard
 
 ## Task
 
-Analyze the last 100 issues in repository ${{ github.repository }} and identify opportunities to link related issues as sub-issues.
+Analyze the last 100 open issues in repository ${{ github.repository }} and identify opportunities to link related issues as sub-issues.
 
 ## Pre-Downloaded Data
 
 The issue data has been pre-downloaded and is available at:
-- **Issues data**: `/tmp/gh-aw/issues-data/issues.json` - Contains the last 100 issues (excluding those that are already sub-issues)
+- **Issues data**: `/tmp/gh-aw/issues-data/issues.json` - Contains the last 100 open issues (excluding those that are already sub-issues)
 - **Schema**: `/tmp/gh-aw/issues-data/issues-schema.json` - JSON schema showing the structure of the data
 
 Use `cat /tmp/gh-aw/issues-data/issues.json | jq ...` to query and analyze the issues.
@@ -168,7 +168,7 @@ Your discussion should include:
 ## 🌳 Issue Arborist Daily Report
 
 **Date**: [Current Date]
-**Issues Analyzed**: 100
+**Issues Analyzed**: 100 (open issues only)
 
 ### Parent Issues Created
 
