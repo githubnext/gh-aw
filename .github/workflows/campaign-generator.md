@@ -2,7 +2,7 @@
 description: AI-powered campaign generator that creates comprehensive campaign specs from minimal user input
 on:
   issues:
-    types: [opened, labeled]
+    types: [labeled]
     lock-for-agent: true
 permissions:
   contents: read

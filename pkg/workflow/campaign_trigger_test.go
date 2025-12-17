@@ -102,7 +102,9 @@ tools:
 }
 
 // TestCampaignGeneratorWorkflow specifically tests the campaign-generator workflow
-// to ensure it compiles correctly with the opened and labeled event types.
+// to ensure it compiles correctly with only the labeled event type.
+// This prevents the workflow from being skipped when triggered by the 'opened' event
+// before labels are applied by GitHub issue forms.
 func TestCampaignGeneratorWorkflow(t *testing.T) {
 	compiler := NewCompiler(false, "", "test")
 
@@ -128,12 +130,13 @@ func TestCampaignGeneratorWorkflow(t *testing.T) {
 	}
 	lockContent := string(lockBytes)
 
-	// Verify both event types are present
-	if !strings.Contains(lockContent, "- opened") {
-		t.Error("Expected 'opened' event type in campaign-generator lock file")
-	}
+	// Verify only labeled event type is present (not opened)
+	// The 'opened' event causes the workflow to skip because labels aren't applied yet
 	if !strings.Contains(lockContent, "- labeled") {
 		t.Error("Expected 'labeled' event type in campaign-generator lock file")
+	}
+	if strings.Contains(lockContent, "- opened") {
+		t.Error("Should not have 'opened' event type in campaign-generator lock file (causes skip before labels are applied)")
 	}
 
 	// Verify the label condition is present
