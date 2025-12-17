@@ -87,6 +87,9 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	// Disable slash commands for controlled execution
 	claudeArgs = append(claudeArgs, "--disable-slash-commands")
 
+	// Disable Chrome integration for security and deterministic execution
+	claudeArgs = append(claudeArgs, "--no-chrome")
+
 	// Add model if specified
 	// Model can be configured via:
 	// 1. Explicit model in workflow config (highest priority)
