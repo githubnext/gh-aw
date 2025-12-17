@@ -333,7 +333,7 @@ func (p *ScheduleParser) parseInterval() (string, error) {
 				return fmt.Sprintf("*/%d * * * *", interval), nil
 			case "h":
 				// every Nh -> FUZZY:HOURLY/N (fuzzy hourly interval with scattering)
-				return fmt.Sprintf("FUZZY:HOURLY/%d * * * *", interval), nil
+				return fmt.Sprintf("FUZZY:HOURLY/%d * * *", interval), nil
 			case "d":
 				// every Nd -> daily at midnight, repeated N times
 				// For single day, use daily. For multiple days, use interval in hours
@@ -417,7 +417,7 @@ func (p *ScheduleParser) parseInterval() (string, error) {
 		return fmt.Sprintf("*/%d * * * *", interval), nil
 	case "hours":
 		// every N hours -> FUZZY:HOURLY/N (fuzzy hourly interval with scattering)
-		return fmt.Sprintf("FUZZY:HOURLY/%d * * * *", interval), nil
+		return fmt.Sprintf("FUZZY:HOURLY/%d * * *", interval), nil
 	default:
 		return "", fmt.Errorf("unsupported interval unit '%s', use 'minutes' or 'hours'", unit)
 	}
@@ -446,7 +446,7 @@ func (p *ScheduleParser) parseBase() (string, error) {
 		// daily around HH:MM -> FUZZY:DAILY_AROUND:HH:MM (fuzzy schedule with target time)
 		if len(p.tokens) == 1 {
 			// Just "daily" with no time - this is a fuzzy schedule
-			return "FUZZY:DAILY * * * *", nil
+			return "FUZZY:DAILY * * *", nil
 		}
 		if len(p.tokens) > 1 {
 			// Check if "around" keyword is used
@@ -459,7 +459,7 @@ func (p *ScheduleParser) parseBase() (string, error) {
 				// Parse the time to validate it
 				minute, hour = parseTime(timeStr)
 				// Return fuzzy around format: FUZZY:DAILY_AROUND:HH:MM
-				return fmt.Sprintf("FUZZY:DAILY_AROUND:%s:%s * * * *", hour, minute), nil
+				return fmt.Sprintf("FUZZY:DAILY_AROUND:%s:%s * * *", hour, minute), nil
 			}
 			// Otherwise, extract time normally for "at" or implicit "at"
 			timeStr, err := p.extractTime(1)
@@ -472,7 +472,7 @@ func (p *ScheduleParser) parseBase() (string, error) {
 	case "hourly":
 		// hourly -> FUZZY:HOURLY/1 (fuzzy hourly schedule, equivalent to "every 1h")
 		if len(p.tokens) == 1 {
-			return "FUZZY:HOURLY/1 * * * *", nil
+			return "FUZZY:HOURLY/1 * * *", nil
 		}
 		// hourly doesn't support time specifications
 		return "", fmt.Errorf("hourly schedule does not support 'at time' clause, use 'hourly' without additional parameters")

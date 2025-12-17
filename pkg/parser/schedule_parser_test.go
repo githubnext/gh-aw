@@ -19,7 +19,7 @@ func TestParseSchedule(t *testing.T) {
 		{
 			name:         "daily default time",
 			input:        "daily",
-			expectedCron: "FUZZY:DAILY * * * *",
+			expectedCron: "FUZZY:DAILY * * *",
 			expectedOrig: "daily",
 		},
 		{
@@ -81,67 +81,67 @@ func TestParseSchedule(t *testing.T) {
 		{
 			name:         "daily around 02:00",
 			input:        "daily around 02:00",
-			expectedCron: "FUZZY:DAILY_AROUND:2:0 * * * *",
+			expectedCron: "FUZZY:DAILY_AROUND:2:0 * * *",
 			expectedOrig: "daily around 02:00",
 		},
 		{
 			name:         "daily around midnight",
 			input:        "daily around midnight",
-			expectedCron: "FUZZY:DAILY_AROUND:0:0 * * * *",
+			expectedCron: "FUZZY:DAILY_AROUND:0:0 * * *",
 			expectedOrig: "daily around midnight",
 		},
 		{
 			name:         "daily around noon",
 			input:        "daily around noon",
-			expectedCron: "FUZZY:DAILY_AROUND:12:0 * * * *",
+			expectedCron: "FUZZY:DAILY_AROUND:12:0 * * *",
 			expectedOrig: "daily around noon",
 		},
 		{
 			name:         "daily around 3pm",
 			input:        "daily around 3pm",
-			expectedCron: "FUZZY:DAILY_AROUND:15:0 * * * *",
+			expectedCron: "FUZZY:DAILY_AROUND:15:0 * * *",
 			expectedOrig: "daily around 3pm",
 		},
 		{
 			name:         "daily around 14:30",
 			input:        "daily around 14:30",
-			expectedCron: "FUZZY:DAILY_AROUND:14:30 * * * *",
+			expectedCron: "FUZZY:DAILY_AROUND:14:30 * * *",
 			expectedOrig: "daily around 14:30",
 		},
 		{
 			name:         "daily around 9am",
 			input:        "daily around 9am",
-			expectedCron: "FUZZY:DAILY_AROUND:9:0 * * * *",
+			expectedCron: "FUZZY:DAILY_AROUND:9:0 * * *",
 			expectedOrig: "daily around 9am",
 		},
 		{
 			name:         "daily around 14:00 utc+9",
 			input:        "daily around 14:00 utc+9",
-			expectedCron: "FUZZY:DAILY_AROUND:5:0 * * * *",
+			expectedCron: "FUZZY:DAILY_AROUND:5:0 * * *",
 			expectedOrig: "daily around 14:00 utc+9",
 		},
 		{
 			name:         "daily around 3pm utc-5",
 			input:        "daily around 3pm utc-5",
-			expectedCron: "FUZZY:DAILY_AROUND:20:0 * * * *",
+			expectedCron: "FUZZY:DAILY_AROUND:20:0 * * *",
 			expectedOrig: "daily around 3pm utc-5",
 		},
 		{
 			name:         "daily around 9am utc+05:30",
 			input:        "daily around 9am utc+05:30",
-			expectedCron: "FUZZY:DAILY_AROUND:3:30 * * * *",
+			expectedCron: "FUZZY:DAILY_AROUND:3:30 * * *",
 			expectedOrig: "daily around 9am utc+05:30",
 		},
 		{
 			name:         "daily around midnight utc-8",
 			input:        "daily around midnight utc-8",
-			expectedCron: "FUZZY:DAILY_AROUND:8:0 * * * *",
+			expectedCron: "FUZZY:DAILY_AROUND:8:0 * * *",
 			expectedOrig: "daily around midnight utc-8",
 		},
 		{
 			name:         "daily around noon utc+2",
 			input:        "daily around noon utc+2",
-			expectedCron: "FUZZY:DAILY_AROUND:10:0 * * * *",
+			expectedCron: "FUZZY:DAILY_AROUND:10:0 * * *",
 			expectedOrig: "daily around noon utc+2",
 		},
 
@@ -149,7 +149,7 @@ func TestParseSchedule(t *testing.T) {
 		{
 			name:         "hourly",
 			input:        "hourly",
-			expectedCron: "FUZZY:HOURLY/1 * * * *",
+			expectedCron: "FUZZY:HOURLY/1 * * *",
 			expectedOrig: "hourly",
 		},
 
@@ -329,25 +329,25 @@ func TestParseSchedule(t *testing.T) {
 		{
 			name:         "every 1 hour",
 			input:        "every 1 hour",
-			expectedCron: "FUZZY:HOURLY/1 * * * *",
+			expectedCron: "FUZZY:HOURLY/1 * * *",
 			expectedOrig: "every 1 hour",
 		},
 		{
 			name:         "every 2 hours",
 			input:        "every 2 hours",
-			expectedCron: "FUZZY:HOURLY/2 * * * *",
+			expectedCron: "FUZZY:HOURLY/2 * * *",
 			expectedOrig: "every 2 hours",
 		},
 		{
 			name:         "every 6 hours",
 			input:        "every 6 hours",
-			expectedCron: "FUZZY:HOURLY/6 * * * *",
+			expectedCron: "FUZZY:HOURLY/6 * * *",
 			expectedOrig: "every 6 hours",
 		},
 		{
 			name:         "every 12 hours",
 			input:        "every 12 hours",
-			expectedCron: "FUZZY:HOURLY/12 * * * *",
+			expectedCron: "FUZZY:HOURLY/12 * * *",
 			expectedOrig: "every 12 hours",
 		},
 
@@ -361,19 +361,19 @@ func TestParseSchedule(t *testing.T) {
 		{
 			name:         "every 1h",
 			input:        "every 1h",
-			expectedCron: "FUZZY:HOURLY/1 * * * *",
+			expectedCron: "FUZZY:HOURLY/1 * * *",
 			expectedOrig: "every 1h",
 		},
 		{
 			name:         "every 2h",
 			input:        "every 2h",
-			expectedCron: "FUZZY:HOURLY/2 * * * *",
+			expectedCron: "FUZZY:HOURLY/2 * * *",
 			expectedOrig: "every 2h",
 		},
 		{
 			name:         "every 6h",
 			input:        "every 6h",
-			expectedCron: "FUZZY:HOURLY/6 * * * *",
+			expectedCron: "FUZZY:HOURLY/6 * * *",
 			expectedOrig: "every 6h",
 		},
 		{
@@ -417,7 +417,7 @@ func TestParseSchedule(t *testing.T) {
 		{
 			name:         "DAILY uppercase",
 			input:        "DAILY",
-			expectedCron: "FUZZY:DAILY * * * *",
+			expectedCron: "FUZZY:DAILY * * *",
 			expectedOrig: "DAILY",
 		},
 		{
@@ -745,7 +745,7 @@ func TestIsFuzzyCron(t *testing.T) {
 		input    string
 		expected bool
 	}{
-		{"FUZZY:DAILY * * * *", true},
+		{"FUZZY:DAILY * * *", true},
 		{"0 0 * * *", false},
 		{"daily", false},
 		{"", false},
@@ -770,7 +770,7 @@ func TestScatterSchedule(t *testing.T) {
 	}{
 		{
 			name:               "valid fuzzy daily",
-			fuzzyCron:          "FUZZY:DAILY * * * *",
+			fuzzyCron:          "FUZZY:DAILY * * *",
 			workflowIdentifier: "workflow1",
 			expectError:        false,
 		},
@@ -819,7 +819,7 @@ func TestScatterScheduleDeterministic(t *testing.T) {
 
 	results := make([]string, len(workflows))
 	for i, wf := range workflows {
-		result, err := ScatterSchedule("FUZZY:DAILY * * * *", wf)
+		result, err := ScatterSchedule("FUZZY:DAILY * * *", wf)
 		if err != nil {
 			t.Fatalf("unexpected error for workflow %s: %v", wf, err)
 		}
@@ -871,13 +871,13 @@ func TestScatterScheduleHourly(t *testing.T) {
 	}{
 		{
 			name:               "valid fuzzy hourly 1h",
-			fuzzyCron:          "FUZZY:HOURLY/1 * * * *",
+			fuzzyCron:          "FUZZY:HOURLY/1 * * *",
 			workflowIdentifier: "workflow1",
 			expectError:        false,
 		},
 		{
 			name:               "valid fuzzy hourly 6h",
-			fuzzyCron:          "FUZZY:HOURLY/6 * * * *",
+			fuzzyCron:          "FUZZY:HOURLY/6 * * *",
 			workflowIdentifier: "workflow2",
 			expectError:        false,
 		},
@@ -918,7 +918,7 @@ func TestScatterScheduleHourlyDeterministic(t *testing.T) {
 
 	results := make([]string, len(workflows))
 	for i, wf := range workflows {
-		result, err := ScatterSchedule("FUZZY:HOURLY/2 * * * *", wf)
+		result, err := ScatterSchedule("FUZZY:HOURLY/2 * * *", wf)
 		if err != nil {
 			t.Fatalf("unexpected error for workflow %s: %v", wf, err)
 		}
@@ -951,7 +951,7 @@ func TestScatterScheduleDailyAround(t *testing.T) {
 	}{
 		{
 			name:               "valid fuzzy daily around 9am",
-			fuzzyCron:          "FUZZY:DAILY_AROUND:9:0 * * * *",
+			fuzzyCron:          "FUZZY:DAILY_AROUND:9:0 * * *",
 			workflowIdentifier: "workflow1",
 			targetHour:         9,
 			targetMinute:       0,
@@ -959,7 +959,7 @@ func TestScatterScheduleDailyAround(t *testing.T) {
 		},
 		{
 			name:               "valid fuzzy daily around 14:30",
-			fuzzyCron:          "FUZZY:DAILY_AROUND:14:30 * * * *",
+			fuzzyCron:          "FUZZY:DAILY_AROUND:14:30 * * *",
 			workflowIdentifier: "workflow2",
 			targetHour:         14,
 			targetMinute:       30,
@@ -967,7 +967,7 @@ func TestScatterScheduleDailyAround(t *testing.T) {
 		},
 		{
 			name:               "valid fuzzy daily around midnight",
-			fuzzyCron:          "FUZZY:DAILY_AROUND:0:0 * * * *",
+			fuzzyCron:          "FUZZY:DAILY_AROUND:0:0 * * *",
 			workflowIdentifier: "workflow3",
 			targetHour:         0,
 			targetMinute:       0,
@@ -975,7 +975,7 @@ func TestScatterScheduleDailyAround(t *testing.T) {
 		},
 		{
 			name:               "valid fuzzy daily around 23:30",
-			fuzzyCron:          "FUZZY:DAILY_AROUND:23:30 * * * *",
+			fuzzyCron:          "FUZZY:DAILY_AROUND:23:30 * * *",
 			workflowIdentifier: "workflow4",
 			targetHour:         23,
 			targetMinute:       30,
@@ -1039,7 +1039,7 @@ func TestScatterScheduleDailyAroundDeterministic(t *testing.T) {
 
 	results := make([]string, len(workflows))
 	for i, wf := range workflows {
-		result, err := ScatterSchedule("FUZZY:DAILY_AROUND:14:0 * * * *", wf)
+		result, err := ScatterSchedule("FUZZY:DAILY_AROUND:14:0 * * *", wf)
 		if err != nil {
 			t.Fatalf("unexpected error for workflow %s: %v", wf, err)
 		}
