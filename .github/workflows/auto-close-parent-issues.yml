@@ -71,7 +71,11 @@ jobs:
                   }
                 });
                 
-                const issue = result.data.data.repository.issue;
+                // Extract issue from the response
+                const issue = result.data?.data?.repository?.issue;
+                if (!issue) {
+                  throw new Error(`Failed to fetch issue #${issueNumber}: No data returned`);
+                }
                 
                 // Now fetch all sub-issues with pagination
                 core.info(`📄 Fetching sub-issues with pagination...`);
@@ -140,7 +144,11 @@ jobs:
                   }
                 });
                 
-                const trackedIssues = result.data.data.node.trackedIssues;
+                // Extract tracked issues from the response
+                const trackedIssues = result.data?.data?.node?.trackedIssues;
+                if (!trackedIssues) {
+                  throw new Error(`Failed to fetch tracked issues: No data returned`);
+                }
                 allSubIssues.push(...trackedIssues.nodes);
                 
                 hasNextPage = trackedIssues.pageInfo.hasNextPage;
