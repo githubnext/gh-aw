@@ -196,3 +196,57 @@ func parseRelativeTimeSpec(spec string) int {
 		return 0
 	}
 }
+
+// ParseIntFromConfig is a generic helper that extracts and validates an integer value from a map.
+// Supports int, int64, float64, and uint64 types.
+// Returns the integer value, or 0 if not present or invalid.
+// If log is provided, it will log the extracted value for debugging.
+func ParseIntFromConfig(m map[string]any, key string, log *logger.Logger) int {
+	if value, exists := m[key]; exists {
+		if log != nil {
+			log.Printf("Parsing %s from config", key)
+		}
+		// Try different numeric types
+		switch v := value.(type) {
+		case int:
+			if log != nil {
+				log.Printf("Parsed %s from config: %d", key, v)
+			}
+			return v
+		case int64:
+			if log != nil {
+				log.Printf("Parsed %s from config: %d", key, v)
+			}
+			return int(v)
+		case float64:
+			if log != nil {
+				log.Printf("Parsed %s from config: %d", key, int(v))
+			}
+			return int(v)
+		case uint64:
+			if log != nil {
+				log.Printf("Parsed %s from config: %d", key, v)
+			}
+			return int(v)
+		}
+	}
+	return 0
+}
+
+// ParseBoolFromConfig is a generic helper that extracts and validates a boolean value from a map.
+// Returns the boolean value, or false if not present or invalid.
+// If log is provided, it will log the extracted value for debugging.
+func ParseBoolFromConfig(m map[string]any, key string, log *logger.Logger) bool {
+	if value, exists := m[key]; exists {
+		if log != nil {
+			log.Printf("Parsing %s from config", key)
+		}
+		if boolValue, ok := value.(bool); ok {
+			if log != nil {
+				log.Printf("Parsed %s from config: %t", key, boolValue)
+			}
+			return boolValue
+		}
+	}
+	return false
+}

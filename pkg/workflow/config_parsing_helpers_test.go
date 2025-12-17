@@ -721,3 +721,223 @@ func TestParseParticipantsFromConfigConsistency(t *testing.T) {
 		})
 	}
 }
+
+func TestParseIntFromConfig(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    map[string]any
+		key      string
+		expected int
+	}{
+		{
+			name: "valid int value",
+			input: map[string]any{
+				"my-key": 42,
+			},
+			key:      "my-key",
+			expected: 42,
+		},
+		{
+			name: "valid int64 value",
+			input: map[string]any{
+				"my-key": int64(100),
+			},
+			key:      "my-key",
+			expected: 100,
+		},
+		{
+			name: "valid float64 value",
+			input: map[string]any{
+				"my-key": float64(75.5),
+			},
+			key:      "my-key",
+			expected: 75,
+		},
+		{
+			name: "valid uint64 value",
+			input: map[string]any{
+				"my-key": uint64(200),
+			},
+			key:      "my-key",
+			expected: 200,
+		},
+		{
+			name: "zero value",
+			input: map[string]any{
+				"my-key": 0,
+			},
+			key:      "my-key",
+			expected: 0,
+		},
+		{
+			name: "negative value",
+			input: map[string]any{
+				"my-key": -10,
+			},
+			key:      "my-key",
+			expected: -10,
+		},
+		{
+			name:     "missing key",
+			input:    map[string]any{},
+			key:      "my-key",
+			expected: 0,
+		},
+		{
+			name: "non-numeric type (string)",
+			input: map[string]any{
+				"my-key": "123",
+			},
+			key:      "my-key",
+			expected: 0,
+		},
+		{
+			name: "non-numeric type (bool)",
+			input: map[string]any{
+				"my-key": true,
+			},
+			key:      "my-key",
+			expected: 0,
+		},
+		{
+			name: "non-numeric type (array)",
+			input: map[string]any{
+				"my-key": []int{1, 2, 3},
+			},
+			key:      "my-key",
+			expected: 0,
+		},
+		{
+			name: "nil value",
+			input: map[string]any{
+				"my-key": nil,
+			},
+			key:      "my-key",
+			expected: 0,
+		},
+		{
+			name: "different keys with different values",
+			input: map[string]any{
+				"key1": 10,
+				"key2": 20,
+			},
+			key:      "key2",
+			expected: 20,
+		},
+		{
+			name: "large int value",
+			input: map[string]any{
+				"my-key": 999999,
+			},
+			key:      "my-key",
+			expected: 999999,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := ParseIntFromConfig(tt.input, tt.key, nil)
+			if result != tt.expected {
+				t.Errorf("expected %d, got %d", tt.expected, result)
+			}
+		})
+	}
+}
+
+func TestParseBoolFromConfig(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    map[string]any
+		key      string
+		expected bool
+	}{
+		{
+			name: "true value",
+			input: map[string]any{
+				"my-key": true,
+			},
+			key:      "my-key",
+			expected: true,
+		},
+		{
+			name: "false value",
+			input: map[string]any{
+				"my-key": false,
+			},
+			key:      "my-key",
+			expected: false,
+		},
+		{
+			name:     "missing key",
+			input:    map[string]any{},
+			key:      "my-key",
+			expected: false,
+		},
+		{
+			name: "non-bool type (string)",
+			input: map[string]any{
+				"my-key": "true",
+			},
+			key:      "my-key",
+			expected: false,
+		},
+		{
+			name: "non-bool type (int)",
+			input: map[string]any{
+				"my-key": 1,
+			},
+			key:      "my-key",
+			expected: false,
+		},
+		{
+			name: "non-bool type (int 0)",
+			input: map[string]any{
+				"my-key": 0,
+			},
+			key:      "my-key",
+			expected: false,
+		},
+		{
+			name: "non-bool type (array)",
+			input: map[string]any{
+				"my-key": []bool{true, false},
+			},
+			key:      "my-key",
+			expected: false,
+		},
+		{
+			name: "nil value",
+			input: map[string]any{
+				"my-key": nil,
+			},
+			key:      "my-key",
+			expected: false,
+		},
+		{
+			name: "different keys with different values",
+			input: map[string]any{
+				"key1": true,
+				"key2": false,
+			},
+			key:      "key1",
+			expected: true,
+		},
+		{
+			name: "explicit false value should be preserved",
+			input: map[string]any{
+				"my-key": false,
+			},
+			key:      "my-key",
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := ParseBoolFromConfig(tt.input, tt.key, nil)
+			if result != tt.expected {
+				t.Errorf("expected %v, got %v", tt.expected, result)
+			}
+		})
+	}
+}
