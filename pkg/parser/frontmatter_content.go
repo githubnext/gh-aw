@@ -55,12 +55,11 @@ func ExtractFrontmatterFromContent(content string) (*FrontmatterResult, error) {
 	frontmatterLines := lines[1:endIndex]
 	frontmatterYAML := strings.Join(frontmatterLines, "\n")
 
-	// Parse YAML with strict validation that allows x-* custom fields
+	// Parse YAML - allow x-* custom fields that GitHub Actions supports
+	// Note: We don't use DisallowUnknownField() here because the schema validation
+	// handles strict validation while filtering out x-* fields
 	var frontmatter map[string]any
-	if err := yaml.UnmarshalWithOptions([]byte(frontmatterYAML), &frontmatter,
-		yaml.DisallowUnknownField(),
-		yaml.AllowFieldPrefixes("x-"),
-	); err != nil {
+	if err := yaml.Unmarshal([]byte(frontmatterYAML), &frontmatter); err != nil {
 		return nil, fmt.Errorf("failed to parse frontmatter: %w", err)
 	}
 
