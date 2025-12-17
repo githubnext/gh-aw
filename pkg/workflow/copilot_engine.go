@@ -1145,36 +1145,93 @@ func generateAWFInstallationStep(version string, agentConfig *AgentSandboxConfig
 	return GitHubActionStep(stepLines)
 }
 
-// GenerateCopilotInstallerSteps creates GitHub Actions steps for installing Copilot CLI using the new installer script
+// GenerateCopilotInstallerSteps creates GitHub Actions steps for installing Copilot CLI with checksum verification
 // Parameters:
 //   - version: The Copilot CLI version to install (e.g., "0.0.369" or "v0.0.369")
 //   - stepName: The name to display for the install step (e.g., "Install GitHub Copilot CLI")
 //
-// # Returns steps for installing Copilot CLI via the installer script
+// Returns steps for installing Copilot CLI with SHA256 checksum verification to prevent supply chain attacks.
+//
+// Security Implementation:
+//  1. Downloads binary directly from GitHub releases (not via installer script)
+//  2. Downloads checksums file from the same release
+//  3. Verifies SHA256 checksum before installation
+//  4. Extracts and installs the verified binary
 //
 // Version Handling:
-// The installer script (https://gh.io/copilot-install) reads the VERSION environment variable.
-// If VERSION is set, the script automatically adds a 'v' prefix if not already present,
-// then downloads from: https://github.com/github/copilot-cli/releases/download/v{VERSION}/copilot-{platform}-{arch}.tar.gz
+// Automatically adds 'v' prefix if not present for consistency with GitHub release tags.
+// Downloads from: https://github.com/github/copilot-cli/releases/download/v{VERSION}/copilot-{platform}-{arch}.tar.gz
 // Examples:
 //   - VERSION=0.0.369 → downloads v0.0.369
 //   - VERSION=v0.0.369 → downloads v0.0.369
 //   - VERSION=1.2.3 → downloads v1.2.3
 func GenerateCopilotInstallerSteps(version, stepName string) []GitHubActionStep {
-	copilotLog.Printf("Generating Copilot installer steps: version=%s", version)
+	copilotLog.Printf("Generating Copilot installer steps with checksum verification: version=%s", version)
 
-	// The installer script is at https://gh.io/copilot-install which redirects to
-	// https://raw.githubusercontent.com/github/copilot-cli/main/install.sh
-	// It uses the VERSION environment variable to control which version to install.
-	// The script handles adding the 'v' prefix automatically if not present.
+	// Ensure version has 'v' prefix for consistency with GitHub release tags
+	if !strings.HasPrefix(version, "v") {
+		version = "v" + version
+	}
 
-	// Build the installation command
-	installCmd := fmt.Sprintf("export VERSION=%s && curl -fsSL https://gh.io/copilot-install | sudo bash", version)
-
+	// Build multi-line installation script with checksum verification
+	// This implements the security pattern recommended in issue #6672
 	stepLines := []string{
 		fmt.Sprintf("      - name: %s", stepName),
 		"        run: |",
-		fmt.Sprintf("          %s", installCmd),
+		fmt.Sprintf("          COPILOT_VERSION=\"%s\"", version),
+		"          COPILOT_REPO=\"github/copilot-cli\"",
+		"          COPILOT_PLATFORM=\"linux-x64\"",
+		"          COPILOT_ARCHIVE=\"copilot-$${COPILOT_PLATFORM}.tar.gz\"",
+		"          COPILOT_URL=\"https://github.com/$${COPILOT_REPO}/releases/download/$${COPILOT_VERSION}/$${COPILOT_ARCHIVE}\"",
+		"          CHECKSUMS_URL=\"https://github.com/$${COPILOT_REPO}/releases/download/$${COPILOT_VERSION}/checksums.txt\"",
+		"          ",
+		"          echo \"Downloading Copilot CLI $${COPILOT_VERSION} for $${COPILOT_PLATFORM}...\"",
+		"          ",
+		"          # Download binary",
+		"          curl -fsSL -o \"/tmp/$${COPILOT_ARCHIVE}\" \"$${COPILOT_URL}\"",
+		"          ",
+		"          # Download checksums file",
+		"          echo \"Downloading checksums file...\"",
+		"          curl -fsSL -o \"/tmp/copilot-checksums.txt\" \"$${CHECKSUMS_URL}\" || {",
+		"            echo \"Warning: Checksums file not available for version $${COPILOT_VERSION}\"",
+		"            echo \"Proceeding without checksum verification (fallback for older releases)\"",
+		"            SKIP_CHECKSUM=true",
+		"          }",
+		"          ",
+		"          # Verify checksum if checksums file was downloaded",
+		"          if [ \"$${SKIP_CHECKSUM}\" != \"true\" ]; then",
+		"            echo \"Verifying SHA256 checksum...\"",
+		"            EXPECTED_CHECKSUM=$(grep \"$${COPILOT_ARCHIVE}\" /tmp/copilot-checksums.txt | awk '{print $1}')",
+		"            ",
+		"            if [ -z \"$${EXPECTED_CHECKSUM}\" ]; then",
+		"              echo \"Warning: Checksum for $${COPILOT_ARCHIVE} not found in checksums file\"",
+		"              echo \"Proceeding without checksum verification\"",
+		"            else",
+		"              ACTUAL_CHECKSUM=$(sha256sum \"/tmp/$${COPILOT_ARCHIVE}\" | awk '{print $1}')",
+		"              ",
+		"              if [ \"$${ACTUAL_CHECKSUM}\" = \"$${EXPECTED_CHECKSUM}\" ]; then",
+		"                echo \"✓ Checksum verification passed!\"",
+		"                echo \"  Expected: $${EXPECTED_CHECKSUM}\"",
+		"                echo \"  Actual:   $${ACTUAL_CHECKSUM}\"",
+		"              else",
+		"                echo \"✗ ERROR: Checksum verification failed!\"",
+		"                echo \"  Expected: $${EXPECTED_CHECKSUM}\"",
+		"                echo \"  Actual:   $${ACTUAL_CHECKSUM}\"",
+		"                echo \"  The downloaded binary may be corrupted or tampered with.\"",
+		"                exit 1",
+		"              fi",
+		"            fi",
+		"          fi",
+		"          ",
+		"          # Extract and install",
+		"          echo \"Installing Copilot CLI...\"",
+		"          sudo tar -xzf \"/tmp/$${COPILOT_ARCHIVE}\" -C /usr/local/bin/",
+		"          sudo chmod +x /usr/local/bin/copilot",
+		"          ",
+		"          # Cleanup",
+		"          rm -f \"/tmp/$${COPILOT_ARCHIVE}\" \"/tmp/copilot-checksums.txt\"",
+		"          ",
+		"          # Verify installation",
 		"          copilot --version",
 	}
 
