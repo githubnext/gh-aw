@@ -773,8 +773,9 @@ func runHTTPServer(server *mcp.Server, port int) error {
 	// Create HTTP server
 	addr := fmt.Sprintf(":%d", port)
 	httpServer := &http.Server{
-		Addr:    addr,
-		Handler: handlerWithLogging,
+		Addr:              addr,
+		Handler:           handlerWithLogging,
+		ReadHeaderTimeout: MCPServerHTTPTimeout,
 	}
 
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Starting MCP server on http://localhost%s", addr)))

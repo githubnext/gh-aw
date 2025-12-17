@@ -57,6 +57,11 @@ func (c *Compiler) preprocessScheduleFields(frontmatter map[string]any) error {
 			c.addHourlyCronWarning(parsedCron)
 		}
 
+		// Warn if using explicit weekly cron pattern with fixed time
+		if parser.IsWeeklyCron(parsedCron) && !parser.IsFuzzyCron(parsedCron) {
+			c.addWeeklyCronWarning(parsedCron)
+		}
+
 		// Scatter fuzzy schedules if workflow identifier is set
 		if parser.IsFuzzyCron(parsedCron) && c.workflowIdentifier != "" {
 			// Combine repo slug and workflow identifier for scattering seed
@@ -150,6 +155,11 @@ func (c *Compiler) preprocessScheduleFields(frontmatter map[string]any) error {
 		// Warn if using hourly interval with fixed minute
 		if parser.IsHourlyCron(parsedCron) && !parser.IsFuzzyCron(parsedCron) {
 			c.addHourlyCronWarning(parsedCron)
+		}
+
+		// Warn if using explicit weekly cron pattern with fixed time
+		if parser.IsWeeklyCron(parsedCron) && !parser.IsFuzzyCron(parsedCron) {
+			c.addWeeklyCronWarning(parsedCron)
 		}
 
 		// Scatter fuzzy schedules if workflow identifier is set
@@ -296,6 +306,45 @@ func (c *Compiler) addHourlyCronWarning(cronExpr string) {
 		warningMsg := fmt.Sprintf(
 			"Schedule uses hourly interval with fixed minute offset (%s). Consider using fuzzy schedule 'every %sh' instead to distribute workflow execution times and reduce load spikes.",
 			minute, interval,
+		)
+
+		// This warning is added to the warning count
+		c.IncrementWarningCount()
+
+		// Store the warning for later display
+		c.addScheduleWarning(warningMsg)
+	}
+}
+
+// addWeeklyCronWarning emits a warning when a weekly cron pattern with fixed time is detected
+func (c *Compiler) addWeeklyCronWarning(cronExpr string) {
+	// Extract minute, hour, and weekday from the cron expression
+	fields := strings.Fields(cronExpr)
+	if len(fields) >= 5 {
+		minute := fields[0]
+		hour := fields[1]
+		weekday := fields[4]
+		schedulePreprocessingLog.Printf("Warning: detected weekly cron with fixed time: %s", cronExpr)
+
+		// Map weekday number to name for better readability
+		weekdayNames := map[string]string{
+			"0": "Sunday",
+			"1": "Monday",
+			"2": "Tuesday",
+			"3": "Wednesday",
+			"4": "Thursday",
+			"5": "Friday",
+			"6": "Saturday",
+		}
+		weekdayName := weekdayNames[weekday]
+		if weekdayName == "" {
+			weekdayName = "day " + weekday
+		}
+
+		// Construct the warning message
+		warningMsg := fmt.Sprintf(
+			"Schedule uses fixed weekly time (%s %s:%s UTC). Consider using fuzzy schedule 'weekly on %s' instead to distribute workflow execution times and reduce load spikes.",
+			weekdayName, hour, minute, strings.ToLower(weekdayName),
 		)
 
 		// This warning is added to the warning count

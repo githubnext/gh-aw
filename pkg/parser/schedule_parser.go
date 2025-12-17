@@ -115,6 +115,50 @@ func IsHourlyCron(cron string) bool {
 	return fields[2] == "*" && fields[3] == "*" && fields[4] == "*"
 }
 
+// IsWeeklyCron checks if a cron expression represents a weekly schedule at a fixed time
+// (e.g., "0 0 * * 1", "30 14 * * 5", etc.)
+func IsWeeklyCron(cron string) bool {
+	fields := strings.Fields(cron)
+	if len(fields) != 5 {
+		return false
+	}
+	// Weekly pattern: minute hour * * DOW
+	// The minute and hour must be specific values (numbers), not wildcards
+	// The day-of-month (3rd field) and month (4th field) must be "*"
+	// The day-of-week (5th field) must be a specific day (0-6)
+
+	// Check if minute and hour are numeric (not wildcards)
+	minute := fields[0]
+	hour := fields[1]
+
+	// Minute and hour should be digits only (no *, /, -, ,)
+	for _, ch := range minute {
+		if ch < '0' || ch > '9' {
+			return false
+		}
+	}
+	for _, ch := range hour {
+		if ch < '0' || ch > '9' {
+			return false
+		}
+	}
+
+	// Check day-of-month and month are wildcards
+	if fields[2] != "*" || fields[3] != "*" {
+		return false
+	}
+
+	// Check day-of-week is a specific day (0-6)
+	dow := fields[4]
+	for _, ch := range dow {
+		if ch < '0' || ch > '6' {
+			return false
+		}
+	}
+
+	return true
+}
+
 // IsFuzzyCron checks if a cron expression is a fuzzy schedule placeholder
 func IsFuzzyCron(cron string) bool {
 	return strings.HasPrefix(cron, "FUZZY:")
@@ -225,6 +269,108 @@ func ScatterSchedule(fuzzyCron, workflowIdentifier string) (string, error) {
 
 		// Return scattered hourly cron: minute */N * * *
 		return fmt.Sprintf("%d */%d * * *", minute, interval), nil
+	}
+
+	// For FUZZY:WEEKLY_AROUND:DOW:HH:MM * * *, scatter around the target time on specific weekday
+	if strings.HasPrefix(fuzzyCron, "FUZZY:WEEKLY_AROUND:") {
+		// Extract the weekday and target time from FUZZY:WEEKLY_AROUND:DOW:HH:MM
+		parts := strings.Split(fuzzyCron, " ")
+		if len(parts) < 1 {
+			return "", fmt.Errorf("invalid fuzzy weekly around pattern: %s", fuzzyCron)
+		}
+
+		// Parse the weekday and time from FUZZY:WEEKLY_AROUND:DOW:HH:MM
+		timePart := strings.TrimPrefix(parts[0], "FUZZY:WEEKLY_AROUND:")
+		timeParts := strings.Split(timePart, ":")
+		if len(timeParts) != 3 {
+			return "", fmt.Errorf("invalid format in fuzzy weekly around pattern: %s", fuzzyCron)
+		}
+
+		weekday := timeParts[0]
+		targetHour, err := strconv.Atoi(timeParts[1])
+		if err != nil || targetHour < 0 || targetHour > 23 {
+			return "", fmt.Errorf("invalid target hour in fuzzy weekly around pattern: %s", fuzzyCron)
+		}
+
+		targetMinute, err := strconv.Atoi(timeParts[2])
+		if err != nil || targetMinute < 0 || targetMinute > 59 {
+			return "", fmt.Errorf("invalid target minute in fuzzy weekly around pattern: %s", fuzzyCron)
+		}
+
+		// Calculate target time in minutes since midnight
+		targetMinutes := targetHour*60 + targetMinute
+
+		// Define the scattering window: ±1 hour (120 minutes total range)
+		windowSize := 120 // Total window is 2 hours (±1 hour)
+
+		// Use a simple hash to get a deterministic offset within the window
+		hash := 0
+		for _, ch := range workflowIdentifier {
+			hash = (hash*31 + int(ch)) % windowSize
+		}
+
+		// Calculate offset from target time: range is [-60, +59] minutes
+		offset := hash - (windowSize / 2)
+
+		// Apply offset to target time
+		scatteredMinutes := targetMinutes + offset
+
+		// Handle wrap-around (keep within 0-1439 minutes, which is 0:00-23:59)
+		for scatteredMinutes < 0 {
+			scatteredMinutes += 24 * 60
+		}
+		for scatteredMinutes >= 24*60 {
+			scatteredMinutes -= 24 * 60
+		}
+
+		hour := scatteredMinutes / 60
+		minute := scatteredMinutes % 60
+
+		// Return scattered weekly cron: minute hour * * DOW
+		return fmt.Sprintf("%d %d * * %s", minute, hour, weekday), nil
+	}
+
+	// For FUZZY:WEEKLY:DOW * * *, we scatter time on specific weekday
+	if strings.HasPrefix(fuzzyCron, "FUZZY:WEEKLY:") {
+		// Extract the weekday from FUZZY:WEEKLY:DOW
+		parts := strings.Split(fuzzyCron, " ")
+		if len(parts) < 1 {
+			return "", fmt.Errorf("invalid fuzzy weekly pattern: %s", fuzzyCron)
+		}
+
+		weekdayPart := strings.TrimPrefix(parts[0], "FUZZY:WEEKLY:")
+		weekday := weekdayPart
+
+		// Use a simple hash of the workflow identifier to get a deterministic time
+		hash := 0
+		for _, ch := range workflowIdentifier {
+			hash = (hash*31 + int(ch)) % 1440 // Total minutes in a day
+		}
+
+		hour := hash / 60
+		minute := hash % 60
+
+		// Return scattered weekly cron: minute hour * * DOW
+		return fmt.Sprintf("%d %d * * %s", minute, hour, weekday), nil
+	}
+
+	// For FUZZY:WEEKLY * * *, we scatter across all weekdays and times
+	if strings.HasPrefix(fuzzyCron, "FUZZY:WEEKLY") {
+		// Use a simple hash of the workflow identifier to get a deterministic weekday and time
+		// Total possibilities: 7 days * 1440 minutes = 10080 minutes in a week
+		hash := 0
+		for _, ch := range workflowIdentifier {
+			hash = (hash*31 + int(ch)) % 10080
+		}
+
+		// Extract weekday (0-6) and time within that day
+		weekday := hash / 1440      // Which day of the week (0-6)
+		minutesInDay := hash % 1440 // Which minute of that day (0-1439)
+		hour := minutesInDay / 60
+		minute := minutesInDay % 60
+
+		// Return scattered weekly cron: minute hour * * DOW
+		return fmt.Sprintf("%d %d * * %d", minute, hour, weekday), nil
 	}
 
 	return "", fmt.Errorf("unsupported fuzzy schedule type: %s", fuzzyCron)
@@ -479,10 +625,17 @@ func (p *ScheduleParser) parseBase() (string, error) {
 		return "", fmt.Errorf("hourly schedule does not support 'at time' clause, use 'hourly' without additional parameters")
 
 	case "weekly":
-		// weekly on <weekday> -> 0 0 * * DOW
+		// weekly -> FUZZY:WEEKLY (fuzzy schedule, day and time will be scattered)
+		// weekly on <weekday> -> FUZZY:WEEKLY:DOW (fuzzy schedule on specific weekday)
 		// weekly on <weekday> at HH:MM -> MM HH * * DOW
+		// weekly on <weekday> around HH:MM -> FUZZY:WEEKLY_AROUND:DOW:HH:MM
+		if len(p.tokens) == 1 {
+			// Just "weekly" with no day specified - this is a fuzzy schedule
+			return "FUZZY:WEEKLY * * *", nil
+		}
+
 		if len(p.tokens) < 3 || p.tokens[1] != "on" {
-			return "", fmt.Errorf("weekly schedule requires 'on <weekday>'")
+			return "", fmt.Errorf("weekly schedule requires 'on <weekday>' or use 'weekly' alone for fuzzy schedule")
 		}
 
 		weekdayStr := p.tokens[2]
@@ -492,11 +645,27 @@ func (p *ScheduleParser) parseBase() (string, error) {
 		}
 
 		if len(p.tokens) > 3 {
+			// Check if "around" keyword is used
+			if p.tokens[3] == "around" {
+				// Extract time after "around"
+				timeStr, err := p.extractTime(4)
+				if err != nil {
+					return "", err
+				}
+				// Parse the time to validate it
+				minute, hour = parseTime(timeStr)
+				// Return fuzzy around format: FUZZY:WEEKLY_AROUND:DOW:HH:MM
+				return fmt.Sprintf("FUZZY:WEEKLY_AROUND:%s:%s:%s * * *", weekday, hour, minute), nil
+			}
+			// Otherwise, extract time normally for "at" or implicit "at"
 			timeStr, err := p.extractTime(3)
 			if err != nil {
 				return "", err
 			}
 			minute, hour = parseTime(timeStr)
+		} else {
+			// weekly on <weekday> with no time - this is a fuzzy schedule
+			return fmt.Sprintf("FUZZY:WEEKLY:%s * * *", weekday), nil
 		}
 
 	case "monthly":

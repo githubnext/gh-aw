@@ -126,7 +126,7 @@ on:
 ```
 
 :::caution[Fixed Times Create Load Spikes]
-Using explicit times like `0 0 * * *` or `daily at midnight` causes all workflows to run simultaneously, creating server load spikes. Similarly, hourly intervals with fixed minute offsets like `0 */2 * * *` synchronize all workflows to run at the same minute of each hour. The compiler will warn you about these patterns. Use fuzzy schedules (`daily` or `every Nh`) instead.
+Using explicit times like `0 0 * * *` or `daily at midnight` causes all workflows to run simultaneously, creating server load spikes. Similarly, hourly intervals with fixed minute offsets like `0 */2 * * *` synchronize all workflows to run at the same minute of each hour, and weekly schedules with fixed times like `weekly on monday at 09:00` cause all workflows to run at the same time each week. The compiler will warn you about these patterns. Use fuzzy schedules (`daily`, `every Nh`, `weekly`, or `weekly on <day>`) instead.
 :::
 
 **Supported Formats:**
@@ -144,10 +144,19 @@ Using explicit times like `0 0 * * *` or `daily at midnight` causes all workflow
   - `daily at midnight` → `0 0 * * *` (⚠️ Warning: fixed time)
   - `daily at 3pm` → `0 15 * * *` (⚠️ Warning: fixed time)
   - `daily at 6am` → `0 6 * * *` (⚠️ Warning: fixed time)
-- **Weekly**: `weekly on <day>` or `weekly on <day> at HH:MM` or `weekly on <day> at Npm/Nam`
-  - `weekly on monday at 06:30` → `30 6 * * 1`
-  - `weekly on friday` → `0 0 * * 5`
-  - `weekly on friday at 5pm` → `0 17 * * 5`
+- **Weekly (Fuzzy)**: `weekly` or `weekly on <day>` or `weekly on <day> around HH:MM`
+  - `weekly` → Scattered day and time like `43 5 * * 3` (compiler determines)
+  - `weekly on monday` → Scattered time like `43 5 * * 1` (compiler determines)
+  - `weekly on friday` → Scattered time like `28 14 * * 5` (compiler determines)
+  - `weekly on monday around 09:00` → Scattered time within ±1 hour like `32 9 * * 1` (08:00-10:00)
+  - `weekly on friday around 5pm` → Scattered time within ±1 hour like `18 16 * * 5` (16:00-18:00)
+  - `weekly on sunday around midnight` → Scattered time within ±1 hour like `47 23 * * 0` (23:00-01:00)
+  - **With UTC offsets**: `weekly on monday around 08:00 utc+9` → Scattered around 11 PM UTC previous day
+  - Supports all time formats: `HH:MM`, `midnight`, `noon`, `Npm`, `Nam` with optional UTC offsets
+- **Weekly (Fixed)**: `weekly on <day> at HH:MM` or `weekly on <day> at Npm/Nam`
+  - `weekly on monday at 06:30` → `30 6 * * 1` (⚠️ Warning: fixed time)
+  - `weekly on friday at 17:00` → `0 17 * * 5` (⚠️ Warning: fixed time)
+  - `weekly on friday at 5pm` → `0 17 * * 5` (⚠️ Warning: fixed time)
 - **Monthly**: `monthly on <day>` or `monthly on <day> at HH:MM` or `monthly on <day> at Npm/Nam`
   - `monthly on 15 at 09:00` → `0 9 15 * *`
   - `monthly on 1` → `0 0 1 * *`
