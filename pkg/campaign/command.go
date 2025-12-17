@@ -86,100 +86,62 @@ Examples:
 
 	// Subcommand: campaign new
 	newCmd := &cobra.Command{
-		Use:   "new [id]",
+		Use:   "new <id>",
 		Short: "Create a new markdown campaign spec under .github/workflows/",
 		Long: `Create a new campaign spec markdown file under .github/workflows/.
 
 The file will be created as .github/workflows/<id>.campaign.md with YAML
 frontmatter (id, name, version, state, tracker-label) followed by a
-markdown body.
-
-By default, creates a minimal skeleton spec that you can edit manually.
-When --from-issue is used with a filename, reads an issue form body from
-that file and populates the spec with parsed values.
+markdown body. You can then
+update owners, workflows, memory paths, metrics-glob, and governance
+fields to match your initiative.
 
 Examples:
   ` + constants.CLIExtensionPrefix + ` campaign new security-q1-2025
-  ` + constants.CLIExtensionPrefix + ` campaign new security-q1-2025 --force
-  ` + constants.CLIExtensionPrefix + ` campaign new --from-issue issue-body.txt`,
+  ` + constants.CLIExtensionPrefix + ` campaign new modernization-winter2025 --force`,
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if len(args) == 0 {
+				// Build an error message with suggestions but without the leading
+				// error prefix icon; the main CLI handler will add that.
+				var b strings.Builder
+				b.WriteString("missing campaign id argument")
+				b.WriteString("\n\nSuggestions:\n")
+				suggestions := []string{
+					"Provide an ID: '" + constants.CLIExtensionPrefix + " campaign new security-q1-2025'",
+					"Use '" + constants.CLIExtensionPrefix + " campaign' to see existing campaigns",
+					"Run '" + constants.CLIExtensionPrefix + " help campaign new' for full usage",
+				}
+				for _, s := range suggestions {
+					b.WriteString("  • ")
+					b.WriteString(s)
+					b.WriteString("\n")
+				}
+
+				return errors.New(b.String())
+			}
+
+			id := args[0]
 			force, _ := cmd.Flags().GetBool("force")
-			fromIssueFile, _ := cmd.Flags().GetString("from-issue")
 
 			cwd, err := os.Getwd()
 			if err != nil {
 				return fmt.Errorf("failed to get current working directory: %w", err)
 			}
 
-			var path string
-
-			if fromIssueFile != "" {
-				// Read issue body from file and parse it
-				issueBody, err := ReadIssueBodyFromFile(fromIssueFile)
-				if err != nil {
-					return err
-				}
-
-				// Parse the issue form
-				data, err := ParseIssueForm(issueBody)
-				if err != nil {
-					return fmt.Errorf("failed to parse issue form: %w", err)
-				}
-
-				campaignLog.Printf("Parsed campaign from issue: id=%s, name=%s", data.CampaignID, data.CampaignName)
-
-				// Create the spec file from issue data
-				path, err = CreateSpecFromIssue(cwd, data, force)
-				if err != nil {
-					return err
-				}
-
-				fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(
-					"Created campaign spec at "+path,
-				))
-
-				// Output the path for scripting purposes
-				fmt.Println(path)
-			} else {
-				// Traditional behavior: require ID argument
-				if len(args) == 0 {
-					// Build an error message with suggestions
-					var b strings.Builder
-					b.WriteString("missing campaign id argument")
-					b.WriteString("\n\nSuggestions:\n")
-					suggestions := []string{
-						"Provide an ID: '" + constants.CLIExtensionPrefix + " campaign new security-q1-2025'",
-						"Use '" + constants.CLIExtensionPrefix + " campaign' to see existing campaigns",
-						"Run '" + constants.CLIExtensionPrefix + " help campaign new' for full usage",
-					}
-					for _, s := range suggestions {
-						b.WriteString("  • ")
-						b.WriteString(s)
-						b.WriteString("\n")
-					}
-
-					return errors.New(b.String())
-				}
-
-				id := args[0]
-
-				path, err = CreateSpecSkeleton(cwd, id, force)
-				if err != nil {
-					return err
-				}
-
-				fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(
-					"Created campaign spec at "+path+". Open this file and fill in owners, workflows, memory-paths, and other details.",
-				))
+			path, err := CreateSpecSkeleton(cwd, id, force)
+			if err != nil {
+				return err
 			}
 
+			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(
+				"Created campaign spec at "+path+". Open this file and fill in owners, workflows, memory-paths, and other details.",
+			))
 			return nil
 		},
 	}
 
 	newCmd.Flags().Bool("force", false, "Overwrite existing spec file if it already exists")
-	newCmd.Flags().String("from-issue", "", "Read campaign details from GitHub issue form body file")
 	cmd.AddCommand(newCmd)
 
 	// Subcommand: campaign validate
