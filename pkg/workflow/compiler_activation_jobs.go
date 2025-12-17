@@ -17,6 +17,12 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 	var steps []string
 	var permissions string
 
+	// Extract custom steps and outputs from jobs.pre-activation if present
+	customSteps, customOutputs, err := c.extractPreActivationCustomFields(data.Jobs)
+	if err != nil {
+		return nil, err
+	}
+
 	// Add team member check if permission checks are needed
 	if needsPermissionCheck {
 		steps = c.generateMembershipCheck(data, steps)
@@ -74,6 +80,12 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 		// Add the JavaScript script with proper indentation
 		formattedScript := FormatJavaScriptForYAML(checkCommandPositionScript)
 		steps = append(steps, formattedScript...)
+	}
+
+	// Append custom steps from jobs.pre-activation if present
+	if len(customSteps) > 0 {
+		compilerActivationJobsLog.Printf("Adding %d custom steps to pre-activation job", len(customSteps))
+		steps = append(steps, customSteps...)
 	}
 
 	// Generate the activated output expression using expression builders
@@ -145,6 +157,14 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 		"activated": activatedExpression,
 	}
 
+	// Merge custom outputs from jobs.pre-activation if present
+	if len(customOutputs) > 0 {
+		compilerActivationJobsLog.Printf("Adding %d custom outputs to pre-activation job", len(customOutputs))
+		for key, value := range customOutputs {
+			outputs[key] = value
+		}
+	}
+
 	// Pre-activation job uses the user's original if condition (data.If)
 	// The workflow_run safety check is NOT applied here - it's only on the activation job
 	// Don't include conditions that reference custom job outputs (those belong on the agent job)
@@ -163,6 +183,91 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 	}
 
 	return job, nil
+}
+
+// extractPreActivationCustomFields extracts custom steps and outputs from jobs.pre-activation field in frontmatter.
+// It validates that only steps and outputs fields are present, and errors on any other fields.
+// Returns (customSteps, customOutputs, error).
+func (c *Compiler) extractPreActivationCustomFields(jobs map[string]any) ([]string, map[string]string, error) {
+	if jobs == nil {
+		return nil, nil, nil
+	}
+
+	// Check if jobs.pre-activation or jobs.pre_activation exists
+	// (YAML allows hyphens which get parsed as "pre-activation")
+	var preActivationJob any
+	var exists bool
+	preActivationJob, exists = jobs["pre-activation"]
+	if !exists {
+		preActivationJob, exists = jobs[constants.PreActivationJobName]
+	}
+	if !exists {
+		return nil, nil, nil
+	}
+
+	// jobs.pre-activation must be a map
+	configMap, ok := preActivationJob.(map[string]any)
+	if !ok {
+		return nil, nil, fmt.Errorf("jobs.pre-activation must be an object, got %T", preActivationJob)
+	}
+
+	// Validate that only steps and outputs fields are present
+	allowedFields := map[string]bool{
+		"steps":   true,
+		"outputs": true,
+	}
+
+	for field := range configMap {
+		if !allowedFields[field] {
+			return nil, nil, fmt.Errorf("jobs.pre-activation: unsupported field '%s' - only 'steps' and 'outputs' are allowed", field)
+		}
+	}
+
+	var customSteps []string
+	var customOutputs map[string]string
+
+	// Extract steps
+	if stepsValue, hasSteps := configMap["steps"]; hasSteps {
+		stepsList, ok := stepsValue.([]any)
+		if !ok {
+			return nil, nil, fmt.Errorf("jobs.pre-activation.steps must be an array, got %T", stepsValue)
+		}
+
+		for i, step := range stepsList {
+			stepMap, ok := step.(map[string]any)
+			if !ok {
+				return nil, nil, fmt.Errorf("jobs.pre-activation.steps[%d] must be an object, got %T", i, step)
+			}
+
+			// Convert step to YAML
+			stepYAML, err := c.convertStepToYAML(stepMap)
+			if err != nil {
+				return nil, nil, fmt.Errorf("failed to convert jobs.pre-activation.steps[%d] to YAML: %w", i, err)
+			}
+			customSteps = append(customSteps, stepYAML)
+		}
+		compilerActivationJobsLog.Printf("Extracted %d custom steps from jobs.pre-activation", len(customSteps))
+	}
+
+	// Extract outputs
+	if outputsValue, hasOutputs := configMap["outputs"]; hasOutputs {
+		outputsMap, ok := outputsValue.(map[string]any)
+		if !ok {
+			return nil, nil, fmt.Errorf("jobs.pre-activation.outputs must be an object, got %T", outputsValue)
+		}
+
+		customOutputs = make(map[string]string)
+		for key, val := range outputsMap {
+			valStr, ok := val.(string)
+			if !ok {
+				return nil, nil, fmt.Errorf("jobs.pre-activation.outputs.%s must be a string, got %T", key, val)
+			}
+			customOutputs[key] = valStr
+		}
+		compilerActivationJobsLog.Printf("Extracted %d custom outputs from jobs.pre-activation", len(customOutputs))
+	}
+
+	return customSteps, customOutputs, nil
 }
 
 // buildActivationJob creates the activation job that handles timestamp checking, reactions, and locking.
@@ -446,6 +551,11 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 	// Custom jobs that depend on agent should run AFTER the agent job, not before it
 	if data.Jobs != nil {
 		for jobName := range data.Jobs {
+			// Skip jobs.pre-activation (or pre_activation) as it's handled specially
+			if jobName == constants.PreActivationJobName || jobName == "pre-activation" {
+				continue
+			}
+
 			// Only add as direct dependency if it doesn't depend on pre_activation or agent
 			// (jobs that depend on pre_activation are handled through activation)
 			// (jobs that depend on agent are post-execution jobs like failure handlers)
@@ -463,6 +573,11 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 	// This is required for GitHub Actions expression evaluation and actionlint validation.
 	referencedJobs := c.getReferencedCustomJobs(data.MarkdownContent, data.Jobs)
 	for _, jobName := range referencedJobs {
+		// Skip jobs.pre-activation (or pre_activation) as it's handled specially
+		if jobName == constants.PreActivationJobName || jobName == "pre-activation" {
+			continue
+		}
+
 		// Check if this job is already in depends
 		alreadyDepends := false
 		for _, dep := range depends {
