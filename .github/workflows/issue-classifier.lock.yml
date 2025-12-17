@@ -313,7 +313,7 @@ jobs:
               allowedDomains = [...new Set(allowedDomains)];
               let sanitized = content;
               sanitized = sanitized.replace(/\x1b\[[0-9;]*[mGKH]/g, "");
-              sanitized = sanitized.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "");
+              sanitized = sanitized.replace(/[\x00-\x08\x0B-\x1F\x7F]/g, "");
               sanitized = neutralizeCommands(sanitized);
               sanitized = neutralizeAllMentions(sanitized);
               sanitized = removeXmlComments(sanitized);
@@ -369,7 +369,7 @@ jobs:
               }
               function sanitizeUrlProtocols(s) {
                 return s.replace(
-                  /\b((?:http|ftp|file|ssh|git):\/\/([\w.-]+)(?:[^\s]*)|(?:data|javascript|vbscript|about|mailto|tel):[^\s]+)/gi,
+                  /((?:http|ftp|file|ssh|git):\/\/([\w.-]*)(?:[^\s]*)|(?:data|javascript|vbscript|about|mailto|tel):[^\s]+)/gi,
                   (match, _fullMatch, domain) => {
                     if (domain) {
                       const domainLower = domain.toLowerCase();
@@ -3960,7 +3960,7 @@ jobs:
               allowedDomains = [...new Set(allowedDomains)];
               let sanitized = content;
               sanitized = sanitized.replace(/\x1b\[[0-9;]*[mGKH]/g, "");
-              sanitized = sanitized.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "");
+              sanitized = sanitized.replace(/[\x00-\x08\x0B-\x1F\x7F]/g, "");
               sanitized = neutralizeCommands(sanitized);
               sanitized = neutralizeAllMentions(sanitized);
               sanitized = removeXmlComments(sanitized);
@@ -4016,7 +4016,7 @@ jobs:
               }
               function sanitizeUrlProtocols(s) {
                 return s.replace(
-                  /\b((?:http|ftp|file|ssh|git):\/\/([\w.-]+)(?:[^\s]*)|(?:data|javascript|vbscript|about|mailto|tel):[^\s]+)/gi,
+                  /((?:http|ftp|file|ssh|git):\/\/([\w.-]*)(?:[^\s]*)|(?:data|javascript|vbscript|about|mailto|tel):[^\s]+)/gi,
                   (match, _fullMatch, domain) => {
                     if (domain) {
                       const domainLower = domain.toLowerCase();
