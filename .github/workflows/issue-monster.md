@@ -82,7 +82,7 @@ jobs:
               });
               core.info(`Found ${response.data.total_count} total issues matching basic criteria`);
               
-              // Fetch full details for each issue to get labels and assignees
+              // Fetch full details for each issue to get labels, assignees, and sub-issues
               const issuesWithDetails = await Promise.all(
                 response.data.items.map(async (issue) => {
                   const fullIssue = await github.rest.issues.get({
@@ -90,7 +90,36 @@ jobs:
                     repo,
                     issue_number: issue.number
                   });
-                  return fullIssue.data;
+                  
+                  // Check if this issue has sub-issues using GraphQL
+                  let subIssuesCount = 0;
+                  try {
+                    const subIssuesQuery = `
+                      query($owner: String!, $repo: String!, $number: Int!) {
+                        repository(owner: $owner, name: $repo) {
+                          issue(number: $number) {
+                            subIssues {
+                              totalCount
+                            }
+                          }
+                        }
+                      }
+                    `;
+                    const subIssuesResult = await github.graphql(subIssuesQuery, {
+                      owner,
+                      repo,
+                      number: issue.number
+                    });
+                    subIssuesCount = subIssuesResult?.repository?.issue?.subIssues?.totalCount || 0;
+                  } catch (error) {
+                    // If GraphQL query fails, continue with 0 sub-issues
+                    core.warning(`Could not check sub-issues for #${issue.number}: ${error.message}`);
+                  }
+                  
+                  return {
+                    ...fullIssue.data,
+                    subIssuesCount
+                  };
                 })
               );
               
@@ -107,6 +136,12 @@ jobs:
                   const issueLabels = issue.labels.map(l => l.name.toLowerCase());
                   if (issueLabels.some(label => excludeLabels.map(l => l.toLowerCase()).includes(label))) {
                     core.info(`Skipping #${issue.number}: has excluded label`);
+                    return false;
+                  }
+                  
+                  // Exclude issues that have sub-issues (parent/organizing issues)
+                  if (issue.subIssuesCount > 0) {
+                    core.info(`Skipping #${issue.number}: has ${issue.subIssuesCount} sub-issue(s) - parent issues are used for organizing, not tasks`);
                     return false;
                   }
                   
@@ -226,6 +261,7 @@ The issue search has already been performed in a previous job with smart filteri
 - ✅ Only open issues
 - ✅ Excluded issues with labels: wontfix, duplicate, invalid, question, discussion, needs-discussion, blocked, on-hold, waiting-for-feedback, needs-more-info
 - ✅ Excluded issues that already have assignees
+- ✅ Excluded issues that have sub-issues (parent/organizing issues)
 - ✅ Prioritized issues with labels: good-first-issue, bug, security, documentation, enhancement, feature, performance, tech-debt, refactoring
 
 **Scoring System:**
@@ -363,13 +399,14 @@ A successful run means:
 1. You reviewed the pre-searched, filtered, and prioritized issue list
 2. The search already excluded issues with problematic labels (wontfix, question, discussion, etc.)
 3. The search already excluded issues that already have assignees
-4. Issues are sorted by priority score (good-first-issue, bug, security, etc. get higher scores)
-5. For "task" or "plan" issues: You checked for parent issues and sibling sub-issue PRs
-6. You selected up to three appropriate issues from the top of the priority list that are completely separate in topic (respecting sibling PR constraints for sub-issues)
-7. You read and understood each issue
-8. You verified that the selected issues don't have overlapping concerns or file changes
-9. You assigned each issue to the Copilot agent using `assign_to_agent`
-10. You commented on each issue being assigned
+4. The search already excluded issues that have sub-issues (parent/organizing issues are not tasks)
+5. Issues are sorted by priority score (good-first-issue, bug, security, etc. get higher scores)
+6. For "task" or "plan" issues: You checked for parent issues and sibling sub-issue PRs
+7. You selected up to three appropriate issues from the top of the priority list that are completely separate in topic (respecting sibling PR constraints for sub-issues)
+8. You read and understood each issue
+9. You verified that the selected issues don't have overlapping concerns or file changes
+10. You assigned each issue to the Copilot agent using `assign_to_agent`
+11. You commented on each issue being assigned
 
 ## Error Handling
 
