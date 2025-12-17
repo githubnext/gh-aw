@@ -74,7 +74,7 @@ func TestSchedulePreprocessing(t *testing.T) {
 							"cron": "daily at 02:00",
 						},
 						map[string]any{
-							"cron": "weekly on friday",
+							"cron": "weekly on friday at 17:00",
 						},
 					},
 				},
