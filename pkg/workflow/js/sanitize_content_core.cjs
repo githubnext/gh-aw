@@ -143,6 +143,14 @@ function sanitizeContentCore(content, maxLength) {
 
   let sanitized = content;
 
+  // Remove ANSI escape sequences and control characters early
+  // This must happen before mention neutralization to avoid creating bare mentions
+  // when control characters are removed between @ and username
+  sanitized = sanitized.replace(/\x1b\[[0-9;]*[mGKH]/g, "");
+  // Remove control characters except newlines (\n) and tabs (\t)
+  // This includes carriage returns (\r) which should be normalized
+  sanitized = sanitized.replace(/[\x00-\x08\x0B-\x1F\x7F]/g, "");
+
   // Neutralize commands at the start of text (e.g., /bot-name)
   sanitized = neutralizeCommands(sanitized);
 
@@ -154,12 +162,6 @@ function sanitizeContentCore(content, maxLength) {
 
   // Convert XML tags to parentheses format to prevent injection
   sanitized = convertXmlTags(sanitized);
-
-  // Remove ANSI escape sequences
-  sanitized = sanitized.replace(/\x1b\[[0-9;]*[mGKH]/g, "");
-
-  // Remove control characters (except newlines and tabs)
-  sanitized = sanitized.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "");
 
   // URI filtering - replace non-https protocols with "(redacted)"
   sanitized = sanitizeUrlProtocols(sanitized);
@@ -257,10 +259,12 @@ function sanitizeContentCore(content, maxLength) {
    */
   function sanitizeUrlProtocols(s) {
     // Match common non-https protocols
-    // This regex matches: protocol://domain or protocol:path
+    // This regex matches: protocol://domain or protocol:path or incomplete protocol://
     // Examples: http://, ftp://, file://, data:, javascript:, mailto:, tel:, ssh://, git://
+    // The regex also matches incomplete protocols like "http://" or "ftp://" without a domain
+    // Note: No word boundary check to catch protocols even when preceded by word characters
     return s.replace(
-      /\b((?:http|ftp|file|ssh|git):\/\/([\w.-]+)(?:[^\s]*)|(?:data|javascript|vbscript|about|mailto|tel):[^\s]+)/gi,
+      /((?:http|ftp|file|ssh|git):\/\/([\w.-]*)(?:[^\s]*)|(?:data|javascript|vbscript|about|mailto|tel):[^\s]+)/gi,
       (match, _fullMatch, domain) => {
         // Extract domain for http/ftp/file/ssh/git protocols
         if (domain) {
