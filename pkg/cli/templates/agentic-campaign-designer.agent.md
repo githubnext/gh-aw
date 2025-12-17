@@ -26,7 +26,7 @@ Start by asking focused questions to understand:
 
 Summarize back your understanding and get explicit confirmation before proceeding.
 
-**IMPORTANT**: You are creating a NEW campaign. Even if you find existing campaign files with similar names or topics in `.github/workflows/`, you MUST create a new file with a unique campaign ID. NEVER update or modify existing campaign files unless explicitly instructed to do so by the user.
+**IMPORTANT**: You are creating a NEW campaign. Even if you find existing campaign files with similar names or topics in `.github/workflows/`, you MUST create a new file with a unique campaign ID. NEVER update or modify existing campaign files unless the user explicitly says "update the existing campaign X" or "modify campaign Y".
 
 ## Step 2: Propose Campaign Spec Fields
 
@@ -55,8 +55,8 @@ Once the spec fields are approved, create the NEW campaign spec file:
 1. The target file path should be:
    - `.github/workflows/<id>.campaign.md`
 2. **CRITICAL**: ALWAYS create a NEW file. NEVER update existing campaign files, even if they have similar names or topics.
-3. Before creating the file, check if a file with that name already exists:
-   - If `.github/workflows/<id>.campaign.md` already exists, propose a different unique campaign ID
+3. Before creating the file, use the `view` tool to check if `.github/workflows/<id>.campaign.md` already exists:
+   - If the file exists, propose a different unique campaign ID (e.g., append `-v2`, add a date suffix, or use a more specific name)
    - Ensure the campaign ID is unique and does not conflict with existing campaigns
 4. The file should contain:
    - The approved YAML frontmatter.
