@@ -102,9 +102,9 @@ tools:
 }
 
 // TestCampaignGeneratorWorkflow specifically tests the campaign-generator workflow
-// to ensure it compiles correctly with only the labeled event type.
-// This prevents the workflow from being skipped when triggered by the 'opened' event
-// before labels are applied by GitHub issue forms.
+// to ensure it compiles correctly with both opened and labeled event types.
+// The workflow uses title prefix checking instead of label checking to avoid
+// GitHub's unreliable label application from issue forms.
 func TestCampaignGeneratorWorkflow(t *testing.T) {
 	compiler := NewCompiler(false, "", "test")
 
@@ -130,17 +130,16 @@ func TestCampaignGeneratorWorkflow(t *testing.T) {
 	}
 	lockContent := string(lockBytes)
 
-	// Verify only labeled event type is present (not opened)
-	// The 'opened' event causes the workflow to skip because labels aren't applied yet
+	// Verify both opened and labeled event types are present
 	if !strings.Contains(lockContent, "- labeled") {
 		t.Error("Expected 'labeled' event type in campaign-generator lock file")
 	}
-	if strings.Contains(lockContent, "- opened") {
-		t.Error("Should not have 'opened' event type in campaign-generator lock file (causes skip before labels are applied)")
+	if !strings.Contains(lockContent, "- opened") {
+		t.Error("Expected 'opened' event type in campaign-generator lock file")
 	}
 
-	// Verify the label condition is present
-	if !strings.Contains(lockContent, "contains(github.event.issue.labels.*.name, 'campaign')") {
-		t.Error("Expected label condition in campaign-generator lock file")
+	// Verify the title prefix condition is present (not label-based)
+	if !strings.Contains(lockContent, "startsWith(github.event.issue.title, '[Campaign]')") {
+		t.Error("Expected title prefix condition in campaign-generator lock file")
 	}
 }

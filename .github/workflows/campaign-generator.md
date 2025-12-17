@@ -2,7 +2,7 @@
 description: AI-powered campaign generator that creates comprehensive campaign specs from minimal user input
 on:
   issues:
-    types: [labeled]
+    types: [opened, labeled]
     lock-for-agent: true
 permissions:
   contents: read
@@ -13,12 +13,15 @@ tools:
   github:
     toolsets: [default]
   bash: ["*"]
-if: contains(github.event.issue.labels.*.name, 'campaign')
+if: startsWith(github.event.issue.title, '[Campaign]')
 safe-outputs:
-  create-pull-request:
-    title-prefix: "Campaign: "
-  add-comment:
+  update-issue:
+    status:
+    title:
+    body:
     target: "${{ github.event.issue.number }}"
+  assign-to-agent:
+    name: "campaign-designer"
 timeout-minutes: 15
 ---
 
@@ -54,44 +57,60 @@ Your job is to:
    - Approval policy recommendations
    - Metrics to track success
 
-3. **Create the campaign spec file** at `.github/workflows/<campaign-id>.campaign.md` using the **create** tool
-   - Follow the campaign spec YAML frontmatter structure
-   - Include `{{#runtime-import submitted_issue.md}}` macro in a "Submitted Issue" section at the end
-   - Set `state: active` by default
+3. **Update the issue** using the `update-issue` safe output to add the campaign specification:
+   - Keep the original issue body intact
+   - Append a detailed campaign specification section
+   - Use clear markdown formatting with headers and sections
+   - Include all campaign details in a structured format
 
-4. **Save the original issue body** to `.github/workflows/submitted_issue.md` for reference
+4. **Assign to the campaign designer agent** using the `assign-to-agent` safe output to hand off the implementation:
+   - Assign to the "campaign-designer" agent
+   - This agent will create the actual campaign files and pull request
 
-5. **Run validation**:
-   ```bash
-   ./gh-aw compile --validate --verbose
-   ```
+## Campaign Spec Format for Issue Update
 
-6. **Create a pull request** using the `create-pull-request` safe output with:
-   - Title: "Campaign: <campaign-name>"
-   - Body: Brief description and "Closes #${{ github.event.issue.number }}"
-   - Branch: `campaign/<campaign-id>`
-   - Files to include: The campaign spec, submitted_issue.md, and any generated lock files
+When updating the issue body, append a campaign specification in this format:
 
-7. **Comment on the issue** using the `add-comment` safe output to notify the user that their campaign PR is ready for review
+```markdown
+---
 
-## Campaign Spec Template
+## 🎯 Campaign Specification
 
-Here's the structure to follow for the campaign spec file:
+### Campaign Details
+- **ID**: `<kebab-case-identifier>`
+- **Name**: <Human Readable Name>
+- **Type**: <Migration, Security Remediation, Modernization, etc.>
+- **Risk Level**: <low|medium|high>
+- **Project Board**: <GitHub project board URL>
+
+### Description
+
+<Brief description of what this campaign will accomplish>
+
+### Scope
+
+<Define what repositories, components, or areas will be affected>
+
+### Constraints
+
+<List any constraints, requirements, or limitations>
+
+### Risk Assessment
+
+<Identify potential risks and mitigation strategies>
+
+### Success Metrics
+
+<Define how success will be measured>
+
+### Recommended Configuration
 
 ```yaml
----
-id: <kebab-case-identifier>
-name: <Human Readable Name>
-description: <Brief description>
-project-url: <GitHub project board URL>
-version: v1
 memory-paths:
   - memory/campaigns/<id>-*/**
 metrics-glob: memory/campaigns/<id>-*/metrics/*.json
-risk-level: <low|medium|high>
 tracker-label: campaign:<id>
 state: active
-workflows: []
 allowed-safe-outputs:
   - create-issue
   - add-comment
@@ -99,35 +118,11 @@ allowed-safe-outputs:
   - update-project
 approval-policy:
   required-approvals: 1
+```
+
 ---
 
-# <Campaign Name>
-
-<Detailed description of what this campaign will accomplish>
-
-## Campaign Type
-
-<Type/playbook - e.g., Migration, Security Remediation, Modernization>
-
-## Scope
-
-<Define what repositories, components, or areas will be affected>
-
-## Constraints
-
-<List any constraints, requirements, or limitations>
-
-## Risk Assessment
-
-<Identify potential risks and mitigation strategies>
-
-## Success Metrics
-
-<Define how success will be measured>
-
-## Submitted Issue
-
-{{#runtime-import submitted_issue.md}}
+**Next Steps**: The campaign-designer agent will now create the campaign files and pull request for review.
 ```
 
 ## Important Guidelines
@@ -139,7 +134,8 @@ approval-policy:
 - **Validate project URL**: Ensure the project board URL is properly formatted before including it
 - **Generate meaningful IDs**: Create campaign IDs that are descriptive and follow kebab-case conventions
 - **Don't ask for clarification**: Make informed decisions based on the information provided
-- **Be concise in comments**: Keep the issue comment short and to the point
+- **Format the update clearly**: Use proper markdown formatting with headers and code blocks
+- **Preserve original content**: Append the spec to the existing issue body, don't replace it
 
 ## Example Campaign ID Patterns
 
@@ -153,10 +149,7 @@ approval-policy:
 
 1. Read the issue body to extract project URL and campaign goal
 2. Generate comprehensive campaign details as an expert
-3. Create `.github/workflows/<id>.campaign.md` with the full spec
-4. Create `.github/workflows/submitted_issue.md` with the original issue body
-5. Run: `./gh-aw compile --validate --verbose`
-6. Use **create-pull-request** safe output to create the PR
-7. Use **add-comment** safe output to notify the user
+3. Use **update-issue** safe output to append the campaign specification to the issue body
+4. Use **assign-to-agent** safe output to assign the "campaign-designer" agent who will implement the campaign files
 
 Begin by reading the issue and generating the campaign spec!
