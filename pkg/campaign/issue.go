@@ -2,7 +2,6 @@ package campaign
 
 import (
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -171,11 +170,11 @@ func CreateSpecFromIssue(rootDir string, data *IssueFormData, force bool) (strin
 	return relPath, nil
 }
 
-// ReadIssueBodyFromStdin reads issue body from stdin
-func ReadIssueBodyFromStdin() (string, error) {
-	content, err := io.ReadAll(os.Stdin)
+// ReadIssueBodyFromFile reads issue body from a file
+func ReadIssueBodyFromFile(filename string) (string, error) {
+	content, err := os.ReadFile(filename)
 	if err != nil {
-		return "", fmt.Errorf("failed to read from stdin: %w", err)
+		return "", fmt.Errorf("failed to read from file %s: %w", filename, err)
 	}
 	return string(content), nil
 }

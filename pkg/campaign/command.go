@@ -95,18 +95,17 @@ frontmatter (id, name, version, state, tracker-label) followed by a
 markdown body.
 
 By default, creates a minimal skeleton spec that you can edit manually.
-When --from-issue is used, reads an issue form body from stdin and
-populates the spec with parsed values.
+When --from-issue is used with a filename, reads an issue form body from
+that file and populates the spec with parsed values.
 
 Examples:
   ` + constants.CLIExtensionPrefix + ` campaign new security-q1-2025
   ` + constants.CLIExtensionPrefix + ` campaign new security-q1-2025 --force
-  ` + constants.CLIExtensionPrefix + ` campaign new --from-issue < issue-body.txt
-  echo "$ISSUE_BODY" | ` + constants.CLIExtensionPrefix + ` campaign new --from-issue`,
+  ` + constants.CLIExtensionPrefix + ` campaign new --from-issue issue-body.txt`,
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			force, _ := cmd.Flags().GetBool("force")
-			fromIssue, _ := cmd.Flags().GetBool("from-issue")
+			fromIssueFile, _ := cmd.Flags().GetString("from-issue")
 
 			cwd, err := os.Getwd()
 			if err != nil {
@@ -115,9 +114,9 @@ Examples:
 
 			var path string
 
-			if fromIssue {
-				// Read issue body from stdin and parse it
-				issueBody, err := ReadIssueBodyFromStdin()
+			if fromIssueFile != "" {
+				// Read issue body from file and parse it
+				issueBody, err := ReadIssueBodyFromFile(fromIssueFile)
 				if err != nil {
 					return err
 				}
@@ -180,7 +179,7 @@ Examples:
 	}
 
 	newCmd.Flags().Bool("force", false, "Overwrite existing spec file if it already exists")
-	newCmd.Flags().Bool("from-issue", false, "Read campaign details from GitHub issue form body (stdin)")
+	newCmd.Flags().String("from-issue", "", "Read campaign details from GitHub issue form body file")
 	cmd.AddCommand(newCmd)
 
 	// Subcommand: campaign validate

@@ -363,7 +363,7 @@
 name: "Issue Arborist"
 "on":
   schedule:
-  - cron: "53 2 * * *"
+  - cron: "34 0 * * *"
     # Friendly format: daily (scattered)
   workflow_dispatch: null
 

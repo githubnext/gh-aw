@@ -219,6 +219,7 @@ Examples:
 			jsonOutput, _ := cmd.Flags().GetBool("json")
 			timeout, _ := cmd.Flags().GetInt("timeout")
 			repoOverride, _ := cmd.Flags().GetString("repo")
+			campaignOnly, _ := cmd.Flags().GetBool("campaign")
 
 			// Resolve relative dates to absolute dates for GitHub CLI
 			now := time.Now()
@@ -246,7 +247,7 @@ Examples:
 				}
 			}
 
-			return DownloadWorkflowLogs(workflowName, count, startDate, endDate, outputDir, engine, ref, beforeRunID, afterRunID, repoOverride, verbose, toolGraph, noStaged, firewallOnly, noFirewall, parse, jsonOutput, timeout)
+			return DownloadWorkflowLogs(workflowName, count, startDate, endDate, outputDir, engine, ref, beforeRunID, afterRunID, repoOverride, verbose, toolGraph, noStaged, firewallOnly, noFirewall, parse, jsonOutput, timeout, campaignOnly)
 		},
 	}
 
@@ -264,6 +265,7 @@ Examples:
 	logsCmd.Flags().Bool("no-staged", false, "Filter out staged workflow runs (exclude runs with staged: true in aw_info.json)")
 	logsCmd.Flags().Bool("firewall", false, "Filter to only runs with firewall enabled")
 	logsCmd.Flags().Bool("no-firewall", false, "Filter to only runs without firewall enabled")
+	logsCmd.Flags().Bool("campaign", false, "Filter to only campaign orchestrator workflows")
 	logsCmd.Flags().Bool("parse", false, "Run JavaScript parsers on agent logs and firewall logs, writing Markdown to log.md and firewall.md")
 	addJSONFlag(logsCmd)
 	logsCmd.Flags().Int("timeout", 0, "Download timeout in seconds (0 = no timeout)")
@@ -278,8 +280,8 @@ Examples:
 }
 
 // DownloadWorkflowLogs downloads and analyzes workflow logs with metrics
-func DownloadWorkflowLogs(workflowName string, count int, startDate, endDate, outputDir, engine, ref string, beforeRunID, afterRunID int64, repoOverride string, verbose bool, toolGraph bool, noStaged bool, firewallOnly bool, noFirewall bool, parse bool, jsonOutput bool, timeout int) error {
-	logsLog.Printf("Starting workflow log download: workflow=%s, count=%d, startDate=%s, endDate=%s, outputDir=%s", workflowName, count, startDate, endDate, outputDir)
+func DownloadWorkflowLogs(workflowName string, count int, startDate, endDate, outputDir, engine, ref string, beforeRunID, afterRunID int64, repoOverride string, verbose bool, toolGraph bool, noStaged bool, firewallOnly bool, noFirewall bool, parse bool, jsonOutput bool, timeout int, campaignOnly bool) error {
+	logsLog.Printf("Starting workflow log download: workflow=%s, count=%d, startDate=%s, endDate=%s, outputDir=%s, campaignOnly=%v", workflowName, count, startDate, endDate, outputDir, campaignOnly)
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Fetching workflow runs from GitHub Actions..."))
 	}
@@ -416,8 +418,22 @@ func DownloadWorkflowLogs(workflowName string, count int, startDate, endDate, ou
 				awInfoPath := filepath.Join(result.LogsPath, "aw_info.json")
 
 				// Only parse if we need it for any filter
-				if engine != "" || noStaged || firewallOnly || noFirewall {
+				if engine != "" || noStaged || firewallOnly || noFirewall || campaignOnly {
 					awInfo, awInfoErr = parseAwInfo(awInfoPath, verbose)
+				}
+
+				// Apply campaign filtering if --campaign flag is specified
+				if campaignOnly {
+					// Campaign orchestrator workflows end with .campaign.g.lock.yml
+					isCampaign := strings.HasSuffix(result.Run.WorkflowName, " Campaign Orchestrator") ||
+						strings.Contains(result.Run.WorkflowPath, ".campaign.g.lock.yml")
+
+					if !isCampaign {
+						if verbose {
+							fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Skipping run %d: not a campaign orchestrator workflow", result.Run.DatabaseID)))
+						}
+						continue
+					}
 				}
 
 				// Apply engine filtering if specified
