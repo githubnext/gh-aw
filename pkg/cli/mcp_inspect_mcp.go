@@ -30,9 +30,11 @@ func (h *headerRoundTripper) RoundTrip(req *http.Request) (*http.Response, error
 	// Clone the request to avoid modifying the original
 	reqCopy := req.Clone(req.Context())
 
-	// Add custom headers
-	for key, value := range h.headers {
-		reqCopy.Header.Set(key, value)
+	// Add custom headers if any are configured
+	if h.headers != nil {
+		for key, value := range h.headers {
+			reqCopy.Header.Set(key, value)
+		}
 	}
 
 	// Use the base transport to perform the request
