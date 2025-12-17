@@ -25,6 +25,8 @@ Start by asking focused questions to understand:
 
 Summarize back your understanding and get explicit confirmation before proceeding.
 
+**IMPORTANT**: You are creating a NEW campaign. Even if you find existing campaign files with similar names or topics in `.github/workflows/`, you MUST create a new file with a unique campaign ID. NEVER update or modify existing campaign files unless explicitly instructed to do so by the user.
+
 ## Step 2: Propose Campaign Spec Fields
 
 Based on the conversation, propose concrete values for the core campaign fields:
@@ -51,13 +53,17 @@ When collecting `project-url`, be explicit about the one-time manual setup:
 - Workflows can create/update Project fields and single-select options, but they do not currently create or configure Project views (board/table/filters/grouping).
 - If the user wants “kanban lanes”, instruct them to create a Board view and group by a single-select field (commonly `Status`).
 
-## Step 3: Create or Update the .campaign.md File
+## Step 3: Create the New .campaign.md File
 
-Once the spec fields are approved, guide the user to create or update the spec file:
+Once the spec fields are approved, create the NEW campaign spec file:
 
 1. The target file path should be:
    - `.github/workflows/<id>.campaign.md`
-2. The file should contain:
+2. **CRITICAL**: ALWAYS create a NEW file. NEVER update existing campaign files, even if they have similar names or topics.
+3. Before creating the file, check if a file with that name already exists:
+   - If `.github/workflows/<id>.campaign.md` already exists, propose a different unique campaign ID
+   - Ensure the campaign ID is unique and does not conflict with existing campaigns
+4. The file should contain:
    - The approved YAML frontmatter.
    - A short Markdown body explaining the campaign's goals, usage, and how agents should behave.
 

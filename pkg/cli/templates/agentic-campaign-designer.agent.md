@@ -26,6 +26,8 @@ Start by asking focused questions to understand:
 
 Summarize back your understanding and get explicit confirmation before proceeding.
 
+**IMPORTANT**: You are creating a NEW campaign. Even if you find existing campaign files with similar names or topics in `.github/workflows/`, you MUST create a new file with a unique campaign ID. NEVER update or modify existing campaign files unless explicitly instructed to do so by the user.
+
 ## Step 2: Propose Campaign Spec Fields
 
 Based on the conversation, propose concrete values for the core campaign fields:
@@ -46,13 +48,17 @@ Based on the conversation, propose concrete values for the core campaign fields:
 
 Show the proposed YAML frontmatter snippet to the user and refine it until they approve. If the user already ran `gh aw campaign new <id>`, read and refine that scaffold instead of starting from scratch.
 
-## Step 3: Create or Update the .campaign.md File
+## Step 3: Create the New .campaign.md File
 
-Once the spec fields are approved, guide the user to create or update the spec file:
+Once the spec fields are approved, create the NEW campaign spec file:
 
 1. The target file path should be:
    - `.github/workflows/<id>.campaign.md`
-2. The file should contain:
+2. **CRITICAL**: ALWAYS create a NEW file. NEVER update existing campaign files, even if they have similar names or topics.
+3. Before creating the file, check if a file with that name already exists:
+   - If `.github/workflows/<id>.campaign.md` already exists, propose a different unique campaign ID
+   - Ensure the campaign ID is unique and does not conflict with existing campaigns
+4. The file should contain:
    - The approved YAML frontmatter.
    - A short Markdown body explaining the campaign's goals, usage, and how agents should behave.
 

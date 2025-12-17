@@ -54,8 +54,10 @@ When updating the issue body, append the following instructions to make it clear
 This issue has been assigned to an AI agent for campaign design. The agent will:
 
 1. **Parse the campaign requirements** from the information provided above
-2. **Generate a campaign specification file** (`.campaign.md`) based on the requirements
-3. **Create a pull request** with the campaign file at `.github/workflows/<campaign-id>.campaign.md`
+2. **Generate a NEW campaign specification file** (`.campaign.md`) with a unique campaign ID
+3. **Create a pull request** with the new campaign file at `.github/workflows/<campaign-id>.campaign.md`
+
+**IMPORTANT**: The agent will create a NEW campaign file. Even if similar campaign files exist, the agent will NOT modify existing campaigns.
 
 The campaign specification will include:
 - Campaign ID, name, and description
