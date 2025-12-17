@@ -81,10 +81,6 @@ func isTransientError(err error) bool {
 	// Check for common transient network errors
 	var netErr net.Error
 	if errors.As(err, &netErr) {
-		// Temporary network errors (e.g., DNS resolution failures, timeouts)
-		if netErr.Temporary() {
-			return true
-		}
 		// Timeout errors are transient
 		if netErr.Timeout() {
 			return true

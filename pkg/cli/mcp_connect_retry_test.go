@@ -103,22 +103,16 @@ func TestIsTransientError(t *testing.T) {
 }
 
 func TestIsTransientError_TemporaryNetError(t *testing.T) {
-	// Test with a mock temporary network error
-	tempErr := &testNetError{temporary: true, timeout: false}
-	if !isTransientError(tempErr) {
-		t.Error("expected temporary network error to be transient")
-	}
-
 	// Test with a timeout error
 	timeoutErr := &testNetError{temporary: false, timeout: true}
 	if !isTransientError(timeoutErr) {
 		t.Error("expected timeout error to be transient")
 	}
 
-	// Test with a non-temporary, non-timeout error
+	// Test with a non-timeout error
 	normalErr := &testNetError{temporary: false, timeout: false}
 	if isTransientError(normalErr) {
-		t.Error("expected non-temporary, non-timeout error to not be transient")
+		t.Error("expected non-timeout error to not be transient")
 	}
 }
 
