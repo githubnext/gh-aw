@@ -99,7 +99,7 @@
 name: "Auto-Assign Issue"
 "on":
   schedule:
-  - cron: "9 23 * * *"
+  - cron: "28 1 * * *"
     # Friendly format: daily (scattered)
   workflow_dispatch: null
 
