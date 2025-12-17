@@ -2566,6 +2566,11 @@ safe-outputs:
     # (optional)
     github-token: "${{ secrets.GITHUB_TOKEN }}"
 
+    # Optional URL to an issue or discussion where the noop message should be posted
+    # as a comment. If not provided, message is only logged.
+    # (optional)
+    post-as-comment: "example-value"
+
   # Option 2: Enable noop output with default configuration (max: 1)
   noop: null
 

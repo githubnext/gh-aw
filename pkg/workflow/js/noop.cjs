@@ -174,29 +174,15 @@ async function main() {
           let commentResult;
           if (parsedUrl.type === "issue") {
             core.info(`Posting message ${i + 1} as comment on issue #${parsedUrl.number}...`);
-            commentResult = await commentOnIssue(
-              github,
-              parsedUrl.owner,
-              parsedUrl.repo,
-              parsedUrl.number,
-              item.message
-            );
+            commentResult = await commentOnIssue(github, parsedUrl.owner, parsedUrl.repo, parsedUrl.number, item.message);
           } else {
             // discussion
             core.info(`Posting message ${i + 1} as comment on discussion #${parsedUrl.number}...`);
-            commentResult = await commentOnDiscussion(
-              github,
-              parsedUrl.owner,
-              parsedUrl.repo,
-              parsedUrl.number,
-              item.message
-            );
+            commentResult = await commentOnDiscussion(github, parsedUrl.owner, parsedUrl.repo, parsedUrl.number, item.message);
           }
           core.info(`✓ Comment posted: ${commentResult.html_url}`);
         } catch (error) {
-          core.warning(
-            `Failed to post comment for message ${i + 1}: ${error instanceof Error ? error.message : String(error)}`
-          );
+          core.warning(`Failed to post comment for message ${i + 1}: ${error instanceof Error ? error.message : String(error)}`);
         }
       }
 
