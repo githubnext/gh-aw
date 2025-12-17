@@ -28,7 +28,7 @@ func ParseSchedule(input string) (cron string, original string, err error) {
 	}
 
 	// If it's already a cron expression (5 fields separated by spaces), return as-is
-	if isCronExpression(input) {
+	if IsCronExpression(input) {
 		scheduleLog.Printf("Input is already a valid cron expression: %s", input)
 		return input, "", nil
 	}
@@ -230,8 +230,9 @@ func ScatterSchedule(fuzzyCron, workflowIdentifier string) (string, error) {
 	return "", fmt.Errorf("unsupported fuzzy schedule type: %s", fuzzyCron)
 }
 
-// isCronExpression checks if the input looks like a cron expression
-func isCronExpression(input string) bool {
+// IsCronExpression checks if the input looks like a valid cron expression
+// A valid cron expression has exactly 5 fields (minute, hour, day of month, month, day of week)
+func IsCronExpression(input string) bool {
 	// A cron expression has exactly 5 fields
 	fields := strings.Fields(input)
 	if len(fields) != 5 {

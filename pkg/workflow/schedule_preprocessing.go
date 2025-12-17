@@ -78,6 +78,11 @@ func (c *Compiler) preprocessScheduleFields(frontmatter map[string]any) error {
 			}
 		}
 
+		// Validate final cron expression has correct syntax (5 fields)
+		if !parser.IsFuzzyCron(parsedCron) && !parser.IsCronExpression(parsedCron) {
+			return fmt.Errorf("invalid cron expression '%s': must have exactly 5 fields (minute hour day-of-month month day-of-week)", parsedCron)
+		}
+
 		// Create array format
 		scheduleArray := []any{
 			map[string]any{
@@ -162,6 +167,11 @@ func (c *Compiler) preprocessScheduleFields(frontmatter map[string]any) error {
 					original = fmt.Sprintf("%s (scattered)", original)
 				}
 			}
+		}
+
+		// Validate final cron expression has correct syntax (5 fields)
+		if !parser.IsFuzzyCron(parsedCron) && !parser.IsCronExpression(parsedCron) {
+			return fmt.Errorf("invalid cron expression '%s' in item %d: must have exactly 5 fields (minute hour day-of-month month day-of-week)", parsedCron, i)
 		}
 
 		// Update the cron field with the parsed cron expression
