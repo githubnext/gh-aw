@@ -364,8 +364,8 @@ func ScatterSchedule(fuzzyCron, workflowIdentifier string) (string, error) {
 		}
 
 		// Extract weekday (0-6) and time within that day
-		weekday := hash / 1440           // Which day of the week (0-6)
-		minutesInDay := hash % 1440      // Which minute of that day (0-1439)
+		weekday := hash / 1440      // Which day of the week (0-6)
+		minutesInDay := hash % 1440 // Which minute of that day (0-1439)
 		hour := minutesInDay / 60
 		minute := minutesInDay % 60
 
@@ -633,7 +633,7 @@ func (p *ScheduleParser) parseBase() (string, error) {
 			// Just "weekly" with no day specified - this is a fuzzy schedule
 			return "FUZZY:WEEKLY * * *", nil
 		}
-		
+
 		if len(p.tokens) < 3 || p.tokens[1] != "on" {
 			return "", fmt.Errorf("weekly schedule requires 'on <weekday>' or use 'weekly' alone for fuzzy schedule")
 		}

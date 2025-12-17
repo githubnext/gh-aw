@@ -223,8 +223,8 @@ func TestFuzzyScheduleScattering(t *testing.T) {
 		name               string
 		frontmatter        map[string]any
 		workflowIdentifier string
-		checkScattered     bool  // If true, verify the result is scattered (not fuzzy)
-		expectError        bool  // If true, expect an error (fuzzy without identifier)
+		checkScattered     bool // If true, verify the result is scattered (not fuzzy)
+		expectError        bool // If true, expect an error (fuzzy without identifier)
 		errorSubstring     string
 	}{
 		{
@@ -268,7 +268,7 @@ func TestFuzzyScheduleScattering(t *testing.T) {
 			}
 
 			err := compiler.preprocessScheduleFields(tt.frontmatter)
-			
+
 			if tt.expectError {
 				if err == nil {
 					t.Errorf("expected error containing '%s', got nil", tt.errorSubstring)
@@ -279,7 +279,7 @@ func TestFuzzyScheduleScattering(t *testing.T) {
 				}
 				return
 			}
-			
+
 			if err != nil {
 				t.Errorf("unexpected error: %v", err)
 				return
