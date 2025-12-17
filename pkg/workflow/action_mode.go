@@ -3,7 +3,11 @@ package workflow
 import (
 	"os"
 	"strings"
+
+	"github.com/githubnext/gh-aw/pkg/logger"
 )
+
+var actionModeLog = logger.New("workflow:action_mode")
 
 // ActionMode defines how JavaScript is embedded in workflow steps
 type ActionMode string
@@ -34,17 +38,22 @@ func (m ActionMode) IsValid() bool {
 // ActionModeDev for PR/local development, or ActionModeInline as fallback.
 // Can be overridden with GH_AW_ACTION_MODE environment variable.
 func DetectActionMode() ActionMode {
+	actionModeLog.Print("Detecting action mode from environment")
+
 	// Check for explicit override via environment variable
 	if envMode := os.Getenv("GH_AW_ACTION_MODE"); envMode != "" {
 		mode := ActionMode(envMode)
 		if mode.IsValid() {
+			actionModeLog.Printf("Using action mode from environment override: %s", mode)
 			return mode
 		}
+		actionModeLog.Printf("Invalid action mode in environment: %s, falling back to auto-detection", envMode)
 	}
 
 	// Check GitHub Actions context
 	githubRef := os.Getenv("GITHUB_REF")
 	githubEventName := os.Getenv("GITHUB_EVENT_NAME")
+	actionModeLog.Printf("GitHub context: ref=%s, event=%s", githubRef, githubEventName)
 
 	// Release mode conditions:
 	// 1. Running on a release branch (refs/heads/release*)
@@ -53,6 +62,7 @@ func DetectActionMode() ActionMode {
 	if strings.HasPrefix(githubRef, "refs/heads/release") ||
 		strings.HasPrefix(githubRef, "refs/tags/") ||
 		githubEventName == "release" {
+		actionModeLog.Printf("Detected release mode: ref=%s, event=%s", githubRef, githubEventName)
 		return ActionModeRelease
 	}
 
@@ -63,9 +73,11 @@ func DetectActionMode() ActionMode {
 	if strings.HasPrefix(githubRef, "refs/pull/") ||
 		githubRef == "" ||
 		strings.HasPrefix(githubRef, "refs/heads/") {
+		actionModeLog.Printf("Detected dev mode: ref=%s", githubRef)
 		return ActionModeDev
 	}
 
 	// Fallback to inline mode for backwards compatibility
+	actionModeLog.Print("Using fallback inline mode")
 	return ActionModeInline
 }
