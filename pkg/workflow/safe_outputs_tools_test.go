@@ -293,6 +293,7 @@ func TestGetSafeOutputsToolsJSON(t *testing.T) {
 		"link_sub_issue",
 		"hide_comment",
 		"update_project",
+		"dispatch_workflow",
 		"missing_tool",
 		"noop",
 	}

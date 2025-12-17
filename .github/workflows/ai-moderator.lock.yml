@@ -2437,11 +2437,43 @@ jobs:
                   ],
                 };
               };
+              const dispatchWorkflowHandler = args => {
+                const entry = { ...args, type: "dispatch_workflow" };
+                const allowedWorkflows = config.dispatch_workflow?.allowed_workflows || [];
+                const currentWorkflowName = process.env.GH_AW_WORKFLOW_NAME || "";
+                const strictMode = process.env.GH_AW_STRICT_MODE === "true";
+                const maxCount = config.dispatch_workflow?.max || 1;
+                if (!allowedWorkflows.includes(entry.workflow_id)) {
+                  throw new Error(
+                    `Workflow '${entry.workflow_id}' is not in the allowed-workflows list. ` + `Allowed workflows: ${allowedWorkflows.join(", ")}`
+                  );
+                }
+                if (entry.workflow_id === currentWorkflowName) {
+                  throw new Error(`Recursive workflow dispatch not allowed. Cannot dispatch workflow '${entry.workflow_id}' from itself.`);
+                }
+                if (strictMode && maxCount > 1) {
+                  throw new Error(`In strict mode, dispatch-workflow max must be 1 (current: ${maxCount})`);
+                }
+                appendSafeOutput(entry);
+                return {
+                  content: [
+                    {
+                      type: "text",
+                      text: JSON.stringify({
+                        result: "success",
+                        message: `Workflow '${entry.workflow_id}' dispatch prepared`,
+                        workflow_id: entry.workflow_id,
+                      }),
+                    },
+                  ],
+                };
+              };
               return {
                 defaultHandler,
                 uploadAssetHandler,
                 createPullRequestHandler,
                 pushToPullRequestBranchHandler,
+                dispatchWorkflowHandler,
               };
             }
             module.exports = { createHandlers };
@@ -2515,6 +2547,8 @@ jobs:
                   tool.handler = handlers.pushToPullRequestBranchHandler;
                 } else if (tool.name === "upload_asset") {
                   tool.handler = handlers.uploadAssetHandler;
+                } else if (tool.name === "dispatch_workflow") {
+                  tool.handler = handlers.dispatchWorkflowHandler;
                 }
               });
               return tools;

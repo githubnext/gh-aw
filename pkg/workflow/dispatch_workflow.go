@@ -114,7 +114,7 @@ func (c *Compiler) buildDispatchWorkflowJob(data *WorkflowData, mainJobName stri
 	})
 }
 
-// getDispatchWorkflowScript returns the JavaScript implementation
+// getDispatchWorkflowScript returns the bundled dispatch_workflow script
 func getDispatchWorkflowScript() string {
-	return embedJavaScript("dispatch_workflow.cjs")
+	return DefaultScriptRegistry.GetWithMode("dispatch_workflow", RuntimeModeGitHubScript)
 }

@@ -330,8 +330,7 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     // Validate workflow_id is in allowed list
     if (!allowedWorkflows.includes(entry.workflow_id)) {
       throw new Error(
-        `Workflow '${entry.workflow_id}' is not in the allowed-workflows list. ` +
-          `Allowed workflows: ${allowedWorkflows.join(", ")}`
+        `Workflow '${entry.workflow_id}' is not in the allowed-workflows list. ` + `Allowed workflows: ${allowedWorkflows.join(", ")}`
       );
     }
 

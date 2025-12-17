@@ -3107,7 +3107,7 @@
     "safe-outputs": {
       "type": "object",
       "description": "Safe output processing configuration that automatically creates GitHub issues, comments, and pull requests from AI workflow output without requiring write permissions in the main job",
-      "$comment": "Required if workflow creates or modifies GitHub resources. Operations requiring safe-outputs: add-comment, add-labels, add-reviewer, assign-milestone, assign-to-agent, close-discussion, close-issue, close-pull-request, create-agent-task, create-code-scanning-alert, create-discussion, create-issue, create-pull-request, create-pull-request-review-comment, hide-comment, link-sub-issue, missing-tool, noop, push-to-pull-request-branch, threat-detection, update-issue, update-project, update-pull-request, update-release, upload-asset. See documentation for complete details.",
+      "$comment": "Required if workflow creates or modifies GitHub resources. Operations requiring safe-outputs: add-comment, add-labels, add-reviewer, assign-milestone, assign-to-agent, close-discussion, close-issue, close-pull-request, create-agent-task, create-code-scanning-alert, create-discussion, create-issue, create-pull-request, create-pull-request-review-comment, dispatch-workflow, hide-comment, link-sub-issue, missing-tool, noop, push-to-pull-request-branch, threat-detection, update-issue, update-project, update-pull-request, update-release, upload-asset. See documentation for complete details.",
       "properties": {
         "allowed-domains": {
           "type": "array",
@@ -4181,6 +4181,40 @@
                   }
                 }
               },
+              "additionalProperties": false
+            }
+          ]
+        },
+        "dispatch-workflow": {
+          "oneOf": [
+            {
+              "type": "null",
+              "description": "Enable workflow dispatch with default configuration"
+            },
+            {
+              "type": "object",
+              "description": "Configuration for dispatching workflows from agentic workflow output",
+              "properties": {
+                "max": {
+                  "type": "integer",
+                  "description": "Maximum number of workflow dispatches (default: 1). More than 1 is an error in strict mode.",
+                  "minimum": 1,
+                  "maximum": 10
+                },
+                "allowed-workflows": {
+                  "type": "array",
+                  "description": "List of workflow IDs (file names like 'workflow.yml') that can be dispatched. Required field.",
+                  "items": {
+                    "type": "string"
+                  },
+                  "minItems": 1
+                },
+                "github-token": {
+                  "$ref": "#/$defs/github_token",
+                  "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
+                }
+              },
+              "required": ["allowed-workflows"],
               "additionalProperties": false
             }
           ]
