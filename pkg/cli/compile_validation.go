@@ -17,6 +17,9 @@ var compileValidationLog = logger.New("cli:compile_validation")
 func CompileWorkflowWithValidation(compiler *workflow.Compiler, filePath string, verbose bool, runZizmorPerFile bool, runPoutinePerFile bool, runActionlintPerFile bool, strict bool, validateActionSHAs bool) error {
 	compileValidationLog.Printf("Compiling workflow with validation: file=%s, strict=%v, validateSHAs=%v", filePath, strict, validateActionSHAs)
 
+	// Set workflow identifier for schedule scattering (use the file path as unique identifier)
+	compiler.SetWorkflowIdentifier(filePath)
+
 	// Compile the workflow first
 	if err := compiler.CompileWorkflow(filePath); err != nil {
 		compileValidationLog.Printf("Workflow compilation failed: %v", err)
