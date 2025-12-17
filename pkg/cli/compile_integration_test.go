@@ -394,3 +394,307 @@ This workflow tests the zizmor security scanner integration.
 
 	t.Logf("Integration test passed - zizmor flag works correctly\nOutput: %s", outputStr)
 }
+
+// TestCompileWithFuzzyDailySchedule tests compilation of workflows with fuzzy "daily" schedule
+func TestCompileWithFuzzyDailySchedule(t *testing.T) {
+	setup := setupIntegrationTest(t)
+	defer setup.cleanup()
+
+	// Create a test markdown workflow file with fuzzy daily schedule
+	testWorkflow := `---
+name: Fuzzy Daily Schedule Test
+on:
+  schedule: daily
+  workflow_dispatch:
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+engine: copilot
+---
+
+# Fuzzy Daily Schedule Test
+
+This workflow tests fuzzy daily schedule compilation.
+`
+
+	testWorkflowPath := filepath.Join(setup.workflowsDir, "daily-test.md")
+	if err := os.WriteFile(testWorkflowPath, []byte(testWorkflow), 0644); err != nil {
+		t.Fatalf("Failed to write test workflow file: %v", err)
+	}
+
+	// Run the compile command
+	cmd := exec.Command(setup.binaryPath, "compile", testWorkflowPath)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("CLI compile command failed: %v\nOutput: %s", err, string(output))
+	}
+
+	// Check that the compiled .lock.yml file was created
+	lockFilePath := filepath.Join(setup.workflowsDir, "daily-test.lock.yml")
+	if _, err := os.Stat(lockFilePath); os.IsNotExist(err) {
+		t.Fatalf("Expected lock file %s was not created", lockFilePath)
+	}
+
+	// Read and verify the generated lock file contains expected content
+	lockContent, err := os.ReadFile(lockFilePath)
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+
+	lockContentStr := string(lockContent)
+
+	// Verify that the schedule was processed (should contain "schedule:" section)
+	if !strings.Contains(lockContentStr, "schedule:") {
+		t.Errorf("Lock file should contain schedule section")
+	}
+
+	// Verify that the cron expression is valid (5 fields)
+	// The fuzzy schedule should have been scattered to a concrete cron expression
+	lines := strings.Split(lockContentStr, "\n")
+	foundCron := false
+	for _, line := range lines {
+		trimmedLine := strings.TrimSpace(line)
+		// Skip comment lines
+		if strings.HasPrefix(trimmedLine, "#") {
+			continue
+		}
+		if strings.Contains(line, "cron:") {
+			foundCron = true
+			// Extract the cron value
+			cronLine := strings.TrimSpace(line)
+			// Should look like: - cron: "0 14 * * *"
+			if !strings.Contains(cronLine, "cron:") {
+				continue
+			}
+
+			// Verify it's not still in fuzzy format
+			if strings.Contains(cronLine, "FUZZY:") {
+				t.Errorf("Lock file should not contain FUZZY: schedule, but got: %s", cronLine)
+			}
+
+			// Extract and validate cron expression format
+			cronParts := strings.Split(cronLine, "\"")
+			if len(cronParts) >= 2 {
+				cronExpr := cronParts[1]
+				fields := strings.Fields(cronExpr)
+				if len(fields) != 5 {
+					t.Errorf("Cron expression should have 5 fields, got %d: %s", len(fields), cronExpr)
+				}
+
+				// Verify it's a daily pattern (minute hour * * *)
+				if fields[2] != "*" || fields[3] != "*" || fields[4] != "*" {
+					t.Errorf("Expected daily pattern (minute hour * * *), got: %s", cronExpr)
+				}
+
+				t.Logf("Successfully compiled fuzzy daily schedule to: %s", cronExpr)
+			}
+			break
+		}
+	}
+
+	if !foundCron {
+		t.Errorf("Could not find cron expression in lock file")
+	}
+
+	// Verify workflow name is present
+	if !strings.Contains(lockContentStr, "name: \"Fuzzy Daily Schedule Test\"") {
+		t.Errorf("Lock file should contain the workflow name")
+	}
+
+	t.Logf("Integration test passed - successfully compiled fuzzy daily schedule to %s", lockFilePath)
+}
+
+// TestCompileWithFuzzyDailyScheduleDeterministic tests that fuzzy daily schedule compilation is deterministic
+func TestCompileWithFuzzyDailyScheduleDeterministic(t *testing.T) {
+	// Create a single test setup to ensure same directory structure
+	setup := setupIntegrationTest(t)
+	defer setup.cleanup()
+
+	// Compile the same workflow twice and verify the results are identical
+	results := make([]string, 2)
+
+	for i := 0; i < 2; i++ {
+		// Create a test markdown workflow file with fuzzy daily schedule
+		testWorkflow := `---
+name: Deterministic Daily Test
+on:
+  schedule: daily
+  workflow_dispatch:
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+engine: copilot
+---
+
+# Deterministic Daily Test
+
+This workflow tests deterministic fuzzy daily schedule compilation.
+`
+
+		testWorkflowPath := filepath.Join(setup.workflowsDir, "deterministic-daily.md")
+		if err := os.WriteFile(testWorkflowPath, []byte(testWorkflow), 0644); err != nil {
+			t.Fatalf("Failed to write test workflow file: %v", err)
+		}
+
+		// Run the compile command
+		cmd := exec.Command(setup.binaryPath, "compile", testWorkflowPath)
+		output, err := cmd.CombinedOutput()
+		if err != nil {
+			t.Fatalf("CLI compile command failed (attempt %d): %v\nOutput: %s", i+1, err, string(output))
+		}
+
+		// Read the generated lock file
+		lockFilePath := filepath.Join(setup.workflowsDir, "deterministic-daily.lock.yml")
+		lockContent, err := os.ReadFile(lockFilePath)
+		if err != nil {
+			t.Fatalf("Failed to read lock file (attempt %d): %v", i+1, err)
+		}
+
+		results[i] = string(lockContent)
+
+		// Delete the lock file before next iteration to force recompilation
+		if i == 0 {
+			if err := os.Remove(lockFilePath); err != nil {
+				t.Fatalf("Failed to remove lock file between compilations: %v", err)
+			}
+		}
+	}
+
+	// Compare the two results
+	if results[0] != results[1] {
+		// Extract just the cron lines for better comparison
+		extractCron := func(content string) string {
+			lines := strings.Split(content, "\n")
+			for _, line := range lines {
+				if strings.Contains(line, "cron:") {
+					return strings.TrimSpace(line)
+				}
+			}
+			return ""
+		}
+
+		cron1 := extractCron(results[0])
+		cron2 := extractCron(results[1])
+
+		if cron1 != cron2 {
+			t.Errorf("Fuzzy daily schedule compilation is not deterministic.\nFirst cron: %s\nSecond cron: %s", cron1, cron2)
+		} else {
+			t.Logf("Fuzzy daily schedule compilation is deterministic (cron: %s)", cron1)
+		}
+	} else {
+		t.Logf("Fuzzy daily schedule compilation is deterministic (results are identical)")
+	}
+}
+
+// TestCompileWithFuzzyDailyScheduleArrayFormat tests compilation of workflows with fuzzy "daily" schedule in array format
+func TestCompileWithFuzzyDailyScheduleArrayFormat(t *testing.T) {
+	setup := setupIntegrationTest(t)
+	defer setup.cleanup()
+
+	// Create a test markdown workflow file with fuzzy daily schedule in array format
+	testWorkflow := `---
+name: Fuzzy Daily Schedule Array Format Test
+on:
+  schedule:
+    - cron: daily
+  workflow_dispatch:
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+engine: copilot
+---
+
+# Fuzzy Daily Schedule Array Format Test
+
+This workflow tests fuzzy daily schedule compilation using array format with cron field.
+`
+
+	testWorkflowPath := filepath.Join(setup.workflowsDir, "daily-array-test.md")
+	if err := os.WriteFile(testWorkflowPath, []byte(testWorkflow), 0644); err != nil {
+		t.Fatalf("Failed to write test workflow file: %v", err)
+	}
+
+	// Run the compile command
+	cmd := exec.Command(setup.binaryPath, "compile", testWorkflowPath)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("CLI compile command failed: %v\nOutput: %s", err, string(output))
+	}
+
+	// Check that the compiled .lock.yml file was created
+	lockFilePath := filepath.Join(setup.workflowsDir, "daily-array-test.lock.yml")
+	if _, err := os.Stat(lockFilePath); os.IsNotExist(err) {
+		t.Fatalf("Expected lock file %s was not created", lockFilePath)
+	}
+
+	// Read and verify the generated lock file contains expected content
+	lockContent, err := os.ReadFile(lockFilePath)
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+
+	lockContentStr := string(lockContent)
+
+	// Verify that the schedule was processed (should contain "schedule:" section)
+	if !strings.Contains(lockContentStr, "schedule:") {
+		t.Errorf("Lock file should contain schedule section")
+	}
+
+	// Verify that the cron expression is valid (5 fields)
+	// The fuzzy schedule should have been scattered to a concrete cron expression
+	lines := strings.Split(lockContentStr, "\n")
+	foundCron := false
+	for _, line := range lines {
+		trimmedLine := strings.TrimSpace(line)
+		// Skip comment lines
+		if strings.HasPrefix(trimmedLine, "#") {
+			continue
+		}
+		if strings.Contains(line, "cron:") {
+			foundCron = true
+			// Extract the cron value
+			cronLine := strings.TrimSpace(line)
+			// Should look like: - cron: "0 14 * * *"
+			if !strings.Contains(cronLine, "cron:") {
+				continue
+			}
+
+			// Verify it's not still in fuzzy format
+			if strings.Contains(cronLine, "FUZZY:") {
+				t.Errorf("Lock file should not contain FUZZY: schedule, but got: %s", cronLine)
+			}
+
+			// Extract and validate cron expression format
+			cronParts := strings.Split(cronLine, "\"")
+			if len(cronParts) >= 2 {
+				cronExpr := cronParts[1]
+				fields := strings.Fields(cronExpr)
+				if len(fields) != 5 {
+					t.Errorf("Cron expression should have 5 fields, got %d: %s", len(fields), cronExpr)
+				}
+
+				// Verify it's a daily pattern (minute hour * * *)
+				if fields[2] != "*" || fields[3] != "*" || fields[4] != "*" {
+					t.Errorf("Expected daily pattern (minute hour * * *), got: %s", cronExpr)
+				}
+
+				t.Logf("Successfully compiled fuzzy daily schedule (array format) to: %s", cronExpr)
+			}
+			break
+		}
+	}
+
+	if !foundCron {
+		t.Errorf("Could not find cron expression in lock file")
+	}
+
+	// Verify workflow name is present
+	if !strings.Contains(lockContentStr, "name: \"Fuzzy Daily Schedule Array Format Test\"") {
+		t.Errorf("Lock file should contain the workflow name")
+	}
+
+	t.Logf("Integration test passed - successfully compiled fuzzy daily schedule (array format) to %s", lockFilePath)
+}
