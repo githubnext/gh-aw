@@ -13,7 +13,6 @@ network:
   allowed:
     - defaults
     - github
-    - "raw.githubusercontent.com"
 tools:
   cache-memory:
     key: blog-reviewer-${{ github.workflow }}
@@ -21,7 +20,6 @@ tools:
     toolsets:
       - repos
       - pull_requests
-  web-fetch:
   bash:
     - "cat *"
     - "jq *"
@@ -54,31 +52,46 @@ Review blog post pull requests from the `github/blog` repository in a round-robi
 
 ## Step 1: Load Changelog Documentation
 
-First, fetch the official changelog documentation from the GitHub blog repository:
+First, fetch the official changelog documentation from the GitHub blog repository using GitHub MCP tools:
 
 1. **Changelog Contributing Process**:
-   ```bash
-   curl -s https://raw.githubusercontent.com/github/blog/master/docs/changelog-contributing-process.md > /tmp/changelog-rules.md
-   cat /tmp/changelog-rules.md
+   Use the `get_file_contents` tool to fetch the file from the github/blog repository:
    ```
+   get_file_contents({
+     owner: "github",
+     repo: "blog",
+     path: "docs/changelog-contributing-process.md"
+   })
+   ```
+   Save the content to `/tmp/changelog-rules.md` for reference.
 
 2. **Writing Guidelines**:
-   ```bash
-   curl -s https://raw.githubusercontent.com/github/blog/master/docs/changelog-documentation.md > /tmp/changelog-guidelines.md
-   # Extract the general writing guidelines section
-   cat /tmp/changelog-guidelines.md | grep -A 200 "general writing guidelines"
+   Use the `get_file_contents` tool to fetch the documentation:
    ```
+   get_file_contents({
+     owner: "github",
+     repo: "blog",
+     path: "docs/changelog-documentation.md"
+   })
+   ```
+   Save the content to `/tmp/changelog-guidelines.md` and extract the general writing guidelines section.
 
 Read and understand these documents thoroughly before proceeding with the review.
 
 ## Step 2: Fetch Open Pull Requests
 
-Fetch the list of open pull requests from the `github/blog` repository:
+Fetch the list of open pull requests from the `github/blog` repository using the GitHub MCP tool:
 
-```bash
-gh pr list --repo github/blog --state open --json number,title,author,createdAt,updatedAt,url,isDraft,labels --limit 100 > /tmp/blog-prs.json
-cat /tmp/blog-prs.json | jq .
 ```
+list_pull_requests({
+  owner: "github",
+  repo: "blog",
+  state: "open",
+  perPage: 100
+})
+```
+
+Save the results to `/tmp/blog-prs.json` for processing. The response includes fields like `number`, `title`, `author`, `createdAt`, `updatedAt`, `url`, `draft`, `labels`, etc.
 
 ## Step 3: Select Next PR (Round-Robin)
 
@@ -98,7 +111,7 @@ Use the cache-memory to implement round-robin PR selection:
    ```
 
 2. **Filter and Select PR**:
-   - Filter out draft PRs (`isDraft: true`)
+   - Filter out draft PRs (`draft: true` field from the API response)
    - Filter out PRs already reviewed (check against `reviewed_prs` array in state)
    - Select the oldest unreviewed PR (by `createdAt` timestamp)
    - If all PRs have been reviewed, reset the `reviewed_prs` array and start over
@@ -110,10 +123,26 @@ Use the cache-memory to implement round-robin PR selection:
 
 ## Step 4: Fetch PR Details
 
-Once you've selected a PR, fetch its detailed content:
+Once you've selected a PR, fetch its detailed content using the GitHub MCP tool:
 
-```bash
-gh pr view <PR_NUMBER> --repo github/blog --json number,title,body,author,files,comments,labels,url
+```
+pull_request_read({
+  method: "get",
+  owner: "github",
+  repo: "blog",
+  pullNumber: <PR_NUMBER>
+})
+```
+
+To get the list of changed files in the PR:
+
+```
+pull_request_read({
+  method: "get_files",
+  owner: "github",
+  repo: "blog",
+  pullNumber: <PR_NUMBER>
+})
 ```
 
 Pay special attention to:
@@ -222,19 +251,20 @@ The next scheduled review will analyze another open PR in round-robin fashion.
 
 ## Important Notes
 
-- **Skip drafts**: Never review PRs marked as `isDraft: true`
+- **Skip drafts**: Never review PRs marked as `draft: true`
 - **One PR per run**: Only review one PR per workflow execution to ensure thorough analysis
 - **Round-robin**: Maintain state in cache to ensure fair coverage of all PRs over time
 - **Be helpful**: Focus on being constructive and educational, not just finding issues
 - **Respect context**: If a PR explicitly states it's work-in-progress or has specific constraints, acknowledge that in your review
 - **External repository**: Remember you're reviewing PRs in `github/blog`, not the current repository
+- **Use GitHub MCP tools**: Always use `get_file_contents`, `list_pull_requests`, and `pull_request_read` tools instead of curl or gh commands
 
 ## Error Handling
 
 If you encounter issues:
-- **Cannot fetch documentation**: Report in discussion and skip review for this run
-- **Cannot fetch PRs**: Report in discussion with error details
+- **Cannot fetch documentation**: If `get_file_contents` fails, report in discussion and skip review for this run
+- **Cannot fetch PRs**: If `list_pull_requests` fails, report in discussion with error details
 - **No unreviewed PRs**: Report that all current PRs have been reviewed and the cycle will reset
-- **Network issues**: Report connectivity problems and retry strategy
+- **API errors**: Report API connectivity problems and retry strategy
 
 Focus on quality over speed - take time to thoroughly understand both the documentation and the PR content before providing feedback.
