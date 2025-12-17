@@ -19,7 +19,7 @@ network:
     - node
     - github
 imports:
-  - shared/gh.md
+  - shared/gh.md 
 tools:
   edit:
   bash:

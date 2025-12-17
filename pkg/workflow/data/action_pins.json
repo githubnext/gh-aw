@@ -5,16 +5,6 @@
       "version": "v1.2.8",
       "sha": "b81b2afb8390ee6839b494a404766bef6493c7d9"
     },
-    "actions/cache/restore@v4": {
-      "repo": "actions/cache/restore",
-      "version": "v4",
-      "sha": "0057852bfaa89a56745cba8c7296529d2fc39830"
-    },
-    "actions/cache/save@v4": {
-      "repo": "actions/cache/save",
-      "version": "v4",
-      "sha": "0057852bfaa89a56745cba8c7296529d2fc39830"
-    },
     "actions/cache@v4": {
       "repo": "actions/cache",
       "version": "v4.3.0",
@@ -37,13 +27,8 @@
     },
     "actions/create-github-app-token@v2": {
       "repo": "actions/create-github-app-token",
-      "version": "v2.2.1",
-      "sha": "29824e69f54612133e76f7eaac726eef6c875baf"
-    },
-    "actions/create-github-app-token@v2.2.1": {
-      "repo": "actions/create-github-app-token",
-      "version": "v2.2.1",
-      "sha": "29824e69f54612133e76f7eaac726eef6c875baf"
+      "version": "v2",
+      "sha": "7e473efe3cb98aa54f8d4bac15400b15fad77d94"
     },
     "actions/download-artifact@v6": {
       "repo": "actions/download-artifact",
@@ -54,11 +39,6 @@
       "repo": "actions/download-artifact",
       "version": "v6.0.0",
       "sha": "018cc2cf5baa6db3ef3c5f8a56943fffe632ef53"
-    },
-    "actions/github-script@v7.0.1": {
-      "repo": "actions/github-script",
-      "version": "v7.1.0",
-      "sha": "f28e40c7f34bde8b3046d885e986cb6290c5673b"
     },
     "actions/github-script@v8": {
       "repo": "actions/github-script",
@@ -82,8 +62,8 @@
     },
     "actions/setup-java@v4": {
       "repo": "actions/setup-java",
-      "version": "v4.8.0",
-      "sha": "c1e323688fd81a25caa38c78aa6df2d33d3e20d9"
+      "version": "v4",
+      "sha": "c5195efecf7bdfc987ee8bae7a71cb8b11521c00"
     },
     "actions/setup-node@v6": {
       "repo": "actions/setup-node",
@@ -120,11 +100,6 @@
       "version": "v5.0.0",
       "sha": "330a01c490aca151604b8cf639adc76d48f6c5d4"
     },
-    "anchore/sbom-action@v0": {
-      "repo": "anchore/sbom-action",
-      "version": "v0.20.11",
-      "sha": "43a17d6e7add2b5535efe4dcae9952337c479a93"
-    },
     "anchore/sbom-action@v0.20.10": {
       "repo": "anchore/sbom-action",
       "version": "v0.20.11",
@@ -158,12 +133,7 @@
     "github/codeql-action/upload-sarif@v3": {
       "repo": "github/codeql-action/upload-sarif",
       "version": "v3",
-      "sha": "c37a8b7cd97e31de3fcbd9d84c401870edeb8d34"
-    },
-    "github/stale-repos@v3": {
-      "repo": "github/stale-repos",
-      "version": "v3",
-      "sha": "3477b6488008d9411aaf22a0924ec7c1f6a69980"
+      "sha": "4248455a6f2335bc3b7a8a62932f000050ec8f13"
     },
     "haskell-actions/setup@v2": {
       "repo": "haskell-actions/setup",

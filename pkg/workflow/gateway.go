@@ -13,7 +13,7 @@ var gatewayLog = logger.New("workflow:gateway")
 
 const (
 	// DefaultMCPGatewayPort is the default port for the MCP gateway
-	DefaultMCPGatewayPort = 8080
+	DefaultMCPGatewayPort = 8000
 	// MCPGatewayLogsFolder is the folder where MCP gateway logs are stored
 	MCPGatewayLogsFolder = "/tmp/gh-aw/mcp-gateway-logs"
 )
@@ -113,6 +113,17 @@ func generateMCPGatewayStartStep(config *MCPGatewayConfig, mcpServersConfig map[
 	dockerArgs = append(dockerArgs, "--name", "mcp-gateway")
 	dockerArgs = append(dockerArgs, "-p", fmt.Sprintf("%d:%d", port, port))
 
+	// flowguard container options
+	dockerArgs = append(dockerArgs, "-e", fmt.Sprintf("NO_COLOR=%s", "1"))
+	dockerArgs = append(dockerArgs, "-e", fmt.Sprintf("TERM=%s", "dumb"))
+	dockerArgs = append(dockerArgs, "-e", fmt.Sprintf("USE_STDIN_CONFIG=%s", "true"))
+	dockerArgs = append(dockerArgs, "-e", fmt.Sprintf("FLOWGUARD_MCP_MODE=%s", "routed"))
+	dockerArgs = append(dockerArgs, "-e", fmt.Sprintf("DISABLE_DIFC=%s", "true"))
+	dockerArgs = append(dockerArgs, "-e", fmt.Sprintf("DOCKER_API_VERSION=%s", "1.44"))
+	dockerArgs = append(dockerArgs, "-e", fmt.Sprintf("GITHUB_PERSONAL_ACCESS_TOKEN=%s", "${{ secrets.GH_TOKEN }}"))
+	dockerArgs = append(dockerArgs, "-e", fmt.Sprintf("ENABLE_TMUX=%s", "false"))
+	dockerArgs = append(dockerArgs, "-e", fmt.Sprintf("CODEX_AUTH_JSON=%s", "${{ secrets.CODEX_AUTH_JSON }}"))
+
 	// Add environment variables
 	dockerArgs = append(dockerArgs, "-e", fmt.Sprintf("MCP_GATEWAY_LOG_DIR=%s", MCPGatewayLogsFolder))
 	for k, v := range config.Env {
@@ -121,6 +132,7 @@ func generateMCPGatewayStartStep(config *MCPGatewayConfig, mcpServersConfig map[
 
 	// Mount logs folder
 	dockerArgs = append(dockerArgs, "-v", fmt.Sprintf("%s:%s", MCPGatewayLogsFolder, MCPGatewayLogsFolder))
+	dockerArgs = append(dockerArgs, "-v", "/var/run/docker.sock:/var/run/docker.sock")
 
 	// Container image with optional version
 	containerImage := config.Container
@@ -158,7 +170,7 @@ func generateMCPGatewayHealthCheckStep(config *MCPGatewayConfig) GitHubActionSte
 		port = DefaultMCPGatewayPort
 	}
 
-	gatewayURL := fmt.Sprintf("http://localhost:%d", port)
+	gatewayURL := fmt.Sprintf("http://localhost:%d/health", port)
 
 	stepLines := []string{
 		"      - name: Verify MCP Gateway Health",
@@ -190,7 +202,7 @@ func getMCPGatewayURL(config *MCPGatewayConfig) string {
 	if port == 0 {
 		port = DefaultMCPGatewayPort
 	}
-	return fmt.Sprintf("http://localhost:%d", port)
+	return fmt.Sprintf("http://localhost:%d/mcp", port)
 }
 
 // transformMCPConfigForGateway transforms the MCP server configuration to use the gateway URL
