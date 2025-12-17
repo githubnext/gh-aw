@@ -2,6 +2,34 @@
 
 All notable changes to this project will be documented in this file.
 
+## Unreleased
+
+### Dependencies
+
+#### Upgrade MCP SDK to v1.2.0-pre.1
+
+Updated `github.com/modelcontextprotocol/go-sdk` from commit-based version 
+`v1.1.1-0.20251212184941-875d1d30c2af` to tagged version `v1.2.0-pre.1`.
+
+This pre-release includes:
+- Partial support for MCP spec (2025-11-25 version)
+- Streamable transport bugfixes
+- Minor new APIs
+- Small bugfixes
+
+The upgrade is backward-compatible and prepares for the stable v1.2.0 release.
+All tests pass successfully.
+
+**Note**: Plan to upgrade to v1.2.0 stable when released. Future stable release 
+will include:
+- Tool name validation (SEP-986)
+- Icons and metadata for tools (SEP-973)
+- Elicitation improvements (SEP-1024, SEP-1036, SEP-1330)
+- SSE polling support (SEP-1699)
+- Common error codes via `jsonrpc.Error` sentinels
+- OAuth 2.0 Protected Resource Metadata
+- Security: URL scheme validation to prevent XSS
+
 ## v0.33.1 - 2025-12-16
 
 ### Bug Fixes
