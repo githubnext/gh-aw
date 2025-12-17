@@ -427,10 +427,7 @@ func ConvertStepToYAML(stepMap map[string]any) (string, error) {
 	orderedStep := OrderMapFields(stepMap, constants.PriorityStepFields)
 
 	// Wrap in array for step list format and marshal with proper options
-	yamlBytes, err := yaml.MarshalWithOptions([]yaml.MapSlice{orderedStep},
-		yaml.Indent(2),                        // Use 2-space indentation
-		yaml.UseLiteralStyleIfMultiline(true), // Use literal block scalars for multiline strings
-	)
+	yamlBytes, err := yaml.MarshalWithOptions([]yaml.MapSlice{orderedStep}, DefaultMarshalOptions...)
 	if err != nil {
 		return "", fmt.Errorf("failed to marshal step to YAML: %w", err)
 	}

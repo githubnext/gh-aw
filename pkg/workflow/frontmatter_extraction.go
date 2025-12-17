@@ -82,10 +82,7 @@ func (c *Compiler) extractTopLevelYAMLSection(frontmatter map[string]any, key st
 		orderedValue := OrderMapFields(valueMap, []string{})
 		// Wrap the ordered value with the key using MapSlice
 		wrappedData := yaml.MapSlice{{Key: key, Value: orderedValue}}
-		yamlBytes, err = yaml.MarshalWithOptions(wrappedData,
-			yaml.Indent(2),                        // Use 2-space indentation
-			yaml.UseLiteralStyleIfMultiline(true), // Use literal block scalars for multiline strings
-		)
+		yamlBytes, err = yaml.MarshalWithOptions(wrappedData, DefaultMarshalOptions...)
 		if err != nil {
 			return ""
 		}
