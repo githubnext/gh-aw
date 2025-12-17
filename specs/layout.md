@@ -1,11 +1,11 @@
 # GitHub Actions Workflow Layout Specification
 
 > Auto-generated specification documenting patterns used in compiled `.lock.yml` files.
-> Last updated: 2025-12-16
+> Last updated: 2025-12-17
 
 ## Overview
 
-This document catalogs all file paths, folder names, artifact names, and other patterns used across our compiled GitHub Actions workflows (`.lock.yml` files). Based on analysis of **116 lock files** in `.github/workflows/`.
+This document catalogs all file paths, folder names, artifact names, and other patterns used across our compiled GitHub Actions workflows (`.lock.yml` files). Based on analysis of **117 lock files** in `.github/workflows/`.
 
 ## GitHub Actions
 
@@ -49,7 +49,7 @@ Artifacts uploaded/downloaded between workflow jobs:
 | mcp-logs | MCP server logs directory | Uploaded by agent job | Downloaded for debugging |
 | agent-stdio.log | Agent standard I/O logs | Uploaded by agent job | Downloaded for debugging |
 
-### Cache Memory Artifacts
+#### Cache Memory Artifacts
 
 | Name | Description | Context |
 |------|-------------|---------|
@@ -57,6 +57,25 @@ Artifacts uploaded/downloaded between workflow jobs:
 | cache-memory-{id} | Named cache memory artifact | Used when cache has custom ID |
 | cache-memory-focus-areas | Focus areas cache | Used by specific workflows |
 | repo-memory-default | Repository-specific memory | Used for repository context persistence |
+
+### Cache Keys
+
+Dynamic cache keys used with actions/cache:
+
+| Key Pattern | Description | Context |
+|-------------|-------------|---------|
+| cloclo-memory-${{ github.workflow }}-${{ github.run_id }} | Workflow-specific memory cache | Used for cloclo workflows |
+| copilot-pr-data-${{ github.run_id }} | Copilot PR data cache | Used for PR analysis workflows |
+| developer-docs-cache-${{ github.run_id }} | Developer documentation cache | Used for documentation workflows |
+| discussions-data-${{ github.run_id }} | Discussions data cache | Used for discussion workflows |
+| layout-spec-cache-${{ github.run_id }} | Layout specification cache | Used by layout maintainer |
+| memory-${{ github.workflow }}-${{ github.run_id }} | Generic workflow memory | Used by various workflows |
+| poem-memory-${{ github.workflow }}-${{ github.run_id }} | Poem bot memory cache | Used by poem generator |
+| prompt-clustering-cache-${{ github.run_id }} | Prompt clustering cache | Used for prompt analysis |
+| quality-focus-${{ github.workflow }}-${{ github.run_id }} | Quality focus cache | Used for quality workflows |
+| schema-consistency-cache-${{ github.workflow }}-${{ github.run_id }} | Schema consistency cache | Used for schema validation |
+| trending-data-${{ github.workflow }}-${{ github.run_id }} | Trending data cache | Used for trending analysis |
+| weekly-issues-data-${{ github.run_id }} | Weekly issues cache | Used for issue reporting |
 
 ### Firewall Log Artifacts
 
@@ -401,7 +420,9 @@ JavaScript files reference each other using relative paths:
 
 ## Environment Variables
 
-Common environment variables used in workflows:
+Common environment variables used in workflows (all prefixed with `GH_AW_`):
+
+### Core Environment Variables
 
 | Variable | Description | Context |
 |----------|-------------|---------|
@@ -409,7 +430,213 @@ Common environment variables used in workflows:
 | GH_AW_SAFE_OUTPUTS | Path to safe_output.jsonl | Set after downloading safe outputs |
 | GH_AW_COMMENT_ID | Comment ID from activation | Passed to agent from activation job |
 | GH_AW_COMMENT_REPO | Repository for comment | Passed to agent from activation job |
-| ORGANIZATION | Target organization | Used in org-wide workflows |
+| GH_AW_WORKFLOW_NAME | Workflow name | Set by compiler |
+| GH_AW_WORKFLOW_FILE | Workflow filename | Set by compiler |
+| GH_AW_GITHUB_TOKEN | GitHub token for API access | Set by workflow |
+| GH_AW_GH_TOKEN | Alternative GitHub token | Set by workflow |
+| GH_AW_PROMPT | Agent prompt content | Set before agent execution |
+| GH_AW_MCP_CONFIG | MCP configuration path | Set when MCPs are used |
+| GH_AW_MCP_LOG_DIR | MCP log directory | Set for MCP debugging |
+
+### Engine Configuration Variables
+
+| Variable | Description | Context |
+|----------|-------------|---------|
+| GH_AW_ENGINE_ID | Engine identifier (copilot/claude/codex) | Set by compiler |
+| GH_AW_ENGINE_MODEL | Model name | Set by compiler |
+| GH_AW_ENGINE_VERSION | Engine version | Set by compiler |
+| GH_AW_MODEL_AGENT_COPILOT | Copilot agent model | Set by compiler |
+| GH_AW_MODEL_AGENT_CLAUDE | Claude agent model | Set by compiler |
+| GH_AW_MODEL_AGENT_CODEX | Codex agent model | Set by compiler |
+| GH_AW_MODEL_DETECTION_COPILOT | Copilot detection model | Set by compiler |
+| GH_AW_MODEL_DETECTION_CLAUDE | Claude detection model | Set by compiler |
+| GH_AW_MODEL_DETECTION_CODEX | Codex detection model | Set by compiler |
+
+### Agent Behavior Variables
+
+| Variable | Description | Context |
+|----------|-------------|---------|
+| GH_AW_MAX_TURNS | Maximum agent turns | Limits agent iterations |
+| GH_AW_AGENT_MAX_COUNT | Maximum agent count | Limits concurrent agents |
+| GH_AW_AGENT_DEFAULT | Default agent behavior | Fallback configuration |
+| GH_AW_AGENT_CONCLUSION | Agent conclusion status | Set after agent completes |
+| GH_AW_DETECTION_CONCLUSION | Detection conclusion | Set after detection job |
+| GH_AW_TOOL_TIMEOUT | Tool execution timeout | Tool call limit |
+| GH_AW_STARTUP_TIMEOUT | MCP startup timeout | MCP initialization limit |
+
+### Safe Output Configuration Variables
+
+| Variable | Description | Context |
+|----------|-------------|---------|
+| GH_AW_SAFE_OUTPUTS_CONFIG_PATH | Safe outputs config path | Path to configuration |
+| GH_AW_SAFE_OUTPUTS_TOOLS_PATH | Safe outputs tools path | Path to tools |
+| GH_AW_SAFE_OUTPUTS_STAGED | Staged safe outputs | Safe outputs ready to execute |
+| GH_AW_SAFE_OUTPUT_JOBS | Safe output job list | Jobs to run |
+| GH_AW_SAFE_OUTPUT_MESSAGES | Safe output messages | Messages to display |
+| GH_AW_VALIDATION_CONFIG | Validation configuration | Validation rules |
+| GH_AW_VALIDATION_CONFIG_PATH | Validation config path | Path to validation config |
+
+### Pull Request Variables
+
+| Variable | Description | Context |
+|----------|-------------|---------|
+| GH_AW_PR_TITLE_PREFIX | PR title prefix | PR creation/update |
+| GH_AW_PR_DRAFT | Create as draft PR | PR creation |
+| GH_AW_PR_ALLOW_EMPTY | Allow empty commits | PR creation |
+| GH_AW_PR_IF_NO_CHANGES | Action if no changes | PR creation behavior |
+| GH_AW_PR_EXPIRES | PR expiration time | PR lifecycle |
+| GH_AW_PR_LABELS | PR labels | PR metadata |
+| GH_AW_PR_REVIEW_COMMENT_SIDE | Review comment side | PR review |
+| GH_AW_PR_REVIEW_COMMENT_TARGET | Review comment target | PR review |
+| GH_AW_BASE_BRANCH | Base branch for PR | PR creation |
+| GH_AW_MAX_PATCH_SIZE | Maximum patch size | Limits PR size |
+
+### Issue Variables
+
+| Variable | Description | Context |
+|----------|-------------|---------|
+| GH_AW_ISSUE_TITLE_PREFIX | Issue title prefix | Issue creation |
+| GH_AW_ISSUE_LABELS | Issue labels | Issue metadata |
+| GH_AW_ISSUE_EXPIRES | Issue expiration time | Issue lifecycle |
+| GH_AW_CLOSE_ISSUE | Close issue action | Issue closure |
+| GH_AW_CLOSE_ISSUE_TARGET | Issue closure target | Issue closure |
+| GH_AW_CLOSE_ISSUE_REQUIRED_TITLE_PREFIX | Required title prefix to close | Issue closure validation |
+
+### Discussion Variables
+
+| Variable | Description | Context |
+|----------|-------------|---------|
+| GH_AW_DISCUSSION_TITLE_PREFIX | Discussion title prefix | Discussion creation |
+| GH_AW_DISCUSSION_CATEGORY | Discussion category | Discussion metadata |
+| GH_AW_DISCUSSION_LABELS | Discussion labels | Discussion metadata |
+| GH_AW_DISCUSSION_EXPIRES | Discussion expiration | Discussion lifecycle |
+| GH_AW_CLOSE_DISCUSSION_TARGET | Discussion closure target | Discussion closure |
+| GH_AW_CLOSE_DISCUSSION_REQUIRED_CATEGORY | Required category to close | Discussion closure validation |
+| GH_AW_CLOSE_DISCUSSION_REQUIRED_LABELS | Required labels to close | Discussion closure validation |
+| GH_AW_CLOSE_DISCUSSION_REQUIRED_TITLE_PREFIX | Required title prefix to close | Discussion closure validation |
+| GH_AW_CLOSE_OLDER_DISCUSSIONS | Close older discussions | Discussion cleanup |
+| GH_AW_DISCUSSIONS_COUNT | Number of discussions | Discussion tracking |
+
+### Security and Validation Variables
+
+| Variable | Description | Context |
+|----------|-------------|---------|
+| GH_AW_SECRET_NAMES | Secret names to redact | Security |
+| GH_AW_ERROR_PATTERNS | Error pattern matching | Validation |
+| GH_AW_ALLOWED_DOMAINS | Allowed domains | Network security |
+| GH_AW_ALLOWED_REPOS | Allowed repositories | Repository access |
+| GH_AW_ALLOWED_BOTS | Allowed bot accounts | Bot filtering |
+| GH_AW_ALLOWED_REASONS | Allowed reasons | Validation |
+| GH_AW_REQUIRED_ROLES | Required roles | Authorization |
+| GH_AW_SECURITY_REPORT_DRIVER | Security report driver | Security scanning |
+| GH_AW_SECURITY_REPORT_MAX | Maximum security reports | Security limits |
+
+### Assignment and Label Variables
+
+| Variable | Description | Context |
+|----------|-------------|---------|
+| GH_AW_ASSIGNEES_ALLOWED | Allowed assignees | Assignment validation |
+| GH_AW_ASSIGNEES_MAX_COUNT | Maximum assignees | Assignment limits |
+| GH_AW_ASSIGNEES_TARGET | Assignment target | Assignment configuration |
+| GH_AW_ASSIGN_COPILOT | Assign to Copilot | Copilot agent assignment |
+| GH_AW_LABELS_ALLOWED | Allowed labels | Label validation |
+| GH_AW_LABELS_MAX_COUNT | Maximum labels | Label limits |
+| GH_AW_LABELS_TARGET | Label target | Label configuration |
+
+### Comment and Moderation Variables
+
+| Variable | Description | Context |
+|----------|-------------|---------|
+| GH_AW_COMMENT_TARGET | Comment target | Comment operations |
+| GH_AW_HIDE_COMMENT_ALLOWED_REASONS | Allowed hide reasons | Comment moderation |
+| GH_AW_HIDE_COMMENT_MAX_COUNT | Maximum hidden comments | Moderation limits |
+| GH_AW_HIDE_OLDER_COMMENTS | Hide older comments | Comment cleanup |
+| GH_AW_REACTION | Reaction emoji | Comment reactions |
+
+### Asset and Upload Variables
+
+| Variable | Description | Context |
+|----------|-------------|---------|
+| GH_AW_ASSETS_BRANCH | Assets branch | Asset storage |
+| GH_AW_ASSETS_ALLOWED_EXTS | Allowed file extensions | Asset validation |
+| GH_AW_ASSETS_MAX_SIZE_KB | Maximum asset size | Asset limits |
+
+### Integration Variables
+
+| Variable | Description | Context |
+|----------|-------------|---------|
+| GH_AW_SLACK_CHANNEL_ID | Slack channel ID | Slack integration |
+| GH_AW_PROJECT_GITHUB_TOKEN | Project GitHub token | Project integration |
+| GH_AW_TARGET_REPO | Target repository | Cross-repo operations |
+| GH_AW_TARGET_REPO_SLUG | Target repository slug | Cross-repo operations |
+| GH_AW_GITHUB_MCP_SERVER_TOKEN | GitHub MCP server token | MCP authentication |
+
+### Tracking and Metadata Variables
+
+| Variable | Description | Context |
+|----------|-------------|---------|
+| GH_AW_TRACKER_ID | Tracking identifier | Workflow tracking |
+| GH_AW_RUN_URL | Workflow run URL | Workflow metadata |
+| GH_AW_LOCK_FOR_AGENT | Lock for agent | Agent synchronization |
+| GH_AW_COMMAND | Command to execute | Command dispatch |
+| GH_AW_TEMPORARY_ID_MAP | Temporary ID mapping | ID resolution |
+
+### Limit and Threshold Variables
+
+| Variable | Description | Context |
+|----------|-------------|---------|
+| GH_AW_MISSING_TOOL_MAX | Maximum missing tools | Tool validation |
+| GH_AW_NOOP_MAX | Maximum no-ops | No-op limits |
+| GH_AW_NOOP_MESSAGE | No-op message | No-op output |
+| GH_AW_SKIP_MAX_MATCHES | Maximum skip matches | Skip validation |
+| GH_AW_LINK_SUB_ISSUE_MAX_COUNT | Maximum sub-issue links | Issue hierarchy |
+
+### Activation and Filtering Variables
+
+| Variable | Description | Context |
+|----------|-------------|---------|
+| GH_AW_SKIP_QUERY | Skip query pattern | Activation filtering |
+| GH_AW_STOP_TIME | Stop time | Time-based activation |
+
+### GitHub Event Context Variables
+
+All GitHub event properties are available with the `GH_AW_GITHUB_EVENT_` prefix:
+
+- Issue events: `GH_AW_GITHUB_EVENT_ISSUE_NUMBER`, `GH_AW_GITHUB_EVENT_ISSUE_STATE`
+- PR events: `GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER`, `GH_AW_GITHUB_EVENT_PULL_REQUEST_HEAD_SHA`
+- Comment events: `GH_AW_GITHUB_EVENT_COMMENT_ID`
+- Discussion events: `GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER`
+- Workflow run events: `GH_AW_GITHUB_EVENT_WORKFLOW_RUN_ID`, `GH_AW_GITHUB_EVENT_WORKFLOW_RUN_CONCLUSION`
+- Commit events: `GH_AW_GITHUB_EVENT_HEAD_COMMIT_ID`, `GH_AW_GITHUB_EVENT_AFTER`, `GH_AW_GITHUB_EVENT_BEFORE`
+- Workflow dispatch inputs: `GH_AW_GITHUB_EVENT_INPUTS_*` (various input parameters)
+
+### Safe Output Result Variables
+
+Variables set by safe output jobs (prefixed with `GH_AW_OUTPUT_`):
+
+| Variable | Description | Context |
+|----------|-------------|---------|
+| GH_AW_OUTPUT_CREATE_PULL_REQUEST_PULL_REQUEST_URL | Created PR URL | After PR creation |
+| GH_AW_OUTPUT_CREATE_ISSUE_ISSUE_URL | Created issue URL | After issue creation |
+| GH_AW_OUTPUT_CREATE_DISCUSSION_DISCUSSION_URL | Created discussion URL | After discussion creation |
+| GH_AW_OUTPUT_ADD_COMMENT_COMMENT_URL | Added comment URL | After comment creation |
+| GH_AW_OUTPUT_CREATE_PR_REVIEW_COMMENT_REVIEW_COMMENT_URL | Review comment URL | After review comment |
+| GH_AW_OUTPUT_PUSH_TO_PULL_REQUEST_BRANCH_COMMIT_URL | Commit URL | After push to PR branch |
+| GH_AW_OUTPUT_CREATE_AGENT_TASK_TASK_URL | Agent task URL | After agent task creation |
+| GH_AW_OUTPUT_CLOSE_ISSUE_ISSUE_URL | Closed issue URL | After issue closure |
+| GH_AW_OUTPUT_CLOSE_PULL_REQUEST_PULL_REQUEST_URL | Closed PR URL | After PR closure |
+| GH_AW_OUTPUT_CLOSE_DISCUSSION_DISCUSSION_URL | Closed discussion URL | After discussion closure |
+
+### Created Resource Tracking Variables
+
+| Variable | Description | Context |
+|----------|-------------|---------|
+| GH_AW_CREATED_PULL_REQUEST_NUMBER | Created PR number | After PR creation |
+| GH_AW_CREATED_PULL_REQUEST_URL | Created PR URL | After PR creation |
+| GH_AW_CREATED_ISSUE_NUMBER | Created issue number | After issue creation |
+| GH_AW_CREATED_ISSUE_URL | Created issue URL | After issue creation |
+| GH_AW_CREATED_DISCUSSION_NUMBER | Created discussion number | After discussion creation |
+| GH_AW_CREATED_DISCUSSION_URL | Created discussion URL | After discussion creation |
 
 ## Safe Output Types
 
@@ -478,15 +705,17 @@ While no custom container images were found in the scanned workflows, the follow
 
 ## Statistics Summary
 
-- **Lock files analyzed**: 116
+- **Lock files analyzed**: 117
 - **GitHub Actions cataloged**: 19 unique actions
-- **Artifact types documented**: 60+ unique artifacts
+- **Artifact types documented**: 90+ unique artifacts (including firewall logs)
 - **Job patterns found**: 41 standard job names
 - **Common step patterns**: 40 most frequently used steps
 - **File paths listed**: 50+ distinct paths
 - **Constants defined**: 35+ core constants
 - **Working directories**: 2 standard paths
-- **Environment variables**: 5+ core variables
+- **Environment variables**: 150+ environment variables across 15 categories
+- **Cache key patterns**: 12 dynamic cache patterns
+- **Safe output types**: 25+ safe output job types
 
 ---
 
