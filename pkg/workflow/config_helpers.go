@@ -137,6 +137,7 @@ func parseAllowedLabelsFromConfig(configMap map[string]any) []string {
 // parseExpiresFromConfig parses expires value from config map
 // Supports both integer (days) and string formats like "7d", "2w", "1m", "1y"
 // Returns the number of days, or 0 if invalid or not present
+// Note: For uint64 values, returns 0 if the value would overflow int.
 func parseExpiresFromConfig(configMap map[string]any) int {
 	configHelpersLog.Printf("DEBUG: parseExpiresFromConfig called with configMap: %+v", configMap)
 	if expires, exists := configMap["expires"]; exists {
@@ -149,6 +150,12 @@ func parseExpiresFromConfig(configMap map[string]any) int {
 		case float64:
 			return int(v)
 		case uint64:
+			// Check for overflow before converting uint64 to int
+			const maxInt = int(^uint(0) >> 1)
+			if v > uint64(maxInt) {
+				configHelpersLog.Printf("uint64 value %d for expires exceeds max int value, returning 0", v)
+				return 0
+			}
 			return int(v)
 		case string:
 			// Parse relative time specification like "7d", "2w", "1m", "1y"
@@ -195,4 +202,67 @@ func parseRelativeTimeSpec(spec string) int {
 		configHelpersLog.Printf("Invalid expires time spec unit: %s", spec)
 		return 0
 	}
+}
+
+// ParseIntFromConfig is a generic helper that extracts and validates an integer value from a map.
+// Supports int, int64, float64, and uint64 types.
+// Returns the integer value, or 0 if not present or invalid.
+// If log is provided, it will log the extracted value for debugging.
+// Note: For uint64 values, returns 0 if the value would overflow int.
+func ParseIntFromConfig(m map[string]any, key string, log *logger.Logger) int {
+	if value, exists := m[key]; exists {
+		if log != nil {
+			log.Printf("Parsing %s from config", key)
+		}
+		// Try different numeric types
+		switch v := value.(type) {
+		case int:
+			if log != nil {
+				log.Printf("Parsed %s from config: %d", key, v)
+			}
+			return v
+		case int64:
+			if log != nil {
+				log.Printf("Parsed %s from config: %d", key, v)
+			}
+			return int(v)
+		case float64:
+			if log != nil {
+				log.Printf("Parsed %s from config: %d", key, int(v))
+			}
+			return int(v)
+		case uint64:
+			// Check for overflow before converting uint64 to int
+			const maxInt = int(^uint(0) >> 1)
+			if v > uint64(maxInt) {
+				if log != nil {
+					log.Printf("uint64 value %d for %s exceeds max int value, returning 0", v, key)
+				}
+				return 0
+			}
+			if log != nil {
+				log.Printf("Parsed %s from config: %d", key, v)
+			}
+			return int(v)
+		}
+	}
+	return 0
+}
+
+// ParseBoolFromConfig is a generic helper that extracts and validates a boolean value from a map.
+// Returns the boolean value, or false if not present or invalid.
+// If log is provided, it will log the extracted value for debugging.
+func ParseBoolFromConfig(m map[string]any, key string, log *logger.Logger) bool {
+	if value, exists := m[key]; exists {
+		if log != nil {
+			log.Printf("Parsing %s from config", key)
+		}
+		if boolValue, ok := value.(bool); ok {
+			if log != nil {
+				log.Printf("Parsed %s from config: %t", key, boolValue)
+			}
+			return boolValue
+		}
+	}
+	return false
 }
