@@ -83,11 +83,39 @@ Provide a comprehensive summary with key findings and recommendations.
 
 Run workflows on a recurring schedule using human-friendly expressions or [cron syntax](https://docs.github.com/en/actions/using-workflows/events-that-trigger-workflows#schedule).
 
-**Human-Friendly Format (Recommended):**
+**Fuzzy Scheduling (Recommended for Daily Workflows):**
+
+To distribute workflow execution times and prevent load spikes, use fuzzy schedules that let the compiler automatically scatter execution times:
 
 ```yaml wrap
 on:
-  schedule: daily at 02:00  # Shorthand string format
+  schedule: daily  # Compiler scatters execution time deterministically
+```
+
+```yaml wrap
+on:
+  schedule:
+    - cron: daily  # Each workflow gets a different scattered time
+```
+
+For workflows that need to run around a specific time (with some flexibility), use the `around` constraint:
+
+```yaml wrap
+on:
+  schedule: daily around 14:00  # Scatters within ±1 hour (13:00-15:00)
+```
+
+The compiler deterministically assigns each workflow a unique time throughout the day based on the workflow file path. This ensures:
+- **Load distribution**: Workflows run at different times, reducing server load spikes
+- **Consistency**: The same workflow always gets the same execution time across recompiles
+- **Simplicity**: No need to manually coordinate schedules across multiple workflows
+- **Flexibility with constraints**: Use `around` to hint preferred times while still distributing load
+
+**Human-Friendly Format:**
+
+```yaml wrap
+on:
+  schedule: daily at 02:00  # Shorthand string format (not recommended - creates load spikes)
 ```
 
 ```yaml wrap
@@ -97,23 +125,47 @@ on:
     - cron: monthly on 15 at 12:00
 ```
 
+:::caution[Fixed Times Create Load Spikes]
+Using explicit times like `0 0 * * *` or `daily at midnight` causes all workflows to run simultaneously, creating server load spikes. Similarly, hourly intervals with fixed minute offsets like `0 */2 * * *` synchronize all workflows to run at the same minute of each hour, and weekly schedules with fixed times like `weekly on monday at 09:00` cause all workflows to run at the same time each week. The compiler will warn you about these patterns. Use fuzzy schedules (`daily`, `every Nh`, `weekly`, or `weekly on <day>`) instead.
+:::
+
 **Supported Formats:**
-- **Daily**: `daily` or `daily at HH:MM` or `daily at midnight/noon` or `daily at Npm/Nam`
-  - `daily at 02:00` → `0 2 * * *`
-  - `daily at midnight` → `0 0 * * *`
-  - `daily at 3pm` → `0 15 * * *`
-  - `daily at 6am` → `0 6 * * *`
-- **Weekly**: `weekly on <day>` or `weekly on <day> at HH:MM` or `weekly on <day> at Npm/Nam`
-  - `weekly on monday at 06:30` → `30 6 * * 1`
-  - `weekly on friday` → `0 0 * * 5`
-  - `weekly on friday at 5pm` → `0 17 * * 5`
+- **Daily (Fuzzy)**: `daily` → Scattered time like `43 5 * * *` (compiler determines)
+- **Daily (Fuzzy Around)**: `daily around HH:MM` → Scattered time within ±1 hour of target
+  - `daily around 14:00` → `20 14 * * *` (scattered between 13:00-15:00)
+  - `daily around 9am` → `38 8 * * *` (scattered between 08:00-10:00)
+  - `daily around midnight` → `27 0 * * *` (scattered between 23:00-01:00)
+  - `daily around noon` → Scattered time between 11:00-13:00
+  - **With UTC offsets**: `daily around 3pm utc-5` → `33 19 * * *` (3 PM EST → scattered around 8 PM UTC)
+  - **With time zones**: `daily around 14:00 utc+9` → `47 5 * * *` (2 PM JST → scattered around 5 AM UTC)
+  - Supports all time formats: `HH:MM`, `midnight`, `noon`, `Npm`, `Nam` with optional UTC offsets
+- **Daily (Fixed)**: `daily at HH:MM` or `daily at midnight/noon` or `daily at Npm/Nam`
+  - `daily at 02:00` → `0 2 * * *` (⚠️ Warning: fixed time)
+  - `daily at midnight` → `0 0 * * *` (⚠️ Warning: fixed time)
+  - `daily at 3pm` → `0 15 * * *` (⚠️ Warning: fixed time)
+  - `daily at 6am` → `0 6 * * *` (⚠️ Warning: fixed time)
+- **Weekly (Fuzzy)**: `weekly` or `weekly on <day>` or `weekly on <day> around HH:MM`
+  - `weekly` → Scattered day and time like `43 5 * * 3` (compiler determines)
+  - `weekly on monday` → Scattered time like `43 5 * * 1` (compiler determines)
+  - `weekly on friday` → Scattered time like `28 14 * * 5` (compiler determines)
+  - `weekly on monday around 09:00` → Scattered time within ±1 hour like `32 9 * * 1` (08:00-10:00)
+  - `weekly on friday around 5pm` → Scattered time within ±1 hour like `18 16 * * 5` (16:00-18:00)
+  - `weekly on sunday around midnight` → Scattered time within ±1 hour like `47 23 * * 0` (23:00-01:00)
+  - **With UTC offsets**: `weekly on monday around 08:00 utc+9` → Scattered around 11 PM UTC previous day
+  - Supports all time formats: `HH:MM`, `midnight`, `noon`, `Npm`, `Nam` with optional UTC offsets
+- **Weekly (Fixed)**: `weekly on <day> at HH:MM` or `weekly on <day> at Npm/Nam`
+  - `weekly on monday at 06:30` → `30 6 * * 1` (⚠️ Warning: fixed time)
+  - `weekly on friday at 17:00` → `0 17 * * 5` (⚠️ Warning: fixed time)
+  - `weekly on friday at 5pm` → `0 17 * * 5` (⚠️ Warning: fixed time)
 - **Monthly**: `monthly on <day>` or `monthly on <day> at HH:MM` or `monthly on <day> at Npm/Nam`
   - `monthly on 15 at 09:00` → `0 9 15 * *`
   - `monthly on 1` → `0 0 1 * *`
   - `monthly on 15 at 9am` → `0 9 15 * *`
 - **Intervals**: `every N minutes/hours` or `every Nm/Nh/Nd/Nw/Nmo` (minimum 5 minutes)
-  - `every 10 minutes` → `*/10 * * * *`
-  - `every 2h` → `0 */2 * * *`
+  - `every 10 minutes` → `*/10 * * * *` (minute intervals don't scatter)
+  - **Hourly (Fuzzy)**: `every 2h` → Scattered minute like `53 */2 * * *` (compiler determines)
+  - **Hourly (Fuzzy)**: `every 1h` → Scattered minute like `28 */1 * * *` (compiler determines)
+  - **Hourly (Fixed)**: `0 */2 * * *` → (⚠️ Warning: fixed minute offset)
   - `every 1d` → `0 0 * * *`
   - `every 1w` → `0 0 * * 0`
   - `every 1mo` → `0 0 1 * *`

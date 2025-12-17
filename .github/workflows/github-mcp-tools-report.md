@@ -1,8 +1,7 @@
 ---
 description: Generates a comprehensive report of available MCP server tools and their capabilities for GitHub integration
 on:
-  schedule:
-    - cron: weekly on sunday at 12:00
+  schedule: weekly on sunday at 12:00
   workflow_dispatch:
 permissions:
   contents: read

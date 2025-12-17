@@ -27,8 +27,7 @@
 # description: Daily workflow that analyzes recent issues and links related issues as sub-issues
 # name: Issue Arborist
 # on:
-#   schedule:
-#     - cron: daily at 09:00
+#   schedule: daily
 #   workflow_dispatch:
 # permissions:
 #   contents: read
@@ -58,13 +57,13 @@
 #       # Create output directory
 #       mkdir -p /tmp/gh-aw/issues-data
 #
-#       echo "⬇ Downloading the last 100 issues (excluding sub-issues)..."
+#       echo "⬇ Downloading the last 100 open issues (excluding sub-issues)..."
 #
-#       # Fetch the last 100 issues that don't have a parent issue
+#       # Fetch the last 100 open issues that don't have a parent issue
 #       # Using search filter to exclude issues that are already sub-issues
 #       gh issue list --repo ${{ github.repository }} \
 #         --search "no:parent-issue" \
-#         --state all \
+#         --state open \
 #         --json number,title,author,createdAt,state,url,body,labels,updatedAt,closedAt,milestone,assignees \
 #         --limit 100 \
 #         > /tmp/gh-aw/issues-data/issues.json
@@ -217,12 +216,12 @@
 #
 # ## Task
 #
-# Analyze the last 100 issues in repository ${{ github.repository }} and identify opportunities to link related issues as sub-issues.
+# Analyze the last 100 open issues in repository ${{ github.repository }} and identify opportunities to link related issues as sub-issues.
 #
 # ## Pre-Downloaded Data
 #
 # The issue data has been pre-downloaded and is available at:
-# - **Issues data**: `/tmp/gh-aw/issues-data/issues.json` - Contains the last 100 issues (excluding those that are already sub-issues)
+# - **Issues data**: `/tmp/gh-aw/issues-data/issues.json` - Contains the last 100 open issues (excluding those that are already sub-issues)
 # - **Schema**: `/tmp/gh-aw/issues-data/issues-schema.json` - JSON schema showing the structure of the data
 #
 # Use `cat /tmp/gh-aw/issues-data/issues.json | jq ...` to query and analyze the issues.
@@ -314,7 +313,7 @@
 # ## 🌳 Issue Arborist Daily Report
 #
 # **Date**: [Current Date]
-# **Issues Analyzed**: 100
+# **Issues Analyzed**: 100 (open issues only)
 #
 # ### Parent Issues Created
 #
@@ -364,8 +363,8 @@
 name: "Issue Arborist"
 "on":
   schedule:
-  - cron: "0 9 * * *"
-    # Friendly format: daily at 09:00
+  - cron: "53 2 * * *"
+    # Friendly format: daily (scattered)
   workflow_dispatch: null
 
 permissions: {}
@@ -506,7 +505,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         name: Fetch issues data
-        run: "# Create output directory\nmkdir -p /tmp/gh-aw/issues-data\n\necho \"⬇ Downloading the last 100 issues (excluding sub-issues)...\"\n\n# Fetch the last 100 issues that don't have a parent issue\n# Using search filter to exclude issues that are already sub-issues\ngh issue list --repo ${{ github.repository }} \\\n  --search \"no:parent-issue\" \\\n  --state all \\\n  --json number,title,author,createdAt,state,url,body,labels,updatedAt,closedAt,milestone,assignees \\\n  --limit 100 \\\n  > /tmp/gh-aw/issues-data/issues.json\n\n# Generate schema for reference using jqschema\n/tmp/gh-aw/jqschema.sh < /tmp/gh-aw/issues-data/issues.json > /tmp/gh-aw/issues-data/issues-schema.json\n\necho \"✓ Issues data saved to /tmp/gh-aw/issues-data/issues.json\"\necho \"✓ Schema saved to /tmp/gh-aw/issues-data/issues-schema.json\"\necho \"Total issues fetched: $(jq 'length' /tmp/gh-aw/issues-data/issues.json)\"\necho \"\"\necho \"Schema of the issues data:\"\ncat /tmp/gh-aw/issues-data/issues-schema.json | jq .\n"
+        run: "# Create output directory\nmkdir -p /tmp/gh-aw/issues-data\n\necho \"⬇ Downloading the last 100 open issues (excluding sub-issues)...\"\n\n# Fetch the last 100 open issues that don't have a parent issue\n# Using search filter to exclude issues that are already sub-issues\ngh issue list --repo ${{ github.repository }} \\\n  --search \"no:parent-issue\" \\\n  --state open \\\n  --json number,title,author,createdAt,state,url,body,labels,updatedAt,closedAt,milestone,assignees \\\n  --limit 100 \\\n  > /tmp/gh-aw/issues-data/issues.json\n\n# Generate schema for reference using jqschema\n/tmp/gh-aw/jqschema.sh < /tmp/gh-aw/issues-data/issues.json > /tmp/gh-aw/issues-data/issues-schema.json\n\necho \"✓ Issues data saved to /tmp/gh-aw/issues-data/issues.json\"\necho \"✓ Schema saved to /tmp/gh-aw/issues-data/issues-schema.json\"\necho \"Total issues fetched: $(jq 'length' /tmp/gh-aw/issues-data/issues.json)\"\necho \"\"\necho \"Schema of the issues data:\"\ncat /tmp/gh-aw/issues-data/issues-schema.json | jq .\n"
 
       - name: Configure Git credentials
         env:
@@ -596,7 +595,7 @@ jobs:
       - name: Downloading container images
         run: |
           set -e
-          docker pull ghcr.io/github/github-mcp-server:v0.24.1
+          docker pull ghcr.io/github/github-mcp-server:v0.25.0
       - name: Write Safe Outputs Config
         run: |
           mkdir -p /tmp/gh-aw/safeoutputs
@@ -2241,7 +2240,7 @@ jobs:
             "GITHUB_READ_ONLY=1",
             "-e",
             "GITHUB_TOOLSETS=issues",
-            "ghcr.io/github/github-mcp-server:v0.24.1"
+            "ghcr.io/github/github-mcp-server:v0.25.0"
           ]
           env_vars = ["GITHUB_PERSONAL_ACCESS_TOKEN"]
           
@@ -2436,12 +2435,12 @@ jobs:
           
           ## Task
           
-          Analyze the last 100 issues in repository __GH_AW_GITHUB_REPOSITORY__ and identify opportunities to link related issues as sub-issues.
+          Analyze the last 100 open issues in repository __GH_AW_GITHUB_REPOSITORY__ and identify opportunities to link related issues as sub-issues.
           
           ## Pre-Downloaded Data
           
           The issue data has been pre-downloaded and is available at:
-          - **Issues data**: `/tmp/gh-aw/issues-data/issues.json` - Contains the last 100 issues (excluding those that are already sub-issues)
+          - **Issues data**: `/tmp/gh-aw/issues-data/issues.json` - Contains the last 100 open issues (excluding those that are already sub-issues)
           - **Schema**: `/tmp/gh-aw/issues-data/issues-schema.json` - JSON schema showing the structure of the data
           
           Use `cat /tmp/gh-aw/issues-data/issues.json | jq ...` to query and analyze the issues.
@@ -2533,7 +2532,7 @@ jobs:
           ## 🌳 Issue Arborist Daily Report
           
           **Date**: [Current Date]
-          **Issues Analyzed**: 100
+          **Issues Analyzed**: 100 (open issues only)
           
           ### Parent Issues Created
           

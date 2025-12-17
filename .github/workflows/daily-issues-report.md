@@ -1,8 +1,7 @@
 ---
 description: Daily report analyzing repository issues with clustering, metrics, and trend charts
 on:
-  schedule:
-    - cron: daily at 6:00
+  schedule: daily
   workflow_dispatch:
 permissions:
   contents: read

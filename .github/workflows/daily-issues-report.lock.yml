@@ -26,8 +26,7 @@
 # ```yaml
 # description: Daily report analyzing repository issues with clustering, metrics, and trend charts
 # on:
-#   schedule:
-#     - cron: daily at 6:00
+#   schedule: daily
 #   workflow_dispatch:
 # permissions:
 #   contents: read
@@ -1108,8 +1107,8 @@
 name: "Daily Issues Report Generator"
 "on":
   schedule:
-  - cron: "0 6 * * *"
-    # Friendly format: daily at 6:00
+  - cron: "32 16 * * *"
+    # Friendly format: daily (scattered)
   workflow_dispatch: null
 
 permissions: {}
@@ -1383,7 +1382,7 @@ jobs:
       - name: Downloading container images
         run: |
           set -e
-          docker pull ghcr.io/github/github-mcp-server:v0.24.1
+          docker pull ghcr.io/github/github-mcp-server:v0.25.0
       - name: Write Safe Outputs Config
         run: |
           mkdir -p /tmp/gh-aw/safeoutputs
@@ -2999,7 +2998,7 @@ jobs:
             "GITHUB_READ_ONLY=1",
             "-e",
             "GITHUB_TOOLSETS=context,repos,issues,pull_requests,discussions",
-            "ghcr.io/github/github-mcp-server:v0.24.1"
+            "ghcr.io/github/github-mcp-server:v0.25.0"
           ]
           env_vars = ["GITHUB_PERSONAL_ACCESS_TOKEN"]
           

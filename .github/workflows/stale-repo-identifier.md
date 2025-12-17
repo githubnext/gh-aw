@@ -9,8 +9,7 @@ on:
         required: true
         type: string
         default: github
-  schedule:
-    - cron: monthly on 1 at 02:03
+  schedule: monthly on 1 at 02:03
 
 permissions:
   contents: read

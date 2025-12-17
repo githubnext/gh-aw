@@ -7,12 +7,10 @@ on:
     lock-for-agent: true
   issue_comment:
     types: [created]
-  pull_request_review_comment:
-    types: [created]
   workflow_dispatch:
     inputs:
       issue_url:
-        description: 'Issue or discussion URL to moderate (e.g., https://github.com/owner/repo/issues/123)'
+        description: 'Issue URL to moderate (e.g., https://github.com/owner/repo/issues/123)'
         required: true
         type: string
 engine:
@@ -39,14 +37,21 @@ jobs:
     outputs:
       should_run: ${{ steps.check_actor.outputs.should_run || github.event_name == 'workflow_dispatch' }}
     steps:
-      - name: Check if actor is external user
+      - name: Check if actor is external user or GitHub Action bot
         id: check_actor
         uses: actions/github-script@v8
-        if: ${{ github.event_name == 'workflow_dispatch' }}
+        if: ${{ github.event_name != 'workflow_dispatch' }}
         with:
           script: |
             const actor = context.actor;
             const { owner, repo } = context.repo;
+            
+            // Skip if the issue was opened by GitHub Action bot
+            if (actor.endsWith('[bot]') && (actor === 'github-actions[bot]' || actor === 'github-actions')) {
+              core.info(`⏭️  Skipping workflow - issue opened by GitHub Action bot: ${actor}`);
+              core.setOutput('should_run', 'false');
+              return;
+            }
             
             try {
               core.info(`Checking permissions for user: ${actor}`);
@@ -88,8 +93,7 @@ You are an AI-powered moderation system that automatically detects spam, link sp
 
 Analyze the following content in repository ${{ github.repository }}:
 
-**Issue Number** (if applicable): #${{ github.event.issue.number }}
-**Pull Request Number** (if applicable): #${{ github.event.pull_request.number }}
+**Issue Number**: #${{ github.event.issue.number }}
 **Comment ID** (if applicable): ${{ github.event.comment.id }}
 **Author**: ${{ github.actor }}
 **Manual URL** (if provided via workflow_dispatch): ${{ github.event.inputs.issue_url }}
@@ -98,13 +102,14 @@ Analyze the following content in repository ${{ github.repository }}:
 
 When running via `workflow_dispatch` with an `issue_url` input:
 1. Parse the issue URL to extract the owner, repo, and issue number
-2. Use the GitHub MCP server tools (available via `github` toolset) to fetch the full issue content
-3. Specifically, use the appropriate GitHub API tool to get the issue details including title and body
+2. Validate that the URL is an issue URL (not a pull request URL)
+3. Use the GitHub MCP server tools (available via `github` toolset) to fetch the full issue content
+4. Specifically, use the appropriate GitHub API tool to get the issue details including title and body
 
-For other trigger types (issues, issue_comment, pull_request_review_comment):
+For other trigger types (issues, issue_comment):
 1. Extract the relevant identifiers from the context:
    - For issues: Use issue number from ${{ github.event.issue.number }}
-   - For comments: Use issue/PR number and comment ID from the event payload
+   - For comments: Use issue number and comment ID from the event payload
 2. Use the GitHub MCP server tools to fetch the original, unsanitized content directly from GitHub API
 3. Do NOT use the pre-sanitized text from the activation job - fetch fresh content to analyze the original user input
 
@@ -184,9 +189,9 @@ Based on your analysis:
 
 2. **For Comments** (when comment ID is present):
    - If any type of spam, link spam, or AI-generated spam is detected:
-     - Use the `minimize_comment` safe output to minimize the comment
-     - Also add appropriate labels to the parent issue/PR as described above
-   - If the comment appears legitimate and on-topic, add the `ai-inspected` label to the parent issue/PR
+     - Use the `hide-comment` safe output to hide the comment with reason 'spam'
+     - Also add appropriate labels to the parent issue as described above
+   - If the comment appears legitimate and on-topic, add the `ai-inspected` label to the parent issue
 
 ## Important Guidelines
 
@@ -217,14 +222,17 @@ An AI-powered GitHub Agentic Workflow that automatically detects spam in issues 
 This workflow uses GitHub Copilot's AI capabilities to analyze content posted to your repository. When triggered by:
 - A new issue being opened
 - A new comment on an issue
-- A new review comment on a pull request
+- Manual workflow dispatch with an issue URL
 
 The AI agent:
 1. Fetches the content to analyze
 2. Runs three detection analyses (general spam, link spam, AI-generated)
 3. Takes appropriate action based on findings:
    - For issues: Adds relevant labels
-   - For comments: Minimizes the comment and adds labels to the parent issue/PR
+   - For comments: Hides the comment and adds labels to the parent issue
+4. Skips processing for:
+   - Issues opened by GitHub Action bots
+   - Team members with write access or higher
 
 ## Detection Criteria
 
@@ -260,12 +268,10 @@ on:
     types: [opened]
   issue_comment:
     types: [created]
-  pull_request_review_comment:
-    types: [created]
   workflow_dispatch:
     inputs:
       issue_url:
-        description: 'Issue or discussion URL to moderate (e.g., https://github.com/owner/repo/issues/123)'
+        description: 'Issue URL to moderate (e.g., https://github.com/owner/repo/issues/123)'
         required: true
         type: string
 engine:
@@ -281,12 +287,12 @@ safe-outputs:
     allowed: [spam, ai-generated, link-spam, ai-inspected]
   hide-comment:
     max: 5
+    allowed-reasons: [spam]
   threat-detection: false
 permissions:
   models: read
   contents: read
   issues: read
-  pull-requests: read
 ```
 
 ### Labels

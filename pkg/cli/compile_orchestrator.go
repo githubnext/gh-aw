@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 
@@ -16,6 +17,37 @@ import (
 )
 
 var compileOrchestratorLog = logger.New("cli:compile_orchestrator")
+
+// getRepositorySlug extracts the repository slug (owner/repo) from git config
+func getRepositorySlug() string {
+	// Try to get from git remote URL
+	cmd := exec.Command("git", "config", "--get", "remote.origin.url")
+	output, err := cmd.Output()
+	if err != nil {
+		return ""
+	}
+
+	url := strings.TrimSpace(string(output))
+
+	// Parse GitHub URL patterns:
+	// - https://github.com/owner/repo.git
+	// - git@github.com:owner/repo.git
+	// - https://github.com/owner/repo
+
+	// Remove .git suffix
+	url = strings.TrimSuffix(url, ".git")
+
+	// Extract owner/repo from URL
+	if strings.HasPrefix(url, "https://github.com/") {
+		slug := strings.TrimPrefix(url, "https://github.com/")
+		return slug
+	} else if strings.HasPrefix(url, "git@github.com:") {
+		slug := strings.TrimPrefix(url, "git@github.com:")
+		return slug
+	}
+
+	return ""
+}
 
 func renderGeneratedCampaignOrchestratorMarkdown(data *workflow.WorkflowData, sourceCampaignPath string) string {
 	// Produce a conventional gh-aw workflow markdown file so users can review
@@ -187,6 +219,13 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 	// Create compiler with verbose flag and AI engine override
 	compiler := workflow.NewCompiler(verbose, engineOverride, GetVersion())
 	compileOrchestratorLog.Print("Created compiler instance")
+
+	// Set repository slug for schedule scattering
+	repoSlug := getRepositorySlug()
+	if repoSlug != "" {
+		compiler.SetRepositorySlug(repoSlug)
+		compileOrchestratorLog.Printf("Repository slug set: %s", repoSlug)
+	}
 
 	// Set validation based on the validate flag (false by default for compatibility)
 	compiler.SetSkipValidation(!validate)
@@ -380,6 +419,8 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 
 			// Parse workflow file to get data
 			compileOrchestratorLog.Printf("Parsing workflow file: %s", resolvedFile)
+			// Set workflow identifier for schedule scattering (use the file path as unique identifier)
+			compiler.SetWorkflowIdentifier(resolvedFile)
 			workflowData, err := compiler.ParseWorkflowFile(resolvedFile)
 			if err != nil {
 				errMsg := fmt.Sprintf("failed to parse workflow file %s: %v", resolvedFile, err)
@@ -430,6 +471,14 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 
 		// Get warning count from compiler
 		stats.Warnings = compiler.GetWarningCount()
+
+		// Display any schedule warnings from this compiler instance
+		scheduleWarnings := compiler.GetScheduleWarnings()
+		if len(scheduleWarnings) > 0 && !jsonOutput {
+			for _, warning := range scheduleWarnings {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(warning))
+			}
+		}
 
 		if verbose {
 			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Successfully compiled %d workflow file(s)", compiledCount)))
@@ -677,6 +726,8 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 		}
 
 		// Parse workflow file to get data
+		// Set workflow identifier for schedule scattering (use the file path as unique identifier)
+		compiler.SetWorkflowIdentifier(file)
 		workflowData, err := compiler.ParseWorkflowFile(file)
 		if err != nil {
 			if !jsonOutput {
@@ -723,6 +774,14 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 
 	// Get warning count from compiler
 	stats.Warnings = compiler.GetWarningCount()
+
+	// Display any schedule warnings from this compiler instance
+	scheduleWarnings := compiler.GetScheduleWarnings()
+	if len(scheduleWarnings) > 0 && !jsonOutput {
+		for _, warning := range scheduleWarnings {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(warning))
+		}
+	}
 
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Successfully compiled %d out of %d workflow files", successCount, len(mdFiles))))

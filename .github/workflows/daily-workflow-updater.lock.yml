@@ -29,7 +29,7 @@
 # on:
 #   schedule:
 #     # Every day at 3am UTC
-#     - cron: daily at 3:00
+#     - cron: daily
 #   workflow_dispatch:
 #
 # permissions:
@@ -261,8 +261,8 @@
 name: "Daily Workflow Updater"
 "on":
   schedule:
-  - cron: "0 3 * * *"
-    # Friendly format: daily at 3:00
+  - cron: "44 9 * * *"
+    # Friendly format: daily (scattered)
   workflow_dispatch: null
 
 permissions: {}
@@ -475,7 +475,16 @@ jobs:
           COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
       - name: Install GitHub Copilot CLI
         run: |
-          export VERSION=0.0.369 && curl -fsSL https://gh.io/copilot-install | sudo bash
+          # Download official Copilot CLI installer script
+          curl -fsSL https://raw.githubusercontent.com/github/copilot-cli/main/install.sh -o /tmp/copilot-install.sh
+          
+          # Execute the installer with the specified version
+          export VERSION=0.0.369 && sudo bash /tmp/copilot-install.sh
+          
+          # Cleanup
+          rm -f /tmp/copilot-install.sh
+          
+          # Verify installation
           copilot --version
       - name: Install awf binary
         run: |
@@ -488,7 +497,7 @@ jobs:
       - name: Downloading container images
         run: |
           set -e
-          docker pull ghcr.io/github/github-mcp-server:v0.24.1
+          docker pull ghcr.io/github/github-mcp-server:v0.25.0
       - name: Write Safe Outputs Config
         run: |
           mkdir -p /tmp/gh-aw/safeoutputs
@@ -2022,7 +2031,7 @@ jobs:
                   "GITHUB_READ_ONLY=1",
                   "-e",
                   "GITHUB_TOOLSETS=context,repos,issues,pull_requests",
-                  "ghcr.io/github/github-mcp-server:v0.24.1"
+                  "ghcr.io/github/github-mcp-server:v0.25.0"
                 ],
                 "tools": ["*"],
                 "env": {
@@ -7759,7 +7768,16 @@ jobs:
           COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
       - name: Install GitHub Copilot CLI
         run: |
-          export VERSION=0.0.369 && curl -fsSL https://gh.io/copilot-install | sudo bash
+          # Download official Copilot CLI installer script
+          curl -fsSL https://raw.githubusercontent.com/github/copilot-cli/main/install.sh -o /tmp/copilot-install.sh
+          
+          # Execute the installer with the specified version
+          export VERSION=0.0.369 && sudo bash /tmp/copilot-install.sh
+          
+          # Cleanup
+          rm -f /tmp/copilot-install.sh
+          
+          # Verify installation
           copilot --version
       - name: Execute GitHub Copilot CLI
         id: agentic_execution

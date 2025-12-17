@@ -1,8 +1,7 @@
 ---
 description: Daily project performance summary (90-day window) with trend charts using safe-inputs
 on:
-  schedule:
-    - cron: daily at 8:00
+  schedule: daily
   workflow_dispatch:
 permissions:
   contents: read

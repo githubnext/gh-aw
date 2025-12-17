@@ -194,11 +194,8 @@ Fetch latest TypeScript docs report findings in a comment.
 gh extension install githubnext/gh-aw
 gh aw init
 
-# Install Copilot CLI (optional)
-npm install -g @github/copilot
-copilot
-
-> load https://raw.githubusercontent.com/githubnext/gh-aw/main/.github/prompts/create-agentic-workflow.prompt.md
+# Agentic setup with Copilot CLI (optional)
+npx --yes @github/copilot -i "activate https://raw.githubusercontent.com/githubnext/gh-aw/refs/heads/main/install.md"
 ```
 
 > Built with AI agents in mind from day 0
@@ -228,16 +225,16 @@ Analyze issue and break down into implementation tasks
 # AI Engines
 ## Multiple AI providers supported
 
-* **Claude Code** (default, recommended)
+* **GitHub Copilot** (default, recommended)
+* **Claude Code** (experimental)
 * **Codex** (experimental)
-* **Copilot CLI** (experimental)
 * **Custom Engine** (bring your own AI)
 
 ```yaml
-engine: claude  # sensible defaults
+engine: copilot  # sensible defaults
 ```
 
-> Claude Code offers the best reliability and performance
+> GitHub Copilot offers MCP support and conversational workflows
 
 ---
 

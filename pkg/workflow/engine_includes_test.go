@@ -248,9 +248,15 @@ This should use the default engine.
 	}
 	lockStr := string(lockContent)
 
-	// Should contain references to copilot CLI (default engine) using new installer
-	if !strings.Contains(lockStr, "curl -fsSL https://gh.io/copilot-install") {
-		t.Error("Expected lock file to contain copilot CLI installer reference")
+	// Should contain references to copilot CLI (default engine) using official install.sh script
+	if !strings.Contains(lockStr, "https://raw.githubusercontent.com/github/copilot-cli/main/install.sh") ||
+		!strings.Contains(lockStr, "export VERSION=") {
+		t.Error("Expected lock file to contain copilot CLI installation using official install.sh script")
+	}
+
+	// Should NOT pipe directly to bash (security improvement)
+	if strings.Contains(lockStr, "gh.io/copilot-install | sudo bash") {
+		t.Error("Lock file should not pipe installer directly to bash")
 	}
 }
 

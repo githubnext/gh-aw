@@ -213,8 +213,14 @@ This is a test workflow.
 				if !strings.Contains(lockContent, "Execute GitHub Copilot CLI") {
 					t.Errorf("Expected lock file to contain 'Execute GitHub Copilot CLI' step but it didn't.\nContent:\n%s", lockContent)
 				}
-				if !strings.Contains(lockContent, "curl -fsSL https://gh.io/copilot-install") {
-					t.Errorf("Expected lock file to contain Copilot installer command but it didn't.\nContent:\n%s", lockContent)
+				// Check for official install.sh script usage
+				if !strings.Contains(lockContent, "https://raw.githubusercontent.com/github/copilot-cli/main/install.sh") ||
+					!strings.Contains(lockContent, "export VERSION=") {
+					t.Errorf("Expected lock file to contain Copilot installer using official install.sh script but it didn't.\nContent:\n%s", lockContent)
+				}
+				// Ensure script is downloaded to file before execution (not piped)
+				if strings.Contains(lockContent, "gh.io/copilot-install | sudo bash") {
+					t.Errorf("Lock file should not pipe installer directly to bash.\nContent:\n%s", lockContent)
 				}
 				// Check that prompt printing step is present
 				if !strings.Contains(lockContent, "Print prompt") {

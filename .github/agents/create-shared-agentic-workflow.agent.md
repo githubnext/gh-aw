@@ -1,6 +1,7 @@
 ---
 name: create-shared-agentic-workflow
 description: Create shared agentic workflow components that wrap MCP servers using GitHub Agentic Workflows (gh-aw) with Docker best practices.
+infer: false
 ---
 
 # Shared Agentic Workflow Designer

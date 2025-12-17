@@ -766,15 +766,19 @@ func runHTTPServer(server *mcp.Server, port int) error {
 	// Create the streamable HTTP handler.
 	handler := mcp.NewStreamableHTTPHandler(func(req *http.Request) *mcp.Server {
 		return server
-	}, nil)
+	}, &mcp.StreamableHTTPOptions{
+		SessionTimeout: 2 * time.Hour, // Close idle sessions after 2 hours
+		Logger:         logger.NewSlogLoggerWithHandler(mcpLog),
+	})
 
 	handlerWithLogging := loggingHandler(handler)
 
 	// Create HTTP server
 	addr := fmt.Sprintf(":%d", port)
 	httpServer := &http.Server{
-		Addr:    addr,
-		Handler: handlerWithLogging,
+		Addr:              addr,
+		Handler:           handlerWithLogging,
+		ReadHeaderTimeout: MCPServerHTTPTimeout,
 	}
 
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Starting MCP server on http://localhost%s", addr)))

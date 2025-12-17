@@ -64,8 +64,68 @@ func ensureDevcontainerConfig(verbose bool, additionalRepos []string) error {
 	// Check if file already exists
 	if _, err := os.Stat(devcontainerPath); err == nil {
 		devcontainerLog.Printf("File already exists: %s", devcontainerPath)
-		if verbose {
-			fmt.Fprintf(os.Stderr, "Devcontainer already exists at %s (skipping)\n", devcontainerPath)
+
+		// Read existing config to check if we need to update copilot-cli version
+		existingData, err := os.ReadFile(devcontainerPath)
+		if err != nil {
+			devcontainerLog.Printf("Failed to read existing config: %v", err)
+			if verbose {
+				fmt.Fprintf(os.Stderr, "Devcontainer already exists at %s (skipping)\n", devcontainerPath)
+			}
+			return nil
+		}
+
+		var existingConfig DevcontainerConfig
+		if err := json.Unmarshal(existingData, &existingConfig); err != nil {
+			devcontainerLog.Printf("Failed to parse existing config: %v", err)
+			if verbose {
+				fmt.Fprintf(os.Stderr, "Devcontainer already exists at %s (skipping)\n", devcontainerPath)
+			}
+			return nil
+		}
+
+		// Check if copilot-cli feature exists with a different version
+		needsUpdate := false
+		if existingConfig.Features != nil {
+			for key := range existingConfig.Features {
+				// Check if this is a copilot-cli feature with a different version
+				if strings.HasPrefix(key, "ghcr.io/devcontainers/features/copilot-cli:") && key != "ghcr.io/devcontainers/features/copilot-cli:latest" {
+					needsUpdate = true
+					// Remove the old version
+					delete(existingConfig.Features, key)
+					devcontainerLog.Printf("Removing old copilot-cli version: %s", key)
+					break
+				}
+			}
+		}
+
+		if needsUpdate {
+			// Add the latest version
+			if existingConfig.Features == nil {
+				existingConfig.Features = make(DevcontainerFeatures)
+			}
+			existingConfig.Features["ghcr.io/devcontainers/features/copilot-cli:latest"] = map[string]any{}
+			devcontainerLog.Printf("Updated copilot-cli to :latest version")
+
+			// Write updated config
+			updatedData, err := json.MarshalIndent(existingConfig, "", "  ")
+			if err != nil {
+				return fmt.Errorf("failed to marshal updated devcontainer.json: %w", err)
+			}
+			updatedData = append(updatedData, '\n')
+
+			if err := os.WriteFile(devcontainerPath, updatedData, 0644); err != nil {
+				return fmt.Errorf("failed to write updated devcontainer.json: %w", err)
+			}
+			devcontainerLog.Printf("Updated file: %s", devcontainerPath)
+
+			if verbose {
+				fmt.Fprintf(os.Stderr, "Updated copilot-cli to :latest in %s\n", devcontainerPath)
+			}
+		} else {
+			if verbose {
+				fmt.Fprintf(os.Stderr, "Devcontainer already exists at %s (skipping)\n", devcontainerPath)
+			}
 		}
 		return nil
 	}
@@ -155,8 +215,8 @@ func ensureDevcontainerConfig(verbose bool, additionalRepos []string) error {
 			},
 		},
 		Features: DevcontainerFeatures{
-			"ghcr.io/devcontainers/features/github-cli:1":  map[string]any{},
-			"ghcr.io/devcontainers/features/copilot-cli:1": map[string]any{},
+			"ghcr.io/devcontainers/features/github-cli:1":       map[string]any{},
+			"ghcr.io/devcontainers/features/copilot-cli:latest": map[string]any{},
 		},
 		PostCreateCommand: "curl -fsSL https://raw.githubusercontent.com/githubnext/gh-aw/refs/heads/main/install-gh-aw.sh | bash",
 	}

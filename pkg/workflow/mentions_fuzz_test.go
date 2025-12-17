@@ -159,9 +159,17 @@ func FuzzMentionsFiltering(f *testing.F) {
 
 		// Basic sanity checks on the result
 		if result != nil {
-			// Result should not be longer than input + some overhead for backticks
-			if len(result.Sanitized) > len(text)+len(text)/2 {
-				t.Errorf("Sanitized result is unexpectedly longer than input")
+			// Result should not be excessively longer than input
+			// Account for mention wrapping: each @ can be wrapped in backticks (e.g., @ -> `@`)
+			// In the worst case, every character could be part of a mention that needs wrapping,
+			// which adds 2 characters per mention (the backticks). Additionally, truncation
+			// messages and other transformations may add some overhead.
+			// Formula breakdown: 1x (base) + 0.5x (general expansion) + 2x (worst-case backtick wrapping) = 3.5x
+			// Simplified as: len(text) * 7 / 2
+			expectedMaxLen := len(text) * 7 / 2
+			if len(result.Sanitized) > expectedMaxLen {
+				t.Errorf("Sanitized result is unexpectedly longer than expected (input: %d, result: %d, expected max: %d)",
+					len(text), len(result.Sanitized), expectedMaxLen)
 			}
 
 			// If we have allowed aliases, check that some mentions might be preserved

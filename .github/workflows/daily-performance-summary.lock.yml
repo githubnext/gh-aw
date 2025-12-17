@@ -26,8 +26,7 @@
 # ```yaml
 # description: Daily project performance summary (90-day window) with trend charts using safe-inputs
 # on:
-#   schedule:
-#     - cron: daily at 8:00
+#   schedule: daily
 #   workflow_dispatch:
 # permissions:
 #   contents: read
@@ -876,8 +875,8 @@
 name: "Daily Project Performance Summary Generator (Using Safe Inputs)"
 "on":
   schedule:
-  - cron: "0 8 * * *"
-    # Friendly format: daily at 8:00
+  - cron: "18 5 * * *"
+    # Friendly format: daily (scattered)
   workflow_dispatch: null
 
 permissions: {}
@@ -1145,7 +1144,7 @@ jobs:
       - name: Downloading container images
         run: |
           set -e
-          docker pull ghcr.io/github/github-mcp-server:v0.24.1
+          docker pull ghcr.io/github/github-mcp-server:v0.25.0
       - name: Write Safe Outputs Config
         run: |
           mkdir -p /tmp/gh-aw/safeoutputs
@@ -4330,7 +4329,7 @@ jobs:
         with:
           script: |
             function generateSafeInputsConfig({ core, crypto }) {
-              const apiKeyBuffer = crypto.randomBytes(32);
+              const apiKeyBuffer = crypto.randomBytes(33);
               const apiKey = apiKeyBuffer.toString("base64").replace(/[/+=]/g, "");
               const port = 3000;
               core.setOutput("safe_inputs_api_key", apiKey);
@@ -4451,7 +4450,7 @@ jobs:
             "GITHUB_READ_ONLY=1",
             "-e",
             "GITHUB_TOOLSETS=context,repos,issues,pull_requests,discussions",
-            "ghcr.io/github/github-mcp-server:v0.24.1"
+            "ghcr.io/github/github-mcp-server:v0.25.0"
           ]
           env_vars = ["GITHUB_PERSONAL_ACCESS_TOKEN"]
           

@@ -2,6 +2,43 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.33.2 - 2025-12-17
+
+### Bug Fixes
+
+#### Bump the default Claude Code CLI version from 2.0.70 to 2.0.71.
+
+Workflows that install and reference the Claude Code CLI now use v2.0.71.
+
+#### Replace insecure 'curl | sudo bash' Copilot installer usage with the official `install.sh` downloaded to a temporary file, executed, and removed. Tests updated to assert secure installer usage. Fixes githubnext/gh-aw#6674
+
+---
+
+This changeset was generated for PR #6691.
+
+#### Bump default CLI versions: Claude Code to 2.0.70 and Codex to 0.73.0. Regenerated workflow lock files.
+
+This change updates the default CLI version constants and includes the regenerated
+workflow lock files produced by `make recompile`.
+
+Fixes githubnext/gh-aw#6587
+
+#### Update the GitHub MCP Server Docker image to `v0.25.0`.
+
+- Bump `DefaultGitHubMCPServerVersion` to `v0.25.0` in `pkg/constants/constants.go`.
+- Recompiled workflow `.lock.yml` files to reference the new image version.
+- Updated tests and action pins that referenced the previous version.
+
+This is a non-breaking patch release that updates the MCP server image and related test/lockfile references.
+
+#### Use the official Copilot CLI `install.sh` script instead of piping a
+
+downloaded script directly into `sudo bash`. The new pattern downloads the
+installer to a temporary file, executes it, and removes the temporary file to
+reduce supply-chain risk. Tests were updated to assert the secure install
+pattern. Fixes githubnext/gh-aw#6674
+
+
 ## v0.33.1 - 2025-12-16
 
 ### Bug Fixes

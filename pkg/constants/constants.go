@@ -26,7 +26,7 @@ const ExpressionBreakThreshold LineLength = 100
 const DefaultMCPRegistryURL = "https://api.mcp.github.com/v0"
 
 // DefaultClaudeCodeVersion is the default version of the Claude Code CLI
-const DefaultClaudeCodeVersion Version = "2.0.70"
+const DefaultClaudeCodeVersion Version = "2.0.71"
 
 // DefaultCopilotVersion is the default version of the GitHub Copilot CLI
 // WARNING: UPGRADING COPILOT CLI REQUIRES A FULL INTEGRATION TEST RUN TO ENSURE COMPATIBILITY
@@ -55,7 +55,7 @@ const (
 const DefaultCodexVersion Version = "0.73.0"
 
 // DefaultGitHubMCPServerVersion is the default version of the GitHub MCP server Docker image
-const DefaultGitHubMCPServerVersion Version = "v0.24.1"
+const DefaultGitHubMCPServerVersion Version = "v0.25.0"
 
 // DefaultFirewallVersion is the default version of the gh-aw-firewall (AWF) binary
 const DefaultFirewallVersion Version = "v0.6.0"

@@ -4,8 +4,7 @@ description: Security testing to find escape paths in the AWF (Agent Workflow Fi
 
 on:
   workflow_dispatch:
-  schedule:
-    - cron: daily at 9:00
+  schedule: daily
   pull_request:
     types: [labeled]
     names: ['firewall-escape-test']

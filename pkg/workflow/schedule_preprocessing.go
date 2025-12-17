@@ -47,6 +47,51 @@ func (c *Compiler) preprocessScheduleFields(frontmatter map[string]any) error {
 			return fmt.Errorf("invalid schedule expression: %w", err)
 		}
 
+		// Warn if using explicit daily cron pattern
+		if parser.IsDailyCron(parsedCron) && !parser.IsFuzzyCron(parsedCron) {
+			c.addDailyCronWarning(parsedCron)
+		}
+
+		// Warn if using hourly interval with fixed minute
+		if parser.IsHourlyCron(parsedCron) && !parser.IsFuzzyCron(parsedCron) {
+			c.addHourlyCronWarning(parsedCron)
+		}
+
+		// Warn if using explicit weekly cron pattern with fixed time
+		if parser.IsWeeklyCron(parsedCron) && !parser.IsFuzzyCron(parsedCron) {
+			c.addWeeklyCronWarning(parsedCron)
+		}
+
+		// Scatter fuzzy schedules if workflow identifier is set
+		if parser.IsFuzzyCron(parsedCron) && c.workflowIdentifier != "" {
+			// Combine repo slug and workflow identifier for scattering seed
+			seed := c.workflowIdentifier
+			if c.repositorySlug != "" {
+				seed = c.repositorySlug + "/" + c.workflowIdentifier
+			}
+			scatteredCron, err := parser.ScatterSchedule(parsedCron, seed)
+			if err != nil {
+				schedulePreprocessingLog.Printf("Warning: failed to scatter fuzzy schedule: %v", err)
+				// Keep the original fuzzy schedule as fallback
+			} else {
+				schedulePreprocessingLog.Printf("Scattered fuzzy schedule %s to %s for workflow %s", parsedCron, scatteredCron, c.workflowIdentifier)
+				parsedCron = scatteredCron
+				// Update the friendly format to show the scattering
+				if original != "" {
+					original = fmt.Sprintf("%s (scattered)", original)
+				}
+			}
+		}
+
+		// Validate final cron expression has correct syntax (5 fields)
+		// FUZZY cron expressions are not supported by GitHub Actions
+		if parser.IsFuzzyCron(parsedCron) {
+			return fmt.Errorf("fuzzy cron expression '%s' must be scattered to proper cron format before compilation (ensure workflow identifier is set)", parsedCron)
+		}
+		if !parser.IsCronExpression(parsedCron) {
+			return fmt.Errorf("invalid cron expression '%s': must have exactly 5 fields (minute hour day-of-month month day-of-week)", parsedCron)
+		}
+
 		// Create array format
 		scheduleArray := []any{
 			map[string]any{
@@ -100,6 +145,51 @@ func (c *Compiler) preprocessScheduleFields(frontmatter map[string]any) error {
 		if err != nil {
 			// If parsing fails, it might be an invalid expression
 			return fmt.Errorf("invalid schedule expression in item %d: %w", i, err)
+		}
+
+		// Warn if using explicit daily cron pattern
+		if parser.IsDailyCron(parsedCron) && !parser.IsFuzzyCron(parsedCron) {
+			c.addDailyCronWarning(parsedCron)
+		}
+
+		// Warn if using hourly interval with fixed minute
+		if parser.IsHourlyCron(parsedCron) && !parser.IsFuzzyCron(parsedCron) {
+			c.addHourlyCronWarning(parsedCron)
+		}
+
+		// Warn if using explicit weekly cron pattern with fixed time
+		if parser.IsWeeklyCron(parsedCron) && !parser.IsFuzzyCron(parsedCron) {
+			c.addWeeklyCronWarning(parsedCron)
+		}
+
+		// Scatter fuzzy schedules if workflow identifier is set
+		if parser.IsFuzzyCron(parsedCron) && c.workflowIdentifier != "" {
+			// Combine repo slug and workflow identifier for scattering seed
+			seed := c.workflowIdentifier
+			if c.repositorySlug != "" {
+				seed = c.repositorySlug + "/" + c.workflowIdentifier
+			}
+			scatteredCron, err := parser.ScatterSchedule(parsedCron, seed)
+			if err != nil {
+				schedulePreprocessingLog.Printf("Warning: failed to scatter fuzzy schedule: %v", err)
+				// Keep the original fuzzy schedule as fallback
+			} else {
+				schedulePreprocessingLog.Printf("Scattered fuzzy schedule %s to %s for workflow %s", parsedCron, scatteredCron, c.workflowIdentifier)
+				parsedCron = scatteredCron
+				// Update the friendly format to show the scattering
+				if original != "" {
+					original = fmt.Sprintf("%s (scattered)", original)
+				}
+			}
+		}
+
+		// Validate final cron expression has correct syntax (5 fields)
+		// FUZZY cron expressions are not supported by GitHub Actions
+		if parser.IsFuzzyCron(parsedCron) {
+			return fmt.Errorf("fuzzy cron expression '%s' in item %d must be scattered to proper cron format before compilation (ensure workflow identifier is set)", parsedCron, i)
+		}
+		if !parser.IsCronExpression(parsedCron) {
+			return fmt.Errorf("invalid cron expression '%s' in item %d: must have exactly 5 fields (minute hour day-of-month month day-of-week)", parsedCron, i)
 		}
 
 		// Update the cron field with the parsed cron expression
@@ -174,4 +264,101 @@ func (c *Compiler) addFriendlyScheduleComments(yamlStr string, frontmatter map[s
 	}
 
 	return strings.Join(result, "\n")
+}
+
+// addDailyCronWarning emits a warning when a daily cron pattern with fixed time is detected
+func (c *Compiler) addDailyCronWarning(cronExpr string) {
+	// Extract hour and minute from the cron expression
+	fields := strings.Fields(cronExpr)
+	if len(fields) >= 2 {
+		minute := fields[0]
+		hour := fields[1]
+		schedulePreprocessingLog.Printf("Warning: detected daily cron with fixed time: %s", cronExpr)
+
+		// Construct the warning message
+		warningMsg := fmt.Sprintf(
+			"Schedule uses fixed daily time (%s:%s UTC). Consider using fuzzy schedule 'daily' instead to distribute workflow execution times and reduce load spikes.",
+			hour, minute,
+		)
+
+		// This warning is added to the warning count
+		// It will be collected and displayed by the compilation process
+		c.IncrementWarningCount()
+
+		// Store the warning for later display
+		c.addScheduleWarning(warningMsg)
+	}
+}
+
+// addHourlyCronWarning emits a warning when an hourly interval with fixed minute is detected
+func (c *Compiler) addHourlyCronWarning(cronExpr string) {
+	// Extract minute and interval from the cron expression
+	fields := strings.Fields(cronExpr)
+	if len(fields) >= 2 {
+		minute := fields[0]
+		hourField := fields[1]
+		schedulePreprocessingLog.Printf("Warning: detected hourly cron with fixed minute: %s", cronExpr)
+
+		// Extract the interval from */N pattern
+		interval := strings.TrimPrefix(hourField, "*/")
+
+		// Construct the warning message
+		warningMsg := fmt.Sprintf(
+			"Schedule uses hourly interval with fixed minute offset (%s). Consider using fuzzy schedule 'every %sh' instead to distribute workflow execution times and reduce load spikes.",
+			minute, interval,
+		)
+
+		// This warning is added to the warning count
+		c.IncrementWarningCount()
+
+		// Store the warning for later display
+		c.addScheduleWarning(warningMsg)
+	}
+}
+
+// addWeeklyCronWarning emits a warning when a weekly cron pattern with fixed time is detected
+func (c *Compiler) addWeeklyCronWarning(cronExpr string) {
+	// Extract minute, hour, and weekday from the cron expression
+	fields := strings.Fields(cronExpr)
+	if len(fields) >= 5 {
+		minute := fields[0]
+		hour := fields[1]
+		weekday := fields[4]
+		schedulePreprocessingLog.Printf("Warning: detected weekly cron with fixed time: %s", cronExpr)
+
+		// Map weekday number to name for better readability
+		weekdayNames := map[string]string{
+			"0": "Sunday",
+			"1": "Monday",
+			"2": "Tuesday",
+			"3": "Wednesday",
+			"4": "Thursday",
+			"5": "Friday",
+			"6": "Saturday",
+		}
+		weekdayName := weekdayNames[weekday]
+		if weekdayName == "" {
+			weekdayName = "day " + weekday
+		}
+
+		// Construct the warning message
+		warningMsg := fmt.Sprintf(
+			"Schedule uses fixed weekly time (%s %s:%s UTC). Consider using fuzzy schedule 'weekly on %s' instead to distribute workflow execution times and reduce load spikes.",
+			weekdayName, hour, minute, strings.ToLower(weekdayName),
+		)
+
+		// This warning is added to the warning count
+		c.IncrementWarningCount()
+
+		// Store the warning for later display
+		c.addScheduleWarning(warningMsg)
+	}
+}
+
+// addScheduleWarning adds a warning to the compiler's schedule warnings list
+func (c *Compiler) addScheduleWarning(warning string) {
+	if c.scheduleWarnings == nil {
+		c.scheduleWarnings = []string{}
+	}
+	c.scheduleWarnings = append(c.scheduleWarnings, warning)
 }

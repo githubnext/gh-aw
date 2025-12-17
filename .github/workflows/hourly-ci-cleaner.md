@@ -52,6 +52,12 @@ steps:
     with:
       go-version-file: go.mod
       cache: true
+  - name: Set up Node.js
+    uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6
+    with:
+      node-version: "24"
+      cache: npm
+      cache-dependency-path: pkg/workflow/js/package-lock.json
   - name: Install npm dependencies
     run: npm ci
     working-directory: ./pkg/workflow/js

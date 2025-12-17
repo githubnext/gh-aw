@@ -4,7 +4,7 @@ description: Analyzes GitHub Copilot agent sessions to provide detailed insights
 on:
   schedule:
     # Daily at 8:00 AM Pacific Time (16:00 UTC)
-    - cron: daily at 16:00
+    - cron: daily
   workflow_dispatch:
 
 permissions:

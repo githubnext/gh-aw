@@ -1,8 +1,7 @@
 ---
 description: Generate an organization-wide health report for all public repositories in the GitHub org
 on:
-  schedule:
-    - cron: weekly on monday at 09:00
+  schedule: weekly on monday at 09:00
   workflow_dispatch:
 permissions:
   contents: read

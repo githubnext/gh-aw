@@ -10,8 +10,9 @@
  */
 function generateSafeInputsConfig({ core, crypto }) {
   // Generate a secure random API key for the MCP server
-  // Using 32 bytes gives us 256 bits of entropy
-  const apiKeyBuffer = crypto.randomBytes(32);
+  // Using 33 bytes gives us 264 bits of entropy and ensures at least 40 characters
+  // after base64 encoding and removing special characters
+  const apiKeyBuffer = crypto.randomBytes(33);
   const apiKey = apiKeyBuffer.toString("base64").replace(/[/+=]/g, "");
 
   // Choose a port for the HTTP server (default 3000)

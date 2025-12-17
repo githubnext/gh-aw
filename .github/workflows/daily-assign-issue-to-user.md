@@ -2,8 +2,7 @@
 timeout-minutes: 10
 strict: true
 on:
-  schedule:
-    - cron: daily at 2:30
+  schedule: daily
   workflow_dispatch:
 permissions:
   issues: read

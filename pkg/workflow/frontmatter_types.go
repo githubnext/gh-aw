@@ -52,6 +52,9 @@ type FrontmatterConfig struct {
 	// Import and inclusion
 	Imports any `json:"imports,omitempty"` // Can be string or array
 	Include any `json:"include,omitempty"` // Can be string or array
+
+	// Metadata
+	Metadata map[string]string `json:"metadata,omitempty"` // Custom metadata key-value pairs
 }
 
 // unmarshalFromMap converts a value from a map[string]any to a destination variable

@@ -45,6 +45,13 @@ tracker-id: "example-value"
 labels: []
   # Array of strings
 
+# Optional metadata field for storing custom key-value pairs compatible with the
+# custom agent spec. Key names are limited to 64 characters, and values are
+# limited to 1024 characters.
+# (optional)
+metadata:
+  {}
+
 # Optional array of workflow specifications to import (similar to @include
 # directives but defined in frontmatter). Format: owner/repo/path@ref (e.g.,
 # githubnext/agentics/workflows/shared/common.md@v1.0.0). Can be strings or
@@ -1736,7 +1743,7 @@ safe-outputs:
     # Option 1: Number of days until expires
     expires: 1
 
-    # Option 2: Relative time (e.g., '7d', '2w', '1m', '1y')
+    # Option 2: Relative time (e.g., '20h', '7d', '2w', '1m', '1y')
     expires: "example-value"
 
   # Option 2: Enable issue creation with default configuration
@@ -1859,15 +1866,16 @@ safe-outputs:
     close-older-discussions: true
 
     # Time until the discussion expires and should be automatically closed. Supports
-    # integer (days) or relative time format like '7d' (7 days), '2w' (2 weeks), '1m'
-    # (1 month), '1y' (1 year). When set, a maintenance workflow will be generated.
+    # integer (days) or relative time format like '20h' (20 hours), '7d' (7 days),
+    # '2w' (2 weeks), '1m' (1 month), '1y' (1 year). When set, a maintenance workflow
+    # will be generated.
     # (optional)
     # This field supports multiple formats (oneOf):
 
     # Option 1: Number of days until expires
     expires: 1
 
-    # Option 2: Relative time (e.g., '7d', '2w', '1m', '1y')
+    # Option 2: Relative time (e.g., '20h', '7d', '2w', '1m', '1y')
     expires: "example-value"
 
   # Option 2: Enable discussion creation with default configuration
@@ -2110,7 +2118,7 @@ safe-outputs:
     # Option 1: Number of days until expires
     expires: 1
 
-    # Option 2: Relative time (e.g., '7d', '2w', '1m', '1y')
+    # Option 2: Relative time (e.g., '20h', '7d', '2w', '1m', '1y')
     expires: "example-value"
 
   # Option 2: Enable pull request creation with default configuration

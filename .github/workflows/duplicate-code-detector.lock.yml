@@ -28,8 +28,7 @@
 # description: Identifies duplicate code patterns across the codebase and suggests refactoring opportunities
 # on:
 #   workflow_dispatch:
-#   schedule:
-#     - cron: daily at 21:00
+#   schedule: daily
 # permissions:
 #   contents: read
 #   issues: read
@@ -310,8 +309,8 @@
 name: "Duplicate Code Detector"
 "on":
   schedule:
-  - cron: "0 21 * * *"
-    # Friendly format: daily at 21:00
+  - cron: "59 19 * * *"
+    # Friendly format: daily (scattered)
   workflow_dispatch: null
 
 permissions: {}
@@ -547,7 +546,7 @@ jobs:
       - name: Downloading container images
         run: |
           set -e
-          docker pull ghcr.io/github/github-mcp-server:v0.24.1
+          docker pull ghcr.io/github/github-mcp-server:v0.25.0
       - name: Write Safe Outputs Config
         run: |
           mkdir -p /tmp/gh-aw/safeoutputs
@@ -2098,7 +2097,7 @@ jobs:
             "GITHUB_READ_ONLY=1",
             "-e",
             "GITHUB_TOOLSETS=context,repos,issues,pull_requests",
-            "ghcr.io/github/github-mcp-server:v0.24.1"
+            "ghcr.io/github/github-mcp-server:v0.25.0"
           ]
           env_vars = ["GITHUB_PERSONAL_ACCESS_TOKEN"]
           
