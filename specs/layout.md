@@ -566,7 +566,7 @@ Common environment variables used in workflows (all prefixed with `GH_AW_`):
 | Variable | Description | Context |
 |----------|-------------|---------|
 | GH_AW_SLACK_CHANNEL_ID | Slack channel ID | Slack integration |
-| GH_AW_PROJECT_GITHUB_TOKEN | Project GitHub token | Project integration |
+| GH_AW_PROJECT_GITHUB_TOKEN | GitHub token for Projects v2 operations (set by compiler in update-project jobs) | Project integration |
 | GH_AW_TARGET_REPO | Target repository | Cross-repo operations |
 | GH_AW_TARGET_REPO_SLUG | Target repository slug | Cross-repo operations |
 | GH_AW_GITHUB_MCP_SERVER_TOKEN | GitHub MCP server token | MCP authentication |
