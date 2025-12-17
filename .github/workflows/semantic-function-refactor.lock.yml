@@ -7198,8 +7198,80 @@ jobs:
               }
               return { success: true, items: validatedOutput.items };
             }
+            function parseGitHubUrl(url) {
+              const issueMatch = url.match(/github\.com\/([^/]+)\/([^/]+)\/issues\/(\d+)/);
+              if (issueMatch) {
+                return {
+                  owner: issueMatch[1],
+                  repo: issueMatch[2],
+                  number: parseInt(issueMatch[3], 10),
+                  type: "issue",
+                };
+              }
+              const discussionMatch = url.match(/github\.com\/([^/]+)\/([^/]+)\/discussions\/(\d+)/);
+              if (discussionMatch) {
+                return {
+                  owner: discussionMatch[1],
+                  repo: discussionMatch[2],
+                  number: parseInt(discussionMatch[3], 10),
+                  type: "discussion",
+                };
+              }
+              return null;
+            }
+            async function commentOnIssue(github, owner, repo, issueNumber, message) {
+              const { data } = await github.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number: issueNumber,
+                body: message,
+              });
+              return {
+                id: data.id,
+                html_url: data.html_url,
+              };
+            }
+            async function commentOnDiscussion(github, owner, repo, discussionNumber, message) {
+              const { repository } = await github.graphql(
+                `
+                query($owner: String!, $repo: String!, $num: Int!) {
+                  repository(owner: $owner, name: $repo) {
+                    discussion(number: $num) { 
+                      id 
+                      url
+                    }
+                  }
+                }`,
+                { owner, repo, num: discussionNumber }
+              );
+              if (!repository || !repository.discussion) {
+                throw new Error(`Discussion #${discussionNumber} not found in ${owner}/${repo}`);
+              }
+              const discussionId = repository.discussion.id;
+              const discussionUrl = repository.discussion.url;
+              const result = await github.graphql(
+                `
+                mutation($dId: ID!, $body: String!) {
+                  addDiscussionComment(input: { discussionId: $dId, body: $body }) {
+                    comment { 
+                      id 
+                      body 
+                      createdAt 
+                      url
+                    }
+                  }
+                }`,
+                { dId: discussionId, body: message }
+              );
+              const comment = result.addDiscussionComment.comment;
+              return {
+                id: comment.id,
+                html_url: comment.url,
+              };
+            }
             async function main() {
               const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
+              const postAsCommentUrl = process.env.GH_AW_NOOP_POST_AS_COMMENT;
               const result = loadAgentOutput();
               if (!result.success) {
                 return;
@@ -7222,6 +7294,48 @@ jobs:
                 await core.summary.addRaw(summaryContent).write();
                 core.info("📝 No-op message preview written to step summary");
                 return;
+              }
+              if (postAsCommentUrl) {
+                core.info(`Post-as-comment URL configured: ${postAsCommentUrl}`);
+                const parsedUrl = parseGitHubUrl(postAsCommentUrl);
+                if (!parsedUrl) {
+                  core.warning(`Invalid GitHub URL format: ${postAsCommentUrl}. Expected issue or discussion URL.`);
+                  core.warning("Falling back to logging only.");
+                } else {
+                  core.info(`Parsed URL: ${parsedUrl.type} #${parsedUrl.number} in ${parsedUrl.owner}/${parsedUrl.repo}`);
+                  for (let i = 0; i < noopItems.length; i++) {
+                    const item = noopItems[i];
+                    try {
+                      let commentResult;
+                      if (parsedUrl.type === "issue") {
+                        core.info(`Posting message ${i + 1} as comment on issue #${parsedUrl.number}...`);
+                        commentResult = await commentOnIssue(
+                          github,
+                          parsedUrl.owner,
+                          parsedUrl.repo,
+                          parsedUrl.number,
+                          item.message
+                        );
+                      } else {
+                        core.info(`Posting message ${i + 1} as comment on discussion #${parsedUrl.number}...`);
+                        commentResult = await commentOnDiscussion(
+                          github,
+                          parsedUrl.owner,
+                          parsedUrl.repo,
+                          parsedUrl.number,
+                          item.message
+                        );
+                      }
+                      core.info(`✓ Comment posted: ${commentResult.html_url}`);
+                    } catch (error) {
+                      core.warning(
+                        `Failed to post comment for message ${i + 1}: ${error instanceof Error ? error.message : String(error)}`
+                      );
+                    }
+                  }
+                  core.info(`Successfully posted ${noopItems.length} noop message(s) as comment(s)`);
+                  return;
+                }
               }
               let summaryContent = "\n\n## No-Op Messages\n\n";
               summaryContent += "The following messages were logged for transparency:\n\n";
