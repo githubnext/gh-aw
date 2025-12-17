@@ -2533,6 +2533,29 @@ safe-outputs:
   # (optional)
   # This field supports multiple formats (oneOf):
 
+  # Option 1: Enable workflow dispatch with default configuration
+  dispatch-workflow: null
+
+  # Option 2: Configuration for dispatching workflows from agentic workflow output
+  dispatch-workflow:
+    # Maximum number of workflow dispatches (default: 1). More than 1 is an error in
+    # strict mode.
+    # (optional)
+    max: 1
+
+    # List of workflow IDs (file names like 'workflow.yml') that can be dispatched.
+    # Required field.
+    allowed-workflows: []
+      # Array of strings
+
+    # GitHub token to use for this specific output type. Overrides global github-token
+    # if specified.
+    # (optional)
+    github-token: "${{ secrets.GITHUB_TOKEN }}"
+
+  # (optional)
+  # This field supports multiple formats (oneOf):
+
   # Option 1: Configuration for reporting missing tools from agentic workflow output
   missing-tool:
     # Maximum number of missing tool reports (default: unlimited)
