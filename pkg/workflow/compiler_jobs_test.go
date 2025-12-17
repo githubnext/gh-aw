@@ -751,3 +751,45 @@ func TestBuildPreActivationJobWithCustomPermissions(t *testing.T) {
 		t.Error("Expected 'issues: write' in permissions")
 	}
 }
+
+// TestAgentJobNoCyclic tests that agent job with custom config doesn't create circular dependencies
+func TestAgentJobNoCyclic(t *testing.T) {
+compiler := NewCompiler(false, "", "test")
+
+// Simulate workflow data with agent job custom config
+workflowData := &WorkflowData{
+Name: "Test Workflow",
+Jobs: map[string]any{
+"agent": map[string]any{
+"steps": []any{
+map[string]any{
+"name": "Custom step",
+"run":  "echo test",
+},
+},
+},
+},
+SafeOutputs: &SafeOutputsConfig{},
+}
+
+// Build the main job
+job, err := compiler.buildMainJob(workflowData, false, map[string]any{
+"steps": []any{
+map[string]any{
+"name": "Custom step",
+"run":  "echo test",
+},
+},
+})
+
+if err != nil {
+t.Fatalf("buildMainJob() returned error: %v", err)
+}
+
+// Verify the agent job doesn't depend on itself
+for _, dep := range job.Needs {
+if dep == constants.AgentJobName {
+t.Errorf("Agent job should not depend on itself, found in Needs: %v", job.Needs)
+}
+}
+}
