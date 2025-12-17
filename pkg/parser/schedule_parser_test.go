@@ -678,9 +678,9 @@ func TestIsCronExpression(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.input, func(t *testing.T) {
-			result := isCronExpression(tt.input)
+			result := IsCronExpression(tt.input)
 			if result != tt.expected {
-				t.Errorf("isCronExpression(%q) = %v, want %v", tt.input, result, tt.expected)
+				t.Errorf("IsCronExpression(%q) = %v, want %v", tt.input, result, tt.expected)
 			}
 		})
 	}
@@ -802,7 +802,7 @@ func TestScatterSchedule(t *testing.T) {
 				return
 			}
 			// Check that result is a valid cron expression
-			if !isCronExpression(result) {
+			if !IsCronExpression(result) {
 				t.Errorf("ScatterSchedule returned invalid cron: %s", result)
 			}
 			// Check that result is daily pattern
@@ -897,7 +897,7 @@ func TestScatterScheduleHourly(t *testing.T) {
 				return
 			}
 			// Check that result is a valid cron expression
-			if !isCronExpression(result) {
+			if !IsCronExpression(result) {
 				t.Errorf("ScatterSchedule returned invalid cron: %s", result)
 			}
 			// Check that result has an hourly interval pattern
@@ -997,7 +997,7 @@ func TestScatterScheduleDailyAround(t *testing.T) {
 				return
 			}
 			// Check that result is a valid cron expression
-			if !isCronExpression(result) {
+			if !IsCronExpression(result) {
 				t.Errorf("ScatterSchedule returned invalid cron: %s", result)
 			}
 			// Check that result is daily pattern

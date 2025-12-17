@@ -45,6 +45,13 @@ tracker-id: "example-value"
 labels: []
   # Array of strings
 
+# Optional metadata field for storing custom key-value pairs compatible with the
+# custom agent spec. Key names are limited to 64 characters, and values are
+# limited to 1024 characters.
+# (optional)
+metadata:
+  {}
+
 # Optional array of workflow specifications to import (similar to @include
 # directives but defined in frontmatter). Format: owner/repo/path@ref (e.g.,
 # githubnext/agentics/workflows/shared/common.md@v1.0.0). Can be strings or
