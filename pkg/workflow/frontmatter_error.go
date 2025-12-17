@@ -18,11 +18,20 @@ func (c *Compiler) createFrontmatterError(filePath, content string, err error, f
 	frontmatterErrorLog.Printf("Creating frontmatter error for file: %s, offset: %d", filePath, frontmatterLineOffset)
 	lines := strings.Split(content, "\n")
 
+	// Check if error already contains formatted yaml.FormatError() output
+	// yaml.FormatError() produces output like "\n[line:col] message\n  line | content..."
+	errorStr := err.Error()
+	if strings.Contains(errorStr, "failed to parse frontmatter:\n[") && strings.Contains(errorStr, "\n>") {
+		// This is already formatted by yaml.FormatError(), return as-is with filename prefix
+		frontmatterErrorLog.Print("Detected yaml.FormatError() formatted output, using as-is")
+		return fmt.Errorf("%s: %v", filePath, err)
+	}
+
 	// Check if this is a YAML parsing error that we can enhance
-	if strings.Contains(err.Error(), "failed to parse frontmatter:") {
+	if strings.Contains(errorStr, "failed to parse frontmatter:") {
 		frontmatterErrorLog.Print("Detected wrapped YAML parsing error")
 		// Extract the inner YAML error
-		parts := strings.SplitN(err.Error(), "failed to parse frontmatter: ", 2)
+		parts := strings.SplitN(errorStr, "failed to parse frontmatter: ", 2)
 		if len(parts) > 1 {
 			yamlErr := errors.New(parts[1])
 			line, column, message := parser.ExtractYAMLError(yamlErr, frontmatterLineOffset)
