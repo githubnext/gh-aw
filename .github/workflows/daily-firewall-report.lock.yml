@@ -4011,12 +4011,12 @@ jobs:
               }
               allowedDomains = [...new Set(allowedDomains)];
               let sanitized = content;
+              sanitized = sanitized.replace(/\x1b\[[0-9;]*[mGKH]/g, "");
+              sanitized = sanitized.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "");
               sanitized = neutralizeCommands(sanitized);
               sanitized = neutralizeAllMentions(sanitized);
               sanitized = removeXmlComments(sanitized);
               sanitized = convertXmlTags(sanitized);
-              sanitized = sanitized.replace(/\x1b\[[0-9;]*[mGKH]/g, "");
-              sanitized = sanitized.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "");
               sanitized = sanitizeUrlProtocols(sanitized);
               sanitized = sanitizeUrlDomains(sanitized, allowedDomains);
               const lines = sanitized.split("\n");
