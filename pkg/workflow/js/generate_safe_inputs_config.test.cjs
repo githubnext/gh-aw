@@ -52,7 +52,7 @@ describe("generateSafeInputsConfig", () => {
   it("should generate API keys with sufficient length", () => {
     const result = generateSafeInputsConfig({ core: mockCore, crypto });
 
-    // 32 bytes of random data, base64 encoded without special chars
+    // 33 bytes of random data, base64 encoded without special chars
     // should give us at least 40 characters
     expect(result.apiKey.length).toBeGreaterThanOrEqual(40);
   });
