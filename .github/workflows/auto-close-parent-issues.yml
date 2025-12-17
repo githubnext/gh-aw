@@ -29,11 +29,13 @@ jobs:
             
             /**
              * Get the full issue details including parent relationships using GraphQL
+             * Uses pagination to handle issues with many sub-issues (e.g., 1000+)
              */
             async function getIssueWithRelationships(issueNumber) {
               core.info(`📊 Fetching issue #${issueNumber} with relationship data...`);
               
-              const query = `
+              // Fetch parent issues (trackedInIssues) - usually small number
+              const parentQuery = `
                 query($owner: String!, $repo: String!, $issueNumber: Int!) {
                   repository(owner: $owner, name: $repo) {
                     issue(number: $issueNumber) {
@@ -51,28 +53,29 @@ jobs:
                           stateReason
                         }
                       }
-                      trackedIssues(first: 100) {
-                        nodes {
-                          id
-                          number
-                          title
-                          state
-                          stateReason
-                        }
-                      }
                     }
                   }
                 }
               `;
               
               try {
-                const result = await github.graphql(query, {
+                const result = await github.graphql(parentQuery, {
                   owner,
                   repo,
                   issueNumber
                 });
                 
                 const issue = result.repository.issue;
+                
+                // Now fetch all sub-issues with pagination
+                core.info(`📄 Fetching sub-issues with pagination...`);
+                const allSubIssues = await fetchAllSubIssues(issue.id);
+                
+                // Add sub-issues to the issue object
+                issue.trackedIssues = {
+                  nodes: allSubIssues
+                };
+                
                 core.info(`✓ Fetched issue #${issue.number}: "${issue.title}"`);
                 core.info(`  State: ${issue.state} (${issue.stateReason || 'N/A'})`);
                 core.info(`  Parent issues: ${issue.trackedInIssues.nodes.length}`);
@@ -83,6 +86,65 @@ jobs:
                 core.error(`❌ Failed to fetch issue #${issueNumber}: ${error.message}`);
                 throw error;
               }
+            }
+            
+            /**
+             * Fetch all sub-issues using pagination to handle large numbers (e.g., 1000+)
+             */
+            async function fetchAllSubIssues(issueId) {
+              const allSubIssues = [];
+              let hasNextPage = true;
+              let cursor = null;
+              let pageCount = 0;
+              
+              const query = `
+                query($issueId: ID!, $cursor: String) {
+                  node(id: $issueId) {
+                    ... on Issue {
+                      trackedIssues(first: 100, after: $cursor) {
+                        nodes {
+                          id
+                          number
+                          title
+                          state
+                          stateReason
+                        }
+                        pageInfo {
+                          hasNextPage
+                          endCursor
+                        }
+                      }
+                    }
+                  }
+                }
+              `;
+              
+              while (hasNextPage) {
+                pageCount++;
+                core.info(`  Fetching page ${pageCount} of sub-issues...`);
+                
+                const result = await github.graphql(query, {
+                  issueId,
+                  cursor
+                });
+                
+                const trackedIssues = result.node.trackedIssues;
+                allSubIssues.push(...trackedIssues.nodes);
+                
+                hasNextPage = trackedIssues.pageInfo.hasNextPage;
+                cursor = trackedIssues.pageInfo.endCursor;
+                
+                core.info(`  Retrieved ${trackedIssues.nodes.length} sub-issues (total so far: ${allSubIssues.length})`);
+                
+                // Safety check to prevent infinite loops
+                if (pageCount > 50) {
+                  core.warning(`⚠️  Reached maximum page limit (50 pages, 5000 sub-issues). Some sub-issues may not be processed.`);
+                  break;
+                }
+              }
+              
+              core.info(`✓ Total sub-issues fetched: ${allSubIssues.length}`);
+              return allSubIssues;
             }
             
             /**

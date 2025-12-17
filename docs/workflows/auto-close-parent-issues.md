@@ -23,6 +23,7 @@ The workflow provides detailed logging at each step:
 - Sub-issue status counts (open vs closed)
 - Hierarchical depth indicators
 - Success and error messages
+- Pagination progress for large issue sets
 
 ### Recursive Tree Walking
 
@@ -31,6 +32,14 @@ The workflow walks up the entire issue hierarchy:
 - Automatically checks grandparent issues
 - Continues recursively until reaching the top of the tree
 - Respects already-closed issues (won't reprocess)
+
+### Scalability
+
+Designed to handle large issue hierarchies:
+- **Pagination support**: Fetches all sub-issues in batches of 100
+- **No limit on sub-issues**: Can process parents with 1000+ sub-issues
+- **Safety limits**: Maximum 5,000 sub-issues per parent to prevent timeouts
+- **Efficient processing**: Only fetches necessary data for each level
 
 ### Safety Features
 
@@ -129,13 +138,16 @@ If a parent issue doesn't close automatically:
 2. Verify all sub-issues are actually closed (not just one)
 3. Check the workflow run logs for detailed error messages
 
-### GraphQL Limits
+### Handling Large Numbers of Sub-Issues
 
-The workflow fetches:
-- Up to 10 parent issues per issue
-- Up to 100 sub-issues per parent
+The workflow uses **pagination** to handle parents with many sub-issues:
+- Fetches sub-issues in batches of 100
+- Automatically continues fetching until all sub-issues are retrieved
+- Can handle up to **5,000 sub-issues** per parent (50 pages × 100 per page)
+- Logs progress for each page fetched
 
-If you have more than these limits, some relationships may not be processed.
+**Parent Issue Limits:**
+- Fetches up to 10 parent issues per issue (GitHub's typical limit)
 
 ## Technical Details
 
