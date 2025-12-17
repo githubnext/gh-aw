@@ -3,6 +3,7 @@ package workflow
 // NoOpConfig holds configuration for no-op safe output (logging only)
 type NoOpConfig struct {
 	BaseSafeOutputConfig `yaml:",inline"`
+	PostAsComment        string `yaml:"post-as-comment,omitempty"` // Optional URL to issue or discussion where message should be posted as comment
 }
 
 // parseNoOpConfig handles noop configuration
@@ -25,6 +26,13 @@ func (c *Compiler) parseNoOpConfig(outputMap map[string]any) *NoOpConfig {
 		if configMap, ok := configData.(map[string]any); ok {
 			// Parse common base fields with default max of 1
 			c.parseBaseSafeOutputConfig(configMap, &noopConfig.BaseSafeOutputConfig, 1)
+
+			// Parse post-as-comment
+			if postAsComment, exists := configMap["post-as-comment"]; exists {
+				if postAsCommentStr, ok := postAsComment.(string); ok {
+					noopConfig.PostAsComment = postAsCommentStr
+				}
+			}
 		}
 
 		return noopConfig

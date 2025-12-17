@@ -76,6 +76,11 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 			noopEnvVars = append(noopEnvVars, fmt.Sprintf("          GH_AW_NOOP_MAX: %d\n", data.SafeOutputs.NoOp.Max))
 		}
 
+		// Pass post-as-comment URL if configured
+		if data.SafeOutputs.NoOp.PostAsComment != "" {
+			noopEnvVars = append(noopEnvVars, fmt.Sprintf("          GH_AW_NOOP_POST_AS_COMMENT: %q\n", data.SafeOutputs.NoOp.PostAsComment))
+		}
+
 		// Add workflow metadata for consistency
 		noopEnvVars = append(noopEnvVars, buildWorkflowMetadataEnvVarsWithTrackerID(data.Name, data.Source, data.TrackerID)...)
 

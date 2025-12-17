@@ -4229,6 +4229,10 @@
                 "github-token": {
                   "$ref": "#/$defs/github_token",
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
+                },
+                "post-as-comment": {
+                  "type": "string",
+                  "description": "Optional URL to an issue or discussion where the noop message should be posted as a comment. If not provided, message is only logged."
                 }
               },
               "additionalProperties": false
