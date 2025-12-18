@@ -7,6 +7,8 @@ import (
 	"sort"
 
 	"github.com/githubnext/gh-aw/pkg/console"
+	"github.com/githubnext/gh-aw/pkg/styles"
+	"github.com/githubnext/gh-aw/pkg/tty"
 	"gopkg.in/yaml.v3"
 )
 
@@ -110,9 +112,25 @@ func displayStatsTable(statsList []*WorkflowStats) {
 	// Build table rows
 	rows := make([][]string, 0, len(statsList))
 	for _, stats := range statsList {
+		// Check if workflow is above 500KB (512000 bytes)
+		const maxSize = 500 * 1024
+		workflowName := stats.Workflow
+		fileSize := console.FormatFileSize(stats.FileSize)
+
+		if stats.FileSize > maxSize {
+			// Apply red color and error icon for large workflows
+			if tty.IsStderrTerminal() {
+				workflowName = styles.Error.Render("✗ ") + styles.Error.Render(stats.Workflow)
+				fileSize = styles.Error.Render(console.FormatFileSize(stats.FileSize))
+			} else {
+				// In non-TTY mode, just add the icon without color
+				workflowName = "✗ " + stats.Workflow
+			}
+		}
+
 		rows = append(rows, []string{
-			stats.Workflow,
-			console.FormatFileSize(stats.FileSize),
+			workflowName,
+			fileSize,
 			fmt.Sprintf("%d", stats.Jobs),
 			fmt.Sprintf("%d", stats.Steps),
 			fmt.Sprintf("%d", stats.ScriptCount),
