@@ -75,24 +75,24 @@ func validateDockerImage(image string, verbose bool) error {
 	// Image doesn't exist locally, try to pull it with retry logic
 	maxAttempts := 3
 	waitTime := 5 // seconds
-	
+
 	var lastOutput string
-	
+
 	for attempt := 1; attempt <= maxAttempts; attempt++ {
 		dockerValidationLog.Printf("Attempt %d of %d: Pulling image %s", attempt, maxAttempts, image)
-		
+
 		pullCmd := exec.Command("docker", "pull", image)
 		pullOutput, pullErr := pullCmd.CombinedOutput()
 		outputStr := strings.TrimSpace(string(pullOutput))
-		
+
 		if pullErr == nil {
 			// Successfully pulled
 			dockerValidationLog.Printf("Successfully pulled image %s on attempt %d", image, attempt)
 			return nil
 		}
-		
+
 		lastOutput = outputStr
-		
+
 		// Check if the error is due to authentication issues for existing private repositories
 		// We need to distinguish between:
 		// 1. "repository does not exist" - should fail validation immediately
@@ -107,16 +107,16 @@ func validateDockerImage(image string, verbose bool) error {
 			dockerValidationLog.Printf("Image %s appears to be private/authenticated, skipping validation", image)
 			return nil
 		}
-		
+
 		// Check for non-retryable errors (image doesn't exist)
-		if strings.Contains(outputStr, "does not exist") || 
-		   strings.Contains(outputStr, "not found") ||
-		   strings.Contains(outputStr, "manifest unknown") {
+		if strings.Contains(outputStr, "does not exist") ||
+			strings.Contains(outputStr, "not found") ||
+			strings.Contains(outputStr, "manifest unknown") {
 			// These errors won't be resolved by retrying
 			dockerValidationLog.Printf("Image %s does not exist (non-retryable error)", image)
 			return fmt.Errorf("container image '%s' not found and could not be pulled: %s. Please verify the image name and tag. Example: container: \"node:20\" or container: \"ghcr.io/owner/image:latest\"", image, outputStr)
 		}
-		
+
 		// If not the last attempt, wait and retry (likely network error)
 		if attempt < maxAttempts {
 			dockerValidationLog.Printf("Failed to pull image %s (attempt %d/%d). Retrying in %ds...", image, attempt, maxAttempts, waitTime)
@@ -124,7 +124,7 @@ func validateDockerImage(image string, verbose bool) error {
 			waitTime *= 2 // Exponential backoff
 		}
 	}
-	
+
 	// All attempts failed with retryable errors
 	return fmt.Errorf("container image '%s' not found and could not be pulled after %d attempts: %s. Please verify the image name and tag. Example: container: \"node:20\" or container: \"ghcr.io/owner/image:latest\"", image, maxAttempts, lastOutput)
 }

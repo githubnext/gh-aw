@@ -62,13 +62,8 @@ async function findCommentsWithTrackerId(github, owner, repo, issueNumber, workf
     }
 
     // Filter comments that contain the workflow-id and are NOT reaction comments
-    const filteredComments = data
-      .filter(comment => 
-        comment.body?.includes(`<!-- workflow-id: ${workflowId} -->`) &&
-        !comment.body.includes(`<!-- comment-type: reaction -->`)
-      )
-      .map(({ id, node_id, body }) => ({ id, node_id, body }));
-    
+    const filteredComments = data.filter(comment => comment.body?.includes(`<!-- workflow-id: ${workflowId} -->`) && !comment.body.includes(`<!-- comment-type: reaction -->`)).map(({ id, node_id, body }) => ({ id, node_id, body }));
+
     comments.push(...filteredComments);
 
     if (data.length < perPage) {
@@ -121,12 +116,9 @@ async function findDiscussionCommentsWithTrackerId(github, owner, repo, discussi
     }
 
     const filteredComments = result.repository.discussion.comments.nodes
-      .filter(comment => 
-        comment.body?.includes(`<!-- workflow-id: ${workflowId} -->`) &&
-        !comment.body.includes(`<!-- comment-type: reaction -->`)
-      )
+      .filter(comment => comment.body?.includes(`<!-- workflow-id: ${workflowId} -->`) && !comment.body.includes(`<!-- comment-type: reaction -->`))
       .map(({ id, body }) => ({ id, body }));
-    
+
     comments.push(...filteredComments);
 
     if (!result.repository.discussion.comments.pageInfo.hasNextPage) {
@@ -191,7 +183,7 @@ async function hideOlderComments(github, owner, repo, itemNumber, workflowId, is
     // @ts-expect-error - comment has node_id when not a discussion
     const nodeId = isDiscussion ? String(comment.id) : comment.node_id;
     core.info(`Hiding comment: ${nodeId}`);
-    
+
     const result = await minimizeComment(github, nodeId, normalizedReason);
     hiddenCount++;
     core.info(`✓ Hidden comment: ${nodeId}`);
@@ -256,9 +248,7 @@ async function commentOnDiscussion(github, owner, repo, discussionNumber, messag
         }
       }`;
 
-  const variables = replyToId
-    ? { dId: discussionId, body: message, replyToId }
-    : { dId: discussionId, body: message };
+  const variables = replyToId ? { dId: discussionId, body: message, replyToId } : { dId: discussionId, body: message };
 
   const result = await github.graphql(mutation, variables);
 
@@ -484,11 +474,11 @@ async function main() {
     const references = [
       createdIssueUrl && createdIssueNumber && `- Issue: [#${createdIssueNumber}](${createdIssueUrl})`,
       createdDiscussionUrl && createdDiscussionNumber && `- Discussion: [#${createdDiscussionNumber}](${createdDiscussionUrl})`,
-      createdPullRequestUrl && createdPullRequestNumber && `- Pull Request: [#${createdPullRequestNumber}](${createdPullRequestUrl})`
+      createdPullRequestUrl && createdPullRequestNumber && `- Pull Request: [#${createdPullRequestNumber}](${createdPullRequestUrl})`,
     ].filter(Boolean);
 
     if (references.length > 0) {
-      body += `\n\n#### Related Items\n\n${references.join('\n')}\n`;
+      body += `\n\n#### Related Items\n\n${references.join("\n")}\n`;
     }
 
     // Add AI disclaimer with workflow name and run url
@@ -529,9 +519,7 @@ async function main() {
       core.info(`Comment content length: ${body.length}`);
 
       // For discussion_comment events, extract the comment node_id to create a threaded reply
-      const replyToId = (context.eventName === "discussion_comment" && context.payload?.comment?.node_id)
-        ? context.payload.comment.node_id
-        : undefined;
+      const replyToId = context.eventName === "discussion_comment" && context.payload?.comment?.node_id ? context.payload.comment.node_id : undefined;
 
       if (replyToId) {
         core.info(`Creating threaded reply to comment ${replyToId}`);
@@ -570,8 +558,7 @@ async function main() {
 
   // Write summary for all created comments
   if (createdComments.length > 0) {
-    const summaryContent = "\n\n## GitHub Comments\n" + 
-      createdComments.map(c => `- Comment #${c.id}: [View Comment](${c.html_url})`).join('\n');
+    const summaryContent = "\n\n## GitHub Comments\n" + createdComments.map(c => `- Comment #${c.id}: [View Comment](${c.html_url})`).join("\n");
     await core.summary.addRaw(summaryContent).write();
   }
 
