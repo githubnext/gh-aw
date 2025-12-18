@@ -19,64 +19,7 @@
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/aw/github-agentic-workflows.md
 #
-#
 # Intelligence gathering agent that continuously reviews and aggregates information from agent-generated reports in discussions
-#
-# Original Frontmatter:
-# ```yaml
-# description: Intelligence gathering agent that continuously reviews and aggregates information from agent-generated reports in discussions
-# on:
-#   schedule:
-#     # Daily at 3pm UTC, weekdays only
-#     - cron: "0 15 * * 1-5"
-#   workflow_dispatch:
-#
-# permissions:
-#   contents: read
-#   actions: read
-#   issues: read
-#   pull-requests: read
-#   discussions: read
-#   repository-projects: read
-#   security-events: read
-#
-# tracker-id: deep-report-intel-agent
-# timeout-minutes: 45
-# engine: codex
-# strict: false
-#
-# network:
-#   allowed:
-#     - defaults
-#     - python
-#     - node
-#
-# safe-outputs:
-#   upload-assets:
-#   create-discussion:
-#     category: "reports"
-#     max: 1
-#     close-older-discussions: true
-#
-# tools:
-#   repo-memory:
-#     branch-name: memory/deep-report
-#     description: "Long-term insights, patterns, and trend data"
-#     file-glob: ["*.md"]
-#     max-file-size: 1048576  # 1MB
-#   github:
-#     toolsets:
-#       - all
-#   bash:
-#     - "*"
-#   edit:
-#
-# imports:
-#   - shared/jqschema.md
-#   - shared/weekly-issues-data-fetch.md
-#   - shared/mcp/gh-aw.md
-#   - shared/reporting.md
-# ```
 #
 # Resolved workflow manifest:
 #   Imports:
@@ -84,538 +27,6 @@
 #     - shared/weekly-issues-data-fetch.md
 #     - shared/mcp/gh-aw.md
 #     - shared/reporting.md
-#
-# Job Dependency Graph:
-# ```mermaid
-# graph LR
-#   activation["activation"]
-#   agent["agent"]
-#   conclusion["conclusion"]
-#   create_discussion["create_discussion"]
-#   detection["detection"]
-#   push_repo_memory["push_repo_memory"]
-#   update_cache_memory["update_cache_memory"]
-#   upload_assets["upload_assets"]
-#   activation --> agent
-#   activation --> conclusion
-#   agent --> conclusion
-#   agent --> create_discussion
-#   agent --> detection
-#   agent --> push_repo_memory
-#   agent --> update_cache_memory
-#   agent --> upload_assets
-#   create_discussion --> conclusion
-#   detection --> conclusion
-#   detection --> create_discussion
-#   detection --> push_repo_memory
-#   detection --> update_cache_memory
-#   detection --> upload_assets
-#   push_repo_memory --> conclusion
-#   update_cache_memory --> conclusion
-#   upload_assets --> conclusion
-# ```
-#
-# Original Prompt:
-# ```markdown
-# ## jqschema - JSON Schema Discovery
-#
-# A utility script is available at `/tmp/gh-aw/jqschema.sh` to help you discover the structure of complex JSON responses.
-#
-# ### Purpose
-#
-# Generate a compact structural schema (keys + types) from JSON input. This is particularly useful when:
-# - Analyzing tool outputs from GitHub search (search_code, search_issues, search_repositories)
-# - Exploring API responses with large payloads
-# - Understanding the structure of unfamiliar data without verbose output
-# - Planning queries before fetching full data
-#
-# ### Usage
-#
-# ```bash
-# # Analyze a file
-# cat data.json | /tmp/gh-aw/jqschema.sh
-#
-# # Analyze command output
-# echo '{"name": "test", "count": 42, "items": [{"id": 1}]}' | /tmp/gh-aw/jqschema.sh
-#
-# # Analyze GitHub search results
-# gh api search/repositories?q=language:go | /tmp/gh-aw/jqschema.sh
-# ```
-#
-# ### How It Works
-#
-# The script transforms JSON data by:
-# 1. Replacing object values with their type names ("string", "number", "boolean", "null")
-# 2. Reducing arrays to their first element's structure (or empty array if empty)
-# 3. Recursively processing nested structures
-# 4. Outputting compact (minified) JSON
-#
-# ### Example
-#
-# **Input:**
-# ```json
-# {
-#   "total_count": 1000,
-#   "items": [
-#     {"login": "user1", "id": 123, "verified": true},
-#     {"login": "user2", "id": 456, "verified": false}
-#   ]
-# }
-# ```
-#
-# **Output:**
-# ```json
-# {"total_count":"number","items":[{"login":"string","id":"number","verified":"boolean"}]}
-# ```
-#
-# ### Best Practices
-#
-# **Use this script when:**
-# - You need to understand the structure of tool outputs before requesting full data
-# - GitHub search tools return large datasets (use `perPage: 1` and pipe through schema minifier first)
-# - Exploring unfamiliar APIs or data structures
-# - Planning data extraction strategies
-#
-# **Example workflow for GitHub search tools:**
-# ```bash
-# # Step 1: Get schema with minimal data (fetch just 1 result)
-# # This helps understand the structure before requesting large datasets
-# echo '{}' | gh api search/repositories -f q="language:go" -f per_page=1 | /tmp/gh-aw/jqschema.sh
-#
-# # Output shows the schema:
-# # {"incomplete_results":"boolean","items":[{...}],"total_count":"number"}
-#
-# # Step 2: Review schema to understand available fields
-#
-# # Step 3: Request full data with confidence about structure
-# # Now you know what fields are available and can query efficiently
-# ```
-#
-# **Using with GitHub MCP tools:**
-# When using tools like `search_code`, `search_issues`, or `search_repositories`, pipe the output through jqschema to discover available fields:
-# ```bash
-# # Save a minimal search result to a file
-# gh api search/code -f q="jq in:file language:bash" -f per_page=1 > /tmp/sample.json
-#
-# # Generate schema to understand structure
-# cat /tmp/sample.json | /tmp/gh-aw/jqschema.sh
-#
-# # Now you know which fields exist and can use them in your analysis
-# ```
-#
-#
-#
-# ## Weekly Issues Data
-#
-# Pre-fetched issues data from the last 7 days is available at `/tmp/gh-aw/weekly-issues-data/issues.json`.
-#
-# This includes issues that were created or updated within the past week, providing a focused dataset for recent activity analysis.
-#
-# ### Schema
-#
-# The weekly issues data structure is:
-#
-# ```json
-# [
-#   {
-#     "number": "number",
-#     "title": "string",
-#     "state": "string (OPEN or CLOSED)",
-#     "url": "string",
-#     "body": "string",
-#     "createdAt": "string (ISO 8601 timestamp)",
-#     "updatedAt": "string (ISO 8601 timestamp)",
-#     "closedAt": "string (ISO 8601 timestamp, null if open)",
-#     "author": {
-#       "id": "string",
-#       "login": "string",
-#       "name": "string"
-#     },
-#     "assignees": [
-#       {
-#         "id": "string",
-#         "login": "string",
-#         "name": "string"
-#       }
-#     ],
-#     "labels": [
-#       {
-#         "id": "string",
-#         "name": "string",
-#         "color": "string",
-#         "description": "string"
-#       }
-#     ],
-#     "milestone": {
-#       "id": "string",
-#       "number": "number",
-#       "title": "string",
-#       "description": "string",
-#       "dueOn": "string"
-#     },
-#     "comments": [
-#       {
-#         "id": "string",
-#         "url": "string",
-#         "body": "string",
-#         "createdAt": "string",
-#         "author": {
-#           "id": "string",
-#           "login": "string",
-#           "name": "string"
-#         }
-#       }
-#     ]
-#   }
-# ]
-# ```
-#
-# ### Usage Examples
-#
-# ```bash
-# # Get total number of issues from the last week
-# jq 'length' /tmp/gh-aw/weekly-issues-data/issues.json
-#
-# # Get only open issues
-# jq '[.[] | select(.state == "OPEN")]' /tmp/gh-aw/weekly-issues-data/issues.json
-#
-# # Get only closed issues
-# jq '[.[] | select(.state == "CLOSED")]' /tmp/gh-aw/weekly-issues-data/issues.json
-#
-# # Get issue numbers
-# jq '[.[].number]' /tmp/gh-aw/weekly-issues-data/issues.json
-#
-# # Get issues with specific label
-# jq '[.[] | select(.labels | any(.name == "bug"))]' /tmp/gh-aw/weekly-issues-data/issues.json
-#
-# # Get issues created in the last 3 days
-# DATE_3_DAYS_AGO=$(date -d '3 days ago' '+%Y-%m-%dT%H:%M:%SZ' 2>/dev/null || date -v-3d '+%Y-%m-%dT%H:%M:%SZ')
-# jq --arg date "$DATE_3_DAYS_AGO" '[.[] | select(.createdAt >= $date)]' /tmp/gh-aw/weekly-issues-data/issues.json
-#
-# # Count issues by state
-# jq 'group_by(.state) | map({state: .[0].state, count: length})' /tmp/gh-aw/weekly-issues-data/issues.json
-#
-# # Get unique authors
-# jq '[.[].author.login] | unique' /tmp/gh-aw/weekly-issues-data/issues.json
-#
-# # Get issues sorted by update time (most recent first)
-# jq 'sort_by(.updatedAt) | reverse' /tmp/gh-aw/weekly-issues-data/issues.json
-# ```
-#
-#
-#
-# ## Report Formatting
-#
-# Structure your report with an overview followed by detailed content:
-#
-# 1. **Content Overview**: Start with 1-2 paragraphs that summarize the key findings, highlights, or main points of your report. This should give readers a quick understanding of what the report contains without needing to expand the details.
-#
-# 2. **Detailed Content**: Place the rest of your report inside HTML `<details>` and `<summary>` tags to allow readers to expand and view the full information. **IMPORTANT**: Always wrap the summary text in `<b>` tags to make it bold.
-#
-# **Example format:**
-#
-# `````markdown
-# Brief overview paragraph 1 introducing the report and its main findings.
-#
-# Optional overview paragraph 2 with additional context or highlights.
-#
-# <details>
-# <summary><b>Full Report Details</b></summary>
-#
-# ## Detailed Analysis
-#
-# Full report content with all sections, tables, and detailed information goes here.
-#
-# ### Section 1
-# [Content]
-#
-# ### Section 2
-# [Content]
-#
-# </details>
-# `````
-#
-# ## Reporting Workflow Run Information
-#
-# When analyzing workflow run logs or reporting information from GitHub Actions runs:
-#
-# ### 1. Workflow Run ID Formatting
-#
-# **Always render workflow run IDs as clickable URLs** when mentioning them in your report. The workflow run data includes a `url` field that provides the full GitHub Actions run page URL.
-#
-# **Format:**
-#
-# `````markdown
-# [§12345](https://github.com/owner/repo/actions/runs/12345)
-# `````
-#
-# **Example:**
-#
-# `````markdown
-# Analysis based on [§456789](https://github.com/githubnext/gh-aw/actions/runs/456789)
-# `````
-#
-# ### 2. Document References for Workflow Runs
-#
-# When your analysis is based on information mined from one or more workflow runs, **include up to 3 workflow run URLs as document references** at the end of your report.
-#
-# **Format:**
-#
-# `````markdown
-# ---
-#
-# **References:**
-# - [§12345](https://github.com/owner/repo/actions/runs/12345)
-# - [§12346](https://github.com/owner/repo/actions/runs/12346)
-# - [§12347](https://github.com/owner/repo/actions/runs/12347)
-# `````
-#
-# **Guidelines:**
-#
-# - Include **maximum 3 references** to keep reports concise
-# - Choose the most relevant or representative runs (e.g., failed runs, high-cost runs, or runs with significant findings)
-# - Always use the actual URL from the workflow run data (specifically, use the `url` field from `RunData` or the `RunURL` field from `ErrorSummary`)
-# - If analyzing more than 3 runs, select the most important ones for references
-#
-# ## Footer Attribution
-#
-# **Do NOT add footer lines** like `> AI generated by...` to your comment. The system automatically appends attribution after your content to prevent duplicates.
-#
-# # DeepReport - Intelligence Gathering Agent
-#
-# You are **DeepReport**, an intelligence analyst agent specialized in discovering patterns, trends, and notable activity across all agent-generated reports in this repository.
-#
-# ## Mission
-#
-# Continuously review and aggregate information from the various reports created as GitHub Discussions by other agents. Your role is to:
-#
-# 1. **Discover patterns** - Identify recurring themes, issues, or behaviors across multiple reports
-# 2. **Track trends** - Monitor how metrics and activities change over time
-# 3. **Flag interesting activity** - Highlight noteworthy discoveries, improvements, or anomalies
-# 4. **Detect suspicious patterns** - Identify potential security concerns or concerning behaviors
-# 5. **Surface exciting developments** - Celebrate wins, improvements, and positive trends
-#
-# ## Data Sources
-#
-# ### Primary: GitHub Discussions
-#
-# Analyze recent discussions in this repository, focusing on:
-# - **Daily News** reports (category: daily-news) - Repository activity summaries
-# - **Audit** reports (category: audits) - Security and workflow audits
-# - **Report** discussions (category: reports) - Various agent analysis reports
-# - **General** discussions - Other agent outputs
-#
-# Use the GitHub MCP tools to list and read discussions from the past 7 days.
-#
-# ### Secondary: Workflow Logs
-#
-# Use the gh-aw MCP server to access workflow execution logs:
-# - Use the `logs` tool to fetch recent agentic workflow runs
-# - Analyze patterns in workflow success/failure rates
-# - Track token usage trends across agents
-# - Monitor workflow execution times
-#
-# ### Tertiary: Repository Issues
-#
-# Pre-fetched issues data from the last 7 days is available at `/tmp/gh-aw/weekly-issues-data/issues.json`.
-#
-# Use this data to:
-# - Analyze recent issue activity and trends
-# - Identify commonly reported problems
-# - Track issue resolution rates
-# - Correlate issues with workflow activity
-#
-# **Data Schema:**
-# ```json
-# [
-#   {
-#     "number": "number",
-#     "title": "string",
-#     "state": "string (OPEN or CLOSED)",
-#     "url": "string",
-#     "body": "string",
-#     "createdAt": "string (ISO 8601 timestamp)",
-#     "updatedAt": "string (ISO 8601 timestamp)",
-#     "closedAt": "string (ISO 8601 timestamp, null if open)",
-#     "author": { "login": "string", "name": "string" },
-#     "labels": [{ "name": "string", "color": "string" }],
-#     "assignees": [{ "login": "string" }],
-#     "comments": [{ "body": "string", "createdAt": "string", "author": { "login": "string" } }]
-#   }
-# ]
-# ```
-#
-# **Example jq queries:**
-# ```bash
-# # Count total issues
-# jq 'length' /tmp/gh-aw/weekly-issues-data/issues.json
-#
-# # Get open issues
-# jq '[.[] | select(.state == "OPEN")]' /tmp/gh-aw/weekly-issues-data/issues.json
-#
-# # Count by state
-# jq 'group_by(.state) | map({state: .[0].state, count: length})' /tmp/gh-aw/weekly-issues-data/issues.json
-#
-# # Get unique authors
-# jq '[.[].author.login] | unique' /tmp/gh-aw/weekly-issues-data/issues.json
-# ```
-#
-# ## Intelligence Collection Process
-#
-# ### Step 0: Check Repo Memory
-#
-# **EFFICIENCY FIRST**: Before starting full analysis:
-#
-# 1. Check `/tmp/gh-aw/repo-memory-default/memory/default/` for previous insights
-# 2. Load any existing markdown files (only markdown files are allowed in repo-memory):
-#    - `last_analysis_timestamp.md` - When the last full analysis was run
-#    - `known_patterns.md` - Previously identified patterns
-#    - `trend_data.md` - Historical trend data
-#    - `flagged_items.md` - Items flagged for continued monitoring
-#
-# 3. If the last analysis was less than 20 hours ago, focus only on new data since then
-#
-# ### Step 1: Gather Discussion Intelligence
-#
-# 1. List all discussions from the past 7 days
-# 2. For each discussion:
-#    - Extract key metrics and findings
-#    - Identify the reporting agent (from tracker-id or title)
-#    - Note any warnings, alerts, or notable items
-#    - Record timestamps for trend analysis
-#
-# ### Step 2: Gather Workflow Intelligence
-#
-# Use the gh-aw `logs` tool to:
-# 1. Fetch workflow runs from the past 7 days
-# 2. Extract:
-#    - Success/failure rates per workflow
-#    - Token usage patterns
-#    - Execution time trends
-#    - Firewall activity (if enabled)
-#
-# ### Step 2.5: Analyze Repository Issues
-#
-# Load and analyze the pre-fetched issues data:
-# 1. Read `/tmp/gh-aw/weekly-issues-data/issues.json`
-# 2. Analyze:
-#    - Issue creation/closure trends over the week
-#    - Most common labels and categories
-#    - Authors and assignees activity
-#    - Issues requiring attention (unlabeled, stale, or urgent)
-#
-# ### Step 3: Cross-Reference and Analyze
-#
-# Connect the dots between different data sources:
-# 1. Correlate discussion topics with workflow activity
-# 2. Identify agents that may be experiencing issues
-# 3. Find patterns that span multiple report types
-# 4. Track how identified patterns evolve over time
-#
-# ### Step 4: Store Insights in Repo Memory
-#
-# Save your findings to `/tmp/gh-aw/repo-memory-default/memory/default/` as markdown files:
-# - Update `known_patterns.md` with any new patterns discovered
-# - Update `trend_data.md` with current metrics
-# - Update `flagged_items.md` with items needing attention
-# - Save `last_analysis_timestamp.md` with current timestamp
-#
-# **Note:** Only markdown (.md) files are allowed in the repo-memory folder. Use markdown tables, lists, and formatting to structure your data.
-#
-# ## Report Structure
-#
-# Generate an intelligence briefing with the following sections:
-#
-# ### 🔍 Executive Summary
-#
-# A 2-3 paragraph overview of the current state of agent activity in the repository, highlighting:
-# - Overall health of the agent ecosystem
-# - Key findings from this analysis period
-# - Any urgent items requiring attention
-#
-# ### 📊 Pattern Analysis
-#
-# Identify and describe recurring patterns found across multiple reports:
-# - **Positive patterns** - Healthy behaviors, improving metrics
-# - **Concerning patterns** - Issues that appear repeatedly
-# - **Emerging patterns** - New trends just starting to appear
-#
-# For each pattern:
-# - Description of the pattern
-# - Which reports/sources show this pattern
-# - Frequency and timeline
-# - Potential implications
-#
-# ### 📈 Trend Intelligence
-#
-# Track how key metrics are changing over time:
-# - Workflow success rates (trending up/down/stable)
-# - Token usage patterns (efficiency trends)
-# - Agent activity levels (new agents, inactive agents)
-# - Discussion creation rates
-#
-# Compare against previous analysis when cache data is available.
-#
-# ### 🚨 Notable Findings
-#
-# Highlight items that stand out from the normal:
-# - **Exciting discoveries** - Major improvements, breakthroughs, positive developments
-# - **Suspicious activity** - Unusual patterns that warrant investigation
-# - **Anomalies** - Significant deviations from expected behavior
-#
-# ### 🔮 Predictions and Recommendations
-#
-# Based on trend analysis, provide:
-# - Predictions for how trends may continue
-# - Recommendations for workflow improvements
-# - Suggestions for new agents or capabilities
-# - Areas that need more monitoring
-#
-# ### 📚 Source Attribution
-#
-# List all reports and data sources analyzed:
-# - Discussion references with links
-# - Workflow run references with links
-# - Time range of data analyzed
-# - Repo-memory data used from previous analyses (stored in memory/deep-report branch)
-#
-# ## Output Guidelines
-#
-# - Use clear, professional language suitable for a technical audience
-# - Include specific metrics and numbers where available
-# - Provide links to source discussions and workflow runs
-# - Use emojis sparingly to categorize findings
-# - Keep the report focused and actionable
-# - Highlight items that require human attention
-#
-# ## Important Notes
-#
-# - Focus on **insights**, not just data aggregation
-# - Look for **connections** between different agent reports
-# - **Prioritize** findings by potential impact
-# - Be **objective** - report both positive and negative trends
-# - **Cite sources** for all major claims
-#
-# Create a new GitHub discussion titled "DeepReport Intelligence Briefing - [Today's Date]" in the "reports" category with your analysis.
-# ```
-#
-# Pinned GitHub Actions:
-#   - actions/cache/restore@v4 (0057852bfaa89a56745cba8c7296529d2fc39830)
-#     https://github.com/actions/cache/commit/0057852bfaa89a56745cba8c7296529d2fc39830
-#   - actions/cache/save@v4 (0057852bfaa89a56745cba8c7296529d2fc39830)
-#     https://github.com/actions/cache/commit/0057852bfaa89a56745cba8c7296529d2fc39830
-#   - actions/checkout@v5 (93cb6efe18208431cddfb8368fd83d5badbf9bfd)
-#     https://github.com/actions/checkout/commit/93cb6efe18208431cddfb8368fd83d5badbf9bfd
-#   - actions/download-artifact@v6 (018cc2cf5baa6db3ef3c5f8a56943fffe632ef53)
-#     https://github.com/actions/download-artifact/commit/018cc2cf5baa6db3ef3c5f8a56943fffe632ef53
-#   - actions/github-script@v8 (ed597411d8f924073f98dfc5c65a23a2325f34cd)
-#     https://github.com/actions/github-script/commit/ed597411d8f924073f98dfc5c65a23a2325f34cd
-#   - actions/setup-go@v6 (4dc6199c7b1a012772edbd06daecab0f50c9053c)
-#     https://github.com/actions/setup-go/commit/4dc6199c7b1a012772edbd06daecab0f50c9053c
-#   - actions/setup-node@v6 (395ad3262231945c25e8478fd5baf05154b1d79f)
-#     https://github.com/actions/setup-node/commit/395ad3262231945c25e8478fd5baf05154b1d79f
-#   - actions/upload-artifact@v5 (330a01c490aca151604b8cf639adc76d48f6c5d4)
-#     https://github.com/actions/upload-artifact/commit/330a01c490aca151604b8cf639adc76d48f6c5d4
 
 name: "DeepReport - Intelligence Gathering Agent"
 "on":
@@ -709,9 +120,7 @@ jobs:
                   .addRaw("**Files:**\n")
                   .addRaw(`- Source: \`${workflowMdPath}\`\n`)
                   .addRaw(`  - Last commit: ${workflowTimestamp}\n`)
-                  .addRaw(
-                    `  - Commit SHA: [\`${workflowCommit.sha.substring(0, 7)}\`](https://github.com/${owner}/${repo}/commit/${workflowCommit.sha})\n`
-                  )
+                  .addRaw(`  - Commit SHA: [\`${workflowCommit.sha.substring(0, 7)}\`](https://github.com/${owner}/${repo}/commit/${workflowCommit.sha})\n`)
                   .addRaw(`- Lock: \`${lockFilePath}\`\n`)
                   .addRaw(`  - Last commit: ${lockTimestamp}\n`)
                   .addRaw(`  - Commit SHA: [\`${lockCommit.sha.substring(0, 7)}\`](https://github.com/${owner}/${repo}/commit/${lockCommit.sha})\n\n`)
@@ -1270,9 +679,7 @@ jobs:
                 server.debug(`  [${toolName}] Python handler args: ${JSON.stringify(args)}`);
                 server.debug(`  [${toolName}] Timeout: ${timeoutSeconds}s`);
                 const inputJson = JSON.stringify(args || {});
-                server.debug(
-                  `  [${toolName}] Input JSON (${inputJson.length} bytes): ${inputJson.substring(0, 200)}${inputJson.length > 200 ? "..." : ""}`
-                );
+                server.debug(`  [${toolName}] Input JSON (${inputJson.length} bytes): ${inputJson.substring(0, 200)}${inputJson.length > 200 ? "..." : ""}`);
                 return new Promise((resolve, reject) => {
                   server.debug(`  [${toolName}] Executing Python script...`);
                   const child = execFile(
@@ -1380,9 +787,7 @@ jobs:
                       try {
                         if (fs.existsSync(outputFile)) {
                           const outputContent = fs.readFileSync(outputFile, "utf-8");
-                          server.debug(
-                            `  [${toolName}] Output file content: ${outputContent.substring(0, 500)}${outputContent.length > 500 ? "..." : ""}`
-                          );
+                          server.debug(`  [${toolName}] Output file content: ${outputContent.substring(0, 500)}${outputContent.length > 500 ? "..." : ""}`);
                           const lines = outputContent.split("\n");
                           for (const line of lines) {
                             const trimmed = line.trim();
@@ -1440,10 +845,7 @@ jobs:
                   fs.mkdirSync(server.logDir, { recursive: true });
                 }
                 const timestamp = new Date().toISOString();
-                fs.writeFileSync(
-                  server.logFilePath,
-                  `# ${server.serverInfo.name} MCP Server Log\n# Started: ${timestamp}\n# Version: ${server.serverInfo.version}\n\n`
-                );
+                fs.writeFileSync(server.logFilePath, `# ${server.serverInfo.name} MCP Server Log\n# Started: ${timestamp}\n# Version: ${server.serverInfo.version}\n\n`);
                 server.logFileInitialized = true;
               } catch {
               }
@@ -2103,10 +1505,7 @@ jobs:
                 const isInWorkspace = absolutePath.startsWith(path.resolve(workspaceDir));
                 const isInTmp = absolutePath.startsWith(tmpDir);
                 if (!isInWorkspace && !isInTmp) {
-                  throw new Error(
-                    `File path must be within workspace directory (${workspaceDir}) or /tmp directory. ` +
-                      `Provided path: ${filePath} (resolved to: ${absolutePath})`
-                  );
+                  throw new Error(`File path must be within workspace directory (${workspaceDir}) or /tmp directory. ` + `Provided path: ${filePath} (resolved to: ${absolutePath})`);
                 }
                 if (!fs.existsSync(filePath)) {
                   throw new Error(`File not found: ${filePath}`);
@@ -2365,10 +1764,7 @@ jobs:
                       };
                       const entryJSON = JSON.stringify(entry);
                       fs.appendFileSync(outputFile, entryJSON + "\n");
-                      const outputText =
-                        jobConfig && jobConfig.output
-                          ? jobConfig.output
-                          : `Safe-job '${configKey}' executed successfully with arguments: ${JSON.stringify(args)}`;
+                      const outputText = jobConfig && jobConfig.output ? jobConfig.output : `Safe-job '${configKey}' executed successfully with arguments: ${JSON.stringify(args)}`;
                       return {
                         content: [
                           {
@@ -3400,16 +2796,13 @@ jobs:
               return result;
             }
             function renderMarkdownTemplate(markdown) {
-              let result = markdown.replace(
-                /(\n?)([ \t]*{{#if\s+([^}]*)}}[ \t]*\n)([\s\S]*?)([ \t]*{{\/if}}[ \t]*)(\n?)/g,
-                (match, leadNL, openLine, cond, body, closeLine, trailNL) => {
-                  if (isTruthy(cond)) {
-                    return leadNL + body;
-                  } else {
-                    return "";
-                  }
+              let result = markdown.replace(/(\n?)([ \t]*{{#if\s+([^}]*)}}[ \t]*\n)([\s\S]*?)([ \t]*{{\/if}}[ \t]*)(\n?)/g, (match, leadNL, openLine, cond, body, closeLine, trailNL) => {
+                if (isTruthy(cond)) {
+                  return leadNL + body;
+                } else {
+                  return "";
                 }
-              );
+              });
               result = result.replace(/{{#if\s+([^}]*)}}([\s\S]*?){{\/if}}/g, (_, cond, body) => (isTruthy(cond) ? body : ""));
               result = result.replace(/\n{3,}/g, "\n\n");
               return result;
@@ -3777,36 +3170,33 @@ jobs:
                 });
               }
               function sanitizeUrlProtocols(s) {
-                return s.replace(
-                  /((?:http|ftp|file|ssh|git):\/\/([\w.-]*)(?:[^\s]*)|(?:data|javascript|vbscript|about|mailto|tel):[^\s]+)/gi,
-                  (match, _fullMatch, domain) => {
-                    if (domain) {
-                      const domainLower = domain.toLowerCase();
-                      const truncated = domainLower.length > 12 ? domainLower.substring(0, 12) + "..." : domainLower;
+                return s.replace(/((?:http|ftp|file|ssh|git):\/\/([\w.-]*)(?:[^\s]*)|(?:data|javascript|vbscript|about|mailto|tel):[^\s]+)/gi, (match, _fullMatch, domain) => {
+                  if (domain) {
+                    const domainLower = domain.toLowerCase();
+                    const truncated = domainLower.length > 12 ? domainLower.substring(0, 12) + "..." : domainLower;
+                    if (typeof core !== "undefined" && core.info) {
+                      core.info(`Redacted URL: ${truncated}`);
+                    }
+                    if (typeof core !== "undefined" && core.debug) {
+                      core.debug(`Redacted URL (full): ${match}`);
+                    }
+                    addRedactedDomain(domainLower);
+                  } else {
+                    const protocolMatch = match.match(/^([^:]+):/);
+                    if (protocolMatch) {
+                      const protocol = protocolMatch[1] + ":";
+                      const truncated = match.length > 12 ? match.substring(0, 12) + "..." : match;
                       if (typeof core !== "undefined" && core.info) {
                         core.info(`Redacted URL: ${truncated}`);
                       }
                       if (typeof core !== "undefined" && core.debug) {
                         core.debug(`Redacted URL (full): ${match}`);
                       }
-                      addRedactedDomain(domainLower);
-                    } else {
-                      const protocolMatch = match.match(/^([^:]+):/);
-                      if (protocolMatch) {
-                        const protocol = protocolMatch[1] + ":";
-                        const truncated = match.length > 12 ? match.substring(0, 12) + "..." : match;
-                        if (typeof core !== "undefined" && core.info) {
-                          core.info(`Redacted URL: ${truncated}`);
-                        }
-                        if (typeof core !== "undefined" && core.debug) {
-                          core.debug(`Redacted URL (full): ${match}`);
-                        }
-                        addRedactedDomain(protocol);
-                      }
+                      addRedactedDomain(protocol);
                     }
-                    return "(redacted)";
                   }
-                );
+                  return "(redacted)";
+                });
               }
               function neutralizeCommands(s) {
                 const commandName = process.env.GH_AW_COMMAND;
@@ -3828,37 +3218,7 @@ jobs:
                 return s.replace(/<!--[\s\S]*?-->/g, "").replace(/<!--[\s\S]*?--!>/g, "");
               }
               function convertXmlTags(s) {
-                const allowedTags = [
-                  "b",
-                  "blockquote",
-                  "br",
-                  "code",
-                  "details",
-                  "em",
-                  "h1",
-                  "h2",
-                  "h3",
-                  "h4",
-                  "h5",
-                  "h6",
-                  "hr",
-                  "i",
-                  "li",
-                  "ol",
-                  "p",
-                  "pre",
-                  "strong",
-                  "sub",
-                  "summary",
-                  "sup",
-                  "table",
-                  "tbody",
-                  "td",
-                  "th",
-                  "thead",
-                  "tr",
-                  "ul",
-                ];
+                const allowedTags = ["b", "blockquote", "br", "code", "details", "em", "h1", "h2", "h3", "h4", "h5", "h6", "hr", "i", "li", "ol", "p", "pre", "strong", "sub", "summary", "sup", "table", "tbody", "td", "th", "thead", "tr", "ul"];
                 s = s.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, (match, content) => {
                   const convertedContent = content.replace(/<(\/?[A-Za-z][A-Za-z0-9]*(?:[^>]*?))>/g, "($1)");
                   return `(![CDATA[${convertedContent}]])`;
@@ -3970,36 +3330,33 @@ jobs:
                 return result;
               }
               function sanitizeUrlProtocols(s) {
-                return s.replace(
-                  /\b((?:http|ftp|file|ssh|git):\/\/([\w.-]+)(?:[^\s]*)|(?:data|javascript|vbscript|about|mailto|tel):[^\s]+)/gi,
-                  (match, _fullMatch, domain) => {
-                    if (domain) {
-                      const domainLower = domain.toLowerCase();
-                      const truncated = domainLower.length > 12 ? domainLower.substring(0, 12) + "..." : domainLower;
+                return s.replace(/\b((?:http|ftp|file|ssh|git):\/\/([\w.-]+)(?:[^\s]*)|(?:data|javascript|vbscript|about|mailto|tel):[^\s]+)/gi, (match, _fullMatch, domain) => {
+                  if (domain) {
+                    const domainLower = domain.toLowerCase();
+                    const truncated = domainLower.length > 12 ? domainLower.substring(0, 12) + "..." : domainLower;
+                    if (typeof core !== "undefined" && core.info) {
+                      core.info(`Redacted URL: ${truncated}`);
+                    }
+                    if (typeof core !== "undefined" && core.debug) {
+                      core.debug(`Redacted URL (full): ${match}`);
+                    }
+                    addRedactedDomain(domainLower);
+                  } else {
+                    const protocolMatch = match.match(/^([^:]+):/);
+                    if (protocolMatch) {
+                      const protocol = protocolMatch[1] + ":";
+                      const truncated = match.length > 12 ? match.substring(0, 12) + "..." : match;
                       if (typeof core !== "undefined" && core.info) {
                         core.info(`Redacted URL: ${truncated}`);
                       }
                       if (typeof core !== "undefined" && core.debug) {
                         core.debug(`Redacted URL (full): ${match}`);
                       }
-                      addRedactedDomain(domainLower);
-                    } else {
-                      const protocolMatch = match.match(/^([^:]+):/);
-                      if (protocolMatch) {
-                        const protocol = protocolMatch[1] + ":";
-                        const truncated = match.length > 12 ? match.substring(0, 12) + "..." : match;
-                        if (typeof core !== "undefined" && core.info) {
-                          core.info(`Redacted URL: ${truncated}`);
-                        }
-                        if (typeof core !== "undefined" && core.debug) {
-                          core.debug(`Redacted URL (full): ${match}`);
-                        }
-                        addRedactedDomain(protocol);
-                      }
+                      addRedactedDomain(protocol);
                     }
-                    return "(redacted)";
                   }
-                );
+                  return "(redacted)";
+                });
               }
               function neutralizeCommands(s) {
                 const commandName = process.env.GH_AW_COMMAND;
@@ -4025,37 +3382,7 @@ jobs:
                 return s.replace(/<!--[\s\S]*?-->/g, "").replace(/<!--[\s\S]*?--!>/g, "");
               }
               function convertXmlTags(s) {
-                const allowedTags = [
-                  "b",
-                  "blockquote",
-                  "br",
-                  "code",
-                  "details",
-                  "em",
-                  "h1",
-                  "h2",
-                  "h3",
-                  "h4",
-                  "h5",
-                  "h6",
-                  "hr",
-                  "i",
-                  "li",
-                  "ol",
-                  "p",
-                  "pre",
-                  "strong",
-                  "sub",
-                  "summary",
-                  "sup",
-                  "table",
-                  "tbody",
-                  "td",
-                  "th",
-                  "thead",
-                  "tr",
-                  "ul",
-                ];
+                const allowedTags = ["b", "blockquote", "br", "code", "details", "em", "h1", "h2", "h3", "h4", "h5", "h6", "hr", "i", "li", "ol", "p", "pre", "strong", "sub", "summary", "sup", "table", "tbody", "td", "th", "thead", "tr", "ul"];
                 s = s.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, (match, content) => {
                   const convertedContent = content.replace(/<(\/?[A-Za-z][A-Za-z0-9]*(?:[^>]*?))>/g, "($1)");
                   return `(![CDATA[${convertedContent}]])`;
@@ -4747,9 +4074,7 @@ jobs:
                   core.info(`Loaded validation config from ${validationConfigPath}`);
                 }
               } catch (error) {
-                core.warning(
-                  `Failed to read validation config from ${validationConfigPath}: ${error instanceof Error ? error.message : String(error)}`
-                );
+                core.warning(`Failed to read validation config from ${validationConfigPath}: ${error instanceof Error ? error.message : String(error)}`);
               }
               const mentionsConfig = validationConfig?.mentions || null;
               const allowedMentions = await resolveAllowedMentionsFromPayload(context, github, core, mentionsConfig);
@@ -4962,9 +4287,7 @@ jobs:
                   core.info(`[INGESTION] Line ${i + 1}: Original type='${originalType}', Normalized type='${itemType}'`);
                   item.type = itemType;
                   if (!expectedOutputTypes[itemType]) {
-                    core.warning(
-                      `[INGESTION] Line ${i + 1}: Type '${itemType}' not found in expected types: ${JSON.stringify(Object.keys(expectedOutputTypes))}`
-                    );
+                    core.warning(`[INGESTION] Line ${i + 1}: Type '${itemType}' not found in expected types: ${JSON.stringify(Object.keys(expectedOutputTypes))}`);
                     errors.push(`Line ${i + 1}: Unexpected output type '${itemType}'. Expected one of: ${Object.keys(expectedOutputTypes).join(", ")}`);
                     continue;
                   }
@@ -5046,10 +4369,7 @@ jobs:
               core.info(`Patch file ${hasPatch ? "exists" : "does not exist"} at: ${patchPath}`);
               let allowEmptyPR = false;
               if (safeOutputsConfig) {
-                if (
-                  safeOutputsConfig["create-pull-request"]?.["allow-empty"] === true ||
-                  safeOutputsConfig["create_pull_request"]?.["allow_empty"] === true
-                ) {
+                if (safeOutputsConfig["create-pull-request"]?.["allow-empty"] === true || safeOutputsConfig["create_pull_request"]?.["allow_empty"] === true) {
                   allowEmptyPR = true;
                   core.info(`allow-empty is enabled for create-pull-request`);
                 }
@@ -5420,24 +4740,7 @@ jobs:
                   "Custom Agents": [],
                   Other: [],
                 };
-                const builtinTools = [
-                  "bash",
-                  "write_bash",
-                  "read_bash",
-                  "stop_bash",
-                  "list_bash",
-                  "grep",
-                  "glob",
-                  "view",
-                  "create",
-                  "edit",
-                  "store_memory",
-                  "code_review",
-                  "codeql_checker",
-                  "report_progress",
-                  "report_intent",
-                  "gh-advisory-database",
-                ];
+                const builtinTools = ["bash", "write_bash", "read_bash", "stop_bash", "list_bash", "grep", "glob", "view", "create", "edit", "store_memory", "code_review", "codeql_checker", "report_progress", "report_intent", "gh-advisory-database"];
                 const internalTools = ["fetch_copilot_cli_documentation"];
                 for (const tool of initEntry.tools) {
                   const toolLower = tool.toLowerCase();
@@ -5833,9 +5136,7 @@ jobs:
                   const cacheCreationTokens = usage.cache_creation_input_tokens || 0;
                   const cacheReadTokens = usage.cache_read_input_tokens || 0;
                   const totalTokens = inputTokens + outputTokens + cacheCreationTokens + cacheReadTokens;
-                  lines.push(
-                    `  Tokens: ${totalTokens.toLocaleString()} total (${usage.input_tokens.toLocaleString()} in / ${usage.output_tokens.toLocaleString()} out)`
-                  );
+                  lines.push(`  Tokens: ${totalTokens.toLocaleString()} total (${usage.input_tokens.toLocaleString()} in / ${usage.output_tokens.toLocaleString()} out)`);
                 }
               }
               if (lastEntry?.total_cost_usd) {
@@ -5994,9 +5295,7 @@ jobs:
                   const cacheCreationTokens = usage.cache_creation_input_tokens || 0;
                   const cacheReadTokens = usage.cache_read_input_tokens || 0;
                   const totalTokens = inputTokens + outputTokens + cacheCreationTokens + cacheReadTokens;
-                  lines.push(
-                    `  Tokens: ${totalTokens.toLocaleString()} total (${usage.input_tokens.toLocaleString()} in / ${usage.output_tokens.toLocaleString()} out)`
-                  );
+                  lines.push(`  Tokens: ${totalTokens.toLocaleString()} total (${usage.input_tokens.toLocaleString()} in / ${usage.output_tokens.toLocaleString()} out)`);
                 }
               }
               if (lastEntry?.total_cost_usd) {
@@ -6295,13 +5594,7 @@ jobs:
                         let responseLines = [];
                         for (let k = j + 1; k < Math.min(j + 20, lines.length); k++) {
                           const respLine = lines[k];
-                          if (
-                            respLine.includes("tool ") ||
-                            respLine.includes("exec ") ||
-                            respLine.includes("ToolCall:") ||
-                            respLine.includes("tokens used") ||
-                            respLine.includes("thinking")
-                          ) {
+                          if (respLine.includes("tool ") || respLine.includes("exec ") || respLine.includes("ToolCall:") || respLine.includes("tokens used") || respLine.includes("thinking")) {
                             break;
                           }
                           responseLines.push(respLine);
@@ -6569,9 +5862,7 @@ jobs:
                     }
                     lastIndex = regex.lastIndex;
                     if (iterationCount === ITERATION_WARNING_THRESHOLD) {
-                      core.warning(
-                        `High iteration count (${iterationCount}) on line ${lineIndex + 1} with pattern: ${pattern.description || pattern.pattern}`
-                      );
+                      core.warning(`High iteration count (${iterationCount}) on line ${lineIndex + 1} with pattern: ${pattern.description || pattern.pattern}`);
                       core.warning(`Line content (truncated): ${truncateString(line, 200)}`);
                     }
                     if (iterationCount > MAX_ITERATIONS_PER_LINE) {
@@ -6882,9 +6173,7 @@ jobs:
               core.setOutput("total_count", missingTools.length.toString());
               if (missingTools.length > 0) {
                 core.info("Missing tools summary:");
-                core.summary
-                  .addHeading("Missing Tools Report", 3)
-                  .addRaw(`Found **${missingTools.length}** missing tool${missingTools.length > 1 ? "s" : ""} in this workflow execution.\n\n`);
+                core.summary.addHeading("Missing Tools Report", 3).addRaw(`Found **${missingTools.length}** missing tool${missingTools.length > 1 ? "s" : ""} in this workflow execution.\n\n`);
                 missingTools.forEach((tool, index) => {
                   core.info(`${index + 1}. Tool: ${tool.tool}`);
                   core.info(`   Reason: ${tool.reason}`);
@@ -7018,9 +6307,7 @@ jobs:
               const messages = getMessages();
               const templateContext = toSnakeCase(ctx);
               const defaultMessage = "⚠️ Security scanning failed for [{workflow_name}]({run_url}). Review the logs for details.";
-              return messages?.detectionFailure
-                ? renderTemplate(messages.detectionFailure, templateContext)
-                : renderTemplate(defaultMessage, templateContext);
+              return messages?.detectionFailure ? renderTemplate(messages.detectionFailure, templateContext) : renderTemplate(defaultMessage, templateContext);
             }
             function collectGeneratedAssets() {
               const assets = [];
@@ -7302,9 +6589,7 @@ jobs:
               const defaultMessage = `⚓ Avast! This discussion be marked as **outdated** by [{workflow_name}]({run_url}).
             🗺️ A newer treasure map awaits ye at **[Discussion #{new_discussion_number}]({new_discussion_url})**.
             Fair winds, matey! 🏴‍☠️`;
-              return messages?.closeOlderDiscussion
-                ? renderTemplate(messages.closeOlderDiscussion, templateContext)
-                : renderTemplate(defaultMessage, templateContext);
+              return messages?.closeOlderDiscussion ? renderTemplate(messages.closeOlderDiscussion, templateContext) : renderTemplate(defaultMessage, templateContext);
             }
             const MAX_CLOSE_COUNT = 10;
             const GRAPHQL_DELAY_MS = 500;
@@ -7724,9 +7009,7 @@ jobs:
               const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
               const runId = context.runId;
               const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
-              const runUrl = context.payload.repository
-                ? `${context.payload.repository.html_url}/actions/runs/${runId}`
-                : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
+              const runUrl = context.payload.repository ? `${context.payload.repository.html_url}/actions/runs/${runId}` : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
               const createdDiscussions = [];
               const closedDiscussionsSummary = [];
               for (let i = 0; i < createDiscussionItems.length; i++) {
@@ -7752,16 +7035,10 @@ jobs:
                     }
                     repoInfo = fetchedInfo;
                     repoInfoCache.set(itemRepo, repoInfo);
-                    core.info(
-                      `Fetched discussion categories for ${itemRepo}: ${JSON.stringify(repoInfo.discussionCategories.map(cat => ({ name: cat.name, id: cat.id })))}`
-                    );
+                    core.info(`Fetched discussion categories for ${itemRepo}: ${JSON.stringify(repoInfo.discussionCategories.map(cat => ({ name: cat.name, id: cat.id })))}`);
                   } catch (error) {
                     const errorMessage = error instanceof Error ? error.message : String(error);
-                    if (
-                      errorMessage.includes("Not Found") ||
-                      errorMessage.includes("not found") ||
-                      errorMessage.includes("Could not resolve to a Repository")
-                    ) {
+                    if (errorMessage.includes("Not Found") || errorMessage.includes("not found") || errorMessage.includes("Could not resolve to a Repository")) {
                       core.warning(`Skipping discussion: Discussions are not enabled for repository '${itemRepo}'`);
                       continue;
                     }
@@ -7781,18 +7058,14 @@ jobs:
                 } else if (categoryInfo.matchType === "fallback") {
                   if (categoryInfo.requestedCategory) {
                     const availableCategoryNames = repoInfo.discussionCategories.map(cat => cat.name).join(", ");
-                    core.warning(
-                      `Category "${categoryInfo.requestedCategory}" not found by ID, name, or slug. Available categories: ${availableCategoryNames}`
-                    );
+                    core.warning(`Category "${categoryInfo.requestedCategory}" not found by ID, name, or slug. Available categories: ${availableCategoryNames}`);
                     core.info(`Falling back to default category: ${categoryInfo.name} (${categoryInfo.id})`);
                   } else {
                     core.info(`Using default first category: ${categoryInfo.name} (${categoryInfo.id})`);
                   }
                 }
                 const categoryId = categoryInfo.id;
-                core.info(
-                  `Processing create-discussion item ${i + 1}/${createDiscussionItems.length}: title=${createDiscussionItem.title}, bodyLength=${createDiscussionItem.body?.length || 0}, repo=${itemRepo}`
-                );
+                core.info(`Processing create-discussion item ${i + 1}/${createDiscussionItems.length}: title=${createDiscussionItem.title}, bodyLength=${createDiscussionItem.body?.length || 0}, repo=${itemRepo}`);
                 let title = createDiscussionItem.title ? replaceTemporaryIdReferences(createDiscussionItem.title.trim(), temporaryIdMap, itemRepo) : "";
                 const bodyText = createDiscussionItem.body || "";
                 let processedBody = replaceTemporaryIdReferences(bodyText, temporaryIdMap, itemRepo);
@@ -7853,17 +7126,7 @@ jobs:
                   if (closeOlderEnabled && hasMatchingCriteria) {
                     core.info("close-older-discussions is enabled, searching for older discussions to close...");
                     try {
-                      const closedDiscussions = await closeOlderDiscussions(
-                        github,
-                        repoParts.owner,
-                        repoParts.repo,
-                        titlePrefix,
-                        labels,
-                        categoryId,
-                        { number: discussion.number, url: discussion.url },
-                        workflowName,
-                        runUrl
-                      );
+                      const closedDiscussions = await closeOlderDiscussions(github, repoParts.owner, repoParts.repo, titlePrefix, labels, categoryId, { number: discussion.number, url: discussion.url }, workflowName, runUrl);
                       if (closedDiscussions.length > 0) {
                         closedDiscussionsSummary.push(...closedDiscussions);
                         core.info(`Closed ${closedDiscussions.length} older discussion(s) as outdated`);
@@ -8566,10 +7829,7 @@ jobs:
                     core.summary.addRaw("## Staged Asset Publication");
                   } else {
                     await exec.exec(`git push origin ${normalizedBranchName}`);
-                    core.summary
-                      .addRaw("## Assets")
-                      .addRaw(`Successfully uploaded **${uploadCount}** assets to branch \`${normalizedBranchName}\``)
-                      .addRaw("");
+                    core.summary.addRaw("## Assets").addRaw(`Successfully uploaded **${uploadCount}** assets to branch \`${normalizedBranchName}\``).addRaw("");
                     core.info(`Successfully uploaded ${uploadCount} assets to branch ${normalizedBranchName}`);
                   }
                   for (const asset of uploadAssetItems) {

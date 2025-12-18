@@ -18,10 +18,7 @@ const createTestableFunction = scriptContent => {
   scriptBody = scriptBody.replace(/const \{ updateActivationComment \} = require\("\.\/update_activation_comment\.cjs"\);?\s*/g, "");
   scriptBody = scriptBody.replace(/const \{ getTrackerID \} = require\("\.\/get_tracker_id\.cjs"\);?\s*/g, "");
   scriptBody = scriptBody.replace(/const \{ addExpirationComment \} = require\("\.\/expiration_helpers\.cjs"\);?\s*/g, "");
-  scriptBody = scriptBody.replace(
-    /const \{ removeDuplicateTitleFromDescription \} = require\("\.\/remove_duplicate_title\.cjs"\);?\s*/g,
-    ""
-  );
+  scriptBody = scriptBody.replace(/const \{ removeDuplicateTitleFromDescription \} = require\("\.\/remove_duplicate_title\.cjs"\);?\s*/g, "");
 
   // Create a testable function that has the same logic but can be called with dependencies
   return new Function(`
@@ -579,13 +576,9 @@ describe("create_pull_request.cjs", () => {
     });
 
     // Verify warning was logged
-    expect(mockDependencies.core.warning).toHaveBeenCalledWith(
-      "Failed to create pull request: Pull request creation is disabled by organization policy"
-    );
+    expect(mockDependencies.core.warning).toHaveBeenCalledWith("Failed to create pull request: Pull request creation is disabled by organization policy");
     expect(mockDependencies.core.info).toHaveBeenCalledWith("Falling back to creating an issue instead");
-    expect(mockDependencies.core.info).toHaveBeenCalledWith(
-      "Created fallback issue #456: https://github.com/testowner/testrepo/issues/456"
-    );
+    expect(mockDependencies.core.info).toHaveBeenCalledWith("Created fallback issue #456: https://github.com/testowner/testrepo/issues/456");
 
     // Verify fallback outputs were set
     expect(mockDependencies.core.setOutput).toHaveBeenCalledWith("issue_number", 456);
@@ -792,9 +785,7 @@ describe("create_pull_request.cjs", () => {
     expect(mockDependencies.github.rest.issues.create).toHaveBeenCalled();
 
     // Verify setFailed was called with combined error message
-    expect(mockDependencies.core.setFailed).toHaveBeenCalledWith(
-      "Failed to create both pull request and fallback issue. PR error: Pull request creation failed. Issue error: Issue creation also failed"
-    );
+    expect(mockDependencies.core.setFailed).toHaveBeenCalledWith("Failed to create both pull request and fallback issue. PR error: Pull request creation failed. Issue error: Issue creation also failed");
   });
 
   it("should fallback to creating issue when git push fails", async () => {
@@ -862,9 +853,7 @@ describe("create_pull_request.cjs", () => {
       owner: "testowner",
       repo: "testrepo",
       title: "Push will fail",
-      body: expect.stringMatching(
-        /Git push will fail[\s\S]*\[!NOTE\][\s\S]*git push operation failed[\s\S]*gh run download[\s\S]*git am aw\.patch/
-      ),
+      body: expect.stringMatching(/Git push will fail[\s\S]*\[!NOTE\][\s\S]*git push operation failed[\s\S]*gh run download[\s\S]*git am aw\.patch/),
       labels: ["automation"],
     });
 
@@ -993,9 +982,7 @@ describe("create_pull_request.cjs", () => {
     expect(mockDependencies.github.rest.issues.create).toHaveBeenCalled();
 
     // Verify setFailed was called with combined error message
-    expect(mockDependencies.core.setFailed).toHaveBeenCalledWith(
-      expect.stringMatching(/Failed to push and failed to create fallback issue.*Network error.*GitHub API rate limit/)
-    );
+    expect(mockDependencies.core.setFailed).toHaveBeenCalledWith(expect.stringMatching(/Failed to push and failed to create fallback issue.*Network error.*GitHub API rate limit/));
   });
 
   it("should handle remote branch collision by appending random suffix", async () => {
@@ -1176,9 +1163,7 @@ describe("create_pull_request.cjs", () => {
 
       await mainFunction();
 
-      expect(mockDependencies.core.warning).toHaveBeenCalledWith(
-        "Patch file contains error message - cannot create pull request without changes"
-      );
+      expect(mockDependencies.core.warning).toHaveBeenCalledWith("Patch file contains error message - cannot create pull request without changes");
       expect(mockDependencies.github.rest.pulls.create).not.toHaveBeenCalled();
     });
 
@@ -1219,9 +1204,7 @@ describe("create_pull_request.cjs", () => {
       await mainFunction();
 
       // Verify that step summary was written
-      expect(mockDependencies.core.summary.addRaw).toHaveBeenCalledWith(
-        expect.stringContaining("## 🎭 Staged Mode: Create Pull Request Preview")
-      );
+      expect(mockDependencies.core.summary.addRaw).toHaveBeenCalledWith(expect.stringContaining("## 🎭 Staged Mode: Create Pull Request Preview"));
       expect(mockDependencies.core.summary.write).toHaveBeenCalled();
 
       // Verify console log for staged mode
@@ -1434,9 +1417,7 @@ describe("create_pull_request.cjs", () => {
       expect(summaryCall).toContain("exceeds maximum allowed size");
 
       // Verify console log for staged mode
-      expect(mockDependencies.core.info).toHaveBeenCalledWith(
-        "📝 Pull request creation preview written to step summary (patch size error)"
-      );
+      expect(mockDependencies.core.info).toHaveBeenCalledWith("📝 Pull request creation preview written to step summary (patch size error)");
     });
 
     it("should use default 1024 KB limit when env var not set", async () => {
@@ -1647,13 +1628,7 @@ describe("create_pull_request.cjs", () => {
       expect(mockDependencies.github.rest.pulls.create).toHaveBeenCalled();
 
       // Verify updateActivationComment was called with correct parameters
-      expect(mockDependencies.updateActivationComment).toHaveBeenCalledWith(
-        mockDependencies.github,
-        mockDependencies.context,
-        mockDependencies.core,
-        "https://github.com/testowner/testrepo/pull/42",
-        42
-      );
+      expect(mockDependencies.updateActivationComment).toHaveBeenCalledWith(mockDependencies.github, mockDependencies.context, mockDependencies.core, "https://github.com/testowner/testrepo/pull/42", 42);
     });
 
     it("should update discussion comment with PR link when comment_id starts with DC_", async () => {
@@ -1687,13 +1662,7 @@ describe("create_pull_request.cjs", () => {
       expect(mockDependencies.github.rest.pulls.create).toHaveBeenCalled();
 
       // Verify updateActivationComment was called with correct parameters
-      expect(mockDependencies.updateActivationComment).toHaveBeenCalledWith(
-        mockDependencies.github,
-        mockDependencies.context,
-        mockDependencies.core,
-        "https://github.com/testowner/testrepo/pull/42",
-        42
-      );
+      expect(mockDependencies.updateActivationComment).toHaveBeenCalledWith(mockDependencies.github, mockDependencies.context, mockDependencies.core, "https://github.com/testowner/testrepo/pull/42", 42);
     });
 
     it("should skip updating comment when GH_AW_COMMENT_ID is not set", async () => {
@@ -1726,13 +1695,7 @@ describe("create_pull_request.cjs", () => {
       expect(mockDependencies.github.rest.pulls.create).toHaveBeenCalled();
 
       // Verify updateActivationComment was still called (it will check internally if comment_id is set)
-      expect(mockDependencies.updateActivationComment).toHaveBeenCalledWith(
-        mockDependencies.github,
-        mockDependencies.context,
-        mockDependencies.core,
-        "https://github.com/testowner/testrepo/pull/42",
-        42
-      );
+      expect(mockDependencies.updateActivationComment).toHaveBeenCalledWith(mockDependencies.github, mockDependencies.context, mockDependencies.core, "https://github.com/testowner/testrepo/pull/42", 42);
     });
 
     it("should not fail workflow if comment update fails", async () => {
@@ -1766,13 +1729,7 @@ describe("create_pull_request.cjs", () => {
       expect(mockDependencies.github.rest.pulls.create).toHaveBeenCalled();
 
       // Verify updateActivationComment was called (error handling is tested in update_activation_comment.test.cjs)
-      expect(mockDependencies.updateActivationComment).toHaveBeenCalledWith(
-        mockDependencies.github,
-        mockDependencies.context,
-        mockDependencies.core,
-        "https://github.com/testowner/testrepo/pull/42",
-        42
-      );
+      expect(mockDependencies.updateActivationComment).toHaveBeenCalledWith(mockDependencies.github, mockDependencies.context, mockDependencies.core, "https://github.com/testowner/testrepo/pull/42", 42);
     });
   });
 });

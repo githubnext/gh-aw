@@ -17,6 +17,12 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 	var steps []string
 	var permissions string
 
+	// Extract custom steps and outputs from jobs.pre-activation if present
+	customSteps, customOutputs, err := c.extractPreActivationCustomFields(data.Jobs)
+	if err != nil {
+		return nil, err
+	}
+
 	// Add team member check if permission checks are needed
 	if needsPermissionCheck {
 		steps = c.generateMembershipCheck(data, steps)
@@ -74,6 +80,12 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 		// Add the JavaScript script with proper indentation
 		formattedScript := FormatJavaScriptForYAML(checkCommandPositionScript)
 		steps = append(steps, formattedScript...)
+	}
+
+	// Append custom steps from jobs.pre-activation if present
+	if len(customSteps) > 0 {
+		compilerActivationJobsLog.Printf("Adding %d custom steps to pre-activation job", len(customSteps))
+		steps = append(steps, customSteps...)
 	}
 
 	// Generate the activated output expression using expression builders
@@ -145,6 +157,14 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 		"activated": activatedExpression,
 	}
 
+	// Merge custom outputs from jobs.pre-activation if present
+	if len(customOutputs) > 0 {
+		compilerActivationJobsLog.Printf("Adding %d custom outputs to pre-activation job", len(customOutputs))
+		for key, value := range customOutputs {
+			outputs[key] = value
+		}
+	}
+
 	// Pre-activation job uses the user's original if condition (data.If)
 	// The workflow_run safety check is NOT applied here - it's only on the activation job
 	// Don't include conditions that reference custom job outputs (those belong on the agent job)
@@ -163,6 +183,94 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 	}
 
 	return job, nil
+}
+
+// extractPreActivationCustomFields extracts custom steps and outputs from jobs.pre-activation field in frontmatter.
+// It validates that only steps and outputs fields are present, and errors on any other fields.
+// If both jobs.pre-activation and jobs.pre_activation are defined, imports from both.
+// Returns (customSteps, customOutputs, error).
+func (c *Compiler) extractPreActivationCustomFields(jobs map[string]any) ([]string, map[string]string, error) {
+	if jobs == nil {
+		return nil, nil, nil
+	}
+
+	var customSteps []string
+	var customOutputs map[string]string
+
+	// Check both jobs.pre-activation and jobs.pre_activation (users might define both by mistake)
+	// Import from both if both are defined
+	jobVariants := []string{"pre-activation", constants.PreActivationJobName}
+
+	for _, jobName := range jobVariants {
+		preActivationJob, exists := jobs[jobName]
+		if !exists {
+			continue
+		}
+
+		// jobs.pre-activation must be a map
+		configMap, ok := preActivationJob.(map[string]any)
+		if !ok {
+			return nil, nil, fmt.Errorf("jobs.%s must be an object, got %T", jobName, preActivationJob)
+		}
+
+		// Validate that only steps and outputs fields are present
+		allowedFields := map[string]bool{
+			"steps":   true,
+			"outputs": true,
+		}
+
+		for field := range configMap {
+			if !allowedFields[field] {
+				return nil, nil, fmt.Errorf("jobs.%s: unsupported field '%s' - only 'steps' and 'outputs' are allowed", jobName, field)
+			}
+		}
+
+		// Extract steps
+		if stepsValue, hasSteps := configMap["steps"]; hasSteps {
+			stepsList, ok := stepsValue.([]any)
+			if !ok {
+				return nil, nil, fmt.Errorf("jobs.%s.steps must be an array, got %T", jobName, stepsValue)
+			}
+
+			for i, step := range stepsList {
+				stepMap, ok := step.(map[string]any)
+				if !ok {
+					return nil, nil, fmt.Errorf("jobs.%s.steps[%d] must be an object, got %T", jobName, i, step)
+				}
+
+				// Convert step to YAML
+				stepYAML, err := c.convertStepToYAML(stepMap)
+				if err != nil {
+					return nil, nil, fmt.Errorf("failed to convert jobs.%s.steps[%d] to YAML: %w", jobName, i, err)
+				}
+				customSteps = append(customSteps, stepYAML)
+			}
+			compilerActivationJobsLog.Printf("Extracted %d custom steps from jobs.%s", len(stepsList), jobName)
+		}
+
+		// Extract outputs
+		if outputsValue, hasOutputs := configMap["outputs"]; hasOutputs {
+			outputsMap, ok := outputsValue.(map[string]any)
+			if !ok {
+				return nil, nil, fmt.Errorf("jobs.%s.outputs must be an object, got %T", jobName, outputsValue)
+			}
+
+			if customOutputs == nil {
+				customOutputs = make(map[string]string)
+			}
+			for key, val := range outputsMap {
+				valStr, ok := val.(string)
+				if !ok {
+					return nil, nil, fmt.Errorf("jobs.%s.outputs.%s must be a string, got %T", jobName, key, val)
+				}
+				// If the same output key is defined in both variants, the second one wins (pre_activation)
+				customOutputs[key] = valStr
+			}
+			compilerActivationJobsLog.Printf("Extracted %d custom outputs from jobs.%s", len(outputsMap), jobName)
+		}
+	}
+
+	return customSteps, customOutputs, nil
 }
 
 // buildActivationJob creates the activation job that handles timestamp checking, reactions, and locking.
@@ -446,6 +554,11 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 	// Custom jobs that depend on agent should run AFTER the agent job, not before it
 	if data.Jobs != nil {
 		for jobName := range data.Jobs {
+			// Skip jobs.pre-activation (or pre_activation) as it's handled specially
+			if jobName == constants.PreActivationJobName || jobName == "pre-activation" {
+				continue
+			}
+
 			// Only add as direct dependency if it doesn't depend on pre_activation or agent
 			// (jobs that depend on pre_activation are handled through activation)
 			// (jobs that depend on agent are post-execution jobs like failure handlers)
@@ -463,6 +576,11 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 	// This is required for GitHub Actions expression evaluation and actionlint validation.
 	referencedJobs := c.getReferencedCustomJobs(data.MarkdownContent, data.Jobs)
 	for _, jobName := range referencedJobs {
+		// Skip jobs.pre-activation (or pre_activation) as it's handled specially
+		if jobName == constants.PreActivationJobName || jobName == "pre-activation" {
+			continue
+		}
+
 		// Check if this job is already in depends
 		alreadyDepends := false
 		for _, dep := range depends {

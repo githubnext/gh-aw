@@ -19,473 +19,12 @@
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/aw/github-agentic-workflows.md
 #
-#
 # Intelligent assistant that answers questions, analyzes repositories, and can create PRs for workflow optimizations
-#
-# Original Frontmatter:
-# ```yaml
-# name: Q
-# description: Intelligent assistant that answers questions, analyzes repositories, and can create PRs for workflow optimizations
-# on:
-#   slash_command:
-#     name: q
-#   reaction: rocket
-# permissions:
-#   contents: read
-#   actions: read
-#   issues: read
-#   pull-requests: read
-# roles: [admin, maintainer, write]
-# engine: copilot
-# imports:
-#   - shared/mcp/gh-aw.md
-#   - shared/mcp/tavily.md
-# tools:
-#   serena: ["go"]
-#   github:
-#     toolsets:
-#       - default
-#       - actions
-#   edit:
-#   bash:
-#   cache-memory: true
-# safe-outputs:
-#   add-comment:
-#     max: 1
-#   create-pull-request:
-#     title-prefix: "[q] "
-#     labels: [automation, workflow-optimization]
-#     reviewers: copilot
-#     draft: false
-#     if-no-changes: "ignore"
-#   messages:
-#     footer: "> 🎩 *Equipped by [{workflow_name}]({run_url})*"
-#     run-started: "🔧 Pay attention, 007! [{workflow_name}]({run_url}) is preparing your gadgets for this {event_type}..."
-#     run-success: "🎩 Mission equipment ready! [{workflow_name}]({run_url}) has optimized your workflow. Use wisely, 007! 🔫"
-#     run-failure: "🔧 Technical difficulties! [{workflow_name}]({run_url}) {status}. Even Q Branch has bad days..."
-# timeout-minutes: 15
-# strict: true
-# ```
 #
 # Resolved workflow manifest:
 #   Imports:
 #     - shared/mcp/gh-aw.md
 #     - shared/mcp/tavily.md
-#
-# Job Dependency Graph:
-# ```mermaid
-# graph LR
-#   activation["activation"]
-#   add_comment["add_comment"]
-#   agent["agent"]
-#   conclusion["conclusion"]
-#   create_pull_request["create_pull_request"]
-#   detection["detection"]
-#   pre_activation["pre_activation"]
-#   update_cache_memory["update_cache_memory"]
-#   activation --> agent
-#   activation --> conclusion
-#   activation --> create_pull_request
-#   add_comment --> conclusion
-#   agent --> add_comment
-#   agent --> conclusion
-#   agent --> create_pull_request
-#   agent --> detection
-#   agent --> update_cache_memory
-#   create_pull_request --> add_comment
-#   create_pull_request --> conclusion
-#   detection --> add_comment
-#   detection --> conclusion
-#   detection --> create_pull_request
-#   detection --> update_cache_memory
-#   pre_activation --> activation
-#   update_cache_memory --> conclusion
-# ```
-#
-# Original Prompt:
-# ```markdown
-# # Q - Agentic Workflow Optimizer
-#
-# You are Q, the quartermaster of agentic workflows - an expert system that improves, optimizes, and fixes agentic workflows. Like your namesake from James Bond, you provide agents with the best tools and configurations for their missions.
-#
-# ## Mission
-#
-# When invoked with the `/q` command in an issue or pull request comment, analyze the current context and improve the agentic workflows in this repository by:
-#
-# 1. **Investigating workflow performance** using live logs and audits
-# 2. **Identifying missing tools** and permission issues
-# 3. **Detecting inefficiencies** through excessive repetitive MCP calls
-# 4. **Extracting common patterns** and generating reusable workflow steps
-# 5. **Creating a pull request** with optimized workflow configurations
-#
-# <current_context>
-# ## Current Context
-#
-# - **Repository**: ${{ github.repository }}
-# - **Triggering Content**: "${{ needs.activation.outputs.text }}"
-# - **Issue/PR Number**: ${{ github.event.issue.number || github.event.pull_request.number }}
-# - **Triggered by**: @${{ github.actor }}
-#
-# {{#if ${{ github.event.issue.number }} }}
-# ### Parent Issue Context
-#
-# This workflow was triggered from a comment on issue #${{ github.event.issue.number }}.
-#
-# **Important**: Before proceeding with your analysis, retrieve the full issue details to understand the context of the work to be done:
-#
-# 1. Use the `issue_read` tool with method `get` to fetch issue #${{ github.event.issue.number }}
-# 2. Review the issue title, body, and labels to understand what workflows or problems are being discussed
-# 3. Consider any linked issues or previous comments for additional context
-# 4. Use this issue context to inform your investigation and recommendations
-# {{/if}}
-#
-# {{#if ${{ github.event.pull_request.number }} }}
-# ### Parent Pull Request Context
-#
-# This workflow was triggered from a comment on pull request #${{ github.event.pull_request.number }}.
-#
-# **Important**: Before proceeding with your analysis, retrieve the full PR details to understand the context of the work to be done:
-#
-# 1. Use the `pull_request_read` tool with method `get` to fetch PR #${{ github.event.pull_request.number }}
-# 2. Review the PR title, description, and changed files to understand what changes are being proposed
-# 3. Consider the PR's relationship to workflow optimizations or issues
-# 4. Use this PR context to inform your investigation and recommendations
-# {{/if}}
-#
-# {{#if ${{ github.event.discussion.number }} }}
-# ### Parent Discussion Context
-#
-# This workflow was triggered from a comment on discussion #${{ github.event.discussion.number }}.
-#
-# **Important**: Before proceeding with your analysis, retrieve the full discussion details to understand the context of the work to be done:
-#
-# 1. Use GitHub tools to fetch discussion #${{ github.event.discussion.number }}
-# 2. Review the discussion title and body to understand the topic being discussed
-# 3. Consider the discussion context when planning your workflow optimizations
-# 4. Use this discussion context to inform your investigation and recommendations
-# {{/if}}
-# </current_context>
-#
-# ## Investigation Protocol
-#
-# ### Phase 0: Setup and Context Analysis
-#
-# **DO NOT ATTEMPT TO USE GH AW DIRECTLY** - it is not authenticated. Use the MCP server instead.
-#
-# 1. **Verify MCP Server**: Run the `status` tool of `gh-aw` MCP server to verify configuration
-# 2. **Analyze Trigger Context**: Parse the triggering content to understand what needs improvement:
-#    - Is a specific workflow mentioned?
-#    - Are there error messages or issues described?
-#    - Is this a general optimization request?
-# 3. **Identify Target Workflows**: Determine which workflows to analyze (specific ones or all)
-#
-# ### Phase 1: Gather Live Data
-#
-# **NEVER EVER make up logs or data - always pull from live sources.**
-#
-# Use the gh-aw MCP server tools to gather real data:
-#
-# 1. **Download Recent Logs**:
-#    ```
-#    Use the `logs` tool from gh-aw MCP server:
-#    - Workflow name: (specific workflow or empty for all)
-#    - Count: 10-20 recent runs
-#    - Start date: "-7d" (last week)
-#    - Parse: true (to get structured output)
-#    ```
-#    Logs will be downloaded to `/tmp/gh-aw/aw-mcp/logs`
-#
-# 2. **Review Audit Information**:
-#    ```
-#    Use the `audit` tool for specific problematic runs:
-#    - Run ID: (from logs analysis)
-#    ```
-#    Audits will be saved to `/tmp/gh-aw/aw-mcp/logs`
-#
-# 3. **Analyze Log Data**: Review the downloaded logs to identify:
-#    - **Missing Tools**: Tools requested but not available
-#    - **Permission Errors**: Failed operations due to insufficient permissions
-#    - **Repetitive Patterns**: Same MCP calls made multiple times
-#    - **Performance Issues**: High token usage, excessive turns, timeouts
-#    - **Error Patterns**: Recurring failures and their causes
-#
-# ### Phase 2: Deep Analysis with Serena
-#
-# Use Serena's code analysis capabilities to:
-#
-# 1. **Examine Workflow Files**: Read and analyze workflow markdown files in `.github/workflows/`
-# 2. **Identify Common Patterns**: Look for repeated code or configurations across workflows
-# 3. **Extract Reusable Steps**: Find workflow steps that appear in multiple places
-# 4. **Detect Configuration Issues**: Spot missing imports, incorrect tools, or suboptimal settings
-#
-# ### Phase 3: Research Solutions
-#
-# Use Tavily to research:
-#
-# 1. **Best Practices**: Search for "GitHub Actions agentic workflow best practices"
-# 2. **Tool Documentation**: Look up documentation for missing or misconfigured tools
-# 3. **Performance Optimization**: Find strategies for reducing token usage and improving efficiency
-# 4. **Error Resolutions**: Research solutions for identified error patterns
-#
-# ### Phase 4: Workflow Improvements
-#
-# Based on your analysis, make targeted improvements to workflow files:
-#
-# #### 4.1 Add Missing Tools
-#
-# If logs show missing tool reports:
-# - Add the tools to the appropriate workflow frontmatter
-# - Ensure proper MCP server configuration
-# - Add shared imports if the tool has a standard configuration
-#
-# Example:
-# ```yaml
-# tools:
-#   github:
-#     allowed: 
-#       - issue_read
-#       - list_commits
-#       - create_issue_comment
-# ```
-#
-# #### 4.2 Fix Permission Issues
-#
-# If logs show permission errors:
-# - Add required permissions to workflow frontmatter
-# - Use safe-outputs for write operations when appropriate
-# - Ensure minimal necessary permissions
-#
-# Example:
-# ```yaml
-# permissions:
-#   contents: read
-#   issues: write
-#   actions: read
-# ```
-#
-# #### 4.3 Optimize Repetitive Operations
-#
-# If logs show excessive repetitive MCP calls:
-# - Extract common patterns into workflow steps
-# - Use cache-memory to store and reuse data
-# - Add shared configuration files for repeated setups
-#
-# Example of creating a shared setup:
-# ```yaml
-# imports:
-#   - shared/mcp/common-tools.md
-# ```
-#
-# #### 4.4 Extract Common Execution Pathways
-#
-# If multiple workflows share similar logic:
-# - Create new shared configuration files in `.github/workflows/shared/`
-# - Extract common prompts or instructions
-# - Add imports to workflows to use shared configs
-#
-# #### 4.5 Improve Workflow Configuration
-#
-# General optimizations:
-# - Add `timeout-minutes` to prevent runaway costs
-# - Set appropriate `max-turns` in engine config
-# - Add `stop-after` for time-limited workflows
-# - Enable `strict: true` for better validation
-# - Use `cache-memory: true` for persistent state
-#
-# ### Phase 5: Validate Changes
-#
-# **CRITICAL**: Use the gh-aw MCP server to validate all changes:
-#
-# 1. **Compile Modified Workflows**:
-#    ```
-#    Use the `compile` tool from gh-aw MCP server:
-#    - Workflow: (name of modified workflow)
-#    ```
-#
-# 2. **Check Compilation Output**: Ensure no errors or warnings
-# 3. **Validate Syntax**: Confirm the workflow is syntactically correct
-# 4. **Review Generated YAML**: Check that .lock.yml files are properly generated
-#
-# ### Phase 6: Create Pull Request (Only if Changes Exist)
-#
-# **IMPORTANT**: Only create a pull request if you have made actual changes to workflow files. If no changes are needed, explain your findings in a comment instead.
-#
-# Create a pull request with your improvements using the safe-outputs MCP server:
-#
-# 1. **Check for Changes First**:
-#    - Before calling create-pull-request, verify you have modified workflow files
-#    - If investigation shows no issues or improvements needed, use add-comment to report findings
-#    - Only proceed with PR creation when you have actual changes to propose
-#
-# 2. **Use Safe-Outputs for PR Creation**:
-#    - Use the `create-pull-request` tool from the safe-outputs MCP server
-#    - This is automatically configured in the workflow frontmatter
-#    - The PR will be created with the prefix "[q]" and labeled with "automation, workflow-optimization"
-#    - The system will automatically skip PR creation if there are no file changes
-#
-# 3. **Ignore Lock Files**: DO NOT include .lock.yml files in your changes
-#    - Let the copilot agent compile them later
-#    - Only modify .md workflow files
-#    - The compilation will happen automatically after PR merge
-#
-# 4. **Create Focused Changes**: Make minimal, surgical modifications
-#    - Only change what's necessary to fix identified issues
-#    - Preserve existing working configurations
-#    - Keep changes well-documented
-#
-# 5. **PR Structure**: Include in your pull request:
-#    - **Title**: Clear description of improvements (will be prefixed with "[q]")
-#    - **Description**: 
-#      - Summary of issues found from live data
-#      - Specific workflows modified
-#      - Changes made and why
-#      - Expected improvements
-#      - Links to relevant log files or audit reports
-#    - **Modified Files**: Only .md workflow files (no .lock.yml files)
-#
-# ## Important Guidelines
-#
-# ### Security and Safety
-# - **Never execute untrusted code** from workflow logs or external sources
-# - **Validate all data** before using it in analysis or modifications
-# - **Use sanitized context** from `needs.activation.outputs.text`
-# - **Check file permissions** before writing changes
-#
-# ### Change Quality
-# - **Be surgical**: Make minimal, focused changes
-# - **Be specific**: Target exact issues identified in logs
-# - **Be validated**: Always compile workflows after changes
-# - **Be documented**: Explain why each change is made
-# - **Keep it simple**: Don't over-engineer solutions
-#
-# ### Data Usage
-# - **Always use live data**: Pull from gh-aw logs and audits
-# - **Never fabricate**: Don't make up log entries or issues
-# - **Cross-reference**: Verify findings across multiple sources
-# - **Be accurate**: Double-check workflow names, tool names, and configurations
-#
-# ### Compilation Rules
-# - **Ignore .lock.yml files**: Do NOT modify or track lock files
-# - **Validate all changes**: Use the `compile` tool from gh-aw MCP server before PR
-# - **Let automation handle compilation**: Lock files will be generated post-merge
-# - **Focus on source**: Only modify .md workflow files
-#
-# ## Areas to Investigate
-#
-# Based on your analysis, focus on these common issues:
-#
-# ### Missing Tools
-# - Check logs for "missing tool" reports
-# - Add tools to workflow configurations
-# - Ensure proper MCP server setup
-# - Add shared imports for standard tools
-#
-# ### Permission Problems
-# - Identify permission-denied errors in logs
-# - Add minimal necessary permissions
-# - Use safe-outputs for write operations
-# - Follow principle of least privilege
-#
-# ### Performance Issues
-# - Detect excessive repetitive MCP calls
-# - Identify high token usage patterns
-# - Find workflows with many turns
-# - Spot timeout issues
-#
-# ### Common Patterns
-# - Extract repeated workflow steps
-# - Create shared configuration files
-# - Identify reusable prompt templates
-# - Build common tool configurations
-#
-# ## Output Format
-#
-# Your pull request description should include:
-#
-# ```markdown
-# # Q Workflow Optimization Report
-#
-# ## Issues Found (from live data)
-#
-# ### [Workflow Name]
-# - **Log Analysis**: [Summary from actual logs]
-# - **Run IDs Analyzed**: [Specific run IDs from gh-aw audit]
-# - **Issues Identified**:
-#   - Missing tools: [specific tools from logs]
-#   - Permission errors: [specific errors from logs]
-#   - Performance problems: [specific metrics from logs]
-#
-# [Repeat for each workflow analyzed]
-#
-# ## Changes Made
-#
-# ### [Workflow Name] (.github/workflows/[name].md)
-# - Added missing tool: `[tool-name]` (found in run #[run-id])
-# - Fixed permission: Added `[permission]` (error in run #[run-id])
-# - Optimized: [specific optimization based on log analysis]
-#
-# [Repeat for each modified workflow]
-#
-# ## Expected Improvements
-#
-# - Reduced missing tool errors by adding [X] tools
-# - Fixed [Y] permission issues
-# - Optimized [Z] workflows for better performance
-# - Created [N] shared configurations for reuse
-#
-# ## Validation
-#
-# All modified workflows compiled successfully using the `compile` tool from gh-aw MCP server:
-# - ✅ [workflow-1]
-# - ✅ [workflow-2]
-# - ✅ [workflow-N]
-#
-# Note: .lock.yml files will be generated automatically after merge.
-#
-# ## References
-#
-# - Log analysis: `/tmp/gh-aw/aw-mcp/logs/`
-# - Audit reports: [specific audit files]
-# - Run IDs investigated: [list of run IDs]
-# ```
-#
-# ## Success Criteria
-#
-# A successful Q mission:
-# - ✅ Uses live data from gh-aw logs and audits (no fabricated data)
-# - ✅ Identifies specific issues with evidence from logs
-# - ✅ Makes minimal, targeted improvements to workflows
-# - ✅ Validates all changes using the `compile` tool from gh-aw MCP server
-# - ✅ Creates PR with only .md files (no .lock.yml files)
-# - ✅ Provides clear documentation of changes and rationale
-# - ✅ Follows security best practices
-#
-# ## Remember
-#
-# You are Q - the expert who provides agents with the best tools for their missions. Make workflows more effective, efficient, and reliable based on real data. Keep changes minimal and well-validated. Let the automation handle lock file compilation.
-#
-# Begin your investigation now. Gather live data, analyze it thoroughly, make targeted improvements, validate your changes, and create a pull request with your optimizations.
-# ```
-#
-# Pinned GitHub Actions:
-#   - actions/cache/restore@v4 (0057852bfaa89a56745cba8c7296529d2fc39830)
-#     https://github.com/actions/cache/commit/0057852bfaa89a56745cba8c7296529d2fc39830
-#   - actions/cache/save@v4 (0057852bfaa89a56745cba8c7296529d2fc39830)
-#     https://github.com/actions/cache/commit/0057852bfaa89a56745cba8c7296529d2fc39830
-#   - actions/checkout@v5 (93cb6efe18208431cddfb8368fd83d5badbf9bfd)
-#     https://github.com/actions/checkout/commit/93cb6efe18208431cddfb8368fd83d5badbf9bfd
-#   - actions/download-artifact@v6 (018cc2cf5baa6db3ef3c5f8a56943fffe632ef53)
-#     https://github.com/actions/download-artifact/commit/018cc2cf5baa6db3ef3c5f8a56943fffe632ef53
-#   - actions/github-script@v8 (ed597411d8f924073f98dfc5c65a23a2325f34cd)
-#     https://github.com/actions/github-script/commit/ed597411d8f924073f98dfc5c65a23a2325f34cd
-#   - actions/setup-go@v6 (4dc6199c7b1a012772edbd06daecab0f50c9053c)
-#     https://github.com/actions/setup-go/commit/4dc6199c7b1a012772edbd06daecab0f50c9053c
-#   - actions/setup-python@v5 (a26af69be951a213d495a4c3e4e4022e16d87065)
-#     https://github.com/actions/setup-python/commit/a26af69be951a213d495a4c3e4e4022e16d87065
-#   - actions/upload-artifact@v5 (330a01c490aca151604b8cf639adc76d48f6c5d4)
-#     https://github.com/actions/upload-artifact/commit/330a01c490aca151604b8cf639adc76d48f6c5d4
-#   - astral-sh/setup-uv@v5 (e58605a9b6da7c637471fab8847a5e5a6b8df081)
-#     https://github.com/astral-sh/setup-uv/commit/e58605a9b6da7c637471fab8847a5e5a6b8df081
 
 name: "Q"
 "on":
@@ -618,9 +157,7 @@ jobs:
                   .addRaw("**Files:**\n")
                   .addRaw(`- Source: \`${workflowMdPath}\`\n`)
                   .addRaw(`  - Last commit: ${workflowTimestamp}\n`)
-                  .addRaw(
-                    `  - Commit SHA: [\`${workflowCommit.sha.substring(0, 7)}\`](https://github.com/${owner}/${repo}/commit/${workflowCommit.sha})\n`
-                  )
+                  .addRaw(`  - Commit SHA: [\`${workflowCommit.sha.substring(0, 7)}\`](https://github.com/${owner}/${repo}/commit/${workflowCommit.sha})\n`)
                   .addRaw(`- Lock: \`${lockFilePath}\`\n`)
                   .addRaw(`  - Last commit: ${lockTimestamp}\n`)
                   .addRaw(`  - Commit SHA: [\`${lockCommit.sha.substring(0, 7)}\`](https://github.com/${owner}/${repo}/commit/${lockCommit.sha})\n\n`)
@@ -766,36 +303,33 @@ jobs:
                 });
               }
               function sanitizeUrlProtocols(s) {
-                return s.replace(
-                  /((?:http|ftp|file|ssh|git):\/\/([\w.-]*)(?:[^\s]*)|(?:data|javascript|vbscript|about|mailto|tel):[^\s]+)/gi,
-                  (match, _fullMatch, domain) => {
-                    if (domain) {
-                      const domainLower = domain.toLowerCase();
-                      const truncated = domainLower.length > 12 ? domainLower.substring(0, 12) + "..." : domainLower;
+                return s.replace(/((?:http|ftp|file|ssh|git):\/\/([\w.-]*)(?:[^\s]*)|(?:data|javascript|vbscript|about|mailto|tel):[^\s]+)/gi, (match, _fullMatch, domain) => {
+                  if (domain) {
+                    const domainLower = domain.toLowerCase();
+                    const truncated = domainLower.length > 12 ? domainLower.substring(0, 12) + "..." : domainLower;
+                    if (typeof core !== "undefined" && core.info) {
+                      core.info(`Redacted URL: ${truncated}`);
+                    }
+                    if (typeof core !== "undefined" && core.debug) {
+                      core.debug(`Redacted URL (full): ${match}`);
+                    }
+                    addRedactedDomain(domainLower);
+                  } else {
+                    const protocolMatch = match.match(/^([^:]+):/);
+                    if (protocolMatch) {
+                      const protocol = protocolMatch[1] + ":";
+                      const truncated = match.length > 12 ? match.substring(0, 12) + "..." : match;
                       if (typeof core !== "undefined" && core.info) {
                         core.info(`Redacted URL: ${truncated}`);
                       }
                       if (typeof core !== "undefined" && core.debug) {
                         core.debug(`Redacted URL (full): ${match}`);
                       }
-                      addRedactedDomain(domainLower);
-                    } else {
-                      const protocolMatch = match.match(/^([^:]+):/);
-                      if (protocolMatch) {
-                        const protocol = protocolMatch[1] + ":";
-                        const truncated = match.length > 12 ? match.substring(0, 12) + "..." : match;
-                        if (typeof core !== "undefined" && core.info) {
-                          core.info(`Redacted URL: ${truncated}`);
-                        }
-                        if (typeof core !== "undefined" && core.debug) {
-                          core.debug(`Redacted URL (full): ${match}`);
-                        }
-                        addRedactedDomain(protocol);
-                      }
+                      addRedactedDomain(protocol);
                     }
-                    return "(redacted)";
                   }
-                );
+                  return "(redacted)";
+                });
               }
               function neutralizeCommands(s) {
                 const commandName = process.env.GH_AW_COMMAND;
@@ -817,37 +351,7 @@ jobs:
                 return s.replace(/<!--[\s\S]*?-->/g, "").replace(/<!--[\s\S]*?--!>/g, "");
               }
               function convertXmlTags(s) {
-                const allowedTags = [
-                  "b",
-                  "blockquote",
-                  "br",
-                  "code",
-                  "details",
-                  "em",
-                  "h1",
-                  "h2",
-                  "h3",
-                  "h4",
-                  "h5",
-                  "h6",
-                  "hr",
-                  "i",
-                  "li",
-                  "ol",
-                  "p",
-                  "pre",
-                  "strong",
-                  "sub",
-                  "summary",
-                  "sup",
-                  "table",
-                  "tbody",
-                  "td",
-                  "th",
-                  "thead",
-                  "tr",
-                  "ul",
-                ];
+                const allowedTags = ["b", "blockquote", "br", "code", "details", "em", "h1", "h2", "h3", "h4", "h5", "h6", "hr", "i", "li", "ol", "p", "pre", "strong", "sub", "summary", "sup", "table", "tbody", "td", "th", "thead", "tr", "ul"];
                 s = s.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, (match, content) => {
                   const convertedContent = content.replace(/<(\/?[A-Za-z][A-Za-z0-9]*(?:[^>]*?))>/g, "($1)");
                   return `(![CDATA[${convertedContent}]])`;
@@ -1051,18 +555,14 @@ jobs:
               const messages = getMessages();
               const templateContext = toSnakeCase(ctx);
               const defaultMessage = "⚠️ Security scanning failed for [{workflow_name}]({run_url}). Review the logs for details.";
-              return messages?.detectionFailure
-                ? renderTemplate(messages.detectionFailure, templateContext)
-                : renderTemplate(defaultMessage, templateContext);
+              return messages?.detectionFailure ? renderTemplate(messages.detectionFailure, templateContext) : renderTemplate(defaultMessage, templateContext);
             }
             async function main() {
               const reaction = process.env.GH_AW_REACTION || "eyes";
               const command = process.env.GH_AW_COMMAND; 
               const runId = context.runId;
               const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
-              const runUrl = context.payload.repository
-                ? `${context.payload.repository.html_url}/actions/runs/${runId}`
-                : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
+              const runUrl = context.payload.repository ? `${context.payload.repository.html_url}/actions/runs/${runId}` : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
               core.info(`Reaction type: ${reaction}`);
               core.info(`Command name: ${command || "none"}`);
               core.info(`Run ID: ${runId}`);
@@ -1392,9 +892,7 @@ jobs:
                 core.setOutput("comment-repo", `${context.repo.owner}/${context.repo.repo}`);
               } catch (error) {
                 const errorMessage = error instanceof Error ? error.message : String(error);
-                core.warning(
-                  "Failed to create comment with workflow link (This is not critical - the reaction was still added successfully): " + errorMessage
-                );
+                core.warning("Failed to create comment with workflow link (This is not critical - the reaction was still added successfully): " + errorMessage);
               }
             }
             await main();
@@ -1537,11 +1035,8 @@ jobs:
               }
               const messages = getMessages();
               const templateContext = toSnakeCase(ctx);
-              const defaultInstall =
-                "> Arr! To plunder this workflow fer yer own ship, run `gh aw add {workflow_source}`. Chart yer course at [🦜 {workflow_source_url}]({workflow_source_url})!";
-              return messages?.footerInstall
-                ? renderTemplate(messages.footerInstall, templateContext)
-                : renderTemplate(defaultInstall, templateContext);
+              const defaultInstall = "> Arr! To plunder this workflow fer yer own ship, run `gh aw add {workflow_source}`. Chart yer course at [🦜 {workflow_source_url}]({workflow_source_url})!";
+              return messages?.footerInstall ? renderTemplate(messages.footerInstall, templateContext) : renderTemplate(defaultInstall, templateContext);
             }
             function generateXMLMarker(workflowName, runUrl) {
               const engineId = process.env.GH_AW_ENGINE_ID || "";
@@ -1565,15 +1060,7 @@ jobs:
               parts.push(`run: ${runUrl}`);
               return `<!-- ${parts.join(", ")} -->`;
             }
-            function generateFooterWithMessages(
-              workflowName,
-              runUrl,
-              workflowSource,
-              workflowSourceURL,
-              triggeringIssueNumber,
-              triggeringPRNumber,
-              triggeringDiscussionNumber
-            ) {
+            function generateFooterWithMessages(workflowName, runUrl, workflowSource, workflowSourceURL, triggeringIssueNumber, triggeringPRNumber, triggeringDiscussionNumber) {
               let triggeringNumber;
               if (triggeringIssueNumber) {
                 triggeringNumber = triggeringIssueNumber;
@@ -1920,10 +1407,7 @@ jobs:
               const commentTarget = process.env.GH_AW_COMMENT_TARGET || "triggering";
               core.info(`Comment target configuration: ${commentTarget}`);
               const isIssueContext = context.eventName === "issues" || context.eventName === "issue_comment";
-              const isPRContext =
-                context.eventName === "pull_request" ||
-                context.eventName === "pull_request_review" ||
-                context.eventName === "pull_request_review_comment";
+              const isPRContext = context.eventName === "pull_request" || context.eventName === "pull_request_review" || context.eventName === "pull_request_review_comment";
               const isDiscussionContext = context.eventName === "discussion" || context.eventName === "discussion_comment";
               const isDiscussion = isDiscussionContext || isDiscussionExplicit;
               const workflowId = process.env.GITHUB_WORKFLOW || "";
@@ -1992,10 +1476,8 @@ jobs:
                 core.info('Target is "triggering" but not running in issue, pull request, or discussion context, skipping comment creation');
                 return;
               }
-              const triggeringIssueNumber =
-                context.payload?.issue?.number && !context.payload?.issue?.pull_request ? context.payload.issue.number : undefined;
-              const triggeringPRNumber =
-                context.payload?.pull_request?.number || (context.payload?.issue?.pull_request ? context.payload.issue.number : undefined);
+              const triggeringIssueNumber = context.payload?.issue?.number && !context.payload?.issue?.pull_request ? context.payload.issue.number : undefined;
+              const triggeringPRNumber = context.payload?.pull_request?.number || (context.payload?.issue?.pull_request ? context.payload.issue.number : undefined);
               const triggeringDiscussionNumber = context.payload?.discussion?.number;
               const createdComments = [];
               for (let i = 0; i < commentItems.length; i++) {
@@ -2083,9 +1565,7 @@ jobs:
                 const workflowSourceURL = process.env.GH_AW_WORKFLOW_SOURCE_URL || "";
                 const runId = context.runId;
                 const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
-                const runUrl = context.payload.repository
-                  ? `${context.payload.repository.html_url}/actions/runs/${runId}`
-                  : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
+                const runUrl = context.payload.repository ? `${context.payload.repository.html_url}/actions/runs/${runId}` : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
                 if (workflowId) {
                   body += `\n\n<!-- workflow-id: ${workflowId} -->`;
                 }
@@ -2094,28 +1574,11 @@ jobs:
                   body += trackerIDComment;
                 }
                 body += `\n\n<!-- comment-type: add-comment -->`;
-                body += generateFooterWithMessages(
-                  workflowName,
-                  runUrl,
-                  workflowSource,
-                  workflowSourceURL,
-                  triggeringIssueNumber,
-                  triggeringPRNumber,
-                  triggeringDiscussionNumber
-                );
+                body += generateFooterWithMessages(workflowName, runUrl, workflowSource, workflowSourceURL, triggeringIssueNumber, triggeringPRNumber, triggeringDiscussionNumber);
                 try {
                   if (hideOlderCommentsEnabled && workflowId) {
                     core.info("Hide-older-comments is enabled, searching for previous comments to hide");
-                    await hideOlderComments(
-                      github,
-                      context.repo.owner,
-                      context.repo.repo,
-                      itemNumber,
-                      workflowId,
-                      commentEndpoint === "discussions",
-                      "outdated",
-                      allowedReasons
-                    );
+                    await hideOlderComments(github, context.repo.owner, context.repo.repo, itemNumber, workflowId, commentEndpoint === "discussions", "outdated", allowedReasons);
                   }
                   let comment;
                   if (commentEndpoint === "discussions") {
@@ -2699,9 +2162,7 @@ jobs:
                 server.debug(`  [${toolName}] Python handler args: ${JSON.stringify(args)}`);
                 server.debug(`  [${toolName}] Timeout: ${timeoutSeconds}s`);
                 const inputJson = JSON.stringify(args || {});
-                server.debug(
-                  `  [${toolName}] Input JSON (${inputJson.length} bytes): ${inputJson.substring(0, 200)}${inputJson.length > 200 ? "..." : ""}`
-                );
+                server.debug(`  [${toolName}] Input JSON (${inputJson.length} bytes): ${inputJson.substring(0, 200)}${inputJson.length > 200 ? "..." : ""}`);
                 return new Promise((resolve, reject) => {
                   server.debug(`  [${toolName}] Executing Python script...`);
                   const child = execFile(
@@ -2809,9 +2270,7 @@ jobs:
                       try {
                         if (fs.existsSync(outputFile)) {
                           const outputContent = fs.readFileSync(outputFile, "utf-8");
-                          server.debug(
-                            `  [${toolName}] Output file content: ${outputContent.substring(0, 500)}${outputContent.length > 500 ? "..." : ""}`
-                          );
+                          server.debug(`  [${toolName}] Output file content: ${outputContent.substring(0, 500)}${outputContent.length > 500 ? "..." : ""}`);
                           const lines = outputContent.split("\n");
                           for (const line of lines) {
                             const trimmed = line.trim();
@@ -2869,10 +2328,7 @@ jobs:
                   fs.mkdirSync(server.logDir, { recursive: true });
                 }
                 const timestamp = new Date().toISOString();
-                fs.writeFileSync(
-                  server.logFilePath,
-                  `# ${server.serverInfo.name} MCP Server Log\n# Started: ${timestamp}\n# Version: ${server.serverInfo.version}\n\n`
-                );
+                fs.writeFileSync(server.logFilePath, `# ${server.serverInfo.name} MCP Server Log\n# Started: ${timestamp}\n# Version: ${server.serverInfo.version}\n\n`);
                 server.logFileInitialized = true;
               } catch {
               }
@@ -3532,10 +2988,7 @@ jobs:
                 const isInWorkspace = absolutePath.startsWith(path.resolve(workspaceDir));
                 const isInTmp = absolutePath.startsWith(tmpDir);
                 if (!isInWorkspace && !isInTmp) {
-                  throw new Error(
-                    `File path must be within workspace directory (${workspaceDir}) or /tmp directory. ` +
-                      `Provided path: ${filePath} (resolved to: ${absolutePath})`
-                  );
+                  throw new Error(`File path must be within workspace directory (${workspaceDir}) or /tmp directory. ` + `Provided path: ${filePath} (resolved to: ${absolutePath})`);
                 }
                 if (!fs.existsSync(filePath)) {
                   throw new Error(`File not found: ${filePath}`);
@@ -3794,10 +3247,7 @@ jobs:
                       };
                       const entryJSON = JSON.stringify(entry);
                       fs.appendFileSync(outputFile, entryJSON + "\n");
-                      const outputText =
-                        jobConfig && jobConfig.output
-                          ? jobConfig.output
-                          : `Safe-job '${configKey}' executed successfully with arguments: ${JSON.stringify(args)}`;
+                      const outputText = jobConfig && jobConfig.output ? jobConfig.output : `Safe-job '${configKey}' executed successfully with arguments: ${JSON.stringify(args)}`;
                       return {
                         content: [
                           {
@@ -4833,16 +4283,13 @@ jobs:
               return result;
             }
             function renderMarkdownTemplate(markdown) {
-              let result = markdown.replace(
-                /(\n?)([ \t]*{{#if\s+([^}]*)}}[ \t]*\n)([\s\S]*?)([ \t]*{{\/if}}[ \t]*)(\n?)/g,
-                (match, leadNL, openLine, cond, body, closeLine, trailNL) => {
-                  if (isTruthy(cond)) {
-                    return leadNL + body;
-                  } else {
-                    return "";
-                  }
+              let result = markdown.replace(/(\n?)([ \t]*{{#if\s+([^}]*)}}[ \t]*\n)([\s\S]*?)([ \t]*{{\/if}}[ \t]*)(\n?)/g, (match, leadNL, openLine, cond, body, closeLine, trailNL) => {
+                if (isTruthy(cond)) {
+                  return leadNL + body;
+                } else {
+                  return "";
                 }
-              );
+              });
               result = result.replace(/{{#if\s+([^}]*)}}([\s\S]*?){{\/if}}/g, (_, cond, body) => (isTruthy(cond) ? body : ""));
               result = result.replace(/\n{3,}/g, "\n\n");
               return result;
@@ -5220,36 +4667,33 @@ jobs:
                 });
               }
               function sanitizeUrlProtocols(s) {
-                return s.replace(
-                  /((?:http|ftp|file|ssh|git):\/\/([\w.-]*)(?:[^\s]*)|(?:data|javascript|vbscript|about|mailto|tel):[^\s]+)/gi,
-                  (match, _fullMatch, domain) => {
-                    if (domain) {
-                      const domainLower = domain.toLowerCase();
-                      const truncated = domainLower.length > 12 ? domainLower.substring(0, 12) + "..." : domainLower;
+                return s.replace(/((?:http|ftp|file|ssh|git):\/\/([\w.-]*)(?:[^\s]*)|(?:data|javascript|vbscript|about|mailto|tel):[^\s]+)/gi, (match, _fullMatch, domain) => {
+                  if (domain) {
+                    const domainLower = domain.toLowerCase();
+                    const truncated = domainLower.length > 12 ? domainLower.substring(0, 12) + "..." : domainLower;
+                    if (typeof core !== "undefined" && core.info) {
+                      core.info(`Redacted URL: ${truncated}`);
+                    }
+                    if (typeof core !== "undefined" && core.debug) {
+                      core.debug(`Redacted URL (full): ${match}`);
+                    }
+                    addRedactedDomain(domainLower);
+                  } else {
+                    const protocolMatch = match.match(/^([^:]+):/);
+                    if (protocolMatch) {
+                      const protocol = protocolMatch[1] + ":";
+                      const truncated = match.length > 12 ? match.substring(0, 12) + "..." : match;
                       if (typeof core !== "undefined" && core.info) {
                         core.info(`Redacted URL: ${truncated}`);
                       }
                       if (typeof core !== "undefined" && core.debug) {
                         core.debug(`Redacted URL (full): ${match}`);
                       }
-                      addRedactedDomain(domainLower);
-                    } else {
-                      const protocolMatch = match.match(/^([^:]+):/);
-                      if (protocolMatch) {
-                        const protocol = protocolMatch[1] + ":";
-                        const truncated = match.length > 12 ? match.substring(0, 12) + "..." : match;
-                        if (typeof core !== "undefined" && core.info) {
-                          core.info(`Redacted URL: ${truncated}`);
-                        }
-                        if (typeof core !== "undefined" && core.debug) {
-                          core.debug(`Redacted URL (full): ${match}`);
-                        }
-                        addRedactedDomain(protocol);
-                      }
+                      addRedactedDomain(protocol);
                     }
-                    return "(redacted)";
                   }
-                );
+                  return "(redacted)";
+                });
               }
               function neutralizeCommands(s) {
                 const commandName = process.env.GH_AW_COMMAND;
@@ -5271,37 +4715,7 @@ jobs:
                 return s.replace(/<!--[\s\S]*?-->/g, "").replace(/<!--[\s\S]*?--!>/g, "");
               }
               function convertXmlTags(s) {
-                const allowedTags = [
-                  "b",
-                  "blockquote",
-                  "br",
-                  "code",
-                  "details",
-                  "em",
-                  "h1",
-                  "h2",
-                  "h3",
-                  "h4",
-                  "h5",
-                  "h6",
-                  "hr",
-                  "i",
-                  "li",
-                  "ol",
-                  "p",
-                  "pre",
-                  "strong",
-                  "sub",
-                  "summary",
-                  "sup",
-                  "table",
-                  "tbody",
-                  "td",
-                  "th",
-                  "thead",
-                  "tr",
-                  "ul",
-                ];
+                const allowedTags = ["b", "blockquote", "br", "code", "details", "em", "h1", "h2", "h3", "h4", "h5", "h6", "hr", "i", "li", "ol", "p", "pre", "strong", "sub", "summary", "sup", "table", "tbody", "td", "th", "thead", "tr", "ul"];
                 s = s.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, (match, content) => {
                   const convertedContent = content.replace(/<(\/?[A-Za-z][A-Za-z0-9]*(?:[^>]*?))>/g, "($1)");
                   return `(![CDATA[${convertedContent}]])`;
@@ -5413,36 +4827,33 @@ jobs:
                 return result;
               }
               function sanitizeUrlProtocols(s) {
-                return s.replace(
-                  /\b((?:http|ftp|file|ssh|git):\/\/([\w.-]+)(?:[^\s]*)|(?:data|javascript|vbscript|about|mailto|tel):[^\s]+)/gi,
-                  (match, _fullMatch, domain) => {
-                    if (domain) {
-                      const domainLower = domain.toLowerCase();
-                      const truncated = domainLower.length > 12 ? domainLower.substring(0, 12) + "..." : domainLower;
+                return s.replace(/\b((?:http|ftp|file|ssh|git):\/\/([\w.-]+)(?:[^\s]*)|(?:data|javascript|vbscript|about|mailto|tel):[^\s]+)/gi, (match, _fullMatch, domain) => {
+                  if (domain) {
+                    const domainLower = domain.toLowerCase();
+                    const truncated = domainLower.length > 12 ? domainLower.substring(0, 12) + "..." : domainLower;
+                    if (typeof core !== "undefined" && core.info) {
+                      core.info(`Redacted URL: ${truncated}`);
+                    }
+                    if (typeof core !== "undefined" && core.debug) {
+                      core.debug(`Redacted URL (full): ${match}`);
+                    }
+                    addRedactedDomain(domainLower);
+                  } else {
+                    const protocolMatch = match.match(/^([^:]+):/);
+                    if (protocolMatch) {
+                      const protocol = protocolMatch[1] + ":";
+                      const truncated = match.length > 12 ? match.substring(0, 12) + "..." : match;
                       if (typeof core !== "undefined" && core.info) {
                         core.info(`Redacted URL: ${truncated}`);
                       }
                       if (typeof core !== "undefined" && core.debug) {
                         core.debug(`Redacted URL (full): ${match}`);
                       }
-                      addRedactedDomain(domainLower);
-                    } else {
-                      const protocolMatch = match.match(/^([^:]+):/);
-                      if (protocolMatch) {
-                        const protocol = protocolMatch[1] + ":";
-                        const truncated = match.length > 12 ? match.substring(0, 12) + "..." : match;
-                        if (typeof core !== "undefined" && core.info) {
-                          core.info(`Redacted URL: ${truncated}`);
-                        }
-                        if (typeof core !== "undefined" && core.debug) {
-                          core.debug(`Redacted URL (full): ${match}`);
-                        }
-                        addRedactedDomain(protocol);
-                      }
+                      addRedactedDomain(protocol);
                     }
-                    return "(redacted)";
                   }
-                );
+                  return "(redacted)";
+                });
               }
               function neutralizeCommands(s) {
                 const commandName = process.env.GH_AW_COMMAND;
@@ -5468,37 +4879,7 @@ jobs:
                 return s.replace(/<!--[\s\S]*?-->/g, "").replace(/<!--[\s\S]*?--!>/g, "");
               }
               function convertXmlTags(s) {
-                const allowedTags = [
-                  "b",
-                  "blockquote",
-                  "br",
-                  "code",
-                  "details",
-                  "em",
-                  "h1",
-                  "h2",
-                  "h3",
-                  "h4",
-                  "h5",
-                  "h6",
-                  "hr",
-                  "i",
-                  "li",
-                  "ol",
-                  "p",
-                  "pre",
-                  "strong",
-                  "sub",
-                  "summary",
-                  "sup",
-                  "table",
-                  "tbody",
-                  "td",
-                  "th",
-                  "thead",
-                  "tr",
-                  "ul",
-                ];
+                const allowedTags = ["b", "blockquote", "br", "code", "details", "em", "h1", "h2", "h3", "h4", "h5", "h6", "hr", "i", "li", "ol", "p", "pre", "strong", "sub", "summary", "sup", "table", "tbody", "td", "th", "thead", "tr", "ul"];
                 s = s.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, (match, content) => {
                   const convertedContent = content.replace(/<(\/?[A-Za-z][A-Za-z0-9]*(?:[^>]*?))>/g, "($1)");
                   return `(![CDATA[${convertedContent}]])`;
@@ -6190,9 +5571,7 @@ jobs:
                   core.info(`Loaded validation config from ${validationConfigPath}`);
                 }
               } catch (error) {
-                core.warning(
-                  `Failed to read validation config from ${validationConfigPath}: ${error instanceof Error ? error.message : String(error)}`
-                );
+                core.warning(`Failed to read validation config from ${validationConfigPath}: ${error instanceof Error ? error.message : String(error)}`);
               }
               const mentionsConfig = validationConfig?.mentions || null;
               const allowedMentions = await resolveAllowedMentionsFromPayload(context, github, core, mentionsConfig);
@@ -6405,9 +5784,7 @@ jobs:
                   core.info(`[INGESTION] Line ${i + 1}: Original type='${originalType}', Normalized type='${itemType}'`);
                   item.type = itemType;
                   if (!expectedOutputTypes[itemType]) {
-                    core.warning(
-                      `[INGESTION] Line ${i + 1}: Type '${itemType}' not found in expected types: ${JSON.stringify(Object.keys(expectedOutputTypes))}`
-                    );
+                    core.warning(`[INGESTION] Line ${i + 1}: Type '${itemType}' not found in expected types: ${JSON.stringify(Object.keys(expectedOutputTypes))}`);
                     errors.push(`Line ${i + 1}: Unexpected output type '${itemType}'. Expected one of: ${Object.keys(expectedOutputTypes).join(", ")}`);
                     continue;
                   }
@@ -6489,10 +5866,7 @@ jobs:
               core.info(`Patch file ${hasPatch ? "exists" : "does not exist"} at: ${patchPath}`);
               let allowEmptyPR = false;
               if (safeOutputsConfig) {
-                if (
-                  safeOutputsConfig["create-pull-request"]?.["allow-empty"] === true ||
-                  safeOutputsConfig["create_pull_request"]?.["allow_empty"] === true
-                ) {
+                if (safeOutputsConfig["create-pull-request"]?.["allow-empty"] === true || safeOutputsConfig["create_pull_request"]?.["allow_empty"] === true) {
                   allowEmptyPR = true;
                   core.info(`allow-empty is enabled for create-pull-request`);
                 }
@@ -6863,24 +6237,7 @@ jobs:
                   "Custom Agents": [],
                   Other: [],
                 };
-                const builtinTools = [
-                  "bash",
-                  "write_bash",
-                  "read_bash",
-                  "stop_bash",
-                  "list_bash",
-                  "grep",
-                  "glob",
-                  "view",
-                  "create",
-                  "edit",
-                  "store_memory",
-                  "code_review",
-                  "codeql_checker",
-                  "report_progress",
-                  "report_intent",
-                  "gh-advisory-database",
-                ];
+                const builtinTools = ["bash", "write_bash", "read_bash", "stop_bash", "list_bash", "grep", "glob", "view", "create", "edit", "store_memory", "code_review", "codeql_checker", "report_progress", "report_intent", "gh-advisory-database"];
                 const internalTools = ["fetch_copilot_cli_documentation"];
                 for (const tool of initEntry.tools) {
                   const toolLower = tool.toLowerCase();
@@ -7276,9 +6633,7 @@ jobs:
                   const cacheCreationTokens = usage.cache_creation_input_tokens || 0;
                   const cacheReadTokens = usage.cache_read_input_tokens || 0;
                   const totalTokens = inputTokens + outputTokens + cacheCreationTokens + cacheReadTokens;
-                  lines.push(
-                    `  Tokens: ${totalTokens.toLocaleString()} total (${usage.input_tokens.toLocaleString()} in / ${usage.output_tokens.toLocaleString()} out)`
-                  );
+                  lines.push(`  Tokens: ${totalTokens.toLocaleString()} total (${usage.input_tokens.toLocaleString()} in / ${usage.output_tokens.toLocaleString()} out)`);
                 }
               }
               if (lastEntry?.total_cost_usd) {
@@ -7437,9 +6792,7 @@ jobs:
                   const cacheCreationTokens = usage.cache_creation_input_tokens || 0;
                   const cacheReadTokens = usage.cache_read_input_tokens || 0;
                   const totalTokens = inputTokens + outputTokens + cacheCreationTokens + cacheReadTokens;
-                  lines.push(
-                    `  Tokens: ${totalTokens.toLocaleString()} total (${usage.input_tokens.toLocaleString()} in / ${usage.output_tokens.toLocaleString()} out)`
-                  );
+                  lines.push(`  Tokens: ${totalTokens.toLocaleString()} total (${usage.input_tokens.toLocaleString()} in / ${usage.output_tokens.toLocaleString()} out)`);
                 }
               }
               if (lastEntry?.total_cost_usd) {
@@ -7540,11 +6893,7 @@ jobs:
               });
             }
             function extractPremiumRequestCount(logContent) {
-              const patterns = [
-                /premium\s+requests?\s+consumed:?\s*(\d+)/i,
-                /(\d+)\s+premium\s+requests?\s+consumed/i,
-                /consumed\s+(\d+)\s+premium\s+requests?/i,
-              ];
+              const patterns = [/premium\s+requests?\s+consumed:?\s*(\d+)/i, /(\d+)\s+premium\s+requests?\s+consumed/i, /consumed\s+(\d+)\s+premium\s+requests?/i];
               for (const pattern of patterns) {
                 const match = logContent.match(pattern);
                 if (match && match[1]) {
@@ -7616,8 +6965,7 @@ jobs:
                 const initEntry = logEntries.find(entry => entry.type === "system" && entry.subtype === "init");
                 markdown += generateInformationSection(lastEntry, {
                   additionalInfoCallback: entry => {
-                    const isPremiumModel =
-                      initEntry && initEntry.model_info && initEntry.model_info.billing && initEntry.model_info.billing.is_premium === true;
+                    const isPremiumModel = initEntry && initEntry.model_info && initEntry.model_info.billing && initEntry.model_info.billing.is_premium === true;
                     if (isPremiumModel) {
                       const premiumRequestCount = extractPremiumRequestCount(logContent);
                       return `**Premium Requests Consumed:** ${premiumRequestCount}\n\n`;
@@ -8044,299 +7392,151 @@ jobs:
         with:
           script: |
             function sanitizeWorkflowName(name) {
-
               return name
-
                 .toLowerCase()
-
                 .replace(/[:\\/\s]/g, "-")
-
                 .replace(/[^a-z0-9._-]/g, "-");
-
             }
-
             function main() {
-
               const fs = require("fs");
-
               const path = require("path");
-
               try {
-
                 const squidLogsDir = `/tmp/gh-aw/sandbox/firewall/logs/`;
-
                 if (!fs.existsSync(squidLogsDir)) {
-
                   core.info(`No firewall logs directory found at: ${squidLogsDir}`);
-
                   return;
-
                 }
-
                 const files = fs.readdirSync(squidLogsDir).filter(file => file.endsWith(".log"));
-
                 if (files.length === 0) {
-
                   core.info(`No firewall log files found in: ${squidLogsDir}`);
-
                   return;
-
                 }
-
                 core.info(`Found ${files.length} firewall log file(s)`);
-
                 let totalRequests = 0;
-
                 let allowedRequests = 0;
-
                 let deniedRequests = 0;
-
                 const allowedDomains = new Set();
-
                 const deniedDomains = new Set();
-
                 const requestsByDomain = new Map();
-
                 for (const file of files) {
-
                   const filePath = path.join(squidLogsDir, file);
-
                   core.info(`Parsing firewall log: ${file}`);
-
                   const content = fs.readFileSync(filePath, "utf8");
-
                   const lines = content.split("\n").filter(line => line.trim());
-
                   for (const line of lines) {
-
                     const entry = parseFirewallLogLine(line);
-
                     if (!entry) {
-
                       continue;
-
                     }
-
                     totalRequests++;
-
                     const isAllowed = isRequestAllowed(entry.decision, entry.status);
-
                     if (isAllowed) {
-
                       allowedRequests++;
-
                       allowedDomains.add(entry.domain);
-
                     } else {
-
                       deniedRequests++;
-
                       deniedDomains.add(entry.domain);
-
                     }
-
                     if (!requestsByDomain.has(entry.domain)) {
-
                       requestsByDomain.set(entry.domain, { allowed: 0, denied: 0 });
-
                     }
-
                     const domainStats = requestsByDomain.get(entry.domain);
-
                     if (isAllowed) {
-
                       domainStats.allowed++;
-
                     } else {
-
                       domainStats.denied++;
-
                     }
-
                   }
-
                 }
-
                 const summary = generateFirewallSummary({
-
                   totalRequests,
-
                   allowedRequests,
-
                   deniedRequests,
-
                   allowedDomains: Array.from(allowedDomains).sort(),
-
                   deniedDomains: Array.from(deniedDomains).sort(),
-
                   requestsByDomain,
-
                 });
-
                 core.summary.addRaw(summary).write();
-
                 core.info("Firewall log summary generated successfully");
-
               } catch (error) {
-
                 core.setFailed(error instanceof Error ? error : String(error));
-
               }
-
             }
-
             function parseFirewallLogLine(line) {
-
               const trimmed = line.trim();
-
               if (!trimmed || trimmed.startsWith("#")) {
-
                 return null;
-
               }
-
               const fields = trimmed.match(/(?:[^\s"]+|"[^"]*")+/g);
-
               if (!fields || fields.length < 10) {
-
                 return null;
-
               }
-
               const timestamp = fields[0];
-
               if (!/^\d+(\.\d+)?$/.test(timestamp)) {
-
                 return null;
-
               }
-
               return {
-
                 timestamp,
-
                 clientIpPort: fields[1],
-
                 domain: fields[2],
-
                 destIpPort: fields[3],
-
                 proto: fields[4],
-
                 method: fields[5],
-
                 status: fields[6],
-
                 decision: fields[7],
-
                 url: fields[8],
-
                 userAgent: fields[9]?.replace(/^"|"$/g, "") || "-",
-
               };
-
             }
-
             function isRequestAllowed(decision, status) {
-
               const statusCode = parseInt(status, 10);
-
               if (statusCode === 200 || statusCode === 206 || statusCode === 304) {
-
                 return true;
-
               }
-
               if (decision.includes("TCP_TUNNEL") || decision.includes("TCP_HIT") || decision.includes("TCP_MISS")) {
-
                 return true;
-
               }
-
               if (decision.includes("NONE_NONE") || decision.includes("TCP_DENIED") || statusCode === 403 || statusCode === 407) {
-
                 return false;
-
               }
-
               return false;
-
             }
-
             function generateFirewallSummary(analysis) {
-
               const { totalRequests, requestsByDomain } = analysis;
-
               const validDomains = Array.from(requestsByDomain.keys())
-
                 .filter(domain => domain !== "-")
-
                 .sort();
-
               const uniqueDomainCount = validDomains.length;
-
               let validAllowedRequests = 0;
-
               let validDeniedRequests = 0;
-
               for (const domain of validDomains) {
-
                 const stats = requestsByDomain.get(domain);
-
                 validAllowedRequests += stats.allowed;
-
                 validDeniedRequests += stats.denied;
-
               }
-
               let summary = "### 🔥 Firewall Activity\n\n";
-
               summary += "<details>\n";
-
               summary += `<summary>📊 ${totalRequests} request${totalRequests !== 1 ? "s" : ""} | `;
-
               summary += `${validAllowedRequests} allowed | `;
-
               summary += `${validDeniedRequests} blocked | `;
-
               summary += `${uniqueDomainCount} unique domain${uniqueDomainCount !== 1 ? "s" : ""}</summary>\n\n`;
-
               if (uniqueDomainCount > 0) {
-
                 summary += "| Domain | Allowed | Denied |\n";
-
                 summary += "|--------|---------|--------|\n";
-
                 for (const domain of validDomains) {
-
                   const stats = requestsByDomain.get(domain);
-
                   summary += `| ${domain} | ${stats.allowed} | ${stats.denied} |\n`;
-
                 }
-
               } else {
-
                 summary += "No firewall activity detected.\n";
-
               }
-
               summary += "\n</details>\n\n";
-
               return summary;
-
             }
-
-            const isDirectExecution =
-
-              typeof module === "undefined" || (typeof require !== "undefined" && typeof require.main !== "undefined" && require.main === module);
-
+            const isDirectExecution = typeof module === "undefined" || (typeof require !== "undefined" && typeof require.main !== "undefined" && require.main === module);
             if (isDirectExecution) {
-
               main();
-
             }
-
       - name: Upload Agent Stdio
         if: always()
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
@@ -8497,9 +7697,7 @@ jobs:
                     }
                     lastIndex = regex.lastIndex;
                     if (iterationCount === ITERATION_WARNING_THRESHOLD) {
-                      core.warning(
-                        `High iteration count (${iterationCount}) on line ${lineIndex + 1} with pattern: ${pattern.description || pattern.pattern}`
-                      );
+                      core.warning(`High iteration count (${iterationCount}) on line ${lineIndex + 1} with pattern: ${pattern.description || pattern.pattern}`);
                       core.warning(`Line content (truncated): ${truncateString(line, 200)}`);
                     }
                     if (iterationCount > MAX_ITERATIONS_PER_LINE) {
@@ -8814,9 +8012,7 @@ jobs:
               core.setOutput("total_count", missingTools.length.toString());
               if (missingTools.length > 0) {
                 core.info("Missing tools summary:");
-                core.summary
-                  .addHeading("Missing Tools Report", 3)
-                  .addRaw(`Found **${missingTools.length}** missing tool${missingTools.length > 1 ? "s" : ""} in this workflow execution.\n\n`);
+                core.summary.addHeading("Missing Tools Report", 3).addRaw(`Found **${missingTools.length}** missing tool${missingTools.length > 1 ? "s" : ""} in this workflow execution.\n\n`);
                 missingTools.forEach((tool, index) => {
                   core.info(`${index + 1}. Tool: ${tool.tool}`);
                   core.info(`   Reason: ${tool.reason}`);
@@ -8951,9 +8147,7 @@ jobs:
               const messages = getMessages();
               const templateContext = toSnakeCase(ctx);
               const defaultMessage = "⚠️ Security scanning failed for [{workflow_name}]({run_url}). Review the logs for details.";
-              return messages?.detectionFailure
-                ? renderTemplate(messages.detectionFailure, templateContext)
-                : renderTemplate(defaultMessage, templateContext);
+              return messages?.detectionFailure ? renderTemplate(messages.detectionFailure, templateContext) : renderTemplate(defaultMessage, templateContext);
             }
             function collectGeneratedAssets() {
               const assets = [];
@@ -9190,10 +8384,7 @@ jobs:
             const crypto = require("crypto");
             async function updateActivationComment(github, context, core, itemUrl, itemNumber, itemType = "pull_request") {
               const itemLabel = itemType === "issue" ? "issue" : "pull request";
-              const linkMessage =
-                itemType === "issue"
-                  ? `\n\n✅ Issue created: [#${itemNumber}](${itemUrl})`
-                  : `\n\n✅ Pull request created: [#${itemNumber}](${itemUrl})`;
+              const linkMessage = itemType === "issue" ? `\n\n✅ Issue created: [#${itemNumber}](${itemUrl})` : `\n\n✅ Pull request created: [#${itemNumber}](${itemUrl})`;
               await updateActivationCommentWithMessage(github, context, core, linkMessage, itemLabel);
             }
             async function updateActivationCommentWithCommit(github, context, core, commitSha, commitUrl) {
@@ -9254,9 +8445,7 @@ jobs:
                     { commentId: commentId, body: updatedBody }
                   );
                   const comment = result.updateDiscussionComment.comment;
-                  const successMessage = label
-                    ? `Successfully updated discussion comment with ${label} link`
-                    : "Successfully updated discussion comment";
+                  const successMessage = label ? `Successfully updated discussion comment with ${label} link` : "Successfully updated discussion comment";
                   core.info(successMessage);
                   core.info(`Comment ID: ${comment.id}`);
                   core.info(`Comment URL: ${comment.url}`);
@@ -9347,9 +8536,7 @@ jobs:
                 preview = preview.slice(0, maxChars);
               }
               const truncated = lineTruncated || charTruncated;
-              const summary = truncated
-                ? `Show patch preview (${Math.min(maxLines, lines.length)} of ${lines.length} lines)`
-                : `Show patch (${lines.length} lines)`;
+              const summary = truncated ? `Show patch preview (${Math.min(maxLines, lines.length)} of ${lines.length} lines)` : `Show patch (${lines.length} lines)`;
               return `\n\n<details><summary>${summary}</summary>\n\n\`\`\`diff\n${preview}${truncated ? "\n... (truncated)" : ""}\n\`\`\`\n\n</details>`;
             }
             async function main() {
@@ -9538,9 +8725,7 @@ jobs:
               const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
               const runId = context.runId;
               const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
-              const runUrl = context.payload.repository
-                ? `${context.payload.repository.html_url}/actions/runs/${runId}`
-                : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
+              const runUrl = context.payload.repository ? `${context.payload.repository.html_url}/actions/runs/${runId}` : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
               const trackerIDComment = getTrackerID("markdown");
               if (trackerIDComment) {
                 bodyLines.push(trackerIDComment);
@@ -9599,9 +8784,7 @@ jobs:
                     core.info("Failed patch content:");
                     core.info(patchResult.stdout);
                   } catch (investigateError) {
-                    core.warning(
-                      `Failed to investigate patch failure: ${investigateError instanceof Error ? investigateError.message : String(investigateError)}`
-                    );
+                    core.warning(`Failed to investigate patch failure: ${investigateError instanceof Error ? investigateError.message : String(investigateError)}`);
                   }
                   core.setFailed("Failed to apply patch");
                   return;
@@ -9631,9 +8814,7 @@ jobs:
                   core.warning("Git push operation failed - creating fallback issue instead of pull request");
                   const runId = context.runId;
                   const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
-                  const runUrl = context.payload.repository
-                    ? `${context.payload.repository.html_url}/actions/runs/${runId}`
-                    : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
+                  const runUrl = context.payload.repository ? `${context.payload.repository.html_url}/actions/runs/${runId}` : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
                   let patchPreview = "";
                   if (fs.existsSync("/tmp/gh-aw/aw.patch")) {
                     const patchContent = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
@@ -9772,9 +8953,7 @@ jobs:
                 core.warning(`Failed to create pull request: ${prError instanceof Error ? prError.message : String(prError)}`);
                 core.info("Falling back to creating an issue instead");
                 const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
-                const branchUrl = context.payload.repository
-                  ? `${context.payload.repository.html_url}/tree/${branchName}`
-                  : `${githubServer}/${context.repo.owner}/${context.repo.repo}/tree/${branchName}`;
+                const branchUrl = context.payload.repository ? `${context.payload.repository.html_url}/tree/${branchName}` : `${githubServer}/${context.repo.owner}/${context.repo.repo}/tree/${branchName}`;
                 let patchPreview = "";
                 if (fs.existsSync("/tmp/gh-aw/aw.patch")) {
                   const patchContent = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
@@ -9811,9 +8990,7 @@ jobs:
                     )
                     .write();
                 } catch (issueError) {
-                  core.setFailed(
-                    `Failed to create both pull request and fallback issue. PR error: ${prError instanceof Error ? prError.message : String(prError)}. Issue error: ${issueError instanceof Error ? issueError.message : String(issueError)}`
-                  );
+                  core.setFailed(`Failed to create both pull request and fallback issue. PR error: ${prError instanceof Error ? prError.message : String(prError)}. Issue error: ${issueError instanceof Error ? issueError.message : String(issueError)}`);
                   return;
                 }
               }
@@ -10284,10 +9461,7 @@ jobs:
                 core.setOutput("is_team_member", "false");
                 core.setOutput("result", "insufficient_permissions");
                 core.setOutput("user_permission", result.permission);
-                core.setOutput(
-                  "error_message",
-                  `Access denied: User '${actor}' is not authorized. Required permissions: ${requiredPermissions.join(", ")}`
-                );
+                core.setOutput("error_message", `Access denied: User '${actor}' is not authorized. Required permissions: ${requiredPermissions.join(", ")}`);
               }
             }
             await main();

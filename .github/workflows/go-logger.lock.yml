@@ -19,372 +19,12 @@
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/aw/github-agentic-workflows.md
 #
-#
 # Analyzes and enhances Go logging practices across the codebase for improved debugging and observability
-#
-# Original Frontmatter:
-# ```yaml
-# name: Go Logger Enhancement
-# description: Analyzes and enhances Go logging practices across the codebase for improved debugging and observability
-# on:
-#   schedule: daily
-#   workflow_dispatch:
-#
-# permissions:
-#   contents: read
-#   issues: read
-#   pull-requests: read
-#
-# engine: claude
-#
-# safe-outputs:
-#   create-pull-request:
-#     title-prefix: "[log] "
-#     labels: [enhancement, automation]
-#     draft: false
-#
-# steps:
-#   - name: Set up Node.js
-#     uses: actions/setup-node@v6
-#     with:
-#       node-version: "24"
-#       cache: npm
-#       cache-dependency-path: pkg/workflow/js/package-lock.json
-#   - name: Set up Go
-#     uses: actions/setup-go@v6
-#     with:
-#       go-version-file: go.mod
-#       cache: true
-#   - name: Install JavaScript dependencies
-#     run: npm ci
-#     working-directory: ./pkg/workflow/js
-#
-# tools:
-#   github:
-#     toolsets: [default]
-#   edit:
-#   bash:
-#     - "find pkg -name '*.go' -type f ! -name '*_test.go'"
-#     - "grep -r 'var log = logger.New' pkg --include='*.go'"
-#     - "grep -n 'func ' pkg/*.go"
-#     - "head -n * pkg/**/*.go"
-#     - "wc -l pkg/**/*.go"
-#     - "make build"
-#     - "make recompile"
-#     - "./gh-aw compile *"
-#   cache-memory:
-#
-# timeout-minutes: 15
-# ```
-#
-# Job Dependency Graph:
-# ```mermaid
-# graph LR
-#   activation["activation"]
-#   agent["agent"]
-#   conclusion["conclusion"]
-#   create_pull_request["create_pull_request"]
-#   detection["detection"]
-#   update_cache_memory["update_cache_memory"]
-#   activation --> agent
-#   activation --> conclusion
-#   activation --> create_pull_request
-#   agent --> conclusion
-#   agent --> create_pull_request
-#   agent --> detection
-#   agent --> update_cache_memory
-#   create_pull_request --> conclusion
-#   detection --> conclusion
-#   detection --> create_pull_request
-#   detection --> update_cache_memory
-#   update_cache_memory --> conclusion
-# ```
-#
-# Original Prompt:
-# ```markdown
-# # Go Logger Enhancement
-#
-# You are an AI agent that improves Go code by adding debug logging statements to help with troubleshooting and development.
-#
-# ## Efficiency First: Check Cache
-#
-# Before analyzing files:
-#
-# 1. Check `/tmp/gh-aw/cache-memory/go-logger/` for previous logging sessions
-# 2. Read `processed-files.json` to see which files were already enhanced
-# 3. Read `last-run.json` for the last commit SHA processed
-# 4. If current commit SHA matches and no new .go files exist, exit early with success
-# 5. Update cache after processing:
-#    - Save list of processed files to `processed-files.json`
-#    - Save current commit SHA to `last-run.json`
-#    - Save summary of changes made
-#
-# This prevents re-analyzing already-processed files and reduces token usage significantly.
-#
-# ## Mission
-#
-# Add meaningful debug logging calls to Go files in the `pkg/` directory following the project's logging guidelines from AGENTS.md.
-#
-# ## Important Constraints
-#
-# 1. **Maximum 5 files per pull request** - Keep changes focused and reviewable
-# 2. **Skip test files** - Never modify files ending in `_test.go`
-# 3. **No side effects** - Logger arguments must NOT compute anything or cause side effects
-# 4. **Follow logger naming convention** - Use `pkg:filename` pattern (e.g., `workflow:compiler`)
-#
-# ## Logger Guidelines from AGENTS.md
-#
-# ### Logger Declaration
-#
-# If a file doesn't have a logger, add this at the top of the file (after imports):
-#
-# ```go
-# import "github.com/githubnext/gh-aw/pkg/logger"
-#
-# var log = logger.New("pkg:filename")
-# ```
-#
-# Replace `pkg:filename` with the actual package and filename:
-# - For `pkg/workflow/compiler.go` → `"workflow:compiler"`
-# - For `pkg/cli/compile.go` → `"cli:compile"`
-# - For `pkg/parser/frontmatter.go` → `"parser:frontmatter"`
-#
-# ### Logger Usage Patterns
-#
-# **Good logging examples:**
-#
-# ```go
-# // Log function entry with parameters (no side effects)
-# func ProcessFile(path string, count int) error {
-#     log.Printf("Processing file: path=%s, count=%d", path, count)
-#     // ... function body ...
-# }
-#
-# // Log important state changes
-# log.Printf("Compiled %d workflows successfully", len(workflows))
-#
-# // Log before expensive operations (check if enabled first)
-# if log.Enabled() {
-#     log.Printf("Starting compilation with config: %+v", config)
-# }
-#
-# // Log control flow decisions
-# log.Print("Cache hit, skipping recompilation")
-# log.Printf("No matching pattern found, using default: %s", defaultValue)
-# ```
-#
-# **What NOT to do:**
-#
-# ```go
-# // WRONG - causes side effects
-# log.Printf("Files: %s", expensiveOperation())  // Don't call functions in log args
-#
-# // WRONG - not meaningful
-# log.Print("Here")  // Too vague
-#
-# // WRONG - duplicates user-facing messages
-# fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Compiling..."))
-# log.Print("Compiling...")  // Redundant with user message above
-# ```
-#
-# ### When to Add Logging
-#
-# Add logging for:
-# 1. **Function entry** - Especially for public functions with parameters
-# 2. **Important control flow** - Branches, loops, error paths
-# 3. **State changes** - Before/after modifying important state
-# 4. **Performance-sensitive sections** - Before/after expensive operations
-# 5. **Debugging context** - Information that would help troubleshoot issues
-#
-# Do NOT add logging for:
-# 1. **Simple getters/setters** - Too verbose
-# 2. **Already logged operations** - Don't duplicate existing logs
-# 3. **User-facing messages** - Debug logs are separate from console output
-# 4. **Test files** - Skip all `*_test.go` files
-#
-# ## Task Steps
-#
-# ### 1. Find Candidate Go Files
-#
-# Use bash to identify Go files that could benefit from additional logging:
-#
-# ```bash
-# # Find all non-test Go files in pkg/
-# find pkg -name '*.go' -type f ! -name '*_test.go'
-#
-# # Check which files already have loggers
-# grep -r 'var log = logger.New' pkg --include='*.go'
-# ```
-#
-# ### 2. Select Files for Enhancement
-#
-# From the list of Go files:
-# 1. Prioritize files without loggers or with minimal logging
-# 2. Focus on files with complex logic (workflows, parsers, compilers)
-# 3. Avoid trivial files with just simple functions
-# 4. **Select exactly 5 files maximum** for this PR
-#
-# ### 3. Analyze Each Selected File
-#
-# For each selected file:
-# 1. Read the file content to understand its structure
-# 2. Identify functions that would benefit from logging
-# 3. Check if the file already has a logger declaration
-# 4. Plan where to add logging calls
-#
-# ### 4. Add Logger and Logging Calls
-#
-# For each file:
-#
-# 1. **Add logger declaration if missing:**
-#    - Add import: `"github.com/githubnext/gh-aw/pkg/logger"`
-#    - Add logger variable using correct naming: `var log = logger.New("pkg:filename")`
-#
-# 2. **Add meaningful logging calls:**
-#    - Add logging at function entry for important functions
-#    - Add logging before/after state changes
-#    - Add logging for control flow decisions
-#    - Ensure log arguments don't have side effects
-#    - Use `log.Enabled()` check for expensive debug info
-#
-# 3. **Keep it focused:**
-#    - 2-5 logging calls per file is usually sufficient
-#    - Don't over-log - focus on the most useful information
-#    - Ensure messages are meaningful and helpful for debugging
-#
-# ### 5. Validate Changes
-#
-# After adding logging to the selected files, **validate your changes** before creating a PR:
-#
-# 1. **Build the project to ensure no compilation errors:**
-#    ```bash
-#    make build
-#    ```
-#    This will compile the Go code and catch any syntax errors or import issues.
-#
-# 2. **Test the workflow compilation with debug logging enabled:**
-#    ```bash
-#    DEBUG=* ./gh-aw compile dev
-#    ```
-#    This validates that:
-#    - The binary was built successfully
-#    - The compile command works correctly
-#    - Debug logging from your changes appears in the output
-#
-# 3. **If needed, recompile workflows:**
-#    ```bash
-#    make recompile
-#    ```
-#
-# ### 6. Create Pull Request
-#
-# After validating your changes:
-#
-# 1. The safe-outputs create-pull-request will automatically create a PR
-# 2. Ensure your changes follow the guidelines above
-# 3. The PR title will automatically have the "[log] " prefix
-#
-# ## Example Transformation
-#
-# **Before:**
-# ```go
-# package workflow
-#
-# import (
-#     "fmt"
-#     "os"
-# )
-#
-# func CompileWorkflow(path string) error {
-#     data, err := os.ReadFile(path)
-#     if err != nil {
-#         return err
-#     }
-#
-#     // Process workflow
-#     result := process(data)
-#     return nil
-# }
-# ```
-#
-# **After:**
-# ```go
-# package workflow
-#
-# import (
-#     "fmt"
-#     "os"
-#
-#     "github.com/githubnext/gh-aw/pkg/logger"
-# )
-#
-# var log = logger.New("workflow:compiler")
-#
-# func CompileWorkflow(path string) error {
-#     log.Printf("Compiling workflow: %s", path)
-#
-#     data, err := os.ReadFile(path)
-#     if err != nil {
-#         log.Printf("Failed to read workflow file: %s", err)
-#         return err
-#     }
-#
-#     log.Printf("Read %d bytes from workflow file", len(data))
-#
-#     // Process workflow
-#     result := process(data)
-#     log.Print("Workflow compilation completed successfully")
-#     return nil
-# }
-# ```
-#
-# ## Quality Checklist
-#
-# Before creating the PR, verify:
-#
-# - [ ] Maximum 5 files modified
-# - [ ] No test files modified (`*_test.go`)
-# - [ ] Each file has logger declaration with correct naming convention
-# - [ ] Logger arguments don't compute anything or cause side effects
-# - [ ] Logging messages are meaningful and helpful
-# - [ ] No duplicate logging with existing logs
-# - [ ] Import statements are properly formatted
-# - [ ] Changes validated with `make build` (no compilation errors)
-# - [ ] Workflow compilation tested with `DEBUG=* ./gh-aw compile dev`
-#
-# ## Important Notes
-#
-# - You have access to the edit tool to modify files
-# - You have access to bash commands to explore the codebase
-# - The safe-outputs create-pull-request will automatically create the PR
-# - Focus on quality over quantity - 5 well-logged files is better than 10 poorly-logged files
-# - Remember: debug logs are for developers, not end users
-#
-# Good luck enhancing the codebase with better logging!
-# ```
-#
-# Pinned GitHub Actions:
-#   - actions/cache/restore@v4 (0057852bfaa89a56745cba8c7296529d2fc39830)
-#     https://github.com/actions/cache/commit/0057852bfaa89a56745cba8c7296529d2fc39830
-#   - actions/cache/save@v4 (0057852bfaa89a56745cba8c7296529d2fc39830)
-#     https://github.com/actions/cache/commit/0057852bfaa89a56745cba8c7296529d2fc39830
-#   - actions/checkout@v5 (93cb6efe18208431cddfb8368fd83d5badbf9bfd)
-#     https://github.com/actions/checkout/commit/93cb6efe18208431cddfb8368fd83d5badbf9bfd
-#   - actions/download-artifact@v6 (018cc2cf5baa6db3ef3c5f8a56943fffe632ef53)
-#     https://github.com/actions/download-artifact/commit/018cc2cf5baa6db3ef3c5f8a56943fffe632ef53
-#   - actions/github-script@v8 (ed597411d8f924073f98dfc5c65a23a2325f34cd)
-#     https://github.com/actions/github-script/commit/ed597411d8f924073f98dfc5c65a23a2325f34cd
-#   - actions/setup-go@v6 (4dc6199c7b1a012772edbd06daecab0f50c9053c)
-#     https://github.com/actions/setup-go/commit/4dc6199c7b1a012772edbd06daecab0f50c9053c
-#   - actions/setup-node@v6 (395ad3262231945c25e8478fd5baf05154b1d79f)
-#     https://github.com/actions/setup-node/commit/395ad3262231945c25e8478fd5baf05154b1d79f
-#   - actions/upload-artifact@v5 (330a01c490aca151604b8cf639adc76d48f6c5d4)
-#     https://github.com/actions/upload-artifact/commit/330a01c490aca151604b8cf639adc76d48f6c5d4
 
 name: "Go Logger Enhancement"
 "on":
   schedule:
-  - cron: "5 23 * * *"
+  - cron: "14 6 * * *"
     # Friendly format: daily (scattered)
   workflow_dispatch: null
 
@@ -474,9 +114,7 @@ jobs:
                   .addRaw("**Files:**\n")
                   .addRaw(`- Source: \`${workflowMdPath}\`\n`)
                   .addRaw(`  - Last commit: ${workflowTimestamp}\n`)
-                  .addRaw(
-                    `  - Commit SHA: [\`${workflowCommit.sha.substring(0, 7)}\`](https://github.com/${owner}/${repo}/commit/${workflowCommit.sha})\n`
-                  )
+                  .addRaw(`  - Commit SHA: [\`${workflowCommit.sha.substring(0, 7)}\`](https://github.com/${owner}/${repo}/commit/${workflowCommit.sha})\n`)
                   .addRaw(`- Lock: \`${lockFilePath}\`\n`)
                   .addRaw(`  - Last commit: ${lockTimestamp}\n`)
                   .addRaw(`  - Commit SHA: [\`${lockCommit.sha.substring(0, 7)}\`](https://github.com/${owner}/${repo}/commit/${lockCommit.sha})\n\n`)
@@ -1084,9 +722,7 @@ jobs:
                 server.debug(`  [${toolName}] Python handler args: ${JSON.stringify(args)}`);
                 server.debug(`  [${toolName}] Timeout: ${timeoutSeconds}s`);
                 const inputJson = JSON.stringify(args || {});
-                server.debug(
-                  `  [${toolName}] Input JSON (${inputJson.length} bytes): ${inputJson.substring(0, 200)}${inputJson.length > 200 ? "..." : ""}`
-                );
+                server.debug(`  [${toolName}] Input JSON (${inputJson.length} bytes): ${inputJson.substring(0, 200)}${inputJson.length > 200 ? "..." : ""}`);
                 return new Promise((resolve, reject) => {
                   server.debug(`  [${toolName}] Executing Python script...`);
                   const child = execFile(
@@ -1194,9 +830,7 @@ jobs:
                       try {
                         if (fs.existsSync(outputFile)) {
                           const outputContent = fs.readFileSync(outputFile, "utf-8");
-                          server.debug(
-                            `  [${toolName}] Output file content: ${outputContent.substring(0, 500)}${outputContent.length > 500 ? "..." : ""}`
-                          );
+                          server.debug(`  [${toolName}] Output file content: ${outputContent.substring(0, 500)}${outputContent.length > 500 ? "..." : ""}`);
                           const lines = outputContent.split("\n");
                           for (const line of lines) {
                             const trimmed = line.trim();
@@ -1254,10 +888,7 @@ jobs:
                   fs.mkdirSync(server.logDir, { recursive: true });
                 }
                 const timestamp = new Date().toISOString();
-                fs.writeFileSync(
-                  server.logFilePath,
-                  `# ${server.serverInfo.name} MCP Server Log\n# Started: ${timestamp}\n# Version: ${server.serverInfo.version}\n\n`
-                );
+                fs.writeFileSync(server.logFilePath, `# ${server.serverInfo.name} MCP Server Log\n# Started: ${timestamp}\n# Version: ${server.serverInfo.version}\n\n`);
                 server.logFileInitialized = true;
               } catch {
               }
@@ -1917,10 +1548,7 @@ jobs:
                 const isInWorkspace = absolutePath.startsWith(path.resolve(workspaceDir));
                 const isInTmp = absolutePath.startsWith(tmpDir);
                 if (!isInWorkspace && !isInTmp) {
-                  throw new Error(
-                    `File path must be within workspace directory (${workspaceDir}) or /tmp directory. ` +
-                      `Provided path: ${filePath} (resolved to: ${absolutePath})`
-                  );
+                  throw new Error(`File path must be within workspace directory (${workspaceDir}) or /tmp directory. ` + `Provided path: ${filePath} (resolved to: ${absolutePath})`);
                 }
                 if (!fs.existsSync(filePath)) {
                   throw new Error(`File not found: ${filePath}`);
@@ -2179,10 +1807,7 @@ jobs:
                       };
                       const entryJSON = JSON.stringify(entry);
                       fs.appendFileSync(outputFile, entryJSON + "\n");
-                      const outputText =
-                        jobConfig && jobConfig.output
-                          ? jobConfig.output
-                          : `Safe-job '${configKey}' executed successfully with arguments: ${JSON.stringify(args)}`;
+                      const outputText = jobConfig && jobConfig.output ? jobConfig.output : `Safe-job '${configKey}' executed successfully with arguments: ${JSON.stringify(args)}`;
                       return {
                         content: [
                           {
@@ -2965,16 +2590,13 @@ jobs:
               return result;
             }
             function renderMarkdownTemplate(markdown) {
-              let result = markdown.replace(
-                /(\n?)([ \t]*{{#if\s+([^}]*)}}[ \t]*\n)([\s\S]*?)([ \t]*{{\/if}}[ \t]*)(\n?)/g,
-                (match, leadNL, openLine, cond, body, closeLine, trailNL) => {
-                  if (isTruthy(cond)) {
-                    return leadNL + body;
-                  } else {
-                    return "";
-                  }
+              let result = markdown.replace(/(\n?)([ \t]*{{#if\s+([^}]*)}}[ \t]*\n)([\s\S]*?)([ \t]*{{\/if}}[ \t]*)(\n?)/g, (match, leadNL, openLine, cond, body, closeLine, trailNL) => {
+                if (isTruthy(cond)) {
+                  return leadNL + body;
+                } else {
+                  return "";
                 }
-              );
+              });
               result = result.replace(/{{#if\s+([^}]*)}}([\s\S]*?){{\/if}}/g, (_, cond, body) => (isTruthy(cond) ? body : ""));
               result = result.replace(/\n{3,}/g, "\n\n");
               return result;
@@ -3447,36 +3069,33 @@ jobs:
                 });
               }
               function sanitizeUrlProtocols(s) {
-                return s.replace(
-                  /((?:http|ftp|file|ssh|git):\/\/([\w.-]*)(?:[^\s]*)|(?:data|javascript|vbscript|about|mailto|tel):[^\s]+)/gi,
-                  (match, _fullMatch, domain) => {
-                    if (domain) {
-                      const domainLower = domain.toLowerCase();
-                      const truncated = domainLower.length > 12 ? domainLower.substring(0, 12) + "..." : domainLower;
+                return s.replace(/((?:http|ftp|file|ssh|git):\/\/([\w.-]*)(?:[^\s]*)|(?:data|javascript|vbscript|about|mailto|tel):[^\s]+)/gi, (match, _fullMatch, domain) => {
+                  if (domain) {
+                    const domainLower = domain.toLowerCase();
+                    const truncated = domainLower.length > 12 ? domainLower.substring(0, 12) + "..." : domainLower;
+                    if (typeof core !== "undefined" && core.info) {
+                      core.info(`Redacted URL: ${truncated}`);
+                    }
+                    if (typeof core !== "undefined" && core.debug) {
+                      core.debug(`Redacted URL (full): ${match}`);
+                    }
+                    addRedactedDomain(domainLower);
+                  } else {
+                    const protocolMatch = match.match(/^([^:]+):/);
+                    if (protocolMatch) {
+                      const protocol = protocolMatch[1] + ":";
+                      const truncated = match.length > 12 ? match.substring(0, 12) + "..." : match;
                       if (typeof core !== "undefined" && core.info) {
                         core.info(`Redacted URL: ${truncated}`);
                       }
                       if (typeof core !== "undefined" && core.debug) {
                         core.debug(`Redacted URL (full): ${match}`);
                       }
-                      addRedactedDomain(domainLower);
-                    } else {
-                      const protocolMatch = match.match(/^([^:]+):/);
-                      if (protocolMatch) {
-                        const protocol = protocolMatch[1] + ":";
-                        const truncated = match.length > 12 ? match.substring(0, 12) + "..." : match;
-                        if (typeof core !== "undefined" && core.info) {
-                          core.info(`Redacted URL: ${truncated}`);
-                        }
-                        if (typeof core !== "undefined" && core.debug) {
-                          core.debug(`Redacted URL (full): ${match}`);
-                        }
-                        addRedactedDomain(protocol);
-                      }
+                      addRedactedDomain(protocol);
                     }
-                    return "(redacted)";
                   }
-                );
+                  return "(redacted)";
+                });
               }
               function neutralizeCommands(s) {
                 const commandName = process.env.GH_AW_COMMAND;
@@ -3498,37 +3117,7 @@ jobs:
                 return s.replace(/<!--[\s\S]*?-->/g, "").replace(/<!--[\s\S]*?--!>/g, "");
               }
               function convertXmlTags(s) {
-                const allowedTags = [
-                  "b",
-                  "blockquote",
-                  "br",
-                  "code",
-                  "details",
-                  "em",
-                  "h1",
-                  "h2",
-                  "h3",
-                  "h4",
-                  "h5",
-                  "h6",
-                  "hr",
-                  "i",
-                  "li",
-                  "ol",
-                  "p",
-                  "pre",
-                  "strong",
-                  "sub",
-                  "summary",
-                  "sup",
-                  "table",
-                  "tbody",
-                  "td",
-                  "th",
-                  "thead",
-                  "tr",
-                  "ul",
-                ];
+                const allowedTags = ["b", "blockquote", "br", "code", "details", "em", "h1", "h2", "h3", "h4", "h5", "h6", "hr", "i", "li", "ol", "p", "pre", "strong", "sub", "summary", "sup", "table", "tbody", "td", "th", "thead", "tr", "ul"];
                 s = s.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, (match, content) => {
                   const convertedContent = content.replace(/<(\/?[A-Za-z][A-Za-z0-9]*(?:[^>]*?))>/g, "($1)");
                   return `(![CDATA[${convertedContent}]])`;
@@ -3640,36 +3229,33 @@ jobs:
                 return result;
               }
               function sanitizeUrlProtocols(s) {
-                return s.replace(
-                  /\b((?:http|ftp|file|ssh|git):\/\/([\w.-]+)(?:[^\s]*)|(?:data|javascript|vbscript|about|mailto|tel):[^\s]+)/gi,
-                  (match, _fullMatch, domain) => {
-                    if (domain) {
-                      const domainLower = domain.toLowerCase();
-                      const truncated = domainLower.length > 12 ? domainLower.substring(0, 12) + "..." : domainLower;
+                return s.replace(/\b((?:http|ftp|file|ssh|git):\/\/([\w.-]+)(?:[^\s]*)|(?:data|javascript|vbscript|about|mailto|tel):[^\s]+)/gi, (match, _fullMatch, domain) => {
+                  if (domain) {
+                    const domainLower = domain.toLowerCase();
+                    const truncated = domainLower.length > 12 ? domainLower.substring(0, 12) + "..." : domainLower;
+                    if (typeof core !== "undefined" && core.info) {
+                      core.info(`Redacted URL: ${truncated}`);
+                    }
+                    if (typeof core !== "undefined" && core.debug) {
+                      core.debug(`Redacted URL (full): ${match}`);
+                    }
+                    addRedactedDomain(domainLower);
+                  } else {
+                    const protocolMatch = match.match(/^([^:]+):/);
+                    if (protocolMatch) {
+                      const protocol = protocolMatch[1] + ":";
+                      const truncated = match.length > 12 ? match.substring(0, 12) + "..." : match;
                       if (typeof core !== "undefined" && core.info) {
                         core.info(`Redacted URL: ${truncated}`);
                       }
                       if (typeof core !== "undefined" && core.debug) {
                         core.debug(`Redacted URL (full): ${match}`);
                       }
-                      addRedactedDomain(domainLower);
-                    } else {
-                      const protocolMatch = match.match(/^([^:]+):/);
-                      if (protocolMatch) {
-                        const protocol = protocolMatch[1] + ":";
-                        const truncated = match.length > 12 ? match.substring(0, 12) + "..." : match;
-                        if (typeof core !== "undefined" && core.info) {
-                          core.info(`Redacted URL: ${truncated}`);
-                        }
-                        if (typeof core !== "undefined" && core.debug) {
-                          core.debug(`Redacted URL (full): ${match}`);
-                        }
-                        addRedactedDomain(protocol);
-                      }
+                      addRedactedDomain(protocol);
                     }
-                    return "(redacted)";
                   }
-                );
+                  return "(redacted)";
+                });
               }
               function neutralizeCommands(s) {
                 const commandName = process.env.GH_AW_COMMAND;
@@ -3695,37 +3281,7 @@ jobs:
                 return s.replace(/<!--[\s\S]*?-->/g, "").replace(/<!--[\s\S]*?--!>/g, "");
               }
               function convertXmlTags(s) {
-                const allowedTags = [
-                  "b",
-                  "blockquote",
-                  "br",
-                  "code",
-                  "details",
-                  "em",
-                  "h1",
-                  "h2",
-                  "h3",
-                  "h4",
-                  "h5",
-                  "h6",
-                  "hr",
-                  "i",
-                  "li",
-                  "ol",
-                  "p",
-                  "pre",
-                  "strong",
-                  "sub",
-                  "summary",
-                  "sup",
-                  "table",
-                  "tbody",
-                  "td",
-                  "th",
-                  "thead",
-                  "tr",
-                  "ul",
-                ];
+                const allowedTags = ["b", "blockquote", "br", "code", "details", "em", "h1", "h2", "h3", "h4", "h5", "h6", "hr", "i", "li", "ol", "p", "pre", "strong", "sub", "summary", "sup", "table", "tbody", "td", "th", "thead", "tr", "ul"];
                 s = s.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, (match, content) => {
                   const convertedContent = content.replace(/<(\/?[A-Za-z][A-Za-z0-9]*(?:[^>]*?))>/g, "($1)");
                   return `(![CDATA[${convertedContent}]])`;
@@ -4417,9 +3973,7 @@ jobs:
                   core.info(`Loaded validation config from ${validationConfigPath}`);
                 }
               } catch (error) {
-                core.warning(
-                  `Failed to read validation config from ${validationConfigPath}: ${error instanceof Error ? error.message : String(error)}`
-                );
+                core.warning(`Failed to read validation config from ${validationConfigPath}: ${error instanceof Error ? error.message : String(error)}`);
               }
               const mentionsConfig = validationConfig?.mentions || null;
               const allowedMentions = await resolveAllowedMentionsFromPayload(context, github, core, mentionsConfig);
@@ -4632,9 +4186,7 @@ jobs:
                   core.info(`[INGESTION] Line ${i + 1}: Original type='${originalType}', Normalized type='${itemType}'`);
                   item.type = itemType;
                   if (!expectedOutputTypes[itemType]) {
-                    core.warning(
-                      `[INGESTION] Line ${i + 1}: Type '${itemType}' not found in expected types: ${JSON.stringify(Object.keys(expectedOutputTypes))}`
-                    );
+                    core.warning(`[INGESTION] Line ${i + 1}: Type '${itemType}' not found in expected types: ${JSON.stringify(Object.keys(expectedOutputTypes))}`);
                     errors.push(`Line ${i + 1}: Unexpected output type '${itemType}'. Expected one of: ${Object.keys(expectedOutputTypes).join(", ")}`);
                     continue;
                   }
@@ -4716,10 +4268,7 @@ jobs:
               core.info(`Patch file ${hasPatch ? "exists" : "does not exist"} at: ${patchPath}`);
               let allowEmptyPR = false;
               if (safeOutputsConfig) {
-                if (
-                  safeOutputsConfig["create-pull-request"]?.["allow-empty"] === true ||
-                  safeOutputsConfig["create_pull_request"]?.["allow_empty"] === true
-                ) {
+                if (safeOutputsConfig["create-pull-request"]?.["allow-empty"] === true || safeOutputsConfig["create_pull_request"]?.["allow_empty"] === true) {
                   allowEmptyPR = true;
                   core.info(`allow-empty is enabled for create-pull-request`);
                 }
@@ -5082,24 +4631,7 @@ jobs:
                   "Custom Agents": [],
                   Other: [],
                 };
-                const builtinTools = [
-                  "bash",
-                  "write_bash",
-                  "read_bash",
-                  "stop_bash",
-                  "list_bash",
-                  "grep",
-                  "glob",
-                  "view",
-                  "create",
-                  "edit",
-                  "store_memory",
-                  "code_review",
-                  "codeql_checker",
-                  "report_progress",
-                  "report_intent",
-                  "gh-advisory-database",
-                ];
+                const builtinTools = ["bash", "write_bash", "read_bash", "stop_bash", "list_bash", "grep", "glob", "view", "create", "edit", "store_memory", "code_review", "codeql_checker", "report_progress", "report_intent", "gh-advisory-database"];
                 const internalTools = ["fetch_copilot_cli_documentation"];
                 for (const tool of initEntry.tools) {
                   const toolLower = tool.toLowerCase();
@@ -5495,9 +5027,7 @@ jobs:
                   const cacheCreationTokens = usage.cache_creation_input_tokens || 0;
                   const cacheReadTokens = usage.cache_read_input_tokens || 0;
                   const totalTokens = inputTokens + outputTokens + cacheCreationTokens + cacheReadTokens;
-                  lines.push(
-                    `  Tokens: ${totalTokens.toLocaleString()} total (${usage.input_tokens.toLocaleString()} in / ${usage.output_tokens.toLocaleString()} out)`
-                  );
+                  lines.push(`  Tokens: ${totalTokens.toLocaleString()} total (${usage.input_tokens.toLocaleString()} in / ${usage.output_tokens.toLocaleString()} out)`);
                 }
               }
               if (lastEntry?.total_cost_usd) {
@@ -5656,9 +5186,7 @@ jobs:
                   const cacheCreationTokens = usage.cache_creation_input_tokens || 0;
                   const cacheReadTokens = usage.cache_read_input_tokens || 0;
                   const totalTokens = inputTokens + outputTokens + cacheCreationTokens + cacheReadTokens;
-                  lines.push(
-                    `  Tokens: ${totalTokens.toLocaleString()} total (${usage.input_tokens.toLocaleString()} in / ${usage.output_tokens.toLocaleString()} out)`
-                  );
+                  lines.push(`  Tokens: ${totalTokens.toLocaleString()} total (${usage.input_tokens.toLocaleString()} in / ${usage.output_tokens.toLocaleString()} out)`);
                 }
               }
               if (lastEntry?.total_cost_usd) {
@@ -5992,9 +5520,7 @@ jobs:
                     }
                     lastIndex = regex.lastIndex;
                     if (iterationCount === ITERATION_WARNING_THRESHOLD) {
-                      core.warning(
-                        `High iteration count (${iterationCount}) on line ${lineIndex + 1} with pattern: ${pattern.description || pattern.pattern}`
-                      );
+                      core.warning(`High iteration count (${iterationCount}) on line ${lineIndex + 1} with pattern: ${pattern.description || pattern.pattern}`);
                       core.warning(`Line content (truncated): ${truncateString(line, 200)}`);
                     }
                     if (iterationCount > MAX_ITERATIONS_PER_LINE) {
@@ -6308,9 +5834,7 @@ jobs:
               core.setOutput("total_count", missingTools.length.toString());
               if (missingTools.length > 0) {
                 core.info("Missing tools summary:");
-                core.summary
-                  .addHeading("Missing Tools Report", 3)
-                  .addRaw(`Found **${missingTools.length}** missing tool${missingTools.length > 1 ? "s" : ""} in this workflow execution.\n\n`);
+                core.summary.addHeading("Missing Tools Report", 3).addRaw(`Found **${missingTools.length}** missing tool${missingTools.length > 1 ? "s" : ""} in this workflow execution.\n\n`);
                 missingTools.forEach((tool, index) => {
                   core.info(`${index + 1}. Tool: ${tool.tool}`);
                   core.info(`   Reason: ${tool.reason}`);
@@ -6443,9 +5967,7 @@ jobs:
               const messages = getMessages();
               const templateContext = toSnakeCase(ctx);
               const defaultMessage = "⚠️ Security scanning failed for [{workflow_name}]({run_url}). Review the logs for details.";
-              return messages?.detectionFailure
-                ? renderTemplate(messages.detectionFailure, templateContext)
-                : renderTemplate(defaultMessage, templateContext);
+              return messages?.detectionFailure ? renderTemplate(messages.detectionFailure, templateContext) : renderTemplate(defaultMessage, templateContext);
             }
             function collectGeneratedAssets() {
               const assets = [];
@@ -6679,10 +6201,7 @@ jobs:
             const crypto = require("crypto");
             async function updateActivationComment(github, context, core, itemUrl, itemNumber, itemType = "pull_request") {
               const itemLabel = itemType === "issue" ? "issue" : "pull request";
-              const linkMessage =
-                itemType === "issue"
-                  ? `\n\n✅ Issue created: [#${itemNumber}](${itemUrl})`
-                  : `\n\n✅ Pull request created: [#${itemNumber}](${itemUrl})`;
+              const linkMessage = itemType === "issue" ? `\n\n✅ Issue created: [#${itemNumber}](${itemUrl})` : `\n\n✅ Pull request created: [#${itemNumber}](${itemUrl})`;
               await updateActivationCommentWithMessage(github, context, core, linkMessage, itemLabel);
             }
             async function updateActivationCommentWithCommit(github, context, core, commitSha, commitUrl) {
@@ -6743,9 +6262,7 @@ jobs:
                     { commentId: commentId, body: updatedBody }
                   );
                   const comment = result.updateDiscussionComment.comment;
-                  const successMessage = label
-                    ? `Successfully updated discussion comment with ${label} link`
-                    : "Successfully updated discussion comment";
+                  const successMessage = label ? `Successfully updated discussion comment with ${label} link` : "Successfully updated discussion comment";
                   core.info(successMessage);
                   core.info(`Comment ID: ${comment.id}`);
                   core.info(`Comment URL: ${comment.url}`);
@@ -6836,9 +6353,7 @@ jobs:
                 preview = preview.slice(0, maxChars);
               }
               const truncated = lineTruncated || charTruncated;
-              const summary = truncated
-                ? `Show patch preview (${Math.min(maxLines, lines.length)} of ${lines.length} lines)`
-                : `Show patch (${lines.length} lines)`;
+              const summary = truncated ? `Show patch preview (${Math.min(maxLines, lines.length)} of ${lines.length} lines)` : `Show patch (${lines.length} lines)`;
               return `\n\n<details><summary>${summary}</summary>\n\n\`\`\`diff\n${preview}${truncated ? "\n... (truncated)" : ""}\n\`\`\`\n\n</details>`;
             }
             async function main() {
@@ -7027,9 +6542,7 @@ jobs:
               const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
               const runId = context.runId;
               const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
-              const runUrl = context.payload.repository
-                ? `${context.payload.repository.html_url}/actions/runs/${runId}`
-                : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
+              const runUrl = context.payload.repository ? `${context.payload.repository.html_url}/actions/runs/${runId}` : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
               const trackerIDComment = getTrackerID("markdown");
               if (trackerIDComment) {
                 bodyLines.push(trackerIDComment);
@@ -7088,9 +6601,7 @@ jobs:
                     core.info("Failed patch content:");
                     core.info(patchResult.stdout);
                   } catch (investigateError) {
-                    core.warning(
-                      `Failed to investigate patch failure: ${investigateError instanceof Error ? investigateError.message : String(investigateError)}`
-                    );
+                    core.warning(`Failed to investigate patch failure: ${investigateError instanceof Error ? investigateError.message : String(investigateError)}`);
                   }
                   core.setFailed("Failed to apply patch");
                   return;
@@ -7120,9 +6631,7 @@ jobs:
                   core.warning("Git push operation failed - creating fallback issue instead of pull request");
                   const runId = context.runId;
                   const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
-                  const runUrl = context.payload.repository
-                    ? `${context.payload.repository.html_url}/actions/runs/${runId}`
-                    : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
+                  const runUrl = context.payload.repository ? `${context.payload.repository.html_url}/actions/runs/${runId}` : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
                   let patchPreview = "";
                   if (fs.existsSync("/tmp/gh-aw/aw.patch")) {
                     const patchContent = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
@@ -7261,9 +6770,7 @@ jobs:
                 core.warning(`Failed to create pull request: ${prError instanceof Error ? prError.message : String(prError)}`);
                 core.info("Falling back to creating an issue instead");
                 const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
-                const branchUrl = context.payload.repository
-                  ? `${context.payload.repository.html_url}/tree/${branchName}`
-                  : `${githubServer}/${context.repo.owner}/${context.repo.repo}/tree/${branchName}`;
+                const branchUrl = context.payload.repository ? `${context.payload.repository.html_url}/tree/${branchName}` : `${githubServer}/${context.repo.owner}/${context.repo.repo}/tree/${branchName}`;
                 let patchPreview = "";
                 if (fs.existsSync("/tmp/gh-aw/aw.patch")) {
                   const patchContent = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
@@ -7300,9 +6807,7 @@ jobs:
                     )
                     .write();
                 } catch (issueError) {
-                  core.setFailed(
-                    `Failed to create both pull request and fallback issue. PR error: ${prError instanceof Error ? prError.message : String(prError)}. Issue error: ${issueError instanceof Error ? issueError.message : String(issueError)}`
-                  );
+                  core.setFailed(`Failed to create both pull request and fallback issue. PR error: ${prError instanceof Error ? prError.message : String(prError)}. Issue error: ${issueError instanceof Error ? issueError.message : String(issueError)}`);
                   return;
                 }
               }

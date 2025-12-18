@@ -3,14 +3,7 @@
 
 const { loadAgentOutput } = require("./load_agent_output.cjs");
 const { generateStagedPreview } = require("./staged_preview.cjs");
-const {
-  AGENT_LOGIN_NAMES,
-  getAvailableAgentLogins,
-  findAgent,
-  getIssueDetails,
-  assignAgentToIssue,
-  generatePermissionErrorSummary,
-} = require("./assign_agent_helpers.cjs");
+const { AGENT_LOGIN_NAMES, getAvailableAgentLogins, findAgent, getIssueDetails, assignAgentToIssue, generatePermissionErrorSummary } = require("./assign_agent_helpers.cjs");
 
 async function main() {
   const result = loadAgentOutput();
@@ -198,9 +191,7 @@ async function main() {
     }
 
     // Check if any failures were permission-related
-    const hasPermissionError = results.some(
-      r => !r.success && r.error && (r.error.includes("Resource not accessible") || r.error.includes("Insufficient permissions"))
-    );
+    const hasPermissionError = results.some(r => !r.success && r.error && (r.error.includes("Resource not accessible") || r.error.includes("Insufficient permissions")));
 
     if (hasPermissionError) {
       summaryContent += generatePermissionErrorSummary();

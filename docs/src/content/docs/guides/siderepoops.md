@@ -1,15 +1,28 @@
 ---
 title: SideRepoOps
-description: Use a separate repository to run agentic workflows that target your main codebase, minimizing noise and keeping workflows private
+description: The simple, no-friction way to get started with reporting agents - use a separate repository to run agentic workflows that target your main codebase
 sidebar:
-  badge: { text: 'Advanced', variant: 'caution' }
+  badge: { text: 'Recommended', variant: 'success' }
 ---
+
+:::tip[Recommended for Beginners]
+**SideRepoOps is the easiest way to get started with reporting agents.** It requires minimal setup, keeps your main repository clean, and lets you experiment safely without affecting production code. Perfect for trying out agentic workflows before integrating them directly into your main repository.
+:::
 
 SideRepoOps is a development pattern where you run agentic workflows from a separate "side" repository that targets your main codebase. This keeps AI-generated issues, comments, and workflow runs isolated from your main repository, providing cleaner separation between automation infrastructure and your production code.
 
 ## When to Use SideRepoOps
 
-Use SideRepoOps to reduce noise by keeping AI-generated issues separate from organic development, store sensitive workflows in a private repository, or manage automation for repositories you don't directly control. It's ideal for workflow experimentation and creating a centralized automation hub.
+**Getting Started**: SideRepoOps is ideal when you're new to agentic workflows and want a low-risk way to experiment. You can test automation without adding files to your main repository or worrying about breaking existing workflows.
+
+**Key Benefits**:
+- **Zero friction** - No changes needed to your main repository
+- **Clean separation** - AI-generated issues stay separate from organic development  
+- **Private workflows** - Store sensitive automation logic in a private repository
+- **Safe experimentation** - Perfect for testing and learning before production deployment
+- **Centralized automation** - Manage workflows for repositories you don't directly control
+
+Use SideRepoOps for workflow experimentation, creating a centralized automation hub, or managing automation for multiple repositories.
 
 ## How It Differs from MultiRepoOps
 
@@ -34,6 +47,10 @@ While [MultiRepoOps](/gh-aw/guides/multirepoops/) runs workflows **from** your m
 ```
 
 In SideRepoOps, workflows run in GitHub Actions **on the side repository** but perform operations (create issues, PRs, comments) **on the main repository** using cross-repository authentication.
+
+:::tip[Testing with TrialOps]
+Before deploying SideRepoOps workflows to production, use [TrialOps](/gh-aw/guides/trialops/) to test them in isolated trial repositories. This lets you validate behavior and iterate on prompts without creating real issues in your repositories.
+:::
 
 ## Setup Requirements
 

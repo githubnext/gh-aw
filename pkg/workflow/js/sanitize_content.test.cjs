@@ -211,37 +211,7 @@ describe("sanitize_content.cjs", () => {
     });
 
     it("should preserve allowed safe tags", () => {
-      const allowedTags = [
-        "b",
-        "blockquote",
-        "br",
-        "code",
-        "details",
-        "em",
-        "h1",
-        "h2",
-        "h3",
-        "h4",
-        "h5",
-        "h6",
-        "hr",
-        "i",
-        "li",
-        "ol",
-        "p",
-        "pre",
-        "strong",
-        "sub",
-        "summary",
-        "sup",
-        "table",
-        "tbody",
-        "td",
-        "th",
-        "thead",
-        "tr",
-        "ul",
-      ];
+      const allowedTags = ["b", "blockquote", "br", "code", "details", "em", "h1", "h2", "h3", "h4", "h5", "h6", "hr", "i", "li", "ol", "p", "pre", "strong", "sub", "summary", "sup", "table", "tbody", "td", "th", "thead", "tr", "ul"];
       allowedTags.forEach(tag => {
         const result = sanitizeContent(`<${tag}>content</${tag}>`);
         expect(result).toBe(`<${tag}>content</${tag}>`);
@@ -419,12 +389,7 @@ describe("sanitize_content.cjs", () => {
 
   describe("URL domain filtering", () => {
     it("should allow default GitHub domains", () => {
-      const urls = [
-        "https://github.com/repo",
-        "https://api.github.com/endpoint",
-        "https://raw.githubusercontent.com/file",
-        "https://example.github.io/page",
-      ];
+      const urls = ["https://github.com/repo", "https://api.github.com/endpoint", "https://raw.githubusercontent.com/file", "https://example.github.io/page"];
 
       urls.forEach(url => {
         const result = sanitizeContent(`Visit ${url}`);
@@ -549,12 +514,7 @@ describe("sanitize_content.cjs", () => {
     });
 
     it("should handle malicious XSS attempts", () => {
-      const maliciousInputs = [
-        '<img src=x onerror="alert(1)">',
-        "javascript:alert(document.cookie)",
-        '<svg onload="alert(1)">',
-        "data:text/html,<script>alert(1)</script>",
-      ];
+      const maliciousInputs = ['<img src=x onerror="alert(1)">', "javascript:alert(document.cookie)", '<svg onload="alert(1)">', "data:text/html,<script>alert(1)</script>"];
 
       maliciousInputs.forEach(input => {
         const result = sanitizeContent(input);

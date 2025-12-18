@@ -19,98 +19,11 @@
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/aw/github-agentic-workflows.md
 #
-#
 # Create an empty pull request for agent to push changes to
-#
-# Original Frontmatter:
-# ```yaml
-# on: 
-#   workflow_dispatch:
-# name: Dev
-# description: Create an empty pull request for agent to push changes to
-# timeout-minutes: 5
-# strict: false
-# engine: copilot
-#
-# permissions:
-#   contents: read
-#   pull-requests: read
-#
-# tools:
-#   github: false
-#   edit:
-#   bash: ["*"]
-# imports:
-#   - shared/gh.md
-# safe-outputs:
-#   create-pull-request:
-#     allow-empty: true
-# steps:
-#   - name: Download issues data
-#     run: |
-#       gh pr list --limit 1 --json number,title,body,author,createdAt,mergedAt,state,url
-#     env:
-#       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-# ```
 #
 # Resolved workflow manifest:
 #   Imports:
 #     - shared/gh.md
-#
-# Job Dependency Graph:
-# ```mermaid
-# graph LR
-#   activation["activation"]
-#   agent["agent"]
-#   conclusion["conclusion"]
-#   create_pull_request["create_pull_request"]
-#   detection["detection"]
-#   activation --> agent
-#   activation --> conclusion
-#   activation --> create_pull_request
-#   agent --> conclusion
-#   agent --> create_pull_request
-#   agent --> detection
-#   create_pull_request --> conclusion
-#   detection --> conclusion
-#   detection --> create_pull_request
-# ```
-#
-# Original Prompt:
-# ```markdown
-# **IMPORTANT**: Always use the `safeinputs-gh` tool for GitHub CLI commands instead of running `gh` directly via bash. The `safeinputs-gh` tool has proper authentication configured with `GITHUB_TOKEN`, while bash commands do not have GitHub CLI authentication by default.
-#
-# **Correct**:
-# ```
-# Use the safeinputs-gh tool with args: "pr list --limit 5"
-# Use the safeinputs-gh tool with args: "issue view 123"
-# ```
-#
-# **Incorrect**:
-# ```
-# Use the gh safe-input tool with args: "pr list --limit 5"  ❌ (Wrong tool name - use safeinputs-gh)
-# Run: gh pr list --limit 5  ❌ (No authentication in bash)
-# Execute bash: gh issue view 123  ❌ (No authentication in bash)
-# ```
-#
-#
-#
-# Create an empty pull request that prepares a branch for future changes.
-# The pull request should have:
-# - Title: "Feature: Prepare branch for agent updates"
-# - Body: "This is an empty pull request created to prepare a feature branch that an agent can push changes to later."
-# - Branch name: "feature/agent-updates"
-# ```
-#
-# Pinned GitHub Actions:
-#   - actions/checkout@v5 (93cb6efe18208431cddfb8368fd83d5badbf9bfd)
-#     https://github.com/actions/checkout/commit/93cb6efe18208431cddfb8368fd83d5badbf9bfd
-#   - actions/download-artifact@v6 (018cc2cf5baa6db3ef3c5f8a56943fffe632ef53)
-#     https://github.com/actions/download-artifact/commit/018cc2cf5baa6db3ef3c5f8a56943fffe632ef53
-#   - actions/github-script@v8 (ed597411d8f924073f98dfc5c65a23a2325f34cd)
-#     https://github.com/actions/github-script/commit/ed597411d8f924073f98dfc5c65a23a2325f34cd
-#   - actions/upload-artifact@v5 (330a01c490aca151604b8cf639adc76d48f6c5d4)
-#     https://github.com/actions/upload-artifact/commit/330a01c490aca151604b8cf639adc76d48f6c5d4
 
 name: "Dev"
 "on":
@@ -202,9 +115,7 @@ jobs:
                   .addRaw("**Files:**\n")
                   .addRaw(`- Source: \`${workflowMdPath}\`\n`)
                   .addRaw(`  - Last commit: ${workflowTimestamp}\n`)
-                  .addRaw(
-                    `  - Commit SHA: [\`${workflowCommit.sha.substring(0, 7)}\`](https://github.com/${owner}/${repo}/commit/${workflowCommit.sha})\n`
-                  )
+                  .addRaw(`  - Commit SHA: [\`${workflowCommit.sha.substring(0, 7)}\`](https://github.com/${owner}/${repo}/commit/${workflowCommit.sha})\n`)
                   .addRaw(`- Lock: \`${lockFilePath}\`\n`)
                   .addRaw(`  - Last commit: ${lockTimestamp}\n`)
                   .addRaw(`  - Commit SHA: [\`${lockCommit.sha.substring(0, 7)}\`](https://github.com/${owner}/${repo}/commit/${lockCommit.sha})\n\n`)
@@ -683,9 +594,7 @@ jobs:
                 server.debug(`  [${toolName}] Python handler args: ${JSON.stringify(args)}`);
                 server.debug(`  [${toolName}] Timeout: ${timeoutSeconds}s`);
                 const inputJson = JSON.stringify(args || {});
-                server.debug(
-                  `  [${toolName}] Input JSON (${inputJson.length} bytes): ${inputJson.substring(0, 200)}${inputJson.length > 200 ? "..." : ""}`
-                );
+                server.debug(`  [${toolName}] Input JSON (${inputJson.length} bytes): ${inputJson.substring(0, 200)}${inputJson.length > 200 ? "..." : ""}`);
                 return new Promise((resolve, reject) => {
                   server.debug(`  [${toolName}] Executing Python script...`);
                   const child = execFile(
@@ -793,9 +702,7 @@ jobs:
                       try {
                         if (fs.existsSync(outputFile)) {
                           const outputContent = fs.readFileSync(outputFile, "utf-8");
-                          server.debug(
-                            `  [${toolName}] Output file content: ${outputContent.substring(0, 500)}${outputContent.length > 500 ? "..." : ""}`
-                          );
+                          server.debug(`  [${toolName}] Output file content: ${outputContent.substring(0, 500)}${outputContent.length > 500 ? "..." : ""}`);
                           const lines = outputContent.split("\n");
                           for (const line of lines) {
                             const trimmed = line.trim();
@@ -853,10 +760,7 @@ jobs:
                   fs.mkdirSync(server.logDir, { recursive: true });
                 }
                 const timestamp = new Date().toISOString();
-                fs.writeFileSync(
-                  server.logFilePath,
-                  `# ${server.serverInfo.name} MCP Server Log\n# Started: ${timestamp}\n# Version: ${server.serverInfo.version}\n\n`
-                );
+                fs.writeFileSync(server.logFilePath, `# ${server.serverInfo.name} MCP Server Log\n# Started: ${timestamp}\n# Version: ${server.serverInfo.version}\n\n`);
                 server.logFileInitialized = true;
               } catch {
               }
@@ -1516,10 +1420,7 @@ jobs:
                 const isInWorkspace = absolutePath.startsWith(path.resolve(workspaceDir));
                 const isInTmp = absolutePath.startsWith(tmpDir);
                 if (!isInWorkspace && !isInTmp) {
-                  throw new Error(
-                    `File path must be within workspace directory (${workspaceDir}) or /tmp directory. ` +
-                      `Provided path: ${filePath} (resolved to: ${absolutePath})`
-                  );
+                  throw new Error(`File path must be within workspace directory (${workspaceDir}) or /tmp directory. ` + `Provided path: ${filePath} (resolved to: ${absolutePath})`);
                 }
                 if (!fs.existsSync(filePath)) {
                   throw new Error(`File not found: ${filePath}`);
@@ -1778,10 +1679,7 @@ jobs:
                       };
                       const entryJSON = JSON.stringify(entry);
                       fs.appendFileSync(outputFile, entryJSON + "\n");
-                      const outputText =
-                        jobConfig && jobConfig.output
-                          ? jobConfig.output
-                          : `Safe-job '${configKey}' executed successfully with arguments: ${JSON.stringify(args)}`;
+                      const outputText = jobConfig && jobConfig.output ? jobConfig.output : `Safe-job '${configKey}' executed successfully with arguments: ${JSON.stringify(args)}`;
                       return {
                         content: [
                           {
@@ -1907,10 +1805,7 @@ jobs:
                   fs.mkdirSync(server.logDir, { recursive: true });
                 }
                 const timestamp = new Date().toISOString();
-                fs.writeFileSync(
-                  server.logFilePath,
-                  `# ${server.serverInfo.name} MCP Server Log\n# Started: ${timestamp}\n# Version: ${server.serverInfo.version}\n\n`
-                );
+                fs.writeFileSync(server.logFilePath, `# ${server.serverInfo.name} MCP Server Log\n# Started: ${timestamp}\n# Version: ${server.serverInfo.version}\n\n`);
                 server.logFileInitialized = true;
               } catch {
               }
@@ -2622,9 +2517,7 @@ jobs:
                       try {
                         if (fs.existsSync(outputFile)) {
                           const outputContent = fs.readFileSync(outputFile, "utf-8");
-                          server.debug(
-                            `  [${toolName}] Output file content: ${outputContent.substring(0, 500)}${outputContent.length > 500 ? "..." : ""}`
-                          );
+                          server.debug(`  [${toolName}] Output file content: ${outputContent.substring(0, 500)}${outputContent.length > 500 ? "..." : ""}`);
                           const lines = outputContent.split("\n");
                           for (const line of lines) {
                             const trimmed = line.trim();
@@ -2677,9 +2570,7 @@ jobs:
                 server.debug(`  [${toolName}] Python handler args: ${JSON.stringify(args)}`);
                 server.debug(`  [${toolName}] Timeout: ${timeoutSeconds}s`);
                 const inputJson = JSON.stringify(args || {});
-                server.debug(
-                  `  [${toolName}] Input JSON (${inputJson.length} bytes): ${inputJson.substring(0, 200)}${inputJson.length > 200 ? "..." : ""}`
-                );
+                server.debug(`  [${toolName}] Input JSON (${inputJson.length} bytes): ${inputJson.substring(0, 200)}${inputJson.length > 200 ? "..." : ""}`);
                 return new Promise((resolve, reject) => {
                   server.debug(`  [${toolName}] Executing Python script...`);
                   const child = execFile(
@@ -3705,36 +3596,33 @@ jobs:
                 });
               }
               function sanitizeUrlProtocols(s) {
-                return s.replace(
-                  /((?:http|ftp|file|ssh|git):\/\/([\w.-]*)(?:[^\s]*)|(?:data|javascript|vbscript|about|mailto|tel):[^\s]+)/gi,
-                  (match, _fullMatch, domain) => {
-                    if (domain) {
-                      const domainLower = domain.toLowerCase();
-                      const truncated = domainLower.length > 12 ? domainLower.substring(0, 12) + "..." : domainLower;
+                return s.replace(/((?:http|ftp|file|ssh|git):\/\/([\w.-]*)(?:[^\s]*)|(?:data|javascript|vbscript|about|mailto|tel):[^\s]+)/gi, (match, _fullMatch, domain) => {
+                  if (domain) {
+                    const domainLower = domain.toLowerCase();
+                    const truncated = domainLower.length > 12 ? domainLower.substring(0, 12) + "..." : domainLower;
+                    if (typeof core !== "undefined" && core.info) {
+                      core.info(`Redacted URL: ${truncated}`);
+                    }
+                    if (typeof core !== "undefined" && core.debug) {
+                      core.debug(`Redacted URL (full): ${match}`);
+                    }
+                    addRedactedDomain(domainLower);
+                  } else {
+                    const protocolMatch = match.match(/^([^:]+):/);
+                    if (protocolMatch) {
+                      const protocol = protocolMatch[1] + ":";
+                      const truncated = match.length > 12 ? match.substring(0, 12) + "..." : match;
                       if (typeof core !== "undefined" && core.info) {
                         core.info(`Redacted URL: ${truncated}`);
                       }
                       if (typeof core !== "undefined" && core.debug) {
                         core.debug(`Redacted URL (full): ${match}`);
                       }
-                      addRedactedDomain(domainLower);
-                    } else {
-                      const protocolMatch = match.match(/^([^:]+):/);
-                      if (protocolMatch) {
-                        const protocol = protocolMatch[1] + ":";
-                        const truncated = match.length > 12 ? match.substring(0, 12) + "..." : match;
-                        if (typeof core !== "undefined" && core.info) {
-                          core.info(`Redacted URL: ${truncated}`);
-                        }
-                        if (typeof core !== "undefined" && core.debug) {
-                          core.debug(`Redacted URL (full): ${match}`);
-                        }
-                        addRedactedDomain(protocol);
-                      }
+                      addRedactedDomain(protocol);
                     }
-                    return "(redacted)";
                   }
-                );
+                  return "(redacted)";
+                });
               }
               function neutralizeCommands(s) {
                 const commandName = process.env.GH_AW_COMMAND;
@@ -3756,37 +3644,7 @@ jobs:
                 return s.replace(/<!--[\s\S]*?-->/g, "").replace(/<!--[\s\S]*?--!>/g, "");
               }
               function convertXmlTags(s) {
-                const allowedTags = [
-                  "b",
-                  "blockquote",
-                  "br",
-                  "code",
-                  "details",
-                  "em",
-                  "h1",
-                  "h2",
-                  "h3",
-                  "h4",
-                  "h5",
-                  "h6",
-                  "hr",
-                  "i",
-                  "li",
-                  "ol",
-                  "p",
-                  "pre",
-                  "strong",
-                  "sub",
-                  "summary",
-                  "sup",
-                  "table",
-                  "tbody",
-                  "td",
-                  "th",
-                  "thead",
-                  "tr",
-                  "ul",
-                ];
+                const allowedTags = ["b", "blockquote", "br", "code", "details", "em", "h1", "h2", "h3", "h4", "h5", "h6", "hr", "i", "li", "ol", "p", "pre", "strong", "sub", "summary", "sup", "table", "tbody", "td", "th", "thead", "tr", "ul"];
                 s = s.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, (match, content) => {
                   const convertedContent = content.replace(/<(\/?[A-Za-z][A-Za-z0-9]*(?:[^>]*?))>/g, "($1)");
                   return `(![CDATA[${convertedContent}]])`;
@@ -3898,36 +3756,33 @@ jobs:
                 return result;
               }
               function sanitizeUrlProtocols(s) {
-                return s.replace(
-                  /\b((?:http|ftp|file|ssh|git):\/\/([\w.-]+)(?:[^\s]*)|(?:data|javascript|vbscript|about|mailto|tel):[^\s]+)/gi,
-                  (match, _fullMatch, domain) => {
-                    if (domain) {
-                      const domainLower = domain.toLowerCase();
-                      const truncated = domainLower.length > 12 ? domainLower.substring(0, 12) + "..." : domainLower;
+                return s.replace(/\b((?:http|ftp|file|ssh|git):\/\/([\w.-]+)(?:[^\s]*)|(?:data|javascript|vbscript|about|mailto|tel):[^\s]+)/gi, (match, _fullMatch, domain) => {
+                  if (domain) {
+                    const domainLower = domain.toLowerCase();
+                    const truncated = domainLower.length > 12 ? domainLower.substring(0, 12) + "..." : domainLower;
+                    if (typeof core !== "undefined" && core.info) {
+                      core.info(`Redacted URL: ${truncated}`);
+                    }
+                    if (typeof core !== "undefined" && core.debug) {
+                      core.debug(`Redacted URL (full): ${match}`);
+                    }
+                    addRedactedDomain(domainLower);
+                  } else {
+                    const protocolMatch = match.match(/^([^:]+):/);
+                    if (protocolMatch) {
+                      const protocol = protocolMatch[1] + ":";
+                      const truncated = match.length > 12 ? match.substring(0, 12) + "..." : match;
                       if (typeof core !== "undefined" && core.info) {
                         core.info(`Redacted URL: ${truncated}`);
                       }
                       if (typeof core !== "undefined" && core.debug) {
                         core.debug(`Redacted URL (full): ${match}`);
                       }
-                      addRedactedDomain(domainLower);
-                    } else {
-                      const protocolMatch = match.match(/^([^:]+):/);
-                      if (protocolMatch) {
-                        const protocol = protocolMatch[1] + ":";
-                        const truncated = match.length > 12 ? match.substring(0, 12) + "..." : match;
-                        if (typeof core !== "undefined" && core.info) {
-                          core.info(`Redacted URL: ${truncated}`);
-                        }
-                        if (typeof core !== "undefined" && core.debug) {
-                          core.debug(`Redacted URL (full): ${match}`);
-                        }
-                        addRedactedDomain(protocol);
-                      }
+                      addRedactedDomain(protocol);
                     }
-                    return "(redacted)";
                   }
-                );
+                  return "(redacted)";
+                });
               }
               function neutralizeCommands(s) {
                 const commandName = process.env.GH_AW_COMMAND;
@@ -3953,37 +3808,7 @@ jobs:
                 return s.replace(/<!--[\s\S]*?-->/g, "").replace(/<!--[\s\S]*?--!>/g, "");
               }
               function convertXmlTags(s) {
-                const allowedTags = [
-                  "b",
-                  "blockquote",
-                  "br",
-                  "code",
-                  "details",
-                  "em",
-                  "h1",
-                  "h2",
-                  "h3",
-                  "h4",
-                  "h5",
-                  "h6",
-                  "hr",
-                  "i",
-                  "li",
-                  "ol",
-                  "p",
-                  "pre",
-                  "strong",
-                  "sub",
-                  "summary",
-                  "sup",
-                  "table",
-                  "tbody",
-                  "td",
-                  "th",
-                  "thead",
-                  "tr",
-                  "ul",
-                ];
+                const allowedTags = ["b", "blockquote", "br", "code", "details", "em", "h1", "h2", "h3", "h4", "h5", "h6", "hr", "i", "li", "ol", "p", "pre", "strong", "sub", "summary", "sup", "table", "tbody", "td", "th", "thead", "tr", "ul"];
                 s = s.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, (match, content) => {
                   const convertedContent = content.replace(/<(\/?[A-Za-z][A-Za-z0-9]*(?:[^>]*?))>/g, "($1)");
                   return `(![CDATA[${convertedContent}]])`;
@@ -4675,9 +4500,7 @@ jobs:
                   core.info(`Loaded validation config from ${validationConfigPath}`);
                 }
               } catch (error) {
-                core.warning(
-                  `Failed to read validation config from ${validationConfigPath}: ${error instanceof Error ? error.message : String(error)}`
-                );
+                core.warning(`Failed to read validation config from ${validationConfigPath}: ${error instanceof Error ? error.message : String(error)}`);
               }
               const mentionsConfig = validationConfig?.mentions || null;
               const allowedMentions = await resolveAllowedMentionsFromPayload(context, github, core, mentionsConfig);
@@ -4890,9 +4713,7 @@ jobs:
                   core.info(`[INGESTION] Line ${i + 1}: Original type='${originalType}', Normalized type='${itemType}'`);
                   item.type = itemType;
                   if (!expectedOutputTypes[itemType]) {
-                    core.warning(
-                      `[INGESTION] Line ${i + 1}: Type '${itemType}' not found in expected types: ${JSON.stringify(Object.keys(expectedOutputTypes))}`
-                    );
+                    core.warning(`[INGESTION] Line ${i + 1}: Type '${itemType}' not found in expected types: ${JSON.stringify(Object.keys(expectedOutputTypes))}`);
                     errors.push(`Line ${i + 1}: Unexpected output type '${itemType}'. Expected one of: ${Object.keys(expectedOutputTypes).join(", ")}`);
                     continue;
                   }
@@ -4974,10 +4795,7 @@ jobs:
               core.info(`Patch file ${hasPatch ? "exists" : "does not exist"} at: ${patchPath}`);
               let allowEmptyPR = false;
               if (safeOutputsConfig) {
-                if (
-                  safeOutputsConfig["create-pull-request"]?.["allow-empty"] === true ||
-                  safeOutputsConfig["create_pull_request"]?.["allow_empty"] === true
-                ) {
+                if (safeOutputsConfig["create-pull-request"]?.["allow-empty"] === true || safeOutputsConfig["create_pull_request"]?.["allow_empty"] === true) {
                   allowEmptyPR = true;
                   core.info(`allow-empty is enabled for create-pull-request`);
                 }
@@ -5355,24 +5173,7 @@ jobs:
                   "Custom Agents": [],
                   Other: [],
                 };
-                const builtinTools = [
-                  "bash",
-                  "write_bash",
-                  "read_bash",
-                  "stop_bash",
-                  "list_bash",
-                  "grep",
-                  "glob",
-                  "view",
-                  "create",
-                  "edit",
-                  "store_memory",
-                  "code_review",
-                  "codeql_checker",
-                  "report_progress",
-                  "report_intent",
-                  "gh-advisory-database",
-                ];
+                const builtinTools = ["bash", "write_bash", "read_bash", "stop_bash", "list_bash", "grep", "glob", "view", "create", "edit", "store_memory", "code_review", "codeql_checker", "report_progress", "report_intent", "gh-advisory-database"];
                 const internalTools = ["fetch_copilot_cli_documentation"];
                 for (const tool of initEntry.tools) {
                   const toolLower = tool.toLowerCase();
@@ -5768,9 +5569,7 @@ jobs:
                   const cacheCreationTokens = usage.cache_creation_input_tokens || 0;
                   const cacheReadTokens = usage.cache_read_input_tokens || 0;
                   const totalTokens = inputTokens + outputTokens + cacheCreationTokens + cacheReadTokens;
-                  lines.push(
-                    `  Tokens: ${totalTokens.toLocaleString()} total (${usage.input_tokens.toLocaleString()} in / ${usage.output_tokens.toLocaleString()} out)`
-                  );
+                  lines.push(`  Tokens: ${totalTokens.toLocaleString()} total (${usage.input_tokens.toLocaleString()} in / ${usage.output_tokens.toLocaleString()} out)`);
                 }
               }
               if (lastEntry?.total_cost_usd) {
@@ -5929,9 +5728,7 @@ jobs:
                   const cacheCreationTokens = usage.cache_creation_input_tokens || 0;
                   const cacheReadTokens = usage.cache_read_input_tokens || 0;
                   const totalTokens = inputTokens + outputTokens + cacheCreationTokens + cacheReadTokens;
-                  lines.push(
-                    `  Tokens: ${totalTokens.toLocaleString()} total (${usage.input_tokens.toLocaleString()} in / ${usage.output_tokens.toLocaleString()} out)`
-                  );
+                  lines.push(`  Tokens: ${totalTokens.toLocaleString()} total (${usage.input_tokens.toLocaleString()} in / ${usage.output_tokens.toLocaleString()} out)`);
                 }
               }
               if (lastEntry?.total_cost_usd) {
@@ -6032,11 +5829,7 @@ jobs:
               });
             }
             function extractPremiumRequestCount(logContent) {
-              const patterns = [
-                /premium\s+requests?\s+consumed:?\s*(\d+)/i,
-                /(\d+)\s+premium\s+requests?\s+consumed/i,
-                /consumed\s+(\d+)\s+premium\s+requests?/i,
-              ];
+              const patterns = [/premium\s+requests?\s+consumed:?\s*(\d+)/i, /(\d+)\s+premium\s+requests?\s+consumed/i, /consumed\s+(\d+)\s+premium\s+requests?/i];
               for (const pattern of patterns) {
                 const match = logContent.match(pattern);
                 if (match && match[1]) {
@@ -6108,8 +5901,7 @@ jobs:
                 const initEntry = logEntries.find(entry => entry.type === "system" && entry.subtype === "init");
                 markdown += generateInformationSection(lastEntry, {
                   additionalInfoCallback: entry => {
-                    const isPremiumModel =
-                      initEntry && initEntry.model_info && initEntry.model_info.billing && initEntry.model_info.billing.is_premium === true;
+                    const isPremiumModel = initEntry && initEntry.model_info && initEntry.model_info.billing && initEntry.model_info.billing.is_premium === true;
                     if (isPremiumModel) {
                       const premiumRequestCount = extractPremiumRequestCount(logContent);
                       return `**Premium Requests Consumed:** ${premiumRequestCount}\n\n`;
@@ -6536,299 +6328,151 @@ jobs:
         with:
           script: |
             function sanitizeWorkflowName(name) {
-
               return name
-
                 .toLowerCase()
-
                 .replace(/[:\\/\s]/g, "-")
-
                 .replace(/[^a-z0-9._-]/g, "-");
-
             }
-
             function main() {
-
               const fs = require("fs");
-
               const path = require("path");
-
               try {
-
                 const squidLogsDir = `/tmp/gh-aw/sandbox/firewall/logs/`;
-
                 if (!fs.existsSync(squidLogsDir)) {
-
                   core.info(`No firewall logs directory found at: ${squidLogsDir}`);
-
                   return;
-
                 }
-
                 const files = fs.readdirSync(squidLogsDir).filter(file => file.endsWith(".log"));
-
                 if (files.length === 0) {
-
                   core.info(`No firewall log files found in: ${squidLogsDir}`);
-
                   return;
-
                 }
-
                 core.info(`Found ${files.length} firewall log file(s)`);
-
                 let totalRequests = 0;
-
                 let allowedRequests = 0;
-
                 let deniedRequests = 0;
-
                 const allowedDomains = new Set();
-
                 const deniedDomains = new Set();
-
                 const requestsByDomain = new Map();
-
                 for (const file of files) {
-
                   const filePath = path.join(squidLogsDir, file);
-
                   core.info(`Parsing firewall log: ${file}`);
-
                   const content = fs.readFileSync(filePath, "utf8");
-
                   const lines = content.split("\n").filter(line => line.trim());
-
                   for (const line of lines) {
-
                     const entry = parseFirewallLogLine(line);
-
                     if (!entry) {
-
                       continue;
-
                     }
-
                     totalRequests++;
-
                     const isAllowed = isRequestAllowed(entry.decision, entry.status);
-
                     if (isAllowed) {
-
                       allowedRequests++;
-
                       allowedDomains.add(entry.domain);
-
                     } else {
-
                       deniedRequests++;
-
                       deniedDomains.add(entry.domain);
-
                     }
-
                     if (!requestsByDomain.has(entry.domain)) {
-
                       requestsByDomain.set(entry.domain, { allowed: 0, denied: 0 });
-
                     }
-
                     const domainStats = requestsByDomain.get(entry.domain);
-
                     if (isAllowed) {
-
                       domainStats.allowed++;
-
                     } else {
-
                       domainStats.denied++;
-
                     }
-
                   }
-
                 }
-
                 const summary = generateFirewallSummary({
-
                   totalRequests,
-
                   allowedRequests,
-
                   deniedRequests,
-
                   allowedDomains: Array.from(allowedDomains).sort(),
-
                   deniedDomains: Array.from(deniedDomains).sort(),
-
                   requestsByDomain,
-
                 });
-
                 core.summary.addRaw(summary).write();
-
                 core.info("Firewall log summary generated successfully");
-
               } catch (error) {
-
                 core.setFailed(error instanceof Error ? error : String(error));
-
               }
-
             }
-
             function parseFirewallLogLine(line) {
-
               const trimmed = line.trim();
-
               if (!trimmed || trimmed.startsWith("#")) {
-
                 return null;
-
               }
-
               const fields = trimmed.match(/(?:[^\s"]+|"[^"]*")+/g);
-
               if (!fields || fields.length < 10) {
-
                 return null;
-
               }
-
               const timestamp = fields[0];
-
               if (!/^\d+(\.\d+)?$/.test(timestamp)) {
-
                 return null;
-
               }
-
               return {
-
                 timestamp,
-
                 clientIpPort: fields[1],
-
                 domain: fields[2],
-
                 destIpPort: fields[3],
-
                 proto: fields[4],
-
                 method: fields[5],
-
                 status: fields[6],
-
                 decision: fields[7],
-
                 url: fields[8],
-
                 userAgent: fields[9]?.replace(/^"|"$/g, "") || "-",
-
               };
-
             }
-
             function isRequestAllowed(decision, status) {
-
               const statusCode = parseInt(status, 10);
-
               if (statusCode === 200 || statusCode === 206 || statusCode === 304) {
-
                 return true;
-
               }
-
               if (decision.includes("TCP_TUNNEL") || decision.includes("TCP_HIT") || decision.includes("TCP_MISS")) {
-
                 return true;
-
               }
-
               if (decision.includes("NONE_NONE") || decision.includes("TCP_DENIED") || statusCode === 403 || statusCode === 407) {
-
                 return false;
-
               }
-
               return false;
-
             }
-
             function generateFirewallSummary(analysis) {
-
               const { totalRequests, requestsByDomain } = analysis;
-
               const validDomains = Array.from(requestsByDomain.keys())
-
                 .filter(domain => domain !== "-")
-
                 .sort();
-
               const uniqueDomainCount = validDomains.length;
-
               let validAllowedRequests = 0;
-
               let validDeniedRequests = 0;
-
               for (const domain of validDomains) {
-
                 const stats = requestsByDomain.get(domain);
-
                 validAllowedRequests += stats.allowed;
-
                 validDeniedRequests += stats.denied;
-
               }
-
               let summary = "### 🔥 Firewall Activity\n\n";
-
               summary += "<details>\n";
-
               summary += `<summary>📊 ${totalRequests} request${totalRequests !== 1 ? "s" : ""} | `;
-
               summary += `${validAllowedRequests} allowed | `;
-
               summary += `${validDeniedRequests} blocked | `;
-
               summary += `${uniqueDomainCount} unique domain${uniqueDomainCount !== 1 ? "s" : ""}</summary>\n\n`;
-
               if (uniqueDomainCount > 0) {
-
                 summary += "| Domain | Allowed | Denied |\n";
-
                 summary += "|--------|---------|--------|\n";
-
                 for (const domain of validDomains) {
-
                   const stats = requestsByDomain.get(domain);
-
                   summary += `| ${domain} | ${stats.allowed} | ${stats.denied} |\n`;
-
                 }
-
               } else {
-
                 summary += "No firewall activity detected.\n";
-
               }
-
               summary += "\n</details>\n\n";
-
               return summary;
-
             }
-
-            const isDirectExecution =
-
-              typeof module === "undefined" || (typeof require !== "undefined" && typeof require.main !== "undefined" && require.main === module);
-
+            const isDirectExecution = typeof module === "undefined" || (typeof require !== "undefined" && typeof require.main !== "undefined" && require.main === module);
             if (isDirectExecution) {
-
               main();
-
             }
-
       - name: Upload Agent Stdio
         if: always()
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
@@ -6983,9 +6627,7 @@ jobs:
                     }
                     lastIndex = regex.lastIndex;
                     if (iterationCount === ITERATION_WARNING_THRESHOLD) {
-                      core.warning(
-                        `High iteration count (${iterationCount}) on line ${lineIndex + 1} with pattern: ${pattern.description || pattern.pattern}`
-                      );
+                      core.warning(`High iteration count (${iterationCount}) on line ${lineIndex + 1} with pattern: ${pattern.description || pattern.pattern}`);
                       core.warning(`Line content (truncated): ${truncateString(line, 200)}`);
                     }
                     if (iterationCount > MAX_ITERATIONS_PER_LINE) {
@@ -7298,9 +6940,7 @@ jobs:
               core.setOutput("total_count", missingTools.length.toString());
               if (missingTools.length > 0) {
                 core.info("Missing tools summary:");
-                core.summary
-                  .addHeading("Missing Tools Report", 3)
-                  .addRaw(`Found **${missingTools.length}** missing tool${missingTools.length > 1 ? "s" : ""} in this workflow execution.\n\n`);
+                core.summary.addHeading("Missing Tools Report", 3).addRaw(`Found **${missingTools.length}** missing tool${missingTools.length > 1 ? "s" : ""} in this workflow execution.\n\n`);
                 missingTools.forEach((tool, index) => {
                   core.info(`${index + 1}. Tool: ${tool.tool}`);
                   core.info(`   Reason: ${tool.reason}`);
@@ -7433,9 +7073,7 @@ jobs:
               const messages = getMessages();
               const templateContext = toSnakeCase(ctx);
               const defaultMessage = "⚠️ Security scanning failed for [{workflow_name}]({run_url}). Review the logs for details.";
-              return messages?.detectionFailure
-                ? renderTemplate(messages.detectionFailure, templateContext)
-                : renderTemplate(defaultMessage, templateContext);
+              return messages?.detectionFailure ? renderTemplate(messages.detectionFailure, templateContext) : renderTemplate(defaultMessage, templateContext);
             }
             function collectGeneratedAssets() {
               const assets = [];
@@ -7667,10 +7305,7 @@ jobs:
             const crypto = require("crypto");
             async function updateActivationComment(github, context, core, itemUrl, itemNumber, itemType = "pull_request") {
               const itemLabel = itemType === "issue" ? "issue" : "pull request";
-              const linkMessage =
-                itemType === "issue"
-                  ? `\n\n✅ Issue created: [#${itemNumber}](${itemUrl})`
-                  : `\n\n✅ Pull request created: [#${itemNumber}](${itemUrl})`;
+              const linkMessage = itemType === "issue" ? `\n\n✅ Issue created: [#${itemNumber}](${itemUrl})` : `\n\n✅ Pull request created: [#${itemNumber}](${itemUrl})`;
               await updateActivationCommentWithMessage(github, context, core, linkMessage, itemLabel);
             }
             async function updateActivationCommentWithCommit(github, context, core, commitSha, commitUrl) {
@@ -7731,9 +7366,7 @@ jobs:
                     { commentId: commentId, body: updatedBody }
                   );
                   const comment = result.updateDiscussionComment.comment;
-                  const successMessage = label
-                    ? `Successfully updated discussion comment with ${label} link`
-                    : "Successfully updated discussion comment";
+                  const successMessage = label ? `Successfully updated discussion comment with ${label} link` : "Successfully updated discussion comment";
                   core.info(successMessage);
                   core.info(`Comment ID: ${comment.id}`);
                   core.info(`Comment URL: ${comment.url}`);
@@ -7824,9 +7457,7 @@ jobs:
                 preview = preview.slice(0, maxChars);
               }
               const truncated = lineTruncated || charTruncated;
-              const summary = truncated
-                ? `Show patch preview (${Math.min(maxLines, lines.length)} of ${lines.length} lines)`
-                : `Show patch (${lines.length} lines)`;
+              const summary = truncated ? `Show patch preview (${Math.min(maxLines, lines.length)} of ${lines.length} lines)` : `Show patch (${lines.length} lines)`;
               return `\n\n<details><summary>${summary}</summary>\n\n\`\`\`diff\n${preview}${truncated ? "\n... (truncated)" : ""}\n\`\`\`\n\n</details>`;
             }
             async function main() {
@@ -8015,9 +7646,7 @@ jobs:
               const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
               const runId = context.runId;
               const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
-              const runUrl = context.payload.repository
-                ? `${context.payload.repository.html_url}/actions/runs/${runId}`
-                : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
+              const runUrl = context.payload.repository ? `${context.payload.repository.html_url}/actions/runs/${runId}` : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
               const trackerIDComment = getTrackerID("markdown");
               if (trackerIDComment) {
                 bodyLines.push(trackerIDComment);
@@ -8076,9 +7705,7 @@ jobs:
                     core.info("Failed patch content:");
                     core.info(patchResult.stdout);
                   } catch (investigateError) {
-                    core.warning(
-                      `Failed to investigate patch failure: ${investigateError instanceof Error ? investigateError.message : String(investigateError)}`
-                    );
+                    core.warning(`Failed to investigate patch failure: ${investigateError instanceof Error ? investigateError.message : String(investigateError)}`);
                   }
                   core.setFailed("Failed to apply patch");
                   return;
@@ -8108,9 +7735,7 @@ jobs:
                   core.warning("Git push operation failed - creating fallback issue instead of pull request");
                   const runId = context.runId;
                   const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
-                  const runUrl = context.payload.repository
-                    ? `${context.payload.repository.html_url}/actions/runs/${runId}`
-                    : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
+                  const runUrl = context.payload.repository ? `${context.payload.repository.html_url}/actions/runs/${runId}` : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
                   let patchPreview = "";
                   if (fs.existsSync("/tmp/gh-aw/aw.patch")) {
                     const patchContent = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
@@ -8249,9 +7874,7 @@ jobs:
                 core.warning(`Failed to create pull request: ${prError instanceof Error ? prError.message : String(prError)}`);
                 core.info("Falling back to creating an issue instead");
                 const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
-                const branchUrl = context.payload.repository
-                  ? `${context.payload.repository.html_url}/tree/${branchName}`
-                  : `${githubServer}/${context.repo.owner}/${context.repo.repo}/tree/${branchName}`;
+                const branchUrl = context.payload.repository ? `${context.payload.repository.html_url}/tree/${branchName}` : `${githubServer}/${context.repo.owner}/${context.repo.repo}/tree/${branchName}`;
                 let patchPreview = "";
                 if (fs.existsSync("/tmp/gh-aw/aw.patch")) {
                   const patchContent = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
@@ -8288,9 +7911,7 @@ jobs:
                     )
                     .write();
                 } catch (issueError) {
-                  core.setFailed(
-                    `Failed to create both pull request and fallback issue. PR error: ${prError instanceof Error ? prError.message : String(prError)}. Issue error: ${issueError instanceof Error ? issueError.message : String(issueError)}`
-                  );
+                  core.setFailed(`Failed to create both pull request and fallback issue. PR error: ${prError instanceof Error ? prError.message : String(prError)}. Issue error: ${issueError instanceof Error ? issueError.message : String(issueError)}`);
                   return;
                 }
               }

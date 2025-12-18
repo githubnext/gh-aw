@@ -36,12 +36,8 @@ async function main() {
         const parentResolved = resolveIssueNumber(item.parent_issue_number, temporaryIdMap);
         const subResolved = resolveIssueNumber(item.sub_issue_number, temporaryIdMap);
 
-        let parentDisplay = parentResolved.resolved
-          ? `${parentResolved.resolved.repo}#${parentResolved.resolved.number}`
-          : `${item.parent_issue_number} (unresolved)`;
-        let subDisplay = subResolved.resolved
-          ? `${subResolved.resolved.repo}#${subResolved.resolved.number}`
-          : `${item.sub_issue_number} (unresolved)`;
+        let parentDisplay = parentResolved.resolved ? `${parentResolved.resolved.repo}#${parentResolved.resolved.number}` : `${item.parent_issue_number} (unresolved)`;
+        let subDisplay = subResolved.resolved ? `${subResolved.resolved.repo}#${subResolved.resolved.number}` : `${item.sub_issue_number} (unresolved)`;
 
         if (parentResolved.wasTemporaryId && parentResolved.resolved) {
           parentDisplay += ` (from ${item.parent_issue_number})`;
@@ -238,9 +234,7 @@ async function main() {
 
       const existingParent = parentCheckResult?.repository?.issue?.parent;
       if (existingParent) {
-        core.warning(
-          `Sub-issue #${subIssueNumber} is already a sub-issue of #${existingParent.number} ("${existingParent.title}"). Skipping.`
-        );
+        core.warning(`Sub-issue #${subIssueNumber} is already a sub-issue of #${existingParent.number} ("${existingParent.title}"). Skipping.`);
         results.push({
           parent_issue_number: parentIssueNumber,
           sub_issue_number: subIssueNumber,

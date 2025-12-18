@@ -326,14 +326,6 @@ This is the main workflow content.`
 
 	lockContent := string(content)
 
-	// Verify XML comments are NOT present in Original Prompt section
-	if strings.Contains(lockContent, "<!-- This is an XML comment") {
-		t.Error("XML comment should not appear in Original Prompt comment section")
-	}
-	if strings.Contains(lockContent, "Multi-line XML comment") {
-		t.Error("Multi-line XML comment should not appear in Original Prompt comment section")
-	}
-
 	// Verify XML comments are NOT present in the actual prompt content
 	// The prompt is written after "Create prompt" step
 	promptSectionStart := strings.Index(lockContent, "Create prompt")

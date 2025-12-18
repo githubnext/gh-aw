@@ -19,457 +19,11 @@
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/aw/github-agentic-workflows.md
 #
-#
 # Hourly CI cleaner that fixes format, lint, and test issues when CI fails on main branch
-#
-# Original Frontmatter:
-# ```yaml
-# description: Hourly CI cleaner that fixes format, lint, and test issues when CI fails on main branch
-# on:
-#   schedule:
-#     - cron: "0 * * * *"  # Every hour
-#   workflow_dispatch:
-# permissions:
-#   contents: read
-#   actions: read
-#   issues: read
-#   pull-requests: read
-# tracker-id: hourly-ci-cleaner
-# engine: copilot
-# tools:
-#   bash: ["*"]
-#   edit:
-# steps:
-#   - name: Check last CI workflow run status on main branch
-#     id: ci_check
-#     env:
-#       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-#     run: |
-#       # Get the last CI workflow run on main branch, excluding pending and cancelled runs
-#       LAST_RUN=$(gh run list --workflow=ci.yml --branch=main --limit 50 --json conclusion,status,databaseId \
-#         | jq -r '[.[] | select(.status == "completed" and (.conclusion == "success" or .conclusion == "failure"))] | .[0]')
-#
-#       CONCLUSION=$(echo "$LAST_RUN" | jq -r '.conclusion')
-#       RUN_ID=$(echo "$LAST_RUN" | jq -r '.databaseId')
-#
-#       echo "Last CI run conclusion: ${CONCLUSION}"
-#       echo "Run ID: ${RUN_ID}"
-#
-#       # Write to environment and step summary
-#       echo "CI_STATUS=${CONCLUSION}" >> "$GITHUB_ENV"
-#       echo "CI_RUN_ID=${RUN_ID}" >> "$GITHUB_ENV"
-#
-#       if [ "$CONCLUSION" = "success" ]; then
-#         echo "✅ CI is passing on main branch - no action needed" >> "$GITHUB_STEP_SUMMARY"
-#         echo "CI_NEEDS_FIX=false" >> "$GITHUB_ENV"
-#         exit 1
-#       else
-#         echo "❌ CI is failing on main branch - agent will attempt to fix" >> "$GITHUB_STEP_SUMMARY"
-#         echo "Run ID: ${RUN_ID}" >> "$GITHUB_STEP_SUMMARY"
-#         echo "CI_NEEDS_FIX=true" >> "$GITHUB_ENV"
-#       fi
-#   - name: Install Make
-#     run: |
-#       sudo apt-get update
-#       sudo apt-get install -y make
-#   - name: Setup Go
-#     uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c # v6
-#     with:
-#       go-version-file: go.mod
-#       cache: true
-#   - name: Set up Node.js
-#     uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6
-#     with:
-#       node-version: "24"
-#       cache: npm
-#       cache-dependency-path: pkg/workflow/js/package-lock.json
-#   - name: Install npm dependencies
-#     run: npm ci
-#     working-directory: ./pkg/workflow/js
-#   - name: Install dev dependencies
-#     run: make deps-dev
-# safe-outputs:
-#   create-pull-request:
-#     title-prefix: "[ca] "
-# timeout-minutes: 45
-# imports:
-#   - ../agents/ci-cleaner.agent.md
-# ```
 #
 # Resolved workflow manifest:
 #   Imports:
 #     - ../agents/ci-cleaner.agent.md
-#
-# Job Dependency Graph:
-# ```mermaid
-# graph LR
-#   activation["activation"]
-#   agent["agent"]
-#   conclusion["conclusion"]
-#   create_pull_request["create_pull_request"]
-#   detection["detection"]
-#   activation --> agent
-#   activation --> conclusion
-#   activation --> create_pull_request
-#   agent --> conclusion
-#   agent --> create_pull_request
-#   agent --> detection
-#   create_pull_request --> conclusion
-#   detection --> conclusion
-#   detection --> create_pull_request
-# ```
-#
-# Original Prompt:
-# ```markdown
-# # CI Cleaner Agent
-#
-# You are a specialized AI agent that **tidies up the repository CI state** in the `githubnext/gh-aw` repository. Your job is to ensure the codebase is clean, well-formatted, passes all linters and tests, and has all workflows properly compiled.
-#
-# Read the ENTIRE content of this file carefully before proceeding. Follow the instructions precisely.
-#
-# ## Your Responsibilities
-#
-# You perform the following tasks in sequence to clean up the CI state:
-#
-# 1. **Format sources** (Go, JavaScript, JSON)
-# 2. **Run linters** and fix any linting issues
-# 3. **Run tests** (Go unit, Go integration, JavaScript)
-# 4. **Fix test failures**
-# 5. **Recompile all workflows**
-#
-# ## Detailed Task Steps
-#
-# ### 1. Format Sources
-#
-# Format all source code files to ensure consistent code style:
-#
-# ```bash
-# make fmt
-# ```
-#
-# This command runs:
-# - `make fmt-go` - Format Go code with `go fmt`
-# - `make fmt-cjs` - Format JavaScript (.cjs and .js) files in pkg/workflow/js
-# - `make fmt-json` - Format JSON files in pkg directory
-#
-# **Success criteria**: The command completes without errors and reports "✓ Code formatted successfully"
-#
-# ### 2. Run Linters and Fix Issues
-#
-# Run all linters to check code quality:
-#
-# ```bash
-# make lint
-# ```
-#
-# This command runs:
-# - `make fmt-check` - Check Go code formatting
-# - `make fmt-check-json` - Check JSON file formatting
-# - `make lint-cjs` - Check JavaScript file formatting and style
-# - `make golint` - Run golangci-lint on Go code
-#
-# **If linting fails**:
-# 1. Review the error messages carefully
-# 2. Fix issues one by one based on linter feedback
-# 3. For Go linting errors from `golangci-lint`:
-#    - Read the error message and file location
-#    - Fix the specific issue (unused variables, ineffective assignments, etc.)
-#    - Re-run `make lint` to verify the fix
-# 4. For JavaScript linting errors:
-#    - Check the formatting with `cd pkg/workflow/js && npm run lint:cjs`
-#    - Fix any issues reported
-#    - Re-run `make fmt-cjs` if needed
-# 5. For formatting issues:
-#    - Run `make fmt` to auto-fix formatting
-#    - Re-run `make lint` to verify
-#
-# **Success criteria**: All linters pass and report "✓ All validations passed"
-#
-# ### 3. Run Go Tests
-#
-# Run Go unit tests (faster, recommended for iterative development):
-#
-# ```bash
-# make test-unit
-# ```
-#
-# Run all Go tests including integration tests:
-#
-# ```bash
-# make test
-# ```
-#
-# **If tests fail**:
-# 1. Review the test failure output carefully
-# 2. Identify which test(s) failed and why
-# 3. Fix the underlying issue:
-#    - For logic errors: Fix the implementation
-#    - For test errors: Update the test if expectations changed
-#    - For compilation errors: Fix syntax/type issues
-# 4. Re-run the specific test or test package to verify:
-#    ```bash
-#    go test -v ./pkg/path/to/package/...
-#    ```
-# 5. Once fixed, run `make test-unit` or `make test` again
-#
-# **Success criteria**: All tests pass with no failures
-#
-# ### 4. Run JavaScript Tests
-#
-# Run JavaScript tests for workflow files:
-#
-# ```bash
-# make test-js
-# ```
-#
-# **If tests fail**:
-# 1. Review the test failure output
-# 2. Check if the issue is in:
-#    - JavaScript source files in `pkg/workflow/js/`
-#    - Test files
-#    - Type definitions
-# 3. Fix the issue and re-run `make test-js`
-#
-# **Success criteria**: All JavaScript tests pass
-#
-# ### 5. Recompile All Workflows
-#
-# Recompile all workflow markdown files to YAML lock files:
-#
-# ```bash
-# make recompile
-# ```
-#
-# This command:
-# 1. Syncs templates from `.github` to `pkg/cli/templates`
-# 2. Rebuilds the `gh-aw` binary
-# 3. Runs `./gh-aw init` to initialize the repository
-# 4. Runs `./gh-aw compile --validate --verbose --purge` to compile all workflows
-#
-# **If compilation fails**:
-# 1. Review the error messages for specific workflow files
-# 2. Check the workflow markdown file for syntax errors
-# 3. Fix issues in the workflow frontmatter or content
-# 4. Re-run `make recompile`
-#
-# **Success criteria**: All workflows compile successfully without errors
-#
-# ## Workflow & Best Practices
-#
-# ### Execution Order
-#
-# Always execute tasks in this order:
-# 1. Format → 2. Lint → 3. Test → 4. Recompile
-#
-# This order ensures that:
-# - Formatting issues don't cause linting failures
-# - Linting issues don't interfere with tests
-# - Tests pass before recompiling workflows
-# - Workflows are compiled with clean, tested code
-#
-# ### Iterative Fixes
-#
-# When fixing issues:
-# 1. **Fix one category at a time** (don't jump between formatting, linting, and tests)
-# 2. **Re-run the relevant check** after each fix
-# 3. **Verify the fix** before moving to the next issue
-# 4. **Commit progress** after completing each major step
-#
-# ### Common Issues
-#
-# #### Go Linting Issues
-# - **Unused variables**: Remove or use the variable, or prefix with `_` if intentionally unused
-# - **Ineffective assignments**: Remove redundant assignments
-# - **Error handling**: Always check and handle errors properly
-# - **Import cycles**: Refactor to break circular dependencies
-#
-# #### JavaScript Issues
-# - **Prettier formatting**: Run `make fmt-cjs` to auto-fix
-# - **ESLint violations**: Fix manually based on error messages
-# - **Type errors**: Check TypeScript types and fix mismatches
-#
-# #### Test Failures
-# - **Flaky tests**: Re-run to confirm failure is consistent
-# - **Broken tests due to code changes**: Update test expectations
-# - **Missing dependencies**: Run `make deps` to install
-#
-# #### Compilation Errors
-# - **Schema validation errors**: Check workflow frontmatter against schema
-# - **Missing required fields**: Add required fields to workflow frontmatter
-# - **Invalid YAML**: Fix YAML syntax in workflow files
-#
-# ### Using Make Commands
-#
-# The repository uses a Makefile for all build/test/lint operations. Key commands:
-#
-# - `make deps` - Install Go and Node.js dependencies (~1.5 min)
-# - `make deps-dev` - Install development tools including linter (~5-8 min)
-# - `make build` - Build the gh-aw binary (~1.5s)
-# - `make fmt` - Format all code
-# - `make lint` - Run all linters (~5.5s)
-# - `make test-unit` - Run Go unit tests only (~25s, faster for development)
-# - `make test` - Run all Go tests including integration (~30s)
-# - `make test-js` - Run JavaScript tests
-# - `make test-all` - Run both Go and JavaScript tests
-# - `make recompile` - Recompile all workflows
-# - `make agent-finish` - Run complete validation (use this for final check)
-#
-# ### Final Validation
-#
-# Before completing your work, optionally run the full validation suite:
-#
-# ```bash
-# make agent-finish
-# ```
-#
-# **WARNING**: This command takes ~10-15 minutes and runs:
-# - `make deps-dev` - Install dev dependencies
-# - `make fmt` - Format code
-# - `make lint` - Run linters
-# - `make build` - Build binary
-# - `make test-all` - Run all tests
-# - `make recompile` - Recompile workflows
-# - `make dependabot` - Generate Dependabot manifests
-# - `make generate-schema-docs` - Generate schema documentation
-# - `make generate-labs` - Generate labs documentation
-# - `make security-scan` - Run security scans
-#
-# Only run this if explicitly requested or for final verification.
-#
-# ## Response Style
-#
-# - **Concise**: Keep responses brief and focused on the current task
-# - **Clear**: Explain what you're doing and why
-# - **Action-oriented**: Always indicate which command you're running next
-# - **Problem-solving**: When issues arise, explain the problem and your fix
-#
-# ## Example Workflow
-#
-# ```
-# 1. Running code formatter...
-#    ✓ Code formatted successfully
-#
-# 2. Running linters...
-#    ✗ Found 3 linting issues in pkg/cli/compile.go
-#    - Fixing unused variable on line 45
-#    - Fixing ineffective assignment on line 67
-#    - Running linter again...
-#    ✓ All linters passed
-#
-# 3. Running Go unit tests...
-#    ✓ All tests passed (25s)
-#
-# 4. Running JavaScript tests...
-#    ✓ All tests passed
-#
-# 5. Recompiling workflows...
-#    ✓ Compiled 15 workflows successfully
-#
-# CI cleanup complete! ✨
-# ```
-#
-# ## Guidelines
-#
-# - **Always run commands in sequence** - Don't skip steps
-# - **Fix issues immediately** - Don't accumulate problems
-# - **Verify fixes** - Re-run checks after fixing
-# - **Report progress** - Keep the user informed of what you're doing
-# - **Be thorough** - Don't leave any errors unresolved
-# - **Use the tools** - Leverage make commands rather than manual fixes
-# - **Understand before fixing** - Read error messages carefully before making changes
-#
-# ## Important Notes
-#
-# 1. **Dependencies**: Ensure dependencies are installed before running tests/linters. If commands fail due to missing tools, run `make deps` or `make deps-dev`.
-#
-# 2. **Build times**: Be patient with longer-running commands:
-#    - `make deps`: ~1.5 minutes
-#    - `make deps-dev`: ~5-8 minutes
-#    - `make test`: ~30 seconds
-#    - `make agent-finish`: ~10-15 minutes
-#
-# 3. **Integration tests**: Integration tests may be slower and require more setup. Focus on unit tests during iterative development.
-#
-# 4. **Don't cancel**: Let long-running commands complete. If they seem stuck, check the output for progress indicators.
-#
-# 5. **Commit after each major step**: Use git to commit progress after completing formatting, linting, or fixing all tests.
-#
-# Let's tidy up the CI! 🧹✨
-#
-# # Hourly CI Cleaner
-#
-# You are an automated CI cleaner that runs hourly to fix CI failures on the main branch.
-#
-# ## Mission
-#
-# When CI fails on the main branch, automatically diagnose and fix the issues by:
-# 1. Formatting code
-# 2. Running and fixing linters
-# 3. Running and fixing tests
-# 4. Recompiling workflows
-#
-# ## Context
-#
-# - **Repository**: ${{ github.repository }}
-# - **Run Number**: #${{ github.run_number }}
-# - **CI Status**: ${{ env.CI_STATUS }}
-#
-# ## Your Task
-#
-# The CI workflow has failed on the main branch. Follow the instructions from the ci-cleaner agent to:
-#
-# 1. **Format sources** - Run `make fmt` to format all code
-# 2. **Run linters** - Run `make lint` and fix any issues
-# 3. **Run tests** - Run `make test-unit` and fix failures
-# 4. **Recompile workflows** - Run `make recompile` to update lock files
-#
-# ## Execution Guidelines
-#
-# - Work through each step systematically
-# - Fix issues as you encounter them
-# - Re-run checks after fixes to verify
-# - Only proceed to next step when current step passes
-# - **Create a pull request with all fixes using the safe-outputs create-pull-request tool**
-#
-# ## Pull Request Guidelines
-#
-# After all fixes are completed and validated, **use the create-pull-request safe-output** to create a PR with your changes.
-#
-# Your pull request should:
-# - Have a clear title describing what was fixed (e.g., "Fix formatting and linting issues", "Fix test failures in pkg/cli")
-# - Include a description of:
-#   - What CI failures were found
-#   - What fixes were applied
-#   - Confirmation that all checks now pass
-# - Be ready for review and merge
-#
-# **To create the pull request:**
-# 1. Commit all your changes to a new branch
-# 2. Use the `create_pull_request` tool with:
-#    - **Title**: Clear description of what was fixed
-#    - **Body**: Detailed description including:
-#      - Summary of CI failures discovered
-#      - List of fixes applied (formatting, linting, test fixes, recompilation)
-#      - Confirmation that `make fmt`, `make lint`, `make test-unit`, and `make recompile` all pass
-#      - Link to the failed CI run that triggered this fix
-#    - The title will automatically be prefixed with "[ca] " as configured in safe-outputs
-#
-# Begin by checking out the main branch and running the CI cleaner steps.
-# ```
-#
-# Pinned GitHub Actions:
-#   - actions/checkout@v5 (93cb6efe18208431cddfb8368fd83d5badbf9bfd)
-#     https://github.com/actions/checkout/commit/93cb6efe18208431cddfb8368fd83d5badbf9bfd
-#   - actions/download-artifact@v6 (018cc2cf5baa6db3ef3c5f8a56943fffe632ef53)
-#     https://github.com/actions/download-artifact/commit/018cc2cf5baa6db3ef3c5f8a56943fffe632ef53
-#   - actions/github-script@v8 (ed597411d8f924073f98dfc5c65a23a2325f34cd)
-#     https://github.com/actions/github-script/commit/ed597411d8f924073f98dfc5c65a23a2325f34cd
-#   - actions/setup-go@v6 (4dc6199c7b1a012772edbd06daecab0f50c9053c)
-#     https://github.com/actions/setup-go/commit/4dc6199c7b1a012772edbd06daecab0f50c9053c
-#   - actions/setup-node@v6 (395ad3262231945c25e8478fd5baf05154b1d79f)
-#     https://github.com/actions/setup-node/commit/395ad3262231945c25e8478fd5baf05154b1d79f
-#   - actions/upload-artifact@v5 (330a01c490aca151604b8cf639adc76d48f6c5d4)
-#     https://github.com/actions/upload-artifact/commit/330a01c490aca151604b8cf639adc76d48f6c5d4
 
 name: "Hourly CI Cleaner"
 "on":
@@ -563,9 +117,7 @@ jobs:
                   .addRaw("**Files:**\n")
                   .addRaw(`- Source: \`${workflowMdPath}\`\n`)
                   .addRaw(`  - Last commit: ${workflowTimestamp}\n`)
-                  .addRaw(
-                    `  - Commit SHA: [\`${workflowCommit.sha.substring(0, 7)}\`](https://github.com/${owner}/${repo}/commit/${workflowCommit.sha})\n`
-                  )
+                  .addRaw(`  - Commit SHA: [\`${workflowCommit.sha.substring(0, 7)}\`](https://github.com/${owner}/${repo}/commit/${workflowCommit.sha})\n`)
                   .addRaw(`- Lock: \`${lockFilePath}\`\n`)
                   .addRaw(`  - Last commit: ${lockTimestamp}\n`)
                   .addRaw(`  - Commit SHA: [\`${lockCommit.sha.substring(0, 7)}\`](https://github.com/${owner}/${repo}/commit/${lockCommit.sha})\n\n`)
@@ -1072,9 +624,7 @@ jobs:
                 server.debug(`  [${toolName}] Python handler args: ${JSON.stringify(args)}`);
                 server.debug(`  [${toolName}] Timeout: ${timeoutSeconds}s`);
                 const inputJson = JSON.stringify(args || {});
-                server.debug(
-                  `  [${toolName}] Input JSON (${inputJson.length} bytes): ${inputJson.substring(0, 200)}${inputJson.length > 200 ? "..." : ""}`
-                );
+                server.debug(`  [${toolName}] Input JSON (${inputJson.length} bytes): ${inputJson.substring(0, 200)}${inputJson.length > 200 ? "..." : ""}`);
                 return new Promise((resolve, reject) => {
                   server.debug(`  [${toolName}] Executing Python script...`);
                   const child = execFile(
@@ -1182,9 +732,7 @@ jobs:
                       try {
                         if (fs.existsSync(outputFile)) {
                           const outputContent = fs.readFileSync(outputFile, "utf-8");
-                          server.debug(
-                            `  [${toolName}] Output file content: ${outputContent.substring(0, 500)}${outputContent.length > 500 ? "..." : ""}`
-                          );
+                          server.debug(`  [${toolName}] Output file content: ${outputContent.substring(0, 500)}${outputContent.length > 500 ? "..." : ""}`);
                           const lines = outputContent.split("\n");
                           for (const line of lines) {
                             const trimmed = line.trim();
@@ -1242,10 +790,7 @@ jobs:
                   fs.mkdirSync(server.logDir, { recursive: true });
                 }
                 const timestamp = new Date().toISOString();
-                fs.writeFileSync(
-                  server.logFilePath,
-                  `# ${server.serverInfo.name} MCP Server Log\n# Started: ${timestamp}\n# Version: ${server.serverInfo.version}\n\n`
-                );
+                fs.writeFileSync(server.logFilePath, `# ${server.serverInfo.name} MCP Server Log\n# Started: ${timestamp}\n# Version: ${server.serverInfo.version}\n\n`);
                 server.logFileInitialized = true;
               } catch {
               }
@@ -1905,10 +1450,7 @@ jobs:
                 const isInWorkspace = absolutePath.startsWith(path.resolve(workspaceDir));
                 const isInTmp = absolutePath.startsWith(tmpDir);
                 if (!isInWorkspace && !isInTmp) {
-                  throw new Error(
-                    `File path must be within workspace directory (${workspaceDir}) or /tmp directory. ` +
-                      `Provided path: ${filePath} (resolved to: ${absolutePath})`
-                  );
+                  throw new Error(`File path must be within workspace directory (${workspaceDir}) or /tmp directory. ` + `Provided path: ${filePath} (resolved to: ${absolutePath})`);
                 }
                 if (!fs.existsSync(filePath)) {
                   throw new Error(`File not found: ${filePath}`);
@@ -2167,10 +1709,7 @@ jobs:
                       };
                       const entryJSON = JSON.stringify(entry);
                       fs.appendFileSync(outputFile, entryJSON + "\n");
-                      const outputText =
-                        jobConfig && jobConfig.output
-                          ? jobConfig.output
-                          : `Safe-job '${configKey}' executed successfully with arguments: ${JSON.stringify(args)}`;
+                      const outputText = jobConfig && jobConfig.output ? jobConfig.output : `Safe-job '${configKey}' executed successfully with arguments: ${JSON.stringify(args)}`;
                       return {
                         content: [
                           {
@@ -3090,16 +2629,13 @@ jobs:
               return result;
             }
             function renderMarkdownTemplate(markdown) {
-              let result = markdown.replace(
-                /(\n?)([ \t]*{{#if\s+([^}]*)}}[ \t]*\n)([\s\S]*?)([ \t]*{{\/if}}[ \t]*)(\n?)/g,
-                (match, leadNL, openLine, cond, body, closeLine, trailNL) => {
-                  if (isTruthy(cond)) {
-                    return leadNL + body;
-                  } else {
-                    return "";
-                  }
+              let result = markdown.replace(/(\n?)([ \t]*{{#if\s+([^}]*)}}[ \t]*\n)([\s\S]*?)([ \t]*{{\/if}}[ \t]*)(\n?)/g, (match, leadNL, openLine, cond, body, closeLine, trailNL) => {
+                if (isTruthy(cond)) {
+                  return leadNL + body;
+                } else {
+                  return "";
                 }
-              );
+              });
               result = result.replace(/{{#if\s+([^}]*)}}([\s\S]*?){{\/if}}/g, (_, cond, body) => (isTruthy(cond) ? body : ""));
               result = result.replace(/\n{3,}/g, "\n\n");
               return result;
@@ -3467,36 +3003,33 @@ jobs:
                 });
               }
               function sanitizeUrlProtocols(s) {
-                return s.replace(
-                  /((?:http|ftp|file|ssh|git):\/\/([\w.-]*)(?:[^\s]*)|(?:data|javascript|vbscript|about|mailto|tel):[^\s]+)/gi,
-                  (match, _fullMatch, domain) => {
-                    if (domain) {
-                      const domainLower = domain.toLowerCase();
-                      const truncated = domainLower.length > 12 ? domainLower.substring(0, 12) + "..." : domainLower;
+                return s.replace(/((?:http|ftp|file|ssh|git):\/\/([\w.-]*)(?:[^\s]*)|(?:data|javascript|vbscript|about|mailto|tel):[^\s]+)/gi, (match, _fullMatch, domain) => {
+                  if (domain) {
+                    const domainLower = domain.toLowerCase();
+                    const truncated = domainLower.length > 12 ? domainLower.substring(0, 12) + "..." : domainLower;
+                    if (typeof core !== "undefined" && core.info) {
+                      core.info(`Redacted URL: ${truncated}`);
+                    }
+                    if (typeof core !== "undefined" && core.debug) {
+                      core.debug(`Redacted URL (full): ${match}`);
+                    }
+                    addRedactedDomain(domainLower);
+                  } else {
+                    const protocolMatch = match.match(/^([^:]+):/);
+                    if (protocolMatch) {
+                      const protocol = protocolMatch[1] + ":";
+                      const truncated = match.length > 12 ? match.substring(0, 12) + "..." : match;
                       if (typeof core !== "undefined" && core.info) {
                         core.info(`Redacted URL: ${truncated}`);
                       }
                       if (typeof core !== "undefined" && core.debug) {
                         core.debug(`Redacted URL (full): ${match}`);
                       }
-                      addRedactedDomain(domainLower);
-                    } else {
-                      const protocolMatch = match.match(/^([^:]+):/);
-                      if (protocolMatch) {
-                        const protocol = protocolMatch[1] + ":";
-                        const truncated = match.length > 12 ? match.substring(0, 12) + "..." : match;
-                        if (typeof core !== "undefined" && core.info) {
-                          core.info(`Redacted URL: ${truncated}`);
-                        }
-                        if (typeof core !== "undefined" && core.debug) {
-                          core.debug(`Redacted URL (full): ${match}`);
-                        }
-                        addRedactedDomain(protocol);
-                      }
+                      addRedactedDomain(protocol);
                     }
-                    return "(redacted)";
                   }
-                );
+                  return "(redacted)";
+                });
               }
               function neutralizeCommands(s) {
                 const commandName = process.env.GH_AW_COMMAND;
@@ -3518,37 +3051,7 @@ jobs:
                 return s.replace(/<!--[\s\S]*?-->/g, "").replace(/<!--[\s\S]*?--!>/g, "");
               }
               function convertXmlTags(s) {
-                const allowedTags = [
-                  "b",
-                  "blockquote",
-                  "br",
-                  "code",
-                  "details",
-                  "em",
-                  "h1",
-                  "h2",
-                  "h3",
-                  "h4",
-                  "h5",
-                  "h6",
-                  "hr",
-                  "i",
-                  "li",
-                  "ol",
-                  "p",
-                  "pre",
-                  "strong",
-                  "sub",
-                  "summary",
-                  "sup",
-                  "table",
-                  "tbody",
-                  "td",
-                  "th",
-                  "thead",
-                  "tr",
-                  "ul",
-                ];
+                const allowedTags = ["b", "blockquote", "br", "code", "details", "em", "h1", "h2", "h3", "h4", "h5", "h6", "hr", "i", "li", "ol", "p", "pre", "strong", "sub", "summary", "sup", "table", "tbody", "td", "th", "thead", "tr", "ul"];
                 s = s.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, (match, content) => {
                   const convertedContent = content.replace(/<(\/?[A-Za-z][A-Za-z0-9]*(?:[^>]*?))>/g, "($1)");
                   return `(![CDATA[${convertedContent}]])`;
@@ -3660,36 +3163,33 @@ jobs:
                 return result;
               }
               function sanitizeUrlProtocols(s) {
-                return s.replace(
-                  /\b((?:http|ftp|file|ssh|git):\/\/([\w.-]+)(?:[^\s]*)|(?:data|javascript|vbscript|about|mailto|tel):[^\s]+)/gi,
-                  (match, _fullMatch, domain) => {
-                    if (domain) {
-                      const domainLower = domain.toLowerCase();
-                      const truncated = domainLower.length > 12 ? domainLower.substring(0, 12) + "..." : domainLower;
+                return s.replace(/\b((?:http|ftp|file|ssh|git):\/\/([\w.-]+)(?:[^\s]*)|(?:data|javascript|vbscript|about|mailto|tel):[^\s]+)/gi, (match, _fullMatch, domain) => {
+                  if (domain) {
+                    const domainLower = domain.toLowerCase();
+                    const truncated = domainLower.length > 12 ? domainLower.substring(0, 12) + "..." : domainLower;
+                    if (typeof core !== "undefined" && core.info) {
+                      core.info(`Redacted URL: ${truncated}`);
+                    }
+                    if (typeof core !== "undefined" && core.debug) {
+                      core.debug(`Redacted URL (full): ${match}`);
+                    }
+                    addRedactedDomain(domainLower);
+                  } else {
+                    const protocolMatch = match.match(/^([^:]+):/);
+                    if (protocolMatch) {
+                      const protocol = protocolMatch[1] + ":";
+                      const truncated = match.length > 12 ? match.substring(0, 12) + "..." : match;
                       if (typeof core !== "undefined" && core.info) {
                         core.info(`Redacted URL: ${truncated}`);
                       }
                       if (typeof core !== "undefined" && core.debug) {
                         core.debug(`Redacted URL (full): ${match}`);
                       }
-                      addRedactedDomain(domainLower);
-                    } else {
-                      const protocolMatch = match.match(/^([^:]+):/);
-                      if (protocolMatch) {
-                        const protocol = protocolMatch[1] + ":";
-                        const truncated = match.length > 12 ? match.substring(0, 12) + "..." : match;
-                        if (typeof core !== "undefined" && core.info) {
-                          core.info(`Redacted URL: ${truncated}`);
-                        }
-                        if (typeof core !== "undefined" && core.debug) {
-                          core.debug(`Redacted URL (full): ${match}`);
-                        }
-                        addRedactedDomain(protocol);
-                      }
+                      addRedactedDomain(protocol);
                     }
-                    return "(redacted)";
                   }
-                );
+                  return "(redacted)";
+                });
               }
               function neutralizeCommands(s) {
                 const commandName = process.env.GH_AW_COMMAND;
@@ -3715,37 +3215,7 @@ jobs:
                 return s.replace(/<!--[\s\S]*?-->/g, "").replace(/<!--[\s\S]*?--!>/g, "");
               }
               function convertXmlTags(s) {
-                const allowedTags = [
-                  "b",
-                  "blockquote",
-                  "br",
-                  "code",
-                  "details",
-                  "em",
-                  "h1",
-                  "h2",
-                  "h3",
-                  "h4",
-                  "h5",
-                  "h6",
-                  "hr",
-                  "i",
-                  "li",
-                  "ol",
-                  "p",
-                  "pre",
-                  "strong",
-                  "sub",
-                  "summary",
-                  "sup",
-                  "table",
-                  "tbody",
-                  "td",
-                  "th",
-                  "thead",
-                  "tr",
-                  "ul",
-                ];
+                const allowedTags = ["b", "blockquote", "br", "code", "details", "em", "h1", "h2", "h3", "h4", "h5", "h6", "hr", "i", "li", "ol", "p", "pre", "strong", "sub", "summary", "sup", "table", "tbody", "td", "th", "thead", "tr", "ul"];
                 s = s.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, (match, content) => {
                   const convertedContent = content.replace(/<(\/?[A-Za-z][A-Za-z0-9]*(?:[^>]*?))>/g, "($1)");
                   return `(![CDATA[${convertedContent}]])`;
@@ -4437,9 +3907,7 @@ jobs:
                   core.info(`Loaded validation config from ${validationConfigPath}`);
                 }
               } catch (error) {
-                core.warning(
-                  `Failed to read validation config from ${validationConfigPath}: ${error instanceof Error ? error.message : String(error)}`
-                );
+                core.warning(`Failed to read validation config from ${validationConfigPath}: ${error instanceof Error ? error.message : String(error)}`);
               }
               const mentionsConfig = validationConfig?.mentions || null;
               const allowedMentions = await resolveAllowedMentionsFromPayload(context, github, core, mentionsConfig);
@@ -4652,9 +4120,7 @@ jobs:
                   core.info(`[INGESTION] Line ${i + 1}: Original type='${originalType}', Normalized type='${itemType}'`);
                   item.type = itemType;
                   if (!expectedOutputTypes[itemType]) {
-                    core.warning(
-                      `[INGESTION] Line ${i + 1}: Type '${itemType}' not found in expected types: ${JSON.stringify(Object.keys(expectedOutputTypes))}`
-                    );
+                    core.warning(`[INGESTION] Line ${i + 1}: Type '${itemType}' not found in expected types: ${JSON.stringify(Object.keys(expectedOutputTypes))}`);
                     errors.push(`Line ${i + 1}: Unexpected output type '${itemType}'. Expected one of: ${Object.keys(expectedOutputTypes).join(", ")}`);
                     continue;
                   }
@@ -4736,10 +4202,7 @@ jobs:
               core.info(`Patch file ${hasPatch ? "exists" : "does not exist"} at: ${patchPath}`);
               let allowEmptyPR = false;
               if (safeOutputsConfig) {
-                if (
-                  safeOutputsConfig["create-pull-request"]?.["allow-empty"] === true ||
-                  safeOutputsConfig["create_pull_request"]?.["allow_empty"] === true
-                ) {
+                if (safeOutputsConfig["create-pull-request"]?.["allow-empty"] === true || safeOutputsConfig["create_pull_request"]?.["allow_empty"] === true) {
                   allowEmptyPR = true;
                   core.info(`allow-empty is enabled for create-pull-request`);
                 }
@@ -5110,24 +4573,7 @@ jobs:
                   "Custom Agents": [],
                   Other: [],
                 };
-                const builtinTools = [
-                  "bash",
-                  "write_bash",
-                  "read_bash",
-                  "stop_bash",
-                  "list_bash",
-                  "grep",
-                  "glob",
-                  "view",
-                  "create",
-                  "edit",
-                  "store_memory",
-                  "code_review",
-                  "codeql_checker",
-                  "report_progress",
-                  "report_intent",
-                  "gh-advisory-database",
-                ];
+                const builtinTools = ["bash", "write_bash", "read_bash", "stop_bash", "list_bash", "grep", "glob", "view", "create", "edit", "store_memory", "code_review", "codeql_checker", "report_progress", "report_intent", "gh-advisory-database"];
                 const internalTools = ["fetch_copilot_cli_documentation"];
                 for (const tool of initEntry.tools) {
                   const toolLower = tool.toLowerCase();
@@ -5523,9 +4969,7 @@ jobs:
                   const cacheCreationTokens = usage.cache_creation_input_tokens || 0;
                   const cacheReadTokens = usage.cache_read_input_tokens || 0;
                   const totalTokens = inputTokens + outputTokens + cacheCreationTokens + cacheReadTokens;
-                  lines.push(
-                    `  Tokens: ${totalTokens.toLocaleString()} total (${usage.input_tokens.toLocaleString()} in / ${usage.output_tokens.toLocaleString()} out)`
-                  );
+                  lines.push(`  Tokens: ${totalTokens.toLocaleString()} total (${usage.input_tokens.toLocaleString()} in / ${usage.output_tokens.toLocaleString()} out)`);
                 }
               }
               if (lastEntry?.total_cost_usd) {
@@ -5684,9 +5128,7 @@ jobs:
                   const cacheCreationTokens = usage.cache_creation_input_tokens || 0;
                   const cacheReadTokens = usage.cache_read_input_tokens || 0;
                   const totalTokens = inputTokens + outputTokens + cacheCreationTokens + cacheReadTokens;
-                  lines.push(
-                    `  Tokens: ${totalTokens.toLocaleString()} total (${usage.input_tokens.toLocaleString()} in / ${usage.output_tokens.toLocaleString()} out)`
-                  );
+                  lines.push(`  Tokens: ${totalTokens.toLocaleString()} total (${usage.input_tokens.toLocaleString()} in / ${usage.output_tokens.toLocaleString()} out)`);
                 }
               }
               if (lastEntry?.total_cost_usd) {
@@ -5787,11 +5229,7 @@ jobs:
               });
             }
             function extractPremiumRequestCount(logContent) {
-              const patterns = [
-                /premium\s+requests?\s+consumed:?\s*(\d+)/i,
-                /(\d+)\s+premium\s+requests?\s+consumed/i,
-                /consumed\s+(\d+)\s+premium\s+requests?/i,
-              ];
+              const patterns = [/premium\s+requests?\s+consumed:?\s*(\d+)/i, /(\d+)\s+premium\s+requests?\s+consumed/i, /consumed\s+(\d+)\s+premium\s+requests?/i];
               for (const pattern of patterns) {
                 const match = logContent.match(pattern);
                 if (match && match[1]) {
@@ -5863,8 +5301,7 @@ jobs:
                 const initEntry = logEntries.find(entry => entry.type === "system" && entry.subtype === "init");
                 markdown += generateInformationSection(lastEntry, {
                   additionalInfoCallback: entry => {
-                    const isPremiumModel =
-                      initEntry && initEntry.model_info && initEntry.model_info.billing && initEntry.model_info.billing.is_premium === true;
+                    const isPremiumModel = initEntry && initEntry.model_info && initEntry.model_info.billing && initEntry.model_info.billing.is_premium === true;
                     if (isPremiumModel) {
                       const premiumRequestCount = extractPremiumRequestCount(logContent);
                       return `**Premium Requests Consumed:** ${premiumRequestCount}\n\n`;
@@ -6291,299 +5728,151 @@ jobs:
         with:
           script: |
             function sanitizeWorkflowName(name) {
-
               return name
-
                 .toLowerCase()
-
                 .replace(/[:\\/\s]/g, "-")
-
                 .replace(/[^a-z0-9._-]/g, "-");
-
             }
-
             function main() {
-
               const fs = require("fs");
-
               const path = require("path");
-
               try {
-
                 const squidLogsDir = `/tmp/gh-aw/sandbox/firewall/logs/`;
-
                 if (!fs.existsSync(squidLogsDir)) {
-
                   core.info(`No firewall logs directory found at: ${squidLogsDir}`);
-
                   return;
-
                 }
-
                 const files = fs.readdirSync(squidLogsDir).filter(file => file.endsWith(".log"));
-
                 if (files.length === 0) {
-
                   core.info(`No firewall log files found in: ${squidLogsDir}`);
-
                   return;
-
                 }
-
                 core.info(`Found ${files.length} firewall log file(s)`);
-
                 let totalRequests = 0;
-
                 let allowedRequests = 0;
-
                 let deniedRequests = 0;
-
                 const allowedDomains = new Set();
-
                 const deniedDomains = new Set();
-
                 const requestsByDomain = new Map();
-
                 for (const file of files) {
-
                   const filePath = path.join(squidLogsDir, file);
-
                   core.info(`Parsing firewall log: ${file}`);
-
                   const content = fs.readFileSync(filePath, "utf8");
-
                   const lines = content.split("\n").filter(line => line.trim());
-
                   for (const line of lines) {
-
                     const entry = parseFirewallLogLine(line);
-
                     if (!entry) {
-
                       continue;
-
                     }
-
                     totalRequests++;
-
                     const isAllowed = isRequestAllowed(entry.decision, entry.status);
-
                     if (isAllowed) {
-
                       allowedRequests++;
-
                       allowedDomains.add(entry.domain);
-
                     } else {
-
                       deniedRequests++;
-
                       deniedDomains.add(entry.domain);
-
                     }
-
                     if (!requestsByDomain.has(entry.domain)) {
-
                       requestsByDomain.set(entry.domain, { allowed: 0, denied: 0 });
-
                     }
-
                     const domainStats = requestsByDomain.get(entry.domain);
-
                     if (isAllowed) {
-
                       domainStats.allowed++;
-
                     } else {
-
                       domainStats.denied++;
-
                     }
-
                   }
-
                 }
-
                 const summary = generateFirewallSummary({
-
                   totalRequests,
-
                   allowedRequests,
-
                   deniedRequests,
-
                   allowedDomains: Array.from(allowedDomains).sort(),
-
                   deniedDomains: Array.from(deniedDomains).sort(),
-
                   requestsByDomain,
-
                 });
-
                 core.summary.addRaw(summary).write();
-
                 core.info("Firewall log summary generated successfully");
-
               } catch (error) {
-
                 core.setFailed(error instanceof Error ? error : String(error));
-
               }
-
             }
-
             function parseFirewallLogLine(line) {
-
               const trimmed = line.trim();
-
               if (!trimmed || trimmed.startsWith("#")) {
-
                 return null;
-
               }
-
               const fields = trimmed.match(/(?:[^\s"]+|"[^"]*")+/g);
-
               if (!fields || fields.length < 10) {
-
                 return null;
-
               }
-
               const timestamp = fields[0];
-
               if (!/^\d+(\.\d+)?$/.test(timestamp)) {
-
                 return null;
-
               }
-
               return {
-
                 timestamp,
-
                 clientIpPort: fields[1],
-
                 domain: fields[2],
-
                 destIpPort: fields[3],
-
                 proto: fields[4],
-
                 method: fields[5],
-
                 status: fields[6],
-
                 decision: fields[7],
-
                 url: fields[8],
-
                 userAgent: fields[9]?.replace(/^"|"$/g, "") || "-",
-
               };
-
             }
-
             function isRequestAllowed(decision, status) {
-
               const statusCode = parseInt(status, 10);
-
               if (statusCode === 200 || statusCode === 206 || statusCode === 304) {
-
                 return true;
-
               }
-
               if (decision.includes("TCP_TUNNEL") || decision.includes("TCP_HIT") || decision.includes("TCP_MISS")) {
-
                 return true;
-
               }
-
               if (decision.includes("NONE_NONE") || decision.includes("TCP_DENIED") || statusCode === 403 || statusCode === 407) {
-
                 return false;
-
               }
-
               return false;
-
             }
-
             function generateFirewallSummary(analysis) {
-
               const { totalRequests, requestsByDomain } = analysis;
-
               const validDomains = Array.from(requestsByDomain.keys())
-
                 .filter(domain => domain !== "-")
-
                 .sort();
-
               const uniqueDomainCount = validDomains.length;
-
               let validAllowedRequests = 0;
-
               let validDeniedRequests = 0;
-
               for (const domain of validDomains) {
-
                 const stats = requestsByDomain.get(domain);
-
                 validAllowedRequests += stats.allowed;
-
                 validDeniedRequests += stats.denied;
-
               }
-
               let summary = "### 🔥 Firewall Activity\n\n";
-
               summary += "<details>\n";
-
               summary += `<summary>📊 ${totalRequests} request${totalRequests !== 1 ? "s" : ""} | `;
-
               summary += `${validAllowedRequests} allowed | `;
-
               summary += `${validDeniedRequests} blocked | `;
-
               summary += `${uniqueDomainCount} unique domain${uniqueDomainCount !== 1 ? "s" : ""}</summary>\n\n`;
-
               if (uniqueDomainCount > 0) {
-
                 summary += "| Domain | Allowed | Denied |\n";
-
                 summary += "|--------|---------|--------|\n";
-
                 for (const domain of validDomains) {
-
                   const stats = requestsByDomain.get(domain);
-
                   summary += `| ${domain} | ${stats.allowed} | ${stats.denied} |\n`;
-
                 }
-
               } else {
-
                 summary += "No firewall activity detected.\n";
-
               }
-
               summary += "\n</details>\n\n";
-
               return summary;
-
             }
-
-            const isDirectExecution =
-
-              typeof module === "undefined" || (typeof require !== "undefined" && typeof require.main !== "undefined" && require.main === module);
-
+            const isDirectExecution = typeof module === "undefined" || (typeof require !== "undefined" && typeof require.main !== "undefined" && require.main === module);
             if (isDirectExecution) {
-
               main();
-
             }
-
       - name: Upload Agent Stdio
         if: always()
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
@@ -6738,9 +6027,7 @@ jobs:
                     }
                     lastIndex = regex.lastIndex;
                     if (iterationCount === ITERATION_WARNING_THRESHOLD) {
-                      core.warning(
-                        `High iteration count (${iterationCount}) on line ${lineIndex + 1} with pattern: ${pattern.description || pattern.pattern}`
-                      );
+                      core.warning(`High iteration count (${iterationCount}) on line ${lineIndex + 1} with pattern: ${pattern.description || pattern.pattern}`);
                       core.warning(`Line content (truncated): ${truncateString(line, 200)}`);
                     }
                     if (iterationCount > MAX_ITERATIONS_PER_LINE) {
@@ -7055,9 +6342,7 @@ jobs:
               core.setOutput("total_count", missingTools.length.toString());
               if (missingTools.length > 0) {
                 core.info("Missing tools summary:");
-                core.summary
-                  .addHeading("Missing Tools Report", 3)
-                  .addRaw(`Found **${missingTools.length}** missing tool${missingTools.length > 1 ? "s" : ""} in this workflow execution.\n\n`);
+                core.summary.addHeading("Missing Tools Report", 3).addRaw(`Found **${missingTools.length}** missing tool${missingTools.length > 1 ? "s" : ""} in this workflow execution.\n\n`);
                 missingTools.forEach((tool, index) => {
                   core.info(`${index + 1}. Tool: ${tool.tool}`);
                   core.info(`   Reason: ${tool.reason}`);
@@ -7191,9 +6476,7 @@ jobs:
               const messages = getMessages();
               const templateContext = toSnakeCase(ctx);
               const defaultMessage = "⚠️ Security scanning failed for [{workflow_name}]({run_url}). Review the logs for details.";
-              return messages?.detectionFailure
-                ? renderTemplate(messages.detectionFailure, templateContext)
-                : renderTemplate(defaultMessage, templateContext);
+              return messages?.detectionFailure ? renderTemplate(messages.detectionFailure, templateContext) : renderTemplate(defaultMessage, templateContext);
             }
             function collectGeneratedAssets() {
               const assets = [];
@@ -7427,10 +6710,7 @@ jobs:
             const crypto = require("crypto");
             async function updateActivationComment(github, context, core, itemUrl, itemNumber, itemType = "pull_request") {
               const itemLabel = itemType === "issue" ? "issue" : "pull request";
-              const linkMessage =
-                itemType === "issue"
-                  ? `\n\n✅ Issue created: [#${itemNumber}](${itemUrl})`
-                  : `\n\n✅ Pull request created: [#${itemNumber}](${itemUrl})`;
+              const linkMessage = itemType === "issue" ? `\n\n✅ Issue created: [#${itemNumber}](${itemUrl})` : `\n\n✅ Pull request created: [#${itemNumber}](${itemUrl})`;
               await updateActivationCommentWithMessage(github, context, core, linkMessage, itemLabel);
             }
             async function updateActivationCommentWithCommit(github, context, core, commitSha, commitUrl) {
@@ -7491,9 +6771,7 @@ jobs:
                     { commentId: commentId, body: updatedBody }
                   );
                   const comment = result.updateDiscussionComment.comment;
-                  const successMessage = label
-                    ? `Successfully updated discussion comment with ${label} link`
-                    : "Successfully updated discussion comment";
+                  const successMessage = label ? `Successfully updated discussion comment with ${label} link` : "Successfully updated discussion comment";
                   core.info(successMessage);
                   core.info(`Comment ID: ${comment.id}`);
                   core.info(`Comment URL: ${comment.url}`);
@@ -7584,9 +6862,7 @@ jobs:
                 preview = preview.slice(0, maxChars);
               }
               const truncated = lineTruncated || charTruncated;
-              const summary = truncated
-                ? `Show patch preview (${Math.min(maxLines, lines.length)} of ${lines.length} lines)`
-                : `Show patch (${lines.length} lines)`;
+              const summary = truncated ? `Show patch preview (${Math.min(maxLines, lines.length)} of ${lines.length} lines)` : `Show patch (${lines.length} lines)`;
               return `\n\n<details><summary>${summary}</summary>\n\n\`\`\`diff\n${preview}${truncated ? "\n... (truncated)" : ""}\n\`\`\`\n\n</details>`;
             }
             async function main() {
@@ -7775,9 +7051,7 @@ jobs:
               const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
               const runId = context.runId;
               const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
-              const runUrl = context.payload.repository
-                ? `${context.payload.repository.html_url}/actions/runs/${runId}`
-                : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
+              const runUrl = context.payload.repository ? `${context.payload.repository.html_url}/actions/runs/${runId}` : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
               const trackerIDComment = getTrackerID("markdown");
               if (trackerIDComment) {
                 bodyLines.push(trackerIDComment);
@@ -7836,9 +7110,7 @@ jobs:
                     core.info("Failed patch content:");
                     core.info(patchResult.stdout);
                   } catch (investigateError) {
-                    core.warning(
-                      `Failed to investigate patch failure: ${investigateError instanceof Error ? investigateError.message : String(investigateError)}`
-                    );
+                    core.warning(`Failed to investigate patch failure: ${investigateError instanceof Error ? investigateError.message : String(investigateError)}`);
                   }
                   core.setFailed("Failed to apply patch");
                   return;
@@ -7868,9 +7140,7 @@ jobs:
                   core.warning("Git push operation failed - creating fallback issue instead of pull request");
                   const runId = context.runId;
                   const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
-                  const runUrl = context.payload.repository
-                    ? `${context.payload.repository.html_url}/actions/runs/${runId}`
-                    : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
+                  const runUrl = context.payload.repository ? `${context.payload.repository.html_url}/actions/runs/${runId}` : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
                   let patchPreview = "";
                   if (fs.existsSync("/tmp/gh-aw/aw.patch")) {
                     const patchContent = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
@@ -8009,9 +7279,7 @@ jobs:
                 core.warning(`Failed to create pull request: ${prError instanceof Error ? prError.message : String(prError)}`);
                 core.info("Falling back to creating an issue instead");
                 const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
-                const branchUrl = context.payload.repository
-                  ? `${context.payload.repository.html_url}/tree/${branchName}`
-                  : `${githubServer}/${context.repo.owner}/${context.repo.repo}/tree/${branchName}`;
+                const branchUrl = context.payload.repository ? `${context.payload.repository.html_url}/tree/${branchName}` : `${githubServer}/${context.repo.owner}/${context.repo.repo}/tree/${branchName}`;
                 let patchPreview = "";
                 if (fs.existsSync("/tmp/gh-aw/aw.patch")) {
                   const patchContent = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
@@ -8048,9 +7316,7 @@ jobs:
                     )
                     .write();
                 } catch (issueError) {
-                  core.setFailed(
-                    `Failed to create both pull request and fallback issue. PR error: ${prError instanceof Error ? prError.message : String(prError)}. Issue error: ${issueError instanceof Error ? issueError.message : String(issueError)}`
-                  );
+                  core.setFailed(`Failed to create both pull request and fallback issue. PR error: ${prError instanceof Error ? prError.message : String(prError)}. Issue error: ${issueError instanceof Error ? issueError.message : String(issueError)}`);
                   return;
                 }
               }

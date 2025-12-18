@@ -19,43 +19,7 @@
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/aw/github-agentic-workflows.md
 #
-#
 # Daily audit of all agentic workflow runs from the last 24 hours to identify issues, missing tools, errors, and improvement opportunities
-#
-# Original Frontmatter:
-# ```yaml
-# description: Daily audit of all agentic workflow runs from the last 24 hours to identify issues, missing tools, errors, and improvement opportunities
-# on:
-#   schedule: daily
-#   workflow_dispatch:
-# permissions:
-#   contents: read
-#   actions: read
-#   issues: read
-#   pull-requests: read
-# tracker-id: audit-workflows-daily
-# engine: claude
-# tools:
-#   cache-memory: true
-#   timeout: 300
-# steps:
-#   - name: Download logs from last 24 hours
-#     env:
-#       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-#     run: ./gh-aw logs --start-date -1d -o /tmp/gh-aw/aw-mcp/logs
-# safe-outputs:
-#   upload-assets:
-#   create-discussion:
-#     category: "audits"
-#     max: 1
-#     close-older-discussions: true
-# timeout-minutes: 30
-# imports:
-#   - shared/mcp/gh-aw.md
-#   - shared/jqschema.md
-#   - shared/reporting.md
-#   - shared/trending-charts-simple.md
-# ```
 #
 # Resolved workflow manifest:
 #   Imports:
@@ -63,797 +27,11 @@
 #     - shared/jqschema.md
 #     - shared/reporting.md
 #     - shared/trending-charts-simple.md
-#
-# Job Dependency Graph:
-# ```mermaid
-# graph LR
-#   activation["activation"]
-#   agent["agent"]
-#   conclusion["conclusion"]
-#   create_discussion["create_discussion"]
-#   detection["detection"]
-#   update_cache_memory["update_cache_memory"]
-#   upload_assets["upload_assets"]
-#   activation --> agent
-#   activation --> conclusion
-#   agent --> conclusion
-#   agent --> create_discussion
-#   agent --> detection
-#   agent --> update_cache_memory
-#   agent --> upload_assets
-#   create_discussion --> conclusion
-#   detection --> conclusion
-#   detection --> create_discussion
-#   detection --> update_cache_memory
-#   detection --> upload_assets
-#   update_cache_memory --> conclusion
-#   upload_assets --> conclusion
-# ```
-#
-# Original Prompt:
-# ```markdown
-# ## jqschema - JSON Schema Discovery
-#
-# A utility script is available at `/tmp/gh-aw/jqschema.sh` to help you discover the structure of complex JSON responses.
-#
-# ### Purpose
-#
-# Generate a compact structural schema (keys + types) from JSON input. This is particularly useful when:
-# - Analyzing tool outputs from GitHub search (search_code, search_issues, search_repositories)
-# - Exploring API responses with large payloads
-# - Understanding the structure of unfamiliar data without verbose output
-# - Planning queries before fetching full data
-#
-# ### Usage
-#
-# ```bash
-# # Analyze a file
-# cat data.json | /tmp/gh-aw/jqschema.sh
-#
-# # Analyze command output
-# echo '{"name": "test", "count": 42, "items": [{"id": 1}]}' | /tmp/gh-aw/jqschema.sh
-#
-# # Analyze GitHub search results
-# gh api search/repositories?q=language:go | /tmp/gh-aw/jqschema.sh
-# ```
-#
-# ### How It Works
-#
-# The script transforms JSON data by:
-# 1. Replacing object values with their type names ("string", "number", "boolean", "null")
-# 2. Reducing arrays to their first element's structure (or empty array if empty)
-# 3. Recursively processing nested structures
-# 4. Outputting compact (minified) JSON
-#
-# ### Example
-#
-# **Input:**
-# ```json
-# {
-#   "total_count": 1000,
-#   "items": [
-#     {"login": "user1", "id": 123, "verified": true},
-#     {"login": "user2", "id": 456, "verified": false}
-#   ]
-# }
-# ```
-#
-# **Output:**
-# ```json
-# {"total_count":"number","items":[{"login":"string","id":"number","verified":"boolean"}]}
-# ```
-#
-# ### Best Practices
-#
-# **Use this script when:**
-# - You need to understand the structure of tool outputs before requesting full data
-# - GitHub search tools return large datasets (use `perPage: 1` and pipe through schema minifier first)
-# - Exploring unfamiliar APIs or data structures
-# - Planning data extraction strategies
-#
-# **Example workflow for GitHub search tools:**
-# ```bash
-# # Step 1: Get schema with minimal data (fetch just 1 result)
-# # This helps understand the structure before requesting large datasets
-# echo '{}' | gh api search/repositories -f q="language:go" -f per_page=1 | /tmp/gh-aw/jqschema.sh
-#
-# # Output shows the schema:
-# # {"incomplete_results":"boolean","items":[{...}],"total_count":"number"}
-#
-# # Step 2: Review schema to understand available fields
-#
-# # Step 3: Request full data with confidence about structure
-# # Now you know what fields are available and can query efficiently
-# ```
-#
-# **Using with GitHub MCP tools:**
-# When using tools like `search_code`, `search_issues`, or `search_repositories`, pipe the output through jqschema to discover available fields:
-# ```bash
-# # Save a minimal search result to a file
-# gh api search/code -f q="jq in:file language:bash" -f per_page=1 > /tmp/sample.json
-#
-# # Generate schema to understand structure
-# cat /tmp/sample.json | /tmp/gh-aw/jqschema.sh
-#
-# # Now you know which fields exist and can use them in your analysis
-# ```
-#
-# ## Report Formatting
-#
-# Structure your report with an overview followed by detailed content:
-#
-# 1. **Content Overview**: Start with 1-2 paragraphs that summarize the key findings, highlights, or main points of your report. This should give readers a quick understanding of what the report contains without needing to expand the details.
-#
-# 2. **Detailed Content**: Place the rest of your report inside HTML `<details>` and `<summary>` tags to allow readers to expand and view the full information. **IMPORTANT**: Always wrap the summary text in `<b>` tags to make it bold.
-#
-# **Example format:**
-#
-# `````markdown
-# Brief overview paragraph 1 introducing the report and its main findings.
-#
-# Optional overview paragraph 2 with additional context or highlights.
-#
-# <details>
-# <summary><b>Full Report Details</b></summary>
-#
-# ## Detailed Analysis
-#
-# Full report content with all sections, tables, and detailed information goes here.
-#
-# ### Section 1
-# [Content]
-#
-# ### Section 2
-# [Content]
-#
-# </details>
-# `````
-#
-# ## Reporting Workflow Run Information
-#
-# When analyzing workflow run logs or reporting information from GitHub Actions runs:
-#
-# ### 1. Workflow Run ID Formatting
-#
-# **Always render workflow run IDs as clickable URLs** when mentioning them in your report. The workflow run data includes a `url` field that provides the full GitHub Actions run page URL.
-#
-# **Format:**
-#
-# `````markdown
-# [§12345](https://github.com/owner/repo/actions/runs/12345)
-# `````
-#
-# **Example:**
-#
-# `````markdown
-# Analysis based on [§456789](https://github.com/githubnext/gh-aw/actions/runs/456789)
-# `````
-#
-# ### 2. Document References for Workflow Runs
-#
-# When your analysis is based on information mined from one or more workflow runs, **include up to 3 workflow run URLs as document references** at the end of your report.
-#
-# **Format:**
-#
-# `````markdown
-# ---
-#
-# **References:**
-# - [§12345](https://github.com/owner/repo/actions/runs/12345)
-# - [§12346](https://github.com/owner/repo/actions/runs/12346)
-# - [§12347](https://github.com/owner/repo/actions/runs/12347)
-# `````
-#
-# **Guidelines:**
-#
-# - Include **maximum 3 references** to keep reports concise
-# - Choose the most relevant or representative runs (e.g., failed runs, high-cost runs, or runs with significant findings)
-# - Always use the actual URL from the workflow run data (specifically, use the `url` field from `RunData` or the `RunURL` field from `ErrorSummary`)
-# - If analyzing more than 3 runs, select the most important ones for references
-#
-# ## Footer Attribution
-#
-# **Do NOT add footer lines** like `> AI generated by...` to your comment. The system automatically appends attribution after your content to prevent duplicates.
-#
-# # Trending Charts - Quick Start Guide
-#
-# You have a complete Python environment with scientific libraries ready for generating trend charts with persistent data storage.
-#
-# ## Cache-Memory for Trending Data
-#
-# Persistent cache-memory is available at `/tmp/gh-aw/cache-memory/` that survives across workflow runs. Use it to store historical trending data.
-#
-# **Recommended Structure:**
-# ```
-# /tmp/gh-aw/cache-memory/
-# ├── trending/
-# │   ├── <metric-name>/
-# │   │   └── history.jsonl      # Time-series data (JSON Lines format)
-# │   └── index.json              # Index of all tracked metrics
-# ```
-#
-# ## Quick Start Pattern 1: Daily Metrics Tracking
-#
-# Track daily metrics and visualize trends over time:
-#
-# ```python
-# #!/usr/bin/env python3
-# """Daily metrics trending"""
-# import pandas as pd
-# import matplotlib.pyplot as plt
-# import seaborn as sns
-# import json
-# import os
-# from datetime import datetime
-#
-# # Configuration
-# CACHE_DIR = '/tmp/gh-aw/cache-memory/trending'
-# METRIC_NAME = 'daily_metrics'
-# HISTORY_FILE = f'{CACHE_DIR}/{METRIC_NAME}/history.jsonl'
-# CHARTS_DIR = '/tmp/gh-aw/python/charts'
-#
-# # Ensure directories exist
-# os.makedirs(f'{CACHE_DIR}/{METRIC_NAME}', exist_ok=True)
-# os.makedirs(CHARTS_DIR, exist_ok=True)
-#
-# # Collect today's data (customize this section)
-# today_data = {
-#     "timestamp": datetime.now().isoformat(),
-#     "metric_a": 42,
-#     "metric_b": 85,
-#     "metric_c": 23
-# }
-#
-# # Append to history
-# with open(HISTORY_FILE, 'a') as f:
-#     f.write(json.dumps(today_data) + '\n')
-#
-# # Load all historical data
-# if os.path.exists(HISTORY_FILE):
-#     df = pd.read_json(HISTORY_FILE, lines=True)
-#     df['date'] = pd.to_datetime(df['timestamp']).dt.date
-#     df = df.sort_values('timestamp')
-#     daily_stats = df.groupby('date').sum()
-#
-#     # Generate trend chart
-#     sns.set_style("whitegrid")
-#     sns.set_palette("husl")
-#
-#     fig, ax = plt.subplots(figsize=(12, 7), dpi=300)
-#     daily_stats.plot(ax=ax, marker='o', linewidth=2)
-#     ax.set_title('Daily Metrics Trends', fontsize=16, fontweight='bold')
-#     ax.set_xlabel('Date', fontsize=12)
-#     ax.set_ylabel('Count', fontsize=12)
-#     ax.legend(loc='best')
-#     ax.grid(True, alpha=0.3)
-#     plt.xticks(rotation=45)
-#     plt.tight_layout()
-#
-#     plt.savefig(f'{CHARTS_DIR}/daily_metrics_trend.png',
-#                 dpi=300, bbox_inches='tight', facecolor='white')
-#
-#     print(f"✅ Chart generated with {len(df)} data points")
-# else:
-#     print("No historical data yet. Run again tomorrow to see trends.")
-# ```
-#
-# ## Quick Start Pattern 2: Moving Averages
-#
-# Smooth volatile data with moving averages:
-#
-# ```python
-# #!/usr/bin/env python3
-# """Moving average trending"""
-# import pandas as pd
-# import matplotlib.pyplot as plt
-# import seaborn as sns
-# import os
-#
-# # Load historical data
-# history_file = '/tmp/gh-aw/cache-memory/trending/metrics/history.jsonl'
-# if os.path.exists(history_file):
-#     df = pd.read_json(history_file, lines=True)
-#     df['date'] = pd.to_datetime(df['timestamp']).dt.date
-#     df = df.sort_values('timestamp')
-#
-#     # Calculate 7-day moving average
-#     df['rolling_avg'] = df['value'].rolling(window=7, min_periods=1).mean()
-#
-#     # Plot with trend line
-#     sns.set_style("whitegrid")
-#     fig, ax = plt.subplots(figsize=(12, 7), dpi=300)
-#     ax.plot(df['date'], df['value'], label='Actual', alpha=0.5, marker='o')
-#     ax.plot(df['date'], df['rolling_avg'], label='7-day Average', linewidth=2.5)
-#     ax.fill_between(df['date'], df['value'], df['rolling_avg'], alpha=0.2)
-#     ax.set_title('Trend with Moving Average', fontsize=16, fontweight='bold')
-#     ax.set_xlabel('Date', fontsize=12)
-#     ax.set_ylabel('Value', fontsize=12)
-#     ax.legend(loc='best')
-#     ax.grid(True, alpha=0.3)
-#     plt.xticks(rotation=45)
-#     plt.tight_layout()
-#     plt.savefig('/tmp/gh-aw/python/charts/moving_average_trend.png',
-#                 dpi=300, bbox_inches='tight', facecolor='white')
-#     print("✅ Moving average chart generated")
-# ```
-#
-# ## Quick Start Pattern 3: Comparative Trends
-#
-# Compare multiple metrics over time:
-#
-# ```python
-# #!/usr/bin/env python3
-# """Comparative trending"""
-# import pandas as pd
-# import matplotlib.pyplot as plt
-# import seaborn as sns
-# import os
-#
-# history_file = '/tmp/gh-aw/cache-memory/trending/multi_metrics/history.jsonl'
-# if os.path.exists(history_file):
-#     df = pd.read_json(history_file, lines=True)
-#     df['timestamp'] = pd.to_datetime(df['timestamp'])
-#
-#     # Plot multiple metrics
-#     sns.set_style("whitegrid")
-#     sns.set_palette("husl")
-#     fig, ax = plt.subplots(figsize=(14, 8), dpi=300)
-#
-#     for metric in df['metric'].unique():
-#         metric_data = df[df['metric'] == metric]
-#         ax.plot(metric_data['timestamp'], metric_data['value'], 
-#                 marker='o', label=metric, linewidth=2)
-#
-#     ax.set_title('Comparative Metrics Trends', fontsize=16, fontweight='bold')
-#     ax.set_xlabel('Date', fontsize=12)
-#     ax.set_ylabel('Value', fontsize=12)
-#     ax.legend(loc='best', fontsize=12)
-#     ax.grid(True, alpha=0.3)
-#     plt.xticks(rotation=45)
-#     plt.tight_layout()
-#     plt.savefig('/tmp/gh-aw/python/charts/comparative_trends.png',
-#                 dpi=300, bbox_inches='tight', facecolor='white')
-#     print("✅ Comparative trends chart generated")
-# ```
-#
-# ## Best Practices
-#
-# ### 1. Use JSON Lines Format
-#
-# Store trending data as JSON Lines (`.jsonl`) for efficient append-only storage:
-# ```python
-# # Append new data point
-# with open(history_file, 'a') as f:
-#     f.write(json.dumps(data_point) + '\n')
-#
-# # Load all data
-# df = pd.read_json(history_file, lines=True)
-# ```
-#
-# ### 2. Include Timestamps
-#
-# Always include ISO 8601 timestamps:
-# ```python
-# data_point = {
-#     "timestamp": datetime.now().isoformat(),
-#     "metric": "issue_count",
-#     "value": 42
-# }
-# ```
-#
-# ### 3. Data Retention
-#
-# Implement retention policies to prevent unbounded growth:
-# ```python
-# from datetime import datetime, timedelta
-#
-# # Keep only last 90 days
-# cutoff_date = datetime.now() - timedelta(days=90)
-# df = df[df['timestamp'] >= cutoff_date]
-#
-# # Save pruned data
-# df.to_json(history_file, orient='records', lines=True)
-# ```
-#
-# ## Directory Structure
-#
-# ```
-# /tmp/gh-aw/
-# ├── python/
-# │   ├── data/          # Current run data files
-# │   ├── charts/        # Generated charts (auto-uploaded as artifacts)
-# │   ├── artifacts/     # Additional output files
-# │   └── *.py           # Python scripts
-# └── cache-memory/
-#     └── trending/      # Persistent historical data (survives runs)
-#         └── <metric>/
-#             └── history.jsonl
-# ```
-#
-# ## Chart Quality Guidelines
-#
-# - **DPI**: Use 300 or higher for publication quality
-# - **Figure Size**: Standard is 12x7 inches for trend charts
-# - **Labels**: Always include clear axis labels and titles
-# - **Legend**: Add legends when plotting multiple series
-# - **Grid**: Enable grid lines for easier reading
-# - **Colors**: Use colorblind-friendly palettes (seaborn defaults)
-#
-# ## Tips for Success
-#
-# 1. **Consistency**: Use same metric names across runs
-# 2. **Validation**: Check data quality before appending
-# 3. **Documentation**: Comment your data schemas
-# 4. **Testing**: Validate charts before uploading
-# 5. **Cleanup**: Implement retention policies for cache-memory
-#
-# ---
-#
-# Remember: The power of trending comes from consistent data collection over time. Use cache-memory to build a rich historical dataset that reveals insights and patterns!
-#
-# # Agentic Workflow Audit Agent
-#
-# You are the Agentic Workflow Audit Agent - an expert system that monitors, analyzes, and improves agentic workflows running in this repository.
-#
-# ## Mission
-#
-# Daily audit all agentic workflow runs from the last 24 hours to identify issues, missing tools, errors, and opportunities for improvement.
-#
-# ## Current Context
-#
-# - **Repository**: ${{ github.repository }}
-#
-# ## 📊 Trend Charts Requirement
-#
-# **IMPORTANT**: Generate exactly 2 trend charts that showcase workflow health metrics over time.
-#
-# ### Chart Generation Process
-#
-# **Phase 1: Data Collection**
-#
-# Collect data for the past 30 days (or available data) using workflow audit logs:
-#
-# 1. **Workflow Success/Failure Data**:
-#    - Count of successful workflow runs per day
-#    - Count of failed workflow runs per day
-#    - Success rate percentage per day
-#
-# 2. **Token Usage and Cost Data**:
-#    - Total tokens used per day across all workflows
-#    - Estimated cost per day
-#    - Average tokens per workflow run
-#
-# **Phase 2: Data Preparation**
-#
-# 1. Create CSV files in `/tmp/gh-aw/python/data/` with the collected data:
-#    - `workflow_health.csv` - Daily success/failure counts and rates
-#    - `token_usage.csv` - Daily token consumption and costs
-#
-# 2. Each CSV should have a date column and metric columns with appropriate headers
-#
-# **Phase 3: Chart Generation**
-#
-# Generate exactly **2 high-quality trend charts**:
-#
-# **Chart 1: Workflow Success/Failure Trends**
-# - Multi-line chart showing:
-#   - Successful runs (line, green)
-#   - Failed runs (line, red)
-#   - Success rate percentage (line with secondary y-axis)
-# - X-axis: Date (last 30 days)
-# - Y-axis: Count (left), Percentage (right)
-# - Save as: `/tmp/gh-aw/python/charts/workflow_health_trends.png`
-#
-# **Chart 2: Token Usage & Cost Trends**
-# - Dual visualization showing:
-#   - Daily token usage (bar chart or area chart)
-#   - Estimated daily cost (line overlay)
-#   - 7-day moving average for smoothing
-# - X-axis: Date (last 30 days)
-# - Y-axis: Token count (left), Cost in USD (right)
-# - Save as: `/tmp/gh-aw/python/charts/token_cost_trends.png`
-#
-# **Chart Quality Requirements**:
-# - DPI: 300 minimum
-# - Figure size: 12x7 inches for better readability
-# - Use seaborn styling with a professional color palette
-# - Include grid lines for easier reading
-# - Clear, large labels and legend
-# - Title with context (e.g., "Workflow Health - Last 30 Days")
-# - Annotations for significant peaks or anomalies
-#
-# **Phase 4: Upload Charts**
-#
-# 1. Upload both charts using the `upload asset` tool
-# 2. Collect the returned URLs for embedding in the discussion
-#
-# **Phase 5: Embed Charts in Discussion**
-#
-# Include the charts in your audit report with this structure:
-#
-# ```markdown
-# ## 📈 Workflow Health Trends
-#
-# ### Success/Failure Patterns
-# ![Workflow Health Trends](URL_FROM_UPLOAD_ASSET_CHART_1)
-#
-# [Brief 2-3 sentence analysis of the trends shown in this chart, highlighting notable patterns, improvements, or concerns]
-#
-# ### Token Usage & Costs
-# ![Token and Cost Trends](URL_FROM_UPLOAD_ASSET_CHART_2)
-#
-# [Brief 2-3 sentence analysis of resource consumption trends, noting efficiency improvements or cost spikes]
-# ```
-#
-# ### Python Implementation Notes
-#
-# - Use pandas for data manipulation and date handling
-# - Use matplotlib.pyplot and seaborn for visualization
-# - Set appropriate date formatters for x-axis labels
-# - Use `plt.xticks(rotation=45)` for readable date labels
-# - Apply `plt.tight_layout()` before saving
-# - Handle cases where data might be sparse or missing
-#
-# ### Error Handling
-#
-# If insufficient data is available (less than 7 days):
-# - Generate the charts with available data
-# - Add a note in the analysis mentioning the limited data range
-# - Consider using a bar chart instead of line chart for very sparse data
-#
-# ---
-#
-# ## Audit Process
-#
-# ### Phase 0: Setup
-#
-# - DO NOT ATTEMPT TO USE GH AW DIRECTLY, it is not authenticated. Use the MCP server instead.
-# - Do not attempt do download the `gh aw` extension or built it. If the MCP fails, give up.
-# - Run the `status` tool of `gh-aw` MCP server to verify configuration. 
-#
-# ### Phase 1: Collect Workflow Logs
-#
-# The gh-aw binary has been built and configured as an MCP server. You can now use the MCP tools directly.
-#
-# 1. **Download Logs from Last 24 Hours**:
-#    Use the `logs` tool from the gh-aw MCP server:
-#    - Workflow name: (leave empty to get all workflows)
-#    - Count: Set appropriately for 24 hours of activity
-#    - Start date: "-1d" (last 24 hours)
-#    - Engine: (optional filter by claude, codex, or copilot)
-#    - Branch: (optional filter by branch name)
-#
-#    The logs will be downloaded to `/tmp/gh-aw/aw-mcp/logs` automatically.
-#
-# 2. **Verify Log Collection**:
-#    - Check that logs were downloaded successfully in `/tmp/gh-aw/aw-mcp/logs`
-#    - Note how many workflow runs were found
-#    - Identify which workflows were active
-#
-# ### Phase 2: Analyze Logs for Issues
-#
-# Review the downloaded logs in `/tmp/gh-aw/aw-mcp/logs` and identify:
-#
-# #### 2.1 Missing Tools Analysis
-# - Check for any missing tool reports in the logs
-# - Look for patterns in missing tools across workflows
-# - Identify tools that are frequently requested but unavailable
-# - Determine if missing tools are legitimate needs or misconfigurations
-#
-# #### 2.2 Error Detection
-# - Scan logs for error messages and stack traces
-# - Identify failing workflow runs
-# - Categorize errors by type:
-#   - Tool execution errors
-#   - MCP server connection failures
-#   - Permission/authentication errors
-#   - Timeout issues
-#   - Resource constraints
-#   - AI model errors
-#
-# #### 2.3 Performance Metrics
-# - Review token usage and costs
-# - Identify workflows with unusually high resource consumption
-# - Check for workflows exceeding timeout limits
-# - Analyze turn counts and efficiency
-#
-# #### 2.4 Pattern Recognition
-# - Identify recurring issues across multiple workflows
-# - Detect workflows that frequently fail
-# - Find common error signatures
-# - Look for trends in tool usage
-#
-# ### Phase 3: Store Analysis in Cache Memory
-#
-# Use the cache memory folder `/tmp/gh-aw/cache-memory/` to build persistent knowledge:
-#
-# 1. **Create Investigation Index**:
-#    - Save a summary of today's findings to `/tmp/gh-aw/cache-memory/audits/<date>.json`
-#    - Maintain an index of all audits in `/tmp/gh-aw/cache-memory/audits/index.json`
-#
-# 2. **Update Pattern Database**:
-#    - Store detected error patterns in `/tmp/gh-aw/cache-memory/patterns/errors.json`
-#    - Track missing tool requests in `/tmp/gh-aw/cache-memory/patterns/missing-tools.json`
-#    - Record MCP server failures in `/tmp/gh-aw/cache-memory/patterns/mcp-failures.json`
-#
-# 3. **Maintain Historical Context**:
-#    - Read previous audit data from cache
-#    - Compare current findings with historical patterns
-#    - Identify new issues vs. recurring problems
-#    - Track improvement or degradation over time
-#
-# ### Phase 4: Create Discussion Report
-#
-# **ALWAYS create a comprehensive discussion report** with your audit findings, regardless of whether issues were found or not.
-#
-# Create a discussion with:
-# - **Summary**: Overview of audit findings
-# - **Statistics**: Number of runs analyzed, success/failure rates, error counts
-# - **Missing Tools**: List of tools requested but not available
-# - **Error Analysis**: Detailed breakdown of errors found
-# - **Affected Workflows**: Which workflows are experiencing problems
-# - **Recommendations**: Specific actions to address issues
-# - **Priority Assessment**: Severity of issues found
-#
-# **Discussion Template**:
-# ```markdown
-# # 🔍 Agentic Workflow Audit Report - [DATE]
-#
-# ## Audit Summary
-#
-# - **Period**: Last 24 hours
-# - **Runs Analyzed**: [NUMBER]
-# - **Workflows Active**: [NUMBER]
-# - **Success Rate**: [PERCENTAGE]
-# - **Issues Found**: [NUMBER]
-#
-# ## Missing Tools
-#
-# [If any missing tools were detected, list them with frequency and affected workflows]
-#
-# | Tool Name | Request Count | Workflows Affected | Reason |
-# |-----------|---------------|-------------------|---------|
-# | [tool]    | [count]       | [workflows]       | [reason]|
-#
-# ## Error Analysis
-#
-# [Detailed breakdown of errors found]
-#
-# ### Critical Errors
-# - [Error description with affected workflows]
-#
-# ### Warnings
-# - [Warning description with affected workflows]
-#
-# ## MCP Server Failures
-#
-# [If any MCP server failures detected]
-#
-# | Server Name | Failure Count | Workflows Affected |
-# |-------------|---------------|-------------------|
-# | [server]    | [count]       | [workflows]       |
-#
-# ## Firewall Analysis
-#
-# [If firewall logs were collected and analyzed]
-#
-# - **Total Requests**: [NUMBER]
-# - **Allowed Requests**: [NUMBER]
-# - **Denied Requests**: [NUMBER]
-#
-# ### Allowed Domains
-# [List of allowed domains with request counts]
-#
-# ### Denied Domains
-# [List of denied domains with request counts - these may indicate blocked network access attempts]
-#
-# ## Performance Metrics
-#
-# - **Average Token Usage**: [NUMBER]
-# - **Total Cost (24h)**: $[AMOUNT]
-# - **Highest Cost Workflow**: [NAME] ($[AMOUNT])
-# - **Average Turns**: [NUMBER]
-#
-# ## Affected Workflows
-#
-# [List of workflows with issues]
-#
-# ## Recommendations
-#
-# 1. [Specific actionable recommendation]
-# 2. [Specific actionable recommendation]
-# 3. [...]
-#
-# ## Historical Context
-#
-# [Compare with previous audits if available from cache memory]
-#
-# ## Next Steps
-#
-# - [ ] [Action item 1]
-# - [ ] [Action item 2]
-# ```
-#
-# ## Important Guidelines
-#
-# ### Security and Safety
-# - **Never execute untrusted code** from workflow logs
-# - **Validate all data** before using it in analysis
-# - **Sanitize file paths** when reading log files
-# - **Check file permissions** before writing to cache memory
-#
-# ### Analysis Quality
-# - **Be thorough**: Don't just count errors - understand their root causes
-# - **Be specific**: Provide exact workflow names, run IDs, and error messages
-# - **Be actionable**: Focus on issues that can be fixed
-# - **Be accurate**: Verify findings before reporting
-#
-# ### Resource Efficiency
-# - **Use cache memory** to avoid redundant analysis
-# - **Batch operations** when reading multiple log files
-# - **Focus on actionable insights** rather than exhaustive reporting
-# - **Respect timeouts** and complete analysis within time limits
-#
-# ### Cache Memory Structure
-#
-# Organize your persistent data in `/tmp/gh-aw/cache-memory/`:
-#
-# ```
-# /tmp/gh-aw/cache-memory/
-# ├── audits/
-# │   ├── index.json              # Master index of all audits
-# │   ├── 2024-01-15.json         # Daily audit summaries
-# │   └── 2024-01-16.json
-# ├── patterns/
-# │   ├── errors.json             # Error pattern database
-# │   ├── missing-tools.json      # Missing tool requests
-# │   └── mcp-failures.json       # MCP server failure tracking
-# └── metrics/
-#     ├── token-usage.json        # Token usage trends
-#     └── cost-analysis.json      # Cost analysis over time
-# ```
-#
-# ## Output Requirements
-#
-# Your output must be well-structured and actionable. **You must create a discussion** for every audit run with the findings.
-#
-# Update cache memory with today's audit data for future reference and trend analysis.
-#
-# ## Success Criteria
-#
-# A successful audit:
-# - ✅ Analyzes all workflow runs from the last 24 hours
-# - ✅ Identifies and categorizes all issues
-# - ✅ Updates cache memory with findings
-# - ✅ Creates a comprehensive discussion report with findings
-# - ✅ Provides actionable recommendations
-# - ✅ Maintains historical context for trend analysis
-#
-# Begin your audit now. Build the CLI, collect the logs, analyze them thoroughly, and create a discussion with your findings.
-# ```
-#
-# Pinned GitHub Actions:
-#   - actions/cache/restore@v4 (0057852bfaa89a56745cba8c7296529d2fc39830)
-#     https://github.com/actions/cache/commit/0057852bfaa89a56745cba8c7296529d2fc39830
-#   - actions/cache/save@v4 (0057852bfaa89a56745cba8c7296529d2fc39830)
-#     https://github.com/actions/cache/commit/0057852bfaa89a56745cba8c7296529d2fc39830
-#   - actions/checkout@v5 (93cb6efe18208431cddfb8368fd83d5badbf9bfd)
-#     https://github.com/actions/checkout/commit/93cb6efe18208431cddfb8368fd83d5badbf9bfd
-#   - actions/download-artifact@v6 (018cc2cf5baa6db3ef3c5f8a56943fffe632ef53)
-#     https://github.com/actions/download-artifact/commit/018cc2cf5baa6db3ef3c5f8a56943fffe632ef53
-#   - actions/github-script@v8 (ed597411d8f924073f98dfc5c65a23a2325f34cd)
-#     https://github.com/actions/github-script/commit/ed597411d8f924073f98dfc5c65a23a2325f34cd
-#   - actions/setup-go@v6 (4dc6199c7b1a012772edbd06daecab0f50c9053c)
-#     https://github.com/actions/setup-go/commit/4dc6199c7b1a012772edbd06daecab0f50c9053c
-#   - actions/setup-node@v6 (395ad3262231945c25e8478fd5baf05154b1d79f)
-#     https://github.com/actions/setup-node/commit/395ad3262231945c25e8478fd5baf05154b1d79f
-#   - actions/upload-artifact@v5 (330a01c490aca151604b8cf639adc76d48f6c5d4)
-#     https://github.com/actions/upload-artifact/commit/330a01c490aca151604b8cf639adc76d48f6c5d4
 
 name: "Agentic Workflow Audit Agent"
 "on":
   schedule:
-  - cron: "32 17 * * *"
+  - cron: "37 3 * * *"
     # Friendly format: daily (scattered)
   workflow_dispatch: null
 
@@ -943,9 +121,7 @@ jobs:
                   .addRaw("**Files:**\n")
                   .addRaw(`- Source: \`${workflowMdPath}\`\n`)
                   .addRaw(`  - Last commit: ${workflowTimestamp}\n`)
-                  .addRaw(
-                    `  - Commit SHA: [\`${workflowCommit.sha.substring(0, 7)}\`](https://github.com/${owner}/${repo}/commit/${workflowCommit.sha})\n`
-                  )
+                  .addRaw(`  - Commit SHA: [\`${workflowCommit.sha.substring(0, 7)}\`](https://github.com/${owner}/${repo}/commit/${workflowCommit.sha})\n`)
                   .addRaw(`- Lock: \`${lockFilePath}\`\n`)
                   .addRaw(`  - Last commit: ${lockTimestamp}\n`)
                   .addRaw(`  - Commit SHA: [\`${lockCommit.sha.substring(0, 7)}\`](https://github.com/${owner}/${repo}/commit/${lockCommit.sha})\n\n`)
@@ -1602,9 +778,7 @@ jobs:
                 server.debug(`  [${toolName}] Python handler args: ${JSON.stringify(args)}`);
                 server.debug(`  [${toolName}] Timeout: ${timeoutSeconds}s`);
                 const inputJson = JSON.stringify(args || {});
-                server.debug(
-                  `  [${toolName}] Input JSON (${inputJson.length} bytes): ${inputJson.substring(0, 200)}${inputJson.length > 200 ? "..." : ""}`
-                );
+                server.debug(`  [${toolName}] Input JSON (${inputJson.length} bytes): ${inputJson.substring(0, 200)}${inputJson.length > 200 ? "..." : ""}`);
                 return new Promise((resolve, reject) => {
                   server.debug(`  [${toolName}] Executing Python script...`);
                   const child = execFile(
@@ -1712,9 +886,7 @@ jobs:
                       try {
                         if (fs.existsSync(outputFile)) {
                           const outputContent = fs.readFileSync(outputFile, "utf-8");
-                          server.debug(
-                            `  [${toolName}] Output file content: ${outputContent.substring(0, 500)}${outputContent.length > 500 ? "..." : ""}`
-                          );
+                          server.debug(`  [${toolName}] Output file content: ${outputContent.substring(0, 500)}${outputContent.length > 500 ? "..." : ""}`);
                           const lines = outputContent.split("\n");
                           for (const line of lines) {
                             const trimmed = line.trim();
@@ -1772,10 +944,7 @@ jobs:
                   fs.mkdirSync(server.logDir, { recursive: true });
                 }
                 const timestamp = new Date().toISOString();
-                fs.writeFileSync(
-                  server.logFilePath,
-                  `# ${server.serverInfo.name} MCP Server Log\n# Started: ${timestamp}\n# Version: ${server.serverInfo.version}\n\n`
-                );
+                fs.writeFileSync(server.logFilePath, `# ${server.serverInfo.name} MCP Server Log\n# Started: ${timestamp}\n# Version: ${server.serverInfo.version}\n\n`);
                 server.logFileInitialized = true;
               } catch {
               }
@@ -2435,10 +1604,7 @@ jobs:
                 const isInWorkspace = absolutePath.startsWith(path.resolve(workspaceDir));
                 const isInTmp = absolutePath.startsWith(tmpDir);
                 if (!isInWorkspace && !isInTmp) {
-                  throw new Error(
-                    `File path must be within workspace directory (${workspaceDir}) or /tmp directory. ` +
-                      `Provided path: ${filePath} (resolved to: ${absolutePath})`
-                  );
+                  throw new Error(`File path must be within workspace directory (${workspaceDir}) or /tmp directory. ` + `Provided path: ${filePath} (resolved to: ${absolutePath})`);
                 }
                 if (!fs.existsSync(filePath)) {
                   throw new Error(`File not found: ${filePath}`);
@@ -2697,10 +1863,7 @@ jobs:
                       };
                       const entryJSON = JSON.stringify(entry);
                       fs.appendFileSync(outputFile, entryJSON + "\n");
-                      const outputText =
-                        jobConfig && jobConfig.output
-                          ? jobConfig.output
-                          : `Safe-job '${configKey}' executed successfully with arguments: ${JSON.stringify(args)}`;
+                      const outputText = jobConfig && jobConfig.output ? jobConfig.output : `Safe-job '${configKey}' executed successfully with arguments: ${JSON.stringify(args)}`;
                       return {
                         content: [
                           {
@@ -4095,16 +3258,13 @@ jobs:
               return result;
             }
             function renderMarkdownTemplate(markdown) {
-              let result = markdown.replace(
-                /(\n?)([ \t]*{{#if\s+([^}]*)}}[ \t]*\n)([\s\S]*?)([ \t]*{{\/if}}[ \t]*)(\n?)/g,
-                (match, leadNL, openLine, cond, body, closeLine, trailNL) => {
-                  if (isTruthy(cond)) {
-                    return leadNL + body;
-                  } else {
-                    return "";
-                  }
+              let result = markdown.replace(/(\n?)([ \t]*{{#if\s+([^}]*)}}[ \t]*\n)([\s\S]*?)([ \t]*{{\/if}}[ \t]*)(\n?)/g, (match, leadNL, openLine, cond, body, closeLine, trailNL) => {
+                if (isTruthy(cond)) {
+                  return leadNL + body;
+                } else {
+                  return "";
                 }
-              );
+              });
               result = result.replace(/{{#if\s+([^}]*)}}([\s\S]*?){{\/if}}/g, (_, cond, body) => (isTruthy(cond) ? body : ""));
               result = result.replace(/\n{3,}/g, "\n\n");
               return result;
@@ -4551,36 +3711,33 @@ jobs:
                 });
               }
               function sanitizeUrlProtocols(s) {
-                return s.replace(
-                  /((?:http|ftp|file|ssh|git):\/\/([\w.-]*)(?:[^\s]*)|(?:data|javascript|vbscript|about|mailto|tel):[^\s]+)/gi,
-                  (match, _fullMatch, domain) => {
-                    if (domain) {
-                      const domainLower = domain.toLowerCase();
-                      const truncated = domainLower.length > 12 ? domainLower.substring(0, 12) + "..." : domainLower;
+                return s.replace(/((?:http|ftp|file|ssh|git):\/\/([\w.-]*)(?:[^\s]*)|(?:data|javascript|vbscript|about|mailto|tel):[^\s]+)/gi, (match, _fullMatch, domain) => {
+                  if (domain) {
+                    const domainLower = domain.toLowerCase();
+                    const truncated = domainLower.length > 12 ? domainLower.substring(0, 12) + "..." : domainLower;
+                    if (typeof core !== "undefined" && core.info) {
+                      core.info(`Redacted URL: ${truncated}`);
+                    }
+                    if (typeof core !== "undefined" && core.debug) {
+                      core.debug(`Redacted URL (full): ${match}`);
+                    }
+                    addRedactedDomain(domainLower);
+                  } else {
+                    const protocolMatch = match.match(/^([^:]+):/);
+                    if (protocolMatch) {
+                      const protocol = protocolMatch[1] + ":";
+                      const truncated = match.length > 12 ? match.substring(0, 12) + "..." : match;
                       if (typeof core !== "undefined" && core.info) {
                         core.info(`Redacted URL: ${truncated}`);
                       }
                       if (typeof core !== "undefined" && core.debug) {
                         core.debug(`Redacted URL (full): ${match}`);
                       }
-                      addRedactedDomain(domainLower);
-                    } else {
-                      const protocolMatch = match.match(/^([^:]+):/);
-                      if (protocolMatch) {
-                        const protocol = protocolMatch[1] + ":";
-                        const truncated = match.length > 12 ? match.substring(0, 12) + "..." : match;
-                        if (typeof core !== "undefined" && core.info) {
-                          core.info(`Redacted URL: ${truncated}`);
-                        }
-                        if (typeof core !== "undefined" && core.debug) {
-                          core.debug(`Redacted URL (full): ${match}`);
-                        }
-                        addRedactedDomain(protocol);
-                      }
+                      addRedactedDomain(protocol);
                     }
-                    return "(redacted)";
                   }
-                );
+                  return "(redacted)";
+                });
               }
               function neutralizeCommands(s) {
                 const commandName = process.env.GH_AW_COMMAND;
@@ -4602,37 +3759,7 @@ jobs:
                 return s.replace(/<!--[\s\S]*?-->/g, "").replace(/<!--[\s\S]*?--!>/g, "");
               }
               function convertXmlTags(s) {
-                const allowedTags = [
-                  "b",
-                  "blockquote",
-                  "br",
-                  "code",
-                  "details",
-                  "em",
-                  "h1",
-                  "h2",
-                  "h3",
-                  "h4",
-                  "h5",
-                  "h6",
-                  "hr",
-                  "i",
-                  "li",
-                  "ol",
-                  "p",
-                  "pre",
-                  "strong",
-                  "sub",
-                  "summary",
-                  "sup",
-                  "table",
-                  "tbody",
-                  "td",
-                  "th",
-                  "thead",
-                  "tr",
-                  "ul",
-                ];
+                const allowedTags = ["b", "blockquote", "br", "code", "details", "em", "h1", "h2", "h3", "h4", "h5", "h6", "hr", "i", "li", "ol", "p", "pre", "strong", "sub", "summary", "sup", "table", "tbody", "td", "th", "thead", "tr", "ul"];
                 s = s.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, (match, content) => {
                   const convertedContent = content.replace(/<(\/?[A-Za-z][A-Za-z0-9]*(?:[^>]*?))>/g, "($1)");
                   return `(![CDATA[${convertedContent}]])`;
@@ -4744,36 +3871,33 @@ jobs:
                 return result;
               }
               function sanitizeUrlProtocols(s) {
-                return s.replace(
-                  /\b((?:http|ftp|file|ssh|git):\/\/([\w.-]+)(?:[^\s]*)|(?:data|javascript|vbscript|about|mailto|tel):[^\s]+)/gi,
-                  (match, _fullMatch, domain) => {
-                    if (domain) {
-                      const domainLower = domain.toLowerCase();
-                      const truncated = domainLower.length > 12 ? domainLower.substring(0, 12) + "..." : domainLower;
+                return s.replace(/\b((?:http|ftp|file|ssh|git):\/\/([\w.-]+)(?:[^\s]*)|(?:data|javascript|vbscript|about|mailto|tel):[^\s]+)/gi, (match, _fullMatch, domain) => {
+                  if (domain) {
+                    const domainLower = domain.toLowerCase();
+                    const truncated = domainLower.length > 12 ? domainLower.substring(0, 12) + "..." : domainLower;
+                    if (typeof core !== "undefined" && core.info) {
+                      core.info(`Redacted URL: ${truncated}`);
+                    }
+                    if (typeof core !== "undefined" && core.debug) {
+                      core.debug(`Redacted URL (full): ${match}`);
+                    }
+                    addRedactedDomain(domainLower);
+                  } else {
+                    const protocolMatch = match.match(/^([^:]+):/);
+                    if (protocolMatch) {
+                      const protocol = protocolMatch[1] + ":";
+                      const truncated = match.length > 12 ? match.substring(0, 12) + "..." : match;
                       if (typeof core !== "undefined" && core.info) {
                         core.info(`Redacted URL: ${truncated}`);
                       }
                       if (typeof core !== "undefined" && core.debug) {
                         core.debug(`Redacted URL (full): ${match}`);
                       }
-                      addRedactedDomain(domainLower);
-                    } else {
-                      const protocolMatch = match.match(/^([^:]+):/);
-                      if (protocolMatch) {
-                        const protocol = protocolMatch[1] + ":";
-                        const truncated = match.length > 12 ? match.substring(0, 12) + "..." : match;
-                        if (typeof core !== "undefined" && core.info) {
-                          core.info(`Redacted URL: ${truncated}`);
-                        }
-                        if (typeof core !== "undefined" && core.debug) {
-                          core.debug(`Redacted URL (full): ${match}`);
-                        }
-                        addRedactedDomain(protocol);
-                      }
+                      addRedactedDomain(protocol);
                     }
-                    return "(redacted)";
                   }
-                );
+                  return "(redacted)";
+                });
               }
               function neutralizeCommands(s) {
                 const commandName = process.env.GH_AW_COMMAND;
@@ -4799,37 +3923,7 @@ jobs:
                 return s.replace(/<!--[\s\S]*?-->/g, "").replace(/<!--[\s\S]*?--!>/g, "");
               }
               function convertXmlTags(s) {
-                const allowedTags = [
-                  "b",
-                  "blockquote",
-                  "br",
-                  "code",
-                  "details",
-                  "em",
-                  "h1",
-                  "h2",
-                  "h3",
-                  "h4",
-                  "h5",
-                  "h6",
-                  "hr",
-                  "i",
-                  "li",
-                  "ol",
-                  "p",
-                  "pre",
-                  "strong",
-                  "sub",
-                  "summary",
-                  "sup",
-                  "table",
-                  "tbody",
-                  "td",
-                  "th",
-                  "thead",
-                  "tr",
-                  "ul",
-                ];
+                const allowedTags = ["b", "blockquote", "br", "code", "details", "em", "h1", "h2", "h3", "h4", "h5", "h6", "hr", "i", "li", "ol", "p", "pre", "strong", "sub", "summary", "sup", "table", "tbody", "td", "th", "thead", "tr", "ul"];
                 s = s.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, (match, content) => {
                   const convertedContent = content.replace(/<(\/?[A-Za-z][A-Za-z0-9]*(?:[^>]*?))>/g, "($1)");
                   return `(![CDATA[${convertedContent}]])`;
@@ -5521,9 +4615,7 @@ jobs:
                   core.info(`Loaded validation config from ${validationConfigPath}`);
                 }
               } catch (error) {
-                core.warning(
-                  `Failed to read validation config from ${validationConfigPath}: ${error instanceof Error ? error.message : String(error)}`
-                );
+                core.warning(`Failed to read validation config from ${validationConfigPath}: ${error instanceof Error ? error.message : String(error)}`);
               }
               const mentionsConfig = validationConfig?.mentions || null;
               const allowedMentions = await resolveAllowedMentionsFromPayload(context, github, core, mentionsConfig);
@@ -5736,9 +4828,7 @@ jobs:
                   core.info(`[INGESTION] Line ${i + 1}: Original type='${originalType}', Normalized type='${itemType}'`);
                   item.type = itemType;
                   if (!expectedOutputTypes[itemType]) {
-                    core.warning(
-                      `[INGESTION] Line ${i + 1}: Type '${itemType}' not found in expected types: ${JSON.stringify(Object.keys(expectedOutputTypes))}`
-                    );
+                    core.warning(`[INGESTION] Line ${i + 1}: Type '${itemType}' not found in expected types: ${JSON.stringify(Object.keys(expectedOutputTypes))}`);
                     errors.push(`Line ${i + 1}: Unexpected output type '${itemType}'. Expected one of: ${Object.keys(expectedOutputTypes).join(", ")}`);
                     continue;
                   }
@@ -5820,10 +4910,7 @@ jobs:
               core.info(`Patch file ${hasPatch ? "exists" : "does not exist"} at: ${patchPath}`);
               let allowEmptyPR = false;
               if (safeOutputsConfig) {
-                if (
-                  safeOutputsConfig["create-pull-request"]?.["allow-empty"] === true ||
-                  safeOutputsConfig["create_pull_request"]?.["allow_empty"] === true
-                ) {
+                if (safeOutputsConfig["create-pull-request"]?.["allow-empty"] === true || safeOutputsConfig["create_pull_request"]?.["allow_empty"] === true) {
                   allowEmptyPR = true;
                   core.info(`allow-empty is enabled for create-pull-request`);
                 }
@@ -6186,24 +5273,7 @@ jobs:
                   "Custom Agents": [],
                   Other: [],
                 };
-                const builtinTools = [
-                  "bash",
-                  "write_bash",
-                  "read_bash",
-                  "stop_bash",
-                  "list_bash",
-                  "grep",
-                  "glob",
-                  "view",
-                  "create",
-                  "edit",
-                  "store_memory",
-                  "code_review",
-                  "codeql_checker",
-                  "report_progress",
-                  "report_intent",
-                  "gh-advisory-database",
-                ];
+                const builtinTools = ["bash", "write_bash", "read_bash", "stop_bash", "list_bash", "grep", "glob", "view", "create", "edit", "store_memory", "code_review", "codeql_checker", "report_progress", "report_intent", "gh-advisory-database"];
                 const internalTools = ["fetch_copilot_cli_documentation"];
                 for (const tool of initEntry.tools) {
                   const toolLower = tool.toLowerCase();
@@ -6599,9 +5669,7 @@ jobs:
                   const cacheCreationTokens = usage.cache_creation_input_tokens || 0;
                   const cacheReadTokens = usage.cache_read_input_tokens || 0;
                   const totalTokens = inputTokens + outputTokens + cacheCreationTokens + cacheReadTokens;
-                  lines.push(
-                    `  Tokens: ${totalTokens.toLocaleString()} total (${usage.input_tokens.toLocaleString()} in / ${usage.output_tokens.toLocaleString()} out)`
-                  );
+                  lines.push(`  Tokens: ${totalTokens.toLocaleString()} total (${usage.input_tokens.toLocaleString()} in / ${usage.output_tokens.toLocaleString()} out)`);
                 }
               }
               if (lastEntry?.total_cost_usd) {
@@ -6760,9 +5828,7 @@ jobs:
                   const cacheCreationTokens = usage.cache_creation_input_tokens || 0;
                   const cacheReadTokens = usage.cache_read_input_tokens || 0;
                   const totalTokens = inputTokens + outputTokens + cacheCreationTokens + cacheReadTokens;
-                  lines.push(
-                    `  Tokens: ${totalTokens.toLocaleString()} total (${usage.input_tokens.toLocaleString()} in / ${usage.output_tokens.toLocaleString()} out)`
-                  );
+                  lines.push(`  Tokens: ${totalTokens.toLocaleString()} total (${usage.input_tokens.toLocaleString()} in / ${usage.output_tokens.toLocaleString()} out)`);
                 }
               }
               if (lastEntry?.total_cost_usd) {
@@ -7103,9 +6169,7 @@ jobs:
                     }
                     lastIndex = regex.lastIndex;
                     if (iterationCount === ITERATION_WARNING_THRESHOLD) {
-                      core.warning(
-                        `High iteration count (${iterationCount}) on line ${lineIndex + 1} with pattern: ${pattern.description || pattern.pattern}`
-                      );
+                      core.warning(`High iteration count (${iterationCount}) on line ${lineIndex + 1} with pattern: ${pattern.description || pattern.pattern}`);
                       core.warning(`Line content (truncated): ${truncateString(line, 200)}`);
                     }
                     if (iterationCount > MAX_ITERATIONS_PER_LINE) {
@@ -7415,9 +6479,7 @@ jobs:
               core.setOutput("total_count", missingTools.length.toString());
               if (missingTools.length > 0) {
                 core.info("Missing tools summary:");
-                core.summary
-                  .addHeading("Missing Tools Report", 3)
-                  .addRaw(`Found **${missingTools.length}** missing tool${missingTools.length > 1 ? "s" : ""} in this workflow execution.\n\n`);
+                core.summary.addHeading("Missing Tools Report", 3).addRaw(`Found **${missingTools.length}** missing tool${missingTools.length > 1 ? "s" : ""} in this workflow execution.\n\n`);
                 missingTools.forEach((tool, index) => {
                   core.info(`${index + 1}. Tool: ${tool.tool}`);
                   core.info(`   Reason: ${tool.reason}`);
@@ -7551,9 +6613,7 @@ jobs:
               const messages = getMessages();
               const templateContext = toSnakeCase(ctx);
               const defaultMessage = "⚠️ Security scanning failed for [{workflow_name}]({run_url}). Review the logs for details.";
-              return messages?.detectionFailure
-                ? renderTemplate(messages.detectionFailure, templateContext)
-                : renderTemplate(defaultMessage, templateContext);
+              return messages?.detectionFailure ? renderTemplate(messages.detectionFailure, templateContext) : renderTemplate(defaultMessage, templateContext);
             }
             function collectGeneratedAssets() {
               const assets = [];
@@ -7835,9 +6895,7 @@ jobs:
               const defaultMessage = `⚓ Avast! This discussion be marked as **outdated** by [{workflow_name}]({run_url}).
             🗺️ A newer treasure map awaits ye at **[Discussion #{new_discussion_number}]({new_discussion_url})**.
             Fair winds, matey! 🏴‍☠️`;
-              return messages?.closeOlderDiscussion
-                ? renderTemplate(messages.closeOlderDiscussion, templateContext)
-                : renderTemplate(defaultMessage, templateContext);
+              return messages?.closeOlderDiscussion ? renderTemplate(messages.closeOlderDiscussion, templateContext) : renderTemplate(defaultMessage, templateContext);
             }
             const MAX_CLOSE_COUNT = 10;
             const GRAPHQL_DELAY_MS = 500;
@@ -8257,9 +7315,7 @@ jobs:
               const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
               const runId = context.runId;
               const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
-              const runUrl = context.payload.repository
-                ? `${context.payload.repository.html_url}/actions/runs/${runId}`
-                : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
+              const runUrl = context.payload.repository ? `${context.payload.repository.html_url}/actions/runs/${runId}` : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
               const createdDiscussions = [];
               const closedDiscussionsSummary = [];
               for (let i = 0; i < createDiscussionItems.length; i++) {
@@ -8285,16 +7341,10 @@ jobs:
                     }
                     repoInfo = fetchedInfo;
                     repoInfoCache.set(itemRepo, repoInfo);
-                    core.info(
-                      `Fetched discussion categories for ${itemRepo}: ${JSON.stringify(repoInfo.discussionCategories.map(cat => ({ name: cat.name, id: cat.id })))}`
-                    );
+                    core.info(`Fetched discussion categories for ${itemRepo}: ${JSON.stringify(repoInfo.discussionCategories.map(cat => ({ name: cat.name, id: cat.id })))}`);
                   } catch (error) {
                     const errorMessage = error instanceof Error ? error.message : String(error);
-                    if (
-                      errorMessage.includes("Not Found") ||
-                      errorMessage.includes("not found") ||
-                      errorMessage.includes("Could not resolve to a Repository")
-                    ) {
+                    if (errorMessage.includes("Not Found") || errorMessage.includes("not found") || errorMessage.includes("Could not resolve to a Repository")) {
                       core.warning(`Skipping discussion: Discussions are not enabled for repository '${itemRepo}'`);
                       continue;
                     }
@@ -8314,18 +7364,14 @@ jobs:
                 } else if (categoryInfo.matchType === "fallback") {
                   if (categoryInfo.requestedCategory) {
                     const availableCategoryNames = repoInfo.discussionCategories.map(cat => cat.name).join(", ");
-                    core.warning(
-                      `Category "${categoryInfo.requestedCategory}" not found by ID, name, or slug. Available categories: ${availableCategoryNames}`
-                    );
+                    core.warning(`Category "${categoryInfo.requestedCategory}" not found by ID, name, or slug. Available categories: ${availableCategoryNames}`);
                     core.info(`Falling back to default category: ${categoryInfo.name} (${categoryInfo.id})`);
                   } else {
                     core.info(`Using default first category: ${categoryInfo.name} (${categoryInfo.id})`);
                   }
                 }
                 const categoryId = categoryInfo.id;
-                core.info(
-                  `Processing create-discussion item ${i + 1}/${createDiscussionItems.length}: title=${createDiscussionItem.title}, bodyLength=${createDiscussionItem.body?.length || 0}, repo=${itemRepo}`
-                );
+                core.info(`Processing create-discussion item ${i + 1}/${createDiscussionItems.length}: title=${createDiscussionItem.title}, bodyLength=${createDiscussionItem.body?.length || 0}, repo=${itemRepo}`);
                 let title = createDiscussionItem.title ? replaceTemporaryIdReferences(createDiscussionItem.title.trim(), temporaryIdMap, itemRepo) : "";
                 const bodyText = createDiscussionItem.body || "";
                 let processedBody = replaceTemporaryIdReferences(bodyText, temporaryIdMap, itemRepo);
@@ -8386,17 +7432,7 @@ jobs:
                   if (closeOlderEnabled && hasMatchingCriteria) {
                     core.info("close-older-discussions is enabled, searching for older discussions to close...");
                     try {
-                      const closedDiscussions = await closeOlderDiscussions(
-                        github,
-                        repoParts.owner,
-                        repoParts.repo,
-                        titlePrefix,
-                        labels,
-                        categoryId,
-                        { number: discussion.number, url: discussion.url },
-                        workflowName,
-                        runUrl
-                      );
+                      const closedDiscussions = await closeOlderDiscussions(github, repoParts.owner, repoParts.repo, titlePrefix, labels, categoryId, { number: discussion.number, url: discussion.url }, workflowName, runUrl);
                       if (closedDiscussions.length > 0) {
                         closedDiscussionsSummary.push(...closedDiscussions);
                         core.info(`Closed ${closedDiscussions.length} older discussion(s) as outdated`);
@@ -8925,10 +7961,7 @@ jobs:
                     core.summary.addRaw("## Staged Asset Publication");
                   } else {
                     await exec.exec(`git push origin ${normalizedBranchName}`);
-                    core.summary
-                      .addRaw("## Assets")
-                      .addRaw(`Successfully uploaded **${uploadCount}** assets to branch \`${normalizedBranchName}\``)
-                      .addRaw("");
+                    core.summary.addRaw("## Assets").addRaw(`Successfully uploaded **${uploadCount}** assets to branch \`${normalizedBranchName}\``).addRaw("");
                     core.info(`Successfully uploaded ${uploadCount} assets to branch ${normalizedBranchName}`);
                   }
                   for (const asset of uploadAssetItems) {

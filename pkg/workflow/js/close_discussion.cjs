@@ -121,16 +121,12 @@ async function main() {
   core.info(`Found ${closeDiscussionItems.length} close-discussion item(s)`);
 
   // Get configuration from environment
-  const requiredLabels = process.env.GH_AW_CLOSE_DISCUSSION_REQUIRED_LABELS
-    ? process.env.GH_AW_CLOSE_DISCUSSION_REQUIRED_LABELS.split(",").map(l => l.trim())
-    : [];
+  const requiredLabels = process.env.GH_AW_CLOSE_DISCUSSION_REQUIRED_LABELS ? process.env.GH_AW_CLOSE_DISCUSSION_REQUIRED_LABELS.split(",").map(l => l.trim()) : [];
   const requiredTitlePrefix = process.env.GH_AW_CLOSE_DISCUSSION_REQUIRED_TITLE_PREFIX || "";
   const requiredCategory = process.env.GH_AW_CLOSE_DISCUSSION_REQUIRED_CATEGORY || "";
   const target = process.env.GH_AW_CLOSE_DISCUSSION_TARGET || "triggering";
 
-  core.info(
-    `Configuration: requiredLabels=${requiredLabels.join(",")}, requiredTitlePrefix=${requiredTitlePrefix}, requiredCategory=${requiredCategory}, target=${target}`
-  );
+  core.info(`Configuration: requiredLabels=${requiredLabels.join(",")}, requiredTitlePrefix=${requiredTitlePrefix}, requiredCategory=${requiredCategory}, target=${target}`);
 
   // Check if we're in a discussion context
   const isDiscussionContext = context.eventName === "discussion" || context.eventName === "discussion_comment";
@@ -266,9 +262,7 @@ async function main() {
       const workflowSourceURL = process.env.GH_AW_WORKFLOW_SOURCE_URL || "";
       const runId = context.runId;
       const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
-      const runUrl = context.payload.repository
-        ? `${context.payload.repository.html_url}/actions/runs/${runId}`
-        : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
+      const runUrl = context.payload.repository ? `${context.payload.repository.html_url}/actions/runs/${runId}` : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
 
       // Add fingerprint comment if present
       body += getTrackerID("markdown");

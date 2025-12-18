@@ -38,15 +38,7 @@ const mockContext = {
 global.core = mockCore;
 global.context = mockContext;
 
-const {
-  checkLabelFilter,
-  checkTitlePrefixFilter,
-  parseEntityConfig,
-  resolveEntityNumber,
-  escapeMarkdownTitle,
-  ISSUE_CONFIG,
-  PULL_REQUEST_CONFIG,
-} = require("./close_entity_helpers.cjs");
+const { checkLabelFilter, checkTitlePrefixFilter, parseEntityConfig, resolveEntityNumber, escapeMarkdownTitle, ISSUE_CONFIG, PULL_REQUEST_CONFIG } = require("./close_entity_helpers.cjs");
 
 describe("close_entity_helpers", () => {
   beforeEach(() => {

@@ -6,7 +6,10 @@ import (
 	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/constants"
+	"github.com/githubnext/gh-aw/pkg/logger"
 )
+
+var headerLog = logger.New("workflow:header")
 
 //go:embed assets/logo.txt
 var headerAsciiLogo string
@@ -19,12 +22,16 @@ var headerAsciiLogo string
 //   - generatedBy: Description of what generated this file (e.g., "gh-aw", "pkg/workflow/maintenance_workflow.go")
 //   - customInstructions: Optional additional instructions to display after the standard regeneration instructions
 func GenerateWorkflowHeader(sourceFile string, generatedBy string, customInstructions string) string {
+	headerLog.Printf("Generating workflow header: sourceFile=%s, generatedBy=%s, hasCustomInstructions=%v",
+		sourceFile, generatedBy, customInstructions != "")
+
 	var header strings.Builder
 
 	// Add ASCII logo
 	header.WriteString("#\n")
 	// TrimRight removes only trailing newlines, preserving per-line leading spaces
 	logoLines := strings.Split(strings.TrimRight(headerAsciiLogo, "\n"), "\n")
+	headerLog.Printf("Adding ASCII logo with %d lines", len(logoLines))
 	for _, line := range logoLines {
 		header.WriteString(fmt.Sprintf("# %s\n", line))
 	}
@@ -52,6 +59,7 @@ func GenerateWorkflowHeader(sourceFile string, generatedBy string, customInstruc
 		header.WriteString("#\n")
 		// Split custom instructions into lines and prefix each with "# "
 		instructionLines := strings.Split(strings.TrimSpace(customInstructions), "\n")
+		headerLog.Printf("Adding %d lines of custom instructions", len(instructionLines))
 		for _, line := range instructionLines {
 			header.WriteString(fmt.Sprintf("# %s\n", strings.TrimSpace(line)))
 		}
@@ -59,5 +67,6 @@ func GenerateWorkflowHeader(sourceFile string, generatedBy string, customInstruc
 
 	header.WriteString("#\n")
 
+	headerLog.Printf("Generated header with %d bytes", header.Len())
 	return header.String()
 }

@@ -59,10 +59,7 @@ function resolveTarget(params) {
 
   // Check context type
   const isIssueContext = context.eventName === "issues" || context.eventName === "issue_comment";
-  const isPRContext =
-    context.eventName === "pull_request" ||
-    context.eventName === "pull_request_review" ||
-    context.eventName === "pull_request_review_comment";
+  const isPRContext = context.eventName === "pull_request" || context.eventName === "pull_request_review" || context.eventName === "pull_request_review_comment";
 
   // Default target is "triggering"
   const target = targetConfig || "triggering";

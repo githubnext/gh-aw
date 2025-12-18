@@ -48,9 +48,7 @@ function getStagedDescription(ctx) {
   const defaultDescription = "🗺️ Shiver me timbers! The following booty would be plundered if we set sail (staged mode disabled):";
 
   // Use custom description if configured
-  return messages?.stagedDescription
-    ? renderTemplate(messages.stagedDescription, templateContext)
-    : renderTemplate(defaultDescription, templateContext);
+  return messages?.stagedDescription ? renderTemplate(messages.stagedDescription, templateContext) : renderTemplate(defaultDescription, templateContext);
 }
 
 module.exports = {

@@ -555,8 +555,7 @@ describe("infinite loop detection", () => {
 
 describe("shouldSkipLine", () => {
   test("should skip GitHub Actions environment variable declarations with timestamp", () => {
-    const line =
-      '2025-10-11T21:23:50.7459810Z   GH_AW_ERROR_PATTERNS: [{"pattern":"access denied.*only authorized.*can trigger.*workflow"}]';
+    const line = '2025-10-11T21:23:50.7459810Z   GH_AW_ERROR_PATTERNS: [{"pattern":"access denied.*only authorized.*can trigger.*workflow"}]';
     expect(shouldSkipLine(line)).toBe(true);
   });
 
@@ -592,8 +591,7 @@ describe("shouldSkipLine", () => {
   });
 
   test("should skip Copilot CLI DEBUG messages", () => {
-    const line =
-      "2025-12-15T08:35:23.457Z [DEBUG] Unable to parse tool invocation as JSON. Treating it as a string for filtering: SyntaxError: Unexpected token 'l'";
+    const line = "2025-12-15T08:35:23.457Z [DEBUG] Unable to parse tool invocation as JSON. Treating it as a string for filtering: SyntaxError: Unexpected token 'l'";
     expect(shouldSkipLine(line)).toBe(true);
   });
 

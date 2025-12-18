@@ -35,9 +35,7 @@ function generatePatchPreview(patchContent) {
   }
 
   const truncated = lineTruncated || charTruncated;
-  const summary = truncated
-    ? `Show patch preview (${Math.min(maxLines, lines.length)} of ${lines.length} lines)`
-    : `Show patch (${lines.length} lines)`;
+  const summary = truncated ? `Show patch preview (${Math.min(maxLines, lines.length)} of ${lines.length} lines)` : `Show patch (${lines.length} lines)`;
 
   return `\n\n<details><summary>${summary}</summary>\n\n\`\`\`diff\n${preview}${truncated ? "\n... (truncated)" : ""}\n\`\`\`\n\n</details>`;
 }
@@ -298,9 +296,7 @@ async function main() {
   const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
   const runId = context.runId;
   const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
-  const runUrl = context.payload.repository
-    ? `${context.payload.repository.html_url}/actions/runs/${runId}`
-    : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
+  const runUrl = context.payload.repository ? `${context.payload.repository.html_url}/actions/runs/${runId}` : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
 
   // Add fingerprint comment if present
   const trackerIDComment = getTrackerID("markdown");
@@ -393,9 +389,7 @@ async function main() {
         core.info("Failed patch content:");
         core.info(patchResult.stdout);
       } catch (investigateError) {
-        core.warning(
-          `Failed to investigate patch failure: ${investigateError instanceof Error ? investigateError.message : String(investigateError)}`
-        );
+        core.warning(`Failed to investigate patch failure: ${investigateError instanceof Error ? investigateError.message : String(investigateError)}`);
       }
 
       core.setFailed("Failed to apply patch");
@@ -434,9 +428,7 @@ async function main() {
 
       const runId = context.runId;
       const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
-      const runUrl = context.payload.repository
-        ? `${context.payload.repository.html_url}/actions/runs/${runId}`
-        : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
+      const runUrl = context.payload.repository ? `${context.payload.repository.html_url}/actions/runs/${runId}` : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
 
       // Read patch content for preview
       let patchPreview = "";
@@ -619,9 +611,7 @@ ${patchPreview}`;
 
     // Create issue as fallback with enhanced body content
     const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
-    const branchUrl = context.payload.repository
-      ? `${context.payload.repository.html_url}/tree/${branchName}`
-      : `${githubServer}/${context.repo.owner}/${context.repo.repo}/tree/${branchName}`;
+    const branchUrl = context.payload.repository ? `${context.payload.repository.html_url}/tree/${branchName}` : `${githubServer}/${context.repo.owner}/${context.repo.repo}/tree/${branchName}`;
 
     // Read patch content for preview
     let patchPreview = "";
@@ -674,9 +664,7 @@ You can manually create a pull request from the branch if needed.${patchPreview}
         )
         .write();
     } catch (issueError) {
-      core.setFailed(
-        `Failed to create both pull request and fallback issue. PR error: ${prError instanceof Error ? prError.message : String(prError)}. Issue error: ${issueError instanceof Error ? issueError.message : String(issueError)}`
-      );
+      core.setFailed(`Failed to create both pull request and fallback issue. PR error: ${prError instanceof Error ? prError.message : String(prError)}. Issue error: ${issueError instanceof Error ? issueError.message : String(issueError)}`);
       return;
     }
   }

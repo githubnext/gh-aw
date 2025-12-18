@@ -19,531 +19,12 @@
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/aw/github-agentic-workflows.md
 #
-#
 # Reviews and improves technical documentation based on provided topics
-#
-# Original Frontmatter:
-# ```yaml
-# description: Reviews and improves technical documentation based on provided topics
-# on:
-#   workflow_dispatch:
-#     inputs:
-#       topic:
-#         description: 'Documentation topic to review'
-#         required: true
-#         type: string
-#
-# permissions:
-#   contents: read
-#   pull-requests: read
-#   issues: read
-#   actions: read
-#
-# engine:
-#   id: copilot
-#
-# network:
-#   allowed:
-#     - defaults
-#     - github
-#
-# imports:
-#   - ../../skills/documentation/SKILL.md
-#   - ../agents/technical-doc-writer.agent.md
-#
-# safe-outputs:
-#   add-comment:
-#     max: 1
-#   create-pull-request:
-#     title-prefix: "[docs] "
-#     labels: [documentation]
-#     reviewers: copilot
-#     draft: false
-#   upload-assets:
-#   messages:
-#     footer: "> 📝 *Documentation by [{workflow_name}]({run_url})*"
-#     run-started: "✍️ The Technical Writer begins! [{workflow_name}]({run_url}) is documenting this {event_type}..."
-#     run-success: "📝 Documentation complete! [{workflow_name}]({run_url}) has written the docs. Clear as crystal! ✨"
-#     run-failure: "✍️ Writer's block! [{workflow_name}]({run_url}) {status}. The page remains blank..."
-#
-# steps:
-#   - name: Setup Node.js
-#     uses: actions/setup-node@v6
-#     with:
-#       node-version: '24'
-#       cache: 'npm'
-#       cache-dependency-path: 'docs/package-lock.json'
-#
-#   - name: Install dependencies
-#     working-directory: ./docs
-#     run: npm ci
-#
-#   - name: Build documentation
-#     working-directory: ./docs
-#     env:
-#       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-#     run: npm run build
-#
-# tools:
-#   cache-memory: true
-#   github:
-#     toolsets: [default]
-#   edit:
-#   bash:
-#
-# timeout-minutes: 10
-#
-# ```
 #
 # Resolved workflow manifest:
 #   Imports:
 #     - ../../skills/documentation/SKILL.md
 #     - ../agents/technical-doc-writer.agent.md
-#
-# Job Dependency Graph:
-# ```mermaid
-# graph LR
-#   activation["activation"]
-#   add_comment["add_comment"]
-#   agent["agent"]
-#   conclusion["conclusion"]
-#   create_pull_request["create_pull_request"]
-#   detection["detection"]
-#   update_cache_memory["update_cache_memory"]
-#   upload_assets["upload_assets"]
-#   activation --> agent
-#   activation --> conclusion
-#   activation --> create_pull_request
-#   add_comment --> conclusion
-#   agent --> add_comment
-#   agent --> conclusion
-#   agent --> create_pull_request
-#   agent --> detection
-#   agent --> update_cache_memory
-#   agent --> upload_assets
-#   create_pull_request --> add_comment
-#   create_pull_request --> conclusion
-#   detection --> add_comment
-#   detection --> conclusion
-#   detection --> create_pull_request
-#   detection --> update_cache_memory
-#   detection --> upload_assets
-#   update_cache_memory --> conclusion
-#   upload_assets --> conclusion
-# ```
-#
-# Original Prompt:
-# ```markdown
-# ### Documentation
-#
-# The documentation for this project is available in the `docs/` directory. It uses the Astro Starlight system and follows the Diátaxis framework for systematic documentation.
-#
-# ## Diátaxis Framework
-#
-# Documentation must be organized into four distinct types, each serving a specific purpose:
-#
-# ### 1. Tutorials (Learning-Oriented)
-# **Purpose**: Guide beginners through achieving a specific outcome to build confidence.
-#
-# - Start with what the user will build or achieve
-# - Provide a clear, step-by-step path from start to finish
-# - Include concrete examples and working code
-# - Assume minimal prior knowledge
-# - Focus on the happy path (avoid edge cases and alternatives)
-# - End with a working result the user can see and use
-# - Use imperative mood: "Create a file", "Run the command"
-#
-# **Avoid**: Explaining concepts in depth, multiple options, troubleshooting
-#
-# ### 2. How-to Guides (Goal-Oriented)
-# **Purpose**: Show how to solve a specific real-world problem or accomplish a particular task.
-#
-# - Title format: "How to [accomplish specific goal]"
-# - Assume the user knows the basics
-# - Focus on practical steps to solve one problem
-# - Include necessary context but stay focused
-# - Show multiple approaches only when genuinely useful
-# - End when the goal is achieved
-# - Use imperative mood: "Configure the setting", "Add the following"
-#
-# **Avoid**: Teaching fundamentals, explaining every detail, being exhaustive
-#
-# ### 3. Reference (Information-Oriented)
-# **Purpose**: Provide accurate, complete technical descriptions of the system.
-#
-# - Organized by structure (CLI commands, configuration options, API endpoints)
-# - Comprehensive and authoritative
-# - Consistent format across all entries
-# - Technical accuracy is paramount
-# - Include all parameters, options, and return values
-# - Use descriptive mood: "The command accepts", "Returns a string"
-# - Minimal narrative or explanation
-#
-# **Avoid**: Instructions, tutorials, opinions on usage
-#
-# ### 4. Explanation (Understanding-Oriented)
-# **Purpose**: Clarify and illuminate topics to deepen understanding.
-#
-# - Discuss why things are the way they are
-# - Explain design decisions and tradeoffs
-# - Provide context and background
-# - Connect concepts to help form mental models
-# - Discuss alternatives and their implications
-# - Use indicative mood: "This approach provides", "The engine uses"
-#
-# **Avoid**: Step-by-step instructions, exhaustive reference material
-#
-# ## General Style Guidelines
-#
-# - **Tone**: Neutral, technical, not promotional
-# - **Voice**: Avoid "we", "our", "us" (use "the tool", "this command")
-# - **Headings**: Use markdown heading syntax, not bold text as headings
-# - **Lists**: Avoid long bullet point lists; prefer prose with structure
-# - **Code samples**: Minimal and focused; exclude optional fields unless relevant
-# - **Language tag**: Use `aw` for agentic workflow snippets with YAML frontmatter
-#
-# **Example workflow code block**:
-# ```aw wrap
-# on: push
-# # Your workflow steps here
-# ```
-#
-# ## Astro Starlight Syntax
-#
-# Documentation files use Astro Starlight with MDX support. Key syntax elements:
-#
-# ### Frontmatter
-# Every documentation page must have frontmatter:
-# ```markdown
-# title: Page Title
-# description: Brief description for SEO and navigation
-# ```
-#
-# ### Callouts and Asides
-# Use Starlight's aside component for notes, tips, warnings, and cautions:
-# ```markdown
-# :::note
-# Important information the reader should notice.
-# :::
-#
-# :::tip
-# Helpful advice for the reader.
-# :::
-#
-# :::caution
-# Warning about potential issues or pitfalls.
-# :::
-#
-# :::danger
-# Critical warning about dangerous operations.
-# :::
-# ```
-#
-# ### Code Blocks
-# - Use syntax highlighting with language tags
-# - Add `title` attribute for file names: ` ```yaml title=".github/workflows/example.yml" `
-# - Use `aw` language for agentic workflow files with YAML frontmatter
-# - Add `wrap` for line wrapping: ` ```aw wrap `
-#
-# ### Links
-# - Internal links: Use relative paths between documentation pages
-# - External links: Open in new tab automatically
-# - Link text: Use descriptive text, avoid "click here"
-#
-# ### Tabs
-# Use tabs for showing alternatives (e.g., different languages, platforms):
-# ```markdown
-# import { Tabs, TabItem } from '@astrojs/starlight/components';
-#
-# <Tabs>
-#   <TabItem label="npm">
-#     ```bash
-#     npm install package
-#     ```
-#   </TabItem>
-#   <TabItem label="yarn">
-#     ```bash
-#     yarn add package
-#     ```
-#   </TabItem>
-# </Tabs>
-# ```
-#
-# ### Cards
-# Use cards for navigation or highlighting multiple options:
-# ```markdown
-# import { Card, CardGrid } from '@astrojs/starlight/components';
-#
-# <CardGrid>
-#   <Card title="Getting Started" icon="rocket">
-#     Quick introduction to the basics.
-#   </Card>
-#   <Card title="Advanced Usage" icon="setting">
-#     Deep dive into advanced features.
-#   </Card>
-# </CardGrid>
-# ```
-#
-# **Remember**: Keep components minimal. Prefer standard markdown when possible.
-#
-# ## Content to Avoid
-#
-# - "Key Features" sections
-# - Marketing language or selling points
-# - Excessive bullet points (prefer structured prose)
-# - Overly verbose examples with all optional parameters
-# - Mixing documentation types (e.g., tutorials that become reference)
-#
-# ## Avoiding Documentation Bloat
-#
-# Documentation bloat reduces clarity and makes content harder to navigate. Common types of bloat include:
-#
-# ### Types of Documentation Bloat
-#
-# 1. **Duplicate content**: Same information repeated in different sections
-# 2. **Excessive bullet points**: Long lists that could be condensed into prose or tables
-# 3. **Redundant examples**: Multiple examples showing the same concept
-# 4. **Verbose descriptions**: Overly wordy explanations that could be more concise
-# 5. **Repetitive structure**: The same "What it does" / "Why it's valuable" pattern overused
-#
-# ### Writing Concise Documentation
-#
-# When editing documentation, focus on:
-#
-# **Consolidate bullet points**: 
-# - Convert long bullet lists into concise prose or tables
-# - Remove redundant points that say the same thing differently
-#
-# **Eliminate duplicates**:
-# - Remove repeated information
-# - Consolidate similar sections
-#
-# **Condense verbose text**:
-# - Make descriptions more direct and concise
-# - Remove filler words and phrases
-# - Keep technical accuracy while reducing word count
-#
-# **Standardize structure**:
-# - Reduce repetitive "What it does" / "Why it's valuable" patterns
-# - Use varied, natural language
-#
-# **Simplify code samples**:
-# - Remove unnecessary complexity from code examples
-# - Focus on demonstrating the core concept clearly
-# - Eliminate boilerplate or setup code unless essential for understanding
-# - Keep examples minimal yet complete
-# - Use realistic but simple scenarios
-#
-# ### Example: Before and After
-#
-# **Before (Bloated)**:
-# ```markdown
-# ### Tool Name
-# Description of the tool.
-#
-# - **What it does**: This tool does X, Y, and Z
-# - **Why it's valuable**: It's valuable because A, B, and C
-# - **How to use**: You use it by doing steps 1, 2, 3, 4, 5
-# - **When to use**: Use it when you need X
-# - **Benefits**: Gets you benefit A, benefit B, benefit C
-# - **Learn more**: [Link](url)
-# ```
-#
-# **After (Concise)**:
-# ```markdown
-# ### Tool Name
-# Description of the tool that does X, Y, and Z to achieve A, B, and C.
-#
-# Use it when you need X by following steps 1-5. [Learn more](url)
-# ```
-#
-# ### Documentation Quality Guidelines
-#
-# 1. **Preserve meaning**: Never lose important information
-# 2. **Be surgical**: Make precise edits, don't rewrite everything
-# 3. **Maintain tone**: Keep the neutral, technical tone
-# 4. **Test locally**: Verify links and formatting are still correct
-#
-# ## Structure by File Type
-#
-# - **Getting Started**: Tutorial format
-# - **How-to Guides**: Goal-oriented, one task per guide
-# - **CLI Reference**: Reference format, complete command documentation
-# - **Concepts**: Explanation format, building understanding
-# - **API Reference**: Reference format, complete API documentation
-#
-# # Technical Documentation Writer for GitHub Actions
-#
-# You are an AI technical documentation writer that produces developer-focused documentation for a **GitHub Actions library**.  
-# Your docs use **Astro Starlight** and follow the **GitHub Docs voice**.  
-# You apply user-research–backed best practices to ensure clarity, discoverability, and developer experience (DX).
-#
-# ## Core Principles
-#
-# ### Framework
-# - Output uses **Astro Starlight** features:
-#   - Markdown/MDX with headings, sidebars, and TOC.
-#   - Autogenerated navigation by directory (`getting-started/`, `guides/`, `reference/`).
-#   - Admonitions (`:::note`, `:::tip`, `:::caution`) for key callouts.
-#   - Frontmatter metadata (`title`, `description`) for each page.
-#
-# ### Style & Tone (GitHub Docs)
-# - Clear, concise, approachable English.
-# - Active voice; address reader as "you".
-# - Friendly, empathetic, trustworthy tone.
-# - Prioritize clarity over rigid grammar rules.
-# - Consistent terminology across all docs.
-# - Inclusive, globally understandable (avoid slang/idioms).
-#
-# ### Structure (Diátaxis-inspired)
-# - **Getting Started** → prerequisites, install, first example.
-# - **How-to Guides** → task-based, step-by-step workflows.
-# - **Reference** → full breakdown of inputs, outputs, options.
-# - **Concepts/FAQs** → background explanations.
-#
-# ### Developer Experience (DX)
-# - Runnable, copy-paste–ready code blocks.
-# - Prerequisites clearly listed.
-# - Minimal setup friction.
-# - Early "Hello World" example.
-# - Optimized headings for search.
-#
-# ## Navigation & Linking
-# - Sidebar auto-generated by folder structure.
-# - Per-page TOC built from headings.
-# - Descriptive internal links (`See [Getting Started](/docs/getting-started)`).
-# - Relative links within docs; clear labels for external references.
-#
-# ## Code Guidelines
-# - Use fenced code blocks with language tags:
-#   ```yaml
-#   name: CI
-#   on: [push]
-#   jobs:
-#     build:
-#       runs-on: ubuntu-latest
-#       steps:
-#         - uses: actions/checkout@v5
-#         - uses: my-org/my-action@v1
-#   ```
-# - Do **not** include `$` prompts.
-# - Use ALL_CAPS placeholders (e.g. `USERNAME`).
-# - Keep lines ~60 chars wide.
-# - Comment out command outputs.
-#
-# ## Alerts & Callouts
-# Use Starlight admonition syntax sparingly:
-#
-# :::note
-# This is optional context.
-# :::
-#
-# :::tip
-# This is a recommended best practice.
-# :::
-#
-# :::warning
-# This step may cause irreversible changes.
-# :::
-#
-# :::caution
-# This action could result in data loss.
-# :::
-#
-# ## Behavior Rules
-# - Optimize for clarity and user goals.
-# - Check factual accuracy (syntax, versions).
-# - Maintain voice and consistency.
-# - Anticipate pitfalls and explain fixes empathetically.
-# - Use alerts only when necessary.
-#
-# ## Example Document Skeleton
-# ```md
-# ---
-# title: Getting Started
-# description: Quickstart for using the GitHub Actions library
-# ---
-#
-# # Getting Started
-#
-# ## Prerequisites
-# - Node.js ≥ 20
-# - GitHub account
-#
-# ## Installation
-# ```bash
-# pnpm add @my-org/github-action
-# ```
-#
-# ## Quick Example
-# ```yaml
-# name: CI
-# on: [push]
-# jobs:
-#   build:
-#     runs-on: ubuntu-latest
-#     steps:
-#       - uses: actions/checkout@v5
-#       - uses: my-org/my-action@v1
-# ```
-#
-# ---
-# ```
-#
-# ## Your Task
-#
-# This workflow is triggered manually via workflow_dispatch with a documentation topic.
-#
-# **Topic to review:** "${{ github.event.inputs.topic }}"
-#
-# The documentation has been built successfully in the `docs/dist` folder. You can review both the source files in `docs/` and the built output in `docs/dist`.
-#
-# **To run the Astro dev server locally for live preview:**
-# ```bash
-# cd docs && npm run dev
-# ```
-#
-# When reviewing documentation for the specified topic in the **docs/** folder, apply these principles to:
-#
-# 1. **Analyze the topic** provided in the workflow input
-# 2. **Review relevant documentation files** in the docs/ folder related to: "${{ github.event.inputs.topic }}"
-# 3. **Verify the built documentation** in docs/dist is properly generated
-# 4. **Provide constructive feedback** as a comment addressing:
-#    - Clarity and conciseness
-#    - Tone and voice consistency with GitHub Docs
-#    - Code block formatting and examples
-#    - Structure and organization
-#    - Developer experience considerations
-#    - Any missing prerequisites or setup steps
-#    - Appropriate use of admonitions
-#    - Link quality and accessibility
-#    - Build output quality and completeness
-# 5. **Create a pull request with improvements** if you identify any changes needed:
-#    - Make the necessary edits to improve the documentation
-#    - Create a pull request with your changes using the safe-outputs create-pull-request functionality
-#    - Include a clear description of the improvements made
-#    - Only create a pull request if you have made actual changes to the documentation files
-#
-# Keep your feedback specific, actionable, and empathetic. Focus on the most impactful improvements for the topic: "${{ github.event.inputs.topic }}"
-#
-# You have access to cache-memory for persistent storage across runs, which you can use to track documentation patterns and improvement suggestions.
-# ```
-#
-# Pinned GitHub Actions:
-#   - actions/cache/restore@v4 (0057852bfaa89a56745cba8c7296529d2fc39830)
-#     https://github.com/actions/cache/commit/0057852bfaa89a56745cba8c7296529d2fc39830
-#   - actions/cache/save@v4 (0057852bfaa89a56745cba8c7296529d2fc39830)
-#     https://github.com/actions/cache/commit/0057852bfaa89a56745cba8c7296529d2fc39830
-#   - actions/checkout@v5 (93cb6efe18208431cddfb8368fd83d5badbf9bfd)
-#     https://github.com/actions/checkout/commit/93cb6efe18208431cddfb8368fd83d5badbf9bfd
-#   - actions/download-artifact@v6 (018cc2cf5baa6db3ef3c5f8a56943fffe632ef53)
-#     https://github.com/actions/download-artifact/commit/018cc2cf5baa6db3ef3c5f8a56943fffe632ef53
-#   - actions/github-script@v8 (ed597411d8f924073f98dfc5c65a23a2325f34cd)
-#     https://github.com/actions/github-script/commit/ed597411d8f924073f98dfc5c65a23a2325f34cd
-#   - actions/setup-node@v6 (395ad3262231945c25e8478fd5baf05154b1d79f)
-#     https://github.com/actions/setup-node/commit/395ad3262231945c25e8478fd5baf05154b1d79f
-#   - actions/upload-artifact@v5 (330a01c490aca151604b8cf639adc76d48f6c5d4)
-#     https://github.com/actions/upload-artifact/commit/330a01c490aca151604b8cf639adc76d48f6c5d4
 
 name: "Technical Doc Writer"
 "on":
@@ -640,9 +121,7 @@ jobs:
                   .addRaw("**Files:**\n")
                   .addRaw(`- Source: \`${workflowMdPath}\`\n`)
                   .addRaw(`  - Last commit: ${workflowTimestamp}\n`)
-                  .addRaw(
-                    `  - Commit SHA: [\`${workflowCommit.sha.substring(0, 7)}\`](https://github.com/${owner}/${repo}/commit/${workflowCommit.sha})\n`
-                  )
+                  .addRaw(`  - Commit SHA: [\`${workflowCommit.sha.substring(0, 7)}\`](https://github.com/${owner}/${repo}/commit/${workflowCommit.sha})\n`)
                   .addRaw(`- Lock: \`${lockFilePath}\`\n`)
                   .addRaw(`  - Last commit: ${lockTimestamp}\n`)
                   .addRaw(`  - Commit SHA: [\`${lockCommit.sha.substring(0, 7)}\`](https://github.com/${owner}/${repo}/commit/${lockCommit.sha})\n\n`)
@@ -796,11 +275,8 @@ jobs:
               }
               const messages = getMessages();
               const templateContext = toSnakeCase(ctx);
-              const defaultInstall =
-                "> Arr! To plunder this workflow fer yer own ship, run `gh aw add {workflow_source}`. Chart yer course at [🦜 {workflow_source_url}]({workflow_source_url})!";
-              return messages?.footerInstall
-                ? renderTemplate(messages.footerInstall, templateContext)
-                : renderTemplate(defaultInstall, templateContext);
+              const defaultInstall = "> Arr! To plunder this workflow fer yer own ship, run `gh aw add {workflow_source}`. Chart yer course at [🦜 {workflow_source_url}]({workflow_source_url})!";
+              return messages?.footerInstall ? renderTemplate(messages.footerInstall, templateContext) : renderTemplate(defaultInstall, templateContext);
             }
             function generateXMLMarker(workflowName, runUrl) {
               const engineId = process.env.GH_AW_ENGINE_ID || "";
@@ -824,15 +300,7 @@ jobs:
               parts.push(`run: ${runUrl}`);
               return `<!-- ${parts.join(", ")} -->`;
             }
-            function generateFooterWithMessages(
-              workflowName,
-              runUrl,
-              workflowSource,
-              workflowSourceURL,
-              triggeringIssueNumber,
-              triggeringPRNumber,
-              triggeringDiscussionNumber
-            ) {
+            function generateFooterWithMessages(workflowName, runUrl, workflowSource, workflowSourceURL, triggeringIssueNumber, triggeringPRNumber, triggeringDiscussionNumber) {
               let triggeringNumber;
               if (triggeringIssueNumber) {
                 triggeringNumber = triggeringIssueNumber;
@@ -1179,10 +647,7 @@ jobs:
               const commentTarget = process.env.GH_AW_COMMENT_TARGET || "triggering";
               core.info(`Comment target configuration: ${commentTarget}`);
               const isIssueContext = context.eventName === "issues" || context.eventName === "issue_comment";
-              const isPRContext =
-                context.eventName === "pull_request" ||
-                context.eventName === "pull_request_review" ||
-                context.eventName === "pull_request_review_comment";
+              const isPRContext = context.eventName === "pull_request" || context.eventName === "pull_request_review" || context.eventName === "pull_request_review_comment";
               const isDiscussionContext = context.eventName === "discussion" || context.eventName === "discussion_comment";
               const isDiscussion = isDiscussionContext || isDiscussionExplicit;
               const workflowId = process.env.GITHUB_WORKFLOW || "";
@@ -1251,10 +716,8 @@ jobs:
                 core.info('Target is "triggering" but not running in issue, pull request, or discussion context, skipping comment creation');
                 return;
               }
-              const triggeringIssueNumber =
-                context.payload?.issue?.number && !context.payload?.issue?.pull_request ? context.payload.issue.number : undefined;
-              const triggeringPRNumber =
-                context.payload?.pull_request?.number || (context.payload?.issue?.pull_request ? context.payload.issue.number : undefined);
+              const triggeringIssueNumber = context.payload?.issue?.number && !context.payload?.issue?.pull_request ? context.payload.issue.number : undefined;
+              const triggeringPRNumber = context.payload?.pull_request?.number || (context.payload?.issue?.pull_request ? context.payload.issue.number : undefined);
               const triggeringDiscussionNumber = context.payload?.discussion?.number;
               const createdComments = [];
               for (let i = 0; i < commentItems.length; i++) {
@@ -1342,9 +805,7 @@ jobs:
                 const workflowSourceURL = process.env.GH_AW_WORKFLOW_SOURCE_URL || "";
                 const runId = context.runId;
                 const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
-                const runUrl = context.payload.repository
-                  ? `${context.payload.repository.html_url}/actions/runs/${runId}`
-                  : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
+                const runUrl = context.payload.repository ? `${context.payload.repository.html_url}/actions/runs/${runId}` : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
                 if (workflowId) {
                   body += `\n\n<!-- workflow-id: ${workflowId} -->`;
                 }
@@ -1353,28 +814,11 @@ jobs:
                   body += trackerIDComment;
                 }
                 body += `\n\n<!-- comment-type: add-comment -->`;
-                body += generateFooterWithMessages(
-                  workflowName,
-                  runUrl,
-                  workflowSource,
-                  workflowSourceURL,
-                  triggeringIssueNumber,
-                  triggeringPRNumber,
-                  triggeringDiscussionNumber
-                );
+                body += generateFooterWithMessages(workflowName, runUrl, workflowSource, workflowSourceURL, triggeringIssueNumber, triggeringPRNumber, triggeringDiscussionNumber);
                 try {
                   if (hideOlderCommentsEnabled && workflowId) {
                     core.info("Hide-older-comments is enabled, searching for previous comments to hide");
-                    await hideOlderComments(
-                      github,
-                      context.repo.owner,
-                      context.repo.repo,
-                      itemNumber,
-                      workflowId,
-                      commentEndpoint === "discussions",
-                      "outdated",
-                      allowedReasons
-                    );
+                    await hideOlderComments(github, context.repo.owner, context.repo.repo, itemNumber, workflowId, commentEndpoint === "discussions", "outdated", allowedReasons);
                   }
                   let comment;
                   if (commentEndpoint === "discussions") {
@@ -1982,9 +1426,7 @@ jobs:
                 server.debug(`  [${toolName}] Python handler args: ${JSON.stringify(args)}`);
                 server.debug(`  [${toolName}] Timeout: ${timeoutSeconds}s`);
                 const inputJson = JSON.stringify(args || {});
-                server.debug(
-                  `  [${toolName}] Input JSON (${inputJson.length} bytes): ${inputJson.substring(0, 200)}${inputJson.length > 200 ? "..." : ""}`
-                );
+                server.debug(`  [${toolName}] Input JSON (${inputJson.length} bytes): ${inputJson.substring(0, 200)}${inputJson.length > 200 ? "..." : ""}`);
                 return new Promise((resolve, reject) => {
                   server.debug(`  [${toolName}] Executing Python script...`);
                   const child = execFile(
@@ -2092,9 +1534,7 @@ jobs:
                       try {
                         if (fs.existsSync(outputFile)) {
                           const outputContent = fs.readFileSync(outputFile, "utf-8");
-                          server.debug(
-                            `  [${toolName}] Output file content: ${outputContent.substring(0, 500)}${outputContent.length > 500 ? "..." : ""}`
-                          );
+                          server.debug(`  [${toolName}] Output file content: ${outputContent.substring(0, 500)}${outputContent.length > 500 ? "..." : ""}`);
                           const lines = outputContent.split("\n");
                           for (const line of lines) {
                             const trimmed = line.trim();
@@ -2152,10 +1592,7 @@ jobs:
                   fs.mkdirSync(server.logDir, { recursive: true });
                 }
                 const timestamp = new Date().toISOString();
-                fs.writeFileSync(
-                  server.logFilePath,
-                  `# ${server.serverInfo.name} MCP Server Log\n# Started: ${timestamp}\n# Version: ${server.serverInfo.version}\n\n`
-                );
+                fs.writeFileSync(server.logFilePath, `# ${server.serverInfo.name} MCP Server Log\n# Started: ${timestamp}\n# Version: ${server.serverInfo.version}\n\n`);
                 server.logFileInitialized = true;
               } catch {
               }
@@ -2815,10 +2252,7 @@ jobs:
                 const isInWorkspace = absolutePath.startsWith(path.resolve(workspaceDir));
                 const isInTmp = absolutePath.startsWith(tmpDir);
                 if (!isInWorkspace && !isInTmp) {
-                  throw new Error(
-                    `File path must be within workspace directory (${workspaceDir}) or /tmp directory. ` +
-                      `Provided path: ${filePath} (resolved to: ${absolutePath})`
-                  );
+                  throw new Error(`File path must be within workspace directory (${workspaceDir}) or /tmp directory. ` + `Provided path: ${filePath} (resolved to: ${absolutePath})`);
                 }
                 if (!fs.existsSync(filePath)) {
                   throw new Error(`File not found: ${filePath}`);
@@ -3077,10 +2511,7 @@ jobs:
                       };
                       const entryJSON = JSON.stringify(entry);
                       fs.appendFileSync(outputFile, entryJSON + "\n");
-                      const outputText =
-                        jobConfig && jobConfig.output
-                          ? jobConfig.output
-                          : `Safe-job '${configKey}' executed successfully with arguments: ${JSON.stringify(args)}`;
+                      const outputText = jobConfig && jobConfig.output ? jobConfig.output : `Safe-job '${configKey}' executed successfully with arguments: ${JSON.stringify(args)}`;
                       return {
                         content: [
                           {
@@ -4079,16 +3510,13 @@ jobs:
               return result;
             }
             function renderMarkdownTemplate(markdown) {
-              let result = markdown.replace(
-                /(\n?)([ \t]*{{#if\s+([^}]*)}}[ \t]*\n)([\s\S]*?)([ \t]*{{\/if}}[ \t]*)(\n?)/g,
-                (match, leadNL, openLine, cond, body, closeLine, trailNL) => {
-                  if (isTruthy(cond)) {
-                    return leadNL + body;
-                  } else {
-                    return "";
-                  }
+              let result = markdown.replace(/(\n?)([ \t]*{{#if\s+([^}]*)}}[ \t]*\n)([\s\S]*?)([ \t]*{{\/if}}[ \t]*)(\n?)/g, (match, leadNL, openLine, cond, body, closeLine, trailNL) => {
+                if (isTruthy(cond)) {
+                  return leadNL + body;
+                } else {
+                  return "";
                 }
-              );
+              });
               result = result.replace(/{{#if\s+([^}]*)}}([\s\S]*?){{\/if}}/g, (_, cond, body) => (isTruthy(cond) ? body : ""));
               result = result.replace(/\n{3,}/g, "\n\n");
               return result;
@@ -4463,36 +3891,33 @@ jobs:
                 });
               }
               function sanitizeUrlProtocols(s) {
-                return s.replace(
-                  /((?:http|ftp|file|ssh|git):\/\/([\w.-]*)(?:[^\s]*)|(?:data|javascript|vbscript|about|mailto|tel):[^\s]+)/gi,
-                  (match, _fullMatch, domain) => {
-                    if (domain) {
-                      const domainLower = domain.toLowerCase();
-                      const truncated = domainLower.length > 12 ? domainLower.substring(0, 12) + "..." : domainLower;
+                return s.replace(/((?:http|ftp|file|ssh|git):\/\/([\w.-]*)(?:[^\s]*)|(?:data|javascript|vbscript|about|mailto|tel):[^\s]+)/gi, (match, _fullMatch, domain) => {
+                  if (domain) {
+                    const domainLower = domain.toLowerCase();
+                    const truncated = domainLower.length > 12 ? domainLower.substring(0, 12) + "..." : domainLower;
+                    if (typeof core !== "undefined" && core.info) {
+                      core.info(`Redacted URL: ${truncated}`);
+                    }
+                    if (typeof core !== "undefined" && core.debug) {
+                      core.debug(`Redacted URL (full): ${match}`);
+                    }
+                    addRedactedDomain(domainLower);
+                  } else {
+                    const protocolMatch = match.match(/^([^:]+):/);
+                    if (protocolMatch) {
+                      const protocol = protocolMatch[1] + ":";
+                      const truncated = match.length > 12 ? match.substring(0, 12) + "..." : match;
                       if (typeof core !== "undefined" && core.info) {
                         core.info(`Redacted URL: ${truncated}`);
                       }
                       if (typeof core !== "undefined" && core.debug) {
                         core.debug(`Redacted URL (full): ${match}`);
                       }
-                      addRedactedDomain(domainLower);
-                    } else {
-                      const protocolMatch = match.match(/^([^:]+):/);
-                      if (protocolMatch) {
-                        const protocol = protocolMatch[1] + ":";
-                        const truncated = match.length > 12 ? match.substring(0, 12) + "..." : match;
-                        if (typeof core !== "undefined" && core.info) {
-                          core.info(`Redacted URL: ${truncated}`);
-                        }
-                        if (typeof core !== "undefined" && core.debug) {
-                          core.debug(`Redacted URL (full): ${match}`);
-                        }
-                        addRedactedDomain(protocol);
-                      }
+                      addRedactedDomain(protocol);
                     }
-                    return "(redacted)";
                   }
-                );
+                  return "(redacted)";
+                });
               }
               function neutralizeCommands(s) {
                 const commandName = process.env.GH_AW_COMMAND;
@@ -4514,37 +3939,7 @@ jobs:
                 return s.replace(/<!--[\s\S]*?-->/g, "").replace(/<!--[\s\S]*?--!>/g, "");
               }
               function convertXmlTags(s) {
-                const allowedTags = [
-                  "b",
-                  "blockquote",
-                  "br",
-                  "code",
-                  "details",
-                  "em",
-                  "h1",
-                  "h2",
-                  "h3",
-                  "h4",
-                  "h5",
-                  "h6",
-                  "hr",
-                  "i",
-                  "li",
-                  "ol",
-                  "p",
-                  "pre",
-                  "strong",
-                  "sub",
-                  "summary",
-                  "sup",
-                  "table",
-                  "tbody",
-                  "td",
-                  "th",
-                  "thead",
-                  "tr",
-                  "ul",
-                ];
+                const allowedTags = ["b", "blockquote", "br", "code", "details", "em", "h1", "h2", "h3", "h4", "h5", "h6", "hr", "i", "li", "ol", "p", "pre", "strong", "sub", "summary", "sup", "table", "tbody", "td", "th", "thead", "tr", "ul"];
                 s = s.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, (match, content) => {
                   const convertedContent = content.replace(/<(\/?[A-Za-z][A-Za-z0-9]*(?:[^>]*?))>/g, "($1)");
                   return `(![CDATA[${convertedContent}]])`;
@@ -4656,36 +4051,33 @@ jobs:
                 return result;
               }
               function sanitizeUrlProtocols(s) {
-                return s.replace(
-                  /\b((?:http|ftp|file|ssh|git):\/\/([\w.-]+)(?:[^\s]*)|(?:data|javascript|vbscript|about|mailto|tel):[^\s]+)/gi,
-                  (match, _fullMatch, domain) => {
-                    if (domain) {
-                      const domainLower = domain.toLowerCase();
-                      const truncated = domainLower.length > 12 ? domainLower.substring(0, 12) + "..." : domainLower;
+                return s.replace(/\b((?:http|ftp|file|ssh|git):\/\/([\w.-]+)(?:[^\s]*)|(?:data|javascript|vbscript|about|mailto|tel):[^\s]+)/gi, (match, _fullMatch, domain) => {
+                  if (domain) {
+                    const domainLower = domain.toLowerCase();
+                    const truncated = domainLower.length > 12 ? domainLower.substring(0, 12) + "..." : domainLower;
+                    if (typeof core !== "undefined" && core.info) {
+                      core.info(`Redacted URL: ${truncated}`);
+                    }
+                    if (typeof core !== "undefined" && core.debug) {
+                      core.debug(`Redacted URL (full): ${match}`);
+                    }
+                    addRedactedDomain(domainLower);
+                  } else {
+                    const protocolMatch = match.match(/^([^:]+):/);
+                    if (protocolMatch) {
+                      const protocol = protocolMatch[1] + ":";
+                      const truncated = match.length > 12 ? match.substring(0, 12) + "..." : match;
                       if (typeof core !== "undefined" && core.info) {
                         core.info(`Redacted URL: ${truncated}`);
                       }
                       if (typeof core !== "undefined" && core.debug) {
                         core.debug(`Redacted URL (full): ${match}`);
                       }
-                      addRedactedDomain(domainLower);
-                    } else {
-                      const protocolMatch = match.match(/^([^:]+):/);
-                      if (protocolMatch) {
-                        const protocol = protocolMatch[1] + ":";
-                        const truncated = match.length > 12 ? match.substring(0, 12) + "..." : match;
-                        if (typeof core !== "undefined" && core.info) {
-                          core.info(`Redacted URL: ${truncated}`);
-                        }
-                        if (typeof core !== "undefined" && core.debug) {
-                          core.debug(`Redacted URL (full): ${match}`);
-                        }
-                        addRedactedDomain(protocol);
-                      }
+                      addRedactedDomain(protocol);
                     }
-                    return "(redacted)";
                   }
-                );
+                  return "(redacted)";
+                });
               }
               function neutralizeCommands(s) {
                 const commandName = process.env.GH_AW_COMMAND;
@@ -4711,37 +4103,7 @@ jobs:
                 return s.replace(/<!--[\s\S]*?-->/g, "").replace(/<!--[\s\S]*?--!>/g, "");
               }
               function convertXmlTags(s) {
-                const allowedTags = [
-                  "b",
-                  "blockquote",
-                  "br",
-                  "code",
-                  "details",
-                  "em",
-                  "h1",
-                  "h2",
-                  "h3",
-                  "h4",
-                  "h5",
-                  "h6",
-                  "hr",
-                  "i",
-                  "li",
-                  "ol",
-                  "p",
-                  "pre",
-                  "strong",
-                  "sub",
-                  "summary",
-                  "sup",
-                  "table",
-                  "tbody",
-                  "td",
-                  "th",
-                  "thead",
-                  "tr",
-                  "ul",
-                ];
+                const allowedTags = ["b", "blockquote", "br", "code", "details", "em", "h1", "h2", "h3", "h4", "h5", "h6", "hr", "i", "li", "ol", "p", "pre", "strong", "sub", "summary", "sup", "table", "tbody", "td", "th", "thead", "tr", "ul"];
                 s = s.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, (match, content) => {
                   const convertedContent = content.replace(/<(\/?[A-Za-z][A-Za-z0-9]*(?:[^>]*?))>/g, "($1)");
                   return `(![CDATA[${convertedContent}]])`;
@@ -5433,9 +4795,7 @@ jobs:
                   core.info(`Loaded validation config from ${validationConfigPath}`);
                 }
               } catch (error) {
-                core.warning(
-                  `Failed to read validation config from ${validationConfigPath}: ${error instanceof Error ? error.message : String(error)}`
-                );
+                core.warning(`Failed to read validation config from ${validationConfigPath}: ${error instanceof Error ? error.message : String(error)}`);
               }
               const mentionsConfig = validationConfig?.mentions || null;
               const allowedMentions = await resolveAllowedMentionsFromPayload(context, github, core, mentionsConfig);
@@ -5648,9 +5008,7 @@ jobs:
                   core.info(`[INGESTION] Line ${i + 1}: Original type='${originalType}', Normalized type='${itemType}'`);
                   item.type = itemType;
                   if (!expectedOutputTypes[itemType]) {
-                    core.warning(
-                      `[INGESTION] Line ${i + 1}: Type '${itemType}' not found in expected types: ${JSON.stringify(Object.keys(expectedOutputTypes))}`
-                    );
+                    core.warning(`[INGESTION] Line ${i + 1}: Type '${itemType}' not found in expected types: ${JSON.stringify(Object.keys(expectedOutputTypes))}`);
                     errors.push(`Line ${i + 1}: Unexpected output type '${itemType}'. Expected one of: ${Object.keys(expectedOutputTypes).join(", ")}`);
                     continue;
                   }
@@ -5732,10 +5090,7 @@ jobs:
               core.info(`Patch file ${hasPatch ? "exists" : "does not exist"} at: ${patchPath}`);
               let allowEmptyPR = false;
               if (safeOutputsConfig) {
-                if (
-                  safeOutputsConfig["create-pull-request"]?.["allow-empty"] === true ||
-                  safeOutputsConfig["create_pull_request"]?.["allow_empty"] === true
-                ) {
+                if (safeOutputsConfig["create-pull-request"]?.["allow-empty"] === true || safeOutputsConfig["create_pull_request"]?.["allow_empty"] === true) {
                   allowEmptyPR = true;
                   core.info(`allow-empty is enabled for create-pull-request`);
                 }
@@ -6106,24 +5461,7 @@ jobs:
                   "Custom Agents": [],
                   Other: [],
                 };
-                const builtinTools = [
-                  "bash",
-                  "write_bash",
-                  "read_bash",
-                  "stop_bash",
-                  "list_bash",
-                  "grep",
-                  "glob",
-                  "view",
-                  "create",
-                  "edit",
-                  "store_memory",
-                  "code_review",
-                  "codeql_checker",
-                  "report_progress",
-                  "report_intent",
-                  "gh-advisory-database",
-                ];
+                const builtinTools = ["bash", "write_bash", "read_bash", "stop_bash", "list_bash", "grep", "glob", "view", "create", "edit", "store_memory", "code_review", "codeql_checker", "report_progress", "report_intent", "gh-advisory-database"];
                 const internalTools = ["fetch_copilot_cli_documentation"];
                 for (const tool of initEntry.tools) {
                   const toolLower = tool.toLowerCase();
@@ -6519,9 +5857,7 @@ jobs:
                   const cacheCreationTokens = usage.cache_creation_input_tokens || 0;
                   const cacheReadTokens = usage.cache_read_input_tokens || 0;
                   const totalTokens = inputTokens + outputTokens + cacheCreationTokens + cacheReadTokens;
-                  lines.push(
-                    `  Tokens: ${totalTokens.toLocaleString()} total (${usage.input_tokens.toLocaleString()} in / ${usage.output_tokens.toLocaleString()} out)`
-                  );
+                  lines.push(`  Tokens: ${totalTokens.toLocaleString()} total (${usage.input_tokens.toLocaleString()} in / ${usage.output_tokens.toLocaleString()} out)`);
                 }
               }
               if (lastEntry?.total_cost_usd) {
@@ -6680,9 +6016,7 @@ jobs:
                   const cacheCreationTokens = usage.cache_creation_input_tokens || 0;
                   const cacheReadTokens = usage.cache_read_input_tokens || 0;
                   const totalTokens = inputTokens + outputTokens + cacheCreationTokens + cacheReadTokens;
-                  lines.push(
-                    `  Tokens: ${totalTokens.toLocaleString()} total (${usage.input_tokens.toLocaleString()} in / ${usage.output_tokens.toLocaleString()} out)`
-                  );
+                  lines.push(`  Tokens: ${totalTokens.toLocaleString()} total (${usage.input_tokens.toLocaleString()} in / ${usage.output_tokens.toLocaleString()} out)`);
                 }
               }
               if (lastEntry?.total_cost_usd) {
@@ -6783,11 +6117,7 @@ jobs:
               });
             }
             function extractPremiumRequestCount(logContent) {
-              const patterns = [
-                /premium\s+requests?\s+consumed:?\s*(\d+)/i,
-                /(\d+)\s+premium\s+requests?\s+consumed/i,
-                /consumed\s+(\d+)\s+premium\s+requests?/i,
-              ];
+              const patterns = [/premium\s+requests?\s+consumed:?\s*(\d+)/i, /(\d+)\s+premium\s+requests?\s+consumed/i, /consumed\s+(\d+)\s+premium\s+requests?/i];
               for (const pattern of patterns) {
                 const match = logContent.match(pattern);
                 if (match && match[1]) {
@@ -6859,8 +6189,7 @@ jobs:
                 const initEntry = logEntries.find(entry => entry.type === "system" && entry.subtype === "init");
                 markdown += generateInformationSection(lastEntry, {
                   additionalInfoCallback: entry => {
-                    const isPremiumModel =
-                      initEntry && initEntry.model_info && initEntry.model_info.billing && initEntry.model_info.billing.is_premium === true;
+                    const isPremiumModel = initEntry && initEntry.model_info && initEntry.model_info.billing && initEntry.model_info.billing.is_premium === true;
                     if (isPremiumModel) {
                       const premiumRequestCount = extractPremiumRequestCount(logContent);
                       return `**Premium Requests Consumed:** ${premiumRequestCount}\n\n`;
@@ -7287,299 +6616,151 @@ jobs:
         with:
           script: |
             function sanitizeWorkflowName(name) {
-
               return name
-
                 .toLowerCase()
-
                 .replace(/[:\\/\s]/g, "-")
-
                 .replace(/[^a-z0-9._-]/g, "-");
-
             }
-
             function main() {
-
               const fs = require("fs");
-
               const path = require("path");
-
               try {
-
                 const squidLogsDir = `/tmp/gh-aw/sandbox/firewall/logs/`;
-
                 if (!fs.existsSync(squidLogsDir)) {
-
                   core.info(`No firewall logs directory found at: ${squidLogsDir}`);
-
                   return;
-
                 }
-
                 const files = fs.readdirSync(squidLogsDir).filter(file => file.endsWith(".log"));
-
                 if (files.length === 0) {
-
                   core.info(`No firewall log files found in: ${squidLogsDir}`);
-
                   return;
-
                 }
-
                 core.info(`Found ${files.length} firewall log file(s)`);
-
                 let totalRequests = 0;
-
                 let allowedRequests = 0;
-
                 let deniedRequests = 0;
-
                 const allowedDomains = new Set();
-
                 const deniedDomains = new Set();
-
                 const requestsByDomain = new Map();
-
                 for (const file of files) {
-
                   const filePath = path.join(squidLogsDir, file);
-
                   core.info(`Parsing firewall log: ${file}`);
-
                   const content = fs.readFileSync(filePath, "utf8");
-
                   const lines = content.split("\n").filter(line => line.trim());
-
                   for (const line of lines) {
-
                     const entry = parseFirewallLogLine(line);
-
                     if (!entry) {
-
                       continue;
-
                     }
-
                     totalRequests++;
-
                     const isAllowed = isRequestAllowed(entry.decision, entry.status);
-
                     if (isAllowed) {
-
                       allowedRequests++;
-
                       allowedDomains.add(entry.domain);
-
                     } else {
-
                       deniedRequests++;
-
                       deniedDomains.add(entry.domain);
-
                     }
-
                     if (!requestsByDomain.has(entry.domain)) {
-
                       requestsByDomain.set(entry.domain, { allowed: 0, denied: 0 });
-
                     }
-
                     const domainStats = requestsByDomain.get(entry.domain);
-
                     if (isAllowed) {
-
                       domainStats.allowed++;
-
                     } else {
-
                       domainStats.denied++;
-
                     }
-
                   }
-
                 }
-
                 const summary = generateFirewallSummary({
-
                   totalRequests,
-
                   allowedRequests,
-
                   deniedRequests,
-
                   allowedDomains: Array.from(allowedDomains).sort(),
-
                   deniedDomains: Array.from(deniedDomains).sort(),
-
                   requestsByDomain,
-
                 });
-
                 core.summary.addRaw(summary).write();
-
                 core.info("Firewall log summary generated successfully");
-
               } catch (error) {
-
                 core.setFailed(error instanceof Error ? error : String(error));
-
               }
-
             }
-
             function parseFirewallLogLine(line) {
-
               const trimmed = line.trim();
-
               if (!trimmed || trimmed.startsWith("#")) {
-
                 return null;
-
               }
-
               const fields = trimmed.match(/(?:[^\s"]+|"[^"]*")+/g);
-
               if (!fields || fields.length < 10) {
-
                 return null;
-
               }
-
               const timestamp = fields[0];
-
               if (!/^\d+(\.\d+)?$/.test(timestamp)) {
-
                 return null;
-
               }
-
               return {
-
                 timestamp,
-
                 clientIpPort: fields[1],
-
                 domain: fields[2],
-
                 destIpPort: fields[3],
-
                 proto: fields[4],
-
                 method: fields[5],
-
                 status: fields[6],
-
                 decision: fields[7],
-
                 url: fields[8],
-
                 userAgent: fields[9]?.replace(/^"|"$/g, "") || "-",
-
               };
-
             }
-
             function isRequestAllowed(decision, status) {
-
               const statusCode = parseInt(status, 10);
-
               if (statusCode === 200 || statusCode === 206 || statusCode === 304) {
-
                 return true;
-
               }
-
               if (decision.includes("TCP_TUNNEL") || decision.includes("TCP_HIT") || decision.includes("TCP_MISS")) {
-
                 return true;
-
               }
-
               if (decision.includes("NONE_NONE") || decision.includes("TCP_DENIED") || statusCode === 403 || statusCode === 407) {
-
                 return false;
-
               }
-
               return false;
-
             }
-
             function generateFirewallSummary(analysis) {
-
               const { totalRequests, requestsByDomain } = analysis;
-
               const validDomains = Array.from(requestsByDomain.keys())
-
                 .filter(domain => domain !== "-")
-
                 .sort();
-
               const uniqueDomainCount = validDomains.length;
-
               let validAllowedRequests = 0;
-
               let validDeniedRequests = 0;
-
               for (const domain of validDomains) {
-
                 const stats = requestsByDomain.get(domain);
-
                 validAllowedRequests += stats.allowed;
-
                 validDeniedRequests += stats.denied;
-
               }
-
               let summary = "### 🔥 Firewall Activity\n\n";
-
               summary += "<details>\n";
-
               summary += `<summary>📊 ${totalRequests} request${totalRequests !== 1 ? "s" : ""} | `;
-
               summary += `${validAllowedRequests} allowed | `;
-
               summary += `${validDeniedRequests} blocked | `;
-
               summary += `${uniqueDomainCount} unique domain${uniqueDomainCount !== 1 ? "s" : ""}</summary>\n\n`;
-
               if (uniqueDomainCount > 0) {
-
                 summary += "| Domain | Allowed | Denied |\n";
-
                 summary += "|--------|---------|--------|\n";
-
                 for (const domain of validDomains) {
-
                   const stats = requestsByDomain.get(domain);
-
                   summary += `| ${domain} | ${stats.allowed} | ${stats.denied} |\n`;
-
                 }
-
               } else {
-
                 summary += "No firewall activity detected.\n";
-
               }
-
               summary += "\n</details>\n\n";
-
               return summary;
-
             }
-
-            const isDirectExecution =
-
-              typeof module === "undefined" || (typeof require !== "undefined" && typeof require.main !== "undefined" && require.main === module);
-
+            const isDirectExecution = typeof module === "undefined" || (typeof require !== "undefined" && typeof require.main !== "undefined" && require.main === module);
             if (isDirectExecution) {
-
               main();
-
             }
-
       - name: Upload Agent Stdio
         if: always()
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
@@ -7747,9 +6928,7 @@ jobs:
                     }
                     lastIndex = regex.lastIndex;
                     if (iterationCount === ITERATION_WARNING_THRESHOLD) {
-                      core.warning(
-                        `High iteration count (${iterationCount}) on line ${lineIndex + 1} with pattern: ${pattern.description || pattern.pattern}`
-                      );
+                      core.warning(`High iteration count (${iterationCount}) on line ${lineIndex + 1} with pattern: ${pattern.description || pattern.pattern}`);
                       core.warning(`Line content (truncated): ${truncateString(line, 200)}`);
                     }
                     if (iterationCount > MAX_ITERATIONS_PER_LINE) {
@@ -8065,9 +7244,7 @@ jobs:
               core.setOutput("total_count", missingTools.length.toString());
               if (missingTools.length > 0) {
                 core.info("Missing tools summary:");
-                core.summary
-                  .addHeading("Missing Tools Report", 3)
-                  .addRaw(`Found **${missingTools.length}** missing tool${missingTools.length > 1 ? "s" : ""} in this workflow execution.\n\n`);
+                core.summary.addHeading("Missing Tools Report", 3).addRaw(`Found **${missingTools.length}** missing tool${missingTools.length > 1 ? "s" : ""} in this workflow execution.\n\n`);
                 missingTools.forEach((tool, index) => {
                   core.info(`${index + 1}. Tool: ${tool.tool}`);
                   core.info(`   Reason: ${tool.reason}`);
@@ -8202,9 +7379,7 @@ jobs:
               const messages = getMessages();
               const templateContext = toSnakeCase(ctx);
               const defaultMessage = "⚠️ Security scanning failed for [{workflow_name}]({run_url}). Review the logs for details.";
-              return messages?.detectionFailure
-                ? renderTemplate(messages.detectionFailure, templateContext)
-                : renderTemplate(defaultMessage, templateContext);
+              return messages?.detectionFailure ? renderTemplate(messages.detectionFailure, templateContext) : renderTemplate(defaultMessage, templateContext);
             }
             function collectGeneratedAssets() {
               const assets = [];
@@ -8439,10 +7614,7 @@ jobs:
             const crypto = require("crypto");
             async function updateActivationComment(github, context, core, itemUrl, itemNumber, itemType = "pull_request") {
               const itemLabel = itemType === "issue" ? "issue" : "pull request";
-              const linkMessage =
-                itemType === "issue"
-                  ? `\n\n✅ Issue created: [#${itemNumber}](${itemUrl})`
-                  : `\n\n✅ Pull request created: [#${itemNumber}](${itemUrl})`;
+              const linkMessage = itemType === "issue" ? `\n\n✅ Issue created: [#${itemNumber}](${itemUrl})` : `\n\n✅ Pull request created: [#${itemNumber}](${itemUrl})`;
               await updateActivationCommentWithMessage(github, context, core, linkMessage, itemLabel);
             }
             async function updateActivationCommentWithCommit(github, context, core, commitSha, commitUrl) {
@@ -8503,9 +7675,7 @@ jobs:
                     { commentId: commentId, body: updatedBody }
                   );
                   const comment = result.updateDiscussionComment.comment;
-                  const successMessage = label
-                    ? `Successfully updated discussion comment with ${label} link`
-                    : "Successfully updated discussion comment";
+                  const successMessage = label ? `Successfully updated discussion comment with ${label} link` : "Successfully updated discussion comment";
                   core.info(successMessage);
                   core.info(`Comment ID: ${comment.id}`);
                   core.info(`Comment URL: ${comment.url}`);
@@ -8596,9 +7766,7 @@ jobs:
                 preview = preview.slice(0, maxChars);
               }
               const truncated = lineTruncated || charTruncated;
-              const summary = truncated
-                ? `Show patch preview (${Math.min(maxLines, lines.length)} of ${lines.length} lines)`
-                : `Show patch (${lines.length} lines)`;
+              const summary = truncated ? `Show patch preview (${Math.min(maxLines, lines.length)} of ${lines.length} lines)` : `Show patch (${lines.length} lines)`;
               return `\n\n<details><summary>${summary}</summary>\n\n\`\`\`diff\n${preview}${truncated ? "\n... (truncated)" : ""}\n\`\`\`\n\n</details>`;
             }
             async function main() {
@@ -8787,9 +7955,7 @@ jobs:
               const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
               const runId = context.runId;
               const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
-              const runUrl = context.payload.repository
-                ? `${context.payload.repository.html_url}/actions/runs/${runId}`
-                : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
+              const runUrl = context.payload.repository ? `${context.payload.repository.html_url}/actions/runs/${runId}` : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
               const trackerIDComment = getTrackerID("markdown");
               if (trackerIDComment) {
                 bodyLines.push(trackerIDComment);
@@ -8848,9 +8014,7 @@ jobs:
                     core.info("Failed patch content:");
                     core.info(patchResult.stdout);
                   } catch (investigateError) {
-                    core.warning(
-                      `Failed to investigate patch failure: ${investigateError instanceof Error ? investigateError.message : String(investigateError)}`
-                    );
+                    core.warning(`Failed to investigate patch failure: ${investigateError instanceof Error ? investigateError.message : String(investigateError)}`);
                   }
                   core.setFailed("Failed to apply patch");
                   return;
@@ -8880,9 +8044,7 @@ jobs:
                   core.warning("Git push operation failed - creating fallback issue instead of pull request");
                   const runId = context.runId;
                   const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
-                  const runUrl = context.payload.repository
-                    ? `${context.payload.repository.html_url}/actions/runs/${runId}`
-                    : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
+                  const runUrl = context.payload.repository ? `${context.payload.repository.html_url}/actions/runs/${runId}` : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
                   let patchPreview = "";
                   if (fs.existsSync("/tmp/gh-aw/aw.patch")) {
                     const patchContent = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
@@ -9021,9 +8183,7 @@ jobs:
                 core.warning(`Failed to create pull request: ${prError instanceof Error ? prError.message : String(prError)}`);
                 core.info("Falling back to creating an issue instead");
                 const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
-                const branchUrl = context.payload.repository
-                  ? `${context.payload.repository.html_url}/tree/${branchName}`
-                  : `${githubServer}/${context.repo.owner}/${context.repo.repo}/tree/${branchName}`;
+                const branchUrl = context.payload.repository ? `${context.payload.repository.html_url}/tree/${branchName}` : `${githubServer}/${context.repo.owner}/${context.repo.repo}/tree/${branchName}`;
                 let patchPreview = "";
                 if (fs.existsSync("/tmp/gh-aw/aw.patch")) {
                   const patchContent = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
@@ -9060,9 +8220,7 @@ jobs:
                     )
                     .write();
                 } catch (issueError) {
-                  core.setFailed(
-                    `Failed to create both pull request and fallback issue. PR error: ${prError instanceof Error ? prError.message : String(prError)}. Issue error: ${issueError instanceof Error ? issueError.message : String(issueError)}`
-                  );
+                  core.setFailed(`Failed to create both pull request and fallback issue. PR error: ${prError instanceof Error ? prError.message : String(prError)}. Issue error: ${issueError instanceof Error ? issueError.message : String(issueError)}`);
                   return;
                 }
               }
@@ -9610,10 +8768,7 @@ jobs:
                     core.summary.addRaw("## Staged Asset Publication");
                   } else {
                     await exec.exec(`git push origin ${normalizedBranchName}`);
-                    core.summary
-                      .addRaw("## Assets")
-                      .addRaw(`Successfully uploaded **${uploadCount}** assets to branch \`${normalizedBranchName}\``)
-                      .addRaw("");
+                    core.summary.addRaw("## Assets").addRaw(`Successfully uploaded **${uploadCount}** assets to branch \`${normalizedBranchName}\``).addRaw("");
                     core.info(`Successfully uploaded ${uploadCount} assets to branch ${normalizedBranchName}`);
                   }
                   for (const asset of uploadAssetItems) {

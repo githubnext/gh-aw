@@ -19,96 +19,7 @@
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/aw/github-agentic-workflows.md
 #
-#
 # Performs natural language processing analysis on Copilot PR conversations to extract insights and patterns from user interactions
-#
-# Original Frontmatter:
-# ```yaml
-# name: Copilot PR Conversation NLP Analysis
-# description: Performs natural language processing analysis on Copilot PR conversations to extract insights and patterns from user interactions
-# on:
-#   schedule:
-#     # Every day at 10am UTC (weekdays only)
-#     - cron: "0 10 * * 1-5"
-#   workflow_dispatch:
-#
-# permissions:
-#   contents: read
-#   pull-requests: read
-#   actions: read
-#   issues: read
-#
-# engine: copilot
-#
-# network:
-#   allowed:
-#     - defaults
-#     - python
-#     - node
-#
-# sandbox:
-#   agent: awf  # Firewall enabled (migrated from network.firewall)
-# safe-outputs:
-#   create-discussion:
-#     title-prefix: "[nlp-analysis] "
-#     category: "audit"
-#     max: 1
-#     close-older-discussions: true
-#
-# imports:
-#   - shared/jqschema.md
-#   - shared/python-dataviz.md
-#   - shared/reporting.md
-#   - shared/copilot-pr-data-fetch.md
-#
-# tools:
-#   cache-memory: true
-#   edit:
-#   github:
-#     toolsets: [default]
-#   bash: ["*"]
-#
-# steps:
-#   - name: Fetch PR comments for detailed analysis
-#     env:
-#       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-#       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-#     run: |
-#       # Create comments directory
-#       mkdir -p /tmp/gh-aw/pr-comments
-#
-#       # Fetch detailed comments for each PR from the pre-fetched data
-#       PR_COUNT=$(jq 'length' /tmp/gh-aw/pr-data/copilot-prs.json)
-#       echo "Fetching comments for $PR_COUNT PRs..."
-#
-#       jq -r '.[].number' /tmp/gh-aw/pr-data/copilot-prs.json | while read -r PR_NUM; do
-#         echo "Fetching comments for PR #${PR_NUM}"
-#         gh pr view "${PR_NUM}" \
-#           --json comments,reviews,reviewComments \
-#           > "/tmp/gh-aw/pr-comments/pr-${PR_NUM}.json" 2>/dev/null || echo "{}" > "/tmp/gh-aw/pr-comments/pr-${PR_NUM}.json"
-#         sleep 0.5  # Rate limiting
-#       done
-#
-#       echo "Comment data saved to /tmp/gh-aw/pr-comments/"
-#
-#   - name: Install NLP libraries
-#     run: |
-#       pip install --user nltk scikit-learn textblob wordcloud
-#
-#       # Download required NLTK data (using punkt_tab for NLTK 3.9+)
-#       python3 -c "import nltk; nltk.download('punkt_tab', quiet=True); nltk.download('stopwords', quiet=True); nltk.download('vader_lexicon', quiet=True); nltk.download('averaged_perceptron_tagger_eng', quiet=True)"
-#
-#       # Verify installations
-#       python3 -c "import nltk; print(f'NLTK {nltk.__version__} installed')"
-#       python3 -c "import sklearn; print(f'scikit-learn {sklearn.__version__} installed')"
-#       python3 -c "import textblob; print(f'TextBlob {textblob.__version__} installed')"
-#       python3 -c "import wordcloud; print(f'WordCloud {wordcloud.__version__} installed')"
-#
-#       echo "All NLP libraries installed successfully"
-#
-# timeout-minutes: 20
-#
-# ```
 #
 # Resolved workflow manifest:
 #   Imports:
@@ -116,872 +27,6 @@
 #     - shared/python-dataviz.md
 #     - shared/reporting.md
 #     - shared/copilot-pr-data-fetch.md
-#
-# Job Dependency Graph:
-# ```mermaid
-# graph LR
-#   activation["activation"]
-#   agent["agent"]
-#   conclusion["conclusion"]
-#   create_discussion["create_discussion"]
-#   detection["detection"]
-#   update_cache_memory["update_cache_memory"]
-#   upload_assets["upload_assets"]
-#   activation --> agent
-#   activation --> conclusion
-#   agent --> conclusion
-#   agent --> create_discussion
-#   agent --> detection
-#   agent --> update_cache_memory
-#   agent --> upload_assets
-#   create_discussion --> conclusion
-#   detection --> conclusion
-#   detection --> create_discussion
-#   detection --> update_cache_memory
-#   detection --> upload_assets
-#   update_cache_memory --> conclusion
-#   upload_assets --> conclusion
-# ```
-#
-# Original Prompt:
-# ```markdown
-# ## jqschema - JSON Schema Discovery
-#
-# A utility script is available at `/tmp/gh-aw/jqschema.sh` to help you discover the structure of complex JSON responses.
-#
-# ### Purpose
-#
-# Generate a compact structural schema (keys + types) from JSON input. This is particularly useful when:
-# - Analyzing tool outputs from GitHub search (search_code, search_issues, search_repositories)
-# - Exploring API responses with large payloads
-# - Understanding the structure of unfamiliar data without verbose output
-# - Planning queries before fetching full data
-#
-# ### Usage
-#
-# ```bash
-# # Analyze a file
-# cat data.json | /tmp/gh-aw/jqschema.sh
-#
-# # Analyze command output
-# echo '{"name": "test", "count": 42, "items": [{"id": 1}]}' | /tmp/gh-aw/jqschema.sh
-#
-# # Analyze GitHub search results
-# gh api search/repositories?q=language:go | /tmp/gh-aw/jqschema.sh
-# ```
-#
-# ### How It Works
-#
-# The script transforms JSON data by:
-# 1. Replacing object values with their type names ("string", "number", "boolean", "null")
-# 2. Reducing arrays to their first element's structure (or empty array if empty)
-# 3. Recursively processing nested structures
-# 4. Outputting compact (minified) JSON
-#
-# ### Example
-#
-# **Input:**
-# ```json
-# {
-#   "total_count": 1000,
-#   "items": [
-#     {"login": "user1", "id": 123, "verified": true},
-#     {"login": "user2", "id": 456, "verified": false}
-#   ]
-# }
-# ```
-#
-# **Output:**
-# ```json
-# {"total_count":"number","items":[{"login":"string","id":"number","verified":"boolean"}]}
-# ```
-#
-# ### Best Practices
-#
-# **Use this script when:**
-# - You need to understand the structure of tool outputs before requesting full data
-# - GitHub search tools return large datasets (use `perPage: 1` and pipe through schema minifier first)
-# - Exploring unfamiliar APIs or data structures
-# - Planning data extraction strategies
-#
-# **Example workflow for GitHub search tools:**
-# ```bash
-# # Step 1: Get schema with minimal data (fetch just 1 result)
-# # This helps understand the structure before requesting large datasets
-# echo '{}' | gh api search/repositories -f q="language:go" -f per_page=1 | /tmp/gh-aw/jqschema.sh
-#
-# # Output shows the schema:
-# # {"incomplete_results":"boolean","items":[{...}],"total_count":"number"}
-#
-# # Step 2: Review schema to understand available fields
-#
-# # Step 3: Request full data with confidence about structure
-# # Now you know what fields are available and can query efficiently
-# ```
-#
-# **Using with GitHub MCP tools:**
-# When using tools like `search_code`, `search_issues`, or `search_repositories`, pipe the output through jqschema to discover available fields:
-# ```bash
-# # Save a minimal search result to a file
-# gh api search/code -f q="jq in:file language:bash" -f per_page=1 > /tmp/sample.json
-#
-# # Generate schema to understand structure
-# cat /tmp/sample.json | /tmp/gh-aw/jqschema.sh
-#
-# # Now you know which fields exist and can use them in your analysis
-# ```
-#
-# # Python Data Visualization Guide
-#
-# Python scientific libraries have been installed and are ready for use. A temporary folder structure has been created at `/tmp/gh-aw/python/` for organizing scripts, data, and outputs.
-#
-# ## Installed Libraries
-#
-# - **NumPy**: Array processing and numerical operations
-# - **Pandas**: Data manipulation and analysis
-# - **Matplotlib**: Chart generation and plotting
-# - **Seaborn**: Statistical data visualization
-# - **SciPy**: Scientific computing utilities
-#
-# ## Directory Structure
-#
-# ```
-# /tmp/gh-aw/python/
-# ├── data/          # Store all data files here (CSV, JSON, etc.)
-# ├── charts/        # Generated chart images (PNG)
-# ├── artifacts/     # Additional output files
-# └── *.py           # Python scripts
-# ```
-#
-# ## Data Separation Requirement
-#
-# **CRITICAL**: Data must NEVER be inlined in Python code. Always store data in external files and load using pandas.
-#
-# ### ❌ PROHIBITED - Inline Data
-# ```python
-# # DO NOT do this
-# data = [10, 20, 30, 40, 50]
-# labels = ['A', 'B', 'C', 'D', 'E']
-# ```
-#
-# ### ✅ REQUIRED - External Data Files
-# ```python
-# # Always load data from external files
-# import pandas as pd
-#
-# # Load data from CSV
-# data = pd.read_csv('/tmp/gh-aw/python/data/data.csv')
-#
-# # Or from JSON
-# data = pd.read_json('/tmp/gh-aw/python/data/data.json')
-# ```
-#
-# ## Chart Generation Best Practices
-#
-# ### High-Quality Chart Settings
-#
-# ```python
-# import matplotlib.pyplot as plt
-# import seaborn as sns
-#
-# # Set style for better aesthetics
-# sns.set_style("whitegrid")
-# sns.set_palette("husl")
-#
-# # Create figure with high DPI
-# fig, ax = plt.subplots(figsize=(10, 6), dpi=300)
-#
-# # Your plotting code here
-# # ...
-#
-# # Save with high quality
-# plt.savefig('/tmp/gh-aw/python/charts/chart.png', 
-#             dpi=300, 
-#             bbox_inches='tight',
-#             facecolor='white',
-#             edgecolor='none')
-# ```
-#
-# ### Chart Quality Guidelines
-#
-# - **DPI**: Use 300 or higher for publication quality
-# - **Figure Size**: Standard is 10x6 inches (adjustable based on needs)
-# - **Labels**: Always include clear axis labels and titles
-# - **Legend**: Add legends when plotting multiple series
-# - **Grid**: Enable grid lines for easier reading
-# - **Colors**: Use colorblind-friendly palettes (seaborn defaults are good)
-#
-# ## Including Images in Reports
-#
-# When creating reports (issues, discussions, etc.), use the `upload asset` tool to make images URL-addressable and include them in markdown:
-#
-# ### Step 1: Generate and Upload Chart
-# ```python
-# # Generate your chart
-# plt.savefig('/tmp/gh-aw/python/charts/my_chart.png', dpi=300, bbox_inches='tight')
-# ```
-#
-# ### Step 2: Upload as Asset
-# Use the `upload asset` tool to upload the chart file. The tool will return a GitHub raw content URL.
-#
-# ### Step 3: Include in Markdown Report
-# When creating your discussion or issue, include the image using markdown:
-#
-# ```markdown
-# ## Visualization Results
-#
-# ![Chart Description](https://raw.githubusercontent.com/owner/repo/assets/workflow-name/my_chart.png)
-#
-# The chart above shows...
-# ```
-#
-# **Important**: Assets are published to an orphaned git branch and become URL-addressable after workflow completion.
-#
-# ## Cache Memory Integration
-#
-# The cache memory at `/tmp/gh-aw/cache-memory/` is available for storing reusable code:
-#
-# **Helper Functions to Cache:**
-# - Data loading utilities: `data_loader.py`
-# - Chart styling functions: `chart_utils.py`
-# - Common data transformations: `transforms.py`
-#
-# **Check Cache Before Creating:**
-# ```bash
-# # Check if helper exists in cache
-# if [ -f /tmp/gh-aw/cache-memory/data_loader.py ]; then
-#   cp /tmp/gh-aw/cache-memory/data_loader.py /tmp/gh-aw/python/
-#   echo "Using cached data_loader.py"
-# fi
-# ```
-#
-# **Save to Cache for Future Runs:**
-# ```bash
-# # Save useful helpers to cache
-# cp /tmp/gh-aw/python/data_loader.py /tmp/gh-aw/cache-memory/
-# echo "Saved data_loader.py to cache for future runs"
-# ```
-#
-# ## Complete Example Workflow
-#
-# ```python
-# #!/usr/bin/env python3
-# """
-# Example data visualization script
-# Generates a bar chart from external data
-# """
-# import pandas as pd
-# import matplotlib.pyplot as plt
-# import seaborn as sns
-#
-# # Set style
-# sns.set_style("whitegrid")
-# sns.set_palette("husl")
-#
-# # Load data from external file (NEVER inline)
-# data = pd.read_csv('/tmp/gh-aw/python/data/data.csv')
-#
-# # Process data
-# summary = data.groupby('category')['value'].sum()
-#
-# # Create chart
-# fig, ax = plt.subplots(figsize=(10, 6), dpi=300)
-# summary.plot(kind='bar', ax=ax)
-#
-# # Customize
-# ax.set_title('Data Summary by Category', fontsize=16, fontweight='bold')
-# ax.set_xlabel('Category', fontsize=12)
-# ax.set_ylabel('Value', fontsize=12)
-# ax.grid(True, alpha=0.3)
-#
-# # Save chart
-# plt.savefig('/tmp/gh-aw/python/charts/chart.png',
-#             dpi=300,
-#             bbox_inches='tight',
-#             facecolor='white')
-#
-# print("Chart saved to /tmp/gh-aw/python/charts/chart.png")
-# ```
-#
-# ## Error Handling
-#
-# **Check File Existence:**
-# ```python
-# import os
-#
-# data_file = '/tmp/gh-aw/python/data/data.csv'
-# if not os.path.exists(data_file):
-#     raise FileNotFoundError(f"Data file not found: {data_file}")
-# ```
-#
-# **Validate Data:**
-# ```python
-# # Check for required columns
-# required_cols = ['category', 'value']
-# missing = set(required_cols) - set(data.columns)
-# if missing:
-#     raise ValueError(f"Missing columns: {missing}")
-# ```
-#
-# ## Artifact Upload
-#
-# Charts and source files are automatically uploaded as artifacts:
-#
-# **Charts Artifact:**
-# - Name: `data-charts`
-# - Contents: PNG files from `/tmp/gh-aw/python/charts/`
-# - Retention: 30 days
-#
-# **Source and Data Artifact:**
-# - Name: `python-source-and-data`
-# - Contents: Python scripts and data files
-# - Retention: 30 days
-#
-# Both artifacts are uploaded with `if: always()` condition, ensuring they're available even if the workflow fails.
-#
-# ## Tips for Success
-#
-# 1. **Always Separate Data**: Store data in files, never inline in code
-# 2. **Use Cache Memory**: Store reusable helpers for faster execution
-# 3. **High Quality Charts**: Use DPI 300+ and proper sizing
-# 4. **Clear Documentation**: Add docstrings and comments
-# 5. **Error Handling**: Validate data and check file existence
-# 6. **Type Hints**: Use type annotations for better code quality
-# 7. **Seaborn Defaults**: Leverage seaborn for better aesthetics
-# 8. **Reproducibility**: Set random seeds when needed
-#
-# ## Common Data Sources
-#
-# Based on common use cases:
-#
-# **Repository Statistics:**
-# ```python
-# # Collect via GitHub API, save to data.csv
-# # Then load and visualize
-# data = pd.read_csv('/tmp/gh-aw/python/data/repo_stats.csv')
-# ```
-#
-# **Workflow Metrics:**
-# ```python
-# # Collect via GitHub Actions API, save to data.json
-# data = pd.read_json('/tmp/gh-aw/python/data/workflow_metrics.json')
-# ```
-#
-# **Sample Data Generation:**
-# ```python
-# # Generate with NumPy, save to file first
-# import numpy as np
-# data = np.random.randn(100, 2)
-# df = pd.DataFrame(data, columns=['x', 'y'])
-# df.to_csv('/tmp/gh-aw/python/data/sample_data.csv', index=False)
-#
-# # Then load it back (demonstrating the pattern)
-# data = pd.read_csv('/tmp/gh-aw/python/data/sample_data.csv')
-# ```
-#
-# ## Report Formatting
-#
-# Structure your report with an overview followed by detailed content:
-#
-# 1. **Content Overview**: Start with 1-2 paragraphs that summarize the key findings, highlights, or main points of your report. This should give readers a quick understanding of what the report contains without needing to expand the details.
-#
-# 2. **Detailed Content**: Place the rest of your report inside HTML `<details>` and `<summary>` tags to allow readers to expand and view the full information. **IMPORTANT**: Always wrap the summary text in `<b>` tags to make it bold.
-#
-# **Example format:**
-#
-# `````markdown
-# Brief overview paragraph 1 introducing the report and its main findings.
-#
-# Optional overview paragraph 2 with additional context or highlights.
-#
-# <details>
-# <summary><b>Full Report Details</b></summary>
-#
-# ## Detailed Analysis
-#
-# Full report content with all sections, tables, and detailed information goes here.
-#
-# ### Section 1
-# [Content]
-#
-# ### Section 2
-# [Content]
-#
-# </details>
-# `````
-#
-# ## Reporting Workflow Run Information
-#
-# When analyzing workflow run logs or reporting information from GitHub Actions runs:
-#
-# ### 1. Workflow Run ID Formatting
-#
-# **Always render workflow run IDs as clickable URLs** when mentioning them in your report. The workflow run data includes a `url` field that provides the full GitHub Actions run page URL.
-#
-# **Format:**
-#
-# `````markdown
-# [§12345](https://github.com/owner/repo/actions/runs/12345)
-# `````
-#
-# **Example:**
-#
-# `````markdown
-# Analysis based on [§456789](https://github.com/githubnext/gh-aw/actions/runs/456789)
-# `````
-#
-# ### 2. Document References for Workflow Runs
-#
-# When your analysis is based on information mined from one or more workflow runs, **include up to 3 workflow run URLs as document references** at the end of your report.
-#
-# **Format:**
-#
-# `````markdown
-# ---
-#
-# **References:**
-# - [§12345](https://github.com/owner/repo/actions/runs/12345)
-# - [§12346](https://github.com/owner/repo/actions/runs/12346)
-# - [§12347](https://github.com/owner/repo/actions/runs/12347)
-# `````
-#
-# **Guidelines:**
-#
-# - Include **maximum 3 references** to keep reports concise
-# - Choose the most relevant or representative runs (e.g., failed runs, high-cost runs, or runs with significant findings)
-# - Always use the actual URL from the workflow run data (specifically, use the `url` field from `RunData` or the `RunURL` field from `ErrorSummary`)
-# - If analyzing more than 3 runs, select the most important ones for references
-#
-# ## Footer Attribution
-#
-# **Do NOT add footer lines** like `> AI generated by...` to your comment. The system automatically appends attribution after your content to prevent duplicates.
-#
-#
-#
-# # Copilot PR Conversation NLP Analysis
-#
-# You are an AI analytics agent specialized in Natural Language Processing (NLP) and conversation analysis. Your mission is to analyze GitHub Copilot pull request conversations to identify trends, sentiment patterns, and recurring topics.
-#
-# ## Mission
-#
-# Generate a daily NLP-based analysis report of Copilot-created PRs merged within the last 24 hours, focusing on conversation patterns, sentiment trends, and topic clustering. Post the findings with visualizations as a GitHub Discussion in the `audit` category.
-#
-# ## Current Context
-#
-# - **Repository**: ${{ github.repository }}
-# - **Analysis Period**: Last 24 hours (merged PRs only)
-# - **Data Location**: 
-#   - PR metadata: `/tmp/gh-aw/pr-data/copilot-prs.json`
-#   - PR comments: `/tmp/gh-aw/pr-comments/pr-*.json`
-# - **Python Environment**: NumPy, Pandas, Matplotlib, Seaborn, SciPy, NLTK, scikit-learn, TextBlob, WordCloud
-# - **Output Directory**: `/tmp/gh-aw/python/charts/`
-#
-# ## Task Overview
-#
-# ### Phase 1: Load and Parse PR Conversation Data
-#
-# **Pre-fetched Data Available**: The shared component has downloaded all Copilot PRs from the last 30 days. The data is available at:
-# - `/tmp/gh-aw/pr-data/copilot-prs.json` - Full PR data in JSON format
-# - `/tmp/gh-aw/pr-data/copilot-prs-schema.json` - Schema showing the structure
-#
-# **Note**: This workflow focuses on merged PRs from the last 24 hours. Use jq to filter:
-# ```bash
-# # Get PRs merged in the last 24 hours
-# DATE_24H_AGO=$(date -d '1 day ago' '+%Y-%m-%dT%H:%M:%SZ' 2>/dev/null || date -v-1d '+%Y-%m-%dT%H:%M:%SZ')
-# jq --arg date "$DATE_24H_AGO" '[.[] | select(.mergedAt != null and .mergedAt >= $date)]' /tmp/gh-aw/pr-data/copilot-prs.json
-# ```
-#
-# 1. **Load PR metadata**:
-#    ```bash
-#    cat /tmp/gh-aw/pr-data/copilot-prs.json
-#    echo "Total PRs: $(jq 'length' /tmp/gh-aw/pr-data/copilot-prs.json)"
-#    ```
-#
-# 2. **Parse conversation threads** using `jq`:
-#    - For each PR in `/tmp/gh-aw/pr-comments/pr-*.json`, extract:
-#      - Comments (from `comments` array)
-#      - Review comments (from `reviewComments` array)
-#      - Reviews (from `reviews` array)
-#    - Identify conversation participants (human vs Copilot)
-#    - Structure as message exchanges
-#
-# 3. **Create structured conversation dataset**:
-#    - Save to `/tmp/gh-aw/python/data/conversations.csv` with columns:
-#      - `pr_number`: PR number
-#      - `pr_title`: PR title
-#      - `message_type`: "comment", "review", "review_comment"
-#      - `author`: Username
-#      - `is_copilot`: Boolean
-#      - `text`: Message content
-#      - `created_at`: Timestamp
-#      - `sentiment_polarity`: (to be filled in Phase 2)
-#
-# ### Phase 2: Preprocess with jq and Python
-#
-# 1. **Use jq to extract conversation threads**:
-#    ```bash
-#    # Example: Extract all comment bodies from a PR
-#    jq '.comments[].body' /tmp/gh-aw/pr-comments/pr-123.json
-#    ```
-#
-# 2. **Create Python script** (`/tmp/gh-aw/python/parse_conversations.py`) to:
-#    - Read all PR comment JSON files
-#    - Extract and clean text (remove markdown, code blocks, URLs)
-#    - Combine PR body with conversation threads
-#    - Identify user ↔ Copilot exchange patterns
-#    - Save cleaned data to CSV
-#
-# 3. **Text preprocessing**:
-#    - Lowercase conversion
-#    - Remove special characters and code snippets
-#    - Tokenization
-#    - Remove stopwords
-#    - Lemmatization
-#
-# ### Phase 3: NLP Analysis
-#
-# Create Python analysis script (`/tmp/gh-aw/python/nlp_analysis.py`) to perform:
-#
-# #### 3.1 Sentiment Analysis
-# - Use TextBlob or NLTK VADER for sentiment scoring
-# - Calculate sentiment polarity (-1 to +1) for each message
-# - Aggregate sentiment by:
-#   - PR (overall PR sentiment)
-#   - Message type (comments vs reviews)
-#   - Conversation stage (early vs late messages)
-#
-# #### 3.2 Topic Extraction and Clustering
-# - Use TF-IDF vectorization to identify important terms
-# - Apply K-means clustering or LDA topic modeling
-# - Identify common discussion themes:
-#   - Code quality feedback
-#   - Bug reports
-#   - Feature requests
-#   - Documentation discussions
-#   - Testing concerns
-#
-# #### 3.3 Keyword and Phrase Analysis
-# - Extract most frequent n-grams (1-3 words)
-# - Identify recurring technical terms
-# - Find common feedback patterns
-# - Detect sentiment-laden phrases
-#
-# #### 3.4 Temporal Patterns
-# - Analyze sentiment changes over conversation timeline
-# - Identify if discussions become more positive/negative over time
-# - Detect rapid sentiment shifts (controversy indicators)
-#
-# ### Phase 4: Generate Visualizations
-#
-# Create the following charts in `/tmp/gh-aw/python/charts/`:
-#
-# 1. **`sentiment_distribution.png`**: Histogram of sentiment polarity scores
-# 2. **`topics_wordcloud.png`**: Word cloud of most common terms (colored by topic cluster)
-# 3. **`sentiment_timeline.png`**: Line chart showing sentiment progression across conversation stages
-# 4. **`topic_frequencies.png`**: Bar chart of identified topic clusters and their frequencies
-# 5. **`keyword_trends.png`**: Top 15 keywords/phrases with occurrence counts
-#
-# **Chart Quality Requirements**:
-# - DPI: 300 minimum
-# - Size: 10x6 inches (or appropriate for data)
-# - Style: Use seaborn styling for professional appearance
-# - Labels: Clear titles, axis labels, and legends
-# - Colors: Colorblind-friendly palette
-#
-# ### Phase 5: Upload Visualizations as Assets
-#
-# For each generated chart:
-#
-# 1. **Verify chart was created**:
-#    ```bash
-#    ls -lh /tmp/gh-aw/python/charts/
-#    ```
-#
-# 2. **Upload each chart** using the `upload asset` tool
-# 3. **Collect returned URLs** for embedding in the discussion
-#
-# ### Phase 6: Create Analysis Discussion
-#
-# Post a comprehensive discussion with the following structure:
-#
-# **Title**: `Copilot PR Conversation NLP Analysis - [DATE]`
-#
-# **Content Template**:
-# ````markdown
-# # 🤖 Copilot PR Conversation NLP Analysis - [DATE]
-#
-# ## Executive Summary
-#
-# **Analysis Period**: Last 24 hours (merged PRs only)  
-# **Repository**: ${{ github.repository }}  
-# **Total PRs Analyzed**: [count]  
-# **Total Messages**: [count] comments, [count] reviews, [count] review comments  
-# **Average Sentiment**: [polarity score] ([positive/neutral/negative])
-#
-# ## Sentiment Analysis
-#
-# ### Overall Sentiment Distribution
-# ![Sentiment Distribution](URL_FROM_UPLOAD_ASSET_sentiment_distribution)
-#
-# **Key Findings**:
-# - **Positive messages**: [count] ([percentage]%)
-# - **Neutral messages**: [count] ([percentage]%)
-# - **Negative messages**: [count] ([percentage]%)
-# - **Average polarity**: [score] on scale of -1 (very negative) to +1 (very positive)
-#
-# ### Sentiment Over Conversation Timeline
-# ![Sentiment Timeline](URL_FROM_UPLOAD_ASSET_sentiment_timeline)
-#
-# **Observations**:
-# - [e.g., "Conversations typically start neutral and become more positive as issues are resolved"]
-# - [e.g., "PR #123 showed unusual negative sentiment spike mid-conversation"]
-#
-# ## Topic Analysis
-#
-# ### Identified Discussion Topics
-# ![Topic Frequencies](URL_FROM_UPLOAD_ASSET_topic_frequencies)
-#
-# **Major Topics Detected**:
-# 1. **[Topic 1 Name]** ([count] messages, [percentage]%): [brief description]
-# 2. **[Topic 2 Name]** ([count] messages, [percentage]%): [brief description]
-# 3. **[Topic 3 Name]** ([count] messages, [percentage]%): [brief description]
-# 4. **[Topic 4 Name]** ([count] messages, [percentage]%): [brief description]
-#
-# ### Topic Word Cloud
-# ![Topics Word Cloud](URL_FROM_UPLOAD_ASSET_topics_wordcloud)
-#
-# ## Keyword Trends
-#
-# ### Most Common Keywords and Phrases
-# ![Keyword Trends](URL_FROM_UPLOAD_ASSET_keyword_trends)
-#
-# **Top Recurring Terms**:
-# - **Technical**: [list top 5 technical terms]
-# - **Action-oriented**: [list top 5 action verbs/phrases]
-# - **Feedback**: [list top 5 feedback-related terms]
-#
-# ## Conversation Patterns
-#
-# ### User ↔ Copilot Exchange Analysis
-#
-# **Typical Exchange Pattern**:
-# - Average messages per PR: [number]
-# - Average Copilot responses: [number]
-# - Average user follow-ups: [number]
-#
-# **Engagement Metrics**:
-# - PRs with active discussion (>3 messages): [count]
-# - PRs merged without discussion: [count]
-# - Average response time: [if timestamps available]
-#
-# ## Insights and Trends
-#
-# ### 🔍 Key Observations
-#
-# 1. **[Insight 1]**: [e.g., "Code quality feedback is the most common topic, appearing in 78% of conversations"]
-#
-# 2. **[Insight 2]**: [e.g., "Sentiment improves by an average of 0.3 points between initial comment and final approval"]
-#
-# 3. **[Insight 3]**: [e.g., "Testing concerns are mentioned in 45% of PRs but sentiment remains neutral"]
-#
-# ### 📊 Trend Highlights
-#
-# - **Positive Pattern**: [e.g., "Quick acknowledgment of suggestions correlates with faster merge"]
-# - **Concerning Pattern**: [e.g., "PRs with >5 review cycles show declining sentiment"]
-# - **Emerging Theme**: [e.g., "Increased focus on documentation quality this period"]
-#
-# ## Sentiment by Message Type
-#
-# | Message Type | Avg Sentiment | Count | Percentage |
-# |--------------|---------------|-------|------------|
-# | Comments | [score] | [count] | [%] |
-# | Reviews | [score] | [count] | [%] |
-# | Review Comments | [score] | [count] | [%] |
-#
-# ## PR Highlights
-#
-# ### Most Positive PR 😊
-# **PR #[number]**: [title]  
-# **Sentiment**: [score]  
-# **Summary**: [brief summary of why positive]
-#
-# ### Most Discussed PR 💬
-# **PR #[number]**: [title]  
-# **Messages**: [count]  
-# **Summary**: [brief summary of discussion]
-#
-# ### Notable Topics PR 🔖
-# **PR #[number]**: [title]  
-# **Topics**: [list of topics]  
-# **Summary**: [brief summary]
-#
-# ## Historical Context
-#
-# [If cache memory has historical data, compare to previous periods]
-#
-# | Date | PRs | Avg Sentiment | Top Topic |
-# |------|-----|---------------|-----------|
-# | [today] | [count] | [score] | [topic] |
-# | [previous] | [count] | [score] | [topic] |
-# | [delta] | [change] | [change] | - |
-#
-# **7-Day Trend**: [e.g., "Sentiment trending upward, +0.15 increase"]
-#
-# ## Recommendations
-#
-# Based on NLP analysis:
-#
-# 1. **🎯 Focus Areas**: [e.g., "Continue emphasis on clear documentation - correlates with positive sentiment"]
-#
-# 2. **⚠️ Watch For**: [e.g., "Monitor PRs that generate >7 review comments - may need earlier intervention"]
-#
-# 3. **✨ Best Practices**: [e.g., "Quick initial acknowledgment (within 1 hour) associated with smoother conversations"]
-#
-# ## Methodology
-#
-# **NLP Techniques Applied**:
-# - Sentiment Analysis: TextBlob/VADER
-# - Topic Modeling: TF-IDF + K-means clustering
-# - Keyword Extraction: N-gram frequency analysis
-# - Text Preprocessing: Tokenization, stopword removal, lemmatization
-#
-# **Data Sources**:
-# - GitHub PR metadata (title, body, labels)
-# - PR comments and review threads
-# - Review comments on code lines
-# - Pull request reviews
-#
-# **Libraries Used**:
-# - NLTK: Natural language processing
-# - scikit-learn: Machine learning and clustering
-# - TextBlob: Sentiment analysis
-# - WordCloud: Visualization
-# - Pandas/NumPy: Data processing
-# - Matplotlib/Seaborn: Charting
-#
-# ## Workflow Details
-#
-# - **Repository**: ${{ github.repository }}
-# - **Run ID**: ${{ github.run_id }}
-# - **Run URL**: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
-# - **Analysis Date**: [current date]
-#
-# ---
-#
-# *This report was automatically generated by the Copilot PR Conversation NLP Analysis workflow.*
-# ````
-#
-# ## Edge Cases and Error Handling
-#
-# ### No PRs in Last 24 Hours
-# If no Copilot PRs were merged in the last 24 hours:
-# - Create a minimal discussion noting no activity
-# - Include message: "No Copilot-authored PRs were merged in the last 24 hours"
-# - Still maintain cache memory with zero counts
-# - Optionally show historical trends
-#
-# ### PRs with No Comments
-# If PRs have no conversation data:
-# - Analyze only PR title and body
-# - Note in report: "X PRs had no discussion comments"
-# - Perform sentiment on PR body text
-# - Include in "merged without discussion" metric
-#
-# ### Insufficient Data for Clustering
-# If fewer than 5 messages total:
-# - Skip topic clustering
-# - Perform only basic sentiment analysis
-# - Note: "Sample size too small for topic modeling"
-# - Focus on keyword extraction instead
-#
-# ### Empty or Invalid JSON
-# Handle parsing errors gracefully:
-# ```python
-# try:
-#     data = json.load(file)
-# except json.JSONDecodeError:
-#     print(f"Warning: Invalid JSON in {filename}, skipping")
-#     continue
-# ```
-#
-# ## Success Criteria
-#
-# A successful analysis workflow:
-# - ✅ Fetches only Copilot-authored PRs merged in last 24 hours
-# - ✅ Pre-downloads all PR and comment data as JSON
-# - ✅ Uses jq for efficient data filtering and preprocessing
-# - ✅ Applies multiple NLP techniques (sentiment, topics, keywords)
-# - ✅ Generates 5 high-quality visualization charts
-# - ✅ Uploads charts as assets with URL-addressable locations
-# - ✅ Posts comprehensive discussion in `audit` category
-# - ✅ Handles edge cases (no data, parsing errors) gracefully
-# - ✅ Completes within 20-minute timeout
-# - ✅ Stores analysis metadata in cache memory for trends
-#
-# ## Important Security and Data Guidelines
-#
-# ### Data Privacy
-# - **No sensitive data**: Redact usernames if discussing specific examples
-# - **Aggregate focus**: Report trends, not individual message content
-# - **Public data only**: All analyzed data is from public PR conversations
-#
-# ### Rate Limiting
-# - Sleep 0.5 seconds between PR API calls to avoid rate limits
-# - Batch requests where possible
-# - Handle API errors with retries
-#
-# ### Resource Management
-# - Clean up temporary files after analysis
-# - Use efficient data structures (pandas DataFrames)
-# - Stream large files rather than loading all into memory
-#
-# ## Cache Memory Usage
-#
-# Store reusable components and historical data:
-#
-# **Historical Analysis Data** (`/tmp/gh-aw/cache-memory/nlp-history.json`):
-# ```json
-# {
-#   "daily_analysis": [
-#     {
-#       "date": "2024-11-04",
-#       "pr_count": 8,
-#       "message_count": 45,
-#       "avg_sentiment": 0.32,
-#       "top_topic": "code_quality",
-#       "top_keywords": ["fix", "test", "update", "documentation"]
-#     }
-#   ]
-# }
-# ```
-#
-# **Reusable NLP Helper Functions** (save to cache):
-# - Text preprocessing utilities
-# - Sentiment analysis wrapper
-# - Topic extraction helpers
-# - Chart generation templates
-#
-# **Before Analysis**: Check cache for helper scripts
-# **After Analysis**: Save updated history and helpers to cache
-#
-# ---
-#
-# **Remember**: Focus on identifying actionable patterns in Copilot PR conversations that can inform prompt improvements, development practices, and collaboration quality.
-# ```
-#
-# Pinned GitHub Actions:
-#   - actions/cache/restore@v4 (0057852bfaa89a56745cba8c7296529d2fc39830)
-#     https://github.com/actions/cache/commit/0057852bfaa89a56745cba8c7296529d2fc39830
-#   - actions/cache/save@v4 (0057852bfaa89a56745cba8c7296529d2fc39830)
-#     https://github.com/actions/cache/commit/0057852bfaa89a56745cba8c7296529d2fc39830
-#   - actions/checkout@v5 (93cb6efe18208431cddfb8368fd83d5badbf9bfd)
-#     https://github.com/actions/checkout/commit/93cb6efe18208431cddfb8368fd83d5badbf9bfd
-#   - actions/download-artifact@v6 (018cc2cf5baa6db3ef3c5f8a56943fffe632ef53)
-#     https://github.com/actions/download-artifact/commit/018cc2cf5baa6db3ef3c5f8a56943fffe632ef53
-#   - actions/github-script@v8 (ed597411d8f924073f98dfc5c65a23a2325f34cd)
-#     https://github.com/actions/github-script/commit/ed597411d8f924073f98dfc5c65a23a2325f34cd
-#   - actions/upload-artifact@v5 (330a01c490aca151604b8cf639adc76d48f6c5d4)
-#     https://github.com/actions/upload-artifact/commit/330a01c490aca151604b8cf639adc76d48f6c5d4
 
 name: "Copilot PR Conversation NLP Analysis"
 "on":
@@ -1075,9 +120,7 @@ jobs:
                   .addRaw("**Files:**\n")
                   .addRaw(`- Source: \`${workflowMdPath}\`\n`)
                   .addRaw(`  - Last commit: ${workflowTimestamp}\n`)
-                  .addRaw(
-                    `  - Commit SHA: [\`${workflowCommit.sha.substring(0, 7)}\`](https://github.com/${owner}/${repo}/commit/${workflowCommit.sha})\n`
-                  )
+                  .addRaw(`  - Commit SHA: [\`${workflowCommit.sha.substring(0, 7)}\`](https://github.com/${owner}/${repo}/commit/${workflowCommit.sha})\n`)
                   .addRaw(`- Lock: \`${lockFilePath}\`\n`)
                   .addRaw(`  - Last commit: ${lockTimestamp}\n`)
                   .addRaw(`  - Commit SHA: [\`${lockCommit.sha.substring(0, 7)}\`](https://github.com/${owner}/${repo}/commit/${lockCommit.sha})\n\n`)
@@ -1629,9 +672,7 @@ jobs:
                 server.debug(`  [${toolName}] Python handler args: ${JSON.stringify(args)}`);
                 server.debug(`  [${toolName}] Timeout: ${timeoutSeconds}s`);
                 const inputJson = JSON.stringify(args || {});
-                server.debug(
-                  `  [${toolName}] Input JSON (${inputJson.length} bytes): ${inputJson.substring(0, 200)}${inputJson.length > 200 ? "..." : ""}`
-                );
+                server.debug(`  [${toolName}] Input JSON (${inputJson.length} bytes): ${inputJson.substring(0, 200)}${inputJson.length > 200 ? "..." : ""}`);
                 return new Promise((resolve, reject) => {
                   server.debug(`  [${toolName}] Executing Python script...`);
                   const child = execFile(
@@ -1739,9 +780,7 @@ jobs:
                       try {
                         if (fs.existsSync(outputFile)) {
                           const outputContent = fs.readFileSync(outputFile, "utf-8");
-                          server.debug(
-                            `  [${toolName}] Output file content: ${outputContent.substring(0, 500)}${outputContent.length > 500 ? "..." : ""}`
-                          );
+                          server.debug(`  [${toolName}] Output file content: ${outputContent.substring(0, 500)}${outputContent.length > 500 ? "..." : ""}`);
                           const lines = outputContent.split("\n");
                           for (const line of lines) {
                             const trimmed = line.trim();
@@ -1799,10 +838,7 @@ jobs:
                   fs.mkdirSync(server.logDir, { recursive: true });
                 }
                 const timestamp = new Date().toISOString();
-                fs.writeFileSync(
-                  server.logFilePath,
-                  `# ${server.serverInfo.name} MCP Server Log\n# Started: ${timestamp}\n# Version: ${server.serverInfo.version}\n\n`
-                );
+                fs.writeFileSync(server.logFilePath, `# ${server.serverInfo.name} MCP Server Log\n# Started: ${timestamp}\n# Version: ${server.serverInfo.version}\n\n`);
                 server.logFileInitialized = true;
               } catch {
               }
@@ -2462,10 +1498,7 @@ jobs:
                 const isInWorkspace = absolutePath.startsWith(path.resolve(workspaceDir));
                 const isInTmp = absolutePath.startsWith(tmpDir);
                 if (!isInWorkspace && !isInTmp) {
-                  throw new Error(
-                    `File path must be within workspace directory (${workspaceDir}) or /tmp directory. ` +
-                      `Provided path: ${filePath} (resolved to: ${absolutePath})`
-                  );
+                  throw new Error(`File path must be within workspace directory (${workspaceDir}) or /tmp directory. ` + `Provided path: ${filePath} (resolved to: ${absolutePath})`);
                 }
                 if (!fs.existsSync(filePath)) {
                   throw new Error(`File not found: ${filePath}`);
@@ -2724,10 +1757,7 @@ jobs:
                       };
                       const entryJSON = JSON.stringify(entry);
                       fs.appendFileSync(outputFile, entryJSON + "\n");
-                      const outputText =
-                        jobConfig && jobConfig.output
-                          ? jobConfig.output
-                          : `Safe-job '${configKey}' executed successfully with arguments: ${JSON.stringify(args)}`;
+                      const outputText = jobConfig && jobConfig.output ? jobConfig.output : `Safe-job '${configKey}' executed successfully with arguments: ${JSON.stringify(args)}`;
                       return {
                         content: [
                           {
@@ -4234,16 +3264,13 @@ jobs:
               return result;
             }
             function renderMarkdownTemplate(markdown) {
-              let result = markdown.replace(
-                /(\n?)([ \t]*{{#if\s+([^}]*)}}[ \t]*\n)([\s\S]*?)([ \t]*{{\/if}}[ \t]*)(\n?)/g,
-                (match, leadNL, openLine, cond, body, closeLine, trailNL) => {
-                  if (isTruthy(cond)) {
-                    return leadNL + body;
-                  } else {
-                    return "";
-                  }
+              let result = markdown.replace(/(\n?)([ \t]*{{#if\s+([^}]*)}}[ \t]*\n)([\s\S]*?)([ \t]*{{\/if}}[ \t]*)(\n?)/g, (match, leadNL, openLine, cond, body, closeLine, trailNL) => {
+                if (isTruthy(cond)) {
+                  return leadNL + body;
+                } else {
+                  return "";
                 }
-              );
+              });
               result = result.replace(/{{#if\s+([^}]*)}}([\s\S]*?){{\/if}}/g, (_, cond, body) => (isTruthy(cond) ? body : ""));
               result = result.replace(/\n{3,}/g, "\n\n");
               return result;
@@ -4614,36 +3641,33 @@ jobs:
                 });
               }
               function sanitizeUrlProtocols(s) {
-                return s.replace(
-                  /((?:http|ftp|file|ssh|git):\/\/([\w.-]*)(?:[^\s]*)|(?:data|javascript|vbscript|about|mailto|tel):[^\s]+)/gi,
-                  (match, _fullMatch, domain) => {
-                    if (domain) {
-                      const domainLower = domain.toLowerCase();
-                      const truncated = domainLower.length > 12 ? domainLower.substring(0, 12) + "..." : domainLower;
+                return s.replace(/((?:http|ftp|file|ssh|git):\/\/([\w.-]*)(?:[^\s]*)|(?:data|javascript|vbscript|about|mailto|tel):[^\s]+)/gi, (match, _fullMatch, domain) => {
+                  if (domain) {
+                    const domainLower = domain.toLowerCase();
+                    const truncated = domainLower.length > 12 ? domainLower.substring(0, 12) + "..." : domainLower;
+                    if (typeof core !== "undefined" && core.info) {
+                      core.info(`Redacted URL: ${truncated}`);
+                    }
+                    if (typeof core !== "undefined" && core.debug) {
+                      core.debug(`Redacted URL (full): ${match}`);
+                    }
+                    addRedactedDomain(domainLower);
+                  } else {
+                    const protocolMatch = match.match(/^([^:]+):/);
+                    if (protocolMatch) {
+                      const protocol = protocolMatch[1] + ":";
+                      const truncated = match.length > 12 ? match.substring(0, 12) + "..." : match;
                       if (typeof core !== "undefined" && core.info) {
                         core.info(`Redacted URL: ${truncated}`);
                       }
                       if (typeof core !== "undefined" && core.debug) {
                         core.debug(`Redacted URL (full): ${match}`);
                       }
-                      addRedactedDomain(domainLower);
-                    } else {
-                      const protocolMatch = match.match(/^([^:]+):/);
-                      if (protocolMatch) {
-                        const protocol = protocolMatch[1] + ":";
-                        const truncated = match.length > 12 ? match.substring(0, 12) + "..." : match;
-                        if (typeof core !== "undefined" && core.info) {
-                          core.info(`Redacted URL: ${truncated}`);
-                        }
-                        if (typeof core !== "undefined" && core.debug) {
-                          core.debug(`Redacted URL (full): ${match}`);
-                        }
-                        addRedactedDomain(protocol);
-                      }
+                      addRedactedDomain(protocol);
                     }
-                    return "(redacted)";
                   }
-                );
+                  return "(redacted)";
+                });
               }
               function neutralizeCommands(s) {
                 const commandName = process.env.GH_AW_COMMAND;
@@ -4665,37 +3689,7 @@ jobs:
                 return s.replace(/<!--[\s\S]*?-->/g, "").replace(/<!--[\s\S]*?--!>/g, "");
               }
               function convertXmlTags(s) {
-                const allowedTags = [
-                  "b",
-                  "blockquote",
-                  "br",
-                  "code",
-                  "details",
-                  "em",
-                  "h1",
-                  "h2",
-                  "h3",
-                  "h4",
-                  "h5",
-                  "h6",
-                  "hr",
-                  "i",
-                  "li",
-                  "ol",
-                  "p",
-                  "pre",
-                  "strong",
-                  "sub",
-                  "summary",
-                  "sup",
-                  "table",
-                  "tbody",
-                  "td",
-                  "th",
-                  "thead",
-                  "tr",
-                  "ul",
-                ];
+                const allowedTags = ["b", "blockquote", "br", "code", "details", "em", "h1", "h2", "h3", "h4", "h5", "h6", "hr", "i", "li", "ol", "p", "pre", "strong", "sub", "summary", "sup", "table", "tbody", "td", "th", "thead", "tr", "ul"];
                 s = s.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, (match, content) => {
                   const convertedContent = content.replace(/<(\/?[A-Za-z][A-Za-z0-9]*(?:[^>]*?))>/g, "($1)");
                   return `(![CDATA[${convertedContent}]])`;
@@ -4807,36 +3801,33 @@ jobs:
                 return result;
               }
               function sanitizeUrlProtocols(s) {
-                return s.replace(
-                  /\b((?:http|ftp|file|ssh|git):\/\/([\w.-]+)(?:[^\s]*)|(?:data|javascript|vbscript|about|mailto|tel):[^\s]+)/gi,
-                  (match, _fullMatch, domain) => {
-                    if (domain) {
-                      const domainLower = domain.toLowerCase();
-                      const truncated = domainLower.length > 12 ? domainLower.substring(0, 12) + "..." : domainLower;
+                return s.replace(/\b((?:http|ftp|file|ssh|git):\/\/([\w.-]+)(?:[^\s]*)|(?:data|javascript|vbscript|about|mailto|tel):[^\s]+)/gi, (match, _fullMatch, domain) => {
+                  if (domain) {
+                    const domainLower = domain.toLowerCase();
+                    const truncated = domainLower.length > 12 ? domainLower.substring(0, 12) + "..." : domainLower;
+                    if (typeof core !== "undefined" && core.info) {
+                      core.info(`Redacted URL: ${truncated}`);
+                    }
+                    if (typeof core !== "undefined" && core.debug) {
+                      core.debug(`Redacted URL (full): ${match}`);
+                    }
+                    addRedactedDomain(domainLower);
+                  } else {
+                    const protocolMatch = match.match(/^([^:]+):/);
+                    if (protocolMatch) {
+                      const protocol = protocolMatch[1] + ":";
+                      const truncated = match.length > 12 ? match.substring(0, 12) + "..." : match;
                       if (typeof core !== "undefined" && core.info) {
                         core.info(`Redacted URL: ${truncated}`);
                       }
                       if (typeof core !== "undefined" && core.debug) {
                         core.debug(`Redacted URL (full): ${match}`);
                       }
-                      addRedactedDomain(domainLower);
-                    } else {
-                      const protocolMatch = match.match(/^([^:]+):/);
-                      if (protocolMatch) {
-                        const protocol = protocolMatch[1] + ":";
-                        const truncated = match.length > 12 ? match.substring(0, 12) + "..." : match;
-                        if (typeof core !== "undefined" && core.info) {
-                          core.info(`Redacted URL: ${truncated}`);
-                        }
-                        if (typeof core !== "undefined" && core.debug) {
-                          core.debug(`Redacted URL (full): ${match}`);
-                        }
-                        addRedactedDomain(protocol);
-                      }
+                      addRedactedDomain(protocol);
                     }
-                    return "(redacted)";
                   }
-                );
+                  return "(redacted)";
+                });
               }
               function neutralizeCommands(s) {
                 const commandName = process.env.GH_AW_COMMAND;
@@ -4862,37 +3853,7 @@ jobs:
                 return s.replace(/<!--[\s\S]*?-->/g, "").replace(/<!--[\s\S]*?--!>/g, "");
               }
               function convertXmlTags(s) {
-                const allowedTags = [
-                  "b",
-                  "blockquote",
-                  "br",
-                  "code",
-                  "details",
-                  "em",
-                  "h1",
-                  "h2",
-                  "h3",
-                  "h4",
-                  "h5",
-                  "h6",
-                  "hr",
-                  "i",
-                  "li",
-                  "ol",
-                  "p",
-                  "pre",
-                  "strong",
-                  "sub",
-                  "summary",
-                  "sup",
-                  "table",
-                  "tbody",
-                  "td",
-                  "th",
-                  "thead",
-                  "tr",
-                  "ul",
-                ];
+                const allowedTags = ["b", "blockquote", "br", "code", "details", "em", "h1", "h2", "h3", "h4", "h5", "h6", "hr", "i", "li", "ol", "p", "pre", "strong", "sub", "summary", "sup", "table", "tbody", "td", "th", "thead", "tr", "ul"];
                 s = s.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, (match, content) => {
                   const convertedContent = content.replace(/<(\/?[A-Za-z][A-Za-z0-9]*(?:[^>]*?))>/g, "($1)");
                   return `(![CDATA[${convertedContent}]])`;
@@ -5584,9 +4545,7 @@ jobs:
                   core.info(`Loaded validation config from ${validationConfigPath}`);
                 }
               } catch (error) {
-                core.warning(
-                  `Failed to read validation config from ${validationConfigPath}: ${error instanceof Error ? error.message : String(error)}`
-                );
+                core.warning(`Failed to read validation config from ${validationConfigPath}: ${error instanceof Error ? error.message : String(error)}`);
               }
               const mentionsConfig = validationConfig?.mentions || null;
               const allowedMentions = await resolveAllowedMentionsFromPayload(context, github, core, mentionsConfig);
@@ -5799,9 +4758,7 @@ jobs:
                   core.info(`[INGESTION] Line ${i + 1}: Original type='${originalType}', Normalized type='${itemType}'`);
                   item.type = itemType;
                   if (!expectedOutputTypes[itemType]) {
-                    core.warning(
-                      `[INGESTION] Line ${i + 1}: Type '${itemType}' not found in expected types: ${JSON.stringify(Object.keys(expectedOutputTypes))}`
-                    );
+                    core.warning(`[INGESTION] Line ${i + 1}: Type '${itemType}' not found in expected types: ${JSON.stringify(Object.keys(expectedOutputTypes))}`);
                     errors.push(`Line ${i + 1}: Unexpected output type '${itemType}'. Expected one of: ${Object.keys(expectedOutputTypes).join(", ")}`);
                     continue;
                   }
@@ -5883,10 +4840,7 @@ jobs:
               core.info(`Patch file ${hasPatch ? "exists" : "does not exist"} at: ${patchPath}`);
               let allowEmptyPR = false;
               if (safeOutputsConfig) {
-                if (
-                  safeOutputsConfig["create-pull-request"]?.["allow-empty"] === true ||
-                  safeOutputsConfig["create_pull_request"]?.["allow_empty"] === true
-                ) {
+                if (safeOutputsConfig["create-pull-request"]?.["allow-empty"] === true || safeOutputsConfig["create_pull_request"]?.["allow_empty"] === true) {
                   allowEmptyPR = true;
                   core.info(`allow-empty is enabled for create-pull-request`);
                 }
@@ -6257,24 +5211,7 @@ jobs:
                   "Custom Agents": [],
                   Other: [],
                 };
-                const builtinTools = [
-                  "bash",
-                  "write_bash",
-                  "read_bash",
-                  "stop_bash",
-                  "list_bash",
-                  "grep",
-                  "glob",
-                  "view",
-                  "create",
-                  "edit",
-                  "store_memory",
-                  "code_review",
-                  "codeql_checker",
-                  "report_progress",
-                  "report_intent",
-                  "gh-advisory-database",
-                ];
+                const builtinTools = ["bash", "write_bash", "read_bash", "stop_bash", "list_bash", "grep", "glob", "view", "create", "edit", "store_memory", "code_review", "codeql_checker", "report_progress", "report_intent", "gh-advisory-database"];
                 const internalTools = ["fetch_copilot_cli_documentation"];
                 for (const tool of initEntry.tools) {
                   const toolLower = tool.toLowerCase();
@@ -6670,9 +5607,7 @@ jobs:
                   const cacheCreationTokens = usage.cache_creation_input_tokens || 0;
                   const cacheReadTokens = usage.cache_read_input_tokens || 0;
                   const totalTokens = inputTokens + outputTokens + cacheCreationTokens + cacheReadTokens;
-                  lines.push(
-                    `  Tokens: ${totalTokens.toLocaleString()} total (${usage.input_tokens.toLocaleString()} in / ${usage.output_tokens.toLocaleString()} out)`
-                  );
+                  lines.push(`  Tokens: ${totalTokens.toLocaleString()} total (${usage.input_tokens.toLocaleString()} in / ${usage.output_tokens.toLocaleString()} out)`);
                 }
               }
               if (lastEntry?.total_cost_usd) {
@@ -6831,9 +5766,7 @@ jobs:
                   const cacheCreationTokens = usage.cache_creation_input_tokens || 0;
                   const cacheReadTokens = usage.cache_read_input_tokens || 0;
                   const totalTokens = inputTokens + outputTokens + cacheCreationTokens + cacheReadTokens;
-                  lines.push(
-                    `  Tokens: ${totalTokens.toLocaleString()} total (${usage.input_tokens.toLocaleString()} in / ${usage.output_tokens.toLocaleString()} out)`
-                  );
+                  lines.push(`  Tokens: ${totalTokens.toLocaleString()} total (${usage.input_tokens.toLocaleString()} in / ${usage.output_tokens.toLocaleString()} out)`);
                 }
               }
               if (lastEntry?.total_cost_usd) {
@@ -6934,11 +5867,7 @@ jobs:
               });
             }
             function extractPremiumRequestCount(logContent) {
-              const patterns = [
-                /premium\s+requests?\s+consumed:?\s*(\d+)/i,
-                /(\d+)\s+premium\s+requests?\s+consumed/i,
-                /consumed\s+(\d+)\s+premium\s+requests?/i,
-              ];
+              const patterns = [/premium\s+requests?\s+consumed:?\s*(\d+)/i, /(\d+)\s+premium\s+requests?\s+consumed/i, /consumed\s+(\d+)\s+premium\s+requests?/i];
               for (const pattern of patterns) {
                 const match = logContent.match(pattern);
                 if (match && match[1]) {
@@ -7010,8 +5939,7 @@ jobs:
                 const initEntry = logEntries.find(entry => entry.type === "system" && entry.subtype === "init");
                 markdown += generateInformationSection(lastEntry, {
                   additionalInfoCallback: entry => {
-                    const isPremiumModel =
-                      initEntry && initEntry.model_info && initEntry.model_info.billing && initEntry.model_info.billing.is_premium === true;
+                    const isPremiumModel = initEntry && initEntry.model_info && initEntry.model_info.billing && initEntry.model_info.billing.is_premium === true;
                     if (isPremiumModel) {
                       const premiumRequestCount = extractPremiumRequestCount(logContent);
                       return `**Premium Requests Consumed:** ${premiumRequestCount}\n\n`;
@@ -7438,299 +6366,151 @@ jobs:
         with:
           script: |
             function sanitizeWorkflowName(name) {
-
               return name
-
                 .toLowerCase()
-
                 .replace(/[:\\/\s]/g, "-")
-
                 .replace(/[^a-z0-9._-]/g, "-");
-
             }
-
             function main() {
-
               const fs = require("fs");
-
               const path = require("path");
-
               try {
-
                 const squidLogsDir = `/tmp/gh-aw/sandbox/firewall/logs/`;
-
                 if (!fs.existsSync(squidLogsDir)) {
-
                   core.info(`No firewall logs directory found at: ${squidLogsDir}`);
-
                   return;
-
                 }
-
                 const files = fs.readdirSync(squidLogsDir).filter(file => file.endsWith(".log"));
-
                 if (files.length === 0) {
-
                   core.info(`No firewall log files found in: ${squidLogsDir}`);
-
                   return;
-
                 }
-
                 core.info(`Found ${files.length} firewall log file(s)`);
-
                 let totalRequests = 0;
-
                 let allowedRequests = 0;
-
                 let deniedRequests = 0;
-
                 const allowedDomains = new Set();
-
                 const deniedDomains = new Set();
-
                 const requestsByDomain = new Map();
-
                 for (const file of files) {
-
                   const filePath = path.join(squidLogsDir, file);
-
                   core.info(`Parsing firewall log: ${file}`);
-
                   const content = fs.readFileSync(filePath, "utf8");
-
                   const lines = content.split("\n").filter(line => line.trim());
-
                   for (const line of lines) {
-
                     const entry = parseFirewallLogLine(line);
-
                     if (!entry) {
-
                       continue;
-
                     }
-
                     totalRequests++;
-
                     const isAllowed = isRequestAllowed(entry.decision, entry.status);
-
                     if (isAllowed) {
-
                       allowedRequests++;
-
                       allowedDomains.add(entry.domain);
-
                     } else {
-
                       deniedRequests++;
-
                       deniedDomains.add(entry.domain);
-
                     }
-
                     if (!requestsByDomain.has(entry.domain)) {
-
                       requestsByDomain.set(entry.domain, { allowed: 0, denied: 0 });
-
                     }
-
                     const domainStats = requestsByDomain.get(entry.domain);
-
                     if (isAllowed) {
-
                       domainStats.allowed++;
-
                     } else {
-
                       domainStats.denied++;
-
                     }
-
                   }
-
                 }
-
                 const summary = generateFirewallSummary({
-
                   totalRequests,
-
                   allowedRequests,
-
                   deniedRequests,
-
                   allowedDomains: Array.from(allowedDomains).sort(),
-
                   deniedDomains: Array.from(deniedDomains).sort(),
-
                   requestsByDomain,
-
                 });
-
                 core.summary.addRaw(summary).write();
-
                 core.info("Firewall log summary generated successfully");
-
               } catch (error) {
-
                 core.setFailed(error instanceof Error ? error : String(error));
-
               }
-
             }
-
             function parseFirewallLogLine(line) {
-
               const trimmed = line.trim();
-
               if (!trimmed || trimmed.startsWith("#")) {
-
                 return null;
-
               }
-
               const fields = trimmed.match(/(?:[^\s"]+|"[^"]*")+/g);
-
               if (!fields || fields.length < 10) {
-
                 return null;
-
               }
-
               const timestamp = fields[0];
-
               if (!/^\d+(\.\d+)?$/.test(timestamp)) {
-
                 return null;
-
               }
-
               return {
-
                 timestamp,
-
                 clientIpPort: fields[1],
-
                 domain: fields[2],
-
                 destIpPort: fields[3],
-
                 proto: fields[4],
-
                 method: fields[5],
-
                 status: fields[6],
-
                 decision: fields[7],
-
                 url: fields[8],
-
                 userAgent: fields[9]?.replace(/^"|"$/g, "") || "-",
-
               };
-
             }
-
             function isRequestAllowed(decision, status) {
-
               const statusCode = parseInt(status, 10);
-
               if (statusCode === 200 || statusCode === 206 || statusCode === 304) {
-
                 return true;
-
               }
-
               if (decision.includes("TCP_TUNNEL") || decision.includes("TCP_HIT") || decision.includes("TCP_MISS")) {
-
                 return true;
-
               }
-
               if (decision.includes("NONE_NONE") || decision.includes("TCP_DENIED") || statusCode === 403 || statusCode === 407) {
-
                 return false;
-
               }
-
               return false;
-
             }
-
             function generateFirewallSummary(analysis) {
-
               const { totalRequests, requestsByDomain } = analysis;
-
               const validDomains = Array.from(requestsByDomain.keys())
-
                 .filter(domain => domain !== "-")
-
                 .sort();
-
               const uniqueDomainCount = validDomains.length;
-
               let validAllowedRequests = 0;
-
               let validDeniedRequests = 0;
-
               for (const domain of validDomains) {
-
                 const stats = requestsByDomain.get(domain);
-
                 validAllowedRequests += stats.allowed;
-
                 validDeniedRequests += stats.denied;
-
               }
-
               let summary = "### 🔥 Firewall Activity\n\n";
-
               summary += "<details>\n";
-
               summary += `<summary>📊 ${totalRequests} request${totalRequests !== 1 ? "s" : ""} | `;
-
               summary += `${validAllowedRequests} allowed | `;
-
               summary += `${validDeniedRequests} blocked | `;
-
               summary += `${uniqueDomainCount} unique domain${uniqueDomainCount !== 1 ? "s" : ""}</summary>\n\n`;
-
               if (uniqueDomainCount > 0) {
-
                 summary += "| Domain | Allowed | Denied |\n";
-
                 summary += "|--------|---------|--------|\n";
-
                 for (const domain of validDomains) {
-
                   const stats = requestsByDomain.get(domain);
-
                   summary += `| ${domain} | ${stats.allowed} | ${stats.denied} |\n`;
-
                 }
-
               } else {
-
                 summary += "No firewall activity detected.\n";
-
               }
-
               summary += "\n</details>\n\n";
-
               return summary;
-
             }
-
-            const isDirectExecution =
-
-              typeof module === "undefined" || (typeof require !== "undefined" && typeof require.main !== "undefined" && require.main === module);
-
+            const isDirectExecution = typeof module === "undefined" || (typeof require !== "undefined" && typeof require.main !== "undefined" && require.main === module);
             if (isDirectExecution) {
-
               main();
-
             }
-
       - name: Upload Agent Stdio
         if: always()
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
@@ -7898,9 +6678,7 @@ jobs:
                     }
                     lastIndex = regex.lastIndex;
                     if (iterationCount === ITERATION_WARNING_THRESHOLD) {
-                      core.warning(
-                        `High iteration count (${iterationCount}) on line ${lineIndex + 1} with pattern: ${pattern.description || pattern.pattern}`
-                      );
+                      core.warning(`High iteration count (${iterationCount}) on line ${lineIndex + 1} with pattern: ${pattern.description || pattern.pattern}`);
                       core.warning(`Line content (truncated): ${truncateString(line, 200)}`);
                     }
                     if (iterationCount > MAX_ITERATIONS_PER_LINE) {
@@ -8208,9 +6986,7 @@ jobs:
               core.setOutput("total_count", missingTools.length.toString());
               if (missingTools.length > 0) {
                 core.info("Missing tools summary:");
-                core.summary
-                  .addHeading("Missing Tools Report", 3)
-                  .addRaw(`Found **${missingTools.length}** missing tool${missingTools.length > 1 ? "s" : ""} in this workflow execution.\n\n`);
+                core.summary.addHeading("Missing Tools Report", 3).addRaw(`Found **${missingTools.length}** missing tool${missingTools.length > 1 ? "s" : ""} in this workflow execution.\n\n`);
                 missingTools.forEach((tool, index) => {
                   core.info(`${index + 1}. Tool: ${tool.tool}`);
                   core.info(`   Reason: ${tool.reason}`);
@@ -8343,9 +7119,7 @@ jobs:
               const messages = getMessages();
               const templateContext = toSnakeCase(ctx);
               const defaultMessage = "⚠️ Security scanning failed for [{workflow_name}]({run_url}). Review the logs for details.";
-              return messages?.detectionFailure
-                ? renderTemplate(messages.detectionFailure, templateContext)
-                : renderTemplate(defaultMessage, templateContext);
+              return messages?.detectionFailure ? renderTemplate(messages.detectionFailure, templateContext) : renderTemplate(defaultMessage, templateContext);
             }
             function collectGeneratedAssets() {
               const assets = [];
@@ -8627,9 +7401,7 @@ jobs:
               const defaultMessage = `⚓ Avast! This discussion be marked as **outdated** by [{workflow_name}]({run_url}).
             🗺️ A newer treasure map awaits ye at **[Discussion #{new_discussion_number}]({new_discussion_url})**.
             Fair winds, matey! 🏴‍☠️`;
-              return messages?.closeOlderDiscussion
-                ? renderTemplate(messages.closeOlderDiscussion, templateContext)
-                : renderTemplate(defaultMessage, templateContext);
+              return messages?.closeOlderDiscussion ? renderTemplate(messages.closeOlderDiscussion, templateContext) : renderTemplate(defaultMessage, templateContext);
             }
             const MAX_CLOSE_COUNT = 10;
             const GRAPHQL_DELAY_MS = 500;
@@ -9049,9 +7821,7 @@ jobs:
               const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
               const runId = context.runId;
               const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
-              const runUrl = context.payload.repository
-                ? `${context.payload.repository.html_url}/actions/runs/${runId}`
-                : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
+              const runUrl = context.payload.repository ? `${context.payload.repository.html_url}/actions/runs/${runId}` : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
               const createdDiscussions = [];
               const closedDiscussionsSummary = [];
               for (let i = 0; i < createDiscussionItems.length; i++) {
@@ -9077,16 +7847,10 @@ jobs:
                     }
                     repoInfo = fetchedInfo;
                     repoInfoCache.set(itemRepo, repoInfo);
-                    core.info(
-                      `Fetched discussion categories for ${itemRepo}: ${JSON.stringify(repoInfo.discussionCategories.map(cat => ({ name: cat.name, id: cat.id })))}`
-                    );
+                    core.info(`Fetched discussion categories for ${itemRepo}: ${JSON.stringify(repoInfo.discussionCategories.map(cat => ({ name: cat.name, id: cat.id })))}`);
                   } catch (error) {
                     const errorMessage = error instanceof Error ? error.message : String(error);
-                    if (
-                      errorMessage.includes("Not Found") ||
-                      errorMessage.includes("not found") ||
-                      errorMessage.includes("Could not resolve to a Repository")
-                    ) {
+                    if (errorMessage.includes("Not Found") || errorMessage.includes("not found") || errorMessage.includes("Could not resolve to a Repository")) {
                       core.warning(`Skipping discussion: Discussions are not enabled for repository '${itemRepo}'`);
                       continue;
                     }
@@ -9106,18 +7870,14 @@ jobs:
                 } else if (categoryInfo.matchType === "fallback") {
                   if (categoryInfo.requestedCategory) {
                     const availableCategoryNames = repoInfo.discussionCategories.map(cat => cat.name).join(", ");
-                    core.warning(
-                      `Category "${categoryInfo.requestedCategory}" not found by ID, name, or slug. Available categories: ${availableCategoryNames}`
-                    );
+                    core.warning(`Category "${categoryInfo.requestedCategory}" not found by ID, name, or slug. Available categories: ${availableCategoryNames}`);
                     core.info(`Falling back to default category: ${categoryInfo.name} (${categoryInfo.id})`);
                   } else {
                     core.info(`Using default first category: ${categoryInfo.name} (${categoryInfo.id})`);
                   }
                 }
                 const categoryId = categoryInfo.id;
-                core.info(
-                  `Processing create-discussion item ${i + 1}/${createDiscussionItems.length}: title=${createDiscussionItem.title}, bodyLength=${createDiscussionItem.body?.length || 0}, repo=${itemRepo}`
-                );
+                core.info(`Processing create-discussion item ${i + 1}/${createDiscussionItems.length}: title=${createDiscussionItem.title}, bodyLength=${createDiscussionItem.body?.length || 0}, repo=${itemRepo}`);
                 let title = createDiscussionItem.title ? replaceTemporaryIdReferences(createDiscussionItem.title.trim(), temporaryIdMap, itemRepo) : "";
                 const bodyText = createDiscussionItem.body || "";
                 let processedBody = replaceTemporaryIdReferences(bodyText, temporaryIdMap, itemRepo);
@@ -9178,17 +7938,7 @@ jobs:
                   if (closeOlderEnabled && hasMatchingCriteria) {
                     core.info("close-older-discussions is enabled, searching for older discussions to close...");
                     try {
-                      const closedDiscussions = await closeOlderDiscussions(
-                        github,
-                        repoParts.owner,
-                        repoParts.repo,
-                        titlePrefix,
-                        labels,
-                        categoryId,
-                        { number: discussion.number, url: discussion.url },
-                        workflowName,
-                        runUrl
-                      );
+                      const closedDiscussions = await closeOlderDiscussions(github, repoParts.owner, repoParts.repo, titlePrefix, labels, categoryId, { number: discussion.number, url: discussion.url }, workflowName, runUrl);
                       if (closedDiscussions.length > 0) {
                         closedDiscussionsSummary.push(...closedDiscussions);
                         core.info(`Closed ${closedDiscussions.length} older discussion(s) as outdated`);
@@ -9711,10 +8461,7 @@ jobs:
                     core.summary.addRaw("## Staged Asset Publication");
                   } else {
                     await exec.exec(`git push origin ${normalizedBranchName}`);
-                    core.summary
-                      .addRaw("## Assets")
-                      .addRaw(`Successfully uploaded **${uploadCount}** assets to branch \`${normalizedBranchName}\``)
-                      .addRaw("");
+                    core.summary.addRaw("## Assets").addRaw(`Successfully uploaded **${uploadCount}** assets to branch \`${normalizedBranchName}\``).addRaw("");
                     core.info(`Successfully uploaded ${uploadCount} assets to branch ${normalizedBranchName}`);
                   }
                   for (const asset of uploadAssetItems) {

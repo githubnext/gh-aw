@@ -19,958 +19,13 @@
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/aw/github-agentic-workflows.md
 #
-#
 # Generate an organization-wide health report for all public repositories in the GitHub org
-#
-# Original Frontmatter:
-# ```yaml
-# description: Generate an organization-wide health report for all public repositories in the GitHub org
-# on:
-#   schedule: weekly on monday at 09:00
-#   workflow_dispatch:
-# permissions:
-#   contents: read
-#   actions: read
-#   issues: read
-#   pull-requests: read
-#   discussions: write
-# engine: copilot
-# tools:
-#   github:
-#     toolsets:
-#       - repos
-#       - issues
-#       - pull_requests
-#       - orgs
-#   cache-memory: true
-#   bash:
-#     - "*"
-# safe-outputs:
-#   create-discussion:
-#     category: "reports"
-#     max: 1
-#     close-older-discussions: true
-#   upload-assets:
-# timeout-minutes: 60
-# strict: true
-# network:
-#   allowed:
-#     - defaults
-#     - python
-# imports:
-#   - shared/python-dataviz.md
-#   - shared/jqschema.md
-#   - shared/reporting.md
-# ```
 #
 # Resolved workflow manifest:
 #   Imports:
 #     - shared/python-dataviz.md
 #     - shared/jqschema.md
 #     - shared/reporting.md
-#
-# Job Dependency Graph:
-# ```mermaid
-# graph LR
-#   activation["activation"]
-#   agent["agent"]
-#   conclusion["conclusion"]
-#   create_discussion["create_discussion"]
-#   detection["detection"]
-#   update_cache_memory["update_cache_memory"]
-#   upload_assets["upload_assets"]
-#   activation --> agent
-#   activation --> conclusion
-#   agent --> conclusion
-#   agent --> create_discussion
-#   agent --> detection
-#   agent --> update_cache_memory
-#   agent --> upload_assets
-#   create_discussion --> conclusion
-#   detection --> conclusion
-#   detection --> create_discussion
-#   detection --> update_cache_memory
-#   detection --> upload_assets
-#   update_cache_memory --> conclusion
-#   upload_assets --> conclusion
-# ```
-#
-# Original Prompt:
-# ```markdown
-# # Python Data Visualization Guide
-#
-# Python scientific libraries have been installed and are ready for use. A temporary folder structure has been created at `/tmp/gh-aw/python/` for organizing scripts, data, and outputs.
-#
-# ## Installed Libraries
-#
-# - **NumPy**: Array processing and numerical operations
-# - **Pandas**: Data manipulation and analysis
-# - **Matplotlib**: Chart generation and plotting
-# - **Seaborn**: Statistical data visualization
-# - **SciPy**: Scientific computing utilities
-#
-# ## Directory Structure
-#
-# ```
-# /tmp/gh-aw/python/
-# ├── data/          # Store all data files here (CSV, JSON, etc.)
-# ├── charts/        # Generated chart images (PNG)
-# ├── artifacts/     # Additional output files
-# └── *.py           # Python scripts
-# ```
-#
-# ## Data Separation Requirement
-#
-# **CRITICAL**: Data must NEVER be inlined in Python code. Always store data in external files and load using pandas.
-#
-# ### ❌ PROHIBITED - Inline Data
-# ```python
-# # DO NOT do this
-# data = [10, 20, 30, 40, 50]
-# labels = ['A', 'B', 'C', 'D', 'E']
-# ```
-#
-# ### ✅ REQUIRED - External Data Files
-# ```python
-# # Always load data from external files
-# import pandas as pd
-#
-# # Load data from CSV
-# data = pd.read_csv('/tmp/gh-aw/python/data/data.csv')
-#
-# # Or from JSON
-# data = pd.read_json('/tmp/gh-aw/python/data/data.json')
-# ```
-#
-# ## Chart Generation Best Practices
-#
-# ### High-Quality Chart Settings
-#
-# ```python
-# import matplotlib.pyplot as plt
-# import seaborn as sns
-#
-# # Set style for better aesthetics
-# sns.set_style("whitegrid")
-# sns.set_palette("husl")
-#
-# # Create figure with high DPI
-# fig, ax = plt.subplots(figsize=(10, 6), dpi=300)
-#
-# # Your plotting code here
-# # ...
-#
-# # Save with high quality
-# plt.savefig('/tmp/gh-aw/python/charts/chart.png', 
-#             dpi=300, 
-#             bbox_inches='tight',
-#             facecolor='white',
-#             edgecolor='none')
-# ```
-#
-# ### Chart Quality Guidelines
-#
-# - **DPI**: Use 300 or higher for publication quality
-# - **Figure Size**: Standard is 10x6 inches (adjustable based on needs)
-# - **Labels**: Always include clear axis labels and titles
-# - **Legend**: Add legends when plotting multiple series
-# - **Grid**: Enable grid lines for easier reading
-# - **Colors**: Use colorblind-friendly palettes (seaborn defaults are good)
-#
-# ## Including Images in Reports
-#
-# When creating reports (issues, discussions, etc.), use the `upload asset` tool to make images URL-addressable and include them in markdown:
-#
-# ### Step 1: Generate and Upload Chart
-# ```python
-# # Generate your chart
-# plt.savefig('/tmp/gh-aw/python/charts/my_chart.png', dpi=300, bbox_inches='tight')
-# ```
-#
-# ### Step 2: Upload as Asset
-# Use the `upload asset` tool to upload the chart file. The tool will return a GitHub raw content URL.
-#
-# ### Step 3: Include in Markdown Report
-# When creating your discussion or issue, include the image using markdown:
-#
-# ```markdown
-# ## Visualization Results
-#
-# ![Chart Description](https://raw.githubusercontent.com/owner/repo/assets/workflow-name/my_chart.png)
-#
-# The chart above shows...
-# ```
-#
-# **Important**: Assets are published to an orphaned git branch and become URL-addressable after workflow completion.
-#
-# ## Cache Memory Integration
-#
-# The cache memory at `/tmp/gh-aw/cache-memory/` is available for storing reusable code:
-#
-# **Helper Functions to Cache:**
-# - Data loading utilities: `data_loader.py`
-# - Chart styling functions: `chart_utils.py`
-# - Common data transformations: `transforms.py`
-#
-# **Check Cache Before Creating:**
-# ```bash
-# # Check if helper exists in cache
-# if [ -f /tmp/gh-aw/cache-memory/data_loader.py ]; then
-#   cp /tmp/gh-aw/cache-memory/data_loader.py /tmp/gh-aw/python/
-#   echo "Using cached data_loader.py"
-# fi
-# ```
-#
-# **Save to Cache for Future Runs:**
-# ```bash
-# # Save useful helpers to cache
-# cp /tmp/gh-aw/python/data_loader.py /tmp/gh-aw/cache-memory/
-# echo "Saved data_loader.py to cache for future runs"
-# ```
-#
-# ## Complete Example Workflow
-#
-# ```python
-# #!/usr/bin/env python3
-# """
-# Example data visualization script
-# Generates a bar chart from external data
-# """
-# import pandas as pd
-# import matplotlib.pyplot as plt
-# import seaborn as sns
-#
-# # Set style
-# sns.set_style("whitegrid")
-# sns.set_palette("husl")
-#
-# # Load data from external file (NEVER inline)
-# data = pd.read_csv('/tmp/gh-aw/python/data/data.csv')
-#
-# # Process data
-# summary = data.groupby('category')['value'].sum()
-#
-# # Create chart
-# fig, ax = plt.subplots(figsize=(10, 6), dpi=300)
-# summary.plot(kind='bar', ax=ax)
-#
-# # Customize
-# ax.set_title('Data Summary by Category', fontsize=16, fontweight='bold')
-# ax.set_xlabel('Category', fontsize=12)
-# ax.set_ylabel('Value', fontsize=12)
-# ax.grid(True, alpha=0.3)
-#
-# # Save chart
-# plt.savefig('/tmp/gh-aw/python/charts/chart.png',
-#             dpi=300,
-#             bbox_inches='tight',
-#             facecolor='white')
-#
-# print("Chart saved to /tmp/gh-aw/python/charts/chart.png")
-# ```
-#
-# ## Error Handling
-#
-# **Check File Existence:**
-# ```python
-# import os
-#
-# data_file = '/tmp/gh-aw/python/data/data.csv'
-# if not os.path.exists(data_file):
-#     raise FileNotFoundError(f"Data file not found: {data_file}")
-# ```
-#
-# **Validate Data:**
-# ```python
-# # Check for required columns
-# required_cols = ['category', 'value']
-# missing = set(required_cols) - set(data.columns)
-# if missing:
-#     raise ValueError(f"Missing columns: {missing}")
-# ```
-#
-# ## Artifact Upload
-#
-# Charts and source files are automatically uploaded as artifacts:
-#
-# **Charts Artifact:**
-# - Name: `data-charts`
-# - Contents: PNG files from `/tmp/gh-aw/python/charts/`
-# - Retention: 30 days
-#
-# **Source and Data Artifact:**
-# - Name: `python-source-and-data`
-# - Contents: Python scripts and data files
-# - Retention: 30 days
-#
-# Both artifacts are uploaded with `if: always()` condition, ensuring they're available even if the workflow fails.
-#
-# ## Tips for Success
-#
-# 1. **Always Separate Data**: Store data in files, never inline in code
-# 2. **Use Cache Memory**: Store reusable helpers for faster execution
-# 3. **High Quality Charts**: Use DPI 300+ and proper sizing
-# 4. **Clear Documentation**: Add docstrings and comments
-# 5. **Error Handling**: Validate data and check file existence
-# 6. **Type Hints**: Use type annotations for better code quality
-# 7. **Seaborn Defaults**: Leverage seaborn for better aesthetics
-# 8. **Reproducibility**: Set random seeds when needed
-#
-# ## Common Data Sources
-#
-# Based on common use cases:
-#
-# **Repository Statistics:**
-# ```python
-# # Collect via GitHub API, save to data.csv
-# # Then load and visualize
-# data = pd.read_csv('/tmp/gh-aw/python/data/repo_stats.csv')
-# ```
-#
-# **Workflow Metrics:**
-# ```python
-# # Collect via GitHub Actions API, save to data.json
-# data = pd.read_json('/tmp/gh-aw/python/data/workflow_metrics.json')
-# ```
-#
-# **Sample Data Generation:**
-# ```python
-# # Generate with NumPy, save to file first
-# import numpy as np
-# data = np.random.randn(100, 2)
-# df = pd.DataFrame(data, columns=['x', 'y'])
-# df.to_csv('/tmp/gh-aw/python/data/sample_data.csv', index=False)
-#
-# # Then load it back (demonstrating the pattern)
-# data = pd.read_csv('/tmp/gh-aw/python/data/sample_data.csv')
-# ```
-#
-# ## jqschema - JSON Schema Discovery
-#
-# A utility script is available at `/tmp/gh-aw/jqschema.sh` to help you discover the structure of complex JSON responses.
-#
-# ### Purpose
-#
-# Generate a compact structural schema (keys + types) from JSON input. This is particularly useful when:
-# - Analyzing tool outputs from GitHub search (search_code, search_issues, search_repositories)
-# - Exploring API responses with large payloads
-# - Understanding the structure of unfamiliar data without verbose output
-# - Planning queries before fetching full data
-#
-# ### Usage
-#
-# ```bash
-# # Analyze a file
-# cat data.json | /tmp/gh-aw/jqschema.sh
-#
-# # Analyze command output
-# echo '{"name": "test", "count": 42, "items": [{"id": 1}]}' | /tmp/gh-aw/jqschema.sh
-#
-# # Analyze GitHub search results
-# gh api search/repositories?q=language:go | /tmp/gh-aw/jqschema.sh
-# ```
-#
-# ### How It Works
-#
-# The script transforms JSON data by:
-# 1. Replacing object values with their type names ("string", "number", "boolean", "null")
-# 2. Reducing arrays to their first element's structure (or empty array if empty)
-# 3. Recursively processing nested structures
-# 4. Outputting compact (minified) JSON
-#
-# ### Example
-#
-# **Input:**
-# ```json
-# {
-#   "total_count": 1000,
-#   "items": [
-#     {"login": "user1", "id": 123, "verified": true},
-#     {"login": "user2", "id": 456, "verified": false}
-#   ]
-# }
-# ```
-#
-# **Output:**
-# ```json
-# {"total_count":"number","items":[{"login":"string","id":"number","verified":"boolean"}]}
-# ```
-#
-# ### Best Practices
-#
-# **Use this script when:**
-# - You need to understand the structure of tool outputs before requesting full data
-# - GitHub search tools return large datasets (use `perPage: 1` and pipe through schema minifier first)
-# - Exploring unfamiliar APIs or data structures
-# - Planning data extraction strategies
-#
-# **Example workflow for GitHub search tools:**
-# ```bash
-# # Step 1: Get schema with minimal data (fetch just 1 result)
-# # This helps understand the structure before requesting large datasets
-# echo '{}' | gh api search/repositories -f q="language:go" -f per_page=1 | /tmp/gh-aw/jqschema.sh
-#
-# # Output shows the schema:
-# # {"incomplete_results":"boolean","items":[{...}],"total_count":"number"}
-#
-# # Step 2: Review schema to understand available fields
-#
-# # Step 3: Request full data with confidence about structure
-# # Now you know what fields are available and can query efficiently
-# ```
-#
-# **Using with GitHub MCP tools:**
-# When using tools like `search_code`, `search_issues`, or `search_repositories`, pipe the output through jqschema to discover available fields:
-# ```bash
-# # Save a minimal search result to a file
-# gh api search/code -f q="jq in:file language:bash" -f per_page=1 > /tmp/sample.json
-#
-# # Generate schema to understand structure
-# cat /tmp/sample.json | /tmp/gh-aw/jqschema.sh
-#
-# # Now you know which fields exist and can use them in your analysis
-# ```
-#
-# ## Report Formatting
-#
-# Structure your report with an overview followed by detailed content:
-#
-# 1. **Content Overview**: Start with 1-2 paragraphs that summarize the key findings, highlights, or main points of your report. This should give readers a quick understanding of what the report contains without needing to expand the details.
-#
-# 2. **Detailed Content**: Place the rest of your report inside HTML `<details>` and `<summary>` tags to allow readers to expand and view the full information. **IMPORTANT**: Always wrap the summary text in `<b>` tags to make it bold.
-#
-# **Example format:**
-#
-# `````markdown
-# Brief overview paragraph 1 introducing the report and its main findings.
-#
-# Optional overview paragraph 2 with additional context or highlights.
-#
-# <details>
-# <summary><b>Full Report Details</b></summary>
-#
-# ## Detailed Analysis
-#
-# Full report content with all sections, tables, and detailed information goes here.
-#
-# ### Section 1
-# [Content]
-#
-# ### Section 2
-# [Content]
-#
-# </details>
-# `````
-#
-# ## Reporting Workflow Run Information
-#
-# When analyzing workflow run logs or reporting information from GitHub Actions runs:
-#
-# ### 1. Workflow Run ID Formatting
-#
-# **Always render workflow run IDs as clickable URLs** when mentioning them in your report. The workflow run data includes a `url` field that provides the full GitHub Actions run page URL.
-#
-# **Format:**
-#
-# `````markdown
-# [§12345](https://github.com/owner/repo/actions/runs/12345)
-# `````
-#
-# **Example:**
-#
-# `````markdown
-# Analysis based on [§456789](https://github.com/githubnext/gh-aw/actions/runs/456789)
-# `````
-#
-# ### 2. Document References for Workflow Runs
-#
-# When your analysis is based on information mined from one or more workflow runs, **include up to 3 workflow run URLs as document references** at the end of your report.
-#
-# **Format:**
-#
-# `````markdown
-# ---
-#
-# **References:**
-# - [§12345](https://github.com/owner/repo/actions/runs/12345)
-# - [§12346](https://github.com/owner/repo/actions/runs/12346)
-# - [§12347](https://github.com/owner/repo/actions/runs/12347)
-# `````
-#
-# **Guidelines:**
-#
-# - Include **maximum 3 references** to keep reports concise
-# - Choose the most relevant or representative runs (e.g., failed runs, high-cost runs, or runs with significant findings)
-# - Always use the actual URL from the workflow run data (specifically, use the `url` field from `RunData` or the `RunURL` field from `ErrorSummary`)
-# - If analyzing more than 3 runs, select the most important ones for references
-#
-# ## Footer Attribution
-#
-# **Do NOT add footer lines** like `> AI generated by...` to your comment. The system automatically appends attribution after your content to prevent duplicates.
-#
-# # Organization Health Report
-#
-# You are the **Organization Health Report Agent** - an expert system that analyzes the health of all public repositories in the GitHub organization and produces comprehensive metrics and actionable insights.
-#
-# ## Mission
-#
-# Generate an organization-wide health report that:
-# - Analyzes issues and pull requests across all public repositories
-# - Produces clear volume metrics (open/closed counts, trends)
-# - Identifies top active repositories and authors
-# - Highlights PRs and issues needing attention
-# - Presents findings as a readable Markdown report with tables and commentary
-#
-# ## Current Context
-#
-# - **Organization**: github
-# - **Repository Filter**: public, non-archived repositories only
-# - **Report Period**: Last 7 and 30 days for trends
-# - **Target URL**: https://github.com/orgs/github/repositories?q=visibility%3Apublic+archived%3Afalse
-#
-# ## Data Collection Process
-#
-# ### Phase 0: Setup Directories
-#
-# Create working directories for data storage and processing:
-#
-# ```bash
-# mkdir -p /tmp/gh-aw/org-health
-# mkdir -p /tmp/gh-aw/org-health/repos
-# mkdir -p /tmp/gh-aw/org-health/issues
-# mkdir -p /tmp/gh-aw/org-health/prs
-# mkdir -p /tmp/gh-aw/python/data
-# mkdir -p /tmp/gh-aw/cache-memory/org-health
-# ```
-#
-# ### Phase 1: Discover Public Repositories
-#
-# **Goal**: Get a list of all public, non-archived repositories in the github organization.
-#
-# 1. **Use GitHub MCP search_repositories tool** to find repositories:
-#    - Query: `org:github archived:false`
-#    - Fetch repositories in batches with pagination
-#    - Add 2-3 second delays between pages to avoid rate limiting
-#    - Save repository list to `/tmp/gh-aw/org-health/repos/repositories.json`
-#
-# 2. **Extract repository names** for subsequent queries:
-#    ```bash
-#    jq '[.[] | {name: .name, full_name: .full_name, stars: .stargazers_count, open_issues: .open_issues_count}]' \
-#      /tmp/gh-aw/org-health/repos/repositories.json > /tmp/gh-aw/org-health/repos/repo_list.json
-#    ```
-#
-# 3. **Log progress**:
-#    ```bash
-#    echo "Found $(jq 'length' /tmp/gh-aw/org-health/repos/repo_list.json) public repositories"
-#    ```
-#
-# ### Phase 2: Collect Issues Data
-#
-# **Goal**: Gather issue data from all discovered repositories.
-#
-# **IMPORTANT**: Add delays to prevent rate limiting.
-#
-# 1. **For each repository** (or a representative sample if too many):
-#    - Use the `search_issues` tool with query: `repo:github/{repo_name} is:issue`
-#    - Collect: state, created date, closed date, author, labels, assignees, comments count
-#    - Add **5 second delay** between repository queries
-#    - Save to individual JSON files: `/tmp/gh-aw/org-health/issues/{repo_name}.json`
-#
-# 2. **Alternative approach for large orgs**: Use organization-wide search:
-#    - Query: `org:github is:issue created:>=YYYY-MM-DD` for last 30 days
-#    - Query: `org:github is:issue updated:>=YYYY-MM-DD` for recent activity
-#    - Paginate with delays between pages (3-5 seconds)
-#
-# 3. **Aggregate data**:
-#    ```bash
-#    jq -s 'add' /tmp/gh-aw/org-health/issues/*.json > /tmp/gh-aw/org-health/all_issues.json
-#    ```
-#
-# ### Phase 3: Collect Pull Requests Data
-#
-# **Goal**: Gather PR data from all discovered repositories.
-#
-# **IMPORTANT**: Add delays to prevent rate limiting.
-#
-# 1. **For each repository** (or org-wide search):
-#    - Use the `search_pull_requests` tool with query: `repo:github/{repo_name} is:pr`
-#    - Collect: state, created date, closed date, merged status, author, comments count
-#    - Add **5 second delay** between repository queries
-#    - Save to individual JSON files: `/tmp/gh-aw/org-health/prs/{repo_name}.json`
-#
-# 2. **Alternative approach for large orgs**: Use organization-wide search:
-#    - Query: `org:github is:pr created:>=YYYY-MM-DD` for last 30 days
-#    - Query: `org:github is:pr updated:>=YYYY-MM-DD` for recent activity
-#    - Paginate with delays between pages (3-5 seconds)
-#
-# 3. **Aggregate data**:
-#    ```bash
-#    jq -s 'add' /tmp/gh-aw/org-health/prs/*.json > /tmp/gh-aw/org-health/all_prs.json
-#    ```
-#
-# ### Phase 4: Process and Analyze Data with Python
-#
-# Use Python with pandas to analyze the collected data:
-#
-# 1. **Create analysis script** at `/tmp/gh-aw/python/analyze_org_health.py`:
-#
-# ```python
-# #!/usr/bin/env python3
-# """
-# Organization health report data analysis
-# Processes issues and PRs data to generate metrics
-# """
-# import pandas as pd
-# import json
-# from datetime import datetime, timedelta
-# from collections import Counter
-#
-# # Load data
-# with open('/tmp/gh-aw/org-health/all_issues.json') as f:
-#     issues_data = json.load(f)
-#
-# with open('/tmp/gh-aw/org-health/all_prs.json') as f:
-#     prs_data = json.load(f)
-#
-# # Convert to DataFrames
-# issues_df = pd.DataFrame(issues_data)
-# prs_df = pd.DataFrame(prs_data)
-#
-# # Calculate date thresholds
-# now = datetime.now()
-# seven_days_ago = now - timedelta(days=7)
-# thirty_days_ago = now - timedelta(days=30)
-#
-# # Convert date strings to datetime
-# issues_df['created_at'] = pd.to_datetime(issues_df['created_at'])
-# issues_df['closed_at'] = pd.to_datetime(issues_df['closed_at'])
-# prs_df['created_at'] = pd.to_datetime(prs_df['created_at'])
-# prs_df['closed_at'] = pd.to_datetime(prs_df['closed_at'])
-#
-# # Calculate metrics
-# metrics = {
-#     'total_open_issues': len(issues_df[issues_df['state'] == 'open']),
-#     'total_closed_issues': len(issues_df[issues_df['state'] == 'closed']),
-#     'issues_opened_7d': len(issues_df[issues_df['created_at'] >= seven_days_ago]),
-#     'issues_closed_7d': len(issues_df[(issues_df['closed_at'] >= seven_days_ago) & (issues_df['state'] == 'closed')]),
-#     'issues_opened_30d': len(issues_df[issues_df['created_at'] >= thirty_days_ago]),
-#     'issues_closed_30d': len(issues_df[(issues_df['closed_at'] >= thirty_days_ago) & (issues_df['state'] == 'closed')]),
-#     'total_open_prs': len(prs_df[prs_df['state'] == 'open']),
-#     'total_closed_prs': len(prs_df[prs_df['state'] == 'closed']),
-#     'prs_opened_7d': len(prs_df[prs_df['created_at'] >= seven_days_ago]),
-#     'prs_closed_7d': len(prs_df[(prs_df['closed_at'] >= seven_days_ago) & (prs_df['state'] == 'closed')]),
-#     'prs_opened_30d': len(prs_df[prs_df['created_at'] >= thirty_days_ago]),
-#     'prs_closed_30d': len(prs_df[(prs_df['closed_at'] >= thirty_days_ago) & (prs_df['state'] == 'closed')]),
-# }
-#
-# # Top active repositories (by recent issues + PRs + comments)
-# repo_activity = {}
-# for _, issue in issues_df.iterrows():
-#     repo = issue.get('repository', {}).get('name', 'unknown')
-#     if repo not in repo_activity:
-#         repo_activity[repo] = {'issues': 0, 'prs': 0, 'comments': 0}
-#     repo_activity[repo]['issues'] += 1
-#     repo_activity[repo]['comments'] += issue.get('comments', 0)
-#
-# for _, pr in prs_df.iterrows():
-#     repo = pr.get('repository', {}).get('name', 'unknown')
-#     if repo not in repo_activity:
-#         repo_activity[repo] = {'issues': 0, 'prs': 0, 'comments': 0}
-#     repo_activity[repo]['prs'] += 1
-#     repo_activity[repo]['comments'] += pr.get('comments', 0)
-#
-# # Calculate activity score
-# for repo in repo_activity:
-#     repo_activity[repo]['score'] = (
-#         repo_activity[repo]['issues'] * 2 +
-#         repo_activity[repo]['prs'] * 3 +
-#         repo_activity[repo]['comments'] * 0.5
-#     )
-#
-# top_repos = sorted(repo_activity.items(), key=lambda x: x[1]['score'], reverse=True)[:5]
-#
-# # Top active authors (by issues opened + PRs opened + comments)
-# author_activity = {}
-# for _, issue in issues_df.iterrows():
-#     author = issue.get('user', {}).get('login', 'unknown')
-#     if author not in author_activity:
-#         author_activity[author] = {'issues_opened': 0, 'prs_opened': 0, 'comments': 0}
-#     author_activity[author]['issues_opened'] += 1
-#
-# for _, pr in prs_df.iterrows():
-#     author = pr.get('user', {}).get('login', 'unknown')
-#     if author not in author_activity:
-#         author_activity[author] = {'issues_opened': 0, 'prs_opened': 0, 'comments': 0}
-#     author_activity[author]['prs_opened'] += 1
-#
-# # Calculate author activity score
-# for author in author_activity:
-#     author_activity[author]['score'] = (
-#         author_activity[author]['issues_opened'] * 2 +
-#         author_activity[author]['prs_opened'] * 3
-#     )
-#
-# top_authors = sorted(author_activity.items(), key=lambda x: x[1]['score'], reverse=True)[:10]
-#
-# # High-activity unresolved items (hot issues and PRs)
-# recent_open_issues = issues_df[
-#     (issues_df['state'] == 'open') &
-#     (issues_df['created_at'] >= thirty_days_ago)
-# ].sort_values('comments', ascending=False).head(10)
-#
-# recent_open_prs = prs_df[
-#     (prs_df['state'] == 'open') &
-#     (prs_df['created_at'] >= thirty_days_ago)
-# ].sort_values('comments', ascending=False).head(10)
-#
-# # Stale items (open for 30+ days with no recent activity)
-# stale_issues = issues_df[
-#     (issues_df['state'] == 'open') &
-#     (issues_df['created_at'] < thirty_days_ago) &
-#     (issues_df['updated_at'] < seven_days_ago)
-# ]
-#
-# stale_prs = prs_df[
-#     (prs_df['state'] == 'open') &
-#     (prs_df['created_at'] < thirty_days_ago) &
-#     (prs_df['updated_at'] < seven_days_ago)
-# ]
-#
-# # Unassigned items
-# unassigned_issues = issues_df[
-#     (issues_df['state'] == 'open') &
-#     (issues_df['assignees'].apply(lambda x: len(x) == 0 if isinstance(x, list) else True))
-# ]
-#
-# # Unlabeled items
-# unlabeled_issues = issues_df[
-#     (issues_df['state'] == 'open') &
-#     (issues_df['labels'].apply(lambda x: len(x) == 0 if isinstance(x, list) else True))
-# ]
-#
-# # Save results
-# results = {
-#     'metrics': metrics,
-#     'top_repos': [(r, a) for r, a in top_repos],
-#     'top_authors': [(a, d) for a, d in top_authors],
-#     'hot_issues': recent_open_issues[['number', 'title', 'repository', 'comments', 'created_at']].to_dict('records'),
-#     'hot_prs': recent_open_prs[['number', 'title', 'repository', 'comments', 'created_at']].to_dict('records'),
-#     'stale_issues_count': len(stale_issues),
-#     'stale_prs_count': len(stale_prs),
-#     'unassigned_count': len(unassigned_issues),
-#     'unlabeled_count': len(unlabeled_issues),
-# }
-#
-# with open('/tmp/gh-aw/python/data/health_report_data.json', 'w') as f:
-#     json.dump(results, f, indent=2, default=str)
-#
-# print("Analysis complete. Results saved to health_report_data.json")
-# ```
-#
-# 2. **Run the analysis**:
-#    ```bash
-#    python3 /tmp/gh-aw/python/analyze_org_health.py
-#    ```
-#
-# ### Phase 5: Generate Markdown Report
-#
-# Create a comprehensive markdown report with the following sections:
-#
-# 1. **Executive Summary**
-#    - Brief overview of org health
-#    - Key metrics at a glance
-#    - Notable trends
-#
-# 2. **Volume Metrics**
-#    - Table showing total open/closed issues and PRs
-#    - Trends for last 7 and 30 days
-#
-# 3. **Top 5 Most Active Repositories**
-#    - Table with repo name, recent issues, PRs, and comments
-#    - Commentary on what makes these repos active
-#
-# 4. **Top 10 Most Active Authors**
-#    - Table with username, issues opened, PRs opened
-#    - Recognition of top contributors
-#
-# 5. **High-Activity Items Needing Attention**
-#    - Hot issues (high comment count, recently created)
-#    - Hot PRs (high activity, needs review)
-#
-# 6. **Items Needing Attention**
-#    - Stale issues and PRs (old, inactive)
-#    - Unassigned issues count
-#    - Unlabeled issues count
-#
-# 7. **Commentary and Recommendations**
-#    - Brief analysis of what the metrics mean
-#    - Suggestions for maintainers on where to focus
-#
-# ### Phase 6: Create Discussion Report
-#
-# Use the `create discussion` safe-output to publish the report:
-#
-# ```markdown
-# # Organization Health Report - [Date]
-#
-# [Executive Summary]
-#
-# ## 📊 Volume Metrics
-#
-# ### Overall Status
-#
-# | Metric | Count |
-# |--------|-------|
-# | Total Open Issues | X |
-# | Total Closed Issues | X |
-# | Total Open PRs | X |
-# | Total Closed PRs | X |
-#
-# ### Recent Activity (7 Days)
-#
-# | Metric | Count |
-# |--------|-------|
-# | Issues Opened | X |
-# | Issues Closed | X |
-# | PRs Opened | X |
-# | PRs Closed | X |
-#
-# ### Recent Activity (30 Days)
-#
-# | Metric | Count |
-# |--------|-------|
-# | Issues Opened | X |
-# | Issues Closed | X |
-# | PRs Opened | X |
-# | PRs Closed | X |
-#
-# ## 🏆 Top 5 Most Active Repositories
-#
-# | Repository | Recent Issues | Recent PRs | Comments | Activity Score |
-# |------------|---------------|------------|----------|----------------|
-# | repo1 | X | X | X | X |
-# | repo2 | X | X | X | X |
-# ...
-#
-# ## 👥 Top 10 Most Active Authors
-#
-# | Author | Issues Opened | PRs Opened | Activity Score |
-# |--------|---------------|------------|----------------|
-# | user1 | X | X | X |
-# | user2 | X | X | X |
-# ...
-#
-# ## 🔥 High-Activity Unresolved Items
-#
-# ### Hot Issues (Need Attention)
-#
-# | Issue | Repository | Comments | Age (days) | Link |
-# |-------|------------|----------|------------|------|
-# | #123: Title | repo | X | X | [View](#) |
-# ...
-#
-# ### Hot PRs (Need Review)
-#
-# | PR | Repository | Comments | Age (days) | Link |
-# |----|------------|----------|------------|------|
-# | #456: Title | repo | X | X | [View](#) |
-# ...
-#
-# ## ⚠️ Items Needing Attention
-#
-# - **Stale Issues**: X issues open for 30+ days with no recent activity
-# - **Stale PRs**: X PRs open for 30+ days with no recent activity
-# - **Unassigned Issues**: X open issues without assignees
-# - **Unlabeled Issues**: X open issues without labels
-#
-# ## 💡 Commentary and Recommendations
-#
-# [Analysis of the metrics and suggestions for where maintainers should focus their attention]
-#
-# <details>
-# <summary><b>Full Data and Methodology</b></summary>
-#
-# ## Data Collection
-#
-# - **Date Range**: [dates]
-# - **Repositories Analyzed**: X public, non-archived repositories
-# - **Issues Analyzed**: X issues
-# - **PRs Analyzed**: X pull requests
-#
-# ## Methodology
-#
-# - Data collected using GitHub API via MCP server
-# - Analyzed using Python pandas for efficient data processing
-# - Activity scores calculated using weighted formula
-# - Delays added between API calls to respect rate limits
-#
-# </details>
-# ```
-#
-# ## Important Guidelines
-#
-# ### Rate Limiting and Throttling
-#
-# **CRITICAL**: Add delays between API calls to avoid rate limiting:
-# - **2-3 seconds** between repository pagination
-# - **5 seconds** between individual repository queries
-# - If you encounter rate limit errors, increase delays and retry
-#
-# Use bash commands to add delays:
-# ```bash
-# sleep 3  # Wait 3 seconds
-# ```
-#
-# ### Data Processing Strategy
-#
-# For large organizations (100+ repositories):
-# 1. Use organization-wide search queries instead of per-repo queries
-# 2. Focus on recent activity (last 30 days) to reduce data volume
-# 3. Sample repositories if needed (e.g., top 50 by stars or activity)
-# 4. Cache intermediate results for retry capability
-#
-# ### Error Handling
-#
-# - Log progress at each phase
-# - Save intermediate data files
-# - Use cache memory for persistence across retries
-# - Handle missing or null fields gracefully in Python
-#
-# ### Report Quality
-#
-# - Use tables for structured data
-# - Include links to actual issues and PRs
-# - Add context and commentary, not just raw numbers
-# - Highlight actionable insights
-# - Use the collapsible details section for methodology
-#
-# ## Success Criteria
-#
-# A successful health report:
-# - ✅ Discovers all public, non-archived repositories in the org
-# - ✅ Collects issues and PRs data with appropriate rate limiting
-# - ✅ Processes data using Python pandas
-# - ✅ Generates comprehensive metrics
-# - ✅ Creates readable markdown report with tables
-# - ✅ Publishes report as GitHub Discussion
-# - ✅ Completes within 60 minute timeout
-#
-# Begin the organization health report analysis now. Follow the phases in order, add appropriate delays, and generate a comprehensive report for maintainers.
-# ```
-#
-# Pinned GitHub Actions:
-#   - actions/cache/restore@v4 (0057852bfaa89a56745cba8c7296529d2fc39830)
-#     https://github.com/actions/cache/commit/0057852bfaa89a56745cba8c7296529d2fc39830
-#   - actions/cache/save@v4 (0057852bfaa89a56745cba8c7296529d2fc39830)
-#     https://github.com/actions/cache/commit/0057852bfaa89a56745cba8c7296529d2fc39830
-#   - actions/checkout@v5 (93cb6efe18208431cddfb8368fd83d5badbf9bfd)
-#     https://github.com/actions/checkout/commit/93cb6efe18208431cddfb8368fd83d5badbf9bfd
-#   - actions/download-artifact@v6 (018cc2cf5baa6db3ef3c5f8a56943fffe632ef53)
-#     https://github.com/actions/download-artifact/commit/018cc2cf5baa6db3ef3c5f8a56943fffe632ef53
-#   - actions/github-script@v8 (ed597411d8f924073f98dfc5c65a23a2325f34cd)
-#     https://github.com/actions/github-script/commit/ed597411d8f924073f98dfc5c65a23a2325f34cd
-#   - actions/upload-artifact@v5 (330a01c490aca151604b8cf639adc76d48f6c5d4)
-#     https://github.com/actions/upload-artifact/commit/330a01c490aca151604b8cf639adc76d48f6c5d4
 
 name: "Organization Health Report"
 "on":
@@ -1065,9 +120,7 @@ jobs:
                   .addRaw("**Files:**\n")
                   .addRaw(`- Source: \`${workflowMdPath}\`\n`)
                   .addRaw(`  - Last commit: ${workflowTimestamp}\n`)
-                  .addRaw(
-                    `  - Commit SHA: [\`${workflowCommit.sha.substring(0, 7)}\`](https://github.com/${owner}/${repo}/commit/${workflowCommit.sha})\n`
-                  )
+                  .addRaw(`  - Commit SHA: [\`${workflowCommit.sha.substring(0, 7)}\`](https://github.com/${owner}/${repo}/commit/${workflowCommit.sha})\n`)
                   .addRaw(`- Lock: \`${lockFilePath}\`\n`)
                   .addRaw(`  - Last commit: ${lockTimestamp}\n`)
                   .addRaw(`  - Commit SHA: [\`${lockCommit.sha.substring(0, 7)}\`](https://github.com/${owner}/${repo}/commit/${lockCommit.sha})\n\n`)
@@ -1607,9 +660,7 @@ jobs:
                 server.debug(`  [${toolName}] Python handler args: ${JSON.stringify(args)}`);
                 server.debug(`  [${toolName}] Timeout: ${timeoutSeconds}s`);
                 const inputJson = JSON.stringify(args || {});
-                server.debug(
-                  `  [${toolName}] Input JSON (${inputJson.length} bytes): ${inputJson.substring(0, 200)}${inputJson.length > 200 ? "..." : ""}`
-                );
+                server.debug(`  [${toolName}] Input JSON (${inputJson.length} bytes): ${inputJson.substring(0, 200)}${inputJson.length > 200 ? "..." : ""}`);
                 return new Promise((resolve, reject) => {
                   server.debug(`  [${toolName}] Executing Python script...`);
                   const child = execFile(
@@ -1717,9 +768,7 @@ jobs:
                       try {
                         if (fs.existsSync(outputFile)) {
                           const outputContent = fs.readFileSync(outputFile, "utf-8");
-                          server.debug(
-                            `  [${toolName}] Output file content: ${outputContent.substring(0, 500)}${outputContent.length > 500 ? "..." : ""}`
-                          );
+                          server.debug(`  [${toolName}] Output file content: ${outputContent.substring(0, 500)}${outputContent.length > 500 ? "..." : ""}`);
                           const lines = outputContent.split("\n");
                           for (const line of lines) {
                             const trimmed = line.trim();
@@ -1777,10 +826,7 @@ jobs:
                   fs.mkdirSync(server.logDir, { recursive: true });
                 }
                 const timestamp = new Date().toISOString();
-                fs.writeFileSync(
-                  server.logFilePath,
-                  `# ${server.serverInfo.name} MCP Server Log\n# Started: ${timestamp}\n# Version: ${server.serverInfo.version}\n\n`
-                );
+                fs.writeFileSync(server.logFilePath, `# ${server.serverInfo.name} MCP Server Log\n# Started: ${timestamp}\n# Version: ${server.serverInfo.version}\n\n`);
                 server.logFileInitialized = true;
               } catch {
               }
@@ -2440,10 +1486,7 @@ jobs:
                 const isInWorkspace = absolutePath.startsWith(path.resolve(workspaceDir));
                 const isInTmp = absolutePath.startsWith(tmpDir);
                 if (!isInWorkspace && !isInTmp) {
-                  throw new Error(
-                    `File path must be within workspace directory (${workspaceDir}) or /tmp directory. ` +
-                      `Provided path: ${filePath} (resolved to: ${absolutePath})`
-                  );
+                  throw new Error(`File path must be within workspace directory (${workspaceDir}) or /tmp directory. ` + `Provided path: ${filePath} (resolved to: ${absolutePath})`);
                 }
                 if (!fs.existsSync(filePath)) {
                   throw new Error(`File not found: ${filePath}`);
@@ -2702,10 +1745,7 @@ jobs:
                       };
                       const entryJSON = JSON.stringify(entry);
                       fs.appendFileSync(outputFile, entryJSON + "\n");
-                      const outputText =
-                        jobConfig && jobConfig.output
-                          ? jobConfig.output
-                          : `Safe-job '${configKey}' executed successfully with arguments: ${JSON.stringify(args)}`;
+                      const outputText = jobConfig && jobConfig.output ? jobConfig.output : `Safe-job '${configKey}' executed successfully with arguments: ${JSON.stringify(args)}`;
                       return {
                         content: [
                           {
@@ -4094,16 +3134,13 @@ jobs:
               return result;
             }
             function renderMarkdownTemplate(markdown) {
-              let result = markdown.replace(
-                /(\n?)([ \t]*{{#if\s+([^}]*)}}[ \t]*\n)([\s\S]*?)([ \t]*{{\/if}}[ \t]*)(\n?)/g,
-                (match, leadNL, openLine, cond, body, closeLine, trailNL) => {
-                  if (isTruthy(cond)) {
-                    return leadNL + body;
-                  } else {
-                    return "";
-                  }
+              let result = markdown.replace(/(\n?)([ \t]*{{#if\s+([^}]*)}}[ \t]*\n)([\s\S]*?)([ \t]*{{\/if}}[ \t]*)(\n?)/g, (match, leadNL, openLine, cond, body, closeLine, trailNL) => {
+                if (isTruthy(cond)) {
+                  return leadNL + body;
+                } else {
+                  return "";
                 }
-              );
+              });
               result = result.replace(/{{#if\s+([^}]*)}}([\s\S]*?){{\/if}}/g, (_, cond, body) => (isTruthy(cond) ? body : ""));
               result = result.replace(/\n{3,}/g, "\n\n");
               return result;
@@ -4474,36 +3511,33 @@ jobs:
                 });
               }
               function sanitizeUrlProtocols(s) {
-                return s.replace(
-                  /((?:http|ftp|file|ssh|git):\/\/([\w.-]*)(?:[^\s]*)|(?:data|javascript|vbscript|about|mailto|tel):[^\s]+)/gi,
-                  (match, _fullMatch, domain) => {
-                    if (domain) {
-                      const domainLower = domain.toLowerCase();
-                      const truncated = domainLower.length > 12 ? domainLower.substring(0, 12) + "..." : domainLower;
+                return s.replace(/((?:http|ftp|file|ssh|git):\/\/([\w.-]*)(?:[^\s]*)|(?:data|javascript|vbscript|about|mailto|tel):[^\s]+)/gi, (match, _fullMatch, domain) => {
+                  if (domain) {
+                    const domainLower = domain.toLowerCase();
+                    const truncated = domainLower.length > 12 ? domainLower.substring(0, 12) + "..." : domainLower;
+                    if (typeof core !== "undefined" && core.info) {
+                      core.info(`Redacted URL: ${truncated}`);
+                    }
+                    if (typeof core !== "undefined" && core.debug) {
+                      core.debug(`Redacted URL (full): ${match}`);
+                    }
+                    addRedactedDomain(domainLower);
+                  } else {
+                    const protocolMatch = match.match(/^([^:]+):/);
+                    if (protocolMatch) {
+                      const protocol = protocolMatch[1] + ":";
+                      const truncated = match.length > 12 ? match.substring(0, 12) + "..." : match;
                       if (typeof core !== "undefined" && core.info) {
                         core.info(`Redacted URL: ${truncated}`);
                       }
                       if (typeof core !== "undefined" && core.debug) {
                         core.debug(`Redacted URL (full): ${match}`);
                       }
-                      addRedactedDomain(domainLower);
-                    } else {
-                      const protocolMatch = match.match(/^([^:]+):/);
-                      if (protocolMatch) {
-                        const protocol = protocolMatch[1] + ":";
-                        const truncated = match.length > 12 ? match.substring(0, 12) + "..." : match;
-                        if (typeof core !== "undefined" && core.info) {
-                          core.info(`Redacted URL: ${truncated}`);
-                        }
-                        if (typeof core !== "undefined" && core.debug) {
-                          core.debug(`Redacted URL (full): ${match}`);
-                        }
-                        addRedactedDomain(protocol);
-                      }
+                      addRedactedDomain(protocol);
                     }
-                    return "(redacted)";
                   }
-                );
+                  return "(redacted)";
+                });
               }
               function neutralizeCommands(s) {
                 const commandName = process.env.GH_AW_COMMAND;
@@ -4525,37 +3559,7 @@ jobs:
                 return s.replace(/<!--[\s\S]*?-->/g, "").replace(/<!--[\s\S]*?--!>/g, "");
               }
               function convertXmlTags(s) {
-                const allowedTags = [
-                  "b",
-                  "blockquote",
-                  "br",
-                  "code",
-                  "details",
-                  "em",
-                  "h1",
-                  "h2",
-                  "h3",
-                  "h4",
-                  "h5",
-                  "h6",
-                  "hr",
-                  "i",
-                  "li",
-                  "ol",
-                  "p",
-                  "pre",
-                  "strong",
-                  "sub",
-                  "summary",
-                  "sup",
-                  "table",
-                  "tbody",
-                  "td",
-                  "th",
-                  "thead",
-                  "tr",
-                  "ul",
-                ];
+                const allowedTags = ["b", "blockquote", "br", "code", "details", "em", "h1", "h2", "h3", "h4", "h5", "h6", "hr", "i", "li", "ol", "p", "pre", "strong", "sub", "summary", "sup", "table", "tbody", "td", "th", "thead", "tr", "ul"];
                 s = s.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, (match, content) => {
                   const convertedContent = content.replace(/<(\/?[A-Za-z][A-Za-z0-9]*(?:[^>]*?))>/g, "($1)");
                   return `(![CDATA[${convertedContent}]])`;
@@ -4667,36 +3671,33 @@ jobs:
                 return result;
               }
               function sanitizeUrlProtocols(s) {
-                return s.replace(
-                  /\b((?:http|ftp|file|ssh|git):\/\/([\w.-]+)(?:[^\s]*)|(?:data|javascript|vbscript|about|mailto|tel):[^\s]+)/gi,
-                  (match, _fullMatch, domain) => {
-                    if (domain) {
-                      const domainLower = domain.toLowerCase();
-                      const truncated = domainLower.length > 12 ? domainLower.substring(0, 12) + "..." : domainLower;
+                return s.replace(/\b((?:http|ftp|file|ssh|git):\/\/([\w.-]+)(?:[^\s]*)|(?:data|javascript|vbscript|about|mailto|tel):[^\s]+)/gi, (match, _fullMatch, domain) => {
+                  if (domain) {
+                    const domainLower = domain.toLowerCase();
+                    const truncated = domainLower.length > 12 ? domainLower.substring(0, 12) + "..." : domainLower;
+                    if (typeof core !== "undefined" && core.info) {
+                      core.info(`Redacted URL: ${truncated}`);
+                    }
+                    if (typeof core !== "undefined" && core.debug) {
+                      core.debug(`Redacted URL (full): ${match}`);
+                    }
+                    addRedactedDomain(domainLower);
+                  } else {
+                    const protocolMatch = match.match(/^([^:]+):/);
+                    if (protocolMatch) {
+                      const protocol = protocolMatch[1] + ":";
+                      const truncated = match.length > 12 ? match.substring(0, 12) + "..." : match;
                       if (typeof core !== "undefined" && core.info) {
                         core.info(`Redacted URL: ${truncated}`);
                       }
                       if (typeof core !== "undefined" && core.debug) {
                         core.debug(`Redacted URL (full): ${match}`);
                       }
-                      addRedactedDomain(domainLower);
-                    } else {
-                      const protocolMatch = match.match(/^([^:]+):/);
-                      if (protocolMatch) {
-                        const protocol = protocolMatch[1] + ":";
-                        const truncated = match.length > 12 ? match.substring(0, 12) + "..." : match;
-                        if (typeof core !== "undefined" && core.info) {
-                          core.info(`Redacted URL: ${truncated}`);
-                        }
-                        if (typeof core !== "undefined" && core.debug) {
-                          core.debug(`Redacted URL (full): ${match}`);
-                        }
-                        addRedactedDomain(protocol);
-                      }
+                      addRedactedDomain(protocol);
                     }
-                    return "(redacted)";
                   }
-                );
+                  return "(redacted)";
+                });
               }
               function neutralizeCommands(s) {
                 const commandName = process.env.GH_AW_COMMAND;
@@ -4722,37 +3723,7 @@ jobs:
                 return s.replace(/<!--[\s\S]*?-->/g, "").replace(/<!--[\s\S]*?--!>/g, "");
               }
               function convertXmlTags(s) {
-                const allowedTags = [
-                  "b",
-                  "blockquote",
-                  "br",
-                  "code",
-                  "details",
-                  "em",
-                  "h1",
-                  "h2",
-                  "h3",
-                  "h4",
-                  "h5",
-                  "h6",
-                  "hr",
-                  "i",
-                  "li",
-                  "ol",
-                  "p",
-                  "pre",
-                  "strong",
-                  "sub",
-                  "summary",
-                  "sup",
-                  "table",
-                  "tbody",
-                  "td",
-                  "th",
-                  "thead",
-                  "tr",
-                  "ul",
-                ];
+                const allowedTags = ["b", "blockquote", "br", "code", "details", "em", "h1", "h2", "h3", "h4", "h5", "h6", "hr", "i", "li", "ol", "p", "pre", "strong", "sub", "summary", "sup", "table", "tbody", "td", "th", "thead", "tr", "ul"];
                 s = s.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, (match, content) => {
                   const convertedContent = content.replace(/<(\/?[A-Za-z][A-Za-z0-9]*(?:[^>]*?))>/g, "($1)");
                   return `(![CDATA[${convertedContent}]])`;
@@ -5444,9 +4415,7 @@ jobs:
                   core.info(`Loaded validation config from ${validationConfigPath}`);
                 }
               } catch (error) {
-                core.warning(
-                  `Failed to read validation config from ${validationConfigPath}: ${error instanceof Error ? error.message : String(error)}`
-                );
+                core.warning(`Failed to read validation config from ${validationConfigPath}: ${error instanceof Error ? error.message : String(error)}`);
               }
               const mentionsConfig = validationConfig?.mentions || null;
               const allowedMentions = await resolveAllowedMentionsFromPayload(context, github, core, mentionsConfig);
@@ -5659,9 +4628,7 @@ jobs:
                   core.info(`[INGESTION] Line ${i + 1}: Original type='${originalType}', Normalized type='${itemType}'`);
                   item.type = itemType;
                   if (!expectedOutputTypes[itemType]) {
-                    core.warning(
-                      `[INGESTION] Line ${i + 1}: Type '${itemType}' not found in expected types: ${JSON.stringify(Object.keys(expectedOutputTypes))}`
-                    );
+                    core.warning(`[INGESTION] Line ${i + 1}: Type '${itemType}' not found in expected types: ${JSON.stringify(Object.keys(expectedOutputTypes))}`);
                     errors.push(`Line ${i + 1}: Unexpected output type '${itemType}'. Expected one of: ${Object.keys(expectedOutputTypes).join(", ")}`);
                     continue;
                   }
@@ -5743,10 +4710,7 @@ jobs:
               core.info(`Patch file ${hasPatch ? "exists" : "does not exist"} at: ${patchPath}`);
               let allowEmptyPR = false;
               if (safeOutputsConfig) {
-                if (
-                  safeOutputsConfig["create-pull-request"]?.["allow-empty"] === true ||
-                  safeOutputsConfig["create_pull_request"]?.["allow_empty"] === true
-                ) {
+                if (safeOutputsConfig["create-pull-request"]?.["allow-empty"] === true || safeOutputsConfig["create_pull_request"]?.["allow_empty"] === true) {
                   allowEmptyPR = true;
                   core.info(`allow-empty is enabled for create-pull-request`);
                 }
@@ -6117,24 +5081,7 @@ jobs:
                   "Custom Agents": [],
                   Other: [],
                 };
-                const builtinTools = [
-                  "bash",
-                  "write_bash",
-                  "read_bash",
-                  "stop_bash",
-                  "list_bash",
-                  "grep",
-                  "glob",
-                  "view",
-                  "create",
-                  "edit",
-                  "store_memory",
-                  "code_review",
-                  "codeql_checker",
-                  "report_progress",
-                  "report_intent",
-                  "gh-advisory-database",
-                ];
+                const builtinTools = ["bash", "write_bash", "read_bash", "stop_bash", "list_bash", "grep", "glob", "view", "create", "edit", "store_memory", "code_review", "codeql_checker", "report_progress", "report_intent", "gh-advisory-database"];
                 const internalTools = ["fetch_copilot_cli_documentation"];
                 for (const tool of initEntry.tools) {
                   const toolLower = tool.toLowerCase();
@@ -6530,9 +5477,7 @@ jobs:
                   const cacheCreationTokens = usage.cache_creation_input_tokens || 0;
                   const cacheReadTokens = usage.cache_read_input_tokens || 0;
                   const totalTokens = inputTokens + outputTokens + cacheCreationTokens + cacheReadTokens;
-                  lines.push(
-                    `  Tokens: ${totalTokens.toLocaleString()} total (${usage.input_tokens.toLocaleString()} in / ${usage.output_tokens.toLocaleString()} out)`
-                  );
+                  lines.push(`  Tokens: ${totalTokens.toLocaleString()} total (${usage.input_tokens.toLocaleString()} in / ${usage.output_tokens.toLocaleString()} out)`);
                 }
               }
               if (lastEntry?.total_cost_usd) {
@@ -6691,9 +5636,7 @@ jobs:
                   const cacheCreationTokens = usage.cache_creation_input_tokens || 0;
                   const cacheReadTokens = usage.cache_read_input_tokens || 0;
                   const totalTokens = inputTokens + outputTokens + cacheCreationTokens + cacheReadTokens;
-                  lines.push(
-                    `  Tokens: ${totalTokens.toLocaleString()} total (${usage.input_tokens.toLocaleString()} in / ${usage.output_tokens.toLocaleString()} out)`
-                  );
+                  lines.push(`  Tokens: ${totalTokens.toLocaleString()} total (${usage.input_tokens.toLocaleString()} in / ${usage.output_tokens.toLocaleString()} out)`);
                 }
               }
               if (lastEntry?.total_cost_usd) {
@@ -6794,11 +5737,7 @@ jobs:
               });
             }
             function extractPremiumRequestCount(logContent) {
-              const patterns = [
-                /premium\s+requests?\s+consumed:?\s*(\d+)/i,
-                /(\d+)\s+premium\s+requests?\s+consumed/i,
-                /consumed\s+(\d+)\s+premium\s+requests?/i,
-              ];
+              const patterns = [/premium\s+requests?\s+consumed:?\s*(\d+)/i, /(\d+)\s+premium\s+requests?\s+consumed/i, /consumed\s+(\d+)\s+premium\s+requests?/i];
               for (const pattern of patterns) {
                 const match = logContent.match(pattern);
                 if (match && match[1]) {
@@ -6870,8 +5809,7 @@ jobs:
                 const initEntry = logEntries.find(entry => entry.type === "system" && entry.subtype === "init");
                 markdown += generateInformationSection(lastEntry, {
                   additionalInfoCallback: entry => {
-                    const isPremiumModel =
-                      initEntry && initEntry.model_info && initEntry.model_info.billing && initEntry.model_info.billing.is_premium === true;
+                    const isPremiumModel = initEntry && initEntry.model_info && initEntry.model_info.billing && initEntry.model_info.billing.is_premium === true;
                     if (isPremiumModel) {
                       const premiumRequestCount = extractPremiumRequestCount(logContent);
                       return `**Premium Requests Consumed:** ${premiumRequestCount}\n\n`;
@@ -7298,299 +6236,151 @@ jobs:
         with:
           script: |
             function sanitizeWorkflowName(name) {
-
               return name
-
                 .toLowerCase()
-
                 .replace(/[:\\/\s]/g, "-")
-
                 .replace(/[^a-z0-9._-]/g, "-");
-
             }
-
             function main() {
-
               const fs = require("fs");
-
               const path = require("path");
-
               try {
-
                 const squidLogsDir = `/tmp/gh-aw/sandbox/firewall/logs/`;
-
                 if (!fs.existsSync(squidLogsDir)) {
-
                   core.info(`No firewall logs directory found at: ${squidLogsDir}`);
-
                   return;
-
                 }
-
                 const files = fs.readdirSync(squidLogsDir).filter(file => file.endsWith(".log"));
-
                 if (files.length === 0) {
-
                   core.info(`No firewall log files found in: ${squidLogsDir}`);
-
                   return;
-
                 }
-
                 core.info(`Found ${files.length} firewall log file(s)`);
-
                 let totalRequests = 0;
-
                 let allowedRequests = 0;
-
                 let deniedRequests = 0;
-
                 const allowedDomains = new Set();
-
                 const deniedDomains = new Set();
-
                 const requestsByDomain = new Map();
-
                 for (const file of files) {
-
                   const filePath = path.join(squidLogsDir, file);
-
                   core.info(`Parsing firewall log: ${file}`);
-
                   const content = fs.readFileSync(filePath, "utf8");
-
                   const lines = content.split("\n").filter(line => line.trim());
-
                   for (const line of lines) {
-
                     const entry = parseFirewallLogLine(line);
-
                     if (!entry) {
-
                       continue;
-
                     }
-
                     totalRequests++;
-
                     const isAllowed = isRequestAllowed(entry.decision, entry.status);
-
                     if (isAllowed) {
-
                       allowedRequests++;
-
                       allowedDomains.add(entry.domain);
-
                     } else {
-
                       deniedRequests++;
-
                       deniedDomains.add(entry.domain);
-
                     }
-
                     if (!requestsByDomain.has(entry.domain)) {
-
                       requestsByDomain.set(entry.domain, { allowed: 0, denied: 0 });
-
                     }
-
                     const domainStats = requestsByDomain.get(entry.domain);
-
                     if (isAllowed) {
-
                       domainStats.allowed++;
-
                     } else {
-
                       domainStats.denied++;
-
                     }
-
                   }
-
                 }
-
                 const summary = generateFirewallSummary({
-
                   totalRequests,
-
                   allowedRequests,
-
                   deniedRequests,
-
                   allowedDomains: Array.from(allowedDomains).sort(),
-
                   deniedDomains: Array.from(deniedDomains).sort(),
-
                   requestsByDomain,
-
                 });
-
                 core.summary.addRaw(summary).write();
-
                 core.info("Firewall log summary generated successfully");
-
               } catch (error) {
-
                 core.setFailed(error instanceof Error ? error : String(error));
-
               }
-
             }
-
             function parseFirewallLogLine(line) {
-
               const trimmed = line.trim();
-
               if (!trimmed || trimmed.startsWith("#")) {
-
                 return null;
-
               }
-
               const fields = trimmed.match(/(?:[^\s"]+|"[^"]*")+/g);
-
               if (!fields || fields.length < 10) {
-
                 return null;
-
               }
-
               const timestamp = fields[0];
-
               if (!/^\d+(\.\d+)?$/.test(timestamp)) {
-
                 return null;
-
               }
-
               return {
-
                 timestamp,
-
                 clientIpPort: fields[1],
-
                 domain: fields[2],
-
                 destIpPort: fields[3],
-
                 proto: fields[4],
-
                 method: fields[5],
-
                 status: fields[6],
-
                 decision: fields[7],
-
                 url: fields[8],
-
                 userAgent: fields[9]?.replace(/^"|"$/g, "") || "-",
-
               };
-
             }
-
             function isRequestAllowed(decision, status) {
-
               const statusCode = parseInt(status, 10);
-
               if (statusCode === 200 || statusCode === 206 || statusCode === 304) {
-
                 return true;
-
               }
-
               if (decision.includes("TCP_TUNNEL") || decision.includes("TCP_HIT") || decision.includes("TCP_MISS")) {
-
                 return true;
-
               }
-
               if (decision.includes("NONE_NONE") || decision.includes("TCP_DENIED") || statusCode === 403 || statusCode === 407) {
-
                 return false;
-
               }
-
               return false;
-
             }
-
             function generateFirewallSummary(analysis) {
-
               const { totalRequests, requestsByDomain } = analysis;
-
               const validDomains = Array.from(requestsByDomain.keys())
-
                 .filter(domain => domain !== "-")
-
                 .sort();
-
               const uniqueDomainCount = validDomains.length;
-
               let validAllowedRequests = 0;
-
               let validDeniedRequests = 0;
-
               for (const domain of validDomains) {
-
                 const stats = requestsByDomain.get(domain);
-
                 validAllowedRequests += stats.allowed;
-
                 validDeniedRequests += stats.denied;
-
               }
-
               let summary = "### 🔥 Firewall Activity\n\n";
-
               summary += "<details>\n";
-
               summary += `<summary>📊 ${totalRequests} request${totalRequests !== 1 ? "s" : ""} | `;
-
               summary += `${validAllowedRequests} allowed | `;
-
               summary += `${validDeniedRequests} blocked | `;
-
               summary += `${uniqueDomainCount} unique domain${uniqueDomainCount !== 1 ? "s" : ""}</summary>\n\n`;
-
               if (uniqueDomainCount > 0) {
-
                 summary += "| Domain | Allowed | Denied |\n";
-
                 summary += "|--------|---------|--------|\n";
-
                 for (const domain of validDomains) {
-
                   const stats = requestsByDomain.get(domain);
-
                   summary += `| ${domain} | ${stats.allowed} | ${stats.denied} |\n`;
-
                 }
-
               } else {
-
                 summary += "No firewall activity detected.\n";
-
               }
-
               summary += "\n</details>\n\n";
-
               return summary;
-
             }
-
-            const isDirectExecution =
-
-              typeof module === "undefined" || (typeof require !== "undefined" && typeof require.main !== "undefined" && require.main === module);
-
+            const isDirectExecution = typeof module === "undefined" || (typeof require !== "undefined" && typeof require.main !== "undefined" && require.main === module);
             if (isDirectExecution) {
-
               main();
-
             }
-
       - name: Upload Agent Stdio
         if: always()
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
@@ -7758,9 +6548,7 @@ jobs:
                     }
                     lastIndex = regex.lastIndex;
                     if (iterationCount === ITERATION_WARNING_THRESHOLD) {
-                      core.warning(
-                        `High iteration count (${iterationCount}) on line ${lineIndex + 1} with pattern: ${pattern.description || pattern.pattern}`
-                      );
+                      core.warning(`High iteration count (${iterationCount}) on line ${lineIndex + 1} with pattern: ${pattern.description || pattern.pattern}`);
                       core.warning(`Line content (truncated): ${truncateString(line, 200)}`);
                     }
                     if (iterationCount > MAX_ITERATIONS_PER_LINE) {
@@ -8068,9 +6856,7 @@ jobs:
               core.setOutput("total_count", missingTools.length.toString());
               if (missingTools.length > 0) {
                 core.info("Missing tools summary:");
-                core.summary
-                  .addHeading("Missing Tools Report", 3)
-                  .addRaw(`Found **${missingTools.length}** missing tool${missingTools.length > 1 ? "s" : ""} in this workflow execution.\n\n`);
+                core.summary.addHeading("Missing Tools Report", 3).addRaw(`Found **${missingTools.length}** missing tool${missingTools.length > 1 ? "s" : ""} in this workflow execution.\n\n`);
                 missingTools.forEach((tool, index) => {
                   core.info(`${index + 1}. Tool: ${tool.tool}`);
                   core.info(`   Reason: ${tool.reason}`);
@@ -8203,9 +6989,7 @@ jobs:
               const messages = getMessages();
               const templateContext = toSnakeCase(ctx);
               const defaultMessage = "⚠️ Security scanning failed for [{workflow_name}]({run_url}). Review the logs for details.";
-              return messages?.detectionFailure
-                ? renderTemplate(messages.detectionFailure, templateContext)
-                : renderTemplate(defaultMessage, templateContext);
+              return messages?.detectionFailure ? renderTemplate(messages.detectionFailure, templateContext) : renderTemplate(defaultMessage, templateContext);
             }
             function collectGeneratedAssets() {
               const assets = [];
@@ -8486,9 +7270,7 @@ jobs:
               const defaultMessage = `⚓ Avast! This discussion be marked as **outdated** by [{workflow_name}]({run_url}).
             🗺️ A newer treasure map awaits ye at **[Discussion #{new_discussion_number}]({new_discussion_url})**.
             Fair winds, matey! 🏴‍☠️`;
-              return messages?.closeOlderDiscussion
-                ? renderTemplate(messages.closeOlderDiscussion, templateContext)
-                : renderTemplate(defaultMessage, templateContext);
+              return messages?.closeOlderDiscussion ? renderTemplate(messages.closeOlderDiscussion, templateContext) : renderTemplate(defaultMessage, templateContext);
             }
             const MAX_CLOSE_COUNT = 10;
             const GRAPHQL_DELAY_MS = 500;
@@ -8908,9 +7690,7 @@ jobs:
               const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
               const runId = context.runId;
               const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
-              const runUrl = context.payload.repository
-                ? `${context.payload.repository.html_url}/actions/runs/${runId}`
-                : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
+              const runUrl = context.payload.repository ? `${context.payload.repository.html_url}/actions/runs/${runId}` : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
               const createdDiscussions = [];
               const closedDiscussionsSummary = [];
               for (let i = 0; i < createDiscussionItems.length; i++) {
@@ -8936,16 +7716,10 @@ jobs:
                     }
                     repoInfo = fetchedInfo;
                     repoInfoCache.set(itemRepo, repoInfo);
-                    core.info(
-                      `Fetched discussion categories for ${itemRepo}: ${JSON.stringify(repoInfo.discussionCategories.map(cat => ({ name: cat.name, id: cat.id })))}`
-                    );
+                    core.info(`Fetched discussion categories for ${itemRepo}: ${JSON.stringify(repoInfo.discussionCategories.map(cat => ({ name: cat.name, id: cat.id })))}`);
                   } catch (error) {
                     const errorMessage = error instanceof Error ? error.message : String(error);
-                    if (
-                      errorMessage.includes("Not Found") ||
-                      errorMessage.includes("not found") ||
-                      errorMessage.includes("Could not resolve to a Repository")
-                    ) {
+                    if (errorMessage.includes("Not Found") || errorMessage.includes("not found") || errorMessage.includes("Could not resolve to a Repository")) {
                       core.warning(`Skipping discussion: Discussions are not enabled for repository '${itemRepo}'`);
                       continue;
                     }
@@ -8965,18 +7739,14 @@ jobs:
                 } else if (categoryInfo.matchType === "fallback") {
                   if (categoryInfo.requestedCategory) {
                     const availableCategoryNames = repoInfo.discussionCategories.map(cat => cat.name).join(", ");
-                    core.warning(
-                      `Category "${categoryInfo.requestedCategory}" not found by ID, name, or slug. Available categories: ${availableCategoryNames}`
-                    );
+                    core.warning(`Category "${categoryInfo.requestedCategory}" not found by ID, name, or slug. Available categories: ${availableCategoryNames}`);
                     core.info(`Falling back to default category: ${categoryInfo.name} (${categoryInfo.id})`);
                   } else {
                     core.info(`Using default first category: ${categoryInfo.name} (${categoryInfo.id})`);
                   }
                 }
                 const categoryId = categoryInfo.id;
-                core.info(
-                  `Processing create-discussion item ${i + 1}/${createDiscussionItems.length}: title=${createDiscussionItem.title}, bodyLength=${createDiscussionItem.body?.length || 0}, repo=${itemRepo}`
-                );
+                core.info(`Processing create-discussion item ${i + 1}/${createDiscussionItems.length}: title=${createDiscussionItem.title}, bodyLength=${createDiscussionItem.body?.length || 0}, repo=${itemRepo}`);
                 let title = createDiscussionItem.title ? replaceTemporaryIdReferences(createDiscussionItem.title.trim(), temporaryIdMap, itemRepo) : "";
                 const bodyText = createDiscussionItem.body || "";
                 let processedBody = replaceTemporaryIdReferences(bodyText, temporaryIdMap, itemRepo);
@@ -9037,17 +7807,7 @@ jobs:
                   if (closeOlderEnabled && hasMatchingCriteria) {
                     core.info("close-older-discussions is enabled, searching for older discussions to close...");
                     try {
-                      const closedDiscussions = await closeOlderDiscussions(
-                        github,
-                        repoParts.owner,
-                        repoParts.repo,
-                        titlePrefix,
-                        labels,
-                        categoryId,
-                        { number: discussion.number, url: discussion.url },
-                        workflowName,
-                        runUrl
-                      );
+                      const closedDiscussions = await closeOlderDiscussions(github, repoParts.owner, repoParts.repo, titlePrefix, labels, categoryId, { number: discussion.number, url: discussion.url }, workflowName, runUrl);
                       if (closedDiscussions.length > 0) {
                         closedDiscussionsSummary.push(...closedDiscussions);
                         core.info(`Closed ${closedDiscussions.length} older discussion(s) as outdated`);
@@ -9570,10 +8330,7 @@ jobs:
                     core.summary.addRaw("## Staged Asset Publication");
                   } else {
                     await exec.exec(`git push origin ${normalizedBranchName}`);
-                    core.summary
-                      .addRaw("## Assets")
-                      .addRaw(`Successfully uploaded **${uploadCount}** assets to branch \`${normalizedBranchName}\``)
-                      .addRaw("");
+                    core.summary.addRaw("## Assets").addRaw(`Successfully uploaded **${uploadCount}** assets to branch \`${normalizedBranchName}\``).addRaw("");
                     core.info(`Successfully uploaded ${uploadCount} assets to branch ${normalizedBranchName}`);
                   }
                   for (const asset of uploadAssetItems) {

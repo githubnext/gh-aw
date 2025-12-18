@@ -267,17 +267,6 @@ This is a test workflow.
 		}
 	}
 
-	// Verify that the Mermaid graph is present in the header (as comments)
-	if !strings.Contains(lockContent, "# Job Dependency Graph:") {
-		t.Error("Expected 'Job Dependency Graph:' comment not found in generated YAML")
-	}
-	if !strings.Contains(lockContent, "# ```mermaid") {
-		t.Error("Expected Mermaid code block not found in generated YAML")
-	}
-	if !strings.Contains(lockContent, "# graph LR") {
-		t.Error("Expected Mermaid graph directive not found in generated YAML")
-	}
-
 	// Find the first non-comment, non-empty line - this should be the workflow name
 	var firstContentLine string
 	for _, line := range lines {
@@ -449,7 +438,7 @@ timeout-minutes: 15
 
 # Test Frontmatter Embedding
 
-This workflow tests that frontmatter is embedded in the lock file.
+This workflow tests that frontmatter is NOT embedded in the lock file (removed per issue).
 `
 
 	testFile := filepath.Join(tmpDir, "test-frontmatter.md")
@@ -471,37 +460,14 @@ This workflow tests that frontmatter is embedded in the lock file.
 
 	lockContent := string(content)
 
-	// Verify that the "Original Frontmatter:" comment is present
-	if !strings.Contains(lockContent, "# Original Frontmatter:") {
-		t.Error("Expected '# Original Frontmatter:' comment in lock file")
+	// Verify that the "Original Frontmatter:" comment is NOT present
+	if strings.Contains(lockContent, "# Original Frontmatter:") {
+		t.Error("Did not expect '# Original Frontmatter:' comment in lock file")
 	}
 
-	// Verify the frontmatter is in a yaml code block
-	if !strings.Contains(lockContent, "# ```yaml") {
-		t.Error("Expected frontmatter to be in a yaml code block")
-	}
-
-	// Verify key frontmatter fields are present in comments
-	frontmatterFields := []string{
-		"# on: push",
-		"# permissions:",
-		"#   contents: read",
-		"# tools:",
-		"# engine: claude",
-		"# timeout-minutes: 15",
-	}
-
-	for _, field := range frontmatterFields {
-		if !strings.Contains(lockContent, field) {
-			t.Errorf("Expected frontmatter to contain '%s' in comments", field)
-		}
-	}
-
-	// Verify the frontmatter block ends with closing fence
-	fmStart := strings.Index(lockContent, "# Original Frontmatter:")
-	fmEnd := strings.Index(lockContent[fmStart:], "# ```\n")
-	if fmEnd == -1 {
-		t.Error("Expected frontmatter block to end with '# ```'")
+	// Verify that the "Original Prompt:" comment is NOT present
+	if strings.Contains(lockContent, "# Original Prompt:") {
+		t.Error("Did not expect '# Original Prompt:' comment in lock file")
 	}
 }
 

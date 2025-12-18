@@ -547,10 +547,7 @@ describe("add_reaction_and_edit_comment.cjs", () => {
       // Verify outputs
       expect(mockCore.setOutput).toHaveBeenCalledWith("reaction-id", "MDg6UmVhY3Rpb24xMjM0NTY3ODk=");
       expect(mockCore.setOutput).toHaveBeenCalledWith("comment-id", "DC_kwDOABcD1M4AaBbE");
-      expect(mockCore.setOutput).toHaveBeenCalledWith(
-        "comment-url",
-        "https://github.com/testowner/testrepo/discussions/10#discussioncomment-999"
-      );
+      expect(mockCore.setOutput).toHaveBeenCalledWith("comment-url", "https://github.com/testowner/testrepo/discussions/10#discussioncomment-999");
     });
 
     it("should create new comment for discussion_comment events", async () => {
@@ -610,10 +607,7 @@ describe("add_reaction_and_edit_comment.cjs", () => {
       );
 
       expect(mockCore.setOutput).toHaveBeenCalledWith("comment-id", "DC_kwDOABcD1M4AaBbE");
-      expect(mockCore.setOutput).toHaveBeenCalledWith(
-        "comment-url",
-        "https://github.com/testowner/testrepo/discussions/10#discussioncomment-789"
-      );
+      expect(mockCore.setOutput).toHaveBeenCalledWith("comment-url", "https://github.com/testowner/testrepo/discussions/10#discussioncomment-789");
       expect(mockCore.setOutput).toHaveBeenCalledWith("comment-repo", "testowner/testrepo");
     });
   });

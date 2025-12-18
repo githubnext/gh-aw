@@ -19,247 +19,7 @@
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/aw/github-agentic-workflows.md
 #
-#
 # Generates project plans and task breakdowns when invoked with /plan command in issues or PRs
-#
-# Original Frontmatter:
-# ```yaml
-# name: Plan Command
-# description: Generates project plans and task breakdowns when invoked with /plan command in issues or PRs
-# on:
-#   slash_command:
-#     name: plan
-#     events: [issue_comment, discussion_comment]
-# permissions:
-#   contents: read
-#   discussions: read
-#   issues: read
-#   pull-requests: read
-# engine: copilot
-# tools:
-#   github:
-#     toolsets: [default, discussions]
-# safe-outputs:
-#   create-issue:
-#     title-prefix: "[plan] "
-#     labels: [plan, ai-generated]
-#     max: 6  # 5 sub-issues + 1 parent (discussions) OR just 5 sub-issues (issues)
-#   close-discussion:
-#     required-category: "Ideas"
-# timeout-minutes: 10
-# ```
-#
-# Job Dependency Graph:
-# ```mermaid
-# graph LR
-#   activation["activation"]
-#   agent["agent"]
-#   close_discussion["close_discussion"]
-#   conclusion["conclusion"]
-#   create_issue["create_issue"]
-#   detection["detection"]
-#   pre_activation["pre_activation"]
-#   activation --> agent
-#   activation --> conclusion
-#   agent --> close_discussion
-#   agent --> conclusion
-#   agent --> create_issue
-#   agent --> detection
-#   close_discussion --> conclusion
-#   create_issue --> conclusion
-#   detection --> close_discussion
-#   detection --> conclusion
-#   detection --> create_issue
-#   pre_activation --> activation
-# ```
-#
-# Original Prompt:
-# ```markdown
-# # Planning Assistant
-#
-# You are an expert planning assistant for GitHub Copilot agents. Your task is to analyze an issue or discussion and break it down into a sequence of actionable work items that can be assigned to GitHub Copilot agents.
-#
-# ## Current Context
-#
-# - **Repository**: ${{ github.repository }}
-# - **Issue Number**: ${{ github.event.issue.number }}
-# - **Discussion Number**: ${{ github.event.discussion.number }}
-# - **Comment Content**: 
-#
-# <comment>
-# ${{ needs.activation.outputs.text }}
-# </comment>
-#
-# ## Your Mission
-#
-# Analyze the issue or discussion along with the comment content (which may contain additional guidance from the user), then:
-#
-# {{#if github.event.issue.number}}
-# **When triggered from an issue comment** (current context):
-# - Use the **current issue** (#${{ github.event.issue.number }}) as the parent issue
-# - Create actionable **sub-issues** (at most 5) as children of this issue
-# - Do NOT create a new parent tracking issue
-# {{/if}}
-#
-# {{#if github.event.discussion.number}}
-# **When triggered from a discussion** (current context):
-# 1. **First**: Create a **parent tracking issue** that links to the triggering discussion and summarizes the overall plan
-# 2. **Then**: Create actionable **sub-issues** (at most 5) as children of that parent issue
-# {{/if}}
-#
-# The comment text above may contain additional guidance or specific requirements from the user - integrate these when deciding which issues to create.
-#
-# {{#if github.event.issue.number}}
-# ## Step 1: Create Sub-Issues (Using Current Issue as Parent)
-#
-# Since this was triggered from an issue comment, use the **current issue** (#${{ github.event.issue.number }}) as the parent:
-# - Use the **parent** field set to `#${{ github.event.issue.number }}` to link each sub-issue to the current issue
-# - Each sub-issue should be a clear, actionable task for a SWE agent
-# - Do NOT create a new parent tracking issue
-# {{/if}}
-#
-# {{#if github.event.discussion.number}}
-# ## Step 1: Create the Parent Tracking Issue
-#
-# Create a parent issue first with:
-# - **Title**: A brief summary of the overall work (e.g., "Implement user authentication system")
-# - **Body**: 
-#   - Overview of the work to be done
-#   - Link back to the triggering discussion (#${{ github.event.discussion.number }})
-#   - High-level breakdown of the planned sub-issues
-# - **temporary_id**: Generate a unique temporary ID (format: `aw_` followed by 12 hex characters, e.g., `aw_abc123def456`) to reference this parent issue when creating sub-issues
-#
-# ## Step 2: Create Sub-Issues
-#
-# After creating the parent issue, create sub-issues that are linked to it:
-# - Use the **parent** field with the temporary_id from Step 1 to link each sub-issue to the parent
-# - Each sub-issue should be a clear, actionable task for a SWE agent
-# {{/if}}
-#
-# ## Guidelines for Sub-Issues
-#
-# ### 1. Clarity and Specificity
-# Each sub-issue should:
-# - Have a clear, specific objective that can be completed independently
-# - Use concrete language that a SWE agent can understand and execute
-# - Include specific files, functions, or components when relevant
-# - Avoid ambiguity and vague requirements
-#
-# ### 2. Proper Sequencing
-# Order the tasks logically:
-# - Start with foundational work (setup, infrastructure, dependencies)
-# - Follow with implementation tasks
-# - End with validation and documentation
-# - Consider dependencies between tasks
-#
-# ### 3. Right Level of Granularity
-# Each task should:
-# - Be completable in a single PR
-# - Not be too large (avoid epic-sized tasks)
-# - With a single focus or goal. Keep them extremely small and focused even it means more tasks.
-# - Have clear acceptance criteria
-#
-# ### 4. SWE Agent Formulation
-# Write tasks as if instructing a software engineer:
-# - Use imperative language: "Implement X", "Add Y", "Update Z"
-# - Provide context: "In file X, add function Y to handle Z"
-# - Include relevant technical details
-# - Specify expected outcomes
-#
-# ## Example: Creating Parent and Sub-Issues
-#
-# {{#if github.event.discussion.number}}
-# ### When Triggered from a Discussion
-#
-# #### Parent Issue (create first)
-# ```json
-# {
-#   "type": "create_issue",
-#   "temporary_id": "aw_abc123def456",
-#   "title": "Implement user authentication system",
-#   "body": "## Overview\n\nThis tracking issue covers the implementation of a complete user authentication system.\n\n**Source**: Discussion #${{ github.event.discussion.number }}\n\n## Planned Tasks\n\n1. Add authentication middleware\n2. Implement login/logout endpoints\n3. Add session management\n4. Write tests"
-# }
-# ```
-#
-# #### Sub-Issue (create after, referencing parent)
-# ```json
-# {
-#   "type": "create_issue",
-#   "parent": "aw_abc123def456",
-#   "title": "Add user authentication middleware",
-#   "body": "## Objective\n\nImplement JWT-based authentication middleware for API routes.\n\n## Context\n\nThis is needed to secure API endpoints before implementing user-specific features.\n\n## Approach\n\n1. Create middleware function in `src/middleware/auth.js`\n2. Add JWT verification using the existing auth library\n3. Attach user info to request object\n4. Handle token expiration and invalid tokens\n\n## Files to Modify\n\n- Create: `src/middleware/auth.js`\n- Update: `src/routes/api.js` (to use the middleware)\n- Update: `tests/middleware/auth.test.js` (add tests)\n\n## Acceptance Criteria\n\n- [ ] Middleware validates JWT tokens\n- [ ] Invalid tokens return 401 status\n- [ ] User info is accessible in route handlers\n- [ ] Tests cover success and error cases"
-# }
-# ```
-# {{/if}}
-#
-# {{#if github.event.issue.number}}
-# ### When Triggered from an Issue Comment
-#
-# Since this was triggered from issue #${{ github.event.issue.number }}, use it as the parent for all sub-issues:
-#
-# #### Sub-Issue (referencing current issue as parent)
-# ```json
-# {
-#   "type": "create_issue",
-#   "parent": "#${{ github.event.issue.number }}",
-#   "title": "Add user authentication middleware",
-#   "body": "## Objective\n\nImplement JWT-based authentication middleware for API routes.\n\n## Context\n\nThis is needed to secure API endpoints before implementing user-specific features.\n\n## Approach\n\n1. Create middleware function in `src/middleware/auth.js`\n2. Add JWT verification using the existing auth library\n3. Attach user info to request object\n4. Handle token expiration and invalid tokens\n\n## Files to Modify\n\n- Create: `src/middleware/auth.js`\n- Update: `src/routes/api.js` (to use the middleware)\n- Update: `tests/middleware/auth.test.js` (add tests)\n\n## Acceptance Criteria\n\n- [ ] Middleware validates JWT tokens\n- [ ] Invalid tokens return 401 status\n- [ ] User info is accessible in route handlers\n- [ ] Tests cover success and error cases"
-# }
-# ```
-# {{/if}}
-#
-# ## Important Notes
-#
-# {{#if github.event.issue.number}}
-# - **Maximum 5 sub-issues**: Don't create more than 5 sub-issues
-# - **Use Current Issue as Parent**: All sub-issues should use `"parent": "#${{ github.event.issue.number }}"` to link to the current issue
-# - **No Parent Issue Creation**: Do NOT create a new parent tracking issue - use the existing issue #${{ github.event.issue.number }}
-# - **User Guidance**: Pay attention to the comment content above - the user may have provided specific instructions or priorities
-# - **Clear Steps**: Each sub-issue should have clear, actionable steps
-# - **No Duplication**: Don't create sub-issues for work that's already done
-# - **Prioritize Clarity**: SWE agents need unambiguous instructions
-# {{/if}}
-#
-# {{#if github.event.discussion.number}}
-# - **Maximum 5 sub-issues**: Don't create more than 5 sub-issues (plus 1 parent issue = 6 total)
-# - **Parent Issue First**: Always create the parent tracking issue first with a temporary_id
-# - **Link Sub-Issues**: Use the parent's temporary_id in each sub-issue's `parent` field
-# - **Reference Source**: The parent issue body should link back to the triggering discussion
-# - **User Guidance**: Pay attention to the comment content above - the user may have provided specific instructions or priorities
-# - **Clear Steps**: Each sub-issue should have clear, actionable steps
-# - **No Duplication**: Don't create sub-issues for work that's already done
-# - **Prioritize Clarity**: SWE agents need unambiguous instructions
-# {{/if}}
-#
-# ## Instructions
-#
-# Review instructions in `.github/instructions/*.instructions.md` if you need guidance.
-#
-# ## Begin Planning
-#
-# {{#if github.event.issue.number}}
-# 1. First, analyze the current issue (#${{ github.event.issue.number }}) and the user's comment for context and any additional guidance
-# 2. Create sub-issues as children of the current issue using `"parent": "#${{ github.event.issue.number }}"` (do NOT create a new parent issue)
-# 3. If this was triggered from a discussion in the "Ideas" category (it wasn't in this case), close the discussion with a comment
-# {{/if}}
-#
-# {{#if github.event.discussion.number}}
-# 1. First, analyze the discussion and the user's comment for context and any additional guidance
-# 2. Create the parent tracking issue with a temporary_id that links to the source discussion
-# 3. Create sub-issues as children of the parent issue using the temporary_id
-# 4. After creating all issues successfully, if this was triggered from a discussion in the "Ideas" category, close the discussion with a comment summarizing the plan and resolution reason "RESOLVED"
-# {{/if}}
-# ```
-#
-# Pinned GitHub Actions:
-#   - actions/checkout@v5 (93cb6efe18208431cddfb8368fd83d5badbf9bfd)
-#     https://github.com/actions/checkout/commit/93cb6efe18208431cddfb8368fd83d5badbf9bfd
-#   - actions/download-artifact@v6 (018cc2cf5baa6db3ef3c5f8a56943fffe632ef53)
-#     https://github.com/actions/download-artifact/commit/018cc2cf5baa6db3ef3c5f8a56943fffe632ef53
-#   - actions/github-script@v8 (ed597411d8f924073f98dfc5c65a23a2325f34cd)
-#     https://github.com/actions/github-script/commit/ed597411d8f924073f98dfc5c65a23a2325f34cd
-#   - actions/upload-artifact@v5 (330a01c490aca151604b8cf639adc76d48f6c5d4)
-#     https://github.com/actions/upload-artifact/commit/330a01c490aca151604b8cf639adc76d48f6c5d4
 
 name: "Plan Command"
 "on":
@@ -368,9 +128,7 @@ jobs:
                   .addRaw("**Files:**\n")
                   .addRaw(`- Source: \`${workflowMdPath}\`\n`)
                   .addRaw(`  - Last commit: ${workflowTimestamp}\n`)
-                  .addRaw(
-                    `  - Commit SHA: [\`${workflowCommit.sha.substring(0, 7)}\`](https://github.com/${owner}/${repo}/commit/${workflowCommit.sha})\n`
-                  )
+                  .addRaw(`  - Commit SHA: [\`${workflowCommit.sha.substring(0, 7)}\`](https://github.com/${owner}/${repo}/commit/${workflowCommit.sha})\n`)
                   .addRaw(`- Lock: \`${lockFilePath}\`\n`)
                   .addRaw(`  - Last commit: ${lockTimestamp}\n`)
                   .addRaw(`  - Commit SHA: [\`${lockCommit.sha.substring(0, 7)}\`](https://github.com/${owner}/${repo}/commit/${lockCommit.sha})\n\n`)
@@ -516,36 +274,33 @@ jobs:
                 });
               }
               function sanitizeUrlProtocols(s) {
-                return s.replace(
-                  /((?:http|ftp|file|ssh|git):\/\/([\w.-]*)(?:[^\s]*)|(?:data|javascript|vbscript|about|mailto|tel):[^\s]+)/gi,
-                  (match, _fullMatch, domain) => {
-                    if (domain) {
-                      const domainLower = domain.toLowerCase();
-                      const truncated = domainLower.length > 12 ? domainLower.substring(0, 12) + "..." : domainLower;
+                return s.replace(/((?:http|ftp|file|ssh|git):\/\/([\w.-]*)(?:[^\s]*)|(?:data|javascript|vbscript|about|mailto|tel):[^\s]+)/gi, (match, _fullMatch, domain) => {
+                  if (domain) {
+                    const domainLower = domain.toLowerCase();
+                    const truncated = domainLower.length > 12 ? domainLower.substring(0, 12) + "..." : domainLower;
+                    if (typeof core !== "undefined" && core.info) {
+                      core.info(`Redacted URL: ${truncated}`);
+                    }
+                    if (typeof core !== "undefined" && core.debug) {
+                      core.debug(`Redacted URL (full): ${match}`);
+                    }
+                    addRedactedDomain(domainLower);
+                  } else {
+                    const protocolMatch = match.match(/^([^:]+):/);
+                    if (protocolMatch) {
+                      const protocol = protocolMatch[1] + ":";
+                      const truncated = match.length > 12 ? match.substring(0, 12) + "..." : match;
                       if (typeof core !== "undefined" && core.info) {
                         core.info(`Redacted URL: ${truncated}`);
                       }
                       if (typeof core !== "undefined" && core.debug) {
                         core.debug(`Redacted URL (full): ${match}`);
                       }
-                      addRedactedDomain(domainLower);
-                    } else {
-                      const protocolMatch = match.match(/^([^:]+):/);
-                      if (protocolMatch) {
-                        const protocol = protocolMatch[1] + ":";
-                        const truncated = match.length > 12 ? match.substring(0, 12) + "..." : match;
-                        if (typeof core !== "undefined" && core.info) {
-                          core.info(`Redacted URL: ${truncated}`);
-                        }
-                        if (typeof core !== "undefined" && core.debug) {
-                          core.debug(`Redacted URL (full): ${match}`);
-                        }
-                        addRedactedDomain(protocol);
-                      }
+                      addRedactedDomain(protocol);
                     }
-                    return "(redacted)";
                   }
-                );
+                  return "(redacted)";
+                });
               }
               function neutralizeCommands(s) {
                 const commandName = process.env.GH_AW_COMMAND;
@@ -567,37 +322,7 @@ jobs:
                 return s.replace(/<!--[\s\S]*?-->/g, "").replace(/<!--[\s\S]*?--!>/g, "");
               }
               function convertXmlTags(s) {
-                const allowedTags = [
-                  "b",
-                  "blockquote",
-                  "br",
-                  "code",
-                  "details",
-                  "em",
-                  "h1",
-                  "h2",
-                  "h3",
-                  "h4",
-                  "h5",
-                  "h6",
-                  "hr",
-                  "i",
-                  "li",
-                  "ol",
-                  "p",
-                  "pre",
-                  "strong",
-                  "sub",
-                  "summary",
-                  "sup",
-                  "table",
-                  "tbody",
-                  "td",
-                  "th",
-                  "thead",
-                  "tr",
-                  "ul",
-                ];
+                const allowedTags = ["b", "blockquote", "br", "code", "details", "em", "h1", "h2", "h3", "h4", "h5", "h6", "hr", "i", "li", "ol", "p", "pre", "strong", "sub", "summary", "sup", "table", "tbody", "td", "th", "thead", "tr", "ul"];
                 s = s.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, (match, content) => {
                   const convertedContent = content.replace(/<(\/?[A-Za-z][A-Za-z0-9]*(?:[^>]*?))>/g, "($1)");
                   return `(![CDATA[${convertedContent}]])`;
@@ -800,18 +525,14 @@ jobs:
               const messages = getMessages();
               const templateContext = toSnakeCase(ctx);
               const defaultMessage = "⚠️ Security scanning failed for [{workflow_name}]({run_url}). Review the logs for details.";
-              return messages?.detectionFailure
-                ? renderTemplate(messages.detectionFailure, templateContext)
-                : renderTemplate(defaultMessage, templateContext);
+              return messages?.detectionFailure ? renderTemplate(messages.detectionFailure, templateContext) : renderTemplate(defaultMessage, templateContext);
             }
             async function main() {
               const reaction = process.env.GH_AW_REACTION || "eyes";
               const command = process.env.GH_AW_COMMAND; 
               const runId = context.runId;
               const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
-              const runUrl = context.payload.repository
-                ? `${context.payload.repository.html_url}/actions/runs/${runId}`
-                : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
+              const runUrl = context.payload.repository ? `${context.payload.repository.html_url}/actions/runs/${runId}` : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
               core.info(`Reaction type: ${reaction}`);
               core.info(`Command name: ${command || "none"}`);
               core.info(`Run ID: ${runId}`);
@@ -1141,9 +862,7 @@ jobs:
                 core.setOutput("comment-repo", `${context.repo.owner}/${context.repo.repo}`);
               } catch (error) {
                 const errorMessage = error instanceof Error ? error.message : String(error);
-                core.warning(
-                  "Failed to create comment with workflow link (This is not critical - the reaction was still added successfully): " + errorMessage
-                );
+                core.warning("Failed to create comment with workflow link (This is not critical - the reaction was still added successfully): " + errorMessage);
               }
             }
             await main();
@@ -1678,9 +1397,7 @@ jobs:
                 server.debug(`  [${toolName}] Python handler args: ${JSON.stringify(args)}`);
                 server.debug(`  [${toolName}] Timeout: ${timeoutSeconds}s`);
                 const inputJson = JSON.stringify(args || {});
-                server.debug(
-                  `  [${toolName}] Input JSON (${inputJson.length} bytes): ${inputJson.substring(0, 200)}${inputJson.length > 200 ? "..." : ""}`
-                );
+                server.debug(`  [${toolName}] Input JSON (${inputJson.length} bytes): ${inputJson.substring(0, 200)}${inputJson.length > 200 ? "..." : ""}`);
                 return new Promise((resolve, reject) => {
                   server.debug(`  [${toolName}] Executing Python script...`);
                   const child = execFile(
@@ -1788,9 +1505,7 @@ jobs:
                       try {
                         if (fs.existsSync(outputFile)) {
                           const outputContent = fs.readFileSync(outputFile, "utf-8");
-                          server.debug(
-                            `  [${toolName}] Output file content: ${outputContent.substring(0, 500)}${outputContent.length > 500 ? "..." : ""}`
-                          );
+                          server.debug(`  [${toolName}] Output file content: ${outputContent.substring(0, 500)}${outputContent.length > 500 ? "..." : ""}`);
                           const lines = outputContent.split("\n");
                           for (const line of lines) {
                             const trimmed = line.trim();
@@ -1848,10 +1563,7 @@ jobs:
                   fs.mkdirSync(server.logDir, { recursive: true });
                 }
                 const timestamp = new Date().toISOString();
-                fs.writeFileSync(
-                  server.logFilePath,
-                  `# ${server.serverInfo.name} MCP Server Log\n# Started: ${timestamp}\n# Version: ${server.serverInfo.version}\n\n`
-                );
+                fs.writeFileSync(server.logFilePath, `# ${server.serverInfo.name} MCP Server Log\n# Started: ${timestamp}\n# Version: ${server.serverInfo.version}\n\n`);
                 server.logFileInitialized = true;
               } catch {
               }
@@ -2511,10 +2223,7 @@ jobs:
                 const isInWorkspace = absolutePath.startsWith(path.resolve(workspaceDir));
                 const isInTmp = absolutePath.startsWith(tmpDir);
                 if (!isInWorkspace && !isInTmp) {
-                  throw new Error(
-                    `File path must be within workspace directory (${workspaceDir}) or /tmp directory. ` +
-                      `Provided path: ${filePath} (resolved to: ${absolutePath})`
-                  );
+                  throw new Error(`File path must be within workspace directory (${workspaceDir}) or /tmp directory. ` + `Provided path: ${filePath} (resolved to: ${absolutePath})`);
                 }
                 if (!fs.existsSync(filePath)) {
                   throw new Error(`File not found: ${filePath}`);
@@ -2773,10 +2482,7 @@ jobs:
                       };
                       const entryJSON = JSON.stringify(entry);
                       fs.appendFileSync(outputFile, entryJSON + "\n");
-                      const outputText =
-                        jobConfig && jobConfig.output
-                          ? jobConfig.output
-                          : `Safe-job '${configKey}' executed successfully with arguments: ${JSON.stringify(args)}`;
+                      const outputText = jobConfig && jobConfig.output ? jobConfig.output : `Safe-job '${configKey}' executed successfully with arguments: ${JSON.stringify(args)}`;
                       return {
                         content: [
                           {
@@ -3543,16 +3249,13 @@ jobs:
               return result;
             }
             function renderMarkdownTemplate(markdown) {
-              let result = markdown.replace(
-                /(\n?)([ \t]*{{#if\s+([^}]*)}}[ \t]*\n)([\s\S]*?)([ \t]*{{\/if}}[ \t]*)(\n?)/g,
-                (match, leadNL, openLine, cond, body, closeLine, trailNL) => {
-                  if (isTruthy(cond)) {
-                    return leadNL + body;
-                  } else {
-                    return "";
-                  }
+              let result = markdown.replace(/(\n?)([ \t]*{{#if\s+([^}]*)}}[ \t]*\n)([\s\S]*?)([ \t]*{{\/if}}[ \t]*)(\n?)/g, (match, leadNL, openLine, cond, body, closeLine, trailNL) => {
+                if (isTruthy(cond)) {
+                  return leadNL + body;
+                } else {
+                  return "";
                 }
-              );
+              });
               result = result.replace(/{{#if\s+([^}]*)}}([\s\S]*?){{\/if}}/g, (_, cond, body) => (isTruthy(cond) ? body : ""));
               result = result.replace(/\n{3,}/g, "\n\n");
               return result;
@@ -3923,36 +3626,33 @@ jobs:
                 });
               }
               function sanitizeUrlProtocols(s) {
-                return s.replace(
-                  /((?:http|ftp|file|ssh|git):\/\/([\w.-]*)(?:[^\s]*)|(?:data|javascript|vbscript|about|mailto|tel):[^\s]+)/gi,
-                  (match, _fullMatch, domain) => {
-                    if (domain) {
-                      const domainLower = domain.toLowerCase();
-                      const truncated = domainLower.length > 12 ? domainLower.substring(0, 12) + "..." : domainLower;
+                return s.replace(/((?:http|ftp|file|ssh|git):\/\/([\w.-]*)(?:[^\s]*)|(?:data|javascript|vbscript|about|mailto|tel):[^\s]+)/gi, (match, _fullMatch, domain) => {
+                  if (domain) {
+                    const domainLower = domain.toLowerCase();
+                    const truncated = domainLower.length > 12 ? domainLower.substring(0, 12) + "..." : domainLower;
+                    if (typeof core !== "undefined" && core.info) {
+                      core.info(`Redacted URL: ${truncated}`);
+                    }
+                    if (typeof core !== "undefined" && core.debug) {
+                      core.debug(`Redacted URL (full): ${match}`);
+                    }
+                    addRedactedDomain(domainLower);
+                  } else {
+                    const protocolMatch = match.match(/^([^:]+):/);
+                    if (protocolMatch) {
+                      const protocol = protocolMatch[1] + ":";
+                      const truncated = match.length > 12 ? match.substring(0, 12) + "..." : match;
                       if (typeof core !== "undefined" && core.info) {
                         core.info(`Redacted URL: ${truncated}`);
                       }
                       if (typeof core !== "undefined" && core.debug) {
                         core.debug(`Redacted URL (full): ${match}`);
                       }
-                      addRedactedDomain(domainLower);
-                    } else {
-                      const protocolMatch = match.match(/^([^:]+):/);
-                      if (protocolMatch) {
-                        const protocol = protocolMatch[1] + ":";
-                        const truncated = match.length > 12 ? match.substring(0, 12) + "..." : match;
-                        if (typeof core !== "undefined" && core.info) {
-                          core.info(`Redacted URL: ${truncated}`);
-                        }
-                        if (typeof core !== "undefined" && core.debug) {
-                          core.debug(`Redacted URL (full): ${match}`);
-                        }
-                        addRedactedDomain(protocol);
-                      }
+                      addRedactedDomain(protocol);
                     }
-                    return "(redacted)";
                   }
-                );
+                  return "(redacted)";
+                });
               }
               function neutralizeCommands(s) {
                 const commandName = process.env.GH_AW_COMMAND;
@@ -3974,37 +3674,7 @@ jobs:
                 return s.replace(/<!--[\s\S]*?-->/g, "").replace(/<!--[\s\S]*?--!>/g, "");
               }
               function convertXmlTags(s) {
-                const allowedTags = [
-                  "b",
-                  "blockquote",
-                  "br",
-                  "code",
-                  "details",
-                  "em",
-                  "h1",
-                  "h2",
-                  "h3",
-                  "h4",
-                  "h5",
-                  "h6",
-                  "hr",
-                  "i",
-                  "li",
-                  "ol",
-                  "p",
-                  "pre",
-                  "strong",
-                  "sub",
-                  "summary",
-                  "sup",
-                  "table",
-                  "tbody",
-                  "td",
-                  "th",
-                  "thead",
-                  "tr",
-                  "ul",
-                ];
+                const allowedTags = ["b", "blockquote", "br", "code", "details", "em", "h1", "h2", "h3", "h4", "h5", "h6", "hr", "i", "li", "ol", "p", "pre", "strong", "sub", "summary", "sup", "table", "tbody", "td", "th", "thead", "tr", "ul"];
                 s = s.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, (match, content) => {
                   const convertedContent = content.replace(/<(\/?[A-Za-z][A-Za-z0-9]*(?:[^>]*?))>/g, "($1)");
                   return `(![CDATA[${convertedContent}]])`;
@@ -4116,36 +3786,33 @@ jobs:
                 return result;
               }
               function sanitizeUrlProtocols(s) {
-                return s.replace(
-                  /\b((?:http|ftp|file|ssh|git):\/\/([\w.-]+)(?:[^\s]*)|(?:data|javascript|vbscript|about|mailto|tel):[^\s]+)/gi,
-                  (match, _fullMatch, domain) => {
-                    if (domain) {
-                      const domainLower = domain.toLowerCase();
-                      const truncated = domainLower.length > 12 ? domainLower.substring(0, 12) + "..." : domainLower;
+                return s.replace(/\b((?:http|ftp|file|ssh|git):\/\/([\w.-]+)(?:[^\s]*)|(?:data|javascript|vbscript|about|mailto|tel):[^\s]+)/gi, (match, _fullMatch, domain) => {
+                  if (domain) {
+                    const domainLower = domain.toLowerCase();
+                    const truncated = domainLower.length > 12 ? domainLower.substring(0, 12) + "..." : domainLower;
+                    if (typeof core !== "undefined" && core.info) {
+                      core.info(`Redacted URL: ${truncated}`);
+                    }
+                    if (typeof core !== "undefined" && core.debug) {
+                      core.debug(`Redacted URL (full): ${match}`);
+                    }
+                    addRedactedDomain(domainLower);
+                  } else {
+                    const protocolMatch = match.match(/^([^:]+):/);
+                    if (protocolMatch) {
+                      const protocol = protocolMatch[1] + ":";
+                      const truncated = match.length > 12 ? match.substring(0, 12) + "..." : match;
                       if (typeof core !== "undefined" && core.info) {
                         core.info(`Redacted URL: ${truncated}`);
                       }
                       if (typeof core !== "undefined" && core.debug) {
                         core.debug(`Redacted URL (full): ${match}`);
                       }
-                      addRedactedDomain(domainLower);
-                    } else {
-                      const protocolMatch = match.match(/^([^:]+):/);
-                      if (protocolMatch) {
-                        const protocol = protocolMatch[1] + ":";
-                        const truncated = match.length > 12 ? match.substring(0, 12) + "..." : match;
-                        if (typeof core !== "undefined" && core.info) {
-                          core.info(`Redacted URL: ${truncated}`);
-                        }
-                        if (typeof core !== "undefined" && core.debug) {
-                          core.debug(`Redacted URL (full): ${match}`);
-                        }
-                        addRedactedDomain(protocol);
-                      }
+                      addRedactedDomain(protocol);
                     }
-                    return "(redacted)";
                   }
-                );
+                  return "(redacted)";
+                });
               }
               function neutralizeCommands(s) {
                 const commandName = process.env.GH_AW_COMMAND;
@@ -4171,37 +3838,7 @@ jobs:
                 return s.replace(/<!--[\s\S]*?-->/g, "").replace(/<!--[\s\S]*?--!>/g, "");
               }
               function convertXmlTags(s) {
-                const allowedTags = [
-                  "b",
-                  "blockquote",
-                  "br",
-                  "code",
-                  "details",
-                  "em",
-                  "h1",
-                  "h2",
-                  "h3",
-                  "h4",
-                  "h5",
-                  "h6",
-                  "hr",
-                  "i",
-                  "li",
-                  "ol",
-                  "p",
-                  "pre",
-                  "strong",
-                  "sub",
-                  "summary",
-                  "sup",
-                  "table",
-                  "tbody",
-                  "td",
-                  "th",
-                  "thead",
-                  "tr",
-                  "ul",
-                ];
+                const allowedTags = ["b", "blockquote", "br", "code", "details", "em", "h1", "h2", "h3", "h4", "h5", "h6", "hr", "i", "li", "ol", "p", "pre", "strong", "sub", "summary", "sup", "table", "tbody", "td", "th", "thead", "tr", "ul"];
                 s = s.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, (match, content) => {
                   const convertedContent = content.replace(/<(\/?[A-Za-z][A-Za-z0-9]*(?:[^>]*?))>/g, "($1)");
                   return `(![CDATA[${convertedContent}]])`;
@@ -4893,9 +4530,7 @@ jobs:
                   core.info(`Loaded validation config from ${validationConfigPath}`);
                 }
               } catch (error) {
-                core.warning(
-                  `Failed to read validation config from ${validationConfigPath}: ${error instanceof Error ? error.message : String(error)}`
-                );
+                core.warning(`Failed to read validation config from ${validationConfigPath}: ${error instanceof Error ? error.message : String(error)}`);
               }
               const mentionsConfig = validationConfig?.mentions || null;
               const allowedMentions = await resolveAllowedMentionsFromPayload(context, github, core, mentionsConfig);
@@ -5108,9 +4743,7 @@ jobs:
                   core.info(`[INGESTION] Line ${i + 1}: Original type='${originalType}', Normalized type='${itemType}'`);
                   item.type = itemType;
                   if (!expectedOutputTypes[itemType]) {
-                    core.warning(
-                      `[INGESTION] Line ${i + 1}: Type '${itemType}' not found in expected types: ${JSON.stringify(Object.keys(expectedOutputTypes))}`
-                    );
+                    core.warning(`[INGESTION] Line ${i + 1}: Type '${itemType}' not found in expected types: ${JSON.stringify(Object.keys(expectedOutputTypes))}`);
                     errors.push(`Line ${i + 1}: Unexpected output type '${itemType}'. Expected one of: ${Object.keys(expectedOutputTypes).join(", ")}`);
                     continue;
                   }
@@ -5192,10 +4825,7 @@ jobs:
               core.info(`Patch file ${hasPatch ? "exists" : "does not exist"} at: ${patchPath}`);
               let allowEmptyPR = false;
               if (safeOutputsConfig) {
-                if (
-                  safeOutputsConfig["create-pull-request"]?.["allow-empty"] === true ||
-                  safeOutputsConfig["create_pull_request"]?.["allow_empty"] === true
-                ) {
+                if (safeOutputsConfig["create-pull-request"]?.["allow-empty"] === true || safeOutputsConfig["create_pull_request"]?.["allow_empty"] === true) {
                   allowEmptyPR = true;
                   core.info(`allow-empty is enabled for create-pull-request`);
                 }
@@ -5566,24 +5196,7 @@ jobs:
                   "Custom Agents": [],
                   Other: [],
                 };
-                const builtinTools = [
-                  "bash",
-                  "write_bash",
-                  "read_bash",
-                  "stop_bash",
-                  "list_bash",
-                  "grep",
-                  "glob",
-                  "view",
-                  "create",
-                  "edit",
-                  "store_memory",
-                  "code_review",
-                  "codeql_checker",
-                  "report_progress",
-                  "report_intent",
-                  "gh-advisory-database",
-                ];
+                const builtinTools = ["bash", "write_bash", "read_bash", "stop_bash", "list_bash", "grep", "glob", "view", "create", "edit", "store_memory", "code_review", "codeql_checker", "report_progress", "report_intent", "gh-advisory-database"];
                 const internalTools = ["fetch_copilot_cli_documentation"];
                 for (const tool of initEntry.tools) {
                   const toolLower = tool.toLowerCase();
@@ -5979,9 +5592,7 @@ jobs:
                   const cacheCreationTokens = usage.cache_creation_input_tokens || 0;
                   const cacheReadTokens = usage.cache_read_input_tokens || 0;
                   const totalTokens = inputTokens + outputTokens + cacheCreationTokens + cacheReadTokens;
-                  lines.push(
-                    `  Tokens: ${totalTokens.toLocaleString()} total (${usage.input_tokens.toLocaleString()} in / ${usage.output_tokens.toLocaleString()} out)`
-                  );
+                  lines.push(`  Tokens: ${totalTokens.toLocaleString()} total (${usage.input_tokens.toLocaleString()} in / ${usage.output_tokens.toLocaleString()} out)`);
                 }
               }
               if (lastEntry?.total_cost_usd) {
@@ -6140,9 +5751,7 @@ jobs:
                   const cacheCreationTokens = usage.cache_creation_input_tokens || 0;
                   const cacheReadTokens = usage.cache_read_input_tokens || 0;
                   const totalTokens = inputTokens + outputTokens + cacheCreationTokens + cacheReadTokens;
-                  lines.push(
-                    `  Tokens: ${totalTokens.toLocaleString()} total (${usage.input_tokens.toLocaleString()} in / ${usage.output_tokens.toLocaleString()} out)`
-                  );
+                  lines.push(`  Tokens: ${totalTokens.toLocaleString()} total (${usage.input_tokens.toLocaleString()} in / ${usage.output_tokens.toLocaleString()} out)`);
                 }
               }
               if (lastEntry?.total_cost_usd) {
@@ -6243,11 +5852,7 @@ jobs:
               });
             }
             function extractPremiumRequestCount(logContent) {
-              const patterns = [
-                /premium\s+requests?\s+consumed:?\s*(\d+)/i,
-                /(\d+)\s+premium\s+requests?\s+consumed/i,
-                /consumed\s+(\d+)\s+premium\s+requests?/i,
-              ];
+              const patterns = [/premium\s+requests?\s+consumed:?\s*(\d+)/i, /(\d+)\s+premium\s+requests?\s+consumed/i, /consumed\s+(\d+)\s+premium\s+requests?/i];
               for (const pattern of patterns) {
                 const match = logContent.match(pattern);
                 if (match && match[1]) {
@@ -6319,8 +5924,7 @@ jobs:
                 const initEntry = logEntries.find(entry => entry.type === "system" && entry.subtype === "init");
                 markdown += generateInformationSection(lastEntry, {
                   additionalInfoCallback: entry => {
-                    const isPremiumModel =
-                      initEntry && initEntry.model_info && initEntry.model_info.billing && initEntry.model_info.billing.is_premium === true;
+                    const isPremiumModel = initEntry && initEntry.model_info && initEntry.model_info.billing && initEntry.model_info.billing.is_premium === true;
                     if (isPremiumModel) {
                       const premiumRequestCount = extractPremiumRequestCount(logContent);
                       return `**Premium Requests Consumed:** ${premiumRequestCount}\n\n`;
@@ -6747,299 +6351,151 @@ jobs:
         with:
           script: |
             function sanitizeWorkflowName(name) {
-
               return name
-
                 .toLowerCase()
-
                 .replace(/[:\\/\s]/g, "-")
-
                 .replace(/[^a-z0-9._-]/g, "-");
-
             }
-
             function main() {
-
               const fs = require("fs");
-
               const path = require("path");
-
               try {
-
                 const squidLogsDir = `/tmp/gh-aw/sandbox/firewall/logs/`;
-
                 if (!fs.existsSync(squidLogsDir)) {
-
                   core.info(`No firewall logs directory found at: ${squidLogsDir}`);
-
                   return;
-
                 }
-
                 const files = fs.readdirSync(squidLogsDir).filter(file => file.endsWith(".log"));
-
                 if (files.length === 0) {
-
                   core.info(`No firewall log files found in: ${squidLogsDir}`);
-
                   return;
-
                 }
-
                 core.info(`Found ${files.length} firewall log file(s)`);
-
                 let totalRequests = 0;
-
                 let allowedRequests = 0;
-
                 let deniedRequests = 0;
-
                 const allowedDomains = new Set();
-
                 const deniedDomains = new Set();
-
                 const requestsByDomain = new Map();
-
                 for (const file of files) {
-
                   const filePath = path.join(squidLogsDir, file);
-
                   core.info(`Parsing firewall log: ${file}`);
-
                   const content = fs.readFileSync(filePath, "utf8");
-
                   const lines = content.split("\n").filter(line => line.trim());
-
                   for (const line of lines) {
-
                     const entry = parseFirewallLogLine(line);
-
                     if (!entry) {
-
                       continue;
-
                     }
-
                     totalRequests++;
-
                     const isAllowed = isRequestAllowed(entry.decision, entry.status);
-
                     if (isAllowed) {
-
                       allowedRequests++;
-
                       allowedDomains.add(entry.domain);
-
                     } else {
-
                       deniedRequests++;
-
                       deniedDomains.add(entry.domain);
-
                     }
-
                     if (!requestsByDomain.has(entry.domain)) {
-
                       requestsByDomain.set(entry.domain, { allowed: 0, denied: 0 });
-
                     }
-
                     const domainStats = requestsByDomain.get(entry.domain);
-
                     if (isAllowed) {
-
                       domainStats.allowed++;
-
                     } else {
-
                       domainStats.denied++;
-
                     }
-
                   }
-
                 }
-
                 const summary = generateFirewallSummary({
-
                   totalRequests,
-
                   allowedRequests,
-
                   deniedRequests,
-
                   allowedDomains: Array.from(allowedDomains).sort(),
-
                   deniedDomains: Array.from(deniedDomains).sort(),
-
                   requestsByDomain,
-
                 });
-
                 core.summary.addRaw(summary).write();
-
                 core.info("Firewall log summary generated successfully");
-
               } catch (error) {
-
                 core.setFailed(error instanceof Error ? error : String(error));
-
               }
-
             }
-
             function parseFirewallLogLine(line) {
-
               const trimmed = line.trim();
-
               if (!trimmed || trimmed.startsWith("#")) {
-
                 return null;
-
               }
-
               const fields = trimmed.match(/(?:[^\s"]+|"[^"]*")+/g);
-
               if (!fields || fields.length < 10) {
-
                 return null;
-
               }
-
               const timestamp = fields[0];
-
               if (!/^\d+(\.\d+)?$/.test(timestamp)) {
-
                 return null;
-
               }
-
               return {
-
                 timestamp,
-
                 clientIpPort: fields[1],
-
                 domain: fields[2],
-
                 destIpPort: fields[3],
-
                 proto: fields[4],
-
                 method: fields[5],
-
                 status: fields[6],
-
                 decision: fields[7],
-
                 url: fields[8],
-
                 userAgent: fields[9]?.replace(/^"|"$/g, "") || "-",
-
               };
-
             }
-
             function isRequestAllowed(decision, status) {
-
               const statusCode = parseInt(status, 10);
-
               if (statusCode === 200 || statusCode === 206 || statusCode === 304) {
-
                 return true;
-
               }
-
               if (decision.includes("TCP_TUNNEL") || decision.includes("TCP_HIT") || decision.includes("TCP_MISS")) {
-
                 return true;
-
               }
-
               if (decision.includes("NONE_NONE") || decision.includes("TCP_DENIED") || statusCode === 403 || statusCode === 407) {
-
                 return false;
-
               }
-
               return false;
-
             }
-
             function generateFirewallSummary(analysis) {
-
               const { totalRequests, requestsByDomain } = analysis;
-
               const validDomains = Array.from(requestsByDomain.keys())
-
                 .filter(domain => domain !== "-")
-
                 .sort();
-
               const uniqueDomainCount = validDomains.length;
-
               let validAllowedRequests = 0;
-
               let validDeniedRequests = 0;
-
               for (const domain of validDomains) {
-
                 const stats = requestsByDomain.get(domain);
-
                 validAllowedRequests += stats.allowed;
-
                 validDeniedRequests += stats.denied;
-
               }
-
               let summary = "### 🔥 Firewall Activity\n\n";
-
               summary += "<details>\n";
-
               summary += `<summary>📊 ${totalRequests} request${totalRequests !== 1 ? "s" : ""} | `;
-
               summary += `${validAllowedRequests} allowed | `;
-
               summary += `${validDeniedRequests} blocked | `;
-
               summary += `${uniqueDomainCount} unique domain${uniqueDomainCount !== 1 ? "s" : ""}</summary>\n\n`;
-
               if (uniqueDomainCount > 0) {
-
                 summary += "| Domain | Allowed | Denied |\n";
-
                 summary += "|--------|---------|--------|\n";
-
                 for (const domain of validDomains) {
-
                   const stats = requestsByDomain.get(domain);
-
                   summary += `| ${domain} | ${stats.allowed} | ${stats.denied} |\n`;
-
                 }
-
               } else {
-
                 summary += "No firewall activity detected.\n";
-
               }
-
               summary += "\n</details>\n\n";
-
               return summary;
-
             }
-
-            const isDirectExecution =
-
-              typeof module === "undefined" || (typeof require !== "undefined" && typeof require.main !== "undefined" && require.main === module);
-
+            const isDirectExecution = typeof module === "undefined" || (typeof require !== "undefined" && typeof require.main !== "undefined" && require.main === module);
             if (isDirectExecution) {
-
               main();
-
             }
-
       - name: Upload Agent Stdio
         if: always()
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
@@ -7194,9 +6650,7 @@ jobs:
                     }
                     lastIndex = regex.lastIndex;
                     if (iterationCount === ITERATION_WARNING_THRESHOLD) {
-                      core.warning(
-                        `High iteration count (${iterationCount}) on line ${lineIndex + 1} with pattern: ${pattern.description || pattern.pattern}`
-                      );
+                      core.warning(`High iteration count (${iterationCount}) on line ${lineIndex + 1} with pattern: ${pattern.description || pattern.pattern}`);
                       core.warning(`Line content (truncated): ${truncateString(line, 200)}`);
                     }
                     if (iterationCount > MAX_ITERATIONS_PER_LINE) {
@@ -7390,15 +6844,7 @@ jobs:
               parts.push(`run: ${runUrl}`);
               return `<!-- ${parts.join(", ")} -->`;
             }
-            function generateFooter(
-              workflowName,
-              runUrl,
-              workflowSource,
-              workflowSourceURL,
-              triggeringIssueNumber,
-              triggeringPRNumber,
-              triggeringDiscussionNumber
-            ) {
+            function generateFooter(workflowName, runUrl, workflowSource, workflowSourceURL, triggeringIssueNumber, triggeringPRNumber, triggeringDiscussionNumber) {
               let footer = `\n\n> AI generated by [${workflowName}](${runUrl})`;
               if (triggeringIssueNumber) {
                 footer += ` for #${triggeringIssueNumber}`;
@@ -7512,15 +6958,11 @@ jobs:
                 return;
               }
               core.info(`Found ${closeDiscussionItems.length} close-discussion item(s)`);
-              const requiredLabels = process.env.GH_AW_CLOSE_DISCUSSION_REQUIRED_LABELS
-                ? process.env.GH_AW_CLOSE_DISCUSSION_REQUIRED_LABELS.split(",").map(l => l.trim())
-                : [];
+              const requiredLabels = process.env.GH_AW_CLOSE_DISCUSSION_REQUIRED_LABELS ? process.env.GH_AW_CLOSE_DISCUSSION_REQUIRED_LABELS.split(",").map(l => l.trim()) : [];
               const requiredTitlePrefix = process.env.GH_AW_CLOSE_DISCUSSION_REQUIRED_TITLE_PREFIX || "";
               const requiredCategory = process.env.GH_AW_CLOSE_DISCUSSION_REQUIRED_CATEGORY || "";
               const target = process.env.GH_AW_CLOSE_DISCUSSION_TARGET || "triggering";
-              core.info(
-                `Configuration: requiredLabels=${requiredLabels.join(",")}, requiredTitlePrefix=${requiredTitlePrefix}, requiredCategory=${requiredCategory}, target=${target}`
-              );
+              core.info(`Configuration: requiredLabels=${requiredLabels.join(",")}, requiredTitlePrefix=${requiredTitlePrefix}, requiredCategory=${requiredCategory}, target=${target}`);
               const isDiscussionContext = context.eventName === "discussion" || context.eventName === "discussion_comment";
               if (isStaged) {
                 let summaryContent = "## 🎭 Staged Mode: Close Discussions Preview\n\n";
@@ -7619,9 +7061,7 @@ jobs:
                   const workflowSourceURL = process.env.GH_AW_WORKFLOW_SOURCE_URL || "";
                   const runId = context.runId;
                   const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
-                  const runUrl = context.payload.repository
-                    ? `${context.payload.repository.html_url}/actions/runs/${runId}`
-                    : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
+                  const runUrl = context.payload.repository ? `${context.payload.repository.html_url}/actions/runs/${runId}` : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
                   body += getTrackerID("markdown");
                   body += generateFooter(workflowName, runUrl, workflowSource, workflowSourceURL, undefined, undefined, triggeringDiscussionNumber);
                   core.info(`Adding comment to discussion #${discussionNumber}`);
@@ -7876,9 +7316,7 @@ jobs:
               core.setOutput("total_count", missingTools.length.toString());
               if (missingTools.length > 0) {
                 core.info("Missing tools summary:");
-                core.summary
-                  .addHeading("Missing Tools Report", 3)
-                  .addRaw(`Found **${missingTools.length}** missing tool${missingTools.length > 1 ? "s" : ""} in this workflow execution.\n\n`);
+                core.summary.addHeading("Missing Tools Report", 3).addRaw(`Found **${missingTools.length}** missing tool${missingTools.length > 1 ? "s" : ""} in this workflow execution.\n\n`);
                 missingTools.forEach((tool, index) => {
                   core.info(`${index + 1}. Tool: ${tool.tool}`);
                   core.info(`   Reason: ${tool.reason}`);
@@ -8012,9 +7450,7 @@ jobs:
               const messages = getMessages();
               const templateContext = toSnakeCase(ctx);
               const defaultMessage = "⚠️ Security scanning failed for [{workflow_name}]({run_url}). Review the logs for details.";
-              return messages?.detectionFailure
-                ? renderTemplate(messages.detectionFailure, templateContext)
-                : renderTemplate(defaultMessage, templateContext);
+              return messages?.detectionFailure ? renderTemplate(messages.detectionFailure, templateContext) : renderTemplate(defaultMessage, templateContext);
             }
             function collectGeneratedAssets() {
               const assets = [];
@@ -8218,10 +7654,7 @@ jobs:
               let sanitized = content.trim();
               sanitized = sanitized.replace(/\x1b\[[0-9;]*[mGKH]/g, "");
               sanitized = sanitized.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "");
-              sanitized = sanitized.replace(
-                /(^|[^\w`])@([A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?(?:\/[A-Za-z0-9._-]+)?)/g,
-                (_m, p1, p2) => `${p1}\`@${p2}\``
-              );
+              sanitized = sanitized.replace(/(^|[^\w`])@([A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?(?:\/[A-Za-z0-9._-]+)?)/g, (_m, p1, p2) => `${p1}\`@${p2}\``);
               sanitized = sanitized.replace(/[<>&'"]/g, "");
               return sanitized.trim();
             }
@@ -8308,15 +7741,7 @@ jobs:
               parts.push(`run: ${runUrl}`);
               return `<!-- ${parts.join(", ")} -->`;
             }
-            function generateFooter(
-              workflowName,
-              runUrl,
-              workflowSource,
-              workflowSourceURL,
-              triggeringIssueNumber,
-              triggeringPRNumber,
-              triggeringDiscussionNumber
-            ) {
+            function generateFooter(workflowName, runUrl, workflowSource, workflowSourceURL, triggeringIssueNumber, triggeringPRNumber, triggeringDiscussionNumber) {
               let footer = `\n\n> AI generated by [${workflowName}](${runUrl})`;
               if (triggeringIssueNumber) {
                 footer += ` for #${triggeringIssueNumber}`;
@@ -8548,10 +7973,8 @@ jobs:
               }
               const parentIssueNumber = context.payload?.issue?.number;
               const temporaryIdMap = new Map();
-              const triggeringIssueNumber =
-                context.payload?.issue?.number && !context.payload?.issue?.pull_request ? context.payload.issue.number : undefined;
-              const triggeringPRNumber =
-                context.payload?.pull_request?.number || (context.payload?.issue?.pull_request ? context.payload.issue.number : undefined);
+              const triggeringIssueNumber = context.payload?.issue?.number && !context.payload?.issue?.pull_request ? context.payload.issue.number : undefined;
+              const triggeringPRNumber = context.payload?.pull_request?.number || (context.payload?.issue?.pull_request ? context.payload.issue.number : undefined);
               const triggeringDiscussionNumber = context.payload?.discussion?.number;
               const labelsEnv = process.env.GH_AW_ISSUE_LABELS;
               let envLabels = labelsEnv
@@ -8575,9 +7998,7 @@ jobs:
                   continue;
                 }
                 const temporaryId = createIssueItem.temporary_id || generateTemporaryId();
-                core.info(
-                  `Processing create-issue item ${i + 1}/${createIssueItems.length}: title=${createIssueItem.title}, bodyLength=${createIssueItem.body.length}, temporaryId=${temporaryId}, repo=${itemRepo}`
-                );
+                core.info(`Processing create-issue item ${i + 1}/${createIssueItems.length}: title=${createIssueItem.title}, bodyLength=${createIssueItem.body.length}, temporaryId=${temporaryId}, repo=${itemRepo}`);
                 core.info(`Debug: createIssueItem.parent = ${JSON.stringify(createIssueItem.parent)}`);
                 core.info(`Debug: parentIssueNumber from context = ${JSON.stringify(parentIssueNumber)}`);
                 let effectiveParentIssueNumber;
@@ -8590,9 +8011,7 @@ jobs:
                       effectiveParentRepo = resolvedParent.repo;
                       core.info(`Resolved parent temporary ID '${createIssueItem.parent}' to ${effectiveParentRepo}#${effectiveParentIssueNumber}`);
                     } else {
-                      core.warning(
-                        `Parent temporary ID '${createIssueItem.parent}' not found in map. Ensure parent issue is created before sub-issues.`
-                      );
+                      core.warning(`Parent temporary ID '${createIssueItem.parent}' not found in map. Ensure parent issue is created before sub-issues.`);
                       effectiveParentIssueNumber = undefined;
                     }
                   } else {
@@ -8608,9 +8027,7 @@ jobs:
                     effectiveParentIssueNumber = parentIssueNumber;
                   }
                 }
-                core.info(
-                  `Debug: effectiveParentIssueNumber = ${JSON.stringify(effectiveParentIssueNumber)}, effectiveParentRepo = ${effectiveParentRepo}`
-                );
+                core.info(`Debug: effectiveParentIssueNumber = ${JSON.stringify(effectiveParentIssueNumber)}, effectiveParentRepo = ${effectiveParentRepo}`);
                 if (effectiveParentIssueNumber && createIssueItem.parent !== undefined) {
                   core.info(`Using explicit parent issue number from item: ${effectiveParentRepo}#${effectiveParentIssueNumber}`);
                 }
@@ -8650,28 +8067,13 @@ jobs:
                 const workflowSourceURL = process.env.GH_AW_WORKFLOW_SOURCE_URL || "";
                 const runId = context.runId;
                 const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
-                const runUrl = context.payload.repository
-                  ? `${context.payload.repository.html_url}/actions/runs/${runId}`
-                  : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
+                const runUrl = context.payload.repository ? `${context.payload.repository.html_url}/actions/runs/${runId}` : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
                 const trackerIDComment = getTrackerID("markdown");
                 if (trackerIDComment) {
                   bodyLines.push(trackerIDComment);
                 }
                 addExpirationComment(bodyLines, "GH_AW_ISSUE_EXPIRES", "Issue");
-                bodyLines.push(
-                  ``,
-                  ``,
-                  generateFooter(
-                    workflowName,
-                    runUrl,
-                    workflowSource,
-                    workflowSourceURL,
-                    triggeringIssueNumber,
-                    triggeringPRNumber,
-                    triggeringDiscussionNumber
-                  ).trimEnd(),
-                  ""
-                );
+                bodyLines.push(``, ``, generateFooter(workflowName, runUrl, workflowSource, workflowSourceURL, triggeringIssueNumber, triggeringPRNumber, triggeringDiscussionNumber).trimEnd(), "");
                 const body = bodyLines.join("\n").trim();
                 core.info(`Creating issue in ${itemRepo} with title: ${title}`);
                 core.info(`Labels: ${labels}`);
@@ -8749,9 +8151,7 @@ jobs:
                         });
                         core.info("✓ Added comment to parent issue #" + effectiveParentIssueNumber + " (sub-issue linking not available)");
                       } catch (commentError) {
-                        core.info(
-                          `Warning: Could not add comment to parent issue: ${commentError instanceof Error ? commentError.message : String(commentError)}`
-                        );
+                        core.info(`Warning: Could not add comment to parent issue: ${commentError instanceof Error ? commentError.message : String(commentError)}`);
                       }
                     }
                   } else if (effectiveParentIssueNumber && effectiveParentRepo !== itemRepo) {
@@ -9202,10 +8602,7 @@ jobs:
                 core.setOutput("is_team_member", "false");
                 core.setOutput("result", "insufficient_permissions");
                 core.setOutput("user_permission", result.permission);
-                core.setOutput(
-                  "error_message",
-                  `Access denied: User '${actor}' is not authorized. Required permissions: ${requiredPermissions.join(", ")}`
-                );
+                core.setOutput("error_message", `Access denied: User '${actor}' is not authorized. Required permissions: ${requiredPermissions.join(", ")}`);
               }
             }
             await main();

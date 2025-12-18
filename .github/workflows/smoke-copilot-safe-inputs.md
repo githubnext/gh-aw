@@ -1,8 +1,7 @@
 ---
 description: Smoke Copilot Safe Inputs
 on: 
-  schedule:
-    - cron: "0 0,7,13,19 * * *"  # Every 6 hours
+  schedule: daily
   workflow_dispatch:
   pull_request:
     types: [labeled]
@@ -36,12 +35,6 @@ safe-outputs:
       expires: 1d
     add-labels:
       allowed: [smoke-copilot]
-    messages:
-      footer: "📰🔥📋 [{run_url}]({run_url})"
-      run-started: "📰🚀🔍👀📡🕵️ [{run_url}]({run_url})"
-      run-success: "📰✅🎉🏁✨🎤 [{run_url}]({run_url})"
-      run-failure: "📰⚠️🔥❌🚨🔧 [{run_url}]({run_url})"
-timeout-minutes: 5
 strict: true
 ---
 

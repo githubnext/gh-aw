@@ -212,9 +212,7 @@ describe("log_parser_bootstrap.cjs", () => {
         parserName: "TestParser",
       });
 
-      expect(mockCore.setFailed).toHaveBeenCalledWith(
-        "Agent execution stopped: max-turns limit reached. The agent did not complete its task successfully."
-      );
+      expect(mockCore.setFailed).toHaveBeenCalledWith("Agent execution stopped: max-turns limit reached. The agent did not complete its task successfully.");
 
       fs.unlinkSync(logFile);
       fs.rmdirSync(tmpDir);

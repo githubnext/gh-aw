@@ -19,1082 +19,12 @@
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/aw/github-agentic-workflows.md
 #
-#
 # Analyze all past campaigns to generate insights, recommendations, and organizational learning
-#
-# Original Frontmatter:
-# ```yaml
-# name: Campaign Intelligence System
-# description: Analyze all past campaigns to generate insights, recommendations, and organizational learning
-# timeout-minutes: 20
-# strict: true
-#
-# on:
-#   schedule:
-#     - cron: '0 9 1 * *'  # Monthly on 1st at 9 AM
-#   workflow_dispatch:
-#     inputs:
-#       analysis_type:
-#         description: 'Type of analysis to run'
-#         type: choice
-#         required: false
-#         default: 'full'
-#         options:
-#           - full
-#           - trends
-#           - recommendations
-#           - benchmarks
-#
-# permissions:
-#   contents: read
-#   issues: read
-#
-# engine: copilot
-#
-# safe-outputs:
-#   create-issue:
-#     max: 1  # Intelligence report issue
-#
-# tools:
-#   github:
-#     toolsets: [repos, issues, search]
-#   repo-memory:
-#     branch-name: memory/campaigns
-#     file-glob: "**/**"  # Read all campaign data
-#
-# imports:
-#   - shared/trends.md
-#
-# ```
 #
 # Resolved workflow manifest:
 #   Imports:
 #     - shared/trends.md
 #     - shared/python-dataviz.md
-#
-# Job Dependency Graph:
-# ```mermaid
-# graph LR
-#   activation["activation"]
-#   agent["agent"]
-#   conclusion["conclusion"]
-#   create_issue["create_issue"]
-#   detection["detection"]
-#   push_repo_memory["push_repo_memory"]
-#   update_cache_memory["update_cache_memory"]
-#   upload_assets["upload_assets"]
-#   activation --> agent
-#   activation --> conclusion
-#   agent --> conclusion
-#   agent --> create_issue
-#   agent --> detection
-#   agent --> push_repo_memory
-#   agent --> update_cache_memory
-#   agent --> upload_assets
-#   create_issue --> conclusion
-#   detection --> conclusion
-#   detection --> create_issue
-#   detection --> push_repo_memory
-#   detection --> update_cache_memory
-#   detection --> upload_assets
-#   push_repo_memory --> conclusion
-#   update_cache_memory --> conclusion
-#   upload_assets --> conclusion
-# ```
-#
-# Original Prompt:
-# ```markdown
-# # Trends Visualization Guide
-#
-# You are an expert at creating compelling trend visualizations that reveal insights from data over time.
-#
-# ## Trending Chart Best Practices
-#
-# When generating trending charts, focus on:
-#
-# ### 1. **Time Series Excellence**
-# - Use line charts for continuous trends over time
-# - Add trend lines or moving averages to highlight patterns
-# - Include clear date/time labels on the x-axis
-# - Show confidence intervals or error bands when relevant
-#
-# ### 2. **Comparative Trends**
-# - Use multi-line charts to compare multiple trends
-# - Apply distinct colors for each series with a clear legend
-# - Consider using area charts for stacked trends
-# - Highlight key inflection points or anomalies
-#
-# ### 3. **Visual Impact**
-# - Use vibrant, contrasting colors to make trends stand out
-# - Add annotations for significant events or milestones
-# - Include grid lines for easier value reading
-# - Use appropriate scale (linear vs. logarithmic)
-#
-# ### 4. **Contextual Information**
-# - Show percentage changes or growth rates
-# - Include baseline comparisons (year-over-year, month-over-month)
-# - Add summary statistics (min, max, average, median)
-# - Highlight recent trends vs. historical patterns
-#
-# ## Example Trend Chart Types
-#
-# ### Temporal Trends
-# ```python
-# # Line chart with multiple trends
-# fig, ax = plt.subplots(figsize=(12, 7), dpi=300)
-# for column in data.columns:
-#     ax.plot(data.index, data[column], marker='o', label=column, linewidth=2)
-# ax.set_title('Trends Over Time', fontsize=16, fontweight='bold')
-# ax.set_xlabel('Date', fontsize=12)
-# ax.set_ylabel('Value', fontsize=12)
-# ax.legend(loc='best')
-# ax.grid(True, alpha=0.3)
-# plt.xticks(rotation=45)
-# ```
-#
-# ### Growth Rates
-# ```python
-# # Bar chart showing period-over-period growth
-# fig, ax = plt.subplots(figsize=(10, 6), dpi=300)
-# growth_data.plot(kind='bar', ax=ax, color=sns.color_palette("husl"))
-# ax.set_title('Growth Rates by Period', fontsize=16, fontweight='bold')
-# ax.axhline(y=0, color='black', linestyle='-', linewidth=0.8)
-# ax.set_ylabel('Growth %', fontsize=12)
-# ```
-#
-# ### Moving Averages
-# ```python
-# # Trend with moving average overlay
-# fig, ax = plt.subplots(figsize=(12, 7), dpi=300)
-# ax.plot(dates, values, label='Actual', alpha=0.5, linewidth=1)
-# ax.plot(dates, moving_avg, label='7-day Moving Average', linewidth=2.5)
-# ax.fill_between(dates, values, moving_avg, alpha=0.2)
-# ```
-#
-# ## Data Preparation for Trends
-#
-# ### Time-Based Indexing
-# ```python
-# # Convert to datetime and set as index
-# data['date'] = pd.to_datetime(data['date'])
-# data.set_index('date', inplace=True)
-# data = data.sort_index()
-# ```
-#
-# ### Resampling and Aggregation
-# ```python
-# # Resample daily data to weekly
-# weekly_data = data.resample('W').mean()
-#
-# # Calculate rolling statistics
-# data['rolling_mean'] = data['value'].rolling(window=7).mean()
-# data['rolling_std'] = data['value'].rolling(window=7).std()
-# ```
-#
-# ### Growth Calculations
-# ```python
-# # Calculate percentage change
-# data['pct_change'] = data['value'].pct_change() * 100
-#
-# # Calculate year-over-year growth
-# data['yoy_growth'] = data['value'].pct_change(periods=365) * 100
-# ```
-#
-# ## Color Palettes for Trends
-#
-# Use these palettes for impactful trend visualizations:
-#
-# - **Sequential trends**: `sns.color_palette("viridis", n_colors=5)`
-# - **Diverging trends**: `sns.color_palette("RdYlGn", n_colors=7)`
-# - **Multiple series**: `sns.color_palette("husl", n_colors=8)`
-# - **Categorical**: `sns.color_palette("Set2", n_colors=6)`
-#
-# ## Annotation Best Practices
-#
-# ```python
-# # Annotate key points
-# max_idx = data['value'].idxmax()
-# max_val = data['value'].max()
-# ax.annotate(f'Peak: {max_val:.2f}',
-#             xy=(max_idx, max_val),
-#             xytext=(10, 20),
-#             textcoords='offset points',
-#             arrowprops=dict(arrowstyle='->', color='red'),
-#             fontsize=10,
-#             fontweight='bold')
-# ```
-#
-# ## Styling for Awesome Charts
-#
-# ```python
-# import matplotlib.pyplot as plt
-# import seaborn as sns
-#
-# # Set professional style
-# sns.set_style("whitegrid")
-# sns.set_context("notebook", font_scale=1.2)
-#
-# # Custom color palette
-# custom_colors = ["#FF6B6B", "#4ECDC4", "#45B7D1", "#FFA07A", "#98D8C8"]
-# sns.set_palette(custom_colors)
-#
-# # Figure with optimal dimensions
-# fig, ax = plt.subplots(figsize=(14, 8), dpi=300)
-#
-# # ... your plotting code ...
-#
-# # Tight layout for clean appearance
-# plt.tight_layout()
-#
-# # Save with high quality
-# plt.savefig('/tmp/gh-aw/python/charts/trend_chart.png',
-#             dpi=300,
-#             bbox_inches='tight',
-#             facecolor='white',
-#             edgecolor='none')
-# ```
-#
-# ## Tips for Trending Charts
-#
-# 1. **Start with the story**: What trend are you trying to show?
-# 2. **Choose the right timeframe**: Match granularity to the pattern
-# 3. **Smooth noise**: Use moving averages for volatile data
-# 4. **Show context**: Include historical baselines or benchmarks
-# 5. **Highlight insights**: Use annotations to draw attention
-# 6. **Test readability**: Ensure labels and legends are clear
-# 7. **Optimize colors**: Use colorblind-friendly palettes
-# 8. **Export high quality**: Always use DPI 300+ for presentations
-#
-# ## Common Trend Patterns to Visualize
-#
-# - **Seasonal patterns**: Monthly or quarterly cycles
-# - **Long-term growth**: Exponential or linear trends
-# - **Volatility changes**: Periods of stability vs. fluctuation
-# - **Correlations**: How multiple trends relate
-# - **Anomalies**: Outliers or unusual events
-# - **Forecasts**: Projected future trends with uncertainty
-#
-# Remember: The best trending charts tell a clear story, make patterns obvious, and inspire action based on the insights revealed.
-#
-# # Python Data Visualization Guide
-#
-# Python scientific libraries have been installed and are ready for use. A temporary folder structure has been created at `/tmp/gh-aw/python/` for organizing scripts, data, and outputs.
-#
-# ## Installed Libraries
-#
-# - **NumPy**: Array processing and numerical operations
-# - **Pandas**: Data manipulation and analysis
-# - **Matplotlib**: Chart generation and plotting
-# - **Seaborn**: Statistical data visualization
-# - **SciPy**: Scientific computing utilities
-#
-# ## Directory Structure
-#
-# ```
-# /tmp/gh-aw/python/
-# ├── data/          # Store all data files here (CSV, JSON, etc.)
-# ├── charts/        # Generated chart images (PNG)
-# ├── artifacts/     # Additional output files
-# └── *.py           # Python scripts
-# ```
-#
-# ## Data Separation Requirement
-#
-# **CRITICAL**: Data must NEVER be inlined in Python code. Always store data in external files and load using pandas.
-#
-# ### ❌ PROHIBITED - Inline Data
-# ```python
-# # DO NOT do this
-# data = [10, 20, 30, 40, 50]
-# labels = ['A', 'B', 'C', 'D', 'E']
-# ```
-#
-# ### ✅ REQUIRED - External Data Files
-# ```python
-# # Always load data from external files
-# import pandas as pd
-#
-# # Load data from CSV
-# data = pd.read_csv('/tmp/gh-aw/python/data/data.csv')
-#
-# # Or from JSON
-# data = pd.read_json('/tmp/gh-aw/python/data/data.json')
-# ```
-#
-# ## Chart Generation Best Practices
-#
-# ### High-Quality Chart Settings
-#
-# ```python
-# import matplotlib.pyplot as plt
-# import seaborn as sns
-#
-# # Set style for better aesthetics
-# sns.set_style("whitegrid")
-# sns.set_palette("husl")
-#
-# # Create figure with high DPI
-# fig, ax = plt.subplots(figsize=(10, 6), dpi=300)
-#
-# # Your plotting code here
-# # ...
-#
-# # Save with high quality
-# plt.savefig('/tmp/gh-aw/python/charts/chart.png', 
-#             dpi=300, 
-#             bbox_inches='tight',
-#             facecolor='white',
-#             edgecolor='none')
-# ```
-#
-# ### Chart Quality Guidelines
-#
-# - **DPI**: Use 300 or higher for publication quality
-# - **Figure Size**: Standard is 10x6 inches (adjustable based on needs)
-# - **Labels**: Always include clear axis labels and titles
-# - **Legend**: Add legends when plotting multiple series
-# - **Grid**: Enable grid lines for easier reading
-# - **Colors**: Use colorblind-friendly palettes (seaborn defaults are good)
-#
-# ## Including Images in Reports
-#
-# When creating reports (issues, discussions, etc.), use the `upload asset` tool to make images URL-addressable and include them in markdown:
-#
-# ### Step 1: Generate and Upload Chart
-# ```python
-# # Generate your chart
-# plt.savefig('/tmp/gh-aw/python/charts/my_chart.png', dpi=300, bbox_inches='tight')
-# ```
-#
-# ### Step 2: Upload as Asset
-# Use the `upload asset` tool to upload the chart file. The tool will return a GitHub raw content URL.
-#
-# ### Step 3: Include in Markdown Report
-# When creating your discussion or issue, include the image using markdown:
-#
-# ```markdown
-# ## Visualization Results
-#
-# ![Chart Description](https://raw.githubusercontent.com/owner/repo/assets/workflow-name/my_chart.png)
-#
-# The chart above shows...
-# ```
-#
-# **Important**: Assets are published to an orphaned git branch and become URL-addressable after workflow completion.
-#
-# ## Cache Memory Integration
-#
-# The cache memory at `/tmp/gh-aw/cache-memory/` is available for storing reusable code:
-#
-# **Helper Functions to Cache:**
-# - Data loading utilities: `data_loader.py`
-# - Chart styling functions: `chart_utils.py`
-# - Common data transformations: `transforms.py`
-#
-# **Check Cache Before Creating:**
-# ```bash
-# # Check if helper exists in cache
-# if [ -f /tmp/gh-aw/cache-memory/data_loader.py ]; then
-#   cp /tmp/gh-aw/cache-memory/data_loader.py /tmp/gh-aw/python/
-#   echo "Using cached data_loader.py"
-# fi
-# ```
-#
-# **Save to Cache for Future Runs:**
-# ```bash
-# # Save useful helpers to cache
-# cp /tmp/gh-aw/python/data_loader.py /tmp/gh-aw/cache-memory/
-# echo "Saved data_loader.py to cache for future runs"
-# ```
-#
-# ## Complete Example Workflow
-#
-# ```python
-# #!/usr/bin/env python3
-# """
-# Example data visualization script
-# Generates a bar chart from external data
-# """
-# import pandas as pd
-# import matplotlib.pyplot as plt
-# import seaborn as sns
-#
-# # Set style
-# sns.set_style("whitegrid")
-# sns.set_palette("husl")
-#
-# # Load data from external file (NEVER inline)
-# data = pd.read_csv('/tmp/gh-aw/python/data/data.csv')
-#
-# # Process data
-# summary = data.groupby('category')['value'].sum()
-#
-# # Create chart
-# fig, ax = plt.subplots(figsize=(10, 6), dpi=300)
-# summary.plot(kind='bar', ax=ax)
-#
-# # Customize
-# ax.set_title('Data Summary by Category', fontsize=16, fontweight='bold')
-# ax.set_xlabel('Category', fontsize=12)
-# ax.set_ylabel('Value', fontsize=12)
-# ax.grid(True, alpha=0.3)
-#
-# # Save chart
-# plt.savefig('/tmp/gh-aw/python/charts/chart.png',
-#             dpi=300,
-#             bbox_inches='tight',
-#             facecolor='white')
-#
-# print("Chart saved to /tmp/gh-aw/python/charts/chart.png")
-# ```
-#
-# ## Error Handling
-#
-# **Check File Existence:**
-# ```python
-# import os
-#
-# data_file = '/tmp/gh-aw/python/data/data.csv'
-# if not os.path.exists(data_file):
-#     raise FileNotFoundError(f"Data file not found: {data_file}")
-# ```
-#
-# **Validate Data:**
-# ```python
-# # Check for required columns
-# required_cols = ['category', 'value']
-# missing = set(required_cols) - set(data.columns)
-# if missing:
-#     raise ValueError(f"Missing columns: {missing}")
-# ```
-#
-# ## Artifact Upload
-#
-# Charts and source files are automatically uploaded as artifacts:
-#
-# **Charts Artifact:**
-# - Name: `data-charts`
-# - Contents: PNG files from `/tmp/gh-aw/python/charts/`
-# - Retention: 30 days
-#
-# **Source and Data Artifact:**
-# - Name: `python-source-and-data`
-# - Contents: Python scripts and data files
-# - Retention: 30 days
-#
-# Both artifacts are uploaded with `if: always()` condition, ensuring they're available even if the workflow fails.
-#
-# ## Tips for Success
-#
-# 1. **Always Separate Data**: Store data in files, never inline in code
-# 2. **Use Cache Memory**: Store reusable helpers for faster execution
-# 3. **High Quality Charts**: Use DPI 300+ and proper sizing
-# 4. **Clear Documentation**: Add docstrings and comments
-# 5. **Error Handling**: Validate data and check file existence
-# 6. **Type Hints**: Use type annotations for better code quality
-# 7. **Seaborn Defaults**: Leverage seaborn for better aesthetics
-# 8. **Reproducibility**: Set random seeds when needed
-#
-# ## Common Data Sources
-#
-# Based on common use cases:
-#
-# **Repository Statistics:**
-# ```python
-# # Collect via GitHub API, save to data.csv
-# # Then load and visualize
-# data = pd.read_csv('/tmp/gh-aw/python/data/repo_stats.csv')
-# ```
-#
-# **Workflow Metrics:**
-# ```python
-# # Collect via GitHub Actions API, save to data.json
-# data = pd.read_json('/tmp/gh-aw/python/data/workflow_metrics.json')
-# ```
-#
-# **Sample Data Generation:**
-# ```python
-# # Generate with NumPy, save to file first
-# import numpy as np
-# data = np.random.randn(100, 2)
-# df = pd.DataFrame(data, columns=['x', 'y'])
-# df.to_csv('/tmp/gh-aw/python/data/sample_data.csv', index=False)
-#
-# # Then load it back (demonstrating the pattern)
-# data = pd.read_csv('/tmp/gh-aw/python/data/sample_data.csv')
-# ```
-#
-# # Campaign Intelligence System
-#
-# **Purpose**: Analyze all completed campaigns to generate organizational intelligence, predict future needs, optimize campaign strategy, and build institutional knowledge.
-#
-# **The Compounding Value**: Each campaign makes the next one smarter. This workflow transforms individual campaign learnings into organizational intelligence.
-#
-# ## Intelligence Analysis
-#
-# ### 1. Discover All Campaigns
-#
-# **Query repo-memory** for all campaign data:
-# ```bash
-# memory/campaigns/
-# ├── incident-*/
-# ├── org-rollout-*/
-# ├── security-compliance-*/
-# ├── human-ai-collab-*/
-# └── [any other campaign types that have run]
-# ```
-#
-# **Extract from each campaign**:
-# - Type (incident-response, org-rollout, security-compliance, human-ai-collab, etc.)
-# - Duration (start → complete)
-# - Scope (repos affected, items processed)
-# - Outcomes (success rate, items completed)
-# - Cost (AI usage, engineering hours)
-# - ROI (value delivered vs cost)
-# - Learnings (what worked, what didn't)
-# - Human decisions (approval rates, deferrals)
-#
-# ### 1.5. Prepare Metrics for Trend Charts
-#
-# Using the Python data visualization environment from `shared/trends.md` (which imports `shared/python-dataviz.md`):
-#
-# - Aggregate a **flat metrics table** across campaigns with columns like:
-#   - `date` (e.g., campaign completion date)
-#   - `campaign_id`
-#   - `type` (incident, rollout, security, human-ai)
-#   - `tasks_total`, `tasks_completed`, `velocity_per_day`
-#   - `success_rate`, `roi`, `cost_per_item`
-# - Write this table to `/tmp/gh-aw/python/data/campaign-metrics.csv` (or `.json`).
-# - This file will be used for trend visualizations.
-#
-# ### 2. Cross-Campaign Analysis
-#
-# **Store intelligence** in `memory/intelligence/campaign-analysis-${{ github.run_id }}.json`:
-#
-# ```json
-# {
-#   "analysis_date": "[timestamp]",
-#   "campaigns_analyzed": 23,
-#   "date_range": "2024-Q1 to 2025-Q4",
-#
-#   "by_type": {
-#     "incident_response": {
-#       "count": 8,
-#       "avg_duration_hours": 4.2,
-#       "avg_success_rate": "94%",
-#       "avg_time_to_resolution_minutes": 65,
-#       "avg_cost": "$2,800",
-#       "total_value_delivered": "$340K",
-#       "trend": "improving - AI analysis reducing MTTR by 40%"
-#     },
-#     "org_rollout": {
-#       "count": 12,
-#       "avg_duration_hours": 18.5,
-#       "avg_success_rate": "91%",
-#       "avg_repos_affected": 147,
-#       "avg_cost": "$6,500",
-#       "time_saved_vs_manual_hours": 120,
-#       "trend": "improving - dependency detection getting more accurate"
-#     },
-#     "security_compliance": {
-#       "count": 6,
-#       "avg_duration_weeks": 3.5,
-#       "avg_success_rate": "98%",
-#       "avg_vulnerabilities_fixed": 87,
-#       "avg_cost": "$8,200",
-#       "audit_pass_rate": "100%",
-#       "trend": "stable - maintaining high audit pass rate"
-#     },
-#     "human_ai_collab": {
-#       "count": 2,
-#       "avg_duration_weeks": 5.5,
-#       "human_approval_rate": "78%",
-#       "ai_recommendation_accuracy": "91%",
-#       "trend": "learning - AI getting more accurate"
-#     }
-#   },
-#
-#   "organizational_trends": {
-#     "velocity": {
-#       "2024_Q1": "15 items/week",
-#       "2024_Q4": "28 items/week",
-#       "2025_Q4": "42 items/week",
-#       "trend": "improving 180% over 2 years"
-#     },
-#     "success_rate": {
-#       "first_5_campaigns": "82%",
-#       "last_5_campaigns": "94%",
-#       "trend": "learning from experience"
-#     },
-#     "roi": {
-#       "2024_avg": "8.5x",
-#       "2025_avg": "13.2x",
-#       "trend": "improving efficiency"
-#     },
-#     "cost_per_item": {
-#       "2024_avg": "$180/item",
-#       "2025_avg": "$95/item",
-#       "trend": "47% cost reduction through learning"
-#     }
-#   },
-#
-#   "seasonal_patterns": {
-#     "Q1": {
-#       "most_common": "security (compliance deadlines)",
-#       "avg_duration": "4 weeks",
-#       "success_rate": "91%"
-#     },
-#     "Q2": {
-#       "most_common": "tech-debt (post-planning)",
-#       "avg_duration": "6 weeks",
-#       "success_rate": "88%"
-#     },
-#     "Q3": {
-#       "most_common": "dependency (summer updates)",
-#       "avg_duration": "2 weeks",
-#       "success_rate": "92%"
-#     },
-#     "Q4": {
-#       "most_common": "cost-optimization (budget planning)",
-#       "avg_duration": "5 weeks",
-#       "success_rate": "95%"
-#     }
-#   },
-#
-#   "success_factors": {
-#     "what_predicts_success": [
-#       "Clear scope (specific item count) → 96% success",
-#       "Executive sponsor engagement → 94% success",
-#       "Staged rollout strategy → 93% success",
-#       "Human-AI collaboration → 91% success",
-#       "Budget approved upfront → 89% success"
-#     ],
-#     "what_predicts_failure": [
-#       "Vague scope → 65% success",
-#       "No executive sponsor → 71% success",
-#       "Big-bang deployment → 73% success",
-#       "Full automation (no human review) → 78% success"
-#     ]
-#   },
-#
-#   "common_failure_patterns": {
-#     "underestimated_effort": {
-#       "frequency": "23% of campaigns",
-#       "avg_overrun": "40% over estimate",
-#       "root_cause": "Complex dependencies not discovered upfront",
-#       "recommendation": "Add 2-week discovery phase before committing to timeline"
-#     },
-#     "scope_creep": {
-#       "frequency": "18% of campaigns",
-#       "avg_overrun": "65% over scope",
-#       "root_cause": "Additional items added during execution",
-#       "recommendation": "Lock scope after approval, defer new items to next campaign"
-#     },
-#     "human_bottleneck": {
-#       "frequency": "15% of campaigns",
-#       "avg_delay": "1.5 weeks",
-#       "root_cause": "Approvals waiting for humans",
-#       "recommendation": "Set SLA for human approvals (48 hours), auto-escalate"
-#     }
-#   },
-#
-#   "ai_learning_trends": {
-#     "risk_assessment_accuracy": {
-#       "first_5_campaigns": "78%",
-#       "last_5_campaigns": "91%",
-#       "improvement": "13 percentage points"
-#     },
-#     "effort_estimation_accuracy": {
-#       "first_5_campaigns": "±45%",
-#       "last_5_campaigns": "±18%",
-#       "improvement": "60% more accurate"
-#     },
-#     "recommendation_acceptance_rate": {
-#       "low_risk_items": "97% accepted by humans",
-#       "medium_risk_items": "78% accepted",
-#       "high_risk_items": "62% accepted",
-#       "trend": "Humans trust AI more on low-risk, question high-risk (appropriate)"
-#     }
-#   },
-#
-#   "organizational_maturity": {
-#     "current_level": "Advanced",
-#     "progression": [
-#       "2024-Q1: Beginner - First campaigns, learning how it works",
-#       "2024-Q3: Intermediate - Consistent execution, starting to optimize",
-#       "2025-Q2: Advanced - Predictable outcomes, continuous improvement",
-#       "2025-Q4: Expert - Proactive campaign planning, high efficiency"
-#     ],
-#     "maturity_indicators": {
-#       "campaign_success_rate": "94% (Expert level: >90%)",
-#       "roi": "13.2x (Expert level: >10x)",
-#       "velocity_improvement": "180% over 2 years (Expert level: >100%)",
-#       "cost_reduction": "47% (Expert level: >30%)"
-#     }
-#   }
-# }
-# ```
-#
-#   ### 2.5. Visualize Campaign Trends
-#
-#   Using the `shared/trends.md` import and the metrics file written to `/tmp/gh-aw/python/data/campaign-metrics.csv`:
-#
-#   1. Load the metrics into a pandas DataFrame and set `date` as the index.
-#   2. Generate **trend charts** (velocity, success rate, ROI, cost per item) over time using the examples from `shared/trends.md`.
-#   3. Save charts under `/tmp/gh-aw/python/charts/`, for example:
-#
-#     ```python
-#     plt.savefig('/tmp/gh-aw/python/charts/campaign_velocity_trend.png',
-#             dpi=300,
-#             bbox_inches='tight',
-#             facecolor='white',
-#             edgecolor='none')
-#     ```
-#
-#   4. The shared Python data viz import will automatically upload these PNGs as workflow artifacts, so stakeholders can download high-quality screenshots from the workflow run.
-#
-#   5. Optionally, copy 1–2 key charts into a stable path in repo-memory (for example, `memory/intelligence/charts/`) and reference them from:
-#     - A **monthly intelligence issue** (created via `safe-outputs.create-issue`)
-#     - Per-campaign final report Markdown under `memory/campaigns/.../final-report.md`
-#     - A pinned "Campaign Intelligence" GitHub Discussion that links to each monthly run
-#
-#   **Recommended monthly intelligence issue format**:
-#
-#   - **Title**: `Campaign Intelligence – ${ANALYSIS_YEAR}-${ANALYSIS_MONTH}` (for example, `Campaign Intelligence – 2025-12`)
-#   - **Body sections**:
-#     - Summary metrics (campaigns analyzed, success rate, ROI, velocity)
-#     - Key trends (bullet list with 3–5 bullets)
-#     - Top recommendations for the next 1–2 quarters
-#     - Links:
-#       - To the workflow run that produced this report
-#       - To the chart artifacts (trend PNGs)
-#       - To any updated playbooks or campaign specs
-#
-# ### 3. Generate Recommendations
-#
-# **Predictive intelligence** for future campaigns:
-#
-# ```json
-# {
-#   "recommendations": {
-#     "immediate": [
-#       {
-#         "type": "security",
-#         "confidence": "high",
-#         "rationale": "Q1 approaching, historically best time for security campaigns",
-#         "suggested_scope": "75 vulnerabilities (based on your velocity)",
-#         "estimated_duration": "3.5 weeks (improving from 4.2 week average)",
-#         "estimated_cost": "$3,800 (trend shows decreasing costs)",
-#         "estimated_roi": "14x (above your 12x average)",
-#         "optimal_start_date": "2026-01-15",
-#         "key_success_factors": [
-#           "Assign executive sponsor early",
-#           "Use staged rollout (proven 93% success)",
-#           "Include 1-week discovery phase"
-#         ]
-#       },
-#       {
-#         "type": "tech-debt",
-#         "confidence": "medium",
-#         "rationale": "Last tech-debt campaign was 6 months ago, code quality metrics declining",
-#         "suggested_scope": "40 repos (your sweet spot based on past campaigns)",
-#         "estimated_duration": "6 weeks",
-#         "warning": "Tech-debt campaigns have high variance - recommend better upfront scoping"
-#       }
-#     ],
-#
-#     "avoid": [
-#       {
-#         "type": "dependency",
-#         "timing": "Q4 2025",
-#         "rationale": "Holiday season - historically 40% higher failure rate due to team availability",
-#         "alternative": "Schedule for Q1 2026 instead"
-#       }
-#     ],
-#
-#     "optimize": [
-#       {
-#         "finding": "Cost-optimization campaigns have 18x ROI (highest)",
-#         "recommendation": "Run cost-optimization campaigns quarterly instead of annually",
-#         "projected_value": "Additional $75K/year savings"
-#       },
-#       {
-#         "finding": "Human approval bottleneck causes 1.5 week delays",
-#         "recommendation": "Implement 48-hour SLA for approvals with auto-escalation",
-#         "projected_impact": "20% faster campaigns"
-#       },
-#       {
-#         "finding": "AI risk assessment now 91% accurate",
-#         "recommendation": "Increase auto-execution threshold for low-risk items",
-#         "projected_impact": "30% reduction in human review burden"
-#       }
-#     ]
-#   }
-# }
-# ```
-#
-# ### 4. Benchmark Against Best Practices
-#
-# **Compare your organization to patterns**:
-#
-# ```json
-# {
-#   "benchmarks": {
-#     "your_organization": {
-#       "campaigns_per_year": 12,
-#       "avg_success_rate": "94%",
-#       "avg_roi": "13.2x",
-#       "avg_velocity": "42 items/week",
-#       "cost_efficiency": "$95/item"
-#     },
-#
-#     "patterns_observed": {
-#       "high_performing_orgs": {
-#         "campaigns_per_year": "10-15",
-#         "success_rate": ">90%",
-#         "roi": ">10x",
-#         "velocity": ">35 items/week"
-#       },
-#       "your_status": "High performing - in top 20%",
-#       "strengths": [
-#         "Excellent success rate (94% vs 90% benchmark)",
-#         "Outstanding ROI (13.2x vs 10x benchmark)",
-#         "High velocity (42 vs 35 benchmark)"
-#       ],
-#       "opportunities": [
-#         "Could run 15 campaigns/year based on velocity",
-#         "Cost optimization campaigns underutilized (3/year vs optimal 4/year)"
-#       ]
-#     },
-#
-#     "industry_insights": {
-#       "common_mistakes": [
-#         "Insufficient discovery phase (you: doing well)",
-#         "No executive sponsorship (you: doing well)",
-#         "Big-bang deployments (you: using staged rollout ✓)",
-#         "No learning capture (you: tracking everything ✓)"
-#       ],
-#       "emerging_patterns": [
-#         "AI-human collaboration increasing (you're early adopter)",
-#         "Risk-tiered execution becoming standard (you're implementing)",
-#         "Continuous learning systems gaining traction (you're leading)"
-#       ]
-#     }
-#   }
-# }
-# ```
-#
-# ### 5. Build Institutional Knowledge
-#
-# **Organizational playbooks** based on experience:
-#
-# ```json
-# {
-#   "playbooks": {
-#     "security_campaign": {
-#       "based_on": "8 campaigns over 2 years",
-#       "proven_approach": {
-#         "discovery": "1 week - scan all repos, prioritize by CVSS score",
-#         "planning": "Use staged rollout: canary → early → majority → critical",
-#         "execution": "Auto-execute low-risk, require security team review for high-risk",
-#         "timeline": "4 weeks average (trending down to 3.5 weeks)",
-#         "budget": "$4,500 average",
-#         "success_factors": [
-#           "CISO as executive sponsor (100% success when present)",
-#           "Weekly updates to security team (reduces delays)",
-#           "Automated testing before merge (prevents regressions)"
-#         ],
-#         "pitfalls_to_avoid": [
-#           "Don't underestimate breaking changes in major versions",
-#           "Always check changelog before updating",
-#           "Schedule security reviews early (not bottleneck at end)"
-#         ]
-#       }
-#     },
-#
-#     "cost_optimization_campaign": {
-#       "based_on": "3 campaigns, $180K total savings",
-#       "proven_approach": {
-#         "discovery": "2 weeks - full cloud resource audit",
-#         "pareto_analysis": "Focus on top 20% of resources (80% of waste)",
-#         "waves": "Quick wins → Low risk → Medium risk → High risk",
-#         "timeline": "6 weeks",
-#         "roi": "18x average (best performing campaign type)",
-#         "success_factors": [
-#           "CFO approval critical (changes budget planning)",
-#           "Pareto analysis focuses effort effectively",
-#           "Monthly savings tracking proves sustained value"
-#         ]
-#       }
-#     },
-#
-#     "dependency_update_campaign": {
-#       "based_on": "6 campaigns across 200+ repos",
-#       "proven_approach": {
-#         "fastest_campaign_type": "2.1 weeks average",
-#         "automation_friendly": "89% success with high automation",
-#         "staged_rollout": "Essential - catches breaking changes early",
-#         "common_issue": "Major version updates - always check for breaking changes",
-#         "best_timing": "Q3 (summer) - fewer conflicts with other initiatives"
-#       }
-#     }
-#   }
-# }
-# ```
-#
-# ### 6. Create Intelligence Report
-#
-# **Issue for executives**: "📊 Monthly Campaign Intelligence Report"
-#
-# **Labels**: `intelligence-report`, `executive-briefing`
-#
-# **Body**:
-# ```markdown
-# # Campaign Intelligence Report - [Month Year]
-#
-# **Analysis Period**: [Date range]
-# **Campaigns Analyzed**: 23 campaigns over 2 years
-# **Report Generated**: [timestamp]
-#
-# ## 🎯 Executive Summary
-#
-# Your organization has achieved **Expert-level campaign maturity**:
-# - ✅ 94% success rate (Expert benchmark: >90%)
-# - ✅ 13.2x average ROI (Expert benchmark: >10x)
-# - ✅ $2.4M total value delivered over 2 years
-# - ✅ 180% velocity improvement
-# - ✅ 47% cost reduction per item
-#
-# **Status**: Top 20% of organizations using campaign patterns
-#
-# ## 📈 Trends (2-Year View)
-#
-# ### Performance Improving
-# - Velocity: 15 → 42 items/week (+180%)
-# - Success rate: 82% → 94% (+12 pts)
-# - ROI: 8.5x → 13.2x (+55%)
-# - Cost per item: $180 → $95 (-47%)
-#
-# **Trend**: Getting faster, cheaper, and more reliable over time ✅
-#
-# ### AI Learning Improving
-# - Risk assessment accuracy: 78% → 91% (+13 pts)
-# - Effort estimation: ±45% → ±18% error (+60% accuracy)
-# - Human trust in AI recommendations: Increasing appropriately
-#
-# **Trend**: AI getting smarter from each campaign ✅
-#
-# ## 🎯 Recommendations for Next Quarter
-#
-# ### 1. Run Q1 Security Campaign (HIGH CONFIDENCE)
-# - **Why**: Q1 is optimal timing based on 2-year history
-# - **Scope**: 75 vulnerabilities (based on your velocity)
-# - **Duration**: 3.5 weeks (improving)
-# - **Cost**: $3,800
-# - **Expected ROI**: 14x
-# - **Start Date**: January 15, 2026
-# - **Value**: $53K estimated
-#
-# ### 2. Increase Cost-Optimization Cadence (HIGH VALUE)
-# - **Why**: 18x ROI (your highest performing campaign type)
-# - **Current**: 3 times/year
-# - **Recommended**: 4 times/year (quarterly)
-# - **Additional Value**: $75K/year
-# - **Risk**: Low (proven success)
-#
-# ### 3. Implement Approval SLA (EFFICIENCY GAIN)
-# - **Issue**: Human approvals cause 1.5 week delays
-# - **Fix**: 48-hour SLA with auto-escalation
-# - **Impact**: 20% faster campaigns
-# - **Cost**: Minimal (process change)
-#
-# ## 💡 Key Insights
-#
-# ### What's Working
-# 1. **Staged rollouts**: 93% success rate (vs 73% big-bang)
-# 2. **Executive sponsorship**: 94% success (vs 71% without)
-# 3. **Human-AI collaboration**: 91% AI accuracy with human oversight
-# 4. **Cost optimization focus**: 18x ROI (highest value type)
-#
-# ### What to Improve
-# 1. **Tech-debt campaigns**: High variance (87% success, wide range)
-#    - Recommendation: Better upfront scoping, add discovery phase
-# 2. **Scope creep**: 18% of campaigns exceed scope
-#    - Recommendation: Lock scope after approval, defer to next campaign
-# 3. **Underutilization**: Could run 15 campaigns/year based on velocity
-#    - Recommendation: Plan quarterly campaign calendar
-#
-# ## 🏆 Organizational Maturity: EXPERT LEVEL
-#
-# **Progression**:
-# - 2024-Q1: Beginner (learning)
-# - 2024-Q3: Intermediate (consistent)
-# - 2025-Q2: Advanced (optimizing) 
-# - **2025-Q4: EXPERT** (predictable, efficient, improving) ← YOU ARE HERE
-#
-# **Indicators of Expert Status**:
-# - ✅ Success rate >90% (yours: 94%)
-# - ✅ ROI >10x (yours: 13.2x)
-# - ✅ Velocity improvement >100% (yours: 180%)
-# - ✅ Cost reduction >30% (yours: 47%)
-# - ✅ Continuous learning system operational
-# - ✅ Predictive recommendations working
-#
-# ## 📊 Value Delivered (2-Year Total)
-#
-# **Financial**:
-# - Total value: $2,400,000
-# - Total cost: $182,000
-# - Net value: $2,218,000
-# - Overall ROI: 13.2x
-#
-# **Operational**:
-# - Security vulnerabilities fixed: 1,247
-# - Dependencies updated: 856
-# - Tech debt items resolved: 312
-# - Monthly cloud savings: $87K sustained
-#
-# ## 🚀 Next Steps
-#
-# 1. **Approve Q1 security campaign** (start Jan 15)
-# 2. **Plan quarterly cost-optimization** cadence
-# 3. **Implement approval SLA** process improvement
-# 4. **Schedule quarterly campaign planning** sessions
-#
-# **Questions?** See full analysis: `memory/intelligence/campaign-analysis-${{ github.run_id }}.json`
-#
-# ---
-# **Intelligence System Status**: Running monthly, continuously learning
-# **Next Report**: [next month]
-# **Organization Status**: Expert-level campaign maturity 🏆
-# ```
-#
-# ## Output
-#
-# Intelligence analysis complete:
-# - **Campaigns Analyzed**: 23 over 2 years
-# - **Intelligence Report**: #[issue-number]
-# - **Full Analysis**: `memory/intelligence/campaign-analysis-${{ github.run_id }}.json`
-# - **Recommendations Generated**: 3 high-confidence + 2 optimizations
-# - **Organizational Status**: Expert level
-# - **Next Analysis**: [next month]
-#
-# **This is the compounding value**: Each campaign makes your organization smarter, faster, and more efficient.
-# ```
-#
-# Pinned GitHub Actions:
-#   - actions/cache/restore@v4 (0057852bfaa89a56745cba8c7296529d2fc39830)
-#     https://github.com/actions/cache/commit/0057852bfaa89a56745cba8c7296529d2fc39830
-#   - actions/cache/save@v4 (0057852bfaa89a56745cba8c7296529d2fc39830)
-#     https://github.com/actions/cache/commit/0057852bfaa89a56745cba8c7296529d2fc39830
-#   - actions/checkout@v5 (93cb6efe18208431cddfb8368fd83d5badbf9bfd)
-#     https://github.com/actions/checkout/commit/93cb6efe18208431cddfb8368fd83d5badbf9bfd
-#   - actions/download-artifact@v6 (018cc2cf5baa6db3ef3c5f8a56943fffe632ef53)
-#     https://github.com/actions/download-artifact/commit/018cc2cf5baa6db3ef3c5f8a56943fffe632ef53
-#   - actions/github-script@v8 (ed597411d8f924073f98dfc5c65a23a2325f34cd)
-#     https://github.com/actions/github-script/commit/ed597411d8f924073f98dfc5c65a23a2325f34cd
-#   - actions/upload-artifact@v5 (330a01c490aca151604b8cf639adc76d48f6c5d4)
-#     https://github.com/actions/upload-artifact/commit/330a01c490aca151604b8cf639adc76d48f6c5d4
 
 name: "Campaign Intelligence System"
 "on":
@@ -1199,9 +129,7 @@ jobs:
                   .addRaw("**Files:**\n")
                   .addRaw(`- Source: \`${workflowMdPath}\`\n`)
                   .addRaw(`  - Last commit: ${workflowTimestamp}\n`)
-                  .addRaw(
-                    `  - Commit SHA: [\`${workflowCommit.sha.substring(0, 7)}\`](https://github.com/${owner}/${repo}/commit/${workflowCommit.sha})\n`
-                  )
+                  .addRaw(`  - Commit SHA: [\`${workflowCommit.sha.substring(0, 7)}\`](https://github.com/${owner}/${repo}/commit/${workflowCommit.sha})\n`)
                   .addRaw(`- Lock: \`${lockFilePath}\`\n`)
                   .addRaw(`  - Last commit: ${lockTimestamp}\n`)
                   .addRaw(`  - Commit SHA: [\`${lockCommit.sha.substring(0, 7)}\`](https://github.com/${owner}/${repo}/commit/${lockCommit.sha})\n\n`)
@@ -1786,9 +714,7 @@ jobs:
                 server.debug(`  [${toolName}] Python handler args: ${JSON.stringify(args)}`);
                 server.debug(`  [${toolName}] Timeout: ${timeoutSeconds}s`);
                 const inputJson = JSON.stringify(args || {});
-                server.debug(
-                  `  [${toolName}] Input JSON (${inputJson.length} bytes): ${inputJson.substring(0, 200)}${inputJson.length > 200 ? "..." : ""}`
-                );
+                server.debug(`  [${toolName}] Input JSON (${inputJson.length} bytes): ${inputJson.substring(0, 200)}${inputJson.length > 200 ? "..." : ""}`);
                 return new Promise((resolve, reject) => {
                   server.debug(`  [${toolName}] Executing Python script...`);
                   const child = execFile(
@@ -1896,9 +822,7 @@ jobs:
                       try {
                         if (fs.existsSync(outputFile)) {
                           const outputContent = fs.readFileSync(outputFile, "utf-8");
-                          server.debug(
-                            `  [${toolName}] Output file content: ${outputContent.substring(0, 500)}${outputContent.length > 500 ? "..." : ""}`
-                          );
+                          server.debug(`  [${toolName}] Output file content: ${outputContent.substring(0, 500)}${outputContent.length > 500 ? "..." : ""}`);
                           const lines = outputContent.split("\n");
                           for (const line of lines) {
                             const trimmed = line.trim();
@@ -1956,10 +880,7 @@ jobs:
                   fs.mkdirSync(server.logDir, { recursive: true });
                 }
                 const timestamp = new Date().toISOString();
-                fs.writeFileSync(
-                  server.logFilePath,
-                  `# ${server.serverInfo.name} MCP Server Log\n# Started: ${timestamp}\n# Version: ${server.serverInfo.version}\n\n`
-                );
+                fs.writeFileSync(server.logFilePath, `# ${server.serverInfo.name} MCP Server Log\n# Started: ${timestamp}\n# Version: ${server.serverInfo.version}\n\n`);
                 server.logFileInitialized = true;
               } catch {
               }
@@ -2619,10 +1540,7 @@ jobs:
                 const isInWorkspace = absolutePath.startsWith(path.resolve(workspaceDir));
                 const isInTmp = absolutePath.startsWith(tmpDir);
                 if (!isInWorkspace && !isInTmp) {
-                  throw new Error(
-                    `File path must be within workspace directory (${workspaceDir}) or /tmp directory. ` +
-                      `Provided path: ${filePath} (resolved to: ${absolutePath})`
-                  );
+                  throw new Error(`File path must be within workspace directory (${workspaceDir}) or /tmp directory. ` + `Provided path: ${filePath} (resolved to: ${absolutePath})`);
                 }
                 if (!fs.existsSync(filePath)) {
                   throw new Error(`File not found: ${filePath}`);
@@ -2881,10 +1799,7 @@ jobs:
                       };
                       const entryJSON = JSON.stringify(entry);
                       fs.appendFileSync(outputFile, entryJSON + "\n");
-                      const outputText =
-                        jobConfig && jobConfig.output
-                          ? jobConfig.output
-                          : `Safe-job '${configKey}' executed successfully with arguments: ${JSON.stringify(args)}`;
+                      const outputText = jobConfig && jobConfig.output ? jobConfig.output : `Safe-job '${configKey}' executed successfully with arguments: ${JSON.stringify(args)}`;
                       return {
                         content: [
                           {
@@ -4553,16 +3468,13 @@ jobs:
               return result;
             }
             function renderMarkdownTemplate(markdown) {
-              let result = markdown.replace(
-                /(\n?)([ \t]*{{#if\s+([^}]*)}}[ \t]*\n)([\s\S]*?)([ \t]*{{\/if}}[ \t]*)(\n?)/g,
-                (match, leadNL, openLine, cond, body, closeLine, trailNL) => {
-                  if (isTruthy(cond)) {
-                    return leadNL + body;
-                  } else {
-                    return "";
-                  }
+              let result = markdown.replace(/(\n?)([ \t]*{{#if\s+([^}]*)}}[ \t]*\n)([\s\S]*?)([ \t]*{{\/if}}[ \t]*)(\n?)/g, (match, leadNL, openLine, cond, body, closeLine, trailNL) => {
+                if (isTruthy(cond)) {
+                  return leadNL + body;
+                } else {
+                  return "";
                 }
-              );
+              });
               result = result.replace(/{{#if\s+([^}]*)}}([\s\S]*?){{\/if}}/g, (_, cond, body) => (isTruthy(cond) ? body : ""));
               result = result.replace(/\n{3,}/g, "\n\n");
               return result;
@@ -4933,36 +3845,33 @@ jobs:
                 });
               }
               function sanitizeUrlProtocols(s) {
-                return s.replace(
-                  /((?:http|ftp|file|ssh|git):\/\/([\w.-]*)(?:[^\s]*)|(?:data|javascript|vbscript|about|mailto|tel):[^\s]+)/gi,
-                  (match, _fullMatch, domain) => {
-                    if (domain) {
-                      const domainLower = domain.toLowerCase();
-                      const truncated = domainLower.length > 12 ? domainLower.substring(0, 12) + "..." : domainLower;
+                return s.replace(/((?:http|ftp|file|ssh|git):\/\/([\w.-]*)(?:[^\s]*)|(?:data|javascript|vbscript|about|mailto|tel):[^\s]+)/gi, (match, _fullMatch, domain) => {
+                  if (domain) {
+                    const domainLower = domain.toLowerCase();
+                    const truncated = domainLower.length > 12 ? domainLower.substring(0, 12) + "..." : domainLower;
+                    if (typeof core !== "undefined" && core.info) {
+                      core.info(`Redacted URL: ${truncated}`);
+                    }
+                    if (typeof core !== "undefined" && core.debug) {
+                      core.debug(`Redacted URL (full): ${match}`);
+                    }
+                    addRedactedDomain(domainLower);
+                  } else {
+                    const protocolMatch = match.match(/^([^:]+):/);
+                    if (protocolMatch) {
+                      const protocol = protocolMatch[1] + ":";
+                      const truncated = match.length > 12 ? match.substring(0, 12) + "..." : match;
                       if (typeof core !== "undefined" && core.info) {
                         core.info(`Redacted URL: ${truncated}`);
                       }
                       if (typeof core !== "undefined" && core.debug) {
                         core.debug(`Redacted URL (full): ${match}`);
                       }
-                      addRedactedDomain(domainLower);
-                    } else {
-                      const protocolMatch = match.match(/^([^:]+):/);
-                      if (protocolMatch) {
-                        const protocol = protocolMatch[1] + ":";
-                        const truncated = match.length > 12 ? match.substring(0, 12) + "..." : match;
-                        if (typeof core !== "undefined" && core.info) {
-                          core.info(`Redacted URL: ${truncated}`);
-                        }
-                        if (typeof core !== "undefined" && core.debug) {
-                          core.debug(`Redacted URL (full): ${match}`);
-                        }
-                        addRedactedDomain(protocol);
-                      }
+                      addRedactedDomain(protocol);
                     }
-                    return "(redacted)";
                   }
-                );
+                  return "(redacted)";
+                });
               }
               function neutralizeCommands(s) {
                 const commandName = process.env.GH_AW_COMMAND;
@@ -4984,37 +3893,7 @@ jobs:
                 return s.replace(/<!--[\s\S]*?-->/g, "").replace(/<!--[\s\S]*?--!>/g, "");
               }
               function convertXmlTags(s) {
-                const allowedTags = [
-                  "b",
-                  "blockquote",
-                  "br",
-                  "code",
-                  "details",
-                  "em",
-                  "h1",
-                  "h2",
-                  "h3",
-                  "h4",
-                  "h5",
-                  "h6",
-                  "hr",
-                  "i",
-                  "li",
-                  "ol",
-                  "p",
-                  "pre",
-                  "strong",
-                  "sub",
-                  "summary",
-                  "sup",
-                  "table",
-                  "tbody",
-                  "td",
-                  "th",
-                  "thead",
-                  "tr",
-                  "ul",
-                ];
+                const allowedTags = ["b", "blockquote", "br", "code", "details", "em", "h1", "h2", "h3", "h4", "h5", "h6", "hr", "i", "li", "ol", "p", "pre", "strong", "sub", "summary", "sup", "table", "tbody", "td", "th", "thead", "tr", "ul"];
                 s = s.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, (match, content) => {
                   const convertedContent = content.replace(/<(\/?[A-Za-z][A-Za-z0-9]*(?:[^>]*?))>/g, "($1)");
                   return `(![CDATA[${convertedContent}]])`;
@@ -5126,36 +4005,33 @@ jobs:
                 return result;
               }
               function sanitizeUrlProtocols(s) {
-                return s.replace(
-                  /\b((?:http|ftp|file|ssh|git):\/\/([\w.-]+)(?:[^\s]*)|(?:data|javascript|vbscript|about|mailto|tel):[^\s]+)/gi,
-                  (match, _fullMatch, domain) => {
-                    if (domain) {
-                      const domainLower = domain.toLowerCase();
-                      const truncated = domainLower.length > 12 ? domainLower.substring(0, 12) + "..." : domainLower;
+                return s.replace(/\b((?:http|ftp|file|ssh|git):\/\/([\w.-]+)(?:[^\s]*)|(?:data|javascript|vbscript|about|mailto|tel):[^\s]+)/gi, (match, _fullMatch, domain) => {
+                  if (domain) {
+                    const domainLower = domain.toLowerCase();
+                    const truncated = domainLower.length > 12 ? domainLower.substring(0, 12) + "..." : domainLower;
+                    if (typeof core !== "undefined" && core.info) {
+                      core.info(`Redacted URL: ${truncated}`);
+                    }
+                    if (typeof core !== "undefined" && core.debug) {
+                      core.debug(`Redacted URL (full): ${match}`);
+                    }
+                    addRedactedDomain(domainLower);
+                  } else {
+                    const protocolMatch = match.match(/^([^:]+):/);
+                    if (protocolMatch) {
+                      const protocol = protocolMatch[1] + ":";
+                      const truncated = match.length > 12 ? match.substring(0, 12) + "..." : match;
                       if (typeof core !== "undefined" && core.info) {
                         core.info(`Redacted URL: ${truncated}`);
                       }
                       if (typeof core !== "undefined" && core.debug) {
                         core.debug(`Redacted URL (full): ${match}`);
                       }
-                      addRedactedDomain(domainLower);
-                    } else {
-                      const protocolMatch = match.match(/^([^:]+):/);
-                      if (protocolMatch) {
-                        const protocol = protocolMatch[1] + ":";
-                        const truncated = match.length > 12 ? match.substring(0, 12) + "..." : match;
-                        if (typeof core !== "undefined" && core.info) {
-                          core.info(`Redacted URL: ${truncated}`);
-                        }
-                        if (typeof core !== "undefined" && core.debug) {
-                          core.debug(`Redacted URL (full): ${match}`);
-                        }
-                        addRedactedDomain(protocol);
-                      }
+                      addRedactedDomain(protocol);
                     }
-                    return "(redacted)";
                   }
-                );
+                  return "(redacted)";
+                });
               }
               function neutralizeCommands(s) {
                 const commandName = process.env.GH_AW_COMMAND;
@@ -5181,37 +4057,7 @@ jobs:
                 return s.replace(/<!--[\s\S]*?-->/g, "").replace(/<!--[\s\S]*?--!>/g, "");
               }
               function convertXmlTags(s) {
-                const allowedTags = [
-                  "b",
-                  "blockquote",
-                  "br",
-                  "code",
-                  "details",
-                  "em",
-                  "h1",
-                  "h2",
-                  "h3",
-                  "h4",
-                  "h5",
-                  "h6",
-                  "hr",
-                  "i",
-                  "li",
-                  "ol",
-                  "p",
-                  "pre",
-                  "strong",
-                  "sub",
-                  "summary",
-                  "sup",
-                  "table",
-                  "tbody",
-                  "td",
-                  "th",
-                  "thead",
-                  "tr",
-                  "ul",
-                ];
+                const allowedTags = ["b", "blockquote", "br", "code", "details", "em", "h1", "h2", "h3", "h4", "h5", "h6", "hr", "i", "li", "ol", "p", "pre", "strong", "sub", "summary", "sup", "table", "tbody", "td", "th", "thead", "tr", "ul"];
                 s = s.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, (match, content) => {
                   const convertedContent = content.replace(/<(\/?[A-Za-z][A-Za-z0-9]*(?:[^>]*?))>/g, "($1)");
                   return `(![CDATA[${convertedContent}]])`;
@@ -5903,9 +4749,7 @@ jobs:
                   core.info(`Loaded validation config from ${validationConfigPath}`);
                 }
               } catch (error) {
-                core.warning(
-                  `Failed to read validation config from ${validationConfigPath}: ${error instanceof Error ? error.message : String(error)}`
-                );
+                core.warning(`Failed to read validation config from ${validationConfigPath}: ${error instanceof Error ? error.message : String(error)}`);
               }
               const mentionsConfig = validationConfig?.mentions || null;
               const allowedMentions = await resolveAllowedMentionsFromPayload(context, github, core, mentionsConfig);
@@ -6118,9 +4962,7 @@ jobs:
                   core.info(`[INGESTION] Line ${i + 1}: Original type='${originalType}', Normalized type='${itemType}'`);
                   item.type = itemType;
                   if (!expectedOutputTypes[itemType]) {
-                    core.warning(
-                      `[INGESTION] Line ${i + 1}: Type '${itemType}' not found in expected types: ${JSON.stringify(Object.keys(expectedOutputTypes))}`
-                    );
+                    core.warning(`[INGESTION] Line ${i + 1}: Type '${itemType}' not found in expected types: ${JSON.stringify(Object.keys(expectedOutputTypes))}`);
                     errors.push(`Line ${i + 1}: Unexpected output type '${itemType}'. Expected one of: ${Object.keys(expectedOutputTypes).join(", ")}`);
                     continue;
                   }
@@ -6202,10 +5044,7 @@ jobs:
               core.info(`Patch file ${hasPatch ? "exists" : "does not exist"} at: ${patchPath}`);
               let allowEmptyPR = false;
               if (safeOutputsConfig) {
-                if (
-                  safeOutputsConfig["create-pull-request"]?.["allow-empty"] === true ||
-                  safeOutputsConfig["create_pull_request"]?.["allow_empty"] === true
-                ) {
+                if (safeOutputsConfig["create-pull-request"]?.["allow-empty"] === true || safeOutputsConfig["create_pull_request"]?.["allow_empty"] === true) {
                   allowEmptyPR = true;
                   core.info(`allow-empty is enabled for create-pull-request`);
                 }
@@ -6576,24 +5415,7 @@ jobs:
                   "Custom Agents": [],
                   Other: [],
                 };
-                const builtinTools = [
-                  "bash",
-                  "write_bash",
-                  "read_bash",
-                  "stop_bash",
-                  "list_bash",
-                  "grep",
-                  "glob",
-                  "view",
-                  "create",
-                  "edit",
-                  "store_memory",
-                  "code_review",
-                  "codeql_checker",
-                  "report_progress",
-                  "report_intent",
-                  "gh-advisory-database",
-                ];
+                const builtinTools = ["bash", "write_bash", "read_bash", "stop_bash", "list_bash", "grep", "glob", "view", "create", "edit", "store_memory", "code_review", "codeql_checker", "report_progress", "report_intent", "gh-advisory-database"];
                 const internalTools = ["fetch_copilot_cli_documentation"];
                 for (const tool of initEntry.tools) {
                   const toolLower = tool.toLowerCase();
@@ -6989,9 +5811,7 @@ jobs:
                   const cacheCreationTokens = usage.cache_creation_input_tokens || 0;
                   const cacheReadTokens = usage.cache_read_input_tokens || 0;
                   const totalTokens = inputTokens + outputTokens + cacheCreationTokens + cacheReadTokens;
-                  lines.push(
-                    `  Tokens: ${totalTokens.toLocaleString()} total (${usage.input_tokens.toLocaleString()} in / ${usage.output_tokens.toLocaleString()} out)`
-                  );
+                  lines.push(`  Tokens: ${totalTokens.toLocaleString()} total (${usage.input_tokens.toLocaleString()} in / ${usage.output_tokens.toLocaleString()} out)`);
                 }
               }
               if (lastEntry?.total_cost_usd) {
@@ -7150,9 +5970,7 @@ jobs:
                   const cacheCreationTokens = usage.cache_creation_input_tokens || 0;
                   const cacheReadTokens = usage.cache_read_input_tokens || 0;
                   const totalTokens = inputTokens + outputTokens + cacheCreationTokens + cacheReadTokens;
-                  lines.push(
-                    `  Tokens: ${totalTokens.toLocaleString()} total (${usage.input_tokens.toLocaleString()} in / ${usage.output_tokens.toLocaleString()} out)`
-                  );
+                  lines.push(`  Tokens: ${totalTokens.toLocaleString()} total (${usage.input_tokens.toLocaleString()} in / ${usage.output_tokens.toLocaleString()} out)`);
                 }
               }
               if (lastEntry?.total_cost_usd) {
@@ -7253,11 +6071,7 @@ jobs:
               });
             }
             function extractPremiumRequestCount(logContent) {
-              const patterns = [
-                /premium\s+requests?\s+consumed:?\s*(\d+)/i,
-                /(\d+)\s+premium\s+requests?\s+consumed/i,
-                /consumed\s+(\d+)\s+premium\s+requests?/i,
-              ];
+              const patterns = [/premium\s+requests?\s+consumed:?\s*(\d+)/i, /(\d+)\s+premium\s+requests?\s+consumed/i, /consumed\s+(\d+)\s+premium\s+requests?/i];
               for (const pattern of patterns) {
                 const match = logContent.match(pattern);
                 if (match && match[1]) {
@@ -7329,8 +6143,7 @@ jobs:
                 const initEntry = logEntries.find(entry => entry.type === "system" && entry.subtype === "init");
                 markdown += generateInformationSection(lastEntry, {
                   additionalInfoCallback: entry => {
-                    const isPremiumModel =
-                      initEntry && initEntry.model_info && initEntry.model_info.billing && initEntry.model_info.billing.is_premium === true;
+                    const isPremiumModel = initEntry && initEntry.model_info && initEntry.model_info.billing && initEntry.model_info.billing.is_premium === true;
                     if (isPremiumModel) {
                       const premiumRequestCount = extractPremiumRequestCount(logContent);
                       return `**Premium Requests Consumed:** ${premiumRequestCount}\n\n`;
@@ -7757,299 +6570,151 @@ jobs:
         with:
           script: |
             function sanitizeWorkflowName(name) {
-
               return name
-
                 .toLowerCase()
-
                 .replace(/[:\\/\s]/g, "-")
-
                 .replace(/[^a-z0-9._-]/g, "-");
-
             }
-
             function main() {
-
               const fs = require("fs");
-
               const path = require("path");
-
               try {
-
                 const squidLogsDir = `/tmp/gh-aw/sandbox/firewall/logs/`;
-
                 if (!fs.existsSync(squidLogsDir)) {
-
                   core.info(`No firewall logs directory found at: ${squidLogsDir}`);
-
                   return;
-
                 }
-
                 const files = fs.readdirSync(squidLogsDir).filter(file => file.endsWith(".log"));
-
                 if (files.length === 0) {
-
                   core.info(`No firewall log files found in: ${squidLogsDir}`);
-
                   return;
-
                 }
-
                 core.info(`Found ${files.length} firewall log file(s)`);
-
                 let totalRequests = 0;
-
                 let allowedRequests = 0;
-
                 let deniedRequests = 0;
-
                 const allowedDomains = new Set();
-
                 const deniedDomains = new Set();
-
                 const requestsByDomain = new Map();
-
                 for (const file of files) {
-
                   const filePath = path.join(squidLogsDir, file);
-
                   core.info(`Parsing firewall log: ${file}`);
-
                   const content = fs.readFileSync(filePath, "utf8");
-
                   const lines = content.split("\n").filter(line => line.trim());
-
                   for (const line of lines) {
-
                     const entry = parseFirewallLogLine(line);
-
                     if (!entry) {
-
                       continue;
-
                     }
-
                     totalRequests++;
-
                     const isAllowed = isRequestAllowed(entry.decision, entry.status);
-
                     if (isAllowed) {
-
                       allowedRequests++;
-
                       allowedDomains.add(entry.domain);
-
                     } else {
-
                       deniedRequests++;
-
                       deniedDomains.add(entry.domain);
-
                     }
-
                     if (!requestsByDomain.has(entry.domain)) {
-
                       requestsByDomain.set(entry.domain, { allowed: 0, denied: 0 });
-
                     }
-
                     const domainStats = requestsByDomain.get(entry.domain);
-
                     if (isAllowed) {
-
                       domainStats.allowed++;
-
                     } else {
-
                       domainStats.denied++;
-
                     }
-
                   }
-
                 }
-
                 const summary = generateFirewallSummary({
-
                   totalRequests,
-
                   allowedRequests,
-
                   deniedRequests,
-
                   allowedDomains: Array.from(allowedDomains).sort(),
-
                   deniedDomains: Array.from(deniedDomains).sort(),
-
                   requestsByDomain,
-
                 });
-
                 core.summary.addRaw(summary).write();
-
                 core.info("Firewall log summary generated successfully");
-
               } catch (error) {
-
                 core.setFailed(error instanceof Error ? error : String(error));
-
               }
-
             }
-
             function parseFirewallLogLine(line) {
-
               const trimmed = line.trim();
-
               if (!trimmed || trimmed.startsWith("#")) {
-
                 return null;
-
               }
-
               const fields = trimmed.match(/(?:[^\s"]+|"[^"]*")+/g);
-
               if (!fields || fields.length < 10) {
-
                 return null;
-
               }
-
               const timestamp = fields[0];
-
               if (!/^\d+(\.\d+)?$/.test(timestamp)) {
-
                 return null;
-
               }
-
               return {
-
                 timestamp,
-
                 clientIpPort: fields[1],
-
                 domain: fields[2],
-
                 destIpPort: fields[3],
-
                 proto: fields[4],
-
                 method: fields[5],
-
                 status: fields[6],
-
                 decision: fields[7],
-
                 url: fields[8],
-
                 userAgent: fields[9]?.replace(/^"|"$/g, "") || "-",
-
               };
-
             }
-
             function isRequestAllowed(decision, status) {
-
               const statusCode = parseInt(status, 10);
-
               if (statusCode === 200 || statusCode === 206 || statusCode === 304) {
-
                 return true;
-
               }
-
               if (decision.includes("TCP_TUNNEL") || decision.includes("TCP_HIT") || decision.includes("TCP_MISS")) {
-
                 return true;
-
               }
-
               if (decision.includes("NONE_NONE") || decision.includes("TCP_DENIED") || statusCode === 403 || statusCode === 407) {
-
                 return false;
-
               }
-
               return false;
-
             }
-
             function generateFirewallSummary(analysis) {
-
               const { totalRequests, requestsByDomain } = analysis;
-
               const validDomains = Array.from(requestsByDomain.keys())
-
                 .filter(domain => domain !== "-")
-
                 .sort();
-
               const uniqueDomainCount = validDomains.length;
-
               let validAllowedRequests = 0;
-
               let validDeniedRequests = 0;
-
               for (const domain of validDomains) {
-
                 const stats = requestsByDomain.get(domain);
-
                 validAllowedRequests += stats.allowed;
-
                 validDeniedRequests += stats.denied;
-
               }
-
               let summary = "### 🔥 Firewall Activity\n\n";
-
               summary += "<details>\n";
-
               summary += `<summary>📊 ${totalRequests} request${totalRequests !== 1 ? "s" : ""} | `;
-
               summary += `${validAllowedRequests} allowed | `;
-
               summary += `${validDeniedRequests} blocked | `;
-
               summary += `${uniqueDomainCount} unique domain${uniqueDomainCount !== 1 ? "s" : ""}</summary>\n\n`;
-
               if (uniqueDomainCount > 0) {
-
                 summary += "| Domain | Allowed | Denied |\n";
-
                 summary += "|--------|---------|--------|\n";
-
                 for (const domain of validDomains) {
-
                   const stats = requestsByDomain.get(domain);
-
                   summary += `| ${domain} | ${stats.allowed} | ${stats.denied} |\n`;
-
                 }
-
               } else {
-
                 summary += "No firewall activity detected.\n";
-
               }
-
               summary += "\n</details>\n\n";
-
               return summary;
-
             }
-
-            const isDirectExecution =
-
-              typeof module === "undefined" || (typeof require !== "undefined" && typeof require.main !== "undefined" && require.main === module);
-
+            const isDirectExecution = typeof module === "undefined" || (typeof require !== "undefined" && typeof require.main !== "undefined" && require.main === module);
             if (isDirectExecution) {
-
               main();
-
             }
-
       - name: Upload Agent Stdio
         if: always()
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
@@ -8226,9 +6891,7 @@ jobs:
                     }
                     lastIndex = regex.lastIndex;
                     if (iterationCount === ITERATION_WARNING_THRESHOLD) {
-                      core.warning(
-                        `High iteration count (${iterationCount}) on line ${lineIndex + 1} with pattern: ${pattern.description || pattern.pattern}`
-                      );
+                      core.warning(`High iteration count (${iterationCount}) on line ${lineIndex + 1} with pattern: ${pattern.description || pattern.pattern}`);
                       core.warning(`Line content (truncated): ${truncateString(line, 200)}`);
                     }
                     if (iterationCount > MAX_ITERATIONS_PER_LINE) {
@@ -8537,9 +7200,7 @@ jobs:
               core.setOutput("total_count", missingTools.length.toString());
               if (missingTools.length > 0) {
                 core.info("Missing tools summary:");
-                core.summary
-                  .addHeading("Missing Tools Report", 3)
-                  .addRaw(`Found **${missingTools.length}** missing tool${missingTools.length > 1 ? "s" : ""} in this workflow execution.\n\n`);
+                core.summary.addHeading("Missing Tools Report", 3).addRaw(`Found **${missingTools.length}** missing tool${missingTools.length > 1 ? "s" : ""} in this workflow execution.\n\n`);
                 missingTools.forEach((tool, index) => {
                   core.info(`${index + 1}. Tool: ${tool.tool}`);
                   core.info(`   Reason: ${tool.reason}`);
@@ -8672,9 +7333,7 @@ jobs:
               const messages = getMessages();
               const templateContext = toSnakeCase(ctx);
               const defaultMessage = "⚠️ Security scanning failed for [{workflow_name}]({run_url}). Review the logs for details.";
-              return messages?.detectionFailure
-                ? renderTemplate(messages.detectionFailure, templateContext)
-                : renderTemplate(defaultMessage, templateContext);
+              return messages?.detectionFailure ? renderTemplate(messages.detectionFailure, templateContext) : renderTemplate(defaultMessage, templateContext);
             }
             function collectGeneratedAssets() {
               const assets = [];
@@ -8876,10 +7535,7 @@ jobs:
               let sanitized = content.trim();
               sanitized = sanitized.replace(/\x1b\[[0-9;]*[mGKH]/g, "");
               sanitized = sanitized.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "");
-              sanitized = sanitized.replace(
-                /(^|[^\w`])@([A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?(?:\/[A-Za-z0-9._-]+)?)/g,
-                (_m, p1, p2) => `${p1}\`@${p2}\``
-              );
+              sanitized = sanitized.replace(/(^|[^\w`])@([A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?(?:\/[A-Za-z0-9._-]+)?)/g, (_m, p1, p2) => `${p1}\`@${p2}\``);
               sanitized = sanitized.replace(/[<>&'"]/g, "");
               return sanitized.trim();
             }
@@ -8966,15 +7622,7 @@ jobs:
               parts.push(`run: ${runUrl}`);
               return `<!-- ${parts.join(", ")} -->`;
             }
-            function generateFooter(
-              workflowName,
-              runUrl,
-              workflowSource,
-              workflowSourceURL,
-              triggeringIssueNumber,
-              triggeringPRNumber,
-              triggeringDiscussionNumber
-            ) {
+            function generateFooter(workflowName, runUrl, workflowSource, workflowSourceURL, triggeringIssueNumber, triggeringPRNumber, triggeringDiscussionNumber) {
               let footer = `\n\n> AI generated by [${workflowName}](${runUrl})`;
               if (triggeringIssueNumber) {
                 footer += ` for #${triggeringIssueNumber}`;
@@ -9206,10 +7854,8 @@ jobs:
               }
               const parentIssueNumber = context.payload?.issue?.number;
               const temporaryIdMap = new Map();
-              const triggeringIssueNumber =
-                context.payload?.issue?.number && !context.payload?.issue?.pull_request ? context.payload.issue.number : undefined;
-              const triggeringPRNumber =
-                context.payload?.pull_request?.number || (context.payload?.issue?.pull_request ? context.payload.issue.number : undefined);
+              const triggeringIssueNumber = context.payload?.issue?.number && !context.payload?.issue?.pull_request ? context.payload.issue.number : undefined;
+              const triggeringPRNumber = context.payload?.pull_request?.number || (context.payload?.issue?.pull_request ? context.payload.issue.number : undefined);
               const triggeringDiscussionNumber = context.payload?.discussion?.number;
               const labelsEnv = process.env.GH_AW_ISSUE_LABELS;
               let envLabels = labelsEnv
@@ -9233,9 +7879,7 @@ jobs:
                   continue;
                 }
                 const temporaryId = createIssueItem.temporary_id || generateTemporaryId();
-                core.info(
-                  `Processing create-issue item ${i + 1}/${createIssueItems.length}: title=${createIssueItem.title}, bodyLength=${createIssueItem.body.length}, temporaryId=${temporaryId}, repo=${itemRepo}`
-                );
+                core.info(`Processing create-issue item ${i + 1}/${createIssueItems.length}: title=${createIssueItem.title}, bodyLength=${createIssueItem.body.length}, temporaryId=${temporaryId}, repo=${itemRepo}`);
                 core.info(`Debug: createIssueItem.parent = ${JSON.stringify(createIssueItem.parent)}`);
                 core.info(`Debug: parentIssueNumber from context = ${JSON.stringify(parentIssueNumber)}`);
                 let effectiveParentIssueNumber;
@@ -9248,9 +7892,7 @@ jobs:
                       effectiveParentRepo = resolvedParent.repo;
                       core.info(`Resolved parent temporary ID '${createIssueItem.parent}' to ${effectiveParentRepo}#${effectiveParentIssueNumber}`);
                     } else {
-                      core.warning(
-                        `Parent temporary ID '${createIssueItem.parent}' not found in map. Ensure parent issue is created before sub-issues.`
-                      );
+                      core.warning(`Parent temporary ID '${createIssueItem.parent}' not found in map. Ensure parent issue is created before sub-issues.`);
                       effectiveParentIssueNumber = undefined;
                     }
                   } else {
@@ -9266,9 +7908,7 @@ jobs:
                     effectiveParentIssueNumber = parentIssueNumber;
                   }
                 }
-                core.info(
-                  `Debug: effectiveParentIssueNumber = ${JSON.stringify(effectiveParentIssueNumber)}, effectiveParentRepo = ${effectiveParentRepo}`
-                );
+                core.info(`Debug: effectiveParentIssueNumber = ${JSON.stringify(effectiveParentIssueNumber)}, effectiveParentRepo = ${effectiveParentRepo}`);
                 if (effectiveParentIssueNumber && createIssueItem.parent !== undefined) {
                   core.info(`Using explicit parent issue number from item: ${effectiveParentRepo}#${effectiveParentIssueNumber}`);
                 }
@@ -9308,28 +7948,13 @@ jobs:
                 const workflowSourceURL = process.env.GH_AW_WORKFLOW_SOURCE_URL || "";
                 const runId = context.runId;
                 const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
-                const runUrl = context.payload.repository
-                  ? `${context.payload.repository.html_url}/actions/runs/${runId}`
-                  : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
+                const runUrl = context.payload.repository ? `${context.payload.repository.html_url}/actions/runs/${runId}` : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
                 const trackerIDComment = getTrackerID("markdown");
                 if (trackerIDComment) {
                   bodyLines.push(trackerIDComment);
                 }
                 addExpirationComment(bodyLines, "GH_AW_ISSUE_EXPIRES", "Issue");
-                bodyLines.push(
-                  ``,
-                  ``,
-                  generateFooter(
-                    workflowName,
-                    runUrl,
-                    workflowSource,
-                    workflowSourceURL,
-                    triggeringIssueNumber,
-                    triggeringPRNumber,
-                    triggeringDiscussionNumber
-                  ).trimEnd(),
-                  ""
-                );
+                bodyLines.push(``, ``, generateFooter(workflowName, runUrl, workflowSource, workflowSourceURL, triggeringIssueNumber, triggeringPRNumber, triggeringDiscussionNumber).trimEnd(), "");
                 const body = bodyLines.join("\n").trim();
                 core.info(`Creating issue in ${itemRepo} with title: ${title}`);
                 core.info(`Labels: ${labels}`);
@@ -9407,9 +8032,7 @@ jobs:
                         });
                         core.info("✓ Added comment to parent issue #" + effectiveParentIssueNumber + " (sub-issue linking not available)");
                       } catch (commentError) {
-                        core.info(
-                          `Warning: Could not add comment to parent issue: ${commentError instanceof Error ? commentError.message : String(commentError)}`
-                        );
+                        core.info(`Warning: Could not add comment to parent issue: ${commentError instanceof Error ? commentError.message : String(commentError)}`);
                       }
                     }
                   } else if (effectiveParentIssueNumber && effectiveParentRepo !== itemRepo) {
@@ -10138,10 +8761,7 @@ jobs:
                     core.summary.addRaw("## Staged Asset Publication");
                   } else {
                     await exec.exec(`git push origin ${normalizedBranchName}`);
-                    core.summary
-                      .addRaw("## Assets")
-                      .addRaw(`Successfully uploaded **${uploadCount}** assets to branch \`${normalizedBranchName}\``)
-                      .addRaw("");
+                    core.summary.addRaw("## Assets").addRaw(`Successfully uploaded **${uploadCount}** assets to branch \`${normalizedBranchName}\``).addRaw("");
                     core.info(`Successfully uploaded ${uploadCount} assets to branch ${normalizedBranchName}`);
                   }
                   for (const asset of uploadAssetItems) {

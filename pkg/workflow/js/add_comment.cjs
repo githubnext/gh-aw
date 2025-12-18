@@ -329,10 +329,7 @@ async function main() {
 
   // Check if we're in an issue, pull request, or discussion context
   const isIssueContext = context.eventName === "issues" || context.eventName === "issue_comment";
-  const isPRContext =
-    context.eventName === "pull_request" ||
-    context.eventName === "pull_request_review" ||
-    context.eventName === "pull_request_review_comment";
+  const isPRContext = context.eventName === "pull_request" || context.eventName === "pull_request_review" || context.eventName === "pull_request_review_comment";
   const isDiscussionContext = context.eventName === "discussion" || context.eventName === "discussion_comment";
   const isDiscussion = isDiscussionContext || isDiscussionExplicit;
 
@@ -419,10 +416,8 @@ async function main() {
   }
 
   // Extract triggering context for footer generation
-  const triggeringIssueNumber =
-    context.payload?.issue?.number && !context.payload?.issue?.pull_request ? context.payload.issue.number : undefined;
-  const triggeringPRNumber =
-    context.payload?.pull_request?.number || (context.payload?.issue?.pull_request ? context.payload.issue.number : undefined);
+  const triggeringIssueNumber = context.payload?.issue?.number && !context.payload?.issue?.pull_request ? context.payload.issue.number : undefined;
+  const triggeringPRNumber = context.payload?.pull_request?.number || (context.payload?.issue?.pull_request ? context.payload.issue.number : undefined);
   const triggeringDiscussionNumber = context.payload?.discussion?.number;
 
   const createdComments = [];
@@ -530,9 +525,7 @@ async function main() {
     const workflowSourceURL = process.env.GH_AW_WORKFLOW_SOURCE_URL || "";
     const runId = context.runId;
     const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
-    const runUrl = context.payload.repository
-      ? `${context.payload.repository.html_url}/actions/runs/${runId}`
-      : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
+    const runUrl = context.payload.repository ? `${context.payload.repository.html_url}/actions/runs/${runId}` : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
 
     // Add workflow ID comment marker if present
     if (workflowId) {
@@ -548,30 +541,13 @@ async function main() {
     // Add comment type marker to identify this as an add-comment
     body += `\n\n<!-- comment-type: add-comment -->`;
 
-    body += generateFooterWithMessages(
-      workflowName,
-      runUrl,
-      workflowSource,
-      workflowSourceURL,
-      triggeringIssueNumber,
-      triggeringPRNumber,
-      triggeringDiscussionNumber
-    );
+    body += generateFooterWithMessages(workflowName, runUrl, workflowSource, workflowSourceURL, triggeringIssueNumber, triggeringPRNumber, triggeringDiscussionNumber);
 
     try {
       // Hide older comments from the same workflow if enabled
       if (hideOlderCommentsEnabled && workflowId) {
         core.info("Hide-older-comments is enabled, searching for previous comments to hide");
-        await hideOlderComments(
-          github,
-          context.repo.owner,
-          context.repo.repo,
-          itemNumber,
-          workflowId,
-          commentEndpoint === "discussions",
-          "outdated",
-          allowedReasons
-        );
+        await hideOlderComments(github, context.repo.owner, context.repo.repo, itemNumber, workflowId, commentEndpoint === "discussions", "outdated", allowedReasons);
       }
 
       let comment;

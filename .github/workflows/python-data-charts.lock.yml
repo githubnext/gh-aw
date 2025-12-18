@@ -19,1051 +19,13 @@
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/aw/github-agentic-workflows.md
 #
-#
 # Generates high-quality data visualizations and trend charts using Python scientific computing libraries
-#
-# Original Frontmatter:
-# ```yaml
-# description: Generates high-quality data visualizations and trend charts using Python scientific computing libraries
-# on:
-#   workflow_dispatch:
-# permissions:
-#   contents: read
-#   actions: read
-#   issues: read
-#   pull-requests: read
-# engine: copilot
-# tools:
-#   agentic-workflows:
-#   edit:
-# imports:
-#   - shared/charts-with-trending.md
-# safe-outputs:
-#   upload-assets:
-#   create-discussion:
-#     category: "artifacts"
-#     max: 1
-# timeout-minutes: 15
-# ```
 #
 # Resolved workflow manifest:
 #   Imports:
 #     - shared/charts-with-trending.md
 #     - shared/python-dataviz.md
 #     - shared/trends.md
-#
-# Job Dependency Graph:
-# ```mermaid
-# graph LR
-#   activation["activation"]
-#   agent["agent"]
-#   conclusion["conclusion"]
-#   create_discussion["create_discussion"]
-#   detection["detection"]
-#   update_cache_memory["update_cache_memory"]
-#   upload_assets["upload_assets"]
-#   activation --> agent
-#   activation --> conclusion
-#   agent --> conclusion
-#   agent --> create_discussion
-#   agent --> detection
-#   agent --> update_cache_memory
-#   agent --> upload_assets
-#   create_discussion --> conclusion
-#   detection --> conclusion
-#   detection --> create_discussion
-#   detection --> update_cache_memory
-#   detection --> upload_assets
-#   update_cache_memory --> conclusion
-#   upload_assets --> conclusion
-# ```
-#
-# Original Prompt:
-# ```markdown
-# # Charts with Trending - Complete Guide
-#
-# This shared workflow provides everything you need to create compelling trend visualizations with persistent data storage.
-#
-# :::tip[Quick Start Alternative]
-# Looking for a simpler setup? Use `shared/trending-charts-simple.md` for:
-# - No nested imports (standalone configuration)
-# - No network restrictions (strict mode compatible)
-# - Quick start examples for common trending patterns
-# - Minimal configuration overhead
-#
-# The simplified version is perfect for basic trending needs while this comprehensive version offers advanced patterns and best practices.
-# :::
-#
-# ## Cache-Memory for Trending Data
-#
-# You have access to persistent cache-memory at `/tmp/gh-aw/cache-memory/` that survives across workflow runs. Use it to store historical trending data.
-#
-# ### Trending Data Organization
-#
-# Organize your trending data in cache-memory:
-#
-# ```
-# /tmp/gh-aw/cache-memory/
-# ├── trending/
-# │   ├── <metric-name>/
-# │   │   ├── history.jsonl      # Time-series data (JSON Lines format)
-# │   │   ├── metadata.json      # Data schema and descriptions
-# │   │   └── last_updated.txt   # Timestamp of last update
-# │   └── index.json             # Index of all tracked metrics
-# ```
-#
-# ### Helper Functions for Trending Data
-#
-# **Load Historical Data:**
-# ```bash
-# # Check if historical data exists
-# if [ -f /tmp/gh-aw/cache-memory/trending/issues/history.jsonl ]; then
-#   echo "Loading historical issue trending data..."
-#   cp /tmp/gh-aw/cache-memory/trending/issues/history.jsonl /tmp/gh-aw/python/data/
-# else
-#   echo "No historical data found. Starting fresh."
-#   mkdir -p /tmp/gh-aw/cache-memory/trending/issues
-# fi
-# ```
-#
-# **Append New Data:**
-# ```python
-# import json
-# from datetime import datetime
-#
-# # New data point
-# data_point = {
-#     "timestamp": datetime.now().isoformat(),
-#     "metric": "issue_count",
-#     "value": 42,
-#     "metadata": {"source": "github_api"}
-# }
-#
-# # Append to history (JSON Lines format)
-# with open('/tmp/gh-aw/cache-memory/trending/issues/history.jsonl', 'a') as f:
-#     f.write(json.dumps(data_point) + '\n')
-# ```
-#
-# **Load All Historical Data for Analysis:**
-# ```python
-# import pandas as pd
-# import json
-#
-# # Load all historical data
-# data_points = []
-# history_file = '/tmp/gh-aw/cache-memory/trending/issues/history.jsonl'
-#
-# if os.path.exists(history_file):
-#     with open(history_file, 'r') as f:
-#         for line in f:
-#             data_points.append(json.loads(line))
-#
-#     # Convert to DataFrame for analysis
-#     df = pd.DataFrame(data_points)
-#     df['timestamp'] = pd.to_datetime(df['timestamp'])
-#     df = df.sort_values('timestamp')
-# else:
-#     df = pd.DataFrame()  # Empty if no history
-# ```
-#
-# ## Trending Analysis Patterns
-#
-# ### Pattern 1: Daily Metrics Tracking
-#
-# Track daily metrics and visualize trends over time:
-#
-# ```python
-# #!/usr/bin/env python3
-# """
-# Daily metrics trending example
-# """
-# import pandas as pd
-# import matplotlib.pyplot as plt
-# import seaborn as sns
-# import json
-# import os
-# from datetime import datetime
-#
-# # Set style
-# sns.set_style("whitegrid")
-# sns.set_palette("husl")
-#
-# # Load historical data
-# history_file = '/tmp/gh-aw/cache-memory/trending/daily_metrics/history.jsonl'
-# if os.path.exists(history_file):
-#     data = pd.read_json(history_file, lines=True)
-#     data['date'] = pd.to_datetime(data['timestamp']).dt.date
-# else:
-#     data = pd.DataFrame()
-#
-# # Add today's data
-# today_data = {
-#     "timestamp": datetime.now().isoformat(),
-#     "issues_opened": 5,
-#     "issues_closed": 3,
-#     "prs_merged": 2
-# }
-#
-# # Append to history
-# os.makedirs(os.path.dirname(history_file), exist_ok=True)
-# with open(history_file, 'a') as f:
-#     f.write(json.dumps(today_data) + '\n')
-#
-# # Reload with today's data
-# data = pd.read_json(history_file, lines=True)
-# data['date'] = pd.to_datetime(data['timestamp']).dt.date
-# daily_stats = data.groupby('date').sum()
-#
-# # Create trend chart
-# fig, ax = plt.subplots(figsize=(12, 7), dpi=300)
-# daily_stats.plot(ax=ax, marker='o', linewidth=2)
-# ax.set_title('Daily Metrics Trends', fontsize=16, fontweight='bold')
-# ax.set_xlabel('Date', fontsize=12)
-# ax.set_ylabel('Count', fontsize=12)
-# ax.legend(loc='best')
-# ax.grid(True, alpha=0.3)
-# plt.xticks(rotation=45)
-# plt.tight_layout()
-#
-# plt.savefig('/tmp/gh-aw/python/charts/daily_metrics_trend.png',
-#             dpi=300, bbox_inches='tight', facecolor='white')
-#
-# print(f"Chart saved. Total data points: {len(data)}")
-# ```
-#
-# ### Pattern 2: Moving Averages and Smoothing
-#
-# ```python
-# # Calculate 7-day moving average
-# df['rolling_avg'] = df['value'].rolling(window=7, min_periods=1).mean()
-#
-# # Plot with trend line
-# fig, ax = plt.subplots(figsize=(12, 7), dpi=300)
-# ax.plot(df['date'], df['value'], label='Actual', alpha=0.5, marker='o')
-# ax.plot(df['date'], df['rolling_avg'], label='7-day Average', linewidth=2.5)
-# ax.fill_between(df['date'], df['value'], df['rolling_avg'], alpha=0.2)
-# ```
-#
-# ### Pattern 3: Comparative Trends
-#
-# ```python
-# # Compare multiple metrics over time
-# fig, ax = plt.subplots(figsize=(14, 8), dpi=300)
-#
-# for metric in ['metric_a', 'metric_b', 'metric_c']:
-#     metric_data = df[df['metric'] == metric]
-#     ax.plot(metric_data['timestamp'], metric_data['value'], 
-#             marker='o', label=metric, linewidth=2)
-#
-# ax.set_title('Comparative Metrics Trends', fontsize=16, fontweight='bold')
-# ax.legend(loc='best', fontsize=12)
-# ax.grid(True, alpha=0.3)
-# plt.xticks(rotation=45)
-# ```
-#
-# ## Best Practices for Cache-Memory Trending
-#
-# ### 1. Use JSON Lines Format
-#
-# JSON Lines (`.jsonl`) is ideal for append-only trending data:
-# - One JSON object per line
-# - Easy to append new data
-# - Efficient for time-series data
-# - Simple to load with pandas: `pd.read_json(file, lines=True)`
-#
-# ### 2. Include Metadata
-#
-# Store metadata alongside data:
-# ```json
-# {
-#   "metric_name": "issue_resolution_time",
-#   "unit": "hours",
-#   "description": "Average time to close issues",
-#   "started_tracking": "2024-01-01",
-#   "updated": "2024-03-15"
-# }
-# ```
-#
-# ### 3. Maintain Index
-#
-# Keep an index of all tracked metrics:
-# ```json
-# {
-#   "metrics": [
-#     "issue_count",
-#     "pr_count",
-#     "commit_count",
-#     "test_coverage"
-#   ],
-#   "last_updated": "2024-03-15T10:30:00Z"
-# }
-# ```
-#
-# ### 4. Data Retention Strategy
-#
-# Implement retention policies to prevent unbounded growth:
-# ```python
-# # Keep only last 90 days
-# cutoff_date = datetime.now() - timedelta(days=90)
-# df = df[df['timestamp'] >= cutoff_date]
-#
-# # Save pruned data
-# df.to_json('/tmp/gh-aw/cache-memory/trending/history.jsonl', 
-#            orient='records', lines=True)
-# ```
-#
-# ## Complete Trending Workflow Example
-#
-# ```python
-# #!/usr/bin/env python3
-# """
-# Complete trending analysis workflow
-# Collects data, updates history, generates trend charts
-# """
-# import pandas as pd
-# import matplotlib.pyplot as plt
-# import seaborn as sns
-# import json
-# import os
-# from datetime import datetime, timedelta
-#
-# # Configuration
-# CACHE_DIR = '/tmp/gh-aw/cache-memory/trending'
-# METRIC_NAME = 'github_activity'
-# HISTORY_FILE = f'{CACHE_DIR}/{METRIC_NAME}/history.jsonl'
-# CHARTS_DIR = '/tmp/gh-aw/python/charts'
-#
-# # Ensure directories exist
-# os.makedirs(f'{CACHE_DIR}/{METRIC_NAME}', exist_ok=True)
-# os.makedirs(CHARTS_DIR, exist_ok=True)
-#
-# # Collect today's data (example)
-# today_data = {
-#     "timestamp": datetime.now().isoformat(),
-#     "issues_opened": 8,
-#     "prs_merged": 12,
-#     "commits": 45,
-#     "contributors": 6
-# }
-#
-# # Append to history
-# with open(HISTORY_FILE, 'a') as f:
-#     f.write(json.dumps(today_data) + '\n')
-#
-# # Load all historical data
-# df = pd.read_json(HISTORY_FILE, lines=True)
-# df['date'] = pd.to_datetime(df['timestamp']).dt.date
-# df = df.sort_values('timestamp')
-#
-# # Aggregate by date
-# daily_stats = df.groupby('date').sum()
-#
-# # Generate trend chart
-# sns.set_style("whitegrid")
-# sns.set_palette("husl")
-#
-# fig, axes = plt.subplots(2, 2, figsize=(16, 12), dpi=300)
-# fig.suptitle('GitHub Activity Trends', fontsize=18, fontweight='bold')
-#
-# # Chart 1: Issues Opened
-# axes[0, 0].plot(daily_stats.index, daily_stats['issues_opened'], 
-#                 marker='o', linewidth=2, color='#FF6B6B')
-# axes[0, 0].set_title('Issues Opened', fontsize=14)
-# axes[0, 0].grid(True, alpha=0.3)
-#
-# # Chart 2: PRs Merged
-# axes[0, 1].plot(daily_stats.index, daily_stats['prs_merged'], 
-#                 marker='s', linewidth=2, color='#4ECDC4')
-# axes[0, 1].set_title('PRs Merged', fontsize=14)
-# axes[0, 1].grid(True, alpha=0.3)
-#
-# # Chart 3: Commits
-# axes[1, 0].plot(daily_stats.index, daily_stats['commits'], 
-#                 marker='^', linewidth=2, color='#45B7D1')
-# axes[1, 0].set_title('Commits', fontsize=14)
-# axes[1, 0].grid(True, alpha=0.3)
-#
-# # Chart 4: Contributors
-# axes[1, 1].plot(daily_stats.index, daily_stats['contributors'], 
-#                 marker='D', linewidth=2, color='#FFA07A')
-# axes[1, 1].set_title('Active Contributors', fontsize=14)
-# axes[1, 1].grid(True, alpha=0.3)
-#
-# plt.tight_layout()
-# plt.savefig(f'{CHARTS_DIR}/activity_trends.png',
-#             dpi=300, bbox_inches='tight', facecolor='white')
-#
-# print(f"✅ Trend chart generated with {len(df)} data points")
-# print(f"📊 Chart saved to: {CHARTS_DIR}/activity_trends.png")
-# print(f"💾 Historical data: {HISTORY_FILE}")
-# ```
-#
-# ## Integration with Asset Upload and Discussions
-#
-# After generating charts, use the safe-outputs tools to share them:
-#
-# ```markdown
-# ## Example Discussion with Trending Charts
-#
-# Upload each chart using the `upload asset` tool, then create a discussion:
-#
-# **Title**: "📈 Weekly Trending Analysis - [Date]"
-#
-# **Content**:
-# # 📈 Trending Analysis Report
-#
-# Generated on: {date}
-#
-# ## Activity Trends
-#
-# ![Activity Trends](URL_FROM_UPLOAD_ASSET)
-#
-# Analysis shows:
-# - Issues opened: Up 15% from last week
-# - PR velocity: Stable at 12 PRs/day
-# - Commit activity: Peak on Tuesdays and Wednesdays
-# - Active contributors: Growing trend (+20% this month)
-#
-# ## Data Summary
-#
-# - **Total data points**: {count}
-# - **Date range**: {start} to {end}
-# - **Tracking period**: {days} days
-#
-# ---
-#
-# *Generated using Charts with Trending shared workflow*
-# *Historical data stored in cache-memory for continuous tracking*
-# ```
-#
-# ## Tips for Success
-#
-# 1. **Consistency**: Use same metric names across runs
-# 2. **Timestamps**: Always include ISO 8601 timestamps
-# 3. **Validation**: Check data quality before appending
-# 4. **Backup**: Keep metadata for data recovery
-# 5. **Documentation**: Comment your data schemas
-# 6. **Testing**: Validate charts before uploading
-# 7. **Cleanup**: Implement retention policies
-# 8. **Indexing**: Maintain metric index for discovery
-#
-# ## Common Use Cases
-#
-# ### Repository Activity Trends
-# ```python
-# # Track: commits, PRs, issues, contributors
-# # Frequency: Daily
-# # Retention: 90 days
-# ```
-#
-# ### Performance Metrics Trends
-# ```python
-# # Track: build time, test coverage, bundle size
-# # Frequency: Per commit/PR
-# # Retention: 180 days
-# ```
-#
-# ### Quality Metrics Trends
-# ```python
-# # Track: code complexity, test failures, security alerts
-# # Frequency: Weekly
-# # Retention: 1 year
-# ```
-#
-# ### Workflow Efficiency Trends
-# ```python
-# # Track: workflow duration, token usage, success rate
-# # Frequency: Per run
-# # Retention: 30 days
-# ```
-#
-# ---
-#
-# Remember: The power of trending comes from consistent data collection over time. Use cache-memory to build a rich historical dataset that reveals insights and patterns!
-#
-# # Python Data Visualization Guide
-#
-# Python scientific libraries have been installed and are ready for use. A temporary folder structure has been created at `/tmp/gh-aw/python/` for organizing scripts, data, and outputs.
-#
-# ## Installed Libraries
-#
-# - **NumPy**: Array processing and numerical operations
-# - **Pandas**: Data manipulation and analysis
-# - **Matplotlib**: Chart generation and plotting
-# - **Seaborn**: Statistical data visualization
-# - **SciPy**: Scientific computing utilities
-#
-# ## Directory Structure
-#
-# ```
-# /tmp/gh-aw/python/
-# ├── data/          # Store all data files here (CSV, JSON, etc.)
-# ├── charts/        # Generated chart images (PNG)
-# ├── artifacts/     # Additional output files
-# └── *.py           # Python scripts
-# ```
-#
-# ## Data Separation Requirement
-#
-# **CRITICAL**: Data must NEVER be inlined in Python code. Always store data in external files and load using pandas.
-#
-# ### ❌ PROHIBITED - Inline Data
-# ```python
-# # DO NOT do this
-# data = [10, 20, 30, 40, 50]
-# labels = ['A', 'B', 'C', 'D', 'E']
-# ```
-#
-# ### ✅ REQUIRED - External Data Files
-# ```python
-# # Always load data from external files
-# import pandas as pd
-#
-# # Load data from CSV
-# data = pd.read_csv('/tmp/gh-aw/python/data/data.csv')
-#
-# # Or from JSON
-# data = pd.read_json('/tmp/gh-aw/python/data/data.json')
-# ```
-#
-# ## Chart Generation Best Practices
-#
-# ### High-Quality Chart Settings
-#
-# ```python
-# import matplotlib.pyplot as plt
-# import seaborn as sns
-#
-# # Set style for better aesthetics
-# sns.set_style("whitegrid")
-# sns.set_palette("husl")
-#
-# # Create figure with high DPI
-# fig, ax = plt.subplots(figsize=(10, 6), dpi=300)
-#
-# # Your plotting code here
-# # ...
-#
-# # Save with high quality
-# plt.savefig('/tmp/gh-aw/python/charts/chart.png', 
-#             dpi=300, 
-#             bbox_inches='tight',
-#             facecolor='white',
-#             edgecolor='none')
-# ```
-#
-# ### Chart Quality Guidelines
-#
-# - **DPI**: Use 300 or higher for publication quality
-# - **Figure Size**: Standard is 10x6 inches (adjustable based on needs)
-# - **Labels**: Always include clear axis labels and titles
-# - **Legend**: Add legends when plotting multiple series
-# - **Grid**: Enable grid lines for easier reading
-# - **Colors**: Use colorblind-friendly palettes (seaborn defaults are good)
-#
-# ## Including Images in Reports
-#
-# When creating reports (issues, discussions, etc.), use the `upload asset` tool to make images URL-addressable and include them in markdown:
-#
-# ### Step 1: Generate and Upload Chart
-# ```python
-# # Generate your chart
-# plt.savefig('/tmp/gh-aw/python/charts/my_chart.png', dpi=300, bbox_inches='tight')
-# ```
-#
-# ### Step 2: Upload as Asset
-# Use the `upload asset` tool to upload the chart file. The tool will return a GitHub raw content URL.
-#
-# ### Step 3: Include in Markdown Report
-# When creating your discussion or issue, include the image using markdown:
-#
-# ```markdown
-# ## Visualization Results
-#
-# ![Chart Description](https://raw.githubusercontent.com/owner/repo/assets/workflow-name/my_chart.png)
-#
-# The chart above shows...
-# ```
-#
-# **Important**: Assets are published to an orphaned git branch and become URL-addressable after workflow completion.
-#
-# ## Cache Memory Integration
-#
-# The cache memory at `/tmp/gh-aw/cache-memory/` is available for storing reusable code:
-#
-# **Helper Functions to Cache:**
-# - Data loading utilities: `data_loader.py`
-# - Chart styling functions: `chart_utils.py`
-# - Common data transformations: `transforms.py`
-#
-# **Check Cache Before Creating:**
-# ```bash
-# # Check if helper exists in cache
-# if [ -f /tmp/gh-aw/cache-memory/data_loader.py ]; then
-#   cp /tmp/gh-aw/cache-memory/data_loader.py /tmp/gh-aw/python/
-#   echo "Using cached data_loader.py"
-# fi
-# ```
-#
-# **Save to Cache for Future Runs:**
-# ```bash
-# # Save useful helpers to cache
-# cp /tmp/gh-aw/python/data_loader.py /tmp/gh-aw/cache-memory/
-# echo "Saved data_loader.py to cache for future runs"
-# ```
-#
-# ## Complete Example Workflow
-#
-# ```python
-# #!/usr/bin/env python3
-# """
-# Example data visualization script
-# Generates a bar chart from external data
-# """
-# import pandas as pd
-# import matplotlib.pyplot as plt
-# import seaborn as sns
-#
-# # Set style
-# sns.set_style("whitegrid")
-# sns.set_palette("husl")
-#
-# # Load data from external file (NEVER inline)
-# data = pd.read_csv('/tmp/gh-aw/python/data/data.csv')
-#
-# # Process data
-# summary = data.groupby('category')['value'].sum()
-#
-# # Create chart
-# fig, ax = plt.subplots(figsize=(10, 6), dpi=300)
-# summary.plot(kind='bar', ax=ax)
-#
-# # Customize
-# ax.set_title('Data Summary by Category', fontsize=16, fontweight='bold')
-# ax.set_xlabel('Category', fontsize=12)
-# ax.set_ylabel('Value', fontsize=12)
-# ax.grid(True, alpha=0.3)
-#
-# # Save chart
-# plt.savefig('/tmp/gh-aw/python/charts/chart.png',
-#             dpi=300,
-#             bbox_inches='tight',
-#             facecolor='white')
-#
-# print("Chart saved to /tmp/gh-aw/python/charts/chart.png")
-# ```
-#
-# ## Error Handling
-#
-# **Check File Existence:**
-# ```python
-# import os
-#
-# data_file = '/tmp/gh-aw/python/data/data.csv'
-# if not os.path.exists(data_file):
-#     raise FileNotFoundError(f"Data file not found: {data_file}")
-# ```
-#
-# **Validate Data:**
-# ```python
-# # Check for required columns
-# required_cols = ['category', 'value']
-# missing = set(required_cols) - set(data.columns)
-# if missing:
-#     raise ValueError(f"Missing columns: {missing}")
-# ```
-#
-# ## Artifact Upload
-#
-# Charts and source files are automatically uploaded as artifacts:
-#
-# **Charts Artifact:**
-# - Name: `data-charts`
-# - Contents: PNG files from `/tmp/gh-aw/python/charts/`
-# - Retention: 30 days
-#
-# **Source and Data Artifact:**
-# - Name: `python-source-and-data`
-# - Contents: Python scripts and data files
-# - Retention: 30 days
-#
-# Both artifacts are uploaded with `if: always()` condition, ensuring they're available even if the workflow fails.
-#
-# ## Tips for Success
-#
-# 1. **Always Separate Data**: Store data in files, never inline in code
-# 2. **Use Cache Memory**: Store reusable helpers for faster execution
-# 3. **High Quality Charts**: Use DPI 300+ and proper sizing
-# 4. **Clear Documentation**: Add docstrings and comments
-# 5. **Error Handling**: Validate data and check file existence
-# 6. **Type Hints**: Use type annotations for better code quality
-# 7. **Seaborn Defaults**: Leverage seaborn for better aesthetics
-# 8. **Reproducibility**: Set random seeds when needed
-#
-# ## Common Data Sources
-#
-# Based on common use cases:
-#
-# **Repository Statistics:**
-# ```python
-# # Collect via GitHub API, save to data.csv
-# # Then load and visualize
-# data = pd.read_csv('/tmp/gh-aw/python/data/repo_stats.csv')
-# ```
-#
-# **Workflow Metrics:**
-# ```python
-# # Collect via GitHub Actions API, save to data.json
-# data = pd.read_json('/tmp/gh-aw/python/data/workflow_metrics.json')
-# ```
-#
-# **Sample Data Generation:**
-# ```python
-# # Generate with NumPy, save to file first
-# import numpy as np
-# data = np.random.randn(100, 2)
-# df = pd.DataFrame(data, columns=['x', 'y'])
-# df.to_csv('/tmp/gh-aw/python/data/sample_data.csv', index=False)
-#
-# # Then load it back (demonstrating the pattern)
-# data = pd.read_csv('/tmp/gh-aw/python/data/sample_data.csv')
-# ```
-#
-# # Trends Visualization Guide
-#
-# You are an expert at creating compelling trend visualizations that reveal insights from data over time.
-#
-# ## Trending Chart Best Practices
-#
-# When generating trending charts, focus on:
-#
-# ### 1. **Time Series Excellence**
-# - Use line charts for continuous trends over time
-# - Add trend lines or moving averages to highlight patterns
-# - Include clear date/time labels on the x-axis
-# - Show confidence intervals or error bands when relevant
-#
-# ### 2. **Comparative Trends**
-# - Use multi-line charts to compare multiple trends
-# - Apply distinct colors for each series with a clear legend
-# - Consider using area charts for stacked trends
-# - Highlight key inflection points or anomalies
-#
-# ### 3. **Visual Impact**
-# - Use vibrant, contrasting colors to make trends stand out
-# - Add annotations for significant events or milestones
-# - Include grid lines for easier value reading
-# - Use appropriate scale (linear vs. logarithmic)
-#
-# ### 4. **Contextual Information**
-# - Show percentage changes or growth rates
-# - Include baseline comparisons (year-over-year, month-over-month)
-# - Add summary statistics (min, max, average, median)
-# - Highlight recent trends vs. historical patterns
-#
-# ## Example Trend Chart Types
-#
-# ### Temporal Trends
-# ```python
-# # Line chart with multiple trends
-# fig, ax = plt.subplots(figsize=(12, 7), dpi=300)
-# for column in data.columns:
-#     ax.plot(data.index, data[column], marker='o', label=column, linewidth=2)
-# ax.set_title('Trends Over Time', fontsize=16, fontweight='bold')
-# ax.set_xlabel('Date', fontsize=12)
-# ax.set_ylabel('Value', fontsize=12)
-# ax.legend(loc='best')
-# ax.grid(True, alpha=0.3)
-# plt.xticks(rotation=45)
-# ```
-#
-# ### Growth Rates
-# ```python
-# # Bar chart showing period-over-period growth
-# fig, ax = plt.subplots(figsize=(10, 6), dpi=300)
-# growth_data.plot(kind='bar', ax=ax, color=sns.color_palette("husl"))
-# ax.set_title('Growth Rates by Period', fontsize=16, fontweight='bold')
-# ax.axhline(y=0, color='black', linestyle='-', linewidth=0.8)
-# ax.set_ylabel('Growth %', fontsize=12)
-# ```
-#
-# ### Moving Averages
-# ```python
-# # Trend with moving average overlay
-# fig, ax = plt.subplots(figsize=(12, 7), dpi=300)
-# ax.plot(dates, values, label='Actual', alpha=0.5, linewidth=1)
-# ax.plot(dates, moving_avg, label='7-day Moving Average', linewidth=2.5)
-# ax.fill_between(dates, values, moving_avg, alpha=0.2)
-# ```
-#
-# ## Data Preparation for Trends
-#
-# ### Time-Based Indexing
-# ```python
-# # Convert to datetime and set as index
-# data['date'] = pd.to_datetime(data['date'])
-# data.set_index('date', inplace=True)
-# data = data.sort_index()
-# ```
-#
-# ### Resampling and Aggregation
-# ```python
-# # Resample daily data to weekly
-# weekly_data = data.resample('W').mean()
-#
-# # Calculate rolling statistics
-# data['rolling_mean'] = data['value'].rolling(window=7).mean()
-# data['rolling_std'] = data['value'].rolling(window=7).std()
-# ```
-#
-# ### Growth Calculations
-# ```python
-# # Calculate percentage change
-# data['pct_change'] = data['value'].pct_change() * 100
-#
-# # Calculate year-over-year growth
-# data['yoy_growth'] = data['value'].pct_change(periods=365) * 100
-# ```
-#
-# ## Color Palettes for Trends
-#
-# Use these palettes for impactful trend visualizations:
-#
-# - **Sequential trends**: `sns.color_palette("viridis", n_colors=5)`
-# - **Diverging trends**: `sns.color_palette("RdYlGn", n_colors=7)`
-# - **Multiple series**: `sns.color_palette("husl", n_colors=8)`
-# - **Categorical**: `sns.color_palette("Set2", n_colors=6)`
-#
-# ## Annotation Best Practices
-#
-# ```python
-# # Annotate key points
-# max_idx = data['value'].idxmax()
-# max_val = data['value'].max()
-# ax.annotate(f'Peak: {max_val:.2f}',
-#             xy=(max_idx, max_val),
-#             xytext=(10, 20),
-#             textcoords='offset points',
-#             arrowprops=dict(arrowstyle='->', color='red'),
-#             fontsize=10,
-#             fontweight='bold')
-# ```
-#
-# ## Styling for Awesome Charts
-#
-# ```python
-# import matplotlib.pyplot as plt
-# import seaborn as sns
-#
-# # Set professional style
-# sns.set_style("whitegrid")
-# sns.set_context("notebook", font_scale=1.2)
-#
-# # Custom color palette
-# custom_colors = ["#FF6B6B", "#4ECDC4", "#45B7D1", "#FFA07A", "#98D8C8"]
-# sns.set_palette(custom_colors)
-#
-# # Figure with optimal dimensions
-# fig, ax = plt.subplots(figsize=(14, 8), dpi=300)
-#
-# # ... your plotting code ...
-#
-# # Tight layout for clean appearance
-# plt.tight_layout()
-#
-# # Save with high quality
-# plt.savefig('/tmp/gh-aw/python/charts/trend_chart.png',
-#             dpi=300,
-#             bbox_inches='tight',
-#             facecolor='white',
-#             edgecolor='none')
-# ```
-#
-# ## Tips for Trending Charts
-#
-# 1. **Start with the story**: What trend are you trying to show?
-# 2. **Choose the right timeframe**: Match granularity to the pattern
-# 3. **Smooth noise**: Use moving averages for volatile data
-# 4. **Show context**: Include historical baselines or benchmarks
-# 5. **Highlight insights**: Use annotations to draw attention
-# 6. **Test readability**: Ensure labels and legends are clear
-# 7. **Optimize colors**: Use colorblind-friendly palettes
-# 8. **Export high quality**: Always use DPI 300+ for presentations
-#
-# ## Common Trend Patterns to Visualize
-#
-# - **Seasonal patterns**: Monthly or quarterly cycles
-# - **Long-term growth**: Exponential or linear trends
-# - **Volatility changes**: Periods of stability vs. fluctuation
-# - **Correlations**: How multiple trends relate
-# - **Anomalies**: Outliers or unusual events
-# - **Forecasts**: Projected future trends with uncertainty
-#
-# Remember: The best trending charts tell a clear story, make patterns obvious, and inspire action based on the insights revealed.
-#
-# # Python Data Visualization Generator
-#
-# You are a data visualization expert specializing in Python-based chart generation using scientific computing libraries with trending analysis capabilities.
-#
-# ## Mission
-#
-# Generate high-quality data visualizations with sample data, track trending metrics using cache-memory, upload charts as assets, and create a discussion with embedded images.
-#
-# ## Current Context
-#
-# - **Repository**: ${{ github.repository }}
-# - **Run ID**: ${{ github.run_id }}
-#
-# ## Environment
-#
-# The Python data visualization environment has been set up with:
-# - **Libraries**: NumPy, Pandas, Matplotlib, Seaborn, SciPy
-# - **Working Directory**: `/tmp/gh-aw/python/`
-# - **Data Directory**: `/tmp/gh-aw/python/data/`
-# - **Charts Directory**: `/tmp/gh-aw/python/charts/`
-# - **Cache Memory**: `/tmp/gh-aw/cache-memory/` (for trending data persistence)
-#
-# See the Charts with Trending Guide (imported above) for detailed usage instructions, best practices, trending patterns, and complete examples.
-#
-# ## Task Overview
-#
-# ### Phase 1: Check Cache for Historical Data
-#
-# 1. Check `/tmp/gh-aw/cache-memory/trending/` for existing trending data
-# 2. Load any historical metrics to show trend progression
-# 3. Document what historical data exists (if any)
-#
-# ### Phase 2: Generate or Collect Sample Data
-#
-# 1. Generate new sample data using NumPy with interesting patterns OR
-# 2. Collect actual metrics from the repository using GitHub API
-# 3. Save the data to `/tmp/gh-aw/python/data/` as CSV or JSON files
-# 4. Document the data generation/collection process
-#
-# ### Phase 3: Update Cache with New Data
-#
-# 1. Append new data points to `/tmp/gh-aw/cache-memory/trending/<metric-name>/history.jsonl`
-# 2. Use JSON Lines format (one JSON object per line)
-# 3. Include timestamp, metric name, value, and metadata
-# 4. Create the directory structure if it doesn't exist
-#
-# ### Phase 4: Create Trending Visualizations
-#
-# 1. Create trend charts showing data over time (if historical data exists):
-#    - Time-series line charts with multiple metrics
-#    - Moving averages to show smoothed trends
-#    - Comparative trend analysis
-#
-# 2. Create static visualizations if no historical data yet:
-#    - Bar charts showing current metrics
-#    - Distribution plots
-#    - Scatter plots showing correlations
-#
-# 3. Save all charts to `/tmp/gh-aw/python/charts/` with descriptive filenames
-#
-# 4. Ensure high quality settings (DPI 300, clear labels, seaborn styling)
-#
-# ### Phase 5: Upload Charts as Assets
-#
-# 1. Upload each generated chart using the `upload asset` tool
-# 2. Collect the returned URLs for each chart
-# 3. The assets will be published to an orphaned git branch
-#
-# ### Phase 6: Create Discussion Report
-#
-# Create a discussion with the following structure, including the uploaded chart images:
-#
-# **Title**: "📊 Data Visualization Report - Trending Analysis"
-#
-# **Content**:
-# ```markdown
-# # 📊 Data Visualization & Trending Report
-#
-# Generated on: [current date]
-#
-# ## Summary
-#
-# This report contains data visualizations and trending analysis generated using Python scientific computing libraries with persistent cache-memory for historical tracking.
-#
-# ## Trending Metrics
-#
-# ![Trending Chart 1](URL_FROM_UPLOAD_ASSET)
-#
-# [Analysis of trends shown: progression over time, moving averages, notable patterns]
-#
-# ## Additional Visualizations
-#
-# ### Chart 2: [Chart Type]
-# ![Chart 2 Description](URL_FROM_UPLOAD_ASSET)
-#
-# [Brief description of what this chart shows]
-#
-# ### Chart 3: [Chart Type]
-# ![Chart 3 Description](URL_FROM_UPLOAD_ASSET)
-#
-# [Brief description of what this chart shows]
-#
-# ## Data Information
-#
-# - **Data Source**: [Random sample / GitHub API / Other]
-# - **Sample Size**: [number of data points]
-# - **Variables**: [list of variables/columns]
-# - **Patterns**: [describe any patterns in the data]
-# - **Historical Data Points**: [count if trending data exists]
-# - **Tracking Period**: [date range if historical data exists]
-#
-# ## Cache Memory Status
-#
-# - **Cache Location**: `/tmp/gh-aw/cache-memory/trending/`
-# - **Metrics Tracked**: [list of metrics being tracked]
-# - **Persistence**: Data persists across workflow runs via GitHub Actions cache
-#
-# ## Libraries Used
-#
-# - NumPy: Array processing and numerical operations
-# - Pandas: Data manipulation and analysis
-# - Matplotlib: Chart generation
-# - Seaborn: Statistical data visualization
-# - SciPy: Scientific computing
-#
-# ## Workflow Run
-#
-# - **Repository**: ${{ github.repository }}
-# - **Run ID**: ${{ github.run_id }}
-# - **Run URL**: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
-#
-# ---
-#
-# *This report was automatically generated by the Python Data Visualization Generator workflow.*
-# *Historical trending data is stored in cache-memory for continuous analysis across runs.*
-# ```
-#
-# ## Key Reminders
-#
-# - ✅ **Check Cache First**: Look for historical trending data in `/tmp/gh-aw/cache-memory/trending/`
-# - ✅ **Append to History**: Add new data points using JSON Lines format
-# - ✅ **Create Trends**: Generate trend charts if historical data exists
-# - ✅ **Upload Charts**: Use the `upload asset` tool for each chart
-# - ✅ **Embed Images**: Include uploaded chart URLs in the markdown discussion
-# - ✅ **High Quality**: Use DPI 300, clear labels, and seaborn styling
-# - ✅ **Document Cache**: Report on cache status and trending capabilities
-#
-# Refer to the Charts with Trending Guide (imported above) for complete examples, trending patterns, cache-memory integration, and best practices.
-# ```
-#
-# Pinned GitHub Actions:
-#   - actions/cache/restore@v4 (0057852bfaa89a56745cba8c7296529d2fc39830)
-#     https://github.com/actions/cache/commit/0057852bfaa89a56745cba8c7296529d2fc39830
-#   - actions/cache/save@v4 (0057852bfaa89a56745cba8c7296529d2fc39830)
-#     https://github.com/actions/cache/commit/0057852bfaa89a56745cba8c7296529d2fc39830
-#   - actions/checkout@v5 (93cb6efe18208431cddfb8368fd83d5badbf9bfd)
-#     https://github.com/actions/checkout/commit/93cb6efe18208431cddfb8368fd83d5badbf9bfd
-#   - actions/download-artifact@v6 (018cc2cf5baa6db3ef3c5f8a56943fffe632ef53)
-#     https://github.com/actions/download-artifact/commit/018cc2cf5baa6db3ef3c5f8a56943fffe632ef53
-#   - actions/github-script@v8 (ed597411d8f924073f98dfc5c65a23a2325f34cd)
-#     https://github.com/actions/github-script/commit/ed597411d8f924073f98dfc5c65a23a2325f34cd
-#   - actions/upload-artifact@v5 (330a01c490aca151604b8cf639adc76d48f6c5d4)
-#     https://github.com/actions/upload-artifact/commit/330a01c490aca151604b8cf639adc76d48f6c5d4
 
 name: "Python Data Visualization Generator"
 "on":
@@ -1155,9 +117,7 @@ jobs:
                   .addRaw("**Files:**\n")
                   .addRaw(`- Source: \`${workflowMdPath}\`\n`)
                   .addRaw(`  - Last commit: ${workflowTimestamp}\n`)
-                  .addRaw(
-                    `  - Commit SHA: [\`${workflowCommit.sha.substring(0, 7)}\`](https://github.com/${owner}/${repo}/commit/${workflowCommit.sha})\n`
-                  )
+                  .addRaw(`  - Commit SHA: [\`${workflowCommit.sha.substring(0, 7)}\`](https://github.com/${owner}/${repo}/commit/${workflowCommit.sha})\n`)
                   .addRaw(`- Lock: \`${lockFilePath}\`\n`)
                   .addRaw(`  - Last commit: ${lockTimestamp}\n`)
                   .addRaw(`  - Commit SHA: [\`${lockCommit.sha.substring(0, 7)}\`](https://github.com/${owner}/${repo}/commit/${lockCommit.sha})\n\n`)
@@ -1707,9 +667,7 @@ jobs:
                 server.debug(`  [${toolName}] Python handler args: ${JSON.stringify(args)}`);
                 server.debug(`  [${toolName}] Timeout: ${timeoutSeconds}s`);
                 const inputJson = JSON.stringify(args || {});
-                server.debug(
-                  `  [${toolName}] Input JSON (${inputJson.length} bytes): ${inputJson.substring(0, 200)}${inputJson.length > 200 ? "..." : ""}`
-                );
+                server.debug(`  [${toolName}] Input JSON (${inputJson.length} bytes): ${inputJson.substring(0, 200)}${inputJson.length > 200 ? "..." : ""}`);
                 return new Promise((resolve, reject) => {
                   server.debug(`  [${toolName}] Executing Python script...`);
                   const child = execFile(
@@ -1817,9 +775,7 @@ jobs:
                       try {
                         if (fs.existsSync(outputFile)) {
                           const outputContent = fs.readFileSync(outputFile, "utf-8");
-                          server.debug(
-                            `  [${toolName}] Output file content: ${outputContent.substring(0, 500)}${outputContent.length > 500 ? "..." : ""}`
-                          );
+                          server.debug(`  [${toolName}] Output file content: ${outputContent.substring(0, 500)}${outputContent.length > 500 ? "..." : ""}`);
                           const lines = outputContent.split("\n");
                           for (const line of lines) {
                             const trimmed = line.trim();
@@ -1877,10 +833,7 @@ jobs:
                   fs.mkdirSync(server.logDir, { recursive: true });
                 }
                 const timestamp = new Date().toISOString();
-                fs.writeFileSync(
-                  server.logFilePath,
-                  `# ${server.serverInfo.name} MCP Server Log\n# Started: ${timestamp}\n# Version: ${server.serverInfo.version}\n\n`
-                );
+                fs.writeFileSync(server.logFilePath, `# ${server.serverInfo.name} MCP Server Log\n# Started: ${timestamp}\n# Version: ${server.serverInfo.version}\n\n`);
                 server.logFileInitialized = true;
               } catch {
               }
@@ -2540,10 +1493,7 @@ jobs:
                 const isInWorkspace = absolutePath.startsWith(path.resolve(workspaceDir));
                 const isInTmp = absolutePath.startsWith(tmpDir);
                 if (!isInWorkspace && !isInTmp) {
-                  throw new Error(
-                    `File path must be within workspace directory (${workspaceDir}) or /tmp directory. ` +
-                      `Provided path: ${filePath} (resolved to: ${absolutePath})`
-                  );
+                  throw new Error(`File path must be within workspace directory (${workspaceDir}) or /tmp directory. ` + `Provided path: ${filePath} (resolved to: ${absolutePath})`);
                 }
                 if (!fs.existsSync(filePath)) {
                   throw new Error(`File not found: ${filePath}`);
@@ -2802,10 +1752,7 @@ jobs:
                       };
                       const entryJSON = JSON.stringify(entry);
                       fs.appendFileSync(outputFile, entryJSON + "\n");
-                      const outputText =
-                        jobConfig && jobConfig.output
-                          ? jobConfig.output
-                          : `Safe-job '${configKey}' executed successfully with arguments: ${JSON.stringify(args)}`;
+                      const outputText = jobConfig && jobConfig.output ? jobConfig.output : `Safe-job '${configKey}' executed successfully with arguments: ${JSON.stringify(args)}`;
                       return {
                         content: [
                           {
@@ -4469,16 +3416,13 @@ jobs:
               return result;
             }
             function renderMarkdownTemplate(markdown) {
-              let result = markdown.replace(
-                /(\n?)([ \t]*{{#if\s+([^}]*)}}[ \t]*\n)([\s\S]*?)([ \t]*{{\/if}}[ \t]*)(\n?)/g,
-                (match, leadNL, openLine, cond, body, closeLine, trailNL) => {
-                  if (isTruthy(cond)) {
-                    return leadNL + body;
-                  } else {
-                    return "";
-                  }
+              let result = markdown.replace(/(\n?)([ \t]*{{#if\s+([^}]*)}}[ \t]*\n)([\s\S]*?)([ \t]*{{\/if}}[ \t]*)(\n?)/g, (match, leadNL, openLine, cond, body, closeLine, trailNL) => {
+                if (isTruthy(cond)) {
+                  return leadNL + body;
+                } else {
+                  return "";
                 }
-              );
+              });
               result = result.replace(/{{#if\s+([^}]*)}}([\s\S]*?){{\/if}}/g, (_, cond, body) => (isTruthy(cond) ? body : ""));
               result = result.replace(/\n{3,}/g, "\n\n");
               return result;
@@ -4849,36 +3793,33 @@ jobs:
                 });
               }
               function sanitizeUrlProtocols(s) {
-                return s.replace(
-                  /((?:http|ftp|file|ssh|git):\/\/([\w.-]*)(?:[^\s]*)|(?:data|javascript|vbscript|about|mailto|tel):[^\s]+)/gi,
-                  (match, _fullMatch, domain) => {
-                    if (domain) {
-                      const domainLower = domain.toLowerCase();
-                      const truncated = domainLower.length > 12 ? domainLower.substring(0, 12) + "..." : domainLower;
+                return s.replace(/((?:http|ftp|file|ssh|git):\/\/([\w.-]*)(?:[^\s]*)|(?:data|javascript|vbscript|about|mailto|tel):[^\s]+)/gi, (match, _fullMatch, domain) => {
+                  if (domain) {
+                    const domainLower = domain.toLowerCase();
+                    const truncated = domainLower.length > 12 ? domainLower.substring(0, 12) + "..." : domainLower;
+                    if (typeof core !== "undefined" && core.info) {
+                      core.info(`Redacted URL: ${truncated}`);
+                    }
+                    if (typeof core !== "undefined" && core.debug) {
+                      core.debug(`Redacted URL (full): ${match}`);
+                    }
+                    addRedactedDomain(domainLower);
+                  } else {
+                    const protocolMatch = match.match(/^([^:]+):/);
+                    if (protocolMatch) {
+                      const protocol = protocolMatch[1] + ":";
+                      const truncated = match.length > 12 ? match.substring(0, 12) + "..." : match;
                       if (typeof core !== "undefined" && core.info) {
                         core.info(`Redacted URL: ${truncated}`);
                       }
                       if (typeof core !== "undefined" && core.debug) {
                         core.debug(`Redacted URL (full): ${match}`);
                       }
-                      addRedactedDomain(domainLower);
-                    } else {
-                      const protocolMatch = match.match(/^([^:]+):/);
-                      if (protocolMatch) {
-                        const protocol = protocolMatch[1] + ":";
-                        const truncated = match.length > 12 ? match.substring(0, 12) + "..." : match;
-                        if (typeof core !== "undefined" && core.info) {
-                          core.info(`Redacted URL: ${truncated}`);
-                        }
-                        if (typeof core !== "undefined" && core.debug) {
-                          core.debug(`Redacted URL (full): ${match}`);
-                        }
-                        addRedactedDomain(protocol);
-                      }
+                      addRedactedDomain(protocol);
                     }
-                    return "(redacted)";
                   }
-                );
+                  return "(redacted)";
+                });
               }
               function neutralizeCommands(s) {
                 const commandName = process.env.GH_AW_COMMAND;
@@ -4900,37 +3841,7 @@ jobs:
                 return s.replace(/<!--[\s\S]*?-->/g, "").replace(/<!--[\s\S]*?--!>/g, "");
               }
               function convertXmlTags(s) {
-                const allowedTags = [
-                  "b",
-                  "blockquote",
-                  "br",
-                  "code",
-                  "details",
-                  "em",
-                  "h1",
-                  "h2",
-                  "h3",
-                  "h4",
-                  "h5",
-                  "h6",
-                  "hr",
-                  "i",
-                  "li",
-                  "ol",
-                  "p",
-                  "pre",
-                  "strong",
-                  "sub",
-                  "summary",
-                  "sup",
-                  "table",
-                  "tbody",
-                  "td",
-                  "th",
-                  "thead",
-                  "tr",
-                  "ul",
-                ];
+                const allowedTags = ["b", "blockquote", "br", "code", "details", "em", "h1", "h2", "h3", "h4", "h5", "h6", "hr", "i", "li", "ol", "p", "pre", "strong", "sub", "summary", "sup", "table", "tbody", "td", "th", "thead", "tr", "ul"];
                 s = s.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, (match, content) => {
                   const convertedContent = content.replace(/<(\/?[A-Za-z][A-Za-z0-9]*(?:[^>]*?))>/g, "($1)");
                   return `(![CDATA[${convertedContent}]])`;
@@ -5042,36 +3953,33 @@ jobs:
                 return result;
               }
               function sanitizeUrlProtocols(s) {
-                return s.replace(
-                  /\b((?:http|ftp|file|ssh|git):\/\/([\w.-]+)(?:[^\s]*)|(?:data|javascript|vbscript|about|mailto|tel):[^\s]+)/gi,
-                  (match, _fullMatch, domain) => {
-                    if (domain) {
-                      const domainLower = domain.toLowerCase();
-                      const truncated = domainLower.length > 12 ? domainLower.substring(0, 12) + "..." : domainLower;
+                return s.replace(/\b((?:http|ftp|file|ssh|git):\/\/([\w.-]+)(?:[^\s]*)|(?:data|javascript|vbscript|about|mailto|tel):[^\s]+)/gi, (match, _fullMatch, domain) => {
+                  if (domain) {
+                    const domainLower = domain.toLowerCase();
+                    const truncated = domainLower.length > 12 ? domainLower.substring(0, 12) + "..." : domainLower;
+                    if (typeof core !== "undefined" && core.info) {
+                      core.info(`Redacted URL: ${truncated}`);
+                    }
+                    if (typeof core !== "undefined" && core.debug) {
+                      core.debug(`Redacted URL (full): ${match}`);
+                    }
+                    addRedactedDomain(domainLower);
+                  } else {
+                    const protocolMatch = match.match(/^([^:]+):/);
+                    if (protocolMatch) {
+                      const protocol = protocolMatch[1] + ":";
+                      const truncated = match.length > 12 ? match.substring(0, 12) + "..." : match;
                       if (typeof core !== "undefined" && core.info) {
                         core.info(`Redacted URL: ${truncated}`);
                       }
                       if (typeof core !== "undefined" && core.debug) {
                         core.debug(`Redacted URL (full): ${match}`);
                       }
-                      addRedactedDomain(domainLower);
-                    } else {
-                      const protocolMatch = match.match(/^([^:]+):/);
-                      if (protocolMatch) {
-                        const protocol = protocolMatch[1] + ":";
-                        const truncated = match.length > 12 ? match.substring(0, 12) + "..." : match;
-                        if (typeof core !== "undefined" && core.info) {
-                          core.info(`Redacted URL: ${truncated}`);
-                        }
-                        if (typeof core !== "undefined" && core.debug) {
-                          core.debug(`Redacted URL (full): ${match}`);
-                        }
-                        addRedactedDomain(protocol);
-                      }
+                      addRedactedDomain(protocol);
                     }
-                    return "(redacted)";
                   }
-                );
+                  return "(redacted)";
+                });
               }
               function neutralizeCommands(s) {
                 const commandName = process.env.GH_AW_COMMAND;
@@ -5097,37 +4005,7 @@ jobs:
                 return s.replace(/<!--[\s\S]*?-->/g, "").replace(/<!--[\s\S]*?--!>/g, "");
               }
               function convertXmlTags(s) {
-                const allowedTags = [
-                  "b",
-                  "blockquote",
-                  "br",
-                  "code",
-                  "details",
-                  "em",
-                  "h1",
-                  "h2",
-                  "h3",
-                  "h4",
-                  "h5",
-                  "h6",
-                  "hr",
-                  "i",
-                  "li",
-                  "ol",
-                  "p",
-                  "pre",
-                  "strong",
-                  "sub",
-                  "summary",
-                  "sup",
-                  "table",
-                  "tbody",
-                  "td",
-                  "th",
-                  "thead",
-                  "tr",
-                  "ul",
-                ];
+                const allowedTags = ["b", "blockquote", "br", "code", "details", "em", "h1", "h2", "h3", "h4", "h5", "h6", "hr", "i", "li", "ol", "p", "pre", "strong", "sub", "summary", "sup", "table", "tbody", "td", "th", "thead", "tr", "ul"];
                 s = s.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, (match, content) => {
                   const convertedContent = content.replace(/<(\/?[A-Za-z][A-Za-z0-9]*(?:[^>]*?))>/g, "($1)");
                   return `(![CDATA[${convertedContent}]])`;
@@ -5819,9 +4697,7 @@ jobs:
                   core.info(`Loaded validation config from ${validationConfigPath}`);
                 }
               } catch (error) {
-                core.warning(
-                  `Failed to read validation config from ${validationConfigPath}: ${error instanceof Error ? error.message : String(error)}`
-                );
+                core.warning(`Failed to read validation config from ${validationConfigPath}: ${error instanceof Error ? error.message : String(error)}`);
               }
               const mentionsConfig = validationConfig?.mentions || null;
               const allowedMentions = await resolveAllowedMentionsFromPayload(context, github, core, mentionsConfig);
@@ -6034,9 +4910,7 @@ jobs:
                   core.info(`[INGESTION] Line ${i + 1}: Original type='${originalType}', Normalized type='${itemType}'`);
                   item.type = itemType;
                   if (!expectedOutputTypes[itemType]) {
-                    core.warning(
-                      `[INGESTION] Line ${i + 1}: Type '${itemType}' not found in expected types: ${JSON.stringify(Object.keys(expectedOutputTypes))}`
-                    );
+                    core.warning(`[INGESTION] Line ${i + 1}: Type '${itemType}' not found in expected types: ${JSON.stringify(Object.keys(expectedOutputTypes))}`);
                     errors.push(`Line ${i + 1}: Unexpected output type '${itemType}'. Expected one of: ${Object.keys(expectedOutputTypes).join(", ")}`);
                     continue;
                   }
@@ -6118,10 +4992,7 @@ jobs:
               core.info(`Patch file ${hasPatch ? "exists" : "does not exist"} at: ${patchPath}`);
               let allowEmptyPR = false;
               if (safeOutputsConfig) {
-                if (
-                  safeOutputsConfig["create-pull-request"]?.["allow-empty"] === true ||
-                  safeOutputsConfig["create_pull_request"]?.["allow_empty"] === true
-                ) {
+                if (safeOutputsConfig["create-pull-request"]?.["allow-empty"] === true || safeOutputsConfig["create_pull_request"]?.["allow_empty"] === true) {
                   allowEmptyPR = true;
                   core.info(`allow-empty is enabled for create-pull-request`);
                 }
@@ -6492,24 +5363,7 @@ jobs:
                   "Custom Agents": [],
                   Other: [],
                 };
-                const builtinTools = [
-                  "bash",
-                  "write_bash",
-                  "read_bash",
-                  "stop_bash",
-                  "list_bash",
-                  "grep",
-                  "glob",
-                  "view",
-                  "create",
-                  "edit",
-                  "store_memory",
-                  "code_review",
-                  "codeql_checker",
-                  "report_progress",
-                  "report_intent",
-                  "gh-advisory-database",
-                ];
+                const builtinTools = ["bash", "write_bash", "read_bash", "stop_bash", "list_bash", "grep", "glob", "view", "create", "edit", "store_memory", "code_review", "codeql_checker", "report_progress", "report_intent", "gh-advisory-database"];
                 const internalTools = ["fetch_copilot_cli_documentation"];
                 for (const tool of initEntry.tools) {
                   const toolLower = tool.toLowerCase();
@@ -6905,9 +5759,7 @@ jobs:
                   const cacheCreationTokens = usage.cache_creation_input_tokens || 0;
                   const cacheReadTokens = usage.cache_read_input_tokens || 0;
                   const totalTokens = inputTokens + outputTokens + cacheCreationTokens + cacheReadTokens;
-                  lines.push(
-                    `  Tokens: ${totalTokens.toLocaleString()} total (${usage.input_tokens.toLocaleString()} in / ${usage.output_tokens.toLocaleString()} out)`
-                  );
+                  lines.push(`  Tokens: ${totalTokens.toLocaleString()} total (${usage.input_tokens.toLocaleString()} in / ${usage.output_tokens.toLocaleString()} out)`);
                 }
               }
               if (lastEntry?.total_cost_usd) {
@@ -7066,9 +5918,7 @@ jobs:
                   const cacheCreationTokens = usage.cache_creation_input_tokens || 0;
                   const cacheReadTokens = usage.cache_read_input_tokens || 0;
                   const totalTokens = inputTokens + outputTokens + cacheCreationTokens + cacheReadTokens;
-                  lines.push(
-                    `  Tokens: ${totalTokens.toLocaleString()} total (${usage.input_tokens.toLocaleString()} in / ${usage.output_tokens.toLocaleString()} out)`
-                  );
+                  lines.push(`  Tokens: ${totalTokens.toLocaleString()} total (${usage.input_tokens.toLocaleString()} in / ${usage.output_tokens.toLocaleString()} out)`);
                 }
               }
               if (lastEntry?.total_cost_usd) {
@@ -7169,11 +6019,7 @@ jobs:
               });
             }
             function extractPremiumRequestCount(logContent) {
-              const patterns = [
-                /premium\s+requests?\s+consumed:?\s*(\d+)/i,
-                /(\d+)\s+premium\s+requests?\s+consumed/i,
-                /consumed\s+(\d+)\s+premium\s+requests?/i,
-              ];
+              const patterns = [/premium\s+requests?\s+consumed:?\s*(\d+)/i, /(\d+)\s+premium\s+requests?\s+consumed/i, /consumed\s+(\d+)\s+premium\s+requests?/i];
               for (const pattern of patterns) {
                 const match = logContent.match(pattern);
                 if (match && match[1]) {
@@ -7245,8 +6091,7 @@ jobs:
                 const initEntry = logEntries.find(entry => entry.type === "system" && entry.subtype === "init");
                 markdown += generateInformationSection(lastEntry, {
                   additionalInfoCallback: entry => {
-                    const isPremiumModel =
-                      initEntry && initEntry.model_info && initEntry.model_info.billing && initEntry.model_info.billing.is_premium === true;
+                    const isPremiumModel = initEntry && initEntry.model_info && initEntry.model_info.billing && initEntry.model_info.billing.is_premium === true;
                     if (isPremiumModel) {
                       const premiumRequestCount = extractPremiumRequestCount(logContent);
                       return `**Premium Requests Consumed:** ${premiumRequestCount}\n\n`;
@@ -7673,299 +6518,151 @@ jobs:
         with:
           script: |
             function sanitizeWorkflowName(name) {
-
               return name
-
                 .toLowerCase()
-
                 .replace(/[:\\/\s]/g, "-")
-
                 .replace(/[^a-z0-9._-]/g, "-");
-
             }
-
             function main() {
-
               const fs = require("fs");
-
               const path = require("path");
-
               try {
-
                 const squidLogsDir = `/tmp/gh-aw/sandbox/firewall/logs/`;
-
                 if (!fs.existsSync(squidLogsDir)) {
-
                   core.info(`No firewall logs directory found at: ${squidLogsDir}`);
-
                   return;
-
                 }
-
                 const files = fs.readdirSync(squidLogsDir).filter(file => file.endsWith(".log"));
-
                 if (files.length === 0) {
-
                   core.info(`No firewall log files found in: ${squidLogsDir}`);
-
                   return;
-
                 }
-
                 core.info(`Found ${files.length} firewall log file(s)`);
-
                 let totalRequests = 0;
-
                 let allowedRequests = 0;
-
                 let deniedRequests = 0;
-
                 const allowedDomains = new Set();
-
                 const deniedDomains = new Set();
-
                 const requestsByDomain = new Map();
-
                 for (const file of files) {
-
                   const filePath = path.join(squidLogsDir, file);
-
                   core.info(`Parsing firewall log: ${file}`);
-
                   const content = fs.readFileSync(filePath, "utf8");
-
                   const lines = content.split("\n").filter(line => line.trim());
-
                   for (const line of lines) {
-
                     const entry = parseFirewallLogLine(line);
-
                     if (!entry) {
-
                       continue;
-
                     }
-
                     totalRequests++;
-
                     const isAllowed = isRequestAllowed(entry.decision, entry.status);
-
                     if (isAllowed) {
-
                       allowedRequests++;
-
                       allowedDomains.add(entry.domain);
-
                     } else {
-
                       deniedRequests++;
-
                       deniedDomains.add(entry.domain);
-
                     }
-
                     if (!requestsByDomain.has(entry.domain)) {
-
                       requestsByDomain.set(entry.domain, { allowed: 0, denied: 0 });
-
                     }
-
                     const domainStats = requestsByDomain.get(entry.domain);
-
                     if (isAllowed) {
-
                       domainStats.allowed++;
-
                     } else {
-
                       domainStats.denied++;
-
                     }
-
                   }
-
                 }
-
                 const summary = generateFirewallSummary({
-
                   totalRequests,
-
                   allowedRequests,
-
                   deniedRequests,
-
                   allowedDomains: Array.from(allowedDomains).sort(),
-
                   deniedDomains: Array.from(deniedDomains).sort(),
-
                   requestsByDomain,
-
                 });
-
                 core.summary.addRaw(summary).write();
-
                 core.info("Firewall log summary generated successfully");
-
               } catch (error) {
-
                 core.setFailed(error instanceof Error ? error : String(error));
-
               }
-
             }
-
             function parseFirewallLogLine(line) {
-
               const trimmed = line.trim();
-
               if (!trimmed || trimmed.startsWith("#")) {
-
                 return null;
-
               }
-
               const fields = trimmed.match(/(?:[^\s"]+|"[^"]*")+/g);
-
               if (!fields || fields.length < 10) {
-
                 return null;
-
               }
-
               const timestamp = fields[0];
-
               if (!/^\d+(\.\d+)?$/.test(timestamp)) {
-
                 return null;
-
               }
-
               return {
-
                 timestamp,
-
                 clientIpPort: fields[1],
-
                 domain: fields[2],
-
                 destIpPort: fields[3],
-
                 proto: fields[4],
-
                 method: fields[5],
-
                 status: fields[6],
-
                 decision: fields[7],
-
                 url: fields[8],
-
                 userAgent: fields[9]?.replace(/^"|"$/g, "") || "-",
-
               };
-
             }
-
             function isRequestAllowed(decision, status) {
-
               const statusCode = parseInt(status, 10);
-
               if (statusCode === 200 || statusCode === 206 || statusCode === 304) {
-
                 return true;
-
               }
-
               if (decision.includes("TCP_TUNNEL") || decision.includes("TCP_HIT") || decision.includes("TCP_MISS")) {
-
                 return true;
-
               }
-
               if (decision.includes("NONE_NONE") || decision.includes("TCP_DENIED") || statusCode === 403 || statusCode === 407) {
-
                 return false;
-
               }
-
               return false;
-
             }
-
             function generateFirewallSummary(analysis) {
-
               const { totalRequests, requestsByDomain } = analysis;
-
               const validDomains = Array.from(requestsByDomain.keys())
-
                 .filter(domain => domain !== "-")
-
                 .sort();
-
               const uniqueDomainCount = validDomains.length;
-
               let validAllowedRequests = 0;
-
               let validDeniedRequests = 0;
-
               for (const domain of validDomains) {
-
                 const stats = requestsByDomain.get(domain);
-
                 validAllowedRequests += stats.allowed;
-
                 validDeniedRequests += stats.denied;
-
               }
-
               let summary = "### 🔥 Firewall Activity\n\n";
-
               summary += "<details>\n";
-
               summary += `<summary>📊 ${totalRequests} request${totalRequests !== 1 ? "s" : ""} | `;
-
               summary += `${validAllowedRequests} allowed | `;
-
               summary += `${validDeniedRequests} blocked | `;
-
               summary += `${uniqueDomainCount} unique domain${uniqueDomainCount !== 1 ? "s" : ""}</summary>\n\n`;
-
               if (uniqueDomainCount > 0) {
-
                 summary += "| Domain | Allowed | Denied |\n";
-
                 summary += "|--------|---------|--------|\n";
-
                 for (const domain of validDomains) {
-
                   const stats = requestsByDomain.get(domain);
-
                   summary += `| ${domain} | ${stats.allowed} | ${stats.denied} |\n`;
-
                 }
-
               } else {
-
                 summary += "No firewall activity detected.\n";
-
               }
-
               summary += "\n</details>\n\n";
-
               return summary;
-
             }
-
-            const isDirectExecution =
-
-              typeof module === "undefined" || (typeof require !== "undefined" && typeof require.main !== "undefined" && require.main === module);
-
+            const isDirectExecution = typeof module === "undefined" || (typeof require !== "undefined" && typeof require.main !== "undefined" && require.main === module);
             if (isDirectExecution) {
-
               main();
-
             }
-
       - name: Upload Agent Stdio
         if: always()
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
@@ -8133,9 +6830,7 @@ jobs:
                     }
                     lastIndex = regex.lastIndex;
                     if (iterationCount === ITERATION_WARNING_THRESHOLD) {
-                      core.warning(
-                        `High iteration count (${iterationCount}) on line ${lineIndex + 1} with pattern: ${pattern.description || pattern.pattern}`
-                      );
+                      core.warning(`High iteration count (${iterationCount}) on line ${lineIndex + 1} with pattern: ${pattern.description || pattern.pattern}`);
                       core.warning(`Line content (truncated): ${truncateString(line, 200)}`);
                     }
                     if (iterationCount > MAX_ITERATIONS_PER_LINE) {
@@ -8443,9 +7138,7 @@ jobs:
               core.setOutput("total_count", missingTools.length.toString());
               if (missingTools.length > 0) {
                 core.info("Missing tools summary:");
-                core.summary
-                  .addHeading("Missing Tools Report", 3)
-                  .addRaw(`Found **${missingTools.length}** missing tool${missingTools.length > 1 ? "s" : ""} in this workflow execution.\n\n`);
+                core.summary.addHeading("Missing Tools Report", 3).addRaw(`Found **${missingTools.length}** missing tool${missingTools.length > 1 ? "s" : ""} in this workflow execution.\n\n`);
                 missingTools.forEach((tool, index) => {
                   core.info(`${index + 1}. Tool: ${tool.tool}`);
                   core.info(`   Reason: ${tool.reason}`);
@@ -8578,9 +7271,7 @@ jobs:
               const messages = getMessages();
               const templateContext = toSnakeCase(ctx);
               const defaultMessage = "⚠️ Security scanning failed for [{workflow_name}]({run_url}). Review the logs for details.";
-              return messages?.detectionFailure
-                ? renderTemplate(messages.detectionFailure, templateContext)
-                : renderTemplate(defaultMessage, templateContext);
+              return messages?.detectionFailure ? renderTemplate(messages.detectionFailure, templateContext) : renderTemplate(defaultMessage, templateContext);
             }
             function collectGeneratedAssets() {
               const assets = [];
@@ -8860,9 +7551,7 @@ jobs:
               const defaultMessage = `⚓ Avast! This discussion be marked as **outdated** by [{workflow_name}]({run_url}).
             🗺️ A newer treasure map awaits ye at **[Discussion #{new_discussion_number}]({new_discussion_url})**.
             Fair winds, matey! 🏴‍☠️`;
-              return messages?.closeOlderDiscussion
-                ? renderTemplate(messages.closeOlderDiscussion, templateContext)
-                : renderTemplate(defaultMessage, templateContext);
+              return messages?.closeOlderDiscussion ? renderTemplate(messages.closeOlderDiscussion, templateContext) : renderTemplate(defaultMessage, templateContext);
             }
             const MAX_CLOSE_COUNT = 10;
             const GRAPHQL_DELAY_MS = 500;
@@ -9282,9 +7971,7 @@ jobs:
               const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
               const runId = context.runId;
               const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
-              const runUrl = context.payload.repository
-                ? `${context.payload.repository.html_url}/actions/runs/${runId}`
-                : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
+              const runUrl = context.payload.repository ? `${context.payload.repository.html_url}/actions/runs/${runId}` : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
               const createdDiscussions = [];
               const closedDiscussionsSummary = [];
               for (let i = 0; i < createDiscussionItems.length; i++) {
@@ -9310,16 +7997,10 @@ jobs:
                     }
                     repoInfo = fetchedInfo;
                     repoInfoCache.set(itemRepo, repoInfo);
-                    core.info(
-                      `Fetched discussion categories for ${itemRepo}: ${JSON.stringify(repoInfo.discussionCategories.map(cat => ({ name: cat.name, id: cat.id })))}`
-                    );
+                    core.info(`Fetched discussion categories for ${itemRepo}: ${JSON.stringify(repoInfo.discussionCategories.map(cat => ({ name: cat.name, id: cat.id })))}`);
                   } catch (error) {
                     const errorMessage = error instanceof Error ? error.message : String(error);
-                    if (
-                      errorMessage.includes("Not Found") ||
-                      errorMessage.includes("not found") ||
-                      errorMessage.includes("Could not resolve to a Repository")
-                    ) {
+                    if (errorMessage.includes("Not Found") || errorMessage.includes("not found") || errorMessage.includes("Could not resolve to a Repository")) {
                       core.warning(`Skipping discussion: Discussions are not enabled for repository '${itemRepo}'`);
                       continue;
                     }
@@ -9339,18 +8020,14 @@ jobs:
                 } else if (categoryInfo.matchType === "fallback") {
                   if (categoryInfo.requestedCategory) {
                     const availableCategoryNames = repoInfo.discussionCategories.map(cat => cat.name).join(", ");
-                    core.warning(
-                      `Category "${categoryInfo.requestedCategory}" not found by ID, name, or slug. Available categories: ${availableCategoryNames}`
-                    );
+                    core.warning(`Category "${categoryInfo.requestedCategory}" not found by ID, name, or slug. Available categories: ${availableCategoryNames}`);
                     core.info(`Falling back to default category: ${categoryInfo.name} (${categoryInfo.id})`);
                   } else {
                     core.info(`Using default first category: ${categoryInfo.name} (${categoryInfo.id})`);
                   }
                 }
                 const categoryId = categoryInfo.id;
-                core.info(
-                  `Processing create-discussion item ${i + 1}/${createDiscussionItems.length}: title=${createDiscussionItem.title}, bodyLength=${createDiscussionItem.body?.length || 0}, repo=${itemRepo}`
-                );
+                core.info(`Processing create-discussion item ${i + 1}/${createDiscussionItems.length}: title=${createDiscussionItem.title}, bodyLength=${createDiscussionItem.body?.length || 0}, repo=${itemRepo}`);
                 let title = createDiscussionItem.title ? replaceTemporaryIdReferences(createDiscussionItem.title.trim(), temporaryIdMap, itemRepo) : "";
                 const bodyText = createDiscussionItem.body || "";
                 let processedBody = replaceTemporaryIdReferences(bodyText, temporaryIdMap, itemRepo);
@@ -9411,17 +8088,7 @@ jobs:
                   if (closeOlderEnabled && hasMatchingCriteria) {
                     core.info("close-older-discussions is enabled, searching for older discussions to close...");
                     try {
-                      const closedDiscussions = await closeOlderDiscussions(
-                        github,
-                        repoParts.owner,
-                        repoParts.repo,
-                        titlePrefix,
-                        labels,
-                        categoryId,
-                        { number: discussion.number, url: discussion.url },
-                        workflowName,
-                        runUrl
-                      );
+                      const closedDiscussions = await closeOlderDiscussions(github, repoParts.owner, repoParts.repo, titlePrefix, labels, categoryId, { number: discussion.number, url: discussion.url }, workflowName, runUrl);
                       if (closedDiscussions.length > 0) {
                         closedDiscussionsSummary.push(...closedDiscussions);
                         core.info(`Closed ${closedDiscussions.length} older discussion(s) as outdated`);
@@ -9944,10 +8611,7 @@ jobs:
                     core.summary.addRaw("## Staged Asset Publication");
                   } else {
                     await exec.exec(`git push origin ${normalizedBranchName}`);
-                    core.summary
-                      .addRaw("## Assets")
-                      .addRaw(`Successfully uploaded **${uploadCount}** assets to branch \`${normalizedBranchName}\``)
-                      .addRaw("");
+                    core.summary.addRaw("## Assets").addRaw(`Successfully uploaded **${uploadCount}** assets to branch \`${normalizedBranchName}\``).addRaw("");
                     core.info(`Successfully uploaded ${uploadCount} assets to branch ${normalizedBranchName}`);
                   }
                   for (const asset of uploadAssetItems) {

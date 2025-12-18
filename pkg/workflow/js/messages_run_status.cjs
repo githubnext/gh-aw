@@ -105,9 +105,7 @@ function getDetectionFailureMessage(ctx) {
   const defaultMessage = "⚠️ Security scanning failed for [{workflow_name}]({run_url}). Review the logs for details.";
 
   // Use custom message if configured
-  return messages?.detectionFailure
-    ? renderTemplate(messages.detectionFailure, templateContext)
-    : renderTemplate(defaultMessage, templateContext);
+  return messages?.detectionFailure ? renderTemplate(messages.detectionFailure, templateContext) : renderTemplate(defaultMessage, templateContext);
 }
 
 module.exports = {

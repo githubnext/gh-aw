@@ -60,13 +60,7 @@ describe("update_activation_comment.cjs", () => {
 
     const { updateActivationComment } = createFunctionFromScript(mockDependencies);
 
-    await updateActivationComment(
-      mockDependencies.github,
-      mockDependencies.context,
-      mockDependencies.core,
-      "https://github.com/testowner/testrepo/pull/42",
-      42
-    );
+    await updateActivationComment(mockDependencies.github, mockDependencies.context, mockDependencies.core, "https://github.com/testowner/testrepo/pull/42", 42);
 
     expect(mockDependencies.core.info).toHaveBeenCalledWith("No activation comment to update (GH_AW_COMMENT_ID not set)");
     expect(mockDependencies.github.request).not.toHaveBeenCalled();
@@ -99,13 +93,7 @@ describe("update_activation_comment.cjs", () => {
 
     const { updateActivationComment } = createFunctionFromScript(mockDependencies);
 
-    await updateActivationComment(
-      mockDependencies.github,
-      mockDependencies.context,
-      mockDependencies.core,
-      "https://github.com/testowner/testrepo/pull/42",
-      42
-    );
+    await updateActivationComment(mockDependencies.github, mockDependencies.context, mockDependencies.core, "https://github.com/testowner/testrepo/pull/42", 42);
 
     // Verify comment was fetched
     expect(mockDependencies.github.request).toHaveBeenCalledWith(
@@ -161,13 +149,7 @@ describe("update_activation_comment.cjs", () => {
 
     const { updateActivationComment } = createFunctionFromScript(mockDependencies);
 
-    await updateActivationComment(
-      mockDependencies.github,
-      mockDependencies.context,
-      mockDependencies.core,
-      "https://github.com/testowner/testrepo/pull/42",
-      42
-    );
+    await updateActivationComment(mockDependencies.github, mockDependencies.context, mockDependencies.core, "https://github.com/testowner/testrepo/pull/42", 42);
 
     // Verify GraphQL was called to get current comment
     expect(mockDependencies.github.graphql).toHaveBeenCalledWith(
@@ -198,13 +180,7 @@ describe("update_activation_comment.cjs", () => {
 
     const { updateActivationComment } = createFunctionFromScript(mockDependencies);
 
-    await updateActivationComment(
-      mockDependencies.github,
-      mockDependencies.context,
-      mockDependencies.core,
-      "https://github.com/testowner/testrepo/pull/42",
-      42
-    );
+    await updateActivationComment(mockDependencies.github, mockDependencies.context, mockDependencies.core, "https://github.com/testowner/testrepo/pull/42", 42);
 
     // Verify warning was logged but workflow didn't fail
     expect(mockDependencies.core.warning).toHaveBeenCalledWith("Failed to update activation comment: Comment update failed");
@@ -236,13 +212,7 @@ describe("update_activation_comment.cjs", () => {
 
     const { updateActivationComment } = createFunctionFromScript(mockDependencies);
 
-    await updateActivationComment(
-      mockDependencies.github,
-      mockDependencies.context,
-      mockDependencies.core,
-      "https://github.com/testowner/testrepo/pull/42",
-      42
-    );
+    await updateActivationComment(mockDependencies.github, mockDependencies.context, mockDependencies.core, "https://github.com/testowner/testrepo/pull/42", 42);
 
     // Verify request used context repo
     expect(mockDependencies.github.request).toHaveBeenCalledWith(
@@ -279,18 +249,10 @@ describe("update_activation_comment.cjs", () => {
 
     const { updateActivationComment } = createFunctionFromScript(mockDependencies);
 
-    await updateActivationComment(
-      mockDependencies.github,
-      mockDependencies.context,
-      mockDependencies.core,
-      "https://github.com/testowner/testrepo/pull/42",
-      42
-    );
+    await updateActivationComment(mockDependencies.github, mockDependencies.context, mockDependencies.core, "https://github.com/testowner/testrepo/pull/42", 42);
 
     // Verify warning was logged
-    expect(mockDependencies.core.warning).toHaveBeenCalledWith(
-      'Invalid comment repo format: invalid-format, expected "owner/repo". Falling back to context.repo.'
-    );
+    expect(mockDependencies.core.warning).toHaveBeenCalledWith('Invalid comment repo format: invalid-format, expected "owner/repo". Falling back to context.repo.');
 
     // Verify request used context repo as fallback
     expect(mockDependencies.github.request).toHaveBeenCalledWith(
@@ -315,18 +277,10 @@ describe("update_activation_comment.cjs", () => {
 
     const { updateActivationComment } = createFunctionFromScript(mockDependencies);
 
-    await updateActivationComment(
-      mockDependencies.github,
-      mockDependencies.context,
-      mockDependencies.core,
-      "https://github.com/testowner/testrepo/pull/42",
-      42
-    );
+    await updateActivationComment(mockDependencies.github, mockDependencies.context, mockDependencies.core, "https://github.com/testowner/testrepo/pull/42", 42);
 
     // Verify warning was logged
-    expect(mockDependencies.core.warning).toHaveBeenCalledWith(
-      "Unable to fetch current comment body, comment may have been deleted or is inaccessible"
-    );
+    expect(mockDependencies.core.warning).toHaveBeenCalledWith("Unable to fetch current comment body, comment may have been deleted or is inaccessible");
 
     // Verify mutation was not attempted
     expect(mockDependencies.github.graphql).toHaveBeenCalledTimes(1);
@@ -343,18 +297,10 @@ describe("update_activation_comment.cjs", () => {
 
     const { updateActivationComment } = createFunctionFromScript(mockDependencies);
 
-    await updateActivationComment(
-      mockDependencies.github,
-      mockDependencies.context,
-      mockDependencies.core,
-      "https://github.com/testowner/testrepo/pull/42",
-      42
-    );
+    await updateActivationComment(mockDependencies.github, mockDependencies.context, mockDependencies.core, "https://github.com/testowner/testrepo/pull/42", 42);
 
     // Verify warning was logged
-    expect(mockDependencies.core.warning).toHaveBeenCalledWith(
-      "Unable to fetch current comment body, comment may have been deleted or is inaccessible"
-    );
+    expect(mockDependencies.core.warning).toHaveBeenCalledWith("Unable to fetch current comment body, comment may have been deleted or is inaccessible");
 
     // Verify mutation was not attempted
     expect(mockDependencies.github.graphql).toHaveBeenCalledTimes(1);
@@ -373,13 +319,7 @@ describe("update_activation_comment.cjs", () => {
 
     const { updateActivationComment } = createFunctionFromScript(mockDependencies);
 
-    await updateActivationComment(
-      mockDependencies.github,
-      mockDependencies.context,
-      mockDependencies.core,
-      "https://github.com/testowner/testrepo/pull/42",
-      42
-    );
+    await updateActivationComment(mockDependencies.github, mockDependencies.context, mockDependencies.core, "https://github.com/testowner/testrepo/pull/42", 42);
 
     // Verify warning was logged
     expect(mockDependencies.core.warning).toHaveBeenCalledWith("Unable to fetch current comment body, comment may have been deleted");
@@ -399,13 +339,7 @@ describe("update_activation_comment.cjs", () => {
 
     const { updateActivationComment } = createFunctionFromScript(mockDependencies);
 
-    await updateActivationComment(
-      mockDependencies.github,
-      mockDependencies.context,
-      mockDependencies.core,
-      "https://github.com/testowner/testrepo/pull/42",
-      42
-    );
+    await updateActivationComment(mockDependencies.github, mockDependencies.context, mockDependencies.core, "https://github.com/testowner/testrepo/pull/42", 42);
 
     // Verify warning was logged
     expect(mockDependencies.core.warning).toHaveBeenCalledWith("Unable to fetch current comment body, comment may have been deleted");
@@ -441,14 +375,7 @@ describe("update_activation_comment.cjs", () => {
 
     const { updateActivationComment } = createFunctionFromScript(mockDependencies);
 
-    await updateActivationComment(
-      mockDependencies.github,
-      mockDependencies.context,
-      mockDependencies.core,
-      "https://github.com/testowner/testrepo/issues/99",
-      99,
-      "issue"
-    );
+    await updateActivationComment(mockDependencies.github, mockDependencies.context, mockDependencies.core, "https://github.com/testowner/testrepo/issues/99", 99, "issue");
 
     // Verify comment was updated with issue link
     expect(mockDependencies.github.request).toHaveBeenCalledWith(
@@ -494,14 +421,7 @@ describe("update_activation_comment.cjs", () => {
 
     const { updateActivationComment } = createFunctionFromScript(mockDependencies);
 
-    await updateActivationComment(
-      mockDependencies.github,
-      mockDependencies.context,
-      mockDependencies.core,
-      "https://github.com/testowner/testrepo/issues/99",
-      99,
-      "issue"
-    );
+    await updateActivationComment(mockDependencies.github, mockDependencies.context, mockDependencies.core, "https://github.com/testowner/testrepo/issues/99", 99, "issue");
 
     // Verify GraphQL was called to update comment
     expect(mockDependencies.github.graphql).toHaveBeenCalledWith(

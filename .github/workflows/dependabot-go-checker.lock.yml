@@ -19,500 +19,7 @@
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/aw/github-agentic-workflows.md
 #
-#
 # Checks for Go module and NPM dependency updates and analyzes Dependabot PRs for compatibility and breaking changes
-#
-# Original Frontmatter:
-# ```yaml
-# description: Checks for Go module and NPM dependency updates and analyzes Dependabot PRs for compatibility and breaking changes
-# on:
-#   schedule:
-#     # Run every other business day: Monday, Wednesday, Friday at 9 AM UTC
-#     - cron: "0 9 * * 1,3,5"
-#   workflow_dispatch:
-#
-# timeout-minutes: 20
-#
-# permissions:
-#   contents: read
-#   actions: read
-#   issues: read
-#   pull-requests: read
-#   security-events: read
-#
-# network: defaults
-#
-# safe-outputs:
-#   close-issue:
-#     required-title-prefix: "[deps]"
-#     target: "*"
-#     max: 20
-#   create-issue:
-#     title-prefix: "[deps]"
-#     labels: [dependencies, go]
-#     max: 10
-#
-# tools:
-#   github:
-#     toolsets: [default, dependabot]
-#   web-fetch:
-#   bash: [":*"]
-#
-# ```
-#
-# Job Dependency Graph:
-# ```mermaid
-# graph LR
-#   activation["activation"]
-#   agent["agent"]
-#   close_issue["close_issue"]
-#   conclusion["conclusion"]
-#   create_issue["create_issue"]
-#   detection["detection"]
-#   activation --> agent
-#   activation --> conclusion
-#   agent --> close_issue
-#   agent --> conclusion
-#   agent --> create_issue
-#   agent --> detection
-#   close_issue --> conclusion
-#   create_issue --> conclusion
-#   detection --> close_issue
-#   detection --> conclusion
-#   detection --> create_issue
-# ```
-#
-# Original Prompt:
-# ```markdown
-# # Dependabot Dependency Checker
-#
-# ## Objective
-# Close any existing open dependency update issues with the `[deps]` prefix, then check for available Go module and NPM dependency updates using Dependabot, categorize them by safety level, and create issues using a three-tier strategy: group safe patch updates into a single consolidated issue, create individual issues for potentially problematic updates, and skip major version updates.
-#
-# ## Current Context
-# - **Repository**: ${{ github.repository }}
-# - **Go Module File**: `go.mod` in repository root
-# - **NPM Packages**: Check for `@playwright/mcp` updates in constants.go
-#
-# ## Your Tasks
-#
-# ### Phase 0: Close Existing Dependency Issues (CRITICAL FIRST STEP)
-#
-# **Before performing any analysis**, you must close existing open issues with the `[deps]` title prefix to prevent duplicate dependency update issues.
-#
-# Use the GitHub API tools to:
-# 1. Search for open issues with title starting with `[deps]` in repository ${{ github.repository }}
-# 2. Close each found issue with a comment explaining that a new dependency check is being performed
-# 3. Use the `close_issue` safe output to close these issues with reason "not_planned"
-#
-# **Important**: The `close-issue` safe output is configured with:
-# - `required-title-prefix: "[deps]"` - Only issues starting with this prefix will be closed
-# - `target: "*"` - Can close any issue by number (not just triggering issue)
-# - `max: 20` - Can close up to 20 issues in one run
-#
-# To close an existing dependency issue, emit:
-# ```
-# close_issue(issue_number=123, body="Closing this issue as a new dependency check is being performed.")
-# ```
-#
-# **Do not proceed to Phase 1 until all existing `[deps]` issues are closed.**
-#
-# ### Phase 1: Check Dependabot Alerts
-# 1. Use the Dependabot toolset to check for available dependency updates for the `go.mod` file
-# 2. Retrieve the list of alerts and update recommendations from Dependabot
-# 3. For each potential update, gather:
-#    - Current version and proposed version
-#    - Type of update (patch, minor, major)
-#    - Security vulnerability information (if any)
-#    - Changelog or release notes (if available via web-fetch)
-#
-# ### Phase 1.5: Check Playwright NPM Package Updates
-# 1. Check the current `@playwright/mcp` version in `pkg/constants/constants.go`:
-#    - Look for `DefaultPlaywrightVersion` constant
-#    - Extract the current version number
-# 2. Check for newer versions on NPM:
-#    - Use web-fetch to query `https://registry.npmjs.org/@playwright/mcp`
-#    - Compare the latest version with the current version in constants.go
-#    - Get release information and changelog if available
-# 3. Evaluate the update:
-#    - Check if it's a patch, minor, or major version update
-#    - Look for breaking changes in release notes
-#    - Consider security fixes and improvements
-#
-# ### Phase 2: Categorize Updates (Three-Tier Strategy)
-# For each dependency update, categorize it into one of three categories:
-#
-# **Category A: Safe Patches** (group into ONE consolidated issue):
-# - Patch version updates ONLY (e.g., v1.2.3 → v1.2.4)
-# - Single-version increments (not multi-version jumps like v1.2.3 → v1.2.5)
-# - Bug fixes and stability improvements only (no new features)
-# - No breaking changes or behavior modifications
-# - Security patches that only fix vulnerabilities without API changes
-# - Explicitly backward compatible per changelog
-#
-# **Category B: Potentially Problematic** (create INDIVIDUAL issues):
-# - Minor version updates (e.g., v1.2.x → v1.3.x)
-# - Multi-version jumps in patch versions (e.g., v1.2.3 → v1.2.7)
-# - Updates with new features or API additions
-# - Updates with behavior changes mentioned in changelog
-# - Updates that require configuration or code changes
-# - Security updates that include API changes
-# - Any update where safety is uncertain
-#
-# **Category C: Skip** (do NOT create issues):
-# - Major version updates (e.g., v1.x.x → v2.x.x)
-# - Updates with breaking changes explicitly mentioned
-# - Updates requiring significant refactoring
-# - Updates with insufficient documentation to assess safety
-#
-# ### Phase 2.5: Repository Detection
-# Before creating issues, determine the actual source repository for each Go module:
-#
-# **GitHub Packages** (`github.com/*`):
-# - Remove version suffixes like `/v2`, `/v3`, `/v4` from the module path
-# - Example: `github.com/spf13/cobra/v2` → repository is `github.com/spf13/cobra`
-# - Repository URL: `https://github.com/{owner}/{repo}`
-# - Release URL: `https://github.com/{owner}/{repo}/releases/tag/{version}`
-#
-# **golang.org/x Packages**:
-# - These are NOT hosted on GitHub
-# - Repository: `https://go.googlesource.com/{package-name}`
-# - Example: `golang.org/x/sys` → `https://go.googlesource.com/sys`
-# - Commit history: `https://go.googlesource.com/{package-name}/+log`
-# - Do NOT link to GitHub release pages (they don't exist)
-#
-# **Other Packages**:
-# - Use `pkg.go.dev/{module-path}` to find the repository URL
-# - Look for the "Repository" or "Source" link on the package page
-# - Use the discovered repository for links
-#
-# ### Phase 3: Create Issues Based on Categorization
-#
-# **For Category A (Safe Patches)**: Create ONE consolidated issue grouping all safe patch updates together.
-#
-# **For Category B (Potentially Problematic)**: Create INDIVIDUAL issues for each update.
-#
-# **For Category C**: Do not create any issues.
-#
-# #### Consolidated Issue Format (Category A)
-#
-# **Title**: "Update safe patch dependencies (N updates)"
-#
-# **Body** should include:
-# - **Summary**: Brief overview of grouped safe patch updates
-# - **Updates Table**: Table listing all safe patch updates with columns:
-#   - Package name
-#   - Current version
-#   - Proposed version
-#   - Key changes
-# - **Safety Assessment**: Why all these updates are considered safe patches
-# - **Recommended Action**: Single command block to apply all updates at once
-# - **Testing Notes**: General testing guidance
-#
-# #### Individual Issue Format (Category B)
-#
-# **Title**: Short description of the specific update (e.g., "Update github.com/spf13/cobra from v1.9.1 to v1.10.0")
-#
-# **Body** should include:
-# - **Summary**: Brief description of what needs to be updated
-# - **Current Version**: The version currently in go.mod
-# - **Proposed Version**: The version to update to
-# - **Update Type**: Minor/Multi-version patch jump
-# - **Why Separate Issue**: Clear explanation of why this update needs individual review (e.g., "Minor version update with new features", "Multi-version jump requires careful testing", "Behavior changes mentioned in changelog")
-# - **Safety Assessment**: Detailed assessment of risks and considerations
-# - **Changes**: Summary of changes from changelog or release notes
-# - **Links**: 
-#   - Link to the Dependabot alert (if applicable)
-#   - Link to the actual source repository (detected per Repository Detection rules)
-#   - Link to release notes or changelog (if available)
-#   - For GitHub packages: link to release page
-#   - For golang.org/x packages: link to commit history instead
-# - **Recommended Action**: Command to update (e.g., `go get -u github.com/package@v1.10.0`)
-# - **Testing Notes**: Specific areas to test after applying the update
-#
-# ## Important Notes
-# - Do NOT apply updates directly - only create issues describing what should be updated
-# - Use three-tier categorization: Group Category A (safe patches), individual issues for Category B (potentially problematic), skip Category C (major versions)
-# - Category A updates should be grouped into ONE consolidated issue with a table format
-# - Category B updates should each get their own issue with a "Why Separate Issue" explanation
-# - If no safe updates are found, exit without creating any issues
-# - Limit to a maximum of 10 issues per run (up to 1 grouped issue for Category A + remaining individual issues for Category B)
-# - For security-related updates, clearly indicate the vulnerability being fixed
-# - Be conservative: when in doubt about breaking changes or behavior modifications, categorize as Category B (individual issue) or Category C (skip)
-# - When categorizing, prioritize safety: only true single-version patch updates with bug fixes belong in Category A
-#
-# **CRITICAL - Repository Detection**:
-# - **Never assume all Go packages are on GitHub**
-# - **golang.org/x packages** are hosted at `go.googlesource.com`, NOT GitHub
-# - **Always remove version suffixes** (e.g., `/v2`, `/v3`) when constructing repository URLs for GitHub packages
-# - **Use pkg.go.dev** to find the actual repository for packages not on GitHub or golang.org/x
-# - **Do NOT create GitHub release links** for packages that don't use GitHub releases
-#
-# ## Example Issue Formats
-#
-# ### Example 1: Consolidated Issue for Safe Patches (Category A)
-#
-# ```markdown
-# ## Summary
-# This issue groups together multiple safe patch updates that can be applied together. All updates are single-version patch increments with bug fixes only and no breaking changes.
-#
-# ## Updates
-#
-# | Package | Current | Proposed | Update Type | Key Changes |
-# |---------|---------|----------|-------------|-------------|
-# | github.com/bits-and-blooms/bitset | v1.24.3 | v1.24.4 | Patch | Bug fixes in bit operations |
-# | github.com/imdario/mergo | v1.0.1 | v1.0.2 | Patch | Memory optimization, nil pointer fix |
-#
-# ## Safety Assessment
-# ✅ **All updates are safe patches**
-# - All are single-version patch increments (e.g., v1.24.3 → v1.24.4, v1.0.1 → v1.0.2)
-# - Only bug fixes and stability improvements, no new features
-# - No breaking changes or behavior modifications
-# - Explicitly backward compatible per release notes
-#
-# ## Links
-# - [bitset v1.24.4 Release](https://github.com/bits-and-blooms/bitset/releases/tag/v1.24.4)
-# - [mergo v1.0.2 Release](https://github.com/imdario/mergo/releases/tag/v1.0.2)
-#
-# ## Recommended Action
-# Apply all updates together:
-#
-# ```bash
-# go get -u github.com/bits-and-blooms/bitset@v1.24.4
-# go get -u github.com/imdario/mergo@v1.0.2
-# go mod tidy
-# ```
-#
-# ## Testing Notes
-# - Run all tests: `make test`
-# - Verify no regression in functionality
-# - Check for any deprecation warnings
-# ```
-#
-# ### Example 2: Individual Issue for Minor Update (Category B)
-#
-# ```markdown
-# ## Summary
-# Update `github.com/spf13/cast` dependency from v1.7.0 to v1.8.0
-#
-# ## Current State
-# - **Package**: github.com/spf13/cast
-# - **Current Version**: v1.7.0
-# - **Proposed Version**: v1.8.0
-# - **Update Type**: Minor
-#
-# ## Why Separate Issue
-# ⚠️ **Minor version update with new features**
-# - This is a minor version update (v1.7.0 → v1.8.0)
-# - Adds new type conversion functions
-# - May have behavior changes requiring verification
-# - Needs individual review and testing
-#
-# ## Safety Assessment
-# ⚠️ **Requires careful review**
-# - Minor version update indicates new features
-# - Review changelog for behavior changes
-# - Test conversion functions thoroughly
-# - Verify no breaking changes in existing code
-#
-# ## Changes
-# - Added new ToFloat32E function
-# - Improved time parsing
-# - Enhanced error messages
-# - Performance optimizations
-#
-# ## Links
-# - [Release Notes](https://github.com/spf13/cast/releases/tag/v1.8.0)
-# - [Package Repository](https://github.com/spf13/cast)
-# - [Go Package](https://pkg.go.dev/github.com/spf13/cast@v1.8.0)
-#
-# ## Recommended Action
-# ```bash
-# go get -u github.com/spf13/cast@v1.8.0
-# go mod tidy
-# ```
-#
-# ## Testing Notes
-# - Run all tests: `make test`
-# - Test type conversion functions
-# - Verify time parsing works correctly
-# - Check for any behavior changes in existing code
-# ```
-#
-# ### Example 3: Individual Issue for Multi-Version Jump (Category B)
-#
-# ```markdown
-# ## Summary
-# Update `github.com/cli/go-gh` dependency from v2.10.0 to v2.12.0
-#
-# ## Current State
-# - **Package**: github.com/cli/go-gh
-# - **Current Version**: v2.10.0
-# - **Proposed Version**: v2.12.0
-# - **Update Type**: Multi-version patch jump
-#
-# ## Why Separate Issue
-# ⚠️ **Multi-version jump requires careful testing**
-# - This jumps multiple minor versions (v2.10.0 → v2.12.0)
-# - Skips v2.11.0 which may have intermediate changes
-# - Multiple feature additions across versions
-# - Needs thorough testing to catch any issues
-#
-# ## Safety Assessment
-# ⚠️ **Requires careful review**
-# - Multi-version jump increases risk
-# - Multiple changes accumulated across versions
-# - Review all intermediate release notes
-# - Test GitHub CLI integration thoroughly
-#
-# ## Changes
-# **v2.11.0 Changes:**
-# - Added support for new GitHub API features
-# - Improved error handling
-# - Bug fixes
-#
-# **v2.12.0 Changes:**
-# - Enhanced authentication flow
-# - Performance improvements
-# - Additional API endpoints
-#
-# ## Links
-# - [v2.11.0 Release](https://github.com/cli/go-gh/releases/tag/v2.11.0)
-# - [v2.12.0 Release](https://github.com/cli/go-gh/releases/tag/v2.12.0)
-# - [Package Repository](https://github.com/cli/go-gh)
-# - [Go Package](https://pkg.go.dev/github.com/cli/go-gh/v2@v2.12.0)
-#
-# ## Recommended Action
-# ```bash
-# go get -u github.com/cli/go-gh/v2@v2.12.0
-# go mod tidy
-# ```
-#
-# ## Testing Notes
-# - Run all tests: `make test`
-# - Test GitHub CLI commands
-# - Verify authentication still works
-# - Check API integration points
-# - Test error handling
-# ```
-#
-# ### Example 4: golang.org/x Package Update (Category B)
-#
-# ```markdown
-# ## Summary
-# Update `golang.org/x/sys` dependency from v0.15.0 to v0.16.0
-#
-# ## Current State
-# - **Package**: golang.org/x/sys
-# - **Current Version**: v0.15.0
-# - **Proposed Version**: v0.16.0
-# - **Update Type**: Minor
-#
-# ## Why Separate Issue
-# ⚠️ **Minor version update for system-level package**
-# - Minor version update (0.15.0 → 0.16.0)
-# - System-level changes may have subtle effects
-# - Affects low-level system calls
-# - Needs platform-specific testing
-#
-# ## Safety Assessment
-# ⚠️ **Requires careful review**
-# - System-level package with platform-specific code
-# - Changes may affect OS-specific behavior
-# - Needs testing on multiple platforms
-# - Review commit history carefully
-#
-# ## Changes
-# - Added support for new Linux syscalls
-# - Fixed Windows file system handling
-# - Performance improvements for Unix systems
-# - Bug fixes in signal handling
-#
-# ## Links
-# - [Source Repository](https://go.googlesource.com/sys)
-# - [Commit History](https://go.googlesource.com/sys/+log)
-# - [Go Package](https://pkg.go.dev/golang.org/x/sys@v0.16.0)
-#
-# **Note**: This package is hosted on Google's Git (go.googlesource.com), not GitHub. There are no GitHub release pages.
-#
-# ## Recommended Action
-# ```bash
-# go get -u golang.org/x/sys@v0.16.0
-# go mod tidy
-# ```
-#
-# ## Testing Notes
-# - Run all tests: `make test`
-# - Test system-specific functionality
-# - Verify cross-platform compatibility
-# - Test on Linux, macOS, and Windows if possible
-# ```
-#
-# ### Example 5: Playwright NPM Package Update (Category B)
-#
-# ```markdown
-# ## Summary
-# Update `@playwright/mcp` package from 1.56.1 to 1.57.0
-#
-# ## Current State
-# - **Package**: @playwright/mcp
-# - **Current Version**: 1.56.1 (in pkg/constants/constants.go - DefaultPlaywrightVersion)
-# - **Proposed Version**: 1.57.0
-# - **Update Type**: Minor
-#
-# ## Why Separate Issue
-# ⚠️ **Minor version update with new features**
-# - Minor version update (1.56.1 → 1.57.0)
-# - Adds new Playwright features
-# - May affect browser automation behavior
-# - Needs testing with existing workflows
-#
-# ## Safety Assessment
-# ⚠️ **Requires careful review**
-# - Minor version update with new features
-# - Browser automation changes need testing
-# - Review release notes for breaking changes
-# - Test with existing Playwright workflows
-#
-# ## Changes
-# - Added support for new Playwright features
-# - Improved MCP server stability
-# - Bug fixes in browser automation
-# - Performance improvements
-#
-# ## Links
-# - [NPM Package](https://www.npmjs.com/package/@playwright/mcp)
-# - [Release Notes](https://github.com/microsoft/playwright/releases/tag/v1.57.0)
-# - [Source Repository](https://github.com/microsoft/playwright)
-#
-# ## Recommended Action
-# ```bash
-# # Update the constant in pkg/constants/constants.go
-# # Change: const DefaultPlaywrightVersion = "1.56.1"
-# # To:     const DefaultPlaywrightVersion = "1.57.0"
-#
-# # Then run tests to verify
-# make test-unit
-# ```
-#
-# ## Testing Notes
-# - Run unit tests: `make test-unit`
-# - Verify Playwright MCP configuration generation
-# - Test browser automation workflows with playwright tool
-# - Check that version is correctly used in compiled workflows
-# - Test on multiple browsers if possible
-# ```
-# ```
-#
-# Pinned GitHub Actions:
-#   - actions/checkout@v5 (93cb6efe18208431cddfb8368fd83d5badbf9bfd)
-#     https://github.com/actions/checkout/commit/93cb6efe18208431cddfb8368fd83d5badbf9bfd
-#   - actions/download-artifact@v6 (018cc2cf5baa6db3ef3c5f8a56943fffe632ef53)
-#     https://github.com/actions/download-artifact/commit/018cc2cf5baa6db3ef3c5f8a56943fffe632ef53
-#   - actions/github-script@v8 (ed597411d8f924073f98dfc5c65a23a2325f34cd)
-#     https://github.com/actions/github-script/commit/ed597411d8f924073f98dfc5c65a23a2325f34cd
-#   - actions/upload-artifact@v5 (330a01c490aca151604b8cf639adc76d48f6c5d4)
-#     https://github.com/actions/upload-artifact/commit/330a01c490aca151604b8cf639adc76d48f6c5d4
 
 name: "Dependabot Dependency Checker"
 "on":
@@ -606,9 +113,7 @@ jobs:
                   .addRaw("**Files:**\n")
                   .addRaw(`- Source: \`${workflowMdPath}\`\n`)
                   .addRaw(`  - Last commit: ${workflowTimestamp}\n`)
-                  .addRaw(
-                    `  - Commit SHA: [\`${workflowCommit.sha.substring(0, 7)}\`](https://github.com/${owner}/${repo}/commit/${workflowCommit.sha})\n`
-                  )
+                  .addRaw(`  - Commit SHA: [\`${workflowCommit.sha.substring(0, 7)}\`](https://github.com/${owner}/${repo}/commit/${workflowCommit.sha})\n`)
                   .addRaw(`- Lock: \`${lockFilePath}\`\n`)
                   .addRaw(`  - Last commit: ${lockTimestamp}\n`)
                   .addRaw(`  - Commit SHA: [\`${lockCommit.sha.substring(0, 7)}\`](https://github.com/${owner}/${repo}/commit/${lockCommit.sha})\n\n`)
@@ -1139,9 +644,7 @@ jobs:
                 server.debug(`  [${toolName}] Python handler args: ${JSON.stringify(args)}`);
                 server.debug(`  [${toolName}] Timeout: ${timeoutSeconds}s`);
                 const inputJson = JSON.stringify(args || {});
-                server.debug(
-                  `  [${toolName}] Input JSON (${inputJson.length} bytes): ${inputJson.substring(0, 200)}${inputJson.length > 200 ? "..." : ""}`
-                );
+                server.debug(`  [${toolName}] Input JSON (${inputJson.length} bytes): ${inputJson.substring(0, 200)}${inputJson.length > 200 ? "..." : ""}`);
                 return new Promise((resolve, reject) => {
                   server.debug(`  [${toolName}] Executing Python script...`);
                   const child = execFile(
@@ -1249,9 +752,7 @@ jobs:
                       try {
                         if (fs.existsSync(outputFile)) {
                           const outputContent = fs.readFileSync(outputFile, "utf-8");
-                          server.debug(
-                            `  [${toolName}] Output file content: ${outputContent.substring(0, 500)}${outputContent.length > 500 ? "..." : ""}`
-                          );
+                          server.debug(`  [${toolName}] Output file content: ${outputContent.substring(0, 500)}${outputContent.length > 500 ? "..." : ""}`);
                           const lines = outputContent.split("\n");
                           for (const line of lines) {
                             const trimmed = line.trim();
@@ -1309,10 +810,7 @@ jobs:
                   fs.mkdirSync(server.logDir, { recursive: true });
                 }
                 const timestamp = new Date().toISOString();
-                fs.writeFileSync(
-                  server.logFilePath,
-                  `# ${server.serverInfo.name} MCP Server Log\n# Started: ${timestamp}\n# Version: ${server.serverInfo.version}\n\n`
-                );
+                fs.writeFileSync(server.logFilePath, `# ${server.serverInfo.name} MCP Server Log\n# Started: ${timestamp}\n# Version: ${server.serverInfo.version}\n\n`);
                 server.logFileInitialized = true;
               } catch {
               }
@@ -1972,10 +1470,7 @@ jobs:
                 const isInWorkspace = absolutePath.startsWith(path.resolve(workspaceDir));
                 const isInTmp = absolutePath.startsWith(tmpDir);
                 if (!isInWorkspace && !isInTmp) {
-                  throw new Error(
-                    `File path must be within workspace directory (${workspaceDir}) or /tmp directory. ` +
-                      `Provided path: ${filePath} (resolved to: ${absolutePath})`
-                  );
+                  throw new Error(`File path must be within workspace directory (${workspaceDir}) or /tmp directory. ` + `Provided path: ${filePath} (resolved to: ${absolutePath})`);
                 }
                 if (!fs.existsSync(filePath)) {
                   throw new Error(`File not found: ${filePath}`);
@@ -2234,10 +1729,7 @@ jobs:
                       };
                       const entryJSON = JSON.stringify(entry);
                       fs.appendFileSync(outputFile, entryJSON + "\n");
-                      const outputText =
-                        jobConfig && jobConfig.output
-                          ? jobConfig.output
-                          : `Safe-job '${configKey}' executed successfully with arguments: ${JSON.stringify(args)}`;
+                      const outputText = jobConfig && jobConfig.output ? jobConfig.output : `Safe-job '${configKey}' executed successfully with arguments: ${JSON.stringify(args)}`;
                       return {
                         content: [
                           {
@@ -3228,16 +2720,13 @@ jobs:
               return result;
             }
             function renderMarkdownTemplate(markdown) {
-              let result = markdown.replace(
-                /(\n?)([ \t]*{{#if\s+([^}]*)}}[ \t]*\n)([\s\S]*?)([ \t]*{{\/if}}[ \t]*)(\n?)/g,
-                (match, leadNL, openLine, cond, body, closeLine, trailNL) => {
-                  if (isTruthy(cond)) {
-                    return leadNL + body;
-                  } else {
-                    return "";
-                  }
+              let result = markdown.replace(/(\n?)([ \t]*{{#if\s+([^}]*)}}[ \t]*\n)([\s\S]*?)([ \t]*{{\/if}}[ \t]*)(\n?)/g, (match, leadNL, openLine, cond, body, closeLine, trailNL) => {
+                if (isTruthy(cond)) {
+                  return leadNL + body;
+                } else {
+                  return "";
                 }
-              );
+              });
               result = result.replace(/{{#if\s+([^}]*)}}([\s\S]*?){{\/if}}/g, (_, cond, body) => (isTruthy(cond) ? body : ""));
               result = result.replace(/\n{3,}/g, "\n\n");
               return result;
@@ -3605,36 +3094,33 @@ jobs:
                 });
               }
               function sanitizeUrlProtocols(s) {
-                return s.replace(
-                  /((?:http|ftp|file|ssh|git):\/\/([\w.-]*)(?:[^\s]*)|(?:data|javascript|vbscript|about|mailto|tel):[^\s]+)/gi,
-                  (match, _fullMatch, domain) => {
-                    if (domain) {
-                      const domainLower = domain.toLowerCase();
-                      const truncated = domainLower.length > 12 ? domainLower.substring(0, 12) + "..." : domainLower;
+                return s.replace(/((?:http|ftp|file|ssh|git):\/\/([\w.-]*)(?:[^\s]*)|(?:data|javascript|vbscript|about|mailto|tel):[^\s]+)/gi, (match, _fullMatch, domain) => {
+                  if (domain) {
+                    const domainLower = domain.toLowerCase();
+                    const truncated = domainLower.length > 12 ? domainLower.substring(0, 12) + "..." : domainLower;
+                    if (typeof core !== "undefined" && core.info) {
+                      core.info(`Redacted URL: ${truncated}`);
+                    }
+                    if (typeof core !== "undefined" && core.debug) {
+                      core.debug(`Redacted URL (full): ${match}`);
+                    }
+                    addRedactedDomain(domainLower);
+                  } else {
+                    const protocolMatch = match.match(/^([^:]+):/);
+                    if (protocolMatch) {
+                      const protocol = protocolMatch[1] + ":";
+                      const truncated = match.length > 12 ? match.substring(0, 12) + "..." : match;
                       if (typeof core !== "undefined" && core.info) {
                         core.info(`Redacted URL: ${truncated}`);
                       }
                       if (typeof core !== "undefined" && core.debug) {
                         core.debug(`Redacted URL (full): ${match}`);
                       }
-                      addRedactedDomain(domainLower);
-                    } else {
-                      const protocolMatch = match.match(/^([^:]+):/);
-                      if (protocolMatch) {
-                        const protocol = protocolMatch[1] + ":";
-                        const truncated = match.length > 12 ? match.substring(0, 12) + "..." : match;
-                        if (typeof core !== "undefined" && core.info) {
-                          core.info(`Redacted URL: ${truncated}`);
-                        }
-                        if (typeof core !== "undefined" && core.debug) {
-                          core.debug(`Redacted URL (full): ${match}`);
-                        }
-                        addRedactedDomain(protocol);
-                      }
+                      addRedactedDomain(protocol);
                     }
-                    return "(redacted)";
                   }
-                );
+                  return "(redacted)";
+                });
               }
               function neutralizeCommands(s) {
                 const commandName = process.env.GH_AW_COMMAND;
@@ -3656,37 +3142,7 @@ jobs:
                 return s.replace(/<!--[\s\S]*?-->/g, "").replace(/<!--[\s\S]*?--!>/g, "");
               }
               function convertXmlTags(s) {
-                const allowedTags = [
-                  "b",
-                  "blockquote",
-                  "br",
-                  "code",
-                  "details",
-                  "em",
-                  "h1",
-                  "h2",
-                  "h3",
-                  "h4",
-                  "h5",
-                  "h6",
-                  "hr",
-                  "i",
-                  "li",
-                  "ol",
-                  "p",
-                  "pre",
-                  "strong",
-                  "sub",
-                  "summary",
-                  "sup",
-                  "table",
-                  "tbody",
-                  "td",
-                  "th",
-                  "thead",
-                  "tr",
-                  "ul",
-                ];
+                const allowedTags = ["b", "blockquote", "br", "code", "details", "em", "h1", "h2", "h3", "h4", "h5", "h6", "hr", "i", "li", "ol", "p", "pre", "strong", "sub", "summary", "sup", "table", "tbody", "td", "th", "thead", "tr", "ul"];
                 s = s.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, (match, content) => {
                   const convertedContent = content.replace(/<(\/?[A-Za-z][A-Za-z0-9]*(?:[^>]*?))>/g, "($1)");
                   return `(![CDATA[${convertedContent}]])`;
@@ -3798,36 +3254,33 @@ jobs:
                 return result;
               }
               function sanitizeUrlProtocols(s) {
-                return s.replace(
-                  /\b((?:http|ftp|file|ssh|git):\/\/([\w.-]+)(?:[^\s]*)|(?:data|javascript|vbscript|about|mailto|tel):[^\s]+)/gi,
-                  (match, _fullMatch, domain) => {
-                    if (domain) {
-                      const domainLower = domain.toLowerCase();
-                      const truncated = domainLower.length > 12 ? domainLower.substring(0, 12) + "..." : domainLower;
+                return s.replace(/\b((?:http|ftp|file|ssh|git):\/\/([\w.-]+)(?:[^\s]*)|(?:data|javascript|vbscript|about|mailto|tel):[^\s]+)/gi, (match, _fullMatch, domain) => {
+                  if (domain) {
+                    const domainLower = domain.toLowerCase();
+                    const truncated = domainLower.length > 12 ? domainLower.substring(0, 12) + "..." : domainLower;
+                    if (typeof core !== "undefined" && core.info) {
+                      core.info(`Redacted URL: ${truncated}`);
+                    }
+                    if (typeof core !== "undefined" && core.debug) {
+                      core.debug(`Redacted URL (full): ${match}`);
+                    }
+                    addRedactedDomain(domainLower);
+                  } else {
+                    const protocolMatch = match.match(/^([^:]+):/);
+                    if (protocolMatch) {
+                      const protocol = protocolMatch[1] + ":";
+                      const truncated = match.length > 12 ? match.substring(0, 12) + "..." : match;
                       if (typeof core !== "undefined" && core.info) {
                         core.info(`Redacted URL: ${truncated}`);
                       }
                       if (typeof core !== "undefined" && core.debug) {
                         core.debug(`Redacted URL (full): ${match}`);
                       }
-                      addRedactedDomain(domainLower);
-                    } else {
-                      const protocolMatch = match.match(/^([^:]+):/);
-                      if (protocolMatch) {
-                        const protocol = protocolMatch[1] + ":";
-                        const truncated = match.length > 12 ? match.substring(0, 12) + "..." : match;
-                        if (typeof core !== "undefined" && core.info) {
-                          core.info(`Redacted URL: ${truncated}`);
-                        }
-                        if (typeof core !== "undefined" && core.debug) {
-                          core.debug(`Redacted URL (full): ${match}`);
-                        }
-                        addRedactedDomain(protocol);
-                      }
+                      addRedactedDomain(protocol);
                     }
-                    return "(redacted)";
                   }
-                );
+                  return "(redacted)";
+                });
               }
               function neutralizeCommands(s) {
                 const commandName = process.env.GH_AW_COMMAND;
@@ -3853,37 +3306,7 @@ jobs:
                 return s.replace(/<!--[\s\S]*?-->/g, "").replace(/<!--[\s\S]*?--!>/g, "");
               }
               function convertXmlTags(s) {
-                const allowedTags = [
-                  "b",
-                  "blockquote",
-                  "br",
-                  "code",
-                  "details",
-                  "em",
-                  "h1",
-                  "h2",
-                  "h3",
-                  "h4",
-                  "h5",
-                  "h6",
-                  "hr",
-                  "i",
-                  "li",
-                  "ol",
-                  "p",
-                  "pre",
-                  "strong",
-                  "sub",
-                  "summary",
-                  "sup",
-                  "table",
-                  "tbody",
-                  "td",
-                  "th",
-                  "thead",
-                  "tr",
-                  "ul",
-                ];
+                const allowedTags = ["b", "blockquote", "br", "code", "details", "em", "h1", "h2", "h3", "h4", "h5", "h6", "hr", "i", "li", "ol", "p", "pre", "strong", "sub", "summary", "sup", "table", "tbody", "td", "th", "thead", "tr", "ul"];
                 s = s.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, (match, content) => {
                   const convertedContent = content.replace(/<(\/?[A-Za-z][A-Za-z0-9]*(?:[^>]*?))>/g, "($1)");
                   return `(![CDATA[${convertedContent}]])`;
@@ -4575,9 +3998,7 @@ jobs:
                   core.info(`Loaded validation config from ${validationConfigPath}`);
                 }
               } catch (error) {
-                core.warning(
-                  `Failed to read validation config from ${validationConfigPath}: ${error instanceof Error ? error.message : String(error)}`
-                );
+                core.warning(`Failed to read validation config from ${validationConfigPath}: ${error instanceof Error ? error.message : String(error)}`);
               }
               const mentionsConfig = validationConfig?.mentions || null;
               const allowedMentions = await resolveAllowedMentionsFromPayload(context, github, core, mentionsConfig);
@@ -4790,9 +4211,7 @@ jobs:
                   core.info(`[INGESTION] Line ${i + 1}: Original type='${originalType}', Normalized type='${itemType}'`);
                   item.type = itemType;
                   if (!expectedOutputTypes[itemType]) {
-                    core.warning(
-                      `[INGESTION] Line ${i + 1}: Type '${itemType}' not found in expected types: ${JSON.stringify(Object.keys(expectedOutputTypes))}`
-                    );
+                    core.warning(`[INGESTION] Line ${i + 1}: Type '${itemType}' not found in expected types: ${JSON.stringify(Object.keys(expectedOutputTypes))}`);
                     errors.push(`Line ${i + 1}: Unexpected output type '${itemType}'. Expected one of: ${Object.keys(expectedOutputTypes).join(", ")}`);
                     continue;
                   }
@@ -4874,10 +4293,7 @@ jobs:
               core.info(`Patch file ${hasPatch ? "exists" : "does not exist"} at: ${patchPath}`);
               let allowEmptyPR = false;
               if (safeOutputsConfig) {
-                if (
-                  safeOutputsConfig["create-pull-request"]?.["allow-empty"] === true ||
-                  safeOutputsConfig["create_pull_request"]?.["allow_empty"] === true
-                ) {
+                if (safeOutputsConfig["create-pull-request"]?.["allow-empty"] === true || safeOutputsConfig["create_pull_request"]?.["allow_empty"] === true) {
                   allowEmptyPR = true;
                   core.info(`allow-empty is enabled for create-pull-request`);
                 }
@@ -5248,24 +4664,7 @@ jobs:
                   "Custom Agents": [],
                   Other: [],
                 };
-                const builtinTools = [
-                  "bash",
-                  "write_bash",
-                  "read_bash",
-                  "stop_bash",
-                  "list_bash",
-                  "grep",
-                  "glob",
-                  "view",
-                  "create",
-                  "edit",
-                  "store_memory",
-                  "code_review",
-                  "codeql_checker",
-                  "report_progress",
-                  "report_intent",
-                  "gh-advisory-database",
-                ];
+                const builtinTools = ["bash", "write_bash", "read_bash", "stop_bash", "list_bash", "grep", "glob", "view", "create", "edit", "store_memory", "code_review", "codeql_checker", "report_progress", "report_intent", "gh-advisory-database"];
                 const internalTools = ["fetch_copilot_cli_documentation"];
                 for (const tool of initEntry.tools) {
                   const toolLower = tool.toLowerCase();
@@ -5661,9 +5060,7 @@ jobs:
                   const cacheCreationTokens = usage.cache_creation_input_tokens || 0;
                   const cacheReadTokens = usage.cache_read_input_tokens || 0;
                   const totalTokens = inputTokens + outputTokens + cacheCreationTokens + cacheReadTokens;
-                  lines.push(
-                    `  Tokens: ${totalTokens.toLocaleString()} total (${usage.input_tokens.toLocaleString()} in / ${usage.output_tokens.toLocaleString()} out)`
-                  );
+                  lines.push(`  Tokens: ${totalTokens.toLocaleString()} total (${usage.input_tokens.toLocaleString()} in / ${usage.output_tokens.toLocaleString()} out)`);
                 }
               }
               if (lastEntry?.total_cost_usd) {
@@ -5822,9 +5219,7 @@ jobs:
                   const cacheCreationTokens = usage.cache_creation_input_tokens || 0;
                   const cacheReadTokens = usage.cache_read_input_tokens || 0;
                   const totalTokens = inputTokens + outputTokens + cacheCreationTokens + cacheReadTokens;
-                  lines.push(
-                    `  Tokens: ${totalTokens.toLocaleString()} total (${usage.input_tokens.toLocaleString()} in / ${usage.output_tokens.toLocaleString()} out)`
-                  );
+                  lines.push(`  Tokens: ${totalTokens.toLocaleString()} total (${usage.input_tokens.toLocaleString()} in / ${usage.output_tokens.toLocaleString()} out)`);
                 }
               }
               if (lastEntry?.total_cost_usd) {
@@ -5925,11 +5320,7 @@ jobs:
               });
             }
             function extractPremiumRequestCount(logContent) {
-              const patterns = [
-                /premium\s+requests?\s+consumed:?\s*(\d+)/i,
-                /(\d+)\s+premium\s+requests?\s+consumed/i,
-                /consumed\s+(\d+)\s+premium\s+requests?/i,
-              ];
+              const patterns = [/premium\s+requests?\s+consumed:?\s*(\d+)/i, /(\d+)\s+premium\s+requests?\s+consumed/i, /consumed\s+(\d+)\s+premium\s+requests?/i];
               for (const pattern of patterns) {
                 const match = logContent.match(pattern);
                 if (match && match[1]) {
@@ -6001,8 +5392,7 @@ jobs:
                 const initEntry = logEntries.find(entry => entry.type === "system" && entry.subtype === "init");
                 markdown += generateInformationSection(lastEntry, {
                   additionalInfoCallback: entry => {
-                    const isPremiumModel =
-                      initEntry && initEntry.model_info && initEntry.model_info.billing && initEntry.model_info.billing.is_premium === true;
+                    const isPremiumModel = initEntry && initEntry.model_info && initEntry.model_info.billing && initEntry.model_info.billing.is_premium === true;
                     if (isPremiumModel) {
                       const premiumRequestCount = extractPremiumRequestCount(logContent);
                       return `**Premium Requests Consumed:** ${premiumRequestCount}\n\n`;
@@ -6429,299 +5819,151 @@ jobs:
         with:
           script: |
             function sanitizeWorkflowName(name) {
-
               return name
-
                 .toLowerCase()
-
                 .replace(/[:\\/\s]/g, "-")
-
                 .replace(/[^a-z0-9._-]/g, "-");
-
             }
-
             function main() {
-
               const fs = require("fs");
-
               const path = require("path");
-
               try {
-
                 const squidLogsDir = `/tmp/gh-aw/sandbox/firewall/logs/`;
-
                 if (!fs.existsSync(squidLogsDir)) {
-
                   core.info(`No firewall logs directory found at: ${squidLogsDir}`);
-
                   return;
-
                 }
-
                 const files = fs.readdirSync(squidLogsDir).filter(file => file.endsWith(".log"));
-
                 if (files.length === 0) {
-
                   core.info(`No firewall log files found in: ${squidLogsDir}`);
-
                   return;
-
                 }
-
                 core.info(`Found ${files.length} firewall log file(s)`);
-
                 let totalRequests = 0;
-
                 let allowedRequests = 0;
-
                 let deniedRequests = 0;
-
                 const allowedDomains = new Set();
-
                 const deniedDomains = new Set();
-
                 const requestsByDomain = new Map();
-
                 for (const file of files) {
-
                   const filePath = path.join(squidLogsDir, file);
-
                   core.info(`Parsing firewall log: ${file}`);
-
                   const content = fs.readFileSync(filePath, "utf8");
-
                   const lines = content.split("\n").filter(line => line.trim());
-
                   for (const line of lines) {
-
                     const entry = parseFirewallLogLine(line);
-
                     if (!entry) {
-
                       continue;
-
                     }
-
                     totalRequests++;
-
                     const isAllowed = isRequestAllowed(entry.decision, entry.status);
-
                     if (isAllowed) {
-
                       allowedRequests++;
-
                       allowedDomains.add(entry.domain);
-
                     } else {
-
                       deniedRequests++;
-
                       deniedDomains.add(entry.domain);
-
                     }
-
                     if (!requestsByDomain.has(entry.domain)) {
-
                       requestsByDomain.set(entry.domain, { allowed: 0, denied: 0 });
-
                     }
-
                     const domainStats = requestsByDomain.get(entry.domain);
-
                     if (isAllowed) {
-
                       domainStats.allowed++;
-
                     } else {
-
                       domainStats.denied++;
-
                     }
-
                   }
-
                 }
-
                 const summary = generateFirewallSummary({
-
                   totalRequests,
-
                   allowedRequests,
-
                   deniedRequests,
-
                   allowedDomains: Array.from(allowedDomains).sort(),
-
                   deniedDomains: Array.from(deniedDomains).sort(),
-
                   requestsByDomain,
-
                 });
-
                 core.summary.addRaw(summary).write();
-
                 core.info("Firewall log summary generated successfully");
-
               } catch (error) {
-
                 core.setFailed(error instanceof Error ? error : String(error));
-
               }
-
             }
-
             function parseFirewallLogLine(line) {
-
               const trimmed = line.trim();
-
               if (!trimmed || trimmed.startsWith("#")) {
-
                 return null;
-
               }
-
               const fields = trimmed.match(/(?:[^\s"]+|"[^"]*")+/g);
-
               if (!fields || fields.length < 10) {
-
                 return null;
-
               }
-
               const timestamp = fields[0];
-
               if (!/^\d+(\.\d+)?$/.test(timestamp)) {
-
                 return null;
-
               }
-
               return {
-
                 timestamp,
-
                 clientIpPort: fields[1],
-
                 domain: fields[2],
-
                 destIpPort: fields[3],
-
                 proto: fields[4],
-
                 method: fields[5],
-
                 status: fields[6],
-
                 decision: fields[7],
-
                 url: fields[8],
-
                 userAgent: fields[9]?.replace(/^"|"$/g, "") || "-",
-
               };
-
             }
-
             function isRequestAllowed(decision, status) {
-
               const statusCode = parseInt(status, 10);
-
               if (statusCode === 200 || statusCode === 206 || statusCode === 304) {
-
                 return true;
-
               }
-
               if (decision.includes("TCP_TUNNEL") || decision.includes("TCP_HIT") || decision.includes("TCP_MISS")) {
-
                 return true;
-
               }
-
               if (decision.includes("NONE_NONE") || decision.includes("TCP_DENIED") || statusCode === 403 || statusCode === 407) {
-
                 return false;
-
               }
-
               return false;
-
             }
-
             function generateFirewallSummary(analysis) {
-
               const { totalRequests, requestsByDomain } = analysis;
-
               const validDomains = Array.from(requestsByDomain.keys())
-
                 .filter(domain => domain !== "-")
-
                 .sort();
-
               const uniqueDomainCount = validDomains.length;
-
               let validAllowedRequests = 0;
-
               let validDeniedRequests = 0;
-
               for (const domain of validDomains) {
-
                 const stats = requestsByDomain.get(domain);
-
                 validAllowedRequests += stats.allowed;
-
                 validDeniedRequests += stats.denied;
-
               }
-
               let summary = "### 🔥 Firewall Activity\n\n";
-
               summary += "<details>\n";
-
               summary += `<summary>📊 ${totalRequests} request${totalRequests !== 1 ? "s" : ""} | `;
-
               summary += `${validAllowedRequests} allowed | `;
-
               summary += `${validDeniedRequests} blocked | `;
-
               summary += `${uniqueDomainCount} unique domain${uniqueDomainCount !== 1 ? "s" : ""}</summary>\n\n`;
-
               if (uniqueDomainCount > 0) {
-
                 summary += "| Domain | Allowed | Denied |\n";
-
                 summary += "|--------|---------|--------|\n";
-
                 for (const domain of validDomains) {
-
                   const stats = requestsByDomain.get(domain);
-
                   summary += `| ${domain} | ${stats.allowed} | ${stats.denied} |\n`;
-
                 }
-
               } else {
-
                 summary += "No firewall activity detected.\n";
-
               }
-
               summary += "\n</details>\n\n";
-
               return summary;
-
             }
-
-            const isDirectExecution =
-
-              typeof module === "undefined" || (typeof require !== "undefined" && typeof require.main !== "undefined" && require.main === module);
-
+            const isDirectExecution = typeof module === "undefined" || (typeof require !== "undefined" && typeof require.main !== "undefined" && require.main === module);
             if (isDirectExecution) {
-
               main();
-
             }
-
       - name: Upload Agent Stdio
         if: always()
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
@@ -6876,9 +6118,7 @@ jobs:
                     }
                     lastIndex = regex.lastIndex;
                     if (iterationCount === ITERATION_WARNING_THRESHOLD) {
-                      core.warning(
-                        `High iteration count (${iterationCount}) on line ${lineIndex + 1} with pattern: ${pattern.description || pattern.pattern}`
-                      );
+                      core.warning(`High iteration count (${iterationCount}) on line ${lineIndex + 1} with pattern: ${pattern.description || pattern.pattern}`);
                       core.warning(`Line content (truncated): ${truncateString(line, 200)}`);
                     }
                     if (iterationCount > MAX_ITERATIONS_PER_LINE) {
@@ -7073,15 +6313,7 @@ jobs:
               parts.push(`run: ${runUrl}`);
               return `<!-- ${parts.join(", ")} -->`;
             }
-            function generateFooter(
-              workflowName,
-              runUrl,
-              workflowSource,
-              workflowSourceURL,
-              triggeringIssueNumber,
-              triggeringPRNumber,
-              triggeringDiscussionNumber
-            ) {
+            function generateFooter(workflowName, runUrl, workflowSource, workflowSourceURL, triggeringIssueNumber, triggeringPRNumber, triggeringDiscussionNumber) {
               let footer = `\n\n> AI generated by [${workflowName}](${runUrl})`;
               if (triggeringIssueNumber) {
                 footer += ` for #${triggeringIssueNumber}`;
@@ -7120,9 +6352,7 @@ jobs:
             function buildRunUrl() {
               const runId = context.runId;
               const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
-              return context.payload.repository
-                ? `${context.payload.repository.html_url}/actions/runs/${runId}`
-                : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
+              return context.payload.repository ? `${context.payload.repository.html_url}/actions/runs/${runId}` : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
             }
             function buildCommentBody(body, triggeringIssueNumber, triggeringPRNumber) {
               const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
@@ -7131,15 +6361,7 @@ jobs:
               const runUrl = buildRunUrl();
               let commentBody = body.trim();
               commentBody += getTrackerID("markdown");
-              commentBody += generateFooter(
-                workflowName,
-                runUrl,
-                workflowSource,
-                workflowSourceURL,
-                triggeringIssueNumber,
-                triggeringPRNumber,
-                undefined
-              );
+              commentBody += generateFooter(workflowName, runUrl, workflowSource, workflowSourceURL, triggeringIssueNumber, triggeringPRNumber, undefined);
               return commentBody;
             }
             function checkLabelFilter(entityLabels, requiredLabels) {
@@ -7600,9 +6822,7 @@ jobs:
               core.setOutput("total_count", missingTools.length.toString());
               if (missingTools.length > 0) {
                 core.info("Missing tools summary:");
-                core.summary
-                  .addHeading("Missing Tools Report", 3)
-                  .addRaw(`Found **${missingTools.length}** missing tool${missingTools.length > 1 ? "s" : ""} in this workflow execution.\n\n`);
+                core.summary.addHeading("Missing Tools Report", 3).addRaw(`Found **${missingTools.length}** missing tool${missingTools.length > 1 ? "s" : ""} in this workflow execution.\n\n`);
                 missingTools.forEach((tool, index) => {
                   core.info(`${index + 1}. Tool: ${tool.tool}`);
                   core.info(`   Reason: ${tool.reason}`);
@@ -7736,9 +6956,7 @@ jobs:
               const messages = getMessages();
               const templateContext = toSnakeCase(ctx);
               const defaultMessage = "⚠️ Security scanning failed for [{workflow_name}]({run_url}). Review the logs for details.";
-              return messages?.detectionFailure
-                ? renderTemplate(messages.detectionFailure, templateContext)
-                : renderTemplate(defaultMessage, templateContext);
+              return messages?.detectionFailure ? renderTemplate(messages.detectionFailure, templateContext) : renderTemplate(defaultMessage, templateContext);
             }
             function collectGeneratedAssets() {
               const assets = [];
@@ -7942,10 +7160,7 @@ jobs:
               let sanitized = content.trim();
               sanitized = sanitized.replace(/\x1b\[[0-9;]*[mGKH]/g, "");
               sanitized = sanitized.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "");
-              sanitized = sanitized.replace(
-                /(^|[^\w`])@([A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?(?:\/[A-Za-z0-9._-]+)?)/g,
-                (_m, p1, p2) => `${p1}\`@${p2}\``
-              );
+              sanitized = sanitized.replace(/(^|[^\w`])@([A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?(?:\/[A-Za-z0-9._-]+)?)/g, (_m, p1, p2) => `${p1}\`@${p2}\``);
               sanitized = sanitized.replace(/[<>&'"]/g, "");
               return sanitized.trim();
             }
@@ -8032,15 +7247,7 @@ jobs:
               parts.push(`run: ${runUrl}`);
               return `<!-- ${parts.join(", ")} -->`;
             }
-            function generateFooter(
-              workflowName,
-              runUrl,
-              workflowSource,
-              workflowSourceURL,
-              triggeringIssueNumber,
-              triggeringPRNumber,
-              triggeringDiscussionNumber
-            ) {
+            function generateFooter(workflowName, runUrl, workflowSource, workflowSourceURL, triggeringIssueNumber, triggeringPRNumber, triggeringDiscussionNumber) {
               let footer = `\n\n> AI generated by [${workflowName}](${runUrl})`;
               if (triggeringIssueNumber) {
                 footer += ` for #${triggeringIssueNumber}`;
@@ -8272,10 +7479,8 @@ jobs:
               }
               const parentIssueNumber = context.payload?.issue?.number;
               const temporaryIdMap = new Map();
-              const triggeringIssueNumber =
-                context.payload?.issue?.number && !context.payload?.issue?.pull_request ? context.payload.issue.number : undefined;
-              const triggeringPRNumber =
-                context.payload?.pull_request?.number || (context.payload?.issue?.pull_request ? context.payload.issue.number : undefined);
+              const triggeringIssueNumber = context.payload?.issue?.number && !context.payload?.issue?.pull_request ? context.payload.issue.number : undefined;
+              const triggeringPRNumber = context.payload?.pull_request?.number || (context.payload?.issue?.pull_request ? context.payload.issue.number : undefined);
               const triggeringDiscussionNumber = context.payload?.discussion?.number;
               const labelsEnv = process.env.GH_AW_ISSUE_LABELS;
               let envLabels = labelsEnv
@@ -8299,9 +7504,7 @@ jobs:
                   continue;
                 }
                 const temporaryId = createIssueItem.temporary_id || generateTemporaryId();
-                core.info(
-                  `Processing create-issue item ${i + 1}/${createIssueItems.length}: title=${createIssueItem.title}, bodyLength=${createIssueItem.body.length}, temporaryId=${temporaryId}, repo=${itemRepo}`
-                );
+                core.info(`Processing create-issue item ${i + 1}/${createIssueItems.length}: title=${createIssueItem.title}, bodyLength=${createIssueItem.body.length}, temporaryId=${temporaryId}, repo=${itemRepo}`);
                 core.info(`Debug: createIssueItem.parent = ${JSON.stringify(createIssueItem.parent)}`);
                 core.info(`Debug: parentIssueNumber from context = ${JSON.stringify(parentIssueNumber)}`);
                 let effectiveParentIssueNumber;
@@ -8314,9 +7517,7 @@ jobs:
                       effectiveParentRepo = resolvedParent.repo;
                       core.info(`Resolved parent temporary ID '${createIssueItem.parent}' to ${effectiveParentRepo}#${effectiveParentIssueNumber}`);
                     } else {
-                      core.warning(
-                        `Parent temporary ID '${createIssueItem.parent}' not found in map. Ensure parent issue is created before sub-issues.`
-                      );
+                      core.warning(`Parent temporary ID '${createIssueItem.parent}' not found in map. Ensure parent issue is created before sub-issues.`);
                       effectiveParentIssueNumber = undefined;
                     }
                   } else {
@@ -8332,9 +7533,7 @@ jobs:
                     effectiveParentIssueNumber = parentIssueNumber;
                   }
                 }
-                core.info(
-                  `Debug: effectiveParentIssueNumber = ${JSON.stringify(effectiveParentIssueNumber)}, effectiveParentRepo = ${effectiveParentRepo}`
-                );
+                core.info(`Debug: effectiveParentIssueNumber = ${JSON.stringify(effectiveParentIssueNumber)}, effectiveParentRepo = ${effectiveParentRepo}`);
                 if (effectiveParentIssueNumber && createIssueItem.parent !== undefined) {
                   core.info(`Using explicit parent issue number from item: ${effectiveParentRepo}#${effectiveParentIssueNumber}`);
                 }
@@ -8374,28 +7573,13 @@ jobs:
                 const workflowSourceURL = process.env.GH_AW_WORKFLOW_SOURCE_URL || "";
                 const runId = context.runId;
                 const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
-                const runUrl = context.payload.repository
-                  ? `${context.payload.repository.html_url}/actions/runs/${runId}`
-                  : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
+                const runUrl = context.payload.repository ? `${context.payload.repository.html_url}/actions/runs/${runId}` : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
                 const trackerIDComment = getTrackerID("markdown");
                 if (trackerIDComment) {
                   bodyLines.push(trackerIDComment);
                 }
                 addExpirationComment(bodyLines, "GH_AW_ISSUE_EXPIRES", "Issue");
-                bodyLines.push(
-                  ``,
-                  ``,
-                  generateFooter(
-                    workflowName,
-                    runUrl,
-                    workflowSource,
-                    workflowSourceURL,
-                    triggeringIssueNumber,
-                    triggeringPRNumber,
-                    triggeringDiscussionNumber
-                  ).trimEnd(),
-                  ""
-                );
+                bodyLines.push(``, ``, generateFooter(workflowName, runUrl, workflowSource, workflowSourceURL, triggeringIssueNumber, triggeringPRNumber, triggeringDiscussionNumber).trimEnd(), "");
                 const body = bodyLines.join("\n").trim();
                 core.info(`Creating issue in ${itemRepo} with title: ${title}`);
                 core.info(`Labels: ${labels}`);
@@ -8473,9 +7657,7 @@ jobs:
                         });
                         core.info("✓ Added comment to parent issue #" + effectiveParentIssueNumber + " (sub-issue linking not available)");
                       } catch (commentError) {
-                        core.info(
-                          `Warning: Could not add comment to parent issue: ${commentError instanceof Error ? commentError.message : String(commentError)}`
-                        );
+                        core.info(`Warning: Could not add comment to parent issue: ${commentError instanceof Error ? commentError.message : String(commentError)}`);
                       }
                     }
                   } else if (effectiveParentIssueNumber && effectiveParentRepo !== itemRepo) {

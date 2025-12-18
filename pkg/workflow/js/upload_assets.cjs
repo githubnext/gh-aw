@@ -175,10 +175,7 @@ async function main() {
         core.summary.addRaw("## Staged Asset Publication");
       } else {
         await exec.exec(`git push origin ${normalizedBranchName}`);
-        core.summary
-          .addRaw("## Assets")
-          .addRaw(`Successfully uploaded **${uploadCount}** assets to branch \`${normalizedBranchName}\``)
-          .addRaw("");
+        core.summary.addRaw("## Assets").addRaw(`Successfully uploaded **${uploadCount}** assets to branch \`${normalizedBranchName}\``).addRaw("");
         core.info(`Successfully uploaded ${uploadCount} assets to branch ${normalizedBranchName}`);
       }
 

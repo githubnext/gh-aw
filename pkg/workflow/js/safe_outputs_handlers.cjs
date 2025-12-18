@@ -98,10 +98,7 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     const isInTmp = absolutePath.startsWith(tmpDir);
 
     if (!isInWorkspace && !isInTmp) {
-      throw new Error(
-        `File path must be within workspace directory (${workspaceDir}) or /tmp directory. ` +
-          `Provided path: ${filePath} (resolved to: ${absolutePath})`
-      );
+      throw new Error(`File path must be within workspace directory (${workspaceDir}) or /tmp directory. ` + `Provided path: ${filePath} (resolved to: ${absolutePath})`);
     }
 
     // Validate file exists

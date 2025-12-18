@@ -45,9 +45,7 @@ async function main() {
     core.info(`Search found ${totalCount} matching items`);
 
     if (totalCount >= maxMatches) {
-      core.warning(
-        `🔍 Skip condition matched (${totalCount} items found, threshold: ${maxMatches}). Workflow execution will be prevented by activation job.`
-      );
+      core.warning(`🔍 Skip condition matched (${totalCount} items found, threshold: ${maxMatches}). Workflow execution will be prevented by activation job.`);
       core.setOutput("skip_check_ok", "false");
       return;
     }
