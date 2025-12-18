@@ -91,3 +91,45 @@ func TestBuildOrchestrator_CompletionInstructions(t *testing.T) {
 		t.Errorf("expected markdown to NOT contain 'highlight blockers', but it does: %q", data.MarkdownContent)
 	}
 }
+
+func TestBuildOrchestrator_TrackerIDMonitoring(t *testing.T) {
+	spec := &CampaignSpec{
+		ID:           "test-campaign",
+		Name:         "Test Campaign",
+		Description:  "A test campaign",
+		ProjectURL:   "https://github.com/orgs/test/projects/1",
+		Workflows:    []string{"daily-file-diet"},
+		TrackerLabel: "campaign:test",
+	}
+
+	mdPath := ".github/workflows/test-campaign.campaign.md"
+	data, _ := BuildOrchestrator(spec, mdPath)
+
+	if data == nil {
+		t.Fatalf("expected non-nil WorkflowData")
+	}
+
+	// Verify that the orchestrator uses tracker-id for monitoring
+	if !strings.Contains(data.MarkdownContent, "tracker-id") {
+		t.Errorf("expected markdown to mention tracker-id for worker monitoring, got: %q", data.MarkdownContent)
+	}
+
+	// Verify that it searches for issues containing tracker-id
+	if !strings.Contains(data.MarkdownContent, "<!-- tracker-id:") {
+		t.Errorf("expected markdown to mention searching for tracker-id HTML comments, got: %q", data.MarkdownContent)
+	}
+
+	// Verify that orchestrator does NOT monitor workflow runs by file name
+	if strings.Contains(data.MarkdownContent, "list_workflow_runs") {
+		t.Errorf("expected markdown to NOT use list_workflow_runs for monitoring, but it does: %q", data.MarkdownContent)
+	}
+
+	if strings.Contains(data.MarkdownContent, ".lock.yml") {
+		t.Errorf("expected markdown to NOT reference .lock.yml files for monitoring, but it does: %q", data.MarkdownContent)
+	}
+
+	// Verify that it uses github-search_issues
+	if !strings.Contains(data.MarkdownContent, "github-search_issues") {
+		t.Errorf("expected markdown to use github-search_issues for discovering worker output, got: %q", data.MarkdownContent)
+	}
+}
