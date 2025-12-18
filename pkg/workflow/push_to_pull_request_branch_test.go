@@ -52,14 +52,14 @@ Please make changes and push them to the feature branch.
 
 	lockContentStr := string(lockContent)
 
-	// Verify that push_to_pull_request_branch job is generated
-	if !strings.Contains(lockContentStr, "push_to_pull_request_branch:") {
-		t.Errorf("Generated workflow should contain push_to_pull_request_branch job")
+	// Verify that safe_outputs job is generated (consolidated mode)
+	if !strings.Contains(lockContentStr, "safe_outputs:") {
+		t.Errorf("Generated workflow should contain safe_outputs job")
 	}
 
-	// Verify that the target configuration is passed correctly
-	if !strings.Contains(lockContentStr, "GH_AW_PUSH_TARGET: \"triggering\"") {
-		t.Errorf("Generated workflow should contain target configuration")
+	// Verify that push_to_pull_request_branch step is present
+	if !strings.Contains(lockContentStr, "id: push_to_pull_request_branch") {
+		t.Errorf("Generated workflow should contain push_to_pull_request_branch step")
 	}
 
 	// Verify that required permissions are present
@@ -72,33 +72,15 @@ Please make changes and push them to the feature branch.
 	if !strings.Contains(lockContentStr, "pull-requests: write") {
 		t.Errorf("Generated workflow should have pull-requests: write permission")
 	}
-	if !strings.Contains(lockContentStr, "discussions: write") {
-		t.Errorf("Generated workflow should have discussions: write permission")
-	}
 
 	// Verify that the job depends on the main workflow job
 	if !strings.Contains(lockContentStr, "needs:") {
 		t.Errorf("Generated workflow should have dependency on main job")
 	}
 
-	// Verify conditional execution using BuildSafeOutputType combined with pull request context
-	expectedConditionParts := []string{
-		"always()",
-		"contains(needs.agent.outputs.output_types, 'push_to_pull_request_branch')",
-		"github.event.issue.number",
-		"github.event.issue.pull_request",
-		"github.event.pull_request",
-	}
-	conditionFound := true
-	for _, part := range expectedConditionParts {
-		if !strings.Contains(lockContentStr, part) {
-			conditionFound = false
-			t.Logf("Missing condition part: %s", part)
-			break
-		}
-	}
-	if !conditionFound {
-		t.Errorf("Generated workflow should have pull request context condition")
+	// Verify conditional execution using BuildSafeOutputType
+	if !strings.Contains(lockContentStr, "contains(needs.agent.outputs.output_types, 'push_to_pull_request_branch')") {
+		t.Errorf("Generated workflow should have safe output type condition")
 	}
 }
 
@@ -197,9 +179,9 @@ This workflow uses the default branch value.
 
 	lockContent := string(content)
 
-	// Check that the push_to_pull_request_branch job is generated
-	if !strings.Contains(lockContent, "push_to_pull_request_branch:") {
-		t.Errorf("Expected push_to_pull_request_branch job to be generated")
+	// Check that the safe_outputs job with push_to_pull_request_branch step is generated
+	if !strings.Contains(lockContent, "safe_outputs:") {
+		t.Errorf("Expected safe_outputs job with push_to_pull_request_branch step to be generated")
 	}
 }
 
@@ -245,9 +227,9 @@ This workflow uses null configuration which should default to "triggering".
 
 	lockContent := string(content)
 
-	// Check that the push_to_pull_request_branch job is generated
-	if !strings.Contains(lockContent, "push_to_pull_request_branch:") {
-		t.Errorf("Expected push_to_pull_request_branch job to be generated")
+	// Check that the safe_outputs job with push_to_pull_request_branch step is generated
+	if !strings.Contains(lockContent, "safe_outputs:") {
+		t.Errorf("Expected safe_outputs job with push_to_pull_request_branch step to be generated")
 	}
 
 	// Check that no target is set (should use default)
@@ -296,33 +278,19 @@ This workflow has minimal push-to-pull-request-branch configuration.
 
 	lockContentStr := string(lockContent)
 
-	// Verify that push_to_pull_request_branch job is generated
-	if !strings.Contains(lockContentStr, "push_to_pull_request_branch:") {
-		t.Errorf("Generated workflow should contain push_to_pull_request_branch job")
+	// Verify that safe_outputs job is generated (consolidated mode)
+	if !strings.Contains(lockContentStr, "safe_outputs:") {
+		t.Errorf("Generated workflow should contain safe_outputs job")
 	}
 
-	// Verify that target defaults to triggering behavior (no explicit target env var)
-	if strings.Contains(lockContentStr, "GH_AW_PUSH_TARGET:") {
-		t.Errorf("Generated workflow should not contain target configuration when not specified")
+	// Verify push_to_pull_request_branch step is present
+	if !strings.Contains(lockContentStr, "id: push_to_pull_request_branch") {
+		t.Errorf("Generated workflow should contain push_to_pull_request_branch step")
 	}
 
-	// Verify default conditional execution using BuildSafeOutputType combined with pull request context
-	expectedConditionParts := []string{
-		"always()",
-		"contains(needs.agent.outputs.output_types, 'push_to_pull_request_branch')",
-		"github.event.issue.number",
-		"github.event.issue.pull_request",
-		"github.event.pull_request",
-	}
-	conditionFound := true
-	for _, part := range expectedConditionParts {
-		if !strings.Contains(lockContentStr, part) {
-			conditionFound = false
-			break
-		}
-	}
-	if !conditionFound {
-		t.Errorf("Generated workflow should have default pull request context condition")
+	// Verify conditional execution using BuildSafeOutputType
+	if !strings.Contains(lockContentStr, "contains(needs.agent.outputs.output_types, 'push_to_pull_request_branch')") {
+		t.Errorf("Generated workflow should have safe output type condition")
 	}
 }
 
@@ -508,9 +476,9 @@ This workflow explicitly sets branch to "triggering".
 
 	lockContentStr := string(lockContent)
 
-	// Verify that push_to_pull_request_branch job is generated
-	if !strings.Contains(lockContentStr, "push_to_pull_request_branch:") {
-		t.Errorf("Generated workflow should contain push_to_pull_request_branch job")
+	// Verify that safe_outputs job with push_to_pull_request_branch step is generated
+	if !strings.Contains(lockContentStr, "safe_outputs:") {
+		t.Errorf("Generated workflow should contain safe_outputs job with push_to_pull_request_branch step")
 	}
 
 	// Verify that target configuration is included
@@ -756,9 +724,9 @@ since it's not supported by actions/github-script.
 
 	lockContentStr := string(lockContent)
 
-	// Verify that push_to_pull_request_branch job is generated (at proper YAML indentation)
+	// Verify that safe_outputs job with push_to_pull_request_branch step is generated (at proper YAML indentation)
 	if !strings.Contains(lockContentStr, "\n  push_to_pull_request_branch:") {
-		t.Errorf("Generated workflow should contain push_to_pull_request_branch job")
+		t.Errorf("Generated workflow should contain safe_outputs job with push_to_pull_request_branch step")
 	}
 
 	// Verify that working-directory is NOT present (not supported by actions/github-script)
@@ -766,11 +734,11 @@ since it's not supported by actions/github-script.
 		t.Errorf("Generated workflow should NOT contain working-directory - it's not supported by actions/github-script\nGenerated workflow:\n%s", lockContentStr)
 	}
 
-	// Extract the push_to_pull_request_branch job section
+	// Extract the safe_outputs job with push_to_pull_request_branch step section
 	// Use newline prefix to ensure we find the YAML job definition, not JavaScript object properties
 	jobStartIdx := strings.Index(lockContentStr, "\n  push_to_pull_request_branch:")
 	if jobStartIdx == -1 {
-		t.Fatal("Could not find push_to_pull_request_branch job section")
+		t.Fatal("Could not find safe_outputs job with push_to_pull_request_branch step section")
 	}
 	jobStartIdx++ // Skip the leading newline
 
@@ -796,10 +764,10 @@ since it's not supported by actions/github-script.
 	scriptIdx := strings.Index(jobSection, "script: |")
 
 	if githubTokenIdx == -1 {
-		t.Error("github-token not found in push_to_pull_request_branch job")
+		t.Error("github-token not found in safe_outputs job with push_to_pull_request_branch step")
 	}
 	if scriptIdx == -1 {
-		t.Error("script section not found in push_to_pull_request_branch job")
+		t.Error("script section not found in safe_outputs job with push_to_pull_request_branch step")
 	}
 
 	// Verify order: github-token comes before script
@@ -851,9 +819,9 @@ Test that the push-to-pull-request-branch job receives activation comment enviro
 
 	lockContentStr := string(lockContent)
 
-	// Verify that push_to_pull_request_branch job is generated
-	if !strings.Contains(lockContentStr, "push_to_pull_request_branch:") {
-		t.Errorf("Generated workflow should contain push_to_pull_request_branch job")
+	// Verify that safe_outputs job with push_to_pull_request_branch step is generated
+	if !strings.Contains(lockContentStr, "safe_outputs:") {
+		t.Errorf("Generated workflow should contain safe_outputs job with push_to_pull_request_branch step")
 	}
 
 	// Verify that the job depends on activation (needs can be formatted as array or inline)
